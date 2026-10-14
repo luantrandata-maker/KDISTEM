@@ -13,6 +13,11 @@ import Warranty from './pages/Warranty'
 import Assignments from './pages/Assignments'
 import Timetable from './pages/Timetable'
 import Registrations from './pages/Registrations'
+import Students from './pages/Students'
+import Buildings from './pages/Buildings'
+import Periods from './pages/Periods'
+import Roles from './pages/Roles'
+import Accounts from './pages/Accounts'
 
 const PAGES: Record<string, () => JSX.Element> = {
   'Dashboard Trường': Dashboard,
@@ -24,6 +29,11 @@ const PAGES: Record<string, () => JSX.Element> = {
   'Phân công giảng dạy': Assignments,
   'Thời khóa biểu': Timetable,
   'Duyệt đăng ký dạy STEM': Registrations,
+  'Học sinh': Students,
+  'Tòa nhà & Tầng': Buildings,
+  'Cấu hình tiết học': Periods,
+  'Vai trò và phân quyền': Roles,
+  'Tài khoản': Accounts,
 }
 
 export default function App() {

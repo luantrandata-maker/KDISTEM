@@ -34,3 +34,16 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Báo cáo & Điều hành', items: ['Báo cáo Bộ GD&ĐT', 'Điều hành & Cấu hình'] },
   ],
 }
+
+// Mục menu của vai trò Trường – Quản trị → chức năng trong ma trận phân quyền
+export const MODULE_OF: Record<string, string> = {
+  'Giáo viên': 'teachers', 'Lớp học': 'classes', 'Học sinh': 'students', 'Phân công giảng dạy': 'assignments',
+  'Quản lý Phòng STEM': 'stem_rooms', 'Quản lý Thiết bị': 'equipment', 'Bảo hành thiết bị': 'warranty',
+  'Thời khóa biểu': 'timetable', 'Duyệt đăng ký dạy STEM': 'stem_registrations', 'Tòa nhà & Tầng': 'buildings',
+  'Cấu hình tiết học': 'periods', 'Tài khoản': 'accounts', 'Vai trò và phân quyền': 'roles',
+}
+// Vai trò trong cơ sở dữ liệu → giao diện được dùng
+export const VIEW_OF_ROLE: Record<string, RoleKey> = {
+  principal: 'school_admin', it_admin: 'school_admin', office_staff: 'school_admin',
+  teacher: 'teacher', student: 'student', department: 'department',
+}

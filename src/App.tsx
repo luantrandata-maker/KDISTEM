@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
-import { NAV, ROLE_LABEL, RoleKey } from './lib/nav'
+import { NAV, ROLE_LABEL, MODULE_OF, VIEW_OF_ROLE, RoleKey } from './lib/nav'
+import { useAccess } from './lib/auth'
 import logo from './assets/kdi-logo.png'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -20,8 +21,10 @@ import Roles from './pages/Roles'
 import Accounts from './pages/Accounts'
 import { Packages, EduPlan, StemTeachers, Curriculum, SchoolProfile } from './pages/School'
 import { TrainingPlans, TrainingSchedule, TrainingLessons, VirtualClass, Certificates } from './pages/Training'
+import { TeacherHome, TeacherSchedule, TeacherClasses, TeacherBooking } from './pages/TeacherPortal'
 
-const PAGES: Record<string, (props: any) => JSX.Element> = {
+type PageMap = Record<string, (props: any) => JSX.Element>
+const SCHOOL: PageMap = {
   'Dashboard Trường': Dashboard,
   'Giáo viên': Teachers,
   'Lớp học': Classes,
@@ -47,36 +50,75 @@ const PAGES: Record<string, (props: any) => JSX.Element> = {
   'Lớp học ảo': VirtualClass,
   'Chứng chỉ': Certificates,
 }
+const TEACHER: PageMap = {
+  'Tổng quan': TeacherHome,
+  'Kế hoạch giáo dục': TeacherSchedule,
+  'Lớp giảng dạy': TeacherClasses,
+  'Đặt phòng STEM': TeacherBooking,
+}
+const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER }
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
-  const [role, setRole] = useState<RoleKey>('school_admin')
-  const [page, setPage] = useState(NAV.school_admin[0].items[0])
-  const [collapsed, setCollapsed] = useState(false)
-
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
     const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
     return () => data.subscription.unsubscribe()
   }, [])
-
   if (session === undefined) return null
   if (!session) return <Login />
+  return <Shell session={session} />
+}
+
+function Shell({ session }: { session: Session }) {
+  const access = useAccess(session)
+  const [role, setRole] = useState<RoleKey | null>(null)
+  const [page, setPage] = useState('')
+  const [collapsed, setCollapsed] = useState(false)
+  const [teachers, setTeachers] = useState<{ id: string; full_name: string; profile_id: string | null }[]>([])
+  const [actingTeacher, setActingTeacher] = useState<string | null>(null)
+
+  const views: RoleKey[] = access.isAdmin
+    ? ['school_admin', 'teacher', 'student', 'department']
+    : [...new Set(access.roleKeys.map(k => VIEW_OF_ROLE[k]).filter(Boolean))] as RoleKey[]
+
+  useEffect(() => {
+    if (!access.loading && !role && views.length) { setRole(views[0]); setPage(NAV[views[0]][0].items[0]) }
+  }, [access.loading, views.length])
+
+  useEffect(() => {
+    if (access.profile?.org_id) supabase.from('teachers').select('id, full_name, profile_id').order('full_name').then(({ data }) => setTeachers(data ?? []))
+  }, [access.profile?.org_id])
+
+  if (access.loading) return null
+  if (!access.profile?.org_id || views.length === 0) {
+    return (
+      <div className="login"><form onSubmit={e => e.preventDefault()}>
+        <img src={logo} alt="KDI education" /><h1>Đang chờ cấp quyền</h1>
+        <p>Tài khoản <b>{session.user.email}</b> chưa được gán vào trường hoặc chưa có vai trò. Hãy nhờ quản trị trường gán trong mục Tài khoản.</p>
+        <button type="button" onClick={() => supabase.auth.signOut()}>Đăng xuất</button>
+      </form></div>
+    )
+  }
+  if (!role) return null
 
   const changeRole = (r: RoleKey) => { setRole(r); setPage(NAV[r][0].items[0]) }
-  const Page = PAGES[page]
+  const myTeacher = teachers.find(t => t.profile_id === session.user.id)?.id ?? null
+  const teacherId = role === 'teacher' ? (access.isAdmin ? actingTeacher ?? teachers[0]?.id ?? null : myTeacher) : null
 
+  const groups = NAV[role]
+    .map(g => ({ ...g, items: g.items.filter(i => role !== 'school_admin' || !MODULE_OF[i] || access.canView(MODULE_OF[i])) }))
+    .filter(g => g.items.length)
+  const Page = PAGES[role]?.[page]
   const email = session.user.email ?? ''
 
   return (
     <div className={'app' + (collapsed ? ' collapsed' : '')}>
       <nav className="side" aria-label="Menu chính">
-        {NAV[role].map(g => (
+        {groups.map(g => (
           <div key={g.title}>
             <h4>{g.title}</h4>
-            {g.items.map(i => (
-              <button key={i} className={i === page ? 'on' : ''} onClick={() => setPage(i)}>{i}</button>
-            ))}
+            {g.items.map(i => <button key={i} className={i === page ? 'on' : ''} onClick={() => setPage(i)}>{i}</button>)}
           </div>
         ))}
       </nav>
@@ -86,16 +128,23 @@ export default function App() {
           <img src={logo} alt="KDI education" />
           <span className="title">Hệ thống Quản trị STEM</span>
           <div className="user">
-            <select value={role} onChange={e => changeRole(e.target.value as RoleKey)} aria-label="Vai trò (demo)">
-              {(Object.keys(ROLE_LABEL) as RoleKey[]).map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
-            </select>
+            {access.isAdmin && role === 'teacher' && (
+              <select value={teacherId ?? ''} onChange={e => setActingTeacher(e.target.value)} aria-label="Xem với tư cách giáo viên">
+                {teachers.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+              </select>
+            )}
+            {views.length > 1 && (
+              <select value={role} onChange={e => changeRole(e.target.value as RoleKey)} aria-label="Chế độ xem">
+                {views.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
+              </select>
+            )}
             <span className="avatar">{email.charAt(0).toUpperCase()}</span>
             <button onClick={() => supabase.auth.signOut()}>Đăng xuất</button>
           </div>
         </header>
         <main className="main">
           <h1>{page}</h1>
-          {Page ? <Page /> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
+          {Page ? <Page teacherId={teacherId} orgId={access.profile.org_id} /> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
         </main>
       </div>
     </div>

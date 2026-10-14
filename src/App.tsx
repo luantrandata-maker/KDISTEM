@@ -18,8 +18,10 @@ import Buildings from './pages/Buildings'
 import Periods from './pages/Periods'
 import Roles from './pages/Roles'
 import Accounts from './pages/Accounts'
+import { Packages, EduPlan, StemTeachers, Curriculum, SchoolProfile } from './pages/School'
+import { TrainingPlans, TrainingSchedule, TrainingLessons, VirtualClass, Certificates } from './pages/Training'
 
-const PAGES: Record<string, () => JSX.Element> = {
+const PAGES: Record<string, (props: any) => JSX.Element> = {
   'Dashboard Trường': Dashboard,
   'Giáo viên': Teachers,
   'Lớp học': Classes,
@@ -34,6 +36,16 @@ const PAGES: Record<string, () => JSX.Element> = {
   'Cấu hình tiết học': Periods,
   'Vai trò và phân quyền': Roles,
   'Tài khoản': Accounts,
+  'Gói STEM': Packages,
+  'Kế hoạch GD toàn trường': EduPlan,
+  'Phân công GV dạy STEM': StemTeachers,
+  'Phân phối chương trình': Curriculum,
+  'Hồ sơ Trường học': SchoolProfile,
+  'Kế hoạch tập huấn': TrainingPlans,
+  'Lịch tập huấn': TrainingSchedule,
+  'Bài giảng': TrainingLessons,
+  'Lớp học ảo': VirtualClass,
+  'Chứng chỉ': Certificates,
 }
 
 export default function App() {

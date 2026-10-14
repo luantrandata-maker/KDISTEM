@@ -8,7 +8,7 @@ Giai đoạn 1–2: nền tảng + vận hành trường. React + TypeScript + V
 3. Đăng ký tài khoản đầu tiên: tài khoản này tự trở thành quản trị Trường THCS Phố Hiến (chỉ cho demo).
 
 ## Cơ sở dữ liệu
-Chạy lần lượt các file trong `supabase/migrations/` (001 schema, 002 dữ liệu mẫu, 003 trigger demo).
+Chạy lần lượt các file trong `supabase/migrations/` theo số thứ tự (001 schema, 002 dữ liệu mẫu, 003 trigger demo, 004 thời khóa biểu và đăng ký STEM, 005 học sinh và phân quyền, 006 gói STEM/tập huấn/PPCT, 007 ticket bảo hành mẫu). Các file dữ liệu mẫu chỉ chạy khi chưa có dữ liệu.
 
 ## Triển khai Cloudflare (Workers Builds, kết nối GitHub)
 - Build command: `npm run build`

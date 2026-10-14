@@ -10,9 +10,9 @@ Giai đoạn 1–2: nền tảng + vận hành trường. React + TypeScript + V
 ## Cơ sở dữ liệu
 Chạy lần lượt các file trong `supabase/migrations/` (001 schema, 002 dữ liệu mẫu, 003 trigger demo).
 
-## Triển khai Cloudflare Pages
-1. Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect to Git, chọn repo này.
-2. Build command: `npm run build` · Build output directory: `dist`
-3. Environment variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (giá trị như trong `.env.example`).
-4. File `public/_redirects` đã có sẵn để các đường dẫn con luôn trả về `index.html`.
-5. Trong Supabase → Authentication → URL Configuration, thêm địa chỉ `*.pages.dev` (hoặc tên miền riêng) vào Site URL / Redirect URLs.
+## Triển khai Cloudflare (Workers Builds, kết nối GitHub)
+- Build command: `npm run build`
+- Deploy command: `npx wrangler deploy` (đọc cấu hình trong `wrangler.jsonc`; tên Worker phải trùng tên project trên Cloudflare)
+- Biến môi trường (đặt trước khi build): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (giá trị như `.env.example`)
+- Sau khi có địa chỉ `*.workers.dev`, thêm vào Supabase → Authentication → URL Configuration (Site URL / Redirect URLs).
+- Không dùng file `_redirects` cho kiểu này: quy tắc `/* /index.html 200` bị Cloudflare từ chối vì lặp vô hạn. Việc trả về `index.html` cho đường dẫn con đã do `not_found_handling` trong `wrangler.jsonc` đảm nhiệm.

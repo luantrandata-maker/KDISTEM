@@ -29,6 +29,24 @@ export default function Students() {
     if (error) return setErr(error.message)
     setForm(null); setErr(''); load()
   }
+  async function importCsv(file: File) {
+    const text = (await file.text()).replace(/^\ufeff/, '')
+    const byName = new Map(classes.map(c => [c.name.trim().toLowerCase(), c.id]))
+    const org = await myOrgId()
+    const list: { org_id: string; student_code: string | null; full_name: string; class_id: string | null }[] = []
+    const bad: string[] = []
+    text.split(/\r?\n/).slice(1).forEach((line, i) => {
+      if (!line.trim()) return
+      const [code, name, cname] = line.split(/[,;\t]/).map(x => x.replace(/^"|"$/g, '').trim())
+      const cid = byName.get((cname ?? '').toLowerCase())
+      if (!name) return void bad.push(`dòng ${i + 2}: thiếu họ tên`)
+      if (!cid) return void bad.push(`dòng ${i + 2}: không tìm thấy lớp "${cname}"`)
+      list.push({ org_id: org, student_code: code || null, full_name: name, class_id: cid })
+    })
+    if (list.length) { const { error } = await supabase.from('students').insert(list); if (error) return setErr(error.message) }
+    setErr(`Đã nhập ${list.length} học sinh.` + (bad.length ? ` Bỏ qua ${bad.length} dòng lỗi: ${bad.slice(0, 3).join('; ')}${bad.length > 3 ? '…' : ''}` : ''))
+    load()
+  }
   async function remove(s: St) {
     if (!confirm(`Xoá học sinh ${s.full_name}?`)) return
     await supabase.from('students').delete().eq('id', s.id); load()
@@ -45,8 +63,12 @@ export default function Students() {
             <option value="">Tất cả lớp</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
-        <button className="primary" onClick={() => setForm({ full_name: '', student_code: '', class_id: classes[0]?.id ?? '' })}>Thêm học sinh</button>
+        <div className="tools">
+          <label className="filebtn">Nhập từ CSV<input type="file" accept=".csv,text/csv" hidden onChange={e => { const f = e.target.files?.[0]; if (f) importCsv(f); e.target.value = '' }} /></label>
+          <button className="primary" onClick={() => setForm({ full_name: '', student_code: '', class_id: classes[0]?.id ?? '' })}>Thêm học sinh</button>
+        </div>
       </div>
+      {err && !form && <p className="sub">{err} <small>Định dạng: Mã học sinh, Họ tên, Tên lớp (dòng đầu là tiêu đề). Xuất file Excel sang CSV rồi nhập.</small></p>}
       <p className="sub">{shown.length} / {rows.length} học sinh</p>
       {form && (
         <form className="panel formgrid" onSubmit={add}>

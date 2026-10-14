@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { myOrgId } from '../lib/org'
 
-type Ticket = { id: string; code: string | null; description: string | null; status: string; created_at: string; equipment_units: { serial: string | null; equipment_types: { name: string } | null } | null }
+type Ticket = { id: string; unit_id: string | null; code: string | null; description: string | null; status: string; created_at: string; equipment_units: { serial: string | null; equipment_types: { name: string } | null } | null }
 type Unit = { id: string; serial: string | null; equipment_types: { name: string } | null }
 const STATUS: Record<string, string> = { new: 'Mới', accepted: 'Đã tiếp nhận', processing: 'Đang xử lý', resolved: 'Đã xử lý', rejected: 'Từ chối', closed: 'Đóng' }
 
@@ -15,7 +15,7 @@ export default function Warranty() {
   async function load() {
     const [t, u] = await Promise.all([
       supabase.from('warranty_tickets')
-        .select('id, code, description, status, created_at, equipment_units(serial, equipment_types(name))')
+        .select('id, unit_id, code, description, status, created_at, equipment_units(serial, equipment_types(name))')
         .order('created_at', { ascending: false }),
       supabase.from('equipment_units').select('id, serial, equipment_types(name)').order('serial'),
     ])
@@ -23,6 +23,13 @@ export default function Warranty() {
     setUnits((u.data as unknown as Unit[]) ?? [])
   }
   useEffect(() => { load() }, [])
+
+  async function setStatus(t: Ticket, status: string) {
+    await supabase.from('warranty_tickets').update({ status }).eq('id', t.id)
+    if (t.unit_id && status === 'resolved') await supabase.from('equipment_units').update({ status: 'available' }).eq('id', t.unit_id)
+    if (t.unit_id && status === 'processing') await supabase.from('equipment_units').update({ status: 'maintenance' }).eq('id', t.unit_id)
+    load()
+  }
 
   async function create(e: React.FormEvent) {
     e.preventDefault()
@@ -62,7 +69,7 @@ export default function Warranty() {
               <td>{t.equipment_units?.equipment_types?.name}<br /><small>{t.equipment_units?.serial}</small></td>
               <td>{t.description}</td>
               <td>{new Date(t.created_at).toLocaleDateString('vi-VN')}</td>
-              <td>{STATUS[t.status] ?? t.status}</td>
+              <td><select value={t.status} onChange={e => setStatus(t, e.target.value)}>{Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></td>
             </tr>
           ))}
           {rows.length === 0 && <tr><td colSpan={5}>Chưa có ticket bảo hành nào.</td></tr>}

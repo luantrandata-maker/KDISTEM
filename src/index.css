@@ -72,3 +72,15 @@ small{color:var(--muted)}
   .app{grid-template-columns:1fr}.side{position:static;height:auto;max-height:260px}
   .main{padding:20px 16px}.top .title{display:none}
 }
+
+/* Phân công, thời khóa biểu, duyệt đăng ký */
+.warnbox{background:#fff7ec;border-color:var(--orange);color:#7a4a05}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--soft);border-radius:999px;padding:3px 6px 3px 12px;margin:2px 6px 2px 0;font-size:13px}
+.main button.x{border:0;background:none;padding:0 6px;border-radius:50%;color:var(--muted);font-size:16px;line-height:1.2}
+.tkb th,.tkb td{white-space:normal;min-width:120px}.tkb td:first-child,.tkb th:first-child{min-width:90px}
+.tkb .break{background:var(--soft);color:var(--muted);text-align:center;font-size:12px;padding:6px}
+.slot{background:var(--soft);border-radius:8px;padding:6px 8px}.slot.stem{background:#e6f1fd;border-left:3px solid var(--accent)}
+.badge{margin-left:6px;background:var(--accent);color:#fff;border-radius:6px;padding:0 6px;font-size:11px}
+.reggrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.regcard{display:grid;gap:6px;margin:0}.regcard.conflict{border-color:var(--bad)}
+.warnline{color:var(--bad);font-size:13px;font-weight:600}.actions{display:flex;gap:8px;margin-top:6px}

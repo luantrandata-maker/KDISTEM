@@ -10,6 +10,9 @@ import Classes from './pages/Classes'
 import Rooms from './pages/Rooms'
 import Equipment from './pages/Equipment'
 import Warranty from './pages/Warranty'
+import Assignments from './pages/Assignments'
+import Timetable from './pages/Timetable'
+import Registrations from './pages/Registrations'
 
 const PAGES: Record<string, () => JSX.Element> = {
   'Dashboard Trường': Dashboard,
@@ -18,6 +21,9 @@ const PAGES: Record<string, () => JSX.Element> = {
   'Quản lý Phòng STEM': Rooms,
   'Quản lý Thiết bị': Equipment,
   'Bảo hành thiết bị': Warranty,
+  'Phân công giảng dạy': Assignments,
+  'Thời khóa biểu': Timetable,
+  'Duyệt đăng ký dạy STEM': Registrations,
 }
 
 export default function App() {

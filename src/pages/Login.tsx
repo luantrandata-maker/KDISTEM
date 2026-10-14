@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import logo from '../assets/kdi-logo.png'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -20,7 +21,8 @@ export default function Login() {
   return (
     <div className="login">
       <form onSubmit={submit}>
-        <h1>Quản trị STEM</h1>
+        <img src={logo} alt="KDI education" />
+        <h1>Hệ thống Quản trị STEM</h1>
         <p>{mode === 'in' ? 'Đăng nhập vào tài khoản của bạn' : 'Tạo tài khoản'}</p>
         <input type="email" required placeholder="Địa chỉ email" value={email} onChange={e => setEmail(e.target.value)} />
         <input type="password" required minLength={6} placeholder="Mật khẩu" value={password} onChange={e => setPassword(e.target.value)} />

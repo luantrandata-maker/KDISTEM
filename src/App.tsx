@@ -52,6 +52,9 @@ const PlatformOrgs = lazy(() => import('./pages/platform/Orgs').then(m => ({ def
 const PlatformUsers = lazy(() => import('./pages/platform/Users').then(m => ({ default: m.PlatformUsers })))
 const PlatformInvites = lazy(() => import('./pages/platform/Users').then(m => ({ default: m.PlatformInvites })))
 const PlatformAudit = lazy(() => import('./pages/platform/Audit').then(m => ({ default: m.PlatformAudit })))
+// Khung giao diện cho phân hệ chưa build + Sơ đồ hệ thống
+const PlannedPage = lazy(() => import('./pages/platform/Planned').then(m => ({ default: m.PlannedPage })))
+const SystemMap = lazy(() => import('./pages/platform/Planned').then(m => ({ default: m.SystemMap })))
 
 type PageMap = Record<string, ComponentType<any>>
 const SCHOOL: PageMap = {
@@ -122,14 +125,34 @@ const DEPARTMENT: PageMap = {
   'Phát hành học liệu': LibraryManage,
   'Kho học liệu dùng chung': LibraryBrowse,
 }
+// Cổng Quản trị nền tảng: chỉ nối các trang đọc được dữ liệu toàn hệ thống (trang nền tảng, trang cấp Sở, học liệu, phê duyệt, tập huấn).
+// Mục menu không có ở đây hiện khung giao diện (PlannedPage); build xong phân hệ nào thì thêm trang vào đây.
 const PLATFORM: PageMap = {
   'Tổng quan hệ thống': PlatformOverview,
+  'Nhật ký hệ thống': PlatformAudit,
+  'Cấu hình chung (năm học)': DeptAdmin,
   'Cây tổ chức': PlatformOrgs,
   'Người dùng & vai trò': PlatformUsers,
   'Lời mời': PlatformInvites,
-  'Nhật ký hệ thống': PlatformAudit,
   'Phát hành học liệu': LibraryManage,
+  'Kho học liệu dùng chung': LibraryBrowse,
+  'Theo dõi chương trình CT1–CT5': DeptPrograms,
+  'Theo dõi môn học STEM': DeptSubjects,
+  'Cơ sở giáo dục': DeptSchools,
+  'Hiệu quả phòng STEM': DeptRoomEffect,
+  'Báo cáo vận hành': DeptDashboard,
+  'KPI & xếp hạng': DeptWardKpi,
+  'Báo cáo cấp trên (Bộ/Sở)': DeptReports,
+  'Hộp phê duyệt': ApprovalInbox,
+  'Quy trình phê duyệt': ApprovalWorkflows,
+  'Kế hoạch tập huấn': TrainingPlans,
+  'Lịch tập huấn': TrainingSchedule,
+  'Giám sát tập huấn nhà giáo': DeptTrainingMonitor,
 }
+const PLATFORM_LIVE = new Set(Object.keys(PLATFORM))
+PLATFORM['Sơ đồ hệ thống'] = (p: any) => <SystemMap {...p} live={PLATFORM_LIVE} />
+// Tên trang cũ (liên kết nội bộ của trang Sở) → tên trong menu Quản trị nền tảng
+const PLATFORM_ALIAS: Record<string, string> = { 'KPI & Xếp hạng Xã/Phường': 'KPI & xếp hạng' }
 const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM }
 
 export default function App() {
@@ -215,7 +238,8 @@ function Shell({ session }: { session: Session }) {
   const groups = NAV[role]
     .map(g => ({ ...g, items: g.items.filter(i => role !== 'school_admin' || !MODULE_OF[i] || access.canView(MODULE_OF[i])) }))
     .filter(g => g.items.length)
-  const Page = PAGES[role]?.[page]
+  const Page: ComponentType<any> | undefined = PAGES[role]?.[page] ?? (role === 'platform' ? PlannedPage : undefined)
+  const goPage = (p: string) => setPage(role === 'platform' ? PLATFORM_ALIAS[p] ?? p : p)
   const email = session.user.email ?? ''
 
   return (
@@ -243,7 +267,9 @@ function Shell({ session }: { session: Session }) {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
             </button>
             <div id={id} hidden={shut}>
-            {g.items.map(i => <button key={i} className={i === page ? 'on' : ''} onClick={() => setPage(i)}>{i}</button>)}
+            {g.items.map(i => <button key={i} className={i === page ? 'on' : ''} onClick={() => setPage(i)}>
+              {i}{role === 'platform' && !PLATFORM_LIVE.has(i) && i !== 'Sơ đồ hệ thống' && <small className="navtag">Khung</small>}
+            </button>)}
             </div>
           </div>
           )
@@ -280,7 +306,7 @@ function Shell({ session }: { session: Session }) {
         </header>
         <main className="main">
           <h1>{page}</h1>
-          {Page ? <Suspense fallback={<p className="sub">Đang tải…</p>}><Page key={page + (yrs.year?.id ?? '') + (studentId ?? '')} teacherId={teacherId} studentId={studentId} orgId={access.profile.org_id} userName={access.profile.full_name} go={(p: string) => setPage(p)}
+          {Page ? <Suspense fallback={<p className="sub">Đang tải…</p>}><Page key={page + (yrs.year?.id ?? '') + (studentId ?? '')} teacherId={teacherId} studentId={studentId} orgId={access.profile.org_id} userName={access.profile.full_name} go={goPage} name={page}
             year={yrs.year} years={yrs.years} reloadYears={yrs.reload} selectYear={yrs.select} /></Suspense> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
         </main>
       </div>

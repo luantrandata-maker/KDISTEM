@@ -15,7 +15,7 @@ Giai đoạn 1–2: nền tảng + vận hành trường. React + TypeScript + V
    ```
 
 ## Cơ sở dữ liệu
-Chạy lần lượt các file trong `supabase/migrations/` theo số thứ tự (001 schema, 002 dữ liệu mẫu, 003 trigger demo, 004 thời khóa biểu và đăng ký STEM, 005 học sinh và phân quyền, 006 gói STEM/tập huấn/PPCT, 007 ticket bảo hành mẫu, 008 gán tài khoản và vai trò, 009–010 mở rộng và dữ liệu mẫu theo video thứ hai, 011 đường dẫn phòng họp tập huấn, 012 siết phân quyền RLS, 013 nền học tập: chủ đề/buổi học, bài tập, bài nộp, nhóm, phiên lớp có mã PIN, 014 vai trò tuỳ chỉnh và mời người dùng qua email, 015 soạn bài giảng tương tác, trình chiếu trên lớp và phiếu mượn thiết bị của giáo viên, 016 thông báo trong ứng dụng, học kỳ hiện tại và TKB theo học kỳ, 017 cổng học sinh: biểu quyết trong tiết học, tên người viết thảo luận, 018 cổng Sở: xã/phường, thống kê toàn Sở, tập huấn cấp Sở, lịch sử báo cáo, dữ liệu mẫu 21 trường, 019 lõi đa tổ chức: cây Bộ → Tỉnh → Sở → Phòng → Trường + Đơn vị cung cấp, bảng `memberships`, chọn đơn vị đang làm việc, tăng tốc RLS, đổi Geleximco → KDI Education, 020 dữ liệu mẫu tỉnh thứ hai Bắc Ninh và đơn vị cung cấp KDI Education). Các file dữ liệu mẫu chỉ chạy khi chưa có dữ liệu.
+Chạy lần lượt các file trong `supabase/migrations/` theo số thứ tự (001 schema, 002 dữ liệu mẫu, 003 trigger demo, 004 thời khóa biểu và đăng ký STEM, 005 học sinh và phân quyền, 006 gói STEM/tập huấn/PPCT, 007 ticket bảo hành mẫu, 008 gán tài khoản và vai trò, 009–010 mở rộng và dữ liệu mẫu theo video thứ hai, 011 đường dẫn phòng họp tập huấn, 012 siết phân quyền RLS, 013 nền học tập: chủ đề/buổi học, bài tập, bài nộp, nhóm, phiên lớp có mã PIN, 014 vai trò tuỳ chỉnh và mời người dùng qua email, 015 soạn bài giảng tương tác, trình chiếu trên lớp và phiếu mượn thiết bị của giáo viên, 016 thông báo trong ứng dụng, học kỳ hiện tại và TKB theo học kỳ, 017 cổng học sinh: biểu quyết trong tiết học, tên người viết thảo luận, 018 cổng Sở: xã/phường, thống kê toàn Sở, tập huấn cấp Sở, lịch sử báo cáo, dữ liệu mẫu 21 trường, 019 lõi đa tổ chức: cây Bộ → Tỉnh → Sở → Phòng → Trường + Đơn vị cung cấp, bảng `memberships`, chọn đơn vị đang làm việc, tăng tốc RLS, đổi Geleximco → KDI Education, 020 dữ liệu mẫu tỉnh thứ hai Bắc Ninh và đơn vị cung cấp KDI Education, 021 cổng Quản trị nền tảng: trạng thái hoạt động/tạm dừng, ràng buộc cấp đơn vị, nhật ký thay đổi, thống kê theo cây). Các file dữ liệu mẫu chỉ chạy khi chưa có dữ liệu.
 
 ## Cấu hình Supabase cho đăng nhập và lời mời
 
@@ -41,9 +41,21 @@ Chạy lần lượt các file trong `supabase/migrations/` theo số thứ tự
 - Mời người đã có tài khoản ở đơn vị khác: hệ thống thêm vai trò ở đơn vị mới, không chuyển họ khỏi đơn vị cũ.
 - `user_roles` còn lại dưới dạng view tương thích (vai trò tại đơn vị đang làm việc).
 
+## Quản trị nền tảng (từ migration 021)
+
+Cổng dành cho KDI Education (chủ nền tảng), mở bằng vai trò **Quản trị nền tảng** tại đơn vị KDI Education.
+
+- Cấp quyền lần đầu: đăng nhập ứng dụng một lần bằng email của bạn, rồi chạy trong SQL Editor
+  `select public.grant_platform_admin('email-cua-ban@kdi.edu.vn');` (hàm này không gọi được từ ứng dụng).
+- **Tổng quan hệ thống**: số đơn vị theo cấp, trường đang hoạt động, người dùng, vai trò, lời mời; bảng theo tỉnh; **kiểm tra cấu trúc** (đơn vị sai cấp, Sở chưa gắn tỉnh, đơn vị chưa có cán bộ, tài khoản trỏ sai đơn vị, tài khoản chờ cấp quyền...).
+- **Cây tổ chức**: Bộ → Tỉnh → Sở → Phòng → Trường và đơn vị cung cấp; thêm đơn vị trực thuộc, sửa, chuyển đơn vị cha (CSDL chặn sai cấp và vòng lặp), kích hoạt trường, tạm dừng/mở lại (tạm dừng → thành viên đơn vị đó không vào làm việc được), gán người phụ trách hoặc mời qua email.
+- **Người dùng & vai trò**: ai giữ vai trò gì ở đơn vị nào trên toàn hệ thống; gán/gỡ vai trò. **Lời mời**: mọi lời mời, gửi lại, huỷ.
+- **Nhật ký hệ thống** (`audit_log`): mọi thay đổi đơn vị, vai trò, lời mời, vai trò tuỳ chỉnh — ai làm, lúc nào, đổi gì. Quản trị trường xem được nhật ký của trường mình.
+- Quyền dữ liệu: quản trị nền tảng **đọc** mọi dữ liệu (kể cả xem cổng Sở trên toàn hệ thống) nhưng không sửa dữ liệu chuyên môn của trường.
+
 ## Kiểm thử cách ly dữ liệu
 
-- `supabase/tests/isolation_test.sql`: 53 phép thử "tỉnh A không đọc/ghi được dữ liệu tỉnh B", Phòng chỉ thấy trường trực thuộc, quyền quản trị không mang sang đơn vị khác, đổi đơn vị đang làm việc. Chạy được trong **Supabase SQL Editor** (sau 020): tự tạo tài khoản thử `*@iso-test.local`, mọi lệnh thử bị huỷ, cuối cùng xoá sạch và in bảng PASS/FAIL.
+- `supabase/tests/isolation_test.sql`: 72 phép thử "tỉnh A không đọc/ghi được dữ liệu tỉnh B", Phòng chỉ thấy trường trực thuộc, quyền quản trị không mang sang đơn vị khác, đổi đơn vị đang làm việc, quyền của quản trị nền tảng, tạm dừng đơn vị. Chạy được trong **Supabase SQL Editor** (sau 020; phần nền tảng cần 021): tự tạo tài khoản thử `*@iso-test.local`, mọi lệnh thử bị huỷ, cuối cùng xoá sạch và in bảng PASS/FAIL.
 - `supabase/tests/run.sh`: dựng CSDL Postgres trống, chạy toàn bộ migration rồi chạy bộ kiểm thử (GitHub Actions chạy tự động khi `supabase/` thay đổi).
 
 ## Triển khai Cloudflare (Workers Builds, kết nối GitHub)

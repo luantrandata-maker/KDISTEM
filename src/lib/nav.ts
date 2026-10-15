@@ -1,12 +1,17 @@
-export type RoleKey = 'school_admin' | 'teacher' | 'student' | 'department'
+export type RoleKey = 'school_admin' | 'teacher' | 'student' | 'department' | 'platform'
 export type NavGroup = { title: string; items: string[] }
 
 export const ROLE_LABEL: Record<RoleKey, string> = {
   school_admin: 'Trường · Quản trị', teacher: 'Giáo viên',
-  student: 'Học sinh', department: 'Sở GD&ĐT',
+  student: 'Học sinh', department: 'Sở GD&ĐT', platform: 'Quản trị nền tảng',
 }
 
 export const NAV: Record<RoleKey, NavGroup[]> = {
+  platform: [
+    { title: 'Tổng quan', items: ['Tổng quan hệ thống'] },
+    { title: 'Đơn vị & người dùng', items: ['Cây tổ chức', 'Người dùng & vai trò', 'Lời mời'] },
+    { title: 'Giám sát', items: ['Nhật ký hệ thống'] },
+  ],
   school_admin: [
     { title: 'Tổng quan', items: ['Dashboard Trường', 'Hồ sơ Trường học'] },
     { title: 'Mua sắm gói STEM', items: ['Gói STEM'] },

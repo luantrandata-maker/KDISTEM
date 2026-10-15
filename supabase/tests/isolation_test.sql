@@ -9,6 +9,10 @@ set client_min_messages = warning;
 drop table if exists t_result;
 create temp table t_result (id serial, who text, name text, expect text, got text, ok boolean);
 grant all on t_result to authenticated;
+-- Mốc nhật ký (021) để xoá các dòng nhật ký do phép thử sinh ra
+drop table if exists t_meta;
+create temp table t_meta as select coalesce((select max(id) from audit_log), 0) as audit_start
+  where to_regclass('public.audit_log') is not null;
 grant usage on sequence t_result_id_seq to authenticated;
 
 -- Danh sách id của các mã tổ chức, dạng 'id1','id2' (tra bằng quyền postgres, trước khi đổi vai trò)
@@ -16,7 +20,7 @@ create or replace function pg_temp.ids(p_codes text[]) returns text language sql
   select coalesce(string_agg(quote_literal(id), ','), 'null') from organizations where code = any(p_codes)
 $$;
 create or replace function pg_temp.oid_(p_code text) returns uuid language sql as $$
-  select id from organizations where code = p_code
+  select id from organizations where case when p_code = '@platform' then is_platform else code = p_code end
 $$;
 
 -- Chạy p_sql như người dùng p_email. SELECT → cột đầu của dòng đầu; lệnh ghi → 'rows:N'; lỗi → 'ERR <sqlstate>'.
@@ -64,7 +68,8 @@ begin
   select id into v_uid from auth.users where email = v_email;
   if v_uid is null then
     insert into auth.users (id, email, email_confirmed_at) values (gen_random_uuid(), v_email, now()) returning id into v_uid;
-    insert into profiles (id, full_name, email) values (v_uid, 'Thử ' || p_who, v_email) on conflict (id) do nothing;
+    insert into profiles (id, full_name, email) values (v_uid, 'Thử ' || p_who, v_email)
+      on conflict (id) do update set full_name = excluded.full_name;
   end if;
   insert into memberships (user_id, org_id, role_id, created_by)
     select v_uid, pg_temp.oid_(p_org), r.id, null from roles r where r.key = p_role and r.org_id is null
@@ -75,9 +80,15 @@ end $$;
 create or replace function pg_temp.cleanup() returns void language plpgsql as $$
 begin
   delete from students where student_code like 'ISO-%';
+  delete from memberships where org_id in (select id from organizations where code like 'ISO-%');
+  delete from organizations where code like 'ISO-%';
   delete from teachers where email like '%@iso-test.local';
   delete from invitations where email like '%@iso-test.local';
   delete from auth.users where email like '%@iso-test.local';
+  if to_regclass('public.audit_log') is not null then
+    delete from audit_log where id > coalesce((select audit_start from t_meta), 0)
+      and (summary ~ '(Thử [a-z_]+|iso-test\.local|Trường thử ISO|ISO-[A-Z]+)' or (actor is null and summary like '%tài khoản đã xoá%'));
+  end if;
 end $$;
 
 select pg_temp.cleanup();
@@ -109,6 +120,12 @@ begin
   v_hs := pg_temp.mk('hs_kb', 'THCS-KB', 'student');
   insert into students (org_id, class_id, student_code, full_name, profile_id)
     select org_id, id, 'ISO-001', 'HS thử B', v_hs from classes where org_id = pg_temp.oid_('THCS-KB') order by name limit 1;
+  -- 021: quản trị nền tảng + một trường thử để kiểm tra tạm dừng
+  if pg_temp.oid_('@platform') is not null then
+    perform pg_temp.mk('kdi', '@platform', 'platform_admin');
+    insert into organizations (type, parent_id, code, name, level) values ('school', pg_temp.oid_('SO-HY'), 'ISO-SCH', 'Trường thử ISO', 'thcs');
+    perform pg_temp.mk('admin_iso', 'ISO-SCH', 'principal');
+  end if;
 end $$;
 
 -- ===== 1. Sở A không đọc dữ liệu tỉnh B =====
@@ -177,6 +194,30 @@ select pg_temp.chk('gv_both', 'Sau khi chuyển sang B: đọc được lớp tr
 select pg_temp.chk('gv_both', 'Sau khi chuyển sang B: không còn đọc lớp trường A', format('select count(*) from classes where org_id = %s', quote_literal(pg_temp.oid_('THCS-PH'))), '0');
 select pg_temp.chk('gv_both', 'Sau khi chuyển sang B: hồ sơ GV là của trường B', 'select (select org_id from teachers where id = my_teacher_id()) = my_org_id()', 'true');
 select pg_temp.chk('gv_both', 'Không chuyển sang Sở khi không có vai trò ở Sở', format('select public.switch_org(%s)', quote_literal(pg_temp.oid_('SO-HY'))), 'ERR');
+
+-- ===== 6. Quản trị nền tảng (021) =====
+select pg_temp.chk('kdi', 'Nền tảng đọc HS của cả hai tỉnh', format('select count(distinct org_id) from students where org_id in (%s)', pg_temp.ids('{THCS-PH,THCS-KB}')), '2');
+select pg_temp.chk('kdi', 'Nền tảng xem thống kê mọi trường', 'select (select count(*) from dept_school_stats()) = (select count(*) from organizations where type = ''school'')', 'true');
+select pg_temp.chk('kdi', 'Nền tảng xem tổng quan hệ thống', 'select (platform_overview()->>''users'')::int > 0', 'true');
+select pg_temp.chk('kdi', 'Nền tảng không sửa dữ liệu chuyên môn của trường', format('update students set full_name = ''x'' where org_id = %s', quote_literal(pg_temp.oid_('THCS-KB'))), 'rows:0');
+select pg_temp.chk('kdi', 'Nền tảng kích hoạt trường', format('update organizations set activated_at = now() where id = %s', quote_literal(pg_temp.oid_('THCS-PH'))), 'rows:1');
+select pg_temp.chk('kdi', 'Nền tảng tạo trường dưới Phòng', format('insert into organizations (type, parent_id, code, name) values (''school'', %s, ''ISO-NEW'', ''x'')', quote_literal(pg_temp.oid_('PGD-TPBN'))), 'rows:1');
+select pg_temp.chk('kdi', 'Không đặt trường trực tiếp dưới Bộ', format('insert into organizations (type, parent_id, code, name) values (''school'', %s, ''ISO-BAD'', ''x'')', quote_literal(pg_temp.oid_('BO-GDDT'))), 'ERR*');
+select pg_temp.chk('kdi', 'Không tạo vòng lặp trong cây', format('update organizations set parent_id = %s where id = %s', quote_literal(pg_temp.oid_('THCS-KB')), quote_literal(pg_temp.oid_('PGD-TPBN'))), 'ERR*');
+select pg_temp.chk('kdi', 'Nền tảng gán vai trò ở trường bất kỳ',
+  format('insert into memberships (user_id, org_id, role_id) select id, %s, (select id from roles where key=''teacher'' and org_id is null) from profiles where email = ''so_bn@iso-test.local''', quote_literal(pg_temp.oid_('THCS-KB'))), 'rows:1');
+select pg_temp.chk('kdi', 'Không gán vai trò Quản trị nền tảng trong trường',
+  format('insert into memberships (user_id, org_id, role_id) select id, %s, (select id from roles where key=''platform_admin'' and org_id is null) from profiles where email = ''admin_kb@iso-test.local''', quote_literal(pg_temp.oid_('THCS-KB'))), 'ERR*');
+select pg_temp.chk('kdi', 'Nền tảng đọc nhật ký thay đổi', 'select count(*) from audit_log', '>0');
+select pg_temp.chk('admin_ph', 'Trường không xem tổng quan nền tảng', 'select platform_overview()::text', 'ERR');
+select pg_temp.chk('admin_ph', 'Trường không tự cấp quyền nền tảng', 'select grant_platform_admin(''admin_ph@iso-test.local'')', 'ERR');
+select pg_temp.chk('admin_ph', 'Trường không sửa đơn vị khác', format('update organizations set name = ''x'' where id = %s', quote_literal(pg_temp.oid_('THCS-KB'))), 'rows:0');
+select pg_temp.chk('admin_ph', 'Trường không thấy nhật ký trường B', format('select count(*) from audit_log where org_id = %s', quote_literal(pg_temp.oid_('THCS-KB'))), '0');
+select pg_temp.chk('admin_iso', 'Trường đang hoạt động: QT vào được', 'select public.is_admin()::text', 'true');
+select pg_temp.probe('kdi@iso-test.local', format('update organizations set status = ''suspended'' where id = %s', quote_literal(pg_temp.oid_('ISO-SCH'))), true);
+select pg_temp.chk('admin_iso', 'Trường bị tạm dừng: mất quyền', 'select coalesce(public.my_org_id()::text, ''null'')', 'null');
+select pg_temp.chk('admin_iso', 'Trường bị tạm dừng: không đọc dữ liệu', format('select count(*) from organizations where id = %s', quote_literal(pg_temp.oid_('ISO-SCH'))), '0');
+select pg_temp.chk('kdi', 'Không tạm dừng đơn vị chủ nền tảng', format('update organizations set status = ''suspended'' where id = %s', quote_literal(pg_temp.oid_('@platform'))), 'ERR*');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

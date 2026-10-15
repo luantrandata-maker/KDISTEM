@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { NAV, ROLE_LABEL, MODULE_OF, RoleKey } from './lib/nav'
@@ -39,8 +39,14 @@ import { StudentTopics } from './pages/student/Topics'
 import { DeptDashboard, DeptWardKpi, DeptSchools, DeptPrograms, DeptSubjects, DeptTrainingMonitor, DeptRoomEffect } from './pages/department/Overview'
 import { DeptReports } from './pages/department/Reports'
 import { DeptAdmin } from './pages/department/Admin'
+// Cổng quản trị nền tảng: tải riêng khi mở (không làm nặng bản tải chung của trường/giáo viên/học sinh)
+const PlatformOverview = lazy(() => import('./pages/platform/Overview').then(m => ({ default: m.PlatformOverview })))
+const PlatformOrgs = lazy(() => import('./pages/platform/Orgs').then(m => ({ default: m.PlatformOrgs })))
+const PlatformUsers = lazy(() => import('./pages/platform/Users').then(m => ({ default: m.PlatformUsers })))
+const PlatformInvites = lazy(() => import('./pages/platform/Users').then(m => ({ default: m.PlatformInvites })))
+const PlatformAudit = lazy(() => import('./pages/platform/Audit').then(m => ({ default: m.PlatformAudit })))
 
-type PageMap = Record<string, (props: any) => JSX.Element>
+type PageMap = Record<string, ComponentType<any>>
 const SCHOOL: PageMap = {
   'Dashboard Trường': Dashboard,
   'Giáo viên': Teachers,
@@ -98,7 +104,14 @@ const DEPARTMENT: PageMap = {
   'Báo cáo Bộ GD&ĐT': DeptReports,
   'Điều hành & Cấu hình': DeptAdmin,
 }
-const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT }
+const PLATFORM: PageMap = {
+  'Tổng quan hệ thống': PlatformOverview,
+  'Cây tổ chức': PlatformOrgs,
+  'Người dùng & vai trò': PlatformUsers,
+  'Lời mời': PlatformInvites,
+  'Nhật ký hệ thống': PlatformAudit,
+}
+const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM }
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -189,7 +202,7 @@ function Shell({ session }: { session: Session }) {
   return (
     <div className={'app' + (collapsed ? ' collapsed' : '')}>
       <nav className="side" aria-label="Menu chính">
-        {role !== 'department' && <label className="yearpick">
+        {role !== 'department' && role !== 'platform' && <label className="yearpick">
           <span>Năm học · học kỳ</span>
           <select value={yrs.year?.id ?? ''} onChange={e => e.target.value === '__manage' ? (role === 'school_admin' ? setPage('Năm học & học kỳ') : null) : yrs.select(e.target.value)}
             aria-label="Chọn năm học và học kỳ">
@@ -198,7 +211,7 @@ function Shell({ session }: { session: Session }) {
             {role === 'school_admin' && access.canView('periods') && <option value="__manage">Quản lý năm học…</option>}
           </select>
         </label>}
-        {role !== 'department' && yrs.year && !yrs.year.is_current && <p className="yearwarn">Đang xem học kỳ không phải hiện tại</p>}
+        {role !== 'department' && role !== 'platform' && yrs.year && !yrs.year.is_current && <p className="yearwarn">Đang xem học kỳ không phải hiện tại</p>}
         {groups.map(g => {
           const key = role + ':' + g.title
           const shut = closed.has(key)
@@ -248,8 +261,8 @@ function Shell({ session }: { session: Session }) {
         </header>
         <main className="main">
           <h1>{page}</h1>
-          {Page ? <Page key={page + (yrs.year?.id ?? '') + (studentId ?? '')} teacherId={teacherId} studentId={studentId} orgId={access.profile.org_id} userName={access.profile.full_name} go={(p: string) => setPage(p)}
-            year={yrs.year} years={yrs.years} reloadYears={yrs.reload} selectYear={yrs.select} /> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
+          {Page ? <Suspense fallback={<p className="sub">Đang tải…</p>}><Page key={page + (yrs.year?.id ?? '') + (studentId ?? '')} teacherId={teacherId} studentId={studentId} orgId={access.profile.org_id} userName={access.profile.full_name} go={(p: string) => setPage(p)}
+            year={yrs.year} years={yrs.years} reloadYears={yrs.reload} selectYear={yrs.select} /></Suspense> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
         </main>
       </div>
     </div>

@@ -17,7 +17,7 @@ export type Access = {
   canView: (module: string) => boolean
 }
 
-const PORTAL_ORDER: RoleKey[] = ['school_admin', 'teacher', 'student', 'department']
+const PORTAL_ORDER: RoleKey[] = ['platform', 'school_admin', 'teacher', 'student', 'department']
 
 export function useAccess(session: Session | null): Access {
   const [state, setState] = useState<{ loading: boolean; profile: Profile | null; roles: MyRole[]; orgs: MyOrg[] }>({ loading: true, profile: null, roles: [], orgs: [] })
@@ -45,7 +45,11 @@ export function useAccess(session: Session | null): Access {
 
   const roleKeys = state.roles.map(r => r.key)
   const isAdmin = roleKeys.some(k => k === 'principal' || k === 'it_admin')
-  const portals = isAdmin ? PORTAL_ORDER : PORTAL_ORDER.filter(p => state.roles.some(r => r.portal === p))
+  const own = new Set<RoleKey>(PORTAL_ORDER.filter(p => state.roles.some(r => r.portal === p)))
+  // Quản trị trường xem thử được mọi giao diện của trường; quản trị nền tảng xem được cổng quản lý trên toàn hệ thống
+  if (isAdmin) (['school_admin', 'teacher', 'student', 'department'] as RoleKey[]).forEach(p => own.add(p))
+  if (own.has('platform')) own.add('department')
+  const portals = PORTAL_ORDER.filter(p => own.has(p))
   return { ...state, roleKeys, isAdmin, portals, canView: m => isAdmin || views.has(m) }
 }
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { sendInviteEmail } from '../lib/invite'
 
 type Acc = { id: string; full_name: string; email: string | null; org_id: string | null }
 type Role = { id: string; key: string; name: string; portal: string | null; is_system: boolean }
@@ -16,14 +17,6 @@ type InviteForm = { emails: string; full_name: string; role_id: string; link_id:
 const AUTHORITY = ['ministry', 'province', 'department', 'district', 'provider']
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 const fmt = (d: string | null) => d ? new Date(d).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }) : '—'
-
-// Gửi email đăng nhập (liên kết dùng một lần) tới người được mời. Supabase tạo tài khoản nếu chưa có;
-// khi người đó bấm liên kết, email được xác nhận và lời mời tự áp dụng (migration 014).
-async function sendInviteEmail(email: string, full_name: string | null) {
-  return supabase.auth.signInWithOtp({
-    email, options: { shouldCreateUser: true, emailRedirectTo: window.location.origin, data: full_name ? { full_name } : undefined },
-  })
-}
 
 export default function Accounts({ orgId }: { orgId: string | null }) {
   const [rows, setRows] = useState<Acc[]>([])

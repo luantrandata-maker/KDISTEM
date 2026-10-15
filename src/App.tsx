@@ -39,6 +39,9 @@ import { StudentTopics } from './pages/student/Topics'
 import { DeptDashboard, DeptWardKpi, DeptSchools, DeptPrograms, DeptSubjects, DeptTrainingMonitor, DeptRoomEffect } from './pages/department/Overview'
 import { DeptReports } from './pages/department/Reports'
 import { DeptAdmin } from './pages/department/Admin'
+// Kho học liệu dùng chung (023)
+const LibraryBrowse = lazy(() => import('./pages/library/Browse').then(m => ({ default: m.LibraryBrowse })))
+const LibraryManage = lazy(() => import('./pages/library/Manage').then(m => ({ default: m.LibraryManage })))
 // Phê duyệt (022): tải riêng khi mở
 const ApprovalInbox = lazy(() => import('./pages/approvals/Inbox').then(m => ({ default: m.ApprovalInbox })))
 const ApprovalWorkflows = lazy(() => import('./pages/approvals/Workflows').then(m => ({ default: m.ApprovalWorkflows })))
@@ -80,6 +83,8 @@ const SCHOOL: PageMap = {
   'Hộp phê duyệt': ApprovalInbox,
   'Quy trình phê duyệt': ApprovalWorkflows,
   'Đề xuất mua gói': PackageOrders,
+  'Kho học liệu dùng chung': LibraryBrowse,
+  'Phát hành học liệu': LibraryManage,
 }
 const TEACHER: PageMap = {
   'Tổng quan': TeacherHome,
@@ -91,6 +96,7 @@ const TEACHER: PageMap = {
   'Giáo dục STEM': TeacherClassroom,
   'Soạn bài giảng': TeacherLessonStudio,
   'Hộp phê duyệt': ApprovalInbox,
+  'Thư viện STEM': LibraryBrowse,
 }
 const STUDENT: PageMap = {
   'Tổng quan': StudentHome,
@@ -113,6 +119,8 @@ const DEPARTMENT: PageMap = {
   'Điều hành & Cấu hình': DeptAdmin,
   'Hộp phê duyệt': ApprovalInbox,
   'Quy trình phê duyệt': ApprovalWorkflows,
+  'Phát hành học liệu': LibraryManage,
+  'Kho học liệu dùng chung': LibraryBrowse,
 }
 const PLATFORM: PageMap = {
   'Tổng quan hệ thống': PlatformOverview,
@@ -120,6 +128,7 @@ const PLATFORM: PageMap = {
   'Người dùng & vai trò': PlatformUsers,
   'Lời mời': PlatformInvites,
   'Nhật ký hệ thống': PlatformAudit,
+  'Phát hành học liệu': LibraryManage,
 }
 const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM }
 

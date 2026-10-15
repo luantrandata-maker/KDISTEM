@@ -7,6 +7,7 @@ export type Slide = { id: string; kind: SlideKind; title: string; body?: string;
 export type Plan = {
   id: string; org_id: string; teacher_id: string | null; title: string; subject: string | null; grades: string | null; program: string | null
   from_package: boolean; is_template: boolean; status: 'draft' | 'editing' | 'published'; summary: string | null; slides: Slide[]; updated_at: string
+  library_item_id?: string | null; library_version?: number | null
   teachers?: { full_name: string } | null
 }
 
@@ -57,7 +58,7 @@ export function SlideView({ slide, reveal, hideOptions }: { slide: Slide | undef
 type View = { mode: 'list' } | { mode: 'edit'; plan: Plan } | { mode: 'preview'; plan: Plan; i: number }
 type LTab = 'all' | 'published' | 'editing' | 'draft'
 
-export function TeacherLessonStudio({ teacherId, orgId }: TProps) {
+export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
   const [plans, setPlans] = useState<Plan[]>([])
   const [view, setView] = useState<View>({ mode: 'list' })
   const [tab, setTab] = useState<LTab>('all')
@@ -119,6 +120,7 @@ export function TeacherLessonStudio({ teacherId, orgId }: TProps) {
               ['editing', 'Đang soạn', filtered.filter(p => p.status === 'editing').length], ['draft', 'Nháp', filtered.filter(p => p.status === 'draft').length]]} />}
         <span className="tools">
           <button onClick={() => setLibrary(!library)}>{library ? '← Bài giảng của tôi' : 'Kho bài giảng mẫu'}</button>
+          {go && <button onClick={() => go('Thư viện STEM')} title="Học liệu do Sở, Phòng, KDI Education phát hành">Thư viện STEM (Sở · KDI)</button>}
           <button className="primary" onClick={() => create()}>+ Soạn bài mới</button>
         </span>
       </div>
@@ -135,6 +137,7 @@ export function TeacherLessonStudio({ teacherId, orgId }: TProps) {
               {p.program && <span className="progchip" style={{ background: PROGRAM_COLOR[p.program], color: '#fff' }}>{p.program}</span>}
               {p.from_package && <span className="progchip pkgchip">Gói STEM</span>}
               {p.is_template && <span className="progchip pkgchip">Mẫu</span>}
+              {p.library_item_id && <span className="progchip pkgchip" title={`Từ kho học liệu dùng chung, phiên bản ${p.library_version ?? '?'}`}>Từ kho v{p.library_version}</span>}
               <span className="slidecount">{p.slides.length} slide</span>
             </div>
             <b>{p.title}</b>

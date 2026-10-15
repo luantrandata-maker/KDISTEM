@@ -433,3 +433,32 @@ b.bad,.bad{color:var(--bad)}
 .req .decide input{flex:1;min-width:220px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;font:inherit}
 .req .decide .actions{margin:0}
 .req > .actions{margin-top:6px}
+/* ===== Kho học liệu dùng chung (023) ===== */
+.libgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;align-items:start}
+.libcard{margin:0;display:grid;gap:6px}.libcard.open{grid-column:1/-1}
+.libcard h3{margin:2px 0 0;font-size:16px}
+.libhead{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.libsrc{margin:0;font-size:12px}.libsum{margin:0;font-size:13px}
+.libkind{display:inline-flex;gap:4px;align-items:center;font-size:11px;font-weight:700;border-radius:6px;padding:1px 8px;background:var(--soft);color:var(--navy-2)}
+.libkind.k-program{background:#e6f1fd;color:#174f96}.libkind.k-material{background:#fff3df;color:#8a5208}
+.libpreview{border-top:1px solid var(--line);padding-top:10px;margin-top:4px}
+.libpreview .slide{min-height:220px}
+.libunits{margin:8px 0 0;padding-left:20px;display:grid;gap:6px}.libunits .sub{margin:2px 0 0;font-size:12px}
+.libform h3{margin:0 0 10px}
+.libtargets{border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin:10px 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:4px;max-height:220px;overflow:auto;font-size:13px}
+.libtargets legend{font-size:12px;color:var(--muted);padding:0 4px}
+.sleditor{display:grid;grid-template-columns:220px minmax(0,1fr);gap:12px;margin:8px 0}
+.slthumbs{list-style:none;margin:0;padding:0;display:grid;gap:4px;align-content:start}
+.main .slthumbs button{width:100%;text-align:left;display:grid;gap:1px;padding:6px 10px}
+.main .slthumbs button.on{border-color:var(--primary);background:#e6f1fd}
+.slthumbs small{color:var(--muted);font-size:11px}.slthumbs span{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sladd{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}.main .sladd button{padding:3px 8px;font-size:12px}
+.slform{display:grid;gap:8px;min-width:0}.slform .slide{min-height:180px}
+.slform input,.slform textarea{padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit}
+.optrow{display:flex;gap:6px;align-items:center;margin-bottom:4px}.optrow input:not([type=radio]){flex:1}
+.libunitedit{display:grid;gap:8px;margin:10px 0}
+.unitrow{display:grid;grid-template-columns:28px minmax(160px,2fr) 70px minmax(160px,2fr) minmax(180px,2fr) 36px;gap:6px;align-items:center}
+.unitrow input,.unitrow select{padding:7px;border:1px solid var(--line);border-radius:8px;font:inherit;min-width:0}
+.unitrow .unitlessons{grid-column:2/-1}
+@media (max-width:860px){.sleditor{grid-template-columns:minmax(0,1fr)}.unitrow{grid-template-columns:28px minmax(0,1fr) 70px}.unitrow > :nth-child(n+4){grid-column:2/-1}}
+.slform .slide,.libpreview .slide{max-width:560px;aspect-ratio:16/9;min-height:0}

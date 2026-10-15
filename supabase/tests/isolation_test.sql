@@ -79,7 +79,13 @@ end $$;
 
 create or replace function pg_temp.cleanup() returns void language plpgsql as $$
 declare v_orgs uuid[] := array(select id from organizations where code like 'ISO-%');
+  v_users uuid[] := array(select id from profiles where email like '%@iso-test.local');
 begin
+  if to_regclass('public.library_items') is not null then
+    delete from lesson_plans where id in (select lesson_plan_id from library_copies where adopted_by = any(v_users));
+    delete from library_copies where adopted_by = any(v_users);
+    delete from library_items where title like 'ISO %' or owner_org_id = any(v_orgs);
+  end if;
   delete from students where student_code like 'ISO-%' or org_id = any(v_orgs);
   if to_regclass('public.package_orders') is not null then
     delete from package_orders where org_id = any(v_orgs);
@@ -287,6 +293,35 @@ select pg_temp.chk('so_hy', 'Sở tỉnh khác không duyệt được', format(
 select pg_temp.chk('iso_so', 'Bước 2: Sở chủ quản thấy hồ sơ', 'select count(*) from approval_inbox()', '1');
 select pg_temp.probe('iso_so@iso-test.local', 'select approval_decide((select r.id from approval_inbox() r limit 1), ''approve'')::text', true);
 select pg_temp.chk('iso_admin', 'Sở duyệt xong: kế hoạch Đã duyệt', 'select status from education_plans where org_id = my_org_id() and subject = ''Toán'' and grade = 8', 'approved');
+
+-- ===== 8. Kho học liệu dùng chung (023) =====
+select pg_temp.chk('admin_ph', 'Trường A thấy học liệu Sở A phát hành', format('select count(*) from library_items where owner_org_id = %s', quote_literal(pg_temp.oid_('SO-HY'))), '>0');
+select pg_temp.chk('admin_kb', 'Trường B không thấy học liệu Sở A', format('select count(*) from library_items where owner_org_id = %s', quote_literal(pg_temp.oid_('SO-HY'))), '0');
+select pg_temp.chk('admin_kb', 'Trường B thấy học liệu công khai của KDI', format('select count(*) from library_items where owner_org_id = %s', quote_literal(pg_temp.oid_('@platform'))), '>0');
+select pg_temp.chk('hs_kb', 'Học sinh không đọc kho học liệu', 'select count(*) from library_items', '0');
+select pg_temp.chk('so_bn', 'Sở không phát hành công khai toàn hệ thống', 'insert into library_items (owner_org_id, kind, title, scope) values (my_org_id(), ''lesson'', ''ISO công khai'', ''public'')', 'ERR');
+select pg_temp.chk('so_bn', 'Sở không phát hành thay đơn vị khác', format('insert into library_items (owner_org_id, kind, title) values (%s, ''lesson'', ''ISO giả'')', quote_literal(pg_temp.oid_('SO-HY'))), 'ERR');
+select pg_temp.probe('so_bn@iso-test.local', $q$insert into library_items (owner_org_id, kind, title, scope, content) values (my_org_id(), 'lesson', 'ISO bài Phòng TP', 'selected',
+  jsonb_build_object('slides', jsonb_build_array(jsonb_build_object('id','x','kind','title','title','ISO'))))$q$, true);
+select pg_temp.chk('so_bn', 'Không chọn đơn vị nhận ngoài phạm vi', format('insert into library_targets (item_id, org_id) select id, %s from library_items where title = ''ISO bài Phòng TP''', quote_literal(pg_temp.oid_('THCS-PH'))), 'ERR');
+select pg_temp.probe('so_bn@iso-test.local', format('insert into library_targets (item_id, org_id) select id, %s from library_items where title = ''ISO bài Phòng TP''', quote_literal(pg_temp.oid_('PGD-TPBN'))), true);
+select pg_temp.chk('admin_kb', 'Bản nháp chưa tới trường', 'select count(*) from library_items where title = ''ISO bài Phòng TP''', '0');
+select pg_temp.chk('so_hy', 'Sở khác không phát hành mục của Sở B', 'select library_publish((select id from library_items where title = ''ISO bài Phòng TP''))::text', 'ERR*');
+select pg_temp.probe('so_bn@iso-test.local', 'select library_publish((select id from library_items where title = ''ISO bài Phòng TP''))::text', true);
+select pg_temp.chk('admin_kb', 'Phát hành cho Phòng: trường trực thuộc Phòng thấy', 'select count(*) from library_items where title = ''ISO bài Phòng TP''', '1');
+select pg_temp.chk('admin_ph', 'Phát hành cho Phòng: tỉnh khác không thấy', 'select count(*) from library_items where title = ''ISO bài Phòng TP''', '0');
+select pg_temp.chk('so_hy', 'Sở khác không sửa mục của Sở B', 'update library_items set title = ''x'' where title = ''ISO bài Phòng TP''', 'rows:0');
+select pg_temp.chk('so_bn', 'Sở không "dùng" học liệu như trường', 'select library_adopt((select id from library_items where title = ''ISO bài Phòng TP''))::text', 'ERR');
+select pg_temp.chk('mixed', 'Không có hồ sơ GV và không là QT: không dùng được', 'select library_adopt((select id from library_items where title = ''ISO bài Phòng TP''))::text', 'ERR');
+select pg_temp.probe('gv_both@iso-test.local', 'select library_adopt((select id from library_items where title = ''ISO bài Phòng TP''))::text', true);
+select pg_temp.chk('gv_both', 'GV dùng học liệu → có bản nháp của mình', 'select count(*) from lesson_plans where teacher_id = my_teacher_id() and library_item_id = (select id from library_items where title = ''ISO bài Phòng TP'')', '1');
+select pg_temp.chk('admin_ph', 'Trường A không dùng được học liệu chỉ phát cho Phòng B', 'select library_adopt((select id from library_items where title = ''ISO bài Phòng TP''))::text', 'ERR');
+select pg_temp.probe('admin_ph@iso-test.local', format('select library_adopt((select id from library_items where owner_org_id = %s and kind = ''program'' limit 1), true)::text', quote_literal(pg_temp.oid_('SO-HY'))), true);
+select pg_temp.chk('admin_ph', 'Dùng cả chương trình → bài giảng mẫu của trường', format('select count(*) from lesson_plans where is_template and org_id = my_org_id() and library_item_id in (select id from library_items where owner_org_id = %s and kind = ''lesson'') and id in (select lesson_plan_id from library_copies where adopted_by = auth.uid())', quote_literal(pg_temp.oid_('SO-HY'))), '>0');
+select pg_temp.probe('so_bn@iso-test.local', 'select library_publish((select id from library_items where title = ''ISO bài Phòng TP''), ''Thêm câu hỏi'')::text', true);
+select pg_temp.chk('gv_both', 'Bản mới: bản sao được báo cũ hơn', 'select count(*) from library_copies c join library_items i on i.id = c.item_id where c.adopted_by = auth.uid() and c.adopted_version < i.version', '1');
+select pg_temp.chk('gv_both', 'Bản mới: có thông báo cập nhật', 'select count(*) from notifications where user_id = auth.uid() and kind = ''library''', '1');
+select pg_temp.chk('so_bn', 'Đơn vị phát hành thấy số trường đã dùng', 'select schools from library_stats() where item_id = (select id from library_items where title = ''ISO bài Phòng TP'')', '1');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

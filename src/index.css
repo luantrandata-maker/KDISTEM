@@ -528,3 +528,8 @@ b.bad,.bad{color:var(--bad)}
 .bcgrid fieldset:first-child{max-height:340px;overflow:auto;grid-template-columns:1fr;align-content:start}
 @media (max-width:900px){.bcgrid{grid-template-columns:1fr}}
 .plbar .track,.plbar .fill{display:block}
+/* Mã QR xác thực 2 lớp: không bị quy tắc chiều cao logo (.login img) ép dẹt */
+.login img.mfaqr{width:200px;height:200px;max-width:100%;justify-self:center;object-fit:contain;image-rendering:pixelated;margin:4px 0}
+.login code{word-break:break-all;font-size:13px;color:var(--text)}
+.login button.ghost{background:var(--surface);color:var(--text);border:1px solid var(--line)}
+.login button.ghost:hover{background:var(--soft)}

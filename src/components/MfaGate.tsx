@@ -55,7 +55,7 @@ export default function MfaGate({ children }: { children: ReactNode }) {
           value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} />
         <button className="primary" type="submit" disabled={busy || code.length !== 6}>Xác nhận</button>
         {err && <p className="msg">{err}</p>}
-        <button type="button" onClick={() => supabase.auth.signOut()}>Đăng xuất</button>
+        <button type="button" className="ghost" onClick={() => supabase.auth.signOut()}>Đăng xuất</button>
       </form>
     </div>
   )

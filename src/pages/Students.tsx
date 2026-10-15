@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { myOrgId } from '../lib/org'
+import ImportExcel from '../components/ImportExcel'
+import { norm, importSummary, downloadXlsx, type Column } from '../lib/sheet'
+
+const COLS: Column[] = [
+  { key: 'code', label: 'Mã học sinh', aliases: ['Mã HS', 'Ma hoc sinh', 'MSHS'] },
+  { key: 'name', label: 'Họ tên', aliases: ['Họ và tên', 'Tên học sinh'], required: true, width: 28 },
+  { key: 'cls', label: 'Lớp', aliases: ['Tên lớp'], required: true },
+]
 
 type St = { id: string; full_name: string; student_code: string | null; class_id: string | null; status: string; classes: { name: string; grade: number } | null }
 const STATUS: Record<string, string> = { studying: 'Đang học', transferred: 'Chuyển trường', graduated: 'Đã tốt nghiệp' }
@@ -32,23 +40,25 @@ export default function Students() {
     if (error) return setErr(error.message)
     setForm(null); setErr(''); load()
   }
-  async function importCsv(file: File) {
-    const text = (await file.text()).replace(/^\ufeff/, '')
-    const byName = new Map(classes.map(c => [c.name.trim().toLowerCase(), c.id]))
-    const org = await myOrgId()
-    const list: { org_id: string; student_code: string | null; full_name: string; class_id: string | null }[] = []
-    const bad: string[] = []
-    text.split(/\r?\n/).slice(1).forEach((line, i) => {
-      if (!line.trim()) return
-      const [code, name, cname] = line.split(/[,;\t]/).map(x => x.replace(/^"|"$/g, '').trim())
-      const cid = byName.get((cname ?? '').toLowerCase())
-      if (!name) return void bad.push(`dòng ${i + 2}: thiếu họ tên`)
-      if (!cid) return void bad.push(`dòng ${i + 2}: không tìm thấy lớp "${cname}"`)
-      list.push({ org_id: org, student_code: code || null, full_name: name, class_id: cid })
+  async function importRecords(recs: (Record<string, string> & { _line: number })[]) {
+    const byName = new Map(classes.map(c => [norm(c.name), c.id]))
+    const byShort = new Map(classes.map(c => [norm(c.name.replace(/^lớp\s*/i, '')), c.id]))
+    const existing = new Set(rows.map(r => r.student_code).filter(Boolean))
+    const org = await myOrgId(); const bad: string[] = []
+    const list = recs.flatMap(r => {
+      const cid = byName.get(norm(r.cls)) ?? byShort.get(norm(r.cls.replace(/^lớp\s*/i, '')))
+      if (!r.name) { bad.push(`dòng ${r._line}: thiếu họ tên`); return [] }
+      if (!cid) { bad.push(`dòng ${r._line}: không có lớp "${r.cls}"`); return [] }
+      if (r.code && existing.has(r.code)) { bad.push(`dòng ${r._line}: mã ${r.code} đã có`); return [] }
+      if (r.code) existing.add(r.code)
+      return [{ org_id: org, student_code: r.code || null, full_name: r.name, class_id: cid }]
     })
-    if (list.length) { const { error } = await supabase.from('students').insert(list); if (error) return setErr(error.message) }
-    setErr(`Đã nhập ${list.length} học sinh.` + (bad.length ? ` Bỏ qua ${bad.length} dòng lỗi: ${bad.slice(0, 3).join('; ')}${bad.length > 3 ? '…' : ''}` : ''))
-    load()
+    if (list.length) { const { error } = await supabase.from('students').insert(list); if (error) return 'Không nhập được: ' + error.message }
+    load(); return importSummary(list.length, 'học sinh', bad)
+  }
+  async function exportXlsx() {
+    await downloadXlsx('danh-sach-hoc-sinh', [...COLS, { key: 'st', label: 'Trạng thái' }],
+      all.map(r => [r.student_code, r.full_name, r.classes?.name, STATUS[r.status] ?? r.status]))
   }
   async function remove(s: St) {
     if (!confirm(`Xoá học sinh ${s.full_name}?`)) return
@@ -70,11 +80,13 @@ export default function Students() {
           </select>
         </div>
         <div className="tools">
-          <label className="filebtn">Nhập từ CSV<input type="file" accept=".csv,text/csv" hidden onChange={e => { const f = e.target.files?.[0]; if (f) importCsv(f); e.target.value = '' }} /></label>
+          <ImportExcel columns={COLS} template="mau-nhap-hoc-sinh" sample={[['HS9A001', 'Nguyễn Minh Anh', classes[0]?.name ?? 'Lớp 9A']]}
+            onRecords={importRecords} onMessage={m => setErr(m)} />
+          <button onClick={exportXlsx} disabled={!all.length}>Xuất Excel</button>
           <button className="primary" onClick={() => setForm({ full_name: '', student_code: '', class_id: classes[0]?.id ?? '' })}>Thêm học sinh</button>
         </div>
       </div>
-      {err && !form && <p className="sub">{err} <small>Định dạng: Mã học sinh, Họ tên, Tên lớp (dòng đầu là tiêu đề). Xuất file Excel sang CSV rồi nhập.</small></p>}
+      {err && !form && <p className="sub"><b>{err}</b></p>}
       
       {form && (
         <form className="panel formgrid" onSubmit={add}>

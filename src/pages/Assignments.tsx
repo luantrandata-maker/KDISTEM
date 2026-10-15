@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { myOrgId } from '../lib/org'
+import { type Year, sameSchoolYear } from '../lib/year'
 
 type Teacher = { id: string; full_name: string; subject: string | null }
-type Cls = { id: string; name: string }
-type Assign = { id: string; subject: string; teacher_id: string; class_id: string; classes: { name: string } | null }
+type Cls = { id: string; name: string; year_id: string | null }
+type Assign = { id: string; year_id: string | null; subject: string; teacher_id: string; class_id: string; classes: { name: string } | null }
 const COLORS = [['#fff1e0', '#b45309'], ['#e6f1fd', '#1c63bb'], ['#e3f5ea', '#23824f'], ['#f1e8fb', '#7a3fc4'], ['#fde8ea', '#c0324a'], ['#e3f4f8', '#0f7490']]
 const colorOf = (s: string) => COLORS[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % COLORS.length]
 
-export default function Assignments() {
+export default function Assignments({ year, years = [] }: { year?: Year | null; years?: Year[] }) {
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [classes, setClasses] = useState<Cls[]>([])
   const [rows, setRows] = useState<Assign[]>([])
@@ -19,20 +20,19 @@ export default function Assignments() {
   async function load() {
     const [t, c, a] = await Promise.all([
       supabase.from('teachers').select('id, full_name, subject').order('full_name'),
-      supabase.from('classes').select('id, name').order('name'),
-      supabase.from('teaching_assignments').select('id, subject, teacher_id, class_id, classes(name)'),
+      supabase.from('classes').select('id, name, year_id').order('name'),
+      supabase.from('teaching_assignments').select('id, year_id, subject, teacher_id, class_id, classes(name)'),
     ])
-    setTeachers((t.data as Teacher[]) ?? []); setClasses((c.data as Cls[]) ?? [])
-    setRows((a.data as unknown as Assign[]) ?? [])
+    setTeachers((t.data as Teacher[]) ?? []); setClasses(((c.data as Cls[]) ?? []).filter(x => sameSchoolYear(years, x.year_id, year ?? null)))
+    setRows(((a.data as unknown as Assign[]) ?? []).filter(x => sameSchoolYear(years, x.year_id, year ?? null)))
   }
   useEffect(() => { load() }, [])
 
   async function add(e: React.FormEvent) {
     e.preventDefault()
     if (!form) return
-    const { data: y } = await supabase.from('academic_years').select('id').eq('is_current', true).limit(1)
     const { error } = await supabase.from('teaching_assignments').insert({
-      org_id: await myOrgId(), year_id: y?.[0]?.id ?? null, ...form,
+      org_id: await myOrgId(), year_id: year?.id ?? null, ...form,
     })
     if (error) return setErr(error.message.includes('duplicate') ? 'Phân công này đã tồn tại.' : error.message)
     setForm(null); setErr(''); load()

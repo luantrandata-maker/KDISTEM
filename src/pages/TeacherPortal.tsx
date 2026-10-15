@@ -1,29 +1,30 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { TeacherBorrow } from './teacher/Borrow'
+import type { Year } from '../lib/year'
 
-type Ent = { id: string; weekday: number; period_id: string; subject: string; kind: string; classes: { name: string } | null; stem_rooms: { name: string } | null }
+type Ent = { id: string; year_id: string | null; weekday: number; period_id: string; subject: string; kind: string; classes: { name: string } | null; stem_rooms: { name: string } | null }
 type Period = { id: string; name: string; starts_at: string; ends_at: string; session: string }
-type Props = { teacherId: string | null; orgId: string | null; go?: (page: string) => void }
+type Props = { teacherId: string | null; orgId: string | null; go?: (page: string) => void; year?: Year | null }
 const hm = (t: string) => t.slice(0, 5)
 const todayWeekday = () => { const d = new Date().getDay(); return d === 0 ? 0 : d + 1 } // Thứ 2 = 2 … Thứ 7 = 7, Chủ nhật = 0
 const NoTeacher = () => <p className="sub">Tài khoản này chưa được liên kết với hồ sơ giáo viên. Quản trị trường liên kết trong mục Tài khoản.</p>
 
-function useMySchedule(teacherId: string | null) {
+function useMySchedule(teacherId: string | null, year?: Year | null) {
   const [entries, setEntries] = useState<Ent[]>([])
   const [periods, setPeriods] = useState<Period[]>([])
   useEffect(() => {
     if (!teacherId) return
     Promise.all([
-      supabase.from('timetable_entries').select('id, weekday, period_id, subject, kind, classes(name), stem_rooms(name)').eq('teacher_id', teacherId),
+      supabase.from('timetable_entries').select('id, year_id, weekday, period_id, subject, kind, classes(name), stem_rooms(name)').eq('teacher_id', teacherId),
       supabase.from('period_configs').select('*').order('starts_at'),
-    ]).then(([e, p]) => { setEntries((e.data as unknown as Ent[]) ?? []); setPeriods((p.data as Period[]) ?? []) })
-  }, [teacherId])
+    ]).then(([e, p]) => { setEntries(((e.data as unknown as Ent[]) ?? []).filter(x => !year || !x.year_id || x.year_id === year.id)); setPeriods((p.data as Period[]) ?? []) })
+  }, [teacherId, year?.id])
   return { entries, periods }
 }
 
-export function TeacherHome({ teacherId, go }: Props) {
-  const { entries, periods } = useMySchedule(teacherId)
+export function TeacherHome({ teacherId, go, year }: Props) {
+  const { entries, periods } = useMySchedule(teacherId, year)
   const [regs, setRegs] = useState<{ status: string }[]>([])
   const [todo, setTodo] = useState({ grade: 0, soon: 0, borrow: 0, live: 0 })
   useEffect(() => {
@@ -89,8 +90,8 @@ export function TeacherHome({ teacherId, go }: Props) {
   )
 }
 
-export function TeacherSchedule({ teacherId }: Props) {
-  const { entries, periods } = useMySchedule(teacherId)
+export function TeacherSchedule({ teacherId, year }: Props) {
+  const { entries, periods } = useMySchedule(teacherId, year)
   const [kind, setKind] = useState('all')
   if (!teacherId) return <NoTeacher />
   const cell = (p: Period, d: number) => entries.filter(e => e.period_id === p.id && e.weekday === d && (kind === 'all' || e.kind === kind))

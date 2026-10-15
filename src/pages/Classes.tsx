@@ -3,11 +3,12 @@ import { supabase } from '../lib/supabase'
 import FormPanel from '../components/FormPanel'
 import { ProgChips } from '../components/Chips'
 import { k12Sync } from '../lib/k12'
+import { type Year, sameSchoolYear } from '../lib/year'
 
-type Row = { id: string; name: string; grade: number; homeroom_teacher_id: string | null; teachers: { full_name: string } | null; academic_years: { name: string } | null }
+type Row = { id: string; year_id: string | null; name: string; grade: number; homeroom_teacher_id: string | null; teachers: { full_name: string } | null; academic_years: { name: string } | null }
 type Teacher = { id: string; full_name: string }
 
-export default function Classes({ orgId }: { orgId: string }) {
+export default function Classes({ orgId, year, years = [] }: { orgId: string; year?: Year | null; years?: Year[] }) {
   const [rows, setRows] = useState<Row[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])
   const [counts, setCounts] = useState<Record<string, number>>({})
@@ -18,13 +19,13 @@ export default function Classes({ orgId }: { orgId: string }) {
 
   async function load() {
     const [c, t, s, cp, tt] = await Promise.all([
-      supabase.from('classes').select('id, name, grade, homeroom_teacher_id, teachers!classes_homeroom_teacher_id_fkey(full_name), academic_years(name)').order('name'),
+      supabase.from('classes').select('id, year_id, name, grade, homeroom_teacher_id, teachers!classes_homeroom_teacher_id_fkey(full_name), academic_years(name)').order('name'),
       supabase.from('teachers').select('id, full_name').order('full_name'),
       supabase.from('students').select('class_id'),
       supabase.from('class_programs').select('class_id, program'),
       supabase.from('timetable_entries').select('class_id, teachers(full_name)').eq('kind', 'stem'),
     ])
-    setRows((c.data as unknown as Row[]) ?? []); setTeachers((t.data as Teacher[]) ?? [])
+    setRows(((c.data as unknown as Row[]) ?? []).filter(r => sameSchoolYear(years, r.year_id, year ?? null))); setTeachers((t.data as Teacher[]) ?? [])
     const m: Record<string, number> = {}; (s.data ?? []).forEach((x: any) => { m[x.class_id] = (m[x.class_id] ?? 0) + 1 }); setCounts(m)
     const p: Record<string, string[]> = {}; (cp.data ?? []).forEach((x: any) => { (p[x.class_id] ??= []).push(x.program) }); setProgs(p)
     const st: Record<string, string[]> = {}; (tt.data ?? []).forEach((x: any) => { const n = x.teachers?.full_name; if (n && !(st[x.class_id] ??= []).includes(n)) st[x.class_id].push(n) }); setStemT(st)
@@ -35,7 +36,7 @@ export default function Classes({ orgId }: { orgId: string }) {
     const body = { name: v.name, grade: Number(v.grade), homeroom_teacher_id: v.homeroom_teacher_id || null }
     let id = form && form !== 'new' ? form.id : ''
     if (id) { const { error } = await supabase.from('classes').update(body).eq('id', id); if (error) return error.message }
-    else { const { data, error } = await supabase.from('classes').insert({ ...body, org_id: orgId }).select('id').single(); if (error) return error.message; id = data.id }
+    else { const { data, error } = await supabase.from('classes').insert({ ...body, org_id: orgId, year_id: year?.id ?? null }).select('id').single(); if (error) return error.message; id = data.id }
     const list = (v.programs ?? '').split(',').map(s => s.trim().toUpperCase()).filter(p => /^CT[1-5]$/.test(p))
     await supabase.from('class_programs').delete().eq('class_id', id)
     if (list.length) await supabase.from('class_programs').insert([...new Set(list)].map(program => ({ org_id: orgId, class_id: id, program })))

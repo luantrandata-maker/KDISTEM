@@ -232,3 +232,24 @@ td.nowrap{white-space:nowrap}
 .addrow input[type=radio]{flex:0 0 auto;width:18px;height:18px;accent-color:var(--ok);align-self:center}
 .main .field>button{justify-self:start}
 .bar{margin-bottom:12px}
+
+/* Năm học ở đầu menu */
+.yearpick{display:grid;gap:4px;margin:0 8px 6px;padding:10px;border-radius:12px;background:var(--navy-2)}
+.yearpick span{font-size:11px;font-weight:700;color:var(--orange);text-transform:uppercase;letter-spacing:.3px}
+.yearpick select{width:100%;padding:7px 6px;font-size:13px;border-radius:8px;border:1px solid rgba(255,255,255,.25);background:var(--navy);color:#fff;font-family:inherit;font-weight:600}
+.yearwarn{margin:0 12px 8px;font-size:12px;color:#ffd79a}
+
+/* Chuông thông báo */
+.bell{position:relative}
+.bellbtn{position:relative;width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--text);display:grid;place-items:center;cursor:pointer}
+.user .bellbtn{padding:0}
+.bellcount{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 4px;border-radius:999px;background:var(--bad);color:#fff;font-size:11px;font-weight:700;display:grid;place-items:center}
+.bellpanel{position:absolute;right:0;top:46px;width:min(380px,92vw);max-height:70vh;overflow:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(20,31,50,.16);z-index:20;padding:8px}
+.bellsec{display:grid;gap:4px;padding:6px}.bellsec+.bellsec{border-top:1px solid var(--line)}
+.bellhead{display:flex;justify-content:space-between;align-items:center}
+.user .linkbtn,.linkbtn{border:0;background:none;color:var(--primary);padding:0;font-size:12px;cursor:pointer}
+.user .bellitem,.bellitem{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;width:100%;text-align:left;border:0;border-radius:10px;padding:8px;background:none;cursor:pointer;color:var(--text);font-weight:400}
+.user .bellitem:hover{background:var(--soft)}
+.bellitem.unread{background:#eef5fd}.bellitem .ico{flex:0 0 auto}
+.bellitem .txt{display:grid;gap:2px;flex:1}.bellitem .txt b{font-weight:600;font-size:13px}.bellitem .txt small{font-size:12px}
+.bellitem.pend{align-items:center}.bellitem .n{background:var(--orange);color:#fff;border-radius:999px;min-width:22px;padding:0 6px;text-align:center;font-weight:700;font-size:12px}

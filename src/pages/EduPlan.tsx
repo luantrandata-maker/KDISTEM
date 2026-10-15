@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import FormPanel from '../components/FormPanel'
+import ImportExcel from '../components/ImportExcel'
+import { norm, importSummary, type Column } from '../lib/sheet'
+
+const COLS: Column[] = [
+  { key: 'teacher', label: 'Giáo viên', aliases: ['Họ tên', 'Họ tên giáo viên'], required: true, width: 26 },
+  { key: 'subject', label: 'Môn', aliases: ['Môn học', 'Bộ môn'], required: true },
+  { key: 'grade', label: 'Khối', required: true },
+  { key: 'periods', label: 'Số tiết STEM', aliases: ['Tiết STEM'] },
+]
 
 type Plan = { id: string; teacher_id: string; subject: string; grade: number; stem_periods: number; teachers: { full_name: string } | null }
 type Reg = { status: string; teacher_id: string; classes: { grade: number } | null; topic: string; on_date: string }
@@ -32,13 +41,16 @@ export default function EduPlan({ orgId }: { orgId: string }) {
     setForm(null); load()
   }
   async function remove(p: Plan) { if (confirm(`Xoá kế hoạch của ${p.teachers?.full_name} (${p.subject} · Khối ${p.grade})?`)) { await supabase.from('education_plans').delete().eq('id', p.id); load() } }
-  async function importCsv(file: File) {
-    const lines = (await file.text()).replace(/^\ufeff/, '').split(/\r?\n/).slice(1).filter(l => l.trim())
-    const byName = new Map(teachers.map(t => [t.full_name.toLowerCase(), t.id])); const list: any[] = []; const bad: string[] = []
-    lines.forEach((l, i) => { const [n, subject, grade, periods] = l.split(/[,;\t]/).map(x => x.replace(/^"|"$/g, '').trim()); const tid = byName.get((n ?? '').toLowerCase())
-      if (!tid || !subject || !Number(grade)) bad.push(`dòng ${i + 2}`); else list.push({ org_id: orgId, teacher_id: tid, subject, grade: Number(grade), stem_periods: Number(periods || 0) }) })
-    if (list.length) await supabase.from('education_plans').insert(list)
-    setMsg(`Đã nhập ${list.length} kế hoạch.` + (bad.length ? ` Bỏ qua ${bad.length} dòng lỗi (${bad.slice(0, 4).join(', ')}).` : '')); load()
+  async function importRecords(recs: (Record<string, string> & { _line: number })[]) {
+    const byName = new Map(teachers.map(t => [norm(t.full_name), t.id])); const bad: string[] = []
+    const list = recs.flatMap(r => {
+      const tid = byName.get(norm(r.teacher)); const grade = Number(r.grade.replace(/\D/g, ''))
+      if (!tid) { bad.push(`dòng ${r._line}: không có GV "${r.teacher}"`); return [] }
+      if (!r.subject || !grade) { bad.push(`dòng ${r._line}: thiếu môn hoặc khối`); return [] }
+      return [{ org_id: orgId, teacher_id: tid, subject: r.subject, grade, stem_periods: Number(r.periods) || 0 }]
+    })
+    if (list.length) { const { error } = await supabase.from('education_plans').insert(list); if (error) return 'Không nhập được: ' + error.message }
+    load(); return importSummary(list.length, 'kế hoạch', bad)
   }
 
   const shown = plans.filter(p => !filter || p.teacher_id === filter)
@@ -54,10 +66,10 @@ export default function EduPlan({ orgId }: { orgId: string }) {
       <div className="bar" style={{ margin: '16px 0' }}>
         <div className="tools"><small style={{ alignSelf: 'center' }}>Giáo viên:</small>
           <select value={filter} onChange={e => setFilter(e.target.value)}><option value="">Tất cả ({tIds.size})</option>{teachers.filter(t => tIds.has(t.id)).map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}</select></div>
-        <div className="tools"><label className="filebtn">Nhập CSV kế hoạch<input type="file" accept=".csv,text/csv" hidden onChange={e => { const f = e.target.files?.[0]; if (f) importCsv(f); e.target.value = '' }} /></label>
+        <div className="tools"><ImportExcel columns={COLS} template="mau-ke-hoach-giao-duc" sample={[[teachers[0]?.full_name ?? 'Nguyễn Văn A', 'Toán', '9', '4']]} onRecords={importRecords} onMessage={setMsg} />
           <button className="primary" onClick={() => setForm('new')}>Lập kế hoạch cho GV</button></div>
       </div>
-      {msg && <p className="sub">{msg} <small>Định dạng: Giáo viên, Môn, Khối, Số tiết STEM.</small></p>}
+      {msg && <p className="sub"><b>{msg}</b></p>}
       {form && <FormPanel fields={[
         { key: 'teacher_id', label: 'Giáo viên', type: 'select', required: true, options: teachers.map(t => ({ value: t.id, label: t.full_name })) },
         { key: 'subject', label: 'Môn', required: true }, { key: 'grade', label: 'Khối', type: 'number', required: true }, { key: 'stem_periods', label: 'Số tiết STEM', type: 'number' },

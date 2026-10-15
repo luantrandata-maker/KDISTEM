@@ -3,6 +3,9 @@ import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { NAV, ROLE_LABEL, MODULE_OF, RoleKey } from './lib/nav'
 import { useAccess } from './lib/auth'
+import { useYears, yearLabel } from './lib/year'
+import Bell from './components/Bell'
+import Years from './pages/Years'
 import logo from './assets/kdi-logo.png'
 import Login, { SetPassword } from './pages/Login'
 import Dashboard from './pages/Dashboard'
@@ -55,6 +58,7 @@ const SCHOOL: PageMap = {
   'Bài giảng': TrainingLessons,
   'Lớp học ảo': VirtualClass,
   'Chứng chỉ': Certificates,
+  'Năm học & học kỳ': Years,
 }
 const TEACHER: PageMap = {
   'Tổng quan': TeacherHome,
@@ -93,6 +97,7 @@ function Shell({ session }: { session: Session }) {
   const [teachers, setTeachers] = useState<{ id: string; full_name: string; profile_id: string | null }[]>([])
   const [actingTeacher, setActingTeacher] = useState<string | null>(null)
   const [changingPw, setChangingPw] = useState(false)
+  const yrs = useYears(access.profile?.org_id)
 
   const views: RoleKey[] = access.portals
 
@@ -118,6 +123,12 @@ function Shell({ session }: { session: Session }) {
   if (!role) return null
 
   const changeRole = (r: RoleKey) => { setRole(r); setPage(NAV[r][0].items[0]) }
+  // Mở một trang từ thông báo (có thể ở giao diện khác)
+  const openFrom = (portal: RoleKey | null, target: string) => {
+    const p = portal && views.includes(portal) ? portal : role
+    if (!NAV[p].some(g => g.items.includes(target))) return
+    setRole(p); setPage(target)
+  }
   const myTeacher = teachers.find(t => t.profile_id === session.user.id)?.id ?? null
   const teacherId = role === 'teacher' ? (access.isAdmin ? actingTeacher ?? teachers[0]?.id ?? null : myTeacher) : null
 
@@ -130,6 +141,16 @@ function Shell({ session }: { session: Session }) {
   return (
     <div className={'app' + (collapsed ? ' collapsed' : '')}>
       <nav className="side" aria-label="Menu chính">
+        <label className="yearpick">
+          <span>Năm học · học kỳ</span>
+          <select value={yrs.year?.id ?? ''} onChange={e => e.target.value === '__manage' ? (role === 'school_admin' ? setPage('Năm học & học kỳ') : null) : yrs.select(e.target.value)}
+            aria-label="Chọn năm học và học kỳ">
+            {yrs.years.length === 0 && <option value="">Chưa có năm học</option>}
+            {yrs.years.map(y => <option key={y.id} value={y.id}>{yearLabel(y)}{y.is_current ? ' (hiện tại)' : ''}</option>)}
+            {role === 'school_admin' && access.canView('periods') && <option value="__manage">Quản lý năm học…</option>}
+          </select>
+        </label>
+        {yrs.year && !yrs.year.is_current && <p className="yearwarn">Đang xem học kỳ không phải hiện tại</p>}
         {groups.map(g => (
           <div key={g.title}>
             <h4>{g.title}</h4>
@@ -153,6 +174,7 @@ function Shell({ session }: { session: Session }) {
                 {views.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
               </select>
             )}
+            <Bell open={openFrom} portals={views} />
             <span className="avatar">{email.charAt(0).toUpperCase()}</span>
             <button onClick={() => setChangingPw(true)}>Đổi mật khẩu</button>
             <button onClick={() => supabase.auth.signOut()}>Đăng xuất</button>
@@ -160,7 +182,8 @@ function Shell({ session }: { session: Session }) {
         </header>
         <main className="main">
           <h1>{page}</h1>
-          {Page ? <Page teacherId={teacherId} orgId={access.profile.org_id} userName={access.profile.full_name} go={(p: string) => setPage(p)} /> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
+          {Page ? <Page key={page + (yrs.year?.id ?? '')} teacherId={teacherId} orgId={access.profile.org_id} userName={access.profile.full_name} go={(p: string) => setPage(p)}
+            year={yrs.year} years={yrs.years} reloadYears={yrs.reload} selectYear={yrs.select} /> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
         </main>
       </div>
     </div>

@@ -11,7 +11,7 @@ button{font-family:inherit}
 
 /* Khung chính */
 .app{display:grid;grid-template-columns:256px minmax(0,1fr);min-height:100vh}
-.app.collapsed{grid-template-columns:0 minmax(0,1fr)}
+.app.collapsed{grid-template-columns:minmax(0,1fr)}
 .side{background:var(--navy);color:#f6f9fc;padding:16px 8px;overflow:auto;position:sticky;top:0;height:100vh}
 .app.collapsed .side{display:none}
 .side h4{margin:18px 10px 8px;font-size:13px;font-weight:700;color:var(--orange);letter-spacing:.2px;text-transform:uppercase}
@@ -331,3 +331,14 @@ td.nowrap{white-space:nowrap}
 .todo.sel{border-left-color:var(--primary);background:#f2f8ff}
 @media(max-width:700px){.hbar{grid-template-columns:100px minmax(0,1fr) 40px}}
 td button{white-space:nowrap}
+
+/* Nhóm menu thu gọn được */
+.navgroup{margin-top:6px}
+.side button.grouphead{display:flex;align-items:center;gap:8px;width:100%;margin:10px 0 4px;padding:6px 10px;border:0;border-radius:8px;background:none;
+  color:var(--orange);font-size:13px;font-weight:700;letter-spacing:.2px;text-transform:uppercase;cursor:pointer}
+.side button.grouphead:hover{background:var(--navy-2)}
+.side button.grouphead span{flex:1;text-align:left}
+.side button.grouphead svg{transition:transform .15s;opacity:.85}
+.side button.grouphead.shut svg{transform:rotate(-90deg)}
+.side .grouphead .dot{width:7px;height:7px;border-radius:50%;background:var(--orange)}
+.side .navgroup:first-of-type button.grouphead{margin-top:2px}

@@ -23,7 +23,9 @@ export function useDeptStats() {
   async function load(force = false) {
     if (!force && cache && Date.now() - cache.at < 60000) return setData(cache)
     const [s, u] = await Promise.all([supabase.rpc('dept_school_stats'), supabase.rpc('dept_subject_stats')])
-    if (s.error) return setErr(s.error.message)
+    if (s.error) return setErr(/schema cache|does not exist/i.test(s.error.message)
+      ? 'Cơ sở dữ liệu chưa có các hàm thống kê của Sở. Hãy chạy migration 018_department_portal.sql trên Supabase (sau 012–017).'
+      : s.error.message)
     cache = { at: Date.now(), schools: (s.data as SchoolStat[]) ?? [], subjects: (u.data as SubjectStat[]) ?? [] }
     setData(cache)
   }

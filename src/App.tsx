@@ -122,6 +122,13 @@ function Shell({ session }: { session: Session }) {
   const [role, setRole] = useState<RoleKey | null>(null)
   const [page, setPage] = useState('')
   const [collapsed, setCollapsed] = useState(false)
+  // Nhóm menu đang thu gọn (nhớ theo trình duyệt)
+  const [closed, setClosed] = useState<Set<string>>(() => { try { return new Set(JSON.parse(localStorage.getItem('menu.closed') ?? '[]')) } catch { return new Set() } })
+  const toggleGroup = (key: string) => setClosed(prev => {
+    const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key)
+    try { localStorage.setItem('menu.closed', JSON.stringify([...next])) } catch { /* bỏ qua */ }
+    return next
+  })
   const [teachers, setTeachers] = useState<{ id: string; full_name: string; profile_id: string | null }[]>([])
   const [actingTeacher, setActingTeacher] = useState<string | null>(null)
   const [students, setStudents] = useState<{ id: string; full_name: string; profile_id: string | null; classes: { name: string } | null }[]>([])
@@ -186,16 +193,28 @@ function Shell({ session }: { session: Session }) {
           </select>
         </label>}
         {role !== 'department' && yrs.year && !yrs.year.is_current && <p className="yearwarn">Đang xem học kỳ không phải hiện tại</p>}
-        {groups.map(g => (
-          <div key={g.title}>
-            <h4>{g.title}</h4>
+        {groups.map(g => {
+          const key = role + ':' + g.title
+          const shut = closed.has(key)
+          const id = 'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')
+          return (
+          <div key={g.title} className="navgroup">
+            <button className={'grouphead' + (shut ? ' shut' : '')} onClick={() => toggleGroup(key)} aria-expanded={!shut} aria-controls={id}>
+              <span>{g.title}</span>
+              {shut && g.items.includes(page) && <i className="dot" aria-label="Đang mở trang trong nhóm này" />}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+            </button>
+            <div id={id} hidden={shut}>
             {g.items.map(i => <button key={i} className={i === page ? 'on' : ''} onClick={() => setPage(i)}>{i}</button>)}
+            </div>
           </div>
-        ))}
+          )
+        })}
+        
       </nav>
       <div className="content">
         <header className="top">
-          <button className="toggle" onClick={() => setCollapsed(!collapsed)} aria-label="Ẩn/hiện menu">☰</button>
+          <button className="toggle" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Hiện menu' : 'Ẩn menu'} aria-expanded={!collapsed}>☰</button>
           <img src={logo} alt="KDI education" />
           <span className="title">Hệ thống Quản trị STEM</span>
           <div className="user">

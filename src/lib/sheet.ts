@@ -59,7 +59,7 @@ export async function downloadXlsx(fileName: string, columns: Column[], rows: (s
     columns.map(c => ({ value: c.label + (c.required ? ' *' : ''), fontWeight: 'bold' as const, backgroundColor: '#E6F1FD' })),
     ...rows.map(r => r.map(v => (v == null || v === '' ? null : typeof v === 'number' ? { value: v, type: Number } : { value: String(v), type: String }))),
   ]
-  await writeXlsxFile(data as any, { columns: columns.map(c => ({ width: c.width ?? Math.max(12, c.label.length + 4) })), sheet, stickyRowsCount: 1 } as any)
+  await writeXlsxFile(data as any, { columns: columns.map(c => ({ width: c.width ?? Math.max(12, c.label.length + 4) })), sheet: sheet.replace(/[[\]\/\\:*?]/g, '-').slice(0, 31), stickyRowsCount: 1 } as any)
     .toFile(fileName.endsWith('.xlsx') ? fileName : fileName + '.xlsx')
 }
 

@@ -61,7 +61,7 @@ export function Tabs<T extends string>({ items, value, onChange }: { items: [T, 
   return (
     <div className="segmented" role="tablist">
       {items.map(([k, l, n]) => (
-        <button key={k} role="tab" aria-selected={value === k} className={value === k ? 'on' : ''} onClick={() => onChange(k)}>
+        <button type="button" key={k} role="tab" aria-selected={value === k} className={value === k ? 'on' : ''} onClick={() => onChange(k)}>
           {l}{n !== undefined && <span className="count">{n}</span>}
         </button>
       ))}

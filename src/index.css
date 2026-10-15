@@ -294,3 +294,40 @@ td.nowrap{white-space:nowrap}
 .main .linkbtn:hover{background:none;text-decoration:underline}
 .weektkb{table-layout:fixed}.weektkb th:first-child,.weektkb td:first-child{width:100px}
 .bar h3{margin:0}
+
+/* Cổng Sở GD&ĐT */
+.ktiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:0 0 14px}
+.ktile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:grid;gap:2px;border-top:3px solid var(--accent)}
+.ktile span{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.ktile b{font-size:26px;color:var(--navy);line-height:1.15}.ktile small{color:var(--muted)}
+.ktile.good{border-top-color:#0ca30c}.ktile.warn{border-top-color:#fab219}.ktile.bad{border-top-color:#d03b3b}
+.gpill{display:inline-flex;align-items:center;gap:5px;padding:2px 9px 2px 4px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.gpill i{display:inline-grid;place-items:center;width:16px;height:16px;border-radius:50%;font-style:normal;font-size:10px;color:#fff}
+.gpill.good{background:#e3f4ea;color:#11681a}.gpill.good i{background:#0ca30c}
+.gpill.warn{background:#fff3df;color:#8a5a00}.gpill.warn i{background:#fab219;color:#3b2a00}
+.gpill.bad{background:#fde8e8;color:#9b2222}.gpill.bad i{background:#d03b3b}
+.heat td.hc{text-align:center;font-weight:600;font-variant-numeric:tabular-nums;border:2px solid var(--surface);padding:8px 10px}
+.heat th{white-space:nowrap}.heat td{padding:8px 12px}
+.heatlegend{display:flex;gap:4px;align-items:center;justify-content:flex-end;margin-top:8px}.heatlegend i{width:28px;height:10px;border-radius:3px}
+.colchart{position:relative;margin:8px 0 34px 34px}
+.colchart .grid{position:absolute;inset:0}.colchart .grid div{position:absolute;left:0;right:0;border-top:1px solid var(--line)}
+.colchart .grid span{position:absolute;left:-34px;top:-8px;font-size:11px;color:var(--muted);width:30px;text-align:right}
+.bars2{position:absolute;inset:0;display:flex;align-items:flex-end;gap:2px}
+.col2{flex:1;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;position:relative;outline:none;min-width:0}
+.bar2{width:min(46px,72%);border-radius:4px 4px 0 0;position:relative;min-height:2px;transition:opacity .15s}
+.bar2 em{position:absolute;top:-18px;left:50%;transform:translateX(-50%);font-style:normal;font-size:11px;font-weight:700;color:var(--text);white-space:nowrap}
+.col2 .xl{position:absolute;bottom:-30px;left:0;right:0;font-size:11px;color:var(--muted);text-align:center;line-height:1.2;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.col2 .tip{position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--navy);color:#fff;border-radius:8px;padding:6px 10px;font-size:12px;white-space:nowrap;z-index:4;pointer-events:none}
+.col2:focus-visible .bar2{outline:2px solid var(--accent);outline-offset:2px}
+.hbars{display:grid;gap:8px}.hbar{display:grid;grid-template-columns:150px minmax(0,1fr) 44px;gap:10px;align-items:center;font-size:13px}
+.hbar .hl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.hbar b{text-align:right;font-variant-numeric:tabular-nums}
+.ctgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.main button.ctcard{display:grid;gap:6px;text-align:left;padding:14px;border-radius:14px;background:var(--surface);align-content:start}
+.main button.ctcard.on{border-color:var(--navy);box-shadow:0 0 0 2px var(--navy) inset}
+.reportform{display:grid;gap:12px}.reportform fieldset{border:0;padding:0;margin:0;display:grid;gap:6px}
+.reportform legend{font-size:13px;color:var(--muted);margin-bottom:6px}
+.tplrow{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}
+.tplrow.on{border-color:var(--primary);background:#f2f8ff}.tplrow input{margin-top:3px;accent-color:var(--primary)}
+.todo.sel{border-left-color:var(--primary);background:#f2f8ff}
+@media(max-width:700px){.hbar{grid-template-columns:100px minmax(0,1fr) 40px}}
+td button{white-space:nowrap}

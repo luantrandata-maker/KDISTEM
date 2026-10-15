@@ -36,6 +36,9 @@ import { StudentAssignments } from './pages/student/Assignments'
 import { StudentSchedule } from './pages/student/Schedule'
 import { StudentClassroom } from './pages/student/Classroom'
 import { StudentTopics } from './pages/student/Topics'
+import { DeptDashboard, DeptWardKpi, DeptSchools, DeptPrograms, DeptSubjects, DeptTrainingMonitor, DeptRoomEffect } from './pages/department/Overview'
+import { DeptReports } from './pages/department/Reports'
+import { DeptAdmin } from './pages/department/Admin'
 
 type PageMap = Record<string, (props: any) => JSX.Element>
 const SCHOOL: PageMap = {
@@ -82,7 +85,20 @@ const STUDENT: PageMap = {
   'Giáo dục STEM': StudentClassroom,
   'Chủ đề': StudentTopics,
 }
-const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT }
+const DEPARTMENT: PageMap = {
+  'Dashboard toàn Sở': DeptDashboard,
+  'KPI & Xếp hạng Xã/Phường': DeptWardKpi,
+  'Danh sách Trường': DeptSchools,
+  'Chương trình CT1–CT5': DeptPrograms,
+  'Theo dõi Môn học STEM': DeptSubjects,
+  'Giám sát Tập huấn GV': DeptTrainingMonitor,
+  'Kế hoạch tập huấn': TrainingPlans,
+  'Lịch tập huấn': TrainingSchedule,
+  'Hiệu quả Phòng STEM': DeptRoomEffect,
+  'Báo cáo Bộ GD&ĐT': DeptReports,
+  'Điều hành & Cấu hình': DeptAdmin,
+}
+const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT }
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -160,7 +176,7 @@ function Shell({ session }: { session: Session }) {
   return (
     <div className={'app' + (collapsed ? ' collapsed' : '')}>
       <nav className="side" aria-label="Menu chính">
-        <label className="yearpick">
+        {role !== 'department' && <label className="yearpick">
           <span>Năm học · học kỳ</span>
           <select value={yrs.year?.id ?? ''} onChange={e => e.target.value === '__manage' ? (role === 'school_admin' ? setPage('Năm học & học kỳ') : null) : yrs.select(e.target.value)}
             aria-label="Chọn năm học và học kỳ">
@@ -168,8 +184,8 @@ function Shell({ session }: { session: Session }) {
             {yrs.years.map(y => <option key={y.id} value={y.id}>{yearLabel(y)}{y.is_current ? ' (hiện tại)' : ''}</option>)}
             {role === 'school_admin' && access.canView('periods') && <option value="__manage">Quản lý năm học…</option>}
           </select>
-        </label>
-        {yrs.year && !yrs.year.is_current && <p className="yearwarn">Đang xem học kỳ không phải hiện tại</p>}
+        </label>}
+        {role !== 'department' && yrs.year && !yrs.year.is_current && <p className="yearwarn">Đang xem học kỳ không phải hiện tại</p>}
         {groups.map(g => (
           <div key={g.title}>
             <h4>{g.title}</h4>

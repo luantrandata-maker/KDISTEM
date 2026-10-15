@@ -7,3 +7,6 @@ grant usage on schema public, auth to anon, authenticated;
 alter default privileges in schema public grant all on tables to anon, authenticated;
 alter default privileges in schema public grant all on functions to anon, authenticated;
 alter default privileges in schema public grant all on sequences to anon, authenticated;
+-- Bảng phiên và yếu tố 2FA (rút gọn) để kiểm thử 024
+create table auth.sessions (id uuid primary key default gen_random_uuid(), user_id uuid, created_at timestamptz default now(), updated_at timestamptz default now(), aal text default 'aal1', user_agent text, ip text);
+create table auth.mfa_factors (id uuid primary key default gen_random_uuid(), user_id uuid, status text default 'verified');

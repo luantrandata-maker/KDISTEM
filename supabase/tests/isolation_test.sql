@@ -81,6 +81,13 @@ create or replace function pg_temp.cleanup() returns void language plpgsql as $$
 declare v_orgs uuid[] := array(select id from organizations where code like 'ISO-%');
   v_users uuid[] := array(select id from profiles where email like '%@iso-test.local');
 begin
+  if to_regclass('public.broadcasts') is not null then
+    delete from notifications where kind in ('broadcast', 'package_order') and title like '%thử ISO%';
+    delete from broadcasts where title like '%thử ISO%';
+    delete from stem_packages where id in (select delivered_package_id from package_orders where name like '%thử ISO%');
+    delete from package_orders where name like '%thử ISO%';
+    delete from rollout_checks where org_id = any(v_orgs);
+  end if;
   if to_regclass('public.contracts') is not null then
     delete from notifications where ref_id in (select id from support_tickets where subject like 'ISO %');
     delete from support_tickets where subject like 'ISO %' or org_id = any(v_orgs);
@@ -392,6 +399,43 @@ select pg_temp.chk('admin_kb', 'Khách hàng không viết ghi chú nội bộ',
 select pg_temp.chk('admin_kb', 'Khách hàng đóng được phiếu', 'update support_tickets set status = ''closed'' where subject = ''ISO lỗi đăng nhập''', 'rows:1');
 select pg_temp.chk('kdi', 'KDI cập nhật được phiếu bảo hành', 'update warranty_tickets set status = ''processing'' where id = (select id from warranty_tickets limit 1)', 'rows:1');
 select pg_temp.chk('admin_ph', 'Trường không sửa phiếu bảo hành trường khác', format('update warranty_tickets set status = ''processing'' where org_id = %s', quote_literal(pg_temp.oid_('THCS-KB'))), 'rows:0');
+
+-- ===== 12. Danh mục gói & đơn đặt gói (025) =====
+select pg_temp.chk('kdi', 'Danh mục KDI có gói mẫu', 'select count(*) from package_catalog()', '>0');
+select pg_temp.chk('admin_kb', 'Trường xem được danh mục để đặt', 'select count(*) from package_catalog()', '>0');
+select pg_temp.chk('hs_kb', 'Học sinh không xem danh mục', 'select count(*) from package_catalog()', '0');
+select pg_temp.chk('admin_kb', 'Gói danh mục không lẫn vào gói của trường', 'select count(*) from stem_packages where org_id = platform_org_id()', '0');
+select pg_temp.chk('admin_ph', 'Trường không thêm gói vào danh mục KDI', 'insert into stem_packages (org_id, name, tier) values (platform_org_id(), ''x thử ISO'', ''basic'')', 'ERR');
+select pg_temp.chk('admin_ph', 'Không gọi trực tiếp hàm sao chép gói', 'select copy_stem_package((select id from package_catalog() limit 1), my_org_id())::text', 'ERR');
+select pg_temp.chk('admin_ph', 'Không chọn gói ngoài danh mục', 'insert into package_orders (org_id, name, catalog_package_id) select my_org_id(), ''x thử ISO'', id from stem_packages where org_id = my_org_id() limit 1', 'ERR*');
+select pg_temp.probe('admin_ph@iso-test.local', 'insert into package_orders (org_id, name, status, catalog_package_id) values (my_org_id(), ''Đơn thử ISO'', ''pending'', (select id from package_catalog() where code = ''GOI-001''))', true);
+select pg_temp.chk('admin_ph', 'Trường không tự đánh dấu đã giao', 'update package_orders set fulfillment = ''delivered'' where name = ''Đơn thử ISO''', 'ERR');
+select pg_temp.chk('kdi', 'Không giao đơn chưa duyệt', 'select platform_fulfill_order((select id from package_orders where name = ''Đơn thử ISO''), ''delivered'')::text', 'ERR*');
+-- Quy trình mẫu của Sở Hưng Yên: Hiệu trưởng → Sở
+select pg_temp.probe('admin_ph@iso-test.local', 'update package_orders set status = ''approved'' where name = ''Đơn thử ISO''', true);
+select pg_temp.probe('so_hy@iso-test.local', 'select approval_decide((select r.id from approval_inbox() r where r.title = ''Đơn thử ISO'' limit 1), ''approve'')::text', true);
+select pg_temp.chk('admin_ph', 'Đơn đã duyệt theo quy trình', 'select status from package_orders where name = ''Đơn thử ISO''', 'approved');
+select pg_temp.chk('admin_ph', 'Trường không gọi hàm xử lý đơn của KDI', 'select platform_fulfill_order((select id from package_orders where name = ''Đơn thử ISO''), ''delivered'')::text', 'ERR');
+select pg_temp.probe('kdi@iso-test.local', 'select platform_fulfill_order((select id from package_orders where name = ''Đơn thử ISO''), ''delivered'', null, ''Giao kèm 10 bộ thiết bị'', 95000000)::text', true);
+select pg_temp.chk('admin_ph', 'Đã giao: trường có gói mới kèm chủ đề', 'select count(*) from package_topics where package_id = (select delivered_package_id from package_orders where name = ''Đơn thử ISO'')', '>0');
+select pg_temp.chk('admin_ph', 'Đã giao: có buổi học', 'select count(*) from package_topic_sessions s join package_topics t on t.id = s.topic_id where t.package_id = (select delivered_package_id from package_orders where name = ''Đơn thử ISO'')', '>0');
+select pg_temp.chk('admin_ph', 'Người đặt nhận thông báo đã giao', 'select count(*) from notifications where user_id = auth.uid() and kind = ''package_order''', '1');
+select pg_temp.chk('admin_kb', 'Trường khác không thấy gói đã giao', 'select count(*) from stem_packages where id = (select delivered_package_id from package_orders where name = ''Đơn thử ISO'')', '0');
+select pg_temp.chk('kdi', 'Đã giao thì không đổi trạng thái', 'select platform_fulfill_order((select id from package_orders where name = ''Đơn thử ISO''), ''cancelled'')::text', 'ERR*');
+
+-- ===== 13. Thông báo hàng loạt, triển khai, tích hợp (025) =====
+select pg_temp.chk('admin_ph', 'Trường không gửi thông báo hàng loạt', 'select platform_broadcast(''x'')::text', 'ERR');
+select pg_temp.chk('kdi', 'Xem trước số người nhận', format('select ((platform_broadcast_preview(array[%s]::uuid[], null, array[''principal''])->>''users'')::int > 0)::text', quote_literal(pg_temp.oid_('SO-BN'))), 'true');
+select pg_temp.probe('kdi@iso-test.local', format('select platform_broadcast(''Thông báo thử ISO'', ''Nội dung'', null, array[%s]::uuid[], null, array[''principal''])::text', quote_literal(pg_temp.oid_('SO-BN'))), true);
+select pg_temp.chk('admin_kb', 'Hiệu trưởng trường thuộc Sở nhận thông báo', 'select count(*) from notifications where user_id = auth.uid() and kind = ''broadcast'' and title = ''Thông báo thử ISO''', '1');
+select pg_temp.chk('admin_ph', 'Trường tỉnh khác không nhận', 'select count(*) from notifications where user_id = auth.uid() and title = ''Thông báo thử ISO''', '0');
+select pg_temp.chk('gv_both', 'Giáo viên không thuộc vai trò được chọn', 'select count(*) from notifications where user_id = auth.uid() and title = ''Thông báo thử ISO''', '0');
+select pg_temp.chk('kdi', 'Thống kê số người nhận', 'select (recipients > 0)::text from platform_broadcasts() where title = ''Thông báo thử ISO''', 'true');
+select pg_temp.chk('admin_ph', 'Trường không xem lịch sử thông báo', 'select count(*) from broadcasts', '0');
+select pg_temp.chk('kdi', 'KDI đánh dấu bước triển khai', format('insert into rollout_checks (org_id, step) values (%s, ''kickoff'')', quote_literal(pg_temp.oid_('THCS-PH'))), 'rows:1');
+select pg_temp.chk('admin_ph', 'Trường không tự đánh dấu bước triển khai', 'insert into rollout_checks (org_id, step) values (my_org_id(), ''acceptance'')', 'ERR');
+select pg_temp.chk('admin_ph', 'Trường không xem kết nối tích hợp', 'select count(*) from integrations', '0');
+select pg_temp.chk('kdi', 'KDI cập nhật kết nối tích hợp', 'update integrations set status = ''error'', last_error = ''Hết hạn khoá'' where key = ''k12''', 'rows:1');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

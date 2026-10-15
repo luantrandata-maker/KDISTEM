@@ -512,3 +512,19 @@ b.bad,.bad{color:var(--bad)}
 .mfaqr{width:200px;height:200px;margin:8px auto;display:block;background:#fff;border-radius:8px}
 .supmeta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0 0}
 .supdetail .bar{flex-wrap:nowrap;align-items:flex-start}.supdetail .bar .linkbtn{white-space:nowrap}
+
+/* Đợt 2 (025): triển khai, danh mục gói, thông báo, tích hợp */
+.misschip{margin:0 4px 4px 0}
+.nowrap{white-space:nowrap}
+.rollout{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:6px 18px}
+.rollout li{display:grid;gap:2px;padding:6px 10px;border:1px solid var(--line);border-radius:10px}
+.rollout li.ok{background:#f1faf4;border-color:#bfe3cc}
+.rollout .ck{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--soft);font-size:11px;font-weight:700;margin-right:4px}
+.rollout li.ok .ck{background:var(--ok);color:#fff}
+.topiced ol{margin:0 0 10px;padding-left:20px;display:grid;gap:10px}
+.topiced ul{margin:6px 0 0;padding-left:18px;display:grid;gap:4px;font-size:13px}
+.topiced input,.topiced select{padding:6px 8px;border:1px solid var(--line);border-radius:8px;font-family:inherit}
+.bcgrid{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:12px;margin-top:10px}
+.bcgrid fieldset:first-child{max-height:340px;overflow:auto;grid-template-columns:1fr;align-content:start}
+@media (max-width:900px){.bcgrid{grid-template-columns:1fr}}
+.plbar .track,.plbar .fill{display:block}

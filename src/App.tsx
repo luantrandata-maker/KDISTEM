@@ -31,6 +31,11 @@ import { TeacherHome, TeacherSchedule, TeacherClasses, TeacherBooking } from './
 import { TeacherAssignments, TeacherGrading } from './pages/teacher/Assignments'
 import { TeacherLessonStudio } from './pages/teacher/Lessons'
 import { TeacherClassroom } from './pages/teacher/Classroom'
+import { StudentHome } from './pages/student/Home'
+import { StudentAssignments } from './pages/student/Assignments'
+import { StudentSchedule } from './pages/student/Schedule'
+import { StudentClassroom } from './pages/student/Classroom'
+import { StudentTopics } from './pages/student/Topics'
 
 type PageMap = Record<string, (props: any) => JSX.Element>
 const SCHOOL: PageMap = {
@@ -70,7 +75,14 @@ const TEACHER: PageMap = {
   'Giáo dục STEM': TeacherClassroom,
   'Soạn bài giảng': TeacherLessonStudio,
 }
-const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER }
+const STUDENT: PageMap = {
+  'Tổng quan': StudentHome,
+  'Bài tập': StudentAssignments,
+  'Lịch học': StudentSchedule,
+  'Giáo dục STEM': StudentClassroom,
+  'Chủ đề': StudentTopics,
+}
+const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT }
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -96,6 +108,8 @@ function Shell({ session }: { session: Session }) {
   const [collapsed, setCollapsed] = useState(false)
   const [teachers, setTeachers] = useState<{ id: string; full_name: string; profile_id: string | null }[]>([])
   const [actingTeacher, setActingTeacher] = useState<string | null>(null)
+  const [students, setStudents] = useState<{ id: string; full_name: string; profile_id: string | null; classes: { name: string } | null }[]>([])
+  const [actingStudent, setActingStudent] = useState<string | null>(null)
   const [changingPw, setChangingPw] = useState(false)
   const yrs = useYears(access.profile?.org_id)
 
@@ -107,7 +121,10 @@ function Shell({ session }: { session: Session }) {
 
   useEffect(() => {
     if (access.profile?.org_id) supabase.from('teachers').select('id, full_name, profile_id').order('full_name').then(({ data }) => setTeachers(data ?? []))
-  }, [access.profile?.org_id])
+    // Học sinh: hồ sơ của chính mình; quản trị: danh sách để xem thử giao diện học sinh
+    if (access.profile?.org_id && access.portals.includes('student'))
+      supabase.from('students').select('id, full_name, profile_id, classes(name)').order('student_code').then(({ data }) => setStudents((data as any) ?? []))
+  }, [access.profile?.org_id, access.portals.length])
 
   if (access.loading) return null
   if (changingPw) return <SetPassword onDone={() => setChangingPw(false)} />
@@ -131,6 +148,8 @@ function Shell({ session }: { session: Session }) {
   }
   const myTeacher = teachers.find(t => t.profile_id === session.user.id)?.id ?? null
   const teacherId = role === 'teacher' ? (access.isAdmin ? actingTeacher ?? teachers[0]?.id ?? null : myTeacher) : null
+  const myStudent = students.find(s => s.profile_id === session.user.id)?.id ?? null
+  const studentId = role === 'student' ? (access.isAdmin ? actingStudent ?? students.find(s => s.classes?.name === 'Lớp 9A')?.id ?? students[0]?.id ?? null : myStudent) : null
 
   const groups = NAV[role]
     .map(g => ({ ...g, items: g.items.filter(i => role !== 'school_admin' || !MODULE_OF[i] || access.canView(MODULE_OF[i])) }))
@@ -169,6 +188,11 @@ function Shell({ session }: { session: Session }) {
                 {teachers.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
               </select>
             )}
+            {access.isAdmin && role === 'student' && (
+              <select value={studentId ?? ''} onChange={e => setActingStudent(e.target.value)} aria-label="Xem với tư cách học sinh">
+                {students.map(s => <option key={s.id} value={s.id}>{s.classes?.name} · {s.full_name}</option>)}
+              </select>
+            )}
             {views.length > 1 && (
               <select value={role} onChange={e => changeRole(e.target.value as RoleKey)} aria-label="Chế độ xem">
                 {views.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
@@ -182,7 +206,7 @@ function Shell({ session }: { session: Session }) {
         </header>
         <main className="main">
           <h1>{page}</h1>
-          {Page ? <Page key={page + (yrs.year?.id ?? '')} teacherId={teacherId} orgId={access.profile.org_id} userName={access.profile.full_name} go={(p: string) => setPage(p)}
+          {Page ? <Page key={page + (yrs.year?.id ?? '') + (studentId ?? '')} teacherId={teacherId} studentId={studentId} orgId={access.profile.org_id} userName={access.profile.full_name} go={(p: string) => setPage(p)}
             year={yrs.year} years={yrs.years} reloadYears={yrs.reload} selectYear={yrs.select} /> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
         </main>
       </div>

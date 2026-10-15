@@ -180,6 +180,7 @@ function LiveClass({ session, plan, className, orgId, teacherId, borrows, onEnd 
         {([['assign', 'Giao bài cả lớp'], ['board', 'Bảng trắng'], ['notes', 'Ghi chú'], ['random', 'Gọi ngẫu nhiên'], ['timer', 'Hẹn giờ'], ['devices', 'Thiết bị']] as [Tool, string][])
           .map(([k, l]) => <button key={k} className={tool === k ? 'on' : ''} onClick={() => setTool(tool === k ? '' : k)}>{l}</button>)}
       </div>
+      {cur?.kind === 'question' && <VoteTally sessionId={session.id} slide={cur} reveal={reveal} joined={joined.length} />}
       {tool === 'random' && <RandomCall pool={joined.length ? joined : roster} fromJoined={joined.length > 0} />}
       {tool === 'timer' && <Timer preset={cur?.kind === 'task' ? cur.minutes : undefined} />}
       {tool === 'notes' && <Notes sessionId={session.id} />}
@@ -189,6 +190,34 @@ function LiveClass({ session, plan, className, orgId, teacherId, borrows, onEnd 
         <b>Đã vào lớp ({joined.length})</b>{' '}
         {joined.length ? joined.map(s => <span className="chip" key={s.id} style={{ paddingRight: 12 }}>{s.full_name}</span>)
           : <small>Chưa có học sinh nào nhập mã PIN.</small>}
+      </div>
+    </div>
+  )
+}
+
+// Kết quả biểu quyết của học sinh cho slide câu hỏi đang chiếu (làm mới mỗi 3 giây)
+function VoteTally({ sessionId, slide, reveal, joined }: { sessionId: string; slide: { id: string; options?: string[]; answer?: number }; reveal: boolean; joined: number }) {
+  const [tally, setTally] = useState<Record<number, number>>({})
+  useEffect(() => {
+    const tick = () => supabase.rpc('session_tally', { p_session: sessionId, p_slide: slide.id })
+      .then(({ data }) => setTally(Object.fromEntries(((data as { answer: number; n: number }[]) ?? []).map(x => [x.answer, Number(x.n)]))))
+    tick(); const h = setInterval(tick, 3000); return () => clearInterval(h)
+  }, [sessionId, slide.id])
+  const total = Object.values(tally).reduce((a, b) => a + b, 0)
+  return (
+    <div className="panel">
+      <b>Biểu quyết: {total}/{joined} học sinh đã trả lời</b>
+      <div className="bars" style={{ marginTop: 8 }}>
+        {(slide.options ?? []).map((o, i) => {
+          const n = tally[i] ?? 0; const pct = total ? Math.round(100 * n / total) : 0
+          return (
+            <div className="barrow" key={i}>
+              <span><b>{String.fromCharCode(65 + i)}</b> {o}</span>
+              <div className="track"><div className={'fill ' + (reveal && slide.answer === i ? 'g' : 'o')} style={{ width: pct + '%', background: reveal || slide.answer === undefined ? undefined : 'var(--accent)' }} /></div>
+              <span>{n}</span>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

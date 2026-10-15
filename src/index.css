@@ -253,3 +253,44 @@ td.nowrap{white-space:nowrap}
 .bellitem.unread{background:#eef5fd}.bellitem .ico{flex:0 0 auto}
 .bellitem .txt{display:grid;gap:2px;flex:1}.bellitem .txt b{font-weight:600;font-size:13px}.bellitem .txt small{font-size:12px}
 .bellitem.pend{align-items:center}.bellitem .n{background:var(--orange);color:#fff;border-radius:999px;min-width:22px;padding:0 6px;text-align:center;font-weight:700;font-size:12px}
+
+/* Cổng học sinh */
+.kidhero{background:linear-gradient(120deg,#dff1ff,#fef3e2 60%,#efe8fd);border-radius:18px;padding:22px 26px;margin-bottom:14px}
+.kidhero h2{margin:0 0 4px;font-size:26px;color:var(--navy)}
+.herotopic{display:flex;justify-content:space-between;align-items:center;gap:16px;border-left:5px solid var(--ok)}
+.herotopic h3{margin:4px 0}.herotopic .track{width:min(420px,60vw);margin:8px 0 4px}
+.livebanner{border-left-color:var(--bad)}
+.topicgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px;margin-top:10px}
+.main button.topiccard{display:grid;gap:6px;text-align:left;padding:12px;border-radius:14px;background:var(--surface);align-content:start}
+.topiccover{height:84px;border-radius:10px;padding:8px;display:flex;gap:6px;align-items:flex-start}
+.topiccard .subj{font-weight:600;color:var(--primary)}
+.topichero{display:flex;justify-content:space-between;gap:16px;align-items:center;border-radius:16px;padding:18px 22px;margin:12px 0}
+.topichero h2{margin:6px 0 4px}.topichero p{margin:6px 0 0;color:var(--muted)}
+.lessonrow{display:grid;grid-template-columns:36px minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:8px}
+.lessonrow.next{border-color:var(--primary);background:#f2f8ff}
+.seq{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--soft);font-weight:700}.seq.done{background:var(--ok);color:#fff}
+.checklist{margin:8px 0 0;padding-left:20px;display:grid;gap:6px}
+.talk{display:grid;gap:8px}.post{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.post.teacher{border-left:4px solid var(--orange)}.post p{margin:4px 0 0;white-space:pre-wrap}
+.worksec h3{margin:14px 0 8px;font-size:15px}.worksec h3.hot{color:var(--bad)}
+.workrow{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:8px}
+.workbox{display:grid;gap:8px;border-left:4px solid var(--primary)}
+.graded{display:grid;grid-template-columns:auto minmax(0,1fr);gap:18px;align-items:start}
+.scorebig{font-size:44px;font-weight:800;color:var(--ok);line-height:1}.scorebig small{font-size:18px}
+.weektkb th.today,.weektkb td.today{background:#f2f8ff}.daynum{font-size:18px;color:var(--text)}
+.weektkb th.today .daynum{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:50%;background:var(--primary);color:#fff}
+.pinjoin{display:grid;place-items:center;min-height:50vh}.pinjoin .panel{width:min(440px,100%);text-align:center}
+.pinform{display:grid;gap:10px;margin-top:10px}
+.pinform input{font-size:34px;letter-spacing:12px;text-align:center;padding:12px;border:2px solid var(--line);border-radius:14px;font-family:inherit}
+.pinform input:focus{border-color:var(--primary);outline:none}
+.livehint{background:#fde8e8;border-radius:10px;padding:8px;color:#8f1f1f}
+.studentlive{display:grid;gap:12px}
+.votebox{display:grid;gap:8px}.voteopts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.main .voteopts button{text-align:left;padding:14px;border-radius:12px;font-size:16px;border-width:2px}
+.main .voteopts button.on{border-color:var(--primary);background:#e6f1fd}
+.main .voteopts button b{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--soft);margin-right:8px}
+@media(max-width:700px){.workrow{grid-template-columns:1fr auto}.workrow>button{grid-column:1/-1}.herotopic{flex-direction:column;align-items:flex-start}}
+.main .linkbtn{border:0;background:none;color:var(--primary);padding:4px 0;font-size:13px}
+.main .linkbtn:hover{background:none;text-decoration:underline}
+.weektkb{table-layout:fixed}.weektkb th:first-child,.weektkb td:first-child{width:100px}
+.bar h3{margin:0}

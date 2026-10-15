@@ -32,14 +32,14 @@ function embedUrl(url: string) {
 const isImage = (url: string) => /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(url)
 
 // Hiển thị một slide (dùng cho xem thử, trình chiếu trên lớp, và về sau màn học sinh)
-export function SlideView({ slide, reveal }: { slide: Slide | undefined; reveal?: boolean }) {
+export function SlideView({ slide, reveal, hideOptions }: { slide: Slide | undefined; reveal?: boolean; hideOptions?: boolean }) {
   if (!slide) return <div className="slide empty">Bài giảng chưa có slide.</div>
   return (
     <div className={'slide ' + slide.kind}>
       <span className="slidekind">{KIND[slide.kind]}{slide.kind === 'task' && slide.minutes ? ` · ${slide.minutes} phút` : ''}</span>
       <h2>{slide.title || <i>Chưa có tiêu đề</i>}</h2>
       {slide.body && <div className="slidebody">{slide.body.split('\n').map((l, i) => <p key={i}>{l}</p>)}</div>}
-      {slide.kind === 'question' && (
+      {slide.kind === 'question' && !hideOptions && (
         <ol className="opts">
           {(slide.options ?? []).map((o, i) => (
             <li key={i} className={reveal && slide.answer === i ? 'right' : ''}><b>{String.fromCharCode(65 + i)}</b> {o}</li>

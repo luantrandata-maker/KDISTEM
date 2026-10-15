@@ -25,6 +25,9 @@ import StemAssign from './pages/StemAssign'
 import { Curriculum, SchoolProfile } from './pages/School'
 import { TrainingPlans, TrainingSchedule, TrainingLessons, VirtualClass, Certificates } from './pages/Training'
 import { TeacherHome, TeacherSchedule, TeacherClasses, TeacherBooking } from './pages/TeacherPortal'
+import { TeacherAssignments, TeacherGrading } from './pages/teacher/Assignments'
+import { TeacherLessonStudio } from './pages/teacher/Lessons'
+import { TeacherClassroom } from './pages/teacher/Classroom'
 
 type PageMap = Record<string, (props: any) => JSX.Element>
 const SCHOOL: PageMap = {
@@ -58,6 +61,10 @@ const TEACHER: PageMap = {
   'Kế hoạch giáo dục': TeacherSchedule,
   'Lớp giảng dạy': TeacherClasses,
   'Đặt phòng STEM': TeacherBooking,
+  'Bài tập': TeacherAssignments,
+  'Chấm bài': TeacherGrading,
+  'Giáo dục STEM': TeacherClassroom,
+  'Soạn bài giảng': TeacherLessonStudio,
 }
 const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER }
 

@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { TeacherBorrow } from './teacher/Borrow'
 
 type Ent = { id: string; weekday: number; period_id: string; subject: string; kind: string; classes: { name: string } | null; stem_rooms: { name: string } | null }
 type Period = { id: string; name: string; starts_at: string; ends_at: string; session: string }
-type Props = { teacherId: string | null; orgId: string | null }
+type Props = { teacherId: string | null; orgId: string | null; go?: (page: string) => void }
 const hm = (t: string) => t.slice(0, 5)
 const todayWeekday = () => { const d = new Date().getDay(); return d === 0 ? 0 : d + 1 } // Thứ 2 = 2 … Thứ 7 = 7, Chủ nhật = 0
 const NoTeacher = () => <p className="sub">Tài khoản này chưa được liên kết với hồ sơ giáo viên. Quản trị trường liên kết trong mục Tài khoản.</p>
@@ -21,10 +22,27 @@ function useMySchedule(teacherId: string | null) {
   return { entries, periods }
 }
 
-export function TeacherHome({ teacherId }: Props) {
+export function TeacherHome({ teacherId, go }: Props) {
   const { entries, periods } = useMySchedule(teacherId)
   const [regs, setRegs] = useState<{ status: string }[]>([])
-  useEffect(() => { if (teacherId) supabase.from('stem_registrations').select('status').eq('teacher_id', teacherId).then(({ data }) => setRegs(data ?? [])) }, [teacherId])
+  const [todo, setTodo] = useState({ grade: 0, soon: 0, borrow: 0, live: 0 })
+  useEffect(() => {
+    if (!teacherId) return
+    supabase.from('stem_registrations').select('status').eq('teacher_id', teacherId).then(({ data }) => setRegs(data ?? []))
+    const soon = new Date(Date.now() + 3 * 86400000).toISOString()
+    Promise.all([
+      supabase.from('assignment_overview').select('submitted_count, graded_count, due_at, status').eq('teacher_id', teacherId),
+      supabase.from('borrow_requests').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId).eq('status', 'pending'),
+      supabase.from('class_sessions').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId).eq('status', 'live'),
+    ]).then(([a, b, l]) => {
+      const rows = (a.data as { submitted_count: number; graded_count: number; due_at: string | null; status: string }[]) ?? []
+      setTodo({
+        grade: rows.reduce((s, r) => s + r.submitted_count - r.graded_count, 0),
+        soon: rows.filter(r => r.status === 'open' && r.due_at && r.due_at > new Date().toISOString() && r.due_at <= soon).length,
+        borrow: b.count ?? 0, live: l.count ?? 0,
+      })
+    })
+  }, [teacherId])
   if (!teacherId) return <NoTeacher />
   const wd = todayWeekday()
   const today = entries.filter(e => e.weekday === wd).sort((a, b) => periods.findIndex(p => p.id === a.period_id) - periods.findIndex(p => p.id === b.period_id))
@@ -36,7 +54,25 @@ export function TeacherHome({ teacherId }: Props) {
         <div className="card"><strong>{entries.length}</strong><span>Tiết/tuần</span></div>
         <div className="card"><strong>{entries.filter(e => e.kind === 'stem').length}</strong><span>Tiết STEM/tuần</span></div>
         <div className="card"><strong>{n('pending')}</strong><span>Đăng ký chờ duyệt</span></div>
-        <div className="card"><strong>{n('approved')}</strong><span>Đăng ký đã duyệt</span></div>
+        <div className="card"><strong>{todo.grade}</strong><span>Bài chờ chấm</span></div>
+      </div>
+      <div className="tiles">
+        {[['Giáo dục STEM', todo.live ? 'Đang có tiết mở — vào lại' : 'Mở lớp bằng mã PIN'], ['Soạn bài giảng', 'Slide, câu hỏi, nhiệm vụ'],
+          ['Bài tập', 'Giao bài, chia nhóm'], ['Đặt phòng STEM', 'Mượn phòng, mượn thiết bị']].map(([p, d]) => (
+          <button key={p} className="tile" onClick={() => go?.(p)}><b>{p}</b><small>{d}</small></button>
+        ))}
+      </div>
+      <div className="panel">
+        <h3>Cần bạn xử lý</h3>
+        {[
+          { n: todo.grade, label: 'Bài chờ chấm', page: 'Chấm bài', hi: true },
+          { n: todo.soon, label: 'Bài tập sắp hết hạn (≤ 3 ngày)', page: 'Bài tập', hi: false },
+          { n: n('pending'), label: 'Đăng ký phòng STEM chờ duyệt', page: 'Đặt phòng STEM', hi: false },
+          { n: todo.borrow, label: 'Phiếu mượn thiết bị chờ duyệt', page: 'Đặt phòng STEM', hi: false },
+        ].filter(x => x.n > 0).map(x => (
+          <button key={x.label} className={'todo' + (x.hi ? ' hi' : '')} onClick={() => go?.(x.page)}><span>{x.label}</span><span className="n">{x.n}</span></button>
+        ))}
+        {todo.grade + todo.soon + n('pending') + todo.borrow === 0 && <small>Không có việc tồn đọng.</small>}
       </div>
       <div className="panel" style={{ marginTop: 16 }}>
         <h3>Lịch dạy hôm nay</h3>
@@ -109,7 +145,21 @@ export function TeacherClasses({ teacherId }: Props) {
 type Reg = { id: string; topic: string; status: string; on_date: string; classes: { name: string } | null; stem_rooms: { name: string } | null; period_configs: { name: string } | null }
 const ST: Record<string, string> = { pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Từ chối' }
 
-export function TeacherBooking({ teacherId, orgId }: Props) {
+// Đặt phòng STEM gồm hai luồng gửi duyệt: mượn phòng (đăng ký dạy STEM) và mượn thiết bị
+export function TeacherBooking(props: Props) {
+  const [tab, setTab] = useState<'room' | 'device'>('room')
+  return (
+    <>
+      <div className="segmented" role="tablist">
+        <button role="tab" aria-selected={tab === 'room'} className={tab === 'room' ? 'on' : ''} onClick={() => setTab('room')}>Mượn phòng</button>
+        <button role="tab" aria-selected={tab === 'device'} className={tab === 'device' ? 'on' : ''} onClick={() => setTab('device')}>Mượn thiết bị</button>
+      </div>
+      {tab === 'room' ? <RoomBooking {...props} /> : <TeacherBorrow {...props} />}
+    </>
+  )
+}
+
+function RoomBooking({ teacherId, orgId }: Props) {
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([])
   const [rooms, setRooms] = useState<{ id: string; name: string; status: string }[]>([])
   const [periods, setPeriods] = useState<Period[]>([])

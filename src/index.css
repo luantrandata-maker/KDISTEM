@@ -157,3 +157,78 @@ td input[type=checkbox]{width:18px;height:18px;accent-color:var(--primary);curso
 .chipbtn.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 @media(max-width:1000px){.hero{grid-template-columns:1fr 1fr}.vh{grid-template-columns:1fr}}
 .conflictbox{border:1px solid var(--bad);background:#fff6f6;margin-bottom:14px}
+
+/* Giáo viên: bài tập, chấm bài */
+.segmented .count{margin-left:6px;background:var(--soft);border-radius:999px;padding:0 7px;font-size:12px;color:var(--muted)}
+.segmented button.on .count{background:#e6f1fd;color:var(--primary)}
+.kind{display:inline-block;margin-left:6px;padding:0 7px;border-radius:6px;font-size:11px;font-weight:600;background:var(--soft);color:var(--muted);white-space:nowrap}
+.kind.product{background:#fff3df;color:#a8650c}.kind.quiz{background:#efe7fd;color:#6d28d9}.kind.worksheet{background:#e6f1fd;color:var(--primary)}
+.due.warn{color:#a8650c;font-weight:600}.due.bad{color:var(--bad);font-weight:600}
+.rowactions{white-space:nowrap}.rowactions button{margin:2px 4px 2px 0}
+.gradebox{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(260px,1fr);gap:18px;border-left:4px solid var(--primary)}
+.gradebox h3{margin:4px 0}.answer{background:var(--soft);border-radius:10px;padding:12px;margin:10px 0;white-space:pre-wrap}
+@media(max-width:900px){.gradebox{grid-template-columns:1fr}}
+
+/* Soạn bài giảng */
+.lessongrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.lessoncard{display:grid;gap:6px;margin:0;align-content:start}
+.lessoncover{height:72px;border-radius:10px;background:linear-gradient(135deg,#e6f1fd,#f3f7fb);padding:8px;display:flex;align-items:flex-start;gap:4px;position:relative}
+.pkgchip{background:var(--navy);color:#fff}.slidecount{position:absolute;right:8px;bottom:6px;font-size:12px;color:var(--muted)}
+.lessonfoot{display:flex;justify-content:space-between;align-items:center}
+.studio{display:grid;grid-template-columns:240px minmax(0,1fr);gap:14px;align-items:start}
+.slidelist{display:grid;gap:4px;margin:0;max-height:70vh;overflow:auto}
+.main .slidelist>button{display:grid;gap:2px;text-align:left;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.main .slidelist>button.on{border-color:var(--primary);background:#e6f1fd}
+.slidelist>button span{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.addslide{display:grid;gap:4px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.main .addslide button{text-align:left;padding:5px 10px}
+@media(max-width:900px){.studio{grid-template-columns:1fr}}
+.slide{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:32px 40px;min-height:300px;aspect-ratio:16/9;max-height:72vh;overflow:auto;display:flex;flex-direction:column;gap:10px}
+.slide.title{background:linear-gradient(120deg,#152e5d,#1c63bb);color:#fff;justify-content:center}
+.slide.title .slidekind{color:#cfe0f7}.slide.title h2{font-size:clamp(28px,4vw,44px)}
+.slide.empty{display:grid;place-items:center;color:var(--muted)}
+.slidekind{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--primary)}
+.slide h2{margin:0;font-size:clamp(22px,3vw,34px);line-height:1.2}
+.slidebody{font-size:clamp(16px,1.8vw,22px);line-height:1.5}.slidebody p{margin:0 0 6px}
+.slide.task{border-left:6px solid var(--orange)}.slide.question{border-left:6px solid #7c3aed}
+.opts{list-style:none;padding:0;margin:8px 0 0;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.opts li{border:2px solid var(--line);border-radius:12px;padding:12px 14px;font-size:clamp(15px,1.6vw,20px)}
+.opts li b{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--soft);margin-right:8px}
+.opts li.right{border-color:var(--ok);background:#e3f4ea}
+.slide iframe,.slide img{width:100%;flex:1;min-height:220px;border:0;border-radius:10px;object-fit:contain}
+.presenter{display:grid;gap:12px}
+
+/* Lớp học STEM trực tiếp */
+.liveclass{display:grid;gap:12px}
+.pinbox{background:var(--navy);color:#fff;border-radius:10px;padding:6px 12px;font-size:13px}
+.pinbox b{font-size:20px;letter-spacing:3px;margin-left:6px;color:var(--orange)}
+.stage{position:relative;display:grid;gap:8px;background:var(--bg)}
+.stage:fullscreen{padding:24px;background:#0f1d3a}.stage:fullscreen .slide{max-height:none;height:calc(100vh - 110px);aspect-ratio:auto}
+.stagebar{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap}
+.stage:fullscreen .stagebar{color:#fff}
+.pinsmall{font-weight:700;letter-spacing:2px;color:var(--muted)}
+.bigpin{font-size:1.6em;letter-spacing:6px;color:var(--orange)}
+.toolbar{display:flex;gap:6px;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px}
+.main .toolbar button.on,.main .toolpanel button.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.toolpanel{display:grid;gap:10px;justify-items:start}
+.bigname{font-size:clamp(28px,5vw,52px);font-weight:700;color:var(--navy);min-height:1.2em}
+.bigname.timer{font-variant-numeric:tabular-nums}.bigname.warn{color:#a8650c}.bigname.done{color:var(--bad)}
+.board{position:absolute;inset:0 0 44px 0;z-index:3}
+.board canvas{width:100%;height:100%;border-radius:16px;background:rgba(255,255,255,.35);cursor:crosshair;touch-action:none;display:block}
+.boardtools{position:absolute;top:10px;right:10px;display:flex;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px}
+.main .boardtools button.on{background:var(--navy);color:#fff}
+.main .boardtools .swatch{width:28px;height:28px;padding:0;border-radius:50%;border:3px solid var(--surface);box-shadow:0 0 0 1px var(--line)}
+.main .boardtools .swatch.on{box-shadow:0 0 0 2px var(--text)}
+.main .segmented button{border:0;background:none;border-radius:9px;color:var(--muted)}
+.main .segmented button:hover{background:rgba(255,255,255,.6)}
+.main .segmented button.on{background:var(--surface);color:var(--text);box-shadow:0 1px 2px rgba(20,31,50,.08)}
+.field input,.field select,.field textarea{min-width:0;width:100%}
+.field input[type=checkbox],.field input[type=radio]{width:16px}
+.pill{white-space:nowrap;display:inline-block}
+td.nowrap{white-space:nowrap}
+.user button{border:1px solid var(--line);background:var(--surface);color:var(--text);border-radius:10px;padding:6px 12px;cursor:pointer;font-weight:500}
+.user button:hover{background:var(--soft)}
+.tools{align-items:center}
+.addrow input[type=radio]{flex:0 0 auto;width:18px;height:18px;accent-color:var(--ok);align-self:center}
+.main .field>button{justify-self:start}
+.bar{margin-bottom:12px}

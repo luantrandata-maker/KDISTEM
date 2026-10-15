@@ -137,8 +137,8 @@ export default function Accounts({ orgId }: { orgId: string | null }) {
   const singleForm = form ? parseLines(form.emails).length <= 1 : false
   return (
     <>
-      <div className="tools">
-        <p className="sub">Mời người dùng bằng email. Khi họ bấm liên kết trong thư (hoặc tự đăng ký đúng email đó), tài khoản tự được gán trường, vai trò và hồ sơ.</p>
+      <div className="bar">
+        <p className="sub" style={{ margin: 0, flex: 1, minWidth: 260 }}>Mời người dùng bằng email. Khi họ bấm liên kết trong thư (hoặc tự đăng ký đúng email đó), tài khoản tự được gán trường, vai trò và hồ sơ.</p>
         <button className="primary" onClick={() => setForm({ emails: '', full_name: '', role_id: roles.find(r => r.key === 'teacher')?.id ?? roles[0]?.id ?? '', link_id: '', send: true })}>+ Mời người dùng</button>
       </div>
       {err && <p className="msg">{err}</p>}
@@ -147,7 +147,7 @@ export default function Accounts({ orgId }: { orgId: string | null }) {
       {form && (
         <form className="panel formgrid" onSubmit={submitInvite}>
           <label className="field" style={{ gridColumn: '1 / -1' }}><span>Email * <small>(mỗi dòng một người, có thể kèm họ tên: <i>email, Họ tên</i>)</small></span>
-            <textarea required rows={singleForm ? 1 : 4} value={form.emails} onChange={e => setForm({ ...form, emails: e.target.value })}
+            <textarea required rows={singleForm ? 2 : 4} value={form.emails} onChange={e => setForm({ ...form, emails: e.target.value })}
               placeholder={'giaovien@truong.edu.vn\nhocsinh1@truong.edu.vn, Nguyễn Minh Anh'} /></label>
           {singleForm && (
             <label className="field"><span>Họ tên</span>

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { NAV, ROLE_LABEL, MODULE_OF, RoleKey } from './lib/nav'
-import { useAccess } from './lib/auth'
+import { useAccess, switchOrg, type MyOrg } from './lib/auth'
 import { useYears, yearLabel } from './lib/year'
 import Bell from './components/Bell'
 import Years from './pages/Years'
@@ -156,6 +156,12 @@ function Shell({ session }: { session: Session }) {
       <div className="login"><form onSubmit={e => e.preventDefault()}>
         <img src={logo} alt="KDI education" /><h1>Đang chờ cấp quyền</h1>
         <p>Tài khoản <b>{session.user.email}</b> chưa được gán vào trường hoặc chưa có vai trò. Hãy nhờ quản trị trường gán trong mục Tài khoản.</p>
+        {access.orgs.filter(o => !o.active).length > 0 && <>
+          <p>Bạn có vai trò ở các đơn vị sau, chọn để vào làm việc:</p>
+          {access.orgs.filter(o => !o.active).map(o => (
+            <button type="button" key={o.org_id} className="primary" onClick={() => switchOrg(o.org_id)}>{o.name}</button>
+          ))}
+        </>}
         <button type="button" onClick={() => supabase.auth.signOut()}>Đăng xuất</button>
       </form></div>
     )
@@ -228,12 +234,13 @@ function Shell({ session }: { session: Session }) {
                 {students.map(s => <option key={s.id} value={s.id}>{s.classes?.name} · {s.full_name}</option>)}
               </select>
             )}
+            <OrgSwitch orgs={access.orgs} />
             {views.length > 1 && (
               <select value={role} onChange={e => changeRole(e.target.value as RoleKey)} aria-label="Chế độ xem">
                 {views.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
               </select>
             )}
-            <Bell open={openFrom} portals={views} />
+            <Bell open={openFrom} portals={views} orgId={access.profile.org_id} />
             <span className="avatar">{email.charAt(0).toUpperCase()}</span>
             <button onClick={() => setChangingPw(true)}>Đổi mật khẩu</button>
             <button onClick={() => supabase.auth.signOut()}>Đăng xuất</button>
@@ -246,5 +253,21 @@ function Shell({ session }: { session: Session }) {
         </main>
       </div>
     </div>
+  )
+}
+
+// "Đang làm việc tại": chỉ hiện khi người dùng có vai trò ở từ hai tổ chức trở lên
+function OrgSwitch({ orgs }: { orgs: MyOrg[] }) {
+  const [err, setErr] = useState('')
+  if (orgs.length < 2) return null
+  const active = orgs.find(o => o.active)
+  return (
+    <label className="orgpick" title={err || 'Đổi đơn vị đang làm việc'}>
+      <span>Đang làm việc tại</span>
+      <select value={active?.org_id ?? ''} onChange={async e => setErr((await switchOrg(e.target.value)) ?? '')} aria-label="Đơn vị đang làm việc">
+        {!active && <option value="">Chọn đơn vị…</option>}
+        {orgs.map(o => <option key={o.org_id} value={o.org_id}>{o.name} · {o.roles.join(', ')}</option>)}
+      </select>
+    </label>
   )
 }

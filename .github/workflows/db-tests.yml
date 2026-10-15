@@ -1,0 +1,20 @@
+name: Kiểm thử CSDL (RLS, cách ly dữ liệu)
+on:
+  push:
+    paths: ['supabase/**', '.github/workflows/db-tests.yml']
+  pull_request:
+    paths: ['supabase/**']
+jobs:
+  isolation:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env: { PGHOST: localhost, PGUSER: postgres, PGPASSWORD: postgres }
+    steps:
+      - uses: actions/checkout@v4
+      - run: supabase/tests/run.sh lms_test

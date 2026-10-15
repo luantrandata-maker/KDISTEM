@@ -48,7 +48,7 @@ begin
 
   insert into equipment_types (org_id, sku, name, brand, category) values (sch,'ROBOT-MBOT-01','Robot lập trình Mbot','Makeblock','Robot') returning id into t_mbot;
   insert into equipment_types (org_id, sku, name, brand, category) values (sch,'ARD-STARTER','Bộ mạch Arduino Starter','Arduino','Vi điều khiển') returning id into t_ard;
-  insert into equipment_types (org_id, sku, name, brand, category) values (sch,'IOT-GW','Kit cảm biến IoT + Gateway','Geleximco','IoT') returning id into t_iot;
+  insert into equipment_types (org_id, sku, name, brand, category) values (sch,'IOT-GW','Kit cảm biến IoT + Gateway','KDI Education','IoT') returning id into t_iot;
 
   insert into equipment_units (org_id, type_id, room_id, serial, status, warranty_until) values
     (sch,t_mbot,r1,'MBOT-0001','available','2028-08-31'), (sch,t_mbot,r1,'MBOT-0002','in_use','2028-08-31'),

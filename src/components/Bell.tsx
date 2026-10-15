@@ -15,7 +15,7 @@ const ago = (iso: string) => {
 const ICON: Record<string, string> = { approval: '⏳', status: '🔄', submission: '📥', graded: '✅', assignment: '📝', invitation: '👤' }
 
 // Chuông thông báo: thông báo cá nhân (trigger CSDL tạo) + việc đang chờ xử lý theo quyền. Làm mới mỗi 30 giây.
-export default function Bell({ open: openPage, portals }: { open: (portal: RoleKey | null, page: string) => void; portals: RoleKey[] }) {
+export default function Bell({ open: openPage, portals, orgId }: { open: (portal: RoleKey | null, page: string) => void; portals: RoleKey[]; orgId: string | null }) {
   const [notes, setNotes] = useState<Note[]>([])
   const [counts, setCounts] = useState<Counts | null>(null)
   const [show, setShow] = useState(false)
@@ -23,7 +23,8 @@ export default function Bell({ open: openPage, portals }: { open: (portal: RoleK
 
   async function load() {
     const [n, c] = await Promise.all([
-      supabase.from('notifications').select('*').order('created_at', { ascending: false }).limit(30),
+      // Chỉ thông báo của đơn vị đang làm việc (người dùng nhiều đơn vị: đổi đơn vị để xem thông báo bên đó)
+      supabase.from('notifications').select('*').eq('org_id', orgId ?? '').order('created_at', { ascending: false }).limit(30),
       supabase.rpc('my_pending_counts'),
     ])
     setNotes((n.data as Note[]) ?? []); setCounts((c.data as Counts) ?? null)
@@ -63,7 +64,7 @@ export default function Bell({ open: openPage, portals }: { open: (portal: RoleK
     if (n.page) { openPage(n.portal, n.page); setShow(false) }
   }
   async function readAll() {
-    await supabase.from('notifications').update({ read_at: new Date().toISOString() }).is('read_at', null)
+    await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('org_id', orgId ?? '').is('read_at', null)
     load()
   }
 

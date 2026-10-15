@@ -27,7 +27,7 @@ export default function Warranty({ orgId }: { orgId: string }) {
   async function create(v: Record<string, string>, status: 'draft' | 'new') {
     const code = `WT-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
     const { data: u } = await supabase.auth.getUser()
-    const { error } = await supabase.from('warranty_tickets').insert({ org_id: orgId, code, unit_id: v.unit_id, description: v.description, status, reported_by: u.user!.id, provider: 'Geleximco Education' })
+    const { error } = await supabase.from('warranty_tickets').insert({ org_id: orgId, code, unit_id: v.unit_id, description: v.description, status, reported_by: u.user!.id, provider: 'KDI Education' })
     if (error) return error.message
     if (status === 'new') { await supabase.from('equipment_units').update({ status: 'broken' }).eq('id', v.unit_id); await supabase.from('equipment_events').insert({ org_id: orgId, unit_id: v.unit_id, kind: 'report', title: 'Báo hỏng', note: `${code}: ${v.description}` }) }
     setForm(false); load()

@@ -342,3 +342,7 @@ td button{white-space:nowrap}
 .side button.grouphead.shut svg{transform:rotate(-90deg)}
 .side .grouphead .dot{width:7px;height:7px;border-radius:50%;background:var(--orange)}
 .side .navgroup:first-of-type button.grouphead{margin-top:2px}
+/* Đang làm việc tại (019) */
+.orgpick{display:flex;flex-direction:column;gap:1px;font-size:11px;color:var(--muted)}
+.orgpick select{max-width:260px;font-size:13px}
+@media (max-width:760px){.orgpick span{display:none}.orgpick select{max-width:150px}}

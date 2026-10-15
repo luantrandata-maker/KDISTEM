@@ -5,8 +5,14 @@ import type { RoleKey } from './nav'
 
 export type Profile = { id: string; org_id: string | null; full_name: string }
 export type MyRole = { role_id: string; key: string; name: string; portal: RoleKey | null }
+// Một tổ chức người dùng là thành viên (migration 019); active = tổ chức đang làm việc
+export type MyOrg = { org_id: string; name: string; type: string; parent_name: string | null; roles: string[]; active: boolean }
+export const ORG_TYPE: Record<string, string> = {
+  ministry: 'Bộ', province: 'Tỉnh', department: 'Sở', district: 'Phòng', school: 'Trường', provider: 'Đơn vị cung cấp',
+}
 export type Access = {
   loading: boolean; profile: Profile | null; roles: MyRole[]; roleKeys: string[]; isAdmin: boolean
+  orgs: MyOrg[]                            // các tổ chức có vai trò (để chuyển "đang làm việc tại")
   portals: RoleKey[]                       // các giao diện người dùng được vào (theo vai trò hệ thống và tuỳ chỉnh)
   canView: (module: string) => boolean
 }
@@ -14,24 +20,25 @@ export type Access = {
 const PORTAL_ORDER: RoleKey[] = ['school_admin', 'teacher', 'student', 'department']
 
 export function useAccess(session: Session | null): Access {
-  const [state, setState] = useState<{ loading: boolean; profile: Profile | null; roles: MyRole[] }>({ loading: true, profile: null, roles: [] })
+  const [state, setState] = useState<{ loading: boolean; profile: Profile | null; roles: MyRole[]; orgs: MyOrg[] }>({ loading: true, profile: null, roles: [], orgs: [] })
   const [views, setViews] = useState<Set<string>>(new Set())
   const uid = session?.user.id
 
   useEffect(() => {
-    if (!uid) { setState({ loading: false, profile: null, roles: [] }); return }
+    if (!uid) { setState({ loading: false, profile: null, roles: [], orgs: [] }); return }
     let live = true
     ;(async () => {
-      const [p, r] = await Promise.all([
+      const [p, r, o] = await Promise.all([
         supabase.from('profiles').select('id, org_id, full_name').eq('id', uid).maybeSingle(),
         supabase.rpc('my_roles'),
+        supabase.rpc('my_orgs'),   // chưa chạy migration 019 → lỗi, coi như chỉ một tổ chức
       ])
       const roles = (r.data as MyRole[]) ?? []
       // Quyền hiệu lực = mặc định hệ thống + ghi đè của trường (tính ở CSDL, cùng logic với RLS)
       const perms = roles.length ? (await supabase.rpc('my_permissions')).data ?? [] : []
       if (!live) return
       setViews(new Set(perms.filter((x: any) => x.can_view).map((x: any) => x.module)))
-      setState({ loading: false, profile: (p.data as Profile) ?? null, roles })
+      setState({ loading: false, profile: (p.data as Profile) ?? null, roles, orgs: o.error ? [] : (o.data as MyOrg[]) ?? [] })
     })()
     return () => { live = false }
   }, [uid])
@@ -40,4 +47,13 @@ export function useAccess(session: Session | null): Access {
   const isAdmin = roleKeys.some(k => k === 'principal' || k === 'it_admin')
   const portals = isAdmin ? PORTAL_ORDER : PORTAL_ORDER.filter(p => state.roles.some(r => r.portal === p))
   return { ...state, roleKeys, isAdmin, portals, canView: m => isAdmin || views.has(m) }
+}
+
+// Đổi tổ chức đang làm việc rồi tải lại để mọi quyền, menu, dữ liệu tính theo tổ chức mới
+export async function switchOrg(orgId: string) {
+  const { error } = await supabase.rpc('switch_org', { p_org: orgId })
+  if (error) return error.message
+  try { sessionStorage.clear() } catch { /* bỏ qua */ }
+  window.location.reload()
+  return null
 }

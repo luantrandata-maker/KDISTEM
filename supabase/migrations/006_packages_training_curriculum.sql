@@ -67,14 +67,14 @@ begin
   if sch is null or exists (select 1 from stem_packages where org_id = sch) then return; end if;
 
   insert into stem_packages (org_id, code, name, tier, provider, programs, grades, starts_on, ends_on, contract_no, order_no, topics, devices, sessions) values
-   (sch,'GOI-001','Gói STEM THCS Toàn diện — Khối 6→9','premium','Geleximco Education','CT1,CT2,CT3,CT4,CT5','6–9','2025-09-05','2028-08-31','HDKT-2025-004','DDBH-2025-004',21,119,52),
-   (sch,'GOI-002','Gói STEM Cơ bản','basic','Geleximco Education','CT1,CT2,CT3','6–7','2025-09-01','2027-08-31','HDKT-2025-005','DDBH-2025-005',4,62,12),
-   (sch,'GOI-003','Gói STEM Nâng cao — IoT & Môi trường','advanced','Geleximco Education','CT3,CT4,CT5','8–9','2025-09-01','2026-08-15','HDKT-2025-002','DDBH-2025-002',2,62,7);
+   (sch,'GOI-001','Gói STEM THCS Toàn diện — Khối 6→9','premium','KDI Education','CT1,CT2,CT3,CT4,CT5','6–9','2025-09-05','2028-08-31','HDKT-2025-004','DDBH-2025-004',21,119,52),
+   (sch,'GOI-002','Gói STEM Cơ bản','basic','KDI Education','CT1,CT2,CT3','6–7','2025-09-01','2027-08-31','HDKT-2025-005','DDBH-2025-005',4,62,12),
+   (sch,'GOI-003','Gói STEM Nâng cao — IoT & Môi trường','advanced','KDI Education','CT3,CT4,CT5','8–9','2025-09-01','2026-08-15','HDKT-2025-002','DDBH-2025-002',2,62,7);
 
   insert into training_plans (org_id, name, program, provider, mode, status, hours) values (sch,'Tập huấn STEM Robotics học kỳ 1 2026-2027','CT4','Nexta','online','ongoing',12) returning id into p1;
-  insert into training_plans (org_id, name, program, provider, mode, status, hours) values (sch,'Tập huấn Lập trình Scratch nâng cao','CT2','Geleximco Education','hybrid','ongoing',16) returning id into p2;
+  insert into training_plans (org_id, name, program, provider, mode, status, hours) values (sch,'Tập huấn Lập trình Scratch nâng cao','CT2','KDI Education','hybrid','ongoing',16) returning id into p2;
   insert into training_plans (org_id, name, program, provider, mode, status, hours) values (sch,'Bồi dưỡng IoT cho trường học','CT5','Nexta','offline','planned',10) returning id into p3;
-  insert into training_plans (org_id, name, program, provider, mode, status, hours) values (sch,'Tập huấn STEM cơ bản năm học 2025-2026','CT1','Geleximco Education','online','done',8) returning id into p4;
+  insert into training_plans (org_id, name, program, provider, mode, status, hours) values (sch,'Tập huấn STEM cơ bản năm học 2025-2026','CT1','KDI Education','online','done',8) returning id into p4;
 
   insert into training_sessions (org_id, plan_id, title, starts_at, ends_at, mode, location) values
    (sch,p1,'Buổi 1: Giới thiệu robot và bộ thiết bị','2026-09-15 08:00+07','2026-09-15 11:00+07','online',null),

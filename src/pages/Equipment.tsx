@@ -49,7 +49,7 @@ export default function Equipment({ orgId }: { orgId: string }) {
   async function report(u: Unit) {
     const description = prompt(`Mô tả sự cố của ${u.equipment_types?.name} (${u.serial}):`); if (!description) return
     const code = `WT-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
-    await supabase.from('warranty_tickets').insert({ org_id: orgId, code, unit_id: u.id, description, status: 'new', provider: 'Geleximco Education' })
+    await supabase.from('warranty_tickets').insert({ org_id: orgId, code, unit_id: u.id, description, status: 'new', provider: 'KDI Education' })
     await supabase.from('equipment_units').update({ status: 'broken' }).eq('id', u.id)
     await log(u.id, 'report', 'Báo hỏng', `${code}: ${description}`); load(); if (open === u.id) loadEvents(u.id)
   }

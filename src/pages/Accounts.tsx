@@ -12,6 +12,8 @@ type Invite = {
 }
 type InviteForm = { emails: string; full_name: string; role_id: string; link_id: string; send: boolean }
 
+// Vai trò của cơ quan quản lý / nhà cung cấp — không gán trong trường
+const AUTHORITY = ['ministry', 'province', 'department', 'district', 'provider']
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 const fmt = (d: string | null) => d ? new Date(d).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' }) : '—'
 
@@ -39,21 +41,28 @@ export default function Accounts({ orgId }: { orgId: string | null }) {
     const [p, r, l, t, s, i] = await Promise.all([
       supabase.from('profiles').select('id, full_name, email, org_id').order('full_name'),
       supabase.from('roles').select('id, key, name, portal, is_system').order('is_system', { ascending: false }).order('name'),
-      supabase.from('user_roles').select('user_id, role_id, roles(name)'),
+      orgId ? supabase.from('memberships').select('user_id, role_id, roles(name)').eq('org_id', orgId) : Promise.resolve({ data: [] }),
       supabase.from('teachers').select('id, full_name, profile_id').order('full_name'),
       supabase.from('students').select('id, full_name, student_code, profile_id, classes(name)').order('student_code'),
       supabase.from('invitations').select('*').order('created_at', { ascending: false }),
     ])
-    setRows(((p.data as Acc[]) ?? []).filter(x => x.org_id === orgId))
-    setRoles(((r.data as Role[]) ?? []).filter(x => !['department', 'provider'].includes(x.key)))
-    setLinks((l.data as unknown as Link[]) ?? []); setTeachers((t.data as Teacher[]) ?? [])
+    // Thành viên của trường = có ít nhất một vai trò tại trường (có thể đang làm việc ở đơn vị khác)
+    const ls = (l.data as unknown as Link[]) ?? []
+    const memberIds = new Set(ls.map(x => x.user_id))
+    setRows(((p.data as Acc[]) ?? []).filter(x => memberIds.has(x.id)))
+    setRoles(((r.data as Role[]) ?? []).filter(x => !AUTHORITY.includes(x.key)))
+    setLinks(ls); setTeachers((t.data as Teacher[]) ?? [])
     setStudents((s.data as unknown as Student[]) ?? []); setInvites((i.data as Invite[]) ?? [])
   }
   useEffect(() => { load() }, [orgId])
 
   const check = (error: { message: string } | null) => { setErr(error ? 'Không thực hiện được: ' + error.message : ''); load() }
-  async function addRole(a: Acc, role_id: string) { if (role_id) check((await supabase.from('user_roles').insert({ user_id: a.id, role_id })).error) }
-  async function removeRole(a: Acc, role_id: string) { check((await supabase.from('user_roles').delete().eq('user_id', a.id).eq('role_id', role_id)).error) }
+  async function addRole(a: Acc, role_id: string) { if (role_id && orgId) check((await supabase.from('memberships').insert({ user_id: a.id, org_id: orgId, role_id })).error) }
+  async function removeRole(a: Acc, role_id: string) {
+    if (!orgId) return
+    if (links.filter(l => l.user_id === a.id).length === 1 && !confirm(`Gỡ vai trò cuối cùng — ${a.full_name} sẽ rời khỏi trường. Tiếp tục?`)) return
+    check((await supabase.from('memberships').delete().eq('user_id', a.id).eq('org_id', orgId).eq('role_id', role_id)).error)
+  }
   async function linkTeacher(a: Acc, teacherId: string) {
     await supabase.from('teachers').update({ profile_id: null }).eq('profile_id', a.id)
     if (teacherId) check((await supabase.from('teachers').update({ profile_id: a.id }).eq('id', teacherId)).error); else load()
@@ -138,7 +147,7 @@ export default function Accounts({ orgId }: { orgId: string | null }) {
   return (
     <>
       <div className="bar">
-        <p className="sub" style={{ margin: 0, flex: 1, minWidth: 260 }}>Mời người dùng bằng email. Khi họ bấm liên kết trong thư (hoặc tự đăng ký đúng email đó), tài khoản tự được gán trường, vai trò và hồ sơ.</p>
+        <p className="sub" style={{ margin: 0, flex: 1, minWidth: 260 }}>Mời người dùng bằng email. Khi họ bấm liên kết trong thư (hoặc tự đăng ký đúng email đó), tài khoản tự được gán trường, vai trò và hồ sơ. Người đã làm việc ở đơn vị khác cũng mời được — họ chuyển qua lại bằng ô “Đang làm việc tại”.</p>
         <button className="primary" onClick={() => setForm({ emails: '', full_name: '', role_id: roles.find(r => r.key === 'teacher')?.id ?? roles[0]?.id ?? '', link_id: '', send: true })}>+ Mời người dùng</button>
       </div>
       {err && <p className="msg">{err}</p>}
@@ -208,7 +217,7 @@ export default function Accounts({ orgId }: { orgId: string | null }) {
             const isStudent = mine.some(l => isStudentRole(l.role_id))
             return (
               <tr key={a.id}>
-                <td><b>{a.full_name}</b><br /><small>{a.email}</small></td>
+                <td><b>{a.full_name}</b><br /><small>{a.email}</small>{a.org_id && a.org_id !== orgId && <><br /><small className="sub">Đang làm việc ở đơn vị khác</small></>}</td>
                 <td>
                   {mine.map(l => <span className="chip" key={l.role_id}>{l.roles?.name}<button className="x" onClick={() => removeRole(a, l.role_id)} aria-label={`Gỡ vai trò ${l.roles?.name}`}>×</button></span>)}
                   <select value="" onChange={e => addRole(a, e.target.value)} aria-label="Thêm vai trò">

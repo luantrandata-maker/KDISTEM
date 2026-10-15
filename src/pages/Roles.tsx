@@ -15,7 +15,7 @@ const MODULES: [string, string][] = [
 const ACTIONS = [['can_view', 'Xem'], ['can_detail', 'Chi tiết'], ['can_create', 'Tạo mới'], ['can_edit', 'Chỉnh sửa'], ['can_delete', 'Xoá']] as const
 const PORTAL_LABEL: Record<string, string> = { school_admin: 'Giao diện Quản trị trường', teacher: 'Giao diện Giáo viên' }
 const FULL_ACCESS = ['principal', 'it_admin']
-const HIDDEN = ['department', 'provider', 'student']
+const HIDDEN = ['ministry', 'province', 'department', 'district', 'provider', 'student']
 const empty = (role_id: string, module: string): Perm => ({ role_id, module, can_view: false, can_detail: false, can_create: false, can_edit: false, can_delete: false })
 
 // Mặc định của hệ thống nằm ở role_permissions (chỉ đọc). Trường chỉnh quyền cho vai trò bằng org_role_permissions,
@@ -33,7 +33,7 @@ export default function Roles({ orgId }: { orgId?: string | null }) {
       supabase.from('roles').select('id, key, name, is_system, org_id, portal, description').order('is_system', { ascending: false }).order('name'),
       supabase.from('role_permissions').select('*'),
       orgId ? supabase.from('org_role_permissions').select('*').eq('org_id', orgId) : Promise.resolve({ data: [] }),
-      supabase.from('user_roles').select('role_id'),
+      orgId ? supabase.from('memberships').select('role_id').eq('org_id', orgId) : Promise.resolve({ data: [] }),
     ])
     const rs = ((r.data as Role[]) ?? []).filter(x => !HIDDEN.includes(x.key))
     const own = ((o.data as (Perm & { org_id: string })[]) ?? []).map(({ org_id: _, ...x }) => x as Perm)

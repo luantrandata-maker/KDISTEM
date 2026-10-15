@@ -77,7 +77,7 @@ export default function Rooms({ orgId }: { orgId: string }) {
     const description = prompt(`Mô tả sự cố của ${u.equipment_types?.name} (${u.serial}):`)
     if (!description) return
     const code = `WT-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`
-    await supabase.from('warranty_tickets').insert({ org_id: orgId, code, unit_id: u.id, description, status: 'new', provider: 'Geleximco Education' })
+    await supabase.from('warranty_tickets').insert({ org_id: orgId, code, unit_id: u.id, description, status: 'new', provider: 'KDI Education' })
     await supabase.from('equipment_units').update({ status: 'broken' }).eq('id', u.id)
     await supabase.from('equipment_events').insert({ org_id: orgId, unit_id: u.id, kind: 'report', title: 'Báo hỏng', note: `${code}: ${description}` })
     load()

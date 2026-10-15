@@ -24,10 +24,10 @@ begin
   update equipment_units set package_id = pkg where org_id = sch;
   for tp in select * from (values
     ('Robot Lego SPIKE Prime','ROBOT-SPIKE','LEGO Education','Robot',8),
-    ('Kính hiển vi điện tử HS','MICROSCOPE','Geleximco','Khoa học',10),
-    ('Máy in 3D EDU','3DP-EDU','Geleximco','Chế tạo',4),
+    ('Kính hiển vi điện tử HS','MICROSCOPE','KDI Education','Khoa học',10),
+    ('Máy in 3D EDU','3DP-EDU','KDI Education','Chế tạo',4),
     ('Bộ kính thực tế ảo Meta Quest','VR-QUEST','Meta','VR',6),
-    ('Bộ dụng cụ khoa học cơ bản','SCIENCE-BASIC','Geleximco','Khoa học',12)) as v(name, sku, brand, cat, n)
+    ('Bộ dụng cụ khoa học cơ bản','SCIENCE-BASIC','KDI Education','Khoa học',12)) as v(name, sku, brand, cat, n)
   loop
     insert into equipment_types (org_id, sku, name, brand, category) values (sch, tp.sku, tp.name, tp.brand, tp.cat) returning id into tid;
     insert into equipment_units (org_id, type_id, room_id, serial, status, warranty_until, source, package_id)
@@ -61,11 +61,11 @@ begin
   left join period_configs p on p.org_id = sch and p.name = v.pname;
 
   -- Bảo hành
-  update warranty_tickets set provider = 'Geleximco Education', provider_status = 'accepted', technician = 'Trần Văn Kỳ' where org_id = sch and code = 'WT-2026-0001';
-  update warranty_tickets set provider = 'Geleximco Education', provider_status = 'accepted' where org_id = sch and code in ('WT-2026-0002','WT-2026-0004');
-  update warranty_tickets set provider = 'Geleximco Education' where org_id = sch and code = 'WT-2026-0003';
+  update warranty_tickets set provider = 'KDI Education', provider_status = 'accepted', technician = 'Trần Văn Kỳ' where org_id = sch and code = 'WT-2026-0001';
+  update warranty_tickets set provider = 'KDI Education', provider_status = 'accepted' where org_id = sch and code in ('WT-2026-0002','WT-2026-0004');
+  update warranty_tickets set provider = 'KDI Education' where org_id = sch and code = 'WT-2026-0003';
   insert into warranty_tickets (org_id, code, unit_id, description, status, created_at, provider, provider_status, technician)
-  select sch, v.code, u.id, v.descr, v.status, v.created::timestamptz, 'Geleximco Education', v.pst, v.tech
+  select sch, v.code, u.id, v.descr, v.status, v.created::timestamptz, 'KDI Education', v.pst, v.tech
   from (values
     ('WT-2026-0005','3DP-EDU-0001','Đầu phun nhựa bị tắc, không đùn nhựa ra được. Đã thử vệ sinh nhưng không cải thiện','draft','2026-10-06','pending',null),
     ('WT-2026-0006','VR-QUEST-0001','Màn hình hiển thị sọc xanh, độ sáng giảm bất thường khi đeo','draft','2026-10-07','pending',null),
@@ -140,11 +140,11 @@ begin
   -- Tập huấn: làm lại theo lộ trình khóa học
   delete from training_lessons where org_id = sch;
   delete from training_plans where org_id = sch;
-  insert into training_plans (org_id, code, year_no, module_no, name, program, provider, mode, status, hours) values (sch,'CT1',1,1,'STEM Tích hợp nội môn — Nền tảng','CT1','Geleximco STEM','online','ongoing',8) returning id into p1;
+  insert into training_plans (org_id, code, year_no, module_no, name, program, provider, mode, status, hours) values (sch,'CT1',1,1,'STEM Tích hợp nội môn — Nền tảng','CT1','KDI Education STEM','online','ongoing',8) returning id into p1;
   insert into training_plans (org_id, code, year_no, module_no, name, program, provider, mode, status, hours) values (sch,'CT2',1,2,'Workshop Thiết kế Chủ đề Liên môn','CT2','EBD','online','ongoing',6) returning id into p2;
   insert into training_plans (org_id, code, year_no, module_no, name, program, provider, mode, status, hours) values (sch,'CT4',2,1,'Robotics cơ bản dành cho Giáo viên','CT4','Nexta','online','ongoing',12) returning id into p3;
-  insert into training_plans (org_id, code, year_no, module_no, name, program, provider, mode, status, hours) values (sch,'CT5',3,1,'Ứng dụng AI trong giảng dạy STEM','CT5','Geleximco STEM','online','ongoing',10) returning id into p4;
-  insert into training_plans (org_id, code, year_no, module_no, name, program, provider, mode, status, hours) values (sch,'CT4',1,3,'Tập huấn vận hành Phòng STEM (trực tiếp)','CT4','Geleximco STEM','offline','ongoing',12) returning id into p5;
+  insert into training_plans (org_id, code, year_no, module_no, name, program, provider, mode, status, hours) values (sch,'CT5',3,1,'Ứng dụng AI trong giảng dạy STEM','CT5','KDI Education STEM','online','ongoing',10) returning id into p4;
+  insert into training_plans (org_id, code, year_no, module_no, name, program, provider, mode, status, hours) values (sch,'CT4',1,3,'Tập huấn vận hành Phòng STEM (trực tiếp)','CT4','KDI Education STEM','offline','ongoing',12) returning id into p5;
   insert into training_plans (org_id, code, year_no, module_no, name, program, provider, mode, status, hours) values (sch,'CT4',2,2,'Lập trình Robotics — Hybrid (online + thực hành)','CT4','Nexta','hybrid','ongoing',16) returning id into p6;
 
   insert into training_sessions (org_id, plan_id, title, starts_at, ends_at, mode, location) values

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
-import { NAV, ROLE_LABEL, MODULE_OF, VIEW_OF_ROLE, RoleKey } from './lib/nav'
+import { NAV, ROLE_LABEL, MODULE_OF, RoleKey } from './lib/nav'
 import { useAccess } from './lib/auth'
 import logo from './assets/kdi-logo.png'
-import Login from './pages/Login'
+import Login, { SetPassword } from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Teachers from './pages/Teachers'
 import Classes from './pages/Classes'
@@ -63,13 +63,18 @@ const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
+  const [recovery, setRecovery] = useState(false)
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
+    const { data } = supabase.auth.onAuthStateChange((e, s) => {
+      setSession(s)
+      if (e === 'PASSWORD_RECOVERY') setRecovery(true)   // mở từ liên kết "Quên mật khẩu"
+    })
     return () => data.subscription.unsubscribe()
   }, [])
   if (session === undefined) return null
   if (!session) return <Login />
+  if (recovery) return <SetPassword onDone={() => setRecovery(false)} />
   return <Shell session={session} />
 }
 
@@ -80,10 +85,9 @@ function Shell({ session }: { session: Session }) {
   const [collapsed, setCollapsed] = useState(false)
   const [teachers, setTeachers] = useState<{ id: string; full_name: string; profile_id: string | null }[]>([])
   const [actingTeacher, setActingTeacher] = useState<string | null>(null)
+  const [changingPw, setChangingPw] = useState(false)
 
-  const views: RoleKey[] = access.isAdmin
-    ? ['school_admin', 'teacher', 'student', 'department']
-    : [...new Set(access.roleKeys.map(k => VIEW_OF_ROLE[k]).filter(Boolean))] as RoleKey[]
+  const views: RoleKey[] = access.portals
 
   useEffect(() => {
     if (!access.loading && !role && views.length) { setRole(views[0]); setPage(NAV[views[0]][0].items[0]) }
@@ -94,6 +98,7 @@ function Shell({ session }: { session: Session }) {
   }, [access.profile?.org_id])
 
   if (access.loading) return null
+  if (changingPw) return <SetPassword onDone={() => setChangingPw(false)} />
   if (!access.profile?.org_id || views.length === 0) {
     return (
       <div className="login"><form onSubmit={e => e.preventDefault()}>
@@ -142,6 +147,7 @@ function Shell({ session }: { session: Session }) {
               </select>
             )}
             <span className="avatar">{email.charAt(0).toUpperCase()}</span>
+            <button onClick={() => setChangingPw(true)}>Đổi mật khẩu</button>
             <button onClick={() => supabase.auth.signOut()}>Đăng xuất</button>
           </div>
         </header>

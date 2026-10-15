@@ -45,8 +45,4 @@ export const MODULE_OF: Record<string, string> = {
   'Gói STEM': 'packages', 'Kế hoạch tập huấn': 'training', 'Lịch tập huấn': 'training', 'Bài giảng': 'training',
   'Lớp học ảo': 'training', 'Chứng chỉ': 'training',
 }
-// Vai trò trong cơ sở dữ liệu → giao diện được dùng
-export const VIEW_OF_ROLE: Record<string, RoleKey> = {
-  principal: 'school_admin', it_admin: 'school_admin', office_staff: 'school_admin',
-  teacher: 'teacher', student: 'student', department: 'department',
-}
+// Vai trò → giao diện: lưu ở cột roles.portal (vai trò hệ thống và vai trò tuỳ chỉnh của trường).

@@ -19,7 +19,10 @@ import Buildings from './pages/Buildings'
 import Periods from './pages/Periods'
 import Roles from './pages/Roles'
 import Accounts from './pages/Accounts'
-import { Packages, EduPlan, StemTeachers, Curriculum, SchoolProfile } from './pages/School'
+import Packages from './pages/Packages'
+import EduPlan from './pages/EduPlan'
+import StemAssign from './pages/StemAssign'
+import { Curriculum, SchoolProfile } from './pages/School'
 import { TrainingPlans, TrainingSchedule, TrainingLessons, VirtualClass, Certificates } from './pages/Training'
 import { TeacherHome, TeacherSchedule, TeacherClasses, TeacherBooking } from './pages/TeacherPortal'
 
@@ -41,7 +44,7 @@ const SCHOOL: PageMap = {
   'Tài khoản': Accounts,
   'Gói STEM': Packages,
   'Kế hoạch GD toàn trường': EduPlan,
-  'Phân công GV dạy STEM': StemTeachers,
+  'Phân công GV dạy STEM': StemAssign,
   'Phân phối chương trình': Curriculum,
   'Hồ sơ Trường học': SchoolProfile,
   'Kế hoạch tập huấn': TrainingPlans,

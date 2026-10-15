@@ -4,7 +4,9 @@ import { myOrgId } from '../lib/org'
 
 type Teacher = { id: string; full_name: string; subject: string | null }
 type Cls = { id: string; name: string }
-type Assign = { id: string; subject: string; teacher_id: string; classes: { name: string } | null }
+type Assign = { id: string; subject: string; teacher_id: string; class_id: string; classes: { name: string } | null }
+const COLORS = [['#fff1e0', '#b45309'], ['#e6f1fd', '#1c63bb'], ['#e3f5ea', '#23824f'], ['#f1e8fb', '#7a3fc4'], ['#fde8ea', '#c0324a'], ['#e3f4f8', '#0f7490']]
+const colorOf = (s: string) => COLORS[[...s].reduce((a, c) => a + c.charCodeAt(0), 0) % COLORS.length]
 
 export default function Assignments() {
   const [teachers, setTeachers] = useState<Teacher[]>([])
@@ -12,12 +14,13 @@ export default function Assignments() {
   const [rows, setRows] = useState<Assign[]>([])
   const [form, setForm] = useState<{ teacher_id: string; class_id: string; subject: string } | null>(null)
   const [err, setErr] = useState('')
+  const [fSubject, setFSubject] = useState(''); const [fClass, setFClass] = useState('')
 
   async function load() {
     const [t, c, a] = await Promise.all([
       supabase.from('teachers').select('id, full_name, subject').order('full_name'),
       supabase.from('classes').select('id, name').order('name'),
-      supabase.from('teaching_assignments').select('id, subject, teacher_id, classes(name)'),
+      supabase.from('teaching_assignments').select('id, subject, teacher_id, class_id, classes(name)'),
     ])
     setTeachers((t.data as Teacher[]) ?? []); setClasses((c.data as Cls[]) ?? [])
     setRows((a.data as unknown as Assign[]) ?? [])
@@ -39,13 +42,16 @@ export default function Assignments() {
     load()
   }
 
-  const byTeacher = (id: string) => rows.filter(r => r.teacher_id === id)
-  const missing = teachers.filter(t => byTeacher(t.id).length === 0)
+  const fRows = rows.filter(r => (!fSubject || r.subject === fSubject) && (!fClass || r.class_id === fClass))
+  const subjects = [...new Set(rows.map(r => r.subject))]
+  const byTeacher = (id: string) => fRows.filter(r => r.teacher_id === id)
+  const missing = teachers.filter(t => rows.filter(r => r.teacher_id === t.id).length === 0)
+  const visible = teachers.filter(t => (!fSubject && !fClass) || byTeacher(t.id).length > 0)
 
   return (
     <>
       <div className="bar">
-        <p className="sub">Năm học hiện tại · {rows.length} phân công</p>
+        <div className="tools"><select value={fSubject} onChange={e => setFSubject(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(x => <option key={x}>{x}</option>)}</select><select value={fClass} onChange={e => setFClass(e.target.value)} aria-label="Lớp"><option value="">Tất cả lớp</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
         <button className="primary" onClick={() => setForm({ teacher_id: teachers[0]?.id ?? '', class_id: classes[0]?.id ?? '', subject: teachers[0]?.subject ?? '' })}>Thêm phân công</button>
       </div>
       {missing.length > 0 && (
@@ -67,12 +73,12 @@ export default function Assignments() {
       <table>
         <thead><tr><th>Giáo viên</th><th>Phân công giảng dạy</th></tr></thead>
         <tbody>
-          {teachers.map(t => (
+          {visible.map(t => (
             <tr key={t.id}>
               <td><b>{t.full_name}</b><br /><small>{byTeacher(t.id).length} phân công</small></td>
               <td>
                 {byTeacher(t.id).map(a => (
-                  <span className="chip" key={a.id}>{a.subject} · {a.classes?.name}
+                  <span className="chip" key={a.id} style={{ background: colorOf(a.subject)[0], color: colorOf(a.subject)[1] }}>{a.subject} · {a.classes?.name}
                     <button className="x" onClick={() => remove(a.id)} aria-label={`Xoá phân công ${a.classes?.name}`}>×</button></span>
                 ))}
                 {byTeacher(t.id).length === 0 && <small>Chưa phân công</small>}
@@ -81,6 +87,7 @@ export default function Assignments() {
           ))}
         </tbody>
       </table>
+      <p className="sub" style={{ marginTop: 10 }}>{visible.length} giáo viên · {fRows.length} phân công {subjects.map(x => ` · ${x} ${fRows.filter(r => r.subject === x).length}`).join('')}</p>
     </>
   )
 }

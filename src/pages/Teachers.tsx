@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { myOrgId } from '../lib/org'
+import { k12Sync } from '../lib/k12'
 
 type Teacher = { id: string; full_name: string; email: string | null; subject: string | null; grade: number | null; status: string }
 const EMPTY = { full_name: '', email: '', subject: '', grade: '' }
@@ -44,7 +45,7 @@ export default function Teachers() {
     <>
       <div className="bar">
         <input className="search" placeholder="Tìm theo tên, email…" value={q} onChange={e => setQ(e.target.value)} />
-        <button className="primary" onClick={() => setForm({ ...EMPTY })}>Thêm giáo viên</button>
+        <div className="tools"><button onClick={k12Sync}>Đồng bộ K12</button><button className="primary" onClick={() => setForm({ ...EMPTY })}>Thêm mới</button></div>
       </div>
       {form && (
         <form className="panel formgrid" onSubmit={save}>

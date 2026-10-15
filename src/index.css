@@ -154,3 +154,4 @@ td input[type=checkbox]{width:18px;height:18px;accent-color:var(--primary);curso
 .chipbtn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:13px}
 .chipbtn.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 @media(max-width:1000px){.hero{grid-template-columns:1fr 1fr}.vh{grid-template-columns:1fr}}
+.conflictbox{border:1px solid var(--bad);background:#fff6f6;margin-bottom:14px}

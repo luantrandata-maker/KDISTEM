@@ -1,73 +1,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmtDate } from '../lib/time'
-import FormPanel from '../components/FormPanel'
 
 type Pkg = { id: string; code: string | null; name: string; tier: string; provider: string | null; programs: string | null; grades: string | null; starts_on: string | null; ends_on: string | null; contract_no: string | null; order_no: string | null; topics: number; devices: number; sessions: number }
-const TIER: Record<string, string> = { premium: 'Premium', basic: 'Cơ bản', advanced: 'Nâng cao' }
-const DAY = 86400000
-
-export function Packages({ orgId }: { orgId: string }) {
-  const [rows, setRows] = useState<Pkg[]>([])
-  const [form, setForm] = useState<Pkg | 'new' | null>(null)
-  const load = () => supabase.from('stem_packages').select('*').order('starts_on').then(({ data }) => setRows((data as Pkg[]) ?? []))
-  useEffect(() => { load() }, [])
-  async function save(v: Record<string, string>) {
-    const body = { code: v.code || null, name: v.name, tier: v.tier, provider: v.provider || null, programs: v.programs || null, grades: v.grades || null,
-      starts_on: v.starts_on || null, ends_on: v.ends_on || null, contract_no: v.contract_no || null, order_no: v.order_no || null,
-      topics: Number(v.topics || 0), devices: Number(v.devices || 0), sessions: Number(v.sessions || 0) }
-    const { error } = form && form !== 'new' ? await supabase.from('stem_packages').update(body).eq('id', form.id) : await supabase.from('stem_packages').insert({ ...body, org_id: orgId })
-    if (error) return error.message
-    setForm(null); load()
-  }
-  async function remove(p: Pkg) { if (confirm(`Xoá ${p.name}?`)) { await supabase.from('stem_packages').delete().eq('id', p.id); load() } }
-  const state = (p: Pkg) => {
-    const end = p.ends_on ? new Date(p.ends_on).getTime() : Infinity
-    return end < Date.now() ? 'expired' : end - Date.now() < 90 * DAY ? 'soon' : 'active'
-  }
-  const n = (s: string) => rows.filter(p => state(p) === s).length
-  return (
-    <>
-      <div className="cards">
-        <div className="card"><strong>{n('active')}</strong><span>Đang hoạt động</span></div>
-        <div className="card"><strong>{n('soon')}</strong><span>Sắp hết hạn (90 ngày)</span></div>
-        <div className="card"><strong>{n('expired')}</strong><span>Đã hết hạn</span></div>
-      </div>
-      <div className="bar" style={{ marginTop: 16 }}><span /><button className="primary" onClick={() => setForm('new')}>Thêm gói STEM</button></div>
-      {form && (
-        <FormPanel
-          fields={[
-            { key: 'name', label: 'Tên gói', required: true }, { key: 'code', label: 'Mã gói' },
-            { key: 'tier', label: 'Hạng', type: 'select', required: true, options: [{ value: 'basic', label: 'Cơ bản' }, { value: 'advanced', label: 'Nâng cao' }, { value: 'premium', label: 'Premium' }] },
-            { key: 'provider', label: 'Nhà cung cấp' }, { key: 'programs', label: 'Chương trình (VD: CT1,CT2)' }, { key: 'grades', label: 'Khối (VD: 6–9)' },
-            { key: 'starts_on', label: 'Bắt đầu', type: 'date' }, { key: 'ends_on', label: 'Kết thúc', type: 'date' },
-            { key: 'contract_no', label: 'Số hợp đồng' }, { key: 'order_no', label: 'Số đơn hàng' },
-            { key: 'topics', label: 'Số chủ đề', type: 'number' }, { key: 'devices', label: 'Số thiết bị', type: 'number' }, { key: 'sessions', label: 'Số buổi học', type: 'number' },
-          ]}
-          initial={form === 'new' ? undefined : { name: form.name, code: form.code ?? '', tier: form.tier, provider: form.provider ?? '', programs: form.programs ?? '', grades: form.grades ?? '',
-            starts_on: form.starts_on ?? '', ends_on: form.ends_on ?? '', contract_no: form.contract_no ?? '', order_no: form.order_no ?? '',
-            topics: String(form.topics), devices: String(form.devices), sessions: String(form.sessions) }}
-          onSubmit={save} onCancel={() => setForm(null)} />
-      )}
-      <div className="reggrid">
-        {rows.map(p => (
-          <div className={'panel regcard pkg ' + p.tier} key={p.id}>
-            <div className="bar"><span className="badge">{TIER[p.tier]}</span>
-              <span className={'pill ' + (state(p) === 'expired' ? 'inactive' : state(p) === 'soon' ? 'maintenance' : 'active')}>
-                {state(p) === 'expired' ? 'Hết hạn' : state(p) === 'soon' ? 'Sắp hết hạn' : 'Đang hoạt động'}</span></div>
-            <b>{p.name}</b><small>{p.provider} · Khối {p.grades}</small>
-            <div>{(p.programs ?? '').split(',').filter(Boolean).map(c => <span className="chip" key={c}>{c}</span>)}</div>
-            <div className="pkgstats"><div><b>{p.topics}</b><small>Chủ đề</small></div><div><b>{p.devices}</b><small>Thiết bị</small></div><div><b>{p.sessions}</b><small>Buổi học</small></div></div>
-            <small>{p.contract_no} · {p.order_no}</small>
-            <small>{p.starts_on && fmtDate(p.starts_on)} → {p.ends_on && fmtDate(p.ends_on)}</small>
-            <div className="actions"><button onClick={() => setForm(p)}>Sửa</button><button onClick={() => remove(p)}>Xoá</button></div>
-          </div>
-        ))}
-      </div>
-    </>
-  )
-}
-
 export function EduPlan() {
   const [tt, setTt] = useState<any[]>([])
   const [regs, setRegs] = useState<any[]>([])

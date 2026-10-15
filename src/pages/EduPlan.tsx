@@ -1,0 +1,78 @@
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
+import FormPanel from '../components/FormPanel'
+
+type Plan = { id: string; teacher_id: string; subject: string; grade: number; stem_periods: number; teachers: { full_name: string } | null }
+type Reg = { status: string; teacher_id: string; classes: { grade: number } | null; topic: string; on_date: string }
+
+export default function EduPlan({ orgId }: { orgId: string }) {
+  const [plans, setPlans] = useState<Plan[]>([])
+  const [regs, setRegs] = useState<Reg[]>([])
+  const [teachers, setTeachers] = useState<{ id: string; full_name: string; subject: string | null }[]>([])
+  const [filter, setFilter] = useState('')
+  const [form, setForm] = useState<Plan | 'new' | null>(null)
+  const [open, setOpen] = useState<string | null>(null)
+  const [msg, setMsg] = useState('')
+
+  async function load() {
+    const [p, r, t] = await Promise.all([
+      supabase.from('education_plans').select('id, teacher_id, subject, grade, stem_periods, teachers(full_name)').order('grade'),
+      supabase.from('stem_registrations').select('status, teacher_id, topic, on_date, classes(grade)'),
+      supabase.from('teachers').select('id, full_name, subject').order('full_name'),
+    ])
+    setPlans((p.data as unknown as Plan[]) ?? []); setRegs((r.data as unknown as Reg[]) ?? []); setTeachers((t.data as any) ?? [])
+  }
+  useEffect(() => { load() }, [])
+
+  const pend = (p: Plan) => regs.filter(r => r.teacher_id === p.teacher_id && r.classes?.grade === p.grade && r.status === 'pending')
+  async function save(v: Record<string, string>) {
+    const body = { teacher_id: v.teacher_id, subject: v.subject, grade: Number(v.grade), stem_periods: Number(v.stem_periods || 0) }
+    const { error } = form && form !== 'new' ? await supabase.from('education_plans').update(body).eq('id', form.id) : await supabase.from('education_plans').insert({ ...body, org_id: orgId })
+    if (error) return error.message
+    setForm(null); load()
+  }
+  async function remove(p: Plan) { if (confirm(`Xoá kế hoạch của ${p.teachers?.full_name} (${p.subject} · Khối ${p.grade})?`)) { await supabase.from('education_plans').delete().eq('id', p.id); load() } }
+  async function importCsv(file: File) {
+    const lines = (await file.text()).replace(/^\ufeff/, '').split(/\r?\n/).slice(1).filter(l => l.trim())
+    const byName = new Map(teachers.map(t => [t.full_name.toLowerCase(), t.id])); const list: any[] = []; const bad: string[] = []
+    lines.forEach((l, i) => { const [n, subject, grade, periods] = l.split(/[,;\t]/).map(x => x.replace(/^"|"$/g, '').trim()); const tid = byName.get((n ?? '').toLowerCase())
+      if (!tid || !subject || !Number(grade)) bad.push(`dòng ${i + 2}`); else list.push({ org_id: orgId, teacher_id: tid, subject, grade: Number(grade), stem_periods: Number(periods || 0) }) })
+    if (list.length) await supabase.from('education_plans').insert(list)
+    setMsg(`Đã nhập ${list.length} kế hoạch.` + (bad.length ? ` Bỏ qua ${bad.length} dòng lỗi (${bad.slice(0, 4).join(', ')}).` : '')); load()
+  }
+
+  const shown = plans.filter(p => !filter || p.teacher_id === filter)
+  const tIds = new Set(plans.map(p => p.teacher_id))
+  return (
+    <>
+      <div className="cards">
+        <div className="card"><strong>{tIds.size}</strong><span>Giáo viên</span></div>
+        <div className="card"><strong>{plans.length}</strong><span>Bản kế hoạch</span></div>
+        <div className="card"><strong>{regs.filter(r => r.status === 'pending').length}</strong><span>Đăng ký chờ duyệt</span></div>
+        <div className="card"><strong>{regs.filter(r => r.status === 'approved').length}</strong><span>Đăng ký đã duyệt</span></div>
+      </div>
+      <div className="bar" style={{ margin: '16px 0' }}>
+        <div className="tools"><small style={{ alignSelf: 'center' }}>Giáo viên:</small>
+          <select value={filter} onChange={e => setFilter(e.target.value)}><option value="">Tất cả ({tIds.size})</option>{teachers.filter(t => tIds.has(t.id)).map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}</select></div>
+        <div className="tools"><label className="filebtn">Nhập CSV kế hoạch<input type="file" accept=".csv,text/csv" hidden onChange={e => { const f = e.target.files?.[0]; if (f) importCsv(f); e.target.value = '' }} /></label>
+          <button className="primary" onClick={() => setForm('new')}>Lập kế hoạch cho GV</button></div>
+      </div>
+      {msg && <p className="sub">{msg} <small>Định dạng: Giáo viên, Môn, Khối, Số tiết STEM.</small></p>}
+      {form && <FormPanel fields={[
+        { key: 'teacher_id', label: 'Giáo viên', type: 'select', required: true, options: teachers.map(t => ({ value: t.id, label: t.full_name })) },
+        { key: 'subject', label: 'Môn', required: true }, { key: 'grade', label: 'Khối', type: 'number', required: true }, { key: 'stem_periods', label: 'Số tiết STEM', type: 'number' },
+      ]} initial={form === 'new' ? undefined : { teacher_id: form.teacher_id, subject: form.subject, grade: String(form.grade), stem_periods: String(form.stem_periods) }} onSubmit={save} onCancel={() => setForm(null)} />}
+      <table>
+        <thead><tr><th>Giáo viên</th><th>Môn · Khối</th><th>Số tiết STEM</th><th>Chờ duyệt</th><th></th></tr></thead>
+        <tbody>
+          {shown.map(p => (<>
+            <tr key={p.id}><td><b>{p.teachers?.full_name}</b></td><td>{p.subject} · Khối {p.grade}</td><td style={{ color: p.stem_periods ? 'var(--ok)' : undefined }}>{p.stem_periods}</td><td style={{ color: pend(p).length ? 'var(--orange)' : undefined }}>{pend(p).length}</td>
+              <td><button onClick={() => setOpen(open === p.id ? null : p.id)}>Xem</button> <button onClick={() => setForm(p)}>Sửa</button> <button onClick={() => remove(p)}>Xoá</button></td></tr>
+            {open === p.id && <tr key={p.id + 'o'}><td colSpan={5}>{pend(p).length ? pend(p).map((r, i) => <div key={i}>• {r.topic} · {new Date(r.on_date).toLocaleDateString('vi-VN')}</div>) : <small>Không có đăng ký chờ duyệt cho khối này.</small>}</td></tr>}
+          </>))}
+          {shown.length === 0 && <tr><td colSpan={5}>Chưa có kế hoạch nào.</td></tr>}
+        </tbody>
+      </table>
+    </>
+  )
+}

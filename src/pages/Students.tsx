@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { myOrgId } from '../lib/org'
 
-type St = { id: string; full_name: string; student_code: string | null; class_id: string | null; classes: { name: string } | null }
+type St = { id: string; full_name: string; student_code: string | null; class_id: string | null; status: string; classes: { name: string; grade: number } | null }
+const STATUS: Record<string, string> = { studying: 'Đang học', transferred: 'Chuyển trường', graduated: 'Đã tốt nghiệp' }
+const PAGE = 20
 type Cls = { id: string; name: string }
 
 export default function Students() {
@@ -12,10 +14,11 @@ export default function Students() {
   const [q, setQ] = useState('')
   const [form, setForm] = useState<{ full_name: string; student_code: string; class_id: string } | null>(null)
   const [err, setErr] = useState('')
+  const [page, setPage] = useState(1)
 
   async function load() {
     const [s, c] = await Promise.all([
-      supabase.from('students').select('id, full_name, student_code, class_id, classes(name)').order('student_code'),
+      supabase.from('students').select('id, full_name, student_code, class_id, status, classes(name, grade)').order('student_code'),
       supabase.from('classes').select('id, name').order('name'),
     ])
     setRows((s.data as unknown as St[]) ?? []); setClasses((c.data as Cls[]) ?? [])
@@ -52,14 +55,17 @@ export default function Students() {
     await supabase.from('students').delete().eq('id', s.id); load()
   }
 
-  const shown = rows.filter(r => (!cls || r.class_id === cls) && (r.full_name + (r.student_code ?? '')).toLowerCase().includes(q.toLowerCase()))
+  async function setStatus(st: St, status: string) { await supabase.from('students').update({ status }).eq('id', st.id); load() }
+  const all = rows.filter(r => (!cls || r.class_id === cls) && (r.full_name + (r.student_code ?? '')).toLowerCase().includes(q.toLowerCase()))
+  const pages = Math.max(1, Math.ceil(all.length / PAGE)); const cur = Math.min(page, pages)
+  const shown = all.slice((cur - 1) * PAGE, cur * PAGE)
 
   return (
     <>
       <div className="bar">
         <div>
-          <input className="search" placeholder="Tìm theo tên hoặc mã học sinh…" value={q} onChange={e => setQ(e.target.value)} />{' '}
-          <select value={cls} onChange={e => setCls(e.target.value)} aria-label="Lọc theo lớp">
+          <input className="search" placeholder="Tìm theo tên hoặc mã học sinh…" value={q} onChange={e => { setQ(e.target.value); setPage(1) }} />{' '}
+          <select value={cls} onChange={e => { setCls(e.target.value); setPage(1) }} aria-label="Lọc theo lớp">
             <option value="">Tất cả lớp</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
@@ -69,7 +75,7 @@ export default function Students() {
         </div>
       </div>
       {err && !form && <p className="sub">{err} <small>Định dạng: Mã học sinh, Họ tên, Tên lớp (dòng đầu là tiêu đề). Xuất file Excel sang CSV rồi nhập.</small></p>}
-      <p className="sub">{shown.length} / {rows.length} học sinh</p>
+      
       {form && (
         <form className="panel formgrid" onSubmit={add}>
           <input required placeholder="Họ và tên" value={form.full_name} onChange={e => setForm({ ...form, full_name: e.target.value })} />
@@ -80,15 +86,18 @@ export default function Students() {
         </form>
       )}
       <table>
-        <thead><tr><th>Mã</th><th>Họ và tên</th><th>Lớp</th><th></th></tr></thead>
+        <thead><tr><th>Học sinh</th><th>Lớp</th><th>Khối</th><th>Trạng thái</th><th></th></tr></thead>
         <tbody>
           {shown.map(s => (
-            <tr key={s.id}><td>{s.student_code}</td><td><b>{s.full_name}</b></td><td>{s.classes?.name ?? '—'}</td>
+            <tr key={s.id}><td><b>{s.full_name}</b><br /><small>{s.student_code}</small></td><td>{s.classes?.name ?? '—'}</td><td>{s.classes?.grade ?? '—'}</td>
+              <td><select value={s.status} onChange={e => setStatus(s, e.target.value)}>{Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></td>
               <td><button onClick={() => remove(s)}>Xoá</button></td></tr>
           ))}
-          {shown.length === 0 && <tr><td colSpan={4}>Không có học sinh phù hợp.</td></tr>}
+          {shown.length === 0 && <tr><td colSpan={5}>Không có học sinh phù hợp.</td></tr>}
         </tbody>
       </table>
+      <div className="bar" style={{ marginTop: 10 }}><small>Hiển thị {shown.length}/{PAGE} (trang {cur}/{pages}) · Tổng {all.length} học sinh</small>
+        <div className="tools"><button disabled={cur <= 1} onClick={() => setPage(cur - 1)}>‹ Trước</button><button disabled={cur >= pages} onClick={() => setPage(cur + 1)}>Sau ›</button></div></div>
     </>
   )
 }

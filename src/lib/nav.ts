@@ -41,6 +41,9 @@ export const MODULE_OF: Record<string, string> = {
   'Quản lý Phòng STEM': 'stem_rooms', 'Quản lý Thiết bị': 'equipment', 'Bảo hành thiết bị': 'warranty',
   'Thời khóa biểu': 'timetable', 'Duyệt đăng ký dạy STEM': 'stem_registrations', 'Tòa nhà & Tầng': 'buildings',
   'Cấu hình tiết học': 'periods', 'Tài khoản': 'accounts', 'Vai trò và phân quyền': 'roles',
+  'Kế hoạch GD toàn trường': 'edu_plan', 'Phân công GV dạy STEM': 'stem_assign', 'Phân phối chương trình': 'curriculum',
+  'Gói STEM': 'packages', 'Kế hoạch tập huấn': 'training', 'Lịch tập huấn': 'training', 'Bài giảng': 'training',
+  'Lớp học ảo': 'training', 'Chứng chỉ': 'training',
 }
 // Vai trò trong cơ sở dữ liệu → giao diện được dùng
 export const VIEW_OF_ROLE: Record<string, RoleKey> = {

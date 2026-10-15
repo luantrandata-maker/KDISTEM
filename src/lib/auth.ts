@@ -22,10 +22,8 @@ export function useAccess(session: Session | null): Access {
         supabase.from('user_roles').select('role_id, roles(key)').eq('user_id', uid),
       ])
       const rows = (r.data as unknown as { role_id: string; roles: { key: string } | null }[]) ?? []
-      const ids = rows.map(x => x.role_id)
-      const perms = ids.length
-        ? (await supabase.from('role_permissions').select('module, can_view').in('role_id', ids)).data ?? []
-        : []
+      // Quyền hiệu lực = mặc định hệ thống + ghi đè của trường (tính ở CSDL, cùng logic với RLS)
+      const perms = rows.length ? (await supabase.rpc('my_permissions')).data ?? [] : []
       if (!live) return
       setViews(new Set(perms.filter((x: any) => x.can_view).map((x: any) => x.module)))
       setState({ loading: false, profile: (p.data as Profile) ?? null, roleKeys: rows.map(x => x.roles?.key ?? '') })

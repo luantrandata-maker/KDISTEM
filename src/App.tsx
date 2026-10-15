@@ -144,7 +144,7 @@ function Shell({ session }: { session: Session }) {
         </header>
         <main className="main">
           <h1>{page}</h1>
-          {Page ? <Page teacherId={teacherId} orgId={access.profile.org_id} /> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
+          {Page ? <Page teacherId={teacherId} orgId={access.profile.org_id} userName={access.profile.full_name} go={(p: string) => setPage(p)} /> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
         </main>
       </div>
     </div>

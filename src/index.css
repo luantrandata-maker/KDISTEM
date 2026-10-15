@@ -400,3 +400,36 @@ b.bad,.bad{color:var(--bad)}
 .main .checks li button{border:1px solid var(--line);background:var(--surface);padding:9px 12px}
 .tlabel .gpill{gap:0;padding:0 2px}
 .tree-legend{font-size:11px;color:var(--muted);display:flex;gap:12px;margin:0 0 6px}
+/* ===== Phê duyệt (022) ===== */
+.reqlist{display:grid;gap:12px}
+.req{margin:0}.req h3{margin:4px 0 2px}.req .sub{margin:0}
+.kindchip{display:inline-block;font-size:11px;font-weight:600;color:var(--navy-2);background:var(--soft);border-radius:6px;padding:1px 8px}
+.trail{list-style:none;margin:12px 0 4px;padding:0;display:flex;flex-wrap:wrap;gap:6px 0}
+.trail li{display:flex;align-items:center;gap:8px;padding-right:28px;position:relative;font-size:13px}
+.trail li:not(:last-child)::after{content:'';position:absolute;right:8px;top:50%;width:12px;border-top:2px solid var(--line)}
+.trail li.done:not(:last-child)::after{border-color:var(--ok)}
+.trail .dot{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;flex:none;background:var(--soft);color:var(--muted);border:2px solid var(--line)}
+.trail .done .dot{background:var(--ok);border-color:var(--ok);color:#fff}
+.trail .now .dot{background:#fff3df;border-color:#d98a12;color:#8a5208}
+.trail .bad .dot{background:var(--bad);border-color:var(--bad);color:#fff}
+.trail b{display:block;font-weight:600}.trail small{display:block;color:var(--muted);font-size:11px}
+.trail .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.decide{display:grid;gap:8px;margin-top:10px;padding:10px;background:var(--soft);border-radius:10px}
+.decide textarea{width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;resize:vertical}
+.req > .actions{margin-top:8px}
+.stepnote{color:#8a5208}
+.wfgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:12px}
+.wf{margin:0}.wf h3{margin:0}
+.wfsteps{margin:10px 0 4px;padding-left:20px;font-size:13px}.wfsteps li{margin:3px 0}
+.wfedit{display:grid;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.wfrow{display:grid;grid-template-columns:24px minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.4fr) auto;gap:6px;align-items:center}
+.wfrow .no{width:24px;height:24px;border-radius:50%;background:var(--soft);display:grid;place-items:center;font-size:12px}
+.wfrow input,.wfrow select{padding:7px;border:1px solid var(--line);border-radius:8px;font:inherit;min-width:0}
+.main .wfrow .actions button{padding:4px 8px}
+@media (max-width:760px){.wfgrid{grid-template-columns:minmax(0,1fr)}.wfrow{grid-template-columns:24px minmax(0,1fr)}.wfrow>*:not(.no){grid-column:2}}
+/* Hộp phê duyệt gọn */
+.req .onestep{font-size:12px;margin:6px 0 0}
+.req .decide{display:flex;gap:8px;align-items:center;flex-wrap:wrap;background:none;padding:0;margin-top:10px}
+.req .decide input{flex:1;min-width:220px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;font:inherit}
+.req .decide .actions{margin:0}
+.req > .actions{margin-top:6px}

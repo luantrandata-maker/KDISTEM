@@ -4,6 +4,7 @@ import FormPanel from '../components/FormPanel'
 import { ProgChips } from '../components/Chips'
 import { PROG, isoDate, mondayOf, addDays } from '../lib/programs'
 import { UNIT_STATUS } from './Equipment'
+import { decideText, approvalError } from './approvals/common'
 
 type Room = { id: string; name: string; code: string | null; capacity: number | null; status: string; area_m2: number | null; tier: string; programs: string | null; floors: { name: string; buildings: { name: string } | null } | null }
 type Unit = { id: string; serial: string | null; status: string; room_id: string | null; equipment_types: { name: string } | null }
@@ -62,7 +63,17 @@ export default function Rooms({ orgId }: { orgId: string }) {
     ...regs.filter(r => r.room_id === room.id && r.status === 'pending').map(r => ({ k: r.id, title: r.topic, sub: `${fmt(r.on_date)} · ${r.teachers?.full_name ?? ''}`, tag: 'Đăng ký dạy' }))]
   const pr = (id: string) => periods.find(p => p.id === id)
 
-  async function setBorrow(b: Borrow, status: string) { await supabase.from('borrow_requests').update({ status }).eq('id', b.id); load() }
+  async function setBorrow(b: Borrow, status: string) {
+    // Duyệt / từ chối đi qua công cụ phê duyệt (022); giao, trả thiết bị cập nhật trực tiếp
+    if (b.status === 'pending' && (status === 'approved' || status === 'rejected')) {
+      const { data, error } = await supabase.rpc('approval_decide_ref', { p_table: 'borrow_requests', p_ref: b.id, p_decision: status === 'approved' ? 'approve' : 'reject', p_note: null })
+      if (error) alert(approvalError(error.message)); else if ((data as { status: string }).status === 'pending') alert(decideText(data as never))
+    } else {
+      const { error } = await supabase.from('borrow_requests').update({ status }).eq('id', b.id)
+      if (error) alert(approvalError(error.message))
+    }
+    load()
+  }
   async function addBorrow(v: Record<string, string>) {
     const { error } = await supabase.from('borrow_requests').insert({ org_id: orgId, room_id: room!.id, teacher_id: v.teacher_id || null, title: v.title, items: v.items || null, on_date: v.on_date, period_id: v.period_id || null, mode: v.mode })
     if (error) return error.message

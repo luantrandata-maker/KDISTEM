@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import type { RoleKey } from '../lib/nav'
 
 type Note = { id: string; kind: string; title: string; body: string | null; page: string | null; portal: RoleKey | null; count: number; created_at: string; read_at: string | null }
-type Counts = { stem_registrations: number; borrow_requests: number; warranty_tickets: number; to_grade: number; unread: number }
+type Counts = { stem_registrations: number; borrow_requests: number; warranty_tickets: number; to_grade: number; approvals?: number; unread: number }
 
 const ago = (iso: string) => {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
@@ -46,7 +46,10 @@ export default function Bell({ open: openPage, portals, orgId }: { open: (portal
 
   const unread = notes.filter(n => !n.read_at).length
   type Pend = [number, string, RoleKey, string]
+  // Hồ sơ chờ tôi duyệt (quy trình phê duyệt 022) mở ở Hộp phê duyệt của cổng phù hợp
+  const inboxPortal: RoleKey = (['school_admin', 'department', 'teacher'] as RoleKey[]).find(p => portals.includes(p)) ?? 'school_admin'
   const all: Pend[] = counts ? [
+    [counts.approvals ?? 0, 'Hồ sơ chờ bạn duyệt', inboxPortal, 'Hộp phê duyệt'],
     [counts.stem_registrations, 'Đăng ký dạy STEM chờ duyệt', 'school_admin', 'Duyệt đăng ký dạy STEM'],
     [counts.borrow_requests, 'Phiếu mượn chờ duyệt', 'school_admin', 'Quản lý Phòng STEM'],
     [counts.warranty_tickets, 'Ticket bảo hành đang mở', 'school_admin', 'Bảo hành thiết bị'],
@@ -54,7 +57,7 @@ export default function Bell({ open: openPage, portals, orgId }: { open: (portal
   ] : []
   const pending = all.filter(([n, , portal]) => n > 0 && portals.includes(portal))
   // Số trên chuông: thông báo chưa đọc + việc cần duyệt (ticket bảo hành, bài chờ chấm chỉ hiện trong danh sách)
-  const badge = unread + pending.filter(([, , , page]) => page === 'Duyệt đăng ký dạy STEM' || page === 'Quản lý Phòng STEM').reduce((s, [n]) => s + n, 0)
+  const badge = unread + pending.filter(([, , , page]) => page === 'Hộp phê duyệt').reduce((s, [n]) => s + n, 0)
 
   async function click(n: Note) {
     if (!n.read_at) {

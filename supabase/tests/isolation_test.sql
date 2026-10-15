@@ -78,16 +78,25 @@ begin
 end $$;
 
 create or replace function pg_temp.cleanup() returns void language plpgsql as $$
+declare v_orgs uuid[] := array(select id from organizations where code like 'ISO-%');
 begin
-  delete from students where student_code like 'ISO-%';
-  delete from memberships where org_id in (select id from organizations where code like 'ISO-%');
-  delete from organizations where code like 'ISO-%';
-  delete from teachers where email like '%@iso-test.local';
-  delete from invitations where email like '%@iso-test.local';
+  delete from students where student_code like 'ISO-%' or org_id = any(v_orgs);
+  if to_regclass('public.package_orders') is not null then
+    delete from package_orders where org_id = any(v_orgs);
+    delete from approval_workflows where org_id = any(v_orgs);
+  end if;
+  delete from education_plans where org_id = any(v_orgs) or teacher_id in (select id from teachers where email like '%@iso-test.local');
+  delete from teachers where email like '%@iso-test.local' or org_id = any(v_orgs);
+  delete from invitations where email like '%@iso-test.local' or org_id = any(v_orgs);
+  delete from memberships where org_id = any(v_orgs);
+  delete from roles where key like 'custom_iso_%';
+  delete from organizations where code in ('ISO-TRUONG', 'ISO-SCH', 'ISO-NEW');
+  delete from organizations where code = 'ISO-SO';
+  delete from organizations where code = 'ISO-TINH';
   delete from auth.users where email like '%@iso-test.local';
   if to_regclass('public.audit_log') is not null then
     delete from audit_log where id > coalesce((select audit_start from t_meta), 0)
-      and (summary ~ '(Thử [a-z_]+|iso-test\.local|Trường thử ISO|ISO-[A-Z]+)' or (actor is null and summary like '%tài khoản đã xoá%'));
+      and (summary ~ '(Thử [a-z_]+|iso-test\.local|thử ISO|ISO-[A-Z]+|thử \(thử\)|Tổ trưởng \(thử\))' or (actor is null and summary like '%tài khoản đã xoá%'));
   end if;
 end $$;
 
@@ -125,6 +134,22 @@ begin
     perform pg_temp.mk('kdi', '@platform', 'platform_admin');
     insert into organizations (type, parent_id, code, name, level) values ('school', pg_temp.oid_('SO-HY'), 'ISO-SCH', 'Trường thử ISO', 'thcs');
     perform pg_temp.mk('admin_iso', 'ISO-SCH', 'principal');
+  end if;
+  -- 022: cây thử riêng cho quy trình phê duyệt (không đụng quy trình thật của các Sở)
+  if to_regclass('public.approval_requests') is not null then
+    insert into organizations (type, parent_id, code, name) values ('province', pg_temp.oid_('BO-GDDT'), 'ISO-TINH', 'Tỉnh thử ISO');
+    insert into organizations (type, parent_id, code, name) values ('department', pg_temp.oid_('ISO-TINH'), 'ISO-SO', 'Sở thử ISO');
+    insert into organizations (type, parent_id, code, name, level) values ('school', pg_temp.oid_('ISO-SO'), 'ISO-TRUONG', 'Trường thử ISO 2', 'thcs');
+    insert into roles (org_id, key, name, is_system, portal) values (pg_temp.oid_('ISO-TRUONG'), 'custom_iso_tt', 'Tổ trưởng (thử)', false, 'teacher');
+    perform pg_temp.mk('iso_admin', 'ISO-TRUONG', 'principal');
+    perform pg_temp.mk('iso_gv', 'ISO-TRUONG', 'teacher');
+    insert into teachers (org_id, full_name, email, profile_id)
+      select pg_temp.oid_('ISO-TRUONG'), 'GV thử ISO', 'iso_gv@iso-test.local', id from profiles where email = 'iso_gv@iso-test.local';
+    perform pg_temp.mk('iso_tt', 'ISO-TRUONG', 'teacher');
+    insert into memberships (user_id, org_id, role_id, created_by)
+      select p.id, pg_temp.oid_('ISO-TRUONG'), r.id, null from profiles p, roles r
+       where p.email = 'iso_tt@iso-test.local' and r.key = 'custom_iso_tt' and r.org_id = pg_temp.oid_('ISO-TRUONG');
+    perform pg_temp.mk('iso_so', 'ISO-SO', 'department');
   end if;
 end $$;
 
@@ -218,6 +243,50 @@ select pg_temp.probe('kdi@iso-test.local', format('update organizations set stat
 select pg_temp.chk('admin_iso', 'Trường bị tạm dừng: mất quyền', 'select coalesce(public.my_org_id()::text, ''null'')', 'null');
 select pg_temp.chk('admin_iso', 'Trường bị tạm dừng: không đọc dữ liệu', format('select count(*) from organizations where id = %s', quote_literal(pg_temp.oid_('ISO-SCH'))), '0');
 select pg_temp.chk('kdi', 'Không tạm dừng đơn vị chủ nền tảng', format('update organizations set status = ''suspended'' where id = %s', quote_literal(pg_temp.oid_('@platform'))), 'ERR*');
+
+-- ===== 7. Quy trình phê duyệt (022) =====
+-- Trường đặt quy trình 2 bước cho đề xuất mua gói: Tổ trưởng (vai trò tuỳ chỉnh) → Ban giám hiệu (người có quyền)
+select pg_temp.chk('iso_gv', 'Giáo viên không đặt được quy trình', 'select approval_save_workflow(''package_purchase'', ''x'', false, ''[{"approver":"perm"}]'')::text', 'ERR');
+select pg_temp.probe('iso_admin@iso-test.local', format($q$select approval_save_workflow('package_purchase', 'ISO 2 bước', false,
+  jsonb_build_array(jsonb_build_object('name','Tổ trưởng','approver','role','role_id',(select id from roles where key='custom_iso_tt' and org_id=%s)),
+                    jsonb_build_object('name','Ban giám hiệu','approver','perm')))::text$q$, quote_literal(pg_temp.oid_('ISO-TRUONG'))), true);
+select pg_temp.chk('iso_admin', 'Không duyệt thẳng bản nháp', 'with x as (insert into package_orders (org_id, name) values (my_org_id(), ''ISO nháp'') returning id) update package_orders set status = ''approved'' where id in (select id from x)', 'ERR*');
+select pg_temp.probe('iso_admin@iso-test.local', 'insert into package_orders (org_id, name, status) values (my_org_id(), ''ISO gói A'', ''pending'')', true);
+select pg_temp.chk('iso_admin', 'Gửi duyệt tạo hồ sơ 2 bước', 'select (select jsonb_array_length(steps) from approval_requests where title = ''ISO gói A'' and status = ''pending'')', '2');
+select pg_temp.chk('iso_gv', 'GV thường không có trong hộp duyệt', 'select count(*) from approval_inbox()', '0');
+select pg_temp.chk('iso_gv', 'GV thường không duyệt được', 'select approval_decide((select id from approval_requests where title = ''ISO gói A''), ''approve'')::text', 'ERR');
+select pg_temp.chk('iso_admin', 'Bước 1 chưa tới lượt Ban giám hiệu', 'select count(*) from approval_inbox()', '0');
+select pg_temp.chk('iso_admin', 'BGH không duyệt vượt bước (đổi trạng thái trực tiếp)', 'update package_orders set status = ''approved'' where name = ''ISO gói A''', 'ERR');
+select pg_temp.chk('iso_tt', 'Tổ trưởng thấy hồ sơ bước 1', 'select count(*) from approval_inbox()', '1');
+select pg_temp.probe('iso_tt@iso-test.local', 'select approval_decide((select id from approval_requests where title = ''ISO gói A'' and status = ''pending''), ''approve'', ''Đồng ý'')::text', true);
+select pg_temp.chk('iso_tt', 'Sau bước 1: hồ sơ rời hộp của tổ trưởng', 'select count(*) from approval_inbox()', '0');
+select pg_temp.chk('iso_admin', 'Sau bước 1: bản ghi vẫn chờ duyệt', 'select status from package_orders where name = ''ISO gói A''', 'pending');
+select pg_temp.chk('iso_admin', 'Sau bước 1: tới lượt Ban giám hiệu', 'select count(*) from approval_inbox()', '1');
+select pg_temp.probe('iso_admin@iso-test.local', 'update package_orders set status = ''approved'' where name = ''ISO gói A''', true);
+select pg_temp.chk('iso_admin', 'Đủ 2 bước: bản ghi Đã duyệt', 'select status from package_orders where name = ''ISO gói A''', 'approved');
+select pg_temp.chk('iso_admin', 'Lịch sử ghi đủ 2 lần duyệt', 'select count(*) from approval_actions a join approval_requests r on r.id = a.request_id where r.title = ''ISO gói A'' and a.decision = ''approve''', '2');
+select pg_temp.probe('iso_admin@iso-test.local', 'insert into package_orders (org_id, name, status) values (my_org_id(), ''ISO gói B'', ''pending'')', true);
+select pg_temp.chk('iso_gv', 'Người khác không rút được hồ sơ', 'select approval_cancel((select id from approval_requests where title = ''ISO gói B''))::text', 'ERR');
+select pg_temp.probe('iso_admin@iso-test.local', 'select approval_decide((select id from approval_requests where title = ''ISO gói B''), ''reject'', ''Chưa có ngân sách'')::text', true);
+select pg_temp.chk('iso_admin', 'BGH từ chối được ở bất kỳ bước nào', 'select status from package_orders where name = ''ISO gói B''', 'rejected');
+select pg_temp.chk('iso_admin', 'Không gọi trực tiếp hàm nội bộ tạo hồ sơ', 'select approval_open(my_org_id(), ''package_purchase'', ''package_orders'', gen_random_uuid(), ''x'', null, auth.uid())::text', 'ERR');
+select pg_temp.probe('iso_admin@iso-test.local', 'insert into package_orders (org_id, name, status) values (my_org_id(), ''ISO gói C'', ''pending'')', true);
+select pg_temp.probe('iso_admin@iso-test.local', 'select approval_cancel((select id from approval_requests where title = ''ISO gói C'' and status = ''pending''))::text', true);
+select pg_temp.chk('iso_admin', 'Rút hồ sơ: đề xuất trở về nháp', 'select status from package_orders where name = ''ISO gói C''', 'draft');
+-- Sở đặt quy trình cho trường trực thuộc: Hiệu trưởng → Sở; trường không có quy trình riêng cho kế hoạch giáo dục
+select pg_temp.probe('iso_so@iso-test.local', $q$select approval_save_workflow('edu_plan', 'ISO Sở', true,
+  jsonb_build_array(jsonb_build_object('name','Hiệu trưởng','approver','role','role_id',(select id from roles where key='principal' and org_id is null)),
+                    jsonb_build_object('name','Sở duyệt','approver','role','role_id',(select id from roles where key='department' and org_id is null),'org_type','department')))::text$q$, true);
+select pg_temp.chk('iso_admin', 'Trường dùng quy trình Sở đặt', 'select (select name from approval_workflows where id = approval_effective_workflow(my_org_id(), ''edu_plan''))', 'ISO Sở');
+select pg_temp.probe('iso_admin@iso-test.local', format('insert into education_plans (org_id, teacher_id, subject, grade, stem_periods, status) values (my_org_id(), %s, ''Toán'', 8, 4, ''pending'')',
+  quote_literal((select id from teachers where email = 'iso_gv@iso-test.local'))), true);
+select pg_temp.chk('iso_admin', 'Kế hoạch: bước 1 Hiệu trưởng', 'select count(*) from approval_inbox()', '1');
+select pg_temp.probe('iso_admin@iso-test.local', 'select approval_decide((select r.id from approval_inbox() r limit 1), ''approve'')::text', true);
+select pg_temp.chk('so_hy', 'Sở tỉnh khác không thấy hồ sơ', format('select count(*) from approval_requests where org_id = %s', quote_literal(pg_temp.oid_('ISO-TRUONG'))), '0');
+select pg_temp.chk('so_hy', 'Sở tỉnh khác không duyệt được', format('select approval_decide((select id from approval_requests where org_id = %s and status = ''pending'' limit 1), ''approve'')::text', quote_literal(pg_temp.oid_('ISO-TRUONG'))), 'ERR*');
+select pg_temp.chk('iso_so', 'Bước 2: Sở chủ quản thấy hồ sơ', 'select count(*) from approval_inbox()', '1');
+select pg_temp.probe('iso_so@iso-test.local', 'select approval_decide((select r.id from approval_inbox() r limit 1), ''approve'')::text', true);
+select pg_temp.chk('iso_admin', 'Sở duyệt xong: kế hoạch Đã duyệt', 'select status from education_plans where org_id = my_org_id() and subject = ''Toán'' and grade = 8', 'approved');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

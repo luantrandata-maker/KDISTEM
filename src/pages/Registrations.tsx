@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { ProgChips } from '../components/Chips'
+import { useLatestRequests, decideText, approvalError } from './approvals/common'
 
 type Reg = {
   id: string; topic: string; status: string; on_date: string; room_id: string; period_id: string; program: string | null; lesson: string | null; equipment_note: string | null
@@ -14,6 +15,7 @@ const hm = (t: string) => t.slice(0, 5)
 export default function Registrations() {
   const [rows, setRows] = useState<Reg[]>([])
   const [tab, setTab] = useState<'pending' | 'approved' | 'rejected'>('pending')
+  const [msg, setMsg] = useState('')
 
   async function load() {
     const { data } = await supabase.from('stem_registrations')
@@ -29,15 +31,23 @@ export default function Registrations() {
   const conflictGroups = Object.values(groups).filter(g => g.length > 1)
   const inConflict = new Set(conflictGroups.flat().map(r => r.id))
 
+  const { map: reqs, reload: reloadReqs } = useLatestRequests('stem_registrations', pending.map(r => r.id))
   async function approve(r: Reg) {
     if (taken.has(slot(r))) return alert('Phòng và tiết này đã có đăng ký được duyệt.')
     const rivals = (groups[slot(r)] ?? []).filter(x => x.id !== r.id)
     if (rivals.length && !confirm(`Duyệt đơn này sẽ tự động từ chối ${rivals.length} đơn trùng phòng/tiết còn lại. Tiếp tục?`)) return
-    await supabase.from('stem_registrations').update({ status: 'approved' }).eq('id', r.id)
-    if (rivals.length) await supabase.from('stem_registrations').update({ status: 'rejected' }).in('id', rivals.map(x => x.id))
-    load()
+    // Duyệt qua công cụ phê duyệt (migration 022): quy trình nhiều bước thì đơn còn chờ tới khi đủ bước
+    const { data, error } = await supabase.rpc('approval_decide_ref', { p_table: 'stem_registrations', p_ref: r.id, p_decision: 'approve', p_note: null })
+    if (error) { setMsg(approvalError(error.message)); return load() }
+    setMsg(decideText(data as never))
+    if ((data as { status: string }).status === 'approved' && rivals.length)
+      for (const x of rivals) await supabase.rpc('approval_decide_ref', { p_table: 'stem_registrations', p_ref: x.id, p_decision: 'reject', p_note: 'Trùng phòng và tiết với đăng ký đã duyệt' })
+    load(); reloadReqs()
   }
-  async function reject(r: Reg) { await supabase.from('stem_registrations').update({ status: 'rejected' }).eq('id', r.id); load() }
+  async function reject(r: Reg) {
+    const { error } = await supabase.rpc('approval_decide_ref', { p_table: 'stem_registrations', p_ref: r.id, p_decision: 'reject', p_note: null })
+    setMsg(error ? approvalError(error.message) : 'Đã từ chối.'); load()
+  }
 
   const Card = ({ r }: { r: Reg }) => (
     <div className="panel regcard" style={{ margin: 0 }}>
@@ -46,6 +56,8 @@ export default function Registrations() {
       <small>{r.stem_rooms?.name} · {new Date(r.on_date).toLocaleDateString('vi-VN', { day: 'numeric', month: 'numeric' })} · {WD[new Date(r.on_date).getDay()]} · {r.period_configs?.name} ({r.period_configs && `${hm(r.period_configs.starts_at)}–${hm(r.period_configs.ends_at)}`})</small>
       {r.equipment_note && <small style={{ color: '#a8650c' }}>Mượn TB: {r.equipment_note}</small>}
       {r.lesson && <div className="panel" style={{ background: 'var(--soft)', margin: 0, padding: 8 }}><small>{r.lesson}</small></div>}
+      {r.status === 'pending' && (reqs.get(r.id)?.steps.length ?? 1) > 1 && (() => { const q = reqs.get(r.id)!; const st = q.steps[q.current_step - 1]
+        return <small className="stepnote">Bước {q.current_step}/{q.steps.length}: {st?.name} · {st?.approver === 'role' ? st.role_name : 'người có quyền duyệt'}</small> })()}
       {r.status === 'pending' && <div className="actions"><button className="primary" style={{ flex: 1 }} onClick={() => approve(r)}>✓ Duyệt</button><button onClick={() => reject(r)}>✕ Từ chối</button></div>}
     </div>
   )
@@ -53,6 +65,7 @@ export default function Registrations() {
   const others = pending.filter(r => !inConflict.has(r.id))
   return (
     <>
+      {msg && <p className="sub"><b>{msg}</b></p>}
       <div className="segmented">
         {TABS.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l} ({rows.filter(r => r.status === k).length})</button>)}
       </div>

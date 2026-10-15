@@ -39,6 +39,10 @@ import { StudentTopics } from './pages/student/Topics'
 import { DeptDashboard, DeptWardKpi, DeptSchools, DeptPrograms, DeptSubjects, DeptTrainingMonitor, DeptRoomEffect } from './pages/department/Overview'
 import { DeptReports } from './pages/department/Reports'
 import { DeptAdmin } from './pages/department/Admin'
+// Phê duyệt (022): tải riêng khi mở
+const ApprovalInbox = lazy(() => import('./pages/approvals/Inbox').then(m => ({ default: m.ApprovalInbox })))
+const ApprovalWorkflows = lazy(() => import('./pages/approvals/Workflows').then(m => ({ default: m.ApprovalWorkflows })))
+const PackageOrders = lazy(() => import('./pages/approvals/PackageOrders').then(m => ({ default: m.PackageOrders })))
 // Cổng quản trị nền tảng: tải riêng khi mở (không làm nặng bản tải chung của trường/giáo viên/học sinh)
 const PlatformOverview = lazy(() => import('./pages/platform/Overview').then(m => ({ default: m.PlatformOverview })))
 const PlatformOrgs = lazy(() => import('./pages/platform/Orgs').then(m => ({ default: m.PlatformOrgs })))
@@ -73,6 +77,9 @@ const SCHOOL: PageMap = {
   'Lớp học ảo': VirtualClass,
   'Chứng chỉ': Certificates,
   'Năm học & học kỳ': Years,
+  'Hộp phê duyệt': ApprovalInbox,
+  'Quy trình phê duyệt': ApprovalWorkflows,
+  'Đề xuất mua gói': PackageOrders,
 }
 const TEACHER: PageMap = {
   'Tổng quan': TeacherHome,
@@ -83,6 +90,7 @@ const TEACHER: PageMap = {
   'Chấm bài': TeacherGrading,
   'Giáo dục STEM': TeacherClassroom,
   'Soạn bài giảng': TeacherLessonStudio,
+  'Hộp phê duyệt': ApprovalInbox,
 }
 const STUDENT: PageMap = {
   'Tổng quan': StudentHome,
@@ -103,6 +111,8 @@ const DEPARTMENT: PageMap = {
   'Hiệu quả Phòng STEM': DeptRoomEffect,
   'Báo cáo Bộ GD&ĐT': DeptReports,
   'Điều hành & Cấu hình': DeptAdmin,
+  'Hộp phê duyệt': ApprovalInbox,
+  'Quy trình phê duyệt': ApprovalWorkflows,
 }
 const PLATFORM: PageMap = {
   'Tổng quan hệ thống': PlatformOverview,

@@ -15,7 +15,7 @@ Giai đoạn 1–2: nền tảng + vận hành trường. React + TypeScript + V
    ```
 
 ## Cơ sở dữ liệu
-Chạy lần lượt các file trong `supabase/migrations/` theo số thứ tự (001 schema, 002 dữ liệu mẫu, 003 trigger demo, 004 thời khóa biểu và đăng ký STEM, 005 học sinh và phân quyền, 006 gói STEM/tập huấn/PPCT, 007 ticket bảo hành mẫu, 008 gán tài khoản và vai trò, 009–010 mở rộng và dữ liệu mẫu theo video thứ hai, 011 đường dẫn phòng họp tập huấn, 012 siết phân quyền RLS, 013 nền học tập: chủ đề/buổi học, bài tập, bài nộp, nhóm, phiên lớp có mã PIN, 014 vai trò tuỳ chỉnh và mời người dùng qua email, 015 soạn bài giảng tương tác, trình chiếu trên lớp và phiếu mượn thiết bị của giáo viên, 016 thông báo trong ứng dụng, học kỳ hiện tại và TKB theo học kỳ, 017 cổng học sinh: biểu quyết trong tiết học, tên người viết thảo luận, 018 cổng Sở: xã/phường, thống kê toàn Sở, tập huấn cấp Sở, lịch sử báo cáo, dữ liệu mẫu 21 trường, 019 lõi đa tổ chức: cây Bộ → Tỉnh → Sở → Phòng → Trường + Đơn vị cung cấp, bảng `memberships`, chọn đơn vị đang làm việc, tăng tốc RLS, đổi Geleximco → KDI Education, 020 dữ liệu mẫu tỉnh thứ hai Bắc Ninh và đơn vị cung cấp KDI Education, 021 cổng Quản trị nền tảng: trạng thái hoạt động/tạm dừng, ràng buộc cấp đơn vị, nhật ký thay đổi, thống kê theo cây). Các file dữ liệu mẫu chỉ chạy khi chưa có dữ liệu.
+Chạy lần lượt các file trong `supabase/migrations/` theo số thứ tự (001 schema, 002 dữ liệu mẫu, 003 trigger demo, 004 thời khóa biểu và đăng ký STEM, 005 học sinh và phân quyền, 006 gói STEM/tập huấn/PPCT, 007 ticket bảo hành mẫu, 008 gán tài khoản và vai trò, 009–010 mở rộng và dữ liệu mẫu theo video thứ hai, 011 đường dẫn phòng họp tập huấn, 012 siết phân quyền RLS, 013 nền học tập: chủ đề/buổi học, bài tập, bài nộp, nhóm, phiên lớp có mã PIN, 014 vai trò tuỳ chỉnh và mời người dùng qua email, 015 soạn bài giảng tương tác, trình chiếu trên lớp và phiếu mượn thiết bị của giáo viên, 016 thông báo trong ứng dụng, học kỳ hiện tại và TKB theo học kỳ, 017 cổng học sinh: biểu quyết trong tiết học, tên người viết thảo luận, 018 cổng Sở: xã/phường, thống kê toàn Sở, tập huấn cấp Sở, lịch sử báo cáo, dữ liệu mẫu 21 trường, 019 lõi đa tổ chức: cây Bộ → Tỉnh → Sở → Phòng → Trường + Đơn vị cung cấp, bảng `memberships`, chọn đơn vị đang làm việc, tăng tốc RLS, đổi Geleximco → KDI Education, 020 dữ liệu mẫu tỉnh thứ hai Bắc Ninh và đơn vị cung cấp KDI Education, 021 cổng Quản trị nền tảng: trạng thái hoạt động/tạm dừng, ràng buộc cấp đơn vị, nhật ký thay đổi, thống kê theo cây, 022 công cụ phê duyệt nhiều bước: quy trình theo đơn vị, hộp phê duyệt, đề xuất mua gói, kế hoạch giáo dục có trạng thái duyệt). Các file dữ liệu mẫu chỉ chạy khi chưa có dữ liệu.
 
 ## Cấu hình Supabase cho đăng nhập và lời mời
 
@@ -53,9 +53,18 @@ Cổng dành cho KDI Education (chủ nền tảng), mở bằng vai trò **Qu�
 - **Nhật ký hệ thống** (`audit_log`): mọi thay đổi đơn vị, vai trò, lời mời, vai trò tuỳ chỉnh — ai làm, lúc nào, đổi gì. Quản trị trường xem được nhật ký của trường mình.
 - Quyền dữ liệu: quản trị nền tảng **đọc** mọi dữ liệu (kể cả xem cổng Sở trên toàn hệ thống) nhưng không sửa dữ liệu chuyên môn của trường.
 
+## Phê duyệt nhiều bước (từ migration 022)
+
+- Loại hồ sơ: **đăng ký dạy STEM, phiếu mượn thiết bị, đề xuất mua gói STEM, kế hoạch giáo dục**, dự án STEM (dùng khi có chức năng dự án).
+- **Quy trình phê duyệt** (quản trị trường, cán bộ Sở/Phòng): mỗi loại hồ sơ gồm 1–10 bước. Người duyệt mỗi bước là *người có quyền sửa chức năng đó* (theo ma trận phân quyền) hoặc *một vai trò cụ thể* (kể cả vai trò tuỳ chỉnh như Tổ trưởng), ở tại trường hoặc ở cấp trên (Phòng, Sở, Tỉnh, Bộ).
+- Sở/Phòng bật *Áp dụng cho đơn vị trực thuộc* → trường chưa có quy trình riêng dùng theo. Không có quy trình nào → 1 bước như trước.
+- Hồ sơ chụp lại quy trình lúc gửi: sửa quy trình không ảnh hưởng hồ sơ đang duyệt. Đủ bước mới thành *Đã duyệt*; Ban giám hiệu của trường gửi luôn từ chối được ở bất kỳ bước nào; người gửi rút được hồ sơ.
+- **Hộp phê duyệt** (trường, giáo viên, Sở): hồ sơ chờ tôi duyệt, tôi đã gửi, đang xử lý, đã xong; xem tiến trình từng bước và lịch sử ý kiến. Chuông thông báo báo đúng người duyệt của từng bước.
+- Các màn cũ (Duyệt đăng ký dạy STEM, Mượn – trả thiết bị, Kế hoạch GD) vẫn dùng như trước, nhưng việc duyệt đi qua quy trình; đổi trạng thái trực tiếp bằng API cũng bị buộc đi qua quy trình.
+
 ## Kiểm thử cách ly dữ liệu
 
-- `supabase/tests/isolation_test.sql`: 72 phép thử "tỉnh A không đọc/ghi được dữ liệu tỉnh B", Phòng chỉ thấy trường trực thuộc, quyền quản trị không mang sang đơn vị khác, đổi đơn vị đang làm việc, quyền của quản trị nền tảng, tạm dừng đơn vị. Chạy được trong **Supabase SQL Editor** (sau 020; phần nền tảng cần 021): tự tạo tài khoản thử `*@iso-test.local`, mọi lệnh thử bị huỷ, cuối cùng xoá sạch và in bảng PASS/FAIL.
+- `supabase/tests/isolation_test.sql`: 95 phép thử "tỉnh A không đọc/ghi được dữ liệu tỉnh B", Phòng chỉ thấy trường trực thuộc, quyền quản trị không mang sang đơn vị khác, đổi đơn vị đang làm việc, quyền của quản trị nền tảng, tạm dừng đơn vị, quy trình phê duyệt nhiều bước (đúng người, đúng bước, Sở tỉnh khác không duyệt được). Chạy được trong **Supabase SQL Editor** (sau 020; phần nền tảng cần 021): tự tạo tài khoản thử `*@iso-test.local`, mọi lệnh thử bị huỷ, cuối cùng xoá sạch và in bảng PASS/FAIL.
 - `supabase/tests/run.sh`: dựng CSDL Postgres trống, chạy toàn bộ migration rồi chạy bộ kiểm thử (GitHub Actions chạy tự động khi `supabase/` thay đổi).
 
 ## Triển khai Cloudflare (Workers Builds, kết nối GitHub)

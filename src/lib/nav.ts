@@ -14,7 +14,8 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
   ],
   school_admin: [
     { title: 'Tổng quan', items: ['Dashboard Trường', 'Hồ sơ Trường học'] },
-    { title: 'Mua sắm gói STEM', items: ['Gói STEM'] },
+    { title: 'Phê duyệt', items: ['Hộp phê duyệt', 'Quy trình phê duyệt'] },
+    { title: 'Mua sắm gói STEM', items: ['Gói STEM', 'Đề xuất mua gói'] },
     { title: 'Nhân sự & Đồng bộ K12', items: ['Giáo viên', 'Phân công giảng dạy', 'Lớp học', 'Học sinh'] },
     { title: 'Phòng STEM', items: ['Quản lý Phòng STEM', 'Quản lý Thiết bị', 'Bảo hành thiết bị'] },
     { title: 'Kế hoạch GD & TKB', items: ['Kế hoạch GD toàn trường', 'Duyệt đăng ký dạy STEM', 'Thời khóa biểu', 'Phân công GV dạy STEM'] },
@@ -26,7 +27,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Giảng dạy', items: ['Tổng quan', 'Kế hoạch giáo dục', 'Lớp giảng dạy', 'Bài tập', 'Chấm bài'] },
     { title: 'Hoạt động STEM', items: ['Giáo dục STEM', 'Đặt phòng STEM'] },
     { title: 'Soạn giảng', items: ['Soạn bài giảng', 'Kho hoạt động & Bài giảng', 'Thư viện STEM'] },
-    { title: 'Khác', items: ['Học trước & tự học', 'Lịch tập huấn', 'Bài giảng tập huấn'] },
+    { title: 'Khác', items: ['Hộp phê duyệt', 'Học trước & tự học', 'Lịch tập huấn', 'Bài giảng tập huấn'] },
   ],
   student: [
     { title: 'Học tập', items: ['Tổng quan', 'Bài tập', 'Lịch học', 'Giáo dục STEM', 'Chủ đề'] },
@@ -36,7 +37,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Theo dõi STEM', items: ['Chương trình CT1–CT5', 'Theo dõi Môn học STEM', 'Giám sát Tập huấn GV'] },
     { title: 'Tập huấn STEM', items: ['Kế hoạch tập huấn', 'Lịch tập huấn'] },
     { title: 'Phòng & Thiết bị STEM', items: ['Hiệu quả Phòng STEM'] },
-    { title: 'Báo cáo & Điều hành', items: ['Báo cáo Bộ GD&ĐT', 'Điều hành & Cấu hình'] },
+    { title: 'Báo cáo & Điều hành', items: ['Hộp phê duyệt', 'Quy trình phê duyệt', 'Báo cáo Bộ GD&ĐT', 'Điều hành & Cấu hình'] },
   ],
 }
 
@@ -49,5 +50,6 @@ export const MODULE_OF: Record<string, string> = {
   'Kế hoạch GD toàn trường': 'edu_plan', 'Phân công GV dạy STEM': 'stem_assign', 'Phân phối chương trình': 'curriculum',
   'Gói STEM': 'packages', 'Kế hoạch tập huấn': 'training', 'Lịch tập huấn': 'training', 'Bài giảng': 'training',
   'Lớp học ảo': 'training', 'Chứng chỉ': 'training',
+  'Hộp phê duyệt': 'approvals', 'Quy trình phê duyệt': 'roles', 'Đề xuất mua gói': 'packages',
 }
 // Vai trò → giao diện: lưu ở cột roles.portal (vai trò hệ thống và vai trò tuỳ chỉnh của trường).

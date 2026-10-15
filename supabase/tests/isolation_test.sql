@@ -81,6 +81,14 @@ create or replace function pg_temp.cleanup() returns void language plpgsql as $$
 declare v_orgs uuid[] := array(select id from organizations where code like 'ISO-%');
   v_users uuid[] := array(select id from profiles where email like '%@iso-test.local');
 begin
+  if to_regclass('public.contracts') is not null then
+    delete from notifications where ref_id in (select id from support_tickets where subject like 'ISO %');
+    delete from support_tickets where subject like 'ISO %' or org_id = any(v_orgs);
+    delete from contracts where code like 'ISO-%' or org_id = any(v_orgs);
+    delete from service_plans where code like 'ISO-%';
+    update security_settings set enforce_mfa_db = false where id = 1 and enforce_mfa_db;
+    update profiles set locked_at = null, locked_reason = null, locked_by = null where id = any(v_users) and locked_at is not null;
+  end if;
   if to_regclass('public.library_items') is not null then
     delete from lesson_plans where id in (select lesson_plan_id from library_copies where adopted_by = any(v_users));
     delete from library_copies where adopted_by = any(v_users);
@@ -322,6 +330,68 @@ select pg_temp.probe('so_bn@iso-test.local', 'select library_publish((select id 
 select pg_temp.chk('gv_both', 'Bản mới: bản sao được báo cũ hơn', 'select count(*) from library_copies c join library_items i on i.id = c.item_id where c.adopted_by = auth.uid() and c.adopted_version < i.version', '1');
 select pg_temp.chk('gv_both', 'Bản mới: có thông báo cập nhật', 'select count(*) from notifications where user_id = auth.uid() and kind = ''library''', '1');
 select pg_temp.chk('so_bn', 'Đơn vị phát hành thấy số trường đã dùng', 'select schools from library_stats() where item_id = (select id from library_items where title = ''ISO bài Phòng TP'')', '1');
+
+-- ===== 9. Gói dịch vụ & hợp đồng (024) =====
+insert into service_plans (code, name, modules) values ('ISO-GOI', 'ISO gói thử', '{timetable}') on conflict (code) do nothing;
+select pg_temp.chk('iso_admin', 'Chưa có hợp đồng: không giới hạn phân hệ', 'select my_entitlement()->>''state''', 'open');
+select pg_temp.chk('iso_admin', 'Trường không tạo được gói dịch vụ', 'insert into service_plans (code, name) values (''ISO-X'', ''x'')', 'ERR');
+select pg_temp.chk('iso_so', 'Sở không tự tạo hợp đồng', format('insert into contracts (code, org_id, plan_id, starts_on) values (''ISO-HD0'', my_org_id(), %s, current_date)', quote_literal((select id from service_plans where code = 'ISO-GOI'))), 'ERR');
+select pg_temp.probe('kdi@iso-test.local', format('insert into contracts (code, org_id, plan_id, starts_on, status) values (''ISO-HD1'', %s, %s, current_date - 1, ''active'')',
+  quote_literal(pg_temp.oid_('ISO-SO')), quote_literal((select id from service_plans where code = 'ISO-GOI'))), true);
+select pg_temp.chk('iso_admin', 'Hợp đồng của Sở áp dụng cho trường trực thuộc', 'select my_entitlement()->>''state''', 'active');
+select pg_temp.chk('iso_admin', 'Phân hệ ngoài gói: không tạo được phòng STEM', 'insert into stem_rooms (org_id, name) values (my_org_id(), ''ISO phòng'')', 'ERR');
+select pg_temp.chk('iso_admin', 'Phân hệ trong gói vẫn dùng được', 'select org_has_module(my_org_id(), ''timetable'')::text', 'true');
+select pg_temp.chk('iso_admin', 'Phần lõi luôn dùng được: tạo giáo viên', 'insert into teachers (org_id, full_name, email) values (my_org_id(), ''ISO GV lõi'', ''lo@iso-test.local'')', 'rows:1');
+select pg_temp.chk('admin_ph', 'Đơn vị không có hợp đồng không bị ảnh hưởng', 'insert into stem_rooms (org_id, name) values (my_org_id(), ''ISO phòng'')', 'rows:1');
+select pg_temp.chk('iso_so', 'Sở thấy hợp đồng của mình', 'select count(*) from contracts where code = ''ISO-HD1''', '1');
+select pg_temp.chk('iso_gv', 'Giáo viên không xem hợp đồng', 'select count(*) from contracts where code = ''ISO-HD1''', '0');
+select pg_temp.chk('admin_kb', 'Trường tỉnh khác không xem hợp đồng', 'select count(*) from contracts where code = ''ISO-HD1''', '0');
+select pg_temp.probe('kdi@iso-test.local', 'update contracts set starts_on = current_date - 30, ends_on = current_date - 1 where code = ''ISO-HD1''', true);
+select pg_temp.chk('iso_admin', 'Hợp đồng hết hạn: trạng thái hết hạn', 'select my_entitlement()->>''state''', 'expired');
+select pg_temp.chk('iso_admin', 'Hết hạn: phân hệ trong gói cũng bị khoá', 'select org_has_module(my_org_id(), ''timetable'')::text', 'false');
+select pg_temp.chk('iso_admin', 'Hết hạn: phần lõi vẫn dùng được', 'select org_has_module(my_org_id(), ''teachers'')::text', 'true');
+select pg_temp.chk('kdi', 'Quản trị nền tảng xem quyền dùng mọi đơn vị', format('select state from platform_entitlements() where org_id = %s', quote_literal(pg_temp.oid_('ISO-TRUONG'))), 'expired');
+select pg_temp.chk('admin_ph', 'Trường không xem quyền dùng toàn hệ thống', 'select count(*) from platform_entitlements()', 'ERR');
+
+-- ===== 10. Bảo mật tài khoản (024) =====
+select pg_temp.chk('admin_ph', 'Trường không gọi được hàm khoá tài khoản', format('select platform_lock_user(%s)::text', quote_literal((select id from profiles where email = 'gv_both@iso-test.local'))), 'ERR');
+select pg_temp.chk('admin_ph', 'Không tự đổi trạng thái khoá', 'update profiles set locked_at = null, locked_reason = ''x'' where id = auth.uid()', 'ERR*');
+select pg_temp.chk('kdi', 'Không tự khoá chính mình', 'select platform_lock_user(auth.uid())::text', 'ERR*');
+select pg_temp.probe('kdi@iso-test.local', format('select platform_lock_user(%s, ''ISO thử khoá'')::text', quote_literal((select id from profiles where email = 'gv_both@iso-test.local'))), true);
+select pg_temp.chk('gv_both', 'Tài khoản bị khoá: mất đơn vị làm việc', 'select (my_org_id() is null)::text', 'true');
+select pg_temp.chk('gv_both', 'Tài khoản bị khoá: không đọc dữ liệu', 'select count(*) from teachers', '0');
+select pg_temp.chk('kdi', 'Tổng quan bảo mật thấy tài khoản bị khoá', 'select jsonb_array_length(platform_security_overview()->''locked'')::text', '1');
+select pg_temp.probe('kdi@iso-test.local', format('select platform_unlock_user(%s)::text', quote_literal((select id from profiles where email = 'gv_both@iso-test.local'))), true);
+select pg_temp.chk('gv_both', 'Mở khoá: đọc lại được dữ liệu', 'select count(*) from teachers', '>0');
+select pg_temp.chk('admin_ph', 'Trường không xem tổng quan bảo mật', 'select platform_security_overview()::text', 'ERR');
+select pg_temp.chk('admin_ph', 'Trường không đổi cài đặt bảo mật', 'update security_settings set enforce_mfa_db = true', 'rows:0');
+update security_settings set enforce_mfa_db = true where id = 1;
+select pg_temp.chk('kdi', 'Bắt buộc 2FA: phiên chưa xác thực 2 lớp mất quyền nền tảng', 'select is_platform_admin()::text', 'false');
+select pg_temp.chk('kdi', 'Bắt buộc 2FA: phiên aal2 vẫn có quyền', 'select (set_config(''request.jwt.claims'', json_build_object(''sub'', auth.uid(), ''role'', ''authenticated'', ''aal'', ''aal2'')::text, true) is not null and is_platform_admin())::text', 'true');
+update security_settings set enforce_mfa_db = false where id = 1;
+select pg_temp.chk('kdi', 'Quản trị nền tảng thuộc nhóm bắt buộc 2FA', 'select mfa_required()::text', 'true');
+select pg_temp.chk('admin_ph', 'Hiệu trưởng chưa bắt buộc 2FA (mặc định)', 'select mfa_required()::text', 'false');
+
+-- ===== 11. Hỗ trợ khách hàng (024) =====
+select pg_temp.probe('admin_kb@iso-test.local', 'insert into support_tickets (org_id, subject, priority) values (my_org_id(), ''ISO lỗi đăng nhập'', ''urgent'')', true);
+select pg_temp.chk('admin_kb', 'Phiếu có mã HT- và hạn 4 giờ', 'select (code like ''HT-%'' and due_at <= created_at + interval ''4 hours 1 minute'')::text from support_tickets where subject = ''ISO lỗi đăng nhập''', 'true');
+select pg_temp.chk('admin_kb', 'Không gửi phiếu thay đơn vị khác', format('insert into support_tickets (org_id, subject) values (%s, ''ISO giả'')', quote_literal(pg_temp.oid_('THCS-PH'))), 'ERR');
+select pg_temp.chk('admin_ph', 'Trường khác không thấy phiếu', 'select count(*) from support_tickets where subject = ''ISO lỗi đăng nhập''', '0');
+select pg_temp.chk('so_bn', 'Sở chủ quản thấy phiếu của trường', 'select count(*) from support_tickets where subject = ''ISO lỗi đăng nhập''', '1');
+select pg_temp.chk('hs_kb', 'Học sinh không thấy phiếu', 'select count(*) from support_tickets where subject = ''ISO lỗi đăng nhập''', '0');
+select pg_temp.chk('kdi', 'KDI thấy phiếu', 'select count(*) from support_tickets where subject = ''ISO lỗi đăng nhập''', '1');
+select pg_temp.chk('kdi', 'KDI nhận thông báo phiếu mới', 'select count(*) from notifications where user_id = auth.uid() and kind = ''support''', '>0');
+select pg_temp.chk('admin_kb', 'Khách hàng không tự đổi mức ưu tiên', 'update support_tickets set priority = ''low'' where subject = ''ISO lỗi đăng nhập''', 'ERR');
+select pg_temp.chk('admin_kb', 'Khách hàng không tự đánh dấu đã xử lý', 'update support_tickets set status = ''resolved'' where subject = ''ISO lỗi đăng nhập''', 'ERR');
+select pg_temp.probe('kdi@iso-test.local', 'insert into support_messages (ticket_id, body, internal) select id, ''ISO ghi chú nội bộ'', true from support_tickets where subject = ''ISO lỗi đăng nhập''', true);
+select pg_temp.probe('kdi@iso-test.local', 'insert into support_messages (ticket_id, body, internal) select id, ''ISO đã kiểm tra'', false from support_tickets where subject = ''ISO lỗi đăng nhập''', true);
+select pg_temp.chk('admin_kb', 'Khách hàng không thấy ghi chú nội bộ', 'select count(*) from support_messages m join support_tickets t on t.id = m.ticket_id where t.subject = ''ISO lỗi đăng nhập''', '1');
+select pg_temp.chk('admin_kb', 'KDI trả lời: phiếu chuyển sang đang xử lý', 'select status || (first_response_at is not null)::text from support_tickets where subject = ''ISO lỗi đăng nhập''', 'in_progresstrue');
+select pg_temp.chk('admin_kb', 'Người gửi nhận thông báo KDI trả lời', 'select count(*) from notifications where user_id = auth.uid() and kind = ''support''', '1');
+select pg_temp.chk('admin_kb', 'Khách hàng không viết ghi chú nội bộ', 'insert into support_messages (ticket_id, body, internal) select id, ''x'', true from support_tickets where subject = ''ISO lỗi đăng nhập''', 'ERR');
+select pg_temp.chk('admin_kb', 'Khách hàng đóng được phiếu', 'update support_tickets set status = ''closed'' where subject = ''ISO lỗi đăng nhập''', 'rows:1');
+select pg_temp.chk('kdi', 'KDI cập nhật được phiếu bảo hành', 'update warranty_tickets set status = ''processing'' where id = (select id from warranty_tickets limit 1)', 'rows:1');
+select pg_temp.chk('admin_ph', 'Trường không sửa phiếu bảo hành trường khác', format('update warranty_tickets set status = ''processing'' where org_id = %s', quote_literal(pg_temp.oid_('THCS-KB'))), 'rows:0');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

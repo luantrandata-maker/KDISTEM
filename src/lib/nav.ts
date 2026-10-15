@@ -34,13 +34,13 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Kế hoạch GD & TKB', items: ['Kế hoạch GD toàn trường', 'Duyệt đăng ký dạy STEM', 'Thời khóa biểu', 'Phân công GV dạy STEM'] },
     { title: 'Tập huấn GV', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Bài giảng', 'Lớp học ảo', 'Chứng chỉ'] },
     { title: 'Quản lý khai báo', items: ['Năm học & học kỳ', 'Tòa nhà & Tầng', 'Cấu hình tiết học', 'Phân phối chương trình'] },
-    { title: 'Quản trị', items: ['Tài khoản', 'Vai trò và phân quyền'] },
+    { title: 'Quản trị', items: ['Tài khoản', 'Vai trò và phân quyền', 'Hỗ trợ từ KDI'] },
   ],
   teacher: [
     { title: 'Giảng dạy', items: ['Tổng quan', 'Kế hoạch giáo dục', 'Lớp giảng dạy', 'Bài tập', 'Chấm bài'] },
     { title: 'Hoạt động STEM', items: ['Giáo dục STEM', 'Đặt phòng STEM'] },
     { title: 'Soạn giảng', items: ['Soạn bài giảng', 'Kho hoạt động & Bài giảng', 'Thư viện STEM'] },
-    { title: 'Khác', items: ['Hộp phê duyệt', 'Học trước & tự học', 'Lịch tập huấn', 'Bài giảng tập huấn'] },
+    { title: 'Khác', items: ['Hộp phê duyệt', 'Học trước & tự học', 'Lịch tập huấn', 'Bài giảng tập huấn', 'Hỗ trợ từ KDI'] },
   ],
   student: [
     { title: 'Học tập', items: ['Tổng quan', 'Bài tập', 'Lịch học', 'Giáo dục STEM', 'Chủ đề'] },
@@ -51,7 +51,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Tập huấn STEM', items: ['Kế hoạch tập huấn', 'Lịch tập huấn'] },
     { title: 'Học liệu STEM', items: ['Phát hành học liệu', 'Kho học liệu dùng chung'] },
     { title: 'Phòng & Thiết bị STEM', items: ['Hiệu quả Phòng STEM'] },
-    { title: 'Báo cáo & Điều hành', items: ['Hộp phê duyệt', 'Quy trình phê duyệt', 'Báo cáo Bộ GD&ĐT', 'Điều hành & Cấu hình'] },
+    { title: 'Báo cáo & Điều hành', items: ['Hộp phê duyệt', 'Quy trình phê duyệt', 'Báo cáo Bộ GD&ĐT', 'Điều hành & Cấu hình', 'Hỗ trợ từ KDI'] },
   ],
 }
 
@@ -68,3 +68,12 @@ export const MODULE_OF: Record<string, string> = {
   'Hộp phê duyệt': 'approvals', 'Quy trình phê duyệt': 'roles', 'Đề xuất mua gói': 'packages',
 }
 // Vai trò → giao diện: lưu ở cột roles.portal (vai trò hệ thống và vai trò tuỳ chỉnh của trường).
+
+// Mục menu (mọi giao diện trừ Quản trị nền tảng) → chức năng dùng để kiểm tra gói dịch vụ (migration 024).
+// Mục không có ở đây là phần lõi, luôn hiện.
+export const ENT_MODULE_OF: Record<string, string> = {
+  ...MODULE_OF, 'Quy trình phê duyệt': 'approvals',
+  'Đặt phòng STEM': 'stem_rooms', 'Thư viện STEM': 'library', 'Kho hoạt động & Bài giảng': 'library',
+  'Lịch tập huấn': 'training', 'Bài giảng tập huấn': 'training', 'Kế hoạch tập huấn': 'training', 'Giám sát Tập huấn GV': 'training',
+  'Kế hoạch giáo dục': 'edu_plan', 'Hiệu quả Phòng STEM': 'stem_rooms',
+}

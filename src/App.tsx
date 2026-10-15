@@ -1,10 +1,11 @@
 import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
-import { NAV, ROLE_LABEL, MODULE_OF, RoleKey } from './lib/nav'
+import { NAV, ROLE_LABEL, MODULE_OF, ENT_MODULE_OF, RoleKey } from './lib/nav'
 import { useAccess, switchOrg, type MyOrg } from './lib/auth'
 import { useYears, yearLabel } from './lib/year'
 import Bell from './components/Bell'
+import MfaGate from './components/MfaGate'
 import Years from './pages/Years'
 import logo from './assets/kdi-logo.png'
 import Login, { SetPassword } from './pages/Login'
@@ -55,6 +56,12 @@ const PlatformAudit = lazy(() => import('./pages/platform/Audit').then(m => ({ d
 // Khung giao diện cho phân hệ chưa build + Sơ đồ hệ thống
 const PlannedPage = lazy(() => import('./pages/platform/Planned').then(m => ({ default: m.PlannedPage })))
 const SystemMap = lazy(() => import('./pages/platform/Planned').then(m => ({ default: m.SystemMap })))
+// Đợt 1 (024): khách hàng, gói & hợp đồng, bảo mật, hỗ trợ
+const PlatformCustomers = lazy(() => import('./pages/platform/Commerce').then(m => ({ default: m.PlatformCustomers })))
+const PlatformContracts = lazy(() => import('./pages/platform/Commerce').then(m => ({ default: m.PlatformContracts })))
+const PlatformSecurity = lazy(() => import('./pages/platform/Security').then(m => ({ default: m.PlatformSecurity })))
+const PlatformSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.PlatformSupport })))
+const CustomerSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.CustomerSupport })))
 
 type PageMap = Record<string, ComponentType<any>>
 const SCHOOL: PageMap = {
@@ -88,6 +95,7 @@ const SCHOOL: PageMap = {
   'Đề xuất mua gói': PackageOrders,
   'Kho học liệu dùng chung': LibraryBrowse,
   'Phát hành học liệu': LibraryManage,
+  'Hỗ trợ từ KDI': CustomerSupport,
 }
 const TEACHER: PageMap = {
   'Tổng quan': TeacherHome,
@@ -100,6 +108,7 @@ const TEACHER: PageMap = {
   'Soạn bài giảng': TeacherLessonStudio,
   'Hộp phê duyệt': ApprovalInbox,
   'Thư viện STEM': LibraryBrowse,
+  'Hỗ trợ từ KDI': CustomerSupport,
 }
 const STUDENT: PageMap = {
   'Tổng quan': StudentHome,
@@ -148,6 +157,10 @@ const PLATFORM: PageMap = {
   'Kế hoạch tập huấn': TrainingPlans,
   'Lịch tập huấn': TrainingSchedule,
   'Giám sát tập huấn nhà giáo': DeptTrainingMonitor,
+  'Bảo mật tài khoản': PlatformSecurity,
+  'Vấn đề & phản hồi': PlatformSupport,
+  'Thông tin khách hàng': PlatformCustomers,
+  'Gói dịch vụ & hợp đồng': PlatformContracts,
 }
 const PLATFORM_LIVE = new Set(Object.keys(PLATFORM))
 PLATFORM['Sơ đồ hệ thống'] = (p: any) => <SystemMap {...p} live={PLATFORM_LIVE} />
@@ -169,7 +182,7 @@ export default function App() {
   if (session === undefined) return null
   if (!session) return <Login />
   if (recovery) return <SetPassword onDone={() => setRecovery(false)} />
-  return <Shell session={session} />
+  return <MfaGate key={session.user.id}><Shell session={session} /></MfaGate>
 }
 
 function Shell({ session }: { session: Session }) {
@@ -204,8 +217,28 @@ function Shell({ session }: { session: Session }) {
       supabase.from('students').select('id, full_name, profile_id, classes(name)').order('student_code').then(({ data }) => setStudents((data as any) ?? []))
   }, [access.profile?.org_id, access.portals.length])
 
+  // Tự đăng xuất khi không thao tác (cài đặt ở Bảo mật tài khoản)
+  useEffect(() => {
+    if (!access.idleMinutes) return
+    let last = Date.now()
+    const touch = () => { last = Date.now() }
+    const ev = ['mousemove', 'keydown', 'click', 'touchstart', 'scroll']
+    ev.forEach(e => window.addEventListener(e, touch, { passive: true }))
+    const t = setInterval(() => { if (Date.now() - last > access.idleMinutes * 60000) supabase.auth.signOut() }, 30000)
+    return () => { ev.forEach(e => window.removeEventListener(e, touch)); clearInterval(t) }
+  }, [access.idleMinutes])
+
   if (access.loading) return null
   if (changingPw) return <SetPassword onDone={() => setChangingPw(false)} />
+  if (access.profile?.locked_at) {
+    return (
+      <div className="login"><form onSubmit={e => e.preventDefault()}>
+        <img src={logo} alt="KDI education" /><h1>Tài khoản đã bị khoá</h1>
+        <p>Tài khoản <b>{session.user.email}</b> đã bị khoá{access.profile.locked_reason ? `: ${access.profile.locked_reason}` : ''}. Liên hệ KDI Education để được hỗ trợ.</p>
+        <button type="button" onClick={() => supabase.auth.signOut()}>Đăng xuất</button>
+      </form></div>
+    )
+  }
   if (!access.profile?.org_id || views.length === 0) {
     return (
       <div className="login"><form onSubmit={e => e.preventDefault()}>
@@ -236,7 +269,8 @@ function Shell({ session }: { session: Session }) {
   const studentId = role === 'student' ? (access.isAdmin ? actingStudent ?? students.find(s => s.classes?.name === 'Lớp 9A')?.id ?? students[0]?.id ?? null : myStudent) : null
 
   const groups = NAV[role]
-    .map(g => ({ ...g, items: g.items.filter(i => role !== 'school_admin' || !MODULE_OF[i] || access.canView(MODULE_OF[i])) }))
+    .map(g => ({ ...g, items: g.items.filter(i => (role !== 'school_admin' || !MODULE_OF[i] || access.canView(MODULE_OF[i]))
+      && (role === 'platform' || !ENT_MODULE_OF[i] || access.entitled(ENT_MODULE_OF[i]))) }))
     .filter(g => g.items.length)
   const Page: ComponentType<any> | undefined = PAGES[role]?.[page] ?? (role === 'platform' ? PlannedPage : undefined)
   const goPage = (p: string) => setPage(role === 'platform' ? PLATFORM_ALIAS[p] ?? p : p)

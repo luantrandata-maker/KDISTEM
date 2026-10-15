@@ -15,7 +15,7 @@ Giai đoạn 1–2: nền tảng + vận hành trường. React + TypeScript + V
    ```
 
 ## Cơ sở dữ liệu
-Chạy lần lượt các file trong `supabase/migrations/` theo số thứ tự (001 schema, 002 dữ liệu mẫu, 003 trigger demo, 004 thời khóa biểu và đăng ký STEM, 005 học sinh và phân quyền, 006 gói STEM/tập huấn/PPCT, 007 ticket bảo hành mẫu, 008 gán tài khoản và vai trò, 009–010 mở rộng và dữ liệu mẫu theo video thứ hai, 011 đường dẫn phòng họp tập huấn, 012 siết phân quyền RLS, 013 nền học tập: chủ đề/buổi học, bài tập, bài nộp, nhóm, phiên lớp có mã PIN, 014 vai trò tuỳ chỉnh và mời người dùng qua email, 015 soạn bài giảng tương tác, trình chiếu trên lớp và phiếu mượn thiết bị của giáo viên, 016 thông báo trong ứng dụng, học kỳ hiện tại và TKB theo học kỳ, 017 cổng học sinh: biểu quyết trong tiết học, tên người viết thảo luận, 018 cổng Sở: xã/phường, thống kê toàn Sở, tập huấn cấp Sở, lịch sử báo cáo, dữ liệu mẫu 21 trường, 019 lõi đa tổ chức: cây Bộ → Tỉnh → Sở → Phòng → Trường + Đơn vị cung cấp, bảng `memberships`, chọn đơn vị đang làm việc, tăng tốc RLS, đổi Geleximco → KDI Education, 020 dữ liệu mẫu tỉnh thứ hai Bắc Ninh và đơn vị cung cấp KDI Education, 021 cổng Quản trị nền tảng: trạng thái hoạt động/tạm dừng, ràng buộc cấp đơn vị, nhật ký thay đổi, thống kê theo cây, 022 công cụ phê duyệt nhiều bước: quy trình theo đơn vị, hộp phê duyệt, đề xuất mua gói, kế hoạch giáo dục có trạng thái duyệt, 023 kho chương trình, bài giảng, học liệu dùng chung). Các file dữ liệu mẫu chỉ chạy khi chưa có dữ liệu.
+Chạy lần lượt các file trong `supabase/migrations/` theo số thứ tự (001 schema, 002 dữ liệu mẫu, 003 trigger demo, 004 thời khóa biểu và đăng ký STEM, 005 học sinh và phân quyền, 006 gói STEM/tập huấn/PPCT, 007 ticket bảo hành mẫu, 008 gán tài khoản và vai trò, 009–010 mở rộng và dữ liệu mẫu theo video thứ hai, 011 đường dẫn phòng họp tập huấn, 012 siết phân quyền RLS, 013 nền học tập: chủ đề/buổi học, bài tập, bài nộp, nhóm, phiên lớp có mã PIN, 014 vai trò tuỳ chỉnh và mời người dùng qua email, 015 soạn bài giảng tương tác, trình chiếu trên lớp và phiếu mượn thiết bị của giáo viên, 016 thông báo trong ứng dụng, học kỳ hiện tại và TKB theo học kỳ, 017 cổng học sinh: biểu quyết trong tiết học, tên người viết thảo luận, 018 cổng Sở: xã/phường, thống kê toàn Sở, tập huấn cấp Sở, lịch sử báo cáo, dữ liệu mẫu 21 trường, 019 lõi đa tổ chức: cây Bộ → Tỉnh → Sở → Phòng → Trường + Đơn vị cung cấp, bảng `memberships`, chọn đơn vị đang làm việc, tăng tốc RLS, đổi Geleximco → KDI Education, 020 dữ liệu mẫu tỉnh thứ hai Bắc Ninh và đơn vị cung cấp KDI Education, 021 cổng Quản trị nền tảng: trạng thái hoạt động/tạm dừng, ràng buộc cấp đơn vị, nhật ký thay đổi, thống kê theo cây, 022 công cụ phê duyệt nhiều bước: quy trình theo đơn vị, hộp phê duyệt, đề xuất mua gói, kế hoạch giáo dục có trạng thái duyệt, 023 kho chương trình, bài giảng, học liệu dùng chung, 024 cổng Quản trị nền tảng đợt 1: khách hàng, gói dịch vụ & hợp đồng (quyền dùng phân hệ), bảo mật tài khoản, hỗ trợ khách hàng). Các file dữ liệu mẫu chỉ chạy khi chưa có dữ liệu.
 
 ## Cấu hình Supabase cho đăng nhập và lời mời
 
@@ -80,3 +80,25 @@ Cổng dành cho KDI Education (chủ nền tảng), mở bằng vai trò **Qu�
 - Biến môi trường (đặt trước khi build): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (giá trị như `.env.example`)
 - Sau khi có địa chỉ `*.workers.dev`, thêm vào Supabase → Authentication → URL Configuration (Site URL / Redirect URLs).
 - Không dùng file `_redirects` cho kiểu này: quy tắc `/* /index.html 200` bị Cloudflare từ chối vì lặp vô hạn. Việc trả về `index.html` cho đường dẫn con đã do `not_found_handling` trong `wrangler.jsonc` đảm nhiệm.
+
+## Gói dịch vụ, bảo mật, hỗ trợ (từ migration 024)
+
+**Gói dịch vụ & hợp đồng** (Quản trị nền tảng → 11. Khách hàng & thương mại)
+- Phân hệ bán được (`service_modules`): Phòng STEM & thiết bị, Kế hoạch giáo dục & TKB, Gói STEM, Kho học liệu, Tập huấn, Phê duyệt. Phần lõi (tài khoản, vai trò, giáo viên, lớp, học sinh, phân công, năm học, toà nhà) luôn dùng được.
+- Gói (`service_plans`) gồm danh sách phân hệ; có sẵn 3 gói Cơ bản / Tiêu chuẩn / Toàn diện (chưa đặt giá).
+- Hợp đồng (`contracts`) gắn một đơn vị với một gói, có thời hạn. Quyền dùng của một đơn vị = hợp đồng gần nhất đi từ chính nó lên cấp trên (Sở mua, bật *Áp dụng cho đơn vị trực thuộc* → mọi trường của Sở dùng theo):
+  - **chưa có hợp đồng nào trên cây** → không giới hạn (giữ nguyên hành vi trước 024);
+  - **hợp đồng còn hiệu lực** → chỉ các phân hệ trong gói;
+  - **hết hạn / tạm dừng / kết thúc** → chỉ phần lõi.
+- Kiểm tra nằm trong `has_perm()` nên mọi lệnh ghi qua RLS đều bị chặn khi đơn vị chưa mua phân hệ; menu các giao diện trường, giáo viên, Sở ẩn mục tương ứng.
+- **Thông tin khách hàng**: trạng thái khách hàng, đầu mối, quyền dùng hiện tại của từng đơn vị, cảnh báo hợp đồng sắp hết hạn (≤ 60 ngày).
+
+**Bảo mật tài khoản** (Quản trị nền tảng → 1. Quản trị nền tảng)
+- Xác thực 2 lớp (ứng dụng TOTP) bắt buộc theo vai trò (mặc định: Quản trị nền tảng). Người thuộc vai trò bắt buộc phải quét mã QR và nhập mã 6 số sau khi đăng nhập. Cần bật **Authentication → Multi-Factor → TOTP** trong Supabase Dashboard.
+- *Chặn ở cơ sở dữ liệu* (tắt mặc định): khi bật, quyền Quản trị nền tảng chỉ có hiệu lực ở phiên đã xác thực 2 lớp (`aal2`). Chỉ bật sau khi mọi quản trị nền tảng đã đăng ký ứng dụng xác thực.
+- Khoá tài khoản: người bị khoá mất quyền đọc/ghi mọi dữ liệu ngay lập tức (`my_org_id()` trả về rỗng). Không khoá được quản trị nền tảng.
+- Tự đăng xuất khi không thao tác (phút). Xem và thu hồi phiên đăng nhập (đọc `auth.sessions`; nếu thiếu quyền trên schema `auth`, trang báo rõ).
+
+**Hỗ trợ khách hàng**
+- Trường, Sở gửi yêu cầu ở mục **Hỗ trợ từ KDI**; KDI xử lý ở **Vấn đề & phản hồi** (nhóm 7). Mỗi phiếu có mã `HT-xxxxx`, hạn xử lý theo mức ưu tiên (khẩn cấp 4 giờ, cao 1 ngày, bình thường 3 ngày, thấp 7 ngày), người xử lý, trao đổi hai chiều và ghi chú nội bộ (khách hàng không thấy). Có thông báo trong ứng dụng cho cả hai phía.
+- KDI xử lý phiếu bảo hành thiết bị của mọi trường ở tab *Bảo hành thiết bị*.

@@ -101,6 +101,13 @@ begin
     delete from library_copies where adopted_by = any(v_users);
     delete from library_items where title like 'ISO %' or owner_org_id = any(v_orgs);
   end if;
+  if to_regclass('public.self_study_items') is not null then
+    delete from notifications where kind = 'self_study' and title like '%ISO tự học%';
+    delete from self_study_items where title like 'ISO tự học%';
+    delete from activities where title like 'ISO hoạt động%';
+    delete from school_holidays where name like 'ISO nghỉ%';
+    delete from teaching_assignments where subject = 'ISO tự học';
+  end if;
   if to_regclass('public.teaching_sessions') is not null then
     if to_regclass('public.resource_bookings') is not null then
       delete from stem_registrations where topic like 'ISO đăng ký%';
@@ -135,7 +142,7 @@ begin
   delete from auth.users where email like '%@iso-test.local';
   if to_regclass('public.audit_log') is not null then
     delete from audit_log where id > coalesce((select audit_start from t_meta), 0)
-      and (summary ~ '(Thử [a-z_]+|iso-test\.local|thử ISO|ISO-[A-Z]+|thử \(thử\)|Tổ trưởng \(thử\))' or (actor is null and summary like '%tài khoản đã xoá%'));
+      and (summary ~ '(ISO tự học|ISO nghỉ|Thử [a-z_]+|iso-test\.local|thử ISO|ISO-[A-Z]+|thử \(thử\)|Tổ trưởng \(thử\))' or (actor is null and summary like '%tài khoản đã xoá%'));
   end if;
 end $$;
 
@@ -678,6 +685,88 @@ select pg_temp.chk('admin_kb', 'Còn trống theo khung giờ: dùng được 2,
   format('select usable || '':'' || held || '':'' || free from equipment_availability(%L, %L) where type_id = %L', pg_temp.s3d(), pg_temp.s3('p2'), pg_temp.s3('type')), '2:2:0');
 select pg_temp.chk('admin_ph', 'Trường khác không xem thiết bị còn trống của trường B',
   format('select count(*) from equipment_availability(%L, null) where type_id = %L', pg_temp.s3d(), pg_temp.s3('type')), '0');
+
+-- ===== 17. Kho hoạt động, học trước & tự học, ngày nghỉ (030) =====
+-- GV thử B dạy lớp của HS thử B (phân công), một hoạt động trắc nghiệm đã xuất bản.
+do $$
+declare v_org uuid := pg_temp.oid_('THCS-KB');
+  v_gv uuid := (select id from teachers where email = 'gv_both@iso-test.local' and org_id = pg_temp.oid_('THCS-KB'));
+begin
+  insert into teaching_assignments (org_id, teacher_id, class_id, subject)
+    values (v_org, v_gv, (select class_id from students where student_code = 'ISO-001'), 'ISO tự học');
+  insert into activities (org_id, teacher_id, kind, title, status, content) values
+    (v_org, v_gv, 'quiz', 'ISO hoạt động trắc nghiệm', 'published',
+     '{"items":[{"q":"1+1?","options":["1","2"],"answer":1},{"q":"2+2?","options":["4","5"],"answer":0}]}'),
+    (v_org, v_gv, 'quiz', 'ISO hoạt động nháp', 'draft', '{"items":[]}');
+end $$;
+select pg_temp.chk('gv_both', 'GV tạo hoạt động của mình',
+  'insert into activities (org_id, teacher_id, kind, title, content) values (my_org_id(), my_teacher_id(), ''order'', ''ISO hoạt động sắp xếp'', ''{"steps":["a","b"]}'')', 'rows:1');
+select pg_temp.chk('gv_both', 'Không xuất bản hoạt động thiếu nội dung',
+  'update activities set status = ''published'' where title = ''ISO hoạt động nháp''', 'ERR*');
+select pg_temp.chk('gv_both', 'GV không tạo hoạt động đứng tên GV khác',
+  'insert into activities (org_id, teacher_id, kind, title) values (my_org_id(), (select id from teachers where org_id = my_org_id() and id <> my_teacher_id() limit 1), ''quiz'', ''ISO hoạt động giả'')', 'ERR');
+select pg_temp.chk('admin_ph', 'Trường khác không đọc hoạt động trường B', 'select count(*) from activities where title like ''ISO hoạt động%''', '0');
+select pg_temp.chk('hs_kb', 'Học sinh không đọc kho hoạt động (có đáp án)', 'select count(*) from activities', '0');
+select pg_temp.probe('gv_both@iso-test.local',
+  'insert into self_study_items (org_id, class_id, teacher_id, kind, activity_id, title, max_attempts) values (my_org_id(), (select class_id from students where student_code = ''ISO-001''), my_teacher_id(), ''activity'', (select id from activities where title = ''ISO hoạt động trắc nghiệm''), ''ISO tự học trắc nghiệm'', 1)', true);
+select pg_temp.chk('gv_both', 'GV giao bài tự học cho lớp mình dạy', 'select count(*) from self_study_items where title = ''ISO tự học trắc nghiệm''', '1');
+select pg_temp.chk('gv_both', 'Nội dung được chụp lại lúc giao',
+  'select c.kind from self_study_content c join self_study_items i on i.id = c.item_id where i.title = ''ISO tự học trắc nghiệm''', 'quiz');
+select pg_temp.chk('gv_both', 'Không giao bài cho lớp không dạy',
+  'insert into self_study_items (org_id, class_id, teacher_id, kind, url, title) values (my_org_id(), (select id from classes where org_id = my_org_id() and not teaches_class(id) limit 1), my_teacher_id(), ''link'', ''https://kdi.edu.vn'', ''ISO tự học lớp khác'')', 'ERR');
+select pg_temp.chk('gv_both', 'Không giao hoạt động chưa hoàn chỉnh',
+  'insert into self_study_items (org_id, class_id, teacher_id, kind, activity_id, title) values (my_org_id(), (select class_id from students where student_code = ''ISO-001''), my_teacher_id(), ''activity'', (select id from activities where title = ''ISO hoạt động nháp''), ''ISO tự học nháp'')', 'ERR*');
+select pg_temp.chk('admin_ph', 'Trường khác không giao bài vào lớp trường B',
+  format('insert into self_study_items (org_id, class_id, kind, url, title) values (%L, (select class_id from students where student_code = ''ISO-001''), ''link'', ''https://kdi.edu.vn'', ''ISO tự học xâm nhập'')', pg_temp.oid_('THCS-KB')), 'ERR');
+select pg_temp.chk('hs_kb', 'Học sinh thấy bài tự học của lớp', 'select count(*) from self_study_items where title = ''ISO tự học trắc nghiệm''', '1');
+select pg_temp.chk('hs_kb', 'Học sinh không đọc bảng nội dung có đáp án', 'select count(*) from self_study_content', '0');
+select pg_temp.chk('hs_kb', 'Đề mở cho học sinh không chứa đáp án',
+  'select ((self_study_open((select id from self_study_items where title = ''ISO tự học trắc nghiệm''))->''content'')::text not like ''%answer%'')::text', 'true');
+select pg_temp.chk('hs_kb', 'Chưa làm thì chưa xem đáp án',
+  'select ((self_study_open((select id from self_study_items where title = ''ISO tự học trắc nghiệm''))->''solution'') = ''null''::jsonb)::text', 'true');
+select pg_temp.chk('hs_kb', 'Học sinh không tự ghi tiến độ',
+  'insert into self_study_progress (item_id, student_id, org_id, status, score) select id, my_student_id(), org_id, ''done'', 10 from self_study_items where title = ''ISO tự học trắc nghiệm''', 'ERR');
+select pg_temp.probe('hs_kb@iso-test.local',
+  'select self_study_submit((select id from self_study_items where title = ''ISO tự học trắc nghiệm''), ''[1,1]''::jsonb)::text', true);
+select pg_temp.chk('hs_kb', 'CSDL chấm: đúng 1/2 → 5 điểm',
+  'select score::text from self_study_progress where item_id = (select id from self_study_items where title = ''ISO tự học trắc nghiệm'')', '5.0');
+select pg_temp.chk('hs_kb', 'Học sinh không sửa điểm của mình',
+  'update self_study_progress set score = 10 where student_id = my_student_id()', 'rows:0');
+select pg_temp.chk('hs_kb', 'Hết lượt làm thì không nộp lại được',
+  'select self_study_submit((select id from self_study_items where title = ''ISO tự học trắc nghiệm''), ''[1,0]''::jsonb)::text', 'ERR*');
+select pg_temp.chk('hs_kb', 'Hết lượt thì được xem đáp án',
+  'select ((self_study_open((select id from self_study_items where title = ''ISO tự học trắc nghiệm''))->''solution'') <> ''null''::jsonb)::text', 'true');
+select pg_temp.chk('admin_kb', 'Quản trị không làm bài thay học sinh',
+  'select self_study_submit((select id from self_study_items where title = ''ISO tự học trắc nghiệm''), ''[1,0]''::jsonb)::text', 'ERR');
+select pg_temp.chk('gv_both', 'GV nhận xét bài tự học',
+  'update self_study_progress set teacher_comment = ''Tốt'', attempts = 99, answers = null where item_id = (select id from self_study_items where title = ''ISO tự học trắc nghiệm'')', 'rows:1');
+select pg_temp.probe('gv_both@iso-test.local',
+  'update self_study_progress set teacher_comment = ''Tốt'', attempts = 99, answers = null where item_id = (select id from self_study_items where title = ''ISO tự học trắc nghiệm'')', true);
+select pg_temp.chk('gv_both', 'GV không sửa được câu trả lời, số lượt của HS',
+  'select attempts || '':'' || (answers is not null) from self_study_progress where item_id = (select id from self_study_items where title = ''ISO tự học trắc nghiệm'')', '1:true');
+select pg_temp.chk('gv_both', 'Thống kê bài: 1 HS đã làm',
+  'select done::text from self_study_stats where item_id = (select id from self_study_items where title = ''ISO tự học trắc nghiệm'')', '1');
+select pg_temp.chk('so_bn', 'Sở B đọc tiến độ tự học trường trực thuộc', 'select count(*) from self_study_progress where teacher_comment = ''Tốt''', '1');
+select pg_temp.chk('so_hy', 'Sở A không đọc tiến độ tự học tỉnh B', 'select count(*) from self_study_progress where teacher_comment = ''Tốt''', '0');
+select pg_temp.chk('admin_ph', 'Trường khác không đọc bài tự học trường B', 'select count(*) from self_study_items where title like ''ISO tự học%''', '0');
+
+-- Ngày nghỉ: Sở B khai báo nghỉ 3 ngày tới → không sinh tiết trong 3 ngày đó, vẫn sinh các ngày sau
+select pg_temp.probe('so_bn@iso-test.local',
+  'insert into school_holidays (org_id, name, starts_on, ends_on) values (my_org_id(), ''ISO nghỉ của Sở'', vn_today() + 1, vn_today() + 3)', true);
+select pg_temp.chk('so_hy', 'Sở A không khai báo ngày nghỉ cho Sở B',
+  format('insert into school_holidays (org_id, name, starts_on, ends_on) values (%L, ''ISO nghỉ giả'', vn_today(), vn_today())', pg_temp.oid_('SO-BN')), 'ERR');
+select pg_temp.chk('gv_both', 'Giáo viên không khai báo ngày nghỉ của trường',
+  'insert into school_holidays (org_id, name, starts_on, ends_on) values (my_org_id(), ''ISO nghỉ GV'', vn_today(), vn_today())', 'ERR');
+select pg_temp.chk('admin_kb', 'Quản trị trường khai báo ngày nghỉ riêng',
+  'insert into school_holidays (org_id, name, starts_on, ends_on) values (my_org_id(), ''ISO nghỉ của trường'', vn_today() + 20, vn_today() + 20)', 'rows:1');
+select pg_temp.chk('hs_kb', 'Học sinh thấy ngày nghỉ do Sở áp xuống', 'select count(*) from school_holidays where name = ''ISO nghỉ của Sở''', '1');
+select pg_temp.chk('admin_ph', 'Trường tỉnh khác không thấy ngày nghỉ Sở B', 'select count(*) from school_holidays where name like ''ISO nghỉ%''', '0');
+select pg_temp.probe('gv_both@iso-test.local', 'select generate_teaching_sessions(vn_today() + 1, vn_today() + 9)::text', true);
+select pg_temp.chk('gv_both', 'Không sinh tiết vào ngày nghỉ của Sở',
+  'select count(*) from teaching_sessions where subject = ''ISO Toán'' and session_date between vn_today() + 1 and vn_today() + 3', '0');
+select pg_temp.chk('gv_both', 'Vẫn sinh tiết sau kỳ nghỉ',
+  'select count(*) from teaching_sessions where subject = ''ISO Toán'' and session_date between vn_today() + 4 and vn_today() + 9', '>0');
+select pg_temp.chk('gv_both', 'Nhận biết ngày nghỉ theo cấp trên', 'select is_holiday(my_org_id(), vn_today() + 2)', 'ISO nghỉ của Sở');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

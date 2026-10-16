@@ -4,6 +4,8 @@ import { KIND_LABEL, dueLabel, handoff } from '../teacher/common'
 import { SProps, NoStudent, useMe, useTopics, vnDate } from './common'
 import { useMyWork } from './Assignments'
 import { TopicCard } from './Topics'
+import { useSelfStudy } from './SelfStudy'
+import { ssKindLabel } from '../teacher/SelfStudy'
 
 type Slot = { id: string; subject: string; kind: string; period_configs: { name: string; starts_at: string } | null; teachers: { full_name: string } | null; stem_rooms: { name: string } | null }
 const todayWd = () => { const d = new Date().getDay(); return d === 0 ? 0 : d + 1 }
@@ -13,6 +15,7 @@ export function StudentHome({ studentId, go, year }: SProps) {
   const me = useMe(studentId)
   const t = useTopics(me)
   const work = useMyWork(me)
+  const ss = useSelfStudy(me?.class_id, me?.id)
   const [today, setToday] = useState<Slot[]>([])
   const [live, setLive] = useState<{ title: string } | null>(null)
 
@@ -81,6 +84,18 @@ export function StudentHome({ studentId, go, year }: SProps) {
           })}
           {todo.length === 0 && <small>Em đã hoàn thành mọi bài tập. 🎉</small>}
         </div>
+        {ss.items.length > 0 && <div className="panel">
+          <div className="bar"><h3>Học trước & tự học · {ss.todo.length}</h3><button className="linkbtn" onClick={() => go?.('Học trước & tự học')}>Xem tất cả →</button></div>
+          {ss.todo.slice(0, 5).map(i => {
+            const d = dueLabel(i.due_at)
+            return (
+              <button key={i.id} className={'todo' + (d.tone === 'bad' ? ' hi' : '')} onClick={() => { handoff.set('student.selfstudy', i.id); go?.('Học trước & tự học') }}>
+                <span><b>{i.title}</b><br /><small>{ssKindLabel(i)}{i.mode === 'before' ? ' · Học trước tiết' : ' · Tự luyện'}</small></span><small className={'due ' + d.tone}>{d.text.split(' · ')[0]}</small>
+              </button>
+            )
+          })}
+          {ss.todo.length === 0 && <small>Em đã làm hết bài học trước và tự học. 🎉</small>}
+        </div>}
       </div>
       <div className="bar" style={{ marginTop: 6 }}><h3>Chủ đề của em</h3><button className="linkbtn" onClick={() => go?.('Chủ đề')}>Xem tất cả →</button></div>
       <div className="topicgrid">

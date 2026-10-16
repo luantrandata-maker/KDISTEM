@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import FormPanel from '../components/FormPanel'
+import { useBackClose } from '../lib/history'
 
 type Unit = { id: string; type_id: string; serial: string | null; status: string; room_id: string | null; source: string; warranty_until: string | null; equipment_types: { name: string; brand: string | null; sku: string | null } | null; stem_rooms: { name: string } | null }
 type Type = { id: string; sku: string | null; name: string; brand: string | null }
@@ -18,6 +19,7 @@ export default function Equipment({ orgId }: { orgId: string }) {
   const [quick, setQuick] = useState<'' | 'broken' | 'maintenance' | 'warranty'>('')
   const [panel, setPanel] = useState<'type' | 'units' | null>(null)
   const [detail, setDetail] = useState<string | null>(null)
+  useBackClose(!!detail, () => setDetail(null))
   const [events, setEvents] = useState<Record<string, Ev[]>>({})
   const [open, setOpen] = useState<string | null>(null)
 

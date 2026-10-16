@@ -5,6 +5,7 @@ import { NAV, ROLE_LABEL, MODULE_OF, ENT_MODULE_OF, RoleKey } from './lib/nav'
 import { useAccess, switchOrg, type MyOrg } from './lib/auth'
 import { useYears, yearLabel } from './lib/year'
 import Bell from './components/Bell'
+import { navigatePage, onHistoryPage } from './lib/history'
 import MfaGate from './components/MfaGate'
 import Years from './pages/Years'
 import logo from './assets/kdi-logo.png'
@@ -233,8 +234,23 @@ function Shell({ session }: { session: Session }) {
   const views: RoleKey[] = access.portals
 
   useEffect(() => {
-    if (!access.loading && !role && views.length) { setRole(views[0]); setPage(NAV[views[0]][0].items[0]) }
+    if (!access.loading && !role && views.length) {
+      // Tải lại trang: mở lại đúng trang đang xem (lưu trong lịch sử trình duyệt) nếu vẫn còn quyền
+      const st = (history.state ?? {}) as { role?: RoleKey; page?: string }
+      const keep = st.role && views.includes(st.role) && NAV[st.role].some(g => g.items.includes(st.page ?? ''))
+      const r = keep ? st.role! : views[0], p = keep ? st.page! : NAV[views[0]][0].items[0]
+      navigatePage(r, p, true); setRole(r); setPage(p)
+    }
   }, [access.loading, views.length])
+
+  // Nút Back/Forward của trình duyệt: chuyển giữa các trang đã mở trong ứng dụng
+  useEffect(() => {
+    onHistoryPage(s => {
+      const r = s.role as RoleKey | undefined
+      if (r && s.page && views.includes(r) && NAV[r].some(g => g.items.includes(s.page!))) { setRole(r); setPage(s.page) }
+    })
+    return () => onHistoryPage(null)
+  }, [views.join(',')])
 
   useEffect(() => {
     if (access.profile?.org_id) supabase.from('teachers').select('id, full_name, profile_id').order('full_name').then(({ data }) => setTeachers(data ?? []))
@@ -282,12 +298,14 @@ function Shell({ session }: { session: Session }) {
   }
   if (!role) return null
 
-  const changeRole = (r: RoleKey) => { setRole(r); setPage(NAV[r][0].items[0]) }
+  // Mọi lần đổi trang đi qua show() để ghi vào lịch sử trình duyệt
+  const show = (r: RoleKey, p: string) => { navigatePage(r, p); setRole(r); setPage(p) }
+  const changeRole = (r: RoleKey) => show(r, NAV[r][0].items[0])
   // Mở một trang từ thông báo (có thể ở giao diện khác)
   const openFrom = (portal: RoleKey | null, target: string) => {
     const p = portal && views.includes(portal) ? portal : role
     if (!NAV[p].some(g => g.items.includes(target))) return
-    setRole(p); setPage(target)
+    show(p, target)
   }
   const myTeacher = teachers.find(t => t.profile_id === session.user.id)?.id ?? null
   const teacherId = role === 'teacher' ? (access.isAdmin ? actingTeacher ?? teachers[0]?.id ?? null : myTeacher) : null
@@ -299,7 +317,7 @@ function Shell({ session }: { session: Session }) {
       && (role === 'platform' || !ENT_MODULE_OF[i] || access.entitled(ENT_MODULE_OF[i]))) }))
     .filter(g => g.items.length)
   const Page: ComponentType<any> | undefined = PAGES[role]?.[page] ?? (role === 'platform' ? PlannedPage : undefined)
-  const goPage = (p: string) => setPage(role === 'platform' ? PLATFORM_ALIAS[p] ?? p : p)
+  const goPage = (p: string) => show(role, role === 'platform' ? PLATFORM_ALIAS[p] ?? p : p)
   const email = session.user.email ?? ''
 
   return (
@@ -307,7 +325,7 @@ function Shell({ session }: { session: Session }) {
       <nav className="side" aria-label="Menu chính">
         {role !== 'department' && role !== 'platform' && <label className="yearpick">
           <span>Năm học · học kỳ</span>
-          <select value={yrs.year?.id ?? ''} onChange={e => e.target.value === '__manage' ? (role === 'school_admin' ? setPage('Năm học & học kỳ') : null) : yrs.select(e.target.value)}
+          <select value={yrs.year?.id ?? ''} onChange={e => e.target.value === '__manage' ? (role === 'school_admin' ? show(role, 'Năm học & học kỳ') : null) : yrs.select(e.target.value)}
             aria-label="Chọn năm học và học kỳ">
             {yrs.years.length === 0 && <option value="">Chưa có năm học</option>}
             {yrs.years.map(y => <option key={y.id} value={y.id}>{yearLabel(y)}{y.is_current ? ' (hiện tại)' : ''}</option>)}
@@ -327,7 +345,7 @@ function Shell({ session }: { session: Session }) {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
             </button>
             <div id={id} hidden={shut}>
-            {g.items.map(i => <button key={i} className={i === page ? 'on' : ''} onClick={() => setPage(i)}>
+            {g.items.map(i => <button key={i} className={i === page ? 'on' : ''} onClick={() => show(role, i)}>
               {i}{role === 'platform' && !PLATFORM_LIVE.has(i) && i !== 'Sơ đồ hệ thống' && <small className="navtag">Khung</small>}
             </button>)}
             </div>

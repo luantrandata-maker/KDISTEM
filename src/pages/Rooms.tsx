@@ -5,6 +5,7 @@ import { ProgChips } from '../components/Chips'
 import { PROG, isoDate, mondayOf, addDays } from '../lib/programs'
 import { UNIT_STATUS } from './Equipment'
 import { decideText, approvalError } from './approvals/common'
+import { useBackClose } from '../lib/history'
 
 type Room = { id: string; name: string; code: string | null; capacity: number | null; status: string; area_m2: number | null; tier: string; programs: string | null; floors: { name: string; buildings: { name: string } | null } | null }
 type Unit = { id: string; serial: string | null; status: string; room_id: string | null; equipment_types: { name: string } | null }
@@ -22,6 +23,7 @@ export default function Rooms({ orgId }: { orgId: string }) {
   const [rooms, setRooms] = useState<Room[]>([])
   const [sel, setSel] = useState('')
   const [view, setView] = useState<View>('hub')
+  useBackClose(view !== 'hub', () => setView('hub'))   // Back của trình duyệt = "← Quay lại phòng"
   const [units, setUnits] = useState<Unit[]>([])
   const [borrows, setBorrows] = useState<Borrow[]>([])
   const [regs, setRegs] = useState<Reg[]>([])

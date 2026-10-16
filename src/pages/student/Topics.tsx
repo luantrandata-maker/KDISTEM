@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { KIND_LABEL, PROGRAM_COLOR, dueLabel, handoff, Tabs } from '../teacher/common'
 import { SProps, NoStudent, useMe, useTopics, tint, vnDate, type Topic } from './common'
 import { useMyWork } from './Assignments'
+import { useBackClose } from '../../lib/history'
 
 type Material = { id: string; title: string; kind: string; url: string | null; lesson_id: string | null }
 type Post = { id: string; body: string; author_name: string | null; author_role: string | null; created_at: string; author_id: string }
@@ -15,6 +16,7 @@ export function StudentTopics({ studentId, orgId, go }: SProps) {
   const t = useTopics(me)
   const [f, setF] = useState<F>('all')
   const [open, setOpen] = useState<string | null>(() => handoff.take('student.topic'))
+  useBackClose(!!open, () => setOpen(null))
   if (!studentId) return <NoStudent />
   if (open) {
     const topic = t.topics.find(x => x.id === open)

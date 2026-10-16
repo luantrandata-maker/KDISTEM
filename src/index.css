@@ -580,5 +580,6 @@ ol.actplay{list-style:decimal inside}
 a.btnlink{display:inline-block;padding:8px 16px;border-radius:10px;background:var(--primary);color:#fff;text-decoration:none;font-weight:600}
 tr.muted td{color:var(--muted)}
 @media (max-width:640px){.actopts.two{grid-template-columns:1fr 1fr}.actmatch select{min-width:0;flex:1}}
-.side h4.navsection{margin:14px 10px 2px;font-size:12px;color:#cfe0f7;text-transform:none;letter-spacing:0}
-.side .navgroup.sub button.grouphead{padding-left:18px}
+.side .navsub{margin-left:10px;padding-left:6px;border-left:1px solid rgba(255,255,255,.14)}
+.side button.grouphead.subhead{margin:6px 0 2px;padding:5px 10px;color:#cfe0f7;font-size:13px;font-weight:600;text-transform:none;letter-spacing:0}
+.side .navsub button:not(.grouphead){font-size:13.5px}

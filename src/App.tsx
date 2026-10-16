@@ -48,6 +48,7 @@ import { StudentTopics } from './pages/student/Topics'
 import { StudentSelfStudy } from './pages/student/SelfStudy'
 import { StudentAttendance } from './pages/student/Attendance'
 import { Holidays } from './pages/Holidays'
+import { TabbedPages } from './components/TabbedPages'
 import { DeptDashboard, DeptWardKpi, DeptSchools, DeptPrograms, DeptSubjects, DeptTrainingMonitor, DeptRoomEffect } from './pages/department/Overview'
 import { DeptReports } from './pages/department/Reports'
 import { DeptAdmin } from './pages/department/Admin'
@@ -178,39 +179,45 @@ const PLATFORM: PageMap = {
   'Cây tổ chức': PlatformOrgs,
   'Người dùng & vai trò': PlatformUsers,
   'Lời mời': PlatformInvites,
-  'Phát hành học liệu': LibraryManage,
-  'Kho học liệu dùng chung': LibraryBrowse,
-  'Theo dõi chương trình CT1–CT5': DeptPrograms,
-  'Theo dõi môn học STEM': DeptSubjects,
-  'Cơ sở giáo dục': DeptSchools,
-  'Hiệu quả phòng STEM': DeptRoomEffect,
-  'Báo cáo vận hành': DeptDashboard,
-  'KPI & xếp hạng': DeptWardKpi,
-  'Báo cáo cấp trên (Bộ/Sở)': DeptReports,
   'Hộp phê duyệt': ApprovalInbox,
   'Quy trình phê duyệt': ApprovalWorkflows,
-  'Kế hoạch tập huấn': TrainingPlans,
-  'Lịch tập huấn': TrainingSchedule,
-  'Giám sát tập huấn nhà giáo': DeptTrainingMonitor,
+  'Thông báo': PlatformBroadcast,
+  'Cơ sở giáo dục': DeptSchools,
   'Bảo mật tài khoản': PlatformSecurity,
   'Vấn đề & phản hồi': PlatformSupport,
   'Thông tin khách hàng': PlatformCustomers,
   'Gói dịch vụ & hợp đồng': PlatformContracts,
   'Triển khai khách hàng': PlatformRollout,
-  'Chương trình giáo dục': PlatformCatalog,
   'Đơn đặt gói STEM': PlatformOrders,
-  'Thông báo': PlatformBroadcast,
   'Tích hợp & dữ liệu': PlatformIntegrations,
+  // 1. Đào tạo & đánh giá năng lực nhà giáo
+  'Kế hoạch tập huấn': TrainingPlans,
+  'Lịch tập huấn': TrainingSchedule,
+  'Giám sát tập huấn nhà giáo': DeptTrainingMonitor,
+  // 2. Chương trình & học liệu
+  'Chương trình giáo dục': PlatformCatalog,
+  'Học liệu': (p: any) => <TabbedPages {...p} tabs={[['Phát hành học liệu', LibraryManage], ['Kho học liệu dùng chung', LibraryBrowse]]} />,
+  'Theo dõi chương trình CT1–CT5 (Môn học)': (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects]]} />,
+  // 3. Vật tư, thiết bị dạy & học
+  'Thiết bị & vật tư': EquipmentOverview,
+  'Phòng STEM & lịch phòng': RoomsOverview,
+  'Hiệu quả sử dụng phòng STEM': DeptRoomEffect,
+  // 4. Vận hành giảng dạy & đánh giá người học
   'Thời khoá biểu & xếp lịch': TimetableOverview,
   'Buổi dạy & điểm danh': AttendanceDashboard,
-  'Dashboard điểm danh': AttendanceDashboard,
-  'Phòng STEM & lịch phòng': RoomsOverview,
-  'Thiết bị, vật tư & kho': EquipmentOverview,
+  // 5. Hệ thống quản lý vận hành
+  'Báo cáo vận hành': DeptDashboard,
+  'KPI & xếp hạng': DeptWardKpi,
+  'Báo cáo cấp trên (Bộ GD&ĐT)': DeptReports,
+  'Điều hành & cấu hình (Sở)': DeptAdmin,
 }
 const PLATFORM_LIVE = new Set(Object.keys(PLATFORM))
 PLATFORM['Sơ đồ hệ thống'] = (p: any) => <SystemMap {...p} live={PLATFORM_LIVE} />
 // Tên trang cũ (liên kết nội bộ của trang Sở) → tên trong menu Quản trị nền tảng
-const PLATFORM_ALIAS: Record<string, string> = { 'KPI & Xếp hạng Xã/Phường': 'KPI & xếp hạng', 'Thiết bị & kho': 'Thiết bị, vật tư & kho', 'Hiệu quả Phòng STEM': 'Hiệu quả phòng STEM' }
+const PLATFORM_ALIAS: Record<string, string> = {
+  'KPI & Xếp hạng Xã/Phường': 'KPI & xếp hạng', 'Thiết bị & kho': 'Thiết bị & vật tư', 'Hiệu quả Phòng STEM': 'Hiệu quả sử dụng phòng STEM',
+  'Dashboard điểm danh': 'Buổi dạy & điểm danh',
+}
 const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM }
 
 export default function App() {
@@ -351,12 +358,13 @@ function Shell({ session }: { session: Session }) {
           </select>
         </label>}
         {role !== 'department' && role !== 'platform' && yrs.year && !yrs.year.is_current && <p className="yearwarn">Đang xem học kỳ không phải hiện tại</p>}
-        {groups.map(g => {
+        {groups.map((g, gi) => {
           const key = role + ':' + g.title
+          const sectionHead = g.section && g.section !== groups[gi - 1]?.section ? <h4 className="navsection">{g.section}</h4> : null
           const shut = closed.has(key)
           const id = 'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')
           return (
-          <div key={g.title} className="navgroup">
+          <div key={g.title} className={'navgroup' + (g.section ? ' sub' : '')}>{sectionHead}
             <button className={'grouphead' + (shut ? ' shut' : '')} onClick={() => toggleGroup(key)} aria-expanded={!shut} aria-controls={id}>
               <span>{g.title}</span>
               {shut && g.items.includes(page) && <i className="dot" aria-label="Đang mở trang trong nhóm này" />}

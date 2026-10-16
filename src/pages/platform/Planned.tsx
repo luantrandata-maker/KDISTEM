@@ -127,12 +127,37 @@ function Notice() {
 }
 
 // Trang khung cho một mục menu chưa có chức năng thật
+// Tên mục theo menu rà soát (16/10) dùng lại khung của tên cũ
+const ALIAS: Record<string, string> = {
+  'Đánh giá năng lực người học': 'Đánh giá kết quả học tập', 'Công cụ người học & phụ huynh': 'Cổng người học & phụ huynh',
+  'Bộ chỉ số': 'Chỉ tiêu & bộ chỉ số', 'Giao chỉ tiêu': 'Chỉ tiêu & bộ chỉ số',
+  'Cảnh báo & trường cần chú ý': 'Cảnh báo & so sánh trường', 'So sánh trường / địa bàn': 'Cảnh báo & so sánh trường',
+}
+// Mục mới chưa có khung minh hoạ: mô tả phạm vi để họp team
+const DESC: Record<string, string> = {
+  'Bài giảng tập huấn & lớp học ảo': 'Bài giảng và phòng học trực tuyến của các đợt tập huấn trên toàn hệ thống (trường đã có ở cổng Trường).',
+  'Chứng chỉ tập huấn': 'Chứng chỉ cấp sau tập huấn: tra cứu, thu hồi, thống kê theo Sở/trường (trường đã có ở cổng Trường).',
+  'Phân phối chương trình': 'Phân phối chương trình CT1–CT5 theo khối, số tiết; mẫu chung để trường áp dụng (trường đã có ở cổng Trường).',
+  'Soạn bài giảng & kho hoạt động': 'Thống kê bài giảng và 8 mẫu hoạt động tương tác trên toàn hệ thống; quản lý mẫu dùng chung (giáo viên đã có ở cổng Giáo viên).',
+  'Kho & tồn kho': 'Kho tổng KDI và kho từng cơ sở: tồn kho thiết bị, vật tư tiêu hao, cảnh báo dưới mức tối thiểu.',
+  'Cấp phát & bàn giao': 'Cấp phát thiết bị/vật tư cho trường, lớp; biên bản bàn giao có ký xác nhận.',
+  'Bảo hành & bảo trì thiết bị': 'Phiếu bảo hành, lịch bảo trì định kỳ và thiết bị sắp hết bảo hành trên toàn hệ thống (trường đã có ở cổng Trường).',
+  'Tòa nhà, tầng & tiết học': 'Khai báo toà nhà, tầng, cấu hình tiết học của từng trường; mẫu chung cho trường mới (trường đã có ở cổng Trường).',
+  'Phân công giảng dạy': 'Phân công giáo viên dạy lớp, môn trên toàn hệ thống; phát hiện lớp chưa có GV (trường đã có ở cổng Trường).',
+  'Kế hoạch giáo dục toàn trường': 'Kế hoạch giáo dục của các trường và trạng thái duyệt (trường đã có ở cổng Trường).',
+  'Duyệt đăng ký dạy STEM': 'Đăng ký dạy STEM chờ duyệt trên toàn hệ thống (trường đã có ở cổng Trường).',
+  'Bài tập & chấm bài': 'Thống kê bài tập, bài nộp, tỉ lệ đã chấm theo trường/lớp (giáo viên đã có ở cổng Giáo viên).',
+  'Chỉ số STEM (STEM Index)': 'Chỉ số tổng hợp mức độ triển khai STEM của trường/xã/tỉnh từ chương trình, tập huấn, phòng, buổi dạy.',
+  'Dashboard tổng hợp': 'Màn tổng hợp các chỉ số chính của mọi phân hệ cho lãnh đạo, theo phạm vi quyền.',
+  'Điều hành toàn tỉnh': 'Bảng điều hành của Sở: tiến độ 5 bước đề án, việc cần chỉ đạo, trường chậm tiến độ.',
+}
+
 export function PlannedPage({ name }: { name: string }) {
-  const cfg = PLANNED[name]
+  const cfg = PLANNED[name] ?? PLANNED[ALIAS[name] ?? '']
   const [tab, setTab] = useState('0')
   const [q, setQ] = useState('')
   if (name === 'Thời khoá biểu & xếp lịch') return <TimetableMock />
-  if (!cfg) return <><Notice /><p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p></>
+  if (!cfg) return <><Notice /><p className="sub">{DESC[name] ?? 'Màn hình này sẽ được xây dựng ở bước tiếp theo.'}</p></>
   const rows = cfg.rows.filter(r => !q || r.join(' ').toLowerCase().includes(q.toLowerCase()))
   return (
     <>
@@ -226,7 +251,7 @@ function TimetableMock() {
 // Sơ đồ hệ thống: mọi phân hệ của cổng, mục nào đã chạy thật, mục nào mới là khung
 export function SystemMap({ live, go }: { live: Set<string>; go?: (p: string) => void }) {
   const groups = NAV.platform.filter(g => g.title !== 'Tổng quan')
-  const all = groups.flatMap(g => g.items)
+  const all = [...new Set(groups.flatMap(g => g.items))]   // một mục có thể nằm ở hai nhóm
   const done = all.filter(i => live.has(i)).length
   return (
     <>
@@ -241,7 +266,7 @@ export function SystemMap({ live, go }: { live: Set<string>; go?: (p: string) =>
           const d = g.items.filter(i => live.has(i)).length
           return (
             <section className="panel" key={g.title}>
-              <div className="bar"><h3>{g.title}</h3><small>{d}/{g.items.length} đang hoạt động</small></div>
+              <div className="bar"><h3>{g.section ? <small>{g.section}<br /></small> : null}{g.title}</h3><small>{d}/{g.items.length} đang hoạt động</small></div>
               <div className="track"><div className={'fill ' + (d === g.items.length ? 'g' : 'o')} style={{ width: (d / g.items.length * 100) + '%' }} /></div>
               <ul>
                 {g.items.map(i => (

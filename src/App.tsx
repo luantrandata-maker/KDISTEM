@@ -9,6 +9,8 @@ import { navigatePage, onHistoryPage } from './lib/history'
 import MfaGate from './components/MfaGate'
 import Years from './pages/Years'
 import logo from './assets/kdi-logo.png'
+import logoWhite from './assets/kdi-logo-white.png'
+import { NavIcon } from './components/NavIcon'
 import Login, { SetPassword } from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Teachers from './pages/Teachers'
@@ -355,6 +357,10 @@ function Shell({ session }: { session: Session }) {
   return (
     <div className={'app' + (collapsed ? ' collapsed' : '')}>
       <nav className="side" aria-label="Menu chính">
+        <div className="sidebrand">
+          <img src={logoWhite} alt="KDI education" />
+          <b>{role === 'platform' ? 'Hệ thống quản lý vận hành' : ROLE_LABEL[role]}</b>
+        </div>
         {role !== 'department' && role !== 'platform' && <label className="yearpick">
           <span>Năm học · học kỳ</span>
           <select value={yrs.year?.id ?? ''} onChange={e => e.target.value === '__manage' ? (role === 'school_admin' ? show(role, 'Năm học & học kỳ') : null) : yrs.select(e.target.value)}
@@ -372,7 +378,7 @@ function Shell({ session }: { session: Session }) {
             return (
               <button className={'grouphead' + (sub ? ' subhead' : '') + (shut ? ' shut' : '')} onClick={() => toggleGroup(key)} aria-expanded={!shut}
                 aria-controls={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')}>
-                <span>{title}</span>
+                {!sub && <NavIcon title={title} />}<span>{title}</span>
                 {shut && items.includes(page) && <i className="dot" aria-label="Đang mở trang trong nhóm này" />}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
               </button>

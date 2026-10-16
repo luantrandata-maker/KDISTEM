@@ -18,7 +18,7 @@ button{font-family:inherit}
 .side h4:first-child{margin-top:4px}
 .side button{display:block;width:100%;text-align:left;border:2px solid transparent;background:none;padding:9px 12px;border-radius:10px;cursor:pointer;color:#f6f9fc;font-size:14px;font-weight:500}
 .side button:hover{background:var(--navy-2)}
-.side button.on{background:var(--navy-2);border-color:var(--orange);font-weight:600}
+.side button.on{background:rgba(255,255,255,.12);border-color:transparent;font-weight:600}
 .content{min-width:0;display:flex;flex-direction:column}
 .top{height:64px;background:var(--surface);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px;padding:0 20px;position:sticky;top:0;z-index:5}
 .top .toggle{border:0;background:none;cursor:pointer;padding:6px;border-radius:8px;color:var(--text);font-size:18px}
@@ -334,13 +334,13 @@ td button{white-space:nowrap}
 
 /* Nhóm menu thu gọn được */
 .navgroup{margin-top:6px}
-.side button.grouphead{display:flex;align-items:center;gap:8px;width:100%;margin:10px 0 4px;padding:6px 10px;border:0;border-radius:8px;background:none;
-  color:var(--orange);font-size:13px;font-weight:700;letter-spacing:.2px;text-transform:uppercase;cursor:pointer}
+.side button.grouphead{display:flex;align-items:center;gap:10px;width:100%;margin:2px 0;padding:9px 12px;border:0;border-radius:10px;background:none;
+  color:#e8eef7;font-size:14.5px;font-weight:600;letter-spacing:0;text-transform:none;cursor:pointer;line-height:1.3}
 .side button.grouphead:hover{background:var(--navy-2)}
 .side button.grouphead span{flex:1;text-align:left}
 .side button.grouphead svg{transition:transform .15s;opacity:.85}
 .side button.grouphead.shut svg{transform:rotate(-90deg)}
-.side .grouphead .dot{width:7px;height:7px;border-radius:50%;background:var(--orange)}
+.side .grouphead .dot{width:7px;height:7px;border-radius:50%;background:var(--orange);flex:none}
 .side .navgroup:first-of-type button.grouphead{margin-top:2px}
 /* Đang làm việc tại (019) */
 .orgpick{display:flex;flex-direction:column;gap:1px;font-size:11px;color:var(--muted)}
@@ -580,6 +580,16 @@ ol.actplay{list-style:decimal inside}
 a.btnlink{display:inline-block;padding:8px 16px;border-radius:10px;background:var(--primary);color:#fff;text-decoration:none;font-weight:600}
 tr.muted td{color:var(--muted)}
 @media (max-width:640px){.actopts.two{grid-template-columns:1fr 1fr}.actmatch select{min-width:0;flex:1}}
-.side .navsub{margin-left:10px;padding-left:6px;border-left:1px solid rgba(255,255,255,.14)}
-.side button.grouphead.subhead{margin:6px 0 2px;padding:5px 10px;color:#cfe0f7;font-size:13px;font-weight:600;text-transform:none;letter-spacing:0}
-.side .navsub button:not(.grouphead){font-size:13.5px}
+.side .navsub{margin-left:21px;padding-left:6px;border-left:1px solid rgba(255,255,255,.14)}
+.side button.grouphead.subhead{margin:4px 0 0;padding:6px 10px;color:#9fb4d1;font-size:13px;font-weight:600}
+.side .navsub button:not(.grouphead){font-size:13.5px;padding-left:12px}
+
+/* Menu trái: logo, biểu tượng đề mục, mục con thụt theo biểu tượng */
+.sidebrand{display:grid;gap:10px;padding:6px 12px 16px;margin:0 0 10px;border-bottom:1px solid rgba(255,255,255,.12)}
+.sidebrand img{height:34px;width:auto;justify-self:start}
+.sidebrand b{font-size:15px;color:#fff;font-weight:700}
+.side .navicon{flex:none;opacity:.9}
+.side .navgroup{margin-top:2px}
+.side .navgroup > div > button:not(.grouphead){padding-left:40px;color:#c9d6e8;font-size:14px}
+.side .navgroup > div > button.on{color:#fff}
+.side .navgroup > .navsub button:not(.grouphead){padding-left:12px}

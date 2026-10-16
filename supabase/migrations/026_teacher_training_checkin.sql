@@ -14,11 +14,11 @@ $$;
 drop policy if exists training_att_self on training_attendance;
 drop policy if exists training_att_self_update on training_attendance;
 create policy training_att_self on training_attendance for insert to authenticated
-  with check (public.can_access_org(org_id) and teacher_id = public.my_teacher_id()
+  with check (org_id in (select public.my_org_tree()) and teacher_id = (select public.my_teacher_id())
               and present is true and public.training_session_open(session_id));
 create policy training_att_self_update on training_attendance for update to authenticated
-  using (teacher_id = public.my_teacher_id() and public.training_session_open(session_id))
-  with check (teacher_id = public.my_teacher_id() and present is true and public.training_session_open(session_id));
+  using (teacher_id = (select public.my_teacher_id()) and public.training_session_open(session_id))
+  with check (teacher_id = (select public.my_teacher_id()) and present is true and public.training_session_open(session_id));
 
 -- Giáo viên bấm "Tham gia" / "Điểm danh": ghi có mặt cho buổi mình được ghi danh.
 -- Dùng hàm (không ghi thẳng bảng) vì buổi của Sở/Phòng có dòng điểm danh thuộc đơn vị cấp trên.

@@ -1,5 +1,6 @@
 export type RoleKey = 'school_admin' | 'teacher' | 'student' | 'department' | 'platform'
-export type NavGroup = { title: string; items: string[] }
+// section: tên phân hệ khi phân hệ chia nhiều nhóm (menu hiện tiêu đề phân hệ phía trên các nhóm con)
+export type NavGroup = { title: string; items: string[]; section?: string }
 
 export const ROLE_LABEL: Record<RoleKey, string> = {
   school_admin: 'Trường · Quản trị', teacher: 'Giáo viên',
@@ -13,11 +14,17 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Tổng quan', items: ['Tổng quan hệ thống', 'Sơ đồ hệ thống', 'Thuật ngữ chuẩn'] },
     { title: 'Vận hành KDI', items: ['Thông tin khách hàng', 'Gói dịch vụ & hợp đồng', 'Đơn đặt gói STEM', 'Triển khai khách hàng', 'Vấn đề & phản hồi', 'Nghiệm thu & doanh thu'] },
     { title: 'Lõi · Tổ chức & quy trình', items: ['Cây tổ chức', 'Cơ sở giáo dục', 'Người dùng & vai trò', 'Lời mời', 'Hộp phê duyệt', 'Quy trình phê duyệt', 'Thông báo'] },
-    { title: 'PH1. Đào tạo & năng lực nhà giáo', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Giám sát tập huấn nhà giáo', 'Nhà giáo & trợ giảng', 'Đánh giá năng lực giáo viên', 'Hồ sơ năng lực, đào tạo'] },
-    { title: 'PH2. Chương trình & học liệu', items: ['Chương trình giáo dục', 'Phát hành học liệu', 'Kho học liệu dùng chung', 'Theo dõi chương trình CT1–CT5', 'Theo dõi môn học STEM', 'E-learning & luyện thi'] },
-    { title: 'PH3. Vật tư, thiết bị & phòng STEM', items: ['Phòng STEM & lịch phòng', 'Hiệu quả phòng STEM', 'Thiết bị, vật tư & kho', 'Mua hàng & đề xuất vật tư', 'Kiểm kê', 'Vận chuyển vật tư'] },
-    { title: 'PH4. Vận hành giảng dạy & đánh giá người học', items: ['Thời khoá biểu & xếp lịch', 'Buổi dạy & điểm danh', 'Đánh giá kết quả học tập', 'Người học', 'Cổng người học & phụ huynh', 'Sự kiện'] },
-    { title: 'PH5. Điều hành & báo cáo', items: ['Dashboard điểm danh', 'Báo cáo vận hành', 'KPI & xếp hạng', 'Báo cáo cấp trên (Bộ/Sở)', 'Chỉ tiêu & bộ chỉ số', 'Cảnh báo & so sánh trường', 'Khảo sát'] },
+    // 5 phân hệ nghiệp vụ theo file rà soát menu (16/10, "Menu_STEM_ra_soat_chinh_sua.xlsx")
+    { title: '1. Đào tạo & đánh giá năng lực nhà giáo', items: ['Đánh giá năng lực giáo viên', 'Kế hoạch tập huấn', 'Lịch tập huấn', 'Bài giảng tập huấn & lớp học ảo', 'Chứng chỉ tập huấn', 'Giám sát tập huấn nhà giáo'] },
+    { title: '2. Chương trình & học liệu', items: ['Chương trình giáo dục', 'Học liệu', 'Phân phối chương trình', 'Soạn bài giảng & kho hoạt động', 'Theo dõi chương trình CT1–CT5 (Môn học)', 'E-learning & luyện thi'] },
+    { section: '3. Vật tư, thiết bị dạy & học', title: '3.1. Thiết bị, vật tư & kho', items: ['Thiết bị & vật tư', 'Kho & tồn kho', 'Mua hàng & đề xuất vật tư', 'Cấp phát & bàn giao', 'Kiểm kê', 'Vận chuyển vật tư', 'Bảo hành & bảo trì thiết bị'] },
+    { section: '3. Vật tư, thiết bị dạy & học', title: '3.2. Phòng STEM & cơ sở vật chất', items: ['Tòa nhà, tầng & tiết học', 'Phòng STEM & lịch phòng', 'Hiệu quả sử dụng phòng STEM'] },
+    { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.1. Nhà giáo, người học & lớp học', items: ['Cơ sở giáo dục', 'Nhà giáo & trợ giảng', 'Phân công giảng dạy', 'Người học', 'Công cụ người học & phụ huynh'] },
+    { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.2. Kế hoạch, lịch dạy & sự kiện', items: ['Thời khoá biểu & xếp lịch', 'Kế hoạch giáo dục toàn trường', 'Duyệt đăng ký dạy STEM', 'Sự kiện'] },
+    { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.3. Buổi dạy & điểm danh', items: ['Buổi dạy & điểm danh'] },
+    { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.4. Đánh giá & phản hồi', items: ['Đánh giá năng lực người học', 'Bài tập & chấm bài', 'Vấn đề & phản hồi'] },
+    { section: '5. Hệ thống quản lý vận hành', title: '5.1. Dashboard & báo cáo', items: ['Dashboard tổng hợp', 'Báo cáo vận hành', 'KPI & xếp hạng', 'Chỉ số STEM (STEM Index)', 'Báo cáo cấp trên (Bộ GD&ĐT)', 'Khảo sát'] },
+    { section: '5. Hệ thống quản lý vận hành', title: '5.2. Điều hành & chỉ tiêu (Sở)', items: ['Điều hành toàn tỉnh', 'Điều hành & cấu hình (Sở)', 'Cảnh báo & trường cần chú ý', 'So sánh trường / địa bàn', 'Bộ chỉ số', 'Giao chỉ tiêu'] },
     { title: 'Nền tảng kỹ thuật', items: ['Tích hợp & dữ liệu', 'Ứng dụng di động & ngoại tuyến', 'Sao lưu & xuất dữ liệu', 'Bảo mật tài khoản', 'Nhật ký hệ thống', 'Cấu hình chung (năm học)', 'Giao diện & thương hiệu', 'Trợ lý AI'] },
   ],
   school_admin: [

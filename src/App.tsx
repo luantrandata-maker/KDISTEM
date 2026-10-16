@@ -341,6 +341,13 @@ function Shell({ session }: { session: Session }) {
     .map(g => ({ ...g, items: g.items.filter(i => (role !== 'school_admin' || !MODULE_OF[i] || access.canView(MODULE_OF[i]))
       && (role === 'platform' || !ENT_MODULE_OF[i] || access.entitled(ENT_MODULE_OF[i]))) }))
     .filter(g => g.items.length)
+  // Gom các nhóm cùng phân hệ (section) thành một khối cây: phân hệ → nhóm con → mục
+  const blocks: { section?: string; groups: typeof groups }[] = []
+  groups.forEach(g => {
+    const last = blocks[blocks.length - 1]
+    if (g.section && last?.section === g.section) last.groups.push(g)
+    else blocks.push({ section: g.section, groups: [g] })
+  })
   const Page: ComponentType<any> | undefined = PAGES[role]?.[page] ?? (role === 'platform' ? PlannedPage : undefined)
   const goPage = (p: string) => show(role, role === 'platform' ? PLATFORM_ALIAS[p] ?? p : p)
   const email = session.user.email ?? ''
@@ -358,24 +365,42 @@ function Shell({ session }: { session: Session }) {
           </select>
         </label>}
         {role !== 'department' && role !== 'platform' && yrs.year && !yrs.year.is_current && <p className="yearwarn">Đang xem học kỳ không phải hiện tại</p>}
-        {groups.map((g, gi) => {
-          const key = role + ':' + g.title
-          const sectionHead = g.section && g.section !== groups[gi - 1]?.section ? <h4 className="navsection">{g.section}</h4> : null
-          const shut = closed.has(key)
-          const id = 'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')
-          return (
-          <div key={g.title} className={'navgroup' + (g.section ? ' sub' : '')}>{sectionHead}
-            <button className={'grouphead' + (shut ? ' shut' : '')} onClick={() => toggleGroup(key)} aria-expanded={!shut} aria-controls={id}>
-              <span>{g.title}</span>
-              {shut && g.items.includes(page) && <i className="dot" aria-label="Đang mở trang trong nhóm này" />}
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
-            </button>
-            <div id={id} hidden={shut}>
-            {g.items.map(i => <button key={i} className={i === page ? 'on' : ''} onClick={() => show(role, i)}>
-              {i}{role === 'platform' && !PLATFORM_LIVE.has(i) && i !== 'Sơ đồ hệ thống' && <small className="navtag">Khung</small>}
-            </button>)}
+        {blocks.map(b => {
+          // Một nhóm thường, hoặc một phân hệ (cấp 1) chứa các nhóm con (cấp 2)
+          const head = (key: string, title: string, items: string[], sub = false) => {
+            const shut = closed.has(key)
+            return (
+              <button className={'grouphead' + (sub ? ' subhead' : '') + (shut ? ' shut' : '')} onClick={() => toggleGroup(key)} aria-expanded={!shut}
+                aria-controls={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')}>
+                <span>{title}</span>
+                {shut && items.includes(page) && <i className="dot" aria-label="Đang mở trang trong nhóm này" />}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+              </button>
+            )
+          }
+          const list = (key: string, items: string[]) => (
+            <div id={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')} hidden={closed.has(key)}>
+              {items.map(i => <button key={i} className={i === page ? 'on' : ''} onClick={() => show(role, i)}>
+                {i}{role === 'platform' && !PLATFORM_LIVE.has(i) && i !== 'Sơ đồ hệ thống' && <small className="navtag">Khung</small>}
+              </button>)}
             </div>
-          </div>
+          )
+          if (!b.section) {
+            const key = role + ':' + b.groups[0].title
+            return <div key={key} className="navgroup">{head(key, b.groups[0].title, b.groups[0].items)}{list(key, b.groups[0].items)}</div>
+          }
+          const key = role + '§' + b.section
+          const all = b.groups.flatMap(g => g.items)
+          return (
+            <div key={key} className="navgroup">
+              {head(key, b.section, all)}
+              <div id={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')} hidden={closed.has(key)} className="navsub">
+                {b.groups.map(g => {
+                  const k = role + ':' + g.title
+                  return <div key={k}>{head(k, g.title, g.items, true)}{list(k, g.items)}</div>
+                })}
+              </div>
+            </div>
           )
         })}
         

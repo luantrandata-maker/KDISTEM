@@ -2,7 +2,7 @@ import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { NAV, ROLE_LABEL, MODULE_OF, ENT_MODULE_OF, RoleKey } from './lib/nav'
-import { useAccess, switchOrg, type MyOrg } from './lib/auth'
+import { useAccess, switchOrg } from './lib/auth'
 import { useYears, yearLabel } from './lib/year'
 import Bell from './components/Bell'
 import { navigatePage, onHistoryPage } from './lib/history'
@@ -11,6 +11,7 @@ import Years from './pages/Years'
 import logo from './assets/kdi-logo.png'
 import logoWhite from './assets/kdi-logo-white.png'
 import { NavIcon } from './components/NavIcon'
+import { MenuSearch, UserMenu } from './components/TopBar'
 import Login, { SetPassword } from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Teachers from './pages/Teachers'
@@ -413,30 +414,21 @@ function Shell({ session }: { session: Session }) {
       </nav>
       <div className="content">
         <header className="top">
-          <button className="toggle" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Hiện menu' : 'Ẩn menu'} aria-expanded={!collapsed}>☰</button>
+          <button className="toggle" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Hiện menu' : 'Ẩn menu'} aria-expanded={!collapsed}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg>
+          </button>
           <img src={logo} alt="KDI education" />
-          <span className="title">Hệ thống Quản trị STEM</span>
+          <span className="title">{role === 'platform' ? 'Hệ thống quản lý vận hành' : 'Hệ thống Quản trị STEM'}</span>
+          <MenuSearch entries={groups.flatMap(g => g.items.map(item => ({ item, group: g.section ? `${g.section} › ${g.title}` : g.title })))} onGo={i => show(role, i)} />
           <div className="user">
-            {access.isAdmin && role === 'teacher' && (
-              <select value={teacherId ?? ''} onChange={e => setActingTeacher(e.target.value)} aria-label="Xem với tư cách giáo viên">
-                {teachers.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
-              </select>
-            )}
-            {access.isAdmin && role === 'student' && (
-              <select value={studentId ?? ''} onChange={e => setActingStudent(e.target.value)} aria-label="Xem với tư cách học sinh">
-                {students.map(s => <option key={s.id} value={s.id}>{s.classes?.name} · {s.full_name}</option>)}
-              </select>
-            )}
-            <OrgSwitch orgs={access.orgs} />
-            {views.length > 1 && (
-              <select value={role} onChange={e => changeRole(e.target.value as RoleKey)} aria-label="Chế độ xem">
-                {views.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}
-              </select>
-            )}
             <Bell open={openFrom} portals={views} orgId={access.profile.org_id} />
-            <span className="avatar">{email.charAt(0).toUpperCase()}</span>
-            <button onClick={() => setChangingPw(true)}>Đổi mật khẩu</button>
-            <button onClick={() => supabase.auth.signOut()}>Đăng xuất</button>
+            <UserMenu name={access.profile.full_name} email={email}
+              roleLabel={access.roles.map(r => r.name).join(', ') || ROLE_LABEL[role]}
+              orgs={access.orgs} views={views.map(v => ({ key: v, label: ROLE_LABEL[v] }))} view={role} onView={k => changeRole(k as RoleKey)}
+              acting={access.isAdmin && role === 'teacher' ? { label: 'Xem với tư cách giáo viên', value: teacherId ?? '', options: teachers.map(t => ({ id: t.id, label: t.full_name })), onChange: setActingTeacher }
+                : access.isAdmin && role === 'student' ? { label: 'Xem với tư cách học sinh', value: studentId ?? '', options: students.map(s => ({ id: s.id, label: `${s.classes?.name ?? ''} · ${s.full_name}` })), onChange: setActingStudent }
+                : null}
+              onPassword={() => setChangingPw(true)} onSignOut={() => supabase.auth.signOut()} />
           </div>
         </header>
         <main className="main">
@@ -449,18 +441,3 @@ function Shell({ session }: { session: Session }) {
   )
 }
 
-// "Đang làm việc tại": chỉ hiện khi người dùng có vai trò ở từ hai tổ chức trở lên
-function OrgSwitch({ orgs }: { orgs: MyOrg[] }) {
-  const [err, setErr] = useState('')
-  if (orgs.length < 2) return null
-  const active = orgs.find(o => o.active)
-  return (
-    <label className="orgpick" title={err || 'Đổi đơn vị đang làm việc'}>
-      <span>Đang làm việc tại</span>
-      <select value={active?.org_id ?? ''} onChange={async e => setErr((await switchOrg(e.target.value)) ?? '')} aria-label="Đơn vị đang làm việc">
-        {!active && <option value="">Chọn đơn vị…</option>}
-        {orgs.map(o => <option key={o.org_id} value={o.org_id}>{o.name} · {o.roles.join(', ')}</option>)}
-      </select>
-    </label>
-  )
-}

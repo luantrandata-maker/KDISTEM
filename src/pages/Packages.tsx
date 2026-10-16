@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { fmtDate } from '../lib/time'
 import FormPanel from '../components/FormPanel'
 import { ProgChips } from '../components/Chips'
+import { useBackClose } from '../lib/history'
 
 type Pkg = { id: string; code: string | null; name: string; tier: string; provider: string | null; programs: string | null; grades: string | null; starts_on: string | null; ends_on: string | null; contract_no: string | null; order_no: string | null; topics: number; devices: number; sessions: number }
 type Topic = { id: string; seq: number; program: string; title: string; minutes: number; grade_assigned: number | null; package_topic_sessions: { id: string; seq: number; title: string; minutes: number }[] }
@@ -16,6 +17,7 @@ export default function Packages({ orgId }: { orgId: string }) {
   const [rows, setRows] = useState<Pkg[]>([])
   const [form, setForm] = useState<Pkg | 'new' | null>(null)
   const [detail, setDetail] = useState<string | null>(null)
+  useBackClose(!!detail, () => setDetail(null))
   const [filter, setFilter] = useState<'all' | 'active' | 'expired'>('all')
   const [q, setQ] = useState('')
   const load = () => supabase.from('stem_packages').select('*').order('starts_on').then(({ data }) => setRows((data as Pkg[]) ?? []))

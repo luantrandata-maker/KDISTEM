@@ -31,13 +31,13 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Học liệu', items: ['Kho học liệu dùng chung', 'Phát hành học liệu'] },
     { title: 'Nhân sự & Đồng bộ K12', items: ['Giáo viên', 'Phân công giảng dạy', 'Lớp học', 'Học sinh'] },
     { title: 'Phòng STEM', items: ['Quản lý Phòng STEM', 'Quản lý Thiết bị', 'Bảo hành thiết bị'] },
-    { title: 'Kế hoạch GD & TKB', items: ['Kế hoạch GD toàn trường', 'Duyệt đăng ký dạy STEM', 'Thời khóa biểu', 'Phân công GV dạy STEM'] },
+    { title: 'Kế hoạch GD & TKB', items: ['Kế hoạch GD toàn trường', 'Duyệt đăng ký dạy STEM', 'Thời khóa biểu', 'Phân công GV dạy STEM', 'Buổi dạy & điểm danh', 'Dashboard điểm danh'] },
     { title: 'Tập huấn GV', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Bài giảng', 'Lớp học ảo', 'Chứng chỉ'] },
     { title: 'Quản lý khai báo', items: ['Năm học & học kỳ', 'Tòa nhà & Tầng', 'Cấu hình tiết học', 'Phân phối chương trình'] },
     { title: 'Quản trị', items: ['Tài khoản', 'Vai trò và phân quyền', 'Hỗ trợ từ KDI'] },
   ],
   teacher: [
-    { title: 'Giảng dạy', items: ['Tổng quan', 'Kế hoạch giáo dục', 'Lớp giảng dạy', 'Bài tập', 'Chấm bài'] },
+    { title: 'Giảng dạy', items: ['Tổng quan', 'Kế hoạch giáo dục', 'Lớp giảng dạy', 'Điểm danh', 'Bài tập', 'Chấm bài'] },
     { title: 'Hoạt động STEM', items: ['Giáo dục STEM', 'Đặt phòng STEM'] },
     { title: 'Soạn giảng', items: ['Soạn bài giảng', 'Kho hoạt động & Bài giảng', 'Thư viện STEM'] },
     { title: 'Khác', items: ['Hộp phê duyệt', 'Học trước & tự học', 'Lịch tập huấn', 'Bài giảng tập huấn', 'Hỗ trợ từ KDI'] },
@@ -46,7 +46,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Học tập', items: ['Tổng quan', 'Bài tập', 'Lịch học', 'Giáo dục STEM', 'Chủ đề'] },
   ],
   department: [
-    { title: 'Tổng quan', items: ['Dashboard toàn Sở', 'KPI & Xếp hạng Xã/Phường', 'Danh sách Trường'] },
+    { title: 'Tổng quan', items: ['Dashboard toàn Sở', 'KPI & Xếp hạng Xã/Phường', 'Danh sách Trường', 'Dashboard điểm danh'] },
     { title: 'Theo dõi STEM', items: ['Chương trình CT1–CT5', 'Theo dõi Môn học STEM', 'Giám sát Tập huấn GV'] },
     { title: 'Tập huấn STEM', items: ['Kế hoạch tập huấn', 'Lịch tập huấn'] },
     { title: 'Học liệu STEM', items: ['Phát hành học liệu', 'Kho học liệu dùng chung'] },
@@ -66,6 +66,7 @@ export const MODULE_OF: Record<string, string> = {
   'Lớp học ảo': 'training', 'Chứng chỉ': 'training',
   'Kho học liệu dùng chung': 'library', 'Phát hành học liệu': 'library',
   'Hộp phê duyệt': 'approvals', 'Quy trình phê duyệt': 'roles', 'Đề xuất mua gói': 'packages',
+  'Buổi dạy & điểm danh': 'timetable', 'Dashboard điểm danh': 'timetable',
 }
 // Vai trò → giao diện: lưu ở cột roles.portal (vai trò hệ thống và vai trò tuỳ chỉnh của trường).
 
@@ -76,4 +77,5 @@ export const ENT_MODULE_OF: Record<string, string> = {
   'Đặt phòng STEM': 'stem_rooms', 'Thư viện STEM': 'library', 'Kho hoạt động & Bài giảng': 'library',
   'Lịch tập huấn': 'training', 'Bài giảng tập huấn': 'training', 'Kế hoạch tập huấn': 'training', 'Giám sát Tập huấn GV': 'training',
   'Kế hoạch giáo dục': 'edu_plan', 'Hiệu quả Phòng STEM': 'stem_rooms',
+  'Điểm danh': 'timetable',
 }

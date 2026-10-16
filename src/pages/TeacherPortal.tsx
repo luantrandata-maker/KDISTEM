@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { TeacherBorrow } from './teacher/Borrow'
 import type { Year } from '../lib/year'
+import { ensureWeek, today as todayIso, addDays } from '../lib/attendance'
 
 type Ent = { id: string; year_id: string | null; weekday: number; period_id: string; subject: string; kind: string; classes: { name: string } | null; stem_rooms: { name: string } | null }
 type Period = { id: string; name: string; starts_at: string; ends_at: string; session: string }
@@ -23,13 +24,18 @@ function useMySchedule(teacherId: string | null, year?: Year | null) {
   return { entries, periods }
 }
 
-export function TeacherHome({ teacherId, go, year }: Props) {
+export function TeacherHome({ teacherId, orgId, go, year }: Props) {
   const { entries, periods } = useMySchedule(teacherId, year)
   const [regs, setRegs] = useState<{ status: string }[]>([])
   const [todo, setTodo] = useState({ grade: 0, soon: 0, borrow: 0, live: 0 })
+  const [unmarked, setUnmarked] = useState(0)
   useEffect(() => {
     if (!teacherId) return
     supabase.from('stem_registrations').select('status').eq('teacher_id', teacherId).then(({ data }) => setRegs(data ?? []))
+    // Tiết chưa điểm danh trong 7 ngày (sinh buổi dạy từ TKB cho tuần này và tuần trước nếu chưa có)
+    Promise.all([ensureWeek(orgId, todayIso()), ensureWeek(orgId, addDays(todayIso(), -7))]).then(() =>
+      supabase.from('teaching_session_view').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId)
+        .eq('state', 'not_marked').gte('session_date', addDays(todayIso(), -7)).then(({ count }) => setUnmarked(count ?? 0)))
     const soon = new Date(Date.now() + 3 * 86400000).toISOString()
     Promise.all([
       supabase.from('assignment_overview').select('submitted_count, graded_count, due_at, status').eq('teacher_id', teacherId),
@@ -66,6 +72,7 @@ export function TeacherHome({ teacherId, go, year }: Props) {
       <div className="panel">
         <h3>Cần bạn xử lý</h3>
         {[
+          { n: unmarked, label: 'Tiết chưa điểm danh (7 ngày)', page: 'Điểm danh', hi: true },
           { n: todo.grade, label: 'Bài chờ chấm', page: 'Chấm bài', hi: true },
           { n: todo.soon, label: 'Bài tập sắp hết hạn (≤ 3 ngày)', page: 'Bài tập', hi: false },
           { n: n('pending'), label: 'Đăng ký phòng STEM chờ duyệt', page: 'Đặt phòng STEM', hi: false },
@@ -73,7 +80,7 @@ export function TeacherHome({ teacherId, go, year }: Props) {
         ].filter(x => x.n > 0).map(x => (
           <button key={x.label} className={'todo' + (x.hi ? ' hi' : '')} onClick={() => go?.(x.page)}><span>{x.label}</span><span className="n">{x.n}</span></button>
         ))}
-        {todo.grade + todo.soon + n('pending') + todo.borrow === 0 && <small>Không có việc tồn đọng.</small>}
+        {unmarked + todo.grade + todo.soon + n('pending') + todo.borrow === 0 && <small>Không có việc tồn đọng.</small>}
       </div>
       <div className="panel" style={{ marginTop: 16 }}>
         <h3>Lịch dạy hôm nay</h3>

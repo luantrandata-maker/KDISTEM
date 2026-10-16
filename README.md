@@ -43,6 +43,8 @@ Chạy lần lượt các file trong `supabase/migrations/` theo số thứ tự
 
 ## Quản trị nền tảng (từ migration 021)
 
+Menu xếp theo phương án C: **Vận hành KDI** (khách hàng, hợp đồng, triển khai, hỗ trợ, nghiệm thu) · **Lõi** (tổ chức, tài khoản, phê duyệt, thông báo) · **5 phân hệ nghiệp vụ** là đơn vị bán (PH1 Đào tạo & năng lực nhà giáo, PH2 Chương trình & học liệu, PH3 Vật tư, thiết bị & phòng STEM, PH4 Vận hành giảng dạy & đánh giá người học, PH5 Điều hành & báo cáo) · **Nền tảng kỹ thuật**.
+
 Cổng dành cho KDI Education (chủ nền tảng), mở bằng vai trò **Quản trị nền tảng** tại đơn vị KDI Education.
 
 - Cấp quyền lần đầu: đăng nhập ứng dụng một lần bằng email của bạn, rồi chạy trong SQL Editor
@@ -104,7 +106,7 @@ Cổng dành cho KDI Education (chủ nền tảng), mở bằng vai trò **Qu�
 
 ## Gói dịch vụ, bảo mật, hỗ trợ (từ migration 024)
 
-**Gói dịch vụ & hợp đồng** (Quản trị nền tảng → 2. Khách hàng & thương mại)
+**Gói dịch vụ & hợp đồng** (Quản trị nền tảng → Vận hành KDI)
 - Phân hệ bán được (`service_modules`): Phòng STEM & thiết bị, Kế hoạch giáo dục & TKB, Gói STEM, Kho học liệu, Tập huấn, Phê duyệt. Phần lõi (tài khoản, vai trò, giáo viên, lớp, học sinh, phân công, năm học, toà nhà) luôn dùng được.
 - Gói (`service_plans`) gồm danh sách phân hệ; có sẵn 3 gói Cơ bản / Tiêu chuẩn / Toàn diện (chưa đặt giá).
 - Hợp đồng (`contracts`) gắn một đơn vị với một gói, có thời hạn. Quyền dùng của một đơn vị = hợp đồng gần nhất đi từ chính nó lên cấp trên (Sở mua, bật *Áp dụng cho đơn vị trực thuộc* → mọi trường của Sở dùng theo):
@@ -114,20 +116,20 @@ Cổng dành cho KDI Education (chủ nền tảng), mở bằng vai trò **Qu�
 - Kiểm tra nằm trong `has_perm()` nên mọi lệnh ghi qua RLS đều bị chặn khi đơn vị chưa mua phân hệ; menu các giao diện trường, giáo viên, Sở ẩn mục tương ứng.
 - **Thông tin khách hàng**: trạng thái khách hàng, đầu mối, quyền dùng hiện tại của từng đơn vị, cảnh báo hợp đồng sắp hết hạn (≤ 60 ngày).
 
-**Bảo mật tài khoản** (Quản trị nền tảng → 1. Quản trị nền tảng)
+**Bảo mật tài khoản** (Quản trị nền tảng → Nền tảng kỹ thuật)
 - Xác thực 2 lớp (ứng dụng TOTP) bắt buộc theo vai trò (mặc định: Quản trị nền tảng). Người thuộc vai trò bắt buộc phải quét mã QR và nhập mã 6 số sau khi đăng nhập. Cần bật **Authentication → Multi-Factor → TOTP** trong Supabase Dashboard.
 - *Chặn ở cơ sở dữ liệu* (tắt mặc định): khi bật, quyền Quản trị nền tảng chỉ có hiệu lực ở phiên đã xác thực 2 lớp (`aal2`). Chỉ bật sau khi mọi quản trị nền tảng đã đăng ký ứng dụng xác thực.
 - Khoá tài khoản: người bị khoá mất quyền đọc/ghi mọi dữ liệu ngay lập tức (`my_org_id()` trả về rỗng). Không khoá được quản trị nền tảng.
 - Tự đăng xuất khi không thao tác (phút). Xem và thu hồi phiên đăng nhập (đọc `auth.sessions`; nếu thiếu quyền trên schema `auth`, trang báo rõ).
 
 **Hỗ trợ khách hàng**
-- Trường, Sở gửi yêu cầu ở mục **Hỗ trợ từ KDI**; KDI xử lý ở **Vấn đề & phản hồi** (nhóm 12). Mỗi phiếu có mã `HT-xxxxx`, hạn xử lý theo mức ưu tiên (khẩn cấp 4 giờ, cao 1 ngày, bình thường 3 ngày, thấp 7 ngày), người xử lý, trao đổi hai chiều và ghi chú nội bộ (khách hàng không thấy). Có thông báo trong ứng dụng cho cả hai phía.
+- Trường, Sở gửi yêu cầu ở mục **Hỗ trợ từ KDI**; KDI xử lý ở **Vấn đề & phản hồi** (Vận hành KDI). Mỗi phiếu có mã `HT-xxxxx`, hạn xử lý theo mức ưu tiên (khẩn cấp 4 giờ, cao 1 ngày, bình thường 3 ngày, thấp 7 ngày), người xử lý, trao đổi hai chiều và ghi chú nội bộ (khách hàng không thấy). Có thông báo trong ứng dụng cho cả hai phía.
 - KDI xử lý phiếu bảo hành thiết bị của mọi trường ở tab *Bảo hành thiết bị*.
 
 ## Vận hành khách hàng (từ migration 025)
 
-- **Triển khai khách hàng** (nhóm 1): checklist 14 bước cho từng trường. Bước tự động lấy từ dữ liệu (hợp đồng hiệu lực, kích hoạt, năm học, giáo viên, học sinh, phòng STEM, thiết bị, thời khoá biểu, hoạt động ≤ 7 ngày); bước KDI tự đánh dấu (họp khởi động, tập huấn quản trị, bàn giao thiết bị, tập huấn giáo viên, nghiệm thu). Cảnh báo trường đã kích hoạt nhưng không dùng 14 ngày.
-- **Chương trình giáo dục** (nhóm 6): danh mục gói STEM của KDI (= `stem_packages` thuộc đơn vị chủ nền tảng, `catalog_active`), soạn chủ đề và buổi học. Trường xem danh mục qua `package_catalog()`; gói danh mục không lẫn vào mục Gói STEM của trường.
-- **Đơn đặt gói STEM** (nhóm 2): trường chọn gói trong danh mục khi lập đề xuất mua gói → duyệt theo quy trình của trường/Sở → KDI xác nhận, báo giá, giao. **Đã giao** sao chép gói (chủ đề, buổi học) vào mục Gói STEM của trường và gửi thông báo cho người lập đơn. Trường không tự sửa được phần xử lý của KDI.
-- **Thông báo** (nhóm 4): gửi vào chuông thông báo theo đơn vị (kèm cấp dưới), loại đơn vị, vai trò; xem trước số người nhận; thống kê đã đọc. Tài khoản bị khoá và đơn vị tạm dừng không nhận.
-- **Tích hợp & dữ liệu** (nhóm 5): trạng thái từng kết nối (K12Online, VNeID, email, Zalo OA, Excel) và độ đầy đủ dữ liệu của từng trường. Khoá truy cập của đối tác đặt trong Supabase secrets, không lưu trong bảng.
+- **Triển khai khách hàng** (Vận hành KDI): checklist 14 bước cho từng trường. Bước tự động lấy từ dữ liệu (hợp đồng hiệu lực, kích hoạt, năm học, giáo viên, học sinh, phòng STEM, thiết bị, thời khoá biểu, hoạt động ≤ 7 ngày); bước KDI tự đánh dấu (họp khởi động, tập huấn quản trị, bàn giao thiết bị, tập huấn giáo viên, nghiệm thu). Cảnh báo trường đã kích hoạt nhưng không dùng 14 ngày.
+- **Chương trình giáo dục** (PH2): danh mục gói STEM của KDI (= `stem_packages` thuộc đơn vị chủ nền tảng, `catalog_active`), soạn chủ đề và buổi học. Trường xem danh mục qua `package_catalog()`; gói danh mục không lẫn vào mục Gói STEM của trường.
+- **Đơn đặt gói STEM** (Vận hành KDI): trường chọn gói trong danh mục khi lập đề xuất mua gói → duyệt theo quy trình của trường/Sở → KDI xác nhận, báo giá, giao. **Đã giao** sao chép gói (chủ đề, buổi học) vào mục Gói STEM của trường và gửi thông báo cho người lập đơn. Trường không tự sửa được phần xử lý của KDI.
+- **Thông báo** (Lõi): gửi vào chuông thông báo theo đơn vị (kèm cấp dưới), loại đơn vị, vai trò; xem trước số người nhận; thống kê đã đọc. Tài khoản bị khoá và đơn vị tạm dừng không nhận.
+- **Tích hợp & dữ liệu** (Nền tảng kỹ thuật): trạng thái từng kết nối (K12Online, VNeID, email, Zalo OA, Excel) và độ đầy đủ dữ liệu của từng trường. Khoá truy cập của đối tác đặt trong Supabase secrets, không lưu trong bảng.

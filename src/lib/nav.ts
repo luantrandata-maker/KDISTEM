@@ -7,27 +7,18 @@ export const ROLE_LABEL: Record<RoleKey, string> = {
 }
 
 export const NAV: Record<RoleKey, NavGroup[]> = {
-  // Cổng Quản trị nền tảng: 13 nhóm xếp theo quy trình vận hành — thiết lập khách hàng (1–5) → chuẩn bị nguồn lực (6–9)
-  // → tổ chức dạy học (10–12) → giám sát & báo cáo (13). Mục chưa có trang thật hiện khung giao diện (pages/platform/Planned.tsx).
+  // Cổng Quản trị nền tảng, theo phương án C (16/10): Vận hành KDI · Lõi · 5 phân hệ nghiệp vụ (đơn vị bán) · Nền tảng kỹ thuật.
+  // Mục chưa có trang thật hiện khung giao diện (pages/platform/Planned.tsx).
   platform: [
     { title: 'Tổng quan', items: ['Tổng quan hệ thống', 'Sơ đồ hệ thống', 'Thuật ngữ chuẩn'] },
-    // Thiết lập khách hàng
-    { title: '1. Quản trị nền tảng', items: ['Giao diện & thương hiệu', 'Trợ lý AI', 'Nhật ký hệ thống', 'Triển khai khách hàng', 'Bảo mật tài khoản', 'Cấu hình chung (năm học)'] },
-    { title: '2. Khách hàng & thương mại', items: ['Thông tin khách hàng', 'Gói dịch vụ & hợp đồng', 'Đơn đặt gói STEM', 'Nghiệm thu & doanh thu'] },
-    { title: '3. Tổ chức, tài khoản & phân quyền', items: ['Cây tổ chức', 'Người dùng & vai trò', 'Lời mời'] },
-    { title: '4. Quy trình, phê duyệt & thông báo', items: ['Hộp phê duyệt', 'Quy trình phê duyệt', 'Thông báo'] },
-    { title: '5. Tích hợp & dữ liệu', items: ['Tích hợp & dữ liệu', 'Ứng dụng di động & ngoại tuyến', 'Sao lưu & xuất dữ liệu'] },
-    // Chuẩn bị nguồn lực dạy học
-    { title: '6. Chương trình & học liệu STEM', items: ['Chương trình giáo dục', 'Phát hành học liệu', 'Kho học liệu dùng chung', 'Theo dõi chương trình CT1–CT5', 'Theo dõi môn học STEM', 'E-learning & luyện thi'] },
-    { title: '7. Nhà giáo, người học & lớp học', items: ['Cơ sở giáo dục', 'Nhà giáo & trợ giảng', 'Người học', 'Hồ sơ năng lực, đào tạo', 'Cổng người học & phụ huynh'] },
-    { title: '8. Thiết bị, vật tư, kho & phòng STEM', items: ['Thiết bị, vật tư & kho', 'Kiểm kê', 'Vận chuyển vật tư', 'Phòng STEM & lịch phòng', 'Hiệu quả phòng STEM'] },
-    { title: '9. Tập huấn STEM', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Giám sát tập huấn nhà giáo'] },
-    // Tổ chức dạy học
-    { title: '10. Kế hoạch, lịch dạy & sự kiện', items: ['Thời khoá biểu & xếp lịch', 'Sự kiện'] },
-    { title: '11. Buổi dạy & điểm danh', items: ['Buổi dạy & điểm danh'] },
-    { title: '12. Đánh giá, khảo sát & phản hồi', items: ['Đánh giá kết quả học tập', 'Khảo sát', 'Vấn đề & phản hồi'] },
-    // Giám sát & báo cáo
-    { title: '13. Dashboard & báo cáo', items: ['Dashboard điểm danh', 'Báo cáo vận hành', 'KPI & xếp hạng', 'Báo cáo cấp trên (Bộ/Sở)'] },
+    { title: 'Vận hành KDI', items: ['Thông tin khách hàng', 'Gói dịch vụ & hợp đồng', 'Đơn đặt gói STEM', 'Triển khai khách hàng', 'Vấn đề & phản hồi', 'Nghiệm thu & doanh thu'] },
+    { title: 'Lõi · Tổ chức & quy trình', items: ['Cây tổ chức', 'Cơ sở giáo dục', 'Người dùng & vai trò', 'Lời mời', 'Hộp phê duyệt', 'Quy trình phê duyệt', 'Thông báo'] },
+    { title: 'PH1. Đào tạo & năng lực nhà giáo', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Giám sát tập huấn nhà giáo', 'Nhà giáo & trợ giảng', 'Đánh giá năng lực giáo viên', 'Hồ sơ năng lực, đào tạo'] },
+    { title: 'PH2. Chương trình & học liệu', items: ['Chương trình giáo dục', 'Phát hành học liệu', 'Kho học liệu dùng chung', 'Theo dõi chương trình CT1–CT5', 'Theo dõi môn học STEM', 'E-learning & luyện thi'] },
+    { title: 'PH3. Vật tư, thiết bị & phòng STEM', items: ['Phòng STEM & lịch phòng', 'Hiệu quả phòng STEM', 'Thiết bị, vật tư & kho', 'Mua hàng & đề xuất vật tư', 'Kiểm kê', 'Vận chuyển vật tư'] },
+    { title: 'PH4. Vận hành giảng dạy & đánh giá người học', items: ['Thời khoá biểu & xếp lịch', 'Buổi dạy & điểm danh', 'Đánh giá kết quả học tập', 'Người học', 'Cổng người học & phụ huynh', 'Sự kiện'] },
+    { title: 'PH5. Điều hành & báo cáo', items: ['Dashboard điểm danh', 'Báo cáo vận hành', 'KPI & xếp hạng', 'Báo cáo cấp trên (Bộ/Sở)', 'Chỉ tiêu & bộ chỉ số', 'Cảnh báo & so sánh trường', 'Khảo sát'] },
+    { title: 'Nền tảng kỹ thuật', items: ['Tích hợp & dữ liệu', 'Ứng dụng di động & ngoại tuyến', 'Sao lưu & xuất dữ liệu', 'Bảo mật tài khoản', 'Nhật ký hệ thống', 'Cấu hình chung (năm học)', 'Giao diện & thương hiệu', 'Trợ lý AI'] },
   ],
   school_admin: [
     { title: 'Tổng quan', items: ['Dashboard Trường', 'Hồ sơ Trường học'] },

@@ -593,3 +593,36 @@ tr.muted td{color:var(--muted)}
 .side .navgroup > div > button:not(.grouphead){padding-left:40px;color:#c9d6e8;font-size:14px}
 .side .navgroup > div > button.on{color:#fff}
 .side .navgroup > .navsub button:not(.grouphead){padding-left:12px}
+
+/* Đầu trang gọn: tìm chức năng + menu tài khoản */
+.top{height:60px;gap:12px;padding:0 16px}
+.top .toggle{display:grid;place-items:center;width:36px;height:36px;padding:0;color:var(--muted)}
+.top img{height:30px}
+.top .title{font-weight:700;color:var(--text);font-size:16px;white-space:nowrap}
+.topsearch{position:relative;display:flex;align-items:center;gap:8px;flex:0 1 320px;min-width:0;margin-left:8px;padding:0 10px;height:38px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--muted)}
+.topsearch:focus-within{border-color:var(--primary);background:var(--surface);box-shadow:0 0 0 3px rgba(28,99,187,.12)}
+.topsearch input{flex:1;min-width:0;border:0;background:none;outline:none;font-family:inherit;font-size:14px;color:var(--text)}
+.topsearch kbd{font-family:ui-monospace,monospace;font-size:11px;padding:2px 6px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--muted);white-space:nowrap}
+.toppanel{position:absolute;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 12px 32px rgba(20,31,50,.16);z-index:30;padding:6px}
+.topsearchlist{left:0;right:0;max-height:60vh;overflow:auto;display:grid;gap:2px}
+.topsearchlist button{display:grid;gap:1px;text-align:left;border:0;background:none;border-radius:8px;padding:7px 10px;cursor:pointer;color:var(--text);font-family:inherit;font-size:14px}
+.topsearchlist button small{color:var(--muted);font-size:12px}
+.topsearchlist button.on{background:var(--soft)}
+.user{gap:10px}
+.usermenu{position:relative}
+.user button.userbtn{display:flex;align-items:center;gap:10px;padding:4px 10px 4px 4px;border-radius:999px;border:1px solid var(--line);background:var(--surface);text-align:left}
+.userbtn .avatar{width:34px;height:34px;background:var(--primary);color:#fff;font-size:15px}
+.userbtn .who{display:grid;line-height:1.2;max-width:180px}
+.userbtn .who b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.userbtn .who small{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.userpanel{right:0;width:min(320px,92vw);display:grid}
+.userhead{display:grid;gap:2px;padding:8px 10px 10px}
+.userhead b{font-size:16px}.userhead small{color:var(--muted);font-size:13px}
+.usersec{display:grid;gap:2px;padding:6px 0;border-top:1px solid var(--line)}
+.ushead{padding:4px 10px;font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px}
+.user .usersec button{display:flex;align-items:center;gap:10px;width:100%;border:0;border-radius:8px;background:none;padding:8px 10px;text-align:left;font-weight:500;font-size:14px}
+.user .usersec button:hover{background:var(--soft)}
+.user .usersec button.on{background:var(--soft);font-weight:700}
+.usersec button small{color:var(--muted);font-weight:400}
+.usersec select{margin:0 10px 4px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit}
+@media (max-width:900px){.top .title,.userbtn .who,.topsearch kbd{display:none}.topsearch{flex:1 1 auto}}

@@ -101,6 +101,8 @@ begin
     delete from library_copies where adopted_by = any(v_users);
     delete from library_items where title like 'ISO %' or owner_org_id = any(v_orgs);
   end if;
+  delete from training_lessons where title like 'ISO bài tập huấn%';
+  delete from training_plans where name = 'ISO kế hoạch tập huấn';   -- buổi, ghi danh, điểm danh xoá theo (cascade)
   delete from students where student_code like 'ISO-%' or org_id = any(v_orgs);
   if to_regclass('public.package_orders') is not null then
     delete from package_orders where org_id = any(v_orgs);
@@ -436,6 +438,38 @@ select pg_temp.chk('kdi', 'KDI đánh dấu bước triển khai', format('inser
 select pg_temp.chk('admin_ph', 'Trường không tự đánh dấu bước triển khai', 'insert into rollout_checks (org_id, step) values (my_org_id(), ''acceptance'')', 'ERR');
 select pg_temp.chk('admin_ph', 'Trường không xem kết nối tích hợp', 'select count(*) from integrations', '0');
 select pg_temp.chk('kdi', 'KDI cập nhật kết nối tích hợp', 'update integrations set status = ''error'', last_error = ''Hết hạn khoá'' where key = ''k12''', 'rows:1');
+
+-- ===== 14. Giáo viên: lịch tập huấn, tự điểm danh, bài giảng tập huấn (026) =====
+select pg_temp.probe('gv_both@iso-test.local', format('select public.switch_org(%s)', quote_literal(pg_temp.oid_('THCS-KB'))), true);
+do $$
+declare v_org uuid := pg_temp.oid_('THCS-KB'); v_plan uuid; v_live uuid; v_past uuid;
+  v_me uuid := (select id from teachers where email = 'gv_both@iso-test.local' and org_id = pg_temp.oid_('THCS-KB'));
+  v_other uuid := (select id from teachers where org_id = pg_temp.oid_('THCS-KB') and coalesce(email, '') not like '%@iso-test.local' order by id limit 1);
+begin
+  insert into training_plans (org_id, name, mode, status) values (v_org, 'ISO kế hoạch tập huấn', 'online', 'ongoing') returning id into v_plan;
+  insert into training_sessions (org_id, plan_id, title, starts_at, ends_at, mode) values
+    (v_org, v_plan, 'ISO buổi đang diễn ra', now() - interval '10 minutes', now() + interval '50 minutes', 'online') returning id into v_live;
+  insert into training_sessions (org_id, plan_id, title, starts_at, ends_at, mode) values
+    (v_org, v_plan, 'ISO buổi đã qua', now() - interval '2 days', now() - interval '2 days' + interval '1 hour', 'online') returning id into v_past;
+  insert into training_enrollments (org_id, plan_id, teacher_id, completed) values (v_org, v_plan, v_me, false);
+  insert into training_attendance (org_id, session_id, teacher_id, present) values
+    (v_org, v_live, v_me, null), (v_org, v_past, v_me, null), (v_org, v_live, v_other, null);
+  insert into training_lessons (org_id, plan_id, title, status) values
+    (v_org, v_plan, 'ISO bài tập huấn xuất bản', 'published'), (v_org, v_plan, 'ISO bài tập huấn nháp', 'draft');
+end $$;
+select pg_temp.chk('gv_both', 'Lịch tập huấn của tôi: 2 buổi', 'select count(*) from my_training_sessions() where title like ''ISO buổi%''', '2');
+select pg_temp.chk('gv_both', 'Tự điểm danh buổi đang diễn ra', 'select training_check_in((select id from training_sessions where title = ''ISO buổi đang diễn ra''))', 'ok');
+select pg_temp.chk('gv_both', 'Không tự điểm danh buổi đã qua', 'select training_check_in((select id from training_sessions where title = ''ISO buổi đã qua''))', 'ERR*');
+select pg_temp.chk('gv_both', 'Ghi thẳng bảng: không đánh có mặt buổi đã qua',
+  'update training_attendance set present = true where teacher_id = my_teacher_id() and session_id = (select id from training_sessions where title = ''ISO buổi đã qua'')', 'rows:0');
+select pg_temp.chk('gv_both', 'Ghi thẳng bảng: không tự đánh vắng',
+  'update training_attendance set present = false where teacher_id = my_teacher_id() and session_id = (select id from training_sessions where title = ''ISO buổi đang diễn ra'')', 'ERR');
+select pg_temp.chk('gv_both', 'Không điểm danh hộ giáo viên khác',
+  'update training_attendance set present = true where teacher_id <> my_teacher_id() and session_id = (select id from training_sessions where title = ''ISO buổi đang diễn ra'')', 'rows:0');
+select pg_temp.chk('gv_both', 'Bài giảng tập huấn: chỉ bản đã xuất bản', 'select count(*) from my_training_lessons() where title like ''ISO bài tập huấn%''', '1');
+select pg_temp.chk('admin_kb', 'Hiệu trưởng đánh vắng buổi đã qua',
+  'update training_attendance set present = false where session_id = (select id from training_sessions where title = ''ISO buổi đã qua'')', 'rows:1');
+select pg_temp.chk('admin_ph', 'Trường tỉnh khác không thấy buổi tập huấn', 'select count(*) from training_sessions where title like ''ISO buổi%''', '0');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

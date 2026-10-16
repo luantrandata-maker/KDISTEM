@@ -104,7 +104,7 @@ Cổng dành cho KDI Education (chủ nền tảng), mở bằng vai trò **Qu�
 
 ## Gói dịch vụ, bảo mật, hỗ trợ (từ migration 024)
 
-**Gói dịch vụ & hợp đồng** (Quản trị nền tảng → 12. Khách hàng & thương mại)
+**Gói dịch vụ & hợp đồng** (Quản trị nền tảng → 2. Khách hàng & thương mại)
 - Phân hệ bán được (`service_modules`): Phòng STEM & thiết bị, Kế hoạch giáo dục & TKB, Gói STEM, Kho học liệu, Tập huấn, Phê duyệt. Phần lõi (tài khoản, vai trò, giáo viên, lớp, học sinh, phân công, năm học, toà nhà) luôn dùng được.
 - Gói (`service_plans`) gồm danh sách phân hệ; có sẵn 3 gói Cơ bản / Tiêu chuẩn / Toàn diện (chưa đặt giá).
 - Hợp đồng (`contracts`) gắn một đơn vị với một gói, có thời hạn. Quyền dùng của một đơn vị = hợp đồng gần nhất đi từ chính nó lên cấp trên (Sở mua, bật *Áp dụng cho đơn vị trực thuộc* → mọi trường của Sở dùng theo):
@@ -121,13 +121,13 @@ Cổng dành cho KDI Education (chủ nền tảng), mở bằng vai trò **Qu�
 - Tự đăng xuất khi không thao tác (phút). Xem và thu hồi phiên đăng nhập (đọc `auth.sessions`; nếu thiếu quyền trên schema `auth`, trang báo rõ).
 
 **Hỗ trợ khách hàng**
-- Trường, Sở gửi yêu cầu ở mục **Hỗ trợ từ KDI**; KDI xử lý ở **Vấn đề & phản hồi** (nhóm 8). Mỗi phiếu có mã `HT-xxxxx`, hạn xử lý theo mức ưu tiên (khẩn cấp 4 giờ, cao 1 ngày, bình thường 3 ngày, thấp 7 ngày), người xử lý, trao đổi hai chiều và ghi chú nội bộ (khách hàng không thấy). Có thông báo trong ứng dụng cho cả hai phía.
+- Trường, Sở gửi yêu cầu ở mục **Hỗ trợ từ KDI**; KDI xử lý ở **Vấn đề & phản hồi** (nhóm 12). Mỗi phiếu có mã `HT-xxxxx`, hạn xử lý theo mức ưu tiên (khẩn cấp 4 giờ, cao 1 ngày, bình thường 3 ngày, thấp 7 ngày), người xử lý, trao đổi hai chiều và ghi chú nội bộ (khách hàng không thấy). Có thông báo trong ứng dụng cho cả hai phía.
 - KDI xử lý phiếu bảo hành thiết bị của mọi trường ở tab *Bảo hành thiết bị*.
 
 ## Vận hành khách hàng (từ migration 025)
 
 - **Triển khai khách hàng** (nhóm 1): checklist 14 bước cho từng trường. Bước tự động lấy từ dữ liệu (hợp đồng hiệu lực, kích hoạt, năm học, giáo viên, học sinh, phòng STEM, thiết bị, thời khoá biểu, hoạt động ≤ 7 ngày); bước KDI tự đánh dấu (họp khởi động, tập huấn quản trị, bàn giao thiết bị, tập huấn giáo viên, nghiệm thu). Cảnh báo trường đã kích hoạt nhưng không dùng 14 ngày.
-- **Chương trình giáo dục** (nhóm 3): danh mục gói STEM của KDI (= `stem_packages` thuộc đơn vị chủ nền tảng, `catalog_active`), soạn chủ đề và buổi học. Trường xem danh mục qua `package_catalog()`; gói danh mục không lẫn vào mục Gói STEM của trường.
-- **Đơn đặt gói STEM** (nhóm 12): trường chọn gói trong danh mục khi lập đề xuất mua gói → duyệt theo quy trình của trường/Sở → KDI xác nhận, báo giá, giao. **Đã giao** sao chép gói (chủ đề, buổi học) vào mục Gói STEM của trường và gửi thông báo cho người lập đơn. Trường không tự sửa được phần xử lý của KDI.
-- **Thông báo** (nhóm 11): gửi vào chuông thông báo theo đơn vị (kèm cấp dưới), loại đơn vị, vai trò; xem trước số người nhận; thống kê đã đọc. Tài khoản bị khoá và đơn vị tạm dừng không nhận.
-- **Tích hợp & dữ liệu** (nhóm 13): trạng thái từng kết nối (K12Online, VNeID, email, Zalo OA, Excel) và độ đầy đủ dữ liệu của từng trường. Khoá truy cập của đối tác đặt trong Supabase secrets, không lưu trong bảng.
+- **Chương trình giáo dục** (nhóm 6): danh mục gói STEM của KDI (= `stem_packages` thuộc đơn vị chủ nền tảng, `catalog_active`), soạn chủ đề và buổi học. Trường xem danh mục qua `package_catalog()`; gói danh mục không lẫn vào mục Gói STEM của trường.
+- **Đơn đặt gói STEM** (nhóm 2): trường chọn gói trong danh mục khi lập đề xuất mua gói → duyệt theo quy trình của trường/Sở → KDI xác nhận, báo giá, giao. **Đã giao** sao chép gói (chủ đề, buổi học) vào mục Gói STEM của trường và gửi thông báo cho người lập đơn. Trường không tự sửa được phần xử lý của KDI.
+- **Thông báo** (nhóm 4): gửi vào chuông thông báo theo đơn vị (kèm cấp dưới), loại đơn vị, vai trò; xem trước số người nhận; thống kê đã đọc. Tài khoản bị khoá và đơn vị tạm dừng không nhận.
+- **Tích hợp & dữ liệu** (nhóm 5): trạng thái từng kết nối (K12Online, VNeID, email, Zalo OA, Excel) và độ đầy đủ dữ liệu của từng trường. Khoá truy cập của đối tác đặt trong Supabase secrets, không lưu trong bảng.

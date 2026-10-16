@@ -7,22 +7,27 @@ export const ROLE_LABEL: Record<RoleKey, string> = {
 }
 
 export const NAV: Record<RoleKey, NavGroup[]> = {
-  // Cổng Quản trị nền tảng: 13 nhóm chức năng (1–13; Tập huấn STEM là nhóm 5). Mục chưa có trang thật hiện khung giao diện (pages/platform/Planned.tsx).
+  // Cổng Quản trị nền tảng: 13 nhóm xếp theo quy trình vận hành — thiết lập khách hàng (1–5) → chuẩn bị nguồn lực (6–9)
+  // → tổ chức dạy học (10–12) → giám sát & báo cáo (13). Mục chưa có trang thật hiện khung giao diện (pages/platform/Planned.tsx).
   platform: [
     { title: 'Tổng quan', items: ['Tổng quan hệ thống', 'Sơ đồ hệ thống', 'Thuật ngữ chuẩn'] },
+    // Thiết lập khách hàng
     { title: '1. Quản trị nền tảng', items: ['Giao diện & thương hiệu', 'Trợ lý AI', 'Nhật ký hệ thống', 'Triển khai khách hàng', 'Bảo mật tài khoản', 'Cấu hình chung (năm học)'] },
-    { title: '2. Tổ chức, tài khoản & phân quyền', items: ['Cây tổ chức', 'Người dùng & vai trò', 'Lời mời'] },
-    { title: '3. Chương trình & học liệu STEM', items: ['Chương trình giáo dục', 'Phát hành học liệu', 'Kho học liệu dùng chung', 'Theo dõi chương trình CT1–CT5', 'Theo dõi môn học STEM', 'E-learning & luyện thi'] },
-    { title: '4. Nhà giáo, người học & lớp học', items: ['Cơ sở giáo dục', 'Nhà giáo & trợ giảng', 'Người học', 'Hồ sơ năng lực, đào tạo', 'Cổng người học & phụ huynh'] },
-    { title: '5. Tập huấn STEM', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Giám sát tập huấn nhà giáo'] },
-    { title: '6. Kế hoạch, lịch dạy & sự kiện', items: ['Thời khoá biểu & xếp lịch', 'Sự kiện'] },
-    { title: '7. Buổi dạy & điểm danh', items: ['Buổi dạy & điểm danh'] },
-    { title: '8. Đánh giá, khảo sát & phản hồi', items: ['Đánh giá kết quả học tập', 'Khảo sát', 'Vấn đề & phản hồi'] },
-    { title: '9. Thiết bị, vật tư, kho & phòng STEM', items: ['Thiết bị, vật tư & kho', 'Kiểm kê', 'Vận chuyển vật tư', 'Hiệu quả phòng STEM', 'Phòng STEM & lịch phòng'] },
-    { title: '10. Dashboard & báo cáo', items: ['Báo cáo vận hành', 'KPI & xếp hạng', 'Báo cáo cấp trên (Bộ/Sở)', 'Dashboard điểm danh'] },
-    { title: '11. Quy trình, phê duyệt & thông báo', items: ['Hộp phê duyệt', 'Quy trình phê duyệt', 'Thông báo'] },
-    { title: '12. Khách hàng & thương mại', items: ['Thông tin khách hàng', 'Gói dịch vụ & hợp đồng', 'Đơn đặt gói STEM', 'Nghiệm thu & doanh thu'] },
-    { title: '13. Tích hợp & dữ liệu', items: ['Tích hợp & dữ liệu', 'Ứng dụng di động & ngoại tuyến', 'Sao lưu & xuất dữ liệu'] },
+    { title: '2. Khách hàng & thương mại', items: ['Thông tin khách hàng', 'Gói dịch vụ & hợp đồng', 'Đơn đặt gói STEM', 'Nghiệm thu & doanh thu'] },
+    { title: '3. Tổ chức, tài khoản & phân quyền', items: ['Cây tổ chức', 'Người dùng & vai trò', 'Lời mời'] },
+    { title: '4. Quy trình, phê duyệt & thông báo', items: ['Hộp phê duyệt', 'Quy trình phê duyệt', 'Thông báo'] },
+    { title: '5. Tích hợp & dữ liệu', items: ['Tích hợp & dữ liệu', 'Ứng dụng di động & ngoại tuyến', 'Sao lưu & xuất dữ liệu'] },
+    // Chuẩn bị nguồn lực dạy học
+    { title: '6. Chương trình & học liệu STEM', items: ['Chương trình giáo dục', 'Phát hành học liệu', 'Kho học liệu dùng chung', 'Theo dõi chương trình CT1–CT5', 'Theo dõi môn học STEM', 'E-learning & luyện thi'] },
+    { title: '7. Nhà giáo, người học & lớp học', items: ['Cơ sở giáo dục', 'Nhà giáo & trợ giảng', 'Người học', 'Hồ sơ năng lực, đào tạo', 'Cổng người học & phụ huynh'] },
+    { title: '8. Thiết bị, vật tư, kho & phòng STEM', items: ['Thiết bị, vật tư & kho', 'Kiểm kê', 'Vận chuyển vật tư', 'Phòng STEM & lịch phòng', 'Hiệu quả phòng STEM'] },
+    { title: '9. Tập huấn STEM', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Giám sát tập huấn nhà giáo'] },
+    // Tổ chức dạy học
+    { title: '10. Kế hoạch, lịch dạy & sự kiện', items: ['Thời khoá biểu & xếp lịch', 'Sự kiện'] },
+    { title: '11. Buổi dạy & điểm danh', items: ['Buổi dạy & điểm danh'] },
+    { title: '12. Đánh giá, khảo sát & phản hồi', items: ['Đánh giá kết quả học tập', 'Khảo sát', 'Vấn đề & phản hồi'] },
+    // Giám sát & báo cáo
+    { title: '13. Dashboard & báo cáo', items: ['Dashboard điểm danh', 'Báo cáo vận hành', 'KPI & xếp hạng', 'Báo cáo cấp trên (Bộ/Sở)'] },
   ],
   school_admin: [
     { title: 'Tổng quan', items: ['Dashboard Trường', 'Hồ sơ Trường học'] },

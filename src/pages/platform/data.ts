@@ -17,6 +17,11 @@ export const TYPE_ORDER = ['ministry', 'province', 'department', 'district', 'sc
 export const CHILD_TYPES: Record<string, string[]> = {
   ministry: ['province'], province: ['department'], department: ['district', 'school'], district: ['school'], school: [], provider: [],
 }
+// Loại đơn vị được TẠO MỚI: từ 01/07/2025 không còn cấp huyện nên không tạo thêm Phòng GD&ĐT.
+// Phòng đã có vẫn hiển thị, sửa, chuyển đơn vị cha và nhận trường trực thuộc như trước (CHILD_TYPES).
+export const NEW_CHILD_TYPES: Record<string, string[]> = {
+  ...CHILD_TYPES, department: CHILD_TYPES.department.filter(t => t !== 'district'),
+}
 export const ROOT_TYPES = ['ministry', 'provider', 'province', 'department']
 export const TYPE_FULL: Record<string, string> = {
   ministry: 'Bộ GD&ĐT', province: 'Tỉnh / Thành phố', department: 'Sở GD&ĐT', district: 'Phòng GD&ĐT', school: 'Trường học', provider: 'Đơn vị cung cấp',

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { sendInviteEmail } from '../../lib/invite'
 import {
-  usePlatform, ORG_TYPE, TYPE_FULL, CHILD_TYPES, ROOT_TYPES, LEVELS, rolesFor, pathOf, nf, errText, type Org,
+  usePlatform, ORG_TYPE, TYPE_FULL, CHILD_TYPES, NEW_CHILD_TYPES, ROOT_TYPES, LEVELS, rolesFor, pathOf, nf, errText, type Org,
 } from './data'
 
 type MemberRow = { user_id: string; role_id: string; roles: { name: string } | null; profiles: { full_name: string | null; email: string | null } | null }
@@ -182,7 +182,7 @@ export function PlatformOrgs() {
             <h3 style={{ gridColumn: '1 / -1' }}>{form.parent ? `Thêm đơn vị trực thuộc ${byId.get(form.parent)?.name}` : 'Thêm đơn vị gốc'}</h3>
             <label className="field"><span>Loại *</span>
               <select value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}>
-                {(form.parent ? CHILD_TYPES[byId.get(form.parent)!.type] : ROOT_TYPES).map(t => <option key={t} value={t}>{TYPE_FULL[t]}</option>)}
+                {(form.parent ? NEW_CHILD_TYPES[byId.get(form.parent)!.type] : ROOT_TYPES).map(t => <option key={t} value={t}>{TYPE_FULL[t]}</option>)}
               </select></label>
             <label className="field"><span>Tên *</span><input required value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={form.type === 'school' ? 'Trường THCS …' : TYPE_FULL[form.type] + ' …'} /></label>
             <label className="field"><span>Mã đơn vị</span><input value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} placeholder="VD: THCS-KB" /></label>
@@ -206,7 +206,7 @@ export function PlatformOrgs() {
                 </div>
                 <div className="actions">
                   <button type="button" onClick={() => setForm({ mode: 'edit', name: org.name, code: org.code ?? '', level: org.level ?? '', ward: org.ward ?? '', address: org.address ?? '' })}>Sửa</button>
-                  {CHILD_TYPES[org.type].length > 0 && <button type="button" onClick={() => setForm({ mode: 'child', type: CHILD_TYPES[org.type][0], name: '', code: '', level: '', ward: '', parent: org.id })}>+ Đơn vị trực thuộc</button>}
+                  {NEW_CHILD_TYPES[org.type].length > 0 && <button type="button" onClick={() => setForm({ mode: 'child', type: NEW_CHILD_TYPES[org.type][0], name: '', code: '', level: '', ward: '', parent: org.id })}>+ Đơn vị trực thuộc</button>}
                   {!org.is_platform && (parentOptions.length > 0 || canRoot) && <button type="button" onClick={() => setForm({ mode: 'move', parent: org.parent_id ?? '' })}>Chuyển</button>}
                   {org.type === 'school' && <button type="button" onClick={() => setActive(org, !org.activated_at)}>{org.activated_at ? 'Bỏ kích hoạt' : 'Kích hoạt'}</button>}
                   {!org.is_platform && <button type="button" onClick={() => setStatus(org, org.status === 'active' ? 'suspended' : 'active')}>{org.status === 'active' ? 'Tạm dừng' : 'Mở lại'}</button>}

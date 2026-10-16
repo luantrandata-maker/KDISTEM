@@ -32,6 +32,7 @@ import { TeacherHome, TeacherSchedule, TeacherClasses, TeacherBooking } from './
 import { TeacherAssignments, TeacherGrading } from './pages/teacher/Assignments'
 import { TeacherLessonStudio } from './pages/teacher/Lessons'
 import { TeacherClassroom } from './pages/teacher/Classroom'
+import { TeacherTrainingSchedule, TeacherTrainingLessons } from './pages/teacher/Training'
 import { StudentHome } from './pages/student/Home'
 import { StudentAssignments } from './pages/student/Assignments'
 import { StudentSchedule } from './pages/student/Schedule'
@@ -114,6 +115,8 @@ const TEACHER: PageMap = {
   'Soạn bài giảng': TeacherLessonStudio,
   'Hộp phê duyệt': ApprovalInbox,
   'Thư viện STEM': LibraryBrowse,
+  'Lịch tập huấn': TeacherTrainingSchedule,
+  'Bài giảng tập huấn': TeacherTrainingLessons,
   'Hỗ trợ từ KDI': CustomerSupport,
 }
 const STUDENT: PageMap = {
@@ -139,6 +142,7 @@ const DEPARTMENT: PageMap = {
   'Quy trình phê duyệt': ApprovalWorkflows,
   'Phát hành học liệu': LibraryManage,
   'Kho học liệu dùng chung': LibraryBrowse,
+  'Hỗ trợ từ KDI': CustomerSupport,
 }
 // Cổng Quản trị nền tảng: chỉ nối các trang đọc được dữ liệu toàn hệ thống (trang nền tảng, trang cấp Sở, học liệu, phê duyệt, tập huấn).
 // Mục menu không có ở đây hiện khung giao diện (PlannedPage); build xong phân hệ nào thì thêm trang vào đây.

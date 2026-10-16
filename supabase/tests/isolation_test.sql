@@ -101,6 +101,12 @@ begin
     delete from library_copies where adopted_by = any(v_users);
     delete from library_items where title like 'ISO %' or owner_org_id = any(v_orgs);
   end if;
+  if to_regclass('public.teaching_sessions') is not null then
+    delete from teaching_sessions where subject like 'ISO Toán%';
+    delete from timetable_entries where subject like 'ISO Toán%';
+    delete from period_configs where name = 'ISO Tiết';
+    delete from academic_years where name = 'ISO năm thử';
+  end if;
   delete from training_lessons where title like 'ISO bài tập huấn%';
   delete from training_plans where name = 'ISO kế hoạch tập huấn';   -- buổi, ghi danh, điểm danh xoá theo (cascade)
   delete from students where student_code like 'ISO-%' or org_id = any(v_orgs);
@@ -470,6 +476,71 @@ select pg_temp.chk('gv_both', 'Bài giảng tập huấn: chỉ bản đã xuấ
 select pg_temp.chk('admin_kb', 'Hiệu trưởng đánh vắng buổi đã qua',
   'update training_attendance set present = false where session_id = (select id from training_sessions where title = ''ISO buổi đã qua'')', 'rows:1');
 select pg_temp.chk('admin_ph', 'Trường tỉnh khác không thấy buổi tập huấn', 'select count(*) from training_sessions where title like ''ISO buổi%''', '0');
+
+-- ===== 15. Buổi dạy & điểm danh theo tiết (027) =====
+-- Trường B: một học kỳ thử bao quanh hôm nay, một tiết cả ngày, TKB Thứ 2–7 cho lớp của HS thử B do GV thử B dạy.
+do $$
+declare v_org uuid := pg_temp.oid_('THCS-KB'); v_year uuid; v_per uuid;
+  v_class uuid := (select class_id from students where student_code = 'ISO-001');
+  v_other_class uuid := (select id from classes where org_id = pg_temp.oid_('THCS-KB') and id <> (select class_id from students where student_code = 'ISO-001') order by name limit 1);
+  v_gv uuid := (select id from teachers where email = 'gv_both@iso-test.local' and org_id = pg_temp.oid_('THCS-KB'));
+begin
+  insert into academic_years (org_id, name, term, starts_on, ends_on, is_current)
+    values (v_org, 'ISO năm thử', 'HK thử', public.vn_today() - 30, public.vn_today() + 30, false) returning id into v_year;
+  insert into period_configs (org_id, name, starts_at, ends_at, session) values (v_org, 'ISO Tiết', '00:00', '23:59', 'morning') returning id into v_per;
+  insert into timetable_entries (org_id, year_id, class_id, teacher_id, period_id, weekday, subject, kind)
+    select v_org, v_year, v_class, v_gv, v_per, w, 'ISO Toán', 'stem' from generate_series(2, 7) w;
+  -- Cùng GV, cùng tiết, lớp khác vào Thứ 2 → trùng lịch giáo viên
+  insert into timetable_entries (org_id, year_id, class_id, teacher_id, period_id, weekday, subject, kind)
+    values (v_org, null, v_other_class, v_gv, v_per, 2, 'ISO Toán trùng', 'regular');   -- TKB dùng chung mọi học kỳ đè lên TKB riêng của học kỳ
+end $$;
+select pg_temp.chk('gv_both', 'Sinh buổi dạy 7 ngày gần nhất từ TKB',
+  'select ((generate_teaching_sessions(vn_today() - 6, vn_today())->>''created'')::int > 0)::text', 'true');
+select pg_temp.probe('gv_both@iso-test.local', 'select generate_teaching_sessions(vn_today() - 6, vn_today())::text', true);
+select pg_temp.chk('gv_both', 'Sinh lại: không tạo trùng (idempotent)', 'select generate_teaching_sessions(vn_today() - 6, vn_today())->>''created''', '0');
+select pg_temp.chk('gv_both', 'Không sinh quá 63 ngày một lần', 'select generate_teaching_sessions(vn_today() - 100, vn_today())::text', 'ERR*');
+do $$
+declare v_s record;
+begin
+  select * into v_s from teaching_sessions where subject = 'ISO Toán' order by session_date desc limit 1;
+  -- Một tiết 10 ngày trước và một tiết ngày kia (cùng lớp, cùng GV) để thử giới hạn thời gian
+  insert into teaching_sessions (org_id, class_id, teacher_id, period_id, session_date, subject, kind)
+    values (v_s.org_id, v_s.class_id, v_s.teacher_id, v_s.period_id, public.vn_today() - 10, 'ISO Toán cũ', 'stem'),
+           (v_s.org_id, v_s.class_id, v_s.teacher_id, v_s.period_id, public.vn_today() + 2, 'ISO Toán sắp tới', 'stem');
+end $$;
+select pg_temp.probe('gv_both@iso-test.local',
+  'select mark_teaching_session((select id from teaching_sessions where subject = ''ISO Toán'' and session_date <= vn_today() order by session_date desc limit 1), jsonb_build_array(jsonb_build_object(''student_id'', (select id from students where student_code = ''ISO-001''), ''status'', ''present'')))::text', true);
+select pg_temp.chk('gv_both', 'GV điểm danh tiết của mình → đã dạy, có mặt 1',
+  'select status || '':'' || present_count from teaching_sessions where subject = ''ISO Toán'' and session_date <= vn_today() order by session_date desc limit 1', 'taught:1');
+select pg_temp.chk('gv_both', 'GV không điểm danh tiết quá 7 ngày',
+  'select mark_teaching_session((select id from teaching_sessions where subject = ''ISO Toán cũ''), ''[]''::jsonb)::text', 'ERR*');
+select pg_temp.chk('gv_both', 'GV không điểm danh tiết chưa diễn ra',
+  'select mark_teaching_session((select id from teaching_sessions where subject = ''ISO Toán sắp tới''), ''[]''::jsonb)::text', 'ERR*');
+select pg_temp.chk('gv_both', 'Không điểm danh học sinh lớp khác',
+  'select mark_teaching_session((select id from teaching_sessions where subject = ''ISO Toán'' and session_date <= vn_today() order by session_date desc limit 1), jsonb_build_array(jsonb_build_object(''student_id'', (select id from students where class_id <> (select class_id from students where student_code = ''ISO-001'') and org_id = my_org_id() limit 1), ''status'', ''absent'')))::text', 'ERR*');
+select pg_temp.chk('gv_both', 'GV không ghi thẳng bảng điểm danh',
+  'insert into lesson_attendance (session_id, student_id, org_id, status) select s.id, (select id from students where student_code = ''ISO-001''), s.org_id, ''absent'' from teaching_sessions s where s.subject = ''ISO Toán cũ''', 'ERR');
+select pg_temp.chk('gv_both', 'GV không tự huỷ tiết', 'update teaching_sessions set status = ''cancelled'' where subject = ''ISO Toán sắp tới''', 'rows:0');
+select pg_temp.chk('admin_kb', 'Quản trị trường sửa điểm danh tiết cũ',
+  'select mark_teaching_session((select id from teaching_sessions where subject = ''ISO Toán cũ''), jsonb_build_array(jsonb_build_object(''student_id'', (select id from students where student_code = ''ISO-001''), ''status'', ''excused'')))->>''excused''', '1');
+select pg_temp.chk('admin_kb', 'Quản trị trường huỷ tiết', 'update teaching_sessions set status = ''cancelled'', cancel_reason = ''Nghỉ lễ'' where subject = ''ISO Toán sắp tới''', 'rows:1');
+select pg_temp.chk('admin_ph', 'Trường khác không điểm danh tiết trường B',
+  'select mark_teaching_session((select id from teaching_sessions where subject = ''ISO Toán cũ''), ''[]''::jsonb)::text', 'ERR');
+select pg_temp.chk('admin_ph', 'Trường khác không đọc buổi dạy trường B', 'select count(*) from teaching_sessions where subject like ''ISO Toán%''', '0');
+select pg_temp.chk('admin_ph', 'Trường khác không đọc view buổi dạy trường B', 'select count(*) from teaching_session_view where subject like ''ISO Toán%''', '0');
+select pg_temp.chk('hs_kb', 'Học sinh thấy điểm danh của mình', 'select count(*) from lesson_attendance', '1');
+select pg_temp.chk('hs_kb', 'Học sinh chỉ thấy tiết của lớp mình', 'select count(*) from teaching_sessions where class_id <> my_class_id()', '0');
+select pg_temp.chk('hs_kb', 'Học sinh không gọi sinh buổi dạy', 'select generate_teaching_sessions(vn_today(), vn_today())::text', 'ERR');
+select pg_temp.chk('so_bn', 'Sở B đọc buổi dạy trường trực thuộc', 'select count(*) from teaching_sessions where subject = ''ISO Toán''', '>0');
+select pg_temp.chk('so_bn', 'Dashboard điểm danh Sở B có tiết đã dạy của trường B',
+  format('select taught::text from attendance_summary(vn_today() - 6, vn_today()) where org_id = %s', quote_literal(pg_temp.oid_('THCS-KB'))), '1');
+select pg_temp.chk('so_hy', 'Dashboard điểm danh Sở A không có trường tỉnh B',
+  format('select count(*) from attendance_summary(vn_today() - 6, vn_today()) where org_id = %s', quote_literal(pg_temp.oid_('THCS-KB'))), '0');
+select pg_temp.chk('so_bn', 'Sở không điểm danh thay trường', 'select mark_teaching_session((select id from teaching_sessions where subject = ''ISO Toán cũ''), ''[]''::jsonb)::text', 'ERR');
+select pg_temp.chk('kdi', 'Nền tảng: dashboard điểm danh toàn hệ thống', 'select count(*) from attendance_summary(vn_today() - 6, vn_today())', '>0');
+select pg_temp.chk('admin_kb', 'Phát hiện trùng lịch giáo viên', 'select count(*) from timetable_conflicts() where kind = ''teacher'' and classes like ''%,%''', '>0');
+select pg_temp.chk('admin_ph', 'Không thấy trùng lịch của trường khác',
+  format('select count(*) from timetable_conflicts() where org_id = %s', quote_literal(pg_temp.oid_('THCS-KB'))), '0');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

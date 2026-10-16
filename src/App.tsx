@@ -33,6 +33,10 @@ import { TeacherAssignments, TeacherGrading } from './pages/teacher/Assignments'
 import { TeacherLessonStudio } from './pages/teacher/Lessons'
 import { TeacherClassroom } from './pages/teacher/Classroom'
 import { TeacherTrainingSchedule, TeacherTrainingLessons } from './pages/teacher/Training'
+import { TeacherAttendance, SchoolSessions } from './pages/attendance/Sessions'
+// Dashboard điểm danh & TKB toàn hệ thống (027): tải riêng khi mở
+const AttendanceDashboard = lazy(() => import('./pages/attendance/Dashboard').then(m => ({ default: m.AttendanceDashboard })))
+const TimetableOverview = lazy(() => import('./pages/attendance/Dashboard').then(m => ({ default: m.TimetableOverview })))
 import { StudentHome } from './pages/student/Home'
 import { StudentAssignments } from './pages/student/Assignments'
 import { StudentSchedule } from './pages/student/Schedule'
@@ -103,11 +107,14 @@ const SCHOOL: PageMap = {
   'Kho học liệu dùng chung': LibraryBrowse,
   'Phát hành học liệu': LibraryManage,
   'Hỗ trợ từ KDI': CustomerSupport,
+  'Buổi dạy & điểm danh': SchoolSessions,
+  'Dashboard điểm danh': AttendanceDashboard,
 }
 const TEACHER: PageMap = {
   'Tổng quan': TeacherHome,
   'Kế hoạch giáo dục': TeacherSchedule,
   'Lớp giảng dạy': TeacherClasses,
+  'Điểm danh': TeacherAttendance,
   'Đặt phòng STEM': TeacherBooking,
   'Bài tập': TeacherAssignments,
   'Chấm bài': TeacherGrading,
@@ -130,6 +137,7 @@ const DEPARTMENT: PageMap = {
   'Dashboard toàn Sở': DeptDashboard,
   'KPI & Xếp hạng Xã/Phường': DeptWardKpi,
   'Danh sách Trường': DeptSchools,
+  'Dashboard điểm danh': AttendanceDashboard,
   'Chương trình CT1–CT5': DeptPrograms,
   'Theo dõi Môn học STEM': DeptSubjects,
   'Giám sát Tập huấn GV': DeptTrainingMonitor,
@@ -176,6 +184,9 @@ const PLATFORM: PageMap = {
   'Đơn đặt gói STEM': PlatformOrders,
   'Thông báo': PlatformBroadcast,
   'Tích hợp & dữ liệu': PlatformIntegrations,
+  'Thời khoá biểu & xếp lịch': TimetableOverview,
+  'Buổi dạy & điểm danh': AttendanceDashboard,
+  'Dashboard điểm danh': AttendanceDashboard,
 }
 const PLATFORM_LIVE = new Set(Object.keys(PLATFORM))
 PLATFORM['Sơ đồ hệ thống'] = (p: any) => <SystemMap {...p} live={PLATFORM_LIVE} />

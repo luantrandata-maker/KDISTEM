@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { supabase } from '../../lib/supabase'
 import { PROGRAM_COLOR } from '../teacher/common'
 import { Tabs } from '../teacher/common'
 import { useDeptStats, byWard, grade, pct, avg, sum, nf, LEVEL, PROGRAMS, PROGRAM_NAME, type SchoolStat } from './data'
@@ -310,36 +311,74 @@ export function DeptTrainingMonitor() {
 }
 
 // ================= Hiệu quả phòng STEM =================
-export function DeptRoomEffect() {
+type Actual = { org_id: string; stem_taught: number; stem_room_periods: number; stem_planned: number; taught: number }
+type RoomUse = { org_id: string; booked: number; slots: number; conflicts: number; room_id: string }
+const WEEKS = 4
+
+// Hiệu quả phòng STEM: kế hoạch theo TKB (018) + thực dạy theo buổi dạy đã điểm danh (027) + lịch giữ phòng (029), 4 tuần gần nhất
+export function DeptRoomEffect({ go }: { go?: (p: string) => void }) {
   const { schools, loading, err } = useDeptStats()
   const [level, setLevel] = useState('')
+  const [actual, setActual] = useState<Record<string, Actual>>({})
+  const [rooms, setRooms] = useState<Record<string, { booked: number; slots: number; conflicts: number }>>({})
+  const [live, setLive] = useState<'ok' | 'none' | 'loading'>('loading')
+  useEffect(() => {
+    const d = new Date(), iso = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
+    const to = iso(d); d.setDate(d.getDate() - WEEKS * 7 + 1); const from = iso(d)
+    Promise.all([supabase.rpc('attendance_summary', { p_from: from, p_to: to }), supabase.rpc('room_overview', { p_from: from, p_to: to })]).then(([a, r]) => {
+      setActual(Object.fromEntries(((a.data as Actual[]) ?? []).map(x => [x.org_id, x])))
+      const m: Record<string, { booked: number; slots: number; conflicts: number }> = {}
+      ;((r.data as RoomUse[]) ?? []).forEach(x => { const c = m[x.org_id] ?? { booked: 0, slots: 0, conflicts: 0 }; c.booked += x.booked; c.slots += x.slots; c.conflicts += x.conflicts; m[x.org_id] = c })
+      setRooms(m); setLive(a.error && r.error ? 'none' : 'ok')
+    })
+  }, [])
   if (loading || err) return <Loading err={err} />
   const withRooms = schools.filter(s => s.rooms_active > 0 && (!level || s.level === level))
   const freq = (s: SchoolStat) => Math.round((s.room_periods / Math.max(1, s.rooms_active)) * 10) / 10
+  const real = (s: SchoolStat) => Math.round(((actual[s.school_id]?.stem_room_periods ?? 0) / WEEKS / Math.max(1, s.rooms_active)) * 10) / 10
+  const fill = (s: SchoolStat) => { const r = rooms[s.school_id]; return r && r.slots ? Math.round((r.booked / r.slots) * 1000) / 10 : null }
   const integ = (s: SchoolStat) => new Set(s.programs).size
+  const stemDone = (s: SchoolStat) => { const a = actual[s.school_id]; return a && a.stem_planned ? pct(a.stem_taught, a.stem_planned) : null }
+  const totalReal = sum(withRooms.map(s => actual[s.school_id]?.stem_room_periods ?? 0))
+  const idle = withRooms.filter(s => (actual[s.school_id]?.stem_room_periods ?? 0) === 0)
   return (
     <>
       <Tiles items={[
-        { label: 'Tần suất sử dụng phòng', value: `${(avg(withRooms.map(freq))).toFixed(1)} tiết/tuần`, sub: 'trung bình mỗi phòng' },
-        { label: 'Trường có phòng hoạt động', value: withRooms.length, sub: `${sum(withRooms.map(s => s.rooms_active))} phòng` },
+        { label: 'Theo TKB', value: `${(avg(withRooms.map(freq))).toFixed(1)} tiết/tuần`, sub: 'kế hoạch, trung bình mỗi phòng' },
+        { label: 'Thực dạy tại phòng', value: live === 'ok' ? `${(avg(withRooms.map(real))).toFixed(1)} tiết/tuần` : '—', sub: `đã điểm danh, ${WEEKS} tuần gần nhất` },
+        { label: 'Tiết STEM tại phòng', value: live === 'ok' ? nf(totalReal) : '—', sub: `${WEEKS} tuần · ${withRooms.length} trường có phòng` },
+        { label: 'Trường chưa dùng phòng', value: live === 'ok' ? idle.length : '—', sub: `có phòng nhưng 0 tiết thực dạy`, tone: idle.length ? 'warn' : '' },
         { label: 'Giáo án GV tự soạn', value: nf(sum(withRooms.map(s => s.lesson_plans))), sub: 'đã xuất bản' },
         { label: 'Dự án STEM / lớp', value: (sum(withRooms.map(s => s.products)) / Math.max(1, sum(withRooms.map(s => s.classes)))).toFixed(1), sub: 'đã giao trong năm' },
-        { label: 'HS học tại phòng STEM', value: nf(sum(withRooms.map(s => s.stem_students))), sub: 'thuộc lớp có chương trình' },
       ]} />
       <div className="panel">
-        <div className="bar"><h3>Tần suất sử dụng phòng STEM theo trường (tiết/tuần/phòng)</h3>
-          <select value={level} onChange={e => setLevel(e.target.value)} aria-label="Cấp học"><option value="">Tất cả cấp học</option>{Object.entries(LEVEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></div>
-        <Columns data={[...withRooms].sort((a, b) => freq(b) - freq(a)).map(s => ({ label: short(s.name).replace(/^(THCS|THPT|TH)\s+/, ''), value: freq(s),
-          tip: `${short(s.name)}: ${freq(s)} tiết/tuần/phòng · ${s.rooms_active} phòng · ${s.room_periods} tiết` }))} fmt={v => v.toFixed(1)} />
+        <div className="bar"><h3>Thực dạy tại phòng STEM theo trường (tiết/tuần/phòng, {WEEKS} tuần gần nhất)</h3>
+          <span className="tools">
+            <select value={level} onChange={e => setLevel(e.target.value)} aria-label="Cấp học"><option value="">Tất cả cấp học</option>{Object.entries(LEVEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+            {go && <button onClick={() => go('Phòng STEM & lịch phòng')}>Lịch từng phòng</button>}
+            {go && <button onClick={() => go('Thiết bị & kho')}>Thiết bị</button>}
+          </span></div>
+        <Columns data={[...withRooms].sort((a, b) => real(b) - real(a)).map(s => ({ label: short(s.name).replace(/^(THCS|THPT|TH)\s+/, ''), value: real(s),
+          tip: `${short(s.name)}: thực dạy ${real(s)} · theo TKB ${freq(s)} tiết/tuần/phòng · ${s.rooms_active} phòng` }))} fmt={v => v.toFixed(1)} />
+        {live === 'none' && <p className="sub">Chưa có số liệu buổi dạy (cần migration 027 và 029) — đang hiện theo TKB.</p>}
       </div>
       <div className="wrap">
         <table>
-          <thead><tr><th>Trường</th><th>HS</th><th>Phòng hoạt động</th><th>Tần suất (tiết/tuần/phòng)</th><th>Chương trình tích hợp</th><th>Giáo án GV tự soạn</th><th>Dự án STEM</th><th>Thiết bị hỏng</th></tr></thead>
-          <tbody>{withRooms.map(s => (
-            <tr key={s.school_id}><td><b>{short(s.name)}</b><br /><small>{LEVEL[s.level ?? '']} · {s.ward}</small></td><td>{nf(s.students)}</td><td>{s.rooms_active}/{s.rooms}</td>
-              <td>{freq(s)}</td><td>{integ(s)}</td><td>{s.lesson_plans}</td><td>{s.products}</td>
-              <td>{s.units_broken}/{s.units} <small>({pct(s.units_broken, s.units)}%)</small></td></tr>
-          ))}</tbody>
+          <thead><tr><th>Trường</th><th>HS</th><th>Phòng hoạt động</th><th>Theo TKB<br /><small>tiết/tuần/phòng</small></th><th>Thực dạy<br /><small>tiết/tuần/phòng</small></th>
+            <th>Lấp đầy lịch phòng</th><th>Tiết STEM đã dạy / kế hoạch</th><th>Chương trình tích hợp</th><th>Giáo án GV tự soạn</th><th>Thiết bị hỏng</th></tr></thead>
+          <tbody>{withRooms.map(s => {
+            const gap = live === 'ok' && freq(s) > 0 && real(s) < freq(s) * 0.5
+            const r = rooms[s.school_id]
+            return (
+              <tr key={s.school_id}><td><b>{short(s.name)}</b><br /><small>{LEVEL[s.level ?? '']} · {s.ward}</small></td><td>{nf(s.students)}</td><td>{s.rooms_active}/{s.rooms}</td>
+                <td>{freq(s)}</td>
+                <td>{live === 'ok' ? <>{real(s)}{gap && <span className="pill maintenance" style={{ marginLeft: 6 }} title="Thực dạy dưới một nửa kế hoạch">▼ thấp</span>}</> : '—'}</td>
+                <td>{fill(s) == null ? '—' : `${fill(s)}%`}{r?.conflicts ? <><br /><small className="due bad">{r.conflicts} chỗ trùng</small></> : null}</td>
+                <td>{actual[s.school_id] ? `${actual[s.school_id].stem_taught}/${actual[s.school_id].stem_planned}` : '—'}{stemDone(s) != null && <small> ({stemDone(s)}%)</small>}</td>
+                <td>{integ(s)}</td><td>{s.lesson_plans}</td>
+                <td>{s.units_broken}/{s.units} <small>({pct(s.units_broken, s.units)}%)</small></td></tr>
+            )
+          })}</tbody>
         </table>
       </div>
     </>

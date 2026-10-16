@@ -34,6 +34,8 @@ import { TeacherAssignments, TeacherGrading } from './pages/teacher/Assignments'
 import { TeacherLessonStudio } from './pages/teacher/Lessons'
 import { TeacherClassroom } from './pages/teacher/Classroom'
 import { TeacherTrainingSchedule, TeacherTrainingLessons } from './pages/teacher/Training'
+import { TeacherActivities } from './pages/teacher/Activities'
+import { TeacherSelfStudy } from './pages/teacher/SelfStudy'
 import { TeacherAttendance, SchoolSessions } from './pages/attendance/Sessions'
 // Dashboard điểm danh & TKB toàn hệ thống (027): tải riêng khi mở
 const AttendanceDashboard = lazy(() => import('./pages/attendance/Dashboard').then(m => ({ default: m.AttendanceDashboard })))
@@ -43,6 +45,9 @@ import { StudentAssignments } from './pages/student/Assignments'
 import { StudentSchedule } from './pages/student/Schedule'
 import { StudentClassroom } from './pages/student/Classroom'
 import { StudentTopics } from './pages/student/Topics'
+import { StudentSelfStudy } from './pages/student/SelfStudy'
+import { StudentAttendance } from './pages/student/Attendance'
+import { Holidays } from './pages/Holidays'
 import { DeptDashboard, DeptWardKpi, DeptSchools, DeptPrograms, DeptSubjects, DeptTrainingMonitor, DeptRoomEffect } from './pages/department/Overview'
 import { DeptReports } from './pages/department/Reports'
 import { DeptAdmin } from './pages/department/Admin'
@@ -113,6 +118,7 @@ const SCHOOL: PageMap = {
   'Hỗ trợ từ KDI': CustomerSupport,
   'Buổi dạy & điểm danh': SchoolSessions,
   'Dashboard điểm danh': AttendanceDashboard,
+  'Ngày nghỉ & lễ': Holidays,
 }
 const TEACHER: PageMap = {
   'Tổng quan': TeacherHome,
@@ -129,6 +135,8 @@ const TEACHER: PageMap = {
   'Lịch tập huấn': TeacherTrainingSchedule,
   'Bài giảng tập huấn': TeacherTrainingLessons,
   'Hỗ trợ từ KDI': CustomerSupport,
+  'Kho hoạt động & Bài giảng': TeacherActivities,
+  'Học trước & tự học': TeacherSelfStudy,
 }
 const STUDENT: PageMap = {
   'Tổng quan': StudentHome,
@@ -136,6 +144,8 @@ const STUDENT: PageMap = {
   'Lịch học': StudentSchedule,
   'Giáo dục STEM': StudentClassroom,
   'Chủ đề': StudentTopics,
+  'Học trước & tự học': StudentSelfStudy,
+  'Chuyên cần': StudentAttendance,
 }
 const DEPARTMENT: PageMap = {
   'Dashboard toàn Sở': DeptDashboard,
@@ -148,6 +158,9 @@ const DEPARTMENT: PageMap = {
   'Kế hoạch tập huấn': TrainingPlans,
   'Lịch tập huấn': TrainingSchedule,
   'Hiệu quả Phòng STEM': DeptRoomEffect,
+  'Phòng STEM & lịch phòng': RoomsOverview,
+  'Thiết bị & kho': EquipmentOverview,
+  'Ngày nghỉ & lễ': Holidays,
   'Báo cáo Bộ GD&ĐT': DeptReports,
   'Điều hành & Cấu hình': DeptAdmin,
   'Hộp phê duyệt': ApprovalInbox,
@@ -197,7 +210,7 @@ const PLATFORM: PageMap = {
 const PLATFORM_LIVE = new Set(Object.keys(PLATFORM))
 PLATFORM['Sơ đồ hệ thống'] = (p: any) => <SystemMap {...p} live={PLATFORM_LIVE} />
 // Tên trang cũ (liên kết nội bộ của trang Sở) → tên trong menu Quản trị nền tảng
-const PLATFORM_ALIAS: Record<string, string> = { 'KPI & Xếp hạng Xã/Phường': 'KPI & xếp hạng' }
+const PLATFORM_ALIAS: Record<string, string> = { 'KPI & Xếp hạng Xã/Phường': 'KPI & xếp hạng', 'Thiết bị & kho': 'Thiết bị, vật tư & kho', 'Hiệu quả Phòng STEM': 'Hiệu quả phòng STEM' }
 const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM }
 
 export default function App() {

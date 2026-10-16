@@ -29,6 +29,7 @@ export function TeacherHome({ teacherId, orgId, go, year }: Props) {
   const [regs, setRegs] = useState<{ status: string }[]>([])
   const [todo, setTodo] = useState({ grade: 0, soon: 0, borrow: 0, live: 0 })
   const [unmarked, setUnmarked] = useState(0)
+  const [review, setReview] = useState(0)
   useEffect(() => {
     if (!teacherId) return
     supabase.from('stem_registrations').select('status').eq('teacher_id', teacherId).then(({ data }) => setRegs(data ?? []))
@@ -36,6 +37,13 @@ export function TeacherHome({ teacherId, orgId, go, year }: Props) {
     Promise.all([ensureWeek(orgId, todayIso()), ensureWeek(orgId, addDays(todayIso(), -7))]).then(() =>
       supabase.from('teaching_session_view').select('id', { count: 'exact', head: true }).eq('teacher_id', teacherId)
         .eq('state', 'not_marked').gte('session_date', addDays(todayIso(), -7)).then(({ count }) => setUnmarked(count ?? 0)))
+    // Phiếu học tập tự học đã nộp, chưa nhận xét (030)
+    supabase.from('self_study_items').select('id').eq('teacher_id', teacherId).eq('activity_kind', 'worksheet').then(({ data }) => {
+      const ids = (data ?? []).map(x => x.id)
+      if (!ids.length) return setReview(0)
+      supabase.from('self_study_progress').select('item_id', { count: 'exact', head: true }).in('item_id', ids).eq('status', 'done').is('reviewed_at', null)
+        .then(({ count }) => setReview(count ?? 0))
+    })
     const soon = new Date(Date.now() + 3 * 86400000).toISOString()
     Promise.all([
       supabase.from('assignment_overview').select('submitted_count, graded_count, due_at, status').eq('teacher_id', teacherId),
@@ -65,6 +73,7 @@ export function TeacherHome({ teacherId, orgId, go, year }: Props) {
       </div>
       <div className="tiles">
         {[['Giáo dục STEM', todo.live ? 'Đang có tiết mở — vào lại' : 'Mở lớp bằng mã PIN'], ['Soạn bài giảng', 'Slide, câu hỏi, nhiệm vụ'],
+          ['Kho hoạt động & Bài giảng', '8 mẫu trò chơi, phiếu học tập'], ['Học trước & tự học', 'Giao bài trước tiết, theo dõi từng HS'],
           ['Bài tập', 'Giao bài, chia nhóm'], ['Đặt phòng STEM', 'Mượn phòng, mượn thiết bị']].map(([p, d]) => (
           <button key={p} className="tile" onClick={() => go?.(p)}><b>{p}</b><small>{d}</small></button>
         ))}
@@ -75,12 +84,13 @@ export function TeacherHome({ teacherId, orgId, go, year }: Props) {
           { n: unmarked, label: 'Tiết chưa điểm danh (7 ngày)', page: 'Điểm danh', hi: true },
           { n: todo.grade, label: 'Bài chờ chấm', page: 'Chấm bài', hi: true },
           { n: todo.soon, label: 'Bài tập sắp hết hạn (≤ 3 ngày)', page: 'Bài tập', hi: false },
+          { n: review, label: 'Phiếu học tập tự học chờ nhận xét', page: 'Học trước & tự học', hi: false },
           { n: n('pending'), label: 'Đăng ký phòng STEM chờ duyệt', page: 'Đặt phòng STEM', hi: false },
           { n: todo.borrow, label: 'Phiếu mượn thiết bị chờ duyệt', page: 'Đặt phòng STEM', hi: false },
         ].filter(x => x.n > 0).map(x => (
           <button key={x.label} className={'todo' + (x.hi ? ' hi' : '')} onClick={() => go?.(x.page)}><span>{x.label}</span><span className="n">{x.n}</span></button>
         ))}
-        {unmarked + todo.grade + todo.soon + n('pending') + todo.borrow === 0 && <small>Không có việc tồn đọng.</small>}
+        {unmarked + todo.grade + todo.soon + review + n('pending') + todo.borrow === 0 && <small>Không có việc tồn đọng.</small>}
       </div>
       <div className="panel" style={{ marginTop: 16 }}>
         <h3>Lịch dạy hôm nay</h3>

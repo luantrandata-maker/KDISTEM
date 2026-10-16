@@ -73,6 +73,9 @@ const PlatformCatalog = lazy(() => import('./pages/platform/Catalog').then(m => 
 const PlatformOrders = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformOrders })))
 const PlatformBroadcast = lazy(() => import('./pages/platform/Broadcast').then(m => ({ default: m.PlatformBroadcast })))
 const PlatformIntegrations = lazy(() => import('./pages/platform/Integrations').then(m => ({ default: m.PlatformIntegrations })))
+// S3 (029): phòng STEM & lịch phòng, thiết bị toàn hệ thống
+const RoomsOverview = lazy(() => import('./pages/platform/Resources').then(m => ({ default: m.RoomsOverview })))
+const EquipmentOverview = lazy(() => import('./pages/platform/Resources').then(m => ({ default: m.EquipmentOverview })))
 const CustomerSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.CustomerSupport })))
 
 type PageMap = Record<string, ComponentType<any>>
@@ -188,6 +191,8 @@ const PLATFORM: PageMap = {
   'Thời khoá biểu & xếp lịch': TimetableOverview,
   'Buổi dạy & điểm danh': AttendanceDashboard,
   'Dashboard điểm danh': AttendanceDashboard,
+  'Phòng STEM & lịch phòng': RoomsOverview,
+  'Thiết bị, vật tư & kho': EquipmentOverview,
 }
 const PLATFORM_LIVE = new Set(Object.keys(PLATFORM))
 PLATFORM['Sơ đồ hệ thống'] = (p: any) => <SystemMap {...p} live={PLATFORM_LIVE} />

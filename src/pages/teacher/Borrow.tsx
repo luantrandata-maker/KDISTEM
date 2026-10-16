@@ -27,6 +27,7 @@ export function TeacherBorrow({ teacherId, orgId }: TProps) {
   const [mine, setMine] = useState<Req[]>([])
   const [f, setF] = useState({ title: '', class_id: '', on_date: localDate(1), period_id: '', mode: 'take_to_class', room_id: '' })
   const [items, setItems] = useState<Item[]>([])
+  const [free, setFree] = useState<Record<string, number> | null>(null)
   const [err, setErr] = useState('')
   const [ok, setOk] = useState('')
 
@@ -46,6 +47,16 @@ export function TeacherBorrow({ teacherId, orgId }: TProps) {
     setMine((m.data as unknown as Req[]) ?? [])
   }
   useEffect(() => { load() }, [teacherId])
+  // Còn trống theo đúng ngày, tiết đã chọn: trừ thiết bị của các phiếu đã duyệt / đang mượn chồng giờ (migration 029)
+  useEffect(() => {
+    if (!teacherId || !f.on_date) return
+    supabase.rpc('equipment_availability', { p_day: f.on_date, p_period: f.period_id || null }).then(({ data, error }) => {
+      if (error) return setFree(null)
+      const m: Record<string, number> = {}; ((data as { type_id: string; free: number }[]) ?? []).forEach(x => { m[x.type_id] = x.free }); setFree(m)
+    })
+  }, [teacherId, f.on_date, f.period_id, mine.length])
+  const left = (typeId: string) => (free ? free[typeId] ?? 0 : avail[typeId] ?? 0)
+  const leftLabel = free ? 'còn trống tiết này' : 'sẵn sàng'
   useEffect(() => { if (!f.class_id && classes[0]) setF(v => ({ ...v, class_id: classes[0].id })) }, [classes.length])
 
   const addItem = (type_id: string) => {
@@ -55,7 +66,7 @@ export function TeacherBorrow({ teacherId, orgId }: TProps) {
   async function submit(e: React.FormEvent) {
     e.preventDefault(); setOk('')
     if (!items.length) return setErr('Chọn ít nhất một thiết bị.')
-    const over = items.filter(i => i.qty > (avail[i.type_id] ?? 0))
+    const over = items.filter(i => i.qty > left(i.type_id))
     const summary = items.map(i => `${i.name} × ${i.qty}`).join('; ')
     const { error } = await supabase.from('borrow_requests').insert({
       org_id: orgId, teacher_id: teacherId, class_id: f.class_id || null, title: f.title.trim() || `Mượn thiết bị cho ${classes.find(c => c.id === f.class_id)?.name ?? 'tiết học'}`,
@@ -64,7 +75,7 @@ export function TeacherBorrow({ teacherId, orgId }: TProps) {
     })
     if (error) return setErr('Không gửi được: ' + error.message)
     setErr(''); setItems([]); setF({ ...f, title: '' })
-    setOk('Đã gửi phiếu mượn, chờ quản trị duyệt.' + (over.length ? ` Lưu ý: ${over.map(o => o.name).join(', ')} hiện không đủ số lượng sẵn sàng.` : ''))
+    setOk('Đã gửi phiếu mượn, chờ quản trị duyệt.' + (over.length ? ` Lưu ý: ${over.map(o => o.name).join(', ')} không còn đủ trong khung giờ này — phiếu chỉ được duyệt khi có thiết bị trả về.` : ''))
     load()
   }
   async function cancel(r: Req) {
@@ -94,7 +105,7 @@ export function TeacherBorrow({ teacherId, orgId }: TProps) {
         <div className="field" style={{ gridColumn: '1 / -1' }}><span>Thiết bị cần mượn *</span>
           {items.map((it, i) => (
             <div className="addrow" key={it.type_id}>
-              <span style={{ flex: 1, alignSelf: 'center' }}><b>{it.name}</b> <small>· sẵn sàng {avail[it.type_id] ?? 0}</small></span>
+              <span style={{ flex: 1, alignSelf: 'center' }}><b>{it.name}</b> <small>· {leftLabel} {left(it.type_id)}</small>{it.qty > left(it.type_id) && <small style={{ color: 'var(--bad)' }}> · thiếu {it.qty - left(it.type_id)}</small>}</span>
               <input type="number" min={1} max={99} value={it.qty} style={{ flex: '0 0 90px' }} aria-label={`Số lượng ${it.name}`}
                 onChange={e => setItems(items.map((x, j) => j === i ? { ...x, qty: Math.max(1, Number(e.target.value) || 1) } : x))} />
               <button type="button" className="x" onClick={() => setItems(items.filter((_, j) => j !== i))} aria-label={`Bỏ ${it.name}`}>×</button>
@@ -102,7 +113,7 @@ export function TeacherBorrow({ teacherId, orgId }: TProps) {
           ))}
           <select value="" onChange={e => addItem(e.target.value)} aria-label="Thêm thiết bị">
             <option value="">+ Thêm thiết bị…</option>
-            {types.filter(t => !items.some(i => i.type_id === t.id)).map(t => <option key={t.id} value={t.id}>{t.name}{t.brand ? ` · ${t.brand}` : ''} — sẵn sàng {avail[t.id] ?? 0}</option>)}
+            {types.filter(t => !items.some(i => i.type_id === t.id)).map(t => <option key={t.id} value={t.id}>{t.name}{t.brand ? ` · ${t.brand}` : ''} — {leftLabel} {left(t.id)}</option>)}
           </select>
         </div>
         <div className="formactions"><button className="primary" type="submit" disabled={!items.length}>Gửi phiếu mượn</button></div>

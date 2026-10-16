@@ -102,9 +102,19 @@ begin
     delete from library_items where title like 'ISO %' or owner_org_id = any(v_orgs);
   end if;
   if to_regclass('public.teaching_sessions') is not null then
+    if to_regclass('public.resource_bookings') is not null then
+      delete from stem_registrations where topic like 'ISO đăng ký%';
+      delete from borrow_requests where title like 'ISO mượn%';
+      delete from notifications where ref_id in (select ref_id from approval_requests where title like 'ISO đăng ký%' or title like 'ISO mượn%')
+        or ref_id in (select id from approval_requests where title like 'ISO đăng ký%' or title like 'ISO mượn%');
+      delete from approval_requests where title like 'ISO đăng ký%' or title like 'ISO mượn%';
+      delete from equipment_units where type_id in (select id from equipment_types where name = 'ISO Kính');
+      delete from equipment_types where name = 'ISO Kính';
+    end if;
     delete from teaching_sessions where subject like 'ISO Toán%';
     delete from timetable_entries where subject like 'ISO Toán%';
-    delete from period_configs where name = 'ISO Tiết';
+    delete from stem_rooms where name like 'ISO phòng%';
+    delete from period_configs where name like 'ISO Tiết%';
     delete from academic_years where name = 'ISO năm thử';
   end if;
   delete from training_lessons where title like 'ISO bài tập huấn%';
@@ -490,9 +500,12 @@ begin
   insert into period_configs (org_id, name, starts_at, ends_at, session) values (v_org, 'ISO Tiết', '00:00', '23:59', 'morning') returning id into v_per;
   insert into timetable_entries (org_id, year_id, class_id, teacher_id, period_id, weekday, subject, kind)
     select v_org, v_year, v_class, v_gv, v_per, w, 'ISO Toán', 'stem' from generate_series(2, 7) w;
-  -- Cùng GV, cùng tiết, lớp khác vào Thứ 2 → trùng lịch giáo viên
+  -- Cùng GV, cùng tiết, lớp khác vào Thứ 2 → trùng lịch giáo viên.
+  -- Từ 029 CSDL chặn tiết trùng mới; tắt tạm trigger để giả lập dữ liệu cũ đã trùng từ trước.
+  if to_regprocedure('public.timetable_guard()') is not null then alter table timetable_entries disable trigger timetable_guard; end if;
   insert into timetable_entries (org_id, year_id, class_id, teacher_id, period_id, weekday, subject, kind)
     values (v_org, null, v_other_class, v_gv, v_per, 2, 'ISO Toán trùng', 'regular');   -- TKB dùng chung mọi học kỳ đè lên TKB riêng của học kỳ
+  if to_regprocedure('public.timetable_guard()') is not null then alter table timetable_entries enable trigger timetable_guard; end if;
 end $$;
 select pg_temp.chk('gv_both', 'Sinh buổi dạy 7 ngày gần nhất từ TKB',
   'select ((generate_teaching_sessions(vn_today() - 6, vn_today())->>''created'')::int > 0)::text', 'true');
@@ -541,6 +554,130 @@ select pg_temp.chk('kdi', 'Nền tảng: dashboard điểm danh toàn hệ thố
 select pg_temp.chk('admin_kb', 'Phát hiện trùng lịch giáo viên', 'select count(*) from timetable_conflicts() where kind = ''teacher'' and classes like ''%,%''', '>0');
 select pg_temp.chk('admin_ph', 'Không thấy trùng lịch của trường khác',
   format('select count(*) from timetable_conflicts() where org_id = %s', quote_literal(pg_temp.oid_('THCS-KB'))), '0');
+
+-- ===== 16. Chống trùng lịch phòng, giáo viên, thiết bị (029) =====
+-- Trường B: hai tiết ngắn (ISO Tiết 2, 3), hai phòng thử A/B, các lớp/GV có sẵn của trường B.
+-- RA: đăng ký dạy STEM giữ phòng B (lớp c1, GV t2) ngày D tiết 2. RB: đăng ký trùng phòng đó, ghi ở chế độ "mềm" (giả lập dữ liệu cũ).
+drop table if exists t_s3;
+create temp table t_s3 (k text primary key, v uuid);
+create or replace function pg_temp.s3(p_k text) returns uuid language sql as $$ select v from t_s3 where k = p_k $$;
+create or replace function pg_temp.s3d() returns date language sql as $$ select public.vn_today() + 3 $$;
+do $$
+declare v_org uuid := pg_temp.oid_('THCS-KB'); v_class uuid := (select class_id from students where student_code = 'ISO-001');
+  v_p2 uuid; v_p3 uuid; v_ra uuid; v_rb uuid; v_rma uuid; v_rmb uuid; v_c1 uuid; v_c3 uuid; v_t2 uuid; v_t3 uuid; v_t4 uuid; v_type uuid;
+  v_gv uuid := (select id from teachers where email = 'gv_both@iso-test.local' and org_id = pg_temp.oid_('THCS-KB'));
+  d date := pg_temp.s3d();
+begin
+  insert into period_configs (org_id, name, starts_at, ends_at, session) values (v_org, 'ISO Tiết 2', '07:00', '07:45', 'morning') returning id into v_p2;
+  insert into period_configs (org_id, name, starts_at, ends_at, session) values (v_org, 'ISO Tiết 3', '08:00', '08:45', 'morning') returning id into v_p3;
+  insert into stem_rooms (org_id, name, status) values (v_org, 'ISO phòng A', 'active') returning id into v_rma;
+  insert into stem_rooms (org_id, name, status) values (v_org, 'ISO phòng B', 'active') returning id into v_rmb;
+  select id into v_c1 from classes where org_id = v_org and id <> v_class order by name limit 1;
+  select id into v_c3 from classes where org_id = v_org and id not in (v_class, v_c1) order by name limit 1;
+  select id into v_t2 from teachers where org_id = v_org and coalesce(email, '') not like '%@iso-test.local' order by full_name, id limit 1;
+  select id into v_t3 from teachers where org_id = v_org and coalesce(email, '') not like '%@iso-test.local' order by full_name, id offset 1 limit 1;
+  select id into v_t4 from teachers where org_id = v_org and coalesce(email, '') not like '%@iso-test.local' order by full_name, id offset 2 limit 1;
+  -- TKB Thứ 3 của lớp HS thử dùng phòng A
+  update timetable_entries set room_id = v_rma where subject = 'ISO Toán' and weekday = 3;
+  insert into stem_registrations (org_id, teacher_id, class_id, room_id, period_id, on_date, topic)
+    values (v_org, v_t2, v_c1, v_rmb, v_p2, d, 'ISO đăng ký A') returning id into v_ra;
+  perform set_config('kdi.booking_soft', 'on', true);
+  insert into stem_registrations (org_id, teacher_id, class_id, room_id, period_id, on_date, topic)
+    values (v_org, v_t3, v_c3, v_rmb, v_p2, d, 'ISO đăng ký B') returning id into v_rb;
+  perform set_config('kdi.booking_soft', 'off', true);
+  insert into equipment_types (org_id, name) values (v_org, 'ISO Kính') returning id into v_type;
+  insert into equipment_units (org_id, type_id, status) values (v_org, v_type, 'available'), (v_org, v_type, 'available'), (v_org, v_type, 'broken');
+  insert into t_s3 values ('p2', v_p2), ('p3', v_p3), ('rma', v_rma), ('rmb', v_rmb), ('c1', v_c1), ('c3', v_c3),
+    ('t2', v_t2), ('t3', v_t3), ('t4', v_t4), ('gv', v_gv), ('ra', v_ra), ('rb', v_rb), ('type', v_type), ('org', v_org);
+end $$;
+
+-- Thời khoá biểu
+select pg_temp.chk('admin_kb', 'TKB: chặn tiết mới trùng phòng STEM',
+  format('insert into timetable_entries (org_id, class_id, teacher_id, period_id, weekday, subject, kind, room_id) select my_org_id(), %L, %L, period_id, 3, ''ISO Toán phòng'', ''stem'', %L from timetable_entries where subject = ''ISO Toán'' and weekday = 3',
+    pg_temp.s3('c3'), pg_temp.s3('t3'), pg_temp.s3('rma')), 'ERR 23P01');
+select pg_temp.chk('admin_kb', 'TKB: phòng khác cùng tiết thì được',
+  format('insert into timetable_entries (org_id, class_id, teacher_id, period_id, weekday, subject, kind, room_id) select my_org_id(), %L, %L, period_id, 3, ''ISO Toán phòng'', ''stem'', %L from timetable_entries where subject = ''ISO Toán'' and weekday = 3',
+    pg_temp.s3('c3'), pg_temp.s3('t3'), pg_temp.s3('rmb')), 'rows:1');
+select pg_temp.chk('admin_kb', 'TKB: chặn GV dạy hai lớp (TKB mọi học kỳ đè học kỳ riêng)',
+  format('insert into timetable_entries (org_id, class_id, teacher_id, period_id, weekday, subject, kind) select my_org_id(), %L, %L, period_id, 4, ''ISO Toán GV'', ''regular'' from timetable_entries where subject = ''ISO Toán'' and weekday = 4',
+    pg_temp.s3('c3'), pg_temp.s3('gv')), 'ERR 23P01');
+
+-- Đăng ký dạy STEM & dạy bù
+select pg_temp.chk('admin_kb', 'Đăng ký dạy STEM trùng phòng bị chặn',
+  format('insert into stem_registrations (org_id, teacher_id, class_id, room_id, period_id, on_date, topic) values (my_org_id(), %L, %L, %L, %L, %L, ''ISO đăng ký C'')',
+    pg_temp.s3('t4'), pg_temp.s3('c3'), pg_temp.s3('rmb'), pg_temp.s3('p2'), pg_temp.s3d()), 'ERR 23P01');
+select pg_temp.chk('admin_kb', 'Cùng phòng, tiết khác thì được',
+  format('insert into stem_registrations (org_id, teacher_id, class_id, room_id, period_id, on_date, topic) values (my_org_id(), %L, %L, %L, %L, %L, ''ISO đăng ký C'')',
+    pg_temp.s3('t4'), pg_temp.s3('c3'), pg_temp.s3('rmb'), pg_temp.s3('p3'), pg_temp.s3d()), 'rows:1');
+select pg_temp.chk('admin_kb', 'Cùng lớp dùng lại phòng của chính tiết mình: không tính trùng',
+  format('insert into stem_registrations (org_id, teacher_id, class_id, room_id, period_id, on_date, topic) values (my_org_id(), %L, %L, %L, %L, %L, ''ISO đăng ký C'')',
+    pg_temp.s3('t4'), pg_temp.s3('c1'), pg_temp.s3('rmb'), pg_temp.s3('p2'), pg_temp.s3d()), 'rows:1');
+select pg_temp.chk('admin_kb', 'GV không đăng ký dạy hai lớp cùng giờ',
+  format('insert into stem_registrations (org_id, teacher_id, class_id, room_id, period_id, on_date, topic) values (my_org_id(), %L, %L, %L, %L, %L, ''ISO đăng ký C'')',
+    pg_temp.s3('t2'), pg_temp.s3('c3'), pg_temp.s3('rma'), pg_temp.s3('p2'), pg_temp.s3d()), 'ERR 23P01');
+select pg_temp.chk('admin_kb', 'Tiết dạy bù trùng phòng bị chặn',
+  format('insert into teaching_sessions (org_id, class_id, teacher_id, period_id, room_id, session_date, subject, kind, is_makeup) values (my_org_id(), %L, %L, %L, %L, %L, ''ISO Toán bù'', ''stem'', true)',
+    pg_temp.s3('c3'), pg_temp.s3('t4'), pg_temp.s3('p2'), pg_temp.s3('rmb'), pg_temp.s3d()), 'ERR 23P01');
+select pg_temp.chk('admin_kb', 'Tiết dạy bù ở phòng trống thì được',
+  format('insert into teaching_sessions (org_id, class_id, teacher_id, period_id, room_id, session_date, subject, kind, is_makeup) values (my_org_id(), %L, %L, %L, %L, %L, ''ISO Toán bù'', ''stem'', true)',
+    pg_temp.s3('c3'), pg_temp.s3('t4'), pg_temp.s3('p2'), pg_temp.s3('rma'), pg_temp.s3d()), 'rows:1');
+select pg_temp.chk('admin_kb', 'Không ghi thẳng sổ giữ chỗ',
+  format('insert into resource_bookings (org_id, room_id, holder_id, during, source, source_id) values (my_org_id(), %L, %L, period_slot(%L, null), ''teaching_session'', gen_random_uuid())',
+    pg_temp.s3('rma'), pg_temp.s3('c3'), pg_temp.s3d() + 1), 'ERR');
+select pg_temp.chk('admin_kb', 'Chỗ trùng có sẵn được ghi lại, không chặn',
+  format('select count(*) from booking_conflicts where source_id = %L', pg_temp.s3('rb')), '1');
+
+-- Phạm vi đọc
+select pg_temp.chk('admin_ph', 'Trường khác không đọc sổ giữ chỗ trường B',
+  format('select count(*) from resource_bookings where org_id = %L', pg_temp.s3('org')), '0');
+select pg_temp.chk('admin_ph', 'Trường khác không đọc chỗ trùng trường B',
+  format('select count(*) from booking_conflicts where org_id = %L', pg_temp.s3('org')), '0');
+select pg_temp.chk('hs_kb', 'Học sinh không đọc sổ giữ chỗ', 'select count(*) from resource_bookings', '0');
+select pg_temp.chk('hs_kb', 'Học sinh không xem tổng hợp phòng STEM', 'select count(*) from room_overview(vn_today(), vn_today() + 7)', 'ERR');
+select pg_temp.chk('so_bn', 'Sở B: phòng STEM trường trực thuộc có lịch giữ',
+  format('select booked::text from room_overview(vn_today(), vn_today() + 7) where room_id = %L', pg_temp.s3('rmb')), '1');
+select pg_temp.chk('so_hy', 'Sở A không thấy phòng STEM trường tỉnh B',
+  format('select count(*) from room_overview(vn_today(), vn_today() + 7) where org_id = %L', pg_temp.s3('org')), '0');
+select pg_temp.chk('kdi', 'Nền tảng: phòng STEM toàn hệ thống', 'select count(*) from room_overview(vn_today() - 6, vn_today())', '>0');
+select pg_temp.chk('kdi', 'Nền tảng: thiết bị theo trường', 'select count(*) from equipment_overview()', '>0');
+select pg_temp.chk('so_hy', 'Sở A không thấy thiết bị trường tỉnh B',
+  format('select count(*) from equipment_overview() where org_id = %L', pg_temp.s3('org')), '0');
+
+-- Huỷ tiết đang giữ phòng → tiết đang chờ được xếp vào
+delete from stem_registrations where id = pg_temp.s3('ra');
+select pg_temp.chk('admin_kb', 'Huỷ lịch giữ phòng → lịch đang chờ được xếp vào',
+  format('select count(*) from resource_bookings where source_id = %L', pg_temp.s3('rb')), '1');
+select pg_temp.chk('admin_kb', 'Hết chỗ trùng sau khi xếp lại',
+  format('select count(*) from booking_conflicts where source_id = %L', pg_temp.s3('rb')), '0');
+
+-- Thiết bị: 2 dùng được (1 hỏng). Phiếu 1 mượn 2 đã duyệt → phiếu 2 cùng tiết không duyệt được; tiết khác thì được.
+do $$
+declare v_org uuid := pg_temp.s3('org'); v_type uuid := pg_temp.s3('type'); b1 uuid; b2 uuid; b3 uuid; r text;
+  items jsonb; d date := pg_temp.s3d();
+begin
+  perform set_config('app.approval_engine', 'on', true);
+  items := jsonb_build_array(jsonb_build_object('type_id', v_type, 'name', 'ISO Kính', 'qty', 2));
+  insert into borrow_requests (org_id, teacher_id, class_id, title, on_date, period_id, mode, item_list)
+    values (v_org, pg_temp.s3('t2'), pg_temp.s3('c1'), 'ISO mượn 1', d, pg_temp.s3('p2'), 'take_to_class', items) returning id into b1;
+  begin update borrow_requests set status = 'approved' where id = b1; r := 'ok'; exception when others then r := 'ERR ' || sqlstate; end;
+  insert into t_result (who, name, expect, got, ok) values ('(CSDL)', 'Duyệt phiếu mượn khi đủ thiết bị', 'ok', r, r = 'ok');
+  items := jsonb_build_array(jsonb_build_object('type_id', v_type, 'name', 'ISO Kính', 'qty', 1));
+  insert into borrow_requests (org_id, teacher_id, class_id, title, on_date, period_id, mode, item_list)
+    values (v_org, pg_temp.s3('t3'), pg_temp.s3('c3'), 'ISO mượn 2', d, pg_temp.s3('p2'), 'take_to_class', items) returning id into b2;
+  insert into t_result (who, name, expect, got, ok) values ('(CSDL)', 'GV vẫn gửi được phiếu khi thiếu (chờ duyệt)', 'pending',
+    (select status from borrow_requests where id = b2), (select status from borrow_requests where id = b2) = 'pending');
+  begin update borrow_requests set status = 'approved' where id = b2; r := 'ok'; exception when others then r := 'ERR ' || sqlstate; end;
+  insert into t_result (who, name, expect, got, ok) values ('(CSDL)', 'Không duyệt phiếu mượn khi hết thiết bị trong khung giờ', 'ERR 23P01', r, r = 'ERR 23P01');
+  insert into borrow_requests (org_id, teacher_id, class_id, title, on_date, period_id, mode, item_list)
+    values (v_org, pg_temp.s3('t3'), pg_temp.s3('c3'), 'ISO mượn 3', d, pg_temp.s3('p3'), 'take_to_class', items) returning id into b3;
+  begin update borrow_requests set status = 'approved' where id = b3; r := 'ok'; exception when others then r := 'ERR ' || sqlstate; end;
+  insert into t_result (who, name, expect, got, ok) values ('(CSDL)', 'Tiết khác vẫn duyệt được', 'ok', r, r = 'ok');
+  perform set_config('app.approval_engine', 'off', true);
+end $$;
+select pg_temp.chk('admin_kb', 'Còn trống theo khung giờ: dùng được 2, đã giữ 2, còn 0',
+  format('select usable || '':'' || held || '':'' || free from equipment_availability(%L, %L) where type_id = %L', pg_temp.s3d(), pg_temp.s3('p2'), pg_temp.s3('type')), '2:2:0');
+select pg_temp.chk('admin_ph', 'Trường khác không xem thiết bị còn trống của trường B',
+  format('select count(*) from equipment_availability(%L, null) where type_id = %L', pg_temp.s3d(), pg_temp.s3('type')), '0');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

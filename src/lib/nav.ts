@@ -21,11 +21,16 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { section: '3. Vật tư, thiết bị dạy & học', title: '3.1. Thiết bị, vật tư & kho', items: ['Thiết bị & vật tư', 'Kho & tồn kho', 'Mua hàng & đề xuất vật tư', 'Cấp phát & bàn giao', 'Kiểm kê', 'Vận chuyển vật tư', 'Bảo hành & bảo trì thiết bị'] },
     { section: '3. Vật tư, thiết bị dạy & học', title: '3.2. Phòng STEM & cơ sở vật chất', items: ['Tòa nhà, tầng & tiết học', 'Phòng STEM & lịch phòng', 'Hiệu quả sử dụng phòng STEM'] },
     { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.1. Nhà giáo, người học & lớp học', items: ['Cơ sở giáo dục', 'Nhà giáo & trợ giảng', 'Phân công giảng dạy', 'Người học', 'Công cụ người học & phụ huynh'] },
-    { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.2. Kế hoạch, lịch dạy & sự kiện', items: ['Thời khoá biểu & xếp lịch', 'Kế hoạch giáo dục toàn trường', 'Duyệt đăng ký dạy STEM', 'Sự kiện'] },
+    { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.2. Kế hoạch, lịch dạy & sự kiện', items: ['Thời khóa biểu & xếp lịch', 'Kế hoạch giáo dục toàn trường', 'Duyệt đăng ký dạy STEM', 'Sự kiện'] },
     { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.3. Buổi dạy & điểm danh', items: ['Buổi dạy & điểm danh'] },
     { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.4. Đánh giá & phản hồi', items: ['Đánh giá năng lực người học', 'Bài tập & chấm bài', 'Vấn đề & phản hồi'] },
-    { section: '5. Hệ thống quản lý vận hành', title: '5.1. Dashboard & báo cáo', items: ['Dashboard tổng hợp', 'Báo cáo vận hành', 'KPI & xếp hạng', 'Chỉ số STEM (STEM Index)', 'Báo cáo cấp trên (Bộ GD&ĐT)', 'Khảo sát'] },
+    { section: '5. Hệ thống quản lý vận hành', title: '5.1. Dashboard & báo cáo', items: ['Báo cáo vận hành', 'KPI & xếp hạng', 'Chỉ số STEM (STEM Index)', 'Báo cáo cấp trên (Bộ GD&ĐT)', 'Khảo sát', 'Dashboard tổng hợp'] },
     { section: '5. Hệ thống quản lý vận hành', title: '5.2. Điều hành & chỉ tiêu (Sở)', items: ['Điều hành toàn tỉnh', 'Điều hành & cấu hình (Sở)', 'Cảnh báo & trường cần chú ý', 'So sánh trường / địa bàn', 'Bộ chỉ số', 'Giao chỉ tiêu'] },
+    // 5.3–5.6: trường / Sở quản lý riêng phần của mình; phần chung toàn hệ thống vẫn ở Vận hành KDI, Lõi, Nền tảng kỹ thuật
+    { section: '5. Hệ thống quản lý vận hành', title: '5.3. Tích hợp & dữ liệu', items: ['Tích hợp & dữ liệu', 'Ứng dụng di động & ngoại tuyến', 'Sao lưu & xuất dữ liệu'] },
+    { section: '5. Hệ thống quản lý vận hành', title: '5.4. Khách hàng & thương mại', items: ['Thông tin khách hàng', 'Gói dịch vụ & hợp đồng'] },
+    { section: '5. Hệ thống quản lý vận hành', title: '5.5. Tổ chức, tài khoản & phân quyền', items: ['Tổ chức & phân quyền'] },
+    { section: '5. Hệ thống quản lý vận hành', title: '5.6. Quản trị nền tảng', items: ['Giao diện & thương hiệu', 'Trợ lý AI', 'Nhật ký hoạt động', 'Lộ trình triển khai', 'Bảo mật tài khoản', 'Cấu hình chung (kỳ học...)'] },
   ],
   school_admin: [
     { title: 'Tổng quan', items: ['Dashboard Trường', 'Hồ sơ Trường học'] },

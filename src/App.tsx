@@ -206,20 +206,25 @@ const PLATFORM: PageMap = {
   'Phòng STEM & lịch phòng': RoomsOverview,
   'Hiệu quả sử dụng phòng STEM': DeptRoomEffect,
   // 4. Vận hành giảng dạy & đánh giá người học
-  'Thời khoá biểu & xếp lịch': TimetableOverview,
+  'Thời khóa biểu & xếp lịch': TimetableOverview,
   'Buổi dạy & điểm danh': AttendanceDashboard,
   // 5. Hệ thống quản lý vận hành
   'Báo cáo vận hành': DeptDashboard,
   'KPI & xếp hạng': DeptWardKpi,
   'Báo cáo cấp trên (Bộ GD&ĐT)': DeptReports,
   'Điều hành & cấu hình (Sở)': DeptAdmin,
+  // 5.5–5.6: tên theo file rà soát, dùng lại màn chung
+  'Tổ chức & phân quyền': (p: any) => <TabbedPages {...p} tabs={[['Cây tổ chức', PlatformOrgs], ['Người dùng & vai trò', PlatformUsers], ['Lời mời', PlatformInvites]]} />,
+  'Nhật ký hoạt động': PlatformAudit,
+  'Lộ trình triển khai': PlatformRollout,
+  'Cấu hình chung (kỳ học...)': DeptAdmin,
 }
 const PLATFORM_LIVE = new Set(Object.keys(PLATFORM))
 PLATFORM['Sơ đồ hệ thống'] = (p: any) => <SystemMap {...p} live={PLATFORM_LIVE} />
 // Tên trang cũ (liên kết nội bộ của trang Sở) → tên trong menu Quản trị nền tảng
 const PLATFORM_ALIAS: Record<string, string> = {
   'KPI & Xếp hạng Xã/Phường': 'KPI & xếp hạng', 'Thiết bị & kho': 'Thiết bị & vật tư', 'Hiệu quả Phòng STEM': 'Hiệu quả sử dụng phòng STEM',
-  'Dashboard điểm danh': 'Buổi dạy & điểm danh',
+  'Dashboard điểm danh': 'Buổi dạy & điểm danh', 'Thời khoá biểu & xếp lịch': 'Thời khóa biểu & xếp lịch',
 }
 const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM }
 

@@ -156,7 +156,7 @@ export function PlannedPage({ name }: { name: string }) {
   const cfg = PLANNED[name] ?? PLANNED[ALIAS[name] ?? '']
   const [tab, setTab] = useState('0')
   const [q, setQ] = useState('')
-  if (name === 'Thời khoá biểu & xếp lịch') return <TimetableMock />
+  if (name === 'Thời khóa biểu & xếp lịch') return <TimetableMock />
   if (!cfg) return <><Notice /><p className="sub">{DESC[name] ?? 'Màn hình này sẽ được xây dựng ở bước tiếp theo.'}</p></>
   const rows = cfg.rows.filter(r => !q || r.join(' ').toLowerCase().includes(q.toLowerCase()))
   return (

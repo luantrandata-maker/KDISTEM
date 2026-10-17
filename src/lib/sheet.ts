@@ -65,5 +65,5 @@ export async function downloadXlsx(fileName: string, columns: Column[], rows: (s
 
 // Tóm tắt kết quả nhập để hiện cho người dùng
 export function importSummary(ok: number, noun: string, bad: string[]) {
-  return `Đã nhập ${ok} ${noun}.` + (bad.length ? ` Bỏ qua ${bad.length} dòng: ${bad.slice(0, 4).join('; ')}${bad.length > 4 ? '…' : ''}` : '')
+  return `Đã nhập ${ok} ${noun}.` + (bad.length ? ` Bỏ qua ${bad.length} dòng: ${bad.slice(0, 4).join('; ')}${bad.length > 4 ? '…' : '.'}` : '')
 }

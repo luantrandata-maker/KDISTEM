@@ -67,7 +67,7 @@ export default function Classes({ orgId, year, years = [] }: { orgId: string; ye
     const tByName = new Map<string, string | null>()
     teachers.forEach(t => { const k = norm(t.full_name); tByName.set(k, tByName.has(k) ? null : t.id) })   // trùng tên → không tự gán
     const tByEmail = new Map(teachers.filter(t => t.email).map(t => [t.email!.toLowerCase(), t.id]))
-    const bad: string[] = []; let created = 0, updated = 0; const seen = new Set<string>()
+    const bad: string[] = []; const warn: string[] = []; let created = 0, updated = 0; const seen = new Set<string>()
     for (const r of recs) {
       const name = r.name.trim(); const k = norm(name)
       if (!name) { bad.push(`dòng ${r._line}: thiếu tên lớp`); continue }
@@ -78,7 +78,7 @@ export default function Classes({ orgId, year, years = [] }: { orgId: string; ye
       let hid: string | null | undefined
       if (r.gvcn.trim()) {
         hid = r.gvcn.includes('@') ? tByEmail.get(r.gvcn.trim().toLowerCase()) : tByName.get(norm(r.gvcn))
-        if (!hid) { bad.push(`dòng ${r._line}: không tìm thấy (hoặc trùng tên) GVCN "${r.gvcn}" — lớp vẫn được nhập`); hid = undefined }
+        if (!hid) { warn.push(`${name}: không tìm thấy (hoặc trùng tên) GVCN "${r.gvcn}"`); hid = undefined }
       }
       const progs = progList(r.programs)
       const old = byName.get(k)
@@ -101,6 +101,7 @@ export default function Classes({ orgId, year, years = [] }: { orgId: string; ye
     }
     load()
     return importSummary(created, 'lớp mới', bad) + (updated ? ` Cập nhật ${updated} lớp đã có.` : '')
+      + (warn.length ? ` Chưa gán GVCN: ${warn.slice(0, 4).join('; ')}${warn.length > 4 ? '…' : ''}.` : '')
   }
   async function exportXlsx() {
     await downloadXlsx('danh-sach-lop', [...COLS, { key: 'n', label: 'Sĩ số' }],

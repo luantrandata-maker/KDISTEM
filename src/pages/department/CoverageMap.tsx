@@ -166,6 +166,12 @@ export default function CoverageMap({ schools, nation = false }: { schools: Scho
   const missingLoc = schools.filter(s => locs[s.school_id] && locs[s.school_id].lat == null)
   const noun = atNation ? 'tỉnh/thành' : 'xã/phường'
 
+  // Đặt khung nhìn và nhớ lại để vẽ lại đúng chỗ khi khung bản đồ đổi kích thước
+  const fitRef = useRef<{ b: L.LatLngBounds, o: L.FitBoundsOptions } | null>(null)
+  const fit = (m: L.Map, b: L.LatLngBounds, unit: boolean) => {
+    const o: L.FitBoundsOptions = unit ? { padding: [30, 30], maxZoom: 13 } : { padding: [6, 6] }
+    fitRef.current = { b, o }; m.fitBounds(b, o)
+  }
   // Bản đồ: tạo một lần (tạo lại khi đổi Danh sách → Bản đồ)
   useEffect(() => {
     if (!box.current || map.current || view !== 'map') return
@@ -175,7 +181,12 @@ export default function CoverageMap({ schools, nation = false }: { schools: Scho
     dotLayer.current = L.layerGroup().addTo(m)
     labelLayer.current = L.layerGroup().addTo(m)
     map.current = m
-    return () => { m.remove(); map.current = null; unitLayer.current = null }
+    // Khung bản đồ giãn theo cột bên phải: đổi kích thước thì vẽ lại và giữ khung nhìn đang xem
+    let t = 0
+    const ro = new ResizeObserver(() => { clearTimeout(t); t = window.setTimeout(() => {
+      m.invalidateSize(); if (fitRef.current) m.fitBounds(fitRef.current.b, fitRef.current.o) }, 60) })
+    ro.observe(box.current)
+    return () => { ro.disconnect(); clearTimeout(t); m.remove(); map.current = null; unitLayer.current = null }
   }, [view])
 
   // Vẽ / tô lại đơn vị (tỉnh hoặc xã/phường)
@@ -199,7 +210,7 @@ export default function CoverageMap({ schools, nation = false }: { schools: Scho
           click: e => {
             if (placingRef.current) return
             if (atNation) { const p = index.find(x => x.code === f.properties.code); if (p) openProvince(p); else setNote(`Chưa có ranh giới xã/phường của ${f.properties.name}.`); return }
-            setSel(f.properties.code); setTab('overview'); m.fitBounds((e.target as L.Polygon).getBounds(), { padding: [30, 30], maxZoom: 13 })
+            setSel(f.properties.code); setTab('overview'); fit(m, (e.target as L.Polygon).getBounds(), true)
           },
         })
       },
@@ -212,8 +223,7 @@ export default function CoverageMap({ schools, nation = false }: { schools: Scho
     // Luôn đặt khung nhìn (bản đồ vừa tạo lại chưa có khung nhìn thì không vẽ gì)
     let target: L.LatLngBounds | null = null
     if (sel) layer.eachLayer(l => { if ((l as any).feature?.properties.code === sel) target = (l as L.Polygon).getBounds() })
-    if (target) m.fitBounds(target, { padding: [30, 30], maxZoom: 13 })
-    else m.fitBounds(layer.getBounds(), { padding: [12, 12] })
+    fit(m, target ?? layer.getBounds(), !!target)
   }, [unitGeo, umap, sel, view, atNation, index])
 
   // Chấm trường của xã/phường đang chọn
@@ -268,8 +278,8 @@ export default function CoverageMap({ schools, nation = false }: { schools: Scho
     setSel(code)
     const m = map.current, lyr = unitLayer.current
     if (!m || !lyr) return
-    if (!code) return m.fitBounds(lyr.getBounds(), { padding: [12, 12] })
-    lyr.eachLayer(l => { if ((l as any).feature?.properties.code === code) m.fitBounds((l as L.Polygon).getBounds(), { padding: [30, 30], maxZoom: 13 }) })
+    if (!code) return fit(m, lyr.getBounds(), false)
+    lyr.eachLayer(l => { if ((l as any).feature?.properties.code === code) fit(m, (l as L.Polygon).getBounds(), true) })
   }
   // Tên đầy đủ lấy từ dữ liệu ranh giới (Tỉnh/Thành phố), không ghi cứng — từ 20/9/2026 có 9 TP trực thuộc TW
   const title = atNation ? 'Tổng quan cả nước' : prov ? `Tổng quan ${(prov.fullName ?? prov.name).replace(/^Tỉnh /, 'tỉnh ').replace(/^Thành phố /, 'TP ')}` : 'Tổng quan'

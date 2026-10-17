@@ -704,14 +704,14 @@ table.permtable{table-layout:fixed}table.permtable th:first-child{width:34%}tabl
 .covgrp{display:flex;align-items:center;gap:8px}.covgrp > small{color:var(--muted)}
 .covbar .segmented button{padding:6px 11px;font-size:13px}
 .covview{margin-left:auto}
-.covgrid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12px;align-items:start}
+.covgrid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12px;align-items:stretch}
 @media (max-width:1100px){.covgrid{grid-template-columns:minmax(0,1fr)}}
-.covmain{display:grid;gap:8px;min-width:0}
+.covmain{display:flex;flex-direction:column;gap:8px;min-width:0}
 .covlegend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:12.5px}
 .covlegend span{display:inline-flex;align-items:center;gap:6px}
 .covlegend i{width:12px;height:12px;border-radius:3px;border:1px solid}
 .covcount{margin-left:auto;color:var(--muted)}
-.covmap{height:560px;border:1px solid var(--line);border-radius:12px;overflow:hidden;z-index:0;background:#eef3f8}
+.covmap{flex:1 1 auto;min-height:520px;border:1px solid var(--line);border-radius:12px;overflow:hidden;z-index:0;background:#eef3f8}
 .covmap.placing,.covmap.placing .leaflet-interactive{cursor:crosshair}
 .covmap:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
 .covhint{margin:0;font-size:12.5px}
@@ -738,7 +738,8 @@ table.permtable{table-layout:fixed}table.permtable th:first-child{width:34%}tabl
 .leaflet-tooltip{font-family:inherit;font-size:12.5px;line-height:1.45;color:var(--text);border-radius:8px}
 .covbar .segmented,.covside .segmented{margin:0}
 .covmap.leaflet-container{background:#eef3f8}
-.covmap.nation{height:640px}
+.covmap.nation{min-height:600px}
+@media (max-width:1100px){.covmap{min-height:440px}.covmap.nation{min-height:480px}}
 .covcrumb{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13.5px}.covcrumb span{color:var(--muted)}
 .islandlabel{font-size:11px;font-weight:600;line-height:1.25;color:#0b2a52;text-align:center;white-space:nowrap;pointer-events:none}
 .islandlabel small{font-weight:400;color:var(--muted)}

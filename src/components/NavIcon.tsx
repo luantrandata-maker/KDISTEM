@@ -18,7 +18,7 @@ const P: Record<string, string> = {
 }
 const RULES: [RegExp, string][] = [
   [/tổng quan/i, 'grid'], [/vận hành kdi|khách hàng|thương mại/i, 'briefcase'], [/lõi|tổ chức|quản trị$/i, 'org'],
-  [/nền tảng kỹ thuật|tích hợp/i, 'server'], [/đào tạo|tập huấn/i, 'cap'], [/chương trình|học liệu|soạn giảng|học tập/i, 'book'],
+  [/kỹ thuật|tích hợp/i, 'server'], [/đào tạo|tập huấn/i, 'cap'], [/chương trình|học liệu|soạn giảng|học tập/i, 'book'],
   [/vật tư|thiết bị|phòng/i, 'box'], [/giảng dạy|kế hoạch|tkb|lịch/i, 'calendar'], [/báo cáo|điều hành|quản lý vận hành|theo dõi/i, 'chart'],
   [/phê duyệt/i, 'check'], [/mua sắm|gói/i, 'cart'], [/nhân sự|giáo viên/i, 'users'], [/stem|hoạt động/i, 'flask'], [/khai báo|cấu hình|khác/i, 'settings'],
 ]

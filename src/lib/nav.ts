@@ -8,13 +8,13 @@ export const ROLE_LABEL: Record<RoleKey, string> = {
 }
 
 export const NAV: Record<RoleKey, NavGroup[]> = {
-  // Cổng Quản trị nền tảng (16/10): Tổng quan · Vận hành KDI · Lõi · Nền tảng kỹ thuật · 5 phân hệ nghiệp vụ (đơn vị bán).
+  // Cổng Quản trị nền tảng (16/10): Tổng quan · Vận hành KDI · Lõi · Quản trị chung · Kỹ thuật & bảo mật · 5 phân hệ nghiệp vụ (đơn vị bán).
   // Mục chưa có trang thật hiện khung giao diện (pages/platform/Planned.tsx).
   platform: [
     { title: 'Tổng quan', items: ['Tổng quan hệ thống', 'Sơ đồ hệ thống', 'Thuật ngữ chuẩn'] },
     { title: 'Vận hành KDI', items: ['Thông tin khách hàng', 'Gói dịch vụ & hợp đồng', 'Đơn đặt gói STEM', 'Triển khai khách hàng', 'Vấn đề & phản hồi', 'Nghiệm thu & doanh thu'] },
     { title: 'Lõi · Tổ chức & quy trình', items: ['Cây tổ chức', 'Cơ sở triển khai', 'Người dùng & vai trò', 'Lời mời', 'Hộp phê duyệt', 'Quy trình phê duyệt', 'Thông báo'] },
-    { title: 'Nền tảng kỹ thuật', items: ['Tích hợp & dữ liệu', 'Ứng dụng di động & ngoại tuyến', 'Sao lưu & xuất dữ liệu', 'Bảo mật tài khoản', 'Nhật ký hệ thống', 'Cấu hình chung (năm học)', 'Giao diện & thương hiệu', 'Trợ lý AI'] },
+    { title: 'Quản trị chung · Kỹ thuật & bảo mật', items: ['Tích hợp & dữ liệu', 'Ứng dụng di động & ngoại tuyến', 'Sao lưu & xuất dữ liệu', 'Bảo mật tài khoản', 'Nhật ký hệ thống', 'Cấu hình chung (năm học)', 'Giao diện & thương hiệu', 'Trợ lý AI'] },
     // 5 phân hệ nghiệp vụ theo file rà soát menu (16/10, "Menu_STEM_ra_soat_chinh_sua.xlsx")
     { title: '1. Đào tạo & đánh giá năng lực nhà giáo', items: ['Đánh giá năng lực giáo viên', 'Kế hoạch tập huấn', 'Lịch tập huấn', 'Bài giảng tập huấn & lớp học ảo', 'Chứng chỉ tập huấn', 'Giám sát tập huấn nhà giáo'] },
     { title: '2. Chương trình & học liệu', items: ['Chương trình giáo dục', 'Học liệu', 'Phân phối chương trình', 'Soạn bài giảng & kho hoạt động', 'Theo dõi chương trình CT1–CT5 (Môn học)', 'E-learning & luyện thi'] },
@@ -26,7 +26,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.4. Đánh giá & phản hồi', items: ['Đánh giá năng lực người học', 'Bài tập & chấm bài', 'Vấn đề & phản hồi'] },
     { section: '5. Hệ thống quản lý vận hành', title: '5.1. Dashboard & báo cáo', items: ['Báo cáo vận hành', 'KPI & xếp hạng', 'Chỉ số STEM (STEM Index)', 'Báo cáo cấp trên (Bộ GD&ĐT)', 'Khảo sát', 'Dashboard tổng hợp'] },
     { section: '5. Hệ thống quản lý vận hành', title: '5.2. Điều hành & chỉ tiêu (Sở)', items: ['Điều hành toàn tỉnh', 'Điều hành & cấu hình (Sở)', 'Cảnh báo & trường cần chú ý', 'So sánh trường / địa bàn', 'Bộ chỉ số', 'Giao chỉ tiêu'] },
-    // 5.3–5.6: trường / Sở quản lý riêng phần của mình; phần chung toàn hệ thống vẫn ở Vận hành KDI, Lõi, Nền tảng kỹ thuật
+    // 5.3–5.6: trường / Sở quản lý riêng phần của mình; phần chung toàn hệ thống vẫn ở Vận hành KDI, Lõi, Quản trị chung · Kỹ thuật & bảo mật
     { section: '5. Hệ thống quản lý vận hành', title: '5.3. Tích hợp & dữ liệu', items: ['Tích hợp & dữ liệu', 'Ứng dụng di động & ngoại tuyến', 'Sao lưu & xuất dữ liệu'] },
     { section: '5. Hệ thống quản lý vận hành', title: '5.4. Khách hàng & thương mại', items: ['Thông tin khách hàng', 'Gói dịch vụ & hợp đồng'] },
     { section: '5. Hệ thống quản lý vận hành', title: '5.5. Tổ chức, tài khoản & phân quyền', items: ['Tổ chức & phân quyền'] },

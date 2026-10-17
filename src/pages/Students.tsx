@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { myOrgId } from '../lib/org'
 import ImportExcel from '../components/ImportExcel'
+import { type Year, sameSchoolYear } from '../lib/year'
 import { norm, importSummary, downloadXlsx, type Column } from '../lib/sheet'
 
 const COLS: Column[] = [
@@ -13,9 +14,9 @@ const COLS: Column[] = [
 type St = { id: string; full_name: string; student_code: string | null; class_id: string | null; status: string; classes: { name: string; grade: number } | null }
 const STATUS: Record<string, string> = { studying: 'Đang học', transferred: 'Chuyển trường', graduated: 'Đã tốt nghiệp' }
 const PAGE = 20
-type Cls = { id: string; name: string }
+type Cls = { id: string; name: string; year_id: string | null }
 
-export default function Students() {
+export default function Students({ year, years = [] }: { year?: Year | null; years?: Year[] }) {
   const [rows, setRows] = useState<St[]>([])
   const [classes, setClasses] = useState<Cls[]>([])
   const [cls, setCls] = useState('')
@@ -27,7 +28,7 @@ export default function Students() {
   async function load() {
     const [s, c] = await Promise.all([
       supabase.from('students').select('id, full_name, student_code, class_id, status, classes(name, grade)').order('student_code'),
-      supabase.from('classes').select('id, name').order('name'),
+      supabase.from('classes').select('id, name, year_id').order('name'),
     ])
     setRows((s.data as unknown as St[]) ?? []); setClasses((c.data as Cls[]) ?? [])
   }
@@ -41,20 +42,43 @@ export default function Students() {
     setForm(null); setErr(''); load()
   }
   async function importRecords(recs: (Record<string, string> & { _line: number })[]) {
-    const byName = new Map(classes.map(c => [norm(c.name), c.id]))
-    const byShort = new Map(classes.map(c => [norm(c.name.replace(/^lớp\s*/i, '')), c.id]))
-    const existing = new Set(rows.map(r => r.student_code).filter(Boolean))
-    const org = await myOrgId(); const bad: string[] = []
-    const list = recs.flatMap(r => {
-      const cid = byName.get(norm(r.cls)) ?? byShort.get(norm(r.cls.replace(/^lớp\s*/i, '')))
-      if (!r.name) { bad.push(`dòng ${r._line}: thiếu họ tên`); return [] }
-      if (!cid) { bad.push(`dòng ${r._line}: không có lớp "${r.cls}"`); return [] }
-      if (r.code && existing.has(r.code)) { bad.push(`dòng ${r._line}: mã ${r.code} đã có`); return [] }
-      if (r.code) existing.add(r.code)
-      return [{ org_id: org, student_code: r.code || null, full_name: r.name, class_id: cid }]
-    })
+    // Lớp của năm học đang chọn được ưu tiên khi trùng tên với lớp năm cũ
+    const short = (n: string) => norm(n.replace(/^lớp\s*/i, ''))
+    const ordered = [...classes.filter(c => !sameSchoolYear(years, c.year_id, year ?? null)), ...classes.filter(c => sameSchoolYear(years, c.year_id, year ?? null))]
+    const byName = new Map(ordered.map(c => [short(c.name), c.id]))
+    const byCode = new Map(rows.filter(r => r.student_code).map(r => [r.student_code!, r]))
+    const org = await myOrgId(); const bad: string[] = []; const newCls: string[] = []; let moved = 0
+    // Lớp chưa có: tạo trong năm học đang chọn (khối lấy từ tên lớp, vd 6A1 → 6)
+    for (const r of recs) {
+      const k = short(r.cls ?? '')
+      if (!k || byName.has(k)) continue
+      const m = r.cls.match(/(\d{1,2})/); const grade = m ? Number(m[1]) : NaN
+      if (!(grade >= 1 && grade <= 12)) continue
+      const { data, error } = await supabase.from('classes').insert({ org_id: org, year_id: year?.id ?? null, name: r.cls.trim(), grade }).select('id').single()
+      if (!error && data) { byName.set(k, data.id); newCls.push(r.cls.trim()) }
+    }
+    const seen = new Set<string>()
+    const list: { org_id: string; student_code: string | null; full_name: string; class_id: string }[] = []
+    for (const r of recs) {
+      const cid = byName.get(short(r.cls ?? ''))
+      if (!r.name) { bad.push(`dòng ${r._line}: thiếu họ tên`); continue }
+      if (!cid) { bad.push(`dòng ${r._line}: không có lớp "${r.cls}" (không rõ khối để tạo)`); continue }
+      if (r.code && seen.has(r.code)) { bad.push(`dòng ${r._line}: mã ${r.code} lặp lại trong file`); continue }
+      if (r.code) seen.add(r.code)
+      const old = r.code ? byCode.get(r.code) : undefined
+      if (old) {   // HS đã có (cùng mã): cập nhật họ tên, lớp — dùng khi lên lớp đầu năm
+        if (old.class_id !== cid || old.full_name !== r.name) {
+          const { error } = await supabase.from('students').update({ full_name: r.name, class_id: cid }).eq('id', old.id)
+          if (error) bad.push(`dòng ${r._line}: ${error.message}`); else moved++
+        }
+        continue
+      }
+      list.push({ org_id: org, student_code: r.code || null, full_name: r.name, class_id: cid })
+    }
     if (list.length) { const { error } = await supabase.from('students').insert(list); if (error) return 'Không nhập được: ' + error.message }
-    load(); return importSummary(list.length, 'học sinh', bad)
+    load()
+    return importSummary(list.length, 'học sinh mới', bad) + (moved ? ` Cập nhật lớp/họ tên ${moved} học sinh đã có.` : '')
+      + (newCls.length ? ` Đã tạo ${newCls.length} lớp mới: ${newCls.slice(0, 6).join(', ')}${newCls.length > 6 ? '…' : ''}.` : '')
   }
   async function exportXlsx() {
     await downloadXlsx('danh-sach-hoc-sinh', [...COLS, { key: 'st', label: 'Trạng thái' }],

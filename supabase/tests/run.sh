@@ -7,6 +7,8 @@
 set -euo pipefail
 DB=${1:-lms_test}
 DIR=$(cd "$(dirname "$0")/.." && pwd)
+# Trong GitHub Actions: in lỗi thành annotation (đọc được qua API, không cần mở log).
+ann() { if [ -n "${GITHUB_ACTIONS:-}" ]; then printf '::error title=%s::%s\n' "$1" "$(printf '%s' "$2" | tr '\n' ' ' | cut -c1-900)"; fi; }
 
 build() { # build <csdl> <cờ seed: on|off>
   local db=$1 seed=$2
@@ -14,8 +16,10 @@ build() { # build <csdl> <cờ seed: on|off>
   local P="psql -v ON_ERROR_STOP=1 -q -d $db"
   $P -f "$DIR/tests/auth_stub.sql"
   for f in "$DIR"/migrations/*.sql; do
-    PGOPTIONS="-c app.seed_demo=$seed" $P -f "$f" > /dev/null 2>&1 \
-      || { echo "Lỗi khi chạy $(basename "$f") (seed=$seed)"; PGOPTIONS="-c app.seed_demo=$seed" $P -f "$f"; exit 1; }
+    if ! ERR=$(PGOPTIONS="-c app.seed_demo=$seed" $P -f "$f" 2>&1 > /dev/null); then
+      echo "Lỗi khi chạy $(basename "$f") (seed=$seed)"; echo "$ERR" | grep -v NOTICE
+      ann "migration $(basename "$f") seed=$seed" "$(echo "$ERR" | grep -v NOTICE | tail -5)"; exit 1
+    fi
   done
   echo "ok $(ls "$DIR"/migrations/*.sql | wc -l) migration (seed=$seed)"
 }
@@ -23,13 +27,17 @@ build() { # build <csdl> <cờ seed: on|off>
 # 1. Production: không có dữ liệu mẫu
 build "${DB}_clean" off
 CLEAN=$(psql -v ON_ERROR_STOP=1 -q -d "${DB}_clean" -f "$DIR/tests/clean_check.sql" 2>&1) \
-  || { echo "$CLEAN" | grep -oE 'CLEAN FAIL.*'; exit 1; }
+  || { echo "$CLEAN" | grep -oE 'CLEAN FAIL.*'; ann "clean_check" "$(echo "$CLEAN" | grep -v NOTICE | tail -3)"; exit 1; }
 echo "$CLEAN" | grep -oE 'CLEAN PASS'
 psql -q -d postgres -c "drop database if exists ${DB}_clean with (force)"
 
 # 2. Demo: có dữ liệu mẫu + kiểm thử cách ly
 build "$DB" on
-OUT=$(psql -v ON_ERROR_STOP=1 -q -d "$DB" -At -f "$DIR/tests/isolation_test.sql")
+if ! OUT=$(psql -v ON_ERROR_STOP=1 -q -d "$DB" -At -f "$DIR/tests/isolation_test.sql" 2>&1); then
+  echo "$OUT" | grep -v NOTICE | tail -10
+  ann "isolation_test.sql lỗi SQL" "$(echo "$OUT" | grep -v NOTICE | grep -iE 'error|psql:' | tail -3)"; exit 1
+fi
 echo "$OUT" | grep -E '^(PASS|FAIL) [0-9]+/[0-9]+$'
 echo "$OUT" | grep '|FAIL|' || true
+echo "$OUT" | grep '|FAIL|' | head -10 | while IFS= read -r l; do ann "phép thử đỏ" "$l"; done
 echo "$OUT" | grep -qE '^PASS [0-9]+/[0-9]+$'

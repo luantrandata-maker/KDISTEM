@@ -698,16 +698,43 @@ table.permtable{table-layout:fixed}table.permtable th:first-child{width:34%}tabl
 .lockedmod h2{margin:0;font-size:18px}
 .lockedmod p{margin:0}
 
-/* Bản đồ độ phủ STEM (Dashboard toàn Sở) */
-.stemmap{height:440px;border:1px solid var(--line);border-radius:12px;overflow:hidden;z-index:0;background:var(--soft)}
-.stemmap.placing,.stemmap.placing .leaflet-interactive{cursor:crosshair}
-.stemmap:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
-.maplegend{display:flex;flex-wrap:wrap;align-items:center;gap:8px 24px;margin-top:10px}
-.maplegend .heatlegend{margin:0}
-.sizelegend{display:flex;align-items:center;gap:6px}
-.sizelegend i{display:inline-block;flex:none;border-radius:50%;border:1.5px solid #0b2a52;background:#86b6ef}
-.maplegend small{color:var(--muted)}
-.mapcount{margin-left:auto}
-.mapmissing{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;background:var(--soft)}
-.mapnote{margin:6px 0 0}
+/* Bản đồ độ phủ STEM theo xã/phường (Dashboard toàn Sở, CoverageMap) */
+.covwrap{display:grid;gap:12px;margin-bottom:16px}
+.covbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px}
+.covgrp{display:flex;align-items:center;gap:8px}.covgrp > small{color:var(--muted)}
+.covbar .segmented button{padding:6px 11px;font-size:13px}
+.covview{margin-left:auto}
+.covgrid{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:12px;align-items:start}
+@media (max-width:1100px){.covgrid{grid-template-columns:minmax(0,1fr)}}
+.covmain{display:grid;gap:8px;min-width:0}
+.covlegend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:12.5px}
+.covlegend span{display:inline-flex;align-items:center;gap:6px}
+.covlegend i{width:12px;height:12px;border-radius:3px;border:1px solid}
+.covcount{margin-left:auto;color:var(--muted)}
+.covmap{height:560px;border:1px solid var(--line);border-radius:12px;overflow:hidden;z-index:0;background:#eef3f8}
+.covmap.placing,.covmap.placing .leaflet-interactive{cursor:crosshair}
+.covmap:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.covhint{margin:0;font-size:12.5px}
+.covside{display:grid;gap:10px;align-content:start}
+.covside h3{margin:0}.covside h4{margin:6px 0 0;font-size:13px}.covside > .sub{margin:0}
+.covtabs{justify-self:start}.covtabs button{padding:6px 12px}
+.covbadge{display:inline-block;margin-left:4px;padding:0 6px;border-radius:999px;background:#fbe4e4;color:#a11d1d;font-size:11px}
+.covtiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.covtiles > div{display:grid;gap:2px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
+.covtiles b{font-size:22px;color:var(--navy)}.covtiles small{color:var(--muted);font-size:11.5px}
+.covrow{display:grid;grid-template-columns:72px minmax(0,1fr) 64px;gap:8px;align-items:center;font-size:12.5px}
+.covrow small{text-align:right;color:var(--muted)}
+.covtrack{height:8px;border-radius:4px;background:var(--soft);overflow:hidden}.covtrack i{display:block;height:100%;border-radius:4px;background:var(--primary)}
+.covrule{display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px;font-size:12px}
+.covrule span{display:inline-flex;align-items:center;gap:6px;font-weight:600}.covrule i{width:10px;height:10px;border-radius:50%}.covrule small{color:var(--muted)}
+.covlist{display:grid;gap:4px;max-height:520px;overflow:auto}
+.covlist > div,.covlist > button{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);text-align:left;font:inherit;color:inherit}
+.covlist > button{cursor:pointer}.covlist > button:hover{background:var(--soft)}
+.covlist small{color:var(--muted)}
+.lvpill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:600;white-space:nowrap}
+.covtable{width:100%;border-collapse:collapse;font-size:13px}.covtable th,.covtable td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left}
+.covtable th{color:var(--muted);font-weight:600}
+.mapmissing{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;background:var(--soft)}
 .leaflet-tooltip{font-family:inherit;font-size:12.5px;line-height:1.45;color:var(--text);border-radius:8px}
+.covbar .segmented,.covside .segmented{margin:0}
+.covmap.leaflet-container{background:#eef3f8}

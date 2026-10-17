@@ -6,7 +6,7 @@ import { useDeptStats, byWard, grade, pct, avg, sum, nf, LEVEL, PROGRAMS, PROGRA
 import { Tiles, GradePill, Columns, HBars, DataTable, rampColor, rampInk } from './charts'
 
 // Bản đồ (Leaflet) tải lười để các màn khác của Sở không nặng thêm
-const SchoolMap = lazy(() => import('./SchoolMap'))
+const CoverageMap = lazy(() => import('./CoverageMap'))
 
 const Loading = ({ err }: { err?: string }) => <p className="sub">{err ? 'Không tải được số liệu: ' + err : 'Đang tổng hợp số liệu các trường…'}</p>
 const short = (n: string) => n.replace(/^Trường\s+/, '').replace('Tiểu học', 'TH')
@@ -36,7 +36,7 @@ export function DeptDashboard({ go }: { go?: (p: string) => void }) {
         { label: 'Tiết STEM / tuần', value: nf(sum(schools.map(s => s.stem_periods))), sub: 'học kỳ hiện tại' },
         { label: 'KPI trung bình', value: Math.round(avg(schools.map(s => s.kpi))), sub: `${schools.filter(s => s.kpi < 45).length} trường chưa đạt` },
       ]} />
-      <Suspense fallback={<div className="panel"><p className="sub">Đang tải bản đồ…</p></div>}><SchoolMap schools={schools} /></Suspense>
+      <Suspense fallback={<div className="panel"><p className="sub">Đang tải bản đồ…</p></div>}><CoverageMap schools={schools} /></Suspense>
       <div className="panel">
         <div className="bar">
           <h3>Bản đồ nhiệt trường</h3>

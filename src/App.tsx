@@ -84,6 +84,7 @@ const PlatformBroadcast = lazy(() => import('./pages/platform/Broadcast').then(m
 const PlatformIntegrations = lazy(() => import('./pages/platform/Integrations').then(m => ({ default: m.PlatformIntegrations })))
 // S3 (029): phòng STEM & lịch phòng, thiết bị toàn hệ thống
 const RoomsOverview = lazy(() => import('./pages/platform/Resources').then(m => ({ default: m.RoomsOverview })))
+const PlatformSchools = lazy(() => import('./pages/platform/Schools').then(m => ({ default: m.PlatformSchools })))
 const EquipmentOverview = lazy(() => import('./pages/platform/Resources').then(m => ({ default: m.EquipmentOverview })))
 const CustomerSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.CustomerSupport })))
 
@@ -186,6 +187,7 @@ const PLATFORM: PageMap = {
   'Quy trình phê duyệt': ApprovalWorkflows,
   'Thông báo': PlatformBroadcast,
   'Cơ sở giáo dục': DeptSchools,
+  'Cơ sở triển khai': PlatformSchools,
   'Bảo mật tài khoản': PlatformSecurity,
   'Vấn đề & phản hồi': PlatformSupport,
   'Thông tin khách hàng': PlatformCustomers,

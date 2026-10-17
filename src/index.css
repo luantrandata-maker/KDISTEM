@@ -626,3 +626,15 @@ tr.muted td{color:var(--muted)}
 .usersec button small{color:var(--muted);font-weight:400}
 .usersec select{margin:0 10px 4px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit}
 @media (max-width:900px){.top .title,.userbtn .who,.topsearch kbd{display:none}.topsearch{flex:1 1 auto}}
+
+/* Cơ sở triển khai (032) */
+tr.rowlink{cursor:pointer}tr.rowlink:hover td{background:#f5f9ff}tr.rowlink:focus-visible{outline:2px solid var(--primary);outline-offset:-2px}
+dl.kv{display:grid;grid-template-columns:200px 1fr;gap:8px 16px;margin:0}
+dl.kv dt{color:var(--muted)}dl.kv dd{margin:0}
+.trendbars{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:10px;align-items:end}
+.trendbars>div{display:grid;gap:2px;justify-items:center}
+.trendbars .tb{position:relative;width:100%;max-width:46px;height:140px;background:var(--soft);border-radius:6px;overflow:hidden}
+.trendbars .tbp,.trendbars .tbt{position:absolute;left:0;right:0;bottom:0;border-radius:6px 6px 0 0}
+.trendbars .tbp{background:#c9dcf3}.trendbars .tbt{background:var(--primary);left:22%;right:22%}
+.legend{display:inline-block;width:12px;height:10px;border-radius:3px;vertical-align:middle}.legend.p{background:#c9dcf3}.legend.t{background:var(--primary)}
+@media (max-width:700px){dl.kv{grid-template-columns:1fr}}

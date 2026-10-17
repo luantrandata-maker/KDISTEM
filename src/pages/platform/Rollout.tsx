@@ -12,7 +12,7 @@ type Ent = { org_id: string; state: 'open' | 'active' | 'expired' }
 type Check = { org_id: string; step: string; done_at: string; note: string | null; done_by: string | null }
 type Step = { key: string; label: string; manual?: boolean; hint?: string }
 
-const STEPS: Step[] = [
+export const STEPS: Step[] = [
   { key: 'contract', label: 'Có hợp đồng hiệu lực', hint: 'Gói dịch vụ & hợp đồng' },
   { key: 'kickoff', label: 'Họp khởi động', manual: true },
   { key: 'activated', label: 'Kích hoạt trường', hint: 'Sở hoặc KDI kích hoạt' },
@@ -30,7 +30,7 @@ const STEPS: Step[] = [
 ]
 const daysAgo = (iso: string | null) => iso ? (Date.now() - new Date(iso).getTime()) / 86400000 : Infinity
 
-function autoDone(k: string, s: SchoolStat, e: Ent | undefined): boolean {
+export function autoDone(k: string, s: SchoolStat, e: Ent | undefined): boolean {
   switch (k) {
     case 'contract': return e?.state === 'active'
     case 'activated': return s.activated

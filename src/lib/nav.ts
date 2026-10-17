@@ -32,17 +32,16 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { section: '5. Hệ thống quản lý vận hành', title: '5.5. Tổ chức, tài khoản & phân quyền', items: ['Tổ chức & phân quyền'] },
     { section: '5. Hệ thống quản lý vận hành', title: '5.6. Quản trị nền tảng', items: ['Giao diện & thương hiệu', 'Trợ lý AI', 'Nhật ký hoạt động', 'Lộ trình triển khai', 'Bảo mật tài khoản', 'Cấu hình chung (kỳ học...)'] },
   ],
+  // Cổng Trường và Sở (17/10): nhóm theo phân hệ (không ghi số PH). Dữ liệu lõi (nhân sự, lớp, năm học, khai báo)
+  // luôn có, nằm ở nhóm riêng. Mục thuộc phân hệ chưa có trong gói vẫn hiện, mờ, kèm "Chưa có trong gói" (UPSELL_PORTALS).
   school_admin: [
-    { title: 'Tổng quan', items: ['Dashboard Trường', 'Hồ sơ Trường học'] },
-    { title: 'Phê duyệt', items: ['Hộp phê duyệt', 'Quy trình phê duyệt'] },
-    { title: 'Mua sắm gói STEM', items: ['Gói STEM', 'Đề xuất mua gói'] },
-    { title: 'Học liệu', items: ['Kho học liệu dùng chung', 'Phát hành học liệu'] },
-    { title: 'Nhân sự & Đồng bộ K12', items: ['Giáo viên', 'Phân công giảng dạy', 'Lớp học', 'Học sinh'] },
-    { title: 'Phòng STEM', items: ['Quản lý Phòng STEM', 'Quản lý Thiết bị', 'Bảo hành thiết bị'] },
-    { title: 'Kế hoạch GD & TKB', items: ['Kế hoạch GD toàn trường', 'Duyệt đăng ký dạy STEM', 'Thời khóa biểu', 'Phân công GV dạy STEM', 'Buổi dạy & điểm danh', 'Dashboard điểm danh'] },
-    { title: 'Tập huấn GV', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Bài giảng', 'Lớp học ảo', 'Chứng chỉ'] },
-    { title: 'Quản lý khai báo', items: ['Năm học & học kỳ', 'Ngày nghỉ & lễ', 'Tòa nhà & Tầng', 'Cấu hình tiết học', 'Phân phối chương trình'] },
-    { title: 'Quản trị', items: ['Tài khoản', 'Vai trò và phân quyền', 'Hỗ trợ từ KDI'] },
+    { title: 'Tổng quan', items: ['Dashboard Trường', 'Hồ sơ Trường học', 'Hộp phê duyệt'] },
+    { title: 'Nhân sự & lớp học', items: ['Giáo viên', 'Phân công giảng dạy', 'Lớp học', 'Học sinh'] },
+    { title: 'Tập huấn giáo viên', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Bài giảng', 'Lớp học ảo', 'Chứng chỉ'] },
+    { title: 'Chương trình & học liệu', items: ['Gói STEM', 'Đề xuất mua gói', 'Phân phối chương trình', 'Kho học liệu dùng chung', 'Phát hành học liệu'] },
+    { title: 'Phòng & thiết bị STEM', items: ['Quản lý Phòng STEM', 'Quản lý Thiết bị', 'Bảo hành thiết bị'] },
+    { title: 'Giảng dạy', items: ['Kế hoạch GD toàn trường', 'Duyệt đăng ký dạy STEM', 'Thời khóa biểu', 'Phân công GV dạy STEM', 'Buổi dạy & điểm danh', 'Dashboard điểm danh'] },
+    { title: 'Quản trị', items: ['Năm học & học kỳ', 'Ngày nghỉ & lễ', 'Tòa nhà & Tầng', 'Cấu hình tiết học', 'Tài khoản', 'Vai trò và phân quyền', 'Quy trình phê duyệt', 'Hỗ trợ từ KDI'] },
   ],
   teacher: [
     { title: 'Giảng dạy', items: ['Tổng quan', 'Kế hoạch giáo dục', 'Lớp giảng dạy', 'Điểm danh', 'Bài tập', 'Chấm bài', 'Học trước & tự học'] },
@@ -54,12 +53,13 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Học tập', items: ['Tổng quan', 'Bài tập', 'Học trước & tự học', 'Lịch học', 'Chuyên cần', 'Giáo dục STEM', 'Chủ đề'] },
   ],
   department: [
-    { title: 'Tổng quan', items: ['Dashboard toàn Sở', 'KPI & Xếp hạng Xã/Phường', 'Danh sách Trường', 'Dashboard điểm danh'] },
-    { title: 'Theo dõi STEM', items: ['Chương trình CT1–CT5', 'Theo dõi Môn học STEM', 'Giám sát Tập huấn GV'] },
-    { title: 'Tập huấn STEM', items: ['Kế hoạch tập huấn', 'Lịch tập huấn'] },
-    { title: 'Học liệu STEM', items: ['Phát hành học liệu', 'Kho học liệu dùng chung'] },
-    { title: 'Phòng & Thiết bị STEM', items: ['Hiệu quả Phòng STEM', 'Phòng STEM & lịch phòng', 'Thiết bị & kho'] },
-    { title: 'Báo cáo & Điều hành', items: ['Hộp phê duyệt', 'Quy trình phê duyệt', 'Báo cáo Bộ GD&ĐT', 'Điều hành & Cấu hình', 'Ngày nghỉ & lễ', 'Hỗ trợ từ KDI'] },
+    { title: 'Tổng quan', items: ['Dashboard toàn Sở', 'Danh sách Trường', 'Hộp phê duyệt'] },
+    { title: 'Điều hành & báo cáo', items: ['KPI & Xếp hạng Xã/Phường', 'Báo cáo Bộ GD&ĐT', 'Điều hành & Cấu hình'] },
+    { title: 'Tập huấn giáo viên', items: ['Giám sát Tập huấn GV', 'Kế hoạch tập huấn', 'Lịch tập huấn'] },
+    { title: 'Chương trình & học liệu', items: ['Chương trình CT1–CT5', 'Theo dõi Môn học STEM', 'Phát hành học liệu', 'Kho học liệu dùng chung'] },
+    { title: 'Phòng & thiết bị STEM', items: ['Hiệu quả Phòng STEM', 'Phòng STEM & lịch phòng', 'Thiết bị & kho'] },
+    { title: 'Giảng dạy', items: ['Dashboard điểm danh'] },
+    { title: 'Quản trị', items: ['Quy trình phê duyệt', 'Ngày nghỉ & lễ', 'Hỗ trợ từ KDI'] },
   ],
 }
 
@@ -88,4 +88,16 @@ export const ENT_MODULE_OF: Record<string, string> = {
   'Điểm danh': 'timetable', 'Phòng STEM & lịch phòng': 'stem_rooms', 'Thiết bị & kho': 'stem_rooms',
   // PH5 (migration 033): điều hành & báo cáo của Sở
   'KPI & Xếp hạng Xã/Phường': 'governance', 'Báo cáo Bộ GD&ĐT': 'governance',
+}
+
+// Cổng hiện mục chưa có trong gói ở dạng mờ "Chưa có trong gói" (để giới thiệu phân hệ); các cổng khác ẩn hẳn.
+export const UPSELL_PORTALS = new Set<RoleKey>(['school_admin', 'department'])
+// Chức năng (perm module) → phân hệ bán (khớp service_modules.perm_modules, migration 033)
+export const PHASE_OF: Record<string, string> = {
+  training: 'Đào tạo & đánh giá năng lực nhà giáo',
+  library: 'Chương trình & học liệu', packages: 'Chương trình & học liệu', curriculum: 'Chương trình & học liệu',
+  stem_rooms: 'Vật tư, thiết bị dạy & học', equipment: 'Vật tư, thiết bị dạy & học', warranty: 'Vật tư, thiết bị dạy & học',
+  timetable: 'Vận hành giảng dạy & đánh giá người học', edu_plan: 'Vận hành giảng dạy & đánh giá người học',
+  stem_registrations: 'Vận hành giảng dạy & đánh giá người học', stem_assign: 'Vận hành giảng dạy & đánh giá người học',
+  governance: 'Hệ thống quản lý vận hành',
 }

@@ -686,3 +686,14 @@ table.permtable{table-layout:fixed}table.permtable th:first-child{width:34%}tabl
 .smsub .smnote{margin:0 0 4px}
 @media (max-width:1100px){.smsubs{grid-template-columns:repeat(2,minmax(0,1fr))}.smph:not(.multi) .smitems{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:700px){.smsubs,.smph:not(.multi) .smitems{grid-template-columns:1fr}.smph header{grid-template-columns:auto 1fr}.smph header .smprog{grid-column:1/-1}.smlegend{display:flex;margin:6px 0 0}}
+
+/* Mục thuộc phân hệ chưa có trong gói (cổng Trường, Sở) */
+.side button.locked{opacity:.6}
+.side button.locked:hover,.side button.locked.on{opacity:.85}
+.side .grouphead .locknote{display:block;margin-top:1px;font-size:11px;font-weight:500;color:#f2c47e}
+.side button.locked{display:flex;align-items:center;gap:6px}
+.side .navlock{margin-left:auto;flex:none;opacity:.8}
+.lockedmod{max-width:560px;display:grid;gap:8px;padding:24px;color:var(--text)}
+.lockedmod svg{color:var(--muted, #6b7280)}
+.lockedmod h2{margin:0;font-size:18px}
+.lockedmod p{margin:0}

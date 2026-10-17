@@ -1,7 +1,8 @@
 import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
-import { NAV, ROLE_LABEL, MODULE_OF, ENT_MODULE_OF, RoleKey } from './lib/nav'
+import { NAV, ROLE_LABEL, MODULE_OF, ENT_MODULE_OF, RoleKey, UPSELL_PORTALS, PHASE_OF } from './lib/nav'
+import { LockedModule } from './components/LockedModule'
 import { useAccess, switchOrg } from './lib/auth'
 import { useYears, yearLabel } from './lib/year'
 import Bell from './components/Bell'
@@ -352,9 +353,13 @@ function Shell({ session }: { session: Session }) {
   const myStudent = students.find(s => s.profile_id === session.user.id)?.id ?? null
   const studentId = role === 'student' ? (access.isAdmin ? actingStudent ?? students.find(s => s.classes?.name === 'Lớp 9A')?.id ?? students[0]?.id ?? null : myStudent) : null
 
+  // Mục được vai trò xem (không xét gói) và mục có trong gói. Cổng Trường/Sở: mục chưa có trong gói hiện mờ;
+  // cổng khác: ẩn hẳn như trước.
+  const roleOk = (i: string) => role !== 'school_admin' || !MODULE_OF[i] || access.permitted(MODULE_OF[i])
+  const inPlan = (i: string) => role === 'platform' || !ENT_MODULE_OF[i] || access.entitled(ENT_MODULE_OF[i])
+  const locked = new Set(NAV[role].flatMap(g => g.items).filter(i => UPSELL_PORTALS.has(role) && roleOk(i) && !inPlan(i)))
   const groups = NAV[role]
-    .map(g => ({ ...g, items: g.items.filter(i => (role !== 'school_admin' || !MODULE_OF[i] || access.canView(MODULE_OF[i]))
-      && (role === 'platform' || !ENT_MODULE_OF[i] || access.entitled(ENT_MODULE_OF[i]))) }))
+    .map(g => ({ ...g, items: g.items.filter(i => roleOk(i) && (inPlan(i) || locked.has(i))) }))
     .filter(g => g.items.length)
   // Gom các nhóm cùng phân hệ (section) thành một khối cây: phân hệ → nhóm con → mục
   const blocks: { section?: string; groups: typeof groups }[] = []
@@ -391,7 +396,8 @@ function Shell({ session }: { session: Session }) {
             return (
               <button className={'grouphead' + (sub ? ' subhead' : '') + (shut ? ' shut' : '')} onClick={() => toggleGroup(key)} aria-expanded={!shut}
                 aria-controls={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')}>
-                {!sub && <NavIcon title={title} />}<span>{title}</span>
+                {!sub && <NavIcon title={title} />}<span>{title}
+                  {items.length > 0 && items.every(i => locked.has(i)) && <small className="locknote">Chưa có trong gói</small>}</span>
                 {shut && items.includes(page) && <i className="dot" aria-label="Đang mở trang trong nhóm này" />}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
               </button>
@@ -399,8 +405,10 @@ function Shell({ session }: { session: Session }) {
           }
           const list = (key: string, items: string[]) => (
             <div id={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')} hidden={closed.has(key)}>
-              {items.map(i => <button key={i} className={i === page ? 'on' : ''} onClick={() => show(role, i)}>
+              {items.map(i => <button key={i} className={(i === page ? 'on' : '') + (locked.has(i) ? ' locked' : '')} onClick={() => show(role, i)}
+                title={locked.has(i) ? 'Chưa có trong gói dịch vụ của đơn vị' : undefined}>
                 {i}{role === 'platform' && !PLATFORM_LIVE.has(i) && i !== 'Sơ đồ hệ thống' && <small className="navtag">Khung</small>}
+                {locked.has(i) && <svg className="navlock" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Chưa có trong gói"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>}
               </button>)}
             </div>
           )
@@ -445,7 +453,8 @@ function Shell({ session }: { session: Session }) {
         </header>
         <main className="main">
           <h1>{page}</h1>
-          {Page ? <Suspense fallback={<p className="sub">Đang tải…</p>}><Page key={page + (yrs.year?.id ?? '') + (studentId ?? '')} teacherId={teacherId} studentId={studentId} orgId={access.profile.org_id} userName={access.profile.full_name} go={goPage} name={page}
+          {locked.has(page) ? <LockedModule name={page} phase={PHASE_OF[ENT_MODULE_OF[page]] ?? null} entitlement={access.entitlement} go={goPage} />
+            : Page ? <Suspense fallback={<p className="sub">Đang tải…</p>}><Page key={page + (yrs.year?.id ?? '') + (studentId ?? '')} teacherId={teacherId} studentId={studentId} orgId={access.profile.org_id} userName={access.profile.full_name} go={goPage} name={page}
             year={yrs.year} years={yrs.years} reloadYears={yrs.reload} selectYear={yrs.select} /></Suspense> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
         </main>
       </div>

@@ -10,6 +10,7 @@ do $$
 declare v_bo uuid; v_tinh uuid; v_so uuid; v_phong uuid; v_kb uuid; v_ht uuid; v_year uuid; v_c uuid; v_t uuid; i int; k int;
   sch uuid;
 begin
+  if coalesce(current_setting('app.seed_demo', true), '') <> 'on' then return; end if; -- dữ liệu mẫu: chỉ chạy khi bật cờ app.seed_demo
   if exists (select 1 from organizations where code = 'SO-BN') then return; end if;
   select id into v_bo from organizations where code = 'BO-GDDT';
   if v_bo is null then

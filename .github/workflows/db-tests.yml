@@ -3,7 +3,18 @@ on:
   push:
     paths: ['supabase/**', '.github/workflows/db-tests.yml']
   pull_request:
-    paths: ['supabase/**']
+    paths: ['supabase/**', '.github/workflows/db-tests.yml']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Chỉ liệt kê migration sẽ chạy, không ghi vào CSDL'
+        type: boolean
+        default: true
+      baseline_upto:
+        description: 'Chỉ dùng MỘT lần: đánh dấu migration ≤ số này là "đã chạy" (vd 033), không chạy SQL nào. Để trống nếu không cần.'
+        type: string
+        default: ''
+
 jobs:
   isolation:
     runs-on: ubuntu-latest
@@ -17,4 +28,56 @@ jobs:
     env: { PGHOST: localhost, PGUSER: postgres, PGPASSWORD: postgres }
     steps:
       - uses: actions/checkout@v4
+      # Lượt 1: migration không có dữ liệu mẫu → CSDL sạch. Lượt 2: có dữ liệu mẫu → kiểm thử cách ly.
       - run: supabase/tests/run.sh lms_test
+
+  # Chạy migration mới lên Supabase sau khi kiểm thử xanh trên main (hoặc bấm tay ở tab Actions).
+  # Cần secret SUPABASE_DB_URL (chuỗi kết nối Session pooler). Không có secret → bỏ qua, không lỗi.
+  # Không bật cờ app.seed_demo nên dữ liệu mẫu KHÔNG được chèn. Xem README mục "Chạy migration tự động".
+  migrate:
+    needs: isolation
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency: { group: supabase-migrate, cancel-in-progress: false }
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+      BASELINE_UPTO: ${{ github.event_name == 'workflow_dispatch' && inputs.baseline_upto || '' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Kiểm tra secret
+        id: secret
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ]; then
+            echo "::notice::Chưa cấu hình secret SUPABASE_DB_URL — bỏ qua bước chạy migration."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: supabase/setup-cli@v1
+        if: steps.secret.outputs.ok == 'true'
+        with: { version: 2.121.0 }
+      # CSDL đã chạy tay migration qua SQL Editor: ghi lịch sử để CLI không chạy lại từ 001.
+      - name: Baseline lịch sử migration
+        if: steps.secret.outputs.ok == 'true' && env.BASELINE_UPTO != ''
+        run: |
+          [[ "$BASELINE_UPTO" =~ ^[0-9]{3}$ ]] || { echo "::error::baseline_upto phải là 3 chữ số, vd 033"; exit 1; }
+          V=$(ls supabase/migrations/*.sql | xargs -n1 basename | cut -d_ -f1 | awk -v m="$BASELINE_UPTO" '$1 <= m')
+          echo "Đánh dấu đã chạy: $(echo $V)"
+          supabase migration repair --db-url "$SUPABASE_DB_URL" --status applied $V --yes < /dev/null
+      # Chặn: CSDL đã có bảng nghiệp vụ mà chưa có lịch sử migration → chạy tiếp sẽ chạy lại từ 001.
+      - name: Kiểm tra đã baseline
+        if: steps.secret.outputs.ok == 'true'
+        run: |
+          R=$(psql "$SUPABASE_DB_URL" -At -c "select (to_regclass('public.organizations') is not null)::int::text || (to_regclass('supabase_migrations.schema_migrations') is not null)::int::text")
+          if [ "$R" = "10" ]; then
+            echo "::error::CSDL đã có dữ liệu nhưng chưa baseline lịch sử migration. Chạy workflow bằng tay với baseline_upto (xem README)."
+            exit 1
+          fi
+      - name: Migration sẽ chạy
+        if: steps.secret.outputs.ok == 'true'
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --dry-run --yes < /dev/null
+      - name: Chạy migration
+        if: steps.secret.outputs.ok == 'true' && env.DRY_RUN != 'true' && env.BASELINE_UPTO == ''
+        run: supabase db push --db-url "$SUPABASE_DB_URL" --yes < /dev/null

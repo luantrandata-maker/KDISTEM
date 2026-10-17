@@ -41,7 +41,9 @@ fi
 echo "$OUT" | grep -E '^(PASS|FAIL) [0-9]+/[0-9]+$'
 echo "$OUT" | grep '|FAIL|' || true
 { echo "$OUT" | grep '|FAIL|' || true; } | head -10 | while IFS= read -r l; do ann "phép thử đỏ" "$l"; done
-if ! echo "$OUT" | grep -qE '^PASS [0-9]+/[0-9]+$'; then
+# Không dùng `echo | grep -q` với pipefail: grep -q thoát ngay khi khớp, echo nhận SIGPIPE (mã 141) và cả pipeline
+# bị tính là lỗi dù đã PASS — đây là nguyên nhân kiểm thử "đỏ không rõ lý do" trên main (OUT lớn, ghi chưa xong thì grep đã thoát).
+if ! grep -qE '^PASS [0-9]+/[0-9]+$' <<< "$OUT"; then
   # Không có dòng PASS: ghi dòng tổng và vài dòng cuối để đọc được qua annotation (điều tra lỗi chập chờn)
   ann "isolation_test.sql không PASS" "tổng: $(echo "$OUT" | grep -E '^(PASS|FAIL) [0-9]+/[0-9]+$' || echo 'không có dòng tổng') · cuối: $(echo "$OUT" | grep -v NOTICE | tail -4)"
   exit 1

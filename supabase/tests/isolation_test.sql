@@ -136,7 +136,7 @@ begin
   delete from invitations where email like '%@iso-test.local' or org_id = any(v_orgs);
   delete from memberships where org_id = any(v_orgs);
   delete from roles where key like 'custom_iso_%';
-  delete from organizations where code in ('ISO-TRUONG', 'ISO-SCH', 'ISO-NEW');
+  delete from organizations where code in ('ISO-TRUONG', 'ISO-SCH', 'ISO-NEW', 'ISO-IMP1', 'ISO-IMP2');
   delete from organizations where code = 'ISO-SO';
   delete from organizations where code = 'ISO-TINH';
   delete from auth.users where email like '%@iso-test.local';
@@ -767,6 +767,26 @@ select pg_temp.chk('gv_both', 'Không sinh tiết vào ngày nghỉ của Sở',
 select pg_temp.chk('gv_both', 'Vẫn sinh tiết sau kỳ nghỉ',
   'select count(*) from teaching_sessions where subject = ''ISO Toán'' and session_date between vn_today() + 4 and vn_today() + 9', '>0');
 select pg_temp.chk('gv_both', 'Nhận biết ngày nghỉ theo cấp trên', 'select is_holiday(my_org_id(), vn_today() + 2)', 'ISO nghỉ của Sở');
+
+-- ===== 18. Cơ sở triển khai (032) =====
+select pg_temp.chk('kdi', 'Nền tảng: sổ cơ sở triển khai có mọi trường', 'select count(*) from platform_school_registry()', '>0');
+select pg_temp.chk('kdi', 'Sổ có trường thử, kèm giai đoạn', 'select (stage is not null)::text from platform_school_registry() where code = ''ISO-SCH''', 'true');
+select pg_temp.chk('so_hy', 'Sở không xem sổ cơ sở triển khai', 'select count(*) from platform_school_registry()', 'ERR');
+select pg_temp.chk('admin_ph', 'Trường không xem sổ cơ sở triển khai', 'select count(*) from platform_school_registry()', 'ERR');
+select pg_temp.chk('admin_ph', 'Trường không xem xu hướng của trường', format('select count(*) from platform_school_trend(%L)', pg_temp.oid_('THCS-PH')), 'ERR');
+select pg_temp.chk('kdi', 'Nền tảng: xu hướng 8 tuần', format('select count(*) from platform_school_trend(%L)', pg_temp.oid_('THCS-PH')), '8');
+select pg_temp.chk('kdi', 'Danh sách nhân viên KDI', 'select count(*) from platform_staff()', '>0');
+select pg_temp.probe('kdi@iso-test.local', format('select platform_update_school(%L, jsonb_build_object(''kdi_owner'', auth.uid(), ''go_live_on'', vn_today()))::text', pg_temp.oid_('ISO-SCH')), true);
+select pg_temp.chk('kdi', 'Gán người phụ trách KDI và ngày vận hành (trường đang tạm dừng vẫn là Tạm dừng)', 'select (kdi_owner_name is not null and go_live_on = vn_today())::text || '':'' || stage from platform_school_registry() where code = ''ISO-SCH''', 'true:paused');
+select pg_temp.chk('kdi', 'Người phụ trách phải là nhân viên KDI',
+  format('select platform_update_school(%L, jsonb_build_object(''kdi_owner'', (select id from profiles where email = ''admin_ph@iso-test.local'')))::text', pg_temp.oid_('ISO-SCH')), 'ERR*');
+select pg_temp.chk('so_hy', 'Sở không đổi người phụ trách / ngày vận hành',
+  format('update organizations set go_live_on = vn_today() + 1 where id = %L', pg_temp.oid_('ISO-SCH')), 'ERR');
+select pg_temp.chk('so_hy', 'Sở không gọi được hàm cập nhật của KDI', format('select platform_update_school(%L, ''{}''::jsonb)::text', pg_temp.oid_('ISO-SCH')), 'ERR');
+select pg_temp.chk('kdi', 'Nhập trường từ Excel: dòng đúng được tạo, dòng sai bị bỏ qua',
+  'select (platform_import_schools(''[{"line":2,"code":"ISO-IMP1","name":"Trường thử ISO nhập","level":"THCS","parent_code":"SO-BN"},{"line":3,"code":"ISO-IMP2","name":"Trường thử ISO lỗi","level":"abc","parent_code":"SO-BN"}]''::jsonb)->>''created'')', '1');
+select pg_temp.chk('so_bn', 'Sở không nhập trường bằng hàm của KDI',
+  'select platform_import_schools(''[{"code":"ISO-IMP2","name":"Trường thử ISO lỗi","parent_code":"SO-BN"}]''::jsonb)::text', 'ERR');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

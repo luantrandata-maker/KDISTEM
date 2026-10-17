@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx, norm } from '../../lib/sheet'
 import ImportExcel from '../../components/ImportExcel'
+import SchoolLocationImport from '../../components/SchoolLocationImport'
 import { Tabs } from '../teacher/common'
 import { Tiles } from '../department/charts'
 import { LEVEL, PROGRAMS, type SchoolStat } from '../department/data'
@@ -63,6 +64,9 @@ const IMPORT_COLS = [
   { key: 'contact_name', label: 'Đầu mối', aliases: ['nguoi lien he'] },
   { key: 'contact_phone', label: 'Điện thoại', aliases: ['sdt', 'so dien thoai'] },
   { key: 'contact_email', label: 'Email' },
+  { key: 'lat', label: 'Vĩ độ', aliases: ['vi do', 'lat'] },
+  { key: 'lng', label: 'Kinh độ', aliases: ['kinh do', 'lng', 'lon'] },
+  { key: 'coord', label: 'Toạ độ (dán từ Google Maps)', aliases: ['toa do', 'tọa độ'] },
 ]
 
 export function PlatformSchools({ go }: { go?: (p: string) => void }) {
@@ -149,9 +153,10 @@ export function PlatformSchools({ go }: { go?: (p: string) => void }) {
           ['noowner', 'Chưa có phụ trách', cnt(r => !r.kdi_owner && r.stage !== 'ended')]]} />
         <span className="tools">
           <ImportExcel label="Nhập trường từ Excel" columns={IMPORT_COLS} template="Mau-nhap-truong"
-            sample={[['THCS-ABC', 'Trường THCS ABC', 'THCS', 'SO-HY', 'Phường Hiến Nam', '', 'Nguyễn Văn A', '0912345678', 'a@truong.edu.vn']]}
+            sample={[['THCS-ABC', 'Trường THCS ABC', 'THCS', 'SO-HY', 'Phường Hiến Nam', '', 'Nguyễn Văn A', '0912345678', 'a@truong.edu.vn', '', '', '20.6560, 106.0560']]}
             onRecords={importRows} onMessage={(m, e) => setMsg([m, !!e])} />
           <button onClick={exportXlsx}>Xuất Excel</button>
+          <SchoolLocationImport onDone={load} onMessage={(m, e) => setMsg([m, !!e])} />
         </span>
       </div>
       <div className="tools" style={{ marginBottom: 12 }}>

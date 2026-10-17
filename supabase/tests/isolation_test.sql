@@ -961,6 +961,27 @@ begin
     ('system', 'TK mã: tạo tài khoản → vai trò HS tại trường', 'true', v_role::text, v_role);
 end $$;
 
+-- ===== 038: nhập toạ độ trường từ Excel =====
+create or replace function pg_temp.loc(p_rows text, p_key text) returns text language sql as $$
+  select format('select (import_school_locations(%L::jsonb)) ->> %L', p_rows, p_key)
+$$;
+select pg_temp.chk('so_hy', 'Toạ độ: Sở nhập cho trường trực thuộc',
+  pg_temp.loc('[{"code":"THCS-PH","lat":"20.66","lng":"106.05","line":2}]', 'updated'), '1');
+select pg_temp.chk('so_hy', 'Toạ độ: ô "vĩ độ, kinh độ" dán từ bản đồ',
+  pg_temp.loc('[{"code":"THCS-PH","coord":"20.6560, 106.0560","line":2}]', 'updated'), '1');
+select pg_temp.chk('so_hy', 'Toạ độ: dấu phẩy thập phân',
+  pg_temp.loc('[{"code":"THCS-PH","lat":"20,66","lng":"106,05","line":2}]', 'updated'), '1');
+select pg_temp.chk('so_hy', 'Toạ độ: đảo cột (ngoài Việt Nam) bị từ chối',
+  pg_temp.loc('[{"code":"THCS-PH","lat":"106.05","lng":"20.66","line":2}]', 'updated'), '0');
+select pg_temp.chk('so_hy', 'Toạ độ: dòng trống được bỏ qua',
+  pg_temp.loc('[{"code":"THCS-PH","line":2}]', 'blank'), '1');
+select pg_temp.chk('so_bn', 'Toạ độ: Sở tỉnh khác không nhập được',
+  pg_temp.loc('[{"code":"THCS-PH","lat":"20.66","lng":"106.05","line":2}]', 'updated'), '0');
+select pg_temp.chk('admin_ph', 'Toạ độ: trường không dùng nhập hàng loạt',
+  pg_temp.loc('[{"code":"THCS-PH","lat":"20.66","lng":"106.05","line":2}]', 'updated'), 'ERR');
+select pg_temp.chk('kdi', 'Toạ độ: quản trị nền tảng nhập mọi trường',
+  pg_temp.loc('[{"code":"THCS-KB","lat":"21.18","lng":"106.07","line":2},{"code":"THCS-PH","lat":"20.66","lng":"106.05","line":3}]', 'updated'), '2');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

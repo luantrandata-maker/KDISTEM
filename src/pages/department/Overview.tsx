@@ -1,3 +1,4 @@
+import SchoolLocationImport from '../../components/SchoolLocationImport'
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { PROGRAM_COLOR } from '../teacher/common'
@@ -138,6 +139,7 @@ export function DeptSchools() {
   const { schools, loading, err } = useDeptStats()
   const [level, setLevel] = useState(''); const [ward, setWard] = useState(''); const [q, setQ] = useState('')
   const [open, setOpen] = useState<string | null>(null)
+  const [msg, setMsg] = useState<[string, boolean] | null>(null)
   if (loading || err) return <Loading err={err} />
   const wards = [...new Set(schools.map(s => s.ward ?? ''))].sort((a, b) => a.localeCompare(b, 'vi'))
   const shown = schools.filter(s => (!level || s.level === level) && (!ward || s.ward === ward) && (!q || s.name.toLowerCase().includes(q.toLowerCase())))
@@ -149,7 +151,10 @@ export function DeptSchools() {
         <select value={level} onChange={e => setLevel(e.target.value)} aria-label="Cấp học"><option value="">Tất cả cấp học</option>{Object.entries(LEVEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
         <select value={ward} onChange={e => setWard(e.target.value)} aria-label="Xã/phường"><option value="">Tất cả xã/phường</option>{wards.map(w => <option key={w}>{w}</option>)}</select>
         <small>{shown.length} trường</small>
+        <span style={{ flex: 1 }} />
+        <SchoolLocationImport onMessage={(m, e) => setMsg([m, !!e])} />
       </div>
+      {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
       {cur && (
         <div className="panel">
           <div className="bar"><h3>{cur.name}</h3><button onClick={() => setOpen(null)}>Đóng</button></div>

@@ -134,11 +134,13 @@ Quản trị nền tảng → Lõi → **Cơ sở triển khai**: mỗi trườn
 **Chạy migration tự động (job `migrate` trong `.github/workflows/db-tests.yml`).** Khi main có thay đổi trong `supabase/`, sau khi kiểm thử xanh, CI chạy `supabase db push` lên CSDL trong secret `SUPABASE_DB_URL` — chỉ chạy migration chưa có trong lịch sử, không chèn dữ liệu mẫu. Chưa có secret thì job bỏ qua. Đổi CSDL (vd chuyển production về Việt Nam) chỉ cần đổi secret.
 
 Thiết lập một lần cho project Supabase hiện tại (đã chạy tay migration qua SQL Editor):
-1. Dán `supabase/scripts/check_applied.sql` vào SQL Editor để biết CSDL đã chạy tới migration nào (cột `da_chay`). Migration nào `false` thì chạy tay trước cho đủ.
+1. Dán `supabase/scripts/check_applied.sql` vào SQL Editor để biết CSDL đã chạy tới migration nào (cột `ket_qua`). Migration nào `false` thì chạy tay trước cho đủ.
+   Nếu dòng *lịch sử* có version 14 chữ số (vd `20261014083903`, do Supabase MCP/dashboard ghi), dán `supabase/scripts/clean_foreign_history.sql` để sao lưu rồi xoá các bản ghi đó khỏi lịch sử (không đụng dữ liệu, cấu trúc).
 2. GitHub → Settings → Secrets and variables → Actions: thêm `SUPABASE_DB_URL` = chuỗi kết nối **Session pooler** (Supabase → Connect → Session pooler, dạng `postgresql://postgres.<project-ref>:<mật khẩu>@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres`). Không dùng Direct connection: máy chạy GitHub Actions không có IPv6.
 3. GitHub → Actions → *Kiểm thử CSDL* → **Run workflow** với `baseline_upto` = số migration cuối đã chạy (vd `033`): chỉ ghi lịch sử "đã chạy", không chạy SQL nào.
 4. Run workflow lần nữa với `dry_run` bật, `baseline_upto` để trống: phải báo *Remote database is up to date*.
 - Nếu quên bước 3, job `migrate` dừng với lỗi *chưa baseline* chứ không chạy lại từ 001.
+- Sau khi bật CI, **không** chạy migration qua SQL Editor hay Supabase MCP nữa: mọi migration đi qua PR → main → CI. Chạy ngoài luồng sẽ ghi version lạ vào lịch sử và CI từ chối chạy.
 - Muốn duyệt tay trước mỗi lần chạy: Settings → Environments → `production` → *Required reviewers*.
 
 ## Triển khai Cloudflare (Workers Builds, kết nối GitHub)

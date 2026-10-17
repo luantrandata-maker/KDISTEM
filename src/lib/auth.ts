@@ -17,7 +17,8 @@ export type Access = {
   loading: boolean; profile: Profile | null; roles: MyRole[]; roleKeys: string[]; isAdmin: boolean
   orgs: MyOrg[]                            // các tổ chức có vai trò (để chuyển "đang làm việc tại")
   portals: RoleKey[]                       // các giao diện người dùng được vào (theo vai trò hệ thống và tuỳ chỉnh)
-  canView: (module: string) => boolean
+  canView: (module: string) => boolean     // được xem: có trong gói và vai trò được phép
+  permitted: (module: string) => boolean   // vai trò được phép (không xét gói) — để hiện mờ mục chưa có trong gói
   entitled: (module: string) => boolean    // đơn vị được dùng chức năng này theo gói dịch vụ
   entitlement: Entitlement | null
   mfaRequired: boolean
@@ -66,7 +67,7 @@ export function useAccess(session: Session | null): Access {
   const ent = state.ent
   const entitled = (m: string) => !ent || ent.perm_modules === null || !ent.gated.includes(m) || ent.perm_modules.includes(m)
   return { loading: state.loading, profile: state.profile, roles: state.roles, orgs: state.orgs, roleKeys, isAdmin, portals,
-    canView: m => entitled(m) && (isAdmin || views.has(m)), entitled, entitlement: ent, mfaRequired: state.mfa, idleMinutes: state.idle }
+    canView: m => entitled(m) && (isAdmin || views.has(m)), permitted: m => isAdmin || views.has(m), entitled, entitlement: ent, mfaRequired: state.mfa, idleMinutes: state.idle }
 }
 
 // Đổi tổ chức đang làm việc rồi tải lại để mọi quyền, menu, dữ liệu tính theo tổ chức mới

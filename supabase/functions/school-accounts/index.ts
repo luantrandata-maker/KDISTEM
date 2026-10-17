@@ -6,6 +6,8 @@
 // POST { action: 'create', kind: 'student' | 'teacher', ids: uuid[] }
 //   → { results: [{ person_id, full_name, class_name, login, password?, status, message? }] }
 // POST { action: 'reset', kind, id } → { login, password }
+// POST { action: 'erase', kind: 'student', id, reason } → { ok, account }  (039: xoá dữ liệu cá nhân HS; email/tên trong Auth
+//   được thay bằng giá trị ẩn danh và tài khoản bị cấm đăng nhập)
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4'
 
 const cors = {
@@ -38,7 +40,7 @@ Deno.serve(async req => {
   const asUser = createClient(url, pub, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } })
   const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
 
-  let body: { action?: string; kind?: string; ids?: string[]; id?: string }
+  let body: { action?: string; kind?: string; ids?: string[]; id?: string; reason?: string }
   try { body = await req.json() } catch { return json({ error: 'Dữ liệu gửi lên không hợp lệ' }, 400) }
   const kind = body.kind === 'teacher' ? 'teacher' : body.kind === 'student' ? 'student' : null
   if (!kind) return json({ error: 'Thiếu loại tài khoản (student/teacher)' }, 400)
@@ -84,6 +86,19 @@ Deno.serve(async req => {
       { password: pw, user_metadata: { must_change_password: true } })
     if (ue) return json({ error: ue.message }, 500)
     return json({ login: (u.user?.user_metadata as { login?: string } | undefined)?.login ?? null, password: pw })
+  }
+  if (body.action === 'erase') {
+    if (kind !== 'student' || !body.id) return json({ error: 'Chỉ xoá dữ liệu học sinh' }, 400)
+    const { data: uid, error } = await asUser.rpc('student_erase', { p_student: body.id, p_reason: body.reason ?? '' })
+    if (error) return json({ error: error.message, code: error.code }, error.code === '42501' ? 403 : 400)
+    if (!uid) return json({ ok: true, account: false })
+    const { data: dom } = await admin.rpc('login_domain')
+    const { error: ue } = await admin.auth.admin.updateUserById(uid as string, {
+      email: `daxoa.${(uid as string).slice(0, 8)}.${Date.now().toString(36)}@${dom ?? 'tk.kdi.edu.vn'}`, email_confirm: true,
+      user_metadata: { full_name: null, login: null, must_change_password: null }, ban_duration: '876000h' })
+    // Dữ liệu trong CSDL đã xoá và tài khoản đã khoá; lỗi ở bước Auth chỉ báo lại để làm lại
+    if (ue) return json({ ok: true, account: true, warning: 'Chưa xoá được email trong Auth: ' + ue.message })
+    return json({ ok: true, account: true })
   }
   return json({ error: 'Thao tác không hợp lệ' }, 400)
 })

@@ -746,3 +746,10 @@ table.permtable{table-layout:fixed}table.permtable th:first-child{width:34%}tabl
 /* Tài khoản đăng nhập bằng mã (037) */
 .codeacc{display:grid;gap:12px}
 .codeacc code{font-size:12.5px;background:var(--soft);padding:1px 5px;border-radius:5px}
+/* Điều khoản & dữ liệu cá nhân (039) */
+.login.legal form{max-width:720px;width:100%}
+.legaldoc h2{font-size:15px;margin:10px 0 6px}
+.legalbody{white-space:pre-wrap;max-height:42vh;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--soft);font-size:13.5px;line-height:1.55;text-align:left}
+.privacy h4{margin:12px 0 6px;font-size:14px}
+button.danger{background:#b42318;color:#fff;border-color:#b42318}
+button.danger:disabled{opacity:.6}

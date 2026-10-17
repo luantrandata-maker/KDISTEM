@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { myOrgId } from '../lib/org'
 import ImportExcel from '../components/ImportExcel'
 import { type Year, sameSchoolYear } from '../lib/year'
+import StudentPrivacy, { type Consent, ConsentBadge, loadConsents, CONSENT_COLS, importConsents, printConsentForms } from './StudentPrivacy'
 import { norm, importSummary, downloadXlsx, type Column } from '../lib/sheet'
 
 const COLS: Column[] = [
@@ -13,6 +14,7 @@ const COLS: Column[] = [
 
 type St = { id: string; full_name: string; student_code: string | null; class_id: string | null; status: string; classes: { name: string; grade: number } | null }
 const STATUS: Record<string, string> = { studying: 'Đang học', transferred: 'Chuyển trường', graduated: 'Đã tốt nghiệp' }
+const ERASED = 'erased'   // 039: đã xoá dữ liệu cá nhân
 const PAGE = 20
 type Cls = { id: string; name: string; year_id: string | null }
 
@@ -24,6 +26,9 @@ export default function Students({ year, years = [] }: { year?: Year | null; yea
   const [form, setForm] = useState<{ full_name: string; student_code: string; class_id: string } | null>(null)
   const [err, setErr] = useState('')
   const [page, setPage] = useState(1)
+  const [consents, setConsents] = useState<Record<string, Consent>>({})
+  const [sel, setSel] = useState<string | null>(null)
+  const [school, setSchool] = useState('')
 
   async function load() {
     const [s, c] = await Promise.all([
@@ -31,7 +36,9 @@ export default function Students({ year, years = [] }: { year?: Year | null; yea
       supabase.from('classes').select('id, name, year_id').order('name'),
     ])
     setRows((s.data as unknown as St[]) ?? []); setClasses((c.data as Cls[]) ?? [])
+    setConsents(await loadConsents())
   }
+  useEffect(() => { myOrgId().then(id => supabase.from('organizations').select('name').eq('id', id).single()).then(({ data }) => setSchool((data as { name: string } | null)?.name ?? '')) }, [])
   useEffect(() => { load() }, [])
 
   async function add(e: React.FormEvent) {
@@ -91,6 +98,7 @@ export default function Students({ year, years = [] }: { year?: Year | null; yea
 
   async function setStatus(st: St, status: string) { await supabase.from('students').update({ status }).eq('id', st.id); load() }
   const all = rows.filter(r => (!cls || r.class_id === cls) && (r.full_name + (r.student_code ?? '')).toLowerCase().includes(q.toLowerCase()))
+  const active = all.filter(r => r.status === 'studying')
   const pages = Math.max(1, Math.ceil(all.length / PAGE)); const cur = Math.min(page, pages)
   const shown = all.slice((cur - 1) * PAGE, cur * PAGE)
 
@@ -107,10 +115,19 @@ export default function Students({ year, years = [] }: { year?: Year | null; yea
           <ImportExcel columns={COLS} template="mau-nhap-hoc-sinh" sample={[['HS9A001', 'Nguyễn Minh Anh', classes[0]?.name ?? 'Lớp 9A']]}
             onRecords={importRecords} onMessage={m => setErr(m)} />
           <button onClick={exportXlsx} disabled={!all.length}>Xuất Excel</button>
+          <ImportExcel label="Nhập đồng ý PH" templateLabel="Mẫu đồng ý PH" columns={CONSENT_COLS} template="mau-dong-y-phu-huynh"
+            sample={all.filter(r => r.status === 'studying' && !consents[r.id]).map(r => [r.student_code ?? '', r.full_name, '', 'Mẹ', '', '', 'Giấy có chữ ký'])}
+            onRecords={async recs => { const m = await importConsents(recs, rows, consents); load(); return m }} onMessage={m => setErr(m)} />
+          <button onClick={() => { if (!printConsentForms(school, all.filter(r => r.status === 'studying'))) setErr('Trình duyệt chặn cửa sổ in — cho phép cửa sổ bật lên.') }}
+            disabled={!all.length} title="In giấy đồng ý cho các học sinh đang lọc (theo lớp)">In giấy đồng ý</button>
           <button className="primary" onClick={() => setForm({ full_name: '', student_code: '', class_id: classes[0]?.id ?? '' })}>Thêm học sinh</button>
         </div>
       </div>
       {err && !form && <p className="sub"><b>{err}</b></p>}
+      <p className="sub covhint">Đồng ý của cha mẹ: {active.filter(r => consents[r.id]).length}/{active.length} học sinh đang học{cls ? ' của lớp đang lọc' : ''} đã có.
+        Lọc theo lớp rồi bấm <i>In giấy đồng ý</i> để phát cho phụ huynh ký; thu lại thì nhập bằng <i>Nhập đồng ý PH</i> (file mẫu có sẵn học sinh chưa có đồng ý).</p>
+      {sel && rows.find(r => r.id === sel) && <StudentPrivacy s={rows.find(r => r.id === sel)!} consent={consents[sel]} canErase
+        onClose={() => setSel(null)} onChanged={load} />}
       
       {form && (
         <form className="panel formgrid" onSubmit={add}>
@@ -122,14 +139,16 @@ export default function Students({ year, years = [] }: { year?: Year | null; yea
         </form>
       )}
       <table>
-        <thead><tr><th>Học sinh</th><th>Lớp</th><th>Khối</th><th>Trạng thái</th><th></th></tr></thead>
+        <thead><tr><th>Học sinh</th><th>Lớp</th><th>Khối</th><th>Trạng thái</th><th>Đồng ý PH</th><th></th></tr></thead>
         <tbody>
           {shown.map(s => (
             <tr key={s.id}><td><b>{s.full_name}</b><br /><small>{s.student_code}</small></td><td>{s.classes?.name ?? '—'}</td><td>{s.classes?.grade ?? '—'}</td>
-              <td><select value={s.status} onChange={e => setStatus(s, e.target.value)}>{Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></td>
-              <td><button onClick={() => remove(s)}>Xoá</button></td></tr>
+              <td>{s.status === ERASED ? <small>Đã xoá dữ liệu</small>
+                : <select value={s.status} onChange={e => setStatus(s, e.target.value)}>{Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>}</td>
+              <td>{s.status !== ERASED && <ConsentBadge c={consents[s.id]} />}</td>
+              <td className="nowrap">{s.status !== ERASED && <button onClick={() => setSel(s.id)}>Đồng ý & dữ liệu</button>} <button onClick={() => remove(s)}>Xoá</button></td></tr>
           ))}
-          {shown.length === 0 && <tr><td colSpan={5}>Không có học sinh phù hợp.</td></tr>}
+          {shown.length === 0 && <tr><td colSpan={6}>Không có học sinh phù hợp.</td></tr>}
         </tbody>
       </table>
       <div className="bar" style={{ marginTop: 10 }}><small>Hiển thị {shown.length}/{PAGE} (trang {cur}/{pages}) · Tổng {all.length} học sinh</small>

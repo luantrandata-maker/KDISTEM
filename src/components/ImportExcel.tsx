@@ -4,8 +4,8 @@ import { type Column, readRows, mapRows, downloadXlsx } from '../lib/sheet'
 type Rec = Record<string, string> & { _line: number }
 
 // Nút "Nhập Excel" + "Tải file mẫu". Cột được nhận theo tiêu đề (không cần đúng thứ tự), chấp nhận .xlsx và .csv.
-export default function ImportExcel({ label = 'Nhập Excel', columns, template, sample = [], onRecords, onMessage }: {
-  label?: string; columns: Column[]; template: string; sample?: string[][]
+export default function ImportExcel({ label = 'Nhập Excel', templateLabel = 'Tải file mẫu', columns, template, sample = [], onRecords, onMessage }: {
+  label?: string; templateLabel?: string; columns: Column[]; template: string; sample?: string[][]
   onRecords: (rows: Rec[]) => Promise<string>; onMessage: (msg: string, isError?: boolean) => void
 }) {
   const [busy, setBusy] = useState(false)
@@ -27,7 +27,7 @@ export default function ImportExcel({ label = 'Nhập Excel', columns, template,
         <input type="file" hidden accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" disabled={busy}
           onChange={e => { const f = e.target.files?.[0]; if (f) pick(f); e.target.value = '' }} />
       </label>
-      <button type="button" onClick={() => downloadXlsx(template, columns, sample)}>Tải file mẫu</button>
+      <button type="button" onClick={() => downloadXlsx(template, columns, sample)}>{templateLabel}</button>
     </>
   )
 }

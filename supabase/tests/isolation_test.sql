@@ -128,6 +128,14 @@ begin
   delete from training_plans where name = 'ISO kế hoạch tập huấn';   -- buổi, ghi danh, điểm danh xoá theo (cascade)
   delete from students where student_code like 'ISO-%' or full_name like 'ISO HS%' or org_id = any(v_orgs);
   delete from invitations where email like 'thcsph.iso%' or full_name = 'ISO GV tài khoản mã';
+  if to_regclass('public.legal_documents') is not null then
+    delete from student_consents where guardian_name like 'ISO P%';
+    delete from legal_acceptances where document_id in (select id from legal_documents where title like 'ISO %');
+    alter table legal_documents disable trigger legal_documents_guard;
+    delete from legal_documents where title like 'ISO %';
+    alter table legal_documents enable trigger legal_documents_guard;
+    update security_settings set require_student_consent = false where id = 1 and require_student_consent;
+  end if;
   delete from auth.users where email like 'thcsph.iso%@%';
   if to_regclass('public.package_orders') is not null then
     delete from package_orders where org_id = any(v_orgs);
@@ -144,7 +152,7 @@ begin
   delete from auth.users where email like '%@iso-test.local';
   if to_regclass('public.audit_log') is not null then
     delete from audit_log where id > coalesce((select audit_start from t_meta), 0)
-      and (entity = 'role_permissions' or summary ~ '(ISO tự học|ISO nghỉ|thcsph\.iso|ISO HS|ISO GV|Thử [a-z_]+|iso-test\.local|thử ISO|ISO-[A-Z]+|thử \(thử\)|Tổ trưởng \(thử\))' or (actor is null and summary like '%tài khoản đã xoá%'));
+      and (entity = 'role_permissions' or summary ~ '(ISO tự học|ISO nghỉ|thcsph\.iso|ISO-HS|ISO HS|ISO GV|Thử [a-z_]+|iso-test\.local|thử ISO|ISO-[A-Z]+|thử \(thử\)|Tổ trưởng \(thử\))' or (actor is null and summary like '%tài khoản đã xoá%'));
   end if;
 end $$;
 
@@ -981,6 +989,60 @@ select pg_temp.chk('admin_ph', 'Toạ độ: trường không dùng nhập hàng
   pg_temp.loc('[{"code":"THCS-PH","lat":"20.66","lng":"106.05","line":2}]', 'updated'), 'ERR');
 select pg_temp.chk('kdi', 'Toạ độ: quản trị nền tảng nhập mọi trường',
   pg_temp.loc('[{"code":"THCS-KB","lat":"21.18","lng":"106.07","line":2},{"code":"THCS-PH","lat":"20.66","lng":"106.05","line":3}]', 'updated'), '2');
+
+-- ===== 039: điều khoản, đồng ý của cha mẹ, xuất/xoá dữ liệu học sinh =====
+insert into legal_documents (kind, version, title, body, published_at) values ('terms', 9001, 'ISO điều khoản', 'Nội dung thử', now());
+insert into students (org_id, student_code, full_name) values (pg_temp.oid_('THCS-PH'), 'ISO-HS5', 'ISO HS cần đồng ý');
+insert into student_consents (org_id, student_id, guardian_name, relation, phone)
+  select org_id, id, 'ISO Phụ huynh', 'Mẹ', '0900000000' from students where full_name = 'ISO HS có TK mã';
+select pg_temp.chk('admin_ph', 'Điều khoản: người dùng thấy bản cần chấp thuận', 'select count(*) from legal_pending() where title = ''ISO điều khoản''', '1');
+select pg_temp.chk('admin_ph', 'Điều khoản: chấp thuận', 'select legal_accept(array(select id from legal_pending() where title = ''ISO điều khoản''))', '1');
+select pg_temp.chk('admin_ph', 'Điều khoản: trường không soạn điều khoản',
+  'insert into legal_documents (kind, version, title, body) values (''privacy'', 9002, ''ISO x'', ''x'')', 'ERR');
+select pg_temp.chk('kdi', 'Điều khoản: KDI soạn bản nháp',
+  'insert into legal_documents (kind, version, title, body) values (''privacy'', 9002, ''ISO chính sách'', ''x'')', 'rows:1');
+select pg_temp.chk('kdi', 'Điều khoản: bản đã công bố không sửa được',
+  'update legal_documents set body = ''sửa'' where title = ''ISO điều khoản''', 'ERR');
+select pg_temp.chk('admin_ph', 'Đồng ý: trường xem đồng ý của HS mình', 'select count(*) from student_consents where guardian_name = ''ISO Phụ huynh''', '1');
+select pg_temp.chk('admin_ph', 'Đồng ý: trường ghi nhận đồng ý',
+  format('insert into student_consents (org_id, student_id, guardian_name) values (%s, %s, ''ISO PH2'')', quote_literal(pg_temp.oid_('THCS-PH')), pg_temp.sid('ISO HS chưa có TK')), 'rows:1');
+select pg_temp.chk('admin_kb', 'Đồng ý: trường khác không ghi được',
+  format('insert into student_consents (org_id, student_id, guardian_name) values (%s, %s, ''ISO PH2'')', quote_literal(pg_temp.oid_('THCS-PH')), pg_temp.sid('ISO HS chưa có TK')), 'ERR');
+select pg_temp.chk('admin_kb', 'Đồng ý: không gắn HS trường khác vào đơn vị mình',
+  format('insert into student_consents (org_id, student_id, guardian_name) values (%s, %s, ''ISO PH2'')', quote_literal(pg_temp.oid_('THCS-KB')), pg_temp.sid('ISO HS chưa có TK')), 'ERR');
+select pg_temp.chk('so_hy', 'Đồng ý: Sở không xem SĐT phụ huynh', 'select count(*) from student_consents where guardian_name = ''ISO Phụ huynh''', '0');
+select pg_temp.chk('so_hy', 'Đồng ý: Sở xem tổng hợp trường trực thuộc',
+  format('select consented >= 1 from consent_summary() where school_id = %s', quote_literal(pg_temp.oid_('THCS-PH'))), 'true');
+select pg_temp.chk('so_bn', 'Đồng ý: Sở tỉnh khác không xem tổng hợp',
+  format('select count(*) from consent_summary() where school_id = %s', quote_literal(pg_temp.oid_('THCS-PH'))), '0');
+update security_settings set require_student_consent = true where id = 1;
+select pg_temp.chk('admin_ph', 'Đồng ý bắt buộc: HS chưa có đồng ý không tạo được tài khoản', pg_temp.prep('student', 'ISO HS cần đồng ý'), 'no_consent');
+update security_settings set require_student_consent = false where id = 1;
+select pg_temp.chk('admin_ph', 'Xuất dữ liệu HS trường mình',
+  format('select student_data_export(%s) -> ''hoc_sinh'' ->> ''full_name''', pg_temp.sid('ISO HS có TK mã')), 'ISO HS có TK mã');
+select pg_temp.chk('admin_kb', 'Xuất dữ liệu: trường khác không xuất được',
+  format('select student_data_export(%s)::text', pg_temp.sid('ISO HS có TK mã')), 'ERR*');
+select pg_temp.chk('gv_both', 'Xuất dữ liệu: giáo viên không xuất được',
+  format('select student_data_export(%s)::text', pg_temp.sid('ISO HS có TK mã')), 'ERR');
+select pg_temp.chk('gv_both', 'Xoá dữ liệu: giáo viên không xoá được',
+  format('select student_erase(%s, ''thử'')::text', pg_temp.sid('ISO HS có TK mã')), 'ERR');
+select pg_temp.chk('admin_ph', 'Xoá dữ liệu: phải ghi lý do',
+  format('select student_erase(%s, '''')::text', pg_temp.sid('ISO HS có TK mã')), 'ERR*');
+do $$ declare v_id uuid := (select id from students where full_name = 'ISO HS có TK mã'); v_pid uuid := (select profile_id from students where full_name = 'ISO HS có TK mã');
+  v_r text; v_name text; v_login text; v_locked boolean; v_mem int; v_cons int;
+begin
+  v_r := pg_temp.probe('admin_ph@iso-test.local', format('select (student_erase(%L, %L) = %L)::text', v_id, 'Phụ huynh yêu cầu (thử)', v_pid), true);
+  select full_name into v_name from students where id = v_id;
+  select login, locked_at is not null into v_login, v_locked from profiles where id = v_pid;
+  select count(*) into v_mem from memberships where user_id = v_pid;
+  select count(*) into v_cons from student_consents where student_id = v_id;
+  insert into t_result (who, name, expect, got, ok) values
+    ('system', 'Xoá dữ liệu: trả về tài khoản cần xoá trong Auth', 'true', v_r, v_r = 'true'),
+    ('system', 'Xoá dữ liệu: tên HS được ẩn danh', 'Học sinh đã xoá dữ liệu', v_name, v_name = 'Học sinh đã xoá dữ liệu'),
+    ('system', 'Xoá dữ liệu: tài khoản bị khoá, bỏ tên đăng nhập', 'locked', coalesce(v_login, 'null') || '/' || v_locked, v_login is null and v_locked),
+    ('system', 'Xoá dữ liệu: bỏ vai trò tại trường, xoá đồng ý', '0/0', v_mem || '/' || v_cons, v_mem = 0 and v_cons = 0);
+  delete from students where id = v_id;
+end $$;
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

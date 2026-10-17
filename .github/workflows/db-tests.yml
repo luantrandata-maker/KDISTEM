@@ -66,12 +66,14 @@ jobs:
           V=$(ls supabase/migrations/*.sql | xargs -n1 basename | cut -d_ -f1 | awk -v m="$BASELINE_UPTO" '$1 <= m')
           echo "Đánh dấu đã chạy: $(echo $V)"
           supabase migration repair --db-url "$SUPABASE_DB_URL" --status applied $V --yes < /dev/null
-      # Chặn: CSDL đã có bảng nghiệp vụ mà chưa có lịch sử migration → chạy tiếp sẽ chạy lại từ 001.
+      # Chặn: CSDL đã có bảng nghiệp vụ mà lịch sử migration không có bản ghi 001 (chưa có bảng, bảng rỗng,
+      # hoặc chỉ có version lạ do công cụ khác ghi) → chạy tiếp sẽ chạy lại từ 001.
       - name: Kiểm tra đã baseline
         if: steps.secret.outputs.ok == 'true'
         run: |
-          R=$(psql "$SUPABASE_DB_URL" -At -c "select (to_regclass('public.organizations') is not null)::int::text || (to_regclass('supabase_migrations.schema_migrations') is not null)::int::text")
-          if [ "$R" = "10" ]; then
+          R=$(psql "$SUPABASE_DB_URL" -At -f supabase/scripts/baseline_guard.sql)
+          echo "Kiểm tra baseline: $R"
+          if [ "$R" != "ok" ]; then
             echo "::error::CSDL đã có dữ liệu nhưng chưa baseline lịch sử migration. Chạy workflow bằng tay với baseline_upto (xem README)."
             exit 1
           fi

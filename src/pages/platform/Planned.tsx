@@ -248,34 +248,120 @@ function TimetableMock() {
   )
 }
 
-// Sơ đồ hệ thống: mọi phân hệ của cổng, mục nào đã chạy thật, mục nào mới là khung
+// Sơ đồ hệ thống: tách 2 phần — (A) Quản trị hệ thống: phần chung KDI vận hành toàn nền tảng;
+// (B) 5 phân hệ nghiệp vụ: đơn vị bán theo gói, trường / Sở sử dụng. Mục nào đã chạy thật, mục nào mới là khung.
+const ADMIN_GROUPS = ['Vận hành KDI', 'Lõi · Tổ chức & quy trình', 'Quản trị chung · Kỹ thuật & bảo mật']
+const ADMIN_NOTE: Record<string, string> = {
+  'Vận hành KDI': 'Khách hàng, hợp đồng, triển khai',
+  'Lõi · Tổ chức & quy trình': 'Tổ chức, tài khoản, quyền, phê duyệt',
+  'Quản trị chung · Kỹ thuật & bảo mật': 'Dữ liệu, bảo mật, cấu hình toàn hệ thống',
+}
+const PH_NOTE: Record<string, string> = {
+  '1': 'Năng lực và tập huấn giáo viên',
+  '2': 'Chương trình, học liệu, bài giảng',
+  '3': 'Thiết bị, kho, phòng STEM',
+  '4': 'Lớp học, lịch dạy, điểm danh, đánh giá',
+  '5': 'Báo cáo, điều hành và quản trị theo đơn vị',
+}
+type Sub = { title: string; items: string[] }
+type Ph = { num: string; title: string; subs: Sub[] }
+
+function MapItems({ items, live, go, shared }: { items: string[]; live: Set<string>; go?: (p: string) => void; shared?: Set<string> }) {
+  return (
+    <ul className="smitems">
+      {items.map(i => {
+        const on = live.has(i)
+        return (
+          <li key={i} className={on ? 'on' : 'off'}>
+            <i aria-hidden="true" />
+            <button type="button" className="linkbtn" onClick={() => go?.(i)}>{i}</button>
+            {shared?.has(i) && <small className="smshared" title="Cùng trang với mục ở Quản trị hệ thống">dùng chung</small>}
+            {!on && <small className="smframe">Khung</small>}
+          </li>
+        )
+      })}
+    </ul>
+  )
+}
+
+function Progress({ d, n }: { d: number; n: number }) {
+  return (
+    <div className="smprog">
+      <div className="track"><div className={'fill ' + (d === n ? 'g' : 'o')} style={{ width: (n ? d / n * 100 : 0) + '%' }} /></div>
+      <small><b>{d}</b>/{n} hoạt động</small>
+    </div>
+  )
+}
+
 export function SystemMap({ live, go }: { live: Set<string>; go?: (p: string) => void }) {
-  const groups = NAV.platform.filter(g => g.title !== 'Tổng quan')
-  const all = [...new Set(groups.flatMap(g => g.items))]   // một mục có thể nằm ở hai nhóm
-  const done = all.filter(i => live.has(i)).length
+  const admin = NAV.platform.filter(g => ADMIN_GROUPS.includes(g.title))
+  const phGroups = NAV.platform.filter(g => /^\d/.test(g.section ?? g.title))
+  const phs: Ph[] = []
+  for (const g of phGroups) {
+    const head = g.section ?? g.title
+    const num = head.match(/^(\d+)/)![1]
+    let ph = phs.find(p => p.num === num)
+    if (!ph) { ph = { num, title: head.replace(/^\d+\.\s*/, ''), subs: [] }; phs.push(ph) }
+    ph.subs.push({ title: g.section ? g.title : '', items: g.items })
+  }
+  const adminItems = [...new Set(admin.flatMap(g => g.items))]
+  const phItems = [...new Set(phGroups.flatMap(g => g.items))]
+  const shared = new Set(phItems.filter(i => adminItems.includes(i)))
+  const all = [...new Set([...adminItems, ...phItems])]
+  const cnt = (xs: string[]) => xs.filter(i => live.has(i)).length
+  const done = cnt(all)
   return (
     <>
+      <p className="sub">Toàn bộ chức năng của nền tảng, chia theo hai phần. Bấm vào tên để mở. <span className="smlegend"><span className="on"><i />Đang hoạt động</span><span className="off"><i />Khung giao diện, chờ build</span></span></p>
       <Tiles items={[
-        { label: 'Nhóm chức năng', value: groups.length },
-        { label: 'Phân hệ', value: all.length },
-        { label: 'Đang hoạt động', value: done, sub: Math.round(done / all.length * 100) + '% đã có chức năng thật', tone: 'good' },
-        { label: 'Khung giao diện', value: all.length - done, sub: 'chờ build tiếp', tone: 'warn' },
+        { label: 'Quản trị hệ thống', value: `${cnt(adminItems)}/${adminItems.length}`, sub: `chức năng hoạt động · ${admin.length} nhóm` },
+        { label: '5 phân hệ nghiệp vụ', value: `${cnt(phItems)}/${phItems.length}`, sub: `chức năng hoạt động · ${phs.length} phân hệ` },
+        { label: 'Tổng chức năng', value: all.length, sub: `${Math.round(done / all.length * 100)}% đã chạy thật · không tính trùng ${shared.size} mục dùng chung`, tone: 'good' },
+        { label: 'Còn là khung', value: all.length - done, sub: 'chờ build tiếp', tone: 'warn' },
       ]} />
-      <div className="plmap">
-        {groups.map(g => {
-          const d = g.items.filter(i => live.has(i)).length
+
+      <div className="smhead">
+        <span className="smtag a">A</span>
+        <div><h2>Quản trị hệ thống</h2><small>Phần chung KDI dùng để vận hành toàn nền tảng, áp dụng cho mọi trường và Sở.</small></div>
+      </div>
+      <div className="smadmin">
+        {admin.map(g => (
+          <section className="panel smcard" key={g.title}>
+            <h3>{g.title}</h3>
+            <small className="smnote">{ADMIN_NOTE[g.title]}</small>
+            <Progress d={cnt(g.items)} n={g.items.length} />
+            <MapItems items={g.items} live={live} go={go} />
+          </section>
+        ))}
+      </div>
+
+      <div className="smhead">
+        <span className="smtag b">B</span>
+        <div>
+          <h2>5 phân hệ nghiệp vụ</h2>
+          <small>Đơn vị bán theo gói dịch vụ; trường và Sở dùng trong phạm vi được cấp. <button type="button" className="linkbtn" onClick={() => go?.('Phân hệ & mức sử dụng')}>Xem mức sử dụng theo phân hệ →</button></small>
+        </div>
+      </div>
+      <div className="smphs">
+        {phs.map(ph => {
+          const items = [...new Set(ph.subs.flatMap(s => s.items))]
+          const multi = ph.subs.length > 1
           return (
-            <section className="panel" key={g.title}>
-              <div className="bar"><h3>{g.section ? <small>{g.section}<br /></small> : null}{g.title}</h3><small>{d}/{g.items.length} đang hoạt động</small></div>
-              <div className="track"><div className={'fill ' + (d === g.items.length ? 'g' : 'o')} style={{ width: (d / g.items.length * 100) + '%' }} /></div>
-              <ul>
-                {g.items.map(i => (
-                  <li key={i}>
-                    <button type="button" className="linkbtn" onClick={() => go?.(i)}>{i}</button>
-                    <span className={'plbadge ' + (live.has(i) ? 'ok' : 'mute')}>{live.has(i) ? 'Đang hoạt động' : 'Khung'}</span>
-                  </li>
+            <section className={'panel smph' + (multi ? ' multi' : '')} key={ph.num}>
+              <header>
+                <span className="smnum">{ph.num}</span>
+                <div className="smtitle"><h3>{ph.title}</h3><small className="smnote">{PH_NOTE[ph.num]}{multi ? ` · ${ph.subs.length} nhóm` : ''}</small></div>
+                <Progress d={cnt(items)} n={items.length} />
+              </header>
+              <div className="smsubs" style={{ ['--cols' as string]: multi ? (ph.subs.length <= 4 ? ph.subs.length : 3) : 1 }}>
+                {ph.subs.map(s => (
+                  <div className="smsub" key={s.title || ph.num}>
+                    {s.title && <h4>{s.title}</h4>}
+                    {s.items.some(i => shared.has(i)) && /^5\.[3-6]/.test(s.title) && <small className="smnote">Trường / Sở quản lý phần của mình; phần toàn hệ thống ở mục A.</small>}
+                    <MapItems items={s.items} live={live} go={go} shared={shared} />
+                  </div>
                 ))}
-              </ul>
+              </div>
             </section>
           )
         })}

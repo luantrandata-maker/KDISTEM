@@ -14,6 +14,10 @@ on:
         description: 'Chỉ dùng MỘT lần: đánh dấu migration ≤ số này là "đã chạy" (vd 033), không chạy SQL nào. Để trống nếu không cần.'
         type: string
         default: ''
+      schema_diff:
+        description: 'So sánh cấu trúc CSDL thật với CSDL dựng từ repo (chỉ đọc). Bật thì KHÔNG chạy migration.'
+        type: boolean
+        default: false
 
 jobs:
   isolation:
@@ -36,7 +40,7 @@ jobs:
   # Không bật cờ app.seed_demo nên dữ liệu mẫu KHÔNG được chèn. Xem README mục "Chạy migration tự động".
   migrate:
     needs: isolation
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    if: (github.event_name == 'workflow_dispatch' && !inputs.schema_diff) || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
     environment: production
     concurrency: { group: supabase-migrate, cancel-in-progress: false }
@@ -83,3 +87,47 @@ jobs:
       - name: Chạy migration
         if: steps.secret.outputs.ok == 'true' && env.DRY_RUN != 'true' && env.BASELINE_UPTO == ''
         run: supabase db push --db-url "$SUPABASE_DB_URL" --yes < /dev/null
+
+  # Chỉ đọc: so dấu vân tay cấu trúc (cột, hàm, policy, trigger, ràng buộc, chỉ mục, quyền mặc định)
+  # của CSDL thật với CSDL dựng từ repo (không dữ liệu mẫu). Kết quả ở Summary của lần chạy + artifact schema-diff.
+  schema-diff:
+    if: github.event_name == 'workflow_dispatch' && inputs.schema_diff
+    runs-on: ubuntu-latest
+    environment: production
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Dựng CSDL từ repo (không dữ liệu mẫu)
+        run: |
+          psql -v ON_ERROR_STOP=1 -q -d postgres -c "create database repo"
+          psql -v ON_ERROR_STOP=1 -q -d repo -f supabase/tests/auth_stub.sql
+          for f in supabase/migrations/*.sql; do psql -v ON_ERROR_STOP=1 -q -d repo -f "$f" > /dev/null; done
+      - name: Lấy dấu vân tay hai CSDL
+        run: |
+          [ -n "$SUPABASE_DB_URL" ] || { echo "::error::Chưa có secret SUPABASE_DB_URL"; exit 1; }
+          mkdir -p out
+          psql -v ON_ERROR_STOP=1 -At -d repo -f supabase/scripts/schema_fingerprint.sql > out/repo.txt
+          (unset PGHOST PGUSER PGPASSWORD; psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -At -f supabase/scripts/schema_fingerprint.sql) > out/live.txt
+          diff -u out/repo.txt out/live.txt > out/diff.txt || true
+          wc -l out/*.txt
+      - name: Tóm tắt
+        run: |
+          {
+            echo "## So sánh cấu trúc: repo (−) và CSDL thật (+)"
+            echo "repo: $(wc -l < out/repo.txt) dòng · CSDL thật: $(wc -l < out/live.txt) dòng"
+            echo "Chỉ có trong repo: $(grep -c '^-[a-z]' out/diff.txt || true) · Chỉ có / khác ở CSDL thật: $(grep -c '^+[a-z]' out/diff.txt || true)"
+            echo '```diff'; head -c 60000 out/diff.txt; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with: { name: schema-diff, path: out/ }

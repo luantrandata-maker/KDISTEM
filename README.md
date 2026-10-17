@@ -142,6 +142,7 @@ Thiết lập một lần cho project Supabase hiện tại (đã chạy tay mig
 - Nếu quên bước 3, job `migrate` dừng với lỗi *chưa baseline* chứ không chạy lại từ 001.
 - Sau khi bật CI, **không** chạy migration qua SQL Editor hay Supabase MCP nữa: mọi migration đi qua PR → main → CI. Chạy ngoài luồng sẽ ghi version lạ vào lịch sử và CI từ chối chạy.
 - Muốn duyệt tay trước mỗi lần chạy: Settings → Environments → `production` → *Required reviewers*.
+- **So sánh cấu trúc CSDL thật với repo** (chỉ đọc): Run workflow với `schema_diff` bật. Job dựng CSDL từ repo, lấy dấu vân tay cột, hàm, policy, trigger, ràng buộc, chỉ mục và quyền mặc định của cả hai (`supabase/scripts/schema_fingerprint.sql`) rồi in chỗ khác nhau ở *Summary* của lần chạy (artifact `schema-diff`). Dùng sau khi CSDL bị sửa ngoài luồng migration.
 
 ## Triển khai Cloudflare (Workers Builds, kết nối GitHub)
 - Build command: `npm run build`

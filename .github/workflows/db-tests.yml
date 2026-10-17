@@ -92,6 +92,51 @@ jobs:
         if: steps.secret.outputs.ok == 'true' && env.DRY_RUN != 'true' && env.BASELINE_UPTO == ''
         run: supabase db push --db-url "$SUPABASE_DB_URL" --yes < /dev/null
 
+  # Hàm máy chủ (supabase/functions): kiểm tra kiểu trên mọi PR/push.
+  functions-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: denoland/setup-deno@v2
+        with: { deno-version: v2.1.4 }
+      - run: for f in supabase/functions/*/index.ts; do deno check "$f"; done
+
+  # Đưa hàm máy chủ lên Supabase sau khi migration đã chạy (hàm gọi các RPC của migration).
+  # Cần secret SUPABASE_ACCESS_TOKEN (Personal access token của Supabase). Không có → bỏ qua, không lỗi.
+  # Mã project lấy từ SUPABASE_DB_URL. Không kiểm JWT ở cổng (--no-verify-jwt): hàm tự kiểm quyền qua RPC bằng JWT người gọi.
+  deploy-functions:
+    needs: [migrate, functions-check]
+    if: (github.event_name == 'workflow_dispatch' && !inputs.schema_diff && !inputs.dry_run && inputs.baseline_upto == '') || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    environment: production
+    concurrency: { group: supabase-functions, cancel-in-progress: false }
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Kiểm tra secret
+        id: secret
+        run: |
+          REF=$(printf '%s' "$SUPABASE_DB_URL" | sed -nE 's#.*://postgres\.([a-z0-9]{20})[:@].*#\1#p; s#.*@db\.([a-z0-9]{20})\.supabase\.co.*#\1#p' | head -1)
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$REF" ]; then
+            echo "::notice title=functions::Chưa có secret SUPABASE_ACCESS_TOKEN (hoặc không đọc được mã project từ SUPABASE_DB_URL) — bỏ qua bước đưa hàm máy chủ lên."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"; echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: supabase/setup-cli@v1
+        if: steps.secret.outputs.ok == 'true'
+        with: { version: 2.121.0 }
+      - name: Đưa hàm máy chủ lên
+        if: steps.secret.outputs.ok == 'true'
+        run: |
+          for d in supabase/functions/*/; do
+            n=$(basename "$d")
+            supabase functions deploy "$n" --project-ref "${{ steps.secret.outputs.ref }}" --no-verify-jwt --use-api < /dev/null
+            echo "::notice title=functions::Đã đưa lên hàm $n"
+          done
+
   # Chỉ đọc: so dấu vân tay cấu trúc (cột, hàm, policy, trigger, ràng buộc, chỉ mục, quyền mặc định)
   # của CSDL thật với CSDL dựng từ repo (không dữ liệu mẫu). Kết quả ở Summary của lần chạy + artifact schema-diff.
   schema-diff:

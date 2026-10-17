@@ -126,7 +126,9 @@ begin
   end if;
   delete from training_lessons where title like 'ISO bài tập huấn%';
   delete from training_plans where name = 'ISO kế hoạch tập huấn';   -- buổi, ghi danh, điểm danh xoá theo (cascade)
-  delete from students where student_code like 'ISO-%' or org_id = any(v_orgs);
+  delete from students where student_code like 'ISO-%' or full_name like 'ISO HS%' or org_id = any(v_orgs);
+  delete from invitations where email like 'thcsph.iso%' or full_name = 'ISO GV tài khoản mã';
+  delete from auth.users where email like 'thcsph.iso%@%';
   if to_regclass('public.package_orders') is not null then
     delete from package_orders where org_id = any(v_orgs);
     delete from approval_workflows where org_id = any(v_orgs);
@@ -142,7 +144,7 @@ begin
   delete from auth.users where email like '%@iso-test.local';
   if to_regclass('public.audit_log') is not null then
     delete from audit_log where id > coalesce((select audit_start from t_meta), 0)
-      and (entity = 'role_permissions' or summary ~ '(ISO tự học|ISO nghỉ|Thử [a-z_]+|iso-test\.local|thử ISO|ISO-[A-Z]+|thử \(thử\)|Tổ trưởng \(thử\))' or (actor is null and summary like '%tài khoản đã xoá%'));
+      and (entity = 'role_permissions' or summary ~ '(ISO tự học|ISO nghỉ|thcsph\.iso|ISO HS|ISO GV|Thử [a-z_]+|iso-test\.local|thử ISO|ISO-[A-Z]+|thử \(thử\)|Tổ trưởng \(thử\))' or (actor is null and summary like '%tài khoản đã xoá%'));
   end if;
 end $$;
 
@@ -899,6 +901,65 @@ select pg_temp.chk('so_bn', 'Sở tỉnh khác không sửa thẳng vị trí tr
   'update organizations set lat = 20.7, lng = 106.1 where code = ''THCS-PH''', 'rows:0');
 select pg_temp.chk('admin_ph', 'Trường không sửa thẳng dòng đơn vị (chỉ qua hàm)',
   'update organizations set lat = 20.7, lng = 106.1 where code = ''THCS-PH''', 'rows:0');
+
+-- ===== 037: tài khoản đăng nhập bằng mã =====
+do $$ declare v1 uuid := pg_temp.mk('hs_iso', 'THCS-PH', 'student'); v2 uuid := pg_temp.mk('hs_iso_mail', 'THCS-PH', 'student');
+begin
+  update profiles set login = 'thcsph.isohs1' where id = v1;
+  insert into students (org_id, student_code, full_name, profile_id) values
+    (pg_temp.oid_('THCS-PH'), 'ISO-HS1', 'ISO HS có TK mã', v1),
+    (pg_temp.oid_('THCS-PH'), 'ISO-HS4', 'ISO HS có TK email', v2),
+    (pg_temp.oid_('THCS-PH'), 'ISO-HS2', 'ISO HS chưa có TK', null),
+    (pg_temp.oid_('THCS-PH'), null, 'ISO HS thiếu mã', null),
+    (pg_temp.oid_('THCS-KB'), 'ISO-HS3', 'ISO HS trường khác', null);
+  insert into teachers (org_id, full_name, email) values (pg_temp.oid_('THCS-PH'), 'ISO GV tài khoản mã', 'gvma@iso-test.local');
+end $$;
+create or replace function pg_temp.sid(p_name text) returns text language sql as $$
+  select quote_literal(coalesce((select id::text from students where full_name = p_name), (select id::text from teachers where full_name = p_name)))
+$$;
+create or replace function pg_temp.prep(p_kind text, p_name text) returns text language sql as $$
+  select format('select concat_ws(%L, status, login) from account_prepare(%L, array[%s]::uuid[])', ':', p_kind, pg_temp.sid(p_name))
+$$;
+select pg_temp.chk('admin_ph', 'TK mã: miền đăng nhập', 'select login_domain()', 'tk.kdi.edu.vn');
+select pg_temp.chk('admin_ph', 'TK mã: HS có mã → tạo mới', pg_temp.prep('student', 'ISO HS chưa có TK'), 'new:thcsph.isohs2');
+select pg_temp.chk('admin_ph', 'TK mã: HS đã có tài khoản', pg_temp.prep('student', 'ISO HS có TK mã'), 'has_account:thcsph.isohs1');
+select pg_temp.chk('admin_ph', 'TK mã: HS thiếu mã', pg_temp.prep('student', 'ISO HS thiếu mã'), 'missing_code');
+select pg_temp.chk('admin_ph', 'TK mã: HS trường khác không tạo được', pg_temp.prep('student', 'ISO HS trường khác'), 'not_found');
+select pg_temp.chk('admin_ph', 'TK mã: GV đánh số', pg_temp.prep('teacher', 'ISO GV tài khoản mã'), 'new:thcsph.gv1');
+select pg_temp.chk('gv_both', 'TK mã: giáo viên không tạo tài khoản', pg_temp.prep('student', 'ISO HS chưa có TK'), 'ERR');
+select pg_temp.chk('so_hy', 'TK mã: Sở không tạo tài khoản cho HS trường', pg_temp.prep('student', 'ISO HS chưa có TK'), 'ERR');
+select pg_temp.chk('hs_kb', 'TK mã: học sinh không gọi được', pg_temp.prep('student', 'ISO HS chưa có TK'), 'ERR');
+select pg_temp.chk('admin_ph', 'TK mã: đặt lại mật khẩu HS trường mình',
+  format('select (account_reset_target(''student'', %s) is not null)::text', pg_temp.sid('ISO HS có TK mã')), 'true');
+select pg_temp.chk('admin_kb', 'TK mã: trường khác không đặt lại mật khẩu',
+  format('select (account_reset_target(''student'', %s) is not null)::text', pg_temp.sid('ISO HS có TK mã')), 'ERR*');
+select pg_temp.chk('gv_both', 'TK mã: giáo viên không đặt lại mật khẩu',
+  format('select (account_reset_target(''student'', %s) is not null)::text', pg_temp.sid('ISO HS có TK mã')), 'ERR');
+select pg_temp.chk('admin_ph', 'TK mã: không đặt lại tài khoản email thật',
+  format('select (account_reset_target(''student'', %s) is not null)::text', pg_temp.sid('ISO HS có TK email')), 'ERR*');
+select pg_temp.chk('admin_ph', 'TK mã: không đặt lại khi chưa có tài khoản',
+  format('select (account_reset_target(''student'', %s) is not null)::text', pg_temp.sid('ISO HS chưa có TK')), 'ERR*');
+select pg_temp.chk('admin_ph', 'TK mã: quản trị không tự sửa tên đăng nhập',
+  'update profiles set login = ''thcsph.doi'' where login = ''thcsph.isohs1''', 'ERR');
+select pg_temp.chk('hs_iso', 'TK mã: học sinh không tự sửa tên đăng nhập',
+  'update profiles set login = ''thcsph.doi'' where id = auth.uid()', 'rows:0');
+select pg_temp.chk('kdi', 'TK mã: quản trị nền tảng cũng không sửa tên đăng nhập qua API',
+  'update profiles set login = ''thcsph.doi'' where login = ''thcsph.isohs1''', 'ERR');
+select pg_temp.chk('kdi', 'TK mã: hàm tra tài khoản Auth chỉ dành cho máy chủ',
+  'select count(*) from account_auth_user(''x@y.z'')', 'ERR');
+-- Luồng đầy đủ: account_prepare ghi lời mời → hàm máy chủ tạo tài khoản đã xác nhận → tự gán trường, vai trò HS, liên kết hồ sơ
+do $$ declare v_r text; v_uid uuid; v_linked boolean; v_role boolean;
+begin
+  v_r := pg_temp.probe('admin_ph@iso-test.local', format('select status from account_prepare(%L, array[%s]::uuid[])', 'student', pg_temp.sid('ISO HS chưa có TK')), true);
+  insert into auth.users (email, raw_user_meta_data) values ('thcsph.isohs2@tk.kdi.edu.vn', '{"full_name":"ISO HS chưa có TK"}') returning id into v_uid;
+  select profile_id = v_uid into v_linked from students where full_name = 'ISO HS chưa có TK';
+  select exists (select 1 from memberships m join roles r on r.id = m.role_id
+                  where m.user_id = v_uid and m.org_id = pg_temp.oid_('THCS-PH') and r.key = 'student') into v_role;
+  insert into t_result (who, name, expect, got, ok) values
+    ('system', 'TK mã: lời mời được ghi', 'new', v_r, v_r = 'new'),
+    ('system', 'TK mã: tạo tài khoản → liên kết hồ sơ HS', 'true', coalesce(v_linked, false)::text, coalesce(v_linked, false)),
+    ('system', 'TK mã: tạo tài khoản → vai trò HS tại trường', 'true', v_role::text, v_role);
+end $$;
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

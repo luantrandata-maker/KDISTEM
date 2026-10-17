@@ -57,3 +57,14 @@ export function byWard(schools: SchoolStat[]) {
     kpi: Math.round(avg(list.map(s => s.kpi))),
   })).sort((a, b) => b.kpi - a.kpi)
 }
+
+// Chỉ số trường dùng chung cho bản đồ nhiệt và bản đồ độ phủ STEM (max = mục tiêu, tô đậm nhất)
+export const HEAT: { key: string; label: string; get: (s: SchoolStat) => number; fmt: (v: number) => string; max: number }[] = [
+  { key: 'kpi', label: 'KPI', get: s => s.kpi, fmt: v => String(v), max: 100 },
+  { key: 'ct', label: 'Phủ CT1–CT5', get: s => s.programs.length, fmt: v => `${v}/5`, max: 5 },
+  { key: 'room', label: 'Phòng STEM', get: s => s.rooms_active, fmt: v => String(v), max: 4 },
+  { key: 'per', label: 'Tiết STEM/lớp', get: s => (s.classes ? s.stem_periods / s.classes : 0), fmt: v => v.toFixed(1), max: 3 },
+  { key: 'train', label: 'GV tập huấn', get: s => pct(s.training_done, s.teachers), fmt: v => v + '%', max: 100 },
+  { key: 'lp', label: 'Giáo án/GV', get: s => (s.teachers ? s.lesson_plans / s.teachers : 0), fmt: v => v.toFixed(2), max: 0.8 },
+  { key: 'stu', label: 'HS học STEM', get: s => pct(s.stem_students, s.students), fmt: v => v + '%', max: 100 },
+]

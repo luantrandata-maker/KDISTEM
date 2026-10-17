@@ -879,6 +879,27 @@ begin
   insert into t_result (who, name, expect, got, ok) values ('system', 'Lịch nền ghi nhật ký', '>0', v_n::text, v_n > 0);
 end $$;
 
+-- ===== 036: vị trí trường trên bản đồ =====
+select pg_temp.chk('so_hy', 'Sở thấy vị trí trường trực thuộc', 'select count(*) from organizations where code = ''THCS-PH'' and lat is not null', '1');
+select pg_temp.chk('so_bn', 'Sở tỉnh khác không thấy trường (kể cả vị trí)', 'select count(*) from organizations where code = ''THCS-PH''', '0');
+select pg_temp.chk('so_hy', 'Sở đặt vị trí trường trực thuộc',
+  format('select set_school_location(%s, 20.66, 106.05)::text', quote_literal(pg_temp.oid_('THCS-PH'))), '');
+select pg_temp.chk('so_bn', 'Sở tỉnh khác không đặt vị trí trường',
+  format('select set_school_location(%s, 20.66, 106.05)::text', quote_literal(pg_temp.oid_('THCS-PH'))), 'ERR');
+select pg_temp.chk('admin_ph', 'Quản trị trường đặt vị trí trường mình',
+  format('select set_school_location(%s, 20.66, 106.05)::text', quote_literal(pg_temp.oid_('THCS-PH'))), '');
+select pg_temp.chk('admin_ph', 'Quản trị trường không đặt vị trí trường khác',
+  format('select set_school_location(%s, 20.66, 106.05)::text', quote_literal(pg_temp.oid_('THPT-CHY'))), 'ERR');
+select pg_temp.chk('gv_both', 'Giáo viên không đặt vị trí trường',
+  format('select set_school_location(%s, 20.66, 106.05)::text', quote_literal(pg_temp.oid_('THCS-PH'))), 'ERR');
+select pg_temp.chk('so_hy', 'Toạ độ ngoài Việt Nam bị từ chối',
+  format('select set_school_location(%s, 48.85, 2.35)::text', quote_literal(pg_temp.oid_('THCS-PH'))), 'ERR*');
+-- Sở cấp trên sửa được thông tin trường trực thuộc (thiết kế 018/019); Sở tỉnh khác và trường thì không sửa thẳng được.
+select pg_temp.chk('so_bn', 'Sở tỉnh khác không sửa thẳng vị trí trường',
+  'update organizations set lat = 20.7, lng = 106.1 where code = ''THCS-PH''', 'rows:0');
+select pg_temp.chk('admin_ph', 'Trường không sửa thẳng dòng đơn vị (chỉ qua hàm)',
+  'update organizations set lat = 20.7, lng = 106.1 where code = ''THCS-PH''', 'rows:0');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

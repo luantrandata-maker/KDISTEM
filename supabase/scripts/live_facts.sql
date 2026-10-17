@@ -1,0 +1,26 @@
+-- Truy vấn dữ kiện trên CSDL thật, chạy trong giao dịch CHỈ ĐỌC (job schema-diff, đầu ra facts.txt).
+-- Sửa file này khi cần tra cứu thêm; mọi lệnh ghi đều bị CSDL từ chối.
+select '## role_permissions: cột org_id';
+select coalesce(string_agg(column_name || ' ' || data_type, ', '), '(không có)') from information_schema.columns
+ where table_schema = 'public' and table_name = 'role_permissions' and column_name = 'org_id';
+select '## role_permissions: chỉ mục';
+select indexname || ': ' || indexdef from pg_indexes where schemaname = 'public' and tablename = 'role_permissions' order by 1;
+select '## role_permissions: số dòng theo org_id (null = mặc định)';
+select coalesce(string_agg(x, E'\n'), '(cột org_id không tồn tại)') from (
+  select format('%s: %s dòng', coalesce(o, '(null)'), n) as x from (
+    select (to_jsonb(rp) ->> 'org_id') as o, count(*) as n from role_permissions rp group by 1 order by 1) s) t;
+select '## role_permissions: dòng có org_id (chi tiết, tối đa 50)';
+select coalesce(string_agg(x, E'\n'), '(không có)') from (
+  select format('%s %s.%s view:%s detail:%s create:%s edit:%s delete:%s', to_jsonb(rp) ->> 'org_id', r.key, rp.module,
+                rp.can_view, rp.can_detail, rp.can_create, rp.can_edit, rp.can_delete) as x
+    from role_permissions rp join roles r on r.id = rp.role_id
+   where to_jsonb(rp) ->> 'org_id' is not null order by 1 limit 50) t;
+select '## role_permissions: (role_id, module) trùng nhau';
+select count(*) from (select role_id, module from role_permissions group by 1, 2 having count(*) > 1) d;
+select '## quyền borrow / edu_plans';
+select coalesce(string_agg(format('%s %s org:%s', r.key, rp.module, coalesce(r.org_id::text, 'hệ thống')), E'\n'), '(không có)')
+  from role_permissions rp join roles r on r.id = rp.role_id where rp.module in ('borrow', 'edu_plans');
+select '## org_role_permissions có borrow / edu_plans';
+select count(*) from org_role_permissions where module in ('borrow', 'edu_plans');
+select '## roles: vai trò hệ thống có org_id (roles_admin_write cho sửa)';
+select count(*) from roles where is_system and org_id is not null;

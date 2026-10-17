@@ -128,6 +128,7 @@ begin
   delete from training_plans where name = 'ISO kế hoạch tập huấn';   -- buổi, ghi danh, điểm danh xoá theo (cascade)
   delete from students where student_code like 'ISO-%' or full_name like 'ISO HS%' or org_id = any(v_orgs);
   delete from invitations where email like 'thcsph.iso%' or full_name = 'ISO GV tài khoản mã';
+  if to_regclass('public.rubrics') is not null then delete from rubrics where title like 'ISO %'; end if;
   if to_regclass('public.dept_targets') is not null then
     delete from dept_targets where note like 'ISO %';
     delete from dept_alert_actions where note like 'ISO %';
@@ -1069,6 +1070,41 @@ select pg_temp.chk('so_bn', 'Cảnh báo: Sở tỉnh khác không gửi nhắc'
   format('select dept_notify_school(%s, ''ISO nhắc'', ''thử'')', quote_literal(pg_temp.oid_('THCS-PH'))), 'ERR');
 select pg_temp.chk('admin_ph', 'Cảnh báo: trường không gửi nhắc trường khác',
   format('select dept_notify_school(%s, ''ISO nhắc'', ''thử'')', quote_literal(pg_temp.oid_('THPT-CHY'))), 'ERR');
+
+-- ===== 041: chấm theo tiêu chí (rubric) =====
+insert into rubrics (org_id, title, criteria) values (pg_temp.oid_('THCS-PH'), 'ISO tiêu chí trường',
+  '[{"name":"A","points":1,"levels":["1","2","3","4"]}]');
+select pg_temp.chk('admin_ph', 'Rubric: thấy mẫu hệ thống', 'select count(*) >= 3 from rubrics where org_id is null', 'true');
+select pg_temp.chk('admin_ph', 'Rubric: thấy mẫu của trường', 'select count(*) from rubrics where title = ''ISO tiêu chí trường''', '1');
+select pg_temp.chk('admin_kb', 'Rubric: trường khác không thấy mẫu của trường', 'select count(*) from rubrics where title = ''ISO tiêu chí trường''', '0');
+select pg_temp.chk('admin_ph', 'Rubric: trường không sửa mẫu hệ thống', 'update rubrics set title = title where org_id is null', 'rows:0');
+select pg_temp.chk('admin_ph', 'Rubric: tiêu chí sai cấu trúc bị từ chối',
+  format('insert into rubrics (org_id, title, criteria) values (%s, ''ISO sai'', ''[{"name":"A","points":1,"levels":["1"]}]'')', quote_literal(pg_temp.oid_('THCS-PH'))), 'ERR*');
+select pg_temp.chk('admin_ph', 'Rubric: tính điểm theo mức', $q$select rubric_score('{"criteria":[{"name":"A","points":3,"levels":["","","",""]},{"name":"B","points":1,"levels":["","","",""]}]}', '[4,2]', 10)::text$q$, '8.75');
+do $$ declare v_a uuid; v_s uuid; v_old_r jsonb; v_old jsonb; v_max numeric; v_hi numeric; v_lo numeric; v_st text; v_sum int; v_r text; v_r2 text;
+begin
+  select a.id, a.rubric, a.max_score into v_a, v_old_r, v_max from assignments a join organizations o on o.id = a.org_id
+   where o.code = 'THCS-PH' and exists (select 1 from submissions s where s.assignment_id = a.id and s.student_id is not null) order by a.created_at limit 1;
+  if v_a is null then return; end if;
+  select id, to_jsonb(s) into v_s, v_old from submissions s where assignment_id = v_a and student_id is not null order by id limit 1;
+  update assignments set rubric = jsonb_build_object('title', r.title, 'criteria', r.criteria) from rubrics r
+   where assignments.id = v_a and r.org_id is null and r.title = 'Sản phẩm STEM (quy trình thiết kế kỹ thuật)';
+  update submissions set rubric_scores = '[4,4,4,4,4]' where id = v_s;  select score, status into v_hi, v_st from submissions where id = v_s;
+  update submissions set rubric_scores = '[1,1,1,1,1]' where id = v_s;  select score into v_lo from submissions where id = v_s;
+  v_sum := pg_temp.probe('admin_ph@iso-test.local', format('select count(*) from rubric_class_summary(%L) where l1 = 1', v_a))::int;
+  v_r := pg_temp.probe('so_hy@iso-test.local', format('select count(*) from rubric_class_summary(%L)', v_a));
+  v_r2 := pg_temp.probe('so_bn@iso-test.local', format('select count(*) from rubric_class_summary(%L)', v_a));
+  update assignments set rubric = v_old_r where id = v_a;
+  update submissions set rubric_scores = null, score = (v_old->>'score')::numeric, status = v_old->>'status',
+         graded_at = (v_old->>'graded_at')::timestamptz where id = v_s;
+  insert into t_result (who, name, expect, got, ok) values
+    ('system', 'Rubric: mức 4 mọi tiêu chí = điểm tối đa', v_max::text, v_hi::text, v_hi = v_max),
+    ('system', 'Rubric: mức 1 mọi tiêu chí = 1/4 thang điểm', (v_max / 4)::text, v_lo::text, v_lo = round(v_max / 4 * 4) / 4),
+    ('system', 'Rubric: chấm theo mức → trạng thái đã chấm', 'graded', v_st, v_st = 'graded'),
+    ('system', 'Rubric: tổng hợp theo tiêu chí', '5', v_sum::text, v_sum = 5),
+    ('so_hy', 'Rubric: Sở xem tổng hợp bài của trường trực thuộc', '5', v_r, v_r = '5'),
+    ('so_bn', 'Rubric: Sở tỉnh khác không xem tổng hợp', 'ERR 42501', v_r2, v_r2 = 'ERR 42501');
+end $$;
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

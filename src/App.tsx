@@ -1,7 +1,7 @@
 import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
-import { NAV, ROLE_LABEL, MODULE_OF, ENT_MODULE_OF, RoleKey, UPSELL_PORTALS, PHASE_OF } from './lib/nav'
+import { NAV, ROLE_LABEL, MODULE_OF, ENT_MODULE_OF, RoleKey, UPSELL_PORTALS, PHASE_OF, labelOf } from './lib/nav'
 import { LockedModule } from './components/LockedModule'
 import { useAccess, switchOrg } from './lib/auth'
 import { useYears, yearLabel } from './lib/year'
@@ -235,6 +235,9 @@ const PLATFORM_ALIAS: Record<string, string> = {
   'Dashboard điểm danh': 'Buổi dạy & điểm danh', 'Thời khoá biểu & xếp lịch': 'Thời khóa biểu & xếp lịch',
 }
 const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM }
+// Khi dev: mục menu không có trang (thường do sửa chuỗi mã trong NAV thay vì thêm LABEL — xem lib/nav.ts)
+if (import.meta.env.DEV) (Object.keys(PAGES) as RoleKey[]).filter(r => r !== 'platform').forEach(r =>
+  NAV[r].flatMap(g => g.items).filter(i => !PAGES[r]![i]).forEach(i => console.warn(`[menu] ${r}: "${i}" không có trang`)))
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
@@ -407,7 +410,7 @@ function Shell({ session }: { session: Session }) {
             <div id={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')} hidden={closed.has(key)}>
               {items.map(i => <button key={i} className={(i === page ? 'on' : '') + (locked.has(i) ? ' locked' : '')} onClick={() => show(role, i)}
                 title={locked.has(i) ? 'Chưa có trong gói dịch vụ của đơn vị' : undefined}>
-                {i}{role === 'platform' && !PLATFORM_LIVE.has(i) && i !== 'Sơ đồ hệ thống' && <small className="navtag">Khung</small>}
+                {labelOf(role, i)}{role === 'platform' && !PLATFORM_LIVE.has(i) && i !== 'Sơ đồ hệ thống' && <small className="navtag">Khung</small>}
                 {locked.has(i) && <svg className="navlock" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Chưa có trong gói"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>}
               </button>)}
             </div>
@@ -439,7 +442,7 @@ function Shell({ session }: { session: Session }) {
           </button>
           <img src={logo} alt="KDI education" />
           <span className="title">{role === 'platform' ? 'Hệ thống quản lý vận hành' : 'Hệ thống Quản trị STEM'}</span>
-          <MenuSearch entries={groups.flatMap(g => g.items.map(item => ({ item, group: g.section ? `${g.section} › ${g.title}` : g.title })))} onGo={i => show(role, i)} />
+          <MenuSearch entries={groups.flatMap(g => g.items.map(item => ({ item, label: labelOf(role, item), group: g.section ? `${g.section} › ${g.title}` : g.title })))} onGo={i => show(role, i)} />
           <div className="user">
             <Bell open={openFrom} portals={views} orgId={access.profile.org_id} />
             <UserMenu name={access.profile.full_name} email={email}
@@ -452,8 +455,8 @@ function Shell({ session }: { session: Session }) {
           </div>
         </header>
         <main className="main">
-          <h1>{page}</h1>
-          {locked.has(page) ? <LockedModule name={page} phase={PHASE_OF[ENT_MODULE_OF[page]] ?? null} entitlement={access.entitlement} go={goPage} />
+          <h1>{labelOf(role, page)}</h1>
+          {locked.has(page) ? <LockedModule name={labelOf(role, page)} phase={PHASE_OF[ENT_MODULE_OF[page]] ?? null} entitlement={access.entitlement} go={goPage} />
             : Page ? <Suspense fallback={<p className="sub">Đang tải…</p>}><Page key={page + (yrs.year?.id ?? '') + (studentId ?? '')} teacherId={teacherId} studentId={studentId} orgId={access.profile.org_id} userName={access.profile.full_name} go={goPage} name={page}
             year={yrs.year} years={yrs.years} reloadYears={yrs.reload} selectYear={yrs.select} /></Suspense> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
         </main>

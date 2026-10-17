@@ -4,7 +4,7 @@ import { switchOrg, type MyOrg } from '../lib/auth'
 import { norm } from '../lib/sheet'
 
 // ================= Tìm chức năng trong menu =================
-export function MenuSearch({ entries, onGo }: { entries: { item: string; group: string }[]; onGo: (item: string) => void }) {
+export function MenuSearch({ entries, onGo }: { entries: { item: string; label: string; group: string }[]; onGo: (item: string) => void }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const [sel, setSel] = useState(0)
@@ -17,7 +17,7 @@ export function MenuSearch({ entries, onGo }: { entries: { item: string; group: 
   const hits = useMemo(() => {
     const n = norm(q)
     const seen = new Set<string>()
-    return entries.filter(e => (!n || norm(e.item + ' ' + e.group).includes(n)) && !seen.has(e.item) && seen.add(e.item)).slice(0, 12)
+    return entries.filter(e => (!n || norm(e.label + ' ' + e.item + ' ' + e.group).includes(n)) && !seen.has(e.item) && seen.add(e.item)).slice(0, 12)
   }, [q, entries])
   const go = (i: string) => { onGo(i); setQ(''); setOpen(false); ref.current?.blur() }
   return (
@@ -37,7 +37,7 @@ export function MenuSearch({ entries, onGo }: { entries: { item: string; group: 
           {hits.map((h, i) => (
             <button type="button" role="option" aria-selected={i === sel} key={h.item} className={i === sel ? 'on' : ''}
               onMouseEnter={() => setSel(i)} onMouseDown={e => e.preventDefault()} onClick={() => go(h.item)}>
-              <span>{h.item}</span><small>{h.group}</small>
+              <span>{h.label}</span><small>{h.group}</small>
             </button>
           ))}
           {hits.length === 0 && <p className="sub" style={{ margin: 8 }}>Không có chức năng phù hợp.</p>}

@@ -7,6 +7,17 @@ export const ROLE_LABEL: Record<RoleKey, string> = {
   student: 'Học sinh', department: 'Sở GD&ĐT', platform: 'Quản trị nền tảng',
 }
 
+// MÃ TRANG = tên mục lúc tạo trang. Mã được dùng làm khoá ở nhiều nơi: bảng trang (App.tsx PAGES), ánh xạ quyền/gói
+// (MODULE_OF, ENT_MODULE_OF), liên kết giữa các màn (go('…')), cột notifications.page trong CSDL (trigger ghi sẵn),
+// lịch sử trình duyệt. Vì vậy KHÔNG sửa chuỗi mã trong NAV/PAGES.
+//   • Đổi nhóm, thứ tự, chuyển mục sang nhóm/cổng khác, đổi tên nhóm: chỉ sửa NAV — không ảnh hưởng gì khác.
+//   • Đổi TÊN HIỂN THỊ của một mục: thêm vào LABEL (theo cổng, hoặc '*' cho mọi cổng) — menu, tiêu đề trang,
+//     ô Tìm chức năng, Sơ đồ hệ thống đều đọc qua labelOf().
+export const LABEL: Partial<Record<RoleKey | '*', Record<string, string>>> = {
+  // ví dụ: department: { 'Dashboard toàn Sở': 'Tổng quan toàn Sở' },
+}
+export const labelOf = (role: RoleKey, id: string) => LABEL[role]?.[id] ?? LABEL['*']?.[id] ?? id
+
 export const NAV: Record<RoleKey, NavGroup[]> = {
   // Cổng Quản trị nền tảng (16/10): Tổng quan · Vận hành KDI · Lõi · Quản trị chung · Kỹ thuật & bảo mật · 5 phân hệ nghiệp vụ (đơn vị bán).
   // Mục chưa có trang thật hiện khung giao diện (pages/platform/Planned.tsx).

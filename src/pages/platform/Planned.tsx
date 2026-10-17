@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Tiles } from '../department/charts'
 import { Tabs } from '../teacher/common'
-import { NAV } from '../../lib/nav'
+import { NAV, labelOf } from '../../lib/nav'
 
 // Khung giao diện cho các phân hệ của cổng Quản trị nền tảng chưa có chức năng thật.
 // Dữ liệu dưới đây là MINH HOẠ để duyệt bố cục; khi build phân hệ, thay trang này bằng trang thật trong App.tsx.
@@ -274,7 +274,7 @@ function MapItems({ items, live, go, shared }: { items: string[]; live: Set<stri
         return (
           <li key={i} className={on ? 'on' : 'off'}>
             <i aria-hidden="true" />
-            <button type="button" className="linkbtn" onClick={() => go?.(i)}>{i}</button>
+            <button type="button" className="linkbtn" onClick={() => go?.(i)}>{labelOf('platform', i)}</button>
             {shared?.has(i) && <small className="smshared" title="Cùng trang với mục ở Quản trị hệ thống">dùng chung</small>}
             {!on && <small className="smframe">Khung</small>}
           </li>

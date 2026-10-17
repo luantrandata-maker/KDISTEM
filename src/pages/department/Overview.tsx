@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { PROGRAM_COLOR } from '../teacher/common'
 import { Tabs } from '../teacher/common'
-import { useDeptStats, byWard, grade, pct, avg, sum, nf, LEVEL, PROGRAMS, PROGRAM_NAME, type SchoolStat } from './data'
+import { useDeptStats, byWard, grade, pct, avg, sum, nf, LEVEL, PROGRAMS, PROGRAM_NAME, HEAT, type SchoolStat } from './data'
 import { Tiles, GradePill, Columns, HBars, DataTable, rampColor, rampInk } from './charts'
+
+// Bản đồ (Leaflet) tải lười để các màn khác của Sở không nặng thêm
+const SchoolMap = lazy(() => import('./SchoolMap'))
 
 const Loading = ({ err }: { err?: string }) => <p className="sub">{err ? 'Không tải được số liệu: ' + err : 'Đang tổng hợp số liệu các trường…'}</p>
 const short = (n: string) => n.replace(/^Trường\s+/, '').replace('Tiểu học', 'TH')
@@ -14,15 +17,6 @@ const ProgBadges = ({ list }: { list: string[] }) => (
 )
 
 // ================= Dashboard toàn Sở + bản đồ nhiệt =================
-const HEAT: { key: string; label: string; get: (s: SchoolStat) => number; fmt: (v: number) => string; max: number }[] = [
-  { key: 'kpi', label: 'KPI', get: s => s.kpi, fmt: v => String(v), max: 100 },
-  { key: 'ct', label: 'Phủ CT1–CT5', get: s => s.programs.length, fmt: v => `${v}/5`, max: 5 },
-  { key: 'room', label: 'Phòng STEM', get: s => s.rooms_active, fmt: v => String(v), max: 4 },
-  { key: 'per', label: 'Tiết STEM/lớp', get: s => (s.classes ? s.stem_periods / s.classes : 0), fmt: v => v.toFixed(1), max: 3 },
-  { key: 'train', label: 'GV tập huấn', get: s => pct(s.training_done, s.teachers), fmt: v => v + '%', max: 100 },
-  { key: 'lp', label: 'Giáo án/GV', get: s => (s.teachers ? s.lesson_plans / s.teachers : 0), fmt: v => v.toFixed(2), max: 0.8 },
-  { key: 'stu', label: 'HS học STEM', get: s => pct(s.stem_students, s.students), fmt: v => v + '%', max: 100 },
-]
 
 export function DeptDashboard({ go }: { go?: (p: string) => void }) {
   const { schools, loading, err } = useDeptStats()
@@ -42,6 +36,7 @@ export function DeptDashboard({ go }: { go?: (p: string) => void }) {
         { label: 'Tiết STEM / tuần', value: nf(sum(schools.map(s => s.stem_periods))), sub: 'học kỳ hiện tại' },
         { label: 'KPI trung bình', value: Math.round(avg(schools.map(s => s.kpi))), sub: `${schools.filter(s => s.kpi < 45).length} trường chưa đạt` },
       ]} />
+      <Suspense fallback={<div className="panel"><p className="sub">Đang tải bản đồ…</p></div>}><SchoolMap schools={schools} /></Suspense>
       <div className="panel">
         <div className="bar">
           <h3>Bản đồ nhiệt trường</h3>

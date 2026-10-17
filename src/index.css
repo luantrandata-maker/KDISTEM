@@ -697,3 +697,17 @@ table.permtable{table-layout:fixed}table.permtable th:first-child{width:34%}tabl
 .lockedmod svg{color:var(--muted, #6b7280)}
 .lockedmod h2{margin:0;font-size:18px}
 .lockedmod p{margin:0}
+
+/* Bản đồ độ phủ STEM (Dashboard toàn Sở) */
+.stemmap{height:440px;border:1px solid var(--line);border-radius:12px;overflow:hidden;z-index:0;background:var(--soft)}
+.stemmap.placing,.stemmap.placing .leaflet-interactive{cursor:crosshair}
+.stemmap:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.maplegend{display:flex;flex-wrap:wrap;align-items:center;gap:8px 24px;margin-top:10px}
+.maplegend .heatlegend{margin:0}
+.sizelegend{display:flex;align-items:center;gap:6px}
+.sizelegend i{display:inline-block;flex:none;border-radius:50%;border:1.5px solid #0b2a52;background:#86b6ef}
+.maplegend small{color:var(--muted)}
+.mapcount{margin-left:auto}
+.mapmissing{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px;padding:10px 12px;border:1px dashed var(--line);border-radius:10px;background:var(--soft)}
+.mapnote{margin:6px 0 0}
+.leaflet-tooltip{font-family:inherit;font-size:12.5px;line-height:1.45;color:var(--text);border-radius:8px}

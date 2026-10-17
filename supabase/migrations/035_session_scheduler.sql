@@ -170,10 +170,15 @@ create trigger school_holidays_resync after insert or update or delete on school
 do $$
 begin
   if exists (select 1 from pg_available_extensions where name = 'pg_cron') then
-    create extension if not exists pg_cron;
-    -- 19:15 UTC = 02:15 giờ Việt Nam. Đặt lại theo tên nên chạy migration nhiều lần không sinh trùng.
-    perform cron.schedule('generate-upcoming-sessions', '15 19 * * *', 'select public.generate_upcoming_sessions(28)');
-    raise notice 'pg_cron: đã đặt lịch generate-upcoming-sessions 02:15 hằng đêm';
+    begin
+      create extension if not exists pg_cron;
+      -- 19:15 UTC = 02:15 giờ Việt Nam. Đặt lại theo tên nên chạy migration nhiều lần không sinh trùng.
+      perform cron.schedule('generate-upcoming-sessions', '15 19 * * *', 'select public.generate_upcoming_sessions(28)');
+      raise notice 'pg_cron: đã đặt lịch generate-upcoming-sessions 02:15 hằng đêm';
+    exception when others then
+      -- vd pg_cron cấu hình cho CSDL khác (cron.database_name): không chặn migration, kiểm tra lịch qua schema_diff → facts.txt
+      raise notice 'pg_cron: không đặt được lịch (%). Đặt lịch bằng tay hoặc chạy generate_upcoming_sessions() từ bộ lập lịch khác.', sqlerrm;
+    end;
   else
     raise notice 'Không có pg_cron: bỏ qua đặt lịch (gọi generate_upcoming_sessions() bằng tay hoặc từ bộ lập lịch khác)';
   end if;

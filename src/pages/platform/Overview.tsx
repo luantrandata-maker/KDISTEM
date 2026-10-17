@@ -1,7 +1,11 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tiles, HBars } from '../department/charts'
 import { usePlatform, ORG_TYPE, TYPE_ORDER, nf, fmtTime, type Org } from './data'
+import { useDeptStats } from '../department/data'
+
+// Bản đồ độ phủ STEM cả nước (dùng chung thành phần với Dashboard toàn Sở), tải lười
+const CoverageMap = lazy(() => import('../department/CoverageMap'))
 
 type Check = { level: 'bad' | 'warn' | 'info'; key: string; title: string; count: number; items: string[] }
 type Overview = {
@@ -15,6 +19,7 @@ const LEVEL_ICON = { bad: ['✕', 'Cần sửa'], warn: ['!', 'Nên xem'], info:
 // Tổng quan hệ thống: số liệu toàn nền tảng + kiểm tra cấu trúc dữ liệu đa tổ chức
 export function PlatformOverview({ go }: { go?: (p: string) => void }) {
   const { orgs, stats, loading, err } = usePlatform()
+  const dept = useDeptStats()   // quản trị nền tảng: số liệu mọi trường trên toàn hệ thống
   const [ov, setOv] = useState<Overview | null>(null)
   const [ovErr, setOvErr] = useState('')
   const [open, setOpen] = useState<string | null>(null)
@@ -56,6 +61,10 @@ export function PlatformOverview({ go }: { go?: (p: string) => void }) {
         { label: 'Lời mời đang chờ', value: nf(ov.invitations_pending), tone: ov.invitations_pending ? 'warn' : '' },
         { label: 'Kiểm tra cấu trúc', value: problems ? `${problems} mục` : 'Ổn', sub: problems ? 'cần xem bên dưới' : 'không phát hiện lỗi', tone: problems ? 'bad' : 'good' },
       ]} />
+
+      <div className="bar"><h3 style={{ margin: '4px 0 0' }}>Độ phủ STEM cả nước</h3></div>
+      {dept.err ? <p className="msg">{dept.err}</p> : dept.loading ? <p className="sub">Đang tổng hợp số liệu các trường…</p>
+        : <Suspense fallback={<p className="sub">Đang tải bản đồ…</p>}><CoverageMap schools={dept.schools} nation /></Suspense>}
 
       <div className="pgrid">
         <div className="panel">

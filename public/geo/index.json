@@ -1,7 +1,128 @@
 [
  {
+  "code": "01",
+  "name": "Hà Nội",
+  "fullName": "Thành phố Hà Nội",
+  "wards": 126,
+  "bbox": [
+   105.2853,
+   20.5643,
+   106.0201,
+   21.3854
+  ]
+ },
+ {
+  "code": "04",
+  "name": "Cao Bằng",
+  "fullName": "Tỉnh Cao Bằng",
+  "wards": 56,
+  "bbox": [
+   105.2665,
+   22.3566,
+   106.8373,
+   23.1193
+  ]
+ },
+ {
+  "code": "08",
+  "name": "Tuyên Quang",
+  "fullName": "Tỉnh Tuyên Quang",
+  "wards": 124,
+  "bbox": [
+   104.3343,
+   21.4976,
+   105.5984,
+   23.3924
+  ]
+ },
+ {
+  "code": "11",
+  "name": "Điện Biên",
+  "fullName": "Tỉnh Điện Biên",
+  "wards": 45,
+  "bbox": [
+   102.1439,
+   20.8856,
+   103.5983,
+   22.548
+  ]
+ },
+ {
+  "code": "12",
+  "name": "Lai Châu",
+  "fullName": "Tỉnh Lai Châu",
+  "wards": 38,
+  "bbox": [
+   102.3208,
+   21.6858,
+   103.985,
+   22.811
+  ]
+ },
+ {
+  "code": "14",
+  "name": "Sơn La",
+  "fullName": "Tỉnh Sơn La",
+  "wards": 75,
+  "bbox": [
+   103.2122,
+   20.5736,
+   105.0329,
+   22.0305
+  ]
+ },
+ {
+  "code": "15",
+  "name": "Lào Cai",
+  "fullName": "Tỉnh Lào Cai",
+  "wards": 99,
+  "bbox": [
+   103.5308,
+   21.3259,
+   105.1002,
+   22.8447
+  ]
+ },
+ {
+  "code": "19",
+  "name": "Thái Nguyên",
+  "fullName": "Tỉnh Thái Nguyên",
+  "wards": 92,
+  "bbox": [
+   105.4309,
+   21.3258,
+   106.2472,
+   22.7412
+  ]
+ },
+ {
+  "code": "20",
+  "name": "Lạng Sơn",
+  "fullName": "Tỉnh Lạng Sơn",
+  "wards": 65,
+  "bbox": [
+   106.0956,
+   21.3253,
+   107.3639,
+   22.4616
+  ]
+ },
+ {
+  "code": "22",
+  "name": "Quảng Ninh",
+  "fullName": "Thành phố Quảng Ninh",
+  "wards": 54,
+  "bbox": [
+   106.4389,
+   20.6853,
+   108.0933,
+   21.6638
+  ]
+ },
+ {
   "code": "24",
   "name": "Bắc Ninh",
+  "fullName": "Thành phố Bắc Ninh",
   "wards": 99,
   "bbox": [
    105.8813,
@@ -11,14 +132,279 @@
   ]
  },
  {
+  "code": "25",
+  "name": "Phú Thọ",
+  "fullName": "Tỉnh Phú Thọ",
+  "wards": 148,
+  "bbox": [
+   104.8139,
+   20.3051,
+   105.8618,
+   21.7188
+  ]
+ },
+ {
+  "code": "31",
+  "name": "Hải Phòng",
+  "fullName": "Thành phố Hải Phòng",
+  "wards": 114,
+  "bbox": [
+   106.1248,
+   20.1236,
+   107.7428,
+   21.2328
+  ]
+ },
+ {
   "code": "33",
   "name": "Hưng Yên",
+  "fullName": "Tỉnh Hưng Yên",
   "wards": 104,
   "bbox": [
    105.8946,
    20.249,
    106.6595,
    21.0068
+  ]
+ },
+ {
+  "code": "37",
+  "name": "Ninh Bình",
+  "fullName": "Tỉnh Ninh Bình",
+  "wards": 129,
+  "bbox": [
+   105.5428,
+   19.8662,
+   106.5987,
+   20.7036
+  ]
+ },
+ {
+  "code": "38",
+  "name": "Thanh Hoá",
+  "fullName": "Tỉnh Thanh Hoá",
+  "wards": 166,
+  "bbox": [
+   104.3742,
+   19.2916,
+   106.076,
+   20.6701
+  ]
+ },
+ {
+  "code": "40",
+  "name": "Nghệ An",
+  "fullName": "Tỉnh Nghệ An",
+  "wards": 130,
+  "bbox": [
+   103.8748,
+   18.5521,
+   105.9661,
+   19.9954
+  ]
+ },
+ {
+  "code": "42",
+  "name": "Hà Tĩnh",
+  "fullName": "Tỉnh Hà Tĩnh",
+  "wards": 69,
+  "bbox": [
+   105.1039,
+   17.9138,
+   106.5048,
+   18.7604
+  ]
+ },
+ {
+  "code": "44",
+  "name": "Quảng Trị",
+  "fullName": "Tỉnh Quảng Trị",
+  "wards": 78,
+  "bbox": [
+   105.6081,
+   16.2995,
+   107.3895,
+   18.0901
+  ]
+ },
+ {
+  "code": "46",
+  "name": "Huế",
+  "fullName": "Thành phố Huế",
+  "wards": 40,
+  "bbox": [
+   107.0348,
+   15.9947,
+   108.2104,
+   16.7429
+  ]
+ },
+ {
+  "code": "48",
+  "name": "Đà Nẵng",
+  "fullName": "Thành phố Đà Nẵng",
+  "wards": 94,
+  "bbox": [
+   107.2108,
+   14.9513,
+   112.7359,
+   17.1203
+  ]
+ },
+ {
+  "code": "51",
+  "name": "Quảng Ngãi",
+  "fullName": "Tỉnh Quảng Ngãi",
+  "wards": 96,
+  "bbox": [
+   107.3322,
+   13.9237,
+   109.1432,
+   15.4333
+  ]
+ },
+ {
+  "code": "52",
+  "name": "Gia Lai",
+  "fullName": "Tỉnh Gia Lai",
+  "wards": 135,
+  "bbox": [
+   107.4514,
+   12.9966,
+   109.3709,
+   14.7027
+  ]
+ },
+ {
+  "code": "56",
+  "name": "Khánh Hoà",
+  "fullName": "Tỉnh Khánh Hoà",
+  "wards": 65,
+  "bbox": [
+   108.5516,
+   7.1838,
+   117.828,
+   12.8691
+  ]
+ },
+ {
+  "code": "66",
+  "name": "Đắk Lắk",
+  "fullName": "Tỉnh Đắk Lắk",
+  "wards": 102,
+  "bbox": [
+   107.4842,
+   12.1606,
+   109.4589,
+   13.6953
+  ]
+ },
+ {
+  "code": "68",
+  "name": "Lâm Đồng",
+  "fullName": "Tỉnh Lâm Đồng",
+  "wards": 124,
+  "bbox": [
+   107.2062,
+   10.4831,
+   108.9694,
+   12.8125
+  ]
+ },
+ {
+  "code": "75",
+  "name": "Đồng Nai",
+  "fullName": "Thành phố Đồng Nai",
+  "wards": 95,
+  "bbox": [
+   106.4125,
+   10.5791,
+   107.5778,
+   12.2984
+  ]
+ },
+ {
+  "code": "79",
+  "name": "Hồ Chí Minh",
+  "fullName": "Thành phố Hồ Chí Minh",
+  "wards": 168,
+  "bbox": [
+   106.0881,
+   8.5771,
+   107.5719,
+   11.501
+  ]
+ },
+ {
+  "code": "80",
+  "name": "Tây Ninh",
+  "fullName": "Tỉnh Tây Ninh",
+  "wards": 96,
+  "bbox": [
+   105.5004,
+   10.3949,
+   106.7484,
+   11.7829
+  ]
+ },
+ {
+  "code": "82",
+  "name": "Đồng Tháp",
+  "fullName": "Tỉnh Đồng Tháp",
+  "wards": 102,
+  "bbox": [
+   105.1872,
+   10.1348,
+   106.8078,
+   10.9734
+  ]
+ },
+ {
+  "code": "86",
+  "name": "Vĩnh Long",
+  "fullName": "Tỉnh Vĩnh Long",
+  "wards": 124,
+  "bbox": [
+   105.6816,
+   9.5272,
+   106.7918,
+   10.3401
+  ]
+ },
+ {
+  "code": "91",
+  "name": "An Giang",
+  "fullName": "Tỉnh An Giang",
+  "wards": 102,
+  "bbox": [
+   103.4573,
+   9.2563,
+   105.5757,
+   10.9618
+  ]
+ },
+ {
+  "code": "92",
+  "name": "Cần Thơ",
+  "fullName": "Thành phố Cần Thơ",
+  "wards": 103,
+  "bbox": [
+   105.2258,
+   9.2452,
+   106.2982,
+   10.325
+  ]
+ },
+ {
+  "code": "96",
+  "name": "Cà Mau",
+  "fullName": "Tỉnh Cà Mau",
+  "wards": 64,
+  "bbox": [
+   104.5223,
+   8.3804,
+   105.8605,
+   9.6374
   ]
  }
 ]

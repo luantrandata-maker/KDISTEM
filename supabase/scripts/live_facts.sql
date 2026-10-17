@@ -24,3 +24,11 @@ select '## org_role_permissions có borrow / edu_plans';
 select count(*) from org_role_permissions where module in ('borrow', 'edu_plans');
 select '## roles: vai trò hệ thống có org_id (roles_admin_write cho sửa)';
 select count(*) from roles where is_system and org_id is not null;
+select '## Lịch chạy nền (pg_cron)';
+select case when to_regclass('cron.job') is null then '(không có pg_cron)'
+  else coalesce((xpath('/row/v/text()', query_to_xml(
+    'select string_agg(jobname || '' | '' || schedule || '' | '' || command, chr(10)) as v from cron.job', false, true, '')))[1]::text, '(chưa có lịch)') end;
+select '## Lần chạy gần nhất (system_job_runs, 5 lần)';
+select case when to_regclass('public.system_job_runs') is null then '(chưa có bảng)'
+  else coalesce((xpath('/row/v/text()', query_to_xml(
+    'select string_agg(x, chr(10)) as v from (select format(''%s %s ok=%s %s'', job, to_char(started_at at time zone ''Asia/Ho_Chi_Minh'', ''YYYY-MM-DD HH24:MI''), ok, result::text) as x from system_job_runs order by id desc limit 5) t', false, true, '')))[1]::text, '(chưa chạy lần nào)') end;

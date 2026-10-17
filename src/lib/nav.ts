@@ -65,7 +65,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
   ],
   department: [
     { title: 'Tổng quan', items: ['Dashboard toàn Sở', 'Danh sách Trường', 'Hộp phê duyệt'] },
-    { title: 'Điều hành & báo cáo', items: ['KPI & Xếp hạng Xã/Phường', 'Báo cáo Bộ GD&ĐT', 'Điều hành & Cấu hình'] },
+    { title: 'Điều hành & báo cáo', items: ['KPI & Xếp hạng Xã/Phường', 'Cảnh báo & trường cần chú ý', 'Giao chỉ tiêu', 'Báo cáo Bộ GD&ĐT', 'Điều hành & Cấu hình'] },
     { title: 'Tập huấn giáo viên', items: ['Giám sát Tập huấn GV', 'Kế hoạch tập huấn', 'Lịch tập huấn'] },
     { title: 'Chương trình & học liệu', items: ['Chương trình CT1–CT5', 'Theo dõi Môn học STEM', 'Phát hành học liệu', 'Kho học liệu dùng chung'] },
     { title: 'Phòng & thiết bị STEM', items: ['Hiệu quả Phòng STEM', 'Phòng STEM & lịch phòng', 'Thiết bị & kho'] },
@@ -99,6 +99,7 @@ export const ENT_MODULE_OF: Record<string, string> = {
   'Điểm danh': 'timetable', 'Phòng STEM & lịch phòng': 'stem_rooms', 'Thiết bị & kho': 'stem_rooms',
   // PH5 (migration 033): điều hành & báo cáo của Sở
   'KPI & Xếp hạng Xã/Phường': 'governance', 'Báo cáo Bộ GD&ĐT': 'governance',
+  'Cảnh báo & trường cần chú ý': 'governance', 'Giao chỉ tiêu': 'governance',
 }
 
 // Cổng hiện mục chưa có trong gói ở dạng mờ "Chưa có trong gói" (để giới thiệu phân hệ); các cổng khác ẩn hẳn.

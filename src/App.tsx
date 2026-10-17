@@ -56,6 +56,8 @@ import { StudentAttendance } from './pages/student/Attendance'
 import { Holidays } from './pages/Holidays'
 import { TabbedPages } from './components/TabbedPages'
 import { DeptDashboard, DeptWardKpi, DeptSchools, DeptPrograms, DeptSubjects, DeptTrainingMonitor, DeptRoomEffect } from './pages/department/Overview'
+const DeptAlerts = lazy(() => import('./pages/department/Governance').then(m => ({ default: m.DeptAlerts })))
+const DeptTargets = lazy(() => import('./pages/department/Governance').then(m => ({ default: m.DeptTargets })))
 import { DeptReports } from './pages/department/Reports'
 import { DeptAdmin } from './pages/department/Admin'
 // Kho học liệu dùng chung (023)
@@ -161,6 +163,8 @@ const STUDENT: PageMap = {
 const DEPARTMENT: PageMap = {
   'Dashboard toàn Sở': DeptDashboard,
   'KPI & Xếp hạng Xã/Phường': DeptWardKpi,
+  'Cảnh báo & trường cần chú ý': DeptAlerts,
+  'Giao chỉ tiêu': DeptTargets,
   'Danh sách Trường': DeptSchools,
   'Dashboard điểm danh': AttendanceDashboard,
   'Chương trình CT1–CT5': DeptPrograms,
@@ -222,6 +226,8 @@ const PLATFORM: PageMap = {
   'Báo cáo vận hành': DeptDashboard,
   'KPI & xếp hạng': DeptWardKpi,
   'Báo cáo cấp trên (Bộ GD&ĐT)': DeptReports,
+  'Cảnh báo & trường cần chú ý': DeptAlerts,
+  'Giao chỉ tiêu': DeptTargets,
   'Điều hành & cấu hình (Sở)': DeptAdmin,
   // 5.5–5.6: tên theo file rà soát, dùng lại màn chung
   'Tổ chức & phân quyền': (p: any) => <TabbedPages {...p} tabs={[['Cây tổ chức', PlatformOrgs], ['Người dùng & vai trò', PlatformUsers], ['Lời mời', PlatformInvites]]} />,

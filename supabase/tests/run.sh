@@ -6,6 +6,7 @@
 # Các CSDL <tên>_clean và <tên> sẽ bị XOÁ và tạo lại — không trỏ vào CSDL thật.
 set -euo pipefail
 DB=${1:-lms_test}
+trap 'rc=$?; if [ $rc -ne 0 ] && [ -n "${GITHUB_ACTIONS:-}" ]; then echo "::error title=run.sh::thoát mã $rc ở dòng $LINENO: $BASH_COMMAND"; fi' EXIT
 DIR=$(cd "$(dirname "$0")/.." && pwd)
 # Trong GitHub Actions: in lỗi thành annotation (đọc được qua API, không cần mở log).
 ann() { if [ -n "${GITHUB_ACTIONS:-}" ]; then printf '::error title=%s::%s\n' "$1" "$(printf '%s' "$2" | tr '\n' ' ' | cut -c1-900)"; fi; }
@@ -39,5 +40,5 @@ if ! OUT=$(psql -v ON_ERROR_STOP=1 -q -d "$DB" -At -f "$DIR/tests/isolation_test
 fi
 echo "$OUT" | grep -E '^(PASS|FAIL) [0-9]+/[0-9]+$'
 echo "$OUT" | grep '|FAIL|' || true
-echo "$OUT" | grep '|FAIL|' | head -10 | while IFS= read -r l; do ann "phép thử đỏ" "$l"; done
+{ echo "$OUT" | grep '|FAIL|' || true; } | head -10 | while IFS= read -r l; do ann "phép thử đỏ" "$l"; done
 echo "$OUT" | grep -qE '^PASS [0-9]+/[0-9]+$'

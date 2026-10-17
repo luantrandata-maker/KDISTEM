@@ -1,0 +1,22 @@
+BEGIN
+## role_permissions: cột org_id
+(không có)
+## role_permissions: chỉ mục
+role_permissions_pkey: CREATE UNIQUE INDEX role_permissions_pkey ON public.role_permissions USING btree (role_id, module)
+## role_permissions: số dòng theo org_id (null = mặc định)
+(null): 80 dòng
+## role_permissions: dòng có org_id (chi tiết, tối đa 50)
+(không có)
+## role_permissions: (role_id, module) trùng nhau
+0
+## quyền borrow / edu_plans
+(không có)
+## org_role_permissions có borrow / edu_plans
+0
+## roles: vai trò hệ thống có org_id (roles_admin_write cho sửa)
+0
+## Lịch chạy nền (pg_cron)
+generate-upcoming-sessions | 15 19 * * * | select public.generate_upcoming_sessions(28)
+## Lần chạy gần nhất (system_job_runs, 5 lần)
+(chưa chạy lần nào)
+ROLLBACK

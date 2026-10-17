@@ -1,0 +1,1986 @@
+column  academic_years.ends_on date
+column  academic_years.id uuid not null default gen_random_uuid()
+column  academic_years.is_current boolean default false
+column  academic_years.name text not null
+column  academic_years.org_id uuid not null
+column  academic_years.starts_on date
+column  academic_years.term text not null
+column  activities.content jsonb not null default '{}'::jsonb
+column  activities.created_at timestamp with time zone not null default now()
+column  activities.grades text
+column  activities.id uuid not null default gen_random_uuid()
+column  activities.instructions text
+column  activities.is_template boolean not null default false
+column  activities.kind text not null
+column  activities.org_id uuid not null
+column  activities.program text
+column  activities.source_id uuid
+column  activities.status text not null default 'draft'::text
+column  activities.subject text
+column  activities.teacher_id uuid
+column  activities.title text not null
+column  activities.updated_at timestamp with time zone not null default now()
+column  approval_actions.actor uuid
+column  approval_actions.at timestamp with time zone not null default now()
+column  approval_actions.decision text not null
+column  approval_actions.id uuid not null default gen_random_uuid()
+column  approval_actions.note text
+column  approval_actions.request_id uuid not null
+column  approval_actions.step_no integer not null
+column  approval_requests.created_at timestamp with time zone not null default now()
+column  approval_requests.current_step integer not null default 1
+column  approval_requests.decided_at timestamp with time zone
+column  approval_requests.id uuid not null default gen_random_uuid()
+column  approval_requests.kind text not null
+column  approval_requests.org_id uuid not null
+column  approval_requests.ref_id uuid not null
+column  approval_requests.ref_table text not null
+column  approval_requests.requested_by uuid
+column  approval_requests.status text not null default 'pending'::text
+column  approval_requests.steps jsonb not null
+column  approval_requests.summary text
+column  approval_requests.title text not null
+column  approval_requests.workflow_id uuid
+column  approval_steps.approver text not null
+column  approval_steps.id uuid not null default gen_random_uuid()
+column  approval_steps.name text not null
+column  approval_steps.org_type text
+column  approval_steps.role_id uuid
+column  approval_steps.step_no integer not null
+column  approval_steps.workflow_id uuid not null
+column  approval_workflows.applies_to_children boolean not null default false
+column  approval_workflows.id uuid not null default gen_random_uuid()
+column  approval_workflows.is_active boolean not null default true
+column  approval_workflows.kind text not null
+column  approval_workflows.name text not null
+column  approval_workflows.org_id uuid not null
+column  approval_workflows.updated_at timestamp with time zone not null default now()
+column  approval_workflows.updated_by uuid default auth.uid()
+column  assignments.class_id uuid not null
+column  assignments.created_at timestamp with time zone not null default now()
+column  assignments.due_at timestamp with time zone
+column  assignments.group_mode boolean not null default false
+column  assignments.id uuid not null default gen_random_uuid()
+column  assignments.instructions text
+column  assignments.kind text not null default 'worksheet'::text
+column  assignments.lesson_id uuid
+column  assignments.max_score numeric not null default 10
+column  assignments.opens_at timestamp with time zone not null default now()
+column  assignments.org_id uuid not null
+column  assignments.status text not null default 'open'::text
+column  assignments.subject text
+column  assignments.teacher_id uuid
+column  assignments.title text not null
+column  assignments.topic_id uuid
+column  audit_log.action text not null
+column  audit_log.actor uuid
+column  audit_log.at timestamp with time zone not null default now()
+column  audit_log.detail jsonb
+column  audit_log.entity text not null
+column  audit_log.entity_id text
+column  audit_log.id bigint not null default nextval('audit_log_id_seq'::regclass)
+column  audit_log.org_id uuid
+column  audit_log.summary text not null
+column  booking_conflicts.blocking_id uuid
+column  booking_conflicts.blocking_label text
+column  booking_conflicts.blocking_source text
+column  booking_conflicts.detected_at timestamp with time zone not null default now()
+column  booking_conflicts.during tstzrange not null
+column  booking_conflicts.holder_id uuid not null
+column  booking_conflicts.id uuid not null default gen_random_uuid()
+column  booking_conflicts.label text
+column  booking_conflicts.org_id uuid not null
+column  booking_conflicts.room_id uuid not null
+column  booking_conflicts.source text not null
+column  booking_conflicts.source_id uuid not null
+column  borrow_requests.class_id uuid
+column  borrow_requests.created_at timestamp with time zone not null default now()
+column  borrow_requests.id uuid not null default gen_random_uuid()
+column  borrow_requests.item_list jsonb not null default '[]'::jsonb
+column  borrow_requests.items text
+column  borrow_requests.mode text not null default 'in_room'::text
+column  borrow_requests.on_date date not null
+column  borrow_requests.org_id uuid not null
+column  borrow_requests.period_id uuid
+column  borrow_requests.room_id uuid
+column  borrow_requests.status text not null default 'pending'::text
+column  borrow_requests.teacher_id uuid
+column  borrow_requests.title text not null
+column  broadcasts.body text
+column  broadcasts.created_at timestamp with time zone not null default now()
+column  broadcasts.created_by uuid default auth.uid()
+column  broadcasts.id uuid not null default gen_random_uuid()
+column  broadcasts.page text
+column  broadcasts.recipients integer not null default 0
+column  broadcasts.target jsonb not null default '{}'::jsonb
+column  broadcasts.title text not null
+column  buildings.id uuid not null default gen_random_uuid()
+column  buildings.name text not null
+column  buildings.note text
+column  buildings.org_id uuid not null
+column  certificates.code text
+column  certificates.id uuid not null default gen_random_uuid()
+column  certificates.issued_on date
+column  certificates.org_id uuid not null
+column  certificates.plan_id uuid not null
+column  certificates.teacher_id uuid not null
+column  class_programs.class_id uuid not null
+column  class_programs.org_id uuid not null
+column  class_programs.program text not null
+column  class_session_attendance.joined_at timestamp with time zone not null default now()
+column  class_session_attendance.org_id uuid not null
+column  class_session_attendance.session_id uuid not null
+column  class_session_attendance.student_id uuid not null
+column  class_sessions.class_id uuid not null
+column  class_sessions.current_slide integer not null default 0
+column  class_sessions.ended_at timestamp with time zone
+column  class_sessions.id uuid not null default gen_random_uuid()
+column  class_sessions.lesson_id uuid
+column  class_sessions.lesson_plan_id uuid
+column  class_sessions.org_id uuid not null
+column  class_sessions.pin text not null
+column  class_sessions.started_at timestamp with time zone not null default now()
+column  class_sessions.status text not null default 'live'::text
+column  class_sessions.teacher_id uuid
+column  class_sessions.title text not null
+column  class_topics.class_id uuid not null
+column  class_topics.cover_url text
+column  class_topics.created_at timestamp with time zone not null default now()
+column  class_topics.id uuid not null default gen_random_uuid()
+column  class_topics.org_id uuid not null
+column  class_topics.package_topic_id uuid
+column  class_topics.program text
+column  class_topics.starts_on date
+column  class_topics.status text not null default 'planned'::text
+column  class_topics.subject text
+column  class_topics.summary text
+column  class_topics.teacher_id uuid
+column  class_topics.title text not null
+column  classes.grade integer not null
+column  classes.homeroom_teacher_id uuid
+column  classes.id uuid not null default gen_random_uuid()
+column  classes.name text not null
+column  classes.org_id uuid not null
+column  classes.year_id uuid
+column  contracts.code text not null
+column  contracts.created_at timestamp with time zone not null default now()
+column  contracts.created_by uuid default auth.uid()
+column  contracts.ends_on date
+column  contracts.id uuid not null default gen_random_uuid()
+column  contracts.include_children boolean not null default true
+column  contracts.note text
+column  contracts.org_id uuid not null
+column  contracts.plan_id uuid not null
+column  contracts.starts_on date not null
+column  contracts.status text not null default 'draft'::text
+column  contracts.updated_at timestamp with time zone not null default now()
+column  contracts.value numeric
+column  curriculum_books.grade integer not null
+column  curriculum_books.id uuid not null default gen_random_uuid()
+column  curriculum_books.org_id uuid not null
+column  curriculum_books.subject text not null
+column  curriculum_books.title text not null
+column  curriculum_books.total_periods integer
+column  education_plans.grade integer not null
+column  education_plans.id uuid not null default gen_random_uuid()
+column  education_plans.org_id uuid not null
+column  education_plans.status text not null default 'draft'::text
+column  education_plans.stem_periods integer not null default 0
+column  education_plans.subject text not null
+column  education_plans.teacher_id uuid not null
+column  equipment_events.created_at timestamp with time zone not null default now()
+column  equipment_events.id uuid not null default gen_random_uuid()
+column  equipment_events.kind text not null
+column  equipment_events.note text
+column  equipment_events.org_id uuid not null
+column  equipment_events.title text not null
+column  equipment_events.unit_id uuid not null
+column  equipment_types.brand text
+column  equipment_types.category text
+column  equipment_types.id uuid not null default gen_random_uuid()
+column  equipment_types.name text not null
+column  equipment_types.org_id uuid not null
+column  equipment_types.sku text
+column  equipment_units.id uuid not null default gen_random_uuid()
+column  equipment_units.org_id uuid not null
+column  equipment_units.package_id uuid
+column  equipment_units.room_id uuid
+column  equipment_units.serial text
+column  equipment_units.source text not null default 'package'::text
+column  equipment_units.status text default 'available'::text
+column  equipment_units.type_id uuid not null
+column  equipment_units.warranty_until date
+column  floors.building_id uuid not null
+column  floors.id uuid not null default gen_random_uuid()
+column  floors.name text not null
+column  integrations.direction text
+column  integrations.endpoint text
+column  integrations.key text not null
+column  integrations.last_error text
+column  integrations.last_sync_at timestamp with time zone
+column  integrations.name text not null
+column  integrations.note text
+column  integrations.owner text
+column  integrations.purpose text
+column  integrations.records integer
+column  integrations.status text not null default 'not_configured'::text
+column  integrations.updated_at timestamp with time zone not null default now()
+column  integrations.updated_by uuid
+column  invitations.accepted_at timestamp with time zone
+column  invitations.accepted_user uuid
+column  invitations.created_at timestamp with time zone not null default now()
+column  invitations.email text not null
+column  invitations.full_name text
+column  invitations.id uuid not null default gen_random_uuid()
+column  invitations.invited_by uuid default auth.uid()
+column  invitations.note text
+column  invitations.org_id uuid not null
+column  invitations.role_id uuid not null
+column  invitations.sent_at timestamp with time zone
+column  invitations.status text not null default 'pending'::text
+column  invitations.student_id uuid
+column  invitations.teacher_id uuid
+column  lesson_attendance.marked_at timestamp with time zone not null default now()
+column  lesson_attendance.marked_by uuid
+column  lesson_attendance.note text
+column  lesson_attendance.org_id uuid not null
+column  lesson_attendance.session_id uuid not null
+column  lesson_attendance.status text not null
+column  lesson_attendance.student_id uuid not null
+column  lesson_plans.created_at timestamp with time zone not null default now()
+column  lesson_plans.from_package boolean not null default false
+column  lesson_plans.grades text
+column  lesson_plans.id uuid not null default gen_random_uuid()
+column  lesson_plans.is_template boolean not null default false
+column  lesson_plans.library_item_id uuid
+column  lesson_plans.library_version integer
+column  lesson_plans.org_id uuid not null
+column  lesson_plans.program text
+column  lesson_plans.slides jsonb not null default '[]'::jsonb
+column  lesson_plans.source_id uuid
+column  lesson_plans.status text not null default 'draft'::text
+column  lesson_plans.subject text
+column  lesson_plans.summary text
+column  lesson_plans.teacher_id uuid
+column  lesson_plans.title text not null
+column  lesson_plans.updated_at timestamp with time zone not null default now()
+column  lesson_progress.lesson_id uuid not null
+column  lesson_progress.org_id uuid not null
+column  lesson_progress.status text not null default 'in_progress'::text
+column  lesson_progress.student_id uuid not null
+column  lesson_progress.updated_at timestamp with time zone not null default now()
+column  library_copies.adopted_by uuid default auth.uid()
+column  library_copies.adopted_version integer not null
+column  library_copies.created_at timestamp with time zone not null default now()
+column  library_copies.id uuid not null default gen_random_uuid()
+column  library_copies.item_id uuid not null
+column  library_copies.lesson_plan_id uuid
+column  library_copies.org_id uuid not null
+column  library_items.change_note text
+column  library_items.content jsonb not null default '{}'::jsonb
+column  library_items.created_at timestamp with time zone not null default now()
+column  library_items.created_by uuid default auth.uid()
+column  library_items.grades text
+column  library_items.id uuid not null default gen_random_uuid()
+column  library_items.kind text not null
+column  library_items.owner_org_id uuid not null
+column  library_items.program text
+column  library_items.published_at timestamp with time zone
+column  library_items.scope text not null default 'children'::text
+column  library_items.source_lesson_id uuid
+column  library_items.status text not null default 'draft'::text
+column  library_items.subject text
+column  library_items.summary text
+column  library_items.tags ARRAY not null default '{}'::text[]
+column  library_items.title text not null
+column  library_items.updated_at timestamp with time zone not null default now()
+column  library_items.version integer not null default 0
+column  library_targets.item_id uuid not null
+column  library_targets.org_id uuid not null
+column  memberships.created_at timestamp with time zone not null default now()
+column  memberships.created_by uuid default auth.uid()
+column  memberships.org_id uuid not null
+column  memberships.role_id uuid not null
+column  memberships.user_id uuid not null
+column  notifications.body text
+column  notifications.count integer not null default 1
+column  notifications.created_at timestamp with time zone not null default now()
+column  notifications.id uuid not null default gen_random_uuid()
+column  notifications.kind text not null
+column  notifications.org_id uuid
+column  notifications.page text
+column  notifications.portal text
+column  notifications.read_at timestamp with time zone
+column  notifications.ref_id uuid
+column  notifications.title text not null
+column  notifications.user_id uuid not null
+column  org_role_permissions.can_create boolean not null default false
+column  org_role_permissions.can_delete boolean not null default false
+column  org_role_permissions.can_detail boolean not null default false
+column  org_role_permissions.can_edit boolean not null default false
+column  org_role_permissions.can_view boolean not null default false
+column  org_role_permissions.module text not null
+column  org_role_permissions.org_id uuid not null
+column  org_role_permissions.role_id uuid not null
+column  organizations.activated_at timestamp with time zone
+column  organizations.address text
+column  organizations.code text
+column  organizations.contact_email text
+column  organizations.contact_name text
+column  organizations.contact_phone text
+column  organizations.created_at timestamp with time zone default now()
+column  organizations.customer_note text
+column  organizations.customer_status text
+column  organizations.go_live_on date
+column  organizations.id uuid not null default gen_random_uuid()
+column  organizations.is_platform boolean not null default false
+column  organizations.kdi_owner uuid
+column  organizations.lat double precision
+column  organizations.level text
+column  organizations.lng double precision
+column  organizations.name text not null
+column  organizations.parent_id uuid
+column  organizations.status text not null default 'active'::text
+column  organizations.type text not null
+column  organizations.ward text
+column  package_orders.budget numeric
+column  package_orders.catalog_package_id uuid
+column  package_orders.created_at timestamp with time zone not null default now()
+column  package_orders.created_by uuid default auth.uid()
+column  package_orders.delivered_at timestamp with time zone
+column  package_orders.delivered_package_id uuid
+column  package_orders.fulfillment text
+column  package_orders.grades text
+column  package_orders.id uuid not null default gen_random_uuid()
+column  package_orders.kdi_note text
+column  package_orders.name text not null
+column  package_orders.note text
+column  package_orders.org_id uuid not null
+column  package_orders.programs text
+column  package_orders.quantity integer not null default 1
+column  package_orders.quoted_value numeric
+column  package_orders.status text not null default 'draft'::text
+column  package_orders.tier text not null default 'basic'::text
+column  package_topic_sessions.id uuid not null default gen_random_uuid()
+column  package_topic_sessions.minutes integer not null default 45
+column  package_topic_sessions.org_id uuid not null
+column  package_topic_sessions.seq integer not null
+column  package_topic_sessions.title text not null
+column  package_topic_sessions.topic_id uuid not null
+column  package_topics.grade_assigned integer
+column  package_topics.id uuid not null default gen_random_uuid()
+column  package_topics.minutes integer not null default 0
+column  package_topics.org_id uuid not null
+column  package_topics.package_id uuid not null
+column  package_topics.program text not null
+column  package_topics.seq integer not null
+column  package_topics.title text not null
+column  period_configs.ends_at time without time zone not null
+column  period_configs.id uuid not null default gen_random_uuid()
+column  period_configs.name text not null
+column  period_configs.org_id uuid not null
+column  period_configs.session text not null
+column  period_configs.starts_at time without time zone not null
+column  profiles.created_at timestamp with time zone default now()
+column  profiles.email text
+column  profiles.full_name text not null
+column  profiles.id uuid not null
+column  profiles.locked_at timestamp with time zone
+column  profiles.locked_by uuid
+column  profiles.locked_reason text
+column  profiles.org_id uuid
+column  profiles.phone text
+column  report_exports.created_at timestamp with time zone not null default now()
+column  report_exports.created_by uuid default auth.uid()
+column  report_exports.format text not null
+column  report_exports.id uuid not null default gen_random_uuid()
+column  report_exports.org_id uuid not null
+column  report_exports.period text not null
+column  report_exports.rows integer not null default 0
+column  report_exports.scope text not null
+column  report_exports.template text not null
+column  report_exports.title text not null
+column  resource_bookings.created_at timestamp with time zone not null default now()
+column  resource_bookings.during tstzrange not null
+column  resource_bookings.holder_id uuid not null
+column  resource_bookings.id uuid not null default gen_random_uuid()
+column  resource_bookings.label text
+column  resource_bookings.org_id uuid not null
+column  resource_bookings.room_id uuid not null
+column  resource_bookings.source text not null
+column  resource_bookings.source_id uuid not null
+column  role_permissions.can_create boolean default false
+column  role_permissions.can_delete boolean default false
+column  role_permissions.can_detail boolean default false
+column  role_permissions.can_edit boolean default false
+column  role_permissions.can_view boolean default false
+column  role_permissions.module text not null
+column  role_permissions.role_id uuid not null
+column  roles.created_at timestamp with time zone not null default now()
+column  roles.description text
+column  roles.id uuid not null default gen_random_uuid()
+column  roles.is_system boolean default false
+column  roles.key text not null default ('custom_'::text || substr(md5(((random())::text || (clock_timestamp())::text)), 1, 10))
+column  roles.name text not null
+column  roles.org_id uuid
+column  roles.portal text
+column  rollout_checks.done_at timestamp with time zone not null default now()
+column  rollout_checks.done_by uuid default auth.uid()
+column  rollout_checks.note text
+column  rollout_checks.org_id uuid not null
+column  rollout_checks.step text not null
+column  school_holidays.created_at timestamp with time zone not null default now()
+column  school_holidays.created_by uuid default auth.uid()
+column  school_holidays.ends_on date not null
+column  school_holidays.id uuid not null default gen_random_uuid()
+column  school_holidays.name text not null
+column  school_holidays.note text
+column  school_holidays.org_id uuid not null
+column  school_holidays.starts_on date not null
+column  security_settings.enforce_mfa_db boolean not null default false
+column  security_settings.id integer not null default 1
+column  security_settings.idle_minutes integer not null default 0
+column  security_settings.mfa_roles ARRAY not null default '{platform_admin}'::text[]
+column  security_settings.updated_at timestamp with time zone not null default now()
+column  security_settings.updated_by uuid
+column  self_study_content.content jsonb not null
+column  self_study_content.item_id uuid not null
+column  self_study_content.kind text not null
+column  self_study_content.org_id uuid not null
+column  self_study_items.activity_id uuid
+column  self_study_items.activity_kind text
+column  self_study_items.class_id uuid not null
+column  self_study_items.created_at timestamp with time zone not null default now()
+column  self_study_items.due_at timestamp with time zone
+column  self_study_items.for_date date
+column  self_study_items.id uuid not null default gen_random_uuid()
+column  self_study_items.kind text not null
+column  self_study_items.lesson_plan_id uuid
+column  self_study_items.max_attempts integer not null default 0
+column  self_study_items.mode text not null default 'before'::text
+column  self_study_items.note text
+column  self_study_items.opens_at timestamp with time zone not null default now()
+column  self_study_items.org_id uuid not null
+column  self_study_items.status text not null default 'open'::text
+column  self_study_items.teacher_id uuid
+column  self_study_items.title text not null
+column  self_study_items.topic_id uuid
+column  self_study_items.url text
+column  self_study_progress.answers jsonb
+column  self_study_progress.attempts integer not null default 0
+column  self_study_progress.best_score numeric
+column  self_study_progress.completed_at timestamp with time zone
+column  self_study_progress.correct integer
+column  self_study_progress.item_id uuid not null
+column  self_study_progress.late boolean not null default false
+column  self_study_progress.org_id uuid not null
+column  self_study_progress.reviewed_at timestamp with time zone
+column  self_study_progress.score numeric
+column  self_study_progress.started_at timestamp with time zone not null default now()
+column  self_study_progress.status text not null default 'started'::text
+column  self_study_progress.student_id uuid not null
+column  self_study_progress.submitted_at timestamp with time zone
+column  self_study_progress.teacher_comment text
+column  self_study_progress.total integer
+column  service_modules.description text
+column  service_modules.key text not null
+column  service_modules.name text not null
+column  service_modules.perm_modules ARRAY not null
+column  service_modules.sort integer not null default 0
+column  service_plans.active boolean not null default true
+column  service_plans.code text not null
+column  service_plans.created_at timestamp with time zone not null default now()
+column  service_plans.description text
+column  service_plans.id uuid not null default gen_random_uuid()
+column  service_plans.modules ARRAY not null default '{}'::text[]
+column  service_plans.name text not null
+column  service_plans.price_per_year numeric
+column  service_plans.updated_at timestamp with time zone not null default now()
+column  service_plans_legacy.code text
+column  service_plans_legacy.id uuid
+column  service_plans_legacy.modules ARRAY
+column  service_plans_legacy.saved_at timestamp with time zone
+column  session_responses.answer integer not null
+column  session_responses.answered_at timestamp with time zone not null default now()
+column  session_responses.org_id uuid not null
+column  session_responses.session_id uuid not null
+column  session_responses.slide_id text not null
+column  session_responses.student_id uuid not null
+column  stem_packages.catalog_active boolean
+column  stem_packages.code text
+column  stem_packages.contract_no text
+column  stem_packages.description text
+column  stem_packages.devices integer default 0
+column  stem_packages.ends_on date
+column  stem_packages.grades text
+column  stem_packages.id uuid not null default gen_random_uuid()
+column  stem_packages.list_price numeric
+column  stem_packages.name text not null
+column  stem_packages.order_no text
+column  stem_packages.org_id uuid not null
+column  stem_packages.programs text
+column  stem_packages.provider text
+column  stem_packages.sessions integer default 0
+column  stem_packages.source_package_id uuid
+column  stem_packages.starts_on date
+column  stem_packages.tier text not null default 'basic'::text
+column  stem_packages.topics integer default 0
+column  stem_registrations.class_id uuid not null
+column  stem_registrations.created_at timestamp with time zone default now()
+column  stem_registrations.equipment_note text
+column  stem_registrations.id uuid not null default gen_random_uuid()
+column  stem_registrations.lesson text
+column  stem_registrations.on_date date not null
+column  stem_registrations.org_id uuid not null
+column  stem_registrations.period_id uuid not null
+column  stem_registrations.program text
+column  stem_registrations.room_id uuid not null
+column  stem_registrations.status text not null default 'pending'::text
+column  stem_registrations.teacher_id uuid not null
+column  stem_registrations.topic text not null
+column  stem_rooms.area_m2 integer
+column  stem_rooms.capacity integer
+column  stem_rooms.code text
+column  stem_rooms.floor_id uuid
+column  stem_rooms.id uuid not null default gen_random_uuid()
+column  stem_rooms.name text not null
+column  stem_rooms.org_id uuid not null
+column  stem_rooms.programs text
+column  stem_rooms.status text default 'active'::text
+column  stem_rooms.tier text not null default 'basic'::text
+column  stem_teacher_programs.org_id uuid not null
+column  stem_teacher_programs.program text not null
+column  stem_teacher_programs.teacher_id uuid not null
+column  student_group_members.group_id uuid not null
+column  student_group_members.org_id uuid not null
+column  student_group_members.student_id uuid not null
+column  student_groups.class_id uuid not null
+column  student_groups.created_at timestamp with time zone not null default now()
+column  student_groups.id uuid not null default gen_random_uuid()
+column  student_groups.name text not null
+column  student_groups.org_id uuid not null
+column  students.class_id uuid
+column  students.full_name text not null
+column  students.id uuid not null default gen_random_uuid()
+column  students.org_id uuid not null
+column  students.profile_id uuid
+column  students.status text not null default 'studying'::text
+column  students.student_code text
+column  submissions.assignment_id uuid not null
+column  submissions.attachment_url text
+column  submissions.content text
+column  submissions.feedback text
+column  submissions.graded_at timestamp with time zone
+column  submissions.graded_by uuid
+column  submissions.group_id uuid
+column  submissions.id uuid not null default gen_random_uuid()
+column  submissions.org_id uuid not null
+column  submissions.score numeric
+column  submissions.status text not null default 'submitted'::text
+column  submissions.student_id uuid
+column  submissions.submitted_at timestamp with time zone not null default now()
+column  support_messages.author uuid default auth.uid()
+column  support_messages.body text not null
+column  support_messages.created_at timestamp with time zone not null default now()
+column  support_messages.id uuid not null default gen_random_uuid()
+column  support_messages.internal boolean not null default false
+column  support_messages.ticket_id uuid not null
+column  support_tickets.assignee uuid
+column  support_tickets.category text not null default 'technical'::text
+column  support_tickets.code text
+column  support_tickets.created_at timestamp with time zone not null default now()
+column  support_tickets.description text
+column  support_tickets.due_at timestamp with time zone
+column  support_tickets.first_response_at timestamp with time zone
+column  support_tickets.id uuid not null default gen_random_uuid()
+column  support_tickets.org_id uuid not null
+column  support_tickets.priority text not null default 'normal'::text
+column  support_tickets.reported_by uuid default auth.uid()
+column  support_tickets.resolved_at timestamp with time zone
+column  support_tickets.status text not null default 'new'::text
+column  support_tickets.subject text not null
+column  support_tickets.updated_at timestamp with time zone not null default now()
+column  support_tickets.warranty_ticket_id uuid
+column  system_job_runs.error text
+column  system_job_runs.finished_at timestamp with time zone
+column  system_job_runs.id bigint not null
+column  system_job_runs.job text not null
+column  system_job_runs.ok boolean
+column  system_job_runs.result jsonb
+column  system_job_runs.started_at timestamp with time zone not null default now()
+column  teachers.email text
+column  teachers.full_name text not null
+column  teachers.grade integer
+column  teachers.id uuid not null default gen_random_uuid()
+column  teachers.k12_synced_at timestamp with time zone
+column  teachers.org_id uuid not null
+column  teachers.profile_id uuid
+column  teachers.status text default 'active'::text
+column  teachers.subject text
+column  teaching_assignments.class_id uuid not null
+column  teaching_assignments.id uuid not null default gen_random_uuid()
+column  teaching_assignments.org_id uuid not null
+column  teaching_assignments.subject text not null
+column  teaching_assignments.teacher_id uuid not null
+column  teaching_assignments.year_id uuid
+column  teaching_sessions.absent_count integer not null default 0
+column  teaching_sessions.cancel_reason text
+column  teaching_sessions.class_id uuid not null
+column  teaching_sessions.created_at timestamp with time zone not null default now()
+column  teaching_sessions.excused_count integer not null default 0
+column  teaching_sessions.id uuid not null default gen_random_uuid()
+column  teaching_sessions.is_makeup boolean not null default false
+column  teaching_sessions.kind text not null default 'regular'::text
+column  teaching_sessions.late_count integer not null default 0
+column  teaching_sessions.makeup_of uuid
+column  teaching_sessions.marked_at timestamp with time zone
+column  teaching_sessions.marked_by uuid
+column  teaching_sessions.note text
+column  teaching_sessions.org_id uuid not null
+column  teaching_sessions.period_id uuid not null
+column  teaching_sessions.present_count integer not null default 0
+column  teaching_sessions.room_id uuid
+column  teaching_sessions.session_date date not null
+column  teaching_sessions.status text not null default 'scheduled'::text
+column  teaching_sessions.subject text not null
+column  teaching_sessions.teacher_id uuid
+column  teaching_sessions.timetable_entry_id uuid
+column  teaching_sessions.year_id uuid
+column  timetable_entries.class_id uuid not null
+column  timetable_entries.id uuid not null default gen_random_uuid()
+column  timetable_entries.kind text not null default 'regular'::text
+column  timetable_entries.org_id uuid not null
+column  timetable_entries.period_id uuid not null
+column  timetable_entries.room_id uuid
+column  timetable_entries.subject text not null
+column  timetable_entries.teacher_id uuid
+column  timetable_entries.weekday integer not null
+column  timetable_entries.year_id uuid
+column  topic_lessons.bring_items text
+column  topic_lessons.id uuid not null default gen_random_uuid()
+column  topic_lessons.minutes integer not null default 45
+column  topic_lessons.org_id uuid not null
+column  topic_lessons.room_id uuid
+column  topic_lessons.scheduled_on date
+column  topic_lessons.seq integer not null
+column  topic_lessons.title text not null
+column  topic_lessons.topic_id uuid not null
+column  topic_materials.created_at timestamp with time zone not null default now()
+column  topic_materials.id uuid not null default gen_random_uuid()
+column  topic_materials.kind text not null default 'doc'::text
+column  topic_materials.lesson_id uuid
+column  topic_materials.org_id uuid not null
+column  topic_materials.title text not null
+column  topic_materials.topic_id uuid not null
+column  topic_materials.url text
+column  topic_posts.author_id uuid not null default auth.uid()
+column  topic_posts.author_name text
+column  topic_posts.author_role text
+column  topic_posts.body text not null
+column  topic_posts.created_at timestamp with time zone not null default now()
+column  topic_posts.id uuid not null default gen_random_uuid()
+column  topic_posts.org_id uuid not null
+column  topic_posts.topic_id uuid not null
+column  training_attendance.org_id uuid not null
+column  training_attendance.present boolean
+column  training_attendance.session_id uuid not null
+column  training_attendance.teacher_id uuid not null
+column  training_enrollments.completed boolean not null default false
+column  training_enrollments.org_id uuid not null
+column  training_enrollments.plan_id uuid not null
+column  training_enrollments.teacher_id uuid not null
+column  training_lessons.author text
+column  training_lessons.blocks integer not null default 0
+column  training_lessons.created_on date default CURRENT_DATE
+column  training_lessons.docs integer not null default 0
+column  training_lessons.grades text
+column  training_lessons.id uuid not null default gen_random_uuid()
+column  training_lessons.materials integer not null default 0
+column  training_lessons.org_id uuid not null
+column  training_lessons.plan_id uuid
+column  training_lessons.status text not null default 'published'::text
+column  training_lessons.subject text
+column  training_lessons.title text not null
+column  training_lessons.videos integer not null default 0
+column  training_plans.code text
+column  training_plans.hours integer
+column  training_plans.id uuid not null default gen_random_uuid()
+column  training_plans.mode text not null default 'online'::text
+column  training_plans.module_no integer
+column  training_plans.name text not null
+column  training_plans.org_id uuid not null
+column  training_plans.program text
+column  training_plans.provider text
+column  training_plans.status text not null default 'ongoing'::text
+column  training_plans.year_no integer
+column  training_sessions.ends_at timestamp with time zone not null
+column  training_sessions.id uuid not null default gen_random_uuid()
+column  training_sessions.location text
+column  training_sessions.meeting_url text
+column  training_sessions.mode text not null default 'online'::text
+column  training_sessions.org_id uuid not null
+column  training_sessions.plan_id uuid not null
+column  training_sessions.starts_at timestamp with time zone not null
+column  training_sessions.title text not null
+column  warranty_tickets.code text
+column  warranty_tickets.created_at timestamp with time zone default now()
+column  warranty_tickets.description text
+column  warranty_tickets.id uuid not null default gen_random_uuid()
+column  warranty_tickets.org_id uuid not null
+column  warranty_tickets.provider text
+column  warranty_tickets.provider_status text not null default 'pending'::text
+column  warranty_tickets.reported_by uuid
+column  warranty_tickets.status text default 'new'::text
+column  warranty_tickets.technician text
+column  warranty_tickets.unit_id uuid
+constr  academic_years.academic_years_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  academic_years.academic_years_pkey PRIMARY KEY (id)
+constr  activities.activities_content_check CHECK ((jsonb_typeof(content) = 'object'::text))
+constr  activities.activities_kind_check CHECK ((kind = ANY (ARRAY['quiz'::text, 'truefalse'::text, 'match'::text, 'order'::text, 'fill'::text, 'group'::text, 'flashcard'::text, 'worksheet'::text])))
+constr  activities.activities_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  activities.activities_pkey PRIMARY KEY (id)
+constr  activities.activities_program_check CHECK ((program = ANY (ARRAY['CT1'::text, 'CT2'::text, 'CT3'::text, 'CT4'::text, 'CT5'::text])))
+constr  activities.activities_source_id_fkey FOREIGN KEY (source_id) REFERENCES activities(id) ON DELETE SET NULL
+constr  activities.activities_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'published'::text])))
+constr  activities.activities_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
+constr  activities.activities_title_check CHECK (((length(btrim(title)) >= 1) AND (length(btrim(title)) <= 200)))
+constr  approval_actions.approval_actions_actor_fkey FOREIGN KEY (actor) REFERENCES profiles(id) ON DELETE SET NULL
+constr  approval_actions.approval_actions_decision_check CHECK ((decision = ANY (ARRAY['approve'::text, 'reject'::text, 'comment'::text, 'cancel'::text])))
+constr  approval_actions.approval_actions_pkey PRIMARY KEY (id)
+constr  approval_actions.approval_actions_request_id_fkey FOREIGN KEY (request_id) REFERENCES approval_requests(id) ON DELETE CASCADE
+constr  approval_requests.approval_requests_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  approval_requests.approval_requests_pkey PRIMARY KEY (id)
+constr  approval_requests.approval_requests_requested_by_fkey FOREIGN KEY (requested_by) REFERENCES profiles(id) ON DELETE SET NULL
+constr  approval_requests.approval_requests_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text, 'cancelled'::text])))
+constr  approval_requests.approval_requests_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES approval_workflows(id) ON DELETE SET NULL
+constr  approval_steps.approval_steps_approver_check CHECK ((approver = ANY (ARRAY['perm'::text, 'role'::text])))
+constr  approval_steps.approval_steps_check CHECK (((approver = 'perm'::text) OR (role_id IS NOT NULL)))
+constr  approval_steps.approval_steps_org_type_check CHECK ((org_type = ANY (ARRAY['ministry'::text, 'province'::text, 'department'::text, 'district'::text, 'school'::text])))
+constr  approval_steps.approval_steps_pkey PRIMARY KEY (id)
+constr  approval_steps.approval_steps_role_id_fkey FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+constr  approval_steps.approval_steps_step_no_check CHECK (((step_no >= 1) AND (step_no <= 10)))
+constr  approval_steps.approval_steps_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES approval_workflows(id) ON DELETE CASCADE
+constr  approval_steps.approval_steps_workflow_id_step_no_key UNIQUE (workflow_id, step_no)
+constr  approval_workflows.approval_workflows_kind_check CHECK ((kind = ANY (ARRAY['stem_registration'::text, 'borrow_request'::text, 'package_purchase'::text, 'edu_plan'::text, 'project'::text])))
+constr  approval_workflows.approval_workflows_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  approval_workflows.approval_workflows_org_id_kind_key UNIQUE (org_id, kind)
+constr  approval_workflows.approval_workflows_pkey PRIMARY KEY (id)
+constr  assignments.assignments_class_id_fkey FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+constr  assignments.assignments_kind_check CHECK ((kind = ANY (ARRAY['worksheet'::text, 'product'::text, 'quiz'::text, 'report'::text, 'homework'::text, 'self_review'::text])))
+constr  assignments.assignments_lesson_id_fkey FOREIGN KEY (lesson_id) REFERENCES topic_lessons(id) ON DELETE SET NULL
+constr  assignments.assignments_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  assignments.assignments_pkey PRIMARY KEY (id)
+constr  assignments.assignments_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'open'::text, 'closed'::text])))
+constr  assignments.assignments_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
+constr  assignments.assignments_topic_id_fkey FOREIGN KEY (topic_id) REFERENCES class_topics(id) ON DELETE SET NULL
+constr  audit_log.audit_log_action_check CHECK ((action = ANY (ARRAY['insert'::text, 'update'::text, 'delete'::text])))
+constr  audit_log.audit_log_pkey PRIMARY KEY (id)
+constr  booking_conflicts.booking_conflicts_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  booking_conflicts.booking_conflicts_pkey PRIMARY KEY (id)
+constr  booking_conflicts.booking_conflicts_room_id_fkey FOREIGN KEY (room_id) REFERENCES stem_rooms(id) ON DELETE CASCADE
+constr  booking_conflicts.booking_conflicts_source_source_id_key UNIQUE (source, source_id)
+constr  borrow_requests.borrow_requests_class_id_fkey FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE SET NULL
+constr  borrow_requests.borrow_requests_mode_check CHECK ((mode = ANY (ARRAY['in_room'::text, 'take_to_class'::text])))
+constr  borrow_requests.borrow_requests_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  borrow_requests.borrow_requests_period_id_fkey FOREIGN KEY (period_id) REFERENCES period_configs(id) ON DELETE SET NULL
+constr  borrow_requests.borrow_requests_pkey PRIMARY KEY (id)
+constr  borrow_requests.borrow_requests_room_id_fkey FOREIGN KEY (room_id) REFERENCES stem_rooms(id) ON DELETE SET NULL
+constr  borrow_requests.borrow_requests_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'lent'::text, 'returned'::text, 'rejected'::text])))
+constr  borrow_requests.borrow_requests_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
+constr  broadcasts.broadcasts_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id)
+constr  broadcasts.broadcasts_pkey PRIMARY KEY (id)
+constr  broadcasts.broadcasts_title_check CHECK ((length(TRIM(BOTH FROM title)) > 0))
+constr  buildings.buildings_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  buildings.buildings_pkey PRIMARY KEY (id)
+constr  certificates.certificates_code_key UNIQUE (code)
+constr  certificates.certificates_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  certificates.certificates_pkey PRIMARY KEY (id)
+constr  certificates.certificates_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES training_plans(id) ON DELETE CASCADE
+constr  certificates.certificates_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
+constr  class_programs.class_programs_class_id_fkey FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+constr  class_programs.class_programs_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  class_programs.class_programs_pkey PRIMARY KEY (class_id, program)
+constr  class_programs.class_programs_program_check CHECK ((program = ANY (ARRAY['CT1'::text, 'CT2'::text, 'CT3'::text, 'CT4'::text, 'CT5'::text])))
+constr  class_session_attendance.class_session_attendance_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  class_session_attendance.class_session_attendance_pkey PRIMARY KEY (session_id, student_id)
+constr  class_session_attendance.class_session_attendance_session_id_fkey FOREIGN KEY (session_id) REFERENCES class_sessions(id) ON DELETE CASCADE
+constr  class_session_attendance.class_session_attendance_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+constr  class_sessions.class_sessions_class_id_fkey FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+constr  class_sessions.class_sessions_lesson_id_fkey FOREIGN KEY (lesson_id) REFERENCES topic_lessons(id) ON DELETE SET NULL
+constr  class_sessions.class_sessions_lesson_plan_id_fkey FOREIGN KEY (lesson_plan_id) REFERENCES lesson_plans(id) ON DELETE SET NULL
+constr  class_sessions.class_sessions_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  class_sessions.class_sessions_pin_check CHECK ((pin ~ '^[0-9]{6}$'::text))
+constr  class_sessions.class_sessions_pkey PRIMARY KEY (id)
+constr  class_sessions.class_sessions_status_check CHECK ((status = ANY (ARRAY['live'::text, 'ended'::text])))
+constr  class_sessions.class_sessions_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
+constr  class_topics.class_topics_class_id_fkey FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+constr  class_topics.class_topics_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  class_topics.class_topics_package_topic_id_fkey FOREIGN KEY (package_topic_id) REFERENCES package_topics(id) ON DELETE SET NULL
+constr  class_topics.class_topics_pkey PRIMARY KEY (id)
+constr  class_topics.class_topics_program_check CHECK ((program = ANY (ARRAY['CT1'::text, 'CT2'::text, 'CT3'::text, 'CT4'::text, 'CT5'::text])))
+constr  class_topics.class_topics_status_check CHECK ((status = ANY (ARRAY['planned'::text, 'active'::text, 'done'::text])))
+constr  class_topics.class_topics_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
+constr  classes.classes_homeroom_teacher_id_fkey FOREIGN KEY (homeroom_teacher_id) REFERENCES teachers(id)
+constr  classes.classes_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  classes.classes_pkey PRIMARY KEY (id)
+constr  classes.classes_year_id_fkey FOREIGN KEY (year_id) REFERENCES academic_years(id)
+constr  contracts.contracts_check CHECK (((ends_on IS NULL) OR (ends_on >= starts_on)))
+constr  contracts.contracts_code_key UNIQUE (code)
+constr  contracts.contracts_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id)
+constr  contracts.contracts_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE RESTRICT
+constr  contracts.contracts_pkey PRIMARY KEY (id)
+constr  contracts.contracts_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES service_plans(id) ON DELETE RESTRICT
+constr  contracts.contracts_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'active'::text, 'suspended'::text, 'ended'::text])))
+constr  contracts.contracts_value_check CHECK (((value IS NULL) OR (value >= (0)::numeric)))
+constr  curriculum_books.curriculum_books_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  curriculum_books.curriculum_books_pkey PRIMARY KEY (id)
+constr  education_plans.education_plans_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  education_plans.education_plans_pkey PRIMARY KEY (id)
+constr  education_plans.education_plans_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'pending'::text, 'approved'::text, 'rejected'::text])))
+constr  education_plans.education_plans_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
+constr  equipment_events.equipment_events_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  equipment_events.equipment_events_pkey PRIMARY KEY (id)
+constr  equipment_events.equipment_events_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES equipment_units(id) ON DELETE CASCADE
+constr  equipment_types.equipment_types_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  equipment_types.equipment_types_pkey PRIMARY KEY (id)
+constr  equipment_units.equipment_units_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  equipment_units.equipment_units_package_id_fkey FOREIGN KEY (package_id) REFERENCES stem_packages(id) ON DELETE SET NULL
+constr  equipment_units.equipment_units_pkey PRIMARY KEY (id)
+constr  equipment_units.equipment_units_room_id_fkey FOREIGN KEY (room_id) REFERENCES stem_rooms(id)
+constr  equipment_units.equipment_units_status_check CHECK ((status = ANY (ARRAY['available'::text, 'in_use'::text, 'broken'::text, 'maintenance'::text, 'in_stock'::text])))
+constr  equipment_units.equipment_units_type_id_fkey FOREIGN KEY (type_id) REFERENCES equipment_types(id)
+constr  floors.floors_building_id_fkey FOREIGN KEY (building_id) REFERENCES buildings(id) ON DELETE CASCADE
+constr  floors.floors_pkey PRIMARY KEY (id)
+constr  integrations.integrations_pkey PRIMARY KEY (key)
+constr  integrations.integrations_status_check CHECK ((status = ANY (ARRAY['not_configured'::text, 'active'::text, 'error'::text, 'paused'::text])))
+constr  integrations.integrations_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES profiles(id)
+constr  invitations.invitations_accepted_user_fkey FOREIGN KEY (accepted_user) REFERENCES profiles(id) ON DELETE SET NULL
+constr  invitations.invitations_email_check CHECK ((email ~* '^[^@\s]+@[^@\s]+\.[^@\s]+$'::text))
+constr  invitations.invitations_invited_by_fkey FOREIGN KEY (invited_by) REFERENCES profiles(id) ON DELETE SET NULL
+constr  invitations.invitations_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  invitations.invitations_pkey PRIMARY KEY (id)
+constr  invitations.invitations_role_id_fkey FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+constr  invitations.invitations_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'accepted'::text, 'cancelled'::text])))
+constr  invitations.invitations_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE SET NULL
+constr  invitations.invitations_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
+constr  lesson_attendance.lesson_attendance_marked_by_fkey FOREIGN KEY (marked_by) REFERENCES profiles(id) ON DELETE SET NULL
+constr  lesson_attendance.lesson_attendance_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  lesson_attendance.lesson_attendance_pkey PRIMARY KEY (session_id, student_id)
+constr  lesson_attendance.lesson_attendance_session_id_fkey FOREIGN KEY (session_id) REFERENCES teaching_sessions(id) ON DELETE CASCADE
+constr  lesson_attendance.lesson_attendance_status_check CHECK ((status = ANY (ARRAY['present'::text, 'absent'::text, 'late'::text, 'excused'::text])))
+constr  lesson_attendance.lesson_attendance_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+constr  lesson_plans.lesson_plans_library_item_id_fkey FOREIGN KEY (library_item_id) REFERENCES library_items(id) ON DELETE SET NULL
+constr  lesson_plans.lesson_plans_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  lesson_plans.lesson_plans_pkey PRIMARY KEY (id)
+constr  lesson_plans.lesson_plans_program_check CHECK ((program = ANY (ARRAY['CT1'::text, 'CT2'::text, 'CT3'::text, 'CT4'::text, 'CT5'::text])))
+constr  lesson_plans.lesson_plans_slides_check CHECK ((jsonb_typeof(slides) = 'array'::text))
+constr  lesson_plans.lesson_plans_source_id_fkey FOREIGN KEY (source_id) REFERENCES lesson_plans(id) ON DELETE SET NULL
+constr  lesson_plans.lesson_plans_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'editing'::text, 'published'::text])))
+constr  lesson_plans.lesson_plans_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
+constr  lesson_progress.lesson_progress_lesson_id_fkey FOREIGN KEY (lesson_id) REFERENCES topic_lessons(id) ON DELETE CASCADE
+constr  lesson_progress.lesson_progress_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  lesson_progress.lesson_progress_pkey PRIMARY KEY (lesson_id, student_id)
+constr  lesson_progress.lesson_progress_status_check CHECK ((status = ANY (ARRAY['in_progress'::text, 'done'::text])))
+constr  lesson_progress.lesson_progress_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+constr  library_copies.library_copies_adopted_by_fkey FOREIGN KEY (adopted_by) REFERENCES profiles(id) ON DELETE SET NULL
+constr  library_copies.library_copies_item_id_fkey FOREIGN KEY (item_id) REFERENCES library_items(id) ON DELETE CASCADE
+constr  library_copies.library_copies_lesson_plan_id_fkey FOREIGN KEY (lesson_plan_id) REFERENCES lesson_plans(id) ON DELETE SET NULL
+constr  library_copies.library_copies_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  library_copies.library_copies_pkey PRIMARY KEY (id)
+constr  library_items.library_items_content_check CHECK ((jsonb_typeof(content) = 'object'::text))
+constr  library_items.library_items_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL
+constr  library_items.library_items_kind_check CHECK ((kind = ANY (ARRAY['program'::text, 'lesson'::text, 'material'::text])))
+constr  library_items.library_items_owner_org_id_fkey FOREIGN KEY (owner_org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  library_items.library_items_pkey PRIMARY KEY (id)
+constr  library_items.library_items_program_check CHECK (((program IS NULL) OR (program = ANY (ARRAY['CT1'::text, 'CT2'::text, 'CT3'::text, 'CT4'::text, 'CT5'::text]))))
+constr  library_items.library_items_scope_check CHECK ((scope = ANY (ARRAY['children'::text, 'selected'::text, 'public'::text])))
+constr  library_items.library_items_source_lesson_id_fkey FOREIGN KEY (source_lesson_id) REFERENCES lesson_plans(id) ON DELETE SET NULL
+constr  library_items.library_items_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'published'::text, 'archived'::text])))
+constr  library_targets.library_targets_item_id_fkey FOREIGN KEY (item_id) REFERENCES library_items(id) ON DELETE CASCADE
+constr  library_targets.library_targets_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  library_targets.library_targets_pkey PRIMARY KEY (item_id, org_id)
+constr  memberships.memberships_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL
+constr  memberships.memberships_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  memberships.memberships_pkey PRIMARY KEY (user_id, org_id, role_id)
+constr  memberships.memberships_role_id_fkey FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+constr  memberships.memberships_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+constr  notifications.notifications_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  notifications.notifications_pkey PRIMARY KEY (id)
+constr  notifications.notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+constr  org_role_permissions.org_role_permissions_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  org_role_permissions.org_role_permissions_pkey PRIMARY KEY (org_id, role_id, module)
+constr  org_role_permissions.org_role_permissions_role_id_fkey FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+constr  organizations.organizations_code_key UNIQUE (code)
+constr  organizations.organizations_customer_status_check CHECK (((customer_status IS NULL) OR (customer_status = ANY (ARRAY['prospect'::text, 'negotiating'::text, 'active'::text, 'paused'::text, 'ended'::text]))))
+constr  organizations.organizations_kdi_owner_fkey FOREIGN KEY (kdi_owner) REFERENCES profiles(id) ON DELETE SET NULL
+constr  organizations.organizations_level_check CHECK ((level = ANY (ARRAY['mamnon'::text, 'tieuhoc'::text, 'thcs'::text, 'thpt'::text])))
+constr  organizations.organizations_location_check CHECK ((((lat IS NULL) AND (lng IS NULL)) OR (((lat >= (7)::double precision) AND (lat <= (24)::double precision)) AND ((lng >= (102)::double precision) AND (lng <= (118)::double precision)))))
+constr  organizations.organizations_parent_id_fkey FOREIGN KEY (parent_id) REFERENCES organizations(id)
+constr  organizations.organizations_pkey PRIMARY KEY (id)
+constr  organizations.organizations_status_check CHECK ((status = ANY (ARRAY['active'::text, 'suspended'::text])))
+constr  organizations.organizations_type_check CHECK ((type = ANY (ARRAY['ministry'::text, 'province'::text, 'department'::text, 'district'::text, 'school'::text, 'provider'::text])))
+constr  package_orders.package_orders_catalog_package_id_fkey FOREIGN KEY (catalog_package_id) REFERENCES stem_packages(id) ON DELETE SET NULL
+constr  package_orders.package_orders_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL
+constr  package_orders.package_orders_delivered_package_id_fkey FOREIGN KEY (delivered_package_id) REFERENCES stem_packages(id) ON DELETE SET NULL
+constr  package_orders.package_orders_fulfillment_check CHECK (((fulfillment IS NULL) OR (fulfillment = ANY (ARRAY['confirmed'::text, 'delivering'::text, 'delivered'::text, 'cancelled'::text]))))
+constr  package_orders.package_orders_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  package_orders.package_orders_pkey PRIMARY KEY (id)
+constr  package_orders.package_orders_quantity_check CHECK ((quantity > 0))
+constr  package_orders.package_orders_quoted_value_check CHECK (((quoted_value IS NULL) OR (quoted_value >= (0)::numeric)))
+constr  package_orders.package_orders_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'pending'::text, 'approved'::text, 'rejected'::text])))
+constr  package_orders.package_orders_tier_check CHECK ((tier = ANY (ARRAY['basic'::text, 'advanced'::text, 'premium'::text])))
+constr  package_topic_sessions.package_topic_sessions_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  package_topic_sessions.package_topic_sessions_pkey PRIMARY KEY (id)
+constr  package_topic_sessions.package_topic_sessions_topic_id_fkey FOREIGN KEY (topic_id) REFERENCES package_topics(id) ON DELETE CASCADE
+constr  package_topics.package_topics_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  package_topics.package_topics_package_id_fkey FOREIGN KEY (package_id) REFERENCES stem_packages(id) ON DELETE CASCADE
+constr  package_topics.package_topics_pkey PRIMARY KEY (id)
+constr  period_configs.period_configs_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  period_configs.period_configs_pkey PRIMARY KEY (id)
+constr  period_configs.period_configs_session_check CHECK ((session = ANY (ARRAY['morning'::text, 'afternoon'::text])))
+constr  profiles.profiles_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+constr  profiles.profiles_locked_by_fkey FOREIGN KEY (locked_by) REFERENCES profiles(id)
+constr  profiles.profiles_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  profiles.profiles_pkey PRIMARY KEY (id)
+constr  report_exports.report_exports_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL
+constr  report_exports.report_exports_format_check CHECK ((format = ANY (ARRAY['xlsx'::text, 'pdf'::text, 'doc'::text])))
+constr  report_exports.report_exports_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  report_exports.report_exports_pkey PRIMARY KEY (id)
+constr  resource_bookings.resource_bookings_no_overlap EXCLUDE USING gist (room_id WITH =, during WITH &&, holder_id WITH <>)
+constr  resource_bookings.resource_bookings_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  resource_bookings.resource_bookings_pkey PRIMARY KEY (id)
+constr  resource_bookings.resource_bookings_room_id_fkey FOREIGN KEY (room_id) REFERENCES stem_rooms(id) ON DELETE CASCADE
+constr  resource_bookings.resource_bookings_source_check CHECK ((source = ANY (ARRAY['teaching_session'::text, 'stem_registration'::text, 'borrow_request'::text])))
+constr  resource_bookings.resource_bookings_source_source_id_key UNIQUE (source, source_id)
+constr  role_permissions.role_permissions_pkey PRIMARY KEY (role_id, module)
+constr  role_permissions.role_permissions_role_id_fkey FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE
+constr  roles.roles_custom_key CHECK ((is_system OR ((key ~~ 'custom\_%'::text) AND (org_id IS NOT NULL))))
+constr  roles.roles_custom_portal CHECK ((is_system OR (portal = ANY (ARRAY['school_admin'::text, 'teacher'::text]))))
+constr  roles.roles_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  roles.roles_org_id_key_key UNIQUE (org_id, key)
+constr  roles.roles_pkey PRIMARY KEY (id)
+constr  roles.roles_portal CHECK (((portal IS NULL) OR (portal = ANY (ARRAY['school_admin'::text, 'teacher'::text, 'student'::text, 'department'::text, 'platform'::text]))))
+constr  rollout_checks.rollout_checks_done_by_fkey FOREIGN KEY (done_by) REFERENCES profiles(id)
+constr  rollout_checks.rollout_checks_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  rollout_checks.rollout_checks_pkey PRIMARY KEY (org_id, step)
+constr  rollout_checks.rollout_checks_step_check CHECK ((step = ANY (ARRAY['kickoff'::text, 'admin_training'::text, 'teacher_training'::text, 'handover'::text, 'acceptance'::text])))
+constr  school_holidays.school_holidays_check CHECK (((ends_on >= starts_on) AND ((ends_on - starts_on) <= 60)))
+constr  school_holidays.school_holidays_created_by_fkey FOREIGN KEY (created_by) REFERENCES profiles(id) ON DELETE SET NULL
+constr  school_holidays.school_holidays_name_check CHECK (((length(btrim(name)) >= 1) AND (length(btrim(name)) <= 200)))
+constr  school_holidays.school_holidays_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  school_holidays.school_holidays_pkey PRIMARY KEY (id)
+constr  security_settings.security_settings_id_check CHECK ((id = 1))
+constr  security_settings.security_settings_idle_minutes_check CHECK (((idle_minutes >= 0) AND (idle_minutes <= 1440)))
+constr  security_settings.security_settings_pkey PRIMARY KEY (id)
+constr  security_settings.security_settings_updated_by_fkey FOREIGN KEY (updated_by) REFERENCES profiles(id)
+constr  self_study_content.self_study_content_item_id_fkey FOREIGN KEY (item_id) REFERENCES self_study_items(id) ON DELETE CASCADE
+constr  self_study_content.self_study_content_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  self_study_content.self_study_content_pkey PRIMARY KEY (item_id)
+constr  self_study_items.self_study_items_activity_id_fkey FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE SET NULL
+constr  self_study_items.self_study_items_check CHECK (((kind <> 'link'::text) OR (COALESCE(url, ''::text) ~* '^https?://'::text)))
+constr  self_study_items.self_study_items_check1 CHECK (((due_at IS NULL) OR (due_at > opens_at)))
+constr  self_study_items.self_study_items_class_id_fkey FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+constr  self_study_items.self_study_items_kind_check CHECK ((kind = ANY (ARRAY['activity'::text, 'lesson'::text, 'link'::text])))
+constr  self_study_items.self_study_items_lesson_plan_id_fkey FOREIGN KEY (lesson_plan_id) REFERENCES lesson_plans(id) ON DELETE SET NULL
+constr  self_study_items.self_study_items_max_attempts_check CHECK (((max_attempts >= 0) AND (max_attempts <= 20)))
+constr  self_study_items.self_study_items_mode_check CHECK ((mode = ANY (ARRAY['before'::text, 'practice'::text])))
+constr  self_study_items.self_study_items_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  self_study_items.self_study_items_pkey PRIMARY KEY (id)
+constr  self_study_items.self_study_items_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'open'::text, 'closed'::text])))
+constr  self_study_items.self_study_items_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
+constr  self_study_items.self_study_items_title_check CHECK (((length(btrim(title)) >= 1) AND (length(btrim(title)) <= 200)))
+constr  self_study_items.self_study_items_topic_id_fkey FOREIGN KEY (topic_id) REFERENCES class_topics(id) ON DELETE SET NULL
+constr  self_study_progress.self_study_progress_best_score_check CHECK (((best_score >= (0)::numeric) AND (best_score <= (10)::numeric)))
+constr  self_study_progress.self_study_progress_item_id_fkey FOREIGN KEY (item_id) REFERENCES self_study_items(id) ON DELETE CASCADE
+constr  self_study_progress.self_study_progress_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  self_study_progress.self_study_progress_pkey PRIMARY KEY (item_id, student_id)
+constr  self_study_progress.self_study_progress_score_check CHECK (((score >= (0)::numeric) AND (score <= (10)::numeric)))
+constr  self_study_progress.self_study_progress_status_check CHECK ((status = ANY (ARRAY['started'::text, 'done'::text])))
+constr  self_study_progress.self_study_progress_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+constr  service_modules.service_modules_pkey PRIMARY KEY (key)
+constr  service_plans.service_plans_code_key UNIQUE (code)
+constr  service_plans.service_plans_pkey PRIMARY KEY (id)
+constr  service_plans.service_plans_price_per_year_check CHECK (((price_per_year IS NULL) OR (price_per_year >= (0)::numeric)))
+constr  session_responses.session_responses_answer_check CHECK (((answer >= 0) AND (answer <= 9)))
+constr  session_responses.session_responses_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  session_responses.session_responses_pkey PRIMARY KEY (session_id, slide_id, student_id)
+constr  session_responses.session_responses_session_id_fkey FOREIGN KEY (session_id) REFERENCES class_sessions(id) ON DELETE CASCADE
+constr  session_responses.session_responses_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+constr  stem_packages.stem_packages_list_price_check CHECK (((list_price IS NULL) OR (list_price >= (0)::numeric)))
+constr  stem_packages.stem_packages_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  stem_packages.stem_packages_pkey PRIMARY KEY (id)
+constr  stem_packages.stem_packages_source_package_id_fkey FOREIGN KEY (source_package_id) REFERENCES stem_packages(id) ON DELETE SET NULL
+constr  stem_packages.stem_packages_tier_check CHECK ((tier = ANY (ARRAY['premium'::text, 'basic'::text, 'advanced'::text])))
+constr  stem_registrations.stem_registrations_class_id_fkey FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+constr  stem_registrations.stem_registrations_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  stem_registrations.stem_registrations_period_id_fkey FOREIGN KEY (period_id) REFERENCES period_configs(id)
+constr  stem_registrations.stem_registrations_pkey PRIMARY KEY (id)
+constr  stem_registrations.stem_registrations_room_id_fkey FOREIGN KEY (room_id) REFERENCES stem_rooms(id)
+constr  stem_registrations.stem_registrations_status_check CHECK ((status = ANY (ARRAY['pending'::text, 'approved'::text, 'rejected'::text])))
+constr  stem_registrations.stem_registrations_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
+constr  stem_rooms.stem_rooms_floor_id_fkey FOREIGN KEY (floor_id) REFERENCES floors(id)
+constr  stem_rooms.stem_rooms_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  stem_rooms.stem_rooms_pkey PRIMARY KEY (id)
+constr  stem_rooms.stem_rooms_status_check CHECK ((status = ANY (ARRAY['active'::text, 'maintenance'::text, 'inactive'::text])))
+constr  stem_teacher_programs.stem_teacher_programs_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  stem_teacher_programs.stem_teacher_programs_pkey PRIMARY KEY (teacher_id, program)
+constr  stem_teacher_programs.stem_teacher_programs_program_check CHECK ((program = ANY (ARRAY['CT1'::text, 'CT2'::text, 'CT3'::text, 'CT4'::text, 'CT5'::text])))
+constr  stem_teacher_programs.stem_teacher_programs_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
+constr  student_group_members.student_group_members_group_id_fkey FOREIGN KEY (group_id) REFERENCES student_groups(id) ON DELETE CASCADE
+constr  student_group_members.student_group_members_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  student_group_members.student_group_members_pkey PRIMARY KEY (group_id, student_id)
+constr  student_group_members.student_group_members_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+constr  student_groups.student_groups_class_id_fkey FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+constr  student_groups.student_groups_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  student_groups.student_groups_pkey PRIMARY KEY (id)
+constr  students.students_class_id_fkey FOREIGN KEY (class_id) REFERENCES classes(id)
+constr  students.students_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  students.students_pkey PRIMARY KEY (id)
+constr  students.students_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES profiles(id)
+constr  submissions.submissions_assignment_id_fkey FOREIGN KEY (assignment_id) REFERENCES assignments(id) ON DELETE CASCADE
+constr  submissions.submissions_assignment_id_group_id_key UNIQUE (assignment_id, group_id)
+constr  submissions.submissions_assignment_id_student_id_key UNIQUE (assignment_id, student_id)
+constr  submissions.submissions_check CHECK ((num_nonnulls(student_id, group_id) = 1))
+constr  submissions.submissions_graded_by_fkey FOREIGN KEY (graded_by) REFERENCES teachers(id) ON DELETE SET NULL
+constr  submissions.submissions_group_id_fkey FOREIGN KEY (group_id) REFERENCES student_groups(id) ON DELETE CASCADE
+constr  submissions.submissions_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  submissions.submissions_pkey PRIMARY KEY (id)
+constr  submissions.submissions_status_check CHECK ((status = ANY (ARRAY['submitted'::text, 'graded'::text, 'returned'::text])))
+constr  submissions.submissions_student_id_fkey FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE
+constr  support_messages.support_messages_author_fkey FOREIGN KEY (author) REFERENCES profiles(id)
+constr  support_messages.support_messages_body_check CHECK ((length(TRIM(BOTH FROM body)) > 0))
+constr  support_messages.support_messages_pkey PRIMARY KEY (id)
+constr  support_messages.support_messages_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES support_tickets(id) ON DELETE CASCADE
+constr  support_tickets.support_tickets_assignee_fkey FOREIGN KEY (assignee) REFERENCES profiles(id)
+constr  support_tickets.support_tickets_category_check CHECK ((category = ANY (ARRAY['technical'::text, 'account'::text, 'content'::text, 'equipment'::text, 'billing'::text, 'other'::text])))
+constr  support_tickets.support_tickets_code_key UNIQUE (code)
+constr  support_tickets.support_tickets_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  support_tickets.support_tickets_pkey PRIMARY KEY (id)
+constr  support_tickets.support_tickets_priority_check CHECK ((priority = ANY (ARRAY['low'::text, 'normal'::text, 'high'::text, 'urgent'::text])))
+constr  support_tickets.support_tickets_reported_by_fkey FOREIGN KEY (reported_by) REFERENCES profiles(id)
+constr  support_tickets.support_tickets_status_check CHECK ((status = ANY (ARRAY['new'::text, 'in_progress'::text, 'waiting_customer'::text, 'resolved'::text, 'closed'::text])))
+constr  support_tickets.support_tickets_subject_check CHECK ((length(TRIM(BOTH FROM subject)) > 0))
+constr  support_tickets.support_tickets_warranty_ticket_id_fkey FOREIGN KEY (warranty_ticket_id) REFERENCES warranty_tickets(id) ON DELETE SET NULL
+constr  system_job_runs.system_job_runs_pkey PRIMARY KEY (id)
+constr  teachers.teachers_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  teachers.teachers_pkey PRIMARY KEY (id)
+constr  teachers.teachers_profile_id_fkey FOREIGN KEY (profile_id) REFERENCES profiles(id)
+constr  teachers.teachers_status_check CHECK ((status = ANY (ARRAY['active'::text, 'inactive'::text])))
+constr  teaching_assignments.teaching_assignments_class_id_fkey FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+constr  teaching_assignments.teaching_assignments_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  teaching_assignments.teaching_assignments_pkey PRIMARY KEY (id)
+constr  teaching_assignments.teaching_assignments_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
+constr  teaching_assignments.teaching_assignments_year_id_fkey FOREIGN KEY (year_id) REFERENCES academic_years(id)
+constr  teaching_assignments.teaching_assignments_year_id_teacher_id_class_id_subject_key UNIQUE (year_id, teacher_id, class_id, subject)
+constr  teaching_sessions.teaching_sessions_class_id_fkey FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+constr  teaching_sessions.teaching_sessions_class_id_session_date_period_id_key UNIQUE (class_id, session_date, period_id)
+constr  teaching_sessions.teaching_sessions_kind_check CHECK ((kind = ANY (ARRAY['regular'::text, 'stem'::text])))
+constr  teaching_sessions.teaching_sessions_makeup_of_fkey FOREIGN KEY (makeup_of) REFERENCES teaching_sessions(id) ON DELETE SET NULL
+constr  teaching_sessions.teaching_sessions_marked_by_fkey FOREIGN KEY (marked_by) REFERENCES profiles(id) ON DELETE SET NULL
+constr  teaching_sessions.teaching_sessions_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id) ON DELETE CASCADE
+constr  teaching_sessions.teaching_sessions_period_id_fkey FOREIGN KEY (period_id) REFERENCES period_configs(id) ON DELETE CASCADE
+constr  teaching_sessions.teaching_sessions_pkey PRIMARY KEY (id)
+constr  teaching_sessions.teaching_sessions_room_id_fkey FOREIGN KEY (room_id) REFERENCES stem_rooms(id) ON DELETE SET NULL
+constr  teaching_sessions.teaching_sessions_status_check CHECK ((status = ANY (ARRAY['scheduled'::text, 'taught'::text, 'cancelled'::text])))
+constr  teaching_sessions.teaching_sessions_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
+constr  teaching_sessions.teaching_sessions_timetable_entry_id_fkey FOREIGN KEY (timetable_entry_id) REFERENCES timetable_entries(id) ON DELETE SET NULL
+constr  teaching_sessions.teaching_sessions_year_id_fkey FOREIGN KEY (year_id) REFERENCES academic_years(id) ON DELETE SET NULL
+constr  timetable_entries.timetable_entries_class_id_fkey FOREIGN KEY (class_id) REFERENCES classes(id) ON DELETE CASCADE
+constr  timetable_entries.timetable_entries_kind_check CHECK ((kind = ANY (ARRAY['regular'::text, 'stem'::text])))
+constr  timetable_entries.timetable_entries_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  timetable_entries.timetable_entries_period_id_fkey FOREIGN KEY (period_id) REFERENCES period_configs(id) ON DELETE CASCADE
+constr  timetable_entries.timetable_entries_pkey PRIMARY KEY (id)
+constr  timetable_entries.timetable_entries_room_id_fkey FOREIGN KEY (room_id) REFERENCES stem_rooms(id)
+constr  timetable_entries.timetable_entries_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE SET NULL
+constr  timetable_entries.timetable_entries_weekday_check CHECK (((weekday >= 2) AND (weekday <= 7)))
+constr  timetable_entries.timetable_entries_year_id_fkey FOREIGN KEY (year_id) REFERENCES academic_years(id)
+constr  topic_lessons.topic_lessons_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  topic_lessons.topic_lessons_pkey PRIMARY KEY (id)
+constr  topic_lessons.topic_lessons_room_id_fkey FOREIGN KEY (room_id) REFERENCES stem_rooms(id) ON DELETE SET NULL
+constr  topic_lessons.topic_lessons_topic_id_fkey FOREIGN KEY (topic_id) REFERENCES class_topics(id) ON DELETE CASCADE
+constr  topic_lessons.topic_lessons_topic_id_seq_key UNIQUE (topic_id, seq)
+constr  topic_materials.topic_materials_kind_check CHECK ((kind = ANY (ARRAY['doc'::text, 'slide'::text, 'video'::text, 'link'::text, 'worksheet'::text])))
+constr  topic_materials.topic_materials_lesson_id_fkey FOREIGN KEY (lesson_id) REFERENCES topic_lessons(id) ON DELETE CASCADE
+constr  topic_materials.topic_materials_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  topic_materials.topic_materials_pkey PRIMARY KEY (id)
+constr  topic_materials.topic_materials_topic_id_fkey FOREIGN KEY (topic_id) REFERENCES class_topics(id) ON DELETE CASCADE
+constr  topic_posts.topic_posts_author_id_fkey FOREIGN KEY (author_id) REFERENCES profiles(id) ON DELETE CASCADE
+constr  topic_posts.topic_posts_body_check CHECK (((length(body) >= 1) AND (length(body) <= 4000)))
+constr  topic_posts.topic_posts_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  topic_posts.topic_posts_pkey PRIMARY KEY (id)
+constr  topic_posts.topic_posts_topic_id_fkey FOREIGN KEY (topic_id) REFERENCES class_topics(id) ON DELETE CASCADE
+constr  training_attendance.training_attendance_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  training_attendance.training_attendance_pkey PRIMARY KEY (session_id, teacher_id)
+constr  training_attendance.training_attendance_session_id_fkey FOREIGN KEY (session_id) REFERENCES training_sessions(id) ON DELETE CASCADE
+constr  training_attendance.training_attendance_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
+constr  training_enrollments.training_enrollments_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  training_enrollments.training_enrollments_pkey PRIMARY KEY (plan_id, teacher_id)
+constr  training_enrollments.training_enrollments_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES training_plans(id) ON DELETE CASCADE
+constr  training_enrollments.training_enrollments_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES teachers(id) ON DELETE CASCADE
+constr  training_lessons.training_lessons_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  training_lessons.training_lessons_pkey PRIMARY KEY (id)
+constr  training_lessons.training_lessons_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES training_plans(id) ON DELETE SET NULL
+constr  training_lessons.training_lessons_status_check CHECK ((status = ANY (ARRAY['published'::text, 'draft'::text, 'inactive'::text])))
+constr  training_plans.training_plans_mode_check CHECK ((mode = ANY (ARRAY['online'::text, 'offline'::text, 'hybrid'::text])))
+constr  training_plans.training_plans_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  training_plans.training_plans_pkey PRIMARY KEY (id)
+constr  training_plans.training_plans_status_check CHECK ((status = ANY (ARRAY['planned'::text, 'ongoing'::text, 'done'::text])))
+constr  training_sessions.training_sessions_mode_check CHECK ((mode = ANY (ARRAY['online'::text, 'offline'::text])))
+constr  training_sessions.training_sessions_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  training_sessions.training_sessions_pkey PRIMARY KEY (id)
+constr  training_sessions.training_sessions_plan_id_fkey FOREIGN KEY (plan_id) REFERENCES training_plans(id) ON DELETE CASCADE
+constr  warranty_tickets.warranty_tickets_code_key UNIQUE (code)
+constr  warranty_tickets.warranty_tickets_org_id_fkey FOREIGN KEY (org_id) REFERENCES organizations(id)
+constr  warranty_tickets.warranty_tickets_pkey PRIMARY KEY (id)
+constr  warranty_tickets.warranty_tickets_reported_by_fkey FOREIGN KEY (reported_by) REFERENCES profiles(id)
+constr  warranty_tickets.warranty_tickets_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'new'::text, 'accepted'::text, 'waiting_parts'::text, 'processing'::text, 'resolved'::text, 'rejected'::text, 'closed'::text])))
+constr  warranty_tickets.warranty_tickets_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES equipment_units(id)
+func    act_norm(t text) md5:65701d471c546ff80db0186e7a70ec87
+func    act_shuffle(arr jsonb, seed text) md5:553e772d1ddbd1cc517966a7cf545416
+func    activities_guard() md5:0afd2bb416c97574cec169162bba0a26
+func    activity_grade(p_kind text, c jsonb, a jsonb) md5:d44b462b8c5ffc9402346377dffbd229
+func    activity_playable(p_kind text, c jsonb, seed text) md5:95f4115b3aaaff5f894310422402d8b8
+func    activity_problem(p_kind text, c jsonb) md5:b47f8c5d7aeeda2c02dcaf6a12fc8ad6
+func    apply_invitations(p_user uuid) secdef md5:8f73f7592c43b1372da3196c6c05c1ff
+func    approval_apply(p_request uuid, p_decision text, p_note text, p_sync boolean) secdef md5:0e67cad44fa18353aa851f4898545445
+func    approval_build_steps(p_org uuid, p_kind text, p_workflow uuid) secdef md5:5d41b2f4aa7b35ebe7ed4d2e9f1f587c
+func    approval_can_act(p_request uuid) secdef md5:76c347582790bb78d523dbad6e46427e
+func    approval_cancel(p_request uuid, p_note text) secdef md5:a827bec8b46be3ef9168b845f8fff83c
+func    approval_decide(p_request uuid, p_decision text, p_note text) secdef md5:a0ff94114f047f3c1e7c2a1acfede9d1
+func    approval_decide_ref(p_table text, p_ref uuid, p_decision text, p_note text) secdef md5:e201cd8cb8b9922a395fe2cf227377d0
+func    approval_effective_workflow(p_org uuid, p_kind text) secdef md5:191009d42d387b473885f1ec77eb8747
+func    approval_inbox() secdef md5:0f27180ac0d68ca679d90cfd6866f775
+func    approval_kind_label(p_kind text) md5:7cafb69248759845aafd08a68cad62a9
+func    approval_kind_module(p_kind text) md5:4471c02f806f65b0ae6ee038cc806e0c
+func    approval_notify_step(p_request uuid) secdef md5:5395608a580c1c84f99a33ce37d4e840
+func    approval_open(p_org uuid, p_kind text, p_table text, p_ref uuid, p_title text, p_summary text, p_by uuid) secdef md5:c192a390b258315a6d6b9e386658ee01
+func    approval_reset_workflow(p_kind text) secdef md5:a3243866103c5e40990534195f6ff8f2
+func    approval_save_workflow(p_kind text, p_name text, p_applies boolean, p_steps jsonb) secdef md5:edca3187c5f806855e507e934f28172c
+func    approval_source_deleted() secdef md5:53478ae999c8420a238bcadd0d09aa82
+func    approval_source_guard() secdef md5:bd69a78378477ea056cedda4796f83fc
+func    approval_source_opened() secdef md5:57ed94c760eecd99e323932ac03e17a0
+func    attendance_summary(p_from date, p_to date) secdef md5:8ccb3f229b07c212ea01812eadf35d8a
+func    audit_commerce() secdef md5:eaae5f3cc2573a4add43d56111dc7707
+func    audit_role_permissions() secdef md5:082e39aa86e123430a5c4eaeae44739f
+func    audit_row() secdef md5:f7c9ae47751e7843b6ad850968f1aae2
+func    audit_s6() secdef md5:92c7f172cdd309bc490b01c852d08312
+func    audit_wave2() secdef md5:638780c0d6e4f1d54b6ac89cca53fcf5
+func    booking_put(p_org uuid, p_room uuid, p_holder uuid, p_during tstzrange, p_source text, p_source_id uuid, p_label text, p_soft boolean) secdef md5:53346240e11fd93338f9c44b2ad70379
+func    booking_refresh_borrow(p_id uuid) secdef md5:ab801f8674ec4805650c3da5eae6d29a
+func    booking_refresh_registration(p_id uuid) secdef md5:3ca445ce3051cc96d988cb5752b0c97c
+func    booking_refresh_session(p_id uuid) secdef md5:4ede0ec83c76fe9a70655827525a03c6
+func    booking_retry(p_source text, p_source_id uuid) secdef md5:cc92a637fd664afa4b4eb4182d6352c7
+func    booking_sync() secdef md5:90deb6831bff0202bf3401b85334bac7
+func    borrow_stock_guard() secdef md5:a5ea1a7545569e00d66cef5995b8a2df
+func    broadcast_targets(p_org_ids uuid[], p_org_types text[], p_role_keys text[]) secdef md5:cb6b43dd1bd2a9e28e7bc02ef41a7d40
+func    can_access_org(target uuid) secdef md5:ea784d2820b1c9a4a424ee38a5a306cf
+func    can_manage_topic(p_topic uuid) secdef md5:a73ddf97e4cbfbb4605de5911a622cc2
+func    copy_stem_package(p_src uuid, p_org uuid, p_catalog boolean, p_order_no text) secdef md5:bff549a4da137e086949c87f98866bcc
+func    dept_school_stats() secdef md5:c8a4828287f26d807ba1bf78cb1ace9e
+func    dept_subject_stats() secdef md5:67962197e2a4e8ca4ba6a6cdc7b4dfe2
+func    end_class_session(p_session uuid) secdef md5:4717c180c2d57623a225894dc322948d
+func    equipment_availability(p_day date, p_period uuid) secdef md5:f4aa6844cb6707137909c02882956dfc
+func    equipment_overview() secdef md5:def62198b051121a022831c19c971bf2
+func    equipment_shortage(p_org uuid, p_day date, p_period uuid, p_items jsonb, p_skip uuid) secdef md5:422327032f07aa3720b3b232612a28c2
+func    equipment_type_summary() secdef md5:417ec2e8bbd22413c0060d7cadcf84dd
+func    fill_post_author() secdef md5:f600f09f06089f226335ab288e2fe9a3
+func    generate_teaching_sessions(p_from date, p_to date) secdef md5:5249036f3d49e42442ddb1584f8864c8
+func    generate_upcoming_sessions(p_days integer) secdef md5:33429f8509a7ba6153c629b4d91df46e
+func    grant_platform_admin(p_email text) secdef md5:e4d24bb21b5a5cd5bd0e898394ab2e12
+func    guard_class_session() md5:fe3306571fce9f64ce75e0ef9e9b9584
+func    guard_invitation_update() md5:952a36d84af33d6ea65e17769a7efa9f
+func    guard_last_platform_admin() secdef md5:ce706b4bb0587bd356a626e23cc0542b
+func    guard_membership() secdef md5:0ab2f0bde86af7569c97655771b65906
+func    guard_notification() md5:fb7aaef780b0a777d72a56e48d8778df
+func    guard_order_fulfillment() secdef md5:839be50d806a0fc1adee2519fcc80870
+func    guard_org() secdef md5:40618ca4afe43ec2ebbd92c9d9222baa
+func    guard_org_kdi_fields() md5:7a24bf0544348a933677e607cac43322
+func    guard_profile_lock() md5:2c9e2d86a5930a2aec1200744149bf3a
+func    guard_profile_org() secdef md5:178fe74d89c64e825a7cf1ba81f40e11
+func    guard_role_update() md5:9a79dd037a519e24a603bcb8f1dece6b
+func    guard_service_plan() md5:b69b8fccf47daa0808b424f5481c9fa6
+func    guard_submission() md5:50cb591e4145fefadc3409ad309fd01b
+func    handle_invitation_created() secdef md5:3c774fcb443252eb341dea5941931ddf
+func    handle_new_user() secdef md5:5c7e4d4a073d07f7f74d3841b459f47b
+func    handle_user_confirmed() secdef md5:247bd329469d0df5e44032bf24bd01af
+func    has_perm(p_module text, p_action text) secdef md5:31ae96c4cb29f7b9c533e876d3f499b2
+func    has_role(keys text[]) secdef md5:5020cfe06ffd697ce67c2e0bb00644ca
+func    holiday_resync() secdef md5:e6970e99b1a20102e41e8c35d6011dff
+func    in_my_tree(p_user uuid) secdef md5:10943a16e217f5ebe4789e9de9c37d7e
+func    is_admin() secdef md5:ff1f178e6597c541feab0a4ad8f6227c
+func    is_authority() secdef md5:2db7f86f49d34f53990d0bd434766951
+func    is_holiday(p_org uuid, p_day date) secdef md5:c032aed08cf01a71ea7b91ef75e70512
+func    is_platform_admin() secdef md5:a7466271cceb47b52adea9368fd8e285
+func    is_staff() secdef md5:d2e4400f1cfd5d0071b5c1d5f6679764
+func    is_student() secdef md5:359c607fd365e4a8ee6c9c4ce38e3fb8
+func    join_class_session(p_pin text) secdef md5:9c6935dc3ead89077fe2b173ec4a12af
+func    jwt_aal() md5:afb7b50d2a8bb86789479ea5a3f954a4
+func    lesson_attendance_count() secdef md5:28e277adc1d2ab4b45d97fea6c3854a9
+func    lesson_attendance_guard() secdef md5:a02a5528612a1c772c3d6970de385237
+func    library_adopt(p_item uuid, p_template boolean) secdef md5:24932803e49762db5c822b87c307afe7
+func    library_can_manage() secdef md5:ba32c4c875de1d9e0bec41325e2c1954
+func    library_item_owner(p_item uuid) secdef md5:bdb20dacab06bf006f80a7c3aaf83c45
+func    library_publish(p_item uuid, p_note text) secdef md5:dbf8133176a2348134303950a9cf975b
+func    library_stats() secdef md5:a48e05f9cf27432e32cd81998d8fb319
+func    library_unpublish(p_item uuid) secdef md5:5cd81246a8ec35e5213d3bf166bc5ebb
+func    library_visible(p_item uuid) secdef md5:4deb3aef10fa4f98f64a58696aab32e4
+func    mark_teaching_session(p_session uuid, p_marks jsonb, p_note text) secdef md5:862bfc219a57718e46931ab74f8cee9a
+func    membership_added() secdef md5:fef1f2d962c3771e7551f5267f4b7678
+func    membership_removed() secdef md5:0f21ecb43760ac63eb84d01fb9ebd686
+func    mfa_required() secdef md5:9f0653a7801de2bee81b324df0936e5d
+func    my_ancestor_orgs() secdef md5:2d274472a60f55bfe801cf24b8f3372e
+func    my_class_id() secdef md5:e1d640c56439b346fd70691c9e0a9bbe
+func    my_entitlement() secdef md5:d686dc1b8c26c6b245c4683fc5b223bd
+func    my_group_ids() secdef md5:cdf97b2d39bd1b05f15ed205aab9ab07
+func    my_org_id() secdef md5:5e7a17a8ee69030ee80be2322b5b5922
+func    my_org_tree() secdef md5:67ce92f6fe75b656a1b61617a7509876
+func    my_orgs() secdef md5:ac2bec19ce1c1d7d9490af0420cc79af
+func    my_parent_org() secdef md5:0892bba3105f6d6d70ec2f7a14ca26c8
+func    my_pending_counts() secdef md5:e66736064e3363cff95c1244a3c38974
+func    my_permissions() secdef md5:e37511cfc1e3d55b11b18e83b7537bf8
+func    my_roles() secdef md5:9b515f2fef24aae785fa1952022dfb5f
+func    my_scope_orgs() secdef md5:486a8636beeadce0e787705b148d3461
+func    my_student_id() secdef md5:ce81e1f830d3ce83a7d0a71e9689bf82
+func    my_teacher_id() secdef md5:1eace3a366231af09f711d9c6b06eaaf
+func    my_training_lessons() secdef md5:758bc0504064a514a6ef7c4016f0f03c
+func    my_training_sessions() secdef md5:6c8c7682bcd937e1cb9d7667117a0801
+func    notify_assignment() secdef md5:7224725612c1dae039bf31254498b478
+func    notify_borrow() secdef md5:0d4da06f363770e2fb1aa622400adae4
+func    notify_invitation() secdef md5:f4d29560650702bc385ec912c048f6b6
+func    notify_self_study() secdef md5:d4e146d93049346e1a0de59192777250
+func    notify_staff(p_org uuid, p_module text, p_kind text, p_title text, p_body text, p_page text, p_ref uuid) secdef md5:cf956255e6a27fd78e1f30d8d84f06d7
+func    notify_stem_registration() secdef md5:3a0ad59ad47d15a8fb96c5a54d5091a2
+func    notify_submission() secdef md5:b3b7b93f302de823b0761c3ef23e7f76
+func    notify_user(p_user uuid, p_org uuid, p_kind text, p_title text, p_body text, p_page text, p_portal text, p_ref uuid, p_merge boolean) secdef md5:3dcfab0fc59bc80e2e7d5c9b5a779025
+func    notify_warranty() secdef md5:e41671715fb00670fe88aab7b5972ffb
+func    org_ancestor_of_type(p_org uuid, p_type text) secdef md5:15ae2ec5a30f89cb074d45bcc958e9e4
+func    org_entitlement(p_org uuid) secdef md5:6b54735189de26d7d89dfbc9521efaaf
+func    org_has_module(p_org uuid, p_perm text) secdef md5:7a8c712fc41046f260c5e9bbbabc9115
+func    org_parent_ok(p_type text, p_parent_type text) md5:d28faf8a81820e41a7c6ed62649ba957
+func    org_tree_stats() secdef md5:491ca25333a793c73e302c4814de650a
+func    owner_name(library_items) secdef md5:5fa13857a3f57255d94817c30be7bc69
+func    owner_type(library_items) secdef md5:ab2c79d41257be5924f4faf0dac58920
+func    package_catalog() secdef md5:51db2da51c95b758a63977d18804a459
+func    period_slot(p_day date, p_period uuid) secdef md5:ba82fb40575047ccdf8f78fb16a949c7
+func    platform_broadcast(p_title text, p_body text, p_page text, p_org_ids uuid[], p_org_types text[], p_role_keys text[]) secdef md5:367dc6c0771663a121114dff80b77e07
+func    platform_broadcast_preview(p_org_ids uuid[], p_org_types text[], p_role_keys text[]) secdef md5:730048ac32b84c7c0a547c37d6e03888
+func    platform_broadcasts() secdef md5:01f819419b33012978ee49ef470f2ad3
+func    platform_entitlements() secdef md5:837eebea8dc7b17462ef42b576ff08ac
+func    platform_fulfill_order(p_order uuid, p_fulfillment text, p_catalog uuid, p_note text, p_value numeric) secdef md5:db2a4495afa6bc360821b29f2d52c852
+func    platform_generate_upcoming_sessions(p_days integer) secdef md5:a3177a1b98c900b21605bd742e2081df
+func    platform_import_schools(p_rows jsonb) secdef md5:1cc0cdda3fdc9ca5c48ba17c105ecc0d
+func    platform_lock_user(p_user uuid, p_reason text) secdef md5:aa518d538cd8cd7d7c5043d868a2b57a
+func    platform_module_usage() secdef md5:5a994fa0cf70cc82bde45c06b70ac9c5
+func    platform_module_usage_detail(p_key text) secdef md5:9227817f9d38c9700d3843cccbd91156
+func    platform_org_id() secdef md5:82287c475a1f4ededde353efacd6c737
+func    platform_overview() secdef md5:c0fb1096ccbdcd6d062134b6bad3b7ee
+func    platform_permission_overrides() secdef md5:ca45e7c9afe1b42d94082d9cf0697d20
+func    platform_revoke_session(p_session uuid) secdef md5:54c769092a85d77064abfba7389779be
+func    platform_school_registry() secdef md5:5a9374d256a5342c65e884241f852329
+func    platform_school_trend(p_org uuid) secdef md5:13781c72daa0dbe2c4022218e69c3784
+func    platform_security_overview() secdef md5:10519179aa10cd49fd55605ca97f6608
+func    platform_staff() secdef md5:ab98c82a2cfe0ddf526be1cbc4b49877
+func    platform_unlock_user(p_user uuid) secdef md5:28e538e619d29c4b6d08720d1b691dc2
+func    platform_update_school(p_org uuid, p_patch jsonb) secdef md5:fc63f632dcc864044ba6f6f0d451dd97
+func    require_platform() secdef md5:e8b9b607d349f67409cbe6432b2b6889
+func    role_fits_org(p_role uuid, p_org uuid) secdef md5:ec4a4ad5162ebd4611e91d17397ac29b
+func    room_overview(p_from date, p_to date) secdef md5:27bb76becfa313bb4e2cce3a3b6dd85e
+func    school_last_login() secdef md5:1d53f1ac0ba7356c2cf517825357b60f
+func    school_module_events(p_days integer) secdef md5:e991aae5e009961352031a2a80835fa1
+func    self_study_open(p_item uuid) secdef md5:cfae311d55d298ff9f01ce73e3425536
+func    self_study_progress_guard() md5:9aa3226b8ee00d3f898803d3f6249fbf
+func    self_study_reveal(i self_study_items, p self_study_progress) md5:a6c9f60e4f58ed4888e98c96b2f906f5
+func    self_study_snapshot() secdef md5:a3710b81a0852735e4c0851e120f22c6
+func    self_study_snapshot_save() secdef md5:9390432217fd1a26714a903a796340a9
+func    self_study_submit(p_item uuid, p_answers jsonb) secdef md5:3e919f771cff9131f42c05ca88a075b0
+func    session_tally(p_session uuid, p_slide text) secdef md5:6c9f63a00e4d18ab5b0b4eb8e12f43ad
+func    set_current_year(p_year uuid) secdef md5:fe70bbf77b3a10e4ac54f9400ba5a1cb
+func    set_school_location(p_org uuid, p_lat double precision, p_lng double precision) secdef md5:0476a4ecf19efef7154580c92c0b1c99
+func    slot_text(p_during tstzrange) md5:ea9624c56ec509318c3907438eaee1d8
+func    start_class_session(p_class uuid, p_title text, p_lesson uuid, p_plan uuid) secdef md5:2b0ecbae8159bc88a03772dd50d8ffcb
+func    student_sees_topic(p_topic uuid) secdef md5:83b5819899ce02c6696d5321038aacaf
+func    support_notify() secdef md5:f2f99d283f5f25fb20f82245a15d935f
+func    support_sla(p_priority text) md5:6ccce7ea4737ed26d1bda1fd0dc196fd
+func    support_ticket_before() secdef md5:9b88f050e03ed2218ba1459307161162
+func    switch_org(p_org uuid) secdef md5:b39fdab1f06c9ad1c75ab4c4812dccbf
+func    sync_teaching_sessions(p_org uuid, p_from date, p_to date) secdef md5:180c9f7abbe729b1a6061069bda99680
+func    teacher_name(p_teacher uuid) secdef md5:4e4090fb7f24e60261b0829ed63a3135
+func    teacher_profile(p_teacher uuid) secdef md5:01e82c404ae74c63753616bea4599aed
+func    teacher_slot_busy(p_teacher uuid, p_day date, p_period uuid, p_class uuid, p_skip_session uuid, p_skip_reg uuid) secdef md5:cb4b6e493b9f62142719e27f603a852e
+func    teacher_slot_guard() secdef md5:63185645a27fd971fe8c70c289639380
+func    teaches_class(p_class uuid) secdef md5:72cd2a44597c1ae7e983e3e6cf7917bf
+func    timetable_conflicts() secdef md5:b12e46e0940af7484bd00d23f9df03ab
+func    timetable_guard() secdef md5:d4ccc4cf39fcfb615f6b39158b101c8c
+func    timetable_overview() secdef md5:62a562ddd0e6feb21df355673910279d
+func    touch_updated_at() md5:ba151046deb2851bef013bf39c4b63f0
+func    training_check_in(p_session uuid) secdef md5:cf14b512e44ea3412c350110f8183962
+func    training_session_open(p_session uuid) secdef md5:cbe481dfb0d4493efb5ac442ccd8b7f7
+func    user_has_perm(p_user uuid, p_module text, p_action text) secdef md5:9b6a85bc3b0360deb5a4aa0dd00dfd23
+func    user_has_perm(p_user uuid, p_module text, p_action text, p_org uuid) secdef md5:71c889e907774ef3fa78d7d8771ccec1
+func    user_roles_write() md5:4165ddc90d6ed2d17fba471541a4f38c
+func    vn_date(d date) md5:748966618acdda1f00fb824698347d3d
+func    vn_today() md5:a7395c65d6063a7cd6d1b2de5970b409
+func    warranty_label(s text) md5:d3469532fd3d6063f54b041d373dfc09
+index   academic_years_name_term c0c3952bd5425be6bd20afd3f84d7a4b
+index   academic_years_one_current 9676ab1a3769dfae3cd1734bd00de9f0
+index   academic_years_pkey b3fcaee899844e58e98314a854fb0722
+index   activities_org_teacher fb62e1406f0c8903cdd726542fd9e0ad
+index   activities_pkey 0065da28f5f7585bab40709361960db4
+index   approval_actions_pkey 6ff5999782f6cf3589ece314435c0c79
+index   approval_actions_req_idx d048568af98f79c0a85c5429fd657b6d
+index   approval_requests_one_pending a4dc2cd0c68f586a80ba6a7d017f1ad8
+index   approval_requests_org_idx 3f1ba25f50fa10394022ec94944665ca
+index   approval_requests_pkey d389331c41d251ad4ed11901f55b4231
+index   approval_requests_ref_idx 0f15af1b688534ac339d36af3cc424b6
+index   approval_steps_pkey bc072fc3666d099c2d0cfba96a58cc70
+index   approval_steps_workflow_id_step_no_key 50ebebaaf6187ca4d8caba992eed82b1
+index   approval_workflows_org_id_kind_key 2ae62d5060a73c7d704f5d5111f91a07
+index   approval_workflows_pkey 0ab9f640e8f63ca4eee3de460fecf544
+index   assignments_class_id_due_at_idx fcdb8d89031d3dd44735f7fa764db57a
+index   assignments_pkey f73942c75f48bc720acf4406f23f2885
+index   audit_log_at_idx b8eb08bac083441f3489b5d4a507788f
+index   audit_log_org_idx 3fad7800969dd5e58e10cd5b774b9db7
+index   audit_log_pkey 699c2e83d7415b2bc46801f073cacbb8
+index   booking_conflicts_blocking 573ced9e494ab035a937f3ac6847a511
+index   booking_conflicts_org 44156747e8a6e5f6122bf9db2a702579
+index   booking_conflicts_pkey 5cad88fc9e4ce07d50ef2e5861ff9307
+index   booking_conflicts_source_source_id_key ed2641d5783de942b49a6515bf00f2a1
+index   borrow_requests_pkey 7fe147ce49ccfaab559ca0aec93a36a3
+index   broadcasts_pkey d1fad0f0afda7fc0a12b1d4c7545b967
+index   buildings_pkey 3187ea618c6f3c399b6a0ff4bd50958d
+index   certificates_code_key 80252b2d1f276451eae433e4369c6692
+index   certificates_pkey d22ea7558413a34abce8f094efcbc68c
+index   class_programs_pkey 6e012d129d53c7d78970dade040eda71
+index   class_session_attendance_pkey 12856acbb82d3960ef679b9eb6c56b3f
+index   class_sessions_live_pin 718cb75c75a800f0517e9190b2ed8b33
+index   class_sessions_pkey 055cf964509fca02a38183931444a850
+index   class_topics_pkey f562cfe3f3afdc7be37ed4051692fd97
+index   classes_pkey fff61d02b98e2e6ffa2aae4350366d0a
+index   contracts_code_key c9840956cbbe3497d8fce66151d51f53
+index   contracts_org_idx 6327ed32b8680d4ba3860ac0ea3d44c8
+index   contracts_pkey 7d8b7ffddc9bfbb7b1a8f2a460412fc0
+index   curriculum_books_pkey 8ea39578e03a174cc1fd43b6e9b721e4
+index   education_plans_pkey 5d3d594379b246661044892d4a5207b1
+index   equipment_events_pkey 65258d27a3433c53439554e98ffed447
+index   equipment_types_pkey 4c4bf53c497ba1728c7bcd8f1f882e10
+index   equipment_units_pkey 5498e2eb495c1485ead4aec387ab16e3
+index   floors_pkey aaec3928fa3c5425fecfba045282310b
+index   integrations_pkey 4cd7dee6cf4cd7856775fdc31b87b658
+index   invitations_pending_email e4f2dfc52aacf9fa13791d1e6ce0650e
+index   invitations_pkey 26d1075a8c862e2b5ceeb93757e00353
+index   lesson_attendance_pkey d09c5be499f5d75a64bdf5b0eb88d119
+index   lesson_attendance_student f5d37b775ac5efeb055ba3f4c61d74bc
+index   lesson_plans_org_id_teacher_id_idx 31b1c49733b07da2f77c746db7b60e97
+index   lesson_plans_pkey 61d24b735642e932b7946213aff7b345
+index   lesson_progress_pkey 6b350f994f9918911f805f260e756ada
+index   library_copies_item_idx 3823514323227a0ebf6e9150b540f4a2
+index   library_copies_org_idx e1758f68f14ade3d8fb4520578e19b9b
+index   library_copies_pkey d701533931870d2776020cbac06b9367
+index   library_items_owner_idx ad75c19b005232f1c13bbdac8a154752
+index   library_items_pkey e69c987017b5cb3550faa1b1cd5a0485
+index   library_items_pub_idx 7ca619252a34f4a275cec0e575d51890
+index   library_targets_pkey 23a4c6951c34bd252ff5a0ffeaf9f8fd
+index   memberships_org_idx b11ec03ace368e3b2b4501f87d7ea81a
+index   memberships_pkey e5c3f2add1950125e0280e1824ad39e2
+index   memberships_role_idx 1abaa4b94bf29b38584c653e5cb1e26b
+index   notifications_pkey 3435fbb51aa7e7d2ac858b253960952b
+index   notifications_user_idx b72f69254e45271c7545fb69c0b18d32
+index   org_role_permissions_pkey 26a0b64b556b6166930073ef1af4a4a9
+index   organizations_code_key 0159422672f966b06689cc49950c502c
+index   organizations_one_platform aefecc91483838f5d18c34097071c36c
+index   organizations_pkey f45c1aefdc5c9e573ccc52f6cb1e62d3
+index   package_orders_pkey f391c094c7a115ae63388b775a68a5f8
+index   package_topic_sessions_pkey 86472f1d1f08b9c06deb3d998171d2b2
+index   package_topics_pkey f736ec17a59b1d860ecbcadfc784a162
+index   period_configs_pkey 967c80189f07f2f8e22998eb167713a5
+index   profiles_pkey b7142bbffc23de763c1bd9f00489ec05
+index   report_exports_pkey 7401b5d99ec790bb92a94cd812d648d2
+index   resource_bookings_no_overlap 9ca629d6b7ccf52a42a3d5e5109bbf53
+index   resource_bookings_org_during 75c58f1d661b395d739fa27500fb6065
+index   resource_bookings_pkey 48382864209548993e72b39e72b04218
+index   resource_bookings_source_source_id_key 0c8132a78470605d07eddfc853fb2eb5
+index   role_permissions_pkey bfe78fc3229c9af40c322f9e37a24682
+index   roles_org_id_key_key 05e97c1c7f4a39a04f0e676a8e0b5839
+index   roles_pkey e90bda3bdd3b7548539cb38fa805b347
+index   rollout_checks_pkey ab2be1a99251f62ebb6ce0d7f22744a1
+index   school_holidays_org b3a5b24775c1e47fae4be0ef0758f0d6
+index   school_holidays_pkey be059f15ccf296f5e3233304abf3a0cf
+index   security_settings_pkey 93bff0dd231ca95020580075f6fd835c
+index   self_study_content_pkey 604506f45b71ad1d8db6626b1fc649b0
+index   self_study_items_class 66c9f977f34ad64101225795ba24b242
+index   self_study_items_pkey 8a4aa5c6dda6bd37a7cdd7883f000440
+index   self_study_items_teacher 98a59985eda41f2492e3b2f31282f194
+index   self_study_progress_pkey 9add220f9c562391d485a57e9ca3d991
+index   self_study_progress_student cdbc3736b1edf9c61d6db47d6979256a
+index   service_modules_pkey 07743db0d58c74aa09e9ea4eb8dcea45
+index   service_plans_code_key d9d7c3e92e2529a34f785684332f225a
+index   service_plans_pkey 6fa72b5b74db2f906192240d3ff210e7
+index   session_responses_pkey 8584e0e0fddcfed5e6a49c83526d14d3
+index   stem_packages_pkey f163f5c2e1554076e35fe0c0379de014
+index   stem_registrations_pkey 0fbcc3b52d25fff5249abe8fd438672b
+index   stem_rooms_pkey bb05a0160aa880ea628b298f5b7279a1
+index   stem_teacher_programs_pkey 099adb48e62e66e68e06116281cd29cf
+index   student_group_members_pkey 33d7d6d397396456ac32d54626f50603
+index   student_groups_pkey caa2759fe2ff0e03ca99999be1802bf7
+index   students_pkey 6b6fb718684f89f13adef0ddece3d2c0
+index   submissions_assignment_id_group_id_key 860d3e507fdb957e8f412166798accb8
+index   submissions_assignment_id_idx db8f71d8a0f57ad13ee804c36ca21512
+index   submissions_assignment_id_student_id_key cf7a481e5a9a9ed6188b96cdb358110c
+index   submissions_pkey 207dd87f47bfd802bdb23e918f6a84cc
+index   support_messages_pkey 6afe5122050b1e6f20d6ee8a9b3234c4
+index   support_messages_ticket_idx 16099c9ac9411d6047e63935665d816f
+index   support_tickets_code_key 2540abea8ff14282208f408fedbe6ca4
+index   support_tickets_org_idx a26af1dc6b8a55c898fae2fcebf72e18
+index   support_tickets_pkey 643ed9df060d41f058d48c4a7e5ca4d4
+index   support_tickets_status_idx 2b56c50e5ad0536c7bf5025510249cba
+index   system_job_runs_job 87851f30ddeda67a006305247143cc67
+index   system_job_runs_pkey 32551c9a59576df9e9d9af30a056ca81
+index   teachers_pkey 2fd30083ab4969de3c9402d7b2a817a6
+index   teaching_assignments_pkey 8a0c5fa74bbbc39225fa018d44558cae
+index   teaching_assignments_year_id_teacher_id_class_id_subject_key aec4ef65619fb80724989bc0d2c5c4b0
+index   teaching_sessions_class_id_session_date_period_id_key 7acd2faad01c70551f5efdea53b143f0
+index   teaching_sessions_org_date c77142602feff25cf1045a9d43dd8d3f
+index   teaching_sessions_pkey 066d2b83c3195092f58d9d6c9ebc375c
+index   teaching_sessions_room_date c28203df2fd51c282e830c7b65218925
+index   teaching_sessions_teacher_date c1a96447cc634ddf52bf3717ee4d111c
+index   timetable_entries_class_id_weekday_period_year 3a4909a260f2f05abacbaaf533856958
+index   timetable_entries_pkey 74850891e9e9f75665c81829820eb7a4
+index   timetable_entries_teacher_id_weekday_period_year cb509f8d29b39dc983d4564a30606d09
+index   topic_lessons_pkey eaa4043b596d3b98db3da9110e5edcee
+index   topic_lessons_topic_id_seq_key ab9b44f67fae1ee52aed4437bfdd7cac
+index   topic_materials_pkey fdb9087e1f7836b97215d43e7f1b3c03
+index   topic_posts_pkey 2102e0efa8c725622c5c22ba6e04157d
+index   training_attendance_pkey 52c67201a5b52776916ea89eaa80263f
+index   training_enrollments_pkey 58346c298a6ac70b06d7acd12ef74ec6
+index   training_lessons_pkey d41beaa7e0a7ff4c98cd04ac1eaab840
+index   training_plans_pkey 9c00b1991255fde45fe573bc09c881f5
+index   training_sessions_pkey b73dc01d7b65d8bd280615e0941f1cf1
+index   warranty_tickets_code_key 8d741df12666aea25ab6ac4c0e170f24
+index   warranty_tickets_pkey a9f879161a6886115113335eaae7f6fd
+perm    it_admin.accounts view:t detail:t create:t edit:t delete:t
+perm    it_admin.approvals view:t detail:t create:t edit:t delete:t
+perm    it_admin.assignments view:t detail:t create:t edit:t delete:t
+perm    it_admin.buildings view:t detail:t create:t edit:t delete:t
+perm    it_admin.classes view:t detail:t create:t edit:t delete:t
+perm    it_admin.curriculum view:t detail:t create:t edit:t delete:t
+perm    it_admin.edu_plan view:t detail:t create:t edit:t delete:t
+perm    it_admin.equipment view:t detail:t create:t edit:t delete:t
+perm    it_admin.library view:t detail:t create:t edit:t delete:t
+perm    it_admin.packages view:t detail:t create:t edit:t delete:t
+perm    it_admin.periods view:t detail:t create:t edit:t delete:t
+perm    it_admin.roles view:t detail:t create:t edit:t delete:t
+perm    it_admin.stem_assign view:t detail:t create:t edit:t delete:t
+perm    it_admin.stem_registrations view:t detail:t create:t edit:t delete:t
+perm    it_admin.stem_rooms view:t detail:t create:t edit:t delete:t
+perm    it_admin.students view:t detail:t create:t edit:t delete:t
+perm    it_admin.teachers view:t detail:t create:t edit:t delete:t
+perm    it_admin.timetable view:t detail:t create:t edit:t delete:t
+perm    it_admin.training view:t detail:t create:t edit:t delete:t
+perm    it_admin.warranty view:t detail:t create:t edit:t delete:t
+perm    office_staff.accounts view:f detail:f create:f edit:f delete:f
+perm    office_staff.approvals view:t detail:t create:f edit:f delete:f
+perm    office_staff.assignments view:f detail:f create:f edit:f delete:f
+perm    office_staff.buildings view:f detail:f create:f edit:f delete:f
+perm    office_staff.classes view:t detail:t create:f edit:f delete:f
+perm    office_staff.curriculum view:f detail:f create:f edit:f delete:f
+perm    office_staff.edu_plan view:f detail:f create:f edit:f delete:f
+perm    office_staff.equipment view:f detail:f create:f edit:f delete:f
+perm    office_staff.library view:t detail:t create:f edit:f delete:f
+perm    office_staff.packages view:f detail:f create:f edit:f delete:f
+perm    office_staff.periods view:f detail:f create:f edit:f delete:f
+perm    office_staff.roles view:f detail:f create:f edit:f delete:f
+perm    office_staff.stem_assign view:f detail:f create:f edit:f delete:f
+perm    office_staff.stem_registrations view:f detail:f create:f edit:f delete:f
+perm    office_staff.stem_rooms view:f detail:f create:f edit:f delete:f
+perm    office_staff.students view:t detail:t create:f edit:f delete:f
+perm    office_staff.teachers view:t detail:t create:f edit:f delete:f
+perm    office_staff.timetable view:f detail:f create:f edit:f delete:f
+perm    office_staff.training view:f detail:f create:f edit:f delete:f
+perm    office_staff.warranty view:f detail:f create:f edit:f delete:f
+perm    principal.accounts view:t detail:t create:t edit:t delete:t
+perm    principal.approvals view:t detail:t create:t edit:t delete:t
+perm    principal.assignments view:t detail:t create:t edit:t delete:t
+perm    principal.buildings view:t detail:t create:t edit:t delete:t
+perm    principal.classes view:t detail:t create:t edit:t delete:t
+perm    principal.curriculum view:t detail:t create:t edit:t delete:t
+perm    principal.edu_plan view:t detail:t create:t edit:t delete:t
+perm    principal.equipment view:t detail:t create:t edit:t delete:t
+perm    principal.library view:t detail:t create:t edit:t delete:t
+perm    principal.packages view:t detail:t create:t edit:t delete:t
+perm    principal.periods view:t detail:t create:t edit:t delete:t
+perm    principal.roles view:t detail:t create:t edit:t delete:t
+perm    principal.stem_assign view:t detail:t create:t edit:t delete:t
+perm    principal.stem_registrations view:t detail:t create:t edit:t delete:t
+perm    principal.stem_rooms view:t detail:t create:t edit:t delete:t
+perm    principal.students view:t detail:t create:t edit:t delete:t
+perm    principal.teachers view:t detail:t create:t edit:t delete:t
+perm    principal.timetable view:t detail:t create:t edit:t delete:t
+perm    principal.training view:t detail:t create:t edit:t delete:t
+perm    principal.warranty view:t detail:t create:t edit:t delete:t
+perm    teacher.accounts view:f detail:f create:f edit:f delete:f
+perm    teacher.approvals view:t detail:t create:f edit:f delete:f
+perm    teacher.assignments view:t detail:t create:f edit:f delete:f
+perm    teacher.buildings view:t detail:t create:f edit:f delete:f
+perm    teacher.classes view:t detail:t create:f edit:f delete:f
+perm    teacher.curriculum view:t detail:t create:f edit:f delete:f
+perm    teacher.edu_plan view:t detail:t create:f edit:f delete:f
+perm    teacher.equipment view:t detail:t create:f edit:f delete:f
+perm    teacher.library view:t detail:t create:f edit:f delete:f
+perm    teacher.packages view:t detail:t create:f edit:f delete:f
+perm    teacher.periods view:t detail:t create:f edit:f delete:f
+perm    teacher.roles view:f detail:f create:f edit:f delete:f
+perm    teacher.stem_assign view:t detail:t create:f edit:f delete:f
+perm    teacher.stem_registrations view:t detail:t create:t edit:f delete:f
+perm    teacher.stem_rooms view:t detail:t create:f edit:f delete:f
+perm    teacher.students view:t detail:t create:f edit:f delete:f
+perm    teacher.teachers view:t detail:t create:f edit:f delete:f
+perm    teacher.timetable view:t detail:t create:f edit:f delete:f
+perm    teacher.training view:t detail:t create:f edit:f delete:f
+perm    teacher.warranty view:f detail:f create:f edit:f delete:f
+policy  academic_years.academic_years_delete DELETE to authenticated using:9b6c9c08f50a47c8be6873a4eebf0001 check:-
+policy  academic_years.academic_years_insert INSERT to authenticated using:- check:bd915e7a79fd711fda361bda73d8fcc2
+policy  academic_years.academic_years_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  academic_years.academic_years_student_read SELECT to authenticated using:6e19901051126c2cf85d66e6dfb78039 check:-
+policy  academic_years.academic_years_update UPDATE to authenticated using:bb77a3f2a64aa690d29533aeba349e3f check:bb77a3f2a64aa690d29533aeba349e3f
+policy  activities.activities_owner_delete DELETE to authenticated using:750ef445fa79624c3076bfcc8a4d8280 check:-
+policy  activities.activities_owner_insert INSERT to authenticated using:- check:94d718271324914b1f40b44691381c26
+policy  activities.activities_owner_update UPDATE to authenticated using:750ef445fa79624c3076bfcc8a4d8280 check:8768bad67390d8808790a57fefd02270
+policy  activities.activities_staff_read SELECT to authenticated using:93383276ceb8076eb8b2257d89424781 check:-
+policy  approval_actions.approval_actions_read SELECT to authenticated using:0f72532a4a542e27744af6f8a7da1203 check:-
+policy  approval_requests.approval_requests_read SELECT to authenticated using:8b7860aa9002df8fd634e98aa6a3907a check:-
+policy  approval_steps.approval_steps_read SELECT to authenticated using:ba16147b20a18b2a5de422494cae25a6 check:-
+policy  approval_workflows.approval_workflows_read SELECT to authenticated using:f2deb7f197f8d3cb7ef31b6d519227a8 check:-
+policy  assignments.assignments_staff_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  assignments.assignments_student_read SELECT to authenticated using:f04acb61a2df7cf029b4885bc03d850f check:-
+policy  assignments.assignments_teacher_write ALL to authenticated using:b66213c734d767a606b96f8c400537e6 check:2ee8e481608b69a278129e850941273a
+policy  audit_log.audit_admin_read SELECT to authenticated using:08ffe89db51c2e20ee7564b92001376a check:-
+policy  audit_log.audit_platform_read SELECT to authenticated using:c6802c131aa9a09356d7059252473096 check:-
+policy  booking_conflicts.booking_conflicts_read SELECT to authenticated using:d25a5f156b8cc7cca3bba02662aff81e check:-
+policy  borrow_requests.borrow_requests_delete DELETE to authenticated using:0ca5209f86ebc0d933d4ac8d8f18e0a4 check:-
+policy  borrow_requests.borrow_requests_insert INSERT to authenticated using:- check:13c1f8eaafffb3aa2c33f808cf19137e
+policy  borrow_requests.borrow_requests_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  borrow_requests.borrow_requests_update UPDATE to authenticated using:16a58bcae1a28ac49f309e5db952ae8b check:16a58bcae1a28ac49f309e5db952ae8b
+policy  borrow_requests.borrow_teacher_delete DELETE to authenticated using:df18c4ceca4577f7a431f6f08bc4a1a7 check:-
+policy  borrow_requests.borrow_teacher_insert INSERT to authenticated using:- check:62ec8b879c7338aa7a5ee076ce0460a1
+policy  broadcasts.broadcasts_platform_read SELECT to authenticated using:c6802c131aa9a09356d7059252473096 check:-
+policy  buildings.buildings_delete DELETE to authenticated using:33dbaacd7345d0033d9079ab29426443 check:-
+policy  buildings.buildings_insert INSERT to authenticated using:- check:565821b3d02586bc5fff82099b18c218
+policy  buildings.buildings_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  buildings.buildings_student_read SELECT to authenticated using:6e19901051126c2cf85d66e6dfb78039 check:-
+policy  buildings.buildings_update UPDATE to authenticated using:bdf712ccbbc8686ba200ccb52aa8186e check:bdf712ccbbc8686ba200ccb52aa8186e
+policy  certificates.certificates_delete DELETE to authenticated using:6c63761a6ef4b3879a3cfeadc4c223bf check:-
+policy  certificates.certificates_dept_write ALL to authenticated using:b4c1cd857d8e277e5a5ab8f858de8fcd check:b4c1cd857d8e277e5a5ab8f858de8fcd
+policy  certificates.certificates_insert INSERT to authenticated using:- check:7b208b36801389f070a9b6c075c14281
+policy  certificates.certificates_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  certificates.certificates_update UPDATE to authenticated using:42e8efe9f45726052151245c37184592 check:42e8efe9f45726052151245c37184592
+policy  class_programs.class_programs_delete DELETE to authenticated using:b407b3adf5072593e16851e5fe2a3530 check:-
+policy  class_programs.class_programs_insert INSERT to authenticated using:- check:8d761f31575c2f1f72c5ec2562f32326
+policy  class_programs.class_programs_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  class_programs.class_programs_update UPDATE to authenticated using:ae2fd6ec8ffa9543f4c77336599a34c0 check:ae2fd6ec8ffa9543f4c77336599a34c0
+policy  class_session_attendance.attendance_student_read SELECT to authenticated using:c7559ce5de14b61e06a424225a4cdb7d check:-
+policy  class_session_attendance.class_session_attendance_staff_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  class_sessions.class_sessions_staff_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  class_sessions.sessions_student_read SELECT to authenticated using:3a80207759ab84f31b00a30c72e33099 check:-
+policy  class_sessions.sessions_teacher_update UPDATE to authenticated using:b66213c734d767a606b96f8c400537e6 check:b66213c734d767a606b96f8c400537e6
+policy  class_topics.class_topics_staff_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  class_topics.topics_student_read SELECT to authenticated using:3a80207759ab84f31b00a30c72e33099 check:-
+policy  class_topics.topics_teacher_write ALL to authenticated using:b66213c734d767a606b96f8c400537e6 check:2ee8e481608b69a278129e850941273a
+policy  classes.classes_delete DELETE to authenticated using:b407b3adf5072593e16851e5fe2a3530 check:-
+policy  classes.classes_insert INSERT to authenticated using:- check:8d761f31575c2f1f72c5ec2562f32326
+policy  classes.classes_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  classes.classes_student_read SELECT to authenticated using:6e19901051126c2cf85d66e6dfb78039 check:-
+policy  classes.classes_update UPDATE to authenticated using:ae2fd6ec8ffa9543f4c77336599a34c0 check:ae2fd6ec8ffa9543f4c77336599a34c0
+policy  contracts.contracts_platform ALL to authenticated using:c6802c131aa9a09356d7059252473096 check:c6802c131aa9a09356d7059252473096
+policy  contracts.contracts_read SELECT to authenticated using:da23716e8eb2706f2f05ac3a6145f7a3 check:-
+policy  curriculum_books.curriculum_books_delete DELETE to authenticated using:034fe27f679683be9a330ce89b81733e check:-
+policy  curriculum_books.curriculum_books_insert INSERT to authenticated using:- check:0795d111c3f5426fd7da021a35f84dce
+policy  curriculum_books.curriculum_books_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  curriculum_books.curriculum_books_update UPDATE to authenticated using:95cc2e2962984bc41e113e26fe69b724 check:95cc2e2962984bc41e113e26fe69b724
+policy  education_plans.education_plans_delete DELETE to authenticated using:1d77f50b65d67adb5e5feefa59cda0a4 check:-
+policy  education_plans.education_plans_insert INSERT to authenticated using:- check:7f7c88ff47f4cb42ae75e3daa86c48fa
+policy  education_plans.education_plans_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  education_plans.education_plans_update UPDATE to authenticated using:fc5c8a6323ccfc957da7d70e3b7a5612 check:fc5c8a6323ccfc957da7d70e3b7a5612
+policy  equipment_events.equipment_events_delete DELETE to authenticated using:935e1d6a08234f1699092dee3c7cb50a check:-
+policy  equipment_events.equipment_events_insert INSERT to authenticated using:- check:e5aa7b10cb67f5080c9946ef0b1495ec
+policy  equipment_events.equipment_events_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  equipment_events.equipment_events_update UPDATE to authenticated using:4c09d5fd9181db2023a6b94306d618b1 check:4c09d5fd9181db2023a6b94306d618b1
+policy  equipment_types.equipment_types_delete DELETE to authenticated using:935e1d6a08234f1699092dee3c7cb50a check:-
+policy  equipment_types.equipment_types_insert INSERT to authenticated using:- check:e5aa7b10cb67f5080c9946ef0b1495ec
+policy  equipment_types.equipment_types_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  equipment_types.equipment_types_update UPDATE to authenticated using:4c09d5fd9181db2023a6b94306d618b1 check:4c09d5fd9181db2023a6b94306d618b1
+policy  equipment_units.equipment_units_delete DELETE to authenticated using:935e1d6a08234f1699092dee3c7cb50a check:-
+policy  equipment_units.equipment_units_insert INSERT to authenticated using:- check:e5aa7b10cb67f5080c9946ef0b1495ec
+policy  equipment_units.equipment_units_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  equipment_units.equipment_units_update UPDATE to authenticated using:4c09d5fd9181db2023a6b94306d618b1 check:4c09d5fd9181db2023a6b94306d618b1
+policy  floors.floors_read SELECT to authenticated using:6347355d38d9a752b23d6b0195c9cc1c check:-
+policy  floors.floors_student_read SELECT to authenticated using:85806854673aa2ce11bca31a2b41f6ac check:-
+policy  floors.floors_write ALL to authenticated using:0bd4d5b8e5e635eba2638672f4414efb check:0bd4d5b8e5e635eba2638672f4414efb
+policy  integrations.integrations_platform ALL to authenticated using:c6802c131aa9a09356d7059252473096 check:c6802c131aa9a09356d7059252473096
+policy  invitations.invitations_admin_delete DELETE to authenticated using:0842bdc1ee9c6f1226b0db220c50aa27 check:-
+policy  invitations.invitations_admin_insert INSERT to authenticated using:- check:86ebfb1caa78e87b9c9998a864703e5c
+policy  invitations.invitations_admin_read SELECT to authenticated using:08ffe89db51c2e20ee7564b92001376a check:-
+policy  invitations.invitations_admin_update UPDATE to authenticated using:2b5a4eb3c98385a9b50481188283488b check:489c37c5d04f7c40d95884e17306122d
+policy  invitations.invitations_platform_delete DELETE to authenticated using:ff0efcd7a344aee3fdefd26dccf8fee1 check:-
+policy  invitations.invitations_platform_insert INSERT to authenticated using:- check:987b15d5524970d4d3aaa420eff3f1aa
+policy  invitations.invitations_platform_read SELECT to authenticated using:c6802c131aa9a09356d7059252473096 check:-
+policy  invitations.invitations_platform_update UPDATE to authenticated using:ecdd184f5a88289f09c46baad125e960 check:11e5350d6a2620bff158301e0064bf25
+policy  lesson_attendance.lesson_attendance_read SELECT to authenticated using:d25a5f156b8cc7cca3bba02662aff81e check:-
+policy  lesson_attendance.lesson_attendance_student_read SELECT to authenticated using:4293b9ac6714cc56a67bf5380a9adb83 check:-
+policy  lesson_attendance.lesson_attendance_write ALL to authenticated using:fec32e3c89ab828f9d8a3323bafb0342 check:fec32e3c89ab828f9d8a3323bafb0342
+policy  lesson_plans.lesson_plans_owner_delete DELETE to authenticated using:f861b45ca2ff40dafc6b32b68bd8b232 check:-
+policy  lesson_plans.lesson_plans_owner_insert INSERT to authenticated using:- check:35c2728ad159e58a4fe43383c0924e00
+policy  lesson_plans.lesson_plans_owner_update UPDATE to authenticated using:f861b45ca2ff40dafc6b32b68bd8b232 check:35c2728ad159e58a4fe43383c0924e00
+policy  lesson_plans.lesson_plans_staff_read SELECT to authenticated using:1258419388da6cf395795943d1aeeaf1 check:-
+policy  lesson_plans.lesson_plans_student_read SELECT to authenticated using:cfb352e733fdb047d4f4df1d77eb4466 check:-
+policy  lesson_progress.lesson_progress_staff_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  lesson_progress.progress_student_all ALL to authenticated using:c7559ce5de14b61e06a424225a4cdb7d check:474748d002201fbdfb861c6fc398c064
+policy  library_copies.library_copies_read SELECT to authenticated using:d25a5f156b8cc7cca3bba02662aff81e check:-
+policy  library_items.library_items_delete DELETE to authenticated using:15de3b3746cc25bab2ffe2322530188a check:-
+policy  library_items.library_items_insert INSERT to authenticated using:- check:60e69da48a4bd2bcdf1b04aca1c01084
+policy  library_items.library_items_read SELECT to authenticated using:c1793898aca0289f75a381d45bff6164 check:-
+policy  library_items.library_items_update UPDATE to authenticated using:15de3b3746cc25bab2ffe2322530188a check:60e69da48a4bd2bcdf1b04aca1c01084
+policy  library_targets.library_targets_delete DELETE to authenticated using:3fd38fa5a3f6ce823f917bc5b3b17546 check:-
+policy  library_targets.library_targets_read SELECT to authenticated using:542f0febbe7c8f770247751d1050027d check:-
+policy  library_targets.library_targets_write INSERT to authenticated using:- check:33f06bc51dec109f1db6c45157f8f6c9
+policy  memberships.memberships_admin_delete DELETE to authenticated using:08ffe89db51c2e20ee7564b92001376a check:-
+policy  memberships.memberships_admin_insert INSERT to authenticated using:- check:5e01bfc9dc3242d01e87b1a7a4eafe94
+policy  memberships.memberships_org_read SELECT to authenticated using:d25a5f156b8cc7cca3bba02662aff81e check:-
+policy  memberships.memberships_platform_delete DELETE to authenticated using:c6802c131aa9a09356d7059252473096 check:-
+policy  memberships.memberships_platform_insert INSERT to authenticated using:- check:21d7df9992a1d519de0ddbbaab929735
+policy  memberships.memberships_self SELECT to authenticated using:3a807491e0a912fbfbee0ffa087b82f6 check:-
+policy  notifications.notifications_own_delete DELETE to authenticated using:3a807491e0a912fbfbee0ffa087b82f6 check:-
+policy  notifications.notifications_own_read SELECT to authenticated using:3a807491e0a912fbfbee0ffa087b82f6 check:-
+policy  notifications.notifications_own_update UPDATE to authenticated using:3a807491e0a912fbfbee0ffa087b82f6 check:3a807491e0a912fbfbee0ffa087b82f6
+policy  org_role_permissions.orp_read SELECT to authenticated using:6f1a7bbebaebe798bccb9ff3d5f3649e check:-
+policy  org_role_permissions.orp_write ALL to authenticated using:08ffe89db51c2e20ee7564b92001376a check:06977b1c03dad8c26024c735bc644674
+policy  organizations.org_department_update UPDATE to authenticated using:d4200adbe05824d9c6a96d7045281684 check:d69e83a01f2e8845dd2f7b6090adf9f2
+policy  organizations.org_platform_delete DELETE to authenticated using:ae5ec15f24321e4e7f2148157bbd07f5 check:-
+policy  organizations.org_platform_insert INSERT to authenticated using:- check:c6802c131aa9a09356d7059252473096
+policy  organizations.org_platform_read SELECT to authenticated using:c6802c131aa9a09356d7059252473096 check:-
+policy  organizations.org_platform_update UPDATE to authenticated using:c6802c131aa9a09356d7059252473096 check:c6802c131aa9a09356d7059252473096
+policy  organizations.org_read SELECT to authenticated using:99e297b090c64a24b618fbd15c0eda79 check:-
+policy  organizations.org_read_parent SELECT to authenticated using:c7ae5b2278385bd2d9cea507bbb399e5 check:-
+policy  package_orders.package_orders_delete DELETE to authenticated using:11787e794a13537cbbf97cd4ab4169c8 check:-
+policy  package_orders.package_orders_insert INSERT to authenticated using:- check:d678367ae23a97d57bfeacb9d7caa875
+policy  package_orders.package_orders_read SELECT to authenticated using:d25a5f156b8cc7cca3bba02662aff81e check:-
+policy  package_orders.package_orders_update UPDATE to authenticated using:85194138d5af4181015382addd523968 check:85194138d5af4181015382addd523968
+policy  package_topic_sessions.package_topic_sessions_delete DELETE to authenticated using:a8ec5fd006fb8640f64b29f8b86c3e0a check:-
+policy  package_topic_sessions.package_topic_sessions_insert INSERT to authenticated using:- check:ee09fb3f320f71692a9acbaab9606a6e
+policy  package_topic_sessions.package_topic_sessions_platform ALL to authenticated using:cf8b148c0c37e6a2b40634f3f664f909 check:cf8b148c0c37e6a2b40634f3f664f909
+policy  package_topic_sessions.package_topic_sessions_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  package_topic_sessions.package_topic_sessions_student_read SELECT to authenticated using:6e19901051126c2cf85d66e6dfb78039 check:-
+policy  package_topic_sessions.package_topic_sessions_update UPDATE to authenticated using:8a852016bd10280cff4f813d4127f97c check:8a852016bd10280cff4f813d4127f97c
+policy  package_topics.package_topics_delete DELETE to authenticated using:a8ec5fd006fb8640f64b29f8b86c3e0a check:-
+policy  package_topics.package_topics_insert INSERT to authenticated using:- check:ee09fb3f320f71692a9acbaab9606a6e
+policy  package_topics.package_topics_platform ALL to authenticated using:cf8b148c0c37e6a2b40634f3f664f909 check:cf8b148c0c37e6a2b40634f3f664f909
+policy  package_topics.package_topics_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  package_topics.package_topics_student_read SELECT to authenticated using:6e19901051126c2cf85d66e6dfb78039 check:-
+policy  package_topics.package_topics_update UPDATE to authenticated using:8a852016bd10280cff4f813d4127f97c check:8a852016bd10280cff4f813d4127f97c
+policy  period_configs.period_configs_delete DELETE to authenticated using:9b6c9c08f50a47c8be6873a4eebf0001 check:-
+policy  period_configs.period_configs_insert INSERT to authenticated using:- check:bd915e7a79fd711fda361bda73d8fcc2
+policy  period_configs.period_configs_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  period_configs.period_configs_student_read SELECT to authenticated using:6e19901051126c2cf85d66e6dfb78039 check:-
+policy  period_configs.period_configs_update UPDATE to authenticated using:bb77a3f2a64aa690d29533aeba349e3f check:bb77a3f2a64aa690d29533aeba349e3f
+policy  profiles.profile_self_or_org SELECT to authenticated using:5121b3990d889fb2bf6567ec63b39951 check:-
+policy  profiles.profiles_admin_update UPDATE to authenticated using:6c7e3340bdf5d4daa0760a79299f1516 check:6c7e3340bdf5d4daa0760a79299f1516
+policy  profiles.profiles_platform_read SELECT to authenticated using:c6802c131aa9a09356d7059252473096 check:-
+policy  profiles.profiles_platform_update UPDATE to authenticated using:c6802c131aa9a09356d7059252473096 check:c6802c131aa9a09356d7059252473096
+policy  report_exports.report_exports_insert INSERT to authenticated using:- check:80fc55f0b44289a934860eb4cc05694d
+policy  report_exports.report_exports_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  resource_bookings.resource_bookings_read SELECT to authenticated using:d25a5f156b8cc7cca3bba02662aff81e check:-
+policy  role_permissions.rp_platform_write ALL to authenticated using:c6802c131aa9a09356d7059252473096 check:0b0d2b52d3c72ca834ce96437e9ed167
+policy  role_permissions.rp_read SELECT to authenticated using:b326b5062b2f0e69046810717534cb09 check:-
+policy  roles.roles_admin_delete DELETE to authenticated using:6f31366a4c1f4b1a5bcb7e26bd3698aa check:-
+policy  roles.roles_admin_insert INSERT to authenticated using:- check:6f31366a4c1f4b1a5bcb7e26bd3698aa
+policy  roles.roles_admin_update UPDATE to authenticated using:6f31366a4c1f4b1a5bcb7e26bd3698aa check:6f31366a4c1f4b1a5bcb7e26bd3698aa
+policy  roles.roles_read SELECT to authenticated using:04f02bfa6117ed2c1407ac35d471e947 check:-
+policy  rollout_checks.rollout_checks_platform ALL to authenticated using:c6802c131aa9a09356d7059252473096 check:c6802c131aa9a09356d7059252473096
+policy  rollout_checks.rollout_checks_read SELECT to authenticated using:555fe61e648ddb8cf97ab5897c8a251f check:-
+policy  school_holidays.school_holidays_delete DELETE to authenticated using:b0952e564f8531580bba744b9576cc5e check:-
+policy  school_holidays.school_holidays_insert INSERT to authenticated using:- check:fcc17a84e6791e2c9fe4c70da8152cc2
+policy  school_holidays.school_holidays_read SELECT to authenticated using:0e837775ea7ffb2cad49819501883402 check:-
+policy  school_holidays.school_holidays_update UPDATE to authenticated using:13c0939d923b9fba521b2488e2a4cd93 check:9eaebfbab8a522115d3eb027624ea660
+policy  security_settings.security_settings_read SELECT to authenticated using:b326b5062b2f0e69046810717534cb09 check:-
+policy  security_settings.security_settings_update UPDATE to authenticated using:c6802c131aa9a09356d7059252473096 check:c6802c131aa9a09356d7059252473096
+policy  self_study_content.self_study_content_staff_read SELECT to authenticated using:d25a5f156b8cc7cca3bba02662aff81e check:-
+policy  self_study_items.self_study_items_staff_read SELECT to authenticated using:d25a5f156b8cc7cca3bba02662aff81e check:-
+policy  self_study_items.self_study_items_student_read SELECT to authenticated using:75f75b6eea14db6f8f0518c6421f0a7a check:-
+policy  self_study_items.self_study_items_teacher_delete DELETE to authenticated using:c34242be378fda39edd4686a4e96c83e check:-
+policy  self_study_items.self_study_items_teacher_insert INSERT to authenticated using:- check:550fcfa06b0a6debe2eee2b395379d7c
+policy  self_study_items.self_study_items_teacher_update UPDATE to authenticated using:c34242be378fda39edd4686a4e96c83e check:c34242be378fda39edd4686a4e96c83e
+policy  self_study_progress.self_study_progress_staff_read SELECT to authenticated using:d25a5f156b8cc7cca3bba02662aff81e check:-
+policy  self_study_progress.self_study_progress_student_read SELECT to authenticated using:4293b9ac6714cc56a67bf5380a9adb83 check:-
+policy  self_study_progress.self_study_progress_teacher_update UPDATE to authenticated using:f0cb6c51fe1d4a15d091b28d0fe1c319 check:9eaebfbab8a522115d3eb027624ea660
+policy  service_modules.service_modules_read SELECT to authenticated using:b326b5062b2f0e69046810717534cb09 check:-
+policy  service_plans.service_plans_platform ALL to authenticated using:c6802c131aa9a09356d7059252473096 check:c6802c131aa9a09356d7059252473096
+policy  service_plans.service_plans_read SELECT to authenticated using:b326b5062b2f0e69046810717534cb09 check:-
+policy  service_plans_legacy.service_plans_legacy_read SELECT to authenticated using:c6802c131aa9a09356d7059252473096 check:-
+policy  session_responses.responses_staff_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  session_responses.responses_student_insert INSERT to authenticated using:- check:31977948e4b7de2ab0747c14b853cb31
+policy  session_responses.responses_student_read SELECT to authenticated using:c7559ce5de14b61e06a424225a4cdb7d check:-
+policy  session_responses.responses_student_update UPDATE to authenticated using:0386d09c5e0bfbb90b53bf9a03193308 check:c7559ce5de14b61e06a424225a4cdb7d
+policy  stem_packages.stem_packages_delete DELETE to authenticated using:a8ec5fd006fb8640f64b29f8b86c3e0a check:-
+policy  stem_packages.stem_packages_insert INSERT to authenticated using:- check:ee09fb3f320f71692a9acbaab9606a6e
+policy  stem_packages.stem_packages_platform ALL to authenticated using:cf8b148c0c37e6a2b40634f3f664f909 check:cf8b148c0c37e6a2b40634f3f664f909
+policy  stem_packages.stem_packages_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  stem_packages.stem_packages_update UPDATE to authenticated using:8a852016bd10280cff4f813d4127f97c check:8a852016bd10280cff4f813d4127f97c
+policy  stem_registrations.stem_reg_teacher_delete DELETE to authenticated using:df18c4ceca4577f7a431f6f08bc4a1a7 check:-
+policy  stem_registrations.stem_reg_teacher_insert INSERT to authenticated using:- check:62ec8b879c7338aa7a5ee076ce0460a1
+policy  stem_registrations.stem_registrations_delete DELETE to authenticated using:370609fafc1ebef63a0c74994f8076ad check:-
+policy  stem_registrations.stem_registrations_insert INSERT to authenticated using:- check:ba4bb5f2aa53412c45fc736ff62a418a
+policy  stem_registrations.stem_registrations_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  stem_registrations.stem_registrations_update UPDATE to authenticated using:8bc66a696e2b042908fd2f13cda31cf8 check:8bc66a696e2b042908fd2f13cda31cf8
+policy  stem_rooms.stem_rooms_delete DELETE to authenticated using:0ca5209f86ebc0d933d4ac8d8f18e0a4 check:-
+policy  stem_rooms.stem_rooms_insert INSERT to authenticated using:- check:13c1f8eaafffb3aa2c33f808cf19137e
+policy  stem_rooms.stem_rooms_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  stem_rooms.stem_rooms_student_read SELECT to authenticated using:6e19901051126c2cf85d66e6dfb78039 check:-
+policy  stem_rooms.stem_rooms_update UPDATE to authenticated using:16a58bcae1a28ac49f309e5db952ae8b check:16a58bcae1a28ac49f309e5db952ae8b
+policy  stem_teacher_programs.stem_teacher_programs_delete DELETE to authenticated using:0309c10895320a8dae91da4157f0fcd7 check:-
+policy  stem_teacher_programs.stem_teacher_programs_insert INSERT to authenticated using:- check:d3fd1f8dfefb67ad4fe1a9d06cf244c8
+policy  stem_teacher_programs.stem_teacher_programs_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  stem_teacher_programs.stem_teacher_programs_update UPDATE to authenticated using:d4e61d913a31663b676a0663052597be check:d4e61d913a31663b676a0663052597be
+policy  student_group_members.group_members_student_read SELECT to authenticated using:f463e70ba2c7a696fd4ab6bde1acb570 check:-
+policy  student_group_members.group_members_teacher_write ALL to authenticated using:d13ade26f307dd5929e97f39db9533c7 check:8d83766bcd5f731de93e80f6bab99b9f
+policy  student_group_members.student_group_members_staff_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  student_groups.groups_student_read SELECT to authenticated using:3a80207759ab84f31b00a30c72e33099 check:-
+policy  student_groups.groups_teacher_write ALL to authenticated using:b66213c734d767a606b96f8c400537e6 check:2ee8e481608b69a278129e850941273a
+policy  student_groups.student_groups_staff_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  students.students_classmates_read SELECT to authenticated using:3a80207759ab84f31b00a30c72e33099 check:-
+policy  students.students_delete DELETE to authenticated using:192b6c2d5b5edca21c434d7c289d4aad check:-
+policy  students.students_insert INSERT to authenticated using:- check:9c7abf4de6842427f21d2d90f601fcd0
+policy  students.students_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  students.students_update UPDATE to authenticated using:b0ae28ea4521227755cb74bf84ad2275 check:b0ae28ea4521227755cb74bf84ad2275
+policy  submissions.submissions_staff_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  submissions.submissions_student_insert INSERT to authenticated using:- check:3bf03fa7fe89afc2d2ff3adf9fda9a52
+policy  submissions.submissions_student_read SELECT to authenticated using:c0960217873951a01f435f8ca4d4541c check:-
+policy  submissions.submissions_student_update UPDATE to authenticated using:f023c0037946940a322c6598958dfe9d check:c0960217873951a01f435f8ca4d4541c
+policy  submissions.submissions_teacher_delete DELETE to authenticated using:c98d23672777fb864d0ef51c9b9a4d5a check:-
+policy  submissions.submissions_teacher_update UPDATE to authenticated using:c98d23672777fb864d0ef51c9b9a4d5a check:c98d23672777fb864d0ef51c9b9a4d5a
+policy  support_messages.support_messages_insert INSERT to authenticated using:- check:5884020157c540b87bf10a2150307f5f
+policy  support_messages.support_messages_read SELECT to authenticated using:339ccc40ab81e0763379ef7537696f61 check:-
+policy  support_tickets.support_tickets_insert INSERT to authenticated using:- check:4a66787b45f5500d53efcdaad4c760e5
+policy  support_tickets.support_tickets_read SELECT to authenticated using:555fe61e648ddb8cf97ab5897c8a251f check:-
+policy  support_tickets.support_tickets_update UPDATE to authenticated using:555fe61e648ddb8cf97ab5897c8a251f check:555fe61e648ddb8cf97ab5897c8a251f
+policy  system_job_runs.system_job_runs_read SELECT to authenticated using:c6802c131aa9a09356d7059252473096 check:-
+policy  teachers.teachers_delete DELETE to authenticated using:f1d56b235caf1c2832f1feb1d0d64f3a check:-
+policy  teachers.teachers_insert INSERT to authenticated using:- check:85c33e62c2f5bf81b6d27d68c36783bb
+policy  teachers.teachers_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  teachers.teachers_student_read SELECT to authenticated using:6e19901051126c2cf85d66e6dfb78039 check:-
+policy  teachers.teachers_update UPDATE to authenticated using:6d8acdb9d8bcc9946b6d1b17c46e044a check:6d8acdb9d8bcc9946b6d1b17c46e044a
+policy  teaching_assignments.teaching_assignments_delete DELETE to authenticated using:f5a3e9706bf83e2f74f3170f51875b99 check:-
+policy  teaching_assignments.teaching_assignments_insert INSERT to authenticated using:- check:4ed32edf840cc2ec36df962ab40c177e
+policy  teaching_assignments.teaching_assignments_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  teaching_assignments.teaching_assignments_update UPDATE to authenticated using:b3fc0b123af5f8d87420bc7856a01d8c check:b3fc0b123af5f8d87420bc7856a01d8c
+policy  teaching_sessions.teaching_sessions_delete DELETE to authenticated using:0539f0be38762c39b5ece186cdb3781f check:-
+policy  teaching_sessions.teaching_sessions_insert INSERT to authenticated using:- check:b81f15768843308cd86be2f73ad00050
+policy  teaching_sessions.teaching_sessions_read SELECT to authenticated using:d25a5f156b8cc7cca3bba02662aff81e check:-
+policy  teaching_sessions.teaching_sessions_student_read SELECT to authenticated using:3a80207759ab84f31b00a30c72e33099 check:-
+policy  teaching_sessions.teaching_sessions_update UPDATE to authenticated using:fec32e3c89ab828f9d8a3323bafb0342 check:fec32e3c89ab828f9d8a3323bafb0342
+policy  timetable_entries.timetable_entries_delete DELETE to authenticated using:b217254619b4bf4213fb9339fec1fb6b check:-
+policy  timetable_entries.timetable_entries_insert INSERT to authenticated using:- check:f0fdf18c285045f71abdded8dcac3be4
+policy  timetable_entries.timetable_entries_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  timetable_entries.timetable_entries_update UPDATE to authenticated using:cfa141db8f7cd03b612805714c8f27a1 check:cfa141db8f7cd03b612805714c8f27a1
+policy  timetable_entries.timetable_student_read SELECT to authenticated using:3a80207759ab84f31b00a30c72e33099 check:-
+policy  topic_lessons.lessons_student_read SELECT to authenticated using:9fae2bc736c2f478814e3247f9ac26b2 check:-
+policy  topic_lessons.lessons_teacher_write ALL to authenticated using:d284398f84cf0791f5efdcd0046c29fd check:ec27dd3da9253eaff3c319359c37a339
+policy  topic_lessons.topic_lessons_staff_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  topic_materials.materials_student_read SELECT to authenticated using:9fae2bc736c2f478814e3247f9ac26b2 check:-
+policy  topic_materials.materials_teacher_write ALL to authenticated using:d284398f84cf0791f5efdcd0046c29fd check:ec27dd3da9253eaff3c319359c37a339
+policy  topic_materials.topic_materials_staff_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  topic_posts.posts_delete DELETE to authenticated using:5817e69d7c1c62e28268a8bb8019c9fe check:-
+policy  topic_posts.posts_insert INSERT to authenticated using:- check:6a6c2ccbe4fa36fb2f44fd25892c3d12
+policy  topic_posts.posts_student_read SELECT to authenticated using:9fae2bc736c2f478814e3247f9ac26b2 check:-
+policy  topic_posts.topic_posts_staff_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  training_attendance.training_att_self INSERT to authenticated using:- check:ea26cafa07f5fe93fc219fadf8d56828
+policy  training_attendance.training_att_self_read SELECT to authenticated using:2e01b412f10ee7cde6a492f4abf8b4bf check:-
+policy  training_attendance.training_att_self_update UPDATE to authenticated using:884d675f7ee8e0792a340317967f0e94 check:2a4eb5fb7c2eae76513abe37d80eea51
+policy  training_attendance.training_attendance_delete DELETE to authenticated using:6c63761a6ef4b3879a3cfeadc4c223bf check:-
+policy  training_attendance.training_attendance_dept_write ALL to authenticated using:b4c1cd857d8e277e5a5ab8f858de8fcd check:b4c1cd857d8e277e5a5ab8f858de8fcd
+policy  training_attendance.training_attendance_insert INSERT to authenticated using:- check:7b208b36801389f070a9b6c075c14281
+policy  training_attendance.training_attendance_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  training_attendance.training_attendance_update UPDATE to authenticated using:42e8efe9f45726052151245c37184592 check:42e8efe9f45726052151245c37184592
+policy  training_enrollments.training_enroll_self_read SELECT to authenticated using:2e01b412f10ee7cde6a492f4abf8b4bf check:-
+policy  training_enrollments.training_enrollments_delete DELETE to authenticated using:6c63761a6ef4b3879a3cfeadc4c223bf check:-
+policy  training_enrollments.training_enrollments_dept_write ALL to authenticated using:b4c1cd857d8e277e5a5ab8f858de8fcd check:b4c1cd857d8e277e5a5ab8f858de8fcd
+policy  training_enrollments.training_enrollments_insert INSERT to authenticated using:- check:7b208b36801389f070a9b6c075c14281
+policy  training_enrollments.training_enrollments_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  training_enrollments.training_enrollments_update UPDATE to authenticated using:42e8efe9f45726052151245c37184592 check:42e8efe9f45726052151245c37184592
+policy  training_lessons.training_lessons_delete DELETE to authenticated using:6c63761a6ef4b3879a3cfeadc4c223bf check:-
+policy  training_lessons.training_lessons_dept_write ALL to authenticated using:b4c1cd857d8e277e5a5ab8f858de8fcd check:b4c1cd857d8e277e5a5ab8f858de8fcd
+policy  training_lessons.training_lessons_from_department SELECT to authenticated using:30979390aba1752c0dbe537d6f03efaa check:-
+policy  training_lessons.training_lessons_insert INSERT to authenticated using:- check:7b208b36801389f070a9b6c075c14281
+policy  training_lessons.training_lessons_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  training_lessons.training_lessons_update UPDATE to authenticated using:42e8efe9f45726052151245c37184592 check:42e8efe9f45726052151245c37184592
+policy  training_plans.training_plans_delete DELETE to authenticated using:6c63761a6ef4b3879a3cfeadc4c223bf check:-
+policy  training_plans.training_plans_dept_write ALL to authenticated using:b4c1cd857d8e277e5a5ab8f858de8fcd check:b4c1cd857d8e277e5a5ab8f858de8fcd
+policy  training_plans.training_plans_from_department SELECT to authenticated using:30979390aba1752c0dbe537d6f03efaa check:-
+policy  training_plans.training_plans_insert INSERT to authenticated using:- check:7b208b36801389f070a9b6c075c14281
+policy  training_plans.training_plans_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  training_plans.training_plans_update UPDATE to authenticated using:42e8efe9f45726052151245c37184592 check:42e8efe9f45726052151245c37184592
+policy  training_sessions.training_sessions_delete DELETE to authenticated using:6c63761a6ef4b3879a3cfeadc4c223bf check:-
+policy  training_sessions.training_sessions_dept_write ALL to authenticated using:b4c1cd857d8e277e5a5ab8f858de8fcd check:b4c1cd857d8e277e5a5ab8f858de8fcd
+policy  training_sessions.training_sessions_from_department SELECT to authenticated using:30979390aba1752c0dbe537d6f03efaa check:-
+policy  training_sessions.training_sessions_insert INSERT to authenticated using:- check:7b208b36801389f070a9b6c075c14281
+policy  training_sessions.training_sessions_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  training_sessions.training_sessions_update UPDATE to authenticated using:42e8efe9f45726052151245c37184592 check:42e8efe9f45726052151245c37184592
+policy  warranty_tickets.warranty_staff_report INSERT to authenticated using:- check:3e9edae46ec504c85846d529275b25ad
+policy  warranty_tickets.warranty_tickets_delete DELETE to authenticated using:fcfc0f552b7368a4fb716710ce24033b check:-
+policy  warranty_tickets.warranty_tickets_insert INSERT to authenticated using:- check:dcae990e323c6036e875a6afd8c0c061
+policy  warranty_tickets.warranty_tickets_platform_update UPDATE to authenticated using:c6802c131aa9a09356d7059252473096 check:c6802c131aa9a09356d7059252473096
+policy  warranty_tickets.warranty_tickets_read SELECT to authenticated using:1e1809967509c8ec60b629575ccdcd87 check:-
+policy  warranty_tickets.warranty_tickets_update UPDATE to authenticated using:b7646a28575e6b50368057c2922d5722 check:b7646a28575e6b50368057c2922d5722
+rls     academic_years t
+rls     activities t
+rls     approval_actions t
+rls     approval_requests t
+rls     approval_steps t
+rls     approval_workflows t
+rls     assignments t
+rls     audit_log t
+rls     booking_conflicts t
+rls     borrow_requests t
+rls     broadcasts t
+rls     buildings t
+rls     certificates t
+rls     class_programs t
+rls     class_session_attendance t
+rls     class_sessions t
+rls     class_topics t
+rls     classes t
+rls     contracts t
+rls     curriculum_books t
+rls     education_plans t
+rls     equipment_events t
+rls     equipment_types t
+rls     equipment_units t
+rls     floors t
+rls     integrations t
+rls     invitations t
+rls     lesson_attendance t
+rls     lesson_plans t
+rls     lesson_progress t
+rls     library_copies t
+rls     library_items t
+rls     library_targets t
+rls     memberships t
+rls     notifications t
+rls     org_role_permissions t
+rls     organizations t
+rls     package_orders t
+rls     package_topic_sessions t
+rls     package_topics t
+rls     period_configs t
+rls     profiles t
+rls     report_exports t
+rls     resource_bookings t
+rls     role_permissions t
+rls     roles t
+rls     rollout_checks t
+rls     school_holidays t
+rls     security_settings t
+rls     self_study_content t
+rls     self_study_items t
+rls     self_study_progress t
+rls     service_modules t
+rls     service_plans t
+rls     service_plans_legacy t
+rls     session_responses t
+rls     stem_packages t
+rls     stem_registrations t
+rls     stem_rooms t
+rls     stem_teacher_programs t
+rls     student_group_members t
+rls     student_groups t
+rls     students t
+rls     submissions t
+rls     support_messages t
+rls     support_tickets t
+rls     system_job_runs t
+rls     teachers t
+rls     teaching_assignments t
+rls     teaching_sessions t
+rls     timetable_entries t
+rls     topic_lessons t
+rls     topic_materials t
+rls     topic_posts t
+rls     training_attendance t
+rls     training_enrollments t
+rls     training_lessons t
+rls     training_plans t
+rls     training_sessions t
+rls     warranty_tickets t
+trigger activities.activities_guard 082412c8af347679177f16668e5885fa
+trigger activities.activities_touch 5b102ca1968ccb9f17a4392e0a022bb0
+trigger assignments.assignments_notify 9c8f502cca95b9445969d15e98db39b3
+trigger borrow_requests.booking_sync ac7b735ff4c8291cc268b1cd48eb0535
+trigger borrow_requests.borrow_requests_approval_deleted 36e567dd1983a6e621842d1b8f0cb068
+trigger borrow_requests.borrow_requests_approval_guard e646140bce6b51c073ed531eccf3a580
+trigger borrow_requests.borrow_requests_approval_open 0071adfdb8e2cd6e03ebbf2448f29180
+trigger borrow_requests.borrow_requests_notify 8a8921fb231633d64f37a466b1ea6de1
+trigger borrow_requests.borrow_stock_guard b59d2b50a3f7bf17ef90f6a38dbf01cc
+trigger class_sessions.class_sessions_guard d627e57db07aa0c8e041a97588ced56e
+trigger contracts.audit_contracts 81527614284eb88c1abdde0138b76c2b
+trigger contracts.contracts_touch c1b4edbf34da2ea4fa4299bf71804b03
+trigger education_plans.education_plans_approval_deleted d0b278ad45cfce923410b07d140b1337
+trigger education_plans.education_plans_approval_guard 279c8c2cc1cb2b760fa1b7b458b176c4
+trigger education_plans.education_plans_approval_open 565071cbb41ecccbe647cec4a0b7dee4
+trigger integrations.audit_integrations b1b2abc0cff0e66fe6acc50aa70f8016
+trigger invitations.audit_invitations f799574a36e41dd99d257d3368187427
+trigger invitations.invitations_apply_existing 731fa0e170b0551cf70086ae3efd1e3c
+trigger invitations.invitations_guard_update 9b7be50db6592363bad3de791fc68572
+trigger invitations.invitations_notify 68ab1648144b5f19d6970b9b39852d2a
+trigger lesson_attendance.lesson_attendance_count e2cfc4ccc2179c4c0132b9b09e41d94e
+trigger lesson_attendance.lesson_attendance_guard 61a719fa8a0dabf70f21b31fa9e34490
+trigger lesson_plans.lesson_plans_touch a4870717047574e564e8519487b38eee
+trigger library_items.library_items_touch bb32b385a0e5c3131b8f2088365912ab
+trigger memberships.audit_memberships 06354e218a5f52b61b3624ee5c216fb9
+trigger memberships.memberships_added a8e96011a0dda43e302a255cb7c992f6
+trigger memberships.memberships_guard f0e5a24ec072c26a6283242fa5685464
+trigger memberships.memberships_last_platform_admin 879089481f5396938e5e065bb7cabaa6
+trigger memberships.memberships_removed e6157e788c43ebb59a58c99f8965422c
+trigger notifications.notifications_guard 4bae7de0bad662b5178ef87c8013d301
+trigger organizations.audit_organizations 0297f18f2aa9ef942abc985df5e99cb0
+trigger organizations.organizations_guard 03a11a7fee216211ba2b9032a1c92acb
+trigger organizations.organizations_kdi_fields 4f89bff8276332a9fb52105138320c56
+trigger package_orders.package_orders_approval_deleted 7787f70439ac4405654dd93bf9a5d158
+trigger package_orders.package_orders_approval_guard 9d53548d485f5ec4798e089e3bc020cf
+trigger package_orders.package_orders_approval_open 3efb8682be06897b31d7752830c0413a
+trigger package_orders.package_orders_guard_fulfillment 32a17c63df04058aab6e8ab1bcc52103
+trigger profiles.profiles_guard_lock edb41a5617db37dafb17504dd982fbe3
+trigger profiles.profiles_guard_org ad9923c245a3d6cce36ed1237b9e3206
+trigger role_permissions.role_permissions_audit f17667577bd955cf40f7dd2b62214ca3
+trigger roles.audit_roles 20722cefc29acaf776eece8f458e8785
+trigger roles.roles_guard_update c5a09dfdb58c00860635ed568482bc7b
+trigger rollout_checks.audit_rollout_checks 7bdc9b6016d71c64785f3e4b7b776b71
+trigger school_holidays.school_holidays_audit 6c2229e054c4fbc63fafa9779b61dac1
+trigger school_holidays.school_holidays_resync ef7b0712994729e3435ba8116012ce77
+trigger security_settings.audit_security_settings 59a1545d0510279ee6711ca670a41f3b
+trigger self_study_items.self_study_items_audit 12b76e4a3bcc62b7d390f8e066eda22d
+trigger self_study_items.self_study_notify fd9857ea15e7598af1fdb2ffa7ce506a
+trigger self_study_items.self_study_snapshot 77ba931743d9121348590228df527122
+trigger self_study_items.self_study_snapshot_save fb0bc84a094a4169dd2dddd0520c53f9
+trigger self_study_progress.self_study_progress_guard b95e014704009f62cb7d6f3283db1e50
+trigger service_plans.audit_service_plans 2b4100e44ca3a8211d864fe4ab08a735
+trigger service_plans.service_plans_guard 79bd87c43bf3e297e40eb630430c93d5
+trigger stem_packages.audit_catalog_packages c39f99a2d10230d1aa92cc2038e55d40
+trigger stem_registrations.booking_sync 2d27434f881f1cce2a829980a59beaba
+trigger stem_registrations.stem_registrations_approval_deleted 09185a2bddb3ebfa12c9800b4b886bb0
+trigger stem_registrations.stem_registrations_approval_guard 84c3cc825b3d70f4fb0e76a076c2d944
+trigger stem_registrations.stem_registrations_approval_open f27ab9c5a82ba9ad4285dc44281360e6
+trigger stem_registrations.stem_registrations_notify 2bdeb16c9b67aa1aee18a1b601d529d0
+trigger stem_registrations.teacher_slot_guard c3e90b7ac4bbd36c95fb662981eb36d3
+trigger submissions.submissions_guard 01c2df305360dc5e3ab76ae9ebd17652
+trigger submissions.submissions_notify abbbb87d5b4f6e43d5f0b7c50223e946
+trigger support_messages.support_messages_notify a0d5ea43bd9ac47c92914ba651b4f36b
+trigger support_tickets.support_tickets_before e4a47de4905228fc6dcf1dcf86944c62
+trigger support_tickets.support_tickets_notify 45a2df1925c8144b8fea93f2cc27327f
+trigger teaching_sessions.booking_sync c1e88256e601769dca88bce848af6303
+trigger teaching_sessions.teacher_slot_guard b73052678bf82129f29f650b3ac49fa0
+trigger timetable_entries.timetable_guard 21b14b1472eca272546ced5798eac1cc
+trigger topic_posts.topic_posts_author 36cadfd8502552dcf05674cd17fd91f5
+trigger user_roles.user_roles_write 3d072525a008747f8295be9f8e4fb747
+trigger warranty_tickets.warranty_tickets_notify c8fa37c1ec139e3acacba857087b4e0b
+view    assignment_overview md5:a43bf4c06968885e3cf225310f246a2a
+view    self_study_stats md5:86233f92009ea02878d67da7f83d3624
+view    teaching_session_view md5:0ac4302bfd914cf415d30eae692d1556
+view    user_roles md5:16ff119b5429edd65cea4c3474341993

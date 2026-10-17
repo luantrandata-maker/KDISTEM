@@ -811,6 +811,32 @@ select pg_temp.probe('kdi@iso-test.local',
   'update role_permissions set can_delete = not can_delete where role_id = (select id from roles where key = ''teacher'' and org_id is null) and module = ''timetable''', true);
 select pg_temp.chk('admin_ph', 'Trường không xem số trường chỉnh riêng quyền', 'select count(*) from platform_permission_overrides()', 'ERR');
 
+-- ===== 034: vai trò tuỳ chỉnh chỉ do quản trị của chính đơn vị sửa, không thành vai trò hệ thống =====
+-- (CSDL thật từng có policy roles_admin_write cho quản trị sửa vai trò mọi đơn vị trong cây của mình — hiện chưa khai thác
+--  được vì Hiệu trưởng/QTV chỉ có ở cấp trường, nhưng sẽ mở khi có đơn vị cha mang vai trò quản trị.)
+select pg_temp.chk('iso_admin', 'Quản trị trường sửa vai trò tuỳ chỉnh của trường mình',
+  'update roles set name = name where key = ''custom_iso_tt''', 'rows:1');
+select pg_temp.chk('iso_admin', 'Không biến vai trò tuỳ chỉnh thành vai trò hệ thống',
+  'update roles set is_system = true where key = ''custom_iso_tt''', 'ERR*');
+select pg_temp.chk('iso_so', 'Sở không sửa vai trò tuỳ chỉnh của trường trực thuộc',
+  'update roles set name = name where key = ''custom_iso_tt''', 'rows:0');
+select pg_temp.chk('iso_so', 'Sở không xoá vai trò tuỳ chỉnh của trường trực thuộc',
+  'delete from roles where key = ''custom_iso_tt''', 'rows:0');
+select pg_temp.chk('admin_ph', 'Trường khác không sửa vai trò tuỳ chỉnh',
+  'update roles set name = name where key = ''custom_iso_tt''', 'rows:0');
+select pg_temp.chk('iso_admin', 'Quản trị trường không sửa vai trò hệ thống',
+  'update roles set name = name where key = ''teacher'' and org_id is null', 'rows:0');
+-- 034: quyền mặc định của vai trò Giáo viên (theo CSDL thật): xem thiết bị, tạo phiếu đăng ký dạy STEM, không sửa giáo viên.
+-- Kiểm tra ma trận quyền mặc định (has_perm còn tuỳ hợp đồng của trường nên không dùng ở đây).
+select pg_temp.chk('iso_gv', 'Quyền mặc định GV: xem thiết bị',
+  'select (can_view and can_detail)::text from role_permissions rp join roles r on r.id = rp.role_id where r.key = ''teacher'' and r.org_id is null and rp.module = ''equipment''', 'true');
+select pg_temp.chk('iso_gv', 'Quyền mặc định GV: tạo đăng ký dạy STEM',
+  'select can_create::text from role_permissions rp join roles r on r.id = rp.role_id where r.key = ''teacher'' and r.org_id is null and rp.module = ''stem_registrations''', 'true');
+select pg_temp.chk('iso_gv', 'Quyền mặc định GV: không sửa hồ sơ giáo viên',
+  'select (can_edit or can_delete)::text from role_permissions rp join roles r on r.id = rp.role_id where r.key = ''teacher'' and r.org_id is null and rp.module = ''teachers''', 'false');
+select pg_temp.chk('iso_gv', 'Không còn quyền của chức năng không tồn tại (borrow, edu_plans)',
+  'select count(*) from role_permissions where module in (''borrow'', ''edu_plans'')', '0');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

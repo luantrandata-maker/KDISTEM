@@ -4,6 +4,7 @@ declare
   dept uuid; sch uuid; yr uuid; b_a uuid; b_b uuid; fl1 uuid; fl2 uuid;
   r1 uuid; r2 uuid; r3 uuid; t_mbot uuid; t_ard uuid; t_iot uuid;
 begin
+  if coalesce(current_setting('app.seed_demo', true), '') <> 'on' then return; end if; -- dữ liệu mẫu: chỉ chạy khi bật cờ app.seed_demo
   if exists (select 1 from organizations) then return; end if;
 
   insert into organizations (type, code, name) values ('department','SO-HY','Sở GD&ĐT Hưng Yên') returning id into dept;

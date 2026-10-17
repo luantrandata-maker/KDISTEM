@@ -11,7 +11,7 @@ type Result = { person_id: string; full_name: string | null; class_name: string 
 
 const STATUS: Record<string, string> = {
   created: 'Đã tạo', created_no_login: 'Đã tạo (chưa ghi tên đăng nhập)', has_account: 'Đã có tài khoản', missing_code: 'Thiếu mã học sinh',
-  login_taken: 'Tên đăng nhập đã có người dùng', not_found: 'Không thuộc trường', error: 'Lỗi', reset: 'Đã đặt lại mật khẩu',
+  login_taken: 'Tên đăng nhập đã có người dùng', no_consent: 'Chưa có đồng ý của cha mẹ (bắt buộc)', not_found: 'Không thuộc trường', error: 'Lỗi', reset: 'Đã đặt lại mật khẩu',
 }
 const NO_CLASS = 'Chưa xếp lớp'
 const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))

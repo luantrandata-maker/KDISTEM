@@ -15,6 +15,7 @@ import { NavIcon } from './components/NavIcon'
 import { MenuSearch, UserMenu } from './components/TopBar'
 import Login, { SetPassword } from './pages/Login'
 import { mustChangePassword } from './lib/login'
+import LegalGate from './components/LegalGate'
 import Dashboard from './pages/Dashboard'
 import Teachers from './pages/Teachers'
 import Classes from './pages/Classes'
@@ -77,6 +78,7 @@ const SystemMap = lazy(() => import('./pages/platform/Planned').then(m => ({ def
 const PlatformCustomers = lazy(() => import('./pages/platform/Commerce').then(m => ({ default: m.PlatformCustomers })))
 const PlatformContracts = lazy(() => import('./pages/platform/Commerce').then(m => ({ default: m.PlatformContracts })))
 const PlatformSecurity = lazy(() => import('./pages/platform/Security').then(m => ({ default: m.PlatformSecurity })))
+const PlatformLegal = lazy(() => import('./pages/platform/Legal').then(m => ({ default: m.PlatformLegal })))
 const PlatformSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.PlatformSupport })))
 // Đợt 2 (025): triển khai khách hàng, danh mục gói, đơn đặt gói, thông báo hàng loạt, tích hợp
 const PlatformRollout = lazy(() => import('./pages/platform/Rollout').then(m => ({ default: m.PlatformRollout })))
@@ -194,6 +196,7 @@ const PLATFORM: PageMap = {
   'Cơ sở triển khai': PlatformSchools,
   'Vai trò & quyền mặc định': DefaultPermissions,
   'Bảo mật tài khoản': PlatformSecurity,
+  'Điều khoản & dữ liệu cá nhân': PlatformLegal,
   'Vấn đề & phản hồi': PlatformSupport,
   'Thông tin khách hàng': PlatformCustomers,
   'Gói dịch vụ & hợp đồng': PlatformContracts,
@@ -255,7 +258,7 @@ export default function App() {
   if (!session) return <Login />
   // Quên mật khẩu; hoặc tài khoản mã lần đầu đăng nhập / vừa được trường đặt lại mật khẩu (bắt buộc đổi)
   if (recovery || mustChangePassword(session.user.user_metadata)) return <SetPassword forced={!recovery} onDone={() => setRecovery(false)} />
-  return <MfaGate key={session.user.id}><Shell session={session} /></MfaGate>
+  return <MfaGate key={session.user.id}><LegalGate><Shell session={session} /></LegalGate></MfaGate>
 }
 
 function Shell({ session }: { session: Session }) {

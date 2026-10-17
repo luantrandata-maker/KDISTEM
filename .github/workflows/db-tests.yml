@@ -124,6 +124,9 @@ jobs:
           mkdir -p out
           psql -v ON_ERROR_STOP=1 -At -d repo -f supabase/scripts/schema_fingerprint.sql > out/repo.txt
           (unset PGHOST PGUSER PGPASSWORD; psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -At -f supabase/scripts/schema_fingerprint.sql) > out/live.txt
+          # Nội dung đầy đủ hàm + policy để đọc chi tiết chỗ lệch
+          psql -v ON_ERROR_STOP=1 -At -d repo -f supabase/scripts/schema_detail.sql > out/repo_detail.txt
+          (unset PGHOST PGUSER PGPASSWORD; psql "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -At -f supabase/scripts/schema_detail.sql) > out/live_detail.txt
           diff -u out/repo.txt out/live.txt > out/diff.txt || true
           wc -l out/*.txt
       - name: Tóm tắt

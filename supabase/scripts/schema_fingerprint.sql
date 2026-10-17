@@ -1,6 +1,7 @@
 -- "Dấu vân tay" cấu trúc schema public + quyền mặc định, mỗi dòng một đối tượng, đã sắp xếp.
 -- Chạy trên hai CSDL rồi diff để biết CSDL thật lệch repo ở đâu (job schema_diff trong CI).
 -- Thân hàm và điều kiện policy so bằng md5 cho gọn; khác md5 = nội dung khác.
+-- Thân hàm được chuẩn hoá trước khi băm (bỏ \r, gộp khoảng trắng) để không báo lệch chỉ vì xuống dòng/thụt lề.
 with rows(line) as (
   -- Cột
   select format('column  %s.%s %s%s%s', c.table_name, c.column_name, c.data_type,
@@ -16,7 +17,8 @@ with rows(line) as (
   union all
   -- Hàm
   select format('func    %s(%s)%s md5:%s', p.proname, pg_get_function_identity_arguments(p.oid),
-                case when p.prosecdef then ' secdef' else '' end, md5(p.prosrc))
+                case when p.prosecdef then ' secdef' else '' end,
+                md5(btrim(regexp_replace(replace(p.prosrc, chr(13), ''), '\s+', ' ', 'g'))))
     from pg_proc p where p.pronamespace = 'public'::regnamespace and p.prokind in ('f', 'p')
      and not exists (select 1 from pg_depend d where d.objid = p.oid and d.deptype = 'e')
   union all

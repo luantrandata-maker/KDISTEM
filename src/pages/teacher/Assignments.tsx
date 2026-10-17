@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { TProps, NoTeacher, KIND_LABEL, useMyClasses, dueLabel, fmtDateTime, handoff, Tabs } from './common'
+import { type Rubric, RubricField, RubricGrader, RubricSummary, rubricProblem } from './rubric'
 
 type Overview = {
   id: string; class_id: string; class_name: string; topic_id: string | null; title: string; kind: string; subject: string | null
@@ -10,7 +11,7 @@ type Overview = {
 type Topic = { id: string; class_id: string; title: string }
 type Form = {
   id?: string; class_id: string; topic_id: string; title: string; kind: string; subject: string; group_mode: boolean
-  due_at: string; max_score: string; instructions: string; status: string
+  due_at: string; max_score: string; instructions: string; status: string; rubric: Rubric | null
 }
 type TabKey = 'all' | 'open' | 'grading' | 'soon' | 'overdue'
 
@@ -62,10 +63,15 @@ export function TeacherAssignments({ teacherId, orgId, go }: TProps) {
     setErr('')
     setForm(r ? {
       id: r.id, class_id: r.class_id, topic_id: r.topic_id ?? '', title: r.title, kind: r.kind, subject: r.subject ?? '', group_mode: r.group_mode,
-      due_at: toLocalInput(r.due_at), max_score: String(r.max_score), instructions: r.instructions ?? '', status: r.status,
+      due_at: toLocalInput(r.due_at), max_score: String(r.max_score), instructions: r.instructions ?? '', status: r.status, rubric: null,
     } : {
       class_id: cls || classes[0]?.id || '', topic_id: '', title: '', kind: 'worksheet', subject: classes.find(c => c.id === (cls || classes[0]?.id))?.subjects[0] ?? '',
-      group_mode: false, due_at: defaultDue(), max_score: '10', instructions: '', status: 'open',
+      group_mode: false, due_at: defaultDue(), max_score: '10', instructions: '', status: 'open', rubric: null,
+    })
+    // Tiêu chí của bài đã giao (không có trong view assignment_overview)
+    if (r) supabase.from('assignments').select('rubric').eq('id', r.id).single().then(({ data }) => {
+      const rb = (data as { rubric: Rubric | null } | null)?.rubric
+      if (rb) setForm(f => f && f.id === r.id ? { ...f, rubric: rb } : f)
     })
   }
 
@@ -76,7 +82,9 @@ export function TeacherAssignments({ teacherId, orgId, go }: TProps) {
       class_id: form.class_id, topic_id: form.topic_id || null, title: form.title.trim(), kind: form.kind, subject: form.subject.trim() || null,
       group_mode: form.group_mode, due_at: form.due_at ? new Date(form.due_at).toISOString() : null,
       max_score: Number(form.max_score) || 10, instructions: form.instructions.trim() || null, status: form.status,
+      rubric: form.rubric ? { title: form.rubric.title.trim() || 'Tiêu chí', criteria: form.rubric.criteria.map(c => ({ ...c, name: c.name.trim(), points: Number(c.points) })) } : null,
     }
+    if (form.rubric) { const p = rubricProblem(form.rubric); if (p) return setErr(p) }
     const { error } = form.id
       ? await supabase.from('assignments').update(body).eq('id', form.id)
       : await supabase.from('assignments').insert({ ...body, org_id: orgId, teacher_id: teacherId })
@@ -172,6 +180,7 @@ export function TeacherAssignments({ teacherId, orgId, go }: TProps) {
           <label className="field"><span>Trạng thái</span>
             <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value })}>
               <option value="open">Giao ngay</option><option value="draft">Lưu nháp (học sinh chưa thấy)</option><option value="closed">Đã đóng</option></select></label>
+          <RubricField value={form.rubric} onChange={r => setForm(f => f && { ...f, rubric: r })} orgId={orgId ?? null} />
           <label className="field" style={{ gridColumn: '1 / -1' }}><span>Hướng dẫn</span>
             <textarea rows={3} value={form.instructions} onChange={e => setForm({ ...form, instructions: e.target.value })} placeholder="Yêu cầu, tiêu chí chấm, tài liệu đính kèm (đường dẫn)…" /></label>
           <div className="formactions"><button className="primary" type="submit">{form.id ? 'Lưu' : 'Giao bài'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
@@ -219,7 +228,8 @@ export function TeacherAssignments({ teacherId, orgId, go }: TProps) {
 type Sub = {
   id: string; assignment_id: string; student_id: string | null; group_id: string | null; content: string | null; attachment_url: string | null
   submitted_at: string; status: string; score: number | null; feedback: string | null; graded_at: string | null
-  assignments: { id: string; title: string; kind: string; class_id: string; due_at: string | null; max_score: number; classes: { name: string } | null } | null
+  assignments: { id: string; title: string; kind: string; class_id: string; due_at: string | null; max_score: number; rubric: Rubric | null; classes: { name: string } | null } | null
+  rubric_scores: (number | null)[] | null
   students: { full_name: string; student_code: string | null } | null
   student_groups: { name: string; student_group_members: { students: { full_name: string } | null }[] } | null
 }
@@ -231,7 +241,7 @@ export function TeacherGrading({ teacherId }: TProps) {
   const [tab, setTab] = useState<GTab>('todo')
   const [aid, setAid] = useState(() => handoff.take('grading.assignment') ?? '')
   const [q, setQ] = useState('')
-  const [open, setOpen] = useState<{ id: string; score: string; feedback: string } | null>(null)
+  const [open, setOpen] = useState<{ id: string; score: string; feedback: string; levels: (number | null)[] } | null>(null)
   const [missing, setMissing] = useState<string[]>([])
   const [err, setErr] = useState('')
 
@@ -239,7 +249,7 @@ export function TeacherGrading({ teacherId }: TProps) {
     if (!teacherId) return
     const [s, a] = await Promise.all([
       supabase.from('submissions')
-        .select('*, assignments!inner(id, title, kind, class_id, due_at, max_score, teacher_id, classes(name)), students(full_name, student_code), student_groups(name, student_group_members(students(full_name)))')
+        .select('*, assignments!inner(id, title, kind, class_id, due_at, max_score, rubric, teacher_id, classes(name)), students(full_name, student_code), student_groups(name, student_group_members(students(full_name)))')
         .eq('assignments.teacher_id', teacherId).order('submitted_at', { ascending: true }),
       supabase.from('assignment_overview').select('id, title, class_id, group_mode, class_name').eq('teacher_id', teacherId).order('created_at', { ascending: false }),
     ])
@@ -277,14 +287,22 @@ export function TeacherGrading({ teacherId }: TProps) {
     if (!open) return
     const sub = subs.find(s => s.id === open.id)
     const max = sub?.assignments?.max_score ?? 10
-    const score = Number(open.score.replace(',', '.'))
-    if (open.score === '' || Number.isNaN(score) || score < 0 || score > max) return setErr(`Điểm phải từ 0 đến ${max}.`)
-    const { error } = await supabase.from('submissions').update({ score, feedback: open.feedback.trim() || null }).eq('id', open.id)
+    const rb = sub?.assignments?.rubric
+    let patch: Record<string, unknown>
+    if (rb) {   // chấm theo tiêu chí: CSDL tính điểm từ mức đạt
+      if (open.levels.length !== rb.criteria.length || open.levels.some(l => !l)) return setErr(`Chọn mức cho đủ ${rb.criteria.length} tiêu chí.`)
+      patch = { rubric_scores: open.levels, feedback: open.feedback.trim() || null }
+    } else {
+      const score = Number(open.score.replace(',', '.'))
+      if (open.score === '' || Number.isNaN(score) || score < 0 || score > max) return setErr(`Điểm phải từ 0 đến ${max}.`)
+      patch = { score, feedback: open.feedback.trim() || null }
+    }
+    const { error } = await supabase.from('submissions').update(patch).eq('id', open.id)
     if (error) return setErr('Không lưu được: ' + error.message)
     setErr('')
     const queue = lists.todo.filter(s => s.id !== open.id)
     await load()
-    if (next && queue[0]) setOpen({ id: queue[0].id, score: '', feedback: '' }); else setOpen(null)
+    if (next && queue[0]) setOpen({ id: queue[0].id, score: '', feedback: '', levels: [] }); else setOpen(null)
   }
 
   if (!teacherId) return <NoTeacher />
@@ -300,12 +318,13 @@ export function TeacherGrading({ teacherId }: TProps) {
         </span>
       </div>
       {err && <p className="msg">{err}</p>}
+      {aid && subs.some(s => s.assignment_id === aid && s.assignments?.rubric) && <RubricSummary key={aid + lists.done.length} assignmentId={aid} />}
       {aid && missing.length > 0 && (
         <p className="sub">Chưa nộp ({missing.length}): {missing.join(', ')}</p>
       )}
 
       {cur && open && (
-        <form className="panel gradebox" onSubmit={e => save(e, false)}>
+        <form className={'panel gradebox' + (cur.assignments?.rubric ? ' wide' : '')} onSubmit={e => save(e, false)}>
           <div>
             <small>{cur.assignments?.classes?.name} · {cur.assignments?.title}</small>
             <h3>{who(cur)}{cur.student_groups && <small> · {cur.student_groups.student_group_members.map(m => m.students?.full_name).filter(Boolean).join(', ')}</small>}</h3>
@@ -314,8 +333,11 @@ export function TeacherGrading({ teacherId }: TProps) {
             {cur.attachment_url && <a href={cur.attachment_url} target="_blank" rel="noreferrer">Mở tệp đính kèm ↗</a>}
           </div>
           <div className="formgrid">
-            <label className="field"><span>Điểm (/{cur.assignments?.max_score ?? 10}) *</span>
-              <input autoFocus inputMode="decimal" value={open.score} onChange={e => setOpen({ ...open, score: e.target.value })} /></label>
+            {cur.assignments?.rubric
+              ? <div style={{ gridColumn: '1 / -1' }}><RubricGrader rubric={cur.assignments.rubric} max={cur.assignments.max_score} levels={open.levels}
+                  onChange={l => setOpen({ ...open, levels: l })} /></div>
+              : <label className="field"><span>Điểm (/{cur.assignments?.max_score ?? 10}) *</span>
+                  <input autoFocus inputMode="decimal" value={open.score} onChange={e => setOpen({ ...open, score: e.target.value })} /></label>}
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Nhận xét</span>
               <textarea rows={3} value={open.feedback} onChange={e => setOpen({ ...open, feedback: e.target.value })} placeholder="Điểm mạnh, cần cải thiện…" /></label>
             <div className="formactions">
@@ -339,7 +361,7 @@ export function TeacherGrading({ teacherId }: TProps) {
                 <td className="nowrap">{fmtDateTime(s.submitted_at)}{isLate(s) && <><br /><small className="due bad">Nộp trễ</small></>}</td>
                 <td>{s.score != null ? <b>{s.score}/{s.assignments?.max_score}</b> : '—'}</td>
                 <td><button className={s.status !== 'graded' ? 'primary' : ''}
-                  onClick={() => setOpen({ id: s.id, score: s.score != null ? String(s.score) : '', feedback: s.feedback ?? '' })}>
+                  onClick={() => setOpen({ id: s.id, score: s.score != null ? String(s.score) : '', feedback: s.feedback ?? '', levels: s.rubric_scores ?? [] })}>
                   {s.status === 'graded' ? 'Sửa điểm' : 'Chấm bài'}</button></td>
               </tr>
             ))}

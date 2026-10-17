@@ -8,6 +8,7 @@ declare
     'integrations',         -- danh mục kết nối tích hợp (K12Online, VNeID, email, Zalo, Excel)
     'organizations',        -- chỉ đơn vị cung cấp KDI Education (kiểm tra riêng bên dưới)
     'role_permissions',     -- ma trận quyền mặc định
+    'rubrics',              -- mẫu tiêu chí đánh giá hệ thống (041)
     'roles',                -- vai trò hệ thống
     'security_settings',    -- cấu hình bảo mật mặc định
     'service_modules',      -- danh mục phân hệ PH1–PH5

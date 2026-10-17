@@ -753,3 +753,14 @@ table.permtable{table-layout:fixed}table.permtable th:first-child{width:34%}tabl
 .privacy h4{margin:12px 0 6px;font-size:14px}
 button.danger{background:#b42318;color:#fff;border-color:#b42318}
 button.danger:disabled{opacity:.6}
+/* Chấm theo tiêu chí (041) */
+.rubricfield .tools{flex-wrap:wrap}
+.rubricedit{display:grid;gap:8px;margin-top:6px;overflow-x:auto}
+.rubricedit table{min-width:820px}.rubricedit td{vertical-align:top;padding:4px}
+.rubricedit textarea{width:100%;min-height:44px;font-size:12.5px}.rubricedit input[type=number]{width:64px}
+.rubricgrid{overflow-x:auto}.rubricgrid table{min-width:640px;font-size:12.5px}.rubricgrid td{vertical-align:top}
+.rlevel{display:block;width:100%;text-align:left;font-size:12px;line-height:1.35;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer}
+.rlevel:hover{background:var(--soft)}.rlevel.on{border-color:var(--primary);background:#e6f1fd;box-shadow:inset 0 0 0 1px var(--primary)}
+.rgot{background:#e6f6ec;font-weight:600}
+.gradebox.wide{grid-template-columns:1fr}
+.rubricgrid td,.rubricgrid th{white-space:normal}.rlevel{white-space:normal;height:100%}.rubricgrid td:first-child{min-width:160px}

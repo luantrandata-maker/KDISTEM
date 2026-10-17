@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { KIND_LABEL, dueLabel, fmtDateTime, handoff, Tabs } from '../teacher/common'
 import { SProps, NoStudent, useMe, type Me } from './common'
+import { RubricView, type Rubric } from '../teacher/rubric'
 
 export type Assign = {
   id: string; title: string; kind: string; subject: string | null; instructions: string | null; max_score: number; group_mode: boolean
-  opens_at: string; due_at: string | null; status: string; topic_id: string | null; teachers: { full_name: string } | null
+  opens_at: string; due_at: string | null; status: string; topic_id: string | null; teachers: { full_name: string } | null; rubric?: Rubric | null
 }
 export type Sub = { id: string; assignment_id: string; student_id: string | null; group_id: string | null; content: string | null; attachment_url: string | null
-  submitted_at: string; status: string; score: number | null; feedback: string | null }
+  submitted_at: string; status: string; score: number | null; feedback: string | null; rubric_scores?: (number | null)[] | null }
 
 // Bài tập của lớp + bài nộp của học sinh (cá nhân hoặc nhóm)
 export function useMyWork(me: Me | null) {
@@ -18,9 +19,9 @@ export function useMyWork(me: Me | null) {
     if (!me?.class_id) return
     const gids = me.groups.map(g => g.id)
     const [a, s] = await Promise.all([
-      supabase.from('assignments').select('id, title, kind, subject, instructions, max_score, group_mode, opens_at, due_at, status, topic_id, teachers(full_name)')
+      supabase.from('assignments').select('id, title, kind, subject, instructions, max_score, group_mode, opens_at, due_at, status, topic_id, rubric, teachers(full_name)')
         .eq('class_id', me.class_id).neq('status', 'draft').order('due_at', { ascending: true, nullsFirst: false }),
-      supabase.from('submissions').select('id, assignment_id, student_id, group_id, content, attachment_url, submitted_at, status, score, feedback')
+      supabase.from('submissions').select('id, assignment_id, student_id, group_id, content, attachment_url, submitted_at, status, score, feedback, rubric_scores')
         .or([`student_id.eq.${me.id}`, ...(gids.length ? [`group_id.in.(${gids.join(',')})`] : [])].join(',')),
     ])
     setAssigns((a.data as unknown as Assign[]) ?? []); setSubs((s.data as Sub[]) ?? [])
@@ -103,6 +104,7 @@ export function StudentAssignments({ studentId, orgId }: SProps) {
             <button type="button" onClick={() => setOpen(null)}>Đóng</button></div>
           <small>{cur.subject}{cur.teachers ? ` · ${cur.teachers.full_name}` : ''} · {dueLabel(cur.due_at).text}{cur.group_mode && me?.groups[0] ? ` · Nộp chung ${me.groups[0].name}` : ''}</small>
           {cur.instructions && <div className="answer">{cur.instructions}</div>}
+          {cur.rubric && <RubricView rubric={cur.rubric} levels={curSub?.status === 'graded' ? curSub.rubric_scores : null} />}
           {curSub?.status === 'graded' ? (
             <div className="graded">
               <div className="scorebig">{curSub.score}<small>/{cur.max_score}</small></div>

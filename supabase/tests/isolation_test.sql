@@ -128,6 +128,11 @@ begin
   delete from training_plans where name = 'ISO kế hoạch tập huấn';   -- buổi, ghi danh, điểm danh xoá theo (cascade)
   delete from students where student_code like 'ISO-%' or full_name like 'ISO HS%' or org_id = any(v_orgs);
   delete from invitations where email like 'thcsph.iso%' or full_name = 'ISO GV tài khoản mã';
+  if to_regclass('public.dept_targets') is not null then
+    delete from dept_targets where note like 'ISO %';
+    delete from dept_alert_actions where note like 'ISO %';
+    delete from notifications where title like 'ISO nhắc%';
+  end if;
   if to_regclass('public.legal_documents') is not null then
     delete from student_consents where guardian_name like 'ISO P%';
     delete from legal_acceptances where document_id in (select id from legal_documents where title like 'ISO %');
@@ -1043,6 +1048,27 @@ begin
     ('system', 'Xoá dữ liệu: bỏ vai trò tại trường, xoá đồng ý', '0/0', v_mem || '/' || v_cons, v_mem = 0 and v_cons = 0);
   delete from students where id = v_id;
 end $$;
+
+-- ===== 040: chỉ tiêu và cảnh báo của Sở =====
+insert into dept_targets (org_id, school_year, metric, target, note) values (pg_temp.oid_('SO-HY'), '2026-2027', 'stem_coverage', 80, 'ISO chỉ tiêu');
+select pg_temp.chk('so_hy', 'Chỉ tiêu: Sở giao chỉ tiêu',
+  format('insert into dept_targets (org_id, school_year, metric, level, target) values (%s, ''2026-2027'', ''teacher_trained'', ''thcs'', 90)', quote_literal(pg_temp.oid_('SO-HY'))), 'rows:1');
+select pg_temp.chk('so_hy', 'Chỉ tiêu: Sở không giao thay Sở khác',
+  format('insert into dept_targets (org_id, school_year, metric, target) values (%s, ''2026-2027'', ''teacher_trained'', 90)', quote_literal(pg_temp.oid_('SO-BN'))), 'ERR');
+select pg_temp.chk('admin_ph', 'Chỉ tiêu: trường xem chỉ tiêu Sở giao', 'select count(*) from dept_targets where note = ''ISO chỉ tiêu''', '1');
+select pg_temp.chk('admin_kb', 'Chỉ tiêu: trường tỉnh khác không xem', 'select count(*) from dept_targets where note = ''ISO chỉ tiêu''', '0');
+select pg_temp.chk('so_bn', 'Chỉ tiêu: Sở khác không xem', 'select count(*) from dept_targets where note = ''ISO chỉ tiêu''', '0');
+select pg_temp.chk('admin_ph', 'Chỉ tiêu: trường không sửa chỉ tiêu', 'update dept_targets set target = 10 where note = ''ISO chỉ tiêu''', 'rows:0');
+select pg_temp.chk('so_hy', 'Cảnh báo: Sở ghi nhận xử lý trường trực thuộc',
+  format('insert into dept_alert_actions (org_id, school_id, rule, status, note) values (%s, %s, ''no_stem'', ''acknowledged'', ''ISO xử lý'')', quote_literal(pg_temp.oid_('SO-HY')), quote_literal(pg_temp.oid_('THCS-PH'))), 'rows:1');
+select pg_temp.chk('so_bn', 'Cảnh báo: Sở tỉnh khác không ghi nhận',
+  format('insert into dept_alert_actions (org_id, school_id, rule, status, note) values (%s, %s, ''no_stem'', ''acknowledged'', ''ISO xử lý'')', quote_literal(pg_temp.oid_('SO-BN')), quote_literal(pg_temp.oid_('THCS-PH'))), 'ERR');
+select pg_temp.chk('so_hy', 'Cảnh báo: Sở gửi nhắc quản trị trường',
+  format('select dept_notify_school(%s, ''ISO nhắc'', ''thử'') > 0', quote_literal(pg_temp.oid_('THCS-PH'))), 'true');
+select pg_temp.chk('so_bn', 'Cảnh báo: Sở tỉnh khác không gửi nhắc',
+  format('select dept_notify_school(%s, ''ISO nhắc'', ''thử'')', quote_literal(pg_temp.oid_('THCS-PH'))), 'ERR');
+select pg_temp.chk('admin_ph', 'Cảnh báo: trường không gửi nhắc trường khác',
+  format('select dept_notify_school(%s, ''ISO nhắc'', ''thử'')', quote_literal(pg_temp.oid_('THPT-CHY'))), 'ERR');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

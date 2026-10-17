@@ -837,6 +837,48 @@ select pg_temp.chk('iso_gv', 'Quyền mặc định GV: không sửa hồ sơ gi
 select pg_temp.chk('iso_gv', 'Không còn quyền của chức năng không tồn tại (borrow, edu_plans)',
   'select count(*) from role_permissions where module in (''borrow'', ''edu_plans'')', '0');
 
+-- ===== 035: sinh buổi dạy tự động cho mọi trường, ngày nghỉ áp ngay cho trường trực thuộc =====
+select pg_temp.chk('admin_ph', 'Trường không gọi được hàm sinh hàng loạt', 'select generate_upcoming_sessions(7)::text', 'ERR');
+select pg_temp.chk('admin_ph', 'Trường không gọi được hàm chạy tay của nền tảng', 'select platform_generate_upcoming_sessions(7)::text', 'ERR');
+select pg_temp.chk('admin_ph', 'Trường không gọi thẳng phần lõi sinh buổi dạy',
+  format('select sync_teaching_sessions(%s, vn_today(), vn_today() + 7)::text', quote_literal(pg_temp.oid_('THCS-KB'))), 'ERR');
+select pg_temp.chk('kdi', 'Nền tảng chạy tay sinh buổi dạy: không trường nào lỗi', 'select platform_generate_upcoming_sessions(7)->>''failed''', '0');
+select pg_temp.chk('admin_ph', 'Trường không đọc nhật ký việc chạy nền', 'select count(*) from system_job_runs', '0');
+-- Hành vi (chạy bằng quyền hệ thống, dọn lại ngay): sinh 28 ngày → Sở khai báo nghỉ một ngày → tiết chưa điểm danh
+-- của trường trực thuộc bị bỏ, tiết đã điểm danh giữ, trường không thuộc Sở không bị ảnh hưởng; xoá ngày nghỉ → tiết trở lại.
+do $$
+declare v_d date; v_before int; v_after int; v_back int; v_att uuid; v_other int; v_other_after int; v_other_code text;
+  v_kept int; v_n int;
+begin
+  perform public.generate_upcoming_sessions(28);
+  select min(s.session_date) into v_d from teaching_sessions s
+   where s.org_id = pg_temp.oid_('THCS-PH') and s.session_date >= public.vn_today() + 7
+     and (select count(*) from teaching_sessions t where t.org_id = s.org_id and t.session_date = s.session_date) >= 2;
+  select count(*) into v_before from teaching_sessions where org_id = pg_temp.oid_('THCS-PH') and session_date = v_d;
+  select s.id into v_att from teaching_sessions s join students st on st.class_id = s.class_id
+   where s.org_id = pg_temp.oid_('THCS-PH') and s.session_date = v_d order by s.id limit 1;
+  insert into lesson_attendance (session_id, student_id, status)
+    select v_att, st.id, 'present' from students st where st.class_id = (select class_id from teaching_sessions where id = v_att) limit 1;
+  select count(*), min(o.code) into v_other, v_other_code from teaching_sessions s join organizations o on o.id = s.org_id
+   where o.code = 'THCS-KB' and s.session_date = v_d;
+  insert into school_holidays (org_id, name, starts_on, ends_on) values (pg_temp.oid_('SO-HY'), 'iso-test nghỉ Sở', v_d, v_d);
+  select count(*) into v_after from teaching_sessions where org_id = pg_temp.oid_('THCS-PH') and session_date = v_d;
+  select count(*) into v_kept from teaching_sessions where id = v_att;
+  select count(*) into v_other_after from teaching_sessions s join organizations o on o.id = s.org_id
+   where o.code = 'THCS-KB' and s.session_date = v_d;
+  delete from school_holidays where name = 'iso-test nghỉ Sở';
+  select count(*) into v_back from teaching_sessions where org_id = pg_temp.oid_('THCS-PH') and session_date = v_d;
+  delete from lesson_attendance where session_id = v_att;
+  insert into t_result (who, name, expect, got, ok) values
+    ('system', 'Sinh hàng loạt: có tiết ngày thường tuần tới', '>=2', coalesce(v_before, 0)::text, coalesce(v_before, 0) >= 2),
+    ('system', 'Sở nghỉ: trường trực thuộc chỉ còn tiết đã điểm danh', '1', v_after::text, v_after = 1),
+    ('system', 'Sở nghỉ: tiết đã điểm danh được giữ', '1', v_kept::text, v_kept = 1),
+    ('system', 'Sở nghỉ: trường tỉnh khác không đổi', v_other::text, v_other_after::text, v_other = v_other_after),
+    ('system', 'Xoá ngày nghỉ của Sở: tiết trở lại', v_before::text, v_back::text, v_back = v_before);
+  select count(*) into v_n from system_job_runs where job = 'generate_upcoming_sessions' and ok;
+  insert into t_result (who, name, expect, got, ok) values ('system', 'Lịch nền ghi nhật ký', '>0', v_n::text, v_n > 0);
+end $$;
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

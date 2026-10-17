@@ -638,3 +638,12 @@ dl.kv dt{color:var(--muted)}dl.kv dd{margin:0}
 .trendbars .tbp{background:#c9dcf3}.trendbars .tbt{background:var(--primary);left:22%;right:22%}
 .legend{display:inline-block;width:12px;height:10px;border-radius:3px;vertical-align:middle}.legend.p{background:#c9dcf3}.legend.t{background:var(--primary)}
 @media (max-width:700px){dl.kv{grid-template-columns:1fr}}
+
+/* Phân hệ & mức sử dụng (033) */
+.modcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.main button.modcard{display:grid;gap:8px;text-align:left;margin:0;padding:16px;border-radius:14px;align-content:start}
+.main button.modcard:hover{border-color:var(--primary)}
+.modcard>small{color:var(--muted)}
+.modnums{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
+.modnums span{display:grid}.modnums b{font-size:22px;color:var(--navy)}.modnums small{color:var(--muted);font-size:12px}
+table.permtable{table-layout:fixed}table.permtable th:first-child{width:34%}table.permtable th:last-child{width:16%}

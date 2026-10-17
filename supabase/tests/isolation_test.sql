@@ -142,7 +142,7 @@ begin
   delete from auth.users where email like '%@iso-test.local';
   if to_regclass('public.audit_log') is not null then
     delete from audit_log where id > coalesce((select audit_start from t_meta), 0)
-      and (summary ~ '(ISO tự học|ISO nghỉ|Thử [a-z_]+|iso-test\.local|thử ISO|ISO-[A-Z]+|thử \(thử\)|Tổ trưởng \(thử\))' or (actor is null and summary like '%tài khoản đã xoá%'));
+      and (entity = 'role_permissions' or summary ~ '(ISO tự học|ISO nghỉ|Thử [a-z_]+|iso-test\.local|thử ISO|ISO-[A-Z]+|thử \(thử\)|Tổ trưởng \(thử\))' or (actor is null and summary like '%tài khoản đã xoá%'));
   end if;
 end $$;
 
@@ -364,7 +364,7 @@ select pg_temp.chk('gv_both', 'Bản mới: có thông báo cập nhật', 'sele
 select pg_temp.chk('so_bn', 'Đơn vị phát hành thấy số trường đã dùng', 'select schools from library_stats() where item_id = (select id from library_items where title = ''ISO bài Phòng TP'')', '1');
 
 -- ===== 9. Gói dịch vụ & hợp đồng (024) =====
-insert into service_plans (code, name, modules) values ('ISO-GOI', 'ISO gói thử', '{timetable}') on conflict (code) do nothing;
+insert into service_plans (code, name, modules) values ('ISO-GOI', 'ISO gói thử', '{ph4}') on conflict (code) do nothing;
 select pg_temp.chk('iso_admin', 'Chưa có hợp đồng: không giới hạn phân hệ', 'select my_entitlement()->>''state''', 'open');
 select pg_temp.chk('iso_admin', 'Trường không tạo được gói dịch vụ', 'insert into service_plans (code, name) values (''ISO-X'', ''x'')', 'ERR');
 select pg_temp.chk('iso_so', 'Sở không tự tạo hợp đồng', format('insert into contracts (code, org_id, plan_id, starts_on) values (''ISO-HD0'', my_org_id(), %s, current_date)', quote_literal((select id from service_plans where code = 'ISO-GOI'))), 'ERR');
@@ -787,6 +787,29 @@ select pg_temp.chk('kdi', 'Nhập trường từ Excel: dòng đúng được t�
   'select (platform_import_schools(''[{"line":2,"code":"ISO-IMP1","name":"Trường thử ISO nhập","level":"THCS","parent_code":"SO-BN"},{"line":3,"code":"ISO-IMP2","name":"Trường thử ISO lỗi","level":"abc","parent_code":"SO-BN"}]''::jsonb)->>''created'')', '1');
 select pg_temp.chk('so_bn', 'Sở không nhập trường bằng hàm của KDI',
   'select platform_import_schools(''[{"code":"ISO-IMP2","name":"Trường thử ISO lỗi","parent_code":"SO-BN"}]''::jsonb)::text', 'ERR');
+
+-- ===== 19. 5 phân hệ, mức sử dụng, quyền mặc định (033) =====
+select pg_temp.chk('kdi', 'Danh mục phân hệ bán = 5 phân hệ', 'select string_agg(key, '','' order by sort) from service_modules', 'ph1,ph2,ph3,ph4,ph5');
+select pg_temp.chk('iso_admin', 'Phê duyệt là phần lõi: dùng được cả khi hợp đồng hết hạn', 'select org_has_module(my_org_id(), ''approvals'')::text', 'true');
+select pg_temp.chk('iso_admin', 'PH5 khoá theo gói khi hợp đồng hết hạn', 'select org_has_module(my_org_id(), ''governance'')::text', 'false');
+select pg_temp.chk('admin_ph', 'Đơn vị chưa có hợp đồng dùng được PH5', 'select org_has_module(my_org_id(), ''governance'')::text', 'true');
+select pg_temp.chk('kdi', 'Mức sử dụng: đủ 5 phân hệ', 'select count(*) from platform_module_usage()', '5');
+select pg_temp.chk('kdi', 'Mức sử dụng PH4: có trường đang dùng', 'select schools_active::text from platform_module_usage() where key = ''ph4''', '>0');
+select pg_temp.chk('kdi', 'Chi tiết PH4 theo trường', 'select count(*) from platform_module_usage_detail(''ph4'')', '>0');
+select pg_temp.chk('so_hy', 'Sở không xem mức sử dụng toàn hệ thống', 'select count(*) from platform_module_usage()', 'ERR');
+select pg_temp.chk('admin_ph', 'Trường không xem chi tiết phân hệ', 'select count(*) from platform_module_usage_detail(''ph4'')', 'ERR');
+select pg_temp.chk('kdi', 'KDI sửa quyền mặc định',
+  'update role_permissions set can_delete = not can_delete where role_id = (select id from roles where key = ''teacher'' and org_id is null) and module = ''timetable''', 'rows:1');
+select pg_temp.chk('admin_ph', 'Trường không sửa quyền mặc định',
+  'update role_permissions set can_delete = not can_delete where role_id = (select id from roles where key = ''teacher'' and org_id is null) and module = ''timetable''', 'rows:0');
+select pg_temp.chk('kdi', 'Quyền mặc định chỉ cho vai trò hệ thống',
+  'insert into role_permissions (role_id, module, can_view) select id, ''timetable'', true from roles where key = ''custom_iso_tt''', 'ERR');
+select pg_temp.probe('kdi@iso-test.local',
+  'update role_permissions set can_delete = not can_delete where role_id = (select id from roles where key = ''teacher'' and org_id is null) and module = ''timetable''', true);
+select pg_temp.chk('kdi', 'Sửa quyền mặc định được ghi nhật ký', 'select count(*) from audit_log where entity = ''role_permissions''', '>0');
+select pg_temp.probe('kdi@iso-test.local',
+  'update role_permissions set can_delete = not can_delete where role_id = (select id from roles where key = ''teacher'' and org_id is null) and module = ''timetable''', true);
+select pg_temp.chk('admin_ph', 'Trường không xem số trường chỉnh riêng quyền', 'select count(*) from platform_permission_overrides()', 'ERR');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

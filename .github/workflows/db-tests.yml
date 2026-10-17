@@ -83,7 +83,11 @@ jobs:
           fi
       - name: Migration sẽ chạy
         if: steps.secret.outputs.ok == 'true'
-        run: supabase db push --db-url "$SUPABASE_DB_URL" --dry-run --yes < /dev/null
+        run: |
+          OUT=$(supabase db push --db-url "$SUPABASE_DB_URL" --dry-run --yes < /dev/null 2>&1); echo "$OUT"
+          H=$(psql "$SUPABASE_DB_URL" -At -c "select count(*) || ' bản ghi, cuối: ' || coalesce(max(version), '-') from supabase_migrations.schema_migrations")
+          P=$(echo "$OUT" | grep -oE '[0-9]+_[a-z0-9_]+\.sql' | sort -u | tr '\n' ' ')
+          if [ -n "$P" ]; then echo "::notice title=migrate::Lịch sử: $H · sẽ chạy: $P"; else echo "::notice title=migrate::Lịch sử: $H · up to date (không có migration chờ)"; fi
       - name: Chạy migration
         if: steps.secret.outputs.ok == 'true' && env.DRY_RUN != 'true' && env.BASELINE_UPTO == ''
         run: supabase db push --db-url "$SUPABASE_DB_URL" --yes < /dev/null
@@ -93,6 +97,7 @@ jobs:
   schema-diff:
     if: github.event_name == 'workflow_dispatch' && inputs.schema_diff
     runs-on: ubuntu-latest
+    permissions: { contents: write }
     environment: production
     services:
       postgres:
@@ -129,5 +134,18 @@ jobs:
             echo "Chỉ có trong repo: $(grep -c '^-[a-z]' out/diff.txt || true) · Chỉ có / khác ở CSDL thật: $(grep -c '^+[a-z]' out/diff.txt || true)"
             echo '```diff'; head -c 60000 out/diff.txt; echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Thông báo số chỗ lệch
+        run: |
+          echo "::notice title=schema-diff::repo $(wc -l < out/repo.txt) dòng · CSDL thật $(wc -l < out/live.txt) dòng · chỉ ở repo: $(grep -c '^-[a-z]' out/diff.txt || true) · chỉ ở/khác ở CSDL thật: $(grep -c '^+[a-z]' out/diff.txt || true) · chi tiết: nhánh ci/schema-diff"
+      # Đẩy kết quả vào nhánh riêng ci/schema-diff (không merge vào main) để đọc được bằng git.
+      - name: Đẩy kết quả vào nhánh ci/schema-diff
+        run: |
+          cp -r out /tmp/out
+          git config user.name "github-actions[bot]"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan ci/schema-diff
+          git rm -rq --cached . && find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp /tmp/out/*.txt . && psql "$SUPABASE_DB_URL" -At -c "select version || ' ' || coalesce(name, '') from supabase_migrations.schema_migrations order by version" > history.txt
+          git add -A && git commit -qm "schema-diff $(date -u +%Y-%m-%dT%H:%MZ) run ${{ github.run_id }}"
+          git push -qf origin ci/schema-diff
       - uses: actions/upload-artifact@v4
         with: { name: schema-diff, path: out/ }

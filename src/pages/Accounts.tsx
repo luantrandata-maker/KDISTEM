@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { sendInviteEmail } from '../lib/invite'
+import CodeAccounts from './CodeAccounts'
 
 type Acc = { id: string; full_name: string; email: string | null; org_id: string | null }
 type Role = { id: string; key: string; name: string; portal: string | null; is_system: boolean }
@@ -29,6 +30,7 @@ export default function Accounts({ orgId }: { orgId: string | null }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [info, setInfo] = useState('')
+  const [tab, setTab] = useState<'users' | 'code'>('users')
 
   async function load() {
     const [p, r, l, t, s, i] = await Promise.all([
@@ -137,8 +139,16 @@ export default function Accounts({ orgId }: { orgId: string | null }) {
   const pending = invites.filter(i => i.status === 'pending')
   const linkOptions = form && (isStudentRole(form.role_id) ? 'student' : isTeacherRole(form.role_id) ? 'teacher' : null)
   const singleForm = form ? parseLines(form.emails).length <= 1 : false
+  const tabs = (
+    <div className="segmented" style={{ marginBottom: 12 }}>
+      <button className={tab === 'users' ? 'on' : ''} onClick={() => setTab('users')}>Người dùng & lời mời</button>
+      <button className={tab === 'code' ? 'on' : ''} onClick={() => setTab('code')}>Tài khoản học sinh, giáo viên (không cần email)</button>
+    </div>
+  )
+  if (tab === 'code') return <>{tabs}<CodeAccounts orgId={orgId} /></>
   return (
     <>
+      {tabs}
       <div className="bar">
         <p className="sub" style={{ margin: 0, flex: 1, minWidth: 260 }}>Mời người dùng bằng email. Khi họ bấm liên kết trong thư (hoặc tự đăng ký đúng email đó), tài khoản tự được gán trường, vai trò và hồ sơ. Người đã làm việc ở đơn vị khác cũng mời được — họ chuyển qua lại bằng ô “Đang làm việc tại”.</p>
         <button className="primary" onClick={() => setForm({ emails: '', full_name: '', role_id: roles.find(r => r.key === 'teacher')?.id ?? roles[0]?.id ?? '', link_id: '', send: true })}>+ Mời người dùng</button>

@@ -14,6 +14,7 @@ import logoWhite from './assets/kdi-logo-white.png'
 import { NavIcon } from './components/NavIcon'
 import { MenuSearch, UserMenu } from './components/TopBar'
 import Login, { SetPassword } from './pages/Login'
+import { mustChangePassword } from './lib/login'
 import Dashboard from './pages/Dashboard'
 import Teachers from './pages/Teachers'
 import Classes from './pages/Classes'
@@ -252,7 +253,8 @@ export default function App() {
   }, [])
   if (session === undefined) return null
   if (!session) return <Login />
-  if (recovery) return <SetPassword onDone={() => setRecovery(false)} />
+  // Quên mật khẩu; hoặc tài khoản mã lần đầu đăng nhập / vừa được trường đặt lại mật khẩu (bắt buộc đổi)
+  if (recovery || mustChangePassword(session.user.user_metadata)) return <SetPassword forced={!recovery} onDone={() => setRecovery(false)} />
   return <MfaGate key={session.user.id}><Shell session={session} /></MfaGate>
 }
 
@@ -320,7 +322,7 @@ function Shell({ session }: { session: Session }) {
     return (
       <div className="login"><form onSubmit={e => e.preventDefault()}>
         <img src={logo} alt="KDI education" /><h1>Tài khoản đã bị khoá</h1>
-        <p>Tài khoản <b>{session.user.email}</b> đã bị khoá{access.profile.locked_reason ? `: ${access.profile.locked_reason}` : ''}. Liên hệ KDI Education để được hỗ trợ.</p>
+        <p>Tài khoản <b>{(session.user.user_metadata?.login as string | undefined) ?? session.user.email}</b> đã bị khoá{access.profile.locked_reason ? `: ${access.profile.locked_reason}` : ''}. Liên hệ KDI Education để được hỗ trợ.</p>
         <button type="button" onClick={() => supabase.auth.signOut()}>Đăng xuất</button>
       </form></div>
     )
@@ -329,7 +331,7 @@ function Shell({ session }: { session: Session }) {
     return (
       <div className="login"><form onSubmit={e => e.preventDefault()}>
         <img src={logo} alt="KDI education" /><h1>Đang chờ cấp quyền</h1>
-        <p>Tài khoản <b>{session.user.email}</b> chưa được gán vào trường hoặc chưa có vai trò. Hãy nhờ quản trị trường gán trong mục Tài khoản.</p>
+        <p>Tài khoản <b>{(session.user.user_metadata?.login as string | undefined) ?? session.user.email}</b> chưa được gán vào trường hoặc chưa có vai trò. Hãy nhờ quản trị trường gán trong mục Tài khoản.</p>
         {access.orgs.filter(o => !o.active).length > 0 && <>
           <p>Bạn có vai trò ở các đơn vị sau, chọn để vào làm việc:</p>
           {access.orgs.filter(o => !o.active).map(o => (
@@ -373,7 +375,8 @@ function Shell({ session }: { session: Session }) {
   })
   const Page: ComponentType<any> | undefined = PAGES[role]?.[page] ?? (role === 'platform' ? PlannedPage : undefined)
   const goPage = (p: string) => show(role, role === 'platform' ? PLATFORM_ALIAS[p] ?? p : p)
-  const email = session.user.email ?? ''
+  // Tài khoản mã: hiện tên đăng nhập thay cho email nội bộ
+  const email = (session.user.user_metadata?.login as string | undefined) ?? session.user.email ?? ''
 
   return (
     <div className={'app' + (collapsed ? ' collapsed' : '')}>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { isLoginName, toAuthEmail } from '../lib/login'
 import logo from '../assets/kdi-logo.png'
 
 type Mode = 'in' | 'link' | 'up' | 'forgot'
@@ -22,7 +23,16 @@ export default function Login() {
     e.preventDefault()
     setMsg(''); setBusy(true)
     let error: { message: string } | null = null
-    if (mode === 'in') ({ error } = await supabase.auth.signInWithPassword({ email, password }))
+    const code = isLoginName(email.trim())
+    if (code && mode !== 'in') {
+      setBusy(false)
+      return setMsg(mode === 'forgot' ? 'Tài khoản đăng nhập bằng mã không có email: nhờ nhà trường đặt lại mật khẩu.' : 'Nhập địa chỉ email.')
+    }
+    if (mode === 'in') {
+      try { ({ error } = await supabase.auth.signInWithPassword({ email: await toAuthEmail(email), password })) }
+      catch (x) { error = x as Error }
+      if (error && code && /invalid login credentials/i.test(error.message)) error = { message: 'Sai tên đăng nhập hoặc mật khẩu.' }
+    }
     else if (mode === 'up') ({ error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo() } }))
     else if (mode === 'link') ({ error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: redirectTo(), shouldCreateUser: true } }))
     else ({ error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: redirectTo() }))
@@ -40,7 +50,8 @@ export default function Login() {
         <img src={logo} alt="KDI education" />
         <h1>Hệ thống Quản trị STEM</h1>
         <p>{TITLE[mode]}</p>
-        <input type="email" required placeholder="Địa chỉ email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} />
+        <input type={mode === 'in' ? 'text' : 'email'} required placeholder={mode === 'in' ? 'Email hoặc tên đăng nhập' : 'Địa chỉ email'}
+          autoComplete={mode === 'in' ? 'username' : 'email'} autoCapitalize="none" spellCheck={false} value={email} onChange={e => setEmail(e.target.value)} />
         {(mode === 'in' || mode === 'up') && (
           <input type="password" required minLength={6} placeholder="Mật khẩu" autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
             value={password} onChange={e => setPassword(e.target.value)} />
@@ -64,14 +75,14 @@ export default function Login() {
 }
 
 // Hiện khi người dùng mở liên kết "Quên mật khẩu", hoặc tự chọn đặt mật khẩu sau khi vào bằng liên kết mời
-export function SetPassword({ onDone }: { onDone: () => void }) {
+export function SetPassword({ onDone, forced = false }: { onDone: () => void; forced?: boolean }) {
   const [pw, setPw] = useState('')
   const [pw2, setPw2] = useState('')
   const [msg, setMsg] = useState('')
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     if (pw !== pw2) return setMsg('Hai mật khẩu không khớp.')
-    const { error } = await supabase.auth.updateUser({ password: pw })
+    const { error } = await supabase.auth.updateUser({ password: pw, data: { must_change_password: false } })
     if (error) return setMsg(error.message)
     onDone()
   }
@@ -80,11 +91,13 @@ export function SetPassword({ onDone }: { onDone: () => void }) {
       <form onSubmit={submit}>
         <img src={logo} alt="KDI education" />
         <h1>Đặt mật khẩu mới</h1>
+        {forced && <p className="sub">Mật khẩu hiện tại do nhà trường cấp. Hãy đặt mật khẩu riêng của bạn trước khi tiếp tục.</p>}
         <input type="password" required minLength={6} placeholder="Mật khẩu mới" autoComplete="new-password" value={pw} onChange={e => setPw(e.target.value)} />
         <input type="password" required minLength={6} placeholder="Nhập lại mật khẩu" autoComplete="new-password" value={pw2} onChange={e => setPw2(e.target.value)} />
         <button type="submit">Lưu mật khẩu</button>
         {msg && <p className="msg">{msg}</p>}
-        <a href="#" onClick={e => { e.preventDefault(); onDone() }}>Để sau</a>
+        {forced ? <a href="#" onClick={e => { e.preventDefault(); supabase.auth.signOut() }}>Đăng xuất</a>
+          : <a href="#" onClick={e => { e.preventDefault(); onDone() }}>Để sau</a>}
       </form>
     </div>
   )

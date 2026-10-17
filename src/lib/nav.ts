@@ -11,9 +11,9 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
   // Cổng Quản trị nền tảng (16/10): Tổng quan · Vận hành KDI · Lõi · Quản trị chung · Kỹ thuật & bảo mật · 5 phân hệ nghiệp vụ (đơn vị bán).
   // Mục chưa có trang thật hiện khung giao diện (pages/platform/Planned.tsx).
   platform: [
-    { title: 'Tổng quan', items: ['Tổng quan hệ thống', 'Sơ đồ hệ thống', 'Thuật ngữ chuẩn'] },
+    { title: 'Tổng quan', items: ['Tổng quan hệ thống', 'Phân hệ & mức sử dụng', 'Sơ đồ hệ thống', 'Thuật ngữ chuẩn'] },
     { title: 'Vận hành KDI', items: ['Thông tin khách hàng', 'Gói dịch vụ & hợp đồng', 'Đơn đặt gói STEM', 'Triển khai khách hàng', 'Vấn đề & phản hồi', 'Nghiệm thu & doanh thu'] },
-    { title: 'Lõi · Tổ chức & quy trình', items: ['Cây tổ chức', 'Cơ sở triển khai', 'Người dùng & vai trò', 'Lời mời', 'Hộp phê duyệt', 'Quy trình phê duyệt', 'Thông báo'] },
+    { title: 'Lõi · Tổ chức & quy trình', items: ['Cây tổ chức', 'Cơ sở triển khai', 'Người dùng & vai trò', 'Vai trò & quyền mặc định', 'Lời mời', 'Hộp phê duyệt', 'Quy trình phê duyệt', 'Thông báo'] },
     { title: 'Quản trị chung · Kỹ thuật & bảo mật', items: ['Tích hợp & dữ liệu', 'Ứng dụng di động & ngoại tuyến', 'Sao lưu & xuất dữ liệu', 'Bảo mật tài khoản', 'Nhật ký hệ thống', 'Cấu hình chung (năm học)', 'Giao diện & thương hiệu', 'Trợ lý AI'] },
     // 5 phân hệ nghiệp vụ theo file rà soát menu (16/10, "Menu_STEM_ra_soat_chinh_sua.xlsx")
     { title: '1. Đào tạo & đánh giá năng lực nhà giáo', items: ['Đánh giá năng lực giáo viên', 'Kế hoạch tập huấn', 'Lịch tập huấn', 'Bài giảng tập huấn & lớp học ảo', 'Chứng chỉ tập huấn', 'Giám sát tập huấn nhà giáo'] },
@@ -86,4 +86,6 @@ export const ENT_MODULE_OF: Record<string, string> = {
   'Lịch tập huấn': 'training', 'Bài giảng tập huấn': 'training', 'Kế hoạch tập huấn': 'training', 'Giám sát Tập huấn GV': 'training',
   'Kế hoạch giáo dục': 'edu_plan', 'Hiệu quả Phòng STEM': 'stem_rooms',
   'Điểm danh': 'timetable', 'Phòng STEM & lịch phòng': 'stem_rooms', 'Thiết bị & kho': 'stem_rooms',
+  // PH5 (migration 033): điều hành & báo cáo của Sở
+  'KPI & Xếp hạng Xã/Phường': 'governance', 'Báo cáo Bộ GD&ĐT': 'governance',
 }

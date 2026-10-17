@@ -84,6 +84,8 @@ const PlatformBroadcast = lazy(() => import('./pages/platform/Broadcast').then(m
 const PlatformIntegrations = lazy(() => import('./pages/platform/Integrations').then(m => ({ default: m.PlatformIntegrations })))
 // S3 (029): phòng STEM & lịch phòng, thiết bị toàn hệ thống
 const RoomsOverview = lazy(() => import('./pages/platform/Resources').then(m => ({ default: m.RoomsOverview })))
+const ModuleUsage = lazy(() => import('./pages/platform/Modules').then(m => ({ default: m.ModuleUsage })))
+const DefaultPermissions = lazy(() => import('./pages/platform/Modules').then(m => ({ default: m.DefaultPermissions })))
 const PlatformSchools = lazy(() => import('./pages/platform/Schools').then(m => ({ default: m.PlatformSchools })))
 const EquipmentOverview = lazy(() => import('./pages/platform/Resources').then(m => ({ default: m.EquipmentOverview })))
 const CustomerSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.CustomerSupport })))
@@ -188,6 +190,7 @@ const PLATFORM: PageMap = {
   'Thông báo': PlatformBroadcast,
   'Cơ sở giáo dục': DeptSchools,
   'Cơ sở triển khai': PlatformSchools,
+  'Vai trò & quyền mặc định': DefaultPermissions,
   'Bảo mật tài khoản': PlatformSecurity,
   'Vấn đề & phản hồi': PlatformSupport,
   'Thông tin khách hàng': PlatformCustomers,
@@ -223,6 +226,8 @@ const PLATFORM: PageMap = {
 }
 const PLATFORM_LIVE = new Set(Object.keys(PLATFORM))
 PLATFORM['Sơ đồ hệ thống'] = (p: any) => <SystemMap {...p} live={PLATFORM_LIVE} />
+PLATFORM['Phân hệ & mức sử dụng'] = (p: any) => <ModuleUsage {...p} live={PLATFORM_LIVE} />
+PLATFORM_LIVE.add('Phân hệ & mức sử dụng')
 // Tên trang cũ (liên kết nội bộ của trang Sở) → tên trong menu Quản trị nền tảng
 const PLATFORM_ALIAS: Record<string, string> = {
   'KPI & Xếp hạng Xã/Phường': 'KPI & xếp hạng', 'Thiết bị & kho': 'Thiết bị & vật tư', 'Hiệu quả Phòng STEM': 'Hiệu quả sử dụng phòng STEM',

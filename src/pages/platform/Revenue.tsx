@@ -41,6 +41,20 @@ function MonthBars({ year, ms }: { year: number; ms: M[] }) {
   )
 }
 
+// Lệ phí cuộc thi (051): tổng hợp theo cuộc thi có thu phí
+function CompetitionFees({ year }: { year: number }) {
+  const [rows, setRows] = useState<{ competition_id: string; title: string; organizer: string; fee: number; entries: number; paid: number; unpaid: number; waived: number; collected: number; outstanding: number }[]>([])
+  useEffect(() => { supabase.rpc('competition_fees', { p_year: year }).then(({ data }) => setRows((data as any[]) ?? [])) }, [year])
+  if (!rows.length) return null
+  return (
+    <div className="panel">
+      <b>Lệ phí cuộc thi · {year}</b>
+      <div className="wrap"><table><thead><tr><th>Cuộc thi</th><th>Đơn vị tổ chức</th><th>Lệ phí</th><th>Bài</th><th>Đã nộp</th><th>Chưa nộp</th><th>Miễn</th><th>Đã thu</th><th>Còn phải thu</th></tr></thead>
+        <tbody>{rows.map(r => <tr key={r.competition_id}><td>{r.title}</td><td><small>{r.organizer}</small></td><td>{money(r.fee)}</td><td>{r.entries}</td><td>{r.paid}</td><td>{r.unpaid}</td><td>{r.waived}</td><td>{money(r.collected)}</td><td>{money(r.outstanding)}</td></tr>)}</tbody></table></div>
+    </div>
+  )
+}
+
 export function PlatformRevenue() {
   const [year, setYear] = useState(new Date().getFullYear())
   const [rows, setRows] = useState<Row[]>([])
@@ -114,6 +128,7 @@ export function PlatformRevenue() {
         { label: 'Quá hạn', value: short(overdueAmt), tone: overdueAmt ? 'bad' : undefined, sub: `${rows.reduce((a, r) => a + r.overdue, 0)} đợt` },
       ]} />
       <MonthBars year={year} ms={inYear} />
+      <CompetitionFees year={year} />
       {split && (
         <form className="panel formgrid" onSubmit={doSplit}>
           <h3 style={{ gridColumn: '1 / -1', margin: 0 }}>Chia đợt: {split.contract.code} · {money(split.contract.value)}</h3>

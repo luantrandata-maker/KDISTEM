@@ -25,7 +25,7 @@ export type Access = {
   idleMinutes: number
 }
 
-const PORTAL_ORDER: RoleKey[] = ['platform', 'school_admin', 'teacher', 'student', 'department', 'parent']
+const PORTAL_ORDER: RoleKey[] = ['platform', 'school_admin', 'teacher', 'student', 'department', 'parent', 'judge']
 
 export function useAccess(session: Session | null): Access {
   const [state, setState] = useState<{ loading: boolean; profile: Profile | null; roles: MyRole[]; orgs: MyOrg[]; ent: Entitlement | null; mfa: boolean; idle: number }>({ loading: true, profile: null, roles: [], orgs: [], ent: null, mfa: false, idle: 0 })

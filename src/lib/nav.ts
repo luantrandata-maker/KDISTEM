@@ -1,10 +1,10 @@
-export type RoleKey = 'school_admin' | 'teacher' | 'student' | 'department' | 'platform' | 'parent'
+export type RoleKey = 'school_admin' | 'teacher' | 'student' | 'department' | 'platform' | 'parent' | 'judge'
 // section: tên phân hệ khi phân hệ chia nhiều nhóm (menu hiện tiêu đề phân hệ phía trên các nhóm con)
 export type NavGroup = { title: string; items: string[]; section?: string }
 
 export const ROLE_LABEL: Record<RoleKey, string> = {
   school_admin: 'Trường · Quản trị', teacher: 'Giáo viên',
-  student: 'Học sinh', department: 'Sở GD&ĐT', platform: 'Quản trị nền tảng', parent: 'Phụ huynh',
+  student: 'Học sinh', department: 'Sở GD&ĐT', platform: 'Quản trị nền tảng', parent: 'Phụ huynh', judge: 'Giám khảo',
 }
 
 // MÃ TRANG = tên mục lúc tạo trang. Mã được dùng làm khoá ở nhiều nơi: bảng trang (App.tsx PAGES), ánh xạ quyền/gói
@@ -34,7 +34,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.1. Nhà giáo, người học & lớp học', items: ['Cơ sở giáo dục', 'Nhà giáo & trợ giảng', 'Phân công giảng dạy', 'Người học', 'Công cụ người học & phụ huynh'] },
     { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.2. Kế hoạch, lịch dạy & sự kiện', items: ['Thời khóa biểu & xếp lịch', 'Kế hoạch giáo dục toàn trường', 'Duyệt đăng ký dạy STEM', 'Sự kiện'] },
     { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.3. Buổi dạy & điểm danh', items: ['Buổi dạy & điểm danh'] },
-    { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.4. Đánh giá & phản hồi', items: ['Đánh giá năng lực người học', 'Bài tập & chấm bài', 'Vấn đề & phản hồi'] },
+    { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.4. Đánh giá & phản hồi', items: ['Đánh giá năng lực người học', 'Bài tập & chấm bài', 'Dự án STEM', 'Cuộc thi STEM', 'Chấm thi', 'Vấn đề & phản hồi'] },
     { section: '5. Hệ thống quản lý vận hành', title: '5.1. Dashboard & báo cáo', items: ['Báo cáo vận hành', 'KPI & xếp hạng', 'Chỉ số STEM (STEM Index)', 'Báo cáo cấp trên (Bộ GD&ĐT)', 'Khảo sát', 'Dashboard tổng hợp'] },
     { section: '5. Hệ thống quản lý vận hành', title: '5.2. Điều hành & chỉ tiêu (Sở)', items: ['Điều hành toàn tỉnh', 'Điều hành & cấu hình (Sở)', 'Cảnh báo & trường cần chú ý', 'So sánh trường / địa bàn', 'Bộ chỉ số', 'Giao chỉ tiêu'] },
     // 5.3–5.6: trường / Sở quản lý riêng phần của mình; phần chung toàn hệ thống vẫn ở Vận hành KDI, Lõi, Quản trị chung · Kỹ thuật & bảo mật
@@ -51,24 +51,29 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Tập huấn giáo viên', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Bài giảng', 'Lớp học ảo', 'Chứng chỉ', 'Đánh giá năng lực GV'] },
     { title: 'Chương trình & học liệu', items: ['Gói STEM', 'Đề xuất mua gói', 'Phân phối chương trình', 'Kho học liệu dùng chung', 'Phát hành học liệu'] },
     { title: 'Phòng & thiết bị STEM', items: ['Quản lý Phòng STEM', 'Quản lý Thiết bị', 'Vật tư tiêu hao', 'Đề xuất mua vật tư', 'Vận chuyển vật tư', 'Kiểm kê', 'Bảo hành thiết bị'] },
+    { title: 'Dự án & cuộc thi', items: ['Dự án STEM', 'Cuộc thi'] },
     { title: 'Giảng dạy', items: ['Kế hoạch GD toàn trường', 'Duyệt đăng ký dạy STEM', 'Thời khóa biểu', 'Phân công GV dạy STEM', 'Buổi dạy & điểm danh', 'Dashboard điểm danh', 'Năng lực học sinh', 'Sự kiện'] },
     { title: 'Quản trị', items: ['Năm học & học kỳ', 'Ngày nghỉ & lễ', 'Tòa nhà & Tầng', 'Cấu hình tiết học', 'Tài khoản', 'Vai trò và phân quyền', 'Quy trình phê duyệt', 'Khảo sát', 'Sao lưu & xuất dữ liệu', 'Giao diện & thương hiệu', 'Hỗ trợ từ KDI'] },
   ],
   teacher: [
     { title: 'Giảng dạy', items: ['Tổng quan', 'Kế hoạch giáo dục', 'Lớp giảng dạy', 'Điểm danh', 'Bài tập', 'Chấm bài', 'Năng lực học sinh', 'Học trước & tự học'] },
-    { title: 'Hoạt động STEM', items: ['Giáo dục STEM', 'Đặt phòng STEM', 'Sự kiện'] },
+    { title: 'Hoạt động STEM', items: ['Giáo dục STEM', 'Đặt phòng STEM', 'Dự án STEM', 'Cuộc thi', 'Chấm thi', 'Sự kiện'] },
     { title: 'Soạn giảng', items: ['Soạn bài giảng', 'Kho hoạt động & Bài giảng', 'Thư viện STEM'] },
     { title: 'Khác', items: ['Hộp phê duyệt', 'Lịch tập huấn', 'Bài giảng tập huấn', 'Hồ sơ năng lực', 'Khảo sát', 'Hỗ trợ từ KDI'] },
   ],
+  judge: [
+    { title: 'Giám khảo', items: ['Chấm thi'] },
+  ],
   parent: [
-    { title: 'Con của tôi', items: ['Tổng quan', 'Lịch học', 'Chuyên cần của con', 'Bài tập & điểm', 'Năng lực của con', 'Sự kiện', 'Khảo sát', 'Cài đặt & đồng ý'] },
+    { title: 'Con của tôi', items: ['Tổng quan', 'Lịch học', 'Chuyên cần của con', 'Bài tập & điểm', 'Năng lực của con', 'Dự án STEM', 'Sự kiện', 'Khảo sát', 'Cài đặt & đồng ý'] },
   ],
   student: [
-    { title: 'Học tập', items: ['Tổng quan', 'Bài tập', 'Học trước & tự học', 'Lịch học', 'Chuyên cần', 'Năng lực của em', 'Giáo dục STEM', 'Chủ đề', 'Sự kiện', 'Khảo sát'] },
+    { title: 'Học tập', items: ['Tổng quan', 'Bài tập', 'Học trước & tự học', 'Lịch học', 'Chuyên cần', 'Năng lực của em', 'Giáo dục STEM', 'Chủ đề', 'Dự án STEM', 'Sự kiện', 'Khảo sát'] },
   ],
   department: [
     { title: 'Tổng quan', items: ['Dashboard toàn Sở', 'Danh sách Trường', 'Hộp phê duyệt'] },
     { title: 'Điều hành & báo cáo', items: ['Chỉ số STEM', 'So sánh trường / địa bàn', 'KPI & Xếp hạng Xã/Phường', 'Cảnh báo & trường cần chú ý', 'Giao chỉ tiêu', 'Bộ chỉ số', 'Sự kiện', 'Khảo sát', 'Báo cáo Bộ GD&ĐT', 'Điều hành & Cấu hình'] },
+    { title: 'Dự án & cuộc thi', items: ['Cuộc thi', 'Dự án STEM', 'Chấm thi'] },
     { title: 'Tập huấn giáo viên', items: ['Giám sát Tập huấn GV', 'Kế hoạch tập huấn', 'Lịch tập huấn'] },
     { title: 'Chương trình & học liệu', items: ['Chương trình CT1–CT5', 'Theo dõi Môn học STEM', 'Phát hành học liệu', 'Kho học liệu dùng chung'] },
     { title: 'Phòng & thiết bị STEM', items: ['Hiệu quả Phòng STEM', 'Phòng STEM & lịch phòng', 'Thiết bị & kho'] },

@@ -602,7 +602,7 @@ function Shell({ session }: { session: Session }) {
             year={yrs.year} years={yrs.years} reloadYears={yrs.reload} selectYear={yrs.select} /></Suspense> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
         </main>
         <OfflineBar go={() => show(role, role === 'platform' ? 'Ứng dụng di động & ngoại tuyến' : 'Ứng dụng di động')} />
-        <HelpWidget role={role} page={labelOf(role, page)} go={groups.some(g => g.items.includes('Hỗ trợ từ KDI')) ? (p: string) => show(role, p) : undefined}
+        <HelpWidget role={role} page={labelOf(role, page)} brand={{ name: brand?.display_name ?? null, support: brand?.support_text ?? null }} go={groups.some(g => g.items.includes('Hỗ trợ từ KDI')) ? (p: string) => show(role, p) : undefined}
           menu={groups.flatMap(g => g.items.map(i => `${g.section ? g.section + ' › ' : ''}${g.title} › ${labelOf(role, i)}`))} />
       </div>
     </div>

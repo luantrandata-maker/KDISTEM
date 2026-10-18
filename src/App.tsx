@@ -19,6 +19,7 @@ import { useBranding, DEFAULT_TITLE } from './lib/branding'
 import LegalGate from './components/LegalGate'
 import Dashboard from './pages/Dashboard'
 import Teachers from './pages/Teachers'
+import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysLessons, SysTrainingLessons, SysCertificates } from './pages/platform/SystemViews'
 import Classes from './pages/Classes'
 import Rooms from './pages/Rooms'
 import Equipment from './pages/Equipment'
@@ -320,6 +321,20 @@ const PLATFORM: PageMap = {
   'Nhật ký hoạt động': PlatformAudit,
   'Lộ trình triển khai': PlatformRollout,
   'Cấu hình chung (kỳ học...)': DeptAdmin,
+  // Màn xem toàn hệ thống (gom dữ liệu mọi trường, lọc theo Sở / trường) — pages/platform/SystemViews.tsx
+  'Bảo hành & bảo trì thiết bị': SysWarranty,
+  'Tòa nhà, tầng & tiết học': SysBuildings,
+  'Nhà giáo & trợ giảng': SysTeachers,
+  'Phân công giảng dạy': SysTeaching,
+  'Người học': SysStudents,
+  'Công cụ người học & phụ huynh': SysGuardians,
+  'Kế hoạch giáo dục toàn trường': SysEduPlan,
+  'Duyệt đăng ký dạy STEM': SysRegistrations,
+  'Bài tập & chấm bài': SysHomework,
+  'Phân phối chương trình': SysCurriculum,
+  'Soạn bài giảng & kho hoạt động': SysLessons,
+  'Bài giảng tập huấn & lớp học ảo': SysTrainingLessons,
+  'Chứng chỉ tập huấn': SysCertificates,
 }
 const PLATFORM_LIVE = new Set(Object.keys(PLATFORM))
 PLATFORM['Sơ đồ hệ thống'] = (p: any) => <SystemMap {...p} live={PLATFORM_LIVE} />

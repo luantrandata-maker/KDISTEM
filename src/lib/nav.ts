@@ -68,7 +68,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
   ],
   department: [
     { title: 'Tổng quan', items: ['Dashboard toàn Sở', 'Danh sách Trường', 'Hộp phê duyệt'] },
-    { title: 'Điều hành & báo cáo', items: ['KPI & Xếp hạng Xã/Phường', 'Cảnh báo & trường cần chú ý', 'Giao chỉ tiêu', 'Khảo sát', 'Báo cáo Bộ GD&ĐT', 'Điều hành & Cấu hình'] },
+    { title: 'Điều hành & báo cáo', items: ['Chỉ số STEM', 'So sánh trường / địa bàn', 'KPI & Xếp hạng Xã/Phường', 'Cảnh báo & trường cần chú ý', 'Giao chỉ tiêu', 'Bộ chỉ số', 'Khảo sát', 'Báo cáo Bộ GD&ĐT', 'Điều hành & Cấu hình'] },
     { title: 'Tập huấn giáo viên', items: ['Giám sát Tập huấn GV', 'Kế hoạch tập huấn', 'Lịch tập huấn'] },
     { title: 'Chương trình & học liệu', items: ['Chương trình CT1–CT5', 'Theo dõi Môn học STEM', 'Phát hành học liệu', 'Kho học liệu dùng chung'] },
     { title: 'Phòng & thiết bị STEM', items: ['Hiệu quả Phòng STEM', 'Phòng STEM & lịch phòng', 'Thiết bị & kho'] },
@@ -104,6 +104,7 @@ export const ENT_MODULE_OF: Record<string, string> = {
   // PH5 (migration 033): điều hành & báo cáo của Sở
   'KPI & Xếp hạng Xã/Phường': 'governance', 'Báo cáo Bộ GD&ĐT': 'governance',
   'Cảnh báo & trường cần chú ý': 'governance', 'Giao chỉ tiêu': 'governance',
+  'Chỉ số STEM': 'governance', 'So sánh trường / địa bàn': 'governance', 'Bộ chỉ số': 'governance',
   // 042: năng lực GV thuộc PH1 (Đào tạo & đánh giá năng lực nhà giáo), năng lực HS thuộc PH4
   'Hồ sơ năng lực': 'training', 'Năng lực học sinh': 'timetable', 'Năng lực của em': 'timetable',
 }

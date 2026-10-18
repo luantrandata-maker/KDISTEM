@@ -129,6 +129,7 @@ begin
   delete from students where student_code like 'ISO-%' or full_name like 'ISO HS%' or org_id = any(v_orgs);
   delete from invitations where email like 'thcsph.iso%' or full_name = 'ISO GV tài khoản mã';
   if to_regclass('public.rubrics') is not null then delete from rubrics where title like 'ISO %'; end if;
+  if to_regclass('public.stem_index_configs') is not null then delete from stem_index_configs where name like 'ISO%'; end if;
   if to_regclass('public.guardians') is not null then
     delete from invitations where guardian_id in (select id from guardians where full_name like 'ISO%');
     delete from lesson_attendance where note = 'ISO vắng';
@@ -1466,6 +1467,18 @@ insert into surveys (org_id, title, audience, status, questions) values (pg_temp
 select pg_temp.chk('ph_ph', 'Khảo sát phụ huynh: phụ huynh thấy', $q$select count(*) from my_surveys() where title = 'ISO KS phụ huynh'$q$, '1');
 select pg_temp.chk('gv_both', 'Khảo sát phụ huynh: giáo viên không thấy', $q$select count(*) from my_surveys() where title = 'ISO KS phụ huynh'$q$, '0');
 select pg_temp.chk('ph_ph', 'Khảo sát phụ huynh: phụ huynh trả lời', $q$select (survey_submit((select id from surveys where title = 'ISO KS phụ huynh'), '{"q1":4}') is not null)::text$q$, 'true');
+
+-- ===== 049: chỉ số STEM =====
+select pg_temp.chk('so_hy', 'Bộ chỉ số: Sở đặt bộ chỉ số của mình',
+  $q$insert into stem_index_configs (org_id, name, indicators, level3, level2) values (my_org_id(), 'ISO Bộ chỉ số HY', '{"nhan_luc":{"on":true,"weight":30}}', 75, 55)$q$, 'rows:1');
+insert into stem_index_configs (org_id, name, indicators) select pg_temp.oid_('SO-HY'), 'ISO Bộ chỉ số HY', '{"nhan_luc":{"on":true,"weight":30}}' where not exists (select 1 from stem_index_configs where org_id = pg_temp.oid_('SO-HY'));
+select pg_temp.chk('admin_ph', 'Bộ chỉ số: trường trực thuộc dùng bộ của Sở', $q$select stem_index_config() ->> 'name'$q$, 'ISO Bộ chỉ số HY');
+select pg_temp.chk('admin_kb', 'Bộ chỉ số: trường tỉnh khác không dùng bộ của Sở HY', $q$select coalesce(stem_index_config() ->> 'name', 'mặc định') <> 'ISO Bộ chỉ số HY'$q$, 'true');
+select pg_temp.chk('so_bn', 'Bộ chỉ số: Sở khác không đọc', $q$select count(*) from stem_index_configs where name like 'ISO%'$q$, '0');
+select pg_temp.chk('admin_ph', 'Bộ chỉ số: trường không sửa bộ của Sở', $q$update stem_index_configs set level3 = 90 where name like 'ISO%'$q$, 'rows:0');
+select pg_temp.chk('admin_ph', 'Bộ chỉ số: trường không tự đặt bộ chỉ số', $q$insert into stem_index_configs (org_id, name) values (my_org_id(), 'ISO trường')$q$, 'ERR');
+select pg_temp.chk('so_hy', 'Bộ chỉ số: trọng số ngoài 0–100 bị từ chối', $q$update stem_index_configs set indicators = '{"nhan_luc":{"weight":500}}' where name like 'ISO%'$q$, 'ERR*');
+select pg_temp.chk('so_hy', 'Bộ chỉ số: ngưỡng Mức 2 phải thấp hơn Mức 3', $q$update stem_index_configs set level2 = 80, level3 = 70 where name like 'ISO%'$q$, 'ERR*');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

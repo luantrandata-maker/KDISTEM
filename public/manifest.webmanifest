@@ -1,0 +1,17 @@
+{
+  "name": "KSCHOOL STEM — Quản trị STEM",
+  "short_name": "KSCHOOL STEM",
+  "description": "Nền tảng quản lý giáo dục STEM: lịch dạy, điểm danh, bài tập, năng lực, thiết bị.",
+  "lang": "vi",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f6f8fb",
+  "theme_color": "#152e5d",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

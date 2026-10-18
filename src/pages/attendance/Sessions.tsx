@@ -9,6 +9,11 @@ import { NoTeacher, Tabs } from '../teacher/common'
 
 // ================= Bảng điểm danh một tiết =================
 type Stu = { id: string; full_name: string; student_code: string | null }
+// Cùng một câu truy vấn cho bảng điểm danh và tải trước (để lớp lưu sẵn trên máy, điểm danh được khi mất mạng)
+const loadRoll = (session: Pick<SessionRow, 'id' | 'class_id'>) => Promise.all([
+  supabase.from('students').select('id, full_name, student_code').eq('class_id', session.class_id).eq('status', 'studying').order('full_name'),
+  supabase.from('lesson_attendance').select('student_id, status, note').eq('session_id', session.id),
+])
 
 export function RollPanel({ session, onDone, onClose }: { session: SessionRow; onDone: () => void; onClose: () => void }) {
   const [students, setStudents] = useState<Stu[] | null>(null)
@@ -18,10 +23,7 @@ export function RollPanel({ session, onDone, onClose }: { session: SessionRow; o
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
 
   useEffect(() => {
-    Promise.all([
-      supabase.from('students').select('id, full_name, student_code').eq('class_id', session.class_id).eq('status', 'studying').order('full_name'),
-      supabase.from('lesson_attendance').select('student_id, status, note').eq('session_id', session.id),
-    ]).then(([s, a]) => {
+    loadRoll(session).then(([s, a]) => {
       const list = (s.data as Stu[]) ?? []
       const old = new Map(((a.data as { student_id: string; status: Mark; note: string | null }[]) ?? []).map(x => [x.student_id, x]))
       // Lần đầu điểm danh: mặc định mọi học sinh có mặt, giáo viên chỉ chỉnh người vắng/muộn
@@ -112,7 +114,10 @@ export function TeacherAttendance({ teacherId, orgId }: { teacherId: string | nu
         .gte('session_date', addDays(today(), -7)).order('starts_at', { ascending: false }),
     ])
     if (d.error) setErr(d.error.message)
-    setRows((d.data as unknown as SessionRow[]) ?? []); setPending((p.data as unknown as SessionRow[]) ?? [])
+    const list = (d.data as unknown as SessionRow[]) ?? []
+    setRows(list); setPending((p.data as unknown as SessionRow[]) ?? [])
+    // Có mạng: tải trước danh sách lớp của các tiết trong ngày để điểm danh được cả khi mất mạng
+    if (navigator.onLine) list.filter(s => s.status !== 'cancelled').forEach(s => { loadRoll(s).catch(() => {}) })
   }
   useEffect(() => { load() }, [teacherId, day])
 

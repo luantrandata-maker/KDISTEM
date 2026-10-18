@@ -53,19 +53,19 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Phòng & thiết bị STEM', items: ['Quản lý Phòng STEM', 'Quản lý Thiết bị', 'Vật tư tiêu hao', 'Đề xuất mua vật tư', 'Vận chuyển vật tư', 'Kiểm kê', 'Bảo hành thiết bị'] },
     { title: 'Dự án & cuộc thi', items: ['Dự án STEM', 'Cuộc thi'] },
     { title: 'Giảng dạy', items: ['Kế hoạch GD toàn trường', 'Duyệt đăng ký dạy STEM', 'Thời khóa biểu', 'Phân công GV dạy STEM', 'Buổi dạy & điểm danh', 'Dashboard điểm danh', 'Năng lực học sinh', 'Sự kiện'] },
-    { title: 'Quản trị', items: ['Năm học & học kỳ', 'Ngày nghỉ & lễ', 'Tòa nhà & Tầng', 'Cấu hình tiết học', 'Tài khoản', 'Vai trò và phân quyền', 'Quy trình phê duyệt', 'Khảo sát', 'Sao lưu & xuất dữ liệu', 'Giao diện & thương hiệu', 'Hỗ trợ từ KDI'] },
+    { title: 'Quản trị', items: ['Năm học & học kỳ', 'Ngày nghỉ & lễ', 'Tòa nhà & Tầng', 'Cấu hình tiết học', 'Tài khoản', 'Vai trò và phân quyền', 'Quy trình phê duyệt', 'Khảo sát', 'Sao lưu & xuất dữ liệu', 'Giao diện & thương hiệu', 'Ứng dụng di động', 'Hỗ trợ từ KDI'] },
   ],
   teacher: [
     { title: 'Giảng dạy', items: ['Tổng quan', 'Kế hoạch giáo dục', 'Lớp giảng dạy', 'Điểm danh', 'Bài tập', 'Chấm bài', 'Năng lực học sinh', 'Học trước & tự học'] },
     { title: 'Hoạt động STEM', items: ['Giáo dục STEM', 'Đặt phòng STEM', 'Dự án STEM', 'Cuộc thi', 'Chấm thi', 'Sự kiện'] },
     { title: 'Soạn giảng', items: ['Soạn bài giảng', 'Kho hoạt động & Bài giảng', 'Thư viện STEM'] },
-    { title: 'Khác', items: ['Hộp phê duyệt', 'Lịch tập huấn', 'Bài giảng tập huấn', 'Hồ sơ năng lực', 'Khảo sát', 'Hỗ trợ từ KDI'] },
+    { title: 'Khác', items: ['Hộp phê duyệt', 'Lịch tập huấn', 'Bài giảng tập huấn', 'Hồ sơ năng lực', 'Khảo sát', 'Ứng dụng di động', 'Hỗ trợ từ KDI'] },
   ],
   judge: [
     { title: 'Giám khảo', items: ['Chấm thi'] },
   ],
   parent: [
-    { title: 'Con của tôi', items: ['Tổng quan', 'Lịch học', 'Chuyên cần của con', 'Bài tập & điểm', 'Năng lực của con', 'Dự án STEM', 'Sự kiện', 'Khảo sát', 'Cài đặt & đồng ý'] },
+    { title: 'Con của tôi', items: ['Tổng quan', 'Lịch học', 'Chuyên cần của con', 'Bài tập & điểm', 'Năng lực của con', 'Dự án STEM', 'Sự kiện', 'Khảo sát', 'Cài đặt & đồng ý', 'Ứng dụng di động'] },
   ],
   student: [
     { title: 'Học tập', items: ['Tổng quan', 'Bài tập', 'Học trước & tự học', 'Lịch học', 'Chuyên cần', 'Năng lực của em', 'Giáo dục STEM', 'Chủ đề', 'Dự án STEM', 'Sự kiện', 'Khảo sát'] },

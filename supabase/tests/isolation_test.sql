@@ -129,6 +129,7 @@ begin
   delete from students where student_code like 'ISO-%' or full_name like 'ISO HS%' or org_id = any(v_orgs);
   delete from invitations where email like 'thcsph.iso%' or full_name = 'ISO GV tài khoản mã';
   if to_regclass('public.rubrics') is not null then delete from rubrics where title like 'ISO %'; end if;
+  if to_regclass('public.org_branding') is not null then delete from org_branding where display_name like 'ISO%' or 'stem.iso-test.vn' = any(domains); end if;
   if to_regclass('public.data_exports') is not null then delete from data_exports where note like 'ISO%'; end if;
   if to_regclass('public.stock_transfers') is not null then
     perform set_config('app.stock_engine', 'on', true);
@@ -1372,6 +1373,29 @@ select pg_temp.chk('gv_both', 'Xuất dữ liệu: giáo viên không xuất', $
 select pg_temp.chk('so_hy', 'Xuất dữ liệu: Sở xem nhật ký trường trực thuộc', $q$select count(*) from data_exports where note = 'ISO xuất'$q$, '1');
 select pg_temp.chk('admin_kb', 'Xuất dữ liệu: trường khác không xem nhật ký', $q$select count(*) from data_exports where note = 'ISO xuất'$q$, '0');
 select pg_temp.chk('admin_ph', 'Sao lưu: trường không xem tình trạng CSDL', 'select backup_overview()::text', 'ERR');
+
+-- ===== 047: giao diện & thương hiệu =====
+update security_settings set enforce_mfa_db = false where id = 1;
+select pg_temp.chk('admin_ph', 'Thương hiệu: trường không tự tạo',
+  $q$insert into org_branding (org_id, display_name) values (my_org_id(), 'ISO tự tạo')$q$, 'ERR*');
+do $$ declare r text;
+begin
+  if pg_temp.oid_('@platform') is null then return; end if;
+  r := pg_temp.probe('kdi@iso-test.local', format($q$insert into org_branding (org_id, display_name, primary_color, domains, applies_to_children) values (%L, 'ISO STEM Hưng Yên', '#0b5d3b', '{STEM.iso-test.vn}', true)$q$, pg_temp.oid_('SO-HY')), true);
+  insert into t_result (who, name, expect, got, ok) values ('kdi', 'Thương hiệu: KDI đặt cho Sở (áp dụng trường trực thuộc)', 'rows:1', r, r = 'rows:1');
+end $$;
+select pg_temp.chk('admin_ph', 'Thương hiệu: trường trực thuộc nhận thương hiệu của Sở', $q$select my_branding() ->> 'display_name'$q$, 'ISO STEM Hưng Yên');
+select pg_temp.chk('admin_kb', 'Thương hiệu: trường tỉnh khác không nhận', $q$select coalesce(my_branding() ->> 'display_name', 'mặc định')$q$, 'mặc định');
+select pg_temp.chk('admin_kb', 'Thương hiệu: trường tỉnh khác không đọc bảng', $q$select count(*) from org_branding where display_name like 'ISO%'$q$, '0');
+select pg_temp.chk('hs_kb', 'Thương hiệu: trang đăng nhập theo tên miền (chữ hoa/thường)', $q$select login_branding('stem.ISO-test.vn') ->> 'display_name'$q$, 'ISO STEM Hưng Yên');
+select pg_temp.chk('so_hy', 'Thương hiệu: Sở chưa được bật tự sửa', $q$update org_branding set display_name = 'ISO Sở tự sửa' where display_name like 'ISO%'$q$, 'rows:0');
+update org_branding set self_edit = true where display_name = 'ISO STEM Hưng Yên';
+select pg_temp.chk('so_hy', 'Thương hiệu: Sở tự sửa khi được bật', $q$update org_branding set display_name = 'ISO Sở tự sửa', primary_color = '#123456' where display_name like 'ISO%'$q$, 'rows:1');
+select pg_temp.chk('so_hy', 'Thương hiệu: Sở không tự đổi tên miền', $q$update org_branding set domains = '{khac.iso-test.vn}' where display_name like 'ISO%'$q$, 'ERR');
+select pg_temp.chk('so_hy', 'Thương hiệu: màu sai định dạng bị từ chối', $q$update org_branding set primary_color = 'red' where display_name like 'ISO%'$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Thương hiệu: trường trực thuộc không sửa thương hiệu Sở', $q$update org_branding set display_name = 'ISO trường sửa' where display_name like 'ISO%'$q$, 'rows:0');
+select pg_temp.chk('kdi', 'Thương hiệu: tên miền không gắn cho hai đơn vị',
+  format($q$insert into org_branding (org_id, display_name, domains) values (%L, 'ISO trùng', '{stem.iso-test.vn}')$q$, pg_temp.oid_('SO-BN')), 'ERR*');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

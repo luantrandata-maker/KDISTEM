@@ -790,3 +790,17 @@ button.danger:disabled{opacity:.6}
 .mpair{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:2px;border-bottom:1px solid var(--line,#e2e8f0)}
 .mpair span{width:40%;max-width:18px;border-radius:4px 4px 0 0;min-height:0}
 .mlegend{font-size:12px;color:var(--muted,#64748b)}.mlegend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+.sidebrand img.onchip{background:#fff;border-radius:8px;padding:4px 8px;height:40px;box-sizing:border-box}
+.sidebrand img,.top img,.login form>img{max-width:200px;object-fit:contain}
+.loginmsg{margin:0 0 12px;padding:10px 12px;border-radius:10px;background:var(--soft);font-size:13px;line-height:1.5;white-space:pre-line;text-align:left}
+.loginfoot{margin-top:14px;font-size:12px;color:var(--muted);text-align:center;white-space:pre-line}
+.brandprev{border:1px solid var(--line);border-radius:12px;overflow:hidden;display:grid;grid-template-columns:150px 1fr;min-height:210px;font-size:12px;background:#f8fafc}
+.brandprev .bp-side{padding:12px 8px;color:#fff;display:grid;align-content:start;gap:6px}
+.brandprev .bp-side img{max-width:130px;max-height:36px;object-fit:contain}
+.brandprev .bp-side h5{margin:8px 4px 2px;font-size:11px;text-transform:uppercase}
+.brandprev .bp-side span{padding:6px 8px;border-radius:6px}
+.brandprev .bp-top{height:42px;background:#fff;border-bottom:1px solid #e0e5eb;display:flex;align-items:center;gap:8px;padding:0 12px;color:#141f32}
+.brandprev .bp-top img{max-height:24px;max-width:110px;object-fit:contain}
+.brandprev .bp-body{padding:14px;display:grid;gap:10px;align-content:start}
+.brandprev .bp-btn{justify-self:start;color:#fff;border-radius:8px;padding:6px 12px;font-weight:600}
+@media (max-width:900px){.brandgrid{grid-template-columns:1fr!important}}

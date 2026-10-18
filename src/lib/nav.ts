@@ -52,7 +52,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Chương trình & học liệu', items: ['Gói STEM', 'Đề xuất mua gói', 'Phân phối chương trình', 'Kho học liệu dùng chung', 'Phát hành học liệu'] },
     { title: 'Phòng & thiết bị STEM', items: ['Quản lý Phòng STEM', 'Quản lý Thiết bị', 'Vật tư tiêu hao', 'Đề xuất mua vật tư', 'Vận chuyển vật tư', 'Kiểm kê', 'Bảo hành thiết bị'] },
     { title: 'Giảng dạy', items: ['Kế hoạch GD toàn trường', 'Duyệt đăng ký dạy STEM', 'Thời khóa biểu', 'Phân công GV dạy STEM', 'Buổi dạy & điểm danh', 'Dashboard điểm danh', 'Năng lực học sinh'] },
-    { title: 'Quản trị', items: ['Năm học & học kỳ', 'Ngày nghỉ & lễ', 'Tòa nhà & Tầng', 'Cấu hình tiết học', 'Tài khoản', 'Vai trò và phân quyền', 'Quy trình phê duyệt', 'Khảo sát', 'Sao lưu & xuất dữ liệu', 'Hỗ trợ từ KDI'] },
+    { title: 'Quản trị', items: ['Năm học & học kỳ', 'Ngày nghỉ & lễ', 'Tòa nhà & Tầng', 'Cấu hình tiết học', 'Tài khoản', 'Vai trò và phân quyền', 'Quy trình phê duyệt', 'Khảo sát', 'Sao lưu & xuất dữ liệu', 'Giao diện & thương hiệu', 'Hỗ trợ từ KDI'] },
   ],
   teacher: [
     { title: 'Giảng dạy', items: ['Tổng quan', 'Kế hoạch giáo dục', 'Lớp giảng dạy', 'Điểm danh', 'Bài tập', 'Chấm bài', 'Năng lực học sinh', 'Học trước & tự học'] },
@@ -70,7 +70,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Chương trình & học liệu', items: ['Chương trình CT1–CT5', 'Theo dõi Môn học STEM', 'Phát hành học liệu', 'Kho học liệu dùng chung'] },
     { title: 'Phòng & thiết bị STEM', items: ['Hiệu quả Phòng STEM', 'Phòng STEM & lịch phòng', 'Thiết bị & kho'] },
     { title: 'Giảng dạy', items: ['Dashboard điểm danh'] },
-    { title: 'Quản trị', items: ['Quy trình phê duyệt', 'Ngày nghỉ & lễ', 'Sao lưu & xuất dữ liệu', 'Hỗ trợ từ KDI'] },
+    { title: 'Quản trị', items: ['Quy trình phê duyệt', 'Ngày nghỉ & lễ', 'Sao lưu & xuất dữ liệu', 'Giao diện & thương hiệu', 'Hỗ trợ từ KDI'] },
   ],
 }
 
@@ -79,7 +79,7 @@ export const MODULE_OF: Record<string, string> = {
   'Giáo viên': 'teachers', 'Lớp học': 'classes', 'Học sinh': 'students', 'Phân công giảng dạy': 'assignments',
   'Quản lý Phòng STEM': 'stem_rooms', 'Quản lý Thiết bị': 'equipment', 'Vật tư tiêu hao': 'equipment', 'Đề xuất mua vật tư': 'equipment', 'Vận chuyển vật tư': 'equipment', 'Kiểm kê': 'equipment', 'Bảo hành thiết bị': 'warranty',
   'Thời khóa biểu': 'timetable', 'Duyệt đăng ký dạy STEM': 'stem_registrations', 'Tòa nhà & Tầng': 'buildings',
-  'Cấu hình tiết học': 'periods', 'Năm học & học kỳ': 'periods', 'Tài khoản': 'accounts', 'Sao lưu & xuất dữ liệu': 'accounts', 'Vai trò và phân quyền': 'roles',
+  'Cấu hình tiết học': 'periods', 'Năm học & học kỳ': 'periods', 'Tài khoản': 'accounts', 'Sao lưu & xuất dữ liệu': 'accounts', 'Giao diện & thương hiệu': 'accounts', 'Vai trò và phân quyền': 'roles',
   'Kế hoạch GD toàn trường': 'edu_plan', 'Phân công GV dạy STEM': 'stem_assign', 'Phân phối chương trình': 'curriculum',
   'Gói STEM': 'packages', 'Kế hoạch tập huấn': 'training', 'Lịch tập huấn': 'training', 'Bài giảng': 'training',
   'Lớp học ảo': 'training', 'Chứng chỉ': 'training',

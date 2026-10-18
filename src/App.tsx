@@ -15,6 +15,7 @@ import { NavIcon } from './components/NavIcon'
 import { MenuSearch, UserMenu } from './components/TopBar'
 import Login, { SetPassword } from './pages/Login'
 import { mustChangePassword } from './lib/login'
+import { useBranding, DEFAULT_TITLE } from './lib/branding'
 import LegalGate from './components/LegalGate'
 import Dashboard from './pages/Dashboard'
 import Teachers from './pages/Teachers'
@@ -99,6 +100,7 @@ const RoomsOverview = lazy(() => import('./pages/platform/Resources').then(m => 
 const ModuleUsage = lazy(() => import('./pages/platform/Modules').then(m => ({ default: m.ModuleUsage })))
 const DefaultPermissions = lazy(() => import('./pages/platform/Modules').then(m => ({ default: m.DefaultPermissions })))
 const PlatformSchools = lazy(() => import('./pages/platform/Schools').then(m => ({ default: m.PlatformSchools })))
+const BrandingPage = lazy(() => import('./pages/branding').then(m => ({ default: m.BrandingPage })))
 const DataExportPage = lazy(() => import('./pages/dataexport').then(m => ({ default: m.DataExportPage })))
 const PlatformRevenue = lazy(() => import('./pages/platform/Revenue').then(m => ({ default: m.PlatformRevenue })))
 const SupplyRequestsPage = lazy(() => import('./pages/stockflow').then(m => ({ default: m.SupplyRequestsPage })))
@@ -151,6 +153,7 @@ const SCHOOL: PageMap = {
   'Buổi dạy & điểm danh': SchoolSessions,
   'Dashboard điểm danh': AttendanceDashboard,
   'Sao lưu & xuất dữ liệu': DataExportPage,
+  'Giao diện & thương hiệu': BrandingPage,
   'Ngày nghỉ & lễ': Holidays,
 }
 const TEACHER: PageMap = {
@@ -202,6 +205,7 @@ const DEPARTMENT: PageMap = {
   'Phòng STEM & lịch phòng': RoomsOverview,
   'Thiết bị & kho': EquipmentOverview,
   'Sao lưu & xuất dữ liệu': DataExportPage,
+  'Giao diện & thương hiệu': BrandingPage,
   'Ngày nghỉ & lễ': Holidays,
   'Báo cáo Bộ GD&ĐT': DeptReports,
   'Điều hành & Cấu hình': DeptAdmin,
@@ -216,6 +220,7 @@ const DEPARTMENT: PageMap = {
 const PLATFORM: PageMap = {
   'Nghiệm thu & doanh thu': PlatformRevenue,
   'Sao lưu & xuất dữ liệu': (p: any) => <DataExportPage {...p} platform />,
+  'Giao diện & thương hiệu': (p: any) => <BrandingPage {...p} platform />,
   'Tổng quan hệ thống': PlatformOverview,
   'Nhật ký hệ thống': PlatformAudit,
   'Cấu hình chung (năm học)': DeptAdmin,
@@ -362,6 +367,8 @@ function Shell({ session }: { session: Session }) {
     return () => { ev.forEach(e => window.removeEventListener(e, touch)); clearInterval(t) }
   }, [access.idleMinutes])
 
+  const brand = useBranding(access.profile?.org_id, !!role && role !== 'platform')
+
   if (access.loading) return null
   if (changingPw) return <SetPassword onDone={() => setChangingPw(false)} />
   if (access.profile?.locked_at) {
@@ -428,7 +435,7 @@ function Shell({ session }: { session: Session }) {
     <div className={'app' + (collapsed ? ' collapsed' : '')}>
       <nav className="side" aria-label="Menu chính">
         <div className="sidebrand">
-          <img src={logoWhite} alt="KDI education" />
+          {brand?.logo_dark ? <img src={brand.logo_dark} alt={brand.display_name ?? 'Logo'} /> : brand?.logo ? <img src={brand.logo} alt={brand.display_name ?? 'Logo'} className="onchip" /> : <img src={logoWhite} alt="KDI education" />}
           <b>{role === 'platform' ? 'Hệ thống quản lý vận hành' : ROLE_LABEL[role]}</b>
         </div>
         {role !== 'department' && role !== 'platform' && <label className="yearpick">
@@ -489,8 +496,8 @@ function Shell({ session }: { session: Session }) {
           <button className="toggle" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Hiện menu' : 'Ẩn menu'} aria-expanded={!collapsed}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg>
           </button>
-          <img src={logo} alt="KDI education" />
-          <span className="title">{role === 'platform' ? 'Hệ thống quản lý vận hành' : 'Hệ thống Quản trị STEM'}</span>
+          <img src={brand?.logo ?? logo} alt={brand?.display_name ?? 'KDI education'} />
+          <span className="title">{role === 'platform' ? 'Hệ thống quản lý vận hành' : brand?.display_name ?? DEFAULT_TITLE}</span>
           <MenuSearch entries={groups.flatMap(g => g.items.map(item => ({ item, label: labelOf(role, item), group: g.section ? `${g.section} › ${g.title}` : g.title })))} onGo={i => show(role, i)} />
           <div className="user">
             <Bell open={openFrom} portals={views} orgId={access.profile.org_id} />

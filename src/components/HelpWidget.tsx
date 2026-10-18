@@ -14,7 +14,10 @@ type Tab = 'chat' | 'faq' | 'ticket'
 const KEY = 'help.chat'
 const STAFF = new Set<RoleKey>(['school_admin', 'teacher', 'department', 'platform'])
 
-export default function HelpWidget({ role, page, menu, go }: { role: RoleKey; page: string; menu: string[]; go?: (p: string) => void }) {
+type Brand = { name?: string | null; support?: string | null }
+// Câu "Liên hệ" kèm thông tin hỗ trợ đơn vị tự công bố (Giao diện & thương hiệu)
+const withBrand = (f: Faq, b?: Brand): Faq => (f.id === 'contact' && b?.support ? { ...f, a: f.a + '\n\n**Thông tin hỗ trợ của đơn vị:** ' + b.support } : f)
+export default function HelpWidget({ role, page, menu, go, brand }: { role: RoleKey; page: string; menu: string[]; go?: (p: string) => void; brand?: Brand }) {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<Tab>('chat')
   const [draft, setDraft] = useState<{ subject: string; description: string } | null>(null)
@@ -37,8 +40,8 @@ export default function HelpWidget({ role, page, menu, go }: { role: RoleKey; pa
             <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
         </nav>
         <div className="helpbody">
-          {tab === 'chat' ? <Chat role={role} page={page} menu={menu} toTicket={toTicket} />
-            : tab === 'faq' ? <FaqList role={role} toTicket={toTicket} />
+          {tab === 'chat' ? <Chat role={role} page={page} menu={menu} toTicket={toTicket} brand={brand} />
+            : tab === 'faq' ? <FaqList role={role} toTicket={toTicket} brand={brand} />
             : <Tickets role={role} page={page} draft={draft} clearDraft={() => setDraft(null)} go={go} />}
         </div>
       </div>}
@@ -51,7 +54,7 @@ export default function HelpWidget({ role, page, menu, go }: { role: RoleKey; pa
 }
 
 // ================= Hỏi đáp =================
-function Chat({ role, page, menu, toTicket }: { role: RoleKey; page: string; menu: string[]; toTicket: (s: string, d: string) => void }) {
+function Chat({ role, page, menu, toTicket, brand }: { role: RoleKey; page: string; menu: string[]; toTicket: (s: string, d: string) => void; brand?: Brand }) {
   const [msgs, setMsgs] = useState<Msg[]>(() => { try { return JSON.parse(sessionStorage.getItem(KEY) ?? '[]') } catch { return [] } })
   const [q, setQ] = useState('')
   const [busy, setBusy] = useState(false)
@@ -68,7 +71,10 @@ function Chat({ role, page, menu, toTicket }: { role: RoleKey; page: string; men
     const next: Msg[] = [...msgs, { role: 'user', content: t }]
     setMsgs(next); setQ('')
     if (!ai?.on) {
-      setMsgs([...next, { role: 'assistant', content: faq.length ? 'Các hướng dẫn có thể giúp bạn:' : 'Mình chưa tìm thấy hướng dẫn phù hợp. Bạn có thể gửi yêu cầu để KDI hỗ trợ trực tiếp.', faq }])
+      const off = role === 'platform'
+        ? 'Trợ lý AI chưa bật nên mình chỉ tra được câu hỏi thường gặp. Để trả lời được mọi câu hỏi: đặt khoá API (ví dụ `GEMINI_API_KEY` miễn phí) rồi bật ở **"Trợ lý AI"** › Cấu hình.'
+        : 'Trợ lý AI chưa được KDI bật nên hiện mình chỉ tra được câu hỏi thường gặp về cách dùng hệ thống.'
+      setMsgs([...next, { role: 'assistant', content: faq.length ? 'Các hướng dẫn có thể giúp bạn:' : off + '\n\nMình chưa có câu trả lời sẵn cho câu này — bạn có thể bấm **Gửi yêu cầu hỗ trợ** để KDI trả lời trực tiếp.', faq }])
       return
     }
     setBusy(true)
@@ -76,7 +82,7 @@ function Chat({ role, page, menu, toTicket }: { role: RoleKey; page: string; men
       const ctxFaq = searchFaq(t + ' ' + page, role, 8)
       const { data, error } = await supabase.functions.invoke('ai-assistant', { body: { task: 'help', input: {
         messages: next.slice(-10).map(m => ({ role: m.role, content: m.content })),
-        context: { portal: role, page, menu, faq: ctxFaq.map(f => ({ q: f.q, a: f.a })) } } } })
+        context: { portal: role, page, menu, brand: brand?.name ?? null, support: brand?.support ?? null, faq: ctxFaq.map(f => ({ q: f.q, a: f.a })) } } } })
       if (error) { let m = error.message; try { const j = await (error as any).context?.json(); if (j?.error) m = j.error } catch { /* giữ */ } throw new Error(m) }
       setMsgs([...next, { role: 'assistant', content: data.text }])
     } catch (e: any) {
@@ -91,12 +97,13 @@ function Chat({ role, page, menu, toTicket }: { role: RoleKey; page: string; men
       <div className="helpmsgs">
         {!msgs.length && <div className="helpwelcome">
           <p>Xin chào! Bạn cần giúp gì khi dùng hệ thống?</p>
-          {ai && !ai.on && <small className="sub">Đang trả lời bằng câu hỏi thường gặp{ai.reason ? '' : ' (Trợ lý AI chưa bật)'}.</small>}
+          {ai && (ai.on ? <small className="sub">Hỏi bất cứ điều gì — cách dùng hệ thống, dạy học STEM, kiến thức chung.</small>
+            : <small className="sub">Trợ lý AI chưa bật — hiện chỉ tra được câu hỏi thường gặp.</small>)}
           <div className="helpchips">{starters.map(f => <button key={f.id} onClick={() => ask(f.q)}>{f.q}</button>)}</div>
         </div>}
         {msgs.map((m, i) => <div key={i} className={'hmsg ' + m.role}>
           {m.role === 'user' ? m.content : <div className="mdbody" dangerouslySetInnerHTML={{ __html: md(m.content) }} />}
-          {m.faq?.map(f => <details key={f.id} className="hfaq"><summary>{f.q}</summary><div className="mdbody" dangerouslySetInnerHTML={{ __html: md(f.a) }} /></details>)}
+          {m.faq?.map(f => withBrand(f, brand)).map(f => <details key={f.id} className="hfaq" open={m.faq!.length === 1}><summary>{f.q}</summary><div className="mdbody" dangerouslySetInnerHTML={{ __html: md(f.a) }} /></details>)}
         </div>)}
         {busy && <div className="hmsg assistant"><span className="dots" aria-label="Đang trả lời"><i /><i /><i /></span></div>}
         {msgs.length > 0 && !busy && <div className="helpafter">
@@ -116,9 +123,9 @@ function Chat({ role, page, menu, toTicket }: { role: RoleKey; page: string; men
 }
 
 // ================= Câu hỏi thường gặp =================
-function FaqList({ role, toTicket }: { role: RoleKey; toTicket: (s: string, d: string) => void }) {
+function FaqList({ role, toTicket, brand }: { role: RoleKey; toTicket: (s: string, d: string) => void; brand?: Brand }) {
   const [q, setQ] = useState('')
-  const list = q.trim() ? searchFaq(q, role, 20) : FAQ.filter(f => !f.portals || f.portals.includes(role))
+  const list = (q.trim() ? searchFaq(q, role, 20) : FAQ.filter(f => !f.portals || f.portals.includes(role))).map(f => withBrand(f, brand))
   const cats = [...new Set(list.map(f => f.cat))]
   return (
     <div className="helpfaq">

@@ -7,6 +7,13 @@ export type Faq = { id: string; cat: string; q: string; a: string; keys?: string
 const STAFF: RoleKey[] = ['school_admin', 'teacher', 'department', 'platform']
 
 export const FAQ: Faq[] = [
+  // ---- Giới thiệu ----
+  { id: 'about', cat: 'Giới thiệu', q: 'KSCHOOL STEM là gì? Ai cung cấp nền tảng này?', keys: 'đơn vị cung cấp nhà cung cấp nền tảng hệ thống là gì của ai công ty kdi education giới thiệu phần mềm',
+    a: 'KSCHOOL STEM (Hệ thống Quản trị STEM) là nền tảng web quản lý giáo dục STEM do **KDI Education** cung cấp cho trường phổ thông, Phòng / Sở GD&ĐT: lịch dạy, điểm danh, bài tập, năng lực, phòng và thiết bị STEM, tập huấn giáo viên, học liệu, e-learning, báo cáo cho Sở. Mỗi Sở / trường có thể dùng tên và logo riêng.' },
+  { id: 'contact', cat: 'Giới thiệu', q: 'Liên hệ KDI để được hỗ trợ', keys: 'liên hệ hotline số điện thoại email hỗ trợ kdi gặp ai tư vấn',
+    a: 'Cách nhanh nhất: mở tab **Yêu cầu hỗ trợ** trong khung này → **Gửi yêu cầu hỗ trợ mới**. KDI trả lời ngay trong phiếu và báo qua chuông thông báo. Cán bộ trường / Sở còn xem được mọi phiếu của đơn vị ở mục **"Hỗ trợ từ KDI"**.' },
+  { id: 'privacy', cat: 'Giới thiệu', q: 'Dữ liệu của trường, học sinh được bảo vệ thế nào?', keys: 'bảo mật dữ liệu quyền riêng tư an toàn thông tin cá nhân lộ dữ liệu',
+    a: 'Dữ liệu tách riêng theo từng đơn vị: mỗi trường chỉ thấy dữ liệu của mình, Sở thấy các trường trực thuộc. Điều khoản sử dụng và chính sách dữ liệu cá nhân hiện khi đăng nhập lần đầu; cha mẹ xác nhận đồng ý cho dữ liệu học sinh. Xuất / xoá dữ liệu học sinh do quản trị trường thực hiện và được ghi nhật ký.' },
   // ---- Đăng nhập & tài khoản ----
   { id: 'login', cat: 'Tài khoản', q: 'Không đăng nhập được', keys: 'đăng nhập sai mật khẩu login không vào được bị khoá',
     a: '1. Kiểm tra ô "Email hoặc tên đăng nhập": học sinh / phụ huynh dùng **tên đăng nhập** in trên phiếu tài khoản (dạng `mãtrường.mãhọcsinh`; phụ huynh `mãtrường.ph<số điện thoại>`), không phải email.\n2. Mật khẩu phân biệt chữ hoa / thường.\n3. Quên mật khẩu: tài khoản có email bấm **Quên mật khẩu?** ở trang đăng nhập; tài khoản không có email nhờ quản trị trường đặt lại.\n4. Báo "tài khoản bị khoá": liên hệ quản trị trường hoặc gửi yêu cầu hỗ trợ.' },
@@ -74,13 +81,21 @@ export const FAQ: Faq[] = [
     a: 'Kiểm tra thư mục Spam / Quảng cáo. Thư có thể đến chậm vài phút. Vẫn không có: nhờ quản trị gửi lại lời mời, hoặc dùng tài khoản đăng nhập bằng mã (không cần email).' },
 ]
 
-// Câu hỏi phù hợp: theo cổng + từ khoá (bỏ dấu)
+// Từ không mang nghĩa khi tìm (đã bỏ dấu)
+const STOP = new Set('toi em minh ban can biet muon hoi cho xin la gi nao the sao lam co khong duoc va voi cua cac nhung mot nay do o tai thi ma de vao ra nhu bi da se roi nhe a oi a nhi vay cung'.split(' '))
+
+// Câu hỏi phù hợp: theo cổng + từ khoá (bỏ dấu). Phải khớp đủ nhiều từ có nghĩa — câu hỏi không liên quan trả về rỗng.
 export function searchFaq(q: string, portal: RoleKey, limit = 6) {
-  const words = norm(q.toLowerCase()).split(/[^a-z0-9]+/).filter(w => w.length > 1)
+  const words = [...new Set(norm(q.toLowerCase()).split(/[^a-z0-9]+/).filter(w => w.length > 1 && !STOP.has(w)))]
   const fit = FAQ.filter(f => !f.portals || f.portals.includes(portal))
-  if (!words.length) return fit.slice(0, limit)
+  if (!words.length) return q.trim() ? [] : fit.slice(0, limit)
+  const need = words.length <= 2 ? words.length : Math.ceil(words.length * 0.5)
+  const toks = (t: string) => ' ' + norm(t.toLowerCase()).split(/[^a-z0-9]+/).filter(Boolean).join(' ') + ' '
   return fit.map(f => {
-    const hay = norm(`${f.q} ${f.keys ?? ''}`.toLowerCase()), body = norm(f.a.toLowerCase())
-    return { f, s: words.reduce((n, w) => n + (hay.includes(w) ? 3 : 0) + (body.includes(w) ? 1 : 0), 0) }
-  }).filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, limit).map(x => x.f)
+    const hay = toks(`${f.q} ${f.keys ?? ''}`), body = toks(f.a)
+    const hit = words.filter(w => hay.includes(' ' + w + ' ')).length
+    // cụm 2 từ liền nhau (vd "don vi", "diem danh") khớp được cộng thêm
+    const pairs = words.slice(1).filter((w, i) => hay.includes(' ' + words[i] + ' ' + w + ' ')).length
+    return { f, hit, s: hit * 3 + pairs * 4 + words.filter(w => body.includes(' ' + w + ' ')).length }
+  }).filter(x => x.hit >= need).sort((a, b) => b.s - a.s).slice(0, limit).map(x => x.f)
 }

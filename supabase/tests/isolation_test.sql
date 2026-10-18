@@ -136,6 +136,11 @@ begin
     delete from student_projects where title like 'ISO%';
   end if;
   if to_regclass('public.events') is not null then delete from notifications where title like 'Sự kiện mới: ISO%'; delete from events where title like 'ISO%'; end if;
+  if to_regclass('public.ai_usage') is not null then
+    delete from ai_usage where user_id = any(v_users);
+    delete from ai_org_limits where note = 'ISO';
+    update ai_settings set enabled = false, user_daily_quota = 30 where id = 1;
+  end if;
   if to_regclass('public.stem_index_configs') is not null then delete from stem_index_configs where name like 'ISO%'; end if;
   if to_regclass('public.guardians') is not null then
     delete from invitations where guardian_id in (select id from guardians where full_name like 'ISO%');
@@ -1582,6 +1587,27 @@ select pg_temp.chk('so_hy', 'Trao giải: ghi giải và kết thúc',
 select pg_temp.probe('so_hy@iso-test.local', $q$select competition_finish((select id from competitions where title = 'ISO KHKT cấp tỉnh'), jsonb_build_object((select id from competition_entries limit 1)::text, 'Giải Nhất'))::text$q$, true);
 select pg_temp.chk('ph_ph', 'Trao giải: phụ huynh thấy giải của con', $q$select award from competition_entries e join student_projects p on p.id = e.project_id where p.title = 'ISO Dự án máy lọc nước'$q$, 'Giải Nhất');
 select pg_temp.chk('gv_both', 'Chấm: vòng đã đóng thì không chấm lại', $q$select judge_score((select assignment_id from my_judging() limit 1), '{"st":20,"tb":80}')::text$q$, 'ERR*');
+
+-- ===== 052: trợ lý AI =====
+select pg_temp.chk('gv_both', 'AI: mặc định tắt', $q$select ai_status() ->> 'enabled'$q$, 'false');
+select pg_temp.chk('gv_both', 'AI: chưa bật thì không gọi được', $q$select ai_begin('lesson')::text$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'AI: trường không tự bật trợ lý', $q$update ai_settings set enabled = true$q$, 'rows:0');
+update ai_settings set enabled = true, user_daily_quota = 2 where id = 1;
+select pg_temp.chk('gv_both', 'AI: GV dùng được khi KDI bật', $q$select ai_begin('lesson') ->> 'model'$q$, 'claude-sonnet-5-5');
+select pg_temp.chk('hs_kb', 'AI: học sinh không dùng trợ lý', $q$select ai_begin('chat')::text$q$, 'ERR');
+select pg_temp.chk('ph_ph', 'AI: phụ huynh không dùng trợ lý', $q$select ai_begin('chat')::text$q$, 'ERR');
+select pg_temp.chk('gv_both', 'AI: tác vụ lạ bị từ chối', $q$select ai_begin('hack')::text$q$, 'ERR*');
+select pg_temp.chk('gv_both', 'AI: không tự ghi nhật ký sử dụng', $q$insert into ai_usage (task) values ('chat')$q$, 'ERR');
+insert into ai_usage (org_id, user_id, task, input_tokens, output_tokens)
+  select pg_temp.oid_('THCS-PH'), id, 'lesson', 100, 200 from profiles, generate_series(1, 2) where email = 'gv_both@iso-test.local';
+select pg_temp.chk('gv_both', 'AI: hết lượt trong ngày', $q$select ai_begin('lesson')::text$q$, 'ERR*');
+select pg_temp.chk('gv_both', 'AI: GV xem nhật ký của mình', $q$select count(*) from ai_usage$q$, '2');
+select pg_temp.chk('admin_ph', 'AI: quản trị trường xem nhật ký của trường', $q$select sum(output_tokens) from ai_usage$q$, '400');
+select pg_temp.chk('admin_kb', 'AI: trường khác không xem nhật ký', $q$select count(*) from ai_usage$q$, '0');
+select pg_temp.chk('admin_kb', 'AI: trường không tự đặt hạn mức', format($q$insert into ai_org_limits (org_id, monthly_quota) values (%L, 9999)$q$, pg_temp.oid_('THCS-KB')), 'ERR');
+insert into ai_org_limits (org_id, enabled, note) values (pg_temp.oid_('THCS-KB'), false, 'ISO');
+select pg_temp.chk('admin_kb', 'AI: KDI tắt trợ lý cho một trường', $q$select ai_status() ->> 'enabled'$q$, 'false');
+select pg_temp.chk('admin_ph', 'AI: trường khác vẫn dùng', $q$select ai_status() ->> 'enabled'$q$, 'true');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

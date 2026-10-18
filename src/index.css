@@ -884,3 +884,25 @@ td.good,b.good{color:var(--ok);font-weight:700}tr.muted td{opacity:.55}
 .oklist li{display:grid;gap:2px;padding-left:22px;position:relative}
 .oklist li::before{content:'✓';position:absolute;left:0;color:var(--ok);font-weight:700}
 .oklist span{color:var(--muted);font-size:13.5px}
+
+/* Trợ lý AI */
+.aistatus{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+.aiprivacy{margin:0 0 12px}
+.aiform .wide,.formgrid .wide{grid-column:1/-1}
+.complevels{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px}
+.complevels label{display:flex;justify-content:space-between;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:6px 10px}
+.complevels select{width:auto}
+.aianswer{margin-top:14px}
+.mdbody{line-height:1.6;overflow-x:auto}.mdbody h1,.mdbody h2,.mdbody h3{margin:14px 0 6px;font-size:1.05em}
+.mdbody table{border-collapse:collapse;margin:8px 0}.mdbody td,.mdbody th{border:1px solid var(--line);padding:5px 8px;vertical-align:top}
+.mdbody ul,.mdbody ol{padding-left:22px}.mdbody p{margin:6px 0}
+.aifoot{margin:12px 0 0;font-size:12.5px}
+.quizlist{padding-left:22px;display:grid;gap:12px}.quizlist .qhead{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.quizlist ul{list-style:none;padding-left:24px;margin:6px 0}.quizlist li.right{color:var(--ok);font-weight:600}
+.aichat{display:grid;gap:10px}
+.aimsg{max-width:85%;padding:10px 14px;border-radius:14px;white-space:pre-wrap}
+.aimsg.user{justify-self:end;background:var(--navy);color:#fff}
+.aimsg.assistant{justify-self:start;background:var(--soft);white-space:normal}
+.aiask{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:10px}
+.aiask .tools{justify-content:flex-end}
+.aiask textarea{font:inherit;border:1px solid var(--line);border-radius:10px;padding:8px 10px;resize:vertical}

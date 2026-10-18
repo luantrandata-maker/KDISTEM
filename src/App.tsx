@@ -23,6 +23,10 @@ import MobileAppPage from './pages/MobileApp'
 import OfflineBar from './components/OfflineBar'
 import TerminologyPage from './pages/platform/Terminology'
 import AssistantPage, { PlatformAI } from './pages/ai'
+import ElearningManage from './pages/elearning/Manage'
+import QuestionBank from './pages/elearning/Bank'
+import StudentElearning from './pages/elearning/Student'
+import { saveQuizToBank } from './pages/elearning/common'
 import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysLessons, SysTrainingLessons, SysCertificates } from './pages/platform/SystemViews'
 import Classes from './pages/Classes'
 import Rooms from './pages/Rooms'
@@ -179,7 +183,9 @@ const SCHOOL: PageMap = {
   'Phát hành học liệu': LibraryManage,
   'Hỗ trợ từ KDI': CustomerSupport,
   'Ứng dụng di động': MobileAppPage,
-  'Trợ lý AI': AssistantPage,
+  'Trợ lý AI': (p: any) => <AssistantPage {...p} onSaveQuiz={(i: any, m: any) => saveQuizToBank(p.orgId, i, m)} />,
+  'E-learning & luyện thi': ElearningManage,
+  'Ngân hàng câu hỏi': QuestionBank,
   'Buổi dạy & điểm danh': SchoolSessions,
   'Dashboard điểm danh': AttendanceDashboard,
   'Sao lưu & xuất dữ liệu': DataExportPage,
@@ -188,7 +194,9 @@ const SCHOOL: PageMap = {
 }
 const TEACHER: PageMap = {
   'Ứng dụng di động': MobileAppPage,
-  'Trợ lý AI': AssistantPage,
+  'Trợ lý AI': (p: any) => <AssistantPage {...p} onSaveQuiz={(i: any, m: any) => saveQuizToBank(p.orgId, i, m)} />,
+  'E-learning & luyện thi': ElearningManage,
+  'Ngân hàng câu hỏi': QuestionBank,
   'Dự án STEM': ProjectsPage,
   'Cuộc thi': CompetitionsPage,
   'Chấm thi': JudgingPage,
@@ -214,6 +222,7 @@ const TEACHER: PageMap = {
   'Học trước & tự học': TeacherSelfStudy,
 }
 const STUDENT: PageMap = {
+  'E-learning & luyện thi': StudentElearning,
   'Dự án STEM': ProjectsPage,
   'Sự kiện': MyEvents,
   'Tổng quan': StudentHome,
@@ -227,7 +236,9 @@ const STUDENT: PageMap = {
   'Chuyên cần': StudentAttendance,
 }
 const DEPARTMENT: PageMap = {
-  'Trợ lý AI': AssistantPage,
+  'Trợ lý AI': (p: any) => <AssistantPage {...p} onSaveQuiz={(i: any, m: any) => saveQuizToBank(p.orgId, i, m)} />,
+  'E-learning & luyện thi': ElearningManage,
+  'Ngân hàng câu hỏi': QuestionBank,
   'Dự án STEM': (p: any) => <ProjectsPage {...p} readOnly />,
   'Cuộc thi': CompetitionsPage,
   'Chấm thi': JudgingPage,
@@ -334,6 +345,7 @@ const PLATFORM: PageMap = {
   'Thuật ngữ chuẩn': TerminologyPage,
   'Ứng dụng di động & ngoại tuyến': MobileAppPage,
   'Trợ lý AI': PlatformAI,
+  'E-learning & luyện thi': ElearningManage,
   // Màn xem toàn hệ thống (gom dữ liệu mọi trường, lọc theo Sở / trường) — pages/platform/SystemViews.tsx
   'Bảo hành & bảo trì thiết bị': SysWarranty,
   'Tòa nhà, tầng & tiết học': SysBuildings,

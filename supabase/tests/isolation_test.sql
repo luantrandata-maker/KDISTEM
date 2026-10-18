@@ -136,6 +136,12 @@ begin
     delete from student_projects where title like 'ISO%';
   end if;
   if to_regclass('public.events') is not null then delete from notifications where title like 'Sự kiện mới: ISO%'; delete from events where title like 'ISO%'; end if;
+  if to_regclass('public.question_bank') is not null then
+    delete from notifications where kind = 'elearning' and (title like '%ISO%');
+    delete from courses where title like 'ISO%';
+    delete from practice_exams where title like 'ISO%';
+    delete from question_bank where subject like 'ISO%';
+  end if;
   if to_regclass('public.ai_usage') is not null then
     delete from ai_usage where user_id = any(v_users);
     delete from ai_org_limits where note = 'ISO';
@@ -1608,6 +1614,56 @@ select pg_temp.chk('admin_kb', 'AI: trường không tự đặt hạn mức', f
 insert into ai_org_limits (org_id, enabled, note) values (pg_temp.oid_('THCS-KB'), false, 'ISO');
 select pg_temp.chk('admin_kb', 'AI: KDI tắt trợ lý cho một trường', $q$select ai_status() ->> 'enabled'$q$, 'false');
 select pg_temp.chk('admin_ph', 'AI: trường khác vẫn dùng', $q$select ai_status() ->> 'enabled'$q$, 'true');
+
+-- ===== 053: e-learning & luyện thi =====
+select pg_temp.probe('admin_kb@iso-test.local', $q$insert into question_bank (org_id, subject, grade, level, kind, stem, options, answer, explain) values
+  (my_org_id(), 'ISO Toán', 6, 'nhan_biet', 'single', '1 + 1 = ?', '["1","2","3","4"]', '[1]', 'Cộng.'),
+  (my_org_id(), 'ISO Toán', 6, 'thong_hieu', 'single', '2 x 3 = ?', '["5","6","7","8"]', '[1]', 'Nhân.'),
+  (my_org_id(), 'ISO Toán', 6, 'van_dung', 'multi', 'Số chẵn?', '["2","3","4","5"]', '[2,0]', null)$q$, true);
+select pg_temp.chk('admin_kb', 'Ngân hàng: trường soạn câu hỏi', $q$select count(*) from question_bank where subject = 'ISO Toán'$q$, '3');
+select pg_temp.chk('admin_kb', 'Ngân hàng: đáp án ngoài lựa chọn bị từ chối', $q$insert into question_bank (org_id, subject, stem, options, answer) values (my_org_id(), 'ISO Toán', 'Sai?', '["a","b"]', '[5]')$q$, 'ERR*');
+select pg_temp.chk('admin_kb', 'Ngân hàng: câu một đáp án không có hai đáp án', $q$insert into question_bank (org_id, subject, stem, options, answer) values (my_org_id(), 'ISO Toán', 'Hai?', '["a","b"]', '[0,1]')$q$, 'ERR*');
+select pg_temp.chk('hs_kb', 'Ngân hàng: học sinh không đọc được (có đáp án)', $q$select count(*) from question_bank$q$, '0');
+select pg_temp.chk('admin_ph', 'Ngân hàng: trường tỉnh khác không thấy', $q$select count(*) from question_bank where subject = 'ISO Toán'$q$, '0');
+select pg_temp.chk('gv_both', 'Ngân hàng: GV không sửa câu của trường khác', $q$update question_bank set stem = 'sửa' where subject = 'ISO Toán'$q$, 'rows:0');
+select pg_temp.probe('so_hy@iso-test.local', $q$insert into question_bank (org_id, subject, grade, stem, options, answer, shared) values (my_org_id(), 'ISO Lý', 9, 'Đơn vị điện trở?', '["Vôn","Ôm"]', '[1]', true)$q$, true);
+select pg_temp.chk('admin_ph', 'Ngân hàng: trường thấy câu dùng chung của Sở', $q$select count(*) from question_bank where subject = 'ISO Lý'$q$, '1');
+select pg_temp.chk('admin_ph', 'Ngân hàng: trường không sửa câu của Sở', $q$update question_bank set stem = 'sửa' where subject = 'ISO Lý'$q$, 'rows:0');
+select pg_temp.chk('admin_kb', 'Ngân hàng: Sở tỉnh khác không chia sẻ sang', $q$select count(*) from question_bank where subject = 'ISO Lý'$q$, '0');
+select pg_temp.chk('gv_both', 'Ngân hàng: GV soạn và sửa câu của mình',
+  $q$with x as (insert into question_bank (org_id, subject, stem, options, answer) values (my_org_id(), 'ISO GV', 'Câu GV?', '["a","b"]', '[0]') returning id) select count(*) from x$q$, '1');
+
+select pg_temp.probe('admin_kb@iso-test.local', $q$insert into practice_exams (org_id, title, subject, grade, mode, criteria, duration_min, max_attempts, status)
+  values (my_org_id(), 'ISO Đề luyện Toán 6', 'ISO Toán', 6, 'random', '{"count": 3, "levels": {"nhan_biet": 1}}', 15, 1, 'published'),
+         (my_org_id(), 'ISO Đề nháp', 'ISO Toán', 6, 'random', '{"count": 2}', 15, 0, 'draft')$q$, true);
+select pg_temp.chk('admin_kb', 'Đề luyện: đề ngẫu nhiên phải có số câu', $q$insert into practice_exams (org_id, title, mode, criteria) values (my_org_id(), 'ISO lỗi', 'random', '{}')$q$, 'ERR*');
+select pg_temp.chk('hs_kb', 'Đề luyện: học sinh thấy đề đã công bố, không thấy đề nháp', $q$select string_agg(title, ',') from practice_exams where title like 'ISO%'$q$, 'ISO Đề luyện Toán 6');
+select pg_temp.chk('admin_ph', 'Đề luyện: trường khác không thấy', $q$select count(*) from practice_exams where title like 'ISO%'$q$, '0');
+select pg_temp.chk('hs_kb', 'Đề luyện: phát đề không kèm đáp án',
+  $q$select (exam_start((select id from practice_exams where title = 'ISO Đề luyện Toán 6')) -> 'questions' -> 0 ? 'answer')::text$q$, 'false');
+select pg_temp.probe('hs_kb@iso-test.local', $q$select exam_start((select id from practice_exams where title = 'ISO Đề luyện Toán 6'))::text$q$, true);
+select pg_temp.chk('hs_kb', 'Đề luyện: đủ số câu, có câu mức nhận biết',
+  $q$select cardinality(questions) || '|' || (select count(*) from exam_attempts) from exam_attempts$q$, '3|1');
+select pg_temp.chk('hs_kb', 'Đề luyện: làm tiếp lượt đang dở, không tạo lượt mới',
+  $q$select (exam_start((select id from practice_exams where title = 'ISO Đề luyện Toán 6')) ->> 'attempt') = (select id::text from exam_attempts limit 1)$q$, 'true');
+select pg_temp.chk('hs_kb', 'Đề luyện: học sinh không tự ghi lượt làm', $q$update exam_attempts set score = 10$q$, 'rows:0');
+select pg_temp.chk('hs_kb', 'Đề luyện: nộp bài, CSDL chấm đúng',
+  format($q$select exam_submit((select id from exam_attempts limit 1), %L::jsonb) ->> 'score'$q$,
+    (select jsonb_object_agg(id, answer) from question_bank where subject = 'ISO Toán')), '10.0');
+select pg_temp.probe('hs_kb@iso-test.local', format($q$select exam_submit((select id from exam_attempts limit 1), %L::jsonb)::text$q$,
+    (select jsonb_object_agg(id, answer) from question_bank where subject = 'ISO Toán')), true);
+select pg_temp.chk('hs_kb', 'Đề luyện: xem đáp án sau khi nộp', $q$select (exam_result((select id from exam_attempts limit 1)) -> 'questions' -> 0 ? 'answer')::text$q$, 'true');
+select pg_temp.chk('hs_kb', 'Đề luyện: hết lượt (tối đa 1)', $q$select exam_start((select id from practice_exams where title = 'ISO Đề luyện Toán 6'))::text$q$, 'ERR*');
+select pg_temp.chk('admin_kb', 'Đề luyện: trường xem thống kê', $q$select (exam_stats((select id from practice_exams where title = 'ISO Đề luyện Toán 6')) ->> 'avg')$q$, '10.00');
+select pg_temp.chk('admin_ph', 'Đề luyện: trường khác không xem thống kê', $q$select exam_stats((select id from practice_exams where title = 'ISO Đề luyện Toán 6'))::text$q$, 'ERR');
+select pg_temp.chk('admin_ph', 'Đề luyện: trường khác không xem lượt làm', $q$select count(*) from exam_attempts$q$, '0');
+
+select pg_temp.probe('admin_kb@iso-test.local', $q$insert into courses (org_id, title, subject, status) values (my_org_id(), 'ISO Khoá Toán 6', 'ISO Toán', 'published')$q$, true);
+insert into course_lessons (course_id, position, title, kind, url) select id, 1, 'ISO Bài 1', 'video', 'https://example.org/v' from courses where title = 'ISO Khoá Toán 6';
+select pg_temp.chk('hs_kb', 'Khoá học: học sinh thấy khoá đã công bố', $q$select count(*) from course_lessons where title = 'ISO Bài 1'$q$, '1');
+select pg_temp.chk('hs_kb', 'Khoá học: học sinh đánh dấu đã học', $q$insert into course_progress (lesson_id, student_id) select id, my_student_id() from course_lessons where title = 'ISO Bài 1'$q$, 'rows:1');
+select pg_temp.chk('hs_kb', 'Khoá học: học sinh không thêm bài', $q$insert into course_lessons (course_id, title, kind, body) select id, 'ISO hack', 'reading', 'x' from courses where title = 'ISO Khoá Toán 6'$q$, 'ERR');
+select pg_temp.chk('admin_ph', 'Khoá học: trường khác không thấy', $q$select count(*) from courses where title like 'ISO%'$q$, '0');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

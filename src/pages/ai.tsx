@@ -6,7 +6,7 @@ import { Tabs } from './teacher/common'
 
 // Trợ lý AI (migration 052, hàm máy chủ ai-assistant). Nội dung câu hỏi / trả lời không lưu trên hệ thống.
 export type QuizItem = { q: string; options: string[]; answer: number; explain: string; level: string }
-type Status = { enabled: boolean; allowed: boolean; model: string; org_quota: number; org_used: number; user_quota: number; user_used: number; reason: string | null }
+type Status = { enabled: boolean; allowed: boolean; model: string; provider?: 'anthropic' | 'openai' | 'gemini'; org_quota: number; org_used: number; user_quota: number; user_used: number; reason: string | null }
 type Task = 'lesson' | 'quiz' | 'comment' | 'document' | 'chat'
 type Msg = { role: 'user' | 'assistant'; content: string }
 
@@ -112,6 +112,7 @@ export default function AssistantPage({ onSaveQuiz }: { onSaveQuiz?: (items: Qui
       <div className="aistatus">
         <span className={'pill ' + (off ? 'inactive' : left > 0 ? 'active' : 'maintenance')}>{off ? 'Chưa dùng được' : left > 0 ? 'Sẵn sàng' : 'Hết lượt'}</span>
         {!off && <span>Hôm nay còn <b>{Math.max(0, st.user_quota - st.user_used)}</b>/{st.user_quota} lượt · đơn vị còn <b>{Math.max(0, st.org_quota - st.org_used)}</b>/{st.org_quota} lượt tháng này</span>}
+        {!off && st.provider && <span className="sub">· {PROVIDERS[st.provider]?.name}</span>}
         {st.reason && <span className="sub">{st.reason}</span>}
       </div>
       <p className="sub aiprivacy">Không nhập họ tên, ngày sinh, số điện thoại… của học sinh. Hệ thống không lưu câu hỏi và câu trả lời — hãy chép hoặc tải về nếu cần giữ.</p>
@@ -167,12 +168,17 @@ export default function AssistantPage({ onSaveQuiz }: { onSaveQuiz?: (items: Qui
 }
 
 // ================= Cổng KDI: cấu hình, hạn mức, mức sử dụng =================
-type Settings = { enabled: boolean; model: string; org_monthly_quota: number; user_daily_quota: number; portals: string[]; updated_at: string }
-type Usage = { org_id: string | null; user_id: string | null; task: string; model: string | null; input_tokens: number; output_tokens: number; ok: boolean; created_at: string; error: string | null }
+type Prov = 'anthropic' | 'openai' | 'gemini'
+type Settings = { enabled: boolean; provider: Prov; model: string; fallback_provider: Prov | null; fallback_model: string | null; prices: Record<string, [number, number]>
+  org_monthly_quota: number; user_daily_quota: number; portals: string[]; updated_at: string }
+type Usage = { org_id: string | null; user_id: string | null; task: string; provider: string | null; model: string | null; input_tokens: number; output_tokens: number; ok: boolean; created_at: string; error: string | null }
 type Limit = { org_id: string; enabled: boolean; monthly_quota: number | null; note: string | null }
-// Giá tham khảo (USD / 1 triệu token, vào / ra) theo trang Models của Anthropic — cập nhật khi đổi giá
-const PRICE: Record<string, [number, number]> = { 'claude-sonnet-5-5': [2, 10], 'claude-haiku-5-5': [0.1, 0.5], 'claude-opus-5-5': [4, 20] }
-const MODELS: [string, string][] = [['claude-sonnet-5-5', 'Claude Sonnet 5.5 — cân bằng (khuyến nghị)'], ['claude-haiku-5-5', 'Claude Haiku 5.5 — nhanh, rẻ'], ['claude-opus-5-5', 'Claude Opus 5.5 — mạnh nhất, đắt hơn']]
+// Nhà cung cấp (054). Tên mô hình lấy từ API của chính nhà cung cấp (nút "Lấy danh sách") — không cố định trong mã.
+export const PROVIDERS: Record<Prov, { name: string; secret: string; console: string; note: string; suggest: string[] }> = {
+  anthropic: { name: 'Claude (Anthropic)', secret: 'ANTHROPIC_API_KEY', console: 'console.anthropic.com', note: 'Trả phí theo token. Dữ liệu qua API không dùng để huấn luyện mô hình.', suggest: ['claude-sonnet-5-5', 'claude-haiku-5-5', 'claude-opus-5-5'] },
+  openai: { name: 'ChatGPT (OpenAI)', secret: 'OPENAI_API_KEY', console: 'platform.openai.com', note: 'API trả phí theo token (khác gói ChatGPT miễn phí trên web); cần nạp tín dụng trước.', suggest: [] },
+  gemini: { name: 'Gemini (Google)', secret: 'GEMINI_API_KEY', console: 'aistudio.google.com', note: 'Có gói miễn phí (giới hạn số lượt / phút / ngày, dòng Flash và Flash-Lite). Ở gói miễn phí, Google có thể dùng nội dung để cải thiện sản phẩm và người duyệt có thể đọc — không nhập thông tin cá nhân.', suggest: [] },
+}
 const PORTALS: [string, string][] = [['teacher', 'Giáo viên'], ['school_admin', 'Quản trị trường'], ['department', 'Sở / Phòng'], ['platform', 'KDI']]
 const TASK_LABEL: Record<string, string> = Object.fromEntries(TASKS)
 
@@ -182,47 +188,91 @@ export function PlatformAI() {
     {tab === 'use' ? <AssistantPage /> : tab === 'cfg' ? <AISettings /> : <AIUsage />}</>
 }
 
+function ModelPicker({ provider, value, onChange, label }: { provider: Prov; value: string; onChange: (v: string) => void; label: string }) {
+  const [list, setList] = useState<string[] | null>(null)
+  const [err, setErr] = useState('')
+  async function fetchModels() {
+    setErr('')
+    const { data, error } = await supabase.functions.invoke('ai-assistant', { body: { action: 'models', provider } })
+    if (error) { let m = error.message; try { const j = await (error as any).context?.json(); if (j?.error) m = j.error } catch { /* giữ */ } return setErr(m) }
+    if (!data.configured) return setErr(`Chưa đặt secret ${PROVIDERS[provider].secret} — chưa lấy được danh sách.`)
+    setList(data.models)
+  }
+  const id = 'models-' + label.replace(/\W/g, '')
+  return <label className="field modelfield"><span>{label}</span>
+    <span className="modelpick"><input required list={id} value={value} onChange={e => onChange(e.target.value.trim())} placeholder="Tên mô hình" />
+      <button type="button" onClick={fetchModels}>Lấy danh sách</button></span>
+    <datalist id={id}>{[...new Set([...(list ?? []), ...PROVIDERS[provider].suggest])].map(m => <option key={m} value={m} />)}</datalist>
+    {list && <small className="sub">{list.length} mô hình dùng được với khoá hiện tại — gõ để lọc.</small>}
+    {err && <small className="msg">{err}</small>}
+  </label>
+}
+
 function AISettings() {
   const [s, setS] = useState<Settings | null>(null)
+  const [keys, setKeys] = useState<Record<Prov, boolean> | null>(null)
   const [limits, setLimits] = useState<Limit[]>([])
   const [orgs, setOrgs] = useState<{ id: string; name: string; type: string }[]>([])
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [add, setAdd] = useState({ org: '', quota: '', enabled: true })
+  const [test, setTest] = useState('')
   async function load() {
     const [a, b, c] = await Promise.all([supabase.from('ai_settings').select('*').eq('id', 1).maybeSingle(), supabase.from('ai_org_limits').select('*'),
       supabase.from('organizations').select('id, name, type').neq('type', 'provider').order('name')])
     if (a.error) setMsg([/does not exist|schema cache/i.test(a.error.message) ? 'Hãy chạy migration 052 trên Supabase.' : a.error.message, true])
-    setS(a.data as Settings); setLimits((b.data as Limit[]) ?? []); setOrgs((c.data as any[]) ?? [])
+    setS(a.data ? { provider: 'anthropic', fallback_provider: null, fallback_model: null, prices: {}, ...(a.data as any) } : null); setLimits((b.data as Limit[]) ?? []); setOrgs((c.data as any[]) ?? [])
+    supabase.functions.invoke('ai-assistant', { body: { action: 'keys' } }).then(({ data }) => data && !data.error && setKeys(data))
   }
   useEffect(() => { load() }, [])
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!s) return
-    const { error } = await supabase.from('ai_settings').update({ enabled: s.enabled, model: s.model, org_monthly_quota: s.org_monthly_quota, user_daily_quota: s.user_daily_quota, portals: s.portals }).eq('id', 1)
-    setMsg(error ? [error.message, true] : ['Đã lưu cấu hình.', false]); load()
+    const { error } = await supabase.from('ai_settings').update({ enabled: s.enabled, provider: s.provider, model: s.model, fallback_provider: s.fallback_provider,
+      fallback_model: s.fallback_provider ? s.fallback_model : null, prices: s.prices, org_monthly_quota: s.org_monthly_quota, user_daily_quota: s.user_daily_quota, portals: s.portals }).eq('id', 1)
+    setMsg(error ? [/provider|column/i.test(error.message) ? 'Hãy chạy migration 054 trên Supabase.' : error.message, true] : ['Đã lưu cấu hình.', false]); load()
   }
   async function upsertLimit() {
     if (!add.org) return
     const { error } = await supabase.from('ai_org_limits').upsert({ org_id: add.org, enabled: add.enabled, monthly_quota: add.quota ? Number(add.quota) : null, updated_at: new Date().toISOString() })
     setMsg(error ? [error.message, true] : ['Đã lưu hạn mức riêng.', false]); setAdd({ org: '', quota: '', enabled: true }); load()
   }
+  async function tryIt() {
+    setTest('Đang thử…')
+    try { const r = await callAI('chat', { messages: [{ role: 'user', content: 'Chào bạn, trả lời đúng một câu: bạn là trợ lý nào?' }] }); setTest('✓ ' + r.text.slice(0, 200)) } catch (e: any) { setTest('✗ ' + e.message) }
+  }
   const name = (id: string) => orgs.find(o => o.id === id)?.name ?? id
   if (!s) return msg ? <p className="msg">{msg[0]}</p> : <p className="sub">Đang tải…</p>
+  const models = [s.model, s.fallback_provider ? s.fallback_model : null].filter(Boolean) as string[]
   return (
     <>
+      <div className="provgrid">{(Object.keys(PROVIDERS) as Prov[]).map(p => <div key={p} className={'panel provcard' + (s.provider === p ? ' on' : s.fallback_provider === p ? ' fb' : '')}>
+        <div className="bar"><b>{PROVIDERS[p].name}</b>{s.provider === p ? <span className="pill active">Đang dùng</span> : s.fallback_provider === p ? <span className="pill maintenance">Dự phòng</span> : null}</div>
+        <small className="sub">{PROVIDERS[p].note}</small>
+        <small>Khoá: <code>{PROVIDERS[p].secret}</code> {keys ? (keys[p] ? <span className="pill active">Đã đặt</span> : <span className="pill inactive">Chưa đặt</span>) : null}</small>
+        <small className="sub">Lấy khoá tại {PROVIDERS[p].console}</small>
+      </div>)}</div>
       <form className="panel formgrid" onSubmit={save}>
         <label className="field inline wide"><input type="checkbox" checked={s.enabled} onChange={e => setS({ ...s, enabled: e.target.checked })} /> <b>Bật Trợ lý AI cho toàn hệ thống</b></label>
-        <label className="field"><span>Mô hình</span><select value={s.model} onChange={e => setS({ ...s, model: e.target.value })}>{MODELS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+        <label className="field"><span>Nhà cung cấp chính</span><select value={s.provider} onChange={e => { const p = e.target.value as Prov; setS({ ...s, provider: p, model: PROVIDERS[p].suggest[0] ?? '' }) }}>
+          {(Object.keys(PROVIDERS) as Prov[]).map(p => <option key={p} value={p}>{PROVIDERS[p].name}</option>)}</select></label>
+        <ModelPicker provider={s.provider} value={s.model} onChange={v => setS({ ...s, model: v })} label="Mô hình chính" />
+        <label className="field"><span>Dự phòng khi nhà cung cấp chính lỗi / hết hạn mức</span><select value={s.fallback_provider ?? ''} onChange={e => { const p = (e.target.value || null) as Prov | null; setS({ ...s, fallback_provider: p, fallback_model: p ? PROVIDERS[p].suggest[0] ?? '' : null }) }}>
+          <option value="">Không dùng</option>{(Object.keys(PROVIDERS) as Prov[]).filter(p => p !== s.provider).map(p => <option key={p} value={p}>{PROVIDERS[p].name}</option>)}</select></label>
+        {s.fallback_provider && <ModelPicker provider={s.fallback_provider} value={s.fallback_model ?? ''} onChange={v => setS({ ...s, fallback_model: v })} label="Mô hình dự phòng" />}
         <label className="field"><span>Lượt / đơn vị / tháng</span><input type="number" min={0} value={s.org_monthly_quota} onChange={e => setS({ ...s, org_monthly_quota: Number(e.target.value) })} /></label>
         <label className="field"><span>Lượt / người / ngày</span><input type="number" min={0} value={s.user_daily_quota} onChange={e => setS({ ...s, user_daily_quota: Number(e.target.value) })} /></label>
         <div className="field wide"><span>Ai được dùng</span><div className="tools">{PORTALS.map(([k, l]) => <label key={k} className="field inline"><input type="checkbox" checked={s.portals.includes(k)}
           onChange={e => setS({ ...s, portals: e.target.checked ? [...s.portals, k] : s.portals.filter(x => x !== k) })} /> {l}</label>)}</div>
           <small className="sub">Học sinh, phụ huynh và giám khảo không dùng trợ lý.</small></div>
-        <div className="actions wide"><button className="primary">Lưu cấu hình</button></div>
+        <div className="field wide"><span>Đơn giá để ước tính chi phí (USD / 1 triệu token: vào · ra) — xem bảng giá của nhà cung cấp; gói miễn phí để 0</span>
+          <div className="tools">{models.map(m => <label key={m} className="field inline"><code>{m}</code>
+            <input type="number" min={0} step="0.01" style={{ width: 80 }} value={s.prices[m]?.[0] ?? ''} onChange={e => setS({ ...s, prices: { ...s.prices, [m]: [Number(e.target.value), s.prices[m]?.[1] ?? 0] } })} aria-label={'Giá vào ' + m} />
+            <input type="number" min={0} step="0.01" style={{ width: 80 }} value={s.prices[m]?.[1] ?? ''} onChange={e => setS({ ...s, prices: { ...s.prices, [m]: [s.prices[m]?.[0] ?? 0, Number(e.target.value)] } })} aria-label={'Giá ra ' + m} /></label>)}</div></div>
+        <div className="actions wide"><button className="primary">Lưu cấu hình</button><button type="button" onClick={tryIt} disabled={!s.enabled}>Thử kết nối</button>{test && <span className="sub">{test}</span>}</div>
       </form>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       <div className="panel">
         <h3>Khoá API</h3>
-        <p className="sub">Trợ lý gọi Claude API qua hàm máy chủ <code>ai-assistant</code>. Khoá đặt ở Supabase › Edge Functions › Secrets với tên <code>ANTHROPIC_API_KEY</code> — không nhập khoá ở trang này. Hệ thống không lưu nội dung câu hỏi và câu trả lời; chỉ lưu tác vụ và số token để tính hạn mức.</p>
+        <p className="sub">Khoá đặt ở Supabase › Edge Functions › Secrets với đúng tên ở trên — không nhập khoá ở trang này. Có thể đặt cả ba để chuyển qua lại. Hệ thống không lưu nội dung câu hỏi và câu trả lời; chỉ lưu tác vụ, nhà cung cấp, mô hình và số token để tính hạn mức.</p>
       </div>
       <div className="panel">
         <h3>Hạn mức riêng theo đơn vị</h3>
@@ -249,19 +299,21 @@ function AIUsage() {
   const [rows, setRows] = useState<Usage[]>([])
   const [orgs, setOrgs] = useState<Map<string, string>>(new Map())
   const [err, setErr] = useState('')
+  const [prices, setPrices] = useState<Record<string, [number, number]>>({})
+  useEffect(() => { supabase.from('ai_settings').select('prices').eq('id', 1).maybeSingle().then(({ data }) => setPrices((data as any)?.prices ?? {})) }, [])
   useEffect(() => {
     const from = new Date(month + '-01T00:00:00'), to = new Date(from); to.setMonth(to.getMonth() + 1)
-    Promise.all([supabase.from('ai_usage').select('org_id, user_id, task, model, input_tokens, output_tokens, ok, created_at, error').gte('created_at', from.toISOString()).lt('created_at', to.toISOString()).limit(20000),
+    Promise.all([supabase.from('ai_usage').select('org_id, user_id, task, provider, model, input_tokens, output_tokens, ok, created_at, error').gte('created_at', from.toISOString()).lt('created_at', to.toISOString()).limit(20000),
       supabase.from('organizations').select('id, name')]).then(([u, o]) => {
       if (u.error) setErr(/does not exist|schema cache/i.test(u.error.message) ? 'Hãy chạy migration 052 trên Supabase.' : u.error.message)
       setRows((u.data as Usage[]) ?? []); setOrgs(new Map(((o.data as any[]) ?? []).map(x => [x.id, x.name])))
     })
   }, [month])
-  const cost = (r: Usage) => { const p = PRICE[r.model ?? ''] ?? [0, 0]; return (r.input_tokens * p[0] + r.output_tokens * p[1]) / 1e6 }
+  const cost = (r: Usage) => { const p = prices[r.model ?? ''] ?? [0, 0]; return (r.input_tokens * p[0] + r.output_tokens * p[1]) / 1e6 }
   const ok = rows.filter(r => r.ok)
   const byOrg = useMemo(() => [...ok.reduce((m, r) => { const k = r.org_id ?? '—'; const v = m.get(k) ?? { n: 0, users: new Set<string>(), tin: 0, tout: 0, usd: 0 }
     v.n++; if (r.user_id) v.users.add(r.user_id); v.tin += r.input_tokens; v.tout += r.output_tokens; v.usd += cost(r); return m.set(k, v) }, new Map<string, { n: number; users: Set<string>; tin: number; tout: number; usd: number }>())]
-    .sort((a, b) => b[1].n - a[1].n), [rows])
+    .sort((a, b) => b[1].n - a[1].n), [rows, prices])
   const byTask = TASKS.map(([k, l]) => [l, ok.filter(r => r.task === k).length] as [string, number])
   const usd = ok.reduce((s, r) => s + cost(r), 0)
   const fmt = (n: number) => n.toLocaleString('vi-VN')
@@ -276,12 +328,13 @@ function AIUsage() {
         <div className="card"><strong>${usd.toFixed(2)}</strong><span>Chi phí ước tính (USD)</span></div>
         <div className="card"><strong>{fmt(rows.length - ok.length)}</strong><span>Lượt lỗi</span></div>
       </div>
-      <div className="tools" style={{ margin: '14px 0' }}>{byTask.map(([l, n]) => <span key={l} className="chipbtn">{l}: <b>{n}</b></span>)}</div>
+      <div className="tools" style={{ margin: '14px 0' }}>{byTask.map(([l, n]) => <span key={l} className="chipbtn">{l}: <b>{n}</b></span>)}
+        {(Object.keys(PROVIDERS) as Prov[]).map(p => { const n = ok.filter(r => (r.provider ?? 'anthropic') === p).length; return n ? <span key={p} className="chipbtn">{PROVIDERS[p].name}: <b>{n}</b></span> : null })}</div>
       <div className="wrap"><table className="systable"><thead><tr><th>Đơn vị</th><th className="num">Lượt</th><th className="num">Người dùng</th><th className="num">Token vào</th><th className="num">Token ra</th><th className="num">Ước tính (USD)</th></tr></thead><tbody>
         {byOrg.map(([id, v]) => <tr key={id}><td>{orgs.get(id) ?? '—'}</td><td className="num"><b>{fmt(v.n)}</b></td><td className="num">{v.users.size}</td><td className="num">{fmt(v.tin)}</td><td className="num">{fmt(v.tout)}</td><td className="num">{v.usd.toFixed(2)}</td></tr>)}
         {!byOrg.length && <tr><td colSpan={6}>Chưa có lượt dùng trong tháng.</td></tr>}
       </tbody></table></div>
-      <p className="sub">Chi phí ước tính theo bảng giá niêm yết của Anthropic cho từng mô hình; số tiền thực tế xem trên hoá đơn Anthropic Console.</p>
+      <p className="sub">Chi phí ước tính theo đơn giá KDI nhập ở Cấu hình (gói miễn phí = 0); số tiền thực tế xem trên trang thanh toán của từng nhà cung cấp.</p>
     </>
   )
 }

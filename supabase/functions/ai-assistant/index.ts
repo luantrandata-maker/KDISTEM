@@ -1,9 +1,12 @@
 // Hàm máy chủ: Trợ lý AI (migration 052).
 // - Quyền và hạn mức kiểm tra trong CSDL: gọi ai_begin bằng JWT của người dùng.
-// - Gọi Claude API bằng secret ANTHROPIC_API_KEY (KDI đặt trong Supabase › Edge Functions › Secrets; không nằm trong repo).
+// - Gọi nhà cung cấp KDI chọn (054): Anthropic (Claude), OpenAI (ChatGPT) hoặc Google (Gemini); nhà cung cấp chính lỗi / hết hạn mức
+//   thì thử nhà cung cấp dự phòng. Khoá là secret của Supabase: ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY (không nằm trong repo).
 // - Không lưu nội dung câu hỏi / trả lời. Chỉ ghi ai_usage (tác vụ, token, kết quả) bằng khoá service_role.
 //
-// POST { task: 'lesson' | 'quiz' | 'comment' | 'document' | 'chat', input: {...} } → { text, items?, usage }
+// POST { task: 'lesson' | 'quiz' | 'comment' | 'document' | 'chat', input: {...} } → { text, items?, usage, provider, model }
+// POST { action: 'models', provider } (chỉ quản trị nền tảng) → { models: string[], configured } — danh sách mô hình khoá hiện tại dùng được
+// POST { action: 'keys' } (chỉ quản trị nền tảng) → { anthropic: bool, openai: bool, gemini: bool } — đã đặt secret chưa
 import { createClient } from 'npm:@supabase/supabase-js@2.45.4'
 
 const cors = {
@@ -95,6 +98,56 @@ function parseItems(text: string) {
   } catch { return null }
 }
 
+type Provider = 'anthropic' | 'openai' | 'gemini'
+const KEY_ENV: Record<Provider, string> = { anthropic: 'ANTHROPIC_API_KEY', openai: 'OPENAI_API_KEY', gemini: 'GEMINI_API_KEY' }
+const NAME: Record<Provider, string> = { anthropic: 'Claude (Anthropic)', openai: 'ChatGPT (OpenAI)', gemini: 'Gemini (Google)' }
+type Out = { ok: true; text: string; inTok: number; outTok: number } | { ok: false; status: number; msg: string }
+
+async function callModel(p: Provider, model: string, key: string, system: string, messages: Msg[], max: number): Promise<Out> {
+  let res: Response
+  try {
+    if (p === 'anthropic') {
+      res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body: JSON.stringify({ model, max_tokens: max, system, messages }) })
+    } else if (p === 'openai') {
+      res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST', headers: { Authorization: 'Bearer ' + key, 'content-type': 'application/json' },
+        body: JSON.stringify({ model, max_completion_tokens: max, messages: [{ role: 'system', content: system }, ...messages] }) })
+    } else {
+      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+        method: 'POST', headers: { 'x-goog-api-key': key, 'content-type': 'application/json' },
+        body: JSON.stringify({ systemInstruction: { parts: [{ text: system }] }, generationConfig: { maxOutputTokens: max },
+          contents: messages.map(m => ({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] })) }) })
+    }
+  } catch (e) { return { ok: false, status: 0, msg: 'network: ' + String(e).slice(0, 200) } }
+  const j = await res.json().catch(() => null) as any
+  if (!res.ok || !j) return { ok: false, status: res.status, msg: j?.error?.message ?? `HTTP ${res.status}` }
+  if (p === 'anthropic') return { ok: true, text: (j.content ?? []).filter((c: any) => c.type === 'text').map((c: any) => c.text ?? '').join('\n').trim(), inTok: j.usage?.input_tokens ?? 0, outTok: j.usage?.output_tokens ?? 0 }
+  if (p === 'openai') return { ok: true, text: String(j.choices?.[0]?.message?.content ?? '').trim(), inTok: j.usage?.prompt_tokens ?? 0, outTok: j.usage?.completion_tokens ?? 0 }
+  const parts = j.candidates?.[0]?.content?.parts ?? []
+  const text = parts.filter((x: any) => !x.thought).map((x: any) => x.text ?? '').join('').trim()
+  if (!text) return { ok: false, status: 502, msg: 'Gemini không trả nội dung (' + (j.candidates?.[0]?.finishReason ?? j.promptFeedback?.blockReason ?? 'không rõ') + ')' }
+  return { ok: true, text, inTok: j.usageMetadata?.promptTokenCount ?? 0, outTok: j.usageMetadata?.candidatesTokenCount ?? 0 }
+}
+
+async function listModels(p: Provider, key: string): Promise<string[]> {
+  if (p === 'anthropic') {
+    const j = await (await fetch('https://api.anthropic.com/v1/models?limit=100', { headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01' } })).json()
+    return (j.data ?? []).map((m: any) => m.id)
+  }
+  if (p === 'openai') {
+    const j = await (await fetch('https://api.openai.com/v1/models', { headers: { Authorization: 'Bearer ' + key } })).json()
+    return (j.data ?? []).map((m: any) => String(m.id)).filter((id: string) => /^(gpt|o\d|chatgpt)/i.test(id) && !/(audio|realtime|transcribe|tts|image|search|embedding|moderation)/i.test(id)).sort()
+  }
+  const j = await (await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers: { 'x-goog-api-key': key } })).json()
+  return (j.models ?? []).filter((m: any) => (m.supportedGenerationMethods ?? []).includes('generateContent')).map((m: any) => String(m.name).replace(/^models\//, '')).filter((id: string) => /^gemini/i.test(id)).sort()
+}
+
+const friendly = (p: Provider, o: { status: number; msg: string }) =>
+  o.status === 429 ? `${NAME[p]} đang hết hạn mức (miễn phí hoặc theo gói) — thử lại sau.` : o.status === 529 || o.status >= 500 ? `${NAME[p]} đang quá tải, thử lại sau ít phút.`
+    : o.status === 401 || o.status === 403 ? `Khoá API của ${NAME[p]} không hợp lệ hoặc chưa được cấp quyền.` : o.status === 0 ? `Không kết nối được ${NAME[p]}.` : `${NAME[p]} báo lỗi: ${o.msg}`
+
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
   if (req.method !== 'POST') return json({ error: 'Chỉ nhận POST' }, 405)
@@ -105,39 +158,47 @@ Deno.serve(async req => {
   const asUser = createClient(url, pub, { global: { headers: { Authorization: auth } }, auth: { persistSession: false } })
   const admin = createClient(url, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } })
 
-  let body: { task?: string; input?: In }
+  let body: { task?: string; input?: In; action?: string; provider?: string }
   try { body = await req.json() } catch { return json({ error: 'Dữ liệu gửi lên không hợp lệ' }, 400) }
+
+  // Quản trị nền tảng: kiểm tra secret, lấy danh sách mô hình
+  if (body.action === 'keys' || body.action === 'models') {
+    const { data: isAdmin } = await asUser.rpc('is_platform_admin')
+    if (isAdmin !== true) return json({ error: 'Chỉ quản trị nền tảng' }, 403)
+    if (body.action === 'keys') return json(Object.fromEntries((Object.keys(KEY_ENV) as Provider[]).map(p => [p, !!Deno.env.get(KEY_ENV[p])])))
+    const p = body.provider as Provider
+    if (!KEY_ENV[p]) return json({ error: 'Nhà cung cấp không hợp lệ' }, 400)
+    const key = Deno.env.get(KEY_ENV[p])
+    if (!key) return json({ models: [], configured: false })
+    try { return json({ models: await listModels(p, key), configured: true }) } catch (e) { return json({ error: 'Không lấy được danh sách mô hình: ' + String(e).slice(0, 200) }, 502) }
+  }
+
   const task = String(body.task ?? '')
   const { data: st, error: e1 } = await asUser.rpc('ai_begin', { p_task: task })
   if (e1) return json({ error: e1.message }, e1.code === '42501' ? 403 : 429)
-  const s = st as { model: string; org_id: string | null; user_id: string }
+  const s = st as { model: string; provider?: Provider; fallback_provider?: Provider | null; fallback_model?: string | null; org_id: string | null; user_id: string }
 
   const p = build(task, body.input ?? {})
   if (p.error) return json({ error: p.error }, 400)
-  const key = Deno.env.get('ANTHROPIC_API_KEY')
-  if (!key) return json({ error: 'KDI chưa cấu hình khoá API cho Trợ lý AI (secret ANTHROPIC_API_KEY).' }, 503)
 
-  const log = (ok: boolean, inTok = 0, outTok = 0, error: string | null = null) =>
-    admin.from('ai_usage').insert({ org_id: s.org_id, user_id: s.user_id, task, model: s.model, input_tokens: inTok, output_tokens: outTok, ok, error })
+  const chain: [Provider, string][] = [[s.provider ?? 'anthropic', s.model]]
+  if (s.fallback_provider && s.fallback_model) chain.push([s.fallback_provider, s.fallback_model])
+  const log = (prov: Provider, model: string, ok: boolean, inTok = 0, outTok = 0, error: string | null = null) =>
+    admin.from('ai_usage').insert({ org_id: s.org_id, user_id: s.user_id, task, provider: prov, model, input_tokens: inTok, output_tokens: outTok, ok, error })
 
-  let res: Response
-  try {
-    res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: s.model, max_tokens: p.max, system: SYSTEM, messages: p.messages }),
-    })
-  } catch (e) {
-    await log(false, 0, 0, 'network: ' + String(e).slice(0, 200))
-    return json({ error: 'Không kết nối được dịch vụ AI, thử lại sau.' }, 502)
+  let last = ''
+  for (const [prov, model] of chain) {
+    const key = Deno.env.get(KEY_ENV[prov])
+    if (!key) { last = `KDI chưa cấu hình khoá API cho ${NAME[prov]} (secret ${KEY_ENV[prov]}).`; continue }
+    const out = await callModel(prov, model, key, SYSTEM, p.messages, p.max)
+    if (out.ok) {
+      await log(prov, model, true, out.inTok, out.outTok)
+      return json({ text: out.text, items: task === 'quiz' ? parseItems(out.text) : undefined, usage: { input_tokens: out.inTok, output_tokens: out.outTok }, provider: prov, model })
+    }
+    await log(prov, model, false, 0, 0, out.msg.slice(0, 300))
+    last = friendly(prov, out)
+    // Lỗi do yêu cầu (400) thì không thử nhà cung cấp khác; hết hạn mức / quá tải / khoá sai / mất kết nối thì thử dự phòng
+    if (out.status === 400) break
   }
-  const out = await res.json().catch(() => null) as { content?: { type: string; text?: string }[]; usage?: { input_tokens: number; output_tokens: number }; error?: { message?: string } } | null
-  if (!res.ok || !out) {
-    const msg = out?.error?.message ?? `HTTP ${res.status}`
-    await log(false, 0, 0, msg.slice(0, 300))
-    return json({ error: res.status === 429 || res.status === 529 ? 'Dịch vụ AI đang quá tải, thử lại sau ít phút.' : 'Dịch vụ AI báo lỗi: ' + msg }, 502)
-  }
-  const text = (out.content ?? []).filter(c => c.type === 'text').map(c => c.text ?? '').join('\n').trim()
-  await log(true, out.usage?.input_tokens ?? 0, out.usage?.output_tokens ?? 0)
-  return json({ text, items: task === 'quiz' ? parseItems(text) : undefined, usage: out.usage })
+  return json({ error: last || 'Trợ lý AI chưa được cấu hình.' }, 502)
 })

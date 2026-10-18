@@ -99,6 +99,8 @@ const RoomsOverview = lazy(() => import('./pages/platform/Resources').then(m => 
 const ModuleUsage = lazy(() => import('./pages/platform/Modules').then(m => ({ default: m.ModuleUsage })))
 const DefaultPermissions = lazy(() => import('./pages/platform/Modules').then(m => ({ default: m.DefaultPermissions })))
 const PlatformSchools = lazy(() => import('./pages/platform/Schools').then(m => ({ default: m.PlatformSchools })))
+const SupplyRequestsPage = lazy(() => import('./pages/stockflow').then(m => ({ default: m.SupplyRequestsPage })))
+const TransfersPage = lazy(() => import('./pages/stockflow').then(m => ({ default: m.TransfersPage })))
 const SuppliesPage = lazy(() => import('./pages/inventory').then(m => ({ default: m.SuppliesPage })))
 const StocktakePage = lazy(() => import('./pages/inventory').then(m => ({ default: m.StocktakePage })))
 const EquipmentOverview = lazy(() => import('./pages/platform/Resources').then(m => ({ default: m.EquipmentOverview })))
@@ -115,6 +117,8 @@ const SCHOOL: PageMap = {
   'Quản lý Phòng STEM': Rooms,
   'Quản lý Thiết bị': Equipment,
   'Vật tư tiêu hao': SuppliesPage,
+  'Đề xuất mua vật tư': SupplyRequestsPage,
+  'Vận chuyển vật tư': TransfersPage,
   'Kiểm kê': StocktakePage,
   'Bảo hành thiết bị': Warranty,
   'Phân công giảng dạy': Assignments,
@@ -240,6 +244,8 @@ const PLATFORM: PageMap = {
   // 3. Vật tư, thiết bị dạy & học
   'Thiết bị & vật tư': EquipmentOverview,
   'Kho & tồn kho': SuppliesPage,
+  'Mua hàng & đề xuất vật tư': SupplyRequestsPage,
+  'Vận chuyển vật tư': TransfersPage,
   'Cấp phát & bàn giao': (p: any) => <SuppliesPage {...p} initialTab="moves" />,
   'Kiểm kê': StocktakePage,
   'Phòng STEM & lịch phòng': RoomsOverview,

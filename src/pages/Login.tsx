@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { isLoginName, toAuthEmail } from '../lib/login'
 import logo from '../assets/kdi-logo.png'
+import { useLoginBranding, DEFAULT_TITLE } from '../lib/branding'
 
 type Mode = 'in' | 'link' | 'up' | 'forgot'
 const TITLE: Record<Mode, string> = {
@@ -13,6 +14,7 @@ const TITLE: Record<Mode, string> = {
 const redirectTo = () => window.location.origin
 
 export default function Login() {
+  const brand = useLoginBranding()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [mode, setMode] = useState<Mode>('in')
@@ -47,8 +49,9 @@ export default function Login() {
   return (
     <div className="login">
       <form onSubmit={submit}>
-        <img src={logo} alt="KDI education" />
-        <h1>Hệ thống Quản trị STEM</h1>
+        <img src={brand?.logo ?? logo} alt={brand?.display_name ?? 'KDI education'} />
+        <h1>{brand?.display_name ?? DEFAULT_TITLE}</h1>
+        {brand?.login_message && mode === 'in' && <p className="loginmsg">{brand.login_message}</p>}
         <p>{TITLE[mode]}</p>
         <input type={mode === 'in' ? 'text' : 'email'} required placeholder={mode === 'in' ? 'Email hoặc tên đăng nhập' : 'Địa chỉ email'}
           autoComplete={mode === 'in' ? 'username' : 'email'} autoCapitalize="none" spellCheck={false} value={email} onChange={e => setEmail(e.target.value)} />
@@ -69,6 +72,7 @@ export default function Login() {
         ) : (
           <a href="#" onClick={go('in')}>← Đăng nhập bằng mật khẩu</a>
         )}
+        {brand && <p className="loginfoot">{brand.support_text ? brand.support_text + '\n' : ''}Nền tảng KSCHOOL STEM · vận hành bởi KDI Education</p>}
       </form>
     </div>
   )

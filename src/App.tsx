@@ -81,6 +81,10 @@ const PlatformCustomers = lazy(() => import('./pages/platform/Commerce').then(m 
 const PlatformContracts = lazy(() => import('./pages/platform/Commerce').then(m => ({ default: m.PlatformContracts })))
 const PlatformSecurity = lazy(() => import('./pages/platform/Security').then(m => ({ default: m.PlatformSecurity })))
 const PlatformLegal = lazy(() => import('./pages/platform/Legal').then(m => ({ default: m.PlatformLegal })))
+const ClassCompetencies = lazy(() => import('./pages/competency').then(m => ({ default: m.ClassCompetencies })))
+const StudentMyCompetencies = lazy(() => import('./pages/competency').then(m => ({ default: m.StudentMyCompetencies })))
+const TeacherCompetencyProfile = lazy(() => import('./pages/competency').then(m => ({ default: m.TeacherCompetencyProfile })))
+const SchoolTeacherAssessments = lazy(() => import('./pages/competency').then(m => ({ default: m.SchoolTeacherAssessments })))
 const PlatformSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.PlatformSupport })))
 // Đợt 2 (025): triển khai khách hàng, danh mục gói, đơn đặt gói, thông báo hàng loạt, tích hợp
 const PlatformRollout = lazy(() => import('./pages/platform/Rollout').then(m => ({ default: m.PlatformRollout })))
@@ -98,6 +102,8 @@ const CustomerSupport = lazy(() => import('./pages/support/Support').then(m => (
 
 type PageMap = Record<string, ComponentType<any>>
 const SCHOOL: PageMap = {
+  'Đánh giá năng lực GV': SchoolTeacherAssessments,
+  'Năng lực học sinh': ClassCompetencies,
   'Dashboard Trường': Dashboard,
   'Giáo viên': Teachers,
   'Lớp học': Classes,
@@ -141,6 +147,8 @@ const TEACHER: PageMap = {
   'Đặt phòng STEM': TeacherBooking,
   'Bài tập': TeacherAssignments,
   'Chấm bài': TeacherGrading,
+  'Năng lực học sinh': ClassCompetencies,
+  'Hồ sơ năng lực': TeacherCompetencyProfile,
   'Giáo dục STEM': TeacherClassroom,
   'Soạn bài giảng': TeacherLessonStudio,
   'Hộp phê duyệt': ApprovalInbox,
@@ -153,6 +161,7 @@ const TEACHER: PageMap = {
 }
 const STUDENT: PageMap = {
   'Tổng quan': StudentHome,
+  'Năng lực của em': StudentMyCompetencies,
   'Bài tập': StudentAssignments,
   'Lịch học': StudentSchedule,
   'Giáo dục STEM': StudentClassroom,
@@ -201,6 +210,8 @@ const PLATFORM: PageMap = {
   'Vai trò & quyền mặc định': DefaultPermissions,
   'Bảo mật tài khoản': PlatformSecurity,
   'Điều khoản & dữ liệu cá nhân': PlatformLegal,
+  'Đánh giá năng lực giáo viên': SchoolTeacherAssessments,
+  'Đánh giá năng lực người học': ClassCompetencies,
   'Vấn đề & phản hồi': PlatformSupport,
   'Thông tin khách hàng': PlatformCustomers,
   'Gói dịch vụ & hợp đồng': PlatformContracts,

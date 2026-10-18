@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useCompetencies } from '../competency'
 
 // Chấm theo tiêu chí (migration 041). Mức 1–4, Mức 4 cao nhất. Điểm = Σ(điểm tiêu chí × mức/4) / Σ điểm × thang điểm.
-export type Criterion = { name: string; desc?: string; points: number; levels: string[] }
+export type Criterion = { name: string; desc?: string; points: number; levels: string[]; competency?: string }
 export type Rubric = { title: string; criteria: Criterion[] }
 type Saved = { id: string; org_id: string | null; title: string; description: string | null; criteria: Criterion[] }
 
@@ -21,6 +22,7 @@ export const rubricProblem = (r: Rubric) => !r.criteria.length ? 'Cần ít nh�
 // Chọn mẫu / soạn tiêu chí trong form giao bài
 export function RubricField({ value, onChange, orgId }: { value: Rubric | null; onChange: (r: Rubric | null) => void; orgId: string | null }) {
   const [lib, setLib] = useState<Saved[]>([])
+  const comps = useCompetencies('student')
   const [editing, setEditing] = useState(false)
   const [msg, setMsg] = useState('')
   async function load() {
@@ -59,7 +61,7 @@ export function RubricField({ value, onChange, orgId }: { value: Rubric | null; 
         {value && <button type="button" onClick={() => onChange(null)}>Bỏ tiêu chí</button>}
       </div>
       {msg && <small className="sub">{msg}</small>}
-      {value && !editing && <small className="sub">{value.criteria.length} tiêu chí · tổng {total} điểm tiêu chí (quy đổi về thang điểm của bài). Học sinh thấy tiêu chí khi làm bài.</small>}
+      {value && !editing && <small className="sub">{value.criteria.length} tiêu chí · tổng {total} điểm tiêu chí (quy đổi về thang điểm của bài) · {value.criteria.filter(c => c.competency).length} tiêu chí gắn năng lực. Học sinh thấy tiêu chí khi làm bài.</small>}
       {value && editing && (
         <div className="rubricedit">
           <input value={value.title} onChange={e => onChange({ ...value, title: e.target.value })} aria-label="Tên bộ tiêu chí" placeholder="Tên bộ tiêu chí" />
@@ -69,7 +71,9 @@ export function RubricField({ value, onChange, orgId }: { value: Rubric | null; 
               const set = (p: Partial<Criterion>) => onChange({ ...value, criteria: value.criteria.map((x, j) => j === i ? { ...x, ...p } : x) })
               return (
                 <tr key={i}>
-                  <td><textarea rows={2} value={c.name} onChange={e => set({ name: e.target.value })} aria-label={`Tên tiêu chí ${i + 1}`} /></td>
+                  <td><textarea rows={2} value={c.name} onChange={e => set({ name: e.target.value })} aria-label={`Tên tiêu chí ${i + 1}`} />
+                    <select value={c.competency ?? ''} onChange={e => set({ competency: e.target.value || undefined })} aria-label={`Năng lực của tiêu chí ${i + 1}`}>
+                      <option value="">Năng lực: (không gắn)</option>{comps.map(k => <option key={k.key} value={k.key}>{k.name}</option>)}</select></td>
                   <td><input type="number" min={0.5} step={0.5} value={c.points} onChange={e => set({ points: Number(e.target.value) })} aria-label="Điểm tiêu chí" /></td>
                   {c.levels.map((l, k) => <td key={k}><textarea rows={2} value={l} placeholder="Mô tả mức" aria-label={`${LEVEL_NAME[k]} của tiêu chí ${i + 1}`}
                     onChange={e => set({ levels: c.levels.map((x, m) => m === k ? e.target.value : x) })} /></td>)}

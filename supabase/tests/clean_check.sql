@@ -5,6 +5,7 @@ do $$
 declare
   allowed text[] := array[
     'audit_log',            -- nhật ký do chính migration ghi khi cập nhật danh mục gói
+    'competencies',         -- khung năng lực HS/GV (042)
     'integrations',         -- danh mục kết nối tích hợp (K12Online, VNeID, email, Zalo, Excel)
     'organizations',        -- chỉ đơn vị cung cấp KDI Education (kiểm tra riêng bên dưới)
     'role_permissions',     -- ma trận quyền mặc định

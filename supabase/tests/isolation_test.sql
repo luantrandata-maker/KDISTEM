@@ -129,6 +129,9 @@ begin
   delete from students where student_code like 'ISO-%' or full_name like 'ISO HS%' or org_id = any(v_orgs);
   delete from invitations where email like 'thcsph.iso%' or full_name = 'ISO GV tài khoản mã';
   if to_regclass('public.rubrics') is not null then delete from rubrics where title like 'ISO %'; end if;
+  if to_regclass('public.teacher_assessments') is not null then
+    delete from teacher_assessments where teacher_id in (select id from teachers where email like '%@iso-test.local');
+  end if;
   if to_regclass('public.dept_targets') is not null then
     delete from dept_targets where note like 'ISO %';
     delete from dept_alert_actions where note like 'ISO %';
@@ -1104,6 +1107,54 @@ begin
     ('system', 'Rubric: tổng hợp theo tiêu chí', '5', v_sum::text, v_sum = 5),
     ('so_hy', 'Rubric: Sở xem tổng hợp bài của trường trực thuộc', '5', v_r, v_r = '5'),
     ('so_bn', 'Rubric: Sở tỉnh khác không xem tổng hợp', 'ERR 42501', v_r2, v_r2 = 'ERR 42501');
+end $$;
+
+-- ===== 042: đánh giá năng lực =====
+update profiles set org_id = pg_temp.oid_('THCS-PH') where email = 'gv_both@iso-test.local';   -- trước đó đã chuyển sang trường B
+create or replace function pg_temp.tid(p_name text) returns text language sql as $$ select quote_literal(id) from teachers where full_name = p_name $$;
+insert into teacher_assessments (org_id, teacher_id, school_year, kind, levels, status, comment)
+  select org_id, id, '2026-2027', 'self', '{"gv_thiet_ke":3,"gv_to_chuc":2}', 'submitted', 'ISO tự đánh giá' from teachers where full_name = 'GV thử A';
+select pg_temp.chk('admin_ph', 'Năng lực: khung HS 7 / GV 5', 'select (select count(*) from competencies where audience = ''student'') || ''/'' || (select count(*) from competencies where audience = ''teacher'')', '7/5');
+select pg_temp.chk('gv_both', 'Năng lực GV: tự đánh giá của mình',
+  format('insert into teacher_assessments (org_id, teacher_id, school_year, kind, levels) values (%s, %s, ''2025-2026'', ''self'', ''{"gv_thiet_ke":2}'')', quote_literal(pg_temp.oid_('THCS-PH')), pg_temp.tid('GV thử A')), 'rows:1');
+select pg_temp.chk('gv_both', 'Năng lực GV: không tự đánh giá thay người khác',
+  format('insert into teacher_assessments (org_id, teacher_id, school_year, kind, levels) values (%s, %s, ''2025-2026'', ''self'', ''{}'')', quote_literal(pg_temp.oid_('THCS-PH')), pg_temp.tid('ISO GV tài khoản mã')), 'ERR');
+select pg_temp.chk('gv_both', 'Năng lực GV: GV không ghi đánh giá của quản lý',
+  format('insert into teacher_assessments (org_id, teacher_id, school_year, kind, levels) values (%s, %s, ''2025-2026'', ''manager'', ''{}'')', quote_literal(pg_temp.oid_('THCS-PH')), pg_temp.tid('GV thử A')), 'ERR');
+select pg_temp.chk('gv_both', 'Năng lực GV: bản đã nộp không tự sửa được',
+  'update teacher_assessments set levels = ''{"gv_thiet_ke":4}'' where comment = ''ISO tự đánh giá''', 'ERR');
+select pg_temp.chk('gv_both', 'Năng lực GV: mức ngoài 1–4 bị từ chối',
+  format('insert into teacher_assessments (org_id, teacher_id, school_year, kind, levels) values (%s, %s, ''2024-2025'', ''self'', ''{"gv_thiet_ke":5}'')', quote_literal(pg_temp.oid_('THCS-PH')), pg_temp.tid('GV thử A')), 'ERR*');
+select pg_temp.chk('admin_ph', 'Năng lực GV: quản trị trường đánh giá GV',
+  format('insert into teacher_assessments (org_id, teacher_id, school_year, kind, levels, status) values (%s, %s, ''2026-2027'', ''manager'', ''{"gv_thiet_ke":3}'', ''submitted'')', quote_literal(pg_temp.oid_('THCS-PH')), pg_temp.tid('GV thử A')), 'rows:1');
+select pg_temp.chk('admin_kb', 'Năng lực GV: trường khác không xem', 'select count(*) from teacher_assessments where comment = ''ISO tự đánh giá''', '0');
+select pg_temp.chk('so_hy', 'Năng lực GV: Sở cấp trên xem', 'select count(*) from teacher_assessments where comment = ''ISO tự đánh giá''', '1');
+select pg_temp.chk('gv_both', 'Năng lực GV: xem minh chứng của mình', format('select (teacher_evidence(%s) ? ''certificates'')::text', pg_temp.tid('GV thử A')), 'true');
+select pg_temp.chk('admin_kb', 'Năng lực GV: trường khác không xem minh chứng', format('select teacher_evidence(%s)::text', pg_temp.tid('GV thử A')), 'ERR');
+do $$ declare v_a uuid; v_s uuid; v_stu uuid; v_cls uuid; v_old_r jsonb; v_old jsonb; v_r1 text; v_r2 text; v_r3 text; v_r4 text; v_r5 text;
+begin
+  select a.id, a.rubric into v_a, v_old_r from assignments a join organizations o on o.id = a.org_id
+   where o.code = 'THCS-PH' and exists (select 1 from submissions s where s.assignment_id = a.id and s.student_id is not null) order by a.created_at limit 1;
+  if v_a is null then return; end if;
+  select s.id, s.student_id, to_jsonb(s) into v_s, v_stu, v_old from submissions s where assignment_id = v_a and student_id is not null order by id limit 1;
+  select class_id into v_cls from students where id = v_stu;
+  update assignments set rubric = jsonb_build_object('title', r.title, 'criteria', r.criteria) from rubrics r
+   where assignments.id = v_a and r.org_id is null and r.title = 'Sản phẩm STEM (quy trình thiết kế kỹ thuật)';
+  update submissions set rubric_scores = '[4,3,3,2,4]' where id = v_s;
+  v_r1 := pg_temp.probe('admin_ph@iso-test.local', format('select evidences || ''/'' || avg_level from student_competencies(%L) where competency = ''gqvd''', v_stu));
+  v_r2 := pg_temp.probe('admin_kb@iso-test.local', format('select count(*) from student_competencies(%L)', v_stu));
+  v_r3 := pg_temp.probe('so_hy@iso-test.local', format('select count(*) from student_competencies(%L) where evidences > 0', v_stu));
+  v_r4 := pg_temp.probe('admin_ph@iso-test.local', format('select count(*) > 0 from class_competencies(%L) where student_id = %L', v_cls, v_stu));
+  v_r5 := pg_temp.probe('so_bn@iso-test.local', format('select count(*) from class_competencies(%L)', v_cls));
+  update assignments set rubric = v_old_r where id = v_a;
+  update submissions set rubric_scores = null, score = (v_old->>'score')::numeric, status = v_old->>'status',
+         graded_at = (v_old->>'graded_at')::timestamptz where id = v_s;
+  insert into t_result (who, name, expect, got, ok) values
+    ('admin_ph', 'Năng lực HS: 2 tiêu chí GQVĐ, mức TB 3', '2/3.00', v_r1, v_r1 = '2/3.00'),
+    ('admin_kb', 'Năng lực HS: trường khác không xem', 'ERR 42501', v_r2, v_r2 = 'ERR 42501'),
+    ('so_hy', 'Năng lực HS: Sở cấp trên xem (4 năng lực có bằng chứng)', '4', v_r3, v_r3 = '4'),
+    ('admin_ph', 'Năng lực lớp: có HS vừa chấm', 'true', v_r4, v_r4 = 'true'),
+    ('so_bn', 'Năng lực lớp: Sở tỉnh khác không xem', 'ERR 42501', v_r5, v_r5 = 'ERR 42501');
 end $$;
 
 -- ===== Dọn dẹp + kết quả =====

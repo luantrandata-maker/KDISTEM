@@ -108,6 +108,9 @@ const PARENT: PageMap = {
   'Bài tập & điểm': ParentP('ParentAssignments'), 'Năng lực của con': ParentP('ParentCompetency'), 'Cài đặt & đồng ý': ParentP('ParentSettings'),
   'Khảo sát': lazy(() => import('./pages/surveys').then(m => ({ default: m.MySurveys }))),
 }
+const StemIndexPage = lazy(() => import('./pages/department/StemIndex').then(m => ({ default: m.StemIndexPage })))
+const IndexConfigPage = lazy(() => import('./pages/department/StemIndex').then(m => ({ default: m.IndexConfigPage })))
+const ComparePage = lazy(() => import('./pages/department/StemIndex').then(m => ({ default: m.ComparePage })))
 const DataExportPage = lazy(() => import('./pages/dataexport').then(m => ({ default: m.DataExportPage })))
 const PlatformRevenue = lazy(() => import('./pages/platform/Revenue').then(m => ({ default: m.PlatformRevenue })))
 const SupplyRequestsPage = lazy(() => import('./pages/stockflow').then(m => ({ default: m.SupplyRequestsPage })))
@@ -197,6 +200,9 @@ const STUDENT: PageMap = {
   'Chuyên cần': StudentAttendance,
 }
 const DEPARTMENT: PageMap = {
+  'Chỉ số STEM': StemIndexPage,
+  'So sánh trường / địa bàn': ComparePage,
+  'Bộ chỉ số': IndexConfigPage,
   'Dashboard toàn Sở': DeptDashboard,
   'KPI & Xếp hạng Xã/Phường': DeptWardKpi,
   'Cảnh báo & trường cần chú ý': DeptAlerts,
@@ -226,6 +232,11 @@ const DEPARTMENT: PageMap = {
 // Cổng Quản trị nền tảng: chỉ nối các trang đọc được dữ liệu toàn hệ thống (trang nền tảng, trang cấp Sở, học liệu, phê duyệt, tập huấn).
 // Mục menu không có ở đây hiện khung giao diện (PlannedPage); build xong phân hệ nào thì thêm trang vào đây.
 const PLATFORM: PageMap = {
+  'Chỉ số STEM (STEM Index)': (p: any) => <StemIndexPage {...p} platform />,
+  'Điều hành toàn tỉnh': (p: any) => <StemIndexPage {...p} platform groupBy="department" />,
+  'So sánh trường / địa bàn': ComparePage,
+  'Bộ chỉ số': (p: any) => <IndexConfigPage {...p} platform />,
+  'Dashboard tổng hợp': DeptDashboard,
   'Nghiệm thu & doanh thu': PlatformRevenue,
   'Sao lưu & xuất dữ liệu': (p: any) => <DataExportPage {...p} platform />,
   'Giao diện & thương hiệu': (p: any) => <BrandingPage {...p} platform />,

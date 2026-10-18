@@ -32,3 +32,11 @@ select '## Lần chạy gần nhất (system_job_runs, 5 lần)';
 select case when to_regclass('public.system_job_runs') is null then '(chưa có bảng)'
   else coalesce((xpath('/row/v/text()', query_to_xml(
     'select string_agg(x, chr(10)) as v from (select format(''%s %s ok=%s %s'', job, to_char(started_at at time zone ''Asia/Ho_Chi_Minh'', ''YYYY-MM-DD HH24:MI''), ok, result::text) as x from system_job_runs order by id desc limit 5) t', false, true, '')))[1]::text, '(chưa chạy lần nào)') end;
+select '## pg_cron: trạng thái lịch';
+select case when to_regclass('cron.job') is null then '(không có pg_cron)'
+  else coalesce((xpath('/row/v/text()', query_to_xml(
+    'select string_agg(jobid || '' | '' || jobname || '' | active='' || active || '' | db='' || database || '' | user='' || username, chr(10)) as v from cron.job', false, true, '')))[1]::text, '(chưa có lịch)') end;
+select '## pg_cron: 5 lần chạy gần nhất (cron.job_run_details)';
+select case when to_regclass('cron.job_run_details') is null then '(không có bảng)'
+  else coalesce((xpath('/row/v/text()', query_to_xml(
+    'select string_agg(x, chr(10)) as v from (select format(''%s %s %s %s'', jobid, to_char(start_time at time zone ''Asia/Ho_Chi_Minh'', ''YYYY-MM-DD HH24:MI''), status, left(coalesce(return_message, ''''), 300)) as x from cron.job_run_details order by start_time desc nulls last limit 5) t', false, true, '')))[1]::text, '(chưa chạy lần nào)') end;

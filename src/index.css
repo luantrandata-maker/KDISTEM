@@ -816,3 +816,7 @@ td.good,b.good{color:var(--ok);font-weight:700}tr.muted td{opacity:.55}
 .linkbtn{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 2px}
 .evlist{display:grid;gap:12px}.evcard{display:grid;grid-template-columns:64px 1fr;gap:14px;align-items:start}
 .evdate{border-radius:12px;background:var(--soft);text-align:center;padding:8px 0;color:var(--navy)}.evdate b{display:block;font-size:24px;line-height:1}.evdate small{font-size:12px}
+.projdetail{display:grid;grid-template-columns:1fr 1fr;gap:16px}.projdetail p{margin:6px 0}.projlog{border-left:3px solid var(--line);padding-left:8px}.projlog.feedback{border-color:var(--orange)}
+.judgegrid{display:grid;grid-template-columns:minmax(240px,340px) 1fr;gap:16px;align-items:start}
+.judgeitem{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:8px 4px;cursor:pointer;font:inherit;color:inherit}.judgeitem small{display:block;color:var(--muted)}.judgeitem.on{background:var(--soft)}
+@media (max-width:900px){.projdetail,.judgegrid{grid-template-columns:1fr}}

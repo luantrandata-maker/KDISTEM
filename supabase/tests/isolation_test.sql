@@ -129,6 +129,12 @@ begin
   delete from students where student_code like 'ISO-%' or full_name like 'ISO HS%' or org_id = any(v_orgs);
   delete from invitations where email like 'thcsph.iso%' or full_name = 'ISO GV tài khoản mã';
   if to_regclass('public.rubrics') is not null then delete from rubrics where title like 'ISO %'; end if;
+  if to_regclass('public.competitions') is not null then
+    delete from invitations where judge_id in (select j.id from competition_judges j join competitions c on c.id = j.competition_id where c.title like 'ISO%');
+    delete from competitions where title like 'ISO%';
+    delete from approval_requests where ref_table = 'student_projects' and title like 'ISO%';
+    delete from student_projects where title like 'ISO%';
+  end if;
   if to_regclass('public.events') is not null then delete from notifications where title like 'Sự kiện mới: ISO%'; delete from events where title like 'ISO%'; end if;
   if to_regclass('public.stem_index_configs') is not null then delete from stem_index_configs where name like 'ISO%'; end if;
   if to_regclass('public.guardians') is not null then
@@ -1507,6 +1513,75 @@ select pg_temp.chk('admin_kb', 'Sự kiện: trường khác không xem đăng k
 update events set reg_deadline = now() - interval '1 hour' where title = 'ISO Ngày hội STEM';
 select pg_temp.chk('ph_ph', 'Sự kiện: hết hạn đăng ký', $q$select event_register((select id from events where title = 'ISO Ngày hội STEM'), (select student_id from parent_children() limit 1))::text$q$, 'ERR*');
 select pg_temp.chk('gv_both', 'Sự kiện: GV đăng ký hội thảo không cần đăng ký thì báo lỗi', $q$select event_register((select id from events where title = 'ISO Hội thảo GV STEM toàn tỉnh'))::text$q$, 'ERR*');
+
+-- ===== 051: dự án STEM & cuộc thi =====
+select pg_temp.chk('gv_both', 'Dự án: GV tạo dự án cho trường',
+  $q$insert into student_projects (org_id, title, field, mentor_teacher_id, abstract) values (my_org_id(), 'ISO Dự án máy lọc nước', 'Rô bốt và máy thông minh', my_teacher_id(), 'Máy lọc nước dùng năng lượng mặt trời cho vùng lũ.')$q$, 'rows:1');
+insert into student_projects (org_id, title, field, mentor_teacher_id, abstract)
+  select pg_temp.oid_('THCS-PH'), 'ISO Dự án máy lọc nước', 'Rô bốt và máy thông minh', (select id from teachers where full_name = 'GV thử A'), 'Máy lọc nước dùng năng lượng mặt trời cho vùng lũ.'
+   where not exists (select 1 from student_projects where title = 'ISO Dự án máy lọc nước');
+select pg_temp.chk('admin_ph', 'Dự án: thêm thành viên là HS của trường',
+  $q$insert into project_members (project_id, student_id, role) select p.id, g.student_id, 'leader' from student_projects p, guardians g where p.title = 'ISO Dự án máy lọc nước' and g.full_name = 'ISO Mẹ A'$q$, 'rows:1');
+insert into project_members (project_id, student_id) select p.id, g.student_id from student_projects p, guardians g where p.title = 'ISO Dự án máy lọc nước' and g.full_name = 'ISO Mẹ A' on conflict do nothing;
+insert into project_members (project_id, student_id) select p.id, g.student_id from student_projects p, guardians g where p.title = 'ISO Dự án máy lọc nước' and g.full_name = 'ISO Bố B' on conflict do nothing;
+select pg_temp.chk('admin_kb', 'Dự án: không thêm HS trường khác',
+  $q$insert into project_members (project_id, student_id) select p.id, s.id from student_projects p, students s where p.title = 'ISO Dự án máy lọc nước' and s.org_id = my_org_id() limit 1$q$, 'rows:0');
+select pg_temp.chk('admin_kb', 'Dự án: trường tỉnh khác không thấy', $q$select count(*) from student_projects where title like 'ISO%'$q$, '0');
+select pg_temp.chk('ph_ph', 'Dự án: phụ huynh thấy dự án của con', $q$select count(*) from student_projects where title = 'ISO Dự án máy lọc nước'$q$, '1');
+select pg_temp.chk('ph_ph', 'Dự án: phụ huynh không sửa', $q$update student_projects set title = 'ISO sửa' where title = 'ISO Dự án máy lọc nước'$q$, 'rows:0');
+select pg_temp.chk('so_hy', 'Dự án: Sở thấy dự án trường trực thuộc', $q$select count(*) from student_projects where title = 'ISO Dự án máy lọc nước'$q$, '1');
+select pg_temp.probe('gv_both@iso-test.local', $q$update student_projects set status = 'pending' where title = 'ISO Dự án máy lọc nước'$q$, true);
+do $$ declare r text;
+begin
+  insert into t_result (who, name, expect, got, ok) select 'system', 'Dự án: gửi duyệt tạo hồ sơ phê duyệt', '1', count(*)::text, count(*) = 1
+    from approval_requests where ref_table = 'student_projects' and kind = 'project' and status = 'pending' and title = 'ISO Dự án máy lọc nước';
+  r := pg_temp.probe('admin_ph@iso-test.local', $q$select approval_decide_ref('student_projects', (select id from student_projects where title = 'ISO Dự án máy lọc nước'), 'approve') ->> 'status'$q$, true);
+  insert into t_result (who, name, expect, got, ok) values ('admin_ph', 'Dự án: Ban giám hiệu duyệt', 'approved', r, r = 'approved');
+end $$;
+
+select pg_temp.chk('so_hy', 'Cuộc thi: Sở tạo cuộc thi KHKT',
+  $q$insert into competitions (org_id, title, template, fields, grades, max_members, required_docs, criteria, abstract_words, anonymous, fee, rounds, status)
+     values (my_org_id(), 'ISO KHKT cấp tỉnh', 'khkt', '{"Rô bốt và máy thông minh","Hoá học"}', '{thcs,thpt}', 2,
+             '[{"key":"report","label":"Báo cáo kết quả nghiên cứu","required":true}]', '[{"key":"st","label":"Sáng tạo","max":20},{"key":"tb","label":"Trình bày","max":80}]',
+             250, true, 100000, '{"Vòng tỉnh"}', 'open')$q$, 'rows:1');
+insert into competitions (org_id, title, template, fields, grades, max_members, required_docs, criteria, abstract_words, anonymous, fee, rounds, status)
+  values (pg_temp.oid_('SO-HY'), 'ISO KHKT cấp tỉnh', 'khkt', '{"Rô bốt và máy thông minh","Hoá học"}', '{thcs,thpt}', 2,
+          '[{"key":"report","label":"Báo cáo kết quả nghiên cứu","required":true}]', '[{"key":"st","label":"Sáng tạo","max":20},{"key":"tb","label":"Trình bày","max":80}]',
+          250, true, 100000, '{"Vòng tỉnh"}', 'open');
+select pg_temp.chk('admin_ph', 'Cuộc thi: trường trực thuộc thấy', $q$select count(*) from competitions where title = 'ISO KHKT cấp tỉnh'$q$, '1');
+select pg_temp.chk('admin_kb', 'Cuộc thi: trường tỉnh khác không thấy', $q$select count(*) from competitions where title = 'ISO KHKT cấp tỉnh'$q$, '0');
+select pg_temp.chk('admin_ph', 'Cuộc thi: trường không tạo cuộc thi cấp Sở', format($q$insert into competitions (org_id, title) values (%L, 'ISO thay Sở tổ chức')$q$, pg_temp.oid_('SO-HY')), 'ERR');
+select pg_temp.chk('admin_ph', 'Cuộc thi: thiếu hồ sơ bắt buộc bị từ chối',
+  $q$select competition_submit((select id from competitions where title = 'ISO KHKT cấp tỉnh'), (select id from student_projects where title = 'ISO Dự án máy lọc nước'), 'Rô bốt và máy thông minh', '{}')::text$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Cuộc thi: lĩnh vực không có trong cuộc thi bị từ chối',
+  $q$select competition_submit((select id from competitions where title = 'ISO KHKT cấp tỉnh'), (select id from student_projects where title = 'ISO Dự án máy lọc nước'), 'Toán học', '{"report":"https://drive.google.com/x"}')::text$q$, 'ERR*');
+select pg_temp.chk('admin_kb', 'Cuộc thi: trường khác không nộp dự án của trường này',
+  $q$select competition_submit((select id from competitions where title = 'ISO KHKT cấp tỉnh'), (select id from student_projects where title = 'ISO Dự án máy lọc nước'), 'Hoá học', '{"report":"https://x.y"}')::text$q$, 'ERR*');
+select pg_temp.probe('admin_ph@iso-test.local', $q$select competition_submit((select id from competitions where title = 'ISO KHKT cấp tỉnh'), (select id from student_projects where title = 'ISO Dự án máy lọc nước'), 'Rô bốt và máy thông minh', '{"report":"https://drive.google.com/bao-cao"}')::text$q$, true);
+select pg_temp.chk('admin_ph', 'Cuộc thi: nộp bài hợp lệ (có mã bài, chờ lệ phí)', $q$select code || '|' || fee_status from competition_entries$q$, 'RÔ-001|unpaid');
+select pg_temp.probe('so_hy@iso-test.local', $q$select competition_add_judge((select id from competitions where title = 'ISO KHKT cấp tỉnh'), 'GK thử ISO', 'gv_both@iso-test.local')::text$q$, true);
+select pg_temp.probe('so_hy@iso-test.local', $q$select competition_add_judge((select id from competitions where title = 'ISO KHKT cấp tỉnh'), 'ISO GK ngoài', null, '{"Hoá học"}')::text$q$, true);
+select pg_temp.chk('so_hy', 'Giám khảo ngoài: cấp tài khoản mã theo mã đơn vị',
+  $q$select login || ':' || status from account_prepare('judge', array(select id from competition_judges where full_name = 'ISO GK ngoài'))$q$, 'sohy.gk1:new');
+select pg_temp.chk('admin_ph', 'Giám khảo: trường không cấp tài khoản giám khảo của Sở',
+  format('select string_agg(status, '','') from account_prepare(''judge'', array[%L::uuid])', (select id from competition_judges where full_name = 'ISO GK ngoài')), 'not_found');
+update competitions set status = 'judging' where title = 'ISO KHKT cấp tỉnh';
+select pg_temp.chk('so_hy', 'Phân công: chỉ giám khảo đúng lĩnh vực', $q$select competition_auto_assign((select id from competitions where title = 'ISO KHKT cấp tỉnh'), 2)::text$q$, '1');
+select pg_temp.probe('so_hy@iso-test.local', $q$select competition_auto_assign((select id from competitions where title = 'ISO KHKT cấp tỉnh'), 2)::text$q$, true);
+select pg_temp.chk('gv_both', 'Giám khảo: thấy bài được phân công, ẩn tên trường', $q$select count(*) || '|' || coalesce(max(school), 'ẩn') from my_judging()$q$, '1|ẩn');
+select pg_temp.chk('gv_both', 'Giám khảo: không đọc thẳng bảng bài dự thi của trường khác', $q$select count(*) from judge_assignments$q$, '0');
+select pg_temp.chk('admin_ph', 'Chấm: người không phải giám khảo không chấm được',
+  $q$select judge_score((select id from judge_assignments limit 1), '{"st":10,"tb":50}')::text$q$, 'ERR*');
+select pg_temp.chk('gv_both', 'Chấm: điểm vượt mức tối đa bị từ chối', $q$select judge_score((select assignment_id from my_judging() limit 1), '{"st":25,"tb":50}')::text$q$, 'ERR*');
+select pg_temp.probe('gv_both@iso-test.local', $q$select judge_score((select assignment_id from my_judging() limit 1), '{"st":18,"tb":70}', 'Ý tưởng tốt')::text$q$, true);
+select pg_temp.chk('so_hy', 'Kết quả: điểm trung bình và hạng theo lĩnh vực', $q$select avg_total::text || '|' || rank_in_field from competition_results((select id from competitions where title = 'ISO KHKT cấp tỉnh'))$q$, '88.00|1');
+select pg_temp.chk('admin_ph', 'Kết quả: trường không xem bảng tổng hợp chấm', $q$select count(*) from competition_results((select id from competitions where title = 'ISO KHKT cấp tỉnh'))$q$, 'ERR');
+select pg_temp.chk('so_hy', 'Lệ phí: tổng hợp bài chưa nộp lệ phí', $q$select unpaid || '|' || outstanding from competition_fees() where title = 'ISO KHKT cấp tỉnh'$q$, '1|100000');
+select pg_temp.chk('so_hy', 'Trao giải: ghi giải và kết thúc',
+  $q$select competition_finish((select id from competitions where title = 'ISO KHKT cấp tỉnh'), jsonb_build_object((select id from competition_entries limit 1)::text, 'Giải Nhất'))::text$q$, '1');
+select pg_temp.probe('so_hy@iso-test.local', $q$select competition_finish((select id from competitions where title = 'ISO KHKT cấp tỉnh'), jsonb_build_object((select id from competition_entries limit 1)::text, 'Giải Nhất'))::text$q$, true);
+select pg_temp.chk('ph_ph', 'Trao giải: phụ huynh thấy giải của con', $q$select award from competition_entries e join student_projects p on p.id = e.project_id where p.title = 'ISO Dự án máy lọc nước'$q$, 'Giải Nhất');
+select pg_temp.chk('gv_both', 'Chấm: vòng đã đóng thì không chấm lại', $q$select judge_score((select assignment_id from my_judging() limit 1), '{"st":20,"tb":80}')::text$q$, 'ERR*');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

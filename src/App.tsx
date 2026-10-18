@@ -108,12 +108,17 @@ const PARENT: PageMap = {
   'Bài tập & điểm': ParentP('ParentAssignments'), 'Năng lực của con': ParentP('ParentCompetency'), 'Cài đặt & đồng ý': ParentP('ParentSettings'),
   'Khảo sát': lazy(() => import('./pages/surveys').then(m => ({ default: m.MySurveys }))),
   'Sự kiện': lazy(() => import('./pages/events').then(m => ({ default: m.MyEvents }))),
+  'Dự án STEM': lazy(() => import('./pages/contest/Projects').then(m => ({ default: m.ParentProjects }))),
 }
 const StemIndexPage = lazy(() => import('./pages/department/StemIndex').then(m => ({ default: m.StemIndexPage })))
 const IndexConfigPage = lazy(() => import('./pages/department/StemIndex').then(m => ({ default: m.IndexConfigPage })))
 const ComparePage = lazy(() => import('./pages/department/StemIndex').then(m => ({ default: m.ComparePage })))
 const EventManager = lazy(() => import('./pages/events').then(m => ({ default: m.EventManager })))
 const MyEvents = lazy(() => import('./pages/events').then(m => ({ default: m.MyEvents })))
+const ProjectsPage = lazy(() => import('./pages/contest/Projects').then(m => ({ default: m.ProjectsPage })))
+const CompetitionsPage = lazy(() => import('./pages/contest/Competitions').then(m => ({ default: m.CompetitionsPage })))
+const JudgingPage = lazy(() => import('./pages/contest/Judging').then(m => ({ default: m.JudgingPage })))
+const JUDGE: PageMap = { 'Chấm thi': JudgingPage }
 const DataExportPage = lazy(() => import('./pages/dataexport').then(m => ({ default: m.DataExportPage })))
 const PlatformRevenue = lazy(() => import('./pages/platform/Revenue').then(m => ({ default: m.PlatformRevenue })))
 const SupplyRequestsPage = lazy(() => import('./pages/stockflow').then(m => ({ default: m.SupplyRequestsPage })))
@@ -125,6 +130,8 @@ const CustomerSupport = lazy(() => import('./pages/support/Support').then(m => (
 
 type PageMap = Record<string, ComponentType<any>>
 const SCHOOL: PageMap = {
+  'Dự án STEM': ProjectsPage,
+  'Cuộc thi': CompetitionsPage,
   'Sự kiện': EventManager,
   'Đánh giá năng lực GV': SchoolTeacherAssessments,
   'Khảo sát': SurveyManager,
@@ -172,6 +179,9 @@ const SCHOOL: PageMap = {
   'Ngày nghỉ & lễ': Holidays,
 }
 const TEACHER: PageMap = {
+  'Dự án STEM': ProjectsPage,
+  'Cuộc thi': CompetitionsPage,
+  'Chấm thi': JudgingPage,
   'Sự kiện': MyEvents,
   'Tổng quan': TeacherHome,
   'Kế hoạch giáo dục': TeacherSchedule,
@@ -194,6 +204,7 @@ const TEACHER: PageMap = {
   'Học trước & tự học': TeacherSelfStudy,
 }
 const STUDENT: PageMap = {
+  'Dự án STEM': ProjectsPage,
   'Sự kiện': MyEvents,
   'Tổng quan': StudentHome,
   'Năng lực của em': StudentMyCompetencies,
@@ -206,6 +217,9 @@ const STUDENT: PageMap = {
   'Chuyên cần': StudentAttendance,
 }
 const DEPARTMENT: PageMap = {
+  'Dự án STEM': (p: any) => <ProjectsPage {...p} readOnly />,
+  'Cuộc thi': CompetitionsPage,
+  'Chấm thi': JudgingPage,
   'Sự kiện': EventManager,
   'Chỉ số STEM': StemIndexPage,
   'So sánh trường / địa bàn': ComparePage,
@@ -239,6 +253,9 @@ const DEPARTMENT: PageMap = {
 // Cổng Quản trị nền tảng: chỉ nối các trang đọc được dữ liệu toàn hệ thống (trang nền tảng, trang cấp Sở, học liệu, phê duyệt, tập huấn).
 // Mục menu không có ở đây hiện khung giao diện (PlannedPage); build xong phân hệ nào thì thêm trang vào đây.
 const PLATFORM: PageMap = {
+  'Dự án STEM': (p: any) => <ProjectsPage {...p} readOnly />,
+  'Cuộc thi STEM': (p: any) => <CompetitionsPage {...p} platform />,
+  'Chấm thi': JudgingPage,
   'Sự kiện': EventManager,
   'Chỉ số STEM (STEM Index)': (p: any) => <StemIndexPage {...p} platform />,
   'Điều hành toàn tỉnh': (p: any) => <StemIndexPage {...p} platform groupBy="department" />,
@@ -313,7 +330,7 @@ const PLATFORM_ALIAS: Record<string, string> = {
   'KPI & Xếp hạng Xã/Phường': 'KPI & xếp hạng', 'Thiết bị & kho': 'Thiết bị & vật tư', 'Hiệu quả Phòng STEM': 'Hiệu quả sử dụng phòng STEM',
   'Dashboard điểm danh': 'Buổi dạy & điểm danh', 'Thời khoá biểu & xếp lịch': 'Thời khóa biểu & xếp lịch',
 }
-const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM, parent: PARENT }
+const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM, parent: PARENT, judge: JUDGE }
 // Khi dev: mục menu không có trang (thường do sửa chuỗi mã trong NAV thay vì thêm LABEL — xem lib/nav.ts)
 if (import.meta.env.DEV) (Object.keys(PAGES) as RoleKey[]).filter(r => r !== 'platform').forEach(r =>
   NAV[r].flatMap(g => g.items).filter(i => !PAGES[r]![i]).forEach(i => console.warn(`[menu] ${r}: "${i}" không có trang`)))

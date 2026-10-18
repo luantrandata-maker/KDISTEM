@@ -146,6 +146,9 @@ begin
     delete from ai_usage where user_id = any(v_users);
     delete from ai_org_limits where note = 'ISO';
     update ai_settings set enabled = false, user_daily_quota = 30 where id = 1;
+    if exists (select 1 from information_schema.columns where table_name = 'ai_settings' and column_name = 'help_all_roles') then
+      execute $x$update ai_settings set help_all_roles = true where id = 1$x$;
+    end if;
     if exists (select 1 from information_schema.columns where table_name = 'ai_settings' and column_name = 'provider') then
       execute $x$update ai_settings set provider = 'anthropic', model = 'claude-sonnet-5-5', fallback_provider = null, fallback_model = null where id = 1$x$;
     end if;
@@ -1605,6 +1608,17 @@ update ai_settings set enabled = true, user_daily_quota = 2 where id = 1;
 select pg_temp.chk('gv_both', 'AI: GV dùng được khi KDI bật', $q$select ai_begin('lesson') ->> 'model'$q$, 'claude-sonnet-5-5');
 select pg_temp.chk('hs_kb', 'AI: học sinh không dùng trợ lý', $q$select ai_begin('chat')::text$q$, 'ERR');
 select pg_temp.chk('ph_ph', 'AI: phụ huynh không dùng trợ lý', $q$select ai_begin('chat')::text$q$, 'ERR');
+select pg_temp.chk('hs_kb', 'Trợ giúp: học sinh hỏi đáp cách dùng hệ thống', $q$select ai_begin('help') ->> 'allowed'$q$, 'true');
+update ai_settings set help_all_roles = false where id = 1;
+select pg_temp.chk('hs_kb', 'Trợ giúp: KDI giới hạn trợ giúp AI theo vai trò', $q$select ai_begin('help')::text$q$, 'ERR');
+update ai_settings set help_all_roles = true where id = 1;
+select pg_temp.probe('hs_kb@iso-test.local', $q$select help_ticket('ISO Không vào được bài tập', 'Bấm Bài tập báo lỗi', 'technical', 'urgent')::text$q$, true);
+select pg_temp.chk('hs_kb', 'Trợ giúp: học sinh gửi yêu cầu hỗ trợ, không tự đặt mức khẩn', $q$select code like 'HT-%' and priority = 'normal' from support_tickets where subject = 'ISO Không vào được bài tập'$q$, 'true');
+select pg_temp.chk('hs_kb', 'Trợ giúp: người gửi trả lời phiếu của mình', $q$insert into support_messages (ticket_id, body) select id, 'Em gửi thêm ảnh' from support_tickets where subject = 'ISO Không vào được bài tập'$q$, 'rows:1');
+select pg_temp.chk('hs_kb', 'Trợ giúp: người gửi không đổi mức ưu tiên', $q$update support_tickets set priority = 'urgent' where subject = 'ISO Không vào được bài tập'$q$, 'ERR');
+select pg_temp.chk('admin_kb', 'Trợ giúp: quản trị trường thấy phiếu của học sinh trường mình', $q$select count(*) from support_tickets where subject = 'ISO Không vào được bài tập'$q$, '1');
+select pg_temp.chk('admin_ph', 'Trợ giúp: trường khác không thấy phiếu', $q$select count(*) from support_tickets where subject = 'ISO Không vào được bài tập'$q$, '0');
+select pg_temp.chk('hs_kb', 'Trợ giúp: tiêu đề quá ngắn bị từ chối', $q$select help_ticket('a', '')::text$q$, 'ERR*');
 select pg_temp.chk('gv_both', 'AI: tác vụ lạ bị từ chối', $q$select ai_begin('hack')::text$q$, 'ERR*');
 select pg_temp.chk('gv_both', 'AI: không tự ghi nhật ký sử dụng', $q$insert into ai_usage (task) values ('chat')$q$, 'ERR');
 insert into ai_usage (org_id, user_id, task, input_tokens, output_tokens)

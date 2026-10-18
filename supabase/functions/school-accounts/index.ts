@@ -3,7 +3,7 @@
 // Chỉ phần cần quyền quản trị Auth (tạo tài khoản, đặt mật khẩu) dùng khoá service_role — Supabase tự cấp qua biến môi trường,
 // không lưu trong repo. Mật khẩu chỉ trả về một lần cho người bấm (để in phiếu), không lưu ở đâu.
 //
-// POST { action: 'create', kind: 'student' | 'teacher', ids: uuid[] }
+// POST { action: 'create', kind: 'student' | 'teacher' | 'parent', ids: uuid[] }   (parent: id dòng guardians, 048)
 //   → { results: [{ person_id, full_name, class_name, login, password?, status, message? }] }
 // POST { action: 'reset', kind, id } → { login, password }
 // POST { action: 'erase', kind: 'student', id, reason } → { ok, account }  (039: xoá dữ liệu cá nhân HS; email/tên trong Auth
@@ -42,8 +42,8 @@ Deno.serve(async req => {
 
   let body: { action?: string; kind?: string; ids?: string[]; id?: string; reason?: string }
   try { body = await req.json() } catch { return json({ error: 'Dữ liệu gửi lên không hợp lệ' }, 400) }
-  const kind = body.kind === 'teacher' ? 'teacher' : body.kind === 'student' ? 'student' : null
-  if (!kind) return json({ error: 'Thiếu loại tài khoản (student/teacher)' }, 400)
+  const kind = body.kind === 'teacher' ? 'teacher' : body.kind === 'student' ? 'student' : body.kind === 'parent' ? 'parent' : null
+  if (!kind) return json({ error: 'Thiếu loại tài khoản (student/teacher/parent)' }, 400)
 
   if (body.action === 'create') {
     const ids = Array.isArray(body.ids) ? body.ids.filter(x => typeof x === 'string') : []

@@ -1,10 +1,10 @@
-export type RoleKey = 'school_admin' | 'teacher' | 'student' | 'department' | 'platform'
+export type RoleKey = 'school_admin' | 'teacher' | 'student' | 'department' | 'platform' | 'parent'
 // section: tên phân hệ khi phân hệ chia nhiều nhóm (menu hiện tiêu đề phân hệ phía trên các nhóm con)
 export type NavGroup = { title: string; items: string[]; section?: string }
 
 export const ROLE_LABEL: Record<RoleKey, string> = {
   school_admin: 'Trường · Quản trị', teacher: 'Giáo viên',
-  student: 'Học sinh', department: 'Sở GD&ĐT', platform: 'Quản trị nền tảng',
+  student: 'Học sinh', department: 'Sở GD&ĐT', platform: 'Quản trị nền tảng', parent: 'Phụ huynh',
 }
 
 // MÃ TRANG = tên mục lúc tạo trang. Mã được dùng làm khoá ở nhiều nơi: bảng trang (App.tsx PAGES), ánh xạ quyền/gói
@@ -47,7 +47,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
   // luôn có, nằm ở nhóm riêng. Mục thuộc phân hệ chưa có trong gói vẫn hiện, mờ, kèm "Chưa có trong gói" (UPSELL_PORTALS).
   school_admin: [
     { title: 'Tổng quan', items: ['Dashboard Trường', 'Hồ sơ Trường học', 'Hộp phê duyệt'] },
-    { title: 'Nhân sự & lớp học', items: ['Giáo viên', 'Phân công giảng dạy', 'Lớp học', 'Học sinh'] },
+    { title: 'Nhân sự & lớp học', items: ['Giáo viên', 'Phân công giảng dạy', 'Lớp học', 'Học sinh', 'Phụ huynh'] },
     { title: 'Tập huấn giáo viên', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Bài giảng', 'Lớp học ảo', 'Chứng chỉ', 'Đánh giá năng lực GV'] },
     { title: 'Chương trình & học liệu', items: ['Gói STEM', 'Đề xuất mua gói', 'Phân phối chương trình', 'Kho học liệu dùng chung', 'Phát hành học liệu'] },
     { title: 'Phòng & thiết bị STEM', items: ['Quản lý Phòng STEM', 'Quản lý Thiết bị', 'Vật tư tiêu hao', 'Đề xuất mua vật tư', 'Vận chuyển vật tư', 'Kiểm kê', 'Bảo hành thiết bị'] },
@@ -59,6 +59,9 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Hoạt động STEM', items: ['Giáo dục STEM', 'Đặt phòng STEM'] },
     { title: 'Soạn giảng', items: ['Soạn bài giảng', 'Kho hoạt động & Bài giảng', 'Thư viện STEM'] },
     { title: 'Khác', items: ['Hộp phê duyệt', 'Lịch tập huấn', 'Bài giảng tập huấn', 'Hồ sơ năng lực', 'Khảo sát', 'Hỗ trợ từ KDI'] },
+  ],
+  parent: [
+    { title: 'Con của tôi', items: ['Tổng quan', 'Lịch học', 'Chuyên cần của con', 'Bài tập & điểm', 'Năng lực của con', 'Khảo sát', 'Cài đặt & đồng ý'] },
   ],
   student: [
     { title: 'Học tập', items: ['Tổng quan', 'Bài tập', 'Học trước & tự học', 'Lịch học', 'Chuyên cần', 'Năng lực của em', 'Giáo dục STEM', 'Chủ đề', 'Khảo sát'] },
@@ -76,7 +79,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
 
 // Mục menu của vai trò Trường – Quản trị → chức năng trong ma trận phân quyền
 export const MODULE_OF: Record<string, string> = {
-  'Giáo viên': 'teachers', 'Lớp học': 'classes', 'Học sinh': 'students', 'Phân công giảng dạy': 'assignments',
+  'Giáo viên': 'teachers', 'Lớp học': 'classes', 'Học sinh': 'students', 'Phụ huynh': 'students', 'Phân công giảng dạy': 'assignments',
   'Quản lý Phòng STEM': 'stem_rooms', 'Quản lý Thiết bị': 'equipment', 'Vật tư tiêu hao': 'equipment', 'Đề xuất mua vật tư': 'equipment', 'Vận chuyển vật tư': 'equipment', 'Kiểm kê': 'equipment', 'Bảo hành thiết bị': 'warranty',
   'Thời khóa biểu': 'timetable', 'Duyệt đăng ký dạy STEM': 'stem_registrations', 'Tòa nhà & Tầng': 'buildings',
   'Cấu hình tiết học': 'periods', 'Năm học & học kỳ': 'periods', 'Tài khoản': 'accounts', 'Sao lưu & xuất dữ liệu': 'accounts', 'Giao diện & thương hiệu': 'accounts', 'Vai trò và phân quyền': 'roles',

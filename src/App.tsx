@@ -101,6 +101,13 @@ const ModuleUsage = lazy(() => import('./pages/platform/Modules').then(m => ({ d
 const DefaultPermissions = lazy(() => import('./pages/platform/Modules').then(m => ({ default: m.DefaultPermissions })))
 const PlatformSchools = lazy(() => import('./pages/platform/Schools').then(m => ({ default: m.PlatformSchools })))
 const BrandingPage = lazy(() => import('./pages/branding').then(m => ({ default: m.BrandingPage })))
+const ParentP = (n: string) => lazy(() => import('./pages/parent').then(m => ({ default: (m as any)[n] })))
+const GuardiansPage = lazy(() => import('./pages/Guardians'))
+const PARENT: PageMap = {
+  'Tổng quan': ParentP('ParentHome'), 'Lịch học': ParentP('ParentSchedule'), 'Chuyên cần của con': ParentP('ParentAttendance'),
+  'Bài tập & điểm': ParentP('ParentAssignments'), 'Năng lực của con': ParentP('ParentCompetency'), 'Cài đặt & đồng ý': ParentP('ParentSettings'),
+  'Khảo sát': lazy(() => import('./pages/surveys').then(m => ({ default: m.MySurveys }))),
+}
 const DataExportPage = lazy(() => import('./pages/dataexport').then(m => ({ default: m.DataExportPage })))
 const PlatformRevenue = lazy(() => import('./pages/platform/Revenue').then(m => ({ default: m.PlatformRevenue })))
 const SupplyRequestsPage = lazy(() => import('./pages/stockflow').then(m => ({ default: m.SupplyRequestsPage })))
@@ -129,6 +136,7 @@ const SCHOOL: PageMap = {
   'Thời khóa biểu': Timetable,
   'Duyệt đăng ký dạy STEM': Registrations,
   'Học sinh': Students,
+  'Phụ huynh': GuardiansPage,
   'Tòa nhà & Tầng': Buildings,
   'Cấu hình tiết học': Periods,
   'Vai trò và phân quyền': Roles,
@@ -286,7 +294,7 @@ const PLATFORM_ALIAS: Record<string, string> = {
   'KPI & Xếp hạng Xã/Phường': 'KPI & xếp hạng', 'Thiết bị & kho': 'Thiết bị & vật tư', 'Hiệu quả Phòng STEM': 'Hiệu quả sử dụng phòng STEM',
   'Dashboard điểm danh': 'Buổi dạy & điểm danh', 'Thời khoá biểu & xếp lịch': 'Thời khóa biểu & xếp lịch',
 }
-const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM }
+const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM, parent: PARENT }
 // Khi dev: mục menu không có trang (thường do sửa chuỗi mã trong NAV thay vì thêm LABEL — xem lib/nav.ts)
 if (import.meta.env.DEV) (Object.keys(PAGES) as RoleKey[]).filter(r => r !== 'platform').forEach(r =>
   NAV[r].flatMap(g => g.items).filter(i => !PAGES[r]![i]).forEach(i => console.warn(`[menu] ${r}: "${i}" không có trang`)))
@@ -438,7 +446,7 @@ function Shell({ session }: { session: Session }) {
           {brand?.logo_dark ? <img src={brand.logo_dark} alt={brand.display_name ?? 'Logo'} /> : brand?.logo ? <img src={brand.logo} alt={brand.display_name ?? 'Logo'} className="onchip" /> : <img src={logoWhite} alt="KDI education" />}
           <b>{role === 'platform' ? 'Hệ thống quản lý vận hành' : ROLE_LABEL[role]}</b>
         </div>
-        {role !== 'department' && role !== 'platform' && <label className="yearpick">
+        {role !== 'department' && role !== 'platform' && role !== 'parent' && <label className="yearpick">
           <span>Năm học · học kỳ</span>
           <select value={yrs.year?.id ?? ''} onChange={e => e.target.value === '__manage' ? (role === 'school_admin' ? show(role, 'Năm học & học kỳ') : null) : yrs.select(e.target.value)}
             aria-label="Chọn năm học và học kỳ">
@@ -447,7 +455,7 @@ function Shell({ session }: { session: Session }) {
             {role === 'school_admin' && access.canView('periods') && <option value="__manage">Quản lý năm học…</option>}
           </select>
         </label>}
-        {role !== 'department' && role !== 'platform' && yrs.year && !yrs.year.is_current && <p className="yearwarn">Đang xem học kỳ không phải hiện tại</p>}
+        {role !== 'department' && role !== 'platform' && role !== 'parent' && yrs.year && !yrs.year.is_current && <p className="yearwarn">Đang xem học kỳ không phải hiện tại</p>}
         {blocks.map(b => {
           // Một nhóm thường, hoặc một phân hệ (cấp 1) chứa các nhóm con (cấp 2)
           const head = (key: string, title: string, items: string[], sub = false) => {

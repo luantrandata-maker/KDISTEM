@@ -129,6 +129,7 @@ begin
   delete from students where student_code like 'ISO-%' or full_name like 'ISO HS%' or org_id = any(v_orgs);
   delete from invitations where email like 'thcsph.iso%' or full_name = 'ISO GV tài khoản mã';
   if to_regclass('public.rubrics') is not null then delete from rubrics where title like 'ISO %'; end if;
+  if to_regclass('public.surveys') is not null then delete from surveys where title like 'ISO KS%'; end if;
   if to_regclass('public.teacher_assessments') is not null then
     delete from teacher_assessments where teacher_id in (select id from teachers where email like '%@iso-test.local');
   end if;
@@ -1155,6 +1156,40 @@ begin
     ('so_hy', 'Năng lực HS: Sở cấp trên xem (4 năng lực có bằng chứng)', '4', v_r3, v_r3 = '4'),
     ('admin_ph', 'Năng lực lớp: có HS vừa chấm', 'true', v_r4, v_r4 = 'true'),
     ('so_bn', 'Năng lực lớp: Sở tỉnh khác không xem', 'ERR 42501', v_r5, v_r5 = 'ERR 42501');
+end $$;
+
+-- ===== 043: khảo sát =====
+insert into surveys (org_id, title, audience, status, anonymous, questions) values (pg_temp.oid_('SO-HY'), 'ISO KS giáo viên', 'teacher', 'open', false,
+  '[{"id":"q1","type":"single","text":"Đã dạy STEM chưa?","options":["Rồi","Chưa"],"required":true},{"id":"q2","type":"scale","text":"Mức hài lòng"},{"id":"q3","type":"text","text":"Góp ý"}]');
+select pg_temp.chk('gv_both', 'Khảo sát: GV trường trực thuộc thấy khảo sát của Sở', 'select count(*) from my_surveys() where title = ''ISO KS giáo viên''', '1');
+select pg_temp.chk('hs_kb', 'Khảo sát: HS tỉnh khác không thấy', 'select count(*) from my_surveys() where title = ''ISO KS giáo viên''', '0');
+select pg_temp.chk('admin_kb', 'Khảo sát: trường tỉnh khác không thấy', 'select count(*) from surveys where title = ''ISO KS giáo viên''', '0');
+select pg_temp.chk('gv_both', 'Khảo sát: GV gửi câu trả lời',
+  $q$select (survey_submit((select id from surveys where title = 'ISO KS giáo viên'), '{"q1":0,"q2":4,"q3":"Cần thêm thiết bị"}') is not null)::text$q$, 'true');
+select pg_temp.chk('gv_both', 'Khảo sát: thiếu câu bắt buộc bị từ chối',
+  $q$select survey_submit((select id from surveys where title = 'ISO KS giáo viên'), '{"q2":4}')::text$q$, 'ERR*');
+select pg_temp.chk('gv_both', 'Khảo sát: lựa chọn ngoài danh sách bị từ chối',
+  $q$select survey_submit((select id from surveys where title = 'ISO KS giáo viên'), '{"q1":7}')::text$q$, 'ERR*');
+select pg_temp.chk('gv_both', 'Khảo sát: không ghi thẳng vào bảng câu trả lời',
+  $q$insert into survey_responses (survey_id, respondent, answers) values ((select id from surveys where title = 'ISO KS giáo viên'), auth.uid(), '{}')$q$, 'ERR');
+select pg_temp.chk('admin_ph', 'Khảo sát: trường tạo khảo sát của mình',
+  format('insert into surveys (org_id, title, audience) values (%s, ''ISO KS trường'', ''student'')', quote_literal(pg_temp.oid_('THCS-PH'))), 'rows:1');
+select pg_temp.chk('admin_ph', 'Khảo sát: trường không tạo thay Sở',
+  format('insert into surveys (org_id, title, audience) values (%s, ''ISO KS x'', ''student'')', quote_literal(pg_temp.oid_('SO-HY'))), 'ERR');
+do $$ declare v_r text; v_n text; v_bn text; v_ph text; v_edit text; v_other text; v_id uuid := (select id from surveys where title = 'ISO KS giáo viên');
+begin
+  v_r := pg_temp.probe('gv_both@iso-test.local', $q$select survey_submit((select id from surveys where title = 'ISO KS giáo viên'), '{"q1":1,"q2":5,"q3":"Ý kiến thử"}')::text$q$, true);
+  v_n := pg_temp.probe('so_hy@iso-test.local', $q$select (survey_results((select id from surveys where title = 'ISO KS giáo viên')) ->> 'responses') || '/' || (survey_results((select id from surveys where title = 'ISO KS giáo viên')) #>> '{questions,0,counts,1}')$q$);
+  v_bn := pg_temp.probe('so_bn@iso-test.local', format('select survey_results(%L)::text', v_id));
+  v_ph := pg_temp.probe('admin_ph@iso-test.local', format('select survey_results(%L)::text', v_id));
+  v_edit := pg_temp.probe('so_hy@iso-test.local', $q$update surveys set questions = '[{"id":"q1","type":"text","text":"Đổi"}]' where title = 'ISO KS giáo viên'$q$);
+  v_other := pg_temp.probe('admin_ph@iso-test.local', 'select count(*) from survey_responses');
+  insert into t_result (who, name, expect, got, ok) values
+    ('so_hy', 'Khảo sát: Sở xem kết quả tổng hợp (1 phiếu, chọn "Chưa")', '1/1', v_n, v_n = '1/1'),
+    ('so_bn', 'Khảo sát: Sở tỉnh khác không xem kết quả', 'ERR 42501', v_bn, v_bn = 'ERR 42501'),
+    ('admin_ph', 'Khảo sát: trường không xem kết quả khảo sát của Sở', 'ERR 42501', v_ph, v_ph = 'ERR 42501'),
+    ('so_hy', 'Khảo sát: đã có người trả lời thì không sửa câu hỏi', 'ERR 22023', v_edit, v_edit = 'ERR 22023'),
+    ('admin_ph', 'Khảo sát: không đọc câu trả lời của người khác', '0', v_other, v_other = '0');
 end $$;
 
 -- ===== Dọn dẹp + kết quả =====

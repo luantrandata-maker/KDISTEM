@@ -73,7 +73,8 @@ export function StudentMyCompetencies({ studentId }: { studentId: string | null 
 type CC = { student_id: string; full_name: string; student_code: string | null; competency: string; evidences: number; avg_level: number }
 export function ClassCompetencies({ teacherId }: { teacherId: string | null }) {
   const comps = useCompetencies('student')
-  const [classes, setClasses] = useState<{ id: string; name: string }[]>([])
+  const [classes, setClasses] = useState<{ id: string; name: string; grade: number | null }[]>([])
+  const [grade, setGrade] = useState<number | ''>('')
   const [cls, setCls] = useState('')
   const [rows, setRows] = useState<CC[]>([])
   const [students, setStudents] = useState<{ id: string; full_name: string; student_code: string | null }[]>([])
@@ -81,10 +82,10 @@ export function ClassCompetencies({ teacherId }: { teacherId: string | null }) {
   const [err, setErr] = useState('')
   useEffect(() => {
     (teacherId
-      ? supabase.from('teaching_assignments').select('classes(id, name)').eq('teacher_id', teacherId).then(({ data }) =>
+      ? supabase.from('teaching_assignments').select('classes(id, name, grade)').eq('teacher_id', teacherId).then(({ data }) =>
           [...new Map(((data as any[]) ?? []).filter(r => r.classes).map(r => [r.classes.id, r.classes])).values()])
-      : supabase.from('classes').select('id, name').order('name').then(({ data }) => (data as { id: string; name: string }[]) ?? [])
-    ).then(list => { const l = (list as { id: string; name: string }[]).sort((a, b) => a.name.localeCompare(b.name, 'vi', { numeric: true })); setClasses(l); setCls(c => c || l[0]?.id || '') })
+      : supabase.from('classes').select('id, name, grade').order('name').then(({ data }) => (data as { id: string; name: string; grade: number | null }[]) ?? [])
+    ).then(list => { const l = (list as { id: string; name: string; grade: number | null }[]).sort((a, b) => (a.grade ?? 0) - (b.grade ?? 0) || a.name.localeCompare(b.name, 'vi', { numeric: true })); setClasses(l); setGrade(g => g || l[0]?.grade || ''); setCls(c => c || l[0]?.id || '') })
   }, [teacherId])
   useEffect(() => {
     if (!cls) return
@@ -103,10 +104,17 @@ export function ClassCompetencies({ teacherId }: { teacherId: string | null }) {
       students.map(s => [s.student_code, s.full_name, ...shownComps.map(c => { const v = cell.get(s.id + '|' + c.key); return v ? Number(v.avg_level) : '' })]), 'Năng lực')
   }
   const cur = students.find(s => s.id === sel)
+  const grades = [...new Set(classes.map(c => c.grade).filter((g): g is number => g != null))].sort((a, b) => a - b)
+  const inGrade = classes.filter(c => grade === '' || grades.length < 2 || c.grade === grade)
   return (
     <>
       <div className="bar">
-        <select value={cls} onChange={e => setCls(e.target.value)} aria-label="Chọn lớp">{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+        <span className="tools">
+          {grades.length > 1 && <label className="pickfield"><span>Khối</span><select value={grade} onChange={e => { const g = e.target.value ? +e.target.value : ''; setGrade(g); setCls(classes.find(c => !g || c.grade === g)?.id ?? '') }} aria-label="Chọn khối">
+            {grades.map(g => <option key={g} value={g}>Khối {g}</option>)}</select></label>}
+          <label className="pickfield"><span>Lớp</span><select value={cls} onChange={e => setCls(e.target.value)} aria-label="Chọn lớp">
+            {inGrade.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+        </span>
         <small className="sub">Mức trung bình M1–M4 từ các bài đã chấm theo tiêu chí có gắn năng lực. Bấm tên học sinh để xem hồ sơ.</small>
         <span style={{ flex: 1 }} /><button onClick={excel} disabled={!students.length}>Xuất Excel</button>
       </div>

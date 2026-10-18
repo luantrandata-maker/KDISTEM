@@ -125,21 +125,13 @@ export function TeacherAttendance({ teacherId, orgId }: { teacherId: string | nu
           <h3>Tiết chưa điểm danh ({pending.length})</h3>
           {pending.map(s => (
             <button key={s.id} className="todo hi" onClick={() => { setDay(s.session_date); setOpen(s.id) }}>
-              <span>{dayLabel(s.session_date)} · {s.period_name} · {s.subject} {s.class_name}</span><span className="n">Điểm danh</span>
+              <span>{dayLabel(s.session_date)} · {s.period_name} · {s.subject} {s.class_name}</span><span className="n go">Điểm danh</span>
             </button>
           ))}
           <small>Giáo viên điểm danh được trong 7 ngày; quá hạn nhờ quản trị trường.</small>
         </div>
       )}
-      <div className="bar">
-        <div className="tools">
-          <button onClick={() => setDay(addDays(day, -1))} aria-label="Ngày trước">‹</button>
-          <input type="date" value={day} onChange={e => e.target.value && setDay(e.target.value)} aria-label="Chọn ngày" />
-          <button onClick={() => setDay(addDays(day, 1))} aria-label="Ngày sau">›</button>
-          {day !== today() && <button onClick={() => setDay(today())}>Hôm nay</button>}
-        </div>
-        <b>{dayLabel(day)}</b>
-      </div>
+      <DayNav day={day} onChange={setDay} count={rows?.length ?? null} />
       {err && <p className="sub" role="alert">{err}</p>}
       {!rows ? <p className="sub">Đang tải…</p> : (
         <div className="wrap" style={{ marginTop: 12 }}><table>
@@ -161,6 +153,32 @@ export function TeacherAttendance({ teacherId, orgId }: { teacherId: string | nu
       )}
       {opened && <RollPanel key={opened.id} session={opened} onClose={() => setOpen(null)} onDone={() => { setOpen(null); load() }} />}
     </>
+  )
+}
+
+// Chọn ngày: dải tuần (T2–T7, CN), lùi / tiến tuần, lịch, về hôm nay
+const DOWS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+export function DayNav({ day, onChange, count }: { day: string; onChange: (d: string) => void; count?: number | null }) {
+  const ws = weekStart(day), t = today()
+  return (
+    <div className="daynav">
+      <div className="dn-title">
+        <b>{dayLabel(day)}{day === t && <span className="dn-today">Hôm nay</span>}</b>
+        {count != null && <small>{count ? `${count} tiết dạy` : 'Không có tiết'}</small>}
+      </div>
+      <div className="dn-ctrl">
+        <span className="dn-weekwrap"><button className="dn-arrow" onClick={() => onChange(addDays(day, -7))} aria-label="Tuần trước" title="Tuần trước">‹</button>
+        <div className="dn-week" role="tablist" aria-label="Ngày trong tuần">
+          {DOWS.map((w, i) => { const d = addDays(ws, i); return (
+            <button key={d} role="tab" aria-selected={d === day} className={(d === day ? 'on' : '') + (d === t ? ' is-today' : '') + (i === 6 ? ' sun' : '')} onClick={() => onChange(d)}>
+              <small>{w}</small><b>{shortDay(d).slice(0, 2)}</b></button>) })}
+        </div>
+        <button className="dn-arrow" onClick={() => onChange(addDays(day, 7))} aria-label="Tuần sau" title="Tuần sau">›</button></span>
+        <label className="dn-pick" title="Chọn ngày khác"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>
+          <input type="date" value={day} onChange={e => e.target.value && onChange(e.target.value)} aria-label="Chọn ngày" /></label>
+        <button className="dn-todaybtn" disabled={day === t} onClick={() => onChange(t)}>Hôm nay</button>
+      </div>
+    </div>
   )
 }
 

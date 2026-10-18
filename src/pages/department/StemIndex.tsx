@@ -233,7 +233,7 @@ export function ComparePage() {
         </div>
         <div className="wrap"><table>
           <thead><tr><th>Chỉ số</th>{cols.map((c, k) => <th key={c.id}><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 2, background: c.id === '*' ? '#94a3b8' : PAL[k], marginRight: 6 }} />{c.name}
-            {c.id !== '*' && <button className="linkbtn" onClick={() => setPicked(picked.filter(x => x !== c.id))} aria-label={'Bỏ ' + c.name}> ✕</button>}{mode === 'ward' && <><br /><small className="sub">{c.n} trường</small></>}</th>)}</tr></thead>
+            {c.id !== '*' && <button className="xbtn" onClick={() => setPicked(picked.filter(x => x !== c.id))} aria-label={'Bỏ ' + c.name}> ✕</button>}{mode === 'ward' && <><br /><small className="sub">{c.n} trường</small></>}</th>)}</tr></thead>
           <tbody>
             <tr><td><b>Chỉ số STEM</b></td>{cols.map(c => <td key={c.id}><b className={c.index === best(cols.map(x => x.index)) && c.id !== '*' ? 'good' : ''}>{c.index ?? '—'}</b></td>)}</tr>
             {INDICATORS.filter(i => on(cfg, i)).map(i => { const vals = cols.map(c => c.parts[i.key]); return (

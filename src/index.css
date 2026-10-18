@@ -841,3 +841,12 @@ td.good,b.good{color:var(--ok);font-weight:700}tr.muted td{opacity:.55}
 .pickfield{display:inline-flex;align-items:center;gap:6px;margin:0}.pickfield>span{font-size:12px;color:var(--muted);font-weight:600}
 .pickfield select{min-width:110px;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font:inherit;color:var(--text)}
 .todo .n.go{border-radius:999px;padding:0 12px;white-space:nowrap;height:26px;font-weight:600;flex-shrink:0}
+
+/* Màn xem toàn hệ thống (cổng KDI) */
+.sysbar{align-items:flex-end}
+.sysbar .segmented{margin:0}
+.syscards{margin:4px 0 6px}
+.systable th.num,.systable td.num{text-align:right;font-variant-numeric:tabular-nums}
+.systable tr.dim td{color:var(--muted)}
+.systable tr.clickrow{cursor:pointer}
+.systable tr.clickrow:hover td{background:var(--soft)}

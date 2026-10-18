@@ -19,6 +19,7 @@ import { useBranding, DEFAULT_TITLE } from './lib/branding'
 import LegalGate from './components/LegalGate'
 import Dashboard from './pages/Dashboard'
 import Teachers from './pages/Teachers'
+import TerminologyPage from './pages/platform/Terminology'
 import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysLessons, SysTrainingLessons, SysCertificates } from './pages/platform/SystemViews'
 import Classes from './pages/Classes'
 import Rooms from './pages/Rooms'
@@ -321,6 +322,7 @@ const PLATFORM: PageMap = {
   'Nhật ký hoạt động': PlatformAudit,
   'Lộ trình triển khai': PlatformRollout,
   'Cấu hình chung (kỳ học...)': DeptAdmin,
+  'Thuật ngữ chuẩn': TerminologyPage,
   // Màn xem toàn hệ thống (gom dữ liệu mọi trường, lọc theo Sở / trường) — pages/platform/SystemViews.tsx
   'Bảo hành & bảo trì thiết bị': SysWarranty,
   'Tòa nhà, tầng & tiết học': SysBuildings,

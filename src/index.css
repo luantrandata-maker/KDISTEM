@@ -814,3 +814,5 @@ button.danger:disabled{opacity:.6}
 .cmprow{display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;font-size:12px}.cmpname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 td.good,b.good{color:var(--ok);font-weight:700}tr.muted td{opacity:.55}
 .linkbtn{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 2px}
+.evlist{display:grid;gap:12px}.evcard{display:grid;grid-template-columns:64px 1fr;gap:14px;align-items:start}
+.evdate{border-radius:12px;background:var(--soft);text-align:center;padding:8px 0;color:var(--navy)}.evdate b{display:block;font-size:24px;line-height:1}.evdate small{font-size:12px}

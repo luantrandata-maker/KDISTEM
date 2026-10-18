@@ -129,6 +129,7 @@ begin
   delete from students where student_code like 'ISO-%' or full_name like 'ISO HS%' or org_id = any(v_orgs);
   delete from invitations where email like 'thcsph.iso%' or full_name = 'ISO GV tài khoản mã';
   if to_regclass('public.rubrics') is not null then delete from rubrics where title like 'ISO %'; end if;
+  if to_regclass('public.events') is not null then delete from notifications where title like 'Sự kiện mới: ISO%'; delete from events where title like 'ISO%'; end if;
   if to_regclass('public.stem_index_configs') is not null then delete from stem_index_configs where name like 'ISO%'; end if;
   if to_regclass('public.guardians') is not null then
     delete from invitations where guardian_id in (select id from guardians where full_name like 'ISO%');
@@ -1479,6 +1480,33 @@ select pg_temp.chk('admin_ph', 'Bộ chỉ số: trường không sửa bộ c�
 select pg_temp.chk('admin_ph', 'Bộ chỉ số: trường không tự đặt bộ chỉ số', $q$insert into stem_index_configs (org_id, name) values (my_org_id(), 'ISO trường')$q$, 'ERR');
 select pg_temp.chk('so_hy', 'Bộ chỉ số: trọng số ngoài 0–100 bị từ chối', $q$update stem_index_configs set indicators = '{"nhan_luc":{"weight":500}}' where name like 'ISO%'$q$, 'ERR*');
 select pg_temp.chk('so_hy', 'Bộ chỉ số: ngưỡng Mức 2 phải thấp hơn Mức 3', $q$update stem_index_configs set level2 = 80, level3 = 70 where name like 'ISO%'$q$, 'ERR*');
+
+-- ===== 050: sự kiện =====
+select pg_temp.chk('admin_ph', 'Sự kiện: trường tạo và công bố',
+  $q$insert into events (org_id, title, kind, starts_at, audience, registration, capacity, status) values (my_org_id(), 'ISO Ngày hội STEM', 'festival', now() + interval '7 days', '{student,parent}', true, 50, 'published')$q$, 'rows:1');
+insert into events (org_id, title, kind, starts_at, audience, registration, status)
+  select pg_temp.oid_('THCS-PH'), 'ISO Ngày hội STEM', 'festival', now() + interval '7 days', '{student,parent}', true, 'published' where not exists (select 1 from events where title = 'ISO Ngày hội STEM');
+insert into events (org_id, title, kind, starts_at, audience, include_children, status)
+  values (pg_temp.oid_('SO-HY'), 'ISO Hội thảo GV STEM toàn tỉnh', 'workshop', now() + interval '10 days', '{teacher,staff}', true, 'published');
+select pg_temp.chk('admin_ph', 'Sự kiện: trường không tạo thay Sở',
+  format($q$insert into events (org_id, title, starts_at) values (%L, 'ISO thay Sở', now())$q$, pg_temp.oid_('SO-HY')), 'ERR');
+select pg_temp.chk('admin_kb', 'Sự kiện: trường tỉnh khác không thấy', $q$select count(*) from events where title like 'ISO%'$q$, '0');
+select pg_temp.chk('ph_ph', 'Sự kiện: phụ huynh thấy sự kiện của trường', $q$select count(*) from my_events() where title = 'ISO Ngày hội STEM'$q$, '1');
+select pg_temp.chk('ph_ph', 'Sự kiện: phụ huynh nhận thông báo khi công bố', $q$select count(*) from notifications where title = 'Sự kiện mới: ISO Ngày hội STEM'$q$, '1');
+select pg_temp.chk('gv_both', 'Sự kiện: GV không thấy sự kiện chỉ dành cho HS / phụ huynh', $q$select count(*) from my_events() where title = 'ISO Ngày hội STEM'$q$, '0');
+select pg_temp.chk('gv_both', 'Sự kiện: GV trường trực thuộc thấy hội thảo của Sở', $q$select count(*) from my_events() where title = 'ISO Hội thảo GV STEM toàn tỉnh'$q$, '1');
+select pg_temp.chk('ph_ph', 'Sự kiện: phụ huynh không thấy hội thảo GV', $q$select count(*) from my_events() where title = 'ISO Hội thảo GV STEM toàn tỉnh'$q$, '0');
+select pg_temp.probe('ph_ph@iso-test.local', $q$select event_register((select id from events where title = 'ISO Ngày hội STEM'), (select student_id from parent_children() limit 1))::text$q$, true);
+select pg_temp.chk('ph_ph', 'Sự kiện: phụ huynh đăng ký cho con (đăng ký lại không nhân đôi)',
+  $q$select (event_register((select id from events where title = 'ISO Ngày hội STEM'), (select student_id from parent_children() limit 1)) is not null)::text || '|' || (select count(*) from event_registrations)$q$, 'true|1');
+select pg_temp.chk('ph_ph', 'Sự kiện: không đăng ký cho học sinh khác',
+  format($q$select event_register((select id from events where title = 'ISO Ngày hội STEM'), %L)::text$q$, (select student_id from guardians where full_name = 'ISO Bố B')), 'ERR');
+select pg_temp.chk('admin_ph', 'Sự kiện: ban tổ chức xem danh sách đăng ký', $q$select count(*) from event_registrations r join events e on e.id = r.event_id where e.title = 'ISO Ngày hội STEM'$q$, '1');
+select pg_temp.chk('admin_ph', 'Sự kiện: ban tổ chức điểm danh', $q$update event_registrations set status = 'attended' where event_id = (select id from events where title = 'ISO Ngày hội STEM')$q$, 'rows:1');
+select pg_temp.chk('admin_kb', 'Sự kiện: trường khác không xem đăng ký', $q$select count(*) from event_registrations$q$, '0');
+update events set reg_deadline = now() - interval '1 hour' where title = 'ISO Ngày hội STEM';
+select pg_temp.chk('ph_ph', 'Sự kiện: hết hạn đăng ký', $q$select event_register((select id from events where title = 'ISO Ngày hội STEM'), (select student_id from parent_children() limit 1))::text$q$, 'ERR*');
+select pg_temp.chk('gv_both', 'Sự kiện: GV đăng ký hội thảo không cần đăng ký thì báo lỗi', $q$select event_register((select id from events where title = 'ISO Hội thảo GV STEM toàn tỉnh'))::text$q$, 'ERR*');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

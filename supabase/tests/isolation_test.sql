@@ -146,6 +146,9 @@ begin
     delete from ai_usage where user_id = any(v_users);
     delete from ai_org_limits where note = 'ISO';
     update ai_settings set enabled = false, user_daily_quota = 30 where id = 1;
+    if exists (select 1 from information_schema.columns where table_name = 'ai_settings' and column_name = 'provider') then
+      execute $x$update ai_settings set provider = 'anthropic', model = 'claude-sonnet-5-5', fallback_provider = null, fallback_model = null where id = 1$x$;
+    end if;
   end if;
   if to_regclass('public.stem_index_configs') is not null then delete from stem_index_configs where name like 'ISO%'; end if;
   if to_regclass('public.guardians') is not null then
@@ -1611,6 +1614,11 @@ select pg_temp.chk('gv_both', 'AI: GV xem nhật ký của mình', $q$select cou
 select pg_temp.chk('admin_ph', 'AI: quản trị trường xem nhật ký của trường', $q$select sum(output_tokens) from ai_usage$q$, '400');
 select pg_temp.chk('admin_kb', 'AI: trường khác không xem nhật ký', $q$select count(*) from ai_usage$q$, '0');
 select pg_temp.chk('admin_kb', 'AI: trường không tự đặt hạn mức', format($q$insert into ai_org_limits (org_id, monthly_quota) values (%L, 9999)$q$, pg_temp.oid_('THCS-KB')), 'ERR');
+select pg_temp.chk('gv_both', 'AI: trả về nhà cung cấp mặc định', $q$select ai_status() ->> 'provider'$q$, 'anthropic');
+select pg_temp.chk('admin_ph', 'AI: trường không đổi nhà cung cấp', $q$update ai_settings set provider = 'gemini'$q$, 'rows:0');
+select pg_temp.chk('kdi', 'AI: KDI chuyển sang Gemini, dự phòng OpenAI', $q$update ai_settings set provider = 'gemini', model = 'gemini-flash', fallback_provider = 'openai', fallback_model = 'gpt-mini'$q$, 'rows:1');
+select pg_temp.chk('kdi', 'AI: nhà cung cấp lạ bị từ chối', $q$update ai_settings set provider = 'abc'$q$, 'ERR*');
+select pg_temp.chk('kdi', 'AI: dự phòng thiếu mô hình bị từ chối', $q$update ai_settings set fallback_provider = 'openai', fallback_model = null$q$, 'ERR*');
 insert into ai_org_limits (org_id, enabled, note) values (pg_temp.oid_('THCS-KB'), false, 'ISO');
 select pg_temp.chk('admin_kb', 'AI: KDI tắt trợ lý cho một trường', $q$select ai_status() ->> 'enabled'$q$, 'false');
 select pg_temp.chk('admin_ph', 'AI: trường khác vẫn dùng', $q$select ai_status() ->> 'enabled'$q$, 'true');

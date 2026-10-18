@@ -7,7 +7,7 @@ import { Tabs } from '../teacher/common'
 // lọc theo Sở / tỉnh → trường, có bảng tổng hợp theo trường và danh sách chi tiết. Chỉ đọc
 // (trừ phiếu bảo hành: KDI là bên tiếp nhận). Dữ liệu do RLS giới hạn trong cây tổ chức của người xem.
 
-type Org = { id: string; name: string; type: string; parent_id: string | null; is_platform: boolean }
+type Org = { id: string; name: string; code: string | null; type: string; parent_id: string | null; is_platform: boolean }
 export type Row = Record<string, any> & { id: string; org_id: string }
 type Col = { label: string; get: (r: Row) => ReactNode; text?: (r: Row) => string | number | null; wrap?: boolean }
 type Stat = { label: string; get: (rows: Row[]) => number | string }
@@ -30,10 +30,10 @@ const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) + '%' : '�
 const KEY = 'sysview.scope'
 
 // ---------- Cây tổ chức: Sở / tỉnh của từng đơn vị ----------
-function useOrgs() {
+export function useOrgs() {
   const [orgs, setOrgs] = useState<Org[]>([])
   useEffect(() => {
-    supabase.from('organizations').select('id, name, type, parent_id, is_platform').order('name')
+    supabase.from('organizations').select('id, name, code, type, parent_id, is_platform').order('name')
       .then(({ data }) => setOrgs((data as Org[]) ?? []))
   }, [])
   return useMemo(() => {

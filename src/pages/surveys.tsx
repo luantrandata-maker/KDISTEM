@@ -5,14 +5,14 @@ import { downloadXlsx } from '../lib/sheet'
 // Khảo sát (migration 043). Sở/Phòng, trường, KDI tạo khảo sát; GV/HS/cán bộ trả lời; đơn vị tạo xem kết quả tổng hợp.
 type QType = 'single' | 'multi' | 'scale' | 'text'
 type Q = { id: string; type: QType; text: string; options?: string[]; required?: boolean }
-type Survey = { id: string; org_id: string; title: string; description: string | null; audience: 'teacher' | 'student' | 'staff'; questions: Q[]; anonymous: boolean;
+type Survey = { id: string; org_id: string; title: string; description: string | null; audience: 'teacher' | 'student' | 'staff' | 'parent'; questions: Q[]; anonymous: boolean;
   status: 'draft' | 'open' | 'closed'; opens_at: string | null; closes_at: string | null; created_at: string; organizations?: { name: string } | null }
 type Mine = { id: string; title: string; description: string | null; questions: Q[]; anonymous: boolean; closes_at: string | null; from_org: string; answered: boolean; my_answers: Record<string, unknown> | null }
 type Res = { responses: number; by_org: { org: string | null; n: number }[]; questions: { id: string; counts?: number[]; avg?: number | null; texts?: { text: string; who: string | null; org: string | null }[] }[];
   rows: { who: string; org: string | null; at: string; answers: Record<string, unknown> }[] | null }
 
 const QTYPE: Record<QType, string> = { single: 'Một lựa chọn', multi: 'Nhiều lựa chọn', scale: 'Thang 1–5', text: 'Trả lời ngắn' }
-const AUD = { teacher: 'Giáo viên', student: 'Học sinh', staff: 'Mọi cán bộ, giáo viên' } as const
+const AUD = { teacher: 'Giáo viên', student: 'Học sinh', parent: 'Phụ huynh', staff: 'Mọi cán bộ, giáo viên' } as const
 const STATUS = { draft: 'Nháp', open: 'Đang mở', closed: 'Đã đóng' } as const
 const day = (d: string | null) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—')
 const toLocal = (iso: string | null) => { if (!iso) return ''; const d = new Date(iso); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16) }

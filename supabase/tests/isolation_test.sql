@@ -129,6 +129,12 @@ begin
   delete from students where student_code like 'ISO-%' or full_name like 'ISO HS%' or org_id = any(v_orgs);
   delete from invitations where email like 'thcsph.iso%' or full_name = 'ISO GV tài khoản mã';
   if to_regclass('public.rubrics') is not null then delete from rubrics where title like 'ISO %'; end if;
+  if to_regclass('public.guardians') is not null then
+    delete from invitations where guardian_id in (select id from guardians where full_name like 'ISO%');
+    delete from lesson_attendance where note = 'ISO vắng';
+    delete from student_consents where note = 'Phụ huynh xác nhận trên hệ thống' and recorded_by = any(v_users);
+    delete from guardians where full_name like 'ISO%';
+  end if;
   if to_regclass('public.org_branding') is not null then delete from org_branding where display_name like 'ISO%' or 'stem.iso-test.vn' = any(domains); end if;
   if to_regclass('public.data_exports') is not null then delete from data_exports where note like 'ISO%'; end if;
   if to_regclass('public.stock_transfers') is not null then
@@ -1396,6 +1402,70 @@ select pg_temp.chk('so_hy', 'Thương hiệu: màu sai định dạng bị từ 
 select pg_temp.chk('admin_ph', 'Thương hiệu: trường trực thuộc không sửa thương hiệu Sở', $q$update org_branding set display_name = 'ISO trường sửa' where display_name like 'ISO%'$q$, 'rows:0');
 select pg_temp.chk('kdi', 'Thương hiệu: tên miền không gắn cho hai đơn vị',
   format($q$insert into org_branding (org_id, display_name, domains) values (%L, 'ISO trùng', '{stem.iso-test.vn}')$q$, pg_temp.oid_('SO-BN')), 'ERR*');
+
+-- ===== 048: cổng phụ huynh =====
+do $$ declare v_par uuid; v_kid uuid; v_other uuid; v_third uuid;
+begin
+  v_par := pg_temp.mk('ph_ph', 'THCS-PH', 'parent');
+  select id into v_kid from students where org_id = pg_temp.oid_('THCS-PH') and class_id is not null and coalesce(status, 'studying') <> 'erased' order by student_code limit 1;
+  select id into v_other from students where org_id = pg_temp.oid_('THCS-PH') and id <> v_kid order by student_code limit 1;
+  select id into v_third from students where org_id = pg_temp.oid_('THCS-PH') and id not in (v_kid, v_other) order by student_code limit 1;
+  insert into guardians (student_id, full_name, relation, phone, profile_id) values (v_kid, 'ISO Mẹ A', 'mother', '0912 000 111', v_par);
+  insert into guardians (student_id, full_name, relation, phone) values (v_other, 'ISO Bố B', 'father', '0912000222');
+  insert into guardians (student_id, full_name, relation, phone) values (v_third, 'ISO Mẹ B', 'mother', '0912-000-222');   -- anh/chị/em: cùng SĐT
+end $$;
+select pg_temp.chk('ph_ph', 'Phụ huynh: không phải nhân sự', 'select is_staff()::text', 'false');
+select pg_temp.chk('ph_ph', 'Phụ huynh: không đọc bảng học sinh', 'select count(*) from students', '0');
+select pg_temp.chk('ph_ph', 'Phụ huynh: không đọc giáo viên', 'select count(*) from teachers', '0');
+select pg_temp.chk('ph_ph', 'Phụ huynh: thấy đúng 1 con', 'select count(*) from parent_children()', '1');
+select pg_temp.chk('ph_ph', 'Phụ huynh: xem tổng hợp của con',
+  $q$select (parent_child((select student_id from parent_children() limit 1)) -> 'student' ->> 'id') = (select student_id::text from parent_children() limit 1)$q$, 'true');
+select pg_temp.chk('ph_ph', 'Phụ huynh: không xem học sinh khác',
+  format('select parent_child(%L)::text', (select student_id from guardians where full_name = 'ISO Bố B')), 'ERR');
+select pg_temp.chk('ph_ph', 'Phụ huynh: chỉ thấy dòng phụ huynh của mình', $q$select count(*) from guardians$q$, '1');
+select pg_temp.chk('ph_ph', 'Phụ huynh: xem năng lực của con', $q$select count(*) from student_competencies((select student_id from parent_children() limit 1))$q$, '>0');
+select pg_temp.chk('ph_ph', 'Phụ huynh: không xem năng lực học sinh khác',
+  format('select count(*) from student_competencies(%L)', (select student_id from guardians where full_name = 'ISO Bố B')), 'ERR');
+select pg_temp.chk('ph_ph', 'Phụ huynh: không tự thêm con', format($q$insert into guardians (student_id, full_name) values (%L, 'ISO tự thêm')$q$, (select student_id from guardians where full_name = 'ISO Bố B')), 'ERR');
+select pg_temp.chk('admin_ph', 'Phụ huynh: trường thêm phụ huynh cho HS của mình',
+  format($q$insert into guardians (student_id, full_name, phone) values (%L, 'ISO Ông C', '0912000333')$q$, (select student_id from guardians where full_name = 'ISO Bố B')), 'rows:1');
+select pg_temp.chk('admin_kb', 'Phụ huynh: trường khác không thêm cho HS trường này',
+  format($q$insert into guardians (student_id, full_name) values (%L, 'ISO lạ')$q$, (select student_id from guardians where full_name = 'ISO Bố B')), 'ERR');
+select pg_temp.chk('admin_kb', 'Phụ huynh: trường khác không xem', $q$select count(*) from guardians where full_name like 'ISO%'$q$, '0');
+select pg_temp.chk('so_hy', 'Phụ huynh: Sở không xem SĐT phụ huynh', $q$select count(*) from guardians where full_name like 'ISO%'$q$, '0');
+select pg_temp.chk('admin_ph', 'Phụ huynh: trường không tự gắn tài khoản',
+  $q$with u as (update guardians set profile_id = auth.uid() where full_name = 'ISO Bố B' returning profile_id) select coalesce(profile_id::text, 'null') from u$q$, 'null');
+select pg_temp.chk('admin_ph', 'Tài khoản phụ huynh: tên đăng nhập theo SĐT, cùng SĐT chỉ một tài khoản',
+  $q$select string_agg(coalesce(login, '-') || ':' || status, ',' order by status) from account_prepare('parent', array(select id from guardians where full_name in ('ISO Bố B', 'ISO Mẹ B')))$q$,
+  'thcsph.ph0912000222:new,-:same_phone');
+do $$ declare r text;
+begin
+  r := pg_temp.probe('ph_ph@iso-test.local', $q$select parent_consent((select student_id from parent_children() limit 1), true, '{learning,photo}')::text$q$, true);
+  insert into t_result (who, name, expect, got, ok) values ('system', 'Phụ huynh: đồng ý lưu dạng trực tuyến', 'online',
+    (select string_agg(method, ',') from student_consents c join guardians g on g.student_id = c.student_id where g.full_name = 'ISO Mẹ A' and c.withdrawn_on is null),
+    (select string_agg(method, ',') from student_consents c join guardians g on g.student_id = c.student_id where g.full_name = 'ISO Mẹ A' and c.withdrawn_on is null) = 'online');
+end $$;
+do $$ declare v_kid uuid := (select student_id from guardians where full_name = 'ISO Mẹ A'); v_ses uuid; n int;
+begin
+  select ts.id into v_ses from teaching_sessions ts join students s on s.class_id = ts.class_id
+   where s.id = v_kid and ts.session_date = current_date and not exists (select 1 from lesson_attendance la where la.session_id = ts.id and la.student_id = v_kid) limit 1;
+  if v_ses is null then
+    select ts.id into v_ses from teaching_sessions ts join students s on s.class_id = ts.class_id where s.id = v_kid
+      and not exists (select 1 from lesson_attendance la where la.session_id = ts.id and la.student_id = v_kid) order by abs(ts.session_date - current_date) limit 1;
+    if v_ses is null then return; end if;
+    update teaching_sessions set session_date = session_date where id = v_ses;  -- giữ nguyên
+  end if;
+  insert into lesson_attendance (session_id, student_id, org_id, status, note)
+    select v_ses, v_kid, s.org_id, 'absent', 'ISO vắng' from students s where s.id = v_kid;
+  select count(*) into n from notifications where user_id = (select id from profiles where email = 'ph_ph@iso-test.local') and page = 'Chuyên cần của con';
+  insert into t_result (who, name, expect, got, ok) values ('system', 'Phụ huynh: nhận thông báo khi con vắng (buổi gần đây)',
+    case when (select session_date from teaching_sessions where id = v_ses) >= current_date - 1 then '1' else '0' end, n::text,
+    n = case when (select session_date from teaching_sessions where id = v_ses) >= current_date - 1 then 1 else 0 end);
+end $$;
+insert into surveys (org_id, title, audience, status, questions) values (pg_temp.oid_('THCS-PH'), 'ISO KS phụ huynh', 'parent', 'open', '[{"id":"q1","type":"scale","text":"Hài lòng?","required":true}]');
+select pg_temp.chk('ph_ph', 'Khảo sát phụ huynh: phụ huynh thấy', $q$select count(*) from my_surveys() where title = 'ISO KS phụ huynh'$q$, '1');
+select pg_temp.chk('gv_both', 'Khảo sát phụ huynh: giáo viên không thấy', $q$select count(*) from my_surveys() where title = 'ISO KS phụ huynh'$q$, '0');
+select pg_temp.chk('ph_ph', 'Khảo sát phụ huynh: phụ huynh trả lời', $q$select (survey_submit((select id from surveys where title = 'ISO KS phụ huynh'), '{"q1":4}') is not null)::text$q$, 'true');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

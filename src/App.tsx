@@ -99,6 +99,8 @@ const RoomsOverview = lazy(() => import('./pages/platform/Resources').then(m => 
 const ModuleUsage = lazy(() => import('./pages/platform/Modules').then(m => ({ default: m.ModuleUsage })))
 const DefaultPermissions = lazy(() => import('./pages/platform/Modules').then(m => ({ default: m.DefaultPermissions })))
 const PlatformSchools = lazy(() => import('./pages/platform/Schools').then(m => ({ default: m.PlatformSchools })))
+const SuppliesPage = lazy(() => import('./pages/inventory').then(m => ({ default: m.SuppliesPage })))
+const StocktakePage = lazy(() => import('./pages/inventory').then(m => ({ default: m.StocktakePage })))
 const EquipmentOverview = lazy(() => import('./pages/platform/Resources').then(m => ({ default: m.EquipmentOverview })))
 const CustomerSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.CustomerSupport })))
 
@@ -112,6 +114,8 @@ const SCHOOL: PageMap = {
   'Lớp học': Classes,
   'Quản lý Phòng STEM': Rooms,
   'Quản lý Thiết bị': Equipment,
+  'Vật tư tiêu hao': SuppliesPage,
+  'Kiểm kê': StocktakePage,
   'Bảo hành thiết bị': Warranty,
   'Phân công giảng dạy': Assignments,
   'Thời khóa biểu': Timetable,
@@ -235,6 +239,9 @@ const PLATFORM: PageMap = {
   'Theo dõi chương trình CT1–CT5 (Môn học)': (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects]]} />,
   // 3. Vật tư, thiết bị dạy & học
   'Thiết bị & vật tư': EquipmentOverview,
+  'Kho & tồn kho': SuppliesPage,
+  'Cấp phát & bàn giao': (p: any) => <SuppliesPage {...p} initialTab="moves" />,
+  'Kiểm kê': StocktakePage,
   'Phòng STEM & lịch phòng': RoomsOverview,
   'Hiệu quả sử dụng phòng STEM': DeptRoomEffect,
   // 4. Vận hành giảng dạy & đánh giá người học

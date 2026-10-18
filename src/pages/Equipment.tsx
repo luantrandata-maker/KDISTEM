@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import FormPanel from '../components/FormPanel'
 import { useBackClose } from '../lib/history'
+import { printUnitLabels } from './inventory'
 
 type Unit = { id: string; type_id: string; serial: string | null; status: string; room_id: string | null; source: string; warranty_until: string | null; equipment_types: { name: string; brand: string | null; sku: string | null } | null; stem_rooms: { name: string } | null }
 type Type = { id: string; sku: string | null; name: string; brand: string | null }
 type Ev = { id: string; kind: string; title: string; note: string | null; created_at: string }
-export const UNIT_STATUS: Record<string, string> = { available: 'Sẵn sàng', in_use: 'Đang dùng', broken: 'Hỏng', maintenance: 'Bảo trì', in_stock: 'Tồn kho' }
-const ORDER = ['available', 'in_use', 'maintenance', 'broken', 'in_stock']
+export const UNIT_STATUS: Record<string, string> = { available: 'Sẵn sàng', in_use: 'Đang dùng', broken: 'Hỏng', maintenance: 'Bảo trì', in_stock: 'Tồn kho', lost: 'Thất lạc' }
+const ORDER = ['available', 'in_use', 'maintenance', 'broken', 'in_stock', 'lost']
 const soon = (d: string | null) => !!d && new Date(d).getTime() - Date.now() < 60 * 86400000 && new Date(d).getTime() > Date.now()
 
 export default function Equipment({ orgId }: { orgId: string }) {
@@ -33,6 +34,10 @@ export default function Equipment({ orgId }: { orgId: string }) {
   }
   useEffect(() => { load() }, [])
 
+  async function printLabels() {
+    const { data } = await supabase.from('organizations').select('name').eq('id', orgId).maybeSingle()
+    if (!await printUnitLabels(data?.name ?? '', filtered.map(u => ({ id: u.id, serial: u.serial, name: u.equipment_types?.name ?? '', room: u.stem_rooms?.name ?? null })))) alert('Trình duyệt chặn cửa sổ in — hãy cho phép pop-up.')
+  }
   async function log(unit_id: string, kind: string, title: string, note: string) {
     await supabase.from('equipment_events').insert({ org_id: orgId, unit_id, kind, title, note })
   }
@@ -107,7 +112,7 @@ export default function Equipment({ orgId }: { orgId: string }) {
       </div>
       <div className="bar" style={{ marginTop: 16 }}>
         <div className="segmented"><button className={view === 'grid' ? 'on' : ''} onClick={() => setView('grid')}>Lưới thiết bị</button><button className={view === 'room' ? 'on' : ''} onClick={() => setView('room')}>Theo phòng</button></div>
-        <div className="tools"><button onClick={() => setPanel('type')}>Thêm loại thiết bị</button><button className="primary" onClick={() => setPanel('units')} disabled={types.length === 0}>Nhập thiết bị</button></div>
+        <div className="tools"><button onClick={printLabels} disabled={!filtered.length} title="In tem QR cho các thiết bị đang lọc, dán lên thiết bị để kiểm kê bằng camera">In tem QR ({filtered.length})</button><button onClick={() => setPanel('type')}>Thêm loại thiết bị</button><button className="primary" onClick={() => setPanel('units')} disabled={types.length === 0}>Nhập thiết bị</button></div>
       </div>
       {panel === 'type' && <FormPanel fields={[{ key: 'name', label: 'Tên thiết bị', required: true }, { key: 'sku', label: 'Mã SKU' }, { key: 'brand', label: 'Hãng' }, { key: 'category', label: 'Nhóm' }]} onSubmit={addType} onCancel={() => setPanel(null)} />}
       {panel === 'units' && <FormPanel submitLabel="Nhập kho" fields={[

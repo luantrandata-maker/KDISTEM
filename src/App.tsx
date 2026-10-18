@@ -22,6 +22,7 @@ import Teachers from './pages/Teachers'
 import MobileAppPage from './pages/MobileApp'
 import OfflineBar from './components/OfflineBar'
 import TerminologyPage from './pages/platform/Terminology'
+import AssistantPage, { PlatformAI } from './pages/ai'
 import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysLessons, SysTrainingLessons, SysCertificates } from './pages/platform/SystemViews'
 import Classes from './pages/Classes'
 import Rooms from './pages/Rooms'
@@ -178,6 +179,7 @@ const SCHOOL: PageMap = {
   'Phát hành học liệu': LibraryManage,
   'Hỗ trợ từ KDI': CustomerSupport,
   'Ứng dụng di động': MobileAppPage,
+  'Trợ lý AI': AssistantPage,
   'Buổi dạy & điểm danh': SchoolSessions,
   'Dashboard điểm danh': AttendanceDashboard,
   'Sao lưu & xuất dữ liệu': DataExportPage,
@@ -186,6 +188,7 @@ const SCHOOL: PageMap = {
 }
 const TEACHER: PageMap = {
   'Ứng dụng di động': MobileAppPage,
+  'Trợ lý AI': AssistantPage,
   'Dự án STEM': ProjectsPage,
   'Cuộc thi': CompetitionsPage,
   'Chấm thi': JudgingPage,
@@ -224,6 +227,7 @@ const STUDENT: PageMap = {
   'Chuyên cần': StudentAttendance,
 }
 const DEPARTMENT: PageMap = {
+  'Trợ lý AI': AssistantPage,
   'Dự án STEM': (p: any) => <ProjectsPage {...p} readOnly />,
   'Cuộc thi': CompetitionsPage,
   'Chấm thi': JudgingPage,
@@ -329,6 +333,7 @@ const PLATFORM: PageMap = {
   'Cấu hình chung (kỳ học...)': DeptAdmin,
   'Thuật ngữ chuẩn': TerminologyPage,
   'Ứng dụng di động & ngoại tuyến': MobileAppPage,
+  'Trợ lý AI': PlatformAI,
   // Màn xem toàn hệ thống (gom dữ liệu mọi trường, lọc theo Sở / trường) — pages/platform/SystemViews.tsx
   'Bảo hành & bảo trì thiết bị': SysWarranty,
   'Tòa nhà, tầng & tiết học': SysBuildings,

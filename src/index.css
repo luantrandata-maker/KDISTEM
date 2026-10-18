@@ -784,3 +784,9 @@ button.danger:disabled{opacity:.6}
 .scanbox{display:grid;gap:8px;margin:12px 0}.scanbox .tools{flex-wrap:wrap}
 .qrvideo{width:100%;max-width:420px;aspect-ratio:4/3;object-fit:cover;border-radius:12px;background:#000}
 .stocktake h4{margin:16px 0 6px}
+
+.mbars{display:grid;grid-template-columns:repeat(12,1fr);gap:6px;height:180px;align-items:end;margin-top:12px}
+.mcol{display:flex;flex-direction:column;align-items:center;height:100%;gap:4px}.mcol small{color:var(--muted,#64748b);font-size:11px}
+.mpair{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center;gap:2px;border-bottom:1px solid var(--line,#e2e8f0)}
+.mpair span{width:40%;max-width:18px;border-radius:4px 4px 0 0;min-height:0}
+.mlegend{font-size:12px;color:var(--muted,#64748b)}.mlegend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}

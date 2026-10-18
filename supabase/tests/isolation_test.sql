@@ -129,6 +129,7 @@ begin
   delete from students where student_code like 'ISO-%' or full_name like 'ISO HS%' or org_id = any(v_orgs);
   delete from invitations where email like 'thcsph.iso%' or full_name = 'ISO GV tài khoản mã';
   if to_regclass('public.rubrics') is not null then delete from rubrics where title like 'ISO %'; end if;
+  if to_regclass('public.data_exports') is not null then delete from data_exports where note like 'ISO%'; end if;
   if to_regclass('public.stock_transfers') is not null then
     perform set_config('app.stock_engine', 'on', true);
     delete from approval_requests where ref_table in ('supply_requests', 'stock_transfers') and title like 'ISO %';
@@ -1339,6 +1340,38 @@ begin
     delete from equipment_types t where t.id = any(v_new_types) and t.org_id = pg_temp.oid_('ISO-SCH') and not exists (select 1 from equipment_units u where u.type_id = t.id);
   end if;
 end $$;
+
+-- ===== 046: nghiệm thu & doanh thu, xuất dữ liệu =====
+insert into service_plans (code, name, modules) values ('ISO-P46', 'Gói thử ISO 46', '{}') on conflict (code) do nothing;
+insert into contracts (code, org_id, plan_id, starts_on, ends_on, value, status, created_by)
+  select 'ISO-HD46', pg_temp.oid_('THCS-PH'), id, current_date - 200, current_date + 165, 100000000, 'draft', null from service_plans where code = 'ISO-P46';
+do $$ declare a text; b text; v_c uuid := (select id from contracts where code = 'ISO-HD46'); v_kdi text := 'kdi@iso-test.local';
+begin
+  if pg_temp.oid_('@platform') is null then return; end if;
+  update security_settings set enforce_mfa_db = false where id = 1;   -- phần 2FA đã kiểm ở trên
+  a := pg_temp.probe(v_kdi, format($q$insert into contract_milestones (contract_id, seq, name, due_on, amount, status) values (%L, 1, 'Đợt 1', current_date - 30, 40000000, 'paid')$q$, v_c), true);
+  b := pg_temp.probe(v_kdi, format($q$insert into contract_milestones (contract_id, seq, name, due_on, amount, status) values (%L, 2, 'Đợt 2', current_date - 5, 60000000, 'accepted')$q$, v_c), true);
+  insert into t_result (who, name, expect, got, ok) values
+    ('kdi', 'Nghiệm thu: KDI lập đợt đã thu', 'rows:1', a, a = 'rows:1'),
+    ('kdi', 'Nghiệm thu: KDI lập đợt đã nghiệm thu', 'rows:1', b, b = 'rows:1'),
+    ('system', 'Nghiệm thu: đã thu tự điền số tiền, ngày', '40000000', (select paid_amount::text || case when paid_on is null then ' (thiếu ngày)' else '' end from contract_milestones where contract_id = v_c and seq = 1),
+       (select paid_amount = 40000000 and paid_on is not null and accepted_on is not null from contract_milestones where contract_id = v_c and seq = 1));
+end $$;
+select pg_temp.chk('kdi', 'Doanh thu: tổng hợp đã thu / còn phải thu / quá hạn',
+  $q$select paid::text || '|' || outstanding::text || '|' || overdue::text from revenue_overview() where code = 'ISO-HD46'$q$, '40000000|60000000|1');
+select pg_temp.chk('admin_ph', 'Nghiệm thu: khách hàng xem tiến độ hợp đồng của mình', $q$select count(*) from contract_milestones m join contracts c on c.id = m.contract_id where c.code = 'ISO-HD46'$q$, '2');
+select pg_temp.chk('admin_ph', 'Nghiệm thu: khách hàng không tự sửa', $q$update contract_milestones set status = 'paid' where name = 'Đợt 2'$q$, 'rows:0');
+select pg_temp.chk('admin_kb', 'Nghiệm thu: khách hàng khác không thấy', $q$select count(*) from contract_milestones m join contracts c on c.id = m.contract_id where c.code = 'ISO-HD46'$q$, '0');
+select pg_temp.chk('gv_both', 'Nghiệm thu: giáo viên không thấy', $q$select count(*) from contract_milestones m join contracts c on c.id = m.contract_id where c.code = 'ISO-HD46'$q$, '0');
+select pg_temp.chk('admin_ph', 'Doanh thu: trường không xem tổng hợp', 'select count(*) from revenue_overview()', 'ERR');
+do $$ declare r text := pg_temp.probe('admin_ph@iso-test.local', $q$select (log_data_export(my_org_id(), 'xlsx', '{teachers}', 12, 'ISO xuất') is not null)::text$q$, true);
+begin insert into t_result (who, name, expect, got, ok) values ('admin_ph', 'Xuất dữ liệu: quản trị trường ghi nhật ký', 'true', r, r = 'true'); end $$;
+select pg_temp.chk('admin_ph', 'Xuất dữ liệu: không ghi cho trường khác',
+  format('select log_data_export(%L, ''json'', ''{}'', 1, ''ISO x'')::text', pg_temp.oid_('THCS-KB')), 'ERR');
+select pg_temp.chk('gv_both', 'Xuất dữ liệu: giáo viên không xuất', $q$select log_data_export(my_org_id(), 'json', '{}', 1, 'ISO x')::text$q$, 'ERR');
+select pg_temp.chk('so_hy', 'Xuất dữ liệu: Sở xem nhật ký trường trực thuộc', $q$select count(*) from data_exports where note = 'ISO xuất'$q$, '1');
+select pg_temp.chk('admin_kb', 'Xuất dữ liệu: trường khác không xem nhật ký', $q$select count(*) from data_exports where note = 'ISO xuất'$q$, '0');
+select pg_temp.chk('admin_ph', 'Sao lưu: trường không xem tình trạng CSDL', 'select backup_overview()::text', 'ERR');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

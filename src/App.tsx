@@ -99,6 +99,8 @@ const RoomsOverview = lazy(() => import('./pages/platform/Resources').then(m => 
 const ModuleUsage = lazy(() => import('./pages/platform/Modules').then(m => ({ default: m.ModuleUsage })))
 const DefaultPermissions = lazy(() => import('./pages/platform/Modules').then(m => ({ default: m.DefaultPermissions })))
 const PlatformSchools = lazy(() => import('./pages/platform/Schools').then(m => ({ default: m.PlatformSchools })))
+const DataExportPage = lazy(() => import('./pages/dataexport').then(m => ({ default: m.DataExportPage })))
+const PlatformRevenue = lazy(() => import('./pages/platform/Revenue').then(m => ({ default: m.PlatformRevenue })))
 const SupplyRequestsPage = lazy(() => import('./pages/stockflow').then(m => ({ default: m.SupplyRequestsPage })))
 const TransfersPage = lazy(() => import('./pages/stockflow').then(m => ({ default: m.TransfersPage })))
 const SuppliesPage = lazy(() => import('./pages/inventory').then(m => ({ default: m.SuppliesPage })))
@@ -148,6 +150,7 @@ const SCHOOL: PageMap = {
   'Hỗ trợ từ KDI': CustomerSupport,
   'Buổi dạy & điểm danh': SchoolSessions,
   'Dashboard điểm danh': AttendanceDashboard,
+  'Sao lưu & xuất dữ liệu': DataExportPage,
   'Ngày nghỉ & lễ': Holidays,
 }
 const TEACHER: PageMap = {
@@ -198,6 +201,7 @@ const DEPARTMENT: PageMap = {
   'Hiệu quả Phòng STEM': DeptRoomEffect,
   'Phòng STEM & lịch phòng': RoomsOverview,
   'Thiết bị & kho': EquipmentOverview,
+  'Sao lưu & xuất dữ liệu': DataExportPage,
   'Ngày nghỉ & lễ': Holidays,
   'Báo cáo Bộ GD&ĐT': DeptReports,
   'Điều hành & Cấu hình': DeptAdmin,
@@ -210,6 +214,8 @@ const DEPARTMENT: PageMap = {
 // Cổng Quản trị nền tảng: chỉ nối các trang đọc được dữ liệu toàn hệ thống (trang nền tảng, trang cấp Sở, học liệu, phê duyệt, tập huấn).
 // Mục menu không có ở đây hiện khung giao diện (PlannedPage); build xong phân hệ nào thì thêm trang vào đây.
 const PLATFORM: PageMap = {
+  'Nghiệm thu & doanh thu': PlatformRevenue,
+  'Sao lưu & xuất dữ liệu': (p: any) => <DataExportPage {...p} platform />,
   'Tổng quan hệ thống': PlatformOverview,
   'Nhật ký hệ thống': PlatformAudit,
   'Cấu hình chung (năm học)': DeptAdmin,

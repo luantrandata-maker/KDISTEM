@@ -48,20 +48,20 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
   school_admin: [
     { title: 'Tổng quan', items: ['Dashboard Trường', 'Hồ sơ Trường học', 'Hộp phê duyệt'] },
     { title: 'Nhân sự & lớp học', items: ['Giáo viên', 'Phân công giảng dạy', 'Lớp học', 'Học sinh'] },
-    { title: 'Tập huấn giáo viên', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Bài giảng', 'Lớp học ảo', 'Chứng chỉ'] },
+    { title: 'Tập huấn giáo viên', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Bài giảng', 'Lớp học ảo', 'Chứng chỉ', 'Đánh giá năng lực GV'] },
     { title: 'Chương trình & học liệu', items: ['Gói STEM', 'Đề xuất mua gói', 'Phân phối chương trình', 'Kho học liệu dùng chung', 'Phát hành học liệu'] },
     { title: 'Phòng & thiết bị STEM', items: ['Quản lý Phòng STEM', 'Quản lý Thiết bị', 'Bảo hành thiết bị'] },
-    { title: 'Giảng dạy', items: ['Kế hoạch GD toàn trường', 'Duyệt đăng ký dạy STEM', 'Thời khóa biểu', 'Phân công GV dạy STEM', 'Buổi dạy & điểm danh', 'Dashboard điểm danh'] },
+    { title: 'Giảng dạy', items: ['Kế hoạch GD toàn trường', 'Duyệt đăng ký dạy STEM', 'Thời khóa biểu', 'Phân công GV dạy STEM', 'Buổi dạy & điểm danh', 'Dashboard điểm danh', 'Năng lực học sinh'] },
     { title: 'Quản trị', items: ['Năm học & học kỳ', 'Ngày nghỉ & lễ', 'Tòa nhà & Tầng', 'Cấu hình tiết học', 'Tài khoản', 'Vai trò và phân quyền', 'Quy trình phê duyệt', 'Hỗ trợ từ KDI'] },
   ],
   teacher: [
-    { title: 'Giảng dạy', items: ['Tổng quan', 'Kế hoạch giáo dục', 'Lớp giảng dạy', 'Điểm danh', 'Bài tập', 'Chấm bài', 'Học trước & tự học'] },
+    { title: 'Giảng dạy', items: ['Tổng quan', 'Kế hoạch giáo dục', 'Lớp giảng dạy', 'Điểm danh', 'Bài tập', 'Chấm bài', 'Năng lực học sinh', 'Học trước & tự học'] },
     { title: 'Hoạt động STEM', items: ['Giáo dục STEM', 'Đặt phòng STEM'] },
     { title: 'Soạn giảng', items: ['Soạn bài giảng', 'Kho hoạt động & Bài giảng', 'Thư viện STEM'] },
-    { title: 'Khác', items: ['Hộp phê duyệt', 'Lịch tập huấn', 'Bài giảng tập huấn', 'Hỗ trợ từ KDI'] },
+    { title: 'Khác', items: ['Hộp phê duyệt', 'Lịch tập huấn', 'Bài giảng tập huấn', 'Hồ sơ năng lực', 'Hỗ trợ từ KDI'] },
   ],
   student: [
-    { title: 'Học tập', items: ['Tổng quan', 'Bài tập', 'Học trước & tự học', 'Lịch học', 'Chuyên cần', 'Giáo dục STEM', 'Chủ đề'] },
+    { title: 'Học tập', items: ['Tổng quan', 'Bài tập', 'Học trước & tự học', 'Lịch học', 'Chuyên cần', 'Năng lực của em', 'Giáo dục STEM', 'Chủ đề'] },
   ],
   department: [
     { title: 'Tổng quan', items: ['Dashboard toàn Sở', 'Danh sách Trường', 'Hộp phê duyệt'] },
@@ -86,6 +86,7 @@ export const MODULE_OF: Record<string, string> = {
   'Kho học liệu dùng chung': 'library', 'Phát hành học liệu': 'library',
   'Hộp phê duyệt': 'approvals', 'Quy trình phê duyệt': 'roles', 'Đề xuất mua gói': 'packages',
   'Buổi dạy & điểm danh': 'timetable', 'Dashboard điểm danh': 'timetable', 'Ngày nghỉ & lễ': 'periods',
+  'Đánh giá năng lực GV': 'training', 'Năng lực học sinh': 'students',
 }
 // Vai trò → giao diện: lưu ở cột roles.portal (vai trò hệ thống và vai trò tuỳ chỉnh của trường).
 
@@ -100,6 +101,8 @@ export const ENT_MODULE_OF: Record<string, string> = {
   // PH5 (migration 033): điều hành & báo cáo của Sở
   'KPI & Xếp hạng Xã/Phường': 'governance', 'Báo cáo Bộ GD&ĐT': 'governance',
   'Cảnh báo & trường cần chú ý': 'governance', 'Giao chỉ tiêu': 'governance',
+  // 042: năng lực GV thuộc PH1 (Đào tạo & đánh giá năng lực nhà giáo), năng lực HS thuộc PH4
+  'Hồ sơ năng lực': 'training', 'Năng lực học sinh': 'timetable', 'Năng lực của em': 'timetable',
 }
 
 // Cổng hiện mục chưa có trong gói ở dạng mờ "Chưa có trong gói" (để giới thiệu phân hệ); các cổng khác ẩn hẳn.

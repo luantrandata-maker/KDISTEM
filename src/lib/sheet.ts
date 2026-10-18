@@ -67,3 +67,19 @@ export async function downloadXlsx(fileName: string, columns: Column[], rows: (s
 export function importSummary(ok: number, noun: string, bad: string[]) {
   return `Đã nhập ${ok} ${noun}.` + (bad.length ? ` Bỏ qua ${bad.length} dòng: ${bad.slice(0, 4).join('; ')}${bad.length > 4 ? '…' : '.'}` : '')
 }
+
+// Nhiều trang tính trong một file (sao lưu / xuất dữ liệu)
+export async function downloadWorkbook(fileName: string, sheets: { name: string; columns: Column[]; rows: (string | number | null | undefined)[][] }[]) {
+  const used = new Set<string>()
+  const books = sheets.map(s => {
+    let name = s.name.replace(/[[\]\/\\:*?]/g, '-').slice(0, 31), k = 2
+    while (used.has(name)) name = s.name.slice(0, 28) + ' ' + k++
+    used.add(name)
+    return {
+      data: [s.columns.map(c => ({ value: c.label, fontWeight: 'bold' as const, backgroundColor: '#E6F1FD' })),
+        ...s.rows.map(r => r.map(v => (v == null || v === '' ? null : typeof v === 'number' ? { value: v, type: Number } : { value: String(v), type: String })))],
+      sheet: name, columns: s.columns.map(c => ({ width: c.width ?? Math.min(40, Math.max(12, c.label.length + 4)) })), stickyRowsCount: 1,
+    }
+  })
+  await writeXlsxFile(books as any).toFile(fileName.endsWith('.xlsx') ? fileName : fileName + '.xlsx')
+}

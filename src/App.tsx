@@ -19,6 +19,8 @@ import { useBranding, DEFAULT_TITLE } from './lib/branding'
 import LegalGate from './components/LegalGate'
 import Dashboard from './pages/Dashboard'
 import Teachers from './pages/Teachers'
+import MobileAppPage from './pages/MobileApp'
+import OfflineBar from './components/OfflineBar'
 import TerminologyPage from './pages/platform/Terminology'
 import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysLessons, SysTrainingLessons, SysCertificates } from './pages/platform/SystemViews'
 import Classes from './pages/Classes'
@@ -106,6 +108,7 @@ const BrandingPage = lazy(() => import('./pages/branding').then(m => ({ default:
 const ParentP = (n: string) => lazy(() => import('./pages/parent').then(m => ({ default: (m as any)[n] })))
 const GuardiansPage = lazy(() => import('./pages/Guardians'))
 const PARENT: PageMap = {
+  'Ứng dụng di động': MobileAppPage,
   'Tổng quan': ParentP('ParentHome'), 'Lịch học': ParentP('ParentSchedule'), 'Chuyên cần của con': ParentP('ParentAttendance'),
   'Bài tập & điểm': ParentP('ParentAssignments'), 'Năng lực của con': ParentP('ParentCompetency'), 'Cài đặt & đồng ý': ParentP('ParentSettings'),
   'Khảo sát': lazy(() => import('./pages/surveys').then(m => ({ default: m.MySurveys }))),
@@ -174,6 +177,7 @@ const SCHOOL: PageMap = {
   'Kho học liệu dùng chung': LibraryBrowse,
   'Phát hành học liệu': LibraryManage,
   'Hỗ trợ từ KDI': CustomerSupport,
+  'Ứng dụng di động': MobileAppPage,
   'Buổi dạy & điểm danh': SchoolSessions,
   'Dashboard điểm danh': AttendanceDashboard,
   'Sao lưu & xuất dữ liệu': DataExportPage,
@@ -181,6 +185,7 @@ const SCHOOL: PageMap = {
   'Ngày nghỉ & lễ': Holidays,
 }
 const TEACHER: PageMap = {
+  'Ứng dụng di động': MobileAppPage,
   'Dự án STEM': ProjectsPage,
   'Cuộc thi': CompetitionsPage,
   'Chấm thi': JudgingPage,
@@ -323,6 +328,7 @@ const PLATFORM: PageMap = {
   'Lộ trình triển khai': PlatformRollout,
   'Cấu hình chung (kỳ học...)': DeptAdmin,
   'Thuật ngữ chuẩn': TerminologyPage,
+  'Ứng dụng di động & ngoại tuyến': MobileAppPage,
   // Màn xem toàn hệ thống (gom dữ liệu mọi trường, lọc theo Sở / trường) — pages/platform/SystemViews.tsx
   'Bảo hành & bảo trì thiết bị': SysWarranty,
   'Tòa nhà, tầng & tiết học': SysBuildings,
@@ -577,6 +583,7 @@ function Shell({ session }: { session: Session }) {
             : Page ? <Suspense fallback={<p className="sub">Đang tải…</p>}><Page key={page + (yrs.year?.id ?? '') + (studentId ?? '')} teacherId={teacherId} studentId={studentId} orgId={access.profile.org_id} userName={access.profile.full_name} go={goPage} name={page}
             year={yrs.year} years={yrs.years} reloadYears={yrs.reload} selectYear={yrs.select} /></Suspense> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
         </main>
+        <OfflineBar go={() => show(role, role === 'platform' ? 'Ứng dụng di động & ngoại tuyến' : 'Ứng dụng di động')} />
       </div>
     </div>
   )

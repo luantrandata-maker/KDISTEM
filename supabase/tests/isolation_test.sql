@@ -129,6 +129,7 @@ begin
   delete from students where student_code like 'ISO-%' or full_name like 'ISO HS%' or org_id = any(v_orgs);
   delete from invitations where email like 'thcsph.iso%' or full_name = 'ISO GV tài khoản mã';
   if to_regclass('public.rubrics') is not null then delete from rubrics where title like 'ISO %'; end if;
+  if to_regclass('public.supplies') is not null then delete from stocktakes where name like 'ISO KK%'; delete from supplies where name like 'ISO %'; end if;
   if to_regclass('public.surveys') is not null then delete from surveys where title like 'ISO KS%'; end if;
   if to_regclass('public.teacher_assessments') is not null then
     delete from teacher_assessments where teacher_id in (select id from teachers where email like '%@iso-test.local');
@@ -1190,6 +1191,53 @@ begin
     ('admin_ph', 'Khảo sát: trường không xem kết quả khảo sát của Sở', 'ERR 42501', v_ph, v_ph = 'ERR 42501'),
     ('so_hy', 'Khảo sát: đã có người trả lời thì không sửa câu hỏi', 'ERR 22023', v_edit, v_edit = 'ERR 22023'),
     ('admin_ph', 'Khảo sát: không đọc câu trả lời của người khác', '0', v_other, v_other = '0');
+end $$;
+
+-- ===== 044: kho vật tư & kiểm kê =====
+insert into supplies (org_id, name, unit, min_qty) values (pg_temp.oid_('THCS-PH'), 'ISO Pin AA', 'viên', 5);
+insert into supply_moves (org_id, supply_id, kind, qty, reason) select org_id, id, 'in', 10, 'ISO nhập' from supplies where name = 'ISO Pin AA';
+select pg_temp.chk('admin_ph', 'Kho: nhập 10 → tồn 10', 'select qty::text from supplies where name = ''ISO Pin AA''', '10.00');
+select pg_temp.chk('admin_ph', 'Kho: xuất cấp phát',
+  $q$insert into supply_moves (org_id, supply_id, kind, qty, reason) select org_id, id, 'out', 3, 'ISO cấp' from supplies where name = 'ISO Pin AA'$q$, 'rows:1');
+select pg_temp.chk('admin_ph', 'Kho: không xuất quá tồn',
+  $q$insert into supply_moves (org_id, supply_id, kind, qty, reason) select org_id, id, 'out', 100, 'ISO cấp' from supplies where name = 'ISO Pin AA'$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Kho: sửa thẳng tồn kho bị bỏ qua',
+  $q$with u as (update supplies set qty = 999 where name = 'ISO Pin AA' returning qty) select qty::text from u$q$, '10.00');
+select pg_temp.chk('admin_ph', 'Kho: phiếu đã lập không sửa được', $q$update supply_moves set qty = 1 where reason = 'ISO nhập'$q$, 'rows:0');
+select pg_temp.chk('gv_both', 'Kho: GV không lập phiếu',
+  $q$insert into supply_moves (org_id, supply_id, kind, qty) select org_id, id, 'in', 1 from supplies where name = 'ISO Pin AA'$q$, 'ERR*');
+select pg_temp.chk('admin_kb', 'Kho: trường khác không thấy', 'select count(*) from supplies where name = ''ISO Pin AA''', '0');
+select pg_temp.chk('so_hy', 'Kho: Sở cấp trên xem được', 'select count(*) from supplies where name = ''ISO Pin AA''', '1');
+select pg_temp.chk('admin_kb', 'Kho: không ghi phiếu vào vật tư trường khác',
+  format('insert into supply_moves (org_id, supply_id, kind, qty) values (my_org_id(), %L, ''in'', 1)', (select id from supplies where name = 'ISO Pin AA')), 'ERR*');
+select pg_temp.chk('gv_both', 'Kiểm kê: GV không mở đợt', 'select stocktake_start(''ISO KK'')::text', 'ERR');
+do $$ declare v_room uuid; v_unit uuid; v_serial text; v_n int; v_st uuid; v_r text; v_a text; v_b text; v_c text; v_d text; v_e text; v_qty numeric;
+begin
+  select r.id into v_room from stem_rooms r join organizations o on o.id = r.org_id
+   where o.code = 'THCS-PH' and (select count(*) from equipment_units u where u.room_id = r.id) >= 2 order by r.name limit 1;
+  if v_room is null then return; end if;
+  create temp table t_units on commit drop as select id, status, room_id from equipment_units where room_id = v_room;
+  select count(*) into v_n from t_units;
+  select u.id, u.serial into v_unit, v_serial from equipment_units u where u.room_id = v_room and u.serial is not null order by u.serial limit 1;
+  v_r := pg_temp.probe('admin_ph@iso-test.local', format('select stocktake_start(%L, %L, false)::text', 'ISO KK phòng', v_room), true);
+  select id into v_st from stocktakes where name = 'ISO KK phòng';
+  v_a := pg_temp.probe('admin_ph@iso-test.local', format('select count(*) from stocktake_scan(%L, %L)', v_st, v_serial), true);
+  v_b := pg_temp.probe('gv_both@iso-test.local', format('select count(*) from stocktake_scan(%L, %L)', v_st, v_serial));
+  v_c := pg_temp.probe('admin_ph@iso-test.local', format('select stocktake_approve(%L)::text', v_st));
+  perform pg_temp.probe('admin_ph@iso-test.local', format('update stocktakes set status = %L where id = %L', 'submitted', v_st), true);
+  v_d := pg_temp.probe('admin_ph@iso-test.local', format('update stocktake_items set result = %L where stocktake_id = %L', 'ok', v_st));
+  v_e := pg_temp.probe('admin_ph@iso-test.local', format('select (stocktake_approve(%L) ->> %L)', v_st, 'lost'), true);
+  insert into t_result (who, name, expect, got, ok) values
+    ('admin_ph', 'Kiểm kê: mở đợt theo phòng', 'uuid', v_r, v_r ~ '^[0-9a-f-]{36}$'),
+    ('admin_ph', 'Kiểm kê: quét serial → đánh dấu có', '1', v_a, v_a = '1'),
+    ('gv_both', 'Kiểm kê: GV không quét', 'ERR 42501', v_b, v_b = 'ERR 42501'),
+    ('admin_ph', 'Kiểm kê: chưa nộp thì chưa duyệt được', 'ERR 22023', v_c, v_c = 'ERR 22023'),
+    ('admin_ph', 'Kiểm kê: nộp rồi không sửa kết quả', 'ERR 42501', v_d, v_d = 'ERR 42501'),
+    ('admin_ph', 'Kiểm kê: duyệt → thiết bị không thấy thành Thất lạc', (v_n - 1)::text, v_e, v_e = (v_n - 1)::text),
+    ('system', 'Kiểm kê: thiết bị đã quét vẫn dùng được', 'không lost', (select status from equipment_units where id = v_unit), (select status from equipment_units where id = v_unit) <> 'lost');
+  update equipment_units u set status = t.status, room_id = t.room_id from t_units t where u.id = t.id;
+  delete from equipment_events where note = 'ISO KK phòng' or title like 'Kiểm kê:%' and note = 'ISO KK phòng';
+  delete from stocktakes where id = v_st;
 end $$;
 
 -- ===== Dọn dẹp + kết quả =====

@@ -151,7 +151,7 @@ td input[type=checkbox]{width:18px;height:18px;accent-color:var(--primary);curso
 .timeline>div{position:relative}.timeline>div:before{content:"";position:absolute;left:-23px;top:4px;width:10px;height:10px;border-radius:50%;background:var(--accent)}
 .typecard{display:grid;gap:8px}.statusbar{display:flex;height:8px;border-radius:6px;overflow:hidden;background:var(--soft)}
 .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
-.dot.available{background:var(--ok)}.dot.in_use{background:var(--accent)}.dot.maintenance{background:var(--orange)}.dot.broken{background:var(--bad)}.dot.in_stock{background:#94a3b8}
+.dot.available{background:var(--ok)}.dot.in_use{background:var(--accent)}.dot.maintenance{background:var(--orange)}.dot.broken{background:var(--bad)}.dot.in_stock{background:#94a3b8}.dot.lost{background:#1f2937}
 .byroom{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}.byroom .panel{margin:0;max-height:420px;overflow:auto}
 .chipbtn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:13px}
 .chipbtn.on{background:var(--navy);color:#fff;border-color:var(--navy)}
@@ -781,3 +781,6 @@ button.danger:disabled{opacity:.6}
 .sbuilder{display:grid;gap:10px}.sbq{display:grid;gap:6px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
 .sresults{display:grid;gap:12px}.sqres{display:grid;gap:4px}.sqres .covrow{grid-template-columns:minmax(120px,240px) minmax(0,1fr) 80px}
 .stexts{margin:4px 0;padding-left:18px;max-height:260px;overflow:auto}.mysurveys{display:grid;gap:10px;margin-bottom:16px}
+.scanbox{display:grid;gap:8px;margin:12px 0}.scanbox .tools{flex-wrap:wrap}
+.qrvideo{width:100%;max-width:420px;aspect-ratio:4/3;object-fit:cover;border-radius:12px;background:#000}
+.stocktake h4{margin:16px 0 6px}

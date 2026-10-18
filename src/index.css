@@ -906,3 +906,41 @@ td.good,b.good{color:var(--ok);font-weight:700}tr.muted td{opacity:.55}
 .aiask{display:grid;gap:8px;border-top:1px solid var(--line);padding-top:10px}
 .aiask .tools{justify-content:flex-end}
 .aiask textarea{font:inherit;border:1px solid var(--line);border-radius:10px;padding:8px 10px;resize:vertical}
+
+/* E-learning & luyện thi */
+.optedit{display:grid;gap:6px}.optedit label{display:grid;grid-template-columns:auto 22px 1fr;gap:8px;align-items:center}
+.qopts{margin:4px 0 8px;padding-left:24px}.qopts li.right{color:var(--ok);font-weight:600}
+.pickq{max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:6px}
+.pickq label{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:start;padding:5px 6px;border-radius:8px}.pickq label:hover{background:var(--soft)}
+.pickq small{color:var(--muted)}
+.itemrates{display:grid;gap:8px}.itemrates>div{display:grid;grid-template-columns:1fr 160px;gap:2px 10px;align-items:center}
+.itemrates>div>span:first-child{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.itemrates small{grid-column:1/-1;color:var(--muted)}
+.coursegrid,.examcards{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-top:12px}
+.coursecard{margin:0;display:grid;gap:8px;align-content:start}.coursecard.wide{grid-column:1/-1}
+.coursecard header{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.coursecard header div{display:grid;gap:3px}
+.coursecard small{color:var(--muted)}
+.coursecard.pick{text-align:left;cursor:pointer;font:inherit;color:inherit;border:1px solid var(--line)}.coursecard.pick:hover{border-color:var(--primary)}
+.coursecard.pick img{width:100%;aspect-ratio:16/7;object-fit:cover;border-radius:10px}
+.lessons ol{padding-left:22px;display:grid;gap:6px}.lessons li{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.lessons .lk{font-size:12px;background:var(--soft);border-radius:6px;padding:1px 7px;color:var(--muted)}.lessons .done{margin-left:auto;color:var(--muted)}
+.examcard{margin:0;display:grid;gap:6px;align-content:start}.examcard>small{color:var(--muted)}.examcard .bar{margin:6px 0 0}
+.takeexam{max-width:880px}
+.examhead{position:sticky;top:0;z-index:5;display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 14px;margin-bottom:14px}
+.examhead>div{display:grid}.examhead small{color:var(--muted)}
+.timer{font-variant-numeric:tabular-nums;font-weight:700;font-size:20px;color:var(--navy)}.timer.hot{color:var(--bad)}
+.paper{padding-left:22px;display:grid;gap:18px}.paper .stem{font-weight:600;margin:0 0 8px;white-space:pre-wrap}
+.choices{display:grid;gap:6px}
+.choices label{display:grid;grid-template-columns:auto 22px 1fr;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:9px 12px;cursor:pointer;background:var(--surface)}
+.choices label.on{border-color:var(--primary);background:#eef5ff}.choices label.right{border-color:var(--ok);background:#e9f7ef}
+.paper li.qbad .choices label.on:not(.right){border-color:var(--bad);background:#fdeeee}
+.bigscore{font-size:30px;font-weight:700;color:var(--navy)}.bigscore small{font-size:15px;color:var(--muted)}
+.progress{height:6px;background:var(--soft);border-radius:999px;overflow:hidden}.progress i{display:block;height:100%;background:var(--ok)}
+.coursebody{display:grid;grid-template-columns:280px 1fr;gap:14px;margin-top:12px;align-items:start}
+.lessonnav{list-style:none;padding:0;margin:0;display:grid;gap:4px}
+.lessonnav button{display:grid;grid-template-columns:22px 1fr;gap:8px;width:100%;text-align:left;border:1px solid transparent;background:none;padding:8px;border-radius:10px;cursor:pointer;font:inherit;color:inherit}
+.lessonnav button.on{background:var(--surface);border-color:var(--line)}.lessonnav small{display:block;color:var(--muted)}
+.lessonnav .chk{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:12px}
+.lessonnav .chk.yes{background:var(--ok);border-color:var(--ok);color:#fff}
+.lessonbody{margin:0}.video{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#000}.video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+a.btnlink{display:inline-block;padding:8px 14px;border-radius:10px;text-decoration:none}
+@media (max-width:760px){.coursebody{grid-template-columns:1fr}.itemrates>div{grid-template-columns:1fr}}

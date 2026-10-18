@@ -105,19 +105,19 @@ export function ClassCompetencies({ teacherId }: { teacherId: string | null }) {
   }
   const cur = students.find(s => s.id === sel)
   const grades = [...new Set(classes.map(c => c.grade).filter((g): g is number => g != null))].sort((a, b) => a - b)
-  const inGrade = classes.filter(c => grade === '' || grades.length < 2 || c.grade === grade)
+  const inGrade = classes.filter(c => grade === '' || c.grade === grade || c.grade == null)
   return (
     <>
       <div className="bar">
         <span className="tools">
-          {grades.length > 1 && <label className="pickfield"><span>Khối</span><select value={grade} onChange={e => { const g = e.target.value ? +e.target.value : ''; setGrade(g); setCls(classes.find(c => !g || c.grade === g)?.id ?? '') }} aria-label="Chọn khối">
+          {grades.length > 0 && <label className="pickfield"><span>Khối</span><select value={grade} onChange={e => { const g = e.target.value ? +e.target.value : ''; setGrade(g); setCls(classes.find(c => !g || c.grade === g)?.id ?? '') }} aria-label="Chọn khối">
             {grades.map(g => <option key={g} value={g}>Khối {g}</option>)}</select></label>}
           <label className="pickfield"><span>Lớp</span><select value={cls} onChange={e => setCls(e.target.value)} aria-label="Chọn lớp">
             {inGrade.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
         </span>
-        <small className="sub">Mức trung bình M1–M4 từ các bài đã chấm theo tiêu chí có gắn năng lực. Bấm tên học sinh để xem hồ sơ.</small>
         <span style={{ flex: 1 }} /><button onClick={excel} disabled={!students.length}>Xuất Excel</button>
       </div>
+      <p className="sub" style={{ margin: '0 0 10px' }}>Mức trung bình M1–M4 từ các bài đã chấm theo tiêu chí có gắn năng lực. Bấm tên học sinh để xem hồ sơ.</p>
       {err && <p className="msg">{err}</p>}
       {!classes.length && <p className="sub">Chưa có lớp.</p>}
       {cur && <div className="panel"><div className="bar"><b>{cur.full_name}</b><button onClick={() => setSel(null)}>Đóng</button></div><StudentCompetencyProfile studentId={cur.id} /></div>}

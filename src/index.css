@@ -813,10 +813,31 @@ button.danger:disabled{opacity:.6}
 .cmpgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:8px}.cmpgroup{display:grid;gap:4px}.cmpgroup>small{color:var(--muted);font-weight:600}
 .cmprow{display:grid;grid-template-columns:120px 1fr;gap:8px;align-items:center;font-size:12px}.cmpname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 td.good,b.good{color:var(--ok);font-weight:700}tr.muted td{opacity:.55}
-.linkbtn{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 2px}
+.xbtn{border:0;background:none;color:var(--muted);cursor:pointer;padding:0 2px}
 .evlist{display:grid;gap:12px}.evcard{display:grid;grid-template-columns:64px 1fr;gap:14px;align-items:start}
 .evdate{border-radius:12px;background:var(--soft);text-align:center;padding:8px 0;color:var(--navy)}.evdate b{display:block;font-size:24px;line-height:1}.evdate small{font-size:12px}
 .projdetail{display:grid;grid-template-columns:1fr 1fr;gap:16px}.projdetail p{margin:6px 0}.projlog{border-left:3px solid var(--line);padding-left:8px}.projlog.feedback{border-color:var(--orange)}
 .judgegrid{display:grid;grid-template-columns:minmax(240px,340px) 1fr;gap:16px;align-items:start}
 .judgeitem{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;padding:8px 4px;cursor:pointer;font:inherit;color:inherit}.judgeitem small{display:block;color:var(--muted)}.judgeitem.on{background:var(--soft)}
 @media (max-width:900px){.projdetail,.judgegrid{grid-template-columns:1fr}}
+.daynav{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px 20px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:12px 16px;margin:4px 0 12px}
+.dn-title{display:grid;gap:2px}.dn-title b{font-size:17px;display:flex;align-items:center;gap:8px}.dn-title small{color:var(--muted)}
+.dn-today{font-size:11px;font-weight:600;color:var(--primary);background:color-mix(in srgb,var(--primary) 12%,transparent);border-radius:999px;padding:2px 8px}
+.dn-ctrl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.dn-weekwrap{display:flex;align-items:center;gap:6px}
+.dn-arrow,.dn-todaybtn,.dn-pick{height:40px;border:1px solid var(--line);background:var(--surface);border-radius:10px;cursor:pointer;color:var(--text);font:inherit}
+.dn-arrow{width:36px;font-size:18px;line-height:1}.dn-arrow:hover,.dn-todaybtn:hover:not(:disabled),.dn-pick:hover{background:var(--soft)}
+.dn-todaybtn{padding:0 14px;font-weight:600}.dn-todaybtn:disabled{opacity:.45;cursor:default}
+.dn-week{display:flex;gap:4px;background:var(--soft);border-radius:12px;padding:3px}
+.dn-week button{width:44px;height:44px;border:0;background:transparent;border-radius:9px;cursor:pointer;display:grid;place-items:center;align-content:center;gap:0;font:inherit;color:var(--text);position:relative}
+.dn-week button small{font-size:10.5px;color:var(--muted);line-height:1}.dn-week button b{font-size:15px;line-height:1.2}
+.dn-week button:hover{background:var(--surface)}
+.dn-week button.on{background:var(--primary);color:#fff;box-shadow:0 1px 3px rgba(0,0,0,.15)}.dn-week button.on small{color:rgba(255,255,255,.85)}
+.dn-week button.is-today:not(.on)::after{content:"";position:absolute;bottom:4px;width:5px;height:5px;border-radius:50%;background:var(--primary)}
+.dn-week button.sun:not(.on) b{color:var(--bad)}
+.dn-pick{position:relative;width:40px;display:grid;place-items:center;overflow:hidden}
+.dn-pick input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.dn-pick input::-webkit-calendar-picker-indicator{position:absolute;inset:0;width:100%;height:100%;cursor:pointer}
+@media (max-width:640px){.daynav{padding:10px}.dn-week button{width:38px}}
+.pickfield{display:inline-flex;align-items:center;gap:6px;margin:0}.pickfield>span{font-size:12px;color:var(--muted);font-weight:600}
+.pickfield select{min-width:110px;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font:inherit;color:var(--text)}
+.todo .n.go{border-radius:999px;padding:0 12px;white-space:nowrap;height:26px;font-weight:600;flex-shrink:0}

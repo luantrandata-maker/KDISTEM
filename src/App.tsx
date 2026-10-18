@@ -107,10 +107,13 @@ const PARENT: PageMap = {
   'Tổng quan': ParentP('ParentHome'), 'Lịch học': ParentP('ParentSchedule'), 'Chuyên cần của con': ParentP('ParentAttendance'),
   'Bài tập & điểm': ParentP('ParentAssignments'), 'Năng lực của con': ParentP('ParentCompetency'), 'Cài đặt & đồng ý': ParentP('ParentSettings'),
   'Khảo sát': lazy(() => import('./pages/surveys').then(m => ({ default: m.MySurveys }))),
+  'Sự kiện': lazy(() => import('./pages/events').then(m => ({ default: m.MyEvents }))),
 }
 const StemIndexPage = lazy(() => import('./pages/department/StemIndex').then(m => ({ default: m.StemIndexPage })))
 const IndexConfigPage = lazy(() => import('./pages/department/StemIndex').then(m => ({ default: m.IndexConfigPage })))
 const ComparePage = lazy(() => import('./pages/department/StemIndex').then(m => ({ default: m.ComparePage })))
+const EventManager = lazy(() => import('./pages/events').then(m => ({ default: m.EventManager })))
+const MyEvents = lazy(() => import('./pages/events').then(m => ({ default: m.MyEvents })))
 const DataExportPage = lazy(() => import('./pages/dataexport').then(m => ({ default: m.DataExportPage })))
 const PlatformRevenue = lazy(() => import('./pages/platform/Revenue').then(m => ({ default: m.PlatformRevenue })))
 const SupplyRequestsPage = lazy(() => import('./pages/stockflow').then(m => ({ default: m.SupplyRequestsPage })))
@@ -122,6 +125,7 @@ const CustomerSupport = lazy(() => import('./pages/support/Support').then(m => (
 
 type PageMap = Record<string, ComponentType<any>>
 const SCHOOL: PageMap = {
+  'Sự kiện': EventManager,
   'Đánh giá năng lực GV': SchoolTeacherAssessments,
   'Khảo sát': SurveyManager,
   'Năng lực học sinh': ClassCompetencies,
@@ -168,6 +172,7 @@ const SCHOOL: PageMap = {
   'Ngày nghỉ & lễ': Holidays,
 }
 const TEACHER: PageMap = {
+  'Sự kiện': MyEvents,
   'Tổng quan': TeacherHome,
   'Kế hoạch giáo dục': TeacherSchedule,
   'Lớp giảng dạy': TeacherClasses,
@@ -189,6 +194,7 @@ const TEACHER: PageMap = {
   'Học trước & tự học': TeacherSelfStudy,
 }
 const STUDENT: PageMap = {
+  'Sự kiện': MyEvents,
   'Tổng quan': StudentHome,
   'Năng lực của em': StudentMyCompetencies,
   'Khảo sát': MySurveys,
@@ -200,6 +206,7 @@ const STUDENT: PageMap = {
   'Chuyên cần': StudentAttendance,
 }
 const DEPARTMENT: PageMap = {
+  'Sự kiện': EventManager,
   'Chỉ số STEM': StemIndexPage,
   'So sánh trường / địa bàn': ComparePage,
   'Bộ chỉ số': IndexConfigPage,
@@ -232,6 +239,7 @@ const DEPARTMENT: PageMap = {
 // Cổng Quản trị nền tảng: chỉ nối các trang đọc được dữ liệu toàn hệ thống (trang nền tảng, trang cấp Sở, học liệu, phê duyệt, tập huấn).
 // Mục menu không có ở đây hiện khung giao diện (PlannedPage); build xong phân hệ nào thì thêm trang vào đây.
 const PLATFORM: PageMap = {
+  'Sự kiện': EventManager,
   'Chỉ số STEM (STEM Index)': (p: any) => <StemIndexPage {...p} platform />,
   'Điều hành toàn tỉnh': (p: any) => <StemIndexPage {...p} platform groupBy="department" />,
   'So sánh trường / địa bàn': ComparePage,

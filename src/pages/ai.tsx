@@ -11,6 +11,7 @@ type Task = 'lesson' | 'quiz' | 'comment' | 'document' | 'chat'
 type Msg = { role: 'user' | 'assistant'; content: string }
 
 const TASKS: [Task, string][] = [['lesson', 'Soạn kế hoạch bài dạy'], ['quiz', 'Câu hỏi trắc nghiệm'], ['comment', 'Nhận xét năng lực'], ['document', 'Văn bản hành chính'], ['chat', 'Hỏi đáp']]
+const USAGE_TASKS: [string, string][] = [...TASKS, ['help', 'Nút Trợ giúp']]
 const COMPS = ['Tự chủ và tự học', 'Giao tiếp và hợp tác', 'Giải quyết vấn đề và sáng tạo', 'Toán học', 'Khoa học tự nhiên', 'Công nghệ', 'Tin học']
 const DOC_KINDS = ['Kế hoạch', 'Thông báo', 'Báo cáo', 'Công văn', 'Tờ trình', 'Quyết định']
 
@@ -170,7 +171,7 @@ export default function AssistantPage({ onSaveQuiz }: { onSaveQuiz?: (items: Qui
 // ================= Cổng KDI: cấu hình, hạn mức, mức sử dụng =================
 type Prov = 'anthropic' | 'openai' | 'gemini'
 type Settings = { enabled: boolean; provider: Prov; model: string; fallback_provider: Prov | null; fallback_model: string | null; prices: Record<string, [number, number]>
-  org_monthly_quota: number; user_daily_quota: number; portals: string[]; updated_at: string }
+  org_monthly_quota: number; user_daily_quota: number; portals: string[]; help_all_roles?: boolean; updated_at: string }
 type Usage = { org_id: string | null; user_id: string | null; task: string; provider: string | null; model: string | null; input_tokens: number; output_tokens: number; ok: boolean; created_at: string; error: string | null }
 type Limit = { org_id: string; enabled: boolean; monthly_quota: number | null; note: string | null }
 // Nhà cung cấp (054). Tên mô hình lấy từ API của chính nhà cung cấp (nút "Lấy danh sách") — không cố định trong mã.
@@ -227,7 +228,7 @@ function AISettings() {
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!s) return
     const { error } = await supabase.from('ai_settings').update({ enabled: s.enabled, provider: s.provider, model: s.model, fallback_provider: s.fallback_provider,
-      fallback_model: s.fallback_provider ? s.fallback_model : null, prices: s.prices, org_monthly_quota: s.org_monthly_quota, user_daily_quota: s.user_daily_quota, portals: s.portals }).eq('id', 1)
+      fallback_model: s.fallback_provider ? s.fallback_model : null, prices: s.prices, ...(s.help_all_roles === undefined ? {} : { help_all_roles: s.help_all_roles }), org_monthly_quota: s.org_monthly_quota, user_daily_quota: s.user_daily_quota, portals: s.portals }).eq('id', 1)
     setMsg(error ? [/provider|column/i.test(error.message) ? 'Hãy chạy migration 054 trên Supabase.' : error.message, true] : ['Đã lưu cấu hình.', false]); load()
   }
   async function upsertLimit() {
@@ -263,6 +264,8 @@ function AISettings() {
         <div className="field wide"><span>Ai được dùng</span><div className="tools">{PORTALS.map(([k, l]) => <label key={k} className="field inline"><input type="checkbox" checked={s.portals.includes(k)}
           onChange={e => setS({ ...s, portals: e.target.checked ? [...s.portals, k] : s.portals.filter(x => x !== k) })} /> {l}</label>)}</div>
           <small className="sub">Học sinh, phụ huynh và giám khảo không dùng trợ lý.</small></div>
+        {s.help_all_roles !== undefined && <label className="field inline wide"><input type="checkbox" checked={s.help_all_roles} onChange={e => setS({ ...s, help_all_roles: e.target.checked })} />
+          Nút <b>Trợ giúp</b> (góc phải) trả lời bằng AI cho mọi người dùng, kể cả học sinh, phụ huynh — chỉ hỏi cách dùng hệ thống, tính chung hạn mức</label>}
         <div className="field wide"><span>Đơn giá để ước tính chi phí (USD / 1 triệu token: vào · ra) — xem bảng giá của nhà cung cấp; gói miễn phí để 0</span>
           <div className="tools">{models.map(m => <label key={m} className="field inline"><code>{m}</code>
             <input type="number" min={0} step="0.01" style={{ width: 80 }} value={s.prices[m]?.[0] ?? ''} onChange={e => setS({ ...s, prices: { ...s.prices, [m]: [Number(e.target.value), s.prices[m]?.[1] ?? 0] } })} aria-label={'Giá vào ' + m} />
@@ -314,7 +317,7 @@ function AIUsage() {
   const byOrg = useMemo(() => [...ok.reduce((m, r) => { const k = r.org_id ?? '—'; const v = m.get(k) ?? { n: 0, users: new Set<string>(), tin: 0, tout: 0, usd: 0 }
     v.n++; if (r.user_id) v.users.add(r.user_id); v.tin += r.input_tokens; v.tout += r.output_tokens; v.usd += cost(r); return m.set(k, v) }, new Map<string, { n: number; users: Set<string>; tin: number; tout: number; usd: number }>())]
     .sort((a, b) => b[1].n - a[1].n), [rows, prices])
-  const byTask = TASKS.map(([k, l]) => [l, ok.filter(r => r.task === k).length] as [string, number])
+  const byTask = USAGE_TASKS.map(([k, l]) => [l, ok.filter(r => r.task === k).length] as [string, number])
   const usd = ok.reduce((s, r) => s + cost(r), 0)
   const fmt = (n: number) => n.toLocaleString('vi-VN')
   if (err) return <p className="msg">{err}</p>

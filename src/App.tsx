@@ -21,6 +21,7 @@ import Dashboard from './pages/Dashboard'
 import Teachers from './pages/Teachers'
 import MobileAppPage from './pages/MobileApp'
 import OfflineBar from './components/OfflineBar'
+import HelpWidget from './components/HelpWidget'
 import TerminologyPage from './pages/platform/Terminology'
 import AssistantPage, { PlatformAI } from './pages/ai'
 import ElearningManage from './pages/elearning/Manage'
@@ -601,6 +602,8 @@ function Shell({ session }: { session: Session }) {
             year={yrs.year} years={yrs.years} reloadYears={yrs.reload} selectYear={yrs.select} /></Suspense> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
         </main>
         <OfflineBar go={() => show(role, role === 'platform' ? 'Ứng dụng di động & ngoại tuyến' : 'Ứng dụng di động')} />
+        <HelpWidget role={role} page={labelOf(role, page)} go={groups.some(g => g.items.includes('Hỗ trợ từ KDI')) ? (p: string) => show(role, p) : undefined}
+          menu={groups.flatMap(g => g.items.map(i => `${g.section ? g.section + ' › ' : ''}${g.title} › ${labelOf(role, i)}`))} />
       </div>
     </div>
   )

@@ -129,6 +129,13 @@ begin
   delete from students where student_code like 'ISO-%' or full_name like 'ISO HS%' or org_id = any(v_orgs);
   delete from invitations where email like 'thcsph.iso%' or full_name = 'ISO GV tài khoản mã';
   if to_regclass('public.rubrics') is not null then delete from rubrics where title like 'ISO %'; end if;
+  if to_regclass('public.stock_transfers') is not null then
+    perform set_config('app.stock_engine', 'on', true);
+    delete from approval_requests where ref_table in ('supply_requests', 'stock_transfers') and title like 'ISO %';
+    delete from stock_transfers where title like 'ISO %';
+    delete from supply_requests where title like 'ISO %';
+    perform set_config('app.stock_engine', 'off', true);
+  end if;
   if to_regclass('public.supplies') is not null then delete from stocktakes where name like 'ISO KK%'; delete from supplies where name like 'ISO %'; end if;
   if to_regclass('public.surveys') is not null then delete from surveys where title like 'ISO KS%'; end if;
   if to_regclass('public.teacher_assessments') is not null then
@@ -1238,6 +1245,99 @@ begin
   update equipment_units u set status = t.status, room_id = t.room_id from t_units t where u.id = t.id;
   delete from equipment_events where note = 'ISO KK phòng' or title like 'Kiểm kê:%' and note = 'ISO KK phòng';
   delete from stocktakes where id = v_st;
+end $$;
+
+-- ===== 045: đề xuất mua vật tư & vận chuyển =====
+select pg_temp.chk('admin_ph', 'Đề xuất vật tư: lập nháp',
+  $q$insert into supply_requests (org_id, title) values (my_org_id(), 'ISO ĐX vật tư')$q$, 'rows:1');
+insert into supply_requests (org_id, title, created_by) values (pg_temp.oid_('THCS-PH'), 'ISO ĐX vật tư', (select id from profiles where email = 'admin_ph@iso-test.local'));
+select pg_temp.chk('admin_ph', 'Đề xuất vật tư: thêm dòng vật tư có sẵn',
+  $q$insert into supply_request_lines (request_id, org_id, supply_id, name, unit, qty) select r.id, r.org_id, s.id, s.name, s.unit, 4 from supply_requests r, supplies s where r.title = 'ISO ĐX vật tư' and s.name = 'ISO Pin AA'$q$, 'rows:1');
+insert into supply_request_lines (request_id, org_id, supply_id, name, unit, qty, est_price)
+  select r.id, r.org_id, s.id, s.name, s.unit, 4, 5000 from supply_requests r, supplies s where r.title = 'ISO ĐX vật tư' and s.name = 'ISO Pin AA';
+insert into supply_request_lines (request_id, org_id, name, unit, qty) select id, org_id, 'ISO Keo nến', 'thanh', 20 from supply_requests where title = 'ISO ĐX vật tư';
+select pg_temp.chk('admin_kb', 'Đề xuất vật tư: trường khác không thấy', 'select count(*) from supply_requests where title = ''ISO ĐX vật tư''', '0');
+insert into supply_requests (org_id, title) values (pg_temp.oid_('THCS-KB'), 'ISO ĐX trường B');
+select pg_temp.chk('admin_kb', 'Đề xuất vật tư: không gắn vật tư trường khác',
+  format('insert into supply_request_lines (request_id, org_id, supply_id, name, qty) values (%L, my_org_id(), %L, ''x'', 1)',
+    (select id from supply_requests where title = 'ISO ĐX trường B'), (select id from supplies where name = 'ISO Pin AA')), 'ERR*');
+select pg_temp.chk('admin_ph', 'Đề xuất vật tư: chưa duyệt thì chưa nhận hàng',
+  $q$select supply_request_receive(id)::text from supply_requests where title = 'ISO ĐX vật tư'$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Đề xuất vật tư: không tự đổi sang Đã duyệt',
+  $q$update supply_requests set status = 'approved' where title = 'ISO ĐX vật tư'$q$, 'ERR*');
+do $$ declare v_rq uuid; a text; b text; c text; d text; e text; f text; g text;
+begin
+  select id into v_rq from supply_requests where title = 'ISO ĐX vật tư';
+  a := pg_temp.probe('admin_ph@iso-test.local', format('update supply_requests set status = %L where id = %L', 'pending', v_rq), true);
+  b := (select count(*)::text from approval_requests where ref_table = 'supply_requests' and ref_id = v_rq and status = 'pending' and kind = 'supply_purchase');
+  c := pg_temp.probe('admin_ph@iso-test.local', format('update supply_request_lines set qty = 99 where request_id = %L', v_rq));
+  d := pg_temp.probe('gv_both@iso-test.local', format('select approval_decide_ref(%L, %L, %L)::text', 'supply_requests', v_rq, 'approve'));
+  e := pg_temp.probe('admin_ph@iso-test.local', format('select approval_decide_ref(%L, %L, %L) ->> %L', 'supply_requests', v_rq, 'approve', 'status'), true);
+  f := pg_temp.probe('admin_ph@iso-test.local', format('select supply_request_receive(%L, %L::jsonb)::text', v_rq,
+         (select jsonb_build_array(jsonb_build_object('id', id, 'qty', 3))::text from supply_request_lines where request_id = v_rq and name = 'ISO Pin AA')), true);
+  g := pg_temp.probe('admin_ph@iso-test.local', format('select supply_request_receive(%L)::text', v_rq));
+  insert into t_result (who, name, expect, got, ok) values
+    ('admin_ph', 'Đề xuất vật tư: gửi duyệt', 'rows:1', a, a = 'rows:1'),
+    ('system', 'Đề xuất vật tư: tạo hồ sơ phê duyệt', '1', b, b = '1'),
+    ('admin_ph', 'Đề xuất vật tư: đã gửi thì không sửa dòng', 'ERR 22023', c, c = 'ERR 22023'),
+    ('gv_both', 'Đề xuất vật tư: GV không duyệt', 'ERR 42501', d, d = 'ERR 42501'),
+    ('admin_ph', 'Đề xuất vật tư: quản trị duyệt', 'approved', e, e = 'approved'),
+    ('admin_ph', 'Đề xuất vật tư: nhận hàng → 2 phiếu nhập', '2', f, f = '2'),
+    ('admin_ph', 'Đề xuất vật tư: không nhận hai lần', 'ERR 22023', g, g = 'ERR 22023'),
+    ('system', 'Đề xuất vật tư: tồn tăng theo số thực nhận', '13.00', (select qty::text from supplies where name = 'ISO Pin AA'), (select qty from supplies where name = 'ISO Pin AA') = 13),
+    ('system', 'Đề xuất vật tư: vật tư mới vào danh mục', '20.00', (select qty::text from supplies where name = 'ISO Keo nến' and org_id = pg_temp.oid_('THCS-PH')),
+       (select qty from supplies where name = 'ISO Keo nến' and org_id = pg_temp.oid_('THCS-PH')) = 20);
+end $$;
+
+update organizations set status = 'active' where code = 'ISO-SCH';
+select pg_temp.chk('admin_ph', 'Vận chuyển: không gửi sang trường tỉnh khác',
+  format('insert into stock_transfers (org_id, to_org, title) values (my_org_id(), %L, ''ISO VC sai'')', pg_temp.oid_('THCS-KB')), 'ERR');
+select pg_temp.chk('admin_ph', 'Vận chuyển: danh sách nơi nhận có trường cùng Sở, không có trường tỉnh khác',
+  format('select (count(*) filter (where id = %L))::text || (count(*) filter (where id = %L))::text from stock_targets()', pg_temp.oid_('ISO-SCH'), pg_temp.oid_('THCS-KB')), '10');
+do $$ declare v_tr uuid; v_unit uuid; v_type uuid; v_room uuid; v_st text; a text; b text; c text; d text; e text; f text; g text; h text; v_new_types uuid[];
+begin
+  if pg_temp.oid_('ISO-SCH') is null then return; end if;
+  select u.id, u.type_id, u.room_id, u.status into v_unit, v_type, v_room, v_st from equipment_units u
+   where u.org_id = pg_temp.oid_('THCS-PH') and u.status not in ('lost', 'in_transit') order by u.serial nulls last limit 1;
+  update organizations set status = 'active' where id = pg_temp.oid_('ISO-SCH');
+  insert into stock_transfers (org_id, to_org, title, created_by) values (pg_temp.oid_('THCS-PH'), pg_temp.oid_('ISO-SCH'), 'ISO VC', (select id from profiles where email = 'admin_ph@iso-test.local'))
+    returning id into v_tr;
+  a := pg_temp.probe('admin_ph@iso-test.local', format('insert into stock_transfer_items (transfer_id, org_id, supply_id, qty) select %L, org_id, id, 5 from supplies where name = %L and org_id = my_org_id()', v_tr, 'ISO Pin AA'), true);
+  if v_unit is not null then
+    perform pg_temp.probe('admin_ph@iso-test.local', format('insert into stock_transfer_items (transfer_id, org_id, unit_id) values (%L, my_org_id(), %L)', v_tr, v_unit), true);
+  end if;
+  b := pg_temp.probe('admin_iso@iso-test.local', format('select count(*) from stock_transfers where id = %L', v_tr));
+  perform pg_temp.probe('admin_ph@iso-test.local', format('update stock_transfers set status = %L where id = %L', 'pending', v_tr), true);
+  perform pg_temp.probe('admin_ph@iso-test.local', format('select approval_decide_ref(%L, %L, %L)::text', 'stock_transfers', v_tr, 'approve'), true);
+  c := pg_temp.probe('admin_iso@iso-test.local', format('select stock_transfer_ship(%L)::text', v_tr));
+  d := pg_temp.probe('admin_ph@iso-test.local', format('select stock_transfer_ship(%L)::text', v_tr), true);
+  e := pg_temp.probe('admin_ph@iso-test.local', format('select stock_transfer_receive(%L)::text', v_tr));
+  f := pg_temp.probe('admin_iso@iso-test.local', format('select stock_transfer_receive(%L, %L::jsonb) ->> %L', v_tr,
+         (select jsonb_build_array(jsonb_build_object('id', id, 'qty', 4))::text from stock_transfer_items where transfer_id = v_tr and supply_id is not null), 'short'), true);
+  g := pg_temp.probe('admin_kb@iso-test.local', format('select count(*) from stock_transfers where id = %L', v_tr));
+  h := pg_temp.probe('admin_iso@iso-test.local', 'select qty::text from supplies where name = ''ISO Pin AA''');
+  insert into t_result (who, name, expect, got, ok) values
+    ('admin_ph', 'Vận chuyển: thêm dòng vật tư', 'rows:1', a, a = 'rows:1'),
+    ('admin_iso', 'Vận chuyển: đơn vị nhận thấy phiếu', '1', b, b = '1'),
+    ('admin_iso', 'Vận chuyển: đơn vị nhận không xuất hàng thay', 'ERR 42501', c, c = 'ERR 42501'),
+    ('admin_ph', 'Vận chuyển: xuất hàng sau khi duyệt', case when v_unit is null then '1' else '2' end, d, d = case when v_unit is null then '1' else '2' end),
+    ('system', 'Vận chuyển: xuất → trừ kho bên xuất', '8.00', (select qty::text from supplies where name = 'ISO Pin AA' and org_id = pg_temp.oid_('THCS-PH')),
+       (select qty from supplies where name = 'ISO Pin AA' and org_id = pg_temp.oid_('THCS-PH')) = 8),
+    ('admin_ph', 'Vận chuyển: bên xuất không tự xác nhận nhận', 'ERR 42501', e, e = 'ERR 42501'),
+    ('admin_iso', 'Vận chuyển: bên nhận xác nhận, ghi thiếu 1 dòng', '1', f, f = '1'),
+    ('admin_kb', 'Vận chuyển: trường tỉnh khác không thấy', '0', g, g = '0'),
+    ('admin_iso', 'Vận chuyển: kho bên nhận cộng số thực nhận', '4.00', h, h = '4.00');
+  if v_unit is not null then
+    insert into t_result (who, name, expect, got, ok) values
+      ('system', 'Vận chuyển: thiết bị sang đơn vị nhận, vào kho', 'in_stock@ISO-SCH',
+       (select status || '@' || (select code from organizations where id = org_id) from equipment_units where id = v_unit),
+       (select org_id = pg_temp.oid_('ISO-SCH') and status = 'in_stock' and (select org_id from equipment_types where id = type_id) = pg_temp.oid_('ISO-SCH') from equipment_units where id = v_unit));
+    -- trả thiết bị về như cũ
+    v_new_types := array(select type_id from equipment_units where id = v_unit);
+    update equipment_units set org_id = pg_temp.oid_('THCS-PH'), type_id = v_type, room_id = v_room, status = v_st where id = v_unit;
+    delete from equipment_events where unit_id = v_unit and note = 'ISO VC';
+    delete from equipment_types t where t.id = any(v_new_types) and t.org_id = pg_temp.oid_('ISO-SCH') and not exists (select 1 from equipment_units u where u.type_id = t.id);
+  end if;
 end $$;
 
 -- ===== Dọn dẹp + kết quả =====

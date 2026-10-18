@@ -11,7 +11,7 @@ export type Action = { id: string; request_id: string; step_no: number; actor: s
 
 export const KINDS: [string, string][] = [
   ['stem_registration', 'Đăng ký dạy STEM'], ['borrow_request', 'Phiếu mượn thiết bị'], ['package_purchase', 'Đề xuất mua gói STEM'],
-  ['edu_plan', 'Kế hoạch giáo dục'], ['project', 'Dự án STEM'],
+  ['edu_plan', 'Kế hoạch giáo dục'], ['project', 'Dự án STEM'], ['supply_purchase', 'Đề xuất mua vật tư'], ['stock_transfer', 'Phiếu vận chuyển'],
 ]
 export const KIND_LABEL = Object.fromEntries(KINDS) as Record<string, string>
 export const STATUS: Record<string, [string, string, string]> = {

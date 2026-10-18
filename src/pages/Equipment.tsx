@@ -7,8 +7,8 @@ import { printUnitLabels } from './inventory'
 type Unit = { id: string; type_id: string; serial: string | null; status: string; room_id: string | null; source: string; warranty_until: string | null; equipment_types: { name: string; brand: string | null; sku: string | null } | null; stem_rooms: { name: string } | null }
 type Type = { id: string; sku: string | null; name: string; brand: string | null }
 type Ev = { id: string; kind: string; title: string; note: string | null; created_at: string }
-export const UNIT_STATUS: Record<string, string> = { available: 'Sẵn sàng', in_use: 'Đang dùng', broken: 'Hỏng', maintenance: 'Bảo trì', in_stock: 'Tồn kho', lost: 'Thất lạc' }
-const ORDER = ['available', 'in_use', 'maintenance', 'broken', 'in_stock', 'lost']
+export const UNIT_STATUS: Record<string, string> = { available: 'Sẵn sàng', in_use: 'Đang dùng', broken: 'Hỏng', maintenance: 'Bảo trì', in_stock: 'Tồn kho', lost: 'Thất lạc', in_transit: 'Đang vận chuyển' }
+const ORDER = ['available', 'in_use', 'maintenance', 'broken', 'in_stock', 'in_transit', 'lost']
 const soon = (d: string | null) => !!d && new Date(d).getTime() - Date.now() < 60 * 86400000 && new Date(d).getTime() > Date.now()
 
 export default function Equipment({ orgId }: { orgId: string }) {

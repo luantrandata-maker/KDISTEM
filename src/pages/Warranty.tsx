@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import FormPanel from '../components/FormPanel'
 
@@ -61,7 +61,7 @@ export default function Warranty({ orgId }: { orgId: string }) {
       <div className="wrap"><table>
         <thead><tr><th>Mã ticket</th><th>Thiết bị</th><th>Mô tả sự cố</th><th>Nhà cung cấp</th><th>KTV phụ trách</th><th>Ngày báo</th><th>Trạng thái</th></tr></thead>
         <tbody>
-          {shown.map(t => (<>
+          {shown.map(t => (<Fragment key={t.id}>
             <tr key={t.id} onClick={() => setOpen(open === t.id ? null : t.id)} style={{ cursor: 'pointer' }}>
               <td><b>{t.code}</b></td><td>{t.equipment_units?.equipment_types?.name}<br /><small>{t.equipment_units?.serial}</small></td>
               <td style={{ whiteSpace: 'normal', maxWidth: 300 }}>{t.description}</td>
@@ -73,7 +73,7 @@ export default function Warranty({ orgId }: { orgId: string }) {
               <label className="field"><span>Nhà cung cấp tiếp nhận</span><select value={t.provider_status} onChange={e => patch(t, { provider_status: e.target.value })}><option value="pending">Chờ tiếp nhận</option><option value="accepted">Đã tiếp nhận</option></select></label>
               <label className="field"><span>KTV phụ trách</span><input defaultValue={t.technician ?? ''} onBlur={e => e.target.value !== (t.technician ?? '') && patch(t, { technician: e.target.value || null })} /></label>
             </div></td></tr>}
-          </>))}
+          </Fragment>))}
           {shown.length === 0 && <tr><td colSpan={7}>Không có ticket phù hợp.</td></tr>}
         </tbody></table></div>
     </>

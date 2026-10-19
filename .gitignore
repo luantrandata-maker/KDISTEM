@@ -10,3 +10,5 @@ dist
 supabase/.temp/
 deno.lock
 _preview/
+_audit/
+_audit_tokens.json

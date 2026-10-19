@@ -1002,3 +1002,7 @@ a.btnlink{display:inline-block;padding:8px 14px;border-radius:10px;text-decorati
 .helpask button{border:0;cursor:pointer;font-size:16px}.helpask button:disabled{opacity:.5;cursor:default}
 .thread>.xbtn{justify-self:start;font-size:13px;text-decoration:underline}
 @media (max-width:640px){.helpfab.on{display:none}}
+.fabcount{position:absolute;top:-4px;right:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--bad);color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;box-shadow:0 0 0 2px var(--surface)}
+.helpfab{position:fixed}.helpfab .fabcount{position:absolute}
+.tabdot{display:inline-grid;place-items:center;min-width:18px;height:18px;margin-left:5px;padding:0 4px;border-radius:999px;background:#f5a623;color:#152e5d;font-size:11px;font-weight:700}
+.newdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad);margin-right:6px;vertical-align:middle}

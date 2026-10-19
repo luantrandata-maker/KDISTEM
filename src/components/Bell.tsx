@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { RoleKey } from '../lib/nav'
 
-type Note = { id: string; kind: string; title: string; body: string | null; page: string | null; portal: RoleKey | null; count: number; created_at: string; read_at: string | null }
+type Note = { id: string; kind: string; ref_id?: string | null; title: string; body: string | null; page: string | null; portal: RoleKey | null; count: number; created_at: string; read_at: string | null }
 type Counts = { stem_registrations: number; borrow_requests: number; warranty_tickets: number; to_grade: number; approvals?: number; unread: number }
 
 const ago = (iso: string) => {
@@ -31,10 +31,11 @@ export default function Bell({ open: openPage, portals, orgId }: { open: (portal
   }
   useEffect(() => {
     load()
+    window.addEventListener('notifications-changed', load)
     const h = setInterval(load, 30000)
     const f = () => document.visibilityState === 'visible' && load()
     document.addEventListener('visibilitychange', f)
-    return () => { clearInterval(h); document.removeEventListener('visibilitychange', f) }
+    return () => { clearInterval(h); document.removeEventListener('visibilitychange', f); window.removeEventListener('notifications-changed', load) }
   }, [])
   useEffect(() => {
     if (!show) return
@@ -63,12 +64,17 @@ export default function Bell({ open: openPage, portals, orgId }: { open: (portal
     if (!n.read_at) {
       await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('id', n.id)
       setNotes(notes.map(x => x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x))
+      window.dispatchEvent(new Event('notifications-changed'))
+    }
+    // KDI trả lời phiếu hỗ trợ của tôi → mở khung Trợ giúp (góc phải) tại đúng phiếu, mọi vai trò đều có
+    if (n.kind === 'support' && n.page === 'Hỗ trợ từ KDI') {
+      window.dispatchEvent(new CustomEvent('help-open', { detail: { ticket: n.ref_id ?? null } })); setShow(false); return
     }
     if (n.page) { openPage(n.portal, n.page); setShow(false) }
   }
   async function readAll() {
     await supabase.from('notifications').update({ read_at: new Date().toISOString() }).eq('org_id', orgId ?? '').is('read_at', null)
-    load()
+    load(); window.dispatchEvent(new Event('notifications-changed'))
   }
 
   return (

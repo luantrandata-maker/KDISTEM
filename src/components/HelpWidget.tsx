@@ -21,7 +21,31 @@ export default function HelpWidget({ role, page, menu, go, brand }: { role: Role
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<Tab>('chat')
   const [draft, setDraft] = useState<{ subject: string; description: string } | null>(null)
+  const [focus, setFocus] = useState<string | null>(null)
+  const [unread, setUnread] = useState<Map<string, string[]>>(new Map())
   const panel = useRef<HTMLDivElement>(null)
+  // Phản hồi chưa đọc của KDI cho phiếu của tôi (thông báo kind 'support' trỏ tới "Hỗ trợ từ KDI") → số trên nút chat
+  async function loadUnread() {
+    const { data } = await supabase.from('notifications').select('id, ref_id').eq('kind', 'support').eq('page', 'Hỗ trợ từ KDI').is('read_at', null).limit(100)
+    const m = new Map<string, string[]>()
+    ;((data as { id: string; ref_id: string | null }[]) ?? []).forEach(n => { const k = n.ref_id ?? ''; m.set(k, [...(m.get(k) ?? []), n.id]) })
+    setUnread(m)
+  }
+  async function markRead(ticket: string) {
+    const ids = unread.get(ticket); if (!ids?.length) return
+    await supabase.from('notifications').update({ read_at: new Date().toISOString() }).in('id', ids)
+    loadUnread(); window.dispatchEvent(new Event('notifications-changed'))
+  }
+  useEffect(() => {
+    loadUnread()
+    const h = setInterval(loadUnread, 30000)
+    const vis = () => document.visibilityState === 'visible' && loadUnread()
+    // Bấm thông báo "KDI đã trả lời phiếu…" ở chuông → mở khung trợ giúp tại đúng phiếu
+    const go = (e: Event) => { const t = (e as CustomEvent<{ ticket?: string }>).detail?.ticket ?? null; setOpen(true); setTab('ticket'); setFocus(t); loadUnread() }
+    document.addEventListener('visibilitychange', vis); window.addEventListener('help-open', go); window.addEventListener('notifications-changed', loadUnread)
+    return () => { clearInterval(h); document.removeEventListener('visibilitychange', vis); window.removeEventListener('help-open', go); window.removeEventListener('notifications-changed', loadUnread) }
+  }, [])
+  const unreadCount = [...unread.values()].reduce((n, x) => n + x.length, 0)
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && open) setOpen(false) }
     window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k)
@@ -37,15 +61,17 @@ export default function HelpWidget({ role, page, menu, go, brand }: { role: Role
         </header>
         <nav className="helptabs" role="tablist">
           {([['chat', 'Hỏi đáp'], ['faq', 'Câu hỏi thường gặp'], ['ticket', 'Yêu cầu hỗ trợ']] as [Tab, string][]).map(([k, l]) =>
-            <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
+            <button key={k} role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{k === 'ticket' && unreadCount > 0 && <span className="tabdot">{unreadCount}</span>}</button>)}
         </nav>
         <div className="helpbody">
           {tab === 'chat' ? <Chat role={role} page={page} menu={menu} toTicket={toTicket} brand={brand} />
             : tab === 'faq' ? <FaqList role={role} toTicket={toTicket} brand={brand} />
-            : <Tickets role={role} page={page} draft={draft} clearDraft={() => setDraft(null)} go={go} />}
+            : <Tickets role={role} page={page} draft={draft} clearDraft={() => setDraft(null)} go={go} focus={focus} unread={unread} markRead={markRead} />}
         </div>
       </div>}
-      <button className={'helpfab' + (open ? ' on' : '')} onClick={() => setOpen(!open)} aria-expanded={open} aria-label={open ? 'Đóng trợ giúp' : 'Mở trợ giúp'}>
+      <button className={'helpfab' + (open ? ' on' : '')} onClick={() => { if (!open && unreadCount) setTab('ticket'); setOpen(!open) }} aria-expanded={open}
+        aria-label={open ? 'Đóng trợ giúp' : unreadCount ? `Mở trợ giúp — ${unreadCount} phản hồi mới từ KDI` : 'Mở trợ giúp'}>
+        {!open && unreadCount > 0 && <span className="fabcount" aria-hidden="true">{unreadCount > 9 ? '9+' : unreadCount}</span>}
         {open ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
           : <><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.2M12 16.5h.01" /></svg><span>Trợ giúp</span></>}
       </button>
@@ -140,7 +166,8 @@ function FaqList({ role, toTicket, brand }: { role: RoleKey; toTicket: (s: strin
 }
 
 // ================= Yêu cầu hỗ trợ =================
-function Tickets({ role, page, draft, clearDraft, go }: { role: RoleKey; page: string; draft: { subject: string; description: string } | null; clearDraft: () => void; go?: (p: string) => void }) {
+function Tickets({ role, page, draft, clearDraft, go, focus, unread, markRead }: { role: RoleKey; page: string; draft: { subject: string; description: string } | null; clearDraft: () => void; go?: (p: string) => void
+  focus: string | null; unread: Map<string, string[]>; markRead: (ticket: string) => void }) {
   const staff = STAFF.has(role)
   const [mine, setMine] = useState<Ticket[] | null>(null)
   const [me, setMe] = useState<string | null>(null)
@@ -148,7 +175,10 @@ function Tickets({ role, page, draft, clearDraft, go }: { role: RoleKey; page: s
   const [form, setForm] = useState(!!draft)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [busy, setBusy] = useState(false)
-  const [open, setOpen] = useState<string | null>(null)
+  const [open, setOpen] = useState<string | null>(focus)
+  useEffect(() => { if (focus) setOpen(focus) }, [focus])
+  // Mở phiếu → đánh dấu đã đọc các phản hồi của phiếu đó
+  useEffect(() => { if (open && unread.get(open)?.length) markRead(open) }, [open, unread])
   async function load() {
     const { data: u } = await supabase.auth.getUser(); const uid = u.user?.id ?? null; setMe(uid)
     if (!uid) return setMine([])
@@ -182,10 +212,10 @@ function Tickets({ role, page, draft, clearDraft, go }: { role: RoleKey; page: s
       <h4>Yêu cầu của tôi</h4>
       {!mine ? <p className="sub">Đang tải…</p> : !mine.length ? <p className="sub">Bạn chưa gửi yêu cầu nào.</p> : <ul className="tlist">{mine.map(t => <li key={t.id}>
         <button onClick={() => setOpen(open === t.id ? null : t.id)} aria-expanded={open === t.id}>
-          <span><b>{t.code}</b> {t.subject}<small>{CATEGORY[t.category]} · {new Date(t.created_at).toLocaleDateString('vi-VN')}</small></span>
+          <span>{unread.get(t.id)?.length ? <i className="newdot" aria-label="Có phản hồi mới" /> : null}<b>{t.code}</b> {t.subject}<small>{CATEGORY[t.category]} · {new Date(t.created_at).toLocaleDateString('vi-VN')}</small></span>
           <span className={'pill ' + (t.status === 'resolved' || t.status === 'closed' ? 'active' : t.status === 'waiting_customer' ? 'inactive' : 'maintenance')}>{STATUS[t.status] ?? t.status}</span>
         </button>
-        {open === t.id && <Thread ticket={t} me={me} onChange={load} />}
+        {open === t.id && <Thread key={t.id + ':' + (unread.get(t.id)?.length ?? 0)} ticket={t} me={me} onChange={load} />}
       </li>)}</ul>}
       {staff && go && <button className="linkish" onClick={() => go('Hỗ trợ từ KDI')}>Xem tất cả phiếu của đơn vị ở "Hỗ trợ từ KDI" →</button>}
     </div>

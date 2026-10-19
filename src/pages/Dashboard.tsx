@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { isoDate, mondayOf, addDays } from '../lib/programs'
+import { isStem } from '../lib/rooms'
 
 const pct = (a: number, b: number) => (b === 0 ? 0 : Math.round((a / b) * 100))
 const DAY = ['', '', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7']
@@ -13,7 +14,7 @@ export default function Dashboard({ userName, go }: { userName?: string; go?: (p
       supabase.from('teachers').select('id, profile_id'),                                        // 0
       supabase.from('classes').select('id'),                                                     // 1
       supabase.from('students').select('id, class_id'),                                          // 2
-      supabase.from('stem_rooms').select('id, name, capacity, status, code'),                    // 3
+      supabase.from('stem_rooms').select('*'),                                                   // 3 (lọc phòng STEM bên dưới)
       supabase.from('equipment_units').select('status'),                                         // 4
       supabase.from('timetable_entries').select('class_id, teacher_id, weekday, kind, room_id, classes(name), teachers(full_name), period_id'), // 5
       supabase.from('stem_registrations').select('status, on_date, teacher_id, room_id, period_id'), // 6
@@ -26,7 +27,8 @@ export default function Dashboard({ userName, go }: { userName?: string; go?: (p
   }, [])
 
   if (!d) return <p className="sub">Đang tải số liệu…</p>
-  const [teachers, classes, students, rooms, units, tt, regs, tickets, pkgs, stemTeachers, borrows, periods] = d as any[][]
+  const [teachers, classes, students, allRooms, units, tt, regs, tickets, pkgs, stemTeachers, borrows, periods] = d as any[][]
+  const rooms = allRooms.filter(isStem)
 
   const now = new Date(); const wd = now.getDay() === 0 ? 0 : now.getDay() + 1
   const mon = mondayOf(now); const weekDates = [0, 1, 2, 3, 4].map(i => isoDate(addDays(mon, i)))

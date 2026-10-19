@@ -5,11 +5,14 @@ import { supabase } from '../lib/supabase'
 import { downloadXlsx, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
 import { Tabs } from './teacher/common'
+import { loadRooms, roomLabel, type RoomLite } from '../lib/rooms'
 
 // Kho & kiểm kê (migration 044): vật tư tiêu hao (nhập / cấp phát / điều chỉnh), kiểm kê thiết bị bằng QR, tem QR thiết bị.
 type Supply = { id: string; org_id: string; sku: string | null; name: string; unit: string; category: string | null; min_qty: number; qty: number; note: string | null; organizations?: { name: string } | null }
-type Move = { id: string; supply_id: string; kind: 'in' | 'out' | 'adjust'; qty: number; reason: string | null; created_at: string; supplies: { name: string; unit: string } | null; teachers: { full_name: string } | null; classes: { name: string } | null }
-const KIND = { in: 'Nhập', out: 'Cấp phát', adjust: 'Điều chỉnh' } as const
+type Move = { id: string; supply_id: string; kind: 'in' | 'out' | 'adjust' | 'move'; qty: number; reason: string | null; created_at: string; room_id?: string | null; to_room_id?: string | null
+  supplies: { name: string; unit: string } | null; teachers: { full_name: string } | null; classes: { name: string } | null }
+type Stock = { supply_id: string; room_id: string | null; qty: number }
+const KIND = { in: 'Nhập', out: 'Cấp phát', adjust: 'Điều chỉnh', move: 'Chuyển vị trí' } as const
 const num = (v: number) => Number(v).toLocaleString('vi-VN', { maximumFractionDigits: 2 })
 const when = (d: string) => new Date(d).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
 const esc = (s: string) => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
@@ -55,26 +58,32 @@ const IMPORT: Column[] = [
   { key: 'sku', label: 'Mã vật tư', aliases: ['Mã', 'SKU'] }, { key: 'name', label: 'Tên vật tư', required: true, aliases: ['Tên'], width: 28 },
   { key: 'unit', label: 'Đơn vị tính', aliases: ['ĐVT', 'Đơn vị'] }, { key: 'category', label: 'Nhóm' },
   { key: 'min', label: 'Tồn tối thiểu', aliases: ['Mức tối thiểu'] }, { key: 'qty', label: 'Số lượng đầu kỳ', aliases: ['Tồn', 'Số lượng'] },
+  { key: 'room', label: 'Để tại phòng / kho', aliases: ['Phòng', 'Kho', 'Vị trí'], width: 20 },
 ]
-type MoveForm = { supply_id: string; kind: 'in' | 'out' | 'adjust'; qty: string; reason: string; teacher_id: string; class_id: string }
+type MoveForm = { supply_id: string; kind: 'in' | 'out' | 'adjust' | 'move'; qty: string; reason: string; teacher_id: string; class_id: string; room_id: string; to_room_id: string }
 
 export function SuppliesPage({ orgId, initialTab = 'stock' }: { orgId: string | null; initialTab?: 'stock' | 'moves' }) {
   const [rows, setRows] = useState<Supply[]>([])
   const [moves, setMoves] = useState<Move[]>([])
   const [teachers, setTeachers] = useState<{ id: string; full_name: string }[]>([])
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([])
+  const [rooms, setRooms] = useState<RoomLite[]>([])
+  const [stocks, setStocks] = useState<Stock[]>([])
+  const [hasLoc, setHasLoc] = useState(true)
   const [tab, setTab] = useState<'stock' | 'moves'>(initialTab)
   const [q, setQ] = useState('')
   const [form, setForm] = useState<Partial<Supply> | null>(null)
   const [mv, setMv] = useState<MoveForm | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   async function load() {
-    const [s, m, t, c] = await Promise.all([
+    const [s, m, t, c, r, k] = await Promise.all([
       supabase.from('supplies').select('*, organizations(name)').order('name'),
-      supabase.from('supply_moves').select('id, supply_id, kind, qty, reason, created_at, supplies(name, unit), teachers(full_name), classes(name)').order('created_at', { ascending: false }).limit(300),
+      supabase.from('supply_moves').select('*, supplies(name, unit), teachers(full_name), classes(name)').order('created_at', { ascending: false }).limit(300),
       supabase.from('teachers').select('id, full_name').eq('status', 'active').order('full_name'),
       supabase.from('classes').select('id, name').order('name'),
+      loadRooms(), supabase.from('supply_stocks').select('supply_id, room_id, qty'),
     ])
+    setRooms(r); setHasLoc(!k.error); setStocks(k.error ? [] : (k.data as Stock[]) ?? [])
     if (s.error) setMsg([errText(s.error.message), true])
     setRows((s.data as Supply[]) ?? []); setMoves((m.data as unknown as Move[]) ?? []); setTeachers((t.data as any[]) ?? []); setClasses((c.data as any[]) ?? [])
   }
@@ -92,8 +101,10 @@ export function SuppliesPage({ orgId, initialTab = 'stock' }: { orgId: string | 
     e.preventDefault(); if (!mv) return
     const qty = Number(mv.qty.replace(',', '.'))
     if (!qty || (mv.kind !== 'adjust' && qty < 0)) return setMsg(['Số lượng không hợp lệ.', true])
+    if (mv.kind === 'move' && mv.room_id === mv.to_room_id) return setMsg(['Chọn nơi chuyển đến khác nơi đi.', true])
+    const loc = !hasLoc ? {} : { room_id: mv.room_id || null, ...(mv.kind === 'move' ? { to_room_id: mv.to_room_id || null } : {}) }
     const { error } = await supabase.from('supply_moves').insert({ org_id: orgId, supply_id: mv.supply_id, kind: mv.kind, qty, reason: mv.reason.trim() || null,
-      teacher_id: mv.kind === 'out' && mv.teacher_id ? mv.teacher_id : null, class_id: mv.kind === 'out' && mv.class_id ? mv.class_id : null })
+      teacher_id: mv.kind === 'out' && mv.teacher_id ? mv.teacher_id : null, class_id: mv.kind === 'out' && mv.class_id ? mv.class_id : null, ...loc })
     if (error) return setMsg([errText(error.message), true])
     setMv(null); setMsg([`Đã ghi phiếu ${KIND[mv.kind].toLowerCase()}.`, false]); load()
   }
@@ -104,19 +115,28 @@ export function SuppliesPage({ orgId, initialTab = 'stock' }: { orgId: string | 
       const { data, error } = await supabase.from('supplies').insert({ org_id: orgId, sku: r.sku.trim() || null, name: r.name.trim(), unit: r.unit.trim() || 'cái', category: r.category.trim() || null, min_qty: Number(r.min.replace(',', '.')) || 0 }).select('id').single()
       if (error) { bad.push(`dòng ${r._line}: ${/duplicate|unique/i.test(error.message) ? 'trùng mã' : error.message}`); continue }
       const q0 = Number(r.qty.replace(',', '.'))
-      if (q0 > 0) await supabase.from('supply_moves').insert({ org_id: orgId, supply_id: data.id, kind: 'in', qty: q0, reason: 'Tồn đầu kỳ (nhập Excel)' })
+      const rm = r.room.trim() ? rooms.find(x => norm(x.name) === norm(r.room) || norm(x.code ?? '') === norm(r.room)) : undefined
+      if (r.room.trim() && !rm) bad.push(`dòng ${r._line}: không có phòng/kho "${r.room}" — tồn đầu kỳ để ở "chưa xếp phòng"`)
+      if (q0 > 0) await supabase.from('supply_moves').insert({ org_id: orgId, supply_id: data.id, kind: 'in', qty: q0, reason: 'Tồn đầu kỳ (nhập Excel)', ...(rm ? { room_id: rm.id } : {}) })
       n++
     }
     load(); return `Đã thêm ${n} vật tư.` + (bad.length ? ` Bỏ qua ${bad.length} dòng: ${bad.slice(0, 4).join('; ')}` : '')
   }
   function excel() {
-    if (tab === 'stock') downloadXlsx('ton-kho-vat-tu', [...(multi ? [{ key: 'o', label: 'Đơn vị', width: 26 }] : []), ...IMPORT.slice(0, 5), { key: 'q', label: 'Tồn hiện tại' }],
-      shown.map(r => [...(multi ? [r.organizations?.name ?? ''] : []), r.sku, r.name, r.unit, r.category, Number(r.min_qty), Number(r.qty)]), 'Tồn kho')
+    if (tab === 'stock') downloadXlsx('ton-kho-vat-tu', [...(multi ? [{ key: 'o', label: 'Đơn vị', width: 26 }] : []), ...IMPORT.slice(0, 5), { key: 'q', label: 'Tồn hiện tại' }, { key: 'l', label: 'Đang ở (phòng / kho)', width: 36 }],
+      shown.map(r => [...(multi ? [r.organizations?.name ?? ''] : []), r.sku, r.name, r.unit, r.category, Number(r.min_qty), Number(r.qty),
+        locs(r.id).map(x => `${roomName(x.room_id)}: ${num(x.qty)}`).join('; ')]), 'Tồn kho')
     else downloadXlsx('so-nhap-xuat-vat-tu', [{ key: 't', label: 'Thời gian', width: 18 }, { key: 'k', label: 'Loại' }, { key: 'n', label: 'Vật tư', width: 26 }, { key: 'q', label: 'Số lượng' },
       { key: 'r', label: 'Người nhận / lớp', width: 24 }, { key: 'd', label: 'Lý do', width: 30 }],
-      moves.map(m => [when(m.created_at), KIND[m.kind], m.supplies?.name, Number(m.qty), [m.teachers?.full_name, m.classes?.name].filter(Boolean).join(' · '), m.reason]), 'Nhập xuất')
+      moves.map(m => [when(m.created_at), KIND[m.kind], m.supplies?.name, Number(m.qty), [m.kind === 'move' ? `${roomName(m.room_id)} → ${roomName(m.to_room_id)}` : m.room_id ? roomName(m.room_id) : '', m.teachers?.full_name, m.classes?.name].filter(Boolean).join(' · '), m.reason]), 'Nhập xuất')
   }
-  const open = (kind: MoveForm['kind'], s: Supply) => setMv({ supply_id: s.id, kind, qty: '', reason: '', teacher_id: '', class_id: '' })
+  const open = (kind: MoveForm['kind'], s: Supply) => {
+    const at = stocks.filter(x => x.supply_id === s.id).sort((a, b) => b.qty - a.qty)[0]?.room_id ?? ''
+    setMv({ supply_id: s.id, kind, qty: '', reason: '', teacher_id: '', class_id: '', room_id: kind === 'in' ? '' : at ?? '', to_room_id: '' })
+  }
+  const roomName = (id: string | null | undefined) => id ? rooms.find(r => r.id === id)?.name ?? 'Phòng khác' : 'Chưa xếp phòng'
+  const locs = (id: string) => stocks.filter(x => x.supply_id === id && Number(x.qty) > 0)
+  const have = (id: string, room: string) => Number(stocks.find(x => x.supply_id === id && (x.room_id ?? '') === room)?.qty ?? 0)
   const cur = mv && rows.find(r => r.id === mv.supply_id)
   return (
     <>
@@ -144,35 +164,45 @@ export function SuppliesPage({ orgId, initialTab = 'stock' }: { orgId: string | 
       )}
       {mv && cur && (
         <form className="panel formgrid" onSubmit={saveMove}>
-          <h3 style={{ gridColumn: '1 / -1', margin: 0 }}>{KIND[mv.kind]}: {cur.name} <small className="sub">(tồn {num(cur.qty)} {cur.unit})</small></h3>
+          <h3 style={{ gridColumn: '1 / -1', margin: 0 }}>{KIND[mv.kind]}: {cur.name} <small className="sub">(tồn {num(cur.qty)} {cur.unit}{hasLoc && locs(cur.id).length > 0 ? ` — ${locs(cur.id).map(x => `${roomName(x.room_id)} ${num(x.qty)}`).join(', ')}` : ''})</small></h3>
+          {hasLoc && <label className="field"><span>{mv.kind === 'in' ? 'Nhập vào phòng / kho' : mv.kind === 'move' ? 'Chuyển từ' : mv.kind === 'out' ? 'Lấy từ phòng / kho' : 'Tại phòng / kho'}</span>
+            <select value={mv.room_id} onChange={e => setMv({ ...mv, room_id: e.target.value })}>
+              {mv.kind === 'in' ? <option value="">Chưa xếp phòng</option> : <option value="">{mv.kind === 'move' ? 'Chưa xếp phòng' : 'Tự động (chưa xếp phòng trước, rồi phòng còn nhiều)'}</option>}
+              {(mv.kind === 'in' || mv.kind === 'adjust' ? rooms : rooms.filter(r => have(cur.id, r.id) > 0)).map(r => <option key={r.id} value={r.id}>{roomLabel(r)}{mv.kind !== 'in' ? ` (${num(have(cur.id, r.id))})` : ''}</option>)}
+            </select></label>}
+          {hasLoc && mv.kind === 'move' && <label className="field"><span>Chuyển đến *</span>
+            <select value={mv.to_room_id} onChange={e => setMv({ ...mv, to_room_id: e.target.value })}>
+              <option value="">Chưa xếp phòng</option>{rooms.filter(r => r.id !== mv.room_id).map(r => <option key={r.id} value={r.id}>{roomLabel(r)}</option>)}</select></label>}
           <label className="field"><span>{mv.kind === 'adjust' ? 'Chênh lệch (+ thêm / − bớt)' : 'Số lượng'} ({cur.unit}) *</span><input required inputMode="decimal" value={mv.qty} onChange={e => setMv({ ...mv, qty: e.target.value })} /></label>
           {mv.kind === 'out' && <>
             <label className="field"><span>Giao cho giáo viên</span><select value={mv.teacher_id} onChange={e => setMv({ ...mv, teacher_id: e.target.value })}><option value="">—</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}</select></label>
             <label className="field"><span>Cho lớp</span><select value={mv.class_id} onChange={e => setMv({ ...mv, class_id: e.target.value })}><option value="">—</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
           </>}
           <label className="field" style={{ gridColumn: '1 / -1' }}><span>{mv.kind === 'in' ? 'Nguồn / chứng từ' : 'Lý do / mục đích'}</span><input value={mv.reason} onChange={e => setMv({ ...mv, reason: e.target.value })}
-            placeholder={mv.kind === 'in' ? 'VD: Mua theo HĐ số …; KDI cấp kèm gói STEM' : mv.kind === 'out' ? 'VD: Chủ đề Mạch điện, tiết 3 tuần 8' : 'VD: hư hỏng, hết hạn'} /></label>
+            placeholder={mv.kind === 'in' ? 'VD: Mua theo HĐ số …; KDI cấp kèm gói STEM' : mv.kind === 'out' ? 'VD: Chủ đề Mạch điện, tiết 3 tuần 8' : mv.kind === 'move' ? 'VD: Đưa lên phòng STEM cho chủ đề tuần 9' : 'VD: hư hỏng, hết hạn'} /></label>
           <div className="formactions"><button className="primary" type="submit">Ghi phiếu</button> <button type="button" onClick={() => setMv(null)}>Huỷ</button></div>
         </form>
       )}
       {tab === 'stock' ? (
         <div className="wrap"><table>
-          <thead><tr>{multi && <th>Đơn vị</th>}<th>Vật tư</th><th>Nhóm</th><th>Tồn</th><th>Tối thiểu</th><th /></tr></thead>
+          <thead><tr>{multi && <th>Đơn vị</th>}<th>Vật tư</th><th>Nhóm</th><th>Tồn</th>{hasLoc && <th>Đang ở</th>}<th>Tối thiểu</th><th /></tr></thead>
           <tbody>{shown.map(r => (
             <tr key={r.id}>{multi && <td>{r.organizations?.name}</td>}<td><b>{r.name}</b>{r.sku && <small> · {r.sku}</small>}</td><td>{r.category ?? '—'}</td>
-              <td><b>{num(r.qty)}</b> {r.unit} {Number(r.qty) <= Number(r.min_qty) && <span className="plbadge bad">Sắp hết</span>}</td><td>{num(r.min_qty)}</td>
+              <td><b>{num(r.qty)}</b> {r.unit} {Number(r.qty) <= Number(r.min_qty) && <span className="plbadge bad">Sắp hết</span>}</td>
+              {hasLoc && <td>{locs(r.id).map(x => <span key={x.room_id ?? 'none'} className="chip">{roomName(x.room_id)} · {num(x.qty)}</span>)}{!locs(r.id).length && <small>—</small>}</td>}<td>{num(r.min_qty)}</td>
               <td className="nowrap">{(!orgId || r.org_id === orgId) && orgId && <><button onClick={() => open('in', r)}>Nhập</button> <button className="primary" onClick={() => open('out', r)} disabled={Number(r.qty) <= 0}>Cấp phát</button>
-                {' '}<button onClick={() => open('adjust', r)}>Điều chỉnh</button> <button onClick={() => setForm(r)}>Sửa</button></>}</td></tr>))}
-            {!shown.length && <tr><td colSpan={6}>Chưa có vật tư. Bấm "+ Vật tư" hoặc nhập Excel.</td></tr>}</tbody>
+                {' '}{hasLoc && rooms.length > 0 && <><button onClick={() => open('move', r)} disabled={Number(r.qty) <= 0}>Chuyển vị trí</button>{' '}</>}<button onClick={() => open('adjust', r)}>Điều chỉnh</button> <button onClick={() => setForm(r)}>Sửa</button></>}</td></tr>))}
+            {!shown.length && <tr><td colSpan={7}>Chưa có vật tư. Bấm "+ Vật tư" hoặc nhập Excel.</td></tr>}</tbody>
         </table></div>
       ) : (
         <div className="wrap"><table>
-          <thead><tr><th>Thời gian</th><th>Loại</th><th>Vật tư</th><th>Số lượng</th><th>Người nhận / lớp</th><th>Lý do</th></tr></thead>
+          <thead><tr><th>Thời gian</th><th>Loại</th><th>Vật tư</th><th>Số lượng</th>{hasLoc && <th>Phòng / kho</th>}<th>Người nhận / lớp</th><th>Lý do</th></tr></thead>
           <tbody>{moves.map(m => (
-            <tr key={m.id}><td className="nowrap">{when(m.created_at)}</td><td><span className={'plbadge ' + (m.kind === 'in' ? 'ok' : m.kind === 'out' ? 'mute' : 'bad')}>{KIND[m.kind]}</span></td>
-              <td>{m.supplies?.name}</td><td>{m.kind === 'out' ? '−' : m.qty > 0 ? '+' : ''}{num(m.qty)} {m.supplies?.unit}</td>
+            <tr key={m.id}><td className="nowrap">{when(m.created_at)}</td><td><span className={'plbadge ' + (m.kind === 'in' ? 'ok' : m.kind === 'out' || m.kind === 'move' ? 'mute' : 'bad')}>{KIND[m.kind]}</span></td>
+              <td>{m.supplies?.name}</td><td>{m.kind === 'out' ? '−' : m.kind === 'move' ? '' : m.qty > 0 ? '+' : ''}{num(m.qty)} {m.supplies?.unit}</td>
+              {hasLoc && <td><small>{m.kind === 'move' ? `${roomName(m.room_id)} → ${roomName(m.to_room_id)}` : m.room_id ? roomName(m.room_id) : '—'}</small></td>}
               <td>{[m.teachers?.full_name, m.classes?.name].filter(Boolean).join(' · ') || '—'}</td><td><small>{m.reason}</small></td></tr>))}
-            {!moves.length && <tr><td colSpan={6}>Chưa có phiếu nào.</td></tr>}</tbody>
+            {!moves.length && <tr><td colSpan={7}>Chưa có phiếu nào.</td></tr>}</tbody>
         </table></div>
       )}
     </>

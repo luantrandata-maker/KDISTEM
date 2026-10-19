@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmtDate } from '../lib/time'
+import { loadRooms } from '../lib/rooms'
 
 type Pkg = { id: string; code: string | null; name: string; tier: string; provider: string | null; programs: string | null; grades: string | null; starts_on: string | null; ends_on: string | null; contract_no: string | null; order_no: string | null; topics: number; devices: number; sessions: number }
 export function EduPlan() {
@@ -110,8 +111,8 @@ export function SchoolProfile() {
       const { data: p } = await supabase.from('profiles').select('org_id, organizations(name, code, level, parent:parent_id(name))').eq('id', u.user!.id).single()
       setOrg((p as any)?.organizations)
     })
-    Promise.all(['teachers', 'classes', 'students', 'stem_rooms', 'equipment_units'].map(t => supabase.from(t).select('*', { count: 'exact', head: true }).then(r => [t, r.count ?? 0] as const)))
-      .then(r => setCounts(Object.fromEntries(r)))
+    Promise.all(['teachers', 'classes', 'students', 'equipment_units'].map(t => supabase.from(t).select('*', { count: 'exact', head: true }).then(r => [t, r.count ?? 0] as const)))
+      .then(async r => setCounts({ ...Object.fromEntries(r), stem_rooms: (await loadRooms('stem')).length }))
   }, [])
   const LEVEL: Record<string, string> = { mamnon: 'Mầm non', tieuhoc: 'Tiểu học', thcs: 'THCS', thpt: 'THPT' }
   if (!org) return <p className="sub">Đang tải…</p>

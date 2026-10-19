@@ -4,6 +4,7 @@ import FormPanel from '../components/FormPanel'
 import { type Year, sameSchoolYear, yearLabel } from '../lib/year'
 import ImportExcel from '../components/ImportExcel'
 import { norm, importSummary, downloadXlsx, type Column } from '../lib/sheet'
+import { loadRooms } from '../lib/rooms'
 
 const COLS: Column[] = [
   { key: 'cls', label: 'Lớp', required: true },
@@ -38,11 +39,11 @@ export default function Timetable({ orgId, year, years = [] }: { orgId: string; 
       supabase.from('timetable_entries').select('id, year_id, weekday, period_id, subject, kind, class_id, classes(name), teachers(full_name), stem_rooms(name)'),
       supabase.from('classes').select('id, name, year_id').order('name'),
       supabase.from('teachers').select('id, full_name').order('full_name'),
-      supabase.from('stem_rooms').select('id, name').order('name'),
+      loadRooms('stem'),
     ])
     setPeriods((p.data as Period[]) ?? []); setEntries(((e.data as unknown as Entry[]) ?? []).filter(x => !year || !x.year_id || x.year_id === year.id))
     const cs = ((c.data as Opt[]) ?? []).filter(x => sameSchoolYear(years, x.year_id, year ?? null)); setClasses(cs); setCls(v => v || cs[0]?.id || '')
-    setTeachers((t.data as any) ?? []); setRooms((r.data as Opt[]) ?? [])
+    setTeachers((t.data as any) ?? []); setRooms(r)
   }
   useEffect(() => { load() }, [])
 

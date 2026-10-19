@@ -1687,6 +1687,68 @@ select pg_temp.chk('hs_kb', 'Khoá học: học sinh đánh dấu đã học', $
 select pg_temp.chk('hs_kb', 'Khoá học: học sinh không thêm bài', $q$insert into course_lessons (course_id, title, kind, body) select id, 'ISO hack', 'reading', 'x' from courses where title = 'ISO Khoá Toán 6'$q$, 'ERR');
 select pg_temp.chk('admin_ph', 'Khoá học: trường khác không thấy', $q$select count(*) from courses where title like 'ISO%'$q$, '0');
 
+-- ===== 056: loại phòng (STEM / phòng học / kho), vật tư theo phòng =====
+insert into stem_rooms (org_id, name, room_kind, status) values
+  (pg_temp.oid_('THCS-PH'), 'ISO phòng kho', 'storage', 'active'),
+  (pg_temp.oid_('THCS-PH'), 'ISO phòng STEM X', 'stem', 'active');
+insert into supplies (org_id, name, unit) values (pg_temp.oid_('THCS-PH'), 'ISO Keo', 'thanh');
+select pg_temp.chk('admin_ph', 'Phòng: quản trị trường thêm phòng học',
+  $q$insert into stem_rooms (org_id, name, room_kind, capacity) values (my_org_id(), 'ISO phòng học 9Z', 'classroom', 40)$q$, 'rows:1');
+select pg_temp.probe('admin_ph@iso-test.local', $q$insert into stem_rooms (org_id, name, room_kind) values (my_org_id(), 'ISO phòng học 9Z', 'classroom')$q$, true);
+select pg_temp.chk('admin_ph', 'Phòng: loại phòng không hợp lệ bị chặn',
+  $q$insert into stem_rooms (org_id, name, room_kind) values (my_org_id(), 'ISO phòng lạ', 'garage')$q$, 'ERR*');
+select pg_temp.chk('gv_both', 'Phòng: giáo viên không thêm phòng', $q$insert into stem_rooms (org_id, name, room_kind) values (my_org_id(), 'ISO phòng GV', 'storage')$q$, 'ERR');
+select pg_temp.chk('admin_kb', 'Phòng: trường khác không thấy phòng học / kho', format($q$select count(*) from stem_rooms where org_id = %L$q$, pg_temp.oid_('THCS-PH')), '0');
+select pg_temp.chk('admin_kb', 'Phòng: trường khác không gắn tầng của trường A',
+  format($q$insert into stem_rooms (org_id, name, floor_id) values (my_org_id(), 'ISO phòng tầng lạ', %L)$q$,
+    (select f.id from floors f join buildings b on b.id = f.building_id where b.org_id = pg_temp.oid_('THCS-PH') limit 1)), 'ERR*');
+select pg_temp.chk('admin_ph', 'TKB: không xếp phòng học vào TKB STEM',
+  $q$update timetable_entries set room_id = (select id from stem_rooms where name = 'ISO phòng học 9Z') where id = (select id from timetable_entries where org_id = my_org_id() and room_id is not null limit 1)$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'TKB: không xếp kho vào TKB',
+  $q$update timetable_entries set room_id = (select id from stem_rooms where name = 'ISO phòng kho') where id = (select id from timetable_entries where org_id = my_org_id() limit 1)$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Lớp: gắn phòng học cho lớp',
+  $q$update classes set room_id = (select id from stem_rooms where name = 'ISO phòng học 9Z') where id = (select id from classes where org_id = my_org_id() order by name limit 1)$q$, 'rows:1');
+select pg_temp.chk('admin_ph', 'Lớp: không gắn kho làm phòng học',
+  $q$update classes set room_id = (select id from stem_rooms where name = 'ISO phòng kho') where id = (select id from classes where org_id = my_org_id() order by name limit 1)$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Phòng: không đổi phòng STEM đang có TKB sang kho',
+  $q$update stem_rooms set room_kind = 'storage' where id = (select room_id from timetable_entries where org_id = my_org_id() and room_id is not null limit 1)$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Phòng: đổi phòng STEM chưa dùng sang phòng học', $q$update stem_rooms set room_kind = 'classroom' where name = 'ISO phòng STEM X'$q$, 'rows:1');
+select pg_temp.chk('so_hy', 'Thống kê Sở: số phòng STEM không tính phòng học / kho',
+  $q$select (rooms = (select count(*) from stem_rooms r where r.org_id = s.school_id and r.room_kind = 'stem'))::text from dept_school_stats() s where code = 'THCS-PH'$q$, 'true');
+select pg_temp.chk('admin_ph', 'Lịch phòng toàn hệ thống: chỉ phòng STEM',
+  $q$select count(*) from room_overview(current_date, current_date) o join stem_rooms r on r.id = o.room_id where r.room_kind <> 'stem'$q$, '0');
+select pg_temp.chk('admin_ph', 'Dữ liệu mẫu: trường demo có kho và phòng học', $q$select count(distinct room_kind) from stem_rooms where room_kind <> 'stem'$q$, '2');
+-- Vật tư theo phòng
+select pg_temp.probe('admin_ph@iso-test.local', $q$insert into supply_moves (org_id, supply_id, kind, qty, reason, room_id) select org_id, id, 'in', 10, 'ISO nhập kho', (select id from stem_rooms where name = 'ISO phòng kho') from supplies where name = 'ISO Keo'$q$, true);
+select pg_temp.chk('admin_ph', 'Vật tư: nhập vào kho → tồn tại kho 10',
+  $q$select qty::text from supply_stocks where room_id = (select id from stem_rooms where name = 'ISO phòng kho')$q$, '10.00');
+select pg_temp.chk('admin_ph', 'Vật tư: chuyển 4 từ kho lên phòng STEM',
+  $q$insert into supply_moves (org_id, supply_id, kind, qty, room_id, to_room_id) select org_id, id, 'move', 4, (select id from stem_rooms where name = 'ISO phòng kho'), (select id from stem_rooms where name = 'ISO phòng STEM X') from supplies where name = 'ISO Keo'$q$, 'rows:1');
+select pg_temp.probe('admin_ph@iso-test.local', $q$insert into supply_moves (org_id, supply_id, kind, qty, room_id, to_room_id) select org_id, id, 'move', 4, (select id from stem_rooms where name = 'ISO phòng kho'), (select id from stem_rooms where name = 'ISO phòng STEM X') from supplies where name = 'ISO Keo'$q$, true);
+select pg_temp.chk('admin_ph', 'Vật tư: sau chuyển — kho 6, phòng 4, tổng 10',
+  $q$select string_agg(x, '|') from (select (select qty::text from supply_stocks k join stem_rooms r on r.id = k.room_id where r.name = 'ISO phòng kho') x
+     union all select (select qty::text from supply_stocks k join stem_rooms r on r.id = k.room_id where r.name = 'ISO phòng STEM X')
+     union all select qty::text from supplies where name = 'ISO Keo') t$q$, '6.00|4.00|10.00');
+select pg_temp.chk('admin_ph', 'Vật tư: không chuyển quá số đang có ở phòng',
+  $q$insert into supply_moves (org_id, supply_id, kind, qty, room_id, to_room_id) select org_id, id, 'move', 5, (select id from stem_rooms where name = 'ISO phòng STEM X'), null from supplies where name = 'ISO Keo'$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Vật tư: không cấp phát quá số ở phòng (dù tổng đủ)',
+  $q$insert into supply_moves (org_id, supply_id, kind, qty, room_id) select org_id, id, 'out', 5, (select id from stem_rooms where name = 'ISO phòng STEM X') from supplies where name = 'ISO Keo'$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Vật tư: không ghi thẳng tồn theo phòng',
+  $q$update supply_stocks set qty = 999 where supply_id = (select id from supplies where name = 'ISO Keo')$q$, 'rows:0');
+select pg_temp.chk('admin_ph', 'Vật tư: không thêm thẳng tồn theo phòng',
+  $q$insert into supply_stocks (org_id, supply_id, qty) select org_id, id, 5 from supplies where name = 'ISO Keo'$q$, 'ERR');
+select pg_temp.chk('admin_kb', 'Vật tư: trường khác không thấy tồn theo phòng', $q$select count(*) from supply_stocks where supply_id = (select id from supplies where name = 'ISO Keo')$q$, '0');
+select pg_temp.chk('so_hy', 'Vật tư: Sở cấp trên xem tồn theo phòng', format($q$select count(*) from supply_stocks where supply_id = %L$q$, (select id from supplies where name = 'ISO Keo')), '2');
+select pg_temp.chk('admin_kb', 'Vật tư: không chuyển vào phòng của trường khác',
+  format($q$insert into supply_moves (org_id, supply_id, kind, qty, to_room_id) values (my_org_id(), (select id from supplies where org_id = my_org_id() limit 1), 'move', 1, %L)$q$,
+    (select id from stem_rooms where name = 'ISO phòng STEM X')), 'ERR*');
+select pg_temp.chk('admin_ph', 'Phòng: không xoá phòng còn vật tư', $q$delete from stem_rooms where name = 'ISO phòng STEM X'$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Phòng: xoá được phòng trống', $q$delete from stem_rooms where name = 'ISO phòng học 9Z'$q$, 'rows:1');
+select pg_temp.probe('admin_ph@iso-test.local', $q$insert into supply_moves (org_id, supply_id, kind, qty, reason) select org_id, id, 'out', 7, 'ISO xuất' from supplies where name = 'ISO Keo'$q$, true);
+select pg_temp.chk('admin_ph', 'Vật tư: xuất không ghi phòng lấy kho trước rồi phòng — tổng các vị trí = tồn',
+  $q$select (select string_agg(r.name || ':' || k.qty, ',' order by r.name) from supply_stocks k join stem_rooms r on r.id = k.room_id where k.supply_id = s.id)
+     || '|' || s.qty from supplies s where s.name = 'ISO Keo'$q$, 'ISO phòng STEM X:3.00|3.00');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

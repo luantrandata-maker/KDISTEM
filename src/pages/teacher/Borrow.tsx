@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { TProps, NoTeacher, useMyClasses } from './common'
+import { isStem } from '../../lib/rooms'
 
 type EqType = { id: string; name: string; brand: string | null; category: string | null }
 type Period = { id: string; name: string; starts_at: string; ends_at: string }
@@ -37,13 +38,13 @@ export function TeacherBorrow({ teacherId, orgId }: TProps) {
       supabase.from('equipment_types').select('id, name, brand, category').order('name'),
       supabase.from('equipment_units').select('type_id, status'),
       supabase.from('period_configs').select('id, name, starts_at, ends_at').order('starts_at'),
-      supabase.from('stem_rooms').select('id, name, status').order('name'),
+      supabase.from('stem_rooms').select('*').order('name'),
       supabase.from('borrow_requests').select('id, title, items, item_list, on_date, mode, status, classes(name), stem_rooms(name), period_configs(name)')
         .eq('teacher_id', teacherId).order('on_date', { ascending: false }),
     ])
     setTypes((t.data as EqType[]) ?? [])
     const a: Record<string, number> = {}; ((u.data as { type_id: string; status: string }[]) ?? []).forEach(x => { if (x.status === 'available') a[x.type_id] = (a[x.type_id] ?? 0) + 1 }); setAvail(a)
-    setPeriods((p.data as Period[]) ?? []); setRooms(((r.data as Room[]) ?? []).filter(x => x.status === 'active'))
+    setPeriods((p.data as Period[]) ?? []); setRooms(((r.data as Room[]) ?? []).filter(x => x.status === 'active' && isStem(x as { room_kind?: string })))
     setMine((m.data as unknown as Req[]) ?? [])
   }
   useEffect(() => { load() }, [teacherId])

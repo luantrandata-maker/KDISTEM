@@ -1006,3 +1006,22 @@ a.btnlink{display:inline-block;padding:8px 14px;border-radius:10px;text-decorati
 .helpfab{position:fixed}.helpfab .fabcount{position:absolute}
 .tabdot{display:inline-grid;place-items:center;min-width:18px;height:18px;margin-left:5px;padding:0 4px;border-radius:999px;background:#f5a623;color:#152e5d;font-size:11px;font-weight:700}
 .newdot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad);margin-right:6px;vertical-align:middle}
+
+/* ===== Phòng STEM · Phòng học · Kho; thiết bị & vật tư theo phòng (056) ===== */
+.rkind{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:var(--soft);color:var(--muted)}
+.rkind.stem{background:#e6f1fd;color:var(--primary)}.rkind.classroom{background:#e3f4ea;color:var(--ok)}.rkind.storage{background:#fff3df;color:#a8650c}
+.caret{display:inline-block;width:12px;color:var(--muted);font-size:12px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px}
+.roomtable-row{cursor:pointer}.roomtable-row:hover td{background:var(--soft)}.roomtable-row.on td{background:#f2f8ff}
+.roomtable-exp>td{background:#fafcff;padding:6px 14px 14px 34px}
+.roomexp h4{margin:12px 0 6px;font-size:14px}.roomexp .bar{margin:0}.roomexp .bar h4{margin:8px 0 6px}
+.roomexp-t{font-size:13px}.roomexp-type{cursor:pointer}.roomexp-type:hover td{background:var(--soft)}
+.roomexp-unit td{background:var(--surface);padding-top:5px;padding-bottom:5px}.roomexp-unit td:first-child{padding-left:30px}
+.roomacc{display:grid;gap:8px;margin-top:10px}
+.roomacc-item{border:1px solid var(--line);border-radius:12px;background:var(--surface);overflow:hidden}
+.roomacc-item.on{border-color:#b9d6f5}.roomacc-item .roomexp{padding:0 14px 12px 36px;border-top:1px solid var(--line)}
+.main .roomacc-head{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border:0;background:none;padding:11px 14px;cursor:pointer;font:inherit;color:inherit;flex-wrap:wrap}
+.main .roomacc-head:hover{background:var(--soft)}
+.roomacc-name{min-width:180px}.roomacc-sum{margin-left:auto;color:var(--muted)}
+@media (max-width:640px){.roomacc-sum{margin-left:22px;width:100%}.roomtable-exp>td{padding-left:8px}.roomacc-item .roomexp{padding-left:12px}}
+.roomtable td:first-child{min-width:170px}.roomtable td:nth-child(3){min-width:130px}.roomtable td:nth-child(6){min-width:150px}

@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { TeacherBorrow } from './teacher/Borrow'
 import type { Year } from '../lib/year'
 import { ensureWeek, today as todayIso, addDays } from '../lib/attendance'
+import { isStem } from '../lib/rooms'
 
 type Ent = { id: string; year_id: string | null; weekday: number; period_id: string; subject: string; kind: string; classes: { name: string } | null; stem_rooms: { name: string } | null }
 type Period = { id: string; name: string; starts_at: string; ends_at: string; session: string }
@@ -190,14 +191,14 @@ function RoomBooking({ teacherId, orgId }: Props) {
     if (!teacherId) return
     const [a, r, p, m, ap] = await Promise.all([
       supabase.from('teaching_assignments').select('classes(id, name)').eq('teacher_id', teacherId),
-      supabase.from('stem_rooms').select('id, name, status').order('name'),
+      supabase.from('stem_rooms').select('*').order('name'),
       supabase.from('period_configs').select('*').order('starts_at'),
       supabase.from('stem_registrations').select('id, topic, status, on_date, classes(name), stem_rooms(name), period_configs(name)').eq('teacher_id', teacherId).order('on_date', { ascending: false }),
       supabase.from('stem_registrations').select('room_id, period_id, on_date').eq('status', 'approved'),
     ])
     const cl = ((a.data as any[]) ?? []).map(x => x.classes).filter(Boolean)
     const uniq = [...new Map(cl.map((c: any) => [c.id, c])).values()] as { id: string; name: string }[]
-    setClasses(uniq); setRooms(((r.data as any) ?? []).filter((x: any) => x.status === 'active')); setPeriods((p.data as Period[]) ?? [])
+    setClasses(uniq); setRooms(((r.data as any) ?? []).filter((x: any) => x.status === 'active' && isStem(x))); setPeriods((p.data as Period[]) ?? [])
     setMine((m.data as unknown as Reg[]) ?? [])
     setTaken(new Set(((ap.data as any[]) ?? []).map(x => `${x.room_id}|${x.on_date}|${x.period_id}`)))
     setF(v => ({ ...v, class_id: v.class_id || uniq[0]?.id || '', room_id: v.room_id || (r.data as any)?.find((x: any) => x.status === 'active')?.id || '', period_id: v.period_id || (p.data as any)?.[0]?.id || '' }))

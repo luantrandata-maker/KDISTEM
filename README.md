@@ -24,6 +24,13 @@ Chạy lần lượt các file trong `supabase/migrations/` theo số thứ tự
 - Máy chủ email mặc định của Supabase chỉ gửi vài thư mỗi giờ. Khi mời nhiều người, cấu hình SMTP riêng (Authentication → Emails → SMTP Settings). Nếu thư không gửi được, lời mời vẫn có hiệu lực khi người đó tự đăng ký bằng đúng email.
 - Có thể Việt hoá mẫu thư "Magic Link" và "Confirm signup" ở Authentication → Emails → Templates.
 
+## Phòng STEM, phòng học, kho — thiết bị & vật tư theo phòng (từ migration 056)
+
+- **Loại phòng** `stem_rooms.room_kind`: `stem` (Phòng STEM — mặc định, mọi phòng cũ giữ nguyên), `classroom` (Phòng học), `storage` (Kho). Trường → Phòng & thiết bị STEM → **Quản lý phòng**: thêm / sửa / xoá, lọc theo loại, nhập / xuất Excel (tự tạo tòa nhà, tầng còn thiếu), gắn lớp cho phòng học; trường chưa có phòng thấy hướng dẫn thay vì "Đang tải…". Phòng STEM mở tiếp *Lịch & mượn trả* như trước.
+- **Chặn ở CSDL**: chỉ phòng STEM được xếp vào TKB, đăng ký dạy STEM, phiếu mượn, buổi dạy (`guard_stem_room_ref`) → sổ giữ chỗ và mọi thống kê "Phòng STEM" của Sở/KDI (`dept_school_stats`, `room_overview`) không tính phòng học, kho. Phòng học của lớp (`classes.room_id`) chỉ nhận phòng loại Phòng học. Không đổi loại phòng STEM đang có lịch, phòng học đang có lớp; người dùng không xoá được phòng còn thiết bị / vật tư / lịch (`guard_room`, `guard_room_delete`).
+- **Vật tư theo vị trí** `supply_stocks`: tồn từng vật tư ở từng phòng/kho + phần "chưa xếp phòng" (tồn cũ chuyển vào đây); tổng luôn bằng `supplies.qty`, chỉ đổi qua phiếu. Phiếu Nhập / Cấp phát / Điều chỉnh có thể ghi phòng; phiếu mới **Chuyển vị trí** (`kind = 'move'`, `room_id` → `to_room_id`). Xuất không ghi phòng (vận chuyển 045, kiểm kê 044) lấy phần chưa xếp phòng trước rồi tới phòng nhiều nhất.
+- **Bung chi tiết theo phòng**: Quản lý phòng và Quản lý Thiết bị → *Theo phòng / kho* — mỗi phòng một dòng tóm tắt, bấm để xem thiết bị theo loại → từng chiếc (seri, tình trạng, bảo hành, chuyển phòng ngay tại chỗ) và vật tư tiêu hao đang ở phòng đó. Thiết bị chuyển vào kho tự thành "Tồn kho", ra khỏi kho thành "Sẵn sàng".
+
 ## Kho & kiểm kê (từ migration 044)
 
 - **Vật tư tiêu hao** (Trường → Phòng & thiết bị STEM; KDI → 3.1 Kho & tồn kho / Cấp phát & bàn giao): danh mục vật tư, mức tồn tối thiểu (cảnh báo "Sắp hết"), phiếu *Nhập* / *Cấp phát* (cho giáo viên, lớp) / *Điều chỉnh*. Số tồn chỉ đổi qua phiếu — trigger `apply_supply_move` khoá dòng, chặn xuất quá tồn; không sửa/xoá phiếu đã ghi.

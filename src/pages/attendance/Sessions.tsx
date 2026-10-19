@@ -6,6 +6,7 @@ import {
   type SessionRow, type Mark,
 } from '../../lib/attendance'
 import { NoTeacher, Tabs } from '../teacher/common'
+import { loadRooms } from '../../lib/rooms'
 
 // ================= Bảng điểm danh một tiết =================
 type Stu = { id: string; full_name: string; student_code: string | null }
@@ -210,7 +211,7 @@ export function SchoolSessions({ orgId }: { orgId: string }) {
   useEffect(() => { load() }, [week])
   useEffect(() => {
     supabase.from('period_configs').select('id, name').order('starts_at').then(({ data }) => setPeriods((data as Opt[]) ?? []))
-    supabase.from('stem_rooms').select('id, name').order('name').then(({ data }) => setRooms((data as Opt[]) ?? []))
+    loadRooms('stem').then(rs => setRooms(rs))
   }, [])
 
   async function cancel(s: SessionRow) {

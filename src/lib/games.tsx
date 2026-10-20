@@ -40,7 +40,7 @@ export function RaceGame({ items, seconds = 20, title }: { items: RaceItem[]; se
         <span><small>Chuỗi đúng</small><b>{streak || '—'}</b></span><span><small>Về đích</small><b>{pos[0]}/{total}</b></span>
         {stage === 'play' && pick === null && <span className="live">● {left}s</span>}
       </div>
-      <div className="track">
+      <div className="racetrack">
         {teams.map((t, k) => (
           <div className="lane" key={t}><span className={'lanename t' + k}>{t}</span>
             <div className="road"><span className={'car t' + k} style={{ left: `calc(${(100 * Math.min(pos[k], total)) / total}% - ${(28 * Math.min(pos[k], total)) / total}px)` }} aria-hidden="true">🏎</span></div>

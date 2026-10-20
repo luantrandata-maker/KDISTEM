@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { TProps, NoTeacher, PROGRAM_COLOR, Tabs, handoff, useMyClasses } from '../teacher/common'
 import { SlideView, SlideStudio, newSlide, ago } from '../teacher/Lessons'
 import { useProgramOptions, unitTree, progLabel } from '../library/common'
+import { asLesson, emptyLesson, lessonStats, LessonEditor, LessonPlayer, LessonShow, type ILesson } from '../../lib/lessonBlocks'
 import {
   type LPlan, type LStatus, type Template, type Step, type Adjust, type Version, type Review, type NormItem, type NormLite,
   LStatusPill, editable, BASIS, uid, fmtD, errText, PLAN_COLS, useTemplates, useAttachables, libLabel, actLabel, phasesOf, totalMinutes,
@@ -15,8 +16,19 @@ const PROGRAMS = ['CT1', 'CT2', 'CT3', 'CT4', 'CT5']
 // Hàng cũ (trước 060) có thể thiếu cột mới → chuẩn hoá về giá trị rỗng
 export const normPlan = (p: LPlan): LPlan => ({
   ...p, doc: p.doc ?? {}, steps: p.steps ?? [], slides: p.slides ?? [], library_ids: p.library_ids ?? [], rubric_ids: p.rubric_ids ?? [],
-  norm_adjust: p.norm_adjust ?? [], version_no: p.version_no ?? 0, template_id: p.template_id ?? null,
+  norm_adjust: p.norm_adjust ?? [], version_no: p.version_no ?? 0, template_id: p.template_id ?? null, lesson: p.lesson ?? {}, cover_url: p.cover_url ?? null,
 })
+const blocksOf = (p: LPlan) => lessonStats(asLesson(p.lesson)).blocks
+// Mở bài giảng: có khối tương tác → trình chiếu theo khối; không thì slide cũ
+type Overlay = { plan: LPlan; kind: 'show' | 'player' } | null
+export function PlanOverlay({ o, onClose }: { o: Overlay; onClose: () => void }) {
+  if (!o) return null
+  const l = asLesson(o.plan.lesson)
+  if (!l) return null
+  const sub = [o.plan.subject, o.plan.grades && `Khối ${o.plan.grades}`].filter(Boolean).join(' · ')
+  return o.kind === 'show' ? <LessonShow title={o.plan.title} ct={o.plan.program} sub={sub} lesson={l} onClose={onClose} />
+    : <LessonPlayer title={o.plan.title} ct={o.plan.program} sub={o.plan.summary ?? undefined} lesson={l} onClose={onClose} />
+}
 async function rpcErr(fn: string, args: Record<string, unknown>) {
   const { data, error } = await supabase.rpc(fn, args)
   return { data, err: error ? errText(error.message) : '' }
@@ -37,7 +49,15 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
   const [program, setProgram] = useState('')
   const [err, setErr] = useState('')
   const [reviewRequired, setReviewRequired] = useState(false)
+  const [overlay, setOverlay] = useState<Overlay>(null)
   const templates = useTemplates()
+  // Trang khác (Kho bài giảng, Thư viện STEM) mở thẳng một giáo án
+  useEffect(() => {
+    let id: string | null = null
+    try { id = sessionStorage.getItem('kdi.openPlan'); if (id) sessionStorage.removeItem('kdi.openPlan') } catch { /* bỏ qua */ }
+    if (id) setView({ mode: 'edit', id })
+  }, [])
+  const present = (p: LPlan) => blocksOf(p) > 0 ? setOverlay({ plan: p, kind: 'show' }) : setView({ mode: 'present', plan: p, i: 0 })
 
   async function load() {
     const { data, error } = await supabase.from('lesson_plans').select(PLAN_COLS).order('updated_at', { ascending: false })
@@ -75,6 +95,7 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
 
   return (
     <>
+      <PlanOverlay o={overlay} onClose={() => setOverlay(null)} />
       <div className="bar">
         {library
           ? <p className="sub" style={{ margin: 0 }}><b>Kho bài giảng mẫu</b> · bài mẫu của trường và giáo án đồng nghiệp đã xuất bản. Bấm “Dùng bài này” để tạo bản nháp của bạn.</p>
@@ -100,12 +121,12 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
           const tpl = templates.find(t => t.id === p.template_id)
           return (
             <div className="panel lessoncard" key={p.id}>
-              <div className="lessoncover">
+              <div className="lessoncover" style={p.cover_url ? { backgroundImage: `linear-gradient(rgba(0,0,0,.05),rgba(0,0,0,.35)),url("${p.cover_url}")`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
                 {p.program && <span className="progchip" style={{ background: PROGRAM_COLOR[p.program], color: '#fff' }}>{p.program}</span>}
                 {p.from_package && <span className="progchip pkgchip">Gói STEM</span>}
                 {p.is_template && <span className="progchip pkgchip">Mẫu</span>}
                 {p.library_item_id && <span className="progchip pkgchip" title={`Từ kho học liệu dùng chung, phiên bản ${p.library_version ?? '?'}`}>Từ kho v{p.library_version}</span>}
-                <span className="slidecount">{p.steps.length} bước · {p.slides.length} slide</span>
+                <span className="slidecount">{blocksOf(p) > 0 ? `${blocksOf(p)} khối · ${lessonStats(asLesson(p.lesson)).interactive} tương tác` : `${p.steps.length} bước · ${p.slides.length} slide`}</span>
               </div>
               <b>{p.title}</b>
               <small>{[p.subject, p.grades && `Khối ${p.grades}`, p.periods && `${p.periods} tiết`, tpl?.name].filter(Boolean).join(' · ')}{library && p.teachers ? ` · ${p.teachers.full_name}` : ''}</small>
@@ -117,10 +138,11 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
               <div className="tools">
                 {library ? <>
                   <button className="primary" onClick={() => clone(p)}>Dùng bài này</button>
-                  <button onClick={() => setView({ mode: 'present', plan: p, i: 0 })}>Trình chiếu</button>
+                  <button onClick={() => present(p)}>Trình chiếu</button>
+                  {blocksOf(p) > 0 && <button onClick={() => setOverlay({ plan: p, kind: 'player' })}>Xem như học sinh</button>}
                 </> : <>
                   <button className="primary" onClick={() => setView({ mode: 'edit', id: p.id })}>{editable(p.status) ? 'Soạn' : 'Mở'}</button>
-                  <button onClick={() => setView({ mode: 'present', plan: p, i: 0 })}>Trình chiếu</button>
+                  <button onClick={() => present(p)}>Trình chiếu</button>
                   <button onClick={() => clone(p)}>Nhân bản</button>
                   {p.status !== 'pending' && <button className="x" onClick={() => remove(p)} aria-label={`Xoá ${p.title}`}>×</button>}
                 </>}
@@ -139,7 +161,7 @@ function NewPlan({ teacherId, orgId, templates, onCancel, onCreated }: {
   teacherId: string; orgId: string | null; templates: Template[]; onCancel: () => void; onCreated: (id: string) => void
 }) {
   const [tpl, setTpl] = useState<string>('')
-  const [f, setF] = useState({ title: '', subject: '', grades: '', periods: '2' })
+  const [f, setF] = useState({ title: '', subject: '', grades: '', periods: '2', program: '' })
   const [err, setErr] = useState('')
   async function create(e: React.FormEvent) {
     e.preventDefault()
@@ -149,7 +171,7 @@ function NewPlan({ teacherId, orgId, templates, onCancel, onCreated }: {
     const { data, error } = await supabase.from('lesson_plans').insert({
       org_id: orgId, teacher_id: teacherId, status: 'draft', title: f.title.trim(), subject: f.subject || null, grades: f.grades || null,
       periods: Number(f.periods) || null, template_id: t?.id ?? null, doc: Object.fromEntries((t?.sections ?? []).map(s => [s.key, ''])),
-      steps: [], slides: [{ ...newSlide('title'), title: f.title.trim() }],
+      steps: [], slides: [{ ...newSlide('title'), title: f.title.trim() }], program: f.program || null, lesson: emptyLesson(f.program || null),
     }).select('id').single()
     if (error || !data) return setErr('Không tạo được giáo án: ' + errText(error?.message ?? ''))
     onCreated((data as { id: string }).id)
@@ -173,6 +195,8 @@ function NewPlan({ teacherId, orgId, templates, onCancel, onCreated }: {
         <label className="field"><span>Môn</span><input value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} /></label>
         <label className="field"><span>Khối</span><input value={f.grades} onChange={e => setF({ ...f, grades: e.target.value })} placeholder="VD: 8 hoặc 6,7" /></label>
         <label className="field"><span>Số tiết</span><input type="number" min={1} max={20} value={f.periods} onChange={e => setF({ ...f, periods: e.target.value })} /></label>
+        <label className="field"><span>Chương trình STEM (tiến trình bài giảng)</span><select value={f.program} onChange={e => setF({ ...f, program: e.target.value })}>
+          <option value="">— không theo CT —</option>{PROGRAMS.map(c => <option key={c}>{c}</option>)}</select></label>
         <div className="formactions"><button className="primary" type="submit">Tạo và bắt đầu soạn</button></div>
       </div>
       {err && <p className="msg">{err}</p>}
@@ -201,7 +225,7 @@ function Presenter({ plan, i, onMove, onClose }: { plan: LPlan; i: number; onMov
 }
 
 // ===== Trình soạn giáo án =====
-type ETab = 'info' | 'doc' | 'steps' | 'slides' | 'res' | 'mat' | 'ver'
+type ETab = 'info' | 'lesson' | 'doc' | 'steps' | 'slides' | 'res' | 'mat' | 'ver'
 type Est = { item_id: string; name: string; unit: string; kind: string; reusable: boolean; per_qty: number; multiplier: number; need: number; stock: number | null; shortage: number; unit_price: number | null; cost: number | null }
 
 function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, onPresent }: {
@@ -211,6 +235,7 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
   const [p, setP] = useState<LPlan | null>(null)
   const [tab, setTab] = useState<ETab>('info')
   const [preview, setPreview] = useState(false)
+  const [overlay, setOverlay] = useState<Overlay>(null)
   const [dirty, setDirty] = useState(false)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [busy, setBusy] = useState(false)
@@ -226,6 +251,7 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
     const { data, error } = await supabase.from('lesson_plans').select(PLAN_COLS).eq('id', id).maybeSingle()
     if (error || !data) return setMsg([errText(error?.message ?? 'Không tìm thấy giáo án.'), true])
     setP(normPlan(data as LPlan)); setDirty(false)
+    if (blocksOf(data as LPlan) > 0) setTab(t => (t === 'info' ? 'lesson' : t))
     const [v, r] = await Promise.all([
       supabase.from('lesson_plan_versions').select('*').eq('plan_id', id).order('version_no', { ascending: false }),
       supabase.from('lesson_plan_reviews').select('*, classes(name), profiles(full_name)').eq('plan_id', id).order('created_at', { ascending: false }),
@@ -263,7 +289,7 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
       title: p!.title.trim() || 'Giáo án chưa đặt tên', subject: p!.subject || null, grades: p!.grades || null, program: p!.program || null,
       from_package: p!.from_package, summary: p!.summary || null, slides: p!.slides, template_id: p!.template_id, doc: p!.doc, steps: p!.steps,
       program_id: p!.program_id, unit_id: p!.unit_id, library_ids: p!.library_ids, rubric_ids: p!.rubric_ids, norm_id: p!.norm_id,
-      norm_adjust: p!.norm_adjust, periods: p!.periods,
+      norm_adjust: p!.norm_adjust, periods: p!.periods, lesson: p!.lesson?.goals ? { ...p!.lesson, goals: p!.lesson.goals.map((g: string) => g.trim()).filter(Boolean) } : (p!.lesson ?? {}), cover_url: p!.cover_url?.trim() || null,
       ...(p!.status === 'draft' ? { status: 'editing' } : {}),
     }
     const { data, error } = await supabase.from('lesson_plans').update(body).eq('id', p!.id).select(PLAN_COLS).single()
@@ -311,8 +337,9 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
           <LStatusPill s={p.status} />{p.version_no > 0 && <small>Phiên bản {p.version_no}</small>}
           {dirty && <small>Chưa lưu</small>}</span>
         <span className="tools">
-          <button onClick={() => setPreview(!preview)}>{preview ? 'Quay lại soạn' : 'Xem trước'}</button>
-          <button onClick={() => onPresent(p)} disabled={!p.slides.length}>Trình chiếu</button>
+          <button onClick={() => setPreview(!preview)}>{preview ? 'Quay lại soạn' : 'Xem trước giáo án'}</button>
+          {blocksOf(p) > 0 && <button onClick={() => setOverlay({ plan: p, kind: 'player' })}>👁 Xem như học sinh</button>}
+          <button onClick={() => (blocksOf(p) > 0 ? setOverlay({ plan: p, kind: 'show' }) : onPresent(p))} disabled={!p.slides.length && !blocksOf(p)}>Trình chiếu</button>
           {go && <button onClick={teachTrial} title="Mở lớp học Giáo dục STEM với giáo án này">Dạy thử</button>}
           {!ro && <button onClick={() => save()} disabled={busy || !dirty}>Lưu nháp</button>}
           {canSubmit && reviewRequired && <button className="primary" onClick={submit} disabled={busy}>Gửi duyệt</button>}
@@ -320,6 +347,7 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
           {canSubmit && !reviewRequired && <button onClick={submit} disabled={busy}>Gửi duyệt</button>}
         </span>
       </div>
+      <PlanOverlay o={overlay} onClose={() => setOverlay(null)} />
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
       {ro && <ReadOnlyBanner p={p} busy={busy}
         onWithdraw={() => run('lesson_plan_withdraw', { p_plan: p.id }, 'Đã rút lại — giáo án trở về bản nháp.')}
@@ -335,10 +363,11 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
         </>
       ) : <>
         <Tabs<ETab> value={tab} onChange={setTab} items={[
-          ['info', 'Thông tin'], ['doc', 'Giáo án'], ['steps', 'Tiến trình dạy học', p.steps.length], ['slides', 'Slide trình chiếu', p.slides.length],
+          ['info', 'Thông tin'], ['lesson', 'Bài giảng tương tác', blocksOf(p)], ['doc', 'Giáo án'], ['steps', 'Tiến trình dạy học', p.steps.length], ['slides', 'Slide trình chiếu', p.slides.length],
           ['res', 'Học liệu & đánh giá', p.library_ids.length + p.rubric_ids.length], ['mat', 'Vật tư'], ['ver', 'Phiên bản & duyệt', versions.length],
         ]} />
         {tab === 'info' && <InfoTab p={p} upd={upd} ro={ro} templates={templates} programs={programs} units={units} />}
+        {tab === 'lesson' && <LessonTab p={p} upd={upd} ro={ro} />}
         {tab === 'doc' && <DocTab p={p} upd={upd} ro={ro} tpl={tpl} />}
         {tab === 'steps' && <StepsTab p={p} upd={upd} ro={ro} tpl={tpl} att={att} teacherId={teacherId} go={go} />}
         {tab === 'slides' && <>
@@ -404,6 +433,34 @@ function InfoTab({ p, upd, ro, templates, programs, units }: TabP & { templates:
         <span><input type="checkbox" checked={p.from_package} onChange={e => upd({ from_package: e.target.checked })} /> Thuộc gói STEM của trường</span></label>
       <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tóm tắt</span><textarea rows={2} value={p.summary ?? ''} onChange={e => upd({ summary: e.target.value })} /></label>
     </fieldset>
+  )
+}
+
+// ===== Bài giảng tương tác theo khối (063) =====
+function LessonTab({ p, upd, ro }: TabP) {
+  const l = asLesson(p.lesson)
+  const [meta, setMeta] = useState(false)
+  const setL = (x: ILesson) => upd({ lesson: x })
+  if (!l) return (
+    <div className="panel">
+      <b>Chưa có bài giảng tương tác.</b>
+      <p className="sub">Soạn bài giảng theo tiến trình {p.program ?? 'CT1–CT5'}: mỗi giai đoạn gồm các khối nội dung — đoạn văn, hình, video, mô phỏng 2D, giáo cụ ảo, kéo – thả, câu hỏi, game, rubric. Học sinh học trên máy, thầy cô trình chiếu từng khối.</p>
+      {!ro && <div className="tools">{(['CT1', 'CT2', 'CT3', 'CT4', 'CT5'] as const).map(c => <button key={c} className={c === (p.program ?? 'CT1') ? 'primary' : ''} onClick={() => upd({ lesson: emptyLesson(c), program: p.program ?? c })}>Tiến trình {c}</button>)}</div>}
+    </div>
+  )
+  return (
+    <>
+      <div className="panel" style={{ marginBottom: 10 }}>
+        <div className="bar"><span><b>Thông tin bài giảng</b> <small className="sub">ảnh bìa, mục tiêu, thẻ — hiện ở Kho bài giảng</small></span><button type="button" onClick={() => setMeta(!meta)}>{meta ? 'Thu gọn' : 'Mở'}</button></div>
+        {meta && <fieldset disabled={ro} className="formgrid" style={{ border: 0, padding: 0, margin: '8px 0 0' }}>
+          <label className="field"><span>Ảnh bìa (đường dẫn https://…)</span><input value={p.cover_url ?? ''} onChange={e => upd({ cover_url: e.target.value })} /></label>
+          <label className="field"><span>Thẻ (cách nhau dấu phẩy)</span><input value={(l.tags ?? []).join(', ')} onChange={e => setL({ ...l, tags: e.target.value.split(',').map(x => x.trim()).filter(Boolean) })} placeholder="Có giáo cụ ảo, Có kéo-thả" /></label>
+          <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mục tiêu bài học (mỗi dòng một mục tiêu)</span>
+            <textarea rows={3} value={(l.goals ?? []).join('\n')} onChange={e => setL({ ...l, goals: e.target.value.split('\n') })} /></label>
+        </fieldset>}
+      </div>
+      <LessonEditor value={l} ct={p.program} onChange={setL} readOnly={ro} />
+    </>
   )
 }
 

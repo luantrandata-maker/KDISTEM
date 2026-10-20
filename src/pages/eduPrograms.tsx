@@ -4,6 +4,7 @@ import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
 import { useStemTracks } from '../lib/stemTracks'
+import { asLesson, lessonStats, LessonEditor, type ILesson } from '../lib/lessonBlocks'
 
 // Chương trình giáo dục chuẩn (migration 058): danh mục + phiên bản, cấu trúc chủ đề → bài → buổi, yêu cầu cần đạt,
 // gửi duyệt / ban hành / thay thế / lưu trữ, gán cho trường và theo dõi độ phủ; trường tạo PPCT từ chương trình.
@@ -21,7 +22,7 @@ type Program = {
 type UnitType = 'topic' | 'lesson' | 'session'
 type Unit = {
   id: string; program_id: string; parent_id: string | null; unit_type: UnitType; seq: number; grade: number | null; subject: string | null
-  title: string; periods: number; objectives: string | null; content: string | null
+  title: string; periods: number; objectives: string | null; content: string | null; lesson?: any
 }
 type Outcome = { id: string; program_id: string; unit_id: string | null; seq: number; code: string | null; content: string; competency_key: string | null }
 type Comp = { key: string; name: string; grp: string }
@@ -361,6 +362,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
   const [outs, setOuts] = useState<Outcome[]>([])
   const [edit, setEdit] = useState<Partial<Unit> | null>(null)
   const [oedit, setOedit] = useState<Partial<Outcome> | null>(null)
+  const [lessonOf, setLessonOf] = useState<Unit | null>(null)
   async function load() {
     const [u, o] = await Promise.all([
       supabase.from('edu_program_units').select('*').eq('program_id', p.id).order('seq'),
@@ -536,7 +538,10 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
                         {oedit && !oedit.id && oedit.unit_id === u.id && outForm}
                       </td>
                       <td>{u.grade ?? ''}</td><td><small>{u.subject ?? ''}</small></td><td>{u.periods || (all.some(c => c.parent_id === u.id) ? '' : '—')}</td>
-                      <td className="tools">{editable && <>
+                      <td className="tools">
+                        {(u.unit_type === 'session' || (u.unit_type === 'lesson' && !all.some(c => c.parent_id === u.id))) && (editable || asLesson(u.lesson)) && <button onClick={() => setLessonOf(u)}>
+                          {editable ? 'Soạn nội dung buổi' : 'Xem nội dung buổi'}{asLesson(u.lesson) ? ` · ${lessonStats(asLesson(u.lesson)).blocks} khối` : ''}</button>}
+                        {editable && <>
                         {CHILD[u.unit_type] && <button onClick={() => addChild(u)}>+ {UTYPE[CHILD[u.unit_type]!]}</button>}
                         <button onClick={() => { setEdit(null); setOedit({ unit_id: u.id, seq: os.length + 1 }) }}>+ YCCĐ</button>
                         <button onClick={() => { setOedit(null); setEdit(u) }}>Sửa</button>
@@ -556,7 +561,38 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
         <div className="panel"><b>Yêu cầu cần đạt chung của chương trình</b>
           {outs.filter(o => !o.unit_id).map(o => <div key={o.id}>✓ {o.code && <b>{o.code} </b>}{o.content}</div>)}</div>
       )}
+      {lessonOf && <SessionLessonEditor unit={lessonOf} ct={p.ct_code} editable={editable} onClose={() => setLessonOf(null)}
+        onSaved={() => { setLessonOf(null); load(); onMessage('Đã lưu nội dung buổi học.') }} />}
     </>
+  )
+}
+// Soạn nội dung chi tiết một buổi học (063): bài giảng tương tác theo tiến trình CT — hiện ở Thư viện STEM của giáo viên
+function SessionLessonEditor({ unit, ct, editable, onClose, onSaved }: { unit: Unit; ct: string | null; editable: boolean; onClose: () => void; onSaved: () => void }) {
+  const [val, setVal] = useState<ILesson | null>(asLesson(unit.lesson))
+  const [busy, setBusy] = useState(false); const [err, setErr] = useState('')
+  async function save() {
+    setBusy(true); setErr('')
+    const { data, error } = await supabase.from('edu_program_units').update({ lesson: val ?? {} }).eq('id', unit.id).select('id')
+    setBusy(false)
+    if (error) return setErr(errText(error.message))
+    if (!data?.length) return setErr('Không lưu được — bạn không có quyền sửa chương trình này.')
+    onSaved()
+  }
+  return (
+    <div className="overlay player" role="dialog" aria-modal="true" aria-label={'Nội dung buổi học ' + unit.title}>
+      <div className="playtop">
+        <button type="button" className="x" onClick={onClose} aria-label="Đóng">×</button>
+        {ct && <span className="progchip ct">{ct}</span>}<b className="ellipsis">{/^buổi\s*\d/i.test(unit.title) || unit.unit_type !== 'session' ? unit.title : `Buổi ${unit.seq}: ${unit.title}`}</b>
+        {!editable && <small className="sub">Chỉ xem — chương trình đã gửi duyệt / ban hành, tạo phiên bản mới để sửa.</small>}
+        <span style={{ marginLeft: 'auto' }} />
+        {err && <span className="warnline">{err}</span>}
+        {editable && <button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>}
+        <button onClick={onClose}>Đóng</button>
+      </div>
+      <div style={{ overflow: 'auto', padding: 16, flex: 1 }}>
+        <LessonEditor value={val} ct={ct} onChange={setVal} readOnly={!editable} />
+      </div>
+    </div>
   )
 }
 // u nằm trong nhánh của mục ancestor

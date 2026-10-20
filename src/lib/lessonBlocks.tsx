@@ -386,7 +386,7 @@ export function LessonEditor({ value, ct, onChange, readOnly }: { value: ILesson
         <small className="sub">TIẾN TRÌNH {ct ?? ''}</small>
         {lesson.phases.map((p, i) => (
           <button key={p.key + i} type="button" className={'lphase' + (i === sel ? ' on' : '')} onClick={() => { setSel(i); setEdit(null) }}>
-            <span className={'lnum c' + (i % 5)}>{i + 1}</span><span><b>{p.title}</b><small>~{p.minutes} phút</small></span><em>{p.blocks.length}</em>
+            <span className={'lnum c' + (i % 5)}>{i + 1}</span><span><b>{p.title}</b><small>khoảng {p.minutes} phút</small></span><em>{p.blocks.length}</em>
           </button>
         ))}
         {!readOnly && <button type="button" className="linkbtn" onClick={() => { onChange({ ...lesson, phases: [...lesson.phases, { key: uidB(), title: 'Giai đoạn mới', minutes: 10, blocks: [] }] }); setSel(lesson.phases.length) }}>+ Thêm giai đoạn</button>}

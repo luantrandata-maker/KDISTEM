@@ -3,8 +3,11 @@
 // Học sinh nhận đề đã bỏ đáp án từ self_study_open(); chấm luôn nằm ở CSDL (activity_grade).
 import { useState } from 'react'
 import { SlideView, type Slide } from './Lessons'
+import { SIMS, SIM_MODELS, SIM_DEFAULTS, SimView, type SimModel } from '../../lib/sims'
+import { WheelGame, TeamsGame, TimerGame } from '../../lib/games'
+import type { Block } from '../../lib/lessonBlocks'
 
-export type ActKind = 'quiz' | 'truefalse' | 'match' | 'order' | 'fill' | 'group' | 'flashcard' | 'worksheet'
+export type ActKind = 'quiz' | 'truefalse' | 'match' | 'order' | 'fill' | 'group' | 'flashcard' | 'worksheet' | 'race' | 'wheel' | 'teams' | 'timer' | 'sim'
 export type Activity = {
   id: string; org_id: string; teacher_id: string | null; kind: ActKind; title: string; instructions: string | null
   subject: string | null; grades: string | null; program: string | null; content: any; is_template: boolean
@@ -21,6 +24,37 @@ export const ACT: Record<ActKind, { label: string; icon: string; desc: string; g
   group: { label: 'Phân loại', icon: '▦', desc: 'Xếp thẻ vào đúng nhóm', graded: true },
   flashcard: { label: 'Thẻ ghi nhớ', icon: '◧', desc: 'Lật thẻ để ôn thuật ngữ, công thức (không chấm)', graded: false },
   worksheet: { label: 'Phiếu học tập', icon: '☰', desc: 'Phiếu ghi kết quả thí nghiệm, câu trả lời mở — thầy cô nhận xét', graded: false },
+  race: { label: 'Đường đua tri thức', icon: '🏆', desc: 'Trả lời nhanh và đúng để xe về đích trước các đội bạn (chấm như trắc nghiệm)', graded: true },
+  wheel: { label: 'Vòng quay may mắn', icon: '🎡', desc: 'Quay chọn ngẫu nhiên học sinh / nhóm trả lời câu hỏi (không chấm)', graded: false },
+  teams: { label: 'Chia đội thi đấu', icon: '⚑', desc: 'Chia lớp thành các đội ngẫu nhiên trong vài giây (không chấm)', graded: false },
+  timer: { label: 'Đồng hồ thử thách', icon: '⏳', desc: 'Đếm ngược cho thử thách nhóm, hết giờ dừng bút (không chấm)', graded: false },
+  sim: { label: 'Mô phỏng 2D / giáo cụ ảo', icon: '⚛', desc: 'Mạch điện, con lắc, đòn bẩy, thước, cân, nhiệt kế để học sinh tự thao tác (không chấm)', graded: false },
+}
+
+/** Nhóm trong kho: iGame · Nội dung tương tác · iWorksheet */
+export type ActGroup = 'game' | 'interactive' | 'worksheet'
+export const ACT_GROUP: Record<ActGroup, { label: string; tag: string; desc: string }> = {
+  game: { label: 'iGame', tag: 'Game hoá', desc: 'Trò chơi ôn tập như đua xe, lật thẻ, vòng quay — chỉ cần thay câu hỏi theo bài mình dạy.' },
+  interactive: { label: 'Nội dung tương tác', tag: 'Mô phỏng 2D', desc: 'Mô phỏng, giáo cụ ảo để học sinh tự thao tác, quan sát ngay trên màn hình.' },
+  worksheet: { label: 'iWorksheet', tag: 'iWorksheet', desc: 'Phiếu học tập, câu hỏi kiểm tra nhanh.' },
+}
+export function actGroup(kind: ActKind): ActGroup {
+  if (kind === 'sim') return 'interactive'
+  if (['worksheet', 'quiz', 'truefalse', 'fill'].includes(kind)) return 'worksheet'
+  return 'game'
+}
+const uidA = () => Math.random().toString(36).slice(2, 9)
+/** Chuyển hoạt động trong kho thành một khối của bài giảng tương tác */
+export function activityToBlock(a: { kind: ActKind; title: string; content: any; instructions?: string | null }): Block {
+  const c = a.content ?? {}
+  switch (a.kind) {
+    case 'race': return { id: uidA(), type: 'game', game: 'race', title: a.title, items: c.items ?? [], seconds: c.seconds ?? 20, note: a.instructions ?? '' }
+    case 'wheel': return { id: uidA(), type: 'game', game: 'wheel', title: a.title, names: c.names ?? [], questions: c.questions ?? [], note: a.instructions ?? '' }
+    case 'teams': return { id: uidA(), type: 'game', game: 'teams', title: a.title, names: c.names ?? [], teams: c.teams ?? 4, note: a.instructions ?? '' }
+    case 'timer': return { id: uidA(), type: 'game', game: 'timer', title: a.title, seconds: c.seconds ?? 300, task: c.task ?? '', note: a.instructions ?? '' }
+    case 'sim': return { id: uidA(), type: SIMS[c.model as SimModel]?.group === 'tool' ? 'tool' : 'sim', model: c.model ?? 'circuit_series', params: c.params, title: a.title, task: c.task ?? a.instructions ?? '' }
+    default: return { id: uidA(), type: 'activity', kind: a.kind, title: a.title, content: c }
+  }
 }
 export const ACT_KINDS = Object.keys(ACT) as ActKind[]
 
@@ -34,6 +68,15 @@ export const STARTER: Record<ActKind, any> = {
   group: { groups: [{ name: 'Dẫn điện', items: ['Đồng', 'Nhôm'] }, { name: 'Cách điện', items: ['Nhựa', 'Gỗ khô'] }] },
   flashcard: { cards: [{ front: 'Định luật Ôm', back: 'I = U / R' }, { front: 'Công suất điện', back: 'P = U × I' }] },
   worksheet: { intro: 'Ghi lại kết quả thí nghiệm của nhóm.', fields: [{ label: 'Kết quả đo lần 1', type: 'text' }, { label: 'Em rút ra kết luận gì?', type: 'long' }] },
+  race: { seconds: 20, items: [
+    { q: 'Vật nào sau đây dẫn điện?', options: ['Dây đồng', 'Nhựa', 'Gỗ khô', 'Thuỷ tinh'], answer: 0 },
+    { q: 'Khi tay ướt có được cắm, rút phích điện không?', options: ['Được nếu nhanh tay', 'Không bao giờ', 'Được nếu điện yếu', 'Chỉ khi có người lớn'], answer: 1 },
+    { q: 'Thiết bị nào tự ngắt điện khi mạch bị quá tải?', options: ['Aptomat', 'Bóng đèn', 'Quạt trần', 'Ổ cắm thường'], answer: 0 },
+  ] },
+  wheel: { names: ['Nhóm 1', 'Nhóm 2', 'Nhóm 3', 'Nhóm 4', 'Nhóm 5', 'Nhóm 6'], questions: ['Nêu một ví dụ vật dẫn điện trong nhà em.', 'Vì sao không dùng tay ướt chạm vào ổ điện?'] },
+  teams: { names: ['An', 'Bình', 'Chi', 'Dũng', 'Hà', 'Khoa', 'Lan', 'Minh'], teams: 2 },
+  timer: { seconds: 300, task: 'Trong 5 phút, mỗi nhóm lắp mạch có 2 bóng đèn sáng bằng nhau.' },
+  sim: { model: 'circuit_series', task: 'Tháo một bóng đèn và quan sát bóng còn lại. Giải thích vì sao.' },
 }
 
 export function countItems(kind: ActKind, c: any): number {
@@ -46,9 +89,13 @@ export function countItems(kind: ActKind, c: any): number {
     case 'group': return (c.groups ?? []).reduce((n: number, g: any) => n + (g.items?.length ?? 0), 0)
     case 'flashcard': return c.cards?.length ?? 0
     case 'worksheet': return c.fields?.length ?? 0
+    case 'race': return c.items?.length ?? 0
+    case 'wheel': case 'teams': return (c.names ?? []).filter(Boolean).length
+    case 'timer': return Math.round((c.seconds ?? 0) / 60)
+    case 'sim': return 1
   }
 }
-export const unitOf = (k: ActKind) => ({ quiz: 'câu', truefalse: 'nhận định', match: 'cặp', order: 'bước', fill: 'chỗ trống', group: 'thẻ', flashcard: 'thẻ', worksheet: 'mục' }[k])
+export const unitOf = (k: ActKind) => ({ quiz: 'câu', truefalse: 'nhận định', match: 'cặp', order: 'bước', fill: 'chỗ trống', group: 'thẻ', flashcard: 'thẻ', worksheet: 'mục', race: 'câu', wheel: 'tên', teams: 'học sinh', timer: 'phút', sim: 'mô phỏng' }[k])
 
 // ---- Đề chơi thử cho giáo viên (học sinh nhận đề từ CSDL) ----
 const shuffle = <T,>(arr: T[]): T[] => {
@@ -59,7 +106,7 @@ const shuffle = <T,>(arr: T[]): T[] => {
 }
 export function toPlayable(kind: ActKind | 'lesson', c: any): any {
   switch (kind) {
-    case 'quiz': return { items: (c.items ?? []).map((x: any) => ({ q: x.q, options: x.options })) }
+    case 'quiz': case 'race': return { items: (c.items ?? []).map((x: any) => ({ q: x.q, options: x.options })) }
     case 'truefalse': return { items: (c.items ?? []).map((x: any) => ({ q: x.q })) }
     case 'match': return { left: (c.pairs ?? []).map((p: any) => p.left), right: shuffle((c.pairs ?? []).map((p: any) => p.right)) }
     case 'order': return { steps: shuffle(c.steps ?? []) }
@@ -71,7 +118,7 @@ export function toPlayable(kind: ActKind | 'lesson', c: any): any {
 }
 export function emptyAnswers(kind: ActKind | 'lesson', p: any): any {
   switch (kind) {
-    case 'quiz': case 'truefalse': return (p.items ?? []).map(() => null)
+    case 'quiz': case 'race': case 'truefalse': return (p.items ?? []).map(() => null)
     case 'match': return (p.left ?? []).map(() => null)
     case 'order': return [...(p.steps ?? [])]
     case 'fill': return (p.pieces ?? []).slice(1).map(() => '')
@@ -82,7 +129,7 @@ export function emptyAnswers(kind: ActKind | 'lesson', p: any): any {
 }
 export function answered(kind: ActKind | 'lesson', a: any, p: any): { done: number; total: number } {
   switch (kind) {
-    case 'quiz': case 'truefalse': case 'match': return { done: (a ?? []).filter((x: any) => x !== null && x !== '').length, total: (a ?? []).length }
+    case 'quiz': case 'race': case 'truefalse': case 'match': return { done: (a ?? []).filter((x: any) => x !== null && x !== '').length, total: (a ?? []).length }
     case 'fill': case 'worksheet': return { done: (a ?? []).filter((x: string) => String(x ?? '').trim()).length, total: (a ?? []).length }
     case 'group': return { done: Object.keys(a ?? {}).filter(k => a[k]).length, total: (p.items ?? []).length }
     default: return { done: 1, total: 1 }
@@ -103,7 +150,14 @@ export function ActivityPlayer({ kind, data, answers, onChange, grade, solution,
   const set = (i: number, v: any) => { const n = [...(answers ?? [])]; n[i] = v; onChange(n) }
   const cls = 'actplay' + (big ? ' big' : '')
 
-  if (kind === 'quiz') return (
+  if (kind === 'wheel') return <WheelGame names={data.names ?? []} questions={data.questions ?? []} />
+  if (kind === 'teams') return <TeamsGame names={data.names ?? []} teams={data.teams ?? 4} />
+  if (kind === 'timer') return <TimerGame seconds={data.seconds ?? 300} task={data.task} />
+  if (kind === 'sim') return (
+    <div className={cls}>{data.task && <p style={{ margin: 0 }}>{data.task}</p>}
+      {SIMS[data.model as SimModel] ? <SimView model={data.model} params={data.params} /> : <p className="sub">Chưa chọn mô phỏng.</p>}</div>
+  )
+  if (kind === 'quiz' || kind === 'race') return (
     <ol className={cls}>
       {(data.items ?? []).map((it: any, i: number) => (
         <li key={i} className="actq"><div className="actqhead"><b>{it.q}</b><Mark ok={r?.[i]} /></div>
@@ -264,6 +318,53 @@ export function ContentEditor({ kind, value, onChange }: { kind: ActKind; value:
     <button type="button" className="x" onClick={() => del(k, i)} disabled={list(k).length <= min} aria-label="Xoá dòng">×</button>
 
   switch (kind) {
+    case 'race': return (
+      <div className="acted">
+        <label className="field"><span>Thời gian mỗi câu (giây)</span>
+          <input type="number" min={5} max={120} value={c.seconds ?? 20} onChange={e => onChange({ ...c, seconds: Number(e.target.value) || 20 })} /></label>
+        <ContentEditor kind="quiz" value={c} onChange={v => onChange({ ...v, seconds: c.seconds ?? 20 })} />
+      </div>
+    )
+    case 'wheel': return (
+      <div className="acted">
+        <label className="field"><span>Tên học sinh / nhóm trên vòng quay (mỗi dòng một tên, ít nhất 2)</span>
+          <textarea rows={5} value={(c.names ?? []).join('\n')} onChange={e => onChange({ ...c, names: e.target.value.split('\n') })} /></label>
+        <label className="field"><span>Câu hỏi bốc ngẫu nhiên sau mỗi lượt quay (mỗi dòng một câu, có thể bỏ trống)</span>
+          <textarea rows={4} value={(c.questions ?? []).join('\n')} onChange={e => onChange({ ...c, questions: e.target.value.split('\n') })} /></label>
+      </div>
+    )
+    case 'teams': return (
+      <div className="acted">
+        <label className="field"><span>Danh sách học sinh (mỗi dòng một tên)</span>
+          <textarea rows={6} value={(c.names ?? []).join('\n')} onChange={e => onChange({ ...c, names: e.target.value.split('\n') })} /></label>
+        <label className="field"><span>Số đội (2–8)</span>
+          <input type="number" min={2} max={8} value={c.teams ?? 4} onChange={e => onChange({ ...c, teams: Number(e.target.value) || 2 })} /></label>
+      </div>
+    )
+    case 'timer': return (
+      <div className="acted">
+        <label className="field"><span>Thời gian (giây, 10–3600)</span>
+          <input type="number" min={10} max={3600} value={c.seconds ?? 300} onChange={e => onChange({ ...c, seconds: Number(e.target.value) || 60 })} /></label>
+        <label className="field"><span>Thử thách</span><textarea rows={2} value={c.task ?? ''} onChange={e => onChange({ ...c, task: e.target.value })} /></label>
+      </div>
+    )
+    case 'sim': {
+      const model = (c.model ?? 'circuit_series') as SimModel
+      const def = SIM_DEFAULTS[model] ?? {}
+      return (
+        <div className="acted">
+          <label className="field"><span>Mô phỏng / giáo cụ</span>
+            <select value={model} onChange={e => onChange({ ...c, model: e.target.value, params: undefined })}>
+              {SIM_MODELS.map(m => <option key={m} value={m}>{SIMS[m].group === 'tool' ? 'Giáo cụ ảo: ' : 'Mô phỏng: '}{SIMS[m].label}</option>)}</select></label>
+          <small className="sub">{SIMS[model]?.desc}</small>
+          <label className="field"><span>Nhiệm vụ cho học sinh</span><textarea rows={2} value={c.task ?? ''} onChange={e => onChange({ ...c, task: e.target.value })} /></label>
+          {Object.keys(def).map(k => (
+            <label className="field" key={k}><span>{({ V: 'Hiệu điện thế ban đầu (V)', R: 'Điện trở mỗi bóng (Ω)', L: 'Chiều dài dây (m)', target: 'Giá trị mục tiêu', left: 'Vật trái', right: 'Vật phải' } as Record<string, string>)[k] ?? k}</span>
+              <input type="number" step="any" value={c.params?.[k] ?? def[k]} onChange={e => onChange({ ...c, params: { ...(c.params ?? {}), [k]: Number(e.target.value) } })} /></label>
+          ))}
+        </div>
+      )
+    }
     case 'quiz': return (
       <div className="acted">
         {list('items').map((it, i) => (
@@ -387,7 +488,7 @@ export function AnswerText({ kind, content, answers }: { kind: string; content: 
   if (kind === 'worksheet') return (
     <div className="answer">{(content?.fields ?? []).map((f: any, i: number) => <p key={i}><b>{f.label}:</b> {answers?.[i] || <i>(bỏ trống)</i>}</p>)}</div>
   )
-  if (kind === 'quiz') return <small>{(answers as any[]).map((a, i) => `${i + 1}${a == null ? '—' : String.fromCharCode(65 + a)}`).join(' · ')}</small>
+  if (kind === 'quiz' || kind === 'race') return <small>{(answers as any[]).map((a, i) => `${i + 1}${a == null ? '—' : String.fromCharCode(65 + a)}`).join(' · ')}</small>
   if (kind === 'truefalse') return <small>{(answers as any[]).map((a, i) => `${i + 1}${a == null ? '—' : a ? 'Đ' : 'S'}`).join(' · ')}</small>
   if (kind === 'group') return <small>{Object.entries(answers).map(([k, v]) => `${k} → ${v}`).join(' · ')}</small>
   if (Array.isArray(answers)) return <small>{answers.map(a => a ?? '—').join(' · ')}</small>

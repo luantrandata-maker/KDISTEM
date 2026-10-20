@@ -1083,7 +1083,7 @@ a.btnlink.primary{background:var(--primary);color:#fff}
 .gamehead small,.bk-simhead small,.bk-tag{display:block;font-size:10px;font-weight:700;letter-spacing:.4px;color:#7c3aed}
 .gamestats{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.gamestats span{border:1px solid var(--line);border-radius:10px;padding:4px 10px;background:var(--surface)}.gamestats small{display:block;font-size:10px;color:var(--muted)}
 .gamestats .live{color:#16a34a;font-weight:700;border-color:#bbf7d0;background:#f0fdf4}
-.track{background:linear-gradient(#bae6fd,#bbf7d0);border-radius:12px;padding:10px;display:grid;gap:6px}
+.racetrack{background:linear-gradient(#bae6fd,#bbf7d0);border-radius:12px;padding:10px;display:grid;gap:6px}
 .lane{display:grid;grid-template-columns:84px 1fr 26px;gap:8px;align-items:center}
 .lanename{font-size:11px;font-weight:700;color:#fff;padding:3px 6px;border-radius:6px;text-align:center}.lanename.t0{background:#7c3aed}.lanename.t1{background:#0f7490}.lanename.t2{background:#ea580c}
 .road{position:relative;height:28px;background:#334155;border-radius:6px;border-right:6px dashed #fff}
@@ -1167,7 +1167,7 @@ a.btnlink.primary{background:var(--primary);color:#fff}
 .showcard>small{color:#7c3aed;font-weight:700;font-size:11px}
 .showbot{display:flex;justify-content:space-between;align-items:center;padding:10px 16px}
 .main .showbot button{background:transparent;color:#fff;border-color:#334155}
-.dots{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;max-width:60vw}.dots i{width:8px;height:8px;border-radius:50%;background:#334155;cursor:pointer}.dots i.on{background:#ef4444;width:22px;border-radius:6px}
+.showbot .dots{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;max-width:60vw}.showbot .dots i{width:8px;height:8px;border-radius:50%;background:#334155;cursor:pointer}.showbot .dots i.on{background:#ef4444;width:22px;border-radius:6px}
 .modalbg{position:fixed;inset:0;z-index:70;background:rgba(15,23,42,.5);display:grid;place-items:center;padding:16px}
 .modal{background:var(--surface);border-radius:16px;width:min(760px,100%);max-height:calc(100vh - 32px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);display:flex;flex-direction:column}
 .modal.wide{width:min(980px,100%)}

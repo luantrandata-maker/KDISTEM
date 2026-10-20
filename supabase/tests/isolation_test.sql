@@ -84,6 +84,7 @@ begin
   if to_regclass('public.broadcasts') is not null then
     delete from notifications where kind in ('broadcast', 'package_order') and title like '%thử ISO%';
     delete from broadcasts where title like '%thử ISO%';
+    if to_regclass('public.package_devices') is not null then delete from package_devices where name like 'ISO %'; end if;
     delete from stem_packages where id in (select delivered_package_id from package_orders where name like '%thử ISO%');
     delete from package_orders where name like '%thử ISO%';
     delete from rollout_checks where org_id = any(v_orgs);
@@ -2195,6 +2196,62 @@ select pg_temp.chk('so_hy', 'Danh mục CT1–CT5: Sở không sửa được', 
 select pg_temp.chk('admin_ph', 'Danh mục CT1–CT5: trường không sửa được', $q$with x as (update stem_tracks set name = 'ISO' where code = 'CT1' returning 1) select count(*) from x$q$, '0');
 select pg_temp.chk('kdi', 'Danh mục CT1–CT5: không thêm mã ngoài CT1–CT5', $q$insert into stem_tracks (code, name, title) values ('CT6', 'ISO', 'ISO')$q$, 'ERR*');
 select pg_temp.chk('kdi', 'Danh mục CT1–CT5: không xoá được', $q$with x as (delete from stem_tracks where code = 'CT5' returning 1) select count(*) from x$q$, '0');
+
+-- ===== 063: bài giảng tương tác dạng khối, hoạt động trò chơi / mô phỏng, thiết bị trong gói STEM =====
+select pg_temp.chk('gv_both', 'Bài giảng tương tác: lưu giáo án dạng khối',
+  $q$insert into lesson_plans (org_id, teacher_id, title, lesson) values (my_org_id(), my_teacher_id(), 'ISO BG',
+     '{"phases":[{"key":"a","title":"Khởi động","blocks":[{"id":"b1","type":"heading","text":"Xin chào"},{"id":"b2","type":"sim","model":"pendulum"}]}]}')$q$, 'rows:1');
+select pg_temp.probe('gv_both@iso-test.local', $q$insert into lesson_plans (org_id, teacher_id, title, lesson) values (my_org_id(), my_teacher_id(), 'ISO BG',
+     '{"phases":[{"key":"a","title":"Khởi động","blocks":[{"id":"b1","type":"heading","text":"Xin chào"},{"id":"b2","type":"sim","model":"pendulum"}]}]}')$q$, true);
+select pg_temp.chk('gv_both', 'Bài giảng tương tác: khối không hợp lệ bị chặn',
+  $q$insert into lesson_plans (org_id, teacher_id, title, lesson) values (my_org_id(), my_teacher_id(), 'ISO BG lỗi', '{"phases":[{"key":"a","title":"A","blocks":[{"id":"x","type":"script"}]}]}')$q$, 'ERR*');
+select pg_temp.chk('gv_both', 'Bài giảng tương tác: giai đoạn phải là danh sách',
+  $q$insert into lesson_plans (org_id, teacher_id, title, lesson) values (my_org_id(), my_teacher_id(), 'ISO BG lỗi', '{"phases":"x"}')$q$, 'ERR*');
+select pg_temp.chk('gv_both', 'Bài giảng tương tác: tối đa 12 giai đoạn',
+  $q$insert into lesson_plans (org_id, teacher_id, title, lesson) select my_org_id(), my_teacher_id(), 'ISO BG lỗi',
+     jsonb_build_object('phases', jsonb_agg(jsonb_build_object('key', i, 'title', 'x', 'blocks', '[]'::jsonb))) from generate_series(1, 13) i$q$, 'ERR*');
+select pg_temp.chk('gv_both', 'Bài giảng tương tác: phiên bản lưu cả bài giảng',
+  $q$select lesson_block_count(lesson_plan_content(p)->'lesson')::text from lesson_plans p where title = 'ISO BG'$q$, '2');
+select pg_temp.probe('gv_both@iso-test.local', $q$select lesson_plan_clone((select id from lesson_plans where title = 'ISO BG'), 'ISO BG sao')::text$q$, true);
+select pg_temp.chk('gv_both', 'Bài giảng tương tác: nhân bản giữ nguyên các khối', $q$select lesson_block_count(lesson)::text from lesson_plans where title = 'ISO BG sao'$q$, '2');
+select pg_temp.chk('gv_ph2', 'Bài giảng tương tác: đồng nghiệp không đọc bản nháp', $q$select count(*) from lesson_plans where title = 'ISO BG'$q$, '0');
+select pg_temp.chk('admin_kb', 'Bài giảng tương tác: trường khác không đọc', $q$select count(*) from lesson_plans where title like 'ISO BG%'$q$, '0');
+-- Hoạt động mới
+select pg_temp.chk('gv_both', 'Hoạt động đường đua: xuất bản khi đủ câu hỏi',
+  $q$insert into activities (org_id, teacher_id, kind, title, status, content) values (my_org_id(), my_teacher_id(), 'race', 'ISO hoạt động đua', 'published',
+     '{"items":[{"q":"1+1?","options":["1","2"],"answer":1},{"q":"2+2?","options":["4","5"],"answer":0}],"seconds":20}')$q$, 'rows:1');
+select pg_temp.probe('gv_both@iso-test.local', $q$insert into activities (org_id, teacher_id, kind, title, status, content) values (my_org_id(), my_teacher_id(), 'race', 'ISO hoạt động đua', 'published',
+     '{"items":[{"q":"1+1?","options":["1","2"],"answer":1},{"q":"2+2?","options":["4","5"],"answer":0}],"seconds":20}')$q$, true);
+select pg_temp.chk('gv_both', 'Hoạt động đường đua: đáp án ngoài phương án bị chặn',
+  $q$insert into activities (org_id, teacher_id, kind, title, status, content) values (my_org_id(), my_teacher_id(), 'race', 'ISO hoạt động đua lỗi', 'published',
+     '{"items":[{"q":"1+1?","options":["1","2"],"answer":3}]}')$q$, 'ERR*');
+select pg_temp.chk('gv_both', 'Hoạt động đường đua: chấm như trắc nghiệm',
+  $q$select activity_grade('race', content, '[1,1]')->>'correct' from activities where title = 'ISO hoạt động đua'$q$, '1');
+select pg_temp.chk('gv_both', 'Hoạt động vòng quay: cần ít nhất 2 tên',
+  $q$insert into activities (org_id, teacher_id, kind, title, status, content) values (my_org_id(), my_teacher_id(), 'wheel', 'ISO hoạt động quay', 'published', '{"names":["An"]}')$q$, 'ERR*');
+select pg_temp.chk('gv_both', 'Hoạt động chia đội: xuất bản được',
+  $q$insert into activities (org_id, teacher_id, kind, title, status, content) values (my_org_id(), my_teacher_id(), 'teams', 'ISO hoạt động đội', 'published', '{"names":["An","Bình","Chi","Dũng"],"teams":2}')$q$, 'rows:1');
+select pg_temp.chk('gv_both', 'Hoạt động mô phỏng: mô hình không có trong danh mục bị chặn',
+  $q$insert into activities (org_id, teacher_id, kind, title, status, content) values (my_org_id(), my_teacher_id(), 'sim', 'ISO hoạt động mô phỏng', 'published', '{"model":"rocket"}')$q$, 'ERR*');
+select pg_temp.chk('gv_both', 'Hoạt động mô phỏng: con lắc xuất bản được',
+  $q$insert into activities (org_id, teacher_id, kind, title, status, content) values (my_org_id(), my_teacher_id(), 'sim', 'ISO hoạt động con lắc', 'published', '{"model":"pendulum","task":"Đo chu kì"}')$q$, 'rows:1');
+select pg_temp.chk('admin_kb', 'Hoạt động mới: trường khác không đọc', $q$select count(*) from activities where title in ('ISO hoạt động đua', 'ISO hoạt động con lắc')$q$, '0');
+-- Thiết bị trong gói STEM
+select pg_temp.chk('admin_ph', 'Thiết bị gói: trường thêm thiết bị vào gói của mình',
+  $q$insert into package_devices (org_id, package_id, supplier, name, qty, unit_price, serials)
+     select my_org_id(), delivered_package_id, 'ISO NCC', 'ISO Bộ Arduino', 12, 850000, '{" SN-1 ",SN-2}' from package_orders where name = 'Đơn thử ISO'$q$, 'rows:1');
+select pg_temp.probe('admin_ph@iso-test.local', $q$insert into package_devices (org_id, package_id, supplier, name, qty, unit_price, serials)
+     select my_org_id(), delivered_package_id, 'ISO NCC', 'ISO Bộ Arduino', 12, 850000, '{" SN-1 ",SN-2}' from package_orders where name = 'Đơn thử ISO'$q$, true);
+select pg_temp.chk('admin_ph', 'Thiết bị gói: số thiết bị của gói tự cập nhật, số seri được làm gọn',
+  $q$select (p.devices = (select sum(qty) from package_devices x where x.package_id = p.id))::text || ':' || d.serials[1] from package_devices d join stem_packages p on p.id = d.package_id where d.name = 'ISO Bộ Arduino'$q$, 'true:SN-1');
+select pg_temp.chk('so_hy', 'Thiết bị gói: Sở xem thiết bị của trường trực thuộc', $q$select count(*) from package_devices where name = 'ISO Bộ Arduino'$q$, '1');
+select pg_temp.chk('admin_kb', 'Thiết bị gói: trường khác không xem', $q$select count(*) from package_devices where name = 'ISO Bộ Arduino'$q$, '0');
+select pg_temp.chk('hs_kb', 'Thiết bị gói: học sinh không xem', $q$select count(*) from package_devices$q$, '0');
+select pg_temp.chk('admin_kb', 'Thiết bị gói: không thêm vào gói của trường khác',
+  format($q$insert into package_devices (org_id, package_id, name) values (my_org_id(), %L, 'ISO lạ')$q$, (select delivered_package_id from package_orders where name = 'Đơn thử ISO')), 'ERR*');
+select pg_temp.chk('admin_kb', 'Thiết bị gói: không sửa thiết bị của trường khác', $q$update package_devices set qty = 1 where name = 'ISO Bộ Arduino'$q$, 'rows:0');
+select pg_temp.chk('gv_both', 'Thiết bị gói: giáo viên không thêm thiết bị',
+  $q$insert into package_devices (org_id, package_id, name) select my_org_id(), delivered_package_id, 'ISO GV' from package_orders where name = 'Đơn thử ISO'$q$, 'ERR*');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

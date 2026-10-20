@@ -1,15 +1,20 @@
 // Giáo viên → Kho hoạt động & Bài giảng (migration 030)
 // Hoạt động của tôi · Kho của trường (mẫu + đồng nghiệp đã xuất bản) · Bài giảng có thể giao học trước.
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { TProps, NoTeacher, PROGRAM_COLOR, Tabs, handoff } from './common'
+import { TProps, NoTeacher, PROGRAM_COLOR, Tabs, handoff, useMyClasses } from './common'
 import { ACT, ACT_KINDS, STARTER, ActivityPlayer, ContentEditor, countItems, unitOf, toPlayable, emptyAnswers, answered,
-  type ActKind, type Activity, type Grade } from './activity'
+  ACT_GROUP, actGroup, activityToBlock, type ActGroup, type ActKind, type Activity, type Grade } from './activity'
+import { asLesson, lessonStats, LessonOutline, LessonPlayer, emptyLesson, INTERACTION, type ILesson } from '../../lib/lessonBlocks'
+import { SIMS, type SimModel } from '../../lib/sims'
+import { RaceGame } from '../../lib/games'
+import '../../styles/activities.css'
 
 type View = { mode: 'list' } | { mode: 'new' } | { mode: 'edit'; a: Activity } | { mode: 'play'; a: Activity; big: boolean }
 type T = 'mine' | 'school' | 'lessons'
 type LessonLite = { id: string; title: string; subject: string | null; grades: string | null; program: string | null; is_template: boolean
-  status: string; slides: unknown[]; teacher_id: string | null; teachers: { full_name: string } | null }
+  status: string; slides: unknown[]; teacher_id: string | null; teachers: { full_name: string } | null
+  lesson?: any; cover_url?: string | null; summary?: string | null; periods?: number | null }
 
 const COLS = 'id, org_id, teacher_id, kind, title, instructions, subject, grades, program, content, is_template, status, source_id, updated_at, teachers(full_name)'
 
@@ -25,7 +30,7 @@ export function TeacherActivities({ teacherId, orgId, go }: TProps) {
   async function load() {
     const [a, l] = await Promise.all([
       supabase.from('activities').select(COLS).order('updated_at', { ascending: false }),
-      supabase.from('lesson_plans').select('id, title, subject, grades, program, is_template, status, slides, teacher_id, teachers(full_name)')
+      supabase.from('lesson_plans').select('id, title, subject, grades, program, is_template, status, slides, teacher_id, teachers(full_name), lesson, cover_url, summary, periods')
         .or('status.eq.published,is_template.eq.true').order('updated_at', { ascending: false }).limit(200),
     ])
     if (a.error) setErr(/does not exist|schema cache/i.test(a.error.message) ? 'Hãy chạy migration 030_activities_self_study_holidays.sql trên Supabase.' : a.error.message)
@@ -73,73 +78,51 @@ export function TeacherActivities({ teacherId, orgId, go }: TProps) {
   const match = (a: { title: string; program?: string | null }) => !q || a.title.toLowerCase().includes(q.toLowerCase())
   const mine = rows.filter(a => a.teacher_id === teacherId && !a.is_template)
   const school = rows.filter(a => (a.is_template || (a.teacher_id !== teacherId && a.status === 'published')))
-  const src = (tab === 'mine' ? mine : school).filter(a => (!kind || a.kind === kind) && match(a))
-  const ls = lessons.filter(match)
+  const src = mine.filter(a => (!kind || a.kind === kind) && match(a))
 
   return (
     <>
       <div className="bar">
-        <Tabs<T> value={tab} onChange={setTab} items={[['mine', 'Hoạt động của tôi', mine.length], ['school', 'Kho của trường', school.length], ['lessons', 'Bài giảng', lessons.length]]} />
+        <Tabs<T> value={tab} onChange={setTab} items={[['mine', 'Hoạt động của tôi', mine.length], ['school', 'Kho hoạt động tương tác', school.length], ['lessons', 'Kho bài giảng', lessons.length]]} />
         <span className="tools">
           {go && <button onClick={() => go('Học trước & tự học')}>Học trước & tự học</button>}
           {go && <button onClick={() => go('Soạn bài giảng')}>Soạn bài giảng</button>}
           <button className="primary" onClick={() => setView({ mode: 'new' })}>+ Tạo hoạt động</button>
         </span>
       </div>
+      {err && <p className="msg">{err}</p>}
+      {tab === 'school' && <ActivityBank rows={school} teacherId={teacherId} orgId={orgId} go={go}
+        onUse={a => create(a.kind, a)} onAssign={a => assign('activity:' + a.id)} />}
+      {tab === 'lessons' && <LessonBank rows={lessons} teacherId={teacherId} go={go} onAssign={l => assign('lesson:' + l.id)} />}
+      {tab === 'mine' && <>
       <div className="tools" style={{ marginBottom: 12 }}>
         <input className="search" style={{ margin: 0 }} placeholder="Tìm theo tên…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-        {tab !== 'lessons' && <select value={kind} onChange={e => setKind(e.target.value as ActKind | '')} aria-label="Lọc theo mẫu">
-          <option value="">Tất cả mẫu</option>{ACT_KINDS.map(k => <option key={k} value={k}>{ACT[k].label}</option>)}</select>}
+        <select value={kind} onChange={e => setKind(e.target.value as ActKind | '')} aria-label="Lọc theo mẫu">
+          <option value="">Tất cả mẫu</option>{ACT_KINDS.map(k => <option key={k} value={k}>{ACT[k].label}</option>)}</select>
       </div>
-      {err && <p className="msg">{err}</p>}
-
-      {tab === 'lessons' ? (
-        <div className="lessongrid">
-          {ls.map(l => (
-            <div className="panel lessoncard" key={l.id}>
-              <div className="lessoncover">
-                {l.program && <span className="progchip" style={{ background: PROGRAM_COLOR[l.program], color: '#fff' }}>{l.program}</span>}
-                {l.is_template && <span className="progchip pkgchip">Mẫu</span>}
-                <span className="slidecount">{l.slides.length} slide</span>
-              </div>
-              <b>{l.title}</b>
-              <small>{[l.subject, l.grades && `Khối ${l.grades}`, l.teachers?.full_name].filter(Boolean).join(' · ')}</small>
-              <div className="tools"><button className="primary" onClick={() => assign('lesson:' + l.id)}>Giao học trước</button></div>
-            </div>
-          ))}
-          {ls.length === 0 && <p className="sub">Chưa có bài giảng nào đã xuất bản.</p>}
-        </div>
-      ) : (
         <div className="lessongrid">
           {src.map(a => (
             <div className="panel lessoncard" key={a.id}>
               <div className="lessoncover actcover">
                 <span className="progchip pkgchip"><span aria-hidden="true">{ACT[a.kind].icon}</span> {ACT[a.kind].label}</span>
                 {a.program && <span className="progchip" style={{ background: PROGRAM_COLOR[a.program], color: '#fff' }}>{a.program}</span>}
-                {a.is_template && <span className="progchip pkgchip">Mẫu</span>}
                 <span className="slidecount">{countItems(a.kind, a.content)} {unitOf(a.kind)}</span>
               </div>
               <b>{a.title}</b>
-              <small>{[a.subject, a.grades && `Khối ${a.grades}`, tab === 'school' && a.teachers?.full_name].filter(Boolean).join(' · ')}</small>
+              <small>{[a.subject, a.grades && `Khối ${a.grades}`].filter(Boolean).join(' · ')}</small>
               <div className="lessonfoot"><span className={'pill ' + (a.status === 'published' ? 'active' : '')}>{a.status === 'published' ? 'Đã xuất bản' : 'Nháp'}</span></div>
               <div className="tools">
-                {tab === 'mine' ? <>
-                  <button className="primary" onClick={() => setView({ mode: 'edit', a })}>Soạn</button>
-                  <button onClick={() => setView({ mode: 'play', a, big: false })}>Chơi thử</button>
-                  <button onClick={() => assign('activity:' + a.id)}>Giao cho lớp</button>
-                  <button onClick={() => create(a.kind, a)}>Nhân bản</button>
-                  <button className="x" onClick={() => remove(a)} aria-label={`Xoá ${a.title}`}>×</button>
-                </> : <>
-                  <button className="primary" onClick={() => create(a.kind, a)}>Dùng bài này</button>
-                  <button onClick={() => setView({ mode: 'play', a, big: false })}>Xem</button>
-                  {!a.is_template && <button onClick={() => assign('activity:' + a.id)}>Giao cho lớp</button>}
-                </>}
+                <button className="primary" onClick={() => setView({ mode: 'edit', a })}>Soạn</button>
+                <button onClick={() => setView({ mode: 'play', a, big: false })}>Chơi thử</button>
+                <button onClick={() => assign('activity:' + a.id)}>Giao cho lớp</button>
+                <button onClick={() => create(a.kind, a)}>Nhân bản</button>
+                <button className="x" onClick={() => remove(a)} aria-label={`Xoá ${a.title}`}>×</button>
               </div>
             </div>
           ))}
-          {src.length === 0 && <p className="sub">{tab === 'mine' ? 'Chưa có hoạt động nào. Bấm “Tạo hoạt động” để chọn một trong 8 mẫu.' : 'Kho của trường chưa có hoạt động phù hợp.'}</p>}
+          {src.length === 0 && <p className="sub">Chưa có hoạt động nào. Bấm “Tạo hoạt động” để chọn một trong {ACT_KINDS.length} mẫu.</p>}
         </div>
-      )}
+      </>}
     </>
   )
 }
@@ -236,6 +219,313 @@ function Play({ a, big, onBig, onClose, onEdit }: { a: Activity; big: boolean; o
         </div>
       )}
       {err && <p className="msg">{err}</p>}
+    </div>
+  )
+}
+
+// ================= Kho hoạt động tương tác =================
+const KIND_ART: Record<ActKind, [string, number]> = {
+  race: ['🏆', 0], wheel: ['🎡', 2], teams: ['⚑', 3], timer: ['⏳', 1], flashcard: ['🃏', 5], match: ['🧩', 1], group: ['🗂', 4], order: ['🪜', 3],
+  sim: ['⚛', 5], quiz: ['📝', 0], truefalse: ['⚖', 2], fill: ['✏', 4], worksheet: ['📋', 1],
+}
+const SIM_ART: Record<string, string> = { circuit_series: '💡', circuit_parallel: '🔌', pendulum: '⏱', lever: '⚖', ruler: '📏', scale: '⚖', thermometer: '🌡' }
+const artOf = (a: Activity): [string, number] => a.kind === 'sim' ? [SIM_ART[a.content?.model] ?? '⚛', 5] : KIND_ART[a.kind] ?? ['◉', 0]
+const kindLabel = (a: Activity) => a.kind === 'sim' ? SIMS[a.content?.model as SimModel]?.label ?? ACT.sim.label : ACT[a.kind].label
+const gradesOf = (s: string | null) => (s ?? '').split(/[,;\s–-]+/).map(x => x.trim()).filter(Boolean)
+const CTS = ['CT1', 'CT2', 'CT3', 'CT4', 'CT5']
+
+type MyPlan = { id: string; title: string; program: string | null; lesson: any; status: string }
+
+function ActivityBank({ rows, teacherId, orgId, go, onUse, onAssign }: {
+  rows: Activity[]; teacherId: string; orgId: string | null; go?: (p: string) => void; onUse: (a: Activity) => void; onAssign: (a: Activity) => void
+}) {
+  const [grp, setGrp] = useState<ActGroup | ''>('')
+  const [q, setQ] = useState(''); const [grade, setGrade] = useState(''); const [subj, setSubj] = useState('')
+  const [open, setOpen] = useState<Activity | null>(null)
+  const grades = [...new Set(rows.flatMap(a => gradesOf(a.grades)))].sort((a, b) => Number(a) - Number(b))
+  const subjects = [...new Set(rows.map(a => a.subject).filter(Boolean) as string[])].sort()
+  const base = rows.filter(a => (!q || (a.title + ' ' + (a.subject ?? '') + ' ' + (a.instructions ?? '')).toLowerCase().includes(q.toLowerCase()))
+    && (!grade || gradesOf(a.grades).includes(grade)) && (!subj || a.subject === subj))
+  const count = (g: ActGroup) => base.filter(a => actGroup(a.kind) === g).length
+  const groups = (Object.keys(ACT_GROUP) as ActGroup[]).filter(g => !grp || g === grp)
+  return (
+    <>
+      <h3 style={{ margin: '4px 0 0' }}>Kho hoạt động tương tác</h3>
+      <p className="sub" style={{ marginTop: 2 }}>Hoạt động có sẵn để thêm vào bài giảng — chỉ cần thay nội dung theo bài của thầy/cô.</p>
+      <div className="statrow">
+        <button className={'statcard' + (grp === '' ? ' on' : '')} onClick={() => setGrp('')}><i>◎</i><span><small>Tất cả nhóm</small><b>{base.length}</b></span></button>
+        {(Object.keys(ACT_GROUP) as ActGroup[]).map(g => (
+          <button key={g} className={'statcard' + (grp === g ? ' on' : '')} onClick={() => setGrp(grp === g ? '' : g)}>
+            <i>{g === 'game' ? '🎮' : g === 'interactive' ? '⚛' : '📋'}</i><span><small>{ACT_GROUP[g].label}</small><b>{count(g)}</b></span></button>
+        ))}
+      </div>
+      <div className="tools" style={{ marginBottom: 8, flexWrap: 'wrap' }}>
+        <input className="search" style={{ margin: 0, flex: 1, minWidth: 220 }} placeholder="Tìm theo tên hoạt động, môn học hoặc thẻ…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm hoạt động" />
+        <select value={grp} onChange={e => setGrp(e.target.value as ActGroup | '')} aria-label="Nhóm"><option value="">Tất cả nhóm · {base.length}</option>
+          {(Object.keys(ACT_GROUP) as ActGroup[]).map(g => <option key={g} value={g}>{ACT_GROUP[g].label}</option>)}</select>
+        <select value={grade} onChange={e => setGrade(e.target.value)} aria-label="Khối"><option value="">Tất cả khối</option>{grades.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>
+        <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
+      </div>
+      {groups.map(g => {
+        const list = base.filter(a => actGroup(a.kind) === g)
+        if (!list.length) return null
+        return (
+          <div key={g}>
+            <div className="sectionhead"><h3>{ACT_GROUP[g].label}</h3><small>{ACT_GROUP[g].desc}</small></div>
+            <div className="tilegrid" style={{ marginTop: 8 }}>
+              {list.map(a => { const [icon, art] = artOf(a); return (
+                <button key={a.id} className="tile" onClick={() => setOpen(a)}>
+                  <div className={'tileart art' + art}>{a.program && <span className="progchip" style={{ background: PROGRAM_COLOR[a.program], color: '#fff' }}>{a.program}</span>}<span aria-hidden="true">{icon}</span></div>
+                  <div className="tilebody">
+                    <b>{a.title}</b>
+                    <small>{[a.subject, a.teachers?.full_name ?? (a.is_template ? 'Mẫu của trường' : '')].filter(Boolean).join(' · ')}</small>
+                    <div className="tilemeta"><span>{ACT_GROUP[g].tag}</span><span>{kindLabel(a)}</span>{a.grades && <span>Khối {a.grades}</span>}</div>
+                    <span className="tilemore">Xem chi tiết ›</span>
+                  </div>
+                </button>) })}
+            </div>
+          </div>
+        )
+      })}
+      {base.length === 0 && <p className="sub">Kho chưa có hoạt động phù hợp.</p>}
+      {open && <ActivityModal a={open} teacherId={teacherId} orgId={orgId} go={go} onClose={() => setOpen(null)} onUse={() => onUse(open)} onAssign={() => onAssign(open)} />}
+    </>
+  )
+}
+
+function useEsc(onClose: () => void) {
+  useEffect(() => { const k = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }; window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k) }, [])
+}
+
+function TryOut({ a }: { a: Activity }) {
+  const [data] = useState(() => toPlayable(a.kind, a.content))
+  const [ans, setAns] = useState(() => emptyAnswers(a.kind, data))
+  const [sol, setSol] = useState(false)
+  if (a.kind === 'race') return <RaceGame items={(a.content?.items ?? []).filter((x: any) => x?.q)} seconds={a.content?.seconds ?? 20} title={a.title} />
+  return (
+    <div>
+      <ActivityPlayer kind={a.kind} data={data} answers={ans} onChange={setAns} solution={sol ? a.content : null} />
+      {ACT[a.kind].graded && <div className="actions"><button onClick={() => setSol(!sol)}>{sol ? 'Ẩn đáp án' : 'Xem đáp án'}</button>
+        <button onClick={() => { setAns(emptyAnswers(a.kind, data)); setSol(false) }}>↺ Chơi lại</button></div>}
+    </div>
+  )
+}
+
+function ActivityModal({ a, teacherId, orgId, go, onClose, onUse, onAssign }: {
+  a: Activity; teacherId: string; orgId: string | null; go?: (p: string) => void; onClose: () => void; onUse: () => void; onAssign: () => void
+}) {
+  useEsc(onClose)
+  const [pick, setPick] = useState(false)
+  const [plans, setPlans] = useState<MyPlan[]>([])
+  const [plan, setPlan] = useState(''); const [phase, setPhase] = useState(0)
+  const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [icon] = artOf(a)
+  const g = actGroup(a.kind)
+  useEffect(() => {
+    if (!pick) return
+    supabase.from('lesson_plans').select('id, title, program, lesson, status').eq('teacher_id', teacherId).in('status', ['draft', 'editing', 'rejected'])
+      .order('updated_at', { ascending: false }).then(({ data }) => { const d = (data as MyPlan[]) ?? []; setPlans(d); if (d[0]) setPlan(d[0].id) })
+  }, [pick])
+  const sel = plans.find(p => p.id === plan)
+  const selLesson: ILesson | null = sel ? (asLesson(sel.lesson) ?? emptyLesson(sel.program)) : null
+
+  async function addTo() {
+    if (!sel || !selLesson) return
+    setBusy(true)
+    const phases = selLesson.phases.map((p, i) => i === phase ? { ...p, blocks: [...p.blocks, activityToBlock(a)] } : p)
+    const { error } = await supabase.from('lesson_plans').update({ lesson: { ...selLesson, phases } }).eq('id', sel.id)
+    setBusy(false)
+    if (error) return setMsg(['Không thêm được: ' + error.message, true])
+    setMsg([`Đã thêm vào “${sel.title}” — giai đoạn ${selLesson.phases[phase]?.title}.`, false]); setPick(false)
+  }
+  async function newLesson() {
+    if (!orgId) return
+    setBusy(true)
+    const l = emptyLesson(a.program)
+    l.phases[0].blocks.push(activityToBlock(a))
+    const { data, error } = await supabase.from('lesson_plans').insert({ org_id: orgId, teacher_id: teacherId, title: 'Bài giảng: ' + a.title, subject: a.subject, grades: a.grades,
+      program: a.program, status: 'draft', lesson: l }).select('id').single()
+    setBusy(false)
+    if (error || !data) return setMsg(['Không tạo được bài giảng: ' + (error?.message ?? ''), true])
+    try { sessionStorage.setItem('kdi.openPlan', data.id) } catch { /* bỏ qua */ }
+    if (go) go('Soạn bài giảng'); else setMsg(['Đã tạo bài giảng nháp trong Soạn bài giảng.', false])
+  }
+  const tags = [ACT_GROUP[g].tag, kindLabel(a), ...gradesOf(a.grades).map(x => 'Khối ' + x), a.subject, a.program].filter(Boolean) as string[]
+  return (
+    <div className="modalbg" onClick={onClose}>
+      <div className="modal wide" role="dialog" aria-modal="true" aria-label={a.title} onClick={e => e.stopPropagation()}>
+        <div className="modalhero actmodalhero">
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
+            <span className="acthero-icon" aria-hidden="true">{icon}</span>
+            <div style={{ flex: 1 }}>
+              <div className="tilemeta"><span className="herotag">{ACT_GROUP[g].label} — {ACT[a.kind].label}</span>{a.program && <span className="herotag">{a.program}</span>}</div>
+              <h3>{a.title}</h3>
+            </div>
+            <button className="x" onClick={onClose} aria-label="Đóng" style={{ color: '#fff' }}>×</button>
+          </div>
+        </div>
+        <div className="modalbody">
+          <p style={{ margin: 0 }}>{a.instructions || ACT[a.kind].desc}</p>
+          <div className="gvnote"><b>⚙ GV cấu hình</b><br /><small>Thầy/cô thay bộ câu hỏi, số đội, thời gian… khi thêm vào bài giảng — trò chơi giữ nguyên cách chơi.</small></div>
+          <div className="tilemeta">{tags.map(t => <span key={t}>{t}</span>)}</div>
+          <div><b>▶ Dùng thử ngay tại đây</b> <small className="sub">— {a.kind === 'sim' ? `kéo thanh trượt, bấm nút để thao tác${SIMS[a.content?.model as SimModel] ? ' với ' + SIMS[a.content.model as SimModel].label.toLowerCase() : ''}` : 'quay, lật thẻ, kéo–thả hoặc trả lời như học sinh'}, dữ liệu không được lưu.</small></div>
+          <div className="panel tryout" style={{ margin: 0 }}><TryOut a={a} /></div>
+          {pick && (
+            <div className="panel" style={{ margin: 0 }}>
+              <b>Thêm vào bài giảng của tôi</b>
+              {plans.length === 0 ? <p className="sub">Thầy/cô chưa có bài giảng đang soạn. Bấm “Tạo bài giảng mới với hoạt động”.</p> : (
+                <div className="formgrid">
+                  <label className="field"><span>Bài giảng đang soạn</span><select value={plan} onChange={e => { setPlan(e.target.value); setPhase(0) }}>
+                    {plans.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}</select></label>
+                  <label className="field"><span>Giai đoạn</span><select value={phase} onChange={e => setPhase(Number(e.target.value))}>
+                    {(selLesson?.phases ?? []).map((p, i) => <option key={i} value={i}>{p.title} ({p.blocks.length} khối)</option>)}</select></label>
+                  <div className="actions"><button className="primary" onClick={addTo} disabled={busy || !sel}>Thêm khối</button><button onClick={() => setPick(false)}>Huỷ</button></div>
+                </div>
+              )}
+            </div>
+          )}
+          {msg && <p className={msg[1] ? 'warnline' : 'okline'}>{msg[0]}</p>}
+        </div>
+        <div className="modalfoot" style={{ flexWrap: 'wrap' }}>
+          <button onClick={onUse}>Sao chép để sửa</button>
+          {!a.is_template && <button onClick={onAssign}>Giao cho lớp</button>}
+          <span style={{ flex: 1 }} />
+          <button className="primary violet" onClick={() => setPick(true)} disabled={busy}>＋ Thêm vào bài giảng của tôi</button>
+          <button onClick={newLesson} disabled={busy}>✦ Tạo bài giảng mới với hoạt động</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ================= Kho bài giảng =================
+type KindKey = keyof typeof INTERACTION
+const HAS_LABEL: Record<KindKey, string> = { sim: 'Có mô phỏng 2D', game: 'Có game hoá', tool: 'Có giáo cụ ảo', drag: 'Có kéo – thả' }
+const KIND_ICON: Record<KindKey, string> = { sim: '⚛', game: '🎮', tool: '📏', drag: '↕' }
+const levelOf = (g: string | null) => { const n = Number(gradesOf(g)[0]); return !n ? '' : n <= 5 ? 'Tiểu học' : n <= 9 ? 'THCS' : 'THPT' }
+
+function LessonBank({ rows, teacherId, go, onAssign }: { rows: LessonLite[]; teacherId: string; go?: (p: string) => void; onAssign: (l: LessonLite) => void }) {
+  const [q, setQ] = useState(''); const [ct, setCt] = useState(''); const [grade, setGrade] = useState(''); const [subj, setSubj] = useState(''); const [kind, setKind] = useState<KindKey | ''>('')
+  const [grid, setGrid] = useState(true)
+  const [open, setOpen] = useState<LessonLite | null>(null)
+  const stats = useMemo(() => new Map(rows.map(l => [l.id, lessonStats(asLesson(l.lesson))])), [rows])
+  const grades = [...new Set(rows.flatMap(l => gradesOf(l.grades)))].sort((a, b) => Number(a) - Number(b))
+  const subjects = [...new Set(rows.map(l => l.subject).filter(Boolean) as string[])].sort()
+  const base = rows.filter(l => (!q || (l.title + ' ' + (l.subject ?? '') + ' ' + (l.summary ?? '') + ' ' + (asLesson(l.lesson)?.tags ?? []).join(' ')).toLowerCase().includes(q.toLowerCase()))
+    && (!ct || l.program === ct) && (!grade || gradesOf(l.grades).includes(grade)) && (!subj || l.subject === subj))
+  const shown = base.filter(l => !kind || stats.get(l.id)!.kinds.includes(kind))
+  const has = (k: KindKey) => base.filter(l => stats.get(l.id)!.kinds.includes(k)).length
+  return (
+    <>
+      <h3 style={{ margin: '4px 0 0' }}>Kho bài giảng</h3>
+      <p className="sub" style={{ marginTop: 2 }}>Bài giảng đã soạn đầy đủ — chọn một bài rồi chỉnh sửa cho lớp của mình.</p>
+      <div className="statrow">
+        <button className={'statcard' + (kind === '' ? ' on' : '')} onClick={() => setKind('')}><i>◎</i><span><small>Mọi loại tương tác</small><b>{base.length}</b></span></button>
+        {(Object.keys(INTERACTION) as KindKey[]).map(k => (
+          <button key={k} className={'statcard' + (kind === k ? ' on' : '')} onClick={() => setKind(kind === k ? '' : k)}><i>{KIND_ICON[k]}</i><span><small>{HAS_LABEL[k]}</small><b>{has(k)}</b></span></button>
+        ))}
+      </div>
+      <div className="tools" style={{ marginBottom: 10, flexWrap: 'wrap' }}>
+        <input className="search" style={{ margin: 0, flex: 1, minWidth: 220 }} placeholder="Tìm theo tên bài, mô tả, khối, thẻ hoặc mục tiêu…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài giảng" />
+        <select value={ct} onChange={e => setCt(e.target.value)} aria-label="Chương trình"><option value="">Tất cả chương trình</option>{CTS.map(c => <option key={c}>{c}</option>)}</select>
+        <select value={grade} onChange={e => setGrade(e.target.value)} aria-label="Khối"><option value="">Tất cả khối</option>{grades.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>
+        <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
+        <select value={kind} onChange={e => setKind(e.target.value as KindKey | '')} aria-label="Loại tương tác"><option value="">Mọi loại tương tác</option>
+          {(Object.keys(INTERACTION) as KindKey[]).map(k => <option key={k} value={k}>{INTERACTION[k]}</option>)}</select>
+        <span className="segmented" style={{ margin: 0 }}><button className={grid ? 'on' : ''} onClick={() => setGrid(true)} aria-label="Dạng thẻ">▦</button><button className={grid ? '' : 'on'} onClick={() => setGrid(false)} aria-label="Dạng bảng">☰</button></span>
+      </div>
+      {grid ? (
+        <div className="tilegrid">
+          {shown.map((l, i) => { const st = stats.get(l.id)!; return (
+            <button key={l.id} className="tile" onClick={() => setOpen(l)}>
+              <div className={'tileart art' + (i % 6)} style={l.cover_url ? { backgroundImage: `url("${l.cover_url}")` } : undefined}>
+                {l.program && <span className="progchip" style={{ background: PROGRAM_COLOR[l.program], color: '#fff' }}>{l.program}</span>}
+                {!l.cover_url && <span aria-hidden="true">{st.kinds[0] ? KIND_ICON[st.kinds[0]] : '📘'}</span>}</div>
+              <div className="tilebody">
+                <b>{l.title}</b><small>{l.subject}</small>
+                <div className="tilemeta">{levelOf(l.grades) && <span>{levelOf(l.grades)} {gradesOf(l.grades).join(',')}</span>}{st.minutes > 0 && <span>{st.minutes}′</span>}
+                  {st.blocks > 0 ? <span>{st.blocks} khối</span> : <span>{l.slides.length} slide</span>}{l.is_template && <span>Mẫu</span>}</div>
+                <span className="tilemore">Xem chi tiết ›</span>
+              </div>
+            </button>) })}
+        </div>
+      ) : (
+        <div className="wrap"><table><thead><tr><th>Bài giảng</th><th>CT</th><th>Môn · khối</th><th>Khối nội dung</th><th>Tương tác</th><th></th></tr></thead>
+          <tbody>{shown.map(l => { const st = stats.get(l.id)!; return (
+            <tr key={l.id}><td><b>{l.title}</b><br /><small className="sub">{l.teachers?.full_name ?? (l.is_template ? 'Mẫu của trường' : '')}</small></td>
+              <td>{l.program && <span className="progchip" style={{ background: PROGRAM_COLOR[l.program], color: '#fff' }}>{l.program}</span>}</td>
+              <td>{[l.subject, l.grades && 'Khối ' + l.grades].filter(Boolean).join(' · ')}</td><td>{st.blocks || '—'}</td>
+              <td>{st.kinds.map(k => <span key={k} title={INTERACTION[k]}>{KIND_ICON[k]} </span>)}</td>
+              <td><button onClick={() => setOpen(l)}>Xem chi tiết</button></td></tr>) })}</tbody></table></div>
+      )}
+      {shown.length === 0 && <p className="sub">Chưa có bài giảng phù hợp.</p>}
+      {open && <LessonModal l={open} teacherId={teacherId} go={go} onClose={() => setOpen(null)} onAssign={() => onAssign(open)} />}
+    </>
+  )
+}
+
+function LessonModal({ l, teacherId, go, onClose, onAssign }: { l: LessonLite; teacherId: string; go?: (p: string) => void; onClose: () => void; onAssign: () => void }) {
+  useEsc(onClose)
+  const classes = useMyClasses(teacherId)
+  const [cls, setCls] = useState('')
+  const [preview, setPreview] = useState(false)
+  const [msg, setMsg] = useState('')
+  const [busy, setBusy] = useState(false)
+  const lesson = asLesson(l.lesson)
+  const st = lessonStats(lesson)
+  useEffect(() => { if (!cls && classes[0]) setCls(classes[0].id) }, [classes.length])
+  async function useTemplate() {
+    setBusy(true)
+    const c = classes.find(x => x.id === cls)
+    const { data, error } = await supabase.rpc('lesson_plan_clone', { p_plan: l.id, p_title: c ? `${l.title.replace(/^Mẫu:\s*/, '')} — ${c.name}` : null })
+    setBusy(false)
+    if (error || !data) return setMsg('Không dùng được mẫu: ' + (error?.message ?? ''))
+    try { sessionStorage.setItem('kdi.openPlan', data as string) } catch { /* bỏ qua */ }
+    if (go) go('Soạn bài giảng'); else setMsg('Đã tạo bản của thầy/cô trong Soạn bài giảng.')
+  }
+  return (
+    <div className="modalbg" onClick={onClose}>
+      <div className="modal wide" role="dialog" aria-modal="true" aria-label={l.title} onClick={e => e.stopPropagation()}>
+        <div className="modalhero lessonhero" style={l.cover_url ? { backgroundImage: `linear-gradient(rgba(15,23,42,.35),rgba(15,23,42,.85)),url("${l.cover_url}")` } : undefined}>
+          <div className="bar" style={{ margin: 0 }}>
+            <div className="tilemeta">{l.program && <span className="herotag">{l.program}</span>}{l.is_template && <span className="herotag">Mẫu</span>}
+              {(levelOf(l.grades) || l.subject) && <span className="herotag">{[levelOf(l.grades) && `${levelOf(l.grades)} ${gradesOf(l.grades).join(',')}`, l.subject].filter(Boolean).join(' · ')}</span>}
+              {st.minutes > 0 && <span className="herotag">{st.minutes} phút</span>}</div>
+            <button className="x" onClick={onClose} aria-label="Đóng" style={{ color: '#fff' }}>×</button>
+          </div>
+          <h3>{l.title}</h3>
+        </div>
+        <div className="modalbody">
+          {l.summary && <p style={{ margin: 0 }}>{l.summary}</p>}
+          {(lesson?.tags ?? []).length > 0 && <div className="tilemeta">{lesson!.tags!.map(t => <span key={t}>{t}</span>)}</div>}
+          {(lesson?.goals ?? []).length > 0 && (
+            <div className="goalbox"><b>◎ Mục tiêu bài học</b>
+              <ul>{lesson!.goals!.map((g, i) => <li key={i}>✓ {g}</li>)}</ul></div>
+          )}
+          <div className="simstats">
+            <div className="simstat"><small>Tổng khối</small><b>{st.blocks}</b></div>
+            <div className="simstat"><small>Khối tương tác</small><b>{st.interactive}</b></div>
+            <div className="simstat"><small>Loại tương tác</small><b>{st.kinds.length ? st.kinds.map(k => <span key={k} title={INTERACTION[k]}>{KIND_ICON[k]} </span>) : '—'}</b></div>
+          </div>
+          {lesson ? <LessonOutline lesson={lesson} ct={l.program} />
+            : <p className="sub">Bài giảng này soạn theo dạng slide ({l.slides.length} slide), chưa có tiến trình khối tương tác.</p>}
+          {msg && <p className="warnline">{msg}</p>}
+        </div>
+        <div className="modalfoot" style={{ flexWrap: 'wrap', justifyContent: 'space-between' }}>
+          <span className="tools" style={{ alignItems: 'center' }}>
+            <label className="tools" style={{ alignItems: 'center', gap: 6 }}><small>Lớp sẽ dạy</small>
+              <select value={cls} onChange={e => setCls(e.target.value)} aria-label="Lớp sẽ dạy">{classes.length === 0 && <option value="">—</option>}{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
+            <small className="sub">Bản của thầy/cô là bản riêng — chỉnh sửa thoải mái, bài mẫu không đổi.</small>
+          </span>
+          <span className="tools">
+            <button onClick={onAssign}>Giao học trước</button>
+            <button onClick={() => lesson ? setPreview(true) : setMsg('Bài giảng chưa có nội dung tương tác để xem như học sinh.')}>👁 Xem trước như học sinh</button>
+            <button className="primary violet" onClick={useTemplate} disabled={busy}>✦ Dùng mẫu</button>
+          </span>
+        </div>
+      </div>
+      {preview && lesson && <div onClick={e => e.stopPropagation()}><LessonPlayer title={l.title} ct={l.program} sub={[l.subject, l.grades && 'Khối ' + l.grades].filter(Boolean).join(' · ')} lesson={lesson} onClose={() => setPreview(false)} /></div>}
     </div>
   )
 }

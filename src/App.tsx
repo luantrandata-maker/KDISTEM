@@ -72,6 +72,7 @@ import { DeptReports } from './pages/department/Reports'
 import { DeptAdmin } from './pages/department/Admin'
 // Kho học liệu dùng chung (023)
 const LibraryBrowse = lazy(() => import('./pages/library/Browse').then(m => ({ default: m.LibraryBrowse })))
+const LibraryPrograms = lazy(() => import('./pages/library/Programs').then(m => ({ default: m.LibraryPrograms })))
 const LibraryManage = lazy(() => import('./pages/library/Manage').then(m => ({ default: m.LibraryManage })))
 // Phê duyệt (022): tải riêng khi mở
 const ApprovalInbox = lazy(() => import('./pages/approvals/Inbox').then(m => ({ default: m.ApprovalInbox })))
@@ -246,7 +247,7 @@ const TEACHER: PageMap = {
   'Giáo dục STEM': TeacherClassroom,
   'Soạn bài giảng': TeacherLessonStudio,
   'Hộp phê duyệt': ApprovalInbox,
-  'Thư viện STEM': LibraryBrowse,
+  'Thư viện STEM': (p: any) => <TabbedPages {...p} tabs={[['Theo chương trình', LibraryPrograms], ['Kho học liệu', LibraryBrowse]]} />,
   'Định mức vật tư': MaterialNorms,
   'Lịch tập huấn': TeacherTrainingSchedule,
   'Bài giảng tập huấn': TeacherTrainingLessons,

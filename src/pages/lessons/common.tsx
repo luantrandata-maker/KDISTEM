@@ -21,6 +21,7 @@ export type LPlan = Omit<Plan, 'status'> & {
   status: LStatus; template_id: string | null; doc: Record<string, string>; steps: Step[]; program_id: string | null; unit_id: string | null
   library_ids: string[]; rubric_ids: string[]; norm_id: string | null; norm_adjust: Adjust[]; periods: number | null
   version_no: number; published_at: string | null; review_note: string | null; source_id?: string | null; created_at?: string
+  lesson?: any; cover_url?: string | null
 }
 export type Version = { id: string; plan_id: string; version_no: number; snapshot: Partial<LPlan>; note: string | null; published_at: string; published_by: string | null }
 export type Review = { id: string; plan_id: string; kind: 'trial' | 'comment'; class_id: string | null; taught_on: string | null; rating: number | null; note: string; created_by: string | null; created_at: string; classes?: { name: string } | null; profiles?: { full_name: string | null } | null }

@@ -1,0 +1,13 @@
+/* Kho hoạt động tương tác & Kho bài giảng */
+.modal .modalhero.actmodalhero{background:linear-gradient(120deg,#ede9fe,#e0e7ff);color:var(--text)}
+.modal .modalhero.actmodalhero h3{color:var(--navy)}
+.acthero-icon{display:inline-grid;place-items:center;width:64px;height:64px;border-radius:16px;background:#fff;font-size:36px;box-shadow:0 4px 14px rgba(124,58,237,.18)}
+.herotag{font-size:11px !important;font-weight:700;background:rgba(124,58,237,.14) !important;color:#5b21b6}
+.modal .modalhero.lessonhero{background:linear-gradient(120deg,#152e5d,#7c3aed);background-size:cover;background-position:center;min-height:150px;align-content:end}
+.lessonhero .herotag{background:rgba(255,255,255,.2) !important;color:#fff}
+.gvnote{background:#f8fafc;border:1px solid var(--line);border-left:4px solid #7c3aed;border-radius:10px;padding:8px 12px}
+.goalbox{background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:10px 14px}
+.goalbox ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px;font-size:13px}
+.main button.primary.violet{background:#7c3aed;border-color:#7c3aed}
+.tryout{background:#fcfbff}
+.main button.tile .tileart span[aria-hidden]{filter:drop-shadow(0 4px 6px rgba(0,0,0,.12))}

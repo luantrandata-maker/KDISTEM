@@ -1054,3 +1054,166 @@ a.btnlink{display:inline-block;padding:8px 14px;border-radius:10px;text-decorati
 .libless .video{margin-bottom:10px}
 @media (max-width:760px){.reviewlist li{grid-template-columns:1fr}}
 .audience select{width:auto;min-width:160px}
+
+/* ===== 063: bài giảng tương tác, mô phỏng, game, gói STEM, thư viện theo chương trình ===== */
+.okline{color:var(--ok);font-size:13px;font-weight:600}
+.ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.main button.actopt.wrong{border-color:var(--bad);background:#fde8e8}
+a.btnlink:not(.primary){background:var(--surface);color:var(--text);border:1px solid var(--line);font-weight:500}
+a.btnlink.primary{background:var(--primary);color:#fff}
+.rich p{margin:4px 0}.rich ul{margin:4px 0;padding-left:22px}
+/* mô phỏng */
+.simbox{border:1px solid var(--line);border-radius:12px;padding:12px;background:#fbfdff;display:grid;gap:10px}
+.simhead{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.simhead b{color:#b91c1c}
+.simtag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:#e0f2fe;color:#0369a1;margin-left:auto}
+.simsvg{width:100%;max-height:260px;background:#fff;border-radius:10px}
+.simbox.compact .simsvg{max-height:200px}
+.simlbl{font-size:10px;fill:#334155;font-weight:600}
+.simstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
+.simstat{border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:var(--surface)}.simstat small{display:block;color:var(--muted);font-size:10px;text-transform:uppercase}.simstat b{font-size:16px}
+.simctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.simslider{display:grid;gap:4px;font-size:12px}.simslider input{width:100%;accent-color:var(--primary)}
+.simtarget{font-size:12px;font-weight:600;padding:2px 8px;border-radius:999px;background:#fff3df;color:#8a5a00}.simtarget.ok{background:#e3f4ea;color:#11681a}
+.simlcd{font-family:ui-monospace,Menlo,monospace;font-size:22px;font-weight:700;background:#0f172a;color:#4ade80;padding:4px 12px;border-radius:8px}
+.simplate{min-height:54px;border:2px dashed #cbd5e1;border-radius:12px;padding:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:center;background:#f1f5f9}
+.simcup{padding:6px 10px;border-radius:0 0 14px 14px;background:#bae6fd;font-size:12px;font-weight:600}
+.main button.simweight{padding:4px 10px;border-radius:8px;background:#fde68a;border-color:#eab308;font-size:12px;font-weight:700}
+/* game */
+.game{display:grid;gap:10px}
+.gamehead small,.bk-simhead small,.bk-tag{display:block;font-size:10px;font-weight:700;letter-spacing:.4px;color:#7c3aed}
+.gamestats{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.gamestats span{border:1px solid var(--line);border-radius:10px;padding:4px 10px;background:var(--surface)}.gamestats small{display:block;font-size:10px;color:var(--muted)}
+.gamestats .live{color:#16a34a;font-weight:700;border-color:#bbf7d0;background:#f0fdf4}
+.racetrack{background:linear-gradient(#bae6fd,#bbf7d0);border-radius:12px;padding:10px;display:grid;gap:6px}
+.lane{display:grid;grid-template-columns:84px 1fr 26px;gap:8px;align-items:center}
+.lanename{font-size:11px;font-weight:700;color:#fff;padding:3px 6px;border-radius:6px;text-align:center}.lanename.t0{background:#7c3aed}.lanename.t1{background:#0f7490}.lanename.t2{background:#ea580c}
+.road{position:relative;height:28px;background:#334155;border-radius:6px;border-right:6px dashed #fff}
+.car{position:absolute;top:1px;font-size:20px;transition:left .6s ease}
+.lanepts{color:#0f172a;text-align:center}
+.gamecta{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:#f5f3ff;border-radius:12px;padding:12px}
+.gameq{display:grid;gap:8px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface)}
+.timebar{height:6px;background:#e2e8f0;border-radius:6px;overflow:hidden}.timebar i{display:block;height:100%;background:var(--ok);transition:width .4s}
+.ranklist{margin:0;padding-left:4px;list-style:none;display:grid;gap:4px}.ranklist li.me{font-weight:700;color:#7c3aed}
+.wheelwrap{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.wheelpin{position:absolute;top:-10px;left:50%;transform:translateX(-50%);font-size:22px;color:#152e5d}
+.gamewin{margin-top:10px;font-size:18px;padding:8px 12px;border-radius:10px;background:#fef9c3}
+.teamgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.teamcard{border:1px solid var(--line);border-top:4px solid;border-radius:10px;padding:8px;display:grid;gap:2px;font-size:13px}
+.bigclock{font-family:ui-monospace,Menlo,monospace;font-size:64px;font-weight:800;text-align:center;color:var(--navy)}.bigclock.warn{color:#ea580c}.bigclock.end{color:var(--bad)}
+/* khối bài giảng */
+.bk-h{margin:2px 0;font-size:18px;border-left:4px solid var(--primary);padding-left:10px}
+.bk-media{margin:0;display:grid;gap:4px}.bk-media img,.bk-media video,.bk-media iframe{width:100%;max-height:420px;border:0;border-radius:10px;object-fit:contain;background:#0f172a}
+.bk-media iframe{aspect-ratio:16/9;height:auto}.bk-media figcaption{font-size:12px;color:var(--muted)}
+.bk-file{display:flex;gap:12px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--surface);flex-wrap:wrap}
+.bk-file.lessonlink{background:#eff6ff;border-color:#bfdbfe}
+.fileicon{display:inline-grid;place-items:center;min-width:44px;height:36px;padding:0 6px;border-radius:8px;background:var(--soft);font-size:11px;font-weight:700;color:var(--navy)}
+.bk-sim,.bk-game,.bk-group,.bk-rubric,.bk-quiz{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:8px}
+.bk-sim.sim{background:#f0f9ff}.bk-sim.tool{background:#f0fdf4}.bk-sim.drag{background:#fff7ed}.bk-game{background:#faf5ff}.bk-group{background:#fdf4ff}.bk-quiz{background:#fffbeb}.bk-rubric{background:#fefce8}
+.bk-simhead{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.bk-simhead small{flex-basis:100%}
+.explain{border-left:3px solid var(--ok);background:#f0fdf4;padding:6px 10px;border-radius:6px;font-size:13px}.explain small{color:var(--ok);font-weight:700;font-size:10px}
+.quizbox{display:grid;gap:8px}
+.dragbox{display:grid;gap:8px}.draglist{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.draglist li{display:flex;gap:8px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 10px;cursor:grab}
+.draglist li.ok{border-color:var(--ok);background:#f0fdf4}.draglist li.bad{border-color:var(--bad);background:#fef2f2}
+.dragnum{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#ea580c;color:#fff;font-size:12px;font-weight:700}
+.codetag{font-size:11px;background:#1e293b;color:#7dd3fc;padding:2px 8px;border-radius:6px 6px 0 0}
+.bk-code{margin:0;background:#0f172a;color:#e2e8f0;padding:12px;border-radius:0 10px 10px 10px;overflow:auto;font-size:12.5px;line-height:1.5}
+.roletable{width:100%;font-size:13px}.roletable td{padding:4px 8px;border-bottom:1px solid var(--line)}
+.btag{display:inline-flex;gap:4px;align-items:center;font-size:11px;font-weight:700;color:var(--primary);background:#e6f1fd;padding:2px 8px;border-radius:6px;white-space:nowrap}
+/* trình soạn */
+.lessoned{display:grid;grid-template-columns:220px minmax(0,1fr) 230px;gap:12px;align-items:start}
+.lphases,.loutline{position:sticky;top:76px;display:grid;gap:6px;max-height:calc(100vh - 96px);overflow:auto}
+.main button.lphase{display:grid;grid-template-columns:26px 1fr auto;gap:8px;align-items:center;text-align:left;padding:8px;border-radius:10px}
+.main button.lphase.on{border-color:var(--primary);background:#e6f1fd}
+.lphase small{display:block;color:var(--muted);font-size:11px}.lphase em{font-style:normal;font-size:12px;color:var(--muted)}
+.lnum{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;color:#fff;font-size:12px;font-weight:700}
+.lnum.c0,.olphase.c0,.lsphase.c0{--c:#f59e0b}.lnum.c1,.olphase.c1,.lsphase.c1{--c:#2e95f2}.lnum.c2,.olphase.c2,.lsphase.c2{--c:#7c3aed}.lnum.c3,.olphase.c3,.lsphase.c3{--c:#ea580c}.lnum.c4,.olphase.c4,.lsphase.c4{--c:#16a34a}
+.lnum{background:var(--c)}
+.lhint{background:#f5f3ff;border-radius:10px;padding:8px;font-size:12px}.lhint small{color:#7c3aed;font-weight:700;font-size:10px}
+.ltotals{display:grid;gap:4px;font-size:12px;border-top:1px solid var(--line);padding-top:8px}.ltotals span{display:flex;justify-content:space-between}.ltotals .accent{color:#7c3aed}
+.lcenter{display:grid;gap:10px;min-width:0}.lcenter .panel{margin:0}
+.lblockhead{display:flex;gap:8px;align-items:center;margin-bottom:8px}.lblockhead .tools{margin-left:auto;display:flex;gap:4px}.lblockhead .tools button{padding:4px 9px}
+.lblockform{background:var(--soft);border-radius:10px;padding:10px;margin-bottom:10px}
+.main button.addblock{width:100%;padding:14px;border:2px dashed #c4b5fd;background:#faf5ff;color:#6d28d9;font-weight:700;border-radius:12px}.addblock small{font-weight:400;color:var(--muted);margin-left:8px}
+.blockpick{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px}
+.main .blockpick button{display:flex;gap:8px;align-items:center;text-align:left}.blockpick span{display:inline-grid;place-items:center;width:28px;height:28px;border-radius:8px;background:#ede9fe;font-size:13px}
+.main button.olphase{display:flex;justify-content:space-between;width:100%;border:0;border-left:3px solid var(--c);border-radius:4px;padding:4px 8px;font-weight:700;font-size:12px;text-transform:uppercase;color:var(--c);background:none}
+.olphase em{font-style:normal;color:var(--muted)}
+.main button.olblock{display:block;width:100%;text-align:left;border:0;background:none;padding:3px 8px 3px 14px;font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lsoutline{display:grid;gap:8px}.lsphase{border-left:3px solid var(--c);background:var(--soft);border-radius:8px;padding:6px 10px;display:grid;gap:4px}
+.lsphasehead{display:flex;justify-content:space-between;gap:8px}.lsphasehead small{color:var(--muted)}
+.lsblock{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;background:var(--surface);border-radius:8px;padding:6px}.lsblock small{color:var(--muted)}
+@media (max-width:1100px){.lessoned{grid-template-columns:1fr}.lphases,.loutline{position:static;max-height:none}}
+/* lớp phủ: xem như học sinh, trình chiếu, hộp thoại */
+.overlay{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column}
+.overlay.player{background:var(--bg)}
+.playtop{display:flex;gap:10px;align-items:center;padding:10px 16px;background:var(--surface);border-bottom:1px solid var(--line)}
+.playprog{flex:0 0 160px;height:8px;border-radius:8px;background:#e2e8f0;overflow:hidden;margin-left:auto}.playprog i{display:block;height:100%;background:var(--primary);transition:width .3s}
+.playbody{flex:1;display:grid;grid-template-columns:minmax(0,1fr) 300px;min-height:0}
+.playmain{overflow:auto;padding:20px 32px;display:grid;gap:14px;align-content:start}
+.playphase{font-size:20px;margin:18px 0 6px;color:var(--navy);border-left:5px solid var(--primary);padding-left:10px}
+.playblock{max-width:900px}
+.playend{text-align:center;padding:30px 0 60px}
+.playside{overflow:auto;border-left:1px solid var(--line);background:var(--surface);padding:12px;display:grid;gap:4px;align-content:start}
+.main .playside button{display:flex;gap:8px;text-align:left;border:0;background:none;padding:6px;border-radius:8px;font-size:12px}.playside button small{display:block;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.main .playside button.seen{background:#f0fdf4}
+.main button.okbtn{background:var(--ok);color:#fff;border-color:var(--ok)}
+.progchip.ct{background:#1c63bb;color:#fff}
+.overlay.show{background:#0b1220;color:#fff}
+.showtop{display:flex;gap:10px;align-items:center;padding:10px 16px;font-size:13px}.showtop small{color:#94a3b8}
+.main .showtop button.x,.main .playtop button.x{color:inherit;font-size:22px}
+.showstage{flex:1;display:grid;place-items:center;padding:16px;overflow:auto}
+.showcard{background:#fff;color:var(--text);border-radius:16px;padding:24px 32px;width:min(1000px,100%);max-height:calc(100vh - 140px);overflow:auto;display:grid;gap:10px;font-size:17px}
+.showcard.heading{width:min(760px,100%)}.showcard.heading h2{margin:0;font-size:30px;border-left:5px solid #7c3aed;padding-left:14px}
+.showcard>small{color:#7c3aed;font-weight:700;font-size:11px}
+.showbot{display:flex;justify-content:space-between;align-items:center;padding:10px 16px}
+.main .showbot button{background:transparent;color:#fff;border-color:#334155}
+.showbot .dots{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;max-width:60vw}.showbot .dots i{width:8px;height:8px;border-radius:50%;background:#334155;cursor:pointer}.showbot .dots i.on{background:#ef4444;width:22px;border-radius:6px}
+.modalbg{position:fixed;inset:0;z-index:70;background:rgba(15,23,42,.5);display:grid;place-items:center;padding:16px}
+.modal{background:var(--surface);border-radius:16px;width:min(760px,100%);max-height:calc(100vh - 32px);overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);display:flex;flex-direction:column}
+.modal.wide{width:min(980px,100%)}
+.modalhead{display:flex;gap:12px;align-items:flex-start;padding:16px 20px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);z-index:1}
+.modalhead h3{margin:0}.modalhead small{color:var(--muted)}.modalhead .x{margin-left:auto}
+.modalbody{padding:16px 20px;display:grid;gap:12px}
+.modalfoot{display:flex;gap:8px;justify-content:flex-end;align-items:center;padding:12px 20px;border-top:1px solid var(--line);position:sticky;bottom:0;background:var(--surface)}
+.modalhero{padding:18px 20px;color:#fff;background:linear-gradient(120deg,#152e5d,#7c3aed);display:grid;gap:6px}
+.modalhero h3{margin:0;font-size:20px}
+@media (max-width:860px){.playbody{grid-template-columns:1fr}.playside{display:none}.playmain{padding:14px}}
+/* thẻ danh mục (kho hoạt động, kho bài giảng, thư viện) */
+.statrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:12px 0}
+.main button.statcard{display:flex;gap:10px;align-items:center;text-align:left;padding:12px;border-radius:12px}
+.main button.statcard.on{border-color:var(--primary);background:#e6f1fd}
+.statcard i{display:inline-grid;place-items:center;width:34px;height:34px;border-radius:10px;background:var(--soft);font-style:normal}.statcard small{display:block;color:var(--muted);font-size:11px}.statcard b{font-size:20px}
+.tilegrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.main button.tile{display:flex;flex-direction:column;text-align:left;padding:0;overflow:hidden;border-radius:14px;min-height:100%}
+.tileart{height:110px;display:grid;place-items:center;font-size:44px;position:relative;background-size:cover;background-position:center}
+.tileart .progchip{position:absolute;top:8px;left:8px}
+.tilebody{padding:10px 12px;display:grid;gap:4px;flex:1;align-content:start}.tilebody b{line-height:1.3}.tilebody small{color:var(--muted)}
+.tilemeta{display:flex;gap:4px;flex-wrap:wrap}.tilemeta span{font-size:11px;background:var(--soft);padding:1px 7px;border-radius:6px}
+.tilemore{color:var(--primary);font-size:12px;font-weight:600;text-align:right;margin-top:auto}
+.art0{background:linear-gradient(135deg,#fef3c7,#fde68a)}.art1{background:linear-gradient(135deg,#dbeafe,#bfdbfe)}.art2{background:linear-gradient(135deg,#ede9fe,#ddd6fe)}
+.art3{background:linear-gradient(135deg,#ffedd5,#fed7aa)}.art4{background:linear-gradient(135deg,#dcfce7,#bbf7d0)}.art5{background:linear-gradient(135deg,#e0f2fe,#a5f3fc)}
+.sectionhead{margin:18px 0 4px}.sectionhead h3{margin:0}.sectionhead small{color:var(--muted)}
+/* gói STEM */
+.pkgcard{padding:0;overflow:hidden}.pkgcard .pkghead{padding:12px;color:#fff;display:grid;gap:6px}
+.pkghead.premium{background:linear-gradient(120deg,#7c2d12,#ea580c)}.pkghead.basic{background:linear-gradient(120deg,#1e3a8a,#2e95f2)}.pkghead.advanced{background:linear-gradient(120deg,#4c1d95,#a855f7)}
+.pkgcard .pkgbody{padding:12px;display:grid;gap:6px}
+.pkgbanner{border-radius:16px;padding:20px;color:#fff;display:grid;gap:8px;margin-bottom:12px}
+.infostrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:0;border:1px solid var(--line);border-radius:12px;background:var(--surface);margin-bottom:14px}
+.infostrip div{padding:10px 14px;border-right:1px solid var(--line)}.infostrip div:last-child{border-right:0}.infostrip small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase}
+.devimg{width:44px;height:44px;border-radius:8px;object-fit:cover;background:var(--soft);display:inline-grid;place-items:center;font-size:20px}
+.serial{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:11px;background:var(--soft);border-radius:6px;padding:1px 6px;margin:1px}
+/* thư viện theo chương trình */
+.libhero{border-radius:16px;padding:22px 24px;color:#fff;display:grid;gap:6px;margin-bottom:14px;background:linear-gradient(120deg,#0f4c75,#16a3b8)}
+.libhero h2{margin:0}.libhero .crumbs{font-size:12px;opacity:.9}.libhero .crumbs button{color:#fff;border:0;background:none;padding:0;font-size:12px;cursor:pointer;text-decoration:underline}
+.mylessons{background:linear-gradient(120deg,#ede9fe,#e0f2fe);border-radius:14px;padding:12px 14px;margin-bottom:14px}
+.mylessons .row{display:flex;gap:10px;overflow:auto;padding-top:8px}
+.main .mylessons button{flex:0 0 240px;text-align:left;display:grid;gap:2px}
+.sessions{display:grid;grid-template-columns:240px minmax(0,1fr);gap:14px;align-items:start}
+.main button.sessbtn{display:grid;grid-template-columns:24px 1fr;gap:8px;text-align:left;width:100%;border:0;background:none;padding:8px;border-radius:10px}
+.main button.sessbtn.on{background:#e6f1fd}.sessbtn small{display:block;color:var(--muted);font-size:11px}
+.sessbtn .lnum{background:#94a3b8}.sessbtn.on .lnum{background:var(--primary)}
+.toc{display:flex;gap:6px;flex-wrap:wrap;align-items:center}.main .toc button{font-size:12px;padding:3px 10px;border-radius:999px}
+.regcols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.4fr);gap:16px}
+.stepnum{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--primary);color:#fff;font-size:11px;font-weight:700;margin-right:6px}
+.qtyrow{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)}.qtyrow input{width:72px}
+@media (max-width:760px){.sessions,.regcols{grid-template-columns:1fr}}

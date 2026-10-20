@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
-import { KindChip, ProgChip, ItemPreview, MAT_TYPE, PROGRAMS, fmtDate, type Item, type Copy } from './common'
+import { openFile } from '../../lib/files'
+import { KindChip, ProgChip, ItemPreview, MAT_TYPE, PROGRAMS, RightsChip, ProgLine, fmtDate, selectItems, type Item, type Copy } from './common'
 
 type Props = { orgId: string | null; teacherId?: string | null; go?: (p: string) => void }
 type K = 'all' | Item['kind']
@@ -16,6 +17,7 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
   const [isAdmin, setIsAdmin] = useState(false)
   const [k, setK] = useState<K>('all')
   const [src, setSrc] = useState(''); const [prog, setProg] = useState(''); const [grade, setGrade] = useState(''); const [q, setQ] = useState('')
+  const [eprog, setEprog] = useState(''); const [mtype, setMtype] = useState(''); const [subj, setSubj] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [msg, setMsg] = useState(''); const [info, setInfo] = useState<{ text: string; lesson?: boolean } | null>(null)
@@ -25,7 +27,7 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
     const { data: { user } } = await supabase.auth.getUser()
     setUidMe(user?.id ?? null)
     const [i, c, o, a] = await Promise.all([
-      supabase.from('library_items').select('*, owner_name, owner_type').order('published_at', { ascending: false, nullsFirst: false }),
+      selectItems('published_at'),
       supabase.from('library_copies').select('item_id, adopted_version, lesson_plan_id, created_at, adopted_by').eq('org_id', orgId ?? ''),
       supabase.from('organizations').select('id, type').eq('id', orgId ?? '').maybeSingle(),
       supabase.rpc('is_admin'),
@@ -38,12 +40,20 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
   useEffect(() => { load() }, [orgId])
 
   const sources = useMemo(() => [...new Set(items.map(i => i.owner_name ?? '—'))].sort((a, b) => a.localeCompare(b, 'vi')), [items])
+  const eprogs = useMemo(() => {
+    const m = new Map<string, string>()
+    items.forEach(i => { if (i.program_id && i.edu_programs) m.set(i.program_id, `${i.edu_programs.title} (v${i.edu_programs.version_no})`) })
+    return [...m].sort((a, b) => a[1].localeCompare(b[1], 'vi'))
+  }, [items])
+  const subjects = useMemo(() => [...new Set(items.map(i => i.subject).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi')), [items])
   if (err) return <p className="msg">{err}</p>
 
   const isSchool = me?.type === 'school'
   // Bản sao của tôi (GV) hoặc của trường (quản trị) với từng mục
   const mineOf = (id: string) => copies.filter(c => c.item_id === id && (teacherId ? c.adopted_by === uidMe : true))
   const shown = items.filter(i => (k === 'all' || i.kind === k) && (!src || i.owner_name === src) && (!prog || i.program === prog)
+    && (!eprog || i.program_id === eprog) && (!subj || i.subject === subj)
+    && (!mtype || (i.kind === 'material' && (i.content.type ?? 'link') === mtype))
     && (!grade || (i.grades ?? '').split(/[,\s–-]+/).includes(grade))
     && (!q || (i.title + ' ' + (i.summary ?? '') + ' ' + i.tags.join(' ')).toLowerCase().includes(q.toLowerCase())))
 
@@ -67,7 +77,10 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
       </div>
       <div className="bar small">
         <select value={src} onChange={e => setSrc(e.target.value)} aria-label="Nguồn phát hành"><option value="">Mọi nguồn phát hành</option>{sources.map(s => <option key={s}>{s}</option>)}</select>
-        <select value={prog} onChange={e => setProg(e.target.value)} aria-label="Chương trình"><option value="">Mọi chương trình</option>{PROGRAMS.map(p => <option key={p}>{p}</option>)}</select>
+        <select value={prog} onChange={e => setProg(e.target.value)} aria-label="Chương trình"><option value="">Mọi CT1–CT5</option>{PROGRAMS.map(p => <option key={p}>{p}</option>)}</select>
+        {eprogs.length > 0 && <select value={eprog} onChange={e => setEprog(e.target.value)} aria-label="Chương trình giáo dục"><option value="">Mọi chương trình giáo dục</option>{eprogs.map(([id, t]) => <option key={id} value={id}>{t}</option>)}</select>}
+        <select value={mtype} onChange={e => setMtype(e.target.value)} aria-label="Loại học liệu"><option value="">Mọi loại học liệu</option>{Object.entries(MAT_TYPE).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+        <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(x => <option key={x}>{x}</option>)}</select>
         <select value={grade} onChange={e => setGrade(e.target.value)} aria-label="Khối"><option value="">Mọi khối</option>{['6', '7', '8', '9', '10', '11', '12'].map(g => <option key={g} value={g}>Khối {g}</option>)}</select>
       </div>
       {!isSchool && me && <p className="sub">Đây là học liệu cấp trên và KDI Education phát hành tới đơn vị của bạn. Trường học mới “dùng” được học liệu vào bài giảng.</p>}
@@ -85,18 +98,21 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
                 <KindChip kind={i.kind} /><ProgChip p={i.program} />
                 {i.kind === 'material' && <small className="sub">{MAT_TYPE[i.content.type ?? 'link']}</small>}
                 {mine.length > 0 && !outdated && <span className="gpill good"><i aria-hidden="true">✓</i>Đã dùng</span>}
+                {i.usage_rights && i.usage_rights !== 'adapt' && <RightsChip r={i.usage_rights} />}
                 {outdated && <span className="gpill warn" title={i.change_note ?? ''}><i aria-hidden="true">↻</i>Có bản mới v{i.version}</span>}
               </div>
               <h3>{i.title}</h3>
               <p className="sub libsrc">{i.owner_name}{i.owner_type === 'provider' ? ' · Đơn vị cung cấp' : ''} · v{i.version} · {fmtDate(i.published_at)}{i.grades ? ` · Khối ${i.grades}` : ''}{i.subject ? ` · ${i.subject}` : ''}</p>
+              {i.edu_programs && <p style={{ margin: '2px 0' }}><ProgLine i={i} /></p>}
               {i.summary && <p className="libsum">{i.summary}</p>}
               {outdated && i.change_note && <p className="sub">Cập nhật: {i.change_note}</p>}
               <div className="actions">
                 <button type="button" onClick={() => setOpen(open === i.id ? null : i.id)} aria-expanded={open === i.id}>{open === i.id ? 'Thu gọn' : 'Xem trước'}</button>
-                {isSchool && teacherId && <button type="button" className="primary" disabled={busy === i.id} onClick={() => adopt(i, false)}>
+                {isSchool && teacherId && i.usage_rights !== 'view' && <button type="button" className="primary" disabled={busy === i.id} onClick={() => adopt(i, false)}>
                   {i.kind === 'program' ? 'Dùng chương trình' : outdated ? 'Dùng bản mới' : mine.length ? 'Dùng thêm bản' : 'Dùng bài này'}</button>}
-                {isSchool && isAdmin && <button type="button" className={teacherId ? '' : 'primary'} disabled={busy === i.id} onClick={() => adopt(i, true)}>Thêm làm bài mẫu của trường</button>}
-                {i.kind === 'material' && i.content.url && <a className="linkbtn" href={i.content.url} target="_blank" rel="noreferrer">Mở học liệu ↗</a>}
+                {isSchool && isAdmin && i.usage_rights !== 'view' && <button type="button" className={teacherId ? '' : 'primary'} disabled={busy === i.id} onClick={() => adopt(i, true)}>Thêm làm bài mẫu của trường</button>}
+                {i.kind === 'material' && i.content.path && <button type="button" className="linkbtn" onClick={() => openFile(i.content.path!)}>Mở tệp ↗</button>}
+                {i.kind === 'material' && !i.content.path && i.content.url && <a className="linkbtn" href={i.content.url} target="_blank" rel="noreferrer">Mở học liệu ↗</a>}
               </div>
               {open === i.id && <ItemPreview item={i} all={items} />}
             </article>

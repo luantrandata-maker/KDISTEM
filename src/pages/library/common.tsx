@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { supabase } from '../../lib/supabase'
+import { openFile, fmtSize } from '../../lib/files'
 import { SlideView, KIND as SLIDE_KIND, type Slide, type SlideKind } from '../teacher/Lessons'
 import { PROGRAM_COLOR } from '../teacher/common'
 
@@ -6,17 +8,70 @@ export type Unit = { title: string; periods?: number; objectives?: string; lesso
 export type Item = {
   id: string; owner_org_id: string; kind: 'program' | 'lesson' | 'material'; title: string; summary: string | null
   subject: string | null; grades: string | null; program: string | null; tags: string[]
-  content: { slides?: Slide[]; type?: string; url?: string; units?: Unit[] }
+  content: { slides?: Slide[]; type?: string; url?: string; units?: Unit[]; path?: string; file_name?: string; size?: number; mime?: string }
   scope: 'children' | 'selected' | 'public'; status: 'draft' | 'published' | 'archived'; version: number
   published_at: string | null; change_note: string | null; updated_at: string
   owner_name?: string | null; owner_type?: string | null
+  program_id?: string | null; unit_id?: string | null; usage_rights?: Rights; usage_note?: string | null
+  edu_programs?: { title: string; version_no: number } | null; edu_program_units?: { title: string } | null
 }
+// Truy vấn học liệu kèm chương trình / bài; CSDL chưa có 059 thì quay về truy vấn cũ
+export async function selectItems(order: 'updated_at' | 'published_at'): Promise<{ data: Item[] | null; error: { message: string } | null }> {
+  const q = async (cols: string) => {
+    const r = await supabase.from('library_items').select(cols).order(order, { ascending: false, nullsFirst: false })
+    return { data: r.data as unknown as Item[] | null, error: r.error }
+  }
+  const r = await q('*, owner_name, owner_type, edu_programs(title, version_no), edu_program_units(title)')
+  return r.error && /relationship|schema cache|column/i.test(r.error.message) ? q('*, owner_name, owner_type') : r
+}
+export function ProgLine({ i }: { i: Item }) {
+  if (!i.edu_programs) return null
+  return <small className="sub">Chương trình: {i.edu_programs.title} (v{i.edu_programs.version_no}){i.edu_program_units ? ` › ${i.edu_program_units.title}` : ''}</small>
+}
+export type Rights = 'view' | 'use' | 'adapt'
+export type Version = { id: string; item_id: string; version: number; title: string; change_note: string | null; published_at: string; content: Item['content'] }
+export type ProgOpt = { id: string; title: string; version_no: number; status: string; org_id: string }
+export type UnitOpt = { id: string; program_id: string; parent_id: string | null; unit_type: 'topic' | 'lesson' | 'session'; seq: number; title: string }
 export type Copy = { item_id: string; adopted_version: number; lesson_plan_id: string | null; created_at: string; adopted_by: string | null }
 
 export const KIND: Record<Item['kind'], [string, string]> = {
   program: ['Chương trình', '▤'], lesson: ['Bài giảng', '▶'], material: ['Học liệu', '◆'],
 }
-export const MAT_TYPE: Record<string, string> = { video: 'Video', document: 'Tài liệu', link: 'Đường dẫn', image: 'Hình ảnh' }
+export const MAT_TYPE: Record<string, string> = {
+  lesson_plan: 'Giáo án', worksheet: 'Phiếu học tập', image: 'Hình ảnh', video: 'Video', guide: 'Tài liệu hướng dẫn', document: 'Tài liệu', link: 'Đường dẫn',
+}
+export const RIGHTS: Record<Rights, [string, string]> = {
+  view: ['Chỉ xem', 'warn'], use: ['Được dùng nguyên bản', ''], adapt: ['Được sao chép, chỉnh sửa', 'good'],
+}
+export function RightsChip({ r }: { r?: Rights | null }) {
+  if (!r) return null
+  const [label, tone] = RIGHTS[r]
+  return <span className={'gpill ' + tone} title="Quyền sử dụng">{label}</span>
+}
+// Chương trình giáo dục (058) mà đơn vị thấy + các chủ đề / bài của chúng, để gắn học liệu, định mức
+export function useProgramOptions(orgId: string | null) {
+  const [programs, setPrograms] = useState<ProgOpt[]>([])
+  const [units, setUnits] = useState<UnitOpt[]>([])
+  useEffect(() => {
+    supabase.from('edu_programs').select('id, title, version_no, status, org_id').in('status', ['published', 'draft', 'superseded']).order('title')
+      .then(({ data }) => setPrograms(((data as ProgOpt[]) ?? []).filter(p => p.status === 'published' || (p.status === 'draft' && p.org_id === orgId))))
+    supabase.from('edu_program_units').select('id, program_id, parent_id, unit_type, seq, title').in('unit_type', ['topic', 'lesson']).order('seq')
+      .then(({ data }) => setUnits((data as UnitOpt[]) ?? []))
+  }, [orgId])
+  return { programs, units }
+}
+// Chủ đề → bài của một chương trình theo thứ tự cây, kèm thụt lề
+export function unitTree(units: UnitOpt[], programId: string | null | undefined): { id: string; label: string }[] {
+  if (!programId) return []
+  const mine = units.filter(u => u.program_id === programId)
+  const out: { id: string; label: string }[] = []
+  const walk = (parent: string | null, depth: number) => mine.filter(u => u.parent_id === parent).sort((a, b) => a.seq - b.seq).forEach(u => {
+    out.push({ id: u.id, label: '\u00a0'.repeat(depth * 4) + (u.unit_type === 'topic' ? '' : '· ') + u.title }); walk(u.id, depth + 1)
+  })
+  walk(null, 0)
+  return out
+}
+export const progLabel = (p?: ProgOpt | null) => (p ? `${p.title} (v${p.version_no})` : '')
 export const SCOPE: Record<Item['scope'], string> = {
   children: 'Mọi đơn vị trực thuộc', selected: 'Đơn vị được chọn', public: 'Công khai toàn hệ thống',
 }
@@ -40,7 +95,7 @@ export function StatusChip({ s }: { s: Item['status'] }) {
 }
 
 // Xem trước nội dung một mục kho
-export function ItemPreview({ item, all }: { item: Item; all: Item[] }) {
+export function ItemPreview({ item, all, canRestore, onRestored }: { item: Item; all: Item[]; canRestore?: boolean; onRestored?: () => void }) {
   const [i, setI] = useState(0)
   if (item.kind === 'lesson') {
     const slides = item.content.slides ?? []
@@ -54,14 +109,18 @@ export function ItemPreview({ item, all }: { item: Item; all: Item[] }) {
             <button type="button" disabled={i >= slides.length - 1} onClick={() => setI(i + 1)}>Sau →</button>
           </div>
         )}
+        <Versions item={item} canRestore={canRestore} onRestored={onRestored} />
       </div>
     )
   }
   if (item.kind === 'material') {
     return (
       <div className="libpreview">
-        <p><b>{MAT_TYPE[item.content.type ?? 'link'] ?? 'Đường dẫn'}:</b> {item.content.url
-          ? <a href={item.content.url} target="_blank" rel="noreferrer">{item.content.url}</a> : <i>chưa có đường dẫn</i>}</p>
+        <p><b>{MAT_TYPE[item.content.type ?? 'link'] ?? 'Đường dẫn'}:</b> {item.content.path
+          ? <button type="button" className="linkbtn" onClick={() => openFile(item.content.path!)}>{item.content.file_name ?? 'Mở tệp'}{item.content.size ? ` (${fmtSize(item.content.size)})` : ''} ↗</button>
+          : item.content.url ? <a href={item.content.url} target="_blank" rel="noreferrer">{item.content.url}</a> : <i>chưa có tệp hoặc đường dẫn</i>}</p>
+        {item.usage_rights && <p><b>Quyền sử dụng:</b> <RightsChip r={item.usage_rights} />{item.usage_note ? <small className="sub"> {item.usage_note}</small> : null}</p>}
+        <Versions item={item} canRestore={canRestore} onRestored={onRestored} />
       </div>
     )
   }
@@ -77,6 +136,35 @@ export function ItemPreview({ item, all }: { item: Item; all: Item[] }) {
       ))}
       {units.length === 0 && <li className="sub">Chưa có chủ đề nào.</li>}
     </ol>
+  )
+}
+
+// Lịch sử phiên bản phát hành (059); chủ học liệu khôi phục được bản cũ vào bản đang soạn
+export function Versions({ item, canRestore, onRestored }: { item: Item; canRestore?: boolean; onRestored?: () => void }) {
+  const [rows, setRows] = useState<Version[] | null>(null)
+  const [msg, setMsg] = useState('')
+  useEffect(() => {
+    supabase.from('library_item_versions').select('id, item_id, version, title, change_note, published_at, content').eq('item_id', item.id)
+      .order('version', { ascending: false }).then(({ data }) => setRows((data as Version[]) ?? []))
+  }, [item.id, item.version])
+  if (!rows || rows.length === 0) return null
+  async function restore(v: Version) {
+    if (!confirm(`Khôi phục nội dung phiên bản ${v.version} vào bản đang soạn? Cần phát hành lại để thành phiên bản mới.`)) return
+    const { error } = await supabase.rpc('library_restore_version', { p_item: item.id, p_version: v.version })
+    if (error) return setMsg(error.message)
+    setMsg(`Đã khôi phục phiên bản ${v.version} thành bản nháp.`); onRestored?.()
+  }
+  return (
+    <div className="libversions">
+      <b>Phiên bản</b>
+      <table><tbody>{rows.map(v => (
+        <tr key={v.id}><td>v{v.version}{v.version === item.version ? <small className="sub"> (hiện tại)</small> : null}</td><td>{fmtDate(v.published_at)}</td>
+          <td><small>{v.change_note ?? ''}</small></td>
+          <td>{v.content?.path && <button type="button" className="linkbtn" onClick={() => openFile(v.content.path!)}>Mở tệp</button>}
+            {canRestore && v.version !== item.version && <button type="button" onClick={() => restore(v)}>Khôi phục</button>}</td></tr>
+      ))}</tbody></table>
+      {msg && <p className="sub">{msg}</p>}
+    </div>
   )
 }
 

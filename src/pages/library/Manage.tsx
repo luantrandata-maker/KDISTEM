@@ -2,8 +2,10 @@ import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
 import type { Slide } from '../teacher/Lessons'
+import { uploadLearningFile, fmtSize, MAX_FILE_MB } from '../../lib/files'
 import {
-  KindChip, ProgChip, StatusChip, ItemPreview, SlidesEditor, SCOPE, MAT_TYPE, PROGRAMS, KIND, fmtDate, uid, type Item, type Unit,
+  KindChip, ProgChip, StatusChip, ItemPreview, SlidesEditor, SCOPE, MAT_TYPE, PROGRAMS, KIND, RIGHTS, RightsChip, ProgLine,
+  fmtDate, uid, selectItems, useProgramOptions, unitTree, progLabel, type Item, type Unit, type Rights,
 } from './common'
 
 type Org = { id: string; name: string; type: string; parent_id: string | null }
@@ -12,10 +14,13 @@ type LP = { id: string; title: string; subject: string | null; grades: string | 
 type Form = {
   id?: string; kind: Item['kind']; title: string; summary: string; subject: string; grades: string; program: string; tags: string
   scope: Item['scope']; targets: string[]; slides: Slide[]; mtype: string; url: string; units: Unit[]
+  src: 'url' | 'file'; file: { path: string; file_name: string; size: number; mime: string } | null
+  program_id: string; unit_id: string; usage_rights: Rights; usage_note: string
 }
 const EMPTY = (kind: Item['kind']): Form => ({
   kind, title: '', summary: '', subject: '', grades: '', program: '', tags: '', scope: 'children', targets: [],
-  slides: kind === 'lesson' ? [{ id: uid(), kind: 'title', title: '', body: '' }] : [], mtype: 'video', url: '', units: kind === 'program' ? [{ title: 'Chủ đề 1', periods: 2, objectives: '', lesson_ids: [] }] : [],
+  slides: kind === 'lesson' ? [{ id: uid(), kind: 'title', title: '', body: '' }] : [], mtype: 'worksheet', url: '', units: kind === 'program' ? [{ title: 'Chủ đề 1', periods: 2, objectives: '', lesson_ids: [] }] : [],
+  src: 'file', file: null, program_id: '', unit_id: '', usage_rights: 'adapt', usage_note: '',
 })
 type T = 'all' | 'published' | 'draft' | 'archived'
 
@@ -34,11 +39,13 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   const [msg, setMsg] = useState(''); const [info, setInfo] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const { programs, units } = useProgramOptions(orgId)
 
   async function load() {
     if (!orgId) return
     const [i, s, t, o, l] = await Promise.all([
-      supabase.from('library_items').select('*, owner_name, owner_type').order('updated_at', { ascending: false }),
+      selectItems('updated_at'),
       supabase.rpc('library_stats'),
       supabase.from('library_targets').select('item_id, org_id'),
       supabase.from('organizations').select('id, name, type, parent_id').order('name'),
@@ -69,6 +76,9 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
       id: i.id, kind: i.kind, title: i.title, summary: i.summary ?? '', subject: i.subject ?? '', grades: i.grades ?? '', program: i.program ?? '',
       tags: i.tags.join(', '), scope: i.scope, targets: targets.get(i.id) ?? [], slides: i.content.slides ?? [], mtype: i.content.type ?? 'video',
       url: i.content.url ?? '', units: i.content.units ?? [],
+      src: i.content.path ? 'file' : 'url',
+      file: i.content.path ? { path: i.content.path, file_name: i.content.file_name ?? 'tệp', size: i.content.size ?? 0, mime: i.content.mime ?? '' } : null,
+      program_id: i.program_id ?? '', unit_id: i.unit_id ?? '', usage_rights: i.usage_rights ?? 'adapt', usage_note: i.usage_note ?? '',
     })
   }
   function importLesson(id: string) {
@@ -79,8 +89,13 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   async function save(e: React.FormEvent, publish: boolean) {
     e.preventDefault(); if (!form || !orgId) return
     if (form.scope === 'selected' && form.targets.length === 0) return setMsg('Chọn ít nhất một đơn vị nhận.')
-    const content = form.kind === 'lesson' ? { slides: form.slides } : form.kind === 'material' ? { type: form.mtype, url: form.url.trim() } : { units: form.units }
+    if (form.kind === 'material' && form.src === 'file' && !form.file && publish) return setMsg('Chọn tệp học liệu để tải lên.')
+    const content = form.kind === 'lesson' ? { slides: form.slides } : form.kind === 'material'
+      ? (form.src === 'file' && form.file ? { type: form.mtype, url: '', ...form.file } : { type: form.mtype, url: form.url.trim() })
+      : { units: form.units }
     const row = {
+      program_id: form.program_id || null, unit_id: form.program_id && form.unit_id ? form.unit_id : null,
+      usage_rights: form.usage_rights, usage_note: form.usage_note.trim() || null,
       owner_org_id: orgId, kind: form.kind, title: form.title.trim(), summary: form.summary.trim() || null, subject: form.subject.trim() || null,
       grades: form.grades.trim() || null, program: form.program || null, tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
       scope: form.scope, content,
@@ -121,6 +136,16 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
     if (error) setMsg(error.message); else { setInfo('Đã xoá.'); load() }
   }
 
+  async function pickFile(f: File) {
+    if (!form || !orgId) return
+    setUploading(true); setMsg('')
+    try {
+      const up = await uploadLearningFile(orgId, 'hoc-lieu', f)
+      setForm(cur => cur && { ...cur, file: { path: up.path, file_name: up.name, size: up.size, mime: up.mime }, title: cur.title || up.name.replace(/\.[^.]+$/, '') })
+    } catch (e) { setMsg(e instanceof Error ? e.message : String(e)) }
+    setUploading(false)
+  }
+
   const shown = items.filter(i => tab === 'all' || i.status === tab)
   const setUnit = (k: number, p: Partial<Unit>) => form && setForm({ ...form, units: form.units.map((u, j) => j === k ? { ...u, ...p } : u) })
 
@@ -145,8 +170,18 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mô tả ngắn</span><textarea rows={2} value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })} /></label>
             <label className="field"><span>Môn</span><input value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="VD: Công nghệ" /></label>
             <label className="field"><span>Khối</span><input value={form.grades} onChange={e => setForm({ ...form, grades: e.target.value })} placeholder="VD: 8,9" /></label>
-            <label className="field"><span>Chương trình</span><select value={form.program} onChange={e => setForm({ ...form, program: e.target.value })}><option value="">—</option>{PROGRAMS.map(p => <option key={p}>{p}</option>)}</select></label>
+            <label className="field"><span>CT1–CT5</span><select value={form.program} onChange={e => setForm({ ...form, program: e.target.value })}><option value="">—</option>{PROGRAMS.map(p => <option key={p}>{p}</option>)}</select></label>
             <label className="field"><span>Từ khoá</span><input value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} placeholder="robot, cảm biến" /></label>
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình giáo dục</span>
+              <select value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, unit_id: '' })} aria-label="Chương trình giáo dục">
+                <option value="">— không gắn —</option>{programs.map(p => <option key={p.id} value={p.id}>{progLabel(p)}{p.status === 'draft' ? ' · nháp' : ''}</option>)}</select></label>
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>Chủ đề / bài</span>
+              <select value={form.unit_id} disabled={!form.program_id} onChange={e => setForm({ ...form, unit_id: e.target.value })} aria-label="Chủ đề / bài">
+                <option value="">— cả chương trình —</option>{unitTree(units, form.program_id).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
+            <label className="field"><span>Quyền sử dụng</span>
+              <select value={form.usage_rights} onChange={e => setForm({ ...form, usage_rights: e.target.value as Rights })} aria-label="Quyền sử dụng">
+                {(Object.keys(RIGHTS) as Rights[]).map(r => <option key={r} value={r}>{RIGHTS[r][0]}</option>)}</select></label>
+            <label className="field" style={{ gridColumn: 'span 3' }}><span>Ghi chú quyền sử dụng</span><input value={form.usage_note} onChange={e => setForm({ ...form, usage_note: e.target.value })} placeholder="VD: chỉ dùng trong năm học 2026–2027, ghi nguồn KDI" /></label>
             <label className="field"><span>Phát hành tới</span>
               <select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Item['scope'] })}>
                 {me.type !== 'provider' && <option value="children">{SCOPE.children}</option>}
@@ -176,8 +211,17 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
           )}
           {form.kind === 'material' && (
             <div className="formgrid">
-              <label className="field"><span>Loại</span><select value={form.mtype} onChange={e => setForm({ ...form, mtype: e.target.value })}>{Object.entries(MAT_TYPE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
-              <label className="field" style={{ gridColumn: 'span 3' }}><span>Đường dẫn *</span><input value={form.url} onChange={e => setForm({ ...form, url: e.target.value })} placeholder="https://…" /></label>
+              <label className="field"><span>Loại học liệu</span><select value={form.mtype} onChange={e => setForm({ ...form, mtype: e.target.value })} aria-label="Loại học liệu">{Object.entries(MAT_TYPE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+              <div className="field"><span>Nguồn</span><div className="tools">
+                <label><input type="radio" checked={form.src === 'file'} onChange={() => setForm({ ...form, src: 'file' })} /> Tải tệp lên</label>
+                <label><input type="radio" checked={form.src === 'url'} onChange={() => setForm({ ...form, src: 'url' })} /> Đường dẫn</label></div></div>
+              {form.src === 'url'
+                ? <label className="field" style={{ gridColumn: 'span 2' }}><span>Đường dẫn *</span><input value={form.url} onChange={e => setForm({ ...form, url: e.target.value })} placeholder="https://…" /></label>
+                : <div className="field" style={{ gridColumn: 'span 2' }}><span>Tệp (tối đa {MAX_FILE_MB} MB)</span><div className="tools">
+                    {form.file && <span className="chip">{form.file.file_name} · {fmtSize(form.file.size)}</span>}
+                    <label className={'filebtn' + (uploading ? ' busy' : '')}>{uploading ? 'Đang tải lên…' : form.file ? 'Thay tệp' : 'Chọn tệp'}
+                      <input type="file" hidden disabled={uploading} onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = '' }} /></label>
+                  </div></div>}
             </div>
           )}
           {form.kind === 'program' && (
@@ -202,8 +246,8 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
             </div>
           )}
           <div className="formactions">
-            <button type="button" className="primary" disabled={busy} onClick={e => save(e as unknown as React.FormEvent, true)}>Lưu & phát hành</button>
-            <button type="submit" disabled={busy}>Lưu nháp</button>
+            <button type="button" className="primary" disabled={busy || uploading} onClick={e => save(e as unknown as React.FormEvent, true)}>Lưu & phát hành</button>
+            <button type="submit" disabled={busy || uploading}>Lưu nháp</button>
             <button type="button" onClick={() => setForm(null)}>Huỷ</button>
           </div>
         </form>
@@ -217,7 +261,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
               const s = stats.get(i.id)
               return (<Fragment key={i.id}>
                 <tr>
-                  <td><KindChip kind={i.kind} /> <ProgChip p={i.program} /><br /><b>{i.title}</b><br /><small className="sub">{[i.subject, i.grades && `Khối ${i.grades}`, `cập nhật ${fmtDate(i.updated_at)}`].filter(Boolean).join(' · ')}</small></td>
+                  <td><KindChip kind={i.kind} /> <ProgChip p={i.program} />{i.kind === 'material' && <small className="sub"> {MAT_TYPE[i.content.type ?? 'link']}</small>} {i.usage_rights !== 'adapt' && <RightsChip r={i.usage_rights} />}<br /><b>{i.title}</b><br /><small className="sub">{[i.subject, i.grades && `Khối ${i.grades}`, `cập nhật ${fmtDate(i.updated_at)}`].filter(Boolean).join(' · ')}</small>{i.edu_programs && <><br /><ProgLine i={i} /></>}</td>
                   <td>{SCOPE[i.scope]}{i.scope === 'selected' && <><br /><small className="sub">{(targets.get(i.id) ?? []).map(id => orgs.find(o => o.id === id)?.name).filter(Boolean).join(', ')}</small></>}</td>
                   <td><StatusChip s={i.status} />{i.version > 0 && <small className="sub"> v{i.version}</small>}</td>
                   <td>{s ? <>{s.schools} trường{s.outdated ? <><br /><small className="sub">{s.outdated} bản dùng phiên bản cũ</small></> : null}</> : <small className="sub">Chưa có</small>}</td>
@@ -229,7 +273,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
                     {i.status !== 'published' && !s && <button type="button" className="danger" onClick={() => remove(i)}>Xoá</button>}
                   </td>
                 </tr>
-                {open === i.id && <tr><td colSpan={5}><ItemPreview item={i} all={visible} /></td></tr>}
+                {open === i.id && <tr><td colSpan={5}><ItemPreview item={i} all={visible} canRestore onRestored={load} /></td></tr>}
               </Fragment>)
             })}
             {shown.length === 0 && <tr><td colSpan={5}>Chưa có học liệu. Bấm “+ Bài giảng”, “+ Học liệu” hoặc “+ Chương trình” để bắt đầu.</td></tr>}

@@ -169,6 +169,13 @@ begin
     delete from supply_requests where title like 'ISO %';
     perform set_config('app.stock_engine', 'off', true);
   end if;
+  if to_regclass('public.material_norms') is not null then
+    perform set_config('app.norm_status', 'on', true);
+    delete from notifications where ref_id in (select id from material_norms where title like 'ISO %');
+    delete from material_norms where title like 'ISO %';
+    delete from material_catalog where name like 'ISO %';
+    perform set_config('app.norm_status', '', true);
+  end if;
   if to_regclass('public.curriculum_lessons') is not null then delete from curriculum_books where title like 'ISO %'; end if;
   if to_regclass('public.edu_programs') is not null then
     delete from notifications where ref_id in (select id from approval_requests where ref_table in ('edu_programs', 'curriculum_books') and title like 'ISO %');
@@ -1956,6 +1963,91 @@ do $$ begin perform pg_temp.mk('hs_ppct', 'THCS-PH', 'student'); update profiles
 select pg_temp.chk('hs_ppct', 'Kho tệp: học sinh đọc tệp của trường mình', $q$select count(*) from storage.objects where name like '%/iso-a.pdf'$q$, '1');
 select pg_temp.chk('hs_ppct', 'Kho tệp: học sinh không tải tệp lên', format($q$insert into storage.objects (bucket_id, name) values ('learning-files', %L)$q$, pg_temp.oid_('THCS-PH') || '/iso-c.pdf'), 'ERR');
 select pg_temp.chk('so_hy', 'Kho tệp: cấp trên không xoá tệp của trường', $q$delete from storage.objects where name like '%/iso-a.pdf'$q$, 'rows:0');
+
+
+-- ===== 059: học liệu theo chương trình, danh mục vật tư, định mức, đề xuất điều chỉnh =====
+-- Danh mục vật tư
+select pg_temp.probe('kdi@iso-test.local', $q$insert into material_catalog (org_id, name, kind, unit, reusable) values (platform_org_id(), 'ISO Kit KDI', 'equipment', 'bộ', true)$q$, true);
+select pg_temp.chk('admin_ph', 'Danh mục VT: trường thấy danh mục dùng chung của KDI', $q$select count(*) from material_catalog where name = 'ISO Kit KDI'$q$, '1');
+select pg_temp.chk('admin_ph', 'Danh mục VT: trường không sửa danh mục của KDI', $q$update material_catalog set unit = 'cái' where name = 'ISO Kit KDI'$q$, 'rows:0');
+select pg_temp.chk('gv_both', 'Danh mục VT: giáo viên không thêm danh mục của trường', $q$insert into material_catalog (org_id, name) values (my_org_id(), 'ISO VT GV')$q$, 'ERR');
+select pg_temp.probe('admin_ph@iso-test.local', $q$insert into material_catalog (org_id, name, unit) values (my_org_id(), 'ISO VT trường', 'cái')$q$, true);
+select pg_temp.chk('admin_kb', 'Danh mục VT: trường khác không thấy danh mục của trường A', $q$select count(*) from material_catalog where name = 'ISO VT trường'$q$, '0');
+select pg_temp.chk('so_hy', 'Danh mục VT: Sở thấy danh mục của trường trực thuộc', $q$select count(*) from material_catalog where name = 'ISO VT trường'$q$, '1');
+select pg_temp.probe('so_hy@iso-test.local', $q$insert into material_catalog (org_id, name, unit, scope) values (my_org_id(), 'ISO VT Sở', 'cuộn', 'children')$q$, true);
+select pg_temp.chk('admin_ph', 'Danh mục VT: trường thấy danh mục Sở cấp trên', $q$select count(*) from material_catalog where name = 'ISO VT Sở'$q$, '1');
+select pg_temp.chk('admin_kb', 'Danh mục VT: trường tỉnh khác không thấy danh mục Sở HY', $q$select count(*) from material_catalog where name = 'ISO VT Sở'$q$, '0');
+select pg_temp.chk('so_bn', 'Danh mục VT: Sở khác không thêm vào danh mục Sở HY', format($q$insert into material_catalog (org_id, name) values (%L, 'ISO VT lạ')$q$, pg_temp.oid_('SO-HY')), 'ERR');
+-- Định mức
+select pg_temp.probe('so_hy@iso-test.local', $q$insert into material_norms (org_id, title, basis, group_size, sessions) values (my_org_id(), 'ISO ĐM Sở', 'group', 4, 1)$q$, true);
+select pg_temp.probe('so_hy@iso-test.local', $q$insert into material_norm_items (norm_id, catalog_id, name, qty) select n.id, c.id, 'x', 2 from material_norms n, material_catalog c where n.title = 'ISO ĐM Sở' and c.name = 'ISO VT Sở'$q$, true);
+select pg_temp.chk('so_hy', 'Định mức: dòng vật tư lấy tên, đơn vị từ danh mục', $q$select name || '|' || unit from material_norm_items i join material_norms n on n.id = i.norm_id where n.title = 'ISO ĐM Sở'$q$, 'ISO VT Sở|cuộn');
+select pg_temp.chk('admin_ph', 'Định mức: trường không thấy bản nháp của Sở', $q$select count(*) from material_norms where title = 'ISO ĐM Sở'$q$, '0');
+select pg_temp.chk('so_hy', 'Định mức: không tự đổi trạng thái (phải qua Ban hành)', $q$update material_norms set status = 'published' where title = 'ISO ĐM Sở'$q$, 'ERR');
+select pg_temp.chk('admin_ph', 'Định mức: trường không ban hành định mức của Sở', $q$select material_norm_set_status((select id from material_norms where title = 'ISO ĐM Sở' limit 1), 'published')$q$, 'ERR');
+select pg_temp.probe('so_hy@iso-test.local', $q$select material_norm_set_status((select id from material_norms where title = 'ISO ĐM Sở'), 'published')$q$, true);
+select pg_temp.chk('admin_ph', 'Định mức: trường thấy định mức Sở đã ban hành', $q$select count(*) from material_norms where title = 'ISO ĐM Sở'$q$, '1');
+select pg_temp.chk('admin_kb', 'Định mức: trường tỉnh khác không thấy định mức Sở HY', $q$select count(*) from material_norms where title = 'ISO ĐM Sở'$q$, '0');
+select pg_temp.chk('so_hy', 'Định mức: đã ban hành thì không sửa dòng vật tư', $q$update material_norm_items i set qty = 5 from material_norms n where n.id = i.norm_id and n.title = 'ISO ĐM Sở'$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Định mức: trường không sửa định mức của Sở', $q$update material_norms set note = 'x' where title = 'ISO ĐM Sở'$q$, 'rows:0');
+select pg_temp.chk('admin_ph', 'Định mức: trường không xoá dòng định mức của Sở', $q$delete from material_norm_items i using material_norms n where n.id = i.norm_id and n.title = 'ISO ĐM Sở'$q$, 'rows:0');
+select pg_temp.chk('admin_kb', 'Định mức: trường tỉnh khác không sao chép định mức Sở HY',
+  format($q$select material_norm_copy(%L)::text$q$, (select id from material_norms where title = 'ISO ĐM Sở')), 'ERR');
+select pg_temp.probe('admin_ph@iso-test.local', $q$select material_norm_copy((select id from material_norms where title = 'ISO ĐM Sở' and org_id <> my_org_id()))::text$q$, true);
+select pg_temp.chk('admin_ph', 'Định mức: sao chép về trường thành bản nháp riêng, đủ dòng',
+  $q$select n.status || ':' || n.scope || ':' || (select count(*) from material_norm_items i where i.norm_id = n.id) from material_norms n where n.title = 'ISO ĐM Sở' and n.org_id = my_org_id()$q$, 'draft:own:1');
+select pg_temp.chk('so_hy', 'Định mức: Sở thấy bản sao của trường trực thuộc', $q$select count(*) from material_norms where title = 'ISO ĐM Sở'$q$, '2');
+select pg_temp.chk('admin_ph', 'Dự trù: 30 HS, nhóm 4 → 8 nhóm × 2 = 16',
+  $q$select need::int from material_norm_estimate((select id from material_norms where title = 'ISO ĐM Sở' and org_id <> my_org_id()), null, 30)$q$, '16');
+select pg_temp.chk('admin_kb', 'Dự trù: trường tỉnh khác không dự trù theo định mức Sở HY',
+  format($q$select count(*) from material_norm_estimate(%L, null, 30)$q$, (select id from material_norms where title = 'ISO ĐM Sở' and org_id = pg_temp.oid_('SO-HY'))), 'ERR');
+select pg_temp.chk('admin_ph', 'Dự trù: không dự trù cho lớp của trường khác',
+  format($q$select count(*) from material_norm_estimate((select id from material_norms where title = 'ISO ĐM Sở' and org_id <> my_org_id()), %L)$q$,
+         (select id from classes where org_id = pg_temp.oid_('THCS-KB') limit 1)), 'ERR');
+-- Đề xuất điều chỉnh
+select pg_temp.chk('admin_kb', 'Đề xuất ĐM: trường tỉnh khác không đề xuất cho định mức Sở HY',
+  format($q$insert into material_norm_proposals (norm_id, reason, items) values (%L, 'ISO', '[{"name":"x","qty":1}]')$q$, (select id from material_norms where title = 'ISO ĐM Sở' and org_id = pg_temp.oid_('SO-HY'))), 'ERR');
+select pg_temp.chk('gv_both', 'Đề xuất ĐM: giáo viên đề xuất điều chỉnh định mức đã ban hành',
+  $q$insert into material_norm_proposals (norm_id, reason, items) select n.id, 'ISO thiếu', jsonb_build_array(jsonb_build_object('item_id', i.id, 'name', i.name, 'qty', 3)) from material_norms n join material_norm_items i on i.norm_id = n.id where n.title = 'ISO ĐM Sở' and n.status = 'published'$q$, 'rows:1');
+select pg_temp.probe('gv_both@iso-test.local', $q$insert into material_norm_proposals (norm_id, reason, items) select n.id, 'ISO thiếu', jsonb_build_array(jsonb_build_object('item_id', i.id, 'name', i.name, 'qty', 3)) from material_norms n join material_norm_items i on i.norm_id = n.id where n.title = 'ISO ĐM Sở' and n.status = 'published'$q$, true);
+select pg_temp.chk('so_hy', 'Đề xuất ĐM: Sở thấy đề xuất cho định mức của mình', $q$select count(*) from material_norm_proposals where reason = 'ISO thiếu'$q$, '1');
+select pg_temp.chk('so_bn', 'Đề xuất ĐM: Sở khác không thấy đề xuất', $q$select count(*) from material_norm_proposals where reason = 'ISO thiếu'$q$, '0');
+select pg_temp.chk('admin_kb', 'Đề xuất ĐM: trường khác không thấy đề xuất', $q$select count(*) from material_norm_proposals where reason = 'ISO thiếu'$q$, '0');
+select pg_temp.chk('gv_both', 'Đề xuất ĐM: người đề xuất không tự chấp nhận', $q$update material_norm_proposals set status = 'accepted' where reason = 'ISO thiếu'$q$, 'ERR');
+select pg_temp.chk('admin_ph', 'Đề xuất ĐM: trường không quyết định đề xuất cho định mức của Sở',
+  format($q$select material_norm_decide(%L, true)::text$q$, (select id from material_norm_proposals where reason = 'ISO thiếu')), 'ERR');
+select pg_temp.probe('so_hy@iso-test.local', $q$select material_norm_decide((select id from material_norm_proposals where reason = 'ISO thiếu'), true, 'Đồng ý')::text$q$, true);
+select pg_temp.chk('so_hy', 'Đề xuất ĐM: chấp nhận → phiên bản nháp mới đã áp số lượng',
+  $q$select n.version_no || ':' || n.status || ':' || i.qty::int from material_norms n join material_norm_items i on i.norm_id = n.id where n.title = 'ISO ĐM Sở' and n.org_id = my_org_id() and n.status = 'draft'$q$, '2:draft:3');
+select pg_temp.chk('gv_both', 'Đề xuất ĐM: người đề xuất thấy kết quả', $q$select status from material_norm_proposals where reason = 'ISO thiếu'$q$, 'accepted');
+select pg_temp.chk('so_hy', 'Định mức: không tạo thêm phiên bản khi đang có bản nháp',
+  $q$select material_norm_new_version((select id from material_norms where title = 'ISO ĐM Sở' and org_id = my_org_id() and status = 'published'))::text$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Định mức: trường vẫn chỉ thấy bản đang ban hành (không thấy nháp v2 của Sở)', $q$select count(*) from material_norms where title = 'ISO ĐM Sở' and org_id <> my_org_id()$q$, '1');
+-- Học liệu theo chương trình, quyền sử dụng, phiên bản
+select pg_temp.chk('so_hy', 'Học liệu: bài không thuộc chương trình đã chọn bị chặn',
+  $q$insert into library_items (owner_org_id, kind, title, content, program_id, unit_id) select my_org_id(), 'material', 'ISO HL sai bài', '{"type":"worksheet","url":"https://x"}',
+     (select id from edu_programs where title like 'STEM CT2%' limit 1), (select id from edu_program_units where program_id = (select id from edu_programs where title like 'Tin học THCS%' and status = 'published' limit 1) limit 1)$q$, 'ERR*');
+select pg_temp.chk('so_hy', 'Học liệu: tệp phải nằm trong thư mục của đơn vị phát hành',
+  format($q$insert into library_items (owner_org_id, kind, title, content) values (my_org_id(), 'material', 'ISO HL tệp lạ', jsonb_build_object('type', 'document', 'path', %L))$q$, pg_temp.oid_('SO-BN') || '/hoc-lieu/iso-x.pdf'), 'ERR*');
+select pg_temp.probe('so_hy@iso-test.local', format($q$insert into library_items (owner_org_id, kind, title, content, scope, usage_rights) values (my_org_id(), 'material', 'ISO HL Sở', jsonb_build_object('type', 'worksheet', 'path', %L, 'file_name', 'iso-hl.pdf'), 'children', 'view')$q$, pg_temp.oid_('SO-HY') || '/hoc-lieu/iso-hl.pdf'), true);
+select pg_temp.probe('so_hy@iso-test.local', $q$select library_publish((select id from library_items where title = 'ISO HL Sở'), 'bản 1')::text$q$, true);
+select pg_temp.probe('so_hy@iso-test.local', $q$update library_items set title = 'ISO HL Sở 2' where title = 'ISO HL Sở'$q$, true);
+select pg_temp.probe('so_hy@iso-test.local', $q$select library_publish((select id from library_items where title = 'ISO HL Sở 2'), 'bản 2')::text$q$, true);
+select pg_temp.chk('admin_ph', 'Học liệu: trường xem được lịch sử phiên bản học liệu của Sở', $q$select count(*) from library_item_versions v join library_items i on i.id = v.item_id where i.title = 'ISO HL Sở 2'$q$, '2');
+select pg_temp.chk('admin_kb', 'Học liệu: trường tỉnh khác không xem phiên bản', $q$select count(*) from library_item_versions where title like 'ISO HL Sở%'$q$, '0');
+select pg_temp.chk('admin_ph', 'Học liệu: "chỉ xem" thì không dùng vào bài giảng', $q$select library_adopt((select id from library_items where title = 'ISO HL Sở 2'), true)::text$q$, 'ERR');
+select pg_temp.chk('admin_ph', 'Học liệu: trường không khôi phục phiên bản học liệu của Sở', $q$select library_restore_version((select id from library_items where title = 'ISO HL Sở 2'), 1)::text$q$, 'ERR');
+select pg_temp.probe('so_hy@iso-test.local', $q$select library_restore_version((select id from library_items where title = 'ISO HL Sở 2'), 1)::text$q$, true);
+select pg_temp.chk('so_hy', 'Học liệu: khôi phục bản 1 → về bản nháp có nội dung bản 1', $q$select title || ':' || status from library_items where title like 'ISO HL Sở%'$q$, 'ISO HL Sở:draft');
+select pg_temp.probe('so_hy@iso-test.local', $q$select library_publish((select id from library_items where title = 'ISO HL Sở'), 'bản 3')::text$q$, true);
+do $$ begin
+  if to_regclass('storage.objects') is not null then
+    insert into storage.objects (bucket_id, name, owner) values ('learning-files', pg_temp.oid_('SO-HY') || '/hoc-lieu/iso-hl.pdf', null);
+  end if;
+end $$;
+select pg_temp.chk('hs_ppct', 'Kho tệp: học sinh trường trực thuộc đọc tệp học liệu Sở đã phát hành', $q$select count(*) from storage.objects where name like '%/hoc-lieu/iso-hl.pdf'$q$, '1');
+select pg_temp.chk('hs_kb', 'Kho tệp: học sinh tỉnh khác không đọc tệp học liệu Sở HY', $q$select count(*) from storage.objects where name like '%/hoc-lieu/iso-hl.pdf'$q$, '0');
+select pg_temp.chk('admin_kb', 'Kho tệp: trường tỉnh khác không đọc tệp học liệu Sở HY', $q$select count(*) from storage.objects where name like '%/hoc-lieu/iso-hl.pdf'$q$, '0');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

@@ -108,6 +108,8 @@ const EduPrograms = lazy(() => import('./pages/eduPrograms').then(m => ({ defaul
 const eduPrograms = (mode: 'school' | 'authority' | 'platform') => (p: any) => <EduPrograms {...p} mode={mode} />
 const EduProgramsPlatform = eduPrograms('platform')
 const ProgressPlatform = (q: any) => <CurriculumProgress {...q} mode="platform" />
+// Định mức vật tư theo bài / chủ đề, danh mục vật tư, dự trù, đề xuất điều chỉnh (059)
+const MaterialNorms = lazy(() => import('./pages/materialNorms').then(m => ({ default: m.MaterialNorms })))
 // Phân phối chương trình theo tiết + tiến độ (057): cùng một màn cho trường / GV, Sở (soạn mẫu ban hành), KDI (mẫu dùng chung)
 const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, ComponentType<any>][] = []) => {
   const tabs: [string, ComponentType<any>][] = [
@@ -199,6 +201,7 @@ const SCHOOL: PageMap = {
   'Đề xuất mua gói': PackageOrders,
   'Kho học liệu dùng chung': LibraryBrowse,
   'Phát hành học liệu': LibraryManage,
+  'Định mức vật tư': MaterialNorms,
   'Hỗ trợ từ KDI': CustomerSupport,
   'Ứng dụng di động': MobileAppPage,
   'Trợ lý AI': (p: any) => <AssistantPage {...p} onSaveQuiz={(i: any, m: any) => saveQuizToBank(p.orgId, i, m)} />,
@@ -235,6 +238,7 @@ const TEACHER: PageMap = {
   'Soạn bài giảng': TeacherLessonStudio,
   'Hộp phê duyệt': ApprovalInbox,
   'Thư viện STEM': LibraryBrowse,
+  'Định mức vật tư': MaterialNorms,
   'Lịch tập huấn': TeacherTrainingSchedule,
   'Bài giảng tập huấn': TeacherTrainingLessons,
   'Hỗ trợ từ KDI': CustomerSupport,
@@ -292,6 +296,7 @@ const DEPARTMENT: PageMap = {
   'Quy trình phê duyệt': ApprovalWorkflows,
   'Phát hành học liệu': LibraryManage,
   'Kho học liệu dùng chung': LibraryBrowse,
+  'Định mức vật tư': MaterialNorms,
   'Hỗ trợ từ KDI': CustomerSupport,
 }
 // Cổng Quản trị nền tảng: chỉ nối các trang đọc được dữ liệu toàn hệ thống (trang nền tảng, trang cấp Sở, học liệu, phê duyệt, tập huấn).
@@ -338,7 +343,7 @@ const PLATFORM: PageMap = {
   'Giám sát tập huấn nhà giáo': DeptTrainingMonitor,
   // 2. Chương trình & học liệu
   'Chương trình giáo dục': (p: any) => <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Gói STEM của KDI', PlatformCatalog]]} />,
-  'Học liệu': (p: any) => <TabbedPages {...p} tabs={[['Phát hành học liệu', LibraryManage], ['Kho học liệu dùng chung', LibraryBrowse]]} />,
+  'Học liệu': (p: any) => <TabbedPages {...p} tabs={[['Phát hành học liệu', LibraryManage], ['Kho học liệu dùng chung', LibraryBrowse], ['Định mức vật tư', MaterialNorms]]} />,
   'Theo dõi chương trình CT1–CT5 (Môn học)': (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects], ['Tiến độ & yêu cầu cần đạt', ProgressPlatform]]} />,
   // 3. Vật tư, thiết bị dạy & học
   'Thiết bị & vật tư': EquipmentOverview,

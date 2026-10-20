@@ -8,6 +8,7 @@ declare
     'audit_log',            -- nhật ký do chính migration ghi khi cập nhật danh mục gói
     'competencies',         -- khung năng lực HS/GV (042)
     'integrations',         -- danh mục kết nối tích hợp (K12Online, VNeID, email, Zalo, Excel)
+    'lesson_templates',     -- mẫu giáo án hệ thống của KDI: 5512, STEM 5E, dự án STEM (060)
     'organizations',        -- chỉ đơn vị cung cấp KDI Education (kiểm tra riêng bên dưới)
     'role_permissions',     -- ma trận quyền mặc định
     'rubrics',              -- mẫu tiêu chí đánh giá hệ thống (041)

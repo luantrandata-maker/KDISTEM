@@ -61,6 +61,9 @@ create policy lesson_templates_update on lesson_templates for update to authenti
 drop policy if exists lesson_templates_delete on lesson_templates;
 create policy lesson_templates_delete on lesson_templates for delete to authenticated using (public.library_can_write(org_id, 'delete'));
 grant select, insert, update, delete on lesson_templates to authenticated;
+create or replace function public.owner_name(lesson_templates) returns text
+language sql stable security definer set search_path = public as $$ select name from organizations where id = $1.org_id $$;
+grant execute on function public.owner_name(lesson_templates) to authenticated;
 
 -- Mẫu hệ thống (danh mục, có cả trên CSDL production): thuộc đơn vị cung cấp KDI Education
 do $$
@@ -541,7 +544,7 @@ grant execute on function public.lesson_plan_propose_norm(uuid, text) to authent
 
 -- ===== 6. Dữ liệu mẫu: giáo án theo mẫu 5E gắn chương trình, học liệu, định mức; một giáo án chờ duyệt =====
 do $$
-declare sch uuid; kdi uuid; tch uuid; tpl uuid; tpl2 uuid; v_stem uuid; u uuid; n uuid; lp uuid; act uuid; rub uuid; c uuid;
+declare sch uuid; kdi uuid; tch uuid; tpl uuid; tpl2 uuid; v_stem uuid; u uuid; n uuid; lp uuid; act uuid; rub uuid; c uuid; wf uuid;
 begin
   if coalesce(current_setting('app.seed_demo', true), '') <> 'on' then return; end if;
   select id into sch from organizations where code = 'THCS-PH';
@@ -598,6 +601,13 @@ begin
             jsonb_build_object('id', 'a3', 'phase', 'luyen_tap', 'title', 'Phiếu học tập nhóm', 'minutes', 10),
             jsonb_build_object('id', 'a4', 'phase', 'van_dung', 'title', 'Tìm ví dụ ở gia đình', 'minutes', 5)))
   returning id into lp;
+  -- Trường mẫu bật duyệt giáo án: Tổ trưởng/Hiệu trưởng duyệt (một bước, người có quyền duyệt thư viện)
+  if not exists (select 1 from approval_workflows where org_id = sch and kind = 'lesson_plan') then
+    insert into approval_workflows (org_id, kind, name, applies_to_children, updated_by)
+      values (sch, 'lesson_plan', 'Duyệt giáo án trước khi xuất bản', false, null) returning id into wf;
+    insert into approval_steps (workflow_id, step_no, name, approver, role_id, org_type)
+      values (wf, 1, 'Hiệu trưởng duyệt giáo án', 'role', (select id from roles where key = 'principal' and org_id is null), null);
+  end if;
   update lesson_plans set status = 'pending' where id = lp;
 end $$;
 

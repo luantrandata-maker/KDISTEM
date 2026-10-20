@@ -54,6 +54,7 @@ export function dueLabel(due: string | null): { text: string; tone: '' | 'warn' 
 // Chuyển ngữ cảnh giữa các màn (vd: Bài tập → Chấm bài của một đề)
 export const handoff = {
   set(key: string, value: string) { try { sessionStorage.setItem('handoff.' + key, value) } catch { /* bỏ qua */ } },
+  peek(key: string) { try { return sessionStorage.getItem('handoff.' + key) } catch { return null } },
   take(key: string) { try { const v = sessionStorage.getItem('handoff.' + key); sessionStorage.removeItem('handoff.' + key); return v } catch { return null } },
 }
 

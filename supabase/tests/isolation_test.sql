@@ -2058,6 +2058,8 @@ select pg_temp.chk('admin_kb', 'Kho tệp: trường tỉnh khác không đọc 
 
 
 -- ===== 060: mẫu giáo án, soạn giáo án theo bước, duyệt, phiên bản, nhân bản, dạy thử, đề xuất định mức =====
+-- Dữ liệu mẫu đã bật duyệt giáo án ở THCS-PH; các kiểm thử dưới đây bắt đầu từ trường chưa có quy trình
+delete from approval_workflows where kind = 'lesson_plan' and name = 'Duyệt giáo án trước khi xuất bản';
 do $$ declare v uuid := pg_temp.mk('gv_ph2', 'THCS-PH', 'teacher');
 begin
   update profiles set org_id = pg_temp.oid_('THCS-PH') where id = v;

@@ -48,7 +48,6 @@ import { SchoolProfile } from './pages/School'
 import { TrainingPlans, TrainingSchedule, TrainingLessons, VirtualClass, Certificates } from './pages/Training'
 import { TeacherHome, TeacherSchedule, TeacherClasses, TeacherBooking } from './pages/TeacherPortal'
 import { TeacherAssignments, TeacherGrading } from './pages/teacher/Assignments'
-import { TeacherLessonStudio } from './pages/teacher/Lessons'
 import { TeacherClassroom } from './pages/teacher/Classroom'
 import { TeacherTrainingSchedule, TeacherTrainingLessons } from './pages/teacher/Training'
 import { TeacherActivities } from './pages/teacher/Activities'
@@ -110,6 +109,11 @@ const EduProgramsPlatform = eduPrograms('platform')
 const ProgressPlatform = (q: any) => <CurriculumProgress {...q} mode="platform" />
 // Định mức vật tư theo bài / chủ đề, danh mục vật tư, dự trù, đề xuất điều chỉnh (059)
 const MaterialNorms = lazy(() => import('./pages/materialNorms').then(m => ({ default: m.MaterialNorms })))
+// Soạn giáo án theo mẫu, tiến trình dạy học, duyệt / xuất bản / phiên bản (060)
+const TeacherLessonStudio = lazy(() => import('./pages/lessons/Studio').then(m => ({ default: m.TeacherLessonStudio })))
+const SchoolLessons = lazy(() => import('./pages/lessons/Admin').then(m => ({ default: m.SchoolLessons })))
+const DeptLessons = lazy(() => import('./pages/lessons/Admin').then(m => ({ default: m.DeptLessons })))
+const PlatformLessonTemplates = lazy(() => import('./pages/lessons/Admin').then(m => ({ default: m.PlatformLessonTemplates })))
 // Phân phối chương trình theo tiết + tiến độ (057): cùng một màn cho trường / GV, Sở (soạn mẫu ban hành), KDI (mẫu dùng chung)
 const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, ComponentType<any>][] = []) => {
   const tabs: [string, ComponentType<any>][] = [
@@ -119,6 +123,8 @@ const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, Com
   ]
   return (p: any) => <TabbedPages {...p} tabs={tabs} />
 }
+const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [['Soạn bài giảng & kho hoạt động', SysLessons], ['Mẫu giáo án', PlatformLessonTemplates]]
+const PlatformLessonsPage = (p: any) => <TabbedPages {...p} tabs={PLATFORM_LESSON_TABS} />
 const PlatformCatalog = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformCatalog })))
 const PlatformOrders = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformOrders })))
 const PlatformBroadcast = lazy(() => import('./pages/platform/Broadcast').then(m => ({ default: m.PlatformBroadcast })))
@@ -202,6 +208,7 @@ const SCHOOL: PageMap = {
   'Kho học liệu dùng chung': LibraryBrowse,
   'Phát hành học liệu': LibraryManage,
   'Định mức vật tư': MaterialNorms,
+  'Giáo án & bài giảng': SchoolLessons,
   'Hỗ trợ từ KDI': CustomerSupport,
   'Ứng dụng di động': MobileAppPage,
   'Trợ lý AI': (p: any) => <AssistantPage {...p} onSaveQuiz={(i: any, m: any) => saveQuizToBank(p.orgId, i, m)} />,
@@ -297,6 +304,7 @@ const DEPARTMENT: PageMap = {
   'Phát hành học liệu': LibraryManage,
   'Kho học liệu dùng chung': LibraryBrowse,
   'Định mức vật tư': MaterialNorms,
+  'Giáo án & bài giảng': DeptLessons,
   'Hỗ trợ từ KDI': CustomerSupport,
 }
 // Cổng Quản trị nền tảng: chỉ nối các trang đọc được dữ liệu toàn hệ thống (trang nền tảng, trang cấp Sở, học liệu, phê duyệt, tập huấn).
@@ -384,7 +392,7 @@ const PLATFORM: PageMap = {
   'Duyệt đăng ký dạy STEM': SysRegistrations,
   'Bài tập & chấm bài': SysHomework,
   'Phân phối chương trình': ppctTabs('platform', [['PPCT các trường', SysCurriculum]]),
-  'Soạn bài giảng & kho hoạt động': SysLessons,
+  'Soạn bài giảng & kho hoạt động': PlatformLessonsPage,
   'Bài giảng tập huấn & lớp học ảo': SysTrainingLessons,
   'Chứng chỉ tập huấn': SysCertificates,
 }

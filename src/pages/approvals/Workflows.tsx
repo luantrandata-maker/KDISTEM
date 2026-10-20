@@ -95,7 +95,7 @@ export function ApprovalWorkflows({ orgId }: { orgId: string | null }) {
       <div className="wfgrid">
         {KINDS.map(([kind, label]) => {
           const mine = own.get(kind); const e = eff.get(kind)
-          const source = mine ? 'Quy trình riêng của đơn vị' : e ? `Theo ${e.organizations?.name}` : 'Mặc định: 1 bước'
+          const source = mine ? 'Quy trình riêng của đơn vị' : e ? `Theo ${e.organizations?.name}` : kind === 'lesson_plan' ? 'Chưa bật: giáo viên tự xuất bản, không qua duyệt' : 'Mặc định: 1 bước'
           return (
             <section className="panel wf" key={kind}>
               <div className="bar">

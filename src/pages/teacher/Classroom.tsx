@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { TProps, NoTeacher, useMyClasses } from './common'
+import { TProps, NoTeacher, useMyClasses, handoff } from './common'
 import { SlideView, type Plan } from './Lessons'
 
 type Session = { id: string; class_id: string; title: string; pin: string; status: string; lesson_plan_id: string | null; current_slide: number; started_at: string }
@@ -18,7 +18,9 @@ export function TeacherClassroom({ teacherId, orgId }: TProps) {
   const [today, setToday] = useState<TodayEntry[]>([])
   const [borrows, setBorrows] = useState<Borrow[]>([])
   const [live, setLive] = useState<Session | null>(null)
-  const [pick, setPick] = useState({ class_id: '', plan_id: '', title: '' })
+  // Từ trình soạn giáo án bấm “Dạy thử” → chọn sẵn giáo án
+  const [pick, setPick] = useState(() => ({ class_id: '', plan_id: handoff.peek('classroom.plan') ?? '', title: '' }))
+  useEffect(() => { handoff.take('classroom.plan') }, [])
   const [err, setErr] = useState('')
 
   async function load() {

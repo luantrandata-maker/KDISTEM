@@ -136,6 +136,7 @@ begin
     delete from student_projects where title like 'ISO%';
   end if;
   if to_regclass('public.events') is not null then delete from notifications where title like 'Sự kiện mới: ISO%'; delete from events where title like 'ISO%'; end if;
+  if to_regclass('public.student_groups') is not null then delete from student_groups where name like 'ISO%'; end if;
   if to_regclass('public.question_bank') is not null then
     delete from notifications where kind = 'elearning' and (title like '%ISO%');
     delete from courses where title like 'ISO%';
@@ -2134,6 +2135,51 @@ select pg_temp.probe('gv_both@iso-test.local', $q$insert into lesson_plans (org_
 select pg_temp.chk('gv_ph2', 'Đề xuất ĐM từ GA: chỉ người soạn gửi được', $q$select lesson_plan_propose_norm((select id from lesson_plans where title = 'ISO GA ĐM'), 'x')::text$q$, 'ERR');
 select pg_temp.probe('gv_both@iso-test.local', $q$select lesson_plan_propose_norm((select id from lesson_plans where title = 'ISO GA ĐM'), 'ISO lớp đông')::text$q$, true);
 select pg_temp.chk('so_hy', 'Đề xuất ĐM từ GA: Sở nhận đề xuất kèm số lượng mới', $q$select (items->0->>'qty') || ':' || (lesson_plan_id is not null)::text from material_norm_proposals where reason = 'ISO lớp đông'$q$, '5:true');
+
+
+-- ===== 061: giao theo nhóm / học sinh, phân tích câu hỏi khó, nội dung cần ôn, tiến độ khoá học =====
+do $$ declare v_st uuid; v_cls uuid; g uuid;
+begin
+  select id, class_id into v_st, v_cls from students where student_code = 'ISO-001';
+  insert into student_groups (org_id, class_id, name) values (pg_temp.oid_('THCS-KB'), v_cls, 'ISO nhóm có HS') returning id into g;
+  insert into student_group_members (org_id, group_id, student_id) values (pg_temp.oid_('THCS-KB'), g, v_st);
+  insert into student_groups (org_id, class_id, name) values (pg_temp.oid_('THCS-KB'), v_cls, 'ISO nhóm khác');
+end $$;
+select pg_temp.probe('admin_kb@iso-test.local', format($q$insert into practice_exams (org_id, title, subject, grade, mode, criteria, status, group_ids)
+  values (my_org_id(), 'ISO đề nhóm', 'ISO Toán', 6, 'random', '{"count": 1}', 'published', array[%L]::uuid[]),
+         (my_org_id(), 'ISO đề nhóm khác', 'ISO Toán', 6, 'random', '{"count": 1}', 'published', array[%L]::uuid[])$q$,
+  (select id from student_groups where name = 'ISO nhóm có HS'), (select id from student_groups where name = 'ISO nhóm khác')), true);
+select pg_temp.probe('admin_kb@iso-test.local', $q$insert into practice_exams (org_id, title, subject, grade, mode, criteria, status, student_ids)
+  values (my_org_id(), 'ISO đề cá nhân', 'ISO Toán', 6, 'random', '{"count": 1}', 'published', array[(select id from students where student_code = 'ISO-001')])$q$, true);
+select pg_temp.chk('hs_kb', 'Giao bài: học sinh thấy đề giao cho nhóm của em và cho riêng em, không thấy đề của nhóm khác',
+  $q$select string_agg(title, ',' order by title) from practice_exams where title in ('ISO đề nhóm', 'ISO đề nhóm khác', 'ISO đề cá nhân')$q$, 'ISO đề cá nhân,ISO đề nhóm');
+select pg_temp.chk('hs_kb', 'Giao bài: không làm được đề của nhóm khác', $q$select exam_start((select id from practice_exams where title = 'ISO đề nhóm khác' limit 1))::text$q$, 'ERR');
+select pg_temp.chk('hs_kb', 'Giao bài: làm được đề giao cho nhóm của em', $q$select (exam_start((select id from practice_exams where title = 'ISO đề nhóm')) ? 'attempt')::text$q$, 'true');
+select pg_temp.chk('admin_kb', 'Giao bài: nhóm của trường khác bị chặn',
+  format($q$insert into practice_exams (org_id, title, mode, criteria, group_ids) values (my_org_id(), 'ISO đề lạ', 'random', '{"count":1}', array[%L]::uuid[])$q$,
+         (select id from student_groups where org_id = pg_temp.oid_('THCS-PH') limit 1)), 'ERR*');
+select pg_temp.chk('admin_kb', 'Giao bài: học sinh của trường khác bị chặn',
+  format($q$insert into practice_exams (org_id, title, mode, criteria, student_ids) values (my_org_id(), 'ISO đề lạ', 'random', '{"count":1}', array[%L]::uuid[])$q$,
+         (select id from students where org_id = pg_temp.oid_('THCS-PH') limit 1)), 'ERR*');
+select pg_temp.chk('admin_kb', 'Danh sách làm bài: học sinh được giao', $q$select count(*) from exam_roster((select id from practice_exams where title = 'ISO đề nhóm'))$q$, '1');
+select pg_temp.chk('admin_ph', 'Danh sách làm bài: trường khác không xem', format($q$select count(*) from exam_roster(%L)$q$, (select id from practice_exams where title = 'ISO đề nhóm')), 'ERR');
+-- Khoá học giao cho nhóm, có hạn
+select pg_temp.probe('admin_kb@iso-test.local', format($q$insert into courses (org_id, title, status, group_ids, due_at) values (my_org_id(), 'ISO khoá nhóm', 'published', array[%L]::uuid[], now() - interval '1 day')$q$, (select id from student_groups where name = 'ISO nhóm có HS')), true);
+select pg_temp.probe('admin_kb@iso-test.local', $q$insert into course_lessons (course_id, position, title, kind, body) select id, 1, 'Bài đọc', 'reading', 'Nội dung' from courses where title = 'ISO khoá nhóm'$q$, true);
+select pg_temp.chk('hs_kb', 'Khoá học: học sinh trong nhóm thấy khoá học', $q$select count(*) from courses where title = 'ISO khoá nhóm'$q$, '1');
+select pg_temp.chk('admin_kb', 'Khoá học: tiến độ — học sinh được giao, quá hạn chưa xong',
+  $q$select count(*) || ':' || bool_and(overdue)::text from course_progress_summary((select id from courses where title = 'ISO khoá nhóm'))$q$, '1:true');
+select pg_temp.chk('admin_ph', 'Khoá học: trường khác không xem tiến độ', format($q$select count(*) from course_progress_summary(%L)$q$, (select id from courses where title = 'ISO khoá nhóm')), 'ERR');
+select pg_temp.chk('admin_kb', 'Khoá học: bài học dạng tệp phải thuộc thư mục của trường',
+  format($q$insert into course_lessons (course_id, title, kind, path) select id, 'Tệp lạ', 'file', %L from courses where title = 'ISO khoá nhóm'$q$, pg_temp.oid_('THCS-PH') || '/x/iso-a.pdf'), 'ERR*');
+-- Phân tích
+select pg_temp.chk('admin_kb', 'Phân tích: câu hỏi của đề trường mình', $q$select count(*) from elearning_hard_questions((select id from practice_exams where title = 'ISO Đề luyện Toán 6'), null, null, null, null, 1)$q$, '3');
+select pg_temp.chk('admin_ph', 'Phân tích: trường khác không thấy', format($q$select count(*) from elearning_hard_questions(%L, null, null, null, null, 1)$q$, (select id from practice_exams where title = 'ISO Đề luyện Toán 6')), '0');
+select pg_temp.chk('so_bn', 'Phân tích: Sở thấy kết quả trường trực thuộc', format($q$select count(*) from elearning_topic_stats(%L)$q$, (select id from practice_exams where title = 'ISO Đề luyện Toán 6')), '>0');
+select pg_temp.chk('so_hy', 'Phân tích: Sở tỉnh khác không thấy', format($q$select count(*) from elearning_topic_stats(%L)$q$, (select id from practice_exams where title = 'ISO Đề luyện Toán 6')), '0');
+select pg_temp.chk('hs_kb', 'Phân tích: học sinh không xem phân tích của trường', $q$select count(*) from elearning_hard_questions()$q$, '0');
+select pg_temp.chk('hs_kb', 'Ôn tập: học sinh xem chủ đề em cần ôn', $q$select count(*) from elearning_my_review()$q$, '>0');
+select pg_temp.chk('admin_ph', 'Ôn tập: trường khác không xem của học sinh trường B', format($q$select count(*) from elearning_my_review(%L)$q$, (select id from students where student_code = 'ISO-001')), '0');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

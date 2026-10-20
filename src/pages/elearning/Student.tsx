@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
 import { md } from '../ai'
-import { embedUrl, errText, letter, LKIND, type Course, type Exam, type Lesson } from './common'
+import { openFile } from '../../lib/files'
+import { dueBadge, embedUrl, errText, letter, LKIND, pathName, type Course, type Exam, type Lesson, type Material } from './common'
 
 // Học sinh: E-learning & luyện thi — khoá học, đề luyện (có giờ), lịch sử và xem lại bài.
 type Paper = { attempt: string; deadline: string | null; title: string; questions: { id: string; stem: string; options: string[]; kind: string }[]; answers: Record<string, number[]> | null }
@@ -33,11 +34,11 @@ export default function StudentElearning({ studentId }: { studentId: string | nu
   return <>
     <Tabs value={tab} onChange={setTab} items={[['course', 'Khoá học'], ['exam', 'Luyện thi'], ['hist', 'Bài đã làm']]} />
     {err && <p className="msg">{err}</p>}
-    {tab === 'course' ? <CourseList studentId={studentId} onExam={start} /> : tab === 'exam' ? <ExamList onStart={start} /> : <History onReview={review} />}
+    {tab === 'course' ? <CourseList studentId={studentId} onExam={start} /> : tab === 'exam' ? <ExamList studentId={studentId} onStart={start} /> : <History onReview={review} />}
   </>
 }
 
-function ExamList({ onStart }: { onStart: (id: string) => void }) {
+function ExamList({ studentId, onStart }: { studentId: string; onStart: (id: string) => void }) {
   const [rows, setRows] = useState<Exam[] | null>(null)
   const [mine, setMine] = useState<Hist[]>([])
   useEffect(() => {
@@ -46,7 +47,8 @@ function ExamList({ onStart }: { onStart: (id: string) => void }) {
   }, [])
   if (!rows) return <p className="sub">Đang tải…</p>
   const now = Date.now()
-  return (
+  return <>
+    <MyReview studentId={studentId} exams={rows.filter(x => x.status === 'published' && !(x.closes_at && +new Date(x.closes_at) < now))} onStart={onStart} />
     <div className="examcards">
       {rows.map(x => {
         const tries = mine.filter(m => m.exam_id === x.id && m.status === 'submitted'), doing = mine.find(m => m.exam_id === x.id && m.status === 'in_progress')
@@ -66,6 +68,33 @@ function ExamList({ onStart }: { onStart: (id: string) => void }) {
       })}
       {!rows.length && <p className="sub">Chưa có đề luyện nào dành cho em.</p>}
     </div>
+  </>
+}
+
+// Chủ đề em cần ôn (elearning_my_review, 061): tỉ lệ đúng theo chủ đề trong các bài đã nộp; gợi ý đề luyện cùng môn / khối / chủ đề
+type Review = { subject: string; grade: number | null; topic: string; answers: number; rate: number; last_at: string | null }
+function MyReview({ studentId, exams, onStart }: { studentId: string; exams: Exam[]; onStart: (id: string) => void }) {
+  const [rows, setRows] = useState<Review[] | null>(null)
+  const [all, setAll] = useState(false)
+  useEffect(() => { supabase.rpc('elearning_my_review', { p_student: studentId }).then(({ data }) => setRows((data as Review[]) ?? [])) }, [studentId])
+  if (!rows?.length) return null
+  const weak = rows.filter(r => Number(r.rate) < 70)
+  const show = all ? rows : weak.slice(0, 6)
+  // Đề phù hợp: cùng môn (và khối nếu có); đề ngẫu nhiên có chọn chủ đề thì phải gồm chủ đề này
+  const match = (r: Review) => exams.find(x => x.subject === r.subject && (!x.grade || !r.grade || x.grade === r.grade)
+    && (x.mode === 'fixed' || !x.criteria.topics?.length || x.criteria.topics.includes(r.topic)))
+  return (
+    <section className="panel review">
+      <div className="bar"><h3>Chủ đề em cần ôn</h3>{rows.length > weak.slice(0, 6).length && <button className="xbtn" onClick={() => setAll(!all)}>{all ? 'Chỉ chủ đề cần ôn' : `Xem cả ${rows.length} chủ đề`}</button>}</div>
+      <p className="sub">Theo các bài em đã nộp: chủ đề có tỉ lệ trả lời đúng dưới 70% nên ôn lại và luyện thêm.</p>
+      {!weak.length && !all ? <p className="sub">Em đang làm tốt — mọi chủ đề đều đúng từ 70% trở lên. Tiếp tục luyện tập nhé!</p>
+        : <ul className="reviewlist">{show.map(r => { const ex = match(r)
+          return <li key={r.subject + r.grade + r.topic}>
+            <div><b>{r.topic}</b><small>{[r.subject, r.grade ? 'Khối ' + r.grade : null, `${r.answers} câu đã làm`].filter(Boolean).join(' · ')}</small></div>
+            <span className="ibar"><i style={{ width: r.rate + '%', background: Number(r.rate) < 40 ? 'var(--bad)' : Number(r.rate) < 70 ? '#d98a12' : 'var(--ok)' }} /><b>{r.rate}%</b></span>
+            {ex ? <button onClick={() => onStart(ex.id)} title={ex.title}>Luyện tập</button> : <small>Chưa có đề phù hợp</small>}
+          </li> })}</ul>}
+    </section>
   )
 }
 
@@ -173,7 +202,7 @@ function CourseList({ studentId, onExam }: { studentId: string; onExam: (id: str
     const cur = lesson ?? ls.find(l => !done.has(l.id)) ?? ls[0]
     return (
       <div className="courseview">
-        <div className="bar"><div><b>{c.title}</b><br /><small>Đã học {n}/{ls.length} bài</small></div><button onClick={() => { setOpen(null); setLesson(null) }}>Tất cả khoá học</button></div>
+        <div className="bar"><div><b>{c.title}</b><br /><small>Đã học {n}/{ls.length} bài</small> <Due c={c} finished={!!ls.length && n >= ls.length} /></div><button onClick={() => { setOpen(null); setLesson(null) }}>Tất cả khoá học</button></div>
         <div className="progress"><i style={{ width: (ls.length ? (100 * n) / ls.length : 0) + '%' }} /></div>
         <div className="coursebody">
           <ol className="lessonnav">{ls.map(l => <li key={l.id}><button className={cur?.id === l.id ? 'on' : ''} onClick={() => setLesson(l)}>
@@ -185,6 +214,8 @@ function CourseList({ studentId, onExam }: { studentId: string; onExam: (id: str
               : <p><a href={cur.url!} target="_blank" rel="noreferrer">Mở video ↗</a></p>)}
             {cur.kind === 'link' && <p><a className="primary btnlink" href={cur.url!} target="_blank" rel="noreferrer">Mở tài liệu ↗</a></p>}
             {cur.kind === 'exam' && cur.exam_id && <p><button className="primary" onClick={() => onExam(cur.exam_id!)}>Làm đề luyện</button></p>}
+            {cur.kind === 'file' && cur.path && <p><button className="primary" onClick={() => openFile(cur.path!)}>Mở tệp: {pathName(cur.path)}</button></p>}
+            {cur.kind === 'library' && <LibraryLesson lesson={cur} />}
             {cur.body && <div className="mdbody" dangerouslySetInnerHTML={{ __html: md(cur.body) }} />}
             <div className="formactions"><label className="field inline"><input type="checkbox" checked={done.has(cur.id)} onChange={e => mark(cur, e.target.checked)} /> Em đã học xong bài này</label>
               {ls[ls.indexOf(cur) + 1] && <button onClick={() => setLesson(ls[ls.indexOf(cur) + 1])}>Bài tiếp →</button>}</div>
@@ -199,9 +230,38 @@ function CourseList({ studentId, onExam }: { studentId: string; onExam: (id: str
         return <button key={x.id} className="panel coursecard pick" onClick={() => setOpen(x.id)}>
           {x.cover_url && <img src={x.cover_url} alt="" loading="lazy" />}
           <b>{x.title}</b><small>{[x.subject, x.grade ? 'Khối ' + x.grade : null, `${ls.length} bài`].filter(Boolean).join(' · ')}</small>
-          <div className="progress"><i style={{ width: (ls.length ? (100 * n) / ls.length : 0) + '%' }} /></div><small>{n ? `Đã học ${n}/${ls.length}` : 'Chưa bắt đầu'}</small>
+          <div className="progress"><i style={{ width: (ls.length ? (100 * n) / ls.length : 0) + '%' }} /></div>
+          <small>{n ? `Đã học ${n}/${ls.length}` : 'Chưa bắt đầu'} <Due c={x} finished={!!ls.length && n >= ls.length} /></small>
         </button> })}
       {!courses.length && <p className="sub">Chưa có khoá học nào dành cho em.</p>}
     </div>
   )
+}
+
+function Due({ c, finished }: { c: Course; finished: boolean }) {
+  const d = dueBadge(c.due_at, finished)
+  if (!d) return null
+  return <span className={'gpill ' + (d.tone || (finished ? 'good' : ''))} title={'Hạn hoàn thành: ' + new Date(c.due_at!).toLocaleString('vi-VN')}>{d.tone === 'bad' ? '⚠ ' : ''}{d.text}</span>
+}
+
+// Bài học dạng "Học liệu": lấy đường dẫn / tệp từ Kho học liệu qua course_lesson_material
+function LibraryLesson({ lesson }: { lesson: Lesson }) {
+  const [m, setM] = useState<Material | null | undefined>(undefined)
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    setM(undefined); setErr('')
+    supabase.rpc('course_lesson_material', { p_lesson: lesson.id }).then(({ data, error }) => { if (error) setErr(errText(error.message, '061')); setM((data as Material) ?? null) })
+  }, [lesson.id])
+  if (m === undefined && !err) return <p className="sub">Đang tải học liệu…</p>
+  if (!m) return <p className="msg">{err || 'Học liệu này không còn được chia sẻ — báo thầy cô.'}</p>
+  const emb = embedUrl(m.url)
+  return <div className="libless">
+    {(m.title !== lesson.title || m.summary) && <p>{m.title !== lesson.title && <b>{m.title}</b>}{m.summary && <><br /><small>{m.summary}</small></>}</p>}
+    {emb && <div className="video"><iframe src={emb} title={m.title} allow="accelerometer; encrypted-media; picture-in-picture; fullscreen" allowFullScreen /></div>}
+    <p className="tools">
+      {m.path && <button className="primary" onClick={() => openFile(m.path!)}>Mở tệp{m.file_name ? ': ' + m.file_name : ''}</button>}
+      {m.url && !emb && <a className="primary btnlink" href={m.url} target="_blank" rel="noreferrer">Mở học liệu ↗</a>}
+    </p>
+    {!m.path && !m.url && <p className="sub">Học liệu chưa có tệp hay đường dẫn để mở.</p>}
+  </div>
 }

@@ -1039,3 +1039,18 @@ a.btnlink{display:inline-block;padding:8px 14px;border-radius:10px;text-decorati
 .roomacc-name{min-width:180px}.roomacc-sum{margin-left:auto;color:var(--muted)}
 @media (max-width:640px){.roomacc-sum{margin-left:22px;width:100%}.roomtable-exp>td{padding-left:8px}.roomacc-item .roomexp{padding-left:12px}}
 .roomtable td:first-child{min-width:170px}.roomtable td:nth-child(3){min-width:130px}.roomtable td:nth-child(6){min-width:150px}
+.audience{display:grid;gap:10px;margin-top:6px;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
+.audience>div>small{color:var(--muted);display:block;margin-bottom:4px}
+.stupick{position:relative;max-width:420px}
+.stuhits{list-style:none;margin:4px 0 0;padding:4px;border:1px solid var(--line);border-radius:10px;background:var(--surface);max-height:240px;overflow:auto}
+.stuhits button{display:flex;justify-content:space-between;gap:10px;width:100%;text-align:left;border:0;background:none;padding:6px 8px;border-radius:8px;font:inherit;color:inherit;cursor:pointer}
+.stuhits button:hover{background:var(--soft)}.stuhits button:disabled{opacity:.5;cursor:default}.stuhits small{color:var(--muted)}
+.courseprog{border-top:1px solid var(--line);padding-top:10px}.courseprog h3{margin:0}
+.systable tr.overdue td{background:#fdf3f3}
+.review{margin:12px 0 0}.review h3{margin:0}
+.reviewlist{list-style:none;padding:0;margin:8px 0 0;display:grid;gap:8px}
+.reviewlist li{display:grid;grid-template-columns:1fr 180px auto;gap:12px;align-items:center}
+.reviewlist li>div{display:grid}.reviewlist small{color:var(--muted)}
+.libless .video{margin-bottom:10px}
+@media (max-width:760px){.reviewlist li{grid-template-columns:1fr}}
+.audience select{width:auto;min-width:160px}

@@ -2170,6 +2170,11 @@ select pg_temp.chk('hs_kb', 'Khoá học: học sinh trong nhóm thấy khoá h�
 select pg_temp.chk('admin_kb', 'Khoá học: tiến độ — học sinh được giao, quá hạn chưa xong',
   $q$select count(*) || ':' || bool_and(overdue)::text from course_progress_summary((select id from courses where title = 'ISO khoá nhóm'))$q$, '1:true');
 select pg_temp.chk('admin_ph', 'Khoá học: trường khác không xem tiến độ', format($q$select count(*) from course_progress_summary(%L)$q$, (select id from courses where title = 'ISO khoá nhóm')), 'ERR');
+select pg_temp.chk('admin_kb', 'Khoá học: tạo khoá học và đọc lại ngay (insert … returning)',
+  $q$with x as (insert into courses (org_id, title, status) values (my_org_id(), 'ISO khoá đọc lại', 'draft') returning id) select count(*) from x$q$, '1');
+select pg_temp.probe('admin_kb@iso-test.local', $q$insert into course_lessons (course_id, position, title, kind, exam_id) select c.id, 2, 'Kiểm tra cuối', 'exam', e.id from courses c, practice_exams e where c.title = 'ISO khoá nhóm' and e.title = 'ISO đề nhóm khác'$q$, true);
+select pg_temp.chk('hs_kb', 'Khoá học: học sinh thấy đề nằm trong khoá học được giao', $q$select count(*) from practice_exams where title = 'ISO đề nhóm khác'$q$, '1');
+select pg_temp.chk('hs_kb', 'Khoá học: học sinh làm được đề trong khoá học', $q$select (exam_start((select id from practice_exams where title = 'ISO đề nhóm khác')) ? 'attempt')::text$q$, 'true');
 select pg_temp.chk('admin_kb', 'Khoá học: bài học dạng tệp phải thuộc thư mục của trường',
   format($q$insert into course_lessons (course_id, title, kind, path) select id, 'Tệp lạ', 'file', %L from courses where title = 'ISO khoá nhóm'$q$, pg_temp.oid_('THCS-PH') || '/x/iso-a.pdf'), 'ERR*');
 -- Phân tích

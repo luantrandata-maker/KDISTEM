@@ -63,21 +63,40 @@ create trigger practice_exams_audience before insert or update on practice_exams
 drop trigger if exists courses_audience on courses;
 create trigger courses_audience before insert or update on courses for each row execute function public.guard_content_audience();
 
+-- Đề nằm trong một bài học của khoá học đã giao cho em: em làm được đề đó dù đề không giao trực tiếp cho em
+create or replace function public.exam_in_my_course(p_exam uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select public.is_student() and exists (select 1 from course_lessons l join courses c on c.id = l.course_id
+    where l.kind = 'exam' and l.exam_id = p_exam and c.status = 'published'
+      and public.content_for_me(c.org_id, c.shared, c.class_ids, c.group_ids, c.student_ids))
+$$;
+revoke all on function public.exam_in_my_course(uuid) from public, anon;
+grant execute on function public.exam_in_my_course(uuid) to authenticated;
+
 drop policy if exists practice_exams_read on practice_exams;
 create policy practice_exams_read on practice_exams for select to authenticated using (
   (public.is_staff() and (public.can_access_org(org_id) or (shared and org_id in (select public.my_ancestor_orgs()))))
-  or (status <> 'draft' and opens_at <= now() and public.content_for_me(org_id, shared, class_ids, group_ids, student_ids)));
+  or (status <> 'draft' and opens_at <= now()
+      and (public.content_for_me(org_id, shared, class_ids, group_ids, student_ids) or public.exam_in_my_course(id))));
 
-create or replace function public.course_visible(p_course uuid) returns boolean
+-- Điều kiện xem khoá học tính trên chính dòng: chính sách đọc dùng hàm này để insert ... returning thấy được dòng vừa thêm
+create or replace function public.course_row_visible(c courses) returns boolean
 language sql stable security definer set search_path = public as $$
-  select exists (select 1 from courses c where c.id = p_course and (
-    (public.is_staff() and (public.can_access_org(c.org_id) or (c.shared and c.org_id in (select public.my_ancestor_orgs()))))
+  select (public.is_staff() and (public.can_access_org(c.org_id) or (c.shared and c.org_id in (select public.my_ancestor_orgs()))))
     or (c.status = 'published' and public.content_for_me(c.org_id, c.shared, c.class_ids, c.group_ids, c.student_ids))
     or (c.status = 'published' and exists (select 1 from students s where public.is_guardian_of(s.id)
           and ((s.org_id = c.org_id and s.id in (select public.content_audience(c.org_id, c.class_ids, c.group_ids, c.student_ids)))
                or (c.shared and c.org_id in (with recursive up as (select parent_id as id from organizations where id = s.org_id
-                    union all select o.parent_id from organizations o join up on o.id = up.id where o.parent_id is not null) select id from up)))))))
+                    union all select o.parent_id from organizations o join up on o.id = up.id where o.parent_id is not null) select id from up)))))
 $$;
+create or replace function public.course_visible(p_course uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from courses c where c.id = p_course and public.course_row_visible(c))
+$$;
+revoke all on function public.course_row_visible(courses) from public, anon;
+grant execute on function public.course_row_visible(courses) to authenticated;
+drop policy if exists courses_read on courses;
+create policy courses_read on courses for select to authenticated using (public.course_row_visible(courses));
 
 -- exam_start: như 053, kiểm tra đối tượng giao gồm nhóm / học sinh
 create or replace function public.exam_start(p_exam uuid) returns jsonb
@@ -86,7 +105,7 @@ declare e practice_exams; a exam_attempts; v_st uuid := public.my_student_id(); 
 begin
   if not public.is_student() or v_st is null then raise exception 'Chỉ học sinh làm đề luyện' using errcode = '42501'; end if;
   select * into e from practice_exams where id = p_exam and status = 'published' and opens_at <= now()
-     and public.content_for_me(org_id, shared, class_ids, group_ids, student_ids);
+     and (public.content_for_me(org_id, shared, class_ids, group_ids, student_ids) or public.exam_in_my_course(id));
   if not found then raise exception 'Không tìm thấy đề luyện dành cho em' using errcode = '42501'; end if;
   if e.closes_at is not null and now() > e.closes_at then raise exception 'Đề luyện đã đóng' using errcode = '22023'; end if;
   select * into a from exam_attempts where exam_id = e.id and student_id = v_st and status = 'in_progress' order by started_at desc limit 1;
@@ -179,7 +198,9 @@ language sql stable security definer set search_path = public as $$
                           or (i.scope = 'selected' and exists (select 1 from library_targets t where t.item_id = i.id and t.org_id in (select public.my_scope_orgs())))))))
     or exists (select 1 from library_item_versions v join library_items i on i.id = v.item_id
                 where v.content->>'path' = p_name and public.library_visible(i.id))
-    or exists (select 1 from course_lessons l where l.path = p_name and public.course_visible(l.course_id)), false)
+    or exists (select 1 from course_lessons l where l.path = p_name and public.course_visible(l.course_id))
+    or exists (select 1 from course_lessons l join library_items i on i.id = l.library_item_id
+                where i.content->>'path' = p_name and i.status = 'published' and public.course_visible(l.course_id)), false)
 $$;
 
 -- Học liệu (đường dẫn / tệp) của bài học dạng "học liệu" cho học sinh: chỉ khi bài thuộc khoá học em xem được

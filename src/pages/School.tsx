@@ -78,31 +78,6 @@ export function StemTeachers() {
   )
 }
 
-export function Curriculum() {
-  const [rows, setRows] = useState<{ id: string; grade: number; subject: string; title: string; total_periods: number | null }[]>([])
-  const [grade, setGrade] = useState(0)
-  const [subject, setSubject] = useState('')
-  useEffect(() => { supabase.from('curriculum_books').select('*').order('grade').then(({ data }) => setRows((data as any) ?? [])) }, [])
-  const subjects = [...new Set(rows.map(r => r.subject))]
-  const shown = rows.filter(r => (!grade || r.grade === grade) && (!subject || r.subject === subject))
-  return (
-    <>
-      <div className="bar">
-        <div className="segmented">
-          {[0, 6, 7, 8, 9].map(g => <button key={g} className={grade === g ? 'on' : ''} onClick={() => setGrade(g)}>{g ? `Lớp ${g}` : 'Tất cả'}</button>)}
-        </div>
-        <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn học"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
-      </div>
-      <div className="reggrid">
-        {shown.map(b => (
-          <div className="panel regcard" key={b.id}><b>{b.title}</b><small>{b.subject} · Khối {b.grade}</small><small>{b.total_periods} tiết/năm</small></div>
-        ))}
-        {shown.length === 0 && <p className="sub">Không có sách phù hợp.</p>}
-      </div>
-    </>
-  )
-}
-
 export function SchoolProfile() {
   const [org, setOrg] = useState<any>(null)
   const [counts, setCounts] = useState<Record<string, number>>({})

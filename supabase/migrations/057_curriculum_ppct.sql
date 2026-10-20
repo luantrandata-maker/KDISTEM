@@ -308,6 +308,7 @@ begin
         else 'lesson'
       end,
       case when b.subject in ('Công nghệ', 'Khoa học tự nhiên') and k % 12 = 6 and v_topics is not null
+            and k not in (n * 9 / 35, n * 9 / 35 - 1, n * 18 / 35, n * 18 / 35 - 1, n * 27 / 35, n, n - 1)
            then v_topics[1 + (k / 12 + b.grade) % array_length(v_topics, 1)] end
     from generate_series(1, n) k;
     -- Tin học 6: dùng nội dung theo mẫu KDI

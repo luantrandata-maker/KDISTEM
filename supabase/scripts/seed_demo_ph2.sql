@@ -518,7 +518,7 @@ begin
   select id into kdi from organizations where is_platform limit 1;
   select id into so from organizations where code = 'SO-HY';
   select id into sch from organizations where code = 'THCS-PH';
-  if kdi is null or exists (select 1 from edu_programs where org_id = kdi and code = 'STEM-CT1') then return; end if;
+  if kdi is null or exists (select 1 from edu_programs where org_id = kdi and code in ('STEM-CT1', 'CT1-TH')) then return; end if;
 
   insert into edu_programs (org_id, code, title, kind, ct_code, level, grade_from, grade_to, main_subject, integrated_subjects, objectives, competency_keys, scope)
   values (kdi, 'STEM-CT1', 'STEM CT1 — Khám phá khoa học quanh em', 'stem', 'CT1', 'tieuhoc', 4, 5, 'Khoa học', '{Toán,Công nghệ}',
@@ -776,6 +776,123 @@ begin
       (values (1, 'Bản đầu tiên', now() - interval '20 days'), (2, 'Thêm bài kiểm tra trên e-learning', now() - interval '2 days')) v(n, note, at)
      where p.id = lp;
   end if;
+end $$;
+
+-- ===== Bổ sung F. Bộ chương trình STEM CT1–CT5 chính thức của KDI (mỗi cấp học một chương trình) =====
+-- Chương trình CT1/CT2/CT4/CT5 tạo ở phần B được chuyển thành chương trình chính thức tương ứng (giữ nguyên PPCT, minh chứng, phạm vi gán).
+-- Mầm non chưa có trong chương trình giáo dục (khối 1–12) nên chưa tạo.
+do $$
+declare kdi uuid; so uuid; p jsonb; t jsonb; o jsonb; pid uuid; tid uuid; lid uuid; n int; k int; moved boolean; s record; rub uuid[];
+  data jsonb := $j$[
+  {"code":"CT1-TH","old":"STEM-CT1","remap":{"*":"Khoa học TN STEM"},"ct":"CT1","level":"tieuhoc","gf":1,"gt":5,"title":"STEM Tích hợp nội môn — Tiểu học","main":"Toán STEM","integ":["Khoa học TN STEM","Tin học STEM"],"comps":["toan_hoc","khoa_hoc","tin_hoc","gqvd"],
+   "obj":"Giảng dạy từng môn theo hướng thực tiễn, ứng dụng sáng tạo. Học sinh tiểu học học Toán, Khoa học, Tin học qua hoạt động làm và trải nghiệm.",
+   "topics":[{"g":3,"s":"Toán STEM","t":"Đo lường quanh em","l":"Làm thước đo và cân đơn giản","ss":["Buổi 1: Đo chiều dài đồ vật","Buổi 2: Làm cân thăng bằng"],"o":[["Sử dụng được đơn vị đo để đo đồ vật quen thuộc","toan_hoc"],["Làm được dụng cụ đo đơn giản từ vật liệu tái chế","cong_nghe"]]},
+             {"g":5,"s":"Tin học STEM","t":"Lập trình Scratch kể chuyện khoa học","l":"Hoạt hình vòng đời của cây","ss":["Buổi 1: Thiết kế kịch bản","Buổi 2: Lập trình và trình bày"],"o":[["Tạo được chương trình Scratch có sự kiện và vòng lặp","tin_hoc"],["Trình bày được sản phẩm trước lớp","giao_tiep"]]}]},
+  {"code":"CT1-THCS","ct":"CT1","level":"thcs","gf":6,"gt":9,"title":"STEM Tích hợp nội môn — THCS","main":"Khoa học TN STEM","integ":["Toán STEM","Tin học STEM"],"comps":["khoa_hoc","toan_hoc","tin_hoc","gqvd"],
+   "obj":"Giảng dạy từng môn theo hướng thực tiễn, ứng dụng sáng tạo. Mỗi môn có chủ đề STEM gắn với nội dung chương trình GDPT 2018.",
+   "topics":[{"g":7,"s":"Khoa học TN STEM","t":"Năng lượng mặt trời","l":"Bếp năng lượng mặt trời","ss":["Buổi 1: Tìm hiểu bức xạ nhiệt","Buổi 2: Chế tạo và đo nhiệt độ"],"o":[["Giải thích được sự hấp thụ và phản xạ nhiệt","khoa_hoc"],["Chế tạo được bếp và so sánh hiệu quả bằng số liệu đo","gqvd"]]},
+             {"g":8,"s":"Toán STEM","t":"Thống kê trong đời sống","l":"Khảo sát và biểu diễn dữ liệu lớp học","ss":["Buổi 1: Thu thập dữ liệu","Buổi 2: Vẽ biểu đồ bằng bảng tính"],"o":[["Thu thập và phân loại được dữ liệu từ khảo sát","toan_hoc"],["Biểu diễn được dữ liệu bằng biểu đồ phù hợp","tin_hoc"]]}]},
+  {"code":"CT1-THPT","ct":"CT1","level":"thpt","gf":10,"gt":12,"title":"STEM Tích hợp nội môn — THPT","main":"Toán STEM","integ":["Lý STEM","Hóa STEM","Sinh STEM","Tin học STEM"],"comps":["toan_hoc","khoa_hoc","tin_hoc","gqvd"],"note":"Áp dụng cho THPT và THPT Nghề.",
+   "obj":"Giảng dạy từng môn theo hướng thực tiễn, ứng dụng sáng tạo. Học sinh vận dụng kiến thức Toán, Lý, Hóa, Sinh, Tin học vào sản phẩm cụ thể.",
+   "topics":[{"g":10,"s":"Lý STEM","t":"Chuyển động ném xiên","l":"Máy bắn đá mini","ss":["Buổi 1: Mô hình hoá quỹ đạo","Buổi 2: Chế tạo và thử nghiệm"],"o":[["Vận dụng được công thức chuyển động ném xiên để dự đoán tầm xa","khoa_hoc"],["Đo và so sánh được kết quả thực nghiệm với lí thuyết","toan_hoc"]]},
+             {"g":11,"s":"Hóa STEM","t":"Pin điện hoá","l":"Pin từ trái cây","ss":["Buổi 1: Nguyên lí pin điện hoá","Buổi 2: Đo hiệu điện thế và tối ưu"],"o":[["Giải thích được nguyên lí pin điện hoá","khoa_hoc"],["Thiết kế được pin cho hiệu điện thế mong muốn","gqvd"]]}]},
+  {"code":"CT2-THCS","old":"STEM-CT2","remap":{"Công nghệ":"Công nghệ STEM","Tin học":"Công nghệ STEM"},"ct":"CT2","level":"thcs","gf":6,"gt":9,"title":"STEM Liên môn — THCS","main":"Công nghệ STEM","integ":["Toán STEM","Lý STEM","Hóa STEM","Sinh STEM"],"comps":["cong_nghe","khoa_hoc","toan_hoc","gqvd","giao_tiep"],
+   "obj":"Vận dụng kiến thức liên môn để giải quyết vấn đề thực tiễn. Mỗi chủ đề kết hợp Toán, Lý, Hóa, Sinh với Công nghệ để làm ra sản phẩm.",
+   "topics":[{"g":7,"s":"Sinh STEM","t":"Vườn rau thuỷ canh","l":"Hệ thống thuỷ canh tĩnh","ss":["Buổi 1: Dinh dưỡng của cây","Buổi 2: Lắp hệ thống và theo dõi"],"o":[["Giải thích được nhu cầu dinh dưỡng khoáng của cây","khoa_hoc"],["Lắp được hệ thống thuỷ canh và ghi nhật kí sinh trưởng","cong_nghe"]]},
+             {"g":9,"s":"Toán STEM","t":"Thiết kế cầu chịu lực","l":"Cầu giấy chịu tải","ss":["Buổi 1: Kết cấu tam giác","Buổi 2: Chế tạo và thử tải"],"o":[["Vận dụng được tính chất hình học để thiết kế kết cấu","toan_hoc"],["Đánh giá được sản phẩm theo tỉ lệ tải trọng trên khối lượng","gqvd"]]}]},
+  {"code":"CT2-THPT","ct":"CT2","level":"thpt","gf":10,"gt":12,"title":"STEM Liên môn — THPT","main":"Công nghệ STEM","integ":["Toán STEM","Lý STEM","Hóa STEM","Sinh STEM"],"comps":["cong_nghe","khoa_hoc","tin_hoc","gqvd"],
+   "obj":"Vận dụng kiến thức liên môn để giải quyết vấn đề thực tiễn của địa phương.",
+   "topics":[{"g":10,"s":"Hóa STEM","t":"Xử lí nước thải sinh hoạt","l":"Bộ lọc nước nhiều tầng","ss":["Buổi 1: Phân tích mẫu nước","Buổi 2: Chế tạo và kiểm tra bộ lọc"],"o":[["Xác định được một số chỉ tiêu chất lượng nước","khoa_hoc"],["Thiết kế được bộ lọc và đánh giá hiệu quả lọc","gqvd"]]},
+             {"g":11,"s":"Công nghệ STEM","t":"Nhà kính thông minh","l":"Điều khiển nhiệt độ và độ ẩm","ss":["Buổi 1: Cảm biến và vi điều khiển","Buổi 2: Lắp đặt mô hình"],"o":[["Lựa chọn được cảm biến phù hợp với yêu cầu","cong_nghe"],["Lập trình được điều khiển tự động theo ngưỡng","tin_hoc"]]}]},
+  {"code":"CT3-TH","ct":"CT3","level":"tieuhoc","gf":1,"gt":5,"title":"STEM Đổi mới sáng tạo — Tiểu học","main":"Làm sản phẩm","integ":["CLB Sáng tạo","Ngoại khóa STEM"],"comps":["gqvd","giao_tiep","cong_nghe"],
+   "obj":"Hoạt động sáng tạo, làm sản phẩm cụ thể qua câu lạc bộ và ngoại khoá.",
+   "topics":[{"g":3,"s":"CLB Sáng tạo","t":"Đồ chơi từ vật liệu tái chế","l":"Xe chạy bằng dây chun","ss":["Buổi 1: Ý tưởng và phác thảo","Buổi 2: Làm và thi chạy xe"],"o":[["Đề xuất được ý tưởng đồ chơi từ vật liệu sẵn có","gqvd"],["Làm được sản phẩm và giới thiệu với bạn","giao_tiep"]]},
+             {"g":5,"s":"Ngoại khóa STEM","t":"Ngày hội STEM","l":"Gian trưng bày sản phẩm","ss":["Buổi 1: Chuẩn bị gian trưng bày","Buổi 2: Thuyết trình sản phẩm"],"o":[["Phối hợp được với nhóm để chuẩn bị trưng bày","giao_tiep"],["Thuyết trình được về sản phẩm của nhóm","giao_tiep"]]}]},
+  {"code":"CT3-THCS","ct":"CT3","level":"thcs","gf":6,"gt":9,"title":"STEM Đổi mới sáng tạo — THCS","main":"Làm sản phẩm","integ":["CLB Sáng tạo","Ngoại khóa STEM"],"comps":["gqvd","giao_tiep","cong_nghe"],
+   "obj":"Hoạt động sáng tạo, làm sản phẩm cụ thể theo quy trình tư duy thiết kế.",
+   "topics":[{"g":7,"s":"CLB Sáng tạo","t":"Tư duy thiết kế","l":"Giải pháp cho lớp học xanh","ss":["Buổi 1: Thấu cảm và xác định vấn đề","Buổi 2: Tạo mẫu thử"],"o":[["Xác định được vấn đề từ nhu cầu người dùng","gqvd"],["Tạo được mẫu thử và cải tiến theo góp ý","gqvd"]]},
+             {"g":8,"s":"Làm sản phẩm","t":"Sản phẩm dự thi sáng tạo","l":"Hoàn thiện sản phẩm dự thi","ss":["Buổi 1: Hoàn thiện sản phẩm","Buổi 2: Viết thuyết minh"],"o":[["Hoàn thiện được sản phẩm đáp ứng tiêu chí đề ra","cong_nghe"],["Viết được bản thuyết minh sản phẩm","giao_tiep"]]}]},
+  {"code":"CT3-THPT","ct":"CT3","level":"thpt","gf":10,"gt":12,"title":"STEM Đổi mới sáng tạo — THPT","main":"Làm sản phẩm","integ":["CLB Sáng tạo","Ngoại khóa STEM"],"comps":["gqvd","giao_tiep","cong_nghe"],
+   "obj":"Hoạt động sáng tạo, làm sản phẩm cụ thể, hướng tới khởi nghiệp.",
+   "topics":[{"g":10,"s":"Ngoại khóa STEM","t":"Khởi nghiệp sáng tạo","l":"Mô hình kinh doanh cho sản phẩm STEM","ss":["Buổi 1: Phân tích thị trường","Buổi 2: Gọi vốn thử"],"o":[["Xây dựng được mô hình kinh doanh một trang","gqvd"],["Trình bày được ý tưởng trước hội đồng","giao_tiep"]]},
+             {"g":11,"s":"Làm sản phẩm","t":"In 3D và chế tạo số","l":"Thiết kế vật dụng bằng phần mềm 3D","ss":["Buổi 1: Dựng mô hình 3D","Buổi 2: In và hoàn thiện"],"o":[["Dựng được mô hình 3D theo bản vẽ","cong_nghe"],["Đánh giá và cải tiến được sản phẩm in","gqvd"]]}]},
+  {"code":"CT4-THCS","old":"STEM-CT4","remap":{"Tin học":"AI & Lập trình","Công nghệ":"Robotic"},"ct":"CT4","level":"thcs","gf":6,"gt":9,"title":"STEM Robotic · AI · Trải nghiệm — THCS","main":"Robotic","integ":["AI & Lập trình","IoT"],"comps":["tin_hoc","cong_nghe","gqvd"],
+   "obj":"STEM định hướng đổi mới sáng tạo: Robotic, AI, Trải nghiệm.",
+   "topics":[{"g":6,"s":"Robotic","t":"Làm quen robot giáo dục","l":"Robot di chuyển theo lệnh","ss":["Buổi 1: Lắp ráp cơ bản","Buổi 2: Lập trình kéo thả"],"o":[["Lắp ráp được robot theo hướng dẫn","cong_nghe"],["Lập trình được robot di chuyển theo hình","tin_hoc"]]},
+             {"g":7,"s":"IoT","t":"Trạm quan trắc thời tiết","l":"Đo nhiệt độ, độ ẩm và gửi dữ liệu lên mạng","ss":["Buổi 1: Kết nối cảm biến","Buổi 2: Hiển thị dữ liệu trên điện thoại"],"o":[["Kết nối được cảm biến với bo mạch IoT","cong_nghe"],["Theo dõi được dữ liệu từ xa","tin_hoc"]]}]},
+  {"code":"CT4-THPT","ct":"CT4","level":"thpt","gf":10,"gt":12,"title":"STEM Robotic · AI · Trải nghiệm — THPT","main":"Robotic","integ":["AI & Lập trình","IoT"],"comps":["tin_hoc","cong_nghe","gqvd"],"note":"Áp dụng cho THPT và THPT Nghề.",
+   "obj":"STEM định hướng đổi mới sáng tạo: Robotic, AI, Trải nghiệm.",
+   "topics":[{"g":10,"s":"AI & Lập trình","t":"Lập trình Python cho AI","l":"Phân loại dữ liệu với học máy","ss":["Buổi 1: Chuẩn bị dữ liệu","Buổi 2: Huấn luyện và đánh giá mô hình"],"o":[["Chuẩn bị được bộ dữ liệu có nhãn","tin_hoc"],["Đánh giá được độ chính xác của mô hình","gqvd"]]},
+             {"g":11,"s":"Robotic","t":"Cánh tay robot","l":"Điều khiển cánh tay robot gắp vật","ss":["Buổi 1: Động học cơ bản","Buổi 2: Lập trình gắp và đặt vật"],"o":[["Mô tả được bậc tự do của cánh tay robot","cong_nghe"],["Lập trình được chuỗi thao tác gắp và đặt vật","tin_hoc"]]}]},
+  {"code":"CT5-THCS","ct":"CT5","level":"thcs","gf":6,"gt":9,"title":"STEM Nghiên cứu khoa học — THCS","main":"NCKH","integ":["Dự án Nghiên cứu"],"comps":["khoa_hoc","gqvd","giao_tiep"],
+   "obj":"Tập trung nghiên cứu khoa học độc lập: đặt câu hỏi, thiết kế thí nghiệm, báo cáo kết quả.",
+   "topics":[{"g":8,"s":"NCKH","t":"Phương pháp nghiên cứu khoa học","l":"Từ quan sát đến câu hỏi nghiên cứu","ss":["Buổi 1: Quan sát và đặt câu hỏi","Buổi 2: Thiết kế thí nghiệm"],"o":[["Đặt được câu hỏi nghiên cứu từ hiện tượng quan sát","khoa_hoc"],["Thiết kế được thí nghiệm có biến kiểm soát","gqvd"]]},
+             {"g":9,"s":"Dự án Nghiên cứu","t":"Dự án nghiên cứu nhỏ","l":"Thực hiện và báo cáo dự án","ss":["Buổi 1: Thu thập số liệu","Buổi 2: Viết báo cáo và poster"],"o":[["Xử lí được số liệu và rút ra kết luận","toan_hoc"],["Trình bày được kết quả bằng poster khoa học","giao_tiep"]]}]},
+  {"code":"CT5-THPT","old":"STEM-CT5","remap":{"*":"NCKH"},"ct":"CT5","level":"thpt","gf":10,"gt":12,"title":"STEM Nghiên cứu khoa học — THPT","main":"NCKH","integ":["Dự án Nghiên cứu"],"comps":["khoa_hoc","gqvd","giao_tiep","toan_hoc"],
+   "obj":"Tập trung nghiên cứu khoa học độc lập, hướng tới cuộc thi Khoa học kĩ thuật của Bộ GD&ĐT.",
+   "topics":[{"g":11,"s":"Dự án Nghiên cứu","t":"Triển khai nghiên cứu","l":"Thu thập và phân tích dữ liệu","ss":["Buổi 1: Tiến hành thực nghiệm","Buổi 2: Phân tích thống kê"],"o":[["Tiến hành được thực nghiệm theo đề cương","khoa_hoc"],["Phân tích được dữ liệu bằng công cụ thống kê","toan_hoc"]]},
+             {"g":12,"s":"Dự án Nghiên cứu","t":"Báo cáo và dự thi KHKT","l":"Hoàn thiện hồ sơ dự thi","ss":["Buổi 1: Viết báo cáo toàn văn","Buổi 2: Bảo vệ trước hội đồng"],"o":[["Viết được báo cáo theo mẫu cuộc thi KHKT","giao_tiep"],["Bảo vệ được kết quả trước hội đồng","giao_tiep"]]}]}
+  ]$j$;
+begin
+  select id into kdi from organizations where is_platform limit 1;
+  select id into so from organizations where code = 'SO-HY';
+  if kdi is null then return; end if;
+  select coalesce(array_agg(id order by title), '{}') into rub from rubrics where org_id is null;
+  for p in select * from jsonb_array_elements(data) loop
+    if exists (select 1 from edu_programs where org_id = kdi and code = p->>'code') then continue; end if;
+    pid := null; moved := false;
+    if p ? 'old' then
+      select id into pid from edu_programs where org_id = kdi and code = p->>'old' and status = 'published' order by version_no desc limit 1;
+    end if;
+    if pid is not null then
+      moved := true;
+      update edu_programs set status = 'draft' where id = pid;
+      update edu_programs set code = p->>'code', title = p->>'title', ct_code = p->>'ct', level = p->>'level', grade_from = (p->>'gf')::int, grade_to = (p->>'gt')::int,
+             main_subject = p->>'main', integrated_subjects = array(select jsonb_array_elements_text(p->'integ')), objectives = p->>'obj',
+             competency_keys = array(select jsonb_array_elements_text(p->'comps')), rubric_ids = rub, note = p->>'note'
+       where id = pid;
+      update edu_program_units set subject = coalesce(p->'remap'->>coalesce(subject, '*'), subject) where program_id = pid and parent_id is null;
+    else
+      insert into edu_programs (org_id, code, title, kind, ct_code, level, grade_from, grade_to, main_subject, integrated_subjects, objectives, competency_keys, rubric_ids, scope, note)
+      values (kdi, p->>'code', p->>'title', 'stem', p->>'ct', p->>'level', (p->>'gf')::int, (p->>'gt')::int, p->>'main',
+              array(select jsonb_array_elements_text(p->'integ')), p->>'obj', array(select jsonb_array_elements_text(p->'comps')), rub, 'children', p->>'note')
+      returning id into pid;
+    end if;
+    select coalesce(max(seq), 0) into n from edu_program_units where program_id = pid and parent_id is null;
+    for t in select * from jsonb_array_elements(p->'topics') loop
+      n := n + 1;
+      insert into edu_program_units (program_id, unit_type, seq, grade, subject, title) values (pid, 'topic', n, (t->>'g')::int, t->>'s', 'Chủ đề ' || n || '. ' || (t->>'t')) returning id into tid;
+      insert into edu_program_units (program_id, parent_id, unit_type, seq, title) values (pid, tid, 'lesson', 1, t->>'l') returning id into lid;
+      insert into edu_program_units (program_id, parent_id, unit_type, seq, title, periods)
+      select pid, lid, 'session', x.i, x.v, 1 from jsonb_array_elements_text(t->'ss') with ordinality x(v, i);
+      k := 0;
+      for o in select * from jsonb_array_elements(t->'o') loop
+        k := k + 1;
+        insert into edu_outcomes (program_id, unit_id, seq, code, content, competency_key) values (pid, tid, k, 'YC' || n || '.' || k, o->>0, o->>1);
+      end loop;
+    end loop;
+    update edu_programs set status = 'published', published_at = coalesce(published_at, now() - interval '30 days'),
+           effective_from = coalesce(effective_from, public.vn_today() - 30) where id = pid;
+    -- chuyển đổi tại chỗ: bỏ 2 dòng nhật ký tạm (ban hành → nháp → ban hành)
+    if moved then delete from edu_program_log where program_id = pid and at = now() and from_status is not null; end if;
+  end loop;
+
+  -- Phạm vi triển khai trong tỉnh Hưng Yên (bổ sung, không xoá phạm vi đã có)
+  if so is null then return; end if;
+  for s in with recursive r as (select id, code from organizations where id = so union all select o.id, o.code from organizations o join r on o.parent_id = r.id)
+           select r.id, r.code, e.id as pid, e.code as pcode, e.grade_from, e.grade_to
+             from r join edu_programs e on e.org_id = kdi and e.status = 'published' and (
+                  (e.code = 'CT1-TH' and r.code like 'TH-%') or (e.code = 'CT1-THCS' and r.code like 'THCS-%') or (e.code = 'CT1-THPT' and r.code like 'THPT-%')
+               or (e.code = 'CT2-THCS' and r.code in ('THCS-PH', 'THCS-NTT', 'THCS-AT', 'THCS-LQD', 'THCS-TH'))
+               or (e.code = 'CT2-THPT' and r.code in ('THPT-PNL', 'THPT-TV'))
+               or (e.code = 'CT3-TH' and r.code = 'TH-DTD') or (e.code = 'CT3-THCS' and r.code = 'THCS-HC') or (e.code = 'CT3-THPT' and r.code = 'THPT-TQP')
+               or (e.code = 'CT4-THCS' and r.code in ('THCS-PH', 'THCS-CMT', 'THCS-DD')) or (e.code = 'CT4-THPT' and r.code in ('THPT-CHY', 'THPT-TV'))
+               or (e.code = 'CT5-THCS' and r.code = 'THCS-LQD') or (e.code = 'CT5-THPT' and r.code in ('THPT-CHY', 'THPT-VG', 'THPT-NH')))
+  loop
+    insert into edu_program_assignments (program_id, org_id, grades, note, assigner_org)
+    values (s.pid, s.id, array(select generate_series(s.grade_from, s.grade_to)), 'Triển khai ' || s.pcode || ' năm học hiện tại', so)
+    on conflict (program_id, org_id) do nothing;
+  end loop;
 end $$;
 
 select set_config('app.seed_demo', '', false);

@@ -16,7 +16,8 @@ declare
     'security_settings',    -- cấu hình bảo mật mặc định
     'service_modules',      -- danh mục phân hệ PH1–PH5
     'service_plans',        -- danh mục gói dịch vụ
-    'service_plans_legacy'  -- bản ghi gói cũ trước 033
+    'service_plans_legacy', -- bản ghi gói cũ trước 033
+    'stem_tracks'           -- danh mục chương trình STEM CT1–CT5 (062, 5 dòng cố định)
   ];
   r record; n bigint; bad text := '';
 begin

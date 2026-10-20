@@ -44,7 +44,7 @@ import Accounts from './pages/Accounts'
 import Packages from './pages/Packages'
 import EduPlan from './pages/EduPlan'
 import StemAssign from './pages/StemAssign'
-import { Curriculum, SchoolProfile } from './pages/School'
+import { SchoolProfile } from './pages/School'
 import { TrainingPlans, TrainingSchedule, TrainingLessons, VirtualClass, Certificates } from './pages/Training'
 import { TeacherHome, TeacherSchedule, TeacherClasses, TeacherBooking } from './pages/TeacherPortal'
 import { TeacherAssignments, TeacherGrading } from './pages/teacher/Assignments'
@@ -101,6 +101,17 @@ const SchoolTeacherAssessments = lazy(() => import('./pages/competency').then(m 
 const PlatformSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.PlatformSupport })))
 // Đợt 2 (025): triển khai khách hàng, danh mục gói, đơn đặt gói, thông báo hàng loạt, tích hợp
 const PlatformRollout = lazy(() => import('./pages/platform/Rollout').then(m => ({ default: m.PlatformRollout })))
+const CurriculumBooks = lazy(() => import('./pages/curriculum').then(m => ({ default: m.CurriculumBooks })))
+const CurriculumProgress = lazy(() => import('./pages/curriculum').then(m => ({ default: m.CurriculumProgress })))
+// Phân phối chương trình theo tiết + tiến độ (057): cùng một màn cho trường / GV, Sở (soạn mẫu ban hành), KDI (mẫu dùng chung)
+const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, ComponentType<any>][] = []) => {
+  const tabs: [string, ComponentType<any>][] = [
+    [mode === 'platform' ? 'Mẫu PPCT của KDI' : mode === 'authority' ? 'PPCT & mẫu ban hành' : 'Phân phối chương trình', (q: any) => <CurriculumBooks {...q} mode={mode} />],
+    [mode === 'school' ? 'Tiến độ dạy' : 'Tiến độ các trường', (q: any) => <CurriculumProgress {...q} mode={mode} />],
+    ...extra,
+  ]
+  return (p: any) => <TabbedPages {...p} tabs={tabs} />
+}
 const PlatformCatalog = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformCatalog })))
 const PlatformOrders = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformOrders })))
 const PlatformBroadcast = lazy(() => import('./pages/platform/Broadcast').then(m => ({ default: m.PlatformBroadcast })))
@@ -169,7 +180,7 @@ const SCHOOL: PageMap = {
   'Gói STEM': Packages,
   'Kế hoạch GD toàn trường': EduPlan,
   'Phân công GV dạy STEM': StemAssign,
-  'Phân phối chương trình': Curriculum,
+  'Phân phối chương trình': ppctTabs('school'),
   'Hồ sơ Trường học': SchoolProfile,
   'Kế hoạch tập huấn': TrainingPlans,
   'Lịch tập huấn': TrainingSchedule,
@@ -194,6 +205,7 @@ const SCHOOL: PageMap = {
   'Ngày nghỉ & lễ': Holidays,
 }
 const TEACHER: PageMap = {
+  'Phân phối chương trình': ppctTabs('school'),
   'Ứng dụng di động': MobileAppPage,
   'Trợ lý AI': (p: any) => <AssistantPage {...p} onSaveQuiz={(i: any, m: any) => saveQuizToBank(p.orgId, i, m)} />,
   'E-learning & luyện thi': ElearningManage,
@@ -237,6 +249,7 @@ const STUDENT: PageMap = {
   'Chuyên cần': StudentAttendance,
 }
 const DEPARTMENT: PageMap = {
+  'Phân phối chương trình': ppctTabs('authority'),
   'Trợ lý AI': (p: any) => <AssistantPage {...p} onSaveQuiz={(i: any, m: any) => saveQuizToBank(p.orgId, i, m)} />,
   'E-learning & luyện thi': ElearningManage,
   'Ngân hàng câu hỏi': QuestionBank,
@@ -357,7 +370,7 @@ const PLATFORM: PageMap = {
   'Kế hoạch giáo dục toàn trường': SysEduPlan,
   'Duyệt đăng ký dạy STEM': SysRegistrations,
   'Bài tập & chấm bài': SysHomework,
-  'Phân phối chương trình': SysCurriculum,
+  'Phân phối chương trình': ppctTabs('platform', [['PPCT các trường', SysCurriculum]]),
   'Soạn bài giảng & kho hoạt động': SysLessons,
   'Bài giảng tập huấn & lớp học ảo': SysTrainingLessons,
   'Chứng chỉ tập huấn': SysCertificates,

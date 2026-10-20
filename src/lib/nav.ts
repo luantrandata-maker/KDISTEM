@@ -57,7 +57,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Quản trị', items: ['Năm học & học kỳ', 'Ngày nghỉ & lễ', 'Tòa nhà & Tầng', 'Cấu hình tiết học', 'Tài khoản', 'Vai trò và phân quyền', 'Quy trình phê duyệt', 'Khảo sát', 'Sao lưu & xuất dữ liệu', 'Giao diện & thương hiệu', 'Ứng dụng di động', 'Hỗ trợ từ KDI'] },
   ],
   teacher: [
-    { title: 'Giảng dạy', items: ['Tổng quan', 'Kế hoạch giáo dục', 'Lớp giảng dạy', 'Điểm danh', 'Bài tập', 'Chấm bài', 'Năng lực học sinh', 'Học trước & tự học', 'E-learning & luyện thi'] },
+    { title: 'Giảng dạy', items: ['Tổng quan', 'Kế hoạch giáo dục', 'Phân phối chương trình', 'Lớp giảng dạy', 'Điểm danh', 'Bài tập', 'Chấm bài', 'Năng lực học sinh', 'Học trước & tự học', 'E-learning & luyện thi'] },
     { title: 'Hoạt động STEM', items: ['Giáo dục STEM', 'Đặt phòng STEM', 'Dự án STEM', 'Cuộc thi', 'Chấm thi', 'Sự kiện'] },
     { title: 'Soạn giảng', items: ['Soạn bài giảng', 'Kho hoạt động & Bài giảng', 'Thư viện STEM', 'Ngân hàng câu hỏi', 'Trợ lý AI'] },
     { title: 'Khác', items: ['Hộp phê duyệt', 'Lịch tập huấn', 'Bài giảng tập huấn', 'Hồ sơ năng lực', 'Khảo sát', 'Ứng dụng di động', 'Hỗ trợ từ KDI'] },
@@ -76,7 +76,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Điều hành & báo cáo', items: ['Chỉ số STEM', 'So sánh trường / địa bàn', 'KPI & Xếp hạng Xã/Phường', 'Cảnh báo & trường cần chú ý', 'Giao chỉ tiêu', 'Bộ chỉ số', 'Sự kiện', 'Khảo sát', 'Báo cáo Bộ GD&ĐT', 'Điều hành & Cấu hình'] },
     { title: 'Dự án & cuộc thi', items: ['Cuộc thi', 'Dự án STEM', 'Chấm thi'] },
     { title: 'Tập huấn giáo viên', items: ['Giám sát Tập huấn GV', 'Kế hoạch tập huấn', 'Lịch tập huấn'] },
-    { title: 'Chương trình & học liệu', items: ['Chương trình CT1–CT5', 'Theo dõi Môn học STEM', 'Phát hành học liệu', 'Kho học liệu dùng chung', 'E-learning & luyện thi', 'Ngân hàng câu hỏi'] },
+    { title: 'Chương trình & học liệu', items: ['Chương trình CT1–CT5', 'Theo dõi Môn học STEM', 'Phân phối chương trình', 'Phát hành học liệu', 'Kho học liệu dùng chung', 'E-learning & luyện thi', 'Ngân hàng câu hỏi'] },
     { title: 'Phòng & thiết bị STEM', items: ['Hiệu quả Phòng STEM', 'Phòng STEM & lịch phòng', 'Thiết bị & kho'] },
     { title: 'Giảng dạy', items: ['Dashboard điểm danh'] },
     { title: 'Quản trị', items: ['Quy trình phê duyệt', 'Ngày nghỉ & lễ', 'Sao lưu & xuất dữ liệu', 'Giao diện & thương hiệu', 'Hỗ trợ từ KDI'] },

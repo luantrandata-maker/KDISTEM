@@ -7,6 +7,7 @@ import {
 } from '../../lib/attendance'
 import { NoTeacher, Tabs } from '../teacher/common'
 import { loadRooms } from '../../lib/rooms'
+import { usePpctForSession, PpctPicker } from '../ppctPicker'
 
 // ================= Bảng điểm danh một tiết =================
 type Stu = { id: string; full_name: string; student_code: string | null }
@@ -22,6 +23,8 @@ export function RollPanel({ session, onDone, onClose }: { session: SessionRow; o
   const [notes, setNotes] = useState<Record<string, string>>({})
   const [note, setNote] = useState(session.note ?? '')
   const [err, setErr] = useState(''); const [busy, setBusy] = useState(false)
+  const ppct = usePpctForSession(session)
+  const [lesson, setLesson] = useState<string | null>(null)   // null = giữ nguyên / tự động
 
   useEffect(() => {
     loadRoll(session).then(([s, a]) => {
@@ -38,8 +41,14 @@ export function RollPanel({ session, onDone, onClose }: { session: SessionRow; o
     setBusy(true); setErr('')
     const payload = (students ?? []).map(s => ({ student_id: s.id, status: marks[s.id], note: notes[s.id] || null }))
     const { error } = await supabase.rpc('mark_teaching_session', { p_session: session.id, p_marks: payload, p_note: note || null })
+    if (error) { setBusy(false); setErr(error.message); return }
+    // Tiết PPCT: chỉ gửi khi giáo viên chọn khác (không chọn → CSDL tự gán tiết kế tiếp). Mất mạng thì bỏ qua, CSDL vẫn tự gán.
+    const pick = lesson ?? ppct?.current ?? ''
+    if (lesson !== null && pick && pick !== ppct?.current && navigator.onLine) {
+      const r = await supabase.rpc('set_session_lesson', { p_session: session.id, p_lesson: pick })
+      if (r.error) { setBusy(false); setErr('Đã lưu điểm danh, nhưng chưa lưu được tiết PPCT: ' + r.error.message); return }
+    }
     setBusy(false)
-    if (error) { setErr(error.message); return }
     onDone()
   }
 
@@ -74,6 +83,7 @@ export function RollPanel({ session, onDone, onClose }: { session: SessionRow; o
           </table></div>
         </>
       )}
+      <PpctPicker ppct={ppct} value={lesson ?? ppct?.current ?? ''} onChange={setLesson} />
       <label className="field" style={{ marginTop: 10 }}><span>Nội dung / ghi chú tiết dạy</span>
         <input value={note} onChange={e => setNote(e.target.value)} placeholder="VD: Bài 5 — Lắp mạch điện đơn giản" /></label>
       {err && <p className="sub" role="alert" style={{ color: 'var(--bad)' }}>{err}</p>}

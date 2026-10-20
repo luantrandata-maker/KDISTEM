@@ -2186,6 +2186,16 @@ select pg_temp.chk('hs_kb', 'Phân tích: học sinh không xem phân tích củ
 select pg_temp.chk('hs_kb', 'Ôn tập: học sinh xem chủ đề em cần ôn', $q$select count(*) from elearning_my_review()$q$, '>0');
 select pg_temp.chk('admin_ph', 'Ôn tập: trường khác không xem của học sinh trường B', format($q$select count(*) from elearning_my_review(%L)$q$, (select id from students where student_code = 'ISO-001')), '0');
 
+-- ===== 062: danh mục chương trình STEM CT1–CT5 =====
+select pg_temp.chk('admin_ph', 'Danh mục CT1–CT5: trường đọc được', $q$select count(*) from stem_tracks$q$, '5');
+select pg_temp.chk('hs_kb', 'Danh mục CT1–CT5: học sinh đọc được', $q$select count(*) from stem_tracks$q$, '5');
+select pg_temp.chk('kdi', 'Danh mục CT1–CT5: quản trị nền tảng sửa được',
+  $q$with x as (update stem_tracks set description = description where code = 'CT1' returning 1) select count(*) from x$q$, '1');
+select pg_temp.chk('so_hy', 'Danh mục CT1–CT5: Sở không sửa được', $q$with x as (update stem_tracks set name = 'ISO' where code = 'CT1' returning 1) select count(*) from x$q$, '0');
+select pg_temp.chk('admin_ph', 'Danh mục CT1–CT5: trường không sửa được', $q$with x as (update stem_tracks set name = 'ISO' where code = 'CT1' returning 1) select count(*) from x$q$, '0');
+select pg_temp.chk('kdi', 'Danh mục CT1–CT5: không thêm mã ngoài CT1–CT5', $q$insert into stem_tracks (code, name, title) values ('CT6', 'ISO', 'ISO')$q$, 'ERR*');
+select pg_temp.chk('kdi', 'Danh mục CT1–CT5: không xoá được', $q$with x as (delete from stem_tracks where code = 'CT5' returning 1) select count(*) from x$q$, '0');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

@@ -106,6 +106,8 @@ const CurriculumProgress = lazy(() => import('./pages/curriculum').then(m => ({ 
 const EduPrograms = lazy(() => import('./pages/eduPrograms').then(m => ({ default: m.EduPrograms })))
 const eduPrograms = (mode: 'school' | 'authority' | 'platform') => (p: any) => <EduPrograms {...p} mode={mode} />
 const EduProgramsPlatform = eduPrograms('platform')
+// Danh mục chương trình STEM CT1–CT5: tên, mô tả, môn học, cấp học (062)
+const StemTracksCatalog = lazy(() => import('./pages/stemTracks').then(m => ({ default: m.StemTracksCatalog })))
 const ProgressPlatform = (q: any) => <CurriculumProgress {...q} mode="platform" />
 // Định mức vật tư theo bài / chủ đề, danh mục vật tư, dự trù, đề xuất điều chỉnh (059)
 const MaterialNorms = lazy(() => import('./pages/materialNorms').then(m => ({ default: m.MaterialNorms })))
@@ -350,7 +352,7 @@ const PLATFORM: PageMap = {
   'Lịch tập huấn': TrainingSchedule,
   'Giám sát tập huấn nhà giáo': DeptTrainingMonitor,
   // 2. Chương trình & học liệu
-  'Chương trình giáo dục': (p: any) => <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Gói STEM của KDI', PlatformCatalog]]} />,
+  'Chương trình giáo dục': (p: any) => <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Danh mục CT1–CT5', StemTracksCatalog], ['Gói STEM của KDI', PlatformCatalog]]} />,
   'Học liệu': (p: any) => <TabbedPages {...p} tabs={[['Phát hành học liệu', LibraryManage], ['Kho học liệu dùng chung', LibraryBrowse], ['Định mức vật tư', MaterialNorms]]} />,
   'Theo dõi chương trình CT1–CT5 (Môn học)': (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects], ['Tiến độ & yêu cầu cần đạt', ProgressPlatform]]} />,
   // 3. Vật tư, thiết bị dạy & học

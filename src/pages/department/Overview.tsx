@@ -2,8 +2,9 @@ import SchoolLocationImport from '../../components/SchoolLocationImport'
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { PROGRAM_COLOR } from '../teacher/common'
+import { STEM_LEVEL_NAME, useStemTracks } from '../../lib/stemTracks'
 import { Tabs } from '../teacher/common'
-import { useDeptStats, byWard, grade, pct, avg, sum, nf, LEVEL, PROGRAMS, PROGRAM_NAME, HEAT, type SchoolStat } from './data'
+import { useDeptStats, byWard, grade, pct, avg, sum, nf, LEVEL, PROGRAMS, HEAT, type SchoolStat } from './data'
 import { Tiles, GradePill, Columns, HBars, DataTable, rampColor, rampInk } from './charts'
 
 // Bản đồ (Leaflet) tải lười để các màn khác của Sở không nặng thêm
@@ -191,8 +192,10 @@ export function DeptSchools() {
 // ================= Chương trình CT1–CT5 =================
 export function DeptPrograms() {
   const { schools, loading, err } = useDeptStats()
+  const { byCode } = useStemTracks()
   const [ct, setCt] = useState('')
   if (loading || err) return <Loading err={err} />
+  const cur = ct ? byCode[ct] : undefined
   const has = (s: SchoolStat, p: string) => s.programs.includes(p)
   const shown = schools.filter(s => !ct || has(s, ct)).sort((a, b) => b.programs.length - a.programs.length || b.kpi - a.kpi)
   return (
@@ -209,7 +212,7 @@ export function DeptPrograms() {
           return (
             <button key={p} className={'ctcard' + (ct === p ? ' on' : '')} onClick={() => setCt(ct === p ? '' : p)} aria-pressed={ct === p}>
               <span className="progchip" style={{ background: PROGRAM_COLOR[p], color: '#fff' }}>{p}</span>
-              <b>{PROGRAM_NAME[p]}</b>
+              <b>{byCode[p]?.name ?? p}</b>
               <small>{list.length} trường · {nf(sum(list.map(s => s.stem_teachers)))} GV · {nf(sum(list.map(s => s.stem_students)))} HS</small>
               <div className="track"><div className="fill" style={{ width: pct(list.length, schools.length) + '%', background: PROGRAM_COLOR[p] }} /></div>
               <small>{pct(list.length, schools.length)}% số trường</small>
@@ -217,6 +220,16 @@ export function DeptPrograms() {
           )
         })}
       </div>
+      {cur && (
+        <section className="panel">
+          <h3><span className="progchip" style={{ background: PROGRAM_COLOR[cur.code], color: '#fff' }}>{cur.code}</span> {cur.title}</h3>
+          {cur.description && <p className="sub" style={{ margin: '0 0 10px' }}>{cur.description}</p>}
+          <small className="sub">Các môn học trong chương trình</small>
+          <div style={{ margin: '4px 0 8px' }}>{cur.subjects.map(x => <span key={x} className="chip" style={{ paddingRight: 12 }}>{x}</span>)}</div>
+          <small className="sub">Cấp học áp dụng</small>
+          <div style={{ marginTop: 4 }}>{cur.levels.map(l => <span key={l} className="pill" style={{ marginRight: 6 }}>{STEM_LEVEL_NAME[l]}</span>)}</div>
+        </section>
+      )}
       <div className="bar"><h3>Danh sách trường theo chương trình{ct && ` · ${ct}`}</h3>{ct && <button onClick={() => setCt('')}>Bỏ lọc</button>}</div>
       <div className="wrap">
         <table>

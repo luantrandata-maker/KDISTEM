@@ -13,7 +13,6 @@ export type SubjectStat = { subject: string; total: number; stem: number; classe
 
 export const LEVEL: Record<string, string> = { mamnon: 'Mầm non', tieuhoc: 'Tiểu học', thcs: 'THCS', thpt: 'THPT' }
 export const PROGRAMS = ['CT1', 'CT2', 'CT3', 'CT4', 'CT5'] as const
-export const PROGRAM_NAME: Record<string, string> = { CT1: 'Tích hợp nội môn', CT2: 'Liên môn', CT3: 'Đổi mới sáng tạo', CT4: 'Robotic / AI', CT5: 'Nghiên cứu khoa học' }
 
 // Một lần tải cho mọi màn của Sở (cache 60 giây trong phiên)
 let cache: { at: number; schools: SchoolStat[]; subjects: SubjectStat[] } | null = null

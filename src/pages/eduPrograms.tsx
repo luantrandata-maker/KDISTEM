@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
+import { useStemTracks } from '../lib/stemTracks'
 
 // Chương trình giáo dục chuẩn (migration 058): danh mục + phiên bản, cấu trúc chủ đề → bài → buổi, yêu cầu cần đạt,
 // gửi duyệt / ban hành / thay thế / lưu trữ, gán cho trường và theo dõi độ phủ; trường tạo PPCT từ chương trình.
@@ -68,6 +69,7 @@ function useCanEdit(mode: ProgMode) {
 // ================= Danh sách chương trình =================
 export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; mode?: ProgMode }) {
   const { canEdit, isAdmin } = useCanEdit(mode)
+  const { byCode: tracks } = useStemTracks()
   const [list, setList] = useState<Program[] | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const [level, setLevel] = useState('')
@@ -162,11 +164,12 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
           <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình *</span><input required value={form.title ?? ''} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Tin học THCS (CT GDPT 2018)" /></label>
           <label className="field"><span>Mã</span><input value={form.code ?? ''} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: TIN-THCS" /></label>
           <label className="field"><span>Loại</span><select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
-          {form.kind === 'stem' && <label className="field"><span>Chương trình STEM</span><select value={form.ct_code ?? ''} onChange={e => setForm({ ...form, ct_code: e.target.value || null })}><option value="">—</option>{CT.map(c => <option key={c}>{c}</option>)}</select></label>}
+          {form.kind === 'stem' && <label className="field"><span>Chương trình STEM</span><select value={form.ct_code ?? ''} onChange={e => setForm({ ...form, ct_code: e.target.value || null })}><option value="">—</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select></label>}
           <label className="field"><span>Cấp học</span><select value={form.level} onChange={e => { const l = e.target.value as Level; setForm({ ...form, level: l, grade_from: LEVEL_GRADES[l][0], grade_to: LEVEL_GRADES[l][1] }) }}>{(Object.keys(LEVEL) as Level[]).map(l => <option key={l} value={l}>{LEVEL[l]}</option>)}</select></label>
           <label className="field"><span>Từ khối</span><input type="number" min={1} max={12} value={form.grade_from ?? ''} onChange={e => setForm({ ...form, grade_from: Number(e.target.value) })} /></label>
           <label className="field"><span>Đến khối</span><input type="number" min={1} max={12} value={form.grade_to ?? ''} onChange={e => setForm({ ...form, grade_to: Number(e.target.value) })} /></label>
-          <label className="field"><span>Môn chủ đạo *</span><input required value={form.main_subject ?? ''} onChange={e => setForm({ ...form, main_subject: e.target.value })} placeholder="VD: Tin học" /></label>
+          <label className="field"><span>Môn chủ đạo *</span><input required list="ct-subjects-new" value={form.main_subject ?? ''} onChange={e => setForm({ ...form, main_subject: e.target.value })} placeholder="VD: Tin học" /></label>
+          <datalist id="ct-subjects-new">{(form.kind === 'stem' && form.ct_code ? tracks[form.ct_code]?.subjects ?? [] : []).map(x => <option key={x} value={x} />)}</datalist>
           {mode !== 'school' && <label className="field"><span>Phạm vi</span><select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Program['scope'] })}>
             <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
           <div className="formactions"><button className="primary" type="submit">Tạo bản nháp</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
@@ -269,6 +272,7 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError }: 
 }) {
   const [f, setF] = useState<Program>(p)
   const [integ, setInteg] = useState(p.integrated_subjects.join(', '))
+  const { byCode: tracks } = useStemTracks()
   const [rubrics, setRubrics] = useState<Rubric[]>([])
   useEffect(() => { setF(p); setInteg(p.integrated_subjects.join(', ')) }, [p])
   useEffect(() => { supabase.from('rubrics').select('id, title').order('title').then(({ data }) => setRubrics((data as Rubric[]) ?? [])) }, [])
@@ -302,11 +306,12 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError }: 
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình</span><input disabled={dis} value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></label>
         <label className="field"><span>Mã</span><input disabled={dis} value={f.code ?? ''} onChange={e => setF({ ...f, code: e.target.value })} /></label>
         <label className="field"><span>Loại</span><select disabled={dis} value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
-        {f.kind === 'stem' && <label className="field"><span>Chương trình STEM</span><select disabled={dis} value={f.ct_code ?? ''} onChange={e => setF({ ...f, ct_code: e.target.value || null })}><option value="">—</option>{CT.map(c => <option key={c}>{c}</option>)}</select></label>}
+        {f.kind === 'stem' && <label className="field"><span>Chương trình STEM</span><select disabled={dis} value={f.ct_code ?? ''} onChange={e => setF({ ...f, ct_code: e.target.value || null })}><option value="">—</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select></label>}
         <label className="field"><span>Cấp học</span><select disabled={dis} value={f.level} onChange={e => setF({ ...f, level: e.target.value as Level })}>{(Object.keys(LEVEL) as Level[]).map(l => <option key={l} value={l}>{LEVEL[l]}</option>)}</select></label>
         <label className="field"><span>Từ khối</span><input disabled={dis} type="number" min={1} max={12} value={f.grade_from} onChange={e => setF({ ...f, grade_from: Number(e.target.value) })} /></label>
         <label className="field"><span>Đến khối</span><input disabled={dis} type="number" min={1} max={12} value={f.grade_to} onChange={e => setF({ ...f, grade_to: Number(e.target.value) })} /></label>
-        <label className="field"><span>Môn chủ đạo</span><input disabled={dis} value={f.main_subject} onChange={e => setF({ ...f, main_subject: e.target.value })} /></label>
+        <label className="field"><span>Môn chủ đạo</span><input disabled={dis} list="ct-subjects-edit" value={f.main_subject} onChange={e => setF({ ...f, main_subject: e.target.value })} /></label>
+        <datalist id="ct-subjects-edit">{(f.kind === 'stem' && f.ct_code ? tracks[f.ct_code]?.subjects ?? [] : []).map(x => <option key={x} value={x} />)}</datalist>
         <label className="field"><span>Môn tích hợp</span><input disabled={dis} value={integ} onChange={e => setInteg(e.target.value)} placeholder="Ngăn cách bằng dấu phẩy" /></label>
         <label className="field"><span>Hiệu lực từ</span><input disabled={!editable && !scopeEditable} type="date" value={f.effective_from ?? ''} onChange={e => setF({ ...f, effective_from: e.target.value || null })} /></label>
         {mode !== 'school' && <label className="field"><span>Phạm vi áp dụng</span><select value={f.scope} disabled={!editable && !scopeEditable} onChange={e => setF({ ...f, scope: e.target.value as Program['scope'] })}>

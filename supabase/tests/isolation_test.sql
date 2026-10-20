@@ -1893,6 +1893,17 @@ select pg_temp.chk('so_bn', 'CTGD: Sở khác không gán chương trình của 
   format($q$insert into edu_program_assignments (program_id, org_id) values (%L, %L)$q$, (select id from edu_programs where title = 'ISO CT Sở HY'), pg_temp.oid_('THCS-KB')), 'ERR');
 select pg_temp.chk('admin_ph', 'CTGD: trường không tự gán chương trình của Sở',
   format($q$insert into edu_program_assignments (program_id, org_id) select id, %L from edu_programs where title = 'ISO CT Sở HY'$q$, pg_temp.oid_('THCS-KB')), 'ERR');
+select pg_temp.chk('so_hy', 'CTGD: Sở gán chương trình chuẩn đang ban hành của KDI cho trường trực thuộc',
+  format($q$insert into edu_program_assignments (program_id, org_id, grades) select id, %L, '{6}' from edu_programs where title = 'ISO CT KDI' and org_id = platform_org_id() and status = 'published'$q$, pg_temp.oid_('THCS-PH')), 'rows:1');
+select pg_temp.chk('so_hy', 'CTGD: Sở không gán chương trình KDI cho trường tỉnh khác',
+  format($q$insert into edu_program_assignments (program_id, org_id) select id, %L from edu_programs where title = 'ISO CT KDI' and org_id = platform_org_id() and status = 'published'$q$, pg_temp.oid_('THCS-KB')), 'ERR');
+select pg_temp.chk('admin_ph', 'CTGD: trường không tự gán chương trình KDI',
+  format($q$insert into edu_program_assignments (program_id, org_id) select id, %L from edu_programs where title = 'ISO CT KDI' and org_id = platform_org_id() and status = 'published'$q$, pg_temp.oid_('THCS-PH')), 'ERR');
+select pg_temp.probe('so_hy@iso-test.local', format($q$insert into edu_program_assignments (program_id, org_id, grades) select id, %L, '{6}' from edu_programs where title = 'ISO CT KDI' and org_id = platform_org_id() and status = 'published'$q$, pg_temp.oid_('THCS-PH')), true);
+select pg_temp.chk('so_bn', 'CTGD: Sở khác không xoá bản gán của Sở HY',
+  $q$delete from edu_program_assignments a using edu_programs p where p.id = a.program_id and p.title = 'ISO CT KDI'$q$, 'rows:0');
+select pg_temp.chk('so_hy', 'CTGD: Sở xoá bản gán chương trình KDI do mình gán',
+  $q$delete from edu_program_assignments a using edu_programs p where p.id = a.program_id and p.title = 'ISO CT KDI' and a.assigner_org = my_org_id()$q$, 'rows:1');
 select pg_temp.chk('so_hy', 'CTGD: độ phủ chương trình — trường A được gán', format($q$select assigned::text from edu_program_coverage((select id from edu_programs where title = 'ISO CT Sở HY')) where org_id = %L$q$, pg_temp.oid_('THCS-PH')), 'true');
 select pg_temp.chk('so_bn', 'CTGD: Sở khác không xem độ phủ trường A', format($q$select count(*) from edu_program_coverage((select id from edu_programs where title = 'ISO CT KDI' and version_no = 2 and org_id = platform_org_id())) where org_id = %L$q$, pg_temp.oid_('THCS-PH')), '0');
 -- PPCT từ chương trình chuẩn, học kỳ, gán lớp, nhật ký điều chỉnh, duyệt

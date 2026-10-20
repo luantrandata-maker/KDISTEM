@@ -94,6 +94,7 @@ create table if not exists edu_program_assignments (
   grades int[],                                                           -- null = mọi khối trong chương trình
   note text,
   assigned_by uuid references profiles(id) on delete set null default auth.uid(),
+  assigner_org uuid references organizations(id) on delete cascade default public.my_org_id(),  -- đơn vị đã gán (chủ chương trình hoặc Sở/Phòng dùng chương trình KDI)
   created_at timestamptz not null default now(),
   unique (program_id, org_id)
 );
@@ -281,21 +282,28 @@ create policy edu_outcomes_write on edu_outcomes for all to authenticated
   using (public.curriculum_can_write(org_id, 'edit')) with check (public.curriculum_can_write(org_id, 'edit'));
 
 -- Gán: đơn vị sở hữu chương trình gán cho đơn vị trực thuộc; đơn vị được gán (và cấp trên của nó) xem
+-- Gán: chủ chương trình gán cho đơn vị trong cây của mình; Sở / Phòng cũng gán được chương trình
+-- đang ban hành mà mình nhìn thấy (vd. chương trình chuẩn của KDI) cho trường trực thuộc.
 drop policy if exists edu_assign_read on edu_program_assignments;
 create policy edu_assign_read on edu_program_assignments for select to authenticated using (
-  (select public.is_staff()) and (org_id in (select public.my_org_tree()) or public.edu_program_org(program_id) in (select public.my_org_tree())));
+  (select public.is_staff()) and (org_id in (select public.my_org_tree()) or assigner_org in (select public.my_org_tree())
+    or public.edu_program_org(program_id) in (select public.my_org_tree())));
 drop policy if exists edu_assign_insert on edu_program_assignments;
 create policy edu_assign_insert on edu_program_assignments for insert to authenticated with check (
-  public.curriculum_can_write(public.edu_program_org(program_id), 'edit')
-  and (org_id in (select public.my_org_tree()) or (select public.is_platform_admin()))
-  and org_id <> public.edu_program_org(program_id));
+  (org_id in (select public.my_org_tree()) or (select public.is_platform_admin()))
+  and org_id <> public.edu_program_org(program_id)
+  and assigner_org = public.my_org_id()
+  and (public.curriculum_can_write(public.edu_program_org(program_id), 'edit')
+       or ((select public.is_authority()) and public.curriculum_can_write(public.my_org_id(), 'edit')
+           and exists (select 1 from edu_programs p where p.id = program_id and p.status = 'published'))));
 drop policy if exists edu_assign_update on edu_program_assignments;
 create policy edu_assign_update on edu_program_assignments for update to authenticated
-  using (public.curriculum_can_write(public.edu_program_org(program_id), 'edit'))
-  with check (public.curriculum_can_write(public.edu_program_org(program_id), 'edit'));
+  using (public.curriculum_can_write(public.edu_program_org(program_id), 'edit') or public.curriculum_can_write(assigner_org, 'edit'))
+  with check ((public.curriculum_can_write(public.edu_program_org(program_id), 'edit') or public.curriculum_can_write(assigner_org, 'edit'))
+              and (org_id in (select public.my_org_tree()) or (select public.is_platform_admin())));
 drop policy if exists edu_assign_delete on edu_program_assignments;
 create policy edu_assign_delete on edu_program_assignments for delete to authenticated
-  using (public.curriculum_can_write(public.edu_program_org(program_id), 'edit'));
+  using (public.curriculum_can_write(public.edu_program_org(program_id), 'edit') or public.curriculum_can_write(assigner_org, 'edit'));
 
 drop policy if exists edu_log_read on edu_program_log;
 create policy edu_log_read on edu_program_log for select to authenticated using (exists (select 1 from edu_programs p where p.id = program_id));
@@ -448,7 +456,8 @@ create policy cbc_write on curriculum_book_classes for all to authenticated
   using (public.curriculum_can_write(org_id, 'edit')) with check (public.curriculum_can_write(org_id, 'edit'));
 grant select, insert, update, delete on curriculum_book_classes to authenticated;
 
--- Nhật ký điều chỉnh PPCT đang dùng (đã công bố): sửa / xoá tiết, nhập lại cả môn — kèm lý do
+-- Nhật ký điều chỉnh PPCT đang dùng (đã công bố): sửa / xoá tiết, nhập lại cả môn — kèm lý do.
+-- Lý do lấy từ cột change_reason của tiết (xoá: đặt change_reason trước rồi xoá).
 create table if not exists curriculum_changes (
   id bigint generated always as identity primary key,
   org_id uuid not null references organizations(id) on delete cascade,
@@ -477,7 +486,7 @@ begin
   if tg_op = 'UPDATE' and (new.seq, new.week, new.term, new.title, new.kind, new.unit_id, new.package_topic_id)
        is not distinct from (old.seq, old.week, old.term, old.title, old.kind, old.unit_id, old.package_topic_id) then return null; end if;
   insert into curriculum_changes (org_id, book_id, lesson_id, seq, action, reason, before, after)
-  values (r.org_id, r.book_id, r.id, r.seq, lower(tg_op), case when tg_op <> 'DELETE' then nullif(btrim(new.change_reason), '') end,
+  values (r.org_id, r.book_id, r.id, r.seq, lower(tg_op), nullif(btrim(r.change_reason), ''),
           case when tg_op <> 'INSERT' then jsonb_build_object('seq', old.seq, 'week', old.week, 'term', old.term, 'title', old.title, 'kind', old.kind) end,
           case when tg_op <> 'DELETE' then jsonb_build_object('seq', new.seq, 'week', new.week, 'term', new.term, 'title', new.title, 'kind', new.kind) end);
   return null;
@@ -820,7 +829,8 @@ $$;
 revoke all on function public.curriculum_class_books(uuid, uuid) from public, anon, authenticated;
 
 -- Trạng thái từng tiết của lớp: done (đã dạy) · before (trước khi bắt đầu ghi nhận) · skipped (bỏ qua, các tiết sau đã dạy)
--- · late (quá tuần kế hoạch, chưa dạy) · due (tuần này) · upcoming (chưa đến). Tiết STEM / thực hành cần minh chứng.
+-- · late (quá tuần kế hoạch, chưa dạy) · unrecorded (quá tuần nhưng lớp chưa ghi nhận tiết nào — xem là "chưa ghi nhận",
+-- không tính vào nội dung chưa hoàn thành) · due (tuần này) · upcoming (chưa đến). Tiết STEM / thực hành cần minh chứng.
 create or replace function public.curriculum_lesson_rows(p_org uuid, p_class uuid)
 returns table (org_id uuid, school text, area text, class_id uuid, class_name text, grade int, subject text, book_id uuid, book_title text,
                program_id uuid, lesson_id uuid, seq int, week int, term int, title text, kind text, unit_id uuid, plan_week int, cur_week int,
@@ -852,6 +862,7 @@ language sql stable security definer set search_path = public as $$
          case when x.session_date is not null then 'done'
               when x.first_seq is not null and x.seq < x.first_seq then 'before'
               when x.reached is not null and x.seq < x.reached then 'skipped'
+              when x.plan_week < x.week and x.reached is null then 'unrecorded'
               when x.plan_week < x.week then 'late'
               when x.plan_week = x.week then 'due'
               else 'upcoming' end,
@@ -1055,8 +1066,8 @@ begin
   -- Sở Hưng Yên: gán Tin học THCS và STEM CT2 cho trường THCS Phố Hiến; chương trình STEM riêng của Sở đang soạn (nháp)
   if so is not null then
     if sch is not null then
-      insert into edu_program_assignments (program_id, org_id, grades, note) values
-        (v2, sch, '{6,7,8,9}', 'Áp dụng năm học hiện tại'), (v_stem, sch, '{8,9}', 'Thí điểm STEM CT2 khối 8, 9');
+      insert into edu_program_assignments (program_id, org_id, grades, note, assigner_org) values
+        (v2, sch, '{6,7,8,9}', 'Áp dụng năm học hiện tại', so), (v_stem, sch, '{8,9}', 'Thí điểm STEM CT2 khối 8, 9', so);
     end if;
     insert into edu_programs (org_id, code, title, kind, ct_code, level, grade_from, grade_to, main_subject, integrated_subjects, objectives, competency_keys, scope)
     values (so, 'HY-STEM-NN', 'Giáo dục STEM nông nghiệp thông minh', 'stem', 'CT3', 'thcs', 7, 8, 'Công nghệ', '{Khoa học tự nhiên,Tin học}',

@@ -169,6 +169,7 @@ begin
     delete from supply_requests where title like 'ISO %';
     perform set_config('app.stock_engine', 'off', true);
   end if;
+  if to_regclass('public.curriculum_lessons') is not null then delete from curriculum_books where title like 'ISO %'; end if;
   if to_regclass('public.supplies') is not null then delete from stocktakes where name like 'ISO KK%'; delete from supplies where name like 'ISO %'; end if;
   if to_regclass('public.surveys') is not null then delete from surveys where title like 'ISO KS%'; end if;
   if to_regclass('public.teacher_assessments') is not null then
@@ -1748,6 +1749,76 @@ select pg_temp.probe('admin_ph@iso-test.local', $q$insert into supply_moves (org
 select pg_temp.chk('admin_ph', 'Vật tư: xuất không ghi phòng lấy kho trước rồi phòng — tổng các vị trí = tồn',
   $q$select (select string_agg(r.name || ':' || k.qty, ',' order by r.name) from supply_stocks k join stem_rooms r on r.id = k.room_id where k.supply_id = s.id)
      || '|' || s.qty from supplies s where s.name = 'ISO Keo'$q$, 'ISO phòng STEM X:3.00|3.00');
+
+-- ===== Phân phối chương trình theo tiết + tiến độ (057) =====
+do $$
+declare v_org uuid := pg_temp.oid_('THCS-PH'); v_class uuid; v_grade int; v_per uuid; v_book uuid;
+  v_gv uuid := (select id from teachers where email = 'gv_both@iso-test.local' and org_id = pg_temp.oid_('THCS-PH'));
+begin
+  update profiles set org_id = v_org where email in ('gv_both@iso-test.local', 'admin_ph@iso-test.local');
+  select id, grade into v_class, v_grade from classes where org_id = v_org order by name limit 1;
+  insert into teaching_assignments (org_id, teacher_id, class_id, subject) values (v_org, v_gv, v_class, 'ISO tự học') on conflict do nothing;
+  insert into period_configs (org_id, name, starts_at, ends_at, session) values (v_org, 'ISO Tiết PPCT', '00:00', '23:59', 'morning') returning id into v_per;
+  insert into curriculum_books (org_id, grade, subject, title, periods_per_week, status)
+    values (v_org, v_grade, 'ISO Toán PPCT', 'ISO PPCT lớp thử', 2, 'published') returning id into v_book;
+  insert into curriculum_lessons (book_id, seq, title) select v_book, k, 'ISO tiết ' || k from generate_series(1, 10) k;
+  insert into teaching_sessions (org_id, class_id, teacher_id, period_id, session_date, subject, kind)
+    select v_org, v_class, v_gv, v_per, public.vn_today() - d, 'ISO Toán PPCT', 'regular' from generate_series(1, 4) d;
+end $$;
+select pg_temp.chk('admin_ph', 'PPCT: tổng số tiết của môn tự cập nhật theo số tiết đã soạn', $q$select total_periods::text from curriculum_books where title = 'ISO PPCT lớp thử'$q$, '10');
+select pg_temp.chk('admin_ph', 'PPCT: trường đọc tiết PPCT của mình', $q$select count(*) from curriculum_lessons where org_id = my_org_id()$q$, '>0');
+select pg_temp.chk('gv_both', 'PPCT: giáo viên đọc PPCT của trường', $q$select count(*) from curriculum_lessons where book_id = (select id from curriculum_books where title = 'ISO PPCT lớp thử')$q$, '10');
+select pg_temp.chk('gv_both', 'PPCT: giáo viên không sửa PPCT', $q$update curriculum_lessons set title = 'ISO sửa' where book_id = (select id from curriculum_books where title = 'ISO PPCT lớp thử')$q$, 'rows:0');
+select pg_temp.chk('gv_both', 'PPCT: giáo viên không thêm môn', $q$insert into curriculum_books (org_id, grade, subject, title) values (my_org_id(), 6, 'Toán', 'ISO GV thêm')$q$, 'ERR');
+select pg_temp.chk('admin_kb', 'PPCT: trường tỉnh khác không đọc PPCT', format($q$select count(*) from curriculum_lessons where org_id = %L$q$, pg_temp.oid_('THCS-PH')), '0');
+select pg_temp.chk('admin_kb', 'PPCT: trường tỉnh khác không thêm tiết vào PPCT trường A',
+  $q$insert into curriculum_lessons (book_id, seq, title) select id, 99, 'ISO chen' from curriculum_books where title = 'ISO PPCT lớp thử'$q$, 'rows:0');
+select pg_temp.chk('so_hy', 'PPCT: Sở đọc PPCT trường trực thuộc', format($q$select count(*) from curriculum_lessons where org_id = %L$q$, pg_temp.oid_('THCS-PH')), '>0');
+select pg_temp.chk('hs_kb', 'PPCT: học sinh không đọc PPCT', $q$select count(*) from curriculum_lessons$q$, '0');
+-- Mẫu: KDI ban hành, Sở ban hành cho trường trực thuộc, bản nháp không lộ ra
+select pg_temp.probe('kdi@iso-test.local', $q$insert into curriculum_books (org_id, grade, subject, title, status, scope) values (platform_org_id(), 7, 'Tin học', 'ISO mẫu KDI', 'published', 'children')$q$, true);
+select pg_temp.chk('kdi', 'PPCT mẫu: KDI soạn tiết cho mẫu của mình',
+  $q$insert into curriculum_lessons (book_id, seq, title) select id, k, 'ISO mẫu tiết ' || k from curriculum_books, generate_series(1, 3) k where title = 'ISO mẫu KDI'$q$, 'rows:3');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into curriculum_lessons (book_id, seq, title) select id, k, 'ISO mẫu tiết ' || k from curriculum_books, generate_series(1, 3) k where title = 'ISO mẫu KDI'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into curriculum_books (org_id, grade, subject, title, status, scope) values (platform_org_id(), 7, 'Tin học', 'ISO mẫu KDI nháp', 'draft', 'children')$q$, true);
+select pg_temp.chk('admin_ph', 'PPCT mẫu: trường thấy mẫu KDI đã ban hành', $q$select count(*) from curriculum_books where title = 'ISO mẫu KDI'$q$, '1');
+select pg_temp.chk('admin_ph', 'PPCT mẫu: trường đọc tiết của mẫu KDI', $q$select count(*) from curriculum_lessons where book_id = (select id from curriculum_books where title = 'ISO mẫu KDI' and org_id = platform_org_id())$q$, '3');
+select pg_temp.chk('admin_ph', 'PPCT mẫu: trường không thấy mẫu nháp', $q$select count(*) from curriculum_books where title = 'ISO mẫu KDI nháp'$q$, '0');
+select pg_temp.chk('admin_ph', 'PPCT mẫu: trường không sửa mẫu KDI', $q$update curriculum_books set title = 'ISO sửa mẫu' where title = 'ISO mẫu KDI'$q$, 'rows:0');
+select pg_temp.chk('admin_ph', 'PPCT mẫu: trường không thêm tiết vào mẫu KDI',
+  $q$insert into curriculum_lessons (book_id, seq, title) select id, 50, 'ISO chen mẫu' from curriculum_books where title = 'ISO mẫu KDI'$q$, 'ERR');
+select pg_temp.probe('admin_ph@iso-test.local', $q$select curriculum_copy((select id from curriculum_books where title = 'ISO mẫu KDI' and org_id = platform_org_id()), '2026-2027')::text$q$, true);
+select pg_temp.chk('admin_ph', 'PPCT mẫu: sao chép mẫu về trường (đủ tiết, thuộc trường, ghi nguồn)',
+  $q$select count(*) || ':' || bool_and(l.org_id = my_org_id() and b.org_id = my_org_id() and b.scope = 'own' and b.year_name = '2026-2027') from curriculum_lessons l join curriculum_books b on b.id = l.book_id
+     where b.source_id = (select id from curriculum_books where title = 'ISO mẫu KDI' and org_id = platform_org_id())$q$, '3:true');
+select pg_temp.chk('gv_both', 'PPCT mẫu: giáo viên không sao chép mẫu', $q$select curriculum_copy((select id from curriculum_books where title = 'ISO mẫu KDI' and org_id = platform_org_id()))::text$q$, 'ERR');
+select pg_temp.probe('so_hy@iso-test.local', $q$insert into curriculum_books (org_id, grade, subject, title, status, scope) values (my_org_id(), 8, 'Công nghệ', 'ISO mẫu Sở HY', 'published', 'children')$q$, true);
+select pg_temp.chk('admin_ph', 'PPCT mẫu: trường thấy mẫu của Sở cấp trên', $q$select count(*) from curriculum_books where title = 'ISO mẫu Sở HY'$q$, '1');
+select pg_temp.chk('admin_kb', 'PPCT mẫu: trường tỉnh khác không thấy mẫu của Sở HY', $q$select count(*) from curriculum_books where title = 'ISO mẫu Sở HY'$q$, '0');
+select pg_temp.chk('so_bn', 'PPCT mẫu: Sở khác không sửa mẫu của Sở HY', $q$update curriculum_books set title = 'ISO đổi' where title = 'ISO mẫu Sở HY'$q$, 'rows:0');
+-- Tiết dạy ↔ tiết PPCT
+select pg_temp.probe('gv_both@iso-test.local', $q$select mark_teaching_session(id, '[]'::jsonb)::text from teaching_sessions where subject = 'ISO Toán PPCT' and session_date = vn_today() - 4$q$, true);
+select pg_temp.probe('gv_both@iso-test.local', $q$select mark_teaching_session(id, '[]'::jsonb)::text from teaching_sessions where subject = 'ISO Toán PPCT' and session_date = vn_today() - 3$q$, true);
+select pg_temp.chk('gv_both', 'PPCT: điểm danh tự gán tiết PPCT kế tiếp (1, 2)',
+  $q$select string_agg(l.seq::text, ',' order by s.session_date) from teaching_sessions s join curriculum_lessons l on l.id = s.curriculum_lesson_id where s.subject = 'ISO Toán PPCT'$q$, '1,2');
+select pg_temp.chk('gv_both', 'PPCT: GV đổi tiết PPCT của tiết mình dạy (sang tiết 5)',
+  $q$select set_session_lesson((select id from teaching_sessions where subject = 'ISO Toán PPCT' and session_date = vn_today() - 3), (select l.id from curriculum_lessons l join curriculum_books b on b.id = l.book_id where b.title = 'ISO PPCT lớp thử' and l.seq = 5))::text$q$, '');
+select pg_temp.probe('gv_both@iso-test.local', $q$select set_session_lesson((select id from teaching_sessions where subject = 'ISO Toán PPCT' and session_date = vn_today() - 3), (select l.id from curriculum_lessons l join curriculum_books b on b.id = l.book_id where b.title = 'ISO PPCT lớp thử' and l.seq = 5))::text$q$, true);
+select pg_temp.probe('gv_both@iso-test.local', $q$select mark_teaching_session(id, '[]'::jsonb)::text from teaching_sessions where subject = 'ISO Toán PPCT' and session_date = vn_today() - 2$q$, true);
+select pg_temp.chk('gv_both', 'PPCT: sau khi chọn tiết 5, tiết dạy kế tiếp tự gán tiết 6',
+  $q$select l.seq::text from teaching_sessions s join curriculum_lessons l on l.id = s.curriculum_lesson_id where s.subject = 'ISO Toán PPCT' and s.session_date = vn_today() - 2$q$, '6');
+select pg_temp.chk('gv_both', 'PPCT: không gắn tiết PPCT của khối khác',
+  $q$select set_session_lesson((select id from teaching_sessions where subject = 'ISO Toán PPCT' and session_date = vn_today() - 2), (select l.id from curriculum_lessons l join curriculum_books b on b.id = l.book_id where b.grade <> (select c.grade from classes c join teaching_sessions s on s.class_id = c.id where s.subject = 'ISO Toán PPCT' limit 1) and b.org_id = my_org_id() limit 1))::text$q$, 'ERR*');
+select pg_temp.chk('mixed', 'PPCT: người không dạy tiết không đổi được tiết PPCT',
+  $q$select set_session_lesson((select id from teaching_sessions where subject = 'ISO Toán PPCT' limit 1), null)::text$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Tiến độ PPCT: lớp thử đã dạy tới tiết 6, 3 tiết',
+  $q$select reached || ':' || taught || ':' || total from curriculum_progress() where book_title = 'ISO PPCT lớp thử'$q$, '6:3:10');
+select pg_temp.chk('gv_both', 'Tiến độ PPCT: giáo viên xem tiến độ của trường', $q$select count(*) from curriculum_progress()$q$, '>0');
+select pg_temp.chk('so_hy', 'Tiến độ PPCT: Sở xem tiến độ trường trực thuộc', format($q$select count(*) from curriculum_progress() where org_id = %L$q$, pg_temp.oid_('THCS-PH')), '>0');
+select pg_temp.chk('so_bn', 'Tiến độ PPCT: Sở tỉnh khác không xem tiến độ trường A', format($q$select count(*) from curriculum_progress() where org_id = %L$q$, pg_temp.oid_('THCS-PH')), '0');
+select pg_temp.chk('hs_kb', 'Tiến độ PPCT: học sinh không xem tiến độ', $q$select count(*) from curriculum_progress()$q$, '0');
+select pg_temp.chk('admin_ph', 'Dữ liệu mẫu: trường demo có PPCT theo tiết và tiết đã dạy được gắn PPCT',
+  $q$select (count(*) > 0)::text from teaching_sessions where org_id = my_org_id() and curriculum_lesson_id is not null$q$, 'true');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

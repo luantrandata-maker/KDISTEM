@@ -9,6 +9,7 @@ import {
   fmtDate, uid, selectItems, useProgramOptions, useNormOptions, unitTree, progLabel, type Item, type Unit, type Rights,
 } from './common'
 import { GradeChecks, SubjectPicker, gradeList } from '../../components/Pickers'
+import { EMPTY_NORM, loadUnitNorm, saveUnitNorm, UnitNormEditor, type UnitNorm } from './UnitNorm'
 
 type Org = { id: string; name: string; type: string; parent_id: string | null }
 type Stat = { item_id: string; schools: number; copies: number; outdated: number }
@@ -66,6 +67,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   const [uploading, setUploading] = useState(false)
   const { programs, units } = useProgramOptions(orgId)
   const norms = useNormOptions(orgId)
+  const [norm, setNorm] = useState<UnitNorm>(EMPTY_NORM)
 
   async function load() {
     if (!orgId) return
@@ -113,6 +115,12 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
       objectives: i.content.objectives ?? '', periods: i.content.periods ? String(i.content.periods) : '',
       plan_ids: i.content.plan_ids ?? [], lesson_ids: i.content.lesson_ids ?? [], norm_ids: i.content.norm_ids ?? [], material_ids: i.content.material_ids ?? [],
     })
+    setNorm(EMPTY_NORM)
+    // Vật tư của bài học: định mức gắn với bài (không hiện lại trong ô "định mức có sẵn")
+    if (i.kind === 'unit' && orgId) loadUnitNorm(i.id, orgId).then(n => {
+      setNorm(n)
+      if (n.id) setForm(f => f && f.id === i.id ? { ...f, norm_ids: f.norm_ids.filter(x => x !== n.id) } : f)
+    })
   }
   function importLesson(id: string) {
     const l = lessons.find(x => x.id === id); if (!l || !form) return
@@ -145,6 +153,13 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
       const t = await supabase.from('library_targets').insert(form.targets.map(org_id => ({ item_id: id, org_id })))
       if (t.error) { setBusy(false); return setMsg(t.error.message) }
     }
+    if (form.kind === 'unit') {
+      const g = gradeList(form.grades)
+      const r = await saveUnitNorm(norm, { itemId: id, orgId, title: row.title, subject: row.subject, grade: g.length === 1 ? g[0] : null, publish })
+      const norm_ids = [...(r.id ? [r.id] : []), ...form.norm_ids.filter(x => x !== r.id && x !== norm.id)]
+      const u = await supabase.from('library_items').update({ content: { ...content, norm_ids } }).eq('id', id)
+      if (r.error || u.error) { setBusy(false); setMsg('Đã lưu bài học nhưng chưa lưu được vật tư: ' + (r.error ?? u.error?.message)); setForm({ ...form, id }); return load() }
+    }
     if (publish) {
       const was = items.find(x => x.id === id)
       const note = was && was.version > 0 ? prompt('Ghi chú cho bản cập nhật (trường đã dùng sẽ thấy):', '') : null
@@ -157,6 +172,11 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   async function publish(i: Item) {
     const note = i.version > 0 ? prompt('Ghi chú cho bản cập nhật (trường đã dùng sẽ thấy):', '') : null
     if (note === null && i.version > 0) return
+    // Bài học: ban hành luôn định mức vật tư đang soạn của bài
+    if (i.kind === 'unit' && orgId) {
+      const r = await saveUnitNorm(await loadUnitNorm(i.id, orgId), { itemId: i.id, orgId, title: i.title, subject: i.subject, grade: null, publish: true })
+      if (r.error) return setMsg('Chưa ban hành được vật tư của bài: ' + r.error)
+    }
     const { data, error } = await supabase.rpc('library_publish', { p_item: i.id, p_note: note })
     if (error) setMsg(error.message); else { setMsg(''); setInfo(`Đã phát hành “${i.title}” (phiên bản ${data}).`); load() }
   }
@@ -190,7 +210,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
         <Tabs items={[['all', 'Tất cả', items.length], ['published', 'Đã phát hành', items.filter(i => i.status === 'published').length],
           ['draft', 'Nháp', items.filter(i => i.status === 'draft').length], ['archived', 'Đã thu hồi', items.filter(i => i.status === 'archived').length]]} value={tab} onChange={setTab} />
         <div className="actions">
-          {NEW_KINDS.map(k => <button key={k} type="button" className={k === 'unit' ? 'primary' : ''} onClick={() => { setMsg(''); setInfo(''); setForm(EMPTY(k)) }}>+ {KIND[k][0]}</button>)}
+          {NEW_KINDS.map(k => <button key={k} type="button" className={k === 'unit' ? 'primary' : ''} onClick={() => { setMsg(''); setInfo(''); setForm(EMPTY(k)); setNorm(EMPTY_NORM) }}>+ {KIND[k][0]}</button>)}
         </div>
       </div>
       <p className="sub">Học liệu phát hành tới {me.type === 'provider' ? 'các đơn vị bạn chọn hoặc công khai toàn hệ thống' : `các đơn vị trực thuộc ${me.name}`}. Trường “dùng” sẽ có bản riêng để chỉnh sửa; khi bạn phát hành bản cập nhật, trường được báo nhưng bản của họ không bị ghi đè.</p>
@@ -240,9 +260,10 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
               <label className="field"><span>Số tiết</span><input type="number" min={0} max={999} value={form.periods} onChange={e => setForm({ ...form, periods: e.target.value })} /></label>
               <ChipPicker label="Giáo án" hint="học liệu loại Giáo án" options={planPool} value={form.plan_ids} onChange={v => setForm({ ...form, plan_ids: v })} missing="giáo án không còn trong kho" />
               <ChipPicker label="Bài giảng" options={pick(lessonPool)} value={form.lesson_ids} onChange={v => setForm({ ...form, lesson_ids: v })} missing="bài giảng không còn trong kho" />
-              <ChipPicker label="Định mức vật tư" options={normPool} value={form.norm_ids} onChange={v => setForm({ ...form, norm_ids: v })} missing="định mức không còn" />
+              <UnitNormEditor value={norm} onChange={setNorm} />
+              <ChipPicker label="Định mức có sẵn" hint="gắn thêm định mức đã soạn ở mục Định mức vật tư (không bắt buộc)" options={normPool.filter(o => o.id !== norm.id)} value={form.norm_ids} onChange={v => setForm({ ...form, norm_ids: v })} missing="định mức không còn" />
               <ChipPicker label="Học liệu khác" hint="phiếu học tập, video, tài liệu…" options={matPool} value={form.material_ids} onChange={v => setForm({ ...form, material_ids: v })} missing="học liệu không còn trong kho" />
-              <p className="sub" style={{ gridColumn: '1 / -1', margin: 0 }}>Chưa có giáo án, bài giảng hay học liệu cần dùng? Tạo bằng “+ Bài giảng” / “+ Học liệu” (chọn loại Giáo án) rồi gắn vào đây. Định mức vật tư soạn ở mục Định mức vật tư. Trường bấm “Dùng bài học” sẽ có bản riêng của mọi bài giảng được gắn.</p>
+              <p className="sub" style={{ gridColumn: '1 / -1', margin: 0 }}>Chưa có giáo án, bài giảng hay học liệu cần dùng? Tạo bằng “+ Bài giảng” / “+ Học liệu” (chọn loại Giáo án) rồi gắn vào đây. Vật tư nhập ở bảng trên được lưu thành định mức vật tư của bài, ban hành cùng bài học. Trường bấm “Dùng bài học” sẽ có bản riêng của mọi bài giảng được gắn.</p>
             </div>
           )}
           {form.kind === 'lesson' && (

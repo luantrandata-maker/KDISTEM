@@ -410,7 +410,7 @@ type TabP = { p: LPlan; upd: (x: Partial<LPlan>) => void; ro: boolean }
 
 function InfoTab({ p, upd, ro, templates, programs, units }: TabP & { templates: Template[]; programs: ReturnType<typeof useProgramOptions>['programs']; units: ReturnType<typeof useProgramOptions>['units'] }) {
   const { codes: PROGRAMS } = useStemTracks()
-  const tree = unitTree(units, p.program_id)
+  const tree = unitTree(units, p.program_id, 'lesson', p.unit_id)
   function pickTemplate(tid: string) {
     const t = templates.find(x => x.id === tid)
     const doc = { ...p.doc }; (t?.sections ?? []).forEach(s => { if (!(s.key in doc)) doc[s.key] = '' })
@@ -430,9 +430,9 @@ function InfoTab({ p, upd, ro, templates, programs, units }: TabP & { templates:
       <label className="field"><span>Chương trình giáo dục</span>
         <select value={p.program_id ?? ''} onChange={e => upd({ program_id: e.target.value || null, unit_id: null })} aria-label="Chương trình giáo dục">
           <option value="">— không gắn —</option>{programs.map(x => <option key={x.id} value={x.id}>{progLabel(x)}{x.status === 'draft' ? ' · nháp' : ''}</option>)}</select></label>
-      <label className="field"><span>Học phần / bài trong chương trình</span>
+      <label className="field"><span>Bài trong chương trình</span>
         <select value={p.unit_id ?? ''} onChange={e => upd({ unit_id: e.target.value || null })} disabled={ro || !p.program_id} aria-label="Bài trong chương trình">
-          <option value="">— chọn —</option>{tree.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
+          <option value="">— chọn bài —</option>{tree.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
       <label className="field"><span>Nội dung Gói STEM</span>
         <span><input type="checkbox" checked={p.from_package} onChange={e => upd({ from_package: e.target.checked })} /> Thuộc gói STEM của trường</span></label>
       <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tóm tắt</span><textarea rows={2} value={p.summary ?? ''} onChange={e => upd({ summary: e.target.value })} /></label>

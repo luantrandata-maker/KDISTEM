@@ -320,9 +320,9 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
             <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình giáo dục</span>
               <select value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, unit_id: '' })} aria-label="Chương trình giáo dục">
                 <option value="">— không gắn —</option>{programs.map(p => <option key={p.id} value={p.id}>{progLabel(p)}{p.status === 'draft' ? ' · nháp' : ''}</option>)}</select></label>
-            <label className="field" style={{ gridColumn: 'span 2' }}><span>Học phần / bài</span>
-              <select value={form.unit_id} disabled={!form.program_id} onChange={e => setForm({ ...form, unit_id: e.target.value })} aria-label="Học phần / bài">
-                <option value="">— cả chương trình —</option>{unitTree(units, form.program_id).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>{form.kind === 'unit' ? 'Học phần' : 'Bài'}</span>
+              <select value={form.unit_id} disabled={!form.program_id} onChange={e => setForm({ ...form, unit_id: e.target.value })} aria-label={form.kind === 'unit' ? 'Học phần' : 'Bài'}>
+                <option value="">{form.kind === 'unit' ? '— chọn học phần —' : '— chọn bài —'}</option>{unitTree(units, form.program_id, form.kind === 'unit' ? 'topic' : 'lesson', form.unit_id).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
             <label className="field"><span>Quyền sử dụng</span>
               <select value={form.usage_rights} onChange={e => setForm({ ...form, usage_rights: e.target.value as Rights })} aria-label="Quyền sử dụng">
                 {(Object.keys(RIGHTS) as Rights[]).map(r => <option key={r} value={r}>{RIGHTS[r][0]}</option>)}</select></label>

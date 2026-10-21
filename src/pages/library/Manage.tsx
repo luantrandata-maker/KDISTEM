@@ -58,6 +58,7 @@ const EMPTY = (kind: Item['kind']): Form => ({
 const MaterialNorms = lazy(() => import('../materialNorms').then(m => ({ default: m.MaterialNorms })))
 type T = Item['kind'] | 'plan' | 'norm'
 const isPlan = (i: Item) => i.kind === 'material' && i.content.type === 'lesson_plan'
+const NOEV = { preventDefault() {} } as React.FormEvent
 const MAT_OPTS = Object.entries(MAT_TYPE).filter(([k]) => k !== 'lesson_plan')
 
 // Phát hành học liệu: Sở/Phòng/Tỉnh/Bộ, đơn vị cung cấp (KDI Education) hoặc trường soạn và phát hành tới đơn vị trực thuộc
@@ -152,6 +153,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   }
   async function save(e: React.FormEvent, publish: boolean) {
     e.preventDefault(); if (!form || !orgId) return
+    if (!form.title.trim()) return setMsg('Nhập tên.')
     if (form.scope === 'selected' && form.targets.length === 0) return setMsg('Chọn ít nhất một đơn vị nhận.')
     const isP = form.kind === 'material' && form.mtype === 'lesson_plan'
     const att = form.src === 'file' ? (form.file ? { url: '', ...form.file } : { url: '' }) : { url: form.url.trim() }
@@ -287,6 +289,17 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   }
   const setUnit = (k: number, p: Partial<Unit>) => form && setForm({ ...form, units: form.units.map((u, j) => j === k ? { ...u, ...p } : u) })
 
+  // Tóm tắt nội dung / thành phần của một mục cho cột trong danh sách
+  const partsOf = (i: Item) => {
+    const c = i.content
+    if (i.kind === 'unit') {
+      const n = (a: string[] | undefined, l: string) => (a ?? []).length ? `${(a ?? []).length} ${l}` : ''
+      return [c.periods ? `${c.periods} tiết` : '', n(c.plan_ids, 'giáo án'), n(c.lesson_ids, 'bài giảng'), n(c.norm_ids, 'định mức'), n(c.material_ids, 'học liệu')].filter(Boolean).join(' · ') || '—'
+    }
+    if (i.kind === 'lesson') return `${(c.slides ?? []).length} slide`
+    if (isPlan(i)) { const p = planOf(c as any); return [p.periods && `${p.periods} tiết`, p.steps.length && `${p.steps.length} bước`, c.file_name ? 'có tệp' : c.url ? 'có đường dẫn' : ''].filter(Boolean).join(' · ') || 'chưa có nội dung' }
+    return [MAT_TYPE[c.type ?? 'link'], c.file_name ?? (c.url ? 'đường dẫn' : 'chưa có tệp')].filter(Boolean).join(' · ')
+  }
   return (
     <>
       <div style={{ marginBottom: 10 }}>
@@ -305,13 +318,18 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
         <button type="button" className="primary" onClick={() => addNew(tab)}>Thêm {tabLabel(tab).toLowerCase()}</button>
       </div>
       <p className="sub">Học liệu phát hành tới {me.type === 'provider' ? 'các đơn vị bạn chọn hoặc công khai toàn hệ thống' : `các đơn vị trực thuộc ${me.name}`}. Trường “dùng” sẽ có bản riêng để chỉnh sửa; khi bạn phát hành bản cập nhật, trường được báo nhưng bản của họ không bị ghi đè.</p>
-      {msg && <p className="msg">{msg}</p>}
+      {msg && !form && <p className="msg">{msg}</p>}
       {info && <p className="sub"><b>{info}</b></p>}
 
       {form && (
         <Drawer wide closeOnOutside={false} onClose={() => setForm(null)}
+          actions={<>
+            <button type="button" className="primary" disabled={busy || uploading} onClick={() => save(NOEV, true)}>Lưu & phát hành</button>
+            <button type="button" disabled={busy || uploading} onClick={() => save(NOEV, false)}>Lưu nháp</button>
+            <button type="button" onClick={() => setForm(null)}>Huỷ</button></>}
           title={`${form.id ? 'Sửa' : 'Thêm'} ${form.kind === 'material' && form.mtype === 'lesson_plan' ? 'giáo án' : KIND[form.kind][0].toLowerCase()}${form.id && form.title ? `: ${form.title}` : ''}`}>
         <form className="panel libform" onSubmit={e => save(e, false)}>
+          {msg && <p className="msg">{msg}</p>}
           <div className="formgrid libgrid4">
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mô tả ngắn</span><textarea rows={2} value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })} /></label>
@@ -463,11 +481,6 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
               <button type="button" className="linkbtn" onClick={() => setForm({ ...form, units: [...form.units, { title: `Học phần ${form.units.length + 1}`, periods: 2, objectives: '', lesson_ids: [] }] })}>+ Thêm chủ đề</button>
             </div>
           )}
-          <div className="formactions">
-            <button type="button" className="primary" disabled={busy || uploading} onClick={e => save(e as unknown as React.FormEvent, true)}>Lưu & phát hành</button>
-            <button type="submit" disabled={busy || uploading}>Lưu nháp</button>
-            <button type="button" onClick={() => setForm(null)}>Huỷ</button>
-          </div>
         </form>
         </Drawer>
       )}
@@ -480,28 +493,25 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
         </>} />}
 
       <div className="wrap">
-        <table>
-          <thead><tr><th>{tabLabel(tab)}</th><th>Phát hành tới</th><th>Trạng thái</th><th>Trường đã dùng</th><th></th></tr></thead>
+        <table className="libtable">
+          <thead><tr><th>{tabLabel(tab)}</th><th>Chương trình</th><th>{tab === 'unit' ? 'Thành phần' : 'Nội dung'}</th><th>Phát hành tới</th><th>Trạng thái</th><th>Trường đã dùng</th><th>Cập nhật</th></tr></thead>
           <tbody>
             {shown.map(i => {
               const s = stats.get(i.id)
               return (<Fragment key={i.id}>
-                <tr>
-                  <td><KindChip kind={i.kind} /> <ProgChip p={i.program} />{i.kind === 'material' && <small className="sub"> {MAT_TYPE[i.content.type ?? 'link']}</small>} {i.usage_rights !== 'adapt' && <RightsChip r={i.usage_rights} />}<br /><button type="button" className="linkbtn" style={{ fontWeight: 700, textAlign: 'left', padding: 0 }} onClick={() => setOpen(i.id)}>{i.title}</button><br /><small className="sub">{[i.subject, i.grades && `Khối ${i.grades}`, `cập nhật ${fmtDate(i.updated_at)}`].filter(Boolean).join(' · ')}</small>{i.edu_programs && <><br /><ProgLine i={i} /></>}</td>
-                  <td>{SCOPE[i.scope]}{i.scope === 'selected' && <><br /><small className="sub">{(targets.get(i.id) ?? []).map(id => orgs.find(o => o.id === id)?.name).filter(Boolean).join(', ')}</small></>}</td>
+                <tr className={'rowlink' + (open === i.id ? ' on' : '')} onClick={() => setOpen(i.id)} tabIndex={0} onKeyDown={e => { if (e.key === 'Enter') setOpen(i.id) }}>
+                  <td><b>{i.title}</b>
+                    <div className="sub" style={{ fontSize: 12 }}>{[i.subject, i.grades && `Khối ${i.grades}`].filter(Boolean).join(' · ') || '—'}{i.program ? <> <ProgChip p={i.program} /></> : null}{i.usage_rights && i.usage_rights !== 'adapt' && <> <RightsChip r={i.usage_rights} /></>}</div></td>
+                  <td>{i.edu_programs ? <>{i.edu_programs.title} <small className="sub">v{i.edu_programs.version_no}</small>{i.edu_program_units && <div className="sub" style={{ fontSize: 12 }}>{i.edu_program_units.title}</div>}</> : <small className="sub">—</small>}</td>
+                  <td><small>{partsOf(i)}</small></td>
+                  <td>{SCOPE[i.scope]}{i.scope === 'selected' && <div className="sub" style={{ fontSize: 12 }}>{(targets.get(i.id) ?? []).map(id => orgs.find(o => o.id === id)?.name).filter(Boolean).join(', ')}</div>}</td>
                   <td><StatusChip s={i.status} />{i.version > 0 && <small className="sub"> v{i.version}</small>}</td>
-                  <td>{s ? <>{s.schools} trường{s.outdated ? <><br /><small className="sub">{s.outdated} bản dùng phiên bản cũ</small></> : null}</> : <small className="sub">Chưa có</small>}</td>
-                  <td className="actions">
-                    <button type="button" onClick={() => setOpen(i.id)}>Xem</button>
-                    <button type="button" onClick={() => edit(i)}>Sửa</button>
-                    <button type="button" className={i.status !== 'published' ? 'primary' : ''} onClick={() => publish(i)}>{i.status === 'published' ? 'Phát hành bản cập nhật' : 'Phát hành'}</button>
-                    {i.status === 'published' && <button type="button" onClick={() => unpublish(i)}>Thu hồi</button>}
-                    {i.status !== 'published' && !s && <button type="button" className="danger" onClick={() => remove(i)}>Xoá</button>}
-                  </td>
+                  <td>{s ? <>{s.schools} trường{s.outdated ? <div className="sub" style={{ fontSize: 12 }}>{s.outdated} bản dùng phiên bản cũ</div> : null}</> : <small className="sub">Chưa có</small>}</td>
+                  <td><small>{fmtDate(i.updated_at)}</small></td>
                 </tr>
               </Fragment>)
             })}
-            {shown.length === 0 && <tr><td colSpan={5}>{ofTab.length ? 'Không có mục nào khớp bộ lọc.' : `Chưa có ${tabLabel(tab).toLowerCase()} nào. Bấm “Thêm ${tabLabel(tab).toLowerCase()}” để bắt đầu.`}</td></tr>}
+            {shown.length === 0 && <tr><td colSpan={7}>{ofTab.length ? 'Không có mục nào khớp bộ lọc.' : `Chưa có ${tabLabel(tab).toLowerCase()} nào. Bấm “Thêm ${tabLabel(tab).toLowerCase()}” để bắt đầu.`}</td></tr>}
           </tbody>
         </table>
       </div>

@@ -96,17 +96,17 @@ export function GradePicker({ value, onChange, from, to, level, disabled, emptyL
 }
 
 /** Chọn nhiều khối, xếp theo cấp học. */
-export function GradeChecks({ value, onChange, disabled }: { value: number[]; onChange: (v: number[]) => void; disabled?: boolean }) {
+export function GradeChecks({ value, onChange, disabled, inline }: { value: number[]; onChange: (v: number[]) => void; disabled?: boolean; inline?: boolean }) {
   const { levels } = useEduLevels()
   const toggle = (g: number) => onChange(value.includes(g) ? value.filter(x => x !== g) : [...value, g].sort((a, b) => a - b))
   const shown = new Set<number>()
   const rows = levels.map(l => ({ l, gs: gradeRange(l.grade_from, l.grade_to).filter(g => !shown.has(g) && (shown.add(g), true)) })).filter(r => r.gs.length)
   const odd = value.filter(g => !shown.has(g))
   return (
-    <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+    <span style={inline ? { display: 'flex', flexWrap: 'wrap', gap: '4px 24px' } : { display: 'flex', flexDirection: 'column', gap: 2 }}>
       {rows.map(({ l, gs }) => (
         <span key={l.code} style={{ display: 'flex', flexWrap: 'wrap', gap: '0 10px', alignItems: 'center' }}>
-          <small className="sub" style={{ minWidth: 64 }}>{l.name}</small>
+          <small className="sub" style={{ minWidth: inline ? 0 : 64 }}>{l.name}</small>
           {gs.map(g => <label key={g} style={{ whiteSpace: 'nowrap' }}><input type="checkbox" disabled={disabled} checked={value.includes(g)} onChange={() => toggle(g)} /> {g}</label>)}
         </span>
       ))}

@@ -234,7 +234,7 @@ export function ItemDrawer({ root, all, onClose, actions, canRestore, onRestored
   const open = (e: DrawerEntry) => setStack(s => [...s, e])
   const title = cur.type === 'norm' ? 'Định mức vật tư' : item?.title ?? 'Không tìm thấy mục'
   return (
-    <Drawer title={title} onClose={onClose} onBack={stack.length > 1 ? () => setStack(s => s.slice(0, -1)) : undefined}
+    <Drawer title={title} onClose={onClose} actions={item && actions ? actions(item) : undefined} onBack={stack.length > 1 ? () => setStack(s => s.slice(0, -1)) : undefined}
       head={stack.length > 1 && <nav className="drawercrumbs">{stack.slice(0, -1).map((e, k) => (
         <span key={k}><button type="button" onClick={() => setStack(s => s.slice(0, k + 1))}>{label(e)}</button> ›</span>))}<span>{cur.type === 'norm' ? 'Định mức vật tư' : item?.title}</span></nav>}>
       {cur.type === 'norm' ? <NormDetail id={cur.id} /> : !item ? <p className="sub">Mục không còn trong kho hoặc chưa được phát hành tới đơn vị.</p> : <>
@@ -243,8 +243,7 @@ export function ItemDrawer({ root, all, onClose, actions, canRestore, onRestored
           {item.usage_rights && item.usage_rights !== 'adapt' && <RightsChip r={item.usage_rights} />}</div>
         <p className="sub" style={{ margin: '0 0 4px' }}>{[item.owner_name, item.version > 0 ? `v${item.version}` : 'nháp', item.grades && `Khối ${item.grades}`, item.subject, `cập nhật ${fmtDate(item.updated_at)}`].filter(Boolean).join(' · ')}</p>
         {item.edu_programs && <p style={{ margin: '2px 0' }}><ProgLine i={item} /></p>}
-        {item.summary && <p>{item.summary}</p>}
-        {actions && <div className="actions">{actions(item)}</div>}
+        {item.summary && item.summary.trim() !== item.title.trim() && <p>{item.summary}</p>}
         <ItemPreview key={item.id} item={item} all={all} canRestore={canRestore} onRestored={onRestored} onOpen={open} />
       </>}
     </Drawer>

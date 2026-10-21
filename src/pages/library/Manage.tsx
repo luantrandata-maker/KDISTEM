@@ -1,10 +1,11 @@
+import { useStemTracks } from '../../lib/stemTracks'
 import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
 import type { Slide } from '../teacher/Lessons'
 import { uploadLearningFile, fmtSize, MAX_FILE_MB } from '../../lib/files'
 import {
-  KindChip, ProgChip, StatusChip, ItemPreview, SlidesEditor, SCOPE, MAT_TYPE, PROGRAMS, KIND, RIGHTS, RightsChip, ProgLine,
+  KindChip, ProgChip, StatusChip, ItemPreview, SlidesEditor, SCOPE, MAT_TYPE, KIND, RIGHTS, RightsChip, ProgLine,
   fmtDate, uid, selectItems, useProgramOptions, unitTree, progLabel, type Item, type Unit, type Rights,
 } from './common'
 
@@ -19,13 +20,14 @@ type Form = {
 }
 const EMPTY = (kind: Item['kind']): Form => ({
   kind, title: '', summary: '', subject: '', grades: '', program: '', tags: '', scope: 'children', targets: [],
-  slides: kind === 'lesson' ? [{ id: uid(), kind: 'title', title: '', body: '' }] : [], mtype: 'worksheet', url: '', units: kind === 'program' ? [{ title: 'Chủ đề 1', periods: 2, objectives: '', lesson_ids: [] }] : [],
+  slides: kind === 'lesson' ? [{ id: uid(), kind: 'title', title: '', body: '' }] : [], mtype: 'worksheet', url: '', units: kind === 'program' ? [{ title: 'Học phần 1', periods: 2, objectives: '', lesson_ids: [] }] : [],
   src: 'file', file: null, program_id: '', unit_id: '', usage_rights: 'adapt', usage_note: '',
 })
 type T = 'all' | 'published' | 'draft' | 'archived'
 
 // Phát hành học liệu: Sở/Phòng/Tỉnh/Bộ, đơn vị cung cấp (KDI Education) hoặc trường soạn và phát hành tới đơn vị trực thuộc
 export function LibraryManage({ orgId }: { orgId: string | null }) {
+  const { codes: PROGRAMS } = useStemTracks()
   const [items, setItems] = useState<Item[]>([])
   const [visible, setVisible] = useState<Item[]>([])
   const [stats, setStats] = useState<Map<string, Stat>>(new Map())
@@ -170,13 +172,13 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mô tả ngắn</span><textarea rows={2} value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })} /></label>
             <label className="field"><span>Môn</span><input value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="VD: Công nghệ" /></label>
             <label className="field"><span>Khối</span><input value={form.grades} onChange={e => setForm({ ...form, grades: e.target.value })} placeholder="VD: 8,9" /></label>
-            <label className="field"><span>CT1–CT5</span><select value={form.program} onChange={e => setForm({ ...form, program: e.target.value })}><option value="">—</option>{PROGRAMS.map(p => <option key={p}>{p}</option>)}</select></label>
+            <label className="field"><span>Loại chương trình</span><select value={form.program} onChange={e => setForm({ ...form, program: e.target.value })}><option value="">—</option>{PROGRAMS.map(p => <option key={p}>{p}</option>)}</select></label>
             <label className="field"><span>Từ khoá</span><input value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} placeholder="robot, cảm biến" /></label>
             <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình giáo dục</span>
               <select value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, unit_id: '' })} aria-label="Chương trình giáo dục">
                 <option value="">— không gắn —</option>{programs.map(p => <option key={p.id} value={p.id}>{progLabel(p)}{p.status === 'draft' ? ' · nháp' : ''}</option>)}</select></label>
-            <label className="field" style={{ gridColumn: 'span 2' }}><span>Chủ đề / bài</span>
-              <select value={form.unit_id} disabled={!form.program_id} onChange={e => setForm({ ...form, unit_id: e.target.value })} aria-label="Chủ đề / bài">
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>Học phần / bài</span>
+              <select value={form.unit_id} disabled={!form.program_id} onChange={e => setForm({ ...form, unit_id: e.target.value })} aria-label="Học phần / bài">
                 <option value="">— cả chương trình —</option>{unitTree(units, form.program_id).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
             <label className="field"><span>Quyền sử dụng</span>
               <select value={form.usage_rights} onChange={e => setForm({ ...form, usage_rights: e.target.value as Rights })} aria-label="Quyền sử dụng">
@@ -226,23 +228,23 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
           )}
           {form.kind === 'program' && (
             <div className="libunitedit">
-              <b>Các chủ đề</b>
+              <b>Các học phần</b>
               {form.units.map((u, k) => (
                 <div className="unitrow" key={k}>
                   <b className="no">{k + 1}</b>
-                  <input value={u.title} onChange={e => setUnit(k, { title: e.target.value })} placeholder="Tên chủ đề" aria-label={`Tên chủ đề ${k + 1}`} />
+                  <input value={u.title} onChange={e => setUnit(k, { title: e.target.value })} placeholder="Tên học phần" aria-label={`Tên học phần ${k + 1}`} />
                   <input type="number" min={0} value={u.periods ?? 0} onChange={e => setUnit(k, { periods: Number(e.target.value) })} aria-label="Số tiết" title="Số tiết" />
                   <input value={u.objectives ?? ''} onChange={e => setUnit(k, { objectives: e.target.value })} placeholder="Mục tiêu" aria-label="Mục tiêu" />
                   <select value="" onChange={e => e.target.value && setUnit(k, { lesson_ids: [...(u.lesson_ids ?? []), e.target.value] })} aria-label="Gắn bài giảng">
                     <option value="">+ Gắn bài giảng trong kho…</option>
                     {lessonPool.filter(x => !(u.lesson_ids ?? []).includes(x.id)).map(x => <option key={x.id} value={x.id}>{x.title} · {x.owner_name}</option>)}
                   </select>
-                  <button type="button" onClick={() => setForm({ ...form, units: form.units.filter((_, j) => j !== k) })} aria-label="Xoá chủ đề">×</button>
+                  <button type="button" onClick={() => setForm({ ...form, units: form.units.filter((_, j) => j !== k) })} aria-label="Xoá học phần">×</button>
                   {(u.lesson_ids ?? []).length > 0 && <div className="unitlessons">{(u.lesson_ids ?? []).map(id => (
                     <span className="chip" key={id}>{visible.find(x => x.id === id)?.title ?? 'bài giảng'}<button type="button" className="x" aria-label="Bỏ bài giảng" onClick={() => setUnit(k, { lesson_ids: (u.lesson_ids ?? []).filter(x => x !== id) })}>×</button></span>))}</div>}
                 </div>
               ))}
-              <button type="button" className="linkbtn" onClick={() => setForm({ ...form, units: [...form.units, { title: `Chủ đề ${form.units.length + 1}`, periods: 2, objectives: '', lesson_ids: [] }] })}>+ Thêm chủ đề</button>
+              <button type="button" className="linkbtn" onClick={() => setForm({ ...form, units: [...form.units, { title: `Học phần ${form.units.length + 1}`, periods: 2, objectives: '', lesson_ids: [] }] })}>+ Thêm chủ đề</button>
             </div>
           )}
           <div className="formactions">

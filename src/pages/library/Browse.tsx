@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
 import { openFile } from '../../lib/files'
-import { KindChip, ProgChip, ItemPreview, MAT_TYPE, PROGRAMS, RightsChip, ProgLine, fmtDate, selectItems, type Item, type Copy } from './common'
+import { KindChip, ProgChip, ItemPreview, MAT_TYPE, RightsChip, ProgLine, fmtDate, selectItems, type Item, type Copy } from './common'
+import { useStemTracks } from '../../lib/stemTracks'
 
 type Props = { orgId: string | null; teacherId?: string | null; go?: (p: string) => void }
 type K = 'all' | Item['kind']
@@ -10,6 +11,7 @@ type K = 'all' | Item['kind']
 // Thư viện STEM / Kho học liệu dùng chung: học liệu do Bộ, Tỉnh, Sở, Phòng, KDI Education và trường phát hành.
 // Trường / giáo viên "Dùng" → tạo bản của mình để chỉnh sửa (không bị ghi đè khi kho cập nhật).
 export function LibraryBrowse({ orgId, teacherId, go }: Props) {
+  const { allCodes: PROGRAMS } = useStemTracks()
   const [items, setItems] = useState<Item[]>([])
   const [copies, setCopies] = useState<Copy[]>([])
   const [me, setMe] = useState<{ id: string; type: string } | null>(null)
@@ -77,7 +79,7 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
       </div>
       <div className="bar small">
         <select value={src} onChange={e => setSrc(e.target.value)} aria-label="Nguồn phát hành"><option value="">Mọi nguồn phát hành</option>{sources.map(s => <option key={s}>{s}</option>)}</select>
-        <select value={prog} onChange={e => setProg(e.target.value)} aria-label="Chương trình"><option value="">Mọi CT1–CT5</option>{PROGRAMS.map(p => <option key={p}>{p}</option>)}</select>
+        <select value={prog} onChange={e => setProg(e.target.value)} aria-label="Chương trình"><option value="">Mọi loại chương trình</option>{PROGRAMS.map(p => <option key={p}>{p}</option>)}</select>
         {eprogs.length > 0 && <select value={eprog} onChange={e => setEprog(e.target.value)} aria-label="Chương trình giáo dục"><option value="">Mọi chương trình giáo dục</option>{eprogs.map(([id, t]) => <option key={id} value={id}>{t}</option>)}</select>}
         <select value={mtype} onChange={e => setMtype(e.target.value)} aria-label="Loại học liệu"><option value="">Mọi loại học liệu</option>{Object.entries(MAT_TYPE).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
         <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(x => <option key={x}>{x}</option>)}</select>

@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { ProgChips } from '../components/Chips'
+import { useStemTracks } from '../lib/stemTracks'
 
 type Entry = { id: string; weekday: number; subject: string; teacher_id: string | null; class_id: string; period_configs: { name: string } | null; classes: { name: string } | null; teachers: { full_name: string } | null }
 type Teacher = { id: string; full_name: string; subject: string | null }
-const PROGRAMS = ['CT1', 'CT2', 'CT3', 'CT4', 'CT5']
 
 export default function StemAssign({ orgId }: { orgId: string }) {
+  const { codes: PROGRAMS } = useStemTracks()
   const [tab, setTab] = useState<'slots' | 'programs'>('slots')
   const [entries, setEntries] = useState<Entry[]>([])
   const [teachers, setTeachers] = useState<Teacher[]>([])

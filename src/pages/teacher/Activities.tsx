@@ -9,6 +9,7 @@ import { asLesson, lessonStats, LessonOutline, LessonPlayer, emptyLesson, INTERA
 import { SIMS, type SimModel } from '../../lib/sims'
 import { RaceGame } from '../../lib/games'
 import '../../styles/activities.css'
+import { useStemTracks } from '../../lib/stemTracks'
 
 type View = { mode: 'list' } | { mode: 'new' } | { mode: 'edit'; a: Activity } | { mode: 'play'; a: Activity; big: boolean }
 type T = 'mine' | 'school' | 'lessons'
@@ -128,6 +129,7 @@ export function TeacherActivities({ teacherId, orgId, go }: TProps) {
 }
 
 function Editor({ a, onClose, onPlay }: { a: Activity; onClose: () => void; onPlay: (a: Activity) => void }) {
+  const { codes: CTS } = useStemTracks()
   const [x, setX] = useState<Activity>(a)
   const [dirty, setDirty] = useState(false)
   const [msg, setMsg] = useState('')
@@ -171,7 +173,7 @@ function Editor({ a, onClose, onPlay }: { a: Activity; onClose: () => void; onPl
         <label className="field"><span>Môn</span><input value={x.subject ?? ''} onChange={e => upd({ subject: e.target.value })} /></label>
         <label className="field"><span>Khối</span><input value={x.grades ?? ''} onChange={e => upd({ grades: e.target.value })} placeholder="VD: 8 hoặc 6,7" /></label>
         <label className="field"><span>Chương trình</span>
-          <select value={x.program ?? ''} onChange={e => upd({ program: e.target.value || null })}><option value="">—</option>{['CT1', 'CT2', 'CT3', 'CT4', 'CT5'].map(c => <option key={c}>{c}</option>)}</select></label>
+          <select value={x.program ?? ''} onChange={e => upd({ program: e.target.value || null })}><option value="">—</option>{CTS.map(c => <option key={c}>{c}</option>)}</select></label>
       </div>
       <ContentEditor kind={x.kind} value={x.content} onChange={content => upd({ content })} />
     </>
@@ -232,7 +234,6 @@ const SIM_ART: Record<string, string> = { circuit_series: '💡', circuit_parall
 const artOf = (a: Activity): [string, number] => a.kind === 'sim' ? [SIM_ART[a.content?.model] ?? '⚛', 5] : KIND_ART[a.kind] ?? ['◉', 0]
 const kindLabel = (a: Activity) => a.kind === 'sim' ? SIMS[a.content?.model as SimModel]?.label ?? ACT.sim.label : ACT[a.kind].label
 const gradesOf = (s: string | null) => (s ?? '').split(/[,;\s–-]+/).map(x => x.trim()).filter(Boolean)
-const CTS = ['CT1', 'CT2', 'CT3', 'CT4', 'CT5']
 
 type MyPlan = { id: string; title: string; program: string | null; lesson: any; status: string }
 
@@ -406,6 +407,7 @@ const KIND_ICON: Record<KindKey, string> = { sim: '⚛', game: '🎮', tool: '�
 const levelOf = (g: string | null) => { const n = Number(gradesOf(g)[0]); return !n ? '' : n <= 5 ? 'Tiểu học' : n <= 9 ? 'THCS' : 'THPT' }
 
 function LessonBank({ rows, teacherId, go, onAssign }: { rows: LessonLite[]; teacherId: string; go?: (p: string) => void; onAssign: (l: LessonLite) => void }) {
+  const { allCodes: CTS } = useStemTracks()
   const [q, setQ] = useState(''); const [ct, setCt] = useState(''); const [grade, setGrade] = useState(''); const [subj, setSubj] = useState(''); const [kind, setKind] = useState<KindKey | ''>('')
   const [grid, setGrid] = useState(true)
   const [open, setOpen] = useState<LessonLite | null>(null)

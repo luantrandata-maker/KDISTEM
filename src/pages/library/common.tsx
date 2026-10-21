@@ -48,7 +48,7 @@ export function RightsChip({ r }: { r?: Rights | null }) {
   const [label, tone] = RIGHTS[r]
   return <span className={'gpill ' + tone} title="Quyền sử dụng">{label}</span>
 }
-// Chương trình giáo dục (058) mà đơn vị thấy + các chủ đề / bài của chúng, để gắn học liệu, định mức
+// Chương trình giáo dục (058) mà đơn vị thấy + các học phần / bài của chúng, để gắn học liệu, định mức
 export function useProgramOptions(orgId: string | null) {
   const [programs, setPrograms] = useState<ProgOpt[]>([])
   const [units, setUnits] = useState<UnitOpt[]>([])
@@ -78,7 +78,6 @@ export const SCOPE: Record<Item['scope'], string> = {
 export const STATUS: Record<Item['status'], [string, string, string]> = {
   draft: ['✎', 'Nháp', ''], published: ['✓', 'Đã phát hành', 'good'], archived: ['−', 'Đã thu hồi', 'warn'],
 }
-export const PROGRAMS = ['CT1', 'CT2', 'CT3', 'CT4', 'CT5']
 export const fmtDate = (d: string | null) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 export const uid = () => Math.random().toString(36).slice(2, 9)
 

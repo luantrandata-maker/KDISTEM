@@ -82,7 +82,7 @@ export function MaterialNorms({ orgId }: { orgId: string | null }) {
   return (
     <>
       <div className="bar">
-        <Tabs<Tab> items={[['norms', 'Định mức theo bài / chủ đề'], ['catalog', 'Danh mục vật tư, công cụ, thiết bị'], ['proposals', 'Đề xuất điều chỉnh']]}
+        <Tabs<Tab> items={[['norms', 'Định mức theo bài / học phần'], ['catalog', 'Danh mục vật tư, công cụ, thiết bị'], ['proposals', 'Đề xuất điều chỉnh']]}
           value={tab} onChange={t => { setTab(t); setOpenId(null) }} />
       </div>
       {tab === 'norms' && (openId
@@ -162,7 +162,7 @@ function NormList({ orgId, rights, onOpen }: { orgId: string | null; rights: Rig
 
   return (
     <>
-      <p className="sub">Định mức vật tư cho 1 sản phẩm, 1 nhóm hoặc 1 học sinh, gắn với chủ đề / bài của chương trình. Định mức do KDI và cấp trên ban hành được dùng chung; trường sao chép về để điều chỉnh hoặc gửi đề xuất điều chỉnh.</p>
+      <p className="sub">Định mức vật tư cho 1 sản phẩm, 1 nhóm hoặc 1 học sinh, gắn với học phần / bài của chương trình. Định mức do KDI và cấp trên ban hành được dùng chung; trường sao chép về để điều chỉnh hoặc gửi đề xuất điều chỉnh.</p>
       <div className="bar small">
         <input className="search" placeholder="Tìm định mức…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm định mức" />
         <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
@@ -181,7 +181,7 @@ function NormList({ orgId, rights, onOpen }: { orgId: string | null; rights: Rig
           <label className="field"><span>Khối</span><input type="number" min={1} max={12} value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} /></label>
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình giáo dục</span><select value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, unit_id: '' })}>
             <option value="">— không gắn —</option>{programs.map(p => <option key={p.id} value={p.id}>{progLabel(p)}</option>)}</select></label>
-          <label className="field" style={{ gridColumn: 'span 2' }}><span>Chủ đề / bài</span><select value={form.unit_id} disabled={!form.program_id} onChange={e => setForm({ ...form, unit_id: e.target.value })}>
+          <label className="field" style={{ gridColumn: 'span 2' }}><span>Học phần / bài</span><select value={form.unit_id} disabled={!form.program_id} onChange={e => setForm({ ...form, unit_id: e.target.value })}>
             <option value="">— cả chương trình —</option>{unitTree(units, form.program_id).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
           <div className="formactions"><button className="primary" type="submit">Tạo bản nháp</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
@@ -313,7 +313,7 @@ function NormDetail({ id, orgId, rights, onOpen, onClose }: { id: string; orgId:
           {!rights.isSchool && <label className="field"><span>Phạm vi</span><select value={info.scope} onChange={e => setInfo({ ...info, scope: e.target.value })}><option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình giáo dục</span><select value={info.program_id ?? ''} onChange={e => setInfo({ ...info, program_id: e.target.value, unit_id: '' })}>
             <option value="">— không gắn —</option>{programs.map(p => <option key={p.id} value={p.id}>{progLabel(p)}</option>)}</select></label>
-          <label className="field" style={{ gridColumn: 'span 2' }}><span>Chủ đề / bài</span><select value={info.unit_id ?? ''} disabled={!info.program_id} onChange={e => setInfo({ ...info, unit_id: e.target.value })}>
+          <label className="field" style={{ gridColumn: 'span 2' }}><span>Học phần / bài</span><select value={info.unit_id ?? ''} disabled={!info.program_id} onChange={e => setInfo({ ...info, unit_id: e.target.value })}>
             <option value="">— cả chương trình —</option>{unitTree(units, info.program_id).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Học liệu / bài giảng</span><select value={info.library_item_id ?? ''} onChange={e => setInfo({ ...info, library_item_id: e.target.value })}>
             <option value="">— không gắn —</option>{libs.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}</select></label>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmtDate } from '../lib/time'
 import { loadRooms } from '../lib/rooms'
+import { useStemTracks } from '../lib/stemTracks'
 
 type Pkg = { id: string; code: string | null; name: string; tier: string; provider: string | null; programs: string | null; grades: string | null; starts_on: string | null; ends_on: string | null; contract_no: string | null; order_no: string | null; topics: number; devices: number; sessions: number }
 export function EduPlan() {
@@ -35,8 +36,8 @@ export function EduPlan() {
   )
 }
 
-const PROGRAMS = ['CT1', 'CT2', 'CT3', 'CT4', 'CT5']
 export function StemTeachers() {
+  const { codes: PROGRAMS } = useStemTracks()
   const [teachers, setTeachers] = useState<{ id: string; full_name: string; subject: string | null }[]>([])
   const [links, setLinks] = useState<{ teacher_id: string; program: string }[]>([])
   const [orgId, setOrgId] = useState('')

@@ -10,6 +10,7 @@ import { RoomContents, contentSummary } from '../components/RoomContents'
 import { loadRoomContents, moveUnitTo, roomError, sortRooms, ROOM_KIND, ROOM_KINDS, ROOM_STATUS, ROOM_TIER, type RoomKind, type RoomLite, type RoomStock, type RoomUnit } from '../lib/rooms'
 import ImportExcel from '../components/ImportExcel'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
+import { useStemTracks } from '../lib/stemTracks'
 
 type Room = { id: string; name: string; code: string | null; capacity: number | null; status: string; area_m2: number | null; tier: string; programs: string | null; floors: { name: string; buildings: { name: string } | null } | null }
 type Unit = RoomUnit
@@ -213,7 +214,6 @@ type RoomRow = { id: string; org_id: string; name: string; code: string | null; 
 type FloorOpt = { id: string; name: string; building: string }
 type ClassLite = { id: string; name: string; room_id: string | null }
 type RoomForm = { id?: string; room_kind: RoomKind; name: string; code: string; floor_id: string; capacity: string; area_m2: string; status: string; tier: string; programs: string[]; note: string; classes: string[] }
-const PROGS = ['CT1', 'CT2', 'CT3', 'CT4', 'CT5']
 const KIND_HINT: Record<RoomKind, string> = {
   stem: 'Xếp được vào TKB STEM, nhận đăng ký dạy STEM, phiếu mượn tại phòng; có lịch phòng và chống trùng lịch.',
   classroom: 'Phòng học thường của lớp: gắn lớp học tại phòng, để thiết bị và vật tư dùng ở lớp. Không xếp lịch STEM.',
@@ -231,6 +231,7 @@ const pick = <T extends string>(map: Record<T, string>, v: string, dflt: T): T =
 const blankForm = (kind: RoomKind): RoomForm => ({ room_kind: kind, name: '', code: '', floor_id: '', capacity: '', area_m2: '', status: 'active', tier: 'basic', programs: [], note: '', classes: [] })
 
 export default function Rooms({ orgId }: { orgId: string }) {
+  const { codes: PROGS, allCodes } = useStemTracks()
   const [rooms, setRooms] = useState<RoomRow[]>([])
   const [loaded, setLoaded] = useState(false)
   const [floors, setFloors] = useState<FloorOpt[]>([])
@@ -333,7 +334,7 @@ export default function Rooms({ orgId }: { orgId: string }) {
     for (const r of recs) {
       const name = r.name.trim(); if (!name) { bad.push(`dòng ${r._line}: thiếu tên phòng`); continue }
       const k = kindOf(r.kind); if (!k) { bad.push(`dòng ${r._line}: loại phòng "${r.kind}" không rõ (STEM / Phòng học / Kho)`); continue }
-      const progs = [...new Set((r.programs ?? '').toUpperCase().split(/[,;\s]+/).filter(x => /^CT[1-5]$/.test(x)))]
+      const progs = [...new Set((r.programs ?? '').toUpperCase().split(/[,;\s]+/).filter(x => allCodes.includes(x)))]
       const body: Record<string, unknown> = { name, code: r.code.trim() || null, room_kind: k, capacity: Number(r.capacity) || null, area_m2: Math.round(Number(r.area.replace(',', '.'))) || null,
         status: pick(ROOM_STATUS as Record<string, string>, r.status, 'active'), tier: k === 'stem' ? pick(ROOM_TIER as Record<string, string>, r.tier, 'basic') : 'basic',
         programs: k === 'stem' && progs.length ? progs.join(',') : null, note: r.note.trim() || null }

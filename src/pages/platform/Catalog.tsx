@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
 import { Tiles } from '../department/charts'
 import { fmtTime } from './data'
+import { useStemTracks } from '../../lib/stemTracks'
 
 // Danh mục gói STEM của KDI + xử lý đơn đặt gói (migration 025)
 // Gói danh mục = stem_packages thuộc đơn vị chủ nền tảng. "Đã giao" sao chép gói (chủ đề, buổi học) vào trường.
@@ -15,7 +16,6 @@ type Order = { id: string; org_id: string; name: string; tier: string; programs:
   delivered_at: string | null; delivered_package_id: string | null; organizations: { name: string } | null }
 
 export const TIER: Record<string, string> = { basic: 'Cơ bản', advanced: 'Nâng cao', premium: 'Premium' }
-const PROGRAMS = ['CT1', 'CT2', 'CT3', 'CT4', 'CT5']
 const money = (n: number | null | undefined) => n == null ? '—' : n.toLocaleString('vi-VN') + ' đ'
 const num = (v: FormDataEntryValue | null) => { const s = String(v ?? '').replace(/\D/g, ''); return s ? Number(s) : null }
 function errText(m: string) {
@@ -31,6 +31,7 @@ function usePlatformOrg() {
 
 // ===== Chương trình giáo dục: danh mục gói STEM của KDI =====
 export function PlatformCatalog() {
+  const { codes: PROGRAMS } = useStemTracks()
   const kdi = usePlatformOrg()
   const [pkgs, setPkgs] = useState<Pkg[]>([])
   const [used, setUsed] = useState<Map<string, number>>(new Map())
@@ -125,6 +126,7 @@ export function PlatformCatalog() {
 
 // Chủ đề và buổi học của một gói danh mục; cập nhật lại số chủ đề/buổi trên gói
 function TopicEditor({ pkg, onChange }: { pkg: Pkg; onChange: () => void }) {
+  const { codes: PROGRAMS } = useStemTracks()
   const [topics, setTopics] = useState<Topic[]>([])
   const [err, setErr] = useState('')
   async function load() {

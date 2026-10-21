@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { PROGRAM_COLOR } from '../teacher/common'
 import { STEM_LEVEL_NAME, useStemTracks } from '../../lib/stemTracks'
 import { Tabs } from '../teacher/common'
-import { useDeptStats, byWard, grade, pct, avg, sum, nf, LEVEL, PROGRAMS, HEAT, type SchoolStat } from './data'
+import { useDeptStats, byWard, grade, pct, avg, sum, nf, LEVEL, HEAT, type SchoolStat } from './data'
 import { Tiles, GradePill, Columns, HBars, DataTable, rampColor, rampInk } from './charts'
 
 // Bản đồ (Leaflet) tải lười để các màn khác của Sở không nặng thêm
@@ -12,11 +12,14 @@ const CoverageMap = lazy(() => import('./CoverageMap'))
 
 const Loading = ({ err }: { err?: string }) => <p className="sub">{err ? 'Không tải được số liệu: ' + err : 'Đang tổng hợp số liệu các trường…'}</p>
 const short = (n: string) => n.replace(/^Trường\s+/, '').replace('Tiểu học', 'TH')
-const ProgBadges = ({ list }: { list: string[] }) => (
-  <span className="nowrap">{PROGRAMS.map(p => (
-    <span key={p} className="progchip" style={list.includes(p) ? { background: PROGRAM_COLOR[p], color: '#fff' } : { background: 'var(--soft)', color: '#b6c0cc' }}>{p}</span>
-  ))}</span>
-)
+function ProgBadges({ list }: { list: string[] }) {
+  const { codes } = useStemTracks()
+  return (
+    <span className="nowrap">{[...codes, ...list.filter(p => !codes.includes(p))].map(p => (
+      <span key={p} className="progchip" style={list.includes(p) ? { background: PROGRAM_COLOR[p], color: '#fff' } : { background: 'var(--soft)', color: '#b6c0cc' }}>{p}</span>
+    ))}</span>
+  )
+}
 
 // ================= Dashboard toàn Sở + bản đồ nhiệt =================
 
@@ -192,7 +195,7 @@ export function DeptSchools() {
 // ================= Chương trình CT1–CT5 =================
 export function DeptPrograms() {
   const { schools, loading, err } = useDeptStats()
-  const { byCode } = useStemTracks()
+  const { byCode, codes: PROGRAMS } = useStemTracks()
   const [ct, setCt] = useState('')
   if (loading || err) return <Loading err={err} />
   const cur = ct ? byCode[ct] : undefined
@@ -202,7 +205,7 @@ export function DeptPrograms() {
     <>
       <Tiles items={[
         { label: 'Trường đang triển khai', value: schools.filter(s => s.programs.length).length, sub: 'có ít nhất 1 chương trình' },
-        { label: 'Trường đủ 5 chương trình', value: schools.filter(s => s.programs.length === 5).length, sub: 'CT1–CT5' },
+        { label: `Trường đủ ${PROGRAMS.length} loại chương trình`, value: schools.filter(s => PROGRAMS.every(c => s.programs.includes(c))).length, sub: PROGRAMS.join(', ') },
         { label: 'Giáo viên STEM', value: nf(sum(schools.map(s => s.stem_teachers))), sub: 'được phân công theo chương trình' },
         { label: 'Học sinh tham gia', value: nf(sum(schools.map(s => s.stem_students))), sub: 'thuộc lớp có chương trình STEM' },
       ]} />

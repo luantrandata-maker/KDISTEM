@@ -107,7 +107,15 @@ const CurriculumProgress = lazy(() => import('./pages/curriculum').then(m => ({ 
 const EduPrograms = lazy(() => import('./pages/eduPrograms').then(m => ({ default: m.EduPrograms })))
 const eduPrograms = (mode: 'school' | 'authority' | 'platform') => (p: any) => <EduPrograms {...p} mode={mode} />
 const EduProgramsPlatform = eduPrograms('platform')
-// Danh mục chương trình STEM CT1–CT5: tên, mô tả, môn học, cấp học (062)
+// Danh mục môn học, gắn môn cho học phần (064)
+const SubjectsCatalog = lazy(() => import('./pages/subjects').then(m => ({ default: m.SubjectsCatalog })))
+const subjectsTab = (mode: 'school' | 'authority' | 'platform') => (p: any) => <SubjectsCatalog {...p} mode={mode} />
+const SubjectsPlatform = subjectsTab('platform')
+const eduProgramTabs = (mode: 'school' | 'authority') => {
+  const tabs: [string, any][] = [['Chương trình giáo dục', eduPrograms(mode)], ['Môn học', subjectsTab(mode)]]
+  return (p: any) => <TabbedPages {...p} tabs={tabs} />
+}
+// Danh mục loại chương trình (CT1–CT5 và loại thêm sau): tên, mô tả, môn học, cấp học (062, 064)
 const StemTracksCatalog = lazy(() => import('./pages/stemTracks').then(m => ({ default: m.StemTracksCatalog })))
 const ProgressPlatform = (q: any) => <CurriculumProgress {...q} mode="platform" />
 // Định mức vật tư theo bài / chủ đề, danh mục vật tư, dự trù, đề xuất điều chỉnh (059)
@@ -197,7 +205,7 @@ const SCHOOL: PageMap = {
   'Kế hoạch GD toàn trường': EduPlan,
   'Phân công GV dạy STEM': StemAssign,
   'Phân phối chương trình': ppctTabs('school'),
-  'Chương trình giáo dục': eduPrograms('school'),
+  'Chương trình giáo dục': eduProgramTabs('school'),
   'Hồ sơ Trường học': SchoolProfile,
   'Kế hoạch tập huấn': TrainingPlans,
   'Lịch tập huấn': TrainingSchedule,
@@ -225,7 +233,7 @@ const SCHOOL: PageMap = {
 }
 const TEACHER: PageMap = {
   'Phân phối chương trình': ppctTabs('school'),
-  'Chương trình giáo dục': eduPrograms('school'),
+  'Chương trình giáo dục': eduProgramTabs('school'),
   'Ứng dụng di động': MobileAppPage,
   'Trợ lý AI': (p: any) => <AssistantPage {...p} onSaveQuiz={(i: any, m: any) => saveQuizToBank(p.orgId, i, m)} />,
   'E-learning & luyện thi': ElearningManage,
@@ -271,7 +279,7 @@ const STUDENT: PageMap = {
 }
 const DEPARTMENT: PageMap = {
   'Phân phối chương trình': ppctTabs('authority'),
-  'Chương trình giáo dục': eduPrograms('authority'),
+  'Chương trình giáo dục': eduProgramTabs('authority'),
   'Trợ lý AI': (p: any) => <AssistantPage {...p} onSaveQuiz={(i: any, m: any) => saveQuizToBank(p.orgId, i, m)} />,
   'E-learning & luyện thi': ElearningManage,
   'Ngân hàng câu hỏi': QuestionBank,
@@ -353,7 +361,7 @@ const PLATFORM: PageMap = {
   'Lịch tập huấn': TrainingSchedule,
   'Giám sát tập huấn nhà giáo': DeptTrainingMonitor,
   // 2. Chương trình & học liệu
-  'Chương trình giáo dục': (p: any) => <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Danh mục CT1–CT5', StemTracksCatalog], ['Gói STEM của KDI', PlatformCatalog]]} />,
+  'Chương trình giáo dục': (p: any) => <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Loại chương trình', StemTracksCatalog], ['Môn học', SubjectsPlatform], ['Gói STEM của KDI', PlatformCatalog]]} />,
   'Học liệu': (p: any) => <TabbedPages {...p} tabs={[['Phát hành học liệu', LibraryManage], ['Kho học liệu dùng chung', LibraryBrowse], ['Định mức vật tư', MaterialNorms]]} />,
   'Theo dõi chương trình CT1–CT5 (Môn học)': (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects], ['Tiến độ & yêu cầu cần đạt', ProgressPlatform]]} />,
   // 3. Vật tư, thiết bị dạy & học

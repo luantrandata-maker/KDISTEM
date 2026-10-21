@@ -17,7 +17,8 @@ declare
     'service_modules',      -- danh mục phân hệ PH1–PH5
     'service_plans',        -- danh mục gói dịch vụ
     'service_plans_legacy', -- bản ghi gói cũ trước 033
-    'stem_tracks'           -- danh mục chương trình STEM CT1–CT5 (062, 5 dòng cố định)
+    'stem_tracks',          -- danh mục chương trình STEM CT1–CT5 (062, 5 dòng cố định)
+    'subjects'              -- danh mục môn học hệ thống của KDI (064)
   ];
   r record; n bigint; bad text := '';
 begin

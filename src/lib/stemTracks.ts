@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 
-// Danh mục chương trình STEM CT1–CT5 (migration 062): tên, mô tả, môn học, cấp học áp dụng — KDI sửa ở
-// "Chương trình giáo dục → Danh mục CT1–CT5". Chưa chạy migration thì dùng nội dung mặc định dưới đây.
+// Danh mục loại chương trình (migration 062, 064): CT1–CT5 ban đầu và các loại KDI thêm sau — tên, mô tả, môn học,
+// cấp học áp dụng; KDI sửa ở "Chương trình giáo dục → Loại chương trình". Chưa chạy migration thì dùng nội dung mặc định dưới đây.
 export type StemLevel = 'mamnon' | 'tieuhoc' | 'thcs' | 'thpt' | 'thpt_nghe'
-export type StemTrack = { code: string; name: string; title: string; description: string; subjects: string[]; levels: StemLevel[]; updated_at?: string }
+export type StemTrack = { code: string; name: string; title: string; description: string; subjects: string[]; levels: StemLevel[]; sort?: number; active?: boolean; updated_at?: string }
 
 export const STEM_LEVELS: [StemLevel, string][] = [['mamnon', 'Mầm non'], ['tieuhoc', 'Tiểu học'], ['thcs', 'THCS'], ['thpt', 'THPT'], ['thpt_nghe', 'THPT Nghề']]
 export const STEM_LEVEL_NAME = Object.fromEntries(STEM_LEVELS) as Record<StemLevel, string>
@@ -29,7 +29,7 @@ const subs = new Set<(t: StemTrack[]) => void>()
 function fetchTracks(force = false): Promise<StemTrack[]> {
   if (cache && !force) return Promise.resolve(cache)
   if (!pending || force) {
-    pending = Promise.resolve(supabase.from('stem_tracks').select('*').order('code')).then(({ data, error }) => {
+    pending = Promise.resolve(supabase.from('stem_tracks').select('*').order('sort').order('code')).then(({ data, error }) => {
       cache = !error && data?.length ? (data as StemTrack[]) : DEFAULT_TRACKS
       pending = null
       subs.forEach(f => f(cache!))
@@ -39,7 +39,20 @@ function fetchTracks(force = false): Promise<StemTrack[]> {
   return pending
 }
 
-/** Danh mục CT1–CT5 dùng chung trong phiên; `reload()` sau khi sửa để mọi màn cập nhật. */
+// Màu của từng loại: CT1–CT5 giữ màu cũ, loại thêm sau lấy màu theo mã (ổn định giữa các lần mở)
+const BASE_COLOR: Record<string, string> = { CT1: '#64748b', CT2: '#2e95f2', CT3: '#7c3aed', CT4: '#dc2626', CT5: '#16a34a' }
+const EXTRA_COLOR = ['#0f766e', '#b45309', '#be185d', '#4338ca', '#15803d', '#a21caf', '#0369a1', '#9a3412']
+export function trackColor(code: string): string {
+  if (BASE_COLOR[code]) return BASE_COLOR[code]
+  let h = 0
+  for (const c of code) h = (h * 31 + c.charCodeAt(0)) >>> 0
+  return EXTRA_COLOR[h % EXTRA_COLOR.length]
+}
+/** Bảng màu tra theo mã, có màu cho cả mã chưa biết: PROGRAM_COLOR[code] */
+export const TRACK_COLOR: Record<string, string> = new Proxy(BASE_COLOR, { get: (_t, k) => (typeof k === 'string' ? trackColor(k) : undefined) })
+
+/** Danh mục loại chương trình dùng chung trong phiên; `reload()` sau khi sửa để mọi màn cập nhật.
+ *  `codes`: mã các loại đang dùng (để chọn khi soạn mới); `allCodes`: gồm cả loại đã ngừng dùng (để lọc dữ liệu cũ). */
 export function useStemTracks() {
   const [tracks, setTracks] = useState<StemTrack[]>(cache ?? DEFAULT_TRACKS)
   useEffect(() => {
@@ -48,5 +61,7 @@ export function useStemTracks() {
     return () => { subs.delete(setTracks) }
   }, [])
   const byCode = Object.fromEntries(tracks.map(t => [t.code, t])) as Record<string, StemTrack | undefined>
-  return { tracks, byCode, reload: () => fetchTracks(true) }
+  const allCodes = tracks.map(t => t.code)
+  const codes = tracks.filter(t => t.active !== false).map(t => t.code)
+  return { tracks, byCode, codes, allCodes, reload: () => fetchTracks(true) }
 }

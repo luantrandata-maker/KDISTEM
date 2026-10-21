@@ -159,7 +159,8 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
     const att = form.src === 'file' ? (form.file ? { url: '', ...form.file } : { url: '' }) : { url: form.url.trim() }
     if (isP && publish && !planFilled(form.plan) && !form.file && !form.url.trim()) return setMsg('Soạn nội dung giáo án hoặc đính kèm tệp trước khi phát hành.')
     if (!isP && form.kind === 'material' && form.src === 'file' && !form.file && publish) return setMsg('Chọn tệp học liệu để tải lên.')
-    const content = form.kind === 'lesson' ? { slides: form.slides } : form.kind === 'unit'
+    const lessonAtt = form.src === 'file' ? (form.file ? { url: '', ...form.file } : {}) : (form.url.trim() ? { url: form.url.trim() } : {})
+    const content = form.kind === 'lesson' ? { slides: form.slides, ...lessonAtt } : form.kind === 'unit'
       ? { objectives: form.objectives.trim() || null, periods: Number(form.periods) || null, plan_ids: form.plan_ids, lesson_ids: form.lesson_ids, norm_ids: form.norm_ids, material_ids: form.material_ids }
       : isP ? { type: 'lesson_plan', ...att, ...form.plan }
       : form.kind === 'material'
@@ -221,7 +222,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
       owner_org_id: orgId, kind: sub.kind === 'lesson' ? 'lesson' : 'material', title, subject: form.subject.trim() || null, grades: form.grades.trim() || null,
       program: form.program || null, program_id: form.program_id || null, unit_id: form.program_id && form.unit_id ? form.unit_id : null,
       usage_rights: form.usage_rights, scope: form.scope, tags: [] as string[],
-      content: sub.kind === 'lesson' ? { slides: sub.slides }
+      content: sub.kind === 'lesson' ? { slides: sub.slides, ...(sub.src === 'file' ? (sub.file ? { url: '', ...sub.file } : {}) : (sub.url.trim() ? { url: sub.url.trim() } : {})) }
         : sub.kind === 'material' ? { type: sub.mtype, ...(sub.src === 'file' && sub.file ? { url: '', ...sub.file } : { url: sub.url.trim() }) }
         : { type: 'lesson_plan', ...(sub.src === 'file' && sub.file ? { url: '', ...sub.file } : { url: sub.url.trim() }), ...sub.plan },
     }
@@ -296,7 +297,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
       const n = (a: string[] | undefined, l: string) => (a ?? []).length ? `${(a ?? []).length} ${l}` : ''
       return [c.periods ? `${c.periods} tiết` : '', n(c.plan_ids, 'giáo án'), n(c.lesson_ids, 'bài giảng'), n(c.norm_ids, 'định mức'), n(c.material_ids, 'học liệu')].filter(Boolean).join(' · ') || '—'
     }
-    if (i.kind === 'lesson') return `${(c.slides ?? []).length} slide`
+    if (i.kind === 'lesson') return [`${(c.slides ?? []).length} slide`, c.file_name ? 'có tệp' : c.url ? 'có đường dẫn' : ''].filter(Boolean).join(' · ')
     if (isPlan(i)) { const p = planOf(c as any); return [p.periods && `${p.periods} tiết`, p.steps.length && `${p.steps.length} bước`, c.file_name ? 'có tệp' : c.url ? 'có đường dẫn' : ''].filter(Boolean).join(' · ') || 'chưa có nội dung' }
     return [MAT_TYPE[c.type ?? 'link'], c.file_name ?? (c.url ? 'đường dẫn' : 'chưa có tệp')].filter(Boolean).join(' · ')
   }
@@ -398,6 +399,17 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
                       {lessons.map(l => <option key={l.id} value={l.id}>{l.title}{l.teachers ? ` — ${l.teachers.full_name}` : ''}</option>)}
                     </select></div>
                   <SlidesEditor slides={sub.slides} onChange={slides => setSub({ ...sub, slides })} />
+                  <div className="formgrid" style={{ marginTop: 8 }}>
+                    <div className="field"><span>Tệp / đường dẫn bài giảng (không bắt buộc)</span><div className="tools">
+                      <label><input type="radio" checked={sub.src === 'file'} onChange={() => setSub({ ...sub, src: 'file' })} /> Tải tệp lên</label>
+                      <label><input type="radio" checked={sub.src === 'url'} onChange={() => setSub({ ...sub, src: 'url' })} /> Đường dẫn</label></div></div>
+                    {sub.src === 'url'
+                      ? <label className="field" style={{ gridColumn: 'span 2' }}><span>Đường dẫn</span><input value={sub.url} onChange={e => setSub({ ...sub, url: e.target.value })} placeholder="https://…" /></label>
+                      : <div className="field" style={{ gridColumn: 'span 2' }}><span>Tệp (tối đa {MAX_FILE_MB} MB)</span><div className="tools">
+                          {sub.file && <span className="chip">{sub.file.file_name} · {fmtSize(sub.file.size)}</span>}
+                          <label className={'filebtn' + (subBusy ? ' busy' : '')}>{subBusy ? 'Đang tải lên…' : sub.file ? 'Thay tệp' : 'Chọn tệp'}
+                            <input type="file" hidden disabled={subBusy} onChange={e => { const f = e.target.files?.[0]; if (f) pickSubFile(f); e.target.value = '' }} /></label></div></div>}
+                  </div>
                   <div className="formactions"><button type="button" className="primary" disabled={subBusy} onClick={saveSub}>Thêm vào bài</button> <button type="button" onClick={() => setSub(null)}>Huỷ</button></div>
                 </div>
               )}
@@ -442,6 +454,17 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
                   {lessons.map(l => <option key={l.id} value={l.id}>{l.title}{l.teachers ? ` — ${l.teachers.full_name}` : ''}</option>)}
                 </select></div>
               <SlidesEditor slides={form.slides} onChange={slides => setForm({ ...form, slides })} />
+              <div className="formgrid" style={{ marginTop: 10 }}>
+                <div className="field"><span>Tệp / đường dẫn bài giảng (không bắt buộc)</span><div className="tools">
+                  <label><input type="radio" checked={form.src === 'file'} onChange={() => setForm({ ...form, src: 'file' })} /> Tải tệp lên</label>
+                  <label><input type="radio" checked={form.src === 'url'} onChange={() => setForm({ ...form, src: 'url' })} /> Đường dẫn</label></div></div>
+                {form.src === 'url'
+                  ? <label className="field" style={{ gridColumn: 'span 2' }}><span>Đường dẫn</span><input value={form.url} onChange={e => setForm({ ...form, url: e.target.value })} placeholder="https://… (Canva, Google Slides, YouTube…)" /></label>
+                  : <div className="field" style={{ gridColumn: 'span 2' }}><span>Tệp (tối đa {MAX_FILE_MB} MB, VD: PowerPoint, PDF)</span><div className="tools">
+                      {form.file && <span className="chip">{form.file.file_name} · {fmtSize(form.file.size)}<button type="button" className="x" aria-label="Bỏ tệp" onClick={() => setForm({ ...form, file: null })}>×</button></span>}
+                      <label className={'filebtn' + (uploading ? ' busy' : '')}>{uploading ? 'Đang tải lên…' : form.file ? 'Thay tệp' : 'Chọn tệp'}
+                        <input type="file" hidden disabled={uploading} onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = '' }} /></label></div></div>}
+              </div>
             </>
           )}
           {form.kind === 'material' && form.mtype === 'lesson_plan' && <PlanEditor value={form.plan} onChange={plan => setForm({ ...form, plan })} />}

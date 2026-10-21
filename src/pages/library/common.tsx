@@ -122,7 +122,10 @@ export function ItemPreview({ item, all, canRestore, onRestored, onOpen }: { ite
     const slides = item.content.slides ?? []
     return (
       <div className="libpreview">
-        <SlideView slide={slides[i]} reveal />
+        {(item.content.path || item.content.url) && <p><b>Tệp bài giảng:</b> {item.content.path
+          ? <button type="button" className="linkbtn" onClick={() => openFile(item.content.path!)}>{item.content.file_name ?? 'Mở tệp'}{item.content.size ? ` (${fmtSize(item.content.size)})` : ''} ↗</button>
+          : <a href={item.content.url} target="_blank" rel="noreferrer">{item.content.url}</a>}</p>}
+        {slides.length > 0 && <SlideView slide={slides[i]} reveal />}
         {slides.length > 1 && (
           <div className="bar small">
             <button type="button" disabled={i === 0} onClick={() => setI(i - 1)}>← Trước</button>

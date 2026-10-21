@@ -2365,6 +2365,18 @@ select pg_temp.probe('gv_both@iso-test.local', $q$select library_adopt((select i
 select pg_temp.chk('gv_both', 'Dùng giáo án trong kho → giáo án của GV có đủ mục, các bước, số tiết',
   $q$select (doc->>'Mục tiêu') || '|' || jsonb_array_length(steps) || '|' || periods from lesson_plans where teacher_id = my_teacher_id() and library_item_id = (select id from library_items where title = 'ISO giáo án kho')$q$, 'Hiểu mạch|2|2');
 
+-- ===== 067: bài giảng đính kèm tệp / đường dẫn =====
+select pg_temp.probe('kdi@iso-test.local', $q$insert into library_items (owner_org_id, kind, title, status, scope, content) values (my_org_id(), 'lesson', 'ISO bài giảng link', 'draft', 'public',
+  jsonb_build_object('slides', '[]'::jsonb, 'url', 'https://example.com/bai-giang'))$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into library_items (owner_org_id, kind, title, status, scope, content) values (my_org_id(), 'lesson', 'ISO bài giảng trống', 'draft', 'public',
+  jsonb_build_object('slides', '[]'::jsonb))$q$, true);
+select pg_temp.chk('kdi', 'Bài giảng chỉ có đường dẫn: phát hành được', $q$select library_publish((select id from library_items where title = 'ISO bài giảng link'))::text$q$, '1');
+select pg_temp.probe('kdi@iso-test.local', $q$select library_publish((select id from library_items where title = 'ISO bài giảng link'))::text$q$, true);
+select pg_temp.chk('kdi', 'Bài giảng không slide, không tệp: không phát hành được', $q$select library_publish((select id from library_items where title = 'ISO bài giảng trống'))::text$q$, 'ERR*');
+select pg_temp.probe('gv_both@iso-test.local', $q$select library_adopt((select id from library_items where title = 'ISO bài giảng link'))::text$q$, true);
+select pg_temp.chk('gv_both', 'Dùng bài giảng có đường dẫn → slide tham khảo chứa đường dẫn',
+  $q$select jsonb_array_length(slides) || '|' || (slides->-1->>'body') from lesson_plans where teacher_id = my_teacher_id() and library_item_id = (select id from library_items where title = 'ISO bài giảng link')$q$, '2|https://example.com/bai-giang');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

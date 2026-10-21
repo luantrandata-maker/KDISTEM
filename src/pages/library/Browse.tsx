@@ -81,8 +81,8 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
       {isSchool && teacherId && i.usage_rights !== 'view' && <button type="button" className="primary" disabled={busy === i.id} onClick={() => adopt(i, false)}>
         {i.kind === 'program' ? 'Dùng chương trình' : i.kind === 'unit' ? 'Dùng bài học' : outdated ? 'Dùng bản mới' : mine.length ? 'Dùng thêm bản' : 'Dùng bài này'}</button>}
       {isSchool && isAdmin && i.usage_rights !== 'view' && <button type="button" className={teacherId ? '' : 'primary'} disabled={busy === i.id} onClick={() => adopt(i, true)}>Thêm làm bài mẫu của trường</button>}
-      {i.kind === 'material' && i.content.path && <button type="button" className="linkbtn" onClick={() => openFile(i.content.path!)}>Mở tệp ↗</button>}
-      {i.kind === 'material' && !i.content.path && i.content.url && <a className="linkbtn" href={i.content.url} target="_blank" rel="noreferrer">Mở học liệu ↗</a>}
+      {(i.kind === 'material' || i.kind === 'lesson') && i.content.path && <button type="button" className="linkbtn" onClick={() => openFile(i.content.path!)}>Mở tệp ↗</button>}
+      {(i.kind === 'material' || i.kind === 'lesson') && !i.content.path && i.content.url && <a className="linkbtn" href={i.content.url} target="_blank" rel="noreferrer">Mở học liệu ↗</a>}
     </>
   }
 

@@ -6,7 +6,10 @@ import { KindChip, ProgChip, ItemPreview, MAT_TYPE, RightsChip, ProgLine, fmtDat
 import { useStemTracks } from '../../lib/stemTracks'
 
 type Props = { orgId: string | null; teacherId?: string | null; go?: (p: string) => void }
-type K = 'all' | Item['kind']
+type K = 'all' | Item['kind'] | 'plan'
+const isPlan = (i: Item) => i.kind === 'material' && i.content.type === 'lesson_plan'
+// Chương trình soạn ở "Chương trình giáo dục"; mục chương trình cũ trong kho không hiện ở đây
+const ofK = (i: Item, k: K) => i.kind !== 'program' && (k === 'all' || (k === 'plan' ? isPlan(i) : k === 'material' ? i.kind === 'material' && !isPlan(i) : i.kind === k))
 
 // Thư viện STEM / Kho học liệu dùng chung: học liệu do Bộ, Tỉnh, Sở, Phòng, KDI Education và trường phát hành.
 // Trường / giáo viên "Dùng" → tạo bản của mình để chỉnh sửa (không bị ghi đè khi kho cập nhật).
@@ -53,7 +56,7 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
   const isSchool = me?.type === 'school'
   // Bản sao của tôi (GV) hoặc của trường (quản trị) với từng mục
   const mineOf = (id: string) => copies.filter(c => c.item_id === id && (teacherId ? c.adopted_by === uidMe : true))
-  const shown = items.filter(i => (k === 'all' || i.kind === k) && (!src || i.owner_name === src) && (!prog || i.program === prog)
+  const shown = items.filter(i => ofK(i, k) && (!src || i.owner_name === src) && (!prog || i.program === prog)
     && (!eprog || i.program_id === eprog) && (!subj || i.subject === subj)
     && (!mtype || (i.kind === 'material' && (i.content.type ?? 'link') === mtype))
     && (!grade || (i.grades ?? '').split(/[,\s–-]+/).includes(grade))
@@ -73,9 +76,8 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
   return (
     <>
       <div className="bar">
-        <Tabs items={[['all', 'Tất cả', items.length], ['unit', 'Bài học', items.filter(i => i.kind === 'unit').length],
-          ...(items.some(i => i.kind === 'program') ? [['program', 'Chương trình', items.filter(i => i.kind === 'program').length] as [K, string, number]] : []),
-          ['lesson', 'Bài giảng', items.filter(i => i.kind === 'lesson').length], ['material', 'Học liệu', items.filter(i => i.kind === 'material').length]]} value={k} onChange={setK} />
+        <Tabs items={([['all', 'Tất cả'], ['unit', 'Bài học'], ['plan', 'Giáo án'], ['lesson', 'Bài giảng'], ['material', 'Học liệu']] as [K, string][])
+          .map(([key, l]) => [key, l, items.filter(i => ofK(i, key)).length] as [K, string, number])} value={k} onChange={setK} />
         <input className="search" placeholder="Tìm theo tên, nội dung, từ khoá…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm học liệu" />
       </div>
       <div className="bar small">

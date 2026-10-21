@@ -2351,6 +2351,20 @@ select pg_temp.chk('kdi', 'Cấp học: đổi tên được', $q$update edu_lev
 select pg_temp.chk('kdi', 'Môn học: cấp học lạ bị bỏ khi lưu',
   $q$with x as (insert into subjects (org_id, name, levels) values (platform_org_id(), 'ISO môn cấp', '{thcs,mamnon,iso_lien}') returning levels) select array_to_string(levels, ',') from x$q$, 'thcs,iso_lien');
 
+-- ===== 066: giáo án soạn trong kho học liệu =====
+select pg_temp.probe('kdi@iso-test.local', $q$insert into library_items (owner_org_id, kind, title, status, scope, content) values (my_org_id(), 'material', 'ISO giáo án kho', 'draft', 'public',
+  jsonb_build_object('type', 'lesson_plan', 'periods', '2', 'template_id', 'rác', 'doc', jsonb_build_object('Mục tiêu', 'Hiểu mạch', 'x', 5),
+    'steps', jsonb_build_array(jsonb_build_object('id', 'a', 'phase', 'khoi_dong', 'title', 'Khởi động', 'minutes', 5, 'teacher', 'Đặt câu hỏi', 'bad', 1),
+                               jsonb_build_object('title', '  '), jsonb_build_object('title', 'Thực hành', 'minutes', 999))))$q$, true);
+select pg_temp.chk('kdi', 'Giáo án trong kho: nội dung được làm gọn (mục, bước, số tiết, mẫu)',
+  $q$select (content->'doc')::text || '|' || jsonb_array_length(content->'steps') || '|' || (content->>'periods') || '|' || coalesce(content->>'template_id', 'null') || '|' || coalesce(content->'steps'->1->>'minutes', '-') || '|' || ((content->'steps'->0) ? 'bad')::text
+     from library_items where title = 'ISO giáo án kho'$q$, '{"Mục tiêu": "Hiểu mạch"}|2|2|null|-|false');
+select pg_temp.chk('kdi', 'Giáo án trong kho: phát hành được khi chưa có tệp', $q$select library_publish((select id from library_items where title = 'ISO giáo án kho'))::text$q$, '1');
+select pg_temp.probe('kdi@iso-test.local', $q$select library_publish((select id from library_items where title = 'ISO giáo án kho'))::text$q$, true);
+select pg_temp.probe('gv_both@iso-test.local', $q$select library_adopt((select id from library_items where title = 'ISO giáo án kho'))::text$q$, true);
+select pg_temp.chk('gv_both', 'Dùng giáo án trong kho → giáo án của GV có đủ mục, các bước, số tiết',
+  $q$select (doc->>'Mục tiêu') || '|' || jsonb_array_length(steps) || '|' || periods from lesson_plans where teacher_id = my_teacher_id() and library_item_id = (select id from library_items where title = 'ISO giáo án kho')$q$, 'Hiểu mạch|2|2');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

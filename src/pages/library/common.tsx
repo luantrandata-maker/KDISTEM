@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { openFile, fmtSize } from '../../lib/files'
 import { SlideView, KIND as SLIDE_KIND, type Slide, type SlideKind } from '../teacher/Lessons'
 import { PROGRAM_COLOR } from '../teacher/common'
+import { PlanView, planOf } from './PlanEditor'
 
 export type Unit = { title: string; periods?: number; objectives?: string; lesson_ids?: string[] }
 export type Item = {
@@ -129,11 +130,14 @@ export function ItemPreview({ item, all, canRestore, onRestored }: { item: Item;
     )
   }
   if (item.kind === 'material') {
+    const plan = item.content.type === 'lesson_plan' ? planOf(item.content as any) : null
+    const hasFile = !!(item.content.path || item.content.url)
     return (
       <div className="libpreview">
-        <p><b>{MAT_TYPE[item.content.type ?? 'link'] ?? 'Đường dẫn'}:</b> {item.content.path
+        {plan && <PlanView plan={plan} />}
+        {(!plan || hasFile) && <p><b>{plan ? 'Tệp đính kèm' : MAT_TYPE[item.content.type ?? 'link'] ?? 'Đường dẫn'}:</b> {item.content.path
           ? <button type="button" className="linkbtn" onClick={() => openFile(item.content.path!)}>{item.content.file_name ?? 'Mở tệp'}{item.content.size ? ` (${fmtSize(item.content.size)})` : ''} ↗</button>
-          : item.content.url ? <a href={item.content.url} target="_blank" rel="noreferrer">{item.content.url}</a> : <i>chưa có tệp hoặc đường dẫn</i>}</p>
+          : item.content.url ? <a href={item.content.url} target="_blank" rel="noreferrer">{item.content.url}</a> : <i>chưa có tệp hoặc đường dẫn</i>}</p>}
         {item.usage_rights && <p><b>Quyền sử dụng:</b> <RightsChip r={item.usage_rights} />{item.usage_note ? <small className="sub"> {item.usage_note}</small> : null}</p>}
         <Versions item={item} canRestore={canRestore} onRestored={onRestored} />
       </div>

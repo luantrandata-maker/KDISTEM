@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
 import { openFile } from '../../lib/files'
-import { KindChip, ProgChip, ItemPreview, MAT_TYPE, RightsChip, ProgLine, fmtDate, selectItems, type Item, type Copy } from './common'
+import { KindChip, ProgChip, ItemDrawer, MAT_TYPE, RightsChip, ProgLine, fmtDate, selectItems, type Item, type Copy } from './common'
 import { useStemTracks } from '../../lib/stemTracks'
 
 type Props = { orgId: string | null; teacherId?: string | null; go?: (p: string) => void }
@@ -73,8 +73,22 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
     load()
   }
 
+  // Nút dùng / mở tệp của một mục (trên thẻ và trong bảng chi tiết)
+  function acts(i: Item) {
+    const mine = mineOf(i.id)
+    const outdated = mine.length > 0 && mine.reduce((m, c) => Math.max(m, c.adopted_version), 0) < i.version
+    return <>
+      {isSchool && teacherId && i.usage_rights !== 'view' && <button type="button" className="primary" disabled={busy === i.id} onClick={() => adopt(i, false)}>
+        {i.kind === 'program' ? 'Dùng chương trình' : i.kind === 'unit' ? 'Dùng bài học' : outdated ? 'Dùng bản mới' : mine.length ? 'Dùng thêm bản' : 'Dùng bài này'}</button>}
+      {isSchool && isAdmin && i.usage_rights !== 'view' && <button type="button" className={teacherId ? '' : 'primary'} disabled={busy === i.id} onClick={() => adopt(i, true)}>Thêm làm bài mẫu của trường</button>}
+      {i.kind === 'material' && i.content.path && <button type="button" className="linkbtn" onClick={() => openFile(i.content.path!)}>Mở tệp ↗</button>}
+      {i.kind === 'material' && !i.content.path && i.content.url && <a className="linkbtn" href={i.content.url} target="_blank" rel="noreferrer">Mở học liệu ↗</a>}
+    </>
+  }
+
   return (
     <>
+      {open && <ItemDrawer root={{ type: 'item', id: open }} all={items} onClose={() => setOpen(null)} actions={acts} />}
       <div className="bar">
         <Tabs items={([['all', 'Tất cả'], ['unit', 'Bài học'], ['plan', 'Giáo án'], ['lesson', 'Bài giảng'], ['material', 'Học liệu']] as [K, string][])
           .map(([key, l]) => [key, l, items.filter(i => ofK(i, key)).length] as [K, string, number])} value={k} onChange={setK} />
@@ -106,20 +120,15 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
                 {i.usage_rights && i.usage_rights !== 'adapt' && <RightsChip r={i.usage_rights} />}
                 {outdated && <span className="gpill warn" title={i.change_note ?? ''}><i aria-hidden="true">↻</i>Có bản mới v{i.version}</span>}
               </div>
-              <h3>{i.title}</h3>
+              <h3><button type="button" className="linkbtn" style={{ font: 'inherit', textAlign: 'left' }} onClick={() => setOpen(i.id)}>{i.title}</button></h3>
               <p className="sub libsrc">{i.owner_name}{i.owner_type === 'provider' ? ' · Đơn vị cung cấp' : ''} · v{i.version} · {fmtDate(i.published_at)}{i.grades ? ` · Khối ${i.grades}` : ''}{i.subject ? ` · ${i.subject}` : ''}</p>
               {i.edu_programs && <p style={{ margin: '2px 0' }}><ProgLine i={i} /></p>}
               {i.summary && <p className="libsum">{i.summary}</p>}
               {outdated && i.change_note && <p className="sub">Cập nhật: {i.change_note}</p>}
               <div className="actions">
-                <button type="button" onClick={() => setOpen(open === i.id ? null : i.id)} aria-expanded={open === i.id}>{open === i.id ? 'Thu gọn' : 'Xem trước'}</button>
-                {isSchool && teacherId && i.usage_rights !== 'view' && <button type="button" className="primary" disabled={busy === i.id} onClick={() => adopt(i, false)}>
-                  {i.kind === 'program' ? 'Dùng chương trình' : i.kind === 'unit' ? 'Dùng bài học' : outdated ? 'Dùng bản mới' : mine.length ? 'Dùng thêm bản' : 'Dùng bài này'}</button>}
-                {isSchool && isAdmin && i.usage_rights !== 'view' && <button type="button" className={teacherId ? '' : 'primary'} disabled={busy === i.id} onClick={() => adopt(i, true)}>Thêm làm bài mẫu của trường</button>}
-                {i.kind === 'material' && i.content.path && <button type="button" className="linkbtn" onClick={() => openFile(i.content.path!)}>Mở tệp ↗</button>}
-                {i.kind === 'material' && !i.content.path && i.content.url && <a className="linkbtn" href={i.content.url} target="_blank" rel="noreferrer">Mở học liệu ↗</a>}
+                <button type="button" onClick={() => setOpen(i.id)}>Xem chi tiết</button>
+                {acts(i)}
               </div>
-              {open === i.id && <ItemPreview item={i} all={items} />}
             </article>
           )
         })}

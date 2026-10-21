@@ -7,11 +7,12 @@ import { Tabs } from '../teacher/common'
 import type { Slide } from '../teacher/Lessons'
 import { uploadLearningFile, fmtSize, MAX_FILE_MB } from '../../lib/files'
 import {
-  KindChip, ProgChip, StatusChip, ItemPreview, SlidesEditor, SCOPE, MAT_TYPE, KIND, NEW_KINDS, RIGHTS, RightsChip, ProgLine,
+  KindChip, ProgChip, StatusChip, ItemDrawer, SlidesEditor, SCOPE, MAT_TYPE, KIND, NEW_KINDS, RIGHTS, RightsChip, ProgLine,
   fmtDate, uid, selectItems, useProgramOptions, useNormOptions, unitTree, progLabel, type Item, type Unit, type Rights,
 } from './common'
 import { GradeChecks, SubjectPicker, gradeList } from '../../components/Pickers'
 import { EMPTY_PLAN, PlanEditor, planFilled, planOf, type PlanContent } from './PlanEditor'
+import { Drawer } from '../../components/Drawer'
 import { EMPTY_NORM, loadUnitNorm, saveUnitNorm, UnitNormEditor, type UnitNorm } from './UnitNorm'
 
 type Org = { id: string; name: string; type: string; parent_id: string | null }
@@ -308,8 +309,9 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
       {info && <p className="sub"><b>{info}</b></p>}
 
       {form && (
+        <Drawer wide closeOnOutside={false} onClose={() => setForm(null)}
+          title={`${form.id ? 'Sửa' : 'Thêm'} ${form.kind === 'material' && form.mtype === 'lesson_plan' ? 'giáo án' : KIND[form.kind][0].toLowerCase()}${form.id && form.title ? `: ${form.title}` : ''}`}>
         <form className="panel libform" onSubmit={e => save(e, false)}>
-          <h3>{form.id ? 'Sửa' : 'Thêm'} {form.kind === 'material' && form.mtype === 'lesson_plan' ? 'giáo án' : KIND[form.kind][0].toLowerCase()}</h3>
           <div className="formgrid libgrid4">
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mô tả ngắn</span><textarea rows={2} value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })} /></label>
@@ -467,7 +469,15 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
             <button type="button" onClick={() => setForm(null)}>Huỷ</button>
           </div>
         </form>
+        </Drawer>
       )}
+      {open && !form && <ItemDrawer root={{ type: 'item', id: open }} all={visible} onClose={() => setOpen(null)} canRestore onRestored={load}
+        actions={i => i.owner_org_id !== orgId ? <small className="sub">Mục của {i.owner_name ?? 'đơn vị khác'}: chỉ xem.</small> : <>
+          <button type="button" className="primary" onClick={() => edit(i)}>Sửa</button>
+          <button type="button" onClick={() => publish(i)}>{i.status === 'published' ? 'Phát hành bản cập nhật' : 'Phát hành'}</button>
+          {i.status === 'published' && <button type="button" onClick={() => unpublish(i)}>Thu hồi</button>}
+          {i.status !== 'published' && !stats.get(i.id) && <button type="button" className="danger" onClick={() => { remove(i); setOpen(null) }}>Xoá</button>}
+        </>} />}
 
       <div className="wrap">
         <table>
@@ -477,19 +487,18 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
               const s = stats.get(i.id)
               return (<Fragment key={i.id}>
                 <tr>
-                  <td><KindChip kind={i.kind} /> <ProgChip p={i.program} />{i.kind === 'material' && <small className="sub"> {MAT_TYPE[i.content.type ?? 'link']}</small>} {i.usage_rights !== 'adapt' && <RightsChip r={i.usage_rights} />}<br /><b>{i.title}</b><br /><small className="sub">{[i.subject, i.grades && `Khối ${i.grades}`, `cập nhật ${fmtDate(i.updated_at)}`].filter(Boolean).join(' · ')}</small>{i.edu_programs && <><br /><ProgLine i={i} /></>}</td>
+                  <td><KindChip kind={i.kind} /> <ProgChip p={i.program} />{i.kind === 'material' && <small className="sub"> {MAT_TYPE[i.content.type ?? 'link']}</small>} {i.usage_rights !== 'adapt' && <RightsChip r={i.usage_rights} />}<br /><button type="button" className="linkbtn" style={{ fontWeight: 700, textAlign: 'left', padding: 0 }} onClick={() => setOpen(i.id)}>{i.title}</button><br /><small className="sub">{[i.subject, i.grades && `Khối ${i.grades}`, `cập nhật ${fmtDate(i.updated_at)}`].filter(Boolean).join(' · ')}</small>{i.edu_programs && <><br /><ProgLine i={i} /></>}</td>
                   <td>{SCOPE[i.scope]}{i.scope === 'selected' && <><br /><small className="sub">{(targets.get(i.id) ?? []).map(id => orgs.find(o => o.id === id)?.name).filter(Boolean).join(', ')}</small></>}</td>
                   <td><StatusChip s={i.status} />{i.version > 0 && <small className="sub"> v{i.version}</small>}</td>
                   <td>{s ? <>{s.schools} trường{s.outdated ? <><br /><small className="sub">{s.outdated} bản dùng phiên bản cũ</small></> : null}</> : <small className="sub">Chưa có</small>}</td>
                   <td className="actions">
-                    <button type="button" onClick={() => setOpen(open === i.id ? null : i.id)}>{open === i.id ? 'Thu gọn' : 'Xem'}</button>
+                    <button type="button" onClick={() => setOpen(i.id)}>Xem</button>
                     <button type="button" onClick={() => edit(i)}>Sửa</button>
                     <button type="button" className={i.status !== 'published' ? 'primary' : ''} onClick={() => publish(i)}>{i.status === 'published' ? 'Phát hành bản cập nhật' : 'Phát hành'}</button>
                     {i.status === 'published' && <button type="button" onClick={() => unpublish(i)}>Thu hồi</button>}
                     {i.status !== 'published' && !s && <button type="button" className="danger" onClick={() => remove(i)}>Xoá</button>}
                   </td>
                 </tr>
-                {open === i.id && <tr><td colSpan={5}><ItemPreview item={i} all={visible} canRestore onRestored={load} /></td></tr>}
               </Fragment>)
             })}
             {shown.length === 0 && <tr><td colSpan={5}>{ofTab.length ? 'Không có mục nào khớp bộ lọc.' : `Chưa có ${tabLabel(tab).toLowerCase()} nào. Bấm “Thêm ${tabLabel(tab).toLowerCase()}” để bắt đầu.`}</td></tr>}

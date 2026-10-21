@@ -66,14 +66,15 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
     if (error) return setMsg(error.message)
     const d = data as { kind: string; count?: number }
     const where = template ? 'bài giảng mẫu của trường (mọi giáo viên thấy ở Soạn bài giảng)' : 'bản nháp của bạn trong Soạn bài giảng'
-    setInfo({ text: d.kind === 'program' ? `Đã thêm chương trình “${i.title}”: ${d.count ?? 0} bài giảng thành ${where}.` : `Đã tạo ${where}: “${i.title}”. Bạn chỉnh sửa thoải mái — bản của kho không đổi.`, lesson: true })
+    setInfo({ text: d.kind === 'program' || d.kind === 'unit' ? `Đã thêm ${d.kind === 'unit' ? 'bài học' : 'chương trình'} “${i.title}”: ${d.count ?? 0} bài giảng thành ${where}.` : `Đã tạo ${where}: “${i.title}”. Bạn chỉnh sửa thoải mái — bản của kho không đổi.`, lesson: true })
     load()
   }
 
   return (
     <>
       <div className="bar">
-        <Tabs items={[['all', 'Tất cả', items.length], ['program', 'Chương trình', items.filter(i => i.kind === 'program').length],
+        <Tabs items={[['all', 'Tất cả', items.length], ['unit', 'Bài học', items.filter(i => i.kind === 'unit').length],
+          ...(items.some(i => i.kind === 'program') ? [['program', 'Chương trình', items.filter(i => i.kind === 'program').length] as [K, string, number]] : []),
           ['lesson', 'Bài giảng', items.filter(i => i.kind === 'lesson').length], ['material', 'Học liệu', items.filter(i => i.kind === 'material').length]]} value={k} onChange={setK} />
         <input className="search" placeholder="Tìm theo tên, nội dung, từ khoá…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm học liệu" />
       </div>
@@ -111,7 +112,7 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
               <div className="actions">
                 <button type="button" onClick={() => setOpen(open === i.id ? null : i.id)} aria-expanded={open === i.id}>{open === i.id ? 'Thu gọn' : 'Xem trước'}</button>
                 {isSchool && teacherId && i.usage_rights !== 'view' && <button type="button" className="primary" disabled={busy === i.id} onClick={() => adopt(i, false)}>
-                  {i.kind === 'program' ? 'Dùng chương trình' : outdated ? 'Dùng bản mới' : mine.length ? 'Dùng thêm bản' : 'Dùng bài này'}</button>}
+                  {i.kind === 'program' ? 'Dùng chương trình' : i.kind === 'unit' ? 'Dùng bài học' : outdated ? 'Dùng bản mới' : mine.length ? 'Dùng thêm bản' : 'Dùng bài này'}</button>}
                 {isSchool && isAdmin && i.usage_rights !== 'view' && <button type="button" className={teacherId ? '' : 'primary'} disabled={busy === i.id} onClick={() => adopt(i, true)}>Thêm làm bài mẫu của trường</button>}
                 {i.kind === 'material' && i.content.path && <button type="button" className="linkbtn" onClick={() => openFile(i.content.path!)}>Mở tệp ↗</button>}
                 {i.kind === 'material' && !i.content.path && i.content.url && <a className="linkbtn" href={i.content.url} target="_blank" rel="noreferrer">Mở học liệu ↗</a>}

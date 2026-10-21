@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { PROGRAM_COLOR } from './teacher/common'
+import { useEduLevels } from '../lib/eduLevels'
 import { STEM_LEVELS, STEM_LEVEL_NAME, useStemTracks, type StemLevel, type StemTrack } from '../lib/stemTracks'
 
 // Danh mục loại chương trình (migration 062, 064): CT1–CT5 ban đầu; KDI thêm loại mới, sửa tên, mô tả, môn học,
 // cấp học áp dụng, ngừng dùng hoặc xoá loại chưa được dùng; đơn vị khác xem. Kèm các chương trình giáo dục đang ban hành của từng loại.
 type Prog = { id: string; code: string | null; title: string; ct_code: string; level: string; version_no: number }
-const LV: Record<string, string> = { tieuhoc: 'Tiểu học', thcs: 'THCS', thpt: 'THPT' }
 const errText = (m: string) => (/schema cache|does not exist|column .*(sort|active)/i.test(m) ? 'Hãy chạy migration 064 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'
   : /23503|foreign key/i.test(m) ? 'Loại này đang được chương trình, bài giảng, học liệu hoặc lớp dùng — hãy chuyển sang "Ngừng dùng".'
@@ -16,6 +16,7 @@ const BLANK: StemTrack = { code: '', name: '', title: '', description: '', subje
 
 export function StemTracksCatalog() {
   const { tracks, reload } = useStemTracks()
+  const { name: levelName } = useEduLevels()
   const [admin, setAdmin] = useState(false)
   const [progs, setProgs] = useState<Prog[]>([])
   const [edit, setEdit] = useState<string | null>(null)
@@ -63,7 +64,7 @@ export function StemTracksCatalog() {
               <div className="sub" style={{ margin: '10px 0 4px' }}>Cấp học áp dụng</div>
               <div>{t.levels.length ? t.levels.map(l => <span key={l} className="pill" style={{ marginRight: 6 }}>{STEM_LEVEL_NAME[l]}</span>) : <small className="sub">Chưa chọn</small>}</div>
               <div className="sub" style={{ margin: '10px 0 4px' }}>Chương trình giáo dục đang ban hành ({list.length})</div>
-              <div>{list.length ? list.map(p => <span key={p.id} className="chip" style={{ paddingRight: 12 }}>{p.title} · {LV[p.level] ?? p.level} · v{p.version_no}</span>)
+              <div>{list.length ? list.map(p => <span key={p.id} className="chip" style={{ paddingRight: 12 }}>{p.title} · {levelName(p.level)} · v{p.version_no}</span>)
                 : <small className="sub">Chưa có — tạo ở tab "Chương trình giáo dục", chọn kiểu "Chương trình STEM" và loại {t.code}.</small>}</div>
             </section>
           )

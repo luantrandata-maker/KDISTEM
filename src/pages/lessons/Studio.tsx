@@ -6,6 +6,7 @@ import { supabase } from '../../lib/supabase'
 import { TProps, NoTeacher, PROGRAM_COLOR, Tabs, handoff, useMyClasses } from '../teacher/common'
 import { SlideView, SlideStudio, newSlide, ago } from '../teacher/Lessons'
 import { useProgramOptions, unitTree, progLabel } from '../library/common'
+import { GradeChecks, SubjectPicker, gradeList } from '../../components/Pickers'
 import { asLesson, emptyLesson, lessonStats, LessonEditor, LessonPlayer, LessonShow, type ILesson } from '../../lib/lessonBlocks'
 import {
   type LPlan, type LStatus, type Template, type Step, type Adjust, type Version, type Review, type NormItem, type NormLite,
@@ -194,8 +195,8 @@ function NewPlan({ teacherId, orgId, templates, onCancel, onCreated }: {
       <h3>2. Thông tin bài</h3>
       <div className="panel formgrid">
         <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên bài *</span><input value={f.title} onChange={e => setF({ ...f, title: e.target.value })} maxLength={200} autoFocus /></label>
-        <label className="field"><span>Môn</span><input value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} /></label>
-        <label className="field"><span>Khối</span><input value={f.grades} onChange={e => setF({ ...f, grades: e.target.value })} placeholder="VD: 8 hoặc 6,7" /></label>
+        <label className="field"><span>Môn</span><SubjectPicker value={f.subject} onChange={v => setF({ ...f, subject: v })} emptyLabel="— Không chọn —" /></label>
+        <div className="field" style={{ gridColumn: 'span 2' }}><span>Khối</span><GradeChecks value={gradeList(f.grades)} onChange={g => setF({ ...f, grades: g.join(',') })} /></div>
         <label className="field"><span>Số tiết</span><input type="number" min={1} max={20} value={f.periods} onChange={e => setF({ ...f, periods: e.target.value })} /></label>
         <label className="field"><span>Chương trình STEM (tiến trình bài giảng)</span><select value={f.program} onChange={e => setF({ ...f, program: e.target.value })}>
           <option value="">— không theo CT —</option>{PROGRAMS.map(c => <option key={c}>{c}</option>)}</select></label>
@@ -418,8 +419,8 @@ function InfoTab({ p, upd, ro, templates, programs, units }: TabP & { templates:
   return (
     <fieldset disabled={ro} className="panel formgrid" style={{ border: 0 }}>
       <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên bài *</span><input value={p.title} onChange={e => upd({ title: e.target.value })} maxLength={200} /></label>
-      <label className="field"><span>Môn</span><input value={p.subject ?? ''} onChange={e => upd({ subject: e.target.value })} /></label>
-      <label className="field"><span>Khối</span><input value={p.grades ?? ''} onChange={e => upd({ grades: e.target.value })} placeholder="VD: 8 hoặc 6,7" /></label>
+      <label className="field"><span>Môn</span><SubjectPicker value={p.subject} onChange={v => upd({ subject: v })} emptyLabel="— Không chọn —" /></label>
+      <div className="field" style={{ gridColumn: 'span 2' }}><span>Khối</span><GradeChecks value={gradeList(p.grades ?? '')} onChange={g => upd({ grades: g.join(',') })} /></div>
       <label className="field"><span>Số tiết</span><input type="number" min={1} max={20} value={p.periods ?? ''} onChange={e => upd({ periods: e.target.value ? Number(e.target.value) : null })} /></label>
       <label className="field"><span>Nhóm chương trình</span>
         <select value={p.program ?? ''} onChange={e => upd({ program: e.target.value || null })}><option value="">—</option>{PROGRAMS.map(c => <option key={c}>{c}</option>)}</select></label>

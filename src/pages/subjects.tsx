@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { norm } from '../lib/sheet'
 import { useStemTracks, TRACK_COLOR } from '../lib/stemTracks'
+import { useEduLevels } from '../lib/eduLevels'
 
 // Danh mục môn học (MonHoc, migration 064): KDI, Sở, Phòng, trường đều có danh mục riêng; môn "dùng chung" của KDI /
 // cấp trên hiện ở đơn vị trực thuộc. Học phần của chương trình giáo dục gắn với môn trong danh mục (edu_unit_subjects).
@@ -10,29 +11,46 @@ export type Subject = {
   levels: string[]; ct_codes: string[]; scope: 'own' | 'children'; active: boolean; sort: number; owner_name?: string | null
 }
 export type SubjectMode = 'school' | 'authority' | 'platform'
-const LEVELS: [string, string][] = [['tieuhoc', 'Tiểu học'], ['thcs', 'THCS'], ['thpt', 'THPT']]
-const LEVEL_NAME = Object.fromEntries(LEVELS) as Record<string, string>
 const errText = (m: string) => (/schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 064 trên Supabase.'
   : /row-level|42501/i.test(m) ? 'Bạn không có quyền sửa danh mục môn học của đơn vị.'
   : /23503|foreign key/i.test(m) ? 'Môn đang được học phần của chương trình dùng — hãy chuyển sang "Ngừng dùng".'
   : /23505|duplicate/i.test(m) ? 'Đơn vị đã có môn trùng tên hoặc trùng mã.' : m)
 
+// Dùng chung trong phiên (nhiều ô chọn môn trên một màn chỉ tải một lần); `reload()` sau khi sửa danh mục.
+let cache: Subject[] | null = null
+let cacheErr = ''
+let pending: Promise<void> | null = null
+const subs = new Set<() => void>()
+function fetchSubjects(force = false): Promise<void> {
+  if (cache && !force) return Promise.resolve()
+  if (!pending || force) {
+    pending = Promise.resolve(supabase.from('subjects').select('*, owner_name').order('sort').order('name')).then(({ data, error }) => {
+      cacheErr = error ? errText(error.message) : ''
+      cache = (data as Subject[]) ?? []
+      pending = null
+      subs.forEach(f => f())
+    })
+  }
+  return pending
+}
+
 /** Môn học nhìn thấy được (của đơn vị + dùng chung từ KDI / cấp trên), sắp theo thứ tự và tên. */
 export function useSubjects() {
-  const [list, setList] = useState<Subject[] | null>(null)
-  const [err, setErr] = useState('')
-  async function load() {
-    const { data, error } = await supabase.from('subjects').select('*, owner_name').order('sort').order('name')
-    if (error) setErr(errText(error.message))
-    setList((data as Subject[]) ?? [])
-  }
-  useEffect(() => { load() }, [])
-  return { subjects: list ?? [], loaded: list !== null, err, reload: load }
+  const [, tick] = useState(0)
+  useEffect(() => {
+    const f = () => tick(n => n + 1)
+    subs.add(f)
+    fetchSubjects().then(f)
+    return () => { subs.delete(f) }
+  }, [])
+  return { subjects: cache ?? [], loaded: cache !== null, err: cacheErr, reload: () => fetchSubjects(true) }
 }
 
 export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | null; mode?: SubjectMode }) {
   const { subjects, loaded, err, reload } = useSubjects()
   const { codes: ctCodes, allCodes } = useStemTracks()
+  const { levels: lvList, name: levelName } = useEduLevels()
+  const LEVELS = lvList.map(l => [l.code, l.name] as [string, string])
   const [canEdit, setCanEdit] = useState(mode !== 'school')
   const [form, setForm] = useState<Partial<Subject> | null>(null)
   const [q, setQ] = useState('')
@@ -86,7 +104,7 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
       <td>{s.code && <small className="sub">{s.code}<br /></small>}<b>{s.name}</b>{!s.active && <> <span className="pill">Ngừng dùng</span></>}
         {s.description && <><br /><small className="sub">{s.description}</small></>}</td>
       <td>{s.domain ?? '—'}</td>
-      <td>{s.levels.length ? s.levels.map(l => LEVEL_NAME[l] ?? l).join(', ') : <small className="sub">Mọi cấp</small>}</td>
+      <td>{s.levels.length ? s.levels.map(levelName).join(', ') : <small className="sub">Mọi cấp</small>}</td>
       <td>{s.ct_codes.map(c => <span key={c} className="progchip" style={{ background: TRACK_COLOR[c], color: '#fff', marginRight: 4 }}>{c}</span>)}</td>
       <td>{mine ? (s.scope === 'children' ? 'Dùng chung cho đơn vị trực thuộc' : 'Chỉ đơn vị mình') : <small className="sub">{s.owner_name ?? '—'}</small>}</td>
       <td className="tools">{mine && canEdit && <>

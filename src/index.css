@@ -1258,3 +1258,7 @@ body.drawer-open{overflow:hidden}
 .libtable tr.rowlink:hover td{background:#f3f8ff}
 .libtable tr.rowlink.on td{background:#e6f1fd}
 .libtable td{vertical-align:top}
+
+/* Thanh mời vào trường thử nghiệm (KDI) */
+.sandboxbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:10px 14px;margin-bottom:12px}
+.sandboxbar span{flex:1;min-width:240px;color:var(--muted);font-size:14px}

@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../../lib/supabase'
+import { switchOrg } from '../../lib/auth'
 import { downloadXlsx, norm } from '../../lib/sheet'
 import { Tabs } from '../teacher/common'
 
@@ -505,6 +506,25 @@ export const SysEduPlan = one(EDUPLAN)
 export const SysRegistrations = one(REGISTRATIONS)
 export const SysHomework = one(HOMEWORK)
 export const SysCurriculum = one(CURRICULUM)
-export const SysLessons = () => <TwoTabs tabs={[['Bài giảng', LESSONS], ['Kho hoạt động', ACTIVITIES]]} />
+// Vào "Trường thử nghiệm KDI" với vai giáo viên để thao tác như giáo viên thật (tạo trường ở lần đầu)
+function SandboxBar() {
+  const [busy, setBusy] = useState(false)
+  const [msg, setMsg] = useState('')
+  const go = async () => {
+    setBusy(true); setMsg('')
+    const { data, error } = await supabase.rpc('platform_sandbox_school')
+    if (error || !data) { setBusy(false); setMsg(error?.message ?? 'Không tạo được trường thử nghiệm'); return }
+    // Sau khi tải lại: mở thẳng màn Soạn bài giảng của giáo viên
+    history.replaceState({ role: 'teacher', page: 'Soạn bài giảng' }, '')
+    const err = await switchOrg(data as string)
+    if (err) { setBusy(false); setMsg(err) }
+  }
+  return <div className="sandboxbar">
+    <span>Muốn thử soạn bài giảng, hoạt động như giáo viên? Vào <b>Trường thử nghiệm KDI</b> (dữ liệu thử, không ảnh hưởng trường thật). Quay lại KDI bằng nút đổi đơn vị ở thanh trên cùng.</span>
+    <button className="primary" onClick={go} disabled={busy}>{busy ? 'Đang chuẩn bị…' : 'Thử như giáo viên'}</button>
+    {msg && <p className="msg">{msg}</p>}
+  </div>
+}
+export const SysLessons = () => <><SandboxBar /><TwoTabs tabs={[['Bài giảng', LESSONS], ['Kho hoạt động', ACTIVITIES]]} /></>
 export const SysTrainingLessons = () => <TwoTabs tabs={[['Bài giảng tập huấn', TRAINING_LESSONS], ['Lớp học ảo', VIRTUAL]]} />
 export const SysCertificates = one(CERTIFICATES)

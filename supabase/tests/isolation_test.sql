@@ -2399,6 +2399,32 @@ select pg_temp.probe('admin_ph@iso-test.local', $q$insert into curriculum_books 
 select pg_temp.probe('admin_ph@iso-test.local', $q$update curriculum_books set status = 'pending' where title = 'ISO PPCT bật lại'$q$, true);
 select pg_temp.chk('admin_ph', 'Bật lại duyệt: gửi duyệt PPCT → chờ duyệt', $q$select status from curriculum_books where title = 'ISO PPCT bật lại'$q$, 'pending');
 
+-- ===== 069: trường thử nghiệm cho KDI =====
+drop table if exists t_sandbox;
+create temp table t_sandbox as select exists (select 1 from organizations where code = 'KDI-SANDBOX') as existed;
+select pg_temp.chk('admin_ph', 'Trường thử nghiệm: quản trị trường không tạo được', $q$select platform_sandbox_school()::text$q$, 'ERR');
+select pg_temp.probe('kdi@iso-test.local', $q$select platform_sandbox_school()::text$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$select platform_sandbox_school()::text$q$, true);
+select pg_temp.chk('kdi', 'Trường thử nghiệm: bấm lại không tạo trùng; được gán Hiệu trưởng + Giáo viên',
+  $q$select (select count(*) from organizations where code like 'KDI-SANDBOX%') || '|' || (select string_agg(r.key, ',' order by r.key) from memberships m join roles r on r.id = m.role_id join organizations o on o.id = m.org_id where m.user_id = auth.uid() and o.code = 'KDI-SANDBOX')$q$, '2|principal,teacher');
+select pg_temp.chk('kdi', 'Trường thử nghiệm: có hồ sơ giáo viên dạy 3 lớp, mỗi lớp 10 học sinh',
+  $q$select count(distinct t.class_id) || '|' || (select count(*) from students st where st.org_id = o.id) from organizations o join teachers g on g.org_id = o.id and g.profile_id = auth.uid() join teaching_assignments t on t.teacher_id = g.id where o.code = 'KDI-SANDBOX' group by o.id$q$, '3|30');
+select pg_temp.chk('kdi', 'Trường thử nghiệm: đổi sang trường được', $q$select (switch_org((select id from organizations where code = 'KDI-SANDBOX')) is not null)::text$q$, 'true');
+do $$ begin
+  if not (select existed from t_sandbox) then
+    delete from teaching_assignments where org_id in (select id from organizations where code = 'KDI-SANDBOX');
+    delete from students where org_id in (select id from organizations where code = 'KDI-SANDBOX');
+    delete from classes where org_id in (select id from organizations where code = 'KDI-SANDBOX');
+    delete from teachers where org_id in (select id from organizations where code = 'KDI-SANDBOX');
+    delete from stem_rooms where org_id in (select id from organizations where code = 'KDI-SANDBOX');
+    delete from period_configs where org_id in (select id from organizations where code = 'KDI-SANDBOX');
+    delete from academic_years where org_id in (select id from organizations where code = 'KDI-SANDBOX');
+    delete from memberships where org_id in (select id from organizations where code like 'KDI-SANDBOX%');
+    delete from organizations where code = 'KDI-SANDBOX';
+    delete from organizations where code = 'KDI-SANDBOX-SO';
+  end if;
+end $$;
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

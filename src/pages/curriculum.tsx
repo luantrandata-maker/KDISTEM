@@ -239,7 +239,7 @@ const IMPORT: Column[] = [
   { key: 'term', label: 'Học kỳ', aliases: ['HK', 'Kỳ'] },
   { key: 'title', label: 'Tên bài / nội dung', required: true, aliases: ['Tên bài', 'Bài học', 'Nội dung', 'Tên bài học'], width: 44 },
   { key: 'kind', label: 'Loại tiết', aliases: ['Loại'], width: 14 },
-  { key: 'unit', label: 'Bài trong chương trình', aliases: ['Bài trong CT', 'Chủ đề / bài'], width: 32 },
+  { key: 'unit', label: 'Bài trong chương trình', aliases: ['Bài trong CT', 'Học phần / bài', 'Chủ đề / bài'], width: 32 },
   { key: 'topic', label: 'Chủ đề STEM', aliases: ['Chủ đề'], width: 28 },
   { key: 'note', label: 'Ghi chú', width: 24 },
 ]
@@ -276,7 +276,7 @@ function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book: Book;
   }
   useEffect(() => { load() }, [book.id])
   const topicName = (id: string | null) => (id ? topics.find(t => t.id === id)?.title ?? 'Chủ đề STEM' : '')
-  // Bài trong chương trình: tên kèm chủ đề cha để dễ chọn
+  // Bài trong chương trình: tên kèm học phần cha để dễ chọn
   const unitLabel = useMemo(() => {
     const by = new Map(units.map(u => [u.id, u]))
     return (id: string | null) => {
@@ -765,7 +765,7 @@ function ClassDetail({ row, mode, onClose }: { row: Progress; mode: PpctMode; on
         <div className="panel"><p className="sub" style={{ margin: 0 }}>PPCT này chưa gắn với chương trình giáo dục có yêu cầu cần đạt. Tạo PPCT từ "Chương trình giáo dục" hoặc chọn "Bài trong chương trình" cho từng tiết.</p></div>
       ) : (
         <div className="wrap"><table>
-          <thead><tr><th>Mã</th><th>Yêu cầu cần đạt</th><th>Chủ đề / bài</th><th>Tiết đã dạy</th><th>Tình trạng</th></tr></thead>
+          <thead><tr><th>Mã</th><th>Yêu cầu cần đạt</th><th>Học phần / bài</th><th>Tiết đã dạy</th><th>Tình trạng</th></tr></thead>
           <tbody>{outcomes.map(o => (
             <tr key={o.outcome_id}><td><small>{o.code}</small></td><td>{o.content}</td><td><small>{o.unit_title ?? 'Cả chương trình'}</small></td>
               <td>{o.lessons ? <>{o.done}/{o.lessons}<div className="progress" style={{ width: 80, marginTop: 4 }}><i style={{ width: Math.round(o.done / o.lessons * 100) + '%' }} /></div></> : '—'}</td>

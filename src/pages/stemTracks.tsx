@@ -3,18 +3,30 @@ import { supabase } from '../lib/supabase'
 import { PROGRAM_COLOR } from './teacher/common'
 import { STEM_LEVELS, STEM_LEVEL_NAME, useStemTracks, type StemLevel, type StemTrack } from '../lib/stemTracks'
 
-// Danh mục chương trình STEM CT1–CT5 (migration 062): KDI sửa tên, mô tả, môn học, cấp học áp dụng;
-// đơn vị khác xem. Kèm các chương trình giáo dục đang ban hành của từng CT.
+// Danh mục loại chương trình (migration 062, 064): CT1–CT5 ban đầu; KDI thêm loại mới, sửa tên, mô tả, môn học,
+// cấp học áp dụng, ngừng dùng hoặc xoá loại chưa được dùng; đơn vị khác xem. Kèm các chương trình giáo dục đang ban hành của từng loại.
 type Prog = { id: string; code: string | null; title: string; ct_code: string; level: string; version_no: number }
 const LV: Record<string, string> = { tieuhoc: 'Tiểu học', thcs: 'THCS', thpt: 'THPT' }
-const errText = (m: string) => (/schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 062 trên Supabase.'
-  : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI sửa được danh mục này.' : m)
+const errText = (m: string) => (/schema cache|does not exist|column .*(sort|active)/i.test(m) ? 'Hãy chạy migration 064 trên Supabase.'
+  : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'
+  : /23503|foreign key/i.test(m) ? 'Loại này đang được chương trình, bài giảng, học liệu hoặc lớp dùng — hãy chuyển sang "Ngừng dùng".'
+  : /23505|duplicate/i.test(m) ? 'Mã loại đã có.'
+  : /stem_tracks_code_check/i.test(m) ? 'Mã gồm 2–12 ký tự: chữ in hoa, số, "-" hoặc "_", bắt đầu bằng chữ (vd. CT6).' : m)
+const BLANK: StemTrack = { code: '', name: '', title: '', description: '', subjects: [], levels: [], sort: 0, active: true }
 
 export function StemTracksCatalog() {
   const { tracks, reload } = useStemTracks()
   const [admin, setAdmin] = useState(false)
   const [progs, setProgs] = useState<Prog[]>([])
   const [edit, setEdit] = useState<string | null>(null)
+  const [msg, setMsg] = useState('')
+  async function remove(t: StemTrack) {
+    if (!confirm(`Xoá loại chương trình ${t.code} · ${t.name}? Chỉ xoá được khi chưa có chương trình, bài giảng, học liệu hay lớp nào dùng.`)) return
+    const { data, error } = await supabase.from('stem_tracks').delete().eq('code', t.code).select('code')
+    if (error) return setMsg(errText(error.message + ' ' + (error.code ?? '')))
+    if (!data?.length) return setMsg(errText('row-level'))
+    setMsg(''); reload()
+  }
   useEffect(() => {
     supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data))
     supabase.from('edu_programs').select('id, code, title, ct_code, level, version_no').eq('kind', 'stem').eq('status', 'published').order('code')
@@ -22,9 +34,15 @@ export function StemTracksCatalog() {
   }, [])
   return (
     <>
-      <p className="sub">Năm chương trình STEM của KDI: tên, mô tả, môn học trong chương trình và cấp học áp dụng. {admin
-        ? 'Bấm "Sửa" để điều chỉnh; thay đổi hiện ngay ở mọi màn dùng CT1–CT5.'
-        : 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'} Nội dung chi tiết (chủ đề, yêu cầu cần đạt) nằm trong từng chương trình giáo dục bên dưới mỗi CT.</p>
+      <div className="bar">
+        <p className="sub" style={{ margin: 0 }}>Loại chương trình STEM của KDI (CT1–CT5 và các loại thêm sau): tên, mô tả, môn học và cấp học áp dụng. {admin
+          ? 'Bấm "Sửa" để điều chỉnh; thay đổi hiện ngay ở mọi màn chọn loại chương trình. Loại đã được dùng thì không xoá, chỉ ngừng dùng.'
+          : 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'} Nội dung chi tiết (học phần, yêu cầu cần đạt) nằm trong từng chương trình giáo dục bên dưới mỗi loại.</p>
+        {admin && edit !== '' && <button className="primary" onClick={() => { setMsg(''); setEdit('') }}>Thêm loại chương trình</button>}
+      </div>
+      {msg && <p className="msg" role="status">{msg}</p>}
+      {edit === '' && <TrackForm t={{ ...BLANK, sort: tracks.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1 }} isNew
+        onCancel={() => setEdit(null)} onSaved={() => { setEdit(null); reload() }} />}
       {tracks.map(t => {
         const list = progs.filter(p => p.ct_code === t.code)
         return edit === t.code
@@ -33,8 +51,11 @@ export function StemTracksCatalog() {
             <section key={t.code} className="panel">
               <div className="bar" style={{ margin: 0 }}>
                 <h3 style={{ margin: 0 }}><span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{t.code}</span> {t.title}
-                  <small className="sub" style={{ marginLeft: 8 }}>{t.name}</small></h3>
-                {admin && <button onClick={() => setEdit(t.code)}>Sửa</button>}
+                  <small className="sub" style={{ marginLeft: 8 }}>{t.name}</small>{t.active === false && <span className="pill" style={{ marginLeft: 8 }}>Ngừng dùng</span>}</h3>
+                {admin && <div className="tools">
+                  <button onClick={() => { setMsg(''); setEdit(t.code) }}>Sửa</button>
+                  <button className="danger" onClick={() => remove(t)}>Xoá</button>
+                </div>}
               </div>
               {t.description && <p style={{ margin: '6px 0 10px' }}>{t.description}</p>}
               <div className="sub" style={{ margin: '0 0 4px' }}>Các môn học trong chương trình</div>
@@ -43,7 +64,7 @@ export function StemTracksCatalog() {
               <div>{t.levels.length ? t.levels.map(l => <span key={l} className="pill" style={{ marginRight: 6 }}>{STEM_LEVEL_NAME[l]}</span>) : <small className="sub">Chưa chọn</small>}</div>
               <div className="sub" style={{ margin: '10px 0 4px' }}>Chương trình giáo dục đang ban hành ({list.length})</div>
               <div>{list.length ? list.map(p => <span key={p.id} className="chip" style={{ paddingRight: 12 }}>{p.title} · {LV[p.level] ?? p.level} · v{p.version_no}</span>)
-                : <small className="sub">Chưa có — tạo ở tab "Chương trình giáo dục", chọn loại "Chương trình STEM" và {t.code}.</small>}</div>
+                : <small className="sub">Chưa có — tạo ở tab "Chương trình giáo dục", chọn kiểu "Chương trình STEM" và loại {t.code}.</small>}</div>
             </section>
           )
       })}
@@ -51,7 +72,7 @@ export function StemTracksCatalog() {
   )
 }
 
-function TrackForm({ t, onCancel, onSaved }: { t: StemTrack; onCancel: () => void; onSaved: () => void }) {
+function TrackForm({ t, isNew = false, onCancel, onSaved }: { t: StemTrack; isNew?: boolean; onCancel: () => void; onSaved: () => void }) {
   const [f, setF] = useState<StemTrack>({ ...t, subjects: [...t.subjects], levels: [...t.levels] })
   const [add, setAdd] = useState('')
   const [busy, setBusy] = useState(false)
@@ -70,19 +91,26 @@ function TrackForm({ t, onCancel, onSaved }: { t: StemTrack; onCancel: () => voi
   const toggle = (l: StemLevel) => setF({ ...f, levels: f.levels.includes(l) ? f.levels.filter(x => x !== l) : [...f.levels, l] })
   async function save() {
     if (!f.name.trim() || !f.title.trim()) return setErr('Nhập tên và tên đầy đủ.')
+    const code = f.code.trim().toUpperCase()
+    if (isNew && !/^[A-Z][A-Z0-9_-]{1,11}$/.test(code)) return setErr(errText('stem_tracks_code_check'))
     setBusy(true); setErr('')
-    const { data, error } = await supabase.from('stem_tracks')
-      .update({ name: f.name, title: f.title, description: f.description, subjects: f.subjects, levels: f.levels })
-      .eq('code', t.code).select('code')
+    const row = { name: f.name, title: f.title, description: f.description, subjects: f.subjects, levels: f.levels, sort: Number(f.sort) || 0, active: f.active !== false }
+    const { data, error } = isNew
+      ? await supabase.from('stem_tracks').insert({ ...row, code }).select('code')
+      : await supabase.from('stem_tracks').update(row).eq('code', t.code).select('code')
     setBusy(false)
-    if (error) return setErr(errText(error.message))
+    if (error) return setErr(errText(error.message + ' ' + (error.code ?? '')))
     if (!data?.length) return setErr(errText('row-level'))
     onSaved()
   }
   return (
     <section className="panel">
-      <h3><span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{t.code}</span> Sửa danh mục</h3>
+      <h3>{isNew ? 'Thêm loại chương trình' : <><span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{t.code}</span> Sửa loại chương trình</>}</h3>
       <div className="formgrid">
+        {isNew && <label className="field"><span>Mã loại *</span><input value={f.code} maxLength={12} placeholder="VD: CT6" onChange={e => setF({ ...f, code: e.target.value.toUpperCase() })} /></label>}
+        <label className="field"><span>Thứ tự hiển thị</span><input type="number" min={0} value={f.sort ?? 0} onChange={e => setF({ ...f, sort: Number(e.target.value) })} /></label>
+        <label className="field"><span>Trạng thái</span><select value={f.active === false ? 'off' : 'on'} onChange={e => setF({ ...f, active: e.target.value === 'on' })}>
+          <option value="on">Đang dùng</option><option value="off">Ngừng dùng (không chọn được khi soạn mới)</option></select></label>
         <label className="field"><span>Tên ngắn (hiện trên thẻ)</span><input value={f.name} maxLength={80} onChange={e => setF({ ...f, name: e.target.value })} /></label>
         <label className="field"><span>Tên đầy đủ</span><input value={f.title} maxLength={160} onChange={e => setF({ ...f, title: e.target.value })} /></label>
         <label className="field wide"><span>Mô tả</span><textarea rows={2} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>

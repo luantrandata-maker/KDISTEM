@@ -5,8 +5,11 @@ import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
 import { useStemTracks } from '../lib/stemTracks'
 import { asLesson, lessonStats, LessonEditor, type ILesson } from '../lib/lessonBlocks'
+import { useSubjects } from './subjects'
 
-// Chương trình giáo dục chuẩn (migration 058): danh mục + phiên bản, cấu trúc chủ đề → bài → buổi, yêu cầu cần đạt,
+// Khái niệm (064): Chương trình → Học phần (unit 'topic', trước gọi là chủ đề; gắn Môn học qua edu_unit_subjects)
+// → Bài học / Buổi học (gắn Học liệu qua edu_unit_materials) → Bài giảng (lesson_plans gắn unit_id, soạn ở "Soạn bài giảng").
+// Chương trình giáo dục chuẩn (migration 058): danh mục + phiên bản, cấu trúc học phần → bài học → buổi học, yêu cầu cần đạt,
 // gửi duyệt / ban hành / thay thế / lưu trữ, gán cho trường và theo dõi độ phủ; trường tạo PPCT từ chương trình.
 export type ProgMode = 'school' | 'authority' | 'platform'
 type Status = 'draft' | 'pending' | 'approved' | 'rejected' | 'published' | 'superseded' | 'archived'
@@ -42,9 +45,12 @@ export const PSTATUS: Record<Status, [string, string]> = {
   draft: ['Nháp', ''], pending: ['Chờ duyệt', 'warn'], approved: ['Đã duyệt', 'good'], rejected: ['Bị trả lại', 'bad'],
   published: ['Đang ban hành', 'good'], superseded: ['Đã thay thế', ''], archived: ['Lưu trữ', ''],
 }
-const UTYPE: Record<UnitType, string> = { topic: 'Chủ đề', lesson: 'Bài học', session: 'Buổi học' }
+const UTYPE: Record<UnitType, string> = { topic: 'Học phần', lesson: 'Bài học', session: 'Buổi học' }
+type USubject = { unit_id: string; subject_id: string; is_main: boolean; seq: number }
+type UMaterial = { unit_id: string; item_id: string; seq: number; note: string | null; library_items?: { title: string; content: { type?: string; url?: string } | null } | null }
+type MatOpt = { id: string; title: string; owner_org_id: string; status: string; content: { type?: string } | null }
+const MAT_ICON: Record<string, string> = { video: '🎬', document: '📄', link: '🔗', image: '🖼', worksheet: '📝', lesson_plan: '📘', guide: '📗' }
 const CHILD: Record<UnitType, UnitType | null> = { topic: 'lesson', lesson: 'session', session: null }
-const CT = ['CT1', 'CT2', 'CT3', 'CT4', 'CT5']
 const errText = (m: string) => (/schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 058 trên Supabase.'
   : /row-level|42501/i.test(m) ? 'Bạn không có quyền thực hiện thao tác này.' : m)
 const fmtD = (d: string | null) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—')
@@ -70,7 +76,7 @@ function useCanEdit(mode: ProgMode) {
 // ================= Danh sách chương trình =================
 export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; mode?: ProgMode }) {
   const { canEdit, isAdmin } = useCanEdit(mode)
-  const { byCode: tracks } = useStemTracks()
+  const { byCode: tracks, codes: CT } = useStemTracks()
   const [list, setList] = useState<Program[] | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const [level, setLevel] = useState('')
@@ -137,7 +143,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   )
   const table = (rows: Program[], mine: boolean) => (
     <div className="wrap"><table>
-      <thead><tr><th>Chương trình</th><th>Cấp · khối · loại</th><th>Môn</th><th>Số tiết</th><th>Trạng thái</th><th></th></tr></thead>
+      <thead><tr><th>Chương trình</th><th>Cấp · khối · kiểu · loại</th><th>Môn</th><th>Số tiết</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>{rows.map(p => row(p, mine))}</tbody>
     </table></div>
   )
@@ -151,7 +157,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
       <div className="bar">
         <div className="tools">
           <select value={level} onChange={e => setLevel(e.target.value)} aria-label="Cấp học"><option value="">Mọi cấp học</option>{(Object.keys(LEVEL) as Level[]).map(l => <option key={l} value={l}>{LEVEL[l]}</option>)}</select>
-          <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại"><option value="">Mọi loại</option>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select>
+          <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Kiểu chương trình"><option value="">Mọi kiểu</option>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select>
           {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
           <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Trạng thái"><option value="">Mọi trạng thái</option>{(Object.keys(PSTATUS) as Status[]).map(s => <option key={s} value={s}>{PSTATUS[s][0]}</option>)}</select>
           <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
@@ -164,8 +170,8 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
         <form className="panel formgrid" onSubmit={create} style={{ marginBottom: 12 }}>
           <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình *</span><input required value={form.title ?? ''} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Tin học THCS (CT GDPT 2018)" /></label>
           <label className="field"><span>Mã</span><input value={form.code ?? ''} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: TIN-THCS" /></label>
-          <label className="field"><span>Loại</span><select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
-          {form.kind === 'stem' && <label className="field"><span>Chương trình STEM</span><select value={form.ct_code ?? ''} onChange={e => setForm({ ...form, ct_code: e.target.value || null })}><option value="">—</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select></label>}
+          <label className="field"><span>Kiểu chương trình</span><select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
+          {form.kind === 'stem' && <label className="field"><span>Loại chương trình</span><select value={form.ct_code ?? ''} onChange={e => setForm({ ...form, ct_code: e.target.value || null })}><option value="">—</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select></label>}
           <label className="field"><span>Cấp học</span><select value={form.level} onChange={e => { const l = e.target.value as Level; setForm({ ...form, level: l, grade_from: LEVEL_GRADES[l][0], grade_to: LEVEL_GRADES[l][1] }) }}>{(Object.keys(LEVEL) as Level[]).map(l => <option key={l} value={l}>{LEVEL[l]}</option>)}</select></label>
           <label className="field"><span>Từ khối</span><input type="number" min={1} max={12} value={form.grade_from ?? ''} onChange={e => setForm({ ...form, grade_from: Number(e.target.value) })} /></label>
           <label className="field"><span>Đến khối</span><input type="number" min={1} max={12} value={form.grade_to ?? ''} onChange={e => setForm({ ...form, grade_to: Number(e.target.value) })} /></label>
@@ -273,7 +279,7 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError }: 
 }) {
   const [f, setF] = useState<Program>(p)
   const [integ, setInteg] = useState(p.integrated_subjects.join(', '))
-  const { byCode: tracks } = useStemTracks()
+  const { byCode: tracks, allCodes: CT } = useStemTracks()
   const [rubrics, setRubrics] = useState<Rubric[]>([])
   useEffect(() => { setF(p); setInteg(p.integrated_subjects.join(', ')) }, [p])
   useEffect(() => { supabase.from('rubrics').select('id, title').order('title').then(({ data }) => setRubrics((data as Rubric[]) ?? [])) }, [])
@@ -306,8 +312,8 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError }: 
       <div className="formgrid">
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình</span><input disabled={dis} value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></label>
         <label className="field"><span>Mã</span><input disabled={dis} value={f.code ?? ''} onChange={e => setF({ ...f, code: e.target.value })} /></label>
-        <label className="field"><span>Loại</span><select disabled={dis} value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
-        {f.kind === 'stem' && <label className="field"><span>Chương trình STEM</span><select disabled={dis} value={f.ct_code ?? ''} onChange={e => setF({ ...f, ct_code: e.target.value || null })}><option value="">—</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select></label>}
+        <label className="field"><span>Kiểu chương trình</span><select disabled={dis} value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
+        {f.kind === 'stem' && <label className="field"><span>Loại chương trình</span><select disabled={dis} value={f.ct_code ?? ''} onChange={e => setF({ ...f, ct_code: e.target.value || null })}><option value="">—</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select></label>}
         <label className="field"><span>Cấp học</span><select disabled={dis} value={f.level} onChange={e => setF({ ...f, level: e.target.value as Level })}>{(Object.keys(LEVEL) as Level[]).map(l => <option key={l} value={l}>{LEVEL[l]}</option>)}</select></label>
         <label className="field"><span>Từ khối</span><input disabled={dis} type="number" min={1} max={12} value={f.grade_from} onChange={e => setF({ ...f, grade_from: Number(e.target.value) })} /></label>
         <label className="field"><span>Đến khối</span><input disabled={dis} type="number" min={1} max={12} value={f.grade_to} onChange={e => setF({ ...f, grade_to: Number(e.target.value) })} /></label>
@@ -342,14 +348,14 @@ const IMPORT: Column[] = [
   { key: 'type', label: 'Loại', required: true, aliases: ['Cấp', 'Loại mục'], width: 12 },
   { key: 'grade', label: 'Khối', width: 8 },
   { key: 'subject', label: 'Môn', width: 16 },
-  { key: 'title', label: 'Tên', required: true, aliases: ['Tên chủ đề / bài', 'Tên bài', 'Nội dung'], width: 44 },
+  { key: 'title', label: 'Tên', required: true, aliases: ['Tên học phần / bài', 'Tên chủ đề / bài', 'Tên bài', 'Nội dung'], width: 44 },
   { key: 'periods', label: 'Số tiết', aliases: ['Tiết'], width: 8 },
   { key: 'objectives', label: 'Mục tiêu', width: 30 },
   { key: 'outcomes', label: 'Yêu cầu cần đạt', aliases: ['YCCĐ', 'Yêu cầu'], width: 50 },
 ]
 const typeOf = (s: string): UnitType | null => {
   const n = norm(s)
-  if (!n || n.startsWith('chu de') || n === 'topic') return n ? 'topic' : null
+  if (!n || n.startsWith('hoc phan') || n.startsWith('chu de') || n === 'topic') return n ? 'topic' : null
   if (n.startsWith('bai') || n === 'lesson') return 'lesson'
   if (n.startsWith('buoi') || n === 'session') return 'session'
   return null
@@ -363,18 +369,66 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
   const [edit, setEdit] = useState<Partial<Unit> | null>(null)
   const [oedit, setOedit] = useState<Partial<Outcome> | null>(null)
   const [lessonOf, setLessonOf] = useState<Unit | null>(null)
+  const [usubs, setUsubs] = useState<USubject[]>([])
+  const [umats, setUmats] = useState<UMaterial[]>([])
+  const [subjFor, setSubjFor] = useState<string | null>(null)                 // học phần đang chọn môn
+  const [matFor, setMatFor] = useState<{ unit: string; item: string; note: string } | null>(null)   // bài học đang thêm học liệu
+  const [matOpts, setMatOpts] = useState<MatOpt[] | null>(null)
+  const { subjects } = useSubjects()
   async function load() {
-    const [u, o] = await Promise.all([
+    const [u, o, us, um] = await Promise.all([
       supabase.from('edu_program_units').select('*').eq('program_id', p.id).order('seq'),
       supabase.from('edu_outcomes').select('*').eq('program_id', p.id).order('seq'),
+      supabase.from('edu_unit_subjects').select('unit_id, subject_id, is_main, seq').eq('program_id', p.id).order('seq'),
+      supabase.from('edu_unit_materials').select('unit_id, item_id, seq, note, library_items(title, content)').eq('program_id', p.id).order('seq'),
     ])
     if (u.error) onMessage(errText(u.error.message), true)
     setUnits((u.data as Unit[]) ?? []); setOuts((o.data as Outcome[]) ?? [])
+    setUsubs((us.data as USubject[]) ?? []); setUmats((um.data as unknown as UMaterial[]) ?? [])
   }
   useEffect(() => { load() }, [p.id])
+  // Học liệu chọn được: học liệu của đơn vị (mọi trạng thái) và học liệu đã phát hành tới đơn vị
+  async function openMatPicker(unitId: string) {
+    setMatFor({ unit: unitId, item: '', note: '' })
+    if (matOpts) return
+    const { data } = await supabase.from('library_items').select('id, title, owner_org_id, status, content').eq('kind', 'material').neq('status', 'archived').order('title')
+    setMatOpts(((data as MatOpt[]) ?? []).filter(m => m.status === 'published' || m.owner_org_id === p.org_id))
+  }
+  const subjName = (id: string) => subjects.find(s => s.id === id)?.name ?? 'Môn không còn trong danh mục'
+  const subjectsOf = (unitId: string) => usubs.filter(x => x.unit_id === unitId).sort((a, b) => Number(b.is_main) - Number(a.is_main) || a.seq - b.seq)
+  const usable = subjects.filter(s => s.active && (!s.levels.length || s.levels.includes(p.level)))
+  async function addSubject(unitId: string, subjectId: string) {
+    if (!subjectId) return
+    const cur = subjectsOf(unitId)
+    const { error } = await supabase.from('edu_unit_subjects').insert({ unit_id: unitId, subject_id: subjectId, is_main: cur.length === 0, seq: cur.length + 1 })
+    if (error) return onMessage(errText(error.message), true)
+    load()
+  }
+  async function setMain(x: USubject) {
+    const { error } = await supabase.from('edu_unit_subjects').update({ is_main: true }).eq('unit_id', x.unit_id).eq('subject_id', x.subject_id)
+    if (error) return onMessage(errText(error.message), true)
+    load()
+  }
+  async function dropSubject(x: USubject) {
+    const { error } = await supabase.from('edu_unit_subjects').delete().eq('unit_id', x.unit_id).eq('subject_id', x.subject_id)
+    if (error) return onMessage(errText(error.message), true)
+    load()
+  }
+  async function addMaterial(e: React.FormEvent) {
+    e.preventDefault(); if (!matFor?.item) return
+    const seq = umats.filter(x => x.unit_id === matFor.unit).reduce((m, x) => Math.max(m, x.seq), 0) + 1
+    const { error } = await supabase.from('edu_unit_materials').insert({ unit_id: matFor.unit, item_id: matFor.item, seq, note: matFor.note.trim() || null })
+    if (error) return onMessage(errText(error.message), true)
+    setMatFor(null); load()
+  }
+  async function dropMaterial(x: UMaterial) {
+    const { error } = await supabase.from('edu_unit_materials').delete().eq('unit_id', x.unit_id).eq('item_id', x.item_id)
+    if (error) return onMessage(errText(error.message), true)
+    load()
+  }
   const all = units ?? []
   const kids = (parent: string | null) => all.filter(u => u.parent_id === parent).sort((a, b) => a.seq - b.seq)
-  // Thứ tự hiển thị: chủ đề, các bài của nó, các buổi của mỗi bài
+  // Thứ tự hiển thị: học phần, các bài của nó, các buổi của mỗi bài
   const ordered: { u: Unit; depth: number }[] = []
   const walk = (parent: string | null, depth: number) => kids(parent).forEach(u => { ordered.push({ u, depth }); walk(u.id, depth + 1) })
   walk(null, 0)
@@ -393,8 +447,12 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
       periods: Number(edit.periods) || 0, objectives: edit.objectives?.trim() || null,
     }
     if (!row.title) return onMessage('Nhập tên.', true)
-    const { error } = edit.id ? await supabase.from('edu_program_units').update(row).eq('id', edit.id) : await supabase.from('edu_program_units').insert(row)
-    if (error) return onMessage(errText(error.message), true)
+    const res = edit.id ? await supabase.from('edu_program_units').update(row).eq('id', edit.id).select('id') : await supabase.from('edu_program_units').insert(row).select('id')
+    if (res.error) return onMessage(errText(res.error.message), true)
+    // Học phần mới có "Môn" trùng tên môn trong danh mục → gắn luôn làm môn chính
+    const newId = (res.data as { id: string }[] | null)?.[0]?.id
+    const match = row.subject && subjects.find(s => s.active && s.name.toLowerCase() === row.subject!.toLowerCase())
+    if (!edit.id && newId && row.unit_type === 'topic' && match) await supabase.from('edu_unit_subjects').insert({ unit_id: newId, subject_id: match.id, is_main: true })
     setEdit(null); await load(); onChanged()
   }
   async function delUnit(u: Unit) {
@@ -431,7 +489,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
     let hasLesson = false
     for (const r of recs) {
       const t = typeOf(r.type)
-      if (!t) { bad.push(`dòng ${r._line}: loại "${r.type}" không rõ (Chủ đề / Bài học / Buổi học)`); continue }
+      if (!t) { bad.push(`dòng ${r._line}: loại "${r.type}" không rõ (Học phần / Bài học / Buổi học)`); continue }
       if (!r.title.trim()) { bad.push(`dòng ${r._line}: thiếu tên`); continue }
       if (t === 'session' && !hasLesson) { bad.push(`dòng ${r._line}: buổi học chưa thuộc bài học nào`); continue }
       if (t === 'topic') hasLesson = false
@@ -480,10 +538,11 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
     <tr>
       <td style={{ paddingLeft: 8 + depth * 22 }}><small>{UTYPE[edit?.unit_type ?? 'topic']}</small><br />
         <input type="number" min={1} value={edit?.seq ?? ''} onChange={e => setEdit({ ...edit, seq: Number(e.target.value) })} aria-label="Thứ tự" style={{ width: 56 }} /></td>
-      <td><input value={edit?.title ?? ''} onChange={e => setEdit({ ...edit, title: e.target.value })} aria-label="Tên" autoFocus style={{ width: '100%', minWidth: 200 }} placeholder="Tên chủ đề / bài / buổi" />
+      <td><input value={edit?.title ?? ''} onChange={e => setEdit({ ...edit, title: e.target.value })} aria-label="Tên" autoFocus style={{ width: '100%', minWidth: 200 }} placeholder="Tên học phần / bài / buổi" />
         <input value={edit?.objectives ?? ''} onChange={e => setEdit({ ...edit, objectives: e.target.value })} aria-label="Mục tiêu" placeholder="Mục tiêu" style={{ width: '100%', marginTop: 4 }} /></td>
       <td><select value={edit?.grade ?? ''} onChange={e => setEdit({ ...edit, grade: Number(e.target.value) || null })} aria-label="Khối"><option value="">—</option>{range(p.grade_from, p.grade_to).map(g => <option key={g} value={g}>{g}</option>)}</select></td>
-      <td><input value={edit?.subject ?? ''} onChange={e => setEdit({ ...edit, subject: e.target.value })} aria-label="Môn" style={{ width: 110 }} placeholder={p.main_subject} /></td>
+      <td><input value={edit?.subject ?? ''} list="unit-subjects" onChange={e => setEdit({ ...edit, subject: e.target.value })} aria-label="Môn" style={{ width: 110 }} placeholder={p.main_subject} />
+        <datalist id="unit-subjects">{usable.map(s => <option key={s.id} value={s.name} />)}</datalist></td>
       <td><input type="number" min={0} value={edit?.periods ?? 0} onChange={e => setEdit({ ...edit, periods: Number(e.target.value) })} aria-label="Số tiết" style={{ width: 64 }} /></td>
       <td className="tools"><button className="primary" type="submit" form="prog-unit">Lưu</button><button type="button" onClick={() => setEdit(null)}>Huỷ</button></td>
     </tr>
@@ -501,25 +560,25 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
   return (
     <>
       <Tiles items={[
-        { label: 'Chủ đề', value: all.filter(u => u.unit_type === 'topic').length },
+        { label: 'Học phần', value: all.filter(u => u.unit_type === 'topic').length, sub: `${new Set(usubs.map(x => x.subject_id)).size} môn học` },
         { label: 'Bài học', value: all.filter(u => u.unit_type === 'lesson').length, sub: `${all.filter(u => u.unit_type === 'session').length} buổi học` },
         { label: 'Tổng số tiết', value: leafTotal },
-        { label: 'Yêu cầu cần đạt', value: outs.length },
+        { label: 'Yêu cầu cần đạt', value: outs.length, sub: `${umats.length} lượt học liệu` },
       ]} />
       <div className="bar">
-        <p className="sub" style={{ margin: 0 }}>Cấu trúc: chủ đề → bài học → buổi học. Số tiết tính theo mục cuối cùng của mỗi nhánh.</p>
+        <p className="sub" style={{ margin: 0 }}>Cấu trúc: học phần (gắn môn học) → bài học → buổi học (gắn học liệu). Số tiết tính theo mục cuối cùng của mỗi nhánh. Bài giảng cho từng bài soạn ở "Soạn bài giảng".</p>
         <div className="tools">
           {editable && <ImportExcel columns={IMPORT} template={`Mau-chuong-trinh-${p.main_subject}`}
-            sample={[['Chủ đề', '6', '', 'Chủ đề A. Máy tính và cộng đồng', '', 'Hiểu thông tin và dữ liệu', 'Phân biệt được thông tin và dữ liệu; Nêu được ví dụ về xử lí thông tin'],
+            sample={[['Học phần', '6', '', 'Chủ đề A. Máy tính và cộng đồng', '', 'Hiểu thông tin và dữ liệu', 'Phân biệt được thông tin và dữ liệu; Nêu được ví dụ về xử lí thông tin'],
               ['Bài học', '', '', 'Bài 1. Thông tin và dữ liệu', '2', '', ''], ['Buổi học', '', '', 'Buổi 1: Thảo luận nhóm', '1', '', '']]}
             onRecords={importRows} onMessage={(m, e) => onMessage(m, e)} />}
           {all.length > 0 && <button onClick={exportRows}>Tải Excel</button>}
-          {editable && <button className="primary" onClick={() => addChild(null)}>Thêm chủ đề</button>}
+          {editable && <button className="primary" onClick={() => addChild(null)}>Thêm học phần</button>}
         </div>
       </div>
       <form id="prog-unit" onSubmit={saveUnit} />
       <form id="prog-out" onSubmit={saveOut} />
-      {all.length === 0 && !edit ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chủ đề nào.{editable && ' Bấm "Thêm chủ đề" hoặc "Nhập Excel".'}</p></div> : (
+      {all.length === 0 && !edit ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có học phần nào.{editable && ' Bấm "Thêm học phần" hoặc "Nhập Excel".'}</p></div> : (
         <div className="wrap"><table>
           <thead><tr><th>Mục</th><th>Tên · mục tiêu · yêu cầu cần đạt</th><th>Khối</th><th>Môn</th><th>Số tiết</th><th></th></tr></thead>
           <tbody>
@@ -536,13 +595,45 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
                             {editable && <> <button className="linkbtn" onClick={() => { setEdit(null); setOedit(o) }}>Sửa</button> <button className="linkbtn" onClick={() => delOut(o)}>Xoá</button></>}</div>
                         ))}
                         {oedit && !oedit.id && oedit.unit_id === u.id && outForm}
+                        {u.unit_type !== 'topic' && umats.some(x => x.unit_id === u.id) && (
+                          <div style={{ fontSize: 13, marginTop: 4 }}><small className="sub">Học liệu: </small>
+                            {umats.filter(x => x.unit_id === u.id).map(x => (
+                              <span key={x.item_id} className="chip" title={x.note ?? undefined}>{MAT_ICON[x.library_items?.content?.type ?? ''] ?? '📎'} {x.library_items?.title ?? 'Học liệu không còn xem được'}{x.note && <small className="sub"> · {x.note}</small>}
+                                {editable && <button type="button" className="x" aria-label={`Bỏ học liệu ${x.library_items?.title ?? ''}`} onClick={() => dropMaterial(x)}>×</button>}</span>
+                            ))}</div>
+                        )}
+                        {matFor?.unit === u.id && (
+                          <form className="addrow" style={{ flexWrap: 'wrap', gap: 6, marginTop: 4 }} onSubmit={addMaterial}>
+                            <select value={matFor.item} onChange={e => setMatFor({ ...matFor, item: e.target.value })} aria-label="Học liệu" autoFocus style={{ minWidth: 220, flex: 1 }}>
+                              <option value="">{matOpts ? (matOpts.length ? '— Chọn học liệu —' : 'Chưa có học liệu nào — thêm ở "Phát hành học liệu"') : 'Đang tải…'}</option>
+                              {(matOpts ?? []).filter(m => !umats.some(x => x.unit_id === u.id && x.item_id === m.id)).map(m => <option key={m.id} value={m.id}>{MAT_ICON[m.content?.type ?? ''] ?? '📎'} {m.title}{m.status !== 'published' ? ' (nháp)' : ''}</option>)}
+                            </select>
+                            <input value={matFor.note} onChange={e => setMatFor({ ...matFor, note: e.target.value })} placeholder="Dùng ở phần nào (không bắt buộc)" aria-label="Ghi chú" style={{ minWidth: 180 }} maxLength={500} />
+                            <button className="primary" type="submit" disabled={!matFor.item}>Gắn</button><button type="button" onClick={() => setMatFor(null)}>Huỷ</button>
+                          </form>
+                        )}
                       </td>
-                      <td>{u.grade ?? ''}</td><td><small>{u.subject ?? ''}</small></td><td>{u.periods || (all.some(c => c.parent_id === u.id) ? '' : '—')}</td>
+                      <td>{u.grade ?? ''}</td>
+                      <td>{u.unit_type === 'topic' && (subjectsOf(u.id).length || subjFor === u.id) ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                          {subjectsOf(u.id).map(x => (
+                            <span key={x.subject_id} className="chip" style={{ paddingRight: editable ? undefined : 12 }} title={x.is_main ? 'Môn chính' : undefined}>{x.is_main ? '★ ' : ''}{subjName(x.subject_id)}
+                              {editable && !x.is_main && <button type="button" className="x" aria-label={`Đặt ${subjName(x.subject_id)} làm môn chính`} onClick={() => setMain(x)}>★</button>}
+                              {editable && <button type="button" className="x" aria-label={`Bỏ môn ${subjName(x.subject_id)}`} onClick={() => dropSubject(x)}>×</button>}</span>
+                          ))}
+                          {subjFor === u.id && <select autoFocus value="" onChange={e => addSubject(u.id, e.target.value)} onBlur={() => setSubjFor(null)} aria-label="Thêm môn học" style={{ maxWidth: 160 }}>
+                            <option value="">+ Môn…</option>
+                            {usable.filter(s => !usubs.some(x => x.unit_id === u.id && x.subject_id === s.id)).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                          </select>}
+                        </div>
+                      ) : <small>{u.subject ?? ''}</small>}</td><td>{u.periods || (all.some(c => c.parent_id === u.id) ? '' : '—')}</td>
                       <td className="tools">
                         {(u.unit_type === 'session' || (u.unit_type === 'lesson' && !all.some(c => c.parent_id === u.id))) && (editable || asLesson(u.lesson)) && <button onClick={() => setLessonOf(u)}>
                           {editable ? 'Soạn nội dung buổi' : 'Xem nội dung buổi'}{asLesson(u.lesson) ? ` · ${lessonStats(asLesson(u.lesson)).blocks} khối` : ''}</button>}
                         {editable && <>
                         {CHILD[u.unit_type] && <button onClick={() => addChild(u)}>+ {UTYPE[CHILD[u.unit_type]!]}</button>}
+                        {u.unit_type === 'topic' && <button onClick={() => setSubjFor(u.id)}>+ Môn học</button>}
+                        {u.unit_type !== 'topic' && <button onClick={() => openMatPicker(u.id)}>+ Học liệu</button>}
                         <button onClick={() => { setEdit(null); setOedit({ unit_id: u.id, seq: os.length + 1 }) }}>+ YCCĐ</button>
                         <button onClick={() => { setOedit(null); setEdit(u) }}>Sửa</button>
                         <button className="danger" onClick={() => delUnit(u)}>Xoá</button>

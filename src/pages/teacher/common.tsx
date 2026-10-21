@@ -9,7 +9,7 @@ export const NoTeacher = () => <p className="sub">Tài khoản này chưa đư�
 export const KIND_LABEL: Record<string, string> = {
   worksheet: 'Phiếu HT', product: 'Sản phẩm', quiz: 'Kiểm tra', report: 'Báo cáo', homework: 'Bài về nhà', self_review: 'Tự đánh giá',
 }
-export const PROGRAM_COLOR: Record<string, string> = { CT1: '#64748b', CT2: '#2e95f2', CT3: '#7c3aed', CT4: '#dc2626', CT5: '#16a34a' }
+export { TRACK_COLOR as PROGRAM_COLOR } from '../../lib/stemTracks'
 
 // Lớp giáo viên được phân công dạy (gộp các môn)
 export function useMyClasses(teacherId: string | null) {

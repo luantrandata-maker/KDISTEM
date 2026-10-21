@@ -1,4 +1,4 @@
-// Thư viện STEM theo chương trình (063): chương trình → chủ đề → buổi học (bài giảng tương tác), tài liệu, thiết bị, mục tiêu;
+// Thư viện STEM theo chương trình (063): chương trình → học phần → buổi học (bài giảng tương tác), tài liệu, thiết bị, mục tiêu;
 // trình chiếu buổi học và đăng ký dạy STEM (phòng STEM → đăng ký phòng; lớp học → phiếu mượn thiết bị).
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -19,7 +19,7 @@ const art = (ct: string | null) => ART[ct ?? ''] ?? ['art0', '📘']
 const Chip = ({ ct }: { ct: string | null }) => ct ? <span className="progchip" style={{ background: PROGRAM_COLOR[ct] ?? '#64748b', color: '#fff' }}>{ct}</span> : null
 const grades = (p: Prog) => Array.from({ length: p.grade_to - p.grade_from + 1 }, (_, i) => p.grade_from + i)
 const sessMinutes = (u: Unit) => { const l = asLesson(u.lesson); const m = l ? lessonStats(l).minutes : 0; return m || (u.periods || 1) * 45 }
-// Các buổi dạy của một chủ đề: buổi học của từng bài; bài chưa chia buổi thì tính cả bài là một buổi
+// Các buổi dạy của một học phần: buổi học của từng bài; bài chưa chia buổi thì tính cả bài là một buổi
 function teachables(all: Unit[], topicId: string): Unit[] {
   const kids = (id: string) => all.filter(u => u.parent_id === id).sort((a, b) => a.seq - b.seq)
   return kids(topicId).flatMap(u => u.unit_type === 'lesson' ? (kids(u.id).filter(x => x.unit_type === 'session').length ? kids(u.id).filter(x => x.unit_type === 'session') : [u]) : u.unit_type === 'session' ? [u] : [])
@@ -78,11 +78,11 @@ export function LibraryPrograms({ teacherId, go }: Props) {
           <div className="crumbs" style={heroSmall}><button type="button" onClick={() => setPid(null)}>Thư viện STEM</button> / Chi tiết chương trình</div>
           <div><Chip ct={prog.ct_code} /> <span className="pill" style={{ background: 'rgba(255,255,255,.2)', color: '#fff' }}>Khối {grades(prog).join(', ')}</span></div>
           <h2>{prog.title}</h2>
-          <small style={heroSmall}>{topics.length} chủ đề · {topics.reduce((n, t) => n + sessOf(t.id), 0)} buổi học · {devCount(prog.id)} thiết bị</small>
+          <small style={heroSmall}>{topics.length} học phần · {topics.reduce((n, t) => n + sessOf(t.id), 0)} buổi học · {devCount(prog.id)} thiết bị</small>
         </div>
         {prog.objectives && <p className="sub">{prog.objectives}</p>}
-        <div className="sectionhead"><h3>Danh sách chủ đề</h3></div>
-        {topics.length === 0 && <p className="sub">Chương trình chưa có chủ đề.</p>}
+        <div className="sectionhead"><h3>Danh sách học phần</h3></div>
+        {topics.length === 0 && <p className="sub">Chương trình chưa có học phần.</p>}
         <div className="tilegrid">
           {topics.map(t => (
             <button type="button" key={t.id} className="tile" onClick={() => setTid(t.id)}>
@@ -95,7 +95,7 @@ export function LibraryPrograms({ teacherId, go }: Props) {
   }
   return (
     <>
-      <p className="sub">{progs.length} chương trình · Bài giảng, tài liệu và thiết bị theo từng chủ đề</p>
+      <p className="sub">{progs.length} chương trình · Bài giảng, tài liệu và thiết bị theo từng học phần</p>
       <div className="bar" style={{ margin: '0 0 12px' }}>
         <input className="search" style={{ margin: 0, flex: 1 }} placeholder="Tìm chương trình theo tên, khối, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chương trình" />
         <div className="tools">
@@ -171,7 +171,7 @@ function TopicView({ prog, topic, units, teacherId, onHome, onProgram }: { prog:
         {tabs.map(([k, l, n]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l} {n}</button>)}
       </div>
       {msg && <p className="okline">{msg}</p>}
-      {tab === 'lessons' && (sess.length === 0 ? <p className="sub">Chủ đề chưa có buổi học.</p> : (
+      {tab === 'lessons' && (sess.length === 0 ? <p className="sub">Học phần chưa có buổi học.</p> : (
         <div className="sessions">
           <div className="panel" style={{ margin: 0, padding: 6 }}>
             {sess.map((s, i) => {
@@ -201,21 +201,21 @@ function TopicView({ prog, topic, units, teacherId, onHome, onProgram }: { prog:
           )}
         </div>
       ))}
-      {tab === 'docs' && (libs.length === 0 ? <p className="sub">Chưa có tài liệu cho chủ đề này.</p> : (
+      {tab === 'docs' && (libs.length === 0 ? <p className="sub">Chưa có tài liệu cho học phần này.</p> : (
         <div className="wrap"><table><thead><tr><th>Tài liệu</th><th>Loại</th><th>Nguồn</th><th></th></tr></thead><tbody>
           {libs.map(l => <tr key={l.id}><td><b>{l.title}</b>{l.summary && <><br /><small className="sub">{l.summary}</small></>}{!l.unit_id && <><br /><small className="sub">Dùng chung cả chương trình</small></>}</td>
             <td>{l.kind === 'material' ? MAT[l.content?.type ?? ''] ?? 'Học liệu' : l.kind === 'lesson' ? 'Bài giảng' : 'Chương trình'}</td><td><small>{l.owner_name}</small></td>
             <td>{l.content?.url && <a className="btnlink" href={l.content.url} target="_blank" rel="noreferrer">Mở ↗</a>}</td></tr>)}
         </tbody></table></div>
       ))}
-      {tab === 'devices' && (items.length === 0 ? <p className="sub">Chưa có định mức thiết bị, vật tư cho chủ đề này.</p> : (
+      {tab === 'devices' && (items.length === 0 ? <p className="sub">Chưa có định mức thiết bị, vật tư cho học phần này.</p> : (
         <div className="wrap"><table><thead><tr><th>Thiết bị / vật tư</th><th>Đơn vị</th><th>Định mức</th><th>Loại</th></tr></thead><tbody>
           {items.map(i => <tr key={i.id}><td><b>{i.name}</b></td><td>{i.unit}</td><td>{Number(i.qty)}</td><td><small>{i.reusable ? 'Thiết bị (dùng lại)' : 'Vật tư tiêu hao'}</small></td></tr>)}
         </tbody></table></div>
       ))}
       {tab === 'goals' && (
         <div className="panel">
-          {topicFull.objectives && <p><b>Mục tiêu chủ đề:</b> {topicFull.objectives}</p>}
+          {topicFull.objectives && <p><b>Mục tiêu học phần:</b> {topicFull.objectives}</p>}
           {outs.length > 0 && <><b>Yêu cầu cần đạt</b>{outs.map(o => <div key={o.id} style={{ marginTop: 4 }}>✓ {o.code && <b>{o.code} </b>}{o.content}</div>)}</>}
           {!topicFull.objectives && !outs.length && <p className="sub" style={{ margin: 0 }}>Chưa có mục tiêu.</p>}
         </div>
@@ -290,7 +290,7 @@ function RegisterModal({ prog, topic, sess, teacherId, onClose, onDone }: { prog
   return (
     <div className="modalbg" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div className="modal wide" role="dialog" aria-modal="true" aria-label="Đăng ký dạy STEM">
-        <div className="modalhead"><div><h3>Đăng ký dạy STEM</h3><small>Chọn chủ đề · buổi học · tiết trong thời khóa biểu cần đổi thành STEM</small></div>
+        <div className="modalhead"><div><h3>Đăng ký dạy STEM</h3><small>Chọn học phần · buổi học · tiết trong thời khóa biểu cần đổi thành STEM</small></div>
           <button type="button" className="x" onClick={onClose} aria-label="Đóng">×</button></div>
         <div className="modalbody">
           {!teacherId && <p className="warnline">Chỉ giáo viên đăng ký dạy được. Tài khoản này chưa gắn với hồ sơ giáo viên.</p>}

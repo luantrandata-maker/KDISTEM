@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { sessionState, STATE_LABEL, fmtDate, fmtTime } from '../lib/time'
 import FormPanel from '../components/FormPanel'
 import { ProgChips } from '../components/Chips'
+import { useStemTracks } from '../lib/stemTracks'
 
 type Plan = { id: string; code: string | null; year_no: number | null; module_no: number | null; name: string; program: string | null; provider: string | null; mode: string; status: string; hours: number | null }
 type Sess = { id: string; plan_id: string; title: string; starts_at: string; ends_at: string; mode: string; location: string | null; meeting_url: string | null; training_plans: { name: string; provider: string | null } | null }
@@ -11,7 +12,6 @@ type Enr = { plan_id: string; teacher_id: string; completed: boolean }
 type Teacher = { id: string; full_name: string; subject: string | null }
 const MODE: Record<string, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
 const PSTATUS: Record<string, string> = { planned: 'Dự kiến', ongoing: 'Đang thực hiện', done: 'Hoàn thành' }
-const PROGRAMS = ['CT1', 'CT2', 'CT3', 'CT4', 'CT5'].map(p => ({ value: p, label: p }))
 
 function usePlanOptions() {
   const [opts, setOpts] = useState<{ value: string; label: string }[]>([])
@@ -25,6 +25,7 @@ function useTeachers() {
 }
 
 export function TrainingPlans({ orgId }: { orgId: string }) {
+  const PROGRAMS = useStemTracks().codes.map(p => ({ value: p, label: p }))
   const [plans, setPlans] = useState<Plan[]>([])
   const [enr, setEnr] = useState<Enr[]>([])
   const [targets, setTargets] = useState<Record<string, number>>({})
@@ -197,6 +198,7 @@ export const VirtualClass = ({ orgId }: { orgId: string }) => <TrainingSchedule 
 type Lesson = { id: string; title: string; grades: string | null; subject: string | null; author: string | null; status: string; created_on: string; blocks: number; materials: number; videos: number; docs: number; training_plans: { name: string; program: string | null } | null }
 const LSTATUS: Record<string, string> = { published: 'Xuất bản', draft: 'Biên soạn', inactive: 'Không hoạt động' }
 export function TrainingLessons({ orgId }: { orgId: string }) {
+  const PROGRAMS = useStemTracks().allCodes.map(p => ({ value: p, label: p }))
   const [rows, setRows] = useState<Lesson[]>([])
   const [tab, setTab] = useState('all'); const [adding, setAdding] = useState(false)
   const [q, setQ] = useState(''); const [grade, setGrade] = useState(''); const [subject, setSubject] = useState(''); const [prog, setProg] = useState('')

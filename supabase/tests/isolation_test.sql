@@ -193,6 +193,10 @@ begin
     delete from edu_programs where title like 'ISO %';
     delete from storage.objects where bucket_id = 'learning-files' and name like '%/iso-%';
   end if;
+  if to_regclass('public.subjects') is not null then
+    delete from subjects where name like 'ISO %';
+    delete from stem_tracks where name like 'ISO %';
+  end if;
   if to_regclass('public.supplies') is not null then delete from stocktakes where name like 'ISO KK%'; delete from supplies where name like 'ISO %'; end if;
   if to_regclass('public.surveys') is not null then delete from surveys where title like 'ISO KS%'; end if;
   if to_regclass('public.teacher_assessments') is not null then
@@ -1851,6 +1855,49 @@ select pg_temp.chk('kdi', 'CTGD: KDI thêm chủ đề vào chương trình nhá
 select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_program_units (program_id, unit_type, seq, grade, title, periods) select id, 'topic', 1, 6, 'ISO chủ đề 1', 3 from edu_programs where title = 'ISO CT KDI'$q$, true);
 select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_program_units (program_id, parent_id, unit_type, seq, title, periods) select p.id, u.id, 'lesson', k, 'ISO bài ' || k, 2 from edu_programs p join edu_program_units u on u.program_id = p.id, generate_series(1, 2) k where p.title = 'ISO CT KDI'$q$, true);
 select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_outcomes (program_id, unit_id, seq, code, content, competency_key) select p.id, u.id, 1, 'ISO1', 'ISO yêu cầu cần đạt', 'tin_hoc' from edu_programs p join edu_program_units u on u.program_id = p.id and u.unit_type = 'topic' where p.title = 'ISO CT KDI'$q$, true);
+-- Môn học, học phần – môn học, bài học – học liệu (064)
+select pg_temp.chk('admin_ph', 'Môn học: trường thấy danh mục môn hệ thống của KDI', $q$select (count(*) >= 10)::text from subjects where org_id = platform_org_id()$q$, 'true');
+select pg_temp.chk('hs_kb', 'Môn học: học sinh không đọc danh mục môn', $q$select count(*) from subjects$q$, '0');
+select pg_temp.chk('admin_ph', 'Môn học: trường thêm môn riêng', $q$insert into subjects (org_id, name, scope) values (my_org_id(), 'ISO môn trường A', 'own')$q$, 'rows:1');
+select pg_temp.probe('admin_ph@iso-test.local', $q$insert into subjects (org_id, name, scope) values (my_org_id(), 'ISO môn trường A', 'own')$q$, true);
+select pg_temp.chk('admin_ph', 'Môn học: trùng tên trong cùng đơn vị bị chặn', $q$insert into subjects (org_id, name) values (my_org_id(), 'iso MÔN trường a')$q$, 'ERR*');
+select pg_temp.chk('admin_kb', 'Môn học: trường tỉnh khác không thấy môn riêng của trường A', $q$select count(*) from subjects where name = 'ISO môn trường A'$q$, '0');
+select pg_temp.chk('gv_both', 'Môn học: giáo viên không thêm môn', $q$insert into subjects (org_id, name) values (my_org_id(), 'ISO môn GV')$q$, 'ERR');
+select pg_temp.chk('admin_ph', 'Môn học: trường không sửa được môn của KDI', $q$update subjects set description = 'ISO' where org_id = platform_org_id()$q$, 'rows:0');
+select pg_temp.chk('kdi', 'HP–Môn: KDI gắn môn chính cho học phần',
+  $q$insert into edu_unit_subjects (unit_id, subject_id, is_main) select u.id, s.id, true from edu_programs p join edu_program_units u on u.program_id = p.id and u.unit_type = 'topic', subjects s where p.title = 'ISO CT KDI' and s.org_id = p.org_id and s.name = 'Tin học'$q$, 'rows:1');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_unit_subjects (unit_id, subject_id, is_main) select u.id, s.id, true from edu_programs p join edu_program_units u on u.program_id = p.id and u.unit_type = 'topic', subjects s where p.title = 'ISO CT KDI' and s.org_id = p.org_id and s.name = 'Tin học'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_unit_subjects (unit_id, subject_id, is_main) select u.id, s.id, true from edu_programs p join edu_program_units u on u.program_id = p.id and u.unit_type = 'topic', subjects s where p.title = 'ISO CT KDI' and s.org_id = p.org_id and s.name = 'Công nghệ'$q$, true);
+select pg_temp.chk('kdi', 'HP–Môn: mỗi học phần chỉ một môn chính',
+  $q$select string_agg(s.name || ':' || x.is_main, ',' order by s.name) from edu_unit_subjects x join subjects s on s.id = x.subject_id join edu_programs p on p.id = x.program_id where p.title = 'ISO CT KDI'$q$, 'Công nghệ:true,Tin học:false');
+select pg_temp.chk('kdi', 'HP–Môn: không gắn môn vào bài học (chỉ học phần)',
+  $q$insert into edu_unit_subjects (unit_id, subject_id) select u.id, s.id from edu_programs p join edu_program_units u on u.program_id = p.id and u.unit_type = 'lesson', subjects s where p.title = 'ISO CT KDI' and s.org_id = p.org_id and s.name = 'Toán' limit 1$q$, 'ERR*');
+select pg_temp.chk('kdi', 'HP–Môn: không gắn môn riêng của trường khác',
+  $q$insert into edu_unit_subjects (unit_id, subject_id) select u.id, s.id from edu_programs p join edu_program_units u on u.program_id = p.id and u.unit_type = 'topic', subjects s where p.title = 'ISO CT KDI' and s.name = 'ISO môn trường A'$q$, 'ERR*');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into library_items (owner_org_id, kind, title, content, scope, status) values (my_org_id(), 'material', 'ISO học liệu KDI', '{"type": "link", "url": "https://example.com"}', 'public', 'published')$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into library_items (owner_org_id, kind, title, content, scope, status) values (my_org_id(), 'lesson', 'ISO bài giảng KDI', '{"slides": []}', 'public', 'published')$q$, true);
+select pg_temp.chk('kdi', 'BH–HL: KDI gắn học liệu cho bài học',
+  $q$insert into edu_unit_materials (unit_id, item_id, note) select u.id, i.id, 'ISO dùng ở phần khởi động' from edu_programs p join edu_program_units u on u.program_id = p.id and u.unit_type = 'lesson' and u.title = 'ISO bài 1', library_items i where p.title = 'ISO CT KDI' and i.title = 'ISO học liệu KDI'$q$, 'rows:1');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_unit_materials (unit_id, item_id, note) select u.id, i.id, 'ISO dùng ở phần khởi động' from edu_programs p join edu_program_units u on u.program_id = p.id and u.unit_type = 'lesson' and u.title = 'ISO bài 1', library_items i where p.title = 'ISO CT KDI' and i.title = 'ISO học liệu KDI'$q$, true);
+select pg_temp.chk('kdi', 'BH–HL: không gắn học liệu vào học phần',
+  $q$insert into edu_unit_materials (unit_id, item_id) select u.id, i.id from edu_programs p join edu_program_units u on u.program_id = p.id and u.unit_type = 'topic', library_items i where p.title = 'ISO CT KDI' and i.title = 'ISO học liệu KDI'$q$, 'ERR*');
+select pg_temp.chk('kdi', 'BH–HL: chỉ gắn học liệu, không gắn bài giảng / chương trình của kho',
+  $q$insert into edu_unit_materials (unit_id, item_id) select u.id, i.id from edu_programs p join edu_program_units u on u.program_id = p.id and u.title = 'ISO bài 2', library_items i where p.title = 'ISO CT KDI' and i.title = 'ISO bài giảng KDI'$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'BH–HL: trường không gắn học liệu vào chương trình của KDI',
+  $q$insert into edu_unit_materials (unit_id, item_id) select u.id, i.id from edu_program_units u, library_items i where u.title = 'ISO bài 2' and i.title = 'ISO học liệu KDI'$q$, 'rows:0');
+-- Loại chương trình: KDI thêm loại mới; mã loại đang dùng không xoá, không đổi
+select pg_temp.chk('kdi', 'Loại CT: KDI thêm loại chương trình mới', $q$insert into stem_tracks (code, name, title, sort) values ('ISO6', 'ISO loại mới', 'ISO loại chương trình mới', 6)$q$, 'rows:1');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into stem_tracks (code, name, title, sort) values ('ISO6', 'ISO loại mới', 'ISO loại chương trình mới', 6)$q$, true);
+select pg_temp.chk('admin_ph', 'Loại CT: trường không thêm loại chương trình', $q$insert into stem_tracks (code, name, title) values ('ISO7', 'ISO loại trường', 'ISO loại trường')$q$, 'ERR');
+select pg_temp.chk('admin_ph', 'Loại CT: trường thấy loại mới', $q$select count(*) from stem_tracks where code = 'ISO6'$q$, '1');
+select pg_temp.chk('kdi', 'Loại CT: chương trình dùng được loại mới', $q$update edu_programs set kind = 'stem', ct_code = 'ISO6' where title = 'ISO CT KDI'$q$, 'rows:1');
+select pg_temp.probe('kdi@iso-test.local', $q$update edu_programs set kind = 'stem', ct_code = 'ISO6' where title = 'ISO CT KDI'$q$, true);
+select pg_temp.chk('kdi', 'Loại CT: mã loại không có trong danh mục bị chặn', $q$update edu_programs set ct_code = 'ZZ9' where title = 'ISO CT KDI'$q$, 'ERR*');
+select pg_temp.chk('kdi', 'Loại CT: không xoá loại đang được chương trình dùng', $q$delete from stem_tracks where code = 'ISO6'$q$, 'ERR*');
+select pg_temp.chk('kdi', 'Loại CT: không đổi mã loại', $q$update stem_tracks set code = 'ISO8' where code = 'ISO6'$q$, 'ERR*');
+select pg_temp.probe('kdi@iso-test.local', $q$update edu_programs set kind = 'subject', ct_code = null where title = 'ISO CT KDI'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$delete from stem_tracks where code = 'ISO6'$q$, true);
+select pg_temp.chk('kdi', 'Loại CT: xoá loại không còn dùng', $q$select count(*) from stem_tracks where code = 'ISO6'$q$, '0');
 select pg_temp.chk('kdi', 'CTGD: tổng tiết = tổng tiết các bài (mục lá)', $q$select total_periods::text from edu_programs where title = 'ISO CT KDI'$q$, '4');
 select pg_temp.chk('kdi', 'CTGD: buổi học không đứng trực tiếp dưới chủ đề',
   $q$insert into edu_program_units (program_id, parent_id, unit_type, title) select p.id, u.id, 'session', 'ISO buổi sai' from edu_programs p join edu_program_units u on u.program_id = p.id and u.unit_type = 'topic' where p.title = 'ISO CT KDI'$q$, 'ERR*');
@@ -1860,6 +1907,11 @@ select pg_temp.chk('admin_ph', 'CTGD: trường không thấy chương trình nh
 select pg_temp.probe('kdi@iso-test.local', $q$select edu_program_set_status((select id from edu_programs where title = 'ISO CT KDI'), 'published', 'ISO ban hành')$q$, true);
 select pg_temp.chk('admin_ph', 'CTGD: trường thấy chương trình KDI đã ban hành và đọc cấu trúc, YCCĐ',
   $q$select (select count(*) from edu_program_units u join edu_programs p on p.id = u.program_id where p.title = 'ISO CT KDI') || ':' || (select count(*) from edu_outcomes o join edu_programs p on p.id = o.program_id where p.title = 'ISO CT KDI')$q$, '3:1');
+select pg_temp.chk('admin_ph', 'HP–Môn, BH–HL: trường đọc liên kết của chương trình KDI đã ban hành',
+  $q$select (select count(*) from edu_unit_subjects x join edu_programs p on p.id = x.program_id where p.title = 'ISO CT KDI') || ':' || (select count(*) from edu_unit_materials x join edu_programs p on p.id = x.program_id where p.title = 'ISO CT KDI')$q$, '2:1');
+select pg_temp.chk('kdi', 'BH–HL: đã ban hành thì không bỏ học liệu', $q$delete from edu_unit_materials where note = 'ISO dùng ở phần khởi động'$q$, 'ERR*');
+select pg_temp.chk('kdi', 'HP–Môn: đã ban hành thì không đổi môn chính', $q$update edu_unit_subjects x set is_main = not is_main from edu_programs p where p.id = x.program_id and p.title = 'ISO CT KDI'$q$, 'ERR*');
+select pg_temp.chk('hs_kb', 'HP–Môn, BH–HL: học sinh không đọc liên kết', $q$select (select count(*) from edu_unit_subjects) + (select count(*) from edu_unit_materials)$q$, '0');
 select pg_temp.chk('admin_kb', 'CTGD: trường tỉnh khác cũng thấy chương trình KDI dùng chung', $q$select count(*) from edu_programs where title = 'ISO CT KDI'$q$, '1');
 select pg_temp.chk('hs_kb', 'CTGD: học sinh không đọc chương trình', $q$select count(*) from edu_programs$q$, '0');
 select pg_temp.chk('kdi', 'CTGD: đã ban hành thì không sửa nội dung', $q$update edu_programs set title = 'ISO CT KDI sửa' where title = 'ISO CT KDI'$q$, 'ERR*');
@@ -1873,6 +1925,8 @@ select pg_temp.probe('kdi@iso-test.local', $q$select edu_program_new_version((se
 select pg_temp.chk('kdi', 'CTGD: phiên bản mới là bản nháp số 2, chép đủ cấu trúc và YCCĐ',
   $q$select p.version_no || ':' || p.status || ':' || (select count(*) from edu_program_units where program_id = p.id) || ':' || (select count(*) from edu_outcomes where program_id = p.id)
      from edu_programs p where title = 'ISO CT KDI' and version_no = 2$q$, '2:draft:3:1');
+select pg_temp.chk('kdi', 'CTGD: phiên bản mới chép liên kết môn học và học liệu',
+  $q$select (select count(*) from edu_unit_subjects x join edu_programs p on p.id = x.program_id where p.title = 'ISO CT KDI' and p.version_no = 2) || ':' || (select count(*) from edu_unit_materials x join edu_programs p on p.id = x.program_id where p.title = 'ISO CT KDI' and p.version_no = 2)$q$, '2:1');
 select pg_temp.chk('kdi', 'CTGD: không tạo hai phiên bản nháp cùng lúc', $q$select edu_program_new_version((select id from edu_programs where title = 'ISO CT KDI' and version_no = 1))::text$q$, 'ERR*');
 select pg_temp.probe('kdi@iso-test.local', $q$update edu_programs set title = 'ISO CT KDI' , note = 'ISO v2' where title = 'ISO CT KDI' and version_no = 2$q$, true);
 select pg_temp.probe('kdi@iso-test.local', $q$select edu_program_set_status((select id from edu_programs where title = 'ISO CT KDI' and version_no = 2), 'published')$q$, true);
@@ -1883,6 +1937,8 @@ select pg_temp.chk('kdi', 'CTGD: nhật ký trạng thái ghi lại thay thế',
 select pg_temp.probe('admin_ph@iso-test.local', $q$select edu_program_copy((select id from edu_programs where title = 'ISO CT KDI' and version_no = 2))::text$q$, true);
 select pg_temp.chk('admin_ph', 'CTGD: sao chép chương trình KDI về trường (nháp, đủ cấu trúc)',
   $q$select p.status || ':' || (select count(*) from edu_program_units where program_id = p.id) from edu_programs p where p.title = 'ISO CT KDI' and p.org_id = my_org_id()$q$, 'draft:3');
+select pg_temp.chk('admin_ph', 'CTGD: bản sao của trường giữ liên kết môn học và học liệu KDI',
+  $q$select (select count(*) from edu_unit_subjects x join edu_programs p on p.id = x.program_id where p.title = 'ISO CT KDI' and p.org_id = my_org_id()) || ':' || (select count(*) from edu_unit_materials x join edu_programs p on p.id = x.program_id where p.title = 'ISO CT KDI' and p.org_id = my_org_id())$q$, '2:1');
 select pg_temp.chk('admin_kb', 'CTGD: trường khác không thấy bản sao của trường A', $q$select count(*) from edu_programs where title = 'ISO CT KDI' and org_id <> platform_org_id()$q$, '0');
 select pg_temp.chk('gv_both', 'CTGD: giáo viên đọc chương trình của trường', $q$select count(*) from edu_programs where title = 'ISO CT KDI' and org_id = my_org_id()$q$, '1');
 select pg_temp.chk('gv_both', 'CTGD: giáo viên không gửi duyệt / ban hành', $q$select edu_program_set_status((select id from edu_programs where title = 'ISO CT KDI' and org_id = my_org_id()), 'pending')$q$, 'ERR');
@@ -2194,8 +2250,9 @@ select pg_temp.chk('kdi', 'Danh mục CT1–CT5: quản trị nền tảng sửa
   $q$with x as (update stem_tracks set description = description where code = 'CT1' returning 1) select count(*) from x$q$, '1');
 select pg_temp.chk('so_hy', 'Danh mục CT1–CT5: Sở không sửa được', $q$with x as (update stem_tracks set name = 'ISO' where code = 'CT1' returning 1) select count(*) from x$q$, '0');
 select pg_temp.chk('admin_ph', 'Danh mục CT1–CT5: trường không sửa được', $q$with x as (update stem_tracks set name = 'ISO' where code = 'CT1' returning 1) select count(*) from x$q$, '0');
-select pg_temp.chk('kdi', 'Danh mục CT1–CT5: không thêm mã ngoài CT1–CT5', $q$insert into stem_tracks (code, name, title) values ('CT6', 'ISO', 'ISO')$q$, 'ERR*');
-select pg_temp.chk('kdi', 'Danh mục CT1–CT5: không xoá được', $q$with x as (delete from stem_tracks where code = 'CT5' returning 1) select count(*) from x$q$, '0');
+select pg_temp.chk('kdi', 'Danh mục loại CT: mã sai định dạng bị chặn', $q$insert into stem_tracks (code, name, title) values ('ct 6', 'ISO', 'ISO')$q$, 'ERR*');
+select pg_temp.chk('so_hy', 'Danh mục loại CT: Sở không xoá được', $q$with x as (delete from stem_tracks where code = 'CT5' returning 1) select count(*) from x$q$, '0');
+select pg_temp.chk('kdi', 'Danh mục loại CT: không xoá loại đang được dùng', $q$with x as (delete from stem_tracks where code = 'CT5' returning 1) select count(*) from x$q$, 'ERR*');
 
 -- ===== 063: bài giảng tương tác dạng khối, hoạt động trò chơi / mô phỏng, thiết bị trong gói STEM =====
 select pg_temp.chk('gv_both', 'Bài giảng tương tác: lưu giáo án dạng khối',

@@ -1,5 +1,6 @@
 // Soạn bài giảng (060): giáo án theo mẫu, tiến trình dạy học theo bước, gắn hoạt động / học liệu / rubric / định mức vật tư,
 // xem trước – in, trình chiếu, dạy thử; lưu nháp → gửi duyệt → xuất bản; nhân bản, phiên bản, dạy thử & góp ý
+import { useStemTracks } from '../../lib/stemTracks'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { TProps, NoTeacher, PROGRAM_COLOR, Tabs, handoff, useMyClasses } from '../teacher/common'
@@ -12,7 +13,6 @@ import {
   PlanDocument, printPlan,
 } from './common'
 
-const PROGRAMS = ['CT1', 'CT2', 'CT3', 'CT4', 'CT5']
 // Hàng cũ (trước 060) có thể thiếu cột mới → chuẩn hoá về giá trị rỗng
 export const normPlan = (p: LPlan): LPlan => ({
   ...p, doc: p.doc ?? {}, steps: p.steps ?? [], slides: p.slides ?? [], library_ids: p.library_ids ?? [], rubric_ids: p.rubric_ids ?? [],
@@ -41,6 +41,7 @@ const IN_TAB: Record<LTab, LStatus[]> = {
 }
 
 export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
+  const { codes: PROGRAMS } = useStemTracks()
   const [plans, setPlans] = useState<LPlan[]>([])
   const [view, setView] = useState<View>({ mode: 'list' })
   const [tab, setTab] = useState<LTab>('all')
@@ -160,6 +161,7 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
 function NewPlan({ teacherId, orgId, templates, onCancel, onCreated }: {
   teacherId: string; orgId: string | null; templates: Template[]; onCancel: () => void; onCreated: (id: string) => void
 }) {
+  const { codes: PROGRAMS } = useStemTracks()
   const [tpl, setTpl] = useState<string>('')
   const [f, setF] = useState({ title: '', subject: '', grades: '', periods: '2', program: '' })
   const [err, setErr] = useState('')
@@ -406,6 +408,7 @@ function ReadOnlyBanner({ p, busy, onWithdraw, onNewVersion }: { p: LPlan; busy:
 type TabP = { p: LPlan; upd: (x: Partial<LPlan>) => void; ro: boolean }
 
 function InfoTab({ p, upd, ro, templates, programs, units }: TabP & { templates: Template[]; programs: ReturnType<typeof useProgramOptions>['programs']; units: ReturnType<typeof useProgramOptions>['units'] }) {
+  const { codes: PROGRAMS } = useStemTracks()
   const tree = unitTree(units, p.program_id)
   function pickTemplate(tid: string) {
     const t = templates.find(x => x.id === tid)
@@ -426,7 +429,7 @@ function InfoTab({ p, upd, ro, templates, programs, units }: TabP & { templates:
       <label className="field"><span>Chương trình giáo dục</span>
         <select value={p.program_id ?? ''} onChange={e => upd({ program_id: e.target.value || null, unit_id: null })} aria-label="Chương trình giáo dục">
           <option value="">— không gắn —</option>{programs.map(x => <option key={x.id} value={x.id}>{progLabel(x)}{x.status === 'draft' ? ' · nháp' : ''}</option>)}</select></label>
-      <label className="field"><span>Chủ đề / bài trong chương trình</span>
+      <label className="field"><span>Học phần / bài trong chương trình</span>
         <select value={p.unit_id ?? ''} onChange={e => upd({ unit_id: e.target.value || null })} disabled={ro || !p.program_id} aria-label="Bài trong chương trình">
           <option value="">— chọn —</option>{tree.map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
       <label className="field"><span>Nội dung Gói STEM</span>
@@ -438,6 +441,7 @@ function InfoTab({ p, upd, ro, templates, programs, units }: TabP & { templates:
 
 // ===== Bài giảng tương tác theo khối (063) =====
 function LessonTab({ p, upd, ro }: TabP) {
+  const { codes } = useStemTracks()
   const l = asLesson(p.lesson)
   const [meta, setMeta] = useState(false)
   const setL = (x: ILesson) => upd({ lesson: x })
@@ -445,7 +449,7 @@ function LessonTab({ p, upd, ro }: TabP) {
     <div className="panel">
       <b>Chưa có bài giảng tương tác.</b>
       <p className="sub">Soạn bài giảng theo tiến trình {p.program ?? 'CT1–CT5'}: mỗi giai đoạn gồm các khối nội dung — đoạn văn, hình, video, mô phỏng 2D, giáo cụ ảo, kéo – thả, câu hỏi, game, rubric. Học sinh học trên máy, thầy cô trình chiếu từng khối.</p>
-      {!ro && <div className="tools">{(['CT1', 'CT2', 'CT3', 'CT4', 'CT5'] as const).map(c => <button key={c} className={c === (p.program ?? 'CT1') ? 'primary' : ''} onClick={() => upd({ lesson: emptyLesson(c), program: p.program ?? c })}>Tiến trình {c}</button>)}</div>}
+      {!ro && <div className="tools">{codes.map(c => <button key={c} className={c === (p.program ?? 'CT1') ? 'primary' : ''} onClick={() => upd({ lesson: emptyLesson(c), program: p.program ?? c })}>Tiến trình {c}</button>)}</div>}
     </div>
   )
   return (

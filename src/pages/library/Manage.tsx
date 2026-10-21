@@ -28,12 +28,13 @@ type Form = {
 }
 type Pick = { id: string; label: string }
 // Chọn nhiều mục: các mục đã chọn hiện thành thẻ, thêm bằng ô chọn
-function ChipPicker({ label, hint, options, value, onChange, missing, extra }: {
-  label: string; hint?: string; options: Pick[]; value: string[]; onChange: (v: string[]) => void; missing: string; extra?: React.ReactNode
+function ChipPicker({ label, hint, options, value, onChange, missing, extra, lead }: {
+  label: string; hint?: string; options: Pick[]; value: string[]; onChange: (v: string[]) => void; missing: string; extra?: React.ReactNode; lead?: React.ReactNode
 }) {
   return (
     <div className="field" style={{ gridColumn: '1 / -1' }}><span>{label}{hint && <small className="sub"> — {hint}</small>}</span>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
+        {lead}
         {value.map(id => <span className="chip" key={id}>{options.find(o => o.id === id)?.label ?? missing}
           <button type="button" className="x" aria-label="Bỏ" onClick={() => onChange(value.filter(x => x !== id))}>×</button></span>)}
         <select value="" onChange={e => e.target.value && onChange([...value, e.target.value])} aria-label={label}>
@@ -82,7 +83,9 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   const norms = useNormOptions(orgId)
   const [norm, setNorm] = useState<UnitNorm>(EMPTY_NORM)
   // Giáo án / bài giảng soạn ngay trong bài học (lưu thành mục kho riêng, gắn vào bài, phát hành cùng bài)
-  const [sub, setSub] = useState<null | { kind: 'plan' | 'lesson'; title: string; slides: Slide[]; src: 'file' | 'url'; url: string; plan: PlanContent
+  const [normOpen, setNormOpen] = useState(false)
+  // Giáo án / bài giảng / học liệu soạn ngay trong bài học
+  const [sub, setSub] = useState<null | { kind: 'plan' | 'lesson' | 'material'; mtype: string; title: string; slides: Slide[]; src: 'file' | 'url'; url: string; plan: PlanContent
     file: { path: string; file_name: string; size: number; mime: string } | null }>(null)
   const [subBusy, setSubBusy] = useState(false)
 
@@ -132,7 +135,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
       plan: planOf(i.content as any), objectives: i.content.objectives ?? '', periods: i.content.periods ? String(i.content.periods) : '',
       plan_ids: i.content.plan_ids ?? [], lesson_ids: i.content.lesson_ids ?? [], norm_ids: i.content.norm_ids ?? [], material_ids: i.content.material_ids ?? [],
     })
-    setNorm(EMPTY_NORM); setSub(null)
+    setNorm(EMPTY_NORM); setSub(null); setNormOpen(false)
     // Vật tư của bài học: định mức gắn với bài (không hiện lại trong ô "định mức có sẵn")
     if (i.kind === 'unit' && orgId) loadUnitNorm(i.id, orgId).then(n => {
       setNorm(n)
@@ -205,14 +208,16 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   }
   async function saveSub() {
     if (!sub || !form || !orgId) return
-    const title = sub.title.trim() || `${sub.kind === 'plan' ? 'Giáo án' : 'Bài giảng'}: ${form.title.trim() || 'bài học'}`
+    const title = sub.title.trim() || `${sub.kind === 'plan' ? 'Giáo án' : sub.kind === 'lesson' ? 'Bài giảng' : MAT_TYPE[sub.mtype] ?? 'Học liệu'}: ${form.title.trim() || 'bài học'}`
     if (sub.kind === 'plan' && !planFilled(sub.plan) && !sub.file && !sub.url.trim()) return setMsg('Soạn nội dung giáo án hoặc đính kèm tệp.')
+    if (sub.kind === 'material' && !(sub.src === 'file' ? sub.file : sub.url.trim())) return setMsg(sub.src === 'file' ? 'Chọn tệp học liệu để tải lên.' : 'Nhập đường dẫn học liệu.')
     setSubBusy(true)
     const row = {
-      owner_org_id: orgId, kind: sub.kind === 'plan' ? 'material' : 'lesson', title, subject: form.subject.trim() || null, grades: form.grades.trim() || null,
+      owner_org_id: orgId, kind: sub.kind === 'lesson' ? 'lesson' : 'material', title, subject: form.subject.trim() || null, grades: form.grades.trim() || null,
       program: form.program || null, program_id: form.program_id || null, unit_id: form.program_id && form.unit_id ? form.unit_id : null,
       usage_rights: form.usage_rights, scope: form.scope, tags: [] as string[],
       content: sub.kind === 'lesson' ? { slides: sub.slides }
+        : sub.kind === 'material' ? { type: sub.mtype, ...(sub.src === 'file' && sub.file ? { url: '', ...sub.file } : { url: sub.url.trim() }) }
         : { type: 'lesson_plan', ...(sub.src === 'file' && sub.file ? { url: '', ...sub.file } : { url: sub.url.trim() }), ...sub.plan },
     }
     const r = await supabase.from('library_items').insert(row).select('*, owner_name, owner_type').single()
@@ -220,7 +225,8 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
     const it = r.data as Item
     if (form.scope === 'selected' && form.targets.length) await supabase.from('library_targets').insert(form.targets.map(org_id => ({ item_id: it.id, org_id })))
     setVisible(v => [it, ...v]); setItems(v => [it, ...v])
-    setForm(f => f && (sub.kind === 'plan' ? { ...f, plan_ids: [...f.plan_ids, it.id] } : { ...f, lesson_ids: [...f.lesson_ids, it.id] }))
+    const key = sub.kind === 'plan' ? 'plan_ids' : sub.kind === 'lesson' ? 'lesson_ids' : 'material_ids'
+    setForm(f => f && { ...f, [key]: [...f[key], it.id] })
     setSub(null); setSubBusy(false)
   }
   // Phát hành bài học kéo theo giáo án, bài giảng, học liệu của đơn vị đang là bản nháp
@@ -273,7 +279,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   const kindTabs: T[] = ['unit', 'plan', 'lesson', 'material', 'norm']
   const tabLabel = (t: T) => t === 'norm' ? 'Định mức vật tư' : t === 'plan' ? 'Giáo án' : KIND[t][0]
   const addNew = (t: T) => {
-    setMsg(''); setInfo(''); setNorm(EMPTY_NORM); setSub(null)
+    setMsg(''); setInfo(''); setNorm(EMPTY_NORM); setSub(null); setNormOpen(false)
     setForm(t === 'plan' ? { ...EMPTY('material'), mtype: 'lesson_plan' } : EMPTY(t as Item['kind']))
   }
   const setUnit = (k: number, p: Partial<Unit>) => form && setForm({ ...form, units: form.units.map((u, j) => j === k ? { ...u, ...p } : u) })
@@ -341,7 +347,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
               <label className="field" style={{ gridColumn: 'span 3' }}><span>Mục tiêu bài học</span><textarea rows={2} value={form.objectives} onChange={e => setForm({ ...form, objectives: e.target.value })} /></label>
               <label className="field"><span>Số tiết</span><input type="number" min={0} max={999} value={form.periods} onChange={e => setForm({ ...form, periods: e.target.value })} /></label>
               <ChipPicker label="Giáo án" hint="soạn giáo án mới cho bài hoặc chọn giáo án có sẵn" options={planPool} value={form.plan_ids} onChange={v => setForm({ ...form, plan_ids: v })} missing="giáo án không còn trong kho"
-                extra={sub?.kind !== 'plan' && <button type="button" className="primary" onClick={() => setSub({ kind: 'plan', title: '', slides: [], src: 'file', url: '', file: null, plan: EMPTY_PLAN })}>+ Giáo án mới cho bài</button>} />
+                extra={sub?.kind !== 'plan' && <button type="button" className="primary" onClick={() => setSub({ kind: 'plan', mtype: '', title: '', slides: [], src: 'file', url: '', file: null, plan: EMPTY_PLAN })}>+ Giáo án mới cho bài</button>} />
               {sub?.kind === 'plan' && (
                 <div className="panel formgrid" style={{ gridColumn: '1 / -1', margin: 0 }}>
                   <label className="field" style={{ gridColumn: 'span 2' }}><span>Tên giáo án</span><input value={sub.title} onChange={e => setSub({ ...sub, title: e.target.value })} placeholder={`Giáo án: ${form.title || 'tên bài học'}`} /></label>
@@ -359,7 +365,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
                 </div>
               )}
               <ChipPicker label="Bài giảng" hint="soạn bài giảng mới cho bài hoặc chọn bài giảng có sẵn" options={pick(lessonPool)} value={form.lesson_ids} onChange={v => setForm({ ...form, lesson_ids: v })} missing="bài giảng không còn trong kho"
-                extra={sub?.kind !== 'lesson' && <button type="button" className="primary" onClick={() => setSub({ kind: 'lesson', title: '', slides: [{ id: uid(), kind: 'title', title: form.title, body: '' }], src: 'file', url: '', file: null, plan: EMPTY_PLAN })}>+ Bài giảng mới cho bài</button>} />
+                extra={sub?.kind !== 'lesson' && <button type="button" className="primary" onClick={() => setSub({ kind: 'lesson', mtype: '', title: '', slides: [{ id: uid(), kind: 'title', title: form.title, body: '' }], src: 'file', url: '', file: null, plan: EMPTY_PLAN })}>+ Bài giảng mới cho bài</button>} />
               {sub?.kind === 'lesson' && (
                 <div className="panel" style={{ gridColumn: '1 / -1', margin: 0 }}>
                   <label className="field"><span>Tên bài giảng</span><input value={sub.title} onChange={e => setSub({ ...sub, title: e.target.value })} placeholder={`Bài giảng: ${form.title || 'tên bài học'}`} /></label>
@@ -372,10 +378,37 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
                   <div className="formactions"><button type="button" className="primary" disabled={subBusy} onClick={saveSub}>Thêm vào bài</button> <button type="button" onClick={() => setSub(null)}>Huỷ</button></div>
                 </div>
               )}
-              <UnitNormEditor value={norm} onChange={setNorm} />
-              <ChipPicker label="Định mức có sẵn" hint="gắn thêm định mức đã soạn ở mục Định mức vật tư (không bắt buộc)" options={normPool.filter(o => o.id !== norm.id)} value={form.norm_ids} onChange={v => setForm({ ...form, norm_ids: v })} missing="định mức không còn" />
-              <ChipPicker label="Học liệu khác" hint="phiếu học tập, video, tài liệu…" options={matPool} value={form.material_ids} onChange={v => setForm({ ...form, material_ids: v })} missing="học liệu không còn trong kho" />
-              <p className="sub" style={{ gridColumn: '1 / -1', margin: 0 }}>Giáo án và bài giảng soạn ở đây đi theo bài học: dùng cùng môn, khối, nơi phát hành và được phát hành cùng bài. Vật tư nhập ở bảng trên được lưu thành định mức vật tư của bài, ban hành cùng bài học. Trường bấm “Dùng bài học” sẽ có bản riêng của mọi bài giảng được gắn.</p>
+              <ChipPicker label="Định mức vật tư" hint="nhập vật tư mới cho bài hoặc chọn định mức có sẵn" options={normPool.filter(o => o.id !== norm.id)} value={form.norm_ids} onChange={v => setForm({ ...form, norm_ids: v })} missing="định mức không còn"
+                lead={!normOpen && norm.rows.length > 0 && <span className="chip">Vật tư của bài: {norm.rows.length} vật tư{norm.status === 'published' ? '' : ' (nháp)'}
+                  <button type="button" className="linkbtn" onClick={() => setNormOpen(true)}>Sửa</button>
+                  <button type="button" className="x" aria-label="Bỏ vật tư của bài" onClick={() => setNorm({ ...norm, rows: [], dirty: true })}>×</button></span>}
+                extra={!normOpen && <button type="button" className="primary" onClick={() => setNormOpen(true)}>{norm.rows.length ? 'Sửa vật tư của bài' : '+ Định mức mới cho bài'}</button>} />
+              {normOpen && (
+                <div className="panel formgrid" style={{ gridColumn: '1 / -1', margin: 0 }}>
+                  <UnitNormEditor value={norm} onChange={setNorm} />
+                  <div className="formactions"><button type="button" className="primary" onClick={() => setNormOpen(false)}>Xong</button>
+                    {' '}<small className="sub">Vật tư được lưu khi lưu bài học.</small></div>
+                </div>
+              )}
+              <ChipPicker label="Học liệu khác" hint="phiếu học tập, video, tài liệu… soạn mới cho bài hoặc chọn học liệu có sẵn" options={matPool} value={form.material_ids} onChange={v => setForm({ ...form, material_ids: v })} missing="học liệu không còn trong kho"
+                extra={sub?.kind !== 'material' && <button type="button" className="primary" onClick={() => setSub({ kind: 'material', mtype: 'worksheet', title: '', slides: [], src: 'file', url: '', file: null, plan: EMPTY_PLAN })}>+ Học liệu mới cho bài</button>} />
+              {sub?.kind === 'material' && (
+                <div className="panel formgrid" style={{ gridColumn: '1 / -1', margin: 0 }}>
+                  <label className="field" style={{ gridColumn: 'span 2' }}><span>Tên học liệu</span><input value={sub.title} onChange={e => setSub({ ...sub, title: e.target.value })} placeholder={`${MAT_TYPE[sub.mtype] ?? 'Học liệu'}: ${form.title || 'tên bài học'}`} /></label>
+                  <label className="field"><span>Loại học liệu</span><select value={sub.mtype} onChange={e => setSub({ ...sub, mtype: e.target.value })} aria-label="Loại học liệu mới">{MAT_OPTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
+                  <div className="field"><span>Nguồn</span><div className="tools">
+                    <label><input type="radio" checked={sub.src === 'file'} onChange={() => setSub({ ...sub, src: 'file' })} /> Tải tệp lên</label>
+                    <label><input type="radio" checked={sub.src === 'url'} onChange={() => setSub({ ...sub, src: 'url' })} /> Đường dẫn</label></div></div>
+                  {sub.src === 'url'
+                    ? <label className="field" style={{ gridColumn: 'span 3' }}><span>Đường dẫn *</span><input value={sub.url} onChange={e => setSub({ ...sub, url: e.target.value })} placeholder="https://…" /></label>
+                    : <div className="field" style={{ gridColumn: 'span 3' }}><span>Tệp * (tối đa {MAX_FILE_MB} MB)</span><div className="tools">
+                        {sub.file && <span className="chip">{sub.file.file_name} · {fmtSize(sub.file.size)}</span>}
+                        <label className={'filebtn' + (subBusy ? ' busy' : '')}>{subBusy ? 'Đang tải lên…' : sub.file ? 'Thay tệp' : 'Chọn tệp'}
+                          <input type="file" hidden disabled={subBusy} onChange={e => { const f = e.target.files?.[0]; if (f) pickSubFile(f); e.target.value = '' }} /></label></div></div>}
+                  <div className="formactions"><button type="button" className="primary" disabled={subBusy} onClick={saveSub}>Thêm vào bài</button> <button type="button" onClick={() => setSub(null)}>Huỷ</button></div>
+                </div>
+              )}
+              <p className="sub" style={{ gridColumn: '1 / -1', margin: 0 }}>Giáo án, bài giảng, vật tư và học liệu soạn ở đây đi theo bài học: dùng cùng môn, khối, nơi phát hành và được phát hành cùng bài. Vật tư của bài được lưu thành định mức vật tư, ban hành cùng bài học. Trường bấm “Dùng bài học” sẽ có bản riêng của mọi bài giảng được gắn.</p>
             </div>
           )}
           {form.kind === 'lesson' && (

@@ -31,17 +31,19 @@ type Pick = { id: string; label: string }
 function ChipPicker({ label, hint, options, value, onChange, missing, extra, lead }: {
   label: string; hint?: string; options: Pick[]; value: string[]; onChange: (v: string[]) => void; missing: string; extra?: React.ReactNode; lead?: React.ReactNode
 }) {
+  const left = options.filter(o => !value.includes(o.id))
   return (
-    <div className="field" style={{ gridColumn: '1 / -1' }}><span>{label}{hint && <small className="sub"> — {hint}</small>}</span>
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
+    <div className="libpart" title={hint}>
+      <span className="libpartlabel">{label}</span>
+      <div className="libpartbody">
         {lead}
         {value.map(id => <span className="chip" key={id}>{options.find(o => o.id === id)?.label ?? missing}
           <button type="button" className="x" aria-label="Bỏ" onClick={() => onChange(value.filter(x => x !== id))}>×</button></span>)}
-        <select value="" onChange={e => e.target.value && onChange([...value, e.target.value])} aria-label={label}>
-          <option value="">{options.some(o => !value.includes(o.id)) ? `+ Chọn ${label.toLowerCase()}…` : 'Không còn mục để chọn'}</option>
-          {options.filter(o => !value.includes(o.id)).map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+        <select value="" onChange={e => e.target.value && onChange([...value, e.target.value])} aria-label={label} disabled={!left.length}>
+          <option value="">{left.length ? `+ Chọn ${label.toLowerCase()} có sẵn…` : `Không còn ${label.toLowerCase()} có sẵn`}</option>
+          {left.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
         </select>
-        {extra && <span style={{ marginLeft: 6 }}>{extra}</span>}
+        {extra}
       </div>
     </div>
   )
@@ -308,13 +310,13 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
       {form && (
         <form className="panel libform" onSubmit={e => save(e, false)}>
           <h3>{form.id ? 'Sửa' : 'Thêm'} {form.kind === 'material' && form.mtype === 'lesson_plan' ? 'giáo án' : KIND[form.kind][0].toLowerCase()}</h3>
-          <div className="formgrid">
+          <div className="formgrid libgrid4">
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mô tả ngắn</span><textarea rows={2} value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })} /></label>
             <label className="field"><span>Môn</span><SubjectPicker value={form.subject} onChange={v => setForm({ ...form, subject: v })} emptyLabel="— Không chọn —" /></label>
-            <div className="field" style={{ gridColumn: 'span 2' }}><span>Khối</span><GradeChecks value={gradeList(form.grades)} onChange={g => setForm({ ...form, grades: g.join(',') })} /></div>
             <label className="field"><span>Loại chương trình</span><select value={form.program} onChange={e => setForm({ ...form, program: e.target.value })}><option value="">—</option>{PROGRAMS.map(p => <option key={p}>{p}</option>)}</select></label>
-            <label className="field"><span>Từ khoá</span><input value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} placeholder="robot, cảm biến" /></label>
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>Từ khoá</span><input value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} placeholder="robot, cảm biến" /></label>
+            <div className="field" style={{ gridColumn: '1 / -1' }}><span>Khối</span><GradeChecks inline value={gradeList(form.grades)} onChange={g => setForm({ ...form, grades: g.join(',') })} /></div>
             <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình giáo dục</span>
               <select value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, unit_id: '' })} aria-label="Chương trình giáo dục">
                 <option value="">— không gắn —</option>{programs.map(p => <option key={p.id} value={p.id}>{progLabel(p)}{p.status === 'draft' ? ' · nháp' : ''}</option>)}</select></label>
@@ -324,7 +326,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
             <label className="field"><span>Quyền sử dụng</span>
               <select value={form.usage_rights} onChange={e => setForm({ ...form, usage_rights: e.target.value as Rights })} aria-label="Quyền sử dụng">
                 {(Object.keys(RIGHTS) as Rights[]).map(r => <option key={r} value={r}>{RIGHTS[r][0]}</option>)}</select></label>
-            <label className="field" style={{ gridColumn: 'span 3' }}><span>Ghi chú quyền sử dụng</span><input value={form.usage_note} onChange={e => setForm({ ...form, usage_note: e.target.value })} placeholder="VD: chỉ dùng trong năm học 2026–2027, ghi nguồn KDI" /></label>
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>Ghi chú quyền sử dụng</span><input value={form.usage_note} onChange={e => setForm({ ...form, usage_note: e.target.value })} placeholder="VD: chỉ dùng trong năm học 2026–2027, ghi nguồn KDI" /></label>
             <label className="field"><span>Phát hành tới</span>
               <select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Item['scope'] })}>
                 {me.type !== 'provider' && <option value="children">{SCOPE.children}</option>}
@@ -343,11 +345,12 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
           )}
 
           {form.kind === 'unit' && (
-            <div className="formgrid">
+            <div className="formgrid libgrid4">
               <label className="field" style={{ gridColumn: 'span 3' }}><span>Mục tiêu bài học</span><textarea rows={2} value={form.objectives} onChange={e => setForm({ ...form, objectives: e.target.value })} /></label>
               <label className="field"><span>Số tiết</span><input type="number" min={0} max={999} value={form.periods} onChange={e => setForm({ ...form, periods: e.target.value })} /></label>
+              <h4 className="libparthead">Thành phần của bài</h4>
               <ChipPicker label="Giáo án" hint="soạn giáo án mới cho bài hoặc chọn giáo án có sẵn" options={planPool} value={form.plan_ids} onChange={v => setForm({ ...form, plan_ids: v })} missing="giáo án không còn trong kho"
-                extra={sub?.kind !== 'plan' && <button type="button" className="primary" onClick={() => setSub({ kind: 'plan', mtype: '', title: '', slides: [], src: 'file', url: '', file: null, plan: EMPTY_PLAN })}>+ Giáo án mới cho bài</button>} />
+                extra={sub?.kind !== 'plan' && <button type="button" className="libpartnew" onClick={() => setSub({ kind: 'plan', mtype: '', title: '', slides: [], src: 'file', url: '', file: null, plan: EMPTY_PLAN })}>+ Soạn giáo án mới</button>} />
               {sub?.kind === 'plan' && (
                 <div className="panel formgrid" style={{ gridColumn: '1 / -1', margin: 0 }}>
                   <label className="field" style={{ gridColumn: 'span 2' }}><span>Tên giáo án</span><input value={sub.title} onChange={e => setSub({ ...sub, title: e.target.value })} placeholder={`Giáo án: ${form.title || 'tên bài học'}`} /></label>
@@ -365,7 +368,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
                 </div>
               )}
               <ChipPicker label="Bài giảng" hint="soạn bài giảng mới cho bài hoặc chọn bài giảng có sẵn" options={pick(lessonPool)} value={form.lesson_ids} onChange={v => setForm({ ...form, lesson_ids: v })} missing="bài giảng không còn trong kho"
-                extra={sub?.kind !== 'lesson' && <button type="button" className="primary" onClick={() => setSub({ kind: 'lesson', mtype: '', title: '', slides: [{ id: uid(), kind: 'title', title: form.title, body: '' }], src: 'file', url: '', file: null, plan: EMPTY_PLAN })}>+ Bài giảng mới cho bài</button>} />
+                extra={sub?.kind !== 'lesson' && <button type="button" className="libpartnew" onClick={() => setSub({ kind: 'lesson', mtype: '', title: '', slides: [{ id: uid(), kind: 'title', title: form.title, body: '' }], src: 'file', url: '', file: null, plan: EMPTY_PLAN })}>+ Soạn bài giảng mới</button>} />
               {sub?.kind === 'lesson' && (
                 <div className="panel" style={{ gridColumn: '1 / -1', margin: 0 }}>
                   <label className="field"><span>Tên bài giảng</span><input value={sub.title} onChange={e => setSub({ ...sub, title: e.target.value })} placeholder={`Bài giảng: ${form.title || 'tên bài học'}`} /></label>
@@ -382,7 +385,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
                 lead={!normOpen && norm.rows.length > 0 && <span className="chip">Vật tư của bài: {norm.rows.length} vật tư{norm.status === 'published' ? '' : ' (nháp)'}
                   <button type="button" className="linkbtn" onClick={() => setNormOpen(true)}>Sửa</button>
                   <button type="button" className="x" aria-label="Bỏ vật tư của bài" onClick={() => setNorm({ ...norm, rows: [], dirty: true })}>×</button></span>}
-                extra={!normOpen && <button type="button" className="primary" onClick={() => setNormOpen(true)}>{norm.rows.length ? 'Sửa vật tư của bài' : '+ Định mức mới cho bài'}</button>} />
+                extra={!normOpen && <button type="button" className="libpartnew" onClick={() => setNormOpen(true)}>{norm.rows.length ? 'Sửa vật tư của bài' : '+ Nhập vật tư mới'}</button>} />
               {normOpen && (
                 <div className="panel formgrid" style={{ gridColumn: '1 / -1', margin: 0 }}>
                   <UnitNormEditor value={norm} onChange={setNorm} />
@@ -391,7 +394,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
                 </div>
               )}
               <ChipPicker label="Học liệu khác" hint="phiếu học tập, video, tài liệu… soạn mới cho bài hoặc chọn học liệu có sẵn" options={matPool} value={form.material_ids} onChange={v => setForm({ ...form, material_ids: v })} missing="học liệu không còn trong kho"
-                extra={sub?.kind !== 'material' && <button type="button" className="primary" onClick={() => setSub({ kind: 'material', mtype: 'worksheet', title: '', slides: [], src: 'file', url: '', file: null, plan: EMPTY_PLAN })}>+ Học liệu mới cho bài</button>} />
+                extra={sub?.kind !== 'material' && <button type="button" className="libpartnew" onClick={() => setSub({ kind: 'material', mtype: 'worksheet', title: '', slides: [], src: 'file', url: '', file: null, plan: EMPTY_PLAN })}>+ Thêm học liệu mới</button>} />
               {sub?.kind === 'material' && (
                 <div className="panel formgrid" style={{ gridColumn: '1 / -1', margin: 0 }}>
                   <label className="field" style={{ gridColumn: 'span 2' }}><span>Tên học liệu</span><input value={sub.title} onChange={e => setSub({ ...sub, title: e.target.value })} placeholder={`${MAT_TYPE[sub.mtype] ?? 'Học liệu'}: ${form.title || 'tên bài học'}`} /></label>

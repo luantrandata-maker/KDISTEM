@@ -4,6 +4,7 @@
 do $$
 declare
   allowed text[] := array[
+    'approval_bypass',      -- loại hồ sơ đang tạm tắt duyệt (068)
     'ai_settings',          -- cấu hình trợ lý AI mặc định (052, một dòng, tắt)
     'audit_log',            -- nhật ký do chính migration ghi khi cập nhật danh mục gói
     'competencies',         -- khung năng lực HS/GV (042)

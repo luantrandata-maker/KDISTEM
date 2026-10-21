@@ -242,6 +242,14 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
     setMkBook(null); setMsg(['Đã tạo PPCT nháp — xem ở Phân phối chương trình.', false])
   }
 
+  // Xoá chương trình nháp (kèm học phần, yêu cầu cần đạt); bản đã gửi duyệt / ban hành thì lưu trữ
+  async function removeDraft() {
+    if (!p || !confirm(`Xoá chương trình nháp "${p.title}" (v${p.version_no})? Toàn bộ học phần, bài và yêu cầu cần đạt của bản này cũng bị xoá.`)) return
+    const { error } = await supabase.from('edu_programs').delete().eq('id', p.id)
+    if (error) return setMsg([errText(error.message), true])
+    onClose()
+  }
+
   return (
     <>
       <div className="bar">
@@ -267,7 +275,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
         {tabs.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      {tab === 'info' && <InfoTab p={p} editable={editable} scopeEditable={mine && canEdit && p.status === 'published' && mode !== 'school'} mode={mode} comps={comps} onSaved={m => { setMsg([m, false]); load() }} onError={m => setMsg([m, true])} />}
+      {tab === 'info' && <InfoTab p={p} editable={editable} onDelete={editable ? removeDraft : undefined} scopeEditable={mine && canEdit && p.status === 'published' && mode !== 'school'} mode={mode} comps={comps} onSaved={m => { setMsg([m, false]); load() }} onError={m => setMsg([m, true])} />}
       {tab === 'units' && <UnitsTab p={p} editable={editable} comps={comps} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
       {tab === 'versions' && <VersionsTab p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
       {tab === 'assign' && <AssignTab p={p} orgId={orgId} mine={mine} onMessage={(m, e) => setMsg([m, !!e])} />}
@@ -276,7 +284,8 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
 }
 
 // ----- Thông tin -----
-function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError }: {
+function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, onDelete }: {
+  onDelete?: () => void
   p: Program; editable: boolean; scopeEditable: boolean; mode: ProgMode; comps: Comp[]; onSaved: (m: string) => void; onError: (m: string) => void
 }) {
   const [f, setF] = useState<Program>(p)
@@ -341,6 +350,7 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError }: 
       </fieldset>
       <div className="formactions">
         {editable && <button className="primary" type="submit">Lưu</button>}
+        {onDelete && <button type="button" className="danger" onClick={onDelete}>Xoá bản nháp</button>}
         {scopeEditable && (f.scope !== p.scope || f.effective_from !== p.effective_from) && <button type="button" className="primary" onClick={saveScope}>Lưu phạm vi áp dụng</button>}
       </div>
     </form>

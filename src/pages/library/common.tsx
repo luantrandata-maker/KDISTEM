@@ -4,6 +4,7 @@ import { openFile, fmtSize } from '../../lib/files'
 import { SlideView, KIND as SLIDE_KIND, type Slide, type SlideKind } from '../teacher/Lessons'
 import { PROGRAM_COLOR } from '../teacher/common'
 import { PlanView, planOf } from './PlanEditor'
+import { Drawer } from '../../components/Drawer'
 
 export type Unit = { title: string; periods?: number; objectives?: string; lesson_ids?: string[] }
 export type Item = {
@@ -115,7 +116,7 @@ export function StatusChip({ s }: { s: Item['status'] }) {
 }
 
 // Xem trước nội dung một mục kho
-export function ItemPreview({ item, all, canRestore, onRestored }: { item: Item; all: Item[]; canRestore?: boolean; onRestored?: () => void }) {
+export function ItemPreview({ item, all, canRestore, onRestored, onOpen }: { item: Item; all: Item[]; canRestore?: boolean; onRestored?: () => void; onOpen?: (e: DrawerEntry) => void }) {
   const [i, setI] = useState(0)
   if (item.kind === 'lesson') {
     const slides = item.content.slides ?? []
@@ -147,7 +148,7 @@ export function ItemPreview({ item, all, canRestore, onRestored }: { item: Item;
       </div>
     )
   }
-  if (item.kind === 'unit') return <UnitPreview item={item} all={all} canRestore={canRestore} onRestored={onRestored} />
+  if (item.kind === 'unit') return <UnitPreview item={item} all={all} canRestore={canRestore} onRestored={onRestored} onOpen={onOpen} />
   const units = item.content.units ?? []
   return (
     <ol className="libunits">
@@ -163,30 +164,90 @@ export function ItemPreview({ item, all, canRestore, onRestored }: { item: Item;
   )
 }
 
-type NormView = { id: string; title: string; version_no: number; material_norm_items?: { id: string; name: string; unit: string | null; qty: number }[] }
-function UnitPreview({ item, all, canRestore, onRestored }: { item: Item; all: Item[]; canRestore?: boolean; onRestored?: () => void }) {
+type NormView = { id: string; title: string; version_no: number; status?: string; basis?: string; group_size?: number
+  material_norm_items?: { id: string; name: string; unit: string | null; qty: number; kind?: string; reusable?: boolean; seq?: number }[] }
+const NORM_COLS = 'id, title, version_no, status, basis, group_size, material_norm_items(id, name, unit, qty, kind, reusable, seq)'
+function UnitPreview({ item, all, canRestore, onRestored, onOpen }: { item: Item; all: Item[]; canRestore?: boolean; onRestored?: () => void; onOpen?: (e: DrawerEntry) => void }) {
   const c = item.content
   const [norms, setNorms] = useState<NormView[]>([])
   const ids = (c.norm_ids ?? []).join(',')
   useEffect(() => {
     if (!ids) return setNorms([])
-    supabase.from('material_norms').select('id, title, version_no, material_norm_items(id, name, unit, qty)').in('id', ids.split(','))
+    supabase.from('material_norms').select(NORM_COLS).in('id', ids.split(','))
       .then(({ data }) => setNorms((data ?? []) as NormView[]))
   }, [ids])
-  const title = (id: string) => all.find(x => x.id === id)?.title ?? 'mục không còn trong kho hoặc chưa được phát hành tới đơn vị'
+  // Mỗi thành phần là một dòng bấm được để mở chi tiết của nó
   const group = (label: string, list: string[] | undefined) => (
-    <p><b>{label}:</b> {(list ?? []).length ? (list ?? []).map(title).join(' · ') : <small className="sub">chưa gắn</small>}</p>)
+    <div><b>{label}</b>{(list ?? []).length === 0 ? <small className="sub"> — chưa gắn</small> : (
+      <ul className="childlist">{(list ?? []).map(id => {
+        const x = all.find(v => v.id === id)
+        if (!x) return <li key={id} className="gone">Mục không còn trong kho hoặc chưa được phát hành tới đơn vị</li>
+        const sub = [x.kind === 'material' ? MAT_TYPE[x.content.type ?? 'link'] : x.kind === 'lesson' ? `${(x.content.slides ?? []).length} slide` : '', x.status === 'draft' ? 'nháp' : `v${x.version}`].filter(Boolean).join(' · ')
+        return <li key={id}>{onOpen ? <button type="button" onClick={() => onOpen({ type: 'item', id })}><span>{x.title}</span><small>{sub} ›</small></button> : <span>{x.title}</span>}</li>
+      })}</ul>)}</div>)
   return (
     <div className="libpreview">
       {(c.objectives || c.periods) && <p>{c.periods ? <b>{c.periods} tiết. </b> : null}{c.objectives}</p>}
       {group('Giáo án', c.plan_ids)}
       {group('Bài giảng', c.lesson_ids)}
-      <div><b>Định mức vật tư:</b> {(c.norm_ids ?? []).length === 0 ? <small className="sub">chưa gắn</small>
-        : norms.map(n => <div key={n.id} style={{ marginLeft: 12 }}>{n.title} <small className="sub">v{n.version_no}</small>
-          {(n.material_norm_items ?? []).length > 0 && <small className="sub"> — {(n.material_norm_items ?? []).map(x => `${x.name} ${x.qty}${x.unit ? ' ' + x.unit : ''}`).join(', ')}</small>}</div>)}</div>
+      <div><b>Định mức vật tư</b>{(c.norm_ids ?? []).length === 0 ? <small className="sub"> — chưa gắn</small> : (
+        <ul className="childlist">{norms.map(n => <li key={n.id}>{onOpen
+          ? <button type="button" onClick={() => onOpen({ type: 'norm', id: n.id })}><span>{n.title}</span><small>{(n.material_norm_items ?? []).length} vật tư · v{n.version_no} ›</small></button>
+          : <span>{n.title} <small className="sub">v{n.version_no}</small></span>}</li>)}</ul>)}</div>
       {group('Học liệu khác', c.material_ids)}
       <Versions item={item} canRestore={canRestore} onRestored={onRestored} />
     </div>
+  )
+}
+
+/** Chi tiết một định mức vật tư (mở từ bài học) */
+function NormDetail({ id }: { id: string }) {
+  const [n, setN] = useState<NormView | null | undefined>(undefined)
+  useEffect(() => { supabase.from('material_norms').select(NORM_COLS).eq('id', id).maybeSingle().then(({ data }) => setN(data as NormView | null)) }, [id])
+  if (n === undefined) return <p className="sub">Đang tải…</p>
+  if (!n) return <p className="sub">Không xem được định mức này.</p>
+  const basis = n.basis === 'student' ? '1 học sinh' : n.basis === 'product' ? '1 sản phẩm' : `1 nhóm${n.group_size ? ` (${n.group_size} HS)` : ''}`
+  const KINDS: Record<string, string> = { supply: 'Vật tư tiêu hao', tool: 'Công cụ', equipment: 'Thiết bị' }
+  return (
+    <div>
+      <p className="sub">Phiên bản {n.version_no}{n.status === 'draft' ? ' · nháp' : n.status === 'published' ? ' · đang ban hành' : ''} · tính cho {basis}</p>
+      <div className="wrap"><table>
+        <thead><tr><th>Vật tư</th><th>Loại</th><th>Số lượng</th><th>Dùng lại</th></tr></thead>
+        <tbody>{[...(n.material_norm_items ?? [])].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0)).map(x => (
+          <tr key={x.id}><td>{x.name}</td><td>{KINDS[x.kind ?? ''] ?? ''}</td><td>{x.qty} {x.unit ?? ''}</td><td>{x.reusable ? '✓' : ''}</td></tr>))}
+          {(n.material_norm_items ?? []).length === 0 && <tr><td colSpan={4} className="sub">Chưa có vật tư.</td></tr>}</tbody>
+      </table></div>
+    </div>
+  )
+}
+
+export type DrawerEntry = { type: 'item' | 'norm'; id: string }
+/** Bảng chi tiết bên phải: thông tin mục + các thành phần con bấm vào để xem tiếp (có nút quay lại). */
+export function ItemDrawer({ root, all, onClose, actions, canRestore, onRestored }: {
+  root: DrawerEntry; all: Item[]; onClose: () => void; actions?: (i: Item) => React.ReactNode; canRestore?: boolean; onRestored?: () => void
+}) {
+  const [stack, setStack] = useState<DrawerEntry[]>([root])
+  useEffect(() => setStack([root]), [root.type, root.id])
+  const cur = stack[stack.length - 1]
+  const item = cur.type === 'item' ? all.find(x => x.id === cur.id) : undefined
+  const label = (e: DrawerEntry) => e.type === 'norm' ? 'Định mức vật tư' : all.find(x => x.id === e.id)?.title ?? '…'
+  const open = (e: DrawerEntry) => setStack(s => [...s, e])
+  const title = cur.type === 'norm' ? 'Định mức vật tư' : item?.title ?? 'Không tìm thấy mục'
+  return (
+    <Drawer title={title} onClose={onClose} onBack={stack.length > 1 ? () => setStack(s => s.slice(0, -1)) : undefined}
+      head={stack.length > 1 && <nav className="drawercrumbs">{stack.slice(0, -1).map((e, k) => (
+        <span key={k}><button type="button" onClick={() => setStack(s => s.slice(0, k + 1))}>{label(e)}</button> ›</span>))}<span>{cur.type === 'norm' ? 'Định mức vật tư' : item?.title}</span></nav>}>
+      {cur.type === 'norm' ? <NormDetail id={cur.id} /> : !item ? <p className="sub">Mục không còn trong kho hoặc chưa được phát hành tới đơn vị.</p> : <>
+        <div className="drawermeta"><KindChip kind={item.kind} /><ProgChip p={item.program} />
+          {item.kind === 'material' && <small className="sub">{MAT_TYPE[item.content.type ?? 'link']}</small>}
+          {item.usage_rights && item.usage_rights !== 'adapt' && <RightsChip r={item.usage_rights} />}</div>
+        <p className="sub" style={{ margin: '0 0 4px' }}>{[item.owner_name, item.version > 0 ? `v${item.version}` : 'nháp', item.grades && `Khối ${item.grades}`, item.subject, `cập nhật ${fmtDate(item.updated_at)}`].filter(Boolean).join(' · ')}</p>
+        {item.edu_programs && <p style={{ margin: '2px 0' }}><ProgLine i={item} /></p>}
+        {item.summary && <p>{item.summary}</p>}
+        {actions && <div className="actions">{actions(item)}</div>}
+        <ItemPreview key={item.id} item={item} all={all} canRestore={canRestore} onRestored={onRestored} onOpen={open} />
+      </>}
+    </Drawer>
   )
 }
 

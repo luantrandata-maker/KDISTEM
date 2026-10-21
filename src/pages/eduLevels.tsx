@@ -1,0 +1,92 @@
+import { useEffect, useState } from 'react'
+import { supabase } from '../lib/supabase'
+import { useEduLevels, type EduLevel } from '../lib/eduLevels'
+
+// Danh mục cấp học & khối (migration 065): KDI thêm / sửa cấp học và khoảng khối áp dụng; chương trình giáo dục,
+// môn học và các ô chọn khối ở mọi màn dùng danh mục này. Đơn vị khác chỉ xem.
+const errText = (m: string) => (/schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 065 trên Supabase.'
+  : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'
+  : /23503|foreign key/i.test(m) ? 'Cấp học đang được chương trình dùng — hãy chuyển sang "Ngừng dùng".'
+  : /23505|duplicate/i.test(m) ? 'Mã cấp học đã có.'
+  : /edu_levels_code_check/i.test(m) ? 'Mã gồm 2–20 ký tự thường không dấu, số hoặc "_", bắt đầu bằng chữ (vd. lien_cap).'
+  : /grade_to|edu_levels_check/i.test(m) ? 'Khối đến phải lớn hơn hoặc bằng khối từ (1–12).' : m)
+const GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
+
+export function EduLevelsCatalog() {
+  const { all, reload } = useEduLevels()
+  const [admin, setAdmin] = useState(false)
+  const [used, setUsed] = useState<Record<string, number>>({})
+  const [form, setForm] = useState<(EduLevel & { isNew?: boolean }) | null>(null)
+  const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  useEffect(() => {
+    supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data))
+    supabase.from('edu_programs').select('level').then(({ data }) => {
+      const n: Record<string, number> = {}
+      for (const r of (data ?? []) as { level: string }[]) n[r.level] = (n[r.level] ?? 0) + 1
+      setUsed(n)
+    })
+  }, [])
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault(); if (!form) return
+    const row = { name: form.name.trim(), grade_from: Number(form.grade_from), grade_to: Number(form.grade_to), sort: Number(form.sort) || 0, active: form.active !== false }
+    if (!row.name) return setMsg(['Nhập tên cấp học.', true])
+    if (row.grade_to < row.grade_from) return setMsg([errText('grade_to'), true])
+    const { data, error } = form.isNew
+      ? await supabase.from('edu_levels').insert({ ...row, code: form.code.trim().toLowerCase() }).select('code')
+      : await supabase.from('edu_levels').update(row).eq('code', form.code).select('code')
+    if (error) return setMsg([errText(error.message + ' ' + (error.code ?? '')), true])
+    if (!data?.length) return setMsg([errText('row-level'), true])
+    setForm(null); setMsg([form.isNew ? 'Đã thêm cấp học.' : 'Đã lưu cấp học.', false]); reload()
+  }
+  async function setActive(l: EduLevel, active: boolean) {
+    const { error } = await supabase.from('edu_levels').update({ active }).eq('code', l.code)
+    if (error) return setMsg([errText(error.message), true])
+    reload()
+  }
+  async function remove(l: EduLevel) {
+    if (!confirm(`Xoá cấp học "${l.name}"? Cấp đang có chương trình dùng thì không xoá được, hãy ngừng dùng.`)) return
+    const { data, error } = await supabase.from('edu_levels').delete().eq('code', l.code).select('code')
+    if (error) return setMsg([errText(error.message + ' ' + (error.code ?? '')), true])
+    if (!data?.length) return setMsg([errText('row-level'), true])
+    setMsg(null); reload()
+  }
+  const gradeSel = (k: 'grade_from' | 'grade_to') => form && (
+    <select value={form[k]} onChange={e => setForm({ ...form, [k]: Number(e.target.value) })}>{GRADES.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>)
+
+  return (
+    <>
+      <div className="bar">
+        <p className="sub" style={{ margin: 0 }}>Cấp học và các khối thuộc mỗi cấp. Khi soạn chương trình, môn học hay học liệu, ô "Cấp học" và "Khối" lấy từ danh mục này.
+          {admin ? ' Thu hẹp khoảng khối chỉ được khi không có chương trình nào nằm ngoài khoảng mới.' : ' Chỉ quản trị nền tảng KDI sửa được danh mục này.'}</p>
+        {admin && !form?.isNew && <button className="primary" onClick={() => { setMsg(null); setForm({ code: '', name: '', grade_from: 1, grade_to: 5, sort: all.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1, active: true, isNew: true }) }}>Thêm cấp học</button>}
+      </div>
+      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+      {form && (
+        <form className="panel formgrid" onSubmit={save} style={{ marginBottom: 12 }}>
+          <label className="field"><span>Tên cấp học *</span><input required maxLength={60} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="VD: Liên cấp THCS–THPT" /></label>
+          <label className="field"><span>Mã {form.isNew ? '*' : '(không đổi được)'}</span><input required disabled={!form.isNew} maxLength={20} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: lien_cap" /></label>
+          <label className="field"><span>Từ khối</span>{gradeSel('grade_from')}</label>
+          <label className="field"><span>Đến khối</span>{gradeSel('grade_to')}</label>
+          <label className="field"><span>Thứ tự</span><input type="number" min={0} value={form.sort ?? 0} onChange={e => setForm({ ...form, sort: Number(e.target.value) })} /></label>
+          <div className="formactions"><button className="primary" type="submit">{form.isNew ? 'Thêm' : 'Lưu'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
+        </form>
+      )}
+      <div className="wrap"><table>
+        <thead><tr><th>Cấp học</th><th>Mã</th><th>Khối</th><th>Chương trình</th><th></th></tr></thead>
+        <tbody>{all.map(l => (
+          <tr key={l.code} style={l.active === false ? { opacity: 0.6 } : undefined}>
+            <td><b>{l.name}</b>{l.active === false && <> <span className="pill">Ngừng dùng</span></>}</td>
+            <td><small className="sub">{l.code}</small></td>
+            <td>Khối {l.grade_from}{l.grade_to !== l.grade_from ? `–${l.grade_to}` : ''}</td>
+            <td>{used[l.code] ?? 0}</td>
+            <td className="tools">{admin && <>
+              <button onClick={() => { setMsg(null); setForm({ ...l }) }}>Sửa</button>
+              <button onClick={() => setActive(l, l.active === false)}>{l.active === false ? 'Dùng lại' : 'Ngừng dùng'}</button>
+              <button className="danger" onClick={() => remove(l)}>Xoá</button>
+            </>}</td>
+          </tr>))}</tbody>
+      </table></div>
+    </>
+  )
+}

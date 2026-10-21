@@ -197,6 +197,10 @@ begin
     delete from subjects where name like 'ISO %';
     delete from stem_tracks where name like 'ISO %';
   end if;
+  if to_regclass('public.edu_levels') is not null then
+    delete from edu_levels where code like 'iso%';
+    update edu_levels set grade_from = 6, grade_to = 9, name = 'THCS' where code = 'thcs';
+  end if;
   if to_regclass('public.supplies') is not null then delete from stocktakes where name like 'ISO KK%'; delete from supplies where name like 'ISO %'; end if;
   if to_regclass('public.surveys') is not null then delete from surveys where title like 'ISO KS%'; end if;
   if to_regclass('public.teacher_assessments') is not null then
@@ -2309,6 +2313,43 @@ select pg_temp.chk('admin_kb', 'Thiết bị gói: không thêm vào gói của 
 select pg_temp.chk('admin_kb', 'Thiết bị gói: không sửa thiết bị của trường khác', $q$update package_devices set qty = 1 where name = 'ISO Bộ Arduino'$q$, 'rows:0');
 select pg_temp.chk('gv_both', 'Thiết bị gói: giáo viên không thêm thiết bị',
   $q$insert into package_devices (org_id, package_id, name) select my_org_id(), delivered_package_id, 'ISO GV' from package_orders where name = 'Đơn thử ISO'$q$, 'ERR*');
+
+-- ===== 065: bài học trong kho học liệu, danh mục cấp học & khối =====
+select pg_temp.probe('so_hy@iso-test.local', $q$insert into library_items (owner_org_id, kind, title, status, content) values (my_org_id(), 'lesson', 'ISO BG cho bài học', 'published',
+  jsonb_build_object('slides', jsonb_build_array(jsonb_build_object('id','x','kind','title','title','ISO'))))$q$, true);
+select pg_temp.chk('so_hy', 'Bài học trong kho: Sở tạo được',
+  $q$insert into library_items (owner_org_id, kind, title, content) values (my_org_id(), 'unit', 'ISO bài học kho', jsonb_build_object('objectives', ' Hiểu mạch ', 'periods', '2', 'lesson_ids', jsonb_build_array((select id from library_items where title = 'ISO BG cho bài học')::text, 'rác')))$q$, 'rows:1');
+select pg_temp.probe('so_hy@iso-test.local', $q$insert into library_items (owner_org_id, kind, title, content) values (my_org_id(), 'unit', 'ISO bài học kho',
+  jsonb_build_object('objectives', ' Hiểu mạch ', 'periods', '2', 'norm_ids', '"x"', 'lesson_ids', jsonb_build_array((select id from library_items where title = 'ISO BG cho bài học')::text, 'rác', (select id from library_items where title = 'ISO BG cho bài học')::text)))$q$, true);
+select pg_temp.chk('so_hy', 'Bài học trong kho: thành phần được làm gọn (bỏ mã lạ, bỏ trùng)',
+  $q$select jsonb_array_length(content->'lesson_ids') || '/' || jsonb_array_length(content->'norm_ids') || '/' || (content->>'periods') || '/' || (content->>'objectives') from library_items where title = 'ISO bài học kho'$q$, '1/0/2/Hiểu mạch');
+select pg_temp.chk('so_hy', 'Kho học liệu: loại mục lạ bị chặn', $q$insert into library_items (owner_org_id, kind, title) values (my_org_id(), 'khac', 'ISO lạ')$q$, 'ERR*');
+select pg_temp.probe('so_hy@iso-test.local', $q$select library_publish((select id from library_items where title = 'ISO bài học kho'))::text$q$, true);
+select pg_temp.chk('admin_ph', 'Bài học trong kho: trường trực thuộc thấy', $q$select count(*) from library_items where title = 'ISO bài học kho' and kind = 'unit'$q$, '1');
+select pg_temp.chk('admin_kb', 'Bài học trong kho: trường tỉnh khác không thấy', $q$select count(*) from library_items where title = 'ISO bài học kho'$q$, '0');
+select pg_temp.chk('admin_ph', 'Dùng bài học → tạo bài giảng mẫu từ bài giảng được gắn',
+  $q$select (library_adopt((select id from library_items where title = 'ISO bài học kho'), true)->>'count')$q$, '1');
+select pg_temp.probe('admin_ph@iso-test.local', $q$select library_adopt((select id from library_items where title = 'ISO bài học kho'), true)::text$q$, true);
+select pg_temp.chk('admin_ph', 'Dùng bài học: có bài giảng mẫu của trường',
+  $q$select count(*) from lesson_plans where is_template and org_id = my_org_id() and library_item_id = (select id from library_items where title = 'ISO BG cho bài học')$q$, '1');
+-- Cấp học & khối
+select pg_temp.chk('hs_kb', 'Cấp học: mọi người đọc được danh mục', $q$select count(*) from edu_levels where code in ('tieuhoc', 'thcs', 'thpt')$q$, '3');
+select pg_temp.chk('so_hy', 'Cấp học: Sở không thêm được', $q$insert into edu_levels (code, name, grade_from, grade_to) values ('iso_mn', 'ISO', 1, 2)$q$, 'ERR');
+select pg_temp.chk('admin_ph', 'Cấp học: trường không sửa được', $q$update edu_levels set name = 'ISO' where code = 'thcs'$q$, 'rows:0');
+select pg_temp.chk('kdi', 'Cấp học: KDI thêm được', $q$insert into edu_levels (code, name, grade_from, grade_to, sort) values ('iso_lien', 'ISO liên cấp', 6, 12, 9)$q$, 'rows:1');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_levels (code, name, grade_from, grade_to, sort) values ('iso_lien', 'ISO liên cấp', 6, 12, 9)$q$, true);
+select pg_temp.chk('kdi', 'Cấp học: khối đến nhỏ hơn khối từ bị chặn', $q$insert into edu_levels (code, name, grade_from, grade_to) values ('iso_sai', 'ISO', 9, 6)$q$, 'ERR*');
+select pg_temp.chk('kdi', 'Cấp học: không đổi mã', $q$update edu_levels set code = 'iso_moi' where code = 'iso_lien'$q$, 'ERR*');
+select pg_temp.chk('kdi', 'Chương trình: dùng cấp học mới với khối liên cấp',
+  $q$insert into edu_programs (org_id, title, level, grade_from, grade_to, main_subject) values (platform_org_id(), 'ISO CT liên cấp', 'iso_lien', 8, 11, 'Tin học')$q$, 'rows:1');
+select pg_temp.chk('kdi', 'Chương trình: khối ngoài cấp học bị chặn',
+  $q$insert into edu_programs (org_id, title, level, grade_from, grade_to, main_subject) values (platform_org_id(), 'ISO CT sai khối', 'thcs', 8, 10, 'Tin học')$q$, 'ERR*');
+select pg_temp.chk('kdi', 'Chương trình: cấp học không có trong danh mục bị chặn',
+  $q$insert into edu_programs (org_id, title, level, grade_from, grade_to, main_subject) values (platform_org_id(), 'ISO CT lạ', 'mamnon', 1, 1, 'Tin học')$q$, 'ERR*');
+select pg_temp.chk('kdi', 'Cấp học: không thu hẹp khối làm chương trình đang có nằm ngoài', $q$update edu_levels set grade_to = 8 where code = 'thcs'$q$, 'ERR*');
+select pg_temp.chk('kdi', 'Cấp học: đổi tên được', $q$update edu_levels set name = 'Trung học cơ sở' where code = 'thcs'$q$, 'rows:1');
+select pg_temp.chk('kdi', 'Môn học: cấp học lạ bị bỏ khi lưu',
+  $q$with x as (insert into subjects (org_id, name, levels) values (platform_org_id(), 'ISO môn cấp', '{thcs,mamnon,iso_lien}') returning levels) select array_to_string(levels, ',') from x$q$, 'thcs,iso_lien');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

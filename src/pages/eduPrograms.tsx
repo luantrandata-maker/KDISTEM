@@ -6,6 +6,8 @@ import { Tiles } from './department/charts'
 import { useStemTracks } from '../lib/stemTracks'
 import { asLesson, lessonStats, LessonEditor, type ILesson } from '../lib/lessonBlocks'
 import { useSubjects } from './subjects'
+import { useEduLevels } from '../lib/eduLevels'
+import { GradePicker, LevelPicker, SubjectMulti, SubjectPicker } from '../components/Pickers'
 
 // Khái niệm (064): Chương trình → Học phần (unit 'topic', trước gọi là chủ đề; gắn Môn học qua edu_unit_subjects)
 // → Bài học / Buổi học (gắn Học liệu qua edu_unit_materials) → Bài giảng (lesson_plans gắn unit_id, soạn ở "Soạn bài giảng").
@@ -14,7 +16,7 @@ import { useSubjects } from './subjects'
 export type ProgMode = 'school' | 'authority' | 'platform'
 type Status = 'draft' | 'pending' | 'approved' | 'rejected' | 'published' | 'superseded' | 'archived'
 type Kind = 'subject' | 'stem' | 'school'
-type Level = 'tieuhoc' | 'thcs' | 'thpt'
+type Level = string
 type Program = {
   id: string; org_id: string; family_id: string; version_no: number; code: string | null; title: string; kind: Kind; ct_code: string | null
   level: Level; grade_from: number; grade_to: number; main_subject: string; integrated_subjects: string[]; objectives: string | null
@@ -38,8 +40,6 @@ type Cover = {
   lessons: number; done: number; missed: number; outcomes: number; outcomes_done: number
 }
 
-export const LEVEL: Record<Level, string> = { tieuhoc: 'Tiểu học', thcs: 'THCS', thpt: 'THPT' }
-const LEVEL_GRADES: Record<Level, [number, number]> = { tieuhoc: [1, 5], thcs: [6, 9], thpt: [10, 12] }
 export const PKIND: Record<Kind, string> = { subject: 'Môn học', stem: 'Chương trình STEM', school: 'Chương trình nhà trường' }
 export const PSTATUS: Record<Status, [string, string]> = {
   draft: ['Nháp', ''], pending: ['Chờ duyệt', 'warn'], approved: ['Đã duyệt', 'good'], rejected: ['Bị trả lại', 'bad'],
@@ -77,6 +77,7 @@ function useCanEdit(mode: ProgMode) {
 export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; mode?: ProgMode }) {
   const { canEdit, isAdmin } = useCanEdit(mode)
   const { byCode: tracks, codes: CT } = useStemTracks()
+  const { byCode: LV, name: levelName } = useEduLevels()
   const [list, setList] = useState<Program[] | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const [level, setLevel] = useState('')
@@ -109,7 +110,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
     const row = {
       org_id: orgId, title: (form.title ?? '').trim(), code: form.code?.trim() || null, kind: form.kind ?? 'subject',
       ct_code: form.kind === 'stem' ? form.ct_code || null : null, level: lv,
-      grade_from: Number(form.grade_from) || LEVEL_GRADES[lv][0], grade_to: Number(form.grade_to) || LEVEL_GRADES[lv][1],
+      grade_from: Number(form.grade_from) || LV[lv]?.grade_from || 1, grade_to: Number(form.grade_to) || LV[lv]?.grade_to || 12,
       main_subject: (form.main_subject ?? '').trim(), scope: mode === 'school' ? 'own' : form.scope ?? 'children',
     }
     if (!row.title || !row.main_subject) return setMsg(['Nhập tên chương trình và môn chủ đạo.', true])
@@ -131,7 +132,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
     <tr key={p.id}>
       <td>{p.code && <small className="sub">{p.code}<br /></small>}<b>{p.title}</b> <small>v{p.version_no}</small>
         {!mine && <><br /><small className="sub">{p.organizations?.name ?? '—'}</small></>}</td>
-      <td>{LEVEL[p.level]} · {grades(p)}<br /><small>{PKIND[p.kind]}{p.ct_code ? <> · <span className="gpill">{p.ct_code}</span></> : null}</small></td>
+      <td>{levelName(p.level)} · {grades(p)}<br /><small>{PKIND[p.kind]}{p.ct_code ? <> · <span className="gpill">{p.ct_code}</span></> : null}</small></td>
       <td>{p.main_subject}{p.integrated_subjects.length > 0 && <><br /><small className="sub">Tích hợp: {p.integrated_subjects.join(', ')}</small></>}</td>
       <td>{p.total_periods || '—'}</td>
       <td><StatusPill s={p.status} />{p.status === 'published' && p.effective_from && <><br /><small className="sub">từ {fmtD(p.effective_from)}</small></>}</td>
@@ -156,7 +157,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
       </p>
       <div className="bar">
         <div className="tools">
-          <select value={level} onChange={e => setLevel(e.target.value)} aria-label="Cấp học"><option value="">Mọi cấp học</option>{(Object.keys(LEVEL) as Level[]).map(l => <option key={l} value={l}>{LEVEL[l]}</option>)}</select>
+          <LevelPicker value={level} onChange={setLevel} emptyLabel="Mọi cấp học" />
           <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Kiểu chương trình"><option value="">Mọi kiểu</option>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select>
           {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
           <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Trạng thái"><option value="">Mọi trạng thái</option>{(Object.keys(PSTATUS) as Status[]).map(s => <option key={s} value={s}>{PSTATUS[s][0]}</option>)}</select>
@@ -172,11 +173,11 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
           <label className="field"><span>Mã</span><input value={form.code ?? ''} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: TIN-THCS" /></label>
           <label className="field"><span>Kiểu chương trình</span><select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
           {form.kind === 'stem' && <label className="field"><span>Loại chương trình</span><select value={form.ct_code ?? ''} onChange={e => setForm({ ...form, ct_code: e.target.value || null })}><option value="">—</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select></label>}
-          <label className="field"><span>Cấp học</span><select value={form.level} onChange={e => { const l = e.target.value as Level; setForm({ ...form, level: l, grade_from: LEVEL_GRADES[l][0], grade_to: LEVEL_GRADES[l][1] }) }}>{(Object.keys(LEVEL) as Level[]).map(l => <option key={l} value={l}>{LEVEL[l]}</option>)}</select></label>
-          <label className="field"><span>Từ khối</span><input type="number" min={1} max={12} value={form.grade_from ?? ''} onChange={e => setForm({ ...form, grade_from: Number(e.target.value) })} /></label>
-          <label className="field"><span>Đến khối</span><input type="number" min={1} max={12} value={form.grade_to ?? ''} onChange={e => setForm({ ...form, grade_to: Number(e.target.value) })} /></label>
-          <label className="field"><span>Môn chủ đạo *</span><input required list="ct-subjects-new" value={form.main_subject ?? ''} onChange={e => setForm({ ...form, main_subject: e.target.value })} placeholder="VD: Tin học" /></label>
-          <datalist id="ct-subjects-new">{(form.kind === 'stem' && form.ct_code ? tracks[form.ct_code]?.subjects ?? [] : []).map(x => <option key={x} value={x} />)}</datalist>
+          <label className="field"><span>Cấp học</span><LevelPicker value={form.level} onChange={l => setForm({ ...form, level: l, grade_from: LV[l]?.grade_from ?? 1, grade_to: LV[l]?.grade_to ?? 12 })} /></label>
+          <label className="field"><span>Từ khối</span><GradePicker level={form.level} value={form.grade_from} onChange={g => setForm({ ...form, grade_from: g ?? undefined, grade_to: Math.max(g ?? 1, form.grade_to ?? 1) })} /></label>
+          <label className="field"><span>Đến khối</span><GradePicker level={form.level} value={form.grade_to} onChange={g => setForm({ ...form, grade_to: g ?? undefined })} /></label>
+          <label className="field"><span>Môn chủ đạo *</span><SubjectPicker required level={form.level} value={form.main_subject} onChange={v => setForm({ ...form, main_subject: v })}
+            extra={form.kind === 'stem' && form.ct_code ? tracks[form.ct_code]?.subjects ?? [] : []} /></label>
           {mode !== 'school' && <label className="field"><span>Phạm vi</span><select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Program['scope'] })}>
             <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
           <div className="formactions"><button className="primary" type="submit">Tạo bản nháp</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
@@ -204,6 +205,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
   const [comps, setComps] = useState<Comp[]>([])
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [mkBook, setMkBook] = useState<{ grade: number; subject: string; year: string; ppw: string } | null>(null)
+  const { name: levelName } = useEduLevels()
 
   async function load() {
     const { data, error } = await supabase.from('edu_programs').select('*, organizations(name)').eq('id', id).maybeSingle()
@@ -246,7 +248,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
         <div>
           <button className="linkbtn" onClick={onClose}>‹ Danh sách chương trình</button>
           <h3 style={{ margin: '4px 0 0' }}>{p.title} <small>v{p.version_no}</small> <StatusPill s={p.status} /></h3>
-          <small className="sub">{[p.code, LEVEL[p.level], grades(p), PKIND[p.kind], p.ct_code, p.main_subject, `${p.total_periods} tiết`, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
+          <small className="sub">{[p.code, levelName(p.level), grades(p), PKIND[p.kind], p.ct_code, p.main_subject, `${p.total_periods} tiết`, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
         </div>
         <div className="tools">
           {mode === 'school' && canEdit && p.status === 'published' && <button className="primary" onClick={openMkBook}>Tạo PPCT từ chương trình</button>}
@@ -255,7 +257,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
       {mkBook && (
         <form className="panel formgrid" onSubmit={createBook} style={{ marginBottom: 12 }}>
           <label className="field"><span>Khối</span><select value={mkBook.grade} onChange={e => setMkBook({ ...mkBook, grade: Number(e.target.value) })}>{range(p.grade_from, p.grade_to).map(g => <option key={g} value={g}>Khối {g}</option>)}</select></label>
-          <label className="field"><span>Môn</span><input value={mkBook.subject} onChange={e => setMkBook({ ...mkBook, subject: e.target.value })} /></label>
+          <label className="field"><span>Môn</span><SubjectPicker level={p.level} value={mkBook.subject} onChange={v => setMkBook({ ...mkBook, subject: v })} extra={[p.main_subject, ...p.integrated_subjects]} /></label>
           <label className="field"><span>Năm học</span><input value={mkBook.year} onChange={e => setMkBook({ ...mkBook, year: e.target.value })} placeholder="Để trống: mọi năm" /></label>
           <label className="field"><span>Số tiết / tuần</span><input inputMode="decimal" value={mkBook.ppw} onChange={e => setMkBook({ ...mkBook, ppw: e.target.value })} placeholder="VD: 1 hoặc 1,5" /></label>
           <div className="formactions"><button className="primary" type="submit">Tạo PPCT nháp</button> <button type="button" onClick={() => setMkBook(null)}>Huỷ</button></div>
@@ -278,10 +280,11 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError }: 
   p: Program; editable: boolean; scopeEditable: boolean; mode: ProgMode; comps: Comp[]; onSaved: (m: string) => void; onError: (m: string) => void
 }) {
   const [f, setF] = useState<Program>(p)
-  const [integ, setInteg] = useState(p.integrated_subjects.join(', '))
+  const [integ, setInteg] = useState<string[]>(p.integrated_subjects)
   const { byCode: tracks, allCodes: CT } = useStemTracks()
+  const { byCode: LV } = useEduLevels()
   const [rubrics, setRubrics] = useState<Rubric[]>([])
-  useEffect(() => { setF(p); setInteg(p.integrated_subjects.join(', ')) }, [p])
+  useEffect(() => { setF(p); setInteg(p.integrated_subjects) }, [p])
   useEffect(() => { supabase.from('rubrics').select('id, title').order('title').then(({ data }) => setRubrics((data as Rubric[]) ?? [])) }, [])
   const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v])
 
@@ -290,7 +293,7 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError }: 
     const body = {
       code: f.code?.trim() || null, title: f.title.trim(), kind: f.kind, ct_code: f.kind === 'stem' ? f.ct_code || null : null, level: f.level,
       grade_from: Number(f.grade_from), grade_to: Number(f.grade_to), main_subject: f.main_subject.trim(),
-      integrated_subjects: integ.split(/[,;]/).map(s => s.trim()).filter(Boolean), objectives: f.objectives?.trim() || null,
+      integrated_subjects: integ, objectives: f.objectives?.trim() || null,
       competency_keys: f.competency_keys, rubric_ids: f.rubric_ids, note: f.note?.trim() || null, effective_from: f.effective_from || null,
       ...(mode !== 'school' ? { scope: f.scope } : {}),
     }
@@ -314,12 +317,13 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError }: 
         <label className="field"><span>Mã</span><input disabled={dis} value={f.code ?? ''} onChange={e => setF({ ...f, code: e.target.value })} /></label>
         <label className="field"><span>Kiểu chương trình</span><select disabled={dis} value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
         {f.kind === 'stem' && <label className="field"><span>Loại chương trình</span><select disabled={dis} value={f.ct_code ?? ''} onChange={e => setF({ ...f, ct_code: e.target.value || null })}><option value="">—</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select></label>}
-        <label className="field"><span>Cấp học</span><select disabled={dis} value={f.level} onChange={e => setF({ ...f, level: e.target.value as Level })}>{(Object.keys(LEVEL) as Level[]).map(l => <option key={l} value={l}>{LEVEL[l]}</option>)}</select></label>
-        <label className="field"><span>Từ khối</span><input disabled={dis} type="number" min={1} max={12} value={f.grade_from} onChange={e => setF({ ...f, grade_from: Number(e.target.value) })} /></label>
-        <label className="field"><span>Đến khối</span><input disabled={dis} type="number" min={1} max={12} value={f.grade_to} onChange={e => setF({ ...f, grade_to: Number(e.target.value) })} /></label>
-        <label className="field"><span>Môn chủ đạo</span><input disabled={dis} list="ct-subjects-edit" value={f.main_subject} onChange={e => setF({ ...f, main_subject: e.target.value })} /></label>
-        <datalist id="ct-subjects-edit">{(f.kind === 'stem' && f.ct_code ? tracks[f.ct_code]?.subjects ?? [] : []).map(x => <option key={x} value={x} />)}</datalist>
-        <label className="field"><span>Môn tích hợp</span><input disabled={dis} value={integ} onChange={e => setInteg(e.target.value)} placeholder="Ngăn cách bằng dấu phẩy" /></label>
+        <label className="field"><span>Cấp học</span><LevelPicker disabled={dis} value={f.level} onChange={l => setF({ ...f, level: l, grade_from: LV[l]?.grade_from ?? f.grade_from, grade_to: LV[l]?.grade_to ?? f.grade_to })} /></label>
+        <label className="field"><span>Từ khối</span><GradePicker disabled={dis} level={f.level} value={f.grade_from} onChange={g => setF({ ...f, grade_from: g ?? f.grade_from, grade_to: Math.max(g ?? 1, f.grade_to) })} /></label>
+        <label className="field"><span>Đến khối</span><GradePicker disabled={dis} level={f.level} value={f.grade_to} onChange={g => setF({ ...f, grade_to: g ?? f.grade_to })} /></label>
+        <label className="field"><span>Môn chủ đạo</span><SubjectPicker disabled={dis} required level={f.level} value={f.main_subject} onChange={v => setF({ ...f, main_subject: v })}
+          extra={f.kind === 'stem' && f.ct_code ? tracks[f.ct_code]?.subjects ?? [] : []} /></label>
+        <div className="field" style={{ gridColumn: '1/-1' }}><span>Môn tích hợp</span><SubjectMulti disabled={dis} level={f.level} value={integ} onChange={setInteg} exclude={[f.main_subject]}
+          extra={f.kind === 'stem' && f.ct_code ? tracks[f.ct_code]?.subjects ?? [] : []} /></div>
         <label className="field"><span>Hiệu lực từ</span><input disabled={!editable && !scopeEditable} type="date" value={f.effective_from ?? ''} onChange={e => setF({ ...f, effective_from: e.target.value || null })} /></label>
         {mode !== 'school' && <label className="field"><span>Phạm vi áp dụng</span><select value={f.scope} disabled={!editable && !scopeEditable} onChange={e => setF({ ...f, scope: e.target.value as Program['scope'] })}>
           <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
@@ -541,8 +545,8 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
       <td><input value={edit?.title ?? ''} onChange={e => setEdit({ ...edit, title: e.target.value })} aria-label="Tên" autoFocus style={{ width: '100%', minWidth: 200 }} placeholder="Tên học phần / bài / buổi" />
         <input value={edit?.objectives ?? ''} onChange={e => setEdit({ ...edit, objectives: e.target.value })} aria-label="Mục tiêu" placeholder="Mục tiêu" style={{ width: '100%', marginTop: 4 }} /></td>
       <td><select value={edit?.grade ?? ''} onChange={e => setEdit({ ...edit, grade: Number(e.target.value) || null })} aria-label="Khối"><option value="">—</option>{range(p.grade_from, p.grade_to).map(g => <option key={g} value={g}>{g}</option>)}</select></td>
-      <td><input value={edit?.subject ?? ''} list="unit-subjects" onChange={e => setEdit({ ...edit, subject: e.target.value })} aria-label="Môn" style={{ width: 110 }} placeholder={p.main_subject} />
-        <datalist id="unit-subjects">{usable.map(s => <option key={s.id} value={s.name} />)}</datalist></td>
+      <td><SubjectPicker value={edit?.subject} onChange={v => setEdit({ ...edit, subject: v })} level={p.level} extra={usable.map(s => s.name)}
+        emptyLabel={`(${p.main_subject})`} style={{ maxWidth: 160 }} /></td>
       <td><input type="number" min={0} value={edit?.periods ?? 0} onChange={e => setEdit({ ...edit, periods: Number(e.target.value) })} aria-label="Số tiết" style={{ width: 64 }} /></td>
       <td className="tools"><button className="primary" type="submit" form="prog-unit">Lưu</button><button type="button" onClick={() => setEdit(null)}>Huỷ</button></td>
     </tr>

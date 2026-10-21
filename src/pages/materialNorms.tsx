@@ -5,6 +5,7 @@ import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
 import { Tabs } from './teacher/common'
 import { useProgramOptions, unitTree, progLabel } from './library/common'
+import { GradePicker, SubjectPicker } from '../components/Pickers'
 
 // Định mức vật tư (migration 059): danh mục vật tư / công cụ / thiết bị, định mức theo sản phẩm / nhóm / học sinh gắn bài,
 // phiên bản & ban hành, sao chép về trường, dự trù cho lớp so với tồn kho, đề xuất điều chỉnh.
@@ -177,8 +178,8 @@ function NormList({ orgId, rights, onOpen }: { orgId: string | null; rights: Rig
           <label className="field"><span>Tính cho</span><select value={form.basis} onChange={e => setForm({ ...form, basis: e.target.value as Basis })}>{(Object.keys(BASIS) as Basis[]).map(b => <option key={b} value={b}>{BASIS[b]}</option>)}</select></label>
           {form.basis === 'group' && <label className="field"><span>Số HS mỗi nhóm</span><input type="number" min={1} max={20} value={form.group_size} onChange={e => setForm({ ...form, group_size: e.target.value })} /></label>}
           <label className="field"><span>Số buổi</span><input type="number" min={1} max={50} value={form.sessions} onChange={e => setForm({ ...form, sessions: e.target.value })} /></label>
-          <label className="field"><span>Môn</span><input value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} /></label>
-          <label className="field"><span>Khối</span><input type="number" min={1} max={12} value={form.grade} onChange={e => setForm({ ...form, grade: e.target.value })} /></label>
+          <label className="field"><span>Môn</span><SubjectPicker value={form.subject} onChange={v => setForm({ ...form, subject: v })} emptyLabel="— Không chọn —" /></label>
+          <label className="field"><span>Khối</span><GradePicker value={form.grade ? Number(form.grade) : null} onChange={g => setForm({ ...form, grade: g ? String(g) : '' })} emptyLabel="—" /></label>
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình giáo dục</span><select value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, unit_id: '' })}>
             <option value="">— không gắn —</option>{programs.map(p => <option key={p.id} value={p.id}>{progLabel(p)}</option>)}</select></label>
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Học phần / bài</span><select value={form.unit_id} disabled={!form.program_id} onChange={e => setForm({ ...form, unit_id: e.target.value })}>
@@ -308,8 +309,8 @@ function NormDetail({ id, orgId, rights, onOpen, onClose }: { id: string; orgId:
           <label className="field"><span>Tính cho</span><select value={info.basis} onChange={e => setInfo({ ...info, basis: e.target.value })}>{(Object.keys(BASIS) as Basis[]).map(b => <option key={b} value={b}>{BASIS[b]}</option>)}</select></label>
           <label className="field"><span>Số HS mỗi nhóm</span><input type="number" min={1} max={20} value={info.group_size ?? 4} onChange={e => setInfo({ ...info, group_size: e.target.value })} /></label>
           <label className="field"><span>Số buổi</span><input type="number" min={1} max={50} value={info.sessions ?? 1} onChange={e => setInfo({ ...info, sessions: e.target.value })} /></label>
-          <label className="field"><span>Môn</span><input value={info.subject ?? ''} onChange={e => setInfo({ ...info, subject: e.target.value })} /></label>
-          <label className="field"><span>Khối</span><input type="number" min={1} max={12} value={info.grade ?? ''} onChange={e => setInfo({ ...info, grade: e.target.value })} /></label>
+          <label className="field"><span>Môn</span><SubjectPicker value={info.subject} onChange={v => setInfo({ ...info, subject: v })} emptyLabel="— Không chọn —" /></label>
+          <label className="field"><span>Khối</span><GradePicker value={info.grade ? Number(info.grade) : null} onChange={g => setInfo({ ...info, grade: g ? String(g) : '' })} emptyLabel="—" /></label>
           {!rights.isSchool && <label className="field"><span>Phạm vi</span><select value={info.scope} onChange={e => setInfo({ ...info, scope: e.target.value })}><option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình giáo dục</span><select value={info.program_id ?? ''} onChange={e => setInfo({ ...info, program_id: e.target.value, unit_id: '' })}>
             <option value="">— không gắn —</option>{programs.map(p => <option key={p.id} value={p.id}>{progLabel(p)}</option>)}</select></label>

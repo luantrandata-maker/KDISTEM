@@ -4,6 +4,7 @@ import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
 import { uploadLearningFile, openFile } from '../lib/files'
+import { GradePicker, SubjectPicker } from '../components/Pickers'
 
 // Phân phối chương trình theo từng tiết + tiến độ dạy (migration 057; 058: học kỳ, liên kết chương trình chuẩn,
 // gán lớp, gửi duyệt / công bố, nhật ký điều chỉnh, nội dung chưa hoàn thành, yêu cầu cần đạt, minh chứng).
@@ -173,9 +174,8 @@ export function CurriculumBooks({ orgId, mode = 'school', year }: { orgId: strin
 
       {form && (
         <form className="panel formgrid" onSubmit={save} style={{ marginBottom: 12 }}>
-          <label className="field"><span>Khối *</span><input type="number" min={1} max={12} required value={form.grade ?? ''} onChange={e => setForm({ ...form, grade: Number(e.target.value) || undefined })} /></label>
-          <label className="field"><span>Môn học *</span><input required list="ppct-subjects" value={form.subject ?? ''} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="VD: Tin học" /></label>
-          <datalist id="ppct-subjects">{[...new Set([...subjects, 'Toán', 'Khoa học tự nhiên', 'Tin học', 'Công nghệ', 'Khoa học', 'Hoạt động trải nghiệm'])].map(s => <option key={s} value={s} />)}</datalist>
+          <label className="field"><span>Khối *</span><GradePicker value={form.grade} onChange={g => setForm({ ...form, grade: g ?? undefined })} emptyLabel="— Chọn khối —" /></label>
+          <label className="field"><span>Môn học *</span><SubjectPicker required value={form.subject} onChange={v => setForm({ ...form, subject: v })} extra={subjects} /></label>
           <label className="field"><span>Tên PPCT</span><input value={form.title ?? ''} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Tin học 6 — Kết nối tri thức" /></label>
           <label className="field"><span>Năm học</span><input value={form.year_name ?? ''} onChange={e => setForm({ ...form, year_name: e.target.value })} placeholder="Để trống: dùng mọi năm" /></label>
           <label className="field"><span>Số tiết / tuần</span><input inputMode="decimal" value={form.periods_per_week ?? ''} onChange={e => setForm({ ...form, periods_per_week: e.target.value as any })} placeholder="VD: 1 hoặc 1,5" /></label>

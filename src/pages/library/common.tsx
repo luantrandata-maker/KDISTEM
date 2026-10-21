@@ -6,9 +6,13 @@ import { PROGRAM_COLOR } from '../teacher/common'
 
 export type Unit = { title: string; periods?: number; objectives?: string; lesson_ids?: string[] }
 export type Item = {
-  id: string; owner_org_id: string; kind: 'program' | 'lesson' | 'material'; title: string; summary: string | null
+  id: string; owner_org_id: string; kind: 'program' | 'unit' | 'lesson' | 'material'; title: string; summary: string | null
   subject: string | null; grades: string | null; program: string | null; tags: string[]
-  content: { slides?: Slide[]; type?: string; url?: string; units?: Unit[]; path?: string; file_name?: string; size?: number; mime?: string }
+  content: {
+    slides?: Slide[]; type?: string; url?: string; units?: Unit[]; path?: string; file_name?: string; size?: number; mime?: string
+    // Bài học (065): mục tiêu, số tiết và các thành phần đã có trong kho
+    objectives?: string | null; periods?: number | null; plan_ids?: string[]; lesson_ids?: string[]; norm_ids?: string[]; material_ids?: string[]
+  }
   scope: 'children' | 'selected' | 'public'; status: 'draft' | 'published' | 'archived'; version: number
   published_at: string | null; change_note: string | null; updated_at: string
   owner_name?: string | null; owner_type?: string | null
@@ -35,7 +39,19 @@ export type UnitOpt = { id: string; program_id: string; parent_id: string | null
 export type Copy = { item_id: string; adopted_version: number; lesson_plan_id: string | null; created_at: string; adopted_by: string | null }
 
 export const KIND: Record<Item['kind'], [string, string]> = {
-  program: ['Chương trình', '▤'], lesson: ['Bài giảng', '▶'], material: ['Học liệu', '◆'],
+  unit: ['Bài học', '◫'], lesson: ['Bài giảng', '▶'], material: ['Học liệu', '◆'], program: ['Chương trình', '▤'],
+}
+/** Loại tạo mới ở trang Phát hành học liệu; chương trình soạn ở "Chương trình giáo dục" (mục chương trình cũ vẫn xem / sửa được) */
+export const NEW_KINDS: Item['kind'][] = ['unit', 'lesson', 'material']
+/** Định mức vật tư gắn vào bài học (059) */
+export type NormOpt = { id: string; title: string; version_no: number; status: string; org_id: string; owner_name?: string | null }
+export function useNormOptions(orgId: string | null) {
+  const [norms, setNorms] = useState<NormOpt[]>([])
+  useEffect(() => {
+    supabase.from('material_norms').select('id, title, version_no, status, org_id, owner_name').order('title').order('version_no', { ascending: false })
+      .then(({ data }) => setNorms(((data ?? []) as NormOpt[]).filter(n => n.status === 'published' || n.org_id === orgId)))
+  }, [orgId])
+  return norms
 }
 export const MAT_TYPE: Record<string, string> = {
   lesson_plan: 'Giáo án', worksheet: 'Phiếu học tập', image: 'Hình ảnh', video: 'Video', guide: 'Tài liệu hướng dẫn', document: 'Tài liệu', link: 'Đường dẫn',
@@ -123,6 +139,7 @@ export function ItemPreview({ item, all, canRestore, onRestored }: { item: Item;
       </div>
     )
   }
+  if (item.kind === 'unit') return <UnitPreview item={item} all={all} canRestore={canRestore} onRestored={onRestored} />
   const units = item.content.units ?? []
   return (
     <ol className="libunits">
@@ -135,6 +152,33 @@ export function ItemPreview({ item, all, canRestore, onRestored }: { item: Item;
       ))}
       {units.length === 0 && <li className="sub">Chưa có chủ đề nào.</li>}
     </ol>
+  )
+}
+
+type NormView = { id: string; title: string; version_no: number; material_norm_items?: { id: string; name: string; unit: string | null; qty: number }[] }
+function UnitPreview({ item, all, canRestore, onRestored }: { item: Item; all: Item[]; canRestore?: boolean; onRestored?: () => void }) {
+  const c = item.content
+  const [norms, setNorms] = useState<NormView[]>([])
+  const ids = (c.norm_ids ?? []).join(',')
+  useEffect(() => {
+    if (!ids) return setNorms([])
+    supabase.from('material_norms').select('id, title, version_no, material_norm_items(id, name, unit, qty)').in('id', ids.split(','))
+      .then(({ data }) => setNorms((data ?? []) as NormView[]))
+  }, [ids])
+  const title = (id: string) => all.find(x => x.id === id)?.title ?? 'mục không còn trong kho hoặc chưa được phát hành tới đơn vị'
+  const group = (label: string, list: string[] | undefined) => (
+    <p><b>{label}:</b> {(list ?? []).length ? (list ?? []).map(title).join(' · ') : <small className="sub">chưa gắn</small>}</p>)
+  return (
+    <div className="libpreview">
+      {(c.objectives || c.periods) && <p>{c.periods ? <b>{c.periods} tiết. </b> : null}{c.objectives}</p>}
+      {group('Giáo án', c.plan_ids)}
+      {group('Bài giảng', c.lesson_ids)}
+      <div><b>Định mức vật tư:</b> {(c.norm_ids ?? []).length === 0 ? <small className="sub">chưa gắn</small>
+        : norms.map(n => <div key={n.id} style={{ marginLeft: 12 }}>{n.title} <small className="sub">v{n.version_no}</small>
+          {(n.material_norm_items ?? []).length > 0 && <small className="sub"> — {(n.material_norm_items ?? []).map(x => `${x.name} ${x.qty}${x.unit ? ' ' + x.unit : ''}`).join(', ')}</small>}</div>)}</div>
+      {group('Học liệu khác', c.material_ids)}
+      <Versions item={item} canRestore={canRestore} onRestored={onRestored} />
+    </div>
   )
 }
 

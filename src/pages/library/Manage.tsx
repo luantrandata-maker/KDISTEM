@@ -5,9 +5,10 @@ import { Tabs } from '../teacher/common'
 import type { Slide } from '../teacher/Lessons'
 import { uploadLearningFile, fmtSize, MAX_FILE_MB } from '../../lib/files'
 import {
-  KindChip, ProgChip, StatusChip, ItemPreview, SlidesEditor, SCOPE, MAT_TYPE, KIND, RIGHTS, RightsChip, ProgLine,
-  fmtDate, uid, selectItems, useProgramOptions, unitTree, progLabel, type Item, type Unit, type Rights,
+  KindChip, ProgChip, StatusChip, ItemPreview, SlidesEditor, SCOPE, MAT_TYPE, KIND, NEW_KINDS, RIGHTS, RightsChip, ProgLine,
+  fmtDate, uid, selectItems, useProgramOptions, useNormOptions, unitTree, progLabel, type Item, type Unit, type Rights,
 } from './common'
+import { GradeChecks, SubjectPicker, gradeList } from '../../components/Pickers'
 
 type Org = { id: string; name: string; type: string; parent_id: string | null }
 type Stat = { item_id: string; schools: number; copies: number; outdated: number }
@@ -17,11 +18,32 @@ type Form = {
   scope: Item['scope']; targets: string[]; slides: Slide[]; mtype: string; url: string; units: Unit[]
   src: 'url' | 'file'; file: { path: string; file_name: string; size: number; mime: string } | null
   program_id: string; unit_id: string; usage_rights: Rights; usage_note: string
+  // Bài học: mục tiêu, số tiết, giáo án / bài giảng / định mức vật tư / học liệu khác đã có trong kho
+  objectives: string; periods: string; plan_ids: string[]; lesson_ids: string[]; norm_ids: string[]; material_ids: string[]
+}
+type Pick = { id: string; label: string }
+// Chọn nhiều mục: các mục đã chọn hiện thành thẻ, thêm bằng ô chọn
+function ChipPicker({ label, hint, options, value, onChange, missing }: {
+  label: string; hint?: string; options: Pick[]; value: string[]; onChange: (v: string[]) => void; missing: string
+}) {
+  return (
+    <div className="field" style={{ gridColumn: '1 / -1' }}><span>{label}{hint && <small className="sub"> — {hint}</small>}</span>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
+        {value.map(id => <span className="chip" key={id}>{options.find(o => o.id === id)?.label ?? missing}
+          <button type="button" className="x" aria-label="Bỏ" onClick={() => onChange(value.filter(x => x !== id))}>×</button></span>)}
+        <select value="" onChange={e => e.target.value && onChange([...value, e.target.value])} aria-label={label}>
+          <option value="">{options.some(o => !value.includes(o.id)) ? `+ Chọn ${label.toLowerCase()}…` : 'Không còn mục để chọn'}</option>
+          {options.filter(o => !value.includes(o.id)).map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
+        </select>
+      </div>
+    </div>
+  )
 }
 const EMPTY = (kind: Item['kind']): Form => ({
   kind, title: '', summary: '', subject: '', grades: '', program: '', tags: '', scope: 'children', targets: [],
   slides: kind === 'lesson' ? [{ id: uid(), kind: 'title', title: '', body: '' }] : [], mtype: 'worksheet', url: '', units: kind === 'program' ? [{ title: 'Học phần 1', periods: 2, objectives: '', lesson_ids: [] }] : [],
   src: 'file', file: null, program_id: '', unit_id: '', usage_rights: 'adapt', usage_note: '',
+  objectives: '', periods: '', plan_ids: [], lesson_ids: [], norm_ids: [], material_ids: [],
 })
 type T = 'all' | 'published' | 'draft' | 'archived'
 
@@ -43,6 +65,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   const [busy, setBusy] = useState(false)
   const [uploading, setUploading] = useState(false)
   const { programs, units } = useProgramOptions(orgId)
+  const norms = useNormOptions(orgId)
 
   async function load() {
     if (!orgId) return
@@ -70,7 +93,13 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   const walk = (id: string, depth: number) => orgs.filter(o => o.parent_id === id).forEach(o => { below.push({ ...o, name: '\u00a0'.repeat(depth * 3) + o.name }); walk(o.id, depth + 1) })
   walk(me.id, 0)
   const canPublic = me.type === 'provider'
-  const lessonPool = visible.filter(x => x.kind === 'lesson' && (x.status === 'published' || x.owner_org_id === orgId))
+  const usable = (x: Item) => x.status === 'published' || x.owner_org_id === orgId
+  const lessonPool = visible.filter(x => x.kind === 'lesson' && usable(x))
+  const src = (x: { owner_name?: string | null; owner_org_id?: string; org_id?: string }) => ((x.owner_org_id ?? x.org_id) === orgId ? '' : ` · ${x.owner_name ?? ''}`)
+  const pick = (list: Item[]): Pick[] => list.map(x => ({ id: x.id, label: x.title + (x.status === 'draft' ? ' (nháp)' : '') + src(x) }))
+  const planPool = pick(visible.filter(x => x.kind === 'material' && x.content.type === 'lesson_plan' && usable(x)))
+  const matPool = pick(visible.filter(x => x.kind === 'material' && x.content.type !== 'lesson_plan' && usable(x)))
+  const normPool: Pick[] = norms.map(n => ({ id: n.id, label: `${n.title} v${n.version_no}${n.status !== 'published' ? ' (nháp)' : ''}${src(n)}` }))
 
   function edit(i: Item) {
     setMsg(''); setInfo('')
@@ -81,6 +110,8 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
       src: i.content.path ? 'file' : 'url',
       file: i.content.path ? { path: i.content.path, file_name: i.content.file_name ?? 'tệp', size: i.content.size ?? 0, mime: i.content.mime ?? '' } : null,
       program_id: i.program_id ?? '', unit_id: i.unit_id ?? '', usage_rights: i.usage_rights ?? 'adapt', usage_note: i.usage_note ?? '',
+      objectives: i.content.objectives ?? '', periods: i.content.periods ? String(i.content.periods) : '',
+      plan_ids: i.content.plan_ids ?? [], lesson_ids: i.content.lesson_ids ?? [], norm_ids: i.content.norm_ids ?? [], material_ids: i.content.material_ids ?? [],
     })
   }
   function importLesson(id: string) {
@@ -92,7 +123,9 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
     e.preventDefault(); if (!form || !orgId) return
     if (form.scope === 'selected' && form.targets.length === 0) return setMsg('Chọn ít nhất một đơn vị nhận.')
     if (form.kind === 'material' && form.src === 'file' && !form.file && publish) return setMsg('Chọn tệp học liệu để tải lên.')
-    const content = form.kind === 'lesson' ? { slides: form.slides } : form.kind === 'material'
+    const content = form.kind === 'lesson' ? { slides: form.slides } : form.kind === 'unit'
+      ? { objectives: form.objectives.trim() || null, periods: Number(form.periods) || null, plan_ids: form.plan_ids, lesson_ids: form.lesson_ids, norm_ids: form.norm_ids, material_ids: form.material_ids }
+      : form.kind === 'material'
       ? (form.src === 'file' && form.file ? { type: form.mtype, url: '', ...form.file } : { type: form.mtype, url: form.url.trim() })
       : { units: form.units }
     const row = {
@@ -157,7 +190,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
         <Tabs items={[['all', 'Tất cả', items.length], ['published', 'Đã phát hành', items.filter(i => i.status === 'published').length],
           ['draft', 'Nháp', items.filter(i => i.status === 'draft').length], ['archived', 'Đã thu hồi', items.filter(i => i.status === 'archived').length]]} value={tab} onChange={setTab} />
         <div className="actions">
-          {(Object.keys(KIND) as Item['kind'][]).map(k => <button key={k} type="button" className={k === 'lesson' ? 'primary' : ''} onClick={() => { setMsg(''); setInfo(''); setForm(EMPTY(k)) }}>+ {KIND[k][0]}</button>)}
+          {NEW_KINDS.map(k => <button key={k} type="button" className={k === 'unit' ? 'primary' : ''} onClick={() => { setMsg(''); setInfo(''); setForm(EMPTY(k)) }}>+ {KIND[k][0]}</button>)}
         </div>
       </div>
       <p className="sub">Học liệu phát hành tới {me.type === 'provider' ? 'các đơn vị bạn chọn hoặc công khai toàn hệ thống' : `các đơn vị trực thuộc ${me.name}`}. Trường “dùng” sẽ có bản riêng để chỉnh sửa; khi bạn phát hành bản cập nhật, trường được báo nhưng bản của họ không bị ghi đè.</p>
@@ -170,8 +203,8 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
           <div className="formgrid">
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mô tả ngắn</span><textarea rows={2} value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })} /></label>
-            <label className="field"><span>Môn</span><input value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value })} placeholder="VD: Công nghệ" /></label>
-            <label className="field"><span>Khối</span><input value={form.grades} onChange={e => setForm({ ...form, grades: e.target.value })} placeholder="VD: 8,9" /></label>
+            <label className="field"><span>Môn</span><SubjectPicker value={form.subject} onChange={v => setForm({ ...form, subject: v })} emptyLabel="— Không chọn —" /></label>
+            <div className="field" style={{ gridColumn: 'span 2' }}><span>Khối</span><GradeChecks value={gradeList(form.grades)} onChange={g => setForm({ ...form, grades: g.join(',') })} /></div>
             <label className="field"><span>Loại chương trình</span><select value={form.program} onChange={e => setForm({ ...form, program: e.target.value })}><option value="">—</option>{PROGRAMS.map(p => <option key={p}>{p}</option>)}</select></label>
             <label className="field"><span>Từ khoá</span><input value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} placeholder="robot, cảm biến" /></label>
             <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình giáo dục</span>
@@ -201,6 +234,17 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
             </fieldset>
           )}
 
+          {form.kind === 'unit' && (
+            <div className="formgrid">
+              <label className="field" style={{ gridColumn: 'span 3' }}><span>Mục tiêu bài học</span><textarea rows={2} value={form.objectives} onChange={e => setForm({ ...form, objectives: e.target.value })} /></label>
+              <label className="field"><span>Số tiết</span><input type="number" min={0} max={999} value={form.periods} onChange={e => setForm({ ...form, periods: e.target.value })} /></label>
+              <ChipPicker label="Giáo án" hint="học liệu loại Giáo án" options={planPool} value={form.plan_ids} onChange={v => setForm({ ...form, plan_ids: v })} missing="giáo án không còn trong kho" />
+              <ChipPicker label="Bài giảng" options={pick(lessonPool)} value={form.lesson_ids} onChange={v => setForm({ ...form, lesson_ids: v })} missing="bài giảng không còn trong kho" />
+              <ChipPicker label="Định mức vật tư" options={normPool} value={form.norm_ids} onChange={v => setForm({ ...form, norm_ids: v })} missing="định mức không còn" />
+              <ChipPicker label="Học liệu khác" hint="phiếu học tập, video, tài liệu…" options={matPool} value={form.material_ids} onChange={v => setForm({ ...form, material_ids: v })} missing="học liệu không còn trong kho" />
+              <p className="sub" style={{ gridColumn: '1 / -1', margin: 0 }}>Chưa có giáo án, bài giảng hay học liệu cần dùng? Tạo bằng “+ Bài giảng” / “+ Học liệu” (chọn loại Giáo án) rồi gắn vào đây. Định mức vật tư soạn ở mục Định mức vật tư. Trường bấm “Dùng bài học” sẽ có bản riêng của mọi bài giảng được gắn.</p>
+            </div>
+          )}
           {form.kind === 'lesson' && (
             <>
               <div className="bar small"><b>Slide bài giảng</b>
@@ -278,7 +322,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
                 {open === i.id && <tr><td colSpan={5}><ItemPreview item={i} all={visible} canRestore onRestored={load} /></td></tr>}
               </Fragment>)
             })}
-            {shown.length === 0 && <tr><td colSpan={5}>Chưa có học liệu. Bấm “+ Bài giảng”, “+ Học liệu” hoặc “+ Chương trình” để bắt đầu.</td></tr>}
+            {shown.length === 0 && <tr><td colSpan={5}>Chưa có học liệu. Bấm “+ Bài học”, “+ Bài giảng” hoặc “+ Học liệu” để bắt đầu.</td></tr>}
           </tbody>
         </table>
       </div>

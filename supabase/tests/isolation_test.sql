@@ -14,6 +14,10 @@ drop table if exists t_meta;
 create temp table t_meta as select coalesce((select max(id) from audit_log), 0) as audit_start
   where to_regclass('public.audit_log') is not null;
 grant usage on sequence t_result_id_seq to authenticated;
+-- 068: tạm cất danh sách "tạm tắt duyệt" để kiểm thử quy trình duyệt như bình thường; trả lại ở cuối
+drop table if exists t_bypass;
+create temp table t_bypass as select * from approval_bypass where to_regclass('public.approval_bypass') is not null;
+delete from approval_bypass;
 
 -- Danh sách id của các mã tổ chức, dạng 'id1','id2' (tra bằng quyền postgres, trước khi đổi vai trò)
 create or replace function pg_temp.ids(p_codes text[]) returns text language sql as $$
@@ -2377,8 +2381,27 @@ select pg_temp.probe('gv_both@iso-test.local', $q$select library_adopt((select i
 select pg_temp.chk('gv_both', 'Dùng bài giảng có đường dẫn → slide tham khảo chứa đường dẫn',
   $q$select jsonb_array_length(slides) || '|' || (slides->-1->>'body') from lesson_plans where teacher_id = my_teacher_id() and library_item_id = (select id from library_items where title = 'ISO bài giảng link')$q$, '2|https://example.com/bai-giang');
 
+-- ===== 068: tạm tắt duyệt nhóm Chương trình & học liệu =====
+insert into approval_bypass (kind, note) values ('curriculum_plan', 'ISO'), ('lesson_plan', 'ISO');
+select pg_temp.probe('admin_ph@iso-test.local', $q$insert into curriculum_books (org_id, grade, subject, title, status) values (my_org_id(), 7, 'ISO Môn tự duyệt', 'ISO PPCT tự duyệt', 'draft')$q$, true);
+select pg_temp.probe('admin_ph@iso-test.local', $q$update curriculum_books set status = 'pending' where title = 'ISO PPCT tự duyệt'$q$, true);
+select pg_temp.chk('admin_ph', 'Tạm tắt duyệt: gửi duyệt PPCT → đã duyệt ngay', $q$select status from curriculum_books where title = 'ISO PPCT tự duyệt'$q$, 'approved');
+select pg_temp.chk('admin_ph', 'Tạm tắt duyệt: hồ sơ ghi "Tự duyệt", không còn chờ',
+  $q$select r.status || '|' || a.note from approval_requests r join approval_actions a on a.request_id = r.id where r.title = 'ISO PPCT tự duyệt'$q$, 'approved|Tự duyệt (đang tạm tắt duyệt)');
+select pg_temp.probe('gv_ph2@iso-test.local', $q$insert into lesson_plans (org_id, teacher_id, title, steps) values (my_org_id(), my_teacher_id(), 'ISO GA tự duyệt', '[{"id":"s1","title":"Khởi động"}]')$q$, true);
+select pg_temp.probe('gv_ph2@iso-test.local', $q$update lesson_plans set status = 'pending' where title = 'ISO GA tự duyệt'$q$, true);
+select pg_temp.chk('gv_ph2', 'Tạm tắt duyệt: gửi duyệt giáo án → đã duyệt, xuất bản được',
+  $q$select status || '|' || lesson_plan_publish(id) from lesson_plans where title = 'ISO GA tự duyệt'$q$, 'approved|1');
+select pg_temp.chk('admin_ph', 'Tạm tắt duyệt: giáo án không bắt buộc duyệt', $q$select lesson_review_required(my_org_id())::text$q$, 'false');
+select pg_temp.chk('admin_ph', 'Tạm tắt duyệt: người dùng không đọc / sửa được danh sách', $q$delete from approval_bypass$q$, 'ERR*');
+delete from approval_bypass;
+select pg_temp.probe('admin_ph@iso-test.local', $q$insert into curriculum_books (org_id, grade, subject, title, status) values (my_org_id(), 7, 'ISO Môn bật lại', 'ISO PPCT bật lại', 'draft')$q$, true);
+select pg_temp.probe('admin_ph@iso-test.local', $q$update curriculum_books set status = 'pending' where title = 'ISO PPCT bật lại'$q$, true);
+select pg_temp.chk('admin_ph', 'Bật lại duyệt: gửi duyệt PPCT → chờ duyệt', $q$select status from curriculum_books where title = 'ISO PPCT bật lại'$q$, 'pending');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"
   from t_result;
+insert into approval_bypass select * from t_bypass on conflict (kind) do nothing;
 select id, case when ok then 'PASS' else 'FAIL' end as kq, who, name, expect, got from t_result order by ok, id;

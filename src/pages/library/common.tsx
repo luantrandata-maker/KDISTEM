@@ -77,15 +77,19 @@ export function useProgramOptions(orgId: string | null) {
   }, [orgId])
   return { programs, units }
 }
-// Chủ đề → bài của một chương trình theo thứ tự cây, kèm thụt lề
-export function unitTree(units: UnitOpt[], programId: string | null | undefined): { id: string; label: string }[] {
+// Chủ đề → bài của một chương trình theo thứ tự cây, kèm thụt lề.
+// only: 'topic' = chỉ học phần (gắn bài học), 'lesson' = chỉ bài, ghi kèm học phần (gắn giáo án, bài giảng, học liệu, định mức).
+// keep: giá trị đang chọn vẫn hiện dù không thuộc loại được lọc.
+export function unitTree(units: UnitOpt[], programId: string | null | undefined, only?: 'topic' | 'lesson', keep?: string | null): { id: string; label: string }[] {
   if (!programId) return []
   const mine = units.filter(u => u.program_id === programId)
   const out: { id: string; label: string }[] = []
-  const walk = (parent: string | null, depth: number) => mine.filter(u => u.parent_id === parent).sort((a, b) => a.seq - b.seq).forEach(u => {
-    out.push({ id: u.id, label: '\u00a0'.repeat(depth * 4) + (u.unit_type === 'topic' ? '' : '· ') + u.title }); walk(u.id, depth + 1)
+  const walk = (parent: string | null, depth: number, path: string[]) => mine.filter(u => u.parent_id === parent).sort((a, b) => a.seq - b.seq).forEach(u => {
+    if (!only) out.push({ id: u.id, label: '\u00a0'.repeat(depth * 4) + (u.unit_type === 'topic' ? '' : '· ') + u.title })
+    else if (u.unit_type === only || u.id === keep) out.push({ id: u.id, label: only === 'lesson' && path.length ? `${path.join(' › ')} › ${u.title}` : u.title })
+    walk(u.id, depth + 1, u.unit_type === 'topic' ? [...path, u.title] : path)
   })
-  walk(null, 0)
+  walk(null, 0, [])
   return out
 }
 export const progLabel = (p?: ProgOpt | null) => (p ? `${p.title} (v${p.version_no})` : '')

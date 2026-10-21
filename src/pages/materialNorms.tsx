@@ -6,19 +6,21 @@ import { Tiles } from './department/charts'
 import { Tabs } from './teacher/common'
 import { useProgramOptions, unitTree, progLabel } from './library/common'
 import { GradePicker, SubjectPicker } from '../components/Pickers'
+import { Drawer } from '../components/Drawer'
 
 // Định mức vật tư (migration 059): danh mục vật tư / công cụ / thiết bị, định mức theo sản phẩm / nhóm / học sinh gắn bài,
 // phiên bản & ban hành, sao chép về trường, dự trù cho lớp so với tồn kho, đề xuất điều chỉnh.
 type Basis = 'product' | 'group' | 'student'
 type NStatus = 'draft' | 'published' | 'superseded' | 'archived'
 type MKind = 'supply' | 'tool' | 'equipment'
+const NOEV = { preventDefault() {} } as React.FormEvent
 type Norm = {
   id: string; org_id: string; family_id: string; version_no: number; title: string; basis: Basis; group_size: number; sessions: number
   program_id: string | null; unit_id: string | null; library_item_id: string | null; subject: string | null; grade: number | null
   status: NStatus; scope: 'own' | 'children'; source_id: string | null; replaced_by: string | null; published_at: string | null
   note: string | null; updated_at: string
   organizations?: { name: string } | null; owner_name?: string | null; edu_programs?: { title: string; version_no: number } | null
-  edu_program_units?: { title: string } | null; library_items?: { title: string } | null
+  edu_program_units?: { title: string } | null; library_items?: { title: string } | null; material_norm_items?: { count: number }[]
 }
 type NItem = { id: string; norm_id: string; seq: number; catalog_id: string | null; name: string; unit: string; kind: MKind; qty: number; reusable: boolean; note: string | null }
 type Cat = {
@@ -80,15 +82,15 @@ export function MaterialNorms({ orgId }: { orgId: string | null }) {
   const rights = useRights(orgId)
   const [tab, setTab] = useState<Tab>('norms')
   const [openId, setOpenId] = useState<string | null>(null)
+  const [ver, setVer] = useState(0)
   return (
     <>
       <div className="bar">
         <Tabs<Tab> items={[['norms', 'Định mức theo bài / học phần'], ['catalog', 'Danh mục vật tư, công cụ, thiết bị'], ['proposals', 'Đề xuất điều chỉnh']]}
           value={tab} onChange={t => { setTab(t); setOpenId(null) }} />
       </div>
-      {tab === 'norms' && (openId
-        ? <NormDetail id={openId} orgId={orgId} rights={rights} onOpen={setOpenId} onClose={() => setOpenId(null)} />
-        : <NormList orgId={orgId} rights={rights} onOpen={setOpenId} />)}
+      {tab === 'norms' && <NormList orgId={orgId} rights={rights} onOpen={setOpenId} openId={openId} ver={ver} />}
+      {tab === 'norms' && openId && <NormDetail id={openId} orgId={orgId} rights={rights} onOpen={setOpenId} onChanged={() => setVer(v => v + 1)} onClose={() => setOpenId(null)} />}
       {tab === 'catalog' && <CatalogTab orgId={orgId} rights={rights} />}
       {tab === 'proposals' && <ProposalsTab orgId={orgId} rights={rights} onOpenNorm={id => { setTab('norms'); setOpenId(id) }} />}
     </>
@@ -97,7 +99,7 @@ export function MaterialNorms({ orgId }: { orgId: string | null }) {
 type Rights = ReturnType<typeof useRights>
 
 // ================= Danh sách định mức =================
-const NORM_SEL = '*, owner_name, organizations(name), edu_programs(title, version_no), edu_program_units(title), library_items(title)'
+const NORM_SEL = '*, owner_name, organizations(name), edu_programs(title, version_no), edu_program_units(title), library_items(title), material_norm_items(count)'
 async function selectNorms(filter?: (q: any) => any) {
   const run = (cols: string) => { let q = supabase.from('material_norms').select(cols); if (filter) q = filter(q); return q.order('title').order('version_no', { ascending: false }) }
   const r = await run(NORM_SEL)
@@ -106,7 +108,7 @@ async function selectNorms(filter?: (q: any) => any) {
 }
 const ownerName = (n: Norm, orgId: string | null) => (n.org_id === orgId ? 'Đơn vị mình' : n.owner_name ?? n.organizations?.name ?? 'KDI / cấp trên')
 
-function NormList({ orgId, rights, onOpen }: { orgId: string | null; rights: Rights; onOpen: (id: string) => void }) {
+function NormList({ orgId, rights, onOpen, openId, ver }: { orgId: string | null; rights: Rights; onOpen: (id: string) => void; openId: string | null; ver: number }) {
   const [list, setList] = useState<Norm[] | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [q, setQ] = useState(''); const [subject, setSubject] = useState(''); const [basis, setBasis] = useState(''); const [old, setOld] = useState(false)
@@ -118,7 +120,7 @@ function NormList({ orgId, rights, onOpen }: { orgId: string | null; rights: Rig
     if (error) setMsg([errText(error.message), true])
     setList((data as unknown as Norm[]) ?? [])
   }
-  useEffect(() => { load() }, [orgId])
+  useEffect(() => { load() }, [orgId, ver])
   const all = list ?? []
   const subjects = useMemo(() => [...new Set(all.map(n => n.subject).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi')), [list])
   const shown = all.filter(n => (old || !['superseded', 'archived'].includes(n.status)) && (!subject || n.subject === subject) && (!basis || n.basis === basis)
@@ -145,17 +147,18 @@ function NormList({ orgId, rights, onOpen }: { orgId: string | null; rights: Rig
     onOpen(data as string)
   }
 
+  // Bấm vào dòng để mở chi tiết bên phải (thao tác nằm trong bảng chi tiết)
   const table = (rows: Norm[], mine: boolean) => (
-    <div className="wrap"><table>
-      <thead><tr><th>Định mức</th><th>Tính cho</th><th>Gắn với</th><th>Trạng thái</th><th></th></tr></thead>
+    <div className="wrap"><table className="libtable">
+      <thead><tr><th>Định mức</th><th>Tính cho</th><th>Số vật tư</th><th>Gắn với</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
       <tbody>{rows.map(n => (
-        <tr key={n.id}>
-          <td><b>{n.title}</b> <small className="sub">v{n.version_no}</small><br /><small className="sub">{[n.subject, n.grade && `Khối ${n.grade}`, !mine && ownerName(n, orgId)].filter(Boolean).join(' · ')}</small></td>
-          <td>{BASIS[n.basis]}{n.basis === 'group' && <small className="sub"> ({n.group_size} HS)</small>}<br /><small className="sub">{n.sessions} buổi</small></td>
-          <td><small>{n.edu_programs ? `${n.edu_programs.title}${n.edu_program_units ? ' › ' + n.edu_program_units.title : ''}` : ''}{n.library_items ? <><br />Học liệu: {n.library_items.title}</> : null}{!n.edu_programs && !n.library_items ? '—' : null}</small></td>
-          <td><Pill s={n.status} />{n.published_at && <><br /><small className="sub">từ {fmtD(n.published_at)}</small></>}</td>
-          <td className="actions"><button onClick={() => onOpen(n.id)}>Mở</button>
-            {!mine && n.status === 'published' && rights.canWrite && <button onClick={() => copy(n)}>Sao chép về đơn vị</button>}</td>
+        <tr key={n.id} className={'rowlink' + (openId === n.id ? ' on' : '')} onClick={() => onOpen(n.id)} tabIndex={0} onKeyDown={e => { if (e.key === 'Enter') onOpen(n.id) }}>
+          <td><b>{n.title}</b> <small className="sub">v{n.version_no}</small><div className="sub" style={{ fontSize: 12 }}>{[n.subject, n.grade && `Khối ${n.grade}`, !mine && ownerName(n, orgId)].filter(Boolean).join(' · ') || '—'}</div></td>
+          <td>{BASIS[n.basis]}{n.basis === 'group' && <small className="sub"> ({n.group_size} HS)</small>}<div className="sub" style={{ fontSize: 12 }}>{n.sessions} buổi</div></td>
+          <td>{n.material_norm_items?.[0]?.count ?? '—'}</td>
+          <td><small>{n.edu_programs ? `${n.edu_programs.title}${n.edu_program_units ? ' › ' + n.edu_program_units.title : ''}` : ''}{n.library_items ? <>{n.edu_programs ? <br /> : null}Bài: {n.library_items.title}</> : null}{!n.edu_programs && !n.library_items ? '—' : null}</small></td>
+          <td><Pill s={n.status} />{n.published_at && <div className="sub" style={{ fontSize: 12 }}>từ {fmtD(n.published_at)}</div>}</td>
+          <td><small>{fmtD(n.updated_at)}</small></td>
         </tr>
       ))}</tbody>
     </table></div>
@@ -173,7 +176,10 @@ function NormList({ orgId, rights, onOpen }: { orgId: string | null; rights: Rig
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'}>{msg[0]}</p>}
       {form && (
-        <form className="panel formgrid" onSubmit={create} style={{ marginBottom: 12 }}>
+        <Drawer title="Thêm định mức vật tư" closeOnOutside={false} onClose={() => setForm(null)}
+          actions={<><button type="button" className="primary" onClick={() => create(NOEV)}>Tạo bản nháp</button><button type="button" onClick={() => setForm(null)}>Huỷ</button></>}>
+        {msg && msg[1] && <p className="msg">{msg[0]}</p>}
+        <form className="formgrid" onSubmit={create}>
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Tên định mức *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Robot dò line — lắp ráp" /></label>
           <label className="field"><span>Tính cho</span><select value={form.basis} onChange={e => setForm({ ...form, basis: e.target.value as Basis })}>{(Object.keys(BASIS) as Basis[]).map(b => <option key={b} value={b}>{BASIS[b]}</option>)}</select></label>
           {form.basis === 'group' && <label className="field"><span>Số HS mỗi nhóm</span><input type="number" min={1} max={20} value={form.group_size} onChange={e => setForm({ ...form, group_size: e.target.value })} /></label>}
@@ -184,8 +190,8 @@ function NormList({ orgId, rights, onOpen }: { orgId: string | null; rights: Rig
             <option value="">— không gắn —</option>{programs.map(p => <option key={p.id} value={p.id}>{progLabel(p)}</option>)}</select></label>
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Bài</span><select value={form.unit_id} disabled={!form.program_id} onChange={e => setForm({ ...form, unit_id: e.target.value })}>
             <option value="">— chọn bài —</option>{unitTree(units, form.program_id, 'lesson', form.unit_id).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
-          <div className="formactions"><button className="primary" type="submit">Tạo bản nháp</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
+        </Drawer>
       )}
       {!list ? <p className="sub">Đang tải…</p> : <>
         <h3>Của đơn vị ({own.length})</h3>
@@ -198,7 +204,7 @@ function NormList({ orgId, rights, onOpen }: { orgId: string | null; rights: Rig
 }
 
 // ================= Chi tiết định mức =================
-function NormDetail({ id, orgId, rights, onOpen, onClose }: { id: string; orgId: string | null; rights: Rights; onOpen: (id: string) => void; onClose: () => void }) {
+function NormDetail({ id, orgId, rights, onOpen, onClose, onChanged }: { id: string; orgId: string | null; rights: Rights; onOpen: (id: string) => void; onClose: () => void; onChanged: () => void }) {
   const [n, setN] = useState<Norm | null>(null)
   const [items, setItems] = useState<NItem[]>([])
   const [family, setFamily] = useState<Norm[]>([])
@@ -227,7 +233,7 @@ function NormDetail({ id, orgId, rights, onOpen, onClose }: { id: string; orgId:
     supabase.from('material_catalog').select('*').eq('active', true).order('kind').order('name').then(({ data }) => setCat((data as Cat[]) ?? []))
     supabase.from('library_items').select('id, title').in('kind', ['material', 'lesson']).order('title').then(({ data }) => setLibs((data as LibOpt[]) ?? []))
   }, [orgId])
-  if (!n) return <><button className="linkbtn" onClick={onClose}>‹ Danh sách định mức</button>{msg ? <p className="msg">{msg[0]}</p> : <p className="sub">Đang tải…</p>}</>
+  if (!n) return <Drawer wide title="Định mức vật tư" onClose={onClose}>{msg ? <p className="msg">{msg[0]}</p> : <p className="sub">Đang tải…</p>}</Drawer>
 
   const mine = n.org_id === orgId
   const editable = mine && rights.canWrite && n.status === 'draft'
@@ -236,7 +242,7 @@ function NormDetail({ id, orgId, rights, onOpen, onClose }: { id: string; orgId:
   async function act(p: Promise<{ error: { message: string } | null; data?: unknown }>, ok: string, then?: (d: unknown) => void) {
     const { error, data } = await p
     if (error) return say(errText(error.message), true)
-    say(ok); if (then) then(data); else load()
+    say(ok); onChanged(); if (then) then(data); else load()
   }
   const setStatus = (s: NStatus, ok: string) => act(supabase.rpc('material_norm_set_status', { p_norm: n.id, p_status: s }) as any, ok)
   async function saveInfo(e: React.FormEvent) {
@@ -249,7 +255,7 @@ function NormDetail({ id, orgId, rights, onOpen, onClose }: { id: string; orgId:
     }
     const { error } = await supabase.from('material_norms').update(patch).eq('id', n!.id)
     if (error) return say(errText(error.message), true)
-    setInfo(null); say('Đã lưu thông tin định mức.'); load()
+    setInfo(null); say('Đã lưu thông tin định mức.'); onChanged(); load()
   }
   async function addRow(e: React.FormEvent) {
     e.preventDefault(); if (!row) return
@@ -277,18 +283,11 @@ function NormDetail({ id, orgId, rights, onOpen, onClose }: { id: string; orgId:
     if (!confirm(`Xoá định mức "${n!.title}" v${n!.version_no}?`)) return
     const { error } = await supabase.from('material_norms').delete().eq('id', n!.id)
     if (error) return say(errText(error.message), true)
-    onClose()
+    onChanged(); onClose()
   }
 
   return (
-    <>
-      <button className="linkbtn" onClick={onClose}>‹ Danh sách định mức</button>
-      <div className="bar">
-        <div><h2 style={{ margin: '4px 0' }}>{n.title} <small className="sub">v{n.version_no}</small> <Pill s={n.status} /></h2>
-          <p className="sub" style={{ margin: 0 }}>{[`Tính cho ${BASIS[n.basis]}${n.basis === 'group' ? ` (${n.group_size} HS)` : ''}`, `${n.sessions} buổi`, n.subject, n.grade && `Khối ${n.grade}`, ownerName(n, orgId)].filter(Boolean).join(' · ')}</p>
-          {(n.edu_programs || n.library_items) && <p className="sub" style={{ margin: 0 }}>{n.edu_programs && <>Chương trình: {n.edu_programs.title} (v{n.edu_programs.version_no}){n.edu_program_units ? ` › ${n.edu_program_units.title}` : ''}</>}{n.library_items && <>{n.edu_programs ? ' · ' : ''}Học liệu: {n.library_items.title}</>}</p>}
-        </div>
-        <div className="actions">
+    <Drawer wide title={`${n.title} · v${n.version_no}`} onClose={onClose} actions={<>
           {editable && <button onClick={() => setInfo({ ...n })}>Sửa thông tin</button>}
           {editable && <button className="primary" onClick={() => setStatus('published', 'Đã ban hành định mức.')}>Ban hành</button>}
           {mine && rights.canWrite && n.status === 'published' && <button onClick={() => act(supabase.rpc('material_norm_new_version', { p_norm: n.id }) as any, 'Đã tạo phiên bản mới (bản nháp).', d => onOpen(d as string))}>Tạo phiên bản mới</button>}
@@ -297,8 +296,10 @@ function NormDetail({ id, orgId, rights, onOpen, onClose }: { id: string; orgId:
           {editable && <button className="danger" onClick={remove}>Xoá</button>}
           {!mine && n.status === 'published' && rights.canWrite && <button onClick={() => act(supabase.rpc('material_norm_copy', { p_norm: n.id }) as any, 'Đã sao chép về đơn vị.', d => onOpen(d as string))}>Sao chép về đơn vị</button>}
           {!mine && n.status === 'published' && <button onClick={() => setPropose(!propose)}>Đề xuất điều chỉnh</button>}
-        </div>
-      </div>
+        </>}>
+      <div className="drawermeta"><Pill s={n.status} /></div>
+      <p className="sub" style={{ margin: 0 }}>{[`Tính cho ${BASIS[n.basis]}${n.basis === 'group' ? ` (${n.group_size} HS)` : ''}`, `${n.sessions} buổi`, n.subject, n.grade && `Khối ${n.grade}`, ownerName(n, orgId)].filter(Boolean).join(' · ')}</p>
+          {(n.edu_programs || n.library_items) && <p className="sub" style={{ margin: 0 }}>{n.edu_programs && <>Chương trình: {n.edu_programs.title} (v{n.edu_programs.version_no}){n.edu_program_units ? ` › ${n.edu_program_units.title}` : ''}</>}{n.library_items && <>{n.edu_programs ? ' · ' : ''}Học liệu: {n.library_items.title}</>}</p>}
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
       {n.note && <p className="sub">Ghi chú: {n.note}</p>}
       {mine && n.status !== 'draft' && n.status !== 'archived' && <p className="sub">Định mức đã ban hành không sửa trực tiếp — tạo phiên bản mới để điều chỉnh.</p>}
@@ -372,7 +373,7 @@ function NormDetail({ id, orgId, rights, onOpen, onClose }: { id: string; orgId:
           </table></div>
         </>
       )}
-    </>
+    </Drawer>
   )
 }
 

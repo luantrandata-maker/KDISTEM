@@ -1,4 +1,6 @@
 import { useStemTracks } from '../../lib/stemTracks'
+import { lazy, Suspense } from 'react'
+import { norm as normText } from '../../lib/sheet'
 import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
@@ -47,7 +49,8 @@ const EMPTY = (kind: Item['kind']): Form => ({
   src: 'file', file: null, program_id: '', unit_id: '', usage_rights: 'adapt', usage_note: '',
   objectives: '', periods: '', plan_ids: [], lesson_ids: [], norm_ids: [], material_ids: [],
 })
-type T = 'all' | 'published' | 'draft' | 'archived'
+const MaterialNorms = lazy(() => import('../materialNorms').then(m => ({ default: m.MaterialNorms })))
+type T = Item['kind'] | 'norm'
 
 // Phát hành học liệu: Sở/Phòng/Tỉnh/Bộ, đơn vị cung cấp (KDI Education) hoặc trường soạn và phát hành tới đơn vị trực thuộc
 export function LibraryManage({ orgId }: { orgId: string | null }) {
@@ -60,7 +63,12 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   const [me, setMe] = useState<Org | null>(null)
   const [lessons, setLessons] = useState<LP[]>([])
   const [form, setForm] = useState<Form | null>(null)
-  const [tab, setTab] = useState<T>('all')
+  const [tab, setTab] = useState<T>('unit')
+  const [fStatus, setFStatus] = useState('')
+  const [fSubject, setFSubject] = useState('')
+  const [fGrade, setFGrade] = useState('')
+  const [fType, setFType] = useState('')
+  const [q, setQ] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const [msg, setMsg] = useState(''); const [info, setInfo] = useState('')
   const [err, setErr] = useState('')
@@ -249,17 +257,31 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
     setUploading(false)
   }
 
-  const shown = items.filter(i => tab === 'all' || i.status === tab)
+  const ofTab = items.filter(i => i.kind === tab)
+  const subjects = [...new Set(ofTab.map(i => i.subject).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi'))
+  const shown = ofTab.filter(i => (!fStatus || i.status === fStatus) && (!fSubject || i.subject === fSubject)
+    && (!fGrade || gradeList(i.grades ?? '').includes(Number(fGrade))) && (tab !== 'material' || !fType || (i.content.type ?? 'link') === fType)
+    && (!q || normText([i.title, i.summary, i.subject, ...i.tags].join(' ')).includes(normText(q))))
+  const kindTabs: T[] = [...NEW_KINDS, ...(items.some(i => i.kind === 'program') ? ['program' as T] : []), 'norm']
+  const addNew = (k: Item['kind']) => { setMsg(''); setInfo(''); setForm(EMPTY(k)); setNorm(EMPTY_NORM); setSub(null) }
   const setUnit = (k: number, p: Partial<Unit>) => form && setForm({ ...form, units: form.units.map((u, j) => j === k ? { ...u, ...p } : u) })
 
   return (
     <>
+      <div style={{ marginBottom: 10 }}>
+        <Tabs items={kindTabs.map(k => [k, k === 'norm' ? 'Định mức vật tư' : KIND[k][0], k === 'norm' ? undefined : items.filter(i => i.kind === k).length] as [T, string, number?])}
+          value={tab} onChange={t => { setTab(t); setOpen(null); setFType('') }} />
+      </div>
+      {tab === 'norm' ? <Suspense fallback={<p className="sub">Đang tải…</p>}><MaterialNorms orgId={orgId} /></Suspense> : <>
       <div className="bar">
-        <Tabs items={[['all', 'Tất cả', items.length], ['published', 'Đã phát hành', items.filter(i => i.status === 'published').length],
-          ['draft', 'Nháp', items.filter(i => i.status === 'draft').length], ['archived', 'Đã thu hồi', items.filter(i => i.status === 'archived').length]]} value={tab} onChange={setTab} />
-        <div className="actions">
-          {NEW_KINDS.map(k => <button key={k} type="button" className={k === 'unit' ? 'primary' : ''} onClick={() => { setMsg(''); setInfo(''); setForm(EMPTY(k)); setNorm(EMPTY_NORM); setSub(null) }}>+ {KIND[k][0]}</button>)}
+        <div className="tools">
+          <select value={fGrade} onChange={e => setFGrade(e.target.value)} aria-label="Khối"><option value="">Mọi khối</option>{Array.from({ length: 12 }, (_, k) => k + 1).map(g => <option key={g} value={g}>Khối {g}</option>)}</select>
+          {tab === 'material' && <select value={fType} onChange={e => setFType(e.target.value)} aria-label="Loại học liệu"><option value="">Mọi loại</option>{Object.entries(MAT_TYPE).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>}
+          <select value={fSubject} onChange={e => setFSubject(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(x => <option key={x}>{x}</option>)}</select>
+          <select value={fStatus} onChange={e => setFStatus(e.target.value)} aria-label="Trạng thái"><option value="">Mọi trạng thái</option><option value="published">Đã phát hành</option><option value="draft">Nháp</option><option value="archived">Đã thu hồi</option></select>
+          <input placeholder="Tìm tên, mô tả, từ khoá…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
         </div>
+        {tab !== 'program' && <button type="button" className="primary" onClick={() => addNew(tab as Item['kind'])}>Thêm {KIND[tab as Item['kind']][0].toLowerCase()}</button>}
       </div>
       <p className="sub">Học liệu phát hành tới {me.type === 'provider' ? 'các đơn vị bạn chọn hoặc công khai toàn hệ thống' : `các đơn vị trực thuộc ${me.name}`}. Trường “dùng” sẽ có bản riêng để chỉnh sửa; khi bạn phát hành bản cập nhật, trường được báo nhưng bản của họ không bị ghi đè.</p>
       {msg && <p className="msg">{msg}</p>}
@@ -399,7 +421,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
 
       <div className="wrap">
         <table>
-          <thead><tr><th>Học liệu</th><th>Phát hành tới</th><th>Trạng thái</th><th>Trường đã dùng</th><th></th></tr></thead>
+          <thead><tr><th>{KIND[tab as Item['kind']]?.[0] ?? 'Học liệu'}</th><th>Phát hành tới</th><th>Trạng thái</th><th>Trường đã dùng</th><th></th></tr></thead>
           <tbody>
             {shown.map(i => {
               const s = stats.get(i.id)
@@ -420,10 +442,11 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
                 {open === i.id && <tr><td colSpan={5}><ItemPreview item={i} all={visible} canRestore onRestored={load} /></td></tr>}
               </Fragment>)
             })}
-            {shown.length === 0 && <tr><td colSpan={5}>Chưa có học liệu. Bấm “+ Bài học”, “+ Bài giảng” hoặc “+ Học liệu” để bắt đầu.</td></tr>}
+            {shown.length === 0 && <tr><td colSpan={5}>{ofTab.length ? 'Không có mục nào khớp bộ lọc.' : `Chưa có ${KIND[tab as Item['kind']][0].toLowerCase()} nào. Bấm “Thêm ${KIND[tab as Item['kind']][0].toLowerCase()}” để bắt đầu.`}</td></tr>}
           </tbody>
         </table>
       </div>
+      </>}
     </>
   )
 }

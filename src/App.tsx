@@ -363,7 +363,7 @@ const PLATFORM: PageMap = {
   'Giám sát tập huấn nhà giáo': DeptTrainingMonitor,
   // 2. Chương trình & học liệu
   'Chương trình giáo dục': (p: any) => <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Loại chương trình', StemTracksCatalog], ['Môn học', SubjectsPlatform], ['Cấp học & khối', EduLevelsCatalog], ['Gói STEM của KDI', PlatformCatalog]]} />,
-  'Học liệu': (p: any) => <TabbedPages {...p} tabs={[['Phát hành học liệu', LibraryManage], ['Kho học liệu dùng chung', LibraryBrowse], ['Định mức vật tư', MaterialNorms]]} />,
+  'Học liệu': (p: any) => <TabbedPages {...p} tabs={[['Phát hành học liệu', LibraryManage], ['Kho học liệu dùng chung', LibraryBrowse]]} />,
   'Theo dõi chương trình CT1–CT5 (Môn học)': (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects], ['Tiến độ & yêu cầu cần đạt', ProgressPlatform]]} />,
   // 3. Vật tư, thiết bị dạy & học
   'Thiết bị & vật tư': EquipmentOverview,

@@ -1272,3 +1272,13 @@ body.drawer-resizing .drawer{animation:none}
 .lmode{display:grid;gap:4px;cursor:pointer;margin:0}
 .lmode.on{border-color:var(--navy);box-shadow:0 0 0 2px color-mix(in srgb,var(--navy) 25%,transparent)}
 .lmode input{justify-self:start}
+/* Kế hoạch dạy học: bảng kế hoạch năm, thanh phân bổ tiết (071) */
+.yearplan td{vertical-align:top;min-width:150px}
+.ypcell{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 10px;cursor:pointer;margin-bottom:6px;color:var(--text);font:inherit}
+.ypcell:hover{border-color:var(--primary)}
+.ypcell small{color:var(--muted)}
+.ypcell.over{border-color:var(--bad);background:#fdf3f3}
+.ypcell small.bad,.allocbar b.bad{color:var(--bad)}
+.ypcell.empty{align-items:center;color:var(--primary);border-style:dashed;background:none}
+.allocbar{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:baseline}
+tr.grouprow td{background:var(--soft)}

@@ -1300,3 +1300,25 @@ small.bad{color:var(--bad)}
 .calmrow.cur{background:#f2f8ff}
 .calmw{display:flex;flex-direction:column;font-weight:600}
 .calmw small{font-weight:400;color:var(--muted)}
+/* Điều chỉnh hàng loạt, phiên bản PPCT (074) */
+.adjgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:10px}
+.adjgrid form{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);border-radius:12px;padding:12px}
+.adjgrid h4{margin:0}
+.adjgrid button{align-self:flex-start;margin-top:4px}
+tr.diff.add td{background:#eef9f1}tr.diff.del td{background:#fdf0f0}tr.diff.title td,tr.diff.week td{background:#fff8ea}
+/* Kế hoạch so với thực hiện (074) */
+.planchart{width:100%;height:auto;max-height:280px;display:block;margin:4px 0 12px}
+.planchart text{font-size:11px;fill:var(--muted)}
+.planchart .grid{stroke:var(--line);stroke-width:1}
+.planchart .now{stroke:var(--muted);stroke-dasharray:3 3}
+.planchart .plan{fill:none;stroke:var(--muted);stroke-width:2;stroke-dasharray:6 4}
+.planchart .done{fill:none;stroke:var(--primary);stroke-width:2.5}
+.planchart .donept{fill:var(--primary)}
+.planchart .lbl{fill:var(--text);font-weight:600}
+.chartlegend{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:13px;margin-top:8px}
+.chartlegend .k{display:inline-block;width:22px;height:0;border-top:2px dashed var(--muted)}
+.chartlegend .k.done{border-top:3px solid var(--primary);margin-left:10px}
+.pvgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px}
+.pvgrid h4{margin:0 0 6px}
+.pvgrid table{width:100%}
+.pvgrid td.bad{color:var(--bad);font-weight:600}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Tiles } from './department/charts'
-import { BOOK_STATUS, KIND, LessonEditor, errText, useCanEdit, type Book, type PpctMode } from './curriculum'
+import { BOOK_STATUS, KIND, LessonEditor, REASONS, errText, useCanEdit, useReasonDialog, type Book, type PpctMode, type ReasonCode } from './curriculum'
 import { downloadXlsx, norm } from '../lib/sheet'
 
 // Kế hoạch dạy học — đợt 1 (migration 071)
@@ -229,6 +229,7 @@ export function Allocation({ orgId, mode = 'school', year, years }: { orgId: str
   const [busy, setBusy] = useState(false)
   const programs = usePrograms(orgId)
   const weeks = useTermWeeks(orgId, mode === 'school' ? yname || null : null)
+  const { ask, dialog } = useReasonDialog()
 
   async function loadBooks(select?: string) {
     if (!orgId) return
@@ -318,14 +319,12 @@ export function Allocation({ orgId, mode = 'school', year, years }: { orgId: str
   async function generate() {
     if (!book) return
     if (lessons > 0 && !confirm(`Thay toàn bộ ${lessons} tiết hiện có của "${book.title}" bằng ${plan.hk1 + plan.hk2} tiết theo bảng phân bổ?`)) return
-    let reason: string | null = null
-    if (book.status === 'published') {
-      reason = prompt('PPCT đang dùng — lý do phân bổ lại (ghi vào nhật ký điều chỉnh):', '')
-      if (reason === null) return
-    }
+    const reason = await ask(book, 'phân bổ lại tiết')
+    if (reason === null) return
     setBusy(true)
     const payload = leaves.map(t => get(t.u))
-    const { data, error } = await supabase.rpc('curriculum_generate', { p_book: book.id, p_alloc: payload, p_review: review, p_test: test, p_reason: reason })
+    const { data, error } = await supabase.rpc('curriculum_generate', { p_book: book.id, p_alloc: payload, p_review: review, p_test: test,
+      p_reason: reason ? reason.text || REASONS[reason.code] : null, p_reason_code: reason?.code ?? null })
     setBusy(false)
     if (error) return setMsg([errText(error.message), true])
     setMsg([`Đã sinh ${data} tiết cho "${book.title}". Xem và chỉnh từng tiết ở tab Phân phối chương trình.`, false]); loadBook()
@@ -418,6 +417,7 @@ export function Allocation({ orgId, mode = 'school', year, years }: { orgId: str
           )}
         </>
       )}
+      {dialog}
       {!book && books.length === 0 && <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có PPCT nào gắn chương trình giáo dục{mode === 'school' && yname ? ` trong năm học ${yname}` : ''}.{canEdit && ' Bấm "Tạo PPCT từ chương trình" để bắt đầu.'}</p></div>}
     </>
   )
@@ -446,6 +446,7 @@ export function Schedule({ orgId, mode = 'school', year, years }: { orgId: strin
   const [classId, setClassId] = useState('')
   const [sess, setSess] = useState<Sess[]>([])
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const { ask, dialog } = useReasonDialog()
 
   useEffect(() => {
     if (!orgId) return
@@ -496,12 +497,10 @@ export function Schedule({ orgId, mode = 'school', year, years }: { orgId: strin
 
   async function reschedule() {
     if (!book) return
-    let reason: string | null = null
-    if (book.status === 'published') {
-      reason = prompt('PPCT đang dùng — lý do xếp lại lịch (ghi vào nhật ký điều chỉnh):', '')
-      if (reason === null) return
-    } else if (!confirm(`Xếp lại tuần cho các tiết chưa dạy của "${book.title}" theo ${book.periods_per_week ?? '?'} tiết / tuần, bắt đầu từ tuần hiện tại?`)) return
-    const { data, error } = await supabase.rpc('curriculum_reschedule', { p_book: book.id, p_reason: reason })
+    if (book.status !== 'published' && !confirm(`Xếp lại tuần cho các tiết chưa dạy của "${book.title}" theo ${book.periods_per_week ?? '?'} tiết / tuần, bắt đầu từ tuần hiện tại?`)) return
+    const reason = await ask(book, 'xếp lại lịch')
+    if (reason === null) return
+    const { data, error } = await supabase.rpc('curriculum_reschedule', { p_book: book.id, p_reason: reason ? reason.text || REASONS[reason.code] : null, p_reason_code: reason?.code ?? null })
     if (error) return setMsg([errText(error.message), true])
     setMsg([data ? `Đã xếp lại tuần cho ${data} tiết.` : 'Lịch đã khớp, không có tiết nào cần dời.', false]); loadLessons()
   }
@@ -559,6 +558,7 @@ export function Schedule({ orgId, mode = 'school', year, years }: { orgId: strin
         </div>
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+      {dialog}
 
       {!book ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có PPCT{mode === 'school' && yname ? ` trong năm học ${yname}` : ''}.</p></div>
         : lessons === null ? <p className="sub">Đang tải…</p>
@@ -823,5 +823,170 @@ export function ClassCoverage({ orgId, years }: { orgId: string | null; years?: 
         </>
       )}
     </>
+  )
+}
+
+// ================= Kế hoạch so với thực hiện (074) =================
+type WeekRow = { week: number; month: string | null; term: number | null; planned: number; taught: number }
+type ProgRow = { school: string; area: string | null; class_name: string; grade: number; subject: string; book_id: string; book_title: string; total: number; week: number | null;
+  planned: number; reached: number; taught: number; gap: number; missed: number; no_evidence: number }
+
+// Biểu đồ đường: tiết kế hoạch cộng dồn (nét đứt) và tiết đã dạy cộng dồn (nét liền) theo tuần học
+function PlanChart({ rows, upTo }: { rows: WeekRow[]; upTo: number | null }) {
+  const W = 720, H = 240, L = 40, R = 12, T = 14, B = 28
+  let p = 0, t = 0
+  const pts = rows.map(r => { p += r.planned; t += r.taught; return { w: r.week, p, t } })
+  const max = Math.max(1, ...pts.map(x => Math.max(x.p, x.t)))
+  const n = Math.max(1, rows.length)
+  const x = (w: number) => L + ((w - 1) / Math.max(1, n - 1)) * (W - L - R)
+  const y = (v: number) => T + (1 - v / max) * (H - T - B)
+  const last = upTo ?? Math.max(0, ...rows.filter(r => r.taught > 0).map(r => r.week))
+  const line = (k: 'p' | 't', lim?: number) => pts.filter(q => lim == null || q.w <= lim).map((q, i) => `${i ? 'L' : 'M'}${x(q.w).toFixed(1)},${y(q[k]).toFixed(1)}`).join(' ')
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(max * f))
+  const cur = pts.find(q => q.w === last)
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="planchart" role="img" aria-label="Biểu đồ tiết kế hoạch và tiết đã dạy cộng dồn theo tuần">
+      {ticks.map(v => <g key={v}><line x1={L} x2={W - R} y1={y(v)} y2={y(v)} className="grid" /><text x={L - 6} y={y(v) + 4} textAnchor="end">{v}</text></g>)}
+      {rows.filter(r => r.week === 1 || r.week % 4 === 0).map(r => <text key={r.week} x={x(r.week)} y={H - 8} textAnchor="middle">T{r.week}</text>)}
+      {last > 0 && <line x1={x(last)} x2={x(last)} y1={T} y2={H - B} className="now" />}
+      <path d={line('p')} className="plan" />
+      <path d={line('t', last || undefined)} className="done" />
+      {cur && <>
+        <circle cx={x(cur.w)} cy={y(cur.t)} r={4} className="donept" />
+        <text x={x(cur.w) + 6} y={y(cur.t) - 6} className="lbl">{cur.t} / {cur.p} tiết</text>
+      </>}
+    </svg>
+  )
+}
+
+export function PlanVsActual({ orgId, mode = 'school' }: { orgId: string | null; mode?: PpctMode }) {
+  const canEdit = useCanEdit(mode)
+  const [grade, setGrade] = useState(0)
+  const [classId, setClassId] = useState('')
+  const [classes, setClasses] = useState<{ id: string; name: string; grade: number }[]>([])
+  const [rows, setRows] = useState<WeekRow[] | null>(null)
+  const [cur, setCur] = useState<number | null>(null)
+  const [reasons, setReasons] = useState<Map<string, number>>(new Map())
+  const [alert, setAlert] = useState<{ lag_threshold: number; enabled: boolean }>({ lag_threshold: 3, enabled: true })
+  const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const scope = mode === 'school' ? orgId : null
+
+  useEffect(() => {
+    if (mode !== 'school' || !orgId) return
+    supabase.from('classes').select('id, name, grade').eq('org_id', orgId).order('grade').order('name').then(({ data }) => setClasses((data as typeof classes) ?? []))
+    supabase.from('curriculum_alert_settings').select('lag_threshold, enabled').eq('org_id', orgId).maybeSingle().then(({ data }) => { if (data) setAlert(data as typeof alert) })
+    supabase.from('academic_years').select('name').eq('org_id', orgId).eq('is_current', true).limit(1).then(async ({ data }) => {
+      const y = ((data as { name: string }[]) ?? [])[0]?.name
+      if (!y) return
+      const { data: w } = await supabase.rpc('curriculum_week_of', { p_org: orgId, p_year: y, p_day: new Date().toISOString().slice(0, 10) })
+      setCur((w as number | null) ?? null)
+    })
+  }, [orgId, mode])
+  useEffect(() => {
+    setRows(null)
+    supabase.rpc('curriculum_weekly', { p_org: scope, p_class: classId || null, p_grade: grade || null }).then(({ data, error }) => {
+      if (error) setMsg([errText(error.message), true])
+      setRows((data as WeekRow[]) ?? [])
+    })
+    let q = supabase.from('curriculum_changes').select('reason_code, action').in('action', ['update', 'delete', 'insert', 'import', 'reschedule', 'shift', 'swap', 'makeup'])
+    if (scope) q = q.eq('org_id', scope)
+    q.limit(5000).then(({ data }) => {
+      const m = new Map<string, number>()
+      for (const r of (data as { reason_code: string | null }[]) ?? []) m.set(r.reason_code ?? 'none', (m.get(r.reason_code ?? 'none') ?? 0) + 1)
+      setReasons(m)
+    })
+  }, [scope, classId, grade])
+
+  const rs = rows ?? []
+  const upTo = cur ?? (rs.some(r => r.taught > 0) ? Math.max(...rs.filter(r => r.taught > 0).map(r => r.week)) : null)
+  const sumTo = (k: 'planned' | 'taught', f: (r: WeekRow) => boolean) => rs.filter(f).reduce((s, r) => s + r[k], 0)
+  const planNow = sumTo('planned', r => upTo == null || r.week <= upTo), doneNow = sumTo('taught', () => true)
+  const months = useMemo(() => {
+    const m = new Map<string, { planned: number; taught: number }>()
+    for (const r of rs) { const k = r.month ?? '—'; const v = m.get(k) ?? { planned: 0, taught: 0 }; v.planned += r.planned; v.taught += r.taught; m.set(k, v) }
+    return [...m.entries()]
+  }, [rows])
+  const terms = [1, 2].map(t => ({ t, planned: sumTo('planned', r => (r.term ?? 1) === t), due: sumTo('planned', r => (r.term ?? 1) === t && (upTo == null || r.week <= upTo)), taught: sumTo('taught', r => (r.term ?? 1) === t) }))
+  const pct = (a: number, b: number) => (b ? Math.round((a * 100) / b) + '%' : '—')
+
+  async function saveAlert() {
+    if (!orgId) return
+    const { error } = await supabase.from('curriculum_alert_settings').upsert({ org_id: orgId, lag_threshold: alert.lag_threshold, enabled: alert.enabled, updated_at: new Date().toISOString() })
+    setMsg(error ? [errText(error.message), true] : ['Đã lưu ngưỡng cảnh báo.', false])
+  }
+  async function sendNow() {
+    const { data, error } = await supabase.rpc('curriculum_lag_alerts')
+    setMsg(error ? [errText(error.message), true] : [data ? `Đã gửi cảnh báo cho ${data} lớp × môn đang chậm.` : 'Không có lớp nào chậm quá ngưỡng (hoặc đã được nhắc trong 7 ngày qua).', false])
+  }
+  async function exportReport() {
+    const { data, error } = await supabase.rpc('curriculum_progress', { p_org: scope })
+    if (error) return setMsg([errText(error.message), true])
+    const list = ((data as ProgRow[]) ?? []).filter(r => (!grade || r.grade === grade))
+    const { data: ch } = await supabase.from('curriculum_changes').select('book_id').in('book_id', [...new Set(list.map(r => r.book_id))])
+    const cnt = new Map<string, number>(); for (const c of (ch as { book_id: string }[]) ?? []) cnt.set(c.book_id, (cnt.get(c.book_id) ?? 0) + 1)
+    downloadXlsx('Bao-cao-thuc-hien-PPCT', [
+      { key: 's', label: 'Trường', width: 28 }, { key: 'a', label: 'Địa bàn', width: 20 }, { key: 'c', label: 'Lớp' }, { key: 'm', label: 'Môn', width: 18 },
+      { key: 'b', label: 'PPCT', width: 30 }, { key: 'n', label: 'Tổng số tiết' }, { key: 'w', label: 'Tuần hiện tại' }, { key: 'p', label: 'Kế hoạch đến nay' },
+      { key: 'r', label: 'Đã dạy tới tiết' }, { key: 't', label: 'Số tiết đã dạy' }, { key: 'g', label: 'Chênh lệch (+ chậm)' }, { key: 'x', label: 'Tỉ lệ hoàn thành' },
+      { key: 'k', label: 'Tiết bỏ qua / chậm' }, { key: 'e', label: 'Thiếu minh chứng' }, { key: 'd', label: 'Số lần điều chỉnh PPCT' },
+    ], list.map(r => [r.school, r.area, r.class_name, r.subject, r.book_title, r.total, r.week, r.planned, r.reached, r.taught, r.gap, pct(r.reached, r.planned), r.missed, r.no_evidence, cnt.get(r.book_id) ?? 0]), 'Thực hiện PPCT')
+  }
+
+  const grades = [...new Set(classes.map(c => c.grade))]
+  const reasonList = [...reasons.entries()].sort((a, b) => b[1] - a[1])
+  return (
+    <div className="panel">
+      <div className="bar">
+        <h3 style={{ margin: 0 }}>Kế hoạch so với thực hiện</h3>
+        <div className="tools">
+          {mode === 'school' && <>
+            <select value={grade} onChange={e => { setGrade(Number(e.target.value)); setClassId('') }} aria-label="Khối"><option value={0}>Cả trường</option>{grades.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>
+            <select value={classId} onChange={e => setClassId(e.target.value)} aria-label="Lớp"><option value="">Mọi lớp</option>{classes.filter(c => !grade || c.grade === grade).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+          </>}
+          {mode !== 'school' && <select value={grade} onChange={e => setGrade(Number(e.target.value))} aria-label="Khối"><option value={0}>Mọi khối</option>{range(1, 12).map(g => <option key={g} value={g}>Khối {g}</option>)}</select>}
+          <button onClick={exportReport}>Xuất báo cáo học kỳ</button>
+        </div>
+      </div>
+      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+      {rows === null ? <p className="sub">Đang tải…</p> : rs.length === 0 || rs.every(r => !r.planned) ? <p className="sub" style={{ margin: 0 }}>Chưa có PPCT đang dùng nào có tiết theo tuần trong phạm vi này.</p> : (
+        <>
+          <Tiles items={[
+            { label: upTo ? `Kế hoạch đến tuần ${upTo}` : 'Kế hoạch', value: planNow, sub: `cả năm ${sumTo('planned', () => true)} tiết` },
+            { label: 'Đã dạy', value: doneNow, sub: pct(doneNow, planNow) + ' kế hoạch đến nay', tone: doneNow >= planNow ? 'good' : '' },
+            { label: 'Chênh lệch', value: planNow - doneNow > 0 ? `chậm ${planNow - doneNow}` : 'đúng / vượt', tone: planNow - doneNow > 0 ? 'bad' : 'good' },
+          ]} />
+          <div className="chartlegend"><span className="k plan" /> Kế hoạch cộng dồn <span className="k done" /> Đã dạy cộng dồn {upTo ? <small className="sub">· vạch dọc: tuần {upTo}</small> : null}</div>
+          <PlanChart rows={rs} upTo={upTo} />
+          <div className="pvgrid">
+            <div>
+              <h4>Theo học kỳ</h4>
+              <table><thead><tr><th>Học kỳ</th><th>Kế hoạch</th><th>Đến nay</th><th>Đã dạy</th><th>Hoàn thành</th></tr></thead>
+                <tbody>{terms.map(t => <tr key={t.t}><td>HK {t.t === 1 ? 'I' : 'II'}</td><td>{t.planned}</td><td>{t.due}</td><td>{t.taught}</td><td>{pct(t.taught, t.due)}</td></tr>)}</tbody></table>
+            </div>
+            <div>
+              <h4>Theo tháng</h4>
+              <table><thead><tr><th>Tháng</th><th>Kế hoạch</th><th>Đã dạy</th></tr></thead>
+                <tbody>{months.map(([m, v]) => <tr key={m}><td>{m === '—' ? '—' : `${m.slice(5)}/${m.slice(0, 4)}`}</td><td>{v.planned}</td><td className={v.taught < v.planned && m <= new Date().toISOString().slice(0, 7) ? 'bad' : ''}>{v.taught}</td></tr>)}</tbody></table>
+            </div>
+            <div>
+              <h4>Lý do điều chỉnh</h4>
+              {reasonList.length === 0 ? <small className="sub">Chưa có điều chỉnh nào.</small> : (
+                <table><tbody>{reasonList.map(([k, v]) => <tr key={k}><td>{k === 'none' ? <small className="sub">Không ghi mã lý do</small> : REASONS[k as ReasonCode] ?? k}</td><td><b>{v}</b></td></tr>)}</tbody></table>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+      {mode === 'school' && canEdit && (
+        <div className="bar" style={{ marginTop: 12 }}>
+          <span className="tools">
+            <label><input type="checkbox" checked={alert.enabled} onChange={e => setAlert({ ...alert, enabled: e.target.checked })} /> Tự cảnh báo khi lớp chậm từ</label>
+            <input type="number" min={1} max={50} value={alert.lag_threshold} onChange={e => setAlert({ ...alert, lag_threshold: Math.max(1, Number(e.target.value) || 1) })} style={{ width: 64 }} aria-label="Ngưỡng tiết chậm" /> tiết
+            <button onClick={saveAlert}>Lưu</button>
+          </span>
+          <button onClick={sendNow}>Gửi cảnh báo ngay</button>
+        </div>
+      )}
+    </div>
   )
 }

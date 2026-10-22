@@ -2159,6 +2159,21 @@ select pg_temp.chk('admin_kb', 'Giáo án: trường khác không nhân bản', 
 select pg_temp.probe('gv_ph2@iso-test.local', $q$select lesson_plan_clone((select id from lesson_plans where title = 'ISO GA'), 'ISO GA C')::text$q$, true);
 select pg_temp.chk('gv_ph2', 'Giáo án: nhân bản thành bản nháp của mình, giữ các bước',
   $q$select status || ':' || (teacher_id = my_teacher_id())::text || ':' || jsonb_array_length(steps) from lesson_plans where title = 'ISO GA C'$q$, 'draft:true:2');
+-- 076: bản nháp để sửa bài đã xuất bản (bài gốc vẫn xuất bản tới khi xuất bản thay)
+select pg_temp.chk('gv_ph2', 'Bản nháp: GV khác không tạo bản nháp bài của đồng nghiệp', $q$select lesson_plan_draft((select id from lesson_plans where title = 'ISO GA'))::text$q$, 'ERR');
+select pg_temp.chk('gv_both', 'Bản nháp: không tự chèn bản nháp (phải qua nút)',
+  $q$insert into lesson_plans (org_id, teacher_id, title, draft_of) select my_org_id(), my_teacher_id(), 'ISO GA nháp tay', id from lesson_plans where title = 'ISO GA'$q$, 'ERR*');
+select pg_temp.probe('gv_both@iso-test.local', $q$select lesson_plan_draft((select id from lesson_plans where title = 'ISO GA'))::text$q$, true);
+select pg_temp.chk('gv_both', 'Bản nháp: bài gốc vẫn xuất bản, bản nháp đang soạn; bấm lại không tạo bản thứ hai',
+  $q$select (select status from lesson_plans where title = 'ISO GA' and draft_of is null) || ':' || (select status from lesson_plans where title = 'ISO GA' and draft_of is not null)
+     || ':' || (lesson_plan_draft((select id from lesson_plans where title = 'ISO GA' and draft_of is null)) = (select id from lesson_plans where title = 'ISO GA' and draft_of is not null))::text$q$, 'published:editing:true');
+select pg_temp.chk('gv_ph2', 'Bản nháp: đồng nghiệp chỉ thấy bản đã xuất bản', $q$select count(*) from lesson_plans where title = 'ISO GA'$q$, '1');
+select pg_temp.probe('gv_both@iso-test.local', $q$update lesson_plans set summary = 'ISO sửa nháp' where title = 'ISO GA' and draft_of is not null$q$, true);
+select pg_temp.chk('gv_both', 'Bản nháp: sửa bản nháp không đổi bài gốc', $q$select coalesce(summary, '-') from lesson_plans where title = 'ISO GA' and draft_of is null$q$, '-');
+select pg_temp.probe('gv_both@iso-test.local', $q$select lesson_plan_publish((select id from lesson_plans where title = 'ISO GA' and draft_of is not null), 'Sửa sau dạy thử')::text$q$, true);
+select pg_temp.chk('gv_both', 'Bản nháp: xuất bản thay bản cũ → bài gốc giữ id, lên phiên bản 2, có nội dung mới; bản nháp được bỏ',
+  $q$select p.status || ':' || p.version_no || ':' || p.summary || ':' || (select count(*) from lesson_plan_versions v where v.plan_id = p.id)
+     || ':' || (select count(*) from lesson_plans x where x.draft_of = p.id) from lesson_plans p where p.title = 'ISO GA'$q$, 'published:2:ISO sửa nháp:2:0');
 -- Phiên bản mới, khôi phục
 select pg_temp.probe('gv_both@iso-test.local', $q$select lesson_plan_new_version((select id from lesson_plans where title = 'ISO GA'))::text$q$, true);
 select pg_temp.chk('gv_both', 'Giáo án: tạo phiên bản mới → sửa được', $q$update lesson_plans set title = 'ISO GA v2' where title = 'ISO GA'$q$, 'rows:1');
@@ -2167,7 +2182,7 @@ select pg_temp.probe('gv_both@iso-test.local', $q$select lesson_plan_publish((se
 select pg_temp.probe('gv_both@iso-test.local', $q$select lesson_plan_new_version((select id from lesson_plans where title = 'ISO GA v2'))::text$q$, true);
 select pg_temp.chk('gv_ph2', 'Giáo án: người khác không khôi phục phiên bản', $q$select lesson_plan_restore((select id from lesson_plans where title = 'ISO GA v2'), 1)::text$q$, 'ERR');
 select pg_temp.probe('gv_both@iso-test.local', $q$select lesson_plan_restore((select id from lesson_plans where title = 'ISO GA v2'), 1)::text$q$, true);
-select pg_temp.chk('gv_both', 'Giáo án: khôi phục bản 1 vào bản đang soạn', $q$select title || ':' || status || ':' || version_no from lesson_plans where title like 'ISO GA' or title = 'ISO GA v2'$q$, 'ISO GA:editing:2');
+select pg_temp.chk('gv_both', 'Giáo án: khôi phục bản 1 vào bản đang soạn', $q$select title || ':' || status || ':' || version_no from lesson_plans where title like 'ISO GA' or title = 'ISO GA v2'$q$, 'ISO GA:editing:3');
 -- Trường bật quy trình duyệt giáo án
 do $$ begin insert into approval_workflows (org_id, kind, name) values (pg_temp.oid_('THCS-PH'), 'lesson_plan', 'ISO duyệt giáo án'); end $$;
 select pg_temp.chk('gv_ph2', 'Duyệt GA: trường bật duyệt → giáo viên không tự xuất bản', $q$select lesson_plan_publish((select id from lesson_plans where title = 'ISO GA C'))::text$q$, 'ERR');

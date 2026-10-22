@@ -78,7 +78,9 @@ function SchoolPlans({ orgId, go }: P) {
   async function load() {
     const { data, error } = await supabase.from('lesson_plans').select(PLAN_COLS).eq('org_id', orgId ?? '').order('updated_at', { ascending: false })
     if (error) setMsg([errText(error.message), true])
-    setRows(((data as LPlan[]) ?? []).map(normPlan))
+    // Bản nháp sửa bài đã xuất bản (076): chỉ hiện khi đang gửi duyệt / đã có kết quả duyệt, ghi rõ là bản nháp
+    setRows(((data as LPlan[]) ?? []).filter(p => !p.draft_of || !['draft', 'editing'].includes(p.status))
+      .map(p => normPlan(p.draft_of ? { ...p, title: p.title + ' (bản nháp sửa)' } : p)))
   }
   useEffect(() => { load() }, [orgId])
   useEffect(() => { if (orgId) supabase.rpc('lesson_review_required', { p_org: orgId }).then(({ data }) => setReviewRequired(!!data)) }, [orgId])

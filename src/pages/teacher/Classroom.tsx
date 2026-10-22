@@ -26,7 +26,7 @@ export function TeacherClassroom({ teacherId, orgId }: TProps) {
   async function load() {
     if (!teacherId) return
     const [p, t, b, s] = await Promise.all([
-      supabase.from('lesson_plans').select('*').or(`teacher_id.eq.${teacherId},is_template.eq.true,status.eq.published`).order('updated_at', { ascending: false }),
+      supabase.from('lesson_plans').select('*').is('draft_of', null).or(`teacher_id.eq.${teacherId},is_template.eq.true,status.eq.published`).order('updated_at', { ascending: false }),
       supabase.from('timetable_entries').select('id, subject, kind, class_id, classes(name), period_configs(name, starts_at), stem_rooms(name)')
         .eq('teacher_id', teacherId).eq('weekday', todayWeekday()),
       supabase.from('borrow_requests').select('id, title, items, item_list, status, on_date').eq('teacher_id', teacherId).eq('on_date', localDate()).in('status', ['approved', 'lent']),

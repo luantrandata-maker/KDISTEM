@@ -52,7 +52,7 @@ export function LibraryPrograms({ teacherId, go }: Props) {
       }
       setLoaded(true)
     })()
-    if (teacherId) supabase.from('lesson_plans').select('id, title, status, program, grades, subject, lesson, cover_url').eq('teacher_id', teacherId).order('updated_at', { ascending: false })
+    if (teacherId) supabase.from('lesson_plans').select('id, title, status, program, grades, subject, lesson, cover_url').eq('teacher_id', teacherId).is('draft_of', null).order('updated_at', { ascending: false })
       .then(({ data }) => setMine(((data as MyPlan[]) ?? []).filter(p => asLesson(p.lesson))))
   }, [teacherId])
 

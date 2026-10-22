@@ -366,7 +366,7 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
         </>
       ) : <>
         <Tabs<ETab> value={tab} onChange={setTab} items={[
-          ['info', 'Thông tin'], ['lesson', 'Bài giảng tương tác', blocksOf(p)], ['doc', 'Giáo án'], ['steps', 'Tiến trình dạy học', p.steps.length], ['slides', 'Slide trình chiếu', p.slides.length],
+          ['info', 'Thông tin'], ['doc', 'Giáo án'], ['steps', 'Tiến trình dạy học', p.steps.length], ['lesson', 'Bài giảng tương tác', blocksOf(p)], ['slides', 'Slide trình chiếu', p.slides.length],
           ['res', 'Học liệu & đánh giá', p.library_ids.length + p.rubric_ids.length], ['mat', 'Vật tư'], ['ver', 'Phiên bản & duyệt', versions.length],
         ]} />
         {tab === 'info' && <InfoTab p={p} upd={upd} ro={ro} templates={templates} programs={programs} units={units} />}

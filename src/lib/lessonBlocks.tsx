@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 // Bài giảng tương tác theo khối (migration 063): tiến trình theo CT1–CT5, mỗi giai đoạn gồm các khối nội dung
 // (tiêu đề, đoạn văn, hình, video, tệp, mô phỏng 2D, giáo cụ ảo, kéo–thả, câu hỏi, đoạn code, hoạt động nhóm, game, rubric).
 // Dùng chung cho: Soạn bài giảng (lesson_plans.lesson), Kho bài giảng, Thư viện STEM (nội dung buổi học edu_program_units.lesson),
@@ -246,7 +247,7 @@ export function BlockView({ b, teacher, slide }: { b: Block; teacher?: boolean; 
     case 'group': return (
       <div className="bk-group">
         <div className="bk-simhead"><small>HOẠT ĐỘNG NHÓM</small><b>{b.title}</b></div>
-        <p className="sub" style={{ margin: '0 0 6px' }}>👥 Nhóm {b.size} HS · ⏱ {b.minutes} phút</p>
+        <p className="sub" style={{ margin: '0 0 6px' }}><Icon n="users" /> Nhóm {b.size} HS · <Icon n="clock" /> {b.minutes} phút</p>
         {b.goal && <p><b>Mục tiêu:</b> {b.goal}</p>}
         {(b.steps ?? []).some((s: string) => s?.trim()) && <><b>Các bước</b><ol>{(b.steps ?? []).filter((s: string) => s?.trim()).map((s: string, i: number) => <li key={i}>{s}</li>)}</ol></>}
         {(b.roles ?? []).some((r: any) => r.role) && <table className="roletable"><tbody>{(b.roles ?? []).filter((r: any) => r.role).map((r: any, i: number) => <tr key={i}><td><b>{r.role}</b></td><td>{r.task}</td></tr>)}</tbody></table>}
@@ -409,7 +410,7 @@ export function LessonEditor({ value, ct, onChange, readOnly }: { value: ILesson
         {ph.blocks.map((b, i) => (
           <div className="panel lblock" key={b.id} id={'blk-' + b.id}>
             <div className="lblockhead">
-              <span className="sub">#{i + 1}</span><span className="btag">{BLOCKS[b.type]?.icon} {BLOCKS[b.type]?.label}</span><small className="sub ellipsis">{blockSummary(b)}</small>
+              <span className="sub">#{i + 1}</span><span className="btag"><Icon n={BLOCKS[b.type]?.icon ?? ''} /> {BLOCKS[b.type]?.label}</span><small className="sub ellipsis">{blockSummary(b)}</small>
               {!readOnly && <span className="tools">
                 <button type="button" className={edit === b.id ? 'primary' : ''} onClick={() => setEdit(edit === b.id ? null : b.id)}>{edit === b.id ? 'Xong' : 'Sửa'}</button>
                 <button type="button" aria-label="Lên" disabled={i === 0} onClick={() => mv(i, -1)}>↑</button>
@@ -423,7 +424,7 @@ export function LessonEditor({ value, ct, onChange, readOnly }: { value: ILesson
         ))}
         {!readOnly && (adding ? (
           <div className="panel"><div className="bar"><b>Thêm khối nội dung</b><button type="button" onClick={() => setAdding(false)}>Đóng</button></div>
-            <div className="blockpick">{BLOCK_TYPES.map(t => <button type="button" key={t} onClick={() => add(t)}><span>{BLOCKS[t].icon}</span>{BLOCKS[t].label}</button>)}</div></div>
+            <div className="blockpick">{BLOCK_TYPES.map(t => <button type="button" key={t} onClick={() => add(t)}><span><Icon n={BLOCKS[t].icon} /></span>{BLOCKS[t].label}</button>)}</div></div>
         ) : <button type="button" className="addblock" onClick={() => setAdding(true)}>＋ Thêm khối nội dung <small>{BLOCK_TYPES.length} loại khối dùng cho {ct ?? 'bài giảng'}</small></button>)}
       </section>
       <aside className="panel loutline">
@@ -448,7 +449,7 @@ export function LessonOutline({ lesson, ct }: { lesson: ILesson; ct?: string | n
       {lesson.phases.map((p, i) => (
         <div key={p.key + i} className={'lsphase c' + (i % 5)}>
           <div className="lsphasehead"><b>{p.title}</b><small>{p.blocks.length} khối · gợi ý {p.minutes}′</small></div>
-          {p.blocks.map(b => <div key={b.id} className="lsblock"><span className="btag">{BLOCKS[b.type]?.icon}</span><div><b>{BLOCKS[b.type]?.label}</b><br /><small>{blockSummary(b)}</small></div></div>)}
+          {p.blocks.map(b => <div key={b.id} className="lsblock"><span className="btag"><Icon n={BLOCKS[b.type]?.icon ?? ''} /></span><div><b>{BLOCKS[b.type]?.label}</b><br /><small>{blockSummary(b)}</small></div></div>)}
         </div>
       ))}
     </div>
@@ -492,7 +493,7 @@ export function LessonPlayer({ title, ct, sub, lesson, onClose }: { title: strin
           <div className="bar"><b>Nội dung bài học</b><small>{flat.length} mục</small></div>
           {flat.map(({ b }) => (
             <button type="button" key={b.id} className={seen.has(b.id) ? 'seen' : ''} onClick={() => document.getElementById('pl-' + b.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>
-              <span className="btag">{BLOCKS[b.type]?.icon}</span><span><b>{BLOCKS[b.type]?.label}</b><small>{blockSummary(b)}</small></span></button>
+              <span className="btag"><Icon n={BLOCKS[b.type]?.icon ?? ''} /></span><span><b>{BLOCKS[b.type]?.label}</b><small>{blockSummary(b)}</small></span></button>
           ))}
         </nav>
       </div>
@@ -517,7 +518,7 @@ export function LessonShow({ title, ct, sub, lesson, onClose }: { title: string;
       <div className="showstage">
         {s && (s.b === null
           ? <div className="showcard heading"><small>GIAI ĐOẠN</small><h2>{s.phase}</h2></div>
-          : <div className={'showcard' + (s.b.type === 'heading' ? ' heading' : '')}>{s.b.type === 'heading' ? <><small>ĐỀ MỤC</small><h2>{s.b.text}</h2></> : <><small className="btag">{BLOCKS[s.b.type]?.icon} {BLOCKS[s.b.type]?.label}</small><BlockView b={s.b} slide /></>}</div>)}
+          : <div className={'showcard' + (s.b.type === 'heading' ? ' heading' : '')}>{s.b.type === 'heading' ? <><small>ĐỀ MỤC</small><h2>{s.b.text}</h2></> : <><small className="btag"><Icon n={BLOCKS[s.b.type]?.icon ?? ''} /> {BLOCKS[s.b.type]?.label}</small><BlockView b={s.b} slide /></>}</div>)}
       </div>
       <div className="showbot">
         <button type="button" onClick={() => go(-1)} disabled={i === 0}>‹ Trước</button>

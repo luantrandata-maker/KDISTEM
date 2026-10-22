@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { norm } from '../lib/sheet'
@@ -89,7 +90,7 @@ function Editor({ row, platform, onSaved, onCancel }: { row: Row; platform: bool
         </div>
         <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
           <Preview r={r} />
-          {warn.map(w => <p key={w} className="msg" style={{ margin: 0 }}>⚠ {w}</p>)}
+          {warn.map(w => <p key={w} className="msg" style={{ margin: 0 }}><Icon n="alert" /> {w}</p>)}
         </div>
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}

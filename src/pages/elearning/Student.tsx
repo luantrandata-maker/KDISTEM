@@ -1,3 +1,4 @@
+import { Icon } from '../../components/Icon'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
@@ -128,7 +129,7 @@ function TakeExam({ paper, onDone, onExit }: { paper: Paper; onDone: (r: Result)
     <div className="takeexam">
       <div className="examhead">
         <div><b>{paper.title}</b><small>Đã trả lời {done}/{paper.questions.length}</small></div>
-        {left !== null && <span className={'timer' + (left < 60000 ? ' hot' : '')} role="timer" aria-live="off">⏱ {mmss(left)}</span>}
+        {left !== null && <span className={'timer' + (left < 60000 ? ' hot' : '')} role="timer" aria-live="off"><Icon n="clock" /> {mmss(left)}</span>}
         <span className="tools"><button onClick={onExit}>Tạm rời</button><button className="primary" onClick={() => submit()} disabled={busy}>{busy ? 'Đang nộp…' : 'Nộp bài'}</button></span>
       </div>
       {err && <p className="msg">{err}</p>}
@@ -160,7 +161,7 @@ function ResultView({ r, onBack }: { r: Result; onBack: () => void }) {
           <p className="stem">{r.revealed && <span className={'pill ' + (ok ? 'active' : 'inactive')}>{ok ? 'Đúng' : 'Chưa đúng'}</span>} {q.stem}</p>
           <div className="choices">{q.options.map((o, k) => <label key={k} className={(mine.includes(k) ? 'on ' : '') + (r.revealed && right.includes(k) ? 'right' : '')}>
             <input type={q.kind === 'multi' ? 'checkbox' : 'radio'} checked={mine.includes(k)} readOnly disabled /><b>{letter(k)}</b><span>{o}</span></label>)}</div>
-          {r.revealed && q.explain && <p className="sub">💡 {q.explain}</p>}
+          {r.revealed && q.explain && <p className="sub"><Icon n="bulb" /> {q.explain}</p>}
         </li>
       })}</ol>
     </div>
@@ -241,7 +242,7 @@ function CourseList({ studentId, onExam }: { studentId: string; onExam: (id: str
 function Due({ c, finished }: { c: Course; finished: boolean }) {
   const d = dueBadge(c.due_at, finished)
   if (!d) return null
-  return <span className={'gpill ' + (d.tone || (finished ? 'good' : ''))} title={'Hạn hoàn thành: ' + new Date(c.due_at!).toLocaleString('vi-VN')}>{d.tone === 'bad' ? '⚠ ' : ''}{d.text}</span>
+  return <span className={'gpill ' + (d.tone || (finished ? 'good' : ''))} title={'Hạn hoàn thành: ' + new Date(c.due_at!).toLocaleString('vi-VN')}>{d.tone === 'bad' ? <><Icon n="alert" size={12} /> </> : ''}{d.text}</span>
 }
 
 // Bài học dạng "Học liệu": lấy đường dẫn / tệp từ Kho học liệu qua course_lesson_material

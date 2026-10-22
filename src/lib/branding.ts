@@ -8,7 +8,7 @@ export type Branding = {
   primary_color: string | null; sidebar_color: string | null; accent_color: string | null
   login_message: string | null; support_text: string | null
 }
-export const DEFAULT_COLORS = { primary: '#1c63bb', sidebar: '#152e5d', accent: '#f2a53f' }
+export const DEFAULT_COLORS = { primary: '#1f5bb8', sidebar: '#0f3a76', accent: '#f9b147' }
 export const DEFAULT_TITLE = 'Hệ thống Quản trị STEM'
 
 const hex = (h: string) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16))

@@ -1,3 +1,4 @@
+import { Icon } from '../../components/Icon'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { sendInviteEmail } from '../../lib/invite'
@@ -143,7 +144,7 @@ export function PlatformOrgs() {
           <button type="button" className="tlabel" onClick={() => setSel(o.id)}>
             <span className={'ttype t-' + o.type}>{ORG_TYPE[o.type]}</span>
             <span className="tname">{o.name}</span>
-            {o.status === 'suspended' && <span className="gpill bad" title="Tạm dừng" aria-label="Tạm dừng"><i aria-hidden="true">⏸</i></span>}
+            {o.status === 'suspended' && <span className="gpill bad" title="Tạm dừng" aria-label="Tạm dừng"><i aria-hidden="true"><Icon n="pause" size={10} /></i></span>}
             {o.type === 'school' && !o.activated_at && o.status === 'active' && <span className="gpill warn" title="Chưa kích hoạt" aria-label="Chưa kích hoạt"><i aria-hidden="true">!</i></span>}
             <small>{o.type === 'school' ? `${nf(s?.members)} TK` : `${nf(s?.schools)} trường · ${nf(s?.members)} TK`}</small>
           </button>
@@ -169,7 +170,7 @@ export function PlatformOrgs() {
           <button type="button" className="linkbtn" onClick={() => setClosed(new Set(orgs.filter(o => o.type !== 'ministry' && (kids.get(o.id) ?? []).length).map(o => o.id)))}>Thu gọn</button>
           <button type="button" className="linkbtn" onClick={() => { setSel(null); setForm({ mode: 'child', type: 'province', name: '', code: '', level: '', ward: '', parent: null }) }}>+ Đơn vị gốc</button>
         </div>
-        <p className="tree-legend"><span><span className="gpill warn"><i aria-hidden="true">!</i></span> Chưa kích hoạt</span><span><span className="gpill bad"><i aria-hidden="true">⏸</i></span> Tạm dừng</span><span>TK = tài khoản</span></p>
+        <p className="tree-legend"><span><span className="gpill warn"><i aria-hidden="true">!</i></span> Chưa kích hoạt</span><span><span className="gpill bad"><i aria-hidden="true"><Icon n="pause" size={10} /></i></span> Tạm dừng</span><span>TK = tài khoản</span></p>
         <ul className="orgtree">{(kids.get(null) ?? []).map(o => renderNode(o, 0))}</ul>
       </div>
 

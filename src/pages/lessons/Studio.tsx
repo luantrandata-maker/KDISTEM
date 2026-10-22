@@ -1,3 +1,4 @@
+import { Icon } from '../../components/Icon'
 // Soạn bài giảng (060): giáo án theo mẫu, tiến trình dạy học theo bước, gắn hoạt động / học liệu / rubric / định mức vật tư,
 // xem trước – in, trình chiếu, dạy thử; lưu nháp → gửi duyệt → xuất bản; nhân bản, phiên bản, dạy thử & góp ý
 import { useStemTracks } from '../../lib/stemTracks'
@@ -341,7 +342,7 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
           {dirty && <small>Chưa lưu</small>}</span>
         <span className="tools">
           <button onClick={() => setPreview(!preview)}>{preview ? 'Quay lại soạn' : 'Xem trước giáo án'}</button>
-          {blocksOf(p) > 0 && <button onClick={() => setOverlay({ plan: p, kind: 'player' })}>👁 Xem như học sinh</button>}
+          {blocksOf(p) > 0 && <button onClick={() => setOverlay({ plan: p, kind: 'player' })}><Icon n="eye" /> Xem như học sinh</button>}
           <button onClick={() => (blocksOf(p) > 0 ? setOverlay({ plan: p, kind: 'show' }) : onPresent(p))} disabled={!p.slides.length && !blocksOf(p)}>Trình chiếu</button>
           {go && <button onClick={teachTrial} title="Mở lớp học Giáo dục STEM với giáo án này">Dạy thử</button>}
           {!ro && <button onClick={() => save()} disabled={busy || !dirty}>Lưu nháp</button>}
@@ -397,7 +398,7 @@ function ReadOnlyBanner({ p, busy, onWithdraw, onNewVersion }: { p: LPlan; busy:
     : 'Giáo án đang lưu trữ. Tạo phiên bản mới để soạn tiếp.'
   return (
     <div className="panel bar" style={{ borderLeft: '4px solid var(--warn, #d97706)', alignItems: 'center' }}>
-      <span>🔒 {text}</span>
+      <span><Icon n="lock" /> {text}</span>
       <span className="tools">
         {p.status === 'pending' && <button onClick={onWithdraw} disabled={busy}>Rút lại</button>}
         {['approved', 'published', 'archived'].includes(p.status) && <button onClick={onNewVersion} disabled={busy}>Tạo phiên bản mới</button>}

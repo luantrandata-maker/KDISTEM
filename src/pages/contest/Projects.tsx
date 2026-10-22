@@ -1,3 +1,4 @@
+import { Icon } from '../../components/Icon'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { norm, downloadXlsx } from '../../lib/sheet'
@@ -125,7 +126,7 @@ export function ProjectsPage({ orgId, teacherId, studentId, readOnly = false }: 
             <td><small>{p.project_members.map(m => `${m.students?.full_name ?? ''}${m.students?.classes ? ' (' + m.students.classes.name + ')' : ''}${m.role === 'leader' ? ' ★' : ''}`).join(', ') || '—'}</small></td>
             <td><small>{[p.teachers?.full_name, p.external_mentor].filter(Boolean).join(' · ') || '—'}</small></td>
             <td><span className={'plbadge ' + ST[p.status][1]}>{ST[p.status][0]}</span></td>
-            <td><small>{p.competition_entries.map((e, i) => <span key={i} style={{ display: 'block' }}>{e.award ? <b className="good">🏆 {e.award}</b> : e.status === 'eliminated' ? 'Dừng' : 'Dự thi'} · {e.competitions?.title}</span>)}</small></td>
+            <td><small>{p.competition_entries.map((e, i) => <span key={i} style={{ display: 'block' }}>{e.award ? <b className="good"><Icon n="trophy" /> {e.award}</b> : e.status === 'eliminated' ? 'Dừng' : 'Dự thi'} · {e.competitions?.title}</span>)}</small></td>
             <td className="nowrap"><button onClick={() => setOpen(open === p.id ? null : p.id)}>{open === p.id ? 'Đóng' : 'Xem'}</button>
               {mine(p) && p.status !== 'completed' && <> <button onClick={() => setForm({ ...p, members: p.project_members.map(m => m.student_id) })}>Sửa</button></>}
               {admin && p.status === 'pending' && p.org_id === orgId && <> <button className="primary" onClick={() => decide(p, 'approve')}>Duyệt</button> <button onClick={() => decide(p, 'reject')}>Từ chối</button></>}
@@ -133,7 +134,7 @@ export function ProjectsPage({ orgId, teacherId, studentId, readOnly = false }: 
           open === p.id && <tr key={p.id + 'd'}><td colSpan={6}>
             <div className="projdetail">
               <div>{p.problem && <p><b>Vấn đề:</b> {p.problem}</p>}{p.abstract && <p style={{ whiteSpace: 'pre-line' }}><b>Tóm tắt:</b> {p.abstract}</p>}
-                {p.links.length > 0 && <p>{p.links.map((l, i) => <a key={i} href={l.url} target="_blank" rel="noreferrer noopener" style={{ marginRight: 12 }}>🔗 {l.label}</a>)}</p>}
+                {p.links.length > 0 && <p>{p.links.map((l, i) => <a key={i} href={l.url} target="_blank" rel="noreferrer noopener" style={{ marginRight: 12 }}><Icon n="link" /> {l.label}</a>)}</p>}
                 {reqs.get(p.id) && <StepTrail req={reqs.get(p.id)!} />}</div>
               <div><b>Nhật ký & nhận xét</b>
                 {logs.map(l => <p key={l.id} className={'projlog ' + l.kind}><small className="sub">{when(l.created_at)} · {l.author_name ?? ''}{l.kind === 'feedback' ? ' · nhận xét' : ''}</small><br />{l.content}{l.link && <> · <a href={l.link} target="_blank" rel="noreferrer noopener">link</a></>}</p>)}

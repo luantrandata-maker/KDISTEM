@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { downloadXlsx } from '../lib/sheet'
@@ -281,7 +282,7 @@ export function TransfersPage({ orgId }: { orgId: string | null }) {
             <datalist id="unit-list">{units.filter(u => !form.items.some(i => i.unit_id === u.id)).map(u => <option key={u.id} value={`${u.equipment_types?.name} · ${u.serial ?? u.id.slice(0, 8)}`}>{u.stem_rooms?.name ?? 'Kho'}</option>)}</datalist>
           </div>
           <div className="wrap"><table><thead><tr><th>Vật tư / thiết bị</th><th>Số lượng</th><th /></tr></thead>
-            <tbody>{form.items.map((i, k) => <tr key={k}><td>{i.unit_id ? '🔧 ' : ''}{i.name}</td>
+            <tbody>{form.items.map((i, k) => <tr key={k}><td>{i.unit_id ? <><Icon n="wrench" /> </> : ''}{i.name}</td>
               <td>{i.unit_id ? '1 cái' : <><input type="number" min={0} step="any" value={i.qty} style={{ width: 90 }} aria-label={`Số lượng ${i.name}`}
                 onChange={e => setForm({ ...form, items: form.items.map((x, j) => (j === k ? { ...x, qty: Number(e.target.value) } : x)) })} /> {i.unit} <small className="sub">tồn {num(sup.find(s => s.id === i.supply_id)?.qty ?? 0)}</small></>}</td>
               <td><button type="button" onClick={() => setForm({ ...form, items: form.items.filter((_, j) => j !== k) })} aria-label="Bỏ dòng">✕</button></td></tr>)}
@@ -316,7 +317,7 @@ export function TransfersPage({ orgId }: { orgId: string | null }) {
             open === t.id && <tr key={t.id + 'd'}><td colSpan={6}>
               {t.note && <p className="sub">Ghi chú: {t.note}</p>}{t.receive_note && <p className="sub">Khi nhận: {t.receive_note}</p>}
               <table><thead><tr><th>Vật tư / thiết bị</th><th>Giao</th><th>Nhận</th></tr></thead>
-                <tbody>{t.stock_transfer_items.map(i => <tr key={i.id}><td>{i.unit_id ? '🔧 ' : ''}{i.name}</td><td>{num(i.qty)} {i.unit}</td>
+                <tbody>{t.stock_transfer_items.map(i => <tr key={i.id}><td>{i.unit_id ? <><Icon n="wrench" /> </> : ''}{i.name}</td><td>{num(i.qty)} {i.unit}</td>
                   <td className={i.received_qty != null && Number(i.received_qty) < Number(i.qty) ? 'due bad' : ''}>{i.received_qty == null ? '—' : num(i.received_qty)}</td></tr>)}</tbody></table>
               {req && <StepTrail req={req} />}
             </td></tr>,

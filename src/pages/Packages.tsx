@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { fmtDate } from '../lib/time'
@@ -276,7 +277,7 @@ function PackageDetail({ pkg, state, onBack }: { pkg: Pkg; state: string; onBack
               ...g.rows.map(d => (
                 <tr key={d.id}>
                   <td>{++stt}</td>
-                  <td>{d.image_url ? <img className="devimg" src={d.image_url} alt={d.name} /> : <span className="devimg" aria-hidden="true">📦</span>}</td>
+                  <td>{d.image_url ? <img className="devimg" src={d.image_url} alt={d.name} /> : <span className="devimg" aria-hidden="true"><Icon n="package" size={22} /></span>}</td>
                   <td><b>{d.name}</b>{d.spec && <><br /><small className="sub">{d.spec}</small></>}</td>
                   <td>{d.unit}</td><td>{d.qty}</td>
                   <td style={{ maxWidth: 220 }}>{d.serials.length ? d.serials.map(s => <span key={s} className="serial">{s}</span>) : '—'}</td>

@@ -101,11 +101,11 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
       <PlanOverlay o={overlay} onClose={() => setOverlay(null)} />
       <div className="bar">
         {library
-          ? <p className="sub" style={{ margin: 0 }}><b>Kho bài giảng mẫu</b> · bài mẫu của trường và giáo án đồng nghiệp đã xuất bản. Bấm “Dùng bài này” để tạo bản nháp của bạn.</p>
+          ? <p className="sub" style={{ margin: 0 }}><button onClick={() => setLibrary(false)} style={{ marginRight: 10 }}>← Giáo án của tôi</button><b>Kho bài giảng mẫu</b> · bài mẫu của trường và giáo án đồng nghiệp đã xuất bản. Bấm “Dùng bài này” để tạo bản nháp của bạn.</p>
           : <Tabs<LTab> value={tab} onChange={setTab} items={[['all', 'Tất cả', count('all')], ['draft', 'Đang soạn', count('draft')],
               ['pending', 'Chờ duyệt / đã duyệt', count('pending')], ['rejected', 'Bị trả lại', count('rejected')], ['published', 'Đã xuất bản', count('published')]]} />}
         <span className="tools">
-          <button onClick={() => setLibrary(!library)}>{library ? '← Giáo án của tôi' : 'Kho bài giảng mẫu'}</button>
+          {!library && <button onClick={() => setLibrary(true)}>Kho bài giảng mẫu</button>}
           {go && <button onClick={() => go('Thư viện STEM')} title="Học liệu do Sở, Phòng, KDI Education phát hành">Thư viện STEM</button>}
           <button className="primary" onClick={() => setView({ mode: 'new' })}>+ Tạo giáo án</button>
         </span>

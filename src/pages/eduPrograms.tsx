@@ -220,7 +220,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
   useEffect(() => {
     supabase.from('competencies').select('key, name, grp').eq('audience', 'student').order('sort').then(({ data }) => setComps((data as Comp[]) ?? []))
   }, [])
-  if (!p) return <><button className="linkbtn" onClick={onClose}>‹ Danh sách chương trình</button>{msg ? <p className="msg">{msg[0]}</p> : <p className="sub">Đang tải…</p>}</>
+  if (!p) return <><button className="linkbtn" onClick={onClose}>← Danh sách chương trình</button>{msg ? <p className="msg">{msg[0]}</p> : <p className="sub">Đang tải…</p>}</>
 
   const mine = p.org_id === orgId
   const editable = mine && canEdit && (p.status === 'draft' || p.status === 'rejected')
@@ -258,7 +258,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
     <>
       <div className="bar">
         <div>
-          <button className="linkbtn" onClick={onClose}>‹ Danh sách chương trình</button>
+          <button className="linkbtn" onClick={onClose}>← Danh sách chương trình</button>
           <h3 style={{ margin: '4px 0 0' }}>{p.title} <small>v{p.version_no}</small> <StatusPill s={p.status} /></h3>
           <small className="sub">{[p.code, levelName(p.level), grades(p), PKIND[p.kind], p.ct_code, p.main_subject, `${p.total_periods} tiết`, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
         </div>

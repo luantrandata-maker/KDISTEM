@@ -425,7 +425,7 @@ export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book
     <>
       <div className="bar">
         <div>
-          <button className="linkbtn" onClick={onClose}>‹ Danh sách môn</button>
+          <button className="linkbtn" onClick={onClose}>← Danh sách môn</button>
           <h3 style={{ margin: '4px 0 0' }}>{book.title} <span className={'pill ' + BOOK_STATUS[book.status][1]}>{BOOK_STATUS[book.status][0]}</span></h3>
           <small className="sub">Khối {book.grade} · {book.subject} · {book.year_name ?? 'mọi năm học'}{ppw ? ` · ${ppw} tiết/tuần` : ''}
             {book.edu_programs ? ` · theo chương trình ${book.edu_programs.title} (v${book.edu_programs.version_no})` : ''}
@@ -746,7 +746,7 @@ function ClassDetail({ row, mode, onClose }: { row: Progress; mode: PpctMode; on
     <>
       <div className="bar">
         <div>
-          <button className="linkbtn" onClick={onClose}>‹ Tiến độ các lớp</button>
+          <button className="linkbtn" onClick={onClose}>← Tiến độ các lớp</button>
           <h3 style={{ margin: '4px 0 0' }}>{row.class_name} · {row.subject}</h3>
           <small className="sub">{row.school} · {row.book_title} · tuần {row.week ?? '—'}</small>
         </div>

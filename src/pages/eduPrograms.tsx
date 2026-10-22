@@ -8,6 +8,7 @@ import { useStemTracks } from '../lib/stemTracks'
 import { asLesson, lessonStats, LessonEditor, type ILesson } from '../lib/lessonBlocks'
 import { useSubjects } from './subjects'
 import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
+import { ViewToggle, useViewMode } from '../components/ViewToggle'
 import { useEduLevels } from '../lib/eduLevels'
 import { GradePicker, LevelPicker, SubjectMulti, SubjectPicker, gradeList } from '../components/Pickers'
 
@@ -131,6 +132,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   }
 
   const sel = useRowSel(shared)
+  const [view, setView] = useViewMode('chuong-trinh', 'list')
   if (openId) return <ProgramDetail id={openId} orgId={orgId} mode={mode} canEdit={canEdit} isAdmin={isAdmin}
     onOpen={setOpenId} onClose={() => { setOpenId(null); load() }} />
 
@@ -152,6 +154,29 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
       <tbody>{rows.map(p => row(p, mine))}</tbody>
     </table></div>
   )
+  const cards = (rows: Program[], mine: boolean) => (
+    <div className="tilegrid wide">
+      {rows.map((p, i) => (
+        <div key={p.id} className={'tilewrap' + (!mine && sel.is(p) ? ' picked' : '')}>
+          <button className="tile" onClick={() => setOpenId(p.id)}>
+            <div className={'tileart art' + (i % 6)}>
+              {p.ct_code && <span className="progchip" style={{ background: 'var(--surface)', color: 'var(--navy)' }}>{p.ct_code}</span>}
+              <span className="tilestatus"><StatusPill s={p.status} /></span>
+              <span aria-hidden="true"><Icon n="book" size={36} /></span>
+            </div>
+            <div className="tilebody">
+              <b>{p.title}</b>
+              <small>{p.main_subject}{p.integrated_subjects.length > 0 ? ' · tích hợp ' + p.integrated_subjects.join(', ') : ''}</small>
+              <div className="tilemeta"><span>{levelName(p.level)} · {grades(p)}</span><span>{PKIND[p.kind]}</span>{p.total_periods > 0 && <span>{p.total_periods} tiết</span>}<span>v{p.version_no}</span></div>
+              {!mine && <small>{p.organizations?.name ?? '—'}</small>}
+            </div>
+          </button>
+          {!mine && canCopy && <label className="tilecheck"><input type="checkbox" checked={sel.is(p)} onChange={() => sel.toggle(p)} aria-label={'Chọn ' + p.title} /></label>}
+        </div>
+      ))}
+    </div>
+  )
+  const show = (rows: Program[], mine: boolean) => view === 'cards' ? cards(rows, mine) : table(rows, mine)
   return (
     <>
       <p className="sub">
@@ -168,7 +193,10 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
           <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện bản cũ / lưu trữ</label>
         </div>
-        {canEdit && <button className="primary" onClick={() => setForm({ level: 'thcs', kind: 'subject', grade_from: 6, grade_to: 9, scope: mode === 'school' ? 'own' : 'children' })}>Thêm chương trình</button>}
+        <div className="tools">
+          <ViewToggle value={view} onChange={setView} />
+          {canEdit && <button className="primary" onClick={() => setForm({ level: 'thcs', kind: 'subject', grade_from: 6, grade_to: 9, scope: mode === 'school' ? 'own' : 'children' })}>Thêm chương trình</button>}
+        </div>
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {form && (
@@ -190,12 +218,12 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
       {!list ? <p className="sub">Đang tải…</p> : (
         <>
           <h3>Của đơn vị ({own.length})</h3>
-          {own.length ? table(own, true) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chương trình nào.{canEdit && ' Bấm "Thêm chương trình", hoặc sao chép chương trình dùng chung bên dưới.'}</p></div>}
+          {own.length ? show(own, true) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chương trình nào.{canEdit && ' Bấm "Thêm chương trình", hoặc sao chép chương trình dùng chung bên dưới.'}</p></div>}
           <h3>Dùng chung / được gán ({shared.length})</h3>
           {shared.length > 0 && canCopy && <SelBar picked={sel.cur?.title ?? null}>
             <button disabled={!sel.cur || !['published', 'superseded'].includes(sel.cur.status)} onClick={() => sel.cur && copy(sel.cur)}>Sao chép về đơn vị</button>
           </SelBar>}
-          {shared.length ? table(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chương trình nào do KDI hoặc cấp trên ban hành cho đơn vị.</p></div>}
+          {shared.length ? show(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chương trình nào do KDI hoặc cấp trên ban hành cho đơn vị.</p></div>}
         </>
       )}
     </>

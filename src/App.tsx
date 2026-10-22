@@ -28,7 +28,7 @@ import ElearningManage from './pages/elearning/Manage'
 import QuestionBank from './pages/elearning/Bank'
 import StudentElearning from './pages/elearning/Student'
 import { saveQuizToBank } from './pages/elearning/common'
-import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysLessons, SysTrainingLessons, SysCertificates } from './pages/platform/SystemViews'
+import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysActivities, SysSchoolLessons, SysTrainingLessons, SysCertificates } from './pages/platform/SystemViews'
 import Classes from './pages/Classes'
 import Rooms from './pages/Rooms'
 import Equipment from './pages/Equipment'
@@ -146,7 +146,9 @@ const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, Com
   ]
   return (p: any) => <TabbedPages {...p} tabs={tabs} />
 }
-const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [['Soạn bài giảng & kho hoạt động', SysLessons], ['Mẫu giáo án', PlatformLessonTemplates]]
+const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [
+  ['Bài giảng KDI', (p: any) => <LibraryManage {...p} only="lesson" />], ['Kho hoạt động', SysActivities],
+  ['Bài giảng các trường', SysSchoolLessons], ['Mẫu giáo án', PlatformLessonTemplates]]
 const PlatformLessonsPage = (p: any) => <TabbedPages {...p} tabs={PLATFORM_LESSON_TABS} />
 const PlatformCatalog = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformCatalog })))
 const PlatformOrders = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformOrders })))

@@ -1,3 +1,4 @@
+import { coverStyle } from '../../components/Cover'
 import { NameLink } from '../../components/TableSel'
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { Icon } from '../../components/Icon'
@@ -444,9 +445,9 @@ function LessonBank({ rows, teacherId, go, onAssign }: { rows: LessonLite[]; tea
         <div className="tilegrid wide">
           {shown.map((l, i) => { const st = stats.get(l.id)!; return (
             <button key={l.id} className="tile" onClick={() => setOpen(l)}>
-              <div className={'tileart art' + (i % 6)} style={l.cover_url ? { backgroundImage: `url("${l.cover_url}")` } : undefined}>
+              <div className={'tileart art' + (i % 6)} style={coverStyle(l)}>
                 {l.program && <span className="progchip" style={{ background: PROGRAM_COLOR[l.program], color: '#fff' }}>{l.program}</span>}
-                {!l.cover_url && <span aria-hidden="true"><Icon n={st.kinds[0] ? KIND_ICON[st.kinds[0]] : 'book'} size={36} /></span>}</div>
+</div>
               <div className="tilebody">
                 <b>{l.title}</b><small>{l.subject}</small>
                 <div className="tilemeta">{levelOf(l.grades) && <span>{levelOf(l.grades)} {gradesOf(l.grades).join(',')}</span>}{st.minutes > 0 && <span>{st.minutes}′</span>}
@@ -491,7 +492,7 @@ function LessonModal({ l, teacherId, go, onClose, onAssign }: { l: LessonLite; t
   return (
     <div className="modalbg" onClick={onClose}>
       <div className="modal wide" role="dialog" aria-modal="true" aria-label={l.title} onClick={e => e.stopPropagation()}>
-        <div className="modalhero lessonhero" style={l.cover_url ? { backgroundImage: `linear-gradient(rgba(15,23,42,.35),rgba(15,23,42,.85)),url("${l.cover_url}")` } : undefined}>
+        <div className="modalhero lessonhero" style={{ ...coverStyle(l), backgroundImage: `linear-gradient(rgba(15,23,42,.35),rgba(15,23,42,.85)),${coverStyle(l).backgroundImage}` }}>
           <div className="bar" style={{ margin: 0 }}>
             <div className="tilemeta">{l.program && <span className="herotag">{l.program}</span>}{l.is_template && <span className="herotag">Mẫu</span>}
               {(levelOf(l.grades) || l.subject) && <span className="herotag">{[levelOf(l.grades) && `${levelOf(l.grades)} ${gradesOf(l.grades).join(',')}`, l.subject].filter(Boolean).join(' · ')}</span>}

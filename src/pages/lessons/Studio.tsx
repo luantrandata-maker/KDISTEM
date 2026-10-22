@@ -1,3 +1,4 @@
+import { CoverPicker, coverStyle } from '../../components/Cover'
 import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../../components/TableSel'
 import { Icon } from '../../components/Icon'
 // Soạn bài giảng (060): giáo án theo mẫu, tiến trình dạy học theo bước, gắn hoạt động / học liệu / rubric / định mức vật tư,
@@ -127,7 +128,7 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
           const tpl = templates.find(t => t.id === p.template_id)
           return (
             <div className="panel lessoncard" key={p.id}>
-              <div className="lessoncover" style={p.cover_url ? { backgroundImage: `linear-gradient(rgba(0,0,0,.05),rgba(0,0,0,.35)),url("${p.cover_url}")`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+              <div className="lessoncover" style={coverStyle(p, true)}>
                 {p.program && <span className="progchip" style={{ background: PROGRAM_COLOR[p.program], color: '#fff' }}>{p.program}</span>}
                 {p.from_package && <span className="progchip pkgchip">Gói STEM</span>}
                 {p.is_template && <span className="progchip pkgchip">Mẫu</span>}
@@ -503,7 +504,9 @@ function LessonTab({ p, upd, ro }: TabP) {
       <div className="panel" style={{ marginBottom: 10 }}>
         <div className="bar"><span><b>Thông tin bài giảng</b> <small className="sub">ảnh bìa, mục tiêu, thẻ — hiện ở Kho bài giảng</small></span><button type="button" onClick={() => setMeta(!meta)}>{meta ? 'Thu gọn' : 'Mở'}</button></div>
         {meta && <fieldset disabled={ro} className="formgrid" style={{ border: 0, padding: 0, margin: '8px 0 0' }}>
-          <label className="field"><span>Ảnh bìa (đường dẫn https://…)</span><input value={p.cover_url ?? ''} onChange={e => upd({ cover_url: e.target.value })} /></label>
+          <div className="field" style={{ gridColumn: '1 / -1' }}><span>Ảnh bìa tự tạo</span><CoverPicker value={l.cover} program={p.program} disabled={ro} onChange={c => setL({ ...l, cover: c })} />
+            <small>Màu mặc định theo nhóm chương trình. Có ảnh từ đường dẫn thì ảnh đó được dùng.</small></div>
+          <label className="field"><span>Hoặc ảnh từ đường dẫn (https://…)</span><input value={p.cover_url ?? ''} onChange={e => upd({ cover_url: e.target.value })} /></label>
           <label className="field"><span>Thẻ (cách nhau dấu phẩy)</span><input value={(l.tags ?? []).join(', ')} onChange={e => setL({ ...l, tags: e.target.value.split(',').map(x => x.trim()).filter(Boolean) })} placeholder="Có giáo cụ ảo, Có kéo-thả" /></label>
           <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mục tiêu bài học (mỗi dòng một mục tiêu)</span>
             <textarea rows={3} value={(l.goals ?? []).join('\n')} onChange={e => setL({ ...l, goals: e.target.value.split('\n') })} /></label>

@@ -14,20 +14,49 @@ import { GradeChecks, SubjectPicker, gradeList } from '../../components/Pickers'
 import { EMPTY_PLAN, PlanEditor, planFilled, planOf, type PlanContent } from './PlanEditor'
 import { Drawer } from '../../components/Drawer'
 import { EMPTY_NORM, loadUnitNorm, saveUnitNorm, UnitNormEditor, type UnitNorm } from './UnitNorm'
+import { LessonEditor, asLesson, lessonStats, type ILesson } from '../../lib/lessonBlocks'
 
 type Org = { id: string; name: string; type: string; parent_id: string | null }
 type Stat = { item_id: string; schools: number; copies: number; outdated: number }
-type LP = { id: string; title: string; subject: string | null; grades: string | null; program: string | null; summary: string | null; slides: Slide[]; teachers: { full_name: string } | null; org_id: string }
+type LP = { id: string; title: string; subject: string | null; grades: string | null; program: string | null; summary: string | null; slides: Slide[]; lesson: any; teachers: { full_name: string } | null; org_id: string }
 type Form = {
   id?: string; kind: Item['kind']; title: string; summary: string; subject: string; grades: string; program: string; tags: string
   scope: Item['scope']; targets: string[]; slides: Slide[]; mtype: string; url: string; units: Unit[]
   src: 'url' | 'file'; file: { path: string; file_name: string; size: number; mime: string } | null
   program_id: string; unit_id: string; usage_rights: Rights; usage_note: string
+  // Bài giảng: tương tác (các khối nội dung theo tiến trình) hoặc slide (slide, tệp, đường dẫn)
+  lmode: LMode; ilesson: ILesson | null
   // Bài học: mục tiêu, số tiết, giáo án / bài giảng / định mức vật tư / học liệu khác đã có trong kho
   plan: PlanContent
   objectives: string; periods: string; plan_ids: string[]; lesson_ids: string[]; norm_ids: string[]; material_ids: string[]
 }
 type Pick = { id: string; label: string }
+type LMode = 'interactive' | 'slides'
+const blockCount = (l: ILesson | null) => lessonStats(l).blocks
+// Chọn loại bài giảng khi tạo
+function LessonModePicker({ value, onChange, locked }: { value: LMode; onChange: (m: LMode) => void; locked?: boolean }) {
+  const opts: [LMode, string, string][] = [
+    ['interactive', 'Bài giảng tương tác', 'Các khối nội dung theo tiến trình CT1–CT5: văn bản, hình, video, mô phỏng, giáo cụ ảo, câu hỏi, game. Học sinh học trên máy.'],
+    ['slides', 'Slide bài giảng', 'Slide trình chiếu soạn tại đây, hoặc tải tệp PowerPoint / PDF, hoặc dán đường dẫn Canva, Google Slides.'],
+  ]
+  return <div className="lmodes" role="radiogroup" aria-label="Loại bài giảng">
+    {opts.map(([k, t, d]) => <label key={k} className={'panel lmode' + (value === k ? ' on' : '')}>
+      <input type="radio" name="lmode" checked={value === k} disabled={locked && value !== k} onChange={() => onChange(k)} />
+      <b>{t}</b><small className="sub">{d}</small></label>)}
+  </div>
+}
+// Soạn bài giảng tương tác (dùng chung trình soạn của giáo viên)
+function InteractiveLesson({ value, ct, onChange, lessons }: { value: ILesson | null; ct: string; onChange: (l: ILesson) => void; lessons: LP[] }) {
+  const pool = lessons.filter(l => blockCount(asLesson(l.lesson)) > 0)
+  return <>
+    {pool.length > 0 && <div className="bar small"><b>Bài giảng tương tác</b>
+      <select value="" onChange={e => { const l = asLesson(pool.find(x => x.id === e.target.value)?.lesson); if (l) onChange(l) }} aria-label="Sao chép từ bài giảng tương tác có sẵn">
+        <option value="">Sao chép từ bài giảng tương tác có sẵn…</option>
+        {pool.map(l => <option key={l.id} value={l.id}>{l.title}{l.teachers ? ` — ${l.teachers.full_name}` : ''}</option>)}
+      </select></div>}
+    <LessonEditor value={value} ct={ct || 'CT1'} onChange={onChange} />
+  </>
+}
 // Chọn nhiều mục: các mục đã chọn hiện thành thẻ, thêm bằng ô chọn
 function ChipPicker({ label, hint, options, value, onChange, missing, extra, lead }: {
   label: string; hint?: string; options: Pick[]; value: string[]; onChange: (v: string[]) => void; missing: string; extra?: React.ReactNode; lead?: React.ReactNode
@@ -54,6 +83,7 @@ const EMPTY = (kind: Item['kind']): Form => ({
   slides: kind === 'lesson' ? [{ id: uid(), kind: 'title', title: '', body: '' }] : [], mtype: 'worksheet', url: '', units: kind === 'program' ? [{ title: 'Học phần 1', periods: 2, objectives: '', lesson_ids: [] }] : [],
   src: 'file', file: null, program_id: '', unit_id: '', usage_rights: 'adapt', usage_note: '',
   plan: EMPTY_PLAN, objectives: '', periods: '', plan_ids: [], lesson_ids: [], norm_ids: [], material_ids: [],
+  lmode: 'interactive', ilesson: null,
 })
 const MaterialNorms = lazy(() => import('../materialNorms').then(m => ({ default: m.MaterialNorms })))
 type T = Item['kind'] | 'plan' | 'norm'
@@ -90,6 +120,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   const [normOpen, setNormOpen] = useState(false)
   // Giáo án / bài giảng / học liệu soạn ngay trong bài học
   const [sub, setSub] = useState<null | { kind: 'plan' | 'lesson' | 'material'; mtype: string; title: string; slides: Slide[]; src: 'file' | 'url'; url: string; plan: PlanContent
+    lmode?: LMode; ilesson?: ILesson | null
     file: { path: string; file_name: string; size: number; mime: string } | null }>(null)
   const [subBusy, setSubBusy] = useState(false)
 
@@ -100,7 +131,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
       supabase.rpc('library_stats'),
       supabase.from('library_targets').select('item_id, org_id'),
       supabase.from('organizations').select('id, name, type, parent_id').order('name'),
-      supabase.from('lesson_plans').select('id, title, subject, grades, program, summary, slides, org_id, teachers(full_name)').or('status.eq.published,is_template.eq.true').order('updated_at', { ascending: false }).limit(200),
+      supabase.from('lesson_plans').select('id, title, subject, grades, program, summary, slides, lesson, org_id, teachers(full_name)').or('status.eq.published,is_template.eq.true').order('updated_at', { ascending: false }).limit(200),
     ])
     if (i.error) return setErr(/schema cache|does not exist|owner_name/i.test(i.error.message) ? 'Hãy chạy migration 023_shared_library.sql trên Supabase.' : i.error.message)
     const all = (i.data as Item[]) ?? []
@@ -138,6 +169,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
       program_id: i.program_id ?? '', unit_id: i.unit_id ?? '', usage_rights: i.usage_rights ?? 'adapt', usage_note: i.usage_note ?? '',
       plan: planOf(i.content as any), objectives: i.content.objectives ?? '', periods: i.content.periods ? String(i.content.periods) : '',
       plan_ids: i.content.plan_ids ?? [], lesson_ids: i.content.lesson_ids ?? [], norm_ids: i.content.norm_ids ?? [], material_ids: i.content.material_ids ?? [],
+      lmode: i.content.mode === 'interactive' ? 'interactive' : 'slides', ilesson: asLesson(i.content.lesson),
     })
     setNorm(EMPTY_NORM); setSub(null); setNormOpen(false)
     // Vật tư của bài học: định mức gắn với bài (không hiện lại trong ô "định mức có sẵn")
@@ -160,7 +192,10 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
     if (isP && publish && !planFilled(form.plan) && !form.file && !form.url.trim()) return setMsg('Soạn nội dung giáo án hoặc đính kèm tệp trước khi phát hành.')
     if (!isP && form.kind === 'material' && form.src === 'file' && !form.file && publish) return setMsg('Chọn tệp học liệu để tải lên.')
     const lessonAtt = form.src === 'file' ? (form.file ? { url: '', ...form.file } : {}) : (form.url.trim() ? { url: form.url.trim() } : {})
-    const content = form.kind === 'lesson' ? { slides: form.slides, ...lessonAtt } : form.kind === 'unit'
+    if (form.kind === 'lesson' && form.lmode === 'interactive' && publish && !blockCount(form.ilesson)) return setMsg('Bài giảng tương tác chưa có khối nội dung nào.')
+    const content = form.kind === 'lesson'
+      ? (form.lmode === 'interactive' ? { mode: 'interactive', lesson: form.ilesson ?? {} } : { mode: 'slides', slides: form.slides, ...lessonAtt })
+      : form.kind === 'unit'
       ? { objectives: form.objectives.trim() || null, periods: Number(form.periods) || null, plan_ids: form.plan_ids, lesson_ids: form.lesson_ids, norm_ids: form.norm_ids, material_ids: form.material_ids }
       : isP ? { type: 'lesson_plan', ...att, ...form.plan }
       : form.kind === 'material'
@@ -216,13 +251,15 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
     if (!sub || !form || !orgId) return
     const title = sub.title.trim() || `${sub.kind === 'plan' ? 'Giáo án' : sub.kind === 'lesson' ? 'Bài giảng' : MAT_TYPE[sub.mtype] ?? 'Học liệu'}: ${form.title.trim() || 'bài học'}`
     if (sub.kind === 'plan' && !planFilled(sub.plan) && !sub.file && !sub.url.trim()) return setMsg('Soạn nội dung giáo án hoặc đính kèm tệp.')
+    if (sub.kind === 'lesson' && sub.lmode === 'interactive' && !blockCount(sub.ilesson ?? null)) return setMsg('Thêm ít nhất một khối nội dung cho bài giảng tương tác.')
     if (sub.kind === 'material' && !(sub.src === 'file' ? sub.file : sub.url.trim())) return setMsg(sub.src === 'file' ? 'Chọn tệp học liệu để tải lên.' : 'Nhập đường dẫn học liệu.')
     setSubBusy(true)
     const row = {
       owner_org_id: orgId, kind: sub.kind === 'lesson' ? 'lesson' : 'material', title, subject: form.subject.trim() || null, grades: form.grades.trim() || null,
       program: form.program || null, program_id: form.program_id || null, unit_id: form.program_id && form.unit_id ? form.unit_id : null,
       usage_rights: form.usage_rights, scope: form.scope, tags: [] as string[],
-      content: sub.kind === 'lesson' ? { slides: sub.slides, ...(sub.src === 'file' ? (sub.file ? { url: '', ...sub.file } : {}) : (sub.url.trim() ? { url: sub.url.trim() } : {})) }
+      content: sub.kind === 'lesson' && sub.lmode === 'interactive' ? { mode: 'interactive', lesson: sub.ilesson ?? {} }
+        : sub.kind === 'lesson' ? { mode: 'slides', slides: sub.slides, ...(sub.src === 'file' ? (sub.file ? { url: '', ...sub.file } : {}) : (sub.url.trim() ? { url: sub.url.trim() } : {})) }
         : sub.kind === 'material' ? { type: sub.mtype, ...(sub.src === 'file' && sub.file ? { url: '', ...sub.file } : { url: sub.url.trim() }) }
         : { type: 'lesson_plan', ...(sub.src === 'file' && sub.file ? { url: '', ...sub.file } : { url: sub.url.trim() }), ...sub.plan },
     }
@@ -297,6 +334,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
       const n = (a: string[] | undefined, l: string) => (a ?? []).length ? `${(a ?? []).length} ${l}` : ''
       return [c.periods ? `${c.periods} tiết` : '', n(c.plan_ids, 'giáo án'), n(c.lesson_ids, 'bài giảng'), n(c.norm_ids, 'định mức'), n(c.material_ids, 'học liệu')].filter(Boolean).join(' · ') || '—'
     }
+    if (i.kind === 'lesson' && c.mode === 'interactive') return `Tương tác · ${blockCount(asLesson(c.lesson))} khối`
     if (i.kind === 'lesson') return [`${(c.slides ?? []).length} slide`, c.file_name ? 'có tệp' : c.url ? 'có đường dẫn' : ''].filter(Boolean).join(' · ')
     if (isPlan(i)) { const p = planOf(c as any); return [p.periods && `${p.periods} tiết`, p.steps.length && `${p.steps.length} bước`, c.file_name ? 'có tệp' : c.url ? 'có đường dẫn' : ''].filter(Boolean).join(' · ') || 'chưa có nội dung' }
     return [MAT_TYPE[c.type ?? 'link'], c.file_name ?? (c.url ? 'đường dẫn' : 'chưa có tệp')].filter(Boolean).join(' · ')
@@ -389,10 +427,12 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
                 </div>
               )}
               <ChipPicker label="Bài giảng" hint="soạn bài giảng mới cho bài hoặc chọn bài giảng có sẵn" options={pick(lessonPool)} value={form.lesson_ids} onChange={v => setForm({ ...form, lesson_ids: v })} missing="bài giảng không còn trong kho"
-                extra={sub?.kind !== 'lesson' && <button type="button" className="libpartnew" onClick={() => setSub({ kind: 'lesson', mtype: '', title: '', slides: [{ id: uid(), kind: 'title', title: form.title, body: '' }], src: 'file', url: '', file: null, plan: EMPTY_PLAN })}>+ Soạn bài giảng mới</button>} />
+                extra={sub?.kind !== 'lesson' && <button type="button" className="libpartnew" onClick={() => setSub({ kind: 'lesson', mtype: '', title: '', slides: [{ id: uid(), kind: 'title', title: form.title, body: '' }], src: 'file', url: '', file: null, plan: EMPTY_PLAN, lmode: 'interactive', ilesson: null })}>+ Soạn bài giảng mới</button>} />
               {sub?.kind === 'lesson' && (
                 <div className="panel" style={{ gridColumn: '1 / -1', margin: 0 }}>
                   <label className="field"><span>Tên bài giảng</span><input value={sub.title} onChange={e => setSub({ ...sub, title: e.target.value })} placeholder={`Bài giảng: ${form.title || 'tên bài học'}`} /></label>
+                  <LessonModePicker value={sub.lmode ?? 'slides'} onChange={lmode => setSub({ ...sub, lmode })} />
+                  {sub.lmode === 'interactive' ? <InteractiveLesson value={sub.ilesson ?? null} ct={form.program} onChange={ilesson => setSub({ ...sub, ilesson })} lessons={lessons} /> : <>
                   <div className="bar small"><b>Slide bài giảng</b>
                     <select value="" onChange={e => { const l = lessons.find(x => x.id === e.target.value); if (l) setSub({ ...sub, title: sub.title || l.title.replace(/^Mẫu:\s*/, ''), slides: l.slides.map(s => ({ ...s, id: uid() })) }) }} aria-label="Sao chép từ bài giảng có sẵn">
                       <option value="">Sao chép từ bài giảng có sẵn…</option>
@@ -409,7 +449,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
                           {sub.file && <span className="chip">{sub.file.file_name} · {fmtSize(sub.file.size)}</span>}
                           <label className={'filebtn' + (subBusy ? ' busy' : '')}>{subBusy ? 'Đang tải lên…' : sub.file ? 'Thay tệp' : 'Chọn tệp'}
                             <input type="file" hidden disabled={subBusy} onChange={e => { const f = e.target.files?.[0]; if (f) pickSubFile(f); e.target.value = '' }} /></label></div></div>}
-                  </div>
+                  </div></>}
                   <div className="formactions"><button type="button" className="primary" disabled={subBusy} onClick={saveSub}>Thêm vào bài</button> <button type="button" onClick={() => setSub(null)}>Huỷ</button></div>
                 </div>
               )}
@@ -446,7 +486,9 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
               <p className="sub" style={{ gridColumn: '1 / -1', margin: 0 }}>Giáo án, bài giảng, vật tư và học liệu soạn ở đây đi theo bài học: dùng cùng môn, khối, nơi phát hành và được phát hành cùng bài. Vật tư của bài được lưu thành định mức vật tư, ban hành cùng bài học. Trường bấm “Dùng bài học” sẽ có bản riêng của mọi bài giảng được gắn.</p>
             </div>
           )}
-          {form.kind === 'lesson' && (
+          {form.kind === 'lesson' && <LessonModePicker value={form.lmode} onChange={lmode => setForm({ ...form, lmode })} />}
+          {form.kind === 'lesson' && form.lmode === 'interactive' && <InteractiveLesson value={form.ilesson} ct={form.program} onChange={ilesson => setForm({ ...form, ilesson })} lessons={lessons} />}
+          {form.kind === 'lesson' && form.lmode === 'slides' && (
             <>
               <div className="bar small"><b>Slide bài giảng</b>
                 <select value="" onChange={e => importLesson(e.target.value)} aria-label="Sao chép từ bài giảng có sẵn">

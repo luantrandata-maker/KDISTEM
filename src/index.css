@@ -1262,3 +1262,8 @@ body.drawer-open{overflow:hidden}
 /* Thanh mời vào trường thử nghiệm (KDI) */
 .sandboxbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px dashed var(--line);border-radius:14px;padding:10px 14px;margin-bottom:12px}
 .sandboxbar span{flex:1;min-width:240px;color:var(--muted);font-size:14px}
+/* Chọn loại bài giảng (Học liệu) */
+.lmodes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin:8px 0 12px}
+.lmode{display:grid;gap:4px;cursor:pointer;margin:0}
+.lmode.on{border-color:var(--navy);box-shadow:0 0 0 2px color-mix(in srgb,var(--navy) 25%,transparent)}
+.lmode input{justify-self:start}

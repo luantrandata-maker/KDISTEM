@@ -5,12 +5,15 @@ import { SlideView, KIND as SLIDE_KIND, type Slide, type SlideKind } from '../te
 import { PROGRAM_COLOR } from '../teacher/common'
 import { PlanView, planOf } from './PlanEditor'
 import { Drawer } from '../../components/Drawer'
+import { LessonOutline, LessonPlayer, asLesson, lessonStats } from '../../lib/lessonBlocks'
 
 export type Unit = { title: string; periods?: number; objectives?: string; lesson_ids?: string[] }
 export type Item = {
   id: string; owner_org_id: string; kind: 'program' | 'unit' | 'lesson' | 'material'; title: string; summary: string | null
   subject: string | null; grades: string | null; program: string | null; tags: string[]
   content: {
+    // Bài giảng (070): tương tác (lesson = các khối) hoặc slide
+    mode?: 'interactive' | 'slides'; lesson?: unknown
     slides?: Slide[]; type?: string; url?: string; units?: Unit[]; path?: string; file_name?: string; size?: number; mime?: string
     // Bài học (065): mục tiêu, số tiết và các thành phần đã có trong kho
     objectives?: string | null; periods?: number | null; plan_ids?: string[]; lesson_ids?: string[]; norm_ids?: string[]; material_ids?: string[]
@@ -118,6 +121,20 @@ export function StatusChip({ s }: { s: Item['status'] }) {
 // Xem trước nội dung một mục kho
 export function ItemPreview({ item, all, canRestore, onRestored, onOpen }: { item: Item; all: Item[]; canRestore?: boolean; onRestored?: () => void; onOpen?: (e: DrawerEntry) => void }) {
   const [i, setI] = useState(0)
+  const [play, setPlay] = useState(false)
+  const il = item.kind === 'lesson' && item.content.mode === 'interactive' ? asLesson(item.content.lesson) : null
+  if (il) {
+    const st = lessonStats(il)
+    return (
+      <div className="libpreview">
+        <p><b>Bài giảng tương tác</b> · {st.blocks} khối nội dung · {st.interactive} khối tương tác · khoảng {st.minutes} phút{' '}
+          {st.blocks > 0 && <button type="button" className="linkbtn" onClick={() => setPlay(true)}>👁 Xem như học sinh</button>}</p>
+        <LessonOutline lesson={il} ct={item.program} />
+        {play && <LessonPlayer title={item.title} ct={item.program} lesson={il} onClose={() => setPlay(false)} />}
+        <Versions item={item} canRestore={canRestore} onRestored={onRestored} />
+      </div>
+    )
+  }
   if (item.kind === 'lesson') {
     const slides = item.content.slides ?? []
     return (
@@ -185,7 +202,7 @@ function UnitPreview({ item, all, canRestore, onRestored, onOpen }: { item: Item
       <ul className="childlist">{(list ?? []).map(id => {
         const x = all.find(v => v.id === id)
         if (!x) return <li key={id} className="gone">Mục không còn trong kho hoặc chưa được phát hành tới đơn vị</li>
-        const sub = [x.kind === 'material' ? MAT_TYPE[x.content.type ?? 'link'] : x.kind === 'lesson' ? `${(x.content.slides ?? []).length} slide` : '', x.status === 'draft' ? 'nháp' : `v${x.version}`].filter(Boolean).join(' · ')
+        const sub = [x.kind === 'material' ? MAT_TYPE[x.content.type ?? 'link'] : x.kind === 'lesson' ? (x.content.mode === 'interactive' ? `tương tác · ${lessonStats(asLesson(x.content.lesson)).blocks} khối` : `${(x.content.slides ?? []).length} slide`) : '', x.status === 'draft' ? 'nháp' : `v${x.version}`].filter(Boolean).join(' · ')
         return <li key={id}>{onOpen ? <button type="button" onClick={() => onOpen({ type: 'item', id })}><span>{x.title}</span><small>{sub} ›</small></button> : <span>{x.title}</span>}</li>
       })}</ul>)}</div>)
   return (

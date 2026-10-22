@@ -2399,6 +2399,18 @@ select pg_temp.probe('admin_ph@iso-test.local', $q$insert into curriculum_books 
 select pg_temp.probe('admin_ph@iso-test.local', $q$update curriculum_books set status = 'pending' where title = 'ISO PPCT bật lại'$q$, true);
 select pg_temp.chk('admin_ph', 'Bật lại duyệt: gửi duyệt PPCT → chờ duyệt', $q$select status from curriculum_books where title = 'ISO PPCT bật lại'$q$, 'pending');
 
+-- ===== 070: bài giảng tương tác trong kho học liệu =====
+select pg_temp.probe('kdi@iso-test.local', $q$insert into library_items (owner_org_id, kind, title, status, scope, program, content) values (my_org_id(), 'lesson', 'ISO bài giảng tương tác', 'draft', 'public', 'CT1',
+  '{"mode":"interactive","lesson":{"phases":[{"key":"k","title":"Khởi động","minutes":5,"blocks":[{"id":"b1","type":"text","text":"Xin chào"},{"id":"b2","type":"quiz","items":[]}]}]}}'::jsonb)$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into library_items (owner_org_id, kind, title, status, scope, content) values (my_org_id(), 'lesson', 'ISO bài giảng tương tác trống', 'draft', 'public',
+  '{"mode":"interactive","lesson":{"phases":[{"key":"k","title":"Khởi động","minutes":5,"blocks":[]}]}}'::jsonb)$q$, true);
+select pg_temp.chk('kdi', 'Bài giảng tương tác chưa có khối: không phát hành được', $q$select library_publish((select id from library_items where title = 'ISO bài giảng tương tác trống'))::text$q$, 'ERR*');
+select pg_temp.probe('kdi@iso-test.local', $q$select library_publish((select id from library_items where title = 'ISO bài giảng tương tác'))::text$q$, true);
+select pg_temp.chk('kdi', 'Bài giảng tương tác có khối: đã phát hành', $q$select status from library_items where title = 'ISO bài giảng tương tác'$q$, 'published');
+select pg_temp.probe('gv_both@iso-test.local', $q$select library_adopt((select id from library_items where title = 'ISO bài giảng tương tác'))::text$q$, true);
+select pg_temp.chk('gv_both', 'Dùng bài giảng tương tác → giáo án có đủ khối nội dung',
+  $q$select lesson_block_count(lesson) || '|' || program from lesson_plans where teacher_id = my_teacher_id() and library_item_id = (select id from library_items where title = 'ISO bài giảng tương tác')$q$, '2|CT1');
+
 -- ===== 069: trường thử nghiệm cho KDI =====
 drop table if exists t_sandbox;
 create temp table t_sandbox as select exists (select 1 from organizations where code = 'KDI-SANDBOX') as existed;

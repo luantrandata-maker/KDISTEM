@@ -46,14 +46,21 @@ function LessonModePicker({ value, onChange, locked }: { value: LMode; onChange:
   </div>
 }
 // Soạn bài giảng tương tác (dùng chung trình soạn của giáo viên)
-function InteractiveLesson({ value, ct, onChange, lessons }: { value: ILesson | null; ct: string; onChange: (l: ILesson) => void; lessons: LP[] }) {
-  const pool = lessons.filter(l => blockCount(asLesson(l.lesson)) > 0)
+// Nguồn sao chép: bài giảng tương tác trong kho học liệu và bài giảng tương tác đã xuất bản / mẫu của giáo viên
+type Src = { id: string; label: string; lesson: ILesson }
+function InteractiveLesson({ value, ct, onChange, sources, skip }: { value: ILesson | null; ct: string; onChange: (l: ILesson) => void; sources: Src[]; skip?: string }) {
+  const pool = sources.filter(x => x.id !== skip)
+  function copy(id: string) {
+    const src = pool.find(x => x.id === id); if (!src) return
+    if (blockCount(value) > 0 && !confirm(`Thay nội dung đang soạn bằng “${src.label}”?`)) return
+    onChange(JSON.parse(JSON.stringify(src.lesson)) as ILesson)
+  }
   return <>
-    {pool.length > 0 && <div className="bar small"><b>Bài giảng tương tác</b>
-      <select value="" onChange={e => { const l = asLesson(pool.find(x => x.id === e.target.value)?.lesson); if (l) onChange(l) }} aria-label="Sao chép từ bài giảng tương tác có sẵn">
-        <option value="">Sao chép từ bài giảng tương tác có sẵn…</option>
-        {pool.map(l => <option key={l.id} value={l.id}>{l.title}{l.teachers ? ` — ${l.teachers.full_name}` : ''}</option>)}
-      </select></div>}
+    <div className="bar small"><b>Bài giảng tương tác</b>
+      <select value="" onChange={e => copy(e.target.value)} aria-label="Sao chép từ bài giảng tương tác có sẵn" disabled={!pool.length}>
+        <option value="">{pool.length ? 'Sao chép từ bài giảng có sẵn…' : 'Chưa có bài giảng tương tác nào để sao chép'}</option>
+        {pool.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}
+      </select></div>
     <LessonEditor value={value} ct={ct || 'CT1'} onChange={onChange} />
   </>
 }
@@ -156,6 +163,13 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   const pick = (list: Item[]): Pick[] => list.map(x => ({ id: x.id, label: x.title + (x.status === 'draft' ? ' (nháp)' : '') + src(x) }))
   const planPool = pick(visible.filter(x => x.kind === 'material' && x.content.type === 'lesson_plan' && usable(x)))
   const matPool = pick(visible.filter(x => x.kind === 'material' && x.content.type !== 'lesson_plan' && usable(x)))
+  const iSources: Src[] = [
+    ...visible.filter(x => x.kind === 'lesson' && x.content.mode === 'interactive' && usable(x))
+      .map(x => ({ id: x.id, label: 'Kho: ' + x.title + src(x), lesson: asLesson(x.content.lesson) }))
+      .filter((x): x is Src => blockCount(x.lesson) > 0),
+    ...lessons.map(l => ({ id: l.id, label: 'Giáo viên: ' + l.title + (l.teachers ? ` — ${l.teachers.full_name}` : ''), lesson: asLesson(l.lesson) }))
+      .filter((x): x is Src => blockCount(x.lesson) > 0),
+  ]
   const normPool: Pick[] = norms.map(n => ({ id: n.id, label: `${n.title} v${n.version_no}${n.status !== 'published' ? ' (nháp)' : ''}${src(n)}` }))
 
   function edit(i: Item) {
@@ -432,7 +446,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
                 <div className="panel" style={{ gridColumn: '1 / -1', margin: 0 }}>
                   <label className="field"><span>Tên bài giảng</span><input value={sub.title} onChange={e => setSub({ ...sub, title: e.target.value })} placeholder={`Bài giảng: ${form.title || 'tên bài học'}`} /></label>
                   <LessonModePicker value={sub.lmode ?? 'slides'} onChange={lmode => setSub({ ...sub, lmode })} />
-                  {sub.lmode === 'interactive' ? <InteractiveLesson value={sub.ilesson ?? null} ct={form.program} onChange={ilesson => setSub({ ...sub, ilesson })} lessons={lessons} /> : <>
+                  {sub.lmode === 'interactive' ? <InteractiveLesson value={sub.ilesson ?? null} ct={form.program} onChange={ilesson => setSub({ ...sub, ilesson })} sources={iSources} /> : <>
                   <div className="bar small"><b>Slide bài giảng</b>
                     <select value="" onChange={e => { const l = lessons.find(x => x.id === e.target.value); if (l) setSub({ ...sub, title: sub.title || l.title.replace(/^Mẫu:\s*/, ''), slides: l.slides.map(s => ({ ...s, id: uid() })) }) }} aria-label="Sao chép từ bài giảng có sẵn">
                       <option value="">Sao chép từ bài giảng có sẵn…</option>
@@ -487,7 +501,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
             </div>
           )}
           {form.kind === 'lesson' && <LessonModePicker value={form.lmode} onChange={lmode => setForm({ ...form, lmode })} />}
-          {form.kind === 'lesson' && form.lmode === 'interactive' && <InteractiveLesson value={form.ilesson} ct={form.program} onChange={ilesson => setForm({ ...form, ilesson })} lessons={lessons} />}
+          {form.kind === 'lesson' && form.lmode === 'interactive' && <InteractiveLesson value={form.ilesson} ct={form.program} onChange={ilesson => setForm({ ...form, ilesson })} sources={iSources} skip={form.id} />}
           {form.kind === 'lesson' && form.lmode === 'slides' && (
             <>
               <div className="bar small"><b>Slide bài giảng</b>

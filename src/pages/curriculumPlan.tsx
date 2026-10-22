@@ -1,0 +1,424 @@
+import { useEffect, useMemo, useState } from 'react'
+import { supabase } from '../lib/supabase'
+import { Tiles } from './department/charts'
+import { BOOK_STATUS, LessonEditor, errText, useCanEdit, type Book, type PpctMode } from './curriculum'
+
+// Kế hoạch dạy học — đợt 1 (migration 071)
+//  • Kế hoạch năm: bảng môn × khối của một năm học (trường) hoặc của bộ mẫu (KDI / Sở): số tiết HK I / HK II,
+//    trạng thái, cảnh báo vượt sức chứa (số tuần × số tiết / tuần); tạo PPCT cho ô trống; chuyển sang năm học mới.
+//  • Phân bổ tiết: chọn PPCT gắn chương trình → chia số tiết từng bài vào HK I / HK II → sinh lại danh sách tiết.
+
+type Year = { id: string; name: string; term: string; starts_on: string | null; ends_on: string | null; is_current: boolean | null }
+type Counts = { book_id: string; hk1: number; hk2: number; other: number }
+type Prog = { id: string; title: string; version_no: number; grade_from: number; grade_to: number; main_subject: string; status: string; org_id: string }
+type Unit = { id: string; parent_id: string | null; unit_type: 'topic' | 'lesson' | 'session'; seq: number; grade: number | null; subject: string | null; title: string; periods: number }
+type Alloc = { unit_id: string; periods: number; term: 1 | 2 | null }
+
+const yearNames = (years: Year[] | undefined) => [...new Set((years ?? []).map(y => y.name))]
+const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ','))
+
+// Số tuần HK I / HK II của năm học (mẫu không có năm học: 18 / 17)
+function useTermWeeks(orgId: string | null, year: string | null) {
+  const [w, setW] = useState<{ hk1: number; hk2: number }>({ hk1: 18, hk2: 17 })
+  useEffect(() => {
+    if (!orgId || !year) { setW({ hk1: 18, hk2: 17 }); return }
+    supabase.rpc('curriculum_term_weeks', { p_org: orgId, p_year: year }).then(({ data }) => {
+      const r = ((data as { hk1: number; hk2: number }[]) ?? [])[0]; if (r) setW(r)
+    })
+  }, [orgId, year])
+  return w
+}
+
+// Chương trình dùng được để tạo PPCT: của đơn vị mình hoặc đã ban hành
+function usePrograms(orgId: string | null) {
+  const [list, setList] = useState<Prog[]>([])
+  useEffect(() => {
+    supabase.from('edu_programs').select('id, title, version_no, grade_from, grade_to, main_subject, status, org_id').in('status', ['draft', 'pending', 'approved', 'published'])
+      .order('title').then(({ data }) => setList(((data as Prog[]) ?? []).filter(p => p.status === 'published' || p.org_id === orgId)))
+  }, [orgId])
+  return list
+}
+
+// ================= Kế hoạch năm =================
+export function YearPlan({ orgId, mode = 'school', year, years }: { orgId: string | null; mode?: PpctMode; year?: { name: string } | null; years?: Year[] }) {
+  const canEdit = useCanEdit(mode)
+  const names = yearNames(years)
+  const [yname, setYname] = useState<string>(mode === 'school' ? year?.name ?? names[0] ?? '' : '')
+  const [books, setBooks] = useState<Book[] | null>(null)
+  const [counts, setCounts] = useState<Map<string, Counts>>(new Map())
+  const [classGrades, setClassGrades] = useState<number[]>([])
+  const [open, setOpen] = useState<Book | null>(null)
+  const [mk, setMk] = useState<{ grade: number; subject: string; program: string; ppw: string } | null>(null)
+  const [roll, setRoll] = useState<string | null>(null)
+  const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const weeks = useTermWeeks(orgId, mode === 'school' ? yname || null : null)
+  const programs = usePrograms(orgId)
+
+  async function load() {
+    if (!orgId) return
+    let q = supabase.from('curriculum_books').select('*, edu_programs(title, version_no)').eq('org_id', orgId).order('grade').order('subject')
+    if (mode === 'school' && yname) q = q.eq('year_name', yname)
+    const { data, error } = await q
+    if (error) setMsg([errText(error.message), true])
+    const bs = (data as Book[]) ?? []
+    setBooks(bs)
+    setOpen(o => (o ? bs.find(b => b.id === o.id) ?? null : null))
+    if (bs.length) {
+      const { data: c } = await supabase.rpc('curriculum_term_counts', { p_books: bs.map(b => b.id) })
+      setCounts(new Map(((c as Counts[]) ?? []).map(r => [r.book_id, r])))
+    } else setCounts(new Map())
+    if (mode === 'school') {
+      const { data: cl } = await supabase.from('classes').select('grade').eq('org_id', orgId)
+      setClassGrades([...new Set(((cl as { grade: number }[]) ?? []).map(r => r.grade))])
+    }
+  }
+  useEffect(() => { load() }, [orgId, yname])
+
+  const grades = useMemo(() => [...new Set([...(books ?? []).map(b => b.grade), ...classGrades])].sort((a, b) => a - b), [books, classGrades])
+  const subjects = useMemo(() => [...new Set((books ?? []).map(b => b.subject))].sort((a, b) => a.localeCompare(b, 'vi')), [books])
+  const cell = (s: string, g: number) => (books ?? []).filter(b => b.grade === g && b.subject === s)
+
+  async function create(e: React.FormEvent) {
+    e.preventDefault(); if (!mk) return
+    const ppw = Number(mk.ppw.replace(',', '.')) || null
+    if (mk.program) {
+      const { data, error } = await supabase.rpc('curriculum_from_program', { p_program: mk.program, p_grade: mk.grade, p_subject: mk.subject.trim() || null, p_year: yname || null, p_ppw: ppw })
+      if (error) return setMsg([errText(error.message), true])
+      setMsg(['Đã tạo PPCT nháp từ chương trình. Chia lại số tiết từng bài ở tab "Phân bổ tiết" nếu cần.', false])
+      setMk(null); await load()
+      const { data: nb } = await supabase.from('curriculum_books').select('*').eq('id', data as string).single()
+      if (nb) setOpen(nb as Book)
+    } else {
+      if (!mk.subject.trim()) return setMsg(['Nhập môn học.', true])
+      const { error } = await supabase.from('curriculum_books').insert({
+        org_id: orgId, grade: mk.grade, subject: mk.subject.trim(), title: `${mk.subject.trim()} ${mk.grade}`, year_name: yname || null,
+        periods_per_week: ppw, status: 'draft', scope: mode === 'school' ? 'own' : 'children',
+      })
+      if (error) return setMsg([errText(error.message), true])
+      setMsg(['Đã thêm PPCT trống — bấm vào ô để soạn từng tiết.', false]); setMk(null); load()
+    }
+  }
+  async function rollover() {
+    if (!roll) return
+    if (!confirm(`Sao chép mọi PPCT năm học ${yname} sang ${roll} (bản nháp)? Môn đã có PPCT ở năm ${roll} được giữ nguyên.`)) return
+    const { data, error } = await supabase.rpc('curriculum_rollover', { p_from: yname, p_to: roll })
+    if (error) return setMsg([errText(error.message), true])
+    setMsg([`Đã chuyển ${data} PPCT sang năm học ${roll} (bản nháp). Chọn năm ${roll} để xem và gửi duyệt.`, false]); setRoll(null)
+  }
+
+  if (open) return <LessonEditor book={open} canEdit={canEdit && open.org_id === orgId} mode={mode} onClose={() => { setOpen(null); load() }} onChanged={load} />
+
+  const all = books ?? []
+  const tot = (b: Book) => counts.get(b.id) ?? { book_id: b.id, hk1: 0, hk2: 0, other: 0 }
+  const over = (b: Book) => {
+    const ppw = Number(b.periods_per_week) || 0; if (!ppw) return ''
+    const c = tot(b), p: string[] = []
+    if (c.hk1 > weeks.hk1 * ppw) p.push(`HK I vượt ${c.hk1 - weeks.hk1 * ppw} tiết`)
+    if (c.hk2 > weeks.hk2 * ppw) p.push(`HK II vượt ${c.hk2 - weeks.hk2 * ppw} tiết`)
+    return p.join(' · ')
+  }
+  const progFor = (g: number) => programs.filter(p => p.grade_from <= g && g <= p.grade_to)
+  const sum = (k: 'hk1' | 'hk2') => all.reduce((s, b) => s + tot(b)[k], 0)
+
+  return (
+    <>
+      <p className="sub">
+        {mode === 'school' ? 'Kế hoạch cả năm học: mỗi ô là PPCT của một môn ở một khối, kèm số tiết từng học kỳ. Ô trống là khối chưa có PPCT.'
+          : 'Bộ PPCT mẫu theo môn và khối. Trường sao chép mẫu về rồi điều chỉnh theo năm học của trường.'}
+      </p>
+      <div className="bar">
+        <div className="tools">
+          {mode === 'school' && <label className="field" style={{ margin: 0 }}><span>Năm học</span>
+            <select value={yname} onChange={e => setYname(e.target.value)} aria-label="Năm học">
+              {names.length === 0 && <option value="">Chưa có năm học</option>}
+              {names.map(n => <option key={n}>{n}</option>)}
+            </select></label>}
+          {mode === 'school' && <small className="sub">HK I {weeks.hk1} tuần · HK II {weeks.hk2} tuần</small>}
+        </div>
+        <div className="tools">
+          {canEdit && mode === 'school' && names.length > 1 && all.length > 0 && <button onClick={() => setRoll(names.find(n => n !== yname) ?? null)}>Chuyển sang năm học mới</button>}
+          {canEdit && <button className="primary" onClick={() => setMk({ grade: grades[0] ?? 6, subject: '', program: '', ppw: '' })}>Thêm PPCT</button>}
+        </div>
+      </div>
+      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+
+      {roll !== null && (
+        <div className="panel bar">
+          <span>Chuyển toàn bộ PPCT năm <b>{yname}</b> sang năm</span>
+          <select value={roll} onChange={e => setRoll(e.target.value)} aria-label="Năm học mới">{names.filter(n => n !== yname).map(n => <option key={n}>{n}</option>)}</select>
+          <span className="tools"><button className="primary" onClick={rollover}>Chuyển</button><button onClick={() => setRoll(null)}>Huỷ</button></span>
+        </div>
+      )}
+
+      {mk && (
+        <form className="panel formgrid" onSubmit={create}>
+          <label className="field"><span>Khối *</span><input type="number" min={1} max={12} required value={mk.grade} onChange={e => setMk({ ...mk, grade: Number(e.target.value) || 1, program: '' })} /></label>
+          <label className="field"><span>Theo chương trình</span><select value={mk.program} onChange={e => {
+            const p = programs.find(x => x.id === e.target.value); setMk({ ...mk, program: e.target.value, subject: p ? p.main_subject : mk.subject })
+          }}>
+            <option value="">— Tự soạn, không theo chương trình —</option>
+            {progFor(mk.grade).map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version_no}){p.status !== 'published' ? ' · nháp' : ''}</option>)}
+          </select></label>
+          <label className="field"><span>Môn học *</span><input required value={mk.subject} onChange={e => setMk({ ...mk, subject: e.target.value })} placeholder="VD: Công nghệ" /></label>
+          <label className="field"><span>Số tiết / tuần</span><input inputMode="decimal" value={mk.ppw} onChange={e => setMk({ ...mk, ppw: e.target.value })} placeholder="VD: 1 hoặc 1,5" /></label>
+          <div className="formactions"><button className="primary" type="submit">Tạo PPCT nháp</button> <button type="button" onClick={() => setMk(null)}>Huỷ</button></div>
+        </form>
+      )}
+
+      {books === null ? <p className="sub">Đang tải…</p> : (
+        <>
+          <Tiles items={[
+            { label: 'Số PPCT', value: all.length, sub: `${subjects.length} môn · ${grades.length} khối` },
+            { label: mode === 'school' ? 'Đang dùng' : 'Đã ban hành', value: all.filter(b => b.status === 'published').length, tone: 'good' },
+            { label: 'Nháp / chờ duyệt', value: all.filter(b => b.status !== 'published').length },
+            { label: 'Tổng tiết', value: sum('hk1') + sum('hk2'), sub: `HK I ${sum('hk1')} · HK II ${sum('hk2')}` },
+            { label: 'Vượt sức chứa', value: all.filter(b => over(b)).length, tone: all.some(b => over(b)) ? 'bad' : '' },
+          ]} />
+          {subjects.length === 0 ? (
+            <div className="panel"><p className="sub" style={{ margin: 0 }}>{mode === 'school' ? `Năm học ${yname || '—'} chưa có PPCT nào.` : 'Chưa có PPCT mẫu nào.'}
+              {canEdit && ' Bấm "Thêm PPCT" để tạo từ chương trình giáo dục hoặc tự soạn.'}</p></div>
+          ) : (
+            <div className="wrap"><table className="yearplan">
+              <thead><tr><th>Môn học</th>{grades.map(g => <th key={g}>Khối {g}</th>)}</tr></thead>
+              <tbody>{subjects.map(s => (
+                <tr key={s}><td><b>{s}</b></td>
+                  {grades.map(g => {
+                    const bs = cell(s, g)
+                    return (
+                      <td key={g}>
+                        {bs.map(b => {
+                          const c = tot(b), o = over(b)
+                          return (
+                            <button key={b.id} className={'ypcell' + (o ? ' over' : '')} onClick={() => setOpen(b)} title={b.title}>
+                              <span className={'pill ' + BOOK_STATUS[b.status][1]}>{b.status === 'published' && mode !== 'school' ? 'Đã ban hành' : BOOK_STATUS[b.status][0]}</span>
+                              <b>{c.hk1 + c.hk2 + c.other} tiết</b>
+                              <small>HK I {c.hk1} · HK II {c.hk2}{c.other ? ` · chưa xếp ${c.other}` : ''}{b.periods_per_week ? ` · ${fmt(Number(b.periods_per_week))} tiết/tuần` : ''}</small>
+                              {o && <small className="bad">{o}</small>}
+                            </button>
+                          )
+                        })}
+                        {bs.length === 0 && (canEdit ? <button className="ypcell empty" onClick={() => setMk({ grade: g, subject: s, program: '', ppw: '' })}>+ Tạo</button> : <small className="sub">—</small>)}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}</tbody>
+            </table></div>
+          )}
+        </>
+      )}
+    </>
+  )
+}
+
+// ================= Phân bổ tiết =================
+export function Allocation({ orgId, mode = 'school', year, years }: { orgId: string | null; mode?: PpctMode; year?: { name: string } | null; years?: Year[] }) {
+  const canEdit = useCanEdit(mode)
+  const names = yearNames(years)
+  const [yname, setYname] = useState<string>(mode === 'school' ? year?.name ?? names[0] ?? '' : '')
+  const [books, setBooks] = useState<Book[]>([])
+  const [bookId, setBookId] = useState('')
+  const [units, setUnits] = useState<Unit[]>([])
+  const [alloc, setAlloc] = useState<Map<string, Alloc>>(new Map())
+  const [lessons, setLessons] = useState(0)
+  const [review, setReview] = useState(false)
+  const [test, setTest] = useState(false)
+  const [mk, setMk] = useState<{ program: string; grade: number; ppw: string } | null>(null)
+  const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const [busy, setBusy] = useState(false)
+  const programs = usePrograms(orgId)
+  const weeks = useTermWeeks(orgId, mode === 'school' ? yname || null : null)
+
+  async function loadBooks(select?: string) {
+    if (!orgId) return
+    let q = supabase.from('curriculum_books').select('*, edu_programs(title, version_no)').eq('org_id', orgId).not('program_id', 'is', null).order('grade').order('subject')
+    if (mode === 'school' && yname) q = q.eq('year_name', yname)
+    const { data, error } = await q
+    if (error) setMsg([errText(error.message), true])
+    const bs = (data as Book[]) ?? []
+    setBooks(bs)
+    setBookId(cur => select ?? (bs.some(b => b.id === cur) ? cur : bs[0]?.id ?? ''))
+  }
+  useEffect(() => { loadBooks() }, [orgId, yname])
+
+  const book = books.find(b => b.id === bookId) ?? null
+  async function loadBook() {
+    if (!book?.program_id) { setUnits([]); return }
+    const [u, l, b] = await Promise.all([
+      supabase.from('edu_program_units').select('id, parent_id, unit_type, seq, grade, subject, title, periods').eq('program_id', book.program_id).order('seq'),
+      supabase.from('curriculum_lessons').select('id', { count: 'exact', head: true }).eq('book_id', book.id),
+      supabase.from('curriculum_books').select('allocation').eq('id', book.id).single(),
+    ])
+    setUnits((u.data as Unit[]) ?? []); setLessons(l.count ?? 0)
+    const saved = (((b.data as { allocation: Alloc[] | null } | null)?.allocation) ?? []) as Alloc[]
+    setAlloc(new Map(saved.map(a => [a.unit_id, { unit_id: a.unit_id, periods: Number(a.periods) || 0, term: a.term === 1 || a.term === 2 ? a.term : null }])))
+  }
+  useEffect(() => { loadBook() }, [bookId, book?.program_id])
+
+  // Cây chương trình của khối: chỉ các nhánh có bài thuộc khối (khối kế thừa từ chủ đề cha)
+  const prog = programs.find(p => p.id === book?.program_id)
+  const tree = useMemo(() => {
+    if (!book) return [] as { u: Unit; depth: number; leaf: boolean }[]
+    const kids = (pid: string | null) => units.filter(u => u.parent_id === pid).sort((a, b) => a.seq - b.seq)
+    const subjOk = (s: string | null) => !s || !prog || book.subject.toLowerCase() === prog.main_subject.toLowerCase() || s.toLowerCase() === book.subject.toLowerCase()
+    const out: { u: Unit; depth: number; leaf: boolean }[] = []
+    const walk = (pid: string | null, depth: number, g: number | null, s: string | null): boolean => {
+      let any = false
+      for (const u of kids(pid)) {
+        const gg = u.grade ?? g, ss = u.subject ?? s
+        const ch = depth < 2 ? kids(u.id) : []
+        if (ch.length === 0) {
+          if ((gg == null || gg === book.grade) && subjOk(ss)) { out.push({ u, depth, leaf: true }); any = true }
+        } else {
+          const at = out.length
+          out.push({ u, depth, leaf: false })
+          if (walk(u.id, depth + 1, gg, ss)) any = true
+          else out.splice(at, 1)
+        }
+      }
+      return any
+    }
+    walk(null, 0, null, null)
+    return out
+  }, [units, book, prog])
+  const leaves = tree.filter(t => t.leaf)
+  const get = (u: Unit): Alloc => alloc.get(u.id) ?? { unit_id: u.id, periods: Math.max(u.periods, 1), term: null }
+  const set = (ids: string[], patch: Partial<Alloc>) => setAlloc(m => {
+    const n = new Map(m)
+    for (const id of ids) { const u = units.find(x => x.id === id); if (u) n.set(id, { ...get(u), ...patch }) }
+    return n
+  })
+  const leafIds = (pid: string) => {
+    const at = tree.findIndex(t => t.u.id === pid), d = tree[at].depth, ids: string[] = []
+    for (let i = at + 1; i < tree.length && tree[i].depth > d; i++) if (tree[i].leaf) ids.push(tree[i].u.id)
+    return ids
+  }
+
+  // Học kỳ dự kiến (giống cách sinh trên máy chủ): bài không ghi học kỳ xếp nối tiếp đến hết sức chứa HK I
+  const ppw = Number(book?.periods_per_week) || 0
+  const plan = useMemo(() => {
+    const rows = leaves.map(t => ({ id: t.u.id, ...get(t.u) })).filter(r => r.periods > 0)
+    const total = rows.reduce((s, r) => s + r.periods, 0)
+    const cap = ppw ? weeks.hk1 * ppw : null
+    let before = 0
+    const term = new Map<string, 1 | 2>()
+    for (const r of rows) {
+      term.set(r.id, r.term ?? (cap != null ? (before < cap ? 1 : 2) : (before * 2 < total ? 1 : 2)))
+      before += r.periods
+    }
+    const extra = (review ? 1 : 0) + (test ? 1 : 0)
+    const hk1 = rows.filter(r => term.get(r.id) === 1).reduce((s, r) => s + r.periods, 0)
+    const hk2 = total - hk1
+    return { term, total, hk1: hk1 + (hk1 ? extra : 0), hk2: hk2 + (hk2 ? extra : 0) }
+  }, [leaves, alloc, ppw, weeks, review, test])
+  const unitTotal = leaves.reduce((s, t) => s + Math.max(t.u.periods, 0), 0)
+  const cap1 = ppw ? weeks.hk1 * ppw : null, cap2 = ppw ? weeks.hk2 * ppw : null
+
+  async function generate() {
+    if (!book) return
+    if (lessons > 0 && !confirm(`Thay toàn bộ ${lessons} tiết hiện có của "${book.title}" bằng ${plan.hk1 + plan.hk2} tiết theo bảng phân bổ?`)) return
+    let reason: string | null = null
+    if (book.status === 'published') {
+      reason = prompt('PPCT đang dùng — lý do phân bổ lại (ghi vào nhật ký điều chỉnh):', '')
+      if (reason === null) return
+    }
+    setBusy(true)
+    const payload = leaves.map(t => get(t.u))
+    const { data, error } = await supabase.rpc('curriculum_generate', { p_book: book.id, p_alloc: payload, p_review: review, p_test: test, p_reason: reason })
+    setBusy(false)
+    if (error) return setMsg([errText(error.message), true])
+    setMsg([`Đã sinh ${data} tiết cho "${book.title}". Xem và chỉnh từng tiết ở tab Phân phối chương trình.`, false]); loadBook()
+  }
+  async function create(e: React.FormEvent) {
+    e.preventDefault(); if (!mk?.program) return
+    const ppwN = Number(mk.ppw.replace(',', '.')) || null
+    const { data, error } = await supabase.rpc('curriculum_from_program', { p_program: mk.program, p_grade: mk.grade, p_subject: null, p_year: yname || null, p_ppw: ppwN })
+    if (error) return setMsg([errText(error.message), true])
+    setMk(null); setMsg(['Đã tạo PPCT nháp từ chương trình — chia lại số tiết bên dưới rồi bấm "Sinh PPCT".', false])
+    loadBooks(data as string)
+  }
+
+  const mkProg = programs.find(p => p.id === mk?.program)
+  return (
+    <>
+      <p className="sub">Chia số tiết của từng bài trong chương trình vào học kỳ I / học kỳ II, rồi sinh danh sách tiết của PPCT. Bài để "Tự động" được xếp nối tiếp cho đến hết sức chứa học kỳ I.</p>
+      <div className="bar">
+        <div className="tools">
+          {mode === 'school' && <select value={yname} onChange={e => setYname(e.target.value)} aria-label="Năm học">{names.map(n => <option key={n}>{n}</option>)}</select>}
+          <select value={bookId} onChange={e => setBookId(e.target.value)} aria-label="PPCT" style={{ maxWidth: 360 }}>
+            {books.length === 0 && <option value="">Chưa có PPCT theo chương trình</option>}
+            {books.map(b => <option key={b.id} value={b.id}>Khối {b.grade} · {b.subject} — {b.title}</option>)}
+          </select>
+        </div>
+        {canEdit && <button className="primary" onClick={() => setMk({ program: '', grade: 0, ppw: '' })}>Tạo PPCT từ chương trình</button>}
+      </div>
+      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+
+      {mk && (
+        <form className="panel formgrid" onSubmit={create}>
+          <label className="field"><span>Chương trình *</span><select required value={mk.program} onChange={e => {
+            const p = programs.find(x => x.id === e.target.value); setMk({ ...mk, program: e.target.value, grade: p?.grade_from ?? 0 })
+          }}><option value="">— Chọn chương trình —</option>
+            {programs.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version_no}) · khối {p.grade_from}{p.grade_to > p.grade_from ? '–' + p.grade_to : ''}{p.status !== 'published' ? ' · nháp' : ''}</option>)}</select></label>
+          <label className="field"><span>Khối *</span><select required value={mk.grade || ''} onChange={e => setMk({ ...mk, grade: Number(e.target.value) })}>
+            {!mkProg && <option value="">—</option>}
+            {mkProg && Array.from({ length: mkProg.grade_to - mkProg.grade_from + 1 }, (_, i) => mkProg.grade_from + i).map(g => <option key={g} value={g}>Khối {g}</option>)}</select></label>
+          <label className="field"><span>Số tiết / tuần</span><input inputMode="decimal" value={mk.ppw} onChange={e => setMk({ ...mk, ppw: e.target.value })} placeholder="VD: 1 hoặc 1,5" /></label>
+          <div className="formactions"><button className="primary" type="submit">Tạo PPCT nháp</button> <button type="button" onClick={() => setMk(null)}>Huỷ</button></div>
+        </form>
+      )}
+
+      {book && (
+        <>
+          <div className={'panel allocbar' + ((cap1 != null && plan.hk1 > cap1) || (cap2 != null && plan.hk2 > cap2) ? ' warnbox' : '')}>
+            <span>Chương trình (khối {book.grade}): <b>{unitTotal} tiết</b></span>
+            <span>Đã chia: <b>{plan.total} tiết</b>{plan.total !== unitTotal && <small> ({plan.total > unitTotal ? '+' : ''}{plan.total - unitTotal} so với chương trình)</small>}</span>
+            <span>HK I: <b className={cap1 != null && plan.hk1 > cap1 ? 'bad' : ''}>{plan.hk1}</b>{cap1 != null && <small> / sức chứa {fmt(cap1)}</small>}</span>
+            <span>HK II: <b className={cap2 != null && plan.hk2 > cap2 ? 'bad' : ''}>{plan.hk2}</b>{cap2 != null && <small> / sức chứa {fmt(cap2)}</small>}</span>
+            {!ppw && <small className="sub">Chưa nhập số tiết / tuần — không tính được sức chứa và tuần.</small>}
+          </div>
+          {leaves.length === 0 ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Chương trình chưa có bài nào cho khối {book.grade}.</p></div> : (
+            <div className="wrap"><table>
+              <thead><tr><th>Chủ đề / bài trong chương trình</th><th>Tiết theo CT</th><th>Số tiết phân bổ</th><th>Học kỳ</th></tr></thead>
+              <tbody>{tree.map(({ u, depth, leaf }) => {
+                const a = get(u)
+                return leaf ? (
+                  <tr key={u.id}>
+                    <td style={{ paddingLeft: 12 + depth * 18 }}>{u.title}</td>
+                    <td>{u.periods}</td>
+                    <td><input type="number" min={0} max={200} disabled={!canEdit} value={a.periods} style={{ width: 72 }} aria-label={`Số tiết ${u.title}`}
+                      onChange={e => set([u.id], { periods: Math.max(0, Math.min(200, Number(e.target.value) || 0)) })} /></td>
+                    <td><select disabled={!canEdit} value={a.term ?? ''} aria-label={`Học kỳ ${u.title}`} onChange={e => set([u.id], { term: (Number(e.target.value) || null) as 1 | 2 | null })}>
+                      <option value="">Tự động ({a.periods ? (plan.term.get(u.id) === 2 ? 'HK II' : 'HK I') : '—'})</option><option value="1">HK I</option><option value="2">HK II</option></select></td>
+                  </tr>
+                ) : (
+                  <tr key={u.id} className="grouprow">
+                    <td style={{ paddingLeft: 12 + depth * 18 }}><b>{u.title}</b></td>
+                    <td><small>{leafIds(u.id).reduce((s, id) => s + (units.find(x => x.id === id)?.periods ?? 0), 0)}</small></td>
+                    <td><small>{leafIds(u.id).reduce((s, id) => { const x = units.find(v => v.id === id); return s + (x ? get(x).periods : 0) }, 0)}</small></td>
+                    <td>{canEdit && <select value="" aria-label={`Học kỳ cả ${u.title}`} onChange={e => e.target.value && set(leafIds(u.id), { term: e.target.value === 'auto' ? null : (Number(e.target.value) as 1 | 2) })}>
+                      <option value="">Cả chủ đề…</option><option value="1">→ HK I</option><option value="2">→ HK II</option><option value="auto">→ Tự động</option></select>}</td>
+                  </tr>
+                )
+              })}</tbody>
+            </table></div>
+          )}
+          {canEdit && leaves.length > 0 && (
+            <div className="bar" style={{ marginTop: 12 }}>
+              <div className="tools">
+                <label><input type="checkbox" checked={review} onChange={e => setReview(e.target.checked)} /> Thêm tiết ôn tập cuối mỗi học kỳ</label>
+                <label><input type="checkbox" checked={test} onChange={e => setTest(e.target.checked)} /> Thêm tiết kiểm tra cuối mỗi học kỳ</label>
+              </div>
+              <div className="tools">
+                <button onClick={() => setAlloc(new Map())}>Về số tiết theo chương trình</button>
+                <button className="primary" disabled={busy} onClick={generate}>{busy ? 'Đang sinh…' : lessons ? `Sinh lại PPCT (${lessons} tiết hiện có)` : 'Sinh PPCT'}</button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+      {!book && books.length === 0 && <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có PPCT nào gắn chương trình giáo dục{mode === 'school' && yname ? ` trong năm học ${yname}` : ''}.{canEdit && ' Bấm "Tạo PPCT từ chương trình" để bắt đầu.'}</p></div>}
+    </>
+  )
+}
+

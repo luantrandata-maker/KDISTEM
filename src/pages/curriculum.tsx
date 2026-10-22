@@ -12,12 +12,12 @@ import { GradePicker, SubjectPicker } from '../components/Pickers'
 //  • Sở / Phòng: soạn mẫu ban hành cho trường trực thuộc, xem tiến độ các trường.
 //  • KDI: soạn mẫu dùng chung, xem tiến độ toàn hệ thống.
 export type PpctMode = 'school' | 'authority' | 'platform'
-type Book = {
+export type Book = {
   id: string; org_id: string; grade: number; subject: string; title: string; total_periods: number | null; year_name: string | null
   periods_per_week: number | null; status: BookStatus; scope: 'own' | 'children'; source_id: string | null; note: string | null
   program_id?: string | null; organizations?: { name: string } | null; edu_programs?: { title: string; version_no: number } | null
 }
-type BookStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'published'
+export type BookStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'published'
 type Lesson = {
   id: string; book_id: string; seq: number; week: number | null; term: number | null; title: string; kind: Kind; package_topic_id: string | null
   unit_id: string | null; note: string | null
@@ -42,7 +42,7 @@ type Change = { id: number; seq: number | null; action: string; reason: string |
 
 export const KIND: Record<Kind, string> = { lesson: 'Bài học', stem: 'Chủ đề STEM', practice: 'Thực hành', review: 'Ôn tập', test: 'Kiểm tra' }
 const KIND_PILL: Record<Kind, string> = { lesson: '', stem: 'good', practice: '', review: 'warn', test: 'bad' }
-const BOOK_STATUS: Record<BookStatus, [string, string]> = {
+export const BOOK_STATUS: Record<BookStatus, [string, string]> = {
   draft: ['Nháp', ''], pending: ['Chờ duyệt', 'maintenance'], approved: ['Đã duyệt — chờ công bố', 'active'], rejected: ['Bị trả lại', 'inactive'], published: ['Đang dùng', 'active'],
 }
 const STATE: Record<LessonState, [string, string]> = {
@@ -53,14 +53,14 @@ const HK = (t: number | null) => (t === 1 ? 'HK I' : t === 2 ? 'HK II' : '—')
 // Hỏi lý do khi điều chỉnh PPCT đang dùng; null = huỷ
 const askReason = (b: Pick<Book, 'status'>, what: string): string | null | undefined =>
   b.status !== 'published' ? undefined : prompt(`PPCT đang dùng — lý do ${what} (ghi vào nhật ký điều chỉnh):`, '')
-const errText = (m: string) => (/schema cache|does not exist|curriculum_lessons/i.test(m) && /exist|cache/i.test(m) ? 'Hãy chạy migration 057 trên Supabase.'
+export const errText = (m: string) => (/schema cache|does not exist|curriculum_lessons/i.test(m) && /exist|cache/i.test(m) ? 'Hãy chạy migration 057 trên Supabase.'
   : /row-level|42501/i.test(m) ? 'Bạn không có quyền sửa phân phối chương trình của đơn vị này.'
   : /duplicate|unique/i.test(m) ? 'Trùng số tiết — mỗi tiết trong một môn chỉ có một dòng.' : m)
 const dmy = (d: string | null) => (d ? d.split('-').reverse().slice(0, 2).join('/') : '')
 const numOrNull = (s: string) => { const n = Number(String(s).replace(',', '.')); return s.trim() && Number.isFinite(n) && n > 0 ? n : null }
 
 // Có được sửa PPCT của đơn vị đang làm việc không
-function useCanEdit(mode: PpctMode) {
+export function useCanEdit(mode: PpctMode) {
   const [ok, setOk] = useState(mode !== 'school')
   useEffect(() => {
     if (mode === 'school') supabase.rpc('has_perm', { p_module: 'curriculum', p_action: 'edit' }).then(({ data }) => setOk(!!data))
@@ -69,7 +69,8 @@ function useCanEdit(mode: PpctMode) {
 }
 
 // ================= Danh sách môn / sách trong PPCT =================
-export function CurriculumBooks({ orgId, mode = 'school', year }: { orgId: string | null; mode?: PpctMode; year?: { name: string } | null }) {
+export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId: string | null; mode?: PpctMode; year?: { name: string } | null; years?: { name: string }[] }) {
+  const yearNames = [...new Set((years ?? []).map(y => y.name))]
   const canEdit = useCanEdit(mode)
   const [books, setBooks] = useState<Book[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -177,7 +178,11 @@ export function CurriculumBooks({ orgId, mode = 'school', year }: { orgId: strin
           <label className="field"><span>Khối *</span><GradePicker value={form.grade} onChange={g => setForm({ ...form, grade: g ?? undefined })} emptyLabel="— Chọn khối —" /></label>
           <label className="field"><span>Môn học *</span><SubjectPicker required value={form.subject} onChange={v => setForm({ ...form, subject: v })} extra={subjects} /></label>
           <label className="field"><span>Tên PPCT</span><input value={form.title ?? ''} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Tin học 6 — Kết nối tri thức" /></label>
-          <label className="field"><span>Năm học</span><input value={form.year_name ?? ''} onChange={e => setForm({ ...form, year_name: e.target.value })} placeholder="Để trống: dùng mọi năm" /></label>
+          {mode === 'school' && yearNames.length > 0
+            ? <label className="field"><span>Năm học *</span><select value={form.year_name ?? ''} onChange={e => setForm({ ...form, year_name: e.target.value })}>
+                {!yearNames.includes(form.year_name ?? '') && <option value={form.year_name ?? ''}>{form.year_name || '— Năm học hiện tại —'}</option>}
+                {yearNames.map(n => <option key={n}>{n}</option>)}</select></label>
+            : <label className="field"><span>Năm học</span><input value={form.year_name ?? ''} onChange={e => setForm({ ...form, year_name: e.target.value })} placeholder={mode === 'school' ? 'Để trống: năm học hiện tại' : 'Để trống: dùng mọi năm'} /></label>}
           <label className="field"><span>Số tiết / tuần</span><input inputMode="decimal" value={form.periods_per_week ?? ''} onChange={e => setForm({ ...form, periods_per_week: e.target.value as any })} placeholder="VD: 1 hoặc 1,5" /></label>
           {!form.id && <label className="field"><span>Tổng số tiết (dự kiến)</span><input type="number" min={0} value={form.total_periods ?? ''} onChange={e => setForm({ ...form, total_periods: Number(e.target.value) || null })} placeholder="Tự cập nhật khi soạn tiết" /></label>}
           {(!form.id || form.status === 'draft' || form.status === 'published') && <label className="field"><span>Trạng thái</span><select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as Book['status'] })}>
@@ -251,7 +256,7 @@ const kindOf = (s: string): Kind => {
 const termIn = (s: string): number | null => { const n = norm(s); return !n ? null : /(^| )(2|ii)( |$)/.test(n) ? 2 : /(^| )(1|i)( |$)/.test(n) ? 1 : null }
 const ACTION: Record<string, string> = { insert: 'Thêm tiết', update: 'Sửa tiết', delete: 'Xoá tiết', import: 'Nhập lại cả môn' }
 
-function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book: Book; canEdit: boolean; mode: PpctMode; onClose: () => void; onChanged: () => void }) {
+export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book: Book; canEdit: boolean; mode: PpctMode; onClose: () => void; onChanged: () => void }) {
   const [rows, setRows] = useState<Lesson[] | null>(null)
   const [topics, setTopics] = useState<Topic[]>([])
   const [units, setUnits] = useState<Unit[]>([])

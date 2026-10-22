@@ -103,6 +103,8 @@ const PlatformSupport = lazy(() => import('./pages/support/Support').then(m => (
 const PlatformRollout = lazy(() => import('./pages/platform/Rollout').then(m => ({ default: m.PlatformRollout })))
 const CurriculumBooks = lazy(() => import('./pages/curriculum').then(m => ({ default: m.CurriculumBooks })))
 const CurriculumProgress = lazy(() => import('./pages/curriculum').then(m => ({ default: m.CurriculumProgress })))
+const YearPlan = lazy(() => import('./pages/curriculumPlan').then(m => ({ default: m.YearPlan })))
+const Allocation = lazy(() => import('./pages/curriculumPlan').then(m => ({ default: m.Allocation })))
 // Chương trình giáo dục chuẩn: phiên bản, cấu trúc, yêu cầu cần đạt, duyệt / ban hành, gán cho trường (058)
 const EduPrograms = lazy(() => import('./pages/eduPrograms').then(m => ({ default: m.EduPrograms })))
 const eduPrograms = (mode: 'school' | 'authority' | 'platform') => (p: any) => <EduPrograms {...p} mode={mode} />
@@ -129,7 +131,9 @@ const PlatformLessonTemplates = lazy(() => import('./pages/lessons/Admin').then(
 // Phân phối chương trình theo tiết + tiến độ (057): cùng một màn cho trường / GV, Sở (soạn mẫu ban hành), KDI (mẫu dùng chung)
 const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, ComponentType<any>][] = []) => {
   const tabs: [string, ComponentType<any>][] = [
+    [mode === 'school' ? 'Kế hoạch năm' : 'Tổng quan theo khối', (q: any) => <YearPlan {...q} mode={mode} />],
     [mode === 'platform' ? 'Mẫu PPCT của KDI' : mode === 'authority' ? 'PPCT & mẫu ban hành' : 'Phân phối chương trình', (q: any) => <CurriculumBooks {...q} mode={mode} />],
+    ['Phân bổ tiết', (q: any) => <Allocation {...q} mode={mode} />],
     [mode === 'school' ? 'Tiến độ dạy' : 'Tiến độ các trường', (q: any) => <CurriculumProgress {...q} mode={mode} />],
     ...extra,
   ]

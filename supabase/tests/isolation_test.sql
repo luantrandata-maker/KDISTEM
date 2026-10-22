@@ -2411,6 +2411,39 @@ select pg_temp.probe('gv_both@iso-test.local', $q$select library_adopt((select i
 select pg_temp.chk('gv_both', 'Dùng bài giảng tương tác → giáo án có đủ khối nội dung',
   $q$select lesson_block_count(lesson) || '|' || program from lesson_plans where teacher_id = my_teacher_id() and library_item_id = (select id from library_items where title = 'ISO bài giảng tương tác')$q$, '2|CT1');
 
+-- ===== 071: kế hoạch năm, phân bổ tiết, chuyển năm học =====
+select pg_temp.chk('admin_ph', 'Kế hoạch năm: PPCT của trường không ghi năm học → năm học hiện tại',
+  $q$with i as (insert into curriculum_books (org_id, grade, subject, title, status) values (my_org_id(), 8, 'ISO Môn năm học', 'ISO PPCT năm học', 'draft') returning year_name) select year_name from i$q$, '2026-2027');
+select pg_temp.chk('admin_ph', 'Kế hoạch năm: năm học không có trong danh mục của trường → lỗi',
+  $q$insert into curriculum_books (org_id, grade, subject, title, year_name) values (my_org_id(), 8, 'ISO Môn năm lạ', 'ISO PPCT năm lạ', '1999-2000')$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Kế hoạch năm: số tuần HK I theo ngày của năm học, HK II mặc định 17',
+  $q$select hk1 || '|' || hk2 from curriculum_term_weeks(my_org_id(), '2026-2027')$q$, '19|17');
+select pg_temp.probe('kdi@iso-test.local', $q$select curriculum_from_program((select id from edu_programs where title = 'ISO CT KDI' and org_id = platform_org_id() and version_no = 2), 6, null, null, 1)::text$q$, true);
+select pg_temp.chk('kdi', 'Phân bổ tiết: KDI tạo mẫu PPCT từ chương trình (cho đơn vị trực thuộc, không năm học)',
+  $q$select b.scope || ':' || coalesce(b.year_name, '-') || ':' || count(l.id) from curriculum_books b join curriculum_lessons l on l.book_id = b.id
+     where b.title = 'ISO CT KDI — khối 6' and b.org_id = platform_org_id() group by b.id$q$, 'children:-:4');
+select pg_temp.chk('gv_both', 'Phân bổ tiết: giáo viên không sinh lại PPCT',
+  $q$select curriculum_generate((select id from curriculum_books where title = 'ISO CT KDI — khối 6' and org_id = my_org_id()))::text$q$, 'ERR');
+select pg_temp.probe('admin_ph@iso-test.local', $q$select curriculum_generate(b.id,
+    (select jsonb_agg(jsonb_build_object('unit_id', u.id, 'periods', case when u.title = 'ISO bài 1' then 3 else 1 end, 'term', case when u.title = 'ISO bài 1' then 1 else 2 end))
+       from edu_program_units u where u.program_id = b.program_id and u.unit_type = 'lesson'), true, true, 'ISO phân bổ')::text
+  from curriculum_books b where b.title = 'ISO CT KDI — khối 6' and b.org_id = my_org_id()$q$, true);
+select pg_temp.chk('admin_ph', 'Phân bổ tiết: HK I 3 tiết + ôn tập + kiểm tra, HK II bắt đầu tuần 20',
+  $q$select count(*) || ':' || count(*) filter (where l.term = 1) || ':' || count(*) filter (where l.term = 2) || ':' || min(l.week) filter (where l.term = 2)
+       || ':' || jsonb_array_length(b.allocation)
+     from curriculum_lessons l join curriculum_books b on b.id = l.book_id where b.title = 'ISO CT KDI — khối 6' and b.org_id = my_org_id() group by b.id$q$, '8:5:3:20:2');
+select pg_temp.chk('admin_ph', 'Kế hoạch năm: đếm số tiết HK I / HK II của PPCT',
+  $q$select hk1 || '|' || hk2 from curriculum_term_counts(array[(select id from curriculum_books where title = 'ISO CT KDI — khối 6' and org_id = my_org_id())])$q$, '5|3');
+insert into academic_years (org_id, name, term, starts_on, ends_on, is_current) values (pg_temp.oid_('THCS-PH'), 'ISO 2027-2028', 'HK I', '2027-09-05', '2028-01-15', false);
+select pg_temp.chk('admin_ph', 'Chuyển năm học: sao chép PPCT sang năm mới', $q$select (curriculum_rollover('2026-2027', 'ISO 2027-2028') > 0)::text$q$, 'true');
+select pg_temp.probe('admin_ph@iso-test.local', $q$select curriculum_rollover('2026-2027', 'ISO 2027-2028')$q$, true);
+select pg_temp.chk('admin_ph', 'Chuyển năm học: bản nháp, đủ tiết, giữ phân bổ, chạy lại không trùng',
+  $q$select count(distinct b.id) || ':' || min(b.status) || ':' || count(l.id) || ':' || jsonb_array_length(min(b.allocation::text)::jsonb)
+     from curriculum_books b join curriculum_lessons l on l.book_id = b.id where b.title = 'ISO CT KDI — khối 6' and b.year_name = 'ISO 2027-2028'$q$, '1:draft:8:2');
+select pg_temp.chk('gv_both', 'Chuyển năm học: giáo viên không chuyển được', $q$select curriculum_rollover('2026-2027', 'ISO 2027-2028')::text$q$, 'ERR');
+delete from curriculum_books where year_name = 'ISO 2027-2028';
+delete from academic_years where name = 'ISO 2027-2028';
+
 -- ===== 069: trường thử nghiệm cho KDI =====
 drop table if exists t_sandbox;
 create temp table t_sandbox as select exists (select 1 from organizations where code = 'KDI-SANDBOX') as existed;

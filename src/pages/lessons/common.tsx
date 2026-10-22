@@ -4,6 +4,7 @@ import { supabase } from '../../lib/supabase'
 import type { Plan, Slide } from '../teacher/Lessons'
 import { MAT_TYPE } from '../library/common'
 import { ACT, type ActKind } from '../teacher/activity'
+import { SelBar, SelTd, SelTh, useRowSel } from '../../components/TableSel'
 
 export type LStatus = 'draft' | 'editing' | 'pending' | 'approved' | 'rejected' | 'published' | 'archived'
 export type Section = { key: string; title: string; hint?: string; required?: boolean }
@@ -218,17 +219,9 @@ export function TemplatesManager({ orgId, canWrite, isSchool }: { orgId: string 
           <div className="formactions"><button className="primary" type="submit">Lưu mẫu</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
       )}
-      <h3>Mẫu của đơn vị ({mine.length})</h3>
-      <TplTable rows={mine} actions={t => canWrite && <>
-        <button onClick={() => setForm({ ...t })}>Sửa</button> <button className="danger" onClick={() => remove(t)}>Xoá</button></>} />
-      {shared.length > 0 && <>
-        <h3 style={{ marginTop: 16 }}>Mẫu dùng chung từ KDI / cấp trên ({shared.length})</h3>
-        <TplTable rows={shared} actions={t => canWrite && <button onClick={() => copyFrom(t)}>Sao chép để sửa</button>} />
-      </>}
-      {below.length > 0 && <>
-        <h3 style={{ marginTop: 16 }}>Mẫu riêng của các trường trực thuộc ({below.length})</h3>
-        <TplTable rows={below} actions={t => canWrite && <button onClick={() => copyFrom(t)}>Sao chép để sửa</button>} />
-      </>}
+      <TplTable title={`Mẫu của đơn vị (${mine.length})`} rows={mine} actions={canWrite ? [['Sửa', t => setForm({ ...t })], ['Xoá', t => remove(t), true]] : []} />
+      {shared.length > 0 && <TplTable title={`Mẫu dùng chung từ KDI / cấp trên (${shared.length})`} rows={shared} actions={canWrite ? [['Sao chép để sửa', copyFrom]] : []} />}
+      {below.length > 0 && <TplTable title={`Mẫu riêng của các trường trực thuộc (${below.length})`} rows={below} actions={canWrite ? [['Sao chép để sửa', copyFrom]] : []} />}
     </>
   )
 }
@@ -248,22 +241,30 @@ function ListEditor({ label, items, onChange, withRequired }: { label: string; i
     </div>
   )
 }
-function TplTable({ rows, actions }: { rows: Template[]; actions: (t: Template) => React.ReactNode }) {
-  if (!rows.length) return <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có mẫu nào.</p></div>
-  return (
+// Bảng mẫu giáo án: có tác vụ thì ô tick ở cột đầu, nút nằm trên bảng (bên phải)
+function TplTable({ title, rows, actions }: { title: string; rows: Template[]; actions: [string, (t: Template) => void, boolean?][] }) {
+  const sel = useRowSel(rows)
+  const head = <h3 style={{ margin: '16px 0 8px' }}>{title}</h3>
+  if (!rows.length) return <>{head}<div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có mẫu nào.</p></div></>
+  const has = actions.length > 0
+  return (<>
+    {has ? <SelBar picked={sel.cur?.name ?? null} left={head}>
+      {actions.map(([label, run, danger]) => <button key={label} className={danger ? 'danger' : undefined} disabled={!sel.cur}
+        onClick={() => { if (sel.cur) { run(sel.cur); if (danger) sel.clear() } }}>{label}</button>)}
+    </SelBar> : head}
     <div className="wrap"><table>
-      <thead><tr><th>Mẫu</th><th>Các mục</th><th>Pha hoạt động</th><th>Đơn vị</th><th></th></tr></thead>
+      <thead><tr>{has && <SelTh />}<th>Mẫu</th><th>Các mục</th><th>Pha hoạt động</th><th>Đơn vị</th></tr></thead>
       <tbody>{rows.map(t => (
-        <tr key={t.id}>
+        <tr key={t.id} className={sel.is(t) ? 'picked' : undefined}>
+          {has && <SelTd on={sel.is(t)} onToggle={() => sel.toggle(t)} label={t.name} />}
           <td><b>{t.name}</b>{!t.active && <small className="sub"> · đã tắt</small>}{t.description && <><br /><small className="sub">{t.description}</small></>}</td>
           <td><small>{t.sections.map(s => s.title + (s.required ? ' *' : '')).join(' · ') || '—'}</small></td>
           <td><small>{t.phases.map(s => s.title).join(' → ') || '—'}</small></td>
           <td><small>{t.owner_name ?? ''}</small></td>
-          <td style={{ whiteSpace: 'nowrap' }}>{actions(t)}</td>
         </tr>
       ))}</tbody>
     </table></div>
-  )
+  </>)
 }
 
 export type { Plan, Slide }

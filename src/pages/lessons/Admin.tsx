@@ -1,3 +1,4 @@
+import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../../components/TableSel'
 // Giáo án & bài giảng cho Trường (duyệt, theo dõi, mẫu giáo án), Sở / Phòng (giáo án đã xuất bản của trường trực thuộc, mẫu dùng chung)
 // và KDI (mẫu giáo án dùng chung toàn hệ thống)
 import { useEffect, useState } from 'react'
@@ -106,6 +107,7 @@ function SchoolPlans({ orgId, go }: P) {
       p.steps.length, totalMinutes(p.steps), LSTATUS[p.status]?.[0] ?? p.status, p.version_no, fmtD(p.updated_at)]))
   }
 
+  const psel = useRowSel(shown)
   if (open) return <PlanPreview plan={open} orgId={orgId} onClose={() => setOpen(null)} extra={open.status === 'pending' && <>
     <button className="primary" onClick={() => decide(open, 'approve')}>Duyệt</button> <button className="danger" onClick={() => decide(open, 'reject')}>Trả lại</button></>} />
   return (
@@ -128,20 +130,21 @@ function SchoolPlans({ orgId, go }: P) {
         <select value={teacher} onChange={e => setTeacher(e.target.value)} aria-label="Lọc giáo viên"><option value="">Tất cả giáo viên</option>{teachers.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select>
         <button onClick={exportX} disabled={!shown.length}>Xuất Excel</button>
       </div>
+      <SelBar picked={psel.cur?.title ?? null}>
+        <button className="primary" disabled={psel.cur?.status !== 'pending'} onClick={() => psel.cur && decide(psel.cur, 'approve')}>Duyệt</button>
+        <button className="danger" disabled={psel.cur?.status !== 'pending'} onClick={() => psel.cur && decide(psel.cur, 'reject')}>Trả lại</button>
+      </SelBar>
       <div className="wrap"><table>
-        <thead><tr><th>Giáo án</th><th>Giáo viên</th><th>Mẫu</th><th>Tiến trình</th><th>Trạng thái</th><th>Cập nhật</th><th></th></tr></thead>
+        <thead><tr><SelTh /><th>Giáo án</th><th>Giáo viên</th><th>Mẫu</th><th>Tiến trình</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
         <tbody>{shown.map(p => (
-          <tr key={p.id}>
-            <td><b>{p.title}</b><br /><small className="sub">{[p.subject, p.grades && `Khối ${p.grades}`, p.periods && `${p.periods} tiết`].filter(Boolean).join(' · ')}</small></td>
+          <tr key={p.id} className={psel.is(p) ? 'picked' : undefined}>
+            <SelTd on={psel.is(p)} onToggle={() => psel.toggle(p)} label={p.title} />
+            <td><NameLink onClick={() => setOpen(p)}>{p.title}</NameLink><br /><small className="sub">{[p.subject, p.grades && `Khối ${p.grades}`, p.periods && `${p.periods} tiết`].filter(Boolean).join(' · ')}</small></td>
             <td>{p.teachers?.full_name ?? '—'}</td>
             <td><small>{templates.find(t => t.id === p.template_id)?.name ?? 'Không theo mẫu'}</small></td>
             <td><small>{p.steps.length} bước · {totalMinutes(p.steps)} phút · {p.slides.length} slide</small></td>
             <td><LStatusPill s={p.status} />{p.version_no > 0 && <small> v{p.version_no}</small>}</td>
             <td><small>{fmtD(p.updated_at)}</small></td>
-            <td style={{ whiteSpace: 'nowrap' }}>
-              <button onClick={() => setOpen(p)}>Xem</button>
-              {p.status === 'pending' && <> <button className="primary" onClick={() => decide(p, 'approve')}>Duyệt</button> <button className="danger" onClick={() => decide(p, 'reject')}>Trả lại</button></>}
-            </td>
           </tr>
         ))}</tbody>
       </table></div>
@@ -194,15 +197,14 @@ function PublishedPlans({ orgId }: P) {
         <select value={school} onChange={e => setSchool(e.target.value)} aria-label="Lọc trường"><option value="">Tất cả trường</option>{schools.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select>
       </div>
       <div className="wrap"><table>
-        <thead><tr><th>Giáo án</th><th>Trường</th><th>Giáo viên</th><th>Mẫu</th><th>Tiến trình</th><th>Xuất bản</th><th></th></tr></thead>
+        <thead><tr><th>Giáo án</th><th>Trường</th><th>Giáo viên</th><th>Mẫu</th><th>Tiến trình</th><th>Xuất bản</th></tr></thead>
         <tbody>{shown.map(p => (
           <tr key={p.id}>
-            <td><b>{p.title}</b><br /><small className="sub">{[p.subject, p.grades && `Khối ${p.grades}`].filter(Boolean).join(' · ')}</small></td>
+            <td><NameLink onClick={() => setOpen(p)}>{p.title}</NameLink><br /><small className="sub">{[p.subject, p.grades && `Khối ${p.grades}`].filter(Boolean).join(' · ')}</small></td>
             <td>{orgs.get(p.org_id) ?? '—'}</td><td>{p.teachers?.full_name ?? '—'}</td>
             <td><small>{byTpl(p.template_id) ?? '—'}</small></td>
             <td><small>{p.steps.length} bước · {totalMinutes(p.steps)} phút</small></td>
             <td><small>v{p.version_no} · {fmtD(p.published_at)}</small></td>
-            <td><button onClick={() => setOpen(p)}>Xem</button></td>
           </tr>
         ))}</tbody>
       </table></div>

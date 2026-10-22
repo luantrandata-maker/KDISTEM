@@ -203,10 +203,9 @@ function TopicView({ prog, topic, units, teacherId, onHome, onProgram }: { prog:
         </div>
       ))}
       {tab === 'docs' && (libs.length === 0 ? <p className="sub">Chưa có tài liệu cho học phần này.</p> : (
-        <div className="wrap"><table><thead><tr><th>Tài liệu</th><th>Loại</th><th>Nguồn</th><th></th></tr></thead><tbody>
-          {libs.map(l => <tr key={l.id}><td><b>{l.title}</b>{l.summary && <><br /><small className="sub">{l.summary}</small></>}{!l.unit_id && <><br /><small className="sub">Dùng chung cả chương trình</small></>}</td>
-            <td>{l.kind === 'material' ? MAT[l.content?.type ?? ''] ?? 'Học liệu' : l.kind === 'lesson' ? 'Bài giảng' : 'Chương trình'}</td><td><small>{l.owner_name}</small></td>
-            <td>{l.content?.url && <a className="btnlink" href={l.content.url} target="_blank" rel="noreferrer">Mở ↗</a>}</td></tr>)}
+        <div className="wrap"><table><thead><tr><th>Tài liệu</th><th>Loại</th><th>Nguồn</th></tr></thead><tbody>
+          {libs.map(l => <tr key={l.id}><td>{l.content?.url ? <a className="namelink" href={l.content.url} target="_blank" rel="noreferrer">{l.title} ↗</a> : <b>{l.title}</b>}{l.summary && <><br /><small className="sub">{l.summary}</small></>}{!l.unit_id && <><br /><small className="sub">Dùng chung cả chương trình</small></>}</td>
+            <td>{l.kind === 'material' ? MAT[l.content?.type ?? ''] ?? 'Học liệu' : l.kind === 'lesson' ? 'Bài giảng' : 'Chương trình'}</td><td><small>{l.owner_name}</small></td></tr>)}
         </tbody></table></div>
       ))}
       {tab === 'devices' && (items.length === 0 ? <p className="sub">Chưa có định mức thiết bị, vật tư cho học phần này.</p> : (

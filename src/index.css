@@ -1342,3 +1342,13 @@ th,td{vertical-align:middle}
 .gpill.good{background:var(--ok-bg);color:var(--ok-fg)}.gpill.warn{background:var(--warn-bg);color:var(--warn-fg)}.gpill.bad{background:var(--bad-bg);color:var(--bad-fg)}
 /* Biểu tượng SVG dùng chung (thay emoji) */
 .ico{display:inline-block;vertical-align:-3px;flex:none}
+/* Bảng: ô tick ở cột đầu, thanh thao tác trên bảng, tên bấm được */
+th.sel,td.sel{width:40px;padding-right:0}
+.selbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 10px}
+.selbar .tools{margin-left:auto;justify-content:flex-end;align-items:center}
+.main button.namelink{border:0;background:none;padding:0;min-height:0;color:var(--navy);font-weight:600;text-align:left;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px;border-radius:4px}
+.main button.namelink:hover{background:none;color:var(--primary)}
+.sronly{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+tr.picked td{background:#f3f7fd}
+a.namelink{color:var(--navy);font-weight:600;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
+a.namelink:hover{color:var(--primary)}

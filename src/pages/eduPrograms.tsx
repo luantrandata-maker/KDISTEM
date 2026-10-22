@@ -7,6 +7,7 @@ import { Tiles } from './department/charts'
 import { useStemTracks } from '../lib/stemTracks'
 import { asLesson, lessonStats, LessonEditor, type ILesson } from '../lib/lessonBlocks'
 import { useSubjects } from './subjects'
+import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
 import { useEduLevels } from '../lib/eduLevels'
 import { GradePicker, LevelPicker, SubjectMulti, SubjectPicker, gradeList } from '../components/Pickers'
 
@@ -129,26 +130,25 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
     await load(); setOpenId(data as string)
   }
 
+  const sel = useRowSel(shared)
   if (openId) return <ProgramDetail id={openId} orgId={orgId} mode={mode} canEdit={canEdit} isAdmin={isAdmin}
     onOpen={setOpenId} onClose={() => { setOpenId(null); load() }} />
 
+  const canCopy = canEdit
   const row = (p: Program, mine: boolean) => (
-    <tr key={p.id}>
-      <td>{p.code && <small className="sub">{p.code}<br /></small>}<b>{p.title}</b> <small>v{p.version_no}</small>
+    <tr key={p.id} className={!mine && sel.is(p) ? 'picked' : undefined}>
+      {!mine && canCopy && <SelTd on={sel.is(p)} onToggle={() => sel.toggle(p)} label={p.title} />}
+      <td>{p.code && <small className="sub">{p.code}<br /></small>}<NameLink onClick={() => setOpenId(p.id)}>{p.title}</NameLink> <small>v{p.version_no}</small>
         {!mine && <><br /><small className="sub">{p.organizations?.name ?? '—'}</small></>}</td>
       <td>{levelName(p.level)} · {grades(p)}<br /><small>{PKIND[p.kind]}{p.ct_code ? <> · <span className="gpill">{p.ct_code}</span></> : null}</small></td>
       <td>{p.main_subject}{p.integrated_subjects.length > 0 && <><br /><small className="sub">Tích hợp: {p.integrated_subjects.join(', ')}</small></>}</td>
       <td>{p.total_periods || '—'}</td>
       <td><StatusPill s={p.status} />{p.status === 'published' && p.effective_from && <><br /><small className="sub">từ {fmtD(p.effective_from)}</small></>}</td>
-      <td className="tools">
-        <button className="primary" onClick={() => setOpenId(p.id)}>Mở</button>
-        {!mine && canEdit && ['published', 'superseded'].includes(p.status) && <button onClick={() => copy(p)}>Sao chép về đơn vị</button>}
-      </td>
     </tr>
   )
   const table = (rows: Program[], mine: boolean) => (
     <div className="wrap"><table>
-      <thead><tr><th>Chương trình</th><th>Cấp · khối · kiểu · loại</th><th>Môn</th><th>Số tiết</th><th>Trạng thái</th><th></th></tr></thead>
+      <thead><tr>{!mine && canCopy && <SelTh />}<th>Chương trình</th><th>Cấp · khối · kiểu · loại</th><th>Môn</th><th>Số tiết</th><th>Trạng thái</th></tr></thead>
       <tbody>{rows.map(p => row(p, mine))}</tbody>
     </table></div>
   )
@@ -192,6 +192,9 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
           <h3>Của đơn vị ({own.length})</h3>
           {own.length ? table(own, true) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chương trình nào.{canEdit && ' Bấm "Thêm chương trình", hoặc sao chép chương trình dùng chung bên dưới.'}</p></div>}
           <h3>Dùng chung / được gán ({shared.length})</h3>
+          {shared.length > 0 && canCopy && <SelBar picked={sel.cur?.title ?? null}>
+            <button disabled={!sel.cur || !['published', 'superseded'].includes(sel.cur.status)} onClick={() => sel.cur && copy(sel.cur)}>Sao chép về đơn vị</button>
+          </SelBar>}
           {shared.length ? table(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chương trình nào do KDI hoặc cấp trên ban hành cho đơn vị.</p></div>}
         </>
       )}
@@ -844,13 +847,12 @@ function VersionsTab({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMes
       </div>
       <h3>Các phiên bản</h3>
       <div className="wrap"><table>
-        <thead><tr><th>Phiên bản</th><th>Trạng thái</th><th>Ban hành</th><th>Hiệu lực</th><th>Ghi chú</th><th></th></tr></thead>
+        <thead><tr><th>Phiên bản</th><th>Trạng thái</th><th>Ban hành</th><th>Hiệu lực</th><th>Ghi chú</th></tr></thead>
         <tbody>{vers.map(v => (
           <tr key={v.id} style={v.id === p.id ? { background: 'var(--soft, #f3f7fd)' } : undefined}>
-            <td><b>v{v.version_no}</b></td><td><StatusPill s={v.status} /></td><td>{fmtD(v.published_at)}</td>
+            <td>{v.id === p.id ? <><b>v{v.version_no}</b> <small className="sub">đang xem</small></> : <NameLink onClick={() => onOpen(v.id)}>v{v.version_no}</NameLink>}</td><td><StatusPill s={v.status} /></td><td>{fmtD(v.published_at)}</td>
             <td>{v.effective_from ? fmtD(v.effective_from) : '—'}{v.effective_to ? ` → ${fmtD(v.effective_to)}` : ''}</td>
             <td><small>{v.note}</small></td>
-            <td>{v.id === p.id ? <small className="sub">đang xem</small> : <button onClick={() => onOpen(v.id)}>Mở</button>}</td>
           </tr>
         ))}</tbody>
       </table></div>
@@ -870,6 +872,7 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
   const [asg, setAsg] = useState<Assign[]>([])
   const [cov, setCov] = useState<Cover[] | null>(null)
   const [form, setForm] = useState<{ org: string; grades: number[]; note: string } | null>(null)
+  const asel = useRowSel(asg)
   async function load() {
     const [o, a, c] = await Promise.all([
       supabase.from('organizations').select('id, name, type, parent_id').order('name'),
@@ -925,15 +928,18 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
           <div className="formactions"><button className="primary" type="submit">Gán</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
       )}
-      {asg.length > 0 && (
+      {asg.length > 0 && (<>
+        <SelBar picked={asel.cur ? orgName(asel.cur.org_id) : null}>
+          <button className="danger" disabled={!asel.cur || !(mine || asel.cur.assigner_org === orgId)} onClick={() => { if (asel.cur) { remove(asel.cur); asel.clear() } }}>Bỏ gán</button>
+        </SelBar>
         <div className="wrap"><table>
-          <thead><tr><th>Đơn vị</th><th>Khối</th><th>Ghi chú</th><th>Ngày gán</th><th></th></tr></thead>
+          <thead><tr><SelTh /><th>Đơn vị</th><th>Khối</th><th>Ghi chú</th><th>Ngày gán</th></tr></thead>
           <tbody>{asg.map(a => (
-            <tr key={a.id}><td><b>{orgName(a.org_id)}</b></td><td>{a.grades?.length ? a.grades.join(', ') : 'Mọi khối'}</td><td><small>{a.note}</small></td><td>{fmtD(a.created_at)}</td>
-              <td>{(mine || a.assigner_org === orgId) && <button className="danger" onClick={() => remove(a)}>Bỏ gán</button>}</td></tr>
+            <tr key={a.id} className={asel.is(a) ? 'picked' : undefined}><SelTd on={asel.is(a)} onToggle={() => asel.toggle(a)} label={orgName(a.org_id)} />
+              <td><b>{orgName(a.org_id)}</b></td><td>{a.grades?.length ? a.grades.join(', ') : 'Mọi khối'}</td><td><small>{a.note}</small></td><td>{fmtD(a.created_at)}</td></tr>
           ))}</tbody>
         </table></div>
-      )}
+      </>)}
       <div className="bar" style={{ marginTop: 16 }}>
         <h3 style={{ margin: 0 }}>Mức độ triển khai</h3>
         {rows.length > 0 && <button onClick={exportCov}>Xuất Excel</button>}

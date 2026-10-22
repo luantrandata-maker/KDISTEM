@@ -1,3 +1,4 @@
+import { Icon } from '../../components/Icon'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 
@@ -16,14 +17,14 @@ export const KINDS: [string, string][] = [
 ]
 export const KIND_LABEL = Object.fromEntries(KINDS) as Record<string, string>
 export const STATUS: Record<string, [string, string, string]> = {
-  pending: ['⏳', 'Chờ duyệt', 'warn'], approved: ['✓', 'Đã duyệt', 'good'], rejected: ['✕', 'Từ chối', 'bad'], cancelled: ['−', 'Đã rút', ''],
+  pending: ['hourglass', 'Chờ duyệt', 'warn'], approved: ['✓', 'Đã duyệt', 'good'], rejected: ['✕', 'Từ chối', 'bad'], cancelled: ['−', 'Đã rút', ''],
   draft: ['✎', 'Nháp', ''],
 }
 export const fmt = (d: string) => new Date(d).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
 
 export function StatusPill({ status }: { status: string }) {
   const [icon, label, tone] = STATUS[status] ?? ['', status, '']
-  return <span className={'gpill ' + tone}><i aria-hidden="true">{icon}</i>{label}</span>
+  return <span className={'gpill ' + tone}><i aria-hidden="true">{icon === 'hourglass' ? <Icon n="hourglass" size={10} /> : icon}</i>{label}</span>
 }
 
 // Các bước của hồ sơ: ✓ đã qua · ⏳ đang chờ · ✕ bị từ chối ở bước này · ○ chưa tới
@@ -33,7 +34,7 @@ export function StepTrail({ req }: { req: Pick<Req, 'steps' | 'current_step' | '
       {req.steps.map(s => {
         const st = req.status === 'approved' || s.no < req.current_step ? 'done'
           : s.no === req.current_step ? (req.status === 'pending' ? 'now' : req.status === 'rejected' ? 'bad' : 'idle') : 'idle'
-        const icon = { done: '✓', now: '⏳', bad: '✕', idle: String(s.no) }[st]
+        const icon = { done: '✓', now: <Icon n="hourglass" size={12} />, bad: '✕', idle: String(s.no) }[st]
         return (
           <li key={s.no} className={st}>
             <span className="dot" aria-hidden="true">{icon}</span>

@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
@@ -52,7 +53,7 @@ type MatOpt = { id: string; title: string; owner_org_id: string; status: string;
 // Bài học trong danh sách bài học (kho học liệu, library_items kind 'unit')
 type LibUnit = { id: string; title: string; subject: string | null; grades: string | null; owner_org_id: string; status: string
   content: { objectives?: string | null; periods?: number | null; material_ids?: string[] } | null }
-const MAT_ICON: Record<string, string> = { video: '🎬', document: '📄', link: '🔗', image: '🖼', worksheet: '📝', lesson_plan: '📘', guide: '📗' }
+const MAT_ICON: Record<string, string> = { video: 'film', document: 'file', link: 'link', image: 'image', worksheet: 'fileText', lesson_plan: 'book', guide: 'book' }
 const CHILD: Record<UnitType, UnitType | null> = { topic: 'lesson', lesson: 'session', session: null }
 const errText = (m: string) => (/schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 058 trên Supabase.'
   : /row-level|42501/i.test(m) ? 'Bạn không có quyền thực hiện thao tác này.' : m)
@@ -219,7 +220,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
   useEffect(() => {
     supabase.from('competencies').select('key, name, grp').eq('audience', 'student').order('sort').then(({ data }) => setComps((data as Comp[]) ?? []))
   }, [])
-  if (!p) return <><button className="linkbtn" onClick={onClose}>‹ Danh sách chương trình</button>{msg ? <p className="msg">{msg[0]}</p> : <p className="sub">Đang tải…</p>}</>
+  if (!p) return <><button className="linkbtn" onClick={onClose}>← Danh sách chương trình</button>{msg ? <p className="msg">{msg[0]}</p> : <p className="sub">Đang tải…</p>}</>
 
   const mine = p.org_id === orgId
   const editable = mine && canEdit && (p.status === 'draft' || p.status === 'rejected')
@@ -257,7 +258,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
     <>
       <div className="bar">
         <div>
-          <button className="linkbtn" onClick={onClose}>‹ Danh sách chương trình</button>
+          <button className="linkbtn" onClick={onClose}>← Danh sách chương trình</button>
           <h3 style={{ margin: '4px 0 0' }}>{p.title} <small>v{p.version_no}</small> <StatusPill s={p.status} /></h3>
           <small className="sub">{[p.code, levelName(p.level), grades(p), PKIND[p.kind], p.ct_code, p.main_subject, `${p.total_periods} tiết`, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
         </div>
@@ -679,7 +680,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
                         {u.unit_type !== 'topic' && umats.some(x => x.unit_id === u.id) && (
                           <div style={{ fontSize: 13, marginTop: 4 }}><small className="sub">Học liệu: </small>
                             {umats.filter(x => x.unit_id === u.id).map(x => (
-                              <span key={x.item_id} className="chip" title={x.note ?? undefined}>{MAT_ICON[x.library_items?.content?.type ?? ''] ?? '📎'} {x.library_items?.title ?? 'Học liệu không còn xem được'}{x.note && <small className="sub"> · {x.note}</small>}
+                              <span key={x.item_id} className="chip" title={x.note ?? undefined}><Icon n={MAT_ICON[x.library_items?.content?.type ?? ''] ?? 'paperclip'} /> {x.library_items?.title ?? 'Học liệu không còn xem được'}{x.note && <small className="sub"> · {x.note}</small>}
                                 {editable && <button type="button" className="x" aria-label={`Bỏ học liệu ${x.library_items?.title ?? ''}`} onClick={() => dropMaterial(x)}>×</button>}</span>
                             ))}</div>
                         )}
@@ -687,7 +688,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
                           <form className="addrow" style={{ flexWrap: 'wrap', gap: 6, marginTop: 4 }} onSubmit={addMaterial}>
                             <select value={matFor.item} onChange={e => setMatFor({ ...matFor, item: e.target.value })} aria-label="Học liệu" autoFocus style={{ minWidth: 220, flex: 1 }}>
                               <option value="">{matOpts ? (matOpts.length ? '— Chọn học liệu —' : 'Chưa có học liệu nào — thêm ở "Phát hành học liệu"') : 'Đang tải…'}</option>
-                              {(matOpts ?? []).filter(m => !umats.some(x => x.unit_id === u.id && x.item_id === m.id)).map(m => <option key={m.id} value={m.id}>{MAT_ICON[m.content?.type ?? ''] ?? '📎'} {m.title}{m.status !== 'published' ? ' (nháp)' : ''}</option>)}
+                              {(matOpts ?? []).filter(m => !umats.some(x => x.unit_id === u.id && x.item_id === m.id)).map(m => <option key={m.id} value={m.id}>{m.title}{m.status !== 'published' ? ' (nháp)' : ''}</option>)}
                             </select>
                             <input value={matFor.note} onChange={e => setMatFor({ ...matFor, note: e.target.value })} placeholder="Dùng ở phần nào (không bắt buộc)" aria-label="Ghi chú" style={{ minWidth: 180 }} maxLength={500} />
                             <button className="primary" type="submit" disabled={!matFor.item}>Gắn</button><button type="button" onClick={() => setMatFor(null)}>Huỷ</button>

@@ -1,3 +1,4 @@
+import { Icon } from '../../components/Icon'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { openFile, fmtSize } from '../../lib/files'
@@ -128,7 +129,7 @@ export function ItemPreview({ item, all, canRestore, onRestored, onOpen }: { ite
     return (
       <div className="libpreview">
         <p><b>Bài giảng tương tác</b> · {st.blocks} khối nội dung · {st.interactive} khối tương tác · khoảng {st.minutes} phút{' '}
-          {st.blocks > 0 && <button type="button" className="linkbtn" onClick={() => setPlay(true)}>👁 Xem như học sinh</button>}</p>
+          {st.blocks > 0 && <button type="button" className="linkbtn" onClick={() => setPlay(true)}><Icon n="eye" /> Xem như học sinh</button>}</p>
         <LessonOutline lesson={il} ct={item.program} />
         {play && <LessonPlayer title={item.title} ct={item.program} lesson={il} onClose={() => setPlay(false)} />}
         <Versions item={item} canRestore={canRestore} onRestored={onRestored} />

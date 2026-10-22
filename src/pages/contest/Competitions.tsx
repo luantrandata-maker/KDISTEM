@@ -1,3 +1,4 @@
+import { Icon } from '../../components/Icon'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
@@ -166,7 +167,7 @@ function Manage({ c, reload }: { c: C; reload: () => void }) {
             {c.status === 'judging' && last && <td>{r.status === 'submitted' && <select value={awards[r.entry_id] ?? ''} onChange={e => setAwards({ ...awards, [r.entry_id]: e.target.value })} aria-label="Giải"><option value="">—</option>{AWARDS.map(a => <option key={a}>{a}</option>)}</select>}</td>}
             <td>{r.fee_status === 'none' ? '—' : <select value={r.fee_status} onChange={e => run(supabase.from('competition_entries').update({ fee_status: e.target.value }).eq('id', r.entry_id), 'Đã cập nhật lệ phí.')} aria-label="Lệ phí">
               {['unpaid', 'paid', 'waived'].map(k => <option key={k} value={k}>{FEE[k]}</option>)}</select>}</td>
-            <td><small>{Object.entries(r.docs).filter(([, u]) => u).map(([k, u]) => <a key={k} href={u} target="_blank" rel="noreferrer noopener" style={{ display: 'block' }}>🔗 {c.required_docs.find(d => d.key === k)?.label ?? k}</a>)}</small></td></tr>)}
+            <td><small>{Object.entries(r.docs).filter(([, u]) => u).map(([k, u]) => <a key={k} href={u} target="_blank" rel="noreferrer noopener" style={{ display: 'block' }}><Icon n="link" /> {c.required_docs.find(d => d.key === k)?.label ?? k}</a>)}</small></td></tr>)}
             {!rows.length && <tr><td colSpan={10}>Chưa có bài dự thi.</td></tr>}</tbody>
         </table></div>
       ) : (<>
@@ -218,7 +219,7 @@ function Submit({ c, orgId, teacherId }: { c: C; orgId: string; teacherId?: stri
       <b>Bài dự thi của trường</b>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       <div className="wrap"><table><tbody>{mine.map(x => <tr key={x.id}><td><code>{x.code}</code></td><td><b>{x.student_projects?.title}</b><br /><small>{x.field}</small></td>
-        <td>{x.award ? <b className="good">🏆 {x.award}</b> : ES[x.status]}{x.round > 1 ? ` · ${c.rounds[x.round - 1]}` : ''}</td><td>{x.fee_status !== 'none' && <small>Lệ phí: {FEE[x.fee_status]}</small>}</td>
+        <td>{x.award ? <b className="good"><Icon n="trophy" /> {x.award}</b> : ES[x.status]}{x.round > 1 ? ` · ${c.rounds[x.round - 1]}` : ''}</td><td>{x.fee_status !== 'none' && <small>Lệ phí: {FEE[x.fee_status]}</small>}</td>
         <td className="nowrap">{editable(x) && <><button onClick={() => { const pr = projects.find(y => y.id === x.project_id); setF({ project: x.project_id, field: x.field ?? '', docs: x.docs }); if (!pr) setMsg(['Dự án không còn ở trạng thái đã duyệt.', true]) }}>Sửa hồ sơ</button> <button onClick={() => withdraw(x)}>Rút</button></>}</td></tr>)}
         {!mine.length && <tr><td>Trường chưa nộp bài.</td></tr>}</tbody></table></div>
       {c.status === 'open' && (

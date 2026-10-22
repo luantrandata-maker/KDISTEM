@@ -76,7 +76,7 @@ export default function Dashboard({ userName, go }: { userName?: string; go?: (p
   return (
     <>
       <div className="hero">
-        <div><small>Bảng điều hành nhà trường</small><h2>Xin chào{userName ? `, ${userName}` : ''} 👋</h2>
+        <div><small>Bảng điều hành nhà trường</small><h2>Xin chào{userName ? `, ${userName}` : ''}</h2>
           <small>{now.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'numeric', year: 'numeric' })}</small></div>
         <div className="herobox"><b>{index}</b><span>/100 · {grade[0]} · STEM Index</span></div>
         <div className="herobox"><b>{usage}%</b><span>{slots.size}/{capacity} tiết · Sử dụng phòng</span></div>

@@ -1,3 +1,4 @@
+import { Icon } from '../../components/Icon'
 // Học sinh → Học trước & tự học (migration 030)
 // Đề lấy qua self_study_open() (không có đáp án), nộp qua self_study_submit() — CSDL chấm.
 import { useEffect, useState } from 'react'
@@ -64,7 +65,7 @@ export function StudentSelfStudy({ studentId }: SProps) {
             <div><b>{i.title}</b><br />
               <small><span className="kind">{ssKindLabel(i)}</span> {MODE[i.mode]}{i.teachers ? ` · ${i.teachers.full_name}` : ''} · </small>
               <small className={'due ' + (p?.status === 'done' ? '' : due.tone)}>{i.status === 'closed' ? 'Đã khoá' : due.text}</small>
-              {i.note && <><br /><small>💬 {i.note}</small></>}
+              {i.note && <><br /><small><Icon n="chat" /> {i.note}</small></>}
             </div>
             {p?.status === 'done'
               ? (p.best_score != null ? <span className="pill active">{Number(p.best_score).toFixed(1)} điểm</span> : <span className="pill active">Đã xong</span>)
@@ -127,7 +128,7 @@ function Work({ item, onBack }: { item: SSItem; onBack: () => void }) {
       </div>
       <p className="sub">{MODE[item.mode]}{item.teachers ? ` · ${item.teachers.full_name}` : ''} · {dueLabel(item.due_at).text}
         {o?.attempts_left != null ? ` · còn ${o.attempts_left} lượt` : ''}{p?.completed_at ? ` · hoàn thành lúc ${fmtDateTime(p.completed_at)}` : ''}</p>
-      {item.note && <div className="panel warnbox">💬 {item.note}</div>}
+      {item.note && <div className="panel warnbox"><Icon n="chat" /> {item.note}</div>}
       {p?.teacher_comment && <div className="panel"><b>Nhận xét của thầy cô:</b> {p.teacher_comment}</div>}
       {err && <p className="msg panel">{err}</p>}
       {!o && !err && <p className="sub">Đang mở bài…</p>}

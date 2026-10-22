@@ -1,3 +1,4 @@
+import { Icon } from '../../components/Icon'
 // Thư viện STEM theo chương trình (063): chương trình → học phần → buổi học (bài giảng tương tác), tài liệu, thiết bị, mục tiêu;
 // trình chiếu buổi học và đăng ký dạy STEM (phòng STEM → đăng ký phòng; lớp học → phiếu mượn thiết bị).
 import { Fragment, useEffect, useMemo, useState } from 'react'
@@ -14,8 +15,8 @@ type MyPlan = { id: string; title: string; status: string; program: string | nul
 type Lib = { id: string; title: string; kind: string; content: { type?: string; url?: string }; unit_id: string | null; owner_name?: string | null; summary: string | null }
 type Out = { id: string; unit_id: string | null; seq: number; code: string | null; content: string }
 
-const ART: Record<string, [string, string]> = { CT1: ['art1', '🔬'], CT2: ['art5', '🧩'], CT3: ['art2', '💡'], CT4: ['art3', '🤖'], CT5: ['art4', '🧪'] }
-const art = (ct: string | null) => ART[ct ?? ''] ?? ['art0', '📘']
+const ART: Record<string, [string, string]> = { CT1: ['art1', 'microscope'], CT2: ['art5', 'puzzle'], CT3: ['art2', 'bulb'], CT4: ['art3', 'bot'], CT5: ['art4', 'flask'] }
+const art = (ct: string | null) => ART[ct ?? ''] ?? ['art0', 'book']
 const Chip = ({ ct }: { ct: string | null }) => ct ? <span className="progchip" style={{ background: PROGRAM_COLOR[ct] ?? '#64748b', color: '#fff' }}>{ct}</span> : null
 const grades = (p: Prog) => Array.from({ length: p.grade_to - p.grade_from + 1 }, (_, i) => p.grade_from + i)
 const sessMinutes = (u: Unit) => { const l = asLesson(u.lesson); const m = l ? lessonStats(l).minutes : 0; return m || (u.periods || 1) * 45 }
@@ -119,7 +120,7 @@ export function LibraryPrograms({ teacherId, go }: Props) {
           const [cls, icon] = art(p.ct_code)
           return (
             <button type="button" key={p.id} className="tile" onClick={() => setPid(p.id)}>
-              <div className={'tileart ' + cls}><Chip ct={p.ct_code} /><span aria-hidden="true">{icon}</span></div>
+              <div className={'tileart ' + cls}><Chip ct={p.ct_code} /><span aria-hidden="true"><Icon n={icon} size={36} /></span></div>
               <div className="tilebody"><small>Khối {grades(p).join(', ')}</small><b>{p.title}</b>
                 <small>{units.filter(u => u.program_id === p.id && u.unit_type === 'topic').reduce((n, t) => n + teachables(units, t.id).length, 0)} buổi · {devCount(p.id)} thiết bị</small></div>
             </button>
@@ -186,7 +187,7 @@ function TopicView({ prog, topic, units, teacherId, onHome, onProgram }: { prog:
                 <div><h3 style={{ margin: 0 }}>{/^buổi\s*\d/i.test(cur.title) ? cur.title : `Buổi ${sel + 1}: ${cur.title}`}</h3>
                   <small className="sub">{cur.periods || 1} tiết · {sessMinutes(cur)} phút{lesson ? ` · ${lessonStats(lesson).blocks} phần` : ''}{cur.unit_type === 'session' && lessonName(cur) ? ` · ${lessonName(cur)}` : ''}</small></div>
                 <div className="tools">
-                  {lesson && <button type="button" onClick={() => setShow(true)}>🖥 Trình chiếu</button>}
+                  {lesson && <button type="button" onClick={() => setShow(true)}><Icon n="monitor" /> Trình chiếu</button>}
                   <button type="button" className="primary" onClick={() => setReg(true)}>Đăng ký dạy</button>
                 </div>
               </div>

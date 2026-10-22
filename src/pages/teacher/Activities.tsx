@@ -1,3 +1,4 @@
+import { Icon } from '../../components/Icon'
 // Giáo viên → Kho hoạt động & Bài giảng (migration 030)
 // Hoạt động của tôi · Kho của trường (mẫu + đồng nghiệp đã xuất bản) · Bài giảng có thể giao học trước.
 import { useEffect, useMemo, useState } from 'react'
@@ -64,7 +65,7 @@ export function TeacherActivities({ teacherId, orgId, go }: TProps) {
       <div className="acttypes">
         {ACT_KINDS.map(k => (
           <button key={k} className="panel acttype" onClick={() => create(k)}>
-            <span className="acticon" aria-hidden="true">{ACT[k].icon}</span>
+            <span className="acticon" aria-hidden="true"><Icon n={ACT[k].icon} size={24} /></span>
             <b>{ACT[k].label}</b><small>{ACT[k].desc}</small>
             {!ACT[k].graded && <span className="pill">Không chấm điểm</span>}
           </button>
@@ -105,7 +106,7 @@ export function TeacherActivities({ teacherId, orgId, go }: TProps) {
           {src.map(a => (
             <div className="panel lessoncard" key={a.id}>
               <div className="lessoncover actcover">
-                <span className="progchip pkgchip"><span aria-hidden="true">{ACT[a.kind].icon}</span> {ACT[a.kind].label}</span>
+                <span className="progchip pkgchip"><span aria-hidden="true"><Icon n={ACT[a.kind].icon} /></span> {ACT[a.kind].label}</span>
                 {a.program && <span className="progchip" style={{ background: PROGRAM_COLOR[a.program], color: '#fff' }}>{a.program}</span>}
                 <span className="slidecount">{countItems(a.kind, a.content)} {unitOf(a.kind)}</span>
               </div>
@@ -153,7 +154,7 @@ function Editor({ a, onClose, onPlay }: { a: Activity; onClose: () => void; onPl
     <>
       <div className="bar">
         <span className="tools"><button onClick={close}>← Danh sách</button>
-          <span className="progchip pkgchip">{ACT[x.kind].icon} {ACT[x.kind].label}</span>
+          <span className="progchip pkgchip"><Icon n={ACT[x.kind].icon} /> {ACT[x.kind].label}</span>
           <span className={'pill ' + (x.status === 'published' ? 'active' : '')}>{x.status === 'published' ? 'Đã xuất bản' : 'Nháp'}</span>
           {dirty ? <small>Chưa lưu</small> : msg && <small>{msg}</small>}</span>
         <span className="tools">
@@ -257,7 +258,7 @@ function ActivityBank({ rows, teacherId, orgId, go, onUse, onAssign }: {
         <button className={'statcard' + (grp === '' ? ' on' : '')} onClick={() => setGrp('')}><i>◎</i><span><small>Tất cả nhóm</small><b>{base.length}</b></span></button>
         {(Object.keys(ACT_GROUP) as ActGroup[]).map(g => (
           <button key={g} className={'statcard' + (grp === g ? ' on' : '')} onClick={() => setGrp(grp === g ? '' : g)}>
-            <i>{g === 'game' ? '🎮' : g === 'interactive' ? '⚛' : '📋'}</i><span><small>{ACT_GROUP[g].label}</small><b>{count(g)}</b></span></button>
+            <i><Icon n={g === 'game' ? 'gamepad' : g === 'interactive' ? 'atom' : 'clipboard'} size={20} /></i><span><small>{ACT_GROUP[g].label}</small><b>{count(g)}</b></span></button>
         ))}
       </div>
       <div className="tools" style={{ marginBottom: 8, flexWrap: 'wrap' }}>
@@ -276,7 +277,7 @@ function ActivityBank({ rows, teacherId, orgId, go, onUse, onAssign }: {
             <div className="tilegrid" style={{ marginTop: 8 }}>
               {list.map(a => { const [icon, art] = artOf(a); return (
                 <button key={a.id} className="tile" onClick={() => setOpen(a)}>
-                  <div className={'tileart art' + art}>{a.program && <span className="progchip" style={{ background: PROGRAM_COLOR[a.program], color: '#fff' }}>{a.program}</span>}<span aria-hidden="true">{icon}</span></div>
+                  <div className={'tileart art' + art}>{a.program && <span className="progchip" style={{ background: PROGRAM_COLOR[a.program], color: '#fff' }}>{a.program}</span>}<span aria-hidden="true"><Icon n={icon} size={36} /></span></div>
                   <div className="tilebody">
                     <b>{a.title}</b>
                     <small>{[a.subject, a.teachers?.full_name ?? (a.is_template ? 'Mẫu của trường' : '')].filter(Boolean).join(' · ')}</small>
@@ -358,7 +359,7 @@ function ActivityModal({ a, teacherId, orgId, go, onClose, onUse, onAssign }: {
       <div className="modal wide" role="dialog" aria-modal="true" aria-label={a.title} onClick={e => e.stopPropagation()}>
         <div className="modalhero actmodalhero">
           <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-            <span className="acthero-icon" aria-hidden="true">{icon}</span>
+            <span className="acthero-icon" aria-hidden="true"><Icon n={icon} size={40} /></span>
             <div style={{ flex: 1 }}>
               <div className="tilemeta"><span className="herotag">{ACT_GROUP[g].label} — {ACT[a.kind].label}</span>{a.program && <span className="herotag">{a.program}</span>}</div>
               <h3>{a.title}</h3>
@@ -368,7 +369,7 @@ function ActivityModal({ a, teacherId, orgId, go, onClose, onUse, onAssign }: {
         </div>
         <div className="modalbody">
           <p style={{ margin: 0 }}>{a.instructions || ACT[a.kind].desc}</p>
-          <div className="gvnote"><b>⚙ GV cấu hình</b><br /><small>Thầy/cô thay bộ câu hỏi, số đội, thời gian… khi thêm vào bài giảng — trò chơi giữ nguyên cách chơi.</small></div>
+          <div className="gvnote"><b><Icon n="settings" /> GV cấu hình</b><br /><small>Thầy/cô thay bộ câu hỏi, số đội, thời gian… khi thêm vào bài giảng — trò chơi giữ nguyên cách chơi.</small></div>
           <div className="tilemeta">{tags.map(t => <span key={t}>{t}</span>)}</div>
           <div><b>▶ Dùng thử ngay tại đây</b> <small className="sub">— {a.kind === 'sim' ? `kéo thanh trượt, bấm nút để thao tác${SIMS[a.content?.model as SimModel] ? ' với ' + SIMS[a.content.model as SimModel].label.toLowerCase() : ''}` : 'quay, lật thẻ, kéo–thả hoặc trả lời như học sinh'}, dữ liệu không được lưu.</small></div>
           <div className="panel tryout" style={{ margin: 0 }}><TryOut a={a} /></div>
@@ -425,7 +426,7 @@ function LessonBank({ rows, teacherId, go, onAssign }: { rows: LessonLite[]; tea
       <div className="statrow">
         <button className={'statcard' + (kind === '' ? ' on' : '')} onClick={() => setKind('')}><i>◎</i><span><small>Mọi loại tương tác</small><b>{base.length}</b></span></button>
         {(Object.keys(INTERACTION) as KindKey[]).map(k => (
-          <button key={k} className={'statcard' + (kind === k ? ' on' : '')} onClick={() => setKind(kind === k ? '' : k)}><i>{KIND_ICON[k]}</i><span><small>{HAS_LABEL[k]}</small><b>{has(k)}</b></span></button>
+          <button key={k} className={'statcard' + (kind === k ? ' on' : '')} onClick={() => setKind(kind === k ? '' : k)}><i><Icon n={KIND_ICON[k]} size={20} /></i><span><small>{HAS_LABEL[k]}</small><b>{has(k)}</b></span></button>
         ))}
       </div>
       <div className="tools" style={{ marginBottom: 10, flexWrap: 'wrap' }}>
@@ -443,7 +444,7 @@ function LessonBank({ rows, teacherId, go, onAssign }: { rows: LessonLite[]; tea
             <button key={l.id} className="tile" onClick={() => setOpen(l)}>
               <div className={'tileart art' + (i % 6)} style={l.cover_url ? { backgroundImage: `url("${l.cover_url}")` } : undefined}>
                 {l.program && <span className="progchip" style={{ background: PROGRAM_COLOR[l.program], color: '#fff' }}>{l.program}</span>}
-                {!l.cover_url && <span aria-hidden="true">{st.kinds[0] ? KIND_ICON[st.kinds[0]] : '📘'}</span>}</div>
+                {!l.cover_url && <span aria-hidden="true"><Icon n={st.kinds[0] ? KIND_ICON[st.kinds[0]] : 'book'} size={36} /></span>}</div>
               <div className="tilebody">
                 <b>{l.title}</b><small>{l.subject}</small>
                 <div className="tilemeta">{levelOf(l.grades) && <span>{levelOf(l.grades)} {gradesOf(l.grades).join(',')}</span>}{st.minutes > 0 && <span>{st.minutes}′</span>}
@@ -458,7 +459,7 @@ function LessonBank({ rows, teacherId, go, onAssign }: { rows: LessonLite[]; tea
             <tr key={l.id}><td><b>{l.title}</b><br /><small className="sub">{l.teachers?.full_name ?? (l.is_template ? 'Mẫu của trường' : '')}</small></td>
               <td>{l.program && <span className="progchip" style={{ background: PROGRAM_COLOR[l.program], color: '#fff' }}>{l.program}</span>}</td>
               <td>{[l.subject, l.grades && 'Khối ' + l.grades].filter(Boolean).join(' · ')}</td><td>{st.blocks || '—'}</td>
-              <td>{st.kinds.map(k => <span key={k} title={INTERACTION[k]}>{KIND_ICON[k]} </span>)}</td>
+              <td>{st.kinds.map(k => <span key={k} title={INTERACTION[k]}><Icon n={KIND_ICON[k]} /> </span>)}</td>
               <td><button onClick={() => setOpen(l)}>Xem chi tiết</button></td></tr>) })}</tbody></table></div>
       )}
       {shown.length === 0 && <p className="sub">Chưa có bài giảng phù hợp.</p>}
@@ -508,7 +509,7 @@ function LessonModal({ l, teacherId, go, onClose, onAssign }: { l: LessonLite; t
           <div className="simstats">
             <div className="simstat"><small>Tổng khối</small><b>{st.blocks}</b></div>
             <div className="simstat"><small>Khối tương tác</small><b>{st.interactive}</b></div>
-            <div className="simstat"><small>Loại tương tác</small><b>{st.kinds.length ? st.kinds.map(k => <span key={k} title={INTERACTION[k]}>{KIND_ICON[k]} </span>) : '—'}</b></div>
+            <div className="simstat"><small>Loại tương tác</small><b>{st.kinds.length ? st.kinds.map(k => <span key={k} title={INTERACTION[k]}><Icon n={KIND_ICON[k]} /> </span>) : '—'}</b></div>
           </div>
           {lesson ? <LessonOutline lesson={lesson} ct={l.program} />
             : <p className="sub">Bài giảng này soạn theo dạng slide ({l.slides.length} slide), chưa có tiến trình khối tương tác.</p>}
@@ -522,7 +523,7 @@ function LessonModal({ l, teacherId, go, onClose, onAssign }: { l: LessonLite; t
           </span>
           <span className="tools">
             <button onClick={onAssign}>Giao học trước</button>
-            <button onClick={() => lesson ? setPreview(true) : setMsg('Bài giảng chưa có nội dung tương tác để xem như học sinh.')}>👁 Xem trước như học sinh</button>
+            <button onClick={() => lesson ? setPreview(true) : setMsg('Bài giảng chưa có nội dung tương tác để xem như học sinh.')}><Icon n="eye" /> Xem trước như học sinh</button>
             <button className="primary violet" onClick={useTemplate} disabled={busy}>✦ Dùng mẫu</button>
           </span>
         </div>

@@ -1,3 +1,4 @@
+import { Icon } from './Icon'
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { RoleKey } from '../lib/nav'
@@ -100,7 +101,7 @@ export default function Bell({ open: openPage, portals, orgId }: { open: (portal
             {notes.length === 0 && <small>Chưa có thông báo nào.</small>}
             {notes.map(n => (
               <button key={n.id} className={'bellitem' + (n.read_at ? '' : ' unread')} onClick={() => click(n)}>
-                <span className="ico" aria-hidden="true">{ICON[n.kind] ?? '•'}</span>
+                <span className="ico" aria-hidden="true">{ICON[n.kind] ? <Icon n={ICON[n.kind]} /> : '•'}</span>
                 <span className="txt"><b>{n.title}{n.count > 1 ? ` (${n.count})` : ''}</b>{n.body && <small>{n.body}</small>}<small>{ago(n.created_at)}</small></span>
               </button>
             ))}

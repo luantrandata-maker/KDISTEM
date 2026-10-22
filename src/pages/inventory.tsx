@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import jsQR from 'jsqr'
@@ -327,7 +328,7 @@ export function StocktakePage({ orgId }: { orgId: string | null }) {
               <form className="tools" onSubmit={e => { e.preventDefault(); doScan(code) }}>
                 <input autoFocus className="search" style={{ margin: 0 }} placeholder="Quét bằng máy đọc mã hoặc nhập serial…" value={code} onChange={e => setCode(e.target.value)} aria-label="Mã thiết bị" />
                 <button type="submit">Ghi nhận</button>
-                <button type="button" onClick={() => setScan(!scan)}>{scan ? 'Tắt camera' : '📷 Quét bằng camera'}</button>
+                <button type="button" onClick={() => setScan(!scan)}>{scan ? 'Tắt camera' : <><Icon n="camera" /> Quét bằng camera</>}</button>
               </form>
               {scan && <QrScanner onCode={doScan} />}
             </div>

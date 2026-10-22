@@ -1,3 +1,4 @@
+import { Icon } from '../../components/Icon'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 
@@ -43,8 +44,8 @@ export function JudgingPage() {
           <h3 style={{ marginTop: 0 }}><code>{a.entry_code}</code> {a.title}</h3>
           <p className="sub" style={{ marginTop: 0 }}>{[a.field, a.school, a.members].filter(Boolean).join(' · ') || 'Bài ẩn danh'}</p>
           {a.abstract && <p style={{ whiteSpace: 'pre-line' }}><b>Tóm tắt:</b> {a.abstract}</p>}
-          <p>{Object.entries(a.docs).filter(([, u]) => u).map(([k, u]) => <a key={k} href={u} target="_blank" rel="noreferrer noopener" style={{ marginRight: 12 }}>🔗 {a.doc_labels?.find(d => d.key === k)?.label ?? k}</a>)}
-            {a.links.map((l, i) => <a key={i} href={l.url} target="_blank" rel="noreferrer noopener" style={{ marginRight: 12 }}>🔗 {l.label}</a>)}</p>
+          <p>{Object.entries(a.docs).filter(([, u]) => u).map(([k, u]) => <a key={k} href={u} target="_blank" rel="noreferrer noopener" style={{ marginRight: 12 }}><Icon n="link" /> {a.doc_labels?.find(d => d.key === k)?.label ?? k}</a>)}
+            {a.links.map((l, i) => <a key={i} href={l.url} target="_blank" rel="noreferrer noopener" style={{ marginRight: 12 }}><Icon n="link" /> {l.label}</a>)}</p>
           <table><thead><tr><th>Tiêu chí</th><th>Điểm</th><th>Tối đa</th></tr></thead>
             <tbody>{a.criteria.map(c => <tr key={c.key}><td>{c.label}</td><td><input inputMode="decimal" disabled={!a.open} value={draft.scores[c.key] ?? ''} onChange={e => setDraft({ ...draft, scores: { ...draft.scores, [c.key]: e.target.value } })} style={{ width: 80 }} aria-label={c.label} /></td><td>{c.max}</td></tr>)}
               <tr><td><b>Tổng</b></td><td><b>{Math.round(total * 100) / 100}</b></td><td>{a.criteria.reduce((s, c) => s + c.max, 0)}</td></tr></tbody></table>

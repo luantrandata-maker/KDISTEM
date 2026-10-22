@@ -1352,3 +1352,16 @@ th.sel,td.sel{width:40px;padding-right:0}
 tr.picked td{background:#f3f7fd}
 a.namelink{color:var(--navy);font-weight:600;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
 a.namelink:hover{color:var(--primary)}
+/* Công tắc Thẻ | Danh sách và lưới thẻ theo quy ước */
+.segmented.viewtoggle{margin:0}.main .segmented.viewtoggle button{min-height:30px;padding:0 12px;font-size:13px}
+.tilegrid.sq{grid-template-columns:repeat(4,minmax(0,1fr))}.tilegrid.sq .tileart{height:auto;aspect-ratio:1/1}
+.tilegrid.wide{grid-template-columns:repeat(3,minmax(0,1fr))}.tilegrid.wide .tileart{height:auto;aspect-ratio:16/9}
+@media(max-width:1100px){.tilegrid.sq{grid-template-columns:repeat(3,minmax(0,1fr))}.tilegrid.wide{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:640px){.tilegrid.sq,.tilegrid.wide{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.tilegrid.wide{grid-template-columns:1fr}}
+.tileart .tilestatus{position:absolute;top:8px;right:8px}
+.tilewrap{position:relative;display:flex}.tilewrap>.tile{flex:1}
+.tilewrap .tilecheck{position:absolute;top:8px;left:8px;background:var(--surface);border-radius:6px;padding:3px 5px;display:flex;box-shadow:0 1px 3px rgba(15,23,42,.2)}
+.tilewrap.picked>.tile{outline:2px solid var(--primary);outline-offset:-2px}
+.tilewrap:has(.tilecheck) .progchip{left:40px}
+.main button.tile.on{outline:2px solid var(--primary);outline-offset:-2px}

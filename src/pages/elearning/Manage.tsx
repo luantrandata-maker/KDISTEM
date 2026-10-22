@@ -1,3 +1,4 @@
+import { SelBar, SelTh, useRowSel } from '../../components/TableSel'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
@@ -153,15 +154,25 @@ function Exams({ orgId }: { orgId: string | null }) {
     if (error) setMsg([errText(error.message), true]); else if (!data?.length) setMsg([NOT_OWNER, true]); else load()
   }
   const editable = (x: Exam) => x.org_id === orgId
+  const esel = useRowSel(rows.filter(editable))
   return (
     <>
-      <div className="bar"><button className="primary" onClick={() => setForm({ ...EEMPTY, shared: !isSchool })}>Tạo đề luyện</button></div>
+      <div className="bar"><span /><button className="primary" onClick={() => setForm({ ...EEMPTY, shared: !isSchool })}>Tạo đề luyện</button></div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {form && <ExamForm form={form} setForm={setForm} onSubmit={save} orgId={orgId} classes={classes} groups={groups} isSchool={isSchool} />}
+      {(() => { const x = esel.cur; return (
+        <SelBar picked={x?.title ?? null}>
+          {x?.status === 'draft' && <button className="primary" onClick={() => setStatus(x, 'published')}>Công bố</button>}
+          {x?.status === 'published' && <button onClick={() => setStatus(x, 'closed')}>Đóng</button>}
+          {x?.status === 'closed' && <button onClick={() => setStatus(x, 'published')}>Mở lại</button>}
+          <button disabled={!x} onClick={() => { if (!x) return; const { id, title, description, subject, grade, mode, question_ids, criteria, duration_min, max_attempts, show_answers, class_ids, group_ids, student_ids, shared, opens_at, closes_at, status } = x
+                setForm({ id, title, description, subject, grade, mode, question_ids, criteria: { levels: {}, topics: [], ...criteria }, duration_min, max_attempts, show_answers, class_ids, group_ids: group_ids ?? null, student_ids: student_ids ?? null, shared, opens_at, closes_at, status }) }}>Sửa</button>
+        </SelBar>) })()}
       <div className="wrap"><table className="systable">
-        <thead><tr><th>Đề luyện</th><th>Cách ra đề</th><th>Thời gian</th><th>Mở</th><th className="num">Lượt nộp</th><th className="num">Điểm TB</th><th>Trạng thái</th><th /></tr></thead>
+        <thead><tr><SelTh /><th>Đề luyện</th><th>Cách ra đề</th><th>Thời gian</th><th>Mở</th><th className="num">Lượt nộp</th><th className="num">Điểm TB</th><th>Trạng thái</th></tr></thead>
         <tbody>{rows.map(x => { const c = counts.get(x.id); return <Fragment key={x.id}>
-          <tr className="clickrow" onClick={() => setOpen(open === x.id ? null : x.id)}>
+          <tr className={'clickrow' + (esel.is(x) ? ' picked' : '')} onClick={() => setOpen(open === x.id ? null : x.id)}>
+            <td className="sel" onClick={e => e.stopPropagation()}>{editable(x) && <input type="checkbox" checked={esel.is(x)} onChange={() => esel.toggle(x)} aria-label={'Chọn ' + x.title} />}</td>
             <td><b>{x.title}</b><br /><small>{[x.subject, x.grade ? 'Khối ' + x.grade : null, !editable(x) ? 'của cấp trên' : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></td>
             <td>{x.mode === 'random' ? `Ngẫu nhiên ${x.criteria.count} câu` : `Cố định ${x.question_ids.length} câu`}</td>
             <td>{x.duration_min ? `${x.duration_min} phút` : 'Không giới hạn'}{x.max_attempts ? <><br /><small>{x.max_attempts} lượt</small></> : null}</td>
@@ -169,17 +180,10 @@ function Exams({ orgId }: { orgId: string | null }) {
             <td className="num">{c?.n ?? 0}<br /><small>{c?.students.size ?? 0} HS</small></td>
             <td className="num">{c?.n ? (c.sum / c.n).toFixed(1) : '—'}</td>
             <td><span className={'pill ' + ESTATUS[x.status][1]}>{ESTATUS[x.status][0]}</span></td>
-            <td onClick={e => e.stopPropagation()}>{editable(x) && <span className="tools">
-              {x.status === 'draft' && <button className="primary" onClick={() => setStatus(x, 'published')}>Công bố</button>}
-              {x.status === 'published' && <button onClick={() => setStatus(x, 'closed')}>Đóng</button>}
-              {x.status === 'closed' && <button onClick={() => setStatus(x, 'published')}>Mở lại</button>}
-              <button onClick={() => { const { id, title, description, subject, grade, mode, question_ids, criteria, duration_min, max_attempts, show_answers, class_ids, group_ids, student_ids, shared, opens_at, closes_at, status } = x
-                setForm({ id, title, description, subject, grade, mode, question_ids, criteria: { levels: {}, topics: [], ...criteria }, duration_min, max_attempts, show_answers, class_ids, group_ids: group_ids ?? null, student_ids: student_ids ?? null, shared, opens_at, closes_at, status }) }}>Sửa</button>
-            </span>}</td>
           </tr>
-          {open === x.id && <tr><td colSpan={8}><ExamResults exam={x} roster={isSchool && editable(x)} /></td></tr>}
+          {open === x.id && <tr><td colSpan={9}><ExamResults exam={x} roster={isSchool && editable(x)} /></td></tr>}
         </Fragment> })}
-          {!rows.length && <tr><td colSpan={8}>Chưa có đề luyện. Tạo đề ngẫu nhiên từ ngân hàng câu hỏi (theo môn, khối, mức độ) hoặc chọn từng câu.</td></tr>}
+          {!rows.length && <tr><td colSpan={9}>Chưa có đề luyện. Tạo đề ngẫu nhiên từ ngân hàng câu hỏi (theo môn, khối, mức độ) hoặc chọn từng câu.</td></tr>}
         </tbody>
       </table></div>
     </>

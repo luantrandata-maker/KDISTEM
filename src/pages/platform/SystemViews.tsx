@@ -152,11 +152,11 @@ export function SystemList({ spec }: { spec: Spec }) {
         <thead><tr><th>Đơn vị</th><th>Sở / tỉnh</th><th className="num">{spec.noun}</th>{spec.stats.map(s => <th key={s.label} className="num">{s.label}</th>)}</tr></thead>
         <tbody>
           {groups.map(([id, list]) => (
-            <tr key={id}><td><button className="linkbtn" onClick={() => pickOrg(id)}>{nameOf(id)}</button></td><td><small>{regionName(id)}</small></td>
+            <tr key={id}><td><button className="namelink" onClick={() => pickOrg(id)}>{nameOf(id)}</button></td><td><small>{regionName(id)}</small></td>
               <td className="num"><b>{list.length.toLocaleString('vi-VN')}</b></td>
               {spec.stats.map(s => { const v = s.get(list); return <td key={s.label} className="num">{typeof v === 'number' ? v.toLocaleString('vi-VN') : v}</td> })}</tr>
           ))}
-          {empty.map(s => <tr key={s.id} className="dim"><td><button className="linkbtn" onClick={() => pickOrg(s.id)}>{s.name}</button></td><td><small>{regionName(s.id)}</small></td>
+          {empty.map(s => <tr key={s.id} className="dim"><td><button className="namelink" onClick={() => pickOrg(s.id)}>{s.name}</button></td><td><small>{regionName(s.id)}</small></td>
             <td className="num">0</td>{spec.stats.map(x => <td key={x.label} className="num">—</td>)}</tr>)}
           {!groups.length && !empty.length && <tr><td colSpan={spec.stats.length + 3}>{spec.empty}</td></tr>}
         </tbody>

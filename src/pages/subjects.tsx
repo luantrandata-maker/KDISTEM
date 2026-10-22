@@ -1,3 +1,4 @@
+import { SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { norm } from '../lib/sheet'
@@ -64,6 +65,7 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
   const shown = useMemo(() => subjects.filter(s => (old || s.active) && (!lv || s.levels.includes(lv) || !s.levels.length)
     && (!q || norm([s.code, s.name, s.domain].join(' ')).includes(norm(q)))), [subjects, q, lv, old])
   const own = shown.filter(s => s.org_id === orgId)
+  const sel = useRowSel(own)
   const shared = shown.filter(s => s.org_id !== orgId)
 
   async function save(e: React.FormEvent) {
@@ -100,26 +102,28 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
   }
 
   const row = (s: Subject, mine: boolean) => (
-    <tr key={s.id} style={s.active ? undefined : { opacity: 0.6 }}>
+    <tr key={s.id} className={mine && sel.is(s) ? 'picked' : undefined} style={s.active ? undefined : { opacity: 0.6 }}>
+      {mine && canEdit && <SelTd on={sel.is(s)} onToggle={() => sel.toggle(s)} label={s.name} />}
       <td>{s.code && <small className="sub">{s.code}<br /></small>}<b>{s.name}</b>{!s.active && <> <span className="pill">Ngừng dùng</span></>}
         {s.description && <><br /><small className="sub">{s.description}</small></>}</td>
       <td>{s.domain ?? '—'}</td>
       <td>{s.levels.length ? s.levels.map(levelName).join(', ') : <small className="sub">Mọi cấp</small>}</td>
       <td>{s.ct_codes.map(c => <span key={c} className="progchip" style={{ background: TRACK_COLOR[c], color: '#fff', marginRight: 4 }}>{c}</span>)}</td>
       <td>{mine ? (s.scope === 'children' ? 'Dùng chung cho đơn vị trực thuộc' : 'Chỉ đơn vị mình') : <small className="sub">{s.owner_name ?? '—'}</small>}</td>
-      <td className="tools">{mine && canEdit && <>
-        <button onClick={() => { setMsg(null); setForm(s) }}>Sửa</button>
-        <button onClick={() => setActive(s, !s.active)}>{s.active ? 'Ngừng dùng' : 'Dùng lại'}</button>
-        <button className="danger" onClick={() => remove(s)}>Xoá</button>
-      </>}</td>
     </tr>
   )
-  const table = (rows: Subject[], mine: boolean) => (
+  const table = (rows: Subject[], mine: boolean) => (<>
+    {mine && canEdit && (() => { const s = sel.cur; return (
+      <SelBar picked={s?.name ?? null}>
+        <button disabled={!s} onClick={() => { if (s) { setMsg(null); setForm(s) } }}>Sửa</button>
+        <button disabled={!s} onClick={() => s && setActive(s, !s.active)}>{s && !s.active ? 'Dùng lại' : 'Ngừng dùng'}</button>
+        <button className="danger" disabled={!s} onClick={() => { if (s) { remove(s); sel.clear() } }}>Xoá</button>
+      </SelBar>) })()}
     <div className="wrap"><table>
-      <thead><tr><th>Môn học</th><th>Lĩnh vực</th><th>Cấp học</th><th>Loại chương trình</th><th>{mine ? 'Phạm vi' : 'Đơn vị'}</th><th></th></tr></thead>
+      <thead><tr>{mine && canEdit && <SelTh />}<th>Môn học</th><th>Lĩnh vực</th><th>Cấp học</th><th>Loại chương trình</th><th>{mine ? 'Phạm vi' : 'Đơn vị'}</th></tr></thead>
       <tbody>{rows.map(s => row(s, mine))}</tbody>
     </table></div>
-  )
+  </>)
   const domains = [...new Set(subjects.map(s => s.domain).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi'))
 
   return (

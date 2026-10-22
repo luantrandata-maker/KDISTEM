@@ -1,3 +1,5 @@
+import { NameLink } from '../../components/TableSel'
+import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { Icon } from '../../components/Icon'
 // Giáo viên → Kho hoạt động & Bài giảng (migration 030)
 // Hoạt động của tôi · Kho của trường (mẫu + đồng nghiệp đã xuất bản) · Bài giảng có thể giao học trước.
@@ -410,7 +412,7 @@ const levelOf = (g: string | null) => { const n = Number(gradesOf(g)[0]); return
 function LessonBank({ rows, teacherId, go, onAssign }: { rows: LessonLite[]; teacherId: string; go?: (p: string) => void; onAssign: (l: LessonLite) => void }) {
   const { allCodes: CTS } = useStemTracks()
   const [q, setQ] = useState(''); const [ct, setCt] = useState(''); const [grade, setGrade] = useState(''); const [subj, setSubj] = useState(''); const [kind, setKind] = useState<KindKey | ''>('')
-  const [grid, setGrid] = useState(true)
+  const [view, setView] = useViewMode('kho-bai-giang')
   const [open, setOpen] = useState<LessonLite | null>(null)
   const stats = useMemo(() => new Map(rows.map(l => [l.id, lessonStats(asLesson(l.lesson))])), [rows])
   const grades = [...new Set(rows.flatMap(l => gradesOf(l.grades)))].sort((a, b) => Number(a) - Number(b))
@@ -436,10 +438,10 @@ function LessonBank({ rows, teacherId, go, onAssign }: { rows: LessonLite[]; tea
         <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
         <select value={kind} onChange={e => setKind(e.target.value as KindKey | '')} aria-label="Loại tương tác"><option value="">Mọi loại tương tác</option>
           {(Object.keys(INTERACTION) as KindKey[]).map(k => <option key={k} value={k}>{INTERACTION[k]}</option>)}</select>
-        <span className="segmented" style={{ margin: 0 }}><button className={grid ? 'on' : ''} onClick={() => setGrid(true)} aria-label="Dạng thẻ">▦</button><button className={grid ? '' : 'on'} onClick={() => setGrid(false)} aria-label="Dạng bảng">☰</button></span>
+        <ViewToggle value={view} onChange={setView} />
       </div>
-      {grid ? (
-        <div className="tilegrid">
+      {view === 'cards' ? (
+        <div className="tilegrid wide">
           {shown.map((l, i) => { const st = stats.get(l.id)!; return (
             <button key={l.id} className="tile" onClick={() => setOpen(l)}>
               <div className={'tileart art' + (i % 6)} style={l.cover_url ? { backgroundImage: `url("${l.cover_url}")` } : undefined}>
@@ -454,13 +456,12 @@ function LessonBank({ rows, teacherId, go, onAssign }: { rows: LessonLite[]; tea
             </button>) })}
         </div>
       ) : (
-        <div className="wrap"><table><thead><tr><th>Bài giảng</th><th>CT</th><th>Môn · khối</th><th>Khối nội dung</th><th>Tương tác</th><th></th></tr></thead>
+        <div className="wrap"><table><thead><tr><th>Bài giảng</th><th>CT</th><th>Môn · khối</th><th>Khối nội dung</th><th>Tương tác</th></tr></thead>
           <tbody>{shown.map(l => { const st = stats.get(l.id)!; return (
-            <tr key={l.id}><td><b>{l.title}</b><br /><small className="sub">{l.teachers?.full_name ?? (l.is_template ? 'Mẫu của trường' : '')}</small></td>
+            <tr key={l.id}><td><NameLink onClick={() => setOpen(l)} title="Xem chi tiết">{l.title}</NameLink><br /><small className="sub">{l.teachers?.full_name ?? (l.is_template ? 'Mẫu của trường' : '')}</small></td>
               <td>{l.program && <span className="progchip" style={{ background: PROGRAM_COLOR[l.program], color: '#fff' }}>{l.program}</span>}</td>
               <td>{[l.subject, l.grades && 'Khối ' + l.grades].filter(Boolean).join(' · ')}</td><td>{st.blocks || '—'}</td>
-              <td>{st.kinds.map(k => <span key={k} title={INTERACTION[k]}><Icon n={KIND_ICON[k]} /> </span>)}</td>
-              <td><button onClick={() => setOpen(l)}>Xem chi tiết</button></td></tr>) })}</tbody></table></div>
+              <td>{st.kinds.map(k => <span key={k} title={INTERACTION[k]}><Icon n={KIND_ICON[k]} /> </span>)}</td></tr>) })}</tbody></table></div>
       )}
       {shown.length === 0 && <p className="sub">Chưa có bài giảng phù hợp.</p>}
       {open && <LessonModal l={open} teacherId={teacherId} go={go} onClose={() => setOpen(null)} onAssign={() => onAssign(open)} />}

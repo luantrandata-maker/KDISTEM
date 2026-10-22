@@ -1,4 +1,6 @@
 import { useStemTracks } from '../../lib/stemTracks'
+import { ViewToggle, useViewMode } from '../../components/ViewToggle'
+import { Icon } from '../../components/Icon'
 import { lazy, Suspense } from 'react'
 import { norm as normText } from '../../lib/sheet'
 import { Fragment, useEffect, useState } from 'react'
@@ -120,6 +122,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   const [fType, setFType] = useState('')
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<string | null>(null)
+  const [view, setView] = useViewMode('hoc-lieu', 'list')
   const [msg, setMsg] = useState(''); const [info, setInfo] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -382,7 +385,10 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
           <select value={fStatus} onChange={e => setFStatus(e.target.value)} aria-label="Trạng thái"><option value="">Mọi trạng thái</option><option value="published">Đã phát hành</option><option value="draft">Nháp</option><option value="archived">Đã thu hồi</option></select>
           <input placeholder="Tìm tên, mô tả, từ khoá…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
         </div>
-        <button type="button" className="primary" onClick={() => addNew(tab)}>Thêm {tabLabel(tab).toLowerCase()}</button>
+        <div className="tools">
+          <ViewToggle value={view} onChange={setView} />
+          <button type="button" className="primary" onClick={() => addNew(tab)}>Thêm {tabLabel(tab).toLowerCase()}</button>
+        </div>
       </div>
       <p className="sub">Học liệu phát hành tới {me.type === 'provider' ? 'các đơn vị bạn chọn hoặc công khai toàn hệ thống' : `các đơn vị trực thuộc ${me.name}`}. Trường “dùng” sẽ có bản riêng để chỉnh sửa; khi bạn phát hành bản cập nhật, trường được báo nhưng bản của họ không bị ghi đè.</p>
       {msg && !form && <p className="msg">{msg}</p>}
@@ -585,7 +591,28 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
           {i.status !== 'published' && !stats.get(i.id) && <button type="button" className="danger" onClick={() => { remove(i); setOpen(null) }}>Xoá</button>}
         </>} />}
 
-      <div className="wrap">
+      {view === 'cards' ? (shown.length === 0 ? <p className="sub">{ofTab.length ? 'Không có mục nào khớp bộ lọc.' : `Chưa có ${tabLabel(tab).toLowerCase()} nào. Bấm “Thêm ${tabLabel(tab).toLowerCase()}” để bắt đầu.`}</p> : (
+        <div className={'tilegrid ' + (tab === 'lesson' ? 'wide' : 'sq')}>
+          {shown.map((i, n) => {
+            const s = stats.get(i.id)
+            const img = i.content?.type === 'image' && i.content.url ? i.content.url : null
+            return (
+              <button key={i.id} type="button" className={'tile' + (open === i.id ? ' on' : '')} onClick={() => setOpen(i.id)}>
+                <div className={'tileart art' + (n % 6)} style={img ? { backgroundImage: `url("${img}")` } : undefined}>
+                  <ProgChip p={i.program} />
+                  <span className="tilestatus"><StatusChip s={i.status} /></span>
+                  {!img && <span aria-hidden="true"><Icon n={tileIcon(i, tab)} size={40} /></span>}
+                </div>
+                <div className="tilebody">
+                  <b>{i.title}</b>
+                  <small>{[i.subject, i.grades && `Khối ${i.grades}`].filter(Boolean).join(' · ') || '—'}</small>
+                  <div className="tilemeta">{i.version > 0 && <span>v{i.version}</span>}<span>{s ? `${s.schools} trường dùng` : 'Chưa có trường dùng'}</span><span>{fmtDate(i.updated_at)}</span></div>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      )) : <div className="wrap">
         <table className="libtable">
           <thead><tr><th>{tabLabel(tab)}</th><th>Chương trình</th><th>{tab === 'unit' ? 'Thành phần' : 'Nội dung'}</th><th>Phát hành tới</th><th>Trạng thái</th><th>Trường đã dùng</th><th>Cập nhật</th></tr></thead>
           <tbody>
@@ -607,8 +634,16 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
             {shown.length === 0 && <tr><td colSpan={7}>{ofTab.length ? 'Không có mục nào khớp bộ lọc.' : `Chưa có ${tabLabel(tab).toLowerCase()} nào. Bấm “Thêm ${tabLabel(tab).toLowerCase()}” để bắt đầu.`}</td></tr>}
           </tbody>
         </table>
-      </div>
+      </div>}
       </>}
     </>
   )
+}
+
+// Biểu tượng ở thẻ học liệu khi chưa có ảnh
+function tileIcon(i: Item, tab: string) {
+  if (tab === 'plan') return 'clipboard'
+  if (i.kind === 'unit') return 'book'
+  if (i.kind === 'lesson') return 'monitor'
+  return ({ image: 'image', video: 'film', link: 'link', worksheet: 'fileText', guide: 'book', lesson_plan: 'clipboard' } as Record<string, string>)[i.content?.type ?? ''] ?? 'file'
 }

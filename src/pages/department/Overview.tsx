@@ -1,3 +1,4 @@
+import { NameLink } from '../../components/TableSel'
 import SchoolLocationImport from '../../components/SchoolLocationImport'
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -174,15 +175,14 @@ export function DeptSchools() {
       )}
       <div className="wrap">
         <table>
-          <thead><tr><th>Trường</th><th>Xã/phường</th><th>Cấp</th><th>Chương trình đang dạy</th><th>GV</th><th>HS</th><th>Phòng STEM</th><th>KPI</th><th></th></tr></thead>
+          <thead><tr><th>Trường</th><th>Xã/phường</th><th>Cấp</th><th>Chương trình đang dạy</th><th>GV</th><th>HS</th><th>Phòng STEM</th><th>KPI</th></tr></thead>
           <tbody>
             {shown.map(s => (
               <tr key={s.school_id}>
-                <td><b>{s.name}</b><br /><small>{s.code}{!s.activated && ' · chưa kích hoạt'}</small></td>
+                <td><NameLink onClick={() => setOpen(s.school_id)} title="Chi tiết">{s.name}</NameLink><br /><small>{s.code}{!s.activated && ' · chưa kích hoạt'}</small></td>
                 <td>{s.ward}</td><td>{LEVEL[s.level ?? ''] ?? '—'}</td><td><ProgBadges list={s.programs} /></td>
                 <td>{s.teachers}</td><td>{nf(s.students)}</td><td>{s.rooms_active}/{s.rooms}</td>
                 <td className="nowrap"><b>{s.kpi}</b> <GradePill kpi={s.kpi} /></td>
-                <td><button onClick={() => setOpen(s.school_id)}>Chi tiết</button></td>
               </tr>
             ))}
           </tbody>

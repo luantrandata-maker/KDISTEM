@@ -1282,3 +1282,21 @@ body.drawer-resizing .drawer{animation:none}
 .ypcell.empty{align-items:center;color:var(--primary);border-style:dashed;background:none}
 .allocbar{display:flex;flex-wrap:wrap;gap:8px 22px;align-items:baseline}
 tr.grouprow td{background:var(--soft)}
+/* Lịch dự kiến (072) */
+.calweeks{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px}
+.calweek{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface)}
+.calweek.cur{border-color:var(--primary);box-shadow:0 0 0 2px #e6f1fd}
+.calweek.off{background:var(--soft);color:var(--muted)}
+.calhead{display:flex;flex-direction:column;gap:2px;margin-bottom:6px}
+.calhead small{color:var(--muted)}
+.calweek ul,.warnbox ul{margin:0;padding-left:18px;font-size:14px}
+.calweek li{margin:2px 0}
+small.warn{color:#a8650c}
+small.good{color:var(--ok)}
+small.bad{color:var(--bad)}
+.calmonths{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.calmonth h3{margin:0 0 8px}
+.calmrow{display:grid;grid-template-columns:64px 1fr;gap:8px;padding:5px 0;border-top:1px solid var(--line);font-size:14px}
+.calmrow.cur{background:#f2f8ff}
+.calmw{display:flex;flex-direction:column;font-weight:600}
+.calmw small{font-weight:400;color:var(--muted)}

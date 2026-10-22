@@ -254,13 +254,13 @@ const kindOf = (s: string): Kind => {
   return (Object.keys(KIND) as Kind[]).find(k => norm(KIND[k]) === n || n.includes(norm(KIND[k]).split(' ')[0])) ?? (n.includes('stem') ? 'stem' : 'lesson')
 }
 const termIn = (s: string): number | null => { const n = norm(s); return !n ? null : /(^| )(2|ii)( |$)/.test(n) ? 2 : /(^| )(1|i)( |$)/.test(n) ? 1 : null }
-const ACTION: Record<string, string> = { insert: 'Thêm tiết', update: 'Sửa tiết', delete: 'Xoá tiết', import: 'Nhập lại cả môn' }
+const ACTION: Record<string, string> = { insert: 'Thêm tiết', update: 'Sửa tiết', delete: 'Xoá tiết', import: 'Nhập lại cả môn', reschedule: 'Xếp lại lịch' }
 
 export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book: Book; canEdit: boolean; mode: PpctMode; onClose: () => void; onChanged: () => void }) {
   const [rows, setRows] = useState<Lesson[] | null>(null)
   const [topics, setTopics] = useState<Topic[]>([])
   const [units, setUnits] = useState<Unit[]>([])
-  const [start, setStart] = useState<string | null>(null)
+  const [weekStart, setWeekStart] = useState<Map<number, string>>(new Map())
   const [edit, setEdit] = useState<Partial<Lesson> | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [busy, setBusy] = useState(false)
@@ -271,13 +271,12 @@ export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book
       supabase.from('curriculum_lessons').select('*').eq('book_id', book.id).order('seq'),
       canEdit ? supabase.from('package_topics').select('id, title, program, stem_packages(name)').eq('org_id', book.org_id).order('seq') : Promise.resolve({ data: [] }),
       book.program_id ? supabase.from('edu_program_units').select('id, parent_id, unit_type, seq, title').eq('program_id', book.program_id).order('seq') : Promise.resolve({ data: [] }),
-      mode === 'school' ? supabase.from('academic_years').select('name, starts_on, is_current').eq('org_id', book.org_id) : Promise.resolve({ data: [] }),
+      book.year_name ? supabase.rpc('curriculum_calendar', { p_org: book.org_id, p_year: book.year_name }) : Promise.resolve({ data: [] }),
     ])
     if ('error' in l && l.error) setMsg([errText(l.error.message), true])
     setRows((l.data as Lesson[]) ?? []); setTopics(((t as any).data as Topic[]) ?? []); setUnits(((u as any).data as Unit[]) ?? [])
-    const ys = ((y as any).data as { name: string; starts_on: string | null; is_current: boolean }[]) ?? []
-    const yname = book.year_name ?? ys.find(x => x.is_current)?.name
-    setStart(ys.filter(x => x.name === yname && x.starts_on).map(x => x.starts_on!).sort()[0] ?? null)
+    const cal = ((y as any).data as { week: number | null; starts_on: string }[]) ?? []
+    setWeekStart(new Map(cal.filter(c => c.week != null).map(c => [c.week as number, c.starts_on])))
   }
   useEffect(() => { load() }, [book.id])
   const topicName = (id: string | null) => (id ? topics.find(t => t.id === id)?.title ?? 'Chủ đề STEM' : '')
@@ -297,10 +296,11 @@ export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book
     walk(null, 0); return out
   }, [units])
   const ppw = Number(book.periods_per_week) || 0
-  // Tháng dự kiến của một tuần (tính từ ngày bắt đầu năm học)
+  // Tháng dự kiến của một tuần (theo lịch tuần học của năm học, đã bỏ tuần nghỉ)
   const monthOf = (week: number | null) => {
-    if (!start || !week) return ''
-    const d = new Date(start + 'T00:00:00'); d.setDate(d.getDate() + (week - 1) * 7)
+    const st = week ? weekStart.get(week) : undefined
+    if (!st) return ''
+    const d = new Date(st + 'T00:00:00'); d.setDate(d.getDate() + 2)
     return `T${d.getMonth() + 1}`
   }
 

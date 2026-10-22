@@ -2444,6 +2444,22 @@ select pg_temp.chk('gv_both', 'Chuyển năm học: giáo viên không chuyển 
 delete from curriculum_books where year_name = 'ISO 2027-2028';
 delete from academic_years where name = 'ISO 2027-2028';
 
+-- ===== 072: lịch dự kiến theo tuần học, xếp lại lịch =====
+select pg_temp.chk('admin_ph', 'Lịch: khai giảng thứ Bảy → tuần 1 từ thứ Hai kế tiếp; HK I 19 tuần học, HK II 17 tuần',
+  $q$select min(starts_on) || '|' || count(week) filter (where term = 1) || '|' || count(week) filter (where term = 2) from curriculum_calendar(my_org_id(), '2026-2027')$q$, '2026-09-07|19|17');
+insert into school_holidays (org_id, name, starts_on, ends_on) values (pg_temp.oid_('THCS-PH'), 'ISO nghỉ cả tuần', '2026-11-16', '2026-11-20');
+select pg_temp.chk('admin_ph', 'Lịch: tuần nghỉ cả 5 ngày không tính số tuần, ngày trong tuần nghỉ thuộc tuần học liền trước',
+  $q$select (select coalesce(week::text, 'nghỉ') || ':' || (holiday like '%ISO nghỉ cả tuần%') from curriculum_calendar(my_org_id(), '2026-2027') where starts_on = '2026-11-16')
+     || '|' || (select hk1 from curriculum_term_weeks(my_org_id(), '2026-2027')) || '|' || curriculum_week_of(my_org_id(), '2026-2027', '2026-11-18')
+     || '|' || curriculum_week_of(my_org_id(), '2026-2027', '2026-11-25')$q$, 'nghỉ:true|18|10|11');
+delete from school_holidays where name = 'ISO nghỉ cả tuần';
+select pg_temp.probe('kdi@iso-test.local', $q$update curriculum_lessons set week = 10 where book_id = (select id from curriculum_books where title = 'ISO CT KDI — khối 6' and org_id = platform_org_id()) and seq = 1$q$, true);
+select pg_temp.chk('gv_both', 'Xếp lại lịch: giáo viên không xếp được',
+  $q$select curriculum_reschedule((select id from curriculum_books where title = 'ISO CT KDI — khối 6' and org_id = platform_org_id()))::text$q$, 'ERR');
+select pg_temp.probe('kdi@iso-test.local', $q$select curriculum_reschedule((select id from curriculum_books where title = 'ISO CT KDI — khối 6' and org_id = platform_org_id()))$q$, true);
+select pg_temp.chk('kdi', 'Xếp lại lịch: mẫu không năm học xếp từ tuần 1, mỗi tuần đủ số tiết / tuần',
+  $q$select min(week) || '-' || max(week) || '|' || count(distinct week) from curriculum_lessons where book_id = (select id from curriculum_books where title = 'ISO CT KDI — khối 6' and org_id = platform_org_id())$q$, '1-4|4');
+
 -- ===== 069: trường thử nghiệm cho KDI =====
 drop table if exists t_sandbox;
 create temp table t_sandbox as select exists (select 1 from organizations where code = 'KDI-SANDBOX') as existed;

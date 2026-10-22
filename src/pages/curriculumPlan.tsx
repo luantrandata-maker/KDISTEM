@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { Tiles } from './department/charts'
-import { BOOK_STATUS, LessonEditor, errText, useCanEdit, type Book, type PpctMode } from './curriculum'
+import { BOOK_STATUS, KIND, LessonEditor, errText, useCanEdit, type Book, type PpctMode } from './curriculum'
+import { downloadXlsx, norm } from '../lib/sheet'
 
 // Kế hoạch dạy học — đợt 1 (migration 071)
 //  • Kế hoạch năm: bảng môn × khối của một năm học (trường) hoặc của bộ mẫu (KDI / Sở): số tiết HK I / HK II,
@@ -422,3 +423,190 @@ export function Allocation({ orgId, mode = 'school', year, years }: { orgId: str
   )
 }
 
+
+// ================= Lịch dự kiến (072) =================
+type CalWeek = { cal: number; week: number | null; term: number; starts_on: string; ends_on: string; off_days: number; holiday: string | null }
+type PLesson = { id: string; seq: number; week: number | null; term: number | null; title: string; kind: keyof typeof KIND }
+type Sess = { id: string; session_date: string; status: string; subject: string; curriculum_lesson_id: string | null }
+const dm = (d: string) => d.slice(8, 10) + '/' + d.slice(5, 7)
+const addDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10) }
+const today = () => { const x = new Date(); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 10) }
+const MONTH = (d: string) => `Tháng ${Number(addDays(d, 2).slice(5, 7))}/${addDays(d, 2).slice(0, 4)}`
+
+export function Schedule({ orgId, mode = 'school', year, years }: { orgId: string | null; mode?: PpctMode; year?: { name: string } | null; years?: Year[] }) {
+  const canEdit = useCanEdit(mode)
+  const names = yearNames(years)
+  const [yname, setYname] = useState<string>(mode === 'school' ? year?.name ?? names[0] ?? '' : '')
+  const [books, setBooks] = useState<Book[]>([])
+  const [bookId, setBookId] = useState('')
+  const [lessons, setLessons] = useState<PLesson[] | null>(null)
+  const [cal, setCal] = useState<CalWeek[]>([])
+  const [view, setView] = useState<'week' | 'month'>('week')
+  const [classes, setClasses] = useState<{ id: string; name: string }[]>([])
+  const [classId, setClassId] = useState('')
+  const [sess, setSess] = useState<Sess[]>([])
+  const [msg, setMsg] = useState<[string, boolean] | null>(null)
+
+  useEffect(() => {
+    if (!orgId) return
+    let q = supabase.from('curriculum_books').select('*').eq('org_id', orgId).order('grade').order('subject')
+    if (mode === 'school' && yname) q = q.eq('year_name', yname)
+    q.then(({ data, error }) => {
+      if (error) setMsg([errText(error.message), true])
+      const bs = (data as Book[]) ?? []
+      setBooks(bs); setBookId(cur => (bs.some(b => b.id === cur) ? cur : bs[0]?.id ?? ''))
+    })
+  }, [orgId, yname])
+  const book = books.find(b => b.id === bookId) ?? null
+
+  async function loadLessons() {
+    if (!book) { setLessons([]); return }
+    const [l, c] = await Promise.all([
+      supabase.from('curriculum_lessons').select('id, seq, week, term, title, kind').eq('book_id', book.id).order('seq'),
+      book.year_name ? supabase.rpc('curriculum_calendar', { p_org: book.org_id, p_year: book.year_name }) : Promise.resolve({ data: [] }),
+    ])
+    setLessons((l.data as PLesson[]) ?? []); setCal(((c as any).data as CalWeek[]) ?? [])
+  }
+  useEffect(() => { loadLessons() }, [bookId])
+  useEffect(() => {
+    setClassId(''); setSess([])
+    if (!book || mode !== 'school') { setClasses([]); return }
+    supabase.from('classes').select('id, name').eq('org_id', book.org_id).eq('grade', book.grade).order('name').then(({ data }) => setClasses((data as { id: string; name: string }[]) ?? []))
+  }, [bookId])
+  useEffect(() => {
+    if (!classId || !book || cal.length === 0) { setSess([]); return }
+    supabase.from('teaching_sessions').select('id, session_date, status, subject, curriculum_lesson_id').eq('class_id', classId)
+      .gte('session_date', cal[0].starts_on).lte('session_date', cal[cal.length - 1].ends_on).order('session_date')
+      .then(({ data }) => setSess(((data as Sess[]) ?? []).filter(s => norm(s.subject) === norm(book.subject) && s.status !== 'cancelled')))
+  }, [classId, cal])
+
+  // Ngày dự kiến của từng tiết: tiết thứ k của tuần ↔ buổi dạy thứ k của môn trong tuần (theo thời khóa biểu của lớp)
+  const dates = useMemo(() => {
+    const m = new Map<string, { date: string; done: boolean }>()
+    if (!lessons) return m
+    for (const s of sess) if (s.curriculum_lesson_id && s.status === 'taught') m.set(s.curriculum_lesson_id, { date: s.session_date, done: true })
+    for (const w of cal) {
+      if (w.week == null) continue
+      const ls = lessons.filter(l => l.week === w.week && !m.has(l.id))
+      const ss = sess.filter(s => s.session_date >= w.starts_on && s.session_date <= w.ends_on && !(s.status === 'taught' && s.curriculum_lesson_id))
+      ls.forEach((l, i) => { if (ss[i]) m.set(l.id, { date: ss[i].session_date, done: false }) })
+    }
+    return m
+  }, [lessons, sess, cal])
+
+  async function reschedule() {
+    if (!book) return
+    let reason: string | null = null
+    if (book.status === 'published') {
+      reason = prompt('PPCT đang dùng — lý do xếp lại lịch (ghi vào nhật ký điều chỉnh):', '')
+      if (reason === null) return
+    } else if (!confirm(`Xếp lại tuần cho các tiết chưa dạy của "${book.title}" theo ${book.periods_per_week ?? '?'} tiết / tuần, bắt đầu từ tuần hiện tại?`)) return
+    const { data, error } = await supabase.rpc('curriculum_reschedule', { p_book: book.id, p_reason: reason })
+    if (error) return setMsg([errText(error.message), true])
+    setMsg([data ? `Đã xếp lại tuần cho ${data} tiết.` : 'Lịch đã khớp, không có tiết nào cần dời.', false]); loadLessons()
+  }
+  function exportXlsx() {
+    if (!book || !lessons) return
+    const ws = new Map(cal.filter(c => c.week != null).map(c => [c.week as number, c]))
+    downloadXlsx(`Lich-du-kien ${book.title}`, [
+      { key: 'w', label: 'Tuần' }, { key: 'd', label: 'Từ – đến', width: 16 }, { key: 'h', label: 'Học kỳ' }, { key: 's', label: 'Tiết' },
+      { key: 't', label: 'Tên bài / nội dung', width: 44 }, { key: 'k', label: 'Loại tiết', width: 14 }, { key: 'x', label: 'Ngày dự kiến' },
+    ], lessons.map(l => {
+      const w = l.week ? ws.get(l.week) : undefined, d = dates.get(l.id)
+      return [l.week, w ? `${dm(w.starts_on)}–${dm(addDays(w.starts_on, 4))}` : '', l.term === 2 ? 'HK II' : l.term === 1 ? 'HK I' : '', l.seq, l.title, KIND[l.kind], d ? dm(d.date) : '']
+    }), book.title)
+  }
+
+  const now = today()
+  const ls = lessons ?? []
+  const byWeek = (w: number) => ls.filter(l => l.week === w)
+  const maxWeek = cal.reduce((m, c) => Math.max(m, c.week ?? 0), 0)
+  const loose = ls.filter(l => l.week == null || (cal.length > 0 && l.week > maxWeek))
+  const plainWeeks = [...new Set(ls.map(l => l.week).filter((w): w is number => w != null))].sort((a, b) => a - b)
+  const months = useMemo(() => {
+    const out: [string, CalWeek[]][] = []
+    for (const w of cal) { const k = MONTH(w.starts_on); const last = out[out.length - 1]; if (last && last[0] === k) last[1].push(w); else out.push([k, [w]]) }
+    return out
+  }, [cal])
+  const ppw = Number(book?.periods_per_week) || 0
+  const lessonLine = (l: PLesson) => {
+    const d = dates.get(l.id)
+    return (
+      <li key={l.id}><b>Tiết {l.seq}</b> · {l.title}{l.kind !== 'lesson' && <> <span className="gpill">{KIND[l.kind]}</span></>}
+        {d && <small className={d.done ? 'good' : 'sub'}> · {d.done ? 'đã dạy' : 'dự kiến'} {dm(d.date)}</small>}</li>
+    )
+  }
+
+  return (
+    <>
+      <p className="sub">Lịch dự kiến của PPCT theo tuần học: tuần 1 là tuần khai giảng, tuần nghỉ cả tuần (lễ, Tết) không tính số tuần. Chọn lớp để xem ngày dự kiến theo thời khóa biểu.</p>
+      <div className="bar">
+        <div className="tools">
+          {mode === 'school' && <select value={yname} onChange={e => setYname(e.target.value)} aria-label="Năm học">{names.map(n => <option key={n}>{n}</option>)}</select>}
+          <select value={bookId} onChange={e => setBookId(e.target.value)} aria-label="PPCT" style={{ maxWidth: 320 }}>
+            {books.length === 0 && <option value="">Chưa có PPCT</option>}
+            {books.map(b => <option key={b.id} value={b.id}>Khối {b.grade} · {b.subject} — {b.title}</option>)}
+          </select>
+          {classes.length > 0 && <select value={classId} onChange={e => setClassId(e.target.value)} aria-label="Lớp"><option value="">— Ngày theo lớp —</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
+          {cal.length > 0 && <div className="segmented" style={{ margin: 0 }}>
+            <button className={view === 'week' ? 'on' : ''} onClick={() => setView('week')}>Theo tuần</button>
+            <button className={view === 'month' ? 'on' : ''} onClick={() => setView('month')}>Theo tháng</button>
+          </div>}
+        </div>
+        <div className="tools">
+          {ls.length > 0 && <button onClick={exportXlsx}>Xuất Excel</button>}
+          {canEdit && book && book.org_id === orgId && ls.length > 0 && <button className="primary" disabled={!ppw} title={ppw ? '' : 'Nhập số tiết / tuần của PPCT trước'} onClick={reschedule}>Xếp lại lịch</button>}
+        </div>
+      </div>
+      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+
+      {!book ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có PPCT{mode === 'school' && yname ? ` trong năm học ${yname}` : ''}.</p></div>
+        : lessons === null ? <p className="sub">Đang tải…</p>
+        : cal.length === 0 ? (
+          <>
+            <p className="sub">{mode === 'school' ? 'Năm học chưa có ngày bắt đầu — lịch chỉ hiện theo số tuần.' : 'Mẫu PPCT không gắn năm học — lịch hiện theo số tuần.'}</p>
+            <div className="calweeks">{plainWeeks.map(w => (
+              <div key={w} className="calweek"><div className="calhead"><b>Tuần {w}</b></div><ul>{byWeek(w).map(lessonLine)}</ul></div>
+            ))}</div>
+          </>
+        ) : view === 'week' ? (
+          <div className="calweeks">{cal.map(w => {
+            const cur = now >= w.starts_on && now <= w.ends_on, items = w.week != null ? byWeek(w.week) : []
+            return (
+              <div key={w.cal} className={'calweek' + (cur ? ' cur' : '') + (w.week == null ? ' off' : '')}>
+                <div className="calhead">
+                  <b>{w.week != null ? `Tuần ${w.week}` : 'Nghỉ'}</b>
+                  <small>{dm(w.starts_on)}–{dm(addDays(w.starts_on, 4))} · HK {w.term === 2 ? 'II' : 'I'}{cur ? ' · tuần này' : ''}</small>
+                  {w.holiday && <small className="warn">{w.week != null ? `Nghỉ ${w.off_days} ngày: ` : ''}{w.holiday}</small>}
+                  {ppw > 0 && w.week != null && items.length > Math.ceil(ppw) && <small className="bad">{items.length} tiết / tuần (định mức {fmt(ppw)})</small>}
+                </div>
+                {items.length > 0 ? <ul>{items.map(lessonLine)}</ul> : w.week != null && <small className="sub">Không có tiết</small>}
+              </div>
+            )
+          })}</div>
+        ) : (
+          <div className="calmonths">{months.map(([m, ws]) => {
+            const n = ws.reduce((s, w) => s + (w.week != null ? byWeek(w.week).length : 0), 0)
+            return (
+              <div key={m} className="panel calmonth">
+                <h3>{m} <small className="sub">{n} tiết</small></h3>
+                {ws.map(w => (
+                  <div key={w.cal} className={'calmrow' + (now >= w.starts_on && now <= w.ends_on ? ' cur' : '')}>
+                    <span className="calmw">{w.week != null ? `T${w.week}` : 'Nghỉ'}<small>{dm(w.starts_on)}</small></span>
+                    <span>{w.week == null ? <small className="warn">{w.holiday}</small>
+                      : byWeek(w.week).map(l => l.title).join(' · ') || <small className="sub">—</small>}</span>
+                  </div>
+                ))}
+              </div>
+            )
+          })}</div>
+        )}
+      {loose.length > 0 && cal.length > 0 && (
+        <div className="panel warnbox" style={{ marginTop: 12 }}>
+          <b>{loose.length} tiết chưa có tuần hoặc nằm ngoài năm học</b>{canEdit && ppw > 0 && ' — bấm "Xếp lại lịch" để xếp tuần.'}
+          <ul>{loose.slice(0, 10).map(lessonLine)}</ul>
+        </div>
+      )}
+    </>
+  )
+}

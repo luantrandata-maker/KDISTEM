@@ -105,6 +105,7 @@ const CurriculumBooks = lazy(() => import('./pages/curriculum').then(m => ({ def
 const CurriculumProgress = lazy(() => import('./pages/curriculum').then(m => ({ default: m.CurriculumProgress })))
 const YearPlan = lazy(() => import('./pages/curriculumPlan').then(m => ({ default: m.YearPlan })))
 const Allocation = lazy(() => import('./pages/curriculumPlan').then(m => ({ default: m.Allocation })))
+const Schedule = lazy(() => import('./pages/curriculumPlan').then(m => ({ default: m.Schedule })))
 // Chương trình giáo dục chuẩn: phiên bản, cấu trúc, yêu cầu cần đạt, duyệt / ban hành, gán cho trường (058)
 const EduPrograms = lazy(() => import('./pages/eduPrograms').then(m => ({ default: m.EduPrograms })))
 const eduPrograms = (mode: 'school' | 'authority' | 'platform') => (p: any) => <EduPrograms {...p} mode={mode} />
@@ -134,6 +135,7 @@ const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, Com
     [mode === 'school' ? 'Kế hoạch năm' : 'Tổng quan theo khối', (q: any) => <YearPlan {...q} mode={mode} />],
     [mode === 'platform' ? 'Mẫu PPCT của KDI' : mode === 'authority' ? 'PPCT & mẫu ban hành' : 'Phân phối chương trình', (q: any) => <CurriculumBooks {...q} mode={mode} />],
     ['Phân bổ tiết', (q: any) => <Allocation {...q} mode={mode} />],
+    ['Lịch dự kiến', (q: any) => <Schedule {...q} mode={mode} />],
     [mode === 'school' ? 'Tiến độ dạy' : 'Tiến độ các trường', (q: any) => <CurriculumProgress {...q} mode={mode} />],
     ...extra,
   ]

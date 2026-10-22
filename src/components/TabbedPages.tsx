@@ -5,10 +5,12 @@ import { Tabs } from '../pages/teacher/common'
 export function TabbedPages({ tabs, ...props }: { tabs: [string, ComponentType<any>][] } & Record<string, any>) {
   const [i, setI] = useState('0')
   const Page = tabs[Number(i)]?.[1]
+  // Màn con chuyển sang tab khác theo tên tab (vd. bước "Môn học" của thanh quy trình)
+  const goTab = (label: string) => { const k = tabs.findIndex(t => t[0] === label); if (k >= 0) setI(String(k)) }
   return (
     <>
       <Tabs value={i} onChange={setI} items={tabs.map(([label], k) => [String(k), label] as [string, string])} />
-      {Page && <Page key={i} {...props} name={tabs[Number(i)][0]} />}
+      {Page && <Page key={i} {...props} name={tabs[Number(i)][0]} goTab={goTab} />}
     </>
   )
 }

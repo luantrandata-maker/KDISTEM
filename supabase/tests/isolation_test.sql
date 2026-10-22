@@ -1857,7 +1857,7 @@ select pg_temp.chk('admin_ph', 'Dữ liệu mẫu: trường demo có PPCT theo 
 
 -- ===== Chương trình giáo dục, PPCT theo học kỳ / lớp / duyệt, theo dõi thực hiện (058) =====
 -- Chương trình: KDI soạn và ban hành, trường / Sở đọc, trường tỉnh khác không thấy chương trình riêng của Sở
-select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_programs (org_id, title, level, grade_from, grade_to, main_subject, scope) values (platform_org_id(), 'ISO CT KDI', 'thcs', 6, 9, 'Tin học', 'children')$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_programs (org_id, title, ct_code, level, grade_from, grade_to, main_subject, scope) values (platform_org_id(), 'ISO CT KDI', 'CT1', 'thcs', 6, 9, 'Tin học', 'children')$q$, true);
 select pg_temp.chk('kdi', 'CTGD: KDI thêm chủ đề vào chương trình nháp',
   $q$insert into edu_program_units (program_id, unit_type, seq, grade, title, periods) select id, 'topic', 1, 6, 'ISO chủ đề 1', 3 from edu_programs where title = 'ISO CT KDI'$q$, 'rows:1');
 select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_program_units (program_id, unit_type, seq, grade, title, periods) select id, 'topic', 1, 6, 'ISO chủ đề 1', 3 from edu_programs where title = 'ISO CT KDI'$q$, true);
@@ -1903,7 +1903,7 @@ select pg_temp.probe('kdi@iso-test.local', $q$update edu_programs set kind = 'st
 select pg_temp.chk('kdi', 'Loại CT: mã loại không có trong danh mục bị chặn', $q$update edu_programs set ct_code = 'ZZ9' where title = 'ISO CT KDI'$q$, 'ERR*');
 select pg_temp.chk('kdi', 'Loại CT: không xoá loại đang được chương trình dùng', $q$delete from stem_tracks where code = 'ISO6'$q$, 'ERR*');
 select pg_temp.chk('kdi', 'Loại CT: không đổi mã loại', $q$update stem_tracks set code = 'ISO8' where code = 'ISO6'$q$, 'ERR*');
-select pg_temp.probe('kdi@iso-test.local', $q$update edu_programs set kind = 'subject', ct_code = null where title = 'ISO CT KDI'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$update edu_programs set kind = 'subject', ct_code = 'CT1' where title = 'ISO CT KDI'$q$, true);
 select pg_temp.probe('kdi@iso-test.local', $q$delete from stem_tracks where code = 'ISO6'$q$, true);
 select pg_temp.chk('kdi', 'Loại CT: xoá loại không còn dùng', $q$select count(*) from stem_tracks where code = 'ISO6'$q$, '0');
 select pg_temp.chk('kdi', 'CTGD: tổng tiết = tổng tiết các bài (mục lá)', $q$select total_periods::text from edu_programs where title = 'ISO CT KDI'$q$, '4');
@@ -1927,7 +1927,7 @@ select pg_temp.chk('kdi', 'CTGD: đã ban hành thì không thêm bài', $q$inse
 select pg_temp.chk('kdi', 'CTGD: không xoá chương trình đang ban hành', $q$delete from edu_programs where title = 'ISO CT KDI'$q$, 'ERR*');
 select pg_temp.chk('admin_ph', 'CTGD: trường không sửa chương trình KDI', $q$update edu_programs set scope = 'own' where title = 'ISO CT KDI'$q$, 'rows:0');
 select pg_temp.chk('gv_both', 'CTGD: giáo viên không thêm chương trình',
-  $q$insert into edu_programs (org_id, title, level, grade_from, grade_to, main_subject) values (my_org_id(), 'ISO CT GV', 'thcs', 6, 6, 'Toán')$q$, 'ERR');
+  $q$insert into edu_programs (org_id, title, ct_code, level, grade_from, grade_to, main_subject) values (my_org_id(), 'ISO CT GV', 'CT1', 'thcs', 6, 6, 'Toán')$q$, 'ERR');
 -- Phiên bản mới: bản nháp v2, ban hành thì v1 bị thay thế
 select pg_temp.probe('kdi@iso-test.local', $q$select edu_program_new_version((select id from edu_programs where title = 'ISO CT KDI'))::text$q$, true);
 select pg_temp.chk('kdi', 'CTGD: phiên bản mới là bản nháp số 2, chép đủ cấu trúc và YCCĐ',
@@ -1959,7 +1959,7 @@ select pg_temp.chk('admin_ph', 'CTGD: duyệt trong Hộp phê duyệt → đã 
 select pg_temp.chk('admin_ph', 'CTGD: ban hành bản đã duyệt', $q$select edu_program_set_status((select id from edu_programs where title = 'ISO CT KDI' and org_id = my_org_id()), 'published')$q$, 'published');
 select pg_temp.probe('admin_ph@iso-test.local', $q$select edu_program_set_status((select id from edu_programs where title = 'ISO CT KDI' and org_id = my_org_id()), 'published')$q$, true);
 -- Gán chương trình cho trường: Sở gán chương trình của Sở; Sở tỉnh khác / trường không gán được
-select pg_temp.probe('so_hy@iso-test.local', $q$insert into edu_programs (org_id, title, level, grade_from, grade_to, main_subject) values (my_org_id(), 'ISO CT Sở HY', 'thcs', 7, 8, 'Công nghệ')$q$, true);
+select pg_temp.probe('so_hy@iso-test.local', $q$insert into edu_programs (org_id, title, ct_code, level, grade_from, grade_to, main_subject) values (my_org_id(), 'ISO CT Sở HY', 'CT2', 'thcs', 7, 8, 'Công nghệ')$q$, true);
 select pg_temp.probe('so_hy@iso-test.local', $q$insert into edu_program_units (program_id, unit_type, grade, title, periods) select id, 'topic', 7, 'ISO chủ đề Sở', 2 from edu_programs where title = 'ISO CT Sở HY'$q$, true);
 select pg_temp.chk('so_hy', 'CTGD: không tự đặt "đã duyệt" khi chưa gửi duyệt', $q$update edu_programs set status = 'approved' where title = 'ISO CT Sở HY'$q$, 'ERR');
 select pg_temp.probe('so_hy@iso-test.local', $q$select edu_program_set_status((select id from edu_programs where title = 'ISO CT Sở HY'), 'published')$q$, true);
@@ -2252,8 +2252,8 @@ select pg_temp.chk('hs_kb', 'Ôn tập: học sinh xem chủ đề em cần ôn'
 select pg_temp.chk('admin_ph', 'Ôn tập: trường khác không xem của học sinh trường B', format($q$select count(*) from elearning_my_review(%L)$q$, (select id from students where student_code = 'ISO-001')), '0');
 
 -- ===== 062: danh mục chương trình STEM CT1–CT5 =====
-select pg_temp.chk('admin_ph', 'Danh mục CT1–CT5: trường đọc được', $q$select count(*) from stem_tracks$q$, '5');
-select pg_temp.chk('hs_kb', 'Danh mục CT1–CT5: học sinh đọc được', $q$select count(*) from stem_tracks$q$, '5');
+select pg_temp.chk('admin_ph', 'Danh mục nhóm chương trình: trường đọc được (CT1–CT5, KDI-SC, Đề xuất)', $q$select count(*) from stem_tracks$q$, '7');
+select pg_temp.chk('hs_kb', 'Danh mục nhóm chương trình: học sinh đọc được', $q$select count(*) from stem_tracks$q$, '7');
 select pg_temp.chk('kdi', 'Danh mục CT1–CT5: quản trị nền tảng sửa được',
   $q$with x as (update stem_tracks set description = description where code = 'CT1' returning 1) select count(*) from x$q$, '1');
 select pg_temp.chk('so_hy', 'Danh mục CT1–CT5: Sở không sửa được', $q$with x as (update stem_tracks set name = 'ISO' where code = 'CT1' returning 1) select count(*) from x$q$, '0');
@@ -2345,11 +2345,11 @@ select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_levels (code, name
 select pg_temp.chk('kdi', 'Cấp học: khối đến nhỏ hơn khối từ bị chặn', $q$insert into edu_levels (code, name, grade_from, grade_to) values ('iso_sai', 'ISO', 9, 6)$q$, 'ERR*');
 select pg_temp.chk('kdi', 'Cấp học: không đổi mã', $q$update edu_levels set code = 'iso_moi' where code = 'iso_lien'$q$, 'ERR*');
 select pg_temp.chk('kdi', 'Chương trình: dùng cấp học mới với khối liên cấp',
-  $q$insert into edu_programs (org_id, title, level, grade_from, grade_to, main_subject) values (platform_org_id(), 'ISO CT liên cấp', 'iso_lien', 8, 11, 'Tin học')$q$, 'rows:1');
+  $q$insert into edu_programs (org_id, title, ct_code, level, grade_from, grade_to, main_subject) values (platform_org_id(), 'ISO CT liên cấp', 'CT1', 'iso_lien', 8, 11, 'Tin học')$q$, 'rows:1');
 select pg_temp.chk('kdi', 'Chương trình: khối ngoài cấp học bị chặn',
-  $q$insert into edu_programs (org_id, title, level, grade_from, grade_to, main_subject) values (platform_org_id(), 'ISO CT sai khối', 'thcs', 8, 10, 'Tin học')$q$, 'ERR*');
+  $q$insert into edu_programs (org_id, title, ct_code, level, grade_from, grade_to, main_subject) values (platform_org_id(), 'ISO CT sai khối', 'CT1', 'thcs', 8, 10, 'Tin học')$q$, 'ERR*');
 select pg_temp.chk('kdi', 'Chương trình: cấp học không có trong danh mục bị chặn',
-  $q$insert into edu_programs (org_id, title, level, grade_from, grade_to, main_subject) values (platform_org_id(), 'ISO CT lạ', 'mamnon', 1, 1, 'Tin học')$q$, 'ERR*');
+  $q$insert into edu_programs (org_id, title, ct_code, level, grade_from, grade_to, main_subject) values (platform_org_id(), 'ISO CT lạ', 'CT1', 'mamnon', 1, 1, 'Tin học')$q$, 'ERR*');
 select pg_temp.chk('kdi', 'Cấp học: không thu hẹp khối làm chương trình đang có nằm ngoài', $q$update edu_levels set grade_to = 8 where code = 'thcs'$q$, 'ERR*');
 select pg_temp.chk('kdi', 'Cấp học: đổi tên được', $q$update edu_levels set name = 'Trung học cơ sở' where code = 'thcs'$q$, 'rows:1');
 select pg_temp.chk('kdi', 'Môn học: cấp học lạ bị bỏ khi lưu',
@@ -2538,6 +2538,19 @@ do $$ begin
     delete from organizations where code = 'KDI-SANDBOX-SO';
   end if;
 end $$;
+
+-- ===== 075: nhóm chương trình bắt buộc, số tiết / tuần, thời gian triển khai =====
+select pg_temp.chk('kdi', 'Chương trình: phải chọn nhóm chương trình khi tạo',
+  $q$insert into edu_programs (org_id, title, level, grade_from, grade_to, main_subject) values (platform_org_id(), 'ISO CT không nhóm', 'thcs', 6, 6, 'Tin học')$q$, 'ERR*');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_programs (org_id, title, ct_code, level, grade_from, grade_to, main_subject, periods_per_week, deploy_term, scope)
+  values (platform_org_id(), 'ISO CT HK2', 'DX', 'thcs', 6, 6, 'Tin học', 2, 'hk2', 'children')$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_program_units (program_id, unit_type, seq, grade, title, periods) select id, 'topic', 1, 6, 'ISO chủ đề HK2', 3 from edu_programs where title = 'ISO CT HK2'$q$, true);
+select pg_temp.chk('kdi', 'Chương trình: không bỏ nhóm chương trình đã chọn',
+  $q$update edu_programs set ct_code = null where title = 'ISO CT HK2'$q$, 'ERR*');
+select pg_temp.probe('kdi@iso-test.local', $q$select curriculum_from_program((select id from edu_programs where title = 'ISO CT HK2'), 6)::text$q$, true);
+select pg_temp.chk('kdi', 'PPCT từ chương trình: lấy số tiết / tuần của chương trình; chương trình HK II xếp hết bài vào HK II',
+  $q$select b.periods_per_week::int || ':' || count(l.id) || ':' || min(l.term) || '-' || max(l.term) from curriculum_books b join curriculum_lessons l on l.book_id = b.id
+     where b.title = 'ISO CT HK2 — khối 6' group by b.periods_per_week$q$, '2:3:2-2');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

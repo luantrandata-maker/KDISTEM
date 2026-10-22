@@ -6,10 +6,11 @@ import { useState, type ReactNode } from 'react'
 //  • Tác vụ phá huỷ (Xoá, Gỡ, Bỏ gán…) luôn đi qua ô tick + nút trên bảng, không bấm thẳng trên dòng.
 
 /** Chọn một dòng trong bảng (tick lại để bỏ chọn). */
-export function useRowSel<T extends { id: string }>(rows: T[]) {
+export function useRowSel<T>(rows: T[], key: (r: T) => string = r => (r as { id: string }).id) {
   const [id, setId] = useState<string | null>(null)
-  const cur = rows.find(r => r.id === id) ?? null
-  return { cur, is: (r: T) => cur?.id === r.id, toggle: (r: T) => setId(cur?.id === r.id ? null : r.id), clear: () => setId(null) }
+  const cur = rows.find(r => key(r) === id) ?? null
+  const is = (r: T) => cur !== null && key(cur) === key(r)
+  return { cur, is, toggle: (r: T) => setId(is(r) ? null : key(r)), clear: () => setId(null) }
 }
 
 export function SelTh() {

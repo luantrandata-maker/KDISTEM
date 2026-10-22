@@ -1,3 +1,4 @@
+import { SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useEduLevels, type EduLevel } from '../lib/eduLevels'
@@ -14,6 +15,7 @@ const GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
 
 export function EduLevelsCatalog() {
   const { all, reload } = useEduLevels()
+  const lsel = useRowSel(all, l => l.code)
   const [admin, setAdmin] = useState(false)
   const [used, setUsed] = useState<Record<string, number>>({})
   const [form, setForm] = useState<(EduLevel & { isNew?: boolean }) | null>(null)
@@ -72,19 +74,21 @@ export function EduLevelsCatalog() {
           <div className="formactions"><button className="primary" type="submit">{form.isNew ? 'Thêm' : 'Lưu'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
       )}
+      {admin && (() => { const l = lsel.cur; return (
+        <SelBar picked={l?.name ?? null}>
+          <button disabled={!l} onClick={() => { if (l) { setMsg(null); setForm({ ...l }) } }}>Sửa</button>
+          <button disabled={!l} onClick={() => l && setActive(l, l.active === false)}>{l?.active === false ? 'Dùng lại' : 'Ngừng dùng'}</button>
+          <button className="danger" disabled={!l} onClick={() => { if (l) { remove(l); lsel.clear() } }}>Xoá</button>
+        </SelBar>) })()}
       <div className="wrap"><table>
-        <thead><tr><th>Cấp học</th><th>Mã</th><th>Khối</th><th>Chương trình</th><th></th></tr></thead>
+        <thead><tr>{admin && <SelTh />}<th>Cấp học</th><th>Mã</th><th>Khối</th><th>Chương trình</th></tr></thead>
         <tbody>{all.map(l => (
-          <tr key={l.code} style={l.active === false ? { opacity: 0.6 } : undefined}>
+          <tr key={l.code} className={lsel.is(l) ? 'picked' : undefined} style={l.active === false ? { opacity: 0.6 } : undefined}>
+            {admin && <SelTd on={lsel.is(l)} onToggle={() => lsel.toggle(l)} label={l.name} />}
             <td><b>{l.name}</b>{l.active === false && <> <span className="pill">Ngừng dùng</span></>}</td>
             <td><small className="sub">{l.code}</small></td>
             <td>Khối {l.grade_from}{l.grade_to !== l.grade_from ? `–${l.grade_to}` : ''}</td>
             <td>{used[l.code] ?? 0}</td>
-            <td className="tools">{admin && <>
-              <button onClick={() => { setMsg(null); setForm({ ...l }) }}>Sửa</button>
-              <button onClick={() => setActive(l, l.active === false)}>{l.active === false ? 'Dùng lại' : 'Ngừng dùng'}</button>
-              <button className="danger" onClick={() => remove(l)}>Xoá</button>
-            </>}</td>
           </tr>))}</tbody>
       </table></div>
     </>

@@ -1,3 +1,4 @@
+import { NameLink } from '../../components/TableSel'
 import { Icon } from '../../components/Icon'
 // Giáo viên → Kho hoạt động & Bài giảng (migration 030)
 // Hoạt động của tôi · Kho của trường (mẫu + đồng nghiệp đã xuất bản) · Bài giảng có thể giao học trước.
@@ -454,13 +455,12 @@ function LessonBank({ rows, teacherId, go, onAssign }: { rows: LessonLite[]; tea
             </button>) })}
         </div>
       ) : (
-        <div className="wrap"><table><thead><tr><th>Bài giảng</th><th>CT</th><th>Môn · khối</th><th>Khối nội dung</th><th>Tương tác</th><th></th></tr></thead>
+        <div className="wrap"><table><thead><tr><th>Bài giảng</th><th>CT</th><th>Môn · khối</th><th>Khối nội dung</th><th>Tương tác</th></tr></thead>
           <tbody>{shown.map(l => { const st = stats.get(l.id)!; return (
-            <tr key={l.id}><td><b>{l.title}</b><br /><small className="sub">{l.teachers?.full_name ?? (l.is_template ? 'Mẫu của trường' : '')}</small></td>
+            <tr key={l.id}><td><NameLink onClick={() => setOpen(l)} title="Xem chi tiết">{l.title}</NameLink><br /><small className="sub">{l.teachers?.full_name ?? (l.is_template ? 'Mẫu của trường' : '')}</small></td>
               <td>{l.program && <span className="progchip" style={{ background: PROGRAM_COLOR[l.program], color: '#fff' }}>{l.program}</span>}</td>
               <td>{[l.subject, l.grades && 'Khối ' + l.grades].filter(Boolean).join(' · ')}</td><td>{st.blocks || '—'}</td>
-              <td>{st.kinds.map(k => <span key={k} title={INTERACTION[k]}><Icon n={KIND_ICON[k]} /> </span>)}</td>
-              <td><button onClick={() => setOpen(l)}>Xem chi tiết</button></td></tr>) })}</tbody></table></div>
+              <td>{st.kinds.map(k => <span key={k} title={INTERACTION[k]}><Icon n={KIND_ICON[k]} /> </span>)}</td></tr>) })}</tbody></table></div>
       )}
       {shown.length === 0 && <p className="sub">Chưa có bài giảng phù hợp.</p>}
       {open && <LessonModal l={open} teacherId={teacherId} go={go} onClose={() => setOpen(null)} onAssign={() => onAssign(open)} />}

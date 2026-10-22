@@ -1,3 +1,4 @@
+import { SelBar, SelTh, useRowSel } from '../../components/TableSel'
 import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { norm, downloadXlsx, type Column } from '../../lib/sheet'
@@ -87,6 +88,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
   }
 
   const drafts = list.filter(r => r.status === 'draft' && mine(r))
+  const qsel = useRowSel(list.filter(mine))
   return (
     <>
       <div className="cards syscards">
@@ -118,29 +120,31 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
         </span>
         {drafts.length > 0 && <button onClick={() => setStatus(drafts.map(d => d.id), 'ready')}>Duyệt {drafts.length} câu nháp đang lọc</button>}
       </div>
+      {(() => { const r = qsel.cur; return (
+        <SelBar picked={r ? (r.stem.length > 40 ? r.stem.slice(0, 40) + '…' : r.stem) : null}>
+          <button disabled={!r} onClick={() => r && setForm({ id: r.id, subject: r.subject, grade: r.grade ? String(r.grade) : '', topic: r.topic ?? '', level: r.level, kind: r.kind, stem: r.stem,
+            options: [...r.options, ...Array(Math.max(0, 4 - r.options.length)).fill('')], answer: r.answer, explain: r.explain ?? '', shared: r.shared, status: r.status })}>Sửa</button>
+          <button disabled={!r || r.status === 'ready'} onClick={() => r && setStatus([r.id], 'ready')}>Duyệt — Sẵn sàng</button>
+          <button disabled={!r || r.status === 'retired'} onClick={() => r && setStatus([r.id], 'retired')}>Ngừng dùng</button>
+          <button className="danger" disabled={!r || r.created_by !== me} onClick={() => { if (r) { remove(r); qsel.clear() } }}>Xoá</button>
+        </SelBar>) })()}
       <div className="wrap"><table className="systable">
-        <thead><tr><th>Câu hỏi</th><th>Môn · khối</th><th>Mức độ</th><th>Loại</th><th>Nguồn</th><th>Trạng thái</th></tr></thead>
+        <thead><tr><SelTh /><th>Câu hỏi</th><th>Môn · khối</th><th>Mức độ</th><th>Loại</th><th>Nguồn</th><th>Trạng thái</th></tr></thead>
         <tbody>
           {list.slice(0, 300).map(r => <Fragment key={r.id}>
-            <tr className="clickrow" onClick={() => setOpen(open === r.id ? null : r.id)}>
+            <tr className={'clickrow' + (qsel.is(r) ? ' picked' : '')} onClick={() => setOpen(open === r.id ? null : r.id)}>
+              <td className="sel" onClick={e => e.stopPropagation()}>{mine(r) && <input type="checkbox" checked={qsel.is(r)} onChange={() => qsel.toggle(r)} aria-label="Chọn câu hỏi" />}</td>
               <td style={{ whiteSpace: 'normal', maxWidth: 460 }}><b>{r.stem.length > 140 ? r.stem.slice(0, 140) + '…' : r.stem}</b>{r.topic && <><br /><small>{r.topic}</small></>}</td>
               <td>{r.subject}{r.grade ? ` · ${r.grade}` : ''}</td><td>{LEVEL[r.level]}</td><td>{QKIND[r.kind]}</td>
               <td><small>{!mine(r) ? orgNames.get(r.org_id) ?? 'Cấp trên' : r.source === 'ai' ? 'Trợ lý AI' : r.source === 'import' ? 'Nhập Excel' : 'Soạn tay'}{r.shared && mine(r) ? ' · dùng chung' : ''}</small></td>
               <td><span className={'pill ' + (r.status === 'ready' ? 'active' : r.status === 'draft' ? 'maintenance' : 'inactive')}>{r.status === 'ready' ? 'Sẵn sàng' : r.status === 'draft' ? 'Nháp' : 'Ngừng dùng'}</span></td>
             </tr>
-            {open === r.id && <tr><td colSpan={6}>
+            {open === r.id && <tr><td colSpan={7}>
               <ol className="qopts" type="A">{r.options.map((o, i) => <li key={i} className={r.answer.includes(i) ? 'right' : ''}>{o}</li>)}</ol>
               {r.explain && <p className="sub">Giải thích: {r.explain}</p>}
-              {mine(r) && <div className="tools">
-                <button onClick={() => setForm({ id: r.id, subject: r.subject, grade: r.grade ? String(r.grade) : '', topic: r.topic ?? '', level: r.level, kind: r.kind, stem: r.stem,
-                  options: [...r.options, ...Array(Math.max(0, 4 - r.options.length)).fill('')], answer: r.answer, explain: r.explain ?? '', shared: r.shared, status: r.status })}>Sửa</button>
-                {r.status !== 'ready' && <button onClick={() => setStatus([r.id], 'ready')}>Duyệt — Sẵn sàng</button>}
-                {r.status !== 'retired' && <button onClick={() => setStatus([r.id], 'retired')}>Ngừng dùng</button>}
-                {(r.created_by === me) && <button className="xbtn" onClick={() => remove(r)}>Xoá</button>}
-              </div>}
             </td></tr>}
           </Fragment>)}
-          {!list.length && <tr><td colSpan={6}>Chưa có câu hỏi. Thêm tay, nhập Excel theo file mẫu, hoặc tạo bằng Trợ lý AI.</td></tr>}
+          {!list.length && <tr><td colSpan={7}>Chưa có câu hỏi. Thêm tay, nhập Excel theo file mẫu, hoặc tạo bằng Trợ lý AI.</td></tr>}
         </tbody>
       </table></div>
       {list.length > 300 && <p className="sub">Hiện 300/{list.length} câu — lọc để thu hẹp.</p>}

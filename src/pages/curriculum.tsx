@@ -38,7 +38,7 @@ type LessonRow = {
 }
 type Outcome = { book_id: string; outcome_id: string; code: string | null; content: string; competency_key: string | null; unit_title: string | null; lessons: number; done: number; state: 'done' | 'partial' | 'todo' | 'unplanned' }
 type Evidence = { id: string; lesson_id: string; kind: string; url: string | null; path: string | null; file_name: string | null; note: string | null; created_at: string }
-type Change = { id: number; seq: number | null; action: string; reason: string | null; before: any; after: any; changed_at: string }
+type Change = { id: number; seq: number | null; action: string; reason: string | null; reason_code: ReasonCode | null; before: any; after: any; changed_at: string }
 
 export const KIND: Record<Kind, string> = { lesson: 'Bài học', stem: 'Chủ đề STEM', practice: 'Thực hành', review: 'Ôn tập', test: 'Kiểm tra' }
 const KIND_PILL: Record<Kind, string> = { lesson: '', stem: 'good', practice: '', review: 'warn', test: 'bad' }
@@ -50,9 +50,37 @@ const STATE: Record<LessonState, [string, string]> = {
 }
 const termOf = (l: Pick<Lesson, 'term' | 'week'>) => l.term ?? (l.week ? (l.week <= 18 ? 1 : 2) : null)
 const HK = (t: number | null) => (t === 1 ? 'HK I' : t === 2 ? 'HK II' : '—')
-// Hỏi lý do khi điều chỉnh PPCT đang dùng; null = huỷ
-const askReason = (b: Pick<Book, 'status'>, what: string): string | null | undefined =>
-  b.status !== 'published' ? undefined : prompt(`PPCT đang dùng — lý do ${what} (ghi vào nhật ký điều chỉnh):`, '')
+// Lý do điều chỉnh theo danh mục (074)
+export type ReasonCode = 'holiday' | 'equipment' | 'reteach' | 'directive' | 'other'
+export const REASONS: Record<ReasonCode, string> = {
+  holiday: 'Nghỉ đột xuất (lễ, thời tiết, sự kiện)', equipment: 'Thiếu thiết bị / vật tư', reteach: 'Học sinh chưa đạt, cần dạy lại',
+  directive: 'Theo chỉ đạo của cấp trên', other: 'Khác',
+}
+export type Reason = { code: ReasonCode; text: string }
+// Hỏi lý do (mã + ghi chú). Trả về: undefined = PPCT chưa dùng, không cần lý do · null = huỷ · Reason
+export function useReasonDialog() {
+  const [st, setSt] = useState<{ what: string; code: ReasonCode; text: string; resolve: (r: Reason | null) => void } | null>(null)
+  function ask(b: Pick<Book, 'status'>, what: string, always = false): Promise<Reason | null | undefined> {
+    if (b.status !== 'published' && !always) return Promise.resolve(undefined)
+    return new Promise(resolve => setSt({ what, code: 'other', text: '', resolve }))
+  }
+  const close = (r: Reason | null) => { st?.resolve(r); setSt(null) }
+  const dialog = st && (
+    <div className="modalbg" role="dialog" aria-modal="true" aria-label="Lý do điều chỉnh">
+      <form className="modal" style={{ width: 'min(480px,100%)' }} onSubmit={e => { e.preventDefault(); close({ code: st.code, text: st.text.trim() }) }}>
+        <div className="modalhead"><div><h3>Lý do {st.what}</h3><small>PPCT đang dùng — lý do được ghi vào nhật ký điều chỉnh.</small></div></div>
+        <div className="modalbody">
+          <label className="field"><span>Lý do</span><select value={st.code} onChange={e => setSt({ ...st, code: e.target.value as ReasonCode })} autoFocus>
+            {(Object.keys(REASONS) as ReasonCode[]).map(k => <option key={k} value={k}>{REASONS[k]}</option>)}</select></label>
+          <label className="field"><span>Ghi chú{st.code === 'other' ? ' *' : ''}</span><input value={st.text} required={st.code === 'other'} onChange={e => setSt({ ...st, text: e.target.value })} placeholder="VD: nghỉ 2 ngày do bão số 3" /></label>
+        </div>
+        <div className="modalfoot"><button type="button" onClick={() => close(null)}>Huỷ</button><button className="primary" type="submit">Ghi lý do</button></div>
+      </form>
+    </div>
+  )
+  return { ask, dialog }
+}
+const reasonText = (r: Reason) => r.text || REASONS[r.code]
 export const errText = (m: string) => (/schema cache|does not exist|curriculum_lessons/i.test(m) && /exist|cache/i.test(m) ? 'Hãy chạy migration 057 trên Supabase.'
   : /row-level|42501/i.test(m) ? 'Bạn không có quyền sửa phân phối chương trình của đơn vị này.'
   : /duplicate|unique/i.test(m) ? 'Trùng số tiết — mỗi tiết trong một môn chỉ có một dòng.' : m)
@@ -254,7 +282,8 @@ const kindOf = (s: string): Kind => {
   return (Object.keys(KIND) as Kind[]).find(k => norm(KIND[k]) === n || n.includes(norm(KIND[k]).split(' ')[0])) ?? (n.includes('stem') ? 'stem' : 'lesson')
 }
 const termIn = (s: string): number | null => { const n = norm(s); return !n ? null : /(^| )(2|ii)( |$)/.test(n) ? 2 : /(^| )(1|i)( |$)/.test(n) ? 1 : null }
-const ACTION: Record<string, string> = { insert: 'Thêm tiết', update: 'Sửa tiết', delete: 'Xoá tiết', import: 'Nhập lại cả môn', reschedule: 'Xếp lại lịch' }
+const ACTION: Record<string, string> = { insert: 'Thêm tiết', update: 'Sửa tiết', delete: 'Xoá tiết', import: 'Nhập lại / sinh lại cả môn', reschedule: 'Xếp lại lịch',
+  shift: 'Dời tiết', swap: 'Đổi chỗ hai tiết', makeup: 'Chèn tiết dạy bù', version: 'Lưu phiên bản', publish: 'Công bố' }
 
 export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book: Book; canEdit: boolean; mode: PpctMode; onClose: () => void; onChanged: () => void }) {
   const [rows, setRows] = useState<Lesson[] | null>(null)
@@ -264,8 +293,9 @@ export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book
   const [edit, setEdit] = useState<Partial<Lesson> | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [busy, setBusy] = useState(false)
-  const [panel, setPanel] = useState<'' | 'classes' | 'log'>('')
+  const [panel, setPanel] = useState<'' | 'classes' | 'log' | 'adjust' | 'versions'>('')
   const [term, setTerm] = useState(0)
+  const { ask, dialog } = useReasonDialog()
   async function load() {
     const [l, t, u, y] = await Promise.all([
       supabase.from('curriculum_lessons').select('*').eq('book_id', book.id).order('seq'),
@@ -308,11 +338,11 @@ export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book
     e.preventDefault(); if (!edit) return
     const seq = Number(edit.seq)
     if (!seq || seq < 1) return setMsg(['Số tiết không hợp lệ.', true])
-    const reason = askReason(book, edit.id ? 'sửa tiết' : 'thêm tiết')
+    const reason = await ask(book, edit.id ? 'sửa tiết' : 'thêm tiết')
     if (reason === null) return
     const row = { book_id: book.id, seq, week: edit.week ? Number(edit.week) : (ppw ? Math.ceil(seq / ppw) : null), term: edit.term || null, title: (edit.title ?? '').trim(),
       kind: edit.kind ?? 'lesson', package_topic_id: edit.package_topic_id || null, unit_id: edit.unit_id || null, note: edit.note?.trim() || null,
-      ...(reason !== undefined ? { change_reason: reason || null } : {}) }
+      ...(reason ? { change_reason: reasonText(reason), change_reason_code: reason.code } : {}) }
     if (!row.title) return setMsg(['Nhập tên bài / nội dung tiết.', true])
     const { error } = edit.id ? await supabase.from('curriculum_lessons').update(row).eq('id', edit.id) : await supabase.from('curriculum_lessons').insert(row)
     if (error) return setMsg([errText(error.message), true])
@@ -320,9 +350,9 @@ export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book
   }
   async function del(l: Lesson) {
     if (!confirm(`Xoá tiết ${l.seq}: "${l.title}"?`)) return
-    const reason = askReason(book, 'xoá tiết')
+    const reason = await ask(book, 'xoá tiết')
     if (reason === null) return
-    if (reason) await supabase.from('curriculum_lessons').update({ change_reason: reason }).eq('id', l.id)
+    if (reason) await supabase.from('curriculum_lessons').update({ change_reason: reasonText(reason), change_reason_code: reason.code }).eq('id', l.id)
     const { error } = await supabase.from('curriculum_lessons').delete().eq('id', l.id)
     if (error) return setMsg([errText(error.message), true])
     await load(); onChanged()
@@ -330,11 +360,11 @@ export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book
   async function autoWeeks() {
     if (!ppw) return setMsg(['Nhập "Số tiết / tuần" của môn (nút Sửa ở danh sách) để tự chia tuần.', true])
     if (!confirm(`Đặt lại tuần cho mọi tiết theo ${ppw} tiết/tuần (tiết 1–${ppw} → tuần 1…)? Học kỳ tính lại theo tuần (tuần 1–18: HK I).`)) return
-    const reason = askReason(book, 'chia lại tuần')
+    const reason = await ask(book, 'chia lại tuần')
     if (reason === null) return
     setBusy(true)
     const list = rows ?? []
-    const res = await Promise.all(list.map(l => supabase.from('curriculum_lessons').update({ week: Math.ceil(l.seq / ppw), ...(reason ? { change_reason: reason } : {}) }).eq('id', l.id)))
+    const res = await Promise.all(list.map(l => supabase.from('curriculum_lessons').update({ week: Math.ceil(l.seq / ppw), ...(reason ? { change_reason: reasonText(reason), change_reason_code: reason.code } : {}) }).eq('id', l.id)))
     setBusy(false)
     const bad = res.find(r => r.error)
     setMsg(bad ? [errText(bad.error!.message), true] : [`Đã chia ${list.length} tiết vào ${Math.ceil(list.length / ppw)} tuần.`, false]); load()
@@ -357,9 +387,9 @@ export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book
     })
     if (!data.length) return importSummary(0, 'tiết', bad)
     if ((rows?.length ?? 0) > 0 && !confirm(`Môn này đã có ${rows!.length} tiết. Thay toàn bộ bằng ${data.length} tiết trong file?\n(Tiết dạy đã gắn với tiết cũ sẽ bỏ liên kết.)`)) return 'Đã huỷ nhập.'
-    const reason = askReason(book, 'nhập lại cả môn')
+    const reason = await ask(book, 'nhập lại cả môn')
     if (reason === null) return 'Đã huỷ nhập.'
-    const { error } = await supabase.rpc('curriculum_replace_lessons', { p_book: book.id, p_rows: data, p_reason: reason || null })
+    const { error } = await supabase.rpc('curriculum_replace_lessons', { p_book: book.id, p_rows: data, p_reason: reason ? reasonText(reason) : null, p_reason_code: reason?.code ?? null })
     if (error) return errText(error.message)
     await load(); onChanged()
     return importSummary(data.length, 'tiết', bad)
@@ -408,6 +438,8 @@ export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book
           {(rows?.length ?? 0) > 0 && <button onClick={exportRows}>Tải Excel</button>}
           {canEdit && (rows?.length ?? 0) > 0 && <button onClick={autoWeeks} disabled={busy}>Tự chia tuần</button>}
           {mode === 'school' && <button onClick={() => setPanel(panel === 'classes' ? '' : 'classes')}>Áp dụng cho lớp</button>}
+          {canEdit && (rows?.length ?? 0) > 0 && <button onClick={() => setPanel(panel === 'adjust' ? '' : 'adjust')}>Điều chỉnh hàng loạt</button>}
+          <button onClick={() => setPanel(panel === 'versions' ? '' : 'versions')}>Phiên bản</button>
           <button onClick={() => setPanel(panel === 'log' ? '' : 'log')}>Nhật ký điều chỉnh</button>
           {canEdit && <button className="primary" onClick={() => setEdit({ seq: (rows?.length ? rows[rows.length - 1].seq : 0) + 1, kind: 'lesson' })}>Thêm tiết</button>}
         </div>
@@ -421,6 +453,9 @@ export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {panel === 'classes' && <BookClasses book={book} canEdit={canEdit} onMsg={setMsg} />}
       {panel === 'log' && <ChangeLog bookId={book.id} />}
+      {panel === 'adjust' && <AdjustPanel book={book} rows={rows ?? []} ask={ask} onDone={async m => { setMsg([m, false]); await load(); onChanged() }} onError={m => setMsg([m, true])} />}
+      {panel === 'versions' && <Versions book={book} rows={rows ?? []} canEdit={canEdit} ask={ask} />}
+      {dialog}
       {rows && rows.length > 0 && <div className="segmented" style={{ margin: '0 0 8px' }}>
         {[0, 1, 2].map(t => <button key={t} className={term === t ? 'on' : ''} onClick={() => setTerm(t)}>{t ? HK(t) : 'Cả năm'}</button>)}
       </div>}
@@ -494,8 +529,9 @@ function ChangeLog({ bookId }: { bookId: string }) {
           <thead><tr><th>Thời gian</th><th>Thao tác</th><th>Trước</th><th>Sau</th><th>Lý do</th></tr></thead>
           <tbody>{rows.map(r => (
             <tr key={r.id}><td><small>{new Date(r.changed_at).toLocaleString('vi-VN')}</small></td><td>{ACTION[r.action] ?? r.action}</td>
-              <td><small>{r.action === 'import' ? '' : desc(r.before)}</small></td><td><small>{r.action === 'import' ? `${r.after?.count ?? 0} tiết` : desc(r.after)}</small></td>
-              <td>{r.reason ?? <small className="sub">không ghi</small>}</td></tr>
+              <td><small>{['insert', 'update', 'delete'].includes(r.action) ? desc(r.before) : ''}</small></td>
+              <td><small>{['insert', 'update', 'delete'].includes(r.action) ? desc(r.after) : r.after?.count != null ? `${r.after.count} tiết` : r.after?.version ? `v${r.after.version}` : ''}</small></td>
+              <td>{r.reason_code && <span className="gpill">{REASONS[r.reason_code]}</span>} {r.reason ?? (!r.reason_code && <small className="sub">không ghi</small>)}</td></tr>
           ))}</tbody>
         </table></div>
       )}
@@ -779,5 +815,125 @@ function ClassDetail({ row, mode, onClose }: { row: Progress; mode: PpctMode; on
         </table></div>
       )}
     </>
+  )
+}
+
+// ================= Điều chỉnh hàng loạt (074) =================
+type Ask = (b: Pick<Book, 'status'>, what: string, always?: boolean) => Promise<Reason | null | undefined>
+function AdjustPanel({ book, rows, ask, onDone, onError }: { book: Book; rows: Lesson[]; ask: Ask; onDone: (m: string) => void; onError: (m: string) => void }) {
+  const last = rows.length ? rows[rows.length - 1].seq : 1
+  const [shift, setShift] = useState({ from: 1, weeks: 1 })
+  const [swap, setSwap] = useState({ a: 1, b: Math.min(2, last) })
+  const [ins, setIns] = useState({ after: last, title: '', kind: 'lesson' as Kind, week: '' })
+  const [busy, setBusy] = useState(false)
+  const t = (seq: number) => rows.find(r => r.seq === seq)?.title ?? '—'
+  async function run(what: string, fn: (r: Reason | undefined) => PromiseLike<{ data: any; error: { message: string } | null }>, ok: (d: any) => string) {
+    const r = await ask(book, what)
+    if (r === null) return
+    setBusy(true)
+    const { data, error } = await fn(r)
+    setBusy(false)
+    if (error) return onError(errText(error.message))
+    onDone(ok(data))
+  }
+  const rc = (r: Reason | undefined) => ({ p_reason_code: r?.code ?? null, p_reason: r ? reasonText(r) : null })
+  return (
+    <div className="panel adjust" style={{ marginBottom: 12 }}>
+      <b>Điều chỉnh hàng loạt</b> <small className="sub">{book.status === 'published' ? 'PPCT đang dùng: mỗi lần điều chỉnh hỏi lý do, ghi nhật ký và lưu một phiên bản.' : 'Áp dụng ngay cho PPCT nháp.'}</small>
+      <div className="adjgrid">
+        <form onSubmit={e => { e.preventDefault(); run('dời tiết', r => supabase.rpc('curriculum_shift', { p_book: book.id, p_from_seq: shift.from, p_weeks: shift.weeks, ...rc(r) }), d => `Đã dời ${d} tiết ${shift.weeks > 0 ? 'lùi' : 'tiến'} ${Math.abs(shift.weeks)} tuần.`) }}>
+          <h4>Dời tiết</h4>
+          <label className="field"><span>Từ tiết</span><input type="number" min={1} max={last} value={shift.from} onChange={e => setShift({ ...shift, from: Number(e.target.value) || 1 })} /></label>
+          <small className="sub">{t(shift.from)}</small>
+          <label className="field"><span>Số tuần (âm = dời lên sớm)</span><input type="number" min={-20} max={20} value={shift.weeks} onChange={e => setShift({ ...shift, weeks: Number(e.target.value) || 0 })} /></label>
+          <button className="primary" disabled={busy || !shift.weeks}>Dời {shift.weeks >= 0 ? 'lùi' : 'lên'} {Math.abs(shift.weeks)} tuần</button>
+        </form>
+        <form onSubmit={e => { e.preventDefault(); run('đổi chỗ hai tiết', r => supabase.rpc('curriculum_swap', { p_book: book.id, p_a: swap.a, p_b: swap.b, ...rc(r) }), () => `Đã đổi chỗ tiết ${swap.a} và tiết ${swap.b}.`) }}>
+          <h4>Đổi chỗ hai bài</h4>
+          <label className="field"><span>Tiết</span><input type="number" min={1} max={last} value={swap.a} onChange={e => setSwap({ ...swap, a: Number(e.target.value) || 1 })} /></label>
+          <small className="sub">{t(swap.a)}</small>
+          <label className="field"><span>với tiết</span><input type="number" min={1} max={last} value={swap.b} onChange={e => setSwap({ ...swap, b: Number(e.target.value) || 1 })} /></label>
+          <small className="sub">{t(swap.b)}</small>
+          <button className="primary" disabled={busy || swap.a === swap.b}>Đổi chỗ</button>
+        </form>
+        <form onSubmit={e => { e.preventDefault(); run('chèn tiết', r => supabase.rpc('curriculum_insert_after', { p_book: book.id, p_after_seq: ins.after, p_title: ins.title, p_kind: ins.kind, p_week: Number(ins.week) || null, ...rc(r) }), d => `Đã chèn "${ins.title}" thành tiết ${d}; các tiết sau lùi một số.`) }}>
+          <h4>Chèn tiết dạy bù / bổ sung</h4>
+          <label className="field"><span>Sau tiết</span><input type="number" min={0} max={last} value={ins.after} onChange={e => setIns({ ...ins, after: Number(e.target.value) || 0 })} /></label>
+          <label className="field"><span>Tên tiết *</span><input required value={ins.title} onChange={e => setIns({ ...ins, title: e.target.value })} placeholder="VD: Dạy bù bài 4" /></label>
+          <div className="formgrid" style={{ gap: 8 }}>
+            <label className="field"><span>Loại</span><select value={ins.kind} onChange={e => setIns({ ...ins, kind: e.target.value as Kind })}>{(Object.keys(KIND) as Kind[]).map(k => <option key={k} value={k}>{KIND[k]}</option>)}</select></label>
+            <label className="field"><span>Tuần</span><input type="number" min={1} max={52} value={ins.week} onChange={e => setIns({ ...ins, week: e.target.value })} placeholder="như tiết trước" /></label>
+          </div>
+          <button className="primary" disabled={busy || !ins.title.trim()}>Chèn tiết</button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ================= Phiên bản PPCT: danh sách + so sánh (074) =================
+type Version = { id: string; version_no: number; action: string; reason_code: ReasonCode | null; reason: string | null; lessons: { seq: number; week: number | null; term: number | null; title: string; kind: string }[]; created_at: string; profiles?: { full_name: string } | null }
+function Versions({ book, rows, canEdit, ask }: { book: Book; rows: Lesson[]; canEdit: boolean; ask: Ask }) {
+  const [list, setList] = useState<Version[] | null>(null)
+  const [a, setA] = useState<string>('')
+  const [b, setB] = useState<string>('current')
+  const [msg, setMsg] = useState('')
+  async function load() {
+    const { data } = await supabase.from('curriculum_book_versions').select('*, profiles(full_name)').eq('book_id', book.id).order('version_no', { ascending: false })
+    const vs = (data as Version[]) ?? []
+    setList(vs); setA(cur => cur || vs[0]?.id || '')
+  }
+  useEffect(() => { load() }, [book.id])
+  async function save() {
+    const r = await ask(book, 'lưu phiên bản', true)
+    if (r === null) return
+    const { data, error } = await supabase.rpc('curriculum_snapshot', { p_book: book.id, p_reason_code: r?.code ?? null, p_reason: r ? reasonText(r) : null })
+    setMsg(error ? errText(error.message) : `Đã lưu phiên bản v${data}.`); load()
+  }
+  const cur = rows.map(l => ({ seq: l.seq, week: l.week, term: l.term, title: l.title, kind: l.kind }))
+  const pick = (id: string) => (id === 'current' ? cur : list?.find(v => v.id === id)?.lessons ?? [])
+  const A = pick(a), B = pick(b)
+  const seqs = [...new Set([...A.map(x => x.seq), ...B.map(x => x.seq)])].sort((x, y) => x - y)
+  const diff = seqs.map(seq => {
+    const x = A.find(l => l.seq === seq), y = B.find(l => l.seq === seq)
+    const kind = !x ? 'add' : !y ? 'del' : x.title !== y.title ? 'title' : x.week !== y.week ? 'week' : ''
+    return { seq, x, y, kind }
+  }).filter(d => d.kind)
+  const label = (v: Version) => `v${v.version_no} · ${ACTION[v.action] ?? v.action} · ${new Date(v.created_at).toLocaleDateString('vi-VN')}`
+  return (
+    <div className="panel" style={{ marginBottom: 12 }}>
+      <div className="bar"><div><b>Phiên bản</b> <small className="sub">Tự lưu khi công bố và sau mỗi lần điều chỉnh hàng loạt PPCT đang dùng.</small></div>
+        {canEdit && <button onClick={save}>Lưu phiên bản hiện tại</button>}</div>
+      {msg && <p className="sub"><b>{msg}</b></p>}
+      {!list ? <p className="sub">Đang tải…</p> : list.length === 0 ? <p className="sub" style={{ margin: 0 }}>Chưa có phiên bản nào.</p> : (
+        <>
+          <div className="wrap"><table>
+            <thead><tr><th>Phiên bản</th><th>Thao tác</th><th>Số tiết</th><th>Lý do</th><th>Người lưu</th><th>Thời gian</th></tr></thead>
+            <tbody>{list.map(v => (
+              <tr key={v.id}><td><b>v{v.version_no}</b></td><td>{ACTION[v.action] ?? v.action}</td><td>{v.lessons.length}</td>
+                <td>{v.reason_code && <span className="gpill">{REASONS[v.reason_code]}</span>} {v.reason}</td>
+                <td><small>{v.profiles?.full_name ?? ''}</small></td><td><small>{new Date(v.created_at).toLocaleString('vi-VN')}</small></td></tr>
+            ))}</tbody>
+          </table></div>
+          <div className="tools" style={{ margin: '12px 0 8px' }}>
+            <b>So sánh</b>
+            <select value={a} onChange={e => setA(e.target.value)} aria-label="Bản trước">{list.map(v => <option key={v.id} value={v.id}>{label(v)}</option>)}</select>
+            <span>với</span>
+            <select value={b} onChange={e => setB(e.target.value)} aria-label="Bản sau"><option value="current">Hiện tại</option>{list.map(v => <option key={v.id} value={v.id}>{label(v)}</option>)}</select>
+          </div>
+          {diff.length === 0 ? <p className="sub" style={{ margin: 0 }}>Hai bản giống nhau.</p> : (
+            <div className="wrap"><table>
+              <thead><tr><th>Tiết</th><th>Bản trước</th><th>Bản sau</th><th>Thay đổi</th></tr></thead>
+              <tbody>{diff.map(d => (
+                <tr key={d.seq} className={'diff ' + d.kind}><td><b>{d.seq}</b></td>
+                  <td><small>{d.x ? `Tuần ${d.x.week ?? '—'} · ${d.x.title}` : '—'}</small></td>
+                  <td><small>{d.y ? `Tuần ${d.y.week ?? '—'} · ${d.y.title}` : '—'}</small></td>
+                  <td>{{ add: 'Thêm', del: 'Bỏ', title: 'Đổi nội dung', week: 'Đổi tuần' }[d.kind]}</td></tr>
+              ))}</tbody>
+            </table></div>
+          )}
+        </>
+      )}
+    </div>
   )
 }

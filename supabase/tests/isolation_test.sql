@@ -2480,6 +2480,39 @@ select pg_temp.chk('admin_ph', 'Lớp × môn: PPCT khác khối / môn bị t�
 select pg_temp.chk('gv_both', 'Lớp × môn: giáo viên không đổi PPCT của lớp',
   $q$select curriculum_set_class_book(x.class_id, 'ISO Toán PPCT', x.book_id)::text from curriculum_book_classes x where x.book_id = (select id from curriculum_books where title = 'ISO PPCT lớp thử') limit 1$q$, 'ERR*');
 
+-- ===== 074: điều chỉnh có lý do, phiên bản, kế hoạch / thực hiện, cảnh báo lớp chậm =====
+update curriculum_lessons set week = seq where book_id = (select id from curriculum_books where title = 'ISO PPCT lớp thử');
+select pg_temp.probe('admin_ph@iso-test.local', $q$select curriculum_shift((select id from curriculum_books where title = 'ISO PPCT lớp thử'), 8, 2, 'holiday', 'ISO nghỉ bão')$q$, true);
+select pg_temp.chk('admin_ph', 'Điều chỉnh: dời tiết từ tiết 8 lùi 2 tuần, nhật ký có mã lý do, có phiên bản sau điều chỉnh',
+  $q$select (select week from curriculum_lessons where book_id = b.id and seq = 10) || '|' ||
+            (select action || ':' || reason_code || ':' || reason from curriculum_changes where book_id = b.id order by id desc limit 1) || '|' ||
+            (select string_agg(action, ',' order by version_no) from curriculum_book_versions where book_id = b.id)
+     from curriculum_books b where b.title = 'ISO PPCT lớp thử'$q$, '12|shift:holiday:ISO nghỉ bão|shift');
+select pg_temp.chk('gv_both', 'Điều chỉnh: giáo viên không dời tiết', $q$select curriculum_shift((select id from curriculum_books where title = 'ISO PPCT lớp thử'), 1, 1)::text$q$, 'ERR');
+select pg_temp.probe('admin_ph@iso-test.local', $q$select curriculum_swap((select id from curriculum_books where title = 'ISO PPCT lớp thử'), 9, 10, 'reteach')$q$, true);
+select pg_temp.probe('admin_ph@iso-test.local', $q$select curriculum_insert_after((select id from curriculum_books where title = 'ISO PPCT lớp thử'), 5, 'ISO dạy bù', 'lesson', null, 'reteach')$q$, true);
+select pg_temp.chk('admin_ph', 'Điều chỉnh: đổi chỗ 2 tiết, chèn tiết dạy bù sau tiết 5 (các tiết sau lùi số)',
+  $q$select (select string_agg(seq || '=' || title, ',' order by seq) from curriculum_lessons where book_id = b.id and seq in (6, 10, 11)) || '|' || b.total_periods
+     from curriculum_books b where b.title = 'ISO PPCT lớp thử'$q$, '6=ISO dạy bù,10=ISO tiết 10,11=ISO tiết 9 sửa|11');
+select pg_temp.probe('admin_ph@iso-test.local', $q$update curriculum_lessons set change_reason = 'ISO bớt tiết', change_reason_code = 'directive' where book_id = (select id from curriculum_books where title = 'ISO PPCT lớp thử') and seq = 11$q$, true);
+select pg_temp.probe('admin_ph@iso-test.local', $q$delete from curriculum_lessons where book_id = (select id from curriculum_books where title = 'ISO PPCT lớp thử') and seq = 11$q$, true);
+select pg_temp.chk('admin_ph', 'Điều chỉnh: xoá tiết ghi nhật ký kèm mã lý do',
+  $q$select action || ':' || reason_code from curriculum_changes where book_id = (select id from curriculum_books where title = 'ISO PPCT lớp thử') and action = 'delete' order by id desc limit 1$q$, 'delete:directive');
+select pg_temp.chk('admin_ph', 'Phiên bản: người soạn lưu phiên bản', $q$select (curriculum_snapshot((select id from curriculum_books where title = 'ISO PPCT lớp thử'), 'other', 'ISO lưu') > 1)::text$q$, 'true');
+select pg_temp.chk('gv_both', 'Phiên bản: giáo viên không lưu phiên bản', $q$select curriculum_snapshot((select id from curriculum_books where title = 'ISO PPCT lớp thử'))::text$q$, 'ERR');
+select pg_temp.chk('gv_both', 'Phiên bản: giáo viên xem được các phiên bản', $q$select (count(*) >= 3)::text from curriculum_book_versions where book_id = (select id from curriculum_books where title = 'ISO PPCT lớp thử')$q$, 'true');
+select pg_temp.probe('admin_ph@iso-test.local', $q$update curriculum_books set status = 'published' where title = 'ISO PPCT tự duyệt'$q$, true);
+select pg_temp.chk('admin_ph', 'Phiên bản: công bố PPCT tự lưu phiên bản "công bố"',
+  $q$select string_agg(action, ',') from curriculum_book_versions where book_id = (select id from curriculum_books where title = 'ISO PPCT tự duyệt')$q$, 'publish');
+select pg_temp.chk('admin_ph', 'Kế hoạch / thực hiện: số tiết kế hoạch theo tuần học của trường', $q$select (sum(planned) > 0 and count(*) > 0)::text from curriculum_weekly(my_org_id())$q$, 'true');
+select pg_temp.chk('so_bn', 'Kế hoạch / thực hiện: Sở khác không thấy trường A', format($q$select coalesce(sum(planned), 0)::text from curriculum_weekly(%L)$q$, pg_temp.oid_('THCS-PH')), '0');
+select pg_temp.chk('admin_ph', 'Cảnh báo: trường đặt ngưỡng lớp chậm', $q$insert into curriculum_alert_settings (org_id, lag_threshold) values (my_org_id(), 2)$q$, 'rows:1');
+select pg_temp.chk('gv_both', 'Cảnh báo: giáo viên không đổi ngưỡng', $q$insert into curriculum_alert_settings (org_id, lag_threshold) values (my_org_id(), 2)$q$, 'ERR');
+select pg_temp.chk('gv_both', 'Cảnh báo: giáo viên không gửi cảnh báo', $q$select curriculum_lag_alerts()::text$q$, 'ERR');
+select pg_temp.chk('admin_ph', 'Cảnh báo: trường gửi cảnh báo lớp chậm ngay', $q$select (curriculum_lag_alerts() >= 0)::text$q$, 'true');
+select pg_temp.chk('admin_ph', 'Cảnh báo: không gọi trực tiếp hàm quét toàn hệ thống', $q$select curriculum_lag_scan()::text$q$, 'ERR');
+delete from notifications where kind in ('curriculum_lag', 'curriculum_cut');
+
 -- ===== 069: trường thử nghiệm cho KDI =====
 drop table if exists t_sandbox;
 create temp table t_sandbox as select exists (select 1 from organizations where code = 'KDI-SANDBOX') as existed;

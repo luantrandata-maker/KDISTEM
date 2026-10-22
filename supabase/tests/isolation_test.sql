@@ -2460,6 +2460,26 @@ select pg_temp.probe('kdi@iso-test.local', $q$select curriculum_reschedule((sele
 select pg_temp.chk('kdi', 'Xếp lại lịch: mẫu không năm học xếp từ tuần 1, mỗi tuần đủ số tiết / tuần',
   $q$select min(week) || '-' || max(week) || '|' || count(distinct week) from curriculum_lessons where book_id = (select id from curriculum_books where title = 'ISO CT KDI — khối 6' and org_id = platform_org_id())$q$, '1-4|4');
 
+-- ===== 073: gán chương trình cho nhiều trường, tạo sẵn PPCT, lớp × môn =====
+select pg_temp.chk('so_hy', 'Gán hàng loạt: Sở không gán cho trường ngoài địa bàn',
+  format($q$select edu_program_assign_bulk((select id from edu_programs where title = 'ISO CT KDI' and org_id = platform_org_id() and version_no = 2), array[%L]::uuid[], '{6}', true)::text$q$, pg_temp.oid_('THCS-KB')), 'ERR');
+select pg_temp.chk('so_bn', 'Gán hàng loạt: gán + tạo sẵn PPCT nháp từ chương trình cho khối được gán',
+  format($q$select edu_program_assign_bulk((select id from edu_programs where title = 'ISO CT KDI' and org_id = platform_org_id() and version_no = 2), array[%L]::uuid[], '{6,7}', true)::text$q$, pg_temp.oid_('THCS-KB')), '{"books": 1, "assigned": 1}');
+select pg_temp.probe('so_bn@iso-test.local', format($q$select edu_program_assign_bulk((select id from edu_programs where title = 'ISO CT KDI' and org_id = platform_org_id() and version_no = 2), array[%L]::uuid[], '{6}', true)::text$q$, pg_temp.oid_('THCS-KB')), true);
+select pg_temp.chk('so_bn', 'Gán hàng loạt: PPCT tạo sẵn là nháp của trường, theo năm học hiện tại, đủ tiết; gán lại không tạo trùng',
+  format($q$select count(distinct b.id) || ':' || min(b.status) || ':' || min(b.year_name) || ':' || count(l.id) || ':'
+       || (select edu_program_assign_bulk((select id from edu_programs where title = 'ISO CT KDI' and org_id = platform_org_id() and version_no = 2), array[%L]::uuid[], '{6}', true)->>'books')
+     from curriculum_books b join curriculum_lessons l on l.book_id = b.id where b.org_id = %L and b.title = 'ISO CT KDI — khối 6'$q$, pg_temp.oid_('THCS-KB'), pg_temp.oid_('THCS-KB')), '1:draft:2025-2026:4:0');
+select pg_temp.chk('gv_both', 'Gán hàng loạt: giáo viên không tạo PPCT cho trường',
+  format($q$select curriculum_seed_school_books((select id from edu_programs where title = 'ISO CT KDI' and org_id = platform_org_id() and version_no = 2), %L)::text$q$, pg_temp.oid_('THCS-KB')), 'ERR');
+select pg_temp.chk('admin_ph', 'Lớp × môn: thấy lớp nào đang theo PPCT nào', $q$select (count(*) > 0)::text from curriculum_class_coverage() where book_id = (select id from curriculum_books where title = 'ISO PPCT lớp thử')$q$, 'true');
+select pg_temp.probe('admin_ph@iso-test.local', $q$select curriculum_set_class_book(c.class_id, 'ISO Toán PPCT', c.book_id) from curriculum_class_coverage() c where c.book_id = (select id from curriculum_books where title = 'ISO PPCT lớp thử') order by c.class_name limit 1$q$, true);
+select pg_temp.chk('admin_ph', 'Lớp × môn: chọn riêng PPCT cho lớp', $q$select bool_or(explicit)::text from curriculum_class_coverage() where book_id = (select id from curriculum_books where title = 'ISO PPCT lớp thử')$q$, 'true');
+select pg_temp.chk('admin_ph', 'Lớp × môn: PPCT khác khối / môn bị từ chối',
+  $q$select curriculum_set_class_book(c.class_id, 'ISO Toán PPCT', (select id from curriculum_books where title = 'ISO PPCT tự duyệt')) from curriculum_class_coverage() c where c.book_id = (select id from curriculum_books where title = 'ISO PPCT lớp thử') limit 1$q$, 'ERR*');
+select pg_temp.chk('gv_both', 'Lớp × môn: giáo viên không đổi PPCT của lớp',
+  $q$select curriculum_set_class_book(x.class_id, 'ISO Toán PPCT', x.book_id)::text from curriculum_book_classes x where x.book_id = (select id from curriculum_books where title = 'ISO PPCT lớp thử') limit 1$q$, 'ERR*');
+
 -- ===== 069: trường thử nghiệm cho KDI =====
 drop table if exists t_sandbox;
 create temp table t_sandbox as select exists (select 1 from organizations where code = 'KDI-SANDBOX') as existed;

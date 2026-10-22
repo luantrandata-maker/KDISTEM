@@ -610,3 +610,218 @@ export function Schedule({ orgId, mode = 'school', year, years }: { orgId: strin
     </>
   )
 }
+
+// ================= Gán chương trình cho trường (KDI / Sở, 073) =================
+type Cov = { org_id: string; school: string; area: string | null; assigned: boolean; grades: number[] | null; books: number; classes: number }
+type Org = { id: string; name: string; type: string; parent_id: string | null }
+
+export function AssignPrograms({ orgId, mode = 'authority' }: { orgId: string | null; mode?: PpctMode }) {
+  const canEdit = useCanEdit(mode)
+  const programs = usePrograms(orgId)
+  const [progId, setProgId] = useState('')
+  const [orgs, setOrgs] = useState<Org[]>([])
+  const [cov, setCov] = useState<Map<string, Cov>>(new Map())
+  const [sel, setSel] = useState<Set<string>>(new Set())
+  const [grades, setGrades] = useState<number[]>([])
+  const [make, setMake] = useState(true)
+  const [q, setQ] = useState('')
+  const [only, setOnly] = useState<'all' | 'assigned' | 'not'>('all')
+  const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const [busy, setBusy] = useState(false)
+  const prog = programs.find(p => p.id === progId)
+
+  useEffect(() => { if (!progId && programs[0]) setProgId(programs[0].id) }, [programs])
+  useEffect(() => {
+    supabase.from('organizations').select('id, name, type, parent_id').order('name').then(({ data }) => setOrgs((data as Org[]) ?? []))
+  }, [orgId])
+  async function loadCov() {
+    if (!progId) return
+    const { data, error } = await supabase.rpc('edu_program_coverage', { p_program: progId })
+    if (error) setMsg([errText(error.message), true])
+    setCov(new Map(((data as Cov[]) ?? []).map(c => [c.org_id, c])))
+  }
+  useEffect(() => { loadCov(); setSel(new Set()); setGrades(prog ? range(prog.grade_from, prog.grade_to) : []) }, [progId, prog?.id])
+
+  const byId = useMemo(() => new Map(orgs.map(o => [o.id, o])), [orgs])
+  const schools = orgs.filter(o => o.type === 'school' && o.id !== orgId)
+  const area = (o: Org) => (o.parent_id ? byId.get(o.parent_id)?.name ?? '' : '')
+  const shown = schools.filter(o => {
+    const c = cov.get(o.id)
+    if (only === 'assigned' && !c?.assigned) return false
+    if (only === 'not' && c?.assigned) return false
+    return !q || norm(o.name + ' ' + area(o)).includes(norm(q))
+  })
+  const toggle = (id: string, on: boolean) => setSel(s => { const n = new Set(s); if (on) n.add(id); else n.delete(id); return n })
+
+  async function assign() {
+    if (!prog || sel.size === 0) return
+    if (!confirm(`Gán "${prog.title}" (khối ${grades.join(', ') || 'mọi khối'}) cho ${sel.size} trường${make ? ' và tạo sẵn PPCT nháp cho các trường' : ''}?`)) return
+    setBusy(true)
+    const { data, error } = await supabase.rpc('edu_program_assign_bulk', { p_program: prog.id, p_orgs: [...sel], p_grades: grades, p_make_books: make, p_note: null })
+    setBusy(false)
+    if (error) return setMsg([errText(error.message), true])
+    const r = data as { assigned: number; books: number }
+    setMsg([`Đã gán cho ${r.assigned} trường${make ? `, tạo sẵn ${r.books} PPCT nháp (khối + môn đã có PPCT trong năm học thì giữ nguyên)` : ''}.`, false])
+    setSel(new Set()); loadCov()
+  }
+  async function unassign(o: Org) {
+    if (!prog || !confirm(`Bỏ gán "${prog.title}" khỏi ${o.name}? PPCT trường đã tạo vẫn giữ nguyên.`)) return
+    const { error } = await supabase.from('edu_program_assignments').delete().eq('program_id', prog.id).eq('org_id', o.id)
+    if (error) return setMsg([errText(error.message), true])
+    loadCov()
+  }
+
+  const vals = [...cov.values()]
+  return (
+    <>
+      <p className="sub">Gán chương trình cho nhiều trường cùng lúc, chọn khối được học. Bật "Tạo sẵn PPCT nháp" để mỗi trường có ngay PPCT của từng khối, lấy từ mẫu PPCT đã ban hành{mode === 'authority' ? ' của Sở hoặc KDI' : ''} hoặc sinh từ chương trình.</p>
+      <div className="bar">
+        <div className="tools">
+          <select value={progId} onChange={e => setProgId(e.target.value)} aria-label="Chương trình" style={{ maxWidth: 360 }}>
+            {programs.length === 0 && <option value="">Chưa có chương trình</option>}
+            {programs.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version_no}) · khối {p.grade_from}{p.grade_to > p.grade_from ? '–' + p.grade_to : ''}{p.status !== 'published' ? ' · nháp' : ''}</option>)}
+          </select>
+          <input placeholder="Tìm trường, địa bàn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm trường" />
+          <div className="segmented" style={{ margin: 0 }}>
+            {([['all', 'Tất cả'], ['assigned', 'Đã gán'], ['not', 'Chưa gán']] as const).map(([k, l]) => <button key={k} className={only === k ? 'on' : ''} onClick={() => setOnly(k)}>{l}</button>)}
+          </div>
+        </div>
+      </div>
+      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+      {prog && <Tiles items={[
+        { label: 'Trường được gán', value: vals.filter(c => c.assigned).length, sub: `/${schools.length} trường` },
+        { label: 'Trường đã có PPCT', value: vals.filter(c => c.books > 0).length, tone: 'good' },
+        { label: 'Lớp đang học theo', value: vals.reduce((s, c) => s + c.classes, 0) },
+        { label: 'Được gán, chưa có PPCT', value: vals.filter(c => c.assigned && c.books === 0).length, tone: vals.some(c => c.assigned && c.books === 0) ? 'bad' : '' },
+      ]} />}
+      {canEdit && prog && sel.size > 0 && prog.status !== 'published' && prog.org_id !== orgId && <p className="msg">Chỉ gán được chương trình đã ban hành.</p>}
+      {canEdit && prog && (
+        <div className="panel bar">
+          <span className="tools">
+            <b>Khối:</b>
+            {range(prog.grade_from, prog.grade_to).map(g => <label key={g}><input type="checkbox" checked={grades.includes(g)} onChange={e => setGrades(gs => e.target.checked ? [...gs, g].sort((a, b) => a - b) : gs.filter(x => x !== g))} /> {g}</label>)}
+            <label style={{ marginLeft: 12 }}><input type="checkbox" checked={make} onChange={e => setMake(e.target.checked)} /> Tạo sẵn PPCT nháp cho trường</label>
+          </span>
+          <button className="primary" disabled={busy || sel.size === 0} onClick={assign}>{busy ? 'Đang gán…' : `Gán cho ${sel.size} trường`}</button>
+        </div>
+      )}
+      {prog && (
+        <div className="wrap"><table>
+          <thead><tr>
+            {canEdit && <th><input type="checkbox" aria-label="Chọn tất cả" checked={shown.length > 0 && shown.every(o => sel.has(o.id))} onChange={e => setSel(e.target.checked ? new Set(shown.map(o => o.id)) : new Set())} /></th>}
+            <th>Trường</th><th>Địa bàn</th><th>Khối được gán</th><th>Số PPCT</th><th>Lớp đang theo</th><th></th></tr></thead>
+          <tbody>{shown.map(o => {
+            const c = cov.get(o.id)
+            return (
+              <tr key={o.id}>
+                {canEdit && <td><input type="checkbox" checked={sel.has(o.id)} onChange={e => toggle(o.id, e.target.checked)} aria-label={`Chọn ${o.name}`} /></td>}
+                <td><b>{o.name}</b></td><td><small>{area(o)}</small></td>
+                <td>{c?.assigned ? (c.grades?.length ? 'Khối ' + c.grades.join(', ') : 'Mọi khối') : <small className="sub">Chưa gán</small>}</td>
+                <td>{c?.books ? c.books : c?.assigned ? <span className="pill inactive">Chưa có</span> : '—'}</td>
+                <td>{c?.classes || '—'}</td>
+                <td>{canEdit && c?.assigned && <button onClick={() => unassign(o)}>Bỏ gán</button>}</td>
+              </tr>
+            )
+          })}</tbody>
+        </table></div>
+      )}
+    </>
+  )
+}
+const range = (a: number, b: number) => Array.from({ length: Math.max(0, b - a + 1) }, (_, i) => a + i)
+
+// ================= Lớp × môn của trường (073) =================
+type CovRow = { class_id: string; class_name: string; grade: number; subject: string; book_id: string; book_title: string; explicit: boolean }
+
+export function ClassCoverage({ orgId, years }: { orgId: string | null; years?: Year[] }) {
+  const canEdit = useCanEdit('school')
+  const cur = (years ?? []).find(y => y.is_current)?.name ?? null
+  const [rows, setRows] = useState<CovRow[]>([])
+  const [classes, setClasses] = useState<{ id: string; name: string; grade: number }[]>([])
+  const [books, setBooks] = useState<Book[]>([])
+  const [asg, setAsg] = useState<{ grades: number[] | null; edu_programs: { main_subject: string; grade_from: number; grade_to: number } | null }[]>([])
+  const [grade, setGrade] = useState(0)
+  const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const [loaded, setLoaded] = useState(false)
+
+  async function load() {
+    if (!orgId) return
+    const yearIds = (years ?? []).filter(y => y.name === cur).map(y => y.id)
+    const [c, cl, b, a] = await Promise.all([
+      supabase.rpc('curriculum_class_coverage', { p_org: orgId }),
+      supabase.from('classes').select('id, name, grade, year_id').eq('org_id', orgId).order('grade').order('name'),
+      supabase.from('curriculum_books').select('*').eq('org_id', orgId),
+      supabase.from('edu_program_assignments').select('grades, edu_programs(main_subject, grade_from, grade_to)').eq('org_id', orgId),
+    ])
+    if (c.error) setMsg([errText(c.error.message), true])
+    setRows((c.data as CovRow[]) ?? [])
+    setClasses(((cl.data as { id: string; name: string; grade: number; year_id: string | null }[]) ?? []).filter(x => !x.year_id || yearIds.length === 0 || yearIds.includes(x.year_id)))
+    setBooks(((b.data as Book[]) ?? []).filter(x => !cur || !x.year_name || x.year_name === cur))
+    setAsg((a.data as any[]) ?? [])
+    setLoaded(true)
+  }
+  useEffect(() => { load() }, [orgId, cur])
+
+  const want = (g: number, s: string) =>
+    books.some(b => b.grade === g && norm(b.subject) === norm(s)) ||
+    asg.some(a => a.edu_programs && norm(a.edu_programs.main_subject) === norm(s) && (a.grades?.length ? a.grades.includes(g) : a.edu_programs.grade_from <= g && g <= a.edu_programs.grade_to))
+  const subjects = [...new Set([...books.map(b => b.subject), ...asg.map(a => a.edu_programs?.main_subject).filter((s): s is string => !!s)])].sort((a, b) => a.localeCompare(b, 'vi'))
+  const grades = [...new Set(classes.map(c => c.grade))].sort((a, b) => a - b)
+  const shown = classes.filter(c => !grade || c.grade === grade)
+  const cell = (cid: string, s: string) => rows.find(r => r.class_id === cid && norm(r.subject) === norm(s))
+  let need = 0, have = 0
+  for (const c of classes) for (const s of subjects) if (want(c.grade, s)) { need++; if (cell(c.id, s)) have++ }
+
+  async function change(c: { id: string; name: string }, s: string, bookId: string) {
+    const { error } = await supabase.rpc('curriculum_set_class_book', { p_class: c.id, p_subject: s, p_book: bookId || null })
+    if (error) return setMsg([errText(error.message), true])
+    setMsg([`Đã đổi PPCT môn ${s} của lớp ${c.name}.`, false]); load()
+  }
+
+  return (
+    <>
+      <p className="sub">Mỗi ô là PPCT mà lớp đang học theo trong năm học {cur ?? 'hiện tại'}. Ô đỏ là môn khối đó cần học (đã có PPCT hoặc được gán chương trình) nhưng lớp chưa có PPCT đang dùng. "Riêng" là PPCT chọn riêng cho lớp. PPCT không chọn lớp nào áp dụng cho mọi lớp còn lại của khối.</p>
+      <div className="bar">
+        {grades.length > 1 && <div className="segmented" style={{ margin: 0 }}>
+          {[0, ...grades].map(g => <button key={g} className={grade === g ? 'on' : ''} onClick={() => setGrade(g)}>{g ? `Khối ${g}` : 'Tất cả'}</button>)}
+        </div>}
+      </div>
+      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+      {!loaded ? <p className="sub">Đang tải…</p> : (
+        <>
+          <Tiles items={[
+            { label: 'Số lớp', value: classes.length, sub: `${subjects.length} môn` },
+            { label: 'Ô đã có PPCT', value: have, sub: need ? `${Math.round(have * 100 / need)}%` : '', tone: 'good' },
+            { label: 'Ô còn thiếu', value: need - have, tone: need > have ? 'bad' : '' },
+          ]} />
+          {subjects.length === 0 ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Trường chưa có PPCT nào trong năm học này.</p></div> : (
+            <div className="wrap"><table className="yearplan">
+              <thead><tr><th>Lớp</th>{subjects.map(s => <th key={s}>{s}</th>)}</tr></thead>
+              <tbody>{shown.map(c => (
+                <tr key={c.id}><td><b>{c.name}</b><br /><small>Khối {c.grade}</small></td>
+                  {subjects.map(s => {
+                    const r = cell(c.id, s), opts = books.filter(b => b.grade === c.grade && norm(b.subject) === norm(s) && b.status === 'published')
+                    if (!r && !want(c.grade, s)) return <td key={s}><small className="sub">—</small></td>
+                    return (
+                      <td key={s}>
+                        <div className={'ypcell' + (r ? '' : ' over')} style={{ cursor: 'default' }}>
+                          {r ? <><b>{r.book_title}</b>{r.explicit && <small>Riêng cho lớp</small>}</> : <small className="bad">Chưa có PPCT đang dùng</small>}
+                          {canEdit && opts.length > 0 && (
+                            <select value={r?.explicit ? r.book_id : ''} onChange={e => change(c, s, e.target.value)} aria-label={`PPCT môn ${s} lớp ${c.name}`}>
+                              <option value="">PPCT chung của khối</option>
+                              {opts.map(b => <option key={b.id} value={b.id}>Riêng: {b.title}</option>)}
+                            </select>
+                          )}
+                        </div>
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}</tbody>
+            </table></div>
+          )}
+        </>
+      )}
+    </>
+  )
+}

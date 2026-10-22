@@ -1,3 +1,4 @@
+import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../../components/TableSel'
 import { Icon } from '../../components/Icon'
 // Soạn bài giảng (060): giáo án theo mẫu, tiến trình dạy học theo bước, gắn hoạt động / học liệu / rubric / định mức vật tư,
 // xem trước – in, trình chiếu, dạy thử; lưu nháp → gửi duyệt → xuất bản; nhân bản, phiên bản, dạy thử & góp ý
@@ -684,6 +685,8 @@ function VerTab({ p, versions, reviews, classes, reviewRequired, busy, onRestore
   canSubmit: boolean; canPublish: boolean; onReviewed: () => void; say: (m: string, bad?: boolean) => void
 }) {
   const [f, setF] = useState({ kind: 'trial' as Review['kind'], class_id: '', taught_on: new Date().toISOString().slice(0, 10), rating: '4', note: '' })
+  const vsel = useRowSel(versions)
+  const rsel = useRowSel(reviews)
   async function addReview(e: React.FormEvent) {
     e.preventDefault()
     if (!f.note.trim()) return say('Nhập nhận xét.', true)
@@ -720,17 +723,18 @@ function VerTab({ p, versions, reviews, classes, reviewRequired, busy, onRestore
       </div>
 
       <h3>Lịch sử phiên bản ({versions.length})</h3>
-      {versions.length === 0 ? <p className="sub">Chưa xuất bản lần nào.</p> : (
+      {versions.length === 0 ? <p className="sub">Chưa xuất bản lần nào.</p> : (<>
+        {editable(p.status) && <SelBar picked={vsel.cur ? 'v' + vsel.cur.version_no : null}>
+          <button disabled={!vsel.cur || busy} onClick={() => vsel.cur && onRestore(vsel.cur.version_no)}>Khôi phục vào bản soạn</button></SelBar>}
         <div className="wrap"><table>
-          <thead><tr><th>Phiên bản</th><th>Xuất bản</th><th>Ghi chú</th><th>Nội dung</th><th></th></tr></thead>
+          <thead><tr>{editable(p.status) && <SelTh />}<th>Phiên bản</th><th>Xuất bản</th><th>Ghi chú</th><th>Nội dung</th></tr></thead>
           <tbody>{versions.map(v => (
-            <tr key={v.id}><td><b>v{v.version_no}</b>{v.version_no === p.version_no && p.status === 'published' && <span className="gpill good">đang dùng</span>}</td>
+            <tr key={v.id} className={vsel.is(v) ? 'picked' : undefined}>{editable(p.status) && <SelTd on={vsel.is(v)} onToggle={() => vsel.toggle(v)} label={'v' + v.version_no} />}<td><b>v{v.version_no}</b>{v.version_no === p.version_no && p.status === 'published' && <span className="gpill good">đang dùng</span>}</td>
               <td>{fmtD(v.published_at)}</td><td>{v.note ?? ''}</td>
-              <td><small>{v.snapshot.title} · {(v.snapshot.steps ?? []).length} bước · {(v.snapshot.slides ?? []).length} slide</small></td>
-              <td>{editable(p.status) && <button onClick={() => onRestore(v.version_no)} disabled={busy}>Khôi phục vào bản soạn</button>}</td></tr>
+              <td><small>{v.snapshot.title} · {(v.snapshot.steps ?? []).length} bước · {(v.snapshot.slides ?? []).length} slide</small></td></tr>
           ))}</tbody>
         </table></div>
-      )}
+      </>)}
 
       <h3>Dạy thử & góp ý ({reviews.length})</h3>
       <form className="panel formgrid" onSubmit={addReview}>
@@ -747,16 +751,17 @@ function VerTab({ p, versions, reviews, classes, reviewRequired, busy, onRestore
           placeholder={f.kind === 'trial' ? 'Học sinh hứng thú? Thời gian các bước? Cần điều chỉnh gì?' : 'Góp ý cho giáo án'} /></label>
         <div className="formactions"><button className="primary" type="submit">Lưu</button></div>
       </form>
-      {reviews.length > 0 && (
+      {reviews.length > 0 && (<>
+        <SelBar picked={rsel.cur ? fmtD(rsel.cur.taught_on ?? rsel.cur.created_at) : null}>
+          <button className="danger" disabled={!rsel.cur} onClick={() => { if (rsel.cur) { delReview(rsel.cur); rsel.clear() } }}>Xoá</button></SelBar>
         <div className="wrap"><table>
-          <thead><tr><th>Ngày</th><th>Loại</th><th>Lớp</th><th>Đánh giá</th><th>Nhận xét</th><th>Người ghi</th><th></th></tr></thead>
+          <thead><tr><SelTh /><th>Ngày</th><th>Loại</th><th>Lớp</th><th>Đánh giá</th><th>Nhận xét</th><th>Người ghi</th></tr></thead>
           <tbody>{reviews.map(r => (
-            <tr key={r.id}><td>{fmtD(r.taught_on ?? r.created_at)}</td><td>{r.kind === 'trial' ? 'Dạy thử' : 'Góp ý'}</td><td>{r.classes?.name ?? '—'}</td>
-              <td>{r.rating ? '★'.repeat(r.rating) : '—'}</td><td>{r.note}</td><td><small>{r.profiles?.full_name ?? ''}</small></td>
-              <td><button className="x" onClick={() => delReview(r)} aria-label="Xoá ghi nhận">×</button></td></tr>
+            <tr key={r.id} className={rsel.is(r) ? 'picked' : undefined}><SelTd on={rsel.is(r)} onToggle={() => rsel.toggle(r)} label={'ghi nhận ' + fmtD(r.taught_on ?? r.created_at)} /><td>{fmtD(r.taught_on ?? r.created_at)}</td><td>{r.kind === 'trial' ? 'Dạy thử' : 'Góp ý'}</td><td>{r.classes?.name ?? '—'}</td>
+              <td>{r.rating ? '★'.repeat(r.rating) : '—'}</td><td>{r.note}</td><td><small>{r.profiles?.full_name ?? ''}</small></td></tr>
           ))}</tbody>
         </table></div>
-      )}
+      </>)}
     </>
   )
 }

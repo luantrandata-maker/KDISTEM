@@ -5,6 +5,7 @@ import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
 import { uploadLearningFile, openFile } from '../lib/files'
 import { GradePicker, SubjectPicker } from '../components/Pickers'
+import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
 
 // Phân phối chương trình theo từng tiết + tiến độ dạy (migration 057; 058: học kỳ, liên kết chương trình chuẩn,
 // gán lớp, gửi duyệt / công bố, nhật ký điều chỉnh, nội dung chưa hoàn thành, yêu cầu cần đạt, minh chứng).
@@ -175,6 +176,8 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
     ], shown.map(b => [b.grade, b.subject, b.title, b.year_name, b.total_periods, b.periods_per_week, b.status === 'draft' ? 'Nháp' : 'Đã ban hành']))
   }
 
+  const tsel = useRowSel(templates)
+  const bsel = useRowSel(shown)
   if (open) return <LessonEditor book={open} canEdit={canEdit && open.org_id === orgId} mode={mode} onClose={() => { setOpen(null); load() }} onChanged={load} />
 
   const scopeLabel = mode === 'platform' ? 'Mẫu cho mọi trường' : 'Ban hành cho đơn vị trực thuộc'
@@ -224,13 +227,15 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
 
       {showTpl && (
         <div className="panel" style={{ marginBottom: 12 }}>
-          <h3 style={{ marginTop: 0 }}>Mẫu PPCT từ KDI và cấp trên</h3>
+          <SelBar picked={tsel.cur?.title ?? null} left={<h3 style={{ margin: 0 }}>Mẫu PPCT từ KDI và cấp trên</h3>}>
+            <button className="primary" disabled={!tsel.cur} onClick={() => tsel.cur && copy(tsel.cur)}>Sao chép</button>
+          </SelBar>
           <div className="wrap"><table>
-            <thead><tr><th>Khối</th><th>Môn</th><th>Tên mẫu</th><th>Số tiết</th><th>Ban hành bởi</th><th></th></tr></thead>
+            <thead><tr><SelTh /><th>Khối</th><th>Môn</th><th>Tên mẫu</th><th>Số tiết</th><th>Ban hành bởi</th></tr></thead>
             <tbody>{templates.map(t => (
-              <tr key={t.id}><td>{t.grade}</td><td>{t.subject}</td><td><b>{t.title}</b>{t.note && <><br /><small>{t.note}</small></>}</td>
-                <td>{t.total_periods ?? '—'}</td><td>{t.organizations?.name ?? '—'}</td>
-                <td className="tools"><button onClick={() => setOpen(t)}>Xem</button><button className="primary" onClick={() => copy(t)}>Sao chép</button></td></tr>
+              <tr key={t.id} className={tsel.is(t) ? 'picked' : undefined}><SelTd on={tsel.is(t)} onToggle={() => tsel.toggle(t)} label={t.title} />
+                <td>{t.grade}</td><td>{t.subject}</td><td><NameLink onClick={() => setOpen(t)}>{t.title}</NameLink>{t.note && <><br /><small>{t.note}</small></>}</td>
+                <td>{t.total_periods ?? '—'}</td><td>{t.organizations?.name ?? '—'}</td></tr>
             ))}</tbody>
           </table></div>
         </div>
@@ -240,26 +245,27 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
         <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có môn nào trong phân phối chương trình.
           {canEdit && (templates.length ? ' Bấm "Dùng mẫu" để sao chép PPCT mẫu, hoặc "Thêm môn" để tự soạn.' : ' Bấm "Thêm môn" để bắt đầu.')}</p></div>
       ) : (
+        <>{canEdit && (() => { const b = bsel.cur; return (
+          <SelBar picked={b?.title ?? null}>
+            {mode === 'school' && <button disabled={!b || !(b.status === 'draft' || b.status === 'rejected')} onClick={() => b && setStatus(b, 'pending')}>Gửi duyệt</button>}
+            {b?.status === 'pending' && <><button onClick={() => decide(b, 'approve')}>Duyệt</button><button onClick={() => decide(b, 'reject')}>Trả lại</button></>}
+            {b?.status === 'approved' && <button className="primary" onClick={() => setStatus(b, 'published', `Công bố "${b.title}"? Lớp cùng khối sẽ theo dõi tiến độ theo PPCT này.`)}>Công bố</button>}
+            <button disabled={!b || b.status === 'pending'} onClick={() => b && setForm(b)}>Sửa</button>
+            <button className="danger" disabled={!b || b.status === 'pending'} onClick={() => { if (b) { remove(b); bsel.clear() } }}>Xoá</button>
+          </SelBar>) })()}
         <div className="wrap"><table>
-          <thead><tr><th>Khối</th><th>Môn</th><th>Tên PPCT</th><th>Năm học</th><th>Số tiết</th><th>Tiết/tuần</th><th>Trạng thái</th><th></th></tr></thead>
+          <thead><tr>{canEdit && <SelTh />}<th>Khối</th><th>Môn</th><th>Tên PPCT</th><th>Năm học</th><th>Số tiết</th><th>Tiết/tuần</th><th>Trạng thái</th></tr></thead>
           <tbody>{shown.map(b => (
-            <tr key={b.id}>
+            <tr key={b.id} className={bsel.is(b) ? 'picked' : undefined}>
+              {canEdit && <SelTd on={bsel.is(b)} onToggle={() => bsel.toggle(b)} label={b.title} />}
               <td>{b.grade}</td><td>{b.subject}</td>
-              <td><b>{b.title}</b>{b.edu_programs && <><br /><small>Theo chương trình: {b.edu_programs.title} (v{b.edu_programs.version_no})</small></>}
+              <td><NameLink onClick={() => setOpen(b)} title={canEdit ? 'Soạn tiết' : 'Xem'}>{b.title}</NameLink>{b.edu_programs && <><br /><small>Theo chương trình: {b.edu_programs.title} (v{b.edu_programs.version_no})</small></>}
                 {b.source_id && <><br /><small>Sao chép từ mẫu</small></>}{mode !== 'school' && b.scope === 'children' && <><br /><small>{scopeLabel}</small></>}</td>
               <td>{b.year_name ?? 'Mọi năm'}</td><td>{b.total_periods ?? '—'}</td><td>{b.periods_per_week ?? '—'}</td>
               <td><span className={'pill ' + BOOK_STATUS[b.status][1]}>{b.status === 'published' && mode !== 'school' ? 'Đã ban hành' : BOOK_STATUS[b.status][0]}</span></td>
-              <td className="tools">
-                <button className="primary" onClick={() => setOpen(b)}>{canEdit ? 'Soạn tiết' : 'Xem'}</button>
-                {canEdit && mode === 'school' && (b.status === 'draft' || b.status === 'rejected') && <button onClick={() => setStatus(b, 'pending')}>Gửi duyệt</button>}
-                {canEdit && b.status === 'pending' && <><button onClick={() => decide(b, 'approve')}>Duyệt</button><button onClick={() => decide(b, 'reject')}>Trả lại</button></>}
-                {canEdit && b.status === 'approved' && <button className="primary" onClick={() => setStatus(b, 'published', `Công bố "${b.title}"? Lớp cùng khối sẽ theo dõi tiến độ theo PPCT này.`)}>Công bố</button>}
-                {canEdit && b.status !== 'pending' && <button onClick={() => setForm(b)}>Sửa</button>}
-                {canEdit && b.status !== 'pending' && <button className="danger" onClick={() => remove(b)}>Xoá</button>}
-              </td>
             </tr>
           ))}</tbody>
-        </table></div>
+        </table></div></>
       )}
     </>
   )
@@ -402,9 +408,11 @@ export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book
   const weeks = new Set((rows ?? []).map(l => l.week).filter(Boolean)).size
   const t1 = (rows ?? []).filter(l => termOf(l) === 1).length, t2 = (rows ?? []).filter(l => termOf(l) === 2).length
   const shownRows = (rows ?? []).filter(l => !term || termOf(l) === term)
+  const lsel = useRowSel(shownRows)
   const hasUnits = units.length > 0
   const formRow = (
     <tr>
+      {canEdit && <td className="sel" />}
       <td><input type="number" min={1} required value={edit?.seq ?? ''} onChange={e => setEdit({ ...edit, seq: Number(e.target.value) })} aria-label="Tiết" style={{ width: 64 }} /></td>
       <td><input type="number" min={1} max={52} value={edit?.week ?? ''} onChange={e => setEdit({ ...edit, week: Number(e.target.value) || null })} aria-label="Tuần" style={{ width: 64 }} placeholder={ppw && edit?.seq ? String(Math.ceil(Number(edit.seq) / ppw)) : ''} /></td>
       <td><select value={edit?.term ?? ''} onChange={e => setEdit({ ...edit, term: Number(e.target.value) || null })} aria-label="Học kỳ">
@@ -463,21 +471,25 @@ export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book
       {!rows ? <p className="sub">Đang tải…</p> : rows.length === 0 && !edit ? (
         <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có tiết nào.{canEdit && ' Bấm "Thêm tiết", hoặc "Nhập Excel" (bấm "Tải file mẫu" để có file đúng cột).'}</p></div>
       ) : (
+        <>{canEdit && <SelBar picked={lsel.cur ? `Tiết ${lsel.cur.seq}` : null}>
+          <button disabled={!lsel.cur} onClick={() => lsel.cur && setEdit(lsel.cur)}>Sửa</button>
+          <button className="danger" disabled={!lsel.cur} onClick={() => { if (lsel.cur) { del(lsel.cur); lsel.clear() } }}>Xoá</button>
+        </SelBar>}
         <div className="wrap"><table>
-          <thead><tr><th>Tiết</th><th>Tuần</th><th>HK</th><th>Tháng</th><th>Tên bài / nội dung</th>{hasUnits && <th>Bài trong chương trình</th>}<th>Loại</th><th>Chủ đề STEM</th><th>Ghi chú</th><th></th></tr></thead>
+          <thead><tr>{canEdit && <SelTh />}<th>Tiết</th><th>Tuần</th><th>HK</th><th>Tháng</th><th>Tên bài / nội dung</th>{hasUnits && <th>Bài trong chương trình</th>}<th>Loại</th><th>Chủ đề STEM</th><th>Ghi chú</th>{edit && <th></th>}</tr></thead>
           <tbody>
             {shownRows.map(l => edit?.id === l.id ? <Fragment key={l.id}>{formRow}</Fragment> : (
-              <tr key={l.id}>
+              <tr key={l.id} className={lsel.is(l) ? 'picked' : undefined}>
+                {canEdit && <SelTd on={lsel.is(l)} onToggle={() => lsel.toggle(l)} label={`tiết ${l.seq}`} />}
                 <td><b>{l.seq}</b></td><td>{l.week ?? '—'}</td><td><small>{HK(termOf(l))}</small></td><td><small>{monthOf(l.week)}</small></td><td>{l.title}</td>
                 {hasUnits && <td><small>{unitLabel(l.unit_id)}</small></td>}
                 <td>{l.kind !== 'lesson' ? <span className={'gpill ' + KIND_PILL[l.kind]}>{KIND[l.kind]}</span> : <small>{KIND.lesson}</small>}</td>
-                <td><small>{topicName(l.package_topic_id)}</small></td><td><small>{l.note}</small></td>
-                <td className="tools">{canEdit && <><button onClick={() => setEdit(l)}>Sửa</button><button className="danger" onClick={() => del(l)}>Xoá</button></>}</td>
+                <td><small>{topicName(l.package_topic_id)}</small></td><td><small>{l.note}</small></td>{edit && <td />}
               </tr>
             ))}
             {edit && !edit.id && formRow}
           </tbody>
-        </table></div>
+        </table></div></>
       )}
     </>
   )
@@ -651,30 +663,28 @@ export function CurriculumProgress({ orgId, mode = 'school' }: { orgId: string |
         <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có lớp nào có PPCT theo tiết. {mode === 'school' ? 'Soạn PPCT ở tab "Phân phối chương trình" (cùng khối, cùng tên môn với thời khoá biểu).' : 'Các trường cần soạn PPCT theo tiết.'}</p></div>
       ) : view !== 'class' ? (
         <div className="wrap"><table>
-          <thead><tr><th>{view === 'area' ? 'Địa bàn' : 'Trường'}</th>{view === 'area' && <th>Số trường</th>}<th>Lớp × môn</th><th>Đã ghi nhận</th><th>Đúng tiến độ</th><th>Chậm ≥ {GAP_WARN} tiết</th><th>Chưa hoàn thành</th><th>Thiếu minh chứng</th><th></th></tr></thead>
+          <thead><tr><th>{view === 'area' ? 'Địa bàn' : 'Trường'}</th>{view === 'area' && <th>Số trường</th>}<th>Lớp × môn</th><th>Đã ghi nhận</th><th>Đúng tiến độ</th><th>Chậm ≥ {GAP_WARN} tiết</th><th>Chưa hoàn thành</th><th>Thiếu minh chứng</th></tr></thead>
           <tbody>{(view === 'area' ? byArea : bySchool).map(s => (
-            <tr key={s.id}><td><b>{s.name}</b></td>{view === 'area' && <td>{s.schools}</td>}<td>{s.n}</td><td>{s.tracked}</td>
+            <tr key={s.id}><td><NameLink onClick={() => view === 'school' ? (setSchool(s.id), setView('class')) : setView('school')} title={view === 'school' ? 'Xem lớp' : 'Xem trường'}>{s.name}</NameLink></td>{view === 'area' && <td>{s.schools}</td>}<td>{s.n}</td><td>{s.tracked}</td>
               <td><div className="progress" style={{ width: 90, display: 'inline-block', verticalAlign: 'middle', marginRight: 6 }}><i style={{ width: pct(s.ok, s.tracked) + '%' }} /></div>{pct(s.ok, s.tracked)}%</td>
               <td>{s.late ? <span className="gpill bad">{s.late}</span> : 0}{s.worst >= GAP_WARN ? <small> · chậm nhất {s.worst} tiết</small> : null}</td>
-              <td>{s.missed ? <span className="gpill warn">{s.missed} tiết</span> : 0}</td><td>{s.noev ? <span className="gpill warn">{s.noev} tiết</span> : 0}</td>
-              <td>{view === 'school' ? <button onClick={() => { setSchool(s.id); setView('class') }}>Xem lớp</button> : <button onClick={() => setView('school')}>Xem trường</button>}</td></tr>
+              <td>{s.missed ? <span className="gpill warn">{s.missed} tiết</span> : 0}</td><td>{s.noev ? <span className="gpill warn">{s.noev} tiết</span> : 0}</td></tr>
           ))}</tbody>
         </table></div>
       ) : (
         <div className="wrap"><table>
-          <thead><tr>{multi && <th>Trường</th>}<th>Lớp</th><th>Môn</th><th>Kế hoạch đến nay</th><th>Đã dạy tới</th><th>Tình trạng</th><th>Chưa hoàn thành</th><th>Tiết gần nhất</th><th></th></tr></thead>
+          <thead><tr>{multi && <th>Trường</th>}<th>Lớp</th><th>Môn</th><th>Kế hoạch đến nay</th><th>Đã dạy tới</th><th>Tình trạng</th><th>Chưa hoàn thành</th><th>Tiết gần nhất</th></tr></thead>
           <tbody>{shown.map(r => {
             const t = progressTone(r)
             return (
               <tr key={r.class_id + r.book_id}>
                 {multi && <td><small>{r.school}</small></td>}
-                <td><b>{r.class_name}</b></td><td>{r.subject}<br /><small>{r.book_title}</small></td>
+                <td><NameLink onClick={() => setDetail(r)} title="Chi tiết">{r.class_name}</NameLink></td><td>{r.subject}<br /><small>{r.book_title}</small></td>
                 <td>Tiết {r.planned}<small> / {r.total}</small></td>
                 <td>{r.taught ? <>Tiết {r.reached}<div className="progress" style={{ width: 110, marginTop: 4 }}><i style={{ width: pct(r.reached, r.total) + '%', background: t.tone === 'bad' ? 'var(--bad)' : t.tone === 'warn' ? '#fab219' : undefined }} /></div></> : '—'}</td>
                 <td>{t.tone ? <span className={'gpill ' + t.tone}>{t.label}</span> : <small>{t.label}</small>}</td>
                 <td>{r.missed ? <span className="gpill warn">{r.missed} tiết</span> : <small>—</small>}{r.no_evidence ? <><br /><small>{r.no_evidence} tiết thiếu minh chứng</small></> : null}</td>
                 <td>{r.last_title ? <><small>{r.last_title}</small><br /><small className="sub">{dmy(r.last_date)} · {r.taught} tiết đã ghi nhận</small></> : '—'}</td>
-                <td><button onClick={() => setDetail(r)}>Chi tiết</button></td>
               </tr>
             )
           })}</tbody>

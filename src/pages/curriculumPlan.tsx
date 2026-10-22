@@ -664,11 +664,13 @@ export function AssignPrograms({ orgId, mode = 'authority' }: { orgId: string | 
     setMsg([`Đã gán cho ${r.assigned} trường${make ? `, tạo sẵn ${r.books} PPCT nháp (khối + môn đã có PPCT trong năm học thì giữ nguyên)` : ''}.`, false])
     setSel(new Set()); loadCov()
   }
-  async function unassign(o: Org) {
-    if (!prog || !confirm(`Bỏ gán "${prog.title}" khỏi ${o.name}? PPCT trường đã tạo vẫn giữ nguyên.`)) return
-    const { error } = await supabase.from('edu_program_assignments').delete().eq('program_id', prog.id).eq('org_id', o.id)
+  // Bỏ gán các trường đang chọn (chỉ trường đã được gán)
+  async function unassign() {
+    const ids = [...sel].filter(id => cov.get(id)?.assigned)
+    if (!prog || !ids.length || !confirm(`Bỏ gán "${prog.title}" khỏi ${ids.length} trường? PPCT trường đã tạo vẫn giữ nguyên.`)) return
+    const { error } = await supabase.from('edu_program_assignments').delete().eq('program_id', prog.id).in('org_id', ids)
     if (error) return setMsg([errText(error.message), true])
-    loadCov()
+    setSel(new Set()); loadCov()
   }
 
   const vals = [...cov.values()]
@@ -702,14 +704,17 @@ export function AssignPrograms({ orgId, mode = 'authority' }: { orgId: string | 
             {range(prog.grade_from, prog.grade_to).map(g => <label key={g}><input type="checkbox" checked={grades.includes(g)} onChange={e => setGrades(gs => e.target.checked ? [...gs, g].sort((a, b) => a - b) : gs.filter(x => x !== g))} /> {g}</label>)}
             <label style={{ marginLeft: 12 }}><input type="checkbox" checked={make} onChange={e => setMake(e.target.checked)} /> Tạo sẵn PPCT nháp cho trường</label>
           </span>
-          <button className="primary" disabled={busy || sel.size === 0} onClick={assign}>{busy ? 'Đang gán…' : `Gán cho ${sel.size} trường`}</button>
+          <span className="tools">
+            <button className="danger" disabled={busy || ![...sel].some(id => cov.get(id)?.assigned)} onClick={unassign}>Bỏ gán</button>
+            <button className="primary" disabled={busy || sel.size === 0} onClick={assign}>{busy ? 'Đang gán…' : `Gán cho ${sel.size} trường`}</button>
+          </span>
         </div>
       )}
       {prog && (
         <div className="wrap"><table>
           <thead><tr>
             {canEdit && <th><input type="checkbox" aria-label="Chọn tất cả" checked={shown.length > 0 && shown.every(o => sel.has(o.id))} onChange={e => setSel(e.target.checked ? new Set(shown.map(o => o.id)) : new Set())} /></th>}
-            <th>Trường</th><th>Địa bàn</th><th>Khối được gán</th><th>Số PPCT</th><th>Lớp đang theo</th><th></th></tr></thead>
+            <th>Trường</th><th>Địa bàn</th><th>Khối được gán</th><th>Số PPCT</th><th>Lớp đang theo</th></tr></thead>
           <tbody>{shown.map(o => {
             const c = cov.get(o.id)
             return (
@@ -719,7 +724,6 @@ export function AssignPrograms({ orgId, mode = 'authority' }: { orgId: string | 
                 <td>{c?.assigned ? (c.grades?.length ? 'Khối ' + c.grades.join(', ') : 'Mọi khối') : <small className="sub">Chưa gán</small>}</td>
                 <td>{c?.books ? c.books : c?.assigned ? <span className="pill inactive">Chưa có</span> : '—'}</td>
                 <td>{c?.classes || '—'}</td>
-                <td>{canEdit && c?.assigned && <button onClick={() => unassign(o)}>Bỏ gán</button>}</td>
               </tr>
             )
           })}</tbody>

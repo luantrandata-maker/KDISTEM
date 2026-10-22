@@ -4,14 +4,14 @@ import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { Icon } from '../../components/Icon'
 import { lazy, Suspense } from 'react'
 import { norm as normText } from '../../lib/sheet'
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
 import type { Slide } from '../teacher/Lessons'
 import { uploadLearningFile, fmtSize, MAX_FILE_MB } from '../../lib/files'
 import {
   KindChip, ProgChip, StatusChip, ItemDrawer, SlidesEditor, SCOPE, MAT_TYPE, KIND, NEW_KINDS, RIGHTS, RightsChip, ProgLine,
-  fmtDate, uid, selectItems, useProgramOptions, useNormOptions, unitTree, progLabel, type Item, type Unit, type Rights,
+  fmtDate, uid, selectItems, useProgramOptions, useNormOptions, unitTree, progLabel, KIT, kitDone, type KitCard, type Item, type Unit, type Rights,
 } from './common'
 import { GradeChecks, SubjectPicker, gradeList } from '../../components/Pickers'
 import { EMPTY_PLAN, PlanEditor, planFilled, planOf, type PlanContent } from './PlanEditor'
@@ -32,6 +32,7 @@ type Form = {
   // Bài học: mục tiêu, số tiết, giáo án / bài giảng / định mức vật tư / học liệu khác đã có trong kho
   plan: PlanContent
   objectives: string; periods: string; plan_ids: string[]; lesson_ids: string[]; norm_ids: string[]; material_ids: string[]
+  checked: KitCard[]
 }
 type Pick = { id: string; label: string }
 type LMode = 'interactive' | 'slides'
@@ -96,7 +97,7 @@ const EMPTY = (kind: Item['kind']): Form => ({
   kind, title: '', summary: '', subject: '', grades: '', program: '', tags: '', scope: 'children', targets: [],
   slides: kind === 'lesson' ? [{ id: uid(), kind: 'title', title: '', body: '' }] : [], mtype: 'worksheet', url: '', units: kind === 'program' ? [{ title: 'Học phần 1', periods: 2, objectives: '', lesson_ids: [] }] : [],
   src: 'file', file: null, program_id: '', unit_id: '', usage_rights: 'adapt', usage_note: '',
-  plan: EMPTY_PLAN, objectives: '', periods: '', plan_ids: [], lesson_ids: [], norm_ids: [], material_ids: [],
+  plan: EMPTY_PLAN, objectives: '', periods: '', plan_ids: [], lesson_ids: [], norm_ids: [], material_ids: [], checked: [],
   lmode: 'interactive', ilesson: null,
 })
 const MaterialNorms = lazy(() => import('../materialNorms').then(m => ({ default: m.MaterialNorms })))
@@ -106,7 +107,9 @@ const NOEV = { preventDefault() {} } as React.FormEvent
 const MAT_OPTS = Object.entries(MAT_TYPE).filter(([k]) => k !== 'lesson_plan')
 
 // Phát hành học liệu: Sở/Phòng/Tỉnh/Bộ, đơn vị cung cấp (KDI Education) hoặc trường soạn và phát hành tới đơn vị trực thuộc
-export function LibraryManage({ orgId, only }: { orgId: string | null; only?: T }) {
+/** Mở thẳng form bài học (từ "Học liệu theo chương trình"): sửa bài học có sẵn hoặc tạo bộ học liệu cho một bài của chương trình */
+export type UnitStart = { editId?: string; preset?: { program_id: string; unit_id: string; title: string; periods: number | null; objectives: string | null; program: string | null; grades: string | null } }
+export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | null; only?: T; start?: UnitStart; onDone?: () => void }) {
   const { codes: PROGRAMS } = useStemTracks()
   const [items, setItems] = useState<Item[]>([])
   const [visible, setVisible] = useState<Item[]>([])
@@ -138,6 +141,9 @@ export function LibraryManage({ orgId, only }: { orgId: string | null; only?: T 
     lmode?: LMode; ilesson?: ILesson | null
     file: { path: string; file_name: string; size: number; mime: string } | null }>(null)
   const [subBusy, setSubBusy] = useState(false)
+  // Người soạn đã tự bấm chốt / bỏ chốt trong lần sửa này (khi đó không tự bỏ chốt thẻ định mức)
+  const [ckTouched, setCkTouched] = useState(false)
+  const started = useRef(false)
 
   async function load() {
     if (!orgId) return
@@ -157,6 +163,20 @@ export function LibraryManage({ orgId, only }: { orgId: string | null; only?: T 
     setLessons((l.data as unknown as LP[]) ?? [])
   }
   useEffect(() => { load() }, [orgId])
+  useEffect(() => {
+    if (!start || started.current || !me) return
+    const i = start.editId ? items.find(x => x.id === start.editId) : undefined
+    if (start.editId && !i) return
+    started.current = true
+    if (i) edit(i)
+    else if (start.preset) {
+      const p = start.preset
+      setMsg(''); setInfo(''); setNorm(EMPTY_NORM); setSub(null); setNormOpen(false); setCkTouched(false)
+      setForm({ ...EMPTY('unit'), title: p.title, program_id: p.program_id, unit_id: p.unit_id, program: p.program ?? '', grades: p.grades ?? '',
+        periods: p.periods ? String(p.periods) : '', objectives: p.objectives ?? '' })
+    }
+  }, [me, items])
+  const close = () => { setForm(null); if (start) onDone?.() }
   if (err) return <p className="msg">{err}</p>
   if (!me) return <p className="sub">Đang tải…</p>
 
@@ -193,9 +213,10 @@ export function LibraryManage({ orgId, only }: { orgId: string | null; only?: T 
       program_id: i.program_id ?? '', unit_id: i.unit_id ?? '', usage_rights: i.usage_rights ?? 'adapt', usage_note: i.usage_note ?? '',
       plan: planOf(i.content as any), objectives: i.content.objectives ?? '', periods: i.content.periods ? String(i.content.periods) : '',
       plan_ids: i.content.plan_ids ?? [], lesson_ids: i.content.lesson_ids ?? [], norm_ids: i.content.norm_ids ?? [], material_ids: i.content.material_ids ?? [],
+      checked: i.content.checked ?? [],
       lmode: i.content.mode === 'interactive' ? 'interactive' : 'slides', ilesson: asLesson(i.content.lesson),
     })
-    setNorm(EMPTY_NORM); setSub(null); setNormOpen(false)
+    setNorm(EMPTY_NORM); setSub(null); setNormOpen(false); setCkTouched(false)
     // Vật tư của bài học: định mức gắn với bài (không hiện lại trong ô "định mức có sẵn")
     if (i.kind === 'unit' && orgId) loadUnitNorm(i.id, orgId).then(n => {
       setNorm(n)
@@ -225,10 +246,12 @@ export function LibraryManage({ orgId, only }: { orgId: string | null; only?: T 
     if (!isP && form.kind === 'material' && form.src === 'file' && !form.file && publish) return setMsg('Chọn tệp học liệu để tải lên.')
     const lessonAtt = form.src === 'file' ? (form.file ? { url: '', ...form.file } : {}) : (form.url.trim() ? { url: form.url.trim() } : {})
     if (form.kind === 'lesson' && form.lmode === 'interactive' && publish && !blockCount(form.ilesson)) return setMsg('Bài giảng tương tác chưa có khối nội dung nào.')
+    if (form.kind === 'unit' && publish && kitDone(form) < 4) return setMsg('Chốt đủ 4 thẻ của bộ học liệu trước khi phát hành (thẻ nào chưa chốt đang hiện “Cần kiểm tra”).')
     const content = form.kind === 'lesson'
       ? (form.lmode === 'interactive' ? { mode: 'interactive', lesson: form.ilesson ?? {} } : { mode: 'slides', slides: form.slides, ...lessonAtt })
       : form.kind === 'unit'
-      ? { objectives: form.objectives.trim() || null, periods: Number(form.periods) || null, plan_ids: form.plan_ids, lesson_ids: form.lesson_ids, norm_ids: form.norm_ids, material_ids: form.material_ids }
+      ? { objectives: form.objectives.trim() || null, periods: Number(form.periods) || null, plan_ids: form.plan_ids, lesson_ids: form.lesson_ids, norm_ids: form.norm_ids, material_ids: form.material_ids,
+          checked: norm.dirty && !ckTouched ? form.checked.filter(k => k !== 'norms') : form.checked }
       : isP ? { type: 'lesson_plan', ...att, ...form.plan }
       : form.kind === 'material'
       ? (form.src === 'file' && form.file ? { type: form.mtype, url: '', ...form.file } : { type: form.mtype, url: form.url.trim() })
@@ -268,7 +291,7 @@ export function LibraryManage({ orgId, only }: { orgId: string | null; only?: T 
       if (p.error) { setBusy(false); setMsg(p.error.message); setForm({ ...form, id }); return load() }
       setInfo(`Đã phát hành “${row.title}” (phiên bản ${p.data}).`)
     } else setInfo('Đã lưu nháp.')
-    setBusy(false); setForm(null); load()
+    setBusy(false); close(); load()
   }
   async function pickSubFile(f: File) {
     if (!sub || !orgId) return
@@ -315,6 +338,7 @@ export function LibraryManage({ orgId, only }: { orgId: string | null; only?: T 
   async function publish(i: Item) {
     const note = i.version > 0 ? prompt('Ghi chú cho bản cập nhật (trường đã dùng sẽ thấy):', '') : null
     if (note === null && i.version > 0) return
+    if (i.kind === 'unit' && kitDone(i.content) < 4) return setMsg(`“${i.title}”: chốt đủ 4 thẻ của bộ học liệu trước khi phát hành (đang chốt ${kitDone(i.content)}/4).`)
     // Bài học: ban hành luôn định mức vật tư đang soạn của bài
     if (i.kind === 'unit' && orgId) {
       const r = await saveUnitNorm(await loadUnitNorm(i.id, orgId), { itemId: i.id, orgId, title: i.title, subject: i.subject, grade: null, publish: true })
@@ -364,7 +388,7 @@ export function LibraryManage({ orgId, only }: { orgId: string | null; only?: T 
     const c = i.content
     if (i.kind === 'unit') {
       const n = (a: string[] | undefined, l: string) => (a ?? []).length ? `${(a ?? []).length} ${l}` : ''
-      return [c.periods ? `${c.periods} tiết` : '', n(c.plan_ids, 'giáo án'), n(c.lesson_ids, 'bài giảng'), n(c.norm_ids, 'định mức'), n(c.material_ids, 'học liệu')].filter(Boolean).join(' · ') || '—'
+      return [`${kitDone(c)}/4 thẻ đã chốt`, c.periods ? `${c.periods} tiết` : '', n(c.plan_ids, 'giáo án'), n(c.lesson_ids, 'bài giảng'), n(c.norm_ids, 'định mức'), n(c.material_ids, 'học liệu')].filter(Boolean).join(' · ') || '—'
     }
     if (i.kind === 'lesson' && c.mode === 'interactive') return `Tương tác · ${blockCount(asLesson(c.lesson))} khối`
     if (i.kind === 'lesson') return [`${(c.slides ?? []).length} slide`, c.file_name ? 'có tệp' : c.url ? 'có đường dẫn' : ''].filter(Boolean).join(' · ')
@@ -378,7 +402,7 @@ export function LibraryManage({ orgId, only }: { orgId: string | null; only?: T 
           value={tab} onChange={t => { setTab(t); setOpen(null); setFType('') }} />
       </div>}
       {tab === 'norm' ? <Suspense fallback={<p className="sub">Đang tải…</p>}><MaterialNorms orgId={orgId} /></Suspense> : <>
-      <div className="bar">
+      {!start && <><div className="bar">
         <div className="tools">
           <select value={fGrade} onChange={e => setFGrade(e.target.value)} aria-label="Khối"><option value="">Mọi khối</option>{Array.from({ length: 12 }, (_, k) => k + 1).map(g => <option key={g} value={g}>Khối {g}</option>)}</select>
           {tab === 'material' && <select value={fType} onChange={e => setFType(e.target.value)} aria-label="Loại học liệu"><option value="">Mọi loại</option>{MAT_OPTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>}
@@ -391,16 +415,16 @@ export function LibraryManage({ orgId, only }: { orgId: string | null; only?: T 
           <button type="button" className="primary" onClick={() => addNew(tab)}>Thêm {tabLabel(tab).toLowerCase()}</button>
         </div>
       </div>
-      <p className="sub">Học liệu phát hành tới {me.type === 'provider' ? 'các đơn vị bạn chọn hoặc công khai toàn hệ thống' : `các đơn vị trực thuộc ${me.name}`}. Trường “dùng” sẽ có bản riêng để chỉnh sửa; khi bạn phát hành bản cập nhật, trường được báo nhưng bản của họ không bị ghi đè.</p>
+      <p className="sub">Học liệu phát hành tới {me.type === 'provider' ? 'các đơn vị bạn chọn hoặc công khai toàn hệ thống' : `các đơn vị trực thuộc ${me.name}`}. Trường “dùng” sẽ có bản riêng để chỉnh sửa; khi bạn phát hành bản cập nhật, trường được báo nhưng bản của họ không bị ghi đè.</p></>}
       {msg && !form && <p className="msg">{msg}</p>}
       {info && <p className="sub"><b>{info}</b></p>}
 
       {form && (
-        <Drawer wide closeOnOutside={false} onClose={() => setForm(null)}
+        <Drawer wide closeOnOutside={false} onClose={close}
           actions={<>
             <button type="button" className="primary" disabled={busy || uploading} onClick={() => save(NOEV, true)}>Lưu & phát hành</button>
             <button type="button" disabled={busy || uploading} onClick={() => save(NOEV, false)}>Lưu nháp</button>
-            <button type="button" onClick={() => setForm(null)}>Huỷ</button></>}
+            <button type="button" onClick={close}>Huỷ</button></>}
           title={`${form.id ? 'Sửa' : 'Thêm'} ${form.kind === 'material' && form.mtype === 'lesson_plan' ? 'giáo án' : KIND[form.kind][0].toLowerCase()}${form.id && form.title ? `: ${form.title}` : ''}`}>
         <form className="panel libform" onSubmit={e => save(e, false)}>
           {msg && <p className="msg">{msg}</p>}
@@ -414,9 +438,9 @@ export function LibraryManage({ orgId, only }: { orgId: string | null; only?: T 
             <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình giáo dục</span>
               <select value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, unit_id: '' })} aria-label="Chương trình giáo dục">
                 <option value="">— không gắn —</option>{programs.map(p => <option key={p.id} value={p.id}>{progLabel(p)}{p.status === 'draft' ? ' · nháp' : ''}</option>)}</select></label>
-            <label className="field" style={{ gridColumn: 'span 2' }}><span>{form.kind === 'unit' ? 'Học phần' : 'Bài'}</span>
-              <select value={form.unit_id} disabled={!form.program_id} onChange={e => setForm({ ...form, unit_id: e.target.value })} aria-label={form.kind === 'unit' ? 'Học phần' : 'Bài'}>
-                <option value="">{form.kind === 'unit' ? '— chọn học phần —' : '— chọn bài —'}</option>{unitTree(units, form.program_id, form.kind === 'unit' ? 'topic' : 'lesson', form.unit_id).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>Bài</span>
+              <select value={form.unit_id} disabled={!form.program_id} onChange={e => setForm({ ...form, unit_id: e.target.value })} aria-label="Bài">
+                <option value="">— chọn bài —</option>{unitTree(units, form.program_id, 'lesson', form.unit_id).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
             <label className="field"><span>Quyền sử dụng</span>
               <select value={form.usage_rights} onChange={e => setForm({ ...form, usage_rights: e.target.value as Rights })} aria-label="Quyền sử dụng">
                 {(Object.keys(RIGHTS) as Rights[]).map(r => <option key={r} value={r}>{RIGHTS[r][0]}</option>)}</select></label>
@@ -440,6 +464,21 @@ export function LibraryManage({ orgId, only }: { orgId: string | null; only?: T 
 
           {form.kind === 'unit' && (
             <div className="formgrid libgrid4">
+              <div className="kitbar" role="group" aria-label="Bộ học liệu 4 thẻ">
+                {KIT.map(([k, l, d]) => {
+                  const on = form.checked.includes(k)
+                  const has = k === 'info' ? [form.periods && `${form.periods} tiết`, form.objectives.trim() && 'có mục tiêu', form.unit_id && 'đã gắn bài'].filter(Boolean).join(' · ') || 'chưa gắn bài'
+                    : k === 'content' ? `${form.plan_ids.length} giáo án · ${form.lesson_ids.length} bài giảng`
+                    : k === 'links' ? `${form.material_ids.length} học liệu`
+                    : `${norm.rows.length} vật tư${form.norm_ids.length ? ` · ${form.norm_ids.length} định mức có sẵn` : ''}`
+                  return <div key={k} className={'kitcard' + (on ? ' on' : '')}>
+                    <b>{l}</b><small className="sub">{d}</small><small>{has}</small>
+                    <div className="kitfoot"><span className={'gpill ' + (on ? 'good' : 'warn')}><i aria-hidden="true">{on ? '✓' : '!'}</i>{on ? 'Đã chốt' : 'Cần kiểm tra'}</span>
+                      <button type="button" className="linkbtn" onClick={() => { setCkTouched(true); setForm({ ...form, checked: on ? form.checked.filter(x => x !== k) : [...form.checked, k] }) }}>{on ? 'Bỏ chốt' : 'Chốt thẻ'}</button></div>
+                  </div>
+                })}
+                <small className="sub kitnote">Đủ 4 thẻ chốt mới phát hành được. Sửa một thẻ đã chốt thì thẻ đó tự về “Cần kiểm tra”.</small>
+              </div>
               <label className="field" style={{ gridColumn: 'span 3' }}><span>Mục tiêu bài học</span><textarea rows={2} value={form.objectives} onChange={e => setForm({ ...form, objectives: e.target.value })} /></label>
               <label className="field"><span>Số tiết</span><input type="number" min={0} max={999} value={form.periods} onChange={e => setForm({ ...form, periods: e.target.value })} /></label>
               <h4 className="libparthead">Thành phần của bài</h4>
@@ -587,7 +626,7 @@ export function LibraryManage({ orgId, only }: { orgId: string | null; only?: T 
         </form>
         </Drawer>
       )}
-      {open && !form && <ItemDrawer root={{ type: 'item', id: open }} all={visible} onClose={() => setOpen(null)} canRestore onRestored={load}
+      {open && !form && !start && <ItemDrawer root={{ type: 'item', id: open }} all={visible} onClose={() => setOpen(null)} canRestore onRestored={load}
         actions={i => i.owner_org_id !== orgId ? <small className="sub">Mục của {i.owner_name ?? 'đơn vị khác'}: chỉ xem.</small> : <>
           <button type="button" className="primary" onClick={() => edit(i)}>Sửa</button>
           <button type="button" onClick={() => publish(i)}>{i.status === 'published' ? 'Phát hành bản cập nhật' : 'Phát hành'}</button>
@@ -595,7 +634,7 @@ export function LibraryManage({ orgId, only }: { orgId: string | null; only?: T 
           {i.status !== 'published' && !stats.get(i.id) && <button type="button" className="danger" onClick={() => { remove(i); setOpen(null) }}>Xoá</button>}
         </>} />}
 
-      {view === 'cards' ? (shown.length === 0 ? <p className="sub">{ofTab.length ? 'Không có mục nào khớp bộ lọc.' : `Chưa có ${tabLabel(tab).toLowerCase()} nào. Bấm “Thêm ${tabLabel(tab).toLowerCase()}” để bắt đầu.`}</p> : (
+      {start ? null : view === 'cards' ? (shown.length === 0 ? <p className="sub">{ofTab.length ? 'Không có mục nào khớp bộ lọc.' : `Chưa có ${tabLabel(tab).toLowerCase()} nào. Bấm “Thêm ${tabLabel(tab).toLowerCase()}” để bắt đầu.`}</p> : (
         <div className={'tilegrid ' + (tab === 'lesson' ? 'wide' : 'sq')}>
           {shown.map((i, n) => {
             const s = stats.get(i.id)

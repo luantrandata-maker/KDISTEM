@@ -2339,7 +2339,7 @@ select pg_temp.probe('so_hy@iso-test.local', $q$insert into library_items (owner
 select pg_temp.chk('so_hy', 'Bài học trong kho: Sở tạo được',
   $q$insert into library_items (owner_org_id, kind, title, content) values (my_org_id(), 'unit', 'ISO bài học kho', jsonb_build_object('objectives', ' Hiểu mạch ', 'periods', '2', 'lesson_ids', jsonb_build_array((select id from library_items where title = 'ISO BG cho bài học')::text, 'rác')))$q$, 'rows:1');
 select pg_temp.probe('so_hy@iso-test.local', $q$insert into library_items (owner_org_id, kind, title, content) values (my_org_id(), 'unit', 'ISO bài học kho',
-  jsonb_build_object('objectives', ' Hiểu mạch ', 'periods', '2', 'norm_ids', '"x"', 'lesson_ids', jsonb_build_array((select id from library_items where title = 'ISO BG cho bài học')::text, 'rác', (select id from library_items where title = 'ISO BG cho bài học')::text)))$q$, true);
+  jsonb_build_object('objectives', ' Hiểu mạch ', 'periods', '2', 'norm_ids', '"x"', 'checked', jsonb_build_array('info', 'content', 'links', 'norms'), 'lesson_ids', jsonb_build_array((select id from library_items where title = 'ISO BG cho bài học')::text, 'rác', (select id from library_items where title = 'ISO BG cho bài học')::text)))$q$, true);
 select pg_temp.chk('so_hy', 'Bài học trong kho: thành phần được làm gọn (bỏ mã lạ, bỏ trùng)',
   $q$select jsonb_array_length(content->'lesson_ids') || '/' || jsonb_array_length(content->'norm_ids') || '/' || (content->>'periods') || '/' || (content->>'objectives') from library_items where title = 'ISO bài học kho'$q$, '1/0/2/Hiểu mạch');
 select pg_temp.chk('so_hy', 'Kho học liệu: loại mục lạ bị chặn', $q$insert into library_items (owner_org_id, kind, title) values (my_org_id(), 'khac', 'ISO lạ')$q$, 'ERR*');
@@ -2351,6 +2351,21 @@ select pg_temp.chk('admin_ph', 'Dùng bài học → tạo bài giảng mẫu t�
 select pg_temp.probe('admin_ph@iso-test.local', $q$select library_adopt((select id from library_items where title = 'ISO bài học kho'), true)::text$q$, true);
 select pg_temp.chk('admin_ph', 'Dùng bài học: có bài giảng mẫu của trường',
   $q$select count(*) from lesson_plans where is_template and org_id = my_org_id() and library_item_id = (select id from library_items where title = 'ISO BG cho bài học')$q$, '1');
+-- 077: bộ học liệu 4 thẻ của bài học
+select pg_temp.chk('so_hy', 'Bộ 4 thẻ: tạo bài học đã phát hành mà chưa chốt đủ thẻ bị chặn',
+  $q$insert into library_items (owner_org_id, kind, title, status, content) values (my_org_id(), 'unit', 'ISO bộ thiếu', 'published', jsonb_build_object('checked', jsonb_build_array('info', 'content', 'links')))$q$, 'ERR 22023');
+select pg_temp.probe('so_hy@iso-test.local', $q$insert into library_items (owner_org_id, kind, title, content) values (my_org_id(), 'unit', 'ISO bộ 4 thẻ',
+  jsonb_build_object('objectives', 'A', 'checked', jsonb_build_array('norms', 'info', 'rác', 'info', 'content')))$q$, true);
+select pg_temp.chk('so_hy', 'Bộ 4 thẻ: chỉ giữ thẻ hợp lệ, không trùng, theo thứ tự', $q$select content->>'checked' from library_items where title = 'ISO bộ 4 thẻ'$q$, '["info", "content", "norms"]');
+select pg_temp.chk('so_hy', 'Bộ 4 thẻ: chưa chốt đủ 4 thẻ thì không phát hành', $q$select library_publish((select id from library_items where title = 'ISO bộ 4 thẻ'))::text$q$, 'ERR 22023');
+select pg_temp.chk('so_hy', 'Bộ 4 thẻ: sửa mục tiêu → thẻ Thông tin về "Cần kiểm tra"',
+  $q$with u as (update library_items set content = content || '{"objectives": "B"}' where title = 'ISO bộ 4 thẻ' returning content->>'checked' c) select c from u$q$, '["content", "norms"]');
+select pg_temp.chk('so_hy', 'Bộ 4 thẻ: sửa và đổi chốt cùng lúc thì giữ theo người soạn',
+  $q$with u as (update library_items set content = content || '{"objectives": "B", "checked": ["info", "content", "links", "norms"]}' where title = 'ISO bộ 4 thẻ' returning content->'checked' c) select jsonb_array_length(c)::text from u$q$, '4');
+select pg_temp.probe('so_hy@iso-test.local', $q$update library_items set content = content || '{"checked": ["info", "content", "links", "norms"]}' where title = 'ISO bộ 4 thẻ'$q$, true);
+select pg_temp.chk('so_hy', 'Bộ 4 thẻ: chốt đủ 4 thẻ thì phát hành được', $q$select library_publish((select id from library_items where title = 'ISO bộ 4 thẻ'))::text$q$, '1');
+select pg_temp.chk('so_hy', 'Bộ 4 thẻ: thêm học liệu vào bài → thẻ Link học liệu về "Cần kiểm tra"',
+  $q$with u as (update library_items set content = content || jsonb_build_object('material_ids', jsonb_build_array(gen_random_uuid())) where title = 'ISO bộ 4 thẻ' returning content->>'checked' c) select c from u$q$, '["info", "content", "norms"]');
 -- Cấp học & khối
 select pg_temp.chk('hs_kb', 'Cấp học: mọi người đọc được danh mục', $q$select count(*) from edu_levels where code in ('tieuhoc', 'thcs', 'thpt')$q$, '3');
 select pg_temp.chk('so_hy', 'Cấp học: Sở không thêm được', $q$insert into edu_levels (code, name, grade_from, grade_to) values ('iso_mn', 'ISO', 1, 2)$q$, 'ERR');

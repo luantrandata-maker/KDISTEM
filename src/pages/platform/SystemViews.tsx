@@ -525,6 +525,7 @@ function SandboxBar() {
     {msg && <p className="msg">{msg}</p>}
   </div>
 }
-export const SysLessons = () => <><SandboxBar /><TwoTabs tabs={[['Bài giảng', LESSONS], ['Kho hoạt động', ACTIVITIES]]} /></>
+export const SysActivities = () => <><SandboxBar /><SystemList spec={ACTIVITIES} /></>
+export const SysSchoolLessons = () => <><SandboxBar /><SystemList spec={LESSONS} /></>
 export const SysTrainingLessons = () => <TwoTabs tabs={[['Bài giảng tập huấn', TRAINING_LESSONS], ['Lớp học ảo', VIRTUAL]]} />
 export const SysCertificates = one(CERTIFICATES)

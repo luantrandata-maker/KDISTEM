@@ -1,3 +1,4 @@
+import { CoverPicker, coverStyle } from '../../components/Cover'
 import { useStemTracks } from '../../lib/stemTracks'
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { Icon } from '../../components/Icon'
@@ -105,7 +106,7 @@ const NOEV = { preventDefault() {} } as React.FormEvent
 const MAT_OPTS = Object.entries(MAT_TYPE).filter(([k]) => k !== 'lesson_plan')
 
 // Phát hành học liệu: Sở/Phòng/Tỉnh/Bộ, đơn vị cung cấp (KDI Education) hoặc trường soạn và phát hành tới đơn vị trực thuộc
-export function LibraryManage({ orgId }: { orgId: string | null }) {
+export function LibraryManage({ orgId, only }: { orgId: string | null; only?: T }) {
   const { codes: PROGRAMS } = useStemTracks()
   const [items, setItems] = useState<Item[]>([])
   const [visible, setVisible] = useState<Item[]>([])
@@ -115,7 +116,7 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   const [me, setMe] = useState<Org | null>(null)
   const [lessons, setLessons] = useState<LP[]>([])
   const [form, setForm] = useState<Form | null>(null)
-  const [tab, setTab] = useState<T>('unit')
+  const [tab, setTab] = useState<T>(only ?? 'unit')
   const [fStatus, setFStatus] = useState('')
   const [fSubject, setFSubject] = useState('')
   const [fGrade, setFGrade] = useState('')
@@ -372,10 +373,10 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
   }
   return (
     <>
-      <div style={{ marginBottom: 10 }}>
+      {!only && <div style={{ marginBottom: 10 }}>
         <Tabs items={kindTabs.map(k => [k, tabLabel(k), k === 'norm' ? undefined : items.filter(i => k === 'plan' ? isPlan(i) : k === 'material' ? i.kind === 'material' && !isPlan(i) : i.kind === k).length] as [T, string, number?])}
           value={tab} onChange={t => { setTab(t); setOpen(null); setFType('') }} />
-      </div>
+      </div>}
       {tab === 'norm' ? <Suspense fallback={<p className="sub">Đang tải…</p>}><MaterialNorms orgId={orgId} /></Suspense> : <>
       <div className="bar">
         <div className="tools">
@@ -522,6 +523,9 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
           )}
           {form.kind === 'lesson' && <LessonModePicker value={form.lmode} onChange={lmode => setForm({ ...form, lmode })} />}
           {form.kind === 'lesson' && form.lmode === 'interactive' && <InteractiveLesson value={form.ilesson} ct={form.program} onChange={ilesson => setForm({ ...form, ilesson })} onCopy={copyInteractive} sources={iSources} skip={form.id} />}
+          {form.kind === 'lesson' && form.lmode === 'interactive' && form.ilesson && asLesson(form.ilesson) && <div className="field"><span>Ảnh bìa bài giảng</span>
+            <CoverPicker value={form.ilesson.cover} program={form.program} onChange={cover => setForm({ ...form, ilesson: { ...form.ilesson!, cover } })} />
+            <small>Màu mặc định theo nhóm chương trình; trường “dùng” bài giảng sẽ nhận cả ảnh bìa.</small></div>}
           {form.kind === 'lesson' && form.lmode === 'slides' && (
             <>
               <div className="bar small"><b>Slide bài giảng</b>
@@ -596,12 +600,13 @@ export function LibraryManage({ orgId }: { orgId: string | null }) {
           {shown.map((i, n) => {
             const s = stats.get(i.id)
             const img = i.content?.type === 'image' && i.content.url ? i.content.url : null
+            const cover = i.kind === 'lesson' ? coverStyle({ lesson: i.content?.lesson as { cover?: string } | null, program: i.program }) : undefined
             return (
               <button key={i.id} type="button" className={'tile' + (open === i.id ? ' on' : '')} onClick={() => setOpen(i.id)}>
-                <div className={'tileart art' + (n % 6)} style={img ? { backgroundImage: `url("${img}")` } : undefined}>
+                <div className={'tileart art' + (n % 6)} style={img ? { backgroundImage: `url("${img}")` } : cover}>
                   <ProgChip p={i.program} />
                   <span className="tilestatus"><StatusChip s={i.status} /></span>
-                  {!img && <span aria-hidden="true"><Icon n={tileIcon(i, tab)} size={40} /></span>}
+                  {!img && !cover && <span aria-hidden="true"><Icon n={tileIcon(i, tab)} size={40} /></span>}
                 </div>
                 <div className="tilebody">
                   <b>{i.title}</b>

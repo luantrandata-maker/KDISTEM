@@ -73,6 +73,8 @@ import { DeptAdmin } from './pages/department/Admin'
 // Kho học liệu dùng chung (023)
 const LibraryBrowse = lazy(() => import('./pages/library/Browse').then(m => ({ default: m.LibraryBrowse })))
 const LibraryPrograms = lazy(() => import('./pages/library/Programs').then(m => ({ default: m.LibraryPrograms })))
+const LibraryByProgram = lazy(() => import('./pages/library/ByProgram').then(m => ({ default: m.LibraryByProgram })))
+const LibraryNeeds = lazy(() => import('./pages/library/ByProgram').then(m => ({ default: m.LibraryNeeds })))
 const LibraryManage = lazy(() => import('./pages/library/Manage').then(m => ({ default: m.LibraryManage })))
 // Phê duyệt (022): tải riêng khi mở
 const ApprovalInbox = lazy(() => import('./pages/approvals/Inbox').then(m => ({ default: m.ApprovalInbox })))
@@ -377,7 +379,7 @@ const PLATFORM: PageMap = {
   // 2. Chương trình & học liệu
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
   'Chương trình giáo dục': (p: any) => <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Môn học', SubjectsPlatform], ['Danh mục', ProgramCatalogs]]} />,
-  'Học liệu': (p: any) => <TabbedPages {...p} tabs={[['Phát hành học liệu', LibraryManage], ['Kho học liệu dùng chung', LibraryBrowse]]} />,
+  'Học liệu': (p: any) => <TabbedPages {...p} tabs={[['Học liệu theo chương trình', LibraryByProgram], ['Cần chuẩn bị theo chương trình', LibraryNeeds], ['Danh mục học liệu', LibraryManage], ['Kho học liệu dùng chung', LibraryBrowse]]} />,
   'Theo dõi chương trình CT1–CT5 (Môn học)': (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects], ['Tiến độ & yêu cầu cần đạt', ProgressPlatform]]} />,
   // 3. Vật tư, thiết bị dạy & học
   'Thiết bị & vật tư': EquipmentOverview,

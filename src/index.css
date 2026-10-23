@@ -1388,3 +1388,12 @@ a.namelink:hover{color:var(--primary)}
 .main .coverrow .patbtn{display:inline-flex;align-items:center;gap:6px;min-height:32px;padding:0 10px 0 4px;font-size:13px}
 .coverrow .patbtn span{width:36px;height:22px;border-radius:5px;background-size:cover;background-position:center}
 .main .coverrow .patbtn.on{border-color:var(--primary);color:var(--primary);background:#eef4fc}
+/* Bộ học liệu 4 thẻ (077) */
+.kitbar{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:6px}
+.kitcard{border:1px solid var(--line,#dfe3ea);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;background:var(--card,#fff)}
+.kitcard.on{border-color:#9bd3ad}
+.kitfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:6px}
+.kitnote{grid-column:1/-1}
+@media (max-width:800px){.kitbar{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.libtable tr.grouprow th{background:var(--soft);color:var(--navy);text-align:left;font-weight:600}
+.libtable tr.subrow td{background:var(--soft)}

@@ -57,7 +57,7 @@ export function TeacherSelfStudy({ teacherId, orgId }: TProps) {
     if (!teacherId) return
     supabase.from('activities').select('id, title, kind, teacher_id, status, is_template').order('title').then(({ data }) =>
       setActs(((data as any[]) ?? []).filter(a => a.status === 'published' || a.teacher_id === teacherId).map(a => ({ id: a.id, title: a.title, kind: a.kind }))))
-    supabase.from('lesson_plans').select('id, title, teacher_id, status, is_template').order('title').then(({ data }) =>
+    supabase.from('lesson_plans').select('id, title, teacher_id, status, is_template').is('draft_of', null).order('title').then(({ data }) =>
       setLessons(((data as any[]) ?? []).filter(l => l.status === 'published' || l.is_template || l.teacher_id === teacherId).map(l => ({ id: l.id, title: l.title }))))
   }, [teacherId])
   // Từ Kho hoạt động: "Giao cho lớp"

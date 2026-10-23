@@ -35,7 +35,7 @@ export function TeacherActivities({ teacherId, orgId, go }: TProps) {
     const [a, l] = await Promise.all([
       supabase.from('activities').select(COLS).order('updated_at', { ascending: false }),
       supabase.from('lesson_plans').select('id, title, subject, grades, program, is_template, status, slides, teacher_id, teachers(full_name), lesson, cover_url, summary, periods')
-        .or('status.eq.published,is_template.eq.true').order('updated_at', { ascending: false }).limit(200),
+        .or('status.eq.published,is_template.eq.true').is('draft_of', null).order('updated_at', { ascending: false }).limit(200),
     ])
     if (a.error) setErr(/does not exist|schema cache/i.test(a.error.message) ? 'Hãy chạy migration 030_activities_self_study_holidays.sql trên Supabase.' : a.error.message)
     setRows((a.data as unknown as Activity[]) ?? []); setLessons((l.data as unknown as LessonLite[]) ?? [])
@@ -238,7 +238,7 @@ const artOf = (a: Activity): [string, number] => a.kind === 'sim' ? [SIM_ART[a.c
 const kindLabel = (a: Activity) => a.kind === 'sim' ? SIMS[a.content?.model as SimModel]?.label ?? ACT.sim.label : ACT[a.kind].label
 const gradesOf = (s: string | null) => (s ?? '').split(/[,;\s–-]+/).map(x => x.trim()).filter(Boolean)
 
-type MyPlan = { id: string; title: string; program: string | null; lesson: any; status: string }
+type MyPlan = { id: string; title: string; program: string | null; lesson: any; status: string; draft_of?: string | null }
 
 function ActivityBank({ rows, teacherId, orgId, go, onUse, onAssign }: {
   rows: Activity[]; teacherId: string; orgId: string | null; go?: (p: string) => void; onUse: (a: Activity) => void; onAssign: (a: Activity) => void
@@ -328,7 +328,7 @@ function ActivityModal({ a, teacherId, orgId, go, onClose, onUse, onAssign }: {
   const g = actGroup(a.kind)
   useEffect(() => {
     if (!pick) return
-    supabase.from('lesson_plans').select('id, title, program, lesson, status').eq('teacher_id', teacherId).in('status', ['draft', 'editing', 'rejected'])
+    supabase.from('lesson_plans').select('id, title, program, lesson, status, draft_of').eq('teacher_id', teacherId).in('status', ['draft', 'editing', 'rejected'])
       .order('updated_at', { ascending: false }).then(({ data }) => { const d = (data as MyPlan[]) ?? []; setPlans(d); if (d[0]) setPlan(d[0].id) })
   }, [pick])
   const sel = plans.find(p => p.id === plan)
@@ -381,7 +381,7 @@ function ActivityModal({ a, teacherId, orgId, go, onClose, onUse, onAssign }: {
               {plans.length === 0 ? <p className="sub">Thầy/cô chưa có bài giảng đang soạn. Bấm “Tạo bài giảng mới với hoạt động”.</p> : (
                 <div className="formgrid">
                   <label className="field"><span>Bài giảng đang soạn</span><select value={plan} onChange={e => { setPlan(e.target.value); setPhase(0) }}>
-                    {plans.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}</select></label>
+                    {plans.map(p => <option key={p.id} value={p.id}>{p.title}{p.draft_of ? ' (bản nháp sửa)' : ''}</option>)}</select></label>
                   <label className="field"><span>Giai đoạn</span><select value={phase} onChange={e => setPhase(Number(e.target.value))}>
                     {(selLesson?.phases ?? []).map((p, i) => <option key={i} value={i}>{p.title} ({p.blocks.length} khối)</option>)}</select></label>
                   <div className="actions"><button className="primary" onClick={addTo} disabled={busy || !sel}>Thêm khối</button><button onClick={() => setPick(false)}>Huỷ</button></div>

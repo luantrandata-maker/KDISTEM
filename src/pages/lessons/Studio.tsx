@@ -71,8 +71,10 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
   useEffect(() => { load() }, [teacherId])
   useEffect(() => { if (orgId) supabase.rpc('lesson_review_required', { p_org: orgId }).then(({ data }) => setReviewRequired(!!data)) }, [orgId])
 
-  const mine = plans.filter(p => p.teacher_id === teacherId && !p.is_template)
-  const shared = plans.filter(p => p.org_id === orgId && (p.is_template || (p.teacher_id !== teacherId && p.status === 'published')))
+  // Bản nháp để sửa (076) không hiện thành thẻ riêng: thẻ bài gốc có nút mở bản nháp
+  const draftOf = new Map(plans.filter(p => p.draft_of).map(p => [p.draft_of as string, p]))
+  const mine = plans.filter(p => p.teacher_id === teacherId && !p.is_template && !p.draft_of)
+  const shared = plans.filter(p => !p.draft_of && p.org_id === orgId && (p.is_template || (p.teacher_id !== teacherId && p.status === 'published')))
   const src = library ? shared : mine
   const filtered = src.filter(p => (!program || p.program === program) && (!q || p.title.toLowerCase().includes(q.toLowerCase())))
   const shown = library || tab === 'all' ? filtered : filtered.filter(p => IN_TAB[tab].includes(p.status))
@@ -93,7 +95,7 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
   if (view.mode === 'new') return <NewPlan teacherId={teacherId} orgId={orgId} templates={templates}
     onCancel={() => setView({ mode: 'list' })} onCreated={id => { load(); setView({ mode: 'edit', id }) }} />
   if (view.mode === 'edit') return <Editor id={view.id} teacherId={teacherId} orgId={orgId} go={go} templates={templates} reviewRequired={reviewRequired}
-    onClose={() => { setView({ mode: 'list' }); load() }} onPresent={p => setView({ mode: 'present', plan: p, i: 0, back: p.id })} />
+    onClose={() => { setView({ mode: 'list' }); load() }} onOpen={id => setView({ mode: 'edit', id })} onPresent={p => setView({ mode: 'present', plan: p, i: 0, back: p.id })} />
   if (view.mode === 'present') return <Presenter plan={view.plan} i={view.i} onMove={i => setView({ ...view, i })}
     onClose={() => setView(view.back ? { mode: 'edit', id: view.back } : { mode: 'list' })} />
 
@@ -139,13 +141,14 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
                 <small>{ago(p.updated_at)}</small>
               </div>
               {p.status === 'rejected' && p.review_note && <small className="msg" style={{ margin: 0 }}>Góp ý: {p.review_note}</small>}
+              {!library && draftOf.has(p.id) && <small className="sub" style={{ margin: 0 }}><Icon n="pencil" /> Đang có bản nháp sửa · {ago(draftOf.get(p.id)!.updated_at)}</small>}
               <div className="tools">
                 {library ? <>
                   <button className="primary" onClick={() => clone(p)}>Dùng bài này</button>
                   <button onClick={() => present(p)}>Trình chiếu</button>
                   {blocksOf(p) > 0 && <button onClick={() => setOverlay({ plan: p, kind: 'player' })}>Xem như học sinh</button>}
                 </> : <>
-                  <button className="primary" onClick={() => setView({ mode: 'edit', id: p.id })}>{editable(p.status) ? 'Soạn' : 'Mở'}</button>
+                  <button className="primary" onClick={() => setView({ mode: 'edit', id: draftOf.get(p.id)?.id ?? p.id })}>{editable(p.status) || draftOf.has(p.id) ? 'Soạn' : 'Mở'}</button>
                   <button onClick={() => present(p)}>Trình chiếu</button>
                   <button onClick={() => clone(p)}>Nhân bản</button>
                   {p.status !== 'pending' && <button className="x" onClick={() => remove(p)} aria-label={`Xoá ${p.title}`}>×</button>}
@@ -233,11 +236,13 @@ function Presenter({ plan, i, onMove, onClose }: { plan: LPlan; i: number; onMov
 type ETab = 'info' | 'lesson' | 'doc' | 'steps' | 'slides' | 'res' | 'mat' | 'ver'
 type Est = { item_id: string; name: string; unit: string; kind: string; reusable: boolean; per_qty: number; multiplier: number; need: number; stock: number | null; shortage: number; unit_price: number | null; cost: number | null }
 
-function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, onPresent }: {
+function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, onOpen, onPresent }: {
   id: string; teacherId: string; orgId: string | null; go?: (page: string) => void; templates: Template[]; reviewRequired: boolean
-  onClose: () => void; onPresent: (p: LPlan) => void
+  onClose: () => void; onOpen: (id: string) => void; onPresent: (p: LPlan) => void
 }) {
   const [p, setP] = useState<LPlan | null>(null)
+  // Bài gốc (khi đang mở bản nháp) hoặc bản nháp đang có (khi mở bài đã xuất bản)
+  const [link, setLink] = useState<{ id: string; title: string } | null>(null)
   const [tab, setTab] = useState<ETab>('info')
   const [preview, setPreview] = useState(false)
   const [overlay, setOverlay] = useState<Overlay>(null)
@@ -256,6 +261,10 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
     const { data, error } = await supabase.from('lesson_plans').select(PLAN_COLS).eq('id', id).maybeSingle()
     if (error || !data) return setMsg([errText(error?.message ?? 'Không tìm thấy giáo án.'), true])
     setP(normPlan(data as LPlan)); setDirty(false)
+    const d = data as LPlan
+    const l = d.draft_of ? await supabase.from('lesson_plans').select('id, title').eq('id', d.draft_of).maybeSingle()
+      : d.status === 'published' ? await supabase.from('lesson_plans').select('id, title').eq('draft_of', d.id).maybeSingle() : null
+    setLink((l?.data as { id: string; title: string } | null) ?? null)
     if (blocksOf(data as LPlan) > 0) setTab(t => (t === 'info' ? 'lesson' : t))
     const [v, r] = await Promise.all([
       supabase.from('lesson_plan_versions').select('*').eq('plan_id', id).order('version_no', { ascending: false }),
@@ -324,7 +333,26 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
     if (miss.length) { setTab('doc'); return say('Còn mục bắt buộc chưa soạn: ' + miss.join(', '), true) }
     const note = prompt('Ghi chú cho phiên bản xuất bản (không bắt buộc):', p!.version_no ? 'Cập nhật sau dạy thử' : 'Bản đầu tiên')
     if (note === null) return
+    if (p!.draft_of) {
+      // Xuất bản thay bản cũ: nội dung chép sang bài gốc, bản nháp được bỏ → mở lại bài gốc
+      if (dirty && !(await save(true))) return
+      setBusy(true); const r = await rpcErr('lesson_plan_publish', { p_plan: p!.id, p_note: note }); setBusy(false)
+      if (r.err) return say(r.err, true)
+      return onOpen(p!.draft_of)
+    }
     run('lesson_plan_publish', { p_plan: p!.id, p_note: note }, 'Đã xuất bản — đồng nghiệp thấy giáo án trong Kho bài giảng mẫu.')
+  }
+  async function makeDraft() {
+    setBusy(true); const r = await rpcErr('lesson_plan_draft', { p_plan: p!.id }); setBusy(false)
+    if (r.err) return say(r.err, true)
+    onOpen(r.data as string)
+  }
+  async function dropDraft() {
+    if (!confirm('Bỏ bản nháp này? Mọi thay đổi trong bản nháp sẽ mất; bài đã xuất bản giữ nguyên.')) return
+    const orig = p!.draft_of!
+    setBusy(true); const { error } = await supabase.from('lesson_plans').delete().eq('id', p!.id); setBusy(false)
+    if (error) return say(errText(error.message), true)
+    onOpen(orig)
   }
   const close = () => { if (!dirty || confirm('Có thay đổi chưa lưu. Thoát không lưu?')) onClose() }
   function teachTrial() {
@@ -348,15 +376,24 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
           {go && <button onClick={teachTrial} title="Mở lớp học Giáo dục STEM với giáo án này">Dạy thử</button>}
           {!ro && <button onClick={() => save()} disabled={busy || !dirty}>Lưu nháp</button>}
           {canSubmit && reviewRequired && <button className="primary" onClick={submit} disabled={busy}>Gửi duyệt</button>}
-          {canPublish && <button className={reviewRequired && p.status !== 'approved' ? '' : 'primary'} onClick={publish} disabled={busy}>Xuất bản</button>}
+          {canPublish && <button className={reviewRequired && p.status !== 'approved' ? '' : 'primary'} onClick={publish} disabled={busy}>{p.draft_of ? 'Xuất bản thay bản cũ' : 'Xuất bản'}</button>}
           {canSubmit && !reviewRequired && <button onClick={submit} disabled={busy}>Gửi duyệt</button>}
         </span>
       </div>
       <PlanOverlay o={overlay} onClose={() => setOverlay(null)} />
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
-      {ro && <ReadOnlyBanner p={p} busy={busy}
+      {p.draft_of && <div className="panel bar" style={{ borderLeft: '4px solid var(--primary)', alignItems: 'center' }}>
+        <span><Icon n="pencil" /> Đây là <b>bản nháp để sửa</b>{link ? <> của “{link.title}”</> : null}. Học sinh và đồng nghiệp vẫn dùng bản đã xuất bản cho tới khi bạn bấm “Xuất bản thay bản cũ”.</span>
+        <span className="tools">{link && <button onClick={() => onOpen(link.id)} disabled={busy}>Xem bản đang dùng</button>}
+          <button className="danger" onClick={dropDraft} disabled={busy}>Bỏ bản nháp</button></span>
+      </div>}
+      {ro && <ReadOnlyBanner p={p} busy={busy} draftId={link && !p.draft_of ? link.id : null}
         onWithdraw={() => run('lesson_plan_withdraw', { p_plan: p.id }, 'Đã rút lại — giáo án trở về bản nháp.')}
-        onNewVersion={() => run('lesson_plan_new_version', { p_plan: p.id }, 'Đã tạo phiên bản mới để soạn. Bản đã xuất bản vẫn lưu trong lịch sử.')} />}
+        onDraft={makeDraft} onOpenDraft={() => link && onOpen(link.id)}
+        onNewVersion={() => {
+          if (p.status === 'published' && !confirm('Gỡ xuất bản để sửa thẳng? Đồng nghiệp không còn thấy bài trong kho, lớp đang dùng sẽ thấy nội dung đang sửa. Muốn giữ bản đang dùng, chọn "Tạo bản nháp để sửa".')) return
+          run('lesson_plan_new_version', { p_plan: p.id }, p.status === 'published' ? 'Đã gỡ xuất bản — bài trở về đang soạn. Bản cũ vẫn lưu trong lịch sử.' : 'Đã tạo phiên bản mới để soạn. Bản cũ vẫn lưu trong lịch sử.')
+        }} />}
       {p.status === 'rejected' && <div className="panel" style={{ borderLeft: '4px solid var(--bad, #dc2626)' }}>
         <b>Giáo án bị trả lại.</b> {p.review_note ? <>Góp ý: <i>{p.review_note}</i></> : 'Sửa theo góp ý rồi gửi duyệt lại.'}</div>}
 
@@ -392,17 +429,23 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
   )
 }
 
-function ReadOnlyBanner({ p, busy, onWithdraw, onNewVersion }: { p: LPlan; busy: boolean; onWithdraw: () => void; onNewVersion: () => void }) {
+function ReadOnlyBanner({ p, busy, draftId, onWithdraw, onNewVersion, onDraft, onOpenDraft }: {
+  p: LPlan; busy: boolean; draftId: string | null; onWithdraw: () => void; onNewVersion: () => void; onDraft: () => void; onOpenDraft: () => void
+}) {
   const text = p.status === 'pending' ? 'Giáo án đang chờ duyệt nên không sửa được. Rút lại nếu cần sửa tiếp.'
     : p.status === 'approved' ? 'Giáo án đã được duyệt. Bấm “Xuất bản” để phát hành, hoặc tạo phiên bản mới nếu cần sửa.'
-    : p.status === 'published' ? `Giáo án đã xuất bản (phiên bản ${p.version_no}, ${fmtD(p.published_at)}). Muốn sửa, tạo phiên bản mới — bản đang dùng vẫn được lưu.`
+    : p.status === 'published' ? (draftId ? `Đã xuất bản (phiên bản ${p.version_no}, ${fmtD(p.published_at)}) và đang có một bản nháp sửa. Học sinh vẫn xem bản này.`
+      : `Đã xuất bản (phiên bản ${p.version_no}, ${fmtD(p.published_at)}) nên đang ở chế độ xem. Muốn sửa, tạo bản nháp — học sinh vẫn xem bản này cho tới khi bạn xuất bản thay.`)
     : 'Giáo án đang lưu trữ. Tạo phiên bản mới để soạn tiếp.'
   return (
     <div className="panel bar" style={{ borderLeft: '4px solid var(--warn, #d97706)', alignItems: 'center' }}>
       <span><Icon n="lock" /> {text}</span>
       <span className="tools">
         {p.status === 'pending' && <button onClick={onWithdraw} disabled={busy}>Rút lại</button>}
-        {['approved', 'published', 'archived'].includes(p.status) && <button onClick={onNewVersion} disabled={busy}>Tạo phiên bản mới</button>}
+        {p.status === 'published' && (draftId ? <button className="primary" onClick={onOpenDraft} disabled={busy}>Mở bản nháp</button>
+          : <button className="primary" onClick={onDraft} disabled={busy}>Tạo bản nháp để sửa</button>)}
+        {p.status === 'published' && !draftId && <button onClick={onNewVersion} disabled={busy}>Gỡ xuất bản</button>}
+        {['approved', 'archived'].includes(p.status) && <button onClick={onNewVersion} disabled={busy}>Tạo phiên bản mới</button>}
       </span>
     </div>
   )
@@ -717,7 +760,7 @@ function VerTab({ p, versions, reviews, classes, reviewRequired, busy, onRestore
           {canSubmit && <button className={reviewRequired ? 'primary' : ''} onClick={onSubmit} disabled={busy}>Gửi duyệt</button>}
           {p.status === 'pending' && <button onClick={onWithdraw} disabled={busy}>Rút lại</button>}
           {canPublish && <button className="primary" onClick={onPublish} disabled={busy}>Xuất bản</button>}
-          {['approved', 'published', 'archived'].includes(p.status) && <button onClick={onNewVersion} disabled={busy}>Tạo phiên bản mới</button>}
+          {['approved', 'archived'].includes(p.status) && <button onClick={onNewVersion} disabled={busy}>Tạo phiên bản mới</button>}
         </span>
         {p.review_note && <p style={{ marginBottom: 0 }}><b>Ý kiến người duyệt:</b> <i>{p.review_note}</i></p>}
       </div>

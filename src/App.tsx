@@ -124,6 +124,7 @@ const eduProgramTabs = (mode: 'school' | 'authority') => {
 // Danh mục loại chương trình (CT1–CT5 và loại thêm sau): tên, mô tả, môn học, cấp học (062, 064)
 const EduLevelsCatalog = lazy(() => import('./pages/eduLevels').then(m => ({ default: m.EduLevelsCatalog })))
 const StemTracksCatalog = lazy(() => import('./pages/stemTracks').then(m => ({ default: m.StemTracksCatalog })))
+const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Nhóm chương trình', StemTracksCatalog], ['Cấp học & khối', EduLevelsCatalog]]} />
 const ProgressPlatform = (q: any) => <CurriculumProgress {...q} mode="platform" />
 // Định mức vật tư theo bài / chủ đề, danh mục vật tư, dự trù, đề xuất điều chỉnh (059)
 const MaterialNorms = lazy(() => import('./pages/materialNorms').then(m => ({ default: m.MaterialNorms })))
@@ -365,14 +366,15 @@ const PLATFORM: PageMap = {
   'Thông tin khách hàng': PlatformCustomers,
   'Gói dịch vụ & hợp đồng': PlatformContracts,
   'Triển khai khách hàng': PlatformRollout,
-  'Đơn đặt gói STEM': PlatformOrders,
+  'Đơn đặt gói STEM': (p: any) => <TabbedPages {...p} tabs={[['Đơn đặt gói', PlatformOrders], ['Gói STEM của KDI', PlatformCatalog]]} />,
   'Tích hợp & dữ liệu': PlatformIntegrations,
   // 1. Đào tạo & đánh giá năng lực nhà giáo
   'Kế hoạch tập huấn': TrainingPlans,
   'Lịch tập huấn': TrainingSchedule,
   'Giám sát tập huấn nhà giáo': DeptTrainingMonitor,
   // 2. Chương trình & học liệu
-  'Chương trình giáo dục': (p: any) => <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Loại chương trình', StemTracksCatalog], ['Môn học', SubjectsPlatform], ['Cấp học & khối', EduLevelsCatalog], ['Gói STEM của KDI', PlatformCatalog]]} />,
+  // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
+  'Chương trình giáo dục': (p: any) => <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Môn học', SubjectsPlatform], ['Danh mục', ProgramCatalogs]]} />,
   'Học liệu': (p: any) => <TabbedPages {...p} tabs={[['Phát hành học liệu', LibraryManage], ['Kho học liệu dùng chung', LibraryBrowse]]} />,
   'Theo dõi chương trình CT1–CT5 (Môn học)': (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects], ['Tiến độ & yêu cầu cần đạt', ProgressPlatform]]} />,
   // 3. Vật tư, thiết bị dạy & học

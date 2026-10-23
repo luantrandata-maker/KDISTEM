@@ -15,15 +15,17 @@ import { GradePicker, LevelPicker, SubjectMulti, SubjectPicker, gradeList } from
 // Khái niệm (064): Chương trình → Học phần (unit 'topic', trước gọi là chủ đề; gắn Môn học qua edu_unit_subjects)
 // → Bài học / Buổi học (gắn Học liệu qua edu_unit_materials) → Bài giảng (lesson_plans gắn unit_id, soạn ở "Soạn bài giảng").
 // Chương trình giáo dục chuẩn (migration 058): danh mục + phiên bản, cấu trúc học phần → bài học → buổi học, yêu cầu cần đạt,
-// gửi duyệt / ban hành / thay thế / lưu trữ, gán cho trường và theo dõi độ phủ; trường tạo PPCT từ chương trình.
+// gửi duyệt / phát hành / thay thế / ngừng dùng, gán cho trường và theo dõi độ phủ; trường tạo PPCT từ chương trình.
 export type ProgMode = 'school' | 'authority' | 'platform'
 type Status = 'draft' | 'pending' | 'approved' | 'rejected' | 'published' | 'superseded' | 'archived'
 type Kind = 'subject' | 'stem' | 'school'
+type Deploy = 'year' | 'hk1' | 'hk2'
 type Level = string
 type Program = {
   id: string; org_id: string; family_id: string; version_no: number; code: string | null; title: string; kind: Kind; ct_code: string | null
   level: Level; grade_from: number; grade_to: number; main_subject: string; integrated_subjects: string[]; objectives: string | null
   competency_keys: string[]; rubric_ids: string[]; total_periods: number; status: Status; scope: 'own' | 'children'
+  periods_per_week: number | null; deploy_term: Deploy
   effective_from: string | null; effective_to: string | null; replaced_by: string | null; source_id: string | null
   published_at: string | null; note: string | null; updated_at: string; organizations?: { name: string } | null
 }
@@ -45,9 +47,14 @@ type Cover = {
 
 export const PKIND: Record<Kind, string> = { subject: 'Môn học', stem: 'Chương trình STEM', school: 'Chương trình nhà trường' }
 export const PSTATUS: Record<Status, [string, string]> = {
-  draft: ['Nháp', ''], pending: ['Chờ duyệt', 'warn'], approved: ['Đã duyệt', 'good'], rejected: ['Bị trả lại', 'bad'],
-  published: ['Đang ban hành', 'good'], superseded: ['Đã thay thế', ''], archived: ['Lưu trữ', ''],
+  draft: ['Nháp', ''], pending: ['Nháp · chờ duyệt', 'warn'], approved: ['Nháp · đã duyệt', ''], rejected: ['Nháp · bị trả lại', 'bad'],
+  published: ['Đã phát hành', 'good'], superseded: ['Ngừng dùng · có bản mới', 'off'], archived: ['Ngừng dùng', 'off'],
 }
+// Ba nhóm trạng thái người dùng thấy: Nháp (gồm chờ duyệt, bị trả lại) · Đã phát hành · Ngừng dùng (gồm bản đã có bản mới)
+const SGROUP: Record<string, [string, Status[]]> = {
+  draft: ['Nháp', ['draft', 'pending', 'approved', 'rejected']], published: ['Đã phát hành', ['published']], off: ['Ngừng dùng', ['superseded', 'archived']],
+}
+export const DEPLOY: Record<Deploy, [string, string]> = { year: ['Cả năm', 'tuần 1–35'], hk1: ['Học kỳ 1', 'tuần 1–18'], hk2: ['Học kỳ 2', 'tuần 19–35'] }
 const UTYPE: Record<UnitType, string> = { topic: 'Học phần', lesson: 'Bài học', session: 'Buổi học' }
 type USubject = { unit_id: string; subject_id: string; is_main: boolean; seq: number }
 type UMaterial = { unit_id: string; item_id: string; seq: number; note: string | null; library_items?: { title: string; content: { type?: string; url?: string } | null } | null }
@@ -80,7 +87,7 @@ function useCanEdit(mode: ProgMode) {
 }
 
 // ================= Danh sách chương trình =================
-export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; mode?: ProgMode }) {
+export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string | null; mode?: ProgMode; goTab?: (tab: string) => void }) {
   const { canEdit, isAdmin } = useCanEdit(mode)
   const { byCode: tracks, codes: CT } = useStemTracks()
   const { byCode: LV, name: levelName } = useEduLevels()
@@ -95,18 +102,28 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   const [form, setForm] = useState<Partial<Program> | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
 
+  const [counts, setCounts] = useState<{ subjects: number; lessons: number } | null>(null)
   async function load() {
     const { data, error } = await supabase.from('edu_programs').select('*, organizations(name)').order('title').order('version_no', { ascending: false })
     if (error) setMsg([errText(error.message), true])
-    setList((data as Program[]) ?? [])
+    const rows = (data as Program[]) ?? []
+    setList(rows)
+    // Số liệu cho thanh quy trình: môn dùng được, bài học trong chương trình của đơn vị
+    const ownIds = rows.filter(p => p.org_id === orgId && !['superseded', 'archived'].includes(p.status)).map(p => p.id)
+    const [sj, ls] = await Promise.all([
+      supabase.from('subjects').select('id', { count: 'exact', head: true }).eq('active', true),
+      ownIds.length ? supabase.from('edu_program_units').select('id', { count: 'exact', head: true }).in('program_id', ownIds).in('unit_type', ['lesson', 'session'])
+        : Promise.resolve({ count: 0 }),
+    ])
+    setCounts({ subjects: sj.count ?? 0, lessons: ls.count ?? 0 })
   }
   useEffect(() => { load() }, [orgId])
 
   const all = list ?? []
   const subjects = useMemo(() => [...new Set(all.map(p => p.main_subject))].sort((a, b) => a.localeCompare(b, 'vi')), [list])
-  const shown = all.filter(p => (old || !['superseded', 'archived'].includes(p.status) || status === p.status)
+  const shown = all.filter(p => (old || !SGROUP.off[1].includes(p.status) || status === 'off')
     && (!level || p.level === level) && (!kind || p.kind === kind) && (!subject || p.main_subject === subject || p.integrated_subjects.includes(subject))
-    && (!status || p.status === status) && (!q || norm([p.title, p.code, p.main_subject, ...p.integrated_subjects].join(' ')).includes(norm(q))))
+    && (!status || SGROUP[status]?.[1].includes(p.status)) && (!q || norm([p.title, p.code, p.main_subject, ...p.integrated_subjects].join(' ')).includes(norm(q))))
   const own = shown.filter(p => p.org_id === orgId)
   const shared = shown.filter(p => p.org_id !== orgId)
 
@@ -115,11 +132,11 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
     const lv = (form.level ?? 'thcs') as Level
     const row = {
       org_id: orgId, title: (form.title ?? '').trim(), code: form.code?.trim() || null, kind: form.kind ?? 'subject',
-      ct_code: form.kind === 'stem' ? form.ct_code || null : null, level: lv,
+      ct_code: form.ct_code || null, level: lv, periods_per_week: Number(form.periods_per_week) || null, deploy_term: form.deploy_term ?? 'year',
       grade_from: Number(form.grade_from) || LV[lv]?.grade_from || 1, grade_to: Number(form.grade_to) || LV[lv]?.grade_to || 12,
       main_subject: (form.main_subject ?? '').trim(), scope: mode === 'school' ? 'own' : form.scope ?? 'children',
     }
-    if (!row.title || !row.main_subject) return setMsg(['Nhập tên chương trình và môn chủ đạo.', true])
+    if (!row.title || !row.main_subject || !row.ct_code) return setMsg(['Nhập tên chương trình, nhóm chương trình và môn chủ đạo.', true])
     const { data, error } = await supabase.from('edu_programs').insert(row).select('id').single()
     if (error) return setMsg([errText(error.message), true])
     setForm(null); setMsg(null); await load(); setOpenId((data as { id: string }).id)
@@ -144,13 +161,13 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
         {!mine && <><br /><small className="sub">{p.organizations?.name ?? '—'}</small></>}</td>
       <td>{levelName(p.level)} · {grades(p)}<br /><small>{PKIND[p.kind]}{p.ct_code ? <> · <span className="gpill">{p.ct_code}</span></> : null}</small></td>
       <td>{p.main_subject}{p.integrated_subjects.length > 0 && <><br /><small className="sub">Tích hợp: {p.integrated_subjects.join(', ')}</small></>}</td>
-      <td>{p.total_periods || '—'}</td>
+      <td>{p.total_periods || '—'}<br /><small className="sub">{[p.periods_per_week && `${p.periods_per_week} tiết/tuần`, DEPLOY[p.deploy_term ?? 'year']?.[0]].filter(Boolean).join(' · ')}</small></td>
       <td><StatusPill s={p.status} />{p.status === 'published' && p.effective_from && <><br /><small className="sub">từ {fmtD(p.effective_from)}</small></>}</td>
     </tr>
   )
   const table = (rows: Program[], mine: boolean) => (
     <div className="wrap"><table>
-      <thead><tr>{!mine && canCopy && <SelTh />}<th>Chương trình</th><th>Cấp · khối · kiểu · loại</th><th>Môn</th><th>Số tiết</th><th>Trạng thái</th></tr></thead>
+      <thead><tr>{!mine && canCopy && <SelTh />}<th>Chương trình</th><th>Cấp · khối · kiểu · nhóm</th><th>Môn</th><th>Số tiết · triển khai</th><th>Trạng thái</th></tr></thead>
       <tbody>{rows.map(p => row(p, mine))}</tbody>
     </table></div>
   )
@@ -167,7 +184,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
             <div className="tilebody">
               <b>{p.title}</b>
               <small>{p.main_subject}{p.integrated_subjects.length > 0 ? ' · tích hợp ' + p.integrated_subjects.join(', ') : ''}</small>
-              <div className="tilemeta"><span>{levelName(p.level)} · {grades(p)}</span><span>{PKIND[p.kind]}</span>{p.total_periods > 0 && <span>{p.total_periods} tiết</span>}<span>v{p.version_no}</span></div>
+              <div className="tilemeta"><span>{levelName(p.level)} · {grades(p)}</span><span>{PKIND[p.kind]}</span>{p.total_periods > 0 && <span>{p.total_periods} tiết</span>}{p.periods_per_week && <span>{p.periods_per_week} tiết/tuần</span>}<span>{DEPLOY[p.deploy_term ?? 'year']?.[0]}</span><span>v{p.version_no}</span></div>
               {!mine && <small>{p.organizations?.name ?? '—'}</small>}
             </div>
           </button>
@@ -177,21 +194,39 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
     </div>
   )
   const show = (rows: Program[], mine: boolean) => view === 'cards' ? cards(rows, mine) : table(rows, mine)
+  const ownLive = all.filter(p => p.org_id === orgId && !SGROUP.off[1].includes(p.status))
+  const firstDraft = ownLive.find(p => SGROUP.draft[1].includes(p.status))
+  const flow: [string, number, string, (() => void) | undefined][] = [
+    ['Môn học', counts?.subjects ?? 0, 'môn dùng chung', goTab ? () => goTab('Môn học') : undefined],
+    ['Chương trình', ownLive.length, 'chương trình', () => { setStatus(''); setForm(null) }],
+    ['Bài học', counts?.lessons ?? 0, 'bài học', firstDraft ? () => setOpenId(firstDraft.id) : undefined],
+    ['Phát hành', ownLive.filter(p => p.status === 'published').length, 'đã phát hành', () => setStatus('published')],
+  ]
   return (
     <>
+      {canEdit && list && <ol className="flowsteps" aria-label="Quy trình thiết lập chương trình">
+        {flow.map(([t, n, unit, go], k) => (
+          <li key={t} className={n > 0 ? 'done' : ''}>
+            <button type="button" disabled={!go} onClick={go} title={t === 'Bài học' && firstDraft ? `Mở "${firstDraft.title}" để thêm bài học` : undefined}>
+              <i aria-hidden="true">{n > 0 ? <Icon n="checkCircle" size={16} /> : k + 1}</i>
+              <span><b>{t}</b><small>{counts || t !== 'Môn học' ? `${n} ${unit}` : '…'}</small></span>
+            </button>
+          </li>
+        ))}
+      </ol>}
       <p className="sub">
-        {mode === 'school' ? 'Chương trình chuẩn của trường và chương trình do KDI, Sở, Phòng ban hành hoặc gán cho trường. Từ chương trình đang ban hành, trường tạo phân phối chương trình theo tiết.'
-          : mode === 'platform' ? 'Chương trình chuẩn của KDI: cấu trúc, yêu cầu cần đạt, phiên bản. Bản đã ban hành và chọn "dùng chung" hiện với mọi đơn vị.'
-          : 'Chương trình của đơn vị: soạn, ban hành, gán cho trường trực thuộc và theo dõi mức độ triển khai.'}
+        {mode === 'school' ? 'Chương trình chuẩn của trường và chương trình do KDI, Sở, Phòng phát hành hoặc gán cho trường. Từ chương trình đang phát hành, trường tạo phân phối chương trình theo tiết.'
+          : mode === 'platform' ? 'Chương trình chuẩn của KDI: cấu trúc, yêu cầu cần đạt, phiên bản. Bản đã phát hành và chọn "dùng chung" hiện với mọi đơn vị.'
+          : 'Chương trình của đơn vị: soạn, phát hành, gán cho trường trực thuộc và theo dõi mức độ triển khai.'}
       </p>
       <div className="bar">
         <div className="tools">
           <LevelPicker value={level} onChange={setLevel} emptyLabel="Mọi cấp học" />
           <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Kiểu chương trình"><option value="">Mọi kiểu</option>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select>
           {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
-          <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Trạng thái"><option value="">Mọi trạng thái</option>{(Object.keys(PSTATUS) as Status[]).map(s => <option key={s} value={s}>{PSTATUS[s][0]}</option>)}</select>
+          <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Trạng thái"><option value="">Mọi trạng thái</option>{Object.entries(SGROUP).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}</select>
           <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-          <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện bản cũ / lưu trữ</label>
+          <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện chương trình ngừng dùng</label>
         </div>
         <div className="tools">
           <ViewToggle value={view} onChange={setView} />
@@ -204,7 +239,9 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
           <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình *</span><input required value={form.title ?? ''} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Tin học THCS (CT GDPT 2018)" /></label>
           <label className="field"><span>Mã</span><input value={form.code ?? ''} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: TIN-THCS" /></label>
           <label className="field"><span>Kiểu chương trình</span><select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
-          {form.kind === 'stem' && <label className="field"><span>Loại chương trình</span><select value={form.ct_code ?? ''} onChange={e => setForm({ ...form, ct_code: e.target.value || null })}><option value="">—</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select></label>}
+          <label className="field"><span>Nhóm chương trình *</span><select required value={form.ct_code ?? ''} onChange={e => setForm({ ...form, ct_code: e.target.value || null })}><option value="">— Chọn nhóm —</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select></label>
+          <label className="field"><span>Số tiết / tuần</span><input type="number" min={0.5} max={40} step={0.5} value={form.periods_per_week ?? ''} onChange={e => setForm({ ...form, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })} placeholder="VD: 2" /></label>
+          <label className="field"><span>Thời gian triển khai</span><select value={form.deploy_term ?? 'year'} onChange={e => setForm({ ...form, deploy_term: e.target.value as Deploy })}>{(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} ({DEPLOY[d][1]})</option>)}</select></label>
           <label className="field"><span>Cấp học</span><LevelPicker value={form.level} onChange={l => setForm({ ...form, level: l, grade_from: LV[l]?.grade_from ?? 1, grade_to: LV[l]?.grade_to ?? 12 })} /></label>
           <label className="field"><span>Từ khối</span><GradePicker level={form.level} value={form.grade_from} onChange={g => setForm({ ...form, grade_from: g ?? undefined, grade_to: Math.max(g ?? 1, form.grade_to ?? 1) })} /></label>
           <label className="field"><span>Đến khối</span><GradePicker level={form.level} value={form.grade_to} onChange={g => setForm({ ...form, grade_to: g ?? undefined })} /></label>
@@ -223,7 +260,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
           {shared.length > 0 && canCopy && <SelBar picked={sel.cur?.title ?? null}>
             <button disabled={!sel.cur || !['published', 'superseded'].includes(sel.cur.status)} onClick={() => sel.cur && copy(sel.cur)}>Sao chép về đơn vị</button>
           </SelBar>}
-          {shared.length ? show(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chương trình nào do KDI hoặc cấp trên ban hành cho đơn vị.</p></div>}
+          {shared.length ? show(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chương trình nào do KDI hoặc cấp trên phát hành cho đơn vị.</p></div>}
         </>
       )}
     </>
@@ -265,7 +302,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
       const { data } = await supabase.from('academic_years').select('name').eq('org_id', orgId).eq('is_current', true).limit(1)
       year = ((data as { name: string }[]) ?? [])[0]?.name ?? ''
     }
-    setMkBook({ grade: p.grade_from, subject: p.main_subject, year, ppw: '' })
+    setMkBook({ grade: p.grade_from, subject: p.main_subject, year, ppw: p.periods_per_week ? String(p.periods_per_week) : '' })
   }
   async function createBook(e: React.FormEvent) {
     e.preventDefault(); if (!mkBook || !p) return
@@ -277,7 +314,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
     setMkBook(null); setMsg(['Đã tạo PPCT nháp — xem ở Phân phối chương trình.', false])
   }
 
-  // Xoá chương trình nháp (kèm học phần, yêu cầu cần đạt); bản đã gửi duyệt / ban hành thì lưu trữ
+  // Xoá chương trình nháp (kèm học phần, yêu cầu cần đạt); bản đã gửi duyệt / phát hành thì ngừng dùng
   async function removeDraft() {
     if (!p || !confirm(`Xoá chương trình nháp "${p.title}" (v${p.version_no})? Toàn bộ học phần, bài và yêu cầu cần đạt của bản này cũng bị xoá.`)) return
     const { error } = await supabase.from('edu_programs').delete().eq('id', p.id)
@@ -335,7 +372,8 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
   async function save(e: React.FormEvent) {
     e.preventDefault()
     const body = {
-      code: f.code?.trim() || null, title: f.title.trim(), kind: f.kind, ct_code: f.kind === 'stem' ? f.ct_code || null : null, level: f.level,
+      code: f.code?.trim() || null, title: f.title.trim(), kind: f.kind, ct_code: f.ct_code || null, level: f.level,
+      periods_per_week: f.periods_per_week ? Number(f.periods_per_week) : null, deploy_term: f.deploy_term ?? 'year',
       grade_from: Number(f.grade_from), grade_to: Number(f.grade_to), main_subject: f.main_subject.trim(),
       integrated_subjects: integ, objectives: f.objectives?.trim() || null,
       competency_keys: f.competency_keys, rubric_ids: f.rubric_ids, note: f.note?.trim() || null, effective_from: f.effective_from || null,
@@ -345,7 +383,7 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
     if (error) return onError(errText(error.message))
     onSaved('Đã lưu thông tin chương trình.')
   }
-  // Phạm vi và ngày hiệu lực đổi được cả khi đã ban hành (không đổi nội dung)
+  // Phạm vi và ngày hiệu lực đổi được cả khi đã phát hành (không đổi nội dung)
   async function saveScope() {
     const { error } = await supabase.from('edu_programs').update({ scope: f.scope, effective_from: f.effective_from || null }).eq('id', p.id)
     if (error) return onError(errText(error.message))
@@ -355,12 +393,16 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
   const dis = !editable
   return (
     <form className="panel" onSubmit={save}>
-      {!editable && <p className="sub" style={{ marginTop: 0 }}>{p.status === 'draft' || p.status === 'rejected' ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình đã gửi duyệt hoặc ban hành: nội dung không sửa được. Tạo phiên bản mới ở tab "Phiên bản & duyệt" để điều chỉnh.'}</p>}
+      {!editable && <p className="sub" style={{ marginTop: 0 }}>{p.status === 'draft' || p.status === 'rejected' ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình đã gửi duyệt hoặc phát hành: nội dung không sửa được. Tạo phiên bản mới ở tab "Phiên bản & duyệt" để điều chỉnh.'}</p>}
       <div className="formgrid">
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình</span><input disabled={dis} value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></label>
         <label className="field"><span>Mã</span><input disabled={dis} value={f.code ?? ''} onChange={e => setF({ ...f, code: e.target.value })} /></label>
         <label className="field"><span>Kiểu chương trình</span><select disabled={dis} value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
-        {f.kind === 'stem' && <label className="field"><span>Loại chương trình</span><select disabled={dis} value={f.ct_code ?? ''} onChange={e => setF({ ...f, ct_code: e.target.value || null })}><option value="">—</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select></label>}
+        <label className="field"><span>Nhóm chương trình *</span><select required disabled={dis} value={f.ct_code ?? ''} onChange={e => setF({ ...f, ct_code: e.target.value || null })}><option value="">— Chọn nhóm —</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select>
+          {!f.ct_code && <small>Bắt buộc trước khi gửi duyệt hoặc phát hành.</small>}</label>
+        <label className="field"><span>Số tiết / tuần</span><input disabled={dis} type="number" min={0.5} max={40} step={0.5} value={f.periods_per_week ?? ''} onChange={e => setF({ ...f, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })} />
+          <small>Dùng làm mặc định khi tạo phân phối chương trình.</small></label>
+        <label className="field"><span>Thời gian triển khai</span><select disabled={dis} value={f.deploy_term ?? 'year'} onChange={e => setF({ ...f, deploy_term: e.target.value as Deploy })}>{(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} ({DEPLOY[d][1]})</option>)}</select></label>
         <label className="field"><span>Cấp học</span><LevelPicker disabled={dis} value={f.level} onChange={l => setF({ ...f, level: l, grade_from: LV[l]?.grade_from ?? f.grade_from, grade_to: LV[l]?.grade_to ?? f.grade_to })} /></label>
         <label className="field"><span>Từ khối</span><GradePicker disabled={dis} level={f.level} value={f.grade_from} onChange={g => setF({ ...f, grade_from: g ?? f.grade_from, grade_to: Math.max(g ?? 1, f.grade_to) })} /></label>
         <label className="field"><span>Đến khối</span><GradePicker disabled={dis} level={f.level} value={f.grade_to} onChange={g => setF({ ...f, grade_to: g ?? f.grade_to })} /></label>
@@ -788,7 +830,7 @@ function SessionLessonEditor({ unit, ct, editable, onClose, onSaved }: { unit: U
       <div className="playtop">
         <button type="button" className="x" onClick={onClose} aria-label="Đóng">×</button>
         {ct && <span className="progchip ct">{ct}</span>}<b className="ellipsis">{/^buổi\s*\d/i.test(unit.title) || unit.unit_type !== 'session' ? unit.title : `Buổi ${unit.seq}: ${unit.title}`}</b>
-        {!editable && <small className="sub">Chỉ xem — chương trình đã gửi duyệt / ban hành, tạo phiên bản mới để sửa.</small>}
+        {!editable && <small className="sub">Chỉ xem — chương trình đã gửi duyệt / phát hành, tạo phiên bản mới để sửa.</small>}
         <span style={{ marginLeft: 'auto' }} />
         {err && <span className="warnline">{err}</span>}
         {editable && <button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>}
@@ -835,7 +877,7 @@ function VersionsTab({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMes
     const { error } = await supabase.rpc('edu_program_set_status', { p_program: p.id, p_status: s, p_note: note || null })
     setBusy(false)
     if (error) return onMessage(errText(error.message), true)
-    onMessage(s === 'pending' ? 'Đã gửi duyệt — hồ sơ ở Hộp phê duyệt.' : s === 'published' ? 'Đã ban hành.' : s === 'archived' ? 'Đã lưu trữ.' : 'Đã mở lại thành bản nháp.')
+    onMessage(s === 'pending' ? 'Đã gửi duyệt — hồ sơ ở Hộp phê duyệt.' : s === 'published' ? 'Đã phát hành.' : s === 'archived' ? 'Đã ngừng dùng.' : 'Đã mở lại thành bản nháp.')
     onChanged()
   }
   async function decide(d: 'approve' | 'reject') {
@@ -848,7 +890,7 @@ function VersionsTab({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMes
     onMessage(d === 'approve' ? 'Đã duyệt.' : 'Đã trả lại.'); onChanged()
   }
   async function newVersion() {
-    if (!confirm('Tạo phiên bản mới (bản nháp chép từ phiên bản này)? Phiên bản đang ban hành vẫn dùng đến khi bản mới được ban hành.')) return
+    if (!confirm('Tạo phiên bản mới (bản nháp chép từ phiên bản này)? Phiên bản đang phát hành vẫn dùng đến khi bản mới được phát hành.')) return
     setBusy(true)
     const { data, error } = await supabase.rpc('edu_program_new_version', { p_program: p.id })
     setBusy(false)
@@ -861,21 +903,21 @@ function VersionsTab({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMes
     <>
       <div className="panel">
         <div className="tools">
-          {can && (p.status === 'draft' || p.status === 'rejected') && <button className="primary" disabled={busy} onClick={() => setStatus('pending', 'Ghi chú gửi người duyệt (không bắt buộc):')}>Gửi duyệt</button>}
-          {can && p.status === 'draft' && canPublishDraft && <button disabled={busy} onClick={() => confirm('Ban hành ngay phiên bản này? Phiên bản đang ban hành (nếu có) sẽ bị thay thế.') && setStatus('published')}>Ban hành</button>}
+          {can && (p.status === 'draft' || p.status === 'rejected') && <button className={mode === 'platform' ? undefined : 'primary'} disabled={busy} onClick={() => setStatus('pending', 'Ghi chú gửi người duyệt (không bắt buộc):')}>Gửi duyệt</button>}
+          {can && p.status === 'draft' && canPublishDraft && <button className={mode === 'platform' ? 'primary' : undefined} disabled={busy} onClick={() => confirm('Phát hành ngay phiên bản này? Phiên bản đang phát hành (nếu có) sẽ bị thay thế.') && setStatus('published')}>Phát hành</button>}
           {p.status === 'pending' && canAct && <><button className="primary" disabled={busy} onClick={() => decide('approve')}>Duyệt</button><button className="danger" disabled={busy} onClick={() => decide('reject')}>Trả lại</button></>}
           {p.status === 'pending' && !canAct && <small className="sub">Đang chờ duyệt ở Hộp phê duyệt.</small>}
-          {can && p.status === 'approved' && <button className="primary" disabled={busy} onClick={() => setStatus('published', 'Ghi chú ban hành (không bắt buộc):')}>Ban hành</button>}
+          {can && p.status === 'approved' && <button className="primary" disabled={busy} onClick={() => setStatus('published', 'Ghi chú phát hành (không bắt buộc):')}>Phát hành</button>}
           {can && p.status === 'approved' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại để sửa</button>}
           {can && p.status === 'published' && <button className="primary" disabled={busy} onClick={newVersion}>Tạo phiên bản mới</button>}
-          {can && ['published', 'superseded', 'draft', 'rejected', 'approved'].includes(p.status) && <button disabled={busy} onClick={() => confirm('Lưu trữ phiên bản này? Đơn vị khác không còn thấy bản lưu trữ.') && setStatus('archived', 'Lý do lưu trữ (không bắt buộc):')}>Lưu trữ</button>}
+          {can && ['published', 'superseded', 'draft', 'rejected', 'approved'].includes(p.status) && <button disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Đơn vị khác không còn thấy bản ngừng dùng.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng</button>}
           {can && p.status === 'archived' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại thành nháp</button>}
         </div>
         {!can && p.status !== 'pending' && <p className="sub" style={{ margin: 0 }}>{mine ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình của đơn vị khác — sao chép về đơn vị để điều chỉnh.'}</p>}
       </div>
       <h3>Các phiên bản</h3>
       <div className="wrap"><table>
-        <thead><tr><th>Phiên bản</th><th>Trạng thái</th><th>Ban hành</th><th>Hiệu lực</th><th>Ghi chú</th></tr></thead>
+        <thead><tr><th>Phiên bản</th><th>Trạng thái</th><th>Phát hành</th><th>Hiệu lực</th><th>Ghi chú</th></tr></thead>
         <tbody>{vers.map(v => (
           <tr key={v.id} style={v.id === p.id ? { background: 'var(--soft, #f3f7fd)' } : undefined}>
             <td>{v.id === p.id ? <><b>v{v.version_no}</b> <small className="sub">đang xem</small></> : <NameLink onClick={() => onOpen(v.id)}>v{v.version_no}</NameLink>}</td><td><StatusPill s={v.status} /></td><td>{fmtD(v.published_at)}</td>
@@ -944,7 +986,7 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
         <h3 style={{ margin: 0 }}>Đơn vị được gán ({asg.length})</h3>
         {(mine ? !['draft', 'archived'].includes(p.status) : p.status === 'published') && <button className="primary" onClick={() => setForm({ org: '', grades: [], note: '' })}>Gán cho đơn vị</button>}
       </div>
-      {['draft', 'pending', 'approved', 'rejected'].includes(p.status) && <p className="sub">Đơn vị được gán chỉ thấy chương trình khi đã ban hành.</p>}
+      {['draft', 'pending', 'approved', 'rejected'].includes(p.status) && <p className="sub">Đơn vị được gán chỉ thấy chương trình khi đã phát hành.</p>}
       {!mine && <p className="sub">Chương trình của {p.organizations?.name ?? 'đơn vị khác'}: đơn vị gán cho trường trực thuộc để triển khai; chỉ bỏ được các bản gán do đơn vị mình tạo.</p>}
       {form && (
         <form className="panel formgrid" onSubmit={add} style={{ marginBottom: 12 }}>

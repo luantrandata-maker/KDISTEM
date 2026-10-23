@@ -1365,3 +1365,14 @@ a.namelink:hover{color:var(--primary)}
 .tilewrap.picked>.tile{outline:2px solid var(--primary);outline-offset:-2px}
 .tilewrap:has(.tilecheck) .progchip{left:40px}
 .main button.tile.on{outline:2px solid var(--primary);outline-offset:-2px}
+.gpill.off{background:#e5e7eb;color:#5b6472}
+/* Thanh quy trình thiết lập (Phân hệ 2): các bước nối nhau, bước đã có dữ liệu có dấu tích */
+.flowsteps{list-style:none;margin:4px 0 14px;padding:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;counter-reset:none}
+.flowsteps li{position:relative}
+.flowsteps li+li::before{content:'';position:absolute;left:-8px;top:50%;width:8px;height:2px;background:var(--line)}
+.main .flowsteps button{width:100%;display:flex;align-items:center;gap:10px;text-align:left;padding:10px 12px;min-height:56px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-weight:400}
+.main .flowsteps button:disabled{cursor:default;opacity:1}
+.flowsteps i{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:700;font-size:13px;background:var(--neutral-bg);color:var(--neutral-fg)}
+.flowsteps li.done i{background:var(--ok-bg);color:var(--ok-fg)}
+.flowsteps span{display:grid;line-height:1.3}.flowsteps small{color:var(--muted)}
+@media(max-width:720px){.flowsteps{grid-template-columns:repeat(2,minmax(0,1fr))}.flowsteps li+li::before{display:none}}

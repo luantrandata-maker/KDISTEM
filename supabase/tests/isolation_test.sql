@@ -2367,6 +2367,21 @@ select pg_temp.probe('so_hy@iso-test.local', $q$update library_items set content
 select pg_temp.chk('so_hy', 'Bộ 4 thẻ: chốt đủ 4 thẻ thì phát hành được', $q$select library_publish((select id from library_items where title = 'ISO bộ 4 thẻ'))::text$q$, '1');
 select pg_temp.chk('so_hy', 'Bộ 4 thẻ: thêm học liệu vào bài → thẻ Link học liệu về "Cần kiểm tra"',
   $q$with u as (update library_items set content = content || jsonb_build_object('material_ids', jsonb_build_array(gen_random_uuid())) where title = 'ISO bộ 4 thẻ' returning content->>'checked' c) select c from u$q$, '["info", "content", "norms"]');
+-- 080: nội dung 4 thẻ có cấu trúc (content.kit) được giữ lại; sửa phần của thẻ đã chốt thì thẻ đó về "Cần kiểm tra"
+select pg_temp.probe('so_hy@iso-test.local', $q$update library_items set content = content || '{"kit": {"info": {"description": "A"}, "sessions": [], "docs": [], "mats": {"product": [], "group": []}}}' where title = 'ISO bộ 4 thẻ'$q$, true);
+select pg_temp.chk('so_hy', 'Bộ 4 thẻ: thêm nội dung cho cả 4 thẻ đã chốt → cả 4 về "Cần kiểm tra"', $q$select content->>'checked' from library_items where title = 'ISO bộ 4 thẻ'$q$, '[]');
+select pg_temp.probe('so_hy@iso-test.local', $q$update library_items set content = content || '{"checked": ["info", "content", "links", "norms"]}' where title = 'ISO bộ 4 thẻ'$q$, true);
+select pg_temp.chk('so_hy', 'Bộ 4 thẻ: content.kit được giữ lại', $q$select content->'kit'->'info'->>'description' from library_items where title = 'ISO bộ 4 thẻ'$q$, 'A');
+select pg_temp.chk('so_hy', 'Bộ 4 thẻ: lưu không kèm kit (form cũ) thì giữ kit đang có', $q$with u as (update library_items set content = content - 'kit' where title = 'ISO bộ 4 thẻ' returning content->'kit'->'info'->>'description' c) select c from u$q$, 'A');
+select pg_temp.chk('so_hy', 'Bộ 4 thẻ: khoá lạ ngoài kit vẫn bị bỏ', $q$with u as (update library_items set content = content || '{"rác": 1}' where title = 'ISO bộ 4 thẻ' returning content ? 'rác' c) select c::text from u$q$, 'false');
+select pg_temp.chk('so_hy', 'Bộ 4 thẻ: sửa buổi học (kit.sessions) → thẻ Nội dung về "Cần kiểm tra"',
+  $q$with u as (update library_items set content = jsonb_set(content, '{kit,sessions}', '[{"note": "", "acts": []}]') where title = 'ISO bộ 4 thẻ' returning content->>'checked' c) select c from u$q$, '["info", "links", "norms"]');
+select pg_temp.chk('so_hy', 'Bộ 4 thẻ: sửa vật tư (kit.mats) → thẻ Định mức về "Cần kiểm tra"',
+  $q$with u as (update library_items set content = jsonb_set(content, '{kit,mats,product}', '[{"name": "Giấy"}]') where title = 'ISO bộ 4 thẻ' returning content->>'checked' c) select c from u$q$, '["info", "content", "links"]');
+select pg_temp.chk('so_hy', 'Bộ 4 thẻ: sửa vật tư và bỏ chốt cùng lúc thì giữ đúng lựa chọn của người soạn',
+  $q$with u as (update library_items set content = jsonb_set(content, '{kit,mats,product}', '[{"name": "Giấy"}]') || '{"checked": ["info", "content", "norms"]}' where title = 'ISO bộ 4 thẻ' returning content->>'checked' c) select c from u$q$, '["info", "content", "norms"]');
+select pg_temp.chk('so_hy', 'Bộ 4 thẻ: kit quá lớn bị chặn',
+  $q$update library_items set content = content || jsonb_build_object('kit', jsonb_build_object('issues', jsonb_build_array(repeat('x', 700000)))) where title = 'ISO bộ 4 thẻ'$q$, 'ERR 22023');
 -- Cấp học & khối
 select pg_temp.chk('hs_kb', 'Cấp học: mọi người đọc được danh mục', $q$select count(*) from edu_levels where code in ('tieuhoc', 'thcs', 'thpt')$q$, '3');
 select pg_temp.chk('so_hy', 'Cấp học: Sở không thêm được', $q$insert into edu_levels (code, name, grade_from, grade_to) values ('iso_mn', 'ISO', 1, 2)$q$, 'ERR');

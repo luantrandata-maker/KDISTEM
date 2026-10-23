@@ -189,6 +189,7 @@ begin
     delete from material_catalog where name like 'ISO %';
     perform set_config('app.norm_status', '', true);
   end if;
+  if to_regclass('public.dist_plans') is not null then delete from dist_plans where title like 'ISO %'; delete from dist_tiers where code like 'iso%'; end if;
   if to_regclass('public.curriculum_lessons') is not null then delete from curriculum_books where title like 'ISO %'; end if;
   if to_regclass('public.edu_programs') is not null then
     delete from notifications where ref_id in (select id from approval_requests where ref_table in ('edu_programs', 'curriculum_books') and title like 'ISO %');
@@ -2582,6 +2583,44 @@ select pg_temp.chk('kdi', 'PPCT từ chương trình: lấy số tiết / tuần
   $q$select b.periods_per_week::int || ':' || count(l.id) || ':' || min(l.term) || '-' || max(l.term) from curriculum_books b join curriculum_lessons l on l.book_id = b.id
      where b.title = 'ISO CT HK2 — khối 6' group by b.periods_per_week$q$, '2:3:2-2');
 
+-- ===== 078: bản phân phối =====
+select pg_temp.chk('admin_ph', 'Mức độ: mọi đơn vị đọc danh mục mức độ', $q$select count(*) from dist_tiers where code in ('co_ban', 'tieu_chuan', 'nang_cao')$q$, '3');
+select pg_temp.chk('admin_ph', 'Mức độ: trường không thêm được', $q$insert into dist_tiers (code, name) values ('iso_truong', 'ISO')$q$, 'ERR');
+select pg_temp.chk('kdi', 'Mức độ: KDI thêm được', $q$insert into dist_tiers (code, name, sort) values ('iso_muc', 'ISO mức', 9)$q$, 'rows:1');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_programs (org_id, title, ct_code, level, grade_from, grade_to, main_subject, scope) values (platform_org_id(), 'ISO CT PB', 'CT1', 'thcs', 6, 6, 'Tin học', 'children')$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_program_units (program_id, unit_type, seq, title, periods) select id, 'topic', 1, 'ISO PB chủ đề', 4 from edu_programs where title = 'ISO CT PB'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_program_units (program_id, parent_id, unit_type, seq, title, periods) select p.id, u.id, 'lesson', k, 'ISO PB bài ' || k, 2 from edu_programs p join edu_program_units u on u.program_id = p.id and u.unit_type = 'topic', generate_series(1, 2) k where p.title = 'ISO CT PB'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$select edu_program_set_status((select id from edu_programs where title = 'ISO CT PB'), 'published', 'ISO')$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into dist_plans (org_id, title, level, grade, tier) values (platform_org_id(), 'ISO bản phối', 'thcs', 6, 'co_ban')$q$, true);
+select pg_temp.chk('kdi', 'Bản phối: mã tự sinh PB-xxx', $q$select (code ~ '^PB-\d{3}$')::text from dist_plans where title = 'ISO bản phối'$q$, 'true');
+select pg_temp.chk('kdi', 'Bản phối: khối ngoài cấp học bị chặn', $q$insert into dist_plans (org_id, title, level, grade) values (platform_org_id(), 'ISO sai khối', 'tieuhoc', 9)$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'Bản phối: chưa chọn chương trình thì không phát hành', $q$update dist_plans set status = 'published' where title = 'ISO bản phối'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into dist_plan_items (plan_id, program_id, ppw) select (select id from dist_plans where title = 'ISO bản phối'), id, 2 from edu_programs where title = 'ISO CT PB'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into dist_plan_rows (plan_id, program_id, unit_id, seq, periods) select (select id from dist_plans where title = 'ISO bản phối'), u.program_id, u.id, u.seq, 2 from edu_program_units u join edu_programs p on p.id = u.program_id where p.title = 'ISO CT PB' and u.unit_type = 'lesson'$q$, true);
+select pg_temp.chk('kdi', 'Bản phối: bài chưa có tuần thì không phát hành', $q$update dist_plans set status = 'published' where title = 'ISO bản phối'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$update dist_plan_rows set week = 50 where plan_id = (select id from dist_plans where title = 'ISO bản phối')$q$, true);
+select pg_temp.chk('kdi', 'Bản phối: bài ngoài khung học kỳ thì không phát hành', $q$update dist_plans set status = 'published' where title = 'ISO bản phối'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$update dist_plan_rows set week = seq where plan_id = (select id from dist_plans where title = 'ISO bản phối')$q$, true);
+select pg_temp.chk('kdi', 'Bản phối: bài của chương trình khác bị chặn',
+  $q$insert into dist_plan_rows (plan_id, program_id, unit_id, seq, week) select (select id from dist_plans where title = 'ISO bản phối'), p.id, u.id, 9, 1 from edu_program_units u join edu_programs p on p.id = u.program_id where p.title = 'ISO CT KDI' and u.unit_type = 'lesson' limit 1$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Bản phối: trường không thấy bản nháp của KDI', $q$select count(*) from dist_plans where title = 'ISO bản phối'$q$, '0');
+select pg_temp.chk('admin_ph', 'Bản phối: trường không sửa bản của KDI', $q$update dist_plans set title = 'ISO sửa' where title = 'ISO bản phối'$q$, 'rows:0');
+select pg_temp.chk('kdi', 'Bản phối: đủ điều kiện thì phát hành được', $q$update dist_plans set status = 'published' where title = 'ISO bản phối'$q$, 'rows:1');
+select pg_temp.probe('kdi@iso-test.local', $q$update dist_plans set status = 'published' where title = 'ISO bản phối'$q$, true);
+select pg_temp.chk('kdi', 'Bản phối: đã phát hành thì khoá lịch bài', $q$update dist_plan_rows set week = 3 where plan_id = (select id from dist_plans where title = 'ISO bản phối')$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'Bản phối: đã phát hành thì không đổi khối', $q$update dist_plans set grade = 7 where title = 'ISO bản phối'$q$, 'ERR 22023');
+select pg_temp.chk('admin_ph', 'Bản phối: trường thấy bản đã phát hành và lịch bài', $q$select (select count(*) from dist_plans where title = 'ISO bản phối') || ':' || (select count(*) from dist_plan_rows where plan_id = (select id from dist_plans where title = 'ISO bản phối'))$q$, '1:2');
+select pg_temp.chk('admin_kb', 'Gán bản phối: không gán cho trường ngoài phạm vi',
+  format($q$select dist_plan_assign((select id from dist_plans where title = 'ISO bản phối'), array[%L::uuid])::text$q$, pg_temp.oid_('THCS-PH')), 'ERR 42501');
+select pg_temp.chk('kdi', 'Gán bản phối: mỗi chương trình một PPCT cho trường', $q$select dist_plan_assign((select id from dist_plans where title = 'ISO bản phối'), array[(select id from organizations where code = 'THCS-PH')])::text$q$, '{"books": 1, "skipped": 0}');
+select pg_temp.probe('kdi@iso-test.local', $q$select dist_plan_assign((select id from dist_plans where title = 'ISO bản phối'), array[(select id from organizations where code = 'THCS-PH')])::text$q$, true);
+select pg_temp.chk('admin_ph', 'Gán bản phối: PPCT nháp của trường, đủ tiết, theo tuần của bản',
+  $q$select b.status || ':' || count(l.*) || ':' || min(l.week) || '-' || max(l.week) from curriculum_books b join curriculum_lessons l on l.book_id = b.id where b.dist_plan_id = (select id from dist_plans where title = 'ISO bản phối') group by b.status$q$, 'draft:4:1-2');
+select pg_temp.chk('kdi', 'Gán bản phối: gán lại không tạo trùng', $q$select dist_plan_assign((select id from dist_plans where title = 'ISO bản phối'), array[(select id from organizations where code = 'THCS-PH')])::text$q$, '{"books": 0, "skipped": 1}');
+select pg_temp.chk('admin_ph', 'Gán bản phối: chương trình được gán cho trường', $q$select count(*) from edu_program_assignments a join edu_programs p on p.id = a.program_id where p.title = 'ISO CT PB' and a.org_id = my_org_id()$q$, '1');
+select pg_temp.probe('kdi@iso-test.local', $q$select dist_plan_copy((select id from dist_plans where title = 'ISO bản phối'))::text$q$, true);
+select pg_temp.chk('kdi', 'Nhân bản: bản sao là nháp, đủ chương trình và lịch bài',
+  $q$select d.status || ':' || (select count(*) from dist_plan_items i where i.plan_id = d.id) || ':' || (select count(*) from dist_plan_rows r where r.plan_id = d.id) from dist_plans d where d.title = 'ISO bản phối (bản sao)'$q$, 'draft:1:2');
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

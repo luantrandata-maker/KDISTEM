@@ -19,7 +19,12 @@ export type KitDraft = {
   links: KitLink[]
   norms: { basis?: 'group' | 'student' | 'product'; group_size?: number; rows: KitNormRow[] }
   warnings: string[]
+  /** Giáo án Word: mục "Thông tin tài liệu" (được soạn / review / hiệu chỉnh: ngày và người) */
+  meta?: Partial<Record<DocRole, { dates: string[]; by: string[] }>>
+  /** Bài giảng PowerPoint: số slide, slide có lời dẫn (ghi chú), các mốc dàn ý */
+  deck?: { slides: number; notes: number; outline: string[] }
 }
+export type DocRole = 'authored' | 'reviewed' | 'revised'
 const emptyDraft = (source: KitDraft['source']): KitDraft => ({ source, info: {}, plan: null, slides: null, links: [], norms: { rows: [] }, warnings: [] })
 
 /** Các thẻ mà bản nháp sẽ điền (để chuyển về "Cần kiểm tra" khi áp dụng) */
@@ -327,6 +332,10 @@ export function kitFromDocxXml(doc: string, rels = '', styles = '', fileName = '
   }
   for (const k of Object.keys(d.info) as (keyof KitDraft['info'])[]) if (d.info[k] === undefined) delete d.info[k]
 
+  d.meta = docMeta(bs)
+  for (const [k, l] of [['authored', 'Được soạn ngày'], ['reviewed', 'Được review ngày'], ['revised', 'Được hiệu chỉnh ngày']] as const)
+    if ((d.meta[k]?.dates.length ?? 0) > 1) d.warnings.push(`Ô “${l}” có nhiều ngày (${d.meta[k]!.dates.join(' · ')}), cần chọn ngày đúng.`)
+
   // Chia theo đề mục lớn; đề mục con giữ lại trong mục lớn (kèm cấp) để tách hoạt động
   type Part = { title: string; sec: Sec; items: Block[] }
   const parts: Part[] = []
@@ -379,7 +388,7 @@ export function kitFromDocxXml(doc: string, rels = '', styles = '', fileName = '
         const mins = Number(MIN_RE.exec(b.text)?.[1]) || undefined
         // Hoạt động mới: dòng "Hoạt động 1: …", hoặc đề mục con cấp 2 ("4. Tổng kết (2’)")
         if ((a && (a[1] || a[2]) && (b.heading > 0 || b.bold || !st || mins)) || (b.heading > 0 && b.heading <= 2)) {
-          const raw = a && (a[1] || a[2]) ? (a[2] || `Hoạt động ${a[1]}`) : b.text
+          const raw = a && (a[1] || a[2]) ? (a[1] && a[2] ? `Hoạt động ${a[1]}: ${a[2]}` : a[2] || `Hoạt động ${a[1]}`) : b.text
           add({ title: raw.replace(MIN_RE, '').replace(/[\s:.\-–]+$/, '').trim() || b.text, minutes: mins })
           continue
         }
@@ -420,13 +429,38 @@ export function kitFromDocxXml(doc: string, rels = '', styles = '', fileName = '
   }
   return d
 }
+/** Mục "Thông tin tài liệu" cuối giáo án KDI: "Được soạn ngày:" + các ngày, "Bởi:" + các người (đoạn hoặc bảng). */
+function docMeta(bs: Block[]): NonNullable<KitDraft['meta']> {
+  const lines = bs.flatMap(b => b.type === 'p' ? [b.text] : b.rows.flatMap(r => r.flatMap(c => c.split('\n'))))
+    .map(t => t.trim()).filter(Boolean)
+  const out: NonNullable<KitDraft['meta']> = {}
+  let role: DocRole | null = null, field: 'dates' | 'by' = 'dates'
+  const DATE = /\b\d{1,2}\s*[/.\-]\s*\d{1,2}\s*[/.\-]\s*\d{2,4}\b/g
+  for (const t of lines) {
+    const m = /^được\s+(soạn|review|rà soát|hiệu chỉnh|chỉnh sửa)(?:\s+ngày)?\s*:?\s*(.*)$/i.exec(t)
+    if (m) {
+      role = /soạn/i.test(m[1]) ? 'authored' : /review|rà soát/i.test(m[1]) ? 'reviewed' : 'revised'
+      out[role] = { dates: [], by: [] }; field = 'dates'
+      for (const x of m[2].match(DATE) ?? []) out[role]!.dates.push(x.replace(/\s/g, ''))
+      continue
+    }
+    if (!role) continue
+    const b = /^bởi\s*:?\s*(.*)$/i.exec(t)
+    if (b) { field = 'by'; if (b[1].trim()) out[role]!.by.push(b[1].trim()); continue }
+    if (field === 'dates') { const ds = t.match(DATE); if (ds) out[role]!.dates.push(...ds.map(x => x.replace(/\s/g, ''))); else role = null }
+    else if (t.length < 60 && !/[:.]$/.test(t)) out[role]!.by.push(t)
+    else role = null
+  }
+  return out
+}
 const linkTitle = (url: string) => { try { const u = new URL(url); return /youtu/.test(u.host) ? 'Video YouTube' : u.host.replace(/^www\./, '') } catch { return url.slice(0, 60) } }
 
 // ---------- PowerPoint (.pptx) ----------
-export function kitFromPptxXml(slides: string[], rels: string[] = [], fileName = ''): KitDraft {
+export function kitFromPptxXml(slides: string[], rels: string[] = [], fileName = '', notes: string[] = []): KitDraft {
   const d = emptyDraft('pptx')
   d.info = infoFromFileName(fileName)
   const out: KitSlide[] = []
+  const outline: string[] = []
   slides.forEach((xml, i) => {
     const shapes = xml.match(/<p:sp>[\s\S]*?<\/p:sp>/g) ?? []
     let title = ''; const body: string[] = []
@@ -436,6 +470,12 @@ export function kitFromPptxXml(slides: string[], rels: string[] = [], fileName =
       if (isTitle && !title) title = paras.join(' ')
       else body.push(...paras)
     }
+    // Mốc dàn ý: slide chỉ có tiêu đề (trang chuyển phần: "Hoạt động 1: …", "KHỞI ĐỘNG", "TỔNG KẾT"…)
+    const head = (title || body[0] || '').replace(/\s+/g, ' ').trim()
+    const tiet = [title, ...body].map(x => /^\(\s*(tiết|buổi)\s*(\d+)\s*\)$/i.exec(x.trim())).find(Boolean)
+    const only = title ? body.length === 0 : body.length === 1
+    const mark = tiet ? `${sentence(tiet[1])} ${tiet[2]}` : /^hoạt động\s*\d/i.test(head) || (only && head.length < 80 && head === head.toUpperCase() && /[A-ZĐ]/.test(head)) ? sentence(head) : ''
+    if (mark && outline[outline.length - 1] !== mark) outline.push(mark)
     if (!title && body.length) title = body.shift()!
     if (title || body.length) out.push({ title: title.slice(0, 200), body: body.map(b => (body.length > 1 ? '• ' : '') + b).join('\n') })
     for (const m of (rels[i] ?? '').matchAll(/Target="(https?:[^"]+)"[^>]*TargetMode="External"/g)) {
@@ -444,6 +484,8 @@ export function kitFromPptxXml(slides: string[], rels: string[] = [], fileName =
   })
   if (!out.length) d.warnings.push('File PowerPoint không có chữ đọc được (slide chỉ có hình?). Tệp gốc vẫn được đính kèm vào bài giảng.')
   d.slides = out
+  const noted = notes.filter(x => (x.match(/<a:t>([^<]*)<\/a:t>/g) ?? []).map(t => t.slice(5, -6)).join('').replace(/^\s*\d+\s*$/, '').trim().length > 3).length
+  d.deck = { slides: slides.length, notes: noted, outline }
   return d
 }
 
@@ -472,7 +514,9 @@ export async function readKitFile(file: File): Promise<KitDraft> {
   const order = [...pres.matchAll(/<p:sldId [^>]*r:id="([^"]+)"/g)].map(m => new RegExp(`Id="${m[1]}"[^>]*Target="slides/slide(\\d+)\\.xml"|Target="slides/slide(\\d+)\\.xml"[^>]*Id="${m[1]}"`).exec(prels))
     .map(m => Number(m?.[1] ?? m?.[2])).filter(n => ids.includes(n))
   const seq = order.length === ids.length ? order : ids
-  return kitFromPptxXml(seq.map(n => txt(`ppt/slides/slide${n}.xml`)), seq.map(n => txt(`ppt/slides/_rels/slide${n}.xml.rels`)), file.name)
+  // Ghi chú (lời dẫn) của slide: theo quan hệ notesSlide trong rels của slide
+  const notes = seq.map(n => { const m = /Target="\.\.\/notesSlides\/(notesSlide\d+\.xml)"/.exec(txt(`ppt/slides/_rels/slide${n}.xml.rels`)); return m ? txt(`ppt/notesSlides/${m[1]}`) : '' })
+  return kitFromPptxXml(seq.map(n => txt(`ppt/slides/slide${n}.xml`)), seq.map(n => txt(`ppt/slides/_rels/slide${n}.xml.rels`)), file.name, notes)
 }
 
 export const kitSummary = (d: KitDraft) => ({

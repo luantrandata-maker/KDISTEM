@@ -1428,3 +1428,16 @@ a.namelink:hover{color:var(--primary)}
 .distchip{font-size:12px;border-radius:6px;padding:2px 6px;background:var(--soft)}
 .distchip.c0{background:#e6f1fd}.distchip.c1{background:#e3f4ea}.distchip.c2{background:#fff3df}.distchip.c3{background:#f1e8fd}.distchip.c4{background:#fde8e8}.distchip.c5{background:#e5f6f6}
 .distschools{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:4px 12px;max-height:260px;overflow:auto;margin:8px 0}
+/* Nhập bộ học liệu từ file (đợt 4b) */
+.kitimport{border:1px solid var(--line,#dfe3ea);border-radius:12px;padding:12px 14px;margin-bottom:12px;background:var(--soft,#f6f8fb);display:flex;flex-direction:column;gap:8px}
+.kitimport .bar.small{margin:0;gap:10px;flex-wrap:wrap}
+.kitways{display:flex;flex-direction:column;gap:8px}
+.kitway{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line,#dfe3ea);border-radius:10px;padding:10px 12px;background:var(--surface,#fff)}
+.kitimport label.kitcard{cursor:pointer}
+.kitimport details{border-top:1px solid var(--line,#dfe3ea);padding-top:6px}
+.kitimport summary{cursor:pointer;font-weight:600}
+.kitimport .pre{white-space:pre-wrap;margin:6px 0}
+.kitslides{margin:6px 0;padding-left:22px}
+.kitwarn{margin:0;padding:8px 12px 8px 28px;border-radius:8px;background:#fff6e5;color:#7a4b00}
+.filebtn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+.filebtn.busy{opacity:.6;pointer-events:none}

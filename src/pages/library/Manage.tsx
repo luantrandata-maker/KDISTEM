@@ -18,6 +18,7 @@ import { EMPTY_PLAN, PlanEditor, planFilled, planOf, type PlanContent } from './
 import { Drawer } from '../../components/Drawer'
 import { EMPTY_NORM, loadUnitNorm, saveUnitNorm, UnitNormEditor, type UnitNorm } from './UnitNorm'
 import { LessonEditor, asLesson, lessonStats, type ILesson } from '../../lib/lessonBlocks'
+import { KitImport, type KitApply } from './KitImport'
 
 type Org = { id: string; name: string; type: string; parent_id: string | null }
 type Stat = { item_id: string; schools: number; copies: number; outdated: number }
@@ -143,6 +144,8 @@ export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | 
   const [subBusy, setSubBusy] = useState(false)
   // Người soạn đã tự bấm chốt / bỏ chốt trong lần sửa này (khi đó không tự bỏ chốt thẻ định mức)
   const [ckTouched, setCkTouched] = useState(false)
+  // Khung "Tạo bộ học liệu" (tự soạn / tách giáo án / file mẫu): null = mặc định (mở khi bài học mới, chưa có gì)
+  const [kitShow, setKitShow] = useState<boolean | null>(null)
   const started = useRef(false)
 
   async function load() {
@@ -171,7 +174,7 @@ export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | 
     if (i) edit(i)
     else if (start.preset) {
       const p = start.preset
-      setMsg(''); setInfo(''); setNorm(EMPTY_NORM); setSub(null); setNormOpen(false); setCkTouched(false)
+      setMsg(''); setInfo(''); setNorm(EMPTY_NORM); setSub(null); setNormOpen(false); setCkTouched(false); setKitShow(null)
       setForm({ ...EMPTY('unit'), title: p.title, program_id: p.program_id, unit_id: p.unit_id, program: p.program ?? '', grades: p.grades ?? '',
         periods: p.periods ? String(p.periods) : '', objectives: p.objectives ?? '' })
     }
@@ -216,7 +219,7 @@ export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | 
       checked: i.content.checked ?? [],
       lmode: i.content.mode === 'interactive' ? 'interactive' : 'slides', ilesson: asLesson(i.content.lesson),
     })
-    setNorm(EMPTY_NORM); setSub(null); setNormOpen(false); setCkTouched(false)
+    setNorm(EMPTY_NORM); setSub(null); setNormOpen(false); setCkTouched(false); setKitShow(false)
     // Vật tư của bài học: định mức gắn với bài (không hiện lại trong ô "định mức có sẵn")
     if (i.kind === 'unit' && orgId) loadUnitNorm(i.id, orgId).then(n => {
       setNorm(n)
@@ -327,6 +330,75 @@ export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | 
     setForm(f => f && { ...f, [key]: [...f[key], it.id] })
     setSub(null); setSubBusy(false)
   }
+  // Áp dụng bản nháp đọc từ file (giáo án Word, bài giảng PowerPoint, file mẫu Excel) vào form bài học.
+  // Giáo án / bài giảng / học liệu được tạo thành mục kho riêng (bản nháp) và gắn vào bài; vật tư thêm vào bảng vật tư của bài.
+  const applyKit: KitApply = async (d, cards, file) => {
+    if (!form || !orgId) return 'Chưa sẵn sàng.'
+    const f = { ...form }
+    const title = (cards.includes('info') && d.info.title) || f.title.trim() || 'bài học'
+    if (cards.includes('info')) {
+      if (d.info.title) f.title = d.info.title
+      if (d.info.subject) f.subject = d.info.subject
+      if (d.info.grades) f.grades = d.info.grades
+      if (d.info.periods) f.periods = String(d.info.periods)
+      if (d.info.objectives) f.objectives = d.info.objectives
+      if (d.info.summary) f.summary = d.info.summary
+    }
+    const base = {
+      owner_org_id: orgId, subject: f.subject.trim() || null, grades: f.grades.trim() || null, program: f.program || null,
+      program_id: f.program_id || null, unit_id: f.program_id && f.unit_id ? f.unit_id : null, usage_rights: f.usage_rights, scope: f.scope, tags: [] as string[],
+    }
+    const created: Item[] = []
+    let bigFile = ''
+    const insert = async (row: Record<string, unknown>) => {
+      const r = await supabase.from('library_items').insert({ ...base, ...row }).select('*, owner_name, owner_type').single()
+      if (r.error) throw new Error(r.error.message)
+      const it = r.data as Item
+      if (f.scope === 'selected' && f.targets.length) await supabase.from('library_targets').insert(f.targets.map(org_id => ({ item_id: it.id, org_id })))
+      created.push(it); return it.id
+    }
+    try {
+      if (cards.includes('content')) {
+        let att = {}
+        if (file && file.size <= MAX_FILE_MB * 1024 * 1024) { const up = await uploadLearningFile(orgId, 'hoc-lieu', file); att = { url: '', path: up.path, file_name: up.name, size: up.size, mime: up.mime } }
+        else if (file) bigFile = file.name
+        if (d.slides) {
+          const slides: Slide[] = d.slides.map((x, i) => ({ id: uid(), kind: i === 0 ? 'title' : 'content', title: x.title, body: x.body }))
+          f.lesson_ids = [...f.lesson_ids, await insert({ kind: 'lesson', title: `Bài giảng: ${title}`, content: { mode: 'slides', slides, ...att } })]
+        } else if (d.plan) {
+          const plan: PlanContent = { template_id: null, doc: d.plan.sections, periods: Number(f.periods) || d.info.periods || null,
+            steps: d.plan.steps.map(x => ({ id: uid(), ...x })) }
+          f.plan_ids = [...f.plan_ids, await insert({ kind: 'material', title: `Giáo án: ${title}`, content: { type: 'lesson_plan', ...att, ...plan } })]
+        }
+      }
+      if (cards.includes('links')) for (const l of d.links)
+        f.material_ids = [...f.material_ids, await insert({ kind: 'material', title: l.title, content: { type: l.type, url: l.url } })]
+    } catch (e) {
+      if (created.length) { setVisible(v => [...created, ...v]); setItems(v => [...created, ...v]) }
+      setForm({ ...f, checked: f.checked.filter(k => !cards.includes(k)) })
+      return 'Chưa áp dụng xong: ' + (e instanceof Error ? e.message : String(e)) + (created.length ? ` (đã thêm ${created.length} mục vào bài).` : '')
+    }
+    if (created.length) { setVisible(v => [...created, ...v]); setItems(v => [...created, ...v]) }
+    if (cards.includes('norms') && d.norms.rows.length) {
+      // Vật tư trùng tên trong danh mục thì gắn với danh mục (tên, đơn vị, loại theo danh mục)
+      const { data } = await supabase.from('material_catalog').select('id, name, unit, kind, reusable').eq('active', true)
+      const cat = (data ?? []) as { id: string; name: string; unit: string; kind: 'supply' | 'tool' | 'equipment'; reusable: boolean }[]
+      const rows = [...norm.rows]
+      for (const r of d.norms.rows) {
+        const c = cat.find(x => normText(x.name) === normText(r.name))
+        const row = c ? { catalog_id: c.id, name: c.name, unit: c.unit, kind: c.kind, reusable: c.reusable } : { catalog_id: null, name: r.name, unit: r.unit, kind: r.kind, reusable: r.reusable }
+        const same = rows.findIndex(x => normText(x.name) === normText(row.name))
+        if (same >= 0) rows[same] = { ...rows[same], qty: String(r.qty) }
+        else rows.push({ key: uid(), ...row, qty: String(r.qty) })
+      }
+      setNorm({ ...norm, rows, basis: d.norms.basis ?? norm.basis, group_size: d.norms.group_size ?? norm.group_size, dirty: true })
+    }
+    setCkTouched(true)
+    setForm({ ...f, checked: f.checked.filter(k => !cards.includes(k)) })
+    setInfo(`Đã áp dụng ${cards.length} thẻ từ file. Rà lại từng thẻ rồi bấm “Chốt thẻ”; mục mới tạo đang là bản nháp, phát hành cùng bài.`
+      + (bigFile ? ` Tệp gốc “${bigFile}” lớn hơn ${MAX_FILE_MB} MB nên chưa đính kèm: hãy thêm đường dẫn Drive ở thẻ 03.` : ''))
+    return null
+  }
   // Phát hành bài học kéo theo giáo án, bài giảng, học liệu của đơn vị đang là bản nháp
   async function publishParts(ids: string[]) {
     for (const x of visible.filter(v => ids.includes(v.id) && v.owner_org_id === orgId && v.status === 'draft')) {
@@ -378,7 +450,7 @@ export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | 
   const kindTabs: T[] = ['unit', 'plan', 'lesson', 'material', 'norm']
   const tabLabel = (t: T) => t === 'norm' ? 'Định mức vật tư' : t === 'plan' ? 'Giáo án' : KIND[t][0]
   const addNew = (t: T) => {
-    setMsg(''); setInfo(''); setNorm(EMPTY_NORM); setSub(null); setNormOpen(false)
+    setMsg(''); setInfo(''); setNorm(EMPTY_NORM); setSub(null); setNormOpen(false); setCkTouched(false); setKitShow(null)
     setForm(t === 'plan' ? { ...EMPTY('material'), mtype: 'lesson_plan' } : EMPTY(t as Item['kind']))
   }
   const setUnit = (k: number, p: Partial<Unit>) => form && setForm({ ...form, units: form.units.map((u, j) => j === k ? { ...u, ...p } : u) })
@@ -428,6 +500,13 @@ export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | 
           title={`${form.id ? 'Sửa' : 'Thêm'} ${form.kind === 'material' && form.mtype === 'lesson_plan' ? 'giáo án' : KIND[form.kind][0].toLowerCase()}${form.id && form.title ? `: ${form.title}` : ''}`}>
         <form className="panel libform" onSubmit={e => save(e, false)}>
           {msg && <p className="msg">{msg}</p>}
+          {form.kind === 'unit' && (() => {
+            const fresh = !form.id && !form.plan_ids.length && !form.lesson_ids.length && !form.material_ids.length && !norm.rows.length
+            return (kitShow ?? fresh)
+              ? <KitImport title={form.title} fresh={fresh} onApply={applyKit} onClose={() => setKitShow(false)} />
+              : <div className="bar small">{info ? <span className="sub"><b>{info}</b></span> : <span className="sub">Có sẵn giáo án Word, bài giảng PowerPoint hoặc file mẫu Excel?</span>}
+                  <button type="button" className="libpartnew" onClick={() => setKitShow(true)}>Nhập từ file…</button></div>
+          })()}
           <div className="formgrid libgrid4">
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mô tả ngắn</span><textarea rows={2} value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })} /></label>

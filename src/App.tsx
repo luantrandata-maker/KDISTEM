@@ -110,6 +110,10 @@ const Allocation = lazy(() => import('./pages/curriculumPlan').then(m => ({ defa
 const Schedule = lazy(() => import('./pages/curriculumPlan').then(m => ({ default: m.Schedule })))
 const AssignPrograms = lazy(() => import('./pages/curriculumPlan').then(m => ({ default: m.AssignPrograms })))
 const ClassCoverage = lazy(() => import('./pages/curriculumPlan').then(m => ({ default: m.ClassCoverage })))
+const DistTiersCatalog = lazy(() => import('./pages/dist/Tiers').then(m => ({ default: m.DistTiersCatalog })))
+const DistPlanEditor = lazy(() => import('./pages/dist/Plans').then(m => ({ default: m.DistPlanEditor })))
+const DistPlanList = lazy(() => import('./pages/dist/Plans').then(m => ({ default: m.DistPlanList })))
+const DistAssign = lazy(() => import('./pages/dist/Plans').then(m => ({ default: m.DistAssign })))
 const PlanVsActual = lazy(() => import('./pages/curriculumPlan').then(m => ({ default: m.PlanVsActual })))
 // Chương trình giáo dục chuẩn: phiên bản, cấu trúc, yêu cầu cần đạt, duyệt / ban hành, gán cho trường (058)
 const EduPrograms = lazy(() => import('./pages/eduPrograms').then(m => ({ default: m.EduPrograms })))
@@ -126,7 +130,7 @@ const eduProgramTabs = (mode: 'school' | 'authority') => {
 // Danh mục loại chương trình (CT1–CT5 và loại thêm sau): tên, mô tả, môn học, cấp học (062, 064)
 const EduLevelsCatalog = lazy(() => import('./pages/eduLevels').then(m => ({ default: m.EduLevelsCatalog })))
 const StemTracksCatalog = lazy(() => import('./pages/stemTracks').then(m => ({ default: m.StemTracksCatalog })))
-const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Nhóm chương trình', StemTracksCatalog], ['Cấp học & khối', EduLevelsCatalog]]} />
+const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Nhóm chương trình', StemTracksCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog]]} />
 const ProgressPlatform = (q: any) => <CurriculumProgress {...q} mode="platform" />
 // Định mức vật tư theo bài / chủ đề, danh mục vật tư, dự trù, đề xuất điều chỉnh (059)
 const MaterialNorms = lazy(() => import('./pages/materialNorms').then(m => ({ default: m.MaterialNorms })))
@@ -135,6 +139,13 @@ const TeacherLessonStudio = lazy(() => import('./pages/lessons/Studio').then(m =
 const SchoolLessons = lazy(() => import('./pages/lessons/Admin').then(m => ({ default: m.SchoolLessons })))
 const DeptLessons = lazy(() => import('./pages/lessons/Admin').then(m => ({ default: m.DeptLessons })))
 const PlatformLessonTemplates = lazy(() => import('./pages/lessons/Admin').then(m => ({ default: m.PlatformLessonTemplates })))
+// Theo file thiết kế Phân hệ 2: bản phân phối (mẫu ghép chương trình) → gán theo trường → theo dõi; mẫu PPCT cũ giữ ở cuối
+const PLATFORM_DIST_TABS: [string, ComponentType<any>][] = [
+    ['Bản phân phối', DistPlanEditor], ['Danh sách bản phân phối', DistPlanList], ['Gán theo trường', DistAssign],
+    ['Theo dõi', (q: any) => <><PlanVsActual {...q} mode="platform" /><CurriculumProgress {...q} mode="platform" /></>],
+    ['Mẫu PPCT của KDI', (q: any) => <CurriculumBooks {...q} mode="platform" />], ['Phân bổ tiết', (q: any) => <Allocation {...q} mode="platform" />],
+    ['PPCT các trường', SysCurriculum]]
+const PlatformDistPage = (p: any) => <TabbedPages {...p} tabs={PLATFORM_DIST_TABS} />
 // Phân phối chương trình theo tiết + tiến độ (057): cùng một màn cho trường / GV, Sở (soạn mẫu ban hành), KDI (mẫu dùng chung)
 const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, ComponentType<any>][] = []) => {
   const tabs: [string, ComponentType<any>][] = [
@@ -419,7 +430,7 @@ const PLATFORM: PageMap = {
   'Kế hoạch giáo dục toàn trường': SysEduPlan,
   'Duyệt đăng ký dạy STEM': SysRegistrations,
   'Bài tập & chấm bài': SysHomework,
-  'Phân phối chương trình': ppctTabs('platform', [['PPCT các trường', SysCurriculum]]),
+  'Phân phối chương trình': PlatformDistPage,
   'Soạn bài giảng & kho hoạt động': PlatformLessonsPage,
   'Bài giảng tập huấn & lớp học ảo': SysTrainingLessons,
   'Chứng chỉ tập huấn': SysCertificates,

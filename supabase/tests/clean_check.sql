@@ -20,7 +20,8 @@ declare
     'service_plans_legacy', -- bản ghi gói cũ trước 033
     'stem_tracks',          -- danh mục chương trình STEM CT1–CT5 (062, 5 dòng cố định)
     'subjects',             -- danh mục môn học hệ thống của KDI (064)
-    'edu_levels'            -- danh mục cấp học & khối (065)
+    'edu_levels',           -- danh mục cấp học & khối (065)
+    'dist_tiers'            -- danh mục mức độ của bản phân phối (078)
   ];
   r record; n bigint; bad text := '';
 begin

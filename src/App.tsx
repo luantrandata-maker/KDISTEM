@@ -111,9 +111,7 @@ const Schedule = lazy(() => import('./pages/curriculumPlan').then(m => ({ defaul
 const AssignPrograms = lazy(() => import('./pages/curriculumPlan').then(m => ({ default: m.AssignPrograms })))
 const ClassCoverage = lazy(() => import('./pages/curriculumPlan').then(m => ({ default: m.ClassCoverage })))
 const DistTiersCatalog = lazy(() => import('./pages/dist/Tiers').then(m => ({ default: m.DistTiersCatalog })))
-const DistPlanEditor = lazy(() => import('./pages/dist/Plans').then(m => ({ default: m.DistPlanEditor })))
-const DistPlanList = lazy(() => import('./pages/dist/Plans').then(m => ({ default: m.DistPlanList })))
-const DistAssign = lazy(() => import('./pages/dist/Plans').then(m => ({ default: m.DistAssign })))
+const DistPage = lazy(() => import('./pages/dist/Plans').then(m => ({ default: m.DistPage })))
 const PlanVsActual = lazy(() => import('./pages/curriculumPlan').then(m => ({ default: m.PlanVsActual })))
 // Chương trình giáo dục chuẩn: phiên bản, cấu trúc, yêu cầu cần đạt, duyệt / ban hành, gán cho trường (058)
 const EduPrograms = lazy(() => import('./pages/eduPrograms').then(m => ({ default: m.EduPrograms })))
@@ -139,13 +137,9 @@ const TeacherLessonStudio = lazy(() => import('./pages/lessons/Studio').then(m =
 const SchoolLessons = lazy(() => import('./pages/lessons/Admin').then(m => ({ default: m.SchoolLessons })))
 const DeptLessons = lazy(() => import('./pages/lessons/Admin').then(m => ({ default: m.DeptLessons })))
 const PlatformLessonTemplates = lazy(() => import('./pages/lessons/Admin').then(m => ({ default: m.PlatformLessonTemplates })))
-// Theo file thiết kế Phân hệ 2: bản phân phối (mẫu ghép chương trình) → gán theo trường → theo dõi; mẫu PPCT cũ giữ ở cuối
-const PLATFORM_DIST_TABS: [string, ComponentType<any>][] = [
-    ['Bản phân phối', DistPlanEditor], ['Danh sách bản phân phối', DistPlanList], ['Gán theo trường', DistAssign],
-    ['Theo dõi', (q: any) => <><PlanVsActual {...q} mode="platform" /><CurriculumProgress {...q} mode="platform" /></>],
-    ['Mẫu PPCT của KDI', (q: any) => <CurriculumBooks {...q} mode="platform" />], ['Phân bổ tiết', (q: any) => <Allocation {...q} mode="platform" />],
-    ['PPCT các trường', SysCurriculum]]
-const PlatformDistPage = (p: any) => <TabbedPages {...p} tabs={PLATFORM_DIST_TABS} />
+// Theo video demo Phân hệ 2 (23/10): Phân phối chương trình là một trang riêng (hướng dẫn 3 bước, số liệu, 3 tab).
+// Theo dõi thực hiện và các màn PPCT cũ chuyển sang menu "Theo dõi Chương trình/Môn học".
+const PlatformDistPage = (p: any) => <DistPage {...p} />
 // Phân phối chương trình theo tiết + tiến độ (057): cùng một màn cho trường / GV, Sở (soạn mẫu ban hành), KDI (mẫu dùng chung)
 const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, ComponentType<any>][] = []) => {
   const tabs: [string, ComponentType<any>][] = [
@@ -391,7 +385,9 @@ const PLATFORM: PageMap = {
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
   'Chương trình giáo dục': (p: any) => <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Môn học', SubjectsPlatform], ['Danh mục', ProgramCatalogs]]} />,
   'Học liệu': (p: any) => <TabbedPages {...p} tabs={[['Học liệu theo chương trình', LibraryByProgram], ['Cần chuẩn bị theo chương trình', LibraryNeeds], ['Danh mục học liệu', LibraryManage], ['Kho học liệu dùng chung', LibraryBrowse]]} />,
-  'Theo dõi chương trình CT1–CT5 (Môn học)': (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects], ['Tiến độ & yêu cầu cần đạt', ProgressPlatform]]} />,
+  'Theo dõi chương trình CT1–CT5 (Môn học)': (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects],
+    ['Tiến độ & yêu cầu cần đạt', ProgressPlatform], ['Kế hoạch so với thực tế', (q: any) => <PlanVsActual {...q} mode="platform" />], ['PPCT các trường', SysCurriculum],
+    ['Mẫu PPCT cũ của KDI', (q: any) => <CurriculumBooks {...q} mode="platform" />], ['Phân bổ tiết', (q: any) => <Allocation {...q} mode="platform" />]]} />,
   // 3. Vật tư, thiết bị dạy & học
   'Thiết bị & vật tư': EquipmentOverview,
   'Kho & tồn kho': SuppliesPage,

@@ -1441,3 +1441,151 @@ a.namelink:hover{color:var(--primary)}
 .kitwarn{margin:0;padding:8px 12px 8px 28px;border-radius:8px;background:#fff6e5;color:#7a4b00}
 .filebtn.primary{background:var(--primary);border-color:var(--primary);color:#fff}
 .filebtn.busy{opacity:.6;pointer-events:none}
+/* Phân phối chương trình theo video demo (23/10) */
+.distintro{display:grid;gap:10px}
+.distguide{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+.distguide li{position:relative}
+.distguide li+li::before{content:'→';position:absolute;left:-17px;top:50%;transform:translateY(-50%);color:var(--muted)}
+.main .distguide button{width:100%;height:100%;display:flex;gap:10px;align-items:flex-start;text-align:left;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--soft);font-weight:400}
+.main .distguide button.on{border:2px solid var(--navy);background:var(--surface)}
+.distguide i{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:700;font-size:13px;background:var(--navy);color:#fff}
+.distguide span{display:grid;gap:2px}.distguide small{color:var(--muted);font-size:12px;line-height:1.4}
+.diststatcards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.diststatcards .panel{display:flex;gap:14px;align-items:flex-start}
+.diststatcards i{flex:none;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-style:normal;font-size:18px;background:#e6f1fd;color:var(--primary)}
+.diststatcards i.good{background:var(--ok-bg);color:var(--ok-fg)}
+.diststatcards span{display:grid}.diststatcards b{font-size:24px;line-height:1.1}.diststatcards small{color:var(--muted)}.diststatcards small+small{color:var(--text);font-size:12px}
+.distpills{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.main .distpills button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 16px;font-weight:500;color:var(--muted)}
+.main .distpills button.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
+@media(max-width:800px){.distguide,.diststatcards{grid-template-columns:1fr}.distguide li+li::before{display:none}}
+/* Khung phân loại */
+.distdepth{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 6px}.distdepth .segmented{margin:0}
+.main .distdepth .segmented button{padding:4px 10px;font-size:12px}
+.distnode{display:flex;align-items:center;gap:2px;border-radius:8px}
+.distnode.d1{padding-left:16px}.distnode.d2{padding-left:40px}
+.distnode.on{background:var(--soft)}
+.main .distnode .caret{width:22px;min-width:22px;height:26px;border:0;background:none;padding:0;color:var(--muted);font-size:11px}
+.main .distnode .nodebtn{flex:1;display:flex;align-items:center;gap:6px;text-align:left;border:0;background:none;padding:6px 6px;font-weight:400;min-width:0}
+.distnode .nodebtn b{font-weight:500}.distnode.on .nodebtn b{font-weight:700}
+.distnode .nodebtn small{color:var(--muted);font-size:11px}
+.distnode .count{margin-left:auto;background:#e6f1fd;color:var(--primary);border-radius:999px;padding:0 8px;font-size:12px;font-weight:600}
+.distnodefoot{display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:10px;margin-top:6px}
+/* Đầu trình soạn */
+.distpanel{position:relative}
+.disthead{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-bottom:10px}
+.main .distback{border:1px solid var(--navy);color:var(--navy);background:var(--surface);border-radius:8px;padding:6px 12px;font-weight:600}
+.distcrumb{color:var(--muted)}
+.distheadright{margin-left:auto;display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.distchip2{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--neutral-bg);color:var(--neutral-fg);white-space:nowrap}
+.distchip2.good{background:var(--ok-bg);color:var(--ok-fg)}.distchip2.warn{background:var(--warn-bg);color:var(--warn-fg)}.distchip2.bad{background:var(--bad-bg);color:var(--bad-fg)}
+.distchip2.off{background:#e5e7eb;color:#5b6472}.distchip2.ct{background:#e6f1fd;color:var(--primary);padding:1px 8px}
+.distmore{position:relative}
+.distmore>summary{list-style:none;cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:6px 12px;background:var(--surface);font-weight:600;user-select:none}
+.distmore>summary::-webkit-details-marker{display:none}
+.distmenu{position:absolute;right:0;top:calc(100% + 4px);z-index:20;min-width:220px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(20,31,50,.12);padding:6px;display:grid;gap:2px}
+.main .distmenu button{text-align:left;border:0;background:none;padding:8px 10px;border-radius:6px;font-weight:400}
+.main .distmenu button:hover{background:var(--soft)}
+.distmenu label{display:flex;gap:8px;align-items:center;padding:5px 8px;white-space:nowrap}
+.distframe{display:grid;gap:4px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:8px 10px;margin:4px 0}
+.distframe input{width:56px;margin:0 4px}
+.disttitlein{width:100%;font-size:22px;font-weight:700;border:1px solid transparent;border-radius:8px;padding:6px 8px;background:none;color:var(--text);font-family:inherit}
+.disttitlein:hover,.disttitlein:focus{border-color:var(--line);background:var(--surface)}
+.distnotein{width:100%;border:1px solid transparent;border-radius:8px;padding:4px 8px;background:none;color:var(--muted);font-family:inherit;margin-bottom:10px}
+.distnotein:hover,.distnotein:focus{border-color:var(--line)}
+.disttitle{margin:4px 0}
+.distinfo{background:var(--soft);border-radius:10px;padding:10px 14px;margin:8px 0 12px}
+.diststeps{list-style:none;margin:0 0 14px;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.main .diststeps button{width:100%;display:flex;gap:12px;align-items:center;text-align:left;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-weight:400}
+.main .diststeps button.on{border:2px solid var(--navy);background:#f3f7fc}
+.diststeps i{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:700;background:var(--neutral-bg);color:var(--neutral-fg)}
+.diststeps button.on i{background:var(--navy);color:#fff}
+.diststeps span{display:grid}.diststeps small{color:var(--muted)}
+@media(max-width:700px){.diststeps{grid-template-columns:1fr}}
+/* Bước 1 */
+.distpick{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+@media(max-width:900px){.distpick{grid-template-columns:1fr}}
+.distpickhead{margin:0 0 10px}
+.distprogcard{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.distprogcard.on{border-color:var(--primary);background:#f6faff}.distprogcard.off{opacity:.7;padding:8px 14px}
+.distproghead{display:flex;gap:10px;align-items:flex-start;cursor:pointer}.distproghead span{display:grid;gap:2px}
+.distproghead input,.distsubjs input{margin-top:3px}
+.distsubjs{display:grid;gap:6px;border-top:1px solid var(--line);margin:10px 0 0 26px;padding-top:8px}
+.distsubjs label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.distunusable summary{cursor:pointer;color:var(--muted);font-weight:500;margin:8px 0}
+.distsum{position:sticky;top:76px;display:grid;gap:10px}
+.distsum ol{margin:0;padding:0;list-style:none;display:grid;gap:4px}.distsum ol i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.distsumnums{display:grid;grid-template-columns:repeat(4,1fr);text-align:center;border-top:1px solid var(--line);padding-top:10px}
+.distsumnums span{display:grid}.distsumnums b{font-size:22px}.distsumnums small{color:var(--muted);font-size:12px}
+.distsum .primary{width:100%}
+/* Bước 2 */
+.distcards{display:grid;grid-template-columns:repeat(auto-fit,minmax(380px,1fr));gap:14px;align-items:start}
+@media(max-width:500px){.distcards{grid-template-columns:1fr}}
+.distcard{border:1px solid var(--line);border-top:4px solid var(--primary);border-radius:12px;padding:12px 14px;display:grid;gap:8px}
+.distcardhead{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.distcardhead>i{width:9px;height:9px;border-radius:50%}
+.distcardrow{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.distcardrow .field{margin:0}.distcardrow .field.narrow input{width:80px}
+.stepper{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.main .stepper button{border:0;border-radius:0;background:var(--soft);width:36px;min-height:36px;padding:0;font-size:16px}
+.stepper input{width:60px;border:0;text-align:center;font-family:inherit;font-size:14px;-moz-appearance:textfield}
+.stepper input::-webkit-inner-spin-button{-webkit-appearance:none}
+.distresult{border-radius:8px;padding:8px 12px;background:var(--soft)}
+.distresult.good{background:var(--ok-bg);color:var(--ok-fg)}.distresult.warn{background:var(--warn-bg);color:var(--warn-fg)}.distresult.bad{background:var(--bad-bg);color:var(--bad-fg)}
+.distsplit{display:flex;gap:10px;align-items:flex-start;border:1px dashed var(--line);border-radius:10px;padding:10px 12px;cursor:pointer}
+.distsplit span{display:grid}.distsplit input{margin-top:3px}
+.distsubjrow{background:var(--soft);border-radius:10px;padding:8px 12px;display:grid;gap:6px}
+.distsubjrow select{min-width:190px}.distsubjrow .inl{display:inline-flex;gap:6px;align-items:center;color:var(--muted)}.distsubjrow .inl input{width:64px}
+.distsubjspan{margin-left:auto;font-weight:600;font-size:13px}
+.distsubjmini{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px}
+.distorder{display:grid;gap:6px}.distorder>div{display:flex;flex-wrap:wrap;gap:8px}
+.distord{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line);background:var(--soft);border-radius:8px;padding:5px 12px;cursor:grab;user-select:none}
+.distord i{font-style:normal;color:var(--muted)}.distord.drag{opacity:.5}
+.distord:focus-visible{outline:2px solid var(--primary);outline-offset:1px}
+.distsec{margin:18px 0 8px}
+/* Lưới tuần */
+.distgridwrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface)}
+.distgrid{display:grid;gap:4px;min-width:900px;font-size:12px}
+.distgrid .grow{display:grid;column-gap:3px;align-items:center}
+.distgrid .band{text-align:center;border-radius:8px;padding:6px 0;font-weight:600;font-size:12px}
+.distgrid .band.hk1{background:#e8f0fc;color:var(--primary)}.distgrid .band.hk2{background:#e3f4ea;color:var(--ok-fg)}.distgrid .band.out{background:var(--bad-bg);color:var(--bad-fg)}
+.distgrid .wk{text-align:center;color:var(--muted)}.distgrid .wk.hk2{border-left:1px solid var(--line)}.distgrid .wk.out{color:var(--bad-fg)}
+.distgrid .lab{color:var(--muted);font-size:12px;line-height:1.25;padding-right:6px}
+.distgrid .progrow{margin-top:8px}.distgrid .lab.prog{color:var(--text)}.distgrid .lab.prog i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px}
+.distgrid .lab.subj{padding-left:14px}
+.distgrid .track{position:relative;height:6px}.distgrid .track i{position:absolute;top:0;bottom:0;border-radius:3px;opacity:.35}
+.distgrid .cell{height:24px;border-radius:5px;background:var(--soft);display:grid;place-items:center;color:#fff;font-weight:700;font-size:11px}
+.distgrid .cell.out{background:#fbecec}
+.distgrid .totrow{border-top:1px solid var(--line);padding-top:6px;margin-top:4px}
+.distgrid .lab.total{color:var(--text)}
+.distgrid .tot{text-align:center;color:var(--text);padding:2px 0}
+.distgrid .tot.over{background:#fde7c8;color:#8a4b00;border-radius:5px;font-weight:700}
+.distlegend{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin:4px 0 10px}.distlegend i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px}
+/* Bước 3 */
+.diststats div.over b{color:#b45309}
+.diststats div{display:flex;flex-direction:column}
+.distchecks{border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:12px}
+.distchecks.good{border-left-color:var(--ok)}.distchecks.warn{border-left-color:#f59e0b}.distchecks.bad{border-left-color:var(--bad);border-color:#e4a1a1}
+.distchecks li{list-style:none}.distchecks ul{padding-left:0}
+.distviewbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin-bottom:10px}
+.distseg{margin:0}
+.diststatline{display:flex;flex-wrap:wrap;gap:14px;color:var(--muted)}.diststatline b{color:var(--text)}
+.disttable .distgprog th{background:var(--soft);text-align:left;font-weight:400}
+.disttable .distgprog th>i{display:inline-block;width:9px;height:9px;border-radius:50%;margin:0 6px}
+.disttable .distgprog small{margin-left:10px}
+.disttable .distgsubj th{background:var(--surface);text-align:left;font-weight:400;padding-left:28px}
+.disttable .distgsubj .gpill{margin-left:10px;padding:1px 8px}
+.disttable tr.skipped td{opacity:.5}
+.disttoast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--navy);color:#fff;padding:12px 20px;border-radius:12px;box-shadow:0 8px 24px rgba(20,31,50,.25);z-index:50;font-weight:600}
+.disttoast.bad{background:#9b2222}
+/* Danh sách */
+.distfilter{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px}
+.distfilter input{min-width:240px}
+.main .distfchip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 12px;font-weight:400}
+.main .distfchip.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.main .distsort{border:0;background:none;padding:0;font-weight:600;color:inherit}.distsort small{color:var(--muted)}
+.distcols>summary{font-weight:500}
+.distpanel input:not([type=checkbox]):not(.disttitlein):not(.distnotein),.distpanel select,.distfilter input,.distfilter select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit;font-size:14px}
+.distpanel .stepper input{border:0;border-radius:0}
+.disttable td{vertical-align:middle;padding-top:6px;padding-bottom:6px}.disttable td input{width:100%}
+.distpanel small.sub,.distpanel span.sub,.distsubjs small{margin:0}
+.distproghead .ttl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}

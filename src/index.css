@@ -1798,3 +1798,8 @@ a.namelink:hover{color:var(--primary)}
 .mselgroup{padding:6px 12px 2px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.02em}
 .mselnew{padding:8px 12px;color:var(--primary);cursor:pointer;font-weight:600}.mselnew.mselact{background:var(--soft)}
 .mselempty{padding:10px 12px;color:var(--muted)}
+/* Hàng thêm / sửa trong bảng cấu trúc: ô nhập bo góc như các form khác */
+.uedit input:not([type=checkbox]):not([type=radio]),.uedit select{box-sizing:border-box;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);font:inherit;font-size:14px;min-height:38px}
+.uedit input:focus,.uedit select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 20%,transparent)}
+tr.uedit>td{vertical-align:top;padding-top:10px;padding-bottom:10px;background:var(--soft)}
+tr.uedit>td small{display:inline-block;margin-bottom:4px}

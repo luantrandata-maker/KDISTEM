@@ -651,10 +651,10 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
     setOedit(null)
     setLibPick('')
     if (t === 'lesson') loadLibUnits()
-    // Khối mặc định: khối của mục cha, hoặc khối duy nhất của chương trình; môn mặc định: môn chính của học phần
+    // Khối mặc định: khối của mục cha, nếu không thì khối đầu tiên ở phần Thông tin (sửa được); môn mặc định: môn chính của học phần
     const ts = t === 'topic' ? [] : topicSubjects(topicOf(parent?.id))
     setEdit({ parent_id: parent?.id ?? null, unit_type: t, seq: kids(parent?.id ?? null).reduce((m, u) => Math.max(m, u.seq), 0) + 1, periods: t === 'topic' ? 0 : 1,
-      grade: parent?.grade ?? (p.grade_from === p.grade_to ? p.grade_from : null), subject: ts.length === 1 ? ts[0] : null })
+      grade: parent?.grade ?? p.grade_from, subject: ts.length === 1 ? ts[0] : null })
   }
 
   async function importRows(recs: (Record<string, string> & { _line: number })[]) {
@@ -710,26 +710,26 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
   }
 
   const unitForm = (depth: number) => (
-    <tr>
+    <tr className="uedit">
       <td style={{ paddingLeft: 8 + depth * 22 }}><small>{UTYPE[edit?.unit_type ?? 'topic']}</small><br />
-        <input type="number" min={1} value={edit?.seq ?? ''} onChange={e => setEdit({ ...edit, seq: Number(e.target.value) })} aria-label="Thứ tự" style={{ width: 56 }} /></td>
+        <input type="number" min={1} value={edit?.seq ?? ''} onChange={e => setEdit({ ...edit, seq: Number(e.target.value) })} aria-label="Thứ tự" style={{ width: 70 }} /></td>
       <td>{edit?.unit_type === 'lesson' && !edit.id && (
           <select value={libPick} onChange={e => pickLib(e.target.value)} aria-label="Chọn từ danh sách bài học" style={{ width: '100%', marginBottom: 4 }}>
             <option value="">{!libUnits ? 'Đang tải danh sách bài học…' : libChoices.length ? `— Chọn từ danh sách bài học (${libChoices.length}) hoặc nhập tên bên dưới —` : 'Danh sách bài học chưa có bài nào của môn này — nhập tên bên dưới'}</option>
             {libChoices.map(i => <option key={i.id} value={i.id}>{i.title}{i.grades ? ` · khối ${i.grades}` : ''}{i.subject ? ` · ${i.subject}` : ''}{i.status !== 'published' ? ' (nháp)' : ''}</option>)}
           </select>)}
         <input value={edit?.title ?? ''} onChange={e => setEdit({ ...edit, title: e.target.value })} aria-label="Tên" autoFocus style={{ width: '100%', minWidth: 200 }} placeholder="Tên học phần / bài / buổi" />
-        <input value={edit?.objectives ?? ''} onChange={e => setEdit({ ...edit, objectives: e.target.value })} aria-label="Mục tiêu" placeholder="Mục tiêu" style={{ width: '100%', marginTop: 4 }} /></td>
+        <input value={edit?.objectives ?? ''} onChange={e => setEdit({ ...edit, objectives: e.target.value })} aria-label="Mục tiêu" placeholder="Mục tiêu" style={{ width: '100%', marginTop: 6 }} /></td>
       <td><select value={edit?.grade ?? ''} onChange={e => setEdit({ ...edit, grade: Number(e.target.value) || null })} aria-label="Khối"><option value="">—</option>{range(p.grade_from, p.grade_to).map(g => <option key={g} value={g}>{g}</option>)}</select></td>
       <td><select value={edit?.subject ?? ''} onChange={e => { setLibPick(''); setEdit({ ...edit, subject: e.target.value || null }) }} aria-label="Môn" style={{ maxWidth: 180 }}>
         <option value="">{edit?.unit_type === 'topic' || !edit?.unit_type ? `(${p.main_subject})` : formSubjects.length > 1 ? '— Mọi môn của học phần —' : '—'}</option>
         {formSubjects.map(n => <option key={n} value={n}>{n}</option>)}</select></td>
-      <td><input type="number" min={0} value={edit?.periods ?? 0} onChange={e => setEdit({ ...edit, periods: Number(e.target.value) })} aria-label="Số tiết" style={{ width: 64 }} /></td>
-      <td className="tools"><button className="primary" type="submit" form="prog-unit">Lưu</button><button type="button" onClick={() => setEdit(null)}>Huỷ</button></td>
+      <td><input type="number" min={0} value={edit?.periods ?? 0} onChange={e => setEdit({ ...edit, periods: Number(e.target.value) })} aria-label="Số tiết" style={{ width: 80 }} /></td>
+      <td><span className="tools"><button className="primary" type="submit" form="prog-unit">Lưu</button><button type="button" onClick={() => setEdit(null)}>Huỷ</button></span></td>
     </tr>
   )
   const outForm = (
-    <div className="addrow" style={{ flexWrap: 'wrap', gap: 6 }}>
+    <div className="addrow uedit" style={{ flexWrap: 'wrap', gap: 6 }}>
       <input value={oedit?.code ?? ''} onChange={e => setOedit({ ...oedit, code: e.target.value })} placeholder="Mã" aria-label="Mã" style={{ width: 70 }} />
       <input value={oedit?.content ?? ''} onChange={e => setOedit({ ...oedit, content: e.target.value })} placeholder="Yêu cầu cần đạt" aria-label="Yêu cầu cần đạt" autoFocus style={{ flex: 1, minWidth: 220 }} />
       <select value={oedit?.competency_key ?? ''} onChange={e => setOedit({ ...oedit, competency_key: e.target.value || null })} aria-label="Năng lực"><option value="">Năng lực —</option>{comps.map(c => <option key={c.key} value={c.key}>{c.name}</option>)}</select>

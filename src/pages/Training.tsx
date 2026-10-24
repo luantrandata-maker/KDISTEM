@@ -130,7 +130,8 @@ export function TrainingSchedule({ onlineOnly = false, orgId }: { onlineOnly?: b
     if (error) return error.message
     const { data: en } = await supabase.from('training_enrollments').select('teacher_id').eq('plan_id', v.plan_id)
     const ids = (en ?? []).length ? (en ?? []).map((x: any) => x.teacher_id) : teachers.map(t => t.id)
-    if (ids.length) await supabase.from('training_attendance').insert(ids.map((t: string) => ({ org_id: orgId, session_id: data.id, teacher_id: t, present: null })))
+    // Từ 085 GV đã ghi danh tự có dòng điểm danh; bỏ qua dòng đã có
+    if (ids.length) await supabase.from('training_attendance').upsert(ids.map((t: string) => ({ org_id: orgId, session_id: data.id, teacher_id: t, present: null })), { onConflict: 'session_id,teacher_id', ignoreDuplicates: true })
     setAdding(false); setVersion(x => x + 1)
   }
   async function mark(sid: string, tid: string, present: boolean) {

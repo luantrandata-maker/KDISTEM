@@ -3,11 +3,12 @@ import { supabase } from '../../lib/supabase'
 import { sessionState, STATE_LABEL, fmtDate, fmtTime, type SessionState } from '../../lib/time'
 import { NoTeacher, Tabs, PROGRAM_COLOR, type TProps } from './common'
 
-// Cổng giáo viên › Khác › Lịch tập huấn & Bài giảng tập huấn (migration 026)
+// Cổng giáo viên › Khác › Lịch tập huấn & Bài giảng tập huấn (migration 026; mã điểm danh, xin vắng: 085)
 
 type Sess = {
   id: string; plan_id: string | null; plan_name: string | null; program: string | null; provider: string | null; title: string
   starts_at: string; ends_at: string; mode: string; location: string | null; meeting_url: string | null; present: boolean | null; org_name: string | null
+  trainer?: string | null; need_code?: boolean; closed?: boolean; excuse_status?: string | null; excuse_reason?: string | null
 }
 const MODE: Record<string, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
 const OPEN_MS = 15 * 60000   // khớp training_session_open(): sớm/muộn 15 phút
@@ -17,7 +18,9 @@ const canCheckIn = (s: Sess, now = Date.now()) =>
 
 function Attendance({ s, st }: { s: Sess; st: SessionState }) {
   if (s.present === true) return <span className="pill active">Có mặt</span>
+  if (s.excuse_status === 'approved') return <span className="pill maintenance">Vắng có phép</span>
   if (s.present === false) return <span className="pill inactive">Vắng</span>
+  if (s.excuse_status === 'pending') return <span className="pill maintenance">Xin vắng · chờ duyệt</span>
   return <span className="pill maintenance">{st === 'done' ? 'Chưa ghi nhận' : 'Chưa điểm danh'}</span>
 }
 
@@ -26,6 +29,8 @@ export function TeacherTrainingSchedule({ teacherId }: TProps) {
   const [err, setErr] = useState('')
   const [tab, setTab] = useState<'all' | SessionState>('all')
   const [busy, setBusy] = useState<string | null>(null)
+  const [code, setCode] = useState('')
+  const [ok, setOk] = useState('')
   const [, tick] = useState(0)
 
   const load = () => supabase.rpc('my_training_sessions').then(({ data, error }) => {
@@ -34,6 +39,24 @@ export function TeacherTrainingSchedule({ teacherId }: TProps) {
   useEffect(() => { if (teacherId) load() }, [teacherId])
   // Cập nhật trạng thái "đang diễn ra" mỗi phút
   useEffect(() => { const t = setInterval(() => tick(x => x + 1), 60000); return () => clearInterval(t) }, [])
+
+  // Nhập mã 6 số (hoặc quét QR) do giảng viên đưa ở buổi trực tiếp
+  async function checkInCode() {
+    setBusy('code'); setOk(''); setErr('')
+    const { data, error } = await supabase.rpc('training_check_in_code', { p_code: code.trim() })
+    setBusy(null)
+    if (error) return setErr(error.message)
+    setCode(''); setOk(`Đã điểm danh có mặt: ${data}`); load()
+  }
+  async function excuse(s: Sess) {
+    const reason = prompt(`Lý do xin vắng buổi "${s.title}":`)
+    if (!reason?.trim()) return
+    setBusy(s.id); setOk(''); setErr('')
+    const { error } = await supabase.rpc('training_request_excuse', { p_session: s.id, p_reason: reason.trim() })
+    setBusy(null)
+    if (error) return setErr(error.message)
+    setOk('Đã gửi xin vắng, chờ đơn vị tổ chức duyệt.'); load()
+  }
 
   async function checkIn(s: Sess, openLink: boolean) {
     // Mở cửa sổ trước khi chờ phản hồi để trình duyệt không chặn popup
@@ -71,6 +94,13 @@ export function TeacherTrainingSchedule({ teacherId }: TProps) {
         <div className="card"><strong>{n('live')}</strong><span>Đang diễn ra</span></div>
         <div className="card"><strong>{attended}</strong><span>Đã có mặt</span></div>
       </div>
+      {rows.some(s => s.need_code && canCheckIn(s) && s.present !== true && !s.closed) && <div className="panel" style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+        <b>Nhập mã điểm danh</b><small className="sub">Mã 6 số giảng viên đưa trong buổi học trực tiếp</small>
+        <input inputMode="numeric" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} placeholder="______" aria-label="Mã điểm danh" style={{ width: 110, letterSpacing: 4, fontSize: 18 }}
+          onKeyDown={e => { if (e.key === 'Enter' && code.length === 6) checkInCode() }} />
+        <button className="primary" disabled={code.length !== 6 || busy === 'code'} onClick={checkInCode}>Điểm danh</button>
+      </div>}
+      {ok && <p className="sub" role="status"><b>{ok}</b></p>}
       {err && <p className="sub" role="alert" style={{ color: 'var(--bad)' }}>{err}</p>}
       <div style={{ margin: '14px 0' }}>
         <Tabs value={tab} onChange={setTab} items={[
@@ -82,7 +112,7 @@ export function TeacherTrainingSchedule({ teacherId }: TProps) {
         <thead><tr><th>Buổi tập huấn</th><th>Thời gian</th><th>Hình thức</th><th>Điểm danh</th><th></th></tr></thead>
         <tbody>
           {shown.map(s => {
-            const state = st(s); const open = canCheckIn(s)
+            const state = st(s); const open = canCheckIn(s) && !s.closed
             return (
               <tr key={s.id}>
                 <td>
@@ -91,13 +121,15 @@ export function TeacherTrainingSchedule({ teacherId }: TProps) {
                 </td>
                 <td>{fmtDate(s.starts_at)}<br /><small>{fmtTime(s.starts_at)}–{fmtTime(s.ends_at)}</small></td>
                 <td>{MODE[s.mode] ?? s.mode}{s.mode !== 'online' && s.location && <><br /><small>{s.location}</small></>}</td>
-                <td><Attendance s={s} st={state} /></td>
+                <td><Attendance s={s} st={state} />{s.excuse_reason && s.excuse_status && <><br /><small>{s.excuse_reason}</small></>}</td>
                 <td style={{ whiteSpace: 'nowrap' }}>
-                  {open && s.present !== true && (s.meeting_url
+                  {open && s.present !== true && s.need_code && <small>Nhập mã ở ô phía trên</small>}
+                  {open && s.present !== true && !s.need_code && (s.meeting_url
                     ? <button className="primary" disabled={busy === s.id} onClick={() => checkIn(s, true)}>Tham gia</button>
                     : <button className="primary" disabled={busy === s.id} onClick={() => checkIn(s, false)}>Điểm danh</button>)}
                   {open && s.present === true && s.meeting_url && <a className="filebtn" href={s.meeting_url} target="_blank" rel="noreferrer">Vào lại phòng họp</a>}
                   {!open && state === 'upcoming' && <small>Mở điểm danh 15 phút trước giờ học</small>}
+                  {state !== 'done' && !s.closed && s.present !== true && !s.excuse_status && <> <button disabled={busy === s.id} onClick={() => excuse(s)}>Xin vắng</button></>}
                 </td>
               </tr>
             )
@@ -105,7 +137,7 @@ export function TeacherTrainingSchedule({ teacherId }: TProps) {
           {shown.length === 0 && <tr><td colSpan={5}>{rows.length === 0 ? 'Bạn chưa được ghi danh vào buổi tập huấn nào.' : 'Không có buổi phù hợp.'}</td></tr>}
         </tbody>
       </table></div>
-      <p className="sub" style={{ marginTop: 10 }}>Bạn tự điểm danh "có mặt" trong giờ buổi tập huấn. Ghi nhận vắng hoặc sửa điểm danh buổi đã qua do quản trị trường hoặc đơn vị tổ chức thực hiện.</p>
+      <p className="sub" style={{ marginTop: 10 }}>Bạn tự điểm danh "có mặt" trong giờ buổi tập huấn; buổi trực tiếp cần nhập mã giảng viên đưa. Không dự được thì bấm "Xin vắng" trước khi buổi kết thúc. Ghi nhận vắng hoặc sửa điểm danh do đơn vị tổ chức thực hiện.</p>
     </>
   )
 }

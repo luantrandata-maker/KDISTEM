@@ -192,6 +192,9 @@ begin
   if to_regclass('public.dist_plans') is not null then delete from dist_plans where title like 'ISO %';
     if to_regclass('public.dist_nodes') is not null then delete from dist_nodes where name like 'ISO con%'; delete from dist_nodes where name like 'ISO%'; delete from dist_cls_levels where name like 'ISO%'; end if;
     delete from dist_tiers where code like 'iso%'; end if;
+  if to_regclass('public.training_session_codes') is not null then
+    delete from notifications where kind = 'training_remind' and ref_id in (select s.id from training_sessions s join training_plans p on p.id = s.plan_id where p.name like 'ISO %');
+  end if;
   if to_regclass('public.training_plan_orgs') is not null then
     delete from training_plan_orgs where plan_id in (select id from training_plans where name like 'ISO %');
     delete from training_plans where name like 'ISO %';
@@ -581,7 +584,8 @@ begin
     (v_org, v_plan, 'ISO buổi đã qua', now() - interval '2 days', now() - interval '2 days' + interval '1 hour', 'online') returning id into v_past;
   insert into training_enrollments (org_id, plan_id, teacher_id, completed) values (v_org, v_plan, v_me, false);
   insert into training_attendance (org_id, session_id, teacher_id, present) values
-    (v_org, v_live, v_me, null), (v_org, v_past, v_me, null), (v_org, v_live, v_other, null);
+    (v_org, v_live, v_me, null), (v_org, v_past, v_me, null), (v_org, v_live, v_other, null)
+  on conflict do nothing;   -- từ 085 ghi danh tự thêm GV vào buổi chưa kết thúc
   insert into training_lessons (org_id, plan_id, title, status) values
     (v_org, v_plan, 'ISO bài tập huấn xuất bản', 'published'), (v_org, v_plan, 'ISO bài tập huấn nháp', 'draft');
 end $$;
@@ -591,7 +595,7 @@ select pg_temp.chk('gv_both', 'Không tự điểm danh buổi đã qua', 'selec
 select pg_temp.chk('gv_both', 'Ghi thẳng bảng: không đánh có mặt buổi đã qua',
   'update training_attendance set present = true where teacher_id = my_teacher_id() and session_id = (select id from training_sessions where title = ''ISO buổi đã qua'')', 'rows:0');
 select pg_temp.chk('gv_both', 'Ghi thẳng bảng: không tự đánh vắng',
-  'update training_attendance set present = false where teacher_id = my_teacher_id() and session_id = (select id from training_sessions where title = ''ISO buổi đang diễn ra'')', 'ERR');
+  'update training_attendance set present = false where teacher_id = my_teacher_id() and session_id = (select id from training_sessions where title = ''ISO buổi đang diễn ra'')', 'rows:0');
 select pg_temp.chk('gv_both', 'Không điểm danh hộ giáo viên khác',
   'update training_attendance set present = true where teacher_id <> my_teacher_id() and session_id = (select id from training_sessions where title = ''ISO buổi đang diễn ra'')', 'rows:0');
 select pg_temp.chk('gv_both', 'Bài giảng tập huấn: chỉ bản đã xuất bản', 'select count(*) from my_training_lessons() where title like ''ISO bài tập huấn%''', '1');
@@ -2745,6 +2749,41 @@ select pg_temp.chk('so_hy', 'KH tập huấn: Sở không gán trường ngoài 
 select pg_temp.chk('so_hy', 'KH tập huấn: Sở gán trường trực thuộc', $q$select training_plan_assign(id, array[(select id from organizations where code = 'THCS-PH')]) from training_plans where name = 'ISO KH Sở'$q$, '1');
 select pg_temp.probe('kdi@iso-test.local', $q$select training_plan_unassign(id, (select id from organizations where code = 'THCS-PH'))::text from training_plans where name = 'ISO KH'$q$, true);
 select pg_temp.chk('kdi', 'KH tập huấn: bỏ gán thì bỏ luôn GV đã ghi danh', $q$select count(*) from training_enrollments e join training_plans k on k.id = e.plan_id where k.name = 'ISO KH'$q$, '0');
+
+-- ===== 085: lịch tập huấn & điểm danh =====
+update profiles set org_id = pg_temp.oid_('THCS-KB') where email = 'gv_both@iso-test.local';
+select pg_temp.chk('admin_kb', 'Lịch: trường không xếp lịch kế hoạch của KDI', $q$select training_plan_schedule((select id from training_plans where name = 'ISO KH'), '2030-01-07')$q$, 'ERR 42501');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_plan_schedule(id, '2030-01-05', '08:00', 4, true)::text from training_plans where name = 'ISO KH'$q$, true);
+select pg_temp.chk('kdi', 'Lịch: xếp tự động mỗi nội dung một buổi, bỏ qua thứ Bảy, Chủ nhật', $q$select count(*) || ':' || min(to_char(s.starts_at at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD HH24:MI')) || ':' || min(extract(epoch from s.ends_at - s.starts_at)::int / 3600) || ':' || min(s.mode) from training_sessions s join training_plans k on k.id = s.plan_id where k.name = 'ISO KH' and s.unit_id is not null$q$, '1:2030-01-07 08:00:3:offline');
+select pg_temp.chk('kdi', 'Lịch: xếp lại không tạo trùng nội dung đã có buổi', $q$select training_plan_schedule(id, '2030-01-07')::text from training_plans where name = 'ISO KH'$q$, '0');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plans (org_id, name, pub_status) values (platform_org_id(), 'ISO KH nháp', 'draft')$q$, true);
+select pg_temp.chk('kdi', 'Lịch: kế hoạch nháp chưa xếp buổi được', $q$insert into training_sessions (org_id, plan_id, title, starts_at, ends_at) select org_id, id, 'ISO buổi', now(), now() + interval '1 hour' from training_plans where name = 'ISO KH nháp'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'Lịch: giờ kết thúc phải sau giờ bắt đầu', $q$update training_sessions set ends_at = starts_at where plan_id = (select id from training_plans where name = 'ISO KH')$q$, 'ERR 22023');
+select pg_temp.probe('admin_kb@iso-test.local', $q$insert into training_enrollments (org_id, plan_id, teacher_id) select t.org_id, k.id, t.id from training_plans k, teachers t where k.name = 'ISO KH' and t.full_name = 'GV thử B'$q$, true);
+select pg_temp.chk('admin_kb', 'Lịch: trường được gán thấy buổi và điểm danh GV trường mình', $q$select count(*) from training_attendance a join training_sessions s on s.id = a.session_id where s.plan_id = (select id from training_plans where name = 'ISO KH')$q$, '1');
+select pg_temp.chk('admin_ph', 'Lịch: trường không được gán thì không thấy buổi', $q$select count(*) from training_sessions s join training_plans k on k.id = s.plan_id where k.name = 'ISO KH'$q$, '0');
+select pg_temp.chk('admin_kb', 'Lịch: trường không đọc được mã điểm danh', $q$select count(*) from training_session_codes c join training_sessions s on s.id = c.session_id where s.plan_id = (select id from training_plans where name = 'ISO KH')$q$, '0');
+select pg_temp.chk('gv_both', 'Lịch: GV không đọc được mã điểm danh', $q$select count(*) from training_session_codes$q$, '0');
+select pg_temp.chk('kdi', 'Lịch: đơn vị tổ chức đọc được mã', $q$select (c.code ~ '^\d{6}$')::text from training_session_codes c join training_sessions s on s.id = c.session_id join training_plans k on k.id = s.plan_id where k.name = 'ISO KH'$q$, 'true');
+select pg_temp.chk('kdi', 'Lịch: gửi nhắc lịch cho GV trong danh sách', $q$select training_session_remind(s.id)::text from training_sessions s join training_plans k on k.id = s.plan_id where k.name = 'ISO KH'$q$, '1');
+select pg_temp.chk('gv_both', 'Điểm danh: chưa đến giờ thì không điểm danh', $q$select training_check_in(s.id) from training_sessions s join training_plans k on k.id = s.plan_id where k.name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.chk('gv_both', 'Điểm danh: GV không tự ghi thẳng bảng', $q$update training_attendance set present = true where teacher_id = my_teacher_id()$q$, 'rows:0');
+update training_sessions set starts_at = now() - interval '10 minutes', ends_at = now() + interval '1 hour' where plan_id = (select id from training_plans where name = 'ISO KH');
+select pg_temp.chk('gv_both', 'Điểm danh: buổi trực tiếp phải có mã', $q$select training_check_in(s.id) from training_sessions s join training_plans k on k.id = s.plan_id where k.name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.chk('gv_both', 'Điểm danh: sai mã thì không nhận', $q$select training_check_in_code('000000x')$q$, 'ERR 22023');
+select pg_temp.chk('gv_both', 'Lịch: GV xin vắng phải có lý do', $q$select training_request_excuse(s.id, ' ')::text from training_sessions s join training_plans k on k.id = s.plan_id where k.name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.probe('gv_both@iso-test.local', format($q$select training_check_in_code(%L)$q$, (select c.code from training_session_codes c join training_sessions s on s.id = c.session_id join training_plans k on k.id = s.plan_id where k.name = 'ISO KH')), true);
+select pg_temp.chk('admin_kb', 'Điểm danh: nhập đúng mã thì có mặt', $q$select a.present || ':' || a.method from training_attendance a join training_sessions s on s.id = a.session_id where s.plan_id = (select id from training_plans where name = 'ISO KH')$q$, 'true:code');
+select pg_temp.chk('gv_both', 'Điểm danh: đã có mặt thì không xin vắng', $q$select training_request_excuse(s.id, 'Ốm')::text from training_sessions s join training_plans k on k.id = s.plan_id where k.name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.chk('admin_kb', 'Điểm danh: trường không sửa điểm danh buổi của KDI', $q$select training_attendance_mark(s.id, a.teacher_id, false)::text from training_sessions s join training_attendance a on a.session_id = s.id where s.plan_id = (select id from training_plans where name = 'ISO KH')$q$, 'ERR 42501');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_attendance_mark(s.id, a.teacher_id, false)::text from training_sessions s join training_attendance a on a.session_id = s.id join training_plans k on k.id = s.plan_id where k.name = 'ISO KH'$q$, true);
+select pg_temp.probe('gv_both@iso-test.local', $q$select training_request_excuse(s.id, 'Ốm')::text from training_sessions s join training_plans k on k.id = s.plan_id where k.name = 'ISO KH'$q$, true);
+select pg_temp.chk('admin_kb', 'Lịch: trường không duyệt xin vắng buổi của KDI', $q$select training_excuse_review(s.id, a.teacher_id, true)::text from training_sessions s join training_attendance a on a.session_id = s.id where s.plan_id = (select id from training_plans where name = 'ISO KH')$q$, 'ERR 42501');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_excuse_review(s.id, a.teacher_id, true)::text from training_sessions s join training_attendance a on a.session_id = s.id join training_plans k on k.id = s.plan_id where k.name = 'ISO KH'$q$, true);
+select pg_temp.chk('gv_both', 'Lịch: GV thấy xin vắng đã duyệt', $q$select present || ':' || excuse_status from my_training_sessions() where plan_name = 'ISO KH'$q$, 'false:approved');
+select pg_temp.chk('kdi', 'Lịch: kiểm tra trùng lịch chạy được', $q$select count(*) from training_plan_conflicts((select id from training_plans where name = 'ISO KH'))$q$, '0');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_session_close(s.id)::text from training_sessions s join training_plans k on k.id = s.plan_id where k.name = 'ISO KH'$q$, true);
+select pg_temp.chk('gv_both', 'Điểm danh: đã chốt thì không điểm danh nữa', format($q$select training_check_in_code(%L)$q$, (select c.code from training_session_codes c join training_sessions s on s.id = c.session_id join training_plans k on k.id = s.plan_id where k.name = 'ISO KH')), 'ERR 22023');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

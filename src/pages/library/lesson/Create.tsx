@@ -100,7 +100,7 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
     <label className="lfile"><span className="filebtn">{label}</span><small>{chosen ?? 'Chưa chọn tệp'}</small>
       <input type="file" hidden accept={accept} disabled={!!busy} onChange={e => { const f = e.target.files?.[0]; if (f) on(f); e.target.value = '' }} /></label>
   )
-  const head = pickPlace ? 'Thêm bài học' : 'Tạo giáo án'
+  const head = pickPlace ? 'Thêm bài học' : 'Tạo bài học'
   const place = <div className="formgrid lgrid2">
     <label className="field"><span>Chương trình</span>
       <select value={pid} onChange={e => { setPid(e.target.value); setSubj(subjectsOf(e.target.value)[0] ?? '') }}>
@@ -115,7 +115,7 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
       {pickPlace && place}
       <div className="lways">
         {([['upload', 'Tải giáo án từ nguồn', 'Tệp Word (.docx), bài giảng PowerPoint. Hệ thống tách thành bộ học liệu 5 thẻ.'],
-           ['blank', 'Tự tạo giáo án', 'Mở trang giáo án trống: có sẵn khung 5 thẻ để điền trực tiếp.'],
+           ['blank', 'Tự tạo bài học', 'Mở trang bài học trống: có sẵn khung 5 thẻ để điền trực tiếp.'],
            ['copy', 'Sao chép từ bài học đã có', 'Chọn một bài học có sẵn, hệ thống chép toàn bộ nội dung 5 thẻ sang bài mới để chỉnh sửa riêng.'],
            ['template', 'Không có giáo án? Dùng file mẫu', 'Tải file Excel mẫu (5 sheet), điền rồi tải lên để hệ thống tự điền 5 thẻ.']] as const).map(([k, t, d], i) =>
           <button key={k} type="button" className="lway" onClick={() => setStep(k)}><i>{i + 1}</i><span><b>{t}</b><small>{d}</small></span></button>)}
@@ -154,7 +154,7 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
   if (step === 'blank') return (
     <Modal title={head} sub={crumb} onClose={onClose}
       foot={<><button type="button" onClick={() => setStep('menu')}>← Quay lại</button>
-        <button type="button" className="primary" disabled={!!busy} onClick={() => save([], name)}>Tạo giáo án trống</button></>}>
+        <button type="button" className="primary" disabled={!!busy} onClick={() => save([], name)}>Tạo bài học trống</button></>}>
       <label className="field"><span>Tên bài học</span><input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Cột đèn giao thông xoay"
         onKeyDown={e => { if (e.key === 'Enter') save([], name) }} /></label>
       {same(name) && <p className="sub">Đã có bài học cùng tên trong môn này: tạo sẽ mở lại bài đó, không tạo bản trùng.</p>}
@@ -175,7 +175,7 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
       return (
         <Modal title="Kiểm tra file" sub={xlsx.file.name} onClose={onClose}
           foot={<><button type="button" onClick={() => { setXlsx(null); setStep('template') }}>Hủy</button>
-            <button type="button" className="primary" disabled={!!busy || !t} onClick={() => save([xlsx], t)}>Tạo giáo án và điền</button></>}>
+            <button type="button" className="primary" disabled={!!busy || !t} onClick={() => save([xlsx], t)}>Tạo bài học và điền</button></>}>
           <div className="lcheck">{rows.map(([a, b, n]) => <div key={a}><span><b>{a}</b> · {b}</span><span className="distchip2 good">{n}</span></div>)}</div>
           {!t && <p className="lwarn">Sheet “01 Thông tin” chưa có tên bài học. Điền dòng “Tên bài học” rồi tải lại.</p>}
           {k.issues.length > 0 && <ul className="lwarn">{k.issues.map((w, i) => <li key={i}>{w}</li>)}</ul>}

@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import { ElView } from '../../components/ElView'
 import { Chip, STATUS } from '../dist/Editor'
 import type { Status } from '../dist/sched'
+import { PlanProgress } from './Progress'
 
 type Mode = 'online' | 'offline' | 'hybrid'
 type Term = 'summer' | 'hk1' | 'hk2' | 'other'
@@ -346,6 +347,7 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
           {!orgs.length && <tr><td colSpan={can ? 5 : 4}><small className="sub">Chưa gán trường nào.{can && p.pub_status === 'published' && ' Bấm "Gán trường".'}</small></td></tr>}</tbody>
       </table></div>
     </section>}
+    {p.pub_status !== 'draft' && enr.length > 0 && <PlanProgress planId={p.id} manage={can} />}
   </ElView>
 }
 
@@ -508,5 +510,6 @@ function SchoolPlanTeachers({ row, orgId, items, onBack, onMsg }: { row: Assigne
         {!shown.length && <small className="sub">{teachers.length ? 'Không có giáo viên nào khớp.' : 'Trường chưa có giáo viên.'}</small>}
       </div>}
     </section>
+    {chosen.size > 0 && <PlanProgress planId={row.plan_id} manage={false} />}
   </ElView>
 }

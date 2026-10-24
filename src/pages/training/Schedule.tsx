@@ -10,14 +10,14 @@ import { Chip } from '../dist/Editor'
 type Mode = 'online' | 'offline'
 type Plan = { id: string; plan_code: string | null; name: string; mode: string; pub_status: string }
 export type Sess = { id: string; plan_id: string; unit_id: string | null; title: string; starts_at: string; ends_at: string; mode: Mode; location: string | null
-  meeting_url: string | null; trainer: string | null; note: string | null; closed_at: string | null }
+  meeting_url: string | null; trainer: string | null; note: string | null; closed_at: string | null; recording_url?: string | null }
 type Att = { session_id: string; teacher_id: string; present: boolean | null; excuse_status: string | null; excuse_reason?: string | null; checked_in_at?: string | null; method?: string | null
   teachers?: { full_name: string; subject: string | null; organizations: { name: string } | null } | null }
 type Unit = { id: string; program_id: string; parent_id: string | null; kind: string; seq: number; title: string; hours: number; mode: Mode | null }
 type Item = { program_id: string; seq: number; trainer: string | null }
 type St = 'upcoming' | 'live' | 'toclose' | 'closed'
 
-const SSEL = 'id, plan_id, unit_id, title, starts_at, ends_at, mode, location, meeting_url, trainer, note, closed_at'
+const SSEL = 'id, plan_id, unit_id, title, starts_at, ends_at, mode, location, meeting_url, trainer, note, closed_at, recording_url'
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp' }
 const ST: Record<St, [string, string]> = { upcoming: ['Sắp diễn ra', ''], live: ['Đang diễn ra', 'bad'], toclose: ['Chờ chốt điểm danh', 'warn'], closed: ['Đã chốt', 'good'] }
 const errText = (m: string) => /schema cache|does not exist|column .* of relation/i.test(m) ? 'Hãy chạy migration 085 trên Supabase.'
@@ -131,7 +131,7 @@ export function TrainingCalendarPage({ orgId }: { orgId: string }) {
         return <tr key={s.id}>
           <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen({ kind: 'sess', id: s.id }) }}>{s.title}</button><br /><small className="sub">{p?.plan_code} · {p?.name}</small></td>
           <td>{dd(s.starts_at)}<br /><small className="sub">{hm(s.starts_at)}–{hm(s.ends_at)}</small></td>
-          <td>{MODE[s.mode]}{s.mode === 'offline' ? s.location && <><br /><small className="sub">{s.location}</small></> : !s.meeting_url && <><br /><small className="warnline">Chưa có link họp</small></>}</td>
+          <td>{MODE[s.mode]}{s.mode === 'offline' ? s.location && <><br /><small className="sub">{s.location}</small></> : !s.meeting_url ? <><br /><small className="warnline">Chưa có link họp</small></> : s.recording_url ? <><br /><small className="sub">▶ Có bản ghi</small></> : null}</td>
           <td>{s.trainer || '—'}</td>
           <td>{i.total ? `${i.present}/${i.total} có mặt` : <small className="sub">Chưa có GV</small>}{i.pend > 0 && <><br /><Chip tone="warn">{i.pend} xin vắng</Chip></>}</td>
           <td><Chip tone={ST[st][1]}>{ST[st][0]}</Chip></td>
@@ -222,13 +222,14 @@ function AutoSchedule({ plans, initial, onBack, onDone }: { plans: Plan[]; initi
 }
 
 // ===== Thông tin buổi (thêm / sửa) =====
-type Info = { plan_id: string; unit_id: string; title: string; starts_at: string; ends_at: string; mode: Mode; location: string; meeting_url: string; trainer: string; note: string }
+type Info = { plan_id: string; unit_id: string; title: string; starts_at: string; ends_at: string; mode: Mode; location: string; meeting_url: string; trainer: string; note: string; recording_url: string }
 const fromSess = (s: Sess): Info => ({ plan_id: s.plan_id, unit_id: s.unit_id ?? '', title: s.title, starts_at: toLocal(s.starts_at), ends_at: toLocal(s.ends_at), mode: s.mode,
-  location: s.location ?? '', meeting_url: s.meeting_url ?? '', trainer: s.trainer ?? '', note: s.note ?? '' })
+  location: s.location ?? '', meeting_url: s.meeting_url ?? '', trainer: s.trainer ?? '', note: s.note ?? '', recording_url: s.recording_url ?? '' })
 const toRow = (f: Info) => ({ plan_id: f.plan_id, unit_id: f.unit_id || null, title: f.title.trim(), starts_at: new Date(f.starts_at).toISOString(), ends_at: new Date(f.ends_at).toISOString(),
-  mode: f.mode, location: f.location.trim() || null, meeting_url: f.meeting_url.trim() || null, trainer: f.trainer.trim() || null, note: f.note.trim() || null })
+  mode: f.mode, location: f.location.trim() || null, meeting_url: f.meeting_url.trim() || null, trainer: f.trainer.trim() || null, note: f.note.trim() || null, recording_url: f.recording_url.trim() || null })
 const badInfo = (f: Info) => !f.plan_id || !f.title.trim() || !f.starts_at || !f.ends_at ? 'Nhập kế hoạch, tên buổi, giờ bắt đầu và kết thúc.'
-  : f.ends_at <= f.starts_at ? 'Giờ kết thúc phải sau giờ bắt đầu.' : f.meeting_url.trim() && !/^https?:\/\//i.test(f.meeting_url.trim()) ? 'Link họp phải bắt đầu bằng http:// hoặc https://' : ''
+  : f.ends_at <= f.starts_at ? 'Giờ kết thúc phải sau giờ bắt đầu.' : f.meeting_url.trim() && !/^https?:\/\//i.test(f.meeting_url.trim()) ? 'Link họp phải bắt đầu bằng http:// hoặc https://'
+  : f.recording_url.trim() && !/^https?:\/\//i.test(f.recording_url.trim()) ? 'Link bản ghi phải bắt đầu bằng http:// hoặc https://' : ''
 
 function InfoFields({ f, set, plans, lockPlan }: { f: Info; set: (f: Info) => void; plans: Plan[]; lockPlan?: boolean }) {
   const [units, setUnits] = useState<(Unit & { trainer: string | null })[]>([])
@@ -247,6 +248,7 @@ function InfoFields({ f, set, plans, lockPlan }: { f: Info; set: (f: Info) => vo
     <label className="field"><span>Giảng viên</span><input maxLength={200} value={f.trainer} onChange={e => set({ ...f, trainer: e.target.value })} /></label>
     {f.mode === 'offline' ? <label className="field" style={{ gridColumn: '1/-1' }}><span>Địa điểm</span><input maxLength={300} value={f.location} onChange={e => set({ ...f, location: e.target.value })} placeholder="VD: Phòng STEM, THCS Phố Hiến" /></label>
       : <label className="field" style={{ gridColumn: '1/-1' }}><span>Link phòng họp</span><input type="url" maxLength={500} value={f.meeting_url} onChange={e => set({ ...f, meeting_url: e.target.value })} placeholder="https://meet…" /></label>}
+    {f.mode === 'online' && <label className="field" style={{ gridColumn: '1/-1' }}><span>Link bản ghi (sau buổi học)</span><input type="url" maxLength={1000} value={f.recording_url} onChange={e => set({ ...f, recording_url: e.target.value })} placeholder="https://… (video ghi lại buổi học)" /></label>}
     <label className="field" style={{ gridColumn: '1/-1' }}><span>Ghi chú</span><textarea rows={2} maxLength={1000} value={f.note} onChange={e => set({ ...f, note: e.target.value })} /></label>
   </div>
 }
@@ -255,7 +257,7 @@ function SessionForm({ orgId, plans, initial, onBack, onDone }: { orgId: string;
   const d = new Date(); d.setDate(d.getDate() + 7); d.setHours(8, 0, 0, 0)
   const e = new Date(d); e.setHours(11)
   const [f, setF] = useState<Info>({ plan_id: initial && plans.some(p => p.id === initial && p.pub_status === 'published') ? initial : '', unit_id: '', title: '', starts_at: toLocal(d.toISOString()), ends_at: toLocal(e.toISOString()),
-    mode: 'offline', location: '', meeting_url: '', trainer: '', note: '' })
+    mode: 'offline', location: '', meeting_url: '', trainer: '', note: '', recording_url: '' })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   async function save() {
@@ -357,6 +359,13 @@ function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; plan: Pla
           <dt>Kế hoạch</dt><dd>{plan ? `${plan.plan_code} · ${plan.name}` : '—'}</dd>
           <dt>Thời gian</dt><dd>{dd(s.starts_at)}, {hm(s.starts_at)}–{hm(s.ends_at)}</dd>
           <dt>{s.mode === 'online' ? 'Link họp' : 'Địa điểm'}</dt><dd>{s.mode === 'online' ? (s.meeting_url ? <a href={s.meeting_url} target="_blank" rel="noreferrer">Mở phòng họp ↗</a> : <span className="warnline">Chưa có link họp</span>) : s.location || '—'}</dd>
+          {s.mode === 'online' && <><dt>Bản ghi</dt><dd>{s.recording_url ? <a href={s.recording_url} target="_blank" rel="noreferrer">Xem bản ghi ↗</a> : <small className="sub">Chưa có</small>}
+            {can && st !== 'upcoming' && <> <button type="button" className="linkbtn" onClick={() => {
+              const u = prompt('Link bản ghi buổi học (https://…):', s.recording_url ?? '')
+              if (u === null) return
+              if (u.trim() && !/^https?:\/\//i.test(u.trim())) return setMsg(['Link bản ghi phải bắt đầu bằng http:// hoặc https://', true])
+              run(supabase.from('training_sessions').update({ recording_url: u.trim() || null }).eq('id', id), u.trim() ? 'Đã gắn bản ghi, giáo viên xem lại được.' : 'Đã bỏ bản ghi.')
+            }}>{s.recording_url ? 'Đổi' : 'Gắn bản ghi'}</button></>}</dd></>}
           <dt>Giảng viên</dt><dd>{s.trainer || '—'}</dd>
           {s.note && <><dt>Ghi chú</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{s.note}</dd></>}
         </dl>}

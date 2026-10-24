@@ -1,10 +1,13 @@
 // Nội dung tập huấn: 5 phần như bài học — Nội dung · Bài giảng · Link tài liệu · Định mức vật tư · Kho hoạt động.
 // Lưu trong training_program_units.detail (083). Chỉ sửa khi chương trình còn nháp.
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { supabase } from '../../lib/supabase'
 import { ElView } from '../../components/ElView'
 
 type Row = Record<string, string>
-export type Detail = { body?: { goal?: string; text?: string; reqs?: string[] }; lectures?: Row[]; docs?: Row[]; mats?: Row[]; acts?: Row[] }
+// test: bài kiểm tra (086) — câu hỏi từ Ngân hàng câu hỏi E-learning; count = số câu rút ngẫu nhiên mỗi lượt
+export type TestCfg = { qids?: string[]; count?: number | null; minutes?: number | null; attempts?: number | null; pass?: number | null }
+export type Detail = { body?: { goal?: string; text?: string; reqs?: string[] }; lectures?: Row[]; docs?: Row[]; mats?: Row[]; acts?: Row[]; test?: TestCfg }
 type Col = { key: string; label: string; type?: 'text' | 'url' | 'number' | 'select'; options?: [string, string][]; width?: number; placeholder?: string }
 type ListKey = 'lectures' | 'docs' | 'mats' | 'acts'
 
@@ -28,7 +31,7 @@ const lab = (opts: [string, string][] | undefined, v: string) => opts?.find(o =>
 export const detailCount = (d: Detail | null | undefined) => {
   const x = d ?? {}
   return [x.lectures?.length && `${x.lectures.length} bài giảng`, x.docs?.length && `${x.docs.length} tài liệu`, x.mats?.length && `${x.mats.length} vật tư`,
-    x.acts?.length && `${x.acts.length} hoạt động`].filter(Boolean).join(' · ')
+    x.acts?.length && `${x.acts.length} hoạt động`, x.test?.qids?.length && `${x.test.qids.length} câu kiểm tra`].filter(Boolean).join(' · ')
 }
 
 function ListEditor({ cols, rows, edit, empty, onChange }: { cols: Col[]; rows: Row[]; edit: boolean; empty: string; onChange: (r: Row[]) => void }) {
@@ -50,9 +53,9 @@ function ListEditor({ cols, rows, edit, empty, onChange }: { cols: Col[]; rows: 
     {edit && <button type="button" style={{ marginTop: 8 }} onClick={() => onChange([...rows, {}])}>+ Thêm dòng</button>}</div>
 }
 
-type Tab = 'body' | ListKey
-export function ContentDetail({ title, crumb, hours, detail, editable, onBack, onSave }: {
-  title: string; crumb: string; hours: number; detail: Detail; editable: boolean; onBack: () => void; onSave: (d: Detail) => Promise<boolean>
+type Tab = 'body' | ListKey | 'test'
+export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, passScore, onBack, onSave }: {
+  title: string; crumb: string; hours: number; detail: Detail; editable: boolean; hasTest?: boolean; passScore?: number | null; onBack: () => void; onSave: (d: Detail) => Promise<boolean>
 }) {
   const [tab, setTab] = useState<Tab>('body')
   const [d, setD] = useState<Detail>(() => JSON.parse(JSON.stringify(detail ?? {})))
@@ -65,12 +68,15 @@ export function ContentDetail({ title, crumb, hours, detail, editable, onBack, o
   const clean = (x: Detail): Detail => ({ ...x, body: { ...x.body, reqs: (x.body?.reqs ?? []).map(s => s.trim()).filter(Boolean) },
     ...Object.fromEntries((Object.keys(LISTS) as ListKey[]).map(k => [k, (x[k] ?? []).filter(r => Object.values(r).some(v => String(v ?? '').trim()))])) })
   async function save() {
+    const t = d.test
+    if (t?.qids?.length && t.count && t.count > t.qids.length) return setMsg(`Số câu mỗi lượt (${t.count}) nhiều hơn số câu đã chọn (${t.qids.length}).`)
     setBusy(true)
     const ok = await onSave(clean(d))
     setBusy(false)
     if (ok) { setDirty(false); setD(clean(d)); setMsg('Đã lưu.') }
   }
-  const tabs: [Tab, string, number | null][] = [['body', 'Nội dung', null], ...(Object.keys(LISTS) as ListKey[]).map(k => [k, LISTS[k].tab, d[k]?.length ?? 0] as [Tab, string, number])]
+  const tabs: [Tab, string, number | null][] = [['body', 'Nội dung', null], ...(Object.keys(LISTS) as ListKey[]).map(k => [k, LISTS[k].tab, d[k]?.length ?? 0] as [Tab, string, number]),
+    ...(hasTest || d.test?.qids?.length ? [['test', 'Bài kiểm tra', d.test?.qids?.length ?? 0] as [Tab, string, number]] : [])]
   return <ElView back="Môn & nội dung tập huấn" onBack={() => { if (!dirty || confirm('Bỏ các thay đổi chưa lưu?')) onBack() }} title={title}
     sub={`${crumb} · ${String(hours).replace('.', ',')} giờ`}
     actions={editable && <button type="button" className="primary" disabled={!dirty || busy} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu'}</button>}>
@@ -88,7 +94,62 @@ export function ContentDetail({ title, crumb, hours, detail, editable, onBack, o
         <dt>Nội dung chi tiết</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{body.text || '—'}</dd>
         <dt>Yêu cầu cần đạt</dt><dd>{body.reqs?.length ? <ul style={{ margin: 0, paddingLeft: 18 }}>{body.reqs.map((r, i) => <li key={i}>{r}</li>)}</ul> : '—'}</dd>
       </dl>)
+        : tab === 'test' ? <TestEditor t={d.test ?? {}} edit={editable} passScore={passScore ?? null} hasTest={!!hasTest} onChange={t => up({ ...d, test: t })} />
         : <ListEditor cols={LISTS[tab].cols} rows={d[tab] ?? []} edit={editable} empty={LISTS[tab].empty} onChange={r => up({ ...d, [tab]: r })} />}
     </section>
   </ElView>
+}
+
+// ===== Bài kiểm tra: chọn câu hỏi từ ngân hàng, đặt số câu, thời gian, số lượt, điểm đạt =====
+type BankQ = { id: string; subject: string; grade: number | null; topic: string | null; level: string; kind: string; stem: string; shared: boolean }
+const LEVEL: Record<string, string> = { nhan_biet: 'Nhận biết', thong_hieu: 'Thông hiểu', van_dung: 'Vận dụng', van_dung_cao: 'Vận dụng cao' }
+const KIND: Record<string, string> = { single: 'Một đáp án', multi: 'Nhiều đáp án', truefalse: 'Đúng / sai' }
+
+function TestEditor({ t, edit, passScore, hasTest, onChange }: { t: TestCfg; edit: boolean; passScore: number | null; hasTest: boolean; onChange: (t: TestCfg) => void }) {
+  const [bank, setBank] = useState<BankQ[] | null>(null)
+  const [err, setErr] = useState('')
+  const [q, setQ] = useState('')
+  const [subj, setSubj] = useState('')
+  const [onlyChosen, setOnlyChosen] = useState(!edit)
+  useEffect(() => {
+    supabase.from('question_bank').select('id, subject, grade, topic, level, kind, stem, shared').neq('status', 'retired').order('subject').order('created_at', { ascending: false }).limit(2000)
+      .then(({ data, error }) => { if (error) setErr(error.message); else setBank((data as BankQ[]) ?? []) })
+  }, [])
+  const chosen = useMemo(() => new Set(t.qids ?? []), [t.qids])
+  const subjects = useMemo(() => [...new Set((bank ?? []).map(b => b.subject))].sort((a, b) => a.localeCompare(b, 'vi')), [bank])
+  const shown = (bank ?? []).filter(b => (!onlyChosen || chosen.has(b.id)) && (!subj || b.subject === subj)
+    && (b.stem + ' ' + (b.topic ?? '')).toLowerCase().includes(q.toLowerCase())).slice(0, 300)
+  const toggle = (id: string) => onChange({ ...t, qids: chosen.has(id) ? (t.qids ?? []).filter(x => x !== id) : [...(t.qids ?? []), id] })
+  const setNum = (k: 'count' | 'minutes' | 'attempts' | 'pass', v: string) => onChange({ ...t, [k]: v === '' ? null : Number(v) })
+  const n = t.qids?.length ?? 0
+  const missing = bank ? (t.qids ?? []).filter(id => !bank.some(b => b.id === id)).length : 0
+  return <div style={{ display: 'grid', gap: 12 }}>
+    {!hasTest && <p className="warnline">Nội dung này đang không bật "Có bài test". Bật ở bảng nội dung để giáo viên làm bài.</p>}
+    <p className="sub" style={{ margin: 0 }}>Giáo viên làm bài sau khi mở hết bài giảng và tài liệu của nội dung. Đạt điểm đạt thì nội dung được tính hoàn thành và mở nội dung tiếp theo.</p>
+    <div className="formgrid">
+      <label className="field"><span>Số câu mỗi lượt</span><input type="number" min={1} max={Math.max(n, 1)} disabled={!edit} value={t.count ?? ''} placeholder={`Tất cả (${n})`} onChange={e => setNum('count', e.target.value)} /></label>
+      <label className="field"><span>Thời gian (phút)</span><input type="number" min={1} max={300} disabled={!edit} value={t.minutes ?? ''} placeholder="Không giới hạn" onChange={e => setNum('minutes', e.target.value)} /></label>
+      <label className="field"><span>Số lượt làm</span><input type="number" min={0} max={50} disabled={!edit} value={t.attempts ?? ''} placeholder="Không giới hạn" onChange={e => setNum('attempts', e.target.value)} /></label>
+      <label className="field"><span>Điểm đạt (thang 10)</span><input type="number" min={0} max={10} step={0.5} disabled={!edit} value={t.pass ?? ''} placeholder={passScore != null ? `Theo chương trình: ${passScore}` : '5'} onChange={e => setNum('pass', e.target.value)} /></label>
+    </div>
+    <div className="bar" style={{ margin: 0 }}>
+      <b>Câu hỏi đã chọn: {n}{t.count && t.count < n ? ` · rút ngẫu nhiên ${t.count} câu mỗi lượt` : ''}</b>
+      <div className="tools">
+        <input placeholder="Tìm câu hỏi, chủ đề…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm câu hỏi" />
+        <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(x => <option key={x}>{x}</option>)}</select>
+        {edit && <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={onlyChosen} onChange={e => setOnlyChosen(e.target.checked)} />Chỉ câu đã chọn</label>}
+      </div>
+    </div>
+    {missing > 0 && <p className="warnline">{missing} câu đã chọn không còn trong ngân hàng (đã xoá hoặc ngừng dùng).</p>}
+    {err ? <p className="sub" role="alert">{err}</p> : !bank ? <p className="sub">Đang tải ngân hàng câu hỏi…</p> : <div className="wrap"><table className="libtable">
+      <thead><tr>{edit && <th style={{ width: 40 }}></th>}<th>Câu hỏi</th><th style={{ width: 150 }}>Môn · chủ đề</th><th style={{ width: 120 }}>Mức độ</th></tr></thead>
+      <tbody>{shown.map(b => <tr key={b.id} className={chosen.has(b.id) ? 'on' : ''}>
+        {edit && <td><input type="checkbox" checked={chosen.has(b.id)} onChange={() => toggle(b.id)} aria-label="Chọn câu hỏi" /></td>}
+        <td style={{ whiteSpace: 'normal' }}>{b.stem.length > 220 ? b.stem.slice(0, 220) + '…' : b.stem}<br /><small className="sub">{KIND[b.kind] ?? b.kind}{b.shared ? ' · dùng chung' : ''}</small></td>
+        <td style={{ whiteSpace: 'normal' }}>{b.subject}{b.grade ? ` · lớp ${b.grade}` : ''}{b.topic && <><br /><small className="sub">{b.topic}</small></>}</td>
+        <td>{LEVEL[b.level] ?? b.level}</td>
+      </tr>)}
+        {!shown.length && <tr><td colSpan={edit ? 4 : 3}><small className="sub">{bank.length ? 'Không có câu hỏi nào khớp.' : 'Ngân hàng câu hỏi chưa có câu nào. Thêm câu ở mục E-learning › Ngân hàng câu hỏi.'}</small></td></tr>}</tbody>
+    </table></div>}
+  </div>
 }

@@ -1803,3 +1803,4 @@ a.namelink:hover{color:var(--primary)}
 .uedit input:focus,.uedit select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 20%,transparent)}
 tr.uedit>td{vertical-align:top;padding-top:10px;padding-bottom:10px;background:var(--soft)}
 tr.uedit>td small{display:inline-block;margin-bottom:4px}
+.libtargets.wide{display:block;max-height:none;overflow:visible}.libtargets.wide>.formgrid{margin-top:4px}

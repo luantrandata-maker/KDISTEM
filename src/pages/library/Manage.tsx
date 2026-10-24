@@ -560,7 +560,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
               </select></label>
           </div>
           {form.scope === 'selected' && (
-            <fieldset className="libtargets"><legend>Đơn vị nhận (gồm cả đơn vị trực thuộc của đơn vị được chọn)</legend>
+            <fieldset className="libtargets wide"><legend>Đơn vị nhận (gồm cả đơn vị trực thuộc của đơn vị được chọn)</legend>
               <MultiSelect value={form.targets} onChange={v => setForm({ ...form, targets: v })} options={below.map(o => [o.id, o.name])}
                 placeholder="Chọn đơn vị nhận…" ariaLabel="Đơn vị nhận" empty="Đơn vị chưa có cấp dưới." />
             </fieldset>

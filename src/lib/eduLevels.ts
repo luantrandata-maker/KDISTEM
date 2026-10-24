@@ -61,3 +61,5 @@ export const fmtGrades = (gs: number[], prefix = 'Khối ') => {
   }
   return prefix + parts.join(', ')
 }
+/** 092: khối của học phần / bài (danh sách); bản ghi cũ chỉ có grade. Rỗng = theo mục cha. */
+export const unitGradesOf = (u: { grade?: number | null; grades?: number[] | null }) => u.grades?.length ? u.grades : u.grade ? [u.grade] : []

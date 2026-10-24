@@ -1,4 +1,3 @@
-import { SelBar, SelTh, useRowSel } from '../../components/TableSel'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
@@ -155,7 +154,6 @@ function Exams({ orgId }: { orgId: string | null }) {
     if (error) setMsg([errText(error.message), true]); else if (!data?.length) setMsg([NOT_OWNER, true]); else load()
   }
   const editable = (x: Exam) => x.org_id === orgId
-  const esel = useRowSel(rows.filter(editable))
   const editForm = (x: Exam) => { const { id, title, description, subject, grade, mode, question_ids, criteria, duration_min, max_attempts, show_answers, class_ids, group_ids, student_ids, shared, opens_at, closes_at, status } = x
     setMsg(null); setForm({ id, title, description, subject, grade, mode, question_ids, criteria: { levels: {}, topics: [], ...criteria }, duration_min, max_attempts, show_answers, class_ids, group_ids: group_ids ?? null, student_ids: student_ids ?? null, shared, opens_at, closes_at, status }) }
   const statusBtns = (x: Exam) => <>
@@ -177,16 +175,10 @@ function Exams({ orgId }: { orgId: string | null }) {
     <>
       <div className="bar"><span /><button className="primary" onClick={() => { setMsg(null); setForm({ ...EEMPTY, shared: !isSchool }) }}>Tạo đề luyện</button></div>
       {note}
-      {(() => { const x = esel.cur; return (
-        <SelBar picked={x?.title ?? null}>
-          {x && statusBtns(x)}
-          <button disabled={!x} onClick={() => x && editForm(x)}>Sửa</button>
-        </SelBar>) })()}
       <div className="wrap"><table className="systable">
-        <thead><tr><SelTh /><th>Đề luyện</th><th>Cách ra đề</th><th>Thời gian</th><th>Mở</th><th className="num">Lượt nộp</th><th className="num">Điểm TB</th><th>Trạng thái</th></tr></thead>
+        <thead><tr><th>Đề luyện</th><th>Cách ra đề</th><th>Thời gian</th><th>Mở</th><th className="num">Lượt nộp</th><th className="num">Điểm TB</th><th>Trạng thái</th></tr></thead>
         <tbody>{rows.map(x => { const c = counts.get(x.id); return <Fragment key={x.id}>
-          <tr className={'clickrow' + (esel.is(x) ? ' picked' : '')} onClick={() => { setMsg(null); setOpen(x.id) }}>
-            <td className="sel" onClick={e => e.stopPropagation()}>{editable(x) && <input type="checkbox" checked={esel.is(x)} onChange={() => esel.toggle(x)} aria-label={'Chọn ' + x.title} />}</td>
+          <tr className="clickrow" onClick={() => { setMsg(null); setOpen(x.id) }}>
             <td><b>{x.title}</b><br /><small>{[x.subject, x.grade ? 'Khối ' + x.grade : null, !editable(x) ? 'của cấp trên' : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></td>
             <td>{x.mode === 'random' ? `Ngẫu nhiên ${x.criteria.count} câu` : `Cố định ${x.question_ids.length} câu`}</td>
             <td>{x.duration_min ? `${x.duration_min} phút` : 'Không giới hạn'}{x.max_attempts ? <><br /><small>{x.max_attempts} lượt</small></> : null}</td>
@@ -196,7 +188,7 @@ function Exams({ orgId }: { orgId: string | null }) {
             <td><span className={'pill ' + ESTATUS[x.status][1]}>{ESTATUS[x.status][0]}</span></td>
           </tr>
         </Fragment> })}
-          {!rows.length && <tr><td colSpan={9}>Chưa có đề luyện. Tạo đề ngẫu nhiên từ ngân hàng câu hỏi (theo môn, khối, mức độ) hoặc chọn từng câu.</td></tr>}
+          {!rows.length && <tr><td colSpan={7}>Chưa có đề luyện. Tạo đề ngẫu nhiên từ ngân hàng câu hỏi (theo môn, khối, mức độ) hoặc chọn từng câu.</td></tr>}
         </tbody>
       </table></div>
     </>

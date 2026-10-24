@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { SelBar, SelTd, SelTh, useRowSel } from '../../components/TableSel'
+import { ElView } from '../../components/ElView'
 
 // Danh mục mức độ của bản phân phối (078): Cơ bản, Tiêu chuẩn, Nâng cao… KDI thêm / đổi tên / ngừng dùng; đơn vị khác chỉ xem.
 export type Tier = { code: string; name: string; sort: number; active: boolean }
@@ -61,22 +62,25 @@ export function DistTiersCatalog() {
     setMsg(null); reload()
   }
 
-  return (
-    <>
-      <div className="bar">
-        <p className="sub" style={{ margin: 0 }}>Mức độ là tầng cuối của khung phân loại bản phân phối (Cấp học › Khối › Mức độ).
-          {admin ? '' : ' Chỉ quản trị nền tảng KDI sửa được danh mục này.'}</p>
-        {admin && !form?.isNew && <button className="primary" onClick={() => { setMsg(null); setForm({ code: '', name: '', sort: all.reduce((m, x) => Math.max(m, x.sort), 0) + 1, active: true, isNew: true }) }}>Thêm mức độ</button>}
-      </div>
+  if (form) return (
+    <ElView back="Mức độ phân phối" onBack={() => setForm(null)} title={form.isNew ? 'Thêm mức độ' : 'Sửa mức độ'}>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      {form && (
         <form className="panel formgrid" onSubmit={save} style={{ marginBottom: 12 }}>
           <label className="field"><span>Tên mức độ *</span><input required maxLength={60} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="VD: Nâng cao" /></label>
           <label className="field"><span>Mã {form.isNew ? '*' : '(không đổi được)'}</span><input required disabled={!form.isNew} maxLength={20} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: nang_cao" /></label>
           <label className="field"><span>Thứ tự</span><input type="number" min={0} value={form.sort} onChange={e => setForm({ ...form, sort: Number(e.target.value) })} /></label>
           <div className="formactions"><button className="primary" type="submit">{form.isNew ? 'Thêm' : 'Lưu'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
-      )}
+    </ElView>
+  )
+  return (
+    <>
+      <div className="bar">
+        <p className="sub" style={{ margin: 0 }}>Mức độ là tầng cuối của khung phân loại bản phân phối (Cấp học › Khối › Mức độ).
+          {admin ? '' : ' Chỉ quản trị nền tảng KDI sửa được danh mục này.'}</p>
+        {admin && <button className="primary" onClick={() => { setMsg(null); setForm({ code: '', name: '', sort: all.reduce((m, x) => Math.max(m, x.sort), 0) + 1, active: true, isNew: true }) }}>Thêm mức độ</button>}
+      </div>
+      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {admin && (() => { const t = sel.cur; return (
         <SelBar picked={t?.name ?? null}>
           <button disabled={!t} onClick={() => { if (t) { setMsg(null); setForm({ ...t }) } }}>Sửa</button>

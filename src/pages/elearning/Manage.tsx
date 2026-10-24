@@ -5,7 +5,7 @@ import { uploadLearningFile, openFile, MAX_FILE_MB } from '../../lib/files'
 import { Tabs } from '../teacher/common'
 import QuestionBank from './Bank'
 import Analytics from './Analytics'
-import { ElView } from './View'
+import { ElView } from '../../components/ElView'
 import { ESTATUS, LEVEL, LKIND, SHOW, dueBadge, errText, pathName, type Attempt, type Course, type Exam, type Lesson, type Level, type Question } from './common'
 
 // E-learning & luyện thi (GV, trường, Sở, KDI): đề luyện, khoá học, phân tích kết quả, ngân hàng câu hỏi.

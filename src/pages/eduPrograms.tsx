@@ -11,6 +11,7 @@ import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../components/TableSe
 import { ViewToggle, useViewMode } from '../components/ViewToggle'
 import { useEduLevels } from '../lib/eduLevels'
 import { GradePicker, LevelPicker, SubjectMulti, SubjectPicker, gradeList } from '../components/Pickers'
+import { ElView } from '../components/ElView'
 
 // Khái niệm (064): Chương trình → Học phần (unit 'topic', trước gọi là chủ đề; gắn Môn học qua edu_unit_subjects)
 // → Bài học / Buổi học (gắn Học liệu qua edu_unit_materials) → Bài giảng (lesson_plans gắn unit_id, soạn ở "Soạn bài giảng").
@@ -202,6 +203,27 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
     ['Bài học', counts?.lessons ?? 0, 'bài học', firstDraft ? () => setOpenId(firstDraft.id) : undefined],
     ['Phát hành', ownLive.filter(p => p.status === 'published').length, 'đã phát hành', () => setStatus('published')],
   ]
+  if (form) return (
+    <ElView back="Chương trình giáo dục" onBack={() => setForm(null)} title={'Thêm chương trình'}>
+      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+        <form className="panel formgrid" onSubmit={create} style={{ marginBottom: 12 }}>
+          <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình *</span><input required value={form.title ?? ''} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Tin học THCS (CT GDPT 2018)" /></label>
+          <label className="field"><span>Mã</span><input value={form.code ?? ''} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: TIN-THCS" /></label>
+          <label className="field"><span>Kiểu chương trình</span><select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
+          <label className="field"><span>Nhóm chương trình *</span><select required value={form.ct_code ?? ''} onChange={e => setForm({ ...form, ct_code: e.target.value || null })}><option value="">— Chọn nhóm —</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select></label>
+          <label className="field"><span>Số tiết / tuần</span><input type="number" min={0.5} max={40} step={0.5} value={form.periods_per_week ?? ''} onChange={e => setForm({ ...form, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })} placeholder="VD: 2" /></label>
+          <label className="field"><span>Thời gian triển khai</span><select value={form.deploy_term ?? 'year'} onChange={e => setForm({ ...form, deploy_term: e.target.value as Deploy })}>{(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} ({DEPLOY[d][1]})</option>)}</select></label>
+          <label className="field"><span>Cấp học</span><LevelPicker value={form.level} onChange={l => setForm({ ...form, level: l, grade_from: LV[l]?.grade_from ?? 1, grade_to: LV[l]?.grade_to ?? 12 })} /></label>
+          <label className="field"><span>Từ khối</span><GradePicker level={form.level} value={form.grade_from} onChange={g => setForm({ ...form, grade_from: g ?? undefined, grade_to: Math.max(g ?? 1, form.grade_to ?? 1) })} /></label>
+          <label className="field"><span>Đến khối</span><GradePicker level={form.level} value={form.grade_to} onChange={g => setForm({ ...form, grade_to: g ?? undefined })} /></label>
+          <label className="field"><span>Môn chủ đạo *</span><SubjectPicker required level={form.level} value={form.main_subject} onChange={v => setForm({ ...form, main_subject: v })}
+            extra={form.kind === 'stem' && form.ct_code ? tracks[form.ct_code]?.subjects ?? [] : []} /></label>
+          {mode !== 'school' && <label className="field"><span>Phạm vi</span><select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Program['scope'] })}>
+            <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
+          <div className="formactions"><button className="primary" type="submit">Tạo bản nháp</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
+        </form>
+    </ElView>
+  )
   return (
     <>
       {canEdit && list && <ol className="flowsteps" aria-label="Quy trình thiết lập chương trình">
@@ -234,24 +256,6 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
         </div>
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      {form && (
-        <form className="panel formgrid" onSubmit={create} style={{ marginBottom: 12 }}>
-          <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình *</span><input required value={form.title ?? ''} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Tin học THCS (CT GDPT 2018)" /></label>
-          <label className="field"><span>Mã</span><input value={form.code ?? ''} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: TIN-THCS" /></label>
-          <label className="field"><span>Kiểu chương trình</span><select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
-          <label className="field"><span>Nhóm chương trình *</span><select required value={form.ct_code ?? ''} onChange={e => setForm({ ...form, ct_code: e.target.value || null })}><option value="">— Chọn nhóm —</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select></label>
-          <label className="field"><span>Số tiết / tuần</span><input type="number" min={0.5} max={40} step={0.5} value={form.periods_per_week ?? ''} onChange={e => setForm({ ...form, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })} placeholder="VD: 2" /></label>
-          <label className="field"><span>Thời gian triển khai</span><select value={form.deploy_term ?? 'year'} onChange={e => setForm({ ...form, deploy_term: e.target.value as Deploy })}>{(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} ({DEPLOY[d][1]})</option>)}</select></label>
-          <label className="field"><span>Cấp học</span><LevelPicker value={form.level} onChange={l => setForm({ ...form, level: l, grade_from: LV[l]?.grade_from ?? 1, grade_to: LV[l]?.grade_to ?? 12 })} /></label>
-          <label className="field"><span>Từ khối</span><GradePicker level={form.level} value={form.grade_from} onChange={g => setForm({ ...form, grade_from: g ?? undefined, grade_to: Math.max(g ?? 1, form.grade_to ?? 1) })} /></label>
-          <label className="field"><span>Đến khối</span><GradePicker level={form.level} value={form.grade_to} onChange={g => setForm({ ...form, grade_to: g ?? undefined })} /></label>
-          <label className="field"><span>Môn chủ đạo *</span><SubjectPicker required level={form.level} value={form.main_subject} onChange={v => setForm({ ...form, main_subject: v })}
-            extra={form.kind === 'stem' && form.ct_code ? tracks[form.ct_code]?.subjects ?? [] : []} /></label>
-          {mode !== 'school' && <label className="field"><span>Phạm vi</span><select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Program['scope'] })}>
-            <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
-          <div className="formactions"><button className="primary" type="submit">Tạo bản nháp</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
-        </form>
-      )}
       {!list ? <p className="sub">Đang tải…</p> : (
         <>
           <h3>Của đơn vị ({own.length})</h3>

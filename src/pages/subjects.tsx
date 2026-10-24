@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { norm } from '../lib/sheet'
 import { useStemTracks, TRACK_COLOR } from '../lib/stemTracks'
 import { useEduLevels } from '../lib/eduLevels'
+import { ElView } from '../components/ElView'
 
 // Danh mục môn học (MonHoc, migration 064): KDI, Sở, Phòng, trường đều có danh mục riêng; môn "dùng chung" của KDI /
 // cấp trên hiện ở đơn vị trực thuộc. Học phần của chương trình giáo dục gắn với môn trong danh mục (edu_unit_subjects).
@@ -126,20 +127,9 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
   </>)
   const domains = [...new Set(subjects.map(s => s.domain).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi'))
 
-  return (
-    <>
-      <p className="sub">Danh mục môn học / lĩnh vực kiến thức dùng khi soạn chương trình: mỗi học phần gắn một hay nhiều môn.
-        {mode === 'platform' ? ' Môn "dùng chung" của KDI hiện ở mọi đơn vị.' : mode === 'authority' ? ' Môn "dùng chung" hiện ở các trường trực thuộc.' : ' Trường dùng môn của KDI, Sở, Phòng và thêm môn riêng.'}</p>
-      <div className="bar">
-        <div className="tools">
-          <select value={lv} onChange={e => setLv(e.target.value)} aria-label="Cấp học"><option value="">Mọi cấp học</option>{LEVELS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-          <input placeholder="Tìm mã, tên, lĩnh vực…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-          <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện môn ngừng dùng</label>
-        </div>
-        {canEdit && orgId && <button className="primary" onClick={() => { setMsg(null); setForm({ levels: [], ct_codes: [], scope: mode === 'school' ? 'own' : 'children', active: true }) }}>Thêm môn học</button>}
-      </div>
-      {(msg || err) && <p className={msg && !msg[1] ? 'sub' : 'msg'} role="status"><b>{msg?.[0] ?? err}</b></p>}
-      {form && (
+  if (form) return (
+    <ElView back="Môn học" onBack={() => setForm(null)} title={form.id ? 'Sửa môn học' : 'Thêm môn học'}>
+      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
         <form className="panel formgrid" onSubmit={save} style={{ marginBottom: 12 }}>
           <label className="field"><span>Tên môn học *</span><input required value={form.name ?? ''} maxLength={120} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="VD: Lập trình và Điều khiển" /></label>
           <label className="field"><span>Mã</span><input value={form.code ?? ''} maxLength={40} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: LTDK" /></label>
@@ -156,7 +146,21 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
               <label key={c} style={{ marginRight: 12 }}><input type="checkbox" checked={(form.ct_codes ?? []).includes(c)} onChange={() => toggle('ct_codes', c)} /> {c}</label>))}</fieldset>
           <div className="formactions"><button className="primary" type="submit">{form.id ? 'Lưu' : 'Thêm'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
-      )}
+    </ElView>
+  )
+  return (
+    <>
+      <p className="sub">Danh mục môn học / lĩnh vực kiến thức dùng khi soạn chương trình: mỗi học phần gắn một hay nhiều môn.
+        {mode === 'platform' ? ' Môn "dùng chung" của KDI hiện ở mọi đơn vị.' : mode === 'authority' ? ' Môn "dùng chung" hiện ở các trường trực thuộc.' : ' Trường dùng môn của KDI, Sở, Phòng và thêm môn riêng.'}</p>
+      <div className="bar">
+        <div className="tools">
+          <select value={lv} onChange={e => setLv(e.target.value)} aria-label="Cấp học"><option value="">Mọi cấp học</option>{LEVELS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+          <input placeholder="Tìm mã, tên, lĩnh vực…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
+          <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện môn ngừng dùng</label>
+        </div>
+        {canEdit && orgId && <button className="primary" onClick={() => { setMsg(null); setForm({ levels: [], ct_codes: [], scope: mode === 'school' ? 'own' : 'children', active: true }) }}>Thêm môn học</button>}
+      </div>
+      {(msg || err) && <p className={msg && !msg[1] ? 'sub' : 'msg'} role="status"><b>{msg?.[0] ?? err}</b></p>}
       {!loaded ? <p className="sub">Đang tải…</p> : (
         <>
           <h3>Của đơn vị ({own.length})</h3>

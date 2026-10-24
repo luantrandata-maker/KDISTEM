@@ -1,4 +1,4 @@
-// Học liệu theo chương trình (Phân hệ 2, theo video demo 23/10): chương trình → môn học → bài học → trang bài học 4 thẻ.
+// Học liệu theo chương trình (Phân hệ 2, theo video demo 23/10): chương trình → môn học → bài học → trang bài học 5 thẻ.
 // Bài học là bộ học liệu (library_items kind 'unit', 077/080): bài trong cây chương trình hoặc bài tạo thêm bằng "Tạo giáo án".
 // Cần chuẩn bị theo chương trình: tự tổng hợp vật tư / công cụ / thiết bị từ định mức của các bài × số nhóm.
 import { Fragment, useEffect, useMemo, useState } from 'react'
@@ -23,8 +23,10 @@ const lc = (s: string | null | undefined) => (s ?? '').trim().toLowerCase()
 const progName = (p: Prog) => (p.code ? p.code + ' · ' : '') + p.title
 
 // Chương trình đã phát hành + chương trình nháp của đơn vị mình
-export function usePrograms(orgId: string | null) {
-  const [progs, setProgs] = useState<Prog[]>([])
+export function usePrograms(orgId: string | null) { return useProgramList(orgId) ?? [] }
+/** null khi đang tải */
+function useProgramList(orgId: string | null) {
+  const [progs, setProgs] = useState<Prog[] | null>(null)
   useEffect(() => {
     supabase.from('edu_programs').select('id, title, version_no, status, org_id, ct_code, code, grade_from, grade_to, main_subject')
       .in('status', ['published', 'draft', 'pending', 'approved', 'rejected']).order('title')
@@ -51,24 +53,17 @@ function KitDots({ k }: { k: KitRow | undefined }) {
   if (!k) return <small className="sub">Chưa có bộ học liệu</small>
   const ck = k.content.checked ?? []
   return <span className="ldots" title={KIT.map(([c, l]) => `${l}: ${ck.includes(c) ? 'đã chốt' : 'cần kiểm tra'}`).join('\n')}>
-    {KIT.map(([c]) => <i key={c} className={ck.includes(c) ? 'on' : ''} />)} {kitDone(k.content)}/4 thẻ đã chốt</span>
+    {KIT.map(([c]) => <i key={c} className={ck.includes(c) ? 'on' : ''} />)} {kitDone(k.content)}/{KIT.length} thẻ đã chốt</span>
 }
 
 type LRow = { key: string; title: string; unit?: U & { subj: string }; kit?: KitRow; code: string }
 
-export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; onChanged?: () => void }) {
-  const progs = usePrograms(orgId)
+/** Dữ liệu chung của trang Học liệu: chương trình, bài trong cây chương trình, bộ học liệu (bài học) của đơn vị */
+export function useLessonData(orgId: string | null, tick: number) {
+  const list = useProgramList(orgId)
+  const progs = useMemo(() => list ?? [], [list])
   const [units, setUnits] = useState<U[]>([])
   const [kits, setKits] = useState<KitRow[]>([])
-  const [pid, setPid] = useState<string | null>(null)
-  const [subj, setSubj] = useState<string | null>(null)
-  const [open, setOpen] = useState<{ id: string; edit?: boolean } | null>(null)
-  const [create, setCreate] = useState<{ preset?: { title: string; unitId: string } } | null>(null)
-  const [q, setQ] = useState('')
-  const [msg, setMsg] = useState('')
-  const [view, setView] = useViewMode('hoc-lieu-ct', 'cards')
-  const [tick, setTick] = useState(0)
-  const reload = () => { setTick(t => t + 1); onChanged?.() }
 
   useEffect(() => {
     if (!orgId) return
@@ -112,9 +107,24 @@ export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; o
   }
   const stat = (p: Prog) => {
     const rows = subjectsOf(p.id).flatMap(s => rowsOf(p, s)); const ks = rows.map(r => r.kit).filter(Boolean) as KitRow[]
-    return { lessons: rows.length, kits: ks.length, done: ks.filter(k => kitDone(k.content) === 4).length, published: ks.filter(k => k.status === 'published').length }
+    return { lessons: rows.length, kits: ks.length, done: ks.filter(k => kitDone(k.content) === KIT.length).length, published: ks.filter(k => k.status === 'published').length }
   }
   const progRefs = progs.map(p => ({ id: p.id, code: p.code, title: p.title, ct_code: p.ct_code }))
+  return { loaded: list !== null, progs, kits, rowsOf, subjectsOf, stat, progRefs }
+}
+
+
+export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; onChanged?: () => void }) {
+  const [pid, setPid] = useState<string | null>(null)
+  const [subj, setSubj] = useState<string | null>(null)
+  const [open, setOpen] = useState<{ id: string; edit?: boolean } | null>(null)
+  const [create, setCreate] = useState<{ preset?: { title: string; unitId: string } } | null>(null)
+  const [q, setQ] = useState('')
+  const [msg, setMsg] = useState('')
+  const [view, setView] = useViewMode('hoc-lieu-ct', 'cards')
+  const [tick, setTick] = useState(0)
+  const reload = () => { setTick(t => t + 1); onChanged?.() }
+  const { progs, kits, rowsOf, subjectsOf, stat, progRefs } = useLessonData(orgId, tick)
 
   if (!orgId) return <p className="sub">Đang tải…</p>
   const prog = progs.find(p => p.id === pid)
@@ -152,12 +162,12 @@ export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; o
         <p className="sub">{[prog.code, grades(prog), `v${prog.version_no}`, PSTATUS[prog.status] ?? prog.status, `${subs.length} môn học`].filter(Boolean).join(' · ')}</p></div></div>
       <div className="panel"><h3 style={{ marginTop: 0 }}>Môn học</h3>
         <div className="wrap"><table className="libtable">
-          <thead><tr><th>Môn học</th><th>Bài học</th><th>Có bộ học liệu</th><th>Chốt đủ 4 thẻ</th><th>Đã phát hành</th></tr></thead>
+          <thead><tr><th>Môn học</th><th>Bài học</th><th>Có bộ học liệu</th><th>Chốt đủ 5 thẻ</th><th>Đã phát hành</th></tr></thead>
           <tbody>{subs.map(s => {
             const rows = rowsOf(prog, s); const ks = rows.map(r => r.kit).filter(Boolean) as KitRow[]
             return <tr key={s}>
               <td><NameLink onClick={() => setSubj(s)}>{s}</NameLink></td><td>{rows.length}</td><td>{ks.length}</td>
-              <td>{ks.filter(k => kitDone(k.content) === 4).length}</td><td>{ks.filter(k => k.status === 'published').length}</td></tr>
+              <td>{ks.filter(k => kitDone(k.content) === KIT.length).length}</td><td>{ks.filter(k => k.status === 'published').length}</td></tr>
           })}</tbody></table></div></div>
     </>
   }
@@ -181,7 +191,7 @@ export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; o
             </div>
           </button>) })}
       </div> : <div className="wrap"><table className="libtable">
-        <thead><tr><th>Chương trình</th><th>Nhóm</th><th>Khối</th><th>Môn</th><th>Bài</th><th>Bộ học liệu</th><th>Chốt đủ 4 thẻ</th><th>Đã phát hành</th></tr></thead>
+        <thead><tr><th>Chương trình</th><th>Nhóm</th><th>Khối</th><th>Môn</th><th>Bài</th><th>Bộ học liệu</th><th>Chốt đủ 5 thẻ</th><th>Đã phát hành</th></tr></thead>
         <tbody>{shown.map(p => { const s = stat(p); return (
           <tr key={p.id}>
             <td><NameLink onClick={() => setPid(p.id)}>{progName(p)}</NameLink> <small className="sub">v{p.version_no} · {PSTATUS[p.status] ?? p.status}</small></td><td>{p.ct_code ?? '—'}</td><td>{grades(p) || '—'}</td>
@@ -323,4 +333,24 @@ export function LibraryNeeds({ orgId }: { orgId: string | null }) {
       )}
     </>
   )
+}
+
+/** Thêm / mở bài học từ nơi khác (Danh mục học liệu): hộp "Thêm bài học" 3 cách như "Tạo giáo án", rồi mở trang bài học 5 thẻ */
+export function LessonFlow({ orgId, openId, onClose, onChanged }: { orgId: string; openId?: string; onClose: () => void; onChanged?: () => void }) {
+  const [tick, setTick] = useState(0)
+  const [open, setOpen] = useState<string | null>(openId ?? null)
+  const [msg, setMsg] = useState('')
+  const { loaded, kits, subjectsOf, progRefs } = useLessonData(orgId, tick)
+  const reload = () => { setTick(t => t + 1); onChanged?.() }
+  if (open) return <>
+    {msg && <p className="sub" role="status"><b>{msg}</b></p>}
+    <LessonPage key={open} orgId={orgId} id={open} programs={progRefs} subjectsOf={subjectsOf} code="" backLabel="← Danh mục học liệu"
+      onBack={onClose} onChanged={reload} />
+  </>
+  if (!loaded) return <p className="sub">Đang tải…</p>
+  if (!progRefs.length) return <div className="panel"><p className="msg">Chưa có chương trình giáo dục nào để gắn bài học. Tạo hoặc phát hành chương trình ở mục Chương trình giáo dục trước.</p>
+    <button type="button" onClick={onClose}>← Danh mục học liệu</button></div>
+  const p0 = progRefs[0]
+  return <CreateLesson orgId={orgId} programs={progRefs} subjectsOf={subjectsOf} program={p0} subject={subjectsOf(p0.id)[0] ?? ''} pickPlace
+    kits={kits} onClose={onClose} onCreated={(id, m) => { setMsg(m); reload(); setOpen(id) }} />
 }

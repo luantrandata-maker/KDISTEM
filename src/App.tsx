@@ -73,7 +73,7 @@ import { DeptAdmin } from './pages/department/Admin'
 // Kho học liệu dùng chung (023)
 const LibraryBrowse = lazy(() => import('./pages/library/Browse').then(m => ({ default: m.LibraryBrowse })))
 const LibraryPrograms = lazy(() => import('./pages/library/Programs').then(m => ({ default: m.LibraryPrograms })))
-// Học liệu theo video demo 23/10: quy trình 3 bước, chương trình → môn → bài học 4 thẻ
+// Học liệu theo video demo 23/10: quy trình 3 bước, chương trình → môn → bài học 5 thẻ
 const LibraryPage = lazy(() => import('./pages/library/Page').then(m => ({ default: m.LibraryPage })))
 const LibraryManage = lazy(() => import('./pages/library/Manage').then(m => ({ default: m.LibraryManage })))
 // Phê duyệt (022): tải riêng khi mở

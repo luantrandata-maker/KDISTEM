@@ -46,13 +46,14 @@ export type ProgOpt = { id: string; title: string; version_no: number; status: s
 export type UnitOpt = { id: string; program_id: string; parent_id: string | null; unit_type: 'topic' | 'lesson' | 'session'; seq: number; title: string }
 export type Copy = { item_id: string; adopted_version: number; lesson_plan_id: string | null; created_at: string; adopted_by: string | null }
 
-/** Bộ học liệu 4 thẻ của bài học (077). Đủ 4 thẻ chốt mới phát hành. */
-export type KitCard = 'info' | 'content' | 'links' | 'norms'
+/** Bộ học liệu 5 thẻ của bài học (077, thẻ 05 từ 081). Đủ 5 thẻ chốt mới phát hành. */
+export type KitCard = 'info' | 'content' | 'links' | 'norms' | 'bank'
 export const KIT: [KitCard, string, string][] = [
   ['info', '01 Thông tin', 'tên, môn, khối, bài trong chương trình, mục tiêu, số tiết'],
   ['content', '02 Nội dung bài học', 'giáo án, bài giảng'],
-  ['links', '03 Link học liệu', 'tài liệu, video, đường dẫn dùng trong bài'],
+  ['links', '03 Link tài liệu', 'tài liệu, video, đường dẫn dùng trong bài'],
   ['norms', '04 Định mức vật tư', 'vật tư, công cụ, thiết bị theo nhóm / học sinh'],
+  ['bank', '05 Kho hoạt động', 'trò chơi, trắc nghiệm, phiếu học tập, mô phỏng dùng trong bài'],
 ]
 export const kitDone = (c: { checked?: KitCard[] } | null | undefined) => (c?.checked ?? []).filter(k => KIT.some(x => x[0] === k)).length
 export const KIND: Record<Item['kind'], [string, string]> = {

@@ -1,4 +1,4 @@
-// "Tạo giáo án" theo video demo: 3 cách — tải giáo án từ nguồn (Word, PowerPoint) · tự tạo giáo án trống · dùng file mẫu Excel 4 sheet.
+// "Tạo giáo án" theo video demo: 3 cách — tải giáo án từ nguồn (Word, PowerPoint) · tự tạo giáo án trống · dùng file mẫu Excel 5 sheet.
 import { useState, type ReactNode } from 'react'
 import { downloadWorkbook } from '../../../lib/sheet'
 import { templateSheets, type KitDraft } from '../../../lib/kitImport'
@@ -48,12 +48,14 @@ function RawText({ d }: { d: KitDraft }) {
   return <div className="lraw">{parts.map(([h, t], i) => <div key={i}><b>{h}</b>{t && <p className="pre">{t}</p>}</div>)}</div>
 }
 
-export function CreateLesson({ orgId, programs, subjectsOf, program, subject, preset, kits, onClose, onCreated }: {
+export function CreateLesson({ orgId, programs, subjectsOf, program, subject, preset, kits, onClose, onCreated, pickPlace }: {
   orgId: string; programs: ProgRef[]; subjectsOf: (pid: string) => string[]
   program: ProgRef; subject: string
   /** Bài trong chương trình chưa có bộ học liệu: tạo bộ cho bài này */
   preset?: { title: string; unitId: string } | null
   kits: KitRow[]; onClose: () => void; onCreated: (id: string, msg: string) => void
+  /** Mở từ Danh mục học liệu (không đi theo chương trình → môn): chọn chương trình, môn ngay trong hộp */
+  pickPlace?: boolean
 }) {
   const [step, setStep] = useState<'menu' | 'upload' | 'blank' | 'template' | 'check'>('menu')
   const [pid, setPid] = useState(program.id)
@@ -97,21 +99,30 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
     <label className="lfile"><span className="filebtn">{label}</span><small>{chosen ?? 'Chưa chọn tệp'}</small>
       <input type="file" hidden accept={accept} disabled={!!busy} onChange={e => { const f = e.target.files?.[0]; if (f) on(f); e.target.value = '' }} /></label>
   )
+  const head = pickPlace ? 'Thêm bài học' : 'Tạo giáo án'
+  const place = <div className="formgrid lgrid2">
+    <label className="field"><span>Chương trình</span>
+      <select value={pid} onChange={e => { setPid(e.target.value); setSubj(subjectsOf(e.target.value)[0] ?? '') }}>
+        {programs.map(p => <option key={p.id} value={p.id}>{p.code ? p.code + ' · ' : ''}{p.title}</option>)}</select></label>
+    <label className="field"><span>Môn học trong chương trình</span>
+      <select value={subj} onChange={e => setSubj(e.target.value)}>{(subs.includes(subj) || !subj ? subs : [subj, ...subs]).map(s => <option key={s}>{s}</option>)}</select></label>
+  </div>
   const status = <>{busy && <p className="sub" role="status">{busy}</p>}{err && <p className="msg">{err}</p>}</>
 
   if (step === 'menu') return (
-    <Modal title="Tạo giáo án" sub={crumb} onClose={onClose} foot={<button type="button" onClick={onClose}>Hủy</button>}>
+    <Modal title={head} sub={pickPlace ? 'Chọn chương trình, môn rồi chọn cách nhập. Bài học mới là bản nháp, chưa phát hành.' : crumb} onClose={onClose} foot={<button type="button" onClick={onClose}>Hủy</button>}>
+      {pickPlace && place}
       <div className="lways">
-        {([['upload', 'Tải giáo án từ nguồn', 'Tệp Word (.docx), bài giảng PowerPoint. Hệ thống tách thành bộ học liệu 4 thẻ.'],
-           ['blank', 'Tự tạo giáo án', 'Mở trang giáo án trống: có sẵn khung 4 thẻ để điền trực tiếp.'],
-           ['template', 'Không có giáo án? Dùng file mẫu', 'Tải file Excel mẫu (4 sheet), điền rồi tải lên để hệ thống tự điền 4 thẻ.']] as const).map(([k, t, d], i) =>
+        {([['upload', 'Tải giáo án từ nguồn', 'Tệp Word (.docx), bài giảng PowerPoint. Hệ thống tách thành bộ học liệu 5 thẻ.'],
+           ['blank', 'Tự tạo giáo án', 'Mở trang giáo án trống: có sẵn khung 5 thẻ để điền trực tiếp.'],
+           ['template', 'Không có giáo án? Dùng file mẫu', 'Tải file Excel mẫu (5 sheet), điền rồi tải lên để hệ thống tự điền 5 thẻ.']] as const).map(([k, t, d], i) =>
           <button key={k} type="button" className="lway" onClick={() => setStep(k)}><i>{i + 1}</i><span><b>{t}</b><small>{d}</small></span></button>)}
       </div>
     </Modal>
   )
 
   if (step === 'blank') return (
-    <Modal title="Tạo giáo án" sub={crumb} onClose={onClose}
+    <Modal title={head} sub={crumb} onClose={onClose}
       foot={<><button type="button" onClick={() => setStep('menu')}>← Quay lại</button>
         <button type="button" className="primary" disabled={!!busy} onClick={() => save([], name)}>Tạo giáo án trống</button></>}>
       <label className="field"><span>Tên bài học</span><input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Cột đèn giao thông xoay"
@@ -128,8 +139,9 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
       const rows: [string, string, string][] = [
         ['Thẻ 01', 'Thông tin bài học', `${infoN} mục thông tin`],
         ['Thẻ 02', 'Nội dung bài học', `${c.sessions} buổi · ${c.acts} hoạt động · ${c.steps} bước`],
-        ['Thẻ 03', 'Link học liệu', `${c.docs} tài liệu`],
-        ['Thẻ 04', 'Định mức vật tư', `${c.supplies} nguyên vật liệu · ${c.tools} công cụ, thiết bị`]]
+        ['Thẻ 03', 'Link tài liệu', `${c.docs} tài liệu`],
+        ['Thẻ 04', 'Định mức vật tư', `${c.supplies} nguyên vật liệu · ${c.tools} công cụ, thiết bị`],
+        ['Thẻ 05', 'Kho hoạt động', `${c.bank} hoạt động`]]
       return (
         <Modal title="Kiểm tra file" sub={xlsx.file.name} onClose={onClose}
           foot={<><button type="button" onClick={() => { setXlsx(null); setStep('template') }}>Hủy</button>
@@ -145,10 +157,10 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
     const tpl = () => downloadWorkbook(`Mau-giao-an${preset?.title ? '-' + preset.title.slice(0, 40) : ''}.xlsx`,
       templateSheets(preset?.title ?? '').map(s => ({ name: s.name, columns: s.header.map(h => ({ key: h, label: h, width: Math.max(14, h.length + 6) })), rows: s.rows })))
     return (
-      <Modal title="Tạo giáo án" sub={crumb} onClose={onClose} foot={<button type="button" onClick={() => setStep('menu')}>← Quay lại</button>}>
+      <Modal title={head} sub={crumb} onClose={onClose} foot={<button type="button" onClick={() => setStep('menu')}>← Quay lại</button>}>
         <div className="lways">
           <button type="button" className="lway" onClick={tpl}><i>1</i><span><b>Tải file mẫu giáo án</b>
-            <small>Excel 4 sheet đúng 4 thẻ: Thông tin, Nội dung bài học, Link học liệu, Định mức vật tư. Dòng bắt đầu bằng “VD:” là ví dụ.</small></span></button>
+            <small>Excel 5 sheet đúng 5 thẻ: Thông tin, Nội dung bài học, Link tài liệu, Định mức vật tư, Kho hoạt động. Dòng bắt đầu bằng “VD:” là ví dụ.</small></span></button>
           <label className="lway"><i>2</i><span><b>Tải file đã điền lên</b><small>Hệ thống kiểm tra file và cho xem trước số mục của từng thẻ trước khi tạo.</small></span>
             <input type="file" hidden accept=".xlsx" disabled={!!busy} onChange={e => { const f = e.target.files?.[0]; if (f) read(f, p => { setXlsx(p); setStep('check') }); e.target.value = '' }} /></label>
         </div>
@@ -162,7 +174,7 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
   const issues = [...(docx?.res.kit.issues ?? []), ...(pptx?.res.kit.issues ?? [])]
   const dup = same(title)
   return (
-    <Modal wide title="Tài liệu bài học" sub="Tải giáo án Word để hệ thống tách thành bộ học liệu 4 thẻ. Dữ liệu chỉ lưu khi bấm lưu, không tự phát hành." onClose={onClose}
+    <Modal wide title="Tài liệu bài học" sub="Tải giáo án Word để hệ thống tách thành bộ học liệu 5 thẻ. Dữ liệu chỉ lưu khi bấm lưu, không tự phát hành." onClose={onClose}
       foot={<><button type="button" onClick={onClose}>Hủy</button>
         <button type="button" className="primary" disabled={!!busy || !(docx || pptx)} onClick={() => save([docx, pptx].filter(Boolean) as Parsed[], title)}>Lưu bản tách nháp</button></>}>
       <div className="lsrc" role="tablist">
@@ -170,12 +182,8 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
         <button type="button" role="tab" aria-selected="false" disabled><b>Google Sheet / Drive</b><small>Sắp có</small></button>
         <button type="button" role="tab" aria-selected="false" disabled><b>Kohota LMS</b><small>Sắp có</small></button>
       </div>
+      {place}
       <div className="formgrid lgrid2">
-        <label className="field"><span>Chương trình</span>
-          <select value={pid} onChange={e => { setPid(e.target.value); setSubj(subjectsOf(e.target.value)[0] ?? '') }}>
-            {programs.map(p => <option key={p.id} value={p.id}>{p.code ? p.code + ' · ' : ''}{p.title}</option>)}</select></label>
-        <label className="field"><span>Môn học trong chương trình</span>
-          <select value={subj} onChange={e => setSubj(e.target.value)}>{(subs.includes(subj) ? subs : [subj, ...subs]).map(s => <option key={s}>{s}</option>)}</select></label>
         <div className="field"><span>Giáo án (.docx)</span>{fileBtn('.docx', 'Chọn tệp', f => read(f, setDocx), docx?.file.name)}</div>
         <div className="field"><span>Bài giảng (.pptx) · không bắt buộc</span>{fileBtn('.pptx', 'Chọn tệp', f => read(f, setPptx), pptx?.file.name)}</div>
       </div>

@@ -107,7 +107,7 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
   }
 
   const form = (depth: number) => (
-    <tr className="tpformrow">
+    <tr className="tpformrow uedit">
       <td style={{ paddingLeft: 8 + depth * 22 }}><small>{KIND[edit?.kind ?? 'subject']}</small><br />
         <input type="number" min={1} value={edit?.seq ?? ''} onChange={e => setEdit({ ...edit, seq: Number(e.target.value) })} aria-label="Thứ tự" style={{ width: 56 }} /></td>
       <td>{edit?.kind === 'subject' && (
@@ -122,7 +122,7 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
         <option value="">Theo chương trình</option><option value="online">Trực tuyến</option><option value="offline">Trực tiếp</option></select> : ''}</td>
       <td>{edit?.kind === 'content' ? <input type="number" min={0} max={500} step={0.5} value={edit.hours ?? 0} onChange={e => setEdit({ ...edit, hours: Number(e.target.value) })} aria-label="Số giờ" style={{ width: 70 }} /> : ''}</td>
       <td>{edit?.kind === 'content' ? <input type="checkbox" checked={!!edit.has_test} onChange={e => setEdit({ ...edit, has_test: e.target.checked })} aria-label="Có bài test" /> : ''}</td>
-      <td className="tools"><button className="primary" type="submit" form="tp-unit">Lưu</button><button type="button" onClick={() => setEdit(null)}>Huỷ</button></td>
+      <td><span className="tools"><button className="primary" type="submit" form="tp-unit">Lưu</button><button type="button" onClick={() => setEdit(null)}>Huỷ</button></span></td>
     </tr>
   )
   const newParent = edit && !edit.id ? edit.parent_id ?? null : null

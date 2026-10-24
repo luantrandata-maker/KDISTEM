@@ -1798,3 +1798,4 @@ a.namelink:hover{color:var(--primary)}
 .mselgroup{padding:6px 12px 2px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.02em}
 .mselnew{padding:8px 12px;color:var(--primary);cursor:pointer;font-weight:600}.mselnew.mselact{background:var(--soft)}
 .mselempty{padding:10px 12px;color:var(--muted)}
+.libtargets.wide{display:block;max-height:none;overflow:visible}.libtargets.wide>.formgrid{margin-top:4px}

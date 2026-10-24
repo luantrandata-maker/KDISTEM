@@ -16,13 +16,13 @@ import { TrainingUnits } from './Units'
 
 type Mode = 'online' | 'offline' | 'hybrid'
 export type TProgram = {
-  id: string; org_id: string; code: string; title: string; ct_code: string | null; level: string | null; audience: string | null; mode: Mode
+  id: string; org_id: string; code: string; title: string; ct_code: string | null; level: string | null; ct_codes: string[]; levels: string[]; audience: string | null; mode: Mode
   description: string | null; competencies: string[]; target_level: number; pass_attendance: number; pass_score: number | null; need_product: boolean
   status: Status; version_no: number; source_id: string | null; updated_at: string; published_at: string | null
 }
 type Unit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string; hours: number; mode: 'online' | 'offline' | null; has_test: boolean; note: string | null; detail: Detail }
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
-const SEL = 'id, org_id, code, title, ct_code, level, audience, mode, description, competencies, target_level, pass_attendance, pass_score, need_product, status, version_no, source_id, updated_at, published_at'
+const SEL = 'id, org_id, code, title, ct_code, level, ct_codes, levels, audience, mode, description, competencies, target_level, pass_attendance, pass_score, need_product, status, version_no, source_id, updated_at, published_at'
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 083 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI soạn được chương trình tập huấn.' : m
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
@@ -58,7 +58,7 @@ export function TrainingProgramsPage() {
     })()
   }, [rk])
 
-  const shown = useMemo(() => (list ?? []).filter(p => (!fs || p.status === fs) && (!ct || p.ct_code === ct)
+  const shown = useMemo(() => (list ?? []).filter(p => (!fs || p.status === fs) && (!ct || ctsOf(p).includes(ct))
     && (!q || `${p.code} ${p.title} ${p.audience ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, fs, ct, q])
 
   if (view?.kind === 'new') return <ProgramForm admin={admin} onBack={() => setView(null)} onSaved={id => { reload(); setView({ kind: 'open', id }) }} />
@@ -101,7 +101,7 @@ export function TrainingProgramsPage() {
         <thead><tr><th>Chương trình tập huấn</th><th>Loại · cấp học</th><th>Đối tượng</th><th>Môn · nội dung · giờ</th><th>Hình thức</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
         <tbody>{shown.map(p => { const s = stats.get(p.id); return <tr key={p.id}>
           <td><button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'open', id: p.id }) }}>{p.title}</button><br /><small className="sub">{p.code} · v{p.version_no}</small></td>
-          <td>{[p.ct_code, p.level && levelName(p.level)].filter(Boolean).join(' · ') || '—'}</td>
+          <td>{[ctsOf(p).join(', '), lvsOf(p).map(levelName).join(', ')].filter(Boolean).join(' · ') || '—'}</td>
           <td style={{ whiteSpace: 'normal' }}>{p.audience || '—'}</td>
           <td>{s?.subjects ?? 0} môn · {s?.contents ?? 0} nội dung · {num(s?.hours ?? 0)} giờ</td>
           <td>{MODE[p.mode]}</td>
@@ -115,32 +115,38 @@ export function TrainingProgramsPage() {
 }
 
 // ===== Thêm / sửa thông tin chương trình =====
-const BLANK = { title: '', ct_code: null as string | null, level: null as string | null, audience: '', mode: 'hybrid' as Mode, description: '', competencies: [] as string[], target_level: 3, pass_attendance: 80, pass_score: null as number | null, need_product: false }
+const BLANK = { title: '', ct_codes: [] as string[], levels: [] as string[], audience: '', mode: 'hybrid' as Mode, description: '', competencies: [] as string[], target_level: 3, pass_attendance: 80, pass_score: null as number | null, need_product: false }
 type Info = typeof BLANK
+// Loại chương trình / cấp học: mảng mới (090), dữ liệu cũ chỉ có cột đơn
+const ctsOf = (p: { ct_codes?: string[] | null; ct_code: string | null }) => p.ct_codes?.length ? p.ct_codes : p.ct_code ? [p.ct_code] : []
+const lvsOf = (p: { levels?: string[] | null; level: string | null }) => p.levels?.length ? p.levels : p.level ? [p.level] : []
 
 function InfoFields({ f, set, disabled }: { f: Info; set: (f: Info) => void; disabled?: boolean }) {
   const { codes, byCode: tracks } = useStemTracks()
   const { levels } = useEduLevels()
   const comps = useCompetencies('teacher')
   return <>
-    <div className="formgrid">
+    <div className="formgrid" style={{ alignItems: 'start' }}>
       <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình tập huấn *</span><input required disabled={disabled} maxLength={200} value={f.title} onChange={e => set({ ...f, title: e.target.value })} placeholder="VD: Tập huấn dạy học STEM tích hợp cho giáo viên THCS" /></label>
-      <label className="field"><span>Loại chương trình</span><select disabled={disabled} value={f.ct_code ?? ''} onChange={e => set({ ...f, ct_code: e.target.value || null })}><option value="">— Không chọn —</option>
-        {codes.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select></label>
-      <label className="field"><span>Cấp học</span><select disabled={disabled} value={f.level ?? ''} onChange={e => set({ ...f, level: e.target.value || null })}><option value="">Mọi cấp học</option>
-        {levels.map(l => <option key={l.code} value={l.code}>{l.name}</option>)}</select></label>
+      <div className="field" style={{ gridColumn: 'span 2' }}><span>Loại chương trình</span>
+        <MultiSelect disabled={disabled} value={f.ct_codes} onChange={v => set({ ...f, ct_codes: v })} options={codes.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])}
+          placeholder="Không chọn" ariaLabel="Loại chương trình" /></div>
+      <div className="field" style={{ gridColumn: 'span 2' }}><span>Cấp học</span>
+        <MultiSelect disabled={disabled} value={f.levels} onChange={v => set({ ...f, levels: v })} options={levels.map(l => [l.code, l.name])} placeholder="Mọi cấp học" ariaLabel="Cấp học" /></div>
       <label className="field"><span>Hình thức</span><select disabled={disabled} value={f.mode} onChange={e => set({ ...f, mode: e.target.value as Mode })}>
         {(Object.keys(MODE) as Mode[]).map(m => <option key={m} value={m}>{MODE[m]}</option>)}</select></label>
       <label className="field"><span>Đối tượng</span><input disabled={disabled} maxLength={200} value={f.audience ?? ''} onChange={e => set({ ...f, audience: e.target.value })} placeholder="VD: Giáo viên mới dạy STEM" /></label>
       <label className="field" style={{ gridColumn: '1/-1' }}><span>Mô tả</span><textarea disabled={disabled} rows={2} maxLength={4000} value={f.description ?? ''} onChange={e => set({ ...f, description: e.target.value })} /></label>
     </div>
-    <fieldset className="libtargets"><legend>Năng lực đích (khung năng lực giáo viên)</legend>
-      <div className="field" style={{ marginBottom: 10 }}><MultiSelect disabled={disabled} value={f.competencies} onChange={v => set({ ...f, competencies: v })}
-        options={comps.map(c => [c.key, c.name])} placeholder="Chọn năng lực đích…" ariaLabel="Năng lực đích" empty="Chưa có khung năng lực giáo viên." /></div>
-      <label className="field" style={{ maxWidth: 260 }}><span>Mức cần đạt sau tập huấn</span><select disabled={disabled} value={f.target_level} onChange={e => set({ ...f, target_level: Number(e.target.value) })}>
-        {[1, 2, 3, 4].map(l => <option key={l} value={l}>Mức {l}</option>)}</select></label>
+    <fieldset className="libtargets wide"><legend>Năng lực đích (khung năng lực giáo viên)</legend>
+      <div className="formgrid" style={{ alignItems: 'start' }}>
+        <div className="field" style={{ gridColumn: 'span 3' }}><span>Năng lực đích</span><MultiSelect disabled={disabled} value={f.competencies} onChange={v => set({ ...f, competencies: v })}
+          options={comps.map(c => [c.key, c.name])} placeholder="Chọn năng lực đích…" ariaLabel="Năng lực đích" empty="Chưa có khung năng lực giáo viên." /></div>
+        <label className="field"><span>Mức cần đạt sau tập huấn</span><select disabled={disabled} value={f.target_level} onChange={e => set({ ...f, target_level: Number(e.target.value) })}>
+          {[1, 2, 3, 4].map(l => <option key={l} value={l}>Mức {l}</option>)}</select></label>
+      </div>
     </fieldset>
-    <fieldset className="libtargets"><legend>Điều kiện đạt (dùng khi đánh giá kết quả và cấp chứng chỉ)</legend>
+    <fieldset className="libtargets wide"><legend>Điều kiện đạt (dùng khi đánh giá kết quả và cấp chứng chỉ)</legend>
       <div className="formgrid">
         <label className="field"><span>Chuyên cần tối thiểu (%)</span><input type="number" disabled={disabled} min={0} max={100} value={f.pass_attendance} onChange={e => set({ ...f, pass_attendance: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })} /></label>
         <label className="field"><span>Điểm bài test tối thiểu (thang 10)</span><input type="number" disabled={disabled} min={0} max={10} step={0.5} value={f.pass_score ?? ''} placeholder="Để trống = không xét điểm"
@@ -192,7 +198,7 @@ function ProgramDetail({ id, admin, onBack, onOpen, onMsg }: { id: string; admin
     if (a.error) return setMsg([errText(a.error.message), true])
     const x = a.data as TProgram
     setP(x); setUnits((b.data as Unit[]) ?? [])
-    setF({ title: x.title, ct_code: x.ct_code, level: x.level, audience: x.audience ?? '', mode: x.mode, description: x.description ?? '', competencies: x.competencies ?? [],
+    setF({ title: x.title, ct_codes: ctsOf(x), levels: lvsOf(x), audience: x.audience ?? '', mode: x.mode, description: x.description ?? '', competencies: x.competencies ?? [],
       target_level: x.target_level, pass_attendance: x.pass_attendance, pass_score: x.pass_score, need_product: x.need_product })
   }
   useEffect(() => { load() }, [id])
@@ -203,7 +209,7 @@ function ProgramDetail({ id, admin, onBack, onOpen, onMsg }: { id: string; admin
   const kids = (sid: string) => units.filter(u => u.parent_id === sid).sort((a, b) => a.seq - b.seq)
   const contents = units.filter(u => u.kind === 'content')
   const hours = contents.reduce((a, u) => a + (Number(u.hours) || 0), 0)
-  const suggest = [...new Set([...subjects.map(s => s.name), ...(p.ct_code ? tracks[p.ct_code]?.subjects ?? [] : [])])].sort((a, b) => a.localeCompare(b, 'vi'))
+  const suggest = [...new Set([...subjects.map(s => s.name), ...ctsOf(p).flatMap(c => tracks[c]?.subjects ?? [])])].sort((a, b) => a.localeCompare(b, 'vi'))
   const run = async (q: PromiseLike<{ error: { message: string } | null }>, ok?: string) => {
     const { error } = await q
     if (error) setMsg([errText(error.message), true]); else if (ok) setMsg([ok, false])
@@ -256,7 +262,7 @@ function ProgramDetail({ id, admin, onBack, onOpen, onMsg }: { id: string; admin
         <InfoFields f={f} set={setF} />
         <div className="formactions"><button type="button" className="primary" disabled={!f.title.trim()} onClick={saveInfo}>Lưu thông tin</button></div>
       </> : <dl className="tpkv">
-        <dt>Loại · cấp học</dt><dd>{[p.ct_code && `${p.ct_code}${tracks[p.ct_code] ? ' · ' + tracks[p.ct_code]!.name : ''}`, p.level ? levelName(p.level) : 'Mọi cấp học'].filter(Boolean).join(' · ')}</dd>
+        <dt>Loại · cấp học</dt><dd>{[ctsOf(p).map(c => `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`).join(', '), lvsOf(p).length ? lvsOf(p).map(levelName).join(', ') : 'Mọi cấp học'].filter(Boolean).join(' · ')}</dd>
         <dt>Đối tượng</dt><dd>{p.audience || '—'}</dd>
         <dt>Hình thức</dt><dd>{MODE[p.mode]}</dd>
         {p.description && <><dt>Mô tả</dt><dd>{p.description}</dd></>}

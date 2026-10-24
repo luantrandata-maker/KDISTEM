@@ -456,6 +456,12 @@ function SchoolPlanTeachers({ row, orgId, items, onBack, onMsg }: { row: Assigne
   const [q, setQ] = useState('')
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [busy, setBusy] = useState(false)
+  // GV đang thiếu năng lực mà kế hoạch bồi dưỡng (từ đánh giá năng lực, 088)
+  const [hint, setHint] = useState<Map<string, string[]>>(new Map())
+  useEffect(() => {
+    supabase.rpc('training_plan_gap_hint', { p_plan: row.plan_id }).then(({ data }) =>
+      setHint(new Map(((data ?? []) as { teacher_id: string; competencies: string[] }[]).map(h => [h.teacher_id, h.competencies]))))
+  }, [row.plan_id])
   async function load() {
     const [t, e] = await Promise.all([
       supabase.from('teachers').select('id, full_name, subject').eq('org_id', orgId).order('full_name'),
@@ -472,6 +478,17 @@ function SchoolPlanTeachers({ row, orgId, items, onBack, onMsg }: { row: Assigne
     const { error } = on ? await supabase.from('training_enrollments').insert({ org_id: orgId, plan_id: row.plan_id, teacher_id: id })
       : await supabase.from('training_enrollments').delete().eq('plan_id', row.plan_id).eq('teacher_id', id)
     if (error) setMsg([errText(error.message), true])
+    load()
+  }
+  const hinted = (teachers ?? []).filter(t => hint.has(t.id) && !chosen.has(t.id))
+  async function pickHinted() {
+    const room = row.quota != null ? Math.max(0, row.quota - chosen.size) : hinted.length
+    const add = hinted.slice(0, room)
+    if (!add.length) return setMsg(['Đã đủ chỉ tiêu, không thêm được giáo viên.', true])
+    setBusy(true); setMsg(null)
+    const { error } = await supabase.from('training_enrollments').insert(add.map(t => ({ org_id: orgId, plan_id: row.plan_id, teacher_id: t.id })))
+    setBusy(false)
+    setMsg(error ? [errText(error.message), true] : [`Đã thêm ${add.length} giáo viên được gợi ý${add.length < hinted.length ? ` (còn ${hinted.length - add.length} người vượt chỉ tiêu)` : ''}.`, false])
     load()
   }
   async function submit() {
@@ -503,9 +520,12 @@ function SchoolPlanTeachers({ row, orgId, items, onBack, onMsg }: { row: Assigne
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Giáo viên tham gia</h3>
         <div className="tools"><input placeholder="Tìm giáo viên, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo viên" />
-          <small className="sub">Đã chọn {chosen.size}{row.quota != null && ` / ${row.quota}`}</small></div></div>
+          <small className="sub">Đã chọn {chosen.size}{row.quota != null && ` / ${row.quota}`}</small>
+          {edit && hinted.length > 0 && <button type="button" disabled={busy} onClick={pickHinted}>Chọn {hinted.length} GV được gợi ý</button>}</div></div>
+      {hint.size > 0 && <p className="sub" style={{ margin: 0 }}>Gợi ý dựa trên đánh giá năng lực: giáo viên có nhãn <span className="gaptag">thiếu …</span> đang dưới mức Đạt ở năng lực mà kế hoạch này bồi dưỡng.</p>}
       {!teachers ? <p className="sub">Đang tải…</p> : <div className="reggrid">
-        {shown.map(t => <label className="roomrow" key={t.id}><span>{t.full_name}{t.subject && <small className="sub"> · {t.subject}</small>}</span>
+        {shown.map(t => <label className="roomrow" key={t.id}><span>{t.full_name}{t.subject && <small className="sub"> · {t.subject}</small>}
+          {hint.has(t.id) && <span className="gaptag" title={hint.get(t.id)!.join(', ')}>thiếu {hint.get(t.id)!.join(', ')}</span>}</span>
           <input type="checkbox" disabled={!edit} checked={chosen.has(t.id)} onChange={e => toggle(t.id, e.target.checked)} aria-label={`Chọn ${t.full_name}`} /></label>)}
         {!shown.length && <small className="sub">{teachers.length ? 'Không có giáo viên nào khớp.' : 'Trường chưa có giáo viên.'}</small>}
       </div>}

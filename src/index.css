@@ -1763,3 +1763,13 @@ a.namelink:hover{color:var(--primary)}
 .certverdict{display:grid;gap:4px;border-left:6px solid var(--ok)}.certverdict.bad{border-left-color:var(--bad)}.certverdict b{font-size:18px}
 @media(max-width:800px){.certpaper{aspect-ratio:auto;padding:18px}.certpaper h2{font-size:24px}.certname{font-size:22px}}
 @media print{body *{visibility:hidden}.certpaper,.certpaper *{visibility:visible}.certpaper{position:fixed;inset:0;margin:auto;width:100%;max-width:none;border-radius:0}@page{size:A4 landscape;margin:10mm}}
+
+/* 088: đánh giá năng lực + giám sát tập huấn */
+.minibar{display:inline-block;vertical-align:middle;width:56px;height:6px;border-radius:99px;background:var(--soft);overflow:hidden;margin-right:4px}
+.minibar i{display:block;height:100%;background:var(--ok)}.minibar i.warn{background:var(--orange)}
+.gaptag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:99px;background:var(--warn-bg);color:var(--warn-fg);font-size:11px;font-weight:600}
+.gaprow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:2px 0}
+.roundbanner{display:grid;gap:4px;border-left:6px solid var(--ok);margin-bottom:12px}.roundbanner.late{border-left-color:var(--bad)}
+.monalerts{display:grid;gap:8px}.monalerts ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.monalerts li{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:8px;background:var(--warn-bg);color:var(--warn-fg)}
+.monalerts li.att{background:var(--bad-bg);color:var(--bad-fg)}.monalerts li small{color:inherit;opacity:.8}

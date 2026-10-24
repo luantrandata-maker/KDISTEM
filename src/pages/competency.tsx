@@ -14,6 +14,8 @@ export function useCompetencies(audience: 'student' | 'teacher') {
   }, [])
   return list.filter(c => c.audience === audience)
 }
+// Gọi sau khi KDI sửa khung năng lực để các trang tải lại
+export const resetCompetencies = () => { compCache = null }
 const LV = ['#f6d5d3', '#fbe7c2', '#d7ebdb', '#a9d8b8']   // nền mức 1–4 (luôn kèm số và chữ)
 const lvIdx = (v: number) => Math.max(1, Math.min(4, Math.round(v)))
 export const LevelChip = ({ v, comp }: { v: number | null; comp?: Comp }) => v == null
@@ -140,14 +142,14 @@ export function ClassCompetencies({ teacherId }: { teacherId: string | null }) {
 // ================= Đánh giá năng lực giáo viên =================
 type TA = { id: string; org_id: string; teacher_id: string; school_year: string; kind: 'self' | 'manager'; levels: Record<string, number>; comment: string | null; plan: string | null; status: 'draft' | 'submitted'; submitted_at: string | null }
 type Evd = Record<string, number>
-const EV_LABEL: [string, string][] = [['training_completed', 'Khoá tập huấn hoàn thành'], ['training_present', 'Buổi tập huấn có mặt'], ['certificates', 'Chứng chỉ'],
+const EV_LABEL: [string, string][] = [['training_completed', 'Khoá tập huấn hoàn thành'], ['training_present', 'Buổi tập huấn có mặt'], ['certificates', 'Chứng chỉ'], ['test_avg', 'Điểm kiểm tra tập huấn TB'],
   ['stem_taught_12m', 'Tiết STEM đã dạy (12 tháng)'], ['lesson_plans', 'Giáo án / bài giảng tự soạn'], ['rubric_assignments', 'Bài giao có chấm theo tiêu chí']]
 
 function Evidence({ teacherId }: { teacherId: string }) {
   const [ev, setEv] = useState<Evd | null>(null)
   useEffect(() => { supabase.rpc('teacher_evidence', { p_teacher: teacherId }).then(({ data }) => setEv(data as Evd)) }, [teacherId])
   if (!ev) return null
-  return <div className="evgrid">{EV_LABEL.map(([k, l]) => <div key={k}><b>{ev[k] ?? 0}</b><small>{l}{k === 'stem_taught_12m' && ev.stem_planned_12m ? ` / ${ev.stem_planned_12m} theo TKB` : ''}</small></div>)}</div>
+  return <div className="evgrid">{EV_LABEL.map(([k, l]) => <div key={k}><b>{k === 'test_avg' ? (ev[k] == null ? '—' : String(ev[k]).replace('.', ',')) : ev[k] ?? 0}</b><small>{l}{k === 'stem_taught_12m' && ev.stem_planned_12m ? ` / ${ev.stem_planned_12m} theo TKB` : ''}</small></div>)}</div>
 }
 
 function AssessForm({ comps, value, onChange, disabled }: { comps: Comp[]; value: Record<string, number>; onChange: (v: Record<string, number>) => void; disabled?: boolean }) {
@@ -162,6 +164,29 @@ function AssessForm({ comps, value, onChange, disabled }: { comps: Comp[]; value
     </table></div>
   )
 }
+// Mức đạt qua tập huấn: chứng chỉ đã cấp, còn hiệu lực → mức đích của chương trình ở năng lực đích (088)
+type TLv = { competency: string; level: number; program: string; cert_code: string; issued_on: string | null }
+function TrainingLevels({ teacherId, comps }: { teacherId: string; comps: Comp[] }) {
+  const [rows, setRows] = useState<TLv[] | null>(null)
+  useEffect(() => { supabase.rpc('teacher_training_levels', { p_teacher: teacherId }).then(({ data }) => setRows((data as TLv[]) ?? [])) }, [teacherId])
+  if (!rows) return null
+  if (!rows.length) return <p className="sub" style={{ margin: 0 }}>Chưa có chứng chỉ tập huấn nào gắn năng lực. Khi giáo viên Đạt khoá tập huấn và được cấp chứng chỉ, mức đích của chương trình được tính vào hồ sơ.</p>
+  return <div className="wrap"><table className="libtable"><thead><tr><th>Năng lực</th><th>Mức đạt</th><th>Chương trình tập huấn</th><th>Chứng chỉ</th></tr></thead>
+    <tbody>{rows.map((r, i) => { const c = comps.find(x => x.key === r.competency); return <tr key={i}><td>{c?.name ?? r.competency}</td><td><LevelChip v={r.level} comp={c} /></td><td>{r.program}</td>
+      <td>{r.cert_code}{r.issued_on && <small className="sub"> · {new Date(r.issued_on).toLocaleDateString('vi-VN')}</small>}</td></tr> })}</tbody></table></div>
+}
+
+// Đợt đánh giá đang mở cho năm học (GV thấy hạn nộp)
+type OpenRound = { id: string; name: string; due_on: string; target_level: number; note: string | null }
+function useOpenRounds(year: string) {
+  const [rows, setRows] = useState<OpenRound[]>([])
+  useEffect(() => {
+    supabase.from('assessment_rounds').select('id, name, due_on, target_level, note').eq('status', 'open').eq('school_year', year).order('due_on')
+      .then(({ data }) => setRows((data as OpenRound[]) ?? []))
+  }, [year])
+  return rows
+}
+const LV_NAME = ['Chưa đạt', 'Đạt', 'Khá', 'Tốt']
 const avgLv = (l: Record<string, number>) => { const v = Object.values(l); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null }
 
 // GV: Hồ sơ năng lực (tự đánh giá + xem đánh giá của quản lý)
@@ -170,6 +195,7 @@ export function TeacherCompetencyProfile({ teacherId, orgId }: { teacherId: stri
   const year = schoolYear()
   const [mine, setMine] = useState<Partial<TA> | null>(null)
   const [mgr, setMgr] = useState<TA | null>(null)
+  const rounds = useOpenRounds(year)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   async function load() {
     if (!teacherId) return
@@ -191,8 +217,16 @@ export function TeacherCompetencyProfile({ teacherId, orgId }: { teacherId: stri
   }
   return (
     <>
-      <p className="sub">Năm học {year}. Tự đánh giá theo 5 năng lực của giáo viên STEM (mức như chuẩn nghề nghiệp: Chưa đạt / Đạt / Khá / Tốt). Minh chứng dưới đây hệ thống tự tổng hợp.</p>
+      {rounds.map(r => { const late = r.due_on < new Date().toISOString().slice(0, 10); return (
+        <div key={r.id} className={'panel roundbanner' + (late && !locked ? ' late' : '')}>
+          <b>{r.name}</b>
+          <span>Hạn nộp tự đánh giá {new Date(r.due_on).toLocaleDateString('vi-VN')} · mức yêu cầu: Mức {r.target_level} ({LV_NAME[r.target_level - 1]})
+            {locked ? ' · em đã nộp' : late ? ' · đã quá hạn, hãy nộp ngay' : ''}</span>
+          {r.note && <small className="sub">{r.note}</small>}
+        </div>) })}
+      <p className="sub">Năm học {year}. Tự đánh giá theo {comps.length} năng lực của giáo viên STEM (mức như chuẩn nghề nghiệp: Chưa đạt / Đạt / Khá / Tốt). Minh chứng dưới đây hệ thống tự tổng hợp.</p>
       <div className="panel"><h4 style={{ marginTop: 0 }}>Minh chứng</h4><Evidence teacherId={teacherId} /></div>
+      <div className="panel"><h4 style={{ marginTop: 0 }}>Mức đạt qua tập huấn</h4><TrainingLevels teacherId={teacherId} comps={comps} /></div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
       <div className="panel">
         <div className="bar"><h3 style={{ margin: 0 }}>Tự đánh giá {locked && <span className="plbadge ok">Đã nộp</span>}</h3></div>
@@ -213,10 +247,11 @@ export function TeacherCompetencyProfile({ teacherId, orgId }: { teacherId: stri
 }
 
 // Quản trị trường: Đánh giá năng lực GV (danh sách + đánh giá từng người). Quản trị nền tảng / Sở: chỉ xem.
-export function SchoolTeacherAssessments({ orgId }: { orgId: string | null }) {
+export function SchoolTeacherAssessments({ orgId, readOnly }: { orgId: string | null; readOnly?: boolean }) {
   const comps = useCompetencies('teacher')
   const year = schoolYear()
-  const [teachers, setTeachers] = useState<{ id: string; full_name: string; org_id: string }[]>([])
+  const [teachers, setTeachers] = useState<{ id: string; full_name: string; org_id: string; organizations?: { name: string } | null }[]>([])
+  const [q, setQ] = useState('')
   const [list, setList] = useState<TA[]>([])
   const [sel, setSel] = useState<string | null>(null)
   const [form, setForm] = useState<Partial<TA> | null>(null)
@@ -224,11 +259,11 @@ export function SchoolTeacherAssessments({ orgId }: { orgId: string | null }) {
   const [canEdit, setCanEdit] = useState(false)
   async function load() {
     const [t, a, adm] = await Promise.all([
-      supabase.from('teachers').select('id, full_name, org_id').eq('status', 'active').order('full_name'),
+      supabase.from('teachers').select('id, full_name, org_id, organizations(name)').eq('status', 'active').order('full_name'),
       supabase.from('teacher_assessments').select('*').eq('school_year', year),
       supabase.rpc('is_admin'),
     ])
-    setTeachers(((t.data as any[]) ?? []).filter(x => !orgId || x.org_id === orgId)); setList((a.data as TA[]) ?? []); setCanEdit(!!adm.data)
+    setTeachers(((t.data as any[]) ?? []).filter(x => !orgId || x.org_id === orgId)); setList((a.data as TA[]) ?? []); setCanEdit(!readOnly && !!adm.data)
   }
   useEffect(() => { load() }, [orgId])
   const of = (id: string, k: 'self' | 'manager') => list.find(x => x.teacher_id === id && x.kind === k)
@@ -258,17 +293,20 @@ export function SchoolTeacherAssessments({ orgId }: { orgId: string | null }) {
   const selfDone = teachers.filter(t => of(t.id, 'self')?.status === 'submitted').length
   const mgrDone = teachers.filter(t => of(t.id, 'manager')?.status === 'submitted').length
   const cur = teachers.find(t => t.id === sel)
+  const shownT = teachers.filter(t => !q || (t.full_name + ' ' + (t.organizations?.name ?? '')).toLowerCase().includes(q.toLowerCase())).slice(0, 500)
   return (
     <>
       <div className="bar">
         <p className="sub" style={{ margin: 0 }}>Năm học {year}: {selfDone}/{teachers.length} GV đã nộp tự đánh giá · {mgrDone}/{teachers.length} đã được trường đánh giá.</p>
-        <span style={{ flex: 1 }} /><button onClick={excel} disabled={!teachers.length}>Xuất Excel</button>
+        <span style={{ flex: 1 }} />{!orgId && <input placeholder="Tìm giáo viên, trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo viên" />}
+        <button onClick={excel} disabled={!teachers.length}>Xuất Excel</button>
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
       {cur && form && (
         <div className="panel">
           <div className="bar"><h3 style={{ margin: 0 }}>{cur.full_name}</h3><button onClick={() => setSel(null)}>Đóng</button></div>
           <h4>Minh chứng</h4><Evidence teacherId={cur.id} />
+          <h4>Mức đạt qua tập huấn</h4><TrainingLevels teacherId={cur.id} comps={comps} />
           {of(cur.id, 'self') ? <><h4>Tự đánh giá {of(cur.id, 'self')!.status === 'submitted' ? <span className="plbadge ok">Đã nộp</span> : <span className="plbadge mute">Nháp</span>}
             {canEdit && of(cur.id, 'self')!.status === 'submitted' && <button className="linkbtn" onClick={reopen}> · Mở lại cho GV sửa</button>}</h4>
             <AssessForm comps={comps} value={of(cur.id, 'self')!.levels} onChange={() => {}} disabled />
@@ -283,14 +321,14 @@ export function SchoolTeacherAssessments({ orgId }: { orgId: string | null }) {
         </div>
       )}
       <div className="wrap"><table>
-        <thead><tr><th>Giáo viên</th><th>Tự đánh giá</th><th>Trường đánh giá</th>{comps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}<th /></tr></thead>
-        <tbody>{teachers.map(t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); const lv = m?.status === 'submitted' ? m.levels : s?.levels ?? {}; return (
-          <tr key={t.id}><td><b>{t.full_name}</b></td>
+        <thead><tr><th>Giáo viên</th>{!orgId && <th>Trường</th>}<th>Tự đánh giá</th><th>Trường đánh giá</th>{comps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}<th /></tr></thead>
+        <tbody>{shownT.map(t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); const lv = m?.status === 'submitted' ? m.levels : s?.levels ?? {}; return (
+          <tr key={t.id}><td><b>{t.full_name}</b></td>{!orgId && <td>{t.organizations?.name ?? '—'}</td>}
             <td>{s ? (s.status === 'submitted' ? <><LevelChip v={avgLv(s.levels)} /> <small>đã nộp</small></> : <small>nháp</small>) : <small className="sub">chưa</small>}</td>
             <td>{m?.status === 'submitted' ? <LevelChip v={avgLv(m.levels)} /> : <small className="sub">chưa</small>}</td>
             {comps.map(c => <td key={c.key}><LevelChip v={lv[c.key] ?? null} comp={c} /></td>)}
             <td><button className={s?.status === 'submitted' && m?.status !== 'submitted' && canEdit ? 'primary' : ''} onClick={() => open(t.id)}>{canEdit ? 'Đánh giá' : 'Xem'}</button></td></tr>) })}
-          {!teachers.length && <tr><td colSpan={comps.length + 4}>Chưa có giáo viên.</td></tr>}</tbody>
+          {!shownT.length && <tr><td colSpan={comps.length + 5}>{teachers.length ? 'Không có giáo viên nào khớp.' : 'Chưa có giáo viên.'}</td></tr>}</tbody>
       </table></div>
       <p className="sub covhint">Cột năng lực hiện mức trường đánh giá (nếu đã có), nếu chưa thì hiện mức GV tự đánh giá.</p>
     </>

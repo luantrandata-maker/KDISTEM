@@ -197,6 +197,10 @@ begin
     delete from notifications where kind = 'training_cert' and ref_id in (select c.id from certificates c join training_plans p on p.id = c.plan_id where p.name like 'ISO %');
     delete from notifications where kind = 'training_remind' and ref_id in (select s.id from training_sessions s join training_plans p on p.id = s.plan_id where p.name like 'ISO %');
   end if;
+  if to_regclass('public.assessment_rounds') is not null then
+    delete from notifications where kind = 'assessment_round' and ref_id in (select id from assessment_rounds where name like 'ISO %');
+    delete from assessment_rounds where name like 'ISO %';
+  end if;
   if to_regclass('public.training_plan_orgs') is not null then
     delete from training_plan_orgs where plan_id in (select id from training_plans where name like 'ISO %');
     delete from training_plans where name like 'ISO %';
@@ -2694,7 +2698,7 @@ select pg_temp.chk('admin_ph', 'Cấp phân loại: trường không sửa mục
 
 -- ===== 083: chương trình tập huấn =====
 select pg_temp.chk('admin_ph', 'CT tập huấn: trường không soạn được', $q$insert into training_programs (org_id, title) values (platform_org_id(), 'ISO CTTH trường')$q$, 'ERR');
-select pg_temp.probe('kdi@iso-test.local', $q$insert into training_programs (org_id, title, pass_score) values (platform_org_id(), 'ISO CTTH', 5)$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_programs (org_id, title, pass_score, competencies, target_level) values (platform_org_id(), 'ISO CTTH', 5, array['gv_thiet_ke'], 3)$q$, true);
 select pg_temp.chk('kdi', 'CT tập huấn: tự cấp mã CTTH-xxx', $q$select (code ~ '^CTTH-\d{3}$')::text from training_programs where title = 'ISO CTTH'$q$, 'true');
 select pg_temp.chk('admin_ph', 'CT tập huấn: trường không thấy bản nháp của KDI', $q$select count(*) from training_programs where title = 'ISO CTTH'$q$, '0');
 select pg_temp.chk('kdi', 'CT tập huấn: chưa có bài thì không phát hành', $q$update training_programs set status = 'published' where title = 'ISO CTTH'$q$, 'ERR 22023');
@@ -2862,6 +2866,43 @@ select pg_temp.chk('gv_both', 'Kết quả: thi lại thì về chờ kết lu�
 select pg_temp.probe('kdi@iso-test.local', $q$select training_result_set(e.plan_id, e.teacher_id, 'pass')::text from training_enrollments e join training_plans k on k.id = e.plan_id where k.name = 'ISO KH'$q$, true);
 select pg_temp.chk('kdi', 'Chứng chỉ: Đạt lại thì có chứng chỉ chờ duyệt mới', $q$select string_agg(c.status, ',' order by c.status) from certificates c join training_plans k on k.id = c.plan_id where k.name = 'ISO KH'$q$, 'pending,revoked');
 select pg_temp.chk('gv_both', 'Học: khoá học trả về kết luận và chứng chỉ', $q$select (training_course(id) #>> '{result,result}') || ':' || (training_course(id) #>> '{cert,status}') from training_plans where name = 'ISO KH'$q$, 'pass:pending');
+
+-- ===== 088: đợt đánh giá năng lực, khoảng thiếu hụt, giám sát =====
+select pg_temp.chk('gv_both', 'Đợt ĐG: GV không mở đợt', $q$insert into assessment_rounds (name, school_year, due_on) values ('ISO đợt GV', '2026-2027', current_date + 7)$q$, 'ERR');
+select pg_temp.chk('admin_kb', 'Đợt ĐG: hạn trước ngày mở bị từ chối', $q$insert into assessment_rounds (name, school_year, opens_on, due_on) values ('ISO đợt sai', '2026-2027', current_date, current_date - 1)$q$, 'ERR 23514');
+select pg_temp.probe('admin_kb@iso-test.local', $q$insert into assessment_rounds (name, school_year, due_on) values ('ISO đợt KB', '2026-2027', current_date + 14)$q$, true);
+select pg_temp.chk('admin_ph', 'Đợt ĐG: trường khác không thấy', $q$select count(*) from assessment_rounds where name = 'ISO đợt KB'$q$, '0');
+select pg_temp.chk('so_bn', 'Đợt ĐG: Sở cấp trên thấy', $q$select count(*) from assessment_rounds where name = 'ISO đợt KB'$q$, '1');
+select pg_temp.chk('admin_ph', 'Đợt ĐG: trường khác không sửa', $q$with x as (update assessment_rounds set name = 'ISO x' where name = 'ISO đợt KB' returning 1) select count(*) from x$q$, '0');
+select pg_temp.chk('so_hy', 'Đợt ĐG: Sở khác không thấy', $q$select count(*) from assessment_rounds where name = 'ISO đợt KB'$q$, '0');
+select pg_temp.chk('admin_kb', 'Đợt ĐG: tiến độ theo trường, chưa ai nộp', $q$select count(*) || ':' || sum(self_done) || ':' || bool_and(teachers > 0) from assessment_round_progress((select id from assessment_rounds where name = 'ISO đợt KB'))$q$, '1:0:true');
+select pg_temp.chk('admin_ph', 'Đợt ĐG: trường khác không nhắc', format($q$select assessment_round_remind(%s::uuid)$q$, quote_literal((select id from assessment_rounds where name = 'ISO đợt KB'))), 'ERR 42501');
+select pg_temp.probe('admin_kb@iso-test.local', $q$select assessment_round_remind(id) from assessment_rounds where name = 'ISO đợt KB'$q$, true);
+select pg_temp.chk('gv_both', 'Đợt ĐG: GV chưa nộp nhận thông báo', $q$select count(*) from notifications where kind = 'assessment_round'$q$, '1');
+select pg_temp.chk('admin_kb', 'Đợt ĐG: nhắc liên tục thì không gửi lại', $q$select assessment_round_remind(id) from assessment_rounds where name = 'ISO đợt KB'$q$, '0');
+select pg_temp.probe('admin_kb@iso-test.local', $q$update assessment_rounds set status = 'closed' where name = 'ISO đợt KB'$q$, true);
+select pg_temp.chk('admin_kb', 'Đợt ĐG: đợt đã đóng thì không nhắc', $q$select assessment_round_remind(id) from assessment_rounds where name = 'ISO đợt KB'$q$, 'ERR 22023');
+insert into teacher_assessments (org_id, teacher_id, school_year, kind, levels, status, comment)
+  select org_id, id, '2025-2026', 'self', '{"gv_thiet_ke":1}', 'submitted', 'ISO năm trước' from teachers where full_name = 'GV thử B';
+insert into teacher_assessments (org_id, teacher_id, school_year, kind, levels, status, comment)
+  select t.org_id, t.id, k.year_name, 'self', '{"gv_thiet_ke":1,"gv_to_chuc":3}', 'submitted', 'ISO năm nay' from teachers t, training_plans k where t.full_name = 'GV thử B' and k.name = 'ISO KH';
+select pg_temp.chk('admin_kb', 'Thiếu hụt: GV dưới mức yêu cầu, gợi ý chương trình có năng lực đó', $q$select string_agg(g.competency || ':' || g.level || ':' || exists (select 1 from jsonb_array_elements(g.suggest) s where s ->> 'title' = 'ISO CTTH'), ',') from competency_gaps((select year_name from training_plans where name = 'ISO KH')) g where g.teacher_name = 'GV thử B'$q$, 'gv_thiet_ke:1:true');
+select pg_temp.chk('admin_ph', 'Thiếu hụt: trường khác không thấy GV', $q$select count(*) from competency_gaps((select year_name from training_plans where name = 'ISO KH')) where teacher_name = 'GV thử B'$q$, '0');
+select pg_temp.chk('admin_kb', 'Thiếu hụt: mức yêu cầu 4 thì thiếu cả năng lực mức 3', $q$select count(*) from competency_gaps((select year_name from training_plans where name = 'ISO KH'), 4) where teacher_name = 'GV thử B'$q$, '2');
+select pg_temp.chk('kdi', 'Thiếu hụt: kế hoạch gợi ý GV thiếu năng lực được bồi dưỡng', $q$select array_to_string(h.competencies, ',') from training_plan_gap_hint((select id from training_plans where name = 'ISO KH')) h join teachers t on t.id = h.teacher_id where t.full_name = 'GV thử B'$q$, 'Thiết kế bài học STEM');
+select pg_temp.chk('admin_kb', 'Giám sát: trường thấy dòng của trường mình', $q$select count(*) || ':' || min(enrolled) || ':' || min(passed) || ':' || min(certs) from training_monitor() where plan_name = 'ISO KH'$q$, '1:1:1:0');
+select pg_temp.chk('kdi', 'Giám sát: đơn vị lập kế hoạch thấy trường được gán', $q$select string_agg(org_name, ',') from training_monitor() where plan_name = 'ISO KH'$q$, (select name from organizations where code = 'THCS-KB'));
+select pg_temp.chk('admin_ph', 'Giám sát: trường không được gán thì không thấy', $q$select count(*) from training_monitor() where plan_name = 'ISO KH'$q$, '0');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_cert_issue(array_agg(c.id))::text from certificates c join training_plans k on k.id = c.plan_id where k.name = 'ISO KH' and c.status = 'pending'$q$, true);
+select pg_temp.chk('admin_kb', 'Năng lực: chứng chỉ đã cấp cho mức đạt qua tập huấn', $q$select string_agg(competency || ':' || level, ',') from teacher_training_levels((select id from teachers where full_name = 'GV thử B'))$q$, 'gv_thiet_ke:3');
+select pg_temp.chk('admin_ph', 'Năng lực: trường khác không xem mức qua tập huấn', $q$select count(*) from teacher_training_levels((select id from teachers where full_name = 'GV thử B'))$q$, '0');
+select pg_temp.chk('admin_kb', 'Thiếu hụt: có chứng chỉ thì hết thiếu hụt năng lực đó', $q$select count(*) from competency_gaps((select year_name from training_plans where name = 'ISO KH')) where teacher_name = 'GV thử B'$q$, '0');
+select pg_temp.chk('admin_kb', 'Minh chứng: đếm chứng chỉ đã cấp và điểm kiểm tra', $q$select (x ->> 'certificates') || ':' || (x ->> 'test_avg') from (select teacher_evidence((select id from teachers where full_name = 'GV thử B')) x) t$q$, '1:10.0');
+select pg_temp.chk('admin_kb', 'Giám sát: đếm chứng chỉ đã cấp', $q$select certs from training_monitor() where plan_name = 'ISO KH'$q$, '1');
+insert into teacher_assessments (org_id, teacher_id, school_year, kind, levels, status, comment)
+  select t.org_id, t.id, k.year_name, 'manager', '{"gv_thiet_ke":3}', 'submitted', 'ISO trường ĐG' from teachers t, training_plans k where t.full_name = 'GV thử B' and k.name = 'ISO KH';
+select pg_temp.chk('admin_kb', 'Hiệu quả: mức năng lực trước / sau tập huấn', $q$select teachers || ':' || before_avg || ':' || after_avg from training_competency_effect() where competency = 'gv_thiet_ke'$q$, '1:1.00:3.00');
+select pg_temp.chk('admin_ph', 'Hiệu quả: trường khác không tính GV trường này', $q$select count(*) from training_competency_effect()$q$, '0');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

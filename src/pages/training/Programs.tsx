@@ -186,6 +186,7 @@ function ProgramDetail({ id, admin, onBack, onOpen, onMsg }: { id: string; admin
   const [f, setF] = useState<Info | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [openC, setOpenC] = useState<string | null>(null)
+  const [tab, setTab] = useState<'info' | 'units'>('info')
   const { subjects } = useSubjects()
   const { byCode: tracks } = useStemTracks()
   const { name: levelName } = useEduLevels()
@@ -256,7 +257,10 @@ function ProgramDetail({ id, admin, onBack, onOpen, onMsg }: { id: string; admin
     {edit && warn.length > 0 && <p className="warnline">Chưa phát hành được: {warn.join('; ')}.</p>}
     {!edit && p.status !== 'draft' && admin && <p className="sub">Bản đã phát hành không sửa được. Bấm "Nhân bản để sửa" để tạo bản nháp mới.</p>}
 
-    <section className="panel" style={{ display: 'grid', gap: 12 }}>
+    <div className="segmented" style={{ marginBottom: 12 }}>
+      {([['info', 'Thông tin & điều kiện đạt'], ['units', 'Cấu trúc & yêu cầu cần đạt']] as const).map(([k, l]) => <button key={k} type="button" className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
+    </div>
+    {tab === 'info' &&     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <h3 style={{ margin: 0 }}>Thông tin & điều kiện đạt</h3>
       {edit ? <>
         <InfoFields f={f} set={setF} />
@@ -269,12 +273,11 @@ function ProgramDetail({ id, admin, onBack, onOpen, onMsg }: { id: string; admin
         <dt>Năng lực đích</dt><dd>{p.competencies.length ? p.competencies.map(k => comps.find(c => c.key === k)?.name ?? k).join(', ') + ` (mức ${p.target_level})` : '—'}</dd>
         <dt>Điều kiện đạt</dt><dd>{[`chuyên cần ≥ ${p.pass_attendance}%`, p.pass_score != null && `điểm bài test ≥ ${num(Number(p.pass_score))}`, p.need_product && 'sản phẩm cuối khoá đạt'].filter(Boolean).join(' · ')}</dd>
       </dl>}
-    </section>
+    </section>}
 
-    <section className="panel" style={{ display: 'grid', gap: 12 }}>
-      <h3 style={{ margin: 0 }}>Môn & nội dung tập huấn</h3>
+    {tab === 'units' && <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <TrainingUnits programId={p.id} programTitle={p.title} programMode={p.mode} units={units} editable={edit} catalog={suggest}
         onReload={load} onMessage={(m, e) => setMsg([errText(m), !!e])} onOpen={setOpenC} />
-    </section>
+    </section>}
   </ElView>
 }

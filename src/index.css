@@ -1804,3 +1804,15 @@ a.namelink:hover{color:var(--primary)}
 tr.uedit>td{vertical-align:top;padding-top:10px;padding-bottom:10px;background:var(--soft)}
 tr.uedit>td small{display:inline-block;margin-bottom:4px}
 .libtargets.wide{display:block;max-height:none;overflow:visible}.libtargets.wide>.formgrid{margin-top:4px}
+/* Bảng nháp cấu trúc chương trình (StructureDraft): sửa thoải mái, lưu một lần */
+.sdraft{display:grid;gap:8px}
+.sdbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:8px 12px;position:sticky;top:64px;z-index:3}
+.sdbar.bottom{position:static}
+.sdtable tr.uedit>td{background:var(--surface);border-bottom:1px solid var(--line)}
+.sdtable tr.sdbad>td{background:color-mix(in srgb,var(--bad) 8%,var(--surface))}
+.sdtable tr.sdbad input[aria-label="Tên"]{border-color:var(--bad)}
+.sdmove{display:inline-flex;gap:2px;margin-left:6px;vertical-align:middle}
+.main .sdmove button{padding:0 6px;border-radius:6px;font-size:12px;line-height:1.6}
+.sdout{display:flex;gap:6px;align-items:center;margin-top:6px}
+.main .sdout .sdx,.main button.sdx{border:0;background:none;color:var(--muted);font-size:18px;padding:0 6px}
+.main .sdtools{flex-wrap:wrap;justify-content:flex-end}

@@ -1,5 +1,6 @@
 import { SelBar, SelTh, useRowSel } from '../../components/TableSel'
-import { Fragment, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { ElView } from './View'
 import { supabase } from '../../lib/supabase'
 import { norm, downloadXlsx, type Column } from '../../lib/sheet'
 import ImportExcel from '../../components/ImportExcel'
@@ -61,9 +62,10 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
     setMsg(error ? [errText(error.message), true] : [`Đã chuyển ${ids.length} câu sang "${status === 'ready' ? 'Sẵn sàng' : status === 'retired' ? 'Ngừng dùng' : 'Nháp'}".`, false]); load()
   }
   async function remove(r: Question) {
-    if (!confirm('Xoá câu hỏi này? Đề cố định đang dùng câu này sẽ bỏ qua nó.')) return
+    if (!confirm('Xoá câu hỏi này? Đề cố định đang dùng câu này sẽ bỏ qua nó.')) return false
     const { error } = await supabase.from('question_bank').delete().eq('id', r.id)
-    if (error) setMsg([errText(error.message), true]); else load()
+    if (error) { setMsg([errText(error.message), true]); return false }
+    load(); return true
   }
   async function importRecords(recs: (Record<string, string> & { _line: number })[]) {
     const bad: string[] = []
@@ -89,6 +91,32 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
 
   const drafts = list.filter(r => r.status === 'draft' && mine(r))
   const qsel = useRowSel(list.filter(mine))
+  const toForm = (r: Question): Form => ({ id: r.id, subject: r.subject, grade: r.grade ? String(r.grade) : '', topic: r.topic ?? '', level: r.level, kind: r.kind, stem: r.stem,
+    options: [...r.options, ...Array(Math.max(0, 4 - r.options.length)).fill('')], answer: r.answer, explain: r.explain ?? '', shared: r.shared, status: r.status })
+  const note = msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>
+  const cur = rows.find(r => r.id === open)
+  if (form) return (
+    <ElView back={cur ? 'Chi tiết câu hỏi' : 'Ngân hàng câu hỏi'} onBack={() => setForm(null)} title={form.id ? 'Sửa câu hỏi' : 'Thêm câu hỏi'}>
+      {note}<QuestionForm form={form} setForm={setForm} onSubmit={save} canShare={orgType !== 'school'} />
+    </ElView>)
+  if (cur) return (
+    <ElView back="Ngân hàng câu hỏi" onBack={() => setOpen(null)} title="Chi tiết câu hỏi"
+      sub={<>{cur.subject}{cur.grade ? ` · Khối ${cur.grade}` : ''}{cur.topic ? ` · ${cur.topic}` : ''} · {LEVEL[cur.level]} · {QKIND[cur.kind]} · <span className={'pill ' + (cur.status === 'ready' ? 'active' : cur.status === 'draft' ? 'maintenance' : 'inactive')}>{cur.status === 'ready' ? 'Sẵn sàng' : cur.status === 'draft' ? 'Nháp' : 'Ngừng dùng'}</span></>}
+      actions={mine(cur) && <>
+        <button className="primary" onClick={() => setForm(toForm(cur))}>Sửa</button>
+        {cur.status !== 'ready' && <button onClick={() => setStatus([cur.id], 'ready')}>Duyệt — Sẵn sàng</button>}
+        {cur.status !== 'retired' && <button onClick={() => setStatus([cur.id], 'retired')}>Ngừng dùng</button>}
+        {cur.created_by === me && <button className="danger" onClick={async () => { if (await remove(cur)) setOpen(null) }}>Xoá</button>}
+      </>}>
+      {note}
+      <section className="panel">
+        <p style={{ whiteSpace: 'pre-wrap', marginTop: 0 }}><b>{cur.stem}</b></p>
+        <ol className="qopts" type="A">{cur.options.map((o, i) => <li key={i} className={cur.answer.includes(i) ? 'right' : ''}>{o}</li>)}</ol>
+        <p className="sub">Đáp án đúng: <b>{cur.kind === 'truefalse' ? (cur.answer[0] === 0 ? 'Đúng' : 'Sai') : cur.answer.map(letter).join(', ')}</b></p>
+        {cur.explain && <p className="sub">Giải thích: {cur.explain}</p>}
+        <p className="sub"><small>Nguồn: {!mine(cur) ? orgNames.get(cur.org_id) ?? 'Cấp trên' : cur.source === 'ai' ? 'Trợ lý AI' : cur.source === 'import' ? 'Nhập Excel' : 'Soạn tay'}{cur.shared && mine(cur) ? ' · dùng chung' : ''}</small></p>
+      </section>
+    </ElView>)
   return (
     <>
       <div className="cards syscards">
@@ -107,9 +135,8 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
           <button onClick={exportExcel} disabled={!list.length}>Xuất Excel</button>
         </span>
       </div>
-      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+      {note}
       {ai && <div className="panel"><AssistantQuiz orgId={orgId} onSaved={load} /></div>}
-      {form && <QuestionForm form={form} setForm={setForm} onSubmit={save} canShare={orgType !== 'school'} />}
       <div className="bar" style={{ margin: '12px 0' }}>
         <span className="tools">
           <input className="search" style={{ margin: 0, minWidth: 220 }} type="search" placeholder="Tìm câu hỏi, chủ đề…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} aria-label="Tìm câu hỏi" />
@@ -122,8 +149,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
       </div>
       {(() => { const r = qsel.cur; return (
         <SelBar picked={r ? (r.stem.length > 40 ? r.stem.slice(0, 40) + '…' : r.stem) : null}>
-          <button disabled={!r} onClick={() => r && setForm({ id: r.id, subject: r.subject, grade: r.grade ? String(r.grade) : '', topic: r.topic ?? '', level: r.level, kind: r.kind, stem: r.stem,
-            options: [...r.options, ...Array(Math.max(0, 4 - r.options.length)).fill('')], answer: r.answer, explain: r.explain ?? '', shared: r.shared, status: r.status })}>Sửa</button>
+          <button disabled={!r} onClick={() => r && setForm(toForm(r))}>Sửa</button>
           <button disabled={!r || r.status === 'ready'} onClick={() => r && setStatus([r.id], 'ready')}>Duyệt — Sẵn sàng</button>
           <button disabled={!r || r.status === 'retired'} onClick={() => r && setStatus([r.id], 'retired')}>Ngừng dùng</button>
           <button className="danger" disabled={!r || r.created_by !== me} onClick={() => { if (r) { remove(r); qsel.clear() } }}>Xoá</button>
@@ -131,19 +157,14 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
       <div className="wrap"><table className="systable">
         <thead><tr><SelTh /><th>Câu hỏi</th><th>Môn · khối</th><th>Mức độ</th><th>Loại</th><th>Nguồn</th><th>Trạng thái</th></tr></thead>
         <tbody>
-          {list.slice(0, 300).map(r => <Fragment key={r.id}>
-            <tr className={'clickrow' + (qsel.is(r) ? ' picked' : '')} onClick={() => setOpen(open === r.id ? null : r.id)}>
+          {list.slice(0, 300).map(r =>
+            <tr key={r.id} className={'clickrow' + (qsel.is(r) ? ' picked' : '')} onClick={() => { setOpen(r.id); setMsg(null) }}>
               <td className="sel" onClick={e => e.stopPropagation()}>{mine(r) && <input type="checkbox" checked={qsel.is(r)} onChange={() => qsel.toggle(r)} aria-label="Chọn câu hỏi" />}</td>
               <td style={{ whiteSpace: 'normal', maxWidth: 460 }}><b>{r.stem.length > 140 ? r.stem.slice(0, 140) + '…' : r.stem}</b>{r.topic && <><br /><small>{r.topic}</small></>}</td>
               <td>{r.subject}{r.grade ? ` · ${r.grade}` : ''}</td><td>{LEVEL[r.level]}</td><td>{QKIND[r.kind]}</td>
               <td><small>{!mine(r) ? orgNames.get(r.org_id) ?? 'Cấp trên' : r.source === 'ai' ? 'Trợ lý AI' : r.source === 'import' ? 'Nhập Excel' : 'Soạn tay'}{r.shared && mine(r) ? ' · dùng chung' : ''}</small></td>
               <td><span className={'pill ' + (r.status === 'ready' ? 'active' : r.status === 'draft' ? 'maintenance' : 'inactive')}>{r.status === 'ready' ? 'Sẵn sàng' : r.status === 'draft' ? 'Nháp' : 'Ngừng dùng'}</span></td>
-            </tr>
-            {open === r.id && <tr><td colSpan={7}>
-              <ol className="qopts" type="A">{r.options.map((o, i) => <li key={i} className={r.answer.includes(i) ? 'right' : ''}>{o}</li>)}</ol>
-              {r.explain && <p className="sub">Giải thích: {r.explain}</p>}
-            </td></tr>}
-          </Fragment>)}
+            </tr>)}
           {!list.length && <tr><td colSpan={7}>Chưa có câu hỏi. Thêm tay, nhập Excel theo file mẫu, hoặc tạo bằng Trợ lý AI.</td></tr>}
         </tbody>
       </table></div>

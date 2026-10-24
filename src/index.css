@@ -1688,3 +1688,6 @@ a.namelink:hover{color:var(--primary)}
 .main .tools > input:not([type]):focus,.main .tools > input[type=search]:focus,.main .tools > input[type=text]:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 18%,transparent)}
 .main .tools > select{padding:9px 10px;border-radius:10px}
 .libcopy{margin-bottom:12px;gap:10px;flex-wrap:wrap}.libcopy select{min-width:260px}
+/* E-learning: trang thêm / sửa / chi tiết */
+.elview{display:grid;gap:12px;margin-top:12px}.elview>.ghostbtn{justify-self:start}
+.elviewhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.elviewhead h2{margin:0}

@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabase'
 import { asLesson, lessonStats, BlockView, LessonShow, type ILesson } from '../../lib/lessonBlocks'
 import { useMyClasses, PROGRAM_COLOR } from '../teacher/common'
 import { isStem } from '../../lib/rooms'
-import { progGrades } from '../../lib/eduLevels'
+import { fmtGrades, progGrades, unitGradesOf } from '../../lib/eduLevels'
 
 type Props = { orgId: string | null; teacherId?: string | null; go?: (p: string) => void }
 type Prog = { id: string; code: string | null; title: string; ct_code: string | null; level: string; grade_from: number; grade_to: number; grades?: number[]; main_subject: string; integrated_subjects: string[]; objectives: string | null }
@@ -46,7 +46,7 @@ export function LibraryPrograms({ teacherId, go }: Props) {
       const ids = list.map(p => p.id)
       if (ids.length) {
         const [u, n] = await Promise.all([
-          supabase.from('edu_program_units').select('id, program_id, parent_id, unit_type, seq, title, periods, subject, grade').in('program_id', ids),
+          supabase.from('edu_program_units').select('id, program_id, parent_id, unit_type, seq, title, periods, subject, grade, grades').in('program_id', ids),
           supabase.from('material_norms').select('id, program_id, unit_id, material_norm_items(id, name, unit, qty, kind, reusable)').eq('status', 'published').in('program_id', ids),
         ])
         setUnits((u.data as Unit[]) ?? []); setNorms((n.data as unknown as Norm[]) ?? [])
@@ -88,7 +88,7 @@ export function LibraryPrograms({ teacherId, go }: Props) {
         <div className="tilegrid">
           {topics.map(t => (
             <button type="button" key={t.id} className="tile" onClick={() => setTid(t.id)}>
-              <div className="tilebody"><div><Chip ct={prog.ct_code} />{t.grade && <small> Khối {t.grade}</small>}</div><b>{t.title}</b><small>{sessOf(t.id)} buổi{t.subject ? ` · ${t.subject}` : ''}</small><span className="tilemore">Xem chủ đề ›</span></div>
+              <div className="tilebody"><div><Chip ct={prog.ct_code} />{unitGradesOf(t).length > 0 && <small> {fmtGrades(unitGradesOf(t))}</small>}</div><b>{t.title}</b><small>{sessOf(t.id)} buổi{t.subject ? ` · ${t.subject}` : ''}</small><span className="tilemore">Xem chủ đề ›</span></div>
             </button>
           ))}
         </div>

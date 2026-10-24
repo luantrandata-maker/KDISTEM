@@ -2939,7 +2939,21 @@ insert into t_result (who, name, expect, got, ok)
   select 'postgres', 'CTGD khối: nhân bản / phiên bản mới chép danh sách khối', '6,8', x, x is not distinct from '6,8'
     from (select array_to_string(c.grades, ',') x from edu_programs c
            where c.id = public.edu_program_clone((select id from edu_programs where title = 'ISO CT khối'), (select org_id from edu_programs where title = 'ISO CT khối'), null, 1)) t;
+delete from edu_programs where title = 'ISO CT khối' and source_id is not null;
 select pg_temp.chk('kdi', 'CTGD khối: bản đã ban hành không đổi được khối', $q$update edu_programs set grades = array[6] where title = 'ISO CT KDI' and status not in ('draft', 'rejected')$q$, 'ERR 22023');
+
+-- ===== 092: học phần thuộc nhiều khối =====
+select pg_temp.chk('kdi', 'HP nhiều khối: danh sách sắp tăng, khối chính là khối đầu', $q$with x as (update edu_program_units set grades = array[8, 6] where title = 'ISO HP khối 8' returning grade, grades) select grade || ':' || array_to_string(grades, ',') from x$q$, '6:6,8');
+select pg_temp.chk('kdi', 'HP nhiều khối: khối ngoài chương trình bị từ chối', $q$update edu_program_units set grades = array[6, 7] where title = 'ISO HP khối 8'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'HP nhiều khối: sửa khối kiểu cũ thì thay danh sách', $q$with x as (update edu_program_units set grade = 6 where title = 'ISO HP khối 8' returning grades) select array_to_string(grades, ',') from x$q$, '6');
+select pg_temp.probe('kdi@iso-test.local', $q$update edu_program_units set grades = array[6, 8] where title = 'ISO HP khối 8'$q$, true);
+select pg_temp.chk('kdi', 'HP nhiều khối: không bỏ được khối chương trình mà học phần đang dùng', $q$update edu_programs set grades = array[8] where title = 'ISO CT khối'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$select curriculum_from_program(id, 6) from edu_programs where title = 'ISO CT khối'$q$, true);
+select pg_temp.chk('kdi', 'HP nhiều khối: PPCT khối 6 lấy học phần thuộc khối 6 và 8', $q$select count(*) from curriculum_lessons l join curriculum_books b on b.id = l.book_id where b.title = 'ISO CT khối — khối 6'$q$, '1');
+insert into t_result (who, name, expect, got, ok)
+  select 'postgres', 'HP nhiều khối: nhân bản chép danh sách khối của học phần', '6,8', x, x is not distinct from '6,8'
+    from (select array_to_string(u.grades, ',') x from edu_program_units u
+           where u.program_id = public.edu_program_clone((select id from edu_programs where title = 'ISO CT khối'), (select org_id from edu_programs where title = 'ISO CT khối'), null, 1)) t;
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

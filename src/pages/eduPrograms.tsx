@@ -13,6 +13,7 @@ import { ViewToggle, useViewMode } from '../components/ViewToggle'
 import { useEduLevels } from '../lib/eduLevels'
 import { ChipMulti, GradePicker, LevelPicker, SubjectMulti, SubjectPicker, gradeList } from '../components/Pickers'
 import { ElView } from '../components/ElView'
+import { StructureDraft, newKey, saveDraftTree, type DCol, type DRow } from '../components/StructureDraft'
 
 // Khái niệm (064): Chương trình → Học phần (unit 'topic', trước gọi là chủ đề; gắn Môn học qua edu_unit_subjects)
 // → Bài học / Buổi học (gắn Học liệu qua edu_unit_materials) → Bài giảng (lesson_plans gắn unit_id, soạn ở "Soạn bài giảng").
@@ -67,6 +68,8 @@ type LibUnit = { id: string; title: string; subject: string | null; grades: stri
   content: { objectives?: string | null; periods?: number | null; material_ids?: string[] } | null }
 const MAT_ICON: Record<string, string> = { video: 'film', document: 'file', link: 'link', image: 'image', worksheet: 'fileText', lesson_plan: 'book', guide: 'book' }
 const CHILD: Record<UnitType, UnitType | null> = { topic: 'lesson', lesson: 'session', session: null }
+type UF = { grade: number | null; subject: string | null; periods: number; libId: string }
+const DLEVELS = { topic: { label: 'Học phần', child: 'lesson', ph: 'Tên học phần' }, lesson: { label: 'Bài học', child: 'session', ph: 'Tên bài học' }, session: { label: 'Buổi học', ph: 'Tên buổi học' } }
 const errText = (m: string) => (/schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 058 trên Supabase.'
   : /row-level|42501/i.test(m) ? 'Bạn không có quyền thực hiện thao tác này.' : m)
 const fmtD = (d: string | null) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—')
@@ -483,16 +486,14 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
 }) {
   const [units, setUnits] = useState<Unit[] | null>(null)
   const [outs, setOuts] = useState<Outcome[]>([])
-  const [edit, setEdit] = useState<Partial<Unit> | null>(null)
-  const [oedit, setOedit] = useState<Partial<Outcome> | null>(null)
+  const [draft, setDraft] = useState<DRow<UF>[] | null>(null)          // bảng nháp khi đang chỉnh sửa cấu trúc
   const [lessonOf, setLessonOf] = useState<Unit | null>(null)
   const [usubs, setUsubs] = useState<USubject[]>([])
   const [umats, setUmats] = useState<UMaterial[]>([])
   const [subjFor, setSubjFor] = useState<string | null>(null)                 // học phần đang chọn môn
   const [matFor, setMatFor] = useState<{ unit: string; item: string; note: string } | null>(null)   // bài học đang thêm học liệu
   const [matOpts, setMatOpts] = useState<MatOpt[] | null>(null)
-  const [libUnits, setLibUnits] = useState<LibUnit[] | null>(null)          // danh sách bài học (tải khi thêm bài đầu tiên)
-  const [libPick, setLibPick] = useState('')
+  const [libUnits, setLibUnits] = useState<LibUnit[] | null>(null)          // danh sách bài học (tải khi chỉnh sửa cấu trúc)
   const { subjects } = useSubjects()
   async function load() {
     const [u, o, us, um] = await Promise.all([
@@ -556,10 +557,6 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
   const walk = (parent: string | null, depth: number) => kids(parent).forEach(u => { ordered.push({ u, depth }); walk(u.id, depth + 1) })
   walk(null, 0)
   const compName = (k: string | null) => (k ? comps.find(c => c.key === k)?.name ?? k : '')
-  // Dòng thêm mục con hiện sau mục con cuối cùng trong nhánh của mục cha
-  const newParent = edit && !edit.id ? edit.parent_id ?? null : null
-  const addAfter = newParent ? [...ordered].reverse().find(x => x.u.id === newParent || isDesc(all, x.u, newParent))?.u.id ?? null : null
-  const addDepth = newParent ? (ordered.find(x => x.u.id === newParent)?.depth ?? 0) + 1 : 0
   // Học phần chứa một mục (chính nó nếu là học phần) và các môn của học phần đó
   const topicOf = (parentId: string | null | undefined): Unit | null => {
     let u = all.find(x => x.id === parentId) ?? null
@@ -571,90 +568,80 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
     const names = subjectsOf(t.id).map(x => subjects.find(s => s.id === x.subject_id)?.name).filter(Boolean) as string[]
     return [...new Set(names.length ? names : t.subject ? [t.subject] : [])]
   }
-  // Môn chọn được trong dòng đang sửa: học phần → môn ở Thông tin; bài / buổi → môn của học phần chứa nó
-  const formSubjects = (() => {
-    if (!edit) return []
-    const base = edit.unit_type === 'topic' || !edit.unit_type ? progSubjects : topicSubjects(topicOf(edit.parent_id))
-    const list = base.length ? base : progSubjects
-    return edit.subject && !list.some(n => lc(n) === lc(edit.subject!)) ? [edit.subject, ...list] : list
-  })()
-  // Bài học trong danh sách bài học thuộc các môn của học phần (và đúng khối nếu đã chọn khối)
-  const libChoices = (() => {
-    if (!edit || edit.id || edit.unit_type !== 'lesson' || !libUnits) return []
-    const names = (edit.subject ? [edit.subject] : formSubjects).map(lc)
-    const used = new Set(kids(edit.parent_id ?? null).map(u => lc(u.title)))
-    return libUnits.filter(i => i.subject && names.includes(lc(i.subject)) && !used.has(lc(i.title))
-      && (!edit.grade || !i.grades || !gradeList(i.grades).length || gradeList(i.grades).includes(Number(edit.grade))))
-  })()
   async function loadLibUnits() {
     if (libUnits) return
     const { data } = await supabase.from('library_items').select('id, title, subject, grades, owner_org_id, status, content').eq('kind', 'unit').neq('status', 'archived').order('title')
     setLibUnits(((data as LibUnit[]) ?? []).filter(i => i.status === 'published' || i.owner_org_id === p.org_id))
   }
-  function pickLib(id: string) {
-    setLibPick(id)
-    const i = libUnits?.find(x => x.id === id)
-    if (!i || !edit) return
-    const g = gradeList(i.grades ?? '').filter(x => x >= p.grade_from && x <= p.grade_to)
-    setEdit({ ...edit, title: i.title, objectives: i.content?.objectives ?? edit.objectives ?? null, periods: Number(i.content?.periods) || edit.periods || 1,
-      subject: i.subject ?? edit.subject ?? null, grade: edit.grade ?? (g.length === 1 ? g[0] : null) })
-  }
   const leafTotal = all.filter(u => !all.some(c => c.parent_id === u.id)).reduce((s, u) => s + u.periods, 0)
 
-  async function saveUnit(e: React.FormEvent) {
-    e.preventDefault(); if (!edit) return
-    const row = {
-      program_id: p.id, parent_id: edit.parent_id ?? null, unit_type: edit.unit_type ?? 'topic', seq: Number(edit.seq) || 1,
-      grade: edit.grade ? Number(edit.grade) : null, subject: edit.subject?.trim() || null, title: (edit.title ?? '').trim(),
-      periods: Number(edit.periods) || 0, objectives: edit.objectives?.trim() || null,
-    }
-    if (!row.title) return onMessage('Nhập tên.', true)
-    const res = edit.id ? await supabase.from('edu_program_units').update(row).eq('id', edit.id).select('id') : await supabase.from('edu_program_units').insert(row).select('id')
-    if (res.error) return onMessage(errText(res.error.message), true)
-    // Học phần mới có "Môn" trùng tên môn trong danh mục → gắn luôn làm môn chính
-    const newId = (res.data as { id: string }[] | null)?.[0]?.id
-    const match = row.subject && subjects.find(s => s.active && s.name.toLowerCase() === row.subject!.toLowerCase())
-    if (!edit.id && newId && row.unit_type === 'topic' && match) await supabase.from('edu_unit_subjects').insert({ unit_id: newId, subject_id: match.id, is_main: true })
-    // Bài chọn từ danh sách bài học → gắn luôn học liệu của bài đó
-    const lib = !edit.id && newId && libPick ? libUnits?.find(x => x.id === libPick) : null
-    const mats = (lib?.content?.material_ids ?? []).filter(x => typeof x === 'string')
-    if (lib && mats.length) {
-      const m = await supabase.from('edu_unit_materials').insert(mats.map((item_id, i) => ({ unit_id: newId, item_id, seq: i + 1, note: null })))
-      if (m.error) onMessage('Đã thêm bài nhưng chưa gắn được học liệu của bài: ' + errText(m.error.message), true)
-    }
-    setLibPick('')
-    setEdit(null); await load(); onChanged()
+  // ----- Chỉnh sửa cấu trúc trên bảng nháp, lưu một lần -----
+  const toDraft = (): DRow<UF>[] => ordered.map(({ u }) => ({
+    key: u.id, id: u.id, parent: u.parent_id, type: u.unit_type, title: u.title, goal: u.objectives ?? '',
+    f: { grade: u.grade, subject: u.subject, periods: u.periods, libId: '' },
+    outs: outs.filter(o => o.unit_id === u.id).sort((a, b) => a.seq - b.seq).map(o => ({ key: o.id, id: o.id, code: o.code ?? '', content: o.content, comp: o.competency_key })),
+  }))
+  function startDraft(addTopic: boolean) {
+    loadLibUnits()
+    const rows = toDraft()
+    if (addTopic) rows.push({ key: newKey(), parent: null, type: 'topic', title: '', goal: '', f: { grade: p.grade_from, subject: null, periods: 0, libId: '' }, outs: [] })
+    setDraft(rows)
   }
-  async function delUnit(u: Unit) {
-    if (!confirm(`Xoá ${UTYPE[u.unit_type].toLowerCase()} "${u.title}" cùng các mục con và yêu cầu cần đạt?`)) return
-    const { error } = await supabase.from('edu_program_units').delete().eq('id', u.id)
-    if (error) return onMessage(errText(error.message), true)
+  // Môn chọn được cho một dòng nháp: học phần → môn ở Thông tin; bài / buổi → môn của học phần chứa nó
+  function draftSubjects(r: DRow<UF>, rows: DRow<UF>[]) {
+    let t: DRow<UF> | undefined = r
+    while (t && t.type !== 'topic') { const par: string | null = t.parent; t = rows.find(x => x.key === par) }
+    const base = r.type === 'topic' || !t ? progSubjects : (() => {
+      const saved = t.id ? topicSubjects(all.find(u => u.id === t!.id) ?? null) : []
+      return saved.length ? saved : t.f.subject ? [t.f.subject] : progSubjects
+    })()
+    return r.f.subject && !base.some(n => lc(n) === lc(r.f.subject!)) ? [r.f.subject, ...base] : base
+  }
+  const draftCols: DCol<UF>[] = [
+    { label: 'Khối', width: 90, cell: (r, set) => <select value={r.f.grade ?? ''} onChange={e => set({ grade: Number(e.target.value) || null })} aria-label="Khối">
+      <option value="">—</option>{range(p.grade_from, p.grade_to).map(g => <option key={g} value={g}>{g}</option>)}</select> },
+    { label: 'Môn', width: 170, cell: (r, set, rows) => { const list = draftSubjects(r, rows); return <select value={r.f.subject ?? ''} onChange={e => set({ subject: e.target.value || null, libId: '' })} aria-label="Môn" style={{ maxWidth: 170 }}>
+      <option value="">{r.type === 'topic' ? `(${p.main_subject})` : list.length > 1 ? '— Mọi môn —' : '—'}</option>{list.map(n => <option key={n} value={n}>{n}</option>)}</select> } },
+    { label: 'Số tiết', width: 90, cell: (r, set) => <input type="number" min={0} max={999} value={r.f.periods} onChange={e => set({ periods: Math.max(0, Number(e.target.value) || 0) })} aria-label="Số tiết" style={{ width: 76 }} /> },
+  ]
+  // Bài mới: chọn từ danh sách bài học (điền sẵn tên, mục tiêu, số tiết; gắn học liệu của bài khi lưu)
+  const libPicker = (r: DRow<UF>, patch: (x: Partial<DRow<UF>>) => void, rows: DRow<UF>[]) => {
+    if (r.type !== 'lesson' || r.id) return null
+    const names = (r.f.subject ? [r.f.subject] : draftSubjects(r, rows)).map(lc)
+    const used = new Set(rows.filter(x => x.parent === r.parent && x.key !== r.key).map(x => lc(x.title)))
+    const list = (libUnits ?? []).filter(i => i.subject && names.includes(lc(i.subject)) && !used.has(lc(i.title))
+      && (!r.f.grade || !i.grades || !gradeList(i.grades).length || gradeList(i.grades).includes(Number(r.f.grade))))
+    return <select value={r.f.libId} aria-label="Chọn từ danh sách bài học" style={{ width: '100%', marginBottom: 6 }} onChange={e => {
+      const i = libUnits?.find(x => x.id === e.target.value)
+      if (!i) return patch({ f: { ...r.f, libId: '' } })
+      const g = gradeList(i.grades ?? '').filter(x => x >= p.grade_from && x <= p.grade_to)
+      patch({ title: i.title, goal: i.content?.objectives ?? r.goal, f: { ...r.f, libId: i.id, periods: Number(i.content?.periods) || r.f.periods || 1,
+        subject: i.subject ?? r.f.subject, grade: r.f.grade ?? (g.length === 1 ? g[0] : null) } })
+    }}>
+      <option value="">{!libUnits ? 'Đang tải danh sách bài học…' : list.length ? `— Chọn từ danh sách bài học (${list.length}) hoặc nhập tên bên dưới —` : 'Danh sách bài học chưa có bài nào của môn này — nhập tên bên dưới'}</option>
+      {list.map(i => <option key={i.id} value={i.id}>{i.title}{i.grades ? ` · khối ${i.grades}` : ''}{i.subject ? ` · ${i.subject}` : ''}{i.status !== 'published' ? ' (nháp)' : ''}</option>)}
+    </select>
+  }
+  async function saveDraft(rows: DRow<UF>[]) {
+    const errs = await saveDraftTree(toDraft(), rows, {
+      table: 'edu_program_units',
+      toRow: (r, parentId, seq) => ({ program_id: p.id, parent_id: parentId, unit_type: r.type, seq, grade: r.f.grade ?? null, subject: r.f.subject?.trim() || null,
+        title: r.title.trim(), periods: Number(r.f.periods) || 0, objectives: r.goal.trim() || null }),
+      outs: { table: 'edu_outcomes', toRow: (o, unitId, seq) => ({ program_id: p.id, unit_id: unitId, seq, code: o.code.trim() || null, content: o.content.trim(), competency_key: o.comp || null }) },
+      afterInsert: async (r, id) => {
+        // Học phần mới có "Môn" trùng tên môn trong danh mục → gắn luôn làm môn chính
+        const match = r.type === 'topic' && r.f.subject && subjects.find(s => s.active && lc(s.name) === lc(r.f.subject!))
+        if (match) await supabase.from('edu_unit_subjects').insert({ unit_id: id, subject_id: match.id, is_main: true })
+        // Bài chọn từ danh sách bài học → gắn luôn học liệu của bài đó
+        const lib = r.f.libId ? libUnits?.find(x => x.id === r.f.libId) : null
+        const mats = (lib?.content?.material_ids ?? []).filter(x => typeof x === 'string')
+        if (mats.length) await supabase.from('edu_unit_materials').insert(mats.map((item_id, i) => ({ unit_id: id, item_id, seq: i + 1, note: null })))
+      },
+    })
     await load(); onChanged()
-  }
-  async function saveOut(e: React.FormEvent) {
-    e.preventDefault(); if (!oedit) return
-    const row = { program_id: p.id, unit_id: oedit.unit_id ?? null, seq: Number(oedit.seq) || 1, code: oedit.code?.trim() || null,
-      content: (oedit.content ?? '').trim(), competency_key: oedit.competency_key || null }
-    if (!row.content) return onMessage('Nhập nội dung yêu cầu cần đạt.', true)
-    const { error } = oedit.id ? await supabase.from('edu_outcomes').update(row).eq('id', oedit.id) : await supabase.from('edu_outcomes').insert(row)
-    if (error) return onMessage(errText(error.message), true)
-    setOedit(null); load()
-  }
-  async function delOut(o: Outcome) {
-    if (!confirm('Xoá yêu cầu cần đạt này?')) return
-    const { error } = await supabase.from('edu_outcomes').delete().eq('id', o.id)
-    if (error) return onMessage(errText(error.message), true)
-    load()
-  }
-  const addChild = (parent: Unit | null) => {
-    const t: UnitType = parent ? CHILD[parent.unit_type] ?? 'session' : 'topic'
-    setOedit(null)
-    setLibPick('')
-    if (t === 'lesson') loadLibUnits()
-    // Khối mặc định: khối của mục cha, nếu không thì khối đầu tiên ở phần Thông tin (sửa được); môn mặc định: môn chính của học phần
-    const ts = t === 'topic' ? [] : topicSubjects(topicOf(parent?.id))
-    setEdit({ parent_id: parent?.id ?? null, unit_type: t, seq: kids(parent?.id ?? null).reduce((m, u) => Math.max(m, u.seq), 0) + 1, periods: t === 'topic' ? 0 : 1,
-      grade: parent?.grade ?? p.grade_from, subject: ts.length === 1 ? ts[0] : null })
+    if (errs.length) return 'Một số mục chưa lưu được: ' + errs.map(errText).join('; ')
+    setDraft(null); onMessage('Đã lưu cấu trúc và yêu cầu cần đạt.')
+    return null
   }
 
   async function importRows(recs: (Record<string, string> & { _line: number })[]) {
@@ -709,34 +696,6 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
       outs.filter(o => o.unit_id === u.id).map(o => (o.code ? o.code + '. ' : '') + o.content).join('\n')]), 'Cấu trúc')
   }
 
-  const unitForm = (depth: number) => (
-    <tr className="uedit">
-      <td style={{ paddingLeft: 8 + depth * 22 }}><small>{UTYPE[edit?.unit_type ?? 'topic']}</small><br />
-        <input type="number" min={1} value={edit?.seq ?? ''} onChange={e => setEdit({ ...edit, seq: Number(e.target.value) })} aria-label="Thứ tự" style={{ width: 70 }} /></td>
-      <td>{edit?.unit_type === 'lesson' && !edit.id && (
-          <select value={libPick} onChange={e => pickLib(e.target.value)} aria-label="Chọn từ danh sách bài học" style={{ width: '100%', marginBottom: 4 }}>
-            <option value="">{!libUnits ? 'Đang tải danh sách bài học…' : libChoices.length ? `— Chọn từ danh sách bài học (${libChoices.length}) hoặc nhập tên bên dưới —` : 'Danh sách bài học chưa có bài nào của môn này — nhập tên bên dưới'}</option>
-            {libChoices.map(i => <option key={i.id} value={i.id}>{i.title}{i.grades ? ` · khối ${i.grades}` : ''}{i.subject ? ` · ${i.subject}` : ''}{i.status !== 'published' ? ' (nháp)' : ''}</option>)}
-          </select>)}
-        <input value={edit?.title ?? ''} onChange={e => setEdit({ ...edit, title: e.target.value })} aria-label="Tên" autoFocus style={{ width: '100%', minWidth: 200 }} placeholder="Tên học phần / bài / buổi" />
-        <input value={edit?.objectives ?? ''} onChange={e => setEdit({ ...edit, objectives: e.target.value })} aria-label="Mục tiêu" placeholder="Mục tiêu" style={{ width: '100%', marginTop: 6 }} /></td>
-      <td><select value={edit?.grade ?? ''} onChange={e => setEdit({ ...edit, grade: Number(e.target.value) || null })} aria-label="Khối"><option value="">—</option>{range(p.grade_from, p.grade_to).map(g => <option key={g} value={g}>{g}</option>)}</select></td>
-      <td><select value={edit?.subject ?? ''} onChange={e => { setLibPick(''); setEdit({ ...edit, subject: e.target.value || null }) }} aria-label="Môn" style={{ maxWidth: 180 }}>
-        <option value="">{edit?.unit_type === 'topic' || !edit?.unit_type ? `(${p.main_subject})` : formSubjects.length > 1 ? '— Mọi môn của học phần —' : '—'}</option>
-        {formSubjects.map(n => <option key={n} value={n}>{n}</option>)}</select></td>
-      <td><input type="number" min={0} value={edit?.periods ?? 0} onChange={e => setEdit({ ...edit, periods: Number(e.target.value) })} aria-label="Số tiết" style={{ width: 80 }} /></td>
-      <td><span className="tools"><button className="primary" type="submit" form="prog-unit">Lưu</button><button type="button" onClick={() => setEdit(null)}>Huỷ</button></span></td>
-    </tr>
-  )
-  const outForm = (
-    <div className="addrow uedit" style={{ flexWrap: 'wrap', gap: 6 }}>
-      <input value={oedit?.code ?? ''} onChange={e => setOedit({ ...oedit, code: e.target.value })} placeholder="Mã" aria-label="Mã" style={{ width: 70 }} />
-      <input value={oedit?.content ?? ''} onChange={e => setOedit({ ...oedit, content: e.target.value })} placeholder="Yêu cầu cần đạt" aria-label="Yêu cầu cần đạt" autoFocus style={{ flex: 1, minWidth: 220 }} />
-      <select value={oedit?.competency_key ?? ''} onChange={e => setOedit({ ...oedit, competency_key: e.target.value || null })} aria-label="Năng lực"><option value="">Năng lực —</option>{comps.map(c => <option key={c.key} value={c.key}>{c.name}</option>)}</select>
-      <button className="primary" type="submit" form="prog-out">Lưu</button><button type="button" onClick={() => setOedit(null)}>Huỷ</button>
-    </div>
-  )
-
   if (!units) return <p className="sub">Đang tải…</p>
   return (
     <>
@@ -749,17 +708,19 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
       <div className="bar">
         <p className="sub" style={{ margin: 0 }}>Cấu trúc: học phần (gắn môn học) → bài học → buổi học (gắn học liệu). Số tiết tính theo mục cuối cùng của mỗi nhánh. Bài giảng cho từng bài soạn ở "Soạn bài giảng".</p>
         <div className="tools">
-          {editable && <ImportExcel columns={IMPORT} template={`Mau-chuong-trinh-${p.main_subject}`}
+          {editable && !draft && <ImportExcel columns={IMPORT} template={`Mau-chuong-trinh-${p.main_subject}`}
             sample={[['Học phần', '6', '', 'Chủ đề A. Máy tính và cộng đồng', '', 'Hiểu thông tin và dữ liệu', 'Phân biệt được thông tin và dữ liệu; Nêu được ví dụ về xử lí thông tin'],
               ['Bài học', '', '', 'Bài 1. Thông tin và dữ liệu', '2', '', ''], ['Buổi học', '', '', 'Buổi 1: Thảo luận nhóm', '1', '', '']]}
             onRecords={importRows} onMessage={(m, e) => onMessage(m, e)} />}
-          {all.length > 0 && <button onClick={exportRows}>Tải Excel</button>}
-          {editable && <button className="primary" onClick={() => addChild(null)}>Thêm học phần</button>}
+          {all.length > 0 && !draft && <button onClick={exportRows}>Tải Excel</button>}
+          {editable && !draft && all.length > 0 && <button onClick={() => startDraft(false)}>Chỉnh sửa cấu trúc</button>}
+          {editable && !draft && <button className="primary" onClick={() => startDraft(true)}>Thêm học phần</button>}
         </div>
       </div>
-      <form id="prog-unit" onSubmit={saveUnit} />
-      <form id="prog-out" onSubmit={saveOut} />
-      {all.length === 0 && !edit ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có học phần nào.{editable && ' Bấm "Thêm học phần" hoặc "Nhập Excel".'}</p></div> : (
+      {draft ? <StructureDraft<UF> levels={DLEVELS} root="topic" initial={draft} cols={draftCols} titleExtra={libPicker}
+        comps={comps.map(c => [c.key, c.name])} newFields={(t, par, rows) => ({ grade: par?.f.grade ?? p.grade_from, subject: t === 'topic' || !par ? null : (() => { const l = draftSubjects({ ...par, key: '_', parent: par.key, type: t, f: { ...par.f, subject: null } }, rows); return l.length === 1 ? l[0] : null })(), periods: t === 'topic' ? 0 : 1, libId: '' })}
+        onSave={saveDraft} onCancel={() => setDraft(null)} />
+      : all.length === 0 ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có học phần nào.{editable && ' Bấm "Thêm học phần" hoặc "Nhập Excel".'}</p></div> : (
         <div className="wrap"><table>
           <thead><tr><th>Mục</th><th>Tên · mục tiêu · yêu cầu cần đạt</th><th>Khối</th><th>Môn</th><th>Số tiết</th><th></th></tr></thead>
           <tbody>
@@ -767,15 +728,13 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
               const os = outs.filter(o => o.unit_id === u.id).sort((a, b) => a.seq - b.seq)
               return (
                 <Fragment key={u.id}>
-                  {edit?.id === u.id ? unitForm(depth) : (
+                  {(
                     <tr>
                       <td style={{ paddingLeft: 8 + depth * 22 }}><small className="sub">{UTYPE[u.unit_type]}</small> <b>{u.seq}</b></td>
                       <td>{u.unit_type === 'topic' ? <b>{u.title}</b> : u.title}{u.objectives && <><br /><small className="sub">Mục tiêu: {u.objectives}</small></>}
-                        {os.map(o => oedit?.id === o.id ? <div key={o.id}>{outForm}</div> : (
-                          <div key={o.id} style={{ fontSize: 13, marginTop: 2 }}>✓ {o.code && <b>{o.code} </b>}{o.content}{o.competency_key && <small className="sub"> · {compName(o.competency_key)}</small>}
-                            {editable && <> <button className="linkbtn" onClick={() => { setEdit(null); setOedit(o) }}>Sửa</button> <button className="linkbtn" onClick={() => delOut(o)}>Xoá</button></>}</div>
+                        {os.map(o => (
+                          <div key={o.id} style={{ fontSize: 13, marginTop: 2 }}>✓ {o.code && <b>{o.code} </b>}{o.content}{o.competency_key && <small className="sub"> · {compName(o.competency_key)}</small>}</div>
                         ))}
-                        {oedit && !oedit.id && oedit.unit_id === u.id && outForm}
                         {u.unit_type !== 'topic' && umats.some(x => x.unit_id === u.id) && (
                           <div style={{ fontSize: 13, marginTop: 4 }}><small className="sub">Học liệu: </small>
                             {umats.filter(x => x.unit_id === u.id).map(x => (
@@ -814,19 +773,13 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
                           {editable ? 'Soạn nội dung buổi' : 'Xem nội dung buổi'}{asLesson(u.lesson) ? ` · ${lessonStats(asLesson(u.lesson)).blocks} khối` : ''}</button>}
                         {editable && <>
                         {u.unit_type === 'topic' && <button onClick={() => setSubjFor(u.id)}>+ Môn học</button>}
-                        {CHILD[u.unit_type] && <button onClick={() => addChild(u)}>+ {UTYPE[CHILD[u.unit_type]!]}</button>}
                         {u.unit_type !== 'topic' && <button onClick={() => openMatPicker(u.id)}>+ Học liệu</button>}
-                        <button onClick={() => { setEdit(null); setOedit({ unit_id: u.id, seq: os.length + 1 }) }}>+ YCCĐ</button>
-                        <button onClick={() => { setOedit(null); setEdit(u) }}>Sửa</button>
-                        <button className="danger" onClick={() => delUnit(u)}>Xoá</button>
                       </>}</td>
                     </tr>
                   )}
-                  {addAfter === u.id && unitForm(addDepth)}
                 </Fragment>
               )
             })}
-            {edit && !edit.id && !edit.parent_id && unitForm(0)}
           </tbody>
         </table></div>
       )}

@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
+import { MultiSelect } from '../components/MultiSelect'
 import { supabase } from '../lib/supabase'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
@@ -517,9 +518,10 @@ function BookClasses({ book, canEdit, onMsg }: { book: Book; canEdit: boolean; o
   return (
     <div className="panel" style={{ marginBottom: 12 }}>
       <b>Áp dụng cho lớp</b> <small className="sub">{sel.size ? `${sel.size} lớp được chọn — các lớp khác dùng PPCT chung của khối (nếu có).` : `Mọi lớp khối ${book.grade} (chưa chọn lớp riêng).`}</small>
-      <div className="tools" style={{ flexWrap: 'wrap', marginTop: 8 }}>
-        {classes.map(c => <label key={c.id} style={{ marginRight: 12 }}><input type="checkbox" disabled={!canEdit} checked={sel.has(c.id)} onChange={e => toggle(c.id, e.target.checked)} /> {c.name}</label>)}
-        {classes.length === 0 && <small className="sub">Trường chưa có lớp khối {book.grade}.</small>}
+      <div style={{ marginTop: 8, maxWidth: 640 }}>
+        <MultiSelect disabled={!canEdit} value={[...sel]} options={classes.map(c => [c.id, c.name])} placeholder={`Mọi lớp khối ${book.grade}`} ariaLabel="Áp dụng cho lớp"
+          empty={`Trường chưa có lớp khối ${book.grade}.`}
+          onChange={async v => { for (const id of v.filter(x => !sel.has(x))) await toggle(id, true); for (const id of [...sel].filter(x => !v.includes(x))) await toggle(id, false) }} />
       </div>
     </div>
   )

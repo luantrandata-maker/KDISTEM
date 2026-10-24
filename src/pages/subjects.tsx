@@ -1,4 +1,5 @@
 import { SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
+import { MultiSelect } from '../components/MultiSelect'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { norm } from '../lib/sheet'
@@ -50,7 +51,7 @@ export function useSubjects() {
 
 export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | null; mode?: SubjectMode }) {
   const { subjects, loaded, err, reload } = useSubjects()
-  const { codes: ctCodes, allCodes } = useStemTracks()
+  const { codes: ctCodes, allCodes, byCode } = useStemTracks()
   const { levels: lvList, name: levelName } = useEduLevels()
   const LEVELS = lvList.map(l => [l.code, l.name] as [string, string])
   const [canEdit, setCanEdit] = useState(mode !== 'school')
@@ -139,11 +140,11 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
           {mode !== 'school' && <label className="field"><span>Phạm vi</span><select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Subject['scope'] })}>
             <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
           <label className="field wide" style={{ gridColumn: '1/-1' }}><span>Mô tả</span><textarea rows={2} value={form.description ?? ''} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
-          <fieldset className="field" style={{ border: 0, padding: 0 }}><legend className="sub">Cấp học (để trống = mọi cấp)</legend>
-            {LEVELS.map(([k, l]) => <label key={k} style={{ marginRight: 12 }}><input type="checkbox" checked={(form.levels ?? []).includes(k)} onChange={() => toggle('levels', k)} /> {l}</label>)}</fieldset>
-          <fieldset className="field" style={{ border: 0, padding: 0 }}><legend className="sub">Thuộc loại chương trình</legend>
-            {[...ctCodes, ...(form.ct_codes ?? []).filter(c => !ctCodes.includes(c) && allCodes.includes(c))].map(c => (
-              <label key={c} style={{ marginRight: 12 }}><input type="checkbox" checked={(form.ct_codes ?? []).includes(c)} onChange={() => toggle('ct_codes', c)} /> {c}</label>))}</fieldset>
+          <div className="field"><span>Cấp học (để trống = mọi cấp)</span>
+            <MultiSelect value={form.levels ?? []} onChange={v => setForm({ ...form, levels: v })} options={LEVELS} placeholder="Mọi cấp học" ariaLabel="Cấp học" /></div>
+          <div className="field"><span>Thuộc loại chương trình</span>
+            <MultiSelect value={form.ct_codes ?? []} onChange={v => setForm({ ...form, ct_codes: v })} placeholder="Chọn loại chương trình…" ariaLabel="Loại chương trình"
+              options={[...ctCodes, ...(form.ct_codes ?? []).filter(c => !ctCodes.includes(c) && allCodes.includes(c))].map(c => [c, `${c}${byCode[c] ? ' · ' + byCode[c]!.name : ''}`])} /></div>
           <div className="formactions"><button className="primary" type="submit">{form.id ? 'Lưu' : 'Thêm'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
     </ElView>

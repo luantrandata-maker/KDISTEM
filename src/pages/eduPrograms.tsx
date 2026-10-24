@@ -1,4 +1,5 @@
 import { Icon } from '../components/Icon'
+import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
@@ -442,15 +443,14 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Mục tiêu chương trình</span><textarea disabled={dis} rows={3} value={f.objectives ?? ''} onChange={e => setF({ ...f, objectives: e.target.value })} /></label>
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Ghi chú</span><input disabled={dis} value={f.note ?? ''} onChange={e => setF({ ...f, note: e.target.value })} /></label>
       </div>
-      <fieldset className="libtargets"><legend>Khung năng lực</legend>
-        {editable ? comps.map(c => <label key={c.key}><input type="checkbox" checked={f.competency_keys.includes(c.key)} onChange={() => setF({ ...f, competency_keys: toggle(f.competency_keys, c.key) })} /> {c.name}</label>)
-          : <p className="sub" style={{ margin: 0 }}>{f.competency_keys.length ? f.competency_keys.map(compName).join(' · ') : 'Chưa chọn năng lực.'}</p>}
-      </fieldset>
-      <fieldset className="libtargets"><legend>Tiêu chí đánh giá (rubric)</legend>
-        {editable ? (rubrics.length ? rubrics.map(r => <label key={r.id}><input type="checkbox" checked={f.rubric_ids.includes(r.id)} onChange={() => setF({ ...f, rubric_ids: toggle(f.rubric_ids, r.id) })} /> {r.title}</label>)
-          : <p className="sub" style={{ margin: 0 }}>Chưa có rubric nào.</p>)
-          : <p className="sub" style={{ margin: 0 }}>{f.rubric_ids.length ? f.rubric_ids.map(id => rubrics.find(r => r.id === id)?.title ?? 'Rubric').join(' · ') : 'Chưa gắn rubric.'}</p>}
-      </fieldset>
+      <div className="formgrid" style={{ marginTop: 8 }}>
+        <div className="field" style={{ gridColumn: '1/-1' }}><span>Khung năng lực</span>
+          <MultiSelect disabled={!editable} value={f.competency_keys} onChange={v => setF({ ...f, competency_keys: v })} options={comps.map(c => [c.key, c.name])}
+            placeholder="Chọn năng lực…" ariaLabel="Khung năng lực" empty="Chưa có khung năng lực." /></div>
+        <div className="field" style={{ gridColumn: '1/-1' }}><span>Tiêu chí đánh giá (rubric)</span>
+          <MultiSelect disabled={!editable} value={f.rubric_ids} onChange={v => setF({ ...f, rubric_ids: v })} placeholder="Chọn rubric…" ariaLabel="Rubric" empty="Chưa có rubric nào."
+            options={[...rubrics.map(r => [r.id, r.title] as [string, string]), ...f.rubric_ids.filter(id => !rubrics.some(r => r.id === id)).map(id => [id, 'Rubric'] as [string, string])]} /></div>
+      </div>
       <div className="formactions">
         {editable && <button className="primary" type="submit">Lưu</button>}
         {onDelete && <button type="button" className="danger" onClick={onDelete}>Xoá bản nháp</button>}
@@ -1018,8 +1018,8 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
         <form className="panel formgrid" onSubmit={add} style={{ marginBottom: 12 }}>
           <label className="field"><span>Đơn vị trực thuộc</span><select value={form.org} onChange={e => setForm({ ...form, org: e.target.value })}>
             <option value="">— chọn —</option>{below.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
-          <div className="field"><span>Khối (không chọn = mọi khối)</span><div className="tools">
-            {range(p.grade_from, p.grade_to).map(g => <label key={g}><input type="checkbox" checked={form.grades.includes(g)} onChange={() => setForm({ ...form, grades: form.grades.includes(g) ? form.grades.filter(x => x !== g) : [...form.grades, g] })} /> {g}</label>)}</div></div>
+          <div className="field"><span>Khối (không chọn = mọi khối)</span>
+            <NumMultiSelect value={form.grades} onChange={g => setForm({ ...form, grades: g })} options={range(p.grade_from, p.grade_to).map(g => ({ value: g, label: `Khối ${g}` }))} placeholder="Mọi khối" ariaLabel="Khối" /></div>
           <label className="field"><span>Ghi chú</span><input value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} /></label>
           <div className="formactions"><button className="primary" type="submit">Gán</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>

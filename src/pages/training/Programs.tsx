@@ -1,6 +1,7 @@
 // Phân hệ 1 — Chương trình tập huấn (083): mẫu khoá tập huấn chuẩn của KDI, dùng lại cho các kế hoạch tập huấn.
 // Cấu trúc 3 cấp: Chương trình tập huấn → Môn → Nội dung tập huấn. Cách làm giống Phân hệ 2: hướng dẫn các bước,
 // thẻ số liệu, danh sách có lọc; thêm / sửa / xem chi tiết mở view riêng; Nháp → Đã phát hành → Ngừng dùng, nhân bản để sửa.
+import { MultiSelect } from '../../components/MultiSelect'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useEduLevels } from '../../lib/eduLevels'
@@ -134,9 +135,8 @@ function InfoFields({ f, set, disabled }: { f: Info; set: (f: Info) => void; dis
       <label className="field" style={{ gridColumn: '1/-1' }}><span>Mô tả</span><textarea disabled={disabled} rows={2} maxLength={4000} value={f.description ?? ''} onChange={e => set({ ...f, description: e.target.value })} /></label>
     </div>
     <fieldset className="libtargets"><legend>Năng lực đích (khung năng lực giáo viên)</legend>
-      {comps.map(c => <label key={c.key}><input type="checkbox" disabled={disabled} checked={f.competencies.includes(c.key)}
-        onChange={e => set({ ...f, competencies: e.target.checked ? [...f.competencies, c.key] : f.competencies.filter(x => x !== c.key) })} /> {c.name}</label>)}
-      {comps.length === 0 && <small className="sub">Chưa có khung năng lực giáo viên.</small>}
+      <div className="field" style={{ marginBottom: 10 }}><MultiSelect disabled={disabled} value={f.competencies} onChange={v => set({ ...f, competencies: v })}
+        options={comps.map(c => [c.key, c.name])} placeholder="Chọn năng lực đích…" ariaLabel="Năng lực đích" empty="Chưa có khung năng lực giáo viên." /></div>
       <label className="field" style={{ maxWidth: 260 }}><span>Mức cần đạt sau tập huấn</span><select disabled={disabled} value={f.target_level} onChange={e => set({ ...f, target_level: Number(e.target.value) })}>
         {[1, 2, 3, 4].map(l => <option key={l} value={l}>Mức {l}</option>)}</select></label>
     </fieldset>

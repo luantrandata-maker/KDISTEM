@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { MultiSelect, NumMultiSelect, type MsOption } from './MultiSelect'
 import { useSubjects } from '../pages/subjects'
 import { gradeRange, useEduLevels } from '../lib/eduLevels'
 
@@ -50,45 +51,27 @@ export function SubjectPicker({ value, onChange, level, extra, exclude = [], dis
   )
 }
 
-/** Chọn nhiều môn: các môn đã chọn hiện thành thẻ, thêm bằng ô chọn. */
-export function SubjectMulti({ value, onChange, level, extra, disabled, exclude = [], primary }: {
-  value: string[]; onChange: (v: string[]) => void; level?: string | null; extra?: string[]; disabled?: boolean; exclude?: string[]; primary?: string
+/** Chọn nhiều môn: ô chọn gọn có ô tick, gõ để tìm; gõ tên môn ngoài danh mục rồi Enter để thêm. */
+export function SubjectMulti({ value, onChange, level, extra, disabled, exclude = [], primary, placeholder = 'Chọn môn…', ariaLabel = 'Môn' }: {
+  value: string[]; onChange: (v: string[]) => void; level?: string | null; extra?: string[]; disabled?: boolean; exclude?: string[]; primary?: string; placeholder?: string; ariaLabel?: string
 }) {
   const names = useSubjectNames(level, extra).filter(n => !exclude.includes(n))
-  // Môn đã chọn nhưng không có trong danh mục (nhập tay / dữ liệu cũ) vẫn hiện để bỏ tick được
-  const opts = [...names, ...value.filter(v => !names.includes(v))]
-  const [draft, setDraft] = useState('')
-  const add = () => { const t = draft.trim(); if (t && !value.includes(t)) onChange([...value, t]); setDraft('') }
-  return <>
-    <CheckGrid value={value} onChange={onChange} options={opts.map(n => [n, n])} disabled={disabled} primary={primary} empty="Danh mục chưa có môn phù hợp." />
-    {!disabled && <span style={{ display: 'flex', gap: 6, marginTop: 4 }}>
-      <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
-        placeholder="Môn khác: nhập tên rồi Enter" aria-label="Thêm môn khác" style={{ flex: 1, maxWidth: 320 }} />
-      <button type="button" disabled={!draft.trim()} onClick={add}>Thêm</button></span>}
-  </>
+  return <MultiSelect value={value} onChange={onChange} options={names.map(n => [n, n])} disabled={disabled} primary={primary} allowCustom customLabel="Thêm môn"
+    placeholder={placeholder} ariaLabel={ariaLabel} empty="Danh mục chưa có môn phù hợp." />
 }
 
-/** Chọn nhiều giá trị bằng ô tick (nhóm chương trình, cấp học, môn…). Thứ tự tick là thứ tự lưu; mục tick đầu tiên là giá trị chính. */
-export function CheckGrid({ value, onChange, options, disabled, primary, empty = '—', ariaLabel }: {
-  value: string[]; onChange: (v: string[]) => void; options: [string, string][]; disabled?: boolean; primary?: string; empty?: string; ariaLabel?: string
+/** Chọn nhiều giá trị bằng ô chọn gọn có ô tick. Thứ tự tick là thứ tự lưu; mục tick đầu tiên là giá trị chính. */
+export function CheckGrid({ value, onChange, options, disabled, primary, empty = '—', ariaLabel, placeholder }: {
+  value: string[]; onChange: (v: string[]) => void; options: MsOption[]; disabled?: boolean; primary?: string; empty?: string; ariaLabel?: string; placeholder?: string
 }) {
-  const opts = [...options, ...value.filter(v => !options.some(o => o[0] === v)).map(v => [v, v] as [string, string])]
-  return (
-    <div className="checkgrid" role="group" aria-label={ariaLabel}>
-      {opts.map(([v, l]) => { const on = value.includes(v); return (
-        <label key={v} className={on ? 'on' : ''}>
-          <input type="checkbox" disabled={disabled} checked={on} onChange={() => onChange(on ? value.filter(x => x !== v) : [...value, v])} />
-          <span>{l}</span>{primary && on && value[0] === v && value.length > 1 && <small className="checkmain">{primary}</small>}
-        </label>) })}
-      {!opts.length && <small className="sub">{empty}</small>}
-    </div>
-  )
+  return <MultiSelect value={value} onChange={onChange} options={options} disabled={disabled} primary={primary} empty={empty} ariaLabel={ariaLabel} placeholder={placeholder} />
 }
-/** Giữ tên cũ: ChipMulti nay là danh sách ô tick */
-export function ChipMulti({ value, onChange, options, disabled, ariaLabel, firstHint }: {
-  value: string[]; onChange: (v: string[]) => void; options: [string, string][]; disabled?: boolean; addLabel?: string; ariaLabel?: string; firstHint?: string
+/** Giữ tên cũ: ChipMulti nay là ô chọn nhiều gọn */
+export function ChipMulti({ value, onChange, options, disabled, ariaLabel, firstHint, placeholder }: {
+  value: string[]; onChange: (v: string[]) => void; options: [string, string][]; disabled?: boolean; addLabel?: string; ariaLabel?: string; firstHint?: string; placeholder?: string
 }) {
-  return <CheckGrid value={value} onChange={onChange} options={options} disabled={disabled} ariaLabel={ariaLabel} primary={firstHint ? 'chính' : undefined} />
+  return <MultiSelect value={value} onChange={onChange} options={options} disabled={disabled} ariaLabel={ariaLabel} primary={firstHint ? 'chính' : undefined}
+    placeholder={placeholder ?? (ariaLabel ? `Chọn ${ariaLabel.toLowerCase()}…` : 'Chọn…')} />
 }
 
 /** Chọn cấp học từ danh mục (cấp đã ngừng dùng chỉ hiện khi đang được chọn). */
@@ -122,22 +105,13 @@ export function GradePicker({ value, onChange, from, to, level, disabled, emptyL
   )
 }
 
-/** Chọn nhiều khối, xếp theo cấp học. */
-export function GradeChecks({ value, onChange, disabled, inline }: { value: number[]; onChange: (v: number[]) => void; disabled?: boolean; inline?: boolean }) {
+/** Chọn nhiều khối, nhóm theo cấp học (ô chọn gọn có ô tick). */
+export function GradeChecks({ value, onChange, disabled, from, to, placeholder = 'Chọn khối…', ariaLabel = 'Khối' }: {
+  value: number[]; onChange: (v: number[]) => void; disabled?: boolean; inline?: boolean; from?: number; to?: number; placeholder?: string; ariaLabel?: string
+}) {
   const { levels } = useEduLevels()
-  const toggle = (g: number) => onChange(value.includes(g) ? value.filter(x => x !== g) : [...value, g].sort((a, b) => a - b))
   const shown = new Set<number>()
-  const rows = levels.map(l => ({ l, gs: gradeRange(l.grade_from, l.grade_to).filter(g => !shown.has(g) && (shown.add(g), true)) })).filter(r => r.gs.length)
-  const odd = value.filter(g => !shown.has(g))
-  return (
-    <span style={inline ? { display: 'flex', flexWrap: 'wrap', gap: '4px 24px' } : { display: 'flex', flexDirection: 'column', gap: 2 }}>
-      {rows.map(({ l, gs }) => (
-        <span key={l.code} style={{ display: 'flex', flexWrap: 'wrap', gap: '0 10px', alignItems: 'center' }}>
-          <small className="sub" style={{ minWidth: inline ? 0 : 64 }}>{l.name}</small>
-          {gs.map(g => <label key={g} style={{ whiteSpace: 'nowrap' }}><input type="checkbox" disabled={disabled} checked={value.includes(g)} onChange={() => toggle(g)} /> {g}</label>)}
-        </span>
-      ))}
-      {odd.length > 0 && <small className="sub">Khác: {odd.join(', ')}</small>}
-    </span>
-  )
+  const opts = levels.flatMap(l => gradeRange(l.grade_from, l.grade_to).filter(g => !shown.has(g) && (shown.add(g), true)).map(g => ({ value: g, label: `Khối ${g}`, group: l.name })))
+  const list = (from && to ? opts.filter(o => o.value >= from && o.value <= to) : opts.length ? opts : gradeRange(1, 12).map(g => ({ value: g, label: `Khối ${g}` })))
+  return <NumMultiSelect value={value} onChange={onChange} options={list} disabled={disabled} placeholder={placeholder} ariaLabel={ariaLabel} />
 }

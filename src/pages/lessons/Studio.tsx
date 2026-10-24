@@ -1,4 +1,5 @@
 import { CoverPicker, coverStyle } from '../../components/Cover'
+import { MultiSelect } from '../../components/MultiSelect'
 import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../../components/TableSel'
 import { Icon } from '../../components/Icon'
 // Soạn bài giảng (060): giáo án theo mẫu, tiến trình dạy học theo bước, gắn hoạt động / học liệu / rubric / định mức vật tư,
@@ -612,26 +613,19 @@ function StepsTab({ p, upd, ro, tpl, att, teacherId, go }: TabP & { tpl?: Templa
 }
 
 function ResTab({ p, upd, ro, att }: TabP & { att: ReturnType<typeof useAttachables> }) {
-  const [q, setQ] = useState('')
-  const toggle = (xs: string[], id: string) => (xs.includes(id) ? xs.filter(x => x !== id) : [...xs, id])
-  const libs = att.libs.filter(l => p.library_ids.includes(l.id) || !q || l.title.toLowerCase().includes(q.toLowerCase()))
   const stepLibs = new Set(p.steps.flatMap(s => s.library_ids ?? []))
   return (
     <div className="twocol">
       <div className="panel">
         <h3 style={{ marginTop: 0 }}>Học liệu, phiếu học tập ({p.library_ids.length})</h3>
         <p className="sub">Học liệu đã phát hành trong kho dùng chung (của trường, Sở, KDI). Học liệu gắn ở từng bước tiến trình: {stepLibs.size}.</p>
-        <input className="search" placeholder="Tìm học liệu…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm học liệu" />
-        <div style={{ maxHeight: 360, overflow: 'auto' }}>
-          {libs.map(l => <label key={l.id} style={{ display: 'block' }}><input type="checkbox" disabled={ro} checked={p.library_ids.includes(l.id)} onChange={() => upd({ library_ids: toggle(p.library_ids, l.id) })} /> {libLabel(l)}
-            {l.owner_name && <small className="sub"> · {l.owner_name}</small>}</label>)}
-          {libs.length === 0 && <p className="sub">Không có học liệu phù hợp.</p>}
-        </div>
+        <MultiSelect disabled={ro} value={p.library_ids} onChange={v => upd({ library_ids: v })} placeholder="Chọn học liệu, phiếu học tập…" ariaLabel="Học liệu"
+          options={att.libs.map(l => [l.id, libLabel(l) + (l.owner_name ? ' · ' + l.owner_name : '')])} empty="Không có học liệu phù hợp." />
       </div>
       <div className="panel">
         <h3 style={{ marginTop: 0 }}>Rubric đánh giá ({p.rubric_ids.length})</h3>
-        {att.rubs.map(r => <label key={r.id} style={{ display: 'block' }}><input type="checkbox" disabled={ro} checked={p.rubric_ids.includes(r.id)} onChange={() => upd({ rubric_ids: toggle(p.rubric_ids, r.id) })} /> {r.title}
-          {!r.org_id && <small className="sub"> · dùng chung</small>}</label>)}
+        <MultiSelect disabled={ro} value={p.rubric_ids} onChange={v => upd({ rubric_ids: v })} placeholder="Chọn rubric…" ariaLabel="Rubric đánh giá"
+          options={att.rubs.map(r => [r.id, r.title + (!r.org_id ? ' · dùng chung' : '')])} empty="Chưa có rubric." />
         {att.rubs.length === 0 && <p className="sub">Chưa có rubric. Tạo rubric ở Kho hoạt động & Bài giảng.</p>}
       </div>
     </div>

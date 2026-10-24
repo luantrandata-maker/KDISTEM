@@ -51,34 +51,44 @@ export function SubjectPicker({ value, onChange, level, extra, exclude = [], dis
 }
 
 /** Chọn nhiều môn: các môn đã chọn hiện thành thẻ, thêm bằng ô chọn. */
-export function SubjectMulti({ value, onChange, level, extra, disabled, exclude = [] }: {
-  value: string[]; onChange: (v: string[]) => void; level?: string | null; extra?: string[]; disabled?: boolean; exclude?: string[]
+export function SubjectMulti({ value, onChange, level, extra, disabled, exclude = [], primary }: {
+  value: string[]; onChange: (v: string[]) => void; level?: string | null; extra?: string[]; disabled?: boolean; exclude?: string[]; primary?: string
 }) {
-  return (
-    <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center' }}>
-      {value.map(n => <span key={n} className="chip">{n}{!disabled && <button type="button" className="x" aria-label={`Bỏ ${n}`} onClick={() => onChange(value.filter(x => x !== n))}>×</button>}</span>)}
-      {!disabled && <SubjectPicker addOnly value="" emptyLabel="+ Thêm môn" level={level} extra={extra} exclude={[...value, ...exclude]}
-        onChange={n => { if (n.trim() && !value.includes(n.trim())) onChange([...value, n.trim()]) }} ariaLabel="Thêm môn" />}
-      {disabled && !value.length && <small className="sub">—</small>}
-    </span>
-  )
+  const names = useSubjectNames(level, extra).filter(n => !exclude.includes(n))
+  // Môn đã chọn nhưng không có trong danh mục (nhập tay / dữ liệu cũ) vẫn hiện để bỏ tick được
+  const opts = [...names, ...value.filter(v => !names.includes(v))]
+  const [draft, setDraft] = useState('')
+  const add = () => { const t = draft.trim(); if (t && !value.includes(t)) onChange([...value, t]); setDraft('') }
+  return <>
+    <CheckGrid value={value} onChange={onChange} options={opts.map(n => [n, n])} disabled={disabled} primary={primary} empty="Danh mục chưa có môn phù hợp." />
+    {!disabled && <span style={{ display: 'flex', gap: 6, marginTop: 4 }}>
+      <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add() } }}
+        placeholder="Môn khác: nhập tên rồi Enter" aria-label="Thêm môn khác" style={{ flex: 1, maxWidth: 320 }} />
+      <button type="button" disabled={!draft.trim()} onClick={add}>Thêm</button></span>}
+  </>
 }
 
-/** Chọn nhiều giá trị từ danh sách (nhóm chương trình, cấp học…): chip đã chọn + ô "+ Thêm". Mục đầu là giá trị chính. */
-export function ChipMulti({ value, onChange, options, disabled, addLabel = '+ Thêm', ariaLabel, firstHint }: {
+/** Chọn nhiều giá trị bằng ô tick (nhóm chương trình, cấp học, môn…). Thứ tự tick là thứ tự lưu; mục tick đầu tiên là giá trị chính. */
+export function CheckGrid({ value, onChange, options, disabled, primary, empty = '—', ariaLabel }: {
+  value: string[]; onChange: (v: string[]) => void; options: [string, string][]; disabled?: boolean; primary?: string; empty?: string; ariaLabel?: string
+}) {
+  const opts = [...options, ...value.filter(v => !options.some(o => o[0] === v)).map(v => [v, v] as [string, string])]
+  return (
+    <div className="checkgrid" role="group" aria-label={ariaLabel}>
+      {opts.map(([v, l]) => { const on = value.includes(v); return (
+        <label key={v} className={on ? 'on' : ''}>
+          <input type="checkbox" disabled={disabled} checked={on} onChange={() => onChange(on ? value.filter(x => x !== v) : [...value, v])} />
+          <span>{l}</span>{primary && on && value[0] === v && value.length > 1 && <small className="checkmain">{primary}</small>}
+        </label>) })}
+      {!opts.length && <small className="sub">{empty}</small>}
+    </div>
+  )
+}
+/** Giữ tên cũ: ChipMulti nay là danh sách ô tick */
+export function ChipMulti({ value, onChange, options, disabled, ariaLabel, firstHint }: {
   value: string[]; onChange: (v: string[]) => void; options: [string, string][]; disabled?: boolean; addLabel?: string; ariaLabel?: string; firstHint?: string
 }) {
-  const label = (v: string) => options.find(o => o[0] === v)?.[1] ?? v
-  const left = options.filter(o => !value.includes(o[0]))
-  return (
-    <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }} aria-label={ariaLabel}>
-      {value.map((v, i) => <span key={v} className="chip" title={i === 0 && firstHint ? firstHint : undefined}>{i === 0 && value.length > 1 && firstHint ? '★ ' : ''}{label(v)}
-        {!disabled && <button type="button" className="x" aria-label={`Bỏ ${label(v)}`} onClick={() => onChange(value.filter(x => x !== v))}>×</button>}</span>)}
-      {!disabled && left.length > 0 && <select value="" onChange={e => e.target.value && onChange([...value, e.target.value])} aria-label={ariaLabel ? `Thêm ${ariaLabel.toLowerCase()}` : 'Thêm'} style={{ maxWidth: 240 }}>
-        <option value="">{addLabel}</option>{left.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>}
-      {disabled && !value.length && <small className="sub">—</small>}
-    </span>
-  )
+  return <CheckGrid value={value} onChange={onChange} options={options} disabled={disabled} ariaLabel={ariaLabel} primary={firstHint ? 'chính' : undefined} />
 }
 
 /** Chọn cấp học từ danh mục (cấp đã ngừng dùng chỉ hiện khi đang được chọn). */

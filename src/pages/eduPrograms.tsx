@@ -226,12 +226,12 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
           <label className="field"><span>Thời gian triển khai</span><select value={form.deploy_term ?? 'year'} onChange={e => setForm({ ...form, deploy_term: e.target.value as Deploy })}>{(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} ({DEPLOY[d][1]})</option>)}</select></label>
           <label className="field"><span>Từ khối</span><GradePicker from={gradeSpan(LV, lvsOf(form))[0]} to={gradeSpan(LV, lvsOf(form))[1]} value={form.grade_from} onChange={g => setForm({ ...form, grade_from: g ?? undefined, grade_to: Math.max(g ?? 1, form.grade_to ?? 1) })} /></label>
           <label className="field"><span>Đến khối</span><GradePicker from={gradeSpan(LV, lvsOf(form))[0]} to={gradeSpan(LV, lvsOf(form))[1]} value={form.grade_to} onChange={g => setForm({ ...form, grade_to: g ?? undefined })} /></label>
-          <div className="field" style={{ gridColumn: '1/-1' }}><span>Nhóm chương trình * <small className="sub">(chọn một hoặc nhiều)</small></span>
+          <div className="field" style={{ gridColumn: '1/-1' }}><span>Nhóm chương trình * <small className="sub">(tick một hoặc nhiều; mục tick đầu tiên là chính)</small></span>
             <ChipMulti value={ctsOf(form)} onChange={v => setForm({ ...form, ct_codes: v, ct_code: v[0] ?? null })} options={CT.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])} addLabel="+ Thêm nhóm" ariaLabel="Nhóm chương trình" firstHint="Nhóm chính" /></div>
-          <div className="field" style={{ gridColumn: '1/-1' }}><span>Cấp học * <small className="sub">(chọn một hoặc nhiều)</small></span>
+          <div className="field" style={{ gridColumn: '1/-1' }}><span>Cấp học * <small className="sub">(tick một hoặc nhiều; mục tick đầu tiên là chính)</small></span>
             <ChipMulti value={lvsOf(form)} onChange={v => { const sp = gradeSpan(LV, v); setForm({ ...form, levels: v, level: v[0] ?? form.level, grade_from: sp[0], grade_to: sp[1] }) }} options={levelOpts} addLabel="+ Thêm cấp học" ariaLabel="Cấp học" firstHint="Cấp học chính" /></div>
-          <div className="field" style={{ gridColumn: '1/-1' }}><span>Môn chủ đạo * <small className="sub">(chọn một hoặc nhiều)</small></span>
-            <SubjectMulti level={lvsOf(form).length === 1 ? lvsOf(form)[0] : null} value={mainsOf(form)} onChange={v => setForm({ ...form, main_subjects: v, main_subject: v[0] ?? '' })}
+          <div className="field" style={{ gridColumn: '1/-1' }}><span>Môn chủ đạo * <small className="sub">(tick một hoặc nhiều; mục tick đầu tiên là chính)</small></span>
+            <SubjectMulti primary="chính" level={lvsOf(form).length === 1 ? lvsOf(form)[0] : null} value={mainsOf(form)} onChange={v => setForm({ ...form, main_subjects: v, main_subject: v[0] ?? '' })}
               extra={form.kind === 'stem' ? ctsOf(form).flatMap(c => tracks[c]?.subjects ?? []) : []} /></div>
           {mode !== 'school' && <label className="field"><span>Phạm vi</span><select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Program['scope'] })}>
             <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
@@ -427,13 +427,13 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
         <label className="field"><span>Thời gian triển khai</span><select disabled={dis} value={f.deploy_term ?? 'year'} onChange={e => setF({ ...f, deploy_term: e.target.value as Deploy })}>{(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} ({DEPLOY[d][1]})</option>)}</select></label>
         <label className="field"><span>Từ khối</span><GradePicker disabled={dis} from={span[0]} to={span[1]} value={f.grade_from} onChange={g => setF({ ...f, grade_from: g ?? f.grade_from, grade_to: Math.max(g ?? 1, f.grade_to) })} /></label>
         <label className="field"><span>Đến khối</span><GradePicker disabled={dis} from={span[0]} to={span[1]} value={f.grade_to} onChange={g => setF({ ...f, grade_to: g ?? f.grade_to })} /></label>
-        <div className="field" style={{ gridColumn: '1/-1' }}><span>Nhóm chương trình * <small className="sub">(chọn một hoặc nhiều)</small></span>
+        <div className="field" style={{ gridColumn: '1/-1' }}><span>Nhóm chương trình * <small className="sub">(tick một hoặc nhiều; mục tick đầu tiên là chính)</small></span>
           <ChipMulti disabled={dis} value={ctsOf(f)} onChange={v => setF({ ...f, ct_codes: v, ct_code: v[0] ?? null })} options={CT.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])} addLabel="+ Thêm nhóm" ariaLabel="Nhóm chương trình" firstHint="Nhóm chính" />
           {!ctsOf(f).length && <small>Bắt buộc trước khi gửi duyệt hoặc phát hành.</small>}</div>
-        <div className="field" style={{ gridColumn: '1/-1' }}><span>Cấp học * <small className="sub">(chọn một hoặc nhiều)</small></span>
+        <div className="field" style={{ gridColumn: '1/-1' }}><span>Cấp học * <small className="sub">(tick một hoặc nhiều; mục tick đầu tiên là chính)</small></span>
           <ChipMulti disabled={dis} value={lvsOf(f)} onChange={v => { const sp = gradeSpan(LV, v); setF({ ...f, levels: v, level: v[0] ?? f.level, grade_from: sp[0], grade_to: sp[1] }) }} options={levelOpts} addLabel="+ Thêm cấp học" ariaLabel="Cấp học" firstHint="Cấp học chính" /></div>
-        <div className="field" style={{ gridColumn: '1/-1' }}><span>Môn chủ đạo * <small className="sub">(chọn một hoặc nhiều)</small></span>
-          <SubjectMulti disabled={dis} level={lvsOf(f).length === 1 ? lvsOf(f)[0] : null} value={mainsOf(f)} onChange={v => { setF({ ...f, main_subjects: v, main_subject: v[0] ?? '' }); setInteg(integ.filter(x => !v.includes(x))) }} extra={trackSubjects} /></div>
+        <div className="field" style={{ gridColumn: '1/-1' }}><span>Môn chủ đạo * <small className="sub">(tick một hoặc nhiều; mục tick đầu tiên là chính)</small></span>
+          <SubjectMulti primary="chính" disabled={dis} level={lvsOf(f).length === 1 ? lvsOf(f)[0] : null} value={mainsOf(f)} onChange={v => { setF({ ...f, main_subjects: v, main_subject: v[0] ?? '' }); setInteg(integ.filter(x => !v.includes(x))) }} extra={trackSubjects} /></div>
         <div className="field" style={{ gridColumn: '1/-1' }}><span>Môn tích hợp</span><SubjectMulti disabled={dis} level={lvsOf(f).length === 1 ? lvsOf(f)[0] : null} value={integ} onChange={setInteg} exclude={mainsOf(f)}
           extra={trackSubjects} /></div>
         <label className="field"><span>Hiệu lực từ</span><input disabled={!editable && !scopeEditable} type="date" value={f.effective_from ?? ''} onChange={e => setF({ ...f, effective_from: e.target.value || null })} /></label>

@@ -455,7 +455,7 @@ function DistAssign({ plans, books, initial, onDone }: { plans: Plan[]; books: B
         {plan && <>
           <div className="field" style={{ marginBottom: 10 }}><span>Chọn trường ({picked.length})</span>
             <MultiSelect value={picked} onChange={setPicked} options={schools.map(o => [o.id, o.name])} placeholder="Chọn trường…" ariaLabel="Trường" empty="Không có trường nào trong phạm vi." /></div>
-          {picked.length === 1 && <fieldset className="libtargets"><legend>Lớp khối {plan.grade} (không chọn = áp dụng cả khối)</legend>
+          {picked.length === 1 && <fieldset className="libtargets wide"><legend>Lớp khối {plan.grade} (không chọn = áp dụng cả khối)</legend>
             <MultiSelect value={cls} onChange={setCls} options={classes.map(c => [c.id, c.name])} placeholder="Cả khối" ariaLabel="Lớp" empty={`Trường chưa có lớp khối ${plan.grade}.`} /></fieldset>}
           <div className="formactions"><button type="button" className="primary" disabled={busy || !picked.length} onClick={assign}>Gán và tạo PPCT</button>
             <small className="sub"> Mỗi chương trình trong bản thành một PPCT nháp của trường, tiết xếp đúng tuần của bản. Gán lại không tạo trùng.</small></div>

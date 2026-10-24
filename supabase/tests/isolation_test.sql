@@ -2904,6 +2904,16 @@ insert into teacher_assessments (org_id, teacher_id, school_year, kind, levels, 
 select pg_temp.chk('admin_kb', 'Hiệu quả: mức năng lực trước / sau tập huấn', $q$select teachers || ':' || before_avg || ':' || after_avg from training_competency_effect() where competency = 'gv_thiet_ke'$q$, '1:1.00:3.00');
 select pg_temp.chk('admin_ph', 'Hiệu quả: trường khác không tính GV trường này', $q$select count(*) from training_competency_effect()$q$, '0');
 
+-- ===== 089: chương trình giáo dục nhiều nhóm / cấp học / môn chủ đạo =====
+select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_programs (org_id, title, ct_codes, levels, grade_from, grade_to, main_subjects, integrated_subjects, scope) values (platform_org_id(), 'ISO CT nhiều', array['CT1', 'CT2'], array['thcs', 'thpt'], 6, 12, array['Vật lý', 'Hoá học'], array['Hoá học', 'Sinh học'], 'children')$q$, true);
+select pg_temp.chk('kdi', 'CTGD nhiều: giá trị chính là phần tử đầu, môn tích hợp bỏ môn chủ đạo', $q$select ct_code || ':' || level || ':' || main_subject || ':' || array_to_string(integrated_subjects, ',') from edu_programs where title = 'ISO CT nhiều'$q$, 'CT1:thcs:Vật lý:Sinh học');
+select pg_temp.chk('kdi', 'CTGD nhiều: đổi danh sách môn chủ đạo thì đổi môn chính', $q$with x as (update edu_programs set main_subjects = array['Hoá học', 'Vật lý'] where title = 'ISO CT nhiều' returning main_subject) select main_subject from x$q$, 'Hoá học');
+select pg_temp.chk('kdi', 'CTGD nhiều: sửa cấp học kiểu cũ thì thay cấp chính', $q$with x as (update edu_programs set level = 'tieuhoc', grade_from = 1, grade_to = 12 where title = 'ISO CT nhiều' returning levels) select array_to_string(levels, ',') from x$q$, 'tieuhoc,thpt');
+select pg_temp.chk('kdi', 'CTGD nhiều: nhóm không có trong danh mục bị từ chối', $q$update edu_programs set ct_codes = array['CT1', 'KHONGCO'] where title = 'ISO CT nhiều'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'CTGD nhiều: phải còn ít nhất một cấp học', $q$update edu_programs set levels = '{}' where title = 'ISO CT nhiều'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'CTGD nhiều: bỏ hết nhóm chương trình bị từ chối', $q$update edu_programs set ct_codes = '{}' where title = 'ISO CT nhiều'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'CTGD nhiều: bản đã ban hành không đổi được danh sách môn', $q$update edu_programs set main_subjects = array['Toán'] where title = 'ISO CT KDI' and status not in ('draft', 'rejected')$q$, 'ERR 22023');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

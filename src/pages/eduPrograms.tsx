@@ -10,7 +10,7 @@ import { useSubjects } from './subjects'
 import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
 import { ViewToggle, useViewMode } from '../components/ViewToggle'
 import { useEduLevels } from '../lib/eduLevels'
-import { GradePicker, LevelPicker, SubjectMulti, SubjectPicker, gradeList } from '../components/Pickers'
+import { ChipMulti, GradePicker, LevelPicker, SubjectMulti, SubjectPicker, gradeList } from '../components/Pickers'
 import { ElView } from '../components/ElView'
 
 // Khái niệm (064): Chương trình → Học phần (unit 'topic', trước gọi là chủ đề; gắn Môn học qua edu_unit_subjects)
@@ -25,6 +25,7 @@ type Level = string
 type Program = {
   id: string; org_id: string; family_id: string; version_no: number; code: string | null; title: string; kind: Kind; ct_code: string | null
   level: Level; grade_from: number; grade_to: number; main_subject: string; integrated_subjects: string[]; objectives: string | null
+  ct_codes: string[]; levels: string[]; main_subjects: string[]
   competency_keys: string[]; rubric_ids: string[]; total_periods: number; status: Status; scope: 'own' | 'children'
   periods_per_week: number | null; deploy_term: Deploy
   effective_from: string | null; effective_to: string | null; replaced_by: string | null; source_id: string | null
@@ -69,6 +70,14 @@ const errText = (m: string) => (/schema cache|does not exist/i.test(m) ? 'Hãy c
   : /row-level|42501/i.test(m) ? 'Bạn không có quyền thực hiện thao tác này.' : m)
 const fmtD = (d: string | null) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—')
 const grades = (p: Pick<Program, 'grade_from' | 'grade_to'>) => (p.grade_from === p.grade_to ? `Khối ${p.grade_from}` : `Khối ${p.grade_from}–${p.grade_to}`)
+// 089: nhiều nhóm / cấp học / môn chủ đạo (phần tử đầu là giá trị chính); bản ghi cũ chưa có mảng thì lấy cột đơn
+const ctsOf = (p: Partial<Program>) => p.ct_codes?.length ? p.ct_codes : p.ct_code ? [p.ct_code] : []
+const lvsOf = (p: Partial<Program>) => p.levels?.length ? p.levels : p.level ? [p.level] : []
+const mainsOf = (p: Partial<Program>) => p.main_subjects?.length ? p.main_subjects : p.main_subject ? [p.main_subject] : []
+const gradeSpan = (LV: Record<string, { grade_from: number; grade_to: number } | undefined>, lvs: string[]): [number, number] => {
+  const ls = lvs.map(l => LV[l]).filter(Boolean) as { grade_from: number; grade_to: number }[]
+  return ls.length ? [Math.min(...ls.map(l => l.grade_from)), Math.max(...ls.map(l => l.grade_to))] : [1, 12]
+}
 const range = (a: number, b: number) => Array.from({ length: Math.max(0, b - a + 1) }, (_, i) => a + i)
 
 function StatusPill({ s }: { s: Status }) {
@@ -91,7 +100,8 @@ function useCanEdit(mode: ProgMode) {
 export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string | null; mode?: ProgMode; goTab?: (tab: string) => void }) {
   const { canEdit, isAdmin } = useCanEdit(mode)
   const { byCode: tracks, codes: CT } = useStemTracks()
-  const { byCode: LV, name: levelName } = useEduLevels()
+  const { byCode: LV, name: levelName, levels: LVL } = useEduLevels()
+  const levelOpts: [string, string][] = LVL.map(l => [l.code, l.name])
   const [list, setList] = useState<Program[] | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const [level, setLevel] = useState('')
@@ -121,23 +131,25 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   useEffect(() => { load() }, [orgId])
 
   const all = list ?? []
-  const subjects = useMemo(() => [...new Set(all.map(p => p.main_subject))].sort((a, b) => a.localeCompare(b, 'vi')), [list])
+  const subjects = useMemo(() => [...new Set(all.flatMap(mainsOf))].sort((a, b) => a.localeCompare(b, 'vi')), [list])
   const shown = all.filter(p => (old || !SGROUP.off[1].includes(p.status) || status === 'off')
-    && (!level || p.level === level) && (!kind || p.kind === kind) && (!subject || p.main_subject === subject || p.integrated_subjects.includes(subject))
-    && (!status || SGROUP[status]?.[1].includes(p.status)) && (!q || norm([p.title, p.code, p.main_subject, ...p.integrated_subjects].join(' ')).includes(norm(q))))
+    && (!level || lvsOf(p).includes(level)) && (!kind || p.kind === kind) && (!subject || mainsOf(p).includes(subject) || p.integrated_subjects.includes(subject))
+    && (!status || SGROUP[status]?.[1].includes(p.status)) && (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
   const own = shown.filter(p => p.org_id === orgId)
   const shared = shown.filter(p => p.org_id !== orgId)
 
   async function create(e: React.FormEvent) {
     e.preventDefault(); if (!form || !orgId) return
-    const lv = (form.level ?? 'thcs') as Level
+    const lvs = lvsOf(form), cts = ctsOf(form), mains = mainsOf(form)
+    if (!(form.title ?? '').trim() || !mains.length || !cts.length || !lvs.length) return setMsg(['Nhập tên chương trình, chọn nhóm chương trình, cấp học và môn chủ đạo.', true])
+    const span = gradeSpan(LV, lvs)
     const row = {
       org_id: orgId, title: (form.title ?? '').trim(), code: form.code?.trim() || null, kind: form.kind ?? 'subject',
-      ct_code: form.ct_code || null, level: lv, periods_per_week: Number(form.periods_per_week) || null, deploy_term: form.deploy_term ?? 'year',
-      grade_from: Number(form.grade_from) || LV[lv]?.grade_from || 1, grade_to: Number(form.grade_to) || LV[lv]?.grade_to || 12,
-      main_subject: (form.main_subject ?? '').trim(), scope: mode === 'school' ? 'own' : form.scope ?? 'children',
+      ct_codes: cts, levels: lvs, main_subjects: mains, ct_code: cts[0], level: lvs[0], main_subject: mains[0],
+      periods_per_week: Number(form.periods_per_week) || null, deploy_term: form.deploy_term ?? 'year',
+      grade_from: Number(form.grade_from) || span[0], grade_to: Number(form.grade_to) || span[1],
+      scope: mode === 'school' ? 'own' : form.scope ?? 'children',
     }
-    if (!row.title || !row.main_subject || !row.ct_code) return setMsg(['Nhập tên chương trình, nhóm chương trình và môn chủ đạo.', true])
     const { data, error } = await supabase.from('edu_programs').insert(row).select('id').single()
     if (error) return setMsg([errText(error.message), true])
     setForm(null); setMsg(null); await load(); setOpenId((data as { id: string }).id)
@@ -160,8 +172,8 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
       {!mine && canCopy && <SelTd on={sel.is(p)} onToggle={() => sel.toggle(p)} label={p.title} />}
       <td>{p.code && <small className="sub">{p.code}<br /></small>}<NameLink onClick={() => setOpenId(p.id)}>{p.title}</NameLink> <small>v{p.version_no}</small>
         {!mine && <><br /><small className="sub">{p.organizations?.name ?? '—'}</small></>}</td>
-      <td>{levelName(p.level)} · {grades(p)}<br /><small>{PKIND[p.kind]}{p.ct_code ? <> · <span className="gpill">{p.ct_code}</span></> : null}</small></td>
-      <td>{p.main_subject}{p.integrated_subjects.length > 0 && <><br /><small className="sub">Tích hợp: {p.integrated_subjects.join(', ')}</small></>}</td>
+      <td>{lvsOf(p).map(levelName).join(', ')} · {grades(p)}<br /><small>{PKIND[p.kind]}{ctsOf(p).map(c => <Fragment key={c}> <span className="gpill">{c}</span></Fragment>)}</small></td>
+      <td>{mainsOf(p).join(', ')}{p.integrated_subjects.length > 0 && <><br /><small className="sub">Tích hợp: {p.integrated_subjects.join(', ')}</small></>}</td>
       <td>{p.total_periods || '—'}<br /><small className="sub">{[p.periods_per_week && `${p.periods_per_week} tiết/tuần`, DEPLOY[p.deploy_term ?? 'year']?.[0]].filter(Boolean).join(' · ')}</small></td>
       <td><StatusPill s={p.status} />{p.status === 'published' && p.effective_from && <><br /><small className="sub">từ {fmtD(p.effective_from)}</small></>}</td>
     </tr>
@@ -178,14 +190,14 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
         <div key={p.id} className={'tilewrap' + (!mine && sel.is(p) ? ' picked' : '')}>
           <button className="tile" onClick={() => setOpenId(p.id)}>
             <div className={'tileart art' + (i % 6)}>
-              {p.ct_code && <span className="progchip" style={{ background: 'var(--surface)', color: 'var(--navy)' }}>{p.ct_code}</span>}
+              {ctsOf(p).length > 0 && <span className="progchip" style={{ background: 'var(--surface)', color: 'var(--navy)' }}>{ctsOf(p).join(' · ')}</span>}
               <span className="tilestatus"><StatusPill s={p.status} /></span>
               <span aria-hidden="true"><Icon n="book" size={36} /></span>
             </div>
             <div className="tilebody">
               <b>{p.title}</b>
-              <small>{p.main_subject}{p.integrated_subjects.length > 0 ? ' · tích hợp ' + p.integrated_subjects.join(', ') : ''}</small>
-              <div className="tilemeta"><span>{levelName(p.level)} · {grades(p)}</span><span>{PKIND[p.kind]}</span>{p.total_periods > 0 && <span>{p.total_periods} tiết</span>}{p.periods_per_week && <span>{p.periods_per_week} tiết/tuần</span>}<span>{DEPLOY[p.deploy_term ?? 'year']?.[0]}</span><span>v{p.version_no}</span></div>
+              <small>{mainsOf(p).join(', ')}{p.integrated_subjects.length > 0 ? ' · tích hợp ' + p.integrated_subjects.join(', ') : ''}</small>
+              <div className="tilemeta"><span>{lvsOf(p).map(levelName).join(', ')} · {grades(p)}</span><span>{PKIND[p.kind]}</span>{p.total_periods > 0 && <span>{p.total_periods} tiết</span>}{p.periods_per_week && <span>{p.periods_per_week} tiết/tuần</span>}<span>{DEPLOY[p.deploy_term ?? 'year']?.[0]}</span><span>v{p.version_no}</span></div>
               {!mine && <small>{p.organizations?.name ?? '—'}</small>}
             </div>
           </button>
@@ -210,17 +222,20 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
           <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình *</span><input required value={form.title ?? ''} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Tin học THCS (CT GDPT 2018)" /></label>
           <label className="field"><span>Mã</span><input value={form.code ?? ''} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: TIN-THCS" /></label>
           <label className="field"><span>Kiểu chương trình</span><select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
-          <label className="field"><span>Nhóm chương trình *</span><select required value={form.ct_code ?? ''} onChange={e => setForm({ ...form, ct_code: e.target.value || null })}><option value="">— Chọn nhóm —</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select></label>
-          <label className="field"><span>Số tiết / tuần</span><input type="number" min={0.5} max={40} step={0.5} value={form.periods_per_week ?? ''} onChange={e => setForm({ ...form, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })} placeholder="VD: 2" /></label>
+          <label className="field"><span>Số tiết / tuần</span><input type="number" min={0.5} max={40} step={0.5} value={form.periods_per_week ?? ''} onChange={e => setForm({ ...form, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })} placeholder="VD: 2" title="Dùng làm mặc định khi tạo phân phối chương trình" /></label>
           <label className="field"><span>Thời gian triển khai</span><select value={form.deploy_term ?? 'year'} onChange={e => setForm({ ...form, deploy_term: e.target.value as Deploy })}>{(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} ({DEPLOY[d][1]})</option>)}</select></label>
-          <label className="field"><span>Cấp học</span><LevelPicker value={form.level} onChange={l => setForm({ ...form, level: l, grade_from: LV[l]?.grade_from ?? 1, grade_to: LV[l]?.grade_to ?? 12 })} /></label>
-          <label className="field"><span>Từ khối</span><GradePicker level={form.level} value={form.grade_from} onChange={g => setForm({ ...form, grade_from: g ?? undefined, grade_to: Math.max(g ?? 1, form.grade_to ?? 1) })} /></label>
-          <label className="field"><span>Đến khối</span><GradePicker level={form.level} value={form.grade_to} onChange={g => setForm({ ...form, grade_to: g ?? undefined })} /></label>
-          <label className="field"><span>Môn chủ đạo *</span><SubjectPicker required level={form.level} value={form.main_subject} onChange={v => setForm({ ...form, main_subject: v })}
-            extra={form.kind === 'stem' && form.ct_code ? tracks[form.ct_code]?.subjects ?? [] : []} /></label>
+          <label className="field"><span>Từ khối</span><GradePicker from={gradeSpan(LV, lvsOf(form))[0]} to={gradeSpan(LV, lvsOf(form))[1]} value={form.grade_from} onChange={g => setForm({ ...form, grade_from: g ?? undefined, grade_to: Math.max(g ?? 1, form.grade_to ?? 1) })} /></label>
+          <label className="field"><span>Đến khối</span><GradePicker from={gradeSpan(LV, lvsOf(form))[0]} to={gradeSpan(LV, lvsOf(form))[1]} value={form.grade_to} onChange={g => setForm({ ...form, grade_to: g ?? undefined })} /></label>
+          <div className="field" style={{ gridColumn: '1/-1' }}><span>Nhóm chương trình * <small className="sub">(chọn một hoặc nhiều)</small></span>
+            <ChipMulti value={ctsOf(form)} onChange={v => setForm({ ...form, ct_codes: v, ct_code: v[0] ?? null })} options={CT.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])} addLabel="+ Thêm nhóm" ariaLabel="Nhóm chương trình" firstHint="Nhóm chính" /></div>
+          <div className="field" style={{ gridColumn: '1/-1' }}><span>Cấp học * <small className="sub">(chọn một hoặc nhiều)</small></span>
+            <ChipMulti value={lvsOf(form)} onChange={v => { const sp = gradeSpan(LV, v); setForm({ ...form, levels: v, level: v[0] ?? form.level, grade_from: sp[0], grade_to: sp[1] }) }} options={levelOpts} addLabel="+ Thêm cấp học" ariaLabel="Cấp học" firstHint="Cấp học chính" /></div>
+          <div className="field" style={{ gridColumn: '1/-1' }}><span>Môn chủ đạo * <small className="sub">(chọn một hoặc nhiều)</small></span>
+            <SubjectMulti level={lvsOf(form).length === 1 ? lvsOf(form)[0] : null} value={mainsOf(form)} onChange={v => setForm({ ...form, main_subjects: v, main_subject: v[0] ?? '' })}
+              extra={form.kind === 'stem' ? ctsOf(form).flatMap(c => tracks[c]?.subjects ?? []) : []} /></div>
           {mode !== 'school' && <label className="field"><span>Phạm vi</span><select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Program['scope'] })}>
             <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
-          <div className="formactions"><button className="primary" type="submit">Tạo bản nháp</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
+          <div className="formactions" style={{ gridColumn: '1/-1' }}><button className="primary" type="submit">Tạo bản nháp</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
     </ElView>
   )
@@ -332,7 +347,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
         <div>
           <button className="linkbtn" onClick={onClose}>← Danh sách chương trình</button>
           <h3 style={{ margin: '4px 0 0' }}>{p.title} <small>v{p.version_no}</small> <StatusPill s={p.status} /></h3>
-          <small className="sub">{[p.code, levelName(p.level), grades(p), PKIND[p.kind], p.ct_code, p.main_subject, `${p.total_periods} tiết`, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
+          <small className="sub">{[p.code, lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ctsOf(p).join(', '), mainsOf(p).join(', '), `${p.total_periods} tiết`, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
         </div>
         <div className="tools">
           {mode === 'school' && canEdit && p.status === 'published' && <button className="primary" onClick={openMkBook}>Tạo PPCT từ chương trình</button>}
@@ -341,7 +356,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
       {mkBook && (
         <form className="panel formgrid" onSubmit={createBook} style={{ marginBottom: 12 }}>
           <label className="field"><span>Khối</span><select value={mkBook.grade} onChange={e => setMkBook({ ...mkBook, grade: Number(e.target.value) })}>{range(p.grade_from, p.grade_to).map(g => <option key={g} value={g}>Khối {g}</option>)}</select></label>
-          <label className="field"><span>Môn</span><SubjectPicker level={p.level} value={mkBook.subject} onChange={v => setMkBook({ ...mkBook, subject: v })} extra={[p.main_subject, ...p.integrated_subjects]} /></label>
+          <label className="field"><span>Môn</span><SubjectPicker level={p.level} value={mkBook.subject} onChange={v => setMkBook({ ...mkBook, subject: v })} extra={[...mainsOf(p), ...p.integrated_subjects]} /></label>
           <label className="field"><span>Năm học</span><input value={mkBook.year} onChange={e => setMkBook({ ...mkBook, year: e.target.value })} placeholder="Để trống: mọi năm" /></label>
           <label className="field"><span>Số tiết / tuần</span><input inputMode="decimal" value={mkBook.ppw} onChange={e => setMkBook({ ...mkBook, ppw: e.target.value })} placeholder="VD: 1 hoặc 1,5" /></label>
           <div className="formactions"><button className="primary" type="submit">Tạo PPCT nháp</button> <button type="button" onClick={() => setMkBook(null)}>Huỷ</button></div>
@@ -367,7 +382,8 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
   const [f, setF] = useState<Program>(p)
   const [integ, setInteg] = useState<string[]>(p.integrated_subjects)
   const { byCode: tracks, allCodes: CT } = useStemTracks()
-  const { byCode: LV } = useEduLevels()
+  const { byCode: LV, levels: LVL } = useEduLevels()
+  const levelOpts: [string, string][] = LVL.map(l => [l.code, l.name])
   const [rubrics, setRubrics] = useState<Rubric[]>([])
   useEffect(() => { setF(p); setInteg(p.integrated_subjects) }, [p])
   useEffect(() => { supabase.from('rubrics').select('id, title').order('title').then(({ data }) => setRubrics((data as Rubric[]) ?? [])) }, [])
@@ -375,10 +391,12 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
+    const cts = ctsOf(f), lvs = lvsOf(f), mains = mainsOf(f)
+    if (!cts.length || !lvs.length || !mains.length) return onError('Chọn ít nhất một nhóm chương trình, một cấp học và một môn chủ đạo.')
     const body = {
-      code: f.code?.trim() || null, title: f.title.trim(), kind: f.kind, ct_code: f.ct_code || null, level: f.level,
+      code: f.code?.trim() || null, title: f.title.trim(), kind: f.kind, ct_codes: cts, levels: lvs, main_subjects: mains,
       periods_per_week: f.periods_per_week ? Number(f.periods_per_week) : null, deploy_term: f.deploy_term ?? 'year',
-      grade_from: Number(f.grade_from), grade_to: Number(f.grade_to), main_subject: f.main_subject.trim(),
+      grade_from: Number(f.grade_from), grade_to: Number(f.grade_to),
       integrated_subjects: integ, objectives: f.objectives?.trim() || null,
       competency_keys: f.competency_keys, rubric_ids: f.rubric_ids, note: f.note?.trim() || null, effective_from: f.effective_from || null,
       ...(mode !== 'school' ? { scope: f.scope } : {}),
@@ -395,6 +413,8 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
   }
   const compName = (k: string) => comps.find(c => c.key === k)?.name ?? k
   const dis = !editable
+  const span = gradeSpan(LV, lvsOf(f))
+  const trackSubjects = f.kind === 'stem' ? ctsOf(f).flatMap(c => tracks[c]?.subjects ?? []) : []
   return (
     <form className="panel" onSubmit={save}>
       {!editable && <p className="sub" style={{ marginTop: 0 }}>{p.status === 'draft' || p.status === 'rejected' ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình đã gửi duyệt hoặc phát hành: nội dung không sửa được. Tạo phiên bản mới ở tab "Phiên bản & duyệt" để điều chỉnh.'}</p>}
@@ -402,18 +422,20 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình</span><input disabled={dis} value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></label>
         <label className="field"><span>Mã</span><input disabled={dis} value={f.code ?? ''} onChange={e => setF({ ...f, code: e.target.value })} /></label>
         <label className="field"><span>Kiểu chương trình</span><select disabled={dis} value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
-        <label className="field"><span>Nhóm chương trình *</span><select required disabled={dis} value={f.ct_code ?? ''} onChange={e => setF({ ...f, ct_code: e.target.value || null })}><option value="">— Chọn nhóm —</option>{CT.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select>
-          {!f.ct_code && <small>Bắt buộc trước khi gửi duyệt hoặc phát hành.</small>}</label>
-        <label className="field"><span>Số tiết / tuần</span><input disabled={dis} type="number" min={0.5} max={40} step={0.5} value={f.periods_per_week ?? ''} onChange={e => setF({ ...f, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })} />
-          <small>Dùng làm mặc định khi tạo phân phối chương trình.</small></label>
+        <label className="field"><span>Số tiết / tuần</span><input disabled={dis} type="number" min={0.5} max={40} step={0.5} value={f.periods_per_week ?? ''} onChange={e => setF({ ...f, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })}
+          placeholder="VD: 2" title="Dùng làm mặc định khi tạo phân phối chương trình" /></label>
         <label className="field"><span>Thời gian triển khai</span><select disabled={dis} value={f.deploy_term ?? 'year'} onChange={e => setF({ ...f, deploy_term: e.target.value as Deploy })}>{(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} ({DEPLOY[d][1]})</option>)}</select></label>
-        <label className="field"><span>Cấp học</span><LevelPicker disabled={dis} value={f.level} onChange={l => setF({ ...f, level: l, grade_from: LV[l]?.grade_from ?? f.grade_from, grade_to: LV[l]?.grade_to ?? f.grade_to })} /></label>
-        <label className="field"><span>Từ khối</span><GradePicker disabled={dis} level={f.level} value={f.grade_from} onChange={g => setF({ ...f, grade_from: g ?? f.grade_from, grade_to: Math.max(g ?? 1, f.grade_to) })} /></label>
-        <label className="field"><span>Đến khối</span><GradePicker disabled={dis} level={f.level} value={f.grade_to} onChange={g => setF({ ...f, grade_to: g ?? f.grade_to })} /></label>
-        <label className="field"><span>Môn chủ đạo</span><SubjectPicker disabled={dis} required level={f.level} value={f.main_subject} onChange={v => setF({ ...f, main_subject: v })}
-          extra={f.kind === 'stem' && f.ct_code ? tracks[f.ct_code]?.subjects ?? [] : []} /></label>
-        <div className="field" style={{ gridColumn: '1/-1' }}><span>Môn tích hợp</span><SubjectMulti disabled={dis} level={f.level} value={integ} onChange={setInteg} exclude={[f.main_subject]}
-          extra={f.kind === 'stem' && f.ct_code ? tracks[f.ct_code]?.subjects ?? [] : []} /></div>
+        <label className="field"><span>Từ khối</span><GradePicker disabled={dis} from={span[0]} to={span[1]} value={f.grade_from} onChange={g => setF({ ...f, grade_from: g ?? f.grade_from, grade_to: Math.max(g ?? 1, f.grade_to) })} /></label>
+        <label className="field"><span>Đến khối</span><GradePicker disabled={dis} from={span[0]} to={span[1]} value={f.grade_to} onChange={g => setF({ ...f, grade_to: g ?? f.grade_to })} /></label>
+        <div className="field" style={{ gridColumn: '1/-1' }}><span>Nhóm chương trình * <small className="sub">(chọn một hoặc nhiều)</small></span>
+          <ChipMulti disabled={dis} value={ctsOf(f)} onChange={v => setF({ ...f, ct_codes: v, ct_code: v[0] ?? null })} options={CT.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])} addLabel="+ Thêm nhóm" ariaLabel="Nhóm chương trình" firstHint="Nhóm chính" />
+          {!ctsOf(f).length && <small>Bắt buộc trước khi gửi duyệt hoặc phát hành.</small>}</div>
+        <div className="field" style={{ gridColumn: '1/-1' }}><span>Cấp học * <small className="sub">(chọn một hoặc nhiều)</small></span>
+          <ChipMulti disabled={dis} value={lvsOf(f)} onChange={v => { const sp = gradeSpan(LV, v); setF({ ...f, levels: v, level: v[0] ?? f.level, grade_from: sp[0], grade_to: sp[1] }) }} options={levelOpts} addLabel="+ Thêm cấp học" ariaLabel="Cấp học" firstHint="Cấp học chính" /></div>
+        <div className="field" style={{ gridColumn: '1/-1' }}><span>Môn chủ đạo * <small className="sub">(chọn một hoặc nhiều)</small></span>
+          <SubjectMulti disabled={dis} level={lvsOf(f).length === 1 ? lvsOf(f)[0] : null} value={mainsOf(f)} onChange={v => { setF({ ...f, main_subjects: v, main_subject: v[0] ?? '' }); setInteg(integ.filter(x => !v.includes(x))) }} extra={trackSubjects} /></div>
+        <div className="field" style={{ gridColumn: '1/-1' }}><span>Môn tích hợp</span><SubjectMulti disabled={dis} level={lvsOf(f).length === 1 ? lvsOf(f)[0] : null} value={integ} onChange={setInteg} exclude={mainsOf(f)}
+          extra={trackSubjects} /></div>
         <label className="field"><span>Hiệu lực từ</span><input disabled={!editable && !scopeEditable} type="date" value={f.effective_from ?? ''} onChange={e => setF({ ...f, effective_from: e.target.value || null })} /></label>
         {mode !== 'school' && <label className="field"><span>Phạm vi áp dụng</span><select value={f.scope} disabled={!editable && !scopeEditable} onChange={e => setF({ ...f, scope: e.target.value as Program['scope'] })}>
           <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}

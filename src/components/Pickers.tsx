@@ -64,6 +64,23 @@ export function SubjectMulti({ value, onChange, level, extra, disabled, exclude 
   )
 }
 
+/** Chọn nhiều giá trị từ danh sách (nhóm chương trình, cấp học…): chip đã chọn + ô "+ Thêm". Mục đầu là giá trị chính. */
+export function ChipMulti({ value, onChange, options, disabled, addLabel = '+ Thêm', ariaLabel, firstHint }: {
+  value: string[]; onChange: (v: string[]) => void; options: [string, string][]; disabled?: boolean; addLabel?: string; ariaLabel?: string; firstHint?: string
+}) {
+  const label = (v: string) => options.find(o => o[0] === v)?.[1] ?? v
+  const left = options.filter(o => !value.includes(o[0]))
+  return (
+    <span style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2 }} aria-label={ariaLabel}>
+      {value.map((v, i) => <span key={v} className="chip" title={i === 0 && firstHint ? firstHint : undefined}>{i === 0 && value.length > 1 && firstHint ? '★ ' : ''}{label(v)}
+        {!disabled && <button type="button" className="x" aria-label={`Bỏ ${label(v)}`} onClick={() => onChange(value.filter(x => x !== v))}>×</button>}</span>)}
+      {!disabled && left.length > 0 && <select value="" onChange={e => e.target.value && onChange([...value, e.target.value])} aria-label={ariaLabel ? `Thêm ${ariaLabel.toLowerCase()}` : 'Thêm'} style={{ maxWidth: 240 }}>
+        <option value="">{addLabel}</option>{left.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>}
+      {disabled && !value.length && <small className="sub">—</small>}
+    </span>
+  )
+}
+
 /** Chọn cấp học từ danh mục (cấp đã ngừng dùng chỉ hiện khi đang được chọn). */
 export function LevelPicker({ value, onChange, disabled, emptyLabel, ariaLabel = 'Cấp học' }: {
   value: string | null | undefined; onChange: (v: string) => void; disabled?: boolean; emptyLabel?: string; ariaLabel?: string

@@ -112,6 +112,15 @@ const SchoolTrainingAssigned = lazy(() => import('./pages/training/Plans').then(
 // Trường: kế hoạch được cấp trên giao (chọn GV, gửi duyệt) + kế hoạch riêng của trường
 const SchoolTrainingPlans = (p: any) => <TabbedPages {...p} tabs={[['Được giao', SchoolTrainingAssigned], ['Kế hoạch của trường', TrainingPlans]]} />
 const SchoolTeacherAssessments = lazy(() => import('./pages/competency').then(m => ({ default: m.SchoolTeacherAssessments })))
+// Đợt 6 (088): đợt đánh giá, khoảng thiếu hụt, khung năng lực, giám sát tập huấn
+const AssessmentRoundsPage = lazy(() => import('./pages/training/Competency').then(m => ({ default: m.AssessmentRoundsPage })))
+const CompetencyGapsPage = lazy(() => import('./pages/training/Competency').then(m => ({ default: m.CompetencyGapsPage })))
+const CompetencyFrameworkPage = lazy(() => import('./pages/training/Competency').then(m => ({ default: m.CompetencyFrameworkPage })))
+const TrainingMonitorPage = lazy(() => import('./pages/training/Monitor').then(m => ({ default: m.TrainingMonitorPage })))
+const AllTeacherAssessments = (p: any) => <SchoolTeacherAssessments {...p} orgId={null} readOnly />
+const SchoolCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Đánh giá', SchoolTeacherAssessments], ['Đợt đánh giá', AssessmentRoundsPage], ['Khoảng thiếu hụt', CompetencyGapsPage]]} />
+const AuthorityCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Kết quả đánh giá', AllTeacherAssessments], ['Đợt đánh giá', AssessmentRoundsPage], ['Khoảng thiếu hụt', CompetencyGapsPage]]} />
+const PlatformCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Kết quả đánh giá', AllTeacherAssessments], ['Đợt đánh giá', AssessmentRoundsPage], ['Khoảng thiếu hụt', CompetencyGapsPage], ['Khung năng lực', CompetencyFrameworkPage]]} />
 const PlatformSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.PlatformSupport })))
 // Đợt 2 (025): triển khai khách hàng, danh mục gói, đơn đặt gói, thông báo hàng loạt, tích hợp
 const PlatformRollout = lazy(() => import('./pages/platform/Rollout').then(m => ({ default: m.PlatformRollout })))
@@ -212,7 +221,8 @@ const SCHOOL: PageMap = {
   'Dự án STEM': ProjectsPage,
   'Cuộc thi': CompetitionsPage,
   'Sự kiện': EventManager,
-  'Đánh giá năng lực GV': SchoolTeacherAssessments,
+  'Đánh giá năng lực GV': SchoolCompetencyTabs,
+  'Giám sát tập huấn': TrainingMonitorPage,
   'Khảo sát': SurveyManager,
   'Năng lực học sinh': ClassCompetencies,
   'Dashboard Trường': Dashboard,
@@ -334,7 +344,8 @@ const DEPARTMENT: PageMap = {
   'Dashboard điểm danh': AttendanceDashboard,
   'Chương trình CT1–CT5': DeptPrograms,
   'Theo dõi Môn học STEM': DeptSubjects,
-  'Giám sát Tập huấn GV': DeptTrainingMonitor,
+  'Giám sát Tập huấn GV': (p: any) => <TabbedPages {...p} tabs={[['Theo kế hoạch', TrainingMonitorPage], ['Tổng quan theo trường', DeptTrainingMonitor]]} />,
+  'Đánh giá năng lực nhà giáo': AuthorityCompetencyTabs,
   'Kế hoạch tập huấn': TrainingPlansPage,
   'Lịch tập huấn': TrainingCalendarPage,
   'Đánh giá kết quả tập huấn': TrainingResultsPage,
@@ -384,7 +395,7 @@ const PLATFORM: PageMap = {
   'Vai trò & quyền mặc định': DefaultPermissions,
   'Bảo mật tài khoản': PlatformSecurity,
   'Điều khoản & dữ liệu cá nhân': PlatformLegal,
-  'Đánh giá năng lực nhà giáo': SchoolTeacherAssessments,
+  'Đánh giá năng lực nhà giáo': PlatformCompetencyTabs,
   'Đánh giá năng lực người học': ClassCompetencies,
   'Khảo sát': SurveyManager,
   'Vấn đề & phản hồi': PlatformSupport,
@@ -396,7 +407,7 @@ const PLATFORM: PageMap = {
   // 1. Đào tạo & đánh giá năng lực nhà giáo — làm lại theo khuôn Phân hệ 2 (kế hoạch: Chương trình → Kế hoạch & lịch → … → Giám sát)
   'Chương trình tập huấn': TrainingProgramsPage,
   'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', TrainingPlansPage], ['Lịch', TrainingCalendarPage]]} />,
-  'Giám sát tập huấn nhà giáo': DeptTrainingMonitor,
+  'Giám sát tập huấn nhà giáo': (p: any) => <TabbedPages {...p} tabs={[['Theo kế hoạch', TrainingMonitorPage], ['Tổng quan theo trường', DeptTrainingMonitor]]} />,
   'Đánh giá kết quả tập huấn': TrainingResultsPage,
   // 2. Chương trình & học liệu
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"

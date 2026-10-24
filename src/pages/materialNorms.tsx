@@ -78,11 +78,16 @@ function useRights(orgId: string | null) {
 }
 
 type Tab = 'norms' | 'catalog' | 'proposals'
-export function MaterialNorms({ orgId }: { orgId: string | null }) {
+export function MaterialNorms({ orgId, sharedOnly }: { orgId: string | null; sharedOnly?: boolean }) {
   const rights = useRights(orgId)
   const [tab, setTab] = useState<Tab>('norms')
   const [openId, setOpenId] = useState<string | null>(null)
   const [ver, setVer] = useState(0)
+  // Kho học liệu dùng chung: chỉ danh sách định mức KDI / cấp trên ban hành, không có tab danh mục và đề xuất
+  if (sharedOnly) return <>
+    <NormList orgId={orgId} rights={rights} onOpen={setOpenId} openId={openId} ver={ver} sharedOnly />
+    {openId && <NormDetail id={openId} orgId={orgId} rights={rights} onOpen={setOpenId} onChanged={() => setVer(v => v + 1)} onClose={() => setOpenId(null)} />}
+  </>
   return (
     <>
       <div className="bar">
@@ -108,7 +113,7 @@ async function selectNorms(filter?: (q: any) => any) {
 }
 const ownerName = (n: Norm, orgId: string | null) => (n.org_id === orgId ? 'Đơn vị mình' : n.owner_name ?? n.organizations?.name ?? 'KDI / cấp trên')
 
-function NormList({ orgId, rights, onOpen, openId, ver }: { orgId: string | null; rights: Rights; onOpen: (id: string) => void; openId: string | null; ver: number }) {
+function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: string | null; rights: Rights; onOpen: (id: string) => void; openId: string | null; ver: number; sharedOnly?: boolean }) {
   const [list, setList] = useState<Norm[] | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [q, setQ] = useState(''); const [subject, setSubject] = useState(''); const [basis, setBasis] = useState(''); const [old, setOld] = useState(false)
@@ -172,7 +177,7 @@ function NormList({ orgId, rights, onOpen, openId, ver }: { orgId: string | null
         <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
         <select value={basis} onChange={e => setBasis(e.target.value)} aria-label="Tính cho"><option value="">Mọi cách tính</option>{(Object.keys(BASIS) as Basis[]).map(b => <option key={b} value={b}>Theo {BASIS[b]}</option>)}</select>
         <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện bản cũ / lưu trữ</label>
-        {rights.canWrite && <button className="primary" onClick={() => setForm({ title: '', basis: 'group', group_size: '4', sessions: '1', subject: '', grade: '', program_id: '', unit_id: '' })}>Thêm định mức</button>}
+        {rights.canWrite && !sharedOnly && <button className="primary" onClick={() => setForm({ title: '', basis: 'group', group_size: '4', sessions: '1', subject: '', grade: '', program_id: '', unit_id: '' })}>Thêm định mức</button>}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'}>{msg[0]}</p>}
       {form && (
@@ -194,8 +199,8 @@ function NormList({ orgId, rights, onOpen, openId, ver }: { orgId: string | null
         </Drawer>
       )}
       {!list ? <p className="sub">Đang tải…</p> : <>
-        <h3>Của đơn vị ({own.length})</h3>
-        {own.length ? table(own, true) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có định mức nào của đơn vị.{rights.canWrite ? ' Bấm “Thêm định mức” hoặc sao chép định mức dùng chung bên dưới.' : ''}</p></div>}
+        {!sharedOnly && <><h3>Của đơn vị ({own.length})</h3>
+        {own.length ? table(own, true) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có định mức nào của đơn vị.{rights.canWrite ? ' Bấm “Thêm định mức” hoặc sao chép định mức dùng chung bên dưới.' : ''}</p></div>}</>}
         <h3>Dùng chung từ KDI / cấp trên ({shared.length})</h3>
         {shared.length ? table(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có định mức dùng chung.</p></div>}
       </>}

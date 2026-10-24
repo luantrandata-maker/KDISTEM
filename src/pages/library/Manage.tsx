@@ -4,6 +4,7 @@ import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { Icon } from '../../components/Icon'
 import { lazy, Suspense } from 'react'
 import { norm as normText } from '../../lib/sheet'
+import { BankList } from './BankList'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
@@ -103,7 +104,7 @@ const EMPTY = (kind: Item['kind']): Form => ({
   lmode: 'interactive', ilesson: null,
 })
 const MaterialNorms = lazy(() => import('../materialNorms').then(m => ({ default: m.MaterialNorms })))
-type T = Item['kind'] | 'plan' | 'norm'
+type T = Item['kind'] | 'plan' | 'norm' | 'bank'
 const isPlan = (i: Item) => i.kind === 'material' && i.content.type === 'lesson_plan'
 const NOEV = { preventDefault() {} } as React.FormEvent
 const MAT_OPTS = Object.entries(MAT_TYPE).filter(([k]) => k !== 'lesson_plan')
@@ -465,8 +466,8 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
     && (!fGrade || gradeList(i.grades ?? '').includes(Number(fGrade))) && (tab !== 'material' || !fType || (i.content.type ?? 'link') === fType)
     && (!q || normText([i.title, i.summary, i.subject, ...i.tags].join(' ')).includes(normText(q))))
   // Giáo án không còn tab riêng (giáo án đi theo bài học); "Học liệu" đổi thành "Tài liệu"
-  const kindTabs: T[] = ['unit', 'lesson', 'material', 'norm']
-  const tabLabel = (t: T) => t === 'norm' ? 'Định mức vật tư' : t === 'plan' ? 'Giáo án' : t === 'material' ? 'Tài liệu' : KIND[t][0]
+  const kindTabs: T[] = ['unit', 'lesson', 'material', 'norm', 'bank']
+  const tabLabel = (t: T) => t === 'bank' ? 'Kho hoạt động' : t === 'norm' ? 'Định mức vật tư' : t === 'plan' ? 'Giáo án' : t === 'material' ? 'Tài liệu' : KIND[t][0]
   const addNew = (t: T) => {
     if (t === 'unit' && !start) { setMsg(''); setInfo(''); return setFlow({}) }
     setLtab('info')
@@ -490,10 +491,11 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   return (
     <>
       {!only && <div style={{ marginBottom: 10 }}>
-        <Tabs items={kindTabs.map(k => [k, tabLabel(k), k === 'norm' ? undefined : items.filter(i => k === 'plan' ? isPlan(i) : k === 'material' ? i.kind === 'material' && !isPlan(i) : i.kind === k).length] as [T, string, number?])}
+        <Tabs items={kindTabs.map(k => [k, tabLabel(k), k === 'norm' ? undefined : k === 'bank' ? items.filter(i => i.kind === 'unit').reduce((n, i) => n + (((i.content as any)?.kit?.bank ?? []) as { title?: string }[]).filter(b => b.title?.trim()).length, 0) : items.filter(i => k === 'plan' ? isPlan(i) : k === 'material' ? i.kind === 'material' && !isPlan(i) : i.kind === k).length] as [T, string, number?])}
           value={tab} onChange={t => { setTab(t); setOpen(null); setFType('') }} />
       </div>}
-      {tab === 'norm' ? <Suspense fallback={<p className="sub">Đang tải…</p>}><MaterialNorms orgId={orgId} /></Suspense> : <>
+      {tab === 'bank' ? <BankList items={items} onOpen={id => setFlow({ id })} note="Hoạt động gom từ thẻ 05 “Kho hoạt động” của các bài học. Bấm một dòng để mở bài học." />
+      : tab === 'norm' ? <Suspense fallback={<p className="sub">Đang tải…</p>}><MaterialNorms orgId={orgId} /></Suspense> : <>
       {!start && <><div className="bar">
         <div className="tools">
           <select value={fGrade} onChange={e => setFGrade(e.target.value)} aria-label="Khối"><option value="">Mọi khối</option>{Array.from({ length: 12 }, (_, k) => k + 1).map(g => <option key={g} value={g}>Khối {g}</option>)}</select>

@@ -219,7 +219,7 @@ function LessonList({ prog, subj, rows, msg, onBack, onOpen, onCreate, onDeleted
     <button type="button" className="ghostbtn" onClick={onBack}>← Danh sách môn học</button>
     <div className="lheadrow">
       <div><h2>{subj}</h2><p className="sub">{progName(prog)} · {withKit} bài đã có bộ học liệu</p></div>
-      <button type="button" className="primary" onClick={() => onCreate()}>+ Tạo giáo án</button>
+      <button type="button" className="primary" onClick={() => onCreate()}>+ Tạo bài học</button>
     </div>
     {msg && <p className="sub" role="status"><b>{msg}</b></p>}
     <div className="panel">
@@ -229,7 +229,7 @@ function LessonList({ prog, subj, rows, msg, onBack, onOpen, onCreate, onDeleted
         <button type="button" disabled={!sel.cur?.kit} onClick={() => sel.cur && remove(sel.cur)}>Xóa</button>
         {menu}
       </SelBar>
-      {rows.length === 0 ? <p className="sub">Môn này chưa có bài học. Bấm “+ Tạo giáo án” để tạo bài đầu tiên.</p>
+      {rows.length === 0 ? <p className="sub">Môn này chưa có bài học. Bấm “+ Tạo bài học” để tạo bài đầu tiên.</p>
         : <div className="wrap"><table className="libtable">
           <thead><tr><SelTh /><th>Bài học</th>{has('dur') && <th>Thời lượng</th>}{has('kit') && <th>Bộ học liệu</th>}{has('status') && <th>Trạng thái</th>}</tr></thead>
           <tbody>{rows.map(r => {

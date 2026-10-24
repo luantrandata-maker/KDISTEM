@@ -1683,3 +1683,7 @@ a.namelink:hover{color:var(--primary)}
 .lpage .field>span,.lmodal .field>span{font-weight:600;font-size:13px}
 .main .ldocbar{align-items:baseline}
 .libsteps{margin-bottom:12px}
+/* Ô tìm kiếm trong thanh công cụ (không có class .search): bo tròn, cùng cỡ với ô nhập ở phân hệ 1, 2 */
+.main .tools > input:not([type]),.main .tools > input[type=search],.main .tools > input[type=text]{padding:9px 12px;min-width:240px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);font-family:inherit;font-size:14px}
+.main .tools > input:not([type]):focus,.main .tools > input[type=search]:focus,.main .tools > input[type=text]:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 18%,transparent)}
+.main .tools > select{padding:9px 10px;border-radius:10px}

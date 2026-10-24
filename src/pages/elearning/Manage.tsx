@@ -175,7 +175,7 @@ function Exams({ orgId }: { orgId: string | null }) {
     {note}<ExamResults exam={cur} roster={isSchool && editable(cur)} /></ElView>
   return (
     <>
-      <div className="bar"><button className="primary" onClick={() => { setMsg(null); setForm({ ...EEMPTY, shared: !isSchool }) }}>Tạo đề luyện</button><span /></div>
+      <div className="bar"><span /><button className="primary" onClick={() => { setMsg(null); setForm({ ...EEMPTY, shared: !isSchool }) }}>Tạo đề luyện</button></div>
       {note}
       {(() => { const x = esel.cur; return (
         <SelBar picked={x?.title ?? null}>
@@ -349,7 +349,7 @@ function Courses({ orgId }: { orgId: string | null }) {
     </ElView> }
   return (
     <>
-      <div className="bar"><button className="primary" onClick={() => { setMsg(null); setForm({ ...CEMPTY, shared: !isSchool }) }}>Tạo khoá học</button><span /></div>
+      <div className="bar"><span /><button className="primary" onClick={() => { setMsg(null); setForm({ ...CEMPTY, shared: !isSchool }) }}>Tạo khoá học</button></div>
       {note}
       <div className="coursegrid">
         {rows.map(c => { const ls = lessons.filter(l => l.course_id === c.id); const mine = c.org_id === orgId

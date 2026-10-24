@@ -126,6 +126,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
         <div className="card"><strong>{rows.filter(r => !mine(r)).length}</strong><span>Dùng chung từ cấp trên</span></div>
       </div>
       <div className="bar" style={{ marginTop: 14 }}>
+        <span />
         <span className="tools">
           <button className="primary" onClick={() => { setForm({ ...EMPTY, shared: orgType !== 'school' }); setAi(false) }}>Thêm câu hỏi</button>
           <button onClick={() => { setAi(!ai); setForm(null) }}>{ai ? 'Đóng Trợ lý AI' : 'Tạo bằng Trợ lý AI'}</button>

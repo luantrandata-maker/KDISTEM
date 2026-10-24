@@ -2914,6 +2914,17 @@ select pg_temp.chk('kdi', 'CTGD nhiều: phải còn ít nhất một cấp họ
 select pg_temp.chk('kdi', 'CTGD nhiều: bỏ hết nhóm chương trình bị từ chối', $q$update edu_programs set ct_codes = '{}' where title = 'ISO CT nhiều'$q$, 'ERR 22023');
 select pg_temp.chk('kdi', 'CTGD nhiều: bản đã ban hành không đổi được danh sách môn', $q$update edu_programs set main_subjects = array['Toán'] where title = 'ISO CT KDI' and status not in ('draft', 'rejected')$q$, 'ERR 22023');
 
+-- ===== 090: chương trình tập huấn nhiều loại chương trình / cấp học =====
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_programs (org_id, title, ct_codes, levels) values (platform_org_id(), 'ISO CTTH nhiều', array['CT1', 'CT2', 'CT1'], array['thcs', 'thpt'])$q$, true);
+select pg_temp.chk('kdi', 'CTTH nhiều: giá trị chính là phần tử đầu, bỏ trùng', $q$select ct_code || ':' || level || ':' || array_to_string(ct_codes, ',') from training_programs where title = 'ISO CTTH nhiều'$q$, 'CT1:thcs:CT1,CT2');
+select pg_temp.chk('kdi', 'CTTH nhiều: bỏ hết cấp học = mọi cấp học', $q$with x as (update training_programs set levels = '{}' where title = 'ISO CTTH nhiều' returning level) select coalesce(level, 'moi') from x$q$, 'moi');
+select pg_temp.chk('kdi', 'CTTH nhiều: sửa loại kiểu cũ thì thay loại chính', $q$with x as (update training_programs set ct_code = 'CT3' where title = 'ISO CTTH nhiều' returning ct_codes) select array_to_string(ct_codes, ',') from x$q$, 'CT3,CT2');
+select pg_temp.chk('kdi', 'CTTH nhiều: loại không có trong danh mục bị từ chối', $q$update training_programs set ct_codes = array['CT1', 'KHONGCO'] where title = 'ISO CTTH nhiều'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'CTTH nhiều: cấp học không có trong danh mục bị từ chối', $q$update training_programs set levels = array['khongco'] where title = 'ISO CTTH nhiều'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'CTTH nhiều: bản đã phát hành không đổi loại chương trình', $q$update training_programs set ct_codes = array['CT4'] where title = 'ISO CTTH' and status = 'published'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_program_copy(id) from training_programs where title = 'ISO CTTH nhiều'$q$, true);
+select pg_temp.chk('kdi', 'CTTH nhiều: nhân bản chép cả loại chương trình', $q$select array_to_string(ct_codes, ',') from training_programs where title = 'ISO CTTH nhiều' and source_id is not null$q$, 'CT1,CT2');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

@@ -150,6 +150,8 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   const started = useRef(false)
   // Bài học (bộ học liệu 5 thẻ): thêm / sửa theo luồng mới như "Tạo giáo án" ở Học liệu theo chương trình
   const [flow, setFlow] = useState<{ id?: string } | null>(null)
+  // Bài giảng: tab 1 Thông tin, tab 2 Nội dung (tương tác hoặc slide)
+  const [ltab, setLtab] = useState<'info' | 'content'>('info')
 
   async function load() {
     if (!orgId) return
@@ -212,6 +214,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   function edit(i: Item) {
     setMsg(''); setInfo('')
     if (i.kind === 'unit' && !start) { setOpen(null); return setFlow({ id: i.id }) }
+    setLtab('info')
     setForm({
       id: i.id, kind: i.kind, title: i.title, summary: i.summary ?? '', subject: i.subject ?? '', grades: i.grades ?? '', program: i.program ?? '',
       tags: i.tags.join(', '), scope: i.scope, targets: targets.get(i.id) ?? [], slides: i.content.slides ?? [], mtype: i.content.type ?? 'video',
@@ -246,8 +249,8 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   }
   async function save(e: React.FormEvent, publish: boolean) {
     e.preventDefault(); if (!form || !orgId) return
-    if (!form.title.trim()) return setMsg('Nhập tên.')
-    if (form.scope === 'selected' && form.targets.length === 0) return setMsg('Chọn ít nhất một đơn vị nhận.')
+    if (!form.title.trim()) { setLtab('info'); return setMsg('Nhập tên.') }
+    if (form.scope === 'selected' && form.targets.length === 0) { setLtab('info'); return setMsg('Chọn ít nhất một đơn vị nhận.') }
     const isP = form.kind === 'material' && form.mtype === 'lesson_plan'
     const att = form.src === 'file' ? (form.file ? { url: '', ...form.file } : { url: '' }) : { url: form.url.trim() }
     if (isP && publish && !planFilled(form.plan) && !form.file && !form.url.trim()) return setMsg('Soạn nội dung giáo án hoặc đính kèm tệp trước khi phát hành.')
@@ -456,6 +459,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   const tabLabel = (t: T) => t === 'norm' ? 'Định mức vật tư' : t === 'plan' ? 'Giáo án' : KIND[t][0]
   const addNew = (t: T) => {
     if (t === 'unit' && !start) { setMsg(''); setInfo(''); return setFlow({}) }
+    setLtab('info')
     setMsg(''); setInfo(''); setNorm(EMPTY_NORM); setSub(null); setNormOpen(false); setCkTouched(false); setKitShow(null)
     setForm(t === 'plan' ? { ...EMPTY('material'), mtype: 'lesson_plan' } : EMPTY(t as Item['kind']))
   }
@@ -513,6 +517,9 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
               : <div className="bar small">{info ? <span className="sub"><b>{info}</b></span> : <span className="sub">Có sẵn giáo án Word, bài giảng PowerPoint hoặc file mẫu Excel?</span>}
                   <button type="button" className="libpartnew" onClick={() => setKitShow(true)}>Nhập từ file…</button></div>
           })()}
+          {form.kind === 'lesson' && <div className="libsteps"><Tabs items={[['info', '1. Thông tin bài giảng'], ['content', '2. Nội dung bài giảng']] as ['info' | 'content', string][]}
+            value={ltab} onChange={setLtab} /></div>}
+          {(form.kind !== 'lesson' || ltab === 'info') && <>
           <div className="formgrid libgrid4">
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mô tả ngắn</span><textarea rows={2} value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })} /></label>
@@ -546,6 +553,10 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
               ))}
             </fieldset>
           )}
+          {form.kind === 'lesson' && <div className="formactions"><button type="button" className="primary" onClick={() => {
+            if (!form.title.trim()) return setMsg('Nhập tên bài giảng.')
+            setMsg(''); setLtab('content') }}>Tiếp: Nội dung bài giảng →</button></div>}
+          </>}
 
           {form.kind === 'unit' && (
             <div className="formgrid libgrid4">
@@ -645,7 +656,9 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
               <p className="sub" style={{ gridColumn: '1 / -1', margin: 0 }}>Giáo án, bài giảng, vật tư và học liệu soạn ở đây đi theo bài học: dùng cùng môn, khối, nơi phát hành và được phát hành cùng bài. Vật tư của bài được lưu thành định mức vật tư, ban hành cùng bài học. Trường bấm “Dùng bài học” sẽ có bản riêng của mọi bài giảng được gắn.</p>
             </div>
           )}
-          {form.kind === 'lesson' && <LessonModePicker value={form.lmode} onChange={lmode => setForm({ ...form, lmode })} />}
+          {form.kind === 'lesson' && ltab === 'content' && <>
+          <p className="sub" style={{ margin: '0 0 8px' }}>Chọn loại bài giảng rồi soạn nội dung. <button type="button" className="linkbtn" onClick={() => setLtab('info')}>← Thông tin bài giảng</button></p>
+          <LessonModePicker value={form.lmode} onChange={lmode => setForm({ ...form, lmode })} />
           {form.kind === 'lesson' && form.lmode === 'interactive' && <InteractiveLesson value={form.ilesson} ct={form.program} onChange={ilesson => setForm({ ...form, ilesson })} onCopy={copyInteractive} sources={iSources} skip={form.id} />}
           {form.kind === 'lesson' && form.lmode === 'interactive' && form.ilesson && asLesson(form.ilesson) && <div className="field"><span>Ảnh bìa bài giảng</span>
             <CoverPicker value={form.ilesson.cover} program={form.program} onChange={cover => setForm({ ...form, ilesson: { ...form.ilesson!, cover } })} />
@@ -671,6 +684,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
               </div>
             </>
           )}
+          </>}
           {form.kind === 'material' && form.mtype === 'lesson_plan' && <PlanEditor value={form.plan} onChange={plan => setForm({ ...form, plan })} />}
           {form.kind === 'material' && (
             <div className="formgrid">

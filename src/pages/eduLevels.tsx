@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useEduLevels, type EduLevel } from '../lib/eduLevels'
 import { ElView } from '../components/ElView'
+import { NumMultiSelect } from '../components/MultiSelect'
 
 // Danh mục cấp học & khối (migration 065): KDI thêm / sửa cấp học và khoảng khối áp dụng; chương trình giáo dục,
 // môn học và các ô chọn khối ở mọi màn dùng danh mục này. Đơn vị khác chỉ xem.
@@ -20,6 +21,8 @@ export function EduLevelsCatalog() {
   const [admin, setAdmin] = useState(false)
   const [used, setUsed] = useState<Record<string, number>>({})
   const [form, setForm] = useState<(EduLevel & { isNew?: boolean }) | null>(null)
+  const [gradePick, setGradePick] = useState<number[] | null>(null)
+  useEffect(() => { setGradePick(null) }, [form === null])
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   useEffect(() => {
     supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data))
@@ -35,6 +38,8 @@ export function EduLevelsCatalog() {
     const row = { name: form.name.trim(), grade_from: Number(form.grade_from), grade_to: Number(form.grade_to), sort: Number(form.sort) || 0, active: form.active !== false }
     if (!row.name) return setMsg(['Nhập tên cấp học.', true])
     if (row.grade_to < row.grade_from) return setMsg([errText('grade_to'), true])
+    if (gradePick && !gradePick.length) return setMsg(['Chọn ít nhất một khối.', true])
+    if (gradePick && gradePick.length !== row.grade_to - row.grade_from + 1) return setMsg(['Khối của một cấp học phải liền nhau (VD: 6, 7, 8, 9).', true])
     const { data, error } = form.isNew
       ? await supabase.from('edu_levels').insert({ ...row, code: form.code.trim().toLowerCase() }).select('code')
       : await supabase.from('edu_levels').update(row).eq('code', form.code).select('code')
@@ -54,8 +59,9 @@ export function EduLevelsCatalog() {
     if (!data?.length) return setMsg([errText('row-level'), true])
     setMsg(null); reload()
   }
-  const gradeSel = (k: 'grade_from' | 'grade_to') => form && (
-    <select value={form[k]} onChange={e => setForm({ ...form, [k]: Number(e.target.value) })}>{GRADES.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>)
+  // Chọn khối bằng danh sách tick; cấp học lưu khối nhỏ nhất – lớn nhất nên các khối phải liền nhau
+  const gradeVal = gradePick ?? (form ? GRADES.filter(g => g >= form.grade_from && g <= form.grade_to) : [])
+  const pickGrades = (gs: number[]) => { setGradePick(gs); if (form && gs.length) setForm({ ...form, grade_from: gs[0], grade_to: gs[gs.length - 1] }) }
 
   if (form) return (
     <ElView back="Cấp học & khối" onBack={() => setForm(null)} title={form.isNew ? 'Thêm cấp học' : 'Sửa cấp học'}>
@@ -63,8 +69,8 @@ export function EduLevelsCatalog() {
         <form className="panel formgrid" onSubmit={save} style={{ marginBottom: 12 }}>
           <label className="field"><span>Tên cấp học *</span><input required maxLength={60} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="VD: Liên cấp THCS–THPT" /></label>
           <label className="field"><span>Mã {form.isNew ? '*' : '(không đổi được)'}</span><input required disabled={!form.isNew} maxLength={20} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: lien_cap" /></label>
-          <label className="field"><span>Từ khối</span>{gradeSel('grade_from')}</label>
-          <label className="field"><span>Đến khối</span>{gradeSel('grade_to')}</label>
+          <div className="field" style={{ gridColumn: 'span 2' }}><span>Khối *</span>
+            <NumMultiSelect value={gradeVal} onChange={pickGrades} options={GRADES.map(g => ({ value: g, label: `Khối ${g}` }))} placeholder="Chọn khối…" ariaLabel="Khối" /></div>
           <label className="field"><span>Thứ tự</span><input type="number" min={0} value={form.sort ?? 0} onChange={e => setForm({ ...form, sort: Number(e.target.value) })} /></label>
           <div className="formactions"><button className="primary" type="submit">{form.isNew ? 'Thêm' : 'Lưu'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>

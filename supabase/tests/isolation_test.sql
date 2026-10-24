@@ -2925,6 +2925,22 @@ select pg_temp.chk('kdi', 'CTTH nhiều: bản đã phát hành không đổi lo
 select pg_temp.probe('kdi@iso-test.local', $q$select training_program_copy(id) from training_programs where title = 'ISO CTTH nhiều'$q$, true);
 select pg_temp.chk('kdi', 'CTTH nhiều: nhân bản chép cả loại chương trình', $q$select array_to_string(ct_codes, ',') from training_programs where title = 'ISO CTTH nhiều' and source_id is not null$q$, 'CT1,CT2');
 
+-- ===== 091: chương trình giáo dục chọn khối theo danh sách =====
+select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_programs (org_id, title, ct_codes, levels, grades, grade_from, grade_to, main_subjects, scope) values (platform_org_id(), 'ISO CT khối', array['CT1'], array['thcs'], array[8, 6, 8], 6, 9, array['Vật lý'], 'children')$q$, true);
+select pg_temp.chk('kdi', 'CTGD khối: danh sách khối sắp tăng, bỏ trùng; từ/đến = nhỏ nhất/lớn nhất', $q$select array_to_string(grades, ',') || ':' || grade_from || '-' || grade_to from edu_programs where title = 'ISO CT khối'$q$, '6,8:6-8');
+select pg_temp.chk('kdi', 'CTGD khối: sửa từ/đến kiểu cũ thì điền đủ các khối', $q$with x as (update edu_programs set grade_from = 7, grade_to = 9 where title = 'ISO CT khối' returning grades) select array_to_string(grades, ',') from x$q$, '7,8,9');
+select pg_temp.chk('kdi', 'CTGD khối: bỏ hết khối bị từ chối', $q$update edu_programs set grades = '{}' where title = 'ISO CT khối'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'CTGD khối: khối ngoài cấp học bị từ chối', $q$update edu_programs set grades = array[6, 10] where title = 'ISO CT khối'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'CTGD khối: học phần khối không có trong danh sách bị từ chối', $q$insert into edu_program_units (program_id, unit_type, seq, grade, title, periods) select id, 'topic', 1, 7, 'ISO HP khối 7', 1 from edu_programs where title = 'ISO CT khối'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into edu_program_units (program_id, unit_type, seq, grade, title, periods) select id, 'topic', 1, 8, 'ISO HP khối 8', 1 from edu_programs where title = 'ISO CT khối'$q$, true);
+select pg_temp.chk('kdi', 'CTGD khối: không bỏ được khối đang có học phần', $q$update edu_programs set grades = array[6] where title = 'ISO CT khối'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'CTGD khối: PPCT từ chương trình chỉ nhận khối trong danh sách', $q$select curriculum_from_program(id, 7) from edu_programs where title = 'ISO CT khối'$q$, 'ERR 22023');
+insert into t_result (who, name, expect, got, ok)
+  select 'postgres', 'CTGD khối: nhân bản / phiên bản mới chép danh sách khối', '6,8', x, x is not distinct from '6,8'
+    from (select array_to_string(c.grades, ',') x from edu_programs c
+           where c.id = public.edu_program_clone((select id from edu_programs where title = 'ISO CT khối'), (select org_id from edu_programs where title = 'ISO CT khối'), null, 1)) t;
+select pg_temp.chk('kdi', 'CTGD khối: bản đã ban hành không đổi được khối', $q$update edu_programs set grades = array[6] where title = 'ISO CT KDI' and status not in ('draft', 'rejected')$q$, 'ERR 22023');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

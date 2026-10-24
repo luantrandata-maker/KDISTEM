@@ -1777,7 +1777,7 @@ a.namelink:hover{color:var(--primary)}
 /* Chọn nhiều bằng ô tick */
 .checkmain{margin-left:auto;font-size:11px;font-weight:600;color:var(--ok-fg);background:var(--ok-bg);border-radius:99px;padding:0 7px}
 /* Ô chọn nhiều gọn (MultiSelect): thẻ trong ô + danh sách ô tick thả xuống */
-.msel{display:flex;align-items:flex-start;gap:4px;color:var(--text);font-size:14px;text-align:left;min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:4px 6px;cursor:text;box-sizing:border-box;width:100%}
+.msel{display:flex;align-items:flex-start;gap:4px;color:var(--text);font-size:14px;text-align:left;min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:4px 6px;cursor:text;box-sizing:border-box;width:100%;min-width:0}
 .msel.open{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 20%,transparent)}
 .msel.dis{background:var(--soft);cursor:default}
 .mselchips{display:flex;flex-wrap:wrap;align-items:center;gap:4px;flex:1;min-width:0;max-height:96px;overflow:auto}
@@ -1785,7 +1785,7 @@ a.namelink:hover{color:var(--primary)}
 .mselchip>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
 .msel .mselx{border:0;background:none;padding:0 5px;margin:0;border-radius:50%;color:var(--muted);font-size:16px;line-height:1.2;cursor:pointer;font-weight:400}
 .msel .mselx:hover{background:var(--line);color:var(--text)}
-.msel .mselq{flex:1;width:auto;min-width:90px;border:0;outline:0;padding:5px 4px;background:transparent;font:inherit;color:var(--text);border-radius:0}
+.msel .mselq{flex:1 1 90px;width:0;min-width:90px;border:0;outline:0;padding:5px 4px;background:transparent;font:inherit;color:var(--text);border-radius:0}
 .mseltools{display:flex;align-items:center;gap:2px;align-self:center}
 .msel .mselplus{font-size:20px;color:var(--text)}
 .mselpop{position:fixed;z-index:1000;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(15,23,42,.18);display:flex;flex-direction:column;overflow:hidden;font-size:14px}

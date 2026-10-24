@@ -140,12 +140,12 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
           {mode !== 'school' && <label className="field"><span>Phạm vi</span><select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Subject['scope'] })}>
             <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
           <label className="field wide" style={{ gridColumn: '1/-1' }}><span>Mô tả</span><textarea rows={2} value={form.description ?? ''} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
-          <div className="field"><span>Cấp học (để trống = mọi cấp)</span>
+          <div className="field" style={{ gridColumn: 'span 2' }}><span>Cấp học (để trống = mọi cấp)</span>
             <MultiSelect value={form.levels ?? []} onChange={v => setForm({ ...form, levels: v })} options={LEVELS} placeholder="Mọi cấp học" ariaLabel="Cấp học" /></div>
-          <div className="field"><span>Thuộc loại chương trình</span>
+          <div className="field" style={{ gridColumn: 'span 2' }}><span>Thuộc loại chương trình</span>
             <MultiSelect value={form.ct_codes ?? []} onChange={v => setForm({ ...form, ct_codes: v })} placeholder="Chọn loại chương trình…" ariaLabel="Loại chương trình"
               options={[...ctCodes, ...(form.ct_codes ?? []).filter(c => !ctCodes.includes(c) && allCodes.includes(c))].map(c => [c, `${c}${byCode[c] ? ' · ' + byCode[c]!.name : ''}`])} /></div>
-          <div className="formactions"><button className="primary" type="submit">{form.id ? 'Lưu' : 'Thêm'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
+          <div className="formactions" style={{ gridColumn: '1/-1' }}><button className="primary" type="submit">{form.id ? 'Lưu' : 'Thêm'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
     </ElView>
   )

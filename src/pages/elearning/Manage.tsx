@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
+import { MultiSelect } from '../../components/MultiSelect'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
 import { uploadLearningFile, openFile, MAX_FILE_MB } from '../../lib/files'
@@ -58,12 +59,10 @@ function audienceText(x: Aud & { shared: boolean }, classes: Cls[], groups: Grp[
 function AudiencePicker({ orgId, classes, groups, value, onChange }: { orgId: string | null; classes: Cls[]; groups: Grp[]; value: Aud; onChange: (v: Aud) => void }) {
   const [targeted, setTargeted] = useState(!!(value.class_ids?.length || value.group_ids?.length || value.student_ids?.length))
   const withGroups = classes.filter(c => groups.some(g => g.class_id === c.id))
-  const [gClass, setGClass] = useState(() => groups.find(g => value.group_ids?.includes(g.id))?.class_id ?? withGroups[0]?.id ?? '')
   const [q, setQ] = useState('')
   const [found, setFound] = useState<Stu[]>([])
   const [known, setKnown] = useState<Map<string, Stu>>(new Map())
   const cls = value.class_ids ?? [], grp = value.group_ids ?? [], st = value.student_ids ?? []
-  useEffect(() => { if (!gClass && withGroups.length) setGClass(withGroups[0].id) }, [withGroups.length])
   // Tên các học sinh đã chọn (khi sửa đề / khoá học)
   useEffect(() => {
     const miss = st.filter(id => !known.has(id))
@@ -90,17 +89,12 @@ function AudiencePicker({ orgId, classes, groups, value, onChange }: { orgId: st
         <label className="field inline"><input type="radio" checked={targeted} onChange={() => setTargeted(true)} /> Chọn lớp, nhóm hoặc học sinh</label>
       </div>
       {targeted && <div className="audience">
-        <div><small>Lớp</small><div className="tools">{classes.map(c => <label key={c.id} className="field inline"><input type="checkbox" checked={cls.includes(c.id)}
-          onChange={e => set({ class_ids: e.target.checked ? [...cls, c.id] : cls.filter(x => x !== c.id) })} /> {c.name}</label>)}
-          {!classes.length && <small>Trường chưa có lớp.</small>}</div></div>
+        <div><small>Lớp</small>
+          <MultiSelect value={cls} onChange={v => set({ class_ids: v })} options={classes.map(c => [c.id, c.name])} placeholder="Chọn lớp…" ariaLabel="Lớp" empty="Trường chưa có lớp." /></div>
         <div><small>Nhóm học sinh</small>
-          {withGroups.length ? <div className="tools">
-            <select value={gClass} onChange={e => setGClass(e.target.value)} aria-label="Nhóm của lớp">{withGroups.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
-            {groups.filter(g => g.class_id === gClass).map(g => <label key={g.id} className="field inline"><input type="checkbox" checked={grp.includes(g.id)}
-              onChange={e => set({ group_ids: e.target.checked ? [...grp, g.id] : grp.filter(x => x !== g.id) })} /> {g.name}</label>)}
-          </div> : <small> — chưa lớp nào chia nhóm (chia nhóm trong mục Bài tập).</small>}
-          {grp.length > 0 && <div>{grp.map(id => { const g = groups.find(x => x.id === id)
-            return <span className="chip" key={id}>{g ? `${g.name} · ${cn(g.class_id)}` : 'Nhóm'}<button type="button" className="x" onClick={() => set({ group_ids: grp.filter(x => x !== id) })} aria-label="Bỏ nhóm">×</button></span> })}</div>}
+          {withGroups.length ? <MultiSelect value={grp} onChange={v => set({ group_ids: v })} placeholder="Chọn nhóm…" ariaLabel="Nhóm học sinh"
+            options={withGroups.flatMap(c => groups.filter(g => g.class_id === c.id).map(g => ({ value: g.id, label: `${g.name} · ${c.name}`, group: c.name })))} />
+            : <small> — chưa lớp nào chia nhóm (chia nhóm trong mục Bài tập).</small>}
         </div>
         <div><small>Từng học sinh</small>
           <div className="stupick">
@@ -197,7 +191,6 @@ function Exams({ orgId }: { orgId: string | null }) {
 
 function ExamForm({ form, setForm, onSubmit, orgId, classes, groups, isSchool }: { form: EForm; setForm: (f: EForm | null) => void; onSubmit: (e: React.FormEvent) => void; orgId: string | null; classes: Cls[]; groups: Grp[]; isSchool: boolean }) {
   const [bank, setBank] = useState<Question[]>([])
-  const [q, setQ] = useState('')
   useEffect(() => { supabase.from('question_bank').select('id, subject, grade, topic, level, stem, status').eq('status', 'ready').limit(5000).then(({ data }) => setBank((data as Question[]) ?? [])) }, [])
   const set = (p: Partial<EForm>) => setForm({ ...form, ...p })
   const pool = bank.filter(b => (!form.subject || b.subject === form.subject) && (!form.grade || b.grade === form.grade))
@@ -216,14 +209,12 @@ function ExamForm({ form, setForm, onSubmit, orgId, classes, groups, isSchool }:
         <div className="field wide"><span>Số câu theo mức độ (để trống = lấy ngẫu nhiên) — kho phù hợp: {inTopic.length} câu</span>
           <div className="tools">{(Object.keys(LEVEL) as Level[]).map(l => <label key={l} className="field inline">{LEVEL[l]} <input type="number" min={0} style={{ width: 70 }} value={form.criteria.levels?.[l] ?? ''}
             onChange={e => set({ criteria: { ...form.criteria, levels: { ...form.criteria.levels, [l]: e.target.value === '' ? undefined : Number(e.target.value) } } })} /> <small>/{lvCount(l)}</small></label>)}</div></div>
-        {topics.length > 0 && <div className="field wide"><span>Chủ đề (để trống = mọi chủ đề)</span><div className="tools">{topics.map(t => <label key={t} className="field inline">
-          <input type="checkbox" checked={form.criteria.topics?.includes(t) ?? false} onChange={e => set({ criteria: { ...form.criteria, topics: e.target.checked ? [...(form.criteria.topics ?? []), t] : (form.criteria.topics ?? []).filter(x => x !== t) } })} /> {t}</label>)}</div></div>}
+        {topics.length > 0 && <div className="field wide"><span>Chủ đề (để trống = mọi chủ đề)</span>
+          <MultiSelect value={form.criteria.topics ?? []} onChange={v => set({ criteria: { ...form.criteria, topics: v } })} options={topics.map(t => [t, t])} placeholder="Mọi chủ đề" ariaLabel="Chủ đề" /></div>}
         {inTopic.length < (form.criteria.count ?? 0) && <p className="msg">Kho chỉ có {inTopic.length} câu "Sẵn sàng" phù hợp — mỗi lượt sẽ ít hơn {form.criteria.count} câu.</p>}
       </> : <div className="field wide"><span>Chọn câu hỏi ({form.question_ids.length} đã chọn)</span>
-        <input className="search" style={{ margin: '0 0 6px' }} placeholder="Lọc câu hỏi…" value={q} onChange={e => setQ(e.target.value)} />
-        <div className="pickq">{pool.filter(b => !q || b.stem.toLowerCase().includes(q.toLowerCase())).slice(0, 200).map(b => <label key={b.id}>
-          <input type="checkbox" checked={form.question_ids.includes(b.id)} onChange={e => set({ question_ids: e.target.checked ? [...form.question_ids, b.id] : form.question_ids.filter(x => x !== b.id) })} />
-          <span>{b.stem.slice(0, 160)}</span><small>{LEVEL[b.level]}</small></label>)}</div></div>}
+        <MultiSelect value={form.question_ids} onChange={v => set({ question_ids: v })} placeholder="Gõ để tìm và chọn câu hỏi…" ariaLabel="Câu hỏi"
+          options={pool.map(b => ({ value: b.id, label: `${b.stem.slice(0, 160)} · ${LEVEL[b.level]}` }))} empty="Kho chưa có câu hỏi sẵn sàng." /></div>}
       <label className="field"><span>Thời gian làm (phút)</span><input type="number" min={1} max={300} value={form.duration_min ?? ''} onChange={e => set({ duration_min: e.target.value ? Number(e.target.value) : null })} placeholder="Không giới hạn" /></label>
       <label className="field"><span>Số lượt tối đa (0 = không giới hạn)</span><input type="number" min={0} max={50} value={form.max_attempts} onChange={e => set({ max_attempts: Number(e.target.value) })} /></label>
       <label className="field"><span>Hiện đáp án</span><select value={form.show_answers} onChange={e => set({ show_answers: e.target.value as EForm['show_answers'] })}>{Object.entries(SHOW).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>

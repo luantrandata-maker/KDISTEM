@@ -1,4 +1,5 @@
 import { CoverPicker, coverStyle } from '../../components/Cover'
+import { MultiSelect } from '../../components/MultiSelect'
 import { useStemTracks } from '../../lib/stemTracks'
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { Icon } from '../../components/Icon'
@@ -79,18 +80,14 @@ function InteractiveLesson({ value, ct, onChange, onCopy, sources, skip }: {
 function ChipPicker({ label, hint, options, value, onChange, missing, extra, lead }: {
   label: string; hint?: string; options: Pick[]; value: string[]; onChange: (v: string[]) => void; missing: string; extra?: React.ReactNode; lead?: React.ReactNode
 }) {
-  const left = options.filter(o => !value.includes(o.id))
   return (
     <div className="libpart" title={hint}>
       <span className="libpartlabel">{label}</span>
       <div className="libpartbody">
         {lead}
-        {value.map(id => <span className="chip" key={id}>{options.find(o => o.id === id)?.label ?? missing}
-          <button type="button" className="x" aria-label="Bỏ" onClick={() => onChange(value.filter(x => x !== id))}>×</button></span>)}
-        <select value="" onChange={e => e.target.value && onChange([...value, e.target.value])} aria-label={label} disabled={!left.length}>
-          <option value="">{left.length ? `+ Chọn ${label.toLowerCase()} có sẵn…` : `Không còn ${label.toLowerCase()} có sẵn`}</option>
-          {left.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
-        </select>
+        <MultiSelect value={value} onChange={onChange} ariaLabel={label} placeholder={`Chọn ${label.toLowerCase()} có sẵn…`} empty={`Chưa có ${label.toLowerCase()} có sẵn`}
+          options={[...options.map(o => [o.id, o.label] as [string, string]), ...value.filter(id => !options.some(o => o.id === id)).map(id => [id, missing] as [string, string])]}
+          style={{ flex: '1 1 280px', minWidth: 240 }} />
         {extra}
       </div>
     </div>
@@ -564,11 +561,8 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
           </div>
           {form.scope === 'selected' && (
             <fieldset className="libtargets"><legend>Đơn vị nhận (gồm cả đơn vị trực thuộc của đơn vị được chọn)</legend>
-              {below.length === 0 && <p className="sub">Đơn vị chưa có cấp dưới.</p>}
-              {below.map(o => (
-                <label key={o.id}><input type="checkbox" checked={form.targets.includes(o.id)}
-                  onChange={e => setForm({ ...form, targets: e.target.checked ? [...form.targets, o.id] : form.targets.filter(x => x !== o.id) })} /> {o.name}</label>
-              ))}
+              <MultiSelect value={form.targets} onChange={v => setForm({ ...form, targets: v })} options={below.map(o => [o.id, o.name])}
+                placeholder="Chọn đơn vị nhận…" ariaLabel="Đơn vị nhận" empty="Đơn vị chưa có cấp dưới." />
             </fieldset>
           )}
           {form.kind === 'lesson' && <div className="formactions"><button type="button" className="primary" onClick={() => {

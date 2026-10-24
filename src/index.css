@@ -1775,8 +1775,26 @@ a.namelink:hover{color:var(--primary)}
 .monalerts li.att{background:var(--bad-bg);color:var(--bad-fg)}.monalerts li small{color:inherit;opacity:.8}
 
 /* Chọn nhiều bằng ô tick */
-.checkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:4px 10px;border:1px solid var(--line);border-radius:10px;padding:8px 10px;max-height:230px;overflow:auto;background:var(--surface)}
-.checkgrid label{display:flex;align-items:center;gap:8px;padding:5px 6px;border-radius:8px;cursor:pointer;font-size:14px}
-.checkgrid label:hover{background:var(--soft)}.checkgrid label.on{background:var(--soft);font-weight:600}
-.checkgrid input{width:16px;height:16px;margin:0;flex:none}
 .checkmain{margin-left:auto;font-size:11px;font-weight:600;color:var(--ok-fg);background:var(--ok-bg);border-radius:99px;padding:0 7px}
+/* Ô chọn nhiều gọn (MultiSelect): thẻ trong ô + danh sách ô tick thả xuống */
+.msel{display:flex;align-items:flex-start;gap:4px;color:var(--text);font-size:14px;text-align:left;min-height:40px;border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:4px 6px;cursor:text;box-sizing:border-box;width:100%}
+.msel.open{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 20%,transparent)}
+.msel.dis{background:var(--soft);cursor:default}
+.mselchips{display:flex;flex-wrap:wrap;align-items:center;gap:4px;flex:1;min-width:0;max-height:96px;overflow:auto}
+.mselchip{display:inline-flex;align-items:center;gap:4px;max-width:100%;border:1px solid var(--line);background:var(--soft);border-radius:999px;padding:2px 4px 2px 10px;font-size:13px;line-height:1.35}
+.mselchip>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}
+.msel .mselx{border:0;background:none;padding:0 5px;margin:0;border-radius:50%;color:var(--muted);font-size:16px;line-height:1.2;cursor:pointer;font-weight:400}
+.msel .mselx:hover{background:var(--line);color:var(--text)}
+.msel .mselq{flex:1;width:auto;min-width:90px;border:0;outline:0;padding:5px 4px;background:transparent;font:inherit;color:var(--text);border-radius:0}
+.mseltools{display:flex;align-items:center;gap:2px;align-self:center}
+.msel .mselplus{font-size:20px;color:var(--text)}
+.mselpop{position:fixed;z-index:1000;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(15,23,42,.18);display:flex;flex-direction:column;overflow:hidden;font-size:14px}
+.mselhead{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);color:var(--primary);cursor:pointer}
+.msellist{overflow:auto;padding:4px 0}
+.msellist label{display:flex;align-items:center;gap:10px;padding:7px 12px;cursor:pointer}
+.msellist label{font-size:14px;font-weight:400}.msellist label.mselact{background:var(--soft)}
+.msellist label.mselon>span{font-weight:600}
+.mselpop input[type=checkbox]{width:16px;height:16px;margin:0;flex:none;accent-color:var(--primary)}
+.mselgroup{padding:6px 12px 2px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.02em}
+.mselnew{padding:8px 12px;color:var(--primary);cursor:pointer;font-weight:600}.mselnew.mselact{background:var(--soft)}
+.mselempty{padding:10px 12px;color:var(--muted)}

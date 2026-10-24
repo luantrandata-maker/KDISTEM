@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { MultiSelect } from '../components/MultiSelect'
 import { supabase } from '../lib/supabase'
 import { PROGRAM_COLOR } from './teacher/common'
 import { useEduLevels } from '../lib/eduLevels'
@@ -134,14 +135,8 @@ function TrackForm({ t, isNew = false, onCancel, onSaved }: { t: StemTrack; isNe
           onChange={e => setAdd(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSubject() } }} />
         <button type="button" onClick={addSubject} disabled={!add.trim()}>Thêm môn</button>
       </div>
-      <fieldset style={{ border: 0, padding: 0, margin: '12px 0 0' }}>
-        <legend className="sub" style={{ marginBottom: 4 }}>Cấp học áp dụng</legend>
-        {STEM_LEVELS.map(([k, label]) => (
-          <label key={k} style={{ marginRight: 14, display: 'inline-flex', gap: 6, alignItems: 'center' }}>
-            <input type="checkbox" checked={f.levels.includes(k)} onChange={() => toggle(k)} /> {label}
-          </label>
-        ))}
-      </fieldset>
+      <div className="field" style={{ marginTop: 12, maxWidth: 560 }}><span className="sub">Cấp học áp dụng</span>
+        <MultiSelect value={f.levels} onChange={v => setF({ ...f, levels: v as StemLevel[] })} options={STEM_LEVELS.map(([k, l]) => [k, l])} placeholder="Chọn cấp học…" ariaLabel="Cấp học áp dụng" /></div>
       {err && <p className="warnline">{err}</p>}
       <div className="actions" style={{ marginTop: 12 }}>
         <button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>

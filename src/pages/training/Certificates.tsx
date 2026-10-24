@@ -1,5 +1,6 @@
 // Phân hệ 1 — Chứng chỉ tập huấn (087): danh sách, duyệt cấp, thu hồi, in (PDF qua hộp thoại in), QR tra cứu công khai;
 // mẫu chứng chỉ (KDI soạn, chương trình tập huấn chọn mẫu); chứng chỉ của tôi (cổng giáo viên); trang tra cứu ?cc=<mã>.
+import { MultiSelect } from '../../components/MultiSelect'
 import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import { supabase } from '../../lib/supabase'
@@ -222,9 +223,8 @@ function TplForm({ t, progs, onBack, onDone }: { t: Tpl | Omit<Tpl, 'id'>; progs
         <label className="field"><span>Người ký</span><input value={f.signer_name} onChange={e => set('signer_name', e.target.value)} /></label>
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', gridColumn: '1/-1' }}><input type="checkbox" checked={f.is_default} onChange={e => set('is_default', e.target.checked)} />Mẫu mặc định (cho chương trình chưa chọn mẫu)</label>
         <div style={{ gridColumn: '1/-1' }}><b>Áp dụng cho chương trình</b>
-          <div className="reggrid" style={{ marginTop: 6 }}>{progs.map(p => <label className="roomrow" key={p.id}><span>{p.code} · {p.title}</span>
-            <input type="checkbox" checked={use.has(p.id)} onChange={e => { const n = new Set(use); e.target.checked ? n.add(p.id) : n.delete(p.id); setUse(n) }} aria-label={`Áp dụng cho ${p.title}`} /></label>)}
-            {!progs.length && <small className="sub">Chưa có chương trình tập huấn.</small>}</div></div>
+          <div style={{ marginTop: 6 }}><MultiSelect value={[...use]} onChange={v => setUse(new Set(v))} options={progs.map(p => [p.id, `${p.code} · ${p.title}`])}
+            placeholder="Chọn chương trình tập huấn…" ariaLabel="Áp dụng cho chương trình" empty="Chưa có chương trình tập huấn." /></div></div>
       </section>
       <section className="panel"><b>Xem trước</b><div className="certwrap small"><CertPaper p={preview} /></div></section>
     </div>

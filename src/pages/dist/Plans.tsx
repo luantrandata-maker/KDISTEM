@@ -2,6 +2,7 @@
 //  hướng dẫn 3 bước · 3 thẻ số liệu · 3 tab: Bản phân phối (khung phân loại + các bản trong mục + trình soạn),
 //  Danh sách bản phân phối (lọc, sắp xếp, xem bản đã phát hành), Gán theo trường (tạo PPCT theo trường).
 // Theo dõi thực hiện nằm ở menu riêng "Theo dõi Chương trình/Môn học".
+import { MultiSelect } from '../../components/MultiSelect'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRowSel } from '../../components/TableSel'
@@ -416,7 +417,6 @@ function DistAssign({ plans, books, initial, onDone }: { plans: Plan[]; books: B
   const [year, setYear] = useState('')
   const [classes, setClasses] = useState<Cls[]>([])
   const [cls, setCls] = useState<string[]>([])
-  const [q, setQ] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const pub = plans.filter(p => p.status === 'published')
@@ -428,7 +428,7 @@ function DistAssign({ plans, books, initial, onDone }: { plans: Plan[]; books: B
     if (picked.length !== 1 || !plan) { setClasses([]); return }
     supabase.from('classes').select('id, name, grade, org_id').eq('org_id', picked[0]).eq('grade', plan.grade).order('name').then(({ data }) => setClasses((data as Cls[]) ?? []))
   }, [picked.join(','), plan?.id])
-  const schools = orgs.filter(o => o.type === 'school' && (!q || o.name.toLowerCase().includes(q.toLowerCase())))
+  const schools = orgs.filter(o => o.type === 'school')
   const orgName = (id: string) => orgs.find(o => o.id === id)?.name ?? '—'
   const planOf = (id: string) => plans.find(p => p.id === id)
 
@@ -453,13 +453,10 @@ function DistAssign({ plans, books, initial, onDone }: { plans: Plan[]; books: B
         </div>
         {pub.length === 0 && <p className="sub">Chưa có bản nào đã phát hành. Phát hành bản ở tab “Bản phân phối”.</p>}
         {plan && <>
-          <div className="bar"><b>Chọn trường ({picked.length})</b><input placeholder="Tìm trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm trường" /></div>
-          <div className="distschools">{schools.map(o => <label key={o.id}><input type="checkbox" checked={picked.includes(o.id)}
-            onChange={e => setPicked(e.target.checked ? [...picked, o.id] : picked.filter(x => x !== o.id))} /> {o.name}</label>)}
-            {schools.length === 0 && <small className="sub">Không có trường nào trong phạm vi.</small>}</div>
+          <div className="field" style={{ marginBottom: 10 }}><span>Chọn trường ({picked.length})</span>
+            <MultiSelect value={picked} onChange={setPicked} options={schools.map(o => [o.id, o.name])} placeholder="Chọn trường…" ariaLabel="Trường" empty="Không có trường nào trong phạm vi." /></div>
           {picked.length === 1 && <fieldset className="libtargets"><legend>Lớp khối {plan.grade} (không chọn = áp dụng cả khối)</legend>
-            {classes.map(c => <label key={c.id}><input type="checkbox" checked={cls.includes(c.id)} onChange={e => setCls(e.target.checked ? [...cls, c.id] : cls.filter(x => x !== c.id))} /> {c.name}</label>)}
-            {classes.length === 0 && <small className="sub">Trường chưa có lớp khối {plan.grade}.</small>}</fieldset>}
+            <MultiSelect value={cls} onChange={setCls} options={classes.map(c => [c.id, c.name])} placeholder="Cả khối" ariaLabel="Lớp" empty={`Trường chưa có lớp khối ${plan.grade}.`} /></fieldset>}
           <div className="formactions"><button type="button" className="primary" disabled={busy || !picked.length} onClick={assign}>Gán và tạo PPCT</button>
             <small className="sub"> Mỗi chương trình trong bản thành một PPCT nháp của trường, tiết xếp đúng tuần của bản. Gán lại không tạo trùng.</small></div>
         </>}

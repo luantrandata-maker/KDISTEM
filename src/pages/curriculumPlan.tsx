@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { NumMultiSelect } from '../components/MultiSelect'
 import { supabase } from '../lib/supabase'
 import { Tiles } from './department/charts'
 import { BOOK_STATUS, KIND, LessonEditor, REASONS, errText, useCanEdit, useReasonDialog, type Book, type PpctMode, type ReasonCode } from './curriculum'
@@ -701,7 +702,7 @@ export function AssignPrograms({ orgId, mode = 'authority' }: { orgId: string | 
         <div className="panel bar">
           <span className="tools">
             <b>Khối:</b>
-            {range(prog.grade_from, prog.grade_to).map(g => <label key={g}><input type="checkbox" checked={grades.includes(g)} onChange={e => setGrades(gs => e.target.checked ? [...gs, g].sort((a, b) => a - b) : gs.filter(x => x !== g))} /> {g}</label>)}
+            <NumMultiSelect value={grades} onChange={setGrades} options={range(prog.grade_from, prog.grade_to).map(g => ({ value: g, label: `Khối ${g}` }))} placeholder="Chọn khối…" ariaLabel="Khối" style={{ width: 260 }} />
             <label style={{ marginLeft: 12 }}><input type="checkbox" checked={make} onChange={e => setMake(e.target.checked)} /> Tạo sẵn PPCT nháp cho trường</label>
           </span>
           <span className="tools">

@@ -1729,3 +1729,19 @@ a.namelink:hover{color:var(--primary)}
 .tscode{display:grid;gap:8px;justify-items:center;text-align:center;max-width:240px}
 .tscodenum{font-size:34px;letter-spacing:6px;font-variant-numeric:tabular-nums;color:var(--navy)}
 @media(max-width:800px){.tsgrid{grid-template-columns:1fr}.tscode{max-width:none}.tscal{overflow-x:auto;grid-template-columns:repeat(7,minmax(110px,1fr))}}
+/* Phân hệ 1 đợt 4: học tập huấn trực tuyến (086) */
+.tlcourses{display:grid;gap:12px;margin-top:16px}
+.tlcourse{display:grid;grid-template-columns:minmax(0,1fr) 220px auto;gap:16px;align-items:center}.tlcourse h3{margin:2px 0}
+.tlgrid{display:grid;grid-template-columns:280px minmax(0,1fr);gap:14px;align-items:start;margin-top:14px}
+.tlnav{display:grid;gap:10px}.tlnav>div{display:grid;gap:4px}
+.tlunit{display:flex;gap:10px;align-items:flex-start;text-align:left;width:100%;border:1px solid transparent;background:none;border-radius:8px;padding:8px;cursor:pointer;font:inherit;color:inherit}
+.tlunit>span:first-child{flex:none;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;background:var(--soft)}
+.tlunit:hover{background:var(--soft)}.tlunit.on{border-color:var(--primary);background:#e6f1fd}.tlunit.locked{opacity:.6}
+.tlitems{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px}
+.tlitems>li{display:grid;grid-template-columns:24px minmax(0,1fr) auto;gap:10px;align-items:start;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.tlok{color:var(--ok-fg);font-weight:700}.tlnot{color:var(--muted)}
+.tlvideo{position:relative;aspect-ratio:16/9;margin-top:8px;max-width:640px}.tlvideo iframe{position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:8px}
+.tltest{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;border:1px dashed var(--line);border-radius:8px;padding:10px 12px}
+.tlq{display:grid;gap:6px;margin-top:10px}.tlq legend{padding:0 4px}
+.tlopt{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border-radius:6px;cursor:pointer}.tlopt:hover{background:var(--soft)}.tlopt.on{background:#e6f1fd}
+@media(max-width:800px){.tlgrid,.tlcourse{grid-template-columns:1fr}}

@@ -8,7 +8,7 @@ import { NoTeacher, Tabs, PROGRAM_COLOR, type TProps } from './common'
 type Sess = {
   id: string; plan_id: string | null; plan_name: string | null; program: string | null; provider: string | null; title: string
   starts_at: string; ends_at: string; mode: string; location: string | null; meeting_url: string | null; present: boolean | null; org_name: string | null
-  trainer?: string | null; need_code?: boolean; closed?: boolean; excuse_status?: string | null; excuse_reason?: string | null
+  trainer?: string | null; need_code?: boolean; closed?: boolean; excuse_status?: string | null; excuse_reason?: string | null; recording_url?: string | null
 }
 const MODE: Record<string, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
 const OPEN_MS = 15 * 60000   // khớp training_session_open(): sớm/muộn 15 phút
@@ -129,6 +129,7 @@ export function TeacherTrainingSchedule({ teacherId }: TProps) {
                     : <button className="primary" disabled={busy === s.id} onClick={() => checkIn(s, false)}>Điểm danh</button>)}
                   {open && s.present === true && s.meeting_url && <a className="filebtn" href={s.meeting_url} target="_blank" rel="noreferrer">Vào lại phòng họp</a>}
                   {!open && state === 'upcoming' && <small>Mở điểm danh 15 phút trước giờ học</small>}
+                  {s.recording_url && <a className="filebtn" href={s.recording_url} target="_blank" rel="noreferrer">▶ Xem bản ghi</a>}
                   {state !== 'done' && !s.closed && s.present !== true && !s.excuse_status && <> <button disabled={busy === s.id} onClick={() => excuse(s)}>Xin vắng</button></>}
                 </td>
               </tr>

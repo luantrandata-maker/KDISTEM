@@ -102,6 +102,7 @@ const TeacherCompetencyProfile = lazy(() => import('./pages/competency').then(m 
 const TrainingProgramsPage = lazy(() => import('./pages/training/Programs').then(m => ({ default: m.TrainingProgramsPage })))
 const TrainingPlansPage = lazy(() => import('./pages/training/Plans').then(m => ({ default: m.TrainingPlansPage })))
 const TrainingCalendarPage = lazy(() => import('./pages/training/Schedule').then(m => ({ default: m.TrainingCalendarPage })))
+const TeacherTrainingLearn = lazy(() => import('./pages/teacher/TrainingLearn').then(m => ({ default: m.TeacherTrainingLearn })))
 const SchoolTrainingAssigned = lazy(() => import('./pages/training/Plans').then(m => ({ default: m.SchoolTrainingAssigned })))
 // Trường: kế hoạch được cấp trên giao (chọn GV, gửi duyệt) + kế hoạch riêng của trường
 const SchoolTrainingPlans = (p: any) => <TabbedPages {...p} tabs={[['Được giao', SchoolTrainingAssigned], ['Kế hoạch của trường', TrainingPlans]]} />
@@ -285,7 +286,7 @@ const TEACHER: PageMap = {
   'Thư viện STEM': (p: any) => <TabbedPages {...p} tabs={[['Theo chương trình', LibraryPrograms], ['Kho học liệu', LibraryBrowse]]} />,
   'Định mức vật tư': MaterialNorms,
   'Lịch tập huấn': TeacherTrainingSchedule,
-  'Bài giảng tập huấn': TeacherTrainingLessons,
+  'Bài giảng tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Khoá tập huấn của tôi', TeacherTrainingLearn], ['Bài giảng của trường', TeacherTrainingLessons]]} />,
   'Hỗ trợ từ KDI': CustomerSupport,
   'Kho hoạt động & Bài giảng': TeacherActivities,
   'Học trước & tự học': TeacherSelfStudy,

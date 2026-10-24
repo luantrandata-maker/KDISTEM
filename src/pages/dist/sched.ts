@@ -6,7 +6,7 @@
 //  • Bài sửa tuần bằng tay: các tiết của bài trải từ tuần đó theo nhịp; bài sau vẫn xếp như cũ.
 
 export type Status = 'draft' | 'published' | 'archived'
-export type Plan = { id: string; org_id: string; code: string; title: string; level: string; grade: number; tier: string | null; status: Status
+export type Plan = { id: string; org_id: string; code: string; title: string; level: string; grade: number; tier: string | null; node_id: string | null; status: Status
   hk1_weeks: number; hk2_weeks: number; note: string | null; updated_at: string; published_at: string | null }
 export type Mode = 'hk1' | 'hk2' | 'week' | 'after'
 export type SubjMode = 'program' | 'after' | 'week'

@@ -4,9 +4,9 @@
 // Theo dõi thực hiện nằm ở menu riêng "Theo dõi Chương trình/Môn học".
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../../lib/supabase'
-import { useEduLevels, gradeRange } from '../../lib/eduLevels'
 import { useRowSel } from '../../components/TableSel'
-import { useTiers } from './Tiers'
+import { useCls, type ClsLevel, type ClsNode } from './cls'
+import { Drawer } from '../../components/Drawer'
 import { PlanBody, Chip, STATUS, errText, useBreadcrumb } from './Editor'
 import type { Plan, Status } from './sched'
 
@@ -15,7 +15,7 @@ type Tab = 'tree' | 'list' | 'assign'
 type Meta = { programs: number; subjects: number; lessons: number; periods: number; books: number }
 type Book = { id: string; title: string; status: string; year_name: string | null; org_id: string; dist_plan_id: string; program_id: string | null; curriculum_lessons: { count: number }[] }
 const BOOK_STATUS: Record<string, string> = { draft: 'Nháp', pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Bị trả lại', published: 'Đã ban hành' }
-const PLAN_SEL = 'id, org_id, code, title, level, grade, tier, status, hk1_weeks, hk2_weeks, note, updated_at, published_at'
+const PLAN_SEL = 'id, org_id, code, title, level, grade, tier, node_id, status, hk1_weeks, hk2_weeks, note, updated_at, published_at'
 
 function useDistData(rk: number) {
   const [plans, setPlans] = useState<Plan[] | null>(null)
@@ -127,116 +127,209 @@ function PlanCells({ p, m, has, crumb, onOpen }: { p: Plan; m: Meta | undefined;
   </>
 }
 
-// ===== Tab "Bản phân phối": khung phân loại + các bản trong mục =====
-type Node = { level: string; grade?: number; tier?: string | null }
-const nodeKey = (n: Node) => [n.level, n.grade ?? '', n.tier === undefined ? '' : n.tier ?? '-'].join(':')
-const inNode = (p: Plan, n: Node) => p.level === n.level && (n.grade == null || p.grade === n.grade) && (n.tier === undefined || (p.tier ?? null) === n.tier)
+// ===== Tab "Bản phân phối": cấu hình cấp + khung phân loại + các bản trong mục =====
+const clsErr = (m: string) => /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI sửa được khung phân loại.'
+  : /23503|foreign key/i.test(m) ? 'Mục đang có mục con hoặc bản phân phối nên không xoá được.'
+  : /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 082 trên Supabase.' : errText(m)
+type AddForm = { mode: 'add'; level: ClsLevel; parent: ClsNode | null; name: string } | { mode: 'rename'; node: ClsNode; level: ClsLevel | undefined; name: string }
+
+function ClsConfig({ cls, used, onMsg }: { cls: ReturnType<typeof useCls> & { admin: boolean }; used: (levelId: string) => number; onMsg: (m: [string, boolean]) => void }) {
+  const [open, setOpen] = useState(false)
+  const [name, setName] = useState('')
+  const [pos, setPos] = useState('end')
+  const lv = cls.levels
+  async function run(p: PromiseLike<{ error: { message: string } | null }>, ok?: string) {
+    const { error } = await p
+    if (error) onMsg([clsErr(error.message), true]); else if (ok) onMsg([ok, false])
+    await cls.reload()
+  }
+  /** Thứ tự xen giữa hai cấp kề nhau (thứ tự thưa 10, 20, 30…) */
+  const between = (a: number | undefined, b: number | undefined) => a == null ? (b ?? 10) - 10 : b == null ? a + 10 : Math.floor((a + b) / 2)
+  function move(i: number, d: -1 | 1) {
+    const l = lv[i], j = i + d
+    if (!lv[j]) return
+    const s = d < 0 ? between(lv[j - 1]?.sort, lv[j].sort) : between(lv[j].sort, lv[j + 1]?.sort)
+    if (s === lv[j].sort || s === lv[j + d]?.sort) return onMsg(['Hai cấp đứng quá sát nhau, hãy xoá rồi thêm lại cấp ở vị trí mới.', true])
+    run(supabase.from('dist_cls_levels').update({ sort: s }).eq('id', l.id))
+  }
+  async function add() {
+    const n = name.trim(); if (!n) return
+    const i = pos === 'end' ? lv.length - 1 : lv.findIndex(l => l.id === pos)
+    await run(supabase.from('dist_cls_levels').insert({ name: n, kind: 'custom', sort: between(lv[i]?.sort, lv[i + 1]?.sort) }), `Đã thêm cấp “${n}”.`)
+    setName('')
+  }
+  const locked = (l: ClsLevel) => l.kind === 'level' || l.kind === 'grade'
+  return <div className="panel distcls">
+    <div className="bar small"><b>Cấu hình cấp phân loại</b>
+      {cls.admin && <button type="button" onClick={() => setOpen(!open)}>{open ? 'Thu gọn' : 'Cấu hình cấp'}</button>}</div>
+    {!open ? <div className="distclschips">{cls.active.map((l, k) => <span key={l.id}>{k > 0 && <i aria-hidden="true">→</i>}<span className="chip">{l.name}</span></span>)}</div> : <>
+      <ol className="distclslist">{lv.map((l, i) => {
+        const has = used(l.id) > 0
+        return <li key={l.id}>
+          <i>{i + 1}</i>
+          <input defaultValue={l.name} aria-label={'Tên cấp ' + (i + 1)} maxLength={40}
+            onBlur={e => { const v = e.target.value.trim(); if (v && v !== l.name) run(supabase.from('dist_cls_levels').update({ name: v }).eq('id', l.id)); else e.target.value = l.name }} />
+          <span className={'pill ' + (l.active ? 'active' : 'inactive')}>{l.active ? 'Đang bật' : 'Đang tắt'}</span>
+          <button type="button" aria-label="Chuyển lên" disabled={!i || has} title={has ? 'Cấp đã có mục trong cây' : undefined} onClick={() => move(i, -1)}>↑</button>
+          <button type="button" aria-label="Chuyển xuống" disabled={i === lv.length - 1 || has} title={has ? 'Cấp đã có mục trong cây' : undefined} onClick={() => move(i, 1)}>↓</button>
+          <button type="button" disabled={locked(l)} title={locked(l) ? 'Bản phân phối cần cấp này' : undefined}
+            onClick={() => run(supabase.from('dist_cls_levels').update({ active: !l.active }).eq('id', l.id))}>{l.active ? 'Tắt cấp' : 'Bật cấp'}</button>
+          <button type="button" disabled={locked(l) || has} title={locked(l) ? 'Bản phân phối cần cấp này' : has ? 'Cấp đã có mục trong cây' : undefined}
+            onClick={() => confirm(`Xoá cấp “${l.name}”?`) && run(supabase.from('dist_cls_levels').delete().eq('id', l.id), `Đã xoá cấp “${l.name}”.`)}>Xóa</button>
+        </li>
+      })}</ol>
+      <div className="distclsadd">
+        <input placeholder="Tên cấp mới, ví dụ: Giai đoạn" value={name} maxLength={40} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') add() }} aria-label="Tên cấp mới" />
+        <select value={pos} onChange={e => setPos(e.target.value)} aria-label="Vị trí"><option value="end">Đặt ở cuối</option>
+          {lv.slice(0, -1).map(l => <option key={l.id} value={l.id}>Sau {l.name}</option>)}</select>
+        <button type="button" className="primary" disabled={!name.trim()} onClick={add}>+ Thêm cấp</button>
+      </div>
+      <p className="sub" style={{ margin: 0 }}>Tên cấp và việc tắt/bật đổi được bất cứ lúc nào. Đổi thứ tự hoặc xóa cấp chỉ làm được khi cấp đó chưa có mục trong cây. Bản phân phối chỉ gắn vào mục ở cấp cuối đang bật.</p>
+    </>}
+  </div>
+}
 
 function DistTree({ orgId, plans, meta, focus, onOpen, onCreated }: {
   orgId: string | null; plans: Plan[]; meta: Map<string, Meta>; focus: string | null; onOpen: (id: string) => void; onCreated: (id: string) => void
 }) {
-  const { levels, name: levelName } = useEduLevels()
-  const { tiers, all: allTiers, name: tierName, reload: reloadTiers } = useTiers()
+  const base = useCls()
   const crumb = useBreadcrumb()
   const [admin, setAdmin] = useState(false)
+  const cls = { ...base, admin }
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
-  const [depth, setDepth] = useState<1 | 2 | 3>(2)
+  const [depth, setDepth] = useState<number | null>(null)
   const [exp, setExp] = useState<Set<string>>(new Set())
-  const [sel, setSel] = useState<Node | null>(null)
+  const [selId, setSelId] = useState<string | null>(null)
+  const [form, setForm] = useState<AddForm | null>(null)
   const { has, menu } = useCols('dist-tree-cols', COLS, ['cls', 'lessons', 'status'])
   useEffect(() => { supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)) }, [])
-  // Mở sẵn nhánh có bản; chọn nhánh của bản vừa xem hoặc nhánh đầu tiên có bản
+
+  const { nodes, active, byId, lvOf } = base
+  const lvIdx = (n: ClsNode) => active.findIndex(l => l.id === n.cls_level_id)
+  const last = active[active.length - 1]
+  /** Cha hiển thị: mục cha gần nhất thuộc cấp đang bật (mục của cấp đang tắt được ẩn, mục con lên thay) */
+  const shownParent = (n: ClsNode) => { let p = n.parent_id ? byId.get(n.parent_id) : undefined; while (p && !lvOf(p)?.active) p = p.parent_id ? byId.get(p.parent_id) : undefined; return p?.id ?? null }
+  const kids = useMemo(() => {
+    const m = new Map<string | null, ClsNode[]>()
+    for (const n of nodes) if (lvOf(n)?.active) { const k = shownParent(n); m.set(k, [...(m.get(k) ?? []), n]) }
+    for (const a of m.values()) a.sort((x, y) => lvIdx(x) - lvIdx(y) || x.sort - y.sort || x.name.localeCompare(y.name, 'vi', { numeric: true }))
+    return m
+  }, [nodes, active.map(l => l.id).join()])
+  // Số bản trong mỗi mục (tính cả mục con) và danh sách mục chứa từng bản
+  const under = useMemo(() => {
+    const m = new Map<string, Set<string>>()
+    for (const p of plans) for (let n = p.node_id ? byId.get(p.node_id) : undefined; n; n = n.parent_id ? byId.get(n.parent_id) : undefined) {
+      if (!m.has(n.id)) m.set(n.id, new Set()); m.get(n.id)!.add(p.id)
+    }
+    return m
+  }, [plans, nodes])
+  const sel = selId ? byId.get(selId) ?? null : null
+  // Mở sẵn nhánh có bản; chọn mục của bản vừa xem hoặc mục đầu tiên
   useEffect(() => {
-    const f = plans.find(p => p.id === focus) ?? plans[0]
-    const e = new Set<string>(levels.map(l => 'l:' + l.code))
-    for (const p of plans) e.add(`g:${p.level}:${p.grade}`)
+    if (!nodes.length) return
+    const e = new Set<string>(kids.get(null)?.map(n => n.id))
+    for (const p of plans) for (let n = p.node_id ? byId.get(p.node_id) : undefined; n; n = n.parent_id ? byId.get(n.parent_id) : undefined) if (n.id !== p.node_id) e.add(n.id)
     setExp(e)
-    if (!sel) setSel(f ? { level: f.level, grade: f.grade, tier: f.tier ?? null } : levels[0] ? { level: levels[0].code } : null)
-  }, [levels.length, plans.length])
-  function showTo(d: 1 | 2 | 3) {
+    if (!sel) { const f = plans.find(p => p.id === focus) ?? plans.find(p => p.node_id); setSelId(f?.node_id ?? kids.get(null)?.[0]?.id ?? null) }
+  }, [nodes.length, plans.length])
+  function showTo(d: number) {
     setDepth(d)
-    const e = new Set<string>()
-    if (d >= 2) levels.forEach(l => e.add('l:' + l.code))
-    if (d >= 3) levels.forEach(l => gradeRange(l.grade_from, l.grade_to).forEach(g => e.add(`g:${l.code}:${g}`)))
-    setExp(e)
+    setExp(new Set(nodes.filter(n => { const i = lvIdx(n); return i >= 0 && i < d }).map(n => n.id)))
   }
   const toggle = (k: string) => setExp(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n })
-  const count = (n: Node) => plans.filter(p => inNode(p, n)).length
 
+  const isFinal = !!sel && !!last && sel.cls_level_id === last.id
+  const nextLv = (n: ClsNode | null) => n ? active[lvIdx(n) + 1] : active[0]
   async function create() {
-    if (!orgId || !sel || sel.grade == null) return
-    const { data, error } = await supabase.from('dist_plans').insert({ org_id: orgId, title: 'Bản phân phối mới', level: sel.level, grade: sel.grade, tier: sel.tier ?? null }).select('id').single()
-    if (error) return setMsg([errText(error.message), true])
+    if (!orgId || !sel || !isFinal) return
+    const { data, error } = await supabase.from('dist_plans').insert({ org_id: orgId, title: 'Bản phân phối mới', node_id: sel.id }).select('id').single()
+    if (error) return setMsg([/22023/.test(error.code ?? '') || /chưa thuộc cấp học/.test(error.message) ? clsErr(error.message) : errText(error.message), true])
     onCreated((data as { id: string }).id)
   }
-  async function addTier() {
-    const name = prompt('Tên mức độ mới (vd. Chuyên sâu):')?.trim(); if (!name) return
-    const base = name.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '')
-    const code = (/^[a-z]/.test(base) ? base : 'm_' + base).slice(0, 20).replace(/_+$/, '') || 'muc_' + Date.now() % 1000
-    const { error } = await supabase.from('dist_tiers').insert({ code: code.length < 2 ? code + '_1' : code, name, sort: allTiers.reduce((m, t) => Math.max(m, t.sort), 0) + 1 })
-    if (error) return setMsg([/23505|duplicate/.test(error.message + error.code) ? 'Đã có mức độ trùng mã, hãy đặt tên khác.' : errText(error.message), true])
-    setMsg([`Đã thêm mức độ “${name}” cho mọi khối.`, false]); reloadTiers()
+  async function saveForm(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form) return
+    const name = form.name.trim(); if (!name) return
+    if (form.mode === 'add') {
+      const sibs = form.parent ? (kids.get(form.parent.id) ?? []) : (kids.get(null) ?? [])
+      const { data, error } = await supabase.from('dist_nodes').insert({ cls_level_id: form.level.id, parent_id: form.parent?.id ?? null, name, sort: sibs.reduce((m, n) => Math.max(m, n.sort), 0) + 1 }).select('id').single()
+      if (error) return setMsg([clsErr(error.message), true])
+      setMsg([`Đã thêm ${form.level.name.toLowerCase()} “${name}”.`, false])
+      if (form.parent) setExp(s => new Set(s).add(form.parent!.id))
+      setSelId((data as { id: string }).id)
+    } else {
+      const { error } = await supabase.from('dist_nodes').update({ name }).eq('id', form.node.id)
+      if (error) return setMsg([clsErr(error.message), true])
+    }
+    setForm(null); base.reload()
   }
-  async function renameTier(code: string) {
-    const name = prompt('Tên mới của mức độ (đổi ở mọi khối):', tierName(code))?.trim(); if (!name) return
-    const { error } = await supabase.from('dist_tiers').update({ name }).eq('code', code)
-    if (error) return setMsg([errText(error.message), true])
-    reloadTiers()
-  }
-  async function removeTier(code: string) {
-    if (plans.some(p => p.tier === code)) return setMsg(['Mức độ đang có bản phân phối nên không xoá được. Có thể ngừng dùng ở Chương trình giáo dục › Danh mục › Mức độ phân phối.', true])
-    if (!confirm(`Xoá mức độ “${tierName(code)}” ở mọi khối?`)) return
-    const { error } = await supabase.from('dist_tiers').delete().eq('code', code)
-    if (error) return setMsg([errText(error.message), true])
-    setSel(sel ? { level: sel.level, grade: sel.grade } : null); reloadTiers()
+  async function remove(n: ClsNode) {
+    if (nodes.some(x => x.parent_id === n.id)) return setMsg(['Mục còn mục con, hãy xoá các mục con trước.', true])
+    if (under.get(n.id)?.size) return setMsg(['Mục đang có bản phân phối nên không xoá được.', true])
+    if (!confirm(`Xoá “${n.name}” khỏi khung phân loại?`)) return
+    const { error } = await supabase.from('dist_nodes').delete().eq('id', n.id)
+    if (error) return setMsg([clsErr(error.message), true])
+    setSelId(shownParent(n)); base.reload()
   }
 
-  const shown = sel ? plans.filter(p => inNode(p, sel)) : []
-  const selName = !sel ? '' : sel.tier !== undefined ? (sel.tier ? tierName(sel.tier) : 'Chưa phân loại') : sel.grade != null ? `Khối ${sel.grade}` : levelName(sel.level)
-  const selCrumb = !sel ? '' : [levelName(sel.level), sel.grade != null ? `Khối ${sel.grade}` : null, sel.tier !== undefined ? (sel.tier ? tierName(sel.tier) : 'Chưa phân loại') : null].filter(Boolean).join(' › ')
-  const row = (n: Node, label: string, kind: string, lvl: number, k?: string): ReactNode => {
-    const c = count(n), on = sel && nodeKey(sel) === nodeKey(n)
-    return <div className={'distnode d' + lvl + (on ? ' on' : '')}>
-      {k ? <button type="button" className="caret" aria-label={exp.has(k) ? 'Thu gọn' : 'Mở'} aria-expanded={exp.has(k)} onClick={() => toggle(k)}>{exp.has(k) ? '▾' : '▸'}</button> : <span className="caret" />}
-      <button type="button" className="nodebtn" aria-current={on || undefined} onClick={() => setSel(n)}><b>{label}</b> <small>{kind}</small>{c > 0 && <span className="count">{c}</span>}</button>
-    </div>
-  }
-  return (
-    <div className="distlayout">
-      <nav className="panel disttree" aria-label="Khung phân loại">
-        <div className="bar small"><b>Khung phân loại</b>{admin && <button type="button" className="linkbtn" onClick={addTier}>+ Thêm mức độ</button>}</div>
-        <div className="distdepth"><small className="sub">Hiển thị đến:</small>
-          <div className="segmented">{([[1, 'Cấp học'], [2, 'Khối lớp'], [3, 'Mức độ']] as [1 | 2 | 3, string][]).map(([d, l]) =>
-            <button key={d} type="button" className={depth === d ? 'on' : ''} onClick={() => showTo(d)}>{l}</button>)}</div></div>
-        {levels.map(l => <div key={l.code}>
-          {row({ level: l.code }, l.name, 'Cấp học', 0, 'l:' + l.code)}
-          {exp.has('l:' + l.code) && gradeRange(l.grade_from, l.grade_to).map(g => <div key={g}>
-            {row({ level: l.code, grade: g }, `Khối ${g}`, 'Khối lớp', 1, `g:${l.code}:${g}`)}
-            {exp.has(`g:${l.code}:${g}`) && <>
-              {tiers.map(t => <div key={t.code}>{row({ level: l.code, grade: g, tier: t.code }, t.name, 'Mức độ', 2)}</div>)}
-              {count({ level: l.code, grade: g, tier: null }) > 0 && row({ level: l.code, grade: g, tier: null }, 'Chưa phân loại', 'Mức độ', 2)}
-            </>}
-          </div>)}
-        </div>)}
-        {admin && sel?.tier && <div className="distnodefoot"><b>{tierName(sel.tier)}</b>
-          <span className="tools"><button type="button" onClick={() => renameTier(sel.tier!)}>Đổi tên</button><button type="button" onClick={() => removeTier(sel.tier!)}>Xóa</button></span></div>}
-      </nav>
-      <div className="panel">
-        <div className="bar">
-          <div><h3 style={{ margin: 0 }}>{selName || 'Chọn một nhánh'}</h3><small className="sub">{selCrumb}</small></div>
-          <div className="tools">
-            <button type="button" className="primary" disabled={!sel || sel.grade == null || !orgId} title={sel?.grade == null ? 'Chọn đến Khối lớp hoặc Mức độ để tạo bản' : undefined} onClick={create}>+ Tạo bản phân phối</button>
-            {menu}
-          </div>
-        </div>
-        {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-        <div className="wrap"><table className="libtable">
-          <thead><tr>{COLS.filter(c => has(c.key)).map(c => <th key={c.key}>{c.label}</th>)}</tr></thead>
-          <tbody>{shown.map(p => <tr key={p.id}><PlanCells p={p} m={meta.get(p.id)} has={has} crumb={crumb(p)} onOpen={() => onOpen(p.id)} /></tr>)}
-            {shown.length === 0 && <tr><td colSpan={COLS.length}>{sel?.grade == null ? 'Chưa có bản nào trong mục này. Chọn Khối lớp hoặc Mức độ để tạo bản.' : 'Chưa có bản nào trong mục này. Bấm “+ Tạo bản phân phối”.'}</td></tr>}</tbody>
-        </table></div>
+  const shown = sel ? plans.filter(p => under.get(sel.id)?.has(p.id)) : []
+  const selCrumb = sel ? base.path(sel.id).map(n => n.name).join(' › ') : ''
+  const tree = (pid: string | null): ReactNode => (kids.get(pid) ?? []).map(n => {
+    const c = under.get(n.id)?.size ?? 0, on = sel?.id === n.id, open = exp.has(n.id), sub = kids.get(n.id)?.length
+    return <div key={n.id}>
+      <div className={'distnode' + (on ? ' on' : '')} style={{ paddingLeft: Math.max(0, base.path(n.id).length - 1) * 16 }}>
+        {sub ? <button type="button" className="caret" aria-label={open ? 'Thu gọn' : 'Mở'} aria-expanded={open} onClick={() => toggle(n.id)}>{open ? '▾' : '▸'}</button> : <span className="caret" />}
+        <button type="button" className="nodebtn" aria-current={on || undefined} onClick={() => setSelId(n.id)}><b>{n.name}</b> <small>{lvOf(n)?.name}</small>{c > 0 && <span className="count">{c}</span>}</button>
       </div>
+      {open && tree(n.id)}
     </div>
+  })
+  const nx = nextLv(sel)
+  return (
+    <>
+      <ClsConfig cls={cls} used={id => nodes.filter(n => n.cls_level_id === id).length} onMsg={setMsg} />
+      <div className="distlayout">
+        <nav className="panel disttree" aria-label="Khung phân loại">
+          <div className="bar small"><b>Khung phân loại</b>{admin && active[0] && <button type="button" onClick={() => setForm({ mode: 'add', level: active[0], parent: null, name: '' })}>+ Thêm {active[0].name.toLowerCase()}</button>}</div>
+          <div className="distdepth"><small className="sub">Hiển thị đến:</small>
+            <div className="segmented">{active.map((l, i) =>
+              <button key={l.id} type="button" className={depth === i ? 'on' : ''} onClick={() => showTo(i)}>{l.name}</button>)}</div></div>
+          {base.ready && !nodes.length && <small className="sub">Chưa có mục nào. {admin ? `Bấm “+ Thêm ${active[0]?.name.toLowerCase() ?? 'mục'}”.` : ''}</small>}
+          {tree(null)}
+          {admin && sel && <div className="distnodefoot"><b>{sel.name}</b>
+            <span className="tools">
+              {nx && <button type="button" onClick={() => setForm({ mode: 'add', level: nx, parent: sel, name: '' })}>+ Thêm {nx.name.toLowerCase()}</button>}
+              <button type="button" onClick={() => setForm({ mode: 'rename', node: sel, level: lvOf(sel), name: sel.name })}>Đổi tên</button>
+              <button type="button" onClick={() => remove(sel)}>Xóa</button></span></div>}
+        </nav>
+        <div className="panel">
+          <div className="bar">
+            <div><h3 style={{ margin: 0 }}>{sel?.name ?? 'Chọn một mục'}</h3><small className="sub">{selCrumb}</small></div>
+            <div className="tools">
+              {isFinal && <button type="button" className="primary" disabled={!orgId} onClick={create}>+ Tạo bản phân phối</button>}
+              {menu}
+            </div>
+          </div>
+          {sel && !isFinal && <p className="sub">Đây chưa phải cấp cuối. Chọn mục {last?.name.toLowerCase()} bên trong để tạo bản; bên dưới là các bản đã có trong mục này.</p>}
+          {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+          <div className="wrap"><table className="libtable">
+            <thead><tr>{COLS.filter(c => has(c.key)).map(c => <th key={c.key}>{c.label}</th>)}</tr></thead>
+            <tbody>{shown.map(p => <tr key={p.id}><PlanCells p={p} m={meta.get(p.id)} has={has} crumb={crumb(p)} onOpen={() => onOpen(p.id)} /></tr>)}
+              {shown.length === 0 && <tr><td colSpan={COLS.length}>{isFinal ? 'Chưa có bản nào trong mục này. Bấm “+ Tạo bản phân phối”.' : 'Chưa có bản nào trong mục này.'}</td></tr>}</tbody>
+          </table></div>
+        </div>
+      </div>
+      {form && <Drawer title={form.mode === 'add' ? `Thêm ${form.level.name.toLowerCase()}` : 'Đổi tên'} onClose={() => setForm(null)} closeOnOutside={false}>
+        <form className="formgrid" onSubmit={saveForm}>
+          <label className="field" style={{ gridColumn: '1 / -1' }}><span>{form.level?.name ?? 'Tên'}</span>
+            <input autoFocus required maxLength={80} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+              placeholder={'Ví dụ: ' + (({ level: 'Mầm non', grade: 'Khối 6', tier: 'Tăng cường', custom: 'Giai đoạn 1' } as Record<string, string>)[form.level?.kind ?? 'custom'])} />
+            {form.mode === 'add' && form.parent && <small className="sub">Thuộc: {base.path(form.parent.id).map(n => n.name).join(' › ')}</small>}
+          </label>
+          <div className="formactions" style={{ gridColumn: '1 / -1' }}><button type="submit" className="primary" disabled={!form.name.trim()}>Lưu</button><button type="button" onClick={() => setForm(null)}>Hủy</button></div>
+        </form>
+      </Drawer>}
+    </>
   )
 }
 

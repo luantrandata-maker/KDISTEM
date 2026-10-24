@@ -23,7 +23,8 @@ declare
     'edu_levels',           -- danh mục cấp học & khối (065)
     'dist_tiers',           -- danh mục mức độ của bản phân phối (078)
     'dist_cls_levels',      -- cấp phân loại bản phân phối: Cấp học › Khối lớp › Mức độ (082)
-    'dist_nodes'            -- cây phân loại dựng từ danh mục cấp học, khối, mức độ (082)
+    'dist_nodes',           -- cây phân loại dựng từ danh mục cấp học, khối, mức độ (082)
+    'certificate_templates' -- mẫu chứng chỉ tập huấn chuẩn của KDI (087, một dòng mặc định)
   ];
   r record; n bigint; bad text := '';
 begin

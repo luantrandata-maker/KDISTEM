@@ -1745,3 +1745,21 @@ a.namelink:hover{color:var(--primary)}
 .tlq{display:grid;gap:6px;margin-top:10px}.tlq legend{padding:0 4px}
 .tlopt{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border-radius:6px;cursor:pointer}.tlopt:hover{background:var(--soft)}.tlopt.on{background:#e6f1fd}
 @media(max-width:800px){.tlgrid,.tlcourse{grid-template-columns:1fr}}
+/* Phân hệ 1 đợt 5: chứng chỉ tập huấn (087) */
+.certwrap{display:flex;justify-content:center;margin-top:14px;overflow-x:auto}
+.certpaper{position:relative;width:760px;max-width:100%;aspect-ratio:1.414/1;background:#fff;color:#1b2a4a;border:10px double #1b4f9c;border-radius:6px;padding:28px 40px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;box-sizing:border-box}
+.certpaper h2{font-size:34px;letter-spacing:4px;margin:6px 0 0;color:#1b4f9c}
+.certpaper .sub{color:#5b6b85;margin:0}
+.certhead{width:100%;display:flex;justify-content:space-between;align-items:center}.certhead img{height:44px}.certhead b{font-size:14px;text-transform:uppercase}
+.certname{font-size:28px;font-weight:700;font-family:Georgia,serif;margin:6px 0 0}
+.certbody{max-width:560px;margin:10px 0;font-size:15px;line-height:1.5}
+.certfoot{margin-top:auto;width:100%;display:flex;justify-content:space-between;align-items:flex-end;text-align:left}
+.certfoot>div:first-child{display:grid;gap:2px}.certfoot small{color:#5b6b85}
+.certsign{display:grid;justify-items:center;gap:4px;min-width:200px}.certsign span{height:40px}
+.certstamp{position:absolute;top:40%;left:50%;transform:translate(-50%,-50%) rotate(-18deg);border:4px solid #c62828;color:#c62828;font-size:36px;font-weight:800;padding:6px 18px;border-radius:8px;opacity:.75}
+.certpaper.revoked{opacity:.85}
+.certwrap.small .certpaper{width:100%;padding:14px 18px;border-width:6px}.certwrap.small .certpaper h2{font-size:22px}.certwrap.small .certname{font-size:20px}.certwrap.small .certbody{font-size:13px}
+.certverify{max-width:820px;margin:0 auto;padding:24px 16px;display:grid;gap:14px}.certverify h1{font-size:22px;margin:0}
+.certverdict{display:grid;gap:4px;border-left:6px solid var(--ok)}.certverdict.bad{border-left-color:var(--bad)}.certverdict b{font-size:18px}
+@media(max-width:800px){.certpaper{aspect-ratio:auto;padding:18px}.certpaper h2{font-size:24px}.certname{font-size:22px}}
+@media print{body *{visibility:hidden}.certpaper,.certpaper *{visibility:visible}.certpaper{position:fixed;inset:0;margin:auto;width:100%;max-width:none;border-radius:0}@page{size:A4 landscape;margin:10mm}}

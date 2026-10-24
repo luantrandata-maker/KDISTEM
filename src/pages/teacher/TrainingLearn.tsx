@@ -18,7 +18,9 @@ type Unit = { id: string; ord: number; subject: string; title: string; hours: nu
 type Product = { url: string | null; note: string | null; status: 'submitted' | 'accepted' | 'returned'; feedback: string | null; submitted_at: string }
 type Full = { plan: { id: string; code: string | null; name: string; starts_on: string | null; ends_on: string | null; org_name: string | null }
   programs: { title: string; code: string; pass_attendance: number; pass_score: number | null; need_product: boolean }[]
-  units: Unit[]; attendance: { present: number; total: number }; product: Product | null }
+  units: Unit[]; attendance: { present: number; total: number }; product: Product | null
+  result?: { result: 'pending' | 'pass' | 'fail'; reason: string | null; product_score: number | null; comment: string | null } | null
+  cert?: { id: string; code: string | null; status: 'pending' | 'issued' } | null }
 type Q = { id: string; stem: string; options: string[]; kind: 'single' | 'multi' | 'truefalse' }
 
 export const PRODUCT_ST: Record<string, [string, string]> = {
@@ -106,6 +108,10 @@ function CourseView({ planId, onBack }: { planId: string; onBack: () => void }) 
       <div className={`panel`}><i className={c.product?.status === 'accepted' ? 'good' : c.product?.status === 'returned' ? 'warn' : ''}>📦</i><span><small>Sản phẩm cuối khoá</small>
         <b style={{ fontSize: 16 }}>{!needProduct ? 'Không yêu cầu' : c.product ? PRODUCT_ST[c.product.status][0] : 'Chưa nộp'}</b></span></div>
     </div>
+    {c.result && c.result.result !== 'pending' && <p className={c.result.result === 'pass' ? 'sub' : 'warnline'} role="status" style={{ marginTop: 12, color: c.result.result === 'pass' ? 'var(--ok-fg)' : undefined }}>
+      <b>Kết quả: {c.result.result === 'pass' ? 'Đạt' : 'Chưa đạt'}</b>{c.result.reason ? ` · ${c.result.reason}` : ''}
+      {c.result.result === 'pass' && (c.cert?.status === 'issued' ? ` · Đã có chứng chỉ ${c.cert.code}, xem ở mục Chứng chỉ tập huấn.` : ' · Chứng chỉ đang chờ duyệt cấp.')}</p>}
+    {c.result?.comment && <p className="sub">Nhận xét của giảng viên: {c.result.comment}{c.result.product_score != null ? ` · điểm sản phẩm ${num(c.result.product_score)}` : ''}</p>}
     {err && <p className="sub" role="alert" style={{ color: 'var(--bad)' }}>{err}</p>}
     <div className="tlgrid">
       <nav className="panel tlnav" aria-label="Nội dung tập huấn">

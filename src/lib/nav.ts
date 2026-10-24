@@ -50,7 +50,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
   school_admin: [
     { title: 'Tổng quan', items: ['Dashboard Trường', 'Hồ sơ Trường học', 'Hộp phê duyệt', 'Trợ lý AI'] },
     { title: 'Nhân sự & lớp học', items: ['Giáo viên', 'Phân công giảng dạy', 'Lớp học', 'Học sinh', 'Phụ huynh'] },
-    { title: 'Tập huấn giáo viên', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Bài giảng', 'Lớp học ảo', 'Chứng chỉ', 'Đánh giá năng lực GV'] },
+    { title: 'Tập huấn giáo viên', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Bài giảng', 'Lớp học ảo', 'Đánh giá kết quả tập huấn', 'Chứng chỉ', 'Đánh giá năng lực GV'] },
     { title: 'Chương trình & học liệu', items: ['Chương trình giáo dục', 'Gói STEM', 'Đề xuất mua gói', 'Phân phối chương trình', 'Kho học liệu dùng chung', 'Phát hành học liệu', 'Định mức vật tư', 'Giáo án & bài giảng', 'E-learning & luyện thi', 'Ngân hàng câu hỏi'] },
     { title: 'Phòng & thiết bị STEM', items: ['Quản lý Phòng STEM', 'Quản lý Thiết bị', 'Vật tư tiêu hao', 'Đề xuất mua vật tư', 'Vận chuyển vật tư', 'Kiểm kê', 'Bảo hành thiết bị'] },
     { title: 'Dự án & cuộc thi', items: ['Dự án STEM', 'Cuộc thi'] },
@@ -61,7 +61,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Giảng dạy', items: ['Tổng quan', 'Kế hoạch giáo dục', 'Chương trình giáo dục', 'Phân phối chương trình', 'Định mức vật tư', 'Lớp giảng dạy', 'Điểm danh', 'Bài tập', 'Chấm bài', 'Năng lực học sinh', 'Học trước & tự học', 'E-learning & luyện thi'] },
     { title: 'Hoạt động STEM', items: ['Giáo dục STEM', 'Đặt phòng STEM', 'Dự án STEM', 'Cuộc thi', 'Chấm thi', 'Sự kiện'] },
     { title: 'Soạn giảng', items: ['Soạn bài giảng', 'Kho hoạt động & Bài giảng', 'Thư viện STEM', 'Ngân hàng câu hỏi', 'Trợ lý AI'] },
-    { title: 'Khác', items: ['Hộp phê duyệt', 'Lịch tập huấn', 'Bài giảng tập huấn', 'Hồ sơ năng lực', 'Khảo sát', 'Ứng dụng di động', 'Hỗ trợ từ KDI'] },
+    { title: 'Khác', items: ['Hộp phê duyệt', 'Lịch tập huấn', 'Bài giảng tập huấn', 'Chứng chỉ tập huấn', 'Hồ sơ năng lực', 'Khảo sát', 'Ứng dụng di động', 'Hỗ trợ từ KDI'] },
   ],
   judge: [
     { title: 'Giám khảo', items: ['Chấm thi'] },
@@ -76,7 +76,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Tổng quan', items: ['Dashboard toàn Sở', 'Danh sách Trường', 'Hộp phê duyệt', 'Trợ lý AI'] },
     { title: 'Điều hành & báo cáo', items: ['Chỉ số STEM', 'So sánh trường / địa bàn', 'KPI & Xếp hạng Xã/Phường', 'Cảnh báo & trường cần chú ý', 'Giao chỉ tiêu', 'Bộ chỉ số', 'Sự kiện', 'Khảo sát', 'Báo cáo Bộ GD&ĐT', 'Điều hành & Cấu hình'] },
     { title: 'Dự án & cuộc thi', items: ['Cuộc thi', 'Dự án STEM', 'Chấm thi'] },
-    { title: 'Tập huấn giáo viên', items: ['Giám sát Tập huấn GV', 'Kế hoạch tập huấn', 'Lịch tập huấn'] },
+    { title: 'Tập huấn giáo viên', items: ['Giám sát Tập huấn GV', 'Kế hoạch tập huấn', 'Lịch tập huấn', 'Đánh giá kết quả tập huấn', 'Chứng chỉ tập huấn'] },
     { title: 'Chương trình & học liệu', items: ['Chương trình giáo dục', 'Chương trình CT1–CT5', 'Theo dõi Môn học STEM', 'Phân phối chương trình', 'Phát hành học liệu', 'Kho học liệu dùng chung', 'Định mức vật tư', 'Giáo án & bài giảng', 'E-learning & luyện thi', 'Ngân hàng câu hỏi'] },
     { title: 'Phòng & thiết bị STEM', items: ['Hiệu quả Phòng STEM', 'Phòng STEM & lịch phòng', 'Thiết bị & kho'] },
     { title: 'Giảng dạy', items: ['Dashboard điểm danh'] },
@@ -92,7 +92,7 @@ export const MODULE_OF: Record<string, string> = {
   'Cấu hình tiết học': 'periods', 'Năm học & học kỳ': 'periods', 'Tài khoản': 'accounts', 'Sao lưu & xuất dữ liệu': 'accounts', 'Giao diện & thương hiệu': 'accounts', 'Vai trò và phân quyền': 'roles',
   'Kế hoạch GD toàn trường': 'edu_plan', 'Phân công GV dạy STEM': 'stem_assign', 'Phân phối chương trình': 'curriculum',
   'Gói STEM': 'packages', 'Chương trình giáo dục': 'curriculum', 'Kế hoạch tập huấn': 'training', 'Lịch tập huấn': 'training', 'Bài giảng': 'training',
-  'Lớp học ảo': 'training', 'Chứng chỉ': 'training',
+  'Lớp học ảo': 'training', 'Chứng chỉ': 'training', 'Đánh giá kết quả tập huấn': 'training',
   'Kho học liệu dùng chung': 'library', 'Phát hành học liệu': 'library', 'Định mức vật tư': 'library', 'Giáo án & bài giảng': 'library',
   'Hộp phê duyệt': 'approvals', 'Quy trình phê duyệt': 'roles', 'Đề xuất mua gói': 'packages',
   'Buổi dạy & điểm danh': 'timetable', 'Dashboard điểm danh': 'timetable', 'Ngày nghỉ & lễ': 'periods',
@@ -105,7 +105,7 @@ export const MODULE_OF: Record<string, string> = {
 export const ENT_MODULE_OF: Record<string, string> = {
   ...MODULE_OF, 'Quy trình phê duyệt': 'approvals',
   'Đặt phòng STEM': 'stem_rooms', 'Thư viện STEM': 'library', 'Kho hoạt động & Bài giảng': 'library',
-  'Lịch tập huấn': 'training', 'Bài giảng tập huấn': 'training', 'Kế hoạch tập huấn': 'training', 'Giám sát Tập huấn GV': 'training',
+  'Lịch tập huấn': 'training', 'Bài giảng tập huấn': 'training', 'Chứng chỉ tập huấn': 'training', 'Kế hoạch tập huấn': 'training', 'Giám sát Tập huấn GV': 'training',
   'Kế hoạch giáo dục': 'edu_plan', 'Hiệu quả Phòng STEM': 'stem_rooms',
   'Điểm danh': 'timetable', 'Phòng STEM & lịch phòng': 'stem_rooms', 'Thiết bị & kho': 'stem_rooms',
   // PH5 (migration 033): điều hành & báo cáo của Sở

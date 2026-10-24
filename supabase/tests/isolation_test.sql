@@ -193,7 +193,8 @@ begin
     if to_regclass('public.dist_nodes') is not null then delete from dist_nodes where name like 'ISO con%'; delete from dist_nodes where name like 'ISO%'; delete from dist_cls_levels where name like 'ISO%'; end if;
     delete from dist_tiers where code like 'iso%'; end if;
   if to_regclass('public.training_session_codes') is not null then
-    delete from notifications where kind = 'training_product' and ref_id in (select id from training_plans where name like 'ISO %');
+    delete from notifications where kind in ('training_product', 'training_result') and ref_id in (select id from training_plans where name like 'ISO %');
+    delete from notifications where kind = 'training_cert' and ref_id in (select c.id from certificates c join training_plans p on p.id = c.plan_id where p.name like 'ISO %');
     delete from notifications where kind = 'training_remind' and ref_id in (select s.id from training_sessions s join training_plans p on p.id = s.plan_id where p.name like 'ISO %');
   end if;
   if to_regclass('public.training_plan_orgs') is not null then
@@ -2831,6 +2832,36 @@ insert into training_enrollments (org_id, plan_id, teacher_id) select t.org_id, 
 select pg_temp.chk('gv_both', 'Học: nội dung sau khoá khi nội dung trước chưa xong', $q$select string_agg((u ->> 'unlocked'), ',' order by (u ->> 'ord')::int) from training_plans k, jsonb_array_elements(training_course(k.id) -> 'units') u where k.name = 'ISO KH2'$q$, 'true,false');
 select pg_temp.chk('gv_both', 'Học: không mở bài của nội dung đang khoá', $q$select training_learn_mark(k.id, u.id, 'l0')::text from training_plans k, training_program_units u where k.name = 'ISO KH2' and u.title = 'ISO bài B'$q$, 'ERR 22023');
 select pg_temp.chk('kdi', 'Lớp học ảo: gắn link bản ghi cho buổi', $q$with x as (update training_sessions s set recording_url = 'https://rec' from training_plans k where k.id = s.plan_id and k.name = 'ISO KH' returning 1) select count(*) from x$q$, '1');
+
+-- ===== 087: đánh giá kết quả + chứng chỉ =====
+select pg_temp.chk('admin_kb', 'Kết quả: trường xem gợi ý Đạt của GV trường mình', $q$select metrics ->> 'suggest' from training_plan_results((select id from training_plans where name = 'ISO KH'))$q$, 'pass');
+select pg_temp.chk('admin_ph', 'Kết quả: trường khác không xem được', format($q$select count(*) from training_plan_results(%s::uuid)$q$, quote_literal((select id from training_plans where name = 'ISO KH'))), '0');
+select pg_temp.chk('gv_both', 'Kết quả: GV chỉ thấy dòng của mình', $q$select count(*) from training_plan_results((select id from training_plans where name = 'ISO KH'))$q$, '1');
+select pg_temp.chk('admin_kb', 'Kết quả: trường không kết luận kế hoạch của KDI', $q$select training_result_set(e.plan_id, e.teacher_id, 'pass')::text from training_enrollments e join training_plans k on k.id = e.plan_id where k.name = 'ISO KH'$q$, 'ERR 42501');
+select pg_temp.chk('kdi', 'Kết quả: Chưa đạt phải có lý do', $q$select training_result_set(e.plan_id, e.teacher_id, 'fail')::text from training_enrollments e join training_plans k on k.id = e.plan_id where k.name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'Kết quả: chưa đủ điều kiện mà kết luận Đạt thì phải có lý do', $q$select training_result_set(e.plan_id, e.teacher_id, 'pass')::text from training_enrollments e join training_plans k on k.id = e.plan_id where k.name = 'ISO KH2'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'Kết quả: điểm sản phẩm từ 0 đến 10', $q$select training_result_grade(e.plan_id, e.teacher_id, 11, null)::text from training_enrollments e join training_plans k on k.id = e.plan_id where k.name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_result_grade(e.plan_id, e.teacher_id, 8.5, 'Sản phẩm tốt')::text from training_enrollments e join training_plans k on k.id = e.plan_id where k.name = 'ISO KH'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$select training_results_confirm(id)::text from training_plans where name = 'ISO KH'$q$, true);
+select pg_temp.chk('kdi', 'Kết quả: xác nhận Đạt theo gợi ý, tự tạo chứng chỉ chờ duyệt', $q$select r.result || ':' || r.product_score || ':' || c.status from training_results r join certificates c on c.plan_id = r.plan_id and c.teacher_id = r.teacher_id join training_plans k on k.id = r.plan_id where k.name = 'ISO KH'$q$, 'pass:8.5:pending');
+select pg_temp.chk('gv_both', 'Chứng chỉ: chờ duyệt thì GV chưa thấy', $q$select count(*) from training_cert_list(true)$q$, '0');
+select pg_temp.chk('gv_both', 'Chứng chỉ: GV không tự ghi bảng chứng chỉ', $q$insert into certificates (org_id, teacher_id, plan_id, code) select t.org_id, t.id, k.id, 'ISO-GIA' from teachers t, training_plans k where t.id = my_teacher_id() and k.name = 'ISO KH'$q$, 'ERR');
+select pg_temp.chk('admin_kb', 'Chứng chỉ: trường không sửa thẳng chứng chỉ', $q$update certificates set status = 'issued' where plan_id = (select id from training_plans where name = 'ISO KH')$q$, 'ERR');
+select pg_temp.chk('admin_kb', 'Chứng chỉ: trường không cấp chứng chỉ kế hoạch của KDI', $q$select training_cert_issue(array_agg(c.id))::text from certificates c where c.plan_id = (select id from training_plans where name = 'ISO KH')$q$, 'ERR 42501');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_cert_issue(array_agg(c.id))::text from certificates c join training_plans k on k.id = c.plan_id where k.name = 'ISO KH'$q$, true);
+select pg_temp.chk('gv_both', 'Chứng chỉ: duyệt cấp thì sinh mã CCTH, GV thấy chứng chỉ', $q$select (code ~ '^CCTH-\d{4}-\d{5}$')::text || ':' || status from training_cert_list(true)$q$, 'true:issued');
+select pg_temp.chk('gv_both', 'Chứng chỉ: tra cứu bằng mã QR', format($q$select (training_cert_verify(%L) ->> 'teacher') || ':' || (training_cert_verify(%L) ->> 'status')$q$, (select c.verify_token from certificates c join training_plans k on k.id = c.plan_id where k.name = 'ISO KH'), (select c.verify_token from certificates c join training_plans k on k.id = c.plan_id where k.name = 'ISO KH')), 'GV thử B:issued');
+select pg_temp.chk('gv_both', 'Chứng chỉ: mã tra cứu sai thì không ra gì', $q$select coalesce(training_cert_verify('00000000000000000000000000000000')::text, 'null')$q$, 'null');
+select pg_temp.chk('kdi', 'Kết quả: đã Đạt thì không cho thi lại', $q$select training_result_retake(e.plan_id, e.teacher_id)::text from training_enrollments e join training_plans k on k.id = e.plan_id where k.name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'Chứng chỉ: thu hồi phải có lý do', $q$select training_cert_revoke(c.id, ' ')::text from certificates c join training_plans k on k.id = c.plan_id where k.name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_result_set(e.plan_id, e.teacher_id, 'fail', 'Sản phẩm sao chép')::text from training_enrollments e join training_plans k on k.id = e.plan_id where k.name = 'ISO KH'$q$, true);
+select pg_temp.chk('kdi', 'Chứng chỉ: kết luận đổi thành Chưa đạt thì thu hồi chứng chỉ', $q$select c.status from certificates c join training_plans k on k.id = c.plan_id where k.name = 'ISO KH'$q$, 'revoked');
+select pg_temp.chk('gv_both', 'Chứng chỉ: tra cứu thấy đã thu hồi', format($q$select training_cert_verify(%L) ->> 'status'$q$, (select c.verify_token from certificates c join training_plans k on k.id = c.plan_id where k.name = 'ISO KH')), 'revoked');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_result_retake(e.plan_id, e.teacher_id, 2)::text from training_enrollments e join training_plans k on k.id = e.plan_id where k.name = 'ISO KH'$q$, true);
+select pg_temp.chk('gv_both', 'Kết quả: thi lại thì về chờ kết luận, thêm lượt', $q$select result || ':' || extra_attempts from training_results r join training_plans k on k.id = r.plan_id where k.name = 'ISO KH'$q$, 'pending:2');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_result_set(e.plan_id, e.teacher_id, 'pass')::text from training_enrollments e join training_plans k on k.id = e.plan_id where k.name = 'ISO KH'$q$, true);
+select pg_temp.chk('kdi', 'Chứng chỉ: Đạt lại thì có chứng chỉ chờ duyệt mới', $q$select string_agg(c.status, ',' order by c.status) from certificates c join training_plans k on k.id = c.plan_id where k.name = 'ISO KH'$q$, 'pending,revoked');
+select pg_temp.chk('gv_both', 'Học: khoá học trả về kết luận và chứng chỉ', $q$select (training_course(id) #>> '{result,result}') || ':' || (training_course(id) #>> '{cert,status}') from training_plans where name = 'ISO KH'$q$, 'pass:pending');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

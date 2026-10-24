@@ -28,7 +28,7 @@ import ElearningManage from './pages/elearning/Manage'
 import QuestionBank from './pages/elearning/Bank'
 import StudentElearning from './pages/elearning/Student'
 import { saveQuizToBank } from './pages/elearning/common'
-import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysActivities, SysSchoolLessons, SysTrainingLessons, SysCertificates } from './pages/platform/SystemViews'
+import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysActivities, SysSchoolLessons, SysTrainingLessons } from './pages/platform/SystemViews'
 import Classes from './pages/Classes'
 import Rooms from './pages/Rooms'
 import Equipment from './pages/Equipment'
@@ -45,7 +45,7 @@ import Packages from './pages/Packages'
 import EduPlan from './pages/EduPlan'
 import StemAssign from './pages/StemAssign'
 import { SchoolProfile } from './pages/School'
-import { TrainingPlans, TrainingSchedule, TrainingLessons, VirtualClass, Certificates } from './pages/Training'
+import { TrainingPlans, TrainingSchedule, TrainingLessons, VirtualClass } from './pages/Training'
 import { TeacherHome, TeacherSchedule, TeacherClasses, TeacherBooking } from './pages/TeacherPortal'
 import { TeacherAssignments, TeacherGrading } from './pages/teacher/Assignments'
 import { TeacherClassroom } from './pages/teacher/Classroom'
@@ -102,6 +102,11 @@ const TeacherCompetencyProfile = lazy(() => import('./pages/competency').then(m 
 const TrainingProgramsPage = lazy(() => import('./pages/training/Programs').then(m => ({ default: m.TrainingProgramsPage })))
 const TrainingPlansPage = lazy(() => import('./pages/training/Plans').then(m => ({ default: m.TrainingPlansPage })))
 const TrainingCalendarPage = lazy(() => import('./pages/training/Schedule').then(m => ({ default: m.TrainingCalendarPage })))
+const TrainingResultsPage = lazy(() => import('./pages/training/Results').then(m => ({ default: m.TrainingResultsPage })))
+const TrainingCertificatesPage = lazy(() => import('./pages/training/Certificates').then(m => ({ default: m.TrainingCertificatesPage })))
+const CertTemplatesPage = lazy(() => import('./pages/training/Certificates').then(m => ({ default: m.CertTemplatesPage })))
+const TeacherCertificates = lazy(() => import('./pages/training/Certificates').then(m => ({ default: m.TeacherCertificates })))
+const CertVerify = lazy(() => import('./pages/training/Certificates').then(m => ({ default: m.CertVerify })))
 const TeacherTrainingLearn = lazy(() => import('./pages/teacher/TrainingLearn').then(m => ({ default: m.TeacherTrainingLearn })))
 const SchoolTrainingAssigned = lazy(() => import('./pages/training/Plans').then(m => ({ default: m.SchoolTrainingAssigned })))
 // Trường: kế hoạch được cấp trên giao (chọn GV, gửi duyệt) + kế hoạch riêng của trường
@@ -239,7 +244,8 @@ const SCHOOL: PageMap = {
   'Lịch tập huấn': TrainingSchedule,
   'Bài giảng': TrainingLessons,
   'Lớp học ảo': VirtualClass,
-  'Chứng chỉ': Certificates,
+  'Chứng chỉ': TrainingCertificatesPage,
+  'Đánh giá kết quả tập huấn': TrainingResultsPage,
   'Năm học & học kỳ': Years,
   'Hộp phê duyệt': ApprovalInbox,
   'Quy trình phê duyệt': ApprovalWorkflows,
@@ -286,6 +292,7 @@ const TEACHER: PageMap = {
   'Thư viện STEM': (p: any) => <TabbedPages {...p} tabs={[['Theo chương trình', LibraryPrograms], ['Kho học liệu', LibraryBrowse]]} />,
   'Định mức vật tư': MaterialNorms,
   'Lịch tập huấn': TeacherTrainingSchedule,
+  'Chứng chỉ tập huấn': TeacherCertificates,
   'Bài giảng tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Khoá tập huấn của tôi', TeacherTrainingLearn], ['Bài giảng của trường', TeacherTrainingLessons]]} />,
   'Hỗ trợ từ KDI': CustomerSupport,
   'Kho hoạt động & Bài giảng': TeacherActivities,
@@ -330,6 +337,8 @@ const DEPARTMENT: PageMap = {
   'Giám sát Tập huấn GV': DeptTrainingMonitor,
   'Kế hoạch tập huấn': TrainingPlansPage,
   'Lịch tập huấn': TrainingCalendarPage,
+  'Đánh giá kết quả tập huấn': TrainingResultsPage,
+  'Chứng chỉ tập huấn': TrainingCertificatesPage,
   'Hiệu quả Phòng STEM': DeptRoomEffect,
   'Phòng STEM & lịch phòng': RoomsOverview,
   'Thiết bị & kho': EquipmentOverview,
@@ -388,6 +397,7 @@ const PLATFORM: PageMap = {
   'Chương trình tập huấn': TrainingProgramsPage,
   'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', TrainingPlansPage], ['Lịch', TrainingCalendarPage]]} />,
   'Giám sát tập huấn nhà giáo': DeptTrainingMonitor,
+  'Đánh giá kết quả tập huấn': TrainingResultsPage,
   // 2. Chương trình & học liệu
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
   'Chương trình giáo dục': (p: any) => <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Môn học', SubjectsPlatform], ['Danh mục', ProgramCatalogs]]} />,
@@ -435,7 +445,7 @@ const PLATFORM: PageMap = {
   'Phân phối chương trình': PlatformDistPage,
   'Soạn bài giảng & kho hoạt động': PlatformLessonsPage,
   'Bài giảng tập huấn & lớp học ảo': SysTrainingLessons,
-  'Chứng chỉ tập huấn': SysCertificates,
+  'Chứng chỉ tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Chứng chỉ', TrainingCertificatesPage], ['Mẫu chứng chỉ', CertTemplatesPage]]} />,
 }
 const PLATFORM_LIVE = new Set(Object.keys(PLATFORM))
 PLATFORM['Sơ đồ hệ thống'] = (p: any) => <SystemMap {...p} live={PLATFORM_LIVE} />
@@ -452,7 +462,14 @@ export const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, 
 if (import.meta.env.DEV) (Object.keys(PAGES) as RoleKey[]).filter(r => r !== 'platform').forEach(r =>
   NAV[r].flatMap(g => g.items).filter(i => !PAGES[r]![i]).forEach(i => console.warn(`[menu] ${r}: "${i}" không có trang`)))
 
+// Trang tra cứu chứng chỉ công khai (QR trên chứng chỉ): /?cc=<mã>, không cần đăng nhập
 export default function App() {
+  const cc = new URLSearchParams(location.search).get('cc')
+  if (cc) return <Suspense fallback={null}><CertVerify token={cc} /></Suspense>
+  return <AppMain />
+}
+
+function AppMain() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [recovery, setRecovery] = useState(false)
   useEffect(() => {

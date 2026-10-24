@@ -211,11 +211,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   ]
   const normPool: Pick[] = norms.map(n => ({ id: n.id, label: `${n.title} v${n.version_no}${n.status !== 'published' ? ' (nháp)' : ''}${src(n)}` }))
 
-  function edit(i: Item) {
-    setMsg(''); setInfo('')
-    if (i.kind === 'unit' && !start) { setOpen(null); return setFlow({ id: i.id }) }
-    setLtab('info')
-    setForm({
+  const formOf = (i: Item): Form => ({
       id: i.id, kind: i.kind, title: i.title, summary: i.summary ?? '', subject: i.subject ?? '', grades: i.grades ?? '', program: i.program ?? '',
       tags: i.tags.join(', '), scope: i.scope, targets: targets.get(i.id) ?? [], slides: i.content.slides ?? [], mtype: i.content.type ?? 'video',
       url: i.content.url ?? '', units: i.content.units ?? [],
@@ -226,13 +222,26 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
       plan_ids: i.content.plan_ids ?? [], lesson_ids: i.content.lesson_ids ?? [], norm_ids: i.content.norm_ids ?? [], material_ids: i.content.material_ids ?? [],
       checked: i.content.checked ?? [],
       lmode: i.content.mode === 'interactive' ? 'interactive' : 'slides', ilesson: asLesson(i.content.lesson),
-    })
+  })
+  function edit(i: Item) {
+    setMsg(''); setInfo('')
+    if (i.kind === 'unit' && !start) { setOpen(null); return setFlow({ id: i.id }) }
+    setLtab('info')
+    setForm(formOf(i))
     setNorm(EMPTY_NORM); setSub(null); setNormOpen(false); setCkTouched(false); setKitShow(false)
     // Vật tư của bài học: định mức gắn với bài (không hiện lại trong ô "định mức có sẵn")
     if (i.kind === 'unit' && orgId) loadUnitNorm(i.id, orgId).then(n => {
       setNorm(n)
       if (n.id) setForm(f => f && f.id === i.id ? { ...f, norm_ids: f.norm_ids.filter(x => x !== n.id) } : f)
     })
+  }
+  /** Thêm bài giảng: sao chép toàn bộ một bài giảng đã có (thông tin + nội dung) thành bài mới để chỉnh sửa */
+  function copyLessonItem(id: string) {
+    const i = visible.find(x => x.id === id); if (!i || !form) return
+    const own = i.owner_org_id === orgId
+    setForm({ ...formOf(i), id: undefined, title: `${i.title} (bản sao)`, scope: form.scope, targets: form.targets,
+      program_id: own ? i.program_id ?? '' : '', unit_id: own ? i.unit_id ?? '' : '' })
+    setMsg(''); setInfo(`Đã chép nội dung “${i.title}”. Sửa thông tin, nội dung rồi lưu thành bài giảng mới; bài gốc không đổi.`)
   }
   // Sao chép bài giảng tương tác: lấy các khối, điền các ô còn trống như sao chép slide
   function copyInteractive(ilesson: ILesson, m: SrcMeta) {
@@ -455,8 +464,9 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   const shown = ofTab.filter(i => (!fStatus || i.status === fStatus) && (!fSubject || i.subject === fSubject)
     && (!fGrade || gradeList(i.grades ?? '').includes(Number(fGrade))) && (tab !== 'material' || !fType || (i.content.type ?? 'link') === fType)
     && (!q || normText([i.title, i.summary, i.subject, ...i.tags].join(' ')).includes(normText(q))))
-  const kindTabs: T[] = ['unit', 'plan', 'lesson', 'material', 'norm']
-  const tabLabel = (t: T) => t === 'norm' ? 'Định mức vật tư' : t === 'plan' ? 'Giáo án' : KIND[t][0]
+  // Giáo án không còn tab riêng (giáo án đi theo bài học); "Học liệu" đổi thành "Tài liệu"
+  const kindTabs: T[] = ['unit', 'lesson', 'material', 'norm']
+  const tabLabel = (t: T) => t === 'norm' ? 'Định mức vật tư' : t === 'plan' ? 'Giáo án' : t === 'material' ? 'Tài liệu' : KIND[t][0]
   const addNew = (t: T) => {
     if (t === 'unit' && !start) { setMsg(''); setInfo(''); return setFlow({}) }
     setLtab('info')
@@ -507,9 +517,10 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
             <button type="button" className="primary" disabled={busy || uploading} onClick={() => save(NOEV, true)}>Lưu & phát hành</button>
             <button type="button" disabled={busy || uploading} onClick={() => save(NOEV, false)}>Lưu nháp</button>
             <button type="button" onClick={close}>Huỷ</button></>}
-          title={`${form.id ? 'Sửa' : 'Thêm'} ${form.kind === 'material' && form.mtype === 'lesson_plan' ? 'giáo án' : KIND[form.kind][0].toLowerCase()}${form.id && form.title ? `: ${form.title}` : ''}`}>
+          title={`${form.id ? 'Sửa' : 'Thêm'} ${form.kind === 'material' && form.mtype === 'lesson_plan' ? 'giáo án' : form.kind === 'material' ? 'tài liệu' : KIND[form.kind][0].toLowerCase()}${form.id && form.title ? `: ${form.title}` : ''}`}>
         <form className="panel libform" onSubmit={e => save(e, false)}>
           {msg && <p className="msg">{msg}</p>}
+          {form.kind === 'lesson' && info && <p className="sub"><b>{info}</b></p>}
           {form.kind === 'unit' && (() => {
             const fresh = !form.id && !form.plan_ids.length && !form.lesson_ids.length && !form.material_ids.length && !norm.rows.length
             return (kitShow ?? fresh)
@@ -520,6 +531,11 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
           {form.kind === 'lesson' && <div className="libsteps"><Tabs items={[['info', '1. Thông tin bài giảng'], ['content', '2. Nội dung bài giảng']] as ['info' | 'content', string][]}
             value={ltab} onChange={setLtab} /></div>}
           {(form.kind !== 'lesson' || ltab === 'info') && <>
+          {form.kind === 'lesson' && !form.id && lessonPool.length > 0 && <div className="bar small libcopy"><span><b>Sao chép từ bài giảng đã có</b>
+            <small className="sub"> · chép cả thông tin và nội dung, sửa tiếp rồi lưu thành bài mới</small></span>
+            <select value="" onChange={e => e.target.value && copyLessonItem(e.target.value)} aria-label="Sao chép từ bài giảng đã có">
+              <option value="">— Chọn bài giảng —</option>
+              {lessonPool.map(x => <option key={x.id} value={x.id}>{x.title}{x.status === 'draft' ? ' (nháp)' : ''}{src(x)}</option>)}</select></div>}
           <div className="formgrid libgrid4">
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mô tả ngắn</span><textarea rows={2} value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })} /></label>

@@ -82,6 +82,21 @@ export async function saveNewKit(o: NewKit): Promise<{ id?: string; error?: stri
   return r.error ? { error: errMsg(r.error.message) } : { id: (r.data as { id: string }).id }
 }
 
+/** Sao chép một bài học đã có thành bài mới (nháp, chưa chốt thẻ nào) để chỉnh sửa riêng.
+ *  Tài liệu ở thẻ 03 được tạo lại khi chốt (không dùng chung mục của bài gốc); hoạt động thẻ 05 và vật tư vẫn trỏ tới kho chung. */
+export async function copyKit(o: { orgId: string; src: KitRow; title: string; program: { id: string; ct_code: string | null } | null; progSubject: string }): Promise<{ id?: string; error?: string }> {
+  const k = kitOf(o.src.content.kit)
+  const kit: KitData = { ...k, docs: k.docs.map(d => ({ ...d, item_id: null })), info: { ...k.info, prog_subject: o.progSubject || k.info.prog_subject }, issues: [] }
+  const row = {
+    owner_org_id: o.orgId, kind: 'unit', title: o.title.trim(), subject: o.src.subject, grades: o.src.grades,
+    program_id: o.program?.id ?? null, unit_id: null, program: o.program?.ct_code ?? o.src.program,
+    scope: 'children', usage_rights: 'adapt', tags: [] as string[],
+    content: { objectives: o.src.content.objectives ?? null, periods: o.src.content.periods ?? null, plan_ids: [], lesson_ids: [], norm_ids: [], material_ids: [], checked: [], kit },
+  }
+  const r = await supabase.from('library_items').insert(row).select('id').single()
+  return r.error ? { error: errMsg(r.error.message) } : { id: (r.data as { id: string }).id }
+}
+
 // ---------- Chốt từng thẻ: tạo các mục trong danh mục ----------
 type Ctx = { orgId: string; row: KitRow; kit: KitData }
 const baseItem = (c: Ctx) => ({

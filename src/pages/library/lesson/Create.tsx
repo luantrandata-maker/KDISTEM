@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react'
 import { downloadWorkbook } from '../../../lib/sheet'
 import { templateSheets, type KitDraft } from '../../../lib/kitImport'
 import { kitCounts, type ParseResult } from './model'
-import { parseFile, fileDoc, saveNewKit, type KitRow } from './save'
+import { parseFile, fileDoc, saveNewKit, copyKit, type KitRow } from './save'
 
 export type ProgRef = { id: string; code: string | null; title: string; ct_code: string | null }
 type Parsed = { file: File; draft: KitDraft; res: ParseResult }
@@ -57,7 +57,8 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
   /** Mở từ Danh mục học liệu (không đi theo chương trình → môn): chọn chương trình, môn ngay trong hộp */
   pickPlace?: boolean
 }) {
-  const [step, setStep] = useState<'menu' | 'upload' | 'blank' | 'template' | 'check'>('menu')
+  const [step, setStep] = useState<'menu' | 'upload' | 'blank' | 'template' | 'check' | 'copy'>('menu')
+  const [srcId, setSrcId] = useState('')
   const [pid, setPid] = useState(program.id)
   const [subj, setSubj] = useState(subject)
   const [docx, setDocx] = useState<Parsed | null>(null)
@@ -115,11 +116,40 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
       <div className="lways">
         {([['upload', 'Tải giáo án từ nguồn', 'Tệp Word (.docx), bài giảng PowerPoint. Hệ thống tách thành bộ học liệu 5 thẻ.'],
            ['blank', 'Tự tạo giáo án', 'Mở trang giáo án trống: có sẵn khung 5 thẻ để điền trực tiếp.'],
+           ['copy', 'Sao chép từ bài học đã có', 'Chọn một bài học có sẵn, hệ thống chép toàn bộ nội dung 5 thẻ sang bài mới để chỉnh sửa riêng.'],
            ['template', 'Không có giáo án? Dùng file mẫu', 'Tải file Excel mẫu (5 sheet), điền rồi tải lên để hệ thống tự điền 5 thẻ.']] as const).map(([k, t, d], i) =>
           <button key={k} type="button" className="lway" onClick={() => setStep(k)}><i>{i + 1}</i><span><b>{t}</b><small>{d}</small></span></button>)}
       </div>
     </Modal>
   )
+
+  if (step === 'copy') {
+    const src = kits.find(k => k.id === srcId)
+    const pname = (id: string | null) => { const p = programs.find(x => x.id === id); return p ? (p.code || p.title) : 'Chưa gắn chương trình' }
+    async function doCopy() {
+      if (!src) return setErr('Chọn bài học muốn sao chép.')
+      if (!name.trim()) return setErr('Nhập tên bài học mới.')
+      setErr(''); setBusy('Đang sao chép…')
+      const r = await copyKit({ orgId, src, title: name, program: { id: prog.id, ct_code: prog.ct_code }, progSubject: subj })
+      setBusy('')
+      if (r.error) return setErr(r.error)
+      onCreated(r.id!, `Đã sao chép “${src.title}” thành bài “${name.trim()}”. Chỉnh sửa từng thẻ rồi chốt.`)
+    }
+    return (
+      <Modal title={head} sub={crumb} onClose={onClose}
+        foot={<><button type="button" onClick={() => setStep('menu')}>← Quay lại</button>
+          <button type="button" className="primary" disabled={!!busy || !src || !name.trim()} onClick={doCopy}>Sao chép và mở bài học</button></>}>
+        <label className="field"><span>Bài học gốc</span>
+          <select value={srcId} onChange={e => { const k = kits.find(x => x.id === e.target.value); setSrcId(e.target.value); if (k) setName(`${k.title} (bản sao)`) }}>
+            <option value="">— Chọn bài học có sẵn —</option>
+            {[...kits].sort((a, b) => a.title.localeCompare(b.title, 'vi')).map(k => <option key={k.id} value={k.id}>{k.title} · {pname(k.program_id)}{kitSubject(k) ? ' · ' + kitSubject(k) : ''}{k.status === 'published' ? '' : ' (nháp)'}</option>)}</select></label>
+        <label className="field"><span>Tên bài học mới</span><input value={name} onChange={e => setName(e.target.value)} placeholder="Tên bài học mới" /></label>
+        <p className="sub">Bài mới thuộc chương trình, môn đang chọn ({crumb}), là bản nháp và chưa chốt thẻ nào. Sửa bài mới không ảnh hưởng bài gốc.</p>
+        {same(name) && <p className="sub">Đã có bài học cùng tên trong môn này, nên đặt tên khác.</p>}
+        {status}
+      </Modal>
+    )
+  }
 
   if (step === 'blank') return (
     <Modal title={head} sub={crumb} onClose={onClose}

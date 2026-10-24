@@ -150,7 +150,6 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
       </div>
       {(() => { const r = qsel.cur; return (
         <SelBar picked={r ? (r.stem.length > 40 ? r.stem.slice(0, 40) + '…' : r.stem) : null}>
-          <button disabled={!r} onClick={() => r && setForm(toForm(r))}>Sửa</button>
           <button disabled={!r || r.status === 'ready'} onClick={() => r && setStatus([r.id], 'ready')}>Duyệt — Sẵn sàng</button>
           <button disabled={!r || r.status === 'retired'} onClick={() => r && setStatus([r.id], 'retired')}>Ngừng dùng</button>
           <button className="danger" disabled={!r || r.created_by !== me} onClick={() => { if (r) { remove(r); qsel.clear() } }}>Xoá</button>

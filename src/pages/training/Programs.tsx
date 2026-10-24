@@ -11,6 +11,7 @@ import { ElView } from '../../components/ElView'
 import { Chip, STATUS } from '../dist/Editor'
 import type { Status } from '../dist/sched'
 import { ContentDetail, detailCount, type Detail } from './Content'
+import { TrainingUnits } from './Units'
 
 type Mode = 'online' | 'offline' | 'hybrid'
 export type TProgram = {
@@ -178,7 +179,6 @@ function ProgramDetail({ id, admin, onBack, onOpen, onMsg }: { id: string; admin
   const [units, setUnits] = useState<Unit[]>([])
   const [f, setF] = useState<Info | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
-  const [newSubj, setNewSubj] = useState('')
   const [openC, setOpenC] = useState<string | null>(null)
   const { subjects } = useSubjects()
   const { byCode: tracks } = useStemTracks()
@@ -213,23 +213,6 @@ function ProgramDetail({ id, admin, onBack, onOpen, onMsg }: { id: string; admin
   async function saveInfo() {
     if (!f) return
     await run(supabase.from('training_programs').update({ ...f, title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null }).eq('id', p!.id), 'Đã lưu thông tin.')
-  }
-  async function addSubject() {
-    const t = newSubj.trim(); if (!t) return
-    if (await run(supabase.from('training_program_units').insert({ program_id: p!.id, kind: 'subject', title: t, seq: subjs.reduce((m, s) => Math.max(m, s.seq), 0) + 1 }))) setNewSubj('')
-  }
-  const addContent = (s: Unit) => run(supabase.from('training_program_units').insert({ program_id: p!.id, parent_id: s.id, kind: 'content', title: 'Nội dung mới', hours: 1,
-    seq: kids(s.id).reduce((m, u) => Math.max(m, u.seq), 0) + 1 }))
-  const patch = (u: Unit, v: Partial<Unit>) => run(supabase.from('training_program_units').update(v).eq('id', u.id))
-  const remove = (u: Unit) => {
-    if (!confirm(u.kind === 'subject' ? `Xoá môn "${u.title}" và ${kids(u.id).length} nội dung bên trong?` : `Xoá nội dung "${u.title}"?`)) return
-    run(supabase.from('training_program_units').delete().eq('id', u.id))
-  }
-  /** Đổi chỗ với mục kề trong cùng cấp */
-  async function move(list: Unit[], i: number, d: -1 | 1) {
-    const a = list[i], b = list[i + d]; if (!b) return
-    await supabase.from('training_program_units').update({ seq: b.seq }).eq('id', a.id)
-    await run(supabase.from('training_program_units').update({ seq: a.seq }).eq('id', b.id))
   }
   async function setStatus(s: Status, ok: string) {
     if (await run(supabase.from('training_programs').update({ status: s }).eq('id', p!.id), ok)) onMsg([ok, false])
@@ -283,45 +266,9 @@ function ProgramDetail({ id, admin, onBack, onOpen, onMsg }: { id: string; admin
     </section>
 
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
-      <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Môn & nội dung tập huấn</h3><small className="sub">{subjs.length} môn · {contents.length} nội dung · {num(hours)} giờ</small></div>
-      {subjs.map((s, i) => { const ks = kids(s.id), sh = ks.reduce((a, u) => a + (Number(u.hours) || 0), 0)
-        return <div key={s.id} className="tpsubj">
-          <div className="bar" style={{ margin: 0 }}>
-            {edit ? <input className="tpsubjname" defaultValue={s.title} aria-label="Tên môn" maxLength={200} list="tp-subjects"
-              onBlur={e => { const v = e.target.value.trim(); if (v && v !== s.title) patch(s, { title: v }); else e.target.value = s.title }} />
-              : <b>Môn {i + 1}. {s.title}</b>}
-            <span className="tools"><small className="sub">{ks.length} nội dung · {num(sh)} giờ</small>
-              {edit && <><button type="button" aria-label="Chuyển môn lên" disabled={!i} onClick={() => move(subjs, i, -1)}>↑</button>
-                <button type="button" aria-label="Chuyển môn xuống" disabled={i === subjs.length - 1} onClick={() => move(subjs, i, 1)}>↓</button>
-                <button type="button" onClick={() => addContent(s)}>+ Thêm nội dung</button>
-                <button type="button" onClick={() => remove(s)}>Xoá môn</button></>}</span>
-          </div>
-          <div className="wrap"><table className="libtable">
-            <thead><tr><th style={{ width: 40 }}>STT</th><th>Nội dung tập huấn</th><th style={{ width: 90 }}>Số giờ</th><th style={{ width: 130 }}>Hình thức</th><th style={{ width: 80 }}>Bài test</th><th>Chi tiết</th>{edit && <th style={{ width: 120 }}></th>}</tr></thead>
-            <tbody>{ks.map((u, j) => <tr key={u.id}>
-              <td>{j + 1}</td>
-              <td>{edit ? <input defaultValue={u.title} aria-label="Nội dung tập huấn" maxLength={200} style={{ width: '100%' }}
-                onBlur={e => { const v = e.target.value.trim(); if (v && v !== u.title) patch(u, { title: v }); else e.target.value = u.title }} /> : <button type="button" className="namelink" onClick={() => setOpenC(u.id)}>{u.title}</button>}</td>
-              <td>{edit ? <input type="number" min={0} max={500} step={0.5} defaultValue={u.hours} aria-label="Số giờ" style={{ width: 70 }}
-                onBlur={e => { const v = Number(e.target.value); if (v !== Number(u.hours) && v >= 0) patch(u, { hours: v }) }} /> : num(Number(u.hours))}</td>
-              <td>{edit ? <select value={u.mode ?? ''} aria-label="Hình thức" onChange={e => patch(u, { mode: (e.target.value || null) as Unit['mode'] })}>
-                <option value="">Theo chương trình</option><option value="online">Trực tuyến</option><option value="offline">Trực tiếp</option></select> : u.mode ? MODE[u.mode] : MODE[p.mode]}</td>
-              <td>{edit ? <input type="checkbox" checked={u.has_test} aria-label="Có bài test" onChange={e => patch(u, { has_test: e.target.checked })} /> : u.has_test ? 'Có' : '—'}</td>
-              <td><button type="button" className="linkbtn" onClick={() => setOpenC(u.id)}>{edit ? 'Soạn' : 'Xem'} 5 phần</button><br /><small className="sub">{detailCount(u.detail) || 'Chưa có'}</small></td>
-              {edit && <td className="tools"><button type="button" aria-label="Chuyển lên" disabled={!j} onClick={() => move(ks, j, -1)}>↑</button>
-                <button type="button" aria-label="Chuyển xuống" disabled={j === ks.length - 1} onClick={() => move(ks, j, 1)}>↓</button>
-                <button type="button" aria-label="Xoá nội dung" onClick={() => remove(u)}>×</button></td>}
-            </tr>)}
-              {!ks.length && <tr><td colSpan={edit ? 7 : 6}><small className="sub">Chưa có nội dung.{edit && ' Bấm "+ Thêm nội dung".'}</small></td></tr>}</tbody>
-          </table></div>
-        </div> })}
-      {!subjs.length && <p className="sub">Chưa có môn nào.{edit && ' Nhập tên môn bên dưới rồi bấm "+ Thêm môn".'}</p>}
-      {edit && <div className="actions">
-        <input value={newSubj} onChange={e => setNewSubj(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addSubject() }} list="tp-subjects" maxLength={200}
-          placeholder="Tên môn, ví dụ: Phương pháp dạy học STEM" aria-label="Tên môn mới" style={{ flex: 1, minWidth: 240 }} />
-        <button type="button" disabled={!newSubj.trim()} onClick={addSubject}>+ Thêm môn</button>
-        <datalist id="tp-subjects">{suggest.map(s => <option key={s} value={s} />)}</datalist>
-      </div>}
+      <h3 style={{ margin: 0 }}>Môn & nội dung tập huấn</h3>
+      <TrainingUnits programId={p.id} programTitle={p.title} programMode={p.mode} units={units} editable={edit} catalog={suggest}
+        onReload={load} onMessage={(m, e) => setMsg([errText(m), !!e])} onOpen={setOpenC} />
     </section>
   </ElView>
 }

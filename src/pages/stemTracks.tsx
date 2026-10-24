@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { PROGRAM_COLOR } from './teacher/common'
 import { useEduLevels } from '../lib/eduLevels'
+import { ElView } from '../components/ElView'
 import { STEM_LEVELS, STEM_LEVEL_NAME, useStemTracks, type StemLevel, type StemTrack } from '../lib/stemTracks'
 
 // Danh mục loại chương trình (migration 062, 064): CT1–CT5 ban đầu; KDI thêm loại mới, sửa tên, mô tả, môn học,
@@ -33,22 +34,27 @@ export function StemTracksCatalog() {
     supabase.from('edu_programs').select('id, code, title, ct_code, level, version_no').eq('kind', 'stem').eq('status', 'published').order('code')
       .then(({ data }) => setProgs((data ?? []) as Prog[]))
   }, [])
+  if (edit !== null) {
+    const t = tracks.find(x => x.code === edit)
+    const done = () => { setEdit(null); reload() }
+    return <ElView back="Nhóm chương trình" onBack={() => setEdit(null)}
+      title={t ? <><span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{t.code}</span> Sửa loại chương trình</> : 'Thêm loại chương trình'}>
+      {t ? <TrackForm key={t.code} t={t} onCancel={() => setEdit(null)} onSaved={done} />
+        : <TrackForm t={{ ...BLANK, sort: tracks.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1 }} isNew onCancel={() => setEdit(null)} onSaved={done} />}
+    </ElView>
+  }
   return (
     <>
       <div className="bar">
         <p className="sub" style={{ margin: 0 }}>Loại chương trình STEM của KDI (CT1–CT5 và các loại thêm sau): tên, mô tả, môn học và cấp học áp dụng. {admin
           ? 'Bấm "Sửa" để điều chỉnh; thay đổi hiện ngay ở mọi màn chọn loại chương trình. Loại đã được dùng thì không xoá, chỉ ngừng dùng.'
           : 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'} Nội dung chi tiết (học phần, yêu cầu cần đạt) nằm trong từng chương trình giáo dục bên dưới mỗi loại.</p>
-        {admin && edit !== '' && <button className="primary" onClick={() => { setMsg(''); setEdit('') }}>Thêm loại chương trình</button>}
+        {admin && <button className="primary" onClick={() => { setMsg(''); setEdit('') }}>Thêm loại chương trình</button>}
       </div>
       {msg && <p className="msg" role="status">{msg}</p>}
-      {edit === '' && <TrackForm t={{ ...BLANK, sort: tracks.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1 }} isNew
-        onCancel={() => setEdit(null)} onSaved={() => { setEdit(null); reload() }} />}
       {tracks.map(t => {
         const list = progs.filter(p => p.ct_code === t.code)
-        return edit === t.code
-          ? <TrackForm key={t.code} t={t} onCancel={() => setEdit(null)} onSaved={() => { setEdit(null); reload() }} />
-          : (
+        return (
             <section key={t.code} className="panel">
               <div className="bar" style={{ margin: 0 }}>
                 <h3 style={{ margin: 0 }}><span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{t.code}</span> {t.title}
@@ -106,7 +112,6 @@ function TrackForm({ t, isNew = false, onCancel, onSaved }: { t: StemTrack; isNe
   }
   return (
     <section className="panel">
-      <h3>{isNew ? 'Thêm loại chương trình' : <><span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{t.code}</span> Sửa loại chương trình</>}</h3>
       <div className="formgrid">
         {isNew && <label className="field"><span>Mã loại *</span><input value={f.code} maxLength={12} placeholder="VD: CT6" onChange={e => setF({ ...f, code: e.target.value.toUpperCase() })} /></label>}
         <label className="field"><span>Thứ tự hiển thị</span><input type="number" min={0} value={f.sort ?? 0} onChange={e => setF({ ...f, sort: Number(e.target.value) })} /></label>

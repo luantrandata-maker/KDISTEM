@@ -2,6 +2,7 @@ import { SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useEduLevels, type EduLevel } from '../lib/eduLevels'
+import { ElView } from '../components/ElView'
 
 // Danh mục cấp học & khối (migration 065): KDI thêm / sửa cấp học và khoảng khối áp dụng; chương trình giáo dục,
 // môn học và các ô chọn khối ở mọi màn dùng danh mục này. Đơn vị khác chỉ xem.
@@ -56,15 +57,9 @@ export function EduLevelsCatalog() {
   const gradeSel = (k: 'grade_from' | 'grade_to') => form && (
     <select value={form[k]} onChange={e => setForm({ ...form, [k]: Number(e.target.value) })}>{GRADES.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>)
 
-  return (
-    <>
-      <div className="bar">
-        <p className="sub" style={{ margin: 0 }}>Cấp học và các khối thuộc mỗi cấp. Khi soạn chương trình, môn học hay học liệu, ô "Cấp học" và "Khối" lấy từ danh mục này.
-          {admin ? ' Thu hẹp khoảng khối chỉ được khi không có chương trình nào nằm ngoài khoảng mới.' : ' Chỉ quản trị nền tảng KDI sửa được danh mục này.'}</p>
-        {admin && !form?.isNew && <button className="primary" onClick={() => { setMsg(null); setForm({ code: '', name: '', grade_from: 1, grade_to: 5, sort: all.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1, active: true, isNew: true }) }}>Thêm cấp học</button>}
-      </div>
+  if (form) return (
+    <ElView back="Cấp học & khối" onBack={() => setForm(null)} title={form.isNew ? 'Thêm cấp học' : 'Sửa cấp học'}>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      {form && (
         <form className="panel formgrid" onSubmit={save} style={{ marginBottom: 12 }}>
           <label className="field"><span>Tên cấp học *</span><input required maxLength={60} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="VD: Liên cấp THCS–THPT" /></label>
           <label className="field"><span>Mã {form.isNew ? '*' : '(không đổi được)'}</span><input required disabled={!form.isNew} maxLength={20} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: lien_cap" /></label>
@@ -73,7 +68,16 @@ export function EduLevelsCatalog() {
           <label className="field"><span>Thứ tự</span><input type="number" min={0} value={form.sort ?? 0} onChange={e => setForm({ ...form, sort: Number(e.target.value) })} /></label>
           <div className="formactions"><button className="primary" type="submit">{form.isNew ? 'Thêm' : 'Lưu'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
-      )}
+    </ElView>
+  )
+  return (
+    <>
+      <div className="bar">
+        <p className="sub" style={{ margin: 0 }}>Cấp học và các khối thuộc mỗi cấp. Khi soạn chương trình, môn học hay học liệu, ô "Cấp học" và "Khối" lấy từ danh mục này.
+          {admin ? ' Thu hẹp khoảng khối chỉ được khi không có chương trình nào nằm ngoài khoảng mới.' : ' Chỉ quản trị nền tảng KDI sửa được danh mục này.'}</p>
+        {admin && <button className="primary" onClick={() => { setMsg(null); setForm({ code: '', name: '', grade_from: 1, grade_to: 5, sort: all.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1, active: true, isNew: true }) }}>Thêm cấp học</button>}
+      </div>
+      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {admin && (() => { const l = lsel.cur; return (
         <SelBar picked={l?.name ?? null}>
           <button disabled={!l} onClick={() => { if (l) { setMsg(null); setForm({ ...l }) } }}>Sửa</button>

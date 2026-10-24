@@ -1,6 +1,6 @@
 import { SelBar, SelTh, useRowSel } from '../../components/TableSel'
 import { useEffect, useState } from 'react'
-import { ElView } from './View'
+import { ElView } from '../../components/ElView'
 import { supabase } from '../../lib/supabase'
 import { norm, downloadXlsx, type Column } from '../../lib/sheet'
 import ImportExcel from '../../components/ImportExcel'

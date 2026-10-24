@@ -192,6 +192,10 @@ begin
   if to_regclass('public.dist_plans') is not null then delete from dist_plans where title like 'ISO %';
     if to_regclass('public.dist_nodes') is not null then delete from dist_nodes where name like 'ISO con%'; delete from dist_nodes where name like 'ISO%'; delete from dist_cls_levels where name like 'ISO%'; end if;
     delete from dist_tiers where code like 'iso%'; end if;
+  if to_regclass('public.training_plan_orgs') is not null then
+    delete from training_plan_orgs where plan_id in (select id from training_plans where name like 'ISO %');
+    delete from training_plans where name like 'ISO %';
+  end if;
   if to_regclass('public.training_programs') is not null then delete from training_programs where title like 'ISO %'; end if;
   if to_regclass('public.curriculum_lessons') is not null then delete from curriculum_books where title like 'ISO %'; end if;
   if to_regclass('public.edu_programs') is not null then
@@ -2700,6 +2704,47 @@ select pg_temp.chk('kdi', 'CT tập huấn: bản đã phát hành không thêm 
 select pg_temp.probe('kdi@iso-test.local', $q$select training_program_copy(id) from training_programs where title = 'ISO CTTH' and status = 'published'$q$, true);
 select pg_temp.chk('kdi', 'CT tập huấn: nhân bản ra bản nháp v2 đủ môn và nội dung', $q$select p.status || ':' || p.version_no || ':' || (select count(*) from training_program_units u where u.program_id = p.id) from training_programs p where p.title = 'ISO CTTH' and p.source_id is not null$q$, 'draft:2:2');
 select pg_temp.chk('kdi', 'CT tập huấn: bản sao giữ 5 phần của nội dung', $q$select u.detail->'docs'->0->>'title' from training_program_units u join training_programs p on p.id = u.program_id where p.source_id is not null and p.title = 'ISO CTTH' and u.kind = 'content'$q$, 'ISO tài liệu');
+
+-- ===== 084: kế hoạch tập huấn =====
+select pg_temp.chk('admin_ph', 'KH tập huấn: trường không lập kế hoạch cho KDI', $q$insert into training_plans (org_id, name, pub_status) values (platform_org_id(), 'ISO KH trường', 'draft')$q$, 'ERR');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plans (org_id, name, pub_status, mode) values (platform_org_id(), 'ISO KH', 'draft', 'hybrid')$q$, true);
+select pg_temp.chk('kdi', 'KH tập huấn: tự cấp mã KHTH-xxx', $q$select (plan_code ~ '^KHTH-\d{3}$')::text from training_plans where name = 'ISO KH'$q$, 'true');
+select pg_temp.chk('so_hy', 'KH tập huấn: đơn vị khác không thấy bản nháp của KDI', $q$select count(*) from training_plans where name = 'ISO KH'$q$, '0');
+select pg_temp.chk('kdi', 'KH tập huấn: chưa có năm học, chương trình thì không phát hành', $q$update training_plans set pub_status = 'published' where name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'KH tập huấn: không chọn chương trình tập huấn nháp', $q$insert into training_plan_items (plan_id, program_id) select k.id, p.id from training_plans k, training_programs p where k.name = 'ISO KH' and p.title = 'ISO CTTH' and p.status = 'draft'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plan_items (plan_id, program_id, quota) select k.id, p.id, 30 from training_plans k, training_programs p where k.name = 'ISO KH' and p.title = 'ISO CTTH' and p.status = 'published'$q$, true);
+select pg_temp.chk('kdi', 'KH tập huấn: bản nháp chưa gán trường được', $q$select training_plan_assign(id, array[(select id from organizations where code = 'THCS-PH')]) from training_plans where name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_plans set year_name = '2026-2027', term = 'summer' where name = 'ISO KH'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$update training_plans set pub_status = 'published' where name = 'ISO KH'$q$, true);
+select pg_temp.chk('kdi', 'KH tập huấn: phát hành tự tính số giờ từ chương trình', $q$select pub_status || ':' || hours from training_plans where name = 'ISO KH'$q$, 'published:3');
+select pg_temp.chk('kdi', 'KH tập huấn: đã phát hành không sửa nội dung', $q$update training_plans set name = 'ISO KH đổi' where name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'KH tập huấn: đã phát hành không thêm chương trình', $q$delete from training_plan_items where plan_id = (select id from training_plans where name = 'ISO KH')$q$, 'ERR 22023');
+select pg_temp.chk('admin_ph', 'KH tập huấn: trường chưa được gán thì không thấy', $q$select count(*) from training_plans where name = 'ISO KH'$q$, '0');
+select pg_temp.chk('admin_ph', 'KH tập huấn: trường không tự gán', $q$select training_plan_assign((select id from training_plans where name = 'ISO KH'), array[(select id from organizations where code = 'THCS-PH')])$q$, 'ERR 42501');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_plan_assign(id, array[(select id from organizations where code = 'THCS-PH'), (select id from organizations where code = 'THCS-KB')], 1) from training_plans where name = 'ISO KH'$q$, true);
+select pg_temp.chk('admin_ph', 'KH tập huấn: trường được gán thì thấy kế hoạch và chương trình', $q$select count(*) from training_plans k join training_plan_items i on i.plan_id = k.id where k.name = 'ISO KH'$q$, '1');
+select pg_temp.chk('admin_ph', 'KH tập huấn: trường chỉ thấy dòng gán của mình', $q$select count(*) from training_plan_orgs o join training_plans k on k.id = o.plan_id where k.name = 'ISO KH'$q$, '1');
+select pg_temp.chk('kdi', 'KH tập huấn: đã gán thì không về nháp', $q$update training_plans set pub_status = 'draft' where name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'KH tập huấn: đã gán thì không xoá', $q$delete from training_plans where name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.chk('admin_ph', 'KH tập huấn: chưa chọn GV thì không gửi duyệt', $q$select training_plan_submit(id)::text from training_plans where name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.probe('admin_ph@iso-test.local', $q$insert into training_enrollments (org_id, plan_id, teacher_id) select t.org_id, k.id, t.id from training_plans k, (select * from teachers where org_id = (select id from organizations where code = 'THCS-PH') and coalesce(email, '') not like '%iso-test%' order by full_name limit 2) t where k.name = 'ISO KH'$q$, true);
+select pg_temp.chk('admin_ph', 'KH tập huấn: vượt chỉ tiêu của trường thì không gửi', $q$select training_plan_submit(id)::text from training_plans where name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.probe('admin_ph@iso-test.local', $q$delete from training_enrollments where plan_id = (select id from training_plans where name = 'ISO KH') and teacher_id = (select teacher_id from training_enrollments e join training_plans k on k.id = e.plan_id where k.name = 'ISO KH' order by teacher_id limit 1)$q$, true);
+select pg_temp.probe('admin_ph@iso-test.local', $q$select training_plan_submit(id)::text from training_plans where name = 'ISO KH'$q$, true);
+select pg_temp.chk('admin_ph', 'KH tập huấn: đã gửi duyệt thì trường không thêm GV', $q$insert into training_enrollments (org_id, plan_id, teacher_id) select t.org_id, k.id, t.id from training_plans k, teachers t where k.name = 'ISO KH' and t.org_id = (select id from organizations where code = 'THCS-PH') and t.id not in (select teacher_id from training_enrollments where plan_id = k.id) limit 1$q$, 'ERR 22023');
+select pg_temp.chk('so_hy', 'KH tập huấn: Sở không duyệt kế hoạch của KDI', $q$select training_plan_review(id, (select id from organizations where code = 'THCS-PH'), true)::text from training_plans where name = 'ISO KH'$q$, 'ERR 42501');
+select pg_temp.chk('kdi', 'KH tập huấn: trả lại phải có lý do', $q$select training_plan_review(id, (select id from organizations where code = 'THCS-PH'), false)::text from training_plans where name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'KH tập huấn: trường chưa gửi thì không duyệt', $q$select training_plan_review(id, (select id from organizations where code = 'THCS-KB'), true)::text from training_plans where name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_plan_review(id, (select id from organizations where code = 'THCS-PH'), false, 'Bổ sung GV Toán')::text from training_plans where name = 'ISO KH'$q$, true);
+select pg_temp.chk('admin_ph', 'KH tập huấn: trường thấy bị trả lại kèm lý do', $q$select o.status || ':' || o.note from training_plan_orgs o join training_plans k on k.id = o.plan_id where k.name = 'ISO KH'$q$, 'returned:Bổ sung GV Toán');
+select pg_temp.probe('admin_ph@iso-test.local', $q$select training_plan_submit(id)::text from training_plans where name = 'ISO KH'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$select training_plan_review(id, (select id from organizations where code = 'THCS-PH'), true)::text from training_plans where name = 'ISO KH'$q$, true);
+select pg_temp.chk('admin_ph', 'KH tập huấn: danh sách đã duyệt', $q$select o.status from training_plan_orgs o join training_plans k on k.id = o.plan_id where k.name = 'ISO KH'$q$, 'approved');
+select pg_temp.probe('so_hy@iso-test.local', $q$insert into training_plans (org_id, name, pub_status) values (my_org_id(), 'ISO KH Sở', 'published')$q$, true);
+select pg_temp.chk('so_hy', 'KH tập huấn: Sở không gán trường ngoài phạm vi', format($q$select training_plan_assign(id, array[%s::uuid]) from training_plans where name = 'ISO KH Sở'$q$, quote_literal(pg_temp.oid_('THCS-KB'))), 'ERR 42501');
+select pg_temp.chk('so_hy', 'KH tập huấn: Sở gán trường trực thuộc', $q$select training_plan_assign(id, array[(select id from organizations where code = 'THCS-PH')]) from training_plans where name = 'ISO KH Sở'$q$, '1');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_plan_unassign(id, (select id from organizations where code = 'THCS-PH'))::text from training_plans where name = 'ISO KH'$q$, true);
+select pg_temp.chk('kdi', 'KH tập huấn: bỏ gán thì bỏ luôn GV đã ghi danh', $q$select count(*) from training_enrollments e join training_plans k on k.id = e.plan_id where k.name = 'ISO KH'$q$, '0');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

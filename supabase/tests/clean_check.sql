@@ -21,7 +21,9 @@ declare
     'stem_tracks',          -- danh mục chương trình STEM CT1–CT5 (062, 5 dòng cố định)
     'subjects',             -- danh mục môn học hệ thống của KDI (064)
     'edu_levels',           -- danh mục cấp học & khối (065)
-    'dist_tiers'            -- danh mục mức độ của bản phân phối (078)
+    'dist_tiers',           -- danh mục mức độ của bản phân phối (078)
+    'dist_cls_levels',      -- cấp phân loại bản phân phối: Cấp học › Khối lớp › Mức độ (082)
+    'dist_nodes'            -- cây phân loại dựng từ danh mục cấp học, khối, mức độ (082)
   ];
   r record; n bigint; bad text := '';
 begin

@@ -6,6 +6,7 @@
 import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useEduLevels } from '../../lib/eduLevels'
+import { useCls } from './cls'
 import { useTiers } from './Tiers'
 import { WeekGrid, colorOf } from './Grid'
 import {
@@ -25,7 +26,11 @@ const wkLabel = (ws: number[] | null) => { if (!ws?.length) return '—'; const 
 export function useBreadcrumb() {
   const { name: levelName } = useEduLevels()
   const { name: tierName } = useTiers()
-  return (p: Plan) => `${levelName(p.level)} › Khối ${p.grade} › ${p.tier ? tierName(p.tier) : 'Chưa phân loại'}`
+  const { path } = useCls()
+  return (p: Plan) => {
+    const ns = path(p.node_id)
+    return ns.length ? ns.map(n => n.name).join(' › ') : `${levelName(p.level)} › Khối ${p.grade} › ${p.tier ? tierName(p.tier) : 'Chưa phân loại'}`
+  }
 }
 
 /** Nút "…" mở danh sách thao tác phụ. */

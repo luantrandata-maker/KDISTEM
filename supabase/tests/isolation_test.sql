@@ -189,7 +189,9 @@ begin
     delete from material_catalog where name like 'ISO %';
     perform set_config('app.norm_status', '', true);
   end if;
-  if to_regclass('public.dist_plans') is not null then delete from dist_plans where title like 'ISO %'; delete from dist_tiers where code like 'iso%'; end if;
+  if to_regclass('public.dist_plans') is not null then delete from dist_plans where title like 'ISO %';
+    if to_regclass('public.dist_nodes') is not null then delete from dist_nodes where name like 'ISO con%'; delete from dist_nodes where name like 'ISO%'; delete from dist_cls_levels where name like 'ISO%'; end if;
+    delete from dist_tiers where code like 'iso%'; end if;
   if to_regclass('public.curriculum_lessons') is not null then delete from curriculum_books where title like 'ISO %'; end if;
   if to_regclass('public.edu_programs') is not null then
     delete from notifications where ref_id in (select id from approval_requests where ref_table in ('edu_programs', 'curriculum_books') and title like 'ISO %');
@@ -2654,6 +2656,31 @@ select pg_temp.chk('kdi', 'Nhân bản: bản sao là nháp, đủ chương trì
   $q$select d.status || ':' || (select count(*) from dist_plan_items i where i.plan_id = d.id) || ':' || (select count(*) from dist_plan_rows r where r.plan_id = d.id) from dist_plans d where d.title = 'ISO bản phối (bản sao)'$q$, 'draft:1:2');
 select pg_temp.chk('kdi', 'Nhân bản: chép cả môn và tuần từng tiết',
   $q$select (select i.split::text || jsonb_array_length(i.subjects) from dist_plan_items i join dist_plans d on d.id = i.plan_id where d.title = 'ISO bản phối (bản sao)') || ':' || (select string_agg(array_to_string(r.weeks, ','), '|' order by r.seq) from dist_plan_rows r join dist_plans d on d.id = r.plan_id where d.title = 'ISO bản phối (bản sao)')$q$, 'true1:1,2|2,3');
+-- ===== 082: cấp phân loại bản phân phối =====
+select pg_temp.chk('admin_ph', 'Cấp phân loại: mặc định Cấp học › Khối lớp › Mức độ', $q$select string_agg(name, ' › ' order by sort) from dist_cls_levels$q$, 'Cấp học › Khối lớp › Mức độ');
+select pg_temp.chk('kdi', 'Cấp phân loại: bản cũ đã gắn vào mục mức độ', $q$select n.name from dist_plans d join dist_nodes n on n.id = d.node_id where d.title = 'ISO bản phối'$q$, 'Cơ bản');
+select pg_temp.chk('kdi', 'Cấp phân loại: bản sao tự gắn mục', $q$select (node_id is not null)::text from dist_plans where title = 'ISO bản phối (bản sao)'$q$, 'true');
+select pg_temp.chk('admin_ph', 'Cấp phân loại: trường không thêm cấp', $q$insert into dist_cls_levels (name, kind, sort) values ('ISO cấp', 'custom', 15)$q$, 'ERR');
+select pg_temp.chk('kdi', 'Cấp phân loại: KDI thêm cấp mới', $q$insert into dist_cls_levels (name, kind, sort) values ('ISO Giai đoạn', 'custom', 15)$q$, 'rows:1');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into dist_cls_levels (name, kind, sort) values ('ISO Giai đoạn', 'custom', 15)$q$, true);
+select pg_temp.chk('kdi', 'Cấp phân loại: không tắt được Khối lớp', $q$update dist_cls_levels set active = false where kind = 'grade'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'Cấp phân loại: không xoá được Cấp học', $q$delete from dist_cls_levels where kind = 'level'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'Cấp phân loại: cấp đã có mục thì không đổi thứ tự', $q$update dist_cls_levels set sort = 25 where kind = 'tier'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'Cấp phân loại: cấp chưa có mục thì đổi thứ tự được', $q$update dist_cls_levels set sort = 35 where name = 'ISO Giai đoạn'$q$, 'rows:1');
+select pg_temp.probe('kdi@iso-test.local', $q$update dist_cls_levels set sort = 35 where name = 'ISO Giai đoạn'$q$, true);
+select pg_temp.chk('kdi', 'Cấp phân loại: thêm mục của cấp mới dưới Khối 6', $q$insert into dist_nodes (cls_level_id, parent_id, name) select (select id from dist_cls_levels where name = 'ISO Giai đoạn'), n.id, 'ISO con GĐ1' from dist_nodes n join dist_nodes p on p.id = n.parent_id where n.grade = 6 and p.edu_level = 'thcs'$q$, 'rows:1');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into dist_nodes (cls_level_id, parent_id, name) select (select id from dist_cls_levels where name = 'ISO Giai đoạn'), n.id, 'ISO con GĐ1' from dist_nodes n join dist_nodes p on p.id = n.parent_id where n.grade = 6 and p.edu_level = 'thcs'$q$, true);
+select pg_temp.chk('kdi', 'Cấp phân loại: mục khối tự nhận số khối theo tên', $q$with x as (insert into dist_nodes (cls_level_id, name) select id, 'ISO Khối 7' from dist_cls_levels where kind = 'grade' returning grade) select grade::text from x$q$, '7');
+select pg_temp.chk('kdi', 'Cấp phân loại: mục mức độ mới tự thêm vào danh mục mức độ', $q$with x as (insert into dist_nodes (cls_level_id, name) select id, 'ISO Tăng cường' from dist_cls_levels where kind = 'tier' returning tier) select (tier like 't\_%')::text from x$q$, 'true');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into dist_nodes (cls_level_id, name) select id, 'ISO Mầm non' from dist_cls_levels where kind = 'level'$q$, true);
+select pg_temp.chk('kdi', 'Cấp phân loại: mục chưa nhận được cấp học vẫn thêm được', $q$select coalesce(edu_level, '-') from dist_nodes where name = 'ISO Mầm non'$q$, '-');
+select pg_temp.chk('kdi', 'Cấp phân loại: bản không gắn được mục chưa thuộc cấp học', $q$insert into dist_plans (org_id, title, level, grade, node_id) values (platform_org_id(), 'ISO bản lỗi', 'tieuhoc', 1, (select id from dist_nodes where name = 'ISO Mầm non'))$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into dist_plans (org_id, title, level, grade, node_id) values (platform_org_id(), 'ISO bản GĐ', 'tieuhoc', 1, (select id from dist_nodes where name = 'ISO con GĐ1'))$q$, true);
+select pg_temp.chk('kdi', 'Cấp phân loại: bản gắn mục lấy cấp học, khối theo mục cha', $q$select level || ':' || grade || ':' || coalesce(tier, '-') from dist_plans where title = 'ISO bản GĐ'$q$, 'thcs:6:-');
+select pg_temp.chk('kdi', 'Cấp phân loại: mục đang có bản thì không xoá', $q$delete from dist_nodes where name = 'ISO con GĐ1'$q$, 'ERR*');
+select pg_temp.chk('kdi', 'Cấp phân loại: cấp đang có mục thì không xoá', $q$delete from dist_cls_levels where name = 'ISO Giai đoạn'$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Cấp phân loại: trường không sửa mục', $q$update dist_nodes set name = 'ISO đổi' where name = 'ISO con GĐ1'$q$, 'rows:0');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

@@ -1709,3 +1709,6 @@ a.namelink:hover{color:var(--primary)}
 .tpsubj{display:grid;gap:8px;border:1px solid var(--line);border-radius:12px;padding:12px}
 .tpsubjname{font-weight:600;flex:1;min-width:200px}
 @media (max-width:640px){.tpkv{grid-template-columns:1fr}}
+/* Hướng dẫn 4 bước (Kế hoạch tập huấn) */
+.distguide.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:800px){.distguide.four{grid-template-columns:1fr}}

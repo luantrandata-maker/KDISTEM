@@ -101,6 +101,7 @@ const StudentMyCompetencies = lazy(() => import('./pages/competency').then(m => 
 const TeacherCompetencyProfile = lazy(() => import('./pages/competency').then(m => ({ default: m.TeacherCompetencyProfile })))
 const TrainingProgramsPage = lazy(() => import('./pages/training/Programs').then(m => ({ default: m.TrainingProgramsPage })))
 const TrainingPlansPage = lazy(() => import('./pages/training/Plans').then(m => ({ default: m.TrainingPlansPage })))
+const TrainingCalendarPage = lazy(() => import('./pages/training/Schedule').then(m => ({ default: m.TrainingCalendarPage })))
 const SchoolTrainingAssigned = lazy(() => import('./pages/training/Plans').then(m => ({ default: m.SchoolTrainingAssigned })))
 // Trường: kế hoạch được cấp trên giao (chọn GV, gửi duyệt) + kế hoạch riêng của trường
 const SchoolTrainingPlans = (p: any) => <TabbedPages {...p} tabs={[['Được giao', SchoolTrainingAssigned], ['Kế hoạch của trường', TrainingPlans]]} />
@@ -327,7 +328,7 @@ const DEPARTMENT: PageMap = {
   'Theo dõi Môn học STEM': DeptSubjects,
   'Giám sát Tập huấn GV': DeptTrainingMonitor,
   'Kế hoạch tập huấn': TrainingPlansPage,
-  'Lịch tập huấn': TrainingSchedule,
+  'Lịch tập huấn': TrainingCalendarPage,
   'Hiệu quả Phòng STEM': DeptRoomEffect,
   'Phòng STEM & lịch phòng': RoomsOverview,
   'Thiết bị & kho': EquipmentOverview,
@@ -384,7 +385,7 @@ const PLATFORM: PageMap = {
   'Tích hợp & dữ liệu': PlatformIntegrations,
   // 1. Đào tạo & đánh giá năng lực nhà giáo — làm lại theo khuôn Phân hệ 2 (kế hoạch: Chương trình → Kế hoạch & lịch → … → Giám sát)
   'Chương trình tập huấn': TrainingProgramsPage,
-  'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', TrainingPlansPage], ['Lịch', TrainingSchedule]]} />,
+  'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', TrainingPlansPage], ['Lịch', TrainingCalendarPage]]} />,
   'Giám sát tập huấn nhà giáo': DeptTrainingMonitor,
   // 2. Chương trình & học liệu
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"

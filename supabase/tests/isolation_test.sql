@@ -192,6 +192,7 @@ begin
   if to_regclass('public.dist_plans') is not null then delete from dist_plans where title like 'ISO %';
     if to_regclass('public.dist_nodes') is not null then delete from dist_nodes where name like 'ISO con%'; delete from dist_nodes where name like 'ISO%'; delete from dist_cls_levels where name like 'ISO%'; end if;
     delete from dist_tiers where code like 'iso%'; end if;
+  if to_regclass('public.training_programs') is not null then delete from training_programs where title like 'ISO %'; end if;
   if to_regclass('public.curriculum_lessons') is not null then delete from curriculum_books where title like 'ISO %'; end if;
   if to_regclass('public.edu_programs') is not null then
     delete from notifications where ref_id in (select id from approval_requests where ref_table in ('edu_programs', 'curriculum_books') and title like 'ISO %');
@@ -2680,6 +2681,25 @@ select pg_temp.chk('kdi', 'Cấp phân loại: bản gắn mục lấy cấp h�
 select pg_temp.chk('kdi', 'Cấp phân loại: mục đang có bản thì không xoá', $q$delete from dist_nodes where name = 'ISO con GĐ1'$q$, 'ERR*');
 select pg_temp.chk('kdi', 'Cấp phân loại: cấp đang có mục thì không xoá', $q$delete from dist_cls_levels where name = 'ISO Giai đoạn'$q$, 'ERR*');
 select pg_temp.chk('admin_ph', 'Cấp phân loại: trường không sửa mục', $q$update dist_nodes set name = 'ISO đổi' where name = 'ISO con GĐ1'$q$, 'rows:0');
+
+-- ===== 083: chương trình tập huấn =====
+select pg_temp.chk('admin_ph', 'CT tập huấn: trường không soạn được', $q$insert into training_programs (org_id, title) values (platform_org_id(), 'ISO CTTH trường')$q$, 'ERR');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_programs (org_id, title, pass_score) values (platform_org_id(), 'ISO CTTH', 5)$q$, true);
+select pg_temp.chk('kdi', 'CT tập huấn: tự cấp mã CTTH-xxx', $q$select (code ~ '^CTTH-\d{3}$')::text from training_programs where title = 'ISO CTTH'$q$, 'true');
+select pg_temp.chk('admin_ph', 'CT tập huấn: trường không thấy bản nháp của KDI', $q$select count(*) from training_programs where title = 'ISO CTTH'$q$, '0');
+select pg_temp.chk('kdi', 'CT tập huấn: chưa có bài thì không phát hành', $q$update training_programs set status = 'published' where title = 'ISO CTTH'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_program_units (program_id, kind, seq, title, hours) select id, 'subject', 1, 'ISO môn', 0 from training_programs where title = 'ISO CTTH'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_program_units (program_id, parent_id, kind, seq, title, hours) select p.id, u.id, 'content', 1, 'ISO bài 1', 3 from training_programs p join training_program_units u on u.program_id = p.id where p.title = 'ISO CTTH'$q$, true);
+select pg_temp.chk('kdi', 'CT tập huấn: nội dung phải thuộc một môn', $q$insert into training_program_units (program_id, kind, title) select id, 'content', 'ISO lạc' from training_programs where title = 'ISO CTTH'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'CT tập huấn: có điều kiện điểm mà chưa có bài test thì không phát hành', $q$update training_programs set status = 'published' where title = 'ISO CTTH'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_program_units set has_test = true, detail = '{"docs":[{"title":"ISO tài liệu","url":"https://x"}]}' where title = 'ISO bài 1'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$update training_programs set status = 'published' where title = 'ISO CTTH'$q$, true);
+select pg_temp.chk('admin_ph', 'CT tập huấn: trường thấy bản đã phát hành', $q$select count(*) from training_programs where title = 'ISO CTTH'$q$, '1');
+select pg_temp.chk('kdi', 'CT tập huấn: bản đã phát hành không sửa nội dung', $q$update training_programs set title = 'ISO đổi' where title = 'ISO CTTH'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'CT tập huấn: bản đã phát hành không thêm bài', $q$insert into training_program_units (program_id, parent_id, kind, title) select p.id, u.id, 'content', 'ISO bài 2' from training_programs p join training_program_units u on u.program_id = p.id and u.kind = 'subject' where p.title = 'ISO CTTH'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_program_copy(id) from training_programs where title = 'ISO CTTH' and status = 'published'$q$, true);
+select pg_temp.chk('kdi', 'CT tập huấn: nhân bản ra bản nháp v2 đủ môn và nội dung', $q$select p.status || ':' || p.version_no || ':' || (select count(*) from training_program_units u where u.program_id = p.id) from training_programs p where p.title = 'ISO CTTH' and p.source_id is not null$q$, 'draft:2:2');
+select pg_temp.chk('kdi', 'CT tập huấn: bản sao giữ 5 phần của nội dung', $q$select u.detail->'docs'->0->>'title' from training_program_units u join training_programs p on p.id = u.program_id where p.source_id is not null and p.title = 'ISO CTTH' and u.kind = 'content'$q$, 'ISO tài liệu');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

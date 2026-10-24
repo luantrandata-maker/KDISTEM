@@ -99,6 +99,7 @@ const SurveyManager = lazy(() => import('./pages/surveys').then(m => ({ default:
 const MySurveys = lazy(() => import('./pages/surveys').then(m => ({ default: m.MySurveys })))
 const StudentMyCompetencies = lazy(() => import('./pages/competency').then(m => ({ default: m.StudentMyCompetencies })))
 const TeacherCompetencyProfile = lazy(() => import('./pages/competency').then(m => ({ default: m.TeacherCompetencyProfile })))
+const TrainingProgramsPage = lazy(() => import('./pages/training/Programs').then(m => ({ default: m.TrainingProgramsPage })))
 const SchoolTeacherAssessments = lazy(() => import('./pages/competency').then(m => ({ default: m.SchoolTeacherAssessments })))
 const PlatformSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.PlatformSupport })))
 // Đợt 2 (025): triển khai khách hàng, danh mục gói, đơn đặt gói, thông báo hàng loạt, tích hợp
@@ -368,7 +369,7 @@ const PLATFORM: PageMap = {
   'Vai trò & quyền mặc định': DefaultPermissions,
   'Bảo mật tài khoản': PlatformSecurity,
   'Điều khoản & dữ liệu cá nhân': PlatformLegal,
-  'Đánh giá năng lực giáo viên': SchoolTeacherAssessments,
+  'Đánh giá năng lực nhà giáo': SchoolTeacherAssessments,
   'Đánh giá năng lực người học': ClassCompetencies,
   'Khảo sát': SurveyManager,
   'Vấn đề & phản hồi': PlatformSupport,
@@ -377,9 +378,9 @@ const PLATFORM: PageMap = {
   'Triển khai khách hàng': PlatformRollout,
   'Đơn đặt gói STEM': (p: any) => <TabbedPages {...p} tabs={[['Đơn đặt gói', PlatformOrders], ['Gói STEM của KDI', PlatformCatalog]]} />,
   'Tích hợp & dữ liệu': PlatformIntegrations,
-  // 1. Đào tạo & đánh giá năng lực nhà giáo
-  'Kế hoạch tập huấn': TrainingPlans,
-  'Lịch tập huấn': TrainingSchedule,
+  // 1. Đào tạo & đánh giá năng lực nhà giáo — làm lại theo khuôn Phân hệ 2 (kế hoạch: Chương trình → Kế hoạch & lịch → … → Giám sát)
+  'Chương trình tập huấn': TrainingProgramsPage,
+  'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', TrainingPlans], ['Lịch', TrainingSchedule]]} />,
   'Giám sát tập huấn nhà giáo': DeptTrainingMonitor,
   // 2. Chương trình & học liệu
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
@@ -438,6 +439,7 @@ PLATFORM_LIVE.add('Phân hệ & mức sử dụng')
 const PLATFORM_ALIAS: Record<string, string> = {
   'KPI & Xếp hạng Xã/Phường': 'KPI & xếp hạng', 'Thiết bị & kho': 'Thiết bị & vật tư', 'Hiệu quả Phòng STEM': 'Hiệu quả sử dụng phòng STEM',
   'Dashboard điểm danh': 'Buổi dạy & điểm danh', 'Thời khoá biểu & xếp lịch': 'Thời khóa biểu & xếp lịch',
+  'Đánh giá năng lực giáo viên': 'Đánh giá năng lực nhà giáo', 'Kế hoạch tập huấn': 'Kế hoạch & lịch tập huấn', 'Lịch tập huấn': 'Kế hoạch & lịch tập huấn',
 }
 export const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM, parent: PARENT, judge: JUDGE }
 // Khi dev: mục menu không có trang (thường do sửa chuỗi mã trong NAV thay vì thêm LABEL — xem lib/nav.ts)

@@ -1704,3 +1704,8 @@ a.namelink:hover{color:var(--primary)}
 /* E-learning: trang thêm / sửa / chi tiết */
 .elview{display:grid;gap:12px;margin-top:12px}.elview>.ghostbtn{justify-self:start}
 .elviewhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.elviewhead h2{margin:0}
+/* Phân hệ 1 — Chương trình tập huấn */
+.tpkv{display:grid;grid-template-columns:170px minmax(0,1fr);gap:6px 12px;margin:0}.tpkv dt{color:var(--muted)}.tpkv dd{margin:0}
+.tpsubj{display:grid;gap:8px;border:1px solid var(--line);border-radius:12px;padding:12px}
+.tpsubjname{font-weight:600;flex:1;min-width:200px}
+@media (max-width:640px){.tpkv{grid-template-columns:1fr}}

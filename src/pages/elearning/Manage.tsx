@@ -6,6 +6,7 @@ import { uploadLearningFile, openFile, MAX_FILE_MB } from '../../lib/files'
 import { Tabs } from '../teacher/common'
 import QuestionBank from './Bank'
 import Analytics from './Analytics'
+import { ElView } from './View'
 import { ESTATUS, LEVEL, LKIND, SHOW, dueBadge, errText, pathName, type Attempt, type Course, type Exam, type Lesson, type Level, type Question } from './common'
 
 // E-learning & luyện thi (GV, trường, Sở, KDI): đề luyện, khoá học, phân tích kết quả, ngân hàng câu hỏi.
@@ -155,23 +156,36 @@ function Exams({ orgId }: { orgId: string | null }) {
   }
   const editable = (x: Exam) => x.org_id === orgId
   const esel = useRowSel(rows.filter(editable))
+  const editForm = (x: Exam) => { const { id, title, description, subject, grade, mode, question_ids, criteria, duration_min, max_attempts, show_answers, class_ids, group_ids, student_ids, shared, opens_at, closes_at, status } = x
+    setMsg(null); setForm({ id, title, description, subject, grade, mode, question_ids, criteria: { levels: {}, topics: [], ...criteria }, duration_min, max_attempts, show_answers, class_ids, group_ids: group_ids ?? null, student_ids: student_ids ?? null, shared, opens_at, closes_at, status }) }
+  const statusBtns = (x: Exam) => <>
+    {x.status === 'draft' && <button className="primary" onClick={() => setStatus(x, 'published')}>Công bố</button>}
+    {x.status === 'published' && <button onClick={() => setStatus(x, 'closed')}>Đóng</button>}
+    {x.status === 'closed' && <button onClick={() => setStatus(x, 'published')}>Mở lại</button>}</>
+  const note = msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>
+  // Thêm / sửa đề: trang riêng
+  if (form) return <ElView back={open ? 'Chi tiết đề luyện' : 'Danh sách đề luyện'} onBack={() => setForm(null)} title={form.id ? 'Sửa đề luyện' : 'Tạo đề luyện'} sub={form.id ? form.title : undefined}>
+    {note}<ExamForm form={form} setForm={setForm} onSubmit={save} orgId={orgId} classes={classes} groups={groups} isSchool={isSchool} /></ElView>
+  // Chi tiết đề: trang riêng
+  const cur = rows.find(x => x.id === open)
+  if (cur) return <ElView back="Danh sách đề luyện" onBack={() => { setOpen(null); setMsg(null) }} title={cur.title}
+    sub={<>{[cur.subject, cur.grade ? 'Khối ' + cur.grade : null, cur.mode === 'random' ? `Ngẫu nhiên ${cur.criteria.count} câu` : `Cố định ${cur.question_ids.length} câu`, cur.duration_min ? `${cur.duration_min} phút` : null,
+      `${dt(cur.opens_at)}${cur.closes_at ? ' → ' + dt(cur.closes_at) : ''}`].filter(Boolean).join(' · ')} <span className={'pill ' + ESTATUS[cur.status][1]}>{ESTATUS[cur.status][0]}</span></>}
+    actions={editable(cur) ? <>{statusBtns(cur)}<button onClick={() => editForm(cur)}>Sửa</button></> : undefined}>
+    {note}<ExamResults exam={cur} roster={isSchool && editable(cur)} /></ElView>
   return (
     <>
-      <div className="bar"><span /><button className="primary" onClick={() => setForm({ ...EEMPTY, shared: !isSchool })}>Tạo đề luyện</button></div>
-      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      {form && <ExamForm form={form} setForm={setForm} onSubmit={save} orgId={orgId} classes={classes} groups={groups} isSchool={isSchool} />}
+      <div className="bar"><button className="primary" onClick={() => { setMsg(null); setForm({ ...EEMPTY, shared: !isSchool }) }}>Tạo đề luyện</button><span /></div>
+      {note}
       {(() => { const x = esel.cur; return (
         <SelBar picked={x?.title ?? null}>
-          {x?.status === 'draft' && <button className="primary" onClick={() => setStatus(x, 'published')}>Công bố</button>}
-          {x?.status === 'published' && <button onClick={() => setStatus(x, 'closed')}>Đóng</button>}
-          {x?.status === 'closed' && <button onClick={() => setStatus(x, 'published')}>Mở lại</button>}
-          <button disabled={!x} onClick={() => { if (!x) return; const { id, title, description, subject, grade, mode, question_ids, criteria, duration_min, max_attempts, show_answers, class_ids, group_ids, student_ids, shared, opens_at, closes_at, status } = x
-                setForm({ id, title, description, subject, grade, mode, question_ids, criteria: { levels: {}, topics: [], ...criteria }, duration_min, max_attempts, show_answers, class_ids, group_ids: group_ids ?? null, student_ids: student_ids ?? null, shared, opens_at, closes_at, status }) }}>Sửa</button>
+          {x && statusBtns(x)}
+          <button disabled={!x} onClick={() => x && editForm(x)}>Sửa</button>
         </SelBar>) })()}
       <div className="wrap"><table className="systable">
         <thead><tr><SelTh /><th>Đề luyện</th><th>Cách ra đề</th><th>Thời gian</th><th>Mở</th><th className="num">Lượt nộp</th><th className="num">Điểm TB</th><th>Trạng thái</th></tr></thead>
         <tbody>{rows.map(x => { const c = counts.get(x.id); return <Fragment key={x.id}>
-          <tr className={'clickrow' + (esel.is(x) ? ' picked' : '')} onClick={() => setOpen(open === x.id ? null : x.id)}>
+          <tr className={'clickrow' + (esel.is(x) ? ' picked' : '')} onClick={() => { setMsg(null); setOpen(x.id) }}>
             <td className="sel" onClick={e => e.stopPropagation()}>{editable(x) && <input type="checkbox" checked={esel.is(x)} onChange={() => esel.toggle(x)} aria-label={'Chọn ' + x.title} />}</td>
             <td><b>{x.title}</b><br /><small>{[x.subject, x.grade ? 'Khối ' + x.grade : null, !editable(x) ? 'của cấp trên' : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></td>
             <td>{x.mode === 'random' ? `Ngẫu nhiên ${x.criteria.count} câu` : `Cố định ${x.question_ids.length} câu`}</td>
@@ -181,7 +195,6 @@ function Exams({ orgId }: { orgId: string | null }) {
             <td className="num">{c?.n ? (c.sum / c.n).toFixed(1) : '—'}</td>
             <td><span className={'pill ' + ESTATUS[x.status][1]}>{ESTATUS[x.status][0]}</span></td>
           </tr>
-          {open === x.id && <tr><td colSpan={9}><ExamResults exam={x} roster={isSchool && editable(x)} /></td></tr>}
         </Fragment> })}
           {!rows.length && <tr><td colSpan={9}>Chưa có đề luyện. Tạo đề ngẫu nhiên từ ngân hàng câu hỏi (theo môn, khối, mức độ) hoặc chọn từng câu.</td></tr>}
         </tbody>
@@ -302,11 +315,17 @@ function Courses({ orgId }: { orgId: string | null }) {
     const { data, error } = await supabase.from('courses').update({ status }).eq('id', c.id).select('id')
     if (error) setMsg([errText(error.message), true]); else if (!data?.length) setMsg([NOT_OWNER, true]); else load()
   }
-  return (
-    <>
-      <div className="bar"><button className="primary" onClick={() => setForm({ ...CEMPTY, shared: !isSchool })}>Tạo khoá học</button></div>
-      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      {form && <form className="panel formgrid" onSubmit={save}>
+  const note = msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>
+  const editCourse = (c: Course) => { const { id, title, description, subject, grade, cover_url, class_ids, group_ids, student_ids, due_at, shared, status } = c
+    setMsg(null); setForm({ id, title, description, subject, grade, cover_url, class_ids, group_ids: group_ids ?? null, student_ids: student_ids ?? null, due_at: due_at ?? null, shared, status }) }
+  const statusBtns = (c: Course, ls: Lesson[]) => <>
+    {c.status === 'draft' && <button className="primary" onClick={() => setStatus(c, 'published')} disabled={!ls.length} title={ls.length ? undefined : 'Thêm ít nhất một bài học trước khi công bố'}>Công bố</button>}
+    {c.status === 'published' && <button onClick={() => setStatus(c, 'archived')}>Lưu trữ</button>}
+    {c.status === 'archived' && <button onClick={() => setStatus(c, 'published')}>Mở lại</button>}</>
+  // Thêm / sửa khoá học: trang riêng
+  if (form) return <ElView back={open ? 'Chi tiết khoá học' : 'Danh sách khoá học'} onBack={() => setForm(null)} title={form.id ? 'Sửa khoá học' : 'Tạo khoá học'} sub={form.id ? form.title : undefined}>
+      {note}
+      <form className="panel formgrid" onSubmit={save}>
         <label className="field wide"><span>Tên khoá học *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Lập trình Arduino cơ bản" /></label>
         <label className="field"><span>Môn</span><input value={form.subject ?? ''} onChange={e => setForm({ ...form, subject: e.target.value })} /></label>
         <label className="field"><span>Khối</span><input type="number" min={1} max={12} value={form.grade ?? ''} onChange={e => setForm({ ...form, grade: e.target.value ? Number(e.target.value) : null })} /></label>
@@ -316,26 +335,36 @@ function Courses({ orgId }: { orgId: string | null }) {
         {isSchool ? <AudiencePicker key={form.id ?? 'new'} orgId={orgId} classes={classes} groups={groups} value={form} onChange={v => setForm({ ...form, ...v })} />
           : <label className="field inline wide"><input type="checkbox" checked={form.shared} onChange={e => setForm({ ...form, shared: e.target.checked })} /> Dành cho học sinh mọi trường trực thuộc</label>}
         <div className="actions wide"><button className="primary">Lưu khoá học</button><button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
-      </form>}
+      </form></ElView>
+  // Chi tiết khoá học (bài học, tiến độ): trang riêng
+  const cur = rows.find(c => c.id === open)
+  if (cur) { const ls = lessons.filter(l => l.course_id === cur.id); const mine = cur.org_id === orgId
+    return <ElView back="Danh sách khoá học" onBack={() => { setOpen(null); setMsg(null) }} title={cur.title}
+      sub={<>{[cur.subject, cur.grade ? 'Khối ' + cur.grade : null, `${ls.length} bài`, !mine ? 'của cấp trên' : isSchool ? audienceText(cur, classes, groups) : cur.shared ? 'dùng chung' : null, cur.due_at ? 'Hạn hoàn thành: ' + dt(cur.due_at) : null].filter(Boolean).join(' · ')} <span className={'pill ' + ESTATUS[cur.status][1]}>{ESTATUS[cur.status][0]}</span></>}
+      actions={mine ? <>{statusBtns(cur, ls)}<button onClick={() => editCourse(cur)}>Sửa</button></> : undefined}>
+      {note}
+      {cur.description && <p className="sub">{cur.description}</p>}
+      <section className="panel"><h3>Bài học</h3><LessonEditor course={cur} lessons={ls} exams={exams} progress={progress} editable={mine} onChange={load} /></section>
+      {mine && <CourseProgress key={ls.length} course={cur} />}
+    </ElView> }
+  return (
+    <>
+      <div className="bar"><button className="primary" onClick={() => { setMsg(null); setForm({ ...CEMPTY, shared: !isSchool }) }}>Tạo khoá học</button><span /></div>
+      {note}
       <div className="coursegrid">
         {rows.map(c => { const ls = lessons.filter(l => l.course_id === c.id); const mine = c.org_id === orgId
-          return <section key={c.id} className={'panel coursecard' + (open === c.id ? ' wide' : '')}>
-            <header>
+          return <section key={c.id} className="panel coursecard">
+            <header className="clickrow" onClick={() => { setMsg(null); setOpen(c.id) }}>
               <div><b>{c.title}</b><small>{[c.subject, c.grade ? 'Khối ' + c.grade : null, `${ls.length} bài`, !mine ? 'của cấp trên' : isSchool ? audienceText(c, classes, groups) : c.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small>
                 {c.due_at && <small className={'due ' + (c.status === 'published' ? dueBadge(c.due_at, false)!.tone : '')}>Hạn hoàn thành: {dt(c.due_at)}</small>}</div>
               <span className={'pill ' + ESTATUS[c.status][1]}>{ESTATUS[c.status][0]}</span>
             </header>
             {c.description && <p className="sub">{c.description}</p>}
             <div className="tools">
-              <button onClick={() => setOpen(open === c.id ? null : c.id)}>{open === c.id ? 'Thu gọn' : mine ? 'Bài học & tiến độ' : 'Xem bài học'}</button>
-              {mine && c.status === 'draft' && <button className="primary" onClick={() => setStatus(c, 'published')} disabled={!ls.length}>Công bố</button>}
-              {mine && c.status === 'published' && <button onClick={() => setStatus(c, 'archived')}>Lưu trữ</button>}
-              {mine && c.status === 'archived' && <button onClick={() => setStatus(c, 'published')}>Mở lại</button>}
-              {mine && <button onClick={() => { const { id, title, description, subject, grade, cover_url, class_ids, group_ids, student_ids, due_at, shared, status } = c
-                setForm({ id, title, description, subject, grade, cover_url, class_ids, group_ids: group_ids ?? null, student_ids: student_ids ?? null, due_at: due_at ?? null, shared, status }) }}>Sửa</button>}
+              <button onClick={() => { setMsg(null); setOpen(c.id) }}>{mine ? 'Bài học & tiến độ' : 'Xem bài học'}</button>
+              {mine && statusBtns(c, ls)}
+              {mine && <button onClick={() => editCourse(c)}>Sửa</button>}
             </div>
-            {open === c.id && <LessonEditor course={c} lessons={ls} exams={exams} progress={progress} editable={mine} onChange={load} />}
-            {open === c.id && mine && <CourseProgress key={ls.length} course={c} />}
           </section> })}
         {!rows.length && <p className="sub">Chưa có khoá học. Một khoá gồm nhiều bài: video (YouTube, Google Drive…), bài đọc, liên kết, tệp, học liệu từ Kho học liệu và đề luyện.</p>}
       </div>

@@ -5,7 +5,7 @@ import { readKitFile, type KitDraft } from '../../../lib/kitImport'
 import { norm as normText } from '../../../lib/sheet'
 import { saveUnitNorm, loadUnitNorm } from '../UnitNorm'
 import type { KitCard } from '../common'
-import { kitFromDraft, kitOf, mergeKit, planFromKit, key, emptyKit, type KitData, type KDoc, type KMat, type ParseResult } from './model'
+import { kitFromDraft, kitOf, mergeKit, planFromKit, key, emptyKit, ACT_STARTER, type KitData, type KDoc, type KMat, type ParseResult } from './model'
 
 export type KitRow = {
   id: string; owner_org_id: string; title: string; subject: string | null; grades: string | null; program: string | null
@@ -17,7 +17,7 @@ export const KIT_SEL = 'id, owner_org_id, title, subject, grades, program, progr
 export const errMsg = (m: string) => (/schema cache|does not exist|column .* of relation/i.test(m) ? 'Hãy chạy migration 080 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Bạn không có quyền sửa học liệu của đơn vị này.' : m)
 
-/** Đọc một file (giáo án .docx, bài giảng .pptx, file mẫu .xlsx) thành phần 4 thẻ + bản nháp gốc */
+/** Đọc một file (giáo án .docx, bài giảng .pptx, file mẫu .xlsx) thành phần 5 thẻ + bản nháp gốc */
 export async function parseFile(f: File): Promise<{ draft: KitDraft; res: ParseResult }> {
   const draft = await readKitFile(f)
   return { draft, res: kitFromDraft(draft, f.name) }
@@ -138,6 +138,29 @@ export async function loadCatalog(): Promise<Cat[]> {
   const { data } = await supabase.from('material_catalog').select('id, name, unit, kind, reusable').eq('active', true).order('name')
   return (data as Cat[]) ?? []
 }
+export type BankAct = { id: string; title: string; kind: string; status: string; is_template: boolean; org_id: string }
+/** Hoạt động trong Kho hoạt động (bảng activities) của đơn vị và bản mẫu dùng chung */
+export async function loadActivities(orgId?: string): Promise<BankAct[]> {
+  let q = supabase.from('activities').select('id, title, kind, status, is_template, org_id')
+  if (orgId) q = q.or(`org_id.eq.${orgId},is_template.eq.true`)
+  const { data } = await q.order('title').limit(500)
+  return (data as BankAct[]) ?? []
+}
+/** Thẻ 05: hoạt động chưa có trong kho được tạo thành bản mẫu nháp ở Kho hoạt động (giáo viên thấy, sao chép và soạn tiếp) */
+async function chotBank(c: Ctx) {
+  const have = new Set((await loadActivities(c.orgId)).map(a => a.id))
+  for (const b of c.kit.bank) {
+    if (!b.title.trim() || (b.activity_id && have.has(b.activity_id))) continue
+    const r = await supabase.from('activities').insert({
+      org_id: c.orgId, teacher_id: null, kind: b.kind in ACT_STARTER ? b.kind : 'quiz', title: b.title.trim().slice(0, 200),
+      instructions: [b.act && `Dùng ở: ${b.act}`, b.note, `Bài học: ${c.row.title}`].filter(Boolean).join('\n'),
+      subject: c.row.subject, grades: c.row.grades, program: c.row.program, content: ACT_STARTER[b.kind] ?? ACT_STARTER.quiz,
+      is_template: true, status: 'draft',
+    }).select('id').single()
+    if (r.error) throw new Error('Chưa tạo được hoạt động “' + b.title + '” trong Kho hoạt động: ' + r.error.message)
+    b.activity_id = (r.data as { id: string }).id
+  }
+}
 /** Thẻ 04: vật tư chưa có trong danh mục được thêm vào danh mục; lưu định mức của bài (material_norms) */
 async function chotNorms(c: Ctx, content: KitRow['content']) {
   const cat = await loadCatalog()
@@ -169,6 +192,7 @@ export async function chotCard(orgId: string, row: KitRow, kit0: KitData, card: 
     if (card === 'content') content = await chotContent(c, content)
     if (card === 'links') content = await chotLinks(c, content)
     if (card === 'norms') content = await chotNorms(c, content)
+    if (card === 'bank') await chotBank(c)
   } catch (e) { return { error: errMsg(e instanceof Error ? e.message : String(e)) } }
   const checked = [...new Set([...(row.content.checked ?? []), card])]
   const r = await supabase.from('library_items').update({ content: fullContent({ ...row, content }, kit, { checked }) }).eq('id', row.id)

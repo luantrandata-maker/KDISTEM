@@ -4,7 +4,7 @@ import { readKitFile, kitTouched, kitSummary, templateSheets, MAT_LABEL, KIND_LA
 import { KIT, type KitCard } from './common'
 
 // Ba cách tạo bộ học liệu của bài (đợt 4b): tự soạn từng thẻ · tải giáo án Word / PowerPoint để tách tự động ·
-// điền file mẫu Excel 4 sheet. File được đọc trên trình duyệt; người soạn xem trước, chọn thẻ rồi mới áp dụng vào form.
+// điền file mẫu Excel 5 sheet. File được đọc trên trình duyệt; người soạn xem trước, chọn thẻ rồi mới áp dụng vào form.
 export type KitApply = (d: KitDraft, cards: KitCard[], file: File | null) => Promise<string | null>
 
 export function KitImport({ title, fresh, onApply, onClose }: { title: string; fresh: boolean; onApply: KitApply; onClose: () => void }) {
@@ -18,7 +18,7 @@ export function KitImport({ title, fresh, onApply, onClose }: { title: string; f
     try {
       const d = await readKitFile(f)
       const t = kitTouched(d)
-      if (!t.length) setErr(['Không đọc được nội dung nào cho 4 thẻ từ file này.', ...d.warnings].join(' '))
+      if (!t.length) setErr(['Không đọc được nội dung nào cho các thẻ từ file này.', ...d.warnings].join(' '))
       else { setDraft({ d, file: f }); setCards(t) }
     } catch (e) { setErr(e instanceof Error ? e.message : String(e)) }
     setBusy(false)
@@ -41,7 +41,7 @@ export function KitImport({ title, fresh, onApply, onClose }: { title: string; f
 
   if (draft) {
     const { d } = draft, s = kitSummary(d)
-    const has: Record<KitCard, string> = { info: s.info.join(' · '), content: s.content, links: s.links, norms: s.norms }
+    const has: Record<KitCard, string> = { info: s.info.join(' · '), content: s.content, links: s.links, norms: s.norms, bank: d.activities?.length ? `${d.activities.length} hoạt động` : '' }
     return (
       <div className="kitimport" style={{ gridColumn: '1 / -1' }}>
         <div className="bar small"><b>Xem trước: {draft.file.name}</b>
@@ -98,7 +98,7 @@ export function KitImport({ title, fresh, onApply, onClose }: { title: string; f
           <small className="sub">Giáo án .docx được tách thành mục tiêu, hoạt động dạy học, vật tư (dòng như “Dây thun: 4 sợi” hoặc bảng có cột số lượng) và đường dẫn. Bài giảng .pptx thành slide. Tệp gốc dưới 50 MB được đính kèm.</small>
           <div>{pickFile('.docx,.pptx,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation', 'Chọn file .docx / .pptx', true)}</div></div>
         <div className="kitway"><b>{fresh ? '3. Không có giáo án? ' : ''}Dùng file mẫu Excel</b>
-          <small className="sub">File mẫu có 4 sheet đúng 4 thẻ. Dòng bắt đầu bằng “VD:” là ví dụ, được bỏ qua khi đọc.</small>
+          <small className="sub">File mẫu có 5 sheet đúng 5 thẻ. Dòng bắt đầu bằng “VD:” là ví dụ, được bỏ qua khi đọc.</small>
           <div className="tools"><button type="button" onClick={template}>Tải file mẫu</button>{pickFile('.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'Tải file đã điền')}</div></div>
       </div>
       {err && <p className="msg">{err}</p>}

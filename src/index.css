@@ -1611,7 +1611,7 @@ a.namelink:hover{color:var(--primary)}
 .ldocrow span{display:grid}
 .lquick{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.lquick .tools{margin-left:auto}
 .lkithead{display:flex;justify-content:space-between;align-items:baseline;margin-top:4px}.lkithead h3{margin:0}
-.ltabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.ltabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .main .ltabs button{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 14px;text-align:left;font-weight:600;color:var(--text);display:flex;gap:8px;align-items:center}
 .ltabs button small{color:var(--muted);font-weight:600}
 .main .ltabs button.on{border-color:var(--navy);box-shadow:inset 0 -3px 0 var(--navy)}
@@ -1650,9 +1650,10 @@ a.namelink:hover{color:var(--primary)}
 .lrow{display:grid;gap:8px;align-items:center}
 .lrow.docs{grid-template-columns:minmax(140px,1.2fr) minmax(120px,.9fr) minmax(160px,1.4fr) auto auto}
 .lrow.mats{grid-template-columns:minmax(160px,2fr) minmax(90px,1fr) 90px auto auto}
+.lrow.bank{grid-template-columns:minmax(160px,1.6fr) minmax(120px,.9fr) minmax(140px,1.1fr) minmax(120px,1fr) 104px auto}
 .lurl{display:flex;gap:8px;align-items:center}.lurl input{flex:1;min-width:0}
 .lfilechip{background:var(--soft);border-radius:8px;padding:6px 10px;font-size:13px;overflow:hidden;text-overflow:ellipsis}
-@media(max-width:800px){.lrow.docs,.lrow.mats{grid-template-columns:1fr 1fr}}
+@media(max-width:800px){.lrow.docs,.lrow.mats,.lrow.bank{grid-template-columns:1fr 1fr}}
 .main .linkbtn.danger{color:var(--bad-fg)}
 .lmat+.lmat{margin-top:18px}.lmat h4{margin:0 0 8px}
 .loutline summary{cursor:pointer;color:var(--primary);font-size:13px}.loutline ol{margin:4px 0;padding-left:20px;font-size:13px}

@@ -1,5 +1,5 @@
-// Nhập nhanh bộ học liệu 4 thẻ của bài học (Phân hệ 2 · Học liệu, đợt 4b):
-//  • File mẫu Excel 4 sheet (01 Thông tin · 02 Nội dung bài học · 03 Link học liệu · 04 Định mức vật tư)
+// Nhập nhanh bộ học liệu 5 thẻ của bài học (Phân hệ 2 · Học liệu, đợt 4b; thẻ 05 từ 24/10):
+//  • File mẫu Excel 5 sheet (01 Thông tin · 02 Nội dung bài học · 03 Link tài liệu · 04 Định mức vật tư · 05 Kho hoạt động)
 //  • Tách tự động giáo án Word (.docx) và bài giảng PowerPoint (.pptx)
 // Chạy hoàn toàn trên trình duyệt. Kết quả là bản nháp (KitDraft) để người soạn xem trước rồi mới áp dụng vào form.
 import { unzipSync, strFromU8 } from 'fflate'
@@ -8,6 +8,8 @@ import { norm } from './sheet'
 export type KitStep = { phase?: string; title: string; minutes?: number; goal?: string; teacher?: string; student?: string; product?: string; note?: string }
 export type KitSlide = { title: string; body: string }
 export type KitLink = { title: string; type: string; url: string }
+/** Thẻ 05: hoạt động tương tác dùng trong bài (kind theo bảng activities) */
+export type KitActivity = { title: string; kind: string; act?: string; note?: string }
 export type KitNormRow = { name: string; unit: string; kind: 'supply' | 'tool' | 'equipment'; qty: number; reusable: boolean }
 export type KitDraft = {
   source: 'xlsx' | 'docx' | 'pptx'
@@ -18,6 +20,8 @@ export type KitDraft = {
   slides: KitSlide[] | null
   links: KitLink[]
   norms: { basis?: 'group' | 'student' | 'product'; group_size?: number; rows: KitNormRow[] }
+  /** Thẻ 05 (file mẫu Excel) */
+  activities?: KitActivity[]
   warnings: string[]
   /** Giáo án Word: mục "Thông tin tài liệu" (được soạn / review / hiệu chỉnh: ngày và người) */
   meta?: Partial<Record<DocRole, { dates: string[]; by: string[] }>>
@@ -28,19 +32,45 @@ export type DocRole = 'authored' | 'reviewed' | 'revised'
 const emptyDraft = (source: KitDraft['source']): KitDraft => ({ source, info: {}, plan: null, slides: null, links: [], norms: { rows: [] }, warnings: [] })
 
 /** Các thẻ mà bản nháp sẽ điền (để chuyển về "Cần kiểm tra" khi áp dụng) */
-export function kitTouched(d: KitDraft): ('info' | 'content' | 'links' | 'norms')[] {
+export type KitPart = 'info' | 'content' | 'links' | 'norms' | 'bank'
+export function kitTouched(d: KitDraft): KitPart[] {
   const i = d.info
   return [
     (i.title || i.subject || i.grades || i.periods || i.objectives || i.summary) ? 'info' as const : null,
     (d.plan && (d.plan.steps.length || Object.keys(d.plan.sections).length)) || d.slides?.length ? 'content' as const : null,
     d.links.length ? 'links' as const : null,
     d.norms.rows.length ? 'norms' as const : null,
-  ].filter((x): x is 'info' | 'content' | 'links' | 'norms' => !!x)
+    d.activities?.length ? 'bank' as const : null,
+  ].filter((x): x is KitPart => !!x)
 }
 
 // ---------- Từ điển chung ----------
 export const MAT_LABEL: Record<string, string> = {
   worksheet: 'Phiếu học tập', image: 'Hình ảnh', video: 'Video', guide: 'Tài liệu hướng dẫn', document: 'Tài liệu', link: 'Đường dẫn',
+}
+/** Loại hoạt động tương tác (cùng mã với bảng activities, nhãn như ở Kho hoạt động) */
+export const ACT_LABEL: Record<string, string> = {
+  quiz: 'Trắc nghiệm', truefalse: 'Đúng / Sai', match: 'Ghép đôi', order: 'Sắp xếp thứ tự', fill: 'Điền khuyết', group: 'Phân loại',
+  flashcard: 'Thẻ ghi nhớ', worksheet: 'Phiếu học tập', race: 'Đường đua tri thức', wheel: 'Vòng quay may mắn', teams: 'Chia đội thi đấu',
+  timer: 'Đồng hồ thử thách', sim: 'Mô phỏng 2D / giáo cụ ảo',
+}
+/** Đoán loại hoạt động từ chữ người dùng gõ */
+export function guessActKind(label: string): string {
+  const n = norm(label)
+  for (const [k, v] of Object.entries(ACT_LABEL)) if (n && (n === norm(v) || n === k)) return k
+  if (/phieu/.test(n)) return 'worksheet'
+  if (/dung.*sai/.test(n)) return 'truefalse'
+  if (/ghep|\bnoi\b/.test(n)) return 'match'
+  if (/sap xep|thu tu/.test(n)) return 'order'
+  if (/dien (khuyet|vao|cho trong)|dien tu/.test(n)) return 'fill'
+  if (/phan loai/.test(n)) return 'group'
+  if (/\bthe (ghi nho|lat)|flash/.test(n)) return 'flashcard'
+  if (/duong dua|dua xe|race/.test(n)) return 'race'
+  if (/vong quay/.test(n)) return 'wheel'
+  if (/chia doi/.test(n)) return 'teams'
+  if (/dong ho|bam gio|timer/.test(n)) return 'timer'
+  if (/mo phong|gia lap|giao cu/.test(n)) return 'sim'
+  return 'quiz'
 }
 const KIND_LABEL: Record<KitNormRow['kind'], string> = { supply: 'Vật tư tiêu hao', tool: 'Công cụ', equipment: 'Thiết bị' }
 const BASIS_LABEL = { group: '1 nhóm', student: '1 học sinh', product: '1 sản phẩm' } as const
@@ -66,8 +96,8 @@ const yes = (s: string) => /^(x|co|yes|true|1|dung lai|duoc)$/.test(norm(s))
 const num = (s: string) => { const v = Number(String(s).replace(',', '.').replace(/[^\d.]/g, '')); return Number.isFinite(v) && v > 0 ? v : 0 }
 const isExample = (r: string[]) => /^\s*vd\s*[:.]/i.test(r.find(c => c.trim()) ?? '')
 
-// ---------- File mẫu Excel 4 sheet ----------
-export const SHEETS = ['01 Thông tin', '02 Nội dung bài học', '03 Link học liệu', '04 Định mức vật tư'] as const
+// ---------- File mẫu Excel 5 sheet ----------
+export const SHEETS = ['01 Thông tin', '02 Nội dung bài học', '03 Link tài liệu', '04 Định mức vật tư', '05 Kho hoạt động'] as const
 export const INFO_KEYS: [keyof KitDraft['info'] | 'basis' | 'group_size', string, string][] = [
   ['title', 'Tên bài học', 'VD: Bài 3. Xe đua dây thun'],
   ['subject', 'Môn', 'Công nghệ'],
@@ -81,6 +111,7 @@ export const INFO_KEYS: [keyof KitDraft['info'] | 'basis' | 'group_size', string
 export const STEP_COLS = ['Buổi / giai đoạn', 'Hoạt động *', 'Thời lượng (phút)', 'Mục tiêu', 'Giáo viên', 'Học sinh', 'Sản phẩm']
 export const LINK_COLS = ['Tên học liệu *', 'Loại', 'Đường dẫn *']
 export const NORM_COLS = ['Tên vật tư *', 'Đơn vị', 'Loại', 'Số lượng *', 'Dùng lại']
+export const BANK_COLS = ['Tên hoạt động *', 'Loại', 'Dùng ở hoạt động', 'Ghi chú']
 
 /** Dữ liệu cho file mẫu (người soạn tải về, điền, tải lên lại). Dòng bắt đầu "VD:" bị bỏ qua khi đọc. */
 export function templateSheets(title = '') {
@@ -92,6 +123,7 @@ export function templateSheets(title = '') {
     ] },
     { name: SHEETS[2], header: LINK_COLS, rows: [['VD: Video hướng dẫn lắp xe', 'Video', 'https://youtu.be/…']] },
     { name: SHEETS[3], header: NORM_COLS, rows: [['VD: Dây thun', 'sợi', 'Vật tư tiêu hao', '4', ''], ['VD: Kéo', 'cái', 'Công cụ', '1', 'x']] },
+    { name: SHEETS[4], header: BANK_COLS, rows: [['VD: Đố vui về xe dây thun', 'Trắc nghiệm', 'Khởi động', '5 câu hỏi khởi động'], ['VD: Phiếu ghi kết quả chạy thử', 'Phiếu học tập', 'Thực hành', '']] },
   ]
 }
 
@@ -113,8 +145,8 @@ function table(rows: string[][], cols: string[]) {
 /** Đọc bản nháp từ các sheet của file mẫu (đã đổi ô thành chữ) */
 export function kitFromSheets(sheets: SheetRows[]): KitDraft {
   const d = emptyDraft('xlsx')
-  const [s1, s2, s3, s4] = [0, 1, 2, 3].map(i => findSheet(sheets, i))
-  if (!s1 && !s2 && !s3 && !s4) { d.warnings.push(`Không thấy sheet nào của file mẫu (${SHEETS.join(', ')}). Hãy tải file mẫu và điền vào đó.`); return d }
+  const [s1, s2, s3, s4, s5] = [0, 1, 2, 3, 4].map(i => findSheet(sheets, i))
+  if (!s1 && !s2 && !s3 && !s4 && !s5) { d.warnings.push(`Không thấy sheet nào của file mẫu (${SHEETS.join(', ')}). Hãy tải file mẫu và điền vào đó.`); return d }
   if (s1) {
     for (const r of s1.rows) {
       if (isExample(r)) continue
@@ -140,11 +172,11 @@ export function kitFromSheets(sheets: SheetRows[]): KitDraft {
   }
   if (s3) {
     const t = table(s3.rows, LINK_COLS)
-    if (!t) d.warnings.push('03 Link học liệu: không thấy dòng tiêu đề (cần cột "Tên học liệu", "Đường dẫn").')
+    if (!t) d.warnings.push('03 Link tài liệu: không thấy dòng tiêu đề (cần cột "Tên học liệu", "Đường dẫn").')
     else for (const r of t) {
       const title = r.get(0), url = r.get(2)
-      if (!title || !url) { d.warnings.push(`03 Link học liệu, dòng ${r.line}: cần đủ tên và đường dẫn.`); continue }
-      if (!/^https?:\/\//i.test(url)) { d.warnings.push(`03 Link học liệu, dòng ${r.line}: đường dẫn phải bắt đầu bằng http:// hoặc https://.`); continue }
+      if (!title || !url) { d.warnings.push(`03 Link tài liệu, dòng ${r.line}: cần đủ tên và đường dẫn.`); continue }
+      if (!/^https?:\/\//i.test(url)) { d.warnings.push(`03 Link tài liệu, dòng ${r.line}: đường dẫn phải bắt đầu bằng http:// hoặc https://.`); continue }
       d.links.push({ title, type: guessMatType(r.get(1), url), url })
     }
   }
@@ -156,6 +188,15 @@ export function kitFromSheets(sheets: SheetRows[]): KitDraft {
       if (!name || !qty) { d.warnings.push(`04 Định mức vật tư, dòng ${r.line}: cần tên và số lượng lớn hơn 0.`); continue }
       const kind = guessKind(r.get(2))
       d.norms.rows.push({ name, unit: r.get(1) || 'cái', kind, qty, reusable: r.get(4) ? yes(r.get(4)) : kind !== 'supply' })
+    }
+  }
+  if (s5) {
+    const t = table(s5.rows, BANK_COLS)
+    if (!t) d.warnings.push('05 Kho hoạt động: không thấy dòng tiêu đề (cần cột "Tên hoạt động", "Loại").')
+    else for (const r of t) {
+      const title = r.get(0)
+      if (!title) { d.warnings.push(`05 Kho hoạt động, dòng ${r.line}: thiếu tên hoạt động.`); continue }
+      ;(d.activities ??= []).push({ title, kind: guessActKind(r.get(1) || title), act: r.get(2) || undefined, note: r.get(3) || undefined })
     }
   }
   return d

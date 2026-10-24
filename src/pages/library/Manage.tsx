@@ -19,6 +19,7 @@ import { Drawer } from '../../components/Drawer'
 import { EMPTY_NORM, loadUnitNorm, saveUnitNorm, UnitNormEditor, type UnitNorm } from './UnitNorm'
 import { LessonEditor, asLesson, lessonStats, type ILesson } from '../../lib/lessonBlocks'
 import { KitImport, type KitApply } from './KitImport'
+import { LessonFlow } from './ByProgram'
 
 type Org = { id: string; name: string; type: string; parent_id: string | null }
 type Stat = { item_id: string; schools: number; copies: number; outdated: number }
@@ -110,7 +111,7 @@ const MAT_OPTS = Object.entries(MAT_TYPE).filter(([k]) => k !== 'lesson_plan')
 // Phát hành học liệu: Sở/Phòng/Tỉnh/Bộ, đơn vị cung cấp (KDI Education) hoặc trường soạn và phát hành tới đơn vị trực thuộc
 /** Mở thẳng form bài học (từ "Học liệu theo chương trình"): sửa bài học có sẵn hoặc tạo bộ học liệu cho một bài của chương trình */
 export type UnitStart = { editId?: string; preset?: { program_id: string; unit_id: string; title: string; periods: number | null; objectives: string | null; program: string | null; grades: string | null } }
-export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | null; only?: T; start?: UnitStart; onDone?: () => void }) {
+export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId: string | null; only?: T; start?: UnitStart; onDone?: () => void; onChanged?: () => void }) {
   const { codes: PROGRAMS } = useStemTracks()
   const [items, setItems] = useState<Item[]>([])
   const [visible, setVisible] = useState<Item[]>([])
@@ -147,6 +148,8 @@ export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | 
   // Khung "Tạo bộ học liệu" (tự soạn / tách giáo án / file mẫu): null = mặc định (mở khi bài học mới, chưa có gì)
   const [kitShow, setKitShow] = useState<boolean | null>(null)
   const started = useRef(false)
+  // Bài học (bộ học liệu 5 thẻ): thêm / sửa theo luồng mới như "Tạo giáo án" ở Học liệu theo chương trình
+  const [flow, setFlow] = useState<{ id?: string } | null>(null)
 
   async function load() {
     if (!orgId) return
@@ -182,6 +185,7 @@ export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | 
   const close = () => { setForm(null); if (start) onDone?.() }
   if (err) return <p className="msg">{err}</p>
   if (!me) return <p className="sub">Đang tải…</p>
+  if (flow && orgId) return <LessonFlow key={flow.id ?? 'new'} orgId={orgId} openId={flow.id} onClose={() => { setFlow(null); load() }} onChanged={() => { load(); onChanged?.() }} />
 
   // Đơn vị cấp dưới (để chọn đơn vị nhận)
   const below: Org[] = []
@@ -207,6 +211,7 @@ export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | 
 
   function edit(i: Item) {
     setMsg(''); setInfo('')
+    if (i.kind === 'unit' && !start) { setOpen(null); return setFlow({ id: i.id }) }
     setForm({
       id: i.id, kind: i.kind, title: i.title, summary: i.summary ?? '', subject: i.subject ?? '', grades: i.grades ?? '', program: i.program ?? '',
       tags: i.tags.join(', '), scope: i.scope, targets: targets.get(i.id) ?? [], slides: i.content.slides ?? [], mtype: i.content.type ?? 'video',
@@ -249,7 +254,7 @@ export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | 
     if (!isP && form.kind === 'material' && form.src === 'file' && !form.file && publish) return setMsg('Chọn tệp học liệu để tải lên.')
     const lessonAtt = form.src === 'file' ? (form.file ? { url: '', ...form.file } : {}) : (form.url.trim() ? { url: form.url.trim() } : {})
     if (form.kind === 'lesson' && form.lmode === 'interactive' && publish && !blockCount(form.ilesson)) return setMsg('Bài giảng tương tác chưa có khối nội dung nào.')
-    if (form.kind === 'unit' && publish && kitDone(form) < 4) return setMsg('Chốt đủ 4 thẻ của bộ học liệu trước khi phát hành (thẻ nào chưa chốt đang hiện “Cần kiểm tra”).')
+    if (form.kind === 'unit' && publish && kitDone(form) < KIT.length) return setMsg('Chốt đủ 5 thẻ của bộ học liệu trước khi phát hành (thẻ nào chưa chốt đang hiện “Cần kiểm tra”).')
     const content = form.kind === 'lesson'
       ? (form.lmode === 'interactive' ? { mode: 'interactive', lesson: form.ilesson ?? {} } : { mode: 'slides', slides: form.slides, ...lessonAtt })
       : form.kind === 'unit'
@@ -410,7 +415,7 @@ export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | 
   async function publish(i: Item) {
     const note = i.version > 0 ? prompt('Ghi chú cho bản cập nhật (trường đã dùng sẽ thấy):', '') : null
     if (note === null && i.version > 0) return
-    if (i.kind === 'unit' && kitDone(i.content) < 4) return setMsg(`“${i.title}”: chốt đủ 4 thẻ của bộ học liệu trước khi phát hành (đang chốt ${kitDone(i.content)}/4).`)
+    if (i.kind === 'unit' && kitDone(i.content) < KIT.length) return setMsg(`“${i.title}”: chốt đủ ${KIT.length} thẻ của bộ học liệu trước khi phát hành (đang chốt ${kitDone(i.content)}/${KIT.length}).`)
     // Bài học: ban hành luôn định mức vật tư đang soạn của bài
     if (i.kind === 'unit' && orgId) {
       const r = await saveUnitNorm(await loadUnitNorm(i.id, orgId), { itemId: i.id, orgId, title: i.title, subject: i.subject, grade: null, publish: true })
@@ -450,6 +455,7 @@ export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | 
   const kindTabs: T[] = ['unit', 'plan', 'lesson', 'material', 'norm']
   const tabLabel = (t: T) => t === 'norm' ? 'Định mức vật tư' : t === 'plan' ? 'Giáo án' : KIND[t][0]
   const addNew = (t: T) => {
+    if (t === 'unit' && !start) { setMsg(''); setInfo(''); return setFlow({}) }
     setMsg(''); setInfo(''); setNorm(EMPTY_NORM); setSub(null); setNormOpen(false); setCkTouched(false); setKitShow(null)
     setForm(t === 'plan' ? { ...EMPTY('material'), mtype: 'lesson_plan' } : EMPTY(t as Item['kind']))
   }
@@ -460,7 +466,7 @@ export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | 
     const c = i.content
     if (i.kind === 'unit') {
       const n = (a: string[] | undefined, l: string) => (a ?? []).length ? `${(a ?? []).length} ${l}` : ''
-      return [`${kitDone(c)}/4 thẻ đã chốt`, c.periods ? `${c.periods} tiết` : '', n(c.plan_ids, 'giáo án'), n(c.lesson_ids, 'bài giảng'), n(c.norm_ids, 'định mức'), n(c.material_ids, 'học liệu')].filter(Boolean).join(' · ') || '—'
+      return [`${kitDone(c)}/${KIT.length} thẻ đã chốt`, c.periods ? `${c.periods} tiết` : '', n(c.plan_ids, 'giáo án'), n(c.lesson_ids, 'bài giảng'), n(c.norm_ids, 'định mức'), n(c.material_ids, 'học liệu')].filter(Boolean).join(' · ') || '—'
     }
     if (i.kind === 'lesson' && c.mode === 'interactive') return `Tương tác · ${blockCount(asLesson(c.lesson))} khối`
     if (i.kind === 'lesson') return [`${(c.slides ?? []).length} slide`, c.file_name ? 'có tệp' : c.url ? 'có đường dẫn' : ''].filter(Boolean).join(' · ')
@@ -543,7 +549,7 @@ export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | 
 
           {form.kind === 'unit' && (
             <div className="formgrid libgrid4">
-              <div className="kitbar" role="group" aria-label="Bộ học liệu 4 thẻ">
+              <div className="kitbar" role="group" aria-label="Bộ học liệu 5 thẻ">
                 {KIT.map(([k, l, d]) => {
                   const on = form.checked.includes(k)
                   const has = k === 'info' ? [form.periods && `${form.periods} tiết`, form.objectives.trim() && 'có mục tiêu', form.unit_id && 'đã gắn bài'].filter(Boolean).join(' · ') || 'chưa gắn bài'
@@ -556,7 +562,7 @@ export function LibraryManage({ orgId, only, start, onDone }: { orgId: string | 
                       <button type="button" className="linkbtn" onClick={() => { setCkTouched(true); setForm({ ...form, checked: on ? form.checked.filter(x => x !== k) : [...form.checked, k] }) }}>{on ? 'Bỏ chốt' : 'Chốt thẻ'}</button></div>
                   </div>
                 })}
-                <small className="sub kitnote">Đủ 4 thẻ chốt mới phát hành được. Sửa một thẻ đã chốt thì thẻ đó tự về “Cần kiểm tra”.</small>
+                <small className="sub kitnote">Đủ 5 thẻ chốt mới phát hành được. Sửa một thẻ đã chốt thì thẻ đó tự về “Cần kiểm tra”.</small>
               </div>
               <label className="field" style={{ gridColumn: 'span 3' }}><span>Mục tiêu bài học</span><textarea rows={2} value={form.objectives} onChange={e => setForm({ ...form, objectives: e.target.value })} /></label>
               <label className="field"><span>Số tiết</span><input type="number" min={0} max={999} value={form.periods} onChange={e => setForm({ ...form, periods: e.target.value })} /></label>

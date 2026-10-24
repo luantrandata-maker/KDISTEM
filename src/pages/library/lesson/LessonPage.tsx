@@ -1,4 +1,4 @@
-// Trang bài học theo video demo (23/10): bộ học liệu 4 thẻ, mỗi thẻ xem / cập nhật / chốt nội dung; đủ 4 thẻ thì phát hành.
+// Trang bài học theo video demo (23/10): bộ học liệu 5 thẻ, mỗi thẻ xem / cập nhật / chốt nội dung; đủ 5 thẻ thì phát hành.
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../../../lib/supabase'
 import { openFile, uploadLearningFile, fmtSize } from '../../../lib/files'
@@ -6,9 +6,9 @@ import { downloadWorkbook, readRows } from '../../../lib/sheet'
 import { templateSheets } from '../../../lib/kitImport'
 import { norm as normText } from '../../../lib/sheet'
 import type { KitCard } from '../common'
-import { CARDS, DOC_TYPE, cardCsv, cardFromRows, downloadText, kitFromDraft, kitOf, mergeKit, key, sessionMinutes, kitCounts,
-  type KitData, type KInfo, type KSession, type KDoc, type KMat, type Subj, type Who, type ParseResult } from './model'
-import { KIT_SEL, chotCard, errMsg, fileDoc, fullContent, loadCatalog, parseFile, publishKit, type KitRow } from './save'
+import { CARDS, DOC_TYPE, ACT_LABEL, actTitles, suggestBank, cardCsv, cardFromRows, downloadText, kitFromDraft, kitOf, mergeKit, key, sessionMinutes, kitCounts,
+  type KitData, type KBank, type KInfo, type KSession, type KDoc, type KMat, type Subj, type Who, type ParseResult } from './model'
+import { KIT_SEL, chotCard, errMsg, fileDoc, fullContent, loadActivities, loadCatalog, parseFile, publishKit, type BankAct, type KitRow } from './save'
 import { Modal, type ProgRef } from './Create'
 
 type Fields = { title: string; subject: string; grades: string; periods: string; program_id: string; prog_subject: string }
@@ -20,9 +20,9 @@ const subjBlocks = (ss: Subj[]) => ss.map(s => [s.name, ...s.reqs].join('\n')).j
 const fromBlocks = (t: string): Subj[] => t.split(/\n\s*\n/).map(b => toLines(b)).filter(b => b.length).map(([name, ...reqs]) => ({ name, reqs }))
 const UNITS = ['Cái', 'Miếng', 'Tờ', 'Bộ', 'Cm', 'm', 'Cuộn', 'Hộp', 'Lọ', 'Sợi', 'Gói', 'Chiếc', 'Quyển']
 
-export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onChanged, startEdit }: {
+export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onChanged, startEdit, backLabel = '← Danh sách bài học' }: {
   orgId: string; id: string; programs: ProgRef[]; subjectsOf: (pid: string) => string[]; code: string
-  onBack: () => void; onChanged: () => void; startEdit?: boolean
+  onBack: () => void; onChanged: () => void; startEdit?: boolean; backLabel?: string
 }) {
   const [row, setRow] = useState<KitRow | null>(null)
   const [err, setErr] = useState('')
@@ -35,6 +35,7 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
   const [docsOpen, setDocsOpen] = useState(false)
   const [check, setCheck] = useState<{ name: string; res: ParseResult; cards: KitCard[] } | null>(null)
   const [cat, setCat] = useState<{ id: string; name: string; unit: string; kind: KMat['kind'] }[]>([])
+  const [acts, setActs] = useState<BankAct[]>([])
   const [rk, setRk] = useState(0)
 
   useEffect(() => {
@@ -42,7 +43,7 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
       if (error) setErr(errMsg(error.message)); else if (!data) setErr('Không tìm thấy bài học.'); else setRow(data as KitRow)
     })
   }, [id, rk])
-  useEffect(() => { loadCatalog().then(setCat) }, [rk])
+  useEffect(() => { loadCatalog().then(setCat); loadActivities(orgId).then(setActs) }, [rk])
   const kit = useMemo(() => kitOf(row?.content.kit), [row])
   useEffect(() => { if (row && edit && !draft) begin(edit) }, [row])
 
@@ -53,7 +54,7 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
   const progLabel = prog ? `${prog.code ? prog.code + ' · ' : ''}${prog.title}` : ''
   const progSubject = kit.info.prog_subject || row.subject || ''
   const k = edit && draft ? draft : kit
-  const empty = !kit.info.description && !kit.info.reqs.length && !kit.sessions.length && !kit.docs.length && !kit.mats.product.length && !kit.mats.group.length
+  const empty = !kit.info.description && !kit.info.reqs.length && !kit.sessions.length && !kit.docs.length && !kit.mats.product.length && !kit.mats.group.length && !kit.bank.length
   const reload = () => { setRk(x => x + 1); onChanged() }
 
   function begin(card: KitCard) {
@@ -82,7 +83,8 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
       patch = { ...patch, periods: per ? Number(per) : null, objectives: draft.info.reqs.join('\n') || null }
     }
     const clean: KitData = { ...draft, docs: draft.docs.filter(d => d.title.trim() || d.url.trim() || d.file),
-      mats: { product: draft.mats.product.filter(m => m.name.trim()), group: draft.mats.group.filter(m => m.name.trim()) } }
+      mats: { product: draft.mats.product.filter(m => m.name.trim()), group: draft.mats.group.filter(m => m.name.trim()) },
+      bank: draft.bank.filter(b => b.title.trim()).map(b => ({ ...b, title: b.title.trim() })) }
     if (await write(clean, patch, cols, 'Đã lưu thẻ. Kiểm tra lại rồi bấm “Chốt nội dung”.')) cancel()
   }
   async function chot(card: KitCard) {
@@ -142,7 +144,7 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
   return (
     <div className="lpage">
       <div className="lhead">
-        <button type="button" className="ghostbtn" onClick={onBack}>← Danh sách bài học</button>
+        <button type="button" className="ghostbtn" onClick={onBack}>{backLabel}</button>
         <div className="lheadrow">
           <div><h2>{row.title}</h2>
             <p className="sub">{[progLabel, progSubject, row.grades && `Khối ${row.grades}`, code].filter(Boolean).join(' · ')}</p></div>
@@ -152,7 +154,7 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
       {busy && <p className="sub" role="status">{busy}</p>}
       {empty && !edit && <div className="ldash lempty-kit"><div><b>Giáo án đang trống</b>
-        <small>Khung 4 thẻ đã sẵn sàng. Điền trực tiếp vào khung ở từng thẻ rồi bấm “Lưu”. Chốt thẻ khi nhập xong.</small></div>
+        <small>Khung 5 thẻ đã sẵn sàng. Điền trực tiếp vào khung ở từng thẻ rồi bấm “Lưu”. Chốt thẻ khi nhập xong.</small></div>
         <button type="button" className="primary" onClick={() => begin('info')}>Bắt đầu nhập thẻ 01</button></div>}
       <div className="ldash">
         <button type="button" className="ldocbar" aria-expanded={docsOpen} onClick={() => setDocsOpen(!docsOpen)}><span aria-hidden="true">🗎</span> <b>Tài liệu</b> <span className="sub">· Xem trước và cập nhật</span></button>
@@ -167,7 +169,7 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
       <div className="panel lquick"><b>Điền nhanh bằng file mẫu</b><span className="sub">Không có giáo án Word? Tải mẫu, điền rồi tải lên, hệ thống tự điền các thẻ.</span>
         <div className="tools"><button type="button" onClick={tplAll}>Tải mẫu cả giáo án (Excel)</button>{pick('.xlsx', 'Tải file lên', upload)}</div></div>
 
-      <div className="lkithead"><h3>Bộ học liệu · 4 thẻ</h3><span className="sub">{checked.length}/4 thẻ đã chốt</span></div>
+      <div className="lkithead"><h3>Bộ học liệu · 5 thẻ</h3><span className="sub">{checked.length}/{CARDS.length} thẻ đã chốt</span></div>
       <div className="ltabs" role="tablist">
         {CARDS.map(c => <button key={c.k} type="button" role="tab" aria-selected={tab === c.k} className={(tab === c.k ? 'on' : '') + (checked.includes(c.k) ? ' done' : '')}
           onClick={() => { if (edit && edit !== c.k) return setMsg('Lưu hoặc hủy thẻ đang sửa trước.'); setTab(c.k) }}>
@@ -198,6 +200,14 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
           {tab === 'norms' && (edit === 'norms' && draft
             ? <MatsEdit mats={draft.mats} set={mats => setDraft({ ...draft, mats })} cat={cat} />
             : <MatsView mats={kit.mats} cat={cat} />)}
+          {tab === 'bank' && (edit === 'bank' && draft
+            ? <BankEdit bank={draft.bank} set={bank => setDraft({ ...draft, bank })} acts={acts} places={actTitles(draft)} onSuggest={() => {
+                const have = new Set(draft.bank.map(b => b.title.trim().toLowerCase()))
+                const add = suggestBank(draft).filter(b => !have.has(b.title.toLowerCase()))
+                setMsg(add.length ? `Đã gợi ý ${add.length} hoạt động từ nội dung thẻ 02. Rà lại rồi bấm “Lưu”.` : 'Không thấy gợi ý mới trong nội dung thẻ 02.')
+                setDraft({ ...draft, bank: [...draft.bank, ...add] })
+              }} />
+            : <BankView bank={kit.bank} acts={acts} />)}
         </div>
         <footer className="lcardfoot">
           {edit === tab
@@ -211,15 +221,15 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
       <div className="panel lstatus">
         <div><b>Trạng thái bộ học liệu</b><small className="sub">Chỉ chốt khi đã kiểm tra nội dung từng thẻ. Có thể cập nhật lại sau khi chốt.</small></div>
         <Chip tone={STATUS[row.status][1]}>{STATUS[row.status][0]}{row.status === 'published' ? ` · v${row.version}` : ''}</Chip>
-        <button type="button" className="primary" disabled={checked.length < 4 || !!busy || !!edit} onClick={publish}
-          title={checked.length < 4 ? `Chốt đủ 4 thẻ để phát hành (đang ${checked.length}/4)` : undefined}>{row.status === 'published' ? 'Phát hành bản cập nhật' : 'Phát hành bộ học liệu'}</button>
+        <button type="button" className="primary" disabled={checked.length < CARDS.length || !!busy || !!edit} onClick={publish}
+          title={checked.length < CARDS.length ? `Chốt đủ ${CARDS.length} thẻ để phát hành (đang ${checked.length}/${CARDS.length})` : undefined}>{row.status === 'published' ? 'Phát hành bản cập nhật' : 'Phát hành bộ học liệu'}</button>
       </div>
 
       {check && (() => {
         const c = kitCounts(check.res.kit)
         const rows: [KitCard, string, string][] = [['info', 'Thẻ 01 · Thông tin bài học', `${[check.res.title, check.res.subject, check.res.grades, check.res.periods, check.res.kit.info.reqs.length].filter(Boolean).length} mục thông tin`],
-          ['content', 'Thẻ 02 · Nội dung bài học', `${c.sessions} buổi · ${c.acts} hoạt động · ${c.steps} bước`], ['links', 'Thẻ 03 · Link học liệu', `${c.docs} tài liệu`],
-          ['norms', 'Thẻ 04 · Định mức vật tư', `${c.supplies} nguyên vật liệu · ${c.tools} công cụ, thiết bị`]]
+          ['content', 'Thẻ 02 · Nội dung bài học', `${c.sessions} buổi · ${c.acts} hoạt động · ${c.steps} bước`], ['links', 'Thẻ 03 · Link tài liệu', `${c.docs} tài liệu`],
+          ['norms', 'Thẻ 04 · Định mức vật tư', `${c.supplies} nguyên vật liệu · ${c.tools} công cụ, thiết bị`], ['bank', 'Thẻ 05 · Kho hoạt động', `${c.bank} hoạt động`]]
         return <Modal title="Kiểm tra file" sub={check.name} onClose={() => setCheck(null)}
           foot={<><button type="button" onClick={() => setCheck(null)}>Hủy</button>
             <button type="button" className="primary" disabled={!check.cards.length || !!busy} onClick={async () => { if (await apply(check.res, check.cards)) setCheck(null) }}>Điền {check.cards.length} thẻ</button></>}>
@@ -438,4 +448,40 @@ function MatsEdit({ mats, set, cat }: { mats: KitData['mats']; set: (m: KitData[
     <MatRows title="Nguyên vật liệu cho một sản phẩm" rows={mats.product} set={product => set({ ...mats, product })} cat={cat} kind="supply" />
     <MatRows title="Công cụ và thiết bị cho một nhóm" rows={mats.group} set={group => set({ ...mats, group })} cat={cat} kind="tool" />
   </>
+}
+
+// ===== Thẻ 05 =====
+const actOf = (b: KBank, acts: BankAct[]) => acts.find(a => a.id === b.activity_id)
+function BankView({ bank, acts }: { bank: KBank[]; acts: BankAct[] }) {
+  if (!bank.length) return <Empty>Chưa có hoạt động nào. Bấm “Cập nhật” để chọn hoạt động từ Kho hoạt động hoặc ghi hoạt động cần có. Bài không dùng hoạt động tương tác thì chốt luôn thẻ này.</Empty>
+  return <div className="wrap"><table className="libtable"><thead><tr><th>Hoạt động</th><th>Loại</th><th>Dùng ở</th><th>Ghi chú</th><th>Trong Kho hoạt động</th></tr></thead>
+    <tbody>{bank.map(b => { const a = actOf(b, acts); return <tr key={b.key}>
+      <td><b>{b.title}</b></td><td>{ACT_LABEL[b.kind] ?? b.kind}</td><td>{b.act || <Empty>Cả bài</Empty>}</td><td>{b.note || <Empty>—</Empty>}</td>
+      <td>{a ? <Chip tone="good">{a.status === 'published' ? 'Đã có · đã xuất bản' : a.is_template ? 'Đã có · bản mẫu' : 'Đã có · nháp'}</Chip>
+        : b.activity_id ? <small className="sub">Không còn trong kho</small> : <small className="sub">Chưa tạo (tạo khi chốt)</small>}</td>
+    </tr> })}</tbody></table></div>
+}
+function BankEdit({ bank, set, acts, places, onSuggest }: { bank: KBank[]; set: (b: KBank[]) => void; acts: BankAct[]; places: string[]; onSuggest: () => void }) {
+  const at = (i: number, b: KBank) => set(bank.map((x, j) => (j === i ? b : x)))
+  const label = (a: BankAct) => `${a.title} · ${ACT_LABEL[a.kind] ?? a.kind}`
+  return <div className="lrows">
+    <datalist id="bank-acts">{acts.map(a => <option key={a.id} value={label(a)} />)}</datalist>
+    <datalist id="bank-places">{places.map(p => <option key={p} value={p} />)}</datalist>
+    <p className="sub">Gõ để chọn hoạt động có sẵn trong Kho hoạt động, hoặc đặt tên mới và chọn loại: khi chốt thẻ, hệ thống tạo bản mẫu trong kho để giáo viên soạn tiếp câu hỏi.</p>
+    {bank.map((b, i) => { const a = actOf(b, acts); return <div key={b.key} className="lrow bank">
+      <input aria-label="Tên hoạt động" list="bank-acts" placeholder="– Chọn trong kho hoặc gõ tên mới –" value={b.title} onChange={e => {
+        const v = e.target.value, hit = acts.find(x => label(x) === v || normText(x.title) === normText(v))
+        at(i, hit ? { ...b, title: hit.title, kind: hit.kind, activity_id: hit.id } : { ...b, title: v, activity_id: a && normText(a.title) === normText(v) ? b.activity_id : null })
+      }} />
+      <select aria-label="Loại" value={b.kind} disabled={!!a} onChange={e => at(i, { ...b, kind: e.target.value })}>{Object.entries(ACT_LABEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+      <input aria-label="Dùng ở hoạt động" list="bank-places" placeholder="Dùng ở hoạt động…" value={b.act} onChange={e => at(i, { ...b, act: e.target.value })} />
+      <input aria-label="Ghi chú" placeholder="Ghi chú" value={b.note} onChange={e => at(i, { ...b, note: e.target.value })} />
+      <small className="sub">{a ? 'Đã có trong kho' : 'Tự tạo khi chốt'}</small>
+      <button type="button" className="linkbtn danger" onClick={() => set(bank.filter((_, j) => j !== i))}>Xóa</button>
+    </div> })}
+    <div className="tools">
+      <button type="button" onClick={() => set([...bank, { key: key(), activity_id: null, title: '', kind: 'quiz', act: '', note: '' }])}>+ Thêm dòng</button>
+      <button type="button" onClick={onSuggest} disabled={!places.length} title={places.length ? undefined : 'Thẻ 02 chưa có hoạt động'}>Gợi ý từ nội dung bài</button>
+    </div>
+  </div>
 }

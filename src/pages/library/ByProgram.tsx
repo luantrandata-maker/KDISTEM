@@ -10,15 +10,16 @@ import { kitOf } from './lesson/model'
 import { KIT_SEL, errMsg, type KitRow } from './lesson/save'
 import { CreateLesson, kitSubject } from './lesson/Create'
 import { LessonPage, useColsLocal } from './lesson/LessonPage'
+import { fmtGrades, progGrades } from '../../lib/eduLevels'
 
 type Prog = { id: string; title: string; version_no: number; status: string; org_id: string; ct_code: string | null; code: string | null
-  grade_from: number | null; grade_to: number | null; main_subject: string | null }
+  grade_from: number | null; grade_to: number | null; grades?: number[] | null; main_subject: string | null }
 type U = { id: string; program_id: string; parent_id: string | null; unit_type: 'topic' | 'lesson' | 'session'; seq: number; title: string; periods: number
   objectives: string | null; grade: number | null; subject?: string | null }
 
 const PSTATUS: Record<string, string> = { draft: 'Nháp', pending: 'Nháp · chờ duyệt', approved: 'Nháp · đã duyệt', rejected: 'Nháp · bị trả lại', published: 'Đã phát hành' }
 const KSTATUS: Record<KitRow['status'], [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], archived: ['Đã thu hồi', 'off'] }
-const grades = (p: Prog) => p.grade_from ? (p.grade_to && p.grade_to !== p.grade_from ? `Khối ${p.grade_from}–${p.grade_to}` : `Khối ${p.grade_from}`) : ''
+const grades = (p: Prog) => fmtGrades(progGrades(p))
 const lc = (s: string | null | undefined) => (s ?? '').trim().toLowerCase()
 const progName = (p: Prog) => (p.code ? p.code + ' · ' : '') + p.title
 
@@ -28,7 +29,7 @@ export function usePrograms(orgId: string | null) { return useProgramList(orgId)
 function useProgramList(orgId: string | null) {
   const [progs, setProgs] = useState<Prog[] | null>(null)
   useEffect(() => {
-    supabase.from('edu_programs').select('id, title, version_no, status, org_id, ct_code, code, grade_from, grade_to, main_subject')
+    supabase.from('edu_programs').select('id, title, version_no, status, org_id, ct_code, code, grade_from, grade_to, grades, main_subject')
       .in('status', ['published', 'draft', 'pending', 'approved', 'rejected']).order('title')
       .then(({ data }) => setProgs(((data as Prog[]) ?? []).filter(p => p.status === 'published' || p.org_id === orgId)))
   }, [orgId])

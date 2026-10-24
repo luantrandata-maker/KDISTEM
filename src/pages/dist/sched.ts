@@ -1,3 +1,4 @@
+import { progGrades } from '../../lib/eduLevels'
 // Máy xếp lịch của bản phân phối (078, 079). Thuần dữ liệu, không gọi Supabase.
 //  Chương trình → môn (môn của học phần, mặc định môn chủ đạo) → bài. "Buổi" = tiết.
 //  • Không chỉnh riêng từng môn: các môn nối tiếp nhau, tiết chảy liên tục theo nhịp của chương trình
@@ -16,7 +17,7 @@ export type Item = { program_id: string; seq: number; start_mode: Mode; start_we
 export type Row = { program_id: string; unit_id: string; seq: number; week: number | null; periods: number; note: string | null
   manual: boolean; skipped: boolean; weeks: number[] | null }
 export type Prog = { id: string; code: string | null; title: string; version_no: number; status: string; ct_code: string | null; level: string
-  grade_from: number; grade_to: number; main_subject: string; periods_per_week: number | null; deploy_term: string | null }
+  grade_from: number; grade_to: number; grades?: number[]; main_subject: string; periods_per_week: number | null; deploy_term: string | null }
 export type U = { id: string; program_id: string; parent_id: string | null; unit_type: 'topic' | 'lesson' | 'session'; seq: number; title: string
   periods: number; grade: number | null; subject: string | null }
 export type Lesson = U & { subj: string }
@@ -156,7 +157,7 @@ export function checks(plan: Plan, items: Item[], s: Sched, progs: Map<string, P
     if (!p) { out.push({ level: 'error', text: 'Có chương trình không còn đọc được.' }); continue }
     const name = progCode(p)
     if (p.status !== 'published') out.push({ level: 'error', text: `${name} chưa phát hành.` })
-    if (plan.grade < p.grade_from || plan.grade > p.grade_to) out.push({ level: 'error', text: `${name} không dạy khối ${plan.grade}.` })
+    if (!progGrades(p).includes(plan.grade)) out.push({ level: 'error', text: `${name} không dạy khối ${plan.grade}.` })
     const mine = s.rows.filter(r => r.program_id === it.program_id)
     const sp = spanOf(mine)
     if (!sp) { out.push({ level: 'error', text: `${name} chưa có bài nào được chọn cho khối ${plan.grade}.` }); continue }

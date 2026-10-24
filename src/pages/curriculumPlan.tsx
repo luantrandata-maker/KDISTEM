@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase'
 import { Tiles } from './department/charts'
 import { BOOK_STATUS, KIND, LessonEditor, REASONS, errText, useCanEdit, useReasonDialog, type Book, type PpctMode, type ReasonCode } from './curriculum'
 import { downloadXlsx, norm } from '../lib/sheet'
+import { progGrades, fmtGrades } from '../lib/eduLevels'
 
 // Kế hoạch dạy học — đợt 1 (migration 071)
 //  • Kế hoạch năm: bảng môn × khối của một năm học (trường) hoặc của bộ mẫu (KDI / Sở): số tiết HK I / HK II,
@@ -12,7 +13,7 @@ import { downloadXlsx, norm } from '../lib/sheet'
 
 type Year = { id: string; name: string; term: string; starts_on: string | null; ends_on: string | null; is_current: boolean | null }
 type Counts = { book_id: string; hk1: number; hk2: number; other: number }
-type Prog = { id: string; title: string; version_no: number; grade_from: number; grade_to: number; main_subject: string; status: string; org_id: string }
+type Prog = { id: string; title: string; version_no: number; grade_from: number; grade_to: number; grades?: number[]; main_subject: string; status: string; org_id: string }
 type Unit = { id: string; parent_id: string | null; unit_type: 'topic' | 'lesson' | 'session'; seq: number; grade: number | null; subject: string | null; title: string; periods: number }
 type Alloc = { unit_id: string; periods: number; term: 1 | 2 | null }
 
@@ -35,7 +36,7 @@ function useTermWeeks(orgId: string | null, year: string | null) {
 function usePrograms(orgId: string | null) {
   const [list, setList] = useState<Prog[]>([])
   useEffect(() => {
-    supabase.from('edu_programs').select('id, title, version_no, grade_from, grade_to, main_subject, status, org_id').in('status', ['draft', 'pending', 'approved', 'published'])
+    supabase.from('edu_programs').select('id, title, version_no, grade_from, grade_to, grades, main_subject, status, org_id').in('status', ['draft', 'pending', 'approved', 'published'])
       .order('title').then(({ data }) => setList(((data as Prog[]) ?? []).filter(p => p.status === 'published' || p.org_id === orgId)))
   }, [orgId])
   return list
@@ -119,7 +120,7 @@ export function YearPlan({ orgId, mode = 'school', year, years }: { orgId: strin
     if (c.hk2 > weeks.hk2 * ppw) p.push(`HK II vượt ${c.hk2 - weeks.hk2 * ppw} tiết`)
     return p.join(' · ')
   }
-  const progFor = (g: number) => programs.filter(p => p.grade_from <= g && g <= p.grade_to)
+  const progFor = (g: number) => programs.filter(p => progGrades(p).includes(g))
   const sum = (k: 'hk1' | 'hk2') => all.reduce((s, b) => s + tot(b)[k], 0)
 
   return (
@@ -358,12 +359,12 @@ export function Allocation({ orgId, mode = 'school', year, years }: { orgId: str
       {mk && (
         <form className="panel formgrid" onSubmit={create}>
           <label className="field"><span>Chương trình *</span><select required value={mk.program} onChange={e => {
-            const p = programs.find(x => x.id === e.target.value); setMk({ ...mk, program: e.target.value, grade: p?.grade_from ?? 0 })
+            const p = programs.find(x => x.id === e.target.value); setMk({ ...mk, program: e.target.value, grade: p ? progGrades(p)[0] ?? 0 : 0 })
           }}><option value="">— Chọn chương trình —</option>
-            {programs.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version_no}) · khối {p.grade_from}{p.grade_to > p.grade_from ? '–' + p.grade_to : ''}{p.status !== 'published' ? ' · nháp' : ''}</option>)}</select></label>
+            {programs.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version_no}) · {fmtGrades(progGrades(p), 'khối ')}{p.status !== 'published' ? ' · nháp' : ''}</option>)}</select></label>
           <label className="field"><span>Khối *</span><select required value={mk.grade || ''} onChange={e => setMk({ ...mk, grade: Number(e.target.value) })}>
             {!mkProg && <option value="">—</option>}
-            {mkProg && Array.from({ length: mkProg.grade_to - mkProg.grade_from + 1 }, (_, i) => mkProg.grade_from + i).map(g => <option key={g} value={g}>Khối {g}</option>)}</select></label>
+            {mkProg && progGrades(mkProg).map(g => <option key={g} value={g}>Khối {g}</option>)}</select></label>
           <label className="field"><span>Số tiết / tuần</span><input inputMode="decimal" value={mk.ppw} onChange={e => setMk({ ...mk, ppw: e.target.value })} placeholder="VD: 1 hoặc 1,5" /></label>
           <div className="formactions"><button className="primary" type="submit">Tạo PPCT nháp</button> <button type="button" onClick={() => setMk(null)}>Huỷ</button></div>
         </form>
@@ -641,7 +642,7 @@ export function AssignPrograms({ orgId, mode = 'authority' }: { orgId: string | 
     if (error) setMsg([errText(error.message), true])
     setCov(new Map(((data as Cov[]) ?? []).map(c => [c.org_id, c])))
   }
-  useEffect(() => { loadCov(); setSel(new Set()); setGrades(prog ? range(prog.grade_from, prog.grade_to) : []) }, [progId, prog?.id])
+  useEffect(() => { loadCov(); setSel(new Set()); setGrades(prog ? progGrades(prog) : []) }, [progId, prog?.id])
 
   const byId = useMemo(() => new Map(orgs.map(o => [o.id, o])), [orgs])
   const schools = orgs.filter(o => o.type === 'school' && o.id !== orgId)
@@ -682,7 +683,7 @@ export function AssignPrograms({ orgId, mode = 'authority' }: { orgId: string | 
         <div className="tools">
           <select value={progId} onChange={e => setProgId(e.target.value)} aria-label="Chương trình" style={{ maxWidth: 360 }}>
             {programs.length === 0 && <option value="">Chưa có chương trình</option>}
-            {programs.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version_no}) · khối {p.grade_from}{p.grade_to > p.grade_from ? '–' + p.grade_to : ''}{p.status !== 'published' ? ' · nháp' : ''}</option>)}
+            {programs.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version_no}) · {fmtGrades(progGrades(p), 'khối ')}{p.status !== 'published' ? ' · nháp' : ''}</option>)}
           </select>
           <input placeholder="Tìm trường, địa bàn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm trường" />
           <div className="segmented" style={{ margin: 0 }}>
@@ -702,7 +703,7 @@ export function AssignPrograms({ orgId, mode = 'authority' }: { orgId: string | 
         <div className="panel bar">
           <span className="tools">
             <b>Khối:</b>
-            <NumMultiSelect value={grades} onChange={setGrades} options={range(prog.grade_from, prog.grade_to).map(g => ({ value: g, label: `Khối ${g}` }))} placeholder="Chọn khối…" ariaLabel="Khối" style={{ width: 260 }} />
+            <NumMultiSelect value={grades} onChange={setGrades} options={progGrades(prog).map(g => ({ value: g, label: `Khối ${g}` }))} placeholder="Chọn khối…" ariaLabel="Khối" style={{ width: 260 }} />
             <label style={{ marginLeft: 12 }}><input type="checkbox" checked={make} onChange={e => setMake(e.target.checked)} /> Tạo sẵn PPCT nháp cho trường</label>
           </span>
           <span className="tools">
@@ -744,7 +745,7 @@ export function ClassCoverage({ orgId, years }: { orgId: string | null; years?: 
   const [rows, setRows] = useState<CovRow[]>([])
   const [classes, setClasses] = useState<{ id: string; name: string; grade: number }[]>([])
   const [books, setBooks] = useState<Book[]>([])
-  const [asg, setAsg] = useState<{ grades: number[] | null; edu_programs: { main_subject: string; grade_from: number; grade_to: number } | null }[]>([])
+  const [asg, setAsg] = useState<{ grades: number[] | null; edu_programs: { main_subject: string; grade_from: number; grade_to: number; grades?: number[] } | null }[]>([])
   const [grade, setGrade] = useState(0)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [loaded, setLoaded] = useState(false)
@@ -756,7 +757,7 @@ export function ClassCoverage({ orgId, years }: { orgId: string | null; years?: 
       supabase.rpc('curriculum_class_coverage', { p_org: orgId }),
       supabase.from('classes').select('id, name, grade, year_id').eq('org_id', orgId).order('grade').order('name'),
       supabase.from('curriculum_books').select('*').eq('org_id', orgId),
-      supabase.from('edu_program_assignments').select('grades, edu_programs(main_subject, grade_from, grade_to)').eq('org_id', orgId),
+      supabase.from('edu_program_assignments').select('grades, edu_programs(main_subject, grade_from, grade_to, grades)').eq('org_id', orgId),
     ])
     if (c.error) setMsg([errText(c.error.message), true])
     setRows((c.data as CovRow[]) ?? [])
@@ -769,7 +770,7 @@ export function ClassCoverage({ orgId, years }: { orgId: string | null; years?: 
 
   const want = (g: number, s: string) =>
     books.some(b => b.grade === g && norm(b.subject) === norm(s)) ||
-    asg.some(a => a.edu_programs && norm(a.edu_programs.main_subject) === norm(s) && (a.grades?.length ? a.grades.includes(g) : a.edu_programs.grade_from <= g && g <= a.edu_programs.grade_to))
+    asg.some(a => a.edu_programs && norm(a.edu_programs.main_subject) === norm(s) && (a.grades?.length ? a.grades.includes(g) : progGrades(a.edu_programs).includes(g)))
   const subjects = [...new Set([...books.map(b => b.subject), ...asg.map(a => a.edu_programs?.main_subject).filter((s): s is string => !!s)])].sort((a, b) => a.localeCompare(b, 'vi'))
   const grades = [...new Set(classes.map(c => c.grade))].sort((a, b) => a - b)
   const shown = classes.filter(c => !grade || c.grade === grade)

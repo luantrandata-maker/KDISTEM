@@ -5,7 +5,7 @@
 // Bản đã phát hành / ngừng dùng chỉ xem; muốn đổi thì "Tạo bản mới từ bản này".
 import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { supabase } from '../../lib/supabase'
-import { useEduLevels } from '../../lib/eduLevels'
+import { fmtGrades, progGrades, useEduLevels } from '../../lib/eduLevels'
 import { useCls } from './cls'
 import { useTiers } from './Tiers'
 import { WeekGrid, colorOf } from './Grid'
@@ -14,7 +14,7 @@ import {
   type Item, type Mode, type Plan, type Prog, type Row, type Status, type Subj, type SubjMode, type U,
 } from './sched'
 
-const PSEL = 'id, code, title, version_no, status, ct_code, level, grade_from, grade_to, main_subject, periods_per_week, deploy_term'
+const PSEL = 'id, code, title, version_no, status, ct_code, level, grade_from, grade_to, grades, main_subject, periods_per_week, deploy_term'
 const USEL = 'id, program_id, parent_id, unit_type, seq, title, periods, grade, subject'
 export const STATUS: Record<Status, [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], archived: ['Ngừng dùng', 'off'] }
 export const Chip = ({ tone, children }: { tone?: string; children: ReactNode }) => <span className={'distchip2 ' + (tone ?? '')}>{children}</span>
@@ -113,7 +113,7 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
       const ps = (pl.data as Prog[]) ?? []
       const missing = its.map(i => i.program_id).filter(id => !ps.some(p => p.id === id))
       const extra = missing.length ? ((await supabase.from('edu_programs').select(PSEL).in('id', missing)).data as Prog[]) ?? [] : []
-      const usable = ps.filter(p => p.status === 'published' && p0.grade >= p.grade_from && p0.grade <= p.grade_to).map(p => p.id)
+      const usable = ps.filter(p => p.status === 'published' && progGrades(p).includes(p0.grade)).map(p => p.id)
       const ids = [...new Set([...usable, ...its.map(i => i.program_id)])]
       const us = ids.length ? ((await supabase.from('edu_program_units').select(USEL).in('program_id', ids)).data as U[]) ?? [] : []
       setItems(its); setPool(ps); setUnits(us)
@@ -288,9 +288,9 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
 
   // ===== Bước 1 =====
   function Step1() {
-    const usable = pool.filter(p => p.status === 'published' && plan.grade >= p.grade_from && plan.grade <= p.grade_to)
+    const usable = pool.filter(p => p.status === 'published' && progGrades(p).includes(plan.grade))
     const unusable = pool.filter(p => !usable.includes(p))
-    const why = (p: Prog) => p.status !== 'published' ? 'chưa phát hành' : `dạy khối ${p.grade_from}${p.grade_to !== p.grade_from ? '–' + p.grade_to : ''}`
+    const why = (p: Prog) => p.status !== 'published' ? 'chưa phát hành' : `dạy ${fmtGrades(progGrades(p), 'khối ')}`
     return <div className="distpick">
       <div>
         <p className="distpickhead"><b>Chương trình dùng được cho Khối {plan.grade}</b> <span className="sub">{usable.length} chương trình · lọc theo cấp {levelName(plan.level)} và Khối {plan.grade}</span></p>

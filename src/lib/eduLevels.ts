@@ -47,3 +47,17 @@ export function useEduLevels() {
   const grades = [...new Set(levels.flatMap(l => gradeRange(l.grade_from, l.grade_to)))].sort((a, b) => a - b)
   return { levels, all, byCode, name, grades, reload: () => fetchLevels(true) }
 }
+
+/** 091: khối áp dụng của chương trình (danh sách); bản ghi cũ chưa có danh sách thì lấy từ khối – đến khối. */
+export const progGrades = (p: { grades?: number[] | null; grade_from?: number | null; grade_to?: number | null }) =>
+  p.grades?.length ? [...p.grades].sort((a, b) => a - b) : p.grade_from ? gradeRange(p.grade_from, p.grade_to ?? p.grade_from) : []
+/** "Khối 6–9", "Khối 6, 8", "Khối 6–7, 9" */
+export const fmtGrades = (gs: number[], prefix = 'Khối ') => {
+  if (!gs.length) return ''
+  const parts: string[] = []; let a = gs[0], b = gs[0]
+  for (const g of [...gs.slice(1), NaN]) {
+    if (g === b + 1) { b = g; continue }
+    parts.push(a === b ? `${a}` : b === a + 1 ? `${a}, ${b}` : `${a}–${b}`); a = b = g
+  }
+  return prefix + parts.join(', ')
+}

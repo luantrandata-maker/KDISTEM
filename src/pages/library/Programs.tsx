@@ -6,9 +6,10 @@ import { supabase } from '../../lib/supabase'
 import { asLesson, lessonStats, BlockView, LessonShow, type ILesson } from '../../lib/lessonBlocks'
 import { useMyClasses, PROGRAM_COLOR } from '../teacher/common'
 import { isStem } from '../../lib/rooms'
+import { progGrades } from '../../lib/eduLevels'
 
 type Props = { orgId: string | null; teacherId?: string | null; go?: (p: string) => void }
-type Prog = { id: string; code: string | null; title: string; ct_code: string | null; level: string; grade_from: number; grade_to: number; main_subject: string; integrated_subjects: string[]; objectives: string | null }
+type Prog = { id: string; code: string | null; title: string; ct_code: string | null; level: string; grade_from: number; grade_to: number; grades?: number[]; main_subject: string; integrated_subjects: string[]; objectives: string | null }
 type Unit = { id: string; program_id: string; parent_id: string | null; unit_type: 'topic' | 'lesson' | 'session'; seq: number; title: string; periods: number; subject: string | null; grade: number | null; objectives?: string | null; content?: string | null; lesson?: any }
 type Norm = { id: string; program_id: string | null; unit_id: string | null; material_norm_items: { id: string; name: string; unit: string; qty: number; kind: string; reusable: boolean }[] }
 type MyPlan = { id: string; title: string; status: string; program: string | null; grades: string | null; subject: string | null; lesson: any; cover_url: string | null }
@@ -18,7 +19,7 @@ type Out = { id: string; unit_id: string | null; seq: number; code: string | nul
 const ART: Record<string, [string, string]> = { CT1: ['art1', 'microscope'], CT2: ['art5', 'puzzle'], CT3: ['art2', 'bulb'], CT4: ['art3', 'bot'], CT5: ['art4', 'flask'] }
 const art = (ct: string | null) => ART[ct ?? ''] ?? ['art0', 'book']
 const Chip = ({ ct }: { ct: string | null }) => ct ? <span className="progchip" style={{ background: PROGRAM_COLOR[ct] ?? '#64748b', color: '#fff' }}>{ct}</span> : null
-const grades = (p: Prog) => Array.from({ length: p.grade_to - p.grade_from + 1 }, (_, i) => p.grade_from + i)
+const grades = (p: Prog) => progGrades(p)
 const sessMinutes = (u: Unit) => { const l = asLesson(u.lesson); const m = l ? lessonStats(l).minutes : 0; return m || (u.periods || 1) * 45 }
 // Các buổi dạy của một học phần: buổi học của từng bài; bài chưa chia buổi thì tính cả bài là một buổi
 function teachables(all: Unit[], topicId: string): Unit[] {
@@ -39,7 +40,7 @@ export function LibraryPrograms({ teacherId, go }: Props) {
 
   useEffect(() => {
     (async () => {
-      const { data: ps } = await supabase.from('edu_programs').select('id, code, title, ct_code, level, grade_from, grade_to, main_subject, integrated_subjects, objectives')
+      const { data: ps } = await supabase.from('edu_programs').select('id, code, title, ct_code, level, grade_from, grade_to, grades, main_subject, integrated_subjects, objectives')
         .eq('kind', 'stem').eq('status', 'published').order('ct_code').order('grade_from')
       const list = (ps as Prog[]) ?? []; setProgs(list)
       const ids = list.map(p => p.id)

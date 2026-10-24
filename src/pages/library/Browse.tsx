@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
 import { openFile } from '../../lib/files'
 import { KindChip, ProgChip, ItemDrawer, MAT_TYPE, RightsChip, ProgLine, fmtDate, selectItems, type Item, type Copy } from './common'
 import { useStemTracks } from '../../lib/stemTracks'
+import { BankList } from './BankList'
+const MaterialNorms = lazy(() => import('../materialNorms').then(m => ({ default: m.MaterialNorms })))
 
 type Props = { orgId: string | null; teacherId?: string | null; go?: (p: string) => void }
-type K = 'all' | Item['kind'] | 'plan'
+type K = 'all' | Item['kind'] | 'plan' | 'norm' | 'bank'
 const isPlan = (i: Item) => i.kind === 'material' && i.content.type === 'lesson_plan'
 // Chương trình soạn ở "Chương trình giáo dục"; mục chương trình cũ trong kho không hiện ở đây
 const ofK = (i: Item, k: K) => i.kind !== 'program' && (k === 'all' || (k === 'plan' ? isPlan(i) : k === 'material' ? i.kind === 'material' && !isPlan(i) : i.kind === k))
@@ -20,7 +22,7 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
   const [me, setMe] = useState<{ id: string; type: string } | null>(null)
   const [uidMe, setUidMe] = useState<string | null>(null)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [k, setK] = useState<K>('all')
+  const [k, setK] = useState<K>('unit')
   const [src, setSrc] = useState(''); const [prog, setProg] = useState(''); const [grade, setGrade] = useState(''); const [q, setQ] = useState('')
   const [eprog, setEprog] = useState(''); const [mtype, setMtype] = useState(''); const [subj, setSubj] = useState('')
   const [open, setOpen] = useState<string | null>(null)
@@ -51,6 +53,7 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
     return [...m].sort((a, b) => a[1].localeCompare(b[1], 'vi'))
   }, [items])
   const subjects = useMemo(() => [...new Set(items.map(i => i.subject).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi')), [items])
+  const bankCount = items.filter(i => i.kind === 'unit').reduce((n, i) => n + (((i.content as any)?.kit?.bank ?? []) as { title?: string }[]).filter(b => b.title?.trim()).length, 0)
   if (err) return <p className="msg">{err}</p>
 
   const isSchool = me?.type === 'school'
@@ -90,10 +93,12 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
     <>
       {open && <ItemDrawer root={{ type: 'item', id: open }} all={items} onClose={() => setOpen(null)} actions={acts} />}
       <div className="bar">
-        <Tabs items={([['all', 'Tất cả'], ['unit', 'Bài học'], ['plan', 'Giáo án'], ['lesson', 'Bài giảng'], ['material', 'Học liệu']] as [K, string][])
-          .map(([key, l]) => [key, l, items.filter(i => ofK(i, key)).length] as [K, string, number])} value={k} onChange={setK} />
-        <input className="search" placeholder="Tìm theo tên, nội dung, từ khoá…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm học liệu" />
+        <Tabs items={([['unit', 'Bài học'], ['lesson', 'Bài giảng'], ['material', 'Tài liệu'], ['norm', 'Định mức vật tư'], ['bank', 'Kho hoạt động']] as [K, string][])
+          .map(([key, l]) => [key, l, key === 'norm' ? undefined : key === 'bank' ? bankCount : items.filter(i => ofK(i, key)).length] as [K, string, number?])} value={k} onChange={setK} />
+        {k !== 'norm' && k !== 'bank' && <input className="search" placeholder="Tìm theo tên, nội dung, từ khoá…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm học liệu" />}
       </div>
+      {k === 'norm' ? <Suspense fallback={<p className="sub">Đang tải…</p>}><MaterialNorms orgId={orgId} sharedOnly /></Suspense>
+      : k === 'bank' ? <BankList items={items} onOpen={setOpen} note="Hoạt động trong thẻ 05 “Kho hoạt động” của các bài học đã phát hành. Bấm một dòng để xem bài học." /> : <>
       <div className="bar small">
         <select value={src} onChange={e => setSrc(e.target.value)} aria-label="Nguồn phát hành"><option value="">Mọi nguồn phát hành</option>{sources.map(s => <option key={s}>{s}</option>)}</select>
         <select value={prog} onChange={e => setProg(e.target.value)} aria-label="Chương trình"><option value="">Mọi loại chương trình</option>{PROGRAMS.map(p => <option key={p}>{p}</option>)}</select>
@@ -134,6 +139,7 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
         })}
         {shown.length === 0 && <div className="panel"><p className="sub" style={{ margin: 0 }}>{items.length ? 'Không có học liệu phù hợp bộ lọc.' : 'Chưa có học liệu nào được phát hành tới đơn vị của bạn.'}</p></div>}
       </div>
+      </>}
     </>
   )
 }

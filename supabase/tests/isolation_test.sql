@@ -2941,6 +2941,26 @@ insert into t_result (who, name, expect, got, ok)
            where c.id = public.edu_program_clone((select id from edu_programs where title = 'ISO CT khối'), (select org_id from edu_programs where title = 'ISO CT khối'), null, 1)) t;
 select pg_temp.chk('kdi', 'CTGD khối: bản đã ban hành không đổi được khối', $q$update edu_programs set grades = array[6] where title = 'ISO CT KDI' and status not in ('draft', 'rejected')$q$, 'ERR 22023');
 
+-- ===== 093: chương trình tập huấn có phiên bản & duyệt =====
+select pg_temp.chk('kdi', 'CTTH phiên bản: bản nhân bản cùng họ, cùng mã', $q$select count(distinct family_id) || ':' || count(distinct code) from training_programs where title = 'ISO CTTH'$q$, '1:1');
+select pg_temp.chk('kdi', 'CTTH phiên bản: đã có bản nháp thì không tạo phiên bản mới', $q$select training_program_new_version(id) from training_programs where title = 'ISO CTTH' and status = 'published'$q$, 'ERR 22023');
+select pg_temp.chk('admin_ph', 'CTTH phiên bản: trường không đổi trạng thái', $q$select training_program_set_status(gen_random_uuid(), 'pending')$q$, 'ERR 42501');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_program_set_status(id, 'pending', 'ISO gửi') from training_programs where title = 'ISO CTTH' and status = 'draft'$q$, true);
+select pg_temp.chk('kdi', 'CTTH phiên bản: đang chờ duyệt thì không sửa nội dung', $q$update training_program_units set title = 'ISO đổi' where program_id = (select id from training_programs where title = 'ISO CTTH' and status = 'pending')$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'CTTH phiên bản: trả lại phải có lý do', $q$select training_program_set_status(id, 'rejected') from training_programs where title = 'ISO CTTH' and status = 'pending'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_program_set_status(id, 'rejected', 'ISO thiếu nội dung') from training_programs where title = 'ISO CTTH' and status = 'pending'$q$, true);
+select pg_temp.chk('kdi', 'CTTH phiên bản: nhật ký ghi lý do trả lại', $q$select l.note from training_program_log l join training_programs p on p.id = l.program_id where p.title = 'ISO CTTH' and l.to_status = 'rejected'$q$, 'ISO thiếu nội dung');
+select pg_temp.chk('kdi', 'CTTH phiên bản: bị trả lại thì sửa được', $q$update training_programs set audience = 'ISO GV' where title = 'ISO CTTH' and status = 'rejected'$q$, 'rows:1');
+select pg_temp.chk('kdi', 'CTTH phiên bản: chưa duyệt thì không chuyển sang đã duyệt', $q$select training_program_set_status(id, 'approved') from training_programs where title = 'ISO CTTH' and status = 'rejected'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_program_set_status(id, 'pending') from training_programs where title = 'ISO CTTH' and status = 'rejected'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$select training_program_set_status(id, 'approved') from training_programs where title = 'ISO CTTH' and status = 'pending'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$select training_program_set_status(id, 'published', 'ISO phát hành v2') from training_programs where title = 'ISO CTTH' and status = 'approved'$q$, true);
+select pg_temp.chk('kdi', 'CTTH phiên bản: phát hành bản mới thì bản cũ thành đã thay thế', $q$select string_agg(version_no || ':' || status, ',' order by version_no) from training_programs where title = 'ISO CTTH'$q$, '1:superseded,2:published');
+select pg_temp.chk('admin_ph', 'CTTH phiên bản: trường vẫn thấy bản đã thay thế (kế hoạch cũ dùng)', $q$select count(*) from training_programs where title = 'ISO CTTH'$q$, '2');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_program_new_version(id) from training_programs where title = 'ISO CTTH' and status = 'published'$q$, true);
+select pg_temp.chk('kdi', 'CTTH phiên bản: tạo phiên bản mới v3 cùng mã', $q$select p.version_no || ':' || p.status || ':' || (p.code = o.code)::text from training_programs p, training_programs o where p.title = 'ISO CTTH' and p.version_no = 3 and o.title = 'ISO CTTH' and o.version_no = 1$q$, '3:draft:true');
+select pg_temp.chk('kdi', 'CTTH phiên bản: mã đã dùng cho chương trình khác bị từ chối', $q$update training_programs set code = (select code from training_programs where title = 'ISO CTTH' limit 1) where title = 'ISO CTTH nhiều' and source_id is null$q$, 'ERR 23505');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

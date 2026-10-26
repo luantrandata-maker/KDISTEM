@@ -19,10 +19,12 @@ export function walkRows<F>(rows: DRow<F>[]) {
   return out
 }
 
-export function StructureDraft<F>({ levels, root, initial, cols, newFields, titleExtra, outCode = true, comps, goalLabel = 'Mục tiêu', onSave, onCancel, saving }: {
+export function StructureDraft<F>({ levels, root, initial, cols, newFields, titleExtra, titleOptions, outCode = true, comps, goalLabel = 'Mục tiêu', onSave, onCancel, saving }: {
   levels: Record<string, DLevel>; root: string; initial: DRow<F>[]; cols: DCol<F>[]
   newFields: (type: string, parent: DRow<F> | null, rows: DRow<F>[]) => F
   titleExtra?: (r: DRow<F>, patch: (p: Partial<DRow<F>>) => void, rows: DRow<F>[]) => React.ReactNode
+  /** Gợi ý tên (gõ hoặc chọn trong cùng một ô) */
+  titleOptions?: (r: DRow<F>, rows: DRow<F>[]) => string[] | null
   outCode?: boolean; comps?: [string, string][]; goalLabel?: string
   onSave: (rows: DRow<F>[]) => Promise<string | null>; onCancel: () => void; saving?: boolean
 }) {
@@ -109,7 +111,10 @@ export function StructureDraft<F>({ levels, root, initial, cols, newFields, titl
                     <button type="button" aria-label="Xuống dưới" title="Xuống dưới" disabled={sibs[sibs.length - 1]?.key === r.key} onClick={() => move(r, 1)}>↓</button></span></td>
                 <td>
                   {titleExtra?.(r, p => patch(r.key, p), rows)}
-                  <input data-k={r.key} value={r.title} onChange={e => patch(r.key, { title: e.target.value })} placeholder={lv?.ph ?? 'Tên'} aria-label="Tên" maxLength={200} style={{ width: '100%' }} />
+                  {(() => { const opts = titleOptions?.(r, rows); return <>
+                    <input data-k={r.key} value={r.title} onChange={e => patch(r.key, { title: e.target.value })} placeholder={opts?.length ? `${lv?.ph ?? 'Tên'} — gõ hoặc chọn trong danh mục (${opts.length})` : lv?.ph ?? 'Tên'}
+                      list={opts?.length ? 'sd-opts-' + r.key : undefined} aria-label="Tên" maxLength={200} style={{ width: '100%' }} />
+                    {!!opts?.length && <datalist id={'sd-opts-' + r.key}>{opts.map(n => <option key={n} value={n} />)}</datalist>}</> })()}
                   <input value={r.goal} onChange={e => patch(r.key, { goal: e.target.value })} placeholder={goalLabel} aria-label={goalLabel} maxLength={1000} style={{ width: '100%', marginTop: 6 }} />
                   {r.outs.map((o, i) => (
                     <div key={o.key} className="sdout">

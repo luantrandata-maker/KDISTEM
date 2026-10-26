@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, Suspense, lazy, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAllMode } from '../components/OrgScope'
 import { sessionState, STATE_LABEL, fmtDate, fmtTime } from '../lib/time'
@@ -200,58 +200,9 @@ export function TrainingSchedule({ onlineOnly = false, orgId }: { onlineOnly?: b
 }
 export const VirtualClass = ({ orgId }: { orgId: string }) => <TrainingSchedule onlineOnly orgId={orgId} />
 
-type Lesson = { id: string; title: string; grades: string | null; subject: string | null; author: string | null; status: string; created_on: string; blocks: number; materials: number; videos: number; docs: number; training_plans: { name: string; program: string | null } | null }
-const LSTATUS: Record<string, string> = { published: 'Xuất bản', draft: 'Biên soạn', inactive: 'Không hoạt động' }
-export function TrainingLessons({ orgId }: { orgId: string }) {
-  const PROGRAMS = useStemTracks().allCodes.map(p => ({ value: p, label: p }))
-  const [rows, setRows] = useState<Lesson[]>([])
-  const [tab, setTab] = useState('all'); const [adding, setAdding] = useState(false)
-  const [q, setQ] = useState(''); const [grade, setGrade] = useState(''); const [subject, setSubject] = useState(''); const [prog, setProg] = useState('')
-  const planOpts = usePlanOptions()
-  // Quản trị hệ thống: chọn đơn vị của bài giảng ngay trong form
-  const every = useAllMode()
-  const orgOpts = (every ?? []).map(o => ({ value: o.id, label: o.name }))
-  const load = () => supabase.from('training_lessons').select('*, training_plans(name, program)').order('created_on', { ascending: false }).then(({ data }) => setRows((data as unknown as Lesson[]) ?? []))
-  useEffect(() => { load() }, [])
-  async function add(v: Record<string, string>) {
-    const { error } = await supabase.from('training_lessons').insert({ org_id: v.org_id || orgId, plan_id: v.plan_id || null, title: v.title, grades: v.grades || null, subject: v.subject || null, author: v.author || null, status: v.status,
-      blocks: Number(v.blocks || 0), materials: Number(v.materials || 0), videos: Number(v.videos || 0), docs: Number(v.docs || 0) })
-    if (error) return error.message
-    setAdding(false); load()
-  }
-  async function setStatus(l: Lesson, status: string) { await supabase.from('training_lessons').update({ status }).eq('id', l.id); load() }
-  async function remove(l: Lesson) { if (confirm(`Xoá bài giảng "${l.title}"?`)) { await supabase.from('training_lessons').delete().eq('id', l.id); load() } }
-  const subjects = [...new Set(rows.flatMap(r => (r.subject ?? '').split(',').map(s => s.trim()).filter(Boolean)))]
-  const shown = rows.filter(r => (tab === 'all' || r.status === tab) && (!grade || (r.grades ?? '').includes(`Khối ${grade}`)) && (!subject || (r.subject ?? '').includes(subject)) && (!prog || r.training_plans?.program === prog) && (r.title + (r.author ?? '')).toLowerCase().includes(q.toLowerCase()))
-  return (
-    <>
-      <div className="bar"><input className="search" style={{ margin: 0 }} placeholder="Tìm tên bài giảng…" value={q} onChange={e => setQ(e.target.value)} />
-        <div className="tools"><select value={grade} onChange={e => setGrade(e.target.value)} aria-label="Khối"><option value="">Tất cả khối</option>{[6, 7, 8, 9].map(g => <option key={g} value={g}>Khối {g}</option>)}</select>
-          <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
-          <select value={prog} onChange={e => setProg(e.target.value)} aria-label="Chương trình"><option value="">Tất cả CT</option>{PROGRAMS.map(p => <option key={p.value}>{p.value}</option>)}</select>
-          <button className="primary" onClick={() => setAdding(true)}>Thêm bài giảng</button></div></div>
-      {adding && <FormPanel fields={[
-        ...(every ? [{ key: 'org_id', label: 'Đơn vị', type: 'select' as const, required: true, options: orgOpts }] : []),
-        { key: 'title', label: 'Tên bài giảng', required: true }, { key: 'plan_id', label: 'Chương trình tập huấn', type: 'select', options: planOpts },
-        { key: 'grades', label: 'Khối (VD: Khối 6, Khối 7)' }, { key: 'subject', label: 'Môn' }, { key: 'author', label: 'Tác giả' },
-        { key: 'blocks', label: 'Số khối nội dung', type: 'number' }, { key: 'materials', label: 'Số học liệu', type: 'number' }, { key: 'videos', label: 'Video', type: 'number' }, { key: 'docs', label: 'Tài liệu', type: 'number' },
-        { key: 'status', label: 'Trạng thái', type: 'select', required: true, options: Object.entries(LSTATUS).map(([value, label]) => ({ value, label })) },
-      ]} initial={{ status: 'draft' }} onSubmit={add} onCancel={() => setAdding(false)} />}
-      <div className="segmented" style={{ marginTop: 12 }}>
-        {[['all', 'Tất cả'], ['draft', 'Biên soạn'], ['published', 'Xuất bản'], ['inactive', 'Không hoạt động']].map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l} {rows.filter(r => k === 'all' || r.status === k).length}</button>)}
-      </div>
-      <div className="wrap"><table>
-        <thead><tr><th>#</th><th>Bài giảng</th><th>Chương trình</th><th>Nội dung</th><th>Trạng thái</th><th>Tác giả</th><th></th></tr></thead>
-        <tbody>{shown.map((l, i) => (
-          <tr key={l.id}><td>{i + 1}</td><td><b>{l.title}</b><br /><small>{l.grades} · {l.subject}</small></td><td>{l.training_plans?.name ?? '—'}</td>
-            <td>{l.blocks} khối · {l.materials} học liệu<br /><small>Video {l.videos} · Tài liệu {l.docs}</small></td>
-            <td><span className={'pill ' + (l.status === 'published' ? 'active' : l.status === 'draft' ? 'maintenance' : 'inactive')}>{LSTATUS[l.status]}</span></td>
-            <td>{l.author}<br /><small>{fmtDate(l.created_on)}</small></td>
-            <td><select value={l.status} onChange={e => setStatus(l, e.target.value)} aria-label="Đổi trạng thái">{Object.entries(LSTATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select> <button onClick={() => remove(l)}>Xoá</button></td></tr>))}
-          {shown.length === 0 && <tr><td colSpan={7}>Không có bài giảng phù hợp.</td></tr>}</tbody></table></div>
-    </>
-  )
-}
+// Bài giảng tập huấn: bộ 5 thẻ như bài học (102), tải khi mở
+const LessonsPage = lazy(() => import('./training/Lessons').then(m => ({ default: m.TrainingLessonsPage })))
+export const TrainingLessons = ({ orgId }: { orgId: string }) => <Suspense fallback={<p className="sub">Đang tải…</p>}><LessonsPage orgId={orgId} /></Suspense>
 
 type Cert = { id: string; code: string | null; issued_on: string | null; teachers: { full_name: string; subject: string | null } | null; training_plans: { name: string } | null }
 export function Certificates({ orgId }: { orgId: string }) {

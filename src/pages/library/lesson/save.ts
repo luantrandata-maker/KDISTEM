@@ -9,11 +9,16 @@ import { kitFromDraft, kitOf, mergeKit, planFromKit, key, emptyKit, ACT_STARTER,
 
 export type KitRow = {
   id: string; owner_org_id: string; title: string; subject: string | null; grades: string | null; program: string | null
-  program_id: string | null; unit_id: string | null; status: 'draft' | 'published' | 'archived'; version: number; updated_at: string
+  program_id: string | null; unit_id: string | null; status: 'draft' | 'published' | 'archived' | 'inactive'; version: number; updated_at: string
   scope: string; usage_rights: string | null
   content: { objectives?: string | null; periods?: number | null; plan_ids?: string[]; lesson_ids?: string[]; norm_ids?: string[]; material_ids?: string[]; checked?: KitCard[]; kit?: unknown }
 }
 export const KIT_SEL = 'id, owner_org_id, title, subject, grades, program, program_id, unit_id, status, version, updated_at, scope, usage_rights, content'
+/** Nơi lưu bộ 5 thẻ: bài học trong Học liệu (library_items) hoặc bài giảng tập huấn (training_lessons, 102) */
+export type KitStore = 'library' | 'training'
+export const kitTable = (s: KitStore = 'library') => (s === 'training' ? 'training_lessons' : 'library_items')
+export const kitSel = (s: KitStore = 'library') => (s === 'training'
+  ? 'id, owner_org_id:org_id, title, subject, grades, program_id, unit_id, status, version, updated_at, content' : KIT_SEL)
 export const errMsg = (m: string) => (/schema cache|does not exist|column .* of relation/i.test(m) ? 'Hãy chạy migration 080 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Bạn không có quyền sửa học liệu của đơn vị này.' : m)
 
@@ -49,7 +54,14 @@ export type NewKit = {
   title: string; unitId?: string | null; parsed?: ParseResult[]; docs?: KDoc[]
   /** Bộ đang có cùng tên trong môn: cập nhật thay vì tạo bản trùng */
   existing?: KitRow | null
+  store?: KitStore
 }
+/** Dòng mới: bài giảng tập huấn gắn chương trình tập huấn + nội dung; bài học gắn chương trình giáo dục */
+const newRow = (store: KitStore | undefined, o: { orgId: string; title: string; subject: string | null; grades: string | null; programId: string | null; ctCode: string | null; unitId: string | null; content: Record<string, unknown> }): Record<string, unknown> =>
+  store === 'training'
+    ? { org_id: o.orgId, title: o.title, subject: o.subject, grades: o.grades, program_id: o.programId, unit_id: o.unitId, status: 'draft', content: o.content }
+    : { owner_org_id: o.orgId, kind: 'unit', title: o.title, subject: o.subject, grades: o.grades, program_id: o.programId, unit_id: o.programId ? o.unitId : null,
+        program: o.ctCode, scope: 'children', usage_rights: 'adapt', tags: [] as string[], content: o.content }
 /** Tạo bài học mới (hoặc cập nhật bài cùng tên) từ các phần đọc được */
 export async function saveNewKit(o: NewKit): Promise<{ id?: string; error?: string }> {
   let kit = o.existing ? kitOf(o.existing.content.kit) : emptyKit()
@@ -69,31 +81,25 @@ export async function saveNewKit(o: NewKit): Promise<{ id?: string; error?: stri
   const objectives = kit.info.reqs.join('\n') || o.existing?.content.objectives || null
   if (o.existing) {
     const checked = (o.existing.content.checked ?? []).filter(c => !touched.has(c))
-    const r = await supabase.from('library_items').update({ subject, grades, content: fullContent(o.existing, kit, { periods, objectives, checked }) }).eq('id', o.existing.id)
+    const r = await supabase.from(kitTable(o.store)).update({ subject, grades, content: fullContent(o.existing, kit, { periods, objectives, checked }) }).eq('id', o.existing.id)
     return r.error ? { error: errMsg(r.error.message) } : { id: o.existing.id }
   }
-  const row = {
-    owner_org_id: o.orgId, kind: 'unit', title: o.title.trim(), subject: subject || o.progSubject || null, grades,
-    program_id: o.program?.id ?? null, unit_id: o.program && o.unitId ? o.unitId : null, program: o.program?.ct_code ?? null,
-    scope: 'children', usage_rights: 'adapt', tags: [] as string[],
-    content: { objectives, periods, plan_ids: [], lesson_ids: [], norm_ids: [], material_ids: [], checked: [], kit },
-  }
-  const r = await supabase.from('library_items').insert(row).select('id').single()
+  const row = newRow(o.store, { orgId: o.orgId, title: o.title.trim(), subject: o.store === 'training' ? subject : subject || o.progSubject || null, grades,
+    programId: o.program?.id ?? null, ctCode: o.program?.ct_code ?? null, unitId: o.unitId ?? null,
+    content: { objectives, periods, plan_ids: [], lesson_ids: [], norm_ids: [], material_ids: [], checked: [], kit } })
+  const r = await supabase.from(kitTable(o.store)).insert(row).select('id').single()
   return r.error ? { error: errMsg(r.error.message) } : { id: (r.data as { id: string }).id }
 }
 
 /** Sao chép một bài học đã có thành bài mới (nháp, chưa chốt thẻ nào) để chỉnh sửa riêng.
  *  Tài liệu ở thẻ 03 được tạo lại khi chốt (không dùng chung mục của bài gốc); hoạt động thẻ 05 và vật tư vẫn trỏ tới kho chung. */
-export async function copyKit(o: { orgId: string; src: KitRow; title: string; program: { id: string; ct_code: string | null } | null; progSubject: string }): Promise<{ id?: string; error?: string }> {
+export async function copyKit(o: { orgId: string; src: KitRow; title: string; program: { id: string; ct_code: string | null } | null; progSubject: string; unitId?: string | null; store?: KitStore }): Promise<{ id?: string; error?: string }> {
   const k = kitOf(o.src.content.kit)
   const kit: KitData = { ...k, docs: k.docs.map(d => ({ ...d, item_id: null })), info: { ...k.info, prog_subject: o.progSubject || k.info.prog_subject }, issues: [] }
-  const row = {
-    owner_org_id: o.orgId, kind: 'unit', title: o.title.trim(), subject: o.src.subject, grades: o.src.grades,
-    program_id: o.program?.id ?? null, unit_id: null, program: o.program?.ct_code ?? o.src.program,
-    scope: 'children', usage_rights: 'adapt', tags: [] as string[],
-    content: { objectives: o.src.content.objectives ?? null, periods: o.src.content.periods ?? null, plan_ids: [], lesson_ids: [], norm_ids: [], material_ids: [], checked: [], kit },
-  }
-  const r = await supabase.from('library_items').insert(row).select('id').single()
+  const row = newRow(o.store, { orgId: o.orgId, title: o.title.trim(), subject: o.src.subject, grades: o.src.grades,
+    programId: o.program?.id ?? null, ctCode: o.program?.ct_code ?? o.src.program, unitId: o.store === 'training' ? o.unitId ?? null : null,
+    content: { objectives: o.src.content.objectives ?? null, periods: o.src.content.periods ?? null, plan_ids: [], lesson_ids: [], norm_ids: [], material_ids: [], checked: [], kit } })
+  const r = await supabase.from(kitTable(o.store)).insert(row).select('id').single()
   return r.error ? { error: errMsg(r.error.message) } : { id: (r.data as { id: string }).id }
 }
 
@@ -177,7 +183,8 @@ async function chotBank(c: Ctx) {
   }
 }
 /** Thẻ 04: vật tư chưa có trong danh mục được thêm vào danh mục; lưu định mức của bài (material_norms) */
-async function chotNorms(c: Ctx, content: KitRow['content']) {
+/** Vật tư chưa có trong danh mục được thêm vào danh mục */
+async function catalogMats(c: Ctx) {
   const cat = await loadCatalog()
   for (const m of [...c.kit.mats.product, ...c.kit.mats.group]) {
     if (!m.name.trim()) continue
@@ -188,6 +195,9 @@ async function chotNorms(c: Ctx, content: KitRow['content']) {
     if (r.error) throw new Error(r.error.message)
     m.catalog_id = (r.data as { id: string }).id
   }
+}
+async function chotNorms(c: Ctx, content: KitRow['content']) {
+  await catalogMats(c)
   // Định mức của bài: một sản phẩm cho mỗi nhóm, nên 2 bảng gộp thành định mức theo nhóm
   const cur = await loadUnitNorm(c.row.id, c.orgId)
   const rows = [...c.kit.mats.product, ...c.kit.mats.group].filter(m => m.name.trim() && Number(m.qty.replace(',', '.')) > 0)
@@ -199,23 +209,30 @@ async function chotNorms(c: Ctx, content: KitRow['content']) {
 }
 
 /** Chốt một thẻ: tạo các mục danh mục của thẻ rồi ghi trạng thái chốt */
-export async function chotCard(orgId: string, row: KitRow, kit0: KitData, card: KitCard): Promise<{ error?: string }> {
+// Bài giảng tập huấn: thẻ 02, 03 chỉ ghi chốt (tài liệu nằm trong bài, không tạo học liệu trong danh mục);
+// thẻ 04 thêm vật tư mới vào danh mục; thẻ 05 tạo bản mẫu hoạt động trong Kho hoạt động như bài học.
+export async function chotCard(orgId: string, row: KitRow, kit0: KitData, card: KitCard, store: KitStore = 'library'): Promise<{ error?: string }> {
   const kit: KitData = JSON.parse(JSON.stringify(kit0))
   const c: Ctx = { orgId, row, kit }
   let content: KitRow['content'] = { ...row.content }
+  const lib = store === 'library'
   try {
-    if (card === 'content') content = await chotContent(c, content)
-    if (card === 'links') content = await chotLinks(c, content)
-    if (card === 'norms') content = await chotNorms(c, content)
+    if (card === 'content' && lib) content = await chotContent(c, content)
+    if (card === 'links' && lib) content = await chotLinks(c, content)
+    if (card === 'norms') { if (lib) content = await chotNorms(c, content); else await catalogMats(c) }
     if (card === 'bank') await chotBank(c)
   } catch (e) { return { error: errMsg(e instanceof Error ? e.message : String(e)) } }
   const checked = [...new Set([...(row.content.checked ?? []), card])]
-  const r = await supabase.from('library_items').update({ content: fullContent({ ...row, content }, kit, { checked }) }).eq('id', row.id)
+  const r = await supabase.from(kitTable(store)).update({ content: fullContent({ ...row, content }, kit, { checked }) }).eq('id', row.id)
   return r.error ? { error: errMsg(r.error.message) } : {}
 }
 
 /** Phát hành bộ học liệu: phát hành luôn giáo án, bài giảng, học liệu nháp và định mức của bài */
-export async function publishKit(orgId: string, row: KitRow, note: string | null): Promise<{ version?: number; error?: string }> {
+export async function publishKit(orgId: string, row: KitRow, note: string | null, store: KitStore = 'library'): Promise<{ version?: number; error?: string }> {
+  if (store === 'training') {
+    const t = await supabase.rpc('training_lesson_publish', { p_id: row.id })
+    return t.error ? { error: errMsg(t.error.message) } : { version: t.data as number }
+  }
   const ids = [...(row.content.plan_ids ?? []), ...(row.content.lesson_ids ?? []), ...(row.content.material_ids ?? [])]
   if (ids.length) {
     const { data } = await supabase.from('library_items').select('id, title, status, owner_org_id').in('id', ids)

@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { MultiSelect } from '../components/MultiSelect'
 import { supabase } from '../lib/supabase'
+import { useOrgScope, useSharedFilter } from '../components/OrgScope'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
@@ -93,7 +94,8 @@ const numOrNull = (s: string) => { const n = Number(String(s).replace(',', '.'))
 export function useCanEdit(mode: PpctMode) {
   const [ok, setOk] = useState(mode !== 'school')
   useEffect(() => {
-    if (mode === 'school') supabase.rpc('has_perm', { p_module: 'curriculum', p_action: 'edit' }).then(({ data }) => setOk(!!data))
+    if (mode === 'school') Promise.all([supabase.rpc('has_perm', { p_module: 'curriculum', p_action: 'edit' }), supabase.rpc('is_platform_admin')])
+      .then(([p, pa]) => setOk(!!p.data || !!pa.data))
   }, [mode])
   return ok
 }
@@ -103,6 +105,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
   const yearNames = [...new Set((years ?? []).map(y => y.name))]
   const canEdit = useCanEdit(mode)
   const [books, setBooks] = useState<Book[]>([])
+  const inShared = useSharedFilter()
   const [loaded, setLoaded] = useState(false)
   const [grade, setGrade] = useState(0)
   const [subject, setSubject] = useState('')
@@ -124,7 +127,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
   useEffect(() => { load() }, [orgId])
 
   const own = books.filter(b => b.org_id === orgId)
-  const templates = books.filter(b => b.org_id !== orgId && b.scope === 'children' && b.status === 'published')
+  const templates = books.filter(b => b.org_id !== orgId && b.scope === 'children' && b.status === 'published' && inShared(b.org_id))
   const grades = [...new Set(own.map(b => b.grade))].sort((a, b) => a - b)
   const subjects = [...new Set(own.map(b => b.subject))].sort((a, b) => a.localeCompare(b, 'vi'))
   const shown = own.filter(b => (!grade || b.grade === grade) && (!subject || b.subject === subject) && (!q || norm(b.title + ' ' + b.subject).includes(norm(q))))
@@ -164,7 +167,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
   async function copy(t: Book) {
     const dup = own.find(b => b.grade === t.grade && norm(b.subject) === norm(t.subject) && (b.year_name ?? '') === (year?.name ?? t.year_name ?? ''))
     if (dup && !confirm(`Đơn vị đã có PPCT "${dup.title}" cùng khối, cùng môn. Vẫn sao chép thêm một bản?`)) return
-    const { data, error } = await supabase.rpc('curriculum_copy', { p_book: t.id, p_year: mode === 'school' ? year?.name ?? null : null })
+    const { data, error } = await supabase.rpc('curriculum_copy', { p_book: t.id, p_year: mode === 'school' ? year?.name ?? null : null, p_org: orgId })
     if (error) return setMsg([errText(error.message), true])
     setMsg([`Đã sao chép "${t.title}" — chỉnh lại theo kế hoạch của đơn vị nếu cần.`, false]); setShowTpl(false)
     await load(); const nb = (await supabase.from('curriculum_books').select('*, organizations(name)').eq('id', data as string).single()).data as Book | null
@@ -566,6 +569,7 @@ export function progressTone(p: Pick<Progress, 'taught' | 'gap' | 'total'>): { l
 
 export function CurriculumProgress({ orgId, mode = 'school' }: { orgId: string | null; mode?: PpctMode }) {
   const [rows, setRows] = useState<Progress[] | null>(null)
+  const sc = useOrgScope()
   const [err, setErr] = useState('')
   const [school, setSchool] = useState('')
   const [grade, setGrade] = useState(0)
@@ -577,7 +581,7 @@ export function CurriculumProgress({ orgId, mode = 'school' }: { orgId: string |
   useEffect(() => {
     supabase.rpc('curriculum_progress', { p_org: null }).then(({ data, error }) => {
       if (error) setErr(errText(error.message))
-      setRows((data as Progress[]) ?? [])
+      setRows(((data as Progress[]) ?? []).filter(r => !sc || sc.tree.includes(r.org_id)))
     })
   }, [orgId])
   if (err) return <p className="msg">{err}</p>

@@ -2991,8 +2991,9 @@ end $$;
 select pg_temp.chk('kdi', '094 KDI tạo hoạt động ở đơn vị KDI',
   format('insert into activities (org_id, kind, title, content, is_template) values (%s, ''flashcard'', ''ISO KDI mới'', ''{}'', true)', quote_literal(pg_temp.oid_('@platform'))), 'rows:1')
   where pg_temp.oid_('@platform') is not null;
-select pg_temp.chk('kdi', '094 KDI không tạo hoạt động ở trường',
-  format('insert into activities (org_id, kind, title, content, is_template) values (%s, ''flashcard'', ''ISO KDI x'', ''{}'', true)', quote_literal(pg_temp.oid_('THCS-PH'))), 'ERR')
+-- 100: Quản trị hệ thống thao tác thay trường ở Phân hệ 2 (trước đây: KDI không tạo hoạt động ở trường)
+select pg_temp.chk('kdi', '094/100 Quản trị tạo hoạt động thay trường',
+  format('insert into activities (org_id, kind, title, content, is_template) values (%s, ''flashcard'', ''ISO KDI x'', ''{}'', true)', quote_literal(pg_temp.oid_('THCS-PH'))), 'rows:1')
   where pg_temp.oid_('@platform') is not null;
 select pg_temp.chk('kdi', '094 KDI tạo bài giảng ở đơn vị KDI',
   format('insert into lesson_plans (org_id, title, is_template, status) values (%s, ''ISO KDI bài mới'', true, ''draft'')', quote_literal(pg_temp.oid_('@platform'))), 'rows:1')
@@ -3247,6 +3248,23 @@ select pg_temp.chk('kdi', 'QT 099: đánh giá phải đúng trường của GV'
 select pg_temp.probe('kdi@iso-test.local', format($q$select training_plan_review(id, %L, false, 'QT trả lại để thử')::text from training_plans where name = 'ISO KH A'$q$, pg_temp.oid_('THCS-PH')), true);
 select pg_temp.chk('kdi', 'QT 099: Quản trị gửi danh sách GV thay trường', format($q$select training_plan_submit(id, %L)::text from training_plans where name = 'ISO KH A'$q$, pg_temp.oid_('THCS-PH')), '');
 select pg_temp.chk('kdi', 'QT 099: ngoài Phân hệ 1 vẫn chỉ xem (học sinh)', format('update students set full_name = ''x'' where org_id = %s', quote_literal(pg_temp.oid_('THCS-KB'))), 'rows:0');
+
+-- ===== 100: Quản trị hệ thống thao tác thay đơn vị ở Phân hệ 2 =====
+select pg_temp.chk('kdi', 'QT 100: Quản trị ghi được chương trình của trường', format('select curriculum_can_write(%L)::text', pg_temp.oid_('THCS-PH')), 'true');
+select pg_temp.chk('admin_ph', 'QT 100: trường không ghi chương trình của Sở', format('select curriculum_can_write(%L)::text', pg_temp.oid_('SO-HY')), 'false');
+select pg_temp.chk('kdi', 'QT 100: Quản trị soạn chương trình cho Sở', format($q$insert into edu_programs (org_id, title, ct_code, level, grade_from, grade_to, main_subject) values (%L, 'ISO CT do QT soạn', 'CT1', 'thcs', 6, 6, 'Toán')$q$, pg_temp.oid_('SO-HY')), 'rows:1');
+select pg_temp.chk('kdi', 'QT 100: Quản trị thêm môn PPCT cho trường', format($q$insert into curriculum_books (org_id, grade, subject, title) values (%L, 6, 'Toán', 'ISO PPCT do QT')$q$, pg_temp.oid_('THCS-PH')), 'rows:1');
+select pg_temp.probe('kdi@iso-test.local', format($q$select curriculum_copy(id, null, %L) from curriculum_books where title = 'ISO mẫu KDI' and org_id = platform_org_id() limit 1$q$, pg_temp.oid_('THCS-PH')), true);
+select pg_temp.chk('kdi', 'QT 100: Quản trị sao chép mẫu PPCT về trường', format($q$select (count(*) > 0)::text from curriculum_books b join curriculum_books t on t.id = b.source_id where t.org_id = platform_org_id() and b.title = 'ISO mẫu KDI' and b.org_id = %L$q$, pg_temp.oid_('THCS-PH')), 'true');
+select pg_temp.chk('admin_ph', 'QT 100: trường không sao chép PPCT về trường khác', format($q$select curriculum_copy(id, null, %L)::text from curriculum_books where title = 'ISO mẫu KDI' limit 1$q$, pg_temp.oid_('THCS-KB')), 'ERR 42501');
+select pg_temp.chk('admin_ph', 'QT 100: trường sao chép về chính mình như cũ', $q$select (curriculum_copy(id) is not null)::text from curriculum_books where title = 'ISO mẫu KDI' limit 1$q$, 'true');
+select pg_temp.probe('kdi@iso-test.local', format($q$select edu_program_copy(id, %L) from edu_programs where title = 'ISO CT KDI' and status in ('published', 'superseded') order by version_no desc limit 1$q$, pg_temp.oid_('SO-HY')), true);
+select pg_temp.chk('kdi', 'QT 100: Quản trị sao chép chương trình về Sở', format($q$select (count(*) > 0)::text from edu_programs where title like 'ISO CT KDI%%' and org_id = %L and status = 'draft'$q$, pg_temp.oid_('SO-HY')), 'true');
+select pg_temp.chk('kdi', 'QT 100: Quản trị thêm học liệu cho trường', format($q$insert into library_items (owner_org_id, kind, title) values (%L, 'lesson', 'ISO học liệu do QT')$q$, pg_temp.oid_('THCS-PH')), 'rows:1');
+select pg_temp.chk('so_bn', 'QT 100: Sở vẫn không phát hành thay đơn vị khác', format('insert into library_items (owner_org_id, kind, title) values (%s, ''lesson'', ''ISO giả 2'')', quote_literal(pg_temp.oid_('SO-HY'))), 'ERR');
+select pg_temp.chk('kdi', 'QT 100: Quản trị soạn giáo án mẫu cho trường', format($q$insert into lesson_plans (org_id, title, is_template) values (%L, 'ISO GA mẫu QT', true)$q$, pg_temp.oid_('THCS-PH')), 'rows:1');
+select pg_temp.chk('kdi', 'QT 100: Quản trị thêm định mức vật tư cho trường', format('select library_can_write(%L)::text', pg_temp.oid_('THCS-PH')), 'true');
+select pg_temp.chk('kdi', 'QT 100: ngoài Phân hệ 2 vẫn chỉ xem (học sinh)', format('update students set full_name = ''x'' where org_id = %s', quote_literal(pg_temp.oid_('THCS-KB'))), 'rows:0');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

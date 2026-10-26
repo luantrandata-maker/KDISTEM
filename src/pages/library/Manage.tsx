@@ -11,6 +11,7 @@ import { norm as normText } from '../../lib/sheet'
 import { BankList } from './BankList'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useOrgScope, useSharedFilter } from '../../components/OrgScope'
 import { Tabs } from '../teacher/common'
 import type { Slide } from '../teacher/Lessons'
 import { uploadLearningFile, fmtSize, MAX_FILE_MB } from '../../lib/files'
@@ -117,6 +118,8 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   const MAT_OPTS = useMatTypes()
   const { codes: PROGRAMS } = useStemTracks()
   const [items, setItems] = useState<Item[]>([])
+  const sc = useOrgScope()
+  const inShared = useSharedFilter()
   const [visible, setVisible] = useState<Item[]>([])
   const [stats, setStats] = useState<Map<string, Stat>>(new Map())
   const [targets, setTargets] = useState<Map<string, string[]>>(new Map())
@@ -166,12 +169,14 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
       supabase.from('lesson_plans').select('id, title, subject, grades, program, summary, slides, lesson, org_id, teachers(full_name)').or('status.eq.published,is_template.eq.true').order('updated_at', { ascending: false }).limit(200),
     ])
     if (i.error) return setErr(/schema cache|does not exist|owner_name/i.test(i.error.message) ? 'Hãy chạy migration 023_shared_library.sql trên Supabase.' : i.error.message)
-    const all = (i.data as Item[]) ?? []
+    const tg = (t.data as { item_id: string; org_id: string }[]) ?? []
+    // Quản trị thao tác thay đơn vị: chỉ mục đơn vị đó thấy được (của mình, cấp trên, KDI, công khai, được chọn gửi tới)
+    const all = ((i.data as Item[]) ?? []).filter(x => !sc || x.scope === 'public' || inShared(x.owner_org_id) || tg.some(g => g.item_id === x.id && g.org_id === orgId))
     setItems(all.filter(x => x.owner_org_id === orgId)); setVisible(all)
     setStats(new Map(((s.data as Stat[]) ?? []).map(x => [x.item_id, x])))
     const tm = new Map<string, string[]>(); ((t.data as { item_id: string; org_id: string }[]) ?? []).forEach(x => tm.set(x.item_id, [...(tm.get(x.item_id) ?? []), x.org_id])); setTargets(tm)
     const os = (o.data as Org[]) ?? []; setOrgs(os); setMe(os.find(x => x.id === orgId) ?? null)
-    setLessons((l.data as unknown as LP[]) ?? [])
+    setLessons(((l.data as unknown as LP[]) ?? []).filter(x => inShared(x.org_id)))
   }
   useEffect(() => { load() }, [orgId])
   useEffect(() => {

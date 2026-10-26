@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { MultiSelect } from '../../components/MultiSelect'
 import { supabase } from '../../lib/supabase'
+import { useSharedFilter } from '../../components/OrgScope'
 import { downloadXlsx } from '../../lib/sheet'
 import { uploadLearningFile, openFile, MAX_FILE_MB } from '../../lib/files'
 import { Tabs } from '../teacher/common'
@@ -119,6 +120,7 @@ const EEMPTY: EForm = { title: '', description: '', subject: '', grade: null, mo
 function Exams({ orgId }: { orgId: string | null }) {
   const { classes, groups, isSchool } = useOrgCtx(orgId)
   const [rows, setRows] = useState<Exam[]>([])
+  const inShared = useSharedFilter()
   const [counts, setCounts] = useState<Map<string, { n: number; students: Set<string>; sum: number }>>(new Map())
   const [form, setForm] = useState<EForm | null>(null)
   const [open, setOpen] = useState<string | null>(null)
@@ -127,7 +129,7 @@ function Exams({ orgId }: { orgId: string | null }) {
     const [e, a] = await Promise.all([supabase.from('practice_exams').select('*').order('created_at', { ascending: false }),
       supabase.from('exam_attempts').select('exam_id, student_id, score, status').eq('status', 'submitted').limit(20000)])
     if (e.error) setMsg([errText(e.error.message), true])
-    setRows((e.data as Exam[]) ?? [])
+    setRows(((e.data as Exam[]) ?? []).filter(x => inShared(x.org_id)))
     const m = new Map<string, { n: number; students: Set<string>; sum: number }>()
     ;((a.data as any[]) ?? []).forEach(x => { const v = m.get(x.exam_id) ?? { n: 0, students: new Set(), sum: 0 }; v.n++; v.students.add(x.student_id); v.sum += Number(x.score ?? 0); m.set(x.exam_id, v) })
     setCounts(m)
@@ -269,6 +271,7 @@ const CEMPTY: CForm = { title: '', description: '', subject: '', grade: null, co
 function Courses({ orgId }: { orgId: string | null }) {
   const { classes, groups, isSchool } = useOrgCtx(orgId)
   const [rows, setRows] = useState<Course[]>([])
+  const inShared = useSharedFilter()
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [progress, setProgress] = useState<Map<string, number>>(new Map())
   const [exams, setExams] = useState<Exam[]>([])
@@ -279,7 +282,7 @@ function Courses({ orgId }: { orgId: string | null }) {
     const [c, l, p, e] = await Promise.all([supabase.from('courses').select('*').order('created_at', { ascending: false }), supabase.from('course_lessons').select('*').order('position'),
       supabase.from('course_progress').select('lesson_id').limit(50000), supabase.from('practice_exams').select('id, title, status').neq('status', 'draft')])
     if (c.error) setMsg([errText(c.error.message), true])
-    setRows((c.data as Course[]) ?? []); setLessons((l.data as Lesson[]) ?? []); setExams((e.data as Exam[]) ?? [])
+    setRows(((c.data as Course[]) ?? []).filter(x => inShared(x.org_id))); setLessons((l.data as Lesson[]) ?? []); setExams((e.data as Exam[]) ?? [])
     const m = new Map<string, number>(); ((p.data as any[]) ?? []).forEach(x => m.set(x.lesson_id, (m.get(x.lesson_id) ?? 0) + 1)); setProgress(m)
   }
   useEffect(() => { load() }, [orgId])

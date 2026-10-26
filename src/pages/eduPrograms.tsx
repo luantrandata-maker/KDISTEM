@@ -5,6 +5,7 @@ import { fieldsOf, useSettings } from '../lib/settings'
 import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useOrgScope, useSharedFilter } from '../components/OrgScope'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
@@ -105,8 +106,9 @@ function useCanEdit(mode: ProgMode) {
   const [admin, setAdmin] = useState(mode !== 'school')
   useEffect(() => {
     if (mode !== 'school') return
-    supabase.rpc('has_perm', { p_module: 'curriculum', p_action: 'edit' }).then(({ data }) => setOk(!!data))
-    supabase.rpc('is_admin').then(({ data }) => setAdmin(!!data))
+    // Quản trị hệ thống thao tác thay trường (100): sửa và ban hành được như Ban giám hiệu
+    Promise.all([supabase.rpc('has_perm', { p_module: 'curriculum', p_action: 'edit' }), supabase.rpc('is_admin'), supabase.rpc('is_platform_admin')])
+      .then(([p, a, pa]) => { setOk(!!p.data || !!pa.data); setAdmin(!!a.data || !!pa.data) })
   }, [mode])
   return { canEdit: ok, isAdmin: admin }
 }
@@ -120,6 +122,8 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   const progFields = fieldsOf(useSettings(), 'program')
   const levelOpts: [string, string][] = LVL.map(l => [l.code, l.name])
   const [list, setList] = useState<Program[] | null>(null)
+  const sc = useOrgScope()
+  const inShared = useSharedFilter()
   const [openId, setOpenId] = useState<string | null>(null)
   const [level, setLevel] = useState('')
   const [kind, setKind] = useState('')
@@ -134,7 +138,12 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   async function load() {
     const { data, error } = await supabase.from('edu_programs').select('*, organizations(name)').order('title').order('version_no', { ascending: false })
     if (error) setMsg([errText(error.message), true])
-    const rows = (data as Program[]) ?? []
+    let rows = (data as Program[]) ?? []
+    if (sc) {
+      const { data: a } = await supabase.from('edu_program_assignments').select('program_id').eq('org_id', sc.orgId)
+      const assigned = new Set(((a as { program_id: string }[]) ?? []).map(x => x.program_id))
+      rows = rows.filter(p => inShared(p.org_id) || assigned.has(p.id))
+    }
     setList(rows)
     // Số liệu cho thanh quy trình: môn dùng được, bài học trong chương trình của đơn vị
     const ownIds = rows.filter(p => p.org_id === orgId && !['superseded', 'archived'].includes(p.status)).map(p => p.id)
@@ -176,7 +185,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   }
   async function copy(p: Program) {
     if (!confirm(`Sao chép "${p.title}" (phiên bản ${p.version_no}) về đơn vị thành bản nháp để điều chỉnh?`)) return
-    const { data, error } = await supabase.rpc('edu_program_copy', { p_program: p.id })
+    const { data, error } = await supabase.rpc('edu_program_copy', { p_program: p.id, p_org: orgId })
     if (error) return setMsg([errText(error.message), true])
     await load(); setOpenId(data as string)
   }
@@ -349,7 +358,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
     e.preventDefault(); if (!mkBook || !p) return
     const ppw = Number(mkBook.ppw.replace(',', '.'))
     const { error } = await supabase.rpc('curriculum_from_program', {
-      p_program: p.id, p_grade: mkBook.grade, p_subject: mkBook.subject.trim() || null, p_year: mkBook.year.trim() || null, p_ppw: ppw > 0 ? ppw : null,
+      p_program: p.id, p_grade: mkBook.grade, p_subject: mkBook.subject.trim() || null, p_year: mkBook.year.trim() || null, p_ppw: ppw > 0 ? ppw : null, p_org: orgId,
     })
     if (error) return setMsg([errText(error.message), true])
     setMkBook(null); setMsg(['Đã tạo PPCT nháp — xem ở Phân phối chương trình.', false])

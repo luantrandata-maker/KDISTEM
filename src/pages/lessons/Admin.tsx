@@ -3,6 +3,7 @@ import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../../components/Tabl
 // và KDI (mẫu giáo án dùng chung toàn hệ thống)
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useOrgScope } from '../../components/OrgScope'
 import { Tabs } from '../teacher/common'
 import { Tiles } from '../department/charts'
 import { downloadXlsx } from '../../lib/sheet'
@@ -21,8 +22,8 @@ function useRights(orgId: string | null) {
     supabase.from('organizations').select('type').eq('id', orgId).maybeSingle().then(async ({ data }) => {
       const t = (data as { type: string } | null)?.type ?? null
       if (t !== 'school') return setR({ isSchool: false, canWrite: true, ready: true })
-      const [a, p] = await Promise.all([supabase.rpc('is_admin'), supabase.rpc('has_perm', { p_module: 'library', p_action: 'edit' })])
-      setR({ isSchool: true, canWrite: !!a.data || !!p.data, ready: true })
+      const [a, p, q] = await Promise.all([supabase.rpc('is_admin'), supabase.rpc('has_perm', { p_module: 'library', p_action: 'edit' }), supabase.rpc('is_platform_admin')])
+      setR({ isSchool: true, canWrite: !!a.data || !!p.data || !!q.data, ready: true })
     })
   }, [orgId])
   return r
@@ -170,6 +171,7 @@ export function DeptLessons({ orgId }: P) {
 function PublishedPlans({ orgId }: P) {
   const templates = useTemplates()
   const [rows, setRows] = useState<LPlan[]>([])
+  const sc = useOrgScope()
   const [orgs, setOrgs] = useState<Map<string, string>>(new Map())
   const [school, setSchool] = useState('')
   const [q, setQ] = useState('')
@@ -177,7 +179,7 @@ function PublishedPlans({ orgId }: P) {
   const [err, setErr] = useState('')
   useEffect(() => {
     supabase.from('lesson_plans').select(PLAN_COLS).eq('status', 'published').neq('org_id', orgId ?? '').order('published_at', { ascending: false, nullsFirst: false }).limit(1000)
-      .then(({ data, error }) => { if (error) setErr(errText(error.message)); setRows(((data as LPlan[]) ?? []).map(normPlan)) })
+      .then(({ data, error }) => { if (error) setErr(errText(error.message)); setRows(((data as LPlan[]) ?? []).filter(r => !sc || sc.tree.includes(r.org_id)).map(normPlan)) })
     supabase.from('organizations').select('id, name').eq('type', 'school').then(({ data }) => setOrgs(new Map(((data as { id: string; name: string }[]) ?? []).map(o => [o.id, o.name]))))
   }, [orgId])
   const schools = [...new Set(rows.map(r => r.org_id))].map(id => [id, orgs.get(id) ?? '—'] as const).sort((a, b) => a[1].localeCompare(b[1]))

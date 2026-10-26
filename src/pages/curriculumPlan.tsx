@@ -85,7 +85,7 @@ export function YearPlan({ orgId, mode = 'school', year, years }: { orgId: strin
     e.preventDefault(); if (!mk) return
     const ppw = Number(mk.ppw.replace(',', '.')) || null
     if (mk.program) {
-      const { data, error } = await supabase.rpc('curriculum_from_program', { p_program: mk.program, p_grade: mk.grade, p_subject: mk.subject.trim() || null, p_year: yname || null, p_ppw: ppw })
+      const { data, error } = await supabase.rpc('curriculum_from_program', { p_program: mk.program, p_grade: mk.grade, p_subject: mk.subject.trim() || null, p_year: yname || null, p_ppw: ppw, p_org: orgId })
       if (error) return setMsg([errText(error.message), true])
       setMsg(['Đã tạo PPCT nháp từ chương trình. Chia lại số tiết từng bài ở tab "Phân bổ tiết" nếu cần.', false])
       setMk(null); await load()
@@ -104,7 +104,7 @@ export function YearPlan({ orgId, mode = 'school', year, years }: { orgId: strin
   async function rollover() {
     if (!roll) return
     if (!confirm(`Sao chép mọi PPCT năm học ${yname} sang ${roll} (bản nháp)? Môn đã có PPCT ở năm ${roll} được giữ nguyên.`)) return
-    const { data, error } = await supabase.rpc('curriculum_rollover', { p_from: yname, p_to: roll })
+    const { data, error } = await supabase.rpc('curriculum_rollover', { p_from: yname, p_to: roll, p_org: orgId })
     if (error) return setMsg([errText(error.message), true])
     setMsg([`Đã chuyển ${data} PPCT sang năm học ${roll} (bản nháp). Chọn năm ${roll} để xem và gửi duyệt.`, false]); setRoll(null)
   }
@@ -334,7 +334,7 @@ export function Allocation({ orgId, mode = 'school', year, years }: { orgId: str
   async function create(e: React.FormEvent) {
     e.preventDefault(); if (!mk?.program) return
     const ppwN = Number(mk.ppw.replace(',', '.')) || null
-    const { data, error } = await supabase.rpc('curriculum_from_program', { p_program: mk.program, p_grade: mk.grade, p_subject: null, p_year: yname || null, p_ppw: ppwN })
+    const { data, error } = await supabase.rpc('curriculum_from_program', { p_program: mk.program, p_grade: mk.grade, p_subject: null, p_year: yname || null, p_ppw: ppwN, p_org: orgId })
     if (error) return setMsg([errText(error.message), true])
     setMk(null); setMsg(['Đã tạo PPCT nháp từ chương trình — chia lại số tiết bên dưới rồi bấm "Sinh PPCT".', false])
     loadBooks(data as string)

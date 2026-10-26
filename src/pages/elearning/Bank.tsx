@@ -2,6 +2,7 @@ import { SelBar, SelTh, useRowSel } from '../../components/TableSel'
 import { useEffect, useState } from 'react'
 import { ElView } from '../../components/ElView'
 import { supabase } from '../../lib/supabase'
+import { useSharedFilter } from '../../components/OrgScope'
 import { norm, downloadXlsx, type Column } from '../../lib/sheet'
 import ImportExcel from '../../components/ImportExcel'
 import AssistantQuiz from './AiQuiz'
@@ -21,6 +22,7 @@ const EMPTY: Form = { subject: '', grade: '', topic: '', level: 'thong_hieu', ki
 
 export default function QuestionBank({ orgId }: { orgId: string | null }) {
   const [rows, setRows] = useState<Question[]>([])
+  const inShared = useSharedFilter()
   const [orgType, setOrgType] = useState('school')
   const [orgNames, setOrgNames] = useState<Map<string, string>>(new Map())
   const [me, setMe] = useState<string | null>(null)
@@ -34,7 +36,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
     const [q, o, u] = await Promise.all([supabase.from('question_bank').select('*').order('created_at', { ascending: false }).limit(5000),
       supabase.from('organizations').select('id, name, type'), supabase.auth.getUser()])
     if (q.error) setMsg([errText(q.error.message), true])
-    setRows((q.data as Question[]) ?? []); setMe(u.data.user?.id ?? null)
+    setRows(((q.data as Question[]) ?? []).filter(r => inShared(r.org_id))); setMe(u.data.user?.id ?? null)
     const os = (o.data as any[]) ?? []; setOrgNames(new Map(os.map(x => [x.id, x.name]))); setOrgType(os.find(x => x.id === orgId)?.type ?? 'school')
   }
   useEffect(() => { load() }, [orgId])

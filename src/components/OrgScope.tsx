@@ -1,15 +1,25 @@
 // Quản trị hệ thống thao tác thay một đơn vị ngay trong trang (phương án B, 26/10): chọn trường / Sở / Phòng rồi dùng
 // đúng màn của đơn vị đó. Nhớ lựa chọn theo từng trang (localStorage). Quyền ghi kiểm tra ở CSDL (is_platform_admin).
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 
 export type ScopeOrg = { id: string; name: string; type: string; parent_id: string | null; is_platform?: boolean | null }
 /** kind: 'school' = chỉ trường; 'unit' = KDI và cơ quan quản lý (Bộ, Tỉnh, Sở, Phòng); 'any' = tất cả */
 export type ScopeKind = 'school' | 'unit' | 'any'
-export type Scope = { orgId: string; org: ScopeOrg; scope: string[] }
+/** scope: đơn vị + các cấp trên; shared: scope + KDI (dữ liệu dùng chung đơn vị thấy được); tree: đơn vị + các đơn vị trực thuộc */
+export type Scope = { orgId: string; org: ScopeOrg; scope: string[]; shared: string[]; tree: string[] }
 
 const TYPE: Record<string, string> = { ministry: 'Bộ', province: 'Tỉnh', department: 'Sở / Phòng', district: 'Phòng', school: 'Trường', provider: 'Đơn vị' }
 const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
+
+const Ctx = createContext<Scope | null>(null)
+/** Đơn vị Quản trị hệ thống đang thao tác thay (null khi không ở trong OrgScope) */
+export const useOrgScope = () => useContext(Ctx)
+/** Dữ liệu dùng chung mà đơn vị đang thao tác thấy được: của chính nó, cấp trên hoặc KDI. Ngoài OrgScope luôn đúng (giữ như cũ). */
+export function useSharedFilter() {
+  const s = useOrgScope()
+  return (org: string | null | undefined) => !s || !org || s.shared.includes(org)
+}
 
 let cache: Promise<ScopeOrg[]> | null = null
 export function useAllOrgs() {
@@ -45,12 +55,15 @@ export function OrgScope({ kind, storeKey, children, hint }: { kind: ScopeKind; 
   const cur = rows.find(o => o.id === id && fits(o)) ?? (kind !== 'school' ? rows.find(o => o.is_platform) : undefined)
   useEffect(() => { if (cur && cur.id !== id) setId(cur.id) }, [cur?.id])
   const pick = (v: string) => { setId(v); setQ(''); try { localStorage.setItem(key, v) } catch { /* bỏ qua */ } }
-  const scope = useMemo(() => {
-    if (!cur || !all) return []
+  const { scope, shared, tree } = useMemo(() => {
+    if (!cur || !all) return { scope: [], shared: [], tree: [] }
     const s = [cur.id]; let p = cur.parent_id
     while (p && !s.includes(p)) { s.push(p); p = all.find(o => o.id === p)?.parent_id ?? null }
-    return s
+    const t = [cur.id]
+    for (let k = 0; k < t.length; k++) all.forEach(o => { if (o.parent_id === t[k] && !t.includes(o.id)) t.push(o.id) })
+    return { scope: s, shared: [...new Set([...s, ...all.filter(o => o.is_platform).map(o => o.id)])], tree: t }
   }, [cur?.id, all])
+  const value = useMemo<Scope | null>(() => (cur ? { orgId: cur.id, org: cur, scope, shared, tree } : null), [cur?.id, scope])
   if (!all) return <p className="sub">Đang tải danh sách đơn vị…</p>
   return <>
     <div className="panel orgscope">
@@ -67,6 +80,6 @@ export function OrgScope({ kind, storeKey, children, hint }: { kind: ScopeKind; 
       <small className="sub">{cur ? <>Bạn đang thao tác với quyền Quản trị hệ thống trên dữ liệu của <b>{cur.name}</b>{rows.find(o => o.id === cur.id)?.path ? ` (${rows.find(o => o.id === cur.id)!.path})` : ''}.</>
         : hint ?? 'Chọn đơn vị để xem và thao tác như người quản lý của đơn vị đó.'}</small>
     </div>
-    {cur && <div key={cur.id}>{children({ orgId: cur.id, org: cur, scope })}</div>}
+    {value && <div key={value.orgId}><Ctx.Provider value={value}>{children(value)}</Ctx.Provider></div>}
   </>
 }

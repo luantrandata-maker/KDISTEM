@@ -127,7 +127,7 @@ const SchoolCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Đánh gi�
 const AuthorityCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Kết quả đánh giá', AllTeacherAssessments], ['Đợt đánh giá', AssessmentRoundsPage], ['Khoảng thiếu hụt', CompetencyGapsPage]]} />
 // Quản trị hệ thống thao tác thay đơn vị ngay trong trang (OrgScope): kind 'school' = chọn trường, 'unit' = KDI / Sở / Phòng
 const scoped = (kind: ScopeKind, key: string, C: ComponentType<any>, extra: Record<string, unknown> = {}) => (p: any) =>
-  <OrgScope kind={kind} storeKey={key}>{s => <C {...p} {...extra} orgId={s.orgId} scope={s.scope} />}</OrgScope>
+  <OrgScope kind={kind} storeKey={key}>{s => <C {...p} {...extra} orgId={s.orgId} scope={s.scope} shared={s.shared} tree={s.tree} scopeOrg={s.org} />}</OrgScope>
 const PH1_TABS = {
   assess: scoped('school', 'school', SchoolTeacherAssessments), rounds: scoped('unit', 'unit', AssessmentRoundsPage, { only: true }), gaps: scoped('school', 'school', CompetencyGapsPage, { only: true }),
   plans: scoped('unit', 'unit', TrainingPlansPage), cal: scoped('unit', 'unit', TrainingCalendarPage), trainers: scoped('unit', 'unit', TrainersPage), school: scoped('school', 'school', SchoolTrainingAssigned),
@@ -174,7 +174,6 @@ const DeptLessons = lazy(() => import('./pages/lessons/Admin').then(m => ({ defa
 const PlatformLessonTemplates = lazy(() => import('./pages/lessons/Admin').then(m => ({ default: m.PlatformLessonTemplates })))
 // Theo video demo Phân hệ 2 (23/10): Phân phối chương trình là một trang riêng (hướng dẫn 3 bước, số liệu, 3 tab).
 // Theo dõi thực hiện và các màn PPCT cũ chuyển sang menu "Theo dõi Chương trình/Môn học".
-const PlatformDistPage = (p: any) => <DistPage {...p} />
 // Phân phối chương trình theo tiết + tiến độ (057): cùng một màn cho trường / GV, Sở (soạn mẫu ban hành), KDI (mẫu dùng chung)
 const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, ComponentType<any>][] = []) => {
   const tabs: [string, ComponentType<any>][] = [
@@ -191,6 +190,17 @@ const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, Com
 // Theo dõi Chương trình/Môn học (cổng KDI)
 const PlatformProgramTrack = (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects],
   ['Tiến độ & yêu cầu cần đạt', ProgressPlatform], ['Kế hoạch so với thực tế', (q: any) => <PlanVsActual {...q} mode="platform" />], ['PPCT các trường', SysCurriculum]]} />
+// Phân hệ 2 (100): đơn vị là trường → màn của trường; Sở / Phòng / KDI → màn của cơ quan quản lý
+const byOrgType = (School: ComponentType<any>, Unit: ComponentType<any>) => (p: any) => p.scopeOrg?.type === 'school' ? <School {...p} /> : <Unit {...p} />
+const PH2_TABS = {
+  edu: scoped('any', 'any', byOrgType(eduProgramTabs('school'), eduProgramTabs('authority'))),
+  ppct: scoped('any', 'any', byOrgType(ppctTabs('school'), ppctTabs('authority'))),
+  library: scoped('any', 'any', LibraryPage), norms: scoped('any', 'any', MaterialNorms),
+  lessons: scoped('any', 'any', byOrgType(SchoolLessons, DeptLessons)), elearning: scoped('any', 'any', ElearningManage),
+}
+const PlatformDistPage = (p: any) => <TabbedPages {...p} tabs={[['Bản phân phối của KDI', DistPage], ['PPCT theo đơn vị', PH2_TABS.ppct]]} />
+const PlatformLibraryPage = (p: any) => <TabbedPages {...p} tabs={[['Học liệu của KDI', LibraryPage], ['Học liệu theo đơn vị', PH2_TABS.library], ['Định mức vật tư theo đơn vị', PH2_TABS.norms]]} />
+const PlatformElearningPage = (p: any) => <TabbedPages {...p} tabs={[['Toàn hệ thống', ElearningManage], ['Theo đơn vị', PH2_TABS.elearning]]} />
 function PlatformEduProgramsPage(p: any) {
   const [track, setTrack] = useState(false)
   return <>
@@ -198,12 +208,12 @@ function PlatformEduProgramsPage(p: any) {
       <button className={track ? '' : 'primary'} onClick={() => setTrack(!track)}>{track ? '← Chương trình giáo dục' : 'Theo dõi Chương trình/Môn học'}</button>
     </div>
     {track ? <><h2 className="pagesub">Theo dõi Chương trình/Môn học</h2><PlatformProgramTrack {...p} /></>
-      : <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Môn học', SubjectsPlatform], ['Danh mục', ProgramCatalogs]]} />}
+      : <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Môn học', SubjectsPlatform], ['Danh mục', ProgramCatalogs], ['Theo đơn vị', PH2_TABS.edu]]} />}
   </>
 }
 const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [
   ['Bài giảng KDI', (p: any) => <LibraryManage {...p} only="lesson" />], ['Kho hoạt động', SysActivities],
-  ['Bài giảng các trường', SysSchoolLessons], ['Mẫu giáo án', PlatformLessonTemplates]]
+  ['Bài giảng các trường', SysSchoolLessons], ['Mẫu giáo án', PlatformLessonTemplates], ['Giáo án theo đơn vị', PH2_TABS.lessons]]
 const PlatformLessonsPage = (p: any) => <TabbedPages {...p} tabs={PLATFORM_LESSON_TABS} />
 const PlatformCatalog = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformCatalog })))
 const PlatformOrders = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformOrders })))
@@ -444,7 +454,7 @@ const PLATFORM: PageMap = {
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
   // Tạm thời: "Theo dõi Chương trình/Môn học" mở bằng nút góc trên phải của trang này (không còn là mục menu riêng)
   'Chương trình giáo dục': PlatformEduProgramsPage,
-  'Học liệu': LibraryPage,
+  'Học liệu': PlatformLibraryPage,
   'Theo dõi chương trình CT1–CT5 (Môn học)': PlatformProgramTrack,
   // 3. Vật tư, thiết bị dạy & học
   'Thiết bị & vật tư': EquipmentOverview,
@@ -473,7 +483,7 @@ const PLATFORM: PageMap = {
   'Thuật ngữ chuẩn': TerminologyPage,
   'Ứng dụng di động & ngoại tuyến': MobileAppPage,
   'Trợ lý AI': PlatformAI,
-  'E-learning & luyện thi': ElearningManage,
+  'E-learning & luyện thi': PlatformElearningPage,
   // Màn xem toàn hệ thống (gom dữ liệu mọi trường, lọc theo Sở / trường) — pages/platform/SystemViews.tsx
   'Bảo hành & bảo trì thiết bị': SysWarranty,
   'Tòa nhà, tầng & tiết học': SysBuildings,

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useSharedFilter } from '../components/OrgScope'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
@@ -70,8 +71,8 @@ function useRights(orgId: string | null) {
       const t = (data as { type: string } | null)?.type ?? null
       setOrgType(t)
       if (t !== 'school') return setCanWrite(true)
-      const [a, p] = await Promise.all([supabase.rpc('is_admin'), supabase.rpc('has_perm', { p_module: 'library', p_action: 'edit' })])
-      setCanWrite(!!a.data || !!p.data)
+      const [a, p, q] = await Promise.all([supabase.rpc('is_admin'), supabase.rpc('has_perm', { p_module: 'library', p_action: 'edit' }), supabase.rpc('is_platform_admin')])
+      setCanWrite(!!a.data || !!p.data || !!q.data)
     })
   }, [orgId])
   return { orgType, canWrite, isSchool: orgType === 'school' }
@@ -115,6 +116,7 @@ const ownerName = (n: Norm, orgId: string | null) => (n.org_id === orgId ? 'Đơ
 
 function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: string | null; rights: Rights; onOpen: (id: string) => void; openId: string | null; ver: number; sharedOnly?: boolean }) {
   const [list, setList] = useState<Norm[] | null>(null)
+  const inShared = useSharedFilter()
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [q, setQ] = useState(''); const [subject, setSubject] = useState(''); const [basis, setBasis] = useState(''); const [old, setOld] = useState(false)
   const [form, setForm] = useState<{ title: string; basis: Basis; group_size: string; sessions: string; subject: string; grade: string; program_id: string; unit_id: string } | null>(null)
@@ -123,7 +125,7 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
   async function load() {
     const { data, error } = await selectNorms()
     if (error) setMsg([errText(error.message), true])
-    setList((data as unknown as Norm[]) ?? [])
+    setList(((data as unknown as Norm[]) ?? []).filter(n => inShared(n.org_id)))
   }
   useEffect(() => { load() }, [orgId, ver])
   const all = list ?? []
@@ -147,7 +149,7 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
   }
   async function copy(n: Norm) {
     if (!confirm(`Sao chép định mức "${n.title}" (v${n.version_no}) về đơn vị thành bản nháp để điều chỉnh?`)) return
-    const { data, error } = await supabase.rpc('material_norm_copy', { p_norm: n.id })
+    const { data, error } = await supabase.rpc('material_norm_copy', { p_norm: n.id, p_org: orgId })
     if (error) return setMsg([errText(error.message), true])
     onOpen(data as string)
   }
@@ -299,7 +301,7 @@ function NormDetail({ id, orgId, rights, onOpen, onClose, onChanged }: { id: str
           {mine && rights.canWrite && (n.status === 'published' || n.status === 'superseded') && <button onClick={() => confirm('Lưu trữ định mức này?') && setStatus('archived', 'Đã lưu trữ.')}>Lưu trữ</button>}
           {mine && rights.canWrite && n.status === 'archived' && <button onClick={() => setStatus('draft', 'Đã mở lại thành bản nháp.')}>Mở lại</button>}
           {editable && <button className="danger" onClick={remove}>Xoá</button>}
-          {!mine && n.status === 'published' && rights.canWrite && <button onClick={() => act(supabase.rpc('material_norm_copy', { p_norm: n.id }) as any, 'Đã sao chép về đơn vị.', d => onOpen(d as string))}>Sao chép về đơn vị</button>}
+          {!mine && n.status === 'published' && rights.canWrite && <button onClick={() => act(supabase.rpc('material_norm_copy', { p_norm: n.id, p_org: orgId }) as any, 'Đã sao chép về đơn vị.', d => onOpen(d as string))}>Sao chép về đơn vị</button>}
           {!mine && n.status === 'published' && <button onClick={() => setPropose(!propose)}>Đề xuất điều chỉnh</button>}
         </>}>
       <div className="drawermeta"><Pill s={n.status} /></div>

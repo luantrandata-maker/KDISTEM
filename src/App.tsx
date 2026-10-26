@@ -109,6 +109,8 @@ const TrainingCertificatesPage = lazy(() => import('./pages/training/Certificate
 const CertTemplatesPage = lazy(() => import('./pages/training/Certificates').then(m => ({ default: m.CertTemplatesPage })))
 const TeacherCertificates = lazy(() => import('./pages/training/Certificates').then(m => ({ default: m.TeacherCertificates })))
 const CertVerify = lazy(() => import('./pages/training/Certificates').then(m => ({ default: m.CertVerify })))
+const TeacherTrainingRegister = lazy(() => import('./pages/teacher/TrainingRegister').then(m => ({ default: m.TeacherTrainingRegister })))
+const TrainersPage = lazy(() => import('./pages/training/Trainers').then(m => ({ default: m.TrainersPage })))
 const TeacherTrainingLearn = lazy(() => import('./pages/teacher/TrainingLearn').then(m => ({ default: m.TeacherTrainingLearn })))
 const SchoolTrainingAssigned = lazy(() => import('./pages/training/Plans').then(m => ({ default: m.SchoolTrainingAssigned })))
 // Trường: kế hoạch được cấp trên giao (chọn GV, gửi duyệt) + kế hoạch riêng của trường
@@ -319,6 +321,7 @@ const TEACHER: PageMap = {
   'Thư viện STEM': (p: any) => <TabbedPages {...p} tabs={[['Theo chương trình', LibraryPrograms], ['Kho học liệu', LibraryBrowse]]} />,
   'Định mức vật tư': MaterialNorms,
   'Lịch tập huấn': TeacherTrainingSchedule,
+  'Đăng ký tập huấn': TeacherTrainingRegister,
   'Chứng chỉ tập huấn': TeacherCertificates,
   'Bài giảng tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Khoá tập huấn của tôi', TeacherTrainingLearn], ['Bài giảng của trường', TeacherTrainingLessons]]} />,
   'Hỗ trợ từ KDI': CustomerSupport,
@@ -363,7 +366,7 @@ const DEPARTMENT: PageMap = {
   'Theo dõi Môn học STEM': DeptSubjects,
   'Giám sát Tập huấn GV': (p: any) => <TabbedPages {...p} tabs={[['Theo kế hoạch', TrainingMonitorPage], ['Tổng quan theo trường', DeptTrainingMonitor]]} />,
   'Đánh giá năng lực nhà giáo': AuthorityCompetencyTabs,
-  'Kế hoạch tập huấn': TrainingPlansPage,
+  'Kế hoạch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', TrainingPlansPage], ['Giảng viên', TrainersPage]]} />,
   'Lịch tập huấn': TrainingCalendarPage,
   'Đánh giá kết quả tập huấn': TrainingResultsPage,
   'Chứng chỉ tập huấn': TrainingCertificatesPage,
@@ -424,7 +427,7 @@ const PLATFORM: PageMap = {
   'Tích hợp & dữ liệu': PlatformIntegrations,
   // 1. Đào tạo & đánh giá năng lực nhà giáo — làm lại theo khuôn Phân hệ 2 (kế hoạch: Chương trình → Kế hoạch & lịch → … → Giám sát)
   'Chương trình tập huấn': TrainingProgramsPage,
-  'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', TrainingPlansPage], ['Lịch', TrainingCalendarPage]]} />,
+  'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', TrainingPlansPage], ['Lịch', TrainingCalendarPage], ['Giảng viên', TrainersPage]]} />,
   'Giám sát tập huấn nhà giáo': (p: any) => <TabbedPages {...p} tabs={[['Theo kế hoạch', TrainingMonitorPage], ['Tổng quan theo trường', DeptTrainingMonitor]]} />,
   'Đánh giá kết quả tập huấn': TrainingResultsPage,
   // 2. Chương trình & học liệu

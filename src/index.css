@@ -1753,6 +1753,9 @@ a.namelink:hover{color:var(--primary)}
 .tpunittree label{display:flex;gap:8px;align-items:center;cursor:pointer}.tpunittree fieldset:disabled label{cursor:default}
 .tpunittree small.sub{margin:0;display:inline}
 .tpunit{padding-left:24px}.tpunit span{flex:1;min-width:0}
+.tpcheck{display:flex;gap:8px;align-items:center;flex:1 1 320px}
+.regunit{display:flex;flex-wrap:wrap;gap:4px 10px;align-items:center;padding:4px 0 4px 8px}.regunit>label:first-child{flex:1 1 240px}
+.regunit .regex{flex:0 0 auto;font-size:13px;color:var(--good-fg,var(--muted));background:var(--card);border:1px solid var(--line);border-radius:999px;padding:2px 10px}
 .tpkv{display:grid;grid-template-columns:170px minmax(0,1fr);gap:6px 12px;margin:0}.tpkv dt{color:var(--muted)}.tpkv dd{margin:0}
 .tpsubj{display:grid;gap:8px;border:1px solid var(--line);border-radius:12px;padding:12px}
 .tpsubjname{font-weight:600;flex:1;min-width:200px}

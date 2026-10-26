@@ -1,6 +1,7 @@
 // Soạn giáo án (migration 060): kiểu dữ liệu, nhãn, mẫu giáo án, bản xem trước in được, quản lý mẫu
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { OrgPick, useAllMode } from '../../components/OrgScope'
 import type { Plan, Slide } from '../teacher/Lessons'
 import { MAT_TYPE } from '../library/common'
 import { ACT, type ActKind } from '../teacher/activity'
@@ -174,23 +175,26 @@ const keyOf = (t: string) => t.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(
 
 export function TemplatesManager({ orgId, canWrite, isSchool }: { orgId: string | null; canWrite: boolean; isSchool: boolean }) {
   const [rows, setRows] = useState<Template[]>([])
-  const [form, setForm] = useState<(Omit<Template, 'id' | 'org_id'> & { id?: string }) | null>(null)
+  const [form, setForm] = useState<(Omit<Template, 'id' | 'org_id'> & { id?: string; org_id?: string }) | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  // Quản trị hệ thống: mẫu của mọi đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
+  const every = useAllMode()
   async function load() {
     const { data, error } = await supabase.from('lesson_templates').select('*, owner_name').order('name')
     if (error) return setMsg([errText(error.message), true])
-    setRows(((data as Template[]) ?? []).map(t => ({ ...t, owner_name: t.org_id === orgId ? null : t.owner_name })))
+    setRows(((data as Template[]) ?? []).map(t => ({ ...t, owner_name: t.org_id === orgId && !every ? null : t.owner_name })))
   }
   useEffect(() => { load() }, [orgId])
-  const mine = rows.filter(r => r.org_id === orgId), shared = rows.filter(r => r.org_id !== orgId && r.scope === 'children')
-  const below = rows.filter(r => r.org_id !== orgId && r.scope !== 'children')   // mẫu riêng của trường trực thuộc (cấp trên xem được)
+  const mine = every ? rows : rows.filter(r => r.org_id === orgId), shared = every ? [] : rows.filter(r => r.org_id !== orgId && r.scope === 'children')
+  const below = every ? [] : rows.filter(r => r.org_id !== orgId && r.scope !== 'children')   // mẫu riêng của trường trực thuộc (cấp trên xem được)
 
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!form || !orgId) return
     const clean = <T extends { key: string; title: string }>(xs: T[]) => xs.filter(x => x.title.trim()).map(x => ({ ...x, title: x.title.trim(), key: x.key || keyOf(x.title) }))
-    const row = { name: form.name.trim(), description: form.description?.trim() || null, sections: clean(form.sections), phases: clean(form.phases), scope: isSchool ? 'own' : form.scope, active: form.active }
+    const org = form.org_id || orgId, school = isSchool || every?.find(o => o.id === org)?.type === 'school'
+    const row = { name: form.name.trim(), description: form.description?.trim() || null, sections: clean(form.sections), phases: clean(form.phases), scope: school ? 'own' : form.scope, active: form.active }
     if (!row.name) return setMsg(['Nhập tên mẫu.', true])
-    const r = form.id ? await supabase.from('lesson_templates').update(row).eq('id', form.id) : await supabase.from('lesson_templates').insert({ ...row, org_id: orgId })
+    const r = form.id ? await supabase.from('lesson_templates').update(row).eq('id', form.id) : await supabase.from('lesson_templates').insert({ ...row, org_id: org })
     if (r.error) return setMsg([errText(r.error.message), true])
     setForm(null); setMsg(['Đã lưu mẫu giáo án.', false]); load()
   }
@@ -210,6 +214,7 @@ export function TemplatesManager({ orgId, canWrite, isSchool }: { orgId: string 
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
       {form && (
         <form className="panel formgrid" onSubmit={save} style={{ marginBottom: 12 }}>
+          {!form.id && <OrgPick kind="any" value={form.org_id ?? orgId ?? ''} onChange={v => setForm({ ...form, org_id: v })} />}
           <label className="field"><span>Tên mẫu *</span><input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
           {!isSchool && <label className="field"><span>Phạm vi</span><select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Template['scope'] })}>
             <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
@@ -220,7 +225,7 @@ export function TemplatesManager({ orgId, canWrite, isSchool }: { orgId: string 
           <div className="formactions"><button className="primary" type="submit">Lưu mẫu</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
       )}
-      <TplTable title={`Mẫu của đơn vị (${mine.length})`} rows={mine} actions={canWrite ? [['Sửa', t => setForm({ ...t })], ['Xoá', t => remove(t), true]] : []} />
+      <TplTable title={every ? `Mẫu giáo án các đơn vị (${mine.length})` : `Mẫu của đơn vị (${mine.length})`} rows={mine} actions={canWrite ? [['Sửa', t => setForm({ ...t })], ['Xoá', t => remove(t), true]] : []} />
       {shared.length > 0 && <TplTable title={`Mẫu dùng chung từ KDI / cấp trên (${shared.length})`} rows={shared} actions={canWrite ? [['Sao chép để sửa', copyFrom]] : []} />}
       {below.length > 0 && <TplTable title={`Mẫu riêng của các trường trực thuộc (${below.length})`} rows={below} actions={canWrite ? [['Sao chép để sửa', copyFrom]] : []} />}
     </>

@@ -2,6 +2,7 @@
 // và buổi tập huấn chọn nhiều giảng viên từ danh sách này (TrainerPick). Gõ tên chưa có thì thêm nhanh vào danh sách.
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { OrgFilter, OrgPick, useAllMode, useOrgName } from '../../components/OrgScope'
 import { ElView } from '../../components/ElView'
 import { MultiSelect } from '../../components/MultiSelect'
 import { Chip } from '../dist/Editor'
@@ -15,13 +16,14 @@ const errText = (m: string) => /schema cache|does not exist|relation .*trainers/
 export const trainerName = (t: Pick<Trainer, 'title' | 'full_name'>) => (t.title ? t.title + ' ' : '') + t.full_name
 
 /** Danh sách giảng viên của một đơn vị (đơn vị lập kế hoạch) */
-export function useTrainers(orgId: string | null | undefined) {
+export function useTrainers(orgId: string | null | undefined, everyOrg = false) {
   const [list, setList] = useState<Trainer[] | null>(null)
   const [rk, setRk] = useState(0)
   useEffect(() => {
-    if (!orgId) { setList([]); return }
-    supabase.from('trainers').select(SEL).eq('org_id', orgId).order('full_name').then(({ data }) => setList((data as Trainer[]) ?? []))
-  }, [orgId, rk])
+    if (!orgId && !everyOrg) { setList([]); return }
+    const q = supabase.from('trainers').select(SEL)
+    ;(everyOrg ? q : q.eq('org_id', orgId!)).order('full_name').then(({ data }) => setList((data as Trainer[]) ?? []))
+  }, [orgId, rk, everyOrg])
   return { list, reload: () => setRk(k => k + 1) }
 }
 
@@ -63,7 +65,10 @@ const toRow = (f: Form) => ({ full_name: f.full_name.trim(), title: f.title.trim
   email: f.email.trim() || null, phone: f.phone.trim() || null, note: f.note.trim() || null })
 
 export function TrainersPage({ orgId }: { orgId: string }) {
-  const { list, reload } = useTrainers(orgId)
+  // Quản trị hệ thống: giảng viên của mọi đơn vị trong một danh sách, sửa thẳng
+  const every = useAllMode(), orgName = useOrgName()
+  const [fo, setFo] = useState('')
+  const { list, reload } = useTrainers(orgId, !!every)
   const [can, setCan] = useState(false)
   const [use, setUse] = useState<Map<string, number>>(new Map())
   const [view, setView] = useState<{ kind: 'new' } | { kind: 'edit'; t: Trainer } | null>(null)
@@ -75,8 +80,8 @@ export function TrainersPage({ orgId }: { orgId: string }) {
   useEffect(() => {
     (async () => {
       const [i, s] = await Promise.all([
-        supabase.from('training_plan_items').select('trainer_ids, training_plans!inner(org_id)').eq('training_plans.org_id', orgId),
-        supabase.from('training_sessions').select('trainer_ids').eq('org_id', orgId),
+        every ? supabase.from('training_plan_items').select('trainer_ids') : supabase.from('training_plan_items').select('trainer_ids, training_plans!inner(org_id)').eq('training_plans.org_id', orgId),
+        every ? supabase.from('training_sessions').select('trainer_ids') : supabase.from('training_sessions').select('trainer_ids').eq('org_id', orgId),
       ])
       const m = new Map<string, number>()
       for (const r of [...(i.data ?? []), ...(s.data ?? [])] as { trainer_ids: string[] | null }[]) for (const id of r.trainer_ids ?? []) m.set(id, (m.get(id) ?? 0) + 1)
@@ -88,7 +93,7 @@ export function TrainersPage({ orgId }: { orgId: string }) {
     onDone={m => { setView(null); setMsg([m, false]); reload() }} />
 
   const all = list ?? []
-  const shown = all.filter(t => (!fs || (fs === 'active') === t.active)
+  const shown = all.filter(t => (!fs || (fs === 'active') === t.active) && (!fo || t.org_id === fo)
     && (!q || `${t.full_name} ${t.title ?? ''} ${t.workplace ?? ''} ${t.expertise ?? ''}`.toLowerCase().includes(q.toLowerCase())))
   async function toggle(t: Trainer) {
     const { error } = await supabase.from('trainers').update({ active: !t.active }).eq('id', t.id)
@@ -110,6 +115,7 @@ export function TrainersPage({ orgId }: { orgId: string }) {
     </div>
     <div className="bar">
       <div className="tools"><input placeholder="Tìm họ tên, đơn vị công tác, chuyên môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giảng viên" />
+        <OrgFilter ids={all.map(t => t.org_id)} value={fo} onChange={setFo} />
         <small className="sub">{shown.length}/{all.length} giảng viên</small></div>
       {can && <div className="tools"><button type="button" className="primary" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>Thêm giảng viên</button></div>}
     </div>
@@ -118,7 +124,7 @@ export function TrainersPage({ orgId }: { orgId: string }) {
       <thead><tr><th>Giảng viên</th><th>Đơn vị công tác</th><th>Chuyên môn</th><th>Liên hệ</th><th style={{ width: 90 }}>Phân công</th><th>Trạng thái</th>{can && <th></th>}</tr></thead>
       <tbody>{shown.map(t => <tr key={t.id}>
         <td>{can ? <button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'edit', t }) }}>{trainerName(t)}</button> : <b>{trainerName(t)}</b>}
-          {t.note && <><br /><small className="sub">{t.note}</small></>}</td>
+          {(every || t.note) && <><br /><small className="sub">{[every && 'Danh sách của ' + orgName(t.org_id), t.note].filter(Boolean).join(' · ')}</small></>}</td>
         <td>{t.workplace || '—'}</td>
         <td style={{ whiteSpace: 'normal' }}>{t.expertise || '—'}</td>
         <td>{[t.phone, t.email].filter(Boolean).join(' · ') || '—'}</td>
@@ -134,18 +140,20 @@ export function TrainersPage({ orgId }: { orgId: string }) {
 
 function TrainerForm({ orgId, t, onBack, onDone }: { orgId: string; t: Trainer | null; onBack: () => void; onDone: (m: string) => void }) {
   const [f, setF] = useState<Form>(t ? { full_name: t.full_name, title: t.title ?? '', workplace: t.workplace ?? '', expertise: t.expertise ?? '', email: t.email ?? '', phone: t.phone ?? '', note: t.note ?? '' } : BLANK)
+  const [org, setOrg] = useState(orgId)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const set = (k: keyof Form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value })
   async function save(e: React.FormEvent) {
     e.preventDefault(); setBusy(true); setErr('')
-    const { error } = t ? await supabase.from('trainers').update(toRow(f)).eq('id', t.id) : await supabase.from('trainers').insert({ ...toRow(f), org_id: orgId })
+    const { error } = t ? await supabase.from('trainers').update(toRow(f)).eq('id', t.id) : await supabase.from('trainers').insert({ ...toRow(f), org_id: org })
     setBusy(false)
     if (error) return setErr(errText(error.message))
     onDone(t ? 'Đã lưu giảng viên. Tên ở kế hoạch và lịch đã cập nhật theo.' : `Đã thêm giảng viên ${f.full_name.trim()}.`)
   }
   return <ElView back="Giảng viên" onBack={onBack} title={t ? trainerName(t) : 'Thêm giảng viên'} sub="Thông tin dùng khi chọn giảng viên cho kế hoạch và buổi tập huấn.">
     <form className="panel" onSubmit={save} style={{ display: 'grid', gap: 12 }}>
+      {!t && <OrgPick kind="unit" value={org} onChange={setOrg} title="Thuộc danh sách giảng viên của" />}
       <div className="formgrid">
         <label className="field"><span>Họ tên *</span><input required maxLength={120} value={f.full_name} onChange={set('full_name')} placeholder="VD: Nguyễn Văn An" /></label>
         <label className="field"><span>Học hàm, học vị</span><input maxLength={40} value={f.title} onChange={set('title')} placeholder="VD: TS., ThS." list="trainer-titles" />
@@ -157,7 +165,7 @@ function TrainerForm({ orgId, t, onBack, onDone }: { orgId: string; t: Trainer |
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Ghi chú</span><textarea rows={2} maxLength={500} value={f.note} onChange={set('note')} /></label>
       </div>
       {err && <p className="msg">{err}</p>}
-      <div className="formactions"><button type="submit" className="primary" disabled={busy || !f.full_name.trim()}>{t ? 'Lưu' : 'Thêm giảng viên'}</button> <button type="button" onClick={onBack}>Huỷ</button></div>
+      <div className="formactions"><button type="submit" className="primary" disabled={busy || !org || !f.full_name.trim()}>{t ? 'Lưu' : 'Thêm giảng viên'}</button> <button type="button" onClick={onBack}>Huỷ</button></div>
     </form>
   </ElView>
 }

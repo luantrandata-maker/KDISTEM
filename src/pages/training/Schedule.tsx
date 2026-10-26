@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import { supabase } from '../../lib/supabase'
+import { OrgFilter, useAllMode, useOrgName } from '../../components/OrgScope'
 import { ElView } from '../../components/ElView'
 import { TrainerPick } from './Trainers'
 import { Chip } from '../dist/Editor'
@@ -62,10 +63,14 @@ export function TrainingCalendarPage({ orgId }: { orgId: string }) {
   const [anchor, setAnchor] = useState(() => new Date())
   const [open, setOpen] = useState<{ kind: 'auto' } | { kind: 'new' } | { kind: 'sess'; id: string } | null>(null)
   const reload = () => setRk(k => k + 1)
+  // Quản trị hệ thống: lịch của mọi đơn vị trong một danh sách, sửa thẳng
+  const all = useAllMode(), orgName = useOrgName()
+  const [fo, setFo] = useState('')
   useEffect(() => { supabase.rpc('training_can_write', { p_org: orgId }).then(({ data }) => setCan(!!data)) }, [orgId])
   useEffect(() => {
     (async () => {
-      const p = await supabase.from('training_plans').select('id, org_id, plan_code, name, mode, pub_status').eq('org_id', orgId).neq('pub_status', 'draft').order('plan_code', { ascending: false })
+      const pq = supabase.from('training_plans').select('id, org_id, plan_code, name, mode, pub_status')
+      const p = await (all ? pq : pq.eq('org_id', orgId)).neq('pub_status', 'draft').order('plan_code', { ascending: false })
       if (p.error) { setMsg([errText(p.error.message), true]); setPlans([]); return }
       const ps = (p.data as Plan[]) ?? []
       const s = ps.length ? await supabase.from('training_sessions').select(SSEL).in('plan_id', ps.map(x => x.id)).order('starts_at') : { data: [] }
@@ -77,7 +82,7 @@ export function TrainingCalendarPage({ orgId }: { orgId: string }) {
 
   const now = Date.now()
   const pl = (id: string) => plans?.find(p => p.id === id)
-  const base = rows.filter(s => !plan || s.plan_id === plan)
+  const base = rows.filter(s => (!plan || s.plan_id === plan) && (!fo || pl(s.plan_id)?.org_id === fo))
   const shown = base.filter(s => !fs || sessSt(s, now) === fs)
   const n = (k: St) => base.filter(s => sessSt(s, now) === k).length
   const pend = att.filter(a => a.excuse_status === 'pending' && base.some(s => s.id === a.session_id)).length
@@ -118,7 +123,8 @@ export function TrainingCalendarPage({ orgId }: { orgId: string }) {
     <div className="bar">
       <div className="tools">
         <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Kế hoạch"><option value="">Mọi kế hoạch</option>
-          {(plans ?? []).map(p => <option key={p.id} value={p.id}>{p.plan_code} · {p.name}</option>)}</select>
+          {(plans ?? []).filter(p => !fo || p.org_id === fo).map(p => <option key={p.id} value={p.id}>{p.plan_code} · {p.name}</option>)}</select>
+        <OrgFilter ids={(plans ?? []).map(p => p.org_id)} value={fo} onChange={v => { setFo(v); setPlan('') }} />
         <div className="segmented" style={{ margin: 0 }}>{([['list', 'Danh sách'], ['week', 'Tuần'], ['month', 'Tháng']] as const).map(([k, l]) =>
           <button key={k} type="button" className={view === k ? 'on' : ''} onClick={() => setView(k)}>{l}</button>)}</div>
       </div>
@@ -131,7 +137,7 @@ export function TrainingCalendarPage({ orgId }: { orgId: string }) {
       <thead><tr><th>Buổi tập huấn</th><th>Thời gian</th><th>Hình thức</th><th>Giảng viên</th><th>Điểm danh</th><th>Trạng thái</th></tr></thead>
       <tbody>{shown.map(s => { const st = sessSt(s, now), i = info(s.id), p = pl(s.plan_id)
         return <tr key={s.id}>
-          <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen({ kind: 'sess', id: s.id }) }}>{s.title}</button><br /><small className="sub">{p?.plan_code} · {p?.name}</small></td>
+          <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen({ kind: 'sess', id: s.id }) }}>{s.title}</button><br /><small className="sub">{[all && orgName(p?.org_id), p?.plan_code, p?.name].filter(Boolean).join(' · ')}</small></td>
           <td>{dd(s.starts_at)}<br /><small className="sub">{hm(s.starts_at)}–{hm(s.ends_at)}</small></td>
           <td>{MODE[s.mode]}{s.mode === 'offline' ? s.location && <><br /><small className="sub">{s.location}</small></> : !s.meeting_url ? <><br /><small className="warnline">Chưa có link họp</small></> : s.recording_url ? <><br /><small className="sub">▶ Có bản ghi</small></> : null}</td>
           <td>{s.trainer || '—'}</td>
@@ -268,7 +274,7 @@ function SessionForm({ orgId, plans, initial, onBack, onDone }: { orgId: string;
   async function save() {
     const b = badInfo(f); if (b) return setErr(b)
     setBusy(true); setErr('')
-    const { data, error } = await supabase.from('training_sessions').insert({ ...toRow(f), org_id: orgId }).select('id').single()
+    const { data, error } = await supabase.from('training_sessions').insert({ ...toRow(f), org_id: plans.find(p => p.id === f.plan_id)?.org_id ?? orgId }).select('id').single()
     setBusy(false)
     if (error) return setErr(errText(error.message))
     onDone((data as { id: string }).id)

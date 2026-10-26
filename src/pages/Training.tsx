@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAllMode } from '../components/OrgScope'
 import { sessionState, STATE_LABEL, fmtDate, fmtTime } from '../lib/time'
 import FormPanel from '../components/FormPanel'
 import { ProgChips } from '../components/Chips'
@@ -122,16 +123,19 @@ export function TrainingSchedule({ onlineOnly = false, orgId }: { onlineOnly?: b
   const [roll, setRoll] = useState<string | null>(null)
   const planOpts = usePlanOptions(); const teachers = useTeachers()
   const { rows: all, att } = useSessionData(version)
+  // Quản trị hệ thống: buổi thuộc đơn vị lập kế hoạch
+  const every = useAllMode()
 
   async function add(v: Record<string, string>) {
     if (new Date(v.ends_at) <= new Date(v.starts_at)) return 'Giờ kết thúc phải sau giờ bắt đầu.'
     const m = onlineOnly ? 'online' : v.mode
-    const { data, error } = await supabase.from('training_sessions').insert({ org_id: orgId, plan_id: v.plan_id, title: v.title, starts_at: new Date(v.starts_at).toISOString(), ends_at: new Date(v.ends_at).toISOString(), mode: m, location: v.location || null, meeting_url: v.meeting_url || null }).select('id').single()
+    const org = every ? ((await supabase.from('training_plans').select('org_id').eq('id', v.plan_id).maybeSingle()).data as { org_id: string } | null)?.org_id ?? orgId : orgId
+    const { data, error } = await supabase.from('training_sessions').insert({ org_id: org, plan_id: v.plan_id, title: v.title, starts_at: new Date(v.starts_at).toISOString(), ends_at: new Date(v.ends_at).toISOString(), mode: m, location: v.location || null, meeting_url: v.meeting_url || null }).select('id').single()
     if (error) return error.message
     const { data: en } = await supabase.from('training_enrollments').select('teacher_id').eq('plan_id', v.plan_id)
     const ids = (en ?? []).length ? (en ?? []).map((x: any) => x.teacher_id) : teachers.map(t => t.id)
     // Từ 085 GV đã ghi danh tự có dòng điểm danh; bỏ qua dòng đã có
-    if (ids.length) await supabase.from('training_attendance').upsert(ids.map((t: string) => ({ org_id: orgId, session_id: data.id, teacher_id: t, present: null })), { onConflict: 'session_id,teacher_id', ignoreDuplicates: true })
+    if (ids.length) await supabase.from('training_attendance').upsert(ids.map((t: string) => ({ org_id: org, session_id: data.id, teacher_id: t, present: null })), { onConflict: 'session_id,teacher_id', ignoreDuplicates: true })
     setAdding(false); setVersion(x => x + 1)
   }
   async function mark(sid: string, tid: string, present: boolean) {
@@ -204,10 +208,13 @@ export function TrainingLessons({ orgId }: { orgId: string }) {
   const [tab, setTab] = useState('all'); const [adding, setAdding] = useState(false)
   const [q, setQ] = useState(''); const [grade, setGrade] = useState(''); const [subject, setSubject] = useState(''); const [prog, setProg] = useState('')
   const planOpts = usePlanOptions()
+  // Quản trị hệ thống: chọn đơn vị của bài giảng ngay trong form
+  const every = useAllMode()
+  const orgOpts = (every ?? []).map(o => ({ value: o.id, label: o.name }))
   const load = () => supabase.from('training_lessons').select('*, training_plans(name, program)').order('created_on', { ascending: false }).then(({ data }) => setRows((data as unknown as Lesson[]) ?? []))
   useEffect(() => { load() }, [])
   async function add(v: Record<string, string>) {
-    const { error } = await supabase.from('training_lessons').insert({ org_id: orgId, plan_id: v.plan_id || null, title: v.title, grades: v.grades || null, subject: v.subject || null, author: v.author || null, status: v.status,
+    const { error } = await supabase.from('training_lessons').insert({ org_id: v.org_id || orgId, plan_id: v.plan_id || null, title: v.title, grades: v.grades || null, subject: v.subject || null, author: v.author || null, status: v.status,
       blocks: Number(v.blocks || 0), materials: Number(v.materials || 0), videos: Number(v.videos || 0), docs: Number(v.docs || 0) })
     if (error) return error.message
     setAdding(false); load()
@@ -224,6 +231,7 @@ export function TrainingLessons({ orgId }: { orgId: string }) {
           <select value={prog} onChange={e => setProg(e.target.value)} aria-label="Chương trình"><option value="">Tất cả CT</option>{PROGRAMS.map(p => <option key={p.value}>{p.value}</option>)}</select>
           <button className="primary" onClick={() => setAdding(true)}>Thêm bài giảng</button></div></div>
       {adding && <FormPanel fields={[
+        ...(every ? [{ key: 'org_id', label: 'Đơn vị', type: 'select' as const, required: true, options: orgOpts }] : []),
         { key: 'title', label: 'Tên bài giảng', required: true }, { key: 'plan_id', label: 'Chương trình tập huấn', type: 'select', options: planOpts },
         { key: 'grades', label: 'Khối (VD: Khối 6, Khối 7)' }, { key: 'subject', label: 'Môn' }, { key: 'author', label: 'Tác giả' },
         { key: 'blocks', label: 'Số khối nội dung', type: 'number' }, { key: 'materials', label: 'Số học liệu', type: 'number' }, { key: 'videos', label: 'Video', type: 'number' }, { key: 'docs', label: 'Tài liệu', type: 'number' },

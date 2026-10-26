@@ -4,6 +4,7 @@
 // TrainingPlansPage: KDI và Sở / Phòng (kế hoạch của đơn vị mình). SchoolTrainingAssigned: trường (kế hoạch được giao).
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { OrgFilter, OrgPick, useAllMode, useOrgName } from '../../components/OrgScope'
 import { ElView } from '../../components/ElView'
 import { Chip, STATUS } from '../dist/Editor'
 import type { Status } from '../dist/sched'
@@ -74,11 +75,15 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   const [fs, setFs] = useState<Status | 'wait' | ''>('')
   const [q, setQ] = useState('')
   const [yr, setYr] = useState('')
+  // Quản trị hệ thống: kế hoạch của mọi đơn vị trong một danh sách, sửa thẳng
+  const all = useAllMode(), orgName = useOrgName()
+  const [fo, setFo] = useState('')
   const reload = () => setRk(k => k + 1)
   useEffect(() => { supabase.rpc('training_can_write', { p_org: orgId }).then(({ data }) => setCan(!!data)) }, [orgId])
   useEffect(() => {
     (async () => {
-      const p = await supabase.from('training_plans').select(SEL).eq('org_id', orgId).order('plan_code', { ascending: false })
+      const base = supabase.from('training_plans').select(SEL)
+      const p = await (all ? base : base.eq('org_id', orgId)).order('plan_code', { ascending: false })
       if (p.error) { setMsg([errText(p.error.message), true]); setList([]); return }
       const ids = ((p.data ?? []) as TPlan[]).map(x => x.id)
       const [i, o] = ids.length ? await Promise.all([
@@ -90,8 +95,8 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   }, [rk, orgId])
 
   const wait = (id: string) => orgs.filter(o => o.plan_id === id && o.status === 'submitted').length
-  const shown = useMemo(() => (list ?? []).filter(p => (!fs || (fs === 'wait' ? wait(p.id) > 0 : p.pub_status === fs)) && (!yr || p.year_name === yr)
-    && (!q || `${p.plan_code ?? ''} ${p.name} ${p.provider ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, orgs, fs, yr, q])
+  const shown = useMemo(() => (list ?? []).filter(p => (!fs || (fs === 'wait' ? wait(p.id) > 0 : p.pub_status === fs)) && (!yr || p.year_name === yr) && (!fo || p.org_id === fo)
+    && (!q || `${p.plan_code ?? ''} ${p.name} ${p.provider ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, orgs, fs, yr, q, fo])
 
   if (view?.kind === 'new') return <PlanForm orgId={orgId} onBack={() => setView(null)} onSaved={id => { reload(); setView({ kind: 'open', id }) }} />
   if (view?.kind === 'open') return <PlanDetail key={view.id} id={view.id} can={can} onBack={() => { setView(null); reload() }} onMsg={m => { setMsg(m); reload() }} />
@@ -124,6 +129,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
         <div className="tools">
           <input placeholder="Tìm mã, tên, đơn vị tập huấn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <select value={yr} onChange={e => setYr(e.target.value)} aria-label="Năm học"><option value="">Mọi năm học</option>{years.map(y => <option key={y} value={y}>{y}</option>)}</select>
+          <OrgFilter ids={(list ?? []).map(p => p.org_id)} value={fo} onChange={setFo} />
           <small className="sub">{shown.length}/{list?.length ?? 0} kế hoạch</small>
         </div>
         {can && <div className="tools"><button type="button" className="primary" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>Lập kế hoạch tập huấn</button></div>}
@@ -133,7 +139,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
         <thead><tr><th>Kế hoạch tập huấn</th><th>Năm học · đợt</th><th>Chương trình</th><th>Trường</th><th>Hình thức</th><th>Trạng thái</th></tr></thead>
         <tbody>{shown.map(p => { const its = items.filter(i => i.plan_id === p.id), os = orgs.filter(o => o.plan_id === p.id), w = wait(p.id)
           return <tr key={p.id}>
-            <td><button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'open', id: p.id }) }}>{p.name}</button><br /><small className="sub">{[p.plan_code, span(p)].filter(Boolean).join(' · ')}</small></td>
+            <td><button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'open', id: p.id }) }}>{p.name}</button><br /><small className="sub">{[all && orgName(p.org_id), p.plan_code, span(p)].filter(Boolean).join(' · ')}</small></td>
             <td>{[p.year_name, p.term && TERM[p.term]].filter(Boolean).join(' · ') || '—'}</td>
             <td style={{ whiteSpace: 'normal' }}>{its.length ? its.sort((a, b) => a.seq - b.seq).map(i => i.training_programs?.title).join('; ') : <small className="sub">{p.pub_status === 'draft' ? 'Chưa chọn' : 'Kế hoạch cũ'}</small>}
               {p.hours ? <><br /><small className="sub">{p.hours} giờ</small></> : null}</td>
@@ -175,21 +181,23 @@ function InfoFields({ f, set }: { f: Info; set: (f: Info) => void }) {
 
 function PlanForm({ orgId, onBack, onSaved }: { orgId: string; onBack: () => void; onSaved: (id: string) => void }) {
   const [f, setF] = useState<Info>({ ...BLANK, year_name: yearOptions()[1] })
+  const [org, setOrg] = useState(orgId)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (badDates(f)) return
     setBusy(true); setErr('')
-    const { data, error } = await supabase.from('training_plans').insert({ ...toRow(f), org_id: orgId, pub_status: 'draft', status: 'planned' }).select('id').single()
+    const { data, error } = await supabase.from('training_plans').insert({ ...toRow(f), org_id: org, pub_status: 'draft', status: 'planned' }).select('id').single()
     setBusy(false)
     if (error) return setErr(errText(error.message))
     onSaved((data as { id: string }).id)
   }
   return <ElView back="Kế hoạch tập huấn" onBack={onBack} title="Lập kế hoạch tập huấn" sub="Lưu xong thì chọn các chương trình tập huấn, rồi phát hành và gán trường.">
     <form className="panel" onSubmit={save} style={{ display: 'grid', gap: 12 }}>
+      <OrgPick kind="unit" value={org} onChange={setOrg} title="Đơn vị lập kế hoạch" />
       <InfoFields f={f} set={setF} />
       {err && <p className="msg">{err}</p>}
-      <div className="formactions"><button type="submit" className="primary" disabled={busy || !f.name.trim() || badDates(f)}>Tạo bản nháp</button> <button type="button" onClick={onBack}>Huỷ</button></div>
+      <div className="formactions"><button type="submit" className="primary" disabled={busy || !org || !f.name.trim() || badDates(f)}>Tạo bản nháp</button> <button type="button" onClick={onBack}>Huỷ</button></div>
     </form>
   </ElView>
 }
@@ -505,29 +513,36 @@ type Assigned = POrg & { training_plans: TPlan | null }
 export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
   const [rows, setRows] = useState<Assigned[] | null>(null)
   const [items, setItems] = useState<Item[]>([])
-  const [enr, setEnr] = useState<{ plan_id: string; teacher_id: string }[]>([])
-  const [pend, setPend] = useState<{ plan_id: string }[]>([])
+  const [enr, setEnr] = useState<{ plan_id: string; teacher_id: string; teachers: { org_id: string } | null }[]>([])
+  const [pend, setPend] = useState<{ plan_id: string; org_id: string }[]>([])
   const [open, setOpen] = useState<string | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [rk, setRk] = useState(0)
+  // Quản trị hệ thống: kế hoạch giao cho mọi trường trong một danh sách; mở một dòng để chọn GV, gửi duyệt thay trường
+  const all = useAllMode(), orgName = useOrgName()
+  const [fo, setFo] = useState('')
+  const key = (r: { plan_id: string; org_id: string }) => r.plan_id + ':' + r.org_id
   useEffect(() => {
     (async () => {
-      const a = await supabase.from('training_plan_orgs').select(`plan_id, org_id, quota, status, note, submitted_at, decided_at, training_plans(${SEL})`).eq('org_id', orgId)
+      const base = supabase.from('training_plan_orgs').select(`plan_id, org_id, quota, status, note, submitted_at, decided_at, training_plans(${SEL})`)
+      const a = await (all ? base : base.eq('org_id', orgId))
       if (a.error) { setMsg([errText(a.error.message), true]); setRows([]); return }
       const r = ((a.data ?? []) as unknown as Assigned[]).filter(x => x.training_plans)
-      const ids = r.map(x => x.plan_id)
+      const ids = [...new Set(r.map(x => x.plan_id))]
+      const enrQ = supabase.from('training_enrollments').select('plan_id, teacher_id, teachers!inner(org_id)').in('plan_id', ids)
+      const regQ = supabase.from('training_registrations').select('plan_id, org_id').in('plan_id', ids).eq('status', 'pending')
       const [i, e, g] = ids.length ? await Promise.all([
         supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, trainer_ids, note, units, training_programs(code, title, ct_code)').in('plan_id', ids),
-        supabase.from('training_enrollments').select('plan_id, teacher_id, teachers!inner(org_id)').in('plan_id', ids).eq('teachers.org_id', orgId),
-        supabase.from('training_registrations').select('plan_id').in('plan_id', ids).eq('org_id', orgId).eq('status', 'pending'),
+        all ? enrQ : enrQ.eq('teachers.org_id', orgId),
+        all ? regQ : regQ.eq('org_id', orgId),
       ]) : [{ data: [] }, { data: [] }, { data: [] }]
       setRows(r.sort((x, y) => (y.training_plans!.year_name ?? '').localeCompare(x.training_plans!.year_name ?? '') || (x.training_plans!.plan_code ?? '').localeCompare(y.training_plans!.plan_code ?? '')))
-      setItems((i.data as unknown as Item[]) ?? []); setEnr((e.data as unknown as { plan_id: string; teacher_id: string }[]) ?? []); setPend((g.data as { plan_id: string }[]) ?? [])
+      setItems((i.data as unknown as Item[]) ?? []); setEnr((e.data as unknown as typeof enr) ?? []); setPend((g.data as typeof pend) ?? [])
     })()
   }, [rk, orgId])
   const [fs, setFs] = useState<'' | 'todo' | 'sent'>('')
-  const cur = open ? rows?.find(r => r.plan_id === open) : undefined
-  if (cur) return <SchoolPlanTeachers row={cur} orgId={orgId} items={items.filter(i => i.plan_id === cur.plan_id)} onBack={() => { setOpen(null); setRk(k => k + 1) }}
+  const cur = open ? rows?.find(r => key(r) === open) : undefined
+  if (cur) return <SchoolPlanTeachers row={cur} orgId={cur.org_id} items={items.filter(i => i.plan_id === cur.plan_id)} onBack={() => { setOpen(null); setRk(k => k + 1) }}
     onMsg={m => { setMsg(m); setOpen(null); setRk(k => k + 1) }} />
   const n = (s: OrgSt) => (rows ?? []).filter(r => r.status === s).length
   return <>
@@ -542,19 +557,23 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
       <div className="panel"><i aria-hidden="true" className={n('assigned') + n('returned') ? 'warn' : 'good'}>!</i><span><b>{n('assigned') + n('returned')}</b><small>Cần chọn giáo viên</small><small>{n('returned')} bị trả lại</small></span></div>
       <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{n('approved')}</b><small>Đã duyệt</small><small>{n('submitted')} chờ duyệt</small></span></div>
     </div>
+    {all && <div className="bar"><div className="tools"><OrgFilter ids={(rows ?? []).map(r => r.org_id)} value={fo} onChange={setFo} /></div></div>}
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-      <thead><tr><th>Kế hoạch tập huấn</th><th>Năm học · đợt</th><th>Chương trình</th><th>Giáo viên / chỉ tiêu</th><th>Trạng thái</th></tr></thead>
-      <tbody>{rows.filter(r => !fs || (fs === 'todo' ? r.status === 'assigned' || r.status === 'returned' : r.status === 'submitted' || r.status === 'approved')).map(r => { const p = r.training_plans!, its = items.filter(i => i.plan_id === r.plan_id).sort((a, b) => a.seq - b.seq), c = enr.filter(e => e.plan_id === r.plan_id).length
-        return <tr key={r.plan_id}>
-          <td><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen(r.plan_id) }}>{p.name}</button><br /><small className="sub">{[p.plan_code, span(p), p.provider].filter(Boolean).join(' · ')}</small></td>
+      <thead><tr><th>Kế hoạch tập huấn</th>{all && <th>Trường</th>}<th>Năm học · đợt</th><th>Chương trình</th><th>Giáo viên / chỉ tiêu</th><th>Trạng thái</th></tr></thead>
+      <tbody>{rows.filter(r => (!fs || (fs === 'todo' ? r.status === 'assigned' || r.status === 'returned' : r.status === 'submitted' || r.status === 'approved')) && (!fo || r.org_id === fo)).map(r => {
+        const p = r.training_plans!, its = items.filter(i => i.plan_id === r.plan_id).sort((a, b) => a.seq - b.seq), c = enr.filter(e => e.plan_id === r.plan_id && e.teachers?.org_id === r.org_id).length
+        const pd = pend.filter(x => x.plan_id === r.plan_id && x.org_id === r.org_id).length
+        return <tr key={key(r)}>
+          <td><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen(key(r)) }}>{p.name}</button><br /><small className="sub">{[p.plan_code, span(p), p.provider].filter(Boolean).join(' · ')}</small></td>
+          {all && <td>{orgName(r.org_id)}</td>}
           <td>{[p.year_name, p.term && TERM[p.term]].filter(Boolean).join(' · ') || '—'}</td>
           <td style={{ whiteSpace: 'normal' }}>{its.map(i => i.training_programs?.title).join('; ') || '—'}</td>
-          <td>{c}{r.quota != null && ` / ${r.quota}`} GV{pend.some(x => x.plan_id === r.plan_id) && <><br /><Chip tone="warn">{pend.filter(x => x.plan_id === r.plan_id).length} GV đăng ký chờ xét</Chip></>}
-            {p.self_register && !pend.some(x => x.plan_id === r.plan_id) && <><br /><small className="sub">Mở tự đăng ký{p.register_until ? ` đến ${day(p.register_until)}` : ''}</small></>}</td>
+          <td>{c}{r.quota != null && ` / ${r.quota}`} GV{pd > 0 && <><br /><Chip tone="warn">{pd} GV đăng ký chờ xét</Chip></>}
+            {p.self_register && !pd && <><br /><small className="sub">Mở tự đăng ký{p.register_until ? ` đến ${day(p.register_until)}` : ''}</small></>}</td>
           <td><Chip tone={ORG_ST[r.status][1]}>{ORG_ST[r.status][0]}</Chip>{r.status === 'returned' && r.note && <><br /><small className="sub">Lý do: {r.note}</small></>}</td>
         </tr> })}
-        {!rows.length && <tr><td colSpan={5}>Chưa có kế hoạch tập huấn nào được giao cho trường.</td></tr>}</tbody>
+        {!rows.length && <tr><td colSpan={all ? 6 : 5}>Chưa có kế hoạch tập huấn nào được giao cho trường.</td></tr>}</tbody>
     </table></div>}
   </>
 }

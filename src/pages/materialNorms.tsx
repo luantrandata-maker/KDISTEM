@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { OrgPick, useAllMode } from '../components/OrgScope'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
@@ -70,8 +71,8 @@ function useRights(orgId: string | null) {
       const t = (data as { type: string } | null)?.type ?? null
       setOrgType(t)
       if (t !== 'school') return setCanWrite(true)
-      const [a, p] = await Promise.all([supabase.rpc('is_admin'), supabase.rpc('has_perm', { p_module: 'library', p_action: 'edit' })])
-      setCanWrite(!!a.data || !!p.data)
+      const [a, p, q] = await Promise.all([supabase.rpc('is_admin'), supabase.rpc('has_perm', { p_module: 'library', p_action: 'edit' }), supabase.rpc('is_platform_admin')])
+      setCanWrite(!!a.data || !!p.data || !!q.data)
     })
   }, [orgId])
   return { orgType, canWrite, isSchool: orgType === 'school' }
@@ -117,7 +118,9 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
   const [list, setList] = useState<Norm[] | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [q, setQ] = useState(''); const [subject, setSubject] = useState(''); const [basis, setBasis] = useState(''); const [old, setOld] = useState(false)
-  const [form, setForm] = useState<{ title: string; basis: Basis; group_size: string; sessions: string; subject: string; grade: string; program_id: string; unit_id: string } | null>(null)
+  const [form, setForm] = useState<{ title: string; basis: Basis; group_size: string; sessions: string; subject: string; grade: string; program_id: string; unit_id: string; org?: string } | null>(null)
+  // Quản trị hệ thống: định mức của mọi đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
+  const every = useAllMode()
   const { programs, units } = useProgramOptions(orgId)
 
   async function load() {
@@ -130,15 +133,15 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
   const subjects = useMemo(() => [...new Set(all.map(n => n.subject).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi')), [list])
   const shown = all.filter(n => (old || !['superseded', 'archived'].includes(n.status)) && (!subject || n.subject === subject) && (!basis || n.basis === basis)
     && (!q || norm([n.title, n.subject, n.edu_programs?.title, n.edu_program_units?.title].join(' ')).includes(norm(q))))
-  const own = shown.filter(n => n.org_id === orgId)
-  const shared = shown.filter(n => n.org_id !== orgId)
+  const own = every ? shown : shown.filter(n => n.org_id === orgId)
+  const shared = every ? [] : shown.filter(n => n.org_id !== orgId)
 
   async function create(e: React.FormEvent) {
     e.preventDefault(); if (!form || !orgId) return
     const row = {
-      org_id: orgId, title: form.title.trim(), basis: form.basis, group_size: Number(form.group_size) || 4, sessions: Number(form.sessions) || 1,
+      org_id: form.org || orgId, title: form.title.trim(), basis: form.basis, group_size: Number(form.group_size) || 4, sessions: Number(form.sessions) || 1,
       subject: form.subject.trim() || null, grade: Number(form.grade) || null, program_id: form.program_id || null,
-      unit_id: form.program_id && form.unit_id ? form.unit_id : null, scope: rights.isSchool ? 'own' : 'children',
+      unit_id: form.program_id && form.unit_id ? form.unit_id : null, scope: rights.isSchool || every?.find(o => o.id === form.org)?.type === 'school' ? 'own' : 'children',
     }
     if (!row.title) return setMsg(['Nhập tên định mức.', true])
     const { data, error } = await supabase.from('material_norms').insert(row).select('id').single()
@@ -147,7 +150,7 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
   }
   async function copy(n: Norm) {
     if (!confirm(`Sao chép định mức "${n.title}" (v${n.version_no}) về đơn vị thành bản nháp để điều chỉnh?`)) return
-    const { data, error } = await supabase.rpc('material_norm_copy', { p_norm: n.id })
+    const { data, error } = await supabase.rpc('material_norm_copy', { p_norm: n.id, p_org: orgId })
     if (error) return setMsg([errText(error.message), true])
     onOpen(data as string)
   }
@@ -158,7 +161,7 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
       <thead><tr><th>Định mức</th><th>Tính cho</th><th>Số vật tư</th><th>Gắn với</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
       <tbody>{rows.map(n => (
         <tr key={n.id} className={'rowlink' + (openId === n.id ? ' on' : '')} onClick={() => onOpen(n.id)} tabIndex={0} onKeyDown={e => { if (e.key === 'Enter') onOpen(n.id) }}>
-          <td><b>{n.title}</b> <small className="sub">v{n.version_no}</small><div className="sub" style={{ fontSize: 12 }}>{[n.subject, n.grade && `Khối ${n.grade}`, !mine && ownerName(n, orgId)].filter(Boolean).join(' · ') || '—'}</div></td>
+          <td><b>{n.title}</b> <small className="sub">v{n.version_no}</small><div className="sub" style={{ fontSize: 12 }}>{[n.subject, n.grade && `Khối ${n.grade}`, (!mine || every) && ownerName(n, orgId)].filter(Boolean).join(' · ') || '—'}</div></td>
           <td>{BASIS[n.basis]}{n.basis === 'group' && <small className="sub"> ({n.group_size} HS)</small>}<div className="sub" style={{ fontSize: 12 }}>{n.sessions} buổi</div></td>
           <td>{n.material_norm_items?.[0]?.count ?? '—'}</td>
           <td><small>{n.edu_programs ? `${n.edu_programs.title}${n.edu_program_units ? ' › ' + n.edu_program_units.title : ''}` : ''}{n.library_items ? <>{n.edu_programs ? <br /> : null}Bài: {n.library_items.title}</> : null}{!n.edu_programs && !n.library_items ? '—' : null}</small></td>
@@ -185,6 +188,7 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
           actions={<><button type="button" className="primary" onClick={() => create(NOEV)}>Tạo bản nháp</button><button type="button" onClick={() => setForm(null)}>Huỷ</button></>}>
         {msg && msg[1] && <p className="msg">{msg[0]}</p>}
         <form className="formgrid" onSubmit={create}>
+          <OrgPick kind="any" value={form.org ?? orgId ?? ''} onChange={v => setForm({ ...form, org: v })} />
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Tên định mức *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Robot dò line — lắp ráp" /></label>
           <label className="field"><span>Tính cho</span><select value={form.basis} onChange={e => setForm({ ...form, basis: e.target.value as Basis })}>{(Object.keys(BASIS) as Basis[]).map(b => <option key={b} value={b}>{BASIS[b]}</option>)}</select></label>
           {form.basis === 'group' && <label className="field"><span>Số HS mỗi nhóm</span><input type="number" min={1} max={20} value={form.group_size} onChange={e => setForm({ ...form, group_size: e.target.value })} /></label>}
@@ -199,10 +203,10 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
         </Drawer>
       )}
       {!list ? <p className="sub">Đang tải…</p> : <>
-        {!sharedOnly && <><h3>Của đơn vị ({own.length})</h3>
+        {!sharedOnly && <><h3>{every ? 'Mọi đơn vị' : 'Của đơn vị'} ({own.length})</h3>
         {own.length ? table(own, true) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có định mức nào của đơn vị.{rights.canWrite ? ' Bấm “Thêm định mức” hoặc sao chép định mức dùng chung bên dưới.' : ''}</p></div>}</>}
-        <h3>Dùng chung từ KDI / cấp trên ({shared.length})</h3>
-        {shared.length ? table(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có định mức dùng chung.</p></div>}
+        {!every && <><h3>Dùng chung từ KDI / cấp trên ({shared.length})</h3>
+        {shared.length ? table(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có định mức dùng chung.</p></div>}</>}
       </>}
     </>
   )
@@ -238,9 +242,10 @@ function NormDetail({ id, orgId, rights, onOpen, onClose, onChanged }: { id: str
     supabase.from('material_catalog').select('*').eq('active', true).order('kind').order('name').then(({ data }) => setCat((data as Cat[]) ?? []))
     supabase.from('library_items').select('id, title').in('kind', ['material', 'lesson']).order('title').then(({ data }) => setLibs((data as LibOpt[]) ?? []))
   }, [orgId])
+  const every = useAllMode()
   if (!n) return <Drawer wide title="Định mức vật tư" onClose={onClose}>{msg ? <p className="msg">{msg[0]}</p> : <p className="sub">Đang tải…</p>}</Drawer>
 
-  const mine = n.org_id === orgId
+  const mine = n.org_id === orgId || !!every
   const editable = mine && rights.canWrite && n.status === 'draft'
   const say = (m: string, err = false) => setMsg([m, err])
 
@@ -299,7 +304,7 @@ function NormDetail({ id, orgId, rights, onOpen, onClose, onChanged }: { id: str
           {mine && rights.canWrite && (n.status === 'published' || n.status === 'superseded') && <button onClick={() => confirm('Lưu trữ định mức này?') && setStatus('archived', 'Đã lưu trữ.')}>Lưu trữ</button>}
           {mine && rights.canWrite && n.status === 'archived' && <button onClick={() => setStatus('draft', 'Đã mở lại thành bản nháp.')}>Mở lại</button>}
           {editable && <button className="danger" onClick={remove}>Xoá</button>}
-          {!mine && n.status === 'published' && rights.canWrite && <button onClick={() => act(supabase.rpc('material_norm_copy', { p_norm: n.id }) as any, 'Đã sao chép về đơn vị.', d => onOpen(d as string))}>Sao chép về đơn vị</button>}
+          {!mine && n.status === 'published' && rights.canWrite && <button onClick={() => act(supabase.rpc('material_norm_copy', { p_norm: n.id, p_org: orgId }) as any, 'Đã sao chép về đơn vị.', d => onOpen(d as string))}>Sao chép về đơn vị</button>}
           {!mine && n.status === 'published' && <button onClick={() => setPropose(!propose)}>Đề xuất điều chỉnh</button>}
         </>}>
       <div className="drawermeta"><Pill s={n.status} /></div>
@@ -517,6 +522,7 @@ function CatalogTab({ orgId, rights }: { orgId: string | null; rights: Rights })
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [kind, setKind] = useState(''); const [src, setSrc] = useState(''); const [q, setQ] = useState('')
   const [form, setForm] = useState<Partial<Cat> & { price?: string } | null>(null)
+  const every = useAllMode()
   async function load() {
     let r = await supabase.from('material_catalog').select('*, owner_name, organizations(name)').order('kind').order('name')
     if (r.error && /relationship/i.test(r.error.message)) r = await supabase.from('material_catalog').select('*').order('kind').order('name')
@@ -537,7 +543,7 @@ function CatalogTab({ orgId, rights }: { orgId: string | null; rights: Rights })
       ...(rights.isSchool ? { scope: 'own' } : { scope: form.scope ?? 'children' }),
     }
     if (!row.name) return setMsg(['Nhập tên vật tư.', true])
-    const r = form.id ? await supabase.from('material_catalog').update(row).eq('id', form.id) : await supabase.from('material_catalog').insert({ ...row, org_id: orgId })
+    const r = form.id ? await supabase.from('material_catalog').update(row).eq('id', form.id) : await supabase.from('material_catalog').insert({ ...row, org_id: form.org_id || orgId })
     if (r.error) return setMsg([/duplicate|unique/i.test(r.error.message) ? 'Mã vật tư đã có trong danh mục.' : errText(r.error.message), true])
     setForm(null); setMsg(['Đã lưu.', false]); load()
   }
@@ -573,6 +579,7 @@ function CatalogTab({ orgId, rights }: { orgId: string | null; rights: Rights })
       {msg && <p className={msg[1] ? 'msg' : 'sub'}>{msg[0]}</p>}
       {form && (
         <form className="panel formgrid" onSubmit={save} style={{ marginBottom: 12 }}>
+          {!form.id && <OrgPick kind="any" value={form.org_id ?? orgId ?? ''} onChange={v => setForm({ ...form, org_id: v })} />}
           <label className="field"><span>Mã</span><input value={form.code ?? ''} onChange={e => setForm({ ...form, code: e.target.value })} /></label>
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Tên *</span><input required value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
           <label className="field"><span>Loại</span><select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as MKind, reusable: e.target.value !== 'supply' })}>{(Object.keys(MKIND) as MKind[]).map(k => <option key={k} value={k}>{MKIND[k]}</option>)}</select></label>
@@ -591,7 +598,7 @@ function CatalogTab({ orgId, rights }: { orgId: string | null; rights: Rights })
           <tbody>{shown.map(c => (
             <tr key={c.id} style={c.active ? undefined : { opacity: 0.55 }}><td><small>{c.code}</small></td><td><b>{c.name}</b>{c.reusable && <small className="sub"> · dùng lại</small>}{!c.active && <small className="sub"> · ngừng dùng</small>}</td>
               <td>{MKIND[c.kind]}</td><td>{c.unit}</td><td><small>{c.spec}</small></td><td>{c.unit_price != null ? money(c.unit_price) : '—'}</td><td><small>{srcName(c)}</small></td>
-              <td className="actions">{c.org_id === orgId && rights.canWrite && <><button onClick={() => setForm({ ...c, price: c.unit_price != null ? String(c.unit_price) : '' })}>Sửa</button><button className="danger" onClick={() => remove(c)}>Xoá</button></>}</td></tr>
+              <td className="actions">{(c.org_id === orgId || every) && rights.canWrite && <><button onClick={() => setForm({ ...c, price: c.unit_price != null ? String(c.unit_price) : '' })}>Sửa</button><button className="danger" onClick={() => remove(c)}>Xoá</button></>}</td></tr>
           ))}
           {shown.length === 0 && <tr><td colSpan={8}><small className="sub">Chưa có vật tư nào.</small></td></tr>}</tbody>
         </table></div>

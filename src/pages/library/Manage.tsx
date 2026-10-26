@@ -11,6 +11,7 @@ import { norm as normText } from '../../lib/sheet'
 import { BankList } from './BankList'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { OrgPick, useAllMode } from '../../components/OrgScope'
 import { Tabs } from '../teacher/common'
 import type { Slide } from '../teacher/Lessons'
 import { uploadLearningFile, fmtSize, MAX_FILE_MB } from '../../lib/files'
@@ -34,6 +35,8 @@ type Form = {
   scope: Item['scope']; targets: string[]; slides: Slide[]; mtype: string; url: string; units: Unit[]
   src: 'url' | 'file'; file: { path: string; file_name: string; size: number; mime: string } | null
   program_id: string; unit_id: string; usage_rights: Rights; usage_note: string; custom: Record<string, unknown>
+  /** Quản trị hệ thống: đơn vị sở hữu của mục thêm mới */
+  org?: string
   // Bài giảng: tương tác (các khối nội dung theo tiến trình) hoặc slide (slide, tệp, đường dẫn)
   lmode: LMode; ilesson: ILesson | null
   // Bài học: mục tiêu, số tiết, giáo án / bài giảng / định mức vật tư / học liệu khác đã có trong kho
@@ -122,6 +125,9 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   const [targets, setTargets] = useState<Map<string, string[]>>(new Map())
   const [orgs, setOrgs] = useState<Org[]>([])
   const [me, setMe] = useState<Org | null>(null)
+  // Quản trị hệ thống: học liệu của mọi đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
+  const every = useAllMode()
+  const mineOf = (owner?: string | null) => owner === orgId || !!every
   const [lessons, setLessons] = useState<LP[]>([])
   const [form, setForm] = useState<Form | null>(null)
   const [tab, setTab] = useState<T>(only ?? 'unit')
@@ -167,7 +173,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
     ])
     if (i.error) return setErr(/schema cache|does not exist|owner_name/i.test(i.error.message) ? 'Hãy chạy migration 023_shared_library.sql trên Supabase.' : i.error.message)
     const all = (i.data as Item[]) ?? []
-    setItems(all.filter(x => x.owner_org_id === orgId)); setVisible(all)
+    setItems(every ? all : all.filter(x => x.owner_org_id === orgId)); setVisible(all)
     setStats(new Map(((s.data as Stat[]) ?? []).map(x => [x.item_id, x])))
     const tm = new Map<string, string[]>(); ((t.data as { item_id: string; org_id: string }[]) ?? []).forEach(x => tm.set(x.item_id, [...(tm.get(x.item_id) ?? []), x.org_id])); setTargets(tm)
     const os = (o.data as Org[]) ?? []; setOrgs(os); setMe(os.find(x => x.id === orgId) ?? null)
@@ -195,9 +201,12 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   // Đơn vị cấp dưới (để chọn đơn vị nhận)
   const below: Org[] = []
   const walk = (id: string, depth: number) => orgs.filter(o => o.parent_id === id).forEach(o => { below.push({ ...o, name: '\u00a0'.repeat(depth * 3) + o.name }); walk(o.id, depth + 1) })
-  walk(me.id, 0)
-  const canPublic = me.type === 'provider'
-  const usable = (x: Item) => x.status === 'published' || x.owner_org_id === orgId
+  // Đơn vị sở hữu mục đang soạn (Quản trị hệ thống: đơn vị của mục, hoặc đơn vị chọn khi thêm mới)
+  const wOrg = (every ? (form?.id ? visible.find(x => x.id === form.id)?.owner_org_id : form?.org) : null) || orgId!
+  const owner = orgs.find(o => o.id === wOrg) ?? me
+  walk(owner.id, 0)
+  const canPublic = owner.type === 'provider'
+  const usable = (x: Item) => x.status === 'published' || mineOf(x.owner_org_id)
   const lessonPool = visible.filter(x => x.kind === 'lesson' && usable(x))
   const src = (x: { owner_name?: string | null; owner_org_id?: string; org_id?: string }) => ((x.owner_org_id ?? x.org_id) === orgId ? '' : ` · ${x.owner_name ?? ''}`)
   const pick = (list: Item[]): Pick[] => list.map(x => ({ id: x.id, label: x.title + (x.status === 'draft' ? ' (nháp)' : '') + src(x) }))
@@ -241,7 +250,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   /** Thêm bài giảng: sao chép toàn bộ một bài giảng đã có (thông tin + nội dung) thành bài mới để chỉnh sửa */
   function copyLessonItem(id: string) {
     const i = visible.find(x => x.id === id); if (!i || !form) return
-    const own = i.owner_org_id === orgId
+    const own = mineOf(i.owner_org_id)
     setForm({ ...formOf(i), id: undefined, title: `${i.title} (bản sao)`, scope: form.scope, targets: form.targets,
       program_id: own ? i.program_id ?? '' : '', unit_id: own ? i.unit_id ?? '' : '' })
     setMsg(''); setInfo(`Đã chép nội dung “${i.title}”. Sửa thông tin, nội dung rồi lưu thành bài giảng mới; bài gốc không đổi.`)
@@ -282,7 +291,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
     const row = {
       program_id: form.program_id || null, unit_id: form.program_id && form.unit_id ? form.unit_id : null,
       usage_rights: form.usage_rights, usage_note: form.usage_note.trim() || null,
-      owner_org_id: orgId, kind: form.kind, title: form.title.trim(), summary: form.summary.trim() || null, subject: form.subject.trim() || null,
+      owner_org_id: wOrg, kind: form.kind, title: form.title.trim(), summary: form.summary.trim() || null, subject: form.subject.trim() || null,
       grades: form.grades.trim() || null, program: form.program || null, tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
       scope: form.scope, content,
       ...(libFields.length || Object.keys(form.custom ?? {}).length ? { custom: form.custom ?? {} } : {}),
@@ -334,7 +343,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
     if (sub.kind === 'material' && !(sub.src === 'file' ? sub.file : sub.url.trim())) return setMsg(sub.src === 'file' ? 'Chọn tệp học liệu để tải lên.' : 'Nhập đường dẫn học liệu.')
     setSubBusy(true)
     const row = {
-      owner_org_id: orgId, kind: sub.kind === 'lesson' ? 'lesson' : 'material', title, subject: form.subject.trim() || null, grades: form.grades.trim() || null,
+      owner_org_id: wOrg, kind: sub.kind === 'lesson' ? 'lesson' : 'material', title, subject: form.subject.trim() || null, grades: form.grades.trim() || null,
       program: form.program || null, program_id: form.program_id || null, unit_id: form.program_id && form.unit_id ? form.unit_id : null,
       usage_rights: form.usage_rights, scope: form.scope, tags: [] as string[],
       content: sub.kind === 'lesson' && sub.lmode === 'interactive' ? { mode: 'interactive', lesson: sub.ilesson ?? {} }
@@ -366,7 +375,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
       if (d.info.summary) f.summary = d.info.summary
     }
     const base = {
-      owner_org_id: orgId, subject: f.subject.trim() || null, grades: f.grades.trim() || null, program: f.program || null,
+      owner_org_id: wOrg, subject: f.subject.trim() || null, grades: f.grades.trim() || null, program: f.program || null,
       program_id: f.program_id || null, unit_id: f.program_id && f.unit_id ? f.unit_id : null, usage_rights: f.usage_rights, scope: f.scope, tags: [] as string[],
     }
     const created: Item[] = []
@@ -422,7 +431,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   }
   // Phát hành bài học kéo theo giáo án, bài giảng, học liệu của đơn vị đang là bản nháp
   async function publishParts(ids: string[]) {
-    for (const x of visible.filter(v => ids.includes(v.id) && v.owner_org_id === orgId && v.status === 'draft')) {
+    for (const x of visible.filter(v => ids.includes(v.id) && mineOf(v.owner_org_id) && v.status === 'draft')) {
       const p = await supabase.rpc('library_publish', { p_item: x.id, p_note: null })
       if (p.error) return `“${x.title}”: ${p.error.message}`
     }
@@ -541,6 +550,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
             <select value="" onChange={e => e.target.value && copyLessonItem(e.target.value)} aria-label="Sao chép từ bài giảng đã có">
               <option value="">— Chọn bài giảng —</option>
               {lessonPool.map(x => <option key={x.id} value={x.id}>{x.title}{x.status === 'draft' ? ' (nháp)' : ''}{src(x)}</option>)}</select></div>}
+          {every && !form.id && <div className="formgrid"><OrgPick kind="any" value={form.org ?? orgId ?? ''} onChange={v => setForm({ ...form, org: v, targets: [] })} title="Đơn vị sở hữu" /></div>}
           <div className="formgrid libgrid4">
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mô tả ngắn</span><textarea rows={2} value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })} /></label>
@@ -745,7 +755,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
         </Drawer>
       )}
       {open && !form && !start && <ItemDrawer root={{ type: 'item', id: open }} all={visible} onClose={() => setOpen(null)} canRestore onRestored={load}
-        actions={i => i.owner_org_id !== orgId ? <small className="sub">Mục của {i.owner_name ?? 'đơn vị khác'}: chỉ xem.</small> : <>
+        actions={i => !mineOf(i.owner_org_id) ? <small className="sub">Mục của {i.owner_name ?? 'đơn vị khác'}: chỉ xem.</small> : <>
           <button type="button" className="primary" onClick={() => edit(i)}>Sửa</button>
           <button type="button" onClick={() => publish(i)}>{i.status === 'published' ? 'Phát hành bản cập nhật' : 'Phát hành'}</button>
           {i.status === 'published' && <button type="button" onClick={() => unpublish(i)}>Thu hồi</button>}
@@ -767,7 +777,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
                 </div>
                 <div className="tilebody">
                   <b>{i.title}</b>
-                  <small>{[i.subject, i.grades && `Khối ${i.grades}`].filter(Boolean).join(' · ') || '—'}</small>
+                  <small>{[every && i.owner_name, i.subject, i.grades && `Khối ${i.grades}`].filter(Boolean).join(' · ') || '—'}</small>
                   <div className="tilemeta">{i.version > 0 && <span>v{i.version}</span>}<span>{s ? `${s.schools} trường dùng` : 'Chưa có trường dùng'}</span><span>{fmtDate(i.updated_at)}</span></div>
                 </div>
               </button>
@@ -783,7 +793,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
               return (<Fragment key={i.id}>
                 <tr className={'rowlink' + (open === i.id ? ' on' : '')} onClick={() => setOpen(i.id)} tabIndex={0} onKeyDown={e => { if (e.key === 'Enter') setOpen(i.id) }}>
                   <td><b>{i.title}</b>
-                    <div className="sub" style={{ fontSize: 12 }}>{[i.subject, i.grades && `Khối ${i.grades}`].filter(Boolean).join(' · ') || '—'}{i.program ? <> <ProgChip p={i.program} /></> : null}{i.usage_rights && i.usage_rights !== 'adapt' && <> <RightsChip r={i.usage_rights} /></>}</div></td>
+                    <div className="sub" style={{ fontSize: 12 }}>{[every && i.owner_name, i.subject, i.grades && `Khối ${i.grades}`].filter(Boolean).join(' · ') || '—'}{i.program ? <> <ProgChip p={i.program} /></> : null}{i.usage_rights && i.usage_rights !== 'adapt' && <> <RightsChip r={i.usage_rights} /></>}</div></td>
                   <td>{i.edu_programs ? <>{i.edu_programs.title} <small className="sub">v{i.edu_programs.version_no}</small>{i.edu_program_units && <div className="sub" style={{ fontSize: 12 }}>{i.edu_program_units.title}</div>}</> : <small className="sub">—</small>}</td>
                   <td><small>{partsOf(i)}</small></td>
                   <td>{SCOPE[i.scope]}{i.scope === 'selected' && <div className="sub" style={{ fontSize: 12 }}>{(targets.get(i.id) ?? []).map(id => orgs.find(o => o.id === id)?.name).filter(Boolean).join(', ')}</div>}</td>

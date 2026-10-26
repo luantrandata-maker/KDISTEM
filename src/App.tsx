@@ -30,7 +30,8 @@ import ElearningManage from './pages/elearning/Manage'
 import QuestionBank from './pages/elearning/Bank'
 import StudentElearning from './pages/elearning/Student'
 import { saveQuizToBank } from './pages/elearning/common'
-import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysActivities, SysSchoolLessons, SysTrainingLessons } from './pages/platform/SystemViews'
+import { AllOrgs } from './components/OrgScope'
+import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysActivities } from './pages/platform/SystemViews'
 import Classes from './pages/Classes'
 import Rooms from './pages/Rooms'
 import Equipment from './pages/Equipment'
@@ -124,7 +125,16 @@ const TrainingMonitorPage = lazy(() => import('./pages/training/Monitor').then(m
 const AllTeacherAssessments = (p: any) => <SchoolTeacherAssessments {...p} orgId={null} readOnly />
 const SchoolCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Đánh giá', SchoolTeacherAssessments], ['Đợt đánh giá', AssessmentRoundsPage], ['Khoảng thiếu hụt', CompetencyGapsPage]]} />
 const AuthorityCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Kết quả đánh giá', AllTeacherAssessments], ['Đợt đánh giá', AssessmentRoundsPage], ['Khoảng thiếu hụt', CompetencyGapsPage]]} />
-const PlatformCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Kết quả đánh giá', AllTeacherAssessments], ['Đợt đánh giá', AssessmentRoundsPage], ['Khoảng thiếu hụt', CompetencyGapsPage], ['Khung năng lực', CompetencyFrameworkPage]]} />
+// Quản trị hệ thống thao tác như người dùng (26/10): màn bọc AllOrgs hiện dữ liệu mọi đơn vị trong một danh sách, sửa thẳng;
+// thêm mới thì chọn đơn vị ngay trong form
+const allOrgs = (C: ComponentType<any>, extra: Record<string, unknown> = {}) => (p: any) => <AllOrgs><C {...p} {...extra} /></AllOrgs>
+const PH1_TABS = {
+  assess: allOrgs(SchoolTeacherAssessments, { orgId: null }), rounds: allOrgs(AssessmentRoundsPage),
+  plans: allOrgs(TrainingPlansPage), cal: allOrgs(TrainingCalendarPage), trainers: allOrgs(TrainersPage), school: allOrgs(SchoolTrainingAssigned),
+  lessons: allOrgs(TrainingLessons), virtual: allOrgs(VirtualClass),
+}
+const PlatformCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Đánh giá', PH1_TABS.assess],
+  ['Đợt đánh giá', PH1_TABS.rounds], ['Khoảng thiếu hụt', CompetencyGapsPage], ['Khung năng lực', CompetencyFrameworkPage]]} />
 const PlatformSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.PlatformSupport })))
 // Đợt 2 (025): triển khai khách hàng, danh mục gói, đơn đặt gói, thông báo hàng loạt, tích hợp
 const PlatformRollout = lazy(() => import('./pages/platform/Rollout').then(m => ({ default: m.PlatformRollout })))
@@ -164,7 +174,6 @@ const DeptLessons = lazy(() => import('./pages/lessons/Admin').then(m => ({ defa
 const PlatformLessonTemplates = lazy(() => import('./pages/lessons/Admin').then(m => ({ default: m.PlatformLessonTemplates })))
 // Theo video demo Phân hệ 2 (23/10): Phân phối chương trình là một trang riêng (hướng dẫn 3 bước, số liệu, 3 tab).
 // Theo dõi thực hiện và các màn PPCT cũ chuyển sang menu "Theo dõi Chương trình/Môn học".
-const PlatformDistPage = (p: any) => <DistPage {...p} />
 // Phân phối chương trình theo tiết + tiến độ (057): cùng một màn cho trường / GV, Sở (soạn mẫu ban hành), KDI (mẫu dùng chung)
 const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, ComponentType<any>][] = []) => {
   const tabs: [string, ComponentType<any>][] = [
@@ -181,6 +190,14 @@ const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, Com
 // Theo dõi Chương trình/Môn học (cổng KDI)
 const PlatformProgramTrack = (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects],
   ['Tiến độ & yêu cầu cần đạt', ProgressPlatform], ['Kế hoạch so với thực tế', (q: any) => <PlanVsActual {...q} mode="platform" />], ['PPCT các trường', SysCurriculum]]} />
+// Phân hệ 2 (100): cùng cách làm — danh sách chung mọi đơn vị, sửa thẳng
+const PH2_TABS = {
+  edu: allOrgs(EduProgramsPlatform), subjects: allOrgs(SubjectsPlatform), ppct: allOrgs(CurriculumBooks, { mode: 'platform' }),
+  library: allOrgs(LibraryManage), norms: allOrgs(MaterialNorms), lessons: allOrgs(SchoolLessons), elearning: allOrgs(ElearningManage),
+}
+const PlatformDistPage = (p: any) => <TabbedPages {...p} tabs={[['Bản phân phối', DistPage], ['PPCT các đơn vị', PH2_TABS.ppct]]} />
+const PlatformLibraryPage = (p: any) => <TabbedPages {...p} tabs={[['Học liệu', LibraryPage], ['Học liệu các đơn vị', PH2_TABS.library], ['Định mức vật tư', PH2_TABS.norms]]} />
+const PlatformElearningPage = PH2_TABS.elearning
 function PlatformEduProgramsPage(p: any) {
   const [track, setTrack] = useState(false)
   return <>
@@ -188,12 +205,12 @@ function PlatformEduProgramsPage(p: any) {
       <button className={track ? '' : 'primary'} onClick={() => setTrack(!track)}>{track ? '← Chương trình giáo dục' : 'Theo dõi Chương trình/Môn học'}</button>
     </div>
     {track ? <><h2 className="pagesub">Theo dõi Chương trình/Môn học</h2><PlatformProgramTrack {...p} /></>
-      : <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Môn học', SubjectsPlatform], ['Danh mục', ProgramCatalogs]]} />}
+      : <TabbedPages {...p} tabs={[['Chương trình giáo dục', PH2_TABS.edu], ['Môn học', PH2_TABS.subjects], ['Danh mục', ProgramCatalogs]]} />}
   </>
 }
 const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [
   ['Bài giảng KDI', (p: any) => <LibraryManage {...p} only="lesson" />], ['Kho hoạt động', SysActivities],
-  ['Bài giảng các trường', SysSchoolLessons], ['Mẫu giáo án', PlatformLessonTemplates]]
+  ['Giáo án các trường', PH2_TABS.lessons], ['Mẫu giáo án', allOrgs(PlatformLessonTemplates)]]
 const PlatformLessonsPage = (p: any) => <TabbedPages {...p} tabs={PLATFORM_LESSON_TABS} />
 const PlatformCatalog = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformCatalog })))
 const PlatformOrders = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformOrders })))
@@ -427,14 +444,14 @@ const PLATFORM: PageMap = {
   'Tích hợp & dữ liệu': PlatformIntegrations,
   // 1. Đào tạo & đánh giá năng lực nhà giáo — làm lại theo khuôn Phân hệ 2 (kế hoạch: Chương trình → Kế hoạch & lịch → … → Giám sát)
   'Chương trình tập huấn': TrainingProgramsPage,
-  'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', TrainingPlansPage], ['Lịch', TrainingCalendarPage], ['Giảng viên', TrainersPage]]} />,
+  'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch', PH1_TABS.cal], ['Giảng viên', PH1_TABS.trainers], ['Trường thực hiện', PH1_TABS.school]]} />,
   'Giám sát tập huấn nhà giáo': (p: any) => <TabbedPages {...p} tabs={[['Theo kế hoạch', TrainingMonitorPage], ['Tổng quan theo trường', DeptTrainingMonitor]]} />,
   'Đánh giá kết quả tập huấn': TrainingResultsPage,
   // 2. Chương trình & học liệu
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
   // Tạm thời: "Theo dõi Chương trình/Môn học" mở bằng nút góc trên phải của trang này (không còn là mục menu riêng)
   'Chương trình giáo dục': PlatformEduProgramsPage,
-  'Học liệu': LibraryPage,
+  'Học liệu': PlatformLibraryPage,
   'Theo dõi chương trình CT1–CT5 (Môn học)': PlatformProgramTrack,
   // 3. Vật tư, thiết bị dạy & học
   'Thiết bị & vật tư': EquipmentOverview,
@@ -463,7 +480,7 @@ const PLATFORM: PageMap = {
   'Thuật ngữ chuẩn': TerminologyPage,
   'Ứng dụng di động & ngoại tuyến': MobileAppPage,
   'Trợ lý AI': PlatformAI,
-  'E-learning & luyện thi': ElearningManage,
+  'E-learning & luyện thi': PlatformElearningPage,
   // Màn xem toàn hệ thống (gom dữ liệu mọi trường, lọc theo Sở / trường) — pages/platform/SystemViews.tsx
   'Bảo hành & bảo trì thiết bị': SysWarranty,
   'Tòa nhà, tầng & tiết học': SysBuildings,
@@ -476,7 +493,7 @@ const PLATFORM: PageMap = {
   'Bài tập & chấm bài': SysHomework,
   'Phân phối chương trình': PlatformDistPage,
   'Soạn bài giảng & kho hoạt động': PlatformLessonsPage,
-  'Bài giảng tập huấn & lớp học ảo': SysTrainingLessons,
+  'Bài giảng tập huấn & lớp học ảo': (p: any) => <TabbedPages {...p} tabs={[['Bài giảng', PH1_TABS.lessons], ['Lớp học ảo', PH1_TABS.virtual]]} />,
   'Chứng chỉ tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Chứng chỉ', TrainingCertificatesPage], ['Mẫu chứng chỉ', CertTemplatesPage]]} />,
 }
 const PLATFORM_LIVE = new Set(Object.keys(PLATFORM))

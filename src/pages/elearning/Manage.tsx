@@ -2,6 +2,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { MultiSelect } from '../../components/MultiSelect'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
+import { OrgPick, useAllMode, useOrgName } from '../../components/OrgScope'
 import { uploadLearningFile, openFile, MAX_FILE_MB } from '../../lib/files'
 import { Tabs } from '../teacher/common'
 import QuestionBank from './Bank'
@@ -112,12 +113,15 @@ function AudiencePicker({ orgId, classes, groups, value, onChange }: { orgId: st
 }
 
 // ================= Đề luyện =================
-type EForm = Omit<Exam, 'id' | 'org_id' | 'created_by' | 'created_at'> & { id?: string }
+type EForm = Omit<Exam, 'id' | 'org_id' | 'created_by' | 'created_at'> & { id?: string; org?: string }
 const EEMPTY: EForm = { title: '', description: '', subject: '', grade: null, mode: 'random', question_ids: [], criteria: { count: 10, levels: {}, topics: [] },
   duration_min: 15, max_attempts: 0, show_answers: 'after_submit', class_ids: null, group_ids: null, student_ids: null, shared: false, opens_at: new Date().toISOString(), closes_at: null, status: 'draft' }
 
 function Exams({ orgId }: { orgId: string | null }) {
   const { classes, groups, isSchool } = useOrgCtx(orgId)
+  // Quản trị hệ thống: thấy đề của mọi đơn vị, sửa thẳng; thêm mới thì chọn đơn vị ra đề
+  const every = useAllMode(), orgName = useOrgName()
+  const schoolOf = (id?: string | null) => every ? every.find(o => o.id === id)?.type === 'school' : isSchool
   const [rows, setRows] = useState<Exam[]>([])
   const [counts, setCounts] = useState<Map<string, { n: number; students: Set<string>; sum: number }>>(new Map())
   const [form, setForm] = useState<EForm | null>(null)
@@ -135,10 +139,10 @@ function Exams({ orgId }: { orgId: string | null }) {
   useEffect(() => { load() }, [orgId])
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!form) return
-    const { id, ...body } = form
-    const payload = { ...body, subject: body.subject?.trim() || null, description: body.description?.trim() || null, shared: isSchool ? false : body.shared,
-      class_ids: isSchool ? some(body.class_ids) : null, group_ids: isSchool ? some(body.group_ids) : null, student_ids: isSchool ? some(body.student_ids) : null }
-    const { data, error } = id ? await supabase.from('practice_exams').update(payload).eq('id', id).select('id') : await supabase.from('practice_exams').insert({ ...payload, org_id: orgId }).select('id')
+    const { id, org, ...body } = form; const sch = schoolOf(org || orgId)
+    const payload = { ...body, subject: body.subject?.trim() || null, description: body.description?.trim() || null, shared: sch ? false : body.shared,
+      class_ids: sch ? some(body.class_ids) : null, group_ids: sch ? some(body.group_ids) : null, student_ids: sch ? some(body.student_ids) : null }
+    const { data, error } = id ? await supabase.from('practice_exams').update(payload).eq('id', id).select('id') : await supabase.from('practice_exams').insert({ ...payload, org_id: org || orgId }).select('id')
     if (error) return setMsg([errText(error.message), true])
     if (!data?.length) return setMsg([NOT_OWNER, true])
     setMsg([id ? 'Đã lưu đề.' : 'Đã tạo đề.', false]); setForm(null); load()
@@ -147,9 +151,9 @@ function Exams({ orgId }: { orgId: string | null }) {
     const { data, error } = await supabase.from('practice_exams').update({ status }).eq('id', x.id).select('id')
     if (error) setMsg([errText(error.message), true]); else if (!data?.length) setMsg([NOT_OWNER, true]); else load()
   }
-  const editable = (x: Exam) => x.org_id === orgId
+  const editable = (x: Exam) => x.org_id === orgId || !!every
   const editForm = (x: Exam) => { const { id, title, description, subject, grade, mode, question_ids, criteria, duration_min, max_attempts, show_answers, class_ids, group_ids, student_ids, shared, opens_at, closes_at, status } = x
-    setMsg(null); setForm({ id, title, description, subject, grade, mode, question_ids, criteria: { levels: {}, topics: [], ...criteria }, duration_min, max_attempts, show_answers, class_ids, group_ids: group_ids ?? null, student_ids: student_ids ?? null, shared, opens_at, closes_at, status }) }
+    setMsg(null); setForm({ id, org: x.org_id, title, description, subject, grade, mode, question_ids, criteria: { levels: {}, topics: [], ...criteria }, duration_min, max_attempts, show_answers, class_ids, group_ids: group_ids ?? null, student_ids: student_ids ?? null, shared, opens_at, closes_at, status }) }
   const statusBtns = (x: Exam) => <>
     {x.status === 'draft' && <button className="primary" onClick={() => setStatus(x, 'published')}>Công bố</button>}
     {x.status === 'published' && <button onClick={() => setStatus(x, 'closed')}>Đóng</button>}
@@ -164,16 +168,16 @@ function Exams({ orgId }: { orgId: string | null }) {
     sub={<>{[cur.subject, cur.grade ? 'Khối ' + cur.grade : null, cur.mode === 'random' ? `Ngẫu nhiên ${cur.criteria.count} câu` : `Cố định ${cur.question_ids.length} câu`, cur.duration_min ? `${cur.duration_min} phút` : null,
       `${dt(cur.opens_at)}${cur.closes_at ? ' → ' + dt(cur.closes_at) : ''}`].filter(Boolean).join(' · ')} <span className={'pill ' + ESTATUS[cur.status][1]}>{ESTATUS[cur.status][0]}</span></>}
     actions={editable(cur) ? <>{statusBtns(cur)}<button onClick={() => editForm(cur)}>Sửa</button></> : undefined}>
-    {note}<ExamResults exam={cur} roster={isSchool && editable(cur)} /></ElView>
+    {note}<ExamResults exam={cur} roster={schoolOf(cur.org_id) && editable(cur)} /></ElView>
   return (
     <>
-      <div className="bar"><span /><button className="primary" onClick={() => { setMsg(null); setForm({ ...EEMPTY, shared: !isSchool }) }}>Tạo đề luyện</button></div>
+      <div className="bar"><span /><button className="primary" onClick={() => { setMsg(null); setForm({ ...EEMPTY, shared: !isSchool && !every }) }}>Tạo đề luyện</button></div>
       {note}
       <div className="wrap"><table className="systable">
         <thead><tr><th>Đề luyện</th><th>Cách ra đề</th><th>Thời gian</th><th>Mở</th><th className="num">Lượt nộp</th><th className="num">Điểm TB</th><th>Trạng thái</th></tr></thead>
         <tbody>{rows.map(x => { const c = counts.get(x.id); return <Fragment key={x.id}>
           <tr className="clickrow" onClick={() => { setMsg(null); setOpen(x.id) }}>
-            <td><b>{x.title}</b><br /><small>{[x.subject, x.grade ? 'Khối ' + x.grade : null, !editable(x) ? 'của cấp trên' : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></td>
+            <td><b>{x.title}</b><br /><small>{[x.subject, x.grade ? 'Khối ' + x.grade : null, !editable(x) ? 'của cấp trên' : every ? orgName(x.org_id) : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></td>
             <td>{x.mode === 'random' ? `Ngẫu nhiên ${x.criteria.count} câu` : `Cố định ${x.question_ids.length} câu`}</td>
             <td>{x.duration_min ? `${x.duration_min} phút` : 'Không giới hạn'}{x.max_attempts ? <><br /><small>{x.max_attempts} lượt</small></> : null}</td>
             <td><small>{dt(x.opens_at)}{x.closes_at ? ` → ${dt(x.closes_at)}` : ''}</small></td>
@@ -191,6 +195,9 @@ function Exams({ orgId }: { orgId: string | null }) {
 
 function ExamForm({ form, setForm, onSubmit, orgId, classes, groups, isSchool }: { form: EForm; setForm: (f: EForm | null) => void; onSubmit: (e: React.FormEvent) => void; orgId: string | null; classes: Cls[]; groups: Grp[]; isSchool: boolean }) {
   const [bank, setBank] = useState<Question[]>([])
+  // Quản trị hệ thống: lớp, nhóm và loại đơn vị theo đơn vị ra đề (không theo KDI)
+  const every = useAllMode(), tctx = useOrgCtx(every ? form.org || null : null)
+  if (every) { classes = tctx.classes; groups = tctx.groups; isSchool = !!form.org && tctx.isSchool; orgId = form.org || null }
   useEffect(() => { supabase.from('question_bank').select('id, subject, grade, topic, level, stem, status').eq('status', 'ready').limit(5000).then(({ data }) => setBank((data as Question[]) ?? [])) }, [])
   const set = (p: Partial<EForm>) => setForm({ ...form, ...p })
   const pool = bank.filter(b => (!form.subject || b.subject === form.subject) && (!form.grade || b.grade === form.grade))
@@ -200,6 +207,7 @@ function ExamForm({ form, setForm, onSubmit, orgId, classes, groups, isSchool }:
   const subjects = [...new Set(bank.map(b => b.subject))]
   return (
     <form className="panel formgrid" onSubmit={onSubmit}>
+      {!form.id && <OrgPick kind="any" value={form.org ?? ''} onChange={org => set({ org, class_ids: null, group_ids: null, student_ids: null, shared: false })} title="Đơn vị ra đề" />}
       <label className="field wide"><span>Tên đề *</span><input required value={form.title} onChange={e => set({ title: e.target.value })} placeholder="VD: Luyện tập chương Điện — Khoa học tự nhiên 7" /></label>
       <label className="field"><span>Môn</span><input list="el-subjects" value={form.subject ?? ''} onChange={e => set({ subject: e.target.value })} /><datalist id="el-subjects">{subjects.map(s => <option key={s} value={s} />)}</datalist></label>
       <label className="field"><span>Khối</span><input type="number" min={1} max={12} value={form.grade ?? ''} onChange={e => set({ grade: e.target.value ? Number(e.target.value) : null })} /></label>
@@ -263,7 +271,7 @@ function ExamResults({ exam, roster }: { exam: Exam; roster: boolean }) {
 }
 
 // ================= Khoá học =================
-type CForm = Omit<Course, 'id' | 'org_id' | 'created_by' | 'created_at'> & { id?: string }
+type CForm = Omit<Course, 'id' | 'org_id' | 'created_by' | 'created_at'> & { id?: string; org?: string }
 const CEMPTY: CForm = { title: '', description: '', subject: '', grade: null, cover_url: null, class_ids: null, group_ids: null, student_ids: null, due_at: null, shared: false, status: 'draft' }
 
 function Courses({ orgId }: { orgId: string | null }) {
@@ -275,6 +283,10 @@ function Courses({ orgId }: { orgId: string | null }) {
   const [form, setForm] = useState<CForm | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  // Quản trị hệ thống: thấy khoá học của mọi đơn vị, sửa thẳng; lớp/nhóm theo đơn vị của khoá đang soạn
+  const every = useAllMode(), orgName = useOrgName(), tctx = useOrgCtx(every && form ? form.org || null : null)
+  const fClasses = every ? tctx.classes : classes, fGroups = every ? tctx.groups : groups
+  const fSchool = every ? !!form?.org && tctx.isSchool : isSchool, fOrg = every ? form?.org || null : orgId
   async function load() {
     const [c, l, p, e] = await Promise.all([supabase.from('courses').select('*').order('created_at', { ascending: false }), supabase.from('course_lessons').select('*').order('position'),
       supabase.from('course_progress').select('lesson_id').limit(50000), supabase.from('practice_exams').select('id, title, status').neq('status', 'draft')])
@@ -285,11 +297,11 @@ function Courses({ orgId }: { orgId: string | null }) {
   useEffect(() => { load() }, [orgId])
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!form) return
-    const { id, ...body } = form
-    const payload = { ...body, subject: body.subject?.trim() || null, description: body.description?.trim() || null, cover_url: body.cover_url?.trim() || null, shared: isSchool ? false : body.shared,
-      class_ids: isSchool ? some(body.class_ids) : null, group_ids: isSchool ? some(body.group_ids) : null, student_ids: isSchool ? some(body.student_ids) : null }
+    const { id, org, ...body } = form
+    const payload = { ...body, subject: body.subject?.trim() || null, description: body.description?.trim() || null, cover_url: body.cover_url?.trim() || null, shared: fSchool ? false : body.shared,
+      class_ids: fSchool ? some(body.class_ids) : null, group_ids: fSchool ? some(body.group_ids) : null, student_ids: fSchool ? some(body.student_ids) : null }
     // Thêm mới không đọc lại dòng vừa tạo: chính sách đọc courses (course_visible) chưa thấy dòng mới trong cùng câu lệnh
-    const { data, error } = id ? await supabase.from('courses').update(payload).eq('id', id).select('id') : await supabase.from('courses').insert({ ...payload, org_id: orgId })
+    const { data, error } = id ? await supabase.from('courses').update(payload).eq('id', id).select('id') : await supabase.from('courses').insert({ ...payload, org_id: org || orgId })
     if (error) return setMsg([errText(error.message), true])
     if (id && !data?.length) return setMsg([NOT_OWNER, true])
     setForm(null); setMsg(['Đã lưu khoá học.', false]); load()
@@ -300,7 +312,7 @@ function Courses({ orgId }: { orgId: string | null }) {
   }
   const note = msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>
   const editCourse = (c: Course) => { const { id, title, description, subject, grade, cover_url, class_ids, group_ids, student_ids, due_at, shared, status } = c
-    setMsg(null); setForm({ id, title, description, subject, grade, cover_url, class_ids, group_ids: group_ids ?? null, student_ids: student_ids ?? null, due_at: due_at ?? null, shared, status }) }
+    setMsg(null); setForm({ id, org: c.org_id, title, description, subject, grade, cover_url, class_ids, group_ids: group_ids ?? null, student_ids: student_ids ?? null, due_at: due_at ?? null, shared, status }) }
   const statusBtns = (c: Course, ls: Lesson[]) => <>
     {c.status === 'draft' && <button className="primary" onClick={() => setStatus(c, 'published')} disabled={!ls.length} title={ls.length ? undefined : 'Thêm ít nhất một bài học trước khi công bố'}>Công bố</button>}
     {c.status === 'published' && <button onClick={() => setStatus(c, 'archived')}>Lưu trữ</button>}
@@ -309,21 +321,22 @@ function Courses({ orgId }: { orgId: string | null }) {
   if (form) return <ElView back={open ? 'Chi tiết khoá học' : 'Danh sách khoá học'} onBack={() => setForm(null)} title={form.id ? 'Sửa khoá học' : 'Tạo khoá học'} sub={form.id ? form.title : undefined}>
       {note}
       <form className="panel formgrid" onSubmit={save}>
+        {!form.id && <OrgPick kind="any" value={form.org ?? ''} onChange={org => setForm({ ...form, org, class_ids: null, group_ids: null, student_ids: null, shared: false })} title="Đơn vị mở khoá học" />}
         <label className="field wide"><span>Tên khoá học *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Lập trình Arduino cơ bản" /></label>
         <label className="field"><span>Môn</span><input value={form.subject ?? ''} onChange={e => setForm({ ...form, subject: e.target.value })} /></label>
         <label className="field"><span>Khối</span><input type="number" min={1} max={12} value={form.grade ?? ''} onChange={e => setForm({ ...form, grade: e.target.value ? Number(e.target.value) : null })} /></label>
         <label className="field"><span>Ảnh bìa (https://…)</span><input value={form.cover_url ?? ''} onChange={e => setForm({ ...form, cover_url: e.target.value })} /></label>
         <label className="field"><span>Hạn hoàn thành</span><input type="datetime-local" value={toLocal(form.due_at)} onChange={e => setForm({ ...form, due_at: e.target.value ? new Date(e.target.value).toISOString() : null })} /></label>
         <label className="field wide"><span>Giới thiệu</span><textarea rows={3} value={form.description ?? ''} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
-        {isSchool ? <AudiencePicker key={form.id ?? 'new'} orgId={orgId} classes={classes} groups={groups} value={form} onChange={v => setForm({ ...form, ...v })} />
+        {fSchool ? <AudiencePicker key={(form.id ?? 'new') + fOrg} orgId={fOrg} classes={fClasses} groups={fGroups} value={form} onChange={v => setForm({ ...form, ...v })} />
           : <label className="field inline wide"><input type="checkbox" checked={form.shared} onChange={e => setForm({ ...form, shared: e.target.checked })} /> Dành cho học sinh mọi trường trực thuộc</label>}
         <div className="actions wide"><button className="primary">Lưu khoá học</button><button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
       </form></ElView>
   // Chi tiết khoá học (bài học, tiến độ): trang riêng
   const cur = rows.find(c => c.id === open)
-  if (cur) { const ls = lessons.filter(l => l.course_id === cur.id); const mine = cur.org_id === orgId
+  if (cur) { const ls = lessons.filter(l => l.course_id === cur.id); const mine = cur.org_id === orgId || !!every
     return <ElView back="Danh sách khoá học" onBack={() => { setOpen(null); setMsg(null) }} title={cur.title}
-      sub={<>{[cur.subject, cur.grade ? 'Khối ' + cur.grade : null, `${ls.length} bài`, !mine ? 'của cấp trên' : isSchool ? audienceText(cur, classes, groups) : cur.shared ? 'dùng chung' : null, cur.due_at ? 'Hạn hoàn thành: ' + dt(cur.due_at) : null].filter(Boolean).join(' · ')} <span className={'pill ' + ESTATUS[cur.status][1]}>{ESTATUS[cur.status][0]}</span></>}
+      sub={<>{[cur.subject, cur.grade ? 'Khối ' + cur.grade : null, `${ls.length} bài`, !mine ? 'của cấp trên' : every ? orgName(cur.org_id) : isSchool ? audienceText(cur, classes, groups) : cur.shared ? 'dùng chung' : null, cur.due_at ? 'Hạn hoàn thành: ' + dt(cur.due_at) : null].filter(Boolean).join(' · ')} <span className={'pill ' + ESTATUS[cur.status][1]}>{ESTATUS[cur.status][0]}</span></>}
       actions={mine ? <>{statusBtns(cur, ls)}<button onClick={() => editCourse(cur)}>Sửa</button></> : undefined}>
       {note}
       {cur.description && <p className="sub">{cur.description}</p>}
@@ -332,13 +345,13 @@ function Courses({ orgId }: { orgId: string | null }) {
     </ElView> }
   return (
     <>
-      <div className="bar"><span /><button className="primary" onClick={() => { setMsg(null); setForm({ ...CEMPTY, shared: !isSchool }) }}>Tạo khoá học</button></div>
+      <div className="bar"><span /><button className="primary" onClick={() => { setMsg(null); setForm({ ...CEMPTY, shared: !isSchool && !every }) }}>Tạo khoá học</button></div>
       {note}
       <div className="coursegrid">
-        {rows.map(c => { const ls = lessons.filter(l => l.course_id === c.id); const mine = c.org_id === orgId
+        {rows.map(c => { const ls = lessons.filter(l => l.course_id === c.id); const mine = c.org_id === orgId || !!every
           return <section key={c.id} className="panel coursecard">
             <header className="clickrow" onClick={() => { setMsg(null); setOpen(c.id) }}>
-              <div><b>{c.title}</b><small>{[c.subject, c.grade ? 'Khối ' + c.grade : null, `${ls.length} bài`, !mine ? 'của cấp trên' : isSchool ? audienceText(c, classes, groups) : c.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small>
+              <div><b>{c.title}</b><small>{[c.subject, c.grade ? 'Khối ' + c.grade : null, `${ls.length} bài`, !mine ? 'của cấp trên' : every ? orgName(c.org_id) : isSchool ? audienceText(c, classes, groups) : c.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small>
                 {c.due_at && <small className={'due ' + (c.status === 'published' ? dueBadge(c.due_at, false)!.tone : '')}>Hạn hoàn thành: {dt(c.due_at)}</small>}</div>
               <span className={'pill ' + ESTATUS[c.status][1]}>{ESTATUS[c.status][0]}</span>
             </header>

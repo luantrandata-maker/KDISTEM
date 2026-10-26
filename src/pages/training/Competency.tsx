@@ -1,6 +1,7 @@
 // Phân hệ 1 — Đánh giá năng lực nhà giáo (088): đợt đánh giá, khoảng thiếu hụt → gợi ý tập huấn, khung năng lực (KDI).
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { OrgPick } from '../../components/OrgScope'
 import { downloadXlsx } from '../../lib/sheet'
 import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
@@ -36,7 +37,7 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
     if (!form) return
     if (!form.name?.trim() || !form.due_on) return setMsg(['Nhập tên đợt và hạn nộp.', true])
     if (form.due_on < (form.opens_on ?? today())) return setMsg(['Hạn nộp phải sau ngày mở.', true])
-    const { error } = await supabase.from('assessment_rounds').insert({ org_id: orgId, name: form.name.trim(), school_year: form.school_year, opens_on: form.opens_on,
+    const { error } = await supabase.from('assessment_rounds').insert({ org_id: form.org_id || orgId, name: form.name.trim(), school_year: form.school_year, opens_on: form.opens_on,
       due_on: form.due_on, target_level: form.target_level, note: form.note?.trim() || null })
     if (error) return setMsg([errText(error.message), true])
     setForm(null); setMsg(['Đã mở đợt đánh giá. Bấm vào đợt để theo dõi tiến độ và nhắc giáo viên.', false]); load()
@@ -57,6 +58,7 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
         {can && !form && <button type="button" className="primary" onClick={() => setForm({ school_year: schoolYear(), opens_on: today(), target_level: 2 })}>Mở đợt mới</button>}</div>
       {form && <div className="panel" style={{ display: 'grid', gap: 10, background: 'var(--soft)' }}>
         <div className="formgrid">
+          <OrgPick kind="unit" value={form.org_id ?? orgId} onChange={v => setForm({ ...form, org_id: v })} title="Đơn vị mở đợt" />
           <label className="field"><span>Tên đợt</span><input value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={`Đánh giá năng lực GV năm học ${form.school_year}`} /></label>
           <label className="field"><span>Năm học</span><select value={form.school_year} onChange={e => setForm({ ...form, school_year: e.target.value })}>{years().map(y => <option key={y}>{y}</option>)}</select></label>
           <label className="field"><span>Ngày mở</span><input type="date" value={form.opens_on ?? ''} onChange={e => setForm({ ...form, opens_on: e.target.value })} /></label>

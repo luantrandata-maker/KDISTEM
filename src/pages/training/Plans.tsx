@@ -17,10 +17,11 @@ export type TPlan = {
   mode: Mode; provider: string | null; starts_on: string | null; ends_on: string | null; budget: number | null; note: string | null; hours: number | null
   updated_at: string; published_at: string | null
 }
-type Item = { plan_id: string; program_id: string; seq: number; quota: number | null; trainer: string | null; note: string | null
+type Item = { plan_id: string; program_id: string; seq: number; quota: number | null; trainer: string | null; note: string | null; units?: string[] | null
   training_programs: { code: string; title: string; ct_code: string | null } | null }
 type POrg = { plan_id: string; org_id: string; quota: number | null; status: OrgSt; note: string | null; submitted_at: string | null; decided_at: string | null }
-type Prog = { id: string; code: string; title: string; ct_code: string | null; hours: number }
+type PUnit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string; hours: number }
+type Prog = { id: string; code: string; title: string; ct_code: string | null; hours: number; subjects: (PUnit & { contents: PUnit[] })[] }
 type Enr = { plan_id: string; teacher_id: string; teachers: { full_name: string; subject: string | null; org_id: string } | null }
 
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
@@ -37,18 +38,20 @@ function yearOptions() {
   const d = new Date(), y = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1
   return [y - 1, y, y + 1, y + 2].map(a => `${a}-${a + 1}`)
 }
-/** Tổng giờ nội dung tập huấn của mỗi chương trình đã phát hành */
+/** Chương trình tập huấn đã phát hành: cây Môn → Nội dung, tổng giờ */
 function usePrograms() {
   const [list, setList] = useState<Prog[]>([])
   useEffect(() => {
     (async () => {
       const [p, u] = await Promise.all([
         supabase.from('training_programs').select('id, code, title, ct_code').eq('status', 'published').order('code'),
-        supabase.from('training_program_units').select('program_id, hours').eq('kind', 'content'),
+        supabase.from('training_program_units').select('id, program_id, parent_id, kind, seq, title, hours'),
       ])
-      const h = new Map<string, number>()
-      for (const r of (u.data ?? []) as { program_id: string; hours: number }[]) h.set(r.program_id, (h.get(r.program_id) ?? 0) + (Number(r.hours) || 0))
-      setList(((p.data ?? []) as Omit<Prog, 'hours'>[]).map(x => ({ ...x, hours: h.get(x.id) ?? 0 })))
+      const us = ((u.data ?? []) as PUnit[]).map(x => ({ ...x, hours: Number(x.hours) || 0 })).sort((a, b) => a.seq - b.seq)
+      setList(((p.data ?? []) as Omit<Prog, 'hours' | 'subjects'>[]).map(x => {
+        const subjects = us.filter(v => v.program_id === x.id && v.kind === 'subject').map(sj => ({ ...sj, contents: us.filter(v => v.parent_id === sj.id && v.kind === 'content') }))
+        return { ...x, subjects, hours: subjects.reduce((a, sj) => a + sj.contents.reduce((b, c) => b + c.hours, 0), 0) }
+      }))
     })()
   }, [])
   return list
@@ -74,7 +77,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
       if (p.error) { setMsg([errText(p.error.message), true]); setList([]); return }
       const ids = ((p.data ?? []) as TPlan[]).map(x => x.id)
       const [i, o] = ids.length ? await Promise.all([
-        supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, note, training_programs(code, title, ct_code)').in('plan_id', ids),
+        supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, note, units, training_programs(code, title, ct_code)').in('plan_id', ids),
         supabase.from('training_plan_orgs').select('plan_id, org_id, quota, status, note, submitted_at, decided_at').in('plan_id', ids),
       ]) : [{ data: [] }, { data: [] }]
       setList((p.data as TPlan[]) ?? []); setItems((i.data as unknown as Item[]) ?? []); setOrgs((o.data as POrg[]) ?? [])
@@ -202,7 +205,7 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
   async function load() {
     const [a, b, c, d] = await Promise.all([
       supabase.from('training_plans').select(SEL).eq('id', id).single(),
-      supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, note, training_programs(code, title, ct_code)').eq('plan_id', id).order('seq'),
+      supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, note, units, training_programs(code, title, ct_code)').eq('plan_id', id).order('seq'),
       supabase.from('training_plan_orgs').select('plan_id, org_id, quota, status, note, submitted_at, decided_at').eq('plan_id', id),
       supabase.from('training_enrollments').select('plan_id, teacher_id, teachers(full_name, subject, org_id)').eq('plan_id', id),
     ])
@@ -229,8 +232,10 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
   if (assign) return <AssignSchools plan={p} taken={new Set(orgs.map(o => o.org_id))} onBack={() => setAssign(false)}
     onDone={m => { setAssign(false); setMsg([m, false]); load() }} />
 
-  const hoursOf = (pid: string) => progs.find(x => x.id === pid)?.hours ?? 0
-  const totalHours = items.reduce((a, i) => a + hoursOf(i.program_id), 0)
+  const hoursOf = (i: Item) => { const g = progs.find(x => x.id === i.program_id); if (!g) return 0
+    if (!i.units) return g.hours
+    const pick = new Set(i.units); return g.subjects.reduce((a, sj) => a + sj.contents.filter(c => pick.has(c.id)).reduce((b, c) => b + c.hours, 0), 0) }
+  const totalHours = items.reduce((a, i) => a + hoursOf(i), 0)
   const totalQuota = items.reduce((a, i) => a + (i.quota ?? 0), 0)
   const free = progs.filter(x => !items.some(i => i.program_id === x.id))
   const warn = [!p.year_name && 'chưa chọn năm học', !items.length && 'chưa chọn chương trình tập huấn'].filter(Boolean) as string[]
@@ -299,8 +304,9 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
         <thead><tr><th style={{ width: 40 }}>STT</th><th>Chương trình</th><th style={{ width: 80 }}>Số giờ</th><th style={{ width: 110 }}>Chỉ tiêu GV</th><th>Giảng viên</th>{edit && <th style={{ width: 120 }}></th>}</tr></thead>
         <tbody>{items.map((i, k) => <tr key={i.program_id}>
           <td>{k + 1}</td>
-          <td style={{ whiteSpace: 'normal' }}><b>{i.training_programs?.title ?? '—'}</b><br /><small className="sub">{[i.training_programs?.code, i.training_programs?.ct_code].filter(Boolean).join(' · ')}</small></td>
-          <td>{num(hoursOf(i.program_id))}</td>
+          <td style={{ whiteSpace: 'normal' }}><b>{i.training_programs?.title ?? '—'}</b><br /><small className="sub">{[i.training_programs?.code, i.training_programs?.ct_code].filter(Boolean).join(' · ')}</small>
+            <UnitPick prog={progs.find(x => x.id === i.program_id)} value={i.units ?? null} edit={edit} onSave={v => patchItem(i, { units: v })} /></td>
+          <td>{num(hoursOf(i))}</td>
           <td>{edit ? <input type="number" min={0} defaultValue={i.quota ?? ''} aria-label="Chỉ tiêu GV" style={{ width: 80 }}
             onBlur={e => { const v = e.target.value === '' ? null : Math.max(0, Math.round(Number(e.target.value))); if (v !== i.quota) patchItem(i, { quota: v }) }} /> : i.quota ?? '—'}</td>
           <td>{edit ? <input defaultValue={i.trainer ?? ''} maxLength={200} aria-label="Giảng viên" placeholder="Họ tên giảng viên" style={{ width: '100%' }}
@@ -349,6 +355,38 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
     </section>}
     {p.pub_status !== 'draft' && enr.length > 0 && <PlanProgress planId={p.id} manage={can} />}
   </ElView>
+}
+
+// ===== Nội dung tập huấn chọn trong kế hoạch (097): toàn bộ hoặc một phần =====
+function UnitPick({ prog, value, edit, onSave }: { prog?: Prog; value: string[] | null; edit: boolean; onSave: (v: string[] | null) => Promise<boolean> }) {
+  const [open, setOpen] = useState(false)
+  const all = prog ? prog.subjects.flatMap(sj => sj.contents.map(c => c.id)) : []
+  const [sel, setSel] = useState<Set<string>>(new Set(value ?? all))
+  useEffect(() => { setSel(new Set(value ?? all)) }, [value?.join(','), prog?.id])
+  if (!prog || !all.length) return null
+  const n = value ? value.length : all.length
+  const label = !value ? `Toàn bộ ${all.length} nội dung` : `${n}/${all.length} nội dung đã chọn`
+  const toggle = (ids: string[], on: boolean) => setSel(o => { const x = new Set(o); ids.forEach(id => on ? x.add(id) : x.delete(id)); return x })
+  const dirty = sel.size !== n || (value ? value.some(id => !sel.has(id)) : sel.size !== all.length)
+  const save = async () => { if (!sel.size) return; if (await onSave(sel.size === all.length ? null : all.filter(id => sel.has(id)))) setOpen(false) }
+  return <div className="tpunits">
+    <button type="button" className="linkbtn" aria-expanded={open} onClick={() => setOpen(!open)}>
+      {value ? <span className="tpunitpart">{label}</span> : label} {open ? '▴' : '▾'}</button>
+    {open && <div className="tpunittree">
+      {prog.subjects.map(sj => { const ids = sj.contents.map(c => c.id), k = ids.filter(id => sel.has(id)).length
+        return <fieldset key={sj.id} disabled={!edit}>
+          <legend><label><input type="checkbox" checked={k === ids.length && k > 0} ref={el => { if (el) el.indeterminate = k > 0 && k < ids.length }}
+            onChange={e => toggle(ids, e.target.checked)} /> <b>{sj.title}</b> <small className="sub">{k}/{ids.length} nội dung</small></label></legend>
+          {sj.contents.map(c => <label key={c.id} className="tpunit"><input type="checkbox" checked={sel.has(c.id)} onChange={e => toggle([c.id], e.target.checked)} />
+            <span>{c.title}</span><small className="sub">{num(c.hours)} giờ</small></label>)}
+        </fieldset> })}
+      {edit && <div className="tools">
+        <button type="button" className="primary" disabled={!sel.size || !dirty} onClick={save}>Lưu nội dung chọn</button>
+        <button type="button" disabled={sel.size === all.length} onClick={() => setSel(new Set(all))}>Chọn toàn bộ</button>
+        {!sel.size && <small className="warnline">Chọn ít nhất một nội dung.</small>}
+        <small className="sub">Xếp lịch, học trực tuyến và kết quả chỉ tính nội dung đã chọn.</small></div>}
+    </div>}
+  </div>
 }
 
 // ===== Gán trường (view riêng) =====
@@ -409,7 +447,7 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
       const r = ((a.data ?? []) as unknown as Assigned[]).filter(x => x.training_plans)
       const ids = r.map(x => x.plan_id)
       const [i, e] = ids.length ? await Promise.all([
-        supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, note, training_programs(code, title, ct_code)').in('plan_id', ids),
+        supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, note, units, training_programs(code, title, ct_code)').in('plan_id', ids),
         supabase.from('training_enrollments').select('plan_id, teacher_id, teachers!inner(org_id)').in('plan_id', ids).eq('teachers.org_id', orgId),
       ]) : [{ data: [] }, { data: [] }]
       setRows(r.sort((x, y) => (y.training_plans!.year_name ?? '').localeCompare(x.training_plans!.year_name ?? '') || (x.training_plans!.plan_code ?? '').localeCompare(y.training_plans!.plan_code ?? '')))
@@ -451,6 +489,7 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
 
 function SchoolPlanTeachers({ row, orgId, items, onBack, onMsg }: { row: Assigned; orgId: string; items: Item[]; onBack: () => void; onMsg: (m: [string, boolean]) => void }) {
   const p = row.training_plans!
+  const progs = usePrograms()
   const [teachers, setTeachers] = useState<{ id: string; full_name: string; subject: string | null }[] | null>(null)
   const [chosen, setChosen] = useState<Set<string>>(new Set())
   const [q, setQ] = useState('')
@@ -513,7 +552,8 @@ function SchoolPlanTeachers({ row, orgId, items, onBack, onMsg }: { row: Assigne
         <dt>Năm học · đợt</dt><dd>{[p.year_name, p.term && TERM[p.term]].filter(Boolean).join(' · ') || '—'}</dd>
         <dt>Thời gian</dt><dd>{span(p) || '—'}</dd>
         <dt>Hình thức</dt><dd>{MODE[p.mode] ?? p.mode}{p.provider ? ` · ${p.provider}` : ''}</dd>
-        <dt>Chương trình</dt><dd>{items.length ? <ol style={{ margin: 0, paddingLeft: 18 }}>{[...items].sort((a, b) => a.seq - b.seq).map(i => <li key={i.program_id}>{i.training_programs?.title}{i.trainer && <small className="sub"> · GV: {i.trainer}</small>}</li>)}</ol> : '—'}</dd>
+        <dt>Chương trình</dt><dd>{items.length ? <ol style={{ margin: 0, paddingLeft: 18 }}>{[...items].sort((a, b) => a.seq - b.seq).map(i => <li key={i.program_id}>{i.training_programs?.title}{i.trainer && <small className="sub"> · GV: {i.trainer}</small>}
+          <UnitPick prog={progs.find(x => x.id === i.program_id)} value={i.units ?? null} edit={false} onSave={async () => false} /></li>)}</ol> : '—'}</dd>
         {p.note && <><dt>Ghi chú</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{p.note}</dd></>}
       </dl>
     </section>

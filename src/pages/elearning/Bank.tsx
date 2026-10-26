@@ -2,7 +2,7 @@ import { SelBar, SelTh, useRowSel } from '../../components/TableSel'
 import { useEffect, useState } from 'react'
 import { ElView } from '../../components/ElView'
 import { supabase } from '../../lib/supabase'
-import { useSharedFilter } from '../../components/OrgScope'
+import { OrgPick, useAllMode } from '../../components/OrgScope'
 import { norm, downloadXlsx, type Column } from '../../lib/sheet'
 import ImportExcel from '../../components/ImportExcel'
 import AssistantQuiz from './AiQuiz'
@@ -17,12 +17,11 @@ const COLS: Column[] = [
   { key: 'answer', label: 'Đáp án', required: true, aliases: ['Đáp án đúng'] }, { key: 'explain', label: 'Giải thích', width: 40 },
 ]
 const LV_IN: Record<string, Level> = { 'nhan biet': 'nhan_biet', 'thong hieu': 'thong_hieu', 'van dung': 'van_dung', 'van dung cao': 'van_dung_cao', nb: 'nhan_biet', th: 'thong_hieu', vd: 'van_dung', vdc: 'van_dung_cao' }
-type Form = { id?: string; subject: string; grade: string; topic: string; level: Level; kind: QKind; stem: string; options: string[]; answer: number[]; explain: string; shared: boolean; status: Question['status'] }
+type Form = { id?: string; org?: string; subject: string; grade: string; topic: string; level: Level; kind: QKind; stem: string; options: string[]; answer: number[]; explain: string; shared: boolean; status: Question['status'] }
 const EMPTY: Form = { subject: '', grade: '', topic: '', level: 'thong_hieu', kind: 'single', stem: '', options: ['', '', '', ''], answer: [0], explain: '', shared: false, status: 'ready' }
 
 export default function QuestionBank({ orgId }: { orgId: string | null }) {
   const [rows, setRows] = useState<Question[]>([])
-  const inShared = useSharedFilter()
   const [orgType, setOrgType] = useState('school')
   const [orgNames, setOrgNames] = useState<Map<string, string>>(new Map())
   const [me, setMe] = useState<string | null>(null)
@@ -36,7 +35,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
     const [q, o, u] = await Promise.all([supabase.from('question_bank').select('*').order('created_at', { ascending: false }).limit(5000),
       supabase.from('organizations').select('id, name, type'), supabase.auth.getUser()])
     if (q.error) setMsg([errText(q.error.message), true])
-    setRows(((q.data as Question[]) ?? []).filter(r => inShared(r.org_id))); setMe(u.data.user?.id ?? null)
+    setRows((q.data as Question[]) ?? []); setMe(u.data.user?.id ?? null)
     const os = (o.data as any[]) ?? []; setOrgNames(new Map(os.map(x => [x.id, x.name]))); setOrgType(os.find(x => x.id === orgId)?.type ?? 'school')
   }
   useEffect(() => { load() }, [orgId])
@@ -45,7 +44,9 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
   const needle = norm(f.q.trim().toLowerCase())
   const list = rows.filter(r => (!f.subject || r.subject === f.subject) && (!f.grade || String(r.grade) === f.grade) && (!f.level || r.level === f.level)
     && (!f.status || r.status === f.status) && (!needle || norm(`${r.stem} ${r.topic ?? ''}`.toLowerCase()).includes(needle)))
-  const mine = (r: Question) => r.org_id === orgId
+  // Quản trị hệ thống: câu hỏi của mọi đơn vị, sửa thẳng; thêm mới chọn đơn vị trong form
+  const every = useAllMode()
+  const mine = (r: Question) => r.org_id === orgId || !!every
 
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!form) return
@@ -55,7 +56,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
     if (!answer.length) return setMsg(['Chọn đáp án đúng.', true])
     const body = { subject: form.subject.trim(), grade: form.grade ? Number(form.grade) : null, topic: form.topic.trim() || null, level: form.level, kind: form.kind,
       stem: form.stem.trim(), options, answer: form.kind === 'multi' ? answer : [answer[0]], explain: form.explain.trim() || null, shared: form.shared, status: form.status }
-    const { error } = form.id ? await supabase.from('question_bank').update(body).eq('id', form.id) : await supabase.from('question_bank').insert({ ...body, org_id: orgId })
+    const { error } = form.id ? await supabase.from('question_bank').update(body).eq('id', form.id) : await supabase.from('question_bank').insert({ ...body, org_id: form.org || orgId })
     if (error) return setMsg([errText(error.message), true])
     setMsg([form.id ? 'Đã cập nhật câu hỏi.' : 'Đã thêm câu hỏi.', false]); setForm(null); load()
   }
@@ -99,7 +100,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
   const cur = rows.find(r => r.id === open)
   if (form) return (
     <ElView back={cur ? 'Chi tiết câu hỏi' : 'Ngân hàng câu hỏi'} onBack={() => setForm(null)} title={form.id ? 'Sửa câu hỏi' : 'Thêm câu hỏi'}>
-      {note}<QuestionForm form={form} setForm={setForm} onSubmit={save} canShare={orgType !== 'school'} />
+      {note}<QuestionForm form={form} setForm={setForm} onSubmit={save} canShare={every ? every.find(o => o.id === (form.org || cur?.org_id))?.type !== 'school' : orgType !== 'school'} />
     </ElView>)
   if (cur) return (
     <ElView back="Ngân hàng câu hỏi" onBack={() => setOpen(null)} title="Chi tiết câu hỏi"
@@ -116,7 +117,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
         <ol className="qopts" type="A">{cur.options.map((o, i) => <li key={i} className={cur.answer.includes(i) ? 'right' : ''}>{o}</li>)}</ol>
         <p className="sub">Đáp án đúng: <b>{cur.kind === 'truefalse' ? (cur.answer[0] === 0 ? 'Đúng' : 'Sai') : cur.answer.map(letter).join(', ')}</b></p>
         {cur.explain && <p className="sub">Giải thích: {cur.explain}</p>}
-        <p className="sub"><small>Nguồn: {!mine(cur) ? orgNames.get(cur.org_id) ?? 'Cấp trên' : cur.source === 'ai' ? 'Trợ lý AI' : cur.source === 'import' ? 'Nhập Excel' : 'Soạn tay'}{cur.shared && mine(cur) ? ' · dùng chung' : ''}</small></p>
+        <p className="sub"><small>Nguồn: {every ? (orgNames.get(cur.org_id) ?? '') + ' · ' : ''}{!mine(cur) ? orgNames.get(cur.org_id) ?? 'Cấp trên' : cur.source === 'ai' ? 'Trợ lý AI' : cur.source === 'import' ? 'Nhập Excel' : 'Soạn tay'}{cur.shared && mine(cur) ? ' · dùng chung' : ''}</small></p>
       </section>
     </ElView>)
   return (
@@ -130,7 +131,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
       <div className="bar" style={{ marginTop: 14 }}>
         <span />
         <span className="tools">
-          <button className="primary" onClick={() => { setForm({ ...EMPTY, shared: orgType !== 'school' }); setAi(false) }}>Thêm câu hỏi</button>
+          <button className="primary" onClick={() => { setForm({ ...EMPTY, shared: !every && orgType !== 'school' }); setAi(false) }}>Thêm câu hỏi</button>
           <button onClick={() => { setAi(!ai); setForm(null) }}>{ai ? 'Đóng Trợ lý AI' : 'Tạo bằng Trợ lý AI'}</button>
           <ImportExcel columns={COLS} template="mau-ngan-hang-cau-hoi" onRecords={importRecords} onMessage={(m, bad) => setMsg([m, !!bad])}
             sample={[['Khoa học tự nhiên', '7', 'Mạch điện', 'Nhận biết', 'Đơn vị đo cường độ dòng điện là gì?', 'Vôn', 'Ampe', 'Ôm', 'Oát', '', '', 'B', 'Cường độ dòng điện đo bằng ampe (A).'],
@@ -164,7 +165,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
               <td className="sel" onClick={e => e.stopPropagation()}>{mine(r) && <input type="checkbox" checked={qsel.is(r)} onChange={() => qsel.toggle(r)} aria-label="Chọn câu hỏi" />}</td>
               <td style={{ whiteSpace: 'normal', maxWidth: 460 }}><b>{r.stem.length > 140 ? r.stem.slice(0, 140) + '…' : r.stem}</b>{r.topic && <><br /><small>{r.topic}</small></>}</td>
               <td>{r.subject}{r.grade ? ` · ${r.grade}` : ''}</td><td>{LEVEL[r.level]}</td><td>{QKIND[r.kind]}</td>
-              <td><small>{!mine(r) ? orgNames.get(r.org_id) ?? 'Cấp trên' : r.source === 'ai' ? 'Trợ lý AI' : r.source === 'import' ? 'Nhập Excel' : 'Soạn tay'}{r.shared && mine(r) ? ' · dùng chung' : ''}</small></td>
+              <td><small>{every ? (orgNames.get(r.org_id) ?? '') + ' · ' : ''}{!mine(r) ? orgNames.get(r.org_id) ?? 'Cấp trên' : r.source === 'ai' ? 'Trợ lý AI' : r.source === 'import' ? 'Nhập Excel' : 'Soạn tay'}{r.shared && mine(r) ? ' · dùng chung' : ''}</small></td>
               <td><span className={'pill ' + (r.status === 'ready' ? 'active' : r.status === 'draft' ? 'maintenance' : 'inactive')}>{r.status === 'ready' ? 'Sẵn sàng' : r.status === 'draft' ? 'Nháp' : 'Ngừng dùng'}</span></td>
             </tr>)}
           {!list.length && <tr><td colSpan={7}>Chưa có câu hỏi. Thêm tay, nhập Excel theo file mẫu, hoặc tạo bằng Trợ lý AI.</td></tr>}
@@ -181,6 +182,7 @@ function QuestionForm({ form, setForm, onSubmit, canShare }: { form: Form; setFo
   const toggle = (i: number) => set({ answer: form.kind === 'multi' ? (form.answer.includes(i) ? form.answer.filter(x => x !== i) : [...form.answer, i]) : [i] })
   return (
     <form className="panel formgrid" onSubmit={onSubmit}>
+      {!form.id && <OrgPick kind="any" value={form.org ?? ''} onChange={org => set({ org, shared: false })} />}
       <label className="field"><span>Môn *</span><input required value={form.subject} onChange={e => set({ subject: e.target.value })} /></label>
       <label className="field"><span>Khối</span><input type="number" min={1} max={12} value={form.grade} onChange={e => set({ grade: e.target.value })} /></label>
       <label className="field"><span>Chủ đề</span><input value={form.topic} onChange={e => set({ topic: e.target.value })} /></label>

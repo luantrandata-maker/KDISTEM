@@ -5,7 +5,7 @@ import { fieldsOf, useSettings } from '../lib/settings'
 import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { useOrgScope, useSharedFilter } from '../components/OrgScope'
+import { OrgPick, useAllMode } from '../components/OrgScope'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
@@ -122,8 +122,6 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   const progFields = fieldsOf(useSettings(), 'program')
   const levelOpts: [string, string][] = LVL.map(l => [l.code, l.name])
   const [list, setList] = useState<Program[] | null>(null)
-  const sc = useOrgScope()
-  const inShared = useSharedFilter()
   const [openId, setOpenId] = useState<string | null>(null)
   const [level, setLevel] = useState('')
   const [kind, setKind] = useState('')
@@ -135,15 +133,13 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
 
   const [counts, setCounts] = useState<{ subjects: number; lessons: number } | null>(null)
+  // Quản trị hệ thống: chương trình của mọi đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
+  const every = useAllMode()
+  const pickedSchool = !!form?.org_id && every?.find(o => o.id === form.org_id)?.type === 'school'
   async function load() {
     const { data, error } = await supabase.from('edu_programs').select('*, organizations(name)').order('title').order('version_no', { ascending: false })
     if (error) setMsg([errText(error.message), true])
-    let rows = (data as Program[]) ?? []
-    if (sc) {
-      const { data: a } = await supabase.from('edu_program_assignments').select('program_id').eq('org_id', sc.orgId)
-      const assigned = new Set(((a as { program_id: string }[]) ?? []).map(x => x.program_id))
-      rows = rows.filter(p => inShared(p.org_id) || assigned.has(p.id))
-    }
+    const rows = (data as Program[]) ?? []
     setList(rows)
     // Số liệu cho thanh quy trình: môn dùng được, bài học trong chương trình của đơn vị
     const ownIds = rows.filter(p => p.org_id === orgId && !['superseded', 'archived'].includes(p.status)).map(p => p.id)
@@ -161,8 +157,8 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   const shown = all.filter(p => (old || !SGROUP.off[1].includes(p.status) || status === 'off')
     && (!level || lvsOf(p).includes(level)) && (!kind || p.kind === kind) && (!subject || mainsOf(p).includes(subject) || p.integrated_subjects.includes(subject))
     && (!status || SGROUP[status]?.[1].includes(p.status)) && (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
-  const own = shown.filter(p => p.org_id === orgId)
-  const shared = shown.filter(p => p.org_id !== orgId)
+  const own = every ? shown : shown.filter(p => p.org_id === orgId)
+  const shared = every ? [] : shown.filter(p => p.org_id !== orgId)
 
   async function create(e: React.FormEvent) {
     e.preventDefault(); if (!form || !orgId) return
@@ -172,11 +168,11 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
     const gs = progGrades(form).filter(g => g >= span[0] && g <= span[1])
     if (!gs.length) return setMsg(['Chọn ít nhất một khối.', true])
     const row = {
-      org_id: orgId, title: (form.title ?? '').trim(), code: form.code?.trim() || null, kind: form.kind ?? 'subject',
+      org_id: form.org_id || orgId, title: (form.title ?? '').trim(), code: form.code?.trim() || null, kind: form.kind ?? 'subject',
       ct_codes: cts, levels: lvs, main_subjects: mains, ct_code: cts[0], level: lvs[0], main_subject: mains[0],
       periods_per_week: Number(form.periods_per_week) || null, deploy_term: form.deploy_term ?? 'year',
       grades: gs, grade_from: gs[0], grade_to: gs[gs.length - 1],
-      scope: mode === 'school' ? 'own' : form.scope ?? 'children',
+      scope: mode === 'school' || pickedSchool ? 'own' : form.scope ?? 'children',
       ...(progFields.length ? { custom: form.custom ?? {} } : {}),
     }
     const { data, error } = await supabase.from('edu_programs').insert(row).select('id').single()
@@ -200,7 +196,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
     <tr key={p.id} className={!mine && sel.is(p) ? 'picked' : undefined}>
       {!mine && canCopy && <SelTd on={sel.is(p)} onToggle={() => sel.toggle(p)} label={p.title} />}
       <td>{p.code && <small className="sub">{p.code}<br /></small>}<NameLink onClick={() => setOpenId(p.id)}>{p.title}</NameLink> <small>v{p.version_no}</small>
-        {!mine && <><br /><small className="sub">{p.organizations?.name ?? '—'}</small></>}</td>
+        {(!mine || every) && <><br /><small className="sub">{p.organizations?.name ?? '—'}</small></>}</td>
       <td>{lvsOf(p).map(levelName).join(', ')} · {grades(p)}<br /><small>{PKIND[p.kind]}{ctsOf(p).map(c => <Fragment key={c}> <span className="gpill">{c}</span></Fragment>)}</small></td>
       <td>{mainsOf(p).join(', ')}{p.integrated_subjects.length > 0 && <><br /><small className="sub">Tích hợp: {p.integrated_subjects.join(', ')}</small></>}</td>
       <td>{p.total_periods || '—'}<br /><small className="sub">{[p.periods_per_week && `${p.periods_per_week} tiết/tuần`, DEPLOY[p.deploy_term ?? 'year']?.[0]].filter(Boolean).join(' · ')}</small></td>
@@ -228,7 +224,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
               <b>{p.title}</b>
               <small>{mainsOf(p).join(', ')}{p.integrated_subjects.length > 0 ? ' · tích hợp ' + p.integrated_subjects.join(', ') : ''}</small>
               <div className="tilemeta"><span>{lvsOf(p).map(levelName).join(', ')} · {grades(p)}</span><span>{PKIND[p.kind]}</span>{p.total_periods > 0 && <span>{p.total_periods} tiết</span>}{p.periods_per_week && <span>{p.periods_per_week} tiết/tuần</span>}<span>{DEPLOY[p.deploy_term ?? 'year']?.[0]}</span><span>v{p.version_no}</span></div>
-              {!mine && <small>{p.organizations?.name ?? '—'}</small>}
+              {(!mine || every) && <small>{p.organizations?.name ?? '—'}</small>}
             </div>
           </button>
           {!mine && canCopy && <label className="tilecheck"><input type="checkbox" checked={sel.is(p)} onChange={() => sel.toggle(p)} aria-label={'Chọn ' + p.title} /></label>}
@@ -249,6 +245,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
     <ElView back="Chương trình giáo dục" onBack={() => setForm(null)} title={'Thêm chương trình'}>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
         <form className="panel formgrid" onSubmit={create} style={{ marginBottom: 12 }}>
+          <OrgPick kind="any" value={form.org_id ?? orgId ?? ''} onChange={v => setForm({ ...form, org_id: v })} />
           <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình *</span><input required value={form.title ?? ''} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Tin học THCS (CT GDPT 2018)" /></label>
           <label className="field"><span>Mã</span><input value={form.code ?? ''} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: TIN-THCS" /></label>
           <label className="field"><span>Kiểu chương trình</span><select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
@@ -262,7 +259,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
           <div className="field" style={{ gridColumn: '1/-1' }}><span>Môn chủ đạo * <small className="sub">(tick một hoặc nhiều; mục tick đầu tiên là chính)</small></span>
             <SubjectMulti primary="chính" level={lvsOf(form).length === 1 ? lvsOf(form)[0] : null} value={mainsOf(form)} onChange={v => setForm({ ...form, main_subjects: v, main_subject: v[0] ?? '' })}
               extra={form.kind === 'stem' ? ctsOf(form).flatMap(c => tracks[c]?.subjects ?? []) : []} /></div>
-          {mode !== 'school' && <label className="field"><span>Phạm vi</span><select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Program['scope'] })}>
+          {mode !== 'school' && !pickedSchool && <label className="field"><span>Phạm vi</span><select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Program['scope'] })}>
             <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
           <CustomInputs fields={progFields} value={form.custom ?? {}} onChange={v => setForm({ ...form, custom: v })} />
           <div className="formactions" style={{ gridColumn: '1/-1' }}><button className="primary" type="submit">Tạo bản nháp</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
@@ -303,13 +300,14 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : (
         <>
-          <h3>Của đơn vị ({own.length})</h3>
+          <h3>{every ? 'Mọi đơn vị' : 'Của đơn vị'} ({own.length})</h3>
           {own.length ? show(own, true) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chương trình nào.{canEdit && ' Bấm "Thêm chương trình", hoặc sao chép chương trình dùng chung bên dưới.'}</p></div>}
+          {!every && <>
           <h3>Dùng chung / được gán ({shared.length})</h3>
           {shared.length > 0 && canCopy && <SelBar picked={sel.cur?.title ?? null}>
             <button disabled={!sel.cur || !['published', 'superseded'].includes(sel.cur.status)} onClick={() => sel.cur && copy(sel.cur)}>Sao chép về đơn vị</button>
           </SelBar>}
-          {shared.length ? show(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chương trình nào do KDI hoặc cấp trên phát hành cho đơn vị.</p></div>}
+          {shared.length ? show(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chương trình nào do KDI hoặc cấp trên phát hành cho đơn vị.</p></div>}</>}
         </>
       )}
     </>
@@ -338,9 +336,10 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
   useEffect(() => {
     supabase.from('competencies').select('key, name, grp').eq('audience', 'student').order('sort').then(({ data }) => setComps((data as Comp[]) ?? []))
   }, [])
+  const every = useAllMode()
   if (!p) return <><button className="linkbtn" onClick={onClose}>← Danh sách chương trình</button>{msg ? <p className="msg">{msg[0]}</p> : <p className="sub">Đang tải…</p>}</>
 
-  const mine = p.org_id === orgId
+  const mine = p.org_id === orgId || !!every
   const editable = mine && canEdit && (p.status === 'draft' || p.status === 'rejected')
   const tabs: [Tab, string][] = [['info', 'Thông tin'], ['units', 'Cấu trúc & yêu cầu cần đạt'], ['versions', 'Phiên bản & duyệt'],
     ...(mode !== 'school' && (mine || p.status === 'published' || p.status === 'superseded') ? [['assign', 'Gán & triển khai'] as [Tab, string]] : [])]
@@ -968,7 +967,9 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
   useEffect(() => { load() }, [p.id])
   const below: Org[] = []
   const walk = (id: string, depth: number) => orgs.filter(o => o.parent_id === id).forEach(o => { below.push({ ...o, name: ' '.repeat(depth * 3) + o.name }); walk(o.id, depth + 1) })
-  if (orgId) walk(orgId, 0)
+  const every = useAllMode()
+  const root = every ? p.org_id : orgId
+  if (root) walk(root, 0)
   const orgName = (id: string) => orgs.find(o => o.id === id)?.name ?? '—'
 
   async function add(e: React.FormEvent) {

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAllMode } from '../components/OrgScope'
 import { downloadXlsx } from '../lib/sheet'
 import { schoolYear } from './department/Governance'
 
@@ -257,15 +258,15 @@ export function SchoolTeacherAssessments({ orgId, readOnly }: { orgId: string | 
   const [form, setForm] = useState<Partial<TA> | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [canEdit, setCanEdit] = useState(false)
+  // Quản trị hệ thống: GV của mọi trường trong một danh sách, đánh giá thay trường
+  const all = useAllMode()
   async function load() {
-    const [t, a, adm, pa] = await Promise.all([
-      orgId ? supabase.from('teachers').select('id, full_name, org_id, organizations(name)').eq('status', 'active').eq('org_id', orgId).order('full_name')
-        : supabase.from('teachers').select('id, full_name, org_id, organizations(name)').eq('status', 'active').order('full_name'),
-      orgId ? supabase.from('teacher_assessments').select('*').eq('school_year', year).eq('org_id', orgId) : supabase.from('teacher_assessments').select('*').eq('school_year', year),
+    const [t, a, adm] = await Promise.all([
+      supabase.from('teachers').select('id, full_name, org_id, organizations(name)').eq('status', 'active').order('full_name'),
+      supabase.from('teacher_assessments').select('*').eq('school_year', year),
       supabase.rpc('is_admin'),
-      supabase.rpc('is_platform_admin'),
     ])
-    setTeachers(((t.data as any[]) ?? []).filter(x => !orgId || x.org_id === orgId)); setList((a.data as TA[]) ?? []); setCanEdit(!readOnly && (!!adm.data || (!!orgId && !!pa.data)))
+    setTeachers(((t.data as any[]) ?? []).filter(x => !orgId || x.org_id === orgId)); setList((a.data as TA[]) ?? []); setCanEdit(!readOnly && (!!adm.data || !!all))
   }
   useEffect(() => { load() }, [orgId])
   const of = (id: string, k: 'self' | 'manager') => list.find(x => x.teacher_id === id && x.kind === k)

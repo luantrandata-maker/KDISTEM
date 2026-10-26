@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { MultiSelect } from '../components/MultiSelect'
 import { supabase } from '../lib/supabase'
-import { useOrgScope, useSharedFilter } from '../components/OrgScope'
+import { OrgFilter, OrgPick, useAllMode } from '../components/OrgScope'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
@@ -105,7 +105,6 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
   const yearNames = [...new Set((years ?? []).map(y => y.name))]
   const canEdit = useCanEdit(mode)
   const [books, setBooks] = useState<Book[]>([])
-  const inShared = useSharedFilter()
   const [loaded, setLoaded] = useState(false)
   const [grade, setGrade] = useState(0)
   const [subject, setSubject] = useState('')
@@ -126,8 +125,11 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
   }
   useEffect(() => { load() }, [orgId])
 
-  const own = books.filter(b => b.org_id === orgId)
-  const templates = books.filter(b => b.org_id !== orgId && b.scope === 'children' && b.status === 'published' && inShared(b.org_id))
+  // Quản trị hệ thống: PPCT của mọi đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
+  const every = useAllMode()
+  const [fo, setFo] = useState('')
+  const own = every ? books.filter(b => !fo || b.org_id === fo) : books.filter(b => b.org_id === orgId)
+  const templates = every ? [] : books.filter(b => b.org_id !== orgId && b.scope === 'children' && b.status === 'published')
   const grades = [...new Set(own.map(b => b.grade))].sort((a, b) => a - b)
   const subjects = [...new Set(own.map(b => b.subject))].sort((a, b) => a.localeCompare(b, 'vi'))
   const shown = own.filter(b => (!grade || b.grade === grade) && (!subject || b.subject === subject) && (!q || norm(b.title + ' ' + b.subject).includes(norm(q))))
@@ -135,7 +137,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!form) return
     const row = {
-      org_id: orgId, grade: Number(form.grade), subject: (form.subject ?? '').trim(), title: (form.title ?? '').trim() || `${(form.subject ?? '').trim()} ${form.grade}`,
+      org_id: form.org_id || orgId, grade: Number(form.grade), subject: (form.subject ?? '').trim(), title: (form.title ?? '').trim() || `${(form.subject ?? '').trim()} ${form.grade}`,
       year_name: form.year_name?.trim() || null, periods_per_week: form.periods_per_week ? Number(String(form.periods_per_week).replace(',', '.')) : null,
       status: form.status ?? 'published', scope: mode === 'school' ? 'own' : form.scope ?? 'children', note: form.note?.trim() || null,
       ...(form.id ? {} : { total_periods: form.total_periods ? Number(form.total_periods) : null }),
@@ -182,7 +184,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
 
   const tsel = useRowSel(templates)
   const bsel = useRowSel(shown)
-  if (open) return <LessonEditor book={open} canEdit={canEdit && open.org_id === orgId} mode={mode} onClose={() => { setOpen(null); load() }} onChanged={load} />
+  if (open) return <LessonEditor book={open} canEdit={canEdit && (open.org_id === orgId || !!every)} mode={mode} onClose={() => { setOpen(null); load() }} onChanged={load} />
 
   const scopeLabel = mode === 'platform' ? 'Mẫu cho mọi trường' : 'Ban hành cho đơn vị trực thuộc'
   return (
@@ -199,6 +201,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
           </div>}
           {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn học"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
           <input placeholder="Tìm môn, tên PPCT…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
+          <OrgFilter ids={books.map(b => b.org_id)} value={fo} onChange={setFo} />
         </div>
         <div className="tools">
           {canEdit && templates.length > 0 && <button onClick={() => setShowTpl(v => !v)}>{showTpl ? 'Ẩn mẫu' : `Dùng mẫu (${templates.length})`}</button>}
@@ -210,6 +213,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
 
       {form && (
         <form className="panel formgrid" onSubmit={save} style={{ marginBottom: 12 }}>
+          {!form.id && <OrgPick kind="any" value={form.org_id ?? orgId ?? ''} onChange={v => setForm({ ...form, org_id: v })} />}
           <label className="field"><span>Khối *</span><GradePicker value={form.grade} onChange={g => setForm({ ...form, grade: g ?? undefined })} emptyLabel="— Chọn khối —" /></label>
           <label className="field"><span>Môn học *</span><SubjectPicker required value={form.subject} onChange={v => setForm({ ...form, subject: v })} extra={subjects} /></label>
           <label className="field"><span>Tên PPCT</span><input value={form.title ?? ''} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Tin học 6 — Kết nối tri thức" /></label>
@@ -263,7 +267,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
             <tr key={b.id} className={bsel.is(b) ? 'picked' : undefined}>
               {canEdit && <SelTd on={bsel.is(b)} onToggle={() => bsel.toggle(b)} label={b.title} />}
               <td>{b.grade}</td><td>{b.subject}</td>
-              <td><NameLink onClick={() => setOpen(b)} title={canEdit ? 'Soạn tiết' : 'Xem'}>{b.title}</NameLink>{b.edu_programs && <><br /><small>Theo chương trình: {b.edu_programs.title} (v{b.edu_programs.version_no})</small></>}
+              <td><NameLink onClick={() => setOpen(b)} title={canEdit ? 'Soạn tiết' : 'Xem'}>{b.title}</NameLink>{every && <><br /><small className="sub">{b.organizations?.name ?? '—'}</small></>}{b.edu_programs && <><br /><small>Theo chương trình: {b.edu_programs.title} (v{b.edu_programs.version_no})</small></>}
                 {b.source_id && <><br /><small>Sao chép từ mẫu</small></>}{mode !== 'school' && b.scope === 'children' && <><br /><small>{scopeLabel}</small></>}</td>
               <td>{b.year_name ?? 'Mọi năm'}</td><td>{b.total_periods ?? '—'}</td><td>{b.periods_per_week ?? '—'}</td>
               <td><span className={'pill ' + BOOK_STATUS[b.status][1]}>{b.status === 'published' && mode !== 'school' ? 'Đã ban hành' : BOOK_STATUS[b.status][0]}</span></td>
@@ -569,7 +573,6 @@ export function progressTone(p: Pick<Progress, 'taught' | 'gap' | 'total'>): { l
 
 export function CurriculumProgress({ orgId, mode = 'school' }: { orgId: string | null; mode?: PpctMode }) {
   const [rows, setRows] = useState<Progress[] | null>(null)
-  const sc = useOrgScope()
   const [err, setErr] = useState('')
   const [school, setSchool] = useState('')
   const [grade, setGrade] = useState(0)
@@ -581,7 +584,7 @@ export function CurriculumProgress({ orgId, mode = 'school' }: { orgId: string |
   useEffect(() => {
     supabase.rpc('curriculum_progress', { p_org: null }).then(({ data, error }) => {
       if (error) setErr(errText(error.message))
-      setRows(((data as Progress[]) ?? []).filter(r => !sc || sc.tree.includes(r.org_id)))
+      setRows((data as Progress[]) ?? [])
     })
   }, [orgId])
   if (err) return <p className="msg">{err}</p>

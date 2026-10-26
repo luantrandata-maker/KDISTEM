@@ -1,25 +1,14 @@
-// Quản trị hệ thống thao tác thay một đơn vị ngay trong trang (phương án B, 26/10): chọn trường / Sở / Phòng rồi dùng
-// đúng màn của đơn vị đó. Nhớ lựa chọn theo từng trang (localStorage). Quyền ghi kiểm tra ở CSDL (is_platform_admin).
+// Quản trị hệ thống thao tác mọi đơn vị ngay trên màn hình như người dùng (26/10): một danh sách chung gồm dữ liệu của mọi
+// đơn vị (kèm tên đơn vị), sửa thẳng từng dòng; thêm mới thì chọn đơn vị ngay trong form. Quyền ghi kiểm tra ở CSDL (099, 100).
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
 
 export type ScopeOrg = { id: string; name: string; type: string; parent_id: string | null; is_platform?: boolean | null }
 /** kind: 'school' = chỉ trường; 'unit' = KDI và cơ quan quản lý (Bộ, Tỉnh, Sở, Phòng); 'any' = tất cả */
 export type ScopeKind = 'school' | 'unit' | 'any'
-/** scope: đơn vị + các cấp trên; shared: scope + KDI (dữ liệu dùng chung đơn vị thấy được); tree: đơn vị + các đơn vị trực thuộc */
-export type Scope = { orgId: string; org: ScopeOrg; scope: string[]; shared: string[]; tree: string[] }
 
 const TYPE: Record<string, string> = { ministry: 'Bộ', province: 'Tỉnh', department: 'Sở / Phòng', district: 'Phòng', school: 'Trường', provider: 'Đơn vị' }
-const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
-
-const Ctx = createContext<Scope | null>(null)
-/** Đơn vị Quản trị hệ thống đang thao tác thay (null khi không ở trong OrgScope) */
-export const useOrgScope = () => useContext(Ctx)
-/** Dữ liệu dùng chung mà đơn vị đang thao tác thấy được: của chính nó, cấp trên hoặc KDI. Ngoài OrgScope luôn đúng (giữ như cũ). */
-export function useSharedFilter() {
-  const s = useOrgScope()
-  return (org: string | null | undefined) => !s || !org || s.shared.includes(org)
-}
+export const fitsKind = (o: Pick<ScopeOrg, 'type'>, kind: ScopeKind) => kind === 'any' || (kind === 'school' ? o.type === 'school' : o.type !== 'school')
 
 let cache: Promise<ScopeOrg[]> | null = null
 export function useAllOrgs() {
@@ -32,54 +21,55 @@ export function useAllOrgs() {
   return list
 }
 
-/** Thanh chọn đơn vị + nội dung trang của đơn vị đó */
-export function OrgScope({ kind, storeKey, children, hint }: { kind: ScopeKind; storeKey: string; children: (s: Scope) => ReactNode; hint?: string }) {
+const Ctx = createContext<ScopeOrg[] | null>(null)
+/** Bọc màn của Quản trị hệ thống: các màn bên trong hiện dữ liệu mọi đơn vị và cho sửa thẳng */
+export function AllOrgs({ children }: { children: ReactNode }) {
   const all = useAllOrgs()
-  const key = 'orgscope:' + storeKey
-  const [id, setId] = useState<string>(() => { try { return localStorage.getItem(key) ?? '' } catch { return '' } })
-  const [q, setQ] = useState('')
-  // Cây đơn vị: thứ tự cha → con, kèm độ sâu để thụt lề
-  const rows = useMemo(() => {
+  return all ? <Ctx.Provider value={all}>{children}</Ctx.Provider> : <p className="sub">Đang tải…</p>
+}
+/** Danh sách mọi đơn vị khi đang ở màn của Quản trị hệ thống; null ở màn của người dùng thường */
+export const useAllMode = () => useContext(Ctx)
+/** Tên đơn vị theo id (rỗng khi không ở màn của Quản trị hệ thống) */
+export function useOrgName() {
+  const all = useAllMode()
+  return (id?: string | null) => (id && all?.find(o => o.id === id)?.name) || ''
+}
+
+// Cây đơn vị: cha → con, kèm độ sâu để thụt lề
+function useTree(kind: ScopeKind) {
+  const all = useAllMode()
+  return useMemo(() => {
     if (!all) return []
     const kids = new Map<string | null, ScopeOrg[]>()
     all.forEach(o => { const p = o.parent_id && all.some(x => x.id === o.parent_id) ? o.parent_id : null; kids.set(p, [...(kids.get(p) ?? []), o]) })
-    const out: (ScopeOrg & { depth: number; path: string })[] = []
-    const walk = (p: string | null, depth: number, path: string) => (kids.get(p) ?? [])
+    const out: (ScopeOrg & { depth: number })[] = []
+    const walk = (p: string | null, depth: number) => (kids.get(p) ?? [])
       .sort((a, b) => Number(!!b.is_platform) - Number(!!a.is_platform) || (a.type === 'school' ? 1 : 0) - (b.type === 'school' ? 1 : 0) || a.name.localeCompare(b.name, 'vi'))
-      .forEach(o => { out.push({ ...o, depth, path }); walk(o.id, depth + 1, path ? `${path} › ${o.name}` : o.name) })
-    walk(null, 0, '')
-    return out
-  }, [all])
-  const fits = (o: ScopeOrg) => kind === 'any' || (kind === 'school' ? o.type === 'school' : o.type !== 'school')
-  const shown = rows.filter(o => fits(o) && (!q || fold(`${o.name} ${o.path}`).includes(fold(q.trim()))))
-  const cur = rows.find(o => o.id === id && fits(o)) ?? (kind !== 'school' ? rows.find(o => o.is_platform) : undefined)
-  useEffect(() => { if (cur && cur.id !== id) setId(cur.id) }, [cur?.id])
-  const pick = (v: string) => { setId(v); setQ(''); try { localStorage.setItem(key, v) } catch { /* bỏ qua */ } }
-  const { scope, shared, tree } = useMemo(() => {
-    if (!cur || !all) return { scope: [], shared: [], tree: [] }
-    const s = [cur.id]; let p = cur.parent_id
-    while (p && !s.includes(p)) { s.push(p); p = all.find(o => o.id === p)?.parent_id ?? null }
-    const t = [cur.id]
-    for (let k = 0; k < t.length; k++) all.forEach(o => { if (o.parent_id === t[k] && !t.includes(o.id)) t.push(o.id) })
-    return { scope: s, shared: [...new Set([...s, ...all.filter(o => o.is_platform).map(o => o.id)])], tree: t }
-  }, [cur?.id, all])
-  const value = useMemo<Scope | null>(() => (cur ? { orgId: cur.id, org: cur, scope, shared, tree } : null), [cur?.id, scope])
-  if (!all) return <p className="sub">Đang tải danh sách đơn vị…</p>
-  return <>
-    <div className="panel orgscope">
-      <div className="orgscopebar">
-        <b>Thao tác cho</b>
-        <input placeholder={kind === 'school' ? 'Tìm trường…' : 'Tìm đơn vị…'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đơn vị" />
-        <select value={cur?.id ?? ''} onChange={e => pick(e.target.value)} aria-label="Đơn vị thao tác">
-          {!cur && <option value="">— Chọn {kind === 'school' ? 'trường' : 'đơn vị'} —</option>}
-          {cur && !shown.some(o => o.id === cur.id) && <option value={cur.id}>{cur.name}</option>}
-          {shown.slice(0, 400).map(o => <option key={o.id} value={o.id}>{' '.repeat(o.depth * 2)}{o.depth ? '└ ' : ''}{o.name}{o.type !== 'school' && !o.is_platform ? ` (${TYPE[o.type] ?? o.type})` : ''}</option>)}
-        </select>
-        {q && <small className="sub">{shown.length} kết quả</small>}
-      </div>
-      <small className="sub">{cur ? <>Bạn đang thao tác với quyền Quản trị hệ thống trên dữ liệu của <b>{cur.name}</b>{rows.find(o => o.id === cur.id)?.path ? ` (${rows.find(o => o.id === cur.id)!.path})` : ''}.</>
-        : hint ?? 'Chọn đơn vị để xem và thao tác như người quản lý của đơn vị đó.'}</small>
-    </div>
-    {value && <div key={value.orgId}><Ctx.Provider value={value}>{children(value)}</Ctx.Provider></div>}
-  </>
+      .forEach(o => { out.push({ ...o, depth }); walk(o.id, depth + 1) })
+    walk(null, 0)
+    return out.filter(o => fitsKind(o, kind))
+  }, [all, kind])
+}
+const label = (o: ScopeOrg & { depth: number }) => `${' '.repeat(o.depth * 2)}${o.depth ? '└ ' : ''}${o.name}${o.type !== 'school' && !o.is_platform ? ` (${TYPE[o.type] ?? o.type})` : ''}`
+
+/** Ô chọn đơn vị trong form thêm mới (chỉ hiện ở màn của Quản trị hệ thống) */
+export function OrgPick({ kind, value, onChange, title = 'Đơn vị' }: { kind: ScopeKind; value: string; onChange: (id: string) => void; title?: string }) {
+  const rows = useTree(kind)
+  if (!useAllMode()) return null
+  return <label className="field"><span>{title} *</span>
+    <select required value={value} onChange={e => onChange(e.target.value)} aria-label={title}>
+      <option value="">— Chọn {kind === 'school' ? 'trường' : 'đơn vị'} —</option>
+      {rows.map(o => <option key={o.id} value={o.id}>{label(o)}</option>)}
+    </select></label>
+}
+
+/** Bộ lọc "Mọi đơn vị" trên thanh công cụ (chỉ hiện ở màn của Quản trị hệ thống); ids = đơn vị có trong dữ liệu */
+export function OrgFilter({ ids, value, onChange }: { ids: (string | null | undefined)[]; value: string; onChange: (id: string) => void }) {
+  const rows = useTree('any')
+  if (!useAllMode()) return null
+  const has = new Set(ids.filter(Boolean))
+  return <select value={value} onChange={e => onChange(e.target.value)} aria-label="Đơn vị">
+    <option value="">Mọi đơn vị</option>
+    {rows.filter(o => has.has(o.id)).map(o => <option key={o.id} value={o.id}>{label(o)}</option>)}
+  </select>
 }

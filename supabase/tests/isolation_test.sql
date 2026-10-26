@@ -3266,6 +3266,20 @@ select pg_temp.chk('kdi', 'QT 100: Quản trị soạn giáo án mẫu cho trư�
 select pg_temp.chk('kdi', 'QT 100: Quản trị thêm định mức vật tư cho trường', format('select library_can_write(%L)::text', pg_temp.oid_('THCS-PH')), 'true');
 select pg_temp.chk('kdi', 'QT 100: ngoài Phân hệ 2 vẫn chỉ xem (học sinh)', format('update students set full_name = ''x'' where org_id = %s', quote_literal(pg_temp.oid_('THCS-KB'))), 'rows:0');
 
+-- 100: Quản trị duyệt thay trường; e-learning của trường
+select pg_temp.probe('gv_ph2@iso-test.local', $q$select lesson_plan_clone((select id from lesson_plans where title = 'ISO GA C'), 'ISO GA QT duyệt')::text$q$, true);
+select pg_temp.probe('gv_ph2@iso-test.local', $q$update lesson_plans set status = 'pending' where title = 'ISO GA QT duyệt'$q$, true);
+select pg_temp.chk('kdi', 'QT 100: Quản trị được duyệt giáo án của trường', $q$select approval_can_act((select id from approval_requests where title = 'ISO GA QT duyệt' and status = 'pending'))::text$q$, 'true');
+select pg_temp.probe('kdi@iso-test.local', $q$select approval_decide_ref('lesson_plans', (select id from lesson_plans where title = 'ISO GA QT duyệt'), 'approve', 'QT duyệt')::text$q$, true);
+select pg_temp.chk('gv_ph2', 'QT 100: giáo án được Quản trị duyệt', $q$select status from lesson_plans where title = 'ISO GA QT duyệt'$q$, 'approved');
+select pg_temp.chk('admin_kb', 'QT 100: trường khác vẫn không duyệt được', $q$select approval_can_act((select id from approval_requests where status = 'pending' and org_id = (select id from organizations where code = 'THCS-PH') limit 1))::text$q$, 'false');
+select pg_temp.chk('kdi', 'QT 100: Quản trị thêm câu hỏi cho trường', format($q$insert into question_bank (org_id, subject, stem, options, answer) values (%L, 'Toán', 'ISO câu QT', '["a","b"]', '[0]')$q$, pg_temp.oid_('THCS-PH')), 'rows:1');
+select pg_temp.chk('kdi', 'QT 100: Quản trị tạo đề luyện cho trường', format($q$insert into practice_exams (org_id, title, criteria) values (%L, 'ISO đề QT', '{"count": 5}')$q$, pg_temp.oid_('THCS-PH')), 'rows:1');
+select pg_temp.chk('kdi', 'QT 100: Quản trị mở khoá học cho trường', format($q$insert into courses (org_id, title) values (%L, 'ISO khoá QT')$q$, pg_temp.oid_('THCS-PH')), 'rows:1');
+select pg_temp.probe('admin_ph@iso-test.local', $q$insert into courses (org_id, title) values (my_org_id(), 'ISO khoá nháp trường')$q$, true);
+select pg_temp.chk('kdi', 'QT 100: Quản trị thấy và sửa khoá học nháp của trường', $q$update courses set description = 'QT sửa' where title = 'ISO khoá nháp trường'$q$, 'rows:1');
+select pg_temp.chk('admin_kb', 'QT 100: trường khác không thấy khoá học nháp', $q$select count(*) from courses where title = 'ISO khoá nháp trường'$q$, '0');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

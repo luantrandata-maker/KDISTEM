@@ -105,6 +105,14 @@ begin
     if position('is_platform_admin' in d) = 0 then raise exception '100: không sửa được edu_program_set_status'; end if;
     execute d;
   end if;
+  -- Quản trị hệ thống duyệt thay mọi bước (giáo án, chương trình… của bất kỳ đơn vị nào)
+  d := pg_get_functiondef('public.approval_can_act(uuid)'::regprocedure);
+  if position('is_platform_admin' in d) = 0 then
+    d := replace(d, 'if r.id is null or r.status <> ''pending'' then return false; end if;', 'if r.id is null or r.status <> ''pending'' then return false; end if;
+  if public.is_platform_admin() then return true; end if;');
+    if position('is_platform_admin' in d) = 0 then raise exception '100: không sửa được approval_can_act'; end if;
+    execute d;
+  end if;
 end $$;
 
 notify pgrst, 'reload schema';

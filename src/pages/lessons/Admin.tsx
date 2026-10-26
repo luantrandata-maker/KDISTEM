@@ -3,7 +3,7 @@ import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../../components/Tabl
 // và KDI (mẫu giáo án dùng chung toàn hệ thống)
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { useOrgScope } from '../../components/OrgScope'
+import { OrgFilter, useAllMode, useOrgName } from '../../components/OrgScope'
 import { Tabs } from '../teacher/common'
 import { Tiles } from '../department/charts'
 import { downloadXlsx } from '../../lib/sheet'
@@ -59,6 +59,8 @@ const FILTERS: [string, string, LStatus[]][] = [
 export function SchoolLessons({ orgId, go }: P) {
   const rights = useRights(orgId)
   const [tab, setTab] = useState<'plans' | 'tpl'>('plans')
+  // Quản trị hệ thống: giáo án của mọi trường (mẫu giáo án ở tab riêng)
+  if (useAllMode()) return <SchoolPlans orgId={orgId} />
   return (
     <>
       <Tabs value={tab} onChange={setTab} items={[['plans', 'Giáo án của giáo viên'], ['tpl', 'Mẫu giáo án']]} />
@@ -76,17 +78,20 @@ function SchoolPlans({ orgId, go }: P) {
   const [open, setOpen] = useState<LPlan | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [reviewRequired, setReviewRequired] = useState<boolean | null>(null)
+  const every = useAllMode(), orgName = useOrgName()
+  const [fo, setFo] = useState('')
   async function load() {
-    const { data, error } = await supabase.from('lesson_plans').select(PLAN_COLS).eq('org_id', orgId ?? '').order('updated_at', { ascending: false })
+    const base = supabase.from('lesson_plans').select(PLAN_COLS)
+    const { data, error } = await (every ? base : base.eq('org_id', orgId ?? '')).order('updated_at', { ascending: false })
     if (error) setMsg([errText(error.message), true])
     // Bản nháp sửa bài đã xuất bản (076): chỉ hiện khi đang gửi duyệt / đã có kết quả duyệt, ghi rõ là bản nháp
     setRows(((data as LPlan[]) ?? []).filter(p => !p.draft_of || !['draft', 'editing'].includes(p.status))
       .map(p => normPlan(p.draft_of ? { ...p, title: p.title + ' (bản nháp sửa)' } : p)))
   }
   useEffect(() => { load() }, [orgId])
-  useEffect(() => { if (orgId) supabase.rpc('lesson_review_required', { p_org: orgId }).then(({ data }) => setReviewRequired(!!data)) }, [orgId])
+  useEffect(() => { if (orgId && !every) supabase.rpc('lesson_review_required', { p_org: orgId }).then(({ data }) => setReviewRequired(!!data)) }, [orgId])
 
-  const plans = rows.filter(r => !r.is_template)
+  const plans = rows.filter(r => !r.is_template && (!fo || r.org_id === fo))
   const teachers = [...new Map(plans.filter(p => p.teacher_id).map(p => [p.teacher_id!, p.teachers?.full_name ?? '—'])).entries()].sort((a, b) => a[1].localeCompare(b[1]))
   const statuses = FILTERS.find(f => f[0] === st)?.[2] ?? []
   const shown = plans.filter(p => (!statuses.length || statuses.includes(p.status)) && (!teacher || p.teacher_id === teacher)
@@ -130,6 +135,7 @@ function SchoolPlans({ orgId, go }: P) {
       <div className="tools" style={{ marginBottom: 12 }}>
         <input className="search" style={{ margin: 0 }} placeholder="Tìm giáo án…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo án" />
         <select value={st} onChange={e => setSt(e.target.value)} aria-label="Lọc trạng thái">{FILTERS.map(([k, l, ss]) => <option key={k} value={k}>{l}{ss.length ? ` (${n(ss)})` : ''}</option>)}</select>
+        <OrgFilter ids={rows.map(r => r.org_id)} value={fo} onChange={setFo} />
         <select value={teacher} onChange={e => setTeacher(e.target.value)} aria-label="Lọc giáo viên"><option value="">Tất cả giáo viên</option>{teachers.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select>
         <button onClick={exportX} disabled={!shown.length}>Xuất Excel</button>
       </div>
@@ -143,7 +149,7 @@ function SchoolPlans({ orgId, go }: P) {
           <tr key={p.id} className={psel.is(p) ? 'picked' : undefined}>
             <SelTd on={psel.is(p)} onToggle={() => psel.toggle(p)} label={p.title} />
             <td><NameLink onClick={() => setOpen(p)}>{p.title}</NameLink><br /><small className="sub">{[p.subject, p.grades && `Khối ${p.grades}`, p.periods && `${p.periods} tiết`].filter(Boolean).join(' · ')}</small></td>
-            <td>{p.teachers?.full_name ?? '—'}</td>
+            <td>{p.teachers?.full_name ?? '—'}{every && <><br /><small className="sub">{orgName(p.org_id)}</small></>}</td>
             <td><small>{templates.find(t => t.id === p.template_id)?.name ?? 'Không theo mẫu'}</small></td>
             <td><small>{p.steps.length} bước · {totalMinutes(p.steps)} phút · {p.slides.length} slide</small></td>
             <td><LStatusPill s={p.status} />{p.version_no > 0 && <small> v{p.version_no}</small>}</td>
@@ -171,7 +177,6 @@ export function DeptLessons({ orgId }: P) {
 function PublishedPlans({ orgId }: P) {
   const templates = useTemplates()
   const [rows, setRows] = useState<LPlan[]>([])
-  const sc = useOrgScope()
   const [orgs, setOrgs] = useState<Map<string, string>>(new Map())
   const [school, setSchool] = useState('')
   const [q, setQ] = useState('')
@@ -179,7 +184,7 @@ function PublishedPlans({ orgId }: P) {
   const [err, setErr] = useState('')
   useEffect(() => {
     supabase.from('lesson_plans').select(PLAN_COLS).eq('status', 'published').neq('org_id', orgId ?? '').order('published_at', { ascending: false, nullsFirst: false }).limit(1000)
-      .then(({ data, error }) => { if (error) setErr(errText(error.message)); setRows(((data as LPlan[]) ?? []).filter(r => !sc || sc.tree.includes(r.org_id)).map(normPlan)) })
+      .then(({ data, error }) => { if (error) setErr(errText(error.message)); setRows(((data as LPlan[]) ?? []).map(normPlan)) })
     supabase.from('organizations').select('id, name').eq('type', 'school').then(({ data }) => setOrgs(new Map(((data as { id: string; name: string }[]) ?? []).map(o => [o.id, o.name]))))
   }, [orgId])
   const schools = [...new Set(rows.map(r => r.org_id))].map(id => [id, orgs.get(id) ?? '—'] as const).sort((a, b) => a[1].localeCompare(b[1]))

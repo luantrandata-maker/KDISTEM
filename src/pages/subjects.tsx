@@ -2,6 +2,7 @@ import { SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
 import { MultiSelect } from '../components/MultiSelect'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { OrgPick, useAllMode } from '../components/OrgScope'
 import { norm } from '../lib/sheet'
 import { useStemTracks, TRACK_COLOR } from '../lib/stemTracks'
 import { useEduLevels } from '../lib/eduLevels'
@@ -66,9 +67,11 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
 
   const shown = useMemo(() => subjects.filter(s => (old || s.active) && (!lv || s.levels.includes(lv) || !s.levels.length)
     && (!q || norm([s.code, s.name, s.domain].join(' ')).includes(norm(q)))), [subjects, q, lv, old])
-  const own = shown.filter(s => s.org_id === orgId)
+  // Quản trị hệ thống: môn học của mọi đơn vị trong một danh sách, sửa thẳng
+  const every = useAllMode()
+  const own = every ? shown : shown.filter(s => s.org_id === orgId)
   const sel = useRowSel(own)
-  const shared = shown.filter(s => s.org_id !== orgId)
+  const shared = every ? [] : shown.filter(s => s.org_id !== orgId)
 
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!form || !orgId) return
@@ -80,7 +83,7 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
     if (!row.name) return setMsg(['Nhập tên môn học.', true])
     const { data, error } = form.id
       ? await supabase.from('subjects').update(row).eq('id', form.id).select('id')
-      : await supabase.from('subjects').insert({ ...row, org_id: orgId }).select('id')
+      : await supabase.from('subjects').insert({ ...row, org_id: form.org_id || orgId }).select('id')
     if (error) return setMsg([errText(error.message + ' ' + (error.code ?? '')), true])
     if (!data?.length) return setMsg([errText('row-level'), true])
     setForm(null); setMsg([form.id ? 'Đã lưu môn học.' : 'Đã thêm môn học.', false]); reload()
@@ -111,7 +114,8 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
       <td>{s.domain ?? '—'}</td>
       <td>{s.levels.length ? s.levels.map(levelName).join(', ') : <small className="sub">Mọi cấp</small>}</td>
       <td>{s.ct_codes.map(c => <span key={c} className="progchip" style={{ background: TRACK_COLOR[c], color: '#fff', marginRight: 4 }}>{c}</span>)}</td>
-      <td>{mine ? (s.scope === 'children' ? 'Dùng chung cho đơn vị trực thuộc' : 'Chỉ đơn vị mình') : <small className="sub">{s.owner_name ?? '—'}</small>}</td>
+      <td>{mine ? (s.scope === 'children' ? 'Dùng chung cho đơn vị trực thuộc' : 'Chỉ đơn vị mình') : <small className="sub">{s.owner_name ?? '—'}</small>}
+        {mine && every && <><br /><small className="sub">{s.owner_name ?? '—'}</small></>}</td>
     </tr>
   )
   const table = (rows: Subject[], mine: boolean) => (<>
@@ -132,6 +136,7 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
     <ElView back="Môn học" onBack={() => setForm(null)} title={form.id ? 'Sửa môn học' : 'Thêm môn học'}>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
         <form className="panel formgrid" onSubmit={save} style={{ marginBottom: 12 }}>
+          {!form.id && <OrgPick kind="any" value={form.org_id ?? orgId ?? ''} onChange={v => setForm({ ...form, org_id: v })} />}
           <label className="field"><span>Tên môn học *</span><input required value={form.name ?? ''} maxLength={120} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="VD: Lập trình và Điều khiển" /></label>
           <label className="field"><span>Mã</span><input value={form.code ?? ''} maxLength={40} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: LTDK" /></label>
           <label className="field"><span>Lĩnh vực kiến thức</span><input list="subject-domains" value={form.domain ?? ''} onChange={e => setForm({ ...form, domain: e.target.value })} placeholder="VD: Công nghệ – Kĩ thuật" /></label>
@@ -164,10 +169,10 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
       {(msg || err) && <p className={msg && !msg[1] ? 'sub' : 'msg'} role="status"><b>{msg?.[0] ?? err}</b></p>}
       {!loaded ? <p className="sub">Đang tải…</p> : (
         <>
-          <h3>Của đơn vị ({own.length})</h3>
+          <h3>{every ? 'Mọi đơn vị' : 'Của đơn vị'} ({own.length})</h3>
           {own.length ? table(own, true) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Đơn vị chưa có môn riêng.{canEdit && ' Bấm "Thêm môn học".'}</p></div>}
-          <h3>Dùng chung từ KDI / cấp trên ({shared.length})</h3>
-          {shared.length ? table(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có môn dùng chung.</p></div>}
+          {!every && <><h3>Dùng chung từ KDI / cấp trên ({shared.length})</h3>
+          {shared.length ? table(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có môn dùng chung.</p></div>}</>}
         </>
       )}
     </>

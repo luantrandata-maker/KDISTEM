@@ -245,6 +245,42 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
   )
 }
 
+// ===== Xem bộ học liệu 5 thẻ (chỉ đọc) — dùng ở chi tiết bài học trong Học liệu / Học liệu dùng chung =====
+// extra: nội dung thêm cho từng thẻ (vd. giáo án, bài giảng, định mức gắn theo cách cũ)
+export function KitView({ row, progLabel, extra }: { row: KitRow; progLabel: string; extra?: Partial<Record<KitCard, ReactNode>> }) {
+  const [tab, setTab] = useState<KitCard>('info')
+  const [cat, setCat] = useState<Cat[]>([])
+  const [acts, setActs] = useState<BankAct[]>([])
+  useEffect(() => { loadCatalog().then(setCat); loadActivities(row.owner_org_id).then(setActs) }, [row.id])
+  const kit = useMemo(() => kitOf(row.content.kit), [row])
+  const checked = row.content.checked ?? []
+  const card = CARDS.find(c => c.k === tab)!
+  const on = checked.includes(tab)
+  return <div className="lkitview">
+    <div className="lkithead"><h3>Bộ học liệu · 5 thẻ</h3><span className="sub">{checked.length}/{CARDS.length} thẻ đã chốt</span></div>
+    <div className="ltabs" role="tablist">
+      {CARDS.map(c => <button key={c.k} type="button" role="tab" aria-selected={tab === c.k} className={(tab === c.k ? 'on' : '') + (checked.includes(c.k) ? ' done' : '')}
+        onClick={() => setTab(c.k)}><small>{c.no}</small> {c.title}{checked.includes(c.k) && <i aria-label="Đã chốt">✓</i>}</button>)}
+    </div>
+    <section className="panel lcard" aria-label={card.title}>
+      <header className="lcardhead">
+        <span className="lno">{card.no}</span>
+        <div><b>{card.title}</b><small className="sub">{card.desc}</small></div>
+        <Chip tone={on ? 'good' : 'warn'}>{on ? 'Đã chốt' : 'Chưa chốt'}</Chip>
+      </header>
+      <div className="lcardbody">
+        {tab === 'info' && <InfoView row={row} info={{ ...kit.info, description: kit.info.description || ((row.content as { objectives?: string | null }).objectives ?? '') }}
+          progLabel={progLabel} progSubject={kit.info.prog_subject || row.subject || ''} />}
+        {tab === 'content' && <SessionsView ss={kit.sessions} />}
+        {tab === 'links' && (kit.docs.length || !extra?.links ? <DocsView docs={kit.docs} /> : null)}
+        {tab === 'norms' && (kit.mats.product.length || kit.mats.group.length || !extra?.norms ? <MatsView mats={kit.mats} cat={cat} /> : null)}
+        {tab === 'bank' && <BankView bank={kit.bank} acts={acts} />}
+        {extra?.[tab]}
+      </div>
+    </section>
+  </div>
+}
+
 // ===== Thẻ 01 =====
 const whoText = (w: Who) => [w.date || (w.dates.length === 1 ? w.dates[0] : ''), w.by].filter(Boolean).join(' · ')
 function Pair({ label, children }: { label: string; children: ReactNode }) {

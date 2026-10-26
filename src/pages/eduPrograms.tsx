@@ -1,6 +1,6 @@
 import { Icon } from '../components/Icon'
 import { useHiddenBtn } from '../components/PageButtons'
-import { CustomInputs, customCell } from './settings/Custom'
+import { CustomInputs, customCell } from '../components/CustomFields'
 import { fieldsOf, useSettings } from '../lib/settings'
 import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
 import { Fragment, useEffect, useMemo, useState } from 'react'

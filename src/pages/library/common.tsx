@@ -1,3 +1,5 @@
+import { CustomView } from '../settings/Custom'
+import { codedCatalog, fieldsOf, useSettings } from '../../lib/settings'
 import { Icon } from '../../components/Icon'
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -26,7 +28,7 @@ export type Item = {
   scope: 'children' | 'selected' | 'public'; status: 'draft' | 'published' | 'archived'; version: number
   published_at: string | null; change_note: string | null; updated_at: string
   owner_name?: string | null; owner_type?: string | null
-  program_id?: string | null; unit_id?: string | null; usage_rights?: Rights; usage_note?: string | null
+  program_id?: string | null; unit_id?: string | null; usage_rights?: Rights; usage_note?: string | null; custom?: Record<string, unknown> | null
   edu_programs?: { title: string; version_no: number } | null; edu_program_units?: { title: string } | null
 }
 // Truy vấn học liệu kèm chương trình / bài; CSDL chưa có 059 thì quay về truy vấn cũ
@@ -76,6 +78,14 @@ export function useNormOptions(orgId: string | null) {
 export const MAT_TYPE: Record<string, string> = {
   lesson_plan: 'Giáo án', worksheet: 'Phiếu học tập', image: 'Hình ảnh', video: 'Video', guide: 'Tài liệu hướng dẫn', document: 'Tài liệu', link: 'Đường dẫn',
 }
+/** Tên loại học liệu theo Danh mục (Thiết lập chung). */
+let matNames: Record<string, string> = {}
+export function useMatTypes(): [string, string][] {
+  const opts = codedCatalog(useSettings(), 'material_type', Object.fromEntries(Object.entries(MAT_TYPE).filter(([k]) => k !== 'lesson_plan')))
+  matNames = Object.fromEntries(opts)
+  return opts
+}
+export const matLabel = (k: string) => matNames[k] || MAT_TYPE[k] || k
 export const RIGHTS: Record<Rights, [string, string]> = {
   view: ['Chỉ xem', 'warn'], use: ['Được dùng nguyên bản', ''], adapt: ['Được sao chép, chỉnh sửa', 'good'],
 }
@@ -276,17 +286,19 @@ export function ItemDrawer({ root, all, onClose, actions, canRestore, onRestored
   const label = (e: DrawerEntry) => e.type === 'norm' ? 'Định mức vật tư' : all.find(x => x.id === e.id)?.title ?? '…'
   const open = (e: DrawerEntry) => setStack(s => [...s, e])
   const title = cur.type === 'norm' ? 'Định mức vật tư' : item?.title ?? 'Không tìm thấy mục'
+  const libFields = fieldsOf(useSettings(), 'library')
   return (
     <Drawer title={title} onClose={onClose} actions={item && actions ? actions(item) : undefined} onBack={stack.length > 1 ? () => setStack(s => s.slice(0, -1)) : undefined}
       head={stack.length > 1 && <nav className="drawercrumbs">{stack.slice(0, -1).map((e, k) => (
         <span key={k}><button type="button" onClick={() => setStack(s => s.slice(0, k + 1))}>{label(e)}</button> ›</span>))}<span>{cur.type === 'norm' ? 'Định mức vật tư' : item?.title}</span></nav>}>
       {cur.type === 'norm' ? <NormDetail id={cur.id} /> : !item ? <p className="sub">Mục không còn trong kho hoặc chưa được phát hành tới đơn vị.</p> : <>
         <div className="drawermeta"><KindChip kind={item.kind} /><ProgChip p={item.program} />
-          {item.kind === 'material' && <small className="sub">{MAT_TYPE[item.content.type ?? 'link']}</small>}
+          {item.kind === 'material' && <small className="sub">{matLabel(item.content.type ?? 'link')}</small>}
           {item.usage_rights && item.usage_rights !== 'adapt' && <RightsChip r={item.usage_rights} />}</div>
         <p className="sub" style={{ margin: '0 0 4px' }}>{[item.owner_name, item.version > 0 ? `v${item.version}` : 'nháp', item.grades && `Khối ${item.grades}`, item.subject, `cập nhật ${fmtDate(item.updated_at)}`].filter(Boolean).join(' · ')}</p>
         {item.edu_programs && <p style={{ margin: '2px 0' }}><ProgLine i={item} /></p>}
         {item.summary && item.summary.trim() !== item.title.trim() && <p>{item.summary}</p>}
+        <CustomView fields={libFields} value={item.custom} />
         <ItemPreview key={item.id} item={item} all={all} canRestore={canRestore} onRestored={onRestored} onOpen={open} />
       </>}
     </Drawer>

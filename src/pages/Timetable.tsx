@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useState } from 'react'
+import { ruleOf, useSettings } from '../lib/settings'
 import { supabase } from '../lib/supabase'
 import FormPanel from '../components/FormPanel'
 import { type Year, sameSchoolYear, yearLabel } from '../lib/year'
@@ -17,9 +18,10 @@ const COLS: Column[] = [
 ]
 
 type Period = { id: string; name: string; starts_at: string; ends_at: string; session: string }
-type Entry = { id: string; year_id: string | null; weekday: number; period_id: string; subject: string; kind: string; class_id: string; classes: { name: string } | null; teachers: { full_name: string } | null; stem_rooms: { name: string } | null }
+type Entry = { id: string; teacher_id: string | null; year_id: string | null; weekday: number; period_id: string; subject: string; kind: string; class_id: string; classes: { name: string } | null; teachers: { full_name: string } | null; stem_rooms: { name: string } | null }
 type Opt = { id: string; name: string; year_id?: string | null }
 const DAYS = [2, 3, 4, 5, 6, 7]
+const DAY_NAME = (d: number) => `Thứ ${d}`
 const hm = (t: string) => t.slice(0, 5)
 
 export default function Timetable({ orgId, year, years = [] }: { orgId: string; year?: Year | null; years?: Year[] }) {
@@ -32,11 +34,13 @@ export default function Timetable({ orgId, year, years = [] }: { orgId: string; 
   const [kind, setKind] = useState<'all' | 'stem' | 'regular'>('all')
   const [adding, setAdding] = useState(false)
   const [msg, setMsg] = useState('')
+  // Quy tắc vận hành (Thiết lập chung): số tiết STEM tối đa mỗi giáo viên mỗi ngày
+  const maxStem = ruleOf(useSettings(), 'max_stem_periods_per_day', 3)
 
   async function load() {
     const [p, e, c, t, r] = await Promise.all([
       supabase.from('period_configs').select('*').order('starts_at'),
-      supabase.from('timetable_entries').select('id, year_id, weekday, period_id, subject, kind, class_id, classes(name), teachers(full_name), stem_rooms(name)'),
+      supabase.from('timetable_entries').select('id, teacher_id, year_id, weekday, period_id, subject, kind, class_id, classes(name), teachers(full_name), stem_rooms(name)'),
       supabase.from('classes').select('id, name, year_id').order('name'),
       supabase.from('teachers').select('id, full_name').order('full_name'),
       loadRooms('stem'),
@@ -57,7 +61,12 @@ export default function Timetable({ orgId, year, years = [] }: { orgId: string; 
       if (error.message.includes('teacher_id_weekday')) return 'Giáo viên này đã có tiết khác ở khung giờ đã chọn.'
       return error.message
     }
-    setAdding(false); load()
+    setAdding(false)
+    if (v.kind === 'stem' && v.teacher_id) {
+      const n = entries.filter(e => e.kind === 'stem' && e.teacher_id === v.teacher_id && e.weekday === Number(v.weekday)).length + 1
+      if (maxStem > 0 && n > maxStem) setMsg(`⚠ ${teachers.find(t => t.id === v.teacher_id)?.full_name ?? 'Giáo viên'} có ${n} tiết STEM trong ${DAY_NAME(Number(v.weekday))}, vượt mức ${maxStem} tiết/ngày (Thiết lập chung).`)
+    }
+    load()
   }
   async function remove(e: Entry) {
     if (!confirm(`Xoá tiết ${e.subject} của ${e.classes?.name}?`)) return
@@ -104,6 +113,10 @@ export default function Timetable({ orgId, year, years = [] }: { orgId: string; 
   const cell = (p: Period, d: number) => entries.filter(e => e.class_id === cls && e.period_id === p.id && e.weekday === d && (kind === 'all' || e.kind === kind))
   const total = entries.filter(e => e.class_id === cls).length
 
+  const stemLoad = new Map<string, number>()
+  for (const e of entries) if (e.kind === 'stem' && e.teacher_id) stemLoad.set(e.teacher_id + '|' + e.weekday, (stemLoad.get(e.teacher_id + '|' + e.weekday) ?? 0) + 1)
+  const overStem = [...stemLoad.entries()].filter(([, n]) => n > maxStem)
+    .map(([k, n]) => { const [t, d] = k.split('|'); return `${teachers.find(x => x.id === t)?.full_name ?? 'Giáo viên'} · ${DAY_NAME(Number(d))}: ${n} tiết` })
   return (
     <>
       <div className="bar">
@@ -119,6 +132,7 @@ export default function Timetable({ orgId, year, years = [] }: { orgId: string; 
         </div>
       </div>
       {msg && <p className="sub"><b>{msg}</b></p>}
+      {maxStem > 0 && overStem.length > 0 && <p className="msg warnmsg">⚠ Vượt {maxStem} tiết STEM/ngày (Thiết lập chung): {overStem.slice(0, 8).join('; ')}{overStem.length > 8 ? '…' : ''}</p>}
       <p className="sub">{yearLabel(year)} · {total} tiết/tuần</p>
       {adding && (
         <FormPanel

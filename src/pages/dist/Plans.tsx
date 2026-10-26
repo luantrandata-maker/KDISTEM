@@ -3,6 +3,7 @@
 //  Danh sách bản phân phối (lọc, sắp xếp, xem bản đã phát hành), Gán theo trường (tạo PPCT theo trường).
 // Theo dõi thực hiện nằm ở menu riêng "Theo dõi Chương trình/Môn học".
 import { MultiSelect } from '../../components/MultiSelect'
+import { useHiddenBtn } from '../../components/PageButtons'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useRowSel } from '../../components/TableSel'
@@ -135,6 +136,7 @@ const clsErr = (m: string) => /row-level|42501|permission/i.test(m) ? 'Chỉ qu�
 type AddForm = { mode: 'add'; level: ClsLevel; parent: ClsNode | null; name: string } | { mode: 'rename'; node: ClsNode; level: ClsLevel | undefined; name: string }
 
 function ClsConfig({ cls, used, onMsg }: { cls: ReturnType<typeof useCls> & { admin: boolean }; used: (levelId: string) => number; onMsg: (m: [string, boolean]) => void }) {
+  const hid = useHiddenBtn()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
   const [pos, setPos] = useState('end')
@@ -183,7 +185,7 @@ function ClsConfig({ cls, used, onMsg }: { cls: ReturnType<typeof useCls> & { ad
         <input placeholder="Tên cấp mới, ví dụ: Giai đoạn" value={name} maxLength={40} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') add() }} aria-label="Tên cấp mới" />
         <select value={pos} onChange={e => setPos(e.target.value)} aria-label="Vị trí"><option value="end">Đặt ở cuối</option>
           {lv.slice(0, -1).map(l => <option key={l.id} value={l.id}>Sau {l.name}</option>)}</select>
-        <button type="button" className="primary" disabled={!name.trim()} onClick={add}>+ Thêm cấp</button>
+        {!hid('tier') && <button type="button" className="primary" disabled={!name.trim()} onClick={add}>+ Thêm cấp</button>}
       </div>
       <p className="sub" style={{ margin: 0 }}>Tên cấp và việc tắt/bật đổi được bất cứ lúc nào. Đổi thứ tự hoặc xóa cấp chỉ làm được khi cấp đó chưa có mục trong cây. Bản phân phối chỉ gắn vào mục ở cấp cuối đang bật.</p>
     </>}
@@ -193,6 +195,7 @@ function ClsConfig({ cls, used, onMsg }: { cls: ReturnType<typeof useCls> & { ad
 function DistTree({ orgId, plans, meta, focus, onOpen, onCreated }: {
   orgId: string | null; plans: Plan[]; meta: Map<string, Meta>; focus: string | null; onOpen: (id: string) => void; onCreated: (id: string) => void
 }) {
+  const hid = useHiddenBtn()
   const base = useCls()
   const crumb = useBreadcrumb()
   const [admin, setAdmin] = useState(false)
@@ -307,7 +310,7 @@ function DistTree({ orgId, plans, meta, focus, onOpen, onCreated }: {
           <div className="bar">
             <div><h3 style={{ margin: 0 }}>{sel?.name ?? 'Chọn một mục'}</h3><small className="sub">{selCrumb}</small></div>
             <div className="tools">
-              {isFinal && <button type="button" className="primary" disabled={!orgId} onClick={create}>+ Tạo bản phân phối</button>}
+              {isFinal && !hid('create') && <button type="button" className="primary" disabled={!orgId} onClick={create}>+ Tạo bản phân phối</button>}
               {menu}
             </div>
           </div>

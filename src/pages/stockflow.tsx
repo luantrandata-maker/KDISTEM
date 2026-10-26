@@ -114,7 +114,7 @@ export function SupplyRequestsPage({ orgId }: { orgId: string | null }) {
                 <tr key={i}>
                   <td><input list="sup-names" value={l.name} aria-label="Mặt hàng" onChange={e => { const s = sup.find(x => x.name === e.target.value); set({ name: e.target.value, supply_id: s?.id ?? null, unit: s?.unit ?? l.unit }) }} placeholder="Chọn vật tư có sẵn hoặc gõ tên mới" style={{ minWidth: 220 }} />
                     {l.supply_id && <small className="sub"> · tồn {num(sup.find(s => s.id === l.supply_id)?.qty ?? 0)}</small>}</td>
-                  <td><input value={l.unit} onChange={e => set({ unit: e.target.value })} style={{ width: 70 }} aria-label="Đơn vị tính" disabled={!!l.supply_id} /></td>
+                  <td><input list="cat-units" value={l.unit} onChange={e => set({ unit: e.target.value })} style={{ width: 70 }} aria-label="Đơn vị tính" disabled={!!l.supply_id} /></td>
                   <td><input type="number" min={0} step="any" value={l.qty} onChange={e => set({ qty: Number(e.target.value) })} style={{ width: 90 }} aria-label="Số lượng" /></td>
                   <td><input type="number" min={0} value={l.est_price ?? ''} onChange={e => set({ est_price: e.target.value === '' ? null : Number(e.target.value) })} style={{ width: 120 }} aria-label="Đơn giá" /></td>
                   <td>{l.est_price ? money(l.qty * l.est_price) : '—'}</td>

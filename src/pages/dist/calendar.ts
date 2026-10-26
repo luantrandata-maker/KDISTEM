@@ -11,8 +11,9 @@ export type CalSrc = { id: string; label: string }
 export const vnd = (d: string) => d.split('-').reverse().join('/')
 export const vnShort = (d: string) => d.slice(8, 10) + '/' + d.slice(5, 7)
 export const WEEKDAY = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
-export const dayOf = (d: string) => new Date(d + 'T00:00:00').getDay()
-export const addD = (d: string, n: number) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10) }
+// Tính theo UTC: múi giờ Việt Nam (UTC+7) mà dùng giờ máy rồi toISOString() thì lùi một ngày, vòng lặp theo ngày không tiến.
+export const dayOf = (d: string) => new Date(d + 'T00:00:00Z').getUTCDay()
+export const addD = (d: string, n: number) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10) }
 /** Số ngày học (Thứ Hai – Thứ Sáu) của ngày nghỉ rơi trong tuần */
 export function offIn(h: { starts_on: string; ends_on: string }, from: string, to: string) {
   let n = 0

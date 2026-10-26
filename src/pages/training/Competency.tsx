@@ -20,13 +20,14 @@ type Round = { id: string; org_id: string; name: string; school_year: string; op
 type Prog = { org_id: string; org_name: string; teachers: number; self_done: number; manager_done: number }
 const roundSt = (r: Round): [string, string] => r.status === 'closed' ? ['Đã đóng', ''] : r.due_on < today() ? ['Quá hạn', 'bad'] : r.opens_on > today() ? ['Sắp mở', ''] : ['Đang mở', 'good']
 
-export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
+export function AssessmentRoundsPage({ orgId, only }: { orgId: string; only?: boolean }) {
   const [rows, setRows] = useState<Round[] | null>(null)
   const [can, setCan] = useState(false)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [form, setForm] = useState<Partial<Round> | null>(null)
-  const load = () => supabase.from('assessment_rounds').select('*, organizations(name)').order('created_at', { ascending: false })
+  // only: Quản trị hệ thống thao tác thay một đơn vị → chỉ đợt của đơn vị đó
+  const load = () => (only ? supabase.from('assessment_rounds').select('*, organizations(name)').eq('org_id', orgId) : supabase.from('assessment_rounds').select('*, organizations(name)')).order('created_at', { ascending: false })
     .then(({ data, error }) => { if (error) setMsg([errText(error.message), true]); setRows((data as Round[]) ?? []) })
   useEffect(() => { load(); supabase.rpc('training_can_write', { p_org: orgId }).then(({ data }) => setCan(!!data)) }, [orgId])
   const cur = rows?.find(r => r.id === open)
@@ -142,7 +143,7 @@ type Gap = { teacher_id: string; teacher_name: string; org_id: string; org_name:
   suggest: { id: string; code: string | null; title: string; target_level: number }[] }
 type OpenPlan = { plan_id: string; org_id: string; status: string; quota: number | null; training_plans: { plan_code: string | null; name: string; training_plan_items: { program_id: string }[] } }
 
-export function CompetencyGapsPage({ orgId }: { orgId: string }) {
+export function CompetencyGapsPage({ orgId, only }: { orgId: string; only?: boolean }) {
   const comps = useCompetencies('teacher')
   const [year, setYear] = useState(schoolYear())
   const [target, setTarget] = useState(2)
@@ -155,7 +156,7 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const load = () => {
     setRows(null)
-    supabase.rpc('competency_gaps', { p_year: year, p_target: target }).then(({ data, error }) => { if (error) setMsg([errText(error.message), true]); setRows((data as Gap[]) ?? []) })
+    supabase.rpc('competency_gaps', { p_year: year, p_target: target }).then(({ data, error }) => { if (error) setMsg([errText(error.message), true]); setRows(((data as Gap[]) ?? []).filter(g => !only || g.org_id === orgId)) })
   }
   useEffect(load, [year, target])
   // Kế hoạch được giao cho trường đang mở chọn GV (để ghi danh ngay từ gợi ý)

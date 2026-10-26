@@ -13,14 +13,18 @@ type Teacher = { id: string; full_name: string; subject: string | null }
 const MODE: Record<string, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
 const PSTATUS: Record<string, string> = { planned: 'Dự kiến', ongoing: 'Đang thực hiện', done: 'Hoàn thành' }
 
-function usePlanOptions() {
+// scope: Quản trị hệ thống thao tác thay một đơn vị (OrgScope) → chỉ lấy dữ liệu đơn vị đó và các cấp trên, như đơn vị đó thấy
+type Scoped = { scope?: string[] }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const inScope = (q: any, scope?: string[], col = 'org_id') => scope ? q.in(col, scope) : q
+function usePlanOptions(scope?: string[]) {
   const [opts, setOpts] = useState<{ value: string; label: string }[]>([])
-  useEffect(() => { supabase.from('training_plans').select('id, name').order('name').then(({ data }) => setOpts((data ?? []).map((p: any) => ({ value: p.id, label: p.name })))) }, [])
+  useEffect(() => { inScope(supabase.from('training_plans').select('id, name'), scope).order('name').then(({ data }: { data: any }) => setOpts((data ?? []).map((p: any) => ({ value: p.id, label: p.name })))) }, [])
   return opts
 }
-function useTeachers() {
+function useTeachers(scope?: string[]) {
   const [t, setT] = useState<Teacher[]>([])
-  useEffect(() => { supabase.from('teachers').select('id, full_name, subject').order('full_name').then(({ data }) => setT((data as Teacher[]) ?? [])) }, [])
+  useEffect(() => { inScope(supabase.from('teachers').select('id, full_name, subject'), scope?.slice(0, 1)).order('full_name').then(({ data }: { data: any }) => setT((data as Teacher[]) ?? [])) }, [])
   return t
 }
 
@@ -105,23 +109,23 @@ export function TrainingPlans({ orgId }: { orgId: string }) {
   )
 }
 
-function useSessionData(version: number) {
+function useSessionData(version: number, scope?: string[]) {
   const [rows, setRows] = useState<Sess[]>([]); const [att, setAtt] = useState<Att[]>([])
   useEffect(() => {
-    supabase.from('training_sessions').select('*, training_plans(name, provider)').order('starts_at').then(({ data }) => setRows((data as unknown as Sess[]) ?? []))
-    supabase.from('training_attendance').select('session_id, teacher_id, present').then(({ data }) => setAtt((data as Att[]) ?? []))
+    inScope(supabase.from('training_sessions').select('*, training_plans(name, provider)'), scope).order('starts_at').then(({ data }: { data: any }) => setRows((data as unknown as Sess[]) ?? []))
+    inScope(supabase.from('training_attendance').select('session_id, teacher_id, present, teachers!inner(org_id)'), scope?.slice(0, 1), 'teachers.org_id').then(({ data }: { data: any }) => setAtt((data as unknown as Att[]) ?? []))
   }, [version])
   return { rows, att }
 }
 
-export function TrainingSchedule({ onlineOnly = false, orgId }: { onlineOnly?: boolean; orgId: string }) {
+export function TrainingSchedule({ onlineOnly = false, orgId, scope }: { onlineOnly?: boolean; orgId: string } & Scoped) {
   const [version, setVersion] = useState(0)
   const [adding, setAdding] = useState(false)
   const [mode, setMode] = useState('all'); const [state, setState] = useState('all'); const [q, setQ] = useState('')
   const [view, setView] = useState<'list' | 'cal'>('list'); const [month, setMonth] = useState(() => { const d = new Date(); return new Date(d.getFullYear(), d.getMonth(), 1) })
   const [roll, setRoll] = useState<string | null>(null)
-  const planOpts = usePlanOptions(); const teachers = useTeachers()
-  const { rows: all, att } = useSessionData(version)
+  const planOpts = usePlanOptions(scope); const teachers = useTeachers(scope)
+  const { rows: all, att } = useSessionData(version, scope)
 
   async function add(v: Record<string, string>) {
     if (new Date(v.ends_at) <= new Date(v.starts_at)) return 'Giờ kết thúc phải sau giờ bắt đầu.'
@@ -194,17 +198,17 @@ export function TrainingSchedule({ onlineOnly = false, orgId }: { onlineOnly?: b
     </>
   )
 }
-export const VirtualClass = ({ orgId }: { orgId: string }) => <TrainingSchedule onlineOnly orgId={orgId} />
+export const VirtualClass = ({ orgId, scope }: { orgId: string } & Scoped) => <TrainingSchedule onlineOnly orgId={orgId} scope={scope} />
 
 type Lesson = { id: string; title: string; grades: string | null; subject: string | null; author: string | null; status: string; created_on: string; blocks: number; materials: number; videos: number; docs: number; training_plans: { name: string; program: string | null } | null }
 const LSTATUS: Record<string, string> = { published: 'Xuất bản', draft: 'Biên soạn', inactive: 'Không hoạt động' }
-export function TrainingLessons({ orgId }: { orgId: string }) {
+export function TrainingLessons({ orgId, scope }: { orgId: string } & Scoped) {
   const PROGRAMS = useStemTracks().allCodes.map(p => ({ value: p, label: p }))
   const [rows, setRows] = useState<Lesson[]>([])
   const [tab, setTab] = useState('all'); const [adding, setAdding] = useState(false)
   const [q, setQ] = useState(''); const [grade, setGrade] = useState(''); const [subject, setSubject] = useState(''); const [prog, setProg] = useState('')
-  const planOpts = usePlanOptions()
-  const load = () => supabase.from('training_lessons').select('*, training_plans(name, program)').order('created_on', { ascending: false }).then(({ data }) => setRows((data as unknown as Lesson[]) ?? []))
+  const planOpts = usePlanOptions(scope)
+  const load = () => inScope(supabase.from('training_lessons').select('*, training_plans(name, program)'), scope).order('created_on', { ascending: false }).then(({ data }: { data: any }) => setRows((data as unknown as Lesson[]) ?? []))
   useEffect(() => { load() }, [])
   async function add(v: Record<string, string>) {
     const { error } = await supabase.from('training_lessons').insert({ org_id: orgId, plan_id: v.plan_id || null, title: v.title, grades: v.grades || null, subject: v.subject || null, author: v.author || null, status: v.status,

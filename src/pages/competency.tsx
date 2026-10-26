@@ -258,12 +258,14 @@ export function SchoolTeacherAssessments({ orgId, readOnly }: { orgId: string | 
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [canEdit, setCanEdit] = useState(false)
   async function load() {
-    const [t, a, adm] = await Promise.all([
-      supabase.from('teachers').select('id, full_name, org_id, organizations(name)').eq('status', 'active').order('full_name'),
-      supabase.from('teacher_assessments').select('*').eq('school_year', year),
+    const [t, a, adm, pa] = await Promise.all([
+      orgId ? supabase.from('teachers').select('id, full_name, org_id, organizations(name)').eq('status', 'active').eq('org_id', orgId).order('full_name')
+        : supabase.from('teachers').select('id, full_name, org_id, organizations(name)').eq('status', 'active').order('full_name'),
+      orgId ? supabase.from('teacher_assessments').select('*').eq('school_year', year).eq('org_id', orgId) : supabase.from('teacher_assessments').select('*').eq('school_year', year),
       supabase.rpc('is_admin'),
+      supabase.rpc('is_platform_admin'),
     ])
-    setTeachers(((t.data as any[]) ?? []).filter(x => !orgId || x.org_id === orgId)); setList((a.data as TA[]) ?? []); setCanEdit(!readOnly && !!adm.data)
+    setTeachers(((t.data as any[]) ?? []).filter(x => !orgId || x.org_id === orgId)); setList((a.data as TA[]) ?? []); setCanEdit(!readOnly && (!!adm.data || (!!orgId && !!pa.data)))
   }
   useEffect(() => { load() }, [orgId])
   const of = (id: string, k: 'self' | 'manager') => list.find(x => x.teacher_id === id && x.kind === k)

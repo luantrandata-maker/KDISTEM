@@ -3235,6 +3235,19 @@ select pg_temp.probe('kdi@iso-test.local', $q$select training_plan_review(id, (s
 select pg_temp.chk('gv_ph2', 'ĐK 098: danh sách được duyệt → GV nhận thông báo', $q$select count(*) from notifications where kind = 'training_approved' and user_id = auth.uid() and title like '%ISO KH A%'$q$, '1');
 select pg_temp.chk('gv_ph2', 'ĐK 098: trường đã gửi danh sách thì không nhận thêm đăng ký', $q$select (training_register_check(id) ->> 'errors') like '%đã gửi danh sách%' from training_plans where name = 'ISO KH A'$q$, 'true');
 
+-- ===== 099: Quản trị hệ thống thao tác thay đơn vị ở Phân hệ 1 =====
+select pg_temp.chk('kdi', 'QT 099: Quản trị ghi được tập huấn của Sở', format('select training_can_write(%L)::text', pg_temp.oid_('SO-HY')), 'true');
+select pg_temp.chk('admin_ph', 'QT 099: trường không ghi tập huấn của Sở', format('select training_can_write(%L)::text', pg_temp.oid_('SO-HY')), 'false');
+select pg_temp.chk('kdi', 'QT 099: Quản trị lập kế hoạch tập huấn cho Sở', format($q$insert into training_plans (org_id, name, pub_status, mode, year_name) values (%L, 'ISO KH Sở do QT lập', 'draft', 'online', '2026-2027')$q$, pg_temp.oid_('SO-HY')), 'rows:1');
+select pg_temp.chk('kdi', 'QT 099: Quản trị thêm giảng viên cho Sở', format($q$insert into trainers (org_id, full_name) values (%L, 'ISO GV Sở')$q$, pg_temp.oid_('SO-HY')), 'rows:1');
+select pg_temp.chk('kdi', 'QT 099: Quản trị tạo đợt đánh giá năng lực cho Sở', format($q$insert into assessment_rounds (org_id, name, school_year, opens_on, due_on) values (%L, 'ISO đợt QT', '2026-2027', '2026-11-01', '2026-11-30')$q$, pg_temp.oid_('SO-HY')), 'rows:1');
+select pg_temp.chk('kdi', 'QT 099: Quản trị thêm bài giảng tập huấn cho trường', format($q$insert into training_lessons (org_id, title, status) values (%L, 'ISO bài QT', 'draft')$q$, pg_temp.oid_('THCS-PH')), 'rows:1');
+select pg_temp.chk('kdi', 'QT 099: Quản trị đánh giá năng lực GV thay trường', format($q$insert into teacher_assessments (org_id, teacher_id, school_year, kind, levels) values (%L, %s, '2026-2027', 'manager', '{}')$q$, pg_temp.oid_('THCS-PH'), pg_temp.tid('GV thử C')), 'rows:1');
+select pg_temp.chk('kdi', 'QT 099: đánh giá phải đúng trường của GV', format($q$insert into teacher_assessments (org_id, teacher_id, school_year, kind, levels) values (%L, %s, '2026-2027', 'manager', '{}')$q$, pg_temp.oid_('THCS-KB'), pg_temp.tid('GV thử C')), 'ERR*');
+select pg_temp.probe('kdi@iso-test.local', format($q$select training_plan_review(id, %L, false, 'QT trả lại để thử')::text from training_plans where name = 'ISO KH A'$q$, pg_temp.oid_('THCS-PH')), true);
+select pg_temp.chk('kdi', 'QT 099: Quản trị gửi danh sách GV thay trường', format($q$select training_plan_submit(id, %L)::text from training_plans where name = 'ISO KH A'$q$, pg_temp.oid_('THCS-PH')), '');
+select pg_temp.chk('kdi', 'QT 099: ngoài Phân hệ 1 vẫn chỉ xem (học sinh)', format('update students set full_name = ''x'' where org_id = %s', quote_literal(pg_temp.oid_('THCS-KB'))), 'rows:0');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

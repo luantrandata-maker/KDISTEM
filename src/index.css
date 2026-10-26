@@ -1890,3 +1890,6 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
 .setcustomview{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:8px 0}.setcustomview dt{color:var(--muted)}.setcustomview dd{margin:0}
 @media (max-width:640px){.setmenuitem{grid-template-columns:auto 1fr;}.setmenuitem .orig{grid-column:2}}
 .msg.warnmsg{background:#fff4e2;color:#8a4b00;border-color:#f5c98a}
+/* 099: Quản trị hệ thống chọn đơn vị thao tác ngay trong trang */
+.orgscope{display:grid;gap:6px;margin-bottom:14px;padding:10px 14px;border-color:var(--accent,#1f5fbf);background:var(--soft)}
+.orgscopebar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.orgscopebar input{flex:0 1 200px;min-width:140px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--card)}.orgscopebar select{flex:1 1 280px;min-width:0;max-width:520px}

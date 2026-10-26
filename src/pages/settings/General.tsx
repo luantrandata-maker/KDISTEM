@@ -8,6 +8,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
 import Periods from '../Periods'
+import { ButtonsTab, CatalogTab, ConfigTools, FieldsTab, MenuTab } from './Custom'
 import { WEEKDAY, addD, dayOf, offIn, vnd, vnShort } from '../dist/calendar'
 
 type Props = { orgId: string | null; platform?: boolean }
@@ -26,7 +27,31 @@ const errText = (m: string) => /schema cache|does not exist|function .* not foun
 function curYear() { const t = new Date(), y = t.getMonth() >= 7 ? t.getFullYear() : t.getFullYear() - 1; return `${y}-${y + 1}` }
 const nextName = (n: string) => { const a = Number(n.slice(0, 4)) + 1; return `${a}-${a + 1}` }
 
+type Top = 'menu' | 'fields' | 'cat' | 'btn' | 'year'
 export function GeneralSettings({ orgId, platform }: Props) {
+  const [top, setTop] = useState<Top>('menu')
+  const [std, setStd] = useState<string | null>(null)
+  useEffect(() => { supabase.rpc('platform_org_id').then(({ data }) => setStd((data as string) ?? null)) }, [])
+  const scope = platform ? std : orgId
+  if (!orgId) return <p className="sub">Chọn đơn vị trước.</p>
+  return <>
+    <div className="bar sethead">
+      <p className="sub" style={{ margin: 0, flex: 1, minWidth: 260 }}>{platform ? 'Admin KDI tùy chỉnh hệ thống bằng giao diện: tên & menu, trường tùy chỉnh, danh mục, nút, năm học & ngày nghỉ. Đây là mặc định cho mọi trường; trường tự chỉnh phần của trường.'
+        : 'Tùy chỉnh cho trường: tên & menu, trường tùy chỉnh, danh mục, nút, năm học & ngày nghỉ. Mục trường không đặt thì dùng mặc định của KDI.'}</p>
+      <ConfigTools scope={scope} />
+    </div>
+    <Tabs<Top> value={top} onChange={setTop} items={[['menu', 'Tên & menu'], ['fields', 'Trường tùy chỉnh'], ['cat', 'Danh mục'], ['btn', 'Nút'], ['year', 'Năm học & ngày nghỉ']]} />
+    <div style={{ marginTop: 12 }}>
+      {top === 'menu' && <MenuTab scope={scope} platform={!!platform} orgId={orgId} />}
+      {top === 'fields' && <FieldsTab scope={scope} platform={!!platform} />}
+      {top === 'cat' && <CatalogTab scope={scope} platform={!!platform} />}
+      {top === 'btn' && <ButtonsTab scope={scope} platform={!!platform} />}
+      {top === 'year' && <YearSettings orgId={orgId} platform={platform} />}
+    </div>
+  </>
+}
+
+function YearSettings({ orgId, platform }: Props) {
   const [sub, setSub] = useState<Sub>('cal')
   const [std, setStd] = useState<string | null>(null)
   const [years, setYears] = useState<string[]>([])

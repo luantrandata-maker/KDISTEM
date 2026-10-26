@@ -3114,6 +3114,40 @@ delete from holiday_skips where org_id = pg_temp.oid_('THCS-PH');
 delete from school_holidays where name like 'ISO STD%' or name = 'ISO PH nghỉ';
 delete from academic_years where name in ('2096-2097', '2098-2099');
 
+-- ===== 096: thiết lập chung đợt 2 — menu, danh mục, trường tùy chỉnh, nút; nhắc nộp kế hoạch STEM =====
+select pg_temp.chk('kdi', '096 KDI lưu menu mặc định', 'insert into org_settings (org_id, key, value) values (public.my_org_id(), ''menu'', ''{"teacher":{"hidden":["Sự kiện"]}}'')', 'rows:1')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '096 Trường lưu menu riêng', 'insert into org_settings (org_id, key, value) values (public.my_org_id(), ''menu'', ''{"teacher":{"labels":{"Tổng quan":"Trang chủ"}}}'')', 'rows:1');
+select pg_temp.chk('admin_ph', '096 Trường lưu trường tùy chỉnh', 'insert into org_settings (org_id, key, value) values (public.my_org_id(), ''fields'', ''{"library":[{"key":"nguon","label":"Nguồn","type":"text"}]}'')', 'rows:1');
+select pg_temp.chk('admin_ph', '096 Khoá thiết lập lạ bị chặn', 'insert into org_settings (org_id, key, value) values (public.my_org_id(), ''xyz'', ''{}'')', 'ERR*');
+select pg_temp.chk('gv_ph2', '096 GV không sửa menu của trường', 'insert into org_settings (org_id, key, value) values (public.my_org_id(), ''menu'', ''{}'')', 'ERR');
+select pg_temp.chk('admin_kb', '096 Trường khác không sửa thiết lập của trường A',
+  format('insert into org_settings (org_id, key, value) values (%L, ''buttons'', ''{}'')', pg_temp.oid_('THCS-PH')), 'ERR');
+select pg_temp.chk('admin_ph', '096 Học liệu lưu giá trị trường tùy chỉnh',
+  'update library_items set custom = ''{"nguon":"x"}'' where owner_org_id = public.my_org_id() and false', 'rows:0');
+select pg_temp.chk('admin_ph', '096 Giá trị trường tùy chỉnh phải là object',
+  'update edu_programs set custom = ''[1]'' where org_id = public.my_org_id()', 'ERR*');
+do $$
+declare v record;
+begin
+  if to_regprocedure('public.stem_plan_reminders()') is null then return; end if;
+  select t.org_id, t.id as teacher_id, (select id from classes c where c.org_id = t.org_id limit 1) as class_id,
+         (select id from period_configs p where p.org_id = t.org_id limit 1) as period_id into v
+    from teachers t where t.full_name = 'GV thử A';
+  if v.class_id is null or v.period_id is null then return; end if;
+  insert into teaching_sessions (org_id, class_id, teacher_id, period_id, session_date, subject, kind)
+    values (v.org_id, v.class_id, v.teacher_id, v.period_id, public.vn_today() + 3, 'ISO 096 STEM', 'stem')
+    on conflict (class_id, session_date, period_id) do update set subject = 'ISO 096 STEM', kind = 'stem', status = 'scheduled', teacher_id = excluded.teacher_id;
+  perform public.stem_plan_reminders();
+  perform public.stem_plan_reminders();          -- lần 2 trong ngày: không nhắc lại
+end $$;
+select pg_temp.chk('gv_both', '096 GV được nhắc nộp kế hoạch tiết STEM sắp dạy (một lần / ngày)',
+  'select count(*) from notifications where kind = ''stem_plan_remind'' and user_id = auth.uid()', '1');
+select pg_temp.chk('admin_ph', '096 Trường không tự chạy nhắc toàn hệ thống', 'select public.platform_stem_plan_reminders()::text', 'ERR');
+delete from notifications where kind = 'stem_plan_remind';
+delete from teaching_sessions where subject = 'ISO 096 STEM';
+delete from org_settings where org_id in (pg_temp.oid_('THCS-PH'), pg_temp.oid_('@platform'));
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

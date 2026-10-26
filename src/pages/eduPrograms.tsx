@@ -1,4 +1,7 @@
 import { Icon } from '../components/Icon'
+import { useHiddenBtn } from '../components/PageButtons'
+import { CustomInputs, customCell } from './settings/Custom'
+import { fieldsOf, useSettings } from '../lib/settings'
 import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
@@ -32,6 +35,7 @@ type Program = {
   periods_per_week: number | null; deploy_term: Deploy
   effective_from: string | null; effective_to: string | null; replaced_by: string | null; source_id: string | null
   published_at: string | null; note: string | null; updated_at: string; organizations?: { name: string } | null
+  custom?: Record<string, unknown> | null
 }
 type UnitType = 'topic' | 'lesson' | 'session'
 type Unit = {
@@ -109,9 +113,11 @@ function useCanEdit(mode: ProgMode) {
 
 // ================= Danh sách chương trình =================
 export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string | null; mode?: ProgMode; goTab?: (tab: string) => void }) {
+  const hid = useHiddenBtn()
   const { canEdit, isAdmin } = useCanEdit(mode)
   const { byCode: tracks, codes: CT } = useStemTracks()
   const { byCode: LV, name: levelName, levels: LVL } = useEduLevels()
+  const progFields = fieldsOf(useSettings(), 'program')
   const levelOpts: [string, string][] = LVL.map(l => [l.code, l.name])
   const [list, setList] = useState<Program[] | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
@@ -162,6 +168,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
       periods_per_week: Number(form.periods_per_week) || null, deploy_term: form.deploy_term ?? 'year',
       grades: gs, grade_from: gs[0], grade_to: gs[gs.length - 1],
       scope: mode === 'school' ? 'own' : form.scope ?? 'children',
+      ...(progFields.length ? { custom: form.custom ?? {} } : {}),
     }
     const { data, error } = await supabase.from('edu_programs').insert(row).select('id').single()
     if (error) return setMsg([errText(error.message), true])
@@ -189,11 +196,12 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
       <td>{mainsOf(p).join(', ')}{p.integrated_subjects.length > 0 && <><br /><small className="sub">Tích hợp: {p.integrated_subjects.join(', ')}</small></>}</td>
       <td>{p.total_periods || '—'}<br /><small className="sub">{[p.periods_per_week && `${p.periods_per_week} tiết/tuần`, DEPLOY[p.deploy_term ?? 'year']?.[0]].filter(Boolean).join(' · ')}</small></td>
       <td><StatusPill s={p.status} />{p.status === 'published' && p.effective_from && <><br /><small className="sub">từ {fmtD(p.effective_from)}</small></>}</td>
+      {progFields.filter(x => x.column).map(x => <td key={x.key}>{customCell(x, p.custom?.[x.key])}</td>)}
     </tr>
   )
   const table = (rows: Program[], mine: boolean) => (
     <div className="wrap"><table>
-      <thead><tr>{!mine && canCopy && <SelTh />}<th>Chương trình</th><th>Cấp · khối · kiểu · nhóm</th><th>Môn</th><th>Số tiết · triển khai</th><th>Trạng thái</th></tr></thead>
+      <thead><tr>{!mine && canCopy && <SelTh />}<th>Chương trình</th><th>Cấp · khối · kiểu · nhóm</th><th>Môn</th><th>Số tiết · triển khai</th><th>Trạng thái</th>{progFields.filter(x => x.column).map(x => <th key={x.key}>{x.label}</th>)}</tr></thead>
       <tbody>{rows.map(p => row(p, mine))}</tbody>
     </table></div>
   )
@@ -247,6 +255,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
               extra={form.kind === 'stem' ? ctsOf(form).flatMap(c => tracks[c]?.subjects ?? []) : []} /></div>
           {mode !== 'school' && <label className="field"><span>Phạm vi</span><select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Program['scope'] })}>
             <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
+          <CustomInputs fields={progFields} value={form.custom ?? {}} onChange={v => setForm({ ...form, custom: v })} />
           <div className="formactions" style={{ gridColumn: '1/-1' }}><button className="primary" type="submit">Tạo bản nháp</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
     </ElView>
@@ -279,7 +288,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
         </div>
         <div className="tools">
           <ViewToggle value={view} onChange={setView} />
-          {canEdit && <button className="primary" onClick={() => setForm({ level: 'thcs', kind: 'subject', grade_from: 6, grade_to: 9, grades: [6, 7, 8, 9], scope: mode === 'school' ? 'own' : 'children' })}>Thêm chương trình</button>}
+          {canEdit && !hid('add') && <button className="primary" onClick={() => setForm({ level: 'thcs', kind: 'subject', grade_from: 6, grade_to: 9, grades: [6, 7, 8, 9], scope: mode === 'school' ? 'own' : 'children' })}>Thêm chương trình</button>}
         </div>
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
@@ -303,6 +312,7 @@ type Tab = 'info' | 'units' | 'versions' | 'assign'
 function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
   id: string; orgId: string | null; mode: ProgMode; canEdit: boolean; isAdmin: boolean; onOpen: (id: string) => void; onClose: () => void
 }) {
+  const hid = useHiddenBtn()
   const [p, setP] = useState<Program | null>(null)
   const [tab, setTab] = useState<Tab>('info')
   const [comps, setComps] = useState<Comp[]>([])
@@ -362,7 +372,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
           <small className="sub">{[p.code, lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ctsOf(p).join(', '), mainsOf(p).join(', '), `${p.total_periods} tiết`, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
         </div>
         <div className="tools">
-          {mode === 'school' && canEdit && p.status === 'published' && <button className="primary" onClick={openMkBook}>Tạo PPCT từ chương trình</button>}
+          {mode === 'school' && canEdit && p.status === 'published' && !hid('ppct') && <button className="primary" onClick={openMkBook}>Tạo PPCT từ chương trình</button>}
         </div>
       </div>
       {mkBook && (
@@ -395,6 +405,7 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
   const [integ, setInteg] = useState<string[]>(p.integrated_subjects)
   const { byCode: tracks, allCodes: CT } = useStemTracks()
   const { byCode: LV, levels: LVL } = useEduLevels()
+  const progFields = fieldsOf(useSettings(), 'program')
   const levelOpts: [string, string][] = LVL.map(l => [l.code, l.name])
   const [rubrics, setRubrics] = useState<Rubric[]>([])
   useEffect(() => { setF(p); setInteg(p.integrated_subjects) }, [p])
@@ -414,6 +425,7 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
       integrated_subjects: integ, objectives: f.objectives?.trim() || null,
       competency_keys: f.competency_keys, rubric_ids: f.rubric_ids, note: f.note?.trim() || null, effective_from: f.effective_from || null,
       ...(mode !== 'school' ? { scope: f.scope } : {}),
+      ...(progFields.length ? { custom: f.custom ?? {} } : {}),
     }
     const { error } = await supabase.from('edu_programs').update(body).eq('id', p.id)
     if (error) return onError(errText(error.message))
@@ -454,6 +466,7 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
           <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Mục tiêu chương trình</span><textarea disabled={dis} rows={3} value={f.objectives ?? ''} onChange={e => setF({ ...f, objectives: e.target.value })} /></label>
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Ghi chú</span><input disabled={dis} value={f.note ?? ''} onChange={e => setF({ ...f, note: e.target.value })} /></label>
+        <CustomInputs disabled={dis} fields={progFields} value={f.custom ?? {}} onChange={v => setF({ ...f, custom: v })} />
       </div>
       <div className="formgrid" style={{ marginTop: 8 }}>
         <div className="field" style={{ gridColumn: '1/-1' }}><span>Khung năng lực</span>
@@ -842,6 +855,7 @@ function VersionsTab({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMes
   p: Program; mine: boolean; canEdit: boolean; mode: ProgMode; isAdmin: boolean; onOpen: (id: string) => void; onChanged: () => void
   onMessage: (m: string, err?: boolean) => void
 }) {
+  const hid = useHiddenBtn()
   const [vers, setVers] = useState<Program[]>([])
   const [log, setLog] = useState<LogRow[]>([])
   const [canAct, setCanAct] = useState(false)
@@ -897,7 +911,7 @@ function VersionsTab({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMes
           {p.status === 'pending' && !canAct && <small className="sub">Đang chờ duyệt ở Hộp phê duyệt.</small>}
           {can && p.status === 'approved' && <button className="primary" disabled={busy} onClick={() => setStatus('published', 'Ghi chú phát hành (không bắt buộc):')}>Phát hành</button>}
           {can && p.status === 'approved' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại để sửa</button>}
-          {can && p.status === 'published' && <button className="primary" disabled={busy} onClick={newVersion}>Tạo phiên bản mới</button>}
+          {can && p.status === 'published' && !hid('version') && <button className="primary" disabled={busy} onClick={newVersion}>Tạo phiên bản mới</button>}
           {can && ['published', 'superseded', 'draft', 'rejected', 'approved'].includes(p.status) && <button disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Đơn vị khác không còn thấy bản ngừng dùng.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng</button>}
           {can && p.status === 'archived' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại thành nháp</button>}
         </div>
@@ -926,6 +940,7 @@ function VersionsTab({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMes
 
 // ----- Gán cho trường & độ phủ triển khai -----
 function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | null; mine: boolean; onMessage: (m: string, err?: boolean) => void }) {
+  const hid = useHiddenBtn()
   const [orgs, setOrgs] = useState<Org[]>([])
   const [asg, setAsg] = useState<Assign[]>([])
   const [cov, setCov] = useState<Cover[] | null>(null)
@@ -1000,7 +1015,7 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
       </>)}
       <div className="bar" style={{ marginTop: 16 }}>
         <h3 style={{ margin: 0 }}>Mức độ triển khai</h3>
-        {rows.length > 0 && <button onClick={exportCov}>Xuất Excel</button>}
+        {rows.length > 0 && !hid('export') && <button onClick={exportCov}>Xuất Excel</button>}
       </div>
       <p className="sub">Tính trên mọi phiên bản của chương trình: trường được gán, trường có PPCT tạo từ chương trình, tiết đã dạy và yêu cầu cần đạt đã đạt.</p>
       {!cov ? <p className="sub">Đang tải…</p> : rows.length === 0 ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có trường nào được gán hoặc dùng chương trình này.</p></div> : (

@@ -1,5 +1,6 @@
 // Trang bài học theo video demo (23/10): bộ học liệu 5 thẻ, mỗi thẻ xem / cập nhật / chốt nội dung; đủ 5 thẻ thì phát hành.
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { catalogOf, useSettings } from '../../../lib/settings'
 import { supabase } from '../../../lib/supabase'
 import { openFile, uploadLearningFile, fmtSize } from '../../../lib/files'
 import { downloadWorkbook, readRows } from '../../../lib/sheet'
@@ -463,12 +464,13 @@ function MatsView({ mats, cat }: { mats: KitData['mats']; cat: Cat[] }) {
   return <><MatTable title="Nguyên vật liệu cho một sản phẩm" rows={mats.product} cat={cat} /><MatTable title="Công cụ và thiết bị cho một nhóm" rows={mats.group} cat={cat} /></>
 }
 function MatRows({ title, rows, set, cat, kind }: { title: string; rows: KMat[]; set: (r: KMat[]) => void; cat: Cat[]; kind: KMat['kind'] }) {
+  const settings = useSettings()
   const at = (i: number, m: KMat) => set(rows.map((x, j) => (j === i ? m : x)))
   const list = 'cat-' + kind
   const opts = cat.filter(c => (kind === 'supply' ? c.kind === 'supply' : c.kind !== 'supply'))
   return <div className="lmat"><h4>{title}</h4>
     <datalist id={list}>{opts.map(c => <option key={c.id} value={c.name} />)}</datalist>
-    <datalist id="mat-units">{UNITS.map(u => <option key={u} value={u} />)}</datalist>
+    <datalist id="mat-units">{catalogOf(settings, 'units', UNITS).map(u => <option key={u} value={u} />)}</datalist>
     <div className="lrows">
       {rows.map((m, i) => <div key={m.key} className="lrow mats">
         <input aria-label="Tên" list={list} placeholder="– Chọn hoặc gõ tên –" value={m.name} onChange={e => {

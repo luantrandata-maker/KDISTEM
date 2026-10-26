@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
 import { openFile } from '../../lib/files'
-import { KindChip, ProgChip, ItemDrawer, MAT_TYPE, RightsChip, ProgLine, fmtDate, selectItems, type Item, type Copy } from './common'
+import { matLabel, useMatTypes, KindChip, ProgChip, ItemDrawer, MAT_TYPE, RightsChip, ProgLine, fmtDate, selectItems, type Item, type Copy } from './common'
 import { useStemTracks } from '../../lib/stemTracks'
 import { BankList } from './BankList'
 const MaterialNorms = lazy(() => import('../materialNorms').then(m => ({ default: m.MaterialNorms })))
@@ -16,6 +16,7 @@ const ofK = (i: Item, k: K) => i.kind !== 'program' && (k === 'all' || (k === 'p
 // Thư viện STEM / Kho học liệu dùng chung: học liệu do Bộ, Tỉnh, Sở, Phòng, KDI Education và trường phát hành.
 // Trường / giáo viên "Dùng" → tạo bản của mình để chỉnh sửa (không bị ghi đè khi kho cập nhật).
 export function LibraryBrowse({ orgId, teacherId, go }: Props) {
+  useMatTypes()
   const { allCodes: PROGRAMS } = useStemTracks()
   const [items, setItems] = useState<Item[]>([])
   const [copies, setCopies] = useState<Copy[]>([])
@@ -120,7 +121,7 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
             <article className={'panel libcard' + (open === i.id ? ' open' : '')} key={i.id}>
               <div className="libhead">
                 <KindChip kind={i.kind} /><ProgChip p={i.program} />
-                {i.kind === 'material' && <small className="sub">{MAT_TYPE[i.content.type ?? 'link']}</small>}
+                {i.kind === 'material' && <small className="sub">{matLabel(i.content.type ?? 'link')}</small>}
                 {mine.length > 0 && !outdated && <span className="gpill good"><i aria-hidden="true">✓</i>Đã dùng</span>}
                 {i.usage_rights && i.usage_rights !== 'adapt' && <RightsChip r={i.usage_rights} />}
                 {outdated && <span className="gpill warn" title={i.change_note ?? ''}><i aria-hidden="true">↻</i>Có bản mới v{i.version}</span>}

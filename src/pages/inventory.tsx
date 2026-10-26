@@ -156,8 +156,8 @@ export function SuppliesPage({ orgId, initialTab = 'stock' }: { orgId: string | 
         <form className="panel formgrid" onSubmit={saveSupply}>
           <label className="field"><span>Tên vật tư *</span><input required value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
           <label className="field"><span>Mã</span><input value={form.sku ?? ''} onChange={e => setForm({ ...form, sku: e.target.value })} /></label>
-          <label className="field"><span>Đơn vị tính</span><input value={form.unit ?? ''} onChange={e => setForm({ ...form, unit: e.target.value })} /></label>
-          <label className="field"><span>Nhóm</span><input value={form.category ?? ''} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Điện, Cơ khí, Hoá chất…" /></label>
+          <label className="field"><span>Đơn vị tính</span><input list="cat-units" value={form.unit ?? ''} onChange={e => setForm({ ...form, unit: e.target.value })} /></label>
+          <label className="field"><span>Nhóm</span><input list="cat-supply_category" value={form.category ?? ''} onChange={e => setForm({ ...form, category: e.target.value })} placeholder="Điện, Cơ khí, Hoá chất…" /></label>
           <label className="field"><span>Tồn tối thiểu (cảnh báo)</span><input type="number" min={0} value={form.min_qty ?? 0} onChange={e => setForm({ ...form, min_qty: Number(e.target.value) })} /></label>
           <p className="sub" style={{ gridColumn: '1 / -1', margin: 0 }}>Số lượng tồn thay đổi qua phiếu Nhập / Cấp phát / Điều chỉnh (có sổ theo dõi), không sửa trực tiếp.</p>
           <div className="formactions"><button className="primary" type="submit">Lưu</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>

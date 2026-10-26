@@ -1846,3 +1846,22 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
 .setrules{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:8px 0}
 .setrules .field{margin:0}.setrules .inl{display:flex;gap:6px;align-items:center}
 .setweeks tr.hol td{background:#fff7ea}
+.pagehead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.pagehead h1{flex:1;min-width:0}
+.pagebtns{display:flex;gap:8px;flex-wrap:wrap}
+.pagenote{background:#eef4ff;border:1px solid #c9dafc;border-radius:10px;padding:8px 12px;margin:6px 0}
+.sethead{align-items:flex-start}.settools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btnlike{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;background:var(--surface);font-size:14px}
+.setbrand>summary{cursor:pointer}.setbrand{margin-bottom:12px}
+.setmenugroup{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin:8px 0;display:grid;gap:4px}
+.setmenuhead{display:flex;gap:8px;align-items:center;font-weight:600}.setmenuhead input{flex:1;max-width:360px}
+.setmenuitem{display:grid;grid-template-columns:auto minmax(160px,1fr) minmax(160px,1fr) auto;gap:8px;align-items:center;padding-left:12px}
+.setmenuitem.off .orig{color:var(--muted);text-decoration:line-through}
+.setarrows{display:inline-flex;gap:2px}.setarrows button{padding:2px 7px;font-size:12px}
+.setsave{display:flex;gap:8px;justify-content:flex-end;margin-top:10px}
+.setcats{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px}
+.setcat{border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.setcat ul{list-style:none;padding:0;margin:8px 0;display:grid;gap:4px}.setcat li{display:flex;gap:8px;align-items:center}.setcat li .v{flex:1}
+.setbtns{display:flex;flex-wrap:wrap;gap:12px 20px}
+.setcustomview{display:grid;grid-template-columns:max-content 1fr;gap:4px 14px;margin:8px 0}.setcustomview dt{color:var(--muted)}.setcustomview dd{margin:0}
+@media (max-width:640px){.setmenuitem{grid-template-columns:auto 1fr;}.setmenuitem .orig{grid-column:2}}
+.msg.warnmsg{background:#fff4e2;color:#8a4b00;border-color:#f5c98a}

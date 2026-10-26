@@ -1,4 +1,5 @@
 import { CoverPicker, coverStyle } from '../../components/Cover'
+import { useHiddenBtn } from '../../components/PageButtons'
 import { MultiSelect } from '../../components/MultiSelect'
 import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../../components/TableSel'
 import { Icon } from '../../components/Icon'
@@ -46,6 +47,7 @@ const IN_TAB: Record<LTab, LStatus[]> = {
 }
 
 export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
+  const hid = useHiddenBtn()
   const { codes: PROGRAMS } = useStemTracks()
   const [plans, setPlans] = useState<LPlan[]>([])
   const [view, setView] = useState<View>({ mode: 'list' })
@@ -113,7 +115,7 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
         <span className="tools">
           {!library && <button onClick={() => setLibrary(true)}>Kho bài giảng mẫu</button>}
           {go && <button onClick={() => go('Thư viện STEM')} title="Học liệu do Sở, Phòng, KDI Education phát hành">Thư viện STEM</button>}
-          <button className="primary" onClick={() => setView({ mode: 'new' })}>+ Tạo giáo án</button>
+          {!hid('new') && <button className="primary" onClick={() => setView({ mode: 'new' })}>+ Tạo giáo án</button>}
         </span>
       </div>
       {!library && <p className="sub" style={{ marginTop: 0 }}>{reviewRequired
@@ -244,6 +246,7 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
   id: string; teacherId: string; orgId: string | null; go?: (page: string) => void; templates: Template[]; reviewRequired: boolean
   onClose: () => void; onOpen: (id: string) => void; onPresent: (p: LPlan) => void
 }) {
+  const hid = useHiddenBtn()
   const [p, setP] = useState<LPlan | null>(null)
   // Bài gốc (khi đang mở bản nháp) hoặc bản nháp đang có (khi mở bài đã xuất bản)
   const [link, setLink] = useState<{ id: string; title: string } | null>(null)
@@ -380,7 +383,7 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
           {go && <button onClick={teachTrial} title="Mở lớp học Giáo dục STEM với giáo án này">Dạy thử</button>}
           {!ro && <button onClick={() => save()} disabled={busy || !dirty}>Lưu nháp</button>}
           {canSubmit && reviewRequired && <button className="primary" onClick={submit} disabled={busy}>Gửi duyệt</button>}
-          {canPublish && <button className={reviewRequired && p.status !== 'approved' ? '' : 'primary'} onClick={publish} disabled={busy}>{p.draft_of ? 'Xuất bản thay bản cũ' : 'Xuất bản'}</button>}
+          {canPublish && !hid('publish') && <button className={reviewRequired && p.status !== 'approved' ? '' : 'primary'} onClick={publish} disabled={busy}>{p.draft_of ? 'Xuất bản thay bản cũ' : 'Xuất bản'}</button>}
           {canSubmit && !reviewRequired && <button onClick={submit} disabled={busy}>Gửi duyệt</button>}
         </span>
       </div>
@@ -726,6 +729,7 @@ function VerTab({ p, versions, reviews, classes, reviewRequired, busy, onRestore
   onRestore: (v: number) => void; onNewVersion: () => void; onWithdraw: () => void; onSubmit: () => void; onPublish: () => void
   canSubmit: boolean; canPublish: boolean; onReviewed: () => void; say: (m: string, bad?: boolean) => void
 }) {
+  const hid = useHiddenBtn()
   const [f, setF] = useState({ kind: 'trial' as Review['kind'], class_id: '', taught_on: new Date().toISOString().slice(0, 10), rating: '4', note: '' })
   const vsel = useRowSel(versions)
   const rsel = useRowSel(reviews)
@@ -758,7 +762,7 @@ function VerTab({ p, versions, reviews, classes, reviewRequired, busy, onRestore
         <span className="tools">
           {canSubmit && <button className={reviewRequired ? 'primary' : ''} onClick={onSubmit} disabled={busy}>Gửi duyệt</button>}
           {p.status === 'pending' && <button onClick={onWithdraw} disabled={busy}>Rút lại</button>}
-          {canPublish && <button className="primary" onClick={onPublish} disabled={busy}>Xuất bản</button>}
+          {canPublish && !hid('publish') && <button className="primary" onClick={onPublish} disabled={busy}>Xuất bản</button>}
           {['approved', 'archived'].includes(p.status) && <button onClick={onNewVersion} disabled={busy}>Tạo phiên bản mới</button>}
         </span>
         {p.review_note && <p style={{ marginBottom: 0 }}><b>Ý kiến người duyệt:</b> <i>{p.review_note}</i></p>}

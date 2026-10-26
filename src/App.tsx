@@ -1,6 +1,8 @@
 import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
+import { useSettings, menuOf, orderItems } from './lib/settings'
+import { CatalogLists, PageButtons, PageCtx } from './components/PageButtons'
 import { NAV, ROLE_LABEL, MODULE_OF, ENT_MODULE_OF, RoleKey, UPSELL_PORTALS, PHASE_OF, labelOf } from './lib/nav'
 import { LockedModule } from './components/LockedModule'
 import { useAccess, switchOrg } from './lib/auth'
@@ -532,6 +534,7 @@ function Shell({ session }: { session: Session }) {
   const [actingStudent, setActingStudent] = useState<string | null>(null)
   const [changingPw, setChangingPw] = useState(false)
   const yrs = useYears(access.profile?.org_id)
+  const settings = useSettings(access.profile?.org_id ?? null)
 
   const views: RoleKey[] = access.portals
 
@@ -621,8 +624,12 @@ function Shell({ session }: { session: Session }) {
   const roleOk = (i: string) => role !== 'school_admin' || !MODULE_OF[i] || access.permitted(MODULE_OF[i])
   const inPlan = (i: string) => role === 'platform' || !ENT_MODULE_OF[i] || access.entitled(ENT_MODULE_OF[i])
   const locked = new Set(NAV[role].flatMap(g => g.items).filter(i => UPSELL_PORTALS.has(role) && roleOk(i) && !inPlan(i)))
+  // Thiết lập chung › Tên & menu: tên, thứ tự, ẩn/hiện (KDI mặc định, trường tự chỉnh); "Thiết lập chung" không ẩn được
+  const menu = menuOf(settings, role)
+  const lab = (i: string) => menu.labels[i] || labelOf(role, i)
   const groups = NAV[role]
-    .map(g => ({ ...g, items: g.items.filter(i => roleOk(i) && (inPlan(i) || locked.has(i))) }))
+    .map(g => ({ ...g, label: menu.groups[g.title] || g.title,
+      items: orderItems(g.items, menu.order[g.title]).filter(i => roleOk(i) && (inPlan(i) || locked.has(i)) && (i === 'Thiết lập chung' || !menu.hidden.includes(i))) }))
     .filter(g => g.items.length)
   // Gom các nhóm cùng phân hệ (section) thành một khối cây: phân hệ → nhóm con → mục
   const blocks: { section?: string; groups: typeof groups }[] = []
@@ -655,12 +662,12 @@ function Shell({ session }: { session: Session }) {
         {role !== 'department' && role !== 'platform' && role !== 'parent' && yrs.year && !yrs.year.is_current && <p className="yearwarn">Đang xem học kỳ không phải hiện tại</p>}
         {blocks.map(b => {
           // Một nhóm thường, hoặc một phân hệ (cấp 1) chứa các nhóm con (cấp 2)
-          const head = (key: string, title: string, items: string[], sub = false) => {
+          const head = (key: string, title: string, items: string[], sub = false, label = title) => {
             const shut = closed.has(key)
             return (
               <button className={'grouphead' + (sub ? ' subhead' : '') + (shut ? ' shut' : '')} onClick={() => toggleGroup(key)} aria-expanded={!shut}
                 aria-controls={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')}>
-                {!sub && <NavIcon title={title} />}<span>{title}
+                {!sub && <NavIcon title={title} />}<span>{label}
                   {items.length > 0 && items.every(i => locked.has(i)) && <small className="locknote">Chưa có trong gói</small>}</span>
                 {shut && items.includes(page) && <i className="dot" aria-label="Đang mở trang trong nhóm này" />}
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
@@ -671,14 +678,14 @@ function Shell({ session }: { session: Session }) {
             <div id={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')} hidden={closed.has(key)}>
               {items.map(i => <button key={i} className={(i === page ? 'on' : '') + (locked.has(i) ? ' locked' : '')} onClick={() => show(role, i)}
                 title={locked.has(i) ? 'Chưa có trong gói dịch vụ của đơn vị' : undefined}>
-                {labelOf(role, i)}{role === 'platform' && !PLATFORM_LIVE.has(i) && i !== 'Sơ đồ hệ thống' && <small className="navtag">Khung</small>}
+                {lab(i)}{role === 'platform' && !PLATFORM_LIVE.has(i) && i !== 'Sơ đồ hệ thống' && <small className="navtag">Khung</small>}
                 {locked.has(i) && <svg className="navlock" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-label="Chưa có trong gói"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>}
               </button>)}
             </div>
           )
           if (!b.section) {
             const key = role + ':' + b.groups[0].title
-            return <div key={key} className="navgroup">{head(key, b.groups[0].title, b.groups[0].items)}{list(key, b.groups[0].items)}</div>
+            return <div key={key} className="navgroup">{head(key, b.groups[0].title, b.groups[0].items, false, b.groups[0].label)}{list(key, b.groups[0].items)}</div>
           }
           const key = role + '§' + b.section
           const all = b.groups.flatMap(g => g.items)
@@ -688,7 +695,7 @@ function Shell({ session }: { session: Session }) {
               <div id={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')} hidden={closed.has(key)} className="navsub">
                 {b.groups.map(g => {
                   const k = role + ':' + g.title
-                  return <div key={k}>{head(k, g.title, g.items, true)}{list(k, g.items)}</div>
+                  return <div key={k}>{head(k, g.title, g.items, true, g.label)}{list(k, g.items)}</div>
                 })}
               </div>
             </div>
@@ -703,7 +710,7 @@ function Shell({ session }: { session: Session }) {
           </button>
           <img src={brand?.logo ?? logo} alt={brand?.display_name ?? 'KDI education'} />
           <span className="title">{role === 'platform' ? 'Hệ thống quản lý vận hành' : brand?.display_name ?? DEFAULT_TITLE}</span>
-          <MenuSearch entries={groups.flatMap(g => g.items.map(item => ({ item, label: labelOf(role, item), group: g.section ? `${g.section} › ${g.title}` : g.title })))} onGo={i => show(role, i)} />
+          <MenuSearch entries={groups.flatMap(g => g.items.map(item => ({ item, label: lab(item), group: g.section ? `${g.section} › ${g.label}` : g.label })))} onGo={i => show(role, i)} />
           <div className="user">
             <Bell open={openFrom} portals={views} orgId={access.profile.org_id} />
             <UserMenu name={access.profile.full_name} email={email}
@@ -715,15 +722,15 @@ function Shell({ session }: { session: Session }) {
               onPassword={() => setChangingPw(true)} onSignOut={() => supabase.auth.signOut()} />
           </div>
         </header>
-        <main className="main">
-          <h1>{labelOf(role, page)}</h1>
-          {locked.has(page) ? <LockedModule name={labelOf(role, page)} phase={PHASE_OF[ENT_MODULE_OF[page]] ?? null} entitlement={access.entitlement} go={goPage} />
+        <main className="main"><PageCtx.Provider value={page}><CatalogLists />
+          <div className="pagehead"><h1>{lab(page)}</h1><PageButtons page={page} title={lab(page)} go={goPage} /></div>
+          {locked.has(page) ? <LockedModule name={lab(page)} phase={PHASE_OF[ENT_MODULE_OF[page]] ?? null} entitlement={access.entitlement} go={goPage} />
             : Page ? <Suspense fallback={<p className="sub">Đang tải…</p>}><Page key={page + (yrs.year?.id ?? '') + (studentId ?? '')} teacherId={teacherId} studentId={studentId} orgId={access.profile.org_id} userName={access.profile.full_name} go={goPage} name={page}
             year={yrs.year} years={yrs.years} reloadYears={yrs.reload} selectYear={yrs.select} /></Suspense> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
-        </main>
+        </PageCtx.Provider></main>
         <OfflineBar go={() => show(role, role === 'platform' ? 'Ứng dụng di động & ngoại tuyến' : 'Ứng dụng di động')} />
-        <HelpWidget role={role} page={labelOf(role, page)} brand={{ name: brand?.display_name ?? null, support: brand?.support_text ?? null }} go={groups.some(g => g.items.includes('Hỗ trợ từ KDI')) ? (p: string) => show(role, p) : undefined}
-          menu={groups.flatMap(g => g.items.map(i => `${g.section ? g.section + ' › ' : ''}${g.title} › ${labelOf(role, i)}`))} />
+        <HelpWidget role={role} page={lab(page)} brand={{ name: brand?.display_name ?? null, support: brand?.support_text ?? null }} go={groups.some(g => g.items.includes('Hỗ trợ từ KDI')) ? (p: string) => show(role, p) : undefined}
+          menu={groups.flatMap(g => g.items.map(i => `${g.section ? g.section + ' › ' : ''}${g.label} › ${lab(i)}`))} />
       </div>
     </div>
   )

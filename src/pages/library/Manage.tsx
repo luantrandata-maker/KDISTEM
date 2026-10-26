@@ -1,4 +1,7 @@
 import { CoverPicker, coverStyle } from '../../components/Cover'
+import { useHiddenBtn } from '../../components/PageButtons'
+import { CustomInputs, customCell } from '../settings/Custom'
+import { fieldsOf, useSettings } from '../../lib/settings'
 import { MultiSelect } from '../../components/MultiSelect'
 import { useStemTracks } from '../../lib/stemTracks'
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
@@ -12,7 +15,7 @@ import { Tabs } from '../teacher/common'
 import type { Slide } from '../teacher/Lessons'
 import { uploadLearningFile, fmtSize, MAX_FILE_MB } from '../../lib/files'
 import {
-  KindChip, ProgChip, StatusChip, ItemDrawer, SlidesEditor, SCOPE, MAT_TYPE, KIND, NEW_KINDS, RIGHTS, RightsChip, ProgLine,
+  useMatTypes, KindChip, ProgChip, StatusChip, ItemDrawer, SlidesEditor, SCOPE, MAT_TYPE, KIND, NEW_KINDS, RIGHTS, RightsChip, ProgLine,
   fmtDate, uid, selectItems, useProgramOptions, useNormOptions, unitTree, progLabel, KIT, kitDone, type KitCard, type Item, type Unit, type Rights,
 } from './common'
 import { GradeChecks, SubjectPicker, gradeList } from '../../components/Pickers'
@@ -30,7 +33,7 @@ type Form = {
   id?: string; kind: Item['kind']; title: string; summary: string; subject: string; grades: string; program: string; tags: string
   scope: Item['scope']; targets: string[]; slides: Slide[]; mtype: string; url: string; units: Unit[]
   src: 'url' | 'file'; file: { path: string; file_name: string; size: number; mime: string } | null
-  program_id: string; unit_id: string; usage_rights: Rights; usage_note: string
+  program_id: string; unit_id: string; usage_rights: Rights; usage_note: string; custom: Record<string, unknown>
   // Bài giảng: tương tác (các khối nội dung theo tiến trình) hoặc slide (slide, tệp, đường dẫn)
   lmode: LMode; ilesson: ILesson | null
   // Bài học: mục tiêu, số tiết, giáo án / bài giảng / định mức vật tư / học liệu khác đã có trong kho
@@ -96,7 +99,7 @@ function ChipPicker({ label, hint, options, value, onChange, missing, extra, lea
 const EMPTY = (kind: Item['kind']): Form => ({
   kind, title: '', summary: '', subject: '', grades: '', program: '', tags: '', scope: 'children', targets: [],
   slides: kind === 'lesson' ? [{ id: uid(), kind: 'title', title: '', body: '' }] : [], mtype: 'worksheet', url: '', units: kind === 'program' ? [{ title: 'Học phần 1', periods: 2, objectives: '', lesson_ids: [] }] : [],
-  src: 'file', file: null, program_id: '', unit_id: '', usage_rights: 'adapt', usage_note: '',
+  src: 'file', file: null, program_id: '', unit_id: '', usage_rights: 'adapt', usage_note: '', custom: {},
   plan: EMPTY_PLAN, objectives: '', periods: '', plan_ids: [], lesson_ids: [], norm_ids: [], material_ids: [], checked: [],
   lmode: 'interactive', ilesson: null,
 })
@@ -104,12 +107,14 @@ const MaterialNorms = lazy(() => import('../materialNorms').then(m => ({ default
 type T = Item['kind'] | 'plan' | 'norm' | 'bank'
 const isPlan = (i: Item) => i.kind === 'material' && i.content.type === 'lesson_plan'
 const NOEV = { preventDefault() {} } as React.FormEvent
-const MAT_OPTS = Object.entries(MAT_TYPE).filter(([k]) => k !== 'lesson_plan')
 
 // Phát hành học liệu: Sở/Phòng/Tỉnh/Bộ, đơn vị cung cấp (KDI Education) hoặc trường soạn và phát hành tới đơn vị trực thuộc
 /** Mở thẳng form bài học (từ "Học liệu theo chương trình"): sửa bài học có sẵn hoặc tạo bộ học liệu cho một bài của chương trình */
 export type UnitStart = { editId?: string; preset?: { program_id: string; unit_id: string; title: string; periods: number | null; objectives: string | null; program: string | null; grades: string | null } }
 export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId: string | null; only?: T; start?: UnitStart; onDone?: () => void; onChanged?: () => void }) {
+  const hid = useHiddenBtn()
+  const libFields = fieldsOf(useSettings(), 'library')
+  const MAT_OPTS = useMatTypes()
   const { codes: PROGRAMS } = useStemTracks()
   const [items, setItems] = useState<Item[]>([])
   const [visible, setVisible] = useState<Item[]>([])
@@ -215,7 +220,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
       url: i.content.url ?? '', units: i.content.units ?? [],
       src: i.content.path ? 'file' : 'url',
       file: i.content.path ? { path: i.content.path, file_name: i.content.file_name ?? 'tệp', size: i.content.size ?? 0, mime: i.content.mime ?? '' } : null,
-      program_id: i.program_id ?? '', unit_id: i.unit_id ?? '', usage_rights: i.usage_rights ?? 'adapt', usage_note: i.usage_note ?? '',
+      program_id: i.program_id ?? '', unit_id: i.unit_id ?? '', usage_rights: i.usage_rights ?? 'adapt', usage_note: i.usage_note ?? '', custom: i.custom ?? {},
       plan: planOf(i.content as any), objectives: i.content.objectives ?? '', periods: i.content.periods ? String(i.content.periods) : '',
       plan_ids: i.content.plan_ids ?? [], lesson_ids: i.content.lesson_ids ?? [], norm_ids: i.content.norm_ids ?? [], material_ids: i.content.material_ids ?? [],
       checked: i.content.checked ?? [],
@@ -280,6 +285,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
       owner_org_id: orgId, kind: form.kind, title: form.title.trim(), summary: form.summary.trim() || null, subject: form.subject.trim() || null,
       grades: form.grades.trim() || null, program: form.program || null, tags: form.tags.split(',').map(t => t.trim()).filter(Boolean),
       scope: form.scope, content,
+      ...(libFields.length || Object.keys(form.custom ?? {}).length ? { custom: form.custom ?? {} } : {}),
     }
     setBusy(true)
     const res = form.id ? await supabase.from('library_items').update(row).eq('id', form.id).select('id').single()
@@ -503,7 +509,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
         </div>
         <div className="tools">
           <ViewToggle value={view} onChange={setView} />
-          <button type="button" className="primary" onClick={() => addNew(tab)}>Thêm {tabLabel(tab).toLowerCase()}</button>
+          {!hid('add') && <button type="button" className="primary" onClick={() => addNew(tab)}>Thêm {tabLabel(tab).toLowerCase()}</button>}
         </div>
       </div>
       <p className="sub">Học liệu phát hành tới {me.type === 'provider' ? 'các đơn vị bạn chọn hoặc công khai toàn hệ thống' : `các đơn vị trực thuộc ${me.name}`}. Trường “dùng” sẽ có bản riêng để chỉnh sửa; khi bạn phát hành bản cập nhật, trường được báo nhưng bản của họ không bị ghi đè.</p></>}
@@ -525,7 +531,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
             return (kitShow ?? fresh)
               ? <KitImport title={form.title} fresh={fresh} onApply={applyKit} onClose={() => setKitShow(false)} />
               : <div className="bar small">{info ? <span className="sub"><b>{info}</b></span> : <span className="sub">Có sẵn giáo án Word, bài giảng PowerPoint hoặc file mẫu Excel?</span>}
-                  <button type="button" className="libpartnew" onClick={() => setKitShow(true)}>Nhập từ file…</button></div>
+                  {!hid('import') && <button type="button" className="libpartnew" onClick={() => setKitShow(true)}>Nhập từ file…</button>}</div>
           })()}
           {form.kind === 'lesson' && <div className="libsteps"><Tabs items={[['info', '1. Thông tin bài giảng'], ['content', '2. Nội dung bài giảng']] as ['info' | 'content', string][]}
             value={ltab} onChange={setLtab} /></div>}
@@ -552,6 +558,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
               <select value={form.usage_rights} onChange={e => setForm({ ...form, usage_rights: e.target.value as Rights })} aria-label="Quyền sử dụng">
                 {(Object.keys(RIGHTS) as Rights[]).map(r => <option key={r} value={r}>{RIGHTS[r][0]}</option>)}</select></label>
             <label className="field" style={{ gridColumn: 'span 2' }}><span>Ghi chú quyền sử dụng</span><input value={form.usage_note} onChange={e => setForm({ ...form, usage_note: e.target.value })} placeholder="VD: chỉ dùng trong năm học 2026–2027, ghi nguồn KDI" /></label>
+            <CustomInputs fields={libFields} value={form.custom ?? {}} onChange={v => setForm({ ...form, custom: v })} />
             <label className="field"><span>Phát hành tới</span>
               <select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Item['scope'] })}>
                 {me.type !== 'provider' && <option value="children">{SCOPE.children}</option>}
@@ -769,7 +776,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
         </div>
       )) : <div className="wrap">
         <table className="libtable">
-          <thead><tr><th>{tabLabel(tab)}</th><th>Chương trình</th><th>{tab === 'unit' ? 'Thành phần' : 'Nội dung'}</th><th>Phát hành tới</th><th>Trạng thái</th><th>Trường đã dùng</th><th>Cập nhật</th></tr></thead>
+          <thead><tr><th>{tabLabel(tab)}</th><th>Chương trình</th><th>{tab === 'unit' ? 'Thành phần' : 'Nội dung'}</th><th>Phát hành tới</th><th>Trạng thái</th><th>Trường đã dùng</th>{libFields.filter(f => f.column).map(f => <th key={f.key}>{f.label}</th>)}<th>Cập nhật</th></tr></thead>
           <tbody>
             {shown.map(i => {
               const s = stats.get(i.id)
@@ -782,6 +789,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
                   <td>{SCOPE[i.scope]}{i.scope === 'selected' && <div className="sub" style={{ fontSize: 12 }}>{(targets.get(i.id) ?? []).map(id => orgs.find(o => o.id === id)?.name).filter(Boolean).join(', ')}</div>}</td>
                   <td><StatusChip s={i.status} />{i.version > 0 && <small className="sub"> v{i.version}</small>}</td>
                   <td>{s ? <>{s.schools} trường{s.outdated ? <div className="sub" style={{ fontSize: 12 }}>{s.outdated} bản dùng phiên bản cũ</div> : null}</> : <small className="sub">Chưa có</small>}</td>
+                  {libFields.filter(f => f.column).map(f => <td key={f.key}>{customCell(f, i.custom?.[f.key])}</td>)}
                   <td><small>{fmtDate(i.updated_at)}</small></td>
                 </tr>
               </Fragment>)

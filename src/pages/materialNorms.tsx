@@ -343,7 +343,7 @@ function NormDetail({ id, orgId, rights, onOpen, onClose, onChanged }: { id: str
           </select></label>
           {!row.catalog_id && <>
             <label className="field"><span>Tên vật tư</span><input value={row.name} onChange={e => setRow({ ...row, name: e.target.value })} /></label>
-            <label className="field"><span>Đơn vị tính</span><input value={row.unit} onChange={e => setRow({ ...row, unit: e.target.value })} /></label>
+            <label className="field"><span>Đơn vị tính</span><input list="cat-units" value={row.unit} onChange={e => setRow({ ...row, unit: e.target.value })} /></label>
             <label className="field"><span>Loại</span><select value={row.kind} onChange={e => setRow({ ...row, kind: e.target.value as MKind })}>{(Object.keys(MKIND) as MKind[]).map(k => <option key={k} value={k}>{MKIND[k]}</option>)}</select></label>
           </>}
           <label className="field"><span>Số lượng / {BASIS[n.basis]}</span><input value={row.qty} onChange={e => setRow({ ...row, qty: e.target.value })} inputMode="decimal" /></label>
@@ -491,7 +491,7 @@ function ProposeForm({ n, items, cat, onDone, onError }: { n: Norm; items: NItem
             <td><select value={x.catalog_id} onChange={e => setExtra(extra.map((y, j) => j === k ? { ...y, catalog_id: e.target.value } : y))} aria-label="Vật tư thêm">
               <option value="">— nhập tên —</option>{cat.map(c => <option key={c.id} value={c.id}>{c.name} ({c.unit})</option>)}</select>
               {!x.catalog_id && <><input value={x.name} placeholder="Tên vật tư" onChange={e => setExtra(extra.map((y, j) => j === k ? { ...y, name: e.target.value } : y))} />
-                <input value={x.unit} placeholder="Đơn vị" style={{ width: 70 }} onChange={e => setExtra(extra.map((y, j) => j === k ? { ...y, unit: e.target.value } : y))} /></>}</td>
+                <input list="cat-units" value={x.unit} placeholder="Đơn vị" style={{ width: 70 }} onChange={e => setExtra(extra.map((y, j) => j === k ? { ...y, unit: e.target.value } : y))} /></>}</td>
             <td>—</td>
             <td><input value={x.qty} style={{ width: 80 }} onChange={e => setExtra(extra.map((y, j) => j === k ? { ...y, qty: e.target.value } : y))} aria-label="Số lượng" /></td>
             <td><input value={x.note} onChange={e => setExtra(extra.map((y, j) => j === k ? { ...y, note: e.target.value } : y))} aria-label="Ghi chú" /></td></tr>
@@ -576,7 +576,7 @@ function CatalogTab({ orgId, rights }: { orgId: string | null; rights: Rights })
           <label className="field"><span>Mã</span><input value={form.code ?? ''} onChange={e => setForm({ ...form, code: e.target.value })} /></label>
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Tên *</span><input required value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
           <label className="field"><span>Loại</span><select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as MKind, reusable: e.target.value !== 'supply' })}>{(Object.keys(MKIND) as MKind[]).map(k => <option key={k} value={k}>{MKIND[k]}</option>)}</select></label>
-          <label className="field"><span>Đơn vị tính</span><input value={form.unit ?? ''} onChange={e => setForm({ ...form, unit: e.target.value })} /></label>
+          <label className="field"><span>Đơn vị tính</span><input list="cat-units" value={form.unit ?? ''} onChange={e => setForm({ ...form, unit: e.target.value })} /></label>
           <label className="field"><span>Đơn giá (đ)</span><input value={form.price ?? (form.unit_price != null ? String(form.unit_price) : '')} onChange={e => setForm({ ...form, price: e.target.value })} inputMode="numeric" /></label>
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Quy cách / thông số</span><input value={form.spec ?? ''} onChange={e => setForm({ ...form, spec: e.target.value })} /></label>
           <label className="field"><span>Dùng lại được</span><select value={(form.reusable ?? form.kind !== 'supply') ? '1' : '0'} onChange={e => setForm({ ...form, reusable: e.target.value === '1' })}><option value="1">Có (không nhân theo buổi)</option><option value="0">Không</option></select></label>

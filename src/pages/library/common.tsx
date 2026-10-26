@@ -1,11 +1,13 @@
 import { Icon } from '../../components/Icon'
-import { useEffect, useState } from 'react'
+import { Suspense, lazy, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { openFile, fmtSize } from '../../lib/files'
 import { SlideView, KIND as SLIDE_KIND, type Slide, type SlideKind } from '../teacher/Lessons'
 import { PROGRAM_COLOR } from '../teacher/common'
 import { PlanView, planOf } from './PlanEditor'
 import { Drawer } from '../../components/Drawer'
+// Xem bộ học liệu 5 thẻ (tải khi mở bài học)
+const KitView = lazy(() => import('./lesson/LessonPage').then(m => ({ default: m.KitView })))
 import { LessonOutline, LessonPlayer, asLesson, lessonStats } from '../../lib/lessonBlocks'
 
 export type Unit = { title: string; periods?: number; objectives?: string; lesson_ids?: string[] }
@@ -218,16 +220,24 @@ function UnitPreview({ item, all, canRestore, onRestored, onOpen }: { item: Item
         const sub = [x.kind === 'material' ? MAT_TYPE[x.content.type ?? 'link'] : x.kind === 'lesson' ? (x.content.mode === 'interactive' ? `tương tác · ${lessonStats(asLesson(x.content.lesson)).blocks} khối` : `${(x.content.slides ?? []).length} slide`) : '', x.status === 'draft' ? 'nháp' : `v${x.version}`].filter(Boolean).join(' · ')
         return <li key={id}>{onOpen ? <button type="button" onClick={() => onOpen({ type: 'item', id })}><span>{x.title}</span><small>{sub} ›</small></button> : <span>{x.title}</span>}</li>
       })}</ul>)}</div>)
+  // Bài học hiển thị theo 5 thẻ như bài học trong chương trình (Thông tin, Nội dung, Link tài liệu, Định mức vật tư, Kho hoạt động).
+  // Thành phần gắn theo cách cũ (giáo án, bài giảng, học liệu, định mức trong kho) hiện thêm ở thẻ tương ứng.
+  const hasLinks = [c.plan_ids, c.lesson_ids, c.material_ids].some(l => (l ?? []).length > 0)
+  const links = hasLinks ? <div className="libpreview" style={{ marginTop: 12 }}>
+    {(c.plan_ids ?? []).length > 0 && group('Giáo án', c.plan_ids)}
+    {(c.lesson_ids ?? []).length > 0 && group('Bài giảng', c.lesson_ids)}
+    {(c.material_ids ?? []).length > 0 && group('Học liệu khác', c.material_ids)}
+  </div> : undefined
+  const normList = norms.length ? <div style={{ marginTop: 12 }}><b>Định mức vật tư trong kho</b>
+    <ul className="childlist">{norms.map(n => <li key={n.id}>{onOpen
+      ? <button type="button" onClick={() => onOpen({ type: 'norm', id: n.id })}><span>{n.title}</span><small>{(n.material_norm_items ?? []).length} vật tư · v{n.version_no} ›</small></button>
+      : <span>{n.title} <small className="sub">v{n.version_no}</small></span>}</li>)}</ul></div> : undefined
+  const prog = item.edu_programs ? `${item.edu_programs.title} (v${item.edu_programs.version_no})${item.edu_program_units ? ' › ' + item.edu_program_units.title : ''}` : ''
   return (
     <div className="libpreview">
-      {(c.objectives || c.periods) && <p>{c.periods ? <b>{c.periods} tiết. </b> : null}{c.objectives}</p>}
-      {group('Giáo án', c.plan_ids)}
-      {group('Bài giảng', c.lesson_ids)}
-      <div><b>Định mức vật tư</b>{(c.norm_ids ?? []).length === 0 ? <small className="sub"> — chưa gắn</small> : (
-        <ul className="childlist">{norms.map(n => <li key={n.id}>{onOpen
-          ? <button type="button" onClick={() => onOpen({ type: 'norm', id: n.id })}><span>{n.title}</span><small>{(n.material_norm_items ?? []).length} vật tư · v{n.version_no} ›</small></button>
-          : <span>{n.title} <small className="sub">v{n.version_no}</small></span>}</li>)}</ul>)}</div>
-      {group('Học liệu khác', c.material_ids)}
+      <Suspense fallback={<p className="sub">Đang tải…</p>}>
+        <KitView row={item as never} progLabel={prog} extra={{ links, norms: normList }} />
+      </Suspense>
       <Versions item={item} canRestore={canRestore} onRestored={onRestored} />
     </div>
   )

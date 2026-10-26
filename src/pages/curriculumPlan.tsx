@@ -431,7 +431,7 @@ type CalWeek = { cal: number; week: number | null; term: number; starts_on: stri
 type PLesson = { id: string; seq: number; week: number | null; term: number | null; title: string; kind: keyof typeof KIND }
 type Sess = { id: string; session_date: string; status: string; subject: string; curriculum_lesson_id: string | null }
 const dm = (d: string) => d.slice(8, 10) + '/' + d.slice(5, 7)
-const addDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00'); x.setDate(x.getDate() + n); return x.toISOString().slice(0, 10) }
+const addDays = (d: string, n: number) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10) }
 const today = () => { const x = new Date(); x.setMinutes(x.getMinutes() - x.getTimezoneOffset()); return x.toISOString().slice(0, 10) }
 const MONTH = (d: string) => `Tháng ${Number(addDays(d, 2).slice(5, 7))}/${addDays(d, 2).slice(0, 4)}`
 

@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { Tiles } from './department/charts'
 import { BOOK_STATUS, KIND, LessonEditor, REASONS, errText, useCanEdit, useReasonDialog, type Book, type PpctMode, type ReasonCode } from './curriculum'
 import { downloadXlsx, norm } from '../lib/sheet'
-import { progGrades, fmtGrades } from '../lib/eduLevels'
+import { progGrades, fmtGrades, unitGradesOf } from '../lib/eduLevels'
 
 // Kế hoạch dạy học — đợt 1 (migration 071)
 //  • Kế hoạch năm: bảng môn × khối của một năm học (trường) hoặc của bộ mẫu (KDI / Sở): số tiết HK I / HK II,
@@ -14,7 +14,7 @@ import { progGrades, fmtGrades } from '../lib/eduLevels'
 type Year = { id: string; name: string; term: string; starts_on: string | null; ends_on: string | null; is_current: boolean | null }
 type Counts = { book_id: string; hk1: number; hk2: number; other: number }
 type Prog = { id: string; title: string; version_no: number; grade_from: number; grade_to: number; grades?: number[]; main_subject: string; status: string; org_id: string }
-type Unit = { id: string; parent_id: string | null; unit_type: 'topic' | 'lesson' | 'session'; seq: number; grade: number | null; subject: string | null; title: string; periods: number }
+type Unit = { id: string; parent_id: string | null; unit_type: 'topic' | 'lesson' | 'session'; seq: number; grade: number | null; grades?: number[]; subject: string | null; title: string; periods: number }
 type Alloc = { unit_id: string; periods: number; term: 1 | 2 | null }
 
 const yearNames = (years: Year[] | undefined) => [...new Set((years ?? []).map(y => y.name))]
@@ -249,7 +249,7 @@ export function Allocation({ orgId, mode = 'school', year, years }: { orgId: str
   async function loadBook() {
     if (!book?.program_id) { setUnits([]); return }
     const [u, l, b] = await Promise.all([
-      supabase.from('edu_program_units').select('id, parent_id, unit_type, seq, grade, subject, title, periods').eq('program_id', book.program_id).order('seq'),
+      supabase.from('edu_program_units').select('id, parent_id, unit_type, seq, grade, grades, subject, title, periods').eq('program_id', book.program_id).order('seq'),
       supabase.from('curriculum_lessons').select('id', { count: 'exact', head: true }).eq('book_id', book.id),
       supabase.from('curriculum_books').select('allocation').eq('id', book.id).single(),
     ])
@@ -266,13 +266,13 @@ export function Allocation({ orgId, mode = 'school', year, years }: { orgId: str
     const kids = (pid: string | null) => units.filter(u => u.parent_id === pid).sort((a, b) => a.seq - b.seq)
     const subjOk = (s: string | null) => !s || !prog || book.subject.toLowerCase() === prog.main_subject.toLowerCase() || s.toLowerCase() === book.subject.toLowerCase()
     const out: { u: Unit; depth: number; leaf: boolean }[] = []
-    const walk = (pid: string | null, depth: number, g: number | null, s: string | null): boolean => {
+    const walk = (pid: string | null, depth: number, g: number[], s: string | null): boolean => {
       let any = false
       for (const u of kids(pid)) {
-        const gg = u.grade ?? g, ss = u.subject ?? s
+        const own = unitGradesOf(u), gg = own.length ? own : g, ss = u.subject ?? s
         const ch = depth < 2 ? kids(u.id) : []
         if (ch.length === 0) {
-          if ((gg == null || gg === book.grade) && subjOk(ss)) { out.push({ u, depth, leaf: true }); any = true }
+          if ((!gg.length || gg.includes(book.grade)) && subjOk(ss)) { out.push({ u, depth, leaf: true }); any = true }
         } else {
           const at = out.length
           out.push({ u, depth, leaf: false })
@@ -282,7 +282,7 @@ export function Allocation({ orgId, mode = 'school', year, years }: { orgId: str
       }
       return any
     }
-    walk(null, 0, null, null)
+    walk(null, 0, [], null)
     return out
   }, [units, book, prog])
   const leaves = tree.filter(t => t.leaf)

@@ -1747,6 +1747,12 @@ a.namelink:hover{color:var(--primary)}
 .elview{display:grid;gap:12px;margin-top:12px}.elview>.ghostbtn{justify-self:start}
 .elviewhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.elviewhead h2{margin:0}
 /* Phân hệ 1 — Chương trình tập huấn */
+.tpunits{margin-top:4px}.tpunitpart{color:var(--warn-fg);font-weight:600}
+.tpunittree{display:grid;gap:8px;margin-top:6px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
+.tpunittree fieldset{border:0;margin:0;padding:0;display:grid;gap:2px}.tpunittree legend{padding:0;margin-bottom:2px}
+.tpunittree label{display:flex;gap:8px;align-items:center;cursor:pointer}.tpunittree fieldset:disabled label{cursor:default}
+.tpunittree small.sub{margin:0;display:inline}
+.tpunit{padding-left:24px}.tpunit span{flex:1;min-width:0}
 .tpkv{display:grid;grid-template-columns:170px minmax(0,1fr);gap:6px 12px;margin:0}.tpkv dt{color:var(--muted)}.tpkv dd{margin:0}
 .tpsubj{display:grid;gap:8px;border:1px solid var(--line);border-radius:12px;padding:12px}
 .tpsubjname{font-weight:600;flex:1;min-width:200px}

@@ -3148,6 +3148,36 @@ delete from notifications where kind = 'stem_plan_remind';
 delete from teaching_sessions where subject = 'ISO 096 STEM';
 delete from org_settings where org_id in (pg_temp.oid_('THCS-PH'), pg_temp.oid_('@platform'));
 
+-- ===== 097: tập huấn đợt A — chương trình (mục tiêu, tiên quyết), kế hoạch chọn một phần nội dung, thông báo gán =====
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_programs (org_id, title, objectives, outcomes, entry_conditions) values (platform_org_id(), 'ISO CTTH A', '  GV thiết kế được bài STEM ', 'Nộp 1 KHBD', 'Dạy KHTN')$q$, true);
+select pg_temp.chk('kdi', 'CTTH 097: lưu mục tiêu (cắt khoảng trắng), đầu ra, điều kiện tham gia', $q$select objectives || '|' || outcomes || '|' || entry_conditions from training_programs where title = 'ISO CTTH A'$q$, 'GV thiết kế được bài STEM|Nộp 1 KHBD|Dạy KHTN');
+select pg_temp.chk('kdi', 'CTTH 097: không là tiên quyết của chính mình', $q$update training_programs set prereq_families = array[family_id] where title = 'ISO CTTH A'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'CTTH 097: tiên quyết phải là chương trình có thật', $q$update training_programs set prereq_families = array['00000000-0000-0000-0000-000000000000'::uuid] where title = 'ISO CTTH A'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_programs set prereq_families = array[(select family_id from training_programs where title = 'ISO CTTH' limit 1)] where title = 'ISO CTTH A'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_program_units (program_id, kind, seq, title) select id, 'subject', 1, 'ISO A môn' from training_programs where title = 'ISO CTTH A'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_program_units (program_id, parent_id, kind, seq, title, hours) select p.id, u.id, 'content', g, 'ISO A nd' || g, g from training_programs p join training_program_units u on u.program_id = p.id and u.kind = 'subject', generate_series(1, 3) g where p.title = 'ISO CTTH A'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$update training_programs set status = 'published' where title = 'ISO CTTH A'$q$, true);
+select pg_temp.chk('kdi', 'CTTH 097: đã phát hành không sửa mục tiêu, tiên quyết', $q$update training_programs set objectives = 'khác' where title = 'ISO CTTH A'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_program_copy(id) from training_programs where title = 'ISO CTTH A' and status = 'published'$q$, true);
+select pg_temp.chk('kdi', 'CTTH 097: phiên bản mới giữ mục tiêu và tiên quyết', $q$select objectives || ':' || cardinality(prereq_families) from training_programs where title = 'ISO CTTH A' and version_no = 2$q$, 'GV thiết kế được bài STEM:1');
+
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plans (org_id, name, pub_status, mode, year_name) values (platform_org_id(), 'ISO KH A', 'draft', 'offline', '2026-2027')$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plan_items (plan_id, program_id) select k.id, p.id from training_plans k, training_programs p where k.name = 'ISO KH A' and p.title = 'ISO CTTH A' and p.status = 'published'$q$, true);
+select pg_temp.chk('kdi', 'KH 097: nội dung chọn phải thuộc chương trình', $q$update training_plan_items set units = array[(select id from training_program_units where title = 'ISO bài 1' limit 1)] where plan_id = (select id from training_plans where name = 'ISO KH A')$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'KH 097: không chọn mảng rỗng', $q$update training_plan_items set units = '{}' where plan_id = (select id from training_plans where name = 'ISO KH A')$q$, 'ERR*');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_plan_items set units = array(select u.id from training_program_units u join training_programs p on p.id = u.program_id where p.title = 'ISO CTTH A' and p.status = 'published' and u.kind = 'content') where plan_id = (select id from training_plans where name = 'ISO KH A')$q$, true);
+select pg_temp.chk('kdi', 'KH 097: chọn đủ mọi nội dung thì lưu là toàn bộ (null)', $q$select (units is null)::text from training_plan_items where plan_id = (select id from training_plans where name = 'ISO KH A')$q$, 'true');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_plan_items set units = array(select u.id from training_program_units u join training_programs p on p.id = u.program_id where p.title = 'ISO CTTH A' and p.status = 'published' and u.title in ('ISO A nd3', 'ISO A nd1') order by u.seq desc) where plan_id = (select id from training_plans where name = 'ISO KH A')$q$, true);
+select pg_temp.chk('kdi', 'KH 097: nội dung chọn xếp theo thứ tự chương trình', $q$select string_agg(u.title, ',' order by o) from training_plan_items i, unnest(i.units) with ordinality x(id, o) join training_program_units u on u.id = x.id where i.plan_id = (select id from training_plans where name = 'ISO KH A')$q$, 'ISO A nd1,ISO A nd3');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_plans set pub_status = 'published' where name = 'ISO KH A'$q$, true);
+select pg_temp.chk('kdi', 'KH 097: số giờ chỉ tính nội dung chọn', $q$select hours::text from training_plans where name = 'ISO KH A'$q$, '4');
+select pg_temp.chk('kdi', 'KH 097: nội dung của kế hoạch chỉ gồm nội dung chọn', $q$select string_agg(title, ',' order by ord) from training_plan_units((select id from training_plans where name = 'ISO KH A'))$q$, 'ISO A nd1,ISO A nd3');
+select pg_temp.chk('kdi', 'KH 097: xếp lịch tự động chỉ xếp nội dung chọn', $q$select training_plan_schedule(id, '2030-03-04')::text from training_plans where name = 'ISO KH A'$q$, '2');
+select pg_temp.chk('kdi', 'KH 097: không thêm buổi cho nội dung không chọn', $q$insert into training_sessions (org_id, plan_id, unit_id, title, starts_at, ends_at, mode) select k.org_id, k.id, u.id, 'x', '2030-03-10 08:00+07', '2030-03-10 10:00+07', 'offline' from training_plans k, training_program_units u join training_programs p on p.id = u.program_id where k.name = 'ISO KH A' and p.title = 'ISO CTTH A' and p.status = 'published' and u.title = 'ISO A nd2'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_plan_assign(id, array[(select id from organizations where code = 'THCS-PH')], 5) from training_plans where name = 'ISO KH A'$q$, true);
+select pg_temp.chk('admin_ph', 'KH 097: trường được gán nhận thông báo', $q$select count(*) from notifications where kind = 'training_assigned' and user_id = auth.uid() and title like '%ISO KH A%' and body like '%chỉ tiêu 5%'$q$, '1');
+select pg_temp.chk('admin_kb', 'KH 097: trường không được gán thì không nhận thông báo', $q$select count(*) from notifications where kind = 'training_assigned' and title like '%ISO KH A%'$q$, '0');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

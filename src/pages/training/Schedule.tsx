@@ -14,7 +14,7 @@ export type Sess = { id: string; plan_id: string; unit_id: string | null; title:
 type Att = { session_id: string; teacher_id: string; present: boolean | null; excuse_status: string | null; excuse_reason?: string | null; checked_in_at?: string | null; method?: string | null
   teachers?: { full_name: string; subject: string | null; organizations: { name: string } | null } | null }
 type Unit = { id: string; program_id: string; parent_id: string | null; kind: string; seq: number; title: string; hours: number; mode: Mode | null }
-type Item = { program_id: string; seq: number; trainer: string | null }
+type Item = { program_id: string; seq: number; trainer: string | null; units?: string[] | null }
 type St = 'upcoming' | 'live' | 'toclose' | 'closed'
 
 const SSEL = 'id, plan_id, unit_id, title, starts_at, ends_at, mode, location, meeting_url, trainer, note, closed_at, recording_url'
@@ -34,7 +34,7 @@ const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 
 /** Nội dung tập huấn của các chương trình trong kế hoạch, theo thứ tự chương trình › môn › nội dung */
 async function planContents(planId: string) {
-  const { data: it } = await supabase.from('training_plan_items').select('program_id, seq, trainer').eq('plan_id', planId).order('seq')
+  const { data: it } = await supabase.from('training_plan_items').select('program_id, seq, trainer, units').eq('plan_id', planId).order('seq')
   const items = (it ?? []) as Item[]
   if (!items.length) return [] as (Unit & { trainer: string | null })[]
   const { data: us } = await supabase.from('training_program_units').select('id, program_id, parent_id, kind, seq, title, hours, mode').in('program_id', items.map(i => i.program_id))
@@ -42,7 +42,8 @@ async function planContents(planId: string) {
   const out: (Unit & { trainer: string | null })[] = []
   for (const i of items) {
     const subs = units.filter(u => u.program_id === i.program_id && u.kind === 'subject').sort((a, b) => a.seq - b.seq)
-    for (const s of subs) for (const u of units.filter(x => x.parent_id === s.id).sort((a, b) => a.seq - b.seq)) out.push({ ...u, trainer: i.trainer })
+    const pick = i.units ? new Set(i.units) : null   // kế hoạch chọn một phần nội dung (097)
+    for (const s of subs) for (const u of units.filter(x => x.parent_id === s.id && (!pick || pick.has(x.id))).sort((a, b) => a.seq - b.seq)) out.push({ ...u, trainer: i.trainer })
   }
   return out
 }

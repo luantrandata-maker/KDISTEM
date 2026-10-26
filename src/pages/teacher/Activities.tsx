@@ -2,6 +2,7 @@ import { coverStyle } from '../../components/Cover'
 import { NameLink } from '../../components/TableSel'
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { Icon } from '../../components/Icon'
+import { GradeChecks, SubjectPicker, gradeList } from '../../components/Pickers'
 // Giáo viên → Kho hoạt động & Bài giảng (migration 030)
 // Hoạt động của tôi · Kho của trường (mẫu + đồng nghiệp đã xuất bản) · Bài giảng có thể giao học trước.
 import { useEffect, useMemo, useState } from 'react'
@@ -62,20 +63,7 @@ export function TeacherActivities({ teacherId, orgId, go }: TProps) {
   }
   const assign = (ref: string) => { handoff.set('teacher.selfstudy', ref); go?.('Học trước & tự học') }
 
-  if (view.mode === 'new') return (
-    <>
-      <div className="bar"><button onClick={() => setView({ mode: 'list' })}>← Danh sách</button><span className="sub" style={{ margin: 0 }}>Chọn mẫu hoạt động</span></div>
-      <div className="acttypes">
-        {ACT_KINDS.map(k => (
-          <button key={k} className="panel acttype" onClick={() => create(k)}>
-            <span className="acticon" aria-hidden="true"><Icon n={ACT[k].icon} size={24} /></span>
-            <b>{ACT[k].label}</b><small>{ACT[k].desc}</small>
-            {!ACT[k].graded && <span className="pill">Không chấm điểm</span>}
-          </button>
-        ))}
-      </div>
-    </>
-  )
+  if (view.mode === 'new') return <KindPicker onBack={() => setView({ mode: 'list' })} onPick={k => create(k)} />
   if (view.mode === 'edit') return <Editor a={view.a} onClose={() => { setView({ mode: 'list' }); load() }} onPlay={a => setView({ mode: 'play', a, big: false })} />
   if (view.mode === 'play') return <Play a={view.a} big={view.big} onBig={b => setView({ ...view, big: b })} onClose={() => setView({ mode: 'list' })}
     onEdit={view.a.teacher_id === teacherId && !view.a.is_template ? () => setView({ mode: 'edit', a: view.a }) : undefined} />
@@ -132,6 +120,54 @@ export function TeacherActivities({ teacherId, orgId, go }: TProps) {
   )
 }
 
+function KindPicker({ onBack, onPick }: { onBack: () => void; onPick: (k: ActKind) => void }) {
+  return (
+    <>
+      <div className="bar"><button onClick={onBack}>← Danh sách</button><span className="sub" style={{ margin: 0 }}>Chọn mẫu hoạt động</span></div>
+      <div className="acttypes">
+        {ACT_KINDS.map(k => (
+          <button key={k} className="panel acttype" onClick={() => onPick(k)}>
+            <span className="acticon" aria-hidden="true"><Icon n={ACT[k].icon} size={24} /></span>
+            <b>{ACT[k].label}</b><small>{ACT[k].desc}</small>
+            {!ACT[k].graded && <span className="pill">Không chấm điểm</span>}
+          </button>
+        ))}
+      </div>
+    </>
+  )
+}
+
+// Cổng Quản trị nền tảng: thêm hoạt động của KDI (bài mẫu, không gắn giáo viên) và xem chi tiết / chơi thử hoạt động bất kỳ
+type Desk = { mode: 'new' } | { mode: 'open'; id: string } | { mode: 'edit'; a: Activity } | { mode: 'play'; a: Activity; big: boolean }
+export function ActivityDesk({ orgId, start, onClose }: { orgId: string | null; start: { mode: 'new' } | { mode: 'open'; id: string }; onClose: () => void }) {
+  const [v, setV] = useState<Desk>(start)
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    if (v.mode !== 'open') return
+    supabase.from('activities').select(COLS).eq('id', v.id).maybeSingle().then(({ data, error }) => {
+      if (error || !data) return setErr(error?.message ?? 'Không tìm thấy hoạt động (có thể chưa xuất bản nên không xem được).')
+      setV({ mode: 'play', a: data as unknown as Activity, big: false })
+    })
+  }, [v.mode === 'open' ? v.id : ''])
+  async function create(k: ActKind) {
+    if (!orgId) return setErr('Chưa xác định đơn vị KDI.')
+    const { data, error } = await supabase.from('activities').insert({ org_id: orgId, teacher_id: null, is_template: true, status: 'draft',
+      kind: k, title: `${ACT[k].label} mới`, content: STARTER[k] }).select(COLS).single()
+    if (error || !data) return setErr('Không tạo được hoạt động: ' + (error?.message ?? ''))
+    setV({ mode: 'edit', a: data as unknown as Activity })
+  }
+  if (v.mode === 'new') return <>{err && <p className="msg">{err}</p>}<KindPicker onBack={onClose} onPick={create} /></>
+  if (v.mode === 'open') return <><div className="bar"><button onClick={onClose}>← Danh sách</button></div>{err ? <p className="msg">{err}</p> : <p className="sub">Đang tải…</p>}</>
+  if (v.mode === 'edit') return <Editor a={v.a} onClose={onClose} onPlay={a => setV({ mode: 'play', a, big: false })} />
+  const a = v.a
+  return <>
+    <Play a={a} big={v.big} onBig={b => setV({ ...v, big: b })} onClose={onClose}
+      onEdit={orgId && a.org_id === orgId ? () => setV({ mode: 'edit', a }) : undefined} />
+    {!v.big && <p className="sub">{[ACT[a.kind]?.label, a.subject, a.grades && `Khối ${a.grades}`, a.program, a.teachers?.full_name ?? (a.is_template ? 'Bài mẫu' : ''),
+      a.status === 'published' ? 'Đã xuất bản' : 'Nháp', `${countItems(a.kind, a.content)} ${unitOf(a.kind)}`].filter(Boolean).join(' · ')}</p>}
+  </>
+}
+
 function Editor({ a, onClose, onPlay }: { a: Activity; onClose: () => void; onPlay: (a: Activity) => void }) {
   const { codes: CTS } = useStemTracks()
   const [x, setX] = useState<Activity>(a)
@@ -149,7 +185,7 @@ function Editor({ a, onClose, onPlay }: { a: Activity; onClose: () => void; onPl
     setBusy(false)
     if (error || !data) return setErr(error?.message.replace(/^Chưa xuất bản được: /, 'Chưa xuất bản được — ') ?? 'Không lưu được')
     setX(data as unknown as Activity); setDirty(false)
-    setMsg(status === 'published' ? 'Đã xuất bản — đồng nghiệp thấy trong Kho của trường, có thể giao cho lớp.' : 'Đã lưu.')
+    setMsg(status === 'published' ? (x.teacher_id ? 'Đã xuất bản — đồng nghiệp thấy trong Kho của trường, có thể giao cho lớp.' : 'Đã xuất bản — giáo viên các trường thấy trong Kho hoạt động tương tác.') : 'Đã lưu.')
   }
   const close = () => { if (!dirty || confirm('Có thay đổi chưa lưu. Thoát không lưu?')) onClose() }
 
@@ -174,8 +210,8 @@ function Editor({ a, onClose, onPlay }: { a: Activity; onClose: () => void; onPl
           <input value={x.title} onChange={e => upd({ title: e.target.value })} maxLength={200} /></label>
         <label className="field" style={{ gridColumn: '1 / -1' }}><span>Hướng dẫn cho học sinh</span>
           <input value={x.instructions ?? ''} onChange={e => upd({ instructions: e.target.value })} /></label>
-        <label className="field"><span>Môn</span><input value={x.subject ?? ''} onChange={e => upd({ subject: e.target.value })} /></label>
-        <label className="field"><span>Khối</span><input value={x.grades ?? ''} onChange={e => upd({ grades: e.target.value })} placeholder="VD: 8 hoặc 6,7" /></label>
+        <label className="field"><span>Môn</span><SubjectPicker value={x.subject ?? ''} onChange={v => upd({ subject: v })} emptyLabel="— Không chọn —" /></label>
+        <div className="field"><span>Khối</span><GradeChecks value={gradeList(x.grades ?? '')} onChange={g => upd({ grades: g.join(',') })} /></div>
         <label className="field"><span>Chương trình</span>
           <select value={x.program ?? ''} onChange={e => upd({ program: e.target.value || null })}><option value="">—</option>{CTS.map(c => <option key={c}>{c}</option>)}</select></label>
       </div>
@@ -283,7 +319,7 @@ function ActivityBank({ rows, teacherId, orgId, go, onUse, onAssign }: {
                   <div className={'tileart art' + art}>{a.program && <span className="progchip" style={{ background: PROGRAM_COLOR[a.program], color: '#fff' }}>{a.program}</span>}<span aria-hidden="true"><Icon n={icon} size={36} /></span></div>
                   <div className="tilebody">
                     <b>{a.title}</b>
-                    <small>{[a.subject, a.teachers?.full_name ?? (a.is_template ? 'Mẫu của trường' : '')].filter(Boolean).join(' · ')}</small>
+                    <small>{[a.subject, a.teachers?.full_name ?? (a.is_template ? (a.org_id !== orgId ? 'Mẫu của KDI' : 'Mẫu của trường') : '')].filter(Boolean).join(' · ')}</small>
                     <div className="tilemeta"><span>{ACT_GROUP[g].tag}</span><span>{kindLabel(a)}</span>{a.grades && <span>Khối {a.grades}</span>}</div>
                     <span className="tilemore">Xem chi tiết ›</span>
                   </div>

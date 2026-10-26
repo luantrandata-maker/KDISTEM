@@ -1,4 +1,4 @@
-import { progGrades } from '../../lib/eduLevels'
+import { progGrades, unitGradesOf } from '../../lib/eduLevels'
 // Máy xếp lịch của bản phân phối (078, 079). Thuần dữ liệu, không gọi Supabase.
 //  Chương trình → môn (môn của học phần, mặc định môn chủ đạo) → bài. "Buổi" = tiết.
 //  • Không chỉnh riêng từng môn: các môn nối tiếp nhau, tiết chảy liên tục theo nhịp của chương trình
@@ -19,7 +19,7 @@ export type Row = { program_id: string; unit_id: string; seq: number; week: numb
 export type Prog = { id: string; code: string | null; title: string; version_no: number; status: string; ct_code: string | null; level: string
   grade_from: number; grade_to: number; grades?: number[]; main_subject: string; periods_per_week: number | null; deploy_term: string | null }
 export type U = { id: string; program_id: string; parent_id: string | null; unit_type: 'topic' | 'lesson' | 'session'; seq: number; title: string
-  periods: number; grade: number | null; subject: string | null }
+  periods: number; grade: number | null; grades?: number[]; subject: string | null }
 export type Lesson = U & { subj: string }
 
 /** Tiết/tuần vượt mức này thì tô cam ở lịch và cảnh báo. */
@@ -34,14 +34,14 @@ export function lessonsOf(units: U[], prog: Prog, grade: number): Lesson[] {
   const mine = units.filter(u => u.program_id === prog.id)
   const kids = (id: string | null) => mine.filter(u => u.parent_id === id).sort((a, b) => a.seq - b.seq)
   const out: Lesson[] = []
-  const walk = (id: string | null, g: number | null, s: string | null) => kids(id).forEach(u => {
-    const ug = u.grade ?? g
-    if (ug != null && ug !== grade) return
+  const walk = (id: string | null, g: number[], s: string | null) => kids(id).forEach(u => {
+    const own = unitGradesOf(u), ug = own.length ? own : g
+    if (ug.length && !ug.includes(grade)) return
     const us = u.subject?.trim() || s
     if (u.unit_type === 'lesson') out.push({ ...u, subj: us || prog.main_subject })
     else if (u.unit_type === 'topic') { if (mine.some(x => x.parent_id === u.id)) walk(u.id, ug, us); else out.push({ ...u, subj: us || prog.main_subject }) }
   })
-  walk(null, null, null)
+  walk(null, [], null)
   return out
 }
 

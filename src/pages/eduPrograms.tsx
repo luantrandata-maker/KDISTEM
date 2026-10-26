@@ -35,7 +35,7 @@ type Program = {
 }
 type UnitType = 'topic' | 'lesson' | 'session'
 type Unit = {
-  id: string; program_id: string; parent_id: string | null; unit_type: UnitType; seq: number; grade: number | null; subject: string | null
+  id: string; program_id: string; parent_id: string | null; unit_type: UnitType; seq: number; grade: number | null; grades?: number[]; subject: string | null
   title: string; periods: number; objectives: string | null; content: string | null; lesson?: any
 }
 type Outcome = { id: string; program_id: string; unit_id: string | null; seq: number; code: string | null; content: string; competency_key: string | null }
@@ -68,7 +68,9 @@ type LibUnit = { id: string; title: string; subject: string | null; grades: stri
   content: { objectives?: string | null; periods?: number | null; material_ids?: string[] } | null }
 const MAT_ICON: Record<string, string> = { video: 'film', document: 'file', link: 'link', image: 'image', worksheet: 'fileText', lesson_plan: 'book', guide: 'book' }
 const CHILD: Record<UnitType, UnitType | null> = { topic: 'lesson', lesson: 'session', session: null }
-type UF = { grade: number | null; subject: string | null; periods: number; libId: string }
+type UF = { grades: number[]; subject: string | null; periods: number; libId: string }
+// 092: một học phần / bài thuộc nhiều khối; bản ghi cũ chỉ có grade
+const unitGrades = (u: Pick<Unit, 'grade' | 'grades'>) => u.grades?.length ? u.grades : u.grade ? [u.grade] : []
 const DLEVELS = { topic: { label: 'Học phần', child: 'lesson', ph: 'Tên học phần' }, lesson: { label: 'Bài học', child: 'session', ph: 'Tên bài học' }, session: { label: 'Buổi học', ph: 'Tên buổi học' } }
 const errText = (m: string) => (/schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 058 trên Supabase.'
   : /row-level|42501/i.test(m) ? 'Bạn không có quyền thực hiện thao tác này.' : m)
@@ -585,13 +587,13 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
   // ----- Chỉnh sửa cấu trúc trên bảng nháp, lưu một lần -----
   const toDraft = (): DRow<UF>[] => ordered.map(({ u }) => ({
     key: u.id, id: u.id, parent: u.parent_id, type: u.unit_type, title: u.title, goal: u.objectives ?? '',
-    f: { grade: u.grade, subject: u.subject, periods: u.periods, libId: '' },
+    f: { grades: unitGrades(u), subject: u.subject, periods: u.periods, libId: '' },
     outs: outs.filter(o => o.unit_id === u.id).sort((a, b) => a.seq - b.seq).map(o => ({ key: o.id, id: o.id, code: o.code ?? '', content: o.content, comp: o.competency_key })),
   }))
   function startDraft(addTopic: boolean) {
     loadLibUnits()
     const rows = toDraft()
-    if (addTopic) rows.push({ key: newKey(), parent: null, type: 'topic', title: '', goal: '', f: { grade: p.grade_from, subject: null, periods: 0, libId: '' }, outs: [] })
+    if (addTopic) rows.push({ key: newKey(), parent: null, type: 'topic', title: '', goal: '', f: { grades: progGrades(p), subject: null, periods: 0, libId: '' }, outs: [] })
     setDraft(rows)
   }
   // Môn chọn được cho một dòng nháp: học phần → môn ở Thông tin; bài / buổi → môn của học phần chứa nó
@@ -605,8 +607,8 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
     return r.f.subject && !base.some(n => lc(n) === lc(r.f.subject!)) ? [r.f.subject, ...base] : base
   }
   const draftCols: DCol<UF>[] = [
-    { label: 'Khối', width: 90, cell: (r, set) => <select value={r.f.grade ?? ''} onChange={e => set({ grade: Number(e.target.value) || null })} aria-label="Khối">
-      <option value="">—</option>{progGrades(p).map(g => <option key={g} value={g}>{g}</option>)}</select> },
+    { label: 'Khối', width: 170, cell: (r, set) => <NumMultiSelect value={r.f.grades} onChange={g => set({ grades: g })} placeholder="Mọi khối" ariaLabel="Khối"
+      options={progGrades(p).map(g => ({ value: g, label: String(g) }))} /> },
     { label: 'Môn', width: 170, cell: (r, set, rows) => { const list = draftSubjects(r, rows); return <select value={r.f.subject ?? ''} onChange={e => set({ subject: e.target.value || null, libId: '' })} aria-label="Môn" style={{ maxWidth: 170 }}>
       <option value="">{r.type === 'topic' ? `(${p.main_subject})` : list.length > 1 ? '— Mọi môn —' : '—'}</option>{list.map(n => <option key={n} value={n}>{n}</option>)}</select> } },
     { label: 'Số tiết', width: 90, cell: (r, set) => <input type="number" min={0} max={999} value={r.f.periods} onChange={e => set({ periods: Math.max(0, Number(e.target.value) || 0) })} aria-label="Số tiết" style={{ width: 76 }} /> },
@@ -617,13 +619,13 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
     const names = (r.f.subject ? [r.f.subject] : draftSubjects(r, rows)).map(lc)
     const used = new Set(rows.filter(x => x.parent === r.parent && x.key !== r.key).map(x => lc(x.title)))
     const list = (libUnits ?? []).filter(i => i.subject && names.includes(lc(i.subject)) && !used.has(lc(i.title))
-      && (!r.f.grade || !i.grades || !gradeList(i.grades).length || gradeList(i.grades).includes(Number(r.f.grade))))
+      && (!r.f.grades.length || !i.grades || !gradeList(i.grades).length || gradeList(i.grades).some(g => r.f.grades.includes(g))))
     return <select value={r.f.libId} aria-label="Chọn từ danh sách bài học" style={{ width: '100%', marginBottom: 6 }} onChange={e => {
       const i = libUnits?.find(x => x.id === e.target.value)
       if (!i) return patch({ f: { ...r.f, libId: '' } })
       const g = gradeList(i.grades ?? '').filter(x => progGrades(p).includes(x))
       patch({ title: i.title, goal: i.content?.objectives ?? r.goal, f: { ...r.f, libId: i.id, periods: Number(i.content?.periods) || r.f.periods || 1,
-        subject: i.subject ?? r.f.subject, grade: r.f.grade ?? (g.length === 1 ? g[0] : null) } })
+        subject: i.subject ?? r.f.subject, grades: r.f.grades.length ? r.f.grades : g } })
     }}>
       <option value="">{!libUnits ? 'Đang tải danh sách bài học…' : list.length ? `— Chọn từ danh sách bài học (${list.length}) hoặc nhập tên bên dưới —` : 'Danh sách bài học chưa có bài nào của môn này — nhập tên bên dưới'}</option>
       {list.map(i => <option key={i.id} value={i.id}>{i.title}{i.grades ? ` · khối ${i.grades}` : ''}{i.subject ? ` · ${i.subject}` : ''}{i.status !== 'published' ? ' (nháp)' : ''}</option>)}
@@ -632,7 +634,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
   async function saveDraft(rows: DRow<UF>[]) {
     const errs = await saveDraftTree(toDraft(), rows, {
       table: 'edu_program_units',
-      toRow: (r, parentId, seq) => ({ program_id: p.id, parent_id: parentId, unit_type: r.type, seq, grade: r.f.grade ?? null, subject: r.f.subject?.trim() || null,
+      toRow: (r, parentId, seq) => ({ program_id: p.id, parent_id: parentId, unit_type: r.type, seq, grades: [...r.f.grades].sort((a, b) => a - b), subject: r.f.subject?.trim() || null,
         title: r.title.trim(), periods: Number(r.f.periods) || 0, objectives: r.goal.trim() || null }),
       outs: { table: 'edu_outcomes', toRow: (o, unitId, seq) => ({ program_id: p.id, unit_id: unitId, seq, code: o.code.trim() || null, content: o.content.trim(), competency_key: o.comp || null }) },
       afterInsert: async (r, id) => {
@@ -653,7 +655,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
 
   async function importRows(recs: (Record<string, string> & { _line: number })[]) {
     const bad: string[] = []
-    type R = { type: UnitType; grade: number | null; subject: string | null; title: string; periods: number; objectives: string | null; outcomes: string[] }
+    type R = { type: UnitType; grades: number[]; subject: string | null; title: string; periods: number; objectives: string | null; outcomes: string[] }
     const rows: R[] = []
     let hasLesson = false
     for (const r of recs) {
@@ -663,8 +665,8 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
       if (t === 'session' && !hasLesson) { bad.push(`dòng ${r._line}: buổi học chưa thuộc bài học nào`); continue }
       if (t === 'topic') hasLesson = false
       if (t === 'lesson') hasLesson = true
-      const g = Number(r.grade); const n = Number(String(r.periods).replace(',', '.'))
-      rows.push({ type: t, grade: g >= 1 && g <= 12 ? g : null, subject: r.subject.trim() || null, title: r.title.trim(),
+      const g = gradeList(String(r.grade ?? '')).filter(x => x >= 1 && x <= 12); const n = Number(String(r.periods).replace(',', '.'))
+      rows.push({ type: t, grades: g, subject: r.subject.trim() || null, title: r.title.trim(),
         periods: Number.isFinite(n) && n > 0 ? Math.round(n) : 0, objectives: r.objectives.trim() || null,
         outcomes: r.outcomes.split(/\n|;/).map(s => s.trim()).filter(Boolean) })
     }
@@ -683,7 +685,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
       const key = parent ?? '_'
       const seq = (seqs.get(key) ?? 0) + 1; seqs.set(key, seq)
       const res = await supabase.from('edu_program_units').insert({
-        program_id: p.id, parent_id: parent, unit_type: r.type, seq, grade: r.grade, subject: r.subject,
+        program_id: p.id, parent_id: parent, unit_type: r.type, seq, grades: r.grades, subject: r.subject,
         title: r.title, periods: r.periods, objectives: r.objectives,
       }).select('id').single()
       if (res.error) { bad.push(`"${r.title}": ${errText(res.error.message)}`); continue }
@@ -699,7 +701,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
     return importSummary(rows.length, 'mục', bad) + (nOut ? ` · ${nOut} yêu cầu cần đạt` : '')
   }
   function exportRows() {
-    downloadXlsx(`Chuong-trinh ${p.title} v${p.version_no}`, IMPORT, ordered.map(({ u }) => [UTYPE[u.unit_type], u.grade, u.subject, u.title, u.periods || null, u.objectives,
+    downloadXlsx(`Chuong-trinh ${p.title} v${p.version_no}`, IMPORT, ordered.map(({ u }) => [UTYPE[u.unit_type], unitGrades(u).join(', ') || null, u.subject, u.title, u.periods || null, u.objectives,
       outs.filter(o => o.unit_id === u.id).map(o => (o.code ? o.code + '. ' : '') + o.content).join('\n')]), 'Cấu trúc')
   }
 
@@ -725,7 +727,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
         </div>
       </div>
       {draft ? <StructureDraft<UF> levels={DLEVELS} root="topic" initial={draft} cols={draftCols} titleExtra={libPicker}
-        comps={comps.map(c => [c.key, c.name])} newFields={(t, par, rows) => ({ grade: par?.f.grade ?? p.grade_from, subject: t === 'topic' || !par ? null : (() => { const l = draftSubjects({ ...par, key: '_', parent: par.key, type: t, f: { ...par.f, subject: null } }, rows); return l.length === 1 ? l[0] : null })(), periods: t === 'topic' ? 0 : 1, libId: '' })}
+        comps={comps.map(c => [c.key, c.name])} newFields={(t, par, rows) => ({ grades: par ? par.f.grades : progGrades(p), subject: t === 'topic' || !par ? null : (() => { const l = draftSubjects({ ...par, key: '_', parent: par.key, type: t, f: { ...par.f, subject: null } }, rows); return l.length === 1 ? l[0] : null })(), periods: t === 'topic' ? 0 : 1, libId: '' })}
         onSave={saveDraft} onCancel={() => setDraft(null)} />
       : all.length === 0 ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có học phần nào.{editable && ' Bấm "Thêm học phần" hoặc "Nhập Excel".'}</p></div> : (
         <div className="wrap"><table>
@@ -760,7 +762,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
                           </form>
                         )}
                       </td>
-                      <td>{u.grade ?? ''}</td>
+                      <td>{unitGrades(u).join(', ')}</td>
                       <td>{u.unit_type === 'topic' && (subjectsOf(u.id).length || subjFor === u.id) ? (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                           {subjectsOf(u.id).map(x => (

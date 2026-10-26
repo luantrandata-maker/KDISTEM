@@ -15,7 +15,7 @@ import {
 } from './sched'
 
 const PSEL = 'id, code, title, version_no, status, ct_code, level, grade_from, grade_to, grades, main_subject, periods_per_week, deploy_term'
-const USEL = 'id, program_id, parent_id, unit_type, seq, title, periods, grade, subject'
+const USEL = 'id, program_id, parent_id, unit_type, seq, title, periods, grade, grades, subject'
 export const STATUS: Record<Status, [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], archived: ['Ngừng dùng', 'off'] }
 export const Chip = ({ tone, children }: { tone?: string; children: ReactNode }) => <span className={'distchip2 ' + (tone ?? '')}>{children}</span>
 export const errText = (m: string) => (/schema cache|does not exist|column .* of relation/i.test(m) ? 'Hãy chạy migration 078, 079 trên Supabase.'

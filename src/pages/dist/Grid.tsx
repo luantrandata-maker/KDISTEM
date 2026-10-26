@@ -8,6 +8,8 @@ import { WEEKDAY, dayOf, offIn, vnd, vnShort, type CalWeek } from './calendar'
 const KIND: Record<string, string> = { state: 'Lễ nhà nước', tet: 'Tết', break: 'Nghỉ giữa kỳ', school: 'Của trường', other: 'Khác' }
 type Pop = { w: number; pid?: string; sub?: string; x: number; y: number }
 
+const Warn = () => <svg aria-label="có ngày nghỉ" role="img" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></svg>
+
 export const COLORS = ['#1f4e9a', '#16a34a', '#d97706', '#7c3aed', '#dc2626', '#0d9488']
 export const colorOf = (k: number) => COLORS[k % COLORS.length]
 
@@ -43,7 +45,7 @@ export function WeekGrid({ plan, order, progs, s, titles, cal, calLabel, year, t
         {line('wk', 'weeks', <b className="lab">Tuần</b>, weeks.map(w => {
           const c = cal?.get(w), h = hol(w)
           return c ? <button type="button" key={w} className={'wk wkbtn' + bandCls(w) + (h ? ' hol' : '') + (pop?.w === w && !pop.pid ? ' sel' : '')}
-            title={`Tuần ${w}: ${vnShort(c.starts_on)}–${vnShort(c.ends_on)}${h ? ' · có ngày nghỉ' : ''}`} onClick={e => open(e, { w })}>{h && <i aria-label="có ngày nghỉ">⚠</i>}{w}</button>
+            title={`Tuần ${w}: ${vnShort(c.starts_on)}–${vnShort(c.ends_on)}${h ? ' · có ngày nghỉ' : ''}`} onClick={e => open(e, { w })}>{h && <Warn />}<span>{w}</span></button>
             : <small key={w} className={'wk' + bandCls(w)}>{w}</small>
         }))}
         {order.map((pid, k) => {
@@ -77,14 +79,15 @@ export function WeekGrid({ plan, order, progs, s, titles, cal, calLabel, year, t
   function PopBody(p: Pop) {
     const c = cal?.get(p.w)
     const head = <>
-      <b>Tuần {p.w}</b> <small className="sub">{p.w <= plan.hk1_weeks ? 'Học kỳ 1' : p.w <= frame ? 'Học kỳ 2' : 'Ngoài khung'}</small>
+      <b className="distpopt">Tuần {p.w}</b> <small className="sub">{p.w <= plan.hk1_weeks ? 'Học kỳ 1' : p.w <= frame ? 'Học kỳ 2' : 'Ngoài khung'}</small>
       {c && <div className="sub">{WEEKDAY[dayOf(c.starts_on)]} {vnShort(c.starts_on)} đến {WEEKDAY[dayOf(c.ends_on)]} {vnd(c.ends_on)}</div>}</>
-    const hols = c?.holidays.length ? <ul className="distpophol">{c.holidays.map(h => {
-      const n = offIn(h, c.starts_on, c.ends_on)
-      return <li key={h.id}><b>⚠ {h.name}</b> <small className="sub">{h.starts_on === h.ends_on ? vnd(h.starts_on) : `${vnd(h.starts_on)} – ${vnd(h.ends_on)}`}</small>
-        <div><small>{h.starts_on === h.ends_on ? WEEKDAY[dayOf(h.starts_on)] + ' ' + vnShort(h.starts_on) + ' · ' : ''}{n ? `Nghỉ ${n}/5 ngày học` : 'Rơi vào cuối tuần'} · {h.status === 'expected' ? 'Dự kiến' : 'Chính thức'} · {KIND[h.kind] ?? h.kind}</small></div>
-        <small className="sub">{h.std ? 'Theo chuẩn chung' : h.org_name}{year ? ' · năm học ' + year : ''}</small></li>
-    })}</ul> : c ? <p className="sub" style={{ margin: '6px 0 0' }}>Không có ngày nghỉ.</p> : null
+    const src = c?.holidays.length ? [...new Set(c.holidays.map(h => h.std ? 'Theo chuẩn chung' : h.org_name))].join(', ') + (year ? ' · năm học ' + year : '') : ''
+    const hols = c?.holidays.length ? <><ul className="distpophol">{c.holidays.map(h => {
+      const n = offIn(h, c.starts_on, c.ends_on), one = h.starts_on === h.ends_on
+      return <li key={h.id}><b>{h.name} {one ? vnd(h.starts_on) : `${vnShort(h.starts_on)} – ${vnd(h.ends_on)}`}</b>
+        <div className="sub">{one ? `${WEEKDAY[dayOf(h.starts_on)]} ${vnShort(h.starts_on)}` : `${WEEKDAY[dayOf(h.starts_on)]} ${vnShort(h.starts_on)} đến ${WEEKDAY[dayOf(h.ends_on)]} ${vnShort(h.ends_on)}`}{KIND[h.kind] && h.kind !== 'other' ? ' · ' + KIND[h.kind] : ''}</div>
+        <div className="sub">{n ? `Nghỉ ${n}/5 ngày học` : 'Rơi vào cuối tuần'} · <b className={h.status === 'expected' ? 'st exp' : 'st ok'}>{h.status === 'expected' ? 'Dự kiến' : 'Chính thức'}</b></div></li>
+    })}</ul><div className="distpopsrc sub">{src}</div></> : c ? <p className="sub" style={{ margin: '6px 0 0' }}>Không có ngày nghỉ.</p> : null
     if (!p.pid) return <>{head}{hols}{!c && <p className="sub" style={{ margin: '6px 0 0' }}>Chưa có lịch tham chiếu cho tuần này.</p>}</>
     const rows = s.rows.filter(r => r.program_id === p.pid && !r.skipped && s.subjOf.get(r.unit_id) === p.sub && (r.weeks ?? []).includes(p.w))
     return <>{head}

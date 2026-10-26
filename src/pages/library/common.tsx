@@ -1,4 +1,4 @@
-import { CustomView } from '../settings/Custom'
+import { CustomView } from '../../components/CustomFields'
 import { codedCatalog, fieldsOf, useSettings } from '../../lib/settings'
 import { Icon } from '../../components/Icon'
 import { Suspense, lazy, useEffect, useState } from 'react'

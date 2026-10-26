@@ -1,6 +1,6 @@
 import { CoverPicker, coverStyle } from '../../components/Cover'
 import { useHiddenBtn } from '../../components/PageButtons'
-import { CustomInputs, customCell } from '../settings/Custom'
+import { CustomInputs, customCell } from '../../components/CustomFields'
 import { fieldsOf, useSettings } from '../../lib/settings'
 import { MultiSelect } from '../../components/MultiSelect'
 import { useStemTracks } from '../../lib/stemTracks'

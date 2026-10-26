@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { Fragment, Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../../lib/supabase'
 import { switchOrg } from '../../lib/auth'
 import { downloadXlsx, norm } from '../../lib/sheet'
@@ -62,7 +62,8 @@ async function fetchAll(spec: Spec, ids: string[] | null) {
   return { rows: out, capped: true }
 }
 
-export function SystemList({ spec }: { spec: Spec }) {
+// onOpen: bấm một dòng để mở chi tiết (thay cho dòng mở rộng `detail`); actions: nút thêm ở thanh công cụ; reloadKey đổi → tải lại
+export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spec; onOpen?: (r: Row) => void; actions?: ReactNode; reloadKey?: number }) {
   const { byId, regionOf, regions, orgs } = useOrgs()
   const saved = (() => { try { return JSON.parse(localStorage.getItem(KEY) ?? '{}') as { region?: string; org?: string } } catch { return {} } })()
   const [region, setRegion] = useState(saved.region ?? '')
@@ -80,8 +81,10 @@ export function SystemList({ spec }: { spec: Spec }) {
   useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify({ region, org })) } catch { /* bỏ qua */ } }, [region, org])
 
   // Đơn vị trong phạm vi lọc (trường, và cả Sở/Phòng nếu dữ liệu thuộc cấp đó)
-  const inRegion = useMemo(() => orgs.filter(o => !o.is_platform && (!region || regionOf(o.id)?.id === region)), [orgs, region, regionOf])
-  const schoolsInRegion = inRegion.filter(o => o.type === 'school')
+  // Có nút thêm (kho của KDI): cho chọn cả đơn vị KDI để xem riêng bài KDI soạn
+  const inRegion = useMemo(() => orgs.filter(o => (actions && !region ? true : !o.is_platform) && (!region || regionOf(o.id)?.id === region)), [orgs, region, regionOf, !!actions])
+  const schoolsInRegion0 = inRegion.filter(o => o.type === 'school')
+  const schoolsInRegion = schoolsInRegion0
 
   useEffect(() => {
     if (!orgs.length) return
@@ -91,7 +94,7 @@ export function SystemList({ spec }: { spec: Spec }) {
       const keep = region && !org && !ids ? r.rows.filter(x => regionOf(x.org_id)?.id === region) : r.rows
       setRows(keep); setCapped(r.capped)
     }).catch(e => { setErr(e.message); setRows([]) }).finally(() => setBusy(false))
-  }, [orgs.length, region, org, tick])
+  }, [orgs.length, region, org, tick, reloadKey])
 
   const reload = () => setTick(t => t + 1)
   const nameOf = (id: string) => byId.get(id)?.name ?? '—'
@@ -123,20 +126,21 @@ export function SystemList({ spec }: { spec: Spec }) {
           <label className="pickfield"><span>Đơn vị</span>
             <select value={org} onChange={e => pickOrg(e.target.value)} aria-label="Chọn trường hoặc đơn vị">
               <option value="">Tất cả ({schoolsInRegion.length} trường)</option>
-              {inRegion.map(o => <option key={o.id} value={o.id}>{o.type === 'school' ? '' : '◆ '}{o.name}</option>)}
+              {inRegion.map(o => <option key={o.id} value={o.id}>{o.type === 'school' ? '' : '◆ '}{o.name}{o.is_platform ? ' (KDI)' : ''}</option>)}
             </select></label>
           <input className="search" style={{ margin: 0, minWidth: 220 }} type="search" placeholder={spec.searchHint} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm kiếm" />
         </span>
         <span className="tools">
           {!org && <Tabs value={view} onChange={setView} items={[['sum', 'Theo đơn vị'], ['list', 'Danh sách']]} />}
           <button onClick={excel} disabled={!shown.length}>Xuất Excel</button>
+          {actions}
         </span>
       </div>
 
       <div className="cards syscards">
         <div className="card"><strong>{busy ? '…' : shown.length.toLocaleString('vi-VN')}</strong><span>{spec.noun}</span></div>
         {spec.stats.map(s => <div key={s.label} className="card"><strong>{busy ? '…' : typeof s.get(shown) === 'number' ? (s.get(shown) as number).toLocaleString('vi-VN') : s.get(shown)}</strong><span>{s.label}</span></div>)}
-        {!org && <div className="card"><strong>{busy ? '…' : `${groups.length}/${schoolsInRegion.length}`}</strong><span>Trường có dữ liệu</span></div>}
+        {!org && <div className="card"><strong>{busy ? '…' : `${groups.filter(([id]) => !byId.get(id)?.is_platform).length}/${schoolsInRegion.length}`}</strong><span>Trường có dữ liệu</span></div>}
       </div>
 
       {spec.status && <div className="tools" style={{ margin: '14px 0 4px' }}>
@@ -167,7 +171,8 @@ export function SystemList({ spec }: { spec: Spec }) {
           <thead><tr>{!org && <th>Đơn vị</th>}{spec.cols.map(c => <th key={c.label}>{c.label}</th>)}</tr></thead>
           <tbody>
             {shown.slice(0, SHOW).map(r => <Fragment key={r.id}>
-              <tr className={spec.detail ? 'clickrow' : ''} onClick={spec.detail ? () => setOpen(open === r.id ? null : r.id) : undefined}>
+              <tr className={spec.detail || onOpen ? 'clickrow' : ''} title={onOpen ? 'Bấm để xem chi tiết' : undefined}
+                onClick={onOpen ? () => onOpen(r) : spec.detail ? () => setOpen(open === r.id ? null : r.id) : undefined}>
                 {!org && <td><small>{nameOf(r.org_id)}</small></td>}
                 {spec.cols.map(c => <td key={c.label} style={c.wrap ? { whiteSpace: 'normal', maxWidth: 320 } : undefined}>{c.get(r)}</td>)}
               </tr>
@@ -525,7 +530,29 @@ function SandboxBar() {
     {msg && <p className="msg">{msg}</p>}
   </div>
 }
-export const SysActivities = () => <><SandboxBar /><SystemList spec={ACTIVITIES} /></>
-export const SysSchoolLessons = () => <><SandboxBar /><SystemList spec={LESSONS} /></>
+// Kho hoạt động / bài giảng (094): KDI thêm bài của mình; bấm một dòng để xem chi tiết (chơi thử, giáo án đầy đủ)
+const ActivityDesk = lazy(() => import('../teacher/Activities').then(m => ({ default: m.ActivityDesk })))
+const LessonDesk = lazy(() => import('../lessons/Studio').then(m => ({ default: m.LessonDesk })))
+type DeskStart = { mode: 'new' } | { mode: 'open'; id: string }
+function BankList({ spec, orgId, add, desk: Desk }: {
+  spec: Spec; orgId?: string | null; add: string
+  desk: (p: { start: DeskStart; onClose: () => void }) => ReactNode
+}) {
+  const [d, setD] = useState<DeskStart | null>(null)
+  const [k, setK] = useState(0)
+  return <>
+    {d && <Suspense fallback={<p className="sub">Đang tải…</p>}>{Desk({ start: d, onClose: () => { setD(null); setK(x => x + 1) } })}</Suspense>}
+    {/* Giữ danh sách (bộ lọc, ô tìm) khi mở chi tiết */}
+    <div hidden={!!d}>
+      <SandboxBar />
+      <SystemList spec={spec} reloadKey={k} onOpen={r => setD({ mode: 'open', id: r.id })}
+        actions={orgId ? <button className="primary" onClick={() => setD({ mode: 'new' })}>{add}</button> : undefined} />
+    </div>
+  </>
+}
+export const SysActivities = ({ orgId }: { orgId?: string | null }) => <BankList spec={ACTIVITIES} orgId={orgId} add="+ Thêm hoạt động"
+  desk={({ start, onClose }) => <ActivityDesk orgId={orgId ?? null} start={start} onClose={onClose} />} />
+export const SysSchoolLessons = ({ orgId }: { orgId?: string | null }) => <BankList spec={LESSONS} orgId={orgId} add="+ Thêm bài giảng"
+  desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'new' ? start : { mode: 'view', id: start.id }} onClose={onClose} />} />
 export const SysTrainingLessons = () => <TwoTabs tabs={[['Bài giảng tập huấn', TRAINING_LESSONS], ['Lớp học ảo', VIRTUAL]]} />
 export const SysCertificates = one(CERTIFICATES)

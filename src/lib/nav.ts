@@ -16,7 +16,7 @@ export const ROLE_LABEL: Record<RoleKey, string> = {
 export const LABEL: Partial<Record<RoleKey | '*', Record<string, string>>> = {
   // ví dụ: department: { 'Dashboard toàn Sở': 'Tổng quan toàn Sở' },
   school_admin: { 'Quản lý Phòng STEM': 'Quản lý phòng' },   // 056: phòng STEM, phòng học, kho
-  platform: { 'Theo dõi chương trình CT1–CT5 (Môn học)': 'Theo dõi Chương trình/Môn học' },   // theo video demo Phân hệ 2 (23/10)
+  platform: { 'Theo dõi chương trình CT1–CT5 (Môn học)': 'Theo dõi Chương trình/Môn học' },   // theo video demo Phân hệ 2 (23/10). Tạm thời mở từ nút góc phải trang Chương trình giáo dục (không có trong menu)
 }
 export const labelOf = (role: RoleKey, id: string) => LABEL[role]?.[id] ?? LABEL['*']?.[id] ?? id
 
@@ -30,7 +30,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Quản trị chung · Kỹ thuật & bảo mật', items: ['Tích hợp & dữ liệu', 'Ứng dụng di động & ngoại tuyến', 'Sao lưu & xuất dữ liệu', 'Bảo mật tài khoản', 'Điều khoản & dữ liệu cá nhân', 'Nhật ký hệ thống', 'Cấu hình chung (năm học)', 'Giao diện & thương hiệu', 'Trợ lý AI'] },
     // 5 phân hệ nghiệp vụ theo file rà soát menu (16/10, "Menu_STEM_ra_soat_chinh_sua.xlsx")
     { title: '1. Đào tạo & đánh giá năng lực nhà giáo', items: ['Đánh giá năng lực nhà giáo', 'Chương trình tập huấn', 'Kế hoạch & lịch tập huấn', 'Bài giảng tập huấn & lớp học ảo', 'Đánh giá kết quả tập huấn', 'Chứng chỉ tập huấn', 'Giám sát tập huấn nhà giáo'] },
-    { title: '2. Chương trình & học liệu', items: ['Chương trình giáo dục', 'Phân phối chương trình', 'Học liệu', 'Soạn bài giảng & kho hoạt động', 'Theo dõi chương trình CT1–CT5 (Môn học)', 'E-learning & luyện thi'] },
+    { title: '2. Chương trình & học liệu', items: ['Chương trình giáo dục', 'Phân phối chương trình', 'Học liệu', 'Soạn bài giảng & kho hoạt động', 'E-learning & luyện thi'] },
     { section: '3. Vật tư, thiết bị dạy & học', title: '3.1. Thiết bị, vật tư & kho', items: ['Thiết bị & vật tư', 'Kho & tồn kho', 'Mua hàng & đề xuất vật tư', 'Cấp phát & bàn giao', 'Kiểm kê', 'Vận chuyển vật tư', 'Bảo hành & bảo trì thiết bị'] },
     { section: '3. Vật tư, thiết bị dạy & học', title: '3.2. Phòng STEM & cơ sở vật chất', items: ['Tòa nhà, tầng & tiết học', 'Phòng STEM & lịch phòng', 'Hiệu quả sử dụng phòng STEM'] },
     { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.1. Nhà giáo, người học & lớp học', items: ['Cơ sở giáo dục', 'Nhà giáo & trợ giảng', 'Phân công giảng dạy', 'Người học', 'Công cụ người học & phụ huynh'] },

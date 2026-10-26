@@ -2974,6 +2974,58 @@ select pg_temp.probe('kdi@iso-test.local', $q$select training_program_new_versio
 select pg_temp.chk('kdi', 'CTTH phiên bản: tạo phiên bản mới v3 cùng mã', $q$select p.version_no || ':' || p.status || ':' || (p.code = o.code)::text from training_programs p, training_programs o where p.title = 'ISO CTTH' and p.version_no = 3 and o.title = 'ISO CTTH' and o.version_no = 1$q$, '3:draft:true');
 select pg_temp.chk('kdi', 'CTTH phiên bản: mã đã dùng cho chương trình khác bị từ chối', $q$update training_programs set code = (select code from training_programs where title = 'ISO CTTH' limit 1) where title = 'ISO CTTH nhiều' and source_id is null$q$, 'ERR 23505');
 
+-- ===== 094: kho hoạt động & bài giảng của KDI =====
+do $$
+declare v_kdi uuid := pg_temp.oid_('@platform');
+begin
+  if v_kdi is null or to_regprocedure('public.is_platform_org(uuid)') is null then return; end if;
+  insert into activities (org_id, kind, title, content, is_template, status) values
+    (v_kdi, 'flashcard', 'ISO KDI hoạt động xuất bản', '{"cards":[{"front":"a","back":"b"}]}', true, 'published'),
+    (v_kdi, 'flashcard', 'ISO KDI hoạt động nháp', '{"cards":[{"front":"a","back":"b"}]}', true, 'draft');
+  perform set_config('app.lesson_engine', 'on', true);
+  insert into lesson_plans (org_id, title, is_template, status, steps, slides, doc) values
+    (v_kdi, 'ISO KDI bài giảng xuất bản', true, 'published', '[]', '[{"kind":"title","title":"x"}]', '{}'),
+    (v_kdi, 'ISO KDI bài giảng nháp', true, 'draft', '[]', '[]', '{}');
+  perform set_config('app.lesson_engine', '', true);
+end $$;
+select pg_temp.chk('kdi', '094 KDI tạo hoạt động ở đơn vị KDI',
+  format('insert into activities (org_id, kind, title, content, is_template) values (%s, ''flashcard'', ''ISO KDI mới'', ''{}'', true)', quote_literal(pg_temp.oid_('@platform'))), 'rows:1')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('kdi', '094 KDI không tạo hoạt động ở trường',
+  format('insert into activities (org_id, kind, title, content, is_template) values (%s, ''flashcard'', ''ISO KDI x'', ''{}'', true)', quote_literal(pg_temp.oid_('THCS-PH'))), 'ERR')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('kdi', '094 KDI tạo bài giảng ở đơn vị KDI',
+  format('insert into lesson_plans (org_id, title, is_template, status) values (%s, ''ISO KDI bài mới'', true, ''draft'')', quote_literal(pg_temp.oid_('@platform'))), 'rows:1')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('kdi', '094 KDI sửa bài giảng nháp của KDI', 'update lesson_plans set summary = ''x'' where title = ''ISO KDI bài giảng nháp''', 'rows:1')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('kdi', '094 KDI có quyền xuất bản bài của KDI (bài đã xuất bản → lỗi trạng thái, không phải quyền)',
+  'select public.lesson_plan_publish((select id from lesson_plans where title = ''ISO KDI bài giảng xuất bản''))', 'ERR 22023')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('gv_both', '094 GV đọc hoạt động KDI đã xuất bản', 'select count(*) from activities where title = ''ISO KDI hoạt động xuất bản''', '1')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('gv_both', '094 GV không đọc hoạt động KDI nháp', 'select count(*) from activities where title = ''ISO KDI hoạt động nháp''', '0')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_kb', '094 Trường B đọc bài giảng KDI đã xuất bản', 'select count(*) from lesson_plans where title = ''ISO KDI bài giảng xuất bản''', '1')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_kb', '094 Trường không đọc bài giảng KDI nháp', 'select count(*) from lesson_plans where title = ''ISO KDI bài giảng nháp''', '0')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '094 Trường không sửa hoạt động KDI', 'update activities set title = ''x'' where title = ''ISO KDI hoạt động xuất bản''', 'rows:0')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('hs_kb', '094 Học sinh không đọc kho KDI', 'select count(*) from activities where title like ''ISO KDI%''', '0')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.probe('gv_both@iso-test.local', 'select public.lesson_plan_clone((select id from lesson_plans where title = ''ISO KDI bài giảng xuất bản''))', true)
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('gv_both', '094 GV nhân bản bài giảng KDI về trường mình',
+  'select count(*) from lesson_plans where org_id = public.my_org_id() and source_id in (select id from lesson_plans where title = ''ISO KDI bài giảng xuất bản'' and public.is_platform_org(org_id))', '1')
+  where pg_temp.oid_('@platform') is not null;
+delete from lesson_plans where source_id in (select id from lesson_plans where title like 'ISO KDI%');
+select pg_temp.chk('gv_both', '094 GV không nhân bản bài KDI nháp',
+  'select public.lesson_plan_clone((select id from lesson_plans where title = ''ISO KDI bài giảng nháp''))', 'ERR')
+  where pg_temp.oid_('@platform') is not null;
+delete from lesson_plans where title like 'ISO KDI%';
+delete from activities where title like 'ISO KDI%';
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

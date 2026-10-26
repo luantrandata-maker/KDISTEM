@@ -174,6 +174,19 @@ const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, Com
   ]
   return (p: any) => <TabbedPages {...p} tabs={tabs} />
 }
+// Theo dõi Chương trình/Môn học (cổng KDI)
+const PlatformProgramTrack = (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects],
+  ['Tiến độ & yêu cầu cần đạt', ProgressPlatform], ['Kế hoạch so với thực tế', (q: any) => <PlanVsActual {...q} mode="platform" />], ['PPCT các trường', SysCurriculum]]} />
+function PlatformEduProgramsPage(p: any) {
+  const [track, setTrack] = useState(false)
+  return <>
+    <div className="pagecorner">
+      <button className={track ? '' : 'primary'} onClick={() => setTrack(!track)}>{track ? '← Chương trình giáo dục' : 'Theo dõi Chương trình/Môn học'}</button>
+    </div>
+    {track ? <><h2 className="pagesub">Theo dõi Chương trình/Môn học</h2><PlatformProgramTrack {...p} /></>
+      : <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Môn học', SubjectsPlatform], ['Danh mục', ProgramCatalogs]]} />}
+  </>
+}
 const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [
   ['Bài giảng KDI', (p: any) => <LibraryManage {...p} only="lesson" />], ['Kho hoạt động', SysActivities],
   ['Bài giảng các trường', SysSchoolLessons], ['Mẫu giáo án', PlatformLessonTemplates]]
@@ -411,10 +424,10 @@ const PLATFORM: PageMap = {
   'Đánh giá kết quả tập huấn': TrainingResultsPage,
   // 2. Chương trình & học liệu
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
-  'Chương trình giáo dục': (p: any) => <TabbedPages {...p} tabs={[['Chương trình giáo dục', EduProgramsPlatform], ['Môn học', SubjectsPlatform], ['Danh mục', ProgramCatalogs]]} />,
+  // Tạm thời: "Theo dõi Chương trình/Môn học" mở bằng nút góc trên phải của trang này (không còn là mục menu riêng)
+  'Chương trình giáo dục': PlatformEduProgramsPage,
   'Học liệu': LibraryPage,
-  'Theo dõi chương trình CT1–CT5 (Môn học)': (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects],
-    ['Tiến độ & yêu cầu cần đạt', ProgressPlatform], ['Kế hoạch so với thực tế', (q: any) => <PlanVsActual {...q} mode="platform" />], ['PPCT các trường', SysCurriculum]]} />,
+  'Theo dõi chương trình CT1–CT5 (Môn học)': PlatformProgramTrack,
   // 3. Vật tư, thiết bị dạy & học
   'Thiết bị & vật tư': EquipmentOverview,
   'Kho & tồn kho': SuppliesPage,

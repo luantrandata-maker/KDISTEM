@@ -76,7 +76,8 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
   // Bản nháp để sửa (076) không hiện thành thẻ riêng: thẻ bài gốc có nút mở bản nháp
   const draftOf = new Map(plans.filter(p => p.draft_of).map(p => [p.draft_of as string, p]))
   const mine = plans.filter(p => p.teacher_id === teacherId && !p.is_template && !p.draft_of)
-  const shared = plans.filter(p => !p.draft_of && p.org_id === orgId && (p.is_template || (p.teacher_id !== teacherId && p.status === 'published')))
+  // 094: kèm bài giảng KDI đã xuất bản (bài của đơn vị khác mà giáo viên đọc được)
+  const shared = plans.filter(p => !p.draft_of && (p.org_id === orgId ? (p.is_template || (p.teacher_id !== teacherId && p.status === 'published')) : p.status === 'published' && p.is_template))
   const src = library ? shared : mine
   const filtered = src.filter(p => (!program || p.program === program) && (!q || p.title.toLowerCase().includes(q.toLowerCase())))
   const shown = library || tab === 'all' ? filtered : filtered.filter(p => IN_TAB[tab].includes(p.status))
@@ -166,8 +167,9 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
 }
 
 // ===== Tạo giáo án: chọn mẫu hoặc trang trắng =====
+// teacherId = null: bài giảng của KDI (quản trị nền tảng) — lưu là bài mẫu, không gắn giáo viên
 function NewPlan({ teacherId, orgId, templates, onCancel, onCreated }: {
-  teacherId: string; orgId: string | null; templates: Template[]; onCancel: () => void; onCreated: (id: string) => void
+  teacherId: string | null; orgId: string | null; templates: Template[]; onCancel: () => void; onCreated: (id: string) => void
 }) {
   const { codes: PROGRAMS } = useStemTracks()
   const [tpl, setTpl] = useState<string>('')
@@ -179,7 +181,7 @@ function NewPlan({ teacherId, orgId, templates, onCancel, onCreated }: {
     if (!f.title.trim()) return setErr('Nhập tên bài.')
     const t = templates.find(x => x.id === tpl)
     const { data, error } = await supabase.from('lesson_plans').insert({
-      org_id: orgId, teacher_id: teacherId, status: 'draft', title: f.title.trim(), subject: f.subject || null, grades: f.grades || null,
+      org_id: orgId, teacher_id: teacherId, is_template: !teacherId, status: 'draft', title: f.title.trim(), subject: f.subject || null, grades: f.grades || null,
       periods: Number(f.periods) || null, template_id: t?.id ?? null, doc: Object.fromEntries((t?.sections ?? []).map(s => [s.key, ''])),
       steps: [], slides: [{ ...newSlide('title'), title: f.title.trim() }], program: f.program || null, lesson: emptyLesson(f.program || null),
     }).select('id').single()
@@ -188,7 +190,7 @@ function NewPlan({ teacherId, orgId, templates, onCancel, onCreated }: {
   }
   return (
     <form onSubmit={create}>
-      <div className="bar"><b>Tạo giáo án mới</b><span className="tools"><button type="button" onClick={onCancel}>← Danh sách</button></span></div>
+      <div className="bar"><b>{teacherId ? 'Tạo giáo án mới' : 'Thêm bài giảng của KDI'}</b><span className="tools"><button type="button" onClick={onCancel}>← Danh sách</button></span></div>
       <h3>1. Chọn mẫu giáo án</h3>
       <div className="tplpick">
         <label className={'panel' + (tpl === '' ? ' on' : '')}><input type="radio" name="tpl" checked={tpl === ''} onChange={() => setTpl('')} />
@@ -802,6 +804,68 @@ function VerTab({ p, versions, reviews, classes, reviewRequired, busy, onRestore
           ))}</tbody>
         </table></div>
       </>)}
+    </>
+  )
+}
+
+// ===== Cổng Quản trị nền tảng: thêm bài giảng của KDI, xem chi tiết bài giảng bất kỳ =====
+type Desk = { mode: 'new' } | { mode: 'view'; id: string } | { mode: 'edit'; id: string } | { mode: 'present'; plan: LPlan; i: number; back: Desk }
+export function LessonDesk({ orgId, start, onClose }: { orgId: string | null; start: { mode: 'new' } | { mode: 'view'; id: string }; onClose: () => void }) {
+  const [v, setV] = useState<Desk>(start)
+  const templates = useTemplates()
+  const [reviewRequired, setReviewRequired] = useState(false)
+  useEffect(() => { if (orgId) supabase.rpc('lesson_review_required', { p_org: orgId }).then(({ data }) => setReviewRequired(!!data)) }, [orgId])
+  if (v.mode === 'new') return <NewPlan teacherId={null} orgId={orgId} templates={templates} onCancel={onClose} onCreated={id => setV({ mode: 'edit', id })} />
+  if (v.mode === 'edit') return <Editor id={v.id} teacherId="" orgId={orgId} templates={templates} reviewRequired={reviewRequired}
+    onClose={onClose} onOpen={id => setV({ mode: 'edit', id })} onPresent={p => setV({ mode: 'present', plan: p, i: 0, back: v })} />
+  if (v.mode === 'present') return <Presenter plan={v.plan} i={v.i} onMove={i => setV({ ...v, i })} onClose={() => setV(v.back)} />
+  return <PlanDetail id={v.id} orgId={orgId} templates={templates} onClose={onClose}
+    onEdit={id => setV({ mode: 'edit', id })} onPresent={p => setV({ mode: 'present', plan: p, i: 0, back: v })} />
+}
+
+// Xem chi tiết một bài giảng (chỉ đọc): thông tin, giáo án đầy đủ, xem như học sinh, trình chiếu
+function PlanDetail({ id, orgId, templates, onClose, onEdit, onPresent }: {
+  id: string; orgId: string | null; templates: Template[]; onClose: () => void; onEdit: (id: string) => void; onPresent: (p: LPlan) => void
+}) {
+  const [p, setP] = useState<LPlan | null>(null)
+  const [err, setErr] = useState('')
+  const [school, setSchool] = useState<string | null>(null)
+  const [items, setItems] = useState<NormItem[]>([])
+  const [overlay, setOverlay] = useState<Overlay>(null)
+  const att = useAttachables(p?.org_id ?? null)
+  useEffect(() => {
+    supabase.from('lesson_plans').select(PLAN_COLS).eq('id', id).maybeSingle().then(({ data, error }) => {
+      if (error || !data) return setErr(errText(error?.message ?? 'Không tìm thấy bài giảng (có thể bài chưa xuất bản nên không xem được).'))
+      const x = normPlan(data as LPlan); setP(x)
+      supabase.from('organizations').select('name').eq('id', x.org_id).maybeSingle().then(({ data: o }) => setSchool((o as { name: string } | null)?.name ?? null))
+      if (x.norm_id) supabase.from('material_norm_items').select('*').eq('norm_id', x.norm_id).order('seq').order('name').then(({ data: n }) => setItems((n as NormItem[]) ?? []))
+    })
+  }, [id])
+  if (!p) return <><div className="bar"><button onClick={onClose}>← Danh sách</button></div>{err ? <p className="msg">{err}</p> : <p className="sub">Đang tải…</p>}</>
+  const tpl = templates.find(t => t.id === p.template_id)
+  const norm = att.norms.find(n => n.id === p.norm_id) ?? null
+  const st = lessonStats(asLesson(p.lesson))
+  return (
+    <>
+      <div className="bar">
+        <span className="tools"><button onClick={onClose}>← Danh sách</button><LStatusPill s={p.status} />{p.version_no > 0 && <small>Phiên bản {p.version_no}</small>}
+          {p.is_template && <span className="pill">Mẫu</span>}</span>
+        <span className="tools">
+          {st.blocks > 0 && <button onClick={() => setOverlay({ plan: p, kind: 'player' })}><Icon n="eye" /> Xem như học sinh</button>}
+          <button onClick={() => (st.blocks > 0 ? setOverlay({ plan: p, kind: 'show' }) : onPresent(p))} disabled={!p.slides.length && !st.blocks}>Trình chiếu</button>
+          <button onClick={() => printPlan(p.title)}>In / lưu PDF</button>
+          {orgId && p.org_id === orgId && <button className="primary" onClick={() => onEdit(p.id)}>Soạn</button>}
+        </span>
+      </div>
+      <PlanOverlay o={overlay} onClose={() => setOverlay(null)} />
+      <div className="cards syscards">
+        <div className="card"><strong style={{ fontSize: 16 }}>{school ?? '—'}</strong><span>Đơn vị</span></div>
+        <div className="card"><strong style={{ fontSize: 16 }}>{p.teachers?.full_name ?? (p.is_template ? 'Bài mẫu' : '—')}</strong><span>Giáo viên</span></div>
+        <div className="card"><strong>{st.blocks || p.steps.length}</strong><span>{st.blocks ? `khối · ${st.interactive} tương tác` : 'bước hoạt động'}</span></div>
+        <div className="card"><strong>{p.slides.length}</strong><span>Slide</span></div>
+      </div>
+      <div className="panel"><PlanDocument plan={p} tpl={tpl} acts={att.acts} libs={att.libs} rubs={att.rubs} norm={norm} items={items}
+        teacher={p.teachers?.full_name} schoolName={school} /></div>
     </>
   )
 }

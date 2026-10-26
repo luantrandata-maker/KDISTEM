@@ -61,7 +61,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Giảng dạy', items: ['Tổng quan', 'Kế hoạch giáo dục', 'Chương trình giáo dục', 'Phân phối chương trình', 'Định mức vật tư', 'Lớp giảng dạy', 'Điểm danh', 'Bài tập', 'Chấm bài', 'Năng lực học sinh', 'Học trước & tự học', 'E-learning & luyện thi'] },
     { title: 'Hoạt động STEM', items: ['Giáo dục STEM', 'Đặt phòng STEM', 'Dự án STEM', 'Cuộc thi', 'Chấm thi', 'Sự kiện'] },
     { title: 'Soạn giảng', items: ['Soạn bài giảng', 'Kho hoạt động & Bài giảng', 'Thư viện STEM', 'Ngân hàng câu hỏi', 'Trợ lý AI'] },
-    { title: 'Khác', items: ['Hộp phê duyệt', 'Lịch tập huấn', 'Bài giảng tập huấn', 'Chứng chỉ tập huấn', 'Hồ sơ năng lực', 'Khảo sát', 'Ứng dụng di động', 'Hỗ trợ từ KDI'] },
+    { title: 'Khác', items: ['Hộp phê duyệt', 'Đăng ký tập huấn', 'Lịch tập huấn', 'Bài giảng tập huấn', 'Chứng chỉ tập huấn', 'Hồ sơ năng lực', 'Khảo sát', 'Ứng dụng di động', 'Hỗ trợ từ KDI'] },
   ],
   judge: [
     { title: 'Giám khảo', items: ['Chấm thi'] },
@@ -105,7 +105,7 @@ export const MODULE_OF: Record<string, string> = {
 export const ENT_MODULE_OF: Record<string, string> = {
   ...MODULE_OF, 'Quy trình phê duyệt': 'approvals',
   'Đặt phòng STEM': 'stem_rooms', 'Thư viện STEM': 'library', 'Kho hoạt động & Bài giảng': 'library',
-  'Lịch tập huấn': 'training', 'Bài giảng tập huấn': 'training', 'Chứng chỉ tập huấn': 'training', 'Kế hoạch tập huấn': 'training', 'Giám sát Tập huấn GV': 'training', 'Đánh giá năng lực nhà giáo': 'training',
+  'Lịch tập huấn': 'training', 'Đăng ký tập huấn': 'training', 'Bài giảng tập huấn': 'training', 'Chứng chỉ tập huấn': 'training', 'Kế hoạch tập huấn': 'training', 'Giám sát Tập huấn GV': 'training', 'Đánh giá năng lực nhà giáo': 'training',
   'Kế hoạch giáo dục': 'edu_plan', 'Hiệu quả Phòng STEM': 'stem_rooms',
   'Điểm danh': 'timetable', 'Phòng STEM & lịch phòng': 'stem_rooms', 'Thiết bị & kho': 'stem_rooms',
   // PH5 (migration 033): điều hành & báo cáo của Sở

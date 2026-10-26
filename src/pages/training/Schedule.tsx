@@ -5,19 +5,20 @@ import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import { supabase } from '../../lib/supabase'
 import { ElView } from '../../components/ElView'
+import { TrainerPick } from './Trainers'
 import { Chip } from '../dist/Editor'
 
 type Mode = 'online' | 'offline'
-type Plan = { id: string; plan_code: string | null; name: string; mode: string; pub_status: string }
+type Plan = { id: string; org_id?: string; plan_code: string | null; name: string; mode: string; pub_status: string }
 export type Sess = { id: string; plan_id: string; unit_id: string | null; title: string; starts_at: string; ends_at: string; mode: Mode; location: string | null
-  meeting_url: string | null; trainer: string | null; note: string | null; closed_at: string | null; recording_url?: string | null }
+  meeting_url: string | null; trainer: string | null; trainer_ids?: string[]; note: string | null; closed_at: string | null; recording_url?: string | null }
 type Att = { session_id: string; teacher_id: string; present: boolean | null; excuse_status: string | null; excuse_reason?: string | null; checked_in_at?: string | null; method?: string | null
   teachers?: { full_name: string; subject: string | null; organizations: { name: string } | null } | null }
 type Unit = { id: string; program_id: string; parent_id: string | null; kind: string; seq: number; title: string; hours: number; mode: Mode | null }
-type Item = { program_id: string; seq: number; trainer: string | null; units?: string[] | null }
+type Item = { program_id: string; seq: number; trainer: string | null; trainer_ids?: string[]; units?: string[] | null }
 type St = 'upcoming' | 'live' | 'toclose' | 'closed'
 
-const SSEL = 'id, plan_id, unit_id, title, starts_at, ends_at, mode, location, meeting_url, trainer, note, closed_at, recording_url'
+const SSEL = 'id, plan_id, unit_id, title, starts_at, ends_at, mode, location, meeting_url, trainer, trainer_ids, note, closed_at, recording_url'
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp' }
 const ST: Record<St, [string, string]> = { upcoming: ['Sắp diễn ra', ''], live: ['Đang diễn ra', 'bad'], toclose: ['Chờ chốt điểm danh', 'warn'], closed: ['Đã chốt', 'good'] }
 const errText = (m: string) => /schema cache|does not exist|column .* of relation/i.test(m) ? 'Hãy chạy migration 085 trên Supabase.'
@@ -34,16 +35,16 @@ const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 
 /** Nội dung tập huấn của các chương trình trong kế hoạch, theo thứ tự chương trình › môn › nội dung */
 async function planContents(planId: string) {
-  const { data: it } = await supabase.from('training_plan_items').select('program_id, seq, trainer, units').eq('plan_id', planId).order('seq')
+  const { data: it } = await supabase.from('training_plan_items').select('program_id, seq, trainer, trainer_ids, units').eq('plan_id', planId).order('seq')
   const items = (it ?? []) as Item[]
-  if (!items.length) return [] as (Unit & { trainer: string | null })[]
+  if (!items.length) return [] as (Unit & { trainer: string | null; trainer_ids: string[] })[]
   const { data: us } = await supabase.from('training_program_units').select('id, program_id, parent_id, kind, seq, title, hours, mode').in('program_id', items.map(i => i.program_id))
   const units = (us ?? []) as Unit[]
-  const out: (Unit & { trainer: string | null })[] = []
+  const out: (Unit & { trainer: string | null; trainer_ids: string[] })[] = []
   for (const i of items) {
     const subs = units.filter(u => u.program_id === i.program_id && u.kind === 'subject').sort((a, b) => a.seq - b.seq)
     const pick = i.units ? new Set(i.units) : null   // kế hoạch chọn một phần nội dung (097)
-    for (const s of subs) for (const u of units.filter(x => x.parent_id === s.id && (!pick || pick.has(x.id))).sort((a, b) => a.seq - b.seq)) out.push({ ...u, trainer: i.trainer })
+    for (const s of subs) for (const u of units.filter(x => x.parent_id === s.id && (!pick || pick.has(x.id))).sort((a, b) => a.seq - b.seq)) out.push({ ...u, trainer: i.trainer, trainer_ids: i.trainer_ids ?? [] })
   }
   return out
 }
@@ -64,7 +65,7 @@ export function TrainingCalendarPage({ orgId }: { orgId: string }) {
   useEffect(() => { supabase.rpc('training_can_write', { p_org: orgId }).then(({ data }) => setCan(!!data)) }, [orgId])
   useEffect(() => {
     (async () => {
-      const p = await supabase.from('training_plans').select('id, plan_code, name, mode, pub_status').eq('org_id', orgId).neq('pub_status', 'draft').order('plan_code', { ascending: false })
+      const p = await supabase.from('training_plans').select('id, org_id, plan_code, name, mode, pub_status').eq('org_id', orgId).neq('pub_status', 'draft').order('plan_code', { ascending: false })
       if (p.error) { setMsg([errText(p.error.message), true]); setPlans([]); return }
       const ps = (p.data as Plan[]) ?? []
       const s = ps.length ? await supabase.from('training_sessions').select(SSEL).in('plan_id', ps.map(x => x.id)).order('starts_at') : { data: [] }
@@ -161,7 +162,7 @@ function AutoSchedule({ plans, initial, onBack, onDone }: { plans: Plan[]; initi
   const [time, setTime] = useState('08:00')
   const [perDay, setPerDay] = useState(4)
   const [skip, setSkip] = useState(true)
-  const [units, setUnits] = useState<(Unit & { trainer: string | null })[] | null>(null)
+  const [units, setUnits] = useState<(Unit & { trainer: string | null; trainer_ids: string[] })[] | null>(null)
   const [done, setDone] = useState<Set<string>>(new Set())
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -223,30 +224,33 @@ function AutoSchedule({ plans, initial, onBack, onDone }: { plans: Plan[]; initi
 }
 
 // ===== Thông tin buổi (thêm / sửa) =====
-type Info = { plan_id: string; unit_id: string; title: string; starts_at: string; ends_at: string; mode: Mode; location: string; meeting_url: string; trainer: string; note: string; recording_url: string }
+type Info = { plan_id: string; unit_id: string; title: string; starts_at: string; ends_at: string; mode: Mode; location: string; meeting_url: string; trainer: string; trainer_ids: string[]; note: string; recording_url: string }
 const fromSess = (s: Sess): Info => ({ plan_id: s.plan_id, unit_id: s.unit_id ?? '', title: s.title, starts_at: toLocal(s.starts_at), ends_at: toLocal(s.ends_at), mode: s.mode,
-  location: s.location ?? '', meeting_url: s.meeting_url ?? '', trainer: s.trainer ?? '', note: s.note ?? '', recording_url: s.recording_url ?? '' })
+  location: s.location ?? '', meeting_url: s.meeting_url ?? '', trainer: s.trainer ?? '', trainer_ids: s.trainer_ids ?? [], note: s.note ?? '', recording_url: s.recording_url ?? '' })
 const toRow = (f: Info) => ({ plan_id: f.plan_id, unit_id: f.unit_id || null, title: f.title.trim(), starts_at: new Date(f.starts_at).toISOString(), ends_at: new Date(f.ends_at).toISOString(),
-  mode: f.mode, location: f.location.trim() || null, meeting_url: f.meeting_url.trim() || null, trainer: f.trainer.trim() || null, note: f.note.trim() || null, recording_url: f.recording_url.trim() || null })
+  mode: f.mode, location: f.location.trim() || null, meeting_url: f.meeting_url.trim() || null, trainer_ids: f.trainer_ids, trainer: f.trainer_ids.length ? null : f.trainer.trim() || null, note: f.note.trim() || null, recording_url: f.recording_url.trim() || null })
 const badInfo = (f: Info) => !f.plan_id || !f.title.trim() || !f.starts_at || !f.ends_at ? 'Nhập kế hoạch, tên buổi, giờ bắt đầu và kết thúc.'
   : f.ends_at <= f.starts_at ? 'Giờ kết thúc phải sau giờ bắt đầu.' : f.meeting_url.trim() && !/^https?:\/\//i.test(f.meeting_url.trim()) ? 'Link họp phải bắt đầu bằng http:// hoặc https://'
   : f.recording_url.trim() && !/^https?:\/\//i.test(f.recording_url.trim()) ? 'Link bản ghi phải bắt đầu bằng http:// hoặc https://' : ''
 
 function InfoFields({ f, set, plans, lockPlan }: { f: Info; set: (f: Info) => void; plans: Plan[]; lockPlan?: boolean }) {
-  const [units, setUnits] = useState<(Unit & { trainer: string | null })[]>([])
+  const [units, setUnits] = useState<(Unit & { trainer: string | null; trainer_ids: string[] })[]>([])
   useEffect(() => { if (f.plan_id) planContents(f.plan_id).then(setUnits); else setUnits([]) }, [f.plan_id])
+  const orgOf = plans.find(p => p.id === f.plan_id)?.org_id
   return <div className="formgrid">
     <label className="field" style={{ gridColumn: '1/-1' }}><span>Kế hoạch tập huấn *</span><select value={f.plan_id} disabled={lockPlan} onChange={e => set({ ...f, plan_id: e.target.value, unit_id: '' })}>
       <option value="">— Chọn kế hoạch —</option>{plans.filter(p => p.pub_status === 'published' || p.id === f.plan_id).map(p => <option key={p.id} value={p.id}>{p.plan_code} · {p.name}</option>)}</select></label>
     <label className="field" style={{ gridColumn: '1/-1' }}><span>Nội dung tập huấn</span><select value={f.unit_id} onChange={e => {
       const u = units.find(x => x.id === e.target.value)
-      set({ ...f, unit_id: e.target.value, title: u && (!f.title.trim() || units.some(x => x.title === f.title)) ? u.title : f.title, mode: u?.mode ?? f.mode, trainer: f.trainer || u?.trainer || '' })
+      set({ ...f, unit_id: e.target.value, title: u && (!f.title.trim() || units.some(x => x.title === f.title)) ? u.title : f.title, mode: u?.mode ?? f.mode, ...(f.trainer_ids.length || f.trainer ? {} : { trainer_ids: u?.trainer_ids ?? [], trainer: u?.trainer_ids?.length ? '' : u?.trainer ?? '' }) })
     }}><option value="">— Không gắn nội dung —</option>{units.map(u => <option key={u.id} value={u.id}>{u.title} ({num(Number(u.hours))} giờ)</option>)}</select></label>
     <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên buổi *</span><input maxLength={200} value={f.title} onChange={e => set({ ...f, title: e.target.value })} /></label>
     <label className="field"><span>Bắt đầu *</span><input type="datetime-local" value={f.starts_at} onChange={e => set({ ...f, starts_at: e.target.value })} /></label>
     <label className="field"><span>Kết thúc *</span><input type="datetime-local" value={f.ends_at} onChange={e => set({ ...f, ends_at: e.target.value })} /></label>
     <label className="field"><span>Hình thức</span><select value={f.mode} onChange={e => set({ ...f, mode: e.target.value as Mode })}><option value="offline">Trực tiếp</option><option value="online">Trực tuyến</option></select></label>
-    <label className="field"><span>Giảng viên</span><input maxLength={200} value={f.trainer} onChange={e => set({ ...f, trainer: e.target.value })} /></label>
+    <div className="field" style={{ gridColumn: '1/-1' }}><span>Giảng viên (chọn được nhiều người)</span>
+      {orgOf ? <TrainerPick orgId={orgOf} value={f.trainer_ids} onChange={ids => set({ ...f, trainer_ids: ids, trainer: '' })} /> : <small className="sub">Chọn kế hoạch trước.</small>}
+      {!f.trainer_ids.length && f.trainer && <small className="sub">Đang ghi tay: {f.trainer}</small>}</div>
     {f.mode === 'offline' ? <label className="field" style={{ gridColumn: '1/-1' }}><span>Địa điểm</span><input maxLength={300} value={f.location} onChange={e => set({ ...f, location: e.target.value })} placeholder="VD: Phòng STEM, THCS Phố Hiến" /></label>
       : <label className="field" style={{ gridColumn: '1/-1' }}><span>Link phòng họp</span><input type="url" maxLength={500} value={f.meeting_url} onChange={e => set({ ...f, meeting_url: e.target.value })} placeholder="https://meet…" /></label>}
     {f.mode === 'online' && <label className="field" style={{ gridColumn: '1/-1' }}><span>Link bản ghi (sau buổi học)</span><input type="url" maxLength={1000} value={f.recording_url} onChange={e => set({ ...f, recording_url: e.target.value })} placeholder="https://… (video ghi lại buổi học)" /></label>}
@@ -258,7 +262,7 @@ function SessionForm({ orgId, plans, initial, onBack, onDone }: { orgId: string;
   const d = new Date(); d.setDate(d.getDate() + 7); d.setHours(8, 0, 0, 0)
   const e = new Date(d); e.setHours(11)
   const [f, setF] = useState<Info>({ plan_id: initial && plans.some(p => p.id === initial && p.pub_status === 'published') ? initial : '', unit_id: '', title: '', starts_at: toLocal(d.toISOString()), ends_at: toLocal(e.toISOString()),
-    mode: 'offline', location: '', meeting_url: '', trainer: '', note: '', recording_url: '' })
+    mode: 'offline', location: '', meeting_url: '', trainer: '', trainer_ids: [], note: '', recording_url: '' })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   async function save() {

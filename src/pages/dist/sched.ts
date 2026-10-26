@@ -11,7 +11,8 @@ export type Plan = { id: string; org_id: string; code: string; title: string; le
   hk1_weeks: number; hk2_weeks: number; note: string | null; updated_at: string; published_at: string | null }
 export type Mode = 'hk1' | 'hk2' | 'week' | 'after'
 export type SubjMode = 'program' | 'after' | 'week'
-export type Subj = { name: string; on: boolean; mode: SubjMode; week: number | null; ppw: number }
+/** order: thứ tự bài riêng của bản phân phối (unit_id); trống = theo thứ tự khung chương trình. */
+export type Subj = { name: string; on: boolean; mode: SubjMode; week: number | null; ppw: number; order?: string[] | null }
 export type Item = { program_id: string; seq: number; start_mode: Mode; start_week: number | null; after_program: string | null; ppw: number
   split: boolean; subjects: Subj[] }
 export type Row = { program_id: string; unit_id: string; seq: number; week: number | null; periods: number; note: string | null
@@ -55,6 +56,15 @@ export function subjectsIn(lessons: Lesson[]) {
   return [...m.values()]
 }
 
+/** Bài của một môn theo thứ tự riêng của bản (bài chưa có trong thứ tự giữ chỗ theo khung, xếp sau). */
+export function orderLessons<T extends { id: string }>(lessons: T[], order?: string[] | null): T[] {
+  if (!order?.length) return lessons
+  const pos = new Map(order.map((id, k) => [id, k]))
+  return lessons.map((l, k) => ({ l, k: pos.has(l.id) ? pos.get(l.id)! : order.length + k })).sort((a, b) => a.k - b.k).map(x => x.l)
+}
+/** Thứ tự riêng có khác thứ tự khung không. */
+export const reordered = (lessons: { id: string }[], order?: string[] | null) => orderLessons(lessons, order).some((l, k) => l.id !== lessons[k].id)
+
 /** Danh sách môn dùng để xếp: giữ thứ tự / cài đặt đã lưu, thêm môn mới (đang bật), bỏ môn không còn bài. */
 export function effSubjects(it: Item, avail: string[]): Subj[] {
   const known = new Map(it.subjects.map(s => [lc(s.name), s]))
@@ -96,7 +106,7 @@ export function schedule(plan: Plan, items: Item[], prev: Map<string, Row>, unit
       const sStart = !it.split ? start : s.mode === 'week' ? Math.max(1, s.week ?? start) : s.mode === 'after' ? prevEnd + 1 : start
       let n = it.split ? 0 : c
       let from = Infinity, to = 0, periodsSum = 0, std = 0, count = 0
-      for (const u of lessons.filter(l => lc(l.subj) === lc(s.name))) {
+      for (const u of orderLessons(lessons.filter(l => lc(l.subj) === lc(s.name)), s.order)) {
         const pr = prev.get(u.id)
         const periods = pr ? pr.periods : Math.max(1, u.periods || 1)
         std += Math.max(1, u.periods || 1)

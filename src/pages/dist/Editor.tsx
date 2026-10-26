@@ -9,8 +9,9 @@ import { fmtGrades, progGrades, useEduLevels } from '../../lib/eduLevels'
 import { useCls } from './cls'
 import { useTiers } from './Tiers'
 import { WeekGrid, colorOf } from './Grid'
+import { useDistCalendar, type DistCal } from './calendar'
 import {
-  checks, effSubjects, lessonsOf, progCode, schedule, spanOf, subjectsIn, termRange, weekLoad, TERM_LABEL, LOAD_MAX,
+  checks, effSubjects, lessonsOf, orderLessons, reordered, progCode, schedule, spanOf, subjectsIn, termRange, weekLoad, TERM_LABEL, LOAD_MAX,
   type Item, type Mode, type Plan, type Prog, type Row, type Status, type Subj, type SubjMode, type U,
 } from './sched'
 
@@ -70,6 +71,36 @@ function SubjOrder({ names, disabled, onMove }: { names: string[]; disabled: boo
   </div>
 }
 
+/** Danh sách bài của một môn trong bản: kéo thả hoặc Alt + ↑↓ để đổi thứ tự (chỉ áp dụng cho bản phân phối này). */
+function LessonOrder({ name, span, lessons, changed, weekOf, onMove, onReset }: {
+  name: string; span: string; lessons: { id: string; title: string; periods: number }[]; changed: boolean
+  weekOf: (id: string) => string; onMove: (from: number, to: number) => void; onReset: () => void
+}) {
+  const [drag, setDrag] = useState<number | null>(null)
+  const [over, setOver] = useState<number | null>(null)
+  const key = (k: number) => (e: KeyboardEvent<HTMLLIElement>) => {
+    if (!e.altKey) return
+    const d = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0
+    if (d && k + d >= 0 && k + d < lessons.length) {
+      e.preventDefault(); const list = e.currentTarget.parentElement; onMove(k, k + d)
+      requestAnimationFrame(() => (list?.children[k + d] as HTMLElement | undefined)?.focus())
+    }
+  }
+  return <details className="distlessons">
+    <summary><b>{name}</b> <small className="sub">{span} · {lessons.length} bài</small>
+      {changed && <span className="gpill warn">Đã đổi thứ tự bài</span>}</summary>
+    <div className="distlessonsbar"><small className="sub">Danh sách bài học · kéo từng bài để đổi thứ tự (chỉ áp dụng cho bản phân phối này). Bàn phím: Alt + ↑↓</small>
+      {changed && <button type="button" className="linkbtn" onClick={onReset}>Về thứ tự khung</button>}</div>
+    <ol>{lessons.map((l, k) => <li key={l.id} tabIndex={0} draggable aria-label={`${l.title}, bài ${k + 1}`}
+      className={(drag === k ? 'drag' : '') + (over === k && drag !== k ? ' over' : '')} onKeyDown={key(k)}
+      onDragStart={e => { setDrag(k); e.dataTransfer.effectAllowed = 'move' }} onDragEnd={() => { setDrag(null); setOver(null) }}
+      onDragOver={e => { e.preventDefault(); setOver(k) }}
+      onDrop={e => { e.preventDefault(); if (drag != null && drag !== k) onMove(drag, k); setDrag(null); setOver(null) }}>
+      <i aria-hidden="true">⠿</i><span className="n">{k + 1}</span><span className="t">{l.title}</span>
+      <small className="sub">{l.periods} tiết</small><span className="distchip2">{weekOf(l.id)}</span></li>)}</ol>
+  </details>
+}
+
 type Toast = { text: string; bad?: boolean } | null
 function useToast() {
   const [t, setT] = useState<Toast>(null)
@@ -100,6 +131,7 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useToast()
+  const cal = useDistCalendar()
 
   useEffect(() => {
     (async () => {
@@ -133,6 +165,7 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
     return m
   }, [units, progs, plan.grade])
   const title = useMemo(() => new Map(units.map(u => [u.id, u.title])), [units])
+  const rowOf = useMemo(() => new Map(s.rows.map(r => [r.unit_id, r])), [s.rows])
   const ordered = [...items].sort((a, b) => a.seq - b.seq)
   const order = ordered.map(i => i.program_id)
   const frame = plan.hk1_weeks + plan.hk2_weeks
@@ -144,6 +177,12 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
   const std = [...s.progs.values()].reduce((n, p) => n + p.subjects.reduce((m, x) => m + x.std, 0), 0)
   const all = spanOf(s.rows)
   const maxLoad = Math.max(0, ...weekLoad(s.rows).values())
+  const holWeeks = [...weekLoad(s.rows).keys()].filter(w => cal.weeks.get(w)?.holidays.length).sort((a, b) => a - b)
+  const holNote = holWeeks.length ? `Có tiết rơi vào tuần có ngày nghỉ: tuần ${holWeeks.slice(0, 10).join(', ')}${holWeeks.length > 10 ? '…' : ''} (${cal.label}, năm học ${cal.year}). Bấm số tuần ⚠ ở lịch để xem ngày nghỉ.` : ''
+  const grid = (titles?: boolean) => <>
+    <CalBar cal={cal} />
+    <WeekGrid plan={plan} order={order} progs={progs} s={s} titles={titles} cal={cal.state === 'ok' ? cal.weeks : undefined} calLabel={cal.label} year={cal.year} titleOf={id => title.get(id) ?? ''} />
+  </>
 
   const touch = () => { setDirty(true) }
   const setItem = (pid: string, patch: Partial<Item>) => { setItems(xs => xs.map(i => i.program_id === pid ? { ...i, ...patch } : i)); touch() }
@@ -380,10 +419,20 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
           </> : <div className="distsubjmini">{onSubs.map(x => { const si = subInfo(x.name); return <span key={x.name}>{x.name} <small className="sub">{si?.to ? `tuần ${si.from}–${si.to}` : '—'}</small></span> })}
             <button type="button" className="linkbtn" onClick={() => setOpen(o => new Set(o).add(it.program_id))}>Chỉnh</button></div>)}
           {onSubs.length > 1 && <SubjOrder names={onSubs.map(x => x.name)} disabled={false} onMove={move} />}
+          {onSubs.map(x => {
+            const base = (lessonsBy.get(it.program_id) ?? []).filter(l => l.subj.trim().toLowerCase() === x.name.trim().toLowerCase())
+            const list = orderLessons(base, x.order); const si = subInfo(x.name)
+            const setOrder = (ids: string[] | null) => setSubjects(it, xs => xs.map(y => y.name === x.name ? { ...y, order: ids } : y))
+            return <LessonOrder key={x.name} name={x.name} span={si?.to ? `Tuần ${si.from}–${si.to} · ${si.periods} tiết` : 'Chưa xếp'}
+              lessons={list.map(l => ({ id: l.id, title: l.title, periods: rowOf.get(l.id)?.periods ?? Math.max(1, l.periods || 1) }))}
+              changed={reordered(base, x.order)} weekOf={id => { const r = rowOf.get(id); return r?.skipped ? 'Đã bỏ' : r?.weeks?.length ? 'Tuần ' + wkLabel(r.weeks) : '—' }}
+              onMove={(a, b) => { const ids = list.map(l => l.id); const [m] = ids.splice(a, 1); ids.splice(b, 0, m); setOrder(ids) }}
+              onReset={() => setOrder(null)} />
+          })}
         </div>
       })}</div>
-      <h4 className="distsec">Xem trước trên trục tuần</h4>
-      <WeekGrid plan={plan} order={order} progs={progs} s={s} />
+      <h4 className="distsec">Chi tiết theo tuần</h4>
+      {grid()}
       <div className="formactions" style={{ textAlign: 'right' }}><button type="button" className="primary" onClick={() => setStep(3)}>Tiếp tục: Xem bản phối →</button></div>
     </>
   }
@@ -400,6 +449,7 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
       <div className={'distchecks ' + (errors.length ? 'bad' : warns.length ? 'warn' : 'good')}>
         <b>{errors.length ? 'Lỗi (chưa phát hành được)' : warns.length ? 'Cảnh báo (có thể phát hành)' : 'Hợp lệ — có thể phát hành'}</b>
         {list.length > 0 && <ul>{list.map((c, k) => <li key={k} className={c.level}>{c.level === 'error' ? '⊗' : '⚠'} {c.text}</li>)}</ul>}
+        {holNote && <ul><li className="warn">⚠ {holNote}</li></ul>}
       </div>
       <div className="distviewbar"><ViewSwitch view={view} setView={setView} />
         {view === 'table' && <button type="button" className={editRows ? 'primary' : ''} onClick={() => setEditRows(!editRows)}>{editRows ? 'Xong chỉnh sửa' : 'Tùy chỉnh từng bài'}</button>}</div>
@@ -410,8 +460,8 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
   function Calendar() {
     return <>
       <p className="distlegend">{ordered.map((it, k) => <span key={it.program_id}><i style={{ background: colorOf(k) }} /><b>{progCode(progs.get(it.program_id))}</b></span>)}
-        <span className="sub">Số trong ô là tiết của môn trong tuần. Tuần màu cam là vượt {LOAD_MAX} tiết. Ngày thật theo năm học sẽ có khi gán cho trường.</span></p>
-      <WeekGrid plan={plan} order={order} progs={progs} s={s} titles />
+        <span className="sub">Số trong ô là tiết của môn trong tuần (bấm ô để xem bài). Tuần ⚠ có ngày nghỉ theo lịch tham chiếu. Tổng màu cam là vượt {LOAD_MAX} tiết.</span></p>
+      {grid(true)}
     </>
   }
 
@@ -452,6 +502,20 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
         {!ordered.length && <tr><td colSpan={5}>Chưa có chương trình nào trong bản.</td></tr>}</tbody>
     </table></div>
   }
+}
+
+/** Chọn lịch tham chiếu cho lưới tuần: Chuẩn chung / lịch của đơn vị, năm học. */
+function CalBar({ cal }: { cal: DistCal }) {
+  if (cal.state === 'missing') return null
+  return <div className="distcalbar">
+    <label className="field"><span>Lịch áp dụng</span><select value={cal.src} onChange={e => cal.setSrc(e.target.value)}>
+      {cal.srcs.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
+    <label className="field"><span>Năm học tham chiếu</span><select value={cal.year} disabled={!cal.years.length} onChange={e => cal.setYear(e.target.value)}>
+      {!cal.years.length && <option value="">Chưa có năm học</option>}
+      {cal.years.map(y => <option key={y} value={y}>{y}</option>)}</select></label>
+    <small className="sub hint">{cal.state === 'none' ? 'Chưa có lịch năm học này. Khai báo ở Thiết lập chung › Năm học & ngày nghỉ.'
+      : cal.state === 'loading' ? 'Đang tải lịch…' : `Tuần đánh dấu ⚠ có ngày nghỉ. Bấm số tuần để xem ngày thật; bấm ô để xem bài trong tuần.`}</small>
+  </div>
 }
 
 function ViewSwitch({ view, setView }: { view: 'table' | 'cal'; setView: (v: 'table' | 'cal') => void }) {

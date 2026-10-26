@@ -229,6 +229,7 @@ const StocktakePage = lazy(() => import('./pages/inventory').then(m => ({ defaul
 const EquipmentOverview = lazy(() => import('./pages/platform/Resources').then(m => ({ default: m.EquipmentOverview })))
 const CustomerSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.CustomerSupport })))
 
+const GeneralSettings = lazy(() => import('./pages/settings/General').then(m => ({ default: m.GeneralSettings })))
 type PageMap = Record<string, ComponentType<any>>
 const SCHOOL: PageMap = {
   'Dự án STEM': ProjectsPage,
@@ -270,6 +271,7 @@ const SCHOOL: PageMap = {
   'Chứng chỉ': TrainingCertificatesPage,
   'Đánh giá kết quả tập huấn': TrainingResultsPage,
   'Năm học & học kỳ': Years,
+  'Thiết lập chung': GeneralSettings,
   'Hộp phê duyệt': ApprovalInbox,
   'Quy trình phê duyệt': ApprovalWorkflows,
   'Đề xuất mua gói': PackageOrders,
@@ -395,6 +397,7 @@ const PLATFORM: PageMap = {
   'Sao lưu & xuất dữ liệu': (p: any) => <DataExportPage {...p} platform />,
   'Giao diện & thương hiệu': (p: any) => <BrandingPage {...p} platform />,
   'Tổng quan hệ thống': PlatformOverview,
+  'Thiết lập chung': (p: any) => <GeneralSettings {...p} platform />,
   'Nhật ký hệ thống': PlatformAudit,
   'Cấu hình chung (năm học)': DeptAdmin,
   'Cây tổ chức': PlatformOrgs,

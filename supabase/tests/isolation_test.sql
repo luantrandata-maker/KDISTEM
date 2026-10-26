@@ -3026,6 +3026,94 @@ select pg_temp.chk('gv_both', '094 GV không nhân bản bài KDI nháp',
 delete from lesson_plans where title like 'ISO KDI%';
 delete from activities where title like 'ISO KDI%';
 
+-- ===== 095: thiết lập chung — lịch & ngày nghỉ chuẩn chung, quy tắc vận hành =====
+do $$
+declare v_kdi uuid := pg_temp.oid_('@platform');
+begin
+  if v_kdi is null or to_regclass('public.holiday_skips') is null then return; end if;
+  insert into academic_years (org_id, name, term, starts_on, ends_on, status, source) values
+    (v_kdi, '2096-2097', 'HK I', '2096-09-05', '2097-01-15', 'official', 'ISO QĐ'),
+    (v_kdi, '2096-2097', 'HK II', '2097-01-18', '2097-05-31', 'official', 'ISO QĐ');
+  insert into school_holidays (org_id, name, starts_on, ends_on, kind, status, source) values
+    (v_kdi, 'ISO STD nghỉ', '2096-11-20', '2096-11-20', 'state', 'expected', 'ISO nguồn');
+  insert into school_holidays (org_id, name, starts_on, ends_on) values
+    (pg_temp.oid_('THCS-PH'), 'ISO PH nghỉ', '2096-12-01', '2096-12-01');
+end $$;
+select pg_temp.chk('kdi', '095 KDI thêm năm học chuẩn chung',
+  format('insert into academic_years (org_id, name, term, starts_on, ends_on) values (%L, ''2098-2099'', ''HK I'', ''2098-09-05'', ''2099-01-15'')', pg_temp.oid_('@platform')), 'rows:1')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '095 Trường không thêm năm học chuẩn chung',
+  format('insert into academic_years (org_id, name, term) values (%L, ''2098-2099'', ''HK I'')', pg_temp.oid_('@platform')), 'ERR')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '095 Trường đọc năm học chuẩn chung', 'select count(*) from academic_years where name = ''2096-2097''', '2')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('gv_both', '095 GV đọc ngày nghỉ chuẩn chung', 'select count(*) from school_holidays where name = ''ISO STD nghỉ''', '1')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '095 Trường không sửa ngày nghỉ chuẩn chung', 'update school_holidays set name = ''x'' where name = ''ISO STD nghỉ''', 'rows:0')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('kdi', '095 KDI sửa ngày nghỉ chuẩn chung', 'update school_holidays set note = ''x'' where name = ''ISO STD nghỉ''', 'rows:1')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('kdi', '095 Loại ngày nghỉ sai bị chặn',
+  format('insert into school_holidays (org_id, name, starts_on, ends_on, kind) values (%L, ''ISO x'', ''2096-10-01'', ''2096-10-01'', ''bad'')', pg_temp.oid_('@platform')), 'ERR*')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '095 Ngày nghỉ chuẩn chung áp cho trường', 'select public.is_holiday(public.my_org_id(), ''2096-11-20'')', 'ISO STD nghỉ')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '095 Lịch tuần: trường chưa có năm học riêng dùng chuẩn chung, có tuần nghỉ',
+  'select count(*) from public.curriculum_calendar(public.my_org_id(), ''2096-2097'') where holiday like ''%ISO STD nghỉ%''', '1')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '095 Lịch tuần có ngày nghỉ riêng của trường',
+  'select count(*) from public.curriculum_calendar(public.my_org_id(), ''2096-2097'') where holiday like ''%ISO PH nghỉ%''', '1')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '095 Trường bỏ ngày nghỉ chuẩn chung',
+  'insert into holiday_skips (org_id, holiday_id) select public.my_org_id(), id from school_holidays where name = ''ISO STD nghỉ''', 'rows:1')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '095 Không "bỏ" ngày nghỉ không phải chuẩn chung',
+  'insert into holiday_skips (org_id, holiday_id) select public.my_org_id(), id from school_holidays where name = ''ISO PH nghỉ''', 'ERR')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('gv_ph2', '095 GV không bỏ ngày nghỉ chuẩn chung',
+  'insert into holiday_skips (org_id, holiday_id) select public.my_org_id(), id from school_holidays where name = ''ISO STD nghỉ''', 'ERR')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.probe('admin_ph@iso-test.local',
+  'insert into holiday_skips (org_id, holiday_id) select public.my_org_id(), id from school_holidays where name = ''ISO STD nghỉ''', true)
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '095 Ngày chuẩn chung đã bỏ không còn là ngày nghỉ của trường', 'select public.is_holiday(public.my_org_id(), ''2096-11-20'')', 'null')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '095 Danh sách ngày nghỉ hiệu lực đánh dấu ngày đã bỏ',
+  'select string_agg(name || '':'' || std || '':'' || skipped, '','' order by name) from public.effective_holidays(public.my_org_id(), ''2096-08-01'', ''2097-07-31'') where name like ''ISO%''',
+  'ISO PH nghỉ:false:false,ISO STD nghỉ:true:true')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_kb', '095 Trường khác vẫn nghỉ ngày chuẩn chung', 'select public.is_holiday(public.my_org_id(), ''2096-11-20'')', 'ISO STD nghỉ')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_kb', '095 Trường khác không thấy ngày đã bỏ của trường A', 'select count(*) from holiday_skips', '0')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_kb', '095 Không xem lịch ngày nghỉ của trường khác',
+  format('select count(*) from public.effective_holidays(%L)', pg_temp.oid_('THCS-PH')), 'ERR')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '095 Năm học tham chiếu có chuẩn chung', 'select count(*) from public.calendar_years(public.my_org_id()) where name = ''2096-2097'' and std', '1')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '095 Trường không xem danh sách lịch riêng các trường', 'select count(*) from public.school_calendars(''2096-2097'')', 'ERR')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('kdi', '095 KDI xem trường có lịch riêng', 'select string_agg(skipped::text || '':'' || own_holidays, '','') from public.school_calendars(''2096-2097'') where org_id = ' || quote_literal(pg_temp.oid_('THCS-PH')), '1:1')
+  where pg_temp.oid_('@platform') is not null;
+-- Quy tắc vận hành
+select pg_temp.probe('kdi@iso-test.local',
+  'insert into org_settings (org_id, key, value) values (public.my_org_id(), ''rules'', ''{"attendance_edit_days": 3}'') on conflict (org_id, key) do update set value = excluded.value', true)
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '095 Quy tắc mặc định của KDI áp cho trường', 'select public.org_rule(public.my_org_id(), ''attendance_edit_days'', 7)', '3')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('admin_ph', '095 Trường không sửa quy tắc của KDI',
+  format('insert into org_settings (org_id, key, value) values (%L, ''rules'', ''{}'')', pg_temp.oid_('@platform')), 'ERR')
+  where pg_temp.oid_('@platform') is not null;
+select pg_temp.chk('gv_ph2', '095 GV không đặt quy tắc của trường', 'insert into org_settings (org_id, key, value) values (public.my_org_id(), ''rules'', ''{}'')', 'ERR');
+select pg_temp.probe('admin_ph@iso-test.local',
+  'insert into org_settings (org_id, key, value) values (public.my_org_id(), ''rules'', ''{"attendance_edit_days": 5}'')', true);
+select pg_temp.chk('admin_ph', '095 Quy tắc riêng của trường ghi đè', 'select public.org_rule(public.my_org_id(), ''attendance_edit_days'', 7)', '5');
+select pg_temp.chk('admin_kb', '095 Trường khác không đọc quy tắc của trường A', format('select count(*) from org_settings where org_id = %L', pg_temp.oid_('THCS-PH')), '0');
+delete from org_settings where org_id = pg_temp.oid_('THCS-PH') or org_id = pg_temp.oid_('@platform');
+delete from holiday_skips where org_id = pg_temp.oid_('THCS-PH');
+delete from school_holidays where name like 'ISO STD%' or name = 'ISO PH nghỉ';
+delete from academic_years where name in ('2096-2097', '2098-2099');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

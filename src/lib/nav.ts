@@ -24,7 +24,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
   // Cổng Quản trị nền tảng (16/10): Tổng quan · Vận hành KDI · Lõi · Quản trị chung · Kỹ thuật & bảo mật · 5 phân hệ nghiệp vụ (đơn vị bán).
   // Mục chưa có trang thật hiện khung giao diện (pages/platform/Planned.tsx).
   platform: [
-    { title: 'Tổng quan', items: ['Tổng quan hệ thống', 'Phân hệ & mức sử dụng', 'Sơ đồ hệ thống', 'Thuật ngữ chuẩn'] },
+    { title: 'Tổng quan', items: ['Tổng quan hệ thống', 'Thiết lập chung', 'Phân hệ & mức sử dụng', 'Sơ đồ hệ thống', 'Thuật ngữ chuẩn'] },
     { title: 'Vận hành KDI', items: ['Thông tin khách hàng', 'Gói dịch vụ & hợp đồng', 'Đơn đặt gói STEM', 'Triển khai khách hàng', 'Vấn đề & phản hồi', 'Nghiệm thu & doanh thu'] },
     { title: 'Lõi · Tổ chức & quy trình', items: ['Cây tổ chức', 'Cơ sở triển khai', 'Người dùng & vai trò', 'Vai trò & quyền mặc định', 'Lời mời', 'Hộp phê duyệt', 'Quy trình phê duyệt', 'Thông báo'] },
     { title: 'Quản trị chung · Kỹ thuật & bảo mật', items: ['Tích hợp & dữ liệu', 'Ứng dụng di động & ngoại tuyến', 'Sao lưu & xuất dữ liệu', 'Bảo mật tài khoản', 'Điều khoản & dữ liệu cá nhân', 'Nhật ký hệ thống', 'Cấu hình chung (năm học)', 'Giao diện & thương hiệu', 'Trợ lý AI'] },
@@ -55,7 +55,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Phòng & thiết bị STEM', items: ['Quản lý Phòng STEM', 'Quản lý Thiết bị', 'Vật tư tiêu hao', 'Đề xuất mua vật tư', 'Vận chuyển vật tư', 'Kiểm kê', 'Bảo hành thiết bị'] },
     { title: 'Dự án & cuộc thi', items: ['Dự án STEM', 'Cuộc thi'] },
     { title: 'Giảng dạy', items: ['Kế hoạch GD toàn trường', 'Duyệt đăng ký dạy STEM', 'Thời khóa biểu', 'Phân công GV dạy STEM', 'Buổi dạy & điểm danh', 'Dashboard điểm danh', 'Năng lực học sinh', 'Sự kiện'] },
-    { title: 'Quản trị', items: ['Năm học & học kỳ', 'Ngày nghỉ & lễ', 'Tòa nhà & Tầng', 'Cấu hình tiết học', 'Tài khoản', 'Vai trò và phân quyền', 'Quy trình phê duyệt', 'Khảo sát', 'Sao lưu & xuất dữ liệu', 'Giao diện & thương hiệu', 'Ứng dụng di động', 'Hỗ trợ từ KDI'] },
+    { title: 'Quản trị', items: ['Thiết lập chung', 'Năm học & học kỳ', 'Ngày nghỉ & lễ', 'Tòa nhà & Tầng', 'Cấu hình tiết học', 'Tài khoản', 'Vai trò và phân quyền', 'Quy trình phê duyệt', 'Khảo sát', 'Sao lưu & xuất dữ liệu', 'Giao diện & thương hiệu', 'Ứng dụng di động', 'Hỗ trợ từ KDI'] },
   ],
   teacher: [
     { title: 'Giảng dạy', items: ['Tổng quan', 'Kế hoạch giáo dục', 'Chương trình giáo dục', 'Phân phối chương trình', 'Định mức vật tư', 'Lớp giảng dạy', 'Điểm danh', 'Bài tập', 'Chấm bài', 'Năng lực học sinh', 'Học trước & tự học', 'E-learning & luyện thi'] },
@@ -89,7 +89,7 @@ export const MODULE_OF: Record<string, string> = {
   'Giáo viên': 'teachers', 'Lớp học': 'classes', 'Học sinh': 'students', 'Phụ huynh': 'students', 'Phân công giảng dạy': 'assignments',
   'Quản lý Phòng STEM': 'stem_rooms', 'Quản lý Thiết bị': 'equipment', 'Vật tư tiêu hao': 'equipment', 'Đề xuất mua vật tư': 'equipment', 'Vận chuyển vật tư': 'equipment', 'Kiểm kê': 'equipment', 'Bảo hành thiết bị': 'warranty',
   'Thời khóa biểu': 'timetable', 'Duyệt đăng ký dạy STEM': 'stem_registrations', 'Tòa nhà & Tầng': 'buildings',
-  'Cấu hình tiết học': 'periods', 'Năm học & học kỳ': 'periods', 'Tài khoản': 'accounts', 'Sao lưu & xuất dữ liệu': 'accounts', 'Giao diện & thương hiệu': 'accounts', 'Vai trò và phân quyền': 'roles',
+  'Cấu hình tiết học': 'periods', 'Năm học & học kỳ': 'periods', 'Thiết lập chung': 'periods', 'Tài khoản': 'accounts', 'Sao lưu & xuất dữ liệu': 'accounts', 'Giao diện & thương hiệu': 'accounts', 'Vai trò và phân quyền': 'roles',
   'Kế hoạch GD toàn trường': 'edu_plan', 'Phân công GV dạy STEM': 'stem_assign', 'Phân phối chương trình': 'curriculum',
   'Gói STEM': 'packages', 'Chương trình giáo dục': 'curriculum', 'Kế hoạch tập huấn': 'training', 'Lịch tập huấn': 'training', 'Bài giảng': 'training',
   'Lớp học ảo': 'training', 'Chứng chỉ': 'training', 'Đánh giá kết quả tập huấn': 'training',

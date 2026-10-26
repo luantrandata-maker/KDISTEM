@@ -2768,7 +2768,7 @@ select pg_temp.probe('kdi@iso-test.local', $q$select training_plan_schedule(id, 
 select pg_temp.chk('kdi', 'Lịch: xếp tự động mỗi nội dung một buổi, bỏ qua thứ Bảy, Chủ nhật', $q$select count(*) || ':' || min(to_char(s.starts_at at time zone 'Asia/Ho_Chi_Minh', 'YYYY-MM-DD HH24:MI')) || ':' || min(extract(epoch from s.ends_at - s.starts_at)::int / 3600) || ':' || min(s.mode) from training_sessions s join training_plans k on k.id = s.plan_id where k.name = 'ISO KH' and s.unit_id is not null$q$, '1:2030-01-07 08:00:3:offline');
 select pg_temp.chk('kdi', 'Lịch: xếp lại không tạo trùng nội dung đã có buổi', $q$select training_plan_schedule(id, '2030-01-07')::text from training_plans where name = 'ISO KH'$q$, '0');
 select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plans (org_id, name, pub_status) values (platform_org_id(), 'ISO KH nháp', 'draft')$q$, true);
-select pg_temp.chk('kdi', 'Lịch: kế hoạch nháp chưa xếp buổi được', $q$insert into training_sessions (org_id, plan_id, title, starts_at, ends_at) select org_id, id, 'ISO buổi', now(), now() + interval '1 hour' from training_plans where name = 'ISO KH nháp'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'Lịch: kế hoạch nháp xếp buổi được ngay khi soạn (101)', $q$insert into training_sessions (org_id, plan_id, title, starts_at, ends_at) select org_id, id, 'ISO buổi', now(), now() + interval '1 hour' from training_plans where name = 'ISO KH nháp'$q$, 'rows:1');
 select pg_temp.chk('kdi', 'Lịch: giờ kết thúc phải sau giờ bắt đầu', $q$update training_sessions set ends_at = starts_at where plan_id = (select id from training_plans where name = 'ISO KH')$q$, 'ERR 22023');
 select pg_temp.probe('admin_kb@iso-test.local', $q$insert into training_enrollments (org_id, plan_id, teacher_id) select t.org_id, k.id, t.id from training_plans k, teachers t where k.name = 'ISO KH' and t.full_name = 'GV thử B'$q$, true);
 select pg_temp.chk('admin_kb', 'Lịch: trường được gán thấy buổi và điểm danh GV trường mình', $q$select count(*) from training_attendance a join training_sessions s on s.id = a.session_id where s.plan_id = (select id from training_plans where name = 'ISO KH')$q$, '1');
@@ -3279,6 +3279,31 @@ select pg_temp.chk('kdi', 'QT 100: Quản trị mở khoá học cho trường',
 select pg_temp.probe('admin_ph@iso-test.local', $q$insert into courses (org_id, title) values (my_org_id(), 'ISO khoá nháp trường')$q$, true);
 select pg_temp.chk('kdi', 'QT 100: Quản trị thấy và sửa khoá học nháp của trường', $q$update courses set description = 'QT sửa' where title = 'ISO khoá nháp trường'$q$, 'rows:1');
 select pg_temp.chk('admin_kb', 'QT 100: trường khác không thấy khoá học nháp', $q$select count(*) from courses where title = 'ISO khoá nháp trường'$q$, '0');
+
+-- 101: khung phân loại kế hoạch tập huấn; xếp lịch khi kế hoạch còn nháp
+select pg_temp.chk('kdi', 'TH 101: khung mặc định Cấp học › Cấp độ', $q$select string_agg(name, '›' order by sort) from training_cls_levels$q$, 'Cấp học›Cấp độ');
+select pg_temp.chk('kdi', 'TH 101: mục THCS nhận cấp học', $q$select edu_level from training_nodes where name = 'THCS' and parent_id is null$q$, 'thcs');
+select pg_temp.chk('so_hy', 'TH 101: Sở không sửa khung phân loại', $q$insert into training_cls_levels (name, kind, sort) values ('ISO cấp', 'custom', 30)$q$, 'ERR');
+select pg_temp.chk('kdi', 'TH 101: KDI thêm cấp phân loại', $q$insert into training_cls_levels (name, kind, sort) values ('ISO cấp', 'custom', 30)$q$, 'rows:1');
+select pg_temp.chk('kdi', 'TH 101: không xoá được cấp Cấp học', $q$delete from training_cls_levels where kind = 'level'$q$, 'ERR*');
+select pg_temp.chk('kdi', 'TH 101: kế hoạch gắn mục phân loại', $q$update training_plans set node_id = (select n.id from training_nodes n join training_nodes p on p.id = n.parent_id where p.name = 'THCS' and n.name = 'Cơ bản') where name = 'ISO KH A'$q$, 'rows:1');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plans (org_id, name, pub_status, mode, year_name) values (platform_org_id(), 'ISO KH nháp lịch', 'draft', 'offline', '2026-2027')$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plan_items (plan_id, program_id) select k.id, p.id from training_plans k, training_programs p where k.name = 'ISO KH nháp lịch' and p.title = 'ISO CTTH A' and p.status = 'published'$q$, true);
+select pg_temp.chk('kdi', 'TH 101: xếp lịch khi kế hoạch còn nháp', $q$insert into training_sessions (org_id, plan_id, unit_id, title, starts_at, ends_at, mode, location)
+  select k.org_id, k.id, u.id, u.title, '2030-06-03 08:00+07', '2030-06-03 10:00+07', 'offline', 'Hội trường' from training_plans k
+  join training_plan_items i on i.plan_id = k.id join training_program_units u on u.program_id = i.program_id and u.kind = 'content' where k.name = 'ISO KH nháp lịch' limit 1$q$, 'rows:1');
+
+-- ===== TH 102: bài giảng tập huấn 5 thẻ =====
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_lessons (org_id, title, status, program_id, content) select platform_org_id(), '  ISO BG 5 thẻ ', 'draft', (select id from training_programs where title = 'ISO CTTH B'),
+  '{"checked":["info","content"],"kit":{"sessions":[{"acts":[{"title":"a"},{"title":"b"}]}],"docs":[{"type":"video"},{"type":"worksheet"},{"type":"link"}],"mats":{"product":[{"name":"x"}],"group":[]}}}'::jsonb$q$, true);
+select pg_temp.chk('kdi', 'BG tập huấn: tự tính số hoạt động, video, tài liệu, vật tư từ 5 thẻ', $q$select concat_ws(',', blocks, videos, docs, materials) from training_lessons where title = 'ISO BG 5 thẻ'$q$, '2,1,2,1');
+select pg_temp.chk('kdi', 'BG tập huấn: chưa chốt đủ 5 thẻ thì chưa phát hành được', $q$select training_lesson_publish(id) from training_lessons where title = 'ISO BG 5 thẻ'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_lessons set content = jsonb_set(content, '{checked}', '["info","content","links","norms","bank"]') where title = 'ISO BG 5 thẻ'$q$, true);
+select pg_temp.chk('kdi', 'BG tập huấn: đủ 5 thẻ thì phát hành, lên phiên bản 1', $q$select training_lesson_publish(id) from training_lessons where title = 'ISO BG 5 thẻ'$q$, '1');
+select pg_temp.chk('kdi', 'BG tập huấn: nội dung phải thuộc chương trình đã chọn', $q$update training_lessons set unit_id = (select u.id from training_program_units u join training_programs p on p.id = u.program_id where p.title = 'ISO CTTH' and u.title = 'ISO bài 1' limit 1) where title = 'ISO BG 5 thẻ'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_lessons set program_id = null, unit_id = (select u.id from training_program_units u join training_programs p on p.id = u.program_id where p.title = 'ISO CTTH' and u.title = 'ISO bài 1' limit 1) where title = 'ISO BG 5 thẻ'$q$, true);
+select pg_temp.chk('kdi', 'BG tập huấn: chương trình tự lấy theo nội dung', $q$select p.title from training_lessons l join training_programs p on p.id = l.program_id where l.title = 'ISO BG 5 thẻ'$q$, 'ISO CTTH');
+select pg_temp.chk('so_hy', 'BG tập huấn: Sở không phát hành bài của KDI', $q$select training_lesson_publish((select id from training_lessons where title = 'ISO BG 5 thẻ'))$q$, 'ERR*');
 
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();

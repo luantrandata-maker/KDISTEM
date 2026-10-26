@@ -66,14 +66,9 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
     { label: 'Số giờ', width: 90, cell: (r, set) => r.type === 'content' ? <input type="number" min={0} max={500} step={0.5} value={r.f.hours} onChange={e => set({ hours: Math.max(0, Number(e.target.value) || 0) })} aria-label="Số giờ" style={{ width: 76 }} /> : null },
     { label: 'Bài test', width: 70, cell: (r, set) => r.type === 'content' ? <input type="checkbox" checked={r.f.has_test} onChange={e => set({ has_test: e.target.checked })} aria-label="Có bài test" /> : null },
   ]
-  // Môn: chọn nhanh từ danh mục (môn chưa có trong chương trình)
-  const catalogPick = (r: DRow<TF>, patch: (x: Partial<DRow<TF>>) => void, rows: DRow<TF>[]) => {
-    if (r.type !== 'subject') return null
-    const free = catalog.filter(n => lc(n) === lc(r.title) || !rows.some(x => x.type === 'subject' && lc(x.title) === lc(n)))
-    if (!free.length) return null
-    return <select value={free.find(n => lc(n) === lc(r.title)) ?? ''} onChange={e => patch({ title: e.target.value })} aria-label="Chọn môn trong danh mục" style={{ width: '100%', marginBottom: 6 }}>
-      <option value="">— Chọn môn trong danh mục ({free.length}) hoặc nhập tên bên dưới —</option>{free.map(n => <option key={n} value={n}>{n}</option>)}</select>
-  }
+  // Môn: một ô duy nhất, gõ tên hoặc chọn nhanh từ danh mục (môn chưa có trong chương trình)
+  const catalogOpts = (r: DRow<TF>, rows: DRow<TF>[]) => r.type !== 'subject' ? null
+    : catalog.filter(n => lc(n) === lc(r.title) || !rows.some(x => x.type === 'subject' && lc(x.title) === lc(n)))
   const withReqs = (r: DRow<TF>): Detail => {
     const reqs = r.outs.map(o => o.content.trim()).filter(Boolean)
     const d = r.f.detail ?? {}
@@ -149,7 +144,7 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
         {editable && !draft && <button type="button" className="primary" onClick={() => startDraft(true)}>Thêm môn</button>}
       </div>
     </div>
-    {draft ? <StructureDraft<TF> levels={TLEVELS} root="subject" initial={draft} cols={cols} titleExtra={catalogPick} outCode={false}
+    {draft ? <StructureDraft<TF> levels={TLEVELS} root="subject" initial={draft} cols={cols} titleOptions={catalogOpts} outCode={false}
       newFields={t => ({ hours: t === 'content' ? 1 : 0, mode: null, has_test: false, detail: {} })} onSave={saveDraft} onCancel={() => setDraft(null)} />
     : !units.length ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có môn nào.{editable && ' Bấm "Thêm môn" hoặc "Nhập Excel".'}</p></div> : (
       <div className="wrap"><table>

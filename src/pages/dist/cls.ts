@@ -1,26 +1,31 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 
-// Khung phân loại bản phân phối (082): các cấp (Cấp học › Khối lớp › Mức độ…) và các mục trong cây.
+// Khung phân loại: bản phân phối (082: Cấp học › Khối lớp › Mức độ…) và kế hoạch tập huấn (101: Cấp học › Cấp độ…).
 export type ClsLevel = { id: string; name: string; kind: 'level' | 'grade' | 'tier' | 'custom'; sort: number; active: boolean }
-export type ClsNode = { id: string; cls_level_id: string; parent_id: string | null; name: string; sort: number }
+export type ClsNode = { id: string; cls_level_id: string; parent_id: string | null; name: string; sort: number; edu_level?: string | null }
+export type ClsScope = 'dist' | 'training'
+export const CLS_TABLES: Record<ClsScope, { levels: string; nodes: string }> = {
+  dist: { levels: 'dist_cls_levels', nodes: 'dist_nodes' }, training: { levels: 'training_cls_levels', nodes: 'training_nodes' },
+}
 type Data = { levels: ClsLevel[]; nodes: ClsNode[] }
 
-let cache: Data | null = null
-const subs = new Set<(d: Data) => void>()
-async function load() {
+const cache: Partial<Record<ClsScope, Data>> = {}
+const subs: Record<ClsScope, Set<(d: Data) => void>> = { dist: new Set(), training: new Set() }
+async function load(scope: ClsScope) {
+  const t = CLS_TABLES[scope]
   const [lv, nd] = await Promise.all([
-    supabase.from('dist_cls_levels').select('id, name, kind, sort, active').order('sort'),
-    supabase.from('dist_nodes').select('id, cls_level_id, parent_id, name, sort').order('sort').order('name'),
+    supabase.from(t.levels).select('id, name, kind, sort, active').order('sort'),
+    supabase.from(t.nodes).select('id, cls_level_id, parent_id, name, sort, edu_level').order('sort').order('name'),
   ])
-  cache = { levels: (lv.data as ClsLevel[]) ?? [], nodes: (nd.data as ClsNode[]) ?? [] }
-  subs.forEach(f => f(cache!))
+  const d = cache[scope] = { levels: (lv.data as ClsLevel[]) ?? [], nodes: (nd.data as ClsNode[]) ?? [] }
+  subs[scope].forEach(f => f(d))
 }
 
 /** Đọc khung phân loại; reload() tải lại cho mọi nơi đang dùng. */
-export function useCls() {
-  const [d, setD] = useState<Data>(cache ?? { levels: [], nodes: [] })
-  useEffect(() => { subs.add(setD); if (!cache) load(); return () => { subs.delete(setD) } }, [])
+export function useCls(scope: ClsScope = 'dist') {
+  const [d, setD] = useState<Data>(cache[scope] ?? { levels: [], nodes: [] })
+  useEffect(() => { subs[scope].add(setD); if (!cache[scope]) load(scope); return () => { subs[scope].delete(setD) } }, [scope])
   const active = d.levels.filter(l => l.active)
   const byId = new Map(d.nodes.map(n => [n.id, n]))
   const lvOf = (n: ClsNode) => d.levels.find(l => l.id === n.cls_level_id)
@@ -30,5 +35,5 @@ export function useCls() {
     for (let n = id ? byId.get(id) : undefined; n; n = n.parent_id ? byId.get(n.parent_id) : undefined) if (lvOf(n)?.active) out.unshift(n)
     return out
   }
-  return { ...d, ready: !!cache, active, byId, lvOf, path, reload: load }
+  return { ...d, scope, tables: CLS_TABLES[scope], ready: !!cache[scope], active, byId, lvOf, path, reload: () => load(scope) }
 }

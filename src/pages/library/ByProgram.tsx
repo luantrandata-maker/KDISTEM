@@ -18,7 +18,7 @@ type U = { id: string; program_id: string; parent_id: string | null; unit_type: 
   objectives: string | null; grade: number | null; subject?: string | null }
 
 const PSTATUS: Record<string, string> = { draft: 'Nháp', pending: 'Nháp · chờ duyệt', approved: 'Nháp · đã duyệt', rejected: 'Nháp · bị trả lại', published: 'Đã phát hành' }
-const KSTATUS: Record<KitRow['status'], [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], archived: ['Đã thu hồi', 'off'] }
+const KSTATUS: Record<KitRow['status'], [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], archived: ['Đã thu hồi', 'off'], inactive: ['Ngừng dùng', 'off'] }
 const grades = (p: Prog) => fmtGrades(progGrades(p))
 const lc = (s: string | null | undefined) => (s ?? '').trim().toLowerCase()
 const progName = (p: Prog) => (p.code ? p.code + ' · ' : '') + p.title

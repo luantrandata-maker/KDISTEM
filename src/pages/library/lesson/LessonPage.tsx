@@ -1,5 +1,5 @@
 // Trang bài học theo video demo (23/10): bộ học liệu 5 thẻ, mỗi thẻ xem / cập nhật / chốt nội dung; đủ 5 thẻ thì phát hành.
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { catalogOf, useSettings } from '../../../lib/settings'
 import { supabase } from '../../../lib/supabase'
 import { openFile, uploadLearningFile, fmtSize } from '../../../lib/files'
@@ -9,13 +9,21 @@ import { norm as normText } from '../../../lib/sheet'
 import type { KitCard } from '../common'
 import { CARDS, DOC_TYPE, ACT_LABEL, actTitles, suggestBank, cardCsv, cardFromRows, downloadText, kitFromDraft, kitOf, mergeKit, key, sessionMinutes, kitCounts,
   type KitData, type KBank, type KInfo, type KSession, type KDoc, type KMat, type Subj, type Who, type ParseResult } from './model'
-import { KIT_SEL, chotCard, errMsg, fileDoc, fullContent, loadActivities, loadCatalog, parseFile, publishKit, type BankAct, type KitRow } from './save'
+import { chotCard, errMsg, fileDoc, fullContent, kitSel, kitTable, loadActivities, loadCatalog, parseFile, publishKit, type BankAct, type KitRow, type KitStore } from './save'
 import { Modal, type ProgRef } from './Create'
 import { MultiSelect } from '../../../components/MultiSelect'
 import { GradeChecks, SubjectPicker, gradeList } from '../../../components/Pickers'
 
 type Fields = { title: string; subject: string; grades: string; periods: string; program_id: string; prog_subject: string }
-const STATUS: Record<KitRow['status'], [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], archived: ['Đã thu hồi', 'off'] }
+const STATUS: Record<KitRow['status'], [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], archived: ['Đã thu hồi', 'off'], inactive: ['Ngừng dùng', 'off'] }
+/** Cách gọi theo nơi dùng: bài học (Học liệu) hay bài giảng tập huấn */
+export type KitTerms = { noun: string; program: string; progSubject: string; per: string; catalogDocs: boolean }
+export const LIB_TERMS: KitTerms = { noun: 'bài học', program: 'Chương trình', progSubject: 'Môn học trong chương trình', per: 'tiết', catalogDocs: true }
+export const TRAINING_TERMS: KitTerms = { noun: 'bài giảng', program: 'Chương trình tập huấn', progSubject: 'Nội dung trong chương trình', per: 'giờ', catalogDocs: false }
+const Terms = createContext<KitTerms>(LIB_TERMS)
+export const cardsFor = (t: KitTerms) => (t.catalogDocs ? CARDS : CARDS.map(c => ({ ...c, title: c.title.replace('bài học', t.noun),
+  desc: c.k === 'links' ? 'Tài liệu, slide, video và giáo án kèm theo bài giảng.' : c.desc.replace('bài học', t.noun) })))
+const cap = (x: string) => x.charAt(0).toUpperCase() + x.slice(1)
 const Chip = ({ tone, children }: { tone?: string; children: ReactNode }) => <span className={'distchip2 ' + (tone ?? '')}>{children}</span>
 const Empty = ({ children }: { children: ReactNode }) => <i className="lempty">{children}</i>
 const toLines = (t: string) => t.split('\n').map(x => x.trim()).filter(Boolean)
@@ -23,10 +31,14 @@ const subjBlocks = (ss: Subj[]) => ss.map(s => [s.name, ...s.reqs].join('\n')).j
 const fromBlocks = (t: string): Subj[] => t.split(/\n\s*\n/).map(b => toLines(b)).filter(b => b.length).map(([name, ...reqs]) => ({ name, reqs }))
 const UNITS = ['Cái', 'Miếng', 'Tờ', 'Bộ', 'Cm', 'm', 'Cuộn', 'Hộp', 'Lọ', 'Sợi', 'Gói', 'Chiếc', 'Quyển']
 
-export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onChanged, startEdit, backLabel = '← Danh sách bài học' }: {
+export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onChanged, startEdit, backLabel = '← Danh sách bài học', store = 'library', unitOf }: {
   orgId: string; id: string; programs: ProgRef[]; subjectsOf: (pid: string) => string[]; code: string
   onBack: () => void; onChanged: () => void; startEdit?: boolean; backLabel?: string
+  /** training: bài giảng tập huấn (training_lessons); unitOf tìm nội dung trong chương trình tập huấn theo tên */
+  store?: KitStore; unitOf?: (pid: string, label: string) => string | null
 }) {
+  const T = store === 'training' ? TRAINING_TERMS : LIB_TERMS
+  const CARDS = cardsFor(T)
   const [row, setRow] = useState<KitRow | null>(null)
   const [err, setErr] = useState('')
   const [tab, setTab] = useState<KitCard>('info')
@@ -42,8 +54,8 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
   const [rk, setRk] = useState(0)
 
   useEffect(() => {
-    supabase.from('library_items').select(KIT_SEL).eq('id', id).maybeSingle().then(({ data, error }) => {
-      if (error) setErr(errMsg(error.message)); else if (!data) setErr('Không tìm thấy bài học.'); else setRow(data as KitRow)
+    supabase.from(kitTable(store)).select(kitSel(store)).eq('id', id).maybeSingle().then(({ data, error }) => {
+      if (error) setErr(errMsg(error.message)); else if (!data) setErr(`Không tìm thấy ${T.noun}.`); else setRow(data as unknown as KitRow)
     })
   }, [id, rk])
   useEffect(() => { loadCatalog().then(setCat); loadActivities(orgId).then(setActs) }, [rk])
@@ -68,7 +80,7 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
   const cancel = () => { setEdit(null); setDraft(null); setFields(null) }
   async function write(next: KitData, patch: Partial<KitRow['content']>, cols: Partial<KitRow> = {}, done = 'Đã lưu.') {
     setBusy('Đang lưu…')
-    const r = await supabase.from('library_items').update({ ...cols, content: fullContent(row!, next, patch) }).eq('id', row!.id)
+    const r = await supabase.from(kitTable(store)).update({ ...cols, content: fullContent(row!, next, patch) }).eq('id', row!.id)
     setBusy('')
     if (r.error) { setMsg(errMsg(r.error.message)); return false }
     setMsg(done); reload(); return true
@@ -77,11 +89,14 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
     if (!draft || !fields || !edit) return
     let cols: Partial<KitRow> = {}, patch: Partial<KitRow['content']> = { checked: checked.filter(c => c !== edit) }
     if (edit === 'info') {
-      if (!fields.title.trim()) return setMsg('Nhập tên bài học.')
-      const per = /\d+/.exec(fields.periods)?.[0]
+      if (!fields.title.trim()) return setMsg(`Nhập tên ${T.noun}.`)
+      const per = /\d+([.,]\d+)?/.exec(fields.periods)?.[0]?.replace(',', '.')
       const p = programs.find(x => x.id === fields.program_id)
-      cols = { title: fields.title.trim(), subject: fields.subject.trim() || null, grades: fields.grades.replace(/[^\d,]/g, '') || null,
-        program_id: fields.program_id || null, program: p?.ct_code ?? row!.program, ...(fields.program_id !== row!.program_id ? { unit_id: null } : {}) }
+      cols = store === 'training'
+        ? { title: fields.title.trim(), subject: fields.subject.trim() || null, grades: fields.grades.replace(/[^\d,]/g, '') || null,
+            program_id: fields.program_id || null, unit_id: fields.program_id ? unitOf?.(fields.program_id, fields.prog_subject) ?? null : null }
+        : { title: fields.title.trim(), subject: fields.subject.trim() || null, grades: fields.grades.replace(/[^\d,]/g, '') || null,
+            program_id: fields.program_id || null, program: p?.ct_code ?? row!.program, ...(fields.program_id !== row!.program_id ? { unit_id: null } : {}) }
       draft.info.prog_subject = fields.prog_subject
       patch = { ...patch, periods: per ? Number(per) : null, objectives: draft.info.reqs.join('\n') || null }
     }
@@ -92,20 +107,21 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
   }
   async function chot(card: KitCard) {
     setBusy('Đang chốt…'); setMsg('')
-    const r = await chotCard(orgId, row!, kit, card)
+    const r = await chotCard(orgId, row!, kit, card, store)
     setBusy('')
     if (r.error) return setMsg(r.error)
     setMsg(`Đã chốt thẻ ${CARDS.find(c => c.k === card)!.no}.`); reload()
   }
   const unchot = (card: KitCard) => write(kit, { checked: checked.filter(c => c !== card) }, {}, 'Đã bỏ chốt thẻ.')
   async function publish() {
-    const note = row!.version > 0 ? prompt('Ghi chú cho bản cập nhật (trường đã dùng sẽ thấy):', '') : null
-    if (note === null && row!.version > 0) return
+    const ask = store === 'library' && row!.version > 0
+    const note = ask ? prompt('Ghi chú cho bản cập nhật (trường đã dùng sẽ thấy):', '') : null
+    if (note === null && ask) return
     setBusy('Đang phát hành…'); setMsg('')
-    const r = await publishKit(orgId, row!, note)
+    const r = await publishKit(orgId, row!, note, store)
     setBusy('')
     if (r.error) return setMsg(r.error)
-    setMsg(`Đã phát hành bộ học liệu (phiên bản ${r.version}).`); reload()
+    setMsg(`Đã phát hành ${store === 'training' ? T.noun : 'bộ học liệu'} (phiên bản ${r.version}).`); reload()
   }
   /** Áp dụng phần đọc được từ file vào các thẻ: thẻ được điền chuyển về "Cần kiểm tra" */
   async function apply(res: ParseResult, cards: KitCard[], docs: KDoc[] = []) {
@@ -145,13 +161,14 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
   const on = checked.includes(tab)
 
   return (
+    <Terms.Provider value={T}>
     <div className="lpage">
       <div className="lhead">
         <button type="button" className="ghostbtn" onClick={onBack}>{backLabel}</button>
         <div className="lheadrow">
           <div><h2>{row.title}</h2>
             <p className="sub">{[progLabel, progSubject, row.grades && `Khối ${row.grades}`, code].filter(Boolean).join(' · ')}</p></div>
-          <button type="button" onClick={() => begin('info')}>Sửa tên, môn</button>
+          <button type="button" onClick={() => begin('info')}>{store === 'training' ? 'Sửa thông tin' : 'Sửa tên, môn'}</button>
         </div>
       </div>
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
@@ -172,7 +189,7 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
       <div className="panel lquick"><b>Điền nhanh bằng file mẫu</b><span className="sub">Không có giáo án Word? Tải mẫu, điền rồi tải lên, hệ thống tự điền các thẻ.</span>
         <div className="tools"><button type="button" onClick={tplAll}>Tải mẫu cả giáo án (Excel)</button>{pick('.xlsx', 'Tải file lên', upload)}</div></div>
 
-      <div className="lkithead"><h3>Bộ học liệu · 5 thẻ</h3><span className="sub">{checked.length}/{CARDS.length} thẻ đã chốt</span></div>
+      <div className="lkithead"><h3>{store === 'training' ? 'Bài giảng' : 'Bộ học liệu'} · 5 thẻ</h3><span className="sub">{checked.length}/{CARDS.length} thẻ đã chốt</span></div>
       <div className="ltabs" role="tablist">
         {CARDS.map(c => <button key={c.k} type="button" role="tab" aria-selected={tab === c.k} className={(tab === c.k ? 'on' : '') + (checked.includes(c.k) ? ' done' : '')}
           onClick={() => { if (edit && edit !== c.k) return setMsg('Lưu hoặc hủy thẻ đang sửa trước.'); setTab(c.k) }}>
@@ -222,16 +239,16 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
       </section>
 
       <div className="panel lstatus">
-        <div><b>Trạng thái bộ học liệu</b><small className="sub">Chỉ chốt khi đã kiểm tra nội dung từng thẻ. Có thể cập nhật lại sau khi chốt.</small></div>
+        <div><b>Trạng thái {store === 'training' ? T.noun : 'bộ học liệu'}</b><small className="sub">Chỉ chốt khi đã kiểm tra nội dung từng thẻ. Có thể cập nhật lại sau khi chốt.</small></div>
         <Chip tone={STATUS[row.status][1]}>{STATUS[row.status][0]}{row.status === 'published' ? ` · v${row.version}` : ''}</Chip>
         <button type="button" className="primary" disabled={checked.length < CARDS.length || !!busy || !!edit} onClick={publish}
-          title={checked.length < CARDS.length ? `Chốt đủ ${CARDS.length} thẻ để phát hành (đang ${checked.length}/${CARDS.length})` : undefined}>{row.status === 'published' ? 'Phát hành bản cập nhật' : 'Phát hành bộ học liệu'}</button>
+          title={checked.length < CARDS.length ? `Chốt đủ ${CARDS.length} thẻ để phát hành (đang ${checked.length}/${CARDS.length})` : undefined}>{row.status === 'published' ? 'Phát hành bản cập nhật' : store === 'training' ? 'Phát hành bài giảng' : 'Phát hành bộ học liệu'}</button>
       </div>
 
       {check && (() => {
         const c = kitCounts(check.res.kit)
-        const rows: [KitCard, string, string][] = [['info', 'Thẻ 01 · Thông tin bài học', `${[check.res.title, check.res.subject, check.res.grades, check.res.periods, check.res.kit.info.reqs.length].filter(Boolean).length} mục thông tin`],
-          ['content', 'Thẻ 02 · Nội dung bài học', `${c.sessions} buổi · ${c.acts} hoạt động · ${c.steps} bước`], ['links', 'Thẻ 03 · Link tài liệu', `${c.docs} tài liệu`],
+        const rows: [KitCard, string, string][] = [['info', `Thẻ 01 · Thông tin ${T.noun}`, `${[check.res.title, check.res.subject, check.res.grades, check.res.periods, check.res.kit.info.reqs.length].filter(Boolean).length} mục thông tin`],
+          ['content', `Thẻ 02 · Nội dung ${T.noun}`, `${c.sessions} buổi · ${c.acts} hoạt động · ${c.steps} bước`], ['links', 'Thẻ 03 · Link tài liệu', `${c.docs} tài liệu`],
           ['norms', 'Thẻ 04 · Định mức vật tư', `${c.supplies} nguyên vật liệu · ${c.tools} công cụ, thiết bị`], ['bank', 'Thẻ 05 · Kho hoạt động', `${c.bank} hoạt động`]]
         return <Modal title="Kiểm tra file" sub={check.name} onClose={() => setCheck(null)}
           foot={<><button type="button" onClick={() => setCheck(null)}>Hủy</button>
@@ -243,6 +260,7 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
         </Modal>
       })()}
     </div>
+    </Terms.Provider>
   )
 }
 
@@ -289,18 +307,19 @@ function Pair({ label, children }: { label: string; children: ReactNode }) {
 }
 const Bullets = ({ xs }: { xs: string[] }) => <ul className="lbul">{xs.map((x, i) => <li key={i}>{x}</li>)}</ul>
 function InfoView({ row, info, progLabel, progSubject }: { row: KitRow; info: KInfo; progLabel: string; progSubject: string }) {
+  const T = useContext(Terms)
   const W = (w: Who, ph: string) => {
     const t = whoText(w)
     return <>{t || <Empty>{ph}</Empty>}{w.dates.length > 1 && !w.date && <> <Chip tone="warn">Cần chọn ngày</Chip> <small className="sub">({w.dates.join(' · ')})</small></>}</>
   }
   return <div className="lpairs">
-    <Pair label="Chương trình">{progLabel || <Empty>Chưa gắn chương trình</Empty>}</Pair>
-    <Pair label="Môn học trong chương trình">{progSubject || <Empty>Chưa chọn</Empty>}</Pair>
-    <Pair label="Tên bài học"><b>{row.title}</b></Pair>
+    <Pair label={T.program}>{progLabel || <Empty>Chưa gắn chương trình</Empty>}</Pair>
+    <Pair label={T.progSubject}>{progSubject || <Empty>Chưa chọn</Empty>}</Pair>
+    <Pair label={'Tên ' + T.noun}><b>{row.title}</b></Pair>
     <Pair label="Môn">{row.subject || <Empty>Chưa nhập</Empty>}</Pair>
     <Pair label="Khối">{row.grades || <Empty>Chưa nhập</Empty>}</Pair>
-    <Pair label="Thời lượng">{row.content.periods ? `${row.content.periods} tiết` : <Empty>Chưa nhập</Empty>}</Pair>
-    <Pair label="Mô tả bài học">{info.description || <Empty>Chưa có mô tả</Empty>}</Pair>
+    <Pair label="Thời lượng">{row.content.periods ? `${row.content.periods} ${T.per}` : <Empty>Chưa nhập</Empty>}</Pair>
+    <Pair label={'Mô tả ' + T.noun}>{info.description || <Empty>Chưa có mô tả</Empty>}</Pair>
     <Pair label="Môn học chủ đạo">{info.main.name || info.main.reqs.length ? <><b>{info.main.name}</b><Bullets xs={info.main.reqs} /></> : <Empty>Chưa nhập</Empty>}</Pair>
     <Pair label="Môn học tích hợp">{info.integrated.length ? info.integrated.map((s, i) => <div key={i}><b>{s.name}</b><Bullets xs={s.reqs} /></div>) : <Empty>Không có</Empty>}</Pair>
     <Pair label="Yêu cầu cần đạt">{info.reqs.length ? <Bullets xs={info.reqs} /> : <Empty>Chưa nhập</Empty>}</Pair>
@@ -324,25 +343,27 @@ function Area({ label, value, set, rows = 3, ph, hint }: { label: string; value:
 function InfoEdit({ info, set, f, setF, programs, subjectsOf }: {
   info: KInfo; set: (i: KInfo) => void; f: Fields; setF: (f: Fields) => void; programs: ProgRef[]; subjectsOf: (pid: string) => string[]
 }) {
+  const T = useContext(Terms)
   const subs = f.program_id ? subjectsOf(f.program_id) : []
+  const own = T.catalogDocs ? subs : []
   // Ô nhiều dòng giữ nguyên chữ đang gõ (kể cả dòng trống); chỉ tách thành danh sách khi lưu
   const [txt, setTxt] = useState({ main: info.main.reqs.join('\n'), integ: subjBlocks(info.integrated), reqs: info.reqs.join('\n') })
   const upd = (t: typeof txt) => { setTxt(t); set({ ...info, main: { ...info.main, reqs: toLines(t.main) }, integrated: fromBlocks(t.integ), reqs: toLines(t.reqs) }) }
   return <div className="lform">
-    <label className="field"><span>Tên bài học</span><input autoFocus value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></label>
-    <div className="field"><span>Môn</span><SubjectPicker value={f.subject} onChange={v => setF({ ...f, subject: v })} extra={subs} emptyLabel="— Chọn môn —" /></div>
+    <label className="field"><span>{cap('tên ' + T.noun)}</span><input autoFocus value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></label>
+    <div className="field"><span>Môn</span><SubjectPicker value={f.subject} onChange={v => setF({ ...f, subject: v })} extra={own} emptyLabel="— Chọn môn —" /></div>
     <div className="field"><span>Khối</span><GradeChecks value={gradeList(f.grades)} onChange={g => setF({ ...f, grades: [...g].sort((a, b) => a - b).join(',') })} placeholder="Tick chọn khối…" /></div>
-    <label className="field"><span>Thời lượng</span><input value={f.periods} onChange={e => setF({ ...f, periods: e.target.value })} placeholder="Ví dụ: 2 tiết" /></label>
-    <div className="field"><span>Chương trình</span>
+    <label className="field"><span>Thời lượng</span><input value={f.periods} onChange={e => setF({ ...f, periods: e.target.value })} placeholder={`Ví dụ: 2 ${T.per}`} /></label>
+    <div className="field"><span>{T.program}</span>
       <MultiSelect value={f.program_id ? [f.program_id] : []} placeholder="— Không gắn — (gõ để tìm)" ariaLabel="Chương trình" empty="Chưa có chương trình."
         options={programs.map(p => [p.id, (p.code ? p.code + ' · ' : '') + p.title] as [string, string])}
         onChange={v => { const pid = v[v.length - 1] ?? ''; setF({ ...f, program_id: pid, prog_subject: pid === f.program_id ? f.prog_subject : subjectsOf(pid)[0] ?? '' }) }} /></div>
-    <div className="field"><span>Môn học trong chương trình</span>
-      <MultiSelect value={f.prog_subject ? [f.prog_subject] : []} placeholder={f.program_id ? 'Chọn môn…' : 'Chọn chương trình trước'} ariaLabel="Môn học trong chương trình"
-        disabled={!f.program_id} empty="Chương trình chưa có môn." options={subs.map(s => [s, s] as [string, string])}
+ <div className="field"><span>{T.progSubject}</span>
+      <MultiSelect value={f.prog_subject ? [f.prog_subject] : []} placeholder={f.program_id ? 'Chọn…' : 'Chọn chương trình trước'} ariaLabel={T.progSubject}
+        disabled={!f.program_id} empty={T.catalogDocs ? 'Chương trình chưa có môn.' : 'Chương trình chưa có nội dung.'} options={subs.map(s => [s, s] as [string, string])}
         onChange={v => setF({ ...f, prog_subject: v[v.length - 1] ?? '' })} /></div>
-    <Area label="Mô tả bài học" value={info.description} set={v => set({ ...info, description: v })} />
-    <div className="field"><span>Môn học chủ đạo</span><SubjectPicker value={info.main.name} onChange={v => set({ ...info, main: { ...info.main, name: v } })} extra={subs} ariaLabel="Môn học chủ đạo" /></div>
+    <Area label={cap('mô tả ' + T.noun)} value={info.description} set={v => set({ ...info, description: v })} />
+    <div className="field"><span>Môn học chủ đạo</span><SubjectPicker value={info.main.name} onChange={v => set({ ...info, main: { ...info.main, name: v } })} extra={own} ariaLabel="Môn học chủ đạo" /></div>
     <Area label="Yêu cầu của môn chủ đạo (mỗi dòng một yêu cầu)" value={txt.main} set={v => upd({ ...txt, main: v })} ph={'Nêu được vị trí trong không gian\nVận dụng được vào thiết kế mô hình'} />
     <Area label="Môn học tích hợp" rows={5} value={txt.integ} set={v => upd({ ...txt, integ: v })} ph={'Khoa học\nNêu được tác dụng của đèn hiệu\n\nCông nghệ\nChế tạo được mô hình'}
       hint="Mỗi môn một khối: dòng đầu là tên môn, các dòng sau là yêu cầu. Các môn cách nhau một dòng trống." />
@@ -411,7 +432,9 @@ export function useColsLocal(store: string, all: [string, string][]) {
   return { has, menu }
 }
 function DocsView({ docs }: { docs: KDoc[] }) {
-  const { has, menu } = useColsLocal('lib.docs.cols', [['type', 'Loại'], ['link', 'Liên kết / tệp'], ['cat', 'Học liệu trong danh mục']])
+  const T = useContext(Terms)
+  const cols = useColsLocal('lib.docs.cols', [['type', 'Loại'], ['link', 'Liên kết / tệp'], ...(T.catalogDocs ? [['cat', 'Học liệu trong danh mục'] as [string, string]] : [])])
+  const { menu } = cols, has = (k: string) => (k !== 'cat' || T.catalogDocs) && cols.has(k)
   if (!docs.length) return <Empty>Chưa có tài liệu nào. Bấm “Cập nhật” để thêm phiếu học tập, video, đường dẫn…</Empty>
   return <>
     <div className="selbar"><span /><div className="tools">{menu}</div></div>
@@ -428,6 +451,7 @@ function DocsView({ docs }: { docs: KDoc[] }) {
   </>
 }
 function DocsEdit({ docs, set, orgId }: { docs: KDoc[]; set: (d: KDoc[]) => void; orgId: string }) {
+  const T = useContext(Terms)
   const [up, setUp] = useState('')
   const at = (i: number, d: KDoc) => set(docs.map((x, j) => (j === i ? d : x)))
   async function attach(i: number, f: File) {
@@ -443,7 +467,7 @@ function DocsEdit({ docs, set, orgId }: { docs: KDoc[]; set: (d: KDoc[]) => void
       {d.file ? <span className="lfilechip">{d.file.file_name} <button type="button" className="linkbtn" onClick={() => at(i, { ...d, file: null })}>bỏ tệp</button></span>
         : <span className="lurl"><input aria-label="Đường dẫn" placeholder="https://…" value={d.url} onChange={e => at(i, { ...d, url: e.target.value })} />
           <label className="linkbtn">{up ? 'Đang tải…' : 'Tải tệp'}<input type="file" hidden disabled={!!up} onChange={e => { const f = e.target.files?.[0]; if (f) attach(i, f); e.target.value = '' }} /></label></span>}
-      <small className="sub">{d.item_id ? 'Đã có trong danh mục' : 'Tự tạo khi chốt'}</small>
+      {T.catalogDocs ? <small className="sub">{d.item_id ? 'Đã có trong danh mục' : 'Tự tạo khi chốt'}</small> : <span />}
       <button type="button" className="linkbtn danger" onClick={() => set(docs.filter((_, j) => j !== i))}>Xóa</button>
     </div>)}
     <button type="button" onClick={() => set([...docs, { key: key(), title: '', type: 'worksheet', url: '', file: null, item_id: null }])}>+ Thêm dòng</button>

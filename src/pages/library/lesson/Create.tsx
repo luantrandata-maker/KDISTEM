@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react'
 import { downloadWorkbook } from '../../../lib/sheet'
 import { templateSheets, type KitDraft } from '../../../lib/kitImport'
 import { kitCounts, type ParseResult } from './model'
-import { parseFile, fileDoc, saveNewKit, copyKit, type KitRow } from './save'
+import { parseFile, fileDoc, saveNewKit, copyKit, type KitRow, type KitStore } from './save'
 
 export type ProgRef = { id: string; code: string | null; title: string; ct_code: string | null }
 type Parsed = { file: File; draft: KitDraft; res: ParseResult }
@@ -48,7 +48,7 @@ function RawText({ d }: { d: KitDraft }) {
   return <div className="lraw">{parts.map(([h, t], i) => <div key={i}><b>{h}</b>{t && <p className="pre">{t}</p>}</div>)}</div>
 }
 
-export function CreateLesson({ orgId, programs, subjectsOf, program, subject, preset, kits, onClose, onCreated, pickPlace }: {
+export function CreateLesson({ orgId, programs, subjectsOf, program, subject, preset, kits, onClose, onCreated, pickPlace, store = 'library', unitOf }: {
   orgId: string; programs: ProgRef[]; subjectsOf: (pid: string) => string[]
   program: ProgRef; subject: string
   /** Bài trong chương trình chưa có bộ học liệu: tạo bộ cho bài này */
@@ -56,7 +56,11 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
   kits: KitRow[]; onClose: () => void; onCreated: (id: string, msg: string) => void
   /** Mở từ Danh mục học liệu (không đi theo chương trình → môn): chọn chương trình, môn ngay trong hộp */
   pickPlace?: boolean
+  /** training: thêm bài giảng tập huấn (training_lessons) gắn chương trình tập huấn và nội dung (unitOf tìm theo tên) */
+  store?: KitStore; unitOf?: (pid: string, label: string) => string | null
 }) {
+  const tr = store === 'training'
+  const L = (x: string) => (tr ? x.replace(/bài học/g, 'bài giảng').replace(/Bài học/g, 'Bài giảng') : x)
   const [step, setStep] = useState<'menu' | 'upload' | 'blank' | 'template' | 'check' | 'copy'>('menu')
   const [srcId, setSrcId] = useState('')
   const [pid, setPid] = useState(program.id)
@@ -81,13 +85,13 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
     setBusy('')
   }
   async function save(parsed: Parsed[], title: string) {
-    if (!title.trim()) return setErr('Nhập tên bài học.')
+    if (!title.trim()) return setErr(L('Nhập tên bài học.'))
     setErr(''); setBusy('Đang lưu…')
     try {
       const docs = []
       for (const p of parsed.filter(p => p.draft.source !== 'xlsx')) { setBusy('Đang tải lên ' + p.file.name + '…'); docs.push(await fileDoc(orgId, p.file, p.draft)) }
       const existing = same(title)
-      const r = await saveNewKit({ orgId, program: { id: prog.id, ct_code: prog.ct_code }, progSubject: subj, title, unitId: preset?.unitId ?? null,
+      const r = await saveNewKit({ orgId, program: { id: prog.id, ct_code: prog.ct_code }, progSubject: subj, title, unitId: preset?.unitId ?? unitOf?.(prog.id, subj) ?? null, store,
         parsed: parsed.map(p => p.res), docs, existing })
       setBusy('')
       if (r.error) return setErr(r.error)
@@ -100,23 +104,23 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
     <label className="lfile"><span className="filebtn">{label}</span><small>{chosen ?? 'Chưa chọn tệp'}</small>
       <input type="file" hidden accept={accept} disabled={!!busy} onChange={e => { const f = e.target.files?.[0]; if (f) on(f); e.target.value = '' }} /></label>
   )
-  const head = pickPlace ? 'Thêm bài học' : 'Tạo bài học'
+  const head = pickPlace ? L('Thêm bài học') : L('Tạo bài học')
   const place = <div className="formgrid lgrid2">
-    <label className="field"><span>Chương trình</span>
+    <label className="field"><span>{tr ? 'Chương trình tập huấn' : 'Chương trình'}</span>
       <select value={pid} onChange={e => { setPid(e.target.value); setSubj(subjectsOf(e.target.value)[0] ?? '') }}>
         {programs.map(p => <option key={p.id} value={p.id}>{p.code ? p.code + ' · ' : ''}{p.title}</option>)}</select></label>
-    <label className="field"><span>Môn học trong chương trình</span>
+    <label className="field"><span>{tr ? 'Nội dung trong chương trình' : 'Môn học trong chương trình'}</span>
       <select value={subj} onChange={e => setSubj(e.target.value)}>{(subs.includes(subj) || !subj ? subs : [subj, ...subs]).map(s => <option key={s}>{s}</option>)}</select></label>
   </div>
   const status = <>{busy && <p className="sub" role="status">{busy}</p>}{err && <p className="msg">{err}</p>}</>
 
   if (step === 'menu') return (
-    <Modal title={head} sub={pickPlace ? 'Chọn chương trình, môn rồi chọn cách nhập. Bài học mới là bản nháp, chưa phát hành.' : crumb} onClose={onClose} foot={<button type="button" onClick={onClose}>Hủy</button>}>
+    <Modal title={head} sub={pickPlace ? (tr ? 'Chọn chương trình tập huấn, nội dung rồi chọn cách nhập. Bài giảng mới là bản nháp, chưa phát hành.' : 'Chọn chương trình, môn rồi chọn cách nhập. Bài học mới là bản nháp, chưa phát hành.') : crumb} onClose={onClose} foot={<button type="button" onClick={onClose}>Hủy</button>}>
       {pickPlace && place}
       <div className="lways">
         {([['upload', 'Tải giáo án từ nguồn', 'Tệp Word (.docx), bài giảng PowerPoint. Hệ thống tách thành bộ học liệu 5 thẻ.'],
-           ['blank', 'Tự tạo bài học', 'Mở trang bài học trống: có sẵn khung 5 thẻ để điền trực tiếp.'],
-           ['copy', 'Sao chép từ bài học đã có', 'Chọn một bài học có sẵn, hệ thống chép toàn bộ nội dung 5 thẻ sang bài mới để chỉnh sửa riêng.'],
+           ['blank', L('Tự tạo bài học'), L('Mở trang bài học trống: có sẵn khung 5 thẻ để điền trực tiếp.')],
+           ['copy', L('Sao chép từ bài học đã có'), L('Chọn một bài học có sẵn, hệ thống chép toàn bộ nội dung 5 thẻ sang bài mới để chỉnh sửa riêng.')],
            ['template', 'Không có giáo án? Dùng file mẫu', 'Tải file Excel mẫu (5 sheet), điền rồi tải lên để hệ thống tự điền 5 thẻ.']] as const).map(([k, t, d], i) =>
           <button key={k} type="button" className="lway" onClick={() => setStep(k)}><i>{i + 1}</i><span><b>{t}</b><small>{d}</small></span></button>)}
       </div>
@@ -127,10 +131,10 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
     const src = kits.find(k => k.id === srcId)
     const pname = (id: string | null) => { const p = programs.find(x => x.id === id); return p ? (p.code || p.title) : 'Chưa gắn chương trình' }
     async function doCopy() {
-      if (!src) return setErr('Chọn bài học muốn sao chép.')
-      if (!name.trim()) return setErr('Nhập tên bài học mới.')
+      if (!src) return setErr(L('Chọn bài học muốn sao chép.'))
+      if (!name.trim()) return setErr(L('Nhập tên bài học mới.'))
       setErr(''); setBusy('Đang sao chép…')
-      const r = await copyKit({ orgId, src, title: name, program: { id: prog.id, ct_code: prog.ct_code }, progSubject: subj })
+      const r = await copyKit({ orgId, src, title: name, program: { id: prog.id, ct_code: prog.ct_code }, progSubject: subj, unitId: unitOf?.(prog.id, subj) ?? null, store })
       setBusy('')
       if (r.error) return setErr(r.error)
       onCreated(r.id!, `Đã sao chép “${src.title}” thành bài “${name.trim()}”. Chỉnh sửa từng thẻ rồi chốt.`)
@@ -138,14 +142,14 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
     return (
       <Modal title={head} sub={crumb} onClose={onClose}
         foot={<><button type="button" onClick={() => setStep('menu')}>← Quay lại</button>
-          <button type="button" className="primary" disabled={!!busy || !src || !name.trim()} onClick={doCopy}>Sao chép và mở bài học</button></>}>
-        <label className="field"><span>Bài học gốc</span>
+          <button type="button" className="primary" disabled={!!busy || !src || !name.trim()} onClick={doCopy}>{L('Sao chép và mở bài học')}</button></>}>
+        <label className="field"><span>{L('Bài học gốc')}</span>
           <select value={srcId} onChange={e => { const k = kits.find(x => x.id === e.target.value); setSrcId(e.target.value); if (k) setName(`${k.title} (bản sao)`) }}>
-            <option value="">— Chọn bài học có sẵn —</option>
+            <option value="">{L('— Chọn bài học có sẵn —')}</option>
             {[...kits].sort((a, b) => a.title.localeCompare(b.title, 'vi')).map(k => <option key={k.id} value={k.id}>{k.title} · {pname(k.program_id)}{kitSubject(k) ? ' · ' + kitSubject(k) : ''}{k.status === 'published' ? '' : ' (nháp)'}</option>)}</select></label>
-        <label className="field"><span>Tên bài học mới</span><input value={name} onChange={e => setName(e.target.value)} placeholder="Tên bài học mới" /></label>
+        <label className="field"><span>{L('Tên bài học mới')}</span><input value={name} onChange={e => setName(e.target.value)} placeholder={L('Tên bài học mới')} /></label>
         <p className="sub">Bài mới thuộc chương trình, môn đang chọn ({crumb}), là bản nháp và chưa chốt thẻ nào. Sửa bài mới không ảnh hưởng bài gốc.</p>
-        {same(name) && <p className="sub">Đã có bài học cùng tên trong môn này, nên đặt tên khác.</p>}
+        {same(name) && <p className="sub">{L('Đã có bài học cùng tên trong môn này, nên đặt tên khác.')}</p>}
         {status}
       </Modal>
     )
@@ -154,10 +158,10 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
   if (step === 'blank') return (
     <Modal title={head} sub={crumb} onClose={onClose}
       foot={<><button type="button" onClick={() => setStep('menu')}>← Quay lại</button>
-        <button type="button" className="primary" disabled={!!busy} onClick={() => save([], name)}>Tạo bài học trống</button></>}>
-      <label className="field"><span>Tên bài học</span><input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Cột đèn giao thông xoay"
+        <button type="button" className="primary" disabled={!!busy} onClick={() => save([], name)}>{L('Tạo bài học trống')}</button></>}>
+      <label className="field"><span>{L('Tên bài học')}</span><input autoFocus value={name} onChange={e => setName(e.target.value)} placeholder="Ví dụ: Cột đèn giao thông xoay"
         onKeyDown={e => { if (e.key === 'Enter') save([], name) }} /></label>
-      {same(name) && <p className="sub">Đã có bài học cùng tên trong môn này: tạo sẽ mở lại bài đó, không tạo bản trùng.</p>}
+      {same(name) && <p className="sub">{L('Đã có bài học cùng tên trong môn này: tạo sẽ mở lại bài đó, không tạo bản trùng.')}</p>}
       {status}
     </Modal>
   )
@@ -167,19 +171,19 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
       const k = xlsx.res.kit, c = kitCounts(k), t = xlsx.res.title || preset?.title || ''
       const infoN = [xlsx.res.title, xlsx.res.subject, xlsx.res.grades, xlsx.res.periods, k.info.reqs.length, k.info.description].filter(Boolean).length
       const rows: [string, string, string][] = [
-        ['Thẻ 01', 'Thông tin bài học', `${infoN} mục thông tin`],
-        ['Thẻ 02', 'Nội dung bài học', `${c.sessions} buổi · ${c.acts} hoạt động · ${c.steps} bước`],
+        ['Thẻ 01', L('Thông tin bài học'), `${infoN} mục thông tin`],
+        ['Thẻ 02', L('Nội dung bài học'), `${c.sessions} buổi · ${c.acts} hoạt động · ${c.steps} bước`],
         ['Thẻ 03', 'Link tài liệu', `${c.docs} tài liệu`],
         ['Thẻ 04', 'Định mức vật tư', `${c.supplies} nguyên vật liệu · ${c.tools} công cụ, thiết bị`],
         ['Thẻ 05', 'Kho hoạt động', `${c.bank} hoạt động`]]
       return (
         <Modal title="Kiểm tra file" sub={xlsx.file.name} onClose={onClose}
           foot={<><button type="button" onClick={() => { setXlsx(null); setStep('template') }}>Hủy</button>
-            <button type="button" className="primary" disabled={!!busy || !t} onClick={() => save([xlsx], t)}>Tạo bài học và điền</button></>}>
+            <button type="button" className="primary" disabled={!!busy || !t} onClick={() => save([xlsx], t)}>{L('Tạo bài học và điền')}</button></>}>
           <div className="lcheck">{rows.map(([a, b, n]) => <div key={a}><span><b>{a}</b> · {b}</span><span className="distchip2 good">{n}</span></div>)}</div>
           {!t && <p className="lwarn">Sheet “01 Thông tin” chưa có tên bài học. Điền dòng “Tên bài học” rồi tải lại.</p>}
           {k.issues.length > 0 && <ul className="lwarn">{k.issues.map((w, i) => <li key={i}>{w}</li>)}</ul>}
-          {same(t) && <p className="sub">Đã có bài học cùng tên: lưu sẽ cập nhật bài đó, không tạo bản trùng.</p>}
+          {same(t) && <p className="sub">{L('Đã có bài học cùng tên: lưu sẽ cập nhật bài đó, không tạo bản trùng.')}</p>}
           {status}
         </Modal>
       )
@@ -204,7 +208,7 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
   const issues = [...(docx?.res.kit.issues ?? []), ...(pptx?.res.kit.issues ?? [])]
   const dup = same(title)
   return (
-    <Modal wide title="Tài liệu bài học" sub="Tải giáo án Word để hệ thống tách thành bộ học liệu 5 thẻ. Dữ liệu chỉ lưu khi bấm lưu, không tự phát hành." onClose={onClose}
+    <Modal wide title={L('Tài liệu bài học')} sub="Tải giáo án Word để hệ thống tách thành bộ học liệu 5 thẻ. Dữ liệu chỉ lưu khi bấm lưu, không tự phát hành." onClose={onClose}
       foot={<><button type="button" onClick={onClose}>Hủy</button>
         <button type="button" className="primary" disabled={!!busy || !(docx || pptx)} onClick={() => save([docx, pptx].filter(Boolean) as Parsed[], title)}>Lưu bản tách nháp</button></>}>
       <div className="lsrc" role="tablist">
@@ -220,7 +224,7 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
       {docx && <ParsedCard p={docx} />}
       {pptx && <ParsedCard p={pptx} />}
       {issues.length > 0 && <div className="lwarn"><b>{issues.length} điểm cần kiểm tra</b><ul>{issues.map((w, i) => <li key={i}>{w}</li>)}</ul></div>}
-      {dup && <p className="sub">Đã có bài học cùng tên: <b>{dup.title}</b>. Lưu sẽ cập nhật bài học đó, không tạo bản trùng.</p>}
+      {dup && <p className="sub">{L('Đã có bài học cùng tên: ')}<b>{dup.title}</b>{L('. Lưu sẽ cập nhật bài học đó, không tạo bản trùng.')}</p>}
       {(docx || pptx) && <details className="lrawwrap"><summary>Xem toàn bộ văn bản gốc đã đọc</summary>{docx && <RawText d={docx.draft} />}{pptx && <RawText d={pptx.draft} />}</details>}
       {status}
     </Modal>

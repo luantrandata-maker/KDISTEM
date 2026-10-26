@@ -1893,3 +1893,19 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
 /* 099: Quản trị hệ thống chọn đơn vị thao tác ngay trong trang */
 .orgscope{display:grid;gap:6px;margin-bottom:14px;padding:10px 14px;border-color:var(--accent,#1f5fbf);background:var(--soft)}
 .orgscopebar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.orgscopebar input{flex:0 1 200px;min-width:140px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--card)}.orgscopebar select{flex:1 1 280px;min-width:0;max-width:520px}
+/* Kế hoạch tập huấn theo bước (101) */
+.tppick{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}
+@media(max-width:1000px){.tppick{grid-template-columns:1fr}}
+.tppick .distprogcard.off{opacity:.75}
+.diststeps.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media(max-width:900px){.diststeps.four{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.diststeps.four{grid-template-columns:1fr}}
+.tpinfo{margin:0 0 12px}.tpinfo summary{cursor:pointer}
+.tpschedcfg .field.wide{flex:1 1 240px}.tpschedcfg .field.wide input{width:100%}
+.tpschedopts{flex-wrap:wrap;gap:8px 16px;margin:8px 0}.tpschedopts .tpcheck{flex:0 0 auto}
+.tpschedtable td{vertical-align:middle}.tpschedtable input[type=date]{width:140px}
+.tptime{display:inline-flex;gap:4px;align-items:center}.tptime input{width:118px}
+.distcards.tpcards{grid-template-columns:1fr}
+.tpdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.tpschedtable{min-width:860px}.tpschedtable td:nth-child(2){min-width:140px}
+.tllist td:nth-child(3){white-space:nowrap}@media (max-width:600px){.tllist{min-width:760px}}

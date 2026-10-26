@@ -10,6 +10,8 @@ import { CARDS, DOC_TYPE, ACT_LABEL, actTitles, suggestBank, cardCsv, cardFromRo
   type KitData, type KBank, type KInfo, type KSession, type KDoc, type KMat, type Subj, type Who, type ParseResult } from './model'
 import { KIT_SEL, chotCard, errMsg, fileDoc, fullContent, loadActivities, loadCatalog, parseFile, publishKit, type BankAct, type KitRow } from './save'
 import { Modal, type ProgRef } from './Create'
+import { MultiSelect } from '../../../components/MultiSelect'
+import { GradeChecks, SubjectPicker, gradeList } from '../../../components/Pickers'
 
 type Fields = { title: string; subject: string; grades: string; periods: string; program_id: string; prog_subject: string }
 const STATUS: Record<KitRow['status'], [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], archived: ['Đã thu hồi', 'off'] }
@@ -291,17 +293,19 @@ function InfoEdit({ info, set, f, setF, programs, subjectsOf }: {
   const upd = (t: typeof txt) => { setTxt(t); set({ ...info, main: { ...info.main, reqs: toLines(t.main) }, integrated: fromBlocks(t.integ), reqs: toLines(t.reqs) }) }
   return <div className="lform">
     <label className="field"><span>Tên bài học</span><input autoFocus value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></label>
-    <label className="field"><span>Môn</span><input value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} /></label>
-    <label className="field"><span>Khối</span><input value={f.grades} onChange={e => setF({ ...f, grades: e.target.value })} placeholder="Ví dụ: 1 hoặc 1,2" /></label>
+    <div className="field"><span>Môn</span><SubjectPicker value={f.subject} onChange={v => setF({ ...f, subject: v })} extra={subs} emptyLabel="— Chọn môn —" /></div>
+    <div className="field"><span>Khối</span><GradeChecks value={gradeList(f.grades)} onChange={g => setF({ ...f, grades: [...g].sort((a, b) => a - b).join(',') })} placeholder="Tick chọn khối…" /></div>
     <label className="field"><span>Thời lượng</span><input value={f.periods} onChange={e => setF({ ...f, periods: e.target.value })} placeholder="Ví dụ: 2 tiết" /></label>
-    <label className="field"><span>Chương trình</span>
-      <select value={f.program_id} onChange={e => setF({ ...f, program_id: e.target.value, prog_subject: subjectsOf(e.target.value)[0] ?? '' })}>
-        <option value="">— Không gắn —</option>{programs.map(p => <option key={p.id} value={p.id}>{p.code ? p.code + ' · ' : ''}{p.title}</option>)}</select></label>
-    <label className="field"><span>Môn học trong chương trình</span>
-      <select value={f.prog_subject} onChange={e => setF({ ...f, prog_subject: e.target.value })}>
-        {(f.prog_subject && !subs.includes(f.prog_subject) ? [f.prog_subject, ...subs] : subs).map(s => <option key={s}>{s}</option>)}</select></label>
+    <div className="field"><span>Chương trình</span>
+      <MultiSelect value={f.program_id ? [f.program_id] : []} placeholder="— Không gắn — (gõ để tìm)" ariaLabel="Chương trình" empty="Chưa có chương trình."
+        options={programs.map(p => [p.id, (p.code ? p.code + ' · ' : '') + p.title] as [string, string])}
+        onChange={v => { const pid = v[v.length - 1] ?? ''; setF({ ...f, program_id: pid, prog_subject: pid === f.program_id ? f.prog_subject : subjectsOf(pid)[0] ?? '' }) }} /></div>
+    <div className="field"><span>Môn học trong chương trình</span>
+      <MultiSelect value={f.prog_subject ? [f.prog_subject] : []} placeholder={f.program_id ? 'Chọn môn…' : 'Chọn chương trình trước'} ariaLabel="Môn học trong chương trình"
+        disabled={!f.program_id} empty="Chương trình chưa có môn." options={subs.map(s => [s, s] as [string, string])}
+        onChange={v => setF({ ...f, prog_subject: v[v.length - 1] ?? '' })} /></div>
     <Area label="Mô tả bài học" value={info.description} set={v => set({ ...info, description: v })} />
-    <label className="field"><span>Môn học chủ đạo</span><input value={info.main.name} onChange={e => set({ ...info, main: { ...info.main, name: e.target.value } })} /></label>
+    <div className="field"><span>Môn học chủ đạo</span><SubjectPicker value={info.main.name} onChange={v => set({ ...info, main: { ...info.main, name: v } })} extra={subs} ariaLabel="Môn học chủ đạo" /></div>
     <Area label="Yêu cầu của môn chủ đạo (mỗi dòng một yêu cầu)" value={txt.main} set={v => upd({ ...txt, main: v })} ph={'Nêu được vị trí trong không gian\nVận dụng được vào thiết kế mô hình'} />
     <Area label="Môn học tích hợp" rows={5} value={txt.integ} set={v => upd({ ...txt, integ: v })} ph={'Khoa học\nNêu được tác dụng của đèn hiệu\n\nCông nghệ\nChế tạo được mô hình'}
       hint="Mỗi môn một khối: dòng đầu là tên môn, các dòng sau là yêu cầu. Các môn cách nhau một dòng trống." />

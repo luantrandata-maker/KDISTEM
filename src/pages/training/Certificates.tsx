@@ -13,7 +13,7 @@ type Cert = { id: string; code: string | null; status: 'pending' | 'issued' | 'r
   program_titles: string | null; hours: number | null; can_manage: boolean; created_at: string }
 type Tpl = { id: string; name: string; title: string; body: string; issuer_name: string | null; signer_name: string | null; signer_title: string | null
   logo_url: string | null; valid_months: number | null; is_default: boolean }
-type Payload = { code: string | null; status: string; issued_on: string | null; expires_on: string | null; revoked_reason: string | null; token?: string
+export type Payload = { code: string | null; status: string; issued_on: string | null; expires_on: string | null; revoked_reason: string | null; token?: string
   hours: number | null; programs: string | null; teacher: string; school: string | null; plan: string; plan_code: string | null; plan_org: string | null; template: Tpl | null }
 type F = 'all' | 'pending' | 'issued' | 'revoked'
 

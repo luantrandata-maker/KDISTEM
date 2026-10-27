@@ -37,7 +37,9 @@ export function useOrgName() {
 
 /** Tỉnh của một đơn vị: cấp trên gần nhất loại Tỉnh; không có thì Sở / Phòng cao nhất (vd. Sở GD&ĐT không gắn tỉnh) */
 export function useProvinceOf() {
-  const all = useAllMode()
+  // Ngoài màn "mọi đơn vị" vẫn dùng được (danh sách đơn vị đọc được theo quyền)
+  const ctx = useAllMode(), loaded = useAllOrgs()
+  const all = ctx ?? loaded
   return useMemo(() => {
     const byId = new Map((all ?? []).map(o => [o.id, o]))
     return (id?: string | null): ScopeOrg | null => {

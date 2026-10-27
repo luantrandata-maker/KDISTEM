@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { NumMultiSelect } from '../components/MultiSelect'
+import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../components/MultiFilters'
+import { useProvinceOf } from '../components/OrgScope'
 import { supabase } from '../lib/supabase'
 import { Tiles } from './department/charts'
 import { BOOK_STATUS, KIND, LessonEditor, REASONS, errText, useCanEdit, useReasonDialog, type Book, type PpctMode, type ReasonCode } from './curriculum'
@@ -834,7 +836,7 @@ export function ClassCoverage({ orgId, years }: { orgId: string | null; years?: 
 
 // ================= Kế hoạch so với thực hiện (074) =================
 type WeekRow = { week: number; month: string | null; term: number | null; planned: number; taught: number }
-type ProgRow = { school: string; area: string | null; class_name: string; grade: number; subject: string; book_id: string; book_title: string; total: number; week: number | null;
+type ProgRow = { org_id: string; class_id: string; program_id: string | null; school: string; area: string | null; class_name: string; grade: number; subject: string; book_id: string; book_title: string; total: number; week: number | null;
   planned: number; reached: number; taught: number; gap: number; missed: number; no_evidence: number }
 
 // Biểu đồ đường: tiết kế hoạch cộng dồn (nét đứt) và tiết đã dạy cộng dồn (nét liền) theo tuần học
@@ -876,6 +878,32 @@ export function PlanVsActual({ orgId, mode = 'school' }: { orgId: string | null;
   const [alert, setAlert] = useState<{ lag_threshold: number; enabled: boolean }>({ lag_threshold: 3, enabled: true })
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const scope = mode === 'school' ? orgId : null
+  // Sở / KDI: lọc chọn nhiều theo tỉnh, trường, chương trình, khối, lớp (108); danh sách lựa chọn lấy từ tiến độ lớp × môn
+  const f = useMultiFilters(), provOf = useProvinceOf()
+  const [pool, setPool] = useState<ProgRow[]>([])
+  const [progNames, setProgNames] = useState<Map<string, string>>(new Map())
+  useEffect(() => {
+    if (mode === 'school') return
+    supabase.rpc('curriculum_progress', { p_org: null }).then(({ data }) => {
+      const rs = (data as ProgRow[]) ?? []; setPool(rs)
+      const ids = [...new Set(rs.map(r => r.program_id).filter(Boolean))] as string[]
+      if (ids.length) supabase.from('edu_programs').select('id, title').in('id', ids).then(({ data: ps }) => setProgNames(new Map(((ps ?? []) as { id: string; title: string }[]).map(p => [p.id, p.title]))))
+    })
+  }, [mode])
+  const fitP = (r: ProgRow, skip?: string) => (skip === 'prov' || f.has('prov', provOf(r.org_id)?.id)) && (skip === 'school' || f.has('school', r.org_id))
+    && (skip === 'prog' || f.has('prog', r.program_id)) && (skip === 'grade' || f.has('grade', r.grade)) && (skip === 'cls' || f.has('cls', r.class_id))
+  const picked = pool.filter(r => fitP(r))
+  const provs = opts(pool.map(r => { const p = provOf(r.org_id); return [p?.id, p?.name] }))
+  const defs: FilterDef[] = [
+    { key: 'prov', label: 'Tỉnh', placeholder: 'Mọi tỉnh', options: provs, hidden: provs.length < 2 },
+    { key: 'school', label: 'Trường', placeholder: 'Mọi trường', options: opts(pool.filter(r => fitP(r, 'school')).map(r => [r.org_id, r.school])) },
+    { key: 'prog', label: 'Chương trình', placeholder: 'Mọi chương trình', options: opts(pool.filter(r => fitP(r, 'prog')).map(r => [r.program_id, progNames.get(r.program_id ?? '') ?? 'Chương trình khác'])) },
+    { key: 'grade', label: 'Khối', placeholder: 'Mọi khối', options: opts(pool.filter(r => fitP(r, 'grade')).map(r => [r.grade, `Khối ${r.grade}`])) },
+    { key: 'cls', label: 'Lớp', placeholder: 'Mọi lớp', options: opts(pool.filter(r => fitP(r, 'cls')).map(r => [r.class_id, `${r.class_name} · ${r.school}`])) },
+  ]
+  const fKey = mode === 'school' ? '' : JSON.stringify(f.vals)
+  const arr = (k: string) => f.get(k).length ? f.get(k) : null
+  const orgsOf = () => f.get('prov').length || f.get('school').length ? [...new Set(picked.map(r => r.org_id))] : null
 
   useEffect(() => {
     if (mode !== 'school' || !orgId) return
@@ -890,18 +918,23 @@ export function PlanVsActual({ orgId, mode = 'school' }: { orgId: string | null;
   }, [orgId, mode])
   useEffect(() => {
     setRows(null)
-    supabase.rpc('curriculum_weekly', { p_org: scope, p_class: classId || null, p_grade: grade || null }).then(({ data, error }) => {
+    const multi = mode !== 'school' && f.active
+    const orgs = multi ? orgsOf() : null
+    const req = multi ? supabase.rpc('curriculum_weekly_f', { p_orgs: orgs, p_grades: arr('grade')?.map(Number) ?? null, p_subjects: null, p_programs: arr('prog'), p_classes: arr('cls') })
+      : supabase.rpc('curriculum_weekly', { p_org: scope, p_class: classId || null, p_grade: grade || null })
+    req.then(({ data, error }) => {
       if (error) setMsg([errText(error.message), true])
       setRows((data as WeekRow[]) ?? [])
     })
     let q = supabase.from('curriculum_changes').select('reason_code, action').in('action', ['update', 'delete', 'insert', 'import', 'reschedule', 'shift', 'swap', 'makeup'])
     if (scope) q = q.eq('org_id', scope)
+    else if (orgs) q = q.in('org_id', orgs.length ? orgs : ['00000000-0000-0000-0000-000000000000'])
     q.limit(5000).then(({ data }) => {
       const m = new Map<string, number>()
       for (const r of (data as { reason_code: string | null }[]) ?? []) m.set(r.reason_code ?? 'none', (m.get(r.reason_code ?? 'none') ?? 0) + 1)
       setReasons(m)
     })
-  }, [scope, classId, grade])
+  }, [scope, classId, grade, fKey])
 
   const rs = rows ?? []
   const upTo = cur ?? (rs.some(r => r.taught > 0) ? Math.max(...rs.filter(r => r.taught > 0).map(r => r.week)) : null)
@@ -927,7 +960,8 @@ export function PlanVsActual({ orgId, mode = 'school' }: { orgId: string | null;
   async function exportReport() {
     const { data, error } = await supabase.rpc('curriculum_progress', { p_org: scope })
     if (error) return setMsg([errText(error.message), true])
-    const list = ((data as ProgRow[]) ?? []).filter(r => (!grade || r.grade === grade))
+    const keys = mode !== 'school' && f.active ? new Set(picked.map(r => r.class_id + ':' + r.book_id)) : null
+    const list = ((data as ProgRow[]) ?? []).filter(r => (!grade || r.grade === grade) && (!keys || keys.has(r.class_id + ':' + r.book_id)))
     const { data: ch } = await supabase.from('curriculum_changes').select('book_id').in('book_id', [...new Set(list.map(r => r.book_id))])
     const cnt = new Map<string, number>(); for (const c of (ch as { book_id: string }[]) ?? []) cnt.set(c.book_id, (cnt.get(c.book_id) ?? 0) + 1)
     downloadXlsx('Bao-cao-thuc-hien-PPCT', [
@@ -949,7 +983,7 @@ export function PlanVsActual({ orgId, mode = 'school' }: { orgId: string | null;
             <select value={grade} onChange={e => { setGrade(Number(e.target.value)); setClassId('') }} aria-label="Khối"><option value={0}>Cả trường</option>{grades.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>
             <select value={classId} onChange={e => setClassId(e.target.value)} aria-label="Lớp"><option value="">Mọi lớp</option>{classes.filter(c => !grade || c.grade === grade).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
           </>}
-          {mode !== 'school' && <select value={grade} onChange={e => setGrade(Number(e.target.value))} aria-label="Khối"><option value={0}>Mọi khối</option>{range(1, 12).map(g => <option key={g} value={g}>Khối {g}</option>)}</select>}
+          {mode !== 'school' && <MultiFilters defs={defs} f={f} />}
           <button onClick={exportReport}>Xuất báo cáo học kỳ</button>
         </div>
       </div>

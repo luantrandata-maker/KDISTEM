@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { MultiSelect } from '../components/MultiSelect'
 import { supabase } from '../lib/supabase'
-import { OrgFilter, OrgPick, useAllMode } from '../components/OrgScope'
+import { OrgFilter, OrgPick, useAllMode, useProvinceOf } from '../components/OrgScope'
+import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../components/MultiFilters'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
@@ -574,17 +575,19 @@ export function progressTone(p: Pick<Progress, 'taught' | 'gap' | 'total'>): { l
 export function CurriculumProgress({ orgId, mode = 'school' }: { orgId: string | null; mode?: PpctMode }) {
   const [rows, setRows] = useState<Progress[] | null>(null)
   const [err, setErr] = useState('')
-  const [school, setSchool] = useState('')
-  const [grade, setGrade] = useState(0)
-  const [subject, setSubject] = useState('')
-  const [state, setState] = useState<'' | 'late' | 'ok' | 'none' | 'missed' | 'evidence'>('')
+  const f = useMultiFilters(), provOf = useProvinceOf()
+  const [progNames, setProgNames] = useState<Map<string, string>>(new Map())
   const [pickView, setView] = useState<'class' | 'school' | 'area'>(mode === 'school' ? 'class' : 'school')
   const [detail, setDetail] = useState<Progress | null>(null)
   const [busy, setBusy] = useState(false)
   useEffect(() => {
     supabase.rpc('curriculum_progress', { p_org: null }).then(({ data, error }) => {
       if (error) setErr(errText(error.message))
-      setRows((data as Progress[]) ?? [])
+      const rs = (data as Progress[]) ?? []
+      setRows(rs)
+      const ids = [...new Set(rs.map(r => r.program_id).filter(Boolean))] as string[]
+      if (ids.length) supabase.from('edu_programs').select('id, title').in('id', ids).then(({ data: ps }) =>
+        setProgNames(new Map(((ps ?? []) as { id: string; title: string }[]).map(p => [p.id, p.title]))))
     })
   }, [orgId])
   if (err) return <p className="msg">{err}</p>
@@ -596,11 +599,27 @@ export function CurriculumProgress({ orgId, mode = 'school' }: { orgId: string |
   const view = multi ? pickView : 'class'
   const grades = [...new Set(rows.map(r => r.grade))].sort((a, b) => a - b)
   const subjects = [...new Set(rows.map(r => r.subject))].sort((a, b) => a.localeCompare(b, 'vi'))
-  const base = rows.filter(r => (!school || r.org_id === school) && (!grade || r.grade === grade) && (!subject || r.subject === subject))
+  const fit = (r: Progress, skip?: string) => (skip === 'prov' || f.has('prov', provOf(r.org_id)?.id)) && (skip === 'school' || f.has('school', r.org_id))
+    && f.has('prog', r.program_id) && f.has('grade', r.grade) && f.has('subj', r.subject)
+  const base = rows.filter(r => fit(r))
+  const states = f.get('state')
+  const stateOk = (r: Progress) => !states.length || states.some(st => st === 'late' ? r.taught > 0 && r.gap >= GAP_WARN : st === 'ok' ? r.taught > 0 && r.gap < GAP_WARN
+    : st === 'missed' ? r.missed > 0 : st === 'evidence' ? r.no_evidence > 0 : !r.taught)
+  const provs = opts(rows.map(r => { const p = provOf(r.org_id); return [p?.id, p?.name] }))
+  const defs: FilterDef[] = [
+    { key: 'prov', label: 'Tỉnh', placeholder: 'Mọi tỉnh', options: provs, hidden: !multi || provs.length < 2 },
+    { key: 'school', label: 'Trường', placeholder: `Mọi trường (${schools.length})`, options: opts(rows.filter(r => fit(r, 'school')).map(r => [r.org_id, r.school])), hidden: !multi,
+      onPick: v => { if (v.length === 1) setView('class') } },
+    { key: 'prog', label: 'Chương trình', placeholder: 'Mọi chương trình', options: opts(rows.map(r => [r.program_id, progNames.get(r.program_id ?? '') ?? 'Chương trình khác'])) },
+    { key: 'subj', label: 'Môn', placeholder: 'Mọi môn', options: subjects.map(x => [x, x] as [string, string]) },
+    { key: 'grade', label: 'Khối', placeholder: 'Mọi khối', options: grades.map(g => [String(g), `Khối ${g}`] as [string, string]) },
+    { key: 'state', label: 'Tình trạng', placeholder: 'Mọi tình trạng', hidden: view !== 'class', options: [['late', 'Chậm tiến độ'], ['ok', 'Đúng / vượt tiến độ'],
+      ['missed', 'Có nội dung chưa hoàn thành'], ['evidence', 'Thiếu minh chứng'], ['none', 'Chưa ghi nhận']] },
+  ]
+  const state = states.length === 1 ? states[0] : ''
   const tracked = base.filter(r => r.taught > 0 && r.total > 0)
   const late = tracked.filter(r => r.gap >= GAP_WARN)
-  const shown = base.filter(r => !state || (state === 'late' ? r.taught > 0 && r.gap >= GAP_WARN : state === 'ok' ? r.taught > 0 && r.gap < GAP_WARN
-    : state === 'missed' ? r.missed > 0 : state === 'evidence' ? r.no_evidence > 0 : !r.taught))
+  const shown = base.filter(stateOk)
     .sort((a, b) => (state === 'late' ? b.gap - a.gap : state === 'missed' ? b.missed - a.missed : state === 'evidence' ? b.no_evidence - a.no_evidence : 0))
   const week = rows.find(r => r.week)?.week
   const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0)
@@ -625,10 +644,12 @@ export function CurriculumProgress({ orgId, mode = 'school' }: { orgId: string |
   }
   async function exportMissed() {
     setBusy(true)
-    const { data, error } = await supabase.rpc('curriculum_lesson_status', { p_class: null, p_org: school || null, p_only_missed: true })
+    const pickSchools = f.get('school')
+    const { data, error } = await supabase.rpc('curriculum_lesson_status', { p_class: null, p_org: pickSchools.length === 1 ? pickSchools[0] : null, p_only_missed: true })
     setBusy(false)
     if (error) return setErr(errText(error.message))
-    const list = ((data as LessonRow[]) ?? []).filter(r => (!grade || r.grade === grade) && (!subject || r.subject === subject))
+    const keys = new Set(base.map(r => r.class_id + ':' + r.book_id))
+    const list = ((data as LessonRow[]) ?? []).filter(r => keys.has(r.class_id + ':' + r.book_id))
     if (!list.length) return alert('Không có nội dung chưa hoàn thành.')
     downloadXlsx('Noi-dung-chua-hoan-thanh', [
       ...(multi ? [{ key: 'sc', label: 'Trường', width: 28 }] : []), { key: 'c', label: 'Lớp' }, { key: 's', label: 'Môn', width: 18 }, { key: 'q', label: 'Tiết' },
@@ -655,13 +676,7 @@ export function CurriculumProgress({ orgId, mode = 'school' }: { orgId: string |
             <button className={view === 'school' ? 'on' : ''} onClick={() => setView('school')}>Theo trường</button>
             <button className={view === 'class' ? 'on' : ''} onClick={() => setView('class')}>Theo lớp</button>
           </div>}
-          {multi && <select value={school} onChange={e => { setSchool(e.target.value); if (e.target.value) setView('class') }} aria-label="Trường">
-            <option value="">Mọi trường ({schools.length})</option>{schools.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>}
-          <select value={grade} onChange={e => setGrade(Number(e.target.value))} aria-label="Khối"><option value={0}>Mọi khối</option>{grades.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>
-          <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
-          {view === 'class' && <select value={state} onChange={e => setState(e.target.value as any)} aria-label="Tình trạng">
-            <option value="">Mọi tình trạng</option><option value="late">Chậm tiến độ</option><option value="ok">Đúng / vượt tiến độ</option>
-            <option value="missed">Có nội dung chưa hoàn thành</option><option value="evidence">Thiếu minh chứng</option><option value="none">Chưa ghi nhận</option></select>}
+          <MultiFilters defs={defs} f={f} />
         </div>
         <div className="tools">
           {base.length > 0 && <button onClick={exportMissed} disabled={busy}>{busy ? 'Đang xuất…' : 'Xuất nội dung chưa hoàn thành'}</button>}
@@ -674,7 +689,7 @@ export function CurriculumProgress({ orgId, mode = 'school' }: { orgId: string |
         <div className="wrap"><table>
           <thead><tr><th>{view === 'area' ? 'Địa bàn' : 'Trường'}</th>{view === 'area' && <th>Số trường</th>}<th>Lớp × môn</th><th>Đã ghi nhận</th><th>Đúng tiến độ</th><th>Chậm ≥ {GAP_WARN} tiết</th><th>Chưa hoàn thành</th><th>Thiếu minh chứng</th></tr></thead>
           <tbody>{(view === 'area' ? byArea : bySchool).map(s => (
-            <tr key={s.id}><td><NameLink onClick={() => view === 'school' ? (setSchool(s.id), setView('class')) : setView('school')} title={view === 'school' ? 'Xem lớp' : 'Xem trường'}>{s.name}</NameLink></td>{view === 'area' && <td>{s.schools}</td>}<td>{s.n}</td><td>{s.tracked}</td>
+            <tr key={s.id}><td><NameLink onClick={() => view === 'school' ? (f.set('school', [s.id]), setView('class')) : setView('school')} title={view === 'school' ? 'Xem lớp' : 'Xem trường'}>{s.name}</NameLink></td>{view === 'area' && <td>{s.schools}</td>}<td>{s.n}</td><td>{s.tracked}</td>
               <td><div className="progress" style={{ width: 90, display: 'inline-block', verticalAlign: 'middle', marginRight: 6 }}><i style={{ width: pct(s.ok, s.tracked) + '%' }} /></div>{pct(s.ok, s.tracked)}%</td>
               <td>{s.late ? <span className="gpill bad">{s.late}</span> : 0}{s.worst >= GAP_WARN ? <small> · chậm nhất {s.worst} tiết</small> : null}</td>
               <td>{s.missed ? <span className="gpill warn">{s.missed} tiết</span> : 0}</td><td>{s.noev ? <span className="gpill warn">{s.noev} tiết</span> : 0}</td></tr>

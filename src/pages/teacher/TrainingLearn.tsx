@@ -24,6 +24,11 @@ type Full = { plan: { id: string; code: string | null; name: string; starts_on: 
   result?: { result: 'pending' | 'pass' | 'fail'; reason: string | null; product_score: number | null; comment: string | null } | null
   cert?: { id: string; code: string | null; status: 'pending' | 'issued' } | null }
 type Q = { id: string; stem: string; options: string[]; kind: 'single' | 'multi' | 'truefalse' }
+// 109: đề cuối khoá và kết quả theo khung đánh giá
+type Final = { program_id: string; title: string; count: number; minutes: number | null; pass: number | null; attempts: number; used: number; best: number | null; ready: boolean; open: string | null }
+type Metrics = { total: number | null; grade: string; suggest: 'pass' | 'fail'; scores: Record<'att' | 'tests' | 'final' | 'product', number | null>; weights: Record<'att' | 'tests' | 'final' | 'product', number> }
+type Finals = { finals: Final[]; metrics: Metrics; frame: { grades?: { label: string; min: number }[] } }
+const COMP: [keyof Metrics['scores'], string][] = [['att', 'Chuyên cần'], ['tests', 'Bài test nội dung'], ['final', 'Đề cuối khoá'], ['product', 'Sản phẩm']]
 
 export const PRODUCT_ST: Record<string, [string, string]> = {
   submitted: ['Đã nộp · chờ nhận xét', 'maintenance'], accepted: ['Đã nhận', 'active'], returned: ['Trả lại · cần sửa', 'inactive'],
@@ -85,16 +90,29 @@ function CourseView({ planId, onBack }: { planId: string; onBack: () => void }) 
   const [err, setErr] = useState('')
   const [sel, setSel] = useState<string | null>(null)
   const [testing, setTesting] = useState<Unit | null>(null)
-  const load = () => supabase.rpc('training_course', { p_plan: planId }).then(({ data, error }) => {
-    if (error) return setErr(error.message)
-    const f = data as Full
-    setErr(''); setC(f)
-    // Mặc định mở nội dung đầu tiên chưa xong
-    setSel(s => s ?? (f.units.find(u => !u.done && u.unlocked) ?? f.units[0])?.id ?? null)
-  })
+  const [fin, setFin] = useState<Finals | null>(null)
+  const [finalRun, setFinalRun] = useState<Final | null>(null)
+  const load = () => {
+    // Đề cuối khoá + kết quả theo khung (109); CSDL chưa có thì bỏ qua
+    supabase.rpc('training_course_finals', { p_plan: planId }).then(({ data, error }) => setFin(error ? null : data as Finals))
+    return supabase.rpc('training_course', { p_plan: planId }).then(({ data, error }) => {
+      if (error) return setErr(error.message)
+      const f = data as Full
+      setErr(''); setC(f)
+      // Mặc định mở nội dung đầu tiên chưa xong
+      setSel(s => s ?? (f.units.find(u => !u.done && u.unlocked) ?? f.units[0])?.id ?? null)
+    })
+  }
   useEffect(() => { load() }, [planId])
   if (!c) return <ElView back="Khoá tập huấn của tôi" onBack={onBack} title="Khoá tập huấn">{err ? <p className="sub" role="alert">{err}</p> : <p className="sub">Đang tải…</p>}</ElView>
-  if (testing) return <TestRun planId={planId} unit={testing} onBack={() => { setTesting(null); load() }} />
+  if (testing) return <TestRun back={testing.title} title={`Bài kiểm tra: ${testing.title}`}
+    sub={testing.test ? `${testing.test.count} câu · điểm đạt ${num(testing.test.pass)}/10` : undefined}
+    start={() => supabase.rpc('training_test_start', { p_plan: planId, p_unit: testing.id })}
+    send={(a, ans) => supabase.rpc('training_test_submit', { p_attempt: a, p_answers: ans })} onBack={() => { setTesting(null); load() }} />
+  if (finalRun) return <TestRun back={c.plan.name} title={finalRun.title}
+    sub={`${finalRun.count} câu${finalRun.pass != null ? ` · điểm đạt ${num(finalRun.pass)}/10` : ''}`}
+    start={() => supabase.rpc('training_final_start', { p_plan: planId, p_program: finalRun.program_id })}
+    send={(a, ans) => supabase.rpc('training_final_submit', { p_attempt: a, p_answers: ans })} onBack={() => { setFinalRun(null); load() }} />
 
   const u = c.units.find(x => x.id === sel) ?? null
   const done = c.units.filter(x => x.done).length
@@ -127,6 +145,22 @@ function CourseView({ planId, onBack }: { planId: string; onBack: () => void }) 
       <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
         {u && <UnitPanel key={u.id} planId={planId} u={u} onChange={load} onTest={() => setTesting(u)} onErr={setErr} />}
         {needProduct && <ProductPanel planId={planId} p={c.product} allDone={done === c.units.length} onChange={load} />}
+        {fin?.finals.map(f => <section key={f.program_id} className="panel tltest">
+          <div><b>📝 {f.title}</b><br /><small className="sub">{f.count} câu{f.minutes ? ` · ${f.minutes} phút` : ' · không giới hạn thời gian'}
+            {f.pass != null ? ` · điểm đạt ${num(f.pass)}/10` : ''}{f.attempts ? ` · đã làm ${f.used}/${f.attempts} lượt` : f.used ? ` · đã làm ${f.used} lượt` : ''}</small><br />
+            <small>Điểm cao nhất: <b>{num(f.best)}</b>{f.best != null && f.pass != null && (f.best >= f.pass ? ' · Đạt' : ' · Chưa đạt')}</small></div>
+          {!f.ready ? <small className="sub">Học xong mọi nội dung của chương trình để làm đề cuối khoá.</small>
+            : f.attempts && f.used >= f.attempts && !f.open ? <small className="sub">Đã hết lượt làm bài.</small>
+            : <button type="button" className="primary" onClick={() => setFinalRun(f)}>{f.open ? 'Làm tiếp' : f.used ? 'Làm lại' : 'Làm bài'}</button>}
+        </section>)}
+        {fin?.metrics && <section className="panel" style={{ display: 'grid', gap: 8 }}>
+          <div className="bar" style={{ margin: 0 }}><b>Kết quả theo khung đánh giá</b>
+            <span className={`pill ${fin.metrics.suggest === 'pass' ? 'active' : 'maintenance'}`}>{fin.metrics.grade}</span></div>
+          <small className="sub">Tổng điểm hiện tại <b>{num(fin.metrics.total)}</b>/10 · tạm tính, đơn vị tổ chức kết luận cuối cùng.</small>
+          <div className="wrap"><table><thead><tr><th>Thành phần</th><th>Điểm</th><th>Trọng số</th></tr></thead>
+            <tbody>{COMP.filter(([k]) => fin.metrics.weights[k] > 0).map(([k, l]) => <tr key={k}><td>{l}</td><td>{num(fin.metrics.scores[k])}</td><td>{fin.metrics.weights[k]}</td></tr>)}</tbody></table></div>
+          {!!fin.frame.grades?.length && <small className="sub">Xếp loại: {[...fin.frame.grades].sort((a, b) => b.min - a.min).map(g => `${g.label} ≥ ${num(g.min)}`).join(' · ')}</small>}
+        </section>}
       </div>
     </div>
   </ElView>
@@ -232,7 +266,8 @@ function UnitPanel({ planId, u, onChange, onTest, onErr }: { planId: string; u: 
   </section>
 }
 
-function TestRun({ planId, unit, onBack }: { planId: string; unit: Unit; onBack: () => void }) {
+type Rpc = PromiseLike<{ data: unknown; error: { message: string } | null }>
+function TestRun({ back, title, sub, start, send, onBack }: { back: string; title: string; sub?: string; start: () => Rpc; send: (attempt: string, ans: Record<string, number[]>) => Rpc; onBack: () => void }) {
   const [paper, setPaper] = useState<{ attempt: string; deadline: string | null; questions: Q[] } | null>(null)
   const [ans, setAns] = useState<Record<string, number[]>>({})
   const [err, setErr] = useState('')
@@ -242,14 +277,14 @@ function TestRun({ planId, unit, onBack }: { planId: string; unit: Unit; onBack:
   const sent = useRef(false)
 
   useEffect(() => {
-    supabase.rpc('training_test_start', { p_plan: planId, p_unit: unit.id }).then(({ data, error }) => {
+    start().then(({ data, error }) => {
       if (error) setErr(error.message); else setPaper(data as typeof paper)
     })
-  }, [planId, unit.id])
+  }, [])
   async function submit() {
     if (!paper || sent.current) return
     sent.current = true; setBusy(true)
-    const { data, error } = await supabase.rpc('training_test_submit', { p_attempt: paper.attempt, p_answers: ans })
+    const { data, error } = await send(paper.attempt, ans)
     setBusy(false)
     if (error) { sent.current = false; return setErr(error.message) }
     setRes(data as typeof res)
@@ -272,9 +307,8 @@ function TestRun({ planId, unit, onBack }: { planId: string; unit: Unit; onBack:
     return { ...a, [q.id]: cur.includes(i) ? cur.filter(x => x !== i) : [...cur, i].sort() }
   })
 
-  return <ElView back={unit.title} onBack={() => { if (res || !paper || confirm('Thoát khi chưa nộp? Lượt làm vẫn giữ, bạn có thể làm tiếp.')) onBack() }}
-    title={`Bài kiểm tra: ${unit.title}`}
-    sub={unit.test ? `${unit.test.count} câu · điểm đạt ${num(unit.test.pass)}/10` : undefined}
+  return <ElView back={back} onBack={() => { if (res || !paper || confirm('Thoát khi chưa nộp? Lượt làm vẫn giữ, bạn có thể làm tiếp.')) onBack() }}
+    title={title} sub={sub}
     actions={paper && !res && <>{left != null && <span className={`pill ${left < 60 ? 'inactive' : 'maintenance'}`} role="timer">⏱ {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</span>}
       <button type="button" className="primary" disabled={busy} onClick={() => { if (answered === paper.questions.length || confirm(`Còn ${paper.questions.length - answered} câu chưa làm. Nộp bài?`)) submit() }}>{busy ? 'Đang nộp…' : 'Nộp bài'}</button></>}>
     {err && <p className="sub" role="alert" style={{ color: 'var(--bad)' }}>{err}</p>}

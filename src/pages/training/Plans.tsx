@@ -4,7 +4,8 @@
 // TrainingPlansPage: KDI và Sở / Phòng (kế hoạch của đơn vị mình). SchoolTrainingAssigned: trường (kế hoạch được giao).
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { OrgFilter, OrgPick, useAllMode, useOrgName } from '../../components/OrgScope'
+import { OrgFilter, OrgPick, useAllMode, useOrgName, useProvinceOf } from '../../components/OrgScope'
+import { MultiSelect } from '../../components/MultiSelect'
 import { ElView } from '../../components/ElView'
 import { Chip, STATUS } from '../dist/Editor'
 import { ClsTree } from '../dist/ClsTree'
@@ -719,7 +720,12 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
   const [rk, setRk] = useState(0)
   // Quản trị hệ thống: kế hoạch giao cho mọi trường trong một danh sách; mở một dòng để chọn GV, gửi duyệt thay trường
   const all = useAllMode(), orgName = useOrgName()
-  const [fo, setFo] = useState('')
+  const provOf = useProvinceOf()
+  // Bộ lọc chọn nhiều: năm học, tỉnh, trường, chương trình tập huấn (rỗng = tất cả)
+  const [fYear, setFYear] = useState<string[]>([])
+  const [fProv, setFProv] = useState<string[]>([])
+  const [fOrg, setFOrg] = useState<string[]>([])
+  const [fProg, setFProg] = useState<string[]>([])
   const key = (r: { plan_id: string; org_id: string }) => r.plan_id + ':' + r.org_id
   useEffect(() => {
     (async () => {
@@ -744,6 +750,16 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
   if (cur) return <SchoolPlanTeachers row={cur} orgId={cur.org_id} items={items.filter(i => i.plan_id === cur.plan_id)} onBack={() => { setOpen(null); setRk(k => k + 1) }}
     onMsg={m => { setMsg(m); setOpen(null); setRk(k => k + 1) }} />
   const n = (s: OrgSt) => (rows ?? []).filter(r => r.status === s).length
+  const uniq = (xs: [string, string][]) => [...new Map(xs).entries()].sort((a, b) => a[1].localeCompare(b[1], 'vi'))
+  const yearOpts = uniq((rows ?? []).map(r => r.training_plans!.year_name).filter(Boolean).map(y => [y!, y!] as [string, string])).reverse()
+  const provOpts = uniq((rows ?? []).map(r => provOf(r.org_id)).filter(Boolean).map(o => [o!.id, o!.name] as [string, string]))
+  const orgOpts = uniq((rows ?? []).filter(r => !fProv.length || fProv.includes(provOf(r.org_id)?.id ?? '')).map(r => [r.org_id, orgName(r.org_id)] as [string, string]))
+  const progOpts = uniq(items.map(i => [i.program_id, i.training_programs?.title ?? '—'] as [string, string]))
+  const fit = (r: Assigned) => (!fs || (fs === 'todo' ? r.status === 'assigned' || r.status === 'returned' : r.status === 'submitted' || r.status === 'approved'))
+    && (!fYear.length || fYear.includes(r.training_plans!.year_name ?? '')) && (!fProv.length || fProv.includes(provOf(r.org_id)?.id ?? ''))
+    && (!fOrg.length || fOrg.includes(r.org_id)) && (!fProg.length || items.some(i => i.plan_id === r.plan_id && fProg.includes(i.program_id)))
+  const nShown = (rows ?? []).filter(fit).length
+  const ms = { minWidth: 190, maxWidth: 320 }
   return <>
     <FlowGuide id="training-school">
       <ol className="distguide">{([['Nhận kế hoạch', 'KDI, Sở hoặc Phòng gán kế hoạch tập huấn cho trường, kèm chỉ tiêu giáo viên.'],
@@ -756,11 +772,18 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
       <div className="panel"><i aria-hidden="true" className={n('assigned') + n('returned') ? 'warn' : 'good'}>!</i><span><b>{n('assigned') + n('returned')}</b><small>Cần chọn giáo viên</small><small>{n('returned')} bị trả lại</small></span></div>
       <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{n('approved')}</b><small>Đã duyệt</small><small>{n('submitted')} chờ duyệt</small></span></div>
     </div>
-    {all && <div className="bar"><div className="tools"><OrgFilter ids={(rows ?? []).map(r => r.org_id)} value={fo} onChange={setFo} /></div></div>}
+    <div className="bar"><div className="tools">
+      <MultiSelect value={fYear} onChange={setFYear} options={yearOpts} placeholder="Mọi năm học" ariaLabel="Năm học" style={ms} />
+      {all && <MultiSelect value={fProv} onChange={v => { setFProv(v); setFOrg([]) }} options={provOpts} placeholder="Mọi tỉnh" ariaLabel="Tỉnh" style={ms} />}
+      {all && <MultiSelect value={fOrg} onChange={setFOrg} options={orgOpts} placeholder="Mọi trường" ariaLabel="Trường" style={ms} />}
+      <MultiSelect value={fProg} onChange={setFProg} options={progOpts} placeholder="Mọi chương trình" ariaLabel="Chương trình tập huấn" style={ms} />
+      {(fYear.length + fProv.length + fOrg.length + fProg.length > 0) && <button type="button" onClick={() => { setFYear([]); setFProv([]); setFOrg([]); setFProg([]) }}>Bỏ lọc</button>}
+      <small className="sub">{nShown}/{rows?.length ?? 0} kế hoạch</small>
+    </div></div>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
       <thead><tr><th>Kế hoạch tập huấn</th>{all && <th>Trường</th>}<th>Năm học · đợt</th><th>Chương trình</th><th>Giáo viên / chỉ tiêu</th><th>Trạng thái</th></tr></thead>
-      <tbody>{rows.filter(r => (!fs || (fs === 'todo' ? r.status === 'assigned' || r.status === 'returned' : r.status === 'submitted' || r.status === 'approved')) && (!fo || r.org_id === fo)).map(r => {
+      <tbody>{rows.filter(fit).map(r => {
         const p = r.training_plans!, its = items.filter(i => i.plan_id === r.plan_id).sort((a, b) => a.seq - b.seq), c = enr.filter(e => e.plan_id === r.plan_id && e.teachers?.org_id === r.org_id).length
         const pd = pend.filter(x => x.plan_id === r.plan_id && x.org_id === r.org_id).length
         return <tr key={key(r)}>
@@ -772,7 +795,7 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
             {p.self_register && !pd && <><br /><small className="sub">Mở tự đăng ký{p.register_until ? ` đến ${day(p.register_until)}` : ''}</small></>}</td>
           <td><Chip tone={ORG_ST[r.status][1]}>{ORG_ST[r.status][0]}</Chip>{r.status === 'returned' && r.note && <><br /><small className="sub">Lý do: {r.note}</small></>}</td>
         </tr> })}
-        {!rows.length && <tr><td colSpan={all ? 6 : 5}>Chưa có kế hoạch tập huấn nào được giao cho trường.</td></tr>}</tbody>
+        {!rows.length ? <tr><td colSpan={all ? 6 : 5}>Chưa có kế hoạch tập huấn nào được giao cho trường.</td></tr> : !nShown && <tr><td colSpan={all ? 6 : 5}>Không có kế hoạch nào khớp bộ lọc.</td></tr>}</tbody>
     </table></div>}
   </>
 }

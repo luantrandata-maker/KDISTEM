@@ -35,6 +35,22 @@ export function useOrgName() {
   return (id?: string | null) => (id && all?.find(o => o.id === id)?.name) || ''
 }
 
+/** Tỉnh của một đơn vị: cấp trên gần nhất loại Tỉnh; không có thì Sở / Phòng cao nhất (vd. Sở GD&ĐT không gắn tỉnh) */
+export function useProvinceOf() {
+  const all = useAllMode()
+  return useMemo(() => {
+    const byId = new Map((all ?? []).map(o => [o.id, o]))
+    return (id?: string | null): ScopeOrg | null => {
+      let top: ScopeOrg | null = null
+      for (let o = id ? byId.get(id) : undefined, k = 0; o && k < 20; o = o.parent_id ? byId.get(o.parent_id) : undefined, k++) {
+        if (o.type === 'province') return o
+        if (o.type !== 'school' && !o.is_platform) top = o
+      }
+      return top
+    }
+  }, [all])
+}
+
 // Cây đơn vị: cha → con, kèm độ sâu để thụt lề
 function useTree(kind: ScopeKind) {
   const all = useAllMode()

@@ -76,7 +76,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   const [orgs, setOrgs] = useState<POrg[]>([])
   const [can, setCan] = useState(false)
   const [rk, setRk] = useState(0)
-  const [tab, setTab] = useState<'tree' | 'list'>('tree')
+  const [tab, setTab] = useState<'tree' | 'list'>('list')
   const [open, setOpen] = useState<string | null>(null)
   const [create, setCreate] = useState<{ node: ClsNode | null } | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
@@ -145,7 +145,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
         <div className="panel"><i aria-hidden="true" className={waiting ? 'warn' : 'good'}>!</i><span><b>{waiting}</b><small>Danh sách chờ duyệt</small></span></div>
       </div>
       <div className="distpills" role="tablist">
-        {([['tree', 'Kế hoạch tập huấn'], ['list', 'Danh sách kế hoạch']] as ['tree' | 'list', string][]).map(([t, l]) =>
+        {([['list', 'Danh sách kế hoạch'], ['tree', 'Kế hoạch tập huấn']] as ['tree' | 'list', string][]).map(([t, l]) =>
           <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setMsg(null) }}>{l}</button>)}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}

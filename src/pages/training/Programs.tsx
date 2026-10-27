@@ -13,6 +13,7 @@ import { Chip } from '../dist/Editor'
 import { ContentDetail, detailCount, type Detail } from './Content'
 import { TrainingUnits } from './Units'
 import { FlowGuide } from '../../components/FlowGuide'
+import { ProgramExams, ProgramEvalFrame, type FinalExam, type Frame } from './ExamFrame'
 
 type Mode = 'online' | 'offline' | 'hybrid'
 export type TProgram = {
@@ -20,6 +21,7 @@ export type TProgram = {
   description: string | null; objectives?: string | null; entry_conditions?: string | null; outcomes?: string | null; prereq_families?: string[]
   competencies: string[]; target_level: number; pass_attendance: number; pass_score: number | null; need_product: boolean
   status: Status; version_no: number; source_id: string | null; updated_at: string; published_at: string | null; family_id: string; note: string | null
+  final_exam?: FinalExam | null; eval_frame?: Frame | null
 }
 // 093: phiên bản & duyệt
 export type Status = 'draft' | 'pending' | 'approved' | 'rejected' | 'published' | 'superseded' | 'archived'
@@ -31,6 +33,7 @@ const EDITABLE: Status[] = ['draft', 'rejected']
 type Unit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string; hours: number; mode: 'online' | 'offline' | null; has_test: boolean; note: string | null; detail: Detail }
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
 const SEL = 'id, org_id, code, title, ct_code, level, ct_codes, levels, audience, mode, description, competencies, target_level, pass_attendance, pass_score, need_product, status, version_no, source_id, updated_at, published_at, family_id, note, objectives, entry_conditions, outcomes, prereq_families'
+const SEL_X = SEL + ', final_exam, eval_frame'
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 083 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI soạn được chương trình tập huấn.' : m
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
@@ -228,18 +231,18 @@ function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg }: { id: string; a
   const [f, setF] = useState<Info | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [openC, setOpenC] = useState<string | null>(null)
-  const [tab, setTab] = useState<'info' | 'units' | 'versions' | 'assign'>('info')
+  const [tab, setTab] = useState<'info' | 'units' | 'exam' | 'eval' | 'versions' | 'assign'>('info')
   const { subjects } = useSubjects()
   const { byCode: tracks } = useStemTracks()
   const { name: levelName } = useEduLevels()
   const comps = useCompetencies('teacher')
   async function load() {
     const [a, b] = await Promise.all([
-      supabase.from('training_programs').select(SEL).eq('id', id).single(),
+      supabase.from('training_programs').select(SEL_X).eq('id', id).single(),
       supabase.from('training_program_units').select('*').eq('program_id', id).order('seq'),
     ])
     if (a.error) return setMsg([errText(a.error.message), true])
-    const x = a.data as TProgram
+    const x = a.data as unknown as TProgram
     setP(x); setUnits((b.data as Unit[]) ?? [])
     setF({ title: x.title, ct_codes: ctsOf(x), levels: lvsOf(x), audience: x.audience ?? '', mode: x.mode, description: x.description ?? '', competencies: x.competencies ?? [],
       target_level: x.target_level, pass_attendance: x.pass_attendance, pass_score: x.pass_score, need_product: x.need_product,
@@ -291,7 +294,7 @@ function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg }: { id: string; a
     {!edit && admin && <p className="sub">Phiên bản {STATUS[p.status][0].toLowerCase()} không sửa được nội dung. Muốn điều chỉnh thì {p.status === 'pending' || p.status === 'approved' ? 'trả lại / mở lại ở tab "Phiên bản & duyệt"' : 'tạo phiên bản mới ở tab "Phiên bản & duyệt"'}.</p>}
 
     <div className="segmented" style={{ marginBottom: 12 }}>
-      {([['info', 'Thông tin & điều kiện đạt'], ['units', 'Cấu trúc & yêu cầu cần đạt'], ['versions', 'Phiên bản & duyệt'], ['assign', 'Gán & triển khai']] as const).map(([k, l]) => <button key={k} type="button" className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
+      {([['info', 'Thông tin & điều kiện đạt'], ['units', 'Cấu trúc & yêu cầu cần đạt'], ['exam', 'Đề kiểm tra'], ['eval', 'Khung đánh giá'], ['versions', 'Phiên bản & duyệt'], ['assign', 'Gán & triển khai']] as const).map(([k, l]) => <button key={k} type="button" className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
     </div>
     {tab === 'info' &&     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <h3 style={{ margin: 0 }}>Thông tin & điều kiện đạt</h3>
@@ -316,6 +319,10 @@ function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg }: { id: string; a
       <TrainingUnits programId={p.id} programTitle={p.title} programMode={p.mode} units={units} editable={edit} catalog={suggest}
         onReload={load} onMessage={(m, e) => setMsg([errText(m), !!e])} onOpen={setOpenC} />
     </section>}
+    {tab === 'exam' && <ProgramExams p={p} units={units} edit={edit} onOpen={setOpenC}
+      save={(patch, ok) => run(supabase.from('training_programs').update(patch).eq('id', p.id), ok)} />}
+    {tab === 'eval' && <ProgramEvalFrame key={p.id + (p.eval_frame ? '1' : '0')} p={p} edit={edit} hasFinal={!!p.final_exam} hasTests={contents.some(u => u.has_test)}
+      save={(patch, ok) => run(supabase.from('training_programs').update(patch).eq('id', p.id), ok)} />}
     {tab === 'versions' && <TrainingVersions p={p} admin={admin} warn={warn} onOpen={onOpen} onChanged={(m, e) => { setMsg([m, !!e]); if (!e) load() }} />}
     {tab === 'assign' && <TrainingDeploy p={p} go={go} />}
   </ElView>

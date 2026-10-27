@@ -23,6 +23,8 @@ const num = (n: number | null | undefined) => (n == null ? '—' : String(n).rep
 const errText = (m: string) => (/schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 087 trên Supabase.' : m)
 const ok = (b: boolean) => <span aria-label={b ? 'đạt điều kiện' : 'chưa đạt điều kiện'} className={b ? 'tlok' : 'warnline'}>{b ? '✓' : '✗'}</span>
 const dm = (iso: string) => new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+const gradeChip = (m: ResRow['metrics']) => <Chip tone={m.suggest === 'pass' ? 'good' : ''}>{m.grade ?? (m.suggest === 'pass' ? 'Đủ điều kiện' : 'Chưa đủ')}</Chip>
+const totalOf = (m: ResRow['metrics']) => m.total != null ? <><br /><small className="sub">Tổng {num(m.total)}/10</small></> : null
 const ready = (r: ResRow) => r.result === 'pending' && r.metrics.suggest === 'pass'
 
 export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolean }) {
@@ -136,11 +138,11 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
     downloadXlsx(`Ket-qua-tap-huan-${plan.plan_code ?? plan.name.slice(0, 30)}.xlsx`,
       [{ key: 'n', label: 'Giáo viên', width: 26 }, { key: 'o', label: 'Trường', width: 28 }, { key: 'a', label: 'Chuyên cần (%)' }, { key: 'b', label: 'Buổi có mặt' },
        { key: 't', label: 'Bài kiểm tra đạt' }, { key: 'g', label: 'Điểm TB' }, { key: 'u', label: 'Học trực tuyến' }, { key: 'p', label: 'Sản phẩm', width: 20 },
-       { key: 's', label: 'Điểm sản phẩm' }, { key: 'y', label: 'Gợi ý' }, { key: 'k', label: 'Kết luận' }, { key: 'l', label: 'Lý do', width: 30 }, { key: 'c', label: 'Số chứng chỉ', width: 18 }],
+       { key: 's', label: 'Điểm sản phẩm' }, { key: 'f', label: 'Đề cuối khoá' }, { key: 'z', label: 'Tổng điểm' }, { key: 'y', label: 'Xếp loại (gợi ý)' }, { key: 'k', label: 'Kết luận' }, { key: 'l', label: 'Lý do', width: 30 }, { key: 'c', label: 'Số chứng chỉ', width: 18 }],
       all.map(r => { const m = r.metrics
         return [r.teacher_name, r.org_name, m.att_pct, `${m.present}/${m.sessions - m.excused}`, m.tests ? `${m.tests_passed}/${m.tests}` : '', m.avg_score,
-          `${m.done}/${m.units}`, m.need_product ? (m.product_status ? PRODUCT[m.product_status] : 'Chưa nộp') : 'Không yêu cầu', r.product_score,
-          m.suggest === 'pass' ? 'Đủ điều kiện' : 'Chưa đủ', RESULT[r.result][0], r.reason, st(r)?.status === 'issued' ? st(r)?.code : st(r) ? CERT_ST[st(r)!.status][0] : ''] }),
+          `${m.done}/${m.units}`, m.need_product ? (m.product_status ? PRODUCT[m.product_status] : 'Chưa nộp') : 'Không yêu cầu', r.product_score, m.finals ? m.final_score : '', m.total,
+          m.grade ?? (m.suggest === 'pass' ? 'Đủ điều kiện' : 'Chưa đủ'), RESULT[r.result][0], r.reason, st(r)?.status === 'issued' ? st(r)?.code : st(r) ? CERT_ST[st(r)!.status][0] : ''] }),
       'Kết quả')
   }
 
@@ -179,7 +181,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
       </div>
       {filters}
       {view === 'sum' ? <div className="wrap"><table className="libtable trestable">
-        <thead><tr><th>Giáo viên</th><th>Chuyên cần</th><th>Bài kiểm tra</th><th>Học trực tuyến</th><th>Sản phẩm</th><th>Điểm SP</th><th>Gợi ý</th></tr></thead>
+        <thead><tr><th>Giáo viên</th><th>Chuyên cần</th><th>Bài kiểm tra</th><th>Học trực tuyến</th><th>Sản phẩm</th><th>Điểm SP</th>{all.some(r => r.metrics.finals) && <th>Đề cuối khoá</th>}<th>Tổng · xếp loại</th></tr></thead>
         <tbody>{shown.map(r => { const m = r.metrics, v = scores[r.teacher_id] ?? (r.product_score == null ? '' : String(r.product_score))
           return <tr key={r.teacher_id}>
             <td>{name(r)}</td>
@@ -192,9 +194,10 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
               ? <input className="trscore" inputMode="decimal" aria-label={`Điểm sản phẩm của ${r.teacher_name}`} placeholder="0–10" value={v}
                   onChange={e => setScores(s => ({ ...s, [r.teacher_id]: e.target.value }))} />
               : num(r.product_score)) : '—'}</td>
-            <td><Chip tone={m.suggest === 'pass' ? 'good' : ''}>{m.suggest === 'pass' ? 'Đủ điều kiện' : 'Chưa đủ'}</Chip></td>
+            {all.some(x => x.metrics.finals) && <td>{m.finals ? <>{ok(m.ok_final !== false)} {num(m.final_score)}</> : '—'}</td>}
+            <td>{gradeChip(m)}{totalOf(m)}</td>
           </tr> })}
-          {!shown.length && <tr><td colSpan={7}><small className="sub">{all.length ? 'Không có giáo viên nào khớp.' : 'Kế hoạch chưa có giáo viên ghi danh.'}</small></td></tr>}</tbody>
+          {!shown.length && <tr><td colSpan={8}><small className="sub">{all.length ? 'Không có giáo viên nào khớp.' : 'Kế hoạch chưa có giáo viên ghi danh.'}</small></td></tr>}</tbody>
       </table></div>
       : view === 'test' ? <TestScores planId={plan.id} planCode={plan.plan_code ?? plan.name.slice(0, 30)} can={can} only={new Set(shown.map(r => r.teacher_id))} onSaved={load} />
       : <AttGrid rows={shown} sess={sess} att={att} />}
@@ -217,8 +220,9 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
           return <tr key={r.teacher_id}>
             {can && <td><input type="checkbox" aria-label={`Chọn ${r.teacher_name}`} checked={sel.has(r.teacher_id)} onChange={() => toggle(r.teacher_id)} /></td>}
             <td>{name(r)}</td>
-            <td><small>{ok(m.ok_att)} chuyên cần · {ok(m.ok_tests)} kiểm tra · {ok(m.ok_units)} trực tuyến{m.need_product && <> · {ok(m.ok_product)} sản phẩm</>}</small></td>
-            <td><Chip tone={m.suggest === 'pass' ? 'good' : ''}>{m.suggest === 'pass' ? 'Đủ điều kiện' : 'Chưa đủ'}</Chip></td>
+            <td><small>{ok(m.ok_att)} chuyên cần · {ok(m.ok_tests)} kiểm tra · {ok(m.ok_units)} trực tuyến{m.need_product && <> · {ok(m.ok_product)} sản phẩm</>}
+              {!!m.finals && <> · {ok(m.ok_final !== false)} đề cuối khoá</>}{m.total_req != null && <> · {ok(m.ok_total !== false)} tổng điểm</>}</small></td>
+            <td>{gradeChip(m)}{totalOf(m)}</td>
             <td><Chip tone={RESULT[r.result][1]}>{RESULT[r.result][0]}</Chip>{r.reason && <><br /><small className="sub">{r.reason}</small></>}
               {r.extra_attempts > 0 && r.result === 'pending' && <><br /><small className="sub">Thi lại · +{r.extra_attempts} lượt</small></>}</td>
             <td>{c ? <><Chip tone={CERT_ST[c.status][1]}>{CERT_ST[c.status][0]}</Chip>{c.code && <><br /><small className="sub">{c.code}</small></>}</> : '—'}</td>

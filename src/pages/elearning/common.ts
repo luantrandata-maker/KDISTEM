@@ -7,7 +7,8 @@ export type QKind = 'single' | 'multi' | 'truefalse'
 export type Question = { id: string; org_id: string; created_by: string | null; subject: string; grade: number | null; topic: string | null; level: Level; kind: QKind
   stem: string; options: string[]; answer: number[]; explain: string | null; source: string; shared: boolean; status: 'draft' | 'ready' | 'retired'; created_at: string }
 export type Exam = { id: string; org_id: string; created_by: string | null; title: string; description: string | null; subject: string | null; grade: number | null
-  mode: 'fixed' | 'random'; question_ids: string[]; criteria: { count?: number; topics?: string[]; levels?: Partial<Record<Level, number>> }
+  mode: 'fixed' | 'random'; question_ids: string[]; criteria: { count?: number; topics?: string[]; levels?: Partial<Record<Level, number>>; matrix?: { topic: string; level: string; count: number }[] }
+  shuffle?: boolean
   duration_min: number | null; max_attempts: number; show_answers: 'after_submit' | 'after_close' | 'never'; class_ids: string[] | null; group_ids: string[] | null; student_ids: string[] | null; shared: boolean
   opens_at: string; closes_at: string | null; status: 'draft' | 'published' | 'closed'; created_at: string }
 export type Course = { id: string; org_id: string; created_by: string | null; title: string; description: string | null; subject: string | null; grade: number | null

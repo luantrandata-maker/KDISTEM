@@ -15,16 +15,18 @@ type Cert = { id: string; code: string | null; status: 'pending' | 'issued' | 'r
 type Tpl = { id: string; name: string; title: string; body: string; issuer_name: string | null; signer_name: string | null; signer_title: string | null
   logo_url: string | null; valid_months: number | null; is_default: boolean }
 export type Payload = { code: string | null; status: string; issued_on: string | null; expires_on: string | null; revoked_reason: string | null; token?: string
-  hours: number | null; programs: string | null; teacher: string; school: string | null; plan: string; plan_code: string | null; plan_org: string | null; template: Tpl | null }
+  hours: number | null; programs: string | null; teacher: string; school: string | null; plan: string; plan_code: string | null; plan_org: string | null; template: Tpl | null
+  score?: number | null; grade?: string | null }
 type F = 'all' | 'pending' | 'issued' | 'revoked'
 
 const day = (d: string | null) => d ? new Date(d + (d.length === 10 ? 'T00:00' : '')).toLocaleDateString('vi-VN') : '—'
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 087 trên Supabase.' : m
 export const verifyUrl = (token: string) => `${location.origin}/?cc=${token}`
-const FILL = '{ho_ten} · {chuong_trinh} · {ke_hoach} · {so_gio} · {ngay_cap} · {ma}'
+const FILL = '{ho_ten} · {chuong_trinh} · {ke_hoach} · {so_gio} · {ngay_cap} · {ma} · {xep_loai} · {diem}'
 function fill(t: string, p: Payload) {
   return t.replace(/\{ho_ten\}/g, p.teacher).replace(/\{chuong_trinh\}/g, p.programs ?? '').replace(/\{ke_hoach\}/g, p.plan)
     .replace(/\{so_gio\}/g, p.hours == null ? '' : String(p.hours).replace('.', ',')).replace(/\{ngay_cap\}/g, day(p.issued_on)).replace(/\{ma\}/g, p.code ?? '')
+    .replace(/\{xep_loai\}/g, p.grade ?? '').replace(/\{diem\}/g, p.score == null ? '' : String(Number(p.score)).replace('.', ','))
 }
 
 // Bản chứng chỉ (dùng để xem, in và ở trang tra cứu)
@@ -39,6 +41,7 @@ export function CertPaper({ p }: { p: Payload }) {
     <p className="certname">{p.teacher}</p>
     {p.school && <p className="sub">{p.school}</p>}
     <p className="certbody">{fill(t.body, p)}</p>
+    {p.grade && !/\{xep_loai\}/.test(t.body) && <p className="certbody"><b>Xếp loại: {p.grade}</b>{p.score != null ? ` · tổng điểm ${String(Number(p.score)).replace('.', ',')}/10` : ''}</p>}
     <div className="certfoot">
       <div>{qr && <img src={qr} alt="Mã QR tra cứu chứng chỉ" width={110} height={110} />}<small>Số: <b>{p.code ?? 'chưa cấp'}</b></small>
         <small>Ngày cấp: {day(p.issued_on)}{p.expires_on ? ` · hiệu lực đến ${day(p.expires_on)}` : ''}</small></div>
@@ -145,7 +148,7 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
 const BLANK: Omit<Tpl, 'id'> = { name: '', title: 'CHỨNG CHỈ', body: 'Đã hoàn thành chương trình tập huấn {chuong_trinh} ({so_gio} giờ) thuộc {ke_hoach}.',
   issuer_name: 'KDI Education', signer_name: '', signer_title: 'Giám đốc', logo_url: '', valid_months: null, is_default: false }
 const SAMPLE: Payload = { code: 'CCTH-2027-00001', status: 'issued', issued_on: new Date().toISOString().slice(0, 10), expires_on: null, revoked_reason: null,
-  hours: 24, programs: 'STEM cơ bản cho GV THCS', teacher: 'Nguyễn Văn A', school: 'THCS Phố Hiến', plan: 'Tập huấn STEM hè 2027', plan_code: 'KHTH-001', plan_org: 'KDI Education', template: null }
+  hours: 24, programs: 'STEM cơ bản cho GV THCS', teacher: 'Nguyễn Văn A', school: 'THCS Phố Hiến', plan: 'Tập huấn STEM hè 2027', plan_code: 'KHTH-001', plan_org: 'KDI Education', template: null, grade: 'Giỏi', score: 8.4 }
 
 export function CertTemplatesPage() {
   const [rows, setRows] = useState<Tpl[] | null>(null)

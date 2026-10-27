@@ -16,13 +16,13 @@ export function useMultiFilters() {
   return { vals, get, set, has, any, active, clear: () => setVals({}) }
 }
 
-const MS = { minWidth: 170, maxWidth: 300 }
+const MS = { width: 168, flex: '0 0 168px' }
 /** Các ô lọc; đặt trong .tools của thanh công cụ */
 export function MultiFilters({ defs, f, count }: { defs: FilterDef[]; f: ReturnType<typeof useMultiFilters>; count?: string }) {
   return <>
     {defs.filter(d => !d.hidden).map(d => <MultiSelect key={d.key} value={f.get(d.key)} onChange={v => { f.set(d.key, v); d.onPick?.(v) }}
-      options={d.options} placeholder={d.placeholder} ariaLabel={d.label} style={MS} />)}
-    {f.active && <button type="button" onClick={f.clear}>Bỏ lọc</button>}
+      options={d.options} placeholder={d.placeholder} ariaLabel={d.label} style={MS} compact />)}
+    {f.active && <button type="button" className="fclear" onClick={f.clear}>Bỏ lọc</button>}
     {count && <small className="sub">{count}</small>}
   </>
 }

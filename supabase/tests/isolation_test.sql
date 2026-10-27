@@ -3367,6 +3367,15 @@ select pg_temp.chk('kdi', 'TH 105: bài giảng tập huấn phát hành khi đ�
 select pg_temp.probe('kdi@iso-test.local', $q$update training_lessons set content = '{"checked":["info","content","links","bank"]}' where title = 'ISO BG 4 thẻ'$q$, true);
 select pg_temp.chk('kdi', 'TH 105: thiếu thẻ bắt buộc thì chưa phát hành', $q$select training_lesson_publish(id) from training_lessons where title = 'ISO BG 4 thẻ'$q$, 'ERR 22023');
 
+-- ===== TH 106: tệp tài liệu tập huấn mở được khi chương trình đã phát hành =====
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_programs (org_id, title) values (platform_org_id(), 'ISO CTTH F')$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_program_units (program_id, kind, seq, title) select id, 'subject', 1, 'ISO môn F' from training_programs where title = 'ISO CTTH F'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_program_units (program_id, parent_id, kind, seq, title, hours, detail) select p.id, u.id, 'content', 1, 'ISO F1', 1, jsonb_build_object('docs', jsonb_build_array(jsonb_build_object('title', 'ISO tệp F', 'file', platform_org_id()::text || '/training/iso-f.pdf'))) from training_programs p join training_program_units u on u.program_id = p.id where p.title = 'ISO CTTH F'$q$, true);
+select pg_temp.chk('gv_both', 'TH 106: chương trình còn nháp thì giáo viên trường khác chưa mở được tệp', $q$select learning_file_readable(platform_org_id()::text || '/training/iso-f.pdf')::text$q$, 'false');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_programs set status = 'published' where title = 'ISO CTTH F'$q$, true);
+select pg_temp.chk('gv_both', 'TH 106: chương trình đã phát hành thì giáo viên mở được tệp tài liệu', $q$select learning_file_readable(platform_org_id()::text || '/training/iso-f.pdf')::text$q$, 'true');
+select pg_temp.chk('gv_both', 'TH 106: tệp không thuộc tài liệu tập huấn vẫn không mở được', $q$select learning_file_readable(platform_org_id()::text || '/training/khac.pdf')::text$q$, 'false');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

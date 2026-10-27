@@ -51,6 +51,7 @@ export function TrainingMaterials({ part }: { part: Part }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const [adding, setAdding] = useState(false)
   useEffect(() => { supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)) }, [])
 
   const progOf = (id: string | null) => d?.progs.find(p => p.id === id) ?? null
@@ -132,8 +133,11 @@ export function TrainingMaterials({ part }: { part: Part }) {
           <option value="unit">Chỉ nội dung chương trình</option><option value="lesson">Chỉ bài giảng</option></select>}
         <small className="sub">{part === 'content' ? `${shownC.length}/${contents.length}` : `${shownL.length}/${lines.length}`} dòng</small>
       </div>
-      <div className="tools"><button type="button" onClick={exportXlsx}>Xuất Excel</button></div>
+      <div className="tools"><button type="button" onClick={exportXlsx}>Xuất Excel</button>
+        {admin && <button type="button" className="primary" onClick={() => { setMsg(null); setAdding(true) }}>+ Thêm {part === 'content' ? 'nội dung' : part === 'docs' ? 'tài liệu' : part === 'mats' ? 'vật tư' : 'hoạt động'}</button>}</div>
     </div>
+    {adding && <AddPanel part={part} progs={d.progs.filter(p => EDITABLE.includes(p.status))} units={d.units} initialProg={prog}
+      onClose={() => setAdding(false)} onDone={m => { setAdding(false); setMsg([m, false]); reload() }} />}
     {(msg || err) && <p className={msg?.[1] || err ? 'msg' : 'sub'} role="status"><b>{err || msg?.[0]}</b></p>}
     {part === 'content' ? <div className="wrap"><table className="libtable">
       <thead><tr><th>Nội dung tập huấn</th><th>Số giờ</th><th>Học liệu</th><th>Bài giảng</th><th>Chương trình</th></tr></thead>
@@ -160,4 +164,78 @@ export function TrainingMaterials({ part }: { part: Part }) {
             : `Chưa có ${LISTS[part].tab.toLowerCase()}. Thêm ở tab Nội dung tập huấn (mở một nội dung) hoặc trong bài giảng tập huấn.`}</small></td></tr>}</tbody>
       </table></div>}
   </>
+}
+
+// Thêm nhanh: nội dung mới vào một học phần, hoặc một dòng tài liệu / vật tư / hoạt động vào một nội dung.
+// Chỉ chương trình còn nháp / bị trả lại mới thêm được (giống màn Chương trình tập huấn).
+function AddPanel({ part, progs, units, initialProg, onClose, onDone }: {
+  part: Part; progs: Prog[]; units: Unit[]; initialProg: string; onClose: () => void; onDone: (m: string) => void
+}) {
+  const [pid, setPid] = useState(progs.some(p => p.id === initialProg) ? initialProg : progs[0]?.id ?? '')
+  const subjects = units.filter(u => u.program_id === pid && u.kind === 'subject').sort((a, b) => a.seq - b.seq)
+  const conts = units.filter(u => u.program_id === pid && u.kind === 'content')
+  const contOrd = subjects.flatMap(s => conts.filter(c => c.parent_id === s.id).sort((a, b) => a.seq - b.seq))
+  const [sid, setSid] = useState('')
+  const [cid, setCid] = useState('')
+  const [f, setF] = useState<Record<string, string>>({ hours: '1' })
+  const [test, setTest] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  const subj = subjects.find(s => s.id === sid) ?? subjects[0]
+  const cont = contOrd.find(c => c.id === cid) ?? contOrd[0]
+  const set = (k: string, v: string) => setF(x => ({ ...x, [k]: v }))
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault(); setErr('')
+    if (part === 'content') {
+      if (!subj) return setErr('Chương trình chưa có học phần. Thêm học phần ở mục Chương trình tập huấn trước.')
+      const h = Number((f.hours ?? '').replace(',', '.'))
+      if (!f.title?.trim()) return setErr('Nhập tên nội dung.')
+      setBusy(true)
+      const seq = Math.max(0, ...conts.filter(c => c.parent_id === subj.id).map(c => c.seq)) + 1
+      const { error } = await supabase.from('training_program_units').insert({ program_id: pid, parent_id: subj.id, kind: 'content', seq, title: f.title.trim(),
+        hours: Number.isFinite(h) && h > 0 ? h : 1, has_test: test })
+      setBusy(false)
+      return error ? setErr(error.message) : onDone(`Đã thêm nội dung "${f.title.trim()}".`)
+    }
+    if (!cont) return setErr('Chương trình chưa có nội dung tập huấn. Thêm nội dung trước.')
+    const cols = LISTS[part].cols, first = cols[0]
+    if (!f[first.key]?.trim()) return setErr(`Nhập ${first.label.toLowerCase()}.`)
+    if (part === 'docs' && f.url && !/^https?:\/\//i.test(f.url.trim())) return setErr('Link phải bắt đầu bằng http:// hoặc https://')
+    const row = Object.fromEntries(cols.map(c => [c.key, (f[c.key] ?? '').trim()]).filter(([, v]) => v))
+    setBusy(true)
+    const detail: Detail = { ...(cont.detail ?? {}), [part]: [...(cont.detail?.[part] ?? []), row] }
+    const { error } = await supabase.from('training_program_units').update({ detail }).eq('id', cont.id)
+    setBusy(false)
+    return error ? setErr(error.message) : onDone(`Đã thêm vào "${cont.title}".`)
+  }
+
+  const noun = part === 'content' ? 'nội dung tập huấn' : LISTS[part].tab.toLowerCase()
+  return <form className="panel" style={{ display: 'grid', gap: 10, marginBottom: 14 }} onSubmit={save}>
+    <b>Thêm {noun}</b>
+    {!progs.length ? <p className="warnline" style={{ margin: 0 }}>Chưa có chương trình nào đang nháp hoặc bị trả lại. Chỉ thêm được vào chương trình chưa phát hành:
+      tạo chương trình mới hoặc phiên bản mới ở mục Chương trình tập huấn.</p> : <div className="formgrid">
+      <label className="field"><span>Chương trình tập huấn *</span><select value={pid} onChange={e => { setPid(e.target.value); setSid(''); setCid('') }}>
+        {progs.map(p => <option key={p.id} value={p.id}>{p.code} · {p.title} ({STATUS[p.status]?.[0]})</option>)}</select></label>
+      {part === 'content' ? <>
+        <label className="field"><span>Học phần *</span><select value={subj?.id ?? ''} onChange={e => setSid(e.target.value)}>
+          {!subjects.length && <option value="">Chưa có học phần</option>}{subjects.map(s => <option key={s.id} value={s.id}>{s.seq}. {s.title}</option>)}</select></label>
+        <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên nội dung *</span><input maxLength={300} value={f.title ?? ''} onChange={e => set('title', e.target.value)} placeholder="VD: Lắp ráp robot xe 2 bánh" /></label>
+        <label className="field"><span>Số giờ</span><input inputMode="decimal" value={f.hours ?? ''} onChange={e => set('hours', e.target.value)} /></label>
+        <label className="field" style={{ alignSelf: 'end' }}><span><input type="checkbox" checked={test} onChange={e => setTest(e.target.checked)} /> Có bài test</span></label>
+      </> : <>
+        <label className="field"><span>Nội dung tập huấn *</span><select value={cont?.id ?? ''} onChange={e => setCid(e.target.value)}>
+          {!contOrd.length && <option value="">Chưa có nội dung</option>}
+          {contOrd.map(c => <option key={c.id} value={c.id}>{subjects.find(s => s.id === c.parent_id)?.title} › {c.title}</option>)}</select></label>
+        {LISTS[part].cols.map((c, i) => <label key={c.key} className="field" style={i === 0 || c.key === 'note' || c.key === 'url' ? { gridColumn: '1/-1' } : undefined}>
+          <span>{c.label}{i === 0 ? ' *' : ''}</span>
+          {c.type === 'select' ? <select value={f[c.key] ?? ''} onChange={e => set(c.key, e.target.value)}><option value="">—</option>{c.options!.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+            : <input type={c.type === 'number' ? 'number' : c.type === 'url' ? 'url' : 'text'} min={c.type === 'number' ? 0 : undefined} placeholder={c.placeholder}
+              value={f[c.key] ?? ''} onChange={e => set(c.key, e.target.value)} />}</label>)}
+      </>}
+    </div>}
+    {err && <p className="msg" role="alert" style={{ margin: 0 }}><b>{err}</b></p>}
+    <div className="formactions">{progs.length > 0 && <button type="submit" className="primary" disabled={busy}>{busy ? 'Đang lưu…' : 'Thêm'}</button>}
+      <button type="button" onClick={onClose}>Đóng</button></div>
+  </form>
 }

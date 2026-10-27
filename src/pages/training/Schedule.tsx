@@ -8,6 +8,7 @@ import { OrgFilter, useAllMode, useOrgName } from '../../components/OrgScope'
 import { ElView } from '../../components/ElView'
 import { TrainerPick } from './Trainers'
 import { Chip } from '../dist/Editor'
+import { FlowGuide } from '../../components/FlowGuide'
 
 type Mode = 'online' | 'offline'
 type Plan = { id: string; org_id?: string; plan_code: string | null; name: string; mode: string; pub_status: string }
@@ -108,9 +109,9 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
   const shift = (k: number) => { const d = new Date(anchor); if (view === 'month') d.setMonth(d.getMonth() + k); else d.setDate(d.getDate() + 7 * k); setAnchor(d) }
 
   return <>
-    <div className="panel distintro">
+    <FlowGuide id="training-schedule">
       <ol className="distguide">{steps.map(([h, d, f], k) => <li key={h}><button type="button" onClick={() => setFs(f)}><i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
-    </div>
+    </FlowGuide>
     <div className="diststatcards four">
       <div className="panel"><i aria-hidden="true">◷</i><span><b>{plans ? n('upcoming') : '…'}</b><small>Buổi sắp diễn ra</small><small>{base.length} buổi trong lịch</small></span></div>
       <div className="panel"><i aria-hidden="true" className={n('live') ? 'warn' : 'good'}>●</i><span><b>{n('live')}</b><small>Đang diễn ra</small></span></div>

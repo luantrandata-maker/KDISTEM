@@ -8,6 +8,7 @@ import { Chip } from '../dist/Editor'
 import { ClsTree } from '../dist/ClsTree'
 import { OrgFilter, useAllMode } from '../../components/OrgScope'
 import { PlanResults } from './ResultsWork'
+import { FlowGuide } from '../../components/FlowGuide'
 
 export type RPlan = { id: string; org_id: string; plan_code: string | null; name: string }
 type M = { sessions: number; present: number; excused: number; att_pct: number | null; att_req: number; units: number; done: number; tests: number
@@ -85,9 +86,9 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
     ['Kết luận', 'Chọn nhiều giáo viên để kết luận Đạt / Chưa đạt; xác nhận Đạt cho người đủ điều kiện.'],
     ['Cấp chứng chỉ', 'Duyệt cấp và in hàng loạt chứng chỉ có QR tra cứu.']]
   return <>
-    <div className="panel distintro">
+    <FlowGuide id="training-results">
       <ol className="distguide four">{steps.map(([h, d], i) => <li key={h}><button type="button" onClick={() => setTab('tree')}><i>{i + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
-    </div>
+    </FlowGuide>
     <div className="diststatcards four">
       <div className="panel"><i aria-hidden="true">≋</i><span><b>{plans?.length ?? '…'}</b><small>Kế hoạch đã phát hành</small></span></div>
       <div className="panel"><i aria-hidden="true">👥</i><span><b>{tot.n}</b><small>Lượt giáo viên ghi danh</small></span></div>

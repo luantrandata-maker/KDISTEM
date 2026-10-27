@@ -12,6 +12,7 @@ import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
 import { ContentDetail, detailCount, type Detail } from './Content'
 import { TrainingUnits } from './Units'
+import { FlowGuide } from '../../components/FlowGuide'
 
 type Mode = 'online' | 'offline' | 'hybrid'
 export type TProgram = {
@@ -81,11 +82,11 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
     ['Dùng trong kế hoạch', 'Chọn chương trình đã phát hành khi lập Kế hoạch & lịch tập huấn cho trường, giáo viên.']]
   return (
     <>
-      <div className="panel distintro">
+      <FlowGuide id="training-programs">
         <ol className="distguide">{steps.map(([h, d], k) => <li key={h}><button type="button" onClick={() => setFs(k === 0 ? 'draft' : k === 1 ? 'published' : '')}>
           <i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
         <p className="sub" style={{ margin: 0 }}>Chương trình tập huấn là mẫu khoá học chuẩn của KDI, gồm các môn, mỗi môn có các nội dung tập huấn. Một chương trình dùng lại được cho nhiều kế hoạch tập huấn.</p>
-      </div>
+      </FlowGuide>
       <div className="diststatcards">
         <div className="panel"><i aria-hidden="true">≋</i><span><b>{list?.length ?? '…'}</b><small>Chương trình tập huấn</small><small>{n('published')} đã phát hành · {n('draft')} nháp</small></span></div>
         <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{list ? n('published') : '…'}</b><small>Dùng được trong kế hoạch</small></span></div>

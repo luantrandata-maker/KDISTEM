@@ -17,6 +17,7 @@ import { PlanProgress } from './Progress'
 import { TrainerPick } from './Trainers'
 import { PlanResults } from './ResultsWork'
 import { PlanCal } from './PlanCal'
+import { FlowGuide } from '../../components/FlowGuide'
 
 type Mode = 'online' | 'offline' | 'hybrid'
 type Term = 'summer' | 'hk1' | 'hk2' | 'other'
@@ -138,11 +139,11 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
     ['Xem kết quả & phát hành', 'Soát lịch theo ngày, cảnh báo trùng giờ; phát hành rồi gán trường.']]
   return (
     <>
-      <div className="panel distintro">
+      <FlowGuide id="training-plans">
         <ol className="distguide four">{steps.map(([h, d], k) => <li key={h}><button type="button" onClick={() => setTab('tree')}>
           <i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
         <p className="sub" style={{ margin: 0 }}>Kế hoạch tập huấn gom các chương trình tập huấn vào một đợt, xếp lịch học cụ thể rồi giao cho trường.</p>
-      </div>
+      </FlowGuide>
       <div className="diststatcards">
         <div className="panel"><i aria-hidden="true">≋</i><span><b>{list?.length ?? '…'}</b><small>Kế hoạch tập huấn</small><small>{n('published')} đã phát hành · {n('draft')} nháp</small></span></div>
         <div className="panel"><i aria-hidden="true" className="good">⌂</i><span><b>{new Set(orgs.map(o => o.org_id)).size}</b><small>Trường được gán</small><small>{orgs.filter(o => o.status === 'approved').length} danh sách đã duyệt</small></span></div>
@@ -740,12 +741,12 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
     onMsg={m => { setMsg(m); setOpen(null); setRk(k => k + 1) }} />
   const n = (s: OrgSt) => (rows ?? []).filter(r => r.status === s).length
   return <>
-    <div className="panel distintro">
+    <FlowGuide id="training-school">
       <ol className="distguide">{([['Nhận kế hoạch', 'KDI, Sở hoặc Phòng gán kế hoạch tập huấn cho trường, kèm chỉ tiêu giáo viên.'],
         ['Chọn giáo viên', 'Mở kế hoạch, đánh dấu giáo viên tham gia, không vượt chỉ tiêu.'],
         ['Gửi duyệt', 'Gửi danh sách lên. Bị trả lại thì sửa theo lý do rồi gửi lại.']] as [string, string][]).map(([h, d], k) =>
         <li key={h}><button type="button" onClick={() => setFs(k === 0 ? '' : k === 1 ? 'todo' : 'sent')}><i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
-    </div>
+    </FlowGuide>
     <div className="diststatcards">
       <div className="panel"><i aria-hidden="true">≋</i><span><b>{rows?.length ?? '…'}</b><small>Kế hoạch được giao</small></span></div>
       <div className="panel"><i aria-hidden="true" className={n('assigned') + n('returned') ? 'warn' : 'good'}>!</i><span><b>{n('assigned') + n('returned')}</b><small>Cần chọn giáo viên</small><small>{n('returned')} bị trả lại</small></span></div>

@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
 import { CERT_ST } from './Results'
+import { FlowGuide } from '../../components/FlowGuide'
 
 type Cert = { id: string; code: string | null; status: 'pending' | 'issued' | 'revoked'; issued_on: string | null; expires_on: string | null; revoked_reason: string | null
   verify_token: string; plan_id: string; plan_code: string | null; plan_name: string | null; teacher_id: string; teacher_name: string; org_name: string | null
@@ -99,9 +100,9 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
     ['Duyệt cấp', 'Chọn chứng chỉ và bấm Duyệt cấp: hệ thống sinh số CCTH-năm-số, ngày cấp, hạn hiệu lực theo mẫu.', 'pending'],
     ['In & tra cứu', 'In hoặc lưu PDF; QR trên chứng chỉ mở trang tra cứu công khai. Thu hồi khi cần (ghi lý do).', 'issued']]
   return <>
-    <div className="panel distintro">
+    <FlowGuide id="training-certs">
       <ol className="distguide">{steps.map(([h, d, k], i) => <li key={h}><button type="button" onClick={() => setF(k)}><i>{i + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
-    </div>
+    </FlowGuide>
     <div className="diststatcards four">
       <div className="panel"><i aria-hidden="true">🎓</i><span><b>{rows ? base.length : '…'}</b><small>Chứng chỉ</small></span></div>
       <div className="panel"><i aria-hidden="true" className={cnt('pending') ? 'warn' : ''}>…</i><span><b>{cnt('pending')}</b><small>Chờ duyệt cấp</small></span></div>

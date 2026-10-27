@@ -1971,3 +1971,14 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
 .distintro.compact .distguide i{width:20px;height:20px;font-size:11px}
 @media(max-width:800px){.distintro.compact{flex-wrap:wrap}.distintro.compact .distguide{order:3;flex-basis:100%}.distintro.compact .libguide-h{flex:1}
   .distintro.compact .distguide,.distintro.compact .distguide.four{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Lịch tập huấn dạng lịch (dùng chung kiểu .tpcal của lịch kế hoạch) */
+.main .tpcalev.live{background:var(--bad-bg);border-left-color:var(--bad)}
+.tpcallegend i.live{background:var(--bad)}
+.main .tpcalev>b{font-weight:700}
+.tpcal.week .tscald{min-height:260px}
+.main .tpcal.week .tpcalev{white-space:normal}
+.main .tpcal.week .tpcalev small{display:block;color:var(--muted);font-size:11px}
+.main .tpganttbar.tick{width:6px;min-width:6px;margin-left:-3px;top:6px;bottom:6px}
+.main .tpganttbar.live{background:var(--bad)}
+span.namelink{cursor:default;text-decoration:none}

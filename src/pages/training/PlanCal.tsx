@@ -1,4 +1,4 @@
-// Kế hoạch tập huấn dạng lịch: xem theo tháng (mỗi ngày các kế hoạch đang diễn ra) hoặc theo năm (mỗi kế hoạch một thanh trên 12 tháng).
+// Kế hoạch tập huấn dạng lịch: xem theo tuần / tháng (mỗi ngày các kế hoạch đang diễn ra) hoặc theo năm (mỗi kế hoạch một thanh trên 12 tháng).
 // Dùng chung bộ lọc với tab "Danh sách kế hoạch". Bấm kế hoạch để mở.
 import { useMemo, useState } from 'react'
 import type { TPlan } from './Plans'
@@ -14,23 +14,27 @@ const MAX = 3
 export function PlanCal({ plans, onOpen, label }: { plans: TPlan[]; onOpen: (id: string) => void; label: (p: TPlan) => string }) {
   const dated = useMemo(() => plans.filter(p => p.starts_on || p.ends_on).sort((a, b) => from(a).localeCompare(from(b)) || a.name.localeCompare(b.name)), [plans])
   const undated = plans.filter(p => !p.starts_on && !p.ends_on)
-  const [view, setView] = useState<'month' | 'year'>('month')
+  const [view, setView] = useState<'week' | 'month' | 'year'>('month')
   // Mở ở tháng hiện tại; tháng này trống thì nhảy tới kế hoạch sắp tới gần nhất (hoặc kế hoạch gần đây nhất)
   const [anchor, setAnchor] = useState(() => {
     const t = new Date(), m0 = ymd(new Date(t.getFullYear(), t.getMonth(), 1)), m1 = ymd(new Date(t.getFullYear(), t.getMonth() + 1, 0))
-    if (!dated.length || dated.some(p => from(p) <= m1 && to(p) >= m0)) return new Date(t.getFullYear(), t.getMonth(), 1)
+    if (!dated.length || dated.some(p => from(p) <= m1 && to(p) >= m0)) return new Date(t.getFullYear(), t.getMonth(), t.getDate())
     const next = dated.find(p => from(p) > m1) ?? dated[dated.length - 1]
-    const d = new Date(from(next) + 'T00:00'); return new Date(d.getFullYear(), d.getMonth(), 1)
+    return new Date(from(next) + 'T00:00')
   })
   const [pick, setPick] = useState<string | null>(null)
   const today = ymd(new Date())
   const on = (s: string) => dated.filter(p => from(p) <= s && to(p) >= s)
-  const shift = (k: number) => { setPick(null); setAnchor(a => view === 'month' ? new Date(a.getFullYear(), a.getMonth() + k, 1) : new Date(a.getFullYear() + k, a.getMonth(), 1)) }
+  const shift = (k: number) => { setPick(null); setAnchor(a => view === 'week' ? new Date(a.getFullYear(), a.getMonth(), a.getDate() + 7 * k) : view === 'month' ? new Date(a.getFullYear(), a.getMonth() + k, 1) : new Date(a.getFullYear() + k, a.getMonth(), 1)) }
 
   // Tháng: lưới 6 tuần bắt đầu từ thứ Hai
   const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1)
   const start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7))
   const days = Array.from({ length: 42 }, (_, k) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + k))
+  // Tuần: 7 ngày từ thứ Hai của tuần chứa ngày đang xem
+  const w0 = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - ((anchor.getDay() + 6) % 7))
+  const week = Array.from({ length: 7 }, (_, k) => new Date(w0.getFullYear(), w0.getMonth(), w0.getDate() + k))
+  const inWeek = dated.filter(p => from(p) <= ymd(week[6]) && to(p) >= ymd(week[0]))
   const mFrom = ymd(first), mTo = ymd(new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0))
   const inMonth = dated.filter(p => from(p) <= mTo && to(p) >= mFrom)
 
@@ -51,17 +55,21 @@ export function PlanCal({ plans, onOpen, label }: { plans: TPlan[]; onOpen: (id:
     <div className="bar" style={{ margin: 0 }}>
       <div className="tools">
         <button type="button" aria-label="Trước" onClick={() => shift(-1)}>‹</button>
-        <b style={{ minWidth: 110, textAlign: 'center' }}>{view === 'month' ? `Tháng ${anchor.getMonth() + 1}/${y}` : `Năm ${y}`}</b>
+        <b style={{ minWidth: 110, textAlign: 'center' }}>{view === 'week' ? `${vn(ymd(week[0])).slice(0, 5)} – ${vn(ymd(week[6]))}` : view === 'month' ? `Tháng ${anchor.getMonth() + 1}/${y}` : `Năm ${y}`}</b>
         <button type="button" aria-label="Sau" onClick={() => shift(1)}>›</button>
-        <button type="button" onClick={() => { setPick(null); const t = new Date(); setAnchor(new Date(t.getFullYear(), t.getMonth(), 1)) }}>Hôm nay</button>
-        <div className="segmented" style={{ margin: 0 }}>{([['month', 'Tháng'], ['year', 'Năm']] as const).map(([k, l]) =>
+        <button type="button" onClick={() => { setPick(null); const t = new Date(); setAnchor(new Date(t.getFullYear(), t.getMonth(), t.getDate())) }}>Hôm nay</button>
+        <div className="segmented" style={{ margin: 0 }}>{([['week', 'Tuần'], ['month', 'Tháng'], ['year', 'Năm']] as const).map(([k, l]) =>
           <button key={k} type="button" className={view === k ? 'on' : ''} aria-pressed={view === k} onClick={() => { setPick(null); setView(k) }}>{l}</button>)}</div>
       </div>
       <small className="sub tpcallegend"><i className="pub" /> Đã phát hành <i className="draft" /> Nháp <i className="off" /> Ngừng dùng
-        · {view === 'month' ? `${inMonth.length} kế hoạch trong tháng` : `${inYear.length} kế hoạch trong năm`}</small>
+        · {view === 'week' ? `${inWeek.length} kế hoạch trong tuần` : view === 'month' ? `${inMonth.length} kế hoạch trong tháng` : `${inYear.length} kế hoạch trong năm`}</small>
     </div>
 
-    {view === 'month' ? <>
+    {view === 'week' ? <div className="tscal tpcal week">
+      {week.map((d, k) => <div key={k} className="tscalh">{['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][k]} {d.getDate()}/{d.getMonth() + 1}</div>)}
+      {week.map(d => { const s = ymd(d)
+        return <div key={s} className={'tscald' + (s === today ? ' today' : '')}>{on(s).map(p => chip(p, s))}</div> })}
+    </div> : view === 'month' ? <>
       <div className="tscal tpcal">
         {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <div key={d} className="tscalh">{d}</div>)}
         {days.map(d => { const s = ymd(d), ps = on(s)

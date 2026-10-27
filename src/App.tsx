@@ -461,7 +461,7 @@ const PLATFORM: PageMap = {
   'Tích hợp & dữ liệu': PlatformIntegrations,
   // 1. Đào tạo & đánh giá năng lực nhà giáo — làm lại theo khuôn Phân hệ 2 (kế hoạch: Chương trình → Kế hoạch & lịch → … → Giám sát)
   'Chương trình tập huấn': TrainingProgramsPage,
-  'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch', PH1_TABS.cal], ['Lớp học ảo', PH1_TABS.virtual],
+  'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch tập huấn', PH1_TABS.cal], ['Lớp học ảo', PH1_TABS.virtual],
     // 27/10: Đánh giá kết quả và Giám sát tập huấn gom vào đây (đều theo từng kế hoạch); các màn giám sát gộp một tab
     ['Đánh giá kết quả', TrainingResultsPage], ['Giảng viên', PH1_TABS.trainers], ['Giám sát', TrainingMonitorTabs]]} />,
   // 2. Chương trình & học liệu

@@ -1,5 +1,5 @@
-// Phân hệ 1 — Lịch tập huấn & điểm danh (085). Tab "Lịch" của mục Kế hoạch & lịch tập huấn (KDI, Sở / Phòng).
-// Xếp lịch tự động từ kế hoạch (mỗi nội dung tập huấn một buổi) hoặc thêm buổi; xem theo danh sách / tuần / tháng;
+// Phân hệ 1 — Lịch tập huấn & điểm danh (085). Tab "Lịch tập huấn" của mục Kế hoạch & lịch tập huấn (KDI, Sở / Phòng).
+// Xếp lịch tự động từ kế hoạch (mỗi nội dung tập huấn một buổi) hoặc thêm buổi; xem dạng bảng hoặc lịch (tháng / tuần);
 // mở buổi để đưa mã điểm danh (QR), nhắc lịch, ghi có mặt / vắng, duyệt xin vắng, chốt điểm danh, xem GV trùng lịch.
 import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
@@ -61,8 +61,8 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [plan, setPlan] = useState('')
   const [fs, setFs] = useState<St | ''>('')
-  const [view, setView] = useState<'list' | 'week' | 'month'>('list')
-  const [anchor, setAnchor] = useState(() => new Date())
+  const [look, setLook] = useState<'table' | 'cal'>(() => { try { return localStorage.getItem('kdi-tsched-look') === 'cal' ? 'cal' : 'table' } catch { return 'table' } })
+  const pickLook = (k: 'table' | 'cal') => { setLook(k); try { localStorage.setItem('kdi-tsched-look', k) } catch { /* bỏ qua */ } }
   const [open, setOpen] = useState<{ kind: 'auto' } | { kind: 'new' } | { kind: 'sess'; id: string } | null>(null)
   const reload = () => setRk(k => k + 1)
   // Quản trị hệ thống: lịch của mọi đơn vị trong một danh sách, sửa thẳng
@@ -99,15 +99,6 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
     ['Xếp lịch', 'Xếp tự động từ kế hoạch (mỗi nội dung tập huấn một buổi) hoặc thêm từng buổi; sửa giờ, địa điểm, link họp, giảng viên.', 'upcoming'],
     ['Nhắc lịch & điểm danh', 'Gửi nhắc lịch cho giáo viên. Buổi trực tiếp có mã 6 số / QR: giáo viên nhập mã để điểm danh; buổi trực tuyến điểm danh khi bấm Tham gia.', 'live'],
     ['Chốt điểm danh', 'Duyệt xin vắng, ghi có mặt / vắng còn thiếu rồi chốt. Chưa ghi thì tính vắng.', 'toclose']]
-  const Card = ({ s }: { s: Sess }) => { const st = sessSt(s, now), i = info(s.id)
-    return <button type="button" className={'tsevt ' + st} onClick={() => { setMsg(null); setOpen({ kind: 'sess', id: s.id }) }}>
-      <b>{hm(s.starts_at)}–{hm(s.ends_at)}</b> {s.title}<small>{pl(s.plan_id)?.plan_code} · {MODE[s.mode]}{i.total ? ` · ${i.present}/${i.total}` : ''}{i.pend ? ` · ${i.pend} xin vắng` : ''}</small></button> }
-  const wk = monday(anchor), days = Array.from({ length: 7 }, (_, k) => { const d = new Date(wk); d.setDate(wk.getDate() + k); return d })
-  const m0 = new Date(anchor.getFullYear(), anchor.getMonth(), 1), mStart = monday(m0)
-  const mDays = Array.from({ length: 42 }, (_, k) => { const d = new Date(mStart); d.setDate(mStart.getDate() + k); return d })
-  const on = (d: Date) => shown.filter(s => sameDay(new Date(s.starts_at), d))
-  const shift = (k: number) => { const d = new Date(anchor); if (view === 'month') d.setMonth(d.getMonth() + k); else d.setDate(d.getDate() + 7 * k); setAnchor(d) }
-
   return <>
     <FlowGuide id="training-schedule">
       <ol className="distguide">{steps.map(([h, d, f], k) => <li key={h}><button type="button" onClick={() => setFs(f)}><i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
@@ -127,15 +118,17 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
         <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Kế hoạch"><option value="">Mọi kế hoạch</option>
           {(plans ?? []).filter(p => !fo || p.org_id === fo).map(p => <option key={p.id} value={p.id}>{p.plan_code} · {p.name}</option>)}</select>
         <OrgFilter ids={(plans ?? []).map(p => p.org_id)} value={fo} onChange={v => { setFo(v); setPlan('') }} />
-        <div className="segmented" style={{ margin: 0 }}>{([['list', 'Danh sách'], ['week', 'Tuần'], ['month', 'Tháng']] as const).map(([k, l]) =>
-          <button key={k} type="button" className={view === k ? 'on' : ''} onClick={() => setView(k)}>{l}</button>)}</div>
+        <small className="sub">{shown.length}/{base.length} buổi</small>
       </div>
-      {can && <div className="tools">
+      <div className="tools">
+        <span className="segmented viewtoggle" role="group" aria-label="Kiểu xem">{([['table', 'Bảng'], ['cal', 'Lịch']] as const).map(([k, l]) =>
+          <button key={k} type="button" className={look === k ? 'on' : ''} aria-pressed={look === k} onClick={() => pickLook(k)}>{l}</button>)}</span>
+        {can && <>
         <button type="button" onClick={() => { setMsg(null); setOpen({ kind: 'new' }) }} disabled={!plans?.length}>Thêm buổi</button>
-        <button type="button" className="primary" onClick={() => { setMsg(null); setOpen({ kind: 'auto' }) }} disabled={!plans?.length}>Xếp lịch từ kế hoạch</button></div>}
+        <button type="button" className="primary" onClick={() => { setMsg(null); setOpen({ kind: 'auto' }) }} disabled={!plans?.length}>Xếp lịch từ kế hoạch</button></>}</div>
     </div>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    {!plans ? <p className="sub">Đang tải…</p> : view === 'list' ? <div className="wrap"><table className="libtable">
+    {!plans ? <p className="sub">Đang tải…</p> : look === 'table' ? <div className="wrap"><table className="libtable">
       <thead><tr><th>Buổi tập huấn</th><th>Thời gian</th><th>Hình thức</th><th>Giảng viên</th><th>Điểm danh</th><th>Trạng thái</th></tr></thead>
       <tbody>{shown.map(s => { const st = sessSt(s, now), i = info(s.id), p = pl(s.plan_id)
         return <tr key={s.id}>
@@ -147,20 +140,82 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
           <td><Chip tone={ST[st][1]}>{ST[st][0]}</Chip></td>
         </tr> })}
         {!shown.length && <tr><td colSpan={6}>{rows.length ? 'Không có buổi nào khớp bộ lọc.' : plans.length ? (can ? 'Chưa có buổi nào. Bấm "Xếp lịch từ kế hoạch".' : 'Chưa có buổi nào.') : 'Chưa có kế hoạch nào đã phát hành. Phát hành kế hoạch ở tab Kế hoạch trước.'}</td></tr>}</tbody>
-    </table></div> : <section className="panel" style={{ display: 'grid', gap: 10 }}>
-      <div className="bar" style={{ margin: 0 }}>
-        <div className="tools"><button type="button" aria-label="Trước" onClick={() => shift(-1)}>‹</button>
-          <b>{view === 'week' ? `${days[0].toLocaleDateString('vi-VN')} – ${days[6].toLocaleDateString('vi-VN')}` : `Tháng ${anchor.getMonth() + 1}/${anchor.getFullYear()}`}</b>
-          <button type="button" aria-label="Sau" onClick={() => shift(1)}>›</button><button type="button" onClick={() => setAnchor(new Date())}>Hôm nay</button></div>
-        <small className="sub">Màu: xanh = sắp diễn ra · đỏ = đang diễn ra · vàng = chờ chốt · xám = đã chốt</small>
-      </div>
-      <div className={'tscal ' + view}>
-        {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <div key={d} className="tscalh">{d}</div>)}
-        {(view === 'week' ? days : mDays).map(d => <div key={+d} className={'tscald' + (view === 'month' && d.getMonth() !== anchor.getMonth() ? ' out' : '') + (sameDay(d, new Date()) ? ' today' : '')}>
-          <small>{d.getDate()}{view === 'week' && `/${d.getMonth() + 1}`}</small>{on(d).map(s => <Card key={s.id} s={s} />)}</div>)}
-      </div>
-    </section>}
+    </table></div> : <SessCal rows={shown} planName={id => { const p = pl(id); return p ? [p.plan_code, p.name].filter(Boolean).join(' · ') : '—' }} label={x => { const p = pl(x.plan_id); return [all && orgName(p?.org_id), p?.plan_code, MODE[x.mode], (i => i.total ? `${i.present}/${i.total} có mặt` : '')(info(x.id))].filter(Boolean).join(' · ') }}
+      onOpen={id => { setMsg(null); setOpen({ kind: 'sess', id }) }} />}
   </>
+}
+
+// ===== Lịch tập huấn dạng lịch: tháng / tuần, cùng kiểu với lịch kế hoạch tập huấn =====
+const TONE: Record<St, string> = { upcoming: '', live: 'live', toclose: 'draft', closed: 'off' }
+const MAX = 3
+export function SessCal({ rows, label, planName, onOpen }: { rows: Sess[]; label: (s: Sess) => string; planName: (id: string) => string; onOpen: (id: string) => void }) {
+  const [view, setView] = useState<'week' | 'month' | 'year'>('month')
+  // Mở ở tháng hiện tại; tháng này trống thì nhảy tới buổi sắp tới gần nhất (hoặc buổi gần đây nhất)
+  const [anchor, setAnchor] = useState(() => {
+    const t = new Date(), m0 = new Date(t.getFullYear(), t.getMonth(), 1), m1 = new Date(t.getFullYear(), t.getMonth() + 1, 1)
+    if (!rows.length || rows.some(s => +new Date(s.starts_at) >= +m0 && +new Date(s.starts_at) < +m1)) return t
+    const next = rows.find(s => +new Date(s.starts_at) >= +m1) ?? rows[rows.length - 1]
+    return new Date(next.starts_at)
+  })
+  const [pick, setPick] = useState<string | null>(null)
+  const now = Date.now(), today = new Date()
+  const on = (d: Date) => rows.filter(s => sameDay(new Date(s.starts_at), d))
+  const shift = (k: number) => { setPick(null); const d = new Date(anchor); if (view === 'year') { d.setDate(1); d.setFullYear(d.getFullYear() + k) } else if (view === 'month') { d.setDate(1); d.setMonth(d.getMonth() + k) } else d.setDate(d.getDate() + 7 * k); setAnchor(d) }
+  const wk = monday(anchor), week = Array.from({ length: 7 }, (_, k) => new Date(wk.getFullYear(), wk.getMonth(), wk.getDate() + k))
+  const mStart = monday(new Date(anchor.getFullYear(), anchor.getMonth(), 1))
+  const month = Array.from({ length: 42 }, (_, k) => new Date(mStart.getFullYear(), mStart.getMonth(), mStart.getDate() + k))
+  const days = view === 'week' ? week : month
+  // Năm: mỗi kế hoạch một hàng, mỗi buổi một vạch trên 12 tháng
+  const y = anchor.getFullYear(), y0 = +new Date(y, 0, 1), yLen = +new Date(y + 1, 0, 1) - y0
+  const inYear = rows.filter(s => new Date(s.starts_at).getFullYear() === y)
+  const byPlan = [...inYear.reduce((m, s) => m.set(s.plan_id, [...(m.get(s.plan_id) ?? []), s]), new Map<string, Sess[]>())]
+  const pct = (d: number) => (d - y0) / yLen * 100
+  const inView = view === 'year' ? inYear.length : view === 'week' ? week.reduce((n, d) => n + on(d).length, 0) : rows.filter(s => { const d = new Date(s.starts_at); return d.getMonth() === anchor.getMonth() && d.getFullYear() === anchor.getFullYear() }).length
+  const vn = (d: Date) => d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+  const chip = (s: Sess) => { const st = sessSt(s, now)
+    return <button key={s.id} type="button" className={'tpcalev ' + TONE[st]} title={`${s.title}\n${hm(s.starts_at)}–${hm(s.ends_at)} · ${ST[st][0]}\n${label(s)}`} onClick={() => onOpen(s.id)}>
+      <b>{hm(s.starts_at)}</b> {s.title}{view === 'week' && <small>{label(s)}</small>}</button> }
+
+  return <section className="panel" style={{ display: 'grid', gap: 10 }}>
+    <div className="bar" style={{ margin: 0 }}>
+      <div className="tools">
+        <button type="button" aria-label="Trước" onClick={() => shift(-1)}>‹</button>
+        <b style={{ minWidth: 110, textAlign: 'center' }}>{view === 'year' ? `Năm ${y}` : view === 'month' ? `Tháng ${anchor.getMonth() + 1}/${y}` : `${vn(week[0])} – ${vn(week[6])}/${week[6].getFullYear()}`}</b>
+        <button type="button" aria-label="Sau" onClick={() => shift(1)}>›</button>
+        <button type="button" onClick={() => { setPick(null); setAnchor(new Date()) }}>Hôm nay</button>
+        <div className="segmented" style={{ margin: 0 }}>{([['week', 'Tuần'], ['month', 'Tháng'], ['year', 'Năm']] as const).map(([k, l]) =>
+          <button key={k} type="button" className={view === k ? 'on' : ''} aria-pressed={view === k} onClick={() => { setPick(null); setView(k) }}>{l}</button>)}</div>
+      </div>
+      <small className="sub tpcallegend"><i /> Sắp diễn ra <i className="live" /> Đang diễn ra <i className="draft" /> Chờ chốt <i className="off" /> Đã chốt
+        · {inView} buổi trong {({ week: 'tuần', month: 'tháng', year: 'năm' })[view]}</small>
+    </div>
+    {view === 'year' ? <div className="tpgantt">
+      <div className="tpganttrow head"><span />
+        <div className="tpgantttrack">{Array.from({ length: 12 }, (_, m) => <span key={m}>Th{m + 1}</span>)}</div></div>
+      {byPlan.map(([pid, ss]) => <div key={pid} className="tpganttrow">
+        <span className="namelink" title={planName(pid)}>{planName(pid)}<small className="sub">{ss.length} buổi</small></span>
+        <div className="tpgantttrack">{Array.from({ length: 12 }, (_, m) => <span key={m} />)}
+          {today.getFullYear() === y && <i className="now" style={{ left: `${pct(+today)}%` }} aria-hidden="true" />}
+          {ss.map(s => <button key={s.id} type="button" className={'tpganttbar tick ' + TONE[sessSt(s, now)]} style={{ left: `${pct(+new Date(s.starts_at))}%` }}
+            title={`${s.title}\n${dd(s.starts_at)} ${hm(s.starts_at)}–${hm(s.ends_at)}`} aria-label={`${s.title}, ${dd(s.starts_at)}`} onClick={() => onOpen(s.id)} />)}
+        </div>
+      </div>)}
+      {!byPlan.length && <p className="sub" style={{ margin: 8 }}>Không có buổi nào trong năm {y}.</p>}
+    </div> : <div className={'tscal tpcal ' + view}>
+      {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <div key={d} className="tscalh">{d}</div>)}
+      {days.map(d => { const ss = on(d), k = ymd(d), cut = view === 'month' && ss.length > MAX
+        return <div key={k} className={'tscald' + (view === 'month' && d.getMonth() !== anchor.getMonth() ? ' out' : '') + (sameDay(d, today) ? ' today' : '') + (pick === k ? ' pick' : '')}>
+          <small>{d.getDate()}{view === 'week' && `/${d.getMonth() + 1}`}</small>
+          {(cut ? ss.slice(0, MAX - 1) : ss).map(chip)}
+          {cut && <button type="button" className="tpcalmore" onClick={() => setPick(pick === k ? null : k)}>+{ss.length - MAX + 1} buổi</button>}
+        </div> })}
+    </div>}
+    {pick && (d => <div className="tpcalday">
+      <b>Ngày {d.toLocaleDateString('vi-VN')}: {on(d).length} buổi</b>
+      <ul>{on(d).map(s => <li key={s.id}>{chip(s)}<small className="sub">{hm(s.starts_at)}–{hm(s.ends_at)} · {label(s)}</small></li>)}</ul>
+    </div>)(new Date(pick + 'T00:00'))}
+    {!rows.length && <p className="sub" style={{ margin: 0 }}>Không có buổi nào khớp bộ lọc.</p>}
+  </section>
 }
 
 // ===== Xếp lịch tự động =====

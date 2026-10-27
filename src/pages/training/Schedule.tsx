@@ -299,6 +299,7 @@ function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; plan: Pla
   const [edit, setEdit] = useState(false)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [plans, setPlans] = useState<Plan[]>([])
+  const [show, setShow] = useState(false)
   async function load() {
     const [a, b, c] = await Promise.all([
       supabase.from('training_sessions').select(SSEL).eq('id', id).single(),
@@ -309,7 +310,7 @@ function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; plan: Pla
     const x = a.data as Sess
     setS(x); setF(fromSess(x)); setRows((b.data as unknown as Att[]) ?? [])
     const k = (c.data as { code: string } | null)?.code ?? null
-    setCode(k); setQr(k ? await QRCode.toDataURL(k, { margin: 1, width: 180, errorCorrectionLevel: 'M' }) : '')
+    setCode(k); setQr(k ? await QRCode.toDataURL(checkinUrl(k), { margin: 1, width: 480, errorCorrectionLevel: 'M' }) : '')
     const { data: cf } = await supabase.rpc('training_plan_conflicts', { p_plan: x.plan_id })
     const m = new Map<string, string[]>()
     for (const r of ((cf ?? []) as { session_id: string; teacher_id: string; detail: string }[]).filter(r => r.session_id === id)) m.set(r.teacher_id, [...(m.get(r.teacher_id) ?? []), r.detail])
@@ -359,8 +360,10 @@ function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; plan: Pla
         <h3 style={{ margin: 0 }}>Mã điểm danh</h3>
         <b className="tscodenum">{code}</b>
         {qr && <img src={qr} alt={`QR mã điểm danh ${code}`} width={150} height={150} />}
-        <small className="sub">Chiếu mã hoặc QR trong buổi học. Giáo viên vào Lịch tập huấn › Nhập mã điểm danh (mở 15 phút trước giờ học đến 15 phút sau khi kết thúc).</small>
+        <button type="button" className="primary" onClick={() => setShow(true)}>Trình chiếu QR điểm danh</button>
+        <small className="sub">Chiếu QR lên màn hình: giáo viên mở camera điện thoại quét mã, đăng nhập (nếu chưa) là điểm danh xong, không cần gọi tên. Hoặc nhập mã 6 số ở Lịch tập huấn. Mở từ 15 phút trước giờ học đến 15 phút sau khi kết thúc.</small>
       </section>}
+      {show && code && <CheckinShow id={id} title={s.title} when={`${dd(s.starts_at)} ${hm(s.starts_at)}–${hm(s.ends_at)}`} code={code} qr={qr} onClose={() => { setShow(false); load() }} />}
       <section className="panel" style={{ display: 'grid', gap: 12 }}>
         <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Thông tin buổi</h3>{can && !edit && <button type="button" onClick={() => setEdit(true)}>Sửa</button>}</div>
         {edit ? <>
@@ -404,4 +407,32 @@ function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; plan: Pla
       </table></div>
     </section>
   </ElView>
+}
+
+export const checkinUrl = (code: string) => `${location.origin}/?dd=${code}`
+/** Trình chiếu QR điểm danh toàn màn hình, số giáo viên đã điểm danh cập nhật mỗi 5 giây */
+function CheckinShow({ id, title, when, code, qr, onClose }: { id: string; title: string; when: string; code: string; qr: string; onClose: () => void }) {
+  const [rows, setRows] = useState<{ present: boolean | null; checked_in_at: string | null; teachers: { full_name: string } | null }[]>([])
+  useEffect(() => {
+    const get = () => supabase.from('training_attendance').select('present, checked_in_at, teachers(full_name)').eq('session_id', id)
+      .then(({ data }) => setRows((data as unknown as typeof rows) ?? []))
+    get(); const t = setInterval(get, 5000)
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', esc)
+    return () => { clearInterval(t); window.removeEventListener('keydown', esc) }
+  }, [id])
+  const on = rows.filter(r => r.present)
+  const last = [...on].filter(r => r.checked_in_at).sort((a, b) => b.checked_in_at!.localeCompare(a.checked_in_at!)).slice(0, 6)
+  return <div className="ckshow" role="dialog" aria-modal="true" aria-label="Trình chiếu QR điểm danh">
+    <button type="button" className="ckclose" onClick={onClose}>Đóng (Esc)</button>
+    <div className="ckqr"><img src={qr} alt={`QR điểm danh, mã ${code}`} /></div>
+    <div className="ckside">
+      <small className="sub">{when}</small>
+      <h2>{title}</h2>
+      <p><b>Quét mã QR bằng camera điện thoại để điểm danh</b><br /><span className="sub">Hoặc vào Lịch tập huấn › nhập mã</span></p>
+      <b className="ckcode">{code}</b>
+      <div className="ckcount"><b>{on.length}</b>/{rows.length}<small>giáo viên đã điểm danh</small></div>
+      {last.length > 0 && <ul className="cklast">{last.map((r, i) => <li key={i}>✓ {r.teachers?.full_name} <small className="sub">{hm(r.checked_in_at!)}</small></li>)}</ul>}
+    </div>
+  </div>
 }

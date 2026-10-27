@@ -5,15 +5,17 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
+import { ClsTree } from '../dist/ClsTree'
+import { OrgFilter, useAllMode } from '../../components/OrgScope'
+import { PlanResults } from './ResultsWork'
 
-type Plan = { id: string; org_id: string; plan_code: string | null; name: string }
+export type RPlan = { id: string; org_id: string; plan_code: string | null; name: string }
 type M = { sessions: number; present: number; excused: number; att_pct: number | null; att_req: number; units: number; done: number; tests: number
   tests_passed: number; avg_score: number | null; score_req: number | null; need_product: boolean; product_status: string | null
   ok_att: boolean; ok_tests: boolean; ok_units: boolean; ok_product: boolean; suggest: 'pass' | 'fail' }
 export type ResRow = { teacher_id: string; teacher_name: string; subject: string | null; org_name: string | null; metrics: M; result: 'pending' | 'pass' | 'fail'
   reason: string | null; product_score: number | null; comment: string | null; extra_attempts: number; decided_at: string | null
   product_url: string | null; product_note: string | null; cert_id: string | null; cert_status: string | null; cert_code: string | null }
-type F = 'all' | 'ready' | 'pending' | 'pass' | 'fail'
 
 export const RESULT: Record<string, [string, string]> = { pending: ['Chờ kết luận', ''], pass: ['Đạt', 'good'], fail: ['Chưa đạt', 'bad'] }
 export const CERT_ST: Record<string, [string, string]> = { pending: ['Chờ duyệt cấp', 'warn'], issued: ['Đã cấp', 'good'], revoked: ['Đã thu hồi', 'bad'] }
@@ -22,95 +24,95 @@ const num = (n: number | null | undefined) => n == null ? '—' : String(n).repl
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 087 trên Supabase.' : m
 const ok = (b: boolean) => <span aria-label={b ? 'đạt điều kiện' : 'chưa đạt điều kiện'} className={b ? 'tlok' : 'warnline'}>{b ? '✓' : '✗'}</span>
 
+type TPlanRow = RPlan & { node_id: string | null; pub_status: string; year_name: string | null }
+type Cnt = { n: number; pass: number; fail: number; cert: number }
+
 export function TrainingResultsPage({ orgId }: { orgId: string }) {
-  const [plans, setPlans] = useState<Plan[] | null>(null)
-  const [plan, setPlan] = useState('')
-  const [rows, setRows] = useState<ResRow[] | null>(null)
-  const [can, setCan] = useState(false)
-  const [f, setF] = useState<F>('all')
-  const [q, setQ] = useState('')
-  const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const [plans, setPlans] = useState<TPlanRow[] | null>(null)
+  const [cnt, setCnt] = useState<Map<string, Cnt>>(new Map())
   const [open, setOpen] = useState<string | null>(null)
+  const [tab, setTab] = useState<'tree' | 'list'>('tree')
+  const [q, setQ] = useState('')
+  const [fo, setFo] = useState('')
+  const [err, setErr] = useState('')
+  const [rk, setRk] = useState(0)
+  const all = !!useAllMode()
   useEffect(() => {
-    supabase.from('training_plans').select('id, org_id, plan_code, name').neq('pub_status', 'draft').order('plan_code', { ascending: false }).then(({ data, error }) => {
-      if (error) { setMsg([errText(error.message), true]); setPlans([]); return }
-      const ps = (data as Plan[]) ?? []
-      // Kế hoạch của đơn vị mình lên trước
+    (async () => {
+      const p = await supabase.from('training_plans').select('id, org_id, plan_code, name, node_id, pub_status, year_name').neq('pub_status', 'draft').order('plan_code', { ascending: false })
+      if (p.error) { setErr(errText(p.error.message)); setPlans([]); return }
+      const ps = (p.data as TPlanRow[]) ?? []
       ps.sort((a, b) => Number(b.org_id === orgId) - Number(a.org_id === orgId))
-      setPlans(ps); setPlan(p => p || ps[0]?.id || '')
-    })
-  }, [orgId])
-  const load = () => {
-    if (!plan) return
-    setRows(null)
-    supabase.rpc('training_plan_results', { p_plan: plan }).then(({ data, error }) => { if (error) { setMsg([errText(error.message), true]); setRows([]) } else setRows((data as ResRow[]) ?? []) })
-    supabase.rpc('training_plan_can_manage', { p_plan: plan }).then(({ data }) => setCan(!!data))
-  }
-  useEffect(load, [plan])
+      setPlans(ps)
+      const ids = ps.map(x => x.id)
+      if (!ids.length) return
+      const [e, r, c] = await Promise.all([
+        supabase.from('training_enrollments').select('plan_id').in('plan_id', ids),
+        supabase.from('training_results').select('plan_id, result').in('plan_id', ids),
+        supabase.from('certificates').select('plan_id, status').in('plan_id', ids),
+      ])
+      const m = new Map<string, Cnt>()
+      const g = (id: string) => { if (!m.has(id)) m.set(id, { n: 0, pass: 0, fail: 0, cert: 0 }); return m.get(id)! }
+      for (const x of (e.data ?? []) as { plan_id: string }[]) g(x.plan_id).n++
+      for (const x of (r.data ?? []) as { plan_id: string; result: string }[]) { if (x.result === 'pass') g(x.plan_id).pass++; if (x.result === 'fail') g(x.plan_id).fail++ }
+      for (const x of (c.data ?? []) as { plan_id: string; status: string }[]) if (x.status === 'issued') g(x.plan_id).cert++
+      setCnt(m)
+    })()
+  }, [orgId, rk])
 
-  const p = plans?.find(x => x.id === plan)
-  const cur = rows?.find(r => r.teacher_id === open)
-  if (cur && p) return <ResultDetail plan={p} r={cur} can={can} onBack={() => setOpen(null)} onDone={m => { setMsg([m, false]); load() }} />
+  const cur = plans?.find(p => p.id === open)
+  if (cur) return <ElView back="Đánh giá kết quả tập huấn" onBack={() => { setOpen(null); setRk(x => x + 1) }} title={cur.name}
+    sub={[cur.plan_code, cur.year_name].filter(Boolean).join(' · ')}><PlanResults plan={cur} /></ElView>
 
-  const all = rows ?? []
-  const ready = all.filter(r => r.result === 'pending' && r.metrics.suggest === 'pass')
-  const cnt = (k: F) => k === 'all' ? all.length : k === 'ready' ? ready.length : all.filter(r => r.result === k).length
-  const shown = all.filter(r => (f === 'all' || (f === 'ready' ? r.result === 'pending' && r.metrics.suggest === 'pass' : r.result === f))
-    && (r.teacher_name + ' ' + (r.org_name ?? '')).toLowerCase().includes(q.toLowerCase()))
-  async function confirmAll() {
-    if (!confirm(`Kết luận Đạt cho ${ready.length} giáo viên đủ điều kiện? Chứng chỉ của họ sẽ chờ duyệt cấp.`)) return
-    const { data, error } = await supabase.rpc('training_results_confirm', { p_plan: plan })
-    if (error) return setMsg([errText(error.message), true])
-    setMsg([`Đã kết luận Đạt cho ${data} giáo viên. Duyệt cấp chứng chỉ ở mục Chứng chỉ tập huấn.`, false]); load()
-  }
-  const steps: [string, string, F][] = [
-    ['Tự tính kết quả', 'Chuyên cần từ điểm danh (vắng có phép không tính), điểm bài kiểm tra, tiến độ học và sản phẩm cuối khoá.', 'all'],
-    ['Chấm & kết luận', 'Chấm điểm sản phẩm, nhận xét. Xác nhận Đạt cho người đủ điều kiện; Chưa đạt thì ghi lý do và cho thi lại.', 'ready'],
-    ['Cấp chứng chỉ', 'Giáo viên Đạt có chứng chỉ chờ duyệt ở mục Chứng chỉ tập huấn.', 'pass']]
-
+  const list = (plans ?? []).filter(p => (!fo || p.org_id === fo) && (!q || `${p.plan_code ?? ''} ${p.name}`.toLowerCase().includes(q.toLowerCase())))
+  const tot = [...cnt.values()].reduce((a, c) => ({ n: a.n + c.n, pass: a.pass + c.pass, fail: a.fail + c.fail, cert: a.cert + c.cert }), { n: 0, pass: 0, fail: 0, cert: 0 })
+  const table = (rows: TPlanRow[], empty: string) => <div className="wrap"><table className="libtable">
+    <thead><tr><th>Kế hoạch tập huấn</th><th>Giáo viên</th><th>Đạt</th><th>Chưa đạt</th><th>Chờ kết luận</th><th>Chứng chỉ đã cấp</th></tr></thead>
+    <tbody>{rows.map(p => { const c = cnt.get(p.id) ?? { n: 0, pass: 0, fail: 0, cert: 0 }, wait = Math.max(0, c.n - c.pass - c.fail)
+      return <tr key={p.id}>
+        <td><button type="button" className="namelink" onClick={() => setOpen(p.id)}>{p.name}</button><br /><small className="sub">{[p.plan_code, p.year_name, p.org_id === orgId ? '' : 'được giao'].filter(Boolean).join(' · ')}</small></td>
+        <td>{c.n}</td>
+        <td><b className="tlok">{c.pass}</b>{c.n ? <small className="sub"> · {Math.round(c.pass * 100 / c.n)}%</small> : null}</td>
+        <td>{c.fail || '—'}</td>
+        <td>{wait ? <Chip tone="warn">{wait} chờ</Chip> : '—'}</td>
+        <td>{c.cert}</td>
+      </tr> })}
+      {!rows.length && <tr><td colSpan={6}>{empty}</td></tr>}</tbody>
+  </table></div>
+  const steps: [string, string][] = [
+    ['Chọn kế hoạch', 'Chọn mục trong khung phân loại (môn học, cấp độ…) rồi mở kế hoạch đã phát hành.'],
+    ['Chấm điểm', 'Hệ thống tự tính chuyên cần, bài kiểm tra, học trực tuyến; nhập điểm sản phẩm hàng loạt.'],
+    ['Kết luận', 'Chọn nhiều giáo viên để kết luận Đạt / Chưa đạt; xác nhận Đạt cho người đủ điều kiện.'],
+    ['Cấp chứng chỉ', 'Duyệt cấp và in hàng loạt chứng chỉ có QR tra cứu.']]
   return <>
     <div className="panel distintro">
-      <ol className="distguide">{steps.map(([h, d, k], i) => <li key={h}><button type="button" onClick={() => setF(k)}><i>{i + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
+      <ol className="distguide four">{steps.map(([h, d], i) => <li key={h}><button type="button" onClick={() => setTab('tree')}><i>{i + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
     </div>
     <div className="diststatcards four">
-      <div className="panel"><i aria-hidden="true">👥</i><span><b>{rows ? all.length : '…'}</b><small>Giáo viên</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{cnt('pass')}</b><small>Đạt</small></span></div>
-      <div className="panel"><i aria-hidden="true" className={cnt('fail') ? 'warn' : ''}>✗</i><span><b>{cnt('fail')}</b><small>Chưa đạt</small></span></div>
-      <div className="panel"><i aria-hidden="true" className={ready.length ? 'warn' : ''}>…</i><span><b>{cnt('pending')}</b><small>Chờ kết luận</small><small>{ready.length} đủ điều kiện</small></span></div>
+      <div className="panel"><i aria-hidden="true">≋</i><span><b>{plans?.length ?? '…'}</b><small>Kế hoạch đã phát hành</small></span></div>
+      <div className="panel"><i aria-hidden="true">👥</i><span><b>{tot.n}</b><small>Lượt giáo viên ghi danh</small></span></div>
+      <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{tot.pass}</b><small>Đạt</small><small>{tot.n ? Math.round(tot.pass * 100 / tot.n) : 0}% · {Math.max(0, tot.n - tot.pass - tot.fail)} chờ kết luận</small></span></div>
+      <div className="panel"><i aria-hidden="true" className="good">▣</i><span><b>{tot.cert}</b><small>Chứng chỉ đã cấp</small></span></div>
     </div>
-    {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
-      <div className="distfilter">
-        <select value={plan} onChange={e => { setPlan(e.target.value); setOpen(null) }} aria-label="Kế hoạch tập huấn" style={{ maxWidth: 420 }}>
-          {!plans?.length && <option value="">Chưa có kế hoạch đã phát hành</option>}
-          {plans?.map(x => <option key={x.id} value={x.id}>{x.plan_code} · {x.name}{x.org_id === orgId ? '' : ' (được giao)'}</option>)}</select>
-        <input placeholder="Tìm giáo viên, trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo viên" />
-        {can && ready.length > 0 && <button type="button" className="primary" onClick={confirmAll}>Xác nhận Đạt cho {ready.length} GV đủ điều kiện</button>}
-      </div>
-      <div className="distfilter">{([['all', 'Tất cả'], ['ready', 'Đủ điều kiện, chờ kết luận'], ['pending', 'Chờ kết luận'], ['pass', 'Đạt'], ['fail', 'Chưa đạt']] as [F, string][])
-        .map(([k, l]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => setF(k)}>{l} ({cnt(k)})</button>)}</div>
-      {!can && p && <small className="sub">Kế hoạch của đơn vị khác: chỉ xem kết quả giáo viên trong phạm vi của mình.</small>}
-      {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-        <thead><tr><th>Giáo viên</th><th>Chuyên cần</th><th>Bài kiểm tra</th><th>Học trực tuyến</th><th>Sản phẩm</th><th>Gợi ý</th><th>Kết luận</th><th>Chứng chỉ</th></tr></thead>
-        <tbody>{shown.map(r => { const m = r.metrics
-          return <tr key={r.teacher_id}>
-            <td><button type="button" className="namelink" onClick={() => setOpen(r.teacher_id)}>{r.teacher_name}</button><br /><small className="sub">{r.org_name ?? '—'}</small></td>
-            <td>{ok(m.ok_att)} {m.att_pct == null ? '—' : `${num(m.att_pct)}%`}<br /><small className="sub">{m.present}/{m.sessions - m.excused} buổi · cần {m.att_req}%</small></td>
-            <td>{m.tests ? <>{ok(m.ok_tests)} {m.tests_passed}/{m.tests} đạt<br /><small className="sub">TB {num(m.avg_score)}</small></> : <small className="sub">Không có</small>}</td>
-            <td>{ok(m.ok_units)} {m.done}/{m.units}</td>
-            <td>{m.need_product ? <>{ok(m.ok_product)} {m.product_status ? PRODUCT[m.product_status] : 'Chưa nộp'}{r.product_score != null && <><br /><small className="sub">Điểm {num(r.product_score)}</small></>}</> : <small className="sub">Không yêu cầu</small>}</td>
-            <td><Chip tone={m.suggest === 'pass' ? 'good' : ''}>{m.suggest === 'pass' ? 'Đủ điều kiện' : 'Chưa đủ'}</Chip></td>
-            <td><Chip tone={RESULT[r.result][1]}>{RESULT[r.result][0]}</Chip>{r.reason && <><br /><small className="sub">{r.reason}</small></>}
-              {r.extra_attempts > 0 && r.result === 'pending' && <><br /><small className="sub">Thi lại · +{r.extra_attempts} lượt</small></>}</td>
-            <td>{r.cert_status ? <><Chip tone={CERT_ST[r.cert_status][1]}>{CERT_ST[r.cert_status][0]}</Chip>{r.cert_code && <><br /><small className="sub">{r.cert_code}</small></>}</> : '—'}</td>
-          </tr> })}
-          {!shown.length && <tr><td colSpan={8}><small className="sub">{all.length ? 'Không có giáo viên nào khớp.' : 'Kế hoạch chưa có giáo viên ghi danh.'}</small></td></tr>}</tbody>
-      </table></div>}
-    </section>
+    <div className="distpills" role="tablist">
+      {([['tree', 'Theo khung phân loại'], ['list', 'Tất cả kế hoạch']] as ['tree' | 'list', string][]).map(([t, l]) =>
+        <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{l}</button>)}
+    </div>
+    {err && <p className="msg">{err}</p>}
+    {!plans ? <p className="sub">Đang tải…</p> : tab === 'tree'
+      ? <ClsTree scope="training" items={list} header={() => <OrgFilter ids={plans.map(p => p.org_id)} value={fo} onChange={setFo} />}>
+          {rows => table(rows, 'Không có kế hoạch đã phát hành trong mục này.')}</ClsTree>
+      : <>
+        <div className="bar"><div className="tools">
+          <input placeholder="Tìm mã, tên kế hoạch…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm kế hoạch" />
+          {all && <OrgFilter ids={plans.map(p => p.org_id)} value={fo} onChange={setFo} />}
+          <small className="sub">{list.length}/{plans.length} kế hoạch</small></div></div>
+        {table(list, 'Chưa có kế hoạch tập huấn đã phát hành.')}
+      </>}
   </>
 }
 
-function ResultDetail({ plan, r, can, onBack, onDone }: { plan: Plan; r: ResRow; can: boolean; onBack: () => void; onDone: (m: string) => void }) {
+export function ResultDetail({ plan, r, can, onBack, onDone, back = 'Đánh giá kết quả' }: { plan: RPlan; r: ResRow; can: boolean; onBack: () => void; onDone: (m: string) => void; back?: string }) {
   const m = r.metrics
   const [score, setScore] = useState(r.product_score == null ? '' : String(r.product_score))
   const [comment, setComment] = useState(r.comment ?? '')
@@ -131,7 +133,7 @@ function ResultDetail({ plan, r, can, onBack, onDone }: { plan: Plan; r: ResRow;
     ['Học trực tuyến', m.ok_units, `${m.done}/${m.units} nội dung hoàn thành`],
     ['Bài kiểm tra', m.ok_tests, m.tests ? `${m.tests_passed}/${m.tests} bài đạt · điểm TB ${num(m.avg_score)}${m.score_req != null ? ` · điểm đạt ${num(m.score_req)}` : ''}` : 'Không có bài kiểm tra'],
     ['Sản phẩm cuối khoá', m.ok_product, m.need_product ? `${m.product_status ? PRODUCT[m.product_status] : 'Chưa nộp'}${r.product_score != null ? ` · điểm ${num(r.product_score)} (cần ≥ 5)` : ''}` : 'Không yêu cầu']]
-  return <ElView back="Đánh giá kết quả" onBack={onBack} title={r.teacher_name}
+  return <ElView back={back} onBack={onBack} title={r.teacher_name}
     sub={<>{[r.subject, r.org_name, `${plan.plan_code} · ${plan.name}`].filter(Boolean).join(' · ')} · <Chip tone={RESULT[r.result][1]}>{RESULT[r.result][0]}</Chip></>}>
     {err && <p className="msg" role="alert">{err}</p>}
     <section className="panel" style={{ display: 'grid', gap: 10 }}>

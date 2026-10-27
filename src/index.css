@@ -1909,3 +1909,24 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
 .tpdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
 .tpschedtable{min-width:860px}.tpschedtable td:nth-child(2){min-width:140px}
 .tllist td:nth-child(3){white-space:nowrap}@media (max-width:600px){.tllist{min-width:760px}}
+.ckshow{position:fixed;inset:0;z-index:1000;background:#fff;display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:32px;align-items:center;padding:48px}
+.ckshow .ckqr img{width:100%;max-width:min(70vh,560px);height:auto;display:block;margin:auto}
+.ckshow .ckside{display:grid;gap:12px}.ckshow h2{margin:0;font-size:32px}.ckshow p{font-size:20px;margin:0}
+.ckcode{font-size:56px;letter-spacing:10px;color:#1b4f9c}.ckcount{font-size:22px}.ckcount b{font-size:64px;color:#1a7f45}.ckcount small{display:block;color:#5b6b85}
+.cklast{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:18px}
+.ckclose{position:absolute;top:16px;right:16px}
+@media(max-width:800px){.ckshow{grid-template-columns:1fr;padding:56px 16px 16px;overflow:auto}.ckcode{font-size:36px}}
+.cklanding{min-height:100vh;display:grid;place-items:center;padding:16px;background:var(--bg,#f6f8fb)}
+.cklanding .panel{max-width:420px;width:100%;display:grid;gap:12px;text-align:center;justify-items:center;padding:28px 20px}
+.cklanding h2{margin:0}.ckok,.ckbad{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;font-size:40px;color:#fff;background:#1a7f45}.ckbad{background:#c0392b}
+.trscore{width:72px}.tratttable td,.tratttable th{text-align:center}.tratttable td:first-child,.tratttable th:first-child{text-align:left}
+.tratt{display:inline-block;width:24px;height:24px;line-height:24px;border-radius:6px;background:#eef2f7;color:#8593a8;font-weight:600}
+.tratt.ok{background:#e3f4ea;color:#1a7f45}.tratt.no{background:#fde8e6;color:#c0392b}.tratt.ex{background:#fff4d6;color:#9a6b00}
+.diststeps.five{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media(max-width:1000px){.diststeps.five{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:560px){.diststeps.five{grid-template-columns:1fr}}
+.certprint{display:none}
+@media print{body.certprinting>*:not(.certprint){display:none!important}body.certprinting .certprint{display:block}
+  body.certprinting .certprint .certpaper{position:static;width:100%;max-width:none;margin:0;border-radius:0;visibility:visible}
+  body.certprinting .certprint *{visibility:visible}.certprintpage{break-after:page;page-break-after:always}.certprintpage:last-child{break-after:auto;page-break-after:auto}}
+.cklanding button{padding:10px 20px;border-radius:8px;font-size:16px}

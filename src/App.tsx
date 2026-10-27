@@ -110,6 +110,7 @@ const TrainingCertificatesPage = lazy(() => import('./pages/training/Certificate
 const CertTemplatesPage = lazy(() => import('./pages/training/Certificates').then(m => ({ default: m.CertTemplatesPage })))
 const TeacherCertificates = lazy(() => import('./pages/training/Certificates').then(m => ({ default: m.TeacherCertificates })))
 const CertVerify = lazy(() => import('./pages/training/Certificates').then(m => ({ default: m.CertVerify })))
+const CheckInLanding = lazy(() => import('./pages/training/CheckIn').then(m => ({ default: m.CheckInLanding })))
 const TeacherTrainingRegister = lazy(() => import('./pages/teacher/TrainingRegister').then(m => ({ default: m.TeacherTrainingRegister })))
 const TrainersPage = lazy(() => import('./pages/training/Trainers').then(m => ({ default: m.TrainersPage })))
 const TeacherTrainingLearn = lazy(() => import('./pages/teacher/TrainingLearn').then(m => ({ default: m.TeacherTrainingLearn })))
@@ -521,6 +522,7 @@ export default function App() {
 function AppMain() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [recovery, setRecovery] = useState(false)
+  const [checkin, setCheckin] = useState(() => new URLSearchParams(location.search).get('dd'))
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
     const { data } = supabase.auth.onAuthStateChange((e, s) => {
@@ -533,7 +535,11 @@ function AppMain() {
   if (!session) return <Login />
   // Quên mật khẩu; hoặc tài khoản mã lần đầu đăng nhập / vừa được trường đặt lại mật khẩu (bắt buộc đổi)
   if (recovery || mustChangePassword(session.user.user_metadata)) return <SetPassword forced={!recovery} onDone={() => setRecovery(false)} />
-  return <MfaGate key={session.user.id}><LegalGate><Shell session={session} /></LegalGate></MfaGate>
+  // Quét QR điểm danh tập huấn: /?dd=<mã> (chưa đăng nhập thì đăng nhập xong mới điểm danh)
+  const dd = /^\d{6}$/.test(checkin ?? '') ? checkin : null
+  return <MfaGate key={session.user.id}><LegalGate>{dd
+    ? <Suspense fallback={null}><CheckInLanding code={dd} onDone={() => { history.replaceState(null, '', location.pathname); setCheckin(null) }} /></Suspense>
+    : <Shell session={session} />}</LegalGate></MfaGate>
 }
 
 function Shell({ session }: { session: Session }) {

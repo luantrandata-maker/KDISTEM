@@ -15,6 +15,7 @@ import { colorOf } from '../dist/Grid'
 import type { Status } from '../dist/sched'
 import { PlanProgress } from './Progress'
 import { TrainerPick } from './Trainers'
+import { PlanResults } from './ResultsWork'
 
 type Mode = 'online' | 'offline' | 'hybrid'
 type Term = 'summer' | 'hk1' | 'hk2' | 'other'
@@ -239,7 +240,7 @@ function PlanCreate({ orgId, node, onClose, onSaved }: { orgId: string; node: Cl
 }
 
 // ===== Soạn kế hoạch theo bước: Chọn chương trình → Xếp lịch → Xem kết quả → Gán trường =====
-type Step = 1 | 2 | 3 | 4
+type Step = 1 | 2 | 3 | 4 | 5
 function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBack: () => void; onMsg: (m: [string, boolean]) => void }) {
   const [p, setP] = useState<TPlan | null>(null)
   const [items, setItems] = useState<Item[]>([])
@@ -374,11 +375,12 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {edit && warn.length > 0 && <p className="warnline">Chưa phát hành được: {warn.join('; ')}.</p>}
     {can && p.pub_status === 'published' && <p className="sub">{orgs.length ? 'Kế hoạch đã gán cho trường: không đổi chương trình được, lịch vẫn chỉnh được.' : 'Muốn đổi chương trình thì vào ··· › "Chuyển về nháp" (khi chưa gán trường). Lịch vẫn chỉnh được.'}</p>}
-    <ol className="diststeps four">
+    <ol className="diststeps five">
       {([[1, 'Chọn chương trình', `${items.length} chương trình · ${num(totalHours)} giờ`],
         [2, 'Xếp lịch', items.length ? `${scheduled}/${sched.rows.length} buổi đã xếp` : 'Chưa có nội dung'],
         [3, 'Xem kết quả', `${new Set(sched.rows.filter(r => r.date).map(r => r.date)).size} ngày · ${scErr.length ? scErr.length + ' lỗi' : sc.length + ' lưu ý'}`],
-        [4, 'Gán trường & giáo viên', p.pub_status === 'draft' ? 'Sau khi phát hành' : `${orgs.length} trường · ${enr.length} GV`]] as [Step, string, string][]).map(([k, t, sub]) =>
+        [4, 'Gán trường & giáo viên', p.pub_status === 'draft' ? 'Sau khi phát hành' : `${orgs.length} trường · ${enr.length} GV`],
+        [5, 'Kết quả & chứng chỉ', p.pub_status === 'draft' ? 'Sau khi phát hành' : 'Chấm điểm, kết luận, cấp chứng chỉ']] as [Step, string, string][]).map(([k, t, sub]) =>
         <li key={k}><button type="button" className={step === k ? 'on' : ''} aria-current={step === k ? 'step' : undefined} onClick={() => setStep(k)}>
           <i>{k}</i><span><b>{t}</b><small>{sub}</small></span></button></li>)}
     </ol>
@@ -479,7 +481,10 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
         </table></div>
       </section>
       {enr.length > 0 && <PlanProgress planId={p.id} manage={can} />}
+      {enr.length > 0 && <div className="formactions" style={{ textAlign: 'right' }}><button type="button" className="primary" onClick={() => setStep(5)}>Tiếp tục: Kết quả & chứng chỉ →</button></div>}
     </div>)}
+    {step === 5 && (p.pub_status === 'draft' ? <p className="sub">Phát hành kế hoạch và ghi danh giáo viên trước, rồi chấm kết quả và cấp chứng chỉ ở đây.</p>
+      : <PlanResults plan={p} embedded />)}
   </div>
 }
 

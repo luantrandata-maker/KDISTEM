@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 
 // Khung phân loại: bản phân phối (082: Cấp học › Khối lớp › Mức độ…) và kế hoạch tập huấn (101: Cấp học › Cấp độ…).
-export type ClsLevel = { id: string; name: string; kind: 'level' | 'grade' | 'tier' | 'custom'; sort: number; active: boolean }
+export type ClsLevel = { id: string; name: string; kind: 'subject' | 'level' | 'grade' | 'tier' | 'custom'; sort: number; active: boolean }
 export type ClsNode = { id: string; cls_level_id: string; parent_id: string | null; name: string; sort: number; edu_level?: string | null }
 export type ClsScope = 'dist' | 'training'
 export const CLS_TABLES: Record<ClsScope, { levels: string; nodes: string }> = {

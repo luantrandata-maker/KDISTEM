@@ -14,7 +14,7 @@ type AddForm = { mode: 'add'; level: ClsLevel; parent: ClsNode | null; name: str
 type Cls = ReturnType<typeof useCls> & { admin: boolean }
 
 /** Cấp không tắt / xoá được của từng loại khung */
-const LOCKED: Record<ClsScope, ClsLevel['kind'][]> = { dist: ['level', 'grade'], training: ['level'] }
+const LOCKED: Record<ClsScope, ClsLevel['kind'][]> = { dist: ['level', 'grade'], training: ['subject'] }
 const MIG: Record<ClsScope, string> = { dist: '082', training: '101' }
 const NOUN: Record<ClsScope, string> = { dist: 'Bản phân phối', training: 'Kế hoạch tập huấn' }
 const UNSORTED = '__none__'
@@ -95,6 +95,9 @@ export function ClsTree<T extends { id: string; node_id: string | null }>({ scop
   const [selId, setSelId] = useState<string | null>(null)
   const [form, setForm] = useState<AddForm | null>(null)
   useEffect(() => { supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)) }, [])
+  // Danh mục môn học để gợi ý khi thêm mục ở cấp Môn học
+  const [subjects, setSubjects] = useState<string[]>([])
+  useEffect(() => { if (base.levels.some(l => l.kind === 'subject')) supabase.from('subjects').select('name').order('sort').then(({ data }) => setSubjects([...new Set(((data ?? []) as { name: string }[]).map(x => x.name))])) }, [base.levels.length])
 
   const { nodes, active, byId, lvOf, tables } = base
   const lvIdx = (n: ClsNode) => active.findIndex(l => l.id === n.cls_level_id)
@@ -210,7 +213,10 @@ export function ClsTree<T extends { id: string; node_id: string | null }>({ scop
         <form className="formgrid" onSubmit={saveForm}>
           <label className="field" style={{ gridColumn: '1 / -1' }}><span>{form.level?.name ?? 'Tên'}</span>
             <input autoFocus required maxLength={80} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-              placeholder={'Ví dụ: ' + (({ level: 'Tiểu học', grade: 'Khối 6', tier: scope === 'training' ? 'Nâng cao' : 'Tăng cường', custom: scope === 'training' ? 'Cán bộ quản lý' : 'Giai đoạn 1' } as Record<string, string>)[form.level?.kind ?? 'custom'])} />
+              list={form.level?.kind === 'subject' ? 'cls-subjects' : undefined}
+              placeholder={'Ví dụ: ' + (({ subject: 'Tin học', level: 'Tiểu học', grade: 'Khối 6', tier: scope === 'training' ? 'Nâng cao' : 'Tăng cường', custom: scope === 'training' ? 'Cán bộ quản lý' : 'Giai đoạn 1' } as Record<string, string>)[form.level?.kind ?? 'custom'])} />
+            {form.level?.kind === 'subject' && <><datalist id="cls-subjects">{subjects.map(n => <option key={n} value={n} />)}</datalist>
+              <small className="sub">Gõ hoặc chọn môn trong danh mục môn học. Môn mới có sẵn các mục Cơ bản, Nâng cao.</small></>}
             {form.mode === 'add' && form.parent && <small className="sub">Thuộc: {base.path(form.parent.id).map(n => n.name).join(' › ')}</small>}
           </label>
           <div className="formactions" style={{ gridColumn: '1 / -1' }}><button type="submit" className="primary" disabled={!form.name.trim()}>Lưu</button><button type="button" onClick={() => setForm(null)}>Hủy</button></div>

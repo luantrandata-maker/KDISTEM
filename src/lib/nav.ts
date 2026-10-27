@@ -29,7 +29,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Lõi · Tổ chức & quy trình', items: ['Cây tổ chức', 'Cơ sở triển khai', 'Người dùng & vai trò', 'Vai trò & quyền mặc định', 'Lời mời', 'Hộp phê duyệt', 'Quy trình phê duyệt', 'Thông báo'] },
     { title: 'Quản trị chung · Kỹ thuật & bảo mật', items: ['Tích hợp & dữ liệu', 'Ứng dụng di động & ngoại tuyến', 'Sao lưu & xuất dữ liệu', 'Bảo mật tài khoản', 'Điều khoản & dữ liệu cá nhân', 'Nhật ký hệ thống', 'Cấu hình chung (năm học)', 'Giao diện & thương hiệu', 'Trợ lý AI'] },
     // 5 phân hệ nghiệp vụ theo file rà soát menu (16/10, "Menu_STEM_ra_soat_chinh_sua.xlsx")
-    { title: '1. Đào tạo & đánh giá năng lực nhà giáo', items: ['Đánh giá năng lực nhà giáo', 'Chương trình tập huấn', 'Kế hoạch & lịch tập huấn', 'Học liệu tập huấn', 'Đánh giá kết quả tập huấn', 'Chứng chỉ tập huấn', 'Giám sát tập huấn nhà giáo'] },
+    { title: '1. Đào tạo & đánh giá năng lực nhà giáo', items: ['Đánh giá năng lực nhà giáo', 'Chương trình tập huấn', 'Kế hoạch & lịch tập huấn', 'Học liệu tập huấn', 'Chứng chỉ tập huấn'] },
     { title: '2. Chương trình & học liệu', items: ['Chương trình giáo dục', 'Phân phối chương trình', 'Học liệu', 'Soạn bài giảng & kho hoạt động', 'E-learning & luyện thi'] },
     { section: '3. Vật tư, thiết bị dạy & học', title: '3.1. Thiết bị, vật tư & kho', items: ['Thiết bị & vật tư', 'Kho & tồn kho', 'Mua hàng & đề xuất vật tư', 'Cấp phát & bàn giao', 'Kiểm kê', 'Vận chuyển vật tư', 'Bảo hành & bảo trì thiết bị'] },
     { section: '3. Vật tư, thiết bị dạy & học', title: '3.2. Phòng STEM & cơ sở vật chất', items: ['Tòa nhà, tầng & tiết học', 'Phòng STEM & lịch phòng', 'Hiệu quả sử dụng phòng STEM'] },

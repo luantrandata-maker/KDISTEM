@@ -12,6 +12,7 @@ import { ClsTree } from './ClsTree'
 import { Drawer } from '../../components/Drawer'
 import { PlanBody, Chip, STATUS, errText, useBreadcrumb } from './Editor'
 import type { Plan, Status } from './sched'
+import { FlowGuide } from '../../components/FlowGuide'
 
 export type { Plan } from './sched'
 type Tab = 'tree' | 'list' | 'assign'
@@ -74,11 +75,11 @@ export function DistPage({ orgId }: { orgId: string | null }) {
     ['assign', 'Gán theo trường', 'Gán bản đã phát hành cho trường, lớp, năm học và học kỳ để tạo PPCT theo trường.']]
   return (
     <>
-      <div className="panel distintro">
+      <FlowGuide id="dist-plans">
         <ol className="distguide">{steps.map(([t, h, d], k) => <li key={t}>
           <button type="button" className={tab === t ? 'on' : ''} onClick={() => setTab(t)}><i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
         <p className="sub" style={{ margin: 0 }}>Bản phân phối là mẫu lắp ghép từ nhiều chương trình. PPCT theo trường là bản đã gán cho từng trường, lớp để theo dõi.</p>
-      </div>
+      </FlowGuide>
       <div className="diststatcards">
         <div className="panel"><i aria-hidden="true">≋</i><span><b>{plans?.length ?? '…'}</b><small>Bản phân phối</small><small>{pub} đã phát hành · {drafts} nháp</small></span></div>
         <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{plans ? pub : '…'}</b><small>Bản có thể gán</small></span></div>

@@ -7,6 +7,7 @@ import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
 import { schoolYear } from '../department/Governance'
 import { LevelChip, useCompetencies, resetCompetencies, type Comp } from '../competency'
+import { FlowGuide } from '../../components/FlowGuide'
 
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 088 trên Supabase.' : /row-level|42501/i.test(m) ? 'Bạn không có quyền với mục này.' : m
 const vnDate = (d: string | null) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
@@ -45,13 +46,13 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
   const all = rows ?? []
   const openN = all.filter(r => r.status === 'open').length
   return <>
-    <div className="panel distintro">
+    <FlowGuide id="training-rounds">
       <ol className="distguide">
         <li><button type="button" onClick={() => can && setForm(f => f ?? { school_year: schoolYear(), opens_on: today(), target_level: 2 })}><i>1</i><span><b>Mở đợt đánh giá</b><small>Đặt năm học, hạn nộp và mức yêu cầu. Đợt áp dụng cho mọi giáo viên trong đơn vị và các trường trực thuộc.</small></span></button></li>
         <li><button type="button" onClick={() => all[0] && setOpen(all[0].id)}><i>2</i><span><b>Theo dõi & nhắc</b><small>Xem từng trường đã tự đánh giá / được trường đánh giá bao nhiêu, gửi nhắc giáo viên chưa nộp.</small></span></button></li>
         <li><button type="button" disabled><i>3</i><span><b>Xem thiếu hụt</b><small>Kết quả vào hồ sơ năng lực; mục Khoảng thiếu hụt gợi ý chương trình tập huấn cho người dưới mức yêu cầu.</small></span></button></li>
       </ol>
-    </div>
+    </FlowGuide>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
       <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Đợt đánh giá năng lực <small className="sub">· {openN} đang mở</small></h3>

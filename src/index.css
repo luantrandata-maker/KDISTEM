@@ -1957,3 +1957,11 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
 .tpgantttrack>i.now{position:absolute;top:0;bottom:0;width:2px;background:var(--bad);z-index:1}
 @media(max-width:800px){.tpganttrow{grid-template-columns:160px minmax(560px,1fr)}.tpcalday li{grid-template-columns:1fr}}
 .tpganttrow>.namelink small{text-decoration:none}.main .tpcalday .tpcalev{margin:0}
+/* Quy trình thao tác thu gọn (FlowGuide): chỉ còn số và tên bước */
+.distintro.compact{gap:6px;padding-top:10px;padding-bottom:10px}
+.distintro.compact>p,.distintro.compact .distguide small{display:none}
+.distintro.compact .distguide{gap:16px}.distintro.compact .distguide li+li::before{left:-12px}
+.main .distintro.compact .distguide button{padding:6px 10px;align-items:center;border-radius:10px}
+.distintro.compact .distguide i{width:22px;height:22px;font-size:12px}
+.distintro.compact .distguide b{font-size:13px}
+@media(max-width:800px){.distintro.compact .distguide,.distintro.compact .distguide.four{grid-template-columns:repeat(2,minmax(0,1fr))}}

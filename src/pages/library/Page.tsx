@@ -5,10 +5,10 @@ import { supabase } from '../../lib/supabase'
 import { LibraryByProgram, LibraryNeeds, usePrograms } from './ByProgram'
 import { LibraryManage } from './Manage'
 import { LibraryBrowse } from './Browse'
+import { FlowGuide } from '../../components/FlowGuide'
 
 type Tab = 'prog' | 'needs' | 'catalog' | 'shared'
 type Stats = { docs: number; tools: number; supplies: number; published: number; drafts: number; progsWithKit: number; needs: number }
-const GUIDE_KEY = 'lib.guide.closed'
 
 function useStats(orgId: string | null, rk: number) {
   const [s, setS] = useState<Stats | null>(null)
@@ -37,11 +37,9 @@ function useStats(orgId: string | null, rk: number) {
 
 export function LibraryPage({ orgId, teacherId, go }: { orgId: string | null; teacherId?: string | null; go?: (p: string) => void }) {
   const [tab, setTab] = useState<Tab>('prog')
-  const [closed, setClosed] = useState(() => { try { return localStorage.getItem(GUIDE_KEY) === '1' } catch { return false } })
   const [rk, setRk] = useState(0)
   const s = useStats(orgId, rk)
   const progs = usePrograms(orgId)
-  const toggle = () => { setClosed(!closed); try { localStorage.setItem(GUIDE_KEY, closed ? '0' : '1') } catch { /* bỏ qua */ } }
   const steps: [Tab, string, string, string][] = [
     ['prog', 'Bước 01', 'Tải giáo án theo bài', 'Đi theo Chương trình → Môn → Bài học, tải giáo án Word hoặc bài giảng PowerPoint để tách thành bộ học liệu 5 thẻ.'],
     ['needs', 'Bước 02 · Tự tổng hợp', 'Cần chuẩn bị', 'Tự tổng hợp học liệu, thiết bị, vật tư cần có theo chương trình từ định mức của từng bài.'],
@@ -50,14 +48,11 @@ export function LibraryPage({ orgId, teacherId, go }: { orgId: string | null; te
   const total = s ? s.docs + s.tools + s.supplies : undefined
   return (
     <>
-      <div className="panel distintro libguide">
-        <div className="bar small"><b className="libguide-h">Quy trình thao tác</b><button type="button" onClick={toggle}>{closed ? 'Mở rộng' : 'Thu gọn'}</button></div>
-        {!closed && <>
+      <FlowGuide id="library">
           <ol className="distguide">{steps.map(([t, k, h, d], i) => <li key={t}>
             <button type="button" className={tab === t ? 'on' : ''} onClick={() => setTab(t)}><i>{i + 1}</i><span><small className="libstepk">{k}</small><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
           <p className="sub" style={{ margin: 0 }}>Chỉ bước 1 cần nhập. Bước 2 và 3 tự tổng hợp từ bộ học liệu của các bài, không phải nhập lại.</p>
-        </>}
-      </div>
+      </FlowGuide>
       <div className="diststatcards libstats">
         <div className="panel"><i aria-hidden="true">▤</i><span><b>{n(total)}</b><small>Học liệu</small><small>{s ? `${s.docs} tài liệu · ${s.tools} thiết bị · ${s.supplies} vật tư` : ''}</small></span></div>
         <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{n(s?.published)}</b><small>Đã phát hành</small><small>{s ? `${s.drafts} bản nháp` : ''}</small></span></div>

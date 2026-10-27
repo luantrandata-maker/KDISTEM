@@ -450,9 +450,10 @@ const PLATFORM: PageMap = {
   'Tích hợp & dữ liệu': PlatformIntegrations,
   // 1. Đào tạo & đánh giá năng lực nhà giáo — làm lại theo khuôn Phân hệ 2 (kế hoạch: Chương trình → Kế hoạch & lịch → … → Giám sát)
   'Chương trình tập huấn': TrainingProgramsPage,
-  'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch', PH1_TABS.cal], ['Lớp học ảo', PH1_TABS.virtual], ['Giảng viên', PH1_TABS.trainers], ['Trường thực hiện', PH1_TABS.school]]} />,
-  'Giám sát tập huấn nhà giáo': (p: any) => <TabbedPages {...p} tabs={[['Theo kế hoạch', TrainingMonitorPage], ['Tổng quan theo trường', DeptTrainingMonitor]]} />,
-  'Đánh giá kết quả tập huấn': TrainingResultsPage,
+  'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch', PH1_TABS.cal], ['Lớp học ảo', PH1_TABS.virtual],
+    // 27/10: Đánh giá kết quả và Giám sát tập huấn gom vào đây (đều theo từng kế hoạch)
+    ['Đánh giá kết quả', TrainingResultsPage], ['Giám sát tập huấn', TrainingMonitorPage], ['Giám sát theo trường', DeptTrainingMonitor],
+    ['Giảng viên', PH1_TABS.trainers], ['Trường thực hiện', PH1_TABS.school]]} />,
   // 2. Chương trình & học liệu
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
   // Tạm thời: "Theo dõi Chương trình/Môn học" mở bằng nút góc trên phải của trang này (không còn là mục menu riêng)
@@ -511,7 +512,8 @@ const PLATFORM_ALIAS: Record<string, string> = {
   'KPI & Xếp hạng Xã/Phường': 'KPI & xếp hạng', 'Thiết bị & kho': 'Thiết bị & vật tư', 'Hiệu quả Phòng STEM': 'Hiệu quả sử dụng phòng STEM',
   'Dashboard điểm danh': 'Buổi dạy & điểm danh', 'Thời khoá biểu & xếp lịch': 'Thời khóa biểu & xếp lịch',
   'Đánh giá năng lực giáo viên': 'Đánh giá năng lực nhà giáo', 'Kế hoạch tập huấn': 'Kế hoạch & lịch tập huấn', 'Lịch tập huấn': 'Kế hoạch & lịch tập huấn',
-  'Bài giảng tập huấn & lớp học ảo': 'Học liệu tập huấn', 'Lớp học ảo': 'Kế hoạch & lịch tập huấn',
+  'Bài giảng tập huấn & lớp học ảo': 'Học liệu tập huấn',
+  'Giám sát tập huấn nhà giáo': 'Kế hoạch & lịch tập huấn', 'Đánh giá kết quả tập huấn': 'Kế hoạch & lịch tập huấn', 'Giám sát Tập huấn GV': 'Kế hoạch & lịch tập huấn', 'Lớp học ảo': 'Kế hoạch & lịch tập huấn',
 }
 export const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM, parent: PARENT, judge: JUDGE }
 // Khi dev: mục menu không có trang (thường do sửa chuỗi mã trong NAV thay vì thêm LABEL — xem lib/nav.ts)

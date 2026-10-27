@@ -25,6 +25,17 @@ const MKIND: Record<string, string> = { supply: 'Vật tư tiêu hao', tool: 'D�
 const PER = Object.fromEntries(LISTS.mats.cols.find(c => c.key === 'per')!.options!)
 const SHEET: Record<Exclude<Part, 'content'>, string> = { docs: 'Link-tai-lieu', mats: 'Dinh-muc-vat-tu', acts: 'Kho-hoat-dong' }
 
+// Đọc hết cấu trúc mọi chương trình theo trang 1000 dòng (máy chủ chỉ trả tối đa 1000 dòng mỗi lần)
+async function allUnits() {
+  const out: Unit[] = []
+  for (let i = 0; ; i += 1000) {
+    const r = await supabase.from('training_program_units').select('id, program_id, parent_id, kind, seq, title, hours, has_test, detail').order('id').range(i, i + 999)
+    if (r.error) return { data: out.length ? out : null, error: r.error }
+    out.push(...((r.data as Unit[]) ?? []))
+    if ((r.data?.length ?? 0) < 1000) return { data: out, error: null }
+  }
+}
+
 function useData() {
   const [d, setD] = useState<{ progs: Prog[]; units: Unit[]; lessons: Lesson[] } | null>(null)
   const [err, setErr] = useState('')
@@ -33,7 +44,7 @@ function useData() {
     (async () => {
       const [p, u, l] = await Promise.all([
         supabase.from('training_programs').select('id, code, title, status, pass_score, family_id').order('code'),
-        supabase.from('training_program_units').select('id, program_id, parent_id, kind, seq, title, hours, has_test, detail'),
+        allUnits(),
         supabase.from('training_lessons').select('id, title, program_id, unit_id, status, content').order('title'),
       ])
       const e = p.error ?? u.error

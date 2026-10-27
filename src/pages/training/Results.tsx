@@ -32,7 +32,7 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
   const [plans, setPlans] = useState<TPlanRow[] | null>(null)
   const [cnt, setCnt] = useState<Map<string, Cnt>>(new Map())
   const [open, setOpen] = useState<string | null>(null)
-  const [tab, setTab] = useState<'tree' | 'list'>('tree')
+  const [tab, setTab] = useState<'tree' | 'list'>('list')
   const [q, setQ] = useState('')
   const [fo, setFo] = useState('')
   const [err, setErr] = useState('')
@@ -87,7 +87,7 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
     ['Cấp chứng chỉ', 'Duyệt cấp và in hàng loạt chứng chỉ có QR tra cứu.']]
   return <>
     <FlowGuide id="training-results">
-      <ol className="distguide four">{steps.map(([h, d], i) => <li key={h}><button type="button" onClick={() => setTab('tree')}><i>{i + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
+      <ol className="distguide four">{steps.map(([h, d], i) => <li key={h}><button type="button" onClick={() => setTab('list')}><i>{i + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
     </FlowGuide>
     <div className="diststatcards four">
       <div className="panel"><i aria-hidden="true">≋</i><span><b>{plans?.length ?? '…'}</b><small>Kế hoạch đã phát hành</small></span></div>
@@ -96,7 +96,7 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
       <div className="panel"><i aria-hidden="true" className="good">▣</i><span><b>{tot.cert}</b><small>Chứng chỉ đã cấp</small></span></div>
     </div>
     <div className="distpills" role="tablist">
-      {([['tree', 'Theo khung phân loại'], ['list', 'Tất cả kế hoạch']] as ['tree' | 'list', string][]).map(([t, l]) =>
+      {([['list', 'Tất cả kế hoạch'], ['tree', 'Theo khung phân loại']] as ['tree' | 'list', string][]).map(([t, l]) =>
         <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{l}</button>)}
     </div>
     {err && <p className="msg">{err}</p>}

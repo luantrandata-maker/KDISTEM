@@ -1920,6 +1920,7 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
 .cklanding .panel{max-width:420px;width:100%;display:grid;gap:12px;text-align:center;justify-items:center;padding:28px 20px}
 .cklanding h2{margin:0}.ckok,.ckbad{width:72px;height:72px;border-radius:50%;display:grid;place-items:center;font-size:40px;color:#fff;background:#1a7f45}.ckbad{background:#c0392b}
 .trscore{width:72px}.tratttable td,.tratttable th{text-align:center}.tratttable td:first-child,.tratttable th:first-child{text-align:left}
+.trscore.bad{border-color:var(--bad,#c0392b);outline-color:var(--bad,#c0392b)}.trtesttable th{min-width:140px;white-space:normal}.trtesttable th:first-child{min-width:200px}
 .tratt{display:inline-block;width:24px;height:24px;line-height:24px;border-radius:6px;background:#eef2f7;color:#8593a8;font-weight:600}
 .tratt.ok{background:#e3f4ea;color:#1a7f45}.tratt.no{background:#fde8e6;color:#c0392b}.tratt.ex{background:#fff4d6;color:#9a6b00}
 .diststeps.five{grid-template-columns:repeat(5,minmax(0,1fr))}

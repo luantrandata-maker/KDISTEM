@@ -6,7 +6,9 @@ import { ElView } from '../../components/ElView'
 
 type Row = Record<string, string>
 // test: bài kiểm tra (086) — câu hỏi từ Ngân hàng câu hỏi E-learning; count = số câu rút ngẫu nhiên mỗi lượt
-export type TestCfg = { qids?: string[]; count?: number | null; minutes?: number | null; attempts?: number | null; pass?: number | null }
+// kind 'link' (105): làm bài qua link ngoài (Google Forms, Azota…), người tổ chức nhập điểm ở Kết quả tập huấn
+export type TestCfg = { kind?: 'bank' | 'link'; qids?: string[]; count?: number | null; minutes?: number | null; attempts?: number | null; pass?: number | null
+  url?: string | null; due?: string | null; note?: string | null }
 export type Detail = { body?: { goal?: string; text?: string; reqs?: string[] }; lectures?: Row[]; docs?: Row[]; mats?: Row[]; acts?: Row[]; test?: TestCfg }
 type Col = { key: string; label: string; type?: 'text' | 'url' | 'number' | 'select'; options?: [string, string][]; width?: number; placeholder?: string }
 type ListKey = 'lectures' | 'docs' | 'mats' | 'acts'
@@ -31,7 +33,7 @@ const lab = (opts: [string, string][] | undefined, v: string) => opts?.find(o =>
 export const detailCount = (d: Detail | null | undefined) => {
   const x = d ?? {}
   return [x.lectures?.length && `${x.lectures.length} bài giảng`, x.docs?.length && `${x.docs.length} tài liệu`, x.mats?.length && `${x.mats.length} vật tư`,
-    x.acts?.length && `${x.acts.length} hoạt động`, x.test?.qids?.length && `${x.test.qids.length} câu kiểm tra`].filter(Boolean).join(' · ')
+    x.acts?.length && `${x.acts.length} hoạt động`, x.test?.kind === 'link' ? x.test.url && 'bài kiểm tra qua link' : x.test?.qids?.length && `${x.test.qids.length} câu kiểm tra`].filter(Boolean).join(' · ')
 }
 
 function ListEditor({ cols, rows, edit, empty, onChange }: { cols: Col[]; rows: Row[]; edit: boolean; empty: string; onChange: (r: Row[]) => void }) {
@@ -69,6 +71,7 @@ export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, 
     ...Object.fromEntries((Object.keys(LISTS) as ListKey[]).map(k => [k, (x[k] ?? []).filter(r => Object.values(r).some(v => String(v ?? '').trim()))])) })
   async function save() {
     const t = d.test
+    if (t?.kind === 'link' && t.url?.trim() && !/^https?:\/\/\S+$/i.test(t.url.trim())) return setMsg('Link bài kiểm tra phải bắt đầu bằng http:// hoặc https://')
     if (t?.qids?.length && t.count && t.count > t.qids.length) return setMsg(`Số câu mỗi lượt (${t.count}) nhiều hơn số câu đã chọn (${t.qids.length}).`)
     setBusy(true)
     const ok = await onSave(clean(d))
@@ -76,7 +79,7 @@ export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, 
     if (ok) { setDirty(false); setD(clean(d)); setMsg('Đã lưu.') }
   }
   const tabs: [Tab, string, number | null][] = [['body', 'Nội dung', null], ...(Object.keys(LISTS) as ListKey[]).map(k => [k, LISTS[k].tab, d[k]?.length ?? 0] as [Tab, string, number]),
-    ...(hasTest || d.test?.qids?.length ? [['test', 'Bài kiểm tra', d.test?.qids?.length ?? 0] as [Tab, string, number]] : [])]
+    ...(hasTest || d.test?.qids?.length || d.test?.url ? [['test', 'Bài kiểm tra', d.test?.kind === 'link' ? 0 : d.test?.qids?.length ?? 0] as [Tab, string, number]] : [])]
   return <ElView back="Môn & nội dung tập huấn" onBack={() => { if (!dirty || confirm('Bỏ các thay đổi chưa lưu?')) onBack() }} title={title}
     sub={`${crumb} · ${String(hours).replace('.', ',')} giờ`}
     actions={editable && <button type="button" className="primary" disabled={!dirty || busy} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu'}</button>}>
@@ -123,8 +126,29 @@ function TestEditor({ t, edit, passScore, hasTest, onChange }: { t: TestCfg; edi
   const setNum = (k: 'count' | 'minutes' | 'attempts' | 'pass', v: string) => onChange({ ...t, [k]: v === '' ? null : Number(v) })
   const n = t.qids?.length ?? 0
   const missing = bank ? (t.qids ?? []).filter(id => !bank.some(b => b.id === id)).length : 0
+  const link = t.kind === 'link'
+  const kindPick = <div className="distpills" role="radiogroup" aria-label="Cách làm bài" style={{ margin: 0 }}>
+    {([['bank', 'Làm trong hệ thống (chấm tự động)'], ['link', 'Làm qua link (Google Forms, Azota…)']] as ['bank' | 'link', string][]).map(([k, l]) =>
+      <button key={k} type="button" role="radio" aria-checked={(t.kind ?? 'bank') === k} className={(t.kind ?? 'bank') === k ? 'on' : ''} disabled={!edit}
+        onClick={() => onChange({ ...t, kind: k })}>{l}</button>)}</div>
+  if (link) return <div style={{ display: 'grid', gap: 12 }}>
+    {!hasTest && <p className="warnline">Nội dung này đang không bật "Có bài test". Bật ở bảng nội dung để giáo viên làm bài.</p>}
+    {kindPick}
+    <p className="sub" style={{ margin: 0 }}>Giáo viên mở hết bài giảng, tài liệu rồi bấm "Làm bài" để mở link. Mở link là học tiếp được nội dung sau.
+      Điểm do người tổ chức nhập ở Đánh giá kết quả tập huấn › Chấm điểm › Điểm bài test (gõ tay hoặc nhập file Excel), đủ điểm đạt mới tính bài test đạt.</p>
+    <label className="field"><span>Link bài kiểm tra</span><input type="url" disabled={!edit} value={t.url ?? ''} placeholder="https://forms.gle/…"
+      onChange={e => onChange({ ...t, url: e.target.value })} /></label>
+    <div className="formgrid">
+      <label className="field"><span>Điểm đạt (thang 10)</span><input type="number" min={0} max={10} step={0.5} disabled={!edit} value={t.pass ?? ''} placeholder={passScore != null ? `Theo chương trình: ${passScore}` : '5'} onChange={e => setNum('pass', e.target.value)} /></label>
+      <label className="field"><span>Hạn làm bài</span><input type="date" disabled={!edit} value={t.due ?? ''} onChange={e => onChange({ ...t, due: e.target.value || null })} /></label>
+    </div>
+    <label className="field"><span>Hướng dẫn cho giáo viên</span><textarea rows={2} maxLength={500} disabled={!edit} value={t.note ?? ''} placeholder="VD: Đăng nhập bằng email đã đăng ký với hệ thống để điểm khớp tên."
+      onChange={e => onChange({ ...t, note: e.target.value })} /></label>
+    {t.url && /^https?:\/\//i.test(t.url) && <a className="linkbtn" href={t.url} target="_blank" rel="noreferrer">Mở thử link ↗</a>}
+  </div>
   return <div style={{ display: 'grid', gap: 12 }}>
     {!hasTest && <p className="warnline">Nội dung này đang không bật "Có bài test". Bật ở bảng nội dung để giáo viên làm bài.</p>}
+    {kindPick}
     <p className="sub" style={{ margin: 0 }}>Giáo viên làm bài sau khi mở hết bài giảng và tài liệu của nội dung. Đạt điểm đạt thì nội dung được tính hoàn thành và mở nội dung tiếp theo.</p>
     <div className="formgrid">
       <label className="field"><span>Số câu mỗi lượt</span><input type="number" min={1} max={Math.max(n, 1)} disabled={!edit} value={t.count ?? ''} placeholder={`Tất cả (${n})`} onChange={e => setNum('count', e.target.value)} /></label>

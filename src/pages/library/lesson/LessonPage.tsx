@@ -65,6 +65,9 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
   if (err) return <p className="msg">{err}</p>
   if (!row) return <p className="sub">Đang tải…</p>
   const checked = row.content.checked ?? []
+  // Bài giảng tập huấn (105): Kho hoạt động tuỳ chọn, phát hành chỉ cần chốt 4 thẻ còn lại
+  const NEED = store === 'training' ? CARDS.filter(c => c.k !== 'bank') : CARDS
+  const needDone = NEED.filter(c => checked.includes(c.k)).length
   const prog = programs.find(p => p.id === row.program_id)
   const progLabel = prog ? `${prog.code ? prog.code + ' · ' : ''}${prog.title}` : ''
   const progSubject = kit.info.prog_subject || row.subject || ''
@@ -189,11 +192,11 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
       <div className="panel lquick"><b>Điền nhanh bằng file mẫu</b><span className="sub">Không có giáo án Word? Tải mẫu, điền rồi tải lên, hệ thống tự điền các thẻ.</span>
         <div className="tools"><button type="button" onClick={tplAll}>Tải mẫu cả giáo án (Excel)</button>{pick('.xlsx', 'Tải file lên', upload)}</div></div>
 
-      <div className="lkithead"><h3>{store === 'training' ? 'Bài giảng' : 'Bộ học liệu'} · 5 thẻ</h3><span className="sub">{checked.length}/{CARDS.length} thẻ đã chốt</span></div>
+      <div className="lkithead"><h3>{store === 'training' ? 'Bài giảng' : 'Bộ học liệu'} · 5 thẻ</h3><span className="sub">{store === 'training' ? `${needDone}/${NEED.length} thẻ bắt buộc đã chốt · Kho hoạt động tuỳ chọn` : `${checked.length}/${CARDS.length} thẻ đã chốt`}</span></div>
       <div className="ltabs" role="tablist">
         {CARDS.map(c => <button key={c.k} type="button" role="tab" aria-selected={tab === c.k} className={(tab === c.k ? 'on' : '') + (checked.includes(c.k) ? ' done' : '')}
           onClick={() => { if (edit && edit !== c.k) return setMsg('Lưu hoặc hủy thẻ đang sửa trước.'); setTab(c.k) }}>
-          <small>{c.no}</small> {c.title}{checked.includes(c.k) && <i aria-label="Đã chốt">✓</i>}</button>)}
+          <small>{c.no}</small> {c.title}{store === 'training' && c.k === 'bank' && <small> (tuỳ chọn)</small>}{checked.includes(c.k) && <i aria-label="Đã chốt">✓</i>}</button>)}
       </div>
       {kit.issues.length > 0 && <div className="lwarn"><b>Hệ thống ghi nhận {kit.issues.length} điểm cần kiểm tra khi tách giáo án</b>
         <ul>{kit.issues.map((w, i) => <li key={i}>{w}</li>)}</ul>
@@ -241,8 +244,8 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
       <div className="panel lstatus">
         <div><b>Trạng thái {store === 'training' ? T.noun : 'bộ học liệu'}</b><small className="sub">Chỉ chốt khi đã kiểm tra nội dung từng thẻ. Có thể cập nhật lại sau khi chốt.</small></div>
         <Chip tone={STATUS[row.status][1]}>{STATUS[row.status][0]}{row.status === 'published' ? ` · v${row.version}` : ''}</Chip>
-        <button type="button" className="primary" disabled={checked.length < CARDS.length || !!busy || !!edit} onClick={publish}
-          title={checked.length < CARDS.length ? `Chốt đủ ${CARDS.length} thẻ để phát hành (đang ${checked.length}/${CARDS.length})` : undefined}>{row.status === 'published' ? 'Phát hành bản cập nhật' : store === 'training' ? 'Phát hành bài giảng' : 'Phát hành bộ học liệu'}</button>
+        <button type="button" className="primary" disabled={needDone < NEED.length || !!busy || !!edit} onClick={publish}
+          title={needDone < NEED.length ? `Chốt đủ ${NEED.length} thẻ${store === 'training' ? ' bắt buộc' : ''} để phát hành (đang ${needDone}/${NEED.length})` : undefined}>{row.status === 'published' ? 'Phát hành bản cập nhật' : store === 'training' ? 'Phát hành bài giảng' : 'Phát hành bộ học liệu'}</button>
       </div>
 
       {check && (() => {

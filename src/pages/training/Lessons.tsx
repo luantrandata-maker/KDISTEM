@@ -1,4 +1,5 @@
 // Bài giảng tập huấn soạn như bài học (102): mỗi bài là bộ 5 thẻ — Thông tin · Nội dung · Link tài liệu · Định mức vật tư · Kho hoạt động.
+// Kho hoạt động tuỳ chọn (105): chốt đủ 4 thẻ còn lại là phát hành được.
 // Thêm bài theo 4 cách như thêm bài học (tải giáo án Word/PowerPoint, tự tạo, sao chép, file mẫu Excel); mở bài để sửa, chốt từng thẻ, phát hành.
 // Bài gắn với chương trình tập huấn và một nội dung trong chương trình; giáo viên thấy bài đã phát hành của kế hoạch mình tham gia.
 import { useEffect, useMemo, useState } from 'react'
@@ -82,13 +83,13 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
     setMsg(x.error ? x.error.message : `Đã xoá “${r.title}”.`); reload()
   }
   const p0 = progs[0]
-  const checked = (r: TLesson) => (r.content?.checked ?? []).length
+  const checked = (r: TLesson) => (r.content?.checked ?? []).filter(k => k !== 'bank').length
 
   return (
     <>
       <div className="diststatcards">
         <div className="panel"><i aria-hidden="true">≋</i><span><b>{rows?.length ?? '…'}</b><small>Bài giảng tập huấn</small><small>{n('published')} đã phát hành · {n('draft')} nháp</small></span></div>
-        <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{(rows ?? []).filter(r => checked(r) >= 5).length}</b><small>Đã chốt đủ 5 thẻ</small></span></div>
+        <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{(rows ?? []).filter(r => checked(r) >= 4).length}</b><small>Đã chốt đủ 4 thẻ bắt buộc</small></span></div>
         <div className="panel"><i aria-hidden="true">▤</i><span><b>{new Set((rows ?? []).map(r => r.program_id).filter(Boolean)).size}</b><small>Chương trình tập huấn có bài giảng</small></span></div>
       </div>
       <div className="distfilter">
@@ -109,14 +110,14 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
       {err ? <p className="msg">{err}</p> : !rows ? <p className="sub">Đang tải…</p> :
         <div className="wrap"><table className="libtable tllist">
-          <thead><tr><th>Bài giảng tập huấn</th><th>Chương trình tập huấn · nội dung</th><th>Bộ 5 thẻ</th><th>Trạng thái</th><th>Cập nhật</th><th /></tr></thead>
+          <thead><tr><th>Bài giảng tập huấn</th><th>Chương trình tập huấn · nội dung</th><th>Thẻ đã chốt</th><th>Trạng thái</th><th>Cập nhật</th><th /></tr></thead>
           <tbody>{shown.map(r => { const c = checked(r), legacy = !r.content?.kit
             return <tr key={r.id}>
               <td><button type="button" className="namelink" onClick={() => { setMsg(''); setOpen(r.id) }}>{r.title}</button><br />
                 <small className="sub">{[r.subject, r.grades && `Khối ${r.grades}`, r.author].filter(Boolean).join(' · ')}</small></td>
               <td style={{ whiteSpace: 'normal' }}>{progLabel(r.program_id) || r.training_plans?.name || <small className="sub">Chưa gắn</small>}
                 {(labelOf(r.unit_id) || (r.program_id && kitSubject(r))) && <><br /><small className="sub">{labelOf(r.unit_id) || kitSubject(r)}</small></>}</td>
-              <td>{legacy ? <small className="sub">Bài cũ, chưa có 5 thẻ</small> : <><span className="tpdot" /> {c}/5 thẻ đã chốt</>}</td>
+              <td>{legacy ? <small className="sub">Bài cũ, chưa có 5 thẻ</small> : <><span className="tpdot" /> {c}/4 thẻ bắt buộc{(r.content?.checked ?? []).includes('bank') ? ' · có Kho hoạt động' : ''}</>}</td>
               <td><Chip tone={STATUS[r.status]?.[1]}>{STATUS[r.status]?.[0] ?? r.status}{r.status === 'published' && r.version ? ` · v${r.version}` : ''}</Chip></td>
               <td><small>{fmtDate((r.updated_at ?? r.created_on ?? '').slice(0, 10))}</small></td>
               <td><details className="distmore"><summary aria-label="Thao tác">···</summary><div className="distmenu">

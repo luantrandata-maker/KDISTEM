@@ -1,4 +1,4 @@
-// Phân hệ 1 — Kế hoạch tập huấn (084, 101). Khuôn Phân phối chương trình: khung phân loại (Cấp học › Cấp độ, cấu hình thêm cấp),
+// Phân hệ 1 — Kế hoạch tập huấn (084, 101). Khuôn Phân phối chương trình: khung phân loại (mặc định chỉ cấp Chương trình, cấu hình thêm cấp),
 // tạo kế hoạch trong một mục rồi soạn theo bước: Chọn chương trình → Xếp lịch (ngày, giờ, địa điểm) → Xem kết quả → Gán trường.
 // Sau phát hành: gán trường → trường chọn giáo viên, gửi danh sách → đơn vị lập kế hoạch duyệt hoặc trả lại.
 // TrainingPlansPage: KDI và Sở / Phòng (kế hoạch của đơn vị mình). SchoolTrainingAssigned: trường (kế hoạch được giao).
@@ -88,6 +88,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   const [fs, setFs] = useState<Status | 'wait' | ''>('')
   const [q, setQ] = useState('')
   const [yr, setYr] = useState('')
+  const [fp, setFp] = useState('')
   const cls = useCls('training')
   // Quản trị hệ thống: kế hoạch của mọi đơn vị trong một danh sách, sửa thẳng
   const all = useAllMode(), orgName = useOrgName()
@@ -110,7 +111,8 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
 
   const wait = (id: string) => orgs.filter(o => o.plan_id === id && o.status === 'submitted').length
   const shown = useMemo(() => (list ?? []).filter(p => (!fs || (fs === 'wait' ? wait(p.id) > 0 : p.pub_status === fs)) && (!yr || p.year_name === yr) && (!fo || p.org_id === fo)
-    && (!q || `${p.plan_code ?? ''} ${p.name} ${p.provider ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, orgs, fs, yr, q, fo])
+    && (!fp || items.some(i => i.plan_id === p.id && i.program_id === fp))
+    && (!q || `${p.plan_code ?? ''} ${p.name} ${p.provider ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, orgs, items, fs, yr, q, fo, fp])
 
   if (open) return <PlanDetail key={open} id={open} can={can} onBack={() => { setOpen(null); reload() }} onMsg={m => { setMsg(m); reload() }} />
 
@@ -158,6 +160,8 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
         ? <ClsTree scope="training" items={all && fo ? list.filter(p => p.org_id === fo) : list}
             header={({ sel, isFinal }) => <>
               <OrgFilter ids={list.map(p => p.org_id)} value={fo} onChange={setFo} />
+              <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình tập huấn"><option value="">Mọi chương trình</option>
+                {[...new Map(items.map(i => [i.program_id, i.training_programs?.title ?? '—'])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'vi')).map(([id, t]) => <option key={id} value={id}>{t}</option>)}</select>
               {can && isFinal && sel && <button type="button" className="primary" onClick={() => setCreate({ node: sel })}>+ Lập kế hoạch tập huấn</button>}</>}>
             {(rows, { isFinal, unsorted }) => table(rows, unsorted ? 'Không có kế hoạch nào.' : isFinal && can ? 'Chưa có kế hoạch nào trong mục này. Bấm “+ Lập kế hoạch tập huấn”.' : 'Chưa có kế hoạch nào trong mục này.')}
           </ClsTree>

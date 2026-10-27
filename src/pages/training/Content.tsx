@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ElView } from '../../components/ElView'
+import { openFile } from '../../lib/files'
 
 type Row = Record<string, string>
 // test: bài kiểm tra (086) — câu hỏi từ Ngân hàng câu hỏi E-learning; count = số câu rút ngẫu nhiên mỗi lượt
@@ -46,7 +47,7 @@ function ListEditor({ cols, rows, edit, empty, onChange }: { cols: Col[]; rows: 
         ? c.type === 'select' ? <select value={r[c.key] ?? ''} aria-label={c.label} onChange={e => set(i, c.key, e.target.value)}><option value="">—</option>{c.options!.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
           : <input value={r[c.key] ?? ''} type={c.type === 'number' ? 'number' : c.type === 'url' ? 'url' : 'text'} min={c.type === 'number' ? 0 : undefined} placeholder={c.placeholder}
             aria-label={c.label} style={{ width: '100%' }} onChange={e => set(i, c.key, e.target.value)} />
-        : c.type === 'url' ? (r[c.key] ? <a href={r[c.key]} target="_blank" rel="noreferrer">Mở link ↗</a> : '—')
+        : c.type === 'url' ? (r[c.key] ? <a href={r[c.key]} target="_blank" rel="noreferrer">Mở link ↗</a> : r.file ? <button type="button" className="linkbtn" onClick={() => openFile(r.file)}>{r.file_name || 'Mở tệp'}</button> : '—')
           : c.type === 'select' ? lab(c.options, r[c.key] ?? '') || '—' : r[c.key] || '—'}</td>)}
       {edit && <td><button type="button" aria-label="Xoá dòng" onClick={() => onChange(rows.filter((_, j) => j !== i))}>×</button></td>}
     </tr>)}

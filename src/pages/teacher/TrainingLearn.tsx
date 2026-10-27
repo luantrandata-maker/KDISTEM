@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { fmtDate, fmtTime } from '../../lib/time'
 import { ElView } from '../../components/ElView'
+import { openFile } from '../../lib/files'
 import { NoTeacher, type TProps } from './common'
 
 type Course = { plan_id: string; plan_code: string | null; name: string; org_name: string | null; starts_on: string | null; ends_on: string | null
@@ -148,6 +149,7 @@ function UnitPanel({ planId, u, onChange, onTest, onErr }: { planId: string; u: 
     const emb = embedUrl(r.url)
     if (emb) setPlay(play === key ? null : key)
     else if (r.url) { const w = window.open(r.url, '_blank'); if (w) w.opener = null }
+    else if (r.file) openFile(r.file)
     mark(key)
   }
   async function openLink() {
@@ -189,8 +191,8 @@ function UnitPanel({ planId, u, onChange, onTest, onErr }: { planId: string; u: 
         <span style={{ minWidth: 0 }}><b>{r.title || (t === 'l' ? 'Bài giảng' : 'Tài liệu')}</b><br />
           <small className="sub">{t === 'l' ? LECT[r.kind] ?? 'Bài giảng' : DOC[r.kind] ?? 'Tài liệu'}{r.minutes ? ` · ${r.minutes} phút` : ''}{r.note ? ` · ${r.note}` : ''}</small>
           {play === k && embedUrl(r.url) && <div className="tlvideo"><iframe src={embedUrl(r.url)!} title={r.title || 'Video'} allowFullScreen /></div>}</span>
-        <button type="button" onClick={() => openItem(k, r)} disabled={!r.url && u.seen.includes(k)}>
-          {embedUrl(r.url) ? (play === k ? 'Thu gọn' : 'Xem') : r.url ? 'Mở ↗' : 'Đánh dấu đã đọc'}</button>
+        <button type="button" onClick={() => openItem(k, r)} disabled={!r.url && !r.file && u.seen.includes(k)}>
+          {embedUrl(r.url) ? (play === k ? 'Thu gọn' : 'Xem') : r.url ? 'Mở ↗' : r.file ? 'Mở tệp' : 'Đánh dấu đã đọc'}</button>
       </li>)}</ul>
     </div>}
 

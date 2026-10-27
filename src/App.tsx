@@ -136,6 +136,17 @@ const PH1_TABS = {
   lessons: allOrgs(TrainingLessons), virtual: allOrgs(TrainingCalendarPage, { online: true }),
 }
 // Học liệu tập huấn (27/10): khuôn Học liệu của Phân hệ 2 — nội dung, bài giảng, link tài liệu, định mức vật tư, kho hoạt động
+// Giám sát tập huấn: một tab, chọn kiểu xem bằng nút (không thêm hàng tab thứ hai)
+function TrainingMonitorTabs(p: any) {
+  const views: [string, ComponentType<any>][] = [['Theo kế hoạch', TrainingMonitorPage], ['Theo trường', DeptTrainingMonitor], ['Trường thực hiện', PH1_TABS.school]]
+  const [i, setI] = useState(0)
+  const V = views[i][1]
+  return <>
+    <div className="segmented" role="group" aria-label="Kiểu giám sát">{views.map(([l], k) =>
+      <button key={l} type="button" className={i === k ? 'on' : ''} aria-pressed={i === k} onClick={() => setI(k)}>{l}</button>)}</div>
+    <V key={i} {...p} />
+  </>
+}
 const trMat = (part: string) => (p: any) => <TrainingMaterials {...p} part={part} />
 const trainingMaterialTabs = (lessons: ComponentType<any>) => (p: any) => <TabbedPages {...p} tabs={[['Nội dung tập huấn', trMat('content')], ['Bài giảng', lessons],
   ['Link tài liệu', trMat('docs')], ['Định mức vật tư', trMat('mats')], ['Kho hoạt động', trMat('acts')]]} />
@@ -451,9 +462,8 @@ const PLATFORM: PageMap = {
   // 1. Đào tạo & đánh giá năng lực nhà giáo — làm lại theo khuôn Phân hệ 2 (kế hoạch: Chương trình → Kế hoạch & lịch → … → Giám sát)
   'Chương trình tập huấn': TrainingProgramsPage,
   'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch', PH1_TABS.cal], ['Lớp học ảo', PH1_TABS.virtual],
-    // 27/10: Đánh giá kết quả và Giám sát tập huấn gom vào đây (đều theo từng kế hoạch)
-    ['Đánh giá kết quả', TrainingResultsPage], ['Giám sát tập huấn', TrainingMonitorPage], ['Giám sát theo trường', DeptTrainingMonitor],
-    ['Giảng viên', PH1_TABS.trainers], ['Trường thực hiện', PH1_TABS.school]]} />,
+    // 27/10: Đánh giá kết quả và Giám sát tập huấn gom vào đây (đều theo từng kế hoạch); các màn giám sát gộp một tab
+    ['Đánh giá kết quả', TrainingResultsPage], ['Giảng viên', PH1_TABS.trainers], ['Giám sát', TrainingMonitorTabs]]} />,
   // 2. Chương trình & học liệu
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
   // Tạm thời: "Theo dõi Chương trình/Môn học" mở bằng nút góc trên phải của trang này (không còn là mục menu riêng)

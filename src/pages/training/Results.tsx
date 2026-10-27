@@ -13,7 +13,11 @@ import { FlowGuide } from '../../components/FlowGuide'
 export type RPlan = { id: string; org_id: string; plan_code: string | null; name: string }
 type M = { sessions: number; present: number; excused: number; att_pct: number | null; att_req: number; units: number; done: number; tests: number
   tests_passed: number; avg_score: number | null; score_req: number | null; need_product: boolean; product_status: string | null
-  ok_att: boolean; ok_tests: boolean; ok_units: boolean; ok_product: boolean; suggest: 'pass' | 'fail' }
+  ok_att: boolean; ok_tests: boolean; ok_units: boolean; ok_product: boolean; suggest: 'pass' | 'fail'
+  // 109: khung đánh giá
+  finals?: number; final_score?: number | null; final_req?: number | null; ok_final?: boolean; ok_total?: boolean
+  scores?: Record<'att' | 'tests' | 'final' | 'product', number | null>; weights?: Record<'att' | 'tests' | 'final' | 'product', number>
+  total?: number | null; total_req?: number | null; grade?: string; grade_if_pass?: string }
 export type ResRow = { teacher_id: string; teacher_name: string; subject: string | null; org_name: string | null; metrics: M; result: 'pending' | 'pass' | 'fail'
   reason: string | null; product_score: number | null; comment: string | null; extra_attempts: number; decided_at: string | null
   product_url: string | null; product_note: string | null; cert_id: string | null; cert_status: string | null; cert_code: string | null }
@@ -133,7 +137,10 @@ export function ResultDetail({ plan, r, can, onBack, onDone, back = 'Đánh giá
     ['Chuyên cần', m.ok_att, m.sessions ? `${m.present}/${m.sessions - m.excused} buổi${m.excused ? ` (${m.excused} vắng có phép không tính)` : ''} = ${m.att_pct == null ? '—' : num(m.att_pct) + '%'} · cần ≥ ${m.att_req}%` : 'Chưa có buổi học'],
     ['Học trực tuyến', m.ok_units, `${m.done}/${m.units} nội dung hoàn thành`],
     ['Bài kiểm tra', m.ok_tests, m.tests ? `${m.tests_passed}/${m.tests} bài đạt · điểm TB ${num(m.avg_score)}${m.score_req != null ? ` · điểm đạt ${num(m.score_req)}` : ''}` : 'Không có bài kiểm tra'],
-    ['Sản phẩm cuối khoá', m.ok_product, m.need_product ? `${m.product_status ? PRODUCT[m.product_status] : 'Chưa nộp'}${r.product_score != null ? ` · điểm ${num(r.product_score)} (cần ≥ 5)` : ''}` : 'Không yêu cầu']]
+    ['Sản phẩm cuối khoá', m.ok_product, m.need_product ? `${m.product_status ? PRODUCT[m.product_status] : 'Chưa nộp'}${r.product_score != null ? ` · điểm ${num(r.product_score)} (cần ≥ 5)` : ''}` : 'Không yêu cầu'],
+    ...(m.finals ? [['Đề cuối khoá', m.ok_final !== false, `điểm ${num(m.final_score)}${m.final_req != null ? ` · cần ≥ ${num(m.final_req)}` : ''}`] as [string, boolean, string]] : []),
+    ...(m.total_req != null ? [['Tổng điểm', m.ok_total !== false, `${num(m.total)} · cần ≥ ${num(m.total_req)}`] as [string, boolean, string]] : [])]
+  const COMP: [keyof NonNullable<M['scores']>, string][] = [['att', 'Chuyên cần'], ['tests', 'Bài test nội dung'], ['final', 'Đề cuối khoá'], ['product', 'Sản phẩm']]
   return <ElView back={back} onBack={onBack} title={r.teacher_name}
     sub={<>{[r.subject, r.org_name, `${plan.plan_code} · ${plan.name}`].filter(Boolean).join(' · ')} · <Chip tone={RESULT[r.result][1]}>{RESULT[r.result][0]}</Chip></>}>
     {err && <p className="msg" role="alert">{err}</p>}
@@ -142,6 +149,13 @@ export function ResultDetail({ plan, r, can, onBack, onDone, back = 'Đánh giá
         <Chip tone={m.suggest === 'pass' ? 'good' : 'warn'}>{m.suggest === 'pass' ? 'Gợi ý: Đạt' : 'Gợi ý: Chưa đủ điều kiện'}</Chip></div>
       <dl className="tpkv">{conds.map(([k, b, d]) => <div key={k} style={{ display: 'contents' }}><dt>{ok(b)} {k}</dt><dd>{d}</dd></div>)}</dl>
     </section>
+    {m.scores && m.weights && <section className="panel" style={{ display: 'grid', gap: 10 }}>
+      <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Tổng điểm theo khung đánh giá</h3>
+        <Chip tone={m.suggest === 'pass' ? 'good' : 'warn'}>{num(m.total)}/10 · {m.grade}</Chip></div>
+      <div className="wrap"><table><thead><tr><th>Thành phần</th><th className="num">Điểm</th><th className="num">Trọng số</th></tr></thead>
+        <tbody>{COMP.filter(([k]) => m.weights![k] > 0).map(([k, l]) => <tr key={k}><td>{l}</td><td className="num">{num(m.scores![k])}</td><td className="num">{m.weights![k]}</td></tr>)}</tbody></table></div>
+      <small className="sub">Trọng số, điều kiện và thang xếp loại lấy từ Khung đánh giá của chương trình tập huấn.</small>
+    </section>}
     {m.need_product && <section className="panel" style={{ display: 'grid', gap: 10 }}>
       <h3 style={{ margin: 0 }}>Sản phẩm & nhận xét của giảng viên</h3>
       {r.product_url || r.product_note ? <p style={{ margin: 0 }}>{r.product_url && <a href={r.product_url} target="_blank" rel="noreferrer">Mở sản phẩm ↗</a>}{r.product_note && <><br /><small className="sub">{r.product_note}</small></>}</p>

@@ -3382,6 +3382,53 @@ select pg_temp.probe('kdi@iso-test.local', $q$update training_programs set statu
 select pg_temp.chk('gv_both', 'TH 106: chương trình đã phát hành thì giáo viên mở được tệp tài liệu', $q$select learning_file_readable(platform_org_id()::text || '/training/iso-f.pdf')::text$q$, 'true');
 select pg_temp.chk('gv_both', 'TH 106: tệp không thuộc tài liệu tập huấn vẫn không mở được', $q$select learning_file_readable(platform_org_id()::text || '/training/khac.pdf')::text$q$, 'false');
 
+-- ===== TD 109: đề cuối khoá theo ma trận, khung đánh giá, xếp loại; ma trận đề môn học =====
+select pg_temp.probe('kdi@iso-test.local', $q$insert into question_bank (org_id, subject, topic, level, kind, stem, options, answer) values
+  (platform_org_id(), 'ISO TH9', 'Robot', 'nhan_biet', 'single', 'Cảm biến siêu âm đo gì?', '["Khoảng cách","Nhiệt độ"]', '[0]'),
+  (platform_org_id(), 'ISO TH9', 'Robot', 'nhan_biet', 'truefalse', 'Servo quay được góc?', '["Đúng","Sai"]', '[0]'),
+  (platform_org_id(), 'ISO TH9', 'Robot', 'van_dung', 'single', 'Robot né vật cản dùng?', '["Siêu âm","Ánh sáng"]', '[0]')$q$, true);
+select pg_temp.chk('kdi', 'TD 109: số câu sẵn có theo chủ đề × mức độ', $q$select string_agg(topic || '/' || level || '=' || n, ',' order by level) from exam_bank_stats(platform_org_id(), 'ISO TH9')$q$, 'Robot/nhan_biet=2,Robot/van_dung=1');
+select pg_temp.chk('admin_ph', 'TD 109: trường không xem ngân hàng của KDI', $q$select count(*) from exam_bank_stats(platform_org_id(), 'ISO TH9')$q$, 'ERR');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_programs (org_id, title) values (platform_org_id(), 'ISO CTTH E')$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_program_units (program_id, kind, seq, title) select id, 'subject', 1, 'ISO môn E' from training_programs where title = 'ISO CTTH E'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_program_units (program_id, parent_id, kind, seq, title, hours) select p.id, u.id, 'content', 1, 'ISO E1', 2 from training_programs p join training_program_units u on u.program_id = p.id where p.title = 'ISO CTTH E'$q$, true);
+select pg_temp.chk('kdi', 'TD 109: mức độ trong ma trận phải hợp lệ', $q$update training_programs set final_exam = '{"matrix":[{"level":"x","count":1}]}' where title = 'ISO CTTH E'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'TD 109: thang xếp loại không trùng điểm', $q$update training_programs set eval_frame = '{"weights":{"final":100},"grades":[{"label":"A","min":5},{"label":"B","min":5}]}' where title = 'ISO CTTH E'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'TD 109: khung cần ít nhất một trọng số', $q$update training_programs set eval_frame = '{"weights":{"final":0},"grades":[{"label":"Đạt","min":5}]}' where title = 'ISO CTTH E'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_programs set
+  final_exam = '{"subject":"ISO TH9","matrix":[{"topic":"Robot","level":"nhan_biet","count":2},{"level":"van_dung","count":1}],"attempts":2,"pass":5,"shuffle":true}',
+  eval_frame = '{"weights":{"att":20,"tests":30,"final":50,"product":0},"req":{"final":5,"total":5},"grades":[{"label":"Giỏi","min":8},{"label":"Đạt","min":5}],"fail_label":"Không đạt"}'
+  where title = 'ISO CTTH E'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$update training_programs set status = 'published' where title = 'ISO CTTH E'$q$, true);
+select pg_temp.chk('kdi', 'TD 109: đã phát hành thì không sửa đề cuối khoá', $q$update training_programs set final_exam = null where title = 'ISO CTTH E'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_program_new_version((select id from training_programs where title = 'ISO CTTH E' and status = 'published'))::text$q$, true);
+select pg_temp.chk('kdi', 'TD 109: phiên bản mới chép đề cuối khoá và khung đánh giá', $q$select (x.final_exam ->> 'subject') || ':' || (x.eval_frame ->> 'fail_label') from training_programs x where x.title = 'ISO CTTH E' and x.status = 'draft'$q$, 'ISO TH9:Không đạt');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plans (org_id, name, pub_status, year_name) values (platform_org_id(), 'ISO KH E', 'draft', '2026-2027')$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plan_items (plan_id, program_id, seq) select k.id, p.id, 1 from training_plans k, training_programs p where k.name = 'ISO KH E' and p.title = 'ISO CTTH E' and p.status = 'published'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$update training_plans set pub_status = 'published' where name = 'ISO KH E'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$select training_plan_assign(id, array[(select id from organizations where code = 'THCS-KB')]) from training_plans where name = 'ISO KH E'$q$, true);
+insert into training_enrollments (org_id, plan_id, teacher_id) select t.org_id, k.id, t.id from training_plans k, teachers t where k.name = 'ISO KH E' and t.full_name = 'GV thử B';
+select pg_temp.probe('gv_both@iso-test.local', format('select public.switch_org(%s)', quote_literal(pg_temp.oid_('THCS-KB'))), true);
+select pg_temp.chk('gv_both', 'TD 109: khoá học có đề cuối khoá 3 câu, học xong thì làm được', $q$select (x #>> '{finals,0,count}') || ':' || (x #>> '{finals,0,ready}') || ':' || (x #>> '{finals,0,attempts}') from training_course_finals((select id from training_plans where name = 'ISO KH E')) x$q$, '3:true:2');
+select pg_temp.chk('kdi', 'TD 109: chưa làm đề thì tổng điểm 0, chưa đạt theo khung', $q$select (metrics ->> 'total') || ':' || (metrics ->> 'grade') || ':' || (metrics ->> 'suggest') from training_plan_results((select id from training_plans where name = 'ISO KH E'))$q$, '0.00:Không đạt:fail');
+select pg_temp.chk('gv_both', 'TD 109: đề rút đủ 3 câu theo ma trận, không kèm đáp án', $q$select jsonb_array_length(x -> 'questions') || ':' || (x #> '{questions,0,answer}' is null) from training_final_start((select id from training_plans where name = 'ISO KH E'), (select id from training_programs where title = 'ISO CTTH E' and status = 'published')) x$q$, '3:true');
+select pg_temp.chk('admin_ph', 'TD 109: người không có tên không làm đề cuối khoá', $q$select training_final_start((select id from training_plans where name = 'ISO KH E'), (select id from training_programs where title = 'ISO CTTH E' and status = 'published'))::text$q$, 'ERR');
+select pg_temp.probe('gv_both@iso-test.local', $q$select training_final_start((select id from training_plans where name = 'ISO KH E'), (select id from training_programs where title = 'ISO CTTH E' and status = 'published'))::text$q$, true);
+select pg_temp.probe('gv_both@iso-test.local', format($q$select training_final_submit(%L::uuid, %L::jsonb)::text$q$, a.id, (select jsonb_object_agg(q.id, q.answer) from question_bank q where q.id = any(a.questions))), true)
+  from training_final_attempts a join training_plans k on k.id = a.plan_id where k.name = 'ISO KH E' and a.submitted_at is null;
+select pg_temp.chk('kdi', 'TD 109: làm đúng hết thì tổng 10, xếp loại Giỏi, gợi ý Đạt', $q$select (metrics ->> 'total') || ':' || (metrics ->> 'grade') || ':' || (metrics ->> 'suggest') from training_plan_results((select id from training_plans where name = 'ISO KH E'))$q$, '10.00:Giỏi:pass');
+select pg_temp.probe('gv_both@iso-test.local', $q$select training_final_start((select id from training_plans where name = 'ISO KH E'), (select id from training_programs where title = 'ISO CTTH E' and status = 'published'))::text$q$, true);
+select pg_temp.probe('gv_both@iso-test.local', $q$select training_final_submit((select a.id from training_final_attempts a join training_plans k on k.id = a.plan_id where k.name = 'ISO KH E' and a.submitted_at is null), '{}')::text$q$, true);
+select pg_temp.chk('gv_both', 'TD 109: hết 2 lượt thì không làm thêm', $q$select training_final_start((select id from training_plans where name = 'ISO KH E'), (select id from training_programs where title = 'ISO CTTH E' and status = 'published'))::text$q$, 'ERR 22023');
+select pg_temp.chk('gv_both', 'TD 109: điểm đề cuối khoá là lượt cao nhất', $q$select x #>> '{finals,0,best}' from training_course_finals((select id from training_plans where name = 'ISO KH E')) x$q$, '10.0');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_result_set(t.id, e.teacher_id, 'pass', null)::text from training_plans t join training_enrollments e on e.plan_id = t.id where t.name = 'ISO KH E'$q$, true);
+select pg_temp.chk('kdi', 'TD 109: kết luận lưu tổng điểm, xếp loại; chứng chỉ mang theo', $q$select r.grade || ':' || c.grade || ':' || c.total_score from training_results r join training_plans k on k.id = r.plan_id join certificates c on c.plan_id = r.plan_id and c.teacher_id = r.teacher_id where k.name = 'ISO KH E'$q$, 'Giỏi:Giỏi:10.00');
+select pg_temp.chk('kdi', 'TD 109: dữ liệu in chứng chỉ có xếp loại', $q$select training_cert_view(c.id) ->> 'grade' from certificates c join training_plans k on k.id = c.plan_id where k.name = 'ISO KH E'$q$, 'Giỏi');
+select pg_temp.chk('admin_ph', 'TD 109: trường khác không xem bảng điểm đề cuối khoá', $q$select count(*) from training_plan_final_scores((select id from training_plans where name = 'ISO KH E'))$q$, '0');
+select pg_temp.chk('kdi', 'TD 109: kế hoạch không có khung dùng khung mặc định theo điều kiện cũ', $q$select (training_eval_frame(id) ->> 'default') || ':' || (training_eval_frame(id) #>> '{grades,0,label}') from training_plans where name = 'ISO KH L'$q$, 'true:Xuất sắc');
+select pg_temp.chk('admin_kb', 'TD 109: đề môn học theo ma trận tự tính số câu', $q$with x as (insert into practice_exams (org_id, title, subject, mode, criteria) values (my_org_id(), 'ISO đề ma trận', 'ISO Toán', 'random', '{"matrix":[{"level":"thong_hieu","count":2},{"topic":"","count":1}]}') returning criteria) select criteria ->> 'count' from x$q$, '3');
+select pg_temp.chk('admin_kb', 'TD 109: ma trận đề môn học sai mức độ bị từ chối', $q$insert into practice_exams (org_id, title, subject, mode, criteria) values (my_org_id(), 'ISO đề sai', 'ISO Toán', 'random', '{"matrix":[{"level":"kho","count":2}]}')$q$, 'ERR 22023');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

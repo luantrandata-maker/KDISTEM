@@ -1,12 +1,14 @@
 import { SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
 import { MultiSelect } from '../components/MultiSelect'
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { OrgPick, useAllMode } from '../components/OrgScope'
 import { norm } from '../lib/sheet'
 import { useStemTracks, TRACK_COLOR } from '../lib/stemTracks'
 import { useEduLevels } from '../lib/eduLevels'
 import { ElView } from '../components/ElView'
+// Đề kiểm tra của môn (109): dùng màn đề luyện E-learning, lọc theo môn
+const SubjectExams = lazy(() => import('./elearning/Manage').then(m => ({ default: m.SubjectExams })))
 
 // Danh mục môn học (MonHoc, migration 064): KDI, Sở, Phòng, trường đều có danh mục riêng; môn "dùng chung" của KDI /
 // cấp trên hiện ở đơn vị trực thuộc. Học phần của chương trình giáo dục gắn với môn trong danh mục (edu_unit_subjects).
@@ -57,6 +59,8 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
   const LEVELS = lvList.map(l => [l.code, l.name] as [string, string])
   const [canEdit, setCanEdit] = useState(mode !== 'school')
   const [form, setForm] = useState<Partial<Subject> | null>(null)
+  const [view, setView] = useState<Subject | null>(null)
+  const [vtab, setVtab] = useState<'info' | 'exam'>('info')
   const [q, setQ] = useState('')
   const [lv, setLv] = useState('')
   const [old, setOld] = useState(false)
@@ -109,7 +113,7 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
   const row = (s: Subject, mine: boolean) => (
     <tr key={s.id} className={mine && sel.is(s) ? 'picked' : undefined} style={s.active ? undefined : { opacity: 0.6 }}>
       {mine && canEdit && <SelTd on={sel.is(s)} onToggle={() => sel.toggle(s)} label={s.name} />}
-      <td>{s.code && <small className="sub">{s.code}<br /></small>}<b>{s.name}</b>{!s.active && <> <span className="pill">Ngừng dùng</span></>}
+      <td>{s.code && <small className="sub">{s.code}<br /></small>}<button type="button" className="namelink" onClick={() => { setVtab('info'); setView(s) }}><b>{s.name}</b></button>{!s.active && <> <span className="pill">Ngừng dùng</span></>}
         {s.description && <><br /><small className="sub">{s.description}</small></>}</td>
       <td>{s.domain ?? '—'}</td>
       <td>{s.levels.length ? s.levels.map(levelName).join(', ') : <small className="sub">Mọi cấp</small>}</td>
@@ -132,6 +136,22 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
   </>)
   const domains = [...new Set(subjects.map(s => s.domain).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi'))
 
+  if (view && !form) return (
+    <ElView back="Môn học" onBack={() => setView(null)} title={view.name} sub={[view.code, view.domain, view.owner_name].filter(Boolean).join(' · ')}>
+      <div className="segmented" style={{ marginBottom: 12 }}>
+        {([['info', 'Thông tin'], ['exam', 'Đề kiểm tra']] as const).map(([k, l]) => <button key={k} type="button" className={vtab === k ? 'on' : ''} onClick={() => setVtab(k)}>{l}</button>)}
+      </div>
+      {vtab === 'info' ? <section className="panel"><dl className="tpkv">
+        <dt>Lĩnh vực</dt><dd>{view.domain ?? '—'}</dd>
+        <dt>Cấp học</dt><dd>{view.levels.length ? view.levels.map(levelName).join(', ') : 'Mọi cấp'}</dd>
+        <dt>Loại chương trình</dt><dd>{view.ct_codes.join(', ') || '—'}</dd>
+        <dt>Mô tả</dt><dd>{view.description || '—'}</dd>
+      </dl>{canEdit && (every || view.org_id === orgId) && <div className="formactions"><button type="button" onClick={() => { setMsg(null); setForm(view) }}>Sửa môn học</button></div>}</section>
+      : <Suspense fallback={<p className="sub">Đang tải…</p>}>
+        <p className="sub">Đề kiểm tra của môn {view.name}: rút câu từ Ngân hàng câu hỏi theo ma trận chủ đề × mức độ, đặt số câu, thời gian, số lượt, trộn câu. Đề hiện cùng ở mục E-learning & luyện thi.</p>
+        <SubjectExams orgId={orgId} subject={view.name} /></Suspense>}
+    </ElView>
+  )
   if (form) return (
     <ElView back="Môn học" onBack={() => setForm(null)} title={form.id ? 'Sửa môn học' : 'Thêm môn học'}>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}

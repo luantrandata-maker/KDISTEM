@@ -759,7 +759,7 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
     && (!fYear.length || fYear.includes(r.training_plans!.year_name ?? '')) && (!fProv.length || fProv.includes(provOf(r.org_id)?.id ?? ''))
     && (!fOrg.length || fOrg.includes(r.org_id)) && (!fProg.length || items.some(i => i.plan_id === r.plan_id && fProg.includes(i.program_id)))
   const nShown = (rows ?? []).filter(fit).length
-  const ms = { minWidth: 190, maxWidth: 320 }
+  const ms = { width: 168, flex: '0 0 168px' }
   return <>
     <FlowGuide id="training-school">
       <ol className="distguide">{([['Nhận kế hoạch', 'KDI, Sở hoặc Phòng gán kế hoạch tập huấn cho trường, kèm chỉ tiêu giáo viên.'],
@@ -773,11 +773,11 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
       <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{n('approved')}</b><small>Đã duyệt</small><small>{n('submitted')} chờ duyệt</small></span></div>
     </div>
     <div className="bar"><div className="tools">
-      <MultiSelect value={fYear} onChange={setFYear} options={yearOpts} placeholder="Mọi năm học" ariaLabel="Năm học" style={ms} />
-      {all && <MultiSelect value={fProv} onChange={v => { setFProv(v); setFOrg([]) }} options={provOpts} placeholder="Mọi tỉnh" ariaLabel="Tỉnh" style={ms} />}
-      {all && <MultiSelect value={fOrg} onChange={setFOrg} options={orgOpts} placeholder="Mọi trường" ariaLabel="Trường" style={ms} />}
-      <MultiSelect value={fProg} onChange={setFProg} options={progOpts} placeholder="Mọi chương trình" ariaLabel="Chương trình tập huấn" style={ms} />
-      {(fYear.length + fProv.length + fOrg.length + fProg.length > 0) && <button type="button" onClick={() => { setFYear([]); setFProv([]); setFOrg([]); setFProg([]) }}>Bỏ lọc</button>}
+      <MultiSelect value={fYear} onChange={setFYear} options={yearOpts} placeholder="Mọi năm học" ariaLabel="Năm học" style={ms} compact />
+      {all && <MultiSelect value={fProv} onChange={v => { setFProv(v); setFOrg([]) }} options={provOpts} placeholder="Mọi tỉnh" ariaLabel="Tỉnh" style={ms} compact />}
+      {all && <MultiSelect value={fOrg} onChange={setFOrg} options={orgOpts} placeholder="Mọi trường" ariaLabel="Trường" style={ms} compact />}
+      <MultiSelect value={fProg} onChange={setFProg} options={progOpts} placeholder="Mọi chương trình" ariaLabel="Chương trình tập huấn" style={ms} compact />
+      {(fYear.length + fProv.length + fOrg.length + fProg.length > 0) && <button type="button" className="fclear" onClick={() => { setFYear([]); setFProv([]); setFOrg([]); setFProg([]) }}>Bỏ lọc</button>}
       <small className="sub">{nShown}/{rows?.length ?? 0} kế hoạch</small>
     </div></div>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}

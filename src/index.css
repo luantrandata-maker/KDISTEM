@@ -1742,6 +1742,20 @@ a.namelink:hover{color:var(--primary)}
 .main .tools > input:not([type]),.main .tools > input[type=search],.main .tools > input[type=text]{padding:9px 12px;min-width:240px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);font-family:inherit;font-size:14px}
 .main .tools > input:not([type]):focus,.main .tools > input[type=search]:focus,.main .tools > input[type=text]:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px color-mix(in srgb,var(--primary) 18%,transparent)}
 .main .tools > select{padding:9px 10px;border-radius:10px}
+/* Thanh lọc gọn một hàng (27/10): ô tìm, ô chọn và ô chọn nhiều cùng cao 34px, chữ 13px */
+.main .bar .tools{flex-wrap:wrap;row-gap:6px;align-items:center}
+.main .tools > button.fclear{padding:6px 10px;font-size:13px;border-radius:8px}
+.main .bar .tools > input:not([type]),.main .bar .tools > input[type=search],.main .bar .tools > input[type=text]{padding:6px 10px;min-width:180px;width:200px;font-size:13px;border-radius:8px}
+.main .bar .tools > select{padding:6px 8px;font-size:13px;border-radius:8px;max-width:220px}
+.main .bar .tools > small.sub{white-space:nowrap;align-self:center;margin:0;line-height:1}
+.msel.sm{min-height:34px;font-size:13px;padding:2px 4px 2px 6px;border-radius:8px;align-items:center}
+.msel.sm .mselchips{flex-wrap:nowrap;overflow:hidden;max-height:none}
+.msel.sm .mselchip{font-size:12px;padding:1px 2px 1px 8px;min-width:0;flex:0 1 auto}
+.msel.sm .mselchips{gap:3px}
+.msel.sm .mselchip>span{max-width:100px}
+.msel.sm .mselmore{font-size:12px;color:var(--muted);white-space:nowrap;flex:none}
+.msel.sm .mselq{min-width:16px;flex:1 1 0;padding:4px 2px;font-size:13px}
+.msel.sm .mselx{font-size:14px;padding:0 3px}.msel.sm .mselplus{font-size:16px}
 .libcopy{margin-bottom:12px;gap:10px;flex-wrap:wrap}.libcopy select{min-width:260px}
 /* E-learning: trang thêm / sửa / chi tiết */
 .elview{display:grid;gap:12px;margin-top:12px}.elview>.ghostbtn{justify-self:start}

@@ -3429,6 +3429,29 @@ select pg_temp.chk('kdi', 'TD 109: kế hoạch không có khung dùng khung m�
 select pg_temp.chk('admin_kb', 'TD 109: đề môn học theo ma trận tự tính số câu', $q$with x as (insert into practice_exams (org_id, title, subject, mode, criteria) values (my_org_id(), 'ISO đề ma trận', 'ISO Toán', 'random', '{"matrix":[{"level":"thong_hieu","count":2},{"topic":"","count":1}]}') returning criteria) select criteria ->> 'count' from x$q$, '3');
 select pg_temp.chk('admin_kb', 'TD 109: ma trận đề môn học sai mức độ bị từ chối', $q$insert into practice_exams (org_id, title, subject, mode, criteria) values (my_org_id(), 'ISO đề sai', 'ISO Toán', 'random', '{"matrix":[{"level":"kho","count":2}]}')$q$, 'ERR 22023');
 
+-- ===== TD 110: đề luyện tập huấn, thống kê đề, câu hay sai =====
+select pg_temp.chk('admin_ph', 'TD 110: trường không tạo đề luyện cho KDI', $q$insert into training_practice_exams (org_id, program_id, title, subject, matrix) values (platform_org_id(), (select id from training_programs where title = 'ISO CTTH E' and status = 'published'), 'ISO luyện X', 'ISO TH9', '[{"level":"nhan_biet","count":1}]')$q$, 'ERR');
+select pg_temp.chk('kdi', 'TD 110: đề luyện cần ít nhất 1 câu', $q$insert into training_practice_exams (org_id, program_id, title, subject) values (platform_org_id(), (select id from training_programs where title = 'ISO CTTH E' and status = 'published'), 'ISO luyện 0', 'ISO TH9')$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_practice_exams (org_id, program_id, title, subject, matrix, attempts, pass) values (platform_org_id(), (select id from training_programs where title = 'ISO CTTH E' and status = 'published'), 'ISO luyện E', 'ISO TH9', '[{"topic":"Robot","level":"nhan_biet","count":2}]', 2, 5)$q$, true);
+select pg_temp.chk('gv_both', 'TD 110: đề nháp giáo viên không thấy', $q$select jsonb_array_length(training_practice_mine())$q$, '0');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_practice_exams set status = 'published' where title = 'ISO luyện E'$q$, true);
+select pg_temp.chk('gv_both', 'TD 110: đề đang mở hiện cho giáo viên có tên trong kế hoạch', $q$select (x -> 0 ->> 'title') || ':' || (x -> 0 ->> 'count') || ':' || (x -> 0 ->> 'used') from training_practice_mine() x$q$, 'ISO luyện E:2:0');
+select pg_temp.chk('admin_ph', 'TD 110: người không có tên không làm đề luyện', $q$select training_practice_start((select id from training_practice_exams where title = 'ISO luyện E'))::text$q$, 'ERR');
+select pg_temp.chk('gv_both', 'TD 110: phát đề đủ câu, không kèm đáp án', $q$select jsonb_array_length(x -> 'questions') || ':' || (x #> '{questions,0,answer}' is null) from training_practice_start((select id from training_practice_exams where title = 'ISO luyện E')) x$q$, '2:true');
+select pg_temp.probe('gv_both@iso-test.local', $q$select training_practice_start((select id from training_practice_exams where title = 'ISO luyện E'))::text$q$, true);
+select pg_temp.chk('gv_both', 'TD 110: nộp sai hết thì 0 điểm, có đáp án để xem lại', $q$select (x ->> 'score') || ':' || jsonb_array_length(x -> 'review') || ':' || (x #>> '{review,0,ok}') from training_practice_submit((select a.id from training_practice_attempts a where a.exam_id = (select id from training_practice_exams where title = 'ISO luyện E') and a.submitted_at is null), '{}') x$q$, '0.0:2:false');
+select pg_temp.probe('gv_both@iso-test.local', $q$select training_practice_submit((select a.id from training_practice_attempts a where a.exam_id = (select id from training_practice_exams where title = 'ISO luyện E') and a.submitted_at is null), '{}')::text$q$, true);
+select pg_temp.probe('gv_both@iso-test.local', $q$select training_practice_start((select id from training_practice_exams where title = 'ISO luyện E'))::text$q$, true);
+select pg_temp.probe('gv_both@iso-test.local', format($q$select training_practice_submit(%L::uuid, %L::jsonb)::text$q$, a.id, (select jsonb_object_agg(q.id, q.answer) from question_bank q where q.id = any(a.questions))), true)
+  from training_practice_attempts a join training_practice_exams x on x.id = a.exam_id where x.title = 'ISO luyện E' and a.submitted_at is null;
+select pg_temp.chk('gv_both', 'TD 110: hết lượt thì không làm thêm', $q$select training_practice_start((select id from training_practice_exams where title = 'ISO luyện E'))::text$q$, 'ERR 22023');
+select pg_temp.chk('gv_both', 'TD 110: điểm cao nhất của giáo viên', $q$select x -> 0 ->> 'best' from training_practice_mine() x$q$, '10.0');
+select pg_temp.chk('kdi', 'TD 110: thống kê đề luyện: 2 lượt, 1 GV, đạt theo lượt cao nhất', $q$select attempts || ':' || teachers || ':' || avg_score || ':' || passed from training_exam_stats() where kind = 'practice' and ref = (select id from training_practice_exams where title = 'ISO luyện E')$q$, '2:1:5.00:1');
+select pg_temp.chk('kdi', 'TD 110: thống kê có đề cuối khoá', $q$select attempts || ':' || best_avg from training_exam_stats() where kind = 'final' and ref = (select id from training_programs where title = 'ISO CTTH E' and status = 'published')$q$, '2:10.00');
+select pg_temp.chk('kdi', 'TD 110: câu hay sai: mỗi câu gặp 2 lần, sai 1', $q$select string_agg(seen || '/' || wrong, ',') from training_exam_hard('practice', (select id from training_practice_exams where title = 'ISO luyện E'))$q$, '2/1,2/1');
+select pg_temp.chk('admin_ph', 'TD 110: trường khác không thấy lượt làm của GV trường khác', $q$select count(*) from training_exam_stats() where kind = 'practice'$q$, '0');
+select pg_temp.chk('gv_both', 'TD 110: giáo viên không ghi trực tiếp lượt làm', $q$update training_practice_attempts set score = 9$q$, 'rows:0');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

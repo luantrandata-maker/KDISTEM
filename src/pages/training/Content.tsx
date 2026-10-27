@@ -57,12 +57,12 @@ function ListEditor({ cols, rows, edit, empty, onChange }: { cols: Col[]; rows: 
 }
 
 type Tab = 'body' | ListKey | 'test'
-export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, passScore, onBack, onSave, notice, extra }: {
+export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, passScore, onBack, onSave, notice, extra, initialTab }: {
   title: string; crumb: string; hours: number; detail: Detail; editable: boolean; hasTest?: boolean; passScore?: number | null; onBack: () => void; onSave: (d: Detail) => Promise<boolean>
   /** Ghi chú khi chỉ xem và nút thêm (VD: tạo phiên bản mới để sửa) */
-  notice?: React.ReactNode; extra?: React.ReactNode
+  notice?: React.ReactNode; extra?: React.ReactNode; initialTab?: 'test'
 }) {
-  const [tab, setTab] = useState<Tab>('body')
+  const [tab, setTab] = useState<Tab>(initialTab ?? 'body')
   const [d, setD] = useState<Detail>(() => JSON.parse(JSON.stringify(detail ?? {})))
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)

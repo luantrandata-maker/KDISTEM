@@ -267,12 +267,14 @@ function UnitPanel({ planId, u, onChange, onTest, onErr }: { planId: string; u: 
 }
 
 type Rpc = PromiseLike<{ data: unknown; error: { message: string } | null }>
-function TestRun({ back, title, sub, start, send, onBack }: { back: string; title: string; sub?: string; start: () => Rpc; send: (attempt: string, ans: Record<string, number[]>) => Rpc; onBack: () => void }) {
+type Review = { id: string; stem: string; options: string[]; answer: number[]; chosen: number[]; ok: boolean; explain: string | null }
+/** Làm một đề: phát đề, đếm giờ, nộp; review (đề luyện 110) thì hiện đáp án từng câu sau khi nộp */
+export function TestRun({ back, title, sub, start, send, onBack, doneLabel = 'Quay lại nội dung' }: { back: string; title: string; sub?: string; start: () => Rpc; send: (attempt: string, ans: Record<string, number[]>) => Rpc; onBack: () => void; doneLabel?: string }) {
   const [paper, setPaper] = useState<{ attempt: string; deadline: string | null; questions: Q[] } | null>(null)
   const [ans, setAns] = useState<Record<string, number[]>>({})
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
-  const [res, setRes] = useState<{ correct: number; total: number; score: number; pass: number; passed: boolean } | null>(null)
+  const [res, setRes] = useState<{ correct: number; total: number; score: number; pass: number | null; passed: boolean; review?: Review[] | null } | null>(null)
   const [left, setLeft] = useState<number | null>(null)
   const sent = useRef(false)
 
@@ -312,12 +314,23 @@ function TestRun({ back, title, sub, start, send, onBack }: { back: string; titl
     actions={paper && !res && <>{left != null && <span className={`pill ${left < 60 ? 'inactive' : 'maintenance'}`} role="timer">⏱ {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</span>}
       <button type="button" className="primary" disabled={busy} onClick={() => { if (answered === paper.questions.length || confirm(`Còn ${paper.questions.length - answered} câu chưa làm. Nộp bài?`)) submit() }}>{busy ? 'Đang nộp…' : 'Nộp bài'}</button></>}>
     {err && <p className="sub" role="alert" style={{ color: 'var(--bad)' }}>{err}</p>}
-    {res ? <section className="panel" style={{ textAlign: 'center', display: 'grid', gap: 8, justifyItems: 'center' }}>
+    {res && <section className="panel" style={{ textAlign: 'center', display: 'grid', gap: 8, justifyItems: 'center' }}>
       <span className={`pill ${res.passed ? 'active' : 'inactive'}`}>{res.passed ? 'Đạt' : 'Chưa đạt'}</span>
       <b style={{ fontSize: 36 }}>{num(res.score)}/10</b>
-      <span className="sub">Đúng {res.correct}/{res.total} câu · điểm đạt {num(res.pass)}</span>
-      <button type="button" className="primary" onClick={onBack}>Quay lại nội dung</button>
-    </section>
+      <span className="sub">Đúng {res.correct}/{res.total} câu{res.pass != null ? ` · điểm đạt ${num(res.pass)}` : ''}</span>
+      <button type="button" className="primary" onClick={onBack}>{doneLabel}</button>
+    </section>}
+    {res?.review && res.review.length > 0 && <>
+      <h3>Xem lại bài làm</h3>
+      {res.review.map((q, n) => <fieldset key={q.id} className="panel tlq">
+        <legend><b>Câu {n + 1}.</b> <span className={`pill ${q.ok ? 'active' : 'inactive'}`}>{q.ok ? 'Đúng' : 'Sai'}</span></legend>
+        <p style={{ whiteSpace: 'pre-wrap', margin: '0 0 8px' }}>{q.stem}</p>
+        {q.options.map((o, i) => <div key={i} className={`tlopt${q.answer.includes(i) ? ' on' : ''}`}>
+          <span>{String.fromCharCode(65 + i)}. {o}{q.answer.includes(i) ? ' ✓ đáp án' : ''}{q.chosen.map(Number).includes(i) && !q.answer.includes(i) ? ' ✗ bạn chọn' : ''}</span></div>)}
+        {q.explain && <p className="sub" style={{ margin: '8px 0 0', whiteSpace: 'pre-wrap' }}><b>Lời giải:</b> {q.explain}</p>}
+      </fieldset>)}
+    </>}
+    {res ? null
       : !paper ? (!err && <p className="sub">Đang phát đề…</p>)
       : <>
         <p className="sub">Đã làm {answered}/{paper.questions.length} câu.{paper.deadline ? ' Hết giờ hệ thống tự nộp bài.' : ''}</p>
@@ -362,4 +375,39 @@ function ProductPanel({ planId, p, allDone, onChange }: { planId: string; p: Pro
     </> : p?.status !== 'accepted' && <div><button type="button" onClick={() => setEdit(true)}>{p?.status === 'returned' ? 'Sửa và nộp lại' : 'Sửa bài nộp'}</button></div>}
     {msg && <small role="status">{msg}</small>}
   </section>
+}
+
+// ===== Luyện tập (110): đề tự luyện của các chương trình giáo viên đang học, không tính điểm tập huấn =====
+type PExam = { id: string; title: string; subject: string; grade: number | null; program: string; program_code: string; note: string | null
+  count: number; minutes: number | null; attempts: number; pass: number | null; show_answers: boolean; used: number; best: number | null; last: number | null; open: string | null }
+export function TeacherTrainingPractice({ teacherId }: TProps) {
+  const [rows, setRows] = useState<PExam[] | null>(null)
+  const [err, setErr] = useState('')
+  const [run, setRun] = useState<PExam | null>(null)
+  const load = () => supabase.rpc('training_practice_mine').then(({ data, error }) => {
+    if (error) setErr(error.message); else { setErr(''); setRows((data as PExam[]) ?? []) }
+  })
+  useEffect(() => { if (teacherId) load() }, [teacherId])
+  if (!teacherId) return <NoTeacher />
+  if (run) return <TestRun back="Luyện tập" title={run.title} sub={`${run.program_code} · ${run.program} · ${run.count} câu`} doneLabel="Quay lại danh sách đề"
+    start={() => supabase.rpc('training_practice_start', { p_exam: run.id })} send={(a, ans) => supabase.rpc('training_practice_submit', { p_attempt: a, p_answers: ans })}
+    onBack={() => { setRun(null); load() }} />
+  if (!rows) return err ? <p className="sub" role="alert">{err}</p> : <p className="sub">Đang tải…</p>
+  return <>
+    <p className="sub">Đề tự luyện của các chương trình tập huấn bạn đang học. Điểm luyện tập không tính vào kết quả tập huấn.</p>
+    {err && <p className="sub" role="alert">{err}</p>}
+    <div className="wrap"><table className="libtable">
+      <thead><tr><th>Đề luyện</th><th>Chương trình</th><th>Cách làm</th><th className="num">Đã làm</th><th className="num">Điểm cao nhất</th><th></th></tr></thead>
+      <tbody>{rows.map(x => { const left = x.attempts ? x.attempts - x.used : null
+        return <tr key={x.id}>
+          <td style={{ whiteSpace: 'normal' }}><b>{x.title}</b><br /><small className="sub">{x.subject}{x.grade ? ` · khối ${x.grade}` : ''}{x.note ? ` · ${x.note}` : ''}</small></td>
+          <td style={{ whiteSpace: 'normal' }}><small>{x.program_code} · {x.program}</small></td>
+          <td><small>{x.count} câu · {x.minutes ? `${x.minutes} phút` : 'không giới hạn giờ'}{x.show_answers ? ' · xem đáp án sau khi nộp' : ''}</small></td>
+          <td className="num">{x.used}{x.attempts ? `/${x.attempts}` : ''}</td>
+          <td className="num">{x.best != null ? <span className={`pill ${x.pass == null || x.best >= x.pass ? 'active' : 'maintenance'}`}>{num(x.best)}</span> : '—'}</td>
+          <td>{left === 0 && !x.open ? <small className="sub">Hết lượt</small>
+            : <button type="button" className="primary" onClick={() => setRun(x)}>{x.open ? 'Làm tiếp' : x.used ? 'Luyện lại' : 'Bắt đầu'}</button>}</td></tr> })}
+        {!rows.length && <tr><td colSpan={6}><small className="sub">Chưa có đề luyện nào cho các chương trình bạn đang học.</small></td></tr>}</tbody>
+    </table></div>
+  </>
 }

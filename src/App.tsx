@@ -115,6 +115,11 @@ const TeacherTrainingRegister = lazy(() => import('./pages/teacher/TrainingRegis
 const TrainingMaterials = lazy(() => import('./pages/training/Materials').then(m => ({ default: m.TrainingMaterials })))
 const TrainersPage = lazy(() => import('./pages/training/Trainers').then(m => ({ default: m.TrainersPage })))
 const TeacherTrainingLearn = lazy(() => import('./pages/teacher/TrainingLearn').then(m => ({ default: m.TeacherTrainingLearn })))
+const TeacherTrainingPractice = lazy(() => import('./pages/teacher/TrainingLearn').then(m => ({ default: m.TeacherTrainingPractice })))
+// Kiểm tra & luyện tập (110)
+const TrainingExamList = lazy(() => import('./pages/training/Exams').then(m => ({ default: m.TrainingExamList })))
+const TrainingPracticeExams = lazy(() => import('./pages/training/Exams').then(m => ({ default: m.TrainingPracticeExams })))
+const TrainingExamStats = lazy(() => import('./pages/training/Exams').then(m => ({ default: m.TrainingExamStats })))
 const SchoolTrainingAssigned = lazy(() => import('./pages/training/Plans').then(m => ({ default: m.SchoolTrainingAssigned })))
 // Trường: kế hoạch được cấp trên giao (chọn GV, gửi duyệt) + kế hoạch riêng của trường
 const SchoolTrainingPlans = (p: any) => <TabbedPages {...p} tabs={[['Được giao', SchoolTrainingAssigned], ['Kế hoạch của trường', TrainingPlans]]} />
@@ -357,7 +362,7 @@ const TEACHER: PageMap = {
   'Lịch tập huấn': TeacherTrainingSchedule,
   'Đăng ký tập huấn': TeacherTrainingRegister,
   'Chứng chỉ tập huấn': TeacherCertificates,
-  'Bài giảng tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Khoá tập huấn của tôi', TeacherTrainingLearn], ['Bài giảng của trường', TeacherTrainingLessons]]} />,
+  'Bài giảng tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Khoá tập huấn của tôi', TeacherTrainingLearn], ['Luyện tập', TeacherTrainingPractice], ['Bài giảng của trường', TeacherTrainingLessons]]} />,
   'Hỗ trợ từ KDI': CustomerSupport,
   'Kho hoạt động & Bài giảng': TeacherActivities,
   'Học trước & tự học': TeacherSelfStudy,
@@ -511,6 +516,7 @@ const PLATFORM: PageMap = {
   'Phân phối chương trình': PlatformDistPage,
   'Soạn bài giảng & kho hoạt động': PlatformLessonsPage,
   'Học liệu tập huấn': trainingMaterialTabs(PH1_TABS.lessons),
+  'Kiểm tra & luyện tập': (p: any) => <TabbedPages {...p} tabs={[['Đề kiểm tra', TrainingExamList], ['Đề luyện', TrainingPracticeExams], ['Kết quả & câu khó', TrainingExamStats], ['Ngân hàng câu hỏi', QuestionBank]]} />,
   'Chứng chỉ tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Chứng chỉ', TrainingCertificatesPage], ['Mẫu chứng chỉ', CertTemplatesPage]]} />,
 }
 const PLATFORM_LIVE = new Set(Object.keys(PLATFORM))

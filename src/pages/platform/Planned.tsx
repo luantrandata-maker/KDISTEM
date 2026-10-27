@@ -136,6 +136,7 @@ const ALIAS: Record<string, string> = {
 // Mục mới chưa có khung minh hoạ: mô tả phạm vi để họp team
 const DESC: Record<string, string> = {
   'Học liệu tập huấn': 'Nội dung tập huấn, bài giảng, link tài liệu, định mức vật tư và kho hoạt động của các chương trình tập huấn.',
+  'Kiểm tra & luyện tập': 'Bài test nội dung, đề cuối khoá, đề luyện cho giáo viên, kết quả theo đề và câu hay sai; ngân hàng câu hỏi dùng chung.',
   'Chứng chỉ tập huấn': 'Chứng chỉ cấp sau tập huấn: tra cứu, thu hồi, thống kê theo Sở/trường (trường đã có ở cổng Trường).',
   'Phân phối chương trình': 'Phân phối chương trình CT1–CT5 theo khối, số tiết; mẫu chung để trường áp dụng (trường đã có ở cổng Trường).',
   'Soạn bài giảng & kho hoạt động': 'Thống kê bài giảng và 8 mẫu hoạt động tương tác trên toàn hệ thống; quản lý mẫu dùng chung (giáo viên đã có ở cổng Giáo viên).',

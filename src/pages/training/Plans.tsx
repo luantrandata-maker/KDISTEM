@@ -16,6 +16,7 @@ import type { Status } from '../dist/sched'
 import { PlanProgress } from './Progress'
 import { TrainerPick } from './Trainers'
 import { PlanResults } from './ResultsWork'
+import { PlanCal } from './PlanCal'
 
 type Mode = 'online' | 'offline' | 'hybrid'
 type Term = 'summer' | 'hk1' | 'hk2' | 'other'
@@ -76,7 +77,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   const [orgs, setOrgs] = useState<POrg[]>([])
   const [can, setCan] = useState(false)
   const [rk, setRk] = useState(0)
-  const [tab, setTab] = useState<'tree' | 'list'>('list')
+  const [tab, setTab] = useState<'tree' | 'list' | 'cal'>(() => { try { return localStorage.getItem('tplan.tab') === 'cal' ? 'cal' : 'list' } catch { return 'list' } })
   const [open, setOpen] = useState<string | null>(null)
   const [create, setCreate] = useState<{ node: ClsNode | null } | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
@@ -145,8 +146,8 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
         <div className="panel"><i aria-hidden="true" className={waiting ? 'warn' : 'good'}>!</i><span><b>{waiting}</b><small>Danh sách chờ duyệt</small></span></div>
       </div>
       <div className="distpills" role="tablist">
-        {([['list', 'Danh sách kế hoạch'], ['tree', 'Kế hoạch tập huấn']] as ['tree' | 'list', string][]).map(([t, l]) =>
-          <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setMsg(null) }}>{l}</button>)}
+        {([['list', 'Danh sách kế hoạch'], ['cal', 'Lịch kế hoạch'], ['tree', 'Kế hoạch tập huấn']] as ['tree' | 'list' | 'cal', string][]).map(([t, l]) =>
+          <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setMsg(null); try { localStorage.setItem('tplan.tab', t) } catch { /* bỏ qua */ } }}>{l}</button>)}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : tab === 'tree'
@@ -170,7 +171,8 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
             </div>
             {can && <div className="tools"><button type="button" className="primary" onClick={() => { setMsg(null); setCreate({ node: null }) }}>Lập kế hoạch tập huấn</button></div>}
           </div>
-          {table(shown, list.length ? 'Không có kế hoạch nào khớp bộ lọc.' : can ? 'Chưa có kế hoạch tập huấn nào. Bấm "Lập kế hoạch tập huấn".' : 'Chưa có kế hoạch tập huấn nào.')}
+          {tab === 'cal' ? <PlanCal plans={shown} label={p => [all && orgName(p.org_id), p.plan_code].filter(Boolean).join(' · ')} onOpen={id => { setMsg(null); setOpen(id) }} />
+            : table(shown, list.length ? 'Không có kế hoạch nào khớp bộ lọc.' : can ? 'Chưa có kế hoạch tập huấn nào. Bấm "Lập kế hoạch tập huấn".' : 'Chưa có kế hoạch tập huấn nào.')}
         </>}
       {create && <PlanCreate orgId={orgId} node={create.node} onClose={() => setCreate(null)} onSaved={id => { setCreate(null); reload(); setOpen(id) }} />}
     </>

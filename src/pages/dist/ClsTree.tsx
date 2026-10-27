@@ -223,7 +223,7 @@ export function ClsTree<T extends { id: string; node_id: string | null }>({ scop
               <small className="sub">{scope === 'training' ? 'Gõ hoặc chọn trong danh sách chương trình tập huấn.' : 'Gõ hoặc chọn môn trong danh mục môn học. Môn mới có sẵn các mục Cơ bản, Nâng cao.'}</small></>}
             {form.mode === 'add' && form.parent && <small className="sub">Thuộc: {base.path(form.parent.id).map(n => n.name).join(' › ')}</small>}
           </label>
-          <div className="formactions" style={{ gridColumn: '1 / -1' }}><button type="submit" className="primary" disabled={!form.name.trim()}>Lưu</button><button type="button" onClick={() => setForm(null)}>Hủy</button></div>
+          <div className="formactions" style={{ gridColumn: '1 / -1' }}><button type="submit" className="primary" disabled={!form.name.trim()}>Lưu</button></div>
         </form>
       </Drawer>}
     </>

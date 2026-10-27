@@ -22,10 +22,18 @@ const opts = (k: 'docs' | 'mats' | 'acts', col: string) => LISTS[k].cols.find(c 
 const rid = () => Math.random().toString(36).slice(2, 10)
 const NOUN: Record<Part, string> = { content: 'nội dung tập huấn', docs: 'tài liệu', mats: 'định mức vật tư', acts: 'hoạt động' }
 
-export function TrainingItemForm({ orgId, part, progs, units, initialProg, onClose, onDone }: {
+export function TrainingItemForm({ orgId, part, progs, units: allUnits, initialProg, onClose, onDone }: {
   orgId: string | null; part: Part; progs: Prog[]; units: Unit[]; initialProg: string; onClose: () => void; onDone: (m: string, more: boolean) => void
 }) {
   const [pid, setPid] = useState(progs.some(p => p.id === initialProg) ? initialProg : progs[0]?.id ?? '')
+  // Tải lại cấu trúc của chương trình đang chọn để danh sách nội dung luôn đủ và mới nhất
+  const [fresh, setFresh] = useState<Record<string, Unit[]>>({})
+  useEffect(() => {
+    if (!pid) return
+    supabase.from('training_program_units').select('id, program_id, parent_id, kind, seq, title, detail').eq('program_id', pid)
+      .then(({ data }) => { if (data) setFresh(x => ({ ...x, [pid]: data as Unit[] })) })
+  }, [pid])
+  const units = fresh[pid] ?? allUnits
   const subjects = units.filter(u => u.program_id === pid && u.kind === 'subject').sort((a, b) => a.seq - b.seq)
   const conts = subjects.flatMap(s => units.filter(c => c.kind === 'content' && c.parent_id === s.id).sort((a, b) => a.seq - b.seq))
   const [sid, setSid] = useState('')
@@ -112,8 +120,7 @@ export function TrainingItemForm({ orgId, part, progs, units, initialProg, onClo
   return <Drawer wide closeOnOutside={false} onClose={onClose} title={`Thêm ${NOUN[part]}`}
     actions={progs.length > 0 ? <>
       <button type="button" className="primary" disabled={busy || uploading} onClick={() => save(false)}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
-      <button type="button" disabled={busy || uploading} onClick={() => save(true)}>Lưu & thêm tiếp</button>
-      <button type="button" onClick={onClose}>Huỷ</button></> : <button type="button" onClick={onClose}>Đóng</button>}>
+      <button type="button" disabled={busy || uploading} onClick={() => save(true)}>Lưu & thêm tiếp</button></> : undefined}>
     <form className="panel libform" onSubmit={e => { e.preventDefault(); save(false) }}>
       {msg && <p className="msg">{msg}</p>}
       {!progs.length ? <p className="warnline" style={{ margin: 0 }}>Chưa có chương trình nào đang nháp hoặc bị trả lại. Chỉ thêm được vào chương trình chưa phát hành:
@@ -128,7 +135,8 @@ export function TrainingItemForm({ orgId, part, progs, units, initialProg, onClo
               {!subjects.length && <option value="">— chương trình chưa có học phần —</option>}{subjects.map(s => <option key={s.id} value={s.id}>{s.seq}. {s.title}</option>)}</select></label>
           : <label className="field" style={{ gridColumn: 'span 2' }}><span>Nội dung tập huấn *</span><select value={cont?.id ?? ''} onChange={e => setCid(e.target.value)} aria-label="Nội dung tập huấn">
               {!conts.length && <option value="">— chương trình chưa có nội dung —</option>}
-              {subjects.map(s => <optgroup key={s.id} label={`${s.seq}. ${s.title}`}>{conts.filter(c => c.parent_id === s.id).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}</optgroup>)}</select></label>}
+              {subjects.filter(s => conts.some(c => c.parent_id === s.id)).map(s => <optgroup key={s.id} label={`${s.seq}. ${s.title}`}>{conts.filter(c => c.parent_id === s.id).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}</optgroup>)}</select>
+              {!conts.length && <small className="warnline">{subjects.length ? `Môn ${subjects.map(s => `"${s.title}"`).join(', ')} chưa có nội dung tập huấn.` : 'Chương trình chưa có môn.'} Thêm nội dung ở mục Chương trình tập huấn › Cấu trúc hoặc mục Nội dung tập huấn.</small>}</label>}
       </div>
 
       {part === 'content' && <>

@@ -40,6 +40,8 @@ type Proposal = {
   profiles?: { full_name: string | null } | null
 }
 type Klass = { id: string; name: string; grade: number | null }
+type FRow = { key: string; catalog_id: string; name: string; unit: string; kind: MKind; qty: string; reusable: boolean; note: string }
+const rid = () => Math.random().toString(36).slice(2, 10)
 type LibOpt = { id: string; title: string }
 
 export const BASIS: Record<Basis, string> = { product: '1 sản phẩm', group: '1 nhóm', student: '1 học sinh' }
@@ -136,17 +138,40 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
   const own = every ? shown : shown.filter(n => n.org_id === orgId)
   const shared = every ? [] : shown.filter(n => n.org_id !== orgId)
 
+  // Thêm định mức: nhập thông tin và danh sách vật tư rồi lưu một lần (định mức ở trạng thái nháp, ban hành trong bảng chi tiết)
+  const [rows, setRows] = useState<FRow[]>([])
+  const [cat, setCat] = useState<Cat[]>([])
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    if (form && !cat.length) supabase.from('material_catalog').select('*').eq('active', true).order('kind').order('name').then(({ data }) => setCat((data as Cat[]) ?? []))
+  }, [!!form])
+  const openForm = () => { setMsg(null); setRows([]); setForm({ title: '', basis: 'group', group_size: '4', sessions: '1', subject: '', grade: '', program_id: '', unit_id: '' }) }
+  const addCat = (id: string) => { const c = cat.find(x => x.id === id); if (c) setRows(r => [...r, { key: rid(), catalog_id: c.id, name: c.name, unit: c.unit, kind: c.kind, qty: '1', reusable: c.reusable, note: '' }]) }
+  const setRow = (k: string, p: Partial<FRow>) => setRows(r => r.map(x => (x.key === k ? { ...x, ...p } : x)))
+
   async function create(e: React.FormEvent) {
-    e.preventDefault(); if (!form || !orgId) return
+    e.preventDefault(); if (!form || !orgId || busy) return
     const row = {
       org_id: form.org || orgId, title: form.title.trim(), basis: form.basis, group_size: Number(form.group_size) || 4, sessions: Number(form.sessions) || 1,
       subject: form.subject.trim() || null, grade: Number(form.grade) || null, program_id: form.program_id || null,
       unit_id: form.program_id && form.unit_id ? form.unit_id : null, scope: rights.isSchool || every?.find(o => o.id === form.org)?.type === 'school' ? 'own' : 'children',
     }
     if (!row.title) return setMsg(['Nhập tên định mức.', true])
+    const ok = rows.filter(r => r.catalog_id || r.name.trim())
+    const bad = ok.find(r => !(toNum(r.qty) > 0))
+    if (bad) return setMsg([`Số lượng của "${bad.name || 'vật tư'}" phải lớn hơn 0.`, true])
+    setBusy(true)
     const { data, error } = await supabase.from('material_norms').insert(row).select('id').single()
-    if (error) return setMsg([errText(error.message), true])
-    setForm(null); onOpen((data as { id: string }).id)
+    if (error) { setBusy(false); return setMsg([errText(error.message), true]) }
+    const id = (data as { id: string }).id
+    if (ok.length) {
+      const r = await supabase.from('material_norm_items').insert(ok.map((x, i) => ({
+        norm_id: id, seq: i + 1, catalog_id: x.catalog_id || null, name: x.catalog_id ? 'x' : x.name.trim(), unit: x.unit.trim() || 'cái', kind: x.kind,
+        qty: toNum(x.qty), reusable: x.reusable, note: x.note.trim() || null })))
+      if (r.error) setMsg([`Đã lưu định mức nhưng chưa lưu được vật tư: ${errText(r.error.message)}`, true])
+      else setMsg([`Đã lưu định mức "${row.title}" với ${ok.length} vật tư.`, false])
+    } else setMsg([`Đã lưu định mức "${row.title}".`, false])
+    setBusy(false); setForm(null); setRows([]); onOpen(id)
   }
   async function copy(n: Norm) {
     if (!confirm(`Sao chép định mức "${n.title}" (v${n.version_no}) về đơn vị thành bản nháp để điều chỉnh?`)) return
@@ -155,6 +180,7 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
     onOpen(data as string)
   }
 
+  const used = new Set(rows.map(r => r.catalog_id).filter(Boolean))
   // Bấm vào dòng để mở chi tiết bên phải (thao tác nằm trong bảng chi tiết)
   const table = (rows: Norm[], mine: boolean) => (
     <div className="wrap"><table className="libtable">
@@ -180,25 +206,50 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
         <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
         <select value={basis} onChange={e => setBasis(e.target.value)} aria-label="Tính cho"><option value="">Mọi cách tính</option>{(Object.keys(BASIS) as Basis[]).map(b => <option key={b} value={b}>Theo {BASIS[b]}</option>)}</select>
         <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện bản cũ / lưu trữ</label>
-        {rights.canWrite && !sharedOnly && <button className="primary" onClick={() => setForm({ title: '', basis: 'group', group_size: '4', sessions: '1', subject: '', grade: '', program_id: '', unit_id: '' })}>Thêm định mức</button>}
+        {rights.canWrite && !sharedOnly && <button className="primary" onClick={openForm}>Thêm định mức</button>}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'}>{msg[0]}</p>}
       {form && (
-        <Drawer title="Thêm định mức vật tư" closeOnOutside={false} onClose={() => setForm(null)}
-          actions={<><button type="button" className="primary" onClick={() => create(NOEV)}>Tạo bản nháp</button><button type="button" onClick={() => setForm(null)}>Huỷ</button></>}>
+        <Drawer wide title="Thêm định mức vật tư" closeOnOutside={false} onClose={() => setForm(null)}
+          actions={<><button type="button" className="primary" disabled={busy} onClick={() => create(NOEV)}>{busy ? 'Đang lưu…' : 'Lưu'}</button></>}>
         {msg && msg[1] && <p className="msg">{msg[0]}</p>}
-        <form className="formgrid" onSubmit={create}>
-          <OrgPick kind="any" value={form.org ?? orgId ?? ''} onChange={v => setForm({ ...form, org: v })} />
-          <label className="field" style={{ gridColumn: 'span 2' }}><span>Tên định mức *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Robot dò line — lắp ráp" /></label>
-          <label className="field"><span>Tính cho</span><select value={form.basis} onChange={e => setForm({ ...form, basis: e.target.value as Basis })}>{(Object.keys(BASIS) as Basis[]).map(b => <option key={b} value={b}>{BASIS[b]}</option>)}</select></label>
-          {form.basis === 'group' && <label className="field"><span>Số HS mỗi nhóm</span><input type="number" min={1} max={20} value={form.group_size} onChange={e => setForm({ ...form, group_size: e.target.value })} /></label>}
-          <label className="field"><span>Số buổi</span><input type="number" min={1} max={50} value={form.sessions} onChange={e => setForm({ ...form, sessions: e.target.value })} /></label>
-          <label className="field"><span>Môn</span><SubjectPicker value={form.subject} onChange={v => setForm({ ...form, subject: v })} emptyLabel="— Không chọn —" /></label>
-          <label className="field"><span>Khối</span><GradePicker value={form.grade ? Number(form.grade) : null} onChange={g => setForm({ ...form, grade: g ? String(g) : '' })} emptyLabel="—" /></label>
-          <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình giáo dục</span><select value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, unit_id: '' })}>
-            <option value="">— không gắn —</option>{programs.map(p => <option key={p.id} value={p.id}>{progLabel(p)}</option>)}</select></label>
-          <label className="field" style={{ gridColumn: 'span 2' }}><span>Bài</span><select value={form.unit_id} disabled={!form.program_id} onChange={e => setForm({ ...form, unit_id: e.target.value })}>
-            <option value="">— chọn bài —</option>{unitTree(units, form.program_id, 'lesson', form.unit_id).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
+        <form className="panel libform" onSubmit={create}>
+          <h4 className="libparthead">Thông tin định mức</h4>
+          <div className="formgrid libgrid4">
+            <OrgPick kind="any" value={form.org ?? orgId ?? ''} onChange={v => setForm({ ...form, org: v })} />
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>Tên định mức *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Robot dò line — lắp ráp" /></label>
+            <label className="field"><span>Tính cho</span><select value={form.basis} onChange={e => setForm({ ...form, basis: e.target.value as Basis })}>{(Object.keys(BASIS) as Basis[]).map(b => <option key={b} value={b}>{BASIS[b]}</option>)}</select></label>
+            {form.basis === 'group' && <label className="field"><span>Số HS mỗi nhóm</span><input type="number" min={1} max={20} value={form.group_size} onChange={e => setForm({ ...form, group_size: e.target.value })} /></label>}
+            <label className="field"><span>Số buổi</span><input type="number" min={1} max={50} value={form.sessions} onChange={e => setForm({ ...form, sessions: e.target.value })} /></label>
+            <label className="field"><span>Môn</span><SubjectPicker value={form.subject} onChange={v => setForm({ ...form, subject: v })} emptyLabel="— Không chọn —" /></label>
+            <label className="field"><span>Khối</span><GradePicker value={form.grade ? Number(form.grade) : null} onChange={g => setForm({ ...form, grade: g ? String(g) : '' })} emptyLabel="—" /></label>
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình giáo dục</span><select value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, unit_id: '' })}>
+              <option value="">— không gắn —</option>{programs.map(p => <option key={p.id} value={p.id}>{progLabel(p)}</option>)}</select></label>
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>Bài</span><select value={form.unit_id} disabled={!form.program_id} onChange={e => setForm({ ...form, unit_id: e.target.value })}>
+              <option value="">— chọn bài —</option>{unitTree(units, form.program_id, 'lesson', form.unit_id).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
+          </div>
+          <h4 className="libparthead">Vật tư cho {BASIS[form.basis]} ({rows.length})</h4>
+          <div className="wrap"><table>
+            <thead><tr><th>Vật tư / công cụ</th><th>Loại</th><th>Số lượng / {BASIS[form.basis]}</th><th>Đơn vị</th><th>Dùng lại</th><th>Ghi chú</th><th></th></tr></thead>
+            <tbody>{rows.map(r => <tr key={r.key}>
+              <td>{r.catalog_id ? <b>{r.name}</b> : <input value={r.name} placeholder="Tên vật tư" aria-label="Tên vật tư" onChange={e => setRow(r.key, { name: e.target.value })} />}</td>
+              <td>{r.catalog_id ? MKIND[r.kind] : <select value={r.kind} aria-label="Loại" onChange={e => setRow(r.key, { kind: e.target.value as MKind, reusable: e.target.value !== 'supply' })}>
+                {(Object.keys(MKIND) as MKind[]).map(k => <option key={k} value={k}>{MKIND[k]}</option>)}</select>}</td>
+              <td><input inputMode="decimal" value={r.qty} style={{ width: 80 }} aria-label="Số lượng" onChange={e => setRow(r.key, { qty: e.target.value })} /></td>
+              <td>{r.catalog_id ? r.unit : <input list="cat-units" value={r.unit} style={{ width: 80 }} aria-label="Đơn vị" onChange={e => setRow(r.key, { unit: e.target.value })} />}</td>
+              <td><input type="checkbox" checked={r.reusable} disabled={!!r.catalog_id} aria-label="Dùng lại" onChange={e => setRow(r.key, { reusable: e.target.checked })} /></td>
+              <td><input value={r.note} aria-label="Ghi chú" onChange={e => setRow(r.key, { note: e.target.value })} /></td>
+              <td><button type="button" className="x" aria-label="Bỏ vật tư" onClick={() => setRows(rows.filter(x => x.key !== r.key))}>×</button></td>
+            </tr>)}
+            {!rows.length && <tr><td colSpan={7}><small className="sub">Chưa có vật tư. Chọn từ danh mục hoặc thêm vật tư khác; có thể lưu trước rồi thêm sau.</small></td></tr>}</tbody>
+          </table></div>
+          <div className="bar small" style={{ marginTop: 8 }}>
+            <select value="" onChange={e => addCat(e.target.value)} aria-label="Thêm từ danh mục vật tư">
+              <option value="">+ Thêm từ danh mục vật tư…</option>
+              {(Object.keys(MKIND) as MKind[]).map(k => <optgroup key={k} label={MKIND[k]}>{cat.filter(c => c.kind === k && !used.has(c.id)).map(c => <option key={c.id} value={c.id}>{c.name} ({c.unit}){c.code ? ` · ${c.code}` : ''}</option>)}</optgroup>)}
+            </select>
+            <button type="button" onClick={() => setRows(r => [...r, { key: rid(), catalog_id: '', name: '', unit: 'cái', kind: 'supply', qty: '1', reusable: false, note: '' }])}>+ Vật tư khác</button>
+          </div>
         </form>
         </Drawer>
       )}

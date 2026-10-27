@@ -57,8 +57,10 @@ function ListEditor({ cols, rows, edit, empty, onChange }: { cols: Col[]; rows: 
 }
 
 type Tab = 'body' | ListKey | 'test'
-export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, passScore, onBack, onSave }: {
+export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, passScore, onBack, onSave, notice, extra }: {
   title: string; crumb: string; hours: number; detail: Detail; editable: boolean; hasTest?: boolean; passScore?: number | null; onBack: () => void; onSave: (d: Detail) => Promise<boolean>
+  /** Ghi chú khi chỉ xem và nút thêm (VD: tạo phiên bản mới để sửa) */
+  notice?: React.ReactNode; extra?: React.ReactNode
 }) {
   const [tab, setTab] = useState<Tab>('body')
   const [d, setD] = useState<Detail>(() => JSON.parse(JSON.stringify(detail ?? {})))
@@ -83,9 +85,9 @@ export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, 
     ...(hasTest || d.test?.qids?.length || d.test?.url ? [['test', 'Bài kiểm tra', d.test?.kind === 'link' ? 0 : d.test?.qids?.length ?? 0] as [Tab, string, number]] : [])]
   return <ElView back="Môn & nội dung tập huấn" onBack={() => { if (!dirty || confirm('Bỏ các thay đổi chưa lưu?')) onBack() }} title={title}
     sub={`${crumb} · ${String(hours).replace('.', ',')} giờ`}
-    actions={editable && <button type="button" className="primary" disabled={!dirty || busy} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu'}</button>}>
+    actions={editable ? <button type="button" className="primary" disabled={!dirty || busy} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu'}</button> : extra}>
     {msg && <p className="sub" role="status"><b>{msg}</b></p>}
-    {!editable && <p className="sub">Chương trình đã phát hành nên chỉ xem. Muốn sửa thì nhân bản chương trình.</p>}
+    {!editable && <p className="sub">{notice ?? 'Chương trình đã phát hành nên chỉ xem. Muốn sửa thì tạo phiên bản mới của chương trình.'}</p>}
     <div className="distpills" role="tablist">{tabs.map(([k, l, n]) =>
       <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{n ? ` (${n})` : ''}</button>)}</div>
     <section className="panel" style={{ display: 'grid', gap: 12 }}>

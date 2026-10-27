@@ -1,7 +1,7 @@
 // Xem chi tiết / sửa một dòng ở tab Link tài liệu, Định mức vật tư, Kho hoạt động (Học liệu tập huấn).
 // Dòng của nội dung chương trình: sửa hoặc xoá khi chương trình còn nháp / bị trả lại; đã phát hành thì tạo phiên bản mới để sửa.
-// Dòng của bài giảng tập huấn: chỉ xem, sửa trong bài giảng.
-import { Fragment, useState } from 'react'
+// Dòng của bài giảng tập huấn: mở bài giảng để sửa.
+import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { openFile } from '../../lib/files'
 import { Drawer } from '../../components/Drawer'
@@ -20,8 +20,10 @@ export type ItemRef = {
 }
 
 /** draftId: bản nháp / bị trả lại đang có cùng họ phiên bản (nếu có) */
-export function MaterialItem({ it, admin, draftId, onClose, onDone }: {
-  it: ItemRef; admin: boolean; draftId: string | null; onClose: () => void; onDone: (m: string, showProg?: string) => void
+export function MaterialItem({ it, admin, draftId, autoEdit, onClose, onDone, onOpenLesson }: {
+  it: ItemRef; admin: boolean; draftId: string | null; autoEdit?: boolean; onClose: () => void
+  /** toDraft: id bản nháp của chương trình, mở lại đúng dòng này trong bản nháp để sửa */
+  onDone: (m: string, toDraft?: string) => void; onOpenLesson?: (id: string) => void
 }) {
   const fromUnit = !it.lesson && !!it.unit && it.idx != null
   const status = it.prog?.status ?? ''
@@ -33,6 +35,7 @@ export function MaterialItem({ it, admin, draftId, onClose, onDone }: {
   const [msg, setMsg] = useState('')
   const cols = LISTS[it.part].cols
   const set = (k: string, v: string) => setRow(r => ({ ...(r ?? {}), [k]: v }))
+  useEffect(() => { if (autoEdit && canEdit) startEdit() }, [])
 
   async function fresh() {
     const { data, error } = await supabase.from('training_program_units').select('detail').eq('id', it.unit!.id).maybeSingle()
@@ -74,7 +77,7 @@ export function MaterialItem({ it, admin, draftId, onClose, onDone }: {
     const { data, error } = await supabase.rpc('training_program_new_version', { p_program: it.prog!.id })
     setBusy(false)
     if (error) return setMsg(error.message)
-    onDone(`Đã tạo phiên bản nháp mới của ${it.prog!.code}. Danh sách đang lọc theo bản nháp này, bấm lại dòng cần sửa.`, data as string)
+    onDone(`Đã tạo phiên bản nháp mới của ${it.prog!.code}. Sửa dòng này trong bản nháp, rồi gửi duyệt và phát hành lại chương trình.`, data as string)
   }
 
   const progLabel = it.prog ? `${it.prog.code} · ${it.prog.title} · ${STATUS[it.prog.status as keyof typeof STATUS]?.[0] ?? it.prog.status}` : '—'
@@ -106,7 +109,7 @@ export function MaterialItem({ it, admin, draftId, onClose, onDone }: {
   </div>
 
   const note = !admin || edit ? null
-    : it.lesson ? 'Dòng này lấy từ bài giảng tập huấn. Sửa trong tab Bài giảng (mở bài giảng, thẻ học liệu).'
+    : it.lesson ? 'Dòng này lấy từ bài giảng tập huấn. Bấm “Mở bài giảng để sửa” để sửa trong thẻ học liệu của bài.'
     : canVersion && draftId ? 'Chương trình đã phát hành và đang có một phiên bản nháp. Mở bản nháp đó để sửa, rồi gửi duyệt và phát hành lại.'
     : canVersion ? 'Chương trình đã phát hành nên không sửa trực tiếp. Tạo phiên bản mới để sửa, rồi gửi duyệt và phát hành lại.'
     : !canEdit && fromUnit ? `Chương trình đang ở trạng thái "${STATUS[status as keyof typeof STATUS]?.[0] ?? status}", chưa sửa được.` : null
@@ -119,9 +122,9 @@ export function MaterialItem({ it, admin, draftId, onClose, onDone }: {
       {canEdit && <button type="button" className="primary" disabled={busy} onClick={startEdit}>Sửa</button>}
       {canEdit && <button type="button" className="danger" disabled={busy} onClick={del}>Xoá</button>}
       {canVersion && (draftId
-        ? <button type="button" className="primary" onClick={() => onDone('Đang lọc theo phiên bản nháp của chương trình, bấm lại dòng cần sửa.', draftId)}>Mở bản nháp để sửa</button>
-        : <button type="button" className="primary" disabled={busy} onClick={newVersion}>{busy ? 'Đang tạo…' : 'Tạo phiên bản mới'}</button>)}
-      <button type="button" onClick={onClose}>Đóng</button></>}>
+        ? <button type="button" className="primary" onClick={() => onDone('Đang sửa trong phiên bản nháp của chương trình.', draftId)}>Mở bản nháp để sửa</button>
+        : <button type="button" className="primary" disabled={busy} onClick={newVersion}>{busy ? 'Đang tạo…' : 'Tạo phiên bản mới để sửa'}</button>)}
+      {admin && it.lesson && onOpenLesson && <button type="button" className="primary" onClick={() => onOpenLesson(it.lesson!.id)}>Mở bài giảng để sửa</button>}</>}>
     <div className="panel libform">
       {msg && <p className="msg">{msg}</p>}
       {edit ? form : view}

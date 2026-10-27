@@ -178,7 +178,7 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
         ['Thẻ 05', 'Kho hoạt động', `${c.bank} hoạt động`]]
       return (
         <Modal title="Kiểm tra file" sub={xlsx.file.name} onClose={onClose}
-          foot={<><button type="button" onClick={() => { setXlsx(null); setStep('template') }}>Hủy</button>
+          foot={<><button type="button" onClick={() => { setXlsx(null); setStep('template') }}>← Chọn file khác</button>
             <button type="button" className="primary" disabled={!!busy || !t} onClick={() => save([xlsx], t)}>{L('Tạo bài học và điền')}</button></>}>
           <div className="lcheck">{rows.map(([a, b, n]) => <div key={a}><span><b>{a}</b> · {b}</span><span className="distchip2 good">{n}</span></div>)}</div>
           {!t && <p className="lwarn">Sheet “01 Thông tin” chưa có tên bài học. Điền dòng “Tên bài học” rồi tải lại.</p>}
@@ -209,8 +209,7 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
   const dup = same(title)
   return (
     <Modal wide title={L('Tài liệu bài học')} sub="Tải giáo án Word để hệ thống tách thành bộ học liệu 5 thẻ. Dữ liệu chỉ lưu khi bấm lưu, không tự phát hành." onClose={onClose}
-      foot={<><button type="button" onClick={onClose}>Hủy</button>
-        <button type="button" className="primary" disabled={!!busy || !(docx || pptx)} onClick={() => save([docx, pptx].filter(Boolean) as Parsed[], title)}>Lưu bản tách nháp</button></>}>
+      foot={<><button type="button" className="primary" disabled={!!busy || !(docx || pptx)} onClick={() => save([docx, pptx].filter(Boolean) as Parsed[], title)}>Lưu bản tách nháp</button></>}>
       <div className="lsrc" role="tablist">
         <button type="button" role="tab" aria-selected="true" className="on"><b>Tệp giáo án (.docx)</b><small>Đọc theo mẫu giáo án KDI, không dùng AI</small></button>
         <button type="button" role="tab" aria-selected="false" disabled><b>Google Sheet / Drive</b><small>Sắp có</small></button>

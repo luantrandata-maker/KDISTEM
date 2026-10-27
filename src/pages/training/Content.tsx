@@ -11,13 +11,13 @@ export type TestCfg = { kind?: 'bank' | 'link'; qids?: string[]; count?: number 
   url?: string | null; due?: string | null; note?: string | null }
 export type Detail = { body?: { goal?: string; text?: string; reqs?: string[] }; lectures?: Row[]; docs?: Row[]; mats?: Row[]; acts?: Row[]; test?: TestCfg }
 type Col = { key: string; label: string; type?: 'text' | 'url' | 'number' | 'select'; options?: [string, string][]; width?: number; placeholder?: string }
-type ListKey = 'lectures' | 'docs' | 'mats' | 'acts'
+export type ListKey = 'lectures' | 'docs' | 'mats' | 'acts'
 
 const LECT_KIND: [string, string][] = [['slide', 'Slide'], ['video', 'Video'], ['plan', 'Giáo án / kịch bản'], ['other', 'Khác']]
 const DOC_KIND: [string, string][] = [['doc', 'Tài liệu đọc'], ['guide', 'Hướng dẫn'], ['form', 'Biểu mẫu'], ['ref', 'Tham khảo']]
 const PER: [string, string][] = [['person', 'Mỗi người'], ['group', 'Mỗi nhóm'], ['class', 'Cả lớp']]
 const ACT_KIND: [string, string][] = [['warmup', 'Khởi động'], ['explore', 'Khám phá'], ['practice', 'Thực hành'], ['discuss', 'Thảo luận'], ['present', 'Trình bày'], ['quiz', 'Trắc nghiệm'], ['reflect', 'Phản tư']]
-const LISTS: Record<ListKey, { tab: string; empty: string; cols: Col[] }> = {
+export const LISTS: Record<ListKey, { tab: string; empty: string; cols: Col[] }> = {
   lectures: { tab: 'Bài giảng', empty: 'Chưa có bài giảng.', cols: [{ key: 'title', label: 'Bài giảng', placeholder: 'VD: Slide quy trình thiết kế kỹ thuật' },
     { key: 'kind', label: 'Loại', type: 'select', options: LECT_KIND, width: 150 }, { key: 'url', label: 'Link', type: 'url', placeholder: 'https://…' },
     { key: 'minutes', label: 'Phút', type: 'number', width: 80 }] },
@@ -29,7 +29,7 @@ const LISTS: Record<ListKey, { tab: string; empty: string; cols: Col[] }> = {
   acts: { tab: 'Kho hoạt động', empty: 'Chưa có hoạt động.', cols: [{ key: 'title', label: 'Hoạt động', placeholder: 'VD: Thiết kế cầu giấy chịu lực' },
     { key: 'kind', label: 'Loại', type: 'select', options: ACT_KIND, width: 140 }, { key: 'minutes', label: 'Phút', type: 'number', width: 80 }, { key: 'note', label: 'Mô tả ngắn' }] },
 }
-const lab = (opts: [string, string][] | undefined, v: string) => opts?.find(o => o[0] === v)?.[1] ?? v
+export const lab = (opts: [string, string][] | undefined, v: string) => opts?.find(o => o[0] === v)?.[1] ?? v
 export const detailCount = (d: Detail | null | undefined) => {
   const x = d ?? {}
   return [x.lectures?.length && `${x.lectures.length} bài giảng`, x.docs?.length && `${x.docs.length} tài liệu`, x.mats?.length && `${x.mats.length} vật tư`,

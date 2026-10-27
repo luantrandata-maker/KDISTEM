@@ -3281,13 +3281,13 @@ select pg_temp.chk('kdi', 'QT 100: Quản trị thấy và sửa khoá học nh�
 select pg_temp.chk('admin_kb', 'QT 100: trường khác không thấy khoá học nháp', $q$select count(*) from courses where title = 'ISO khoá nháp trường'$q$, '0');
 
 -- 101: khung phân loại kế hoạch tập huấn; xếp lịch khi kế hoạch còn nháp
-select pg_temp.chk('kdi', 'TH 103: khung mặc định Môn học › Cấp độ', $q$select string_agg(name, '›' order by sort) from training_cls_levels$q$, 'Môn học›Cấp độ');
+select pg_temp.chk('kdi', 'TH 107: khung mặc định chỉ có cấp Chương trình', $q$select string_agg(name, '›' order by sort) from training_cls_levels where active$q$, 'Chương trình');
 select pg_temp.probe('kdi@iso-test.local', $q$insert into training_nodes (cls_level_id, name, sort) select id, 'ISO Tin học', 1 from training_cls_levels where kind = 'subject'$q$, true);
-select pg_temp.chk('kdi', 'TH 103: thêm môn học thì có sẵn Cơ bản, Nâng cao', $q$select string_agg(c.name, ',' order by c.sort) from training_nodes c join training_nodes p on p.id = c.parent_id where p.name = 'ISO Tin học'$q$, 'Cơ bản,Nâng cao');
+select pg_temp.chk('kdi', 'TH 107: cấp độ đang tắt thì thêm chương trình không tự sinh Cơ bản, Nâng cao', $q$select count(*) from training_nodes c join training_nodes p on p.id = c.parent_id where p.name = 'ISO Tin học'$q$, '0');
 select pg_temp.chk('so_hy', 'TH 101: Sở không sửa khung phân loại', $q$insert into training_cls_levels (name, kind, sort) values ('ISO cấp', 'custom', 30)$q$, 'ERR');
 select pg_temp.chk('kdi', 'TH 101: KDI thêm cấp phân loại', $q$insert into training_cls_levels (name, kind, sort) values ('ISO cấp', 'custom', 30)$q$, 'rows:1');
-select pg_temp.chk('kdi', 'TH 103: không xoá được cấp Môn học', $q$delete from training_cls_levels where kind = 'subject'$q$, 'ERR*');
-select pg_temp.chk('kdi', 'TH 101: kế hoạch gắn mục phân loại', $q$update training_plans set node_id = (select n.id from training_nodes n join training_nodes p on p.id = n.parent_id where p.name = 'ISO Tin học' and n.name = 'Cơ bản') where name = 'ISO KH A'$q$, 'rows:1');
+select pg_temp.chk('kdi', 'TH 103: không xoá được cấp Chương trình', $q$delete from training_cls_levels where kind = 'subject'$q$, 'ERR*');
+select pg_temp.chk('kdi', 'TH 101: kế hoạch gắn mục phân loại', $q$update training_plans set node_id = (select id from training_nodes where name = 'ISO Tin học') where name = 'ISO KH A'$q$, 'rows:1');
 select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plans (org_id, name, pub_status, mode, year_name) values (platform_org_id(), 'ISO KH nháp lịch', 'draft', 'offline', '2026-2027')$q$, true);
 select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plan_items (plan_id, program_id) select k.id, p.id from training_plans k, training_programs p where k.name = 'ISO KH nháp lịch' and p.title = 'ISO CTTH A' and p.status = 'published'$q$, true);
 select pg_temp.chk('kdi', 'TH 101: xếp lịch khi kế hoạch còn nháp', $q$insert into training_sessions (org_id, plan_id, unit_id, title, starts_at, ends_at, mode, location)

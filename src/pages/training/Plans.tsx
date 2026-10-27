@@ -1,4 +1,4 @@
-// Phân hệ 1 — Kế hoạch tập huấn (084, 101). Khuôn Phân phối chương trình: khung phân loại (Cấp học › Cấp độ, cấu hình thêm cấp),
+// Phân hệ 1 — Kế hoạch tập huấn (084, 101). Khuôn Phân phối chương trình: khung phân loại (mặc định chỉ cấp Chương trình, cấu hình thêm cấp),
 // tạo kế hoạch trong một mục rồi soạn theo bước: Chọn chương trình → Xếp lịch (ngày, giờ, địa điểm) → Xem kết quả → Gán trường.
 // Sau phát hành: gán trường → trường chọn giáo viên, gửi danh sách → đơn vị lập kế hoạch duyệt hoặc trả lại.
 // TrainingPlansPage: KDI và Sở / Phòng (kế hoạch của đơn vị mình). SchoolTrainingAssigned: trường (kế hoạch được giao).

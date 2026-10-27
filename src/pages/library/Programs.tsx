@@ -331,7 +331,6 @@ function RegisterModal({ prog, topic, sess, teacherId, onClose, onDone }: { prog
         <div className="modalfoot">
           {missing.length > 0 && <small style={{ color: '#c2410c', marginRight: 'auto' }}>Còn thiếu: {missing.join(', ')}</small>}
           <button type="button" className="primary" onClick={submit} disabled={busy || missing.length > 0}>{busy ? 'Đang gửi…' : 'Gửi đăng ký'}</button>
-          <button type="button" onClick={onClose}>Hủy</button>
         </div>
       </div>
     </div>

@@ -211,7 +211,7 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
       {msg && <p className={msg[1] ? 'msg' : 'sub'}>{msg[0]}</p>}
       {form && (
         <Drawer wide title="Thêm định mức vật tư" closeOnOutside={false} onClose={() => setForm(null)}
-          actions={<><button type="button" className="primary" disabled={busy} onClick={() => create(NOEV)}>{busy ? 'Đang lưu…' : 'Lưu'}</button><button type="button" onClick={() => setForm(null)}>Huỷ</button></>}>
+          actions={<><button type="button" className="primary" disabled={busy} onClick={() => create(NOEV)}>{busy ? 'Đang lưu…' : 'Lưu'}</button></>}>
         {msg && msg[1] && <p className="msg">{msg[0]}</p>}
         <form className="panel libform" onSubmit={create}>
           <h4 className="libparthead">Thông tin định mức</h4>

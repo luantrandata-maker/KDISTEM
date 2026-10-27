@@ -19,7 +19,7 @@ const SEL = 'id, org_id, owner_org_id:org_id, title, subject, grades, program_id
 const Chip = ({ tone, children }: { tone?: string; children: React.ReactNode }) => <span className={'distchip2 ' + (tone ?? '')}>{children}</span>
 
 /** Chương trình tập huấn + nội dung (Môn › Nội dung) để gắn bài giảng */
-function useTrainingPrograms() {
+export function useTrainingPrograms() {
   const [progs, setProgs] = useState<TProg[]>([])
   const [units, setUnits] = useState<TUnit[]>([])
   useEffect(() => {

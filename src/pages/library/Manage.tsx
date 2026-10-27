@@ -537,8 +537,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
         <Drawer wide closeOnOutside={false} onClose={close}
           actions={<>
             <button type="button" className="primary" disabled={busy || uploading} onClick={() => save(NOEV, true)}>Lưu & phát hành</button>
-            <button type="button" disabled={busy || uploading} onClick={() => save(NOEV, false)}>Lưu nháp</button>
-            <button type="button" onClick={close}>Huỷ</button></>}
+            <button type="button" disabled={busy || uploading} onClick={() => save(NOEV, false)}>Lưu nháp</button></>}
           title={`${form.id ? 'Sửa' : 'Thêm'} ${form.kind === 'material' && form.mtype === 'lesson_plan' ? 'giáo án' : form.kind === 'material' ? 'tài liệu' : KIND[form.kind][0].toLowerCase()}${form.id && form.title ? `: ${form.title}` : ''}`}>
         <form className="panel libform" onSubmit={e => save(e, false)}>
           {msg && <p className="msg">{msg}</p>}

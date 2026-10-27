@@ -247,7 +247,7 @@ function PlanCreate({ orgId, node, onClose, onSaved }: { orgId: string; node: Cl
       <label className="field"><span>Phân loại</span>{node ? <input disabled value={cls.path(node.id).map(x => x.name).join(' › ')} />
         : <select value={f.node_id} onChange={e => setF({ ...f, node_id: e.target.value })}><option value="">— Chưa phân loại —</option>{finals.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select>}</label>
       {err && <p className="msg" style={{ gridColumn: '1/-1' }}>{err}</p>}
-      <div className="formactions" style={{ gridColumn: '1/-1' }}><button type="submit" className="primary" disabled={busy || !org || !f.name.trim()}>Tạo và soạn tiếp</button> <button type="button" onClick={onClose}>Huỷ</button></div>
+      <div className="formactions" style={{ gridColumn: '1/-1' }}><button type="submit" className="primary" disabled={busy || !org || !f.name.trim()}>Tạo và soạn tiếp</button></div>
       <small className="sub" style={{ gridColumn: '1/-1' }}>Tạo xong thì soạn theo bước: chọn chương trình → xếp lịch → xem kết quả, rồi phát hành và gán trường.</small>
     </form>
   </Drawer>

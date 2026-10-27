@@ -1,5 +1,6 @@
 // Học liệu tập huấn (khuôn Học liệu của Phân hệ 2): gom học liệu của mọi chương trình tập huấn vào một chỗ.
-// Tab Nội dung tập huấn: mỗi nội dung của chương trình, mở ra soạn 5 phần (chỉ sửa khi chương trình còn nháp / bị trả lại).
+// Tab Nội dung tập huấn: mỗi nội dung của chương trình, mở ra soạn 5 phần. Chương trình nháp / bị trả lại thì sửa thẳng;
+// đã phát hành thì tạo phiên bản mới (hoặc mở bản nháp đang có) rồi sửa đúng nội dung / dòng đó trong bản nháp.
 // Tab Link tài liệu, Định mức vật tư, Kho hoạt động: gộp các dòng tương ứng của nội dung chương trình và của bài giảng tập huấn (bộ 5 thẻ).
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -11,10 +12,12 @@ import { ContentDetail, LISTS, detailCount, lab, type Detail } from './Content'
 import { DOC_TYPE, kitOf } from '../library/lesson/model'
 import { TrainingItemForm } from './MaterialForm'
 import { MaterialItem } from './MaterialItem'
+import { LessonPage } from '../library/lesson/LessonPage'
+import { useTrainingPrograms } from './Lessons'
 
 type Prog = { id: string; code: string; title: string; status: keyof typeof STATUS; pass_score: number | null; family_id: string | null }
 type Unit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string; hours: number; has_test: boolean; detail: Detail | null }
-type Lesson = { id: string; title: string; program_id: string | null; unit_id: string | null; status: string; content: { kit?: unknown } | null }
+type Lesson = { id: string; org_id: string; title: string; program_id: string | null; unit_id: string | null; status: string; content: { kit?: unknown } | null }
 export type Part = 'content' | 'docs' | 'mats' | 'acts'
 // Một dòng gộp: từ nội dung chương trình (unit) hoặc từ bài giảng (lesson)
 type Line = { key: string; prog: Prog | null; unit: Unit | null; lesson: Lesson | null; idx: number | null; cells: Record<string, string>; url?: string; file?: string }
@@ -45,7 +48,7 @@ function useData() {
       const [p, u, l] = await Promise.all([
         supabase.from('training_programs').select('id, code, title, status, pass_score, family_id').order('code'),
         allUnits(),
-        supabase.from('training_lessons').select('id, title, program_id, unit_id, status, content').order('title'),
+        supabase.from('training_lessons').select('id, org_id, title, program_id, unit_id, status, content').order('title'),
       ])
       const e = p.error ?? u.error
       if (e) setErr(/schema cache|does not exist/i.test(e.message) ? 'Hãy chạy các migration Phân hệ 1 trên Supabase.' : e.message)
@@ -66,6 +69,11 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [adding, setAdding] = useState(false)
   const [item, setItem] = useState<Line | null>(null)
+  // Sau khi tạo / mở bản nháp: mở lại đúng nội dung (idx null) hoặc dòng (idx) trong bản nháp đó
+  const [go, setGo] = useState<{ prog: string; unit: string; idx: number | null } | null>(null)
+  const [autoEdit, setAutoEdit] = useState(false)
+  const [lesson, setLesson] = useState<string | null>(null)
+  const tp = useTrainingPrograms()
   useEffect(() => { supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)) }, [])
 
   const progOf = (id: string | null) => d?.progs.find(p => p.id === id) ?? null
@@ -98,10 +106,46 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
     return out
   }, [d, part, contents])
 
+  // Nội dung tương ứng trong bản nháp: cùng thứ tự môn và thứ tự nội dung (bản sao giữ nguyên cấu trúc), không khớp thì theo tên
+  const twin = (uid: string, prog: string) => {
+    if (!d) return null
+    const u = unitOf(uid), s = u && unitOf(u.parent_id)
+    if (!u) return null
+    const subs = d.units.filter(x => x.program_id === prog && x.kind === 'subject')
+    const s2 = s && (subs.find(x => x.seq === s.seq && x.title === s.title) ?? subs.find(x => x.title === s.title) ?? subs.find(x => x.seq === s.seq))
+    const cs = d.units.filter(x => x.program_id === prog && x.kind === 'content' && (!s2 || x.parent_id === s2.id))
+    return cs.find(x => x.seq === u.seq && x.title === u.title) ?? cs.find(x => x.title === u.title) ?? cs.find(x => x.seq === u.seq) ?? null
+  }
+  useEffect(() => {
+    if (!go || !d || !d.progs.some(p => p.id === go.prog)) return
+    const t = twin(go.unit, go.prog)
+    setGo(null); setProg(go.prog)
+    if (!t) { setMsg(['Đã mở bản nháp nhưng không tìm thấy nội dung tương ứng. Chọn lại trong danh sách.', true]); return }
+    if (go.idx == null) { setOpen(t.id); return }
+    const ln = lines.find(x => x.key === `u${t.id}-${go.idx}`)
+    if (ln) { setAutoEdit(true); setItem(ln) } else setOpen(t.id)
+  }, [go, d, lines])
+  const toDraft = (m: string, draft: string, unit: string, idx: number | null) => { setMsg([m, false]); setGo({ prog: draft, unit, idx }); reload() }
+
   if (!d) return <p className="sub">Đang tải…</p>
+  if (lesson) return <LessonPage key={lesson} orgId={d.lessons.find(l => l.id === lesson)?.org_id ?? orgId ?? ''} id={lesson} store="training" unitOf={tp.unitOf} programs={tp.progs} subjectsOf={tp.subjectsOf} code=""
+    backLabel={`← ${LISTS[part === 'content' ? 'docs' : part].tab}`} startEdit onBack={() => { setLesson(null); reload() }} onChanged={reload} />
   const oc = open ? unitOf(open) : null
   if (oc) { const p = progOf(oc.program_id)
+    const draft = p?.family_id && p.status === 'published' ? d.progs.find(x => x.family_id === p.family_id && EDITABLE.includes(x.status)) ?? null : null
+    const canVersion = admin && p?.status === 'published'
+    async function newVersion() {
+      if (!p || !confirm('Chương trình đã phát hành nên không sửa trực tiếp được. Tạo phiên bản mới (bản nháp chép từ phiên bản này) để sửa? Phiên bản đang phát hành vẫn dùng đến khi bản mới được phát hành.')) return
+      const { data, error } = await supabase.rpc('training_program_new_version', { p_program: p.id })
+      if (error) return setMsg([error.message, true])
+      toDraft(`Đã tạo phiên bản nháp mới của ${p.code}. Sửa nội dung này rồi gửi duyệt và phát hành lại chương trình.`, data as string, oc!.id, null)
+    }
     return <ContentDetail key={oc.id} title={oc.title} crumb={crumb(oc)} hours={oc.hours} detail={oc.detail ?? {}} editable={admin && !!p && EDITABLE.includes(p.status)}
+      notice={!admin ? 'Bạn chỉ có quyền xem nội dung này.' : canVersion ? (draft ? `Chương trình đã phát hành nên chỉ xem. Đang có bản nháp ${draft.code}: mở bản nháp để sửa nội dung này.`
+        : 'Chương trình đã phát hành nên chỉ xem. Tạo phiên bản mới để sửa; bản đang phát hành vẫn dùng đến khi bản mới được phát hành.')
+        : p ? `Chương trình đang ở trạng thái "${STATUS[p.status]?.[0] ?? p.status}", chưa sửa được.` : undefined}
+      extra={canVersion && (draft ? <button type="button" className="primary" onClick={() => toDraft('Đang sửa trong phiên bản nháp của chương trình.', draft.id, oc.id, null)}>Mở bản nháp để sửa</button>
+        : <button type="button" className="primary" onClick={newVersion}>Tạo phiên bản mới để sửa</button>)}
       hasTest={oc.has_test} passScore={p?.pass_score} onBack={() => setOpen(null)}
       onSave={async dd => { const { error } = await supabase.from('training_program_units').update({ detail: dd }).eq('id', oc.id)
         if (error) { setMsg([error.message, true]); return false } setMsg(['Đã lưu nội dung tập huấn.', false]); reload(); return true }} /> }
@@ -153,9 +197,11 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
     </div>
     {adding && <TrainingItemForm orgId={orgId ?? null} part={part} progs={d.progs.filter(p => EDITABLE.includes(p.status))} units={d.units} initialProg={prog}
       onClose={() => setAdding(false)} onDone={(m, more) => { if (!more) setAdding(false); setMsg([m, false]); reload() }} />}
-    {item && part !== 'content' && <MaterialItem it={{ ...item, part }} admin={admin} onClose={() => setItem(null)}
+    {item && part !== 'content' && <MaterialItem key={item.key} it={{ ...item, part }} admin={admin} autoEdit={autoEdit} onClose={() => { setItem(null); setAutoEdit(false) }}
       draftId={item.prog?.family_id ? d.progs.find(p => p.family_id === item.prog!.family_id && EDITABLE.includes(p.status))?.id ?? null : null}
-      onDone={(m, showProg) => { setItem(null); setMsg([m, false]); if (showProg) { setProg(showProg); setSrc('unit') } reload() }} />}
+      onOpenLesson={id => { setItem(null); setLesson(id) }}
+      onDone={(m, draft) => { const it = item; setItem(null); setAutoEdit(false)
+        if (draft && it.unit) toDraft(m, draft, it.unit.id, it.idx); else { setMsg([m, false]); reload() } }} />}
     {(msg || err) && <p className={msg?.[1] || err ? 'msg' : 'sub'} role="status"><b>{err || msg?.[0]}</b></p>}
     {part === 'content' ? <div className="wrap"><table className="libtable">
       <thead><tr><th>Nội dung tập huấn</th><th>Số giờ</th><th>Học liệu</th><th>Bài giảng</th><th>Chương trình</th></tr></thead>

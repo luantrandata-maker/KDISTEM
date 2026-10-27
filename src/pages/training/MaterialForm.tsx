@@ -120,8 +120,7 @@ export function TrainingItemForm({ orgId, part, progs, units: allUnits, initialP
   return <Drawer wide closeOnOutside={false} onClose={onClose} title={`Thêm ${NOUN[part]}`}
     actions={progs.length > 0 ? <>
       <button type="button" className="primary" disabled={busy || uploading} onClick={() => save(false)}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
-      <button type="button" disabled={busy || uploading} onClick={() => save(true)}>Lưu & thêm tiếp</button>
-      <button type="button" onClick={onClose}>Huỷ</button></> : <button type="button" onClick={onClose}>Đóng</button>}>
+      <button type="button" disabled={busy || uploading} onClick={() => save(true)}>Lưu & thêm tiếp</button></> : undefined}>
     <form className="panel libform" onSubmit={e => { e.preventDefault(); save(false) }}>
       {msg && <p className="msg">{msg}</p>}
       {!progs.length ? <p className="warnline" style={{ margin: 0 }}>Chưa có chương trình nào đang nháp hoặc bị trả lại. Chỉ thêm được vào chương trình chưa phát hành:

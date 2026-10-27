@@ -13,7 +13,8 @@ type USess = { id: string; title: string; starts_at: string; ends_at: string; mo
   recording_url: string | null; closed: boolean; present: boolean | null }
 type Unit = { id: string; ord: number; subject: string; title: string; hours: number; mode: string | null
   detail: { body?: { goal?: string; text?: string; reqs?: string[] }; lectures?: Row[]; docs?: Row[] }
-  test: null | { count: number; minutes: number | null; attempts: number; pass: number; used: number; open: string | null }
+  test: null | { kind?: 'bank' | 'link'; count: number; minutes: number | null; attempts: number; pass: number; used: number; open: string | null
+    url?: string; due?: string | null; note?: string | null; opened?: string | null }
   seen: string[]; best_score: number | null; done: boolean; unlocked: boolean; sessions: USess[] }
 type Product = { url: string | null; note: string | null; status: 'submitted' | 'accepted' | 'returned'; feedback: string | null; submitted_at: string }
 type Full = { plan: { id: string; code: string | null; name: string; starts_on: string | null; ends_on: string | null; org_name: string | null }
@@ -149,6 +150,16 @@ function UnitPanel({ planId, u, onChange, onTest, onErr }: { planId: string; u: 
     else if (r.url) { const w = window.open(r.url, '_blank'); if (w) w.opener = null }
     mark(key)
   }
+  async function openLink() {
+    // Mở tab trước để trình duyệt không chặn cửa sổ bật lên, rồi mới chuyển tới link
+    const w = window.open('', '_blank')
+    setBusy('test')
+    const { data, error } = await supabase.rpc('training_test_link_open', { p_plan: planId, p_unit: u.id })
+    setBusy('')
+    if (error || !data) { w?.close(); onErr(error?.message ?? 'Không mở được bài kiểm tra'); return }
+    if (w) { w.opener = null; w.location.href = String(data) } else window.open(String(data), '_blank', 'noopener')
+    onErr(''); onChange()
+  }
   async function join(s: USess) {
     const w = s.meeting_url ? window.open(s.meeting_url, '_blank') : null
     if (w) w.opener = null
@@ -200,7 +211,14 @@ function UnitPanel({ planId, u, onChange, onTest, onErr }: { planId: string; u: 
         </li>
       })}</ul></div>}
 
-    {u.test && <div className="tltest">
+    {u.test?.kind === 'link' && <div className="tltest">
+      <div><b>Bài kiểm tra (làm qua link)</b><br /><small className="sub">Điểm đạt {num(u.test.pass)}/10{u.test.due ? ` · hạn ${fmtDate(u.test.due)}` : ''}{u.test.opened ? ' · đã mở bài' : ''}</small>
+        {u.test.note && <><br /><small>{u.test.note}</small></>}<br />
+        <small>Điểm: <b>{u.best_score == null ? 'chờ người tổ chức nhập' : num(u.best_score)}</b>{u.best_score != null && (u.best_score >= u.test.pass ? ' · Đạt' : ' · Chưa đạt')}</small></div>
+      {!seenAll ? <small className="sub">Mở hết bài giảng và tài liệu để làm bài.</small>
+        : <button type="button" className="primary" disabled={busy === 'test'} onClick={openLink}>{u.test.opened ? 'Mở lại bài ↗' : 'Làm bài ↗'}</button>}
+    </div>}
+    {u.test && u.test.kind !== 'link' && <div className="tltest">
       <div><b>Bài kiểm tra</b><br /><small className="sub">{u.test.count} câu{u.test.minutes ? ` · ${u.test.minutes} phút` : ' · không giới hạn thời gian'} · điểm đạt {num(u.test.pass)}/10
         {u.test.attempts ? ` · đã làm ${u.test.used}/${u.test.attempts} lượt` : u.test.used ? ` · đã làm ${u.test.used} lượt` : ''}</small><br />
         <small>Điểm cao nhất: <b>{num(u.best_score)}</b>{u.best_score != null && (u.best_score >= u.test.pass ? ' · Đạt' : ' · Chưa đạt')}</small></div>

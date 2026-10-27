@@ -10,6 +10,7 @@ import { downloadXlsx } from '../../lib/sheet'
 import { Chip } from '../dist/Editor'
 import { CERT_ST, RESULT, ResultDetail, type ResRow, type RPlan } from './Results'
 import { CertPaper, type Payload } from './Certificates'
+import { TestScores } from './TestScores'
 
 type Tab = 'grade' | 'decide' | 'cert'
 type F = 'all' | 'ready' | 'pending' | 'pass' | 'fail'
@@ -31,7 +32,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
   const [sess, setSess] = useState<Sess[]>([])
   const [att, setAtt] = useState<Att[]>([])
   const [tab, setTab] = useState<Tab>('grade')
-  const [view, setView] = useState<'sum' | 'att'>('sum')
+  const [view, setView] = useState<'sum' | 'att' | 'test'>('sum')
   const [f, setF] = useState<F>('all')
   const [q, setQ] = useState('')
   const [sel, setSel] = useState<Set<string>>(new Set())
@@ -170,7 +171,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
     {tab === 'grade' && <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <div className="bar" style={{ margin: 0 }}>
         <div className="distpills" role="tablist" style={{ margin: 0 }}>
-          {([['sum', 'Bảng tổng hợp'], ['att', `Điểm danh theo buổi (${sess.length})`]] as ['sum' | 'att', string][]).map(([k, l]) =>
+          {([['sum', 'Bảng tổng hợp'], ['test', 'Điểm bài test'], ['att', `Điểm danh theo buổi (${sess.length})`]] as ['sum' | 'att' | 'test', string][]).map(([k, l]) =>
             <button key={k} type="button" role="tab" aria-selected={view === k} className={view === k ? 'on' : ''} onClick={() => setView(k)}>{l}</button>)}
         </div>
         <div className="tools"><button type="button" onClick={exportXlsx} disabled={!all.length}>Xuất Excel</button>
@@ -195,6 +196,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
           </tr> })}
           {!shown.length && <tr><td colSpan={7}><small className="sub">{all.length ? 'Không có giáo viên nào khớp.' : 'Kế hoạch chưa có giáo viên ghi danh.'}</small></td></tr>}</tbody>
       </table></div>
+      : view === 'test' ? <TestScores planId={plan.id} planCode={plan.plan_code ?? plan.name.slice(0, 30)} can={can} only={new Set(shown.map(r => r.teacher_id))} onSaved={load} />
       : <AttGrid rows={shown} sess={sess} att={att} />}
       <small className="sub">Điểm sản phẩm từ 5 trở lên mới tính đạt. Nhận / trả lại sản phẩm ở chi tiết kế hoạch › Tiến độ học trực tuyến. Bấm tên giáo viên để xem chi tiết, nhận xét.</small>
       <button type="button" className="primary" style={{ justifySelf: 'end' }} onClick={() => setTab('decide')}>Tiếp tục: Kết luận →</button>

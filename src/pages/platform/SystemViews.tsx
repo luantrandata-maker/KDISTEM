@@ -1,5 +1,6 @@
 import { Fragment, Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../../components/MultiFilters'
 import { switchOrg } from '../../lib/auth'
 import { downloadXlsx, norm } from '../../lib/sheet'
 import { Tabs } from '../teacher/common'
@@ -20,6 +21,8 @@ export type Spec = {
   status?: { get: (r: Row) => string; labels: Record<string, string>; tone?: Record<string, string> }
   noun: string; file: string; empty: string
   detail?: (r: Row, reload: () => void) => ReactNode
+  /** Bộ lọc chọn nhiều (27/10): có facets thì Sở / tỉnh và Đơn vị cũng chọn được nhiều */
+  facets?: { key: string; label: string; placeholder: string; get: (r: Row) => string | number | null | undefined; name?: (r: Row) => string; sort?: 'label' | 'desc' }[]
 }
 
 const PAGE = 1000, CAP = 20000, SHOW = 500
@@ -66,8 +69,13 @@ async function fetchAll(spec: Spec, ids: string[] | null) {
 export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spec; onOpen?: (r: Row) => void; actions?: ReactNode; reloadKey?: number }) {
   const { byId, regionOf, regions, orgs } = useOrgs()
   const saved = (() => { try { return JSON.parse(localStorage.getItem(KEY) ?? '{}') as { region?: string; org?: string } } catch { return {} } })()
-  const [region, setRegion] = useState(saved.region ?? '')
-  const [org, setOrg] = useState(saved.org ?? '')
+  const [region0, setRegion] = useState(saved.region ?? '')
+  const [org0, setOrg] = useState(saved.org ?? '')
+  // Chế độ chọn nhiều (spec.facets): tỉnh, đơn vị và các thuộc tính dữ liệu
+  const mf = useMultiFilters(), multi = !!spec.facets
+  const regionsSel = multi ? mf.get('prov') : region0 ? [region0] : []
+  const orgsSel = multi ? mf.get('org') : org0 ? [org0] : []
+  const region = regionsSel.length === 1 ? regionsSel[0] : '', org = orgsSel.length === 1 ? orgsSel[0] : ''
   const [q, setQ] = useState('')
   const [st, setSt] = useState('all')
   const [view, setView] = useState<'sum' | 'list'>(saved.org ? 'list' : 'sum')
@@ -78,28 +86,28 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
   const [open, setOpen] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
 
-  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify({ region, org })) } catch { /* bỏ qua */ } }, [region, org])
+  useEffect(() => { if (!multi) try { localStorage.setItem(KEY, JSON.stringify({ region: region0, org: org0 })) } catch { /* bỏ qua */ } }, [region0, org0])
 
   // Đơn vị trong phạm vi lọc (trường, và cả Sở/Phòng nếu dữ liệu thuộc cấp đó)
   // Có nút thêm (kho của KDI): cho chọn cả đơn vị KDI để xem riêng bài KDI soạn
-  const inRegion = useMemo(() => orgs.filter(o => (actions && !region ? true : !o.is_platform) && (!region || regionOf(o.id)?.id === region)), [orgs, region, regionOf, !!actions])
+  const inRegion = useMemo(() => orgs.filter(o => (actions && !regionsSel.length ? true : !o.is_platform) && (!regionsSel.length || regionsSel.includes(regionOf(o.id)?.id ?? ''))), [orgs, regionsSel.join(), regionOf, !!actions])
   const schoolsInRegion0 = inRegion.filter(o => o.type === 'school')
   const schoolsInRegion = schoolsInRegion0
 
   useEffect(() => {
     if (!orgs.length) return
-    const ids = org ? [org] : region && inRegion.length <= 150 ? inRegion.map(o => o.id) : null
+    const ids = orgsSel.length ? orgsSel : regionsSel.length && inRegion.length <= 150 ? inRegion.map(o => o.id) : null
     setBusy(true); setErr('')
     fetchAll(spec, ids).then(r => {
-      const keep = region && !org && !ids ? r.rows.filter(x => regionOf(x.org_id)?.id === region) : r.rows
+      const keep = regionsSel.length && !ids ? r.rows.filter(x => regionsSel.includes(regionOf(x.org_id)?.id ?? '')) : r.rows
       setRows(keep); setCapped(r.capped)
     }).catch(e => { setErr(e.message); setRows([]) }).finally(() => setBusy(false))
-  }, [orgs.length, region, org, tick, reloadKey])
+  }, [orgs.length, regionsSel.join(), orgsSel.join(), tick, reloadKey])
 
   const reload = () => setTick(t => t + 1)
   const nameOf = (id: string) => byId.get(id)?.name ?? '—'
   const needle = norm(q.trim().toLowerCase())
-  const shown = rows.filter(r => (st === 'all' || spec.status?.get(r) === st) && (!needle || norm((spec.search(r) + ' ' + nameOf(r.org_id)).toLowerCase()).includes(needle)))
+  const shown = rows.filter(r => (st === 'all' || spec.status?.get(r) === st) && (spec.facets ?? []).every(fc => mf.has(fc.key, fc.get(r))) && (!needle || norm((spec.search(r) + ' ' + nameOf(r.org_id)).toLowerCase()).includes(needle)))
   const groups = [...shown.reduce((m, r) => m.set(r.org_id, [...(m.get(r.org_id) ?? []), r]), new Map<string, Row[]>())]
     .sort((a, b) => b[1].length - a[1].length || nameOf(a[0]).localeCompare(nameOf(b[0]), 'vi'))
   const empty = schoolsInRegion.filter(s => !groups.some(([id]) => id === s.id))
@@ -112,24 +120,32 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
     await downloadXlsx(spec.file + '.xlsx', cols, shown.map(r => [nameOf(r.org_id), regionName(r.org_id),
       ...spec.cols.map(c => { const v = c.text ? c.text(r) : c.get(r); return typeof v === 'string' || typeof v === 'number' ? v : null })]))
   }
-  const pickOrg = (id: string) => { setOrg(id); setView(id ? 'list' : 'sum'); setOpen(null) }
+  const pickOrg = (id: string) => { if (multi) mf.set('org', id ? [id] : []); else setOrg(id); setView(id ? 'list' : 'sum'); setOpen(null) }
+  const facetDefs: FilterDef[] = multi ? [
+    { key: 'prov', label: 'Sở / tỉnh', placeholder: 'Toàn hệ thống', options: regions.map(r => [r.id, r.name] as [string, string]), onPick: () => mf.set('org', []) },
+    { key: 'org', label: 'Đơn vị', placeholder: `Mọi đơn vị (${schoolsInRegion.length} trường)`, options: inRegion.map(o => [o.id, (o.type === 'school' ? '' : '◆ ') + o.name + (o.is_platform ? ' (KDI)' : '')] as [string, string]),
+      onPick: v => setView(v.length === 1 ? 'list' : 'sum') },
+    ...spec.facets!.map(fc => ({ key: fc.key, label: fc.label, placeholder: fc.placeholder, options: opts(rows.map(r => [fc.get(r), fc.name ? fc.name(r) : String(fc.get(r) ?? '')]), fc.sort ?? 'label') })),
+  ] : []
 
   return (
     <>
       <div className="bar sysbar">
-        <span className="tools">
+        {multi ? <span className="tools"><MultiFilters defs={facetDefs} f={mf} />
+          <input className="search" style={{ margin: 0, minWidth: 200 }} type="search" placeholder={spec.searchHint} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm kiếm" /></span>
+        : <span className="tools">
           <label className="pickfield"><span>Sở / tỉnh</span>
-            <select value={region} onChange={e => { setRegion(e.target.value); pickOrg('') }} aria-label="Chọn Sở hoặc tỉnh">
+            <select value={region0} onChange={e => { setRegion(e.target.value); pickOrg('') }} aria-label="Chọn Sở hoặc tỉnh">
               <option value="">Toàn hệ thống</option>
               {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
             </select></label>
           <label className="pickfield"><span>Đơn vị</span>
-            <select value={org} onChange={e => pickOrg(e.target.value)} aria-label="Chọn trường hoặc đơn vị">
+            <select value={org0} onChange={e => pickOrg(e.target.value)} aria-label="Chọn trường hoặc đơn vị">
               <option value="">Tất cả ({schoolsInRegion.length} trường)</option>
               {inRegion.map(o => <option key={o.id} value={o.id}>{o.type === 'school' ? '' : '◆ '}{o.name}{o.is_platform ? ' (KDI)' : ''}</option>)}
             </select></label>
           <input className="search" style={{ margin: 0, minWidth: 220 }} type="search" placeholder={spec.searchHint} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm kiếm" />
-        </span>
+        </span>}
         <span className="tools">
           {!org && <Tabs value={view} onChange={setView} items={[['sum', 'Theo đơn vị'], ['list', 'Danh sách']]} />}
           <button onClick={excel} disabled={!shown.length}>Xuất Excel</button>
@@ -391,8 +407,15 @@ export const HOMEWORK: Spec = {
 }
 
 export const CURRICULUM: Spec = {
-  table: 'curriculum_books', order: 'grade', select: 'id, org_id, grade, subject, title, total_periods',
+  table: 'curriculum_books', order: 'grade', select: 'id, org_id, grade, subject, title, total_periods, year_name, program_id, edu_programs(title)',
+  facets: [
+    { key: 'year', label: 'Năm học', placeholder: 'Mọi năm học', get: r => r.year_name, sort: 'desc' },
+    { key: 'prog', label: 'Chương trình', placeholder: 'Mọi chương trình', get: r => r.program_id, name: r => r.edu_programs?.title ?? 'Chương trình khác' },
+    { key: 'subj', label: 'Môn', placeholder: 'Mọi môn', get: r => r.subject },
+    { key: 'grade', label: 'Khối', placeholder: 'Mọi khối', get: r => r.grade, name: r => `Khối ${r.grade}` },
+  ],
   cols: [
+    { label: 'Năm học', get: r => r.year_name ?? '' },
     { label: 'Khối', get: r => r.grade ?? '' },
     { label: 'Môn', get: r => r.subject ?? '' },
     { label: 'Sách / tài liệu', get: r => <b>{r.title}</b>, text: r => r.title, wrap: true },

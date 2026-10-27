@@ -5,6 +5,8 @@ import { supabase } from '../../lib/supabase'
 import { PROGRAM_COLOR } from '../teacher/common'
 import { STEM_LEVEL_NAME, useStemTracks } from '../../lib/stemTracks'
 import { Tabs } from '../teacher/common'
+import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../../components/MultiFilters'
+import { useProvinceOf } from '../../components/OrgScope'
 import { useDeptStats, byWard, grade, pct, avg, sum, nf, LEVEL, HEAT, type SchoolStat } from './data'
 import { Tiles, GradePill, Columns, HBars, DataTable, rampColor, rampInk } from './charts'
 
@@ -194,15 +196,29 @@ export function DeptSchools() {
 
 // ================= Chương trình CT1–CT5 =================
 export function DeptPrograms() {
-  const { schools, loading, err } = useDeptStats()
+  const { schools: all, loading, err } = useDeptStats()
   const { byCode, codes: PROGRAMS } = useStemTracks()
-  const [ct, setCt] = useState('')
+  const f = useMultiFilters(), provOf = useProvinceOf()
   if (loading || err) return <Loading err={err} />
+  // Lọc theo địa bàn, cấp học, trường trước; chương trình lọc danh sách trường bên dưới
+  const geo = (s: SchoolStat, skip?: string) => (skip === 'prov' || f.has('prov', provOf(s.school_id)?.id)) && (skip === 'ward' || f.has('ward', s.ward)) && f.has('level', s.level)
+  const schools = all.filter(s => geo(s) && f.has('school', s.school_id))
+  const cts = f.get('ct'), ct = cts.length === 1 ? cts[0] : ''
+  const toggleCt = (p: string) => f.set('ct', cts.includes(p) ? cts.filter(x => x !== p) : [...cts, p])
   const cur = ct ? byCode[ct] : undefined
   const has = (s: SchoolStat, p: string) => s.programs.includes(p)
-  const shown = schools.filter(s => !ct || has(s, ct)).sort((a, b) => b.programs.length - a.programs.length || b.kpi - a.kpi)
+  const shown = schools.filter(s => f.any('ct', s.programs)).sort((a, b) => b.programs.length - a.programs.length || b.kpi - a.kpi)
+  const provs = opts(all.map(s => { const p = provOf(s.school_id); return [p?.id, p?.name] }))
+  const defs: FilterDef[] = [
+    { key: 'prov', label: 'Tỉnh', placeholder: 'Mọi tỉnh', options: provs, hidden: provs.length < 2 },
+    { key: 'ward', label: 'Xã/phường', placeholder: 'Mọi xã/phường', options: opts(all.filter(s => geo(s, 'ward')).map(s => [s.ward, s.ward])) },
+    { key: 'level', label: 'Cấp học', placeholder: 'Mọi cấp học', options: opts(all.map(s => [s.level, LEVEL[s.level ?? ''] ?? s.level]), 'none') },
+    { key: 'school', label: 'Trường', placeholder: 'Mọi trường', options: opts(all.filter(s => geo(s)).map(s => [s.school_id, short(s.name)])) },
+    { key: 'ct', label: 'Chương trình', placeholder: 'Mọi chương trình', options: PROGRAMS.map(p => [p, `${p} · ${byCode[p]?.name ?? p}`] as [string, string]) },
+  ]
   return (
     <>
+      <div className="bar"><div className="tools"><MultiFilters defs={defs} f={f} count={`${shown.length}/${all.length} trường`} /></div></div>
       <Tiles items={[
         { label: 'Trường đang triển khai', value: schools.filter(s => s.programs.length).length, sub: 'có ít nhất 1 chương trình' },
         { label: `Trường đủ ${PROGRAMS.length} loại chương trình`, value: schools.filter(s => PROGRAMS.every(c => s.programs.includes(c))).length, sub: PROGRAMS.join(', ') },
@@ -213,7 +229,7 @@ export function DeptPrograms() {
         {PROGRAMS.map(p => {
           const list = schools.filter(s => has(s, p))
           return (
-            <button key={p} className={'ctcard' + (ct === p ? ' on' : '')} onClick={() => setCt(ct === p ? '' : p)} aria-pressed={ct === p}>
+            <button key={p} className={'ctcard' + (cts.includes(p) ? ' on' : '')} onClick={() => toggleCt(p)} aria-pressed={cts.includes(p)}>
               <span className="progchip" style={{ background: PROGRAM_COLOR[p], color: '#fff' }}>{p}</span>
               <b>{byCode[p]?.name ?? p}</b>
               <small>{list.length} trường · {nf(sum(list.map(s => s.stem_teachers)))} GV · {nf(sum(list.map(s => s.stem_students)))} HS</small>
@@ -233,7 +249,7 @@ export function DeptPrograms() {
           <div style={{ marginTop: 4 }}>{cur.levels.map(l => <span key={l} className="pill" style={{ marginRight: 6 }}>{STEM_LEVEL_NAME[l]}</span>)}</div>
         </section>
       )}
-      <div className="bar"><h3>Danh sách trường theo chương trình{ct && ` · ${ct}`}</h3>{ct && <button onClick={() => setCt('')}>Bỏ lọc</button>}</div>
+      <div className="bar"><h3>Danh sách trường theo chương trình{cts.length > 0 && ` · ${cts.join(', ')}`}</h3></div>
       <div className="wrap">
         <table>
           <thead><tr><th>Trường</th><th>Xã/phường</th><th>Cấp</th><th>Chương trình đang dạy</th><th>GV STEM</th><th>HS tham gia</th><th>Lớp STEM</th></tr></thead>
@@ -248,15 +264,36 @@ export function DeptPrograms() {
 }
 
 // ================= Theo dõi môn học STEM =================
+type SubjSchool = { org_id: string; subject: string; total: number; stem: number; classes: number; students: number }
 export function DeptSubjects() {
-  const { subjects, schools, loading, err } = useDeptStats()
+  const { subjects: allSubjects, schools: allSchools, loading, err } = useDeptStats()
   const [pick, setPick] = useState<string | null>(null)
+  // Số liệu môn theo từng trường (108) để lọc địa bàn / trường; chưa chạy migration thì dùng số liệu gộp
+  const [per, setPer] = useState<SubjSchool[] | null>(null)
+  useEffect(() => { supabase.rpc('dept_subject_school_stats').then(({ data, error }) => setPer(error ? null : (data as SubjSchool[]) ?? [])) }, [])
+  const f = useMultiFilters(), provOf = useProvinceOf()
   if (loading || err) return <Loading err={err} />
-  const stemSubjects = subjects.filter(s => s.stem > 0)
+  const geo = (s: SchoolStat, skip?: string) => (skip === 'prov' || f.has('prov', provOf(s.school_id)?.id)) && (skip === 'ward' || f.has('ward', s.ward)) && f.has('level', s.level)
+  const schools = allSchools.filter(s => geo(s) && f.has('school', s.school_id))
+  const inSchools = new Set(schools.map(s => s.school_id))
+  const subjects = per ? [...per.filter(r => inSchools.has(r.org_id)).reduce((m, r) => {
+    const o = m.get(r.subject) ?? { subject: r.subject, total: 0, stem: 0, classes: 0, schools: 0, students: 0 }
+    o.total += r.total; o.stem += r.stem; o.classes += r.classes; o.students += r.students; if (r.stem > 0) o.schools++
+    return m.set(r.subject, o) }, new Map<string, typeof allSubjects[number]>()).values()].sort((a, b) => b.stem - a.stem) : allSubjects
+  const provs = opts(allSchools.map(s => { const p = provOf(s.school_id); return [p?.id, p?.name] }))
+  const defs: FilterDef[] = [
+    { key: 'prov', label: 'Tỉnh', placeholder: 'Mọi tỉnh', options: provs, hidden: !per || provs.length < 2 },
+    { key: 'ward', label: 'Xã/phường', placeholder: 'Mọi xã/phường', options: opts(allSchools.filter(s => geo(s, 'ward')).map(s => [s.ward, s.ward])), hidden: !per },
+    { key: 'level', label: 'Cấp học', placeholder: 'Mọi cấp học', options: opts(allSchools.map(s => [s.level, LEVEL[s.level ?? ''] ?? s.level]), 'none'), hidden: !per },
+    { key: 'school', label: 'Trường', placeholder: 'Mọi trường', options: opts(allSchools.filter(s => geo(s)).map(s => [s.school_id, short(s.name)])), hidden: !per },
+    { key: 'subj', label: 'Môn học', placeholder: 'Mọi môn học', options: opts(subjects.filter(s => s.stem > 0).map(s => [s.subject, s.subject])) },
+  ]
+  const stemSubjects = subjects.filter(s => s.stem > 0 && f.has('subj', s.subject))
   const rows = stemSubjects.map(s => ({ ...s, rate: pct(s.stem, s.total) }))
   const cur = rows.find(r => r.subject === pick)
   return (
     <>
+      <div className="bar"><div className="tools"><MultiFilters defs={defs} f={f} count={`${stemSubjects.length} môn · ${schools.length}/${allSchools.length} trường`} /></div></div>
       <Tiles items={[
         { label: 'Số môn có tiết STEM', value: stemSubjects.length, sub: `trên ${subjects.length} môn có trong TKB` },
         { label: 'Tỉ lệ tiết STEM', value: pct(sum(stemSubjects.map(s => s.stem)), sum(stemSubjects.map(s => s.total))) + '%', sub: 'trong các môn có STEM' },

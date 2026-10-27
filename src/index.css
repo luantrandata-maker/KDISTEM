@@ -868,8 +868,8 @@ td.good,b.good{color:var(--ok);font-weight:700}tr.muted td{opacity:.55}
 .syscards{margin:4px 0 6px}
 .systable th.num,.systable td.num{text-align:right;font-variant-numeric:tabular-nums}
 .systable tr.dim td{color:var(--muted)}
-.systable tr.clickrow{cursor:pointer}
-.systable tr.clickrow:hover td{background:var(--soft)}
+.systable tr.clickrow,.libtable tr.clickrow{cursor:pointer}
+.systable tr.clickrow:hover td,.libtable tr.clickrow:hover td{background:var(--soft)}
 
 /* Thuật ngữ chuẩn (QĐ 2768) */
 .stdhead{display:flex;gap:14px;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 18px;margin-bottom:16px}

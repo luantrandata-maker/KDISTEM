@@ -11,7 +11,8 @@ import { norm as normText } from '../../lib/sheet'
 import { BankList } from './BankList'
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { OrgPick, useAllMode } from '../../components/OrgScope'
+import { OrgPick, useAllMode, useOrgName, useProvinceOf } from '../../components/OrgScope'
+import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../../components/MultiFilters'
 import { Tabs } from '../teacher/common'
 import type { Slide } from '../teacher/Lessons'
 import { uploadLearningFile, fmtSize, MAX_FILE_MB } from '../../lib/files'
@@ -131,10 +132,8 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   const [lessons, setLessons] = useState<LP[]>([])
   const [form, setForm] = useState<Form | null>(null)
   const [tab, setTab] = useState<T>(only ?? 'unit')
-  const [fStatus, setFStatus] = useState('')
-  const [fSubject, setFSubject] = useState('')
-  const [fGrade, setFGrade] = useState('')
-  const [fType, setFType] = useState('')
+  // Lọc chọn nhiều (27/10): tỉnh, đơn vị (màn mọi đơn vị), chương trình, môn, khối, loại, trạng thái
+  const mf = useMultiFilters(), provOf = useProvinceOf(), orgName = useOrgName()
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const [view, setView] = useViewMode('hoc-lieu', 'list')
@@ -474,8 +473,20 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
 
   const ofTab = items.filter(i => tab === 'plan' ? isPlan(i) : tab === 'material' ? i.kind === 'material' && !isPlan(i) : i.kind === tab)
   const subjects = [...new Set(ofTab.map(i => i.subject).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi'))
-  const shown = ofTab.filter(i => (!fStatus || i.status === fStatus) && (!fSubject || i.subject === fSubject)
-    && (!fGrade || gradeList(i.grades ?? '').includes(Number(fGrade))) && (tab !== 'material' || !fType || (i.content.type ?? 'link') === fType)
+  const fitI = (i: Item, skip?: string) => (skip === 'prov' || mf.has('prov', provOf(i.owner_org_id)?.id)) && (skip === 'org' || mf.has('org', i.owner_org_id))
+    && mf.has('prog', i.program) && mf.has('subj', i.subject) && mf.any('grade', gradeList(i.grades ?? ''))
+    && (tab !== 'material' || mf.has('type', i.content.type ?? 'link')) && mf.has('status', i.status)
+  const provs = opts(ofTab.map(i => { const p = provOf(i.owner_org_id); return [p?.id, p?.name] }))
+  const filterDefs: FilterDef[] = [
+    { key: 'prov', label: 'Tỉnh', placeholder: 'Mọi tỉnh', options: provs, hidden: !every || provs.length < 2 },
+    { key: 'org', label: 'Đơn vị', placeholder: 'Mọi đơn vị', options: opts(ofTab.filter(i => fitI(i, 'org')).map(i => [i.owner_org_id, orgName(i.owner_org_id)])), hidden: !every },
+    { key: 'prog', label: 'Chương trình giáo dục', placeholder: 'Mọi chương trình', options: opts(ofTab.map(i => [i.program, i.program])) },
+    { key: 'subj', label: 'Môn', placeholder: 'Mọi môn', options: subjects.map(x => [x, x] as [string, string]) },
+    { key: 'grade', label: 'Khối', placeholder: 'Mọi khối', options: Array.from({ length: 12 }, (_, k) => [String(k + 1), `Khối ${k + 1}`] as [string, string]) },
+    { key: 'type', label: 'Loại học liệu', placeholder: 'Mọi loại', options: MAT_OPTS as [string, string][], hidden: tab !== 'material' },
+    { key: 'status', label: 'Trạng thái', placeholder: 'Mọi trạng thái', options: [['published', 'Đã phát hành'], ['draft', 'Nháp'], ['archived', 'Đã thu hồi']] },
+  ]
+  const shown = ofTab.filter(i => fitI(i)
     && (!q || normText([i.title, i.summary, i.subject, ...i.tags].join(' ')).includes(normText(q))))
   // Giáo án không còn tab riêng (giáo án đi theo bài học); "Học liệu" đổi thành "Tài liệu"
   const kindTabs: T[] = ['unit', 'lesson', 'material', 'norm', 'bank']
@@ -504,16 +515,13 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
     <>
       {!only && <div style={{ marginBottom: 10 }}>
         <Tabs items={kindTabs.map(k => [k, tabLabel(k), k === 'norm' ? undefined : k === 'bank' ? items.filter(i => i.kind === 'unit').reduce((n, i) => n + (((i.content as any)?.kit?.bank ?? []) as { title?: string }[]).filter(b => b.title?.trim()).length, 0) : items.filter(i => k === 'plan' ? isPlan(i) : k === 'material' ? i.kind === 'material' && !isPlan(i) : i.kind === k).length] as [T, string, number?])}
-          value={tab} onChange={t => { setTab(t); setOpen(null); setFType('') }} />
+          value={tab} onChange={t => { setTab(t); setOpen(null); mf.set('type', []) }} />
       </div>}
       {tab === 'bank' ? <BankList items={items} onOpen={id => setFlow({ id })} note="Hoạt động gom từ thẻ 05 “Kho hoạt động” của các bài học. Bấm một dòng để mở bài học." />
       : tab === 'norm' ? <Suspense fallback={<p className="sub">Đang tải…</p>}><MaterialNorms orgId={orgId} /></Suspense> : <>
       {!start && <><div className="bar">
         <div className="tools">
-          <select value={fGrade} onChange={e => setFGrade(e.target.value)} aria-label="Khối"><option value="">Mọi khối</option>{Array.from({ length: 12 }, (_, k) => k + 1).map(g => <option key={g} value={g}>Khối {g}</option>)}</select>
-          {tab === 'material' && <select value={fType} onChange={e => setFType(e.target.value)} aria-label="Loại học liệu"><option value="">Mọi loại</option>{MAT_OPTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>}
-          <select value={fSubject} onChange={e => setFSubject(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(x => <option key={x}>{x}</option>)}</select>
-          <select value={fStatus} onChange={e => setFStatus(e.target.value)} aria-label="Trạng thái"><option value="">Mọi trạng thái</option><option value="published">Đã phát hành</option><option value="draft">Nháp</option><option value="archived">Đã thu hồi</option></select>
+          <MultiFilters defs={filterDefs} f={mf} count={`${shown.length}/${ofTab.length}`} />
           <input placeholder="Tìm tên, mô tả, từ khoá…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
         </div>
         <div className="tools">

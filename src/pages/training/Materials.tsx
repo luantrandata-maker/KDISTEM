@@ -10,13 +10,14 @@ import { STATUS } from './Programs'
 import { ContentDetail, LISTS, detailCount, lab, type Detail } from './Content'
 import { DOC_TYPE, kitOf } from '../library/lesson/model'
 import { TrainingItemForm } from './MaterialForm'
+import { MaterialItem } from './MaterialItem'
 
-type Prog = { id: string; code: string; title: string; status: keyof typeof STATUS; pass_score: number | null }
+type Prog = { id: string; code: string; title: string; status: keyof typeof STATUS; pass_score: number | null; family_id: string | null }
 type Unit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string; hours: number; has_test: boolean; detail: Detail | null }
 type Lesson = { id: string; title: string; program_id: string | null; unit_id: string | null; status: string; content: { kit?: unknown } | null }
 export type Part = 'content' | 'docs' | 'mats' | 'acts'
 // Một dòng gộp: từ nội dung chương trình (unit) hoặc từ bài giảng (lesson)
-type Line = { key: string; prog: Prog | null; unit: Unit | null; lesson: Lesson | null; cells: Record<string, string>; url?: string; file?: string }
+type Line = { key: string; prog: Prog | null; unit: Unit | null; lesson: Lesson | null; idx: number | null; cells: Record<string, string>; url?: string; file?: string }
 
 const EDITABLE = ['draft', 'rejected']
 const LSTATUS: Record<string, [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], inactive: ['Ngừng dùng', 'off'] }
@@ -31,7 +32,7 @@ function useData() {
   useEffect(() => {
     (async () => {
       const [p, u, l] = await Promise.all([
-        supabase.from('training_programs').select('id, code, title, status, pass_score').order('code'),
+        supabase.from('training_programs').select('id, code, title, status, pass_score, family_id').order('code'),
         supabase.from('training_program_units').select('id, program_id, parent_id, kind, seq, title, hours, has_test, detail'),
         supabase.from('training_lessons').select('id, title, program_id, unit_id, status, content').order('title'),
       ])
@@ -53,6 +54,7 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
   const [open, setOpen] = useState<string | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [adding, setAdding] = useState(false)
+  const [item, setItem] = useState<Line | null>(null)
   useEffect(() => { supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)) }, [])
 
   const progOf = (id: string | null) => d?.progs.find(p => p.id === id) ?? null
@@ -72,11 +74,11 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
       const cells = Object.fromEntries(LISTS[part].cols.map(c => [c.key, c.type === 'select' ? lab(c.options, r[c.key] ?? '') : r[c.key] ?? '']))
       if (part === 'mats') { cells.per = PER[r.per] ?? ''; cells.note = [MKIND[r.mkind], r.reusable === '1' && 'dùng lại được', r.note].filter(Boolean).join(' · ') }
       if (part === 'docs' && r.summary) cells.note = [r.summary, r.note].filter(Boolean).join(' · ')
-      out.push({ key: `u${u.id}-${i}`, prog: progOf(u.program_id), unit: u, lesson: null, cells, url: part === 'docs' ? r.url || undefined : undefined, file: part === 'docs' ? r.file || undefined : undefined })
+      out.push({ key: `u${u.id}-${i}`, prog: progOf(u.program_id), unit: u, lesson: null, idx: i, cells, url: part === 'docs' ? r.url || undefined : undefined, file: part === 'docs' ? r.file || undefined : undefined })
     }))
     d.lessons.forEach(l => {
       if (!l.content?.kit) return
-      const k = kitOf(l.content.kit), base = { prog: progOf(l.program_id), unit: unitOf(l.unit_id), lesson: l }
+      const k = kitOf(l.content.kit), base = { prog: progOf(l.program_id), unit: unitOf(l.unit_id), lesson: l, idx: null }
       if (part === 'docs') k.docs.forEach(x => out.push({ ...base, key: `l${l.id}-${x.key}`, cells: { title: x.title, kind: DOC_TYPE[x.type] ?? x.type, note: x.meta ?? '' }, url: x.url || undefined, file: x.file?.path }))
       if (part === 'mats') ([['product', 'Mỗi sản phẩm'], ['group', 'Mỗi nhóm']] as const).forEach(([g, per]) => k.mats[g].forEach(x =>
         out.push({ ...base, key: `l${l.id}-${x.key}`, cells: { name: x.name, unit: x.unit, qty: x.qty, per, note: [MKIND[x.kind], x.reusable && 'dùng lại được'].filter(Boolean).join(' · ') } })))
@@ -140,6 +142,9 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
     </div>
     {adding && <TrainingItemForm orgId={orgId ?? null} part={part} progs={d.progs.filter(p => EDITABLE.includes(p.status))} units={d.units} initialProg={prog}
       onClose={() => setAdding(false)} onDone={(m, more) => { if (!more) setAdding(false); setMsg([m, false]); reload() }} />}
+    {item && part !== 'content' && <MaterialItem it={{ ...item, part }} admin={admin} onClose={() => setItem(null)}
+      draftId={item.prog?.family_id ? d.progs.find(p => p.family_id === item.prog!.family_id && EDITABLE.includes(p.status))?.id ?? null : null}
+      onDone={(m, showProg) => { setItem(null); setMsg([m, false]); if (showProg) { setProg(showProg); setSrc('unit') } reload() }} />}
     {(msg || err) && <p className={msg?.[1] || err ? 'msg' : 'sub'} role="status"><b>{err || msg?.[0]}</b></p>}
     {part === 'content' ? <div className="wrap"><table className="libtable">
       <thead><tr><th>Nội dung tập huấn</th><th>Số giờ</th><th>Học liệu</th><th>Bài giảng</th><th>Chương trình</th></tr></thead>
@@ -155,8 +160,8 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
     </table></div>
       : <div className="wrap"><table className="libtable">
         <thead><tr>{cols.map(c => <th key={c.key}>{c.label}</th>)}{part === 'docs' && <th>Link</th>}<th>Thuộc</th><th>Chương trình</th></tr></thead>
-        <tbody>{shownL.map(x => <tr key={x.key}>
-          {cols.map((c, i) => <td key={c.key} style={{ whiteSpace: 'normal' }}>{i === 0 ? <b>{x.cells[c.key] || '—'}</b> : x.cells[c.key] || '—'}</td>)}
+        <tbody>{shownL.map(x => <tr key={x.key} className="clickrow" onClick={e => { if (!(e.target as HTMLElement).closest('a,button')) { setMsg(null); setItem(x) } }}>
+          {cols.map((c, i) => <td key={c.key} style={{ whiteSpace: 'normal' }}>{i === 0 ? <button type="button" className="namelink" onClick={() => { setMsg(null); setItem(x) }}>{x.cells[c.key] || '—'}</button> : x.cells[c.key] || '—'}</td>)}
           {part === 'docs' && <td>{x.file ? <button type="button" className="linkbtn" onClick={() => openFile(x.file!)}>Mở tệp</button>
             : x.url ? <a href={x.url} target="_blank" rel="noreferrer">Mở link ↗</a> : <small className="sub">—</small>}</td>}
           <td style={{ whiteSpace: 'normal' }}>{x.unit && !x.lesson ? <button type="button" className="namelink" onClick={() => { setMsg(null); setOpen(x.unit!.id) }}>{where(x)}</button> : <small>{where(x)}</small>}</td>

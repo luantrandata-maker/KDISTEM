@@ -153,7 +153,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
         <div className="panel"><i aria-hidden="true" className={waiting ? 'warn' : 'good'}>!</i><span><b>{waiting}</b><small>Danh sách chờ duyệt</small></span></div>
       </div>
       <div className="distpills" role="tablist">
-        {([['list', 'Danh sách kế hoạch'], ['tree', 'Kế hoạch tập huấn']] as ['tree' | 'list', string][]).map(([t, l]) =>
+        {([['list', 'Danh sách kế hoạch'], ['tree', 'Khung phân loại']] as ['tree' | 'list', string][]).map(([t, l]) =>
           <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setMsg(null) }}>{l}</button>)}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}

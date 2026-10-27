@@ -2578,6 +2578,12 @@ select pg_temp.chk('admin_ph', 'Phiên bản: công bố PPCT tự lưu phiên b
   $q$select string_agg(action, ',') from curriculum_book_versions where book_id = (select id from curriculum_books where title = 'ISO PPCT tự duyệt')$q$, 'publish');
 select pg_temp.chk('admin_ph', 'Kế hoạch / thực hiện: số tiết kế hoạch theo tuần học của trường', $q$select (sum(planned) > 0 and count(*) > 0)::text from curriculum_weekly(my_org_id())$q$, 'true');
 select pg_temp.chk('so_bn', 'Kế hoạch / thực hiện: Sở khác không thấy trường A', format($q$select coalesce(sum(planned), 0)::text from curriculum_weekly(%L)$q$, pg_temp.oid_('THCS-PH')), '0');
+-- 108: lọc nhiều trường / khối / môn
+select pg_temp.chk('admin_ph', 'TD 108: lọc theo trường cho cùng số tiết như curriculum_weekly', $q$select ((select sum(planned) from curriculum_weekly_f(array[my_org_id()])) = (select sum(planned) from curriculum_weekly(my_org_id())))::text$q$, 'true');
+select pg_temp.chk('admin_ph', 'TD 108: lọc khối không có lớp thì không có tiết', $q$select coalesce(sum(planned), 0)::text from curriculum_weekly_f(array[my_org_id()], array[99])$q$, '0');
+select pg_temp.chk('so_bn', 'TD 108: Sở khác lọc trường A vẫn không thấy', format($q$select coalesce(sum(planned), 0)::text from curriculum_weekly_f(array[%L::uuid])$q$, pg_temp.oid_('THCS-PH')), '0');
+select pg_temp.chk('so_bn', 'TD 108: thống kê môn theo trường không lộ trường A', format($q$select count(*)::text from dept_subject_school_stats() where org_id = %L$q$, pg_temp.oid_('THCS-PH')), '0');
+select pg_temp.chk('hs_kb', 'TD 108: học sinh không đọc thống kê môn theo trường', $q$select count(*)::text from dept_subject_school_stats()$q$, '0');
 select pg_temp.chk('admin_ph', 'Cảnh báo: trường đặt ngưỡng lớp chậm', $q$insert into curriculum_alert_settings (org_id, lag_threshold) values (my_org_id(), 2)$q$, 'rows:1');
 select pg_temp.chk('gv_both', 'Cảnh báo: giáo viên không đổi ngưỡng', $q$insert into curriculum_alert_settings (org_id, lag_threshold) values (my_org_id(), 2)$q$, 'ERR');
 select pg_temp.chk('gv_both', 'Cảnh báo: giáo viên không gửi cảnh báo', $q$select curriculum_lag_alerts()::text$q$, 'ERR');

@@ -341,6 +341,9 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
   const unassign = (o: POrg) => confirm(`Bỏ gán ${names.get(o.org_id) ?? 'trường'}? ${enrOf(o.org_id).length} giáo viên đã chọn cũng bị bỏ khỏi kế hoạch.`)
     && run(supabase.rpc('training_plan_unassign', { p_plan: p!.id, p_org: o.org_id }), 'Đã bỏ gán trường.')
   const setQuota = (o: POrg, v: string) => run(supabase.rpc('training_plan_assign', { p_plan: p!.id, p_orgs: [o.org_id], p_quota: v === '' ? null : Number(v) }))
+  const outside = enr.filter(e => !orgs.some(o => o.org_id === e.teachers?.org_id))
+  const removeEnr = (e: Enr) => confirm(`Bỏ ${e.teachers?.full_name ?? 'giáo viên'} khỏi kế hoạch?`)
+    && run(supabase.from('training_enrollments').delete().eq('plan_id', e.plan_id).eq('teacher_id', e.teacher_id), `Đã bỏ ${e.teachers?.full_name ?? 'giáo viên'} khỏi kế hoạch.`)
   const sortedOrgs = [...orgs].sort((a, b) => (a.status === 'submitted' ? 0 : 1) - (b.status === 'submitted' ? 0 : 1) || (names.get(a.org_id) ?? '').localeCompare(names.get(b.org_id) ?? '', 'vi'))
   const crumbTxt = cls.path(p.node_id).map(n => n.name).join(' › ') || 'Chưa phân loại'
   const validity = !items.length ? null : scErr.length ? <Chip tone="bad">⊗ {scErr.length} lỗi lịch</Chip> : sc.length ? <Chip tone="warn">⚠ {sc.length} lưu ý</Chip> : <Chip tone="good">✓ Lịch hợp lệ</Chip>
@@ -447,6 +450,7 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
     </>}
     {step === 4 && (p.pub_status === 'draft' ? <p className="sub">Phát hành kế hoạch ở bước 3 trước, rồi gán trường và mở cho giáo viên đăng ký.</p> : <div style={{ display: 'grid', gap: 12 }}>
       <SelfRegister p={p} can={can} regs={regs} onSave={(v, ok) => run(supabase.from('training_plans').update(v).eq('id', p.id), ok)} />
+      {can && p.pub_status === 'published' && <DirectAdd planId={p.id} enr={enr} onDone={m => { setMsg(m); load() }} />}
       <section className="panel" style={{ display: 'grid', gap: 12 }}>
         <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Trường được gán</h3>
           <div className="tools"><small className="sub">{orgs.length} trường · {enr.length} giáo viên · {orgs.filter(o => o.status === 'submitted').length} chờ duyệt</small>
@@ -474,18 +478,91 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
               {es.length ? <ol style={{ margin: 0, paddingLeft: 20 }}>{es.sort((a, b) => (a.teachers?.full_name ?? '').localeCompare(b.teachers?.full_name ?? '', 'vi'))
                 .map(e => <li key={e.teacher_id}>{e.teachers?.full_name}{e.teachers?.subject && <small className="sub"> · {e.teachers.subject}</small>}
                   {e.source === 'self' && <small className="sub"> · tự đăng ký</small>}
+                  {e.source === 'admin' && <small className="sub"> · đơn vị lập kế hoạch thêm</small>}
+                  {can && <button type="button" className="linkbtn" style={{ marginLeft: 8 }} onClick={() => removeEnr(e)}>Bỏ</button>}
                   {(e.units || e.exempt_units?.length) ? <small className="sub"> · {e.units ? `học ${e.units.length} nội dung` : 'học toàn bộ'}{e.exempt_units?.length ? `, miễn ${e.exempt_units.length}` : ''}</small> : null}</li>)}</ol>
                 : <small className="sub">Trường chưa chọn giáo viên.</small>}
             </td></tr>] })}
             {!orgs.length && <tr><td colSpan={can ? 5 : 4}><small className="sub">Chưa gán trường nào.{can && p.pub_status === 'published' && ' Bấm "Gán trường".'}</small></td></tr>}</tbody>
         </table></div>
       </section>
+      {outside.length > 0 && <section className="panel" style={{ display: 'grid', gap: 8 }}>
+        <h3 style={{ margin: 0 }}>Ghi danh ngoài trường được gán</h3>
+        <small className="sub">Người được ghi danh trực tiếp, không thuộc trường nào trong danh sách trên (ví dụ cán bộ của đơn vị lập kế hoạch).</small>
+        <ol style={{ margin: 0, paddingLeft: 20 }}>{outside.map(e => <li key={e.teacher_id}>{e.teachers?.full_name ?? '…'}{e.teachers?.subject && <small className="sub"> · {e.teachers.subject}</small>}
+          {can && <button type="button" className="linkbtn" style={{ marginLeft: 8 }} onClick={() => removeEnr(e)}>Bỏ</button>}</li>)}</ol>
+      </section>}
       {enr.length > 0 && <PlanProgress planId={p.id} manage={can} />}
       {enr.length > 0 && <div className="formactions" style={{ textAlign: 'right' }}><button type="button" className="primary" onClick={() => setStep(5)}>Tiếp tục: Kết quả & chứng chỉ →</button></div>}
     </div>)}
     {step === 5 && (p.pub_status === 'draft' ? <p className="sub">Phát hành kế hoạch và ghi danh giáo viên trước, rồi chấm kết quả và cấp chứng chỉ ở đây.</p>
       : <PlanResults plan={p} embedded />)}
   </div>
+}
+
+// ===== Đơn vị lập kế hoạch thêm thẳng giáo viên (104): chọn duyệt luôn hoặc để chờ duyệt; tự ghi danh mình =====
+type PoolT = { id: string; full_name: string; subject: string | null; enrolled: boolean }
+function DirectAdd({ planId, enr, onDone }: { planId: string; enr: Enr[]; onDone: (m: [string, boolean]) => void }) {
+  const [schools, setSchools] = useState<{ org_id: string; name: string; assigned: boolean }[]>([])
+  const [org, setOrg] = useState('')
+  const [pool, setPool] = useState<PoolT[] | null>(null)
+  const [pick, setPick] = useState<Set<string>>(new Set())
+  const [q, setQ] = useState('')
+  const [approve, setApprove] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [me, setMe] = useState<string | null>(null)
+  useEffect(() => {
+    supabase.rpc('training_plan_schools', { p_plan: planId }).then(({ data }) => setSchools((data ?? []) as { org_id: string; name: string; assigned: boolean }[]))
+  }, [planId])
+  useEffect(() => { supabase.rpc('my_teacher_id').then(({ data }) => setMe((data as string | null) ?? null)) }, [planId, enr.length])
+  useEffect(() => {
+    setPick(new Set())
+    if (!org) return setPool(null)
+    setPool(null)
+    supabase.rpc('training_plan_teacher_pool', { p_plan: planId, p_org: org }).then(({ data }) => setPool((data ?? []) as PoolT[]))
+  }, [org, planId, enr.length])
+  const meIn = !!me && enr.some(e => e.teacher_id === me)
+  const shown = (pool ?? []).filter(t => !q || `${t.full_name} ${t.subject ?? ''}`.toLowerCase().includes(q.toLowerCase()))
+  const free = shown.filter(t => !t.enrolled)
+  async function add() {
+    setBusy(true)
+    const { data, error } = await supabase.rpc('training_plan_add_teachers', { p_plan: planId, p_teachers: [...pick], p_approve: approve })
+    setBusy(false)
+    if (error) return onDone([errText(error.message), true])
+    onDone([`Đã thêm ${data ?? pick.size} giáo viên${approve ? ', danh sách đã duyệt' : ', danh sách đang chờ duyệt'}.`, false])
+  }
+  async function addMe() {
+    setBusy(true)
+    const { error } = await supabase.rpc('training_plan_add_me', { p_plan: planId, p_approve: true })
+    setBusy(false)
+    onDone(error ? [errText(error.message), true] : ['Đã ghi danh anh/chị vào kế hoạch. Chuyển sang vai trò Giáo viên để xem lịch, học và quét QR điểm danh.', false])
+  }
+  return <section className="panel" style={{ display: 'grid', gap: 12 }}>
+    <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Thêm giáo viên trực tiếp</h3>
+      <div className="tools">{meIn ? <Chip tone="good">✓ Bạn đã có tên trong kế hoạch</Chip>
+        : <button type="button" disabled={busy} onClick={addMe}>Ghi danh tôi vào khoá này</button>}</div></div>
+    <small className="sub">Chọn giáo viên của bất kỳ trường nào, không cần chờ trường gửi danh sách. Trường chưa được gán sẽ tự được gán.</small>
+    <div className="tools" style={{ flexWrap: 'wrap' }}>
+      <select value={org} onChange={e => setOrg(e.target.value)} aria-label="Trường">
+        <option value="">Chọn trường…</option>
+        {schools.map(s => <option key={s.org_id} value={s.org_id}>{s.name}{s.assigned ? ' (đã gán)' : ''}</option>)}
+      </select>
+      {org && <input placeholder="Tìm giáo viên, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo viên" />}
+      {org && free.length > 0 && <button type="button" onClick={() => setPick(pick.size === free.length ? new Set() : new Set(free.map(t => t.id)))}>{pick.size === free.length ? 'Bỏ chọn' : `Chọn cả ${free.length}`}</button>}
+    </div>
+    {org && (!pool ? <p className="sub">Đang tải…</p> : <div className="reggrid">
+      {shown.map(t => <label className="roomrow" key={t.id}><span>{t.full_name}{t.subject && <small className="sub"> · {t.subject}</small>}
+        {t.enrolled && <small className="sub" style={{ display: 'block' }}>Đã có tên</small>}</span>
+        <input type="checkbox" disabled={t.enrolled} checked={t.enrolled || pick.has(t.id)} aria-label={`Chọn ${t.full_name}`}
+          onChange={e => setPick(x => { const n = new Set(x); if (e.target.checked) n.add(t.id); else n.delete(t.id); return n })} /></label>)}
+      {!shown.length && <small className="sub">{pool.length ? 'Không có giáo viên nào khớp.' : 'Trường chưa có giáo viên.'}</small>}
+    </div>)}
+    {org && <div className="tools" style={{ justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+      <label className="tpcheck"><input type="checkbox" checked={approve} onChange={e => setApprove(e.target.checked)} /> Duyệt luôn (bỏ qua bước duyệt danh sách)</label>
+      <button type="button" className="primary" disabled={busy || !pick.size} onClick={add}>Thêm {pick.size || ''} giáo viên</button>
+    </div>}
+    {org && !approve && <small className="sub">Danh sách của trường sẽ ở trạng thái Chờ duyệt. Bấm Duyệt ở bảng Trường được gán khi sẵn sàng.</small>}
+  </section>
 }
 
 // ===== Nội dung tập huấn chọn trong kế hoạch (097): toàn bộ hoặc một phần =====

@@ -112,6 +112,7 @@ const TeacherCertificates = lazy(() => import('./pages/training/Certificates').t
 const CertVerify = lazy(() => import('./pages/training/Certificates').then(m => ({ default: m.CertVerify })))
 const CheckInLanding = lazy(() => import('./pages/training/CheckIn').then(m => ({ default: m.CheckInLanding })))
 const TeacherTrainingRegister = lazy(() => import('./pages/teacher/TrainingRegister').then(m => ({ default: m.TeacherTrainingRegister })))
+const TrainingMaterials = lazy(() => import('./pages/training/Materials').then(m => ({ default: m.TrainingMaterials })))
 const TrainersPage = lazy(() => import('./pages/training/Trainers').then(m => ({ default: m.TrainersPage })))
 const TeacherTrainingLearn = lazy(() => import('./pages/teacher/TrainingLearn').then(m => ({ default: m.TeacherTrainingLearn })))
 const SchoolTrainingAssigned = lazy(() => import('./pages/training/Plans').then(m => ({ default: m.SchoolTrainingAssigned })))
@@ -132,8 +133,12 @@ const allOrgs = (C: ComponentType<any>, extra: Record<string, unknown> = {}) => 
 const PH1_TABS = {
   assess: allOrgs(SchoolTeacherAssessments, { orgId: null }), rounds: allOrgs(AssessmentRoundsPage),
   plans: allOrgs(TrainingPlansPage), cal: allOrgs(TrainingCalendarPage), trainers: allOrgs(TrainersPage), school: allOrgs(SchoolTrainingAssigned),
-  lessons: allOrgs(TrainingLessons), virtual: allOrgs(VirtualClass),
+  lessons: allOrgs(TrainingLessons), virtual: allOrgs(TrainingCalendarPage, { online: true }),
 }
+// Học liệu tập huấn (27/10): khuôn Học liệu của Phân hệ 2 — nội dung, bài giảng, link tài liệu, định mức vật tư, kho hoạt động
+const trMat = (part: string) => (p: any) => <TrainingMaterials {...p} part={part} />
+const trainingMaterialTabs = (lessons: ComponentType<any>) => (p: any) => <TabbedPages {...p} tabs={[['Nội dung tập huấn', trMat('content')], ['Bài giảng', lessons],
+  ['Link tài liệu', trMat('docs')], ['Định mức vật tư', trMat('mats')], ['Kho hoạt động', trMat('acts')]]} />
 const PlatformCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Đánh giá', PH1_TABS.assess],
   ['Đợt đánh giá', PH1_TABS.rounds], ['Khoảng thiếu hụt', CompetencyGapsPage], ['Khung năng lực', CompetencyFrameworkPage]]} />
 const PlatformSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.PlatformSupport })))
@@ -287,9 +292,9 @@ const SCHOOL: PageMap = {
   'Chương trình giáo dục': eduProgramTabs('school'),
   'Hồ sơ Trường học': SchoolProfile,
   'Kế hoạch tập huấn': SchoolTrainingPlans,
-  'Lịch tập huấn': TrainingSchedule,
-  'Bài giảng': TrainingLessons,
-  'Lớp học ảo': VirtualClass,
+  // Lớp học ảo (buổi trực tuyến) chuyển vào Lịch tập huấn; Bài giảng thành Học liệu tập huấn
+  'Lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Lịch tập huấn', TrainingSchedule], ['Lớp học ảo', VirtualClass]]} />,
+  'Học liệu tập huấn': trainingMaterialTabs(TrainingLessons),
   'Chứng chỉ': TrainingCertificatesPage,
   'Đánh giá kết quả tập huấn': TrainingResultsPage,
   'Năm học & học kỳ': Years,
@@ -445,7 +450,7 @@ const PLATFORM: PageMap = {
   'Tích hợp & dữ liệu': PlatformIntegrations,
   // 1. Đào tạo & đánh giá năng lực nhà giáo — làm lại theo khuôn Phân hệ 2 (kế hoạch: Chương trình → Kế hoạch & lịch → … → Giám sát)
   'Chương trình tập huấn': TrainingProgramsPage,
-  'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch', PH1_TABS.cal], ['Giảng viên', PH1_TABS.trainers], ['Trường thực hiện', PH1_TABS.school]]} />,
+  'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch', PH1_TABS.cal], ['Lớp học ảo', PH1_TABS.virtual], ['Giảng viên', PH1_TABS.trainers], ['Trường thực hiện', PH1_TABS.school]]} />,
   'Giám sát tập huấn nhà giáo': (p: any) => <TabbedPages {...p} tabs={[['Theo kế hoạch', TrainingMonitorPage], ['Tổng quan theo trường', DeptTrainingMonitor]]} />,
   'Đánh giá kết quả tập huấn': TrainingResultsPage,
   // 2. Chương trình & học liệu
@@ -494,7 +499,7 @@ const PLATFORM: PageMap = {
   'Bài tập & chấm bài': SysHomework,
   'Phân phối chương trình': PlatformDistPage,
   'Soạn bài giảng & kho hoạt động': PlatformLessonsPage,
-  'Bài giảng tập huấn & lớp học ảo': (p: any) => <TabbedPages {...p} tabs={[['Bài giảng', PH1_TABS.lessons], ['Lớp học ảo', PH1_TABS.virtual]]} />,
+  'Học liệu tập huấn': trainingMaterialTabs(PH1_TABS.lessons),
   'Chứng chỉ tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Chứng chỉ', TrainingCertificatesPage], ['Mẫu chứng chỉ', CertTemplatesPage]]} />,
 }
 const PLATFORM_LIVE = new Set(Object.keys(PLATFORM))
@@ -506,6 +511,7 @@ const PLATFORM_ALIAS: Record<string, string> = {
   'KPI & Xếp hạng Xã/Phường': 'KPI & xếp hạng', 'Thiết bị & kho': 'Thiết bị & vật tư', 'Hiệu quả Phòng STEM': 'Hiệu quả sử dụng phòng STEM',
   'Dashboard điểm danh': 'Buổi dạy & điểm danh', 'Thời khoá biểu & xếp lịch': 'Thời khóa biểu & xếp lịch',
   'Đánh giá năng lực giáo viên': 'Đánh giá năng lực nhà giáo', 'Kế hoạch tập huấn': 'Kế hoạch & lịch tập huấn', 'Lịch tập huấn': 'Kế hoạch & lịch tập huấn',
+  'Bài giảng tập huấn & lớp học ảo': 'Học liệu tập huấn', 'Lớp học ảo': 'Kế hoạch & lịch tập huấn',
 }
 export const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM, parent: PARENT, judge: JUDGE }
 // Khi dev: mục menu không có trang (thường do sửa chuỗi mã trong NAV thay vì thêm LABEL — xem lib/nav.ts)

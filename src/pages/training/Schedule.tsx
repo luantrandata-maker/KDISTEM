@@ -50,7 +50,8 @@ async function planContents(planId: string) {
   return out
 }
 
-export function TrainingCalendarPage({ orgId }: { orgId: string }) {
+// online: tab Lớp học ảo — chỉ buổi trực tuyến (link họp, bản ghi)
+export function TrainingCalendarPage({ orgId, online = false }: { orgId: string; online?: boolean }) {
   const [plans, setPlans] = useState<Plan[] | null>(null)
   const [rows, setRows] = useState<Sess[]>([])
   const [att, setAtt] = useState<Att[]>([])
@@ -82,7 +83,7 @@ export function TrainingCalendarPage({ orgId }: { orgId: string }) {
 
   const now = Date.now()
   const pl = (id: string) => plans?.find(p => p.id === id)
-  const base = rows.filter(s => (!plan || s.plan_id === plan) && (!fo || pl(s.plan_id)?.org_id === fo))
+  const base = rows.filter(s => (!online || s.mode === 'online') && (!plan || s.plan_id === plan) && (!fo || pl(s.plan_id)?.org_id === fo))
   const shown = base.filter(s => !fs || sessSt(s, now) === fs)
   const n = (k: St) => base.filter(s => sessSt(s, now) === k).length
   const pend = att.filter(a => a.excuse_status === 'pending' && base.some(s => s.id === a.session_id)).length

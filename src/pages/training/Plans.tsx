@@ -26,7 +26,7 @@ type OrgSt = 'assigned' | 'submitted' | 'approved' | 'returned'
 export type TPlan = {
   id: string; org_id: string; plan_code: string | null; name: string; pub_status: Status; status: string; year_name: string | null; term: Term | null
   mode: Mode; provider: string | null; starts_on: string | null; ends_on: string | null; budget: number | null; note: string | null; hours: number | null
-  updated_at: string; published_at: string | null; self_register?: boolean; register_until?: string | null; node_id: string | null
+  updated_at: string; published_at: string | null; self_register?: boolean; register_until?: string | null; node_id: string | null; max_learners?: number | null
 }
 type Item = { plan_id: string; program_id: string; seq: number; quota: number | null; trainer: string | null; trainer_ids?: string[]; note: string | null; units?: string[] | null
   training_programs: { code: string; title: string; ct_code: string | null } | null }
@@ -35,14 +35,14 @@ type PUnit = { id: string; program_id: string; parent_id: string | null; kind: '
 type Prog = { id: string; code: string; title: string; ct_code: string | null; levels: string[] | null; hours: number; subjects: (PUnit & { contents: PUnit[] })[] }
 type Enr = { plan_id: string; teacher_id: string; source?: string; units?: string[] | null; exempt_units?: string[]; teachers: { full_name: string; subject: string | null; org_id: string } | null }
 type Reg = { plan_id: string; teacher_id: string; org_id: string; units: string[] | null; exempt_units: string[]; note: string | null; warnings: string[]
-  status: 'pending' | 'accepted' | 'rejected' | 'cancelled'; reason: string | null; created_at: string; teachers: { full_name: string; subject: string | null } | null }
-export const REG_ST: Record<Reg['status'], [string, string]> = { pending: ['Chờ trường xét', 'warn'], accepted: ['Đã nhận', 'good'], rejected: ['Không nhận', 'bad'], cancelled: ['Đã huỷ', ''] }
+  status: 'pending' | 'waitlist' | 'accepted' | 'rejected' | 'cancelled'; reason: string | null; created_at: string; teachers: { full_name: string; subject: string | null } | null }
+export const REG_ST: Record<Reg['status'], [string, string]> = { pending: ['Chờ trường xét', 'warn'], waitlist: ['Danh sách chờ', 'warn'], accepted: ['Đã nhận', 'good'], rejected: ['Không nhận', 'bad'], cancelled: ['Đã huỷ', ''] }
 const RSEL = 'plan_id, teacher_id, org_id, units, exempt_units, note, warnings, status, reason, created_at, teachers(full_name, subject)'
 
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
 const TERM: Record<Term, string> = { summer: 'Dịp hè', hk1: 'Học kỳ I', hk2: 'Học kỳ II', other: 'Khác' }
 export const ORG_ST: Record<OrgSt, [string, string]> = { assigned: ['Chờ trường chọn GV', ''], submitted: ['Chờ duyệt', 'warn'], approved: ['Đã duyệt', 'good'], returned: ['Trả lại', 'bad'] }
-const SEL = 'id, org_id, plan_code, name, pub_status, status, year_name, term, mode, provider, starts_on, ends_on, budget, note, hours, updated_at, published_at, self_register, register_until, node_id'
+const SEL = 'id, org_id, plan_code, name, pub_status, status, year_name, term, mode, provider, starts_on, ends_on, budget, note, hours, updated_at, published_at, self_register, register_until, node_id, max_learners'
 const errText = (m: string) => /schema cache|does not exist|column .* of relation/i.test(m) ? 'Hãy chạy migration 084 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Bạn không có quyền với kế hoạch tập huấn này.' : m
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
@@ -192,10 +192,11 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
 }
 
 // ===== Thông tin kế hoạch =====
-const BLANK = { name: '', year_name: '' as string, term: 'summer' as Term | '', mode: 'hybrid' as Mode, provider: '', starts_on: '', ends_on: '', budget: '' as string, note: '' }
+const BLANK = { name: '', year_name: '' as string, term: 'summer' as Term | '', mode: 'hybrid' as Mode, provider: '', starts_on: '', ends_on: '', budget: '' as string, note: '', max_learners: '' as string }
 type Info = typeof BLANK
 const toRow = (f: Info) => ({ name: f.name.trim(), year_name: f.year_name || null, term: f.term || null, mode: f.mode, provider: f.provider.trim() || null,
-  starts_on: f.starts_on || null, ends_on: f.ends_on || null, budget: f.budget === '' ? null : Math.max(0, Math.round(Number(f.budget) || 0)), note: f.note.trim() || null })
+  starts_on: f.starts_on || null, ends_on: f.ends_on || null, budget: f.budget === '' ? null : Math.max(0, Math.round(Number(f.budget) || 0)), note: f.note.trim() || null,
+  max_learners: f.max_learners === '' ? null : Math.max(1, Math.round(Number(f.max_learners) || 1)) })
 const badDates = (f: Info) => !!(f.starts_on && f.ends_on && f.ends_on < f.starts_on)
 
 function InfoFields({ f, set }: { f: Info; set: (f: Info) => void }) {
@@ -212,6 +213,7 @@ function InfoFields({ f, set }: { f: Info; set: (f: Info) => void }) {
     <label className="field"><span>Từ ngày</span><input type="date" value={f.starts_on} onChange={e => set({ ...f, starts_on: e.target.value })} /></label>
     <label className="field"><span>Đến ngày</span><input type="date" value={f.ends_on} onChange={e => set({ ...f, ends_on: e.target.value })} /></label>
     <label className="field"><span>Kinh phí dự kiến (đồng)</span><input type="number" min={0} step={100000} value={f.budget} onChange={e => set({ ...f, budget: e.target.value })} /></label>
+    <label className="field"><span>Số lượng tối đa (GV, cả kế hoạch)</span><input type="number" min={1} value={f.max_learners} onChange={e => set({ ...f, max_learners: e.target.value })} placeholder="Để trống = không giới hạn" /></label>
     <label className="field" style={{ gridColumn: '1/-1' }}><span>Ghi chú</span><textarea rows={2} maxLength={2000} value={f.note} onChange={e => set({ ...f, note: e.target.value })} /></label>
     {badDates(f) && <p className="warnline" style={{ gridColumn: '1/-1' }}>Ngày kết thúc phải sau ngày bắt đầu.</p>}
   </div>
@@ -282,7 +284,7 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
     const x = a.data as TPlan, os = (c.data as POrg[]) ?? []
     setP(x); setItems((b.data as unknown as Item[]) ?? []); setOrgs(os); setEnr((d.data as unknown as Enr[]) ?? []); setRegs((r.data as unknown as Reg[]) ?? [])
     setF({ name: x.name, year_name: x.year_name ?? '', term: x.term ?? '', mode: x.mode, provider: x.provider ?? '', starts_on: x.starts_on ?? '', ends_on: x.ends_on ?? '',
-      budget: x.budget == null ? '' : String(x.budget), note: x.note ?? '' })
+      budget: x.budget == null ? '' : String(x.budget), note: x.note ?? '', max_learners: x.max_learners == null ? '' : String(x.max_learners) })
     if (os.length) {
       const { data } = await supabase.from('organizations').select('id, name').in('id', os.map(o => o.org_id))
       setNames(new Map(((data ?? []) as { id: string; name: string }[]).map(o => [o.id, o.name])))
@@ -396,7 +398,7 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
       {([[1, 'Chọn chương trình', `${items.length} chương trình · ${num(totalHours)} giờ`],
         [2, 'Xếp lịch', items.length ? `${scheduled}/${sched.rows.length} buổi đã xếp` : 'Chưa có nội dung'],
         [3, 'Xem kết quả', `${new Set(sched.rows.filter(r => r.date).map(r => r.date)).size} ngày · ${scErr.length ? scErr.length + ' lỗi' : sc.length + ' lưu ý'}`],
-        [4, 'Gán trường & giáo viên', p.pub_status === 'draft' ? 'Sau khi phát hành' : `${orgs.length} trường · ${enr.length} GV`],
+        [4, 'Gán trường & giáo viên', p.pub_status === 'draft' ? 'Sau khi phát hành' : `${orgs.length} trường · ${enr.length}${p.max_learners ? `/${p.max_learners}` : ''} GV`],
         [5, 'Kết quả & chứng chỉ', p.pub_status === 'draft' ? 'Sau khi phát hành' : 'Chấm điểm, kết luận, cấp chứng chỉ']] as [Step, string, string][]).map(([k, t, sub]) =>
         <li key={k}><button type="button" className={step === k ? 'on' : ''} aria-current={step === k ? 'step' : undefined} onClick={() => setStep(k)}>
           <i>{k}</i><span><b>{t}</b><small>{sub}</small></span></button></li>)}
@@ -417,6 +419,7 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
           <dt>Hình thức</dt><dd>{MODE[p.mode] ?? p.mode}</dd>
           <dt>Đơn vị tập huấn</dt><dd>{p.provider || '—'}</dd>
           <dt>Kinh phí dự kiến</dt><dd>{money(p.budget)}</dd>
+          <dt>Số lượng tối đa</dt><dd>{p.max_learners ? `${p.max_learners} giáo viên` : 'Không giới hạn'}</dd>
           {p.note && <><dt>Ghi chú</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{p.note}</dd></>}
         </dl>}
       </details>
@@ -464,6 +467,11 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
     </>}
     {step === 4 && (p.pub_status === 'draft' ? <p className="sub">Phát hành kế hoạch ở bước 3 trước, rồi gán trường và mở cho giáo viên đăng ký.</p> : <div style={{ display: 'grid', gap: 12 }}>
       <SelfRegister p={p} can={can} regs={regs} onSave={(v, ok) => run(supabase.from('training_plans').update(v).eq('id', p.id), ok)} />
+      <Capacity p={p} can={can} enr={enr.length} regs={regs} orgs={orgs} names={names}
+        onSave={v => run(supabase.from('training_plans').update({ max_learners: v }).eq('id', p.id), v ? `Đã đặt số lượng tối đa ${v} giáo viên.` : 'Đã bỏ giới hạn số lượng.')}
+        onReview={(r, ok) => { const reason = ok ? null : prompt(`Lý do không nhận ${r.teachers?.full_name ?? 'giáo viên'} (giáo viên sẽ nhận được thông báo):`)
+          if (!ok && !reason?.trim()) return
+          run(supabase.rpc('training_registration_review', { p_plan: r.plan_id, p_teacher: r.teacher_id, p_accept: ok, p_reason: reason }), ok ? `Đã nhận ${r.teachers?.full_name ?? 'giáo viên'} từ danh sách chờ.` : 'Đã từ chối và báo cho giáo viên.') }} />
       {can && p.pub_status === 'published' && <DirectAdd planId={p.id} enr={enr} onDone={m => { setMsg(m); load() }} />}
       <section className="panel" style={{ display: 'grid', gap: 12 }}>
         <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Trường được gán</h3>
@@ -479,7 +487,8 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
                 onBlur={e => { if ((e.target.value === '' ? null : Number(e.target.value)) !== o.quota && e.target.value !== '') setQuota(o, e.target.value) }} /> : o.quota ?? '—'}</td>
               <td><button type="button" className="linkbtn" onClick={() => setOpenOrg(openOrg === o.org_id ? null : o.org_id)}>{es.length} giáo viên {openOrg === o.org_id ? '▴' : '▾'}</button>
                 {over && <><br /><small className="warnline">Vượt chỉ tiêu</small></>}
-                {pend > 0 && <><br /><Chip tone="warn">{pend} GV đăng ký chờ trường xét</Chip></>}</td>
+                {pend > 0 && <><br /><Chip tone="warn">{pend} GV đăng ký chờ trường xét</Chip></>}
+                {o.quota != null && !over && es.length + pend >= o.quota && <><br /><small className="sub">Đủ chỉ tiêu</small></>}</td>
               <td><Chip tone={ORG_ST[o.status][1]}>{ORG_ST[o.status][0]}</Chip>
                 {o.status === 'returned' && o.note && <><br /><small className="sub">Lý do: {o.note}</small></>}
                 {o.submitted_at && o.status === 'submitted' && <><br /><small className="sub">Gửi {new Date(o.submitted_at).toLocaleDateString('vi-VN')}</small></>}</td>
@@ -623,7 +632,7 @@ function SelfRegister({ p, can, regs, onSave }: { p: TPlan; can: boolean; regs: 
   if (!can && !p.self_register) return null
   return <section className="panel" style={{ display: 'grid', gap: 10 }}>
     <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Giáo viên tự đăng ký</h3>
-      {p.self_register && <small className="sub">{regs.length} lượt đăng ký · {n('pending')} chờ trường xét · {n('accepted')} đã nhận · {n('rejected')} không nhận</small>}</div>
+      {p.self_register && <small className="sub">{regs.length} lượt đăng ký · {n('pending')} chờ trường xét{n('waitlist') ? ` · ${n('waitlist')} trong danh sách chờ` : ''} · {n('accepted')} đã nhận · {n('rejected')} không nhận</small>}</div>
     {can ? <div className="tools" style={{ flexWrap: 'wrap', alignItems: 'end' }}>
       <label className="tpcheck"><input type="checkbox" checked={on} onChange={e => setOn(e.target.checked)} /> Cho giáo viên của trường được gán tự đăng ký, chọn nội dung muốn học</label>
       <label className="field" style={{ margin: 0 }}><span>Hạn đăng ký</span><input type="date" value={until} disabled={!on} onChange={e => setUntil(e.target.value)} /></label>
@@ -637,17 +646,60 @@ function SelfRegister({ p, can, regs, onSave }: { p: TPlan; can: boolean; regs: 
   </section>
 }
 
+// ===== Số lượng tối đa của cả kế hoạch, danh sách chờ (111) =====
+function Capacity({ p, can, enr, regs, orgs, names, onSave, onReview }: { p: TPlan; can: boolean; enr: number; regs: Reg[]; orgs: POrg[]; names: Map<string, string>
+  onSave: (v: number | null) => void; onReview: (r: Reg, ok: boolean) => void }) {
+  const [v, setV] = useState(p.max_learners == null ? '' : String(p.max_learners))
+  useEffect(() => { setV(p.max_learners == null ? '' : String(p.max_learners)) }, [p.max_learners])
+  const max = p.max_learners ?? null
+  const pend = regs.filter(r => r.status === 'pending').length
+  const used = enr + pend
+  const wait = regs.filter(r => r.status === 'waitlist').sort((a, b) => a.created_at.localeCompare(b.created_at))
+  const sumQuota = orgs.every(o => o.quota != null) ? orgs.reduce((a, o) => a + (o.quota ?? 0), 0) : null
+  const next = v === '' ? null : Math.max(1, Math.round(Number(v) || 1))
+  const pct = max ? Math.min(100, Math.round(used * 100 / max)) : 0
+  return <section className="panel" style={{ display: 'grid', gap: 10 }}>
+    <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Số lượng</h3>
+      <small className="sub">{max ? `${used}/${max} chỗ đã dùng` : `${used} giáo viên`} ({enr} có tên{pend ? `, ${pend} chờ trường xét` : ''}){wait.length ? ` · ${wait.length} trong danh sách chờ` : ''}</small></div>
+    {max != null && <div className="capbar" role="meter" aria-valuemin={0} aria-valuemax={max} aria-valuenow={used} aria-label="Chỗ đã dùng">
+      <i style={{ width: pct + '%' }} className={used >= max ? 'full' : pct >= 90 ? 'near' : ''} /></div>}
+    {can ? <div className="tools" style={{ flexWrap: 'wrap', alignItems: 'end' }}>
+      <label className="field" style={{ margin: 0 }}><span>Số lượng tối đa (GV, cả kế hoạch)</span>
+        <input type="number" min={1} value={v} onChange={e => setV(e.target.value)} placeholder="Không giới hạn" style={{ width: 170 }} /></label>
+      <button type="button" className="primary" disabled={next === max} onClick={() => onSave(next)}>Lưu</button>
+      {next != null && next < used && <small className="warnline">Thấp hơn số đã dùng ({used}): người đã có tên giữ nguyên, chỉ chặn đăng ký mới.</small>}
+    </div> : <p className="sub" style={{ margin: 0 }}>{max ? `Tối đa ${max} giáo viên cho cả kế hoạch.` : 'Không giới hạn số lượng cho cả kế hoạch.'}</p>}
+    {max != null && sumQuota != null && sumQuota > max && <small className="sub">Tổng chỉ tiêu các trường ({sumQuota}) lớn hơn số lượng tối đa ({max}): trường nào đăng ký trước được trước.</small>}
+    <small className="sub">Số đã dùng gồm giáo viên có tên và đăng ký đang chờ trường xét. Khi đủ, giáo viên được báo "Kế hoạch đã đủ số lượng" và có thể gửi đăng ký chờ;
+      đơn vị lập kế hoạch nhận thông báo lúc đạt 90% và 100%, và khi có chỗ trống mà còn người chờ. Chỉ tiêu từng trường (bảng bên dưới) vẫn áp dụng.</small>
+    {wait.length > 0 && <div className="wrap"><table className="libtable">
+      <thead><tr><th style={{ width: 40 }}>Thứ tự</th><th>Giáo viên</th><th>Trường</th><th>Gửi lúc</th>{can && <th></th>}</tr></thead>
+      <tbody>{wait.map((r, k) => <tr key={r.teacher_id}>
+        <td>{k + 1}</td>
+        <td><b>{r.teachers?.full_name ?? '—'}</b>{r.teachers?.subject && <small className="sub"> · {r.teachers.subject}</small>}</td>
+        <td>{names.get(r.org_id) ?? '…'}</td>
+        <td>{new Date(r.created_at).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}</td>
+        {can && <td><div className="tools"><button type="button" className="primary" disabled={max != null && used >= max} title={max != null && used >= max ? 'Chưa có chỗ trống' : undefined} onClick={() => onReview(r, true)}>Nhận</button>
+          <button type="button" onClick={() => onReview(r, false)}>Từ chối</button></div></td>}
+      </tr>)}</tbody>
+    </table></div>}
+  </section>
+}
+
 /** Trường xét đăng ký của giáo viên: nội dung chọn, đề nghị miễn, cảnh báo trùng lịch; nhận hoặc từ chối kèm lý do */
 function SchoolRegs({ regs, unitTitle, total, edit, onReview }: { regs: Reg[]; unitTitle: (id: string) => string; total: number; edit: boolean
   onReview: (r: Reg, ok: boolean) => void }) {
   const [all, setAll] = useState(false)
   if (!regs.length) return null
+  const open = (r: Reg) => r.status === 'pending' || r.status === 'waitlist'
   const pend = regs.filter(r => r.status === 'pending')
-  const shown = all ? [...regs].sort((a, b) => (a.status === 'pending' ? 0 : 1) - (b.status === 'pending' ? 0 : 1) || b.created_at.localeCompare(a.created_at)) : pend
+  const wait = regs.filter(r => r.status === 'waitlist').sort((a, b) => a.created_at.localeCompare(b.created_at))
+  const shown = all ? [...regs].sort((a, b) => (open(a) ? 0 : 1) - (open(b) ? 0 : 1) || b.created_at.localeCompare(a.created_at)) : [...pend, ...wait]
   return <section className="panel" style={{ display: 'grid', gap: 12 }}>
     <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Giáo viên tự đăng ký</h3>
-      <div className="tools"><small className="sub">{pend.length} chờ xét · {regs.length} lượt</small>
-        {regs.length > pend.length && <button type="button" className="linkbtn" onClick={() => setAll(!all)}>{all ? 'Chỉ hiện chờ xét' : 'Xem cả đã xử lý'}</button>}</div></div>
+      <div className="tools"><small className="sub">{pend.length} chờ xét{wait.length ? ` · ${wait.length} danh sách chờ` : ''} · {regs.length} lượt</small>
+        {regs.length > pend.length + wait.length && <button type="button" className="linkbtn" onClick={() => setAll(!all)}>{all ? 'Chỉ hiện chờ xét' : 'Xem cả đã xử lý'}</button>}</div></div>
+    {wait.length > 0 && <p className="sub" style={{ margin: 0 }}>Danh sách chờ: giáo viên đăng ký khi đã hết chỗ, xếp theo thứ tự gửi. Khi có chỗ trống (có người bị từ chối hoặc huỷ) thì nhận được.</p>}
     {pend.length > 0 && <p className="sub" style={{ margin: 0 }}>Nhận thì giáo viên có tên trong danh sách bên dưới (chỉ học nội dung đã chọn). Cần xử lý hết đăng ký chờ trước khi gửi danh sách.</p>}
     <div className="wrap"><table className="libtable">
       <thead><tr><th>Giáo viên</th><th>Nội dung đăng ký</th><th>Lưu ý</th><th>Trạng thái</th>{edit && <th></th>}</tr></thead>
@@ -658,8 +710,8 @@ function SchoolRegs({ regs, unitTitle, total, edit, onReview }: { regs: Reg[]; u
             {r.exempt_units.length > 0 && <><br /><small className="sub">Đề nghị miễn (đã đạt trước đây): {r.exempt_units.map(unitTitle).join('; ')}</small></>}</td>
           <td style={{ whiteSpace: 'normal' }}>{r.note && <small>“{r.note}”<br /></small>}{r.warnings.map((w, k) => <small key={k} className="warnline" style={{ display: 'block' }}>{w}</small>)}
             {!r.note && !r.warnings.length && <small className="sub">—</small>}</td>
-          <td><Chip tone={REG_ST[r.status][1]}>{REG_ST[r.status][0]}</Chip>{r.reason && r.status === 'rejected' && <><br /><small className="sub">{r.reason}</small></>}</td>
-          {edit && <td>{r.status === 'pending' && <div className="tools"><button type="button" className="primary" onClick={() => onReview(r, true)}>Nhận</button>
+          <td><Chip tone={REG_ST[r.status][1]}>{REG_ST[r.status][0]}{r.status === 'waitlist' ? ` · thứ ${wait.indexOf(r) + 1}` : ''}</Chip>{r.reason && r.status === 'rejected' && <><br /><small className="sub">{r.reason}</small></>}</td>
+          {edit && <td>{open(r) && <div className="tools"><button type="button" className="primary" onClick={() => onReview(r, true)}>Nhận</button>
             <button type="button" onClick={() => onReview(r, false)}>Từ chối</button></div>}</td>}
         </tr> })}</tbody>
     </table></div>

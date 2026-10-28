@@ -8,19 +8,22 @@ import { NoTeacher, type TProps } from './common'
 
 type Row = { plan_id: string; plan_code: string | null; name: string; org_name: string | null; year_name: string | null; starts_on: string | null; ends_on: string | null
   mode: string; provider: string | null; register_until: string | null; programs: string | null; hours: number | null; quota: number | null; taken: number
-  list_status: string; reg_status: 'pending' | 'accepted' | 'rejected' | 'cancelled' | null; reg_reason: string | null; reg_units: string[] | null
-  reg_exempt: string[] | null; reg_warnings: string[] | null; reg_at: string | null; enrolled: boolean }
+  list_status: string; reg_status: 'pending' | 'waitlist' | 'accepted' | 'rejected' | 'cancelled' | null; reg_reason: string | null; reg_units: string[] | null
+  reg_exempt: string[] | null; reg_warnings: string[] | null; reg_at: string | null; enrolled: boolean
+  max_learners: number | null; plan_taken: number | null; wait_pos: number | null }
 type U = { unit_id: string; ord: number; program_title: string; subject: string; title: string; hours: number; mode: string | null; passed: boolean; trainer: string | null }
-type Check = { errors: string[]; warnings: string[] }
+type Check = { errors: string[]; warnings: string[]; full?: string[] }
 const MODE: Record<string, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
 const day = (d: string | null) => d ? new Date(d + 'T00:00').toLocaleDateString('vi-VN') : ''
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 const today = () => { const d = new Date(); return new Date(+d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10) }
-const errText = (m: string) => /schema cache|does not exist|function .* not found/i.test(m) ? 'Hãy chạy migration 098 trên Supabase.' : m
+const errText = (m: string) => /schema cache|does not exist|function .* not found/i.test(m) ? 'Hãy chạy migration 111 trên Supabase.' : m
+const waiting = (r: Row) => r.reg_status === 'pending' || r.reg_status === 'waitlist'
 
 function status(r: Row): [string, string] {
   if (r.enrolled) return r.list_status === 'approved' ? ['Được duyệt tham gia', 'good'] : ['Có tên trong danh sách trường', 'good']
   if (r.reg_status === 'pending') return ['Chờ trường xét', 'warn']
+  if (r.reg_status === 'waitlist') return [`Danh sách chờ${r.wait_pos ? ` · thứ ${r.wait_pos}` : ''}`, 'warn']
   if (r.reg_status === 'rejected') return ['Không được nhận', 'bad']
   if (r.reg_status === 'cancelled') return ['Đã huỷ đăng ký', '']
   return ['Chưa đăng ký', '']
@@ -49,25 +52,25 @@ export function TeacherTrainingRegister({ teacherId }: TProps) {
   }
   return <>
     <div className="cards">
-      <div className="card"><strong>{n(r => isOpen(r) && !r.enrolled && r.reg_status !== 'pending')}</strong><span>Đang mở, chưa đăng ký</span></div>
-      <div className="card"><strong>{n(r => r.reg_status === 'pending')}</strong><span>Chờ trường xét</span></div>
+      <div className="card"><strong>{n(r => isOpen(r) && !r.enrolled && !waiting(r))}</strong><span>Đang mở, chưa đăng ký</span></div>
+      <div className="card"><strong>{n(waiting)}</strong><span>Chờ xét / danh sách chờ</span></div>
       <div className="card"><strong>{n(r => r.enrolled)}</strong><span>Có tên tham gia</span></div>
     </div>
     {ok && <p className="sub" role="status"><b>{ok}</b></p>}
     {err && <p className="msg" role="alert">{err}</p>}
     <div className="wrap" style={{ marginTop: 14 }}><table>
-      <thead><tr><th>Kế hoạch tập huấn</th><th>Thời gian</th><th>Hạn đăng ký</th><th>Chỉ tiêu trường</th><th>Trạng thái</th><th></th></tr></thead>
+      <thead><tr><th>Kế hoạch tập huấn</th><th>Thời gian</th><th>Hạn đăng ký</th><th>Số chỗ</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>{rows.map(r => { const [st, tone] = status(r), can = isOpen(r) && !r.enrolled
         return <tr key={r.plan_id}>
           <td style={{ whiteSpace: 'normal' }}><b>{r.name}</b><br /><small>{[r.plan_code, r.org_name, r.programs].filter(Boolean).join(' · ')}</small>
             {r.hours ? <><br /><small className="sub">{num(Number(r.hours))} giờ · {MODE[r.mode] ?? r.mode}</small></> : null}</td>
           <td>{[day(r.starts_on), day(r.ends_on)].filter(Boolean).join(' – ') || '—'}</td>
           <td>{r.register_until ? day(r.register_until) : '—'}{r.register_until && r.register_until < today() && <><br /><small className="sub">Đã hết hạn</small></>}</td>
-          <td>{r.quota != null ? `${r.taken}/${r.quota}` : `${r.taken} GV`}</td>
+          <td><Seats r={r} /></td>
           <td><Chip tone={tone}>{st}</Chip>{r.reg_status === 'rejected' && r.reg_reason && !r.enrolled && <><br /><small className="sub">Lý do: {r.reg_reason}</small></>}</td>
           <td style={{ whiteSpace: 'nowrap' }}>
-            {can && r.reg_status !== 'pending' && <button type="button" className="primary" onClick={() => { setOk(''); setOpen(r.plan_id) }}>{r.reg_status ? 'Đăng ký lại' : 'Đăng ký'}</button>}
-            {can && r.reg_status === 'pending' && <><button type="button" onClick={() => { setOk(''); setOpen(r.plan_id) }}>Sửa</button> <button type="button" onClick={() => cancel(r)}>Huỷ</button></>}
+            {can && !waiting(r) && <button type="button" className="primary" onClick={() => { setOk(''); setOpen(r.plan_id) }}>{r.reg_status ? 'Đăng ký lại' : 'Đăng ký'}</button>}
+            {can && waiting(r) && <><button type="button" onClick={() => { setOk(''); setOpen(r.plan_id) }}>Sửa</button> <button type="button" onClick={() => cancel(r)}>Huỷ</button></>}
             {!can && !r.enrolled && <small className="sub">{r.list_status === 'submitted' || r.list_status === 'approved' ? 'Trường đã gửi danh sách' : 'Hết hạn đăng ký'}</small>}
           </td>
         </tr> })}
@@ -75,6 +78,16 @@ export function TeacherTrainingRegister({ teacherId }: TProps) {
     </table></div>
     <p className="sub" style={{ marginTop: 10 }}>Chọn nội dung muốn học rồi gửi đăng ký. Trường xét và nhận hoặc từ chối (kèm lý do), bạn nhận thông báo ở chuông. Danh sách của trường sau đó được gửi lên đơn vị tổ chức duyệt.</p>
   </>
+}
+
+// Còn bao nhiêu chỗ: cả kế hoạch và chỉ tiêu của trường
+function Seats({ r }: { r: Row }) {
+  const plan = r.max_learners != null ? Math.max(0, r.max_learners - (r.plan_taken ?? 0)) : null
+  const school = r.quota != null ? Math.max(0, r.quota - r.taken) : null
+  const full = plan === 0 || school === 0
+  return <>{plan != null ? <span>Còn <b>{plan}</b>/{r.max_learners} chỗ</span> : <span>{r.plan_taken ?? r.taken} GV đã đăng ký</span>}
+    {school != null && <><br /><small className="sub">Trường: {r.taken}/{r.quota}</small></>}
+    {full && !r.enrolled && <><br /><Chip tone="bad">Đã đủ số lượng</Chip></>}</>
 }
 
 function RegisterView({ r, onBack, onDone }: { r: Row; onBack: () => void; onDone: (m: string) => void }) {
@@ -89,7 +102,7 @@ function RegisterView({ r, onBack, onDone }: { r: Row; onBack: () => void; onDon
     supabase.rpc('training_register_units', { p_plan: r.plan_id }).then(({ data, error }) => {
       if (error) return setErr(errText(error.message))
       const us = (data as U[]) ?? []; setUnits(us)
-      const pend = r.reg_status === 'pending'
+      const pend = waiting(r)
       setSel(new Set(pend && r.reg_units ? r.reg_units : us.map(u => u.unit_id)))
       // Mặc định đề nghị miễn nội dung đã đạt
       setEx(new Set(pend ? r.reg_exempt ?? [] : us.filter(u => u.passed).map(u => u.unit_id)))
@@ -106,22 +119,27 @@ function RegisterView({ r, onBack, onDone }: { r: Row; onBack: () => void; onDon
       .then(({ data, error }) => { if (error) setErr(errText(error.message)); else setChk(data as Check) }), 250)
     return () => clearTimeout(t)
   }, [units, pick.join(','), exempt.join(',')])
-  async function send() {
+  async function send(wait = false) {
     setBusy(true); setErr('')
-    const { error } = await supabase.rpc('training_register', { p_plan: r.plan_id, p_units: all ? null : pick, p_exempt: exempt, p_note: note.trim() || null })
+    const { data, error } = await supabase.rpc('training_register', { p_plan: r.plan_id, p_units: all ? null : pick, p_exempt: exempt, p_note: note.trim() || null, p_wait: wait })
     setBusy(false)
     if (error) return setErr(errText(error.message))
-    onDone(`Đã gửi đăng ký "${r.name}" (${learn.length} nội dung). Trường sẽ xét và báo lại cho bạn.`)
+    onDone(data === 'waitlist' ? `Đã vào danh sách chờ của "${r.name}". Khi có chỗ trống và được nhận, bạn sẽ nhận thông báo.`
+      : `Đã gửi đăng ký "${r.name}" (${learn.length} nội dung). Trường sẽ xét và báo lại cho bạn.`)
   }
   const groups = useMemo(() => { const m = new Map<string, U[]>(); (units ?? []).forEach(u => { const k = u.program_title + ' › ' + u.subject; m.set(k, [...(m.get(k) ?? []), u]) }); return [...m] }, [units])
   const hours = learn.reduce((a, u) => a + Number(u.hours || 0), 0)
   const blocked = !chk || chk.errors.length > 0 || !learn.length
+  const full = chk?.full ?? []
   return <ElView back="Đăng ký tập huấn" onBack={onBack} title={r.name}
     sub={<>{[r.plan_code, r.org_name, [day(r.starts_on), day(r.ends_on)].filter(Boolean).join(' – '), r.register_until && `hạn đăng ký ${day(r.register_until)}`].filter(Boolean).join(' · ')}</>}
-    actions={<button type="button" className="primary" disabled={busy || blocked} onClick={send}>{r.reg_status === 'pending' ? 'Lưu đăng ký' : 'Gửi đăng ký'}</button>}>
+    actions={full.length ? <button type="button" className="primary" disabled={busy || blocked} onClick={() => send(true)}>{r.reg_status === 'waitlist' ? 'Lưu đăng ký chờ' : 'Gửi đăng ký chờ'}</button>
+      : <button type="button" className="primary" disabled={busy || blocked} onClick={() => send()}>{r.reg_status === 'pending' ? 'Lưu đăng ký' : 'Gửi đăng ký'}</button>}>
     {err && <p className="msg">{err}</p>}
     {chk && chk.errors.length > 0 && <div className="panel" role="alert" style={{ display: 'grid', gap: 4 }}><b>Chưa đăng ký được</b>
       {chk.errors.map((e, k) => <span key={k} className="warnline">{e}</span>)}</div>}
+    {chk && !chk.errors.length && full.length > 0 && <div className="panel" role="alert" style={{ display: 'grid', gap: 4 }}><b>{full.join('. ')}</b>
+      <span className="sub">{r.reg_status === 'waitlist' ? `Bạn đang ở danh sách chờ${r.wait_pos ? `, thứ ${r.wait_pos}` : ''}.` : 'Bạn vẫn có thể gửi đăng ký chờ.'} Khi có người huỷ hoặc không được nhận, đơn vị tổ chức nhận người trong danh sách chờ theo thứ tự và bạn sẽ nhận thông báo.</span></div>}
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Nội dung muốn học</h3>
         <small className="sub">{learn.length}/{units?.length ?? 0} nội dung · {num(hours)} giờ{exempt.length ? ` · đề nghị miễn ${exempt.length}` : ''}</small></div>

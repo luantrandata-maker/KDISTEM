@@ -1996,3 +1996,8 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
 .main .tpganttbar.tick{width:6px;min-width:6px;margin-left:-3px;top:6px;bottom:6px}
 .main .tpganttbar.live{background:var(--bad)}
 span.namelink{cursor:default;text-decoration:none}
+/* Số lượng kế hoạch tập huấn (111) */
+.capbar{height:8px;border-radius:999px;background:var(--line);overflow:hidden}
+.capbar i{display:block;height:100%;background:var(--primary);border-radius:inherit}
+.capbar i.near{background:var(--warn-fg)}
+.capbar i.full{background:var(--bad)}

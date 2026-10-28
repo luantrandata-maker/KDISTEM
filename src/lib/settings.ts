@@ -44,12 +44,23 @@ export function layers<T>(s: Settings, key: string): { std: T | null; own: T | n
   return { std, own }
 }
 
+// Nhóm menu đã đổi tên (đổi thứ tự phân hệ 1 ↔ 2): tên đặt lại / thứ tự mục đã lưu theo tên cũ vẫn dùng được
+const RENAMED_GROUPS: Record<string, string> = {
+  '1. Đào tạo & đánh giá năng lực nhà giáo': '2. Đào tạo & đánh giá năng lực nhà giáo',
+  '2. Chương trình & học liệu': '1. Chương trình & học liệu',
+}
+function renameKeys<T>(m: Record<string, T> | undefined): Record<string, T> {
+  const out: Record<string, T> = {}
+  for (const [k, v] of Object.entries(m ?? {})) { const n = RENAMED_GROUPS[k]; if (!n) out[k] = v; else if (!(n in (m ?? {}))) out[n] = v }
+  return out
+}
+
 /** Menu hiệu lực của một cổng: mục trường đặt đè lên mặc định KDI. */
 export function menuOf(s: Settings, role: string): Required<MenuRole> {
   const { std, own } = layers<MenuCfg>(s, 'menu')
   const a = std?.[role] ?? {}, b = own?.[role] ?? {}
   return {
-    labels: { ...a.labels, ...b.labels }, groups: { ...a.groups, ...b.groups }, order: { ...a.order, ...b.order },
+    labels: { ...a.labels, ...b.labels }, groups: { ...renameKeys(a.groups), ...renameKeys(b.groups) }, order: { ...renameKeys(a.order), ...renameKeys(b.order) },
     hidden: [...new Set([...(a.hidden ?? []), ...(b.hidden ?? [])])],
   }
 }

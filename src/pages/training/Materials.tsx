@@ -51,7 +51,7 @@ function useData() {
         supabase.from('training_lessons').select('id, org_id, title, program_id, unit_id, status, content').order('title'),
       ])
       const e = p.error ?? u.error
-      if (e) setErr(/schema cache|does not exist/i.test(e.message) ? 'Hãy chạy các migration Phân hệ 1 trên Supabase.' : e.message)
+      if (e) setErr(/schema cache|does not exist/i.test(e.message) ? 'Hãy chạy các migration Đào tạo & đánh giá năng lực nhà giáo trên Supabase.' : e.message)
       setD({ progs: (p.data as Prog[]) ?? [], units: ((u.data as Unit[]) ?? []).map(x => ({ ...x, hours: Number(x.hours) || 0 })).sort((a, b) => a.seq - b.seq),
         lessons: (l.data as Lesson[]) ?? [] })
     })()

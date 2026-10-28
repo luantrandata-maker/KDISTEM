@@ -32,6 +32,7 @@ function alertsOf(r: Row): Alert[] {
 const ALERT_ICON = { quota: '👥', att: '⏱', ready: '⚑' }
 const KINDS: [Alert['kind'], string][] = [['quota', 'Chưa đủ GV theo chỉ tiêu'], ['att', 'GV vắng nhiều'], ['ready', 'Sắp kết thúc, GV chưa đủ ĐK']]
 const OPEN_KEY = 'training.monitor.alerts'
+const SCHOOL_OPEN_KEY = 'training.monitor.schoolAlerts'
 
 // Gộp các dòng kế hoạch × trường thành một dòng mỗi trường
 type School = { org_id: string; org_name: string; rows: Row[]; enrolled: number; quota: number; att: number | null; low_att: number; passed: number; certs: number; alerts: Alert[] }
@@ -169,6 +170,8 @@ export function TrainingMonitorPage() {
 
 // Chi tiết một trường: số tổng quan, cảnh báo, từng kế hoạch được giao
 function SchoolDetail({ s, year, onClose }: { s: School; year: string; onClose: () => void }) {
+  const [open, setOpen] = useState(() => { try { return localStorage.getItem(SCHOOL_OPEN_KEY) !== '0' } catch { return true } })
+  const toggle = (v: boolean) => { setOpen(v); try { localStorage.setItem(SCHOOL_OPEN_KEY, v ? '1' : '0') } catch { /* bỏ qua */ } }
   return <Drawer title={<><b>{s.org_name}</b><br /><small className="sub">{s.rows.length} kế hoạch tập huấn được giao</small></>} onClose={onClose}>
     <div className="diststatcards four">
       <div className="panel"><span><b>{s.enrolled}/{s.quota}</b><small>GV đã chọn / chỉ tiêu</small></span></div>
@@ -177,9 +180,10 @@ function SchoolDetail({ s, year, onClose }: { s: School; year: string; onClose: 
       <div className="panel"><span><b>{s.certs}</b><small>Chứng chỉ đã cấp</small></span></div>
     </div>
     {s.alerts.length > 0 && <section className="monalerts" style={{ marginTop: 14 }}>
-      <h3 style={{ margin: 0 }}>Cảnh báo ({s.alerts.length})</h3>
-      <ul>{s.alerts.map((a, i) => <li key={i} className={a.kind}><span aria-hidden="true">{ALERT_ICON[a.kind]}</span>
-        <span>{a.text}<br /><small className="sub">{a.row.plan_code} · {a.row.plan_name}</small></span></li>)}</ul>
+      <div className="monhead"><h3 style={{ margin: 0 }}>Cảnh báo ({s.alerts.length})</h3><AlertCounts alerts={s.alerts} />
+        <button type="button" className="linkbtn" aria-expanded={open} onClick={() => toggle(!open)}>{open ? 'Thu gọn ▴' : 'Mở rộng ▾'}</button></div>
+      {open && <ul>{s.alerts.map((a, i) => <li key={i} className={a.kind}><span aria-hidden="true">{ALERT_ICON[a.kind]}</span>
+        <span>{a.text}<br /><small className="sub">{a.row.plan_code} · {a.row.plan_name}</small></span></li>)}</ul>}
     </section>}
     <h3 style={{ margin: '16px 0 8px' }}>Theo từng kế hoạch</h3>
     <div className="wrap"><table className="libtable">

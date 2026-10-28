@@ -20,13 +20,15 @@ const EVENT: Record<string, string> = {
   ph1: 'lượt GV có mặt tập huấn', ph2: 'bài giảng, hoạt động, bài tự học được soạn/giao', ph3: 'phiếu mượn + tiết dạy tại phòng STEM',
   ph4: 'tiết đã điểm danh', ph5: 'báo cáo Sở đã xuất',
 }
-// Nhóm menu của cổng nền tảng thuộc phân hệ nào (theo số đầu: "1." → ph1 …)
+// Nhóm menu của cổng nền tảng thuộc phân hệ nào (theo số đầu). Mã gói giữ nguyên khi đổi thứ tự phân hệ:
+// menu "1. Chương trình & học liệu" là gói ph2, "2. Đào tạo & đánh giá năng lực nhà giáo" là gói ph1 (112)
+const NUM_KEY: Record<string, string> = { '1': 'ph2', '2': 'ph1' }
 // Nhóm 5.3–5.6 là phần Sở/Trường tự quản (không thuộc gói PH5) nên không tính vào chức năng của PH5
 const phOf = (g: { title: string; section?: string }) => {
   const m = (g.section ?? g.title).match(/^(\d)\./)
   if (!m) return null
   if (m[1] === '5' && /^5\.[3-9]/.test(g.title)) return null
-  return 'ph' + m[1]
+  return NUM_KEY[m[1]] ?? 'ph' + m[1]
 }
 
 // ================= Phân hệ & mức sử dụng =================

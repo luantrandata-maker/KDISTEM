@@ -904,7 +904,7 @@ select pg_temp.chk('so_bn', 'Sở không nhập trường bằng hàm của KDI'
   'select platform_import_schools(''[{"code":"ISO-IMP2","name":"Trường thử ISO lỗi","parent_code":"SO-BN"}]''::jsonb)::text', 'ERR');
 
 -- ===== 19. 5 phân hệ, mức sử dụng, quyền mặc định (033) =====
-select pg_temp.chk('kdi', 'Danh mục phân hệ bán = 5 phân hệ', 'select string_agg(key, '','' order by sort) from service_modules', 'ph1,ph2,ph3,ph4,ph5');
+select pg_temp.chk('kdi', 'Danh mục phân hệ bán = 5 phân hệ (112: Chương trình & học liệu đứng đầu)', 'select string_agg(key, '','' order by sort) from service_modules', 'ph2,ph1,ph3,ph4,ph5');
 select pg_temp.chk('iso_admin', 'Phê duyệt là phần lõi: dùng được cả khi hợp đồng hết hạn', 'select org_has_module(my_org_id(), ''approvals'')::text', 'true');
 select pg_temp.chk('iso_admin', 'PH5 khoá theo gói khi hợp đồng hết hạn', 'select org_has_module(my_org_id(), ''governance'')::text', 'false');
 select pg_temp.chk('admin_ph', 'Đơn vị chưa có hợp đồng dùng được PH5', 'select org_has_module(my_org_id(), ''governance'')::text', 'true');

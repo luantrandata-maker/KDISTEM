@@ -1,7 +1,7 @@
 // Chương trình tập huấn › Đề kiểm tra và Khung đánh giá (109).
 // Đề kiểm tra: bài test từng nội dung (soạn trong nội dung) + đề cuối khoá rút câu theo ma trận chủ đề × mức độ.
 // Khung đánh giá: trọng số thành phần, điều kiện bắt buộc để đạt, thang xếp loại; dùng khi đánh giá kết quả và in chứng chỉ.
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ExamMatrix, matrixText, matrixTotal, useBankSubjects, type MRow } from '../../components/ExamMatrix'
 import type { Detail } from './Content'
@@ -26,12 +26,15 @@ export const defaultFrame = (p: Pick<Prog, 'pass_attendance' | 'need_product'>):
 type Save = (patch: Record<string, unknown>, ok: string) => Promise<boolean>
 
 // ===== Đề kiểm tra =====
-export function ProgramExams({ p, units, edit, onOpen, save }: { p: Prog; units: Unit[]; edit: boolean; onOpen: (unitId: string) => void; save: Save }) {
+export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: Prog; units: Unit[]; edit: boolean; onOpen: (unitId: string) => void; save: Save; autoStart?: boolean }) {
   const subjects = useBankSubjects(p.org_id)
   const fe = p.final_exam ?? null
   const [f, setF] = useState<FinalExam | null>(null)
   const tests = units.filter(u => u.kind === 'content' && u.has_test).sort((a, b) => (units.find(x => x.id === a.parent_id)?.seq ?? 0) - (units.find(x => x.id === b.parent_id)?.seq ?? 0) || a.seq - b.seq)
   const startEdit = () => setF(fe ? { ...fe, matrix: [...(fe.matrix ?? [])] } : { title: '', subject: subjects[0]?.subject ?? '', grade: null, matrix: [], minutes: 30, attempts: 2, pass: 5, shuffle: true })
+  // Mở từ "+ Thêm đề kiểm tra": vào thẳng form đề cuối khoá (một lần)
+  const [auto, setAuto] = useState(!!autoStart)
+  useEffect(() => { if (auto && edit) { setAuto(false); if (!f) startEdit() } }, [auto, edit])
   const total = f ? matrixTotal(f.matrix ?? []) + (f.qids?.length ?? 0) : 0
   async function saveFinal() {
     if (!f) return

@@ -6,6 +6,7 @@ import { downloadXlsx } from '../../lib/sheet'
 import { Chip } from '../dist/Editor'
 import { Bar } from './Competency'
 import { Drawer } from '../../components/Drawer'
+import { useAllOrgs, type ScopeOrg } from '../../components/OrgScope'
 
 type Row = { plan_id: string; plan_code: string | null; plan_name: string; plan_org: string | null; year_name: string | null; starts_on: string | null; ends_on: string | null
   org_id: string; org_name: string; quota: number | null; org_status: string; enrolled: number; sessions: number; sessions_closed: number
@@ -162,12 +163,12 @@ export function TrainingMonitorPage() {
             <td>{d == null ? <small className="sub">chưa đủ dữ liệu</small> : <Chip tone={d > 0 ? 'good' : d < 0 ? 'bad' : ''}>{d > 0 ? '+' : ''}{num(Math.round(d * 100) / 100)}</Chip>}</td></tr> })}</tbody>
       </table></div> : <small className="sub">Chưa có giáo viên Đạt khoá tập huấn có năng lực đích.</small>}
     </section>
-    {sel && <SchoolDetail s={sel} onClose={() => setSchool(null)} />}
+    {sel && <SchoolDetail s={sel} year={year} onClose={() => setSchool(null)} />}
   </>
 }
 
 // Chi tiết một trường: số tổng quan, cảnh báo, từng kế hoạch được giao
-function SchoolDetail({ s, onClose }: { s: School; onClose: () => void }) {
+function SchoolDetail({ s, year, onClose }: { s: School; year: string; onClose: () => void }) {
   return <Drawer title={<><b>{s.org_name}</b><br /><small className="sub">{s.rows.length} kế hoạch tập huấn được giao</small></>} onClose={onClose}>
     <div className="diststatcards four">
       <div className="panel"><span><b>{s.enrolled}/{s.quota}</b><small>GV đã chọn / chỉ tiêu</small></span></div>
@@ -193,5 +194,142 @@ function SchoolDetail({ s, onClose }: { s: School; onClose: () => void }) {
           {r.not_ready > 0 && <><br /><small className="warnline">{r.not_ready} GV chưa đủ ĐK</small></>}</td>
         <td>{r.certs}</td></tr>)}</tbody>
     </table></div>
+    <SchoolTeachers orgId={s.org_id} year={year} />
   </Drawer>
+}
+
+// Từng giáo viên của trường: chuyên cần, bài học, bài kiểm tra, sản phẩm, kết quả, chứng chỉ (113)
+type Metrics = { sessions: number; present: number; excused: number; att_pct: number | null; att_req: number; units: number; done: number
+  tests: number; tests_passed: number; need_product: boolean; product_status: string | null
+  ok_att: boolean; ok_tests: boolean; ok_units: boolean; ok_product: boolean; suggest: 'pass' | 'fail' }
+type TRow = { plan_id: string; plan_code: string | null; plan_name: string; teacher_id: string; teacher_name: string; metrics: Metrics; result: string | null; cert: boolean }
+const PROD: Record<string, string> = { submitted: 'đã nộp, chờ duyệt', accepted: 'đã duyệt', returned: 'bị trả lại' }
+const missing = (m: Metrics) => [!m.ok_att && 'chuyên cần', !m.ok_units && 'bài học', !m.ok_tests && 'bài kiểm tra', !m.ok_product && 'sản phẩm'].filter(Boolean).join(', ')
+function SchoolTeachers({ orgId, year }: { orgId: string; year: string }) {
+  const [rows, setRows] = useState<TRow[] | null>(null)
+  const [err, setErr] = useState('')
+  const [f, setF] = useState<'all' | 'att' | 'ready' | 'pass'>('all')
+  useEffect(() => {
+    supabase.rpc('training_monitor_teachers', { p_org: orgId, p_year: year || null }).then(({ data, error }) => {
+      if (error) setErr(/schema cache|does not exist|Could not find/i.test(error.message) ? 'Hãy chạy migration 113 trên Supabase để xem từng giáo viên.' : error.message)
+      setRows((data as TRow[]) ?? [])
+    })
+  }, [orgId, year])
+  const lowAtt = (r: TRow) => !r.metrics.ok_att
+  const notReady = (r: TRow) => r.result !== 'pass' && r.metrics.suggest !== 'pass'
+  const shown = (rows ?? []).filter(r => f === 'all' || (f === 'att' ? lowAtt(r) : f === 'ready' ? notReady(r) : r.result === 'pass'))
+  const n = (k: 'att' | 'ready' | 'pass') => (rows ?? []).filter(r => k === 'att' ? lowAtt(r) : k === 'ready' ? notReady(r) : r.result === 'pass').length
+  return <>
+    <h3 style={{ margin: '16px 0 8px' }}>Từng giáo viên{rows ? ` (${new Set(rows.map(r => r.teacher_id)).size})` : ''}</h3>
+    {err && <p className="msg" role="alert">{err}</p>}
+    {rows && rows.length > 0 && <div className="distfilter" style={{ marginBottom: 8 }}>{([['all', 'Tất cả', rows.length], ['att', 'Vắng nhiều', n('att')], ['ready', 'Chưa đủ điều kiện', n('ready')], ['pass', 'Đã Đạt', n('pass')]] as const)
+      .map(([k, l, c]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => setF(k)}>{l} ({c})</button>)}</div>}
+    {!rows ? <p className="sub">Đang tải…</p> : !rows.length ? <small className="sub">Trường chưa có giáo viên ghi danh.</small> : <div className="wrap"><table className="libtable">
+      <thead><tr><th>Giáo viên</th><th>Chuyên cần</th><th>Bài học</th><th>Kiểm tra</th><th>Kết quả</th></tr></thead>
+      <tbody>{shown.map(r => { const m = r.metrics
+        return <tr key={r.plan_id + r.teacher_id}>
+          <td><b>{r.teacher_name}</b><br /><small className="sub">{r.plan_code} · {r.plan_name}</small></td>
+          <td>{m.att_pct == null ? '—' : `${num(m.att_pct)}%`}<br /><small className={m.ok_att ? 'sub' : 'warnline'}>{m.present}/{m.sessions - m.excused} buổi · cần {m.att_req}%</small></td>
+          <td className={m.ok_units ? '' : 'warnline'}>{m.done}/{m.units}</td>
+          <td className={m.ok_tests ? '' : 'warnline'}>{m.tests ? `${m.tests_passed}/${m.tests}` : '—'}{m.need_product && <><br /><small className={m.ok_product ? 'sub' : 'warnline'}>Sản phẩm: {m.product_status ? PROD[m.product_status] ?? m.product_status : 'chưa nộp'}</small></>}</td>
+          <td>{r.result === 'pass' ? <Chip tone="good">Đạt{r.cert ? ' · có chứng chỉ' : ''}</Chip> : r.result === 'fail' ? <Chip tone="bad">Chưa đạt</Chip>
+            : m.suggest === 'pass' ? <Chip tone="good">Đủ điều kiện</Chip> : <small className="warnline">Thiếu: {missing(m)}</small>}</td>
+        </tr> })}
+        {!shown.length && <tr><td colSpan={5}><small className="sub">Không có giáo viên nào khớp.</small></td></tr>}</tbody>
+    </table></div>}
+  </>
+}
+
+// ===== Theo trường: gộp số liệu kế hoạch theo trường, phòng / huyện hoặc tỉnh =====
+type Level = 'school' | 'unit' | 'province'
+const LEVELS: [Level, string][] = [['school', 'Trường'], ['unit', 'Phòng / đơn vị quản lý'], ['province', 'Tỉnh']]
+function ancestors(orgs: ScopeOrg[] | null) {
+  const byId = new Map((orgs ?? []).map(o => [o.id, o]))
+  return (id: string) => {
+    let unit: ScopeOrg | null = null, prov: ScopeOrg | null = null
+    for (let o = byId.get(id)?.parent_id ? byId.get(byId.get(id)!.parent_id!) : undefined, k = 0; o && k < 20; o = o.parent_id ? byId.get(o.parent_id) : undefined, k++) {
+      if (o.type === 'province') { prov = o; break }
+      if (!unit && o.type !== 'school' && !o.is_platform) unit = o
+    }
+    return { unit, prov }
+  }
+}
+export function TrainingMonitorSchools() {
+  const [rows, setRows] = useState<Row[] | null>(null)
+  const [err, setErr] = useState('')
+  const [year, setYear] = useState('')
+  const [prov, setProv] = useState('')
+  const [level, setLevel] = useState<Level>('school')
+  const [group, setGroup] = useState<string | null>(null)
+  const [q, setQ] = useState('')
+  const [school, setSchool] = useState<string | null>(null)
+  const orgs = useAllOrgs()
+  useEffect(() => {
+    supabase.rpc('training_monitor', { p_year: null }).then(({ data, error }) => { if (error) setErr(errText(error.message)); setRows((data as Row[]) ?? []) })
+  }, [])
+  const anc = useMemo(() => ancestors(orgs), [orgs])
+  const yearsList = useMemo(() => [...new Set((rows ?? []).map(r => r.year_name).filter((y): y is string => !!y))].sort().reverse(), [rows])
+  const provs = useMemo(() => { const m = new Map<string, string>(); (rows ?? []).forEach(r => { const p = anc(r.org_id).prov; if (p) m.set(p.id, p.name) })
+    return [...m].sort((a, b) => a[1].localeCompare(b[1], 'vi')) }, [rows, anc])
+  const inScope = (rows ?? []).filter(r => (!year || r.year_name === year) && (!prov || anc(r.org_id).prov?.id === prov))
+  const schools = bySchool(inScope)
+  const keyOf = (s: School) => level === 'school' ? s.org_id : level === 'unit' ? (anc(s.org_id).unit?.id ?? '-') : (anc(s.org_id).prov?.id ?? '-')
+  const nameOf = (s: School) => level === 'school' ? s.org_name : level === 'unit' ? (anc(s.org_id).unit?.name ?? 'Chưa gắn đơn vị quản lý') : (anc(s.org_id).prov?.name ?? 'Chưa gắn tỉnh')
+  const gm = new Map<string, { key: string; name: string; list: School[] }>()
+  if (level !== 'school') schools.forEach(s => { const k = keyOf(s); const g = gm.get(k) ?? { key: k, name: nameOf(s), list: [] }; g.list.push(s); gm.set(k, g) })
+  const groups = [...gm.values()].sort((a, b) => a.name.localeCompare(b.name, 'vi'))
+  const list = schools.filter(s => (level === 'school' || group == null || keyOf(s) === group) && (!q || s.org_name.toLowerCase().includes(q.toLowerCase())))
+  const enrolled = schools.reduce((t, s) => t + s.enrolled, 0), quota = schools.reduce((t, s) => t + s.quota, 0)
+  const full = schools.filter(s => s.enrolled >= s.quota).length
+  const warn = schools.filter(s => s.alerts.length).length
+  const sel = school ? schools.find(s => s.org_id === school) : null
+  const agg = (l: School[]) => { const e = l.reduce((t, s) => t + s.enrolled, 0), qq = l.reduce((t, s) => t + s.quota, 0), p = l.reduce((t, s) => t + s.passed, 0)
+    const w = l.filter(s => s.att != null), wn = w.reduce((t, s) => t + s.enrolled, 0)
+    return { e, qq, p, att: wn ? Math.round(w.reduce((t, s) => t + (s.att ?? 0) * s.enrolled, 0) / wn) : null, c: l.reduce((t, s) => t + s.certs, 0), al: l.flatMap(s => s.alerts) } }
+  function excel() {
+    downloadXlsx(`giam-sat-theo-truong${year ? '-' + year : ''}`, [{ key: 's', label: 'Trường', width: 30 }, { key: 'u', label: 'Phòng / đơn vị quản lý', width: 26 }, { key: 'p', label: 'Tỉnh', width: 18 },
+      { key: 'k', label: 'Số kế hoạch' }, { key: 'n', label: 'GV đã chọn' }, { key: 'q', label: 'Chỉ tiêu' }, { key: 'a', label: 'Chuyên cần %' }, { key: 'la', label: 'GV vắng nhiều' },
+      { key: 'ps', label: 'GV Đạt' }, { key: 'c', label: 'Chứng chỉ' }, { key: 'w', label: 'Số cảnh báo' }],
+      list.map(s => [s.org_name, anc(s.org_id).unit?.name ?? '', anc(s.org_id).prov?.name ?? '', s.rows.length, s.enrolled, s.quota, s.att ?? '', s.low_att, s.passed, s.certs, s.alerts.length]), 'Theo trường')
+  }
+  return <>
+    <div className="diststatcards four">
+      <div className="panel"><i aria-hidden="true">🏫</i><span><b>{rows ? schools.length : '…'}</b><small>Trường được giao kế hoạch</small></span></div>
+      <div className="panel"><i aria-hidden="true" className={pct(enrolled, quota) >= 90 ? 'good' : 'warn'}>👥</i><span><b>{enrolled}{quota ? `/${quota}` : ''}</b><small>GV đã chọn / chỉ tiêu</small></span></div>
+      <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{full}</b><small>Trường đủ chỉ tiêu</small><small>{schools.length - full} trường còn thiếu</small></span></div>
+      <div className="panel"><i aria-hidden="true" className={warn ? 'warn' : 'good'}>!</i><span><b>{warn}</b><small>Trường có cảnh báo</small></span></div>
+    </div>
+    {err && <p className="msg" role="alert">{err}</p>}
+    <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
+      <div className="distfilter">
+        <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học"><option value="">Mọi năm học</option>{yearsList.map(y => <option key={y} value={y}>Năm học {y}</option>)}</select>
+        {provs.length > 0 && <select value={prov} onChange={e => { setProv(e.target.value); setGroup(null) }} aria-label="Tỉnh"><option value="">Mọi tỉnh</option>{provs.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>}
+        <input placeholder="Tìm trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm trường" />
+        <button type="button" onClick={excel} disabled={!list.length}>Xuất Excel</button>
+      </div>
+      <div className="distfilter"><small className="sub">Gộp theo</small>{LEVELS.map(([k, l]) => <button key={k} type="button" className={`distfchip${level === k ? ' on' : ''}`} onClick={() => { setLevel(k); setGroup(null) }}>{l}</button>)}</div>
+      {level !== 'school' && <div className="wrap"><table className="libtable">
+        <thead><tr><th>{level === 'unit' ? 'Phòng / đơn vị quản lý' : 'Tỉnh'}</th><th>Trường</th><th>GV / chỉ tiêu</th><th>Chuyên cần</th><th>Đạt</th><th>Chứng chỉ</th><th>Cảnh báo</th></tr></thead>
+        <tbody>{groups.map(g => { const a = agg(g.list)
+          return <tr key={g.key} className={`clickrow${group === g.key ? ' sel' : ''}`} tabIndex={0} aria-selected={group === g.key} onClick={() => setGroup(group === g.key ? null : g.key)}
+            onKeyDown={e => { if (e.key === 'Enter') setGroup(group === g.key ? null : g.key) }}>
+            <td><b>{g.name}</b></td><td>{g.list.length} <small className="sub">({g.list.filter(s => s.enrolled >= s.quota).length} đủ chỉ tiêu)</small></td>
+            <td><Bar v={pct(a.e, a.qq)} warnBelow={100} /> {a.e}/{a.qq}</td><td>{a.att == null ? '—' : `${a.att}%`}</td>
+            <td>{a.p} <small className="sub">({pct(a.p, a.e)}%)</small></td><td>{a.c}</td><td><AlertCounts alerts={a.al} /></td></tr> })}
+          {!groups.length && <tr><td colSpan={7}><small className="sub">{rows ? 'Chưa có số liệu.' : 'Đang tải…'}</small></td></tr>}</tbody>
+      </table></div>}
+      {level !== 'school' && <small className="sub">{group == null ? 'Bấm một dòng để xem các trường thuộc đơn vị đó.' : <>Đang xem trường của <b>{groups.find(g => g.key === group)?.name}</b> · <button type="button" className="linkbtn" onClick={() => setGroup(null)}>Xem mọi trường</button></>}</small>}
+      {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
+        <thead><tr><th>Trường</th><th>Kế hoạch</th><th>GV / chỉ tiêu</th><th>Chuyên cần</th><th>Đạt</th><th>Chứng chỉ</th><th>Cảnh báo</th></tr></thead>
+        <tbody>{list.map(s => <tr key={s.org_id} className="clickrow" tabIndex={0} onClick={() => setSchool(s.org_id)} onKeyDown={e => { if (e.key === 'Enter') setSchool(s.org_id) }}>
+          <td><b>{s.org_name}</b>{(anc(s.org_id).unit || anc(s.org_id).prov) && <><br /><small className="sub">{[anc(s.org_id).unit?.name, anc(s.org_id).prov?.name].filter(Boolean).join(' · ')}</small></>}</td>
+          <td>{s.rows.length}</td>
+          <td><Bar v={pct(s.enrolled, s.quota)} warnBelow={100} /> {s.enrolled}/{s.quota}</td>
+          <td>{s.att == null ? '—' : `${s.att}%`}{s.low_att > 0 && <><br /><small className="warnline">{s.low_att} GV vắng nhiều</small></>}</td>
+          <td>{s.passed} <small className="sub">({pct(s.passed, s.enrolled)}%)</small></td><td>{s.certs}</td><td><AlertCounts alerts={s.alerts} /></td></tr>)}
+          {!list.length && <tr><td colSpan={7}><small className="sub">{inScope.length ? 'Không có trường nào khớp.' : 'Chưa có kế hoạch tập huấn đã phát hành được giao cho trường.'}</small></td></tr>}</tbody>
+      </table></div>}
+    </section>
+    {sel && <SchoolDetail s={sel} year={year} onClose={() => setSchool(null)} />}
+  </>
 }

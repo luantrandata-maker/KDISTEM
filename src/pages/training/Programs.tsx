@@ -226,9 +226,9 @@ function ProgramForm({ admin, onBack, onSaved }: { admin: boolean; onBack: () =>
 
 // ===== Chi tiết: thông tin + môn & nội dung tập huấn =====
 export type PTab = 'info' | 'units' | 'exam' | 'eval' | 'versions' | 'assign'
-/** initialTab / initialContent: mở sẵn một tab hoặc một nội dung (VD: từ mục Kiểm tra & luyện tập); back: nhãn nút quay lại */
-export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab, initialContent, back = 'Chương trình tập huấn' }: { id: string; admin: boolean; go?: (page: string) => void; onBack: () => void; onOpen: (id: string) => void; onMsg: (m: [string, boolean]) => void
-  initialTab?: PTab; initialContent?: string | null; back?: string }) {
+/** initialTab / initialContent: mở sẵn một tab hoặc một nội dung (VD: từ mục Kiểm tra & luyện tập); startFinal: mở sẵn form đề cuối khoá; back: nhãn nút quay lại */
+export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab, initialContent, startFinal, back = 'Chương trình tập huấn' }: { id: string; admin: boolean; go?: (page: string) => void; onBack: () => void; onOpen: (id: string) => void; onMsg: (m: [string, boolean]) => void
+  initialTab?: PTab; initialContent?: string | null; startFinal?: boolean; back?: string }) {
   const [p, setP] = useState<TProgram | null>(null)
   const [units, setUnits] = useState<Unit[]>([])
   const [f, setF] = useState<Info | null>(null)
@@ -322,7 +322,7 @@ export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab
       <TrainingUnits programId={p.id} programTitle={p.title} programMode={p.mode} units={units} editable={edit} catalog={suggest}
         onReload={load} onMessage={(m, e) => setMsg([errText(m), !!e])} onOpen={setOpenC} />
     </section>}
-    {tab === 'exam' && <ProgramExams p={p} units={units} edit={edit} onOpen={setOpenC}
+    {tab === 'exam' && <ProgramExams p={p} units={units} edit={edit} onOpen={setOpenC} autoStart={startFinal}
       save={(patch, ok) => run(supabase.from('training_programs').update(patch).eq('id', p.id), ok)} />}
     {tab === 'eval' && <ProgramEvalFrame key={p.id + (p.eval_frame ? '1' : '0')} p={p} edit={edit} hasFinal={!!p.final_exam} hasTests={contents.some(u => u.has_test)}
       save={(patch, ok) => run(supabase.from('training_programs').update(patch).eq('id', p.id), ok)} />}

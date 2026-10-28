@@ -51,8 +51,9 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
   const [units, setUnits] = useState<TUnit[]>([])
   const [old, setOld] = useState(false)
   const [q, setQ] = useState('')
-  const [open, setOpen] = useState<{ id: string; unit: string | null } | null>(null)
+  const [open, setOpen] = useState<{ id: string; unit: string | null; final?: boolean } | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const [add, setAdd] = useState(false)
   const f = useMultiFilters()
   useEffect(() => {
     supabase.from('training_program_units').select('id, program_id, parent_id, title, seq, detail').eq('kind', 'content').eq('has_test', true)
@@ -81,7 +82,7 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
     return out
   }, [progs, units, subj])
 
-  if (open) return <ProgramDetail key={open.id + (open.unit ?? '')} id={open.id} admin={admin} go={go} back="Kiểm tra & luyện tập" initialTab="exam" initialContent={open.unit}
+  if (open) return <ProgramDetail key={open.id + (open.unit ?? '')} id={open.id} admin={admin} go={go} back="Kiểm tra & luyện tập" initialTab="exam" initialContent={open.unit} startFinal={open.final}
     onBack={() => { setOpen(null); setRk(k => k + 1) }} onOpen={id => setOpen({ id, unit: null })} onMsg={setMsg} />
 
   const statOf = (r: Row) => stats.find(s => s.kind === r.kind && s.ref === (r.kind === 'unit' ? r.unit!.id : r.prog.id))
@@ -106,11 +107,14 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
       <div className="tools"><MultiFilters defs={defs} f={f} count={`${shown.length}/${rows.length}`} />
         <input placeholder="Tìm đề, nội dung, chương trình…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đề" />
         <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện phiên bản cũ</label></div>
-      <div className="tools"><button type="button" onClick={() => downloadXlsx('De-kiem-tra-tap-huan', [{ key: 'p', label: 'Chương trình', width: 34 }, { key: 'v', label: 'Phiên bản', width: 14 },
+      <div className="tools"><button type="button" className="primary" onClick={() => { setMsg(null); setAdd(true) }}>+ Thêm đề kiểm tra</button>
+        <button type="button" onClick={() => downloadXlsx('De-kiem-tra-tap-huan', [{ key: 'p', label: 'Chương trình', width: 34 }, { key: 'v', label: 'Phiên bản', width: 14 },
         { key: 'k', label: 'Loại đề', width: 18 }, { key: 't', label: 'Đề / nội dung', width: 36 }, { key: 'c', label: 'Cấu hình', width: 50 }, { key: 'n', label: 'Lượt làm', width: 10 }, { key: 'a', label: 'Điểm TB', width: 10 }],
         shown.map(r => [`${r.prog.code} · ${r.prog.title}`, `v${r.prog.version_no} · ${STATUS[r.prog.status]?.[0]}`, KIND[r.kind][0], r.title, r.cfg, statOf(r)?.attempts ?? 0, statOf(r)?.avg_score ?? '']), 'Đề kiểm tra')}>Xuất Excel</button></div>
     </div>
-    <p className="sub">Bài test soạn trong từng nội dung, đề cuối khoá soạn theo ma trận ở tab Đề kiểm tra của chương trình. Bấm một dòng để mở và soạn; chương trình đã phát hành thì tạo phiên bản mới để sửa.</p>
+    <p className="sub">Bấm "+ Thêm đề kiểm tra" để chọn chương trình và loại đề: bài test của một nội dung hoặc đề cuối khoá (theo ma trận). Bấm một dòng để mở và soạn; chương trình đã phát hành thì tạo phiên bản mới để sửa.</p>
+    {add && progs && <AddExam progs={progs.filter(p => !OLD.includes(p.status))} onClose={() => setAdd(false)} onErr={m => setMsg([m, true])}
+      onGo={(id, unit) => { setAdd(false); setOpen(unit ? { id, unit } : { id, unit: null, final: true }) }} />}
     {(msg || err) && <p className={msg?.[1] || err ? 'msg' : 'sub'} role="status"><b>{err || msg?.[0]}</b></p>}
     {!progs ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
       <thead><tr><th>Đề kiểm tra</th><th>Loại</th><th>Cấu hình</th><th>Chương trình</th><th className="num">Lượt làm</th><th className="num">Điểm TB</th></tr></thead>
@@ -121,9 +125,61 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
           <td style={{ whiteSpace: 'normal' }}>{r.missing ? <small className="warnline">{r.cfg}</small> : <small>{r.cfg}</small>}</td>
           <td style={{ whiteSpace: 'normal' }}>{progLabel(r.prog)}</td>
           <td className="num">{s?.attempts ?? 0}</td><td className="num">{num(s?.avg_score)}</td></tr> })}
-        {!shown.length && <tr><td colSpan={6}><small className="sub">{rows.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có đề kiểm tra. Bật "Có bài test" ở nội dung hoặc thêm đề cuối khoá trong Chương trình tập huấn.'}</small></td></tr>}</tbody>
+        {!shown.length && <tr><td colSpan={6}><small className="sub">{rows.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có đề kiểm tra. Bấm "+ Thêm đề kiểm tra" để tạo.'}</small></td></tr>}</tbody>
     </table></div>}
   </>
+}
+
+/** Thêm đề kiểm tra: chọn chương trình, loại đề (bài test nội dung / đề cuối khoá) rồi mở chỗ soạn trong chương trình */
+const EDITABLE: Status[] = ['draft', 'rejected']
+function AddExam({ progs, onClose, onGo, onErr }: { progs: Prog[]; onClose: () => void; onGo: (id: string, unit: string | null) => void; onErr: (m: string) => void }) {
+  const sorted = [...progs].sort((a, b) => Number(EDITABLE.includes(b.status)) - Number(EDITABLE.includes(a.status)) || ord(a).localeCompare(ord(b)))
+  const [pid, setPid] = useState(sorted[0]?.id ?? '')
+  const [kind, setKind] = useState<'unit' | 'final'>('unit')
+  const [units, setUnits] = useState<{ id: string; parent_id: string | null; kind: string; seq: number; title: string; has_test: boolean }[] | null>(null)
+  const [uid, setUid] = useState('')
+  const [busy, setBusy] = useState(false)
+  const p = progs.find(x => x.id === pid)
+  const editable = !!p && EDITABLE.includes(p.status)
+  useEffect(() => {
+    setUnits(null); setUid('')
+    if (!pid) return
+    supabase.from('training_program_units').select('id, parent_id, kind, seq, title, has_test').eq('program_id', pid).then(({ data }) => setUnits((data as typeof units) ?? []))
+  }, [pid])
+  const subjects = (units ?? []).filter(u => u.kind === 'subject').sort((a, b) => a.seq - b.seq)
+  const contents = (units ?? []).filter(u => u.kind === 'content')
+  const cur = contents.find(u => u.id === uid)
+  async function go() {
+    if (!p) return
+    if (kind === 'final') return onGo(p.id, null)
+    if (!cur) return
+    if (!cur.has_test && editable) {
+      setBusy(true)
+      const { error } = await supabase.from('training_program_units').update({ has_test: true }).eq('id', cur.id)
+      setBusy(false)
+      if (error) { onErr(error.message); return onClose() }
+    }
+    onGo(p.id, cur.id)
+  }
+  return <Drawer onClose={onClose} title="Thêm đề kiểm tra">
+    <div style={{ display: 'grid', gap: 12 }}>
+      <label className="field"><span>Chương trình tập huấn *</span><select value={pid} onChange={e => setPid(e.target.value)}>
+        {sorted.map(x => <option key={x.id} value={x.id}>{x.code} · v{x.version_no} · {x.title} ({STATUS[x.status]?.[0]})</option>)}</select></label>
+      {p && !editable && <p className="warnline" style={{ margin: 0 }}>Chương trình đang ở trạng thái "{STATUS[p.status]?.[0]}": mở ra rồi bấm "Tạo phiên bản mới" để soạn đề.</p>}
+      <div className="field"><span>Loại đề</span>
+        <label><input type="radio" name="kind" checked={kind === 'unit'} onChange={() => setKind('unit')} /> Bài test của một nội dung <small className="sub">(chọn câu từ ngân hàng hoặc làm qua link)</small></label>
+        <label><input type="radio" name="kind" checked={kind === 'final'} onChange={() => setKind('final')} /> Đề cuối khoá <small className="sub">(rút ngẫu nhiên theo ma trận, làm sau khi học xong)</small></label></div>
+      {kind === 'unit' && <label className="field"><span>Nội dung *</span>
+        {!units ? <small className="sub">Đang tải…</small> : contents.length ? <select value={uid} onChange={e => setUid(e.target.value)}>
+          <option value="">— Chọn nội dung —</option>
+          {subjects.map(sj => <optgroup key={sj.id} label={sj.title}>{contents.filter(c => c.parent_id === sj.id).sort((a, b) => a.seq - b.seq)
+            .map(c => <option key={c.id} value={c.id}>{c.title}{c.has_test ? ' · đã có bài test' : ''}</option>)}</optgroup>)}
+        </select> : <small className="warnline">Chương trình chưa có nội dung nào.</small>}</label>}
+      {kind === 'unit' && cur && !cur.has_test && <small className="sub">{editable ? 'Nội dung sẽ được bật "Có bài test" rồi mở phần Bài kiểm tra để chọn câu hỏi.' : 'Nội dung chưa bật "Có bài test".'}</small>}
+      {kind === 'final' && p?.final_exam && <small className="sub">Chương trình đã có đề cuối khoá: mở ra để xem hoặc sửa.</small>}
+      <div className="formactions"><button type="button" className="primary" disabled={busy || !p || (kind === 'unit' && !cur)} onClick={go}>Mở để soạn</button></div>
+    </div>
+  </Drawer>
 }
 
 // ===== Tab 2: Đề luyện =====

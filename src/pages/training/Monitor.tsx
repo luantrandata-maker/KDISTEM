@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
 import { Chip } from '../dist/Editor'
 import { Bar } from './Competency'
+import { Drawer } from '../../components/Drawer'
 
 type Row = { plan_id: string; plan_code: string | null; plan_name: string; plan_org: string | null; year_name: string | null; starts_on: string | null; ends_on: string | null
   org_id: string; org_name: string; quota: number | null; org_status: string; enrolled: number; sessions: number; sessions_closed: number
@@ -28,6 +29,28 @@ function alertsOf(r: Row): Alert[] {
   return a
 }
 const ALERT_ICON = { quota: '👥', att: '⏱', ready: '⚑' }
+const KINDS: [Alert['kind'], string][] = [['quota', 'Chưa đủ GV theo chỉ tiêu'], ['att', 'GV vắng nhiều'], ['ready', 'Sắp kết thúc, GV chưa đủ ĐK']]
+const OPEN_KEY = 'training.monitor.alerts'
+
+// Gộp các dòng kế hoạch × trường thành một dòng mỗi trường
+type School = { org_id: string; org_name: string; rows: Row[]; enrolled: number; quota: number; att: number | null; low_att: number; passed: number; certs: number; alerts: Alert[] }
+function bySchool(rows: Row[]): School[] {
+  const m = new Map<string, Row[]>()
+  rows.forEach(r => m.set(r.org_id, [...(m.get(r.org_id) ?? []), r]))
+  return [...m.values()].map(rs => {
+    const enrolled = rs.reduce((s, r) => s + r.enrolled, 0)
+    const withAtt = rs.filter(r => r.att_pct != null && r.enrolled)
+    const attN = withAtt.reduce((s, r) => s + r.enrolled, 0)
+    return { org_id: rs[0].org_id, org_name: rs[0].org_name, rows: rs, enrolled, quota: rs.reduce((s, r) => s + (r.quota ?? r.enrolled), 0),
+      att: attN ? Math.round(withAtt.reduce((s, r) => s + Number(r.att_pct) * r.enrolled, 0) / attN) : null,
+      low_att: rs.reduce((s, r) => s + r.low_att, 0), passed: rs.reduce((s, r) => s + r.passed, 0), certs: rs.reduce((s, r) => s + r.certs, 0), alerts: rs.flatMap(alertsOf) }
+  }).sort((a, b) => b.alerts.length - a.alerts.length || a.org_name.localeCompare(b.org_name, 'vi'))
+}
+function AlertCounts({ alerts }: { alerts: Alert[] }) {
+  if (!alerts.length) return <small className="tlok">Không có</small>
+  return <span className="monkindmini">{KINDS.map(([k]) => { const n = alerts.filter(a => a.kind === k).length
+    return n ? <span key={k} className={k} title={KINDS.find(x => x[0] === k)?.[1]}>{ALERT_ICON[k]} {n}</span> : null })}</span>
+}
 
 export function TrainingMonitorPage() {
   const [rows, setRows] = useState<Row[] | null>(null)
@@ -36,6 +59,11 @@ export function TrainingMonitorPage() {
   const [f, setF] = useState<'all' | 'alert' | 'running' | 'done'>('all')
   const [q, setQ] = useState('')
   const [err, setErr] = useState('')
+  const [open, setOpen] = useState(() => { try { return localStorage.getItem(OPEN_KEY) !== '0' } catch { return true } })
+  const [kind, setKind] = useState<'' | Alert['kind']>('')
+  const [school, setSchool] = useState<string | null>(null)
+  const [allSchools, setAllSchools] = useState(false)
+  const toggle = (v: boolean) => { setOpen(v); try { localStorage.setItem(OPEN_KEY, v ? '1' : '0') } catch { /* bỏ qua */ } }
   useEffect(() => {
     supabase.rpc('training_monitor', { p_year: null }).then(({ data, error }) => { if (error) setErr(errText(error.message)); setRows((data as Row[]) ?? []) })
     supabase.rpc('training_competency_effect').then(({ data }) => setEff((data as Eff[]) ?? []))
@@ -52,6 +80,10 @@ export function TrainingMonitorPage() {
   const attRows = inYear.filter(r => r.att_pct != null)
   const attAvg = attRows.length ? Math.round(attRows.reduce((s, r) => s + Number(r.att_pct) * r.enrolled, 0) / Math.max(1, attRows.reduce((s, r) => s + r.enrolled, 0))) : null
   const plansN = new Set(inYear.map(r => r.plan_id)).size
+  const kindAlerts = alerts.filter(a => !kind || a.kind === kind)
+  const schools = bySchool(inYear)
+  const schoolsShown = schools.filter(s => !q || s.org_name.toLowerCase().includes(q.toLowerCase()))
+  const sel = school ? schools.find(s => s.org_id === school) : null
 
   function excel() {
     downloadXlsx(`giam-sat-tap-huan${year ? '-' + year : ''}`, [{ key: 'c', label: 'Mã KH' }, { key: 'p', label: 'Kế hoạch', width: 34 }, { key: 'u', label: 'Đơn vị lập' , width: 22 },
@@ -70,11 +102,32 @@ export function TrainingMonitorPage() {
     </div>
     {err && <p className="msg" role="alert">{err}</p>}
     {alerts.length > 0 && <section className="panel monalerts" style={{ marginTop: 14 }}>
-      <h3 style={{ margin: 0 }}>Cảnh báo ({alerts.length})</h3>
-      <ul>{alerts.slice(0, 12).map((a, i) => <li key={i} className={a.kind}><span aria-hidden="true">{ALERT_ICON[a.kind]}</span>
-        <span>{a.text}<br /><small className="sub">{a.row.plan_code} · {a.row.plan_name}</small></span></li>)}</ul>
-      {alerts.length > 12 && <button type="button" className="linkbtn" onClick={() => setF('alert')}>Xem cả {alerts.length} cảnh báo trong bảng</button>}
+      <div className="monhead">
+        <h3 style={{ margin: 0 }}>Cảnh báo ({alerts.length})</h3>
+        <div className="monkinds" role="group" aria-label="Lọc theo loại cảnh báo">{KINDS.map(([k, l]) => { const n = alerts.filter(a => a.kind === k).length
+          return <button key={k} type="button" className={`monkind ${k}${kind === k ? ' on' : ''}`} aria-pressed={kind === k} disabled={!n}
+            onClick={() => { setKind(kind === k ? '' : k); toggle(true) }}><span aria-hidden="true">{ALERT_ICON[k]}</span><b>{n}</b>{l}</button> })}</div>
+        <button type="button" className="linkbtn" aria-expanded={open} onClick={() => toggle(!open)}>{open ? 'Thu gọn ▴' : 'Mở rộng ▾'}</button>
+      </div>
+      {open && <><ul>{kindAlerts.slice(0, 12).map((a, i) => <li key={i} className={a.kind}><button type="button" onClick={() => setSchool(a.row.org_id)} title="Xem chi tiết trường">
+        <span aria-hidden="true">{ALERT_ICON[a.kind]}</span><span>{a.text}<br /><small className="sub">{a.row.plan_code} · {a.row.plan_name}</small></span></button></li>)}</ul>
+      {kindAlerts.length > 12 && <button type="button" className="linkbtn" onClick={() => setF('alert')}>Xem cả {kindAlerts.length} cảnh báo trong bảng</button>}</>}
     </section>}
+    <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+      <div className="monhead"><h3 style={{ margin: 0 }}>Tổng quan theo trường ({schools.length})</h3>
+        <small className="sub">Bấm vào một trường để xem chi tiết từng kế hoạch</small></div>
+      {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
+        <thead><tr><th>Trường</th><th>Kế hoạch</th><th>GV / chỉ tiêu</th><th>Chuyên cần</th><th>Đạt</th><th>Chứng chỉ</th><th>Cảnh báo</th></tr></thead>
+        <tbody>{(allSchools ? schoolsShown : schoolsShown.slice(0, 10)).map(s => <tr key={s.org_id} className="clickrow" tabIndex={0} onClick={() => setSchool(s.org_id)}
+          onKeyDown={e => { if (e.key === 'Enter') setSchool(s.org_id) }}>
+          <td><b>{s.org_name}</b></td><td>{s.rows.length}</td>
+          <td><Bar v={pct(s.enrolled, s.quota)} warnBelow={100} /> {s.enrolled}/{s.quota}</td>
+          <td>{s.att == null ? '—' : `${s.att}%`}{s.low_att > 0 && <><br /><small className="warnline">{s.low_att} GV vắng nhiều</small></>}</td>
+          <td>{s.passed} <small className="sub">({pct(s.passed, s.enrolled)}%)</small></td><td>{s.certs}</td><td><AlertCounts alerts={s.alerts} /></td></tr>)}
+          {!schoolsShown.length && <tr><td colSpan={7}><small className="sub">Không có trường nào khớp.</small></td></tr>}</tbody>
+      </table></div>}
+      {schoolsShown.length > 10 && <button type="button" className="linkbtn" onClick={() => setAllSchools(!allSchools)}>{allSchools ? 'Thu gọn' : `Xem cả ${schoolsShown.length} trường`}</button>}
+    </section>
     <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
       <div className="distfilter">
         <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học"><option value="">Mọi năm học</option>{yearsList.map(y => <option key={y} value={y}>Năm học {y}</option>)}</select>
@@ -87,7 +140,7 @@ export function TrainingMonitorPage() {
         <thead><tr><th>Kế hoạch</th><th>Trường</th><th>GV / chỉ tiêu</th><th>Buổi học</th><th>Chuyên cần</th><th>Học trực tuyến</th><th>Kết quả</th><th>Chứng chỉ</th></tr></thead>
         <tbody>{shown.map(r => { return <tr key={r.plan_id + r.org_id}>
           <td><b>{r.plan_name}</b><br /><small className="sub">{r.plan_code} · {r.plan_org} · {vnDate(r.starts_on)} – {vnDate(r.ends_on)}</small></td>
-          <td>{r.org_name}<br /><Chip tone={ORG_ST[r.org_status]?.[1]}>{ORG_ST[r.org_status]?.[0] ?? r.org_status}</Chip></td>
+          <td><button type="button" className="linkbtn" onClick={() => setSchool(r.org_id)}>{r.org_name}</button><br /><Chip tone={ORG_ST[r.org_status]?.[1]}>{ORG_ST[r.org_status]?.[0] ?? r.org_status}</Chip></td>
           <td>{r.quota != null ? <><Bar v={pct(r.enrolled, r.quota)} warnBelow={100} /> {r.enrolled}/{r.quota}</> : r.enrolled}</td>
           <td>{r.sessions_closed}/{r.sessions} <small className="sub">đã chốt</small></td>
           <td>{r.att_pct == null ? '—' : `${num(r.att_pct)}%`}{r.low_att > 0 && <><br /><small className="warnline">{r.low_att} GV vắng nhiều</small></>}</td>
@@ -109,5 +162,36 @@ export function TrainingMonitorPage() {
             <td>{d == null ? <small className="sub">chưa đủ dữ liệu</small> : <Chip tone={d > 0 ? 'good' : d < 0 ? 'bad' : ''}>{d > 0 ? '+' : ''}{num(Math.round(d * 100) / 100)}</Chip>}</td></tr> })}</tbody>
       </table></div> : <small className="sub">Chưa có giáo viên Đạt khoá tập huấn có năng lực đích.</small>}
     </section>
+    {sel && <SchoolDetail s={sel} onClose={() => setSchool(null)} />}
   </>
+}
+
+// Chi tiết một trường: số tổng quan, cảnh báo, từng kế hoạch được giao
+function SchoolDetail({ s, onClose }: { s: School; onClose: () => void }) {
+  return <Drawer title={<><b>{s.org_name}</b><br /><small className="sub">{s.rows.length} kế hoạch tập huấn được giao</small></>} onClose={onClose}>
+    <div className="diststatcards four">
+      <div className="panel"><span><b>{s.enrolled}/{s.quota}</b><small>GV đã chọn / chỉ tiêu</small></span></div>
+      <div className="panel"><span><b>{s.att == null ? '—' : `${s.att}%`}</b><small>Chuyên cần</small><small>{s.low_att} GV vắng nhiều</small></span></div>
+      <div className="panel"><span><b>{s.passed}</b><small>GV Đạt · {pct(s.passed, s.enrolled)}%</small></span></div>
+      <div className="panel"><span><b>{s.certs}</b><small>Chứng chỉ đã cấp</small></span></div>
+    </div>
+    {s.alerts.length > 0 && <section className="monalerts" style={{ marginTop: 14 }}>
+      <h3 style={{ margin: 0 }}>Cảnh báo ({s.alerts.length})</h3>
+      <ul>{s.alerts.map((a, i) => <li key={i} className={a.kind}><span aria-hidden="true">{ALERT_ICON[a.kind]}</span>
+        <span>{a.text}<br /><small className="sub">{a.row.plan_code} · {a.row.plan_name}</small></span></li>)}</ul>
+    </section>}
+    <h3 style={{ margin: '16px 0 8px' }}>Theo từng kế hoạch</h3>
+    <div className="wrap"><table className="libtable">
+      <thead><tr><th>Kế hoạch</th><th>GV / chỉ tiêu</th><th>Chuyên cần</th><th>Kết quả</th><th>Chứng chỉ</th></tr></thead>
+      <tbody>{s.rows.map(r => <tr key={r.plan_id}>
+        <td><b>{r.plan_name}</b><br /><small className="sub">{r.plan_code} · {vnDate(r.starts_on)} – {vnDate(r.ends_on)}</small><br />
+          <small className="sub">Buổi đã chốt {r.sessions_closed}/{r.sessions} · Học trực tuyến {r.online_done}/{r.enrolled}</small><br />
+          <Chip tone={ORG_ST[r.org_status]?.[1]}>{ORG_ST[r.org_status]?.[0] ?? r.org_status}</Chip></td>
+        <td style={{ whiteSpace: 'nowrap' }}>{r.quota != null ? <><Bar v={pct(r.enrolled, r.quota)} warnBelow={100} /> {r.enrolled}/{r.quota}</> : r.enrolled}</td>
+        <td>{r.att_pct == null ? '—' : `${num(r.att_pct)}%`}{r.low_att > 0 && <><br /><small className="warnline">{r.low_att} GV vắng nhiều</small></>}</td>
+        <td><span className="tlok" style={{ whiteSpace: 'nowrap' }}>{r.passed} Đạt</span>{r.failed > 0 && <><br /><small className="warnline">{r.failed} chưa đạt</small></>}
+          {r.not_ready > 0 && <><br /><small className="warnline">{r.not_ready} GV chưa đủ ĐK</small></>}</td>
+        <td>{r.certs}</td></tr>)}</tbody>
+    </table></div>
+  </Drawer>
 }

@@ -1838,6 +1838,15 @@ a.namelink:hover{color:var(--primary)}
 .monalerts{display:grid;gap:8px}.monalerts ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 .monalerts li{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:8px;background:var(--warn-bg);color:var(--warn-fg)}
 .monalerts li.att{background:var(--bad-bg);color:var(--bad-fg)}.monalerts li small{color:inherit;opacity:.8}
+.monalerts li>button{all:unset;display:flex;gap:10px;align-items:flex-start;flex:1;cursor:pointer}
+.monalerts li>button:focus-visible{outline:2px solid var(--primary);outline-offset:4px;border-radius:4px}
+.monhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.monhead>.sub{margin:0}.monhead>.linkbtn{margin-left:auto}
+.monkinds{display:flex;gap:6px;flex-wrap:wrap}
+.monkind{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:3px 10px;font-size:13px;cursor:pointer;color:var(--text)}
+.monkind b{font-size:14px}.monkind.on{border-color:var(--primary);background:#e6f1fd;color:var(--primary)}.monkind:disabled{opacity:.5;cursor:default}
+.monkindmini{display:inline-flex;gap:6px;flex-wrap:wrap}.monkindmini span{border-radius:99px;padding:0 7px;font-size:12px;background:var(--warn-bg);color:var(--warn-fg)}
+.monkindmini span.att{background:var(--bad-bg);color:var(--bad-fg)}
+tr.clickrow:focus-visible{outline:2px solid var(--primary)}
 
 /* Chọn nhiều bằng ô tick */
 .checkmain{margin-left:auto;font-size:11px;font-weight:600;color:var(--ok-fg);background:var(--ok-bg);border-radius:99px;padding:0 7px}

@@ -68,7 +68,7 @@ import { StudentSelfStudy } from './pages/student/SelfStudy'
 import { StudentAttendance } from './pages/student/Attendance'
 import { Holidays } from './pages/Holidays'
 import { TabbedPages } from './components/TabbedPages'
-import { DeptDashboard, DeptWardKpi, DeptSchools, DeptPrograms, DeptSubjects, DeptTrainingMonitor, DeptRoomEffect } from './pages/department/Overview'
+import { DeptDashboard, DeptWardKpi, DeptSchools, DeptPrograms, DeptSubjects, DeptRoomEffect } from './pages/department/Overview'
 const DeptAlerts = lazy(() => import('./pages/department/Governance').then(m => ({ default: m.DeptAlerts })))
 const DeptTargets = lazy(() => import('./pages/department/Governance').then(m => ({ default: m.DeptTargets })))
 import { DeptReports } from './pages/department/Reports'
@@ -129,6 +129,7 @@ const AssessmentRoundsPage = lazy(() => import('./pages/training/Competency').th
 const CompetencyGapsPage = lazy(() => import('./pages/training/Competency').then(m => ({ default: m.CompetencyGapsPage })))
 const CompetencyFrameworkPage = lazy(() => import('./pages/training/Competency').then(m => ({ default: m.CompetencyFrameworkPage })))
 const TrainingMonitorPage = lazy(() => import('./pages/training/Monitor').then(m => ({ default: m.TrainingMonitorPage })))
+const TrainingMonitorSchools = lazy(() => import('./pages/training/Monitor').then(m => ({ default: m.TrainingMonitorSchools })))
 const AllTeacherAssessments = (p: any) => <SchoolTeacherAssessments {...p} orgId={null} readOnly />
 const SchoolCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Đánh giá', SchoolTeacherAssessments], ['Đợt đánh giá', AssessmentRoundsPage], ['Khoảng thiếu hụt', CompetencyGapsPage]]} />
 const AuthorityCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Kết quả đánh giá', AllTeacherAssessments], ['Đợt đánh giá', AssessmentRoundsPage], ['Khoảng thiếu hụt', CompetencyGapsPage]]} />
@@ -143,7 +144,7 @@ const PH1_TABS = {
 // Học liệu tập huấn (27/10): khuôn Học liệu của Phân hệ 2 — nội dung, bài giảng, link tài liệu, định mức vật tư, kho hoạt động
 // Giám sát tập huấn: một tab, chọn kiểu xem bằng nút (không thêm hàng tab thứ hai)
 function TrainingMonitorTabs(p: any) {
-  const views: [string, ComponentType<any>][] = [['Theo kế hoạch', TrainingMonitorPage], ['Theo trường', DeptTrainingMonitor], ['Trường thực hiện', PH1_TABS.school]]
+  const views: [string, ComponentType<any>][] = [['Theo kế hoạch', TrainingMonitorPage], ['Theo trường', TrainingMonitorSchools], ['Trường thực hiện', PH1_TABS.school]]
   const [i, setI] = useState(0)
   const V = views[i][1]
   return <>
@@ -403,7 +404,7 @@ const DEPARTMENT: PageMap = {
   'Dashboard điểm danh': AttendanceDashboard,
   'Chương trình CT1–CT5': DeptPrograms,
   'Theo dõi Môn học STEM': DeptSubjects,
-  'Giám sát Tập huấn GV': (p: any) => <TabbedPages {...p} tabs={[['Theo kế hoạch', TrainingMonitorPage], ['Tổng quan theo trường', DeptTrainingMonitor]]} />,
+  'Giám sát Tập huấn GV': (p: any) => <TabbedPages {...p} tabs={[['Theo kế hoạch', TrainingMonitorPage], ['Tổng quan theo trường', TrainingMonitorSchools]]} />,
   'Đánh giá năng lực nhà giáo': AuthorityCompetencyTabs,
   'Kế hoạch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', TrainingPlansPage], ['Giảng viên', TrainersPage]]} />,
   'Lịch tập huấn': TrainingCalendarPage,

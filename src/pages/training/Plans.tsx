@@ -852,7 +852,27 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
   </>
 }
 
-function SchoolPlanTeachers({ row, orgId, items, onBack, onMsg }: { row: Assigned; orgId: string; items: Item[]; onBack: () => void; onMsg: (m: [string, boolean]) => void }) {
+// Mở thẳng danh sách GV của một trường trong một kế hoạch (từ màn Giám sát)
+export function SchoolPlanWork({ planId, orgId, onBack }: { planId: string; orgId: string; onBack: (m?: [string, boolean]) => void }) {
+  const [row, setRow] = useState<Assigned | null>(null)
+  const [items, setItems] = useState<Item[]>([])
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    (async () => {
+      const [a, i] = await Promise.all([
+        supabase.from('training_plan_orgs').select(`plan_id, org_id, quota, status, note, submitted_at, decided_at, training_plans(${SEL})`).eq('plan_id', planId).eq('org_id', orgId).maybeSingle(),
+        supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, trainer_ids, note, units, training_programs(code, title, ct_code)').eq('plan_id', planId),
+      ])
+      if (a.error || !a.data || !(a.data as unknown as Assigned).training_plans) return setErr(a.error ? errText(a.error.message) : 'Không tìm thấy kế hoạch được giao cho trường này.')
+      setRow(a.data as unknown as Assigned); setItems((i.data as unknown as Item[]) ?? [])
+    })()
+  }, [planId, orgId])
+  if (err) return <><button type="button" className="distback" onClick={() => onBack()}>← Giám sát</button><p className="msg">{err}</p></>
+  if (!row) return <p className="sub">Đang tải…</p>
+  return <SchoolPlanTeachers row={row} orgId={orgId} items={items} backLabel="Giám sát" onBack={() => onBack()} onMsg={m => onBack(m)} />
+}
+
+function SchoolPlanTeachers({ row, orgId, items, onBack, onMsg, backLabel = 'Kế hoạch được giao' }: { row: Assigned; orgId: string; items: Item[]; onBack: () => void; onMsg: (m: [string, boolean]) => void; backLabel?: string }) {
   const p = row.training_plans!
   const progs = usePrograms()
   const [teachers, setTeachers] = useState<{ id: string; full_name: string; subject: string | null }[] | null>(null)
@@ -922,7 +942,7 @@ function SchoolPlanTeachers({ row, orgId, items, onBack, onMsg }: { row: Assigne
     load()
   }
   const pendN = regs.filter(r => r.status === 'pending').length
-  return <ElView back="Kế hoạch được giao" onBack={onBack} title={p.name}
+  return <ElView back={backLabel} onBack={onBack} title={p.name}
     sub={<>{p.plan_code} · <Chip tone={ORG_ST[row.status][1]}>{ORG_ST[row.status][0]}</Chip> · {chosen.size}{row.quota != null && ` / ${row.quota}`} giáo viên</>}
     actions={edit && <button type="button" className="primary" disabled={busy || !chosen.size || over || pendN > 0} title={pendN ? 'Xử lý hết đăng ký của giáo viên trước' : undefined} onClick={submit}>{row.status === 'returned' ? 'Gửi lại danh sách' : 'Gửi danh sách duyệt'}</button>}>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}

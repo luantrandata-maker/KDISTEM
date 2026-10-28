@@ -225,13 +225,16 @@ function ProgramForm({ admin, onBack, onSaved }: { admin: boolean; onBack: () =>
 }
 
 // ===== Chi tiết: thông tin + môn & nội dung tập huấn =====
-function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg }: { id: string; admin: boolean; go?: (page: string) => void; onBack: () => void; onOpen: (id: string) => void; onMsg: (m: [string, boolean]) => void }) {
+export type PTab = 'info' | 'units' | 'exam' | 'eval' | 'versions' | 'assign'
+/** initialTab / initialContent: mở sẵn một tab hoặc một nội dung (VD: từ mục Kiểm tra & luyện tập); back: nhãn nút quay lại */
+export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab, initialContent, back = 'Chương trình tập huấn' }: { id: string; admin: boolean; go?: (page: string) => void; onBack: () => void; onOpen: (id: string) => void; onMsg: (m: [string, boolean]) => void
+  initialTab?: PTab; initialContent?: string | null; back?: string }) {
   const [p, setP] = useState<TProgram | null>(null)
   const [units, setUnits] = useState<Unit[]>([])
   const [f, setF] = useState<Info | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
-  const [openC, setOpenC] = useState<string | null>(null)
-  const [tab, setTab] = useState<'info' | 'units' | 'exam' | 'eval' | 'versions' | 'assign'>('info')
+  const [openC, setOpenC] = useState<string | null>(initialContent ?? null)
+  const [tab, setTab] = useState<PTab>(initialTab ?? 'info')
   const { subjects } = useSubjects()
   const { byCode: tracks } = useStemTracks()
   const { name: levelName } = useEduLevels()
@@ -249,7 +252,7 @@ function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg }: { id: string; a
       objectives: x.objectives ?? '', entry_conditions: x.entry_conditions ?? '', outcomes: x.outcomes ?? '', prereq_families: x.prereq_families ?? [] })
   }
   useEffect(() => { load() }, [id])
-  if (!p || !f) return <ElView back="Chương trình tập huấn" onBack={onBack} title="Đang tải…">{msg && <p className="msg">{msg[0]}</p>}</ElView>
+  if (!p || !f) return <ElView back={back} onBack={onBack} title="Đang tải…">{msg && <p className="msg">{msg[0]}</p>}</ElView>
 
   const edit = admin && EDITABLE.includes(p.status)
   const subjs = units.filter(u => u.kind === 'subject').sort((a, b) => a.seq - b.seq)
@@ -277,12 +280,12 @@ function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg }: { id: string; a
   if (oc) {
     const sj = units.find(u => u.id === oc.parent_id)
     return <ContentDetail key={oc.id} title={oc.title} crumb={`${p.title} › ${sj?.title ?? ''}`} hours={Number(oc.hours)} detail={oc.detail ?? {}} editable={edit} hasTest={oc.has_test} passScore={p.pass_score}
-      onBack={() => setOpenC(null)} onSave={dd => run(supabase.from('training_program_units').update({ detail: dd }).eq('id', oc.id))} />
+      initialTab={initialContent === oc.id ? 'test' : undefined} onBack={() => setOpenC(null)} onSave={dd => run(supabase.from('training_program_units').update({ detail: dd }).eq('id', oc.id))} />
   }
   const warn = [!contents.length && 'chưa có nội dung tập huấn nào', p.pass_score != null && !contents.some(u => u.has_test) && 'có điều kiện điểm bài test nhưng chưa nội dung nào có bài test',
     subjs.some(s => !kids(s.id).length) && 'có môn chưa có nội dung'].filter(Boolean) as string[]
 
-  return <ElView back="Chương trình tập huấn" onBack={onBack} title={p.title}
+  return <ElView back={back} onBack={onBack} title={p.title}
     sub={<>{p.code} · v{p.version_no} · <Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip> · {subjs.length} môn · {contents.length} nội dung · {num(hours)} giờ</>}
     actions={admin && <>
       {p.status !== 'published' && p.status !== 'superseded' && <button type="button" onClick={() => setTab('versions')}>Duyệt & phát hành</button>}

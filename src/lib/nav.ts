@@ -29,7 +29,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Lõi · Tổ chức & quy trình', items: ['Cây tổ chức', 'Cơ sở triển khai', 'Người dùng & vai trò', 'Vai trò & quyền mặc định', 'Lời mời', 'Hộp phê duyệt', 'Quy trình phê duyệt', 'Thông báo'] },
     { title: 'Quản trị chung · Kỹ thuật & bảo mật', items: ['Tích hợp & dữ liệu', 'Ứng dụng di động & ngoại tuyến', 'Sao lưu & xuất dữ liệu', 'Bảo mật tài khoản', 'Điều khoản & dữ liệu cá nhân', 'Nhật ký hệ thống', 'Cấu hình chung (năm học)', 'Giao diện & thương hiệu', 'Trợ lý AI'] },
     // 5 phân hệ nghiệp vụ theo file rà soát menu (16/10, "Menu_STEM_ra_soat_chinh_sua.xlsx")
-    { title: '1. Đào tạo & đánh giá năng lực nhà giáo', items: ['Đánh giá năng lực nhà giáo', 'Chương trình tập huấn', 'Kế hoạch & lịch tập huấn', 'Học liệu tập huấn', 'Chứng chỉ tập huấn'] },
+    { title: '1. Đào tạo & đánh giá năng lực nhà giáo', items: ['Đánh giá năng lực nhà giáo', 'Chương trình tập huấn', 'Kế hoạch & lịch tập huấn', 'Học liệu tập huấn', 'Kiểm tra & luyện tập', 'Chứng chỉ tập huấn'] },
     { title: '2. Chương trình & học liệu', items: ['Chương trình giáo dục', 'Phân phối chương trình', 'Học liệu', 'Soạn bài giảng & kho hoạt động', 'E-learning & luyện thi'] },
     { section: '3. Vật tư, thiết bị dạy & học', title: '3.1. Thiết bị, vật tư & kho', items: ['Thiết bị & vật tư', 'Kho & tồn kho', 'Mua hàng & đề xuất vật tư', 'Cấp phát & bàn giao', 'Kiểm kê', 'Vận chuyển vật tư', 'Bảo hành & bảo trì thiết bị'] },
     { section: '3. Vật tư, thiết bị dạy & học', title: '3.2. Phòng STEM & cơ sở vật chất', items: ['Tòa nhà, tầng & tiết học', 'Phòng STEM & lịch phòng', 'Hiệu quả sử dụng phòng STEM'] },
@@ -91,7 +91,7 @@ export const MODULE_OF: Record<string, string> = {
   'Thời khóa biểu': 'timetable', 'Duyệt đăng ký dạy STEM': 'stem_registrations', 'Tòa nhà & Tầng': 'buildings',
   'Cấu hình tiết học': 'periods', 'Năm học & học kỳ': 'periods', 'Thiết lập chung': 'periods', 'Tài khoản': 'accounts', 'Sao lưu & xuất dữ liệu': 'accounts', 'Giao diện & thương hiệu': 'accounts', 'Vai trò và phân quyền': 'roles',
   'Kế hoạch GD toàn trường': 'edu_plan', 'Phân công GV dạy STEM': 'stem_assign', 'Phân phối chương trình': 'curriculum',
-  'Gói STEM': 'packages', 'Chương trình giáo dục': 'curriculum', 'Kế hoạch tập huấn': 'training', 'Lịch tập huấn': 'training', 'Học liệu tập huấn': 'training',
+  'Gói STEM': 'packages', 'Chương trình giáo dục': 'curriculum', 'Kế hoạch tập huấn': 'training', 'Lịch tập huấn': 'training', 'Học liệu tập huấn': 'training', 'Kiểm tra & luyện tập': 'training',
   'Chứng chỉ': 'training', 'Đánh giá kết quả tập huấn': 'training',
   'Kho học liệu dùng chung': 'library', 'Phát hành học liệu': 'library', 'Định mức vật tư': 'library', 'Giáo án & bài giảng': 'library',
   'Hộp phê duyệt': 'approvals', 'Quy trình phê duyệt': 'roles', 'Đề xuất mua gói': 'packages',

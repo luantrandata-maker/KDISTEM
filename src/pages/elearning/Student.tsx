@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
 import { md } from '../ai'
 import { openFile } from '../../lib/files'
-import { dueBadge, embedUrl, errText, letter, LKIND, pathName, type Course, type Exam, type Lesson, type Material } from './common'
+import { courseMeta, dueBadge, embedUrl, errText, letter, LKIND, pathName, type Course, type Exam, type Lesson, type Material } from './common'
 
 // Học sinh: E-learning & luyện thi — khoá học, đề luyện (có giờ), lịch sử và xem lại bài.
 type Paper = { attempt: string; deadline: string | null; title: string; questions: { id: string; stem: string; options: string[]; kind: string }[]; answers: Record<string, number[]> | null }
@@ -230,7 +230,7 @@ function CourseList({ studentId, onExam }: { studentId: string; onExam: (id: str
       {courses.map(x => { const ls = lessons.filter(l => l.course_id === x.id), n = ls.filter(l => done.has(l.id)).length
         return <button key={x.id} className="panel coursecard pick" onClick={() => setOpen(x.id)}>
           {x.cover_url && <img src={x.cover_url} alt="" loading="lazy" />}
-          <b>{x.title}</b><small>{[x.subject, x.grade ? 'Khối ' + x.grade : null, `${ls.length} bài`].filter(Boolean).join(' · ')}</small>
+          <b>{x.title}</b><small>{[...courseMeta(x), `${ls.length} bài`].filter(Boolean).join(' · ')}</small>
           <div className="progress"><i style={{ width: (ls.length ? (100 * n) / ls.length : 0) + '%' }} /></div>
           <small>{n ? `Đã học ${n}/${ls.length}` : 'Chưa bắt đầu'} <Due c={x} finished={!!ls.length && n >= ls.length} /></small>
         </button> })}

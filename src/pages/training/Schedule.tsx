@@ -1,7 +1,7 @@
 // Phân hệ 1 — Lịch tập huấn & điểm danh (085). Tab "Lịch tập huấn" của mục Kế hoạch & lịch tập huấn (KDI, Sở / Phòng).
 // Xếp lịch tự động từ kế hoạch (mỗi nội dung tập huấn một buổi) hoặc thêm buổi; xem dạng bảng hoặc lịch (tháng / tuần);
 // mở buổi để đưa mã điểm danh (QR), nhắc lịch, ghi có mặt / vắng, duyệt xin vắng, chốt điểm danh, xem GV trùng lịch.
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import { supabase } from '../../lib/supabase'
 import { OrgFilter, useAllMode, useOrgName } from '../../components/OrgScope'
@@ -9,6 +9,10 @@ import { ElView } from '../../components/ElView'
 import { TrainerPick } from './Trainers'
 import { Chip } from '../dist/Editor'
 import { FlowGuide } from '../../components/FlowGuide'
+import { useTrainingPrograms } from './Lessons'
+import { detailCount, type Detail } from './Content'
+const LessonPage = lazy(() => import('../library/lesson/LessonPage').then(m => ({ default: m.LessonPage })))
+const ContentDetail = lazy(() => import('./Content').then(m => ({ default: m.ContentDetail })))
 
 type Mode = 'online' | 'offline'
 type Plan = { id: string; org_id?: string; plan_code: string | null; name: string; mode: string; pub_status: string }
@@ -348,6 +352,53 @@ function SessionForm({ orgId, plans, initial, onBack, onDone }: { orgId: string;
 }
 
 // ===== Chi tiết buổi: mã điểm danh, thông tin, danh sách điểm danh =====
+// ===== Nội dung tập huấn của buổi: chương trình, môn › nội dung, chi tiết nội dung và bài giảng xem ngay tại đây =====
+type CUnit = { id: string; program_id: string; parent_id: string | null; title: string; hours: number; mode: Mode | null; has_test: boolean; detail: Detail | null }
+type CProg = { id: string; code: string | null; title: string; version_no: number; status: string; builder: string | null; pass_score: number | null }
+type CLesson = { id: string; org_id: string; title: string; status: string; author: string | null; updated_at: string }
+const LST: Record<string, [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], inactive: ['Ngừng dùng', 'off'] }
+function SessionContent({ unitId, can, onOpen }: { unitId: string | null; can: boolean; onOpen: (v: { lesson: string; org: string } | { detail: CUnit; crumb: string }) => void }) {
+  const [d, setD] = useState<{ u: CUnit; subj: string | null; prog: CProg | null; lessons: CLesson[] } | null | 'none'>(null)
+  useEffect(() => {
+    if (!unitId) { setD('none'); return }
+    (async () => {
+      const { data: u } = await supabase.from('training_program_units').select('id, program_id, parent_id, title, hours, mode, has_test, detail').eq('id', unitId).maybeSingle()
+      if (!u) return setD('none')
+      const cu = u as CUnit
+      const [sj, pg, ls] = await Promise.all([
+        cu.parent_id ? supabase.from('training_program_units').select('title').eq('id', cu.parent_id).maybeSingle() : Promise.resolve({ data: null }),
+        supabase.from('training_programs').select('id, code, title, version_no, status, builder, pass_score').eq('id', cu.program_id).maybeSingle(),
+        supabase.from('training_lessons').select('id, org_id, title, status, author, updated_at').eq('unit_id', unitId).order('updated_at', { ascending: false }),
+      ])
+      setD({ u: cu, subj: (sj.data as { title: string } | null)?.title ?? null, prog: (pg.data as CProg | null) ?? null,
+        lessons: ((ls.data as CLesson[]) ?? []).filter(l => can || l.status === 'published') })
+    })()
+  }, [unitId])
+  return <section className="panel sesscontent" style={{ display: 'grid', gap: 10 }}>
+    <h3 style={{ margin: 0 }}>Nội dung tập huấn</h3>
+    {d === null ? <p className="sub" style={{ margin: 0 }}>Đang tải…</p>
+      : d === 'none' ? <p className="sub" style={{ margin: 0 }}>Buổi chưa gắn nội dung trong chương trình tập huấn.{can ? ' Bấm Sửa ở Thông tin buổi để chọn nội dung.' : ''}</p>
+      : <>
+        <dl className="tpkv">
+          <dt>Chương trình</dt><dd>{d.prog ? <><b>{[d.prog.code, d.prog.title].filter(Boolean).join(' · ')}</b> <small className="sub">v{d.prog.version_no}{d.prog.builder ? ` · XD: ${d.prog.builder}` : ''}</small></> : '—'}</dd>
+          <dt>Nội dung</dt><dd>{d.subj ? `${d.subj} › ` : ''}<b>{d.u.title}</b></dd>
+          <dt>Thời lượng</dt><dd>{String(Number(d.u.hours)).replace('.', ',')} giờ{d.u.mode ? ` · ${MODE[d.u.mode]}` : ''}{d.u.has_test ? ' · có bài test' : ''}</dd>
+        </dl>
+        <div className="tools" style={{ flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => onOpen({ detail: d.u, crumb: [d.prog?.title, d.subj].filter(Boolean).join(' › ') })}>
+            Xem chi tiết nội dung{detailCount(d.u.detail) ? ` (${detailCount(d.u.detail)})` : ''}</button>
+        </div>
+        <div>
+          <b style={{ fontSize: 14 }}>Bài giảng ({d.lessons.length})</b>
+          {d.lessons.length ? <ul className="sesslessons">{d.lessons.map(l => <li key={l.id}>
+            <span>{l.title}{l.author && <small className="sub"> · {l.author}</small>} {can && <Chip tone={LST[l.status]?.[1]}>{LST[l.status]?.[0] ?? l.status}</Chip>}</span>
+            <button type="button" className="primary" onClick={() => onOpen({ lesson: l.id, org: l.org_id })}>Xem bài giảng</button></li>)}</ul>
+            : <p className="sub" style={{ margin: '4px 0 0' }}>Nội dung này chưa có bài giảng{can ? ' đã soạn. Soạn ở Học liệu tập huấn › Bài giảng, chọn đúng chương trình và nội dung.' : ' đã phát hành.'}</p>}
+        </div>
+      </>}
+  </section>
+}
+
 function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; plan: Plan | undefined; can: boolean; onBack: () => void; onMsg: (m: [string, boolean]) => void }) {
   const [s, setS] = useState<Sess | null>(null)
   const [rows, setRows] = useState<Att[]>([])
@@ -359,6 +410,8 @@ function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; plan: Pla
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [plans, setPlans] = useState<Plan[]>([])
   const [show, setShow] = useState(false)
+  const [view, setView] = useState<{ lesson: string; org: string } | { detail: CUnit; crumb: string } | null>(null)
+  const tp = useTrainingPrograms()
   async function load() {
     const [a, b, c] = await Promise.all([
       supabase.from('training_sessions').select(SSEL).eq('id', id).single(),
@@ -378,6 +431,11 @@ function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; plan: Pla
   }
   useEffect(() => { load() }, [id])
   if (!s || !f) return <ElView back="Lịch tập huấn" onBack={onBack} title="Đang tải…">{msg && <p className="msg">{msg[0]}</p>}</ElView>
+  if (view) return <Suspense fallback={<p className="sub">Đang tải…</p>}>{'lesson' in view
+    ? <LessonPage key={view.lesson} orgId={view.org} id={view.lesson} store="training" unitOf={tp.unitOf} programs={tp.progs} subjectsOf={tp.subjectsOf} code=""
+        backLabel={`← Buổi ${s.title}`} onBack={() => setView(null)} onChanged={() => undefined} />
+    : <ContentDetail backLabel={`Buổi ${s.title}`} title={view.detail.title} crumb={view.crumb} hours={Number(view.detail.hours)} detail={view.detail.detail ?? {}} editable={false} hasTest={view.detail.has_test}
+        notice={<span className="sub">Xem từ buổi {s.title}. Sửa nội dung ở Chương trình tập huấn.</span>} onBack={() => setView(null)} onSave={async () => false} />}</Suspense>
 
   const st = sessSt(s), closed = !!s.closed_at
   const run = async (q: PromiseLike<{ data?: unknown; error: { message: string } | null }>, ok?: string | ((d: unknown) => string)) => {
@@ -445,6 +503,7 @@ function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; plan: Pla
         </dl>}
       </section>
     </div>
+    <SessionContent unitId={s.unit_id} can={can} onOpen={setView} />
 
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Điểm danh</h3>

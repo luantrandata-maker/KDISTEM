@@ -258,7 +258,7 @@ function PlanCreate({ orgId, node, onClose, onSaved }: { orgId: string; node: Cl
 
 // ===== Soạn kế hoạch theo bước: Chọn chương trình → Xếp lịch → Xem kết quả → Gán trường =====
 type Step = 1 | 2 | 3 | 4 | 5
-function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBack: () => void; onMsg: (m: [string, boolean]) => void }) {
+export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBack: () => void; onMsg: (m: [string, boolean]) => void }) {
   const [p, setP] = useState<TPlan | null>(null)
   const [items, setItems] = useState<Item[]>([])
   const [orgs, setOrgs] = useState<POrg[]>([])
@@ -495,7 +495,7 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
     </>}
     {step === 4 && (p.pub_status === 'draft' ? <p className="sub">Phát hành kế hoạch ở bước 3 trước, rồi gán trường và mở cho giáo viên đăng ký.</p> : <div style={{ display: 'grid', gap: 12 }}>
       <SelfRegister p={p} can={can} regs={regs} orgs={orgs} names={names} onSave={(v, ok) => run(supabase.from('training_plans').update(v).eq('id', p.id), ok)}
-        onInvite={() => invite(p.id, null).then(m => { setMsg(m); load() })} onReview={reviewReg} />
+        onInvite={() => load()} onReview={reviewReg} />
       <Capacity p={p} can={can} enr={enr.length} regs={regs} orgs={orgs} names={names}
         onSave={v => run(supabase.from('training_plans').update({ max_learners: v }).eq('id', p.id), v ? `Đã đặt số lượng tối đa ${v} giáo viên.` : 'Đã bỏ giới hạn số lượng.')}
         onReview={reviewReg} />
@@ -666,25 +666,48 @@ function CopyLink({ planId }: { planId: string }) {
     <button type="button" onClick={() => { navigator.clipboard?.writeText(link).then(() => { setDone(true); setTimeout(() => setDone(false), 2000) }, () => undefined) }}>{done ? 'Đã chép' : 'Sao chép link'}</button>
   </span>
 }
-/** Mời đăng ký: gửi thông báo + link. Ẩn khi kế hoạch chưa mở / đã hết hạn đăng ký */
-function InviteBar({ p, orgs, onInvite }: { p: TPlan; orgs: POrg[]; onInvite: () => Promise<void> | void }) {
+/** Mời đăng ký: gửi thông báo + link, kèm tình trạng đã gửi / đã xem / đã đăng ký. Ẩn khi kế hoạch chưa mở / đã hết hạn đăng ký */
+type IStat = { org_id: string; org_name: string; invited_at: string | null; teachers: number; no_account: number; sent: number; seen: number; registered: number; last_sent: string | null }
+const hmd = (d: string) => new Date(d).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })
+function InviteBar({ p, orgs, org, onDone }: { p: TPlan; orgs: POrg[]; org: string | null; onDone?: () => void }) {
   const [busy, setBusy] = useState(false)
+  const [res, setRes] = useState<[string, boolean, string] | null>(null)
+  const [st, setSt] = useState<IStat[] | null>(null)
   const openOrgs = orgs.filter(o => o.status === 'assigned' || o.status === 'returned')
-  const last = orgs.map(o => o.invited_at).filter(Boolean).sort().pop()
+  const loadSt = () => supabase.rpc('training_invite_status', { p_plan: p.id }).then(({ data, error }) => setSt(error ? [] : ((data as IStat[]) ?? []).filter(x => !org || x.org_id === org)))
+  useEffect(() => { loadSt() }, [p.id, org])
   if (!p.self_register || p.pub_status !== 'published' || (p.register_until && p.register_until < today())) return null
+  async function send() {
+    setBusy(true); setRes(null)
+    const r = await invite(p.id, org)
+    setRes([r[0], r[1], new Date().toISOString()]); await loadSt(); setBusy(false); onDone?.()
+  }
+  const sum = (k: keyof IStat) => (st ?? []).reduce((a, x) => a + (Number(x[k]) || 0), 0)
+  const sent = sum('sent'), last = (st ?? []).map(x => x.last_sent).filter(Boolean).sort().pop()
   return <div className="invitebar">
     <div className="tools" style={{ flexWrap: 'wrap' }}>
-      <button type="button" className="primary" disabled={busy || !openOrgs.length} title={openOrgs.length ? undefined : 'Chưa có trường nào đang nhận đăng ký'}
-        onClick={async () => { setBusy(true); await onInvite(); setBusy(false) }}>Gửi thông báo mời đăng ký</button>
+      <button type="button" className="primary" disabled={busy || !openOrgs.length} title={openOrgs.length ? undefined : 'Chưa có trường nào đang nhận đăng ký'} onClick={send}>
+        {busy ? 'Đang gửi…' : 'Gửi thông báo mời đăng ký'}</button>
       <CopyLink planId={p.id} />
     </div>
+    {res && <p className={'invres' + (res[1] ? ' bad' : '')} role="status"><b>{res[1] ? '✕' : '✓'}</b> {res[0]}{!res[1] && ` (${hmd(res[2])})`}</p>}
+    {st && sent > 0 && <details className="invstat">
+      <summary><b>Đã gửi tới {sent} giáo viên</b> · {sum('seen')} đã xem thông báo · {sum('registered')} đã đăng ký / có tên{last ? ` · lần gửi gần nhất ${hmd(last)}` : ''}</summary>
+      <div className="wrap"><table className="libtable">
+        <thead><tr><th>Trường</th><th>GV của trường</th><th>Đã nhận thông báo</th><th>Đã xem</th><th>Đã đăng ký / có tên</th><th>Chưa có tài khoản</th></tr></thead>
+        <tbody>{st.map(x => <tr key={x.org_id}><td>{x.org_name}{x.invited_at && <><br /><small className="sub">mời {hmd(x.invited_at)}</small></>}</td>
+          <td>{x.teachers}</td><td>{x.sent}</td><td>{x.seen}{x.sent ? <small className="sub"> ({Math.round(x.seen * 100 / x.sent)}%)</small> : null}</td><td>{x.registered}</td>
+          <td>{x.no_account ? <span className="warnline">{x.no_account}</span> : 0}</td></tr>)}</tbody>
+      </table></div>
+      <small className="sub">"Đã nhận" là thông báo đã vào chuông của giáo viên; "Đã xem" là giáo viên đã mở thông báo. GV chưa có tài khoản không nhận được thông báo: gửi link qua Zalo, email.</small>
+    </details>}
     <small className="sub">Thông báo đến chuông của giáo viên {openOrgs.length > 1 ? `ở ${openOrgs.length} trường đang nhận đăng ký` : 'của trường'} chưa đăng ký; người đã đăng ký hoặc đã có tên không bị làm phiền.
-      Link dán vào Zalo, email: giáo viên bấm vào, đăng nhập là tới đúng màn đăng ký.{last ? ` Lần mời gần nhất: ${new Date(last).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}.` : ''}</small>
+      Link dán vào Zalo, email: giáo viên bấm vào, đăng nhập là tới đúng màn đăng ký.</small>
   </div>
 }
 
 function SelfRegister({ p, can, regs, orgs, names, onSave, onInvite, onReview }: { p: TPlan; can: boolean; regs: Reg[]; orgs: POrg[]; names: Map<string, string>
-  onSave: (v: Partial<TPlan>, ok: string) => Promise<boolean>; onInvite: () => Promise<void>; onReview: (r: Reg, ok: boolean) => void }) {
+  onSave: (v: Partial<TPlan>, ok: string) => Promise<boolean>; onInvite: () => void; onReview: (r: Reg, ok: boolean) => void }) {
   const [on, setOn] = useState(!!p.self_register)
   const [until, setUntil] = useState(p.register_until ?? '')
   const [appr, setAppr] = useState(p.register_approval !== false)
@@ -714,7 +737,7 @@ function SelfRegister({ p, can, regs, orgs, names, onSave, onInvite, onReview }:
       </div>
     </> : <p className="sub" style={{ margin: 0 }}>Mở đến hết {day(p.register_until ?? null) || 'khi trường gửi danh sách'} · {p.register_approval !== false ? 'cần duyệt' : 'không cần duyệt'}.</p>}
     {p.self_register && closed && <p className="warnline" style={{ margin: 0 }}>Đã hết hạn đăng ký ({day(p.register_until!)}).</p>}
-    {can && !dirty && <InviteBar p={p} orgs={orgs} onInvite={onInvite} />}
+    {can && !dirty && <InviteBar p={p} orgs={orgs} org={null} onDone={onInvite} />}
     {can && pend.length > 0 && <>
       <h4 style={{ margin: '4px 0 0' }}>Chờ duyệt ({pend.length})</h4>
       <div className="wrap"><table className="libtable">
@@ -1063,7 +1086,7 @@ function SchoolPlanTeachers({ row, orgId, items, onBack, onMsg, backLabel = 'K�
     </section>
     {edit && p.self_register && p.pub_status === 'published' && (!p.register_until || p.register_until >= today()) && <section className="panel" style={{ display: 'grid', gap: 10 }}>
       <h3 style={{ margin: 0 }}>Mời giáo viên của trường đăng ký</h3>
-      <InviteBar p={p} orgs={[row]} onInvite={async () => { setMsg(await invite(p.id, orgId)); load() }} />
+      <InviteBar p={p} orgs={[row]} org={orgId} onDone={() => load()} />
     </section>}
     <SchoolRegs regs={regs} unitTitle={unitTitle} total={planUnits.length} edit={edit} onReview={review} />
     <section className="panel" style={{ display: 'grid', gap: 12 }}>

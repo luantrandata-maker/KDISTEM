@@ -5,7 +5,7 @@ import { fieldsOf, useSettings } from '../lib/settings'
 import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { OrgPick, useAllMode } from '../components/OrgScope'
+import { OrgPick, useAllMode, useAllOrgs } from '../components/OrgScope'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
@@ -34,7 +34,7 @@ type Program = {
   ct_codes: string[]; levels: string[]; main_subjects: string[]; grades: number[]
   competency_keys: string[]; rubric_ids: string[]; total_periods: number; status: Status; scope: 'own' | 'children'
   periods_per_week: number | null; deploy_term: Deploy
-  effective_from: string | null; effective_to: string | null; replaced_by: string | null; source_id: string | null
+  effective_from: string | null; effective_to: string | null; replaced_by: string | null; source_id: string | null; builder?: string | null
   published_at: string | null; note: string | null; updated_at: string; organizations?: { name: string } | null
   custom?: Record<string, unknown> | null
 }
@@ -396,7 +396,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
         {tabs.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      {tab === 'info' && <InfoTab p={p} editable={editable} onDelete={editable ? removeDraft : undefined} scopeEditable={mine && canEdit && p.status === 'published' && mode !== 'school'} mode={mode} comps={comps} onSaved={m => { setMsg([m, false]); load() }} onError={m => setMsg([m, true])} />}
+      {tab === 'info' && <InfoTab p={p} editable={editable} onGoAssign={tabs.some(t => t[0] === 'assign') ? () => setTab('assign') : undefined} onDelete={editable ? removeDraft : undefined} scopeEditable={mine && canEdit && p.status === 'published' && mode !== 'school'} mode={mode} comps={comps} onSaved={m => { setMsg([m, false]); load() }} onError={m => setMsg([m, true])} />}
       {tab === 'units' && <UnitsTab p={p} editable={editable} comps={comps} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
       {tab === 'versions' && <VersionsTab p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
       {tab === 'assign' && <AssignTab p={p} orgId={orgId} mine={mine} onMessage={(m, e) => setMsg([m, !!e])} />}
@@ -405,8 +405,8 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
 }
 
 // ----- Thông tin -----
-function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, onDelete }: {
-  onDelete?: () => void
+function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, onDelete, onGoAssign }: {
+  onDelete?: () => void; onGoAssign?: () => void
   p: Program; editable: boolean; scopeEditable: boolean; mode: ProgMode; comps: Comp[]; onSaved: (m: string) => void; onError: (m: string) => void
 }) {
   const [f, setF] = useState<Program>(p)
@@ -431,26 +431,37 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
       periods_per_week: f.periods_per_week ? Number(f.periods_per_week) : null, deploy_term: f.deploy_term ?? 'year',
       grades: gs, grade_from: gs[0], grade_to: gs[gs.length - 1],
       integrated_subjects: integ, objectives: f.objectives?.trim() || null,
-      competency_keys: f.competency_keys, rubric_ids: f.rubric_ids, note: f.note?.trim() || null, effective_from: f.effective_from || null,
-      ...(mode !== 'school' ? { scope: f.scope } : {}),
+      competency_keys: f.competency_keys, rubric_ids: f.rubric_ids, note: f.note?.trim() || null, builder: f.builder?.trim() || null,
       ...(progFields.length ? { custom: f.custom ?? {} } : {}),
     }
     const { error } = await supabase.from('edu_programs').update(body).eq('id', p.id)
     if (error) return onError(errText(error.message))
     onSaved('Đã lưu thông tin chương trình.')
   }
-  // Phạm vi và ngày hiệu lực đổi được cả khi đã phát hành (không đổi nội dung)
+  // Phạm vi, ngày hiệu lực, đơn vị xây dựng đổi được cả khi đã phát hành (không đổi nội dung)
+  const scopeEdit = editable || scopeEditable
+  const scopeDirty = f.scope !== p.scope || (f.effective_from || null) !== (p.effective_from ?? null) || (f.effective_to || null) !== (p.effective_to ?? null)
+    || (f.builder?.trim() || null) !== (p.builder ?? null)
+  const scopeBad = f.effective_from && f.effective_to && f.effective_to < f.effective_from ? 'Ngày hết hiệu lực phải sau ngày bắt đầu.' : ''
   async function saveScope() {
-    const { error } = await supabase.from('edu_programs').update({ scope: f.scope, effective_from: f.effective_from || null }).eq('id', p.id)
+    if (scopeBad) return onError(scopeBad)
+    const { error } = await supabase.from('edu_programs').update({ ...(mode !== 'school' ? { scope: f.scope } : {}), effective_from: f.effective_from || null,
+      effective_to: f.effective_to || null, builder: f.builder?.trim() || null }).eq('id', p.id)
     if (error) return onError(errText(error.message))
-    onSaved('Đã lưu phạm vi áp dụng.')
+    onSaved('Đã lưu phạm vi áp dụng & hiệu lực.')
   }
+  const [asgN, setAsgN] = useState<number | null>(null)
+  useEffect(() => { supabase.from('edu_program_assignments').select('id', { count: 'exact', head: true }).eq('program_id', p.id).then(({ count }) => setAsgN(count ?? 0)) }, [p.id])
+  const orgs = useAllOrgs()
+  const builders = useMemo(() => [...new Set(['KDI Education', ...(orgs ?? []).filter(o => !o.is_platform && o.type !== 'school').map(o => o.name)])], [orgs])
+  const today = new Date().toISOString().slice(0, 10)
+  const effNote = p.effective_to && p.effective_to < today ? 'Hết hiệu lực' : p.effective_from && p.effective_from > today ? 'Chưa đến ngày hiệu lực' : ''
   const compName = (k: string) => comps.find(c => c.key === k)?.name ?? k
   const dis = !editable
   const span = gradeSpan(LV, lvsOf(f))
   const trackSubjects = f.kind === 'stem' ? ctsOf(f).flatMap(c => tracks[c]?.subjects ?? []) : []
   return (
-    <form className="panel" onSubmit={save}>
+    <><form className="panel" onSubmit={save}>
       {!editable && <p className="sub" style={{ marginTop: 0 }}>{p.status === 'draft' || p.status === 'rejected' ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình đã gửi duyệt hoặc phát hành: nội dung không sửa được. Tạo phiên bản mới ở tab "Phiên bản & duyệt" để điều chỉnh.'}</p>}
       <div className="formgrid">
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình</span><input disabled={dis} value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></label>
@@ -469,9 +480,9 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
           <SubjectMulti primary="chính" disabled={dis} level={lvsOf(f).length === 1 ? lvsOf(f)[0] : null} value={mainsOf(f)} onChange={v => { setF({ ...f, main_subjects: v, main_subject: v[0] ?? '' }); setInteg(integ.filter(x => !v.includes(x))) }} extra={trackSubjects} /></div>
         <div className="field" style={{ gridColumn: '1/-1' }}><span>Môn tích hợp</span><SubjectMulti disabled={dis} level={lvsOf(f).length === 1 ? lvsOf(f)[0] : null} value={integ} onChange={setInteg} exclude={mainsOf(f)}
           extra={trackSubjects} /></div>
-        <label className="field"><span>Hiệu lực từ</span><input disabled={!editable && !scopeEditable} type="date" value={f.effective_from ?? ''} onChange={e => setF({ ...f, effective_from: e.target.value || null })} /></label>
-        {mode !== 'school' && <label className="field"><span>Phạm vi áp dụng</span><select value={f.scope} disabled={!editable && !scopeEditable} onChange={e => setF({ ...f, scope: e.target.value as Program['scope'] })}>
-          <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
+        <label className="field"><span>Đơn vị xây dựng <small className="sub">(không bắt buộc)</small></span>
+          <input list="edu-builders" maxLength={200} disabled={!scopeEdit} value={f.builder ?? ''} onChange={e => setF({ ...f, builder: e.target.value })} placeholder="Chọn hoặc gõ: KDI Education, Sở GD&ĐT…, Trường…" />
+          <datalist id="edu-builders">{builders.map(b => <option key={b} value={b} />)}</datalist></label>
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Mục tiêu chương trình</span><textarea disabled={dis} rows={3} value={f.objectives ?? ''} onChange={e => setF({ ...f, objectives: e.target.value })} /></label>
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Ghi chú</span><input disabled={dis} value={f.note ?? ''} onChange={e => setF({ ...f, note: e.target.value })} /></label>
         <CustomInputs disabled={dis} fields={progFields} value={f.custom ?? {}} onChange={v => setF({ ...f, custom: v })} />
@@ -487,9 +498,26 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
       <div className="formactions">
         {editable && <button className="primary" type="submit">Lưu</button>}
         {onDelete && <button type="button" className="danger" onClick={onDelete}>Xoá bản nháp</button>}
-        {scopeEditable && (f.scope !== p.scope || f.effective_from !== p.effective_from) && <button type="button" className="primary" onClick={saveScope}>Lưu phạm vi áp dụng</button>}
       </div>
     </form>
+      <section className="panel progscope" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+        <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Phạm vi áp dụng & hiệu lực</h3>
+          {effNote && <span className={'pill ' + (effNote.startsWith('Hết') ? 'bad' : 'warn')}>{effNote}</span>}</div>
+        <p className="sub" style={{ margin: 0 }}>Đơn vị trong phạm vi mới thấy chương trình, tạo được phân phối chương trình và kế hoạch dạy học từ chương trình này.
+          Sửa được cả khi chương trình đã phát hành; phiên bản mới giữ nguyên phạm vi và đơn vị xây dựng.</p>
+        <div className="formgrid" style={{ alignItems: 'start' }}>
+          {mode !== 'school' && <label className="field"><span>Phạm vi áp dụng</span><select value={f.scope} disabled={!scopeEdit} onChange={e => setF({ ...f, scope: e.target.value as Program['scope'] })}>
+            <option value="children">Mọi đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình và đơn vị được gán</option></select></label>}
+          <label className="field"><span>Hiệu lực từ</span><input disabled={!scopeEdit} type="date" value={f.effective_from ?? ''} onChange={e => setF({ ...f, effective_from: e.target.value || null })} /></label>
+          <label className="field"><span>Hiệu lực đến</span><input disabled={!scopeEdit} type="date" min={f.effective_from ?? undefined} value={f.effective_to ?? ''} onChange={e => setF({ ...f, effective_to: e.target.value || null })} /></label>
+        </div>
+        {mode !== 'school' && <p className="sub" style={{ margin: 0 }}>Đơn vị được gán: <b>{asgN ?? '…'}</b>{f.scope === 'own' ? ' (chỉ các đơn vị này và đơn vị mình thấy chương trình khi đã phát hành)' : ' (thêm vào phạm vi, kèm khối triển khai)'}.
+          {onGoAssign && <> <button type="button" className="linkbtn" onClick={onGoAssign}>Gán cho đơn vị →</button></>}</p>}
+        {scopeBad && <small className="warnline">{scopeBad}</small>}
+        {scopeEdit && <div className="tools"><button type="button" className="primary" disabled={!scopeDirty || !!scopeBad} onClick={saveScope}>Lưu phạm vi áp dụng</button>
+          {editable && <small className="sub">Bản nháp: nút Lưu ở trên cũng lưu đơn vị xây dựng.</small>}</div>}
+      </section>
+    </>
   )
 }
 

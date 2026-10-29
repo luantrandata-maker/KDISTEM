@@ -3588,6 +3588,23 @@ select pg_temp.chk('kdi', 'KT 118: báo cáo có đợt, số giờ, trạng th�
 select pg_temp.chk('admin_kb', 'KT 118: trường khác không thấy số liệu của trường khác trong báo cáo', $q$select count(*) from training_report() where plan_name = 'ISO KH PV'$q$, '0');
 select pg_temp.chk('kdi', 'KT 118: mở lại kế hoạch đã kết thúc', $q$select training_plan_reopen(id)::text from training_plans where name = 'ISO KH PV'$q$, '');
 
+-- ===== GY 119: khoá học nhiều môn / khối; đơn vị xây dựng CTGD; tình trạng lời mời đăng ký =====
+select pg_temp.probe('admin_kb@iso-test.local', $q$insert into courses (org_id, title, subjects, grades) values (my_org_id(), 'ISO khoá nhiều môn', array['ISO Tin', ' ISO Toán ', 'ISO Tin', ''], array[7, 6, 7])$q$, true);
+select pg_temp.chk('admin_kb', 'GY 119: khoá học lưu nhiều môn, nhiều khối; cột cũ giữ giá trị đầu', $q$select subject || ':' || grade || ':' || array_to_string(subjects, ',') || ':' || array_to_string(grades, ',') from courses where title = 'ISO khoá nhiều môn'$q$, 'ISO Tin:6:ISO Tin,ISO Toán:6,7');
+select pg_temp.chk('admin_kb', 'GY 119: màn cũ chỉ sửa cột môn thì danh sách môn theo', $q$with u as (update courses set subject = 'ISO Lý' where title = 'ISO khoá nhiều môn' returning array_to_string(subjects, ',')) select * from u$q$, 'ISO Lý');
+select pg_temp.chk('admin_kb', 'GY 119: khối ngoài 1–12 bị từ chối', $q$update courses set grades = array[13] where title = 'ISO khoá nhiều môn'$q$, 'ERR*');
+select pg_temp.chk('kdi', 'GY 119: CTGD đã ban hành vẫn sửa được đơn vị xây dựng', $q$with u as (update edu_programs set builder = '  Sở GD&ĐT   ISO ' where title = 'ISO CT KDI' and org_id = platform_org_id() and status = 'published' returning builder) select builder from u$q$, 'Sở GD&ĐT ISO');
+select pg_temp.chk('kdi', 'GY 119: CTGD hiệu lực đến trước hiệu lực từ bị từ chối', $q$update edu_programs set effective_from = '2026-09-01', effective_to = '2026-08-01' where title = 'ISO CT KDI' and org_id = platform_org_id() and status = 'published'$q$, 'ERR*');
+select pg_temp.probe('kdi@iso-test.local', $q$update edu_programs set builder = 'Sở GD&ĐT ISO' where title = 'ISO CT KDI' and org_id = platform_org_id() and status = 'published'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$select edu_program_new_version((select id from edu_programs where title = 'ISO CT KDI' and org_id = platform_org_id() and status = 'published'))::text$q$, true);
+select pg_temp.chk('kdi', 'GY 119: phiên bản mới của CTGD giữ đơn vị xây dựng', $q$select builder from edu_programs where title = 'ISO CT KDI' and org_id = platform_org_id() and status = 'draft'$q$, 'Sở GD&ĐT ISO');
+select pg_temp.chk('kdi', 'GY 119: đơn vị lập kế hoạch xem tình trạng lời mời (đã nhận)', $q$select sum(sent) > 0 from training_invite_status((select id from training_plans where name = 'ISO KH PV'))$q$, 'true');
+select pg_temp.chk('admin_ph', 'GY 119: trường chỉ thấy tình trạng lời mời của trường mình', $q$select count(*) || ':' || bool_and(org_id = my_org_id()) from training_invite_status((select id from training_plans where name = 'ISO KH PV'))$q$, '1:true');
+select pg_temp.chk('gv_ph2', 'GY 119: giáo viên không xem tình trạng lời mời', $q$select count(*) from training_invite_status((select id from training_plans where name = 'ISO KH PV'))$q$, '0');
+select pg_temp.chk('gv_ph2', 'GY 119: giáo viên có thông báo mời chưa xem', $q$select count(*) from notifications where kind = 'training_invite' and user_id = auth.uid() and read_at is null and ref_id = (select id from training_plans where name = 'ISO KH PV')$q$, '1');
+select pg_temp.probe('gv_ph2@iso-test.local', $q$update notifications set read_at = now() where kind = 'training_invite' and user_id = auth.uid()$q$, true);
+select pg_temp.chk('kdi', 'GY 119: GV mở thông báo thì tính là đã xem', $q$select sum(seen) > 0 from training_invite_status((select id from training_plans where name = 'ISO KH PV'))$q$, 'true');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

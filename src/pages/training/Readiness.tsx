@@ -77,6 +77,15 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
       <div className="distfilter">{([['', 'Tất cả', scope.length], ['short', 'Thiếu GV đạt chuẩn', n('short')], ['none', 'Chưa phân công', n('none')], ['ok', 'Đáp ứng', n('ok')]] as const)
         .map(([k, l, c]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} aria-pressed={f === k} onClick={() => setF(k)}>{l} ({c})</button>)}</div>
     </section>
+    {can && sel.size === 0 && shown.some(needsWork) && <div className="panel readyhint" style={{ marginTop: 14 }} role="note">
+      <b>Lập kế hoạch tập huấn từ màn này</b>
+      <ol>
+        <li>Tick ô ở đầu các dòng cần bồi dưỡng (dòng Thiếu GV đạt chuẩn / Chưa phân công, hoặc còn GV chưa đạt chuẩn). Bấm vào dòng để xem từng GV.</li>
+        <li>Bấm <b>Lập kế hoạch tập huấn</b> ở thanh hiện ra phía trên bảng.</li>
+        <li>Chọn <b>Tạo kế hoạch mới (nháp)</b>: chương trình gợi ý, chỉ tiêu từng trường và tên GV được điền sẵn. Hoặc chọn <b>Gán vào kế hoạch đang mở</b> có chương trình cùng loại.</li>
+      </ol>
+      <button type="button" onClick={() => setSel(new Set(shown.filter(needsWork).map(key)))}>Chọn tất cả {shown.filter(needsWork).length} dòng cần bồi dưỡng</button>
+    </div>}
     {can && sel.size > 0 && <div className="panel bar" style={{ marginTop: 14 }} role="region" aria-label="Lập kế hoạch tập huấn">
       <span>Đã chọn <b>{sel.size}</b> dòng · {picked.reduce((t, r) => t + r.teachers.filter(x => !x.ok).length, 0)} GV chưa đạt chuẩn</span>
       <div className="tools"><button type="button" onClick={() => setSel(new Set())}>Bỏ chọn</button>

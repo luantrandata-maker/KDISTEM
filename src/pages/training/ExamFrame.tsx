@@ -5,8 +5,10 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ExamMatrix, matrixText, matrixTotal, useBankSubjects, type MRow } from '../../components/ExamMatrix'
 import type { Detail } from './Content'
+import { TryButton, type TrySpec } from '../../components/ExamTryout'
 
 export type FinalExam = { title?: string; subject?: string; grade?: number | null; matrix?: MRow[]; qids?: string[]; minutes?: number | null; attempts?: number | null; pass?: number | null; shuffle?: boolean }
+const finalSpec = (x: FinalExam): TrySpec => ({ kind: 'pick', subject: x.subject, grade: x.grade ?? null, matrix: (x.matrix ?? []).map(r => ({ topic: r.topic, level: r.level, count: r.count })), qids: x.qids ?? [], shuffle: x.shuffle !== false })
 export type Frame = {
   weights: { att: number; tests: number; final: number; product: number }
   req: { att: number | null; tests: boolean; units: boolean; final: number | null; product: number | null; total: number | null }
@@ -56,13 +58,15 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
           <td className="num">{link ? '—' : nq ? `${t?.count ?? nq}/${nq}` : <small className="warnline">chưa chọn</small>}</td>
           <td className="num">{link ? '—' : num(t?.minutes as number ?? null)}</td><td className="num">{link ? '—' : t?.attempts ? String(t.attempts) : 'Không giới hạn'}</td>
           <td className="num">{num((t?.pass as number) ?? p.pass_score ?? 5)}</td>
-          <td><button type="button" onClick={() => onOpen(u.id)}>Mở</button></td></tr> })}
+          <td><span className="tools">{!link && nq > 0 && <TryButton orgId={p.org_id} spec={{ kind: 'sample', qids: t!.qids as string[], count: (t?.count as number) ?? null }} title={`Bài test: ${u.title}`}
+            minutes={(t?.minutes as number) ?? null} pass={(t?.pass as number) ?? p.pass_score ?? 5} />}<button type="button" onClick={() => onOpen(u.id)}>Mở</button></span></td></tr> })}
         {!tests.length && <tr><td colSpan={7}><small className="sub">Chưa nội dung nào có bài test. Bật "Có bài test" ở nội dung trong tab Cấu trúc.</small></td></tr>}</tbody>
     </table></div>
 
     <div className="bar" style={{ margin: '8px 0 0' }}><div><h3 style={{ margin: 0 }}>Đề cuối khoá</h3>
       <p className="sub" style={{ margin: '4px 0 0' }}>Rút ngẫu nhiên từ Ngân hàng câu hỏi theo ma trận chủ đề × mức độ. Giáo viên làm sau khi học xong mọi nội dung của chương trình.</p></div>
-      {edit && !f && <div className="tools">{fe ? <><button type="button" onClick={startEdit}>Sửa đề</button>
+      {!f && fe && !edit && <TryButton orgId={p.org_id} spec={finalSpec(fe)} title={fe.title || 'Đề cuối khoá'} minutes={fe.minutes} pass={fe.pass} />}
+      {edit && !f && <div className="tools">{fe ? <><TryButton orgId={p.org_id} spec={finalSpec(fe)} title={fe.title || 'Đề cuối khoá'} minutes={fe.minutes} pass={fe.pass} /><button type="button" onClick={startEdit}>Sửa đề</button>
         <button type="button" className="danger" onClick={() => confirm('Bỏ đề cuối khoá của chương trình?') && save({ final_exam: null }, 'Đã bỏ đề cuối khoá.')}>Bỏ đề</button></>
         : <button type="button" className="primary" onClick={startEdit}>+ Thêm đề cuối khoá</button>}</div>}</div>
 
@@ -80,7 +84,7 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
         <div className="field"><span>Trộn câu</span><label><input type="checkbox" checked={f.shuffle !== false} onChange={e => setF({ ...f, shuffle: e.target.checked })} /> Trộn thứ tự câu mỗi lượt</label></div>
       </div>
       <ExamMatrix org={p.org_id} subject={f.subject ?? ''} grade={f.grade ?? null} rows={f.matrix ?? []} onChange={m => setF({ ...f, matrix: m })} />
-      <div className="formactions"><button type="button" className="primary" onClick={saveFinal}>Lưu đề ({total} câu)</button> <button type="button" onClick={() => setF(null)}>Huỷ</button></div>
+      <div className="formactions"><button type="button" className="primary" onClick={saveFinal}>Lưu đề ({total} câu)</button> <TryButton orgId={p.org_id} spec={finalSpec(f)} title={f.title || 'Đề cuối khoá'} minutes={f.minutes} pass={f.pass} /> <button type="button" onClick={() => setF(null)}>Huỷ</button></div>
     </div>
     : fe ? <dl className="tpkv">
       <dt>Tên đề</dt><dd>{fe.title || 'Đề cuối khoá'}</dd>

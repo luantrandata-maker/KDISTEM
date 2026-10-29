@@ -1,5 +1,6 @@
 // Nội dung tập huấn: 5 phần như bài học — Nội dung · Bài giảng · Link tài liệu · Định mức vật tư · Kho hoạt động.
 // Lưu trong training_program_units.detail (083). Chỉ sửa khi chương trình còn nháp.
+import { TryButton } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ElView } from '../../components/ElView'
@@ -160,7 +161,8 @@ function TestEditor({ t, edit, passScore, hasTest, onChange }: { t: TestCfg; edi
       <label className="field"><span>Điểm đạt (thang 10)</span><input type="number" min={0} max={10} step={0.5} disabled={!edit} value={t.pass ?? ''} placeholder={passScore != null ? `Theo chương trình: ${passScore}` : '5'} onChange={e => setNum('pass', e.target.value)} /></label>
     </div>
     <div className="bar" style={{ margin: 0 }}>
-      <b>Câu hỏi đã chọn: {n}{t.count && t.count < n ? ` · rút ngẫu nhiên ${t.count} câu mỗi lượt` : ''}</b>
+      <span className="tools"><b>Câu hỏi đã chọn: {n}{t.count && t.count < n ? ` · rút ngẫu nhiên ${t.count} câu mỗi lượt` : ''}</b>
+        <TryButton spec={{ kind: 'sample', qids: t.qids ?? [], count: t.count }} title="Bài kiểm tra của nội dung" minutes={t.minutes} pass={t.pass ?? passScore} /></span>
       <div className="tools">
         <input placeholder="Tìm câu hỏi, chủ đề…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm câu hỏi" />
         <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(x => <option key={x}>{x}</option>)}</select>

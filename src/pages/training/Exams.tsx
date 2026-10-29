@@ -1,6 +1,7 @@
 // Phân hệ 1 › Kiểm tra & luyện tập (110): một chỗ xem mọi đề của tập huấn.
 // Đề kiểm tra: bài test nội dung + đề cuối khoá của mọi chương trình (bấm để soạn trong chương trình).
 // Đề luyện: đề tự luyện cho giáo viên, không tính điểm tập huấn. Kết quả & câu khó: điểm theo đề, câu hay sai.
+import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Drawer } from '../../components/Drawer'
@@ -42,6 +43,13 @@ function useStats(rk: number) {
 const progLabel = (p: Prog | undefined) => p ? <><small>{p.code} · v{p.version_no}</small> <Chip tone={STATUS[p.status]?.[1]}>{STATUS[p.status]?.[0]}</Chip><br /><small className="sub">{p.title}</small></> : '—'
 
 // ===== Tab 1: Đề kiểm tra =====
+// Cấu hình làm thử của một dòng đề (bài test nội dung chọn câu / đề cuối khoá)
+const rowSpec = (r: { kind: 'unit' | 'final'; prog: Prog; unit: TUnit | null }): TrySpec | null => {
+  if (r.kind === 'unit') { const t = r.unit?.detail?.test; return t && t.kind !== 'link' && t.qids?.length ? { kind: 'sample', qids: t.qids, count: t.count ?? null } : null }
+  const fe = r.prog.final_exam
+  return fe ? { kind: 'pick', subject: fe.subject, grade: fe.grade ?? null, matrix: fe.matrix ?? [], qids: fe.qids ?? [], shuffle: fe.shuffle !== false } : null
+}
+const Stop = ({ children }: { children: React.ReactNode }) => <span onClick={e => e.stopPropagation()}>{children}</span>
 type Row = { key: string; kind: 'unit' | 'final'; prog: Prog; unit: TUnit | null; title: string; sub: string; cfg: string; missing: boolean }
 export function TrainingExamList({ go }: { go?: (page: string) => void }) {
   const admin = useAdmin()
@@ -117,15 +125,18 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
       onGo={(id, unit) => { setAdd(false); setOpen(unit ? { id, unit } : { id, unit: null, final: true }) }} />}
     {(msg || err) && <p className={msg?.[1] || err ? 'msg' : 'sub'} role="status"><b>{err || msg?.[0]}</b></p>}
     {!progs ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-      <thead><tr><th>Đề kiểm tra</th><th>Loại</th><th>Cấu hình</th><th>Chương trình</th><th className="num">Lượt làm</th><th className="num">Điểm TB</th></tr></thead>
+      <thead><tr><th>Đề kiểm tra</th><th>Loại</th><th>Cấu hình</th><th>Chương trình</th><th className="num">Lượt làm</th><th className="num">Điểm TB</th><th></th></tr></thead>
       <tbody>{shown.map(r => { const s = statOf(r)
         return <tr key={r.key} className="clickrow" onClick={() => { setMsg(null); setOpen({ id: r.prog.id, unit: r.unit?.id ?? null }) }}>
           <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink">{r.title}</button>{r.sub && <><br /><small className="sub">{r.sub}</small></>}</td>
           <td><Chip tone={KIND[r.kind][1]}>{KIND[r.kind][0]}</Chip></td>
           <td style={{ whiteSpace: 'normal' }}>{r.missing ? <small className="warnline">{r.cfg}</small> : <small>{r.cfg}</small>}</td>
           <td style={{ whiteSpace: 'normal' }}>{progLabel(r.prog)}</td>
-          <td className="num">{s?.attempts ?? 0}</td><td className="num">{num(s?.avg_score)}</td></tr> })}
-        {!shown.length && <tr><td colSpan={6}><small className="sub">{rows.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có đề kiểm tra. Bấm "+ Thêm đề kiểm tra" để tạo.'}</small></td></tr>}</tbody>
+          <td className="num">{s?.attempts ?? 0}</td><td className="num">{num(s?.avg_score)}</td>
+          <td>{(() => { const sp = rowSpec(r); const t = r.unit?.detail?.test, fe = r.prog.final_exam
+            return sp && <Stop><TryButton orgId={r.prog.org_id} spec={sp} title={r.title} minutes={r.kind === 'unit' ? t?.minutes ?? null : fe?.minutes ?? null}
+              pass={r.kind === 'unit' ? t?.pass ?? r.prog.pass_score ?? 5 : fe?.pass ?? null} /></Stop> })()}</td></tr> })}
+        {!shown.length && <tr><td colSpan={7}><small className="sub">{rows.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có đề kiểm tra. Bấm "+ Thêm đề kiểm tra" để tạo.'}</small></td></tr>}</tbody>
     </table></div>}
   </>
 }
@@ -258,7 +269,7 @@ export function TrainingPracticeExams() {
     <p className="sub">Đề tự luyện cho giáo viên, không tính vào kết quả tập huấn. Giáo viên có tên trong kế hoạch có chương trình của đề sẽ thấy đề khi đề "Đang mở" (Cổng giáo viên › Bài giảng tập huấn › Luyện tập).</p>
     {msg && !form && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {!list ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-      <thead><tr><th>Đề luyện</th><th>Câu hỏi</th><th>Cách làm</th><th>Chương trình</th><th>Trạng thái</th><th className="num">Lượt · GV</th><th className="num">Điểm TB</th></tr></thead>
+      <thead><tr><th>Đề luyện</th><th>Câu hỏi</th><th>Cách làm</th><th>Chương trình</th><th>Trạng thái</th><th className="num">Lượt · GV</th><th className="num">Điểm TB</th><th></th></tr></thead>
       <tbody>{shown.map(x => { const s = stat(x.id)
         return <tr key={x.id} className="clickrow" onClick={() => { setMsg(null); setForm({ ...x, matrix: [...(x.matrix ?? [])] }) }}>
           <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink">{x.title}</button><br /><small className="sub">{x.subject}{x.grade ? ` · khối ${x.grade}` : ''}</small></td>
@@ -266,8 +277,9 @@ export function TrainingPracticeExams() {
           <td><small>{x.minutes ? `${x.minutes} phút` : 'Không giới hạn'} · {x.attempts ? `${x.attempts} lượt` : 'không giới hạn lượt'}{x.show_answers ? ' · xem đáp án' : ''}</small></td>
           <td style={{ whiteSpace: 'normal' }}>{progLabel(progOf(x.program_id))}</td>
           <td><Chip tone={PST[x.status][1]}>{PST[x.status][0]}</Chip></td>
-          <td className="num">{s ? `${s.attempts} · ${s.teachers}` : '0'}</td><td className="num">{num(s?.avg_score)}</td></tr> })}
-        {!shown.length && <tr><td colSpan={7}><small className="sub">{all.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có đề luyện. Bấm “+ Thêm đề luyện”.'}</small></td></tr>}</tbody>
+          <td className="num">{s ? `${s.attempts} · ${s.teachers}` : '0'}</td><td className="num">{num(s?.avg_score)}</td>
+          <td><Stop><TryButton orgId={x.org_id} spec={{ kind: 'pick', subject: x.subject, grade: x.grade, matrix: x.matrix ?? [], qids: x.qids ?? [], shuffle: x.shuffle }} title={x.title} minutes={x.minutes} pass={x.pass} /></Stop></td></tr> })}
+        {!shown.length && <tr><td colSpan={8}><small className="sub">{all.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có đề luyện. Bấm “+ Thêm đề luyện”.'}</small></td></tr>}</tbody>
     </table></div>}
 
     {form && <Drawer wide closeOnOutside={false} onClose={() => setForm(null)} title={form.id ? `Đề luyện: ${form.title}` : 'Thêm đề luyện'}
@@ -298,7 +310,9 @@ export function TrainingPracticeExams() {
           <div className="field"><span>Sau khi nộp</span><label><input disabled={!admin} type="checkbox" checked={form.show_answers} onChange={e => setForm({ ...form, show_answers: e.target.checked })} /> Cho xem đáp án và lời giải</label></div>
           <label className="field" style={{ gridColumn: '1 / -1' }}><span>Ghi chú cho giáo viên</span><input disabled={!admin} maxLength={2000} value={form.note ?? ''} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="VD: Ôn trước buổi 3" /></label>
         </div>
-        <h4 className="libparthead">Ma trận đề ({total} câu)</h4>
+        <div className="bar" style={{ margin: 0 }}><h4 className="libparthead">Ma trận đề ({total} câu)</h4>
+          <TryButton orgId={fp?.org_id} spec={{ kind: 'pick', subject: form.subject, grade: form.grade, matrix: form.matrix, qids: (form as PForm & { qids?: string[] }).qids ?? [], shuffle: form.shuffle }}
+            title={form.title || 'Đề luyện'} minutes={form.minutes} pass={form.pass} disabled={!form.subject} /></div>
         <ExamMatrix org={fp?.org_id} subject={form.subject} grade={form.grade} rows={form.matrix} onChange={m => setForm({ ...form, matrix: m })} disabled={!admin} />
       </div>
     </Drawer>}

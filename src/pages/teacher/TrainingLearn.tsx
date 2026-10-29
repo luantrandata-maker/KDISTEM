@@ -6,6 +6,7 @@ import { fmtDate, fmtTime } from '../../lib/time'
 import { ElView } from '../../components/ElView'
 import { openFile } from '../../lib/files'
 import { NoTeacher, type TProps } from './common'
+import { FeedbackPanel } from '../training/Feedback'
 
 type Course = { plan_id: string; plan_code: string | null; name: string; org_name: string | null; starts_on: string | null; ends_on: string | null
   programs: string | null; units: number; done: number; need_product: boolean; product_status: string | null }
@@ -161,6 +162,7 @@ function CourseView({ planId, onBack }: { planId: string; onBack: () => void }) 
             <tbody>{COMP.filter(([k]) => fin.metrics.weights[k] > 0).map(([k, l]) => <tr key={k}><td>{l}</td><td>{num(fin.metrics.scores[k])}</td><td>{fin.metrics.weights[k]}</td></tr>)}</tbody></table></div>
           {!!fin.frame.grades?.length && <small className="sub">Xếp loại: {[...fin.frame.grades].sort((a, b) => b.min - a.min).map(g => `${g.label} ≥ ${num(g.min)}`).join(' · ')}</small>}
         </section>}
+        <FeedbackPanel planId={planId} />
       </div>
     </div>
   </ElView>

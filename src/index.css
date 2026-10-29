@@ -2020,3 +2020,11 @@ span.namelink{cursor:default;text-decoration:none}
 :where(.main,.drawerwrap,.modalbg) :where(input,textarea,select):disabled{background:var(--bg,#f4f6fa);color:var(--muted)}
 :where(.main,.drawerwrap,.modalbg) :where(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=color]),textarea,select):is(:focus,:focus-visible){
   outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(28,99,187,.12)}
+/* 114: phiếu đánh giá sau khoá tập huấn */
+.stars{display:inline-flex;gap:2px}.stars button{border:0;background:none;padding:0 2px;font-size:22px;line-height:1;color:#c9ced6;cursor:pointer;min-height:auto}
+.stars button.on{color:#f5a524}.stars button:focus-visible{outline:2px solid var(--accent,#1a73e8);border-radius:4px}
+.fbgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:6px 18px}
+.fbrow{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:4px 0;border-bottom:1px dashed var(--line,#e3e6eb)}
+.fbtrainer{display:grid;gap:6px;padding-top:6px;border-top:1px solid var(--line,#e3e6eb)}
+.fbcomments{list-style:none;margin:0;padding:0;display:grid;gap:8px}.fbcomments li{display:flex;gap:10px;align-items:flex-start}
+.fbcomments .pill{flex:none}

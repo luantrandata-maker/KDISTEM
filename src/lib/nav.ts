@@ -50,7 +50,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
   school_admin: [
     { title: 'Tổng quan', items: ['Dashboard Trường', 'Hồ sơ Trường học', 'Hộp phê duyệt', 'Trợ lý AI'] },
     { title: 'Nhân sự & lớp học', items: ['Giáo viên', 'Phân công giảng dạy', 'Lớp học', 'Học sinh', 'Phụ huynh'] },
-    { title: 'Tập huấn giáo viên', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Học liệu tập huấn', 'Đánh giá kết quả tập huấn', 'Chứng chỉ', 'Đánh giá năng lực GV', 'Giám sát tập huấn'] },
+    { title: 'Tập huấn giáo viên', items: ['Kế hoạch tập huấn', 'Lịch tập huấn', 'Học liệu tập huấn', 'Đánh giá kết quả tập huấn', 'Chứng chỉ', 'Đánh giá năng lực GV', 'Giám sát tập huấn', 'Báo cáo tập huấn'] },
     { title: 'Chương trình & học liệu', items: ['Chương trình giáo dục', 'Gói STEM', 'Đề xuất mua gói', 'Phân phối chương trình', 'Kho học liệu dùng chung', 'Phát hành học liệu', 'Định mức vật tư', 'Giáo án & bài giảng', 'E-learning & luyện thi', 'Ngân hàng câu hỏi'] },
     { title: 'Phòng & thiết bị STEM', items: ['Quản lý Phòng STEM', 'Quản lý Thiết bị', 'Vật tư tiêu hao', 'Đề xuất mua vật tư', 'Vận chuyển vật tư', 'Kiểm kê', 'Bảo hành thiết bị'] },
     { title: 'Dự án & cuộc thi', items: ['Dự án STEM', 'Cuộc thi'] },
@@ -76,7 +76,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Tổng quan', items: ['Dashboard toàn Sở', 'Danh sách Trường', 'Hộp phê duyệt', 'Trợ lý AI'] },
     { title: 'Điều hành & báo cáo', items: ['Chỉ số STEM', 'So sánh trường / địa bàn', 'KPI & Xếp hạng Xã/Phường', 'Cảnh báo & trường cần chú ý', 'Giao chỉ tiêu', 'Bộ chỉ số', 'Sự kiện', 'Khảo sát', 'Báo cáo Bộ GD&ĐT', 'Điều hành & Cấu hình'] },
     { title: 'Dự án & cuộc thi', items: ['Cuộc thi', 'Dự án STEM', 'Chấm thi'] },
-    { title: 'Tập huấn giáo viên', items: ['Giám sát Tập huấn GV', 'Đánh giá năng lực nhà giáo', 'Kế hoạch tập huấn', 'Lịch tập huấn', 'Đánh giá kết quả tập huấn', 'Chứng chỉ tập huấn'] },
+    { title: 'Tập huấn giáo viên', items: ['Giám sát Tập huấn GV', 'Báo cáo tập huấn', 'Đánh giá năng lực nhà giáo', 'Kế hoạch tập huấn', 'Lịch tập huấn', 'Đánh giá kết quả tập huấn', 'Chứng chỉ tập huấn'] },
     { title: 'Chương trình & học liệu', items: ['Chương trình giáo dục', 'Chương trình CT1–CT5', 'Theo dõi Môn học STEM', 'Phân phối chương trình', 'Phát hành học liệu', 'Kho học liệu dùng chung', 'Định mức vật tư', 'Giáo án & bài giảng', 'E-learning & luyện thi', 'Ngân hàng câu hỏi'] },
     { title: 'Phòng & thiết bị STEM', items: ['Hiệu quả Phòng STEM', 'Phòng STEM & lịch phòng', 'Thiết bị & kho'] },
     { title: 'Giảng dạy', items: ['Dashboard điểm danh'] },
@@ -96,7 +96,7 @@ export const MODULE_OF: Record<string, string> = {
   'Kho học liệu dùng chung': 'library', 'Phát hành học liệu': 'library', 'Định mức vật tư': 'library', 'Giáo án & bài giảng': 'library',
   'Hộp phê duyệt': 'approvals', 'Quy trình phê duyệt': 'roles', 'Đề xuất mua gói': 'packages',
   'Buổi dạy & điểm danh': 'timetable', 'Dashboard điểm danh': 'timetable', 'Ngày nghỉ & lễ': 'periods',
-  'Đánh giá năng lực GV': 'training', 'Giám sát tập huấn': 'training', 'Năng lực học sinh': 'students',
+  'Đánh giá năng lực GV': 'training', 'Giám sát tập huấn': 'training', 'Báo cáo tập huấn': 'training', 'Năng lực học sinh': 'students',
 }
 // Vai trò → giao diện: lưu ở cột roles.portal (vai trò hệ thống và vai trò tuỳ chỉnh của trường).
 

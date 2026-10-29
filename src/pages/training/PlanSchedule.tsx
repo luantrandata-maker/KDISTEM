@@ -10,7 +10,7 @@ import { colorOf } from '../dist/Grid'
 type Mode = 'online' | 'offline'
 export type SUnit = { id: string; title: string; hours: number; mode?: Mode | null }
 export type SProg = { id: string; code: string; title: string; ct_code: string | null; subjects: (SUnit & { contents: SUnit[] })[] }
-export type SItem = { program_id: string; seq: number; units?: string[] | null; trainer?: string | null; trainer_ids?: string[] }
+export type SItem = { program_id: string; seq: number; units?: string[] | null; trainer?: string | null; trainer_ids?: string[]; assistant_ids?: string[] }
 export type SPlan = { id: string; org_id: string; mode: string; starts_on: string | null; ends_on: string | null }
 type Sess = { id: string; unit_id: string | null; title: string; starts_at: string; ends_at: string; mode: Mode; location: string | null; meeting_url: string | null; closed_at: string | null }
 export type Row = { unit_id: string; program_id: string; subj: string; title: string; hours: number; date: string; from: string; to: string
@@ -123,7 +123,7 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
       } else {
         const it = items.find(i => i.program_id === r.program_id)
         const { error } = await supabase.from('training_sessions').insert({ ...v, org_id: plan.org_id, plan_id: plan.id, unit_id: r.unit_id, title: r.title,
-          trainer_ids: it?.trainer_ids ?? [], trainer: it?.trainer_ids?.length ? null : it?.trainer ?? null })
+          trainer_ids: it?.trainer_ids ?? [], trainer: it?.trainer_ids?.length ? null : it?.trainer ?? null, assistant_ids: it?.assistant_ids ?? [] })
         if (error) return `Buổi "${r.title}": ${error.message}`
       }
     }

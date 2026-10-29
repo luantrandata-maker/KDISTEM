@@ -11,7 +11,7 @@ export type Exam = { id: string; org_id: string; created_by: string | null; titl
   shuffle?: boolean
   duration_min: number | null; max_attempts: number; show_answers: 'after_submit' | 'after_close' | 'never'; class_ids: string[] | null; group_ids: string[] | null; student_ids: string[] | null; shared: boolean
   opens_at: string; closes_at: string | null; status: 'draft' | 'published' | 'closed'; created_at: string }
-export type Course = { id: string; org_id: string; created_by: string | null; title: string; description: string | null; subject: string | null; grade: number | null
+export type Course = { id: string; org_id: string; created_by: string | null; title: string; description: string | null; subject: string | null; grade: number | null; subjects?: string[]; grades?: number[]
   cover_url: string | null; class_ids: string[] | null; group_ids: string[] | null; student_ids: string[] | null; due_at: string | null; shared: boolean
   status: 'draft' | 'published' | 'archived'; created_at: string }
 export type Lesson = { id: string; course_id: string; position: number; title: string; kind: 'video' | 'reading' | 'link' | 'exam' | 'file' | 'library'; url: string | null; body: string | null
@@ -69,3 +69,8 @@ export function dueBadge(due: string | null, finished: boolean): { text: string;
   if (ms < 3 * 86400000) return { text: 'Sắp đến hạn ' + d, tone: 'warn' }
   return { text: 'Hạn ' + d, tone: '' }
 }
+
+/** Môn / khối của khoá học (119: nhiều môn, nhiều khối; bản cũ chỉ có một) */
+export const courseSubjects = (c: Pick<Course, 'subject' | 'subjects'>) => c.subjects?.length ? c.subjects : c.subject?.trim() ? [c.subject.trim()] : []
+export const courseGrades = (c: Pick<Course, 'grade' | 'grades'>) => c.grades?.length ? c.grades : c.grade ? [c.grade] : []
+export const courseMeta = (c: Course) => [courseSubjects(c).join(', ') || null, courseGrades(c).length ? 'Khối ' + courseGrades(c).join(', ') : null]

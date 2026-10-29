@@ -57,10 +57,10 @@ function ListEditor({ cols, rows, edit, empty, onChange }: { cols: Col[]; rows: 
 }
 
 type Tab = 'body' | ListKey | 'test'
-export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, passScore, onBack, onSave, notice, extra, initialTab }: {
+export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, passScore, onBack, onSave, notice, extra, initialTab, backLabel = 'Môn & nội dung tập huấn' }: {
   title: string; crumb: string; hours: number; detail: Detail; editable: boolean; hasTest?: boolean; passScore?: number | null; onBack: () => void; onSave: (d: Detail) => Promise<boolean>
   /** Ghi chú khi chỉ xem và nút thêm (VD: tạo phiên bản mới để sửa) */
-  notice?: React.ReactNode; extra?: React.ReactNode; initialTab?: 'test'
+  notice?: React.ReactNode; extra?: React.ReactNode; initialTab?: 'test'; backLabel?: string
 }) {
   const [tab, setTab] = useState<Tab>(initialTab ?? 'body')
   const [d, setD] = useState<Detail>(() => JSON.parse(JSON.stringify(detail ?? {})))
@@ -83,7 +83,7 @@ export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, 
   }
   const tabs: [Tab, string, number | null][] = [['body', 'Nội dung', null], ...(Object.keys(LISTS) as ListKey[]).map(k => [k, LISTS[k].tab, d[k]?.length ?? 0] as [Tab, string, number]),
     ...(hasTest || d.test?.qids?.length || d.test?.url ? [['test', 'Bài kiểm tra', d.test?.kind === 'link' ? 0 : d.test?.qids?.length ?? 0] as [Tab, string, number]] : [])]
-  return <ElView back="Môn & nội dung tập huấn" onBack={() => { if (!dirty || confirm('Bỏ các thay đổi chưa lưu?')) onBack() }} title={title}
+  return <ElView back={backLabel} onBack={() => { if (!dirty || confirm('Bỏ các thay đổi chưa lưu?')) onBack() }} title={title}
     sub={`${crumb} · ${String(hours).replace('.', ',')} giờ`}
     actions={editable ? <button type="button" className="primary" disabled={!dirty || busy} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu'}</button> : extra}>
     {msg && <p className="sub" role="status"><b>{msg}</b></p>}

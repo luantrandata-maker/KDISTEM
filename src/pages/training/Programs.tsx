@@ -23,7 +23,7 @@ export type TProgram = {
   competencies: string[]; target_level: number; pass_attendance: number; pass_score: number | null; need_product: boolean
   status: Status; version_no: number; source_id: string | null; updated_at: string; published_at: string | null; family_id: string; note: string | null
   final_exam?: FinalExam | null; eval_frame?: Frame | null
-  scope?: 'all' | 'selected'; effective_from?: string | null; effective_to?: string | null
+  scope?: 'all' | 'selected'; effective_from?: string | null; effective_to?: string | null; builder?: string | null
 }
 // 093: phiên bản & duyệt
 export type Status = 'draft' | 'pending' | 'approved' | 'rejected' | 'published' | 'superseded' | 'archived'
@@ -34,7 +34,7 @@ export const STATUS: Record<Status, [string, string]> = {
 const EDITABLE: Status[] = ['draft', 'rejected']
 type Unit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string; hours: number; mode: 'online' | 'offline' | null; has_test: boolean; note: string | null; detail: Detail }
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
-const SEL = 'id, org_id, code, title, ct_code, level, ct_codes, levels, audience, mode, description, competencies, target_level, pass_attendance, pass_score, need_product, status, version_no, source_id, updated_at, published_at, family_id, note, objectives, entry_conditions, outcomes, prereq_families, scope, effective_from, effective_to'
+const SEL = 'id, org_id, code, title, ct_code, level, ct_codes, levels, audience, mode, description, competencies, target_level, pass_attendance, pass_score, need_product, status, version_no, source_id, updated_at, published_at, family_id, note, objectives, entry_conditions, outcomes, prereq_families, scope, effective_from, effective_to, builder'
 const SEL_X = SEL + ', final_exam, eval_frame'
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 083 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI soạn được chương trình tập huấn.' : m
@@ -119,7 +119,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
       {!list ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
         <thead><tr><th>Chương trình tập huấn</th><th>Loại · cấp học</th><th>Đối tượng</th><th>Phạm vi áp dụng</th><th>Môn · nội dung · giờ</th><th>Hình thức</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
         <tbody>{shown.map(p => { const s = stats.get(p.id); return <tr key={p.id}>
-          <td><button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'open', id: p.id }) }}>{p.title}</button><br /><small className="sub">{p.code} · v{p.version_no}</small></td>
+          <td><button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'open', id: p.id }) }}>{p.title}</button><br /><small className="sub">{p.code} · v{p.version_no}{p.builder ? ` · XD: ${p.builder}` : ''}</small></td>
           <td>{[ctsOf(p).join(', '), lvsOf(p).map(levelName).join(', ')].filter(Boolean).join(' · ') || '—'}</td>
           <td style={{ whiteSpace: 'normal' }}>{p.audience || '—'}</td>
           <td>{p.scope === 'selected' ? `${targets.get(p.id) ?? 0} đơn vị được chọn` : 'Mọi đơn vị'}{effNote(p) && <><br /><small className="sub">{effNote(p)}</small></>}</td>
@@ -136,7 +136,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
 
 // ===== Thêm / sửa thông tin chương trình =====
 const BLANK = { title: '', ct_codes: [] as string[], levels: [] as string[], audience: '', mode: 'hybrid' as Mode, description: '', competencies: [] as string[], target_level: 3, pass_attendance: 80, pass_score: null as number | null, need_product: false,
-  objectives: '', entry_conditions: '', outcomes: '', prereq_families: [] as string[] }
+  objectives: '', entry_conditions: '', outcomes: '', prereq_families: [] as string[], builder: '' }
 type Info = typeof BLANK
 // Loại chương trình / cấp học: mảng mới (090), dữ liệu cũ chỉ có cột đơn
 const ctsOf = (p: { ct_codes?: string[] | null; ct_code: string | null }) => p.ct_codes?.length ? p.ct_codes : p.ct_code ? [p.ct_code] : []
@@ -160,6 +160,9 @@ function InfoFields({ f, set, disabled, family }: { f: Info; set: (f: Info) => v
   const { codes, byCode: tracks } = useStemTracks()
   const { levels } = useEduLevels()
   const comps = useCompetencies('teacher')
+  // Gợi ý đơn vị xây dựng: KDI và các cơ quan quản lý (Sở, Phòng…); gõ tự do được (VD: trường đại học, viện)
+  const orgs = useAllOrgs()
+  const builders = useMemo(() => [...new Set((orgs ?? []).filter(o => o.type !== 'school').map(o => o.name))].sort((a, b) => a.localeCompare(b, 'vi')), [orgs])
   return <>
     <div className="formgrid" style={{ alignItems: 'start' }}>
       <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình tập huấn *</span><input required disabled={disabled} maxLength={200} value={f.title} onChange={e => set({ ...f, title: e.target.value })} placeholder="VD: Tập huấn dạy học STEM tích hợp cho giáo viên THCS" /></label>
@@ -171,6 +174,9 @@ function InfoFields({ f, set, disabled, family }: { f: Info; set: (f: Info) => v
       <label className="field"><span>Hình thức</span><select disabled={disabled} value={f.mode} onChange={e => set({ ...f, mode: e.target.value as Mode })}>
         {(Object.keys(MODE) as Mode[]).map(m => <option key={m} value={m}>{MODE[m]}</option>)}</select></label>
       <label className="field"><span>Đối tượng</span><input disabled={disabled} maxLength={200} value={f.audience ?? ''} onChange={e => set({ ...f, audience: e.target.value })} placeholder="VD: Giáo viên mới dạy STEM" /></label>
+      <label className="field" style={{ gridColumn: 'span 2' }}><span>Đơn vị xây dựng <small className="sub">(không bắt buộc)</small></span>
+        <input disabled={disabled} maxLength={200} list="tp-builders" value={f.builder ?? ''} onChange={e => set({ ...f, builder: e.target.value })} placeholder="Chọn hoặc gõ: KDI Education, Sở GD&ĐT…, Trường ĐHSP…" />
+        <datalist id="tp-builders">{builders.map(n => <option key={n} value={n} />)}</datalist></label>
       <label className="field" style={{ gridColumn: '1/-1' }}><span>Mô tả</span><textarea disabled={disabled} rows={2} maxLength={4000} value={f.description ?? ''} onChange={e => set({ ...f, description: e.target.value })} /></label>
       <label className="field" style={{ gridColumn: '1/-1' }}><span>Mục tiêu</span><textarea disabled={disabled} rows={3} maxLength={4000} value={f.objectives ?? ''} onChange={e => set({ ...f, objectives: e.target.value })}
         placeholder="Sau tập huấn, giáo viên…" /></label>
@@ -218,7 +224,7 @@ function ProgramForm({ admin, onBack, onSaved }: { admin: boolean; onBack: () =>
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!admin) return
     setBusy(true); setErr('')
-    const { data, error } = await supabase.from('training_programs').insert({ ...f, title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null }).select('id').single()
+    const { data, error } = await supabase.from('training_programs').insert({ ...f, title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null, builder: f.builder?.trim() || null }).select('id').single()
     setBusy(false)
     if (error) return setErr(errText(error.message))
     onSaved((data as { id: string }).id)
@@ -257,7 +263,7 @@ export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab
     setP(x); setUnits((b.data as Unit[]) ?? [])
     setF({ title: x.title, ct_codes: ctsOf(x), levels: lvsOf(x), audience: x.audience ?? '', mode: x.mode, description: x.description ?? '', competencies: x.competencies ?? [],
       target_level: x.target_level, pass_attendance: x.pass_attendance, pass_score: x.pass_score, need_product: x.need_product,
-      objectives: x.objectives ?? '', entry_conditions: x.entry_conditions ?? '', outcomes: x.outcomes ?? '', prereq_families: x.prereq_families ?? [] })
+      objectives: x.objectives ?? '', entry_conditions: x.entry_conditions ?? '', outcomes: x.outcomes ?? '', prereq_families: x.prereq_families ?? [], builder: x.builder ?? '' })
   }
   useEffect(() => { load() }, [id])
   if (!p || !f) return <ElView back={back} onBack={onBack} title="Đang tải…">{msg && <p className="msg">{msg[0]}</p>}</ElView>
@@ -276,7 +282,7 @@ export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab
   }
   async function saveInfo() {
     if (!f) return
-    await run(supabase.from('training_programs').update({ ...f, title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null }).eq('id', p!.id), 'Đã lưu thông tin.')
+    await run(supabase.from('training_programs').update({ ...f, title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null, builder: f.builder?.trim() || null }).eq('id', p!.id), 'Đã lưu thông tin.')
   }
   async function del() {
     if (!confirm(`Xoá bản nháp "${p!.title}"?`)) return
@@ -315,6 +321,7 @@ export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab
       </> : <dl className="tpkv">
         <dt>Loại · cấp học</dt><dd>{[ctsOf(p).map(c => `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`).join(', '), lvsOf(p).length ? lvsOf(p).map(levelName).join(', ') : 'Mọi cấp học'].filter(Boolean).join(' · ')}</dd>
         <dt>Đối tượng</dt><dd>{p.audience || '—'}</dd>
+        <dt>Đơn vị xây dựng</dt><dd>{p.builder || '—'}</dd>
         <dt>Hình thức</dt><dd>{MODE[p.mode]}</dd>
         {p.description && <><dt>Mô tả</dt><dd>{p.description}</dd></>}
         {p.objectives && <><dt>Mục tiêu</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{p.objectives}</dd></>}

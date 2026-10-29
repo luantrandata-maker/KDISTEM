@@ -3523,6 +3523,26 @@ select pg_temp.probe('kdi@iso-test.local', $q$update training_programs set effec
 select pg_temp.chk('kdi', 'PV 117: hết hiệu lực thì không chọn cho kế hoạch mới', $q$insert into training_plan_items (plan_id, program_id, seq) select k.id, p.id, 1 from training_plans k, training_programs p where k.name = 'ISO KH PV2' and p.title = 'ISO CTTH PV' and p.status = 'published'$q$, 'ERR 22023');
 select pg_temp.chk('kdi', 'PV 117: ghi lần mời gần nhất của trường', $q$select (invited_at is not null)::text from training_plan_orgs where plan_id = (select id from training_plans where name = 'ISO KH PV')$q$, 'true');
 
+-- ===== KT 118: đơn vị xây dựng, trợ giảng, kết thúc kế hoạch, báo cáo =====
+select pg_temp.chk('kdi', 'KT 118: lưu đơn vị xây dựng (gọn khoảng trắng)', $q$with u as (update training_programs set builder = '  Sở GD&ĐT   Hưng Yên ' where title = 'ISO CTTH PV' and status = 'draft' returning builder) select builder from u$q$, 'Sở GD&ĐT Hưng Yên');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_programs set builder = 'KDI Education' where title = 'ISO CTTH PV' and status = 'published'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plan_items (plan_id, program_id, seq) select k.id, p.id, 1 from training_plans k, training_programs p where k.name = 'ISO KH PV2' and p.title = 'ISO CTTH E' and p.status = 'published'$q$, true);
+select pg_temp.chk('kdi', 'KT 118: chọn trợ giảng cho chương trình trong kế hoạch, tên tự ghép', $q$with u as (update training_plan_items i set assistant_ids = array[(select id from trainers where full_name = 'ISO GV Hai')] from training_plans k where k.id = i.plan_id and k.name = 'ISO KH PV2' returning i.assistant) select assistant from u$q$, 'ISO GV Hai');
+select pg_temp.chk('kdi', 'KT 118: một người không vừa giảng viên vừa trợ giảng', $q$update training_plan_items i set trainer_ids = array[(select id from trainers where full_name = 'ISO GV Hai')], assistant_ids = array[(select id from trainers where full_name = 'ISO GV Hai')] from training_plans k where k.id = i.plan_id and k.name = 'ISO KH PV2'$q$, 'ERR 22023');
+select pg_temp.chk('admin_ph', 'KT 118: trường không kết thúc kế hoạch của KDI', $q$select training_plan_close(id)::text from training_plans where name = 'ISO KH PV'$q$, 'ERR');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_sessions (org_id, plan_id, title, starts_at, ends_at) select org_id, id, 'ISO buổi sau', now() + interval '3 day', now() + interval '3 day 2 hour' from training_plans where name = 'ISO KH PV'$q$, true);
+select pg_temp.chk('kdi', 'KT 118: kết thúc bị chặn khi còn buổi tương lai', $q$select training_plan_close(id)::text from training_plans where name = 'ISO KH PV'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_sessions set starts_at = now() - interval '2 hour', ends_at = now() - interval '1 hour' where title = 'ISO buổi sau'$q$, true);
+select pg_temp.chk('kdi', 'KT 118: kết thúc kế hoạch: chốt điểm danh, trả số liệu', $q$select (x ->> 'enrolled') || ':' || (x ->> 'pending') from training_plan_close((select id from training_plans where name = 'ISO KH PV'), 'Xong đợt') x$q$, '1:1');
+select pg_temp.probe('kdi@iso-test.local', $q$select training_plan_close(id, 'Xong đợt')::text from training_plans where name = 'ISO KH PV'$q$, true);
+select pg_temp.chk('kdi', 'KT 118: buổi được chốt, tự đăng ký tắt', $q$select (s.closed_at is not null) || ':' || k.self_register || ':' || (k.closed_at is not null) from training_sessions s join training_plans k on k.id = s.plan_id where s.title = 'ISO buổi sau'$q$, 'true:false:true');
+select pg_temp.chk('gv_ph2', 'KT 118: GV có tên nhận thông báo kết thúc', $q$select count(*) from notifications where kind = 'training_closed' and user_id = auth.uid()$q$, '1');
+select pg_temp.chk('kdi', 'KT 118: kế hoạch đã kết thúc không ghi danh thêm', format('insert into training_enrollments (org_id, plan_id, teacher_id) values (%L, (select id from training_plans where name = ''ISO KH PV''), %s)', pg_temp.oid_('THCS-PH'), pg_temp.tid('GV thử A')), 'ERR 22023');
+select pg_temp.chk('kdi', 'KT 118: kết thúc lần hai báo lỗi', $q$select training_plan_close(id)::text from training_plans where name = 'ISO KH PV'$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'KT 118: báo cáo có đợt, số giờ, trạng thái kết thúc', $q$select closed || ':' || enrolled || ':' || org_name from training_report() where plan_name = 'ISO KH PV'$q$, 'true:1:Trường THCS Phố Hiến');
+select pg_temp.chk('admin_kb', 'KT 118: trường khác không thấy số liệu của trường khác trong báo cáo', $q$select count(*) from training_report() where plan_name = 'ISO KH PV'$q$, '0');
+select pg_temp.chk('kdi', 'KT 118: mở lại kế hoạch đã kết thúc', $q$select training_plan_reopen(id)::text from training_plans where name = 'ISO KH PV'$q$, '');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

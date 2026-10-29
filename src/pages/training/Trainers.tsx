@@ -28,8 +28,8 @@ export function useTrainers(orgId: string | null | undefined, everyOrg = false) 
 }
 
 /** Chọn nhiều giảng viên từ danh sách của đơn vị; gõ tên mới rồi Enter để thêm nhanh vào danh sách */
-export function TrainerPick({ orgId, value, onChange, disabled, ariaLabel = 'Giảng viên' }: {
-  orgId: string; value: string[]; onChange: (ids: string[]) => void | Promise<unknown>; disabled?: boolean; ariaLabel?: string
+export function TrainerPick({ orgId, value, onChange, disabled, ariaLabel = 'Giảng viên', placeholder = 'Chọn giảng viên…' }: {
+  orgId: string; value: string[]; onChange: (ids: string[]) => void | Promise<unknown>; disabled?: boolean; ariaLabel?: string; placeholder?: string
 }) {
   const { list, reload } = useTrainers(orgId)
   const [err, setErr] = useState('')
@@ -53,7 +53,7 @@ export function TrainerPick({ orgId, value, onChange, disabled, ariaLabel = 'Gi�
   }
   return <>
     <MultiSelect value={value} onChange={change} options={options} disabled={disabled} ariaLabel={ariaLabel} allowCustom customLabel="Thêm giảng viên"
-      placeholder="Chọn giảng viên…" empty="Chưa có giảng viên nào: gõ họ tên để thêm" />
+      placeholder={placeholder} empty="Chưa có giảng viên nào: gõ họ tên để thêm" />
     {err && <small className="warnline">{err}</small>}
   </>
 }

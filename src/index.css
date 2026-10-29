@@ -2032,3 +2032,10 @@ span.namelink{cursor:default;text-decoration:none}
 .outscope summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .outscope .reggrid { margin-top: 8px; }
 .roomrow.off { opacity: .55; }
+
+/* 118: báo cáo tập huấn */
+.rptrate { display: flex; align-items: center; gap: 8px; }
+.rptrate .capbar { flex: 1; min-width: 80px; }
+.rptrate b { min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
+.rpttable td { font-variant-numeric: tabular-nums; }
+.rptcards { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }

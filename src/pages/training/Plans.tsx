@@ -27,9 +27,9 @@ export type TPlan = {
   id: string; org_id: string; plan_code: string | null; name: string; pub_status: Status; status: string; year_name: string | null; term: Term | null
   mode: Mode; provider: string | null; starts_on: string | null; ends_on: string | null; budget: number | null; note: string | null; hours: number | null
   updated_at: string; published_at: string | null; self_register?: boolean; register_until?: string | null; node_id: string | null; max_learners?: number | null
-  register_approval?: boolean
+  register_approval?: boolean; closed_at?: string | null; close_note?: string | null
 }
-type Item = { plan_id: string; program_id: string; seq: number; quota: number | null; trainer: string | null; trainer_ids?: string[]; note: string | null; units?: string[] | null
+type Item = { plan_id: string; program_id: string; seq: number; quota: number | null; trainer: string | null; trainer_ids?: string[]; assistant?: string | null; assistant_ids?: string[]; note: string | null; units?: string[] | null
   training_programs: { code: string; title: string; ct_code: string | null } | null }
 type POrg = { plan_id: string; org_id: string; quota: number | null; status: OrgSt; note: string | null; submitted_at: string | null; decided_at: string | null; invited_at?: string | null }
 type PUnit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string; hours: number; mode: 'online' | 'offline' | null }
@@ -43,7 +43,7 @@ const RSEL = 'plan_id, teacher_id, org_id, units, exempt_units, note, warnings, 
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
 const TERM: Record<Term, string> = { summer: 'Dịp hè', hk1: 'Học kỳ I', hk2: 'Học kỳ II', other: 'Khác' }
 export const ORG_ST: Record<OrgSt, [string, string]> = { assigned: ['Chờ trường chọn GV', ''], submitted: ['Chờ duyệt', 'warn'], approved: ['Đã duyệt', 'good'], returned: ['Trả lại', 'bad'] }
-const SEL = 'id, org_id, plan_code, name, pub_status, status, year_name, term, mode, provider, starts_on, ends_on, budget, note, hours, updated_at, published_at, self_register, register_until, node_id, max_learners, register_approval'
+const SEL = 'id, org_id, plan_code, name, pub_status, status, year_name, term, mode, provider, starts_on, ends_on, budget, note, hours, updated_at, published_at, self_register, register_until, node_id, max_learners, register_approval, closed_at, close_note'
 const errText = (m: string) => /schema cache|does not exist|column .* of relation/i.test(m) ? 'Hãy chạy migration 084 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Bạn không có quyền với kế hoạch tập huấn này.' : m
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
@@ -104,7 +104,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
       if (p.error) { setMsg([errText(p.error.message), true]); setList([]); return }
       const ids = ((p.data ?? []) as TPlan[]).map(x => x.id)
       const [i, o] = ids.length ? await Promise.all([
-        supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, trainer_ids, note, units, training_programs(code, title, ct_code)').in('plan_id', ids),
+        supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, trainer_ids, assistant, assistant_ids, note, units, training_programs(code, title, ct_code)').in('plan_id', ids),
         supabase.from('training_plan_orgs').select('plan_id, org_id, quota, status, note, submitted_at, decided_at').in('plan_id', ids),
       ]) : [{ data: [] }, { data: [] }]
       setList((p.data as TPlan[]) ?? []); setItems((i.data as unknown as Item[]) ?? []); setOrgs((o.data as POrg[]) ?? [])
@@ -132,7 +132,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
         <td style={{ whiteSpace: 'normal' }}>{its.length ? its.sort((a, b) => a.seq - b.seq).map(i => i.training_programs?.title).join('; ') : <small className="sub">{p.pub_status === 'draft' ? 'Chưa chọn' : 'Kế hoạch cũ'}</small>}
           {p.hours ? <><br /><small className="sub">{p.hours} giờ</small></> : null}</td>
         <td>{os.length ? <>{os.length} trường{w > 0 && <><br /><Chip tone="warn">{w} chờ duyệt</Chip></>}</> : '—'}</td>
-        <td><Chip tone={STATUS[p.pub_status][1]}>{STATUS[p.pub_status][0]}</Chip></td>
+        <td><Chip tone={STATUS[p.pub_status][1]}>{STATUS[p.pub_status][0]}</Chip>{p.closed_at && <><br /><Chip tone="off">Đã kết thúc</Chip></>}</td>
       </tr> })}
       {rows.length === 0 && <tr><td colSpan={6}>{empty}</td></tr>}</tbody>
   </table></div>
@@ -276,7 +276,7 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
   async function load() {
     const [a, b, c, d, r] = await Promise.all([
       supabase.from('training_plans').select(SEL).eq('id', id).single(),
-      supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, trainer_ids, note, units, training_programs(code, title, ct_code)').eq('plan_id', id).order('seq'),
+      supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, trainer_ids, assistant, assistant_ids, note, units, training_programs(code, title, ct_code)').eq('plan_id', id).order('seq'),
       supabase.from('training_plan_orgs').select('plan_id, org_id, quota, status, note, submitted_at, decided_at, invited_at').eq('plan_id', id),
       supabase.from('training_enrollments').select('plan_id, teacher_id, source, units, exempt_units, teachers(full_name, subject, org_id)').eq('plan_id', id),
       supabase.from('training_registrations').select(RSEL).eq('plan_id', id),
@@ -349,6 +349,20 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
     if (s === 'published' && sched.dirty) await saveSched()
     if (await run(supabase.from('training_plans').update({ pub_status: s }).eq('id', p!.id), ok)) onMsg([ok, false])
   }
+  // Kết thúc kế hoạch (118): chốt điểm danh các buổi, đóng đăng ký, báo GV; kết quả và chứng chỉ vẫn làm tiếp ở bước 5
+  async function closePlan() {
+    const note = prompt('Kết thúc kế hoạch tập huấn?\n\nHệ thống chốt điểm danh mọi buổi (chưa điểm danh = vắng), đóng đăng ký, không ghi danh thêm và báo cho giáo viên có tên. Kết quả, chứng chỉ vẫn làm tiếp ở bước 5. Mở lại được nếu cần.\n\nGhi chú (không bắt buộc):', '')
+    if (note === null) return
+    const { data, error } = await supabase.rpc('training_plan_close', { p_plan: p!.id, p_note: note.trim() || null })
+    if (error) { setMsg([errText(error.message), true]); return }
+    const r = data as { enrolled: number; passed: number; failed: number; pending: number }
+    setMsg([`Đã kết thúc kế hoạch: ${r.enrolled} giáo viên · ${r.passed} Đạt · ${r.failed} Chưa đạt · ${r.pending} chưa kết luận. Chuyển sang bước 5 để kết luận và cấp chứng chỉ.`, false])
+    setStep(5); load()
+  }
+  async function reopenPlan() {
+    if (!confirm('Mở lại kế hoạch đã kết thúc? Tự đăng ký vẫn tắt, bật lại ở bước 4 nếu cần.')) return
+    run(supabase.rpc('training_plan_reopen', { p_plan: p!.id }), 'Đã mở lại kế hoạch.')
+  }
   async function del() {
     if (!confirm(`Xoá bản nháp "${p!.name}"? Lịch đã xếp cũng bị xoá.`)) return
     await supabase.from('training_sessions').delete().eq('plan_id', p!.id)
@@ -377,6 +391,7 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
     <span className="distcrumb">{crumbTxt} · {p.plan_code}</span>
     <span className="distheadright">
       <Chip tone={STATUS[p.pub_status][1]}>{STATUS[p.pub_status][0]}</Chip>
+      {p.closed_at && <Chip tone="off">Đã kết thúc {new Date(p.closed_at).toLocaleDateString('vi-VN')}</Chip>}
       {editSched && (sched.dirty ? <Chip tone="warn">Lịch chưa lưu</Chip> : <Chip tone="good">Đã lưu</Chip>)}
       {validity}
       {editSched && <button type="button" disabled={!sched.dirty || busy} onClick={sched.reset}>Hủy thay đổi</button>}
@@ -385,6 +400,8 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
         title={warn.length ? 'Chưa phát hành được: ' + warn.join('; ') : scErr.length ? 'Lịch còn lỗi' : undefined} onClick={() => setStatus('published', `Đã phát hành ${p.plan_code}.`)}>Phát hành</button>}
       {can && p.pub_status === 'published' && <button type="button" className="primary" onClick={() => { setStep(4); setAssign(true) }}>Gán trường</button>}
       {can && <details className="distmore"><summary aria-label="Thao tác khác">···</summary><div className="distmenu">
+        {p.pub_status === 'published' && !p.closed_at && <button type="button" onClick={closePlan}>Kết thúc kế hoạch</button>}
+        {p.closed_at && <button type="button" onClick={reopenPlan}>Mở lại kế hoạch</button>}
         {p.pub_status === 'published' && !orgs.length && <button type="button" onClick={() => setStatus('draft', 'Đã chuyển về nháp.')}>Chuyển về nháp</button>}
         {p.pub_status === 'published' && <button type="button" onClick={() => confirm('Ngừng dùng kế hoạch này? Trường đã gán vẫn giữ danh sách.') && setStatus('archived', 'Đã chuyển sang Ngừng dùng.')}>Ngừng dùng</button>}
         {p.pub_status === 'archived' && <button type="button" onClick={() => setStatus('published', 'Đã dùng lại kế hoạch.')}>Dùng lại</button>}
@@ -395,6 +412,7 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
 
   return <div className="panel distpanel">
     {head}
+    {p.closed_at && <p className="sub" style={{ margin: '0 0 8px' }}>Kế hoạch đã kết thúc ngày {new Date(p.closed_at).toLocaleDateString('vi-VN')}: đã chốt điểm danh, không nhận đăng ký, ghi danh thêm.{p.close_note ? ` Ghi chú: ${p.close_note}` : ''}</p>}
     {edit ? <input className="disttitlein" defaultValue={p.name} maxLength={200} aria-label="Tên kế hoạch" onFocus={e => e.target.select()}
       onBlur={e => { const v = e.target.value.trim(); if (v && v !== p.name) run(supabase.from('training_plans').update({ name: v }).eq('id', p.id)); else e.target.value = p.name }} />
       : <h2 className="disttitle">{p.name}</h2>}
@@ -445,7 +463,7 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
         <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
           <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Chương trình trong kế hoạch</h3><small className="sub">{items.length} chương trình · {num(totalHours)} giờ{totalQuota ? ` · chỉ tiêu ${totalQuota} GV` : ''}</small></div>
           <div className="wrap"><table className="libtable">
-            <thead><tr><th style={{ width: 40 }}>STT</th><th>Chương trình</th><th style={{ width: 70 }}>Số giờ</th><th style={{ width: 100 }}>Chỉ tiêu GV</th><th>Giảng viên</th>{edit && <th style={{ width: 90 }}></th>}</tr></thead>
+            <thead><tr><th style={{ width: 40 }}>STT</th><th>Chương trình</th><th style={{ width: 70 }}>Số giờ</th><th style={{ width: 100 }}>Chỉ tiêu GV</th><th>Giảng viên</th><th>Trợ giảng</th>{edit && <th style={{ width: 90 }}></th>}</tr></thead>
             <tbody>{items.map((i, k) => <tr key={i.program_id}>
               <td>{k + 1}</td>
               <td style={{ whiteSpace: 'normal' }}><i className="tpdot" style={{ background: colorOf(k) }} /><b>{i.training_programs?.title ?? '—'}</b><br /><small className="sub">{[i.training_programs?.code, i.training_programs?.ct_code].filter(Boolean).join(' · ')}</small>
@@ -456,10 +474,12 @@ function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBa
               <td style={{ minWidth: 200, whiteSpace: 'normal' }}>{edit ? <TrainerPick orgId={p.org_id} value={i.trainer_ids ?? []} ariaLabel={`Giảng viên ${i.training_programs?.title ?? ''}`}
                 onChange={ids => patchItem(i, { trainer_ids: ids, trainer: null })} /> : i.trainer || '—'}
                 {edit && !i.trainer_ids?.length && i.trainer && <small className="sub">Đang ghi tay: {i.trainer}</small>}</td>
+              <td style={{ minWidth: 180, whiteSpace: 'normal' }}>{edit ? <TrainerPick orgId={p.org_id} value={i.assistant_ids ?? []} ariaLabel={`Trợ giảng ${i.training_programs?.title ?? ''}`} placeholder="Chọn trợ giảng…"
+                onChange={ids => patchItem(i, { assistant_ids: ids })} /> : i.assistant || '—'}</td>
               {edit && <td><div className="tools"><button type="button" aria-label="Chuyển lên" disabled={!k} onClick={() => move(k, -1)}>↑</button>
                 <button type="button" aria-label="Chuyển xuống" disabled={k === items.length - 1} onClick={() => move(k, 1)}>↓</button></div></td>}
             </tr>)}
-              {!items.length && <tr><td colSpan={edit ? 6 : 5}><small className="sub">{edit ? 'Tick chương trình bên trái để thêm vào kế hoạch.' : 'Kế hoạch chưa gắn chương trình tập huấn.'}</small></td></tr>}</tbody>
+              {!items.length && <tr><td colSpan={edit ? 7 : 6}><small className="sub">{edit ? 'Tick chương trình bên trái để thêm vào kế hoạch.' : 'Kế hoạch chưa gắn chương trình tập huấn.'}</small></td></tr>}</tbody>
           </table></div>
           <button type="button" className="primary" style={{ justifySelf: 'end' }} disabled={!items.length} onClick={() => setStep(2)}>Tiếp tục: Xếp lịch →</button>
         </div>
@@ -867,7 +887,7 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
       const enrQ = supabase.from('training_enrollments').select('plan_id, teacher_id, teachers!inner(org_id)').in('plan_id', ids)
       const regQ = supabase.from('training_registrations').select('plan_id, org_id').in('plan_id', ids).eq('status', 'pending')
       const [i, e, g] = ids.length ? await Promise.all([
-        supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, trainer_ids, note, units, training_programs(code, title, ct_code)').in('plan_id', ids),
+        supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, trainer_ids, assistant, assistant_ids, note, units, training_programs(code, title, ct_code)').in('plan_id', ids),
         all ? enrQ : enrQ.eq('teachers.org_id', orgId),
         all ? regQ : regQ.eq('org_id', orgId),
       ]) : [{ data: [] }, { data: [] }, { data: [] }]
@@ -939,7 +959,7 @@ export function SchoolPlanWork({ planId, orgId, onBack }: { planId: string; orgI
     (async () => {
       const [a, i] = await Promise.all([
         supabase.from('training_plan_orgs').select(`plan_id, org_id, quota, status, note, submitted_at, decided_at, invited_at, training_plans(${SEL})`).eq('plan_id', planId).eq('org_id', orgId).maybeSingle(),
-        supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, trainer_ids, note, units, training_programs(code, title, ct_code)').eq('plan_id', planId),
+        supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, trainer_ids, assistant, assistant_ids, note, units, training_programs(code, title, ct_code)').eq('plan_id', planId),
       ])
       if (a.error || !a.data || !(a.data as unknown as Assigned).training_plans) return setErr(a.error ? errText(a.error.message) : 'Không tìm thấy kế hoạch được giao cho trường này.')
       setRow(a.data as unknown as Assigned); setItems((i.data as unknown as Item[]) ?? [])
@@ -1036,7 +1056,7 @@ function SchoolPlanTeachers({ row, orgId, items, onBack, onMsg, backLabel = 'K�
         <dt>Thời gian</dt><dd>{span(p) || '—'}</dd>
         <dt>Hình thức</dt><dd>{MODE[p.mode] ?? p.mode}{p.provider ? ` · ${p.provider}` : ''}</dd>
         {p.self_register && <><dt>Tự đăng ký</dt><dd>Giáo viên tự đăng ký ở mục Đăng ký tập huấn{p.register_until ? `, hạn ${day(p.register_until)}` : ''} · {p.register_approval !== false ? 'cần duyệt' : 'không cần duyệt (đăng ký là có tên)'}</dd></>}
-        <dt>Chương trình</dt><dd>{items.length ? <ol style={{ margin: 0, paddingLeft: 18 }}>{[...items].sort((a, b) => a.seq - b.seq).map(i => <li key={i.program_id}>{i.training_programs?.title}{i.trainer && <small className="sub"> · GV: {i.trainer}</small>}
+        <dt>Chương trình</dt><dd>{items.length ? <ol style={{ margin: 0, paddingLeft: 18 }}>{[...items].sort((a, b) => a.seq - b.seq).map(i => <li key={i.program_id}>{i.training_programs?.title}{i.trainer && <small className="sub"> · GV: {i.trainer}</small>}{i.assistant && <small className="sub"> · Trợ giảng: {i.assistant}</small>}
           <UnitPick prog={progs.find(x => x.id === i.program_id)} value={i.units ?? null} edit={false} onSave={async () => false} /></li>)}</ol> : '—'}</dd>
         {p.note && <><dt>Ghi chú</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{p.note}</dd></>}
       </dl>

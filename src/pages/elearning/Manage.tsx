@@ -1,3 +1,4 @@
+import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { MultiSelect } from '../../components/MultiSelect'
 import { GradeChecks, SubjectMulti } from '../../components/Pickers'
@@ -116,6 +117,12 @@ function AudiencePicker({ orgId, classes, groups, value, onChange }: { orgId: st
 }
 
 // ================= Đề luyện =================
+// Cấu hình làm thử theo cách ra đề: ma trận / ngẫu nhiên theo mức độ / cố định
+const examSpec = (x: Pick<Exam, 'mode' | 'subject' | 'grade' | 'question_ids' | 'criteria' | 'shuffle'>): TrySpec =>
+  x.mode === 'fixed' ? { kind: 'pick', qids: x.question_ids, shuffle: !!x.shuffle }
+  : x.criteria.matrix ? { kind: 'pick', subject: x.subject, grade: x.grade, matrix: x.criteria.matrix, shuffle: !!x.shuffle }
+  : { kind: 'levels', subject: x.subject, grade: x.grade, count: x.criteria.count ?? 10, topics: x.criteria.topics ?? [],
+      levels: Object.fromEntries(Object.entries(x.criteria.levels ?? {}).filter(([, v]) => v != null)) as Record<string, number> }
 type EForm = Omit<Exam, 'id' | 'org_id' | 'created_by' | 'created_at'> & { id?: string; org?: string }
 const EEMPTY: EForm = { title: '', description: '', subject: '', grade: null, mode: 'random', question_ids: [], criteria: { count: 10, levels: {}, topics: [] },
   duration_min: 15, max_attempts: 0, show_answers: 'after_submit', class_ids: null, group_ids: null, student_ids: null, shared: false, opens_at: new Date().toISOString(), closes_at: null, status: 'draft', shuffle: true }
@@ -175,7 +182,7 @@ function Exams({ orgId, subject }: { orgId: string | null; subject?: string }) {
   if (cur) return <ElView back="Danh sách đề luyện" onBack={() => { setOpen(null); setMsg(null) }} title={cur.title}
     sub={<>{[cur.subject, cur.grade ? 'Khối ' + cur.grade : null, howText(cur), cur.duration_min ? `${cur.duration_min} phút` : null,
       `${dt(cur.opens_at)}${cur.closes_at ? ' → ' + dt(cur.closes_at) : ''}`].filter(Boolean).join(' · ')} <span className={'pill ' + ESTATUS[cur.status][1]}>{ESTATUS[cur.status][0]}</span></>}
-    actions={editable(cur) ? <>{statusBtns(cur)}<button onClick={() => editForm(cur)}>Sửa</button></> : undefined}>
+    actions={<><TryButton orgId={cur.org_id} spec={examSpec(cur)} title={cur.title} minutes={cur.duration_min} />{editable(cur) && <>{statusBtns(cur)}<button onClick={() => editForm(cur)}>Sửa</button></>}</>}>
     {note}<ExamResults exam={cur} roster={schoolOf(cur.org_id) && editable(cur)} /></ElView>
   return (
     <>
@@ -246,7 +253,8 @@ function ExamForm({ form, setForm, onSubmit, orgId, classes, groups, isSchool }:
       {isSchool ? <AudiencePicker key={form.id ?? 'new'} orgId={orgId} classes={classes} groups={groups} value={form} onChange={v => set(v)} />
         : <label className="field inline wide"><input type="checkbox" checked={form.shared} onChange={e => set({ shared: e.target.checked })} /> Giao cho học sinh mọi trường trực thuộc</label>}
       <label className="field wide"><span>Hướng dẫn cho học sinh</span><textarea rows={2} value={form.description ?? ''} onChange={e => set({ description: e.target.value })} /></label>
-      <div className="actions wide"><button className="primary">{form.id ? 'Lưu đề' : 'Tạo đề (nháp)'}</button><button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
+      <div className="actions wide"><button className="primary">{form.id ? 'Lưu đề' : 'Tạo đề (nháp)'}</button>
+        <TryButton orgId={orgId} spec={examSpec(form)} title={form.title || 'Đề luyện'} minutes={form.duration_min} /><button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
     </form>
   )
 }

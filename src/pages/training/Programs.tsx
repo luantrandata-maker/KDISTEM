@@ -14,6 +14,7 @@ import { ContentDetail, detailCount, type Detail } from './Content'
 import { TrainingUnits } from './Units'
 import { FlowGuide } from '../../components/FlowGuide'
 import { ProgramExams, ProgramEvalFrame, type FinalExam, type Frame } from './ExamFrame'
+import { useAllOrgs } from '../../components/OrgScope'
 
 type Mode = 'online' | 'offline' | 'hybrid'
 export type TProgram = {
@@ -22,6 +23,7 @@ export type TProgram = {
   competencies: string[]; target_level: number; pass_attendance: number; pass_score: number | null; need_product: boolean
   status: Status; version_no: number; source_id: string | null; updated_at: string; published_at: string | null; family_id: string; note: string | null
   final_exam?: FinalExam | null; eval_frame?: Frame | null
+  scope?: 'all' | 'selected'; effective_from?: string | null; effective_to?: string | null
 }
 // 093: phiên bản & duyệt
 export type Status = 'draft' | 'pending' | 'approved' | 'rejected' | 'published' | 'superseded' | 'archived'
@@ -32,7 +34,7 @@ export const STATUS: Record<Status, [string, string]> = {
 const EDITABLE: Status[] = ['draft', 'rejected']
 type Unit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string; hours: number; mode: 'online' | 'offline' | null; has_test: boolean; note: string | null; detail: Detail }
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
-const SEL = 'id, org_id, code, title, ct_code, level, ct_codes, levels, audience, mode, description, competencies, target_level, pass_attendance, pass_score, need_product, status, version_no, source_id, updated_at, published_at, family_id, note, objectives, entry_conditions, outcomes, prereq_families'
+const SEL = 'id, org_id, code, title, ct_code, level, ct_codes, levels, audience, mode, description, competencies, target_level, pass_attendance, pass_score, need_product, status, version_no, source_id, updated_at, published_at, family_id, note, objectives, entry_conditions, outcomes, prereq_families, scope, effective_from, effective_to'
 const SEL_X = SEL + ', final_exam, eval_frame'
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 083 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI soạn được chương trình tập huấn.' : m
@@ -42,6 +44,7 @@ type Stat = { subjects: number; contents: number; hours: number }
 export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {}) {
   const [list, setList] = useState<TProgram[] | null>(null)
   const [stats, setStats] = useState<Map<string, Stat>>(new Map())
+  const [targets, setTargets] = useState<Map<string, number>>(new Map())
   const [admin, setAdmin] = useState(false)
   const [rk, setRk] = useState(0)
   const [view, setView] = useState<{ kind: 'new' } | { kind: 'open'; id: string } | null>(null)
@@ -55,10 +58,14 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
   useEffect(() => { supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)) }, [])
   useEffect(() => {
     (async () => {
-      const [p, u] = await Promise.all([
+      const [p, u, t] = await Promise.all([
         supabase.from('training_programs').select(SEL).order('code'),
         supabase.from('training_program_units').select('program_id, kind, hours'),
+        supabase.from('training_program_targets').select('program_id'),
       ])
+      const tc = new Map<string, number>()
+      for (const r of (t.data ?? []) as { program_id: string }[]) tc.set(r.program_id, (tc.get(r.program_id) ?? 0) + 1)
+      setTargets(tc)
       if (p.error) { setMsg([errText(p.error.message), true]); setList([]); return }
       const m = new Map<string, Stat>()
       for (const r of (u.data ?? []) as { program_id: string; kind: string; hours: number }[]) {
@@ -110,17 +117,18 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-        <thead><tr><th>Chương trình tập huấn</th><th>Loại · cấp học</th><th>Đối tượng</th><th>Môn · nội dung · giờ</th><th>Hình thức</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
+        <thead><tr><th>Chương trình tập huấn</th><th>Loại · cấp học</th><th>Đối tượng</th><th>Phạm vi áp dụng</th><th>Môn · nội dung · giờ</th><th>Hình thức</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
         <tbody>{shown.map(p => { const s = stats.get(p.id); return <tr key={p.id}>
           <td><button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'open', id: p.id }) }}>{p.title}</button><br /><small className="sub">{p.code} · v{p.version_no}</small></td>
           <td>{[ctsOf(p).join(', '), lvsOf(p).map(levelName).join(', ')].filter(Boolean).join(' · ') || '—'}</td>
           <td style={{ whiteSpace: 'normal' }}>{p.audience || '—'}</td>
+          <td>{p.scope === 'selected' ? `${targets.get(p.id) ?? 0} đơn vị được chọn` : 'Mọi đơn vị'}{effNote(p) && <><br /><small className="sub">{effNote(p)}</small></>}</td>
           <td>{s?.subjects ?? 0} môn · {s?.contents ?? 0} nội dung · {num(s?.hours ?? 0)} giờ</td>
           <td>{MODE[p.mode]}</td>
           <td><Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip></td>
           <td><small>{new Date(p.updated_at).toLocaleDateString('vi-VN')}</small></td>
         </tr> })}
-          {shown.length === 0 && <tr><td colSpan={7}>{list.length ? 'Không có chương trình nào khớp bộ lọc.' : admin ? 'Chưa có chương trình tập huấn nào. Bấm "Thêm chương trình tập huấn".' : 'Chưa có chương trình tập huấn nào được KDI phát hành.'}</td></tr>}</tbody>
+          {shown.length === 0 && <tr><td colSpan={8}>{list.length ? 'Không có chương trình nào khớp bộ lọc.' : admin ? 'Chưa có chương trình tập huấn nào. Bấm "Thêm chương trình tập huấn".' : 'Chưa có chương trình tập huấn nào được KDI phát hành.'}</td></tr>}</tbody>
       </table></div>}
     </>
   )
@@ -318,6 +326,8 @@ export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab
       </dl>}
     </section>}
 
+    {tab === 'info' && <ProgramScope p={p} admin={admin} onMsg={(m, e) => { setMsg([m, !!e]); if (!e) load() }} />}
+
     {tab === 'units' && <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <TrainingUnits programId={p.id} programTitle={p.title} programMode={p.mode} units={units} editable={edit} catalog={suggest}
         onReload={load} onMessage={(m, e) => setMsg([errText(m), !!e])} onOpen={setOpenC} />
@@ -455,5 +465,80 @@ function TrainingDeploy({ p, go }: { p: TProgram; go?: (page: string) => void })
           <td>{r.att_pct != null ? `${String(r.att_pct).replace('.', ',')}%` : '—'}</td><td>{r.passed}</td><td>{r.failed || 0}</td><td>{r.certs}</td></tr>)}</tbody>
       </table></div>}
     </>}
+  </section>
+}
+
+// ===== Phạm vi áp dụng & hiệu lực (117): như chương trình giáo dục =====
+const todayStr = () => { const d = new Date(); return new Date(+d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10) }
+const vnDay = (d: string) => new Date(d + 'T00:00').toLocaleDateString('vi-VN')
+/** Ghi chú hiệu lực ngắn: chưa đến ngày / đã hết / có hạn */
+function effNote(p: Pick<TProgram, 'effective_from' | 'effective_to'>) {
+  const t = todayStr()
+  if (p.effective_to && p.effective_to < t) return `Hết hiệu lực từ ${vnDay(p.effective_to)}`
+  if (p.effective_from && p.effective_from > t) return `Hiệu lực từ ${vnDay(p.effective_from)}`
+  if (p.effective_to) return `Hiệu lực đến ${vnDay(p.effective_to)}`
+  return ''
+}
+const OTYPE: Record<string, string> = { ministry: 'Bộ', province: 'Tỉnh', department: 'Sở', district: 'Phòng', school: 'Trường', provider: 'Đơn vị' }
+function ProgramScope({ p, admin, onMsg }: { p: TProgram; admin: boolean; onMsg: (m: string, err?: boolean) => void }) {
+  const orgs = useAllOrgs()
+  const [saved, setSaved] = useState<string[] | null>(null)
+  const [sel, setSel] = useState<string[]>([])
+  const [scope, setScope] = useState<'all' | 'selected'>(p.scope ?? 'all')
+  const [from, setFrom] = useState(p.effective_from ?? '')
+  const [to, setTo] = useState(p.effective_to ?? '')
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    supabase.from('training_program_targets').select('org_id').eq('program_id', p.id).then(({ data }) => {
+      const ids = ((data ?? []) as { org_id: string }[]).map(r => r.org_id); setSaved(ids); setSel(ids)
+    })
+  }, [p.id])
+  useEffect(() => { setScope(p.scope ?? 'all'); setFrom(p.effective_from ?? ''); setTo(p.effective_to ?? '') }, [p.scope, p.effective_from, p.effective_to])
+  const byId = useMemo(() => new Map((orgs ?? []).map(o => [o.id, o])), [orgs])
+  const label = (id: string) => { const o = byId.get(id); if (!o) return 'Đơn vị'
+    const par = o.parent_id ? byId.get(o.parent_id) : undefined
+    return `${o.name} · ${OTYPE[o.type] ?? o.type}${par && o.type === 'school' ? ` (${par.name})` : ''}` }
+  const options = useMemo(() => (orgs ?? []).filter(o => !o.is_platform && o.id !== p.org_id && o.type !== 'provider')
+    .sort((a, b) => (a.type === 'school' ? 1 : 0) - (b.type === 'school' ? 1 : 0) || a.name.localeCompare(b.name, 'vi'))
+    .map(o => [o.id, label(o.id)] as [string, string]), [orgs, byId])
+  const edit = admin && p.status !== 'archived'
+  const same = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x))
+  const dirty = saved != null && (scope !== (p.scope ?? 'all') || (from || null) !== (p.effective_from ?? null) || (to || null) !== (p.effective_to ?? null) || !same(sel, saved))
+  const bad = scope === 'selected' && !sel.length ? 'Chọn ít nhất một đơn vị áp dụng.' : from && to && to < from ? 'Ngày hết hiệu lực phải sau ngày bắt đầu.' : ''
+  async function save() {
+    if (!saved || bad) return
+    setBusy(true)
+    const add = sel.filter(x => !saved.includes(x)), del = saved.filter(x => !sel.includes(x))
+    const r1 = add.length ? await supabase.from('training_program_targets').insert(add.map(org_id => ({ program_id: p.id, org_id }))) : { error: null }
+    const r2 = !r1.error && del.length ? await supabase.from('training_program_targets').delete().eq('program_id', p.id).in('org_id', del) : { error: null }
+    const r3 = !r1.error && !r2.error ? await supabase.from('training_programs').update({ scope, effective_from: from || null, effective_to: to || null }).eq('id', p.id) : { error: null }
+    setBusy(false)
+    const err = r1.error ?? r2.error ?? r3.error
+    if (err) return onMsg(errText(err.message), true)
+    setSaved(sel)
+    onMsg(scope === 'all' ? 'Đã lưu: chương trình áp dụng cho mọi đơn vị.' : `Đã lưu phạm vi áp dụng: ${sel.length} đơn vị và các đơn vị trực thuộc.`)
+  }
+  const note = effNote(p)
+  return <section className="panel" style={{ display: 'grid', gap: 12 }}>
+    <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Phạm vi áp dụng & hiệu lực</h3>
+      {note && <Chip tone={note.startsWith('Hết') ? 'bad' : 'warn'}>{note}</Chip>}</div>
+    <p className="sub" style={{ margin: 0 }}>Đơn vị trong phạm vi (và đơn vị trực thuộc) mới thấy chương trình, chọn được khi lập kế hoạch và được gán kế hoạch dùng chương trình này.
+      Sửa được cả khi chương trình đã phát hành; phiên bản mới giữ nguyên phạm vi.</p>
+    {edit ? <>
+      <div className="formgrid" style={{ alignItems: 'start' }}>
+        <label className="field"><span>Phạm vi áp dụng</span><select value={scope} onChange={e => setScope(e.target.value as 'all' | 'selected')}>
+          <option value="all">Mọi đơn vị</option><option value="selected">Chỉ đơn vị được chọn</option></select></label>
+        <label className="field"><span>Hiệu lực từ</span><input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
+        <label className="field"><span>Hiệu lực đến</span><input type="date" value={to} min={from || undefined} onChange={e => setTo(e.target.value)} /></label>
+        {scope === 'selected' && <div className="field" style={{ gridColumn: '1/-1' }}><span>Đơn vị áp dụng * <small className="sub">(chọn Sở / Phòng là áp dụng cho mọi trường trực thuộc)</small></span>
+          <MultiSelect value={sel} onChange={setSel} options={[...options, ...sel.filter(id => !options.some(o => o[0] === id)).map(id => [id, label(id)] as [string, string])]}
+            placeholder="Chọn Sở, Phòng hoặc trường…" ariaLabel="Đơn vị áp dụng" empty="Chưa có đơn vị nào." /></div>}
+      </div>
+      {bad && dirty && <small className="warnline">{bad}</small>}
+      <div className="formactions"><button type="button" className="primary" disabled={!dirty || !!bad || busy} onClick={save}>Lưu phạm vi áp dụng</button></div>
+    </> : <dl className="tpkv">
+      <dt>Phạm vi</dt><dd>{p.scope === 'selected' ? (saved ? saved.map(label).join('; ') || '—' : '…') : 'Mọi đơn vị'}</dd>
+      <dt>Hiệu lực</dt><dd>{[p.effective_from && `từ ${vnDay(p.effective_from)}`, p.effective_to && `đến ${vnDay(p.effective_to)}`].filter(Boolean).join(' ') || 'Không giới hạn'}</dd>
+    </dl>}
   </section>
 }

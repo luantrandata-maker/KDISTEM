@@ -10,23 +10,30 @@ type Row = { plan_id: string; plan_code: string | null; name: string; org_name: 
   mode: string; provider: string | null; register_until: string | null; programs: string | null; hours: number | null; quota: number | null; taken: number
   list_status: string; reg_status: 'pending' | 'waitlist' | 'accepted' | 'rejected' | 'cancelled' | null; reg_reason: string | null; reg_units: string[] | null
   reg_exempt: string[] | null; reg_warnings: string[] | null; reg_at: string | null; enrolled: boolean
-  max_learners: number | null; plan_taken: number | null; wait_pos: number | null }
+  max_learners: number | null; plan_taken: number | null; wait_pos: number | null; register_approval?: boolean | null }
 type U = { unit_id: string; ord: number; program_title: string; subject: string; title: string; hours: number; mode: string | null; passed: boolean; trainer: string | null }
 type Check = { errors: string[]; warnings: string[]; full?: string[] }
 const MODE: Record<string, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
 const day = (d: string | null) => d ? new Date(d + 'T00:00').toLocaleDateString('vi-VN') : ''
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 const today = () => { const d = new Date(); return new Date(+d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10) }
-const errText = (m: string) => /schema cache|does not exist|function .* not found/i.test(m) ? 'Hãy chạy migration 111 trên Supabase.' : m
+const errText = (m: string) => /schema cache|does not exist|function .* not found/i.test(m) ? 'Hãy chạy migration 117 trên Supabase.' : m
 const waiting = (r: Row) => r.reg_status === 'pending' || r.reg_status === 'waitlist'
 
 function status(r: Row): [string, string] {
   if (r.enrolled) return r.list_status === 'approved' ? ['Được duyệt tham gia', 'good'] : ['Có tên trong danh sách trường', 'good']
-  if (r.reg_status === 'pending') return ['Chờ trường xét', 'warn']
+  if (r.reg_status === 'pending') return ['Chờ duyệt', 'warn']
   if (r.reg_status === 'waitlist') return [`Danh sách chờ${r.wait_pos ? ` · thứ ${r.wait_pos}` : ''}`, 'warn']
-  if (r.reg_status === 'rejected') return ['Không được nhận', 'bad']
+  if (r.reg_status === 'rejected') return ['Không được duyệt', 'bad']
   if (r.reg_status === 'cancelled') return ['Đã huỷ đăng ký', '']
   return ['Chưa đăng ký', '']
+}
+/** Kế hoạch trong link mời (?dk=<id>): đọc một lần rồi xoá khỏi địa chỉ, giữ lại đến khi màn đăng ký xử lý xong */
+let held: string | null = null
+function takeLink() {
+  const v = new URLSearchParams(location.search).get('dk')
+  if (v) { history.replaceState(history.state, '', location.pathname + location.hash); if (/^[0-9a-f-]{36}$/i.test(v)) held = v }
+  return held
 }
 const isOpen = (r: Row) => (!r.register_until || r.register_until >= today()) && (r.list_status === 'assigned' || r.list_status === 'returned')
 
@@ -35,10 +42,21 @@ export function TeacherTrainingRegister({ teacherId }: TProps) {
   const [err, setErr] = useState('')
   const [ok, setOk] = useState('')
   const [open, setOpen] = useState<string | null>(null)
+  // Mở từ link mời (?dk=<kế hoạch>): vào thẳng màn đăng ký của kế hoạch đó
+  const [link, setLink] = useState(() => takeLink())
   const load = () => supabase.rpc('training_open_plans').then(({ data, error }) => {
     if (error) { setErr(errText(error.message)); setRows([]) } else setRows((data as Row[]) ?? [])
   })
   useEffect(() => { if (teacherId) load() }, [teacherId])
+  useEffect(() => {
+    if (!link || !rows) return
+    const r = rows.find(x => x.plan_id === link)
+    if (!r) setErr('Kế hoạch trong link không mở đăng ký cho trường của bạn, hoặc chưa phát hành.')
+    else if (r.enrolled) setOk(`Bạn đã có tên trong "${r.name}".`)
+    else if (!isOpen(r)) setErr(`"${r.name}" đã hết hạn đăng ký hoặc trường đã gửi danh sách.`)
+    else setOpen(r.plan_id)
+    held = null; setLink(null)
+  }, [link, rows])
   if (!teacherId) return <NoTeacher />
   const cur = open ? rows?.find(r => r.plan_id === open) : undefined
   if (cur) return <RegisterView r={cur} onBack={() => setOpen(null)} onDone={m => { setOpen(null); setOk(m); load() }} />
@@ -53,7 +71,7 @@ export function TeacherTrainingRegister({ teacherId }: TProps) {
   return <>
     <div className="cards">
       <div className="card"><strong>{n(r => isOpen(r) && !r.enrolled && !waiting(r))}</strong><span>Đang mở, chưa đăng ký</span></div>
-      <div className="card"><strong>{n(waiting)}</strong><span>Chờ xét / danh sách chờ</span></div>
+      <div className="card"><strong>{n(waiting)}</strong><span>Chờ duyệt / danh sách chờ</span></div>
       <div className="card"><strong>{n(r => r.enrolled)}</strong><span>Có tên tham gia</span></div>
     </div>
     {ok && <p className="sub" role="status"><b>{ok}</b></p>}
@@ -67,7 +85,7 @@ export function TeacherTrainingRegister({ teacherId }: TProps) {
           <td>{[day(r.starts_on), day(r.ends_on)].filter(Boolean).join(' – ') || '—'}</td>
           <td>{r.register_until ? day(r.register_until) : '—'}{r.register_until && r.register_until < today() && <><br /><small className="sub">Đã hết hạn</small></>}</td>
           <td><Seats r={r} /></td>
-          <td><Chip tone={tone}>{st}</Chip>{r.reg_status === 'rejected' && r.reg_reason && !r.enrolled && <><br /><small className="sub">Lý do: {r.reg_reason}</small></>}</td>
+          <td><Chip tone={tone}>{st}</Chip>{!r.enrolled && !r.reg_status && r.register_approval === false && <><br /><small className="sub">Không cần duyệt</small></>}{r.reg_status === 'rejected' && r.reg_reason && !r.enrolled && <><br /><small className="sub">Lý do: {r.reg_reason}</small></>}</td>
           <td style={{ whiteSpace: 'nowrap' }}>
             {can && !waiting(r) && <button type="button" className="primary" onClick={() => { setOk(''); setOpen(r.plan_id) }}>{r.reg_status ? 'Đăng ký lại' : 'Đăng ký'}</button>}
             {can && waiting(r) && <><button type="button" onClick={() => { setOk(''); setOpen(r.plan_id) }}>Sửa</button> <button type="button" onClick={() => cancel(r)}>Huỷ</button></>}
@@ -76,7 +94,8 @@ export function TeacherTrainingRegister({ teacherId }: TProps) {
         </tr> })}
         {!rows.length && <tr><td colSpan={6}>Chưa có kế hoạch tập huấn nào mở cho giáo viên tự đăng ký.</td></tr>}</tbody>
     </table></div>
-    <p className="sub" style={{ marginTop: 10 }}>Chọn nội dung muốn học rồi gửi đăng ký. Trường xét và nhận hoặc từ chối (kèm lý do), bạn nhận thông báo ở chuông. Danh sách của trường sau đó được gửi lên đơn vị tổ chức duyệt.</p>
+    <p className="sub" style={{ marginTop: 10 }}>Chọn nội dung muốn học rồi gửi đăng ký. Kế hoạch cần duyệt: trường hoặc đơn vị tổ chức duyệt hoặc không duyệt (kèm lý do), bạn nhận thông báo ở chuông.
+      Kế hoạch không cần duyệt: gửi đăng ký là có tên tham gia ngay.</p>
   </>
 }
 
@@ -124,15 +143,16 @@ function RegisterView({ r, onBack, onDone }: { r: Row; onBack: () => void; onDon
     const { data, error } = await supabase.rpc('training_register', { p_plan: r.plan_id, p_units: all ? null : pick, p_exempt: exempt, p_note: note.trim() || null, p_wait: wait })
     setBusy(false)
     if (error) return setErr(errText(error.message))
-    onDone(data === 'waitlist' ? `Đã vào danh sách chờ của "${r.name}". Khi có chỗ trống và được nhận, bạn sẽ nhận thông báo.`
-      : `Đã gửi đăng ký "${r.name}" (${learn.length} nội dung). Trường sẽ xét và báo lại cho bạn.`)
+    onDone(data === 'waitlist' ? `Đã vào danh sách chờ của "${r.name}". Khi có chỗ trống và được duyệt, bạn sẽ nhận thông báo.`
+      : data === 'accepted' ? `Đã đăng ký "${r.name}" (${learn.length} nội dung). Bạn đã có tên tham gia, xem lịch ở mục Lịch tập huấn.`
+      : `Đã gửi đăng ký "${r.name}" (${learn.length} nội dung). Đơn vị tổ chức sẽ duyệt và báo lại cho bạn.`)
   }
   const groups = useMemo(() => { const m = new Map<string, U[]>(); (units ?? []).forEach(u => { const k = u.program_title + ' › ' + u.subject; m.set(k, [...(m.get(k) ?? []), u]) }); return [...m] }, [units])
   const hours = learn.reduce((a, u) => a + Number(u.hours || 0), 0)
   const blocked = !chk || chk.errors.length > 0 || !learn.length
   const full = chk?.full ?? []
   return <ElView back="Đăng ký tập huấn" onBack={onBack} title={r.name}
-    sub={<>{[r.plan_code, r.org_name, [day(r.starts_on), day(r.ends_on)].filter(Boolean).join(' – '), r.register_until && `hạn đăng ký ${day(r.register_until)}`].filter(Boolean).join(' · ')}</>}
+    sub={<>{[r.plan_code, r.org_name, [day(r.starts_on), day(r.ends_on)].filter(Boolean).join(' – '), r.register_until && `hạn đăng ký ${day(r.register_until)}`, r.register_approval === false ? 'không cần duyệt' : 'cần duyệt'].filter(Boolean).join(' · ')}</>}
     actions={full.length ? <button type="button" className="primary" disabled={busy || blocked} onClick={() => send(true)}>{r.reg_status === 'waitlist' ? 'Lưu đăng ký chờ' : 'Gửi đăng ký chờ'}</button>
       : <button type="button" className="primary" disabled={busy || blocked} onClick={() => send()}>{r.reg_status === 'pending' ? 'Lưu đăng ký' : 'Gửi đăng ký'}</button>}>
     {err && <p className="msg">{err}</p>}

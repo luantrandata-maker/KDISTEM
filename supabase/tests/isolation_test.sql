@@ -3518,6 +3518,11 @@ select pg_temp.chk('kdi', 'SL 115: quản trị nền tảng xem mọi trường
 select pg_temp.chk('admin_ph', 'SL 115: trường khác không xem', format($q$select count(*) from program_readiness() where org_id = %L$q$, pg_temp.oid_('THCS-KB')), '0');
 select pg_temp.chk('gv_ph2', 'SL 115: giáo viên không xem bảng đáp ứng', $q$select count(*) from program_readiness()$q$, '0');
 
+-- ===== SL 116: Kho hoạt động của Đào tạo tập huấn (activities.domain) =====
+select pg_temp.chk('kdi', 'SL 116: hoạt động cũ thuộc kho dạy học', $q$select count(*) filter (where domain <> 'school') from activities$q$, '0');
+select pg_temp.chk('kdi', 'SL 116: KDI tạo hoạt động trong kho tập huấn', $q$with x as (insert into activities (org_id, kind, title, is_template, status, domain) values (platform_org_id(), 'quiz', 'ISO HĐ tập huấn', true, 'draft', 'training') returning domain) select domain from x$q$, 'training');
+select pg_temp.chk('kdi', 'SL 116: kho không hợp lệ bị từ chối', $q$insert into activities (org_id, kind, title, domain) values (platform_org_id(), 'quiz', 'ISO HĐ sai', 'other')$q$, 'ERR 23514');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

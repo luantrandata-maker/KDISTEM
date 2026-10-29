@@ -8,6 +8,7 @@ import { Tabs } from '../teacher/common'
 import QuestionBank from './Bank'
 import Analytics from './Analytics'
 import { ElView } from '../../components/ElView'
+import { useSubjects } from '../subjects'
 import { ExamMatrix, matrixTotal } from '../../components/ExamMatrix'
 import { ESTATUS, LEVEL, LKIND, SHOW, dueBadge, errText, pathName, type Attempt, type Course, type Exam, type Lesson, type Level, type Question } from './common'
 
@@ -296,6 +297,7 @@ function Courses({ orgId }: { orgId: string | null }) {
   const [form, setForm] = useState<CForm | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const subjList = useSubjects().subjects
   // Quản trị hệ thống: thấy khoá học của mọi đơn vị, sửa thẳng; lớp/nhóm theo đơn vị của khoá đang soạn
   const every = useAllMode(), orgName = useOrgName(), tctx = useOrgCtx(every && form ? form.org || null : null)
   const fClasses = every ? tctx.classes : classes, fGroups = every ? tctx.groups : groups
@@ -336,7 +338,8 @@ function Courses({ orgId }: { orgId: string | null }) {
       <form className="panel formgrid" onSubmit={save}>
         {!form.id && <OrgPick kind="any" value={form.org ?? ''} onChange={org => setForm({ ...form, org, class_ids: null, group_ids: null, student_ids: null, shared: false })} title="Đơn vị mở khoá học" />}
         <label className="field wide"><span>Tên khoá học *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Lập trình Arduino cơ bản" /></label>
-        <label className="field"><span>Môn</span><input value={form.subject ?? ''} onChange={e => setForm({ ...form, subject: e.target.value })} /></label>
+        <label className="field"><span>Môn (bài học, học liệu chọn từ kho theo môn này)</span><input list="course-subjects" value={form.subject ?? ''} onChange={e => setForm({ ...form, subject: e.target.value })} />
+          <datalist id="course-subjects">{[...new Set(subjList.filter(x => x.active).map(x => x.name))].map(n => <option key={n} value={n} />)}</datalist></label>
         <label className="field"><span>Khối</span><input type="number" min={1} max={12} value={form.grade ?? ''} onChange={e => setForm({ ...form, grade: e.target.value ? Number(e.target.value) : null })} /></label>
         <label className="field"><span>Ảnh bìa (https://…)</span><input value={form.cover_url ?? ''} onChange={e => setForm({ ...form, cover_url: e.target.value })} /></label>
         <label className="field"><span>Hạn hoàn thành</span><input type="datetime-local" value={toLocal(form.due_at)} onChange={e => setForm({ ...form, due_at: e.target.value ? new Date(e.target.value).toISOString() : null })} /></label>
@@ -381,7 +384,8 @@ function Courses({ orgId }: { orgId: string | null }) {
   )
 }
 
-type LibOpt = { id: string; title: string; owner_name: string | null; content: { type?: string; file_name?: string } }
+type LibOpt = { id: string; kind: 'material' | 'unit'; title: string; subject: string | null; grades: string | null; owner_name: string | null; content: { type?: string; file_name?: string; material_ids?: string[] } }
+const normSub = (x: string | null | undefined) => (x ?? '').trim().toLowerCase()
 const MAT: Record<string, string> = { lesson_plan: 'Giáo án', worksheet: 'Phiếu học tập', image: 'Hình ảnh', video: 'Video', guide: 'Tài liệu hướng dẫn', document: 'Tài liệu', link: 'Đường dẫn' }
 
 function LessonEditor({ course, lessons, exams, progress, editable, onChange }: { course: Course; lessons: Lesson[]; exams: Exam[]; progress: Map<string, number>; editable: boolean; onChange: () => void }) {
@@ -389,19 +393,35 @@ function LessonEditor({ course, lessons, exams, progress, editable, onChange }: 
   const [file, setFile] = useState<File | null>(null)
   const [lib, setLib] = useState<LibOpt[] | null>(null)
   const [libQ, setLibQ] = useState('')
+  // Chọn từ Kho học liệu theo môn của khoá: một học liệu, hoặc cả bài học (thêm mọi học liệu đã xuất bản của bài)
+  const [pick, setPick] = useState<'material' | 'unit'>('material')
+  const [anySub, setAnySub] = useState(!course.subject?.trim())
+  const [unitId, setUnitId] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   // Học liệu đã xuất bản trong Kho học liệu mà đơn vị thấy (chỉ loại "Học liệu": tệp / đường dẫn)
   useEffect(() => {
     if ((f?.kind === 'library' || lessons.some(l => l.kind === 'library')) && !lib)
-      supabase.from('library_items').select('id, title, owner_name, content').eq('status', 'published').eq('kind', 'material').order('title').limit(2000)
+      supabase.from('library_items').select('id, kind, title, subject, grades, owner_name, content').eq('status', 'published').in('kind', ['material', 'unit']).order('title').limit(3000)
         .then(({ data }) => setLib((data as LibOpt[]) ?? []))
   }, [f?.kind, lessons.length])
-  function edit(l: Partial<Lesson> | null) { setF(l); setFile(null); setErr(''); setLibQ('') }
+  function edit(l: Partial<Lesson> | null) { setF(l); setFile(null); setErr(''); setLibQ(''); setPick('material'); setUnitId('') }
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!f) return
     setBusy(true); setErr('')
     try {
+      if (f.kind === 'library' && pick === 'unit' && !f.id) {
+        // Cả bài học: mỗi học liệu đã xuất bản của bài thành một bài trong khoá, theo thứ tự trong bài
+        const u = lib?.find(x => x.id === unitId)
+        if (!u) throw new Error('Chọn bài học trong kho.')
+        const mats = (u.content.material_ids ?? []).map(id => lib?.find(x => x.id === id && x.kind === 'material')).filter((x): x is LibOpt => !!x)
+        if (!mats.length) throw new Error('Bài học này chưa có học liệu đã xuất bản để đưa vào khoá.')
+        const start = lessons.length ? Math.max(...lessons.map(l => l.position)) + 1 : 1
+        const { error } = await supabase.from('course_lessons').insert(mats.map((m, i) => ({ course_id: course.id, title: `${u.title}: ${m.title}`.slice(0, 200), kind: 'library',
+          library_item_id: m.id, body: f.body?.trim() || null, duration_min: f.duration_min || null, position: start + i })))
+        if (error) throw new Error(errText(error.message, '061'))
+        edit(null); onChange(); return
+      }
       let path = f.kind === 'file' ? f.path ?? null : null
       if (f.kind === 'file' && file) path = (await uploadLearningFile(course.org_id, 'courses', file)).path
       if (f.kind === 'file' && !path) throw new Error('Chọn tệp cho bài học.')
@@ -419,7 +439,12 @@ function LessonEditor({ course, lessons, exams, progress, editable, onChange }: 
     await supabase.from('course_lessons').update({ position: o.position }).eq('id', l.id); await supabase.from('course_lessons').update({ position: l.position }).eq('id', o.id); onChange()
   }
   const libName = (id: string | null) => lib?.find(x => x.id === id)?.title
-  const ln = libQ.trim().toLowerCase(), libList = (lib ?? []).filter(x => !ln || x.title.toLowerCase().includes(ln) || x.id === f?.library_item_id)
+  const ln = libQ.trim().toLowerCase(), cs = normSub(course.subject)
+  const subOk = (x: LibOpt) => anySub || !cs || normSub(x.subject) === cs
+  const libList = (lib ?? []).filter(x => x.kind === 'material' && ((subOk(x) && (!ln || x.title.toLowerCase().includes(ln))) || x.id === f?.library_item_id))
+  const unitList = (lib ?? []).filter(x => x.kind === 'unit' && subOk(x) && (!ln || x.title.toLowerCase().includes(ln)))
+  const unitMats = (u?: LibOpt) => (u?.content.material_ids ?? []).filter(id => lib?.some(x => x.id === id && x.kind === 'material')).length
+  const subName = course.subject?.trim()
   return (
     <div className="lessons">
       <ol>{lessons.map((l, i) => <li key={l.id}>
@@ -434,19 +459,29 @@ function LessonEditor({ course, lessons, exams, progress, editable, onChange }: 
       {editable && !f && <button onClick={() => edit({ kind: 'video', title: '' })}>+ Thêm bài học</button>}
       {f && <form className="formgrid" onSubmit={save}>
         <label className="field"><span>Loại bài</span><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Lesson['kind'] })}>{Object.entries(LKIND).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
-        <label className="field wide"><span>Tên bài *</span><input required value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} /></label>
+        {!(f.kind === 'library' && pick === 'unit' && !f.id) && <label className="field wide"><span>Tên bài *</span><input required value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} /></label>}
         {(f.kind === 'video' || f.kind === 'link') && <label className="field wide"><span>Đường dẫn *</span><input required type="url" value={f.url ?? ''} onChange={e => setF({ ...f, url: e.target.value })} placeholder={f.kind === 'video' ? 'https://www.youtube.com/watch?v=… hoặc Google Drive' : 'https://…'} /></label>}
         {f.kind === 'exam' && <label className="field wide"><span>Đề luyện *</span><select required value={f.exam_id ?? ''} onChange={e => setF({ ...f, exam_id: e.target.value })}><option value="">Chọn đề đã công bố…</option>{exams.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}</select></label>}
         {f.kind === 'file' && <label className="field wide"><span>Tệp (PDF, Word, PowerPoint, hình ảnh… tối đa {MAX_FILE_MB} MB) *</span>
           <input type="file" required={!f.path} onChange={e => { const x = e.target.files?.[0] ?? null; setFile(x); if (x && !f.title?.trim()) setF({ ...f, title: x.name.replace(/\.[^.]+$/, '') }) }} />
           {f.path && !file && <small>Tệp hiện tại: <button type="button" className="xbtn" onClick={() => openFile(f.path!)}>{pathName(f.path)}</button> — chọn tệp khác để thay.</small>}</label>}
-        {f.kind === 'library' && <div className="field wide"><span>Học liệu trong Kho học liệu *</span>
-          <input type="search" className="search" style={{ margin: '0 0 6px' }} placeholder="Lọc theo tên học liệu…" value={libQ} onChange={e => setLibQ(e.target.value)} aria-label="Lọc học liệu" />
-          <select required value={f.library_item_id ?? ''} onChange={e => setF({ ...f, library_item_id: e.target.value, title: f.title || libName(e.target.value) || '' })} aria-label="Học liệu">
+        {f.kind === 'library' && <div className="field wide"><span>Chọn từ Kho học liệu{subName && !anySub ? ` · môn ${subName}` : ''} *</span>
+          {!f.id && <div className="segmented" role="group" aria-label="Chọn gì từ kho" style={{ margin: '0 0 6px', width: 'fit-content' }}>
+            {([['material', 'Một học liệu'], ['unit', 'Cả bài học']] as const).map(([k, l]) => <button key={k} type="button" className={pick === k ? 'on' : ''} aria-pressed={pick === k} onClick={() => setPick(k)}>{l}</button>)}</div>}
+          <div className="tools" style={{ margin: '0 0 6px' }}>
+            <input type="search" className="search" style={{ margin: 0, flex: 1 }} placeholder={pick === 'unit' ? 'Lọc theo tên bài học…' : 'Lọc theo tên học liệu…'} value={libQ} onChange={e => setLibQ(e.target.value)} aria-label="Lọc theo tên" />
+            {subName && <label className="field inline" style={{ margin: 0 }}><input type="checkbox" checked={anySub} onChange={e => setAnySub(e.target.checked)} /> Mọi môn</label>}</div>
+          {pick === 'unit' && !f.id ? <>
+            <select required value={unitId} onChange={e => { setUnitId(e.target.value); const u = lib?.find(x => x.id === e.target.value); if (u && !f.title?.trim()) setF({ ...f, title: u.title }) }} aria-label="Bài học">
+              <option value="">{lib ? `Chọn bài học đã xuất bản (${unitList.length})…` : 'Đang tải…'}</option>
+              {unitList.map(x => <option key={x.id} value={x.id}>{x.title}{x.grades ? ` · khối ${x.grades}` : ''} — {unitMats(x)} học liệu{x.owner_name ? ` · ${x.owner_name}` : ''}</option>)}
+            </select>
+            <small>Mỗi học liệu đã xuất bản của bài học thành một bài trong khoá, theo thứ tự trong bài.{unitId ? ` Bài này có ${unitMats(lib?.find(x => x.id === unitId))} học liệu.` : ''}</small>
+          </> : <select required value={f.library_item_id ?? ''} onChange={e => setF({ ...f, library_item_id: e.target.value, title: f.title || libName(e.target.value) || '' })} aria-label="Học liệu">
             <option value="">{lib ? `Chọn học liệu đã xuất bản (${libList.length})…` : 'Đang tải…'}</option>
             {libList.map(x => <option key={x.id} value={x.id}>{x.title}{x.content?.type ? ` — ${MAT[x.content.type] ?? x.content.type}` : ''}{x.owner_name ? ` · ${x.owner_name}` : ''}</option>)}
-          </select>
-          {lib && !lib.length && <small>Chưa có học liệu nào được xuất bản trong Kho học liệu.</small>}</div>}
+          </select>}
+          {lib && !(pick === 'unit' ? unitList : libList).length && <small>{subName && !anySub ? `Kho chưa có ${pick === 'unit' ? 'bài học' : 'học liệu'} đã xuất bản của môn ${subName}. Tick "Mọi môn" để xem cả các môn khác.` : `Chưa có ${pick === 'unit' ? 'bài học' : 'học liệu'} nào được xuất bản trong Kho học liệu.`}</small>}</div>}
         <label className="field wide"><span>{f.kind === 'reading' ? 'Nội dung bài đọc (Markdown) *' : 'Ghi chú cho học sinh'}</span><textarea rows={f.kind === 'reading' ? 8 : 2} required={f.kind === 'reading'} value={f.body ?? ''} onChange={e => setF({ ...f, body: e.target.value })} /></label>
         <label className="field"><span>Thời lượng (phút)</span><input type="number" min={1} max={600} value={f.duration_min ?? ''} onChange={e => setF({ ...f, duration_min: e.target.value ? Number(e.target.value) : null })} /></label>
         {err && <p className="msg">{err}</p>}

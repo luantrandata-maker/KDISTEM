@@ -31,7 +31,7 @@ import QuestionBank from './pages/elearning/Bank'
 import StudentElearning from './pages/elearning/Student'
 import { saveQuizToBank } from './pages/elearning/common'
 import { AllOrgs } from './components/OrgScope'
-import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysActivities } from './pages/platform/SystemViews'
+import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysActivities, SysTrainingActivities } from './pages/platform/SystemViews'
 import Classes from './pages/Classes'
 import Rooms from './pages/Rooms'
 import Equipment from './pages/Equipment'
@@ -148,7 +148,7 @@ const PlatformReadiness = allOrgs(ProgramReadinessPage)
 const SchoolTrainingMonitor = (p: any) => <TrainingMonitorHub {...p} work />
 const trMat = (part: string) => (p: any) => <TrainingMaterials {...p} part={part} />
 const trainingMaterialTabs = (lessons: ComponentType<any>) => (p: any) => <TabbedPages {...p} tabs={[['Nội dung tập huấn', trMat('content')], ['Bài giảng', lessons],
-  ['Link tài liệu', trMat('docs')], ['Định mức vật tư', trMat('mats')], ['Kho hoạt động', trMat('acts')]]} />
+  ['Link tài liệu', trMat('docs')], ['Định mức vật tư', trMat('mats')], ['Kho hoạt động', SysTrainingActivities]]} />
 const PlatformCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Đánh giá', PH1_TABS.assess],
   ['Đợt đánh giá', PH1_TABS.rounds], ['Khoảng thiếu hụt', CompetencyGapsPage], ['Khung năng lực', CompetencyFrameworkPage]]} />
 const PlatformSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.PlatformSupport })))

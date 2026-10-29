@@ -3605,6 +3605,17 @@ select pg_temp.chk('gv_ph2', 'GY 119: giáo viên có thông báo mời chưa xe
 select pg_temp.probe('gv_ph2@iso-test.local', $q$update notifications set read_at = now() where kind = 'training_invite' and user_id = auth.uid()$q$, true);
 select pg_temp.chk('kdi', 'GY 119: GV mở thông báo thì tính là đã xem', $q$select sum(seen) > 0 from training_invite_status((select id from training_plans where name = 'ISO KH PV'))$q$, 'true');
 
+-- ===== GY 120: khung giờ điểm danh theo buổi =====
+select pg_temp.chk('kdi', 'GY 120: mặc định mở điểm danh 30 phút trước và sau giờ học', $q$select checkin_before || ':' || checkin_after from training_sessions where title = 'ISO buổi đã qua'$q$, '30:30');
+select pg_temp.chk('gv_both', 'GY 120: mặc định không điểm danh buổi đã qua 2 ngày', 'select training_check_in((select id from training_sessions where title = ''ISO buổi đã qua''))', 'ERR 22023');
+update training_sessions set checkin_after = 4320 where title = 'ISO buổi đã qua';
+select pg_temp.chk('gv_both', 'GY 120: mở điểm danh 3 ngày sau buổi thì điểm danh sau giờ được', 'select training_check_in((select id from training_sessions where title = ''ISO buổi đã qua''))', 'ok');
+select pg_temp.chk('gv_both', 'GY 120: lịch của tôi trả về giờ đóng điểm danh', $q$select checkin_to = ends_at + interval '3 days' from my_training_sessions() where title = 'ISO buổi đã qua'$q$, 'true');
+update training_sessions set checkin_before = 1440 where title = 'ISO buổi đã qua';
+select pg_temp.chk('gv_both', 'GY 120: lịch của tôi trả về giờ mở điểm danh', $q$select checkin_from = starts_at - interval '1 day' from my_training_sessions() where title = 'ISO buổi đã qua'$q$, 'true');
+select pg_temp.chk('kdi', 'GY 120: khung điểm danh quá 7 ngày bị từ chối', $q$update training_sessions set checkin_after = 20000 where title = 'ISO buổi đã qua'$q$, 'ERR*');
+update training_sessions set checkin_before = 30, checkin_after = 30 where title = 'ISO buổi đã qua';
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

@@ -3499,6 +3499,25 @@ select pg_temp.chk('kdi', 'SL 114: điểm giảng viên ở đơn vị quản l
 select pg_temp.chk('admin_kb', 'SL 114: trường không xem điểm giảng viên của KDI', $q$select count(*) from trainer_feedback_stats()$q$, '0');
 select pg_temp.chk('admin_kb', 'SL 114: không đọc thẳng bảng phiếu của GV', $q$select count(*) from training_feedback$q$, '0');
 
+-- ===== SL 115: đáp ứng chương trình — GV được phân công có chứng chỉ hoặc đạt năng lực của chương trình cùng loại =====
+insert into training_programs (org_id, title, ct_code, competencies, target_level) values (platform_org_id(), 'ISO CTTH RD', 'CT3', array['gv_thiet_ke'], 3);
+insert into training_program_units (program_id, kind, seq, title, hours) select id, 'subject', 1, 'ISO RD môn', 0 from training_programs where title = 'ISO CTTH RD';
+insert into training_program_units (program_id, parent_id, kind, seq, title, hours) select p.id, u.id, 'content', 1, 'ISO RD bài', 2 from training_programs p join training_program_units u on u.program_id = p.id where p.title = 'ISO CTTH RD';
+update training_programs set status = 'published' where title = 'ISO CTTH RD';
+insert into teachers (org_id, full_name) values (pg_temp.oid_('THCS-KB'), 'GV thử RD'), (pg_temp.oid_('THCS-KB'), 'GV thử RD2');
+insert into stem_teacher_programs (org_id, teacher_id, program) select org_id, id, 'CT3' from teachers where full_name in ('GV thử B', 'GV thử RD', 'GV thử RD2') on conflict do nothing;
+insert into classes (org_id, name, grade) values (pg_temp.oid_('THCS-KB'), 'ISO 6RD', 6);
+insert into class_programs (org_id, class_id, program) select org_id, id, 'CT3' from classes where name = 'ISO 6RD';
+insert into training_plans (org_id, name, pub_status, mode) values (platform_org_id(), 'ISO KH RD', 'draft', 'hybrid');
+insert into training_plan_items (plan_id, program_id) select k.id, p.id from training_plans k, training_programs p where k.name = 'ISO KH RD' and p.title = 'ISO CTTH RD';
+insert into certificates (org_id, teacher_id, plan_id, code, issued_on, status) select t.org_id, t.id, k.id, 'ISO-RD-1', current_date, 'issued' from teachers t, training_plans k where t.full_name = 'GV thử RD' and k.name = 'ISO KH RD';
+select pg_temp.chk('admin_kb', 'SL 115: trường thấy số lớp, GV phân công, GV đạt chuẩn theo chương trình', format($q$select classes || ':' || assigned || ':' || qualified from program_readiness() where org_id = %L and ct_code = 'CT3'$q$, pg_temp.oid_('THCS-KB')), '1:3:2');
+select pg_temp.chk('admin_kb', 'SL 115: đạt chuẩn nhờ chứng chỉ cùng loại hoặc năng lực đạt mức đích', format($q$select string_agg((x ->> 'name') || ':' || (x ->> 'ok') || ':' || coalesce(x ->> 'cert', '-') || ':' || jsonb_array_length(coalesce(x -> 'missing', '[]')), ',' order by x ->> 'name') from program_readiness() r, jsonb_array_elements(r.teachers) x where r.org_id = %L and r.ct_code = 'CT3'$q$, pg_temp.oid_('THCS-KB')), 'GV thử B:true:-:0,GV thử RD:true:ISO-RD-1:0,GV thử RD2:false:-:1');
+select pg_temp.chk('admin_kb', 'SL 115: gợi ý chương trình tập huấn cùng loại', format($q$select (suggest @> '[{"title":"ISO CTTH RD"}]')::text from program_readiness() where org_id = %L and ct_code = 'CT3'$q$, pg_temp.oid_('THCS-KB')), 'true');
+select pg_temp.chk('kdi', 'SL 115: quản trị nền tảng xem mọi trường', format($q$select count(*) from program_readiness() where org_id = %L and ct_code = 'CT3'$q$, pg_temp.oid_('THCS-KB')), '1');
+select pg_temp.chk('admin_ph', 'SL 115: trường khác không xem', format($q$select count(*) from program_readiness() where org_id = %L$q$, pg_temp.oid_('THCS-KB')), '0');
+select pg_temp.chk('gv_ph2', 'SL 115: giáo viên không xem bảng đáp ứng', $q$select count(*) from program_readiness()$q$, '0');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

@@ -2028,3 +2028,6 @@ span.namelink{cursor:default;text-decoration:none}
 .fbtrainer{display:grid;gap:6px;padding-top:6px;border-top:1px solid var(--line,#e3e6eb)}
 .fbcomments{list-style:none;margin:0;padding:0;display:grid;gap:8px}.fbcomments li{display:flex;gap:10px;align-items:flex-start}
 .fbcomments .pill{flex:none}
+
+/* 115: đáp ứng chương trình */
+.rdteachers{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:6px}

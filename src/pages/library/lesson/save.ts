@@ -162,7 +162,7 @@ export async function loadCatalog(): Promise<Cat[]> {
 export type BankAct = { id: string; title: string; kind: string; status: string; is_template: boolean; org_id: string }
 /** Hoạt động trong Kho hoạt động (bảng activities) của đơn vị và bản mẫu dùng chung */
 export async function loadActivities(orgId?: string): Promise<BankAct[]> {
-  let q = supabase.from('activities').select('id, title, kind, status, is_template, org_id')
+  let q = supabase.from('activities').select('id, title, kind, status, is_template, org_id').eq('domain', 'school')
   if (orgId) q = q.or(`org_id.eq.${orgId},is_template.eq.true`)
   const { data } = await q.order('title').limit(500)
   return (data as BankAct[]) ?? []

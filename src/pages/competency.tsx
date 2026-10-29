@@ -177,6 +177,163 @@ function TrainingLevels({ teacherId, comps }: { teacherId: string; comps: Comp[]
       <td>{r.cert_code}{r.issued_on && <small className="sub"> · {new Date(r.issued_on).toLocaleDateString('vi-VN')}</small>}</td></tr> })}</tbody></table></div>
 }
 
+// ===== Lịch sử tập huấn + tiến bộ qua các năm (119) =====
+type HProg = { code: string | null; title: string; competencies: string[]; target_level: number | null }
+type Hist = { plan_id: string; plan_code: string | null; plan_name: string; plan_org: string | null; year_name: string | null; term: string | null
+  starts_on: string | null; ends_on: string | null; hours: number | null; closed: boolean; programs: HProg[]; sessions: number; present: number; excused: number
+  att_pct: number | null; result: 'pending' | 'pass' | 'fail'; total_score: number | null; grade: string | null
+  cert_code: string | null; cert_issued_on: string | null; cert_status: string | null; cert_valid: boolean | null }
+const TERM_NAME: Record<string, string> = { summer: 'Dịp hè', hk1: 'Học kỳ I', hk2: 'Học kỳ II', other: 'Khác' }
+const RES: Record<Hist['result'], [string, string]> = { pass: ['Đạt', 'ok'], fail: ['Chưa đạt', 'bad'], pending: ['Chưa kết luận', 'mute'] }
+const dvn = (d: string | null) => d ? new Date(d).toLocaleDateString('vi-VN') : ''
+const num = (v: number | null, d = 1) => v == null ? '—' : String(Math.round(Number(v) * 10 ** d) / 10 ** d).replace('.', ',')
+function useTrainingHistory(teacherId: string) {
+  const [rows, setRows] = useState<Hist[] | null>(null)
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    setRows(null)
+    supabase.rpc('teacher_training_history', { p_teacher: teacherId }).then(({ data, error }) => {
+      if (error) setErr(/schema cache|does not exist|not found/i.test(error.message) ? 'Hãy chạy migration 119 trên Supabase.' : error.message)
+      setRows((data as Hist[]) ?? [])
+    })
+  }, [teacherId])
+  return [rows, err] as const
+}
+
+export function TrainingHistory({ teacherId, comps, name }: { teacherId: string; comps: Comp[]; name?: string }) {
+  const [rows, err] = useTrainingHistory(teacherId)
+  const [year, setYear] = useState('')
+  if (!rows) return <p className="sub">Đang tải…</p>
+  if (err) return <p className="msg">{err}</p>
+  if (!rows.length) return <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa tham gia đợt tập huấn nào. Khi được ghi danh vào kế hoạch tập huấn, các đợt sẽ hiện ở đây cùng chuyên cần, kết quả và chứng chỉ.</p></div>
+  const years = [...new Set(rows.map(r => r.year_name).filter(Boolean) as string[])].sort().reverse()
+  const shown = rows.filter(r => !year || r.year_name === year)
+  const passed = shown.filter(r => r.result === 'pass')
+  const hours = passed.reduce((a, r) => a + (r.hours ?? 0), 0)
+  const certs = shown.filter(r => r.cert_valid).length
+  const compName = (k: string) => comps.find(c => c.key === k)?.name ?? k
+  function excel() {
+    downloadXlsx(`lich-su-tap-huan${name ? '-' + name : ''}`, [{ key: 'y', label: 'Năm học', width: 12 }, { key: 't', label: 'Đợt', width: 12 }, { key: 'k', label: 'Mã KH', width: 12 },
+      { key: 'n', label: 'Kế hoạch', width: 36 }, { key: 'o', label: 'Đơn vị tổ chức', width: 24 }, { key: 'p', label: 'Chương trình', width: 36 }, { key: 'nl', label: 'Năng lực (mức đích)', width: 30 },
+      { key: 'd', label: 'Thời gian', width: 22 }, { key: 'h', label: 'Số giờ' }, { key: 'a', label: 'Chuyên cần (%)' }, { key: 'r', label: 'Kết quả' }, { key: 's', label: 'Tổng điểm' },
+      { key: 'g', label: 'Xếp loại' }, { key: 'c', label: 'Chứng chỉ', width: 18 }, { key: 'ci', label: 'Ngày cấp' }],
+      shown.map(r => [r.year_name ?? '', TERM_NAME[r.term ?? 'other'], r.plan_code ?? '', r.plan_name, r.plan_org ?? '', r.programs.map(g => g.title).join('; '),
+        [...new Set(r.programs.flatMap(g => g.competencies.map(c => compName(c) + (g.target_level ? ` (M${g.target_level})` : ''))))].join('; '),
+        [dvn(r.starts_on), dvn(r.ends_on)].filter(Boolean).join(' – '), r.hours ?? '', r.att_pct ?? '', RES[r.result][0], r.total_score ?? '', r.grade ?? '',
+        r.cert_code ?? '', dvn(r.cert_issued_on)]), 'Lịch sử tập huấn')
+  }
+  return <>
+    <div className="bar">
+      <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học"><option value="">Mọi năm học</option>{years.map(y => <option key={y}>{y}</option>)}</select>
+      <span style={{ flex: 1 }} /><button type="button" onClick={excel}>Xuất Excel</button>
+    </div>
+    <div className="evgrid histcards">
+      <div><b>{shown.length}</b><small>Đợt tập huấn tham gia</small></div>
+      <div><b>{passed.length}</b><small>Đạt · {shown.filter(r => r.result === 'fail').length} chưa đạt · {shown.filter(r => r.result === 'pending').length} chưa kết luận</small></div>
+      <div><b>{hours.toLocaleString('vi-VN')}</b><small>Giờ bồi dưỡng (các đợt Đạt)</small></div>
+      <div><b>{certs}</b><small>Chứng chỉ còn hiệu lực</small></div>
+    </div>
+    <div className="wrap"><table className="libtable histtable">
+      <thead><tr><th>Năm học · đợt</th><th>Kế hoạch tập huấn</th><th>Chương trình · năng lực</th><th>Số giờ</th><th>Chuyên cần</th><th>Kết quả</th><th>Chứng chỉ</th></tr></thead>
+      <tbody>{shown.map(r => <tr key={r.plan_id}>
+        <td><b>{r.year_name ?? '—'}</b><br /><small className="sub">{TERM_NAME[r.term ?? 'other']}</small></td>
+        <td style={{ whiteSpace: 'normal' }}><b>{r.plan_name}</b>{r.closed && <> <span className="plbadge mute">Đã kết thúc</span></>}<br />
+          <small className="sub">{[r.plan_code, r.plan_org, [dvn(r.starts_on), dvn(r.ends_on)].filter(Boolean).join(' – ')].filter(Boolean).join(' · ')}</small></td>
+        <td style={{ whiteSpace: 'normal' }}>{r.programs.map((g, i) => <div key={i}>{g.title}
+          {g.competencies.length > 0 && <small className="sub"><br />{g.competencies.map(compName).join(', ')}{g.target_level ? ` · mức đích M${g.target_level}` : ''}</small>}</div>)}
+          {!r.programs.length && <small className="sub">—</small>}</td>
+        <td>{r.hours ?? '—'}</td>
+        <td>{r.sessions ? <>{num(r.att_pct)}%<br /><small className="sub">{r.present}/{r.sessions - r.excused} buổi{r.excused ? ` · ${r.excused} có phép` : ''}</small></> : <small className="sub">chưa có buổi</small>}</td>
+        <td><span className={'plbadge ' + RES[r.result][1]}>{RES[r.result][0]}</span>{(r.total_score != null || r.grade) && <><br /><small className="sub">{[r.total_score != null ? num(r.total_score, 2) + ' điểm' : '', r.grade].filter(Boolean).join(' · ')}</small></>}</td>
+        <td>{r.cert_code ? <>{r.cert_code}<br /><small className="sub">{dvn(r.cert_issued_on)}{r.cert_status === 'revoked' ? ' · đã thu hồi' : r.cert_valid === false ? ' · hết hiệu lực' : ''}</small></> : <small className="sub">—</small>}</td>
+      </tr>)}</tbody>
+    </table></div>
+  </>
+}
+
+// Tiến bộ: mức năng lực theo năm học (trường đánh giá / tự đánh giá / mức đạt qua tập huấn, cộng dồn) + số đợt, giờ bồi dưỡng
+type YearPt = { year: string; self: number | null; mgr: number | null; train: number | null; plans: number; passed: number; hours: number }
+const SERIES: { k: 'mgr' | 'self' | 'train'; label: string; cls: string }[] = [
+  { k: 'mgr', label: 'Nhà trường đánh giá', cls: 'mgr' }, { k: 'self', label: 'Tự đánh giá', cls: 'self' }, { k: 'train', label: 'Mức đạt qua tập huấn', cls: 'train' }]
+export function TrainingProgress({ teacherId, comps }: { teacherId: string; comps: Comp[] }) {
+  const [hist, err] = useTrainingHistory(teacherId)
+  const [ass, setAss] = useState<TA[] | null>(null)
+  const [comp, setComp] = useState('')
+  const [hover, setHover] = useState<number | null>(null)
+  useEffect(() => {
+    supabase.from('teacher_assessments').select('*').eq('teacher_id', teacherId).eq('status', 'submitted').order('school_year')
+      .then(({ data }) => setAss((data as TA[]) ?? []))
+  }, [teacherId])
+  const pts = useMemo(() => {
+    if (!hist || !ass) return []
+    const keys = comp ? [comp] : comps.map(c => c.key)
+    const years = [...new Set([...ass.map(a => a.school_year), ...hist.map(h => h.year_name).filter(Boolean) as string[]])].sort()
+    const avg = (l: Record<string, number> | undefined) => { if (!l) return null; const v = keys.map(k => l[k]).filter(x => x != null); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null }
+    const best: Record<string, number> = {}
+    return years.map<YearPt>(y => {
+      const hy = hist.filter(h => h.year_name === y)
+      for (const h of hy) if (h.result === 'pass' && h.cert_code) for (const g of h.programs) for (const c of g.competencies)
+        if (g.target_level && (best[c] ?? 0) < g.target_level) best[c] = g.target_level
+      const tv = keys.map(k => best[k]).filter(x => x != null)
+      return { year: y, self: avg(ass.find(a => a.school_year === y && a.kind === 'self')?.levels), mgr: avg(ass.find(a => a.school_year === y && a.kind === 'manager')?.levels),
+        train: tv.length ? tv.reduce((a, b) => a + b, 0) / tv.length : null, plans: hy.length, passed: hy.filter(h => h.result === 'pass').length,
+        hours: hy.filter(h => h.result === 'pass').reduce((a, h) => a + (h.hours ?? 0), 0) }
+    })
+  }, [hist, ass, comp, comps])
+  if (!hist || !ass) return <p className="sub">Đang tải…</p>
+  if (err) return <p className="msg">{err}</p>
+  if (!pts.length) return <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có dữ liệu: biểu đồ hiện khi có bản đánh giá năng lực đã nộp hoặc đợt tập huấn đã tham gia.</p></div>
+  const W = 640, H = 240, L = 34, R = 16, T = 14, B = 30
+  const x = (i: number) => pts.length === 1 ? (L + W - R) / 2 : L + i * (W - L - R) / (pts.length - 1)
+  const y = (v: number) => T + (4 - v) * (H - T - B) / 3
+  const line = (k: YearPt[keyof YearPt] extends never ? never : 'mgr' | 'self' | 'train') => {
+    const segs: string[][] = [[]]
+    pts.forEach((p, i) => { const v = p[k]; if (v == null) { if (segs[segs.length - 1].length) segs.push([]) } else segs[segs.length - 1].push(`${x(i)},${y(v)}`) })
+    return segs.filter(s => s.length > 1).map(s => 'M' + s.join('L'))
+  }
+  const first = (k: 'mgr' | 'self' | 'train') => pts.find(p => p[k] != null)?.[k] ?? null
+  const last = (k: 'mgr' | 'self' | 'train') => [...pts].reverse().find(p => p[k] != null)?.[k] ?? null
+  const delta = (k: 'mgr' | 'self' | 'train') => { const a = first(k), b = last(k); return a == null || b == null ? null : b - a }
+  const sel = comps.find(c => c.key === comp)
+  const hp = hover != null ? pts[hover] : null
+  return <>
+    <div className="bar">
+      <select value={comp} onChange={e => setComp(e.target.value)} aria-label="Năng lực"><option value="">Trung bình các năng lực</option>{comps.map(c => <option key={c.key} value={c.key}>{c.name}</option>)}</select>
+    </div>
+    <div className="evgrid histcards">
+      {SERIES.map(s => { const d = delta(s.k); return <div key={s.k}><b>{last(s.k) == null ? '—' : 'M' + num(last(s.k))}</b>
+        <small>{s.label} gần nhất{d != null && pts.filter(p => p[s.k] != null).length > 1 ? ` · ${d > 0 ? 'tăng' : d < 0 ? 'giảm' : 'giữ'} ${d ? num(Math.abs(d)) + ' mức' : 'nguyên'} so với năm đầu` : ''}</small></div> })}
+      <div><b>{pts.reduce((a, p) => a + p.hours, 0).toLocaleString('vi-VN')}</b><small>Giờ bồi dưỡng qua {pts.length} năm học</small></div>
+    </div>
+    <div className="panel progpanel">
+      <h4 style={{ marginTop: 0 }}>Mức năng lực qua các năm học{sel ? `: ${sel.name}` : ' (trung bình)'}</h4>
+      <div className="progwrap" onMouseLeave={() => setHover(null)}>
+        <svg className="planchart progchart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Biểu đồ mức năng lực theo năm học">
+          {[1, 2, 3, 4].map(v => <g key={v}><line className="grid" x1={L} x2={W - R} y1={y(v)} y2={y(v)} /><text x={L - 6} y={y(v) + 4} textAnchor="end">M{v}</text></g>)}
+          {pts.map((p, i) => <text key={p.year} x={x(i)} y={H - 8} textAnchor="middle">{p.year}</text>)}
+          {hover != null && <line className="now" x1={x(hover)} x2={x(hover)} y1={T} y2={H - B} />}
+          {SERIES.map(s => <g key={s.k} className={'ser ' + s.cls}>{line(s.k).map((d, i) => <path key={i} d={d} />)}
+            {pts.map((p, i) => p[s.k] != null && <circle key={i} cx={x(i)} cy={y(p[s.k]!)} r={hover === i ? 6 : 4.5} />)}</g>)}
+          {pts.map((p, i) => <rect key={i} className="hit" x={x(i) - (W - L - R) / Math.max(pts.length, 2) / 2} y={0} width={(W - L - R) / Math.max(pts.length, 2)} height={H}
+            onMouseEnter={() => setHover(i)} onFocus={() => setHover(i)} tabIndex={0} aria-label={`Năm học ${p.year}`} />)}
+        </svg>
+        {hp && <div className="progtip" style={{ left: `${x(hover!) / W * 100}%` }}>
+          <b>Năm học {hp.year}</b>
+          {SERIES.map(s => <div key={s.k}><i className={'k ' + s.cls} />{s.label}: <b>{hp[s.k] == null ? '—' : 'M' + num(hp[s.k])}</b></div>)}
+          <div>{hp.plans} đợt tập huấn · {hp.passed} Đạt · {hp.hours} giờ</div>
+        </div>}
+      </div>
+      <div className="chartlegend proglegend">{SERIES.map(s => <span key={s.k}><i className={'k ' + s.cls} />{s.label}</span>)}</div>
+      <p className="sub" style={{ marginBottom: 0 }}>Mức đánh giá lấy từ bản đã nộp của từng năm học. Mức đạt qua tập huấn là mức đích của các chương trình đã Đạt và được cấp chứng chỉ, cộng dồn tới năm đó.</p>
+    </div>
+    <div className="wrap"><table className="libtable">
+      <thead><tr><th>Năm học</th><th>Đợt tập huấn</th><th>Đạt</th><th>Giờ bồi dưỡng</th>{SERIES.map(s => <th key={s.k}>{s.label}</th>)}</tr></thead>
+      <tbody>{[...pts].reverse().map(p => <tr key={p.year}><td><b>{p.year}</b></td><td>{p.plans}</td><td>{p.passed}</td><td>{p.hours}</td>
+        {SERIES.map(s => <td key={s.k}><LevelChip v={p[s.k]} comp={sel} /></td>)}</tr>)}</tbody>
+    </table></div>
+  </>
+}
+
 // Đợt đánh giá đang mở cho năm học (GV thấy hạn nộp)
 type OpenRound = { id: string; name: string; due_on: string; target_level: number; note: string | null }
 function useOpenRounds(year: string) {

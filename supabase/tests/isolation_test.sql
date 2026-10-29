@@ -3543,6 +3543,13 @@ select pg_temp.chk('kdi', 'KT 118: báo cáo có đợt, số giờ, trạng th�
 select pg_temp.chk('admin_kb', 'KT 118: trường khác không thấy số liệu của trường khác trong báo cáo', $q$select count(*) from training_report() where plan_name = 'ISO KH PV'$q$, '0');
 select pg_temp.chk('kdi', 'KT 118: mở lại kế hoạch đã kết thúc', $q$select training_plan_reopen(id)::text from training_plans where name = 'ISO KH PV'$q$, '');
 
+-- ===== LS 119: lịch sử tập huấn của giáo viên =====
+select pg_temp.chk('gv_both', 'LS 119: GV xem lịch sử tập huấn của mình (kết quả, chứng chỉ)', $q$select string_agg(plan_name || ':' || result || ':' || coalesce(cert_valid::text, '-'), ',' order by plan_name) from teacher_training_history((select id from teachers where full_name = 'GV thử B')) where plan_name in ('ISO KH', 'ISO KH2')$q$, '?');
+select pg_temp.chk('gv_both', 'LS 119: lịch sử mang năng lực đích, mức đích của chương trình', $q$select (programs -> 0 ->> 'target_level') || ':' || (programs -> 0 -> 'competencies' ? 'gv_thiet_ke') from teacher_training_history((select id from teachers where full_name = 'GV thử B')) where plan_name = 'ISO KH'$q$, '?');
+select pg_temp.chk('admin_kb', 'LS 119: quản trị trường xem lịch sử GV trường mình', $q$select count(*) from teacher_training_history((select id from teachers where full_name = 'GV thử B')) where plan_name in ('ISO KH', 'ISO KH2')$q$, '2');
+select pg_temp.chk('admin_ph', 'LS 119: trường khác không xem lịch sử', $q$select count(*) from teacher_training_history((select id from teachers where full_name = 'GV thử B'))$q$, '0');
+select pg_temp.chk('gv_ph2', 'LS 119: GV khác không xem lịch sử', $q$select count(*) from teacher_training_history((select id from teachers where full_name = 'GV thử B'))$q$, '0');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

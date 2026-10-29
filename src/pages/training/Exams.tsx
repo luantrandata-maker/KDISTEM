@@ -5,7 +5,8 @@ import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Drawer } from '../../components/Drawer'
-import { ExamMatrix, levelName, matrixText, matrixTotal, useBankSubjects, type MRow } from '../../components/ExamMatrix'
+import { ElView } from '../../components/ElView'
+import { ExamMatrix, LEVELS, levelName, matrixText, matrixTotal, useBankSubjects, type MRow } from '../../components/ExamMatrix'
 import { MultiFilters, opts, useMultiFilters, type FilterDef } from '../../components/MultiFilters'
 import { downloadXlsx } from '../../lib/sheet'
 import { Chip } from '../dist/Editor'
@@ -13,7 +14,8 @@ import { ProgramDetail, STATUS, type Status } from './Programs'
 import type { FinalExam } from './ExamFrame'
 
 type Prog = { id: string; org_id: string; code: string; title: string; status: Status; version_no: number; family_id: string; pass_score: number | null; final_exam: FinalExam | null }
-type TUnit = { id: string; program_id: string; parent_id: string | null; title: string; seq: number; detail: { test?: { kind?: string; qids?: string[]; count?: number; minutes?: number; attempts?: number; pass?: number } } | null }
+type TUnit = { id: string; program_id: string; parent_id: string | null; title: string; seq: number; hours?: number | null; mode?: string | null
+  detail: { test?: { kind?: string; qids?: string[]; count?: number; minutes?: number; attempts?: number; pass?: number; url?: string; due?: string | null; note?: string } } | null }
 type Stat = { kind: Kind; ref: string; program_id: string; title: string; attempts: number; teachers: number; avg_score: number | null; best_avg: number | null; pass: number | null; passed: number }
 type Kind = 'unit' | 'final' | 'practice'
 const KIND: Record<Kind, [string, string]> = { unit: ['Bài test nội dung', ''], final: ['Đề cuối khoá', 'warn'], practice: ['Đề luyện', 'good'] }
@@ -40,6 +42,99 @@ function useStats(rk: number) {
   useEffect(() => { supabase.rpc('training_exam_stats').then(({ data }) => setStats((data as Stat[]) ?? [])) }, [rk])
   return stats
 }
+// ===== Xem chi tiết đề (chỉ xem; bấm Sửa mới mở chỗ soạn) =====
+type BQ = { id: string; stem: string; options: string[]; answer: number[]; explain: string | null; level: string; topic: string | null; kind: string; subject: string }
+const QKIND: Record<string, string> = { single: 'Một đáp án', multi: 'Nhiều đáp án', truefalse: 'Đúng / sai' }
+const letter = (i: number) => String.fromCharCode(65 + i)
+/** Danh sách câu hỏi của đề kèm đáp án đúng và lời giải */
+function QuestionList({ qids, title }: { qids: string[]; title: string }) {
+  const [rows, setRows] = useState<BQ[] | null>(null)
+  const [all, setAll] = useState(false)
+  useEffect(() => {
+    if (!qids.length) { setRows([]); return }
+    supabase.from('question_bank').select('id, stem, options, answer, explain, level, topic, kind, subject').in('id', qids.slice(0, 500))
+      .then(({ data }) => { const m = new Map(((data as BQ[]) ?? []).map(q => [q.id, q])); setRows(qids.map(id => m.get(id)).filter(Boolean) as BQ[]) })
+  }, [qids.join(',')])
+  if (!qids.length) return null
+  const byLevel = LEVELS.map(([k, l]) => [l, rows?.filter(q => q.level === k).length ?? 0] as const).filter(([, n]) => n)
+  const shown = all ? rows ?? [] : (rows ?? []).slice(0, 10)
+  return <section className="panel" style={{ display: 'grid', gap: 10 }}>
+    <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>{title} ({qids.length})</h3>
+      {rows && <small className="sub">{byLevel.map(([l, n]) => `${l} ${n}`).join(' · ')}{rows.length < qids.length ? ` · ${qids.length - rows.length} câu không còn trong ngân hàng` : ''}</small>}</div>
+    {!rows ? <p className="sub">Đang tải câu hỏi…</p> : <ol className="paper">{shown.map(q => <li key={q.id}>
+      <p className="stem">{q.stem}</p>
+      <small className="sub">{levelName(q.level)}{q.topic ? ` · ${q.topic}` : ''} · {QKIND[q.kind] ?? q.kind}</small>
+      <div className="choices">{q.options.map((o, k) => <label key={k} className={q.answer.includes(k) ? 'right' : ''}><span aria-hidden="true">{q.answer.includes(k) ? '✓' : ''}</span><b>{letter(k)}</b><span>{o}</span></label>)}</div>
+      {q.explain && <p className="sub">Lời giải: {q.explain}</p>}
+    </li>)}</ol>}
+    {rows && rows.length > 10 && <button type="button" className="linkbtn" onClick={() => setAll(!all)}>{all ? 'Thu gọn' : `Xem cả ${rows.length} câu`}</button>}
+  </section>
+}
+/** Bảng ma trận chủ đề × mức độ */
+function MatrixTable({ rows }: { rows: MRow[] }) {
+  if (!rows.length) return null
+  return <section className="panel" style={{ display: 'grid', gap: 10 }}>
+    <h3 style={{ margin: 0 }}>Ma trận đề ({matrixTotal(rows)} câu, rút ngẫu nhiên mỗi lượt)</h3>
+    <div className="wrap"><table className="libtable"><thead><tr><th>Chủ đề</th><th>Mức độ</th><th className="num">Số câu</th></tr></thead>
+      <tbody>{rows.map((r, k) => <tr key={k}><td>{r.topic || 'Mọi chủ đề'}</td><td>{levelName(r.level)}</td><td className="num">{r.count}</td></tr>)}</tbody></table></div>
+  </section>
+}
+function StatCards({ s }: { s?: Stat }) {
+  return <div className="diststatcards">
+    <div className="panel"><i aria-hidden="true">✎</i><span><b>{s?.attempts ?? 0}</b><small>Lượt làm đã nộp</small><small>{s?.teachers ?? 0} giáo viên</small></span></div>
+    <div className="panel"><i aria-hidden="true" className="good">★</i><span><b>{num(s?.avg_score)}</b><small>Điểm trung bình</small><small>điểm cao nhất TB {num(s?.best_avg)}</small></span></div>
+    <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{s?.passed ?? 0}</b><small>Giáo viên đạt</small></span></div>
+  </div>
+}
+const MODE_LABEL: Record<string, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
+
+/** Chi tiết bài test nội dung / đề cuối khoá */
+function ExamDetail({ r, subjName, stat, onBack, onEdit }: { r: Row; subjName: string; stat?: Stat; onBack: () => void; onEdit: () => void }) {
+  const p = r.prog, u = r.unit, t = u?.detail?.test ?? {}, fe = p.final_exam, sp = rowSpec(r)
+  const editable = ['draft', 'rejected'].includes(p.status)
+  const link = r.kind === 'unit' && t.kind === 'link'
+  return <ElView back="Đề kiểm tra" onBack={onBack} title={r.title}
+    sub={<><Chip tone={KIND[r.kind][1]}>{KIND[r.kind][0]}</Chip> {p.code} · v{p.version_no} · {p.title} <Chip tone={STATUS[p.status]?.[1]}>{STATUS[p.status]?.[0]}</Chip></>}
+    actions={<>{sp && <TryButton orgId={p.org_id} spec={sp} title={r.title} minutes={r.kind === 'unit' ? t.minutes ?? null : fe?.minutes ?? null}
+      pass={r.kind === 'unit' ? t.pass ?? p.pass_score ?? 5 : fe?.pass ?? null} />}
+      <button type="button" onClick={onEdit}>{editable ? 'Sửa đề' : 'Mở trong chương trình'}</button></>}>
+    {!editable && <p className="sub" style={{ marginTop: 0 }}>Chương trình đã {STATUS[p.status]?.[0]?.toLowerCase()}: muốn sửa đề thì tạo phiên bản mới của chương trình.</p>}
+    <StatCards s={stat} />
+    <section className="panel" style={{ display: 'grid', gap: 12 }}>
+      <h3 style={{ margin: 0 }}>{r.kind === 'unit' ? 'Nội dung tập huấn' : 'Thông tin đề'}</h3>
+      <dl className="tpkv">
+        <dt>Chương trình</dt><dd>{p.code} · {p.title} (v{p.version_no})</dd>
+        {r.kind === 'unit' ? <>
+          <dt>Môn</dt><dd>{subjName || '—'}</dd>
+          <dt>Nội dung</dt><dd><b>{u?.title}</b></dd>
+          <dt>Thời lượng</dt><dd>{u?.hours != null ? `${num(u.hours)} giờ` : '—'}{u?.mode ? ` · ${MODE_LABEL[u.mode] ?? u.mode}` : ''}</dd>
+        </> : <>
+          <dt>Môn (ngân hàng câu hỏi)</dt><dd>{fe?.subject || '—'}{fe?.grade ? ` · khối ${fe.grade}` : ' · mọi khối'}</dd>
+          <dt>Khi nào làm</dt><dd>Sau khi giáo viên học xong mọi nội dung của chương trình</dd>
+        </>}
+      </dl>
+      <h3 style={{ margin: 0 }}>Cách làm bài</h3>
+      <dl className="tpkv">{link ? <>
+        <dt>Hình thức</dt><dd>Làm qua link (điểm do người tổ chức nhập)</dd>
+        <dt>Link</dt><dd>{t.url ? <a href={t.url} target="_blank" rel="noreferrer">{t.url} ↗</a> : <span className="warnline">Chưa có link</span>}</dd>
+        <dt>Điểm đạt</dt><dd>{num(t.pass ?? p.pass_score ?? 5)}/10{t.due ? ` · hạn ${new Date(t.due).toLocaleDateString('vi-VN')}` : ''}</dd>
+        {t.note && <><dt>Hướng dẫn</dt><dd>{t.note}</dd></>}
+      </> : r.kind === 'unit' ? <>
+        <dt>Hình thức</dt><dd>Làm trong hệ thống, chấm tự động</dd>
+        <dt>Số câu mỗi lượt</dt><dd>{t.qids?.length ? `${t.count ?? t.qids.length} câu${t.count && t.count < t.qids.length ? `, rút ngẫu nhiên từ ${t.qids.length} câu đã chọn` : ''}` : <span className="warnline">Chưa chọn câu hỏi</span>}</dd>
+        <dt>Thời gian · lượt</dt><dd>{t.minutes ? `${t.minutes} phút` : 'Không giới hạn thời gian'} · {t.attempts ? `${t.attempts} lượt` : 'không giới hạn lượt'}</dd>
+        <dt>Điểm đạt</dt><dd>{num(t.pass ?? p.pass_score ?? 5)}/10 (đạt thì mở nội dung tiếp theo)</dd>
+      </> : <>
+        <dt>Số câu</dt><dd>{matrixTotal(fe?.matrix ?? []) + (fe?.qids?.length ?? 0)} câu{fe?.shuffle !== false ? ' · trộn thứ tự câu' : ''}</dd>
+        <dt>Thời gian · lượt</dt><dd>{fe?.minutes ? `${fe.minutes} phút` : 'Không giới hạn thời gian'} · {fe?.attempts ? `${fe.attempts} lượt` : 'không giới hạn lượt'}</dd>
+        <dt>Điểm đạt</dt><dd>{fe?.pass != null ? `${num(fe.pass)}/10` : 'Không xét'}</dd>
+      </>}</dl>
+    </section>
+    {r.kind === 'final' && <MatrixTable rows={fe?.matrix ?? []} />}
+    <QuestionList qids={(r.kind === 'unit' ? (link ? [] : t.qids) : fe?.qids) ?? []} title={r.kind === 'unit' ? 'Câu hỏi đã chọn' : 'Câu chọn sẵn'} />
+  </ElView>
+}
+
 const progLabel = (p: Prog | undefined) => p ? <><small>{p.code} · v{p.version_no}</small> <Chip tone={STATUS[p.status]?.[1]}>{STATUS[p.status]?.[0]}</Chip><br /><small className="sub">{p.title}</small></> : '—'
 
 // ===== Tab 1: Đề kiểm tra =====
@@ -62,9 +157,10 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
   const [open, setOpen] = useState<{ id: string; unit: string | null; final?: boolean } | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [add, setAdd] = useState(false)
+  const [view, setView] = useState<string | null>(null)
   const f = useMultiFilters()
   useEffect(() => {
-    supabase.from('training_program_units').select('id, program_id, parent_id, title, seq, detail').eq('kind', 'content').eq('has_test', true)
+    supabase.from('training_program_units').select('id, program_id, parent_id, title, seq, hours, mode, detail').eq('kind', 'content').eq('has_test', true)
       .then(({ data }) => setUnits((data as TUnit[]) ?? []))
   }, [rk])
   const [subj, setSubj] = useState<Record<string, string>>({})
@@ -94,6 +190,9 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
     onBack={() => { setOpen(null); setRk(k => k + 1) }} onOpen={id => setOpen({ id, unit: null })} onMsg={setMsg} />
 
   const statOf = (r: Row) => stats.find(s => s.kind === r.kind && s.ref === (r.kind === 'unit' ? r.unit!.id : r.prog.id))
+  const vr = view ? rows.find(r => r.key === view) : undefined
+  if (vr) return <ExamDetail r={vr} subjName={vr.sub} stat={statOf(vr)} onBack={() => setView(null)}
+    onEdit={() => { setMsg(null); setOpen(vr.kind === 'unit' ? { id: vr.prog.id, unit: vr.unit!.id } : { id: vr.prog.id, unit: null, final: true }) }} />
   const defs: FilterDef[] = [
     { key: 'prog', label: 'Chương trình', placeholder: 'Mọi chương trình', options: opts(rows.map(r => [r.prog.family_id, `${r.prog.code} · ${r.prog.title}`])) },
     { key: 'kind', label: 'Loại đề', placeholder: 'Mọi loại đề', options: [['unit', 'Bài test nội dung'], ['final', 'Đề cuối khoá']] },
@@ -127,7 +226,7 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
     {!progs ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
       <thead><tr><th>Đề kiểm tra</th><th>Loại</th><th>Cấu hình</th><th>Chương trình</th><th className="num">Lượt làm</th><th className="num">Điểm TB</th><th></th></tr></thead>
       <tbody>{shown.map(r => { const s = statOf(r)
-        return <tr key={r.key} className="clickrow" onClick={() => { setMsg(null); setOpen({ id: r.prog.id, unit: r.unit?.id ?? null }) }}>
+        return <tr key={r.key} className="clickrow" onClick={() => { setMsg(null); setView(r.key) }}>
           <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink">{r.title}</button>{r.sub && <><br /><small className="sub">{r.sub}</small></>}</td>
           <td><Chip tone={KIND[r.kind][1]}>{KIND[r.kind][0]}</Chip></td>
           <td style={{ whiteSpace: 'normal' }}>{r.missing ? <small className="warnline">{r.cfg}</small> : <small>{r.cfg}</small>}</td>
@@ -199,6 +298,36 @@ type Practice = { id: string; org_id: string; program_id: string; title: string;
 const PST: Record<Practice['status'], [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đang mở', 'good'], closed: ['Đã đóng', 'off'] }
 type PForm = Omit<Practice, 'id' | 'org_id' | 'updated_at' | 'qids'> & { id?: string }
 
+/** Chi tiết đề luyện (chỉ xem; bấm Sửa mới mở chỗ soạn) */
+function PracticeDetail({ x, prog, stat, admin, msg, onBack, onEdit }: { x: Practice; prog?: Prog; stat?: Stat; admin: boolean; msg: [string, boolean] | null; onBack: () => void; onEdit: () => void }) {
+  const n = matrixTotal(x.matrix ?? []) + (x.qids?.length ?? 0)
+  return <ElView back="Đề luyện" onBack={onBack} title={x.title}
+    sub={<><Chip tone={PST[x.status][1]}>{PST[x.status][0]}</Chip> {x.subject}{x.grade ? ` · khối ${x.grade}` : ''}{prog ? ` · ${prog.code} · ${prog.title}` : ''}</>}
+    actions={<><TryButton orgId={x.org_id} spec={{ kind: 'pick', subject: x.subject, grade: x.grade, matrix: x.matrix ?? [], qids: x.qids ?? [], shuffle: x.shuffle }} title={x.title} minutes={x.minutes} pass={x.pass} />
+      {admin && <button type="button" onClick={onEdit}>Sửa đề</button>}</>}>
+    {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status" style={{ marginTop: 0 }}><b>{msg[0]}</b></p>}
+    <StatCards s={stat} />
+    <section className="panel" style={{ display: 'grid', gap: 12 }}>
+      <h3 style={{ margin: 0 }}>Thông tin đề</h3>
+      <dl className="tpkv">
+        <dt>Chương trình</dt><dd>{prog ? <>{prog.code} · {prog.title} (v{prog.version_no})</> : '—'}</dd>
+        <dt>Môn (ngân hàng câu hỏi)</dt><dd>{x.subject}{x.grade ? ` · khối ${x.grade}` : ' · mọi khối'}</dd>
+        <dt>Trạng thái</dt><dd><Chip tone={PST[x.status][1]}>{PST[x.status][0]}</Chip>{x.status === 'published' ? ' · giáo viên đang thấy đề' : ''}</dd>
+        {x.note && <><dt>Ghi chú cho giáo viên</dt><dd>{x.note}</dd></>}
+      </dl>
+      <h3 style={{ margin: 0 }}>Cách làm bài</h3>
+      <dl className="tpkv">
+        <dt>Số câu mỗi lượt</dt><dd>{n} câu{x.shuffle ? ' · trộn thứ tự câu' : ''}</dd>
+        <dt>Thời gian · lượt</dt><dd>{x.minutes ? `${x.minutes} phút` : 'Không giới hạn thời gian'} · {x.attempts ? `${x.attempts} lượt` : 'không giới hạn lượt'}</dd>
+        <dt>Điểm đạt</dt><dd>{x.pass != null ? `${num(x.pass)}/10` : 'Không xét'}</dd>
+        <dt>Sau khi nộp</dt><dd>{x.show_answers ? 'Giáo viên xem được đáp án và lời giải' : 'Chỉ xem điểm, không xem đáp án'}</dd>
+      </dl>
+    </section>
+    <MatrixTable rows={x.matrix ?? []} />
+    <QuestionList qids={x.qids ?? []} title="Câu chọn sẵn" />
+  </ElView>
+}
+
 export function TrainingPracticeExams() {
   const admin = useAdmin()
   const [rk, setRk] = useState(0)
@@ -206,6 +335,7 @@ export function TrainingPracticeExams() {
   const stats = useStats(rk)
   const [list, setList] = useState<Practice[] | null>(null)
   const [form, setForm] = useState<PForm | null>(null)
+  const [pv, setPv] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [q, setQ] = useState('')
@@ -240,7 +370,7 @@ export function TrainingPracticeExams() {
     if (!form?.id || !confirm(`Xoá đề luyện "${form.title}" và các lượt làm của giáo viên?`)) return
     const { error } = await supabase.from('training_practice_exams').delete().eq('id', form.id)
     if (error) return setMsg([error.message, true])
-    setMsg(['Đã xoá đề luyện.', false]); setForm(null); setRk(k => k + 1)
+    setMsg(['Đã xoá đề luyện.', false]); setForm(null); setPv(null); setRk(k => k + 1)
   }
   const blank = (): PForm => ({ program_id: usable.find(p => p.status === 'published')?.id ?? usable[0]?.id ?? '', title: '', subject: '', grade: null, matrix: [], minutes: 20, attempts: 0, pass: 5,
     shuffle: true, show_answers: true, status: 'draft', note: '' })
@@ -255,7 +385,10 @@ export function TrainingPracticeExams() {
   const shown = all.filter(x => f.has('prog', x.program_id) && f.has('subj', x.subject) && f.has('st', x.status) && (!ql || `${x.title} ${x.subject} ${x.note ?? ''}`.toLowerCase().includes(ql)))
   const stat = (id: string) => stats.find(s => s.kind === 'practice' && s.ref === id)
 
+  const px = pv ? all.find(x => x.id === pv) : undefined
   return <>
+    {px ? <PracticeDetail x={px} prog={progOf(px.program_id)} stat={stat(px.id)} admin={admin} msg={form ? null : msg} onBack={() => { setPv(null); setMsg(null) }}
+      onEdit={() => { setMsg(null); setForm({ ...px, matrix: [...(px.matrix ?? [])] }) }} /> : <>
     <div className="diststatcards">
       <div className="panel"><i aria-hidden="true">≋</i><span><b>{all.length}</b><small>Đề luyện</small><small>{all.filter(x => x.status === 'published').length} đang mở</small></span></div>
       <div className="panel"><i aria-hidden="true" className="good">✎</i><span><b>{stats.filter(s => s.kind === 'practice').reduce((a, s) => a + s.attempts, 0)}</b><small>Lượt luyện đã nộp</small></span></div>
@@ -271,7 +404,7 @@ export function TrainingPracticeExams() {
     {!list ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
       <thead><tr><th>Đề luyện</th><th>Câu hỏi</th><th>Cách làm</th><th>Chương trình</th><th>Trạng thái</th><th className="num">Lượt · GV</th><th className="num">Điểm TB</th><th></th></tr></thead>
       <tbody>{shown.map(x => { const s = stat(x.id)
-        return <tr key={x.id} className="clickrow" onClick={() => { setMsg(null); setForm({ ...x, matrix: [...(x.matrix ?? [])] }) }}>
+        return <tr key={x.id} className="clickrow" onClick={() => { setMsg(null); setPv(x.id) }}>
           <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink">{x.title}</button><br /><small className="sub">{x.subject}{x.grade ? ` · khối ${x.grade}` : ''}</small></td>
           <td style={{ whiteSpace: 'normal' }}><small>{matrixTotal(x.matrix ?? [])} câu: {matrixText(x.matrix ?? [])}</small></td>
           <td><small>{x.minutes ? `${x.minutes} phút` : 'Không giới hạn'} · {x.attempts ? `${x.attempts} lượt` : 'không giới hạn lượt'}{x.show_answers ? ' · xem đáp án' : ''}</small></td>
@@ -281,6 +414,7 @@ export function TrainingPracticeExams() {
           <td><Stop><TryButton orgId={x.org_id} spec={{ kind: 'pick', subject: x.subject, grade: x.grade, matrix: x.matrix ?? [], qids: x.qids ?? [], shuffle: x.shuffle }} title={x.title} minutes={x.minutes} pass={x.pass} /></Stop></td></tr> })}
         {!shown.length && <tr><td colSpan={8}><small className="sub">{all.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có đề luyện. Bấm “+ Thêm đề luyện”.'}</small></td></tr>}</tbody>
     </table></div>}
+    </>}
 
     {form && <Drawer wide closeOnOutside={false} onClose={() => setForm(null)} title={form.id ? `Đề luyện: ${form.title}` : 'Thêm đề luyện'}
       actions={admin ? <>

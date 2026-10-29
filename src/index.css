@@ -2020,3 +2020,10 @@ span.namelink{cursor:default;text-decoration:none}
 :where(.main,.drawerwrap,.modalbg) :where(input,textarea,select):disabled{background:var(--bg,#f4f6fa);color:var(--muted)}
 :where(.main,.drawerwrap,.modalbg) :where(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=color]),textarea,select):is(:focus,:focus-visible){
   outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(28,99,187,.12)}
+/* Bảng tổng hợp kết quả tập huấn: ô cảnh báo có hộp nội dung khi rê chuột / chạm, chú giải góc phải */
+.warntip{position:relative;display:inline-block;cursor:help;color:var(--warn-fg);font-weight:600;white-space:nowrap;border-radius:6px;padding:2px 6px;background:var(--warn-bg)}
+.warntip:focus-visible{outline:2px solid var(--warn-fg);outline-offset:2px}
+.warntip-box{display:flex;position:fixed;z-index:60;width:max-content;max-width:320px;white-space:normal;background:var(--surface);color:var(--text);
+  border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(15,23,42,.14);padding:10px 12px;font-weight:400;font-size:13px;line-height:1.45;gap:4px;flex-direction:column;text-align:left}
+.warnlegend{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:4px 14px;font-size:12px;color:var(--muted);margin-bottom:-4px}
+.warnlegend-kinds{display:inline-flex;flex-wrap:wrap;gap:4px}.warnlegend-kinds>span{background:var(--warn-bg);color:var(--warn-fg);border-radius:999px;padding:1px 8px}

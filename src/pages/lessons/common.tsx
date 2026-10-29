@@ -67,7 +67,7 @@ export function useAttachables(orgId: string | null) {
   const [rubs, setRubs] = useState<RubLite[]>([])
   const [norms, setNorms] = useState<NormLite[]>([])
   useEffect(() => {
-    supabase.from('activities').select('id, kind, title, is_template, teacher_id').order('title').then(({ data }) => setActs((data as ActLite[]) ?? []))
+    supabase.from('activities').select('id, kind, title, is_template, teacher_id').eq('domain', 'school').order('title').then(({ data }) => setActs((data as ActLite[]) ?? []))
     supabase.from('library_items').select('id, title, kind, content, owner_name').eq('status', 'published').in('kind', ['material', 'lesson']).order('title')
       .then(({ data }) => setLibs((data as LibLite[]) ?? []))
     supabase.from('rubrics').select('id, title, org_id').order('title').then(({ data }) => setRubs((data as RubLite[]) ?? []))

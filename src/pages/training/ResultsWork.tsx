@@ -24,6 +24,32 @@ const errText = (m: string) => (/schema cache|does not exist/i.test(m) ? 'Hãy c
 const ok = (b: boolean) => <span aria-label={b ? 'đạt điều kiện' : 'chưa đạt điều kiện'} className={b ? 'tlok' : 'warnline'}>{b ? '✓' : '✗'}</span>
 const dm = (iso: string) => new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
 const gradeChip = (m: ResRow['metrics']) => <Chip tone={m.suggest === 'pass' ? 'good' : ''}>{m.grade ?? (m.suggest === 'pass' ? 'Đủ điều kiện' : 'Chưa đủ')}</Chip>
+// Cảnh báo của một GV ở bảng tổng hợp: rê chuột / chạm vào ⚠️ để xem nội dung
+const W_KINDS: [string, string][] = [['att', 'Chuyên cần dưới mức'], ['tests', 'Bài kiểm tra chưa đạt'], ['units', 'Chưa học xong trực tuyến'],
+  ['product', 'Sản phẩm chưa nộp / bị trả lại / chờ nhận xét'], ['final', 'Đề cuối khoá dưới điểm đạt'], ['total', 'Tổng điểm dưới mức đạt']]
+function warnsOf(r: ResRow): string[] {
+  const m = r.metrics, w: string[] = []
+  if (!m.ok_att) w.push(`Chuyên cần ${m.att_pct == null ? 'chưa có' : num(m.att_pct) + '%'}, cần ${m.att_req}% (${m.present}/${m.sessions - m.excused} buổi)`)
+  if (m.tests && !m.ok_tests) w.push(`Bài kiểm tra: mới đạt ${m.tests_passed}/${m.tests}${m.score_req != null ? `, điểm đạt ${num(m.score_req)}` : ''}`)
+  if (!m.ok_units) w.push(`Học trực tuyến: xong ${m.done}/${m.units} nội dung`)
+  if (m.need_product && !m.ok_product) w.push(!m.product_status ? 'Chưa nộp sản phẩm' : m.product_status === 'returned' ? 'Sản phẩm bị trả lại, chờ GV nộp lại'
+    : m.product_status === 'submitted' ? 'Sản phẩm đã nộp, chờ nhận xét / chấm điểm' : `Điểm sản phẩm ${num(r.product_score)}, cần từ 5`)
+  if (m.finals && m.ok_final === false) w.push(m.final_score == null ? 'Chưa làm đề cuối khoá' : `Đề cuối khoá ${num(m.final_score)} điểm${m.final_req != null ? `, cần ${num(m.final_req)}` : ''}`)
+  if (m.ok_total === false) w.push(`Tổng điểm ${num(m.total)}/10${m.total_req != null ? `, cần ${num(m.total_req)}` : ''}`)
+  return w
+}
+function WarnCell({ r }: { r: ResRow }) {
+  const w = warnsOf(r)
+  // Hộp nội dung đặt cố định theo vị trí biểu tượng để không bị khung cuộn của bảng cắt mất
+  const [at, setAt] = useState<{ top: number; right: number } | null>(null)
+  if (!w.length) return <span className="tlok" aria-label="Không có cảnh báo">—</span>
+  const show = (e: { currentTarget: HTMLElement }) => { const b = e.currentTarget.getBoundingClientRect(); setAt({ top: b.bottom + 6, right: Math.max(8, window.innerWidth - b.right) }) }
+  return <span className="warntip" tabIndex={0} aria-label={`${w.length} cảnh báo: ${w.join('; ')}`}
+    onMouseEnter={show} onFocus={show} onMouseLeave={() => setAt(null)} onBlur={() => setAt(null)} onClick={e => at ? setAt(null) : show(e)}>
+    <span aria-hidden="true">⚠️ {w.length}</span>
+    {at && <span className="warntip-box" role="tooltip" style={{ top: at.top, right: at.right }}><b>Cảnh báo</b>{w.map((x, i) => <span key={i}>• {x}</span>)}</span>}
+  </span>
+}
 const totalOf = (m: ResRow['metrics']) => m.total != null ? <><br /><small className="sub">Tổng {num(m.total)}/10</small></> : null
 const ready = (r: ResRow) => r.result === 'pending' && r.metrics.suggest === 'pass'
 
@@ -180,8 +206,10 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
           {can && view === 'sum' && <button type="button" className="primary" disabled={!dirty.length || !!busy} onClick={saveScores}>Lưu điểm{dirty.length ? ` (${dirty.length})` : ''}</button>}</div>
       </div>
       {filters}
+      {view === 'sum' && <div className="warnlegend" aria-label="Giải thích cảnh báo"><span><b>⚠️ n</b> = số cảnh báo, rê chuột hoặc chạm vào để xem</span>
+        <span className="warnlegend-kinds">{W_KINDS.map(([k, l]) => <span key={k}>{l}</span>)}</span><span><span className="tlok">✓</span> đạt điều kiện · <span className="warnline">✗</span> chưa đạt</span></div>}
       {view === 'sum' ? <div className="wrap"><table className="libtable trestable">
-        <thead><tr><th>Giáo viên</th><th>Chuyên cần</th><th>Bài kiểm tra</th><th>Học trực tuyến</th><th>Sản phẩm</th><th>Điểm SP</th>{all.some(r => r.metrics.finals) && <th>Đề cuối khoá</th>}<th>Tổng · xếp loại</th></tr></thead>
+        <thead><tr><th>Giáo viên</th><th>Chuyên cần</th><th>Bài kiểm tra</th><th>Học trực tuyến</th><th>Sản phẩm</th><th>Điểm SP</th>{all.some(r => r.metrics.finals) && <th>Đề cuối khoá</th>}<th>Cảnh báo</th><th>Tổng · xếp loại</th></tr></thead>
         <tbody>{shown.map(r => { const m = r.metrics, v = scores[r.teacher_id] ?? (r.product_score == null ? '' : String(r.product_score))
           return <tr key={r.teacher_id}>
             <td>{name(r)}</td>
@@ -195,9 +223,10 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
                   onChange={e => setScores(s => ({ ...s, [r.teacher_id]: e.target.value }))} />
               : num(r.product_score)) : '—'}</td>
             {all.some(x => x.metrics.finals) && <td>{m.finals ? <>{ok(m.ok_final !== false)} {num(m.final_score)}</> : '—'}</td>}
+            <td><WarnCell r={r} /></td>
             <td>{gradeChip(m)}{totalOf(m)}</td>
           </tr> })}
-          {!shown.length && <tr><td colSpan={8}><small className="sub">{all.length ? 'Không có giáo viên nào khớp.' : 'Kế hoạch chưa có giáo viên ghi danh.'}</small></td></tr>}</tbody>
+          {!shown.length && <tr><td colSpan={9}><small className="sub">{all.length ? 'Không có giáo viên nào khớp.' : 'Kế hoạch chưa có giáo viên ghi danh.'}</small></td></tr>}</tbody>
       </table></div>
       : view === 'test' ? <TestScores planId={plan.id} planCode={plan.plan_code ?? plan.name.slice(0, 30)} can={can} only={new Set(shown.map(r => r.teacher_id))} onSaved={load} />
       : <AttGrid rows={shown} sess={sess} att={att} />}

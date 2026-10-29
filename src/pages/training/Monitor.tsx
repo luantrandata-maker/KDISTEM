@@ -10,11 +10,27 @@ import { Bar } from './Competency'
 import { Drawer } from '../../components/Drawer'
 import { useAllOrgs, type ScopeOrg } from '../../components/OrgScope'
 import { SchoolPlanWork } from './Plans'
+import { FB_CRIT, FeedbackComments, score } from './Feedback'
 
 type Row = { plan_id: string; plan_code: string | null; plan_name: string; plan_org: string | null; year_name: string | null; starts_on: string | null; ends_on: string | null
   org_id: string; org_name: string; quota: number | null; org_status: string; enrolled: number; sessions: number; sessions_closed: number
   att_pct: number | null; low_att: number; online_done: number; passed: number; failed: number; not_ready: number; certs: number }
 type Eff = { competency: string; competency_name: string; teachers: number; before_avg: number | null; after_avg: number | null }
+// Phiếu đánh giá sau khoá (114): theo kế hoạch × trường
+type Fb = { plan_id: string; org_id: string; enrolled: number; responses: number; comments: number } & Record<typeof FB_CRIT[number][0], number | null>
+type FbAgg = { n: number; enrolled: number; comments: number } & Record<typeof FB_CRIT[number][0], number | null>
+function fbAgg(list: (Fb | undefined)[]): FbAgg {
+  const xs = list.filter((x): x is Fb => !!x)
+  const n = xs.reduce((t, x) => t + x.responses, 0)
+  const avg = (k: typeof FB_CRIT[number][0]) => n ? xs.reduce((t, x) => t + Number(x[k] ?? 0) * x.responses, 0) / n : null
+  return { n, enrolled: xs.reduce((t, x) => t + x.enrolled, 0), comments: xs.reduce((t, x) => t + x.comments, 0),
+    ...Object.fromEntries(FB_CRIT.map(([k]) => [k, avg(k)])) } as FbAgg
+}
+const chipTone = (n: number | null) => n == null ? '' : n >= 4 ? 'good' : n >= 3 ? 'warn' : 'bad'
+function FbCell({ a }: { a: FbAgg }) {
+  if (!a.n) return <small className="sub">Chưa có phiếu</small>
+  return <><Chip tone={chipTone(a.overall)}>{score(a.overall)}★</Chip><br /><small className="sub">{a.n}/{a.enrolled} phiếu</small></>
+}
 type Alert = { kind: 'quota' | 'att' | 'ready'; row: Row; text: string }
 
 const ORG_ST: Record<string, [string, string]> = { assigned: ['Chưa gửi DS', 'warn'], submitted: ['Chờ duyệt DS', ''], returned: ['Bị trả lại', 'bad'], approved: ['Đã duyệt DS', 'good'] }
@@ -94,11 +110,16 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
   const [more, setMore] = useState(false)
   const [doing, setDoing] = useState<{ plan: string; org: string } | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const [fb, setFb] = useState<Map<string, Fb>>(new Map())
+  const [fbPlan, setFbPlan] = useState<string | null>(null)
   const toggle = (v: boolean) => { setOpen(v); try { localStorage.setItem(OPEN_KEY, v ? '1' : '0') } catch { /* bỏ qua */ } }
   const orgs = useAllOrgs()
   const anc = useMemo(() => ancestors(orgs), [orgs])
   useEffect(() => {
     supabase.rpc('training_monitor', { p_year: null }).then(({ data, error }) => { if (error) setErr(errText(error.message)); setRows((data as Row[]) ?? []) })
+  }, [rk])
+  useEffect(() => {
+    supabase.rpc('training_feedback_stats', { p_year: null }).then(({ data, error }) => { if (!error) setFb(new Map(((data as Fb[]) ?? []).map(x => [x.plan_id + '|' + x.org_id, x]))) })
   }, [rk])
   useEffect(() => { supabase.rpc('training_competency_effect').then(({ data }) => setEff((data as Eff[]) ?? [])) }, [])
 
@@ -126,6 +147,10 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
   const full = schools.filter(s => s.enrolled >= s.quota).length
   const nSt = (...xs: string[]) => shown.filter(r => xs.includes(r.org_status)).length
   const multi = new Set(all.map(r => r.org_id)).size > 1
+  const fbOf = (rs: Row[]) => fbAgg(rs.map(r => fb.get(r.plan_id + '|' + r.org_id)))
+  const fbAll = fbOf(shown)
+  const fbPlans = [...new Map(shown.map(r => [r.plan_id, r])).values()].map(r => ({ r, a: fbOf(shown.filter(x => x.plan_id === r.plan_id)) }))
+    .filter(x => x.a.enrolled > 0).sort((a, b) => b.a.n - a.a.n || a.r.plan_name.localeCompare(b.r.plan_name, 'vi'))
   const sel = school ? bySchool(all.filter(r => r.org_id === school && (!year || r.year_name === year)))[0] : null
 
   // Gộp theo phòng / tỉnh
@@ -159,7 +184,7 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
   }
   const filtered = !!(year || prov || unit || st || q || f !== 'all')
   const schoolTable = (list: School[]) => <><div className="wrap"><table className="libtable">
-    <thead><tr><th>Trường</th><th>Kế hoạch</th><th>GV / chỉ tiêu</th><th>Danh sách GV</th><th>Chuyên cần</th><th>Đạt</th><th>Chứng chỉ</th><th>Cảnh báo</th></tr></thead>
+    <thead><tr><th>Trường</th><th>Kế hoạch</th><th>GV / chỉ tiêu</th><th>Danh sách GV</th><th>Chuyên cần</th><th>Đạt</th><th>Chứng chỉ</th><th>Hài lòng</th><th>Cảnh báo</th></tr></thead>
     <tbody>{(more ? list : list.slice(0, 15)).map(s => { const todo = s.rows.filter(r => r.org_status === 'assigned' || r.org_status === 'returned').length, sub = s.rows.filter(r => r.org_status === 'submitted').length
       return <tr key={s.org_id} className="clickrow" tabIndex={0} onClick={() => setSchool(s.org_id)} onKeyDown={e => { if (e.key === 'Enter') setSchool(s.org_id) }}>
         <td><b>{s.org_name}</b>{(anc(s.org_id).unit || anc(s.org_id).prov) && <><br /><small className="sub">{[anc(s.org_id).unit?.name, anc(s.org_id).prov?.name].filter(Boolean).join(' · ')}</small></>}</td>
@@ -167,8 +192,8 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
         <td style={{ whiteSpace: 'nowrap' }}><Bar v={pct(s.enrolled, s.quota)} warnBelow={100} /> {s.enrolled}/{s.quota}</td>
         <td>{todo ? <Chip tone="warn">{todo} cần chọn GV</Chip> : null}{sub ? <> <Chip>{sub} chờ duyệt</Chip></> : null}{!todo && !sub && <small className="tlok">Đã xong</small>}</td>
         <td>{s.att == null ? '—' : `${s.att}%`}{s.low_att > 0 && <><br /><small className="warnline">{s.low_att} GV vắng nhiều</small></>}</td>
-        <td>{s.passed} <small className="sub">({pct(s.passed, s.enrolled)}%)</small></td><td>{s.certs}</td><td><AlertCounts alerts={s.alerts} /></td></tr> })}
-      {!list.length && <tr><td colSpan={8}><small className="sub">{all.length ? 'Không có trường nào khớp bộ lọc.' : 'Chưa có kế hoạch tập huấn đã phát hành được giao cho trường.'}</small></td></tr>}</tbody>
+        <td>{s.passed} <small className="sub">({pct(s.passed, s.enrolled)}%)</small></td><td>{s.certs}</td><td><FbCell a={fbOf(s.rows)} /></td><td><AlertCounts alerts={s.alerts} /></td></tr> })}
+      {!list.length && <tr><td colSpan={9}><small className="sub">{all.length ? 'Không có trường nào khớp bộ lọc.' : 'Chưa có kế hoạch tập huấn đã phát hành được giao cho trường.'}</small></td></tr>}</tbody>
   </table></div>
     {list.length > 15 && <button type="button" className="linkbtn" onClick={() => setMore(!more)}>{more ? 'Thu gọn' : `Xem cả ${list.length} trường`}</button>}</>
 
@@ -215,16 +240,16 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
       </div>
       {!rows ? <p className="sub">Đang tải…</p> : multi && view === 'school' ? schoolTable(schools)
         : multi && (view === 'unit' || view === 'province') ? <div className="wrap"><table className="libtable">
-          <thead><tr><th>{view === 'unit' ? 'Phòng / đơn vị quản lý' : 'Tỉnh'}</th><th>Trường</th><th>GV / chỉ tiêu</th><th>Chuyên cần</th><th>Đạt</th><th>Chứng chỉ</th><th>Cảnh báo</th></tr></thead>
+          <thead><tr><th>{view === 'unit' ? 'Phòng / đơn vị quản lý' : 'Tỉnh'}</th><th>Trường</th><th>GV / chỉ tiêu</th><th>Chuyên cần</th><th>Đạt</th><th>Chứng chỉ</th><th>Hài lòng</th><th>Cảnh báo</th></tr></thead>
           <tbody>{groups(view).map(g => { const a = agg(g.list)
             return <tr key={g.key} className="clickrow" tabIndex={0} onClick={() => pickGroup(g.key)} onKeyDown={e => { if (e.key === 'Enter') pickGroup(g.key) }}>
               <td><b>{g.name}</b></td><td>{g.list.length} <small className="sub">({g.list.filter(s => s.enrolled >= s.quota).length} đủ chỉ tiêu)</small></td>
               <td style={{ whiteSpace: 'nowrap' }}><Bar v={pct(a.e, a.qq)} warnBelow={100} /> {a.e}/{a.qq}</td><td>{a.att == null ? '—' : `${a.att}%`}</td>
-              <td>{a.p} <small className="sub">({pct(a.p, a.e)}%)</small></td><td>{a.c}</td><td><AlertCounts alerts={a.al} /></td></tr> })}
-            {!schools.length && <tr><td colSpan={7}><small className="sub">Không có số liệu khớp bộ lọc.</small></td></tr>}</tbody>
+              <td>{a.p} <small className="sub">({pct(a.p, a.e)}%)</small></td><td>{a.c}</td><td><FbCell a={fbOf(g.list.flatMap(s => s.rows))} /></td><td><AlertCounts alerts={a.al} /></td></tr> })}
+            {!schools.length && <tr><td colSpan={8}><small className="sub">Không có số liệu khớp bộ lọc.</small></td></tr>}</tbody>
         </table></div>
         : <div className="wrap"><table className="libtable">
-          <thead><tr><th>Kế hoạch</th><th>Trường</th><th>GV / chỉ tiêu</th><th>Buổi học</th><th>Chuyên cần</th><th>Học trực tuyến</th><th>Kết quả</th><th>Chứng chỉ</th></tr></thead>
+          <thead><tr><th>Kế hoạch</th><th>Trường</th><th>GV / chỉ tiêu</th><th>Buổi học</th><th>Chuyên cần</th><th>Học trực tuyến</th><th>Kết quả</th><th>Chứng chỉ</th><th>Hài lòng</th></tr></thead>
           <tbody>{shown.map(r => <tr key={r.plan_id + r.org_id}>
             <td><b>{r.plan_name}</b><br /><small className="sub">{r.plan_code} · {r.plan_org} · {vnDate(r.starts_on)} – {vnDate(r.ends_on)}</small></td>
             <td><button type="button" className="linkbtn" onClick={() => setSchool(r.org_id)}>{r.org_name}</button><br /><Chip tone={ORG_ST[r.org_status]?.[1]}>{ORG_ST[r.org_status]?.[0] ?? r.org_status}</Chip></td>
@@ -234,9 +259,17 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
             <td>{r.online_done}/{r.enrolled}</td>
             <td><span className="tlok">{r.passed} Đạt</span>{r.failed > 0 && <> · <span className="warnline">{r.failed} chưa đạt</span></>}
               {r.not_ready > 0 && <><br /><small className="warnline">{r.not_ready} GV chưa đủ ĐK, sắp kết thúc</small></>}</td>
-            <td>{r.certs}</td></tr>)}
-            {!shown.length && <tr><td colSpan={8}><small className="sub">{all.length ? 'Không có dòng nào khớp bộ lọc.' : 'Chưa có kế hoạch tập huấn đã phát hành được giao cho trường.'}</small></td></tr>}</tbody>
+            <td>{r.certs}</td><td><FbCell a={fbOf([r])} /></td></tr>)}
+            {!shown.length && <tr><td colSpan={9}><small className="sub">{all.length ? 'Không có dòng nào khớp bộ lọc.' : 'Chưa có kế hoạch tập huấn đã phát hành được giao cho trường.'}</small></td></tr>}</tbody>
         </table></div>}
+    </section>
+    <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }} aria-label="Mức hài lòng sau tập huấn">
+      <div className="monhead"><h3 style={{ margin: 0 }}>Mức hài lòng sau tập huấn</h3>
+        <small className="sub">{fbAll.n ? <>Trung bình chung <b>{score(fbAll.overall)}★</b> · {fbAll.n}/{fbAll.enrolled} GV đã gửi phiếu ({pct(fbAll.n, fbAll.enrolled)}%) · {fbAll.comments} góp ý</> : 'Giáo viên gửi phiếu ở trang khoá học khi khoá kết thúc.'}</small></div>
+      {fbPlans.length > 0 && <div className="wrap"><table className="libtable">
+        <thead><tr><th>Kế hoạch</th><th>Phiếu</th>{FB_CRIT.map(([k, l]) => <th key={k}>{l}</th>)}<th>Góp ý</th></tr></thead>
+        <tbody>{fbPlans.map(({ r, a }) => <FbPlanRow key={r.plan_id} r={r} a={a} open={fbPlan === r.plan_id} onToggle={() => setFbPlan(fbPlan === r.plan_id ? null : r.plan_id)} />)}</tbody>
+      </table></div>}
     </section>
     <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
       <h3 style={{ margin: 0 }}>Năng lực trước / sau tập huấn</h3>
@@ -248,16 +281,18 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
             <td>{d == null ? <small className="sub">chưa đủ dữ liệu</small> : <Chip tone={d > 0 ? 'good' : d < 0 ? 'bad' : ''}>{d > 0 ? '+' : ''}{num(Math.round(d * 100) / 100)}</Chip>}</td></tr> })}</tbody>
       </table></div> : <small className="sub">Chưa có giáo viên Đạt khoá tập huấn có năng lực đích.</small>}
     </section>
-    {sel && <SchoolDetail s={sel} year={year} onClose={() => setSchool(null)} work={work} manage={manage}
+    {sel && <SchoolDetail s={sel} year={year} fb={fb} onClose={() => setSchool(null)} work={work} manage={manage}
       onWork={r => { setSchool(null); setDoing({ plan: r.plan_id, org: r.org_id }) }} onReview={review} />}
   </>
 }
 
 // Chi tiết một trường: số tổng quan, cảnh báo, từng kế hoạch được giao kèm việc cần làm, từng giáo viên
-function SchoolDetail({ s, year, onClose, work, manage, onWork, onReview }: { s: School; year: string; onClose: () => void; work: boolean; manage: boolean
+function SchoolDetail({ s, year, fb, onClose, work, manage, onWork, onReview }: { s: School; year: string; fb: Map<string, Fb>; onClose: () => void; work: boolean; manage: boolean
   onWork: (r: Row) => void; onReview: (r: Row, ok: boolean) => void }) {
   const [open, setOpen] = useState(() => { try { return localStorage.getItem(SCHOOL_OPEN_KEY) !== '0' } catch { return true } })
   const toggle = (v: boolean) => { setOpen(v); try { localStorage.setItem(SCHOOL_OPEN_KEY, v ? '1' : '0') } catch { /* bỏ qua */ } }
+  const [cm, setCm] = useState<string | null>(null)
+  const fbOf = (r: Row) => fbAgg([fb.get(r.plan_id + '|' + r.org_id)])
   return <Drawer title={<><b>{s.org_name}</b><br /><small className="sub">{s.rows.length} kế hoạch tập huấn được giao</small></>} onClose={onClose}>
     <div className="diststatcards four">
       <div className="panel"><span><b>{s.enrolled}/{s.quota}</b><small>GV đã chọn / chỉ tiêu</small></span></div>
@@ -273,7 +308,7 @@ function SchoolDetail({ s, year, onClose, work, manage, onWork, onReview }: { s:
     </section>}
     <h3 style={{ margin: '16px 0 8px' }}>Theo từng kế hoạch</h3>
     <div className="wrap"><table className="libtable">
-      <thead><tr><th>Kế hoạch</th><th>GV / chỉ tiêu</th><th>Chuyên cần</th><th>Kết quả</th><th>Chứng chỉ</th></tr></thead>
+      <thead><tr><th>Kế hoạch</th><th>GV / chỉ tiêu</th><th>Chuyên cần</th><th>Kết quả</th><th>Chứng chỉ</th><th>Hài lòng</th></tr></thead>
       <tbody>{s.rows.map(r => { const todo = r.org_status === 'assigned' || r.org_status === 'returned'
         return <tr key={r.plan_id}>
         <td><b>{r.plan_name}</b><br /><small className="sub">{r.plan_code} · {vnDate(r.starts_on)} – {vnDate(r.ends_on)}</small><br />
@@ -287,8 +322,12 @@ function SchoolDetail({ s, year, onClose, work, manage, onWork, onReview }: { s:
         <td>{r.att_pct == null ? '—' : `${num(r.att_pct)}%`}{r.low_att > 0 && <><br /><small className="warnline">{r.low_att} GV vắng nhiều</small></>}</td>
         <td><span className="tlok" style={{ whiteSpace: 'nowrap' }}>{r.passed} Đạt</span>{r.failed > 0 && <><br /><small className="warnline">{r.failed} chưa đạt</small></>}
           {r.not_ready > 0 && <><br /><small className="warnline">{r.not_ready} GV chưa đủ ĐK</small></>}</td>
-        <td>{r.certs}</td></tr> })}</tbody>
+        <td>{r.certs}</td><td><FbCell a={fbOf(r)} />{fbOf(r).comments > 0 && <><br /><button type="button" className="linkbtn" aria-expanded={cm === r.plan_id}
+          onClick={() => setCm(cm === r.plan_id ? null : r.plan_id)}>{cm === r.plan_id ? 'Ẩn góp ý' : `${fbOf(r).comments} góp ý`}</button></>}</td></tr> })}</tbody>
     </table></div>
+    {cm && <section className="panel" style={{ marginTop: 10, display: 'grid', gap: 8 }}>
+      <b>Góp ý của giáo viên · {s.rows.find(r => r.plan_id === cm)?.plan_name}</b>
+      <FeedbackComments planId={cm} orgId={s.org_id} /></section>}
     <SchoolTeachers orgId={s.org_id} year={year} />
   </Drawer>
 }
@@ -332,5 +371,16 @@ function SchoolTeachers({ orgId, year }: { orgId: string; year: string }) {
         </tr> })}
         {!shown.length && <tr><td colSpan={5}><small className="sub">Không có giáo viên nào khớp.</small></td></tr>}</tbody>
     </table></div>}
+  </>
+}
+
+// Một dòng kế hoạch trong bảng mức hài lòng, mở góp ý ngay bên dưới
+function FbPlanRow({ r, a, open, onToggle }: { r: Row; a: FbAgg; open: boolean; onToggle: () => void }) {
+  return <>
+    <tr><td><b>{r.plan_name}</b><br /><small className="sub">{r.plan_code} · {vnDate(r.starts_on)} – {vnDate(r.ends_on)}</small></td>
+      <td style={{ whiteSpace: 'nowrap' }}>{a.n}/{a.enrolled}<br /><small className="sub">{pct(a.n, a.enrolled)}%</small></td>
+      {FB_CRIT.map(([k]) => <td key={k}>{a.n ? <Chip tone={chipTone(a[k])}>{score(a[k])}</Chip> : '—'}</td>)}
+      <td>{a.comments ? <button type="button" className="linkbtn" aria-expanded={open} onClick={onToggle}>{open ? 'Ẩn' : `${a.comments} góp ý`}</button> : '—'}</td></tr>
+    {open && <tr><td colSpan={FB_CRIT.length + 3}><FeedbackComments planId={r.plan_id} showOrg /></td></tr>}
   </>
 }

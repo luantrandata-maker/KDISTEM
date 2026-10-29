@@ -9,12 +9,15 @@ type Sess = {
   id: string; plan_id: string | null; plan_name: string | null; program: string | null; provider: string | null; title: string
   starts_at: string; ends_at: string; mode: string; location: string | null; meeting_url: string | null; present: boolean | null; org_name: string | null
   trainer?: string | null; need_code?: boolean; closed?: boolean; excuse_status?: string | null; excuse_reason?: string | null; recording_url?: string | null
+  checkin_from?: string | null; checkin_to?: string | null
 }
 const MODE: Record<string, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
-const OPEN_MS = 15 * 60000   // khớp training_session_open(): sớm/muộn 15 phút
+const OPEN_MS = 30 * 60000   // mặc định khi chưa có khung giờ riêng (migration 120)
 
-const canCheckIn = (s: Sess, now = Date.now()) =>
-  now >= new Date(s.starts_at).getTime() - OPEN_MS && now <= new Date(s.ends_at).getTime() + OPEN_MS
+// Khớp training_session_open(): khung điểm danh của từng buổi
+const ckFrom = (s: Sess) => s.checkin_from ? new Date(s.checkin_from).getTime() : new Date(s.starts_at).getTime() - OPEN_MS
+const ckTo = (s: Sess) => s.checkin_to ? new Date(s.checkin_to).getTime() : new Date(s.ends_at).getTime() + OPEN_MS
+const canCheckIn = (s: Sess, now = Date.now()) => now >= ckFrom(s) && now <= ckTo(s)
 
 function Attendance({ s, st }: { s: Sess; st: SessionState }) {
   if (s.present === true) return <span className="pill active">Có mặt</span>
@@ -128,7 +131,8 @@ export function TeacherTrainingSchedule({ teacherId }: TProps) {
                     ? <button className="primary" disabled={busy === s.id} onClick={() => checkIn(s, true)}>Tham gia</button>
                     : <button className="primary" disabled={busy === s.id} onClick={() => checkIn(s, false)}>Điểm danh</button>)}
                   {open && s.present === true && s.meeting_url && <a className="filebtn" href={s.meeting_url} target="_blank" rel="noreferrer">Vào lại phòng họp</a>}
-                  {!open && state === 'upcoming' && <small>Mở điểm danh 15 phút trước giờ học</small>}
+                  {!open && !s.closed && Date.now() < ckFrom(s) && <small>Mở điểm danh lúc {fmtTime(new Date(ckFrom(s)).toISOString())} {fmtDate(new Date(ckFrom(s)).toISOString())}</small>}
+                  {open && s.present !== true && state === 'done' && <small style={{ display: 'block', marginTop: 4 }}>Còn điểm danh được đến {fmtTime(new Date(ckTo(s)).toISOString())} {fmtDate(new Date(ckTo(s)).toISOString())}</small>}
                   {s.recording_url && <a className="filebtn" href={s.recording_url} target="_blank" rel="noreferrer">▶ Xem bản ghi</a>}
                   {state !== 'done' && !s.closed && s.present !== true && !s.excuse_status && <> <button disabled={busy === s.id} onClick={() => excuse(s)}>Xin vắng</button></>}
                 </td>
@@ -138,7 +142,7 @@ export function TeacherTrainingSchedule({ teacherId }: TProps) {
           {shown.length === 0 && <tr><td colSpan={5}>{rows.length === 0 ? 'Bạn chưa được ghi danh vào buổi tập huấn nào.' : 'Không có buổi phù hợp.'}</td></tr>}
         </tbody>
       </table></div>
-      <p className="sub" style={{ marginTop: 10 }}>Bạn tự điểm danh "có mặt" trong giờ buổi tập huấn; buổi trực tiếp cần nhập mã giảng viên đưa. Không dự được thì bấm "Xin vắng" trước khi buổi kết thúc. Ghi nhận vắng hoặc sửa điểm danh do đơn vị tổ chức thực hiện.</p>
+      <p className="sub" style={{ marginTop: 10 }}>Bạn tự điểm danh "có mặt" trong khung giờ điểm danh của buổi (có buổi mở trước giờ học hoặc vẫn mở sau khi kết thúc); buổi trực tiếp cần nhập mã giảng viên đưa. Không dự được thì bấm "Xin vắng" trước khi buổi kết thúc. Ghi nhận vắng hoặc sửa điểm danh do đơn vị tổ chức thực hiện.</p>
     </>
   )
 }

@@ -17,14 +17,15 @@ const ContentDetail = lazy(() => import('./Content').then(m => ({ default: m.Con
 type Mode = 'online' | 'offline'
 type Plan = { id: string; org_id?: string; plan_code: string | null; name: string; mode: string; pub_status: string }
 export type Sess = { id: string; plan_id: string; unit_id: string | null; title: string; starts_at: string; ends_at: string; mode: Mode; location: string | null
-  meeting_url: string | null; trainer: string | null; trainer_ids?: string[]; assistant?: string | null; assistant_ids?: string[]; note: string | null; closed_at: string | null; recording_url?: string | null }
+  meeting_url: string | null; trainer: string | null; trainer_ids?: string[]; assistant?: string | null; assistant_ids?: string[]; note: string | null; closed_at: string | null; recording_url?: string | null
+  checkin_before?: number; checkin_after?: number }
 type Att = { session_id: string; teacher_id: string; present: boolean | null; excuse_status: string | null; excuse_reason?: string | null; checked_in_at?: string | null; method?: string | null
   teachers?: { full_name: string; subject: string | null; organizations: { name: string } | null } | null }
 type Unit = { id: string; program_id: string; parent_id: string | null; kind: string; seq: number; title: string; hours: number; mode: Mode | null }
 type Item = { program_id: string; seq: number; trainer: string | null; trainer_ids?: string[]; units?: string[] | null }
 type St = 'upcoming' | 'live' | 'toclose' | 'closed'
 
-const SSEL = 'id, plan_id, unit_id, title, starts_at, ends_at, mode, location, meeting_url, trainer, trainer_ids, assistant, assistant_ids, note, closed_at, recording_url'
+const SSEL = 'id, plan_id, unit_id, title, starts_at, ends_at, mode, location, meeting_url, trainer, trainer_ids, assistant, assistant_ids, note, closed_at, recording_url, checkin_before, checkin_after'
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp' }
 const ST: Record<St, [string, string]> = { upcoming: ['Sắp diễn ra', ''], live: ['Đang diễn ra', 'bad'], toclose: ['Chờ chốt điểm danh', 'warn'], closed: ['Đã chốt', 'good'] }
 const errText = (m: string) => /schema cache|does not exist|column .* of relation/i.test(m) ? 'Hãy chạy migration 085 trên Supabase.'
@@ -33,6 +34,14 @@ export const sessSt = (s: Pick<Sess, 'starts_at' | 'ends_at' | 'closed_at'>, now
   s.closed_at ? 'closed' : now < +new Date(s.starts_at) ? 'upcoming' : now <= +new Date(s.ends_at) ? 'live' : 'toclose'
 const dd = (d: string) => new Date(d).toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })
 const hm = (d: string) => new Date(d).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })
+// Khung giờ điểm danh (phút trước giờ học / sau khi kết thúc), khớp training_session_open() (migration 120)
+const CK_BEFORE = [0, 10, 15, 30, 45, 60, 120, 1440]
+const CK_AFTER = [0, 10, 15, 30, 45, 60, 120, 1440, 4320, 10080]
+const mins = (m: number) => m % 1440 === 0 ? `${m / 1440} ngày` : m % 60 === 0 ? `${m / 60} giờ` : `${m} phút`
+export const ckWindow = (b = 30, a = 30) =>
+  `${b ? `từ ${mins(b)} trước giờ học` : 'từ giờ bắt đầu'} ${a ? `đến ${mins(a)} sau khi kết thúc` : 'đến khi kết thúc'}`
+const ckPhase = (at: string, s: Pick<Sess, 'starts_at' | 'ends_at'>) =>
+  +new Date(at) < +new Date(s.starts_at) ? 'trước giờ' : +new Date(at) <= +new Date(s.ends_at) ? 'trong giờ' : 'sau giờ'
 const toLocal = (d: string) => { const x = new Date(d); return new Date(+x - x.getTimezoneOffset() * 60000).toISOString().slice(0, 16) }
 const ymd = (d: Date) => new Date(+d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
 const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
@@ -291,11 +300,12 @@ function AutoSchedule({ plans, initial, onBack, onDone }: { plans: Plan[]; initi
 }
 
 // ===== Thông tin buổi (thêm / sửa) =====
-type Info = { plan_id: string; unit_id: string; title: string; starts_at: string; ends_at: string; mode: Mode; location: string; meeting_url: string; trainer: string; trainer_ids: string[]; assistant_ids: string[]; note: string; recording_url: string }
+type Info = { plan_id: string; unit_id: string; title: string; starts_at: string; ends_at: string; mode: Mode; location: string; meeting_url: string; trainer: string; trainer_ids: string[]; assistant_ids: string[]; note: string; recording_url: string; checkin_before: number; checkin_after: number }
 const fromSess = (s: Sess): Info => ({ plan_id: s.plan_id, unit_id: s.unit_id ?? '', title: s.title, starts_at: toLocal(s.starts_at), ends_at: toLocal(s.ends_at), mode: s.mode,
-  location: s.location ?? '', meeting_url: s.meeting_url ?? '', trainer: s.trainer ?? '', trainer_ids: s.trainer_ids ?? [], assistant_ids: s.assistant_ids ?? [], note: s.note ?? '', recording_url: s.recording_url ?? '' })
+  location: s.location ?? '', meeting_url: s.meeting_url ?? '', trainer: s.trainer ?? '', trainer_ids: s.trainer_ids ?? [], assistant_ids: s.assistant_ids ?? [], note: s.note ?? '', recording_url: s.recording_url ?? '', checkin_before: s.checkin_before ?? 30, checkin_after: s.checkin_after ?? 30 })
 const toRow = (f: Info) => ({ plan_id: f.plan_id, unit_id: f.unit_id || null, title: f.title.trim(), starts_at: new Date(f.starts_at).toISOString(), ends_at: new Date(f.ends_at).toISOString(),
-  mode: f.mode, location: f.location.trim() || null, meeting_url: f.meeting_url.trim() || null, trainer_ids: f.trainer_ids, trainer: f.trainer_ids.length ? null : f.trainer.trim() || null, assistant_ids: f.assistant_ids, note: f.note.trim() || null, recording_url: f.recording_url.trim() || null })
+  mode: f.mode, location: f.location.trim() || null, meeting_url: f.meeting_url.trim() || null, trainer_ids: f.trainer_ids, trainer: f.trainer_ids.length ? null : f.trainer.trim() || null, assistant_ids: f.assistant_ids, note: f.note.trim() || null, recording_url: f.recording_url.trim() || null,
+  checkin_before: f.checkin_before, checkin_after: f.checkin_after })
 const badInfo = (f: Info) => !f.plan_id || !f.title.trim() || !f.starts_at || !f.ends_at ? 'Nhập kế hoạch, tên buổi, giờ bắt đầu và kết thúc.'
   : f.ends_at <= f.starts_at ? 'Giờ kết thúc phải sau giờ bắt đầu.' : f.meeting_url.trim() && !/^https?:\/\//i.test(f.meeting_url.trim()) ? 'Link họp phải bắt đầu bằng http:// hoặc https://'
   : f.recording_url.trim() && !/^https?:\/\//i.test(f.recording_url.trim()) ? 'Link bản ghi phải bắt đầu bằng http:// hoặc https://' : ''
@@ -320,6 +330,13 @@ function InfoFields({ f, set, plans, lockPlan }: { f: Info; set: (f: Info) => vo
       {!f.trainer_ids.length && f.trainer && <small className="sub">Đang ghi tay: {f.trainer}</small>}</div>
     <div className="field" style={{ gridColumn: '1/-1' }}><span>Trợ giảng</span>
       {orgOf ? <TrainerPick orgId={orgOf} value={f.assistant_ids} ariaLabel="Trợ giảng" placeholder="Chọn trợ giảng…" onChange={ids => set({ ...f, assistant_ids: ids })} /> : <small className="sub">Chọn kế hoạch trước.</small>}</div>
+    <div className="field" style={{ gridColumn: '1/-1' }}><span>Khung giờ điểm danh</span>
+      <div className="tools" style={{ flexWrap: 'wrap' }}>
+        <select aria-label="Mở điểm danh" value={f.checkin_before} onChange={e => set({ ...f, checkin_before: Number(e.target.value) })}>
+          {CK_BEFORE.map(m => <option key={m} value={m}>Mở {m ? `${mins(m)} trước giờ học` : 'đúng giờ bắt đầu'}</option>)}</select>
+        <select aria-label="Đóng điểm danh" value={f.checkin_after} onChange={e => set({ ...f, checkin_after: Number(e.target.value) })}>
+          {CK_AFTER.map(m => <option key={m} value={m}>Đóng {m ? `${mins(m)} sau khi kết thúc` : 'khi buổi học kết thúc'}</option>)}</select></div>
+      <small className="sub">Giáo viên tự điểm danh được trước, trong và sau giờ học trong khung này, cho tới khi chốt điểm danh. Danh sách ghi rõ ai điểm danh trước giờ, trong giờ hay sau giờ.</small></div>
     {f.mode === 'offline' ? <label className="field" style={{ gridColumn: '1/-1' }}><span>Địa điểm</span><input maxLength={300} value={f.location} onChange={e => set({ ...f, location: e.target.value })} placeholder="VD: Phòng STEM, THCS Phố Hiến" /></label>
       : <label className="field" style={{ gridColumn: '1/-1' }}><span>Link phòng họp</span><input type="url" maxLength={500} value={f.meeting_url} onChange={e => set({ ...f, meeting_url: e.target.value })} placeholder="https://meet…" /></label>}
     {f.mode === 'online' && <label className="field" style={{ gridColumn: '1/-1' }}><span>Link bản ghi (sau buổi học)</span><input type="url" maxLength={1000} value={f.recording_url} onChange={e => set({ ...f, recording_url: e.target.value })} placeholder="https://… (video ghi lại buổi học)" /></label>}
@@ -331,7 +348,7 @@ function SessionForm({ orgId, plans, initial, onBack, onDone }: { orgId: string;
   const d = new Date(); d.setDate(d.getDate() + 7); d.setHours(8, 0, 0, 0)
   const e = new Date(d); e.setHours(11)
   const [f, setF] = useState<Info>({ plan_id: initial && plans.some(p => p.id === initial && p.pub_status === 'published') ? initial : '', unit_id: '', title: '', starts_at: toLocal(d.toISOString()), ends_at: toLocal(e.toISOString()),
-    mode: 'offline', location: '', meeting_url: '', trainer: '', trainer_ids: [], assistant_ids: [], note: '', recording_url: '' })
+    mode: 'offline', location: '', meeting_url: '', trainer: '', trainer_ids: [], assistant_ids: [], note: '', recording_url: '', checkin_before: 30, checkin_after: 30 })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   async function save() {
@@ -399,7 +416,7 @@ function SessionContent({ unitId, can, onOpen }: { unitId: string | null; can: b
   </section>
 }
 
-function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; plan: Plan | undefined; can: boolean; onBack: () => void; onMsg: (m: [string, boolean]) => void }) {
+export function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; plan: Plan | undefined; can: boolean; onBack: () => void; onMsg: (m: [string, boolean]) => void }) {
   const [s, setS] = useState<Sess | null>(null)
   const [rows, setRows] = useState<Att[]>([])
   const [code, setCode] = useState<string | null>(null)
@@ -478,7 +495,7 @@ function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; plan: Pla
         <b className="tscodenum">{code}</b>
         {qr && <img src={qr} alt={`QR mã điểm danh ${code}`} width={150} height={150} />}
         <button type="button" className="primary" onClick={() => setShow(true)}>Trình chiếu QR điểm danh</button>
-        <small className="sub">Chiếu QR lên màn hình: giáo viên mở camera điện thoại quét mã, đăng nhập (nếu chưa) là điểm danh xong, không cần gọi tên. Hoặc nhập mã 6 số ở Lịch tập huấn. Mở từ 15 phút trước giờ học đến 15 phút sau khi kết thúc.</small>
+        <small className="sub">Chiếu QR lên màn hình: giáo viên mở camera điện thoại quét mã, đăng nhập (nếu chưa) là điểm danh xong, không cần gọi tên. Hoặc nhập mã 6 số ở Lịch tập huấn. Mở {ckWindow(s.checkin_before, s.checkin_after)}.</small>
       </section>}
       {show && code && <CheckinShow id={id} title={s.title} when={`${dd(s.starts_at)} ${hm(s.starts_at)}–${hm(s.ends_at)}`} code={code} qr={qr} onClose={() => { setShow(false); load() }} />}
       <section className="panel" style={{ display: 'grid', gap: 12 }}>
@@ -489,6 +506,7 @@ function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; plan: Pla
         </> : <dl className="tpkv">
           <dt>Kế hoạch</dt><dd>{plan ? `${plan.plan_code} · ${plan.name}` : '—'}</dd>
           <dt>Thời gian</dt><dd>{dd(s.starts_at)}, {hm(s.starts_at)}–{hm(s.ends_at)}</dd>
+          <dt>Điểm danh</dt><dd>Mở {ckWindow(s.checkin_before, s.checkin_after)}</dd>
           <dt>{s.mode === 'online' ? 'Link họp' : 'Địa điểm'}</dt><dd>{s.mode === 'online' ? (s.meeting_url ? <a href={s.meeting_url} target="_blank" rel="noreferrer">Mở phòng họp ↗</a> : <span className="warnline">Chưa có link họp</span>) : s.location || '—'}</dd>
           {s.mode === 'online' && <><dt>Bản ghi</dt><dd>{s.recording_url ? <a href={s.recording_url} target="_blank" rel="noreferrer">Xem bản ghi ↗</a> : <small className="sub">Chưa có</small>}
             {can && st !== 'upcoming' && <> <button type="button" className="linkbtn" onClick={() => {
@@ -516,7 +534,7 @@ function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; plan: Pla
           <td>{can && !closed ? <select value={a.present == null ? '' : a.present ? '1' : '0'} aria-label={`Điểm danh ${a.teachers?.full_name ?? ''}`} onChange={e => mark(a, e.target.value)}>
             <option value="">Chưa ghi</option><option value="1">Có mặt</option><option value="0">Vắng</option></select>
             : a.present == null ? '—' : a.present ? <Chip tone="good">Có mặt</Chip> : <Chip tone={a.excuse_status === 'approved' ? 'warn' : 'bad'}>{a.excuse_status === 'approved' ? 'Vắng có phép' : 'Vắng'}</Chip>}
-            {a.checked_in_at && <><br /><small className="sub">{hm(a.checked_in_at)} · {how(a)}</small></>}</td>
+            {a.checked_in_at && <><br /><small className="sub">{hm(a.checked_in_at)} · {ckPhase(a.checked_in_at, s)}{how(a) ? ` · ${how(a)}` : ''}</small></>}</td>
           <td style={{ whiteSpace: 'normal' }}>{a.excuse_status ? <>{a.excuse_status === 'pending' ? <Chip tone="warn">Chờ duyệt</Chip> : a.excuse_status === 'approved' ? <Chip tone="good">Đã duyệt</Chip> : <Chip tone="bad">Từ chối</Chip>}
             {a.excuse_reason && <><br /><small className="sub">{a.excuse_reason}</small></>}
             {can && a.excuse_status === 'pending' && <div className="tools" style={{ marginTop: 4 }}><button type="button" className="primary" onClick={() => review(a, true)}>Duyệt</button><button type="button" onClick={() => review(a, false)}>Từ chối</button></div>}</> : '—'}</td>

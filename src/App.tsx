@@ -587,7 +587,9 @@ function Shell({ session }: { session: Session }) {
       // Tải lại trang: mở lại đúng trang đang xem (lưu trong lịch sử trình duyệt) nếu vẫn còn quyền
       const st = (history.state ?? {}) as { role?: RoleKey; page?: string }
       const keep = st.role && views.includes(st.role) && NAV[st.role].some(g => g.items.includes(st.page ?? ''))
-      const r = keep ? st.role! : views[0], p = keep ? st.page! : NAV[views[0]][0].items[0]
+      // Link mời đăng ký tập huấn (?dk=<kế hoạch>): mở thẳng mục Đăng ký tập huấn của giáo viên
+      const dk = new URLSearchParams(location.search).get('dk') && views.includes('teacher') && NAV.teacher.some(g => g.items.includes('Đăng ký tập huấn'))
+      const r = dk ? 'teacher' : keep ? st.role! : views[0], p = dk ? 'Đăng ký tập huấn' : keep ? st.page! : NAV[views[0]][0].items[0]
       navigatePage(r, p, true); setRole(r); setPage(p)
     }
   }, [access.loading, views.length])

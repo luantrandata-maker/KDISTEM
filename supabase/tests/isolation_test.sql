@@ -3616,6 +3616,13 @@ select pg_temp.chk('gv_both', 'GY 120: lịch của tôi trả về giờ mở �
 select pg_temp.chk('kdi', 'GY 120: khung điểm danh quá 7 ngày bị từ chối', $q$update training_sessions set checkin_after = 20000 where title = 'ISO buổi đã qua'$q$, 'ERR*');
 update training_sessions set checkin_before = 30, checkin_after = 30 where title = 'ISO buổi đã qua';
 
+-- ===== GY 121: làm thử đề (exam_preview) =====
+select pg_temp.chk('kdi', 'GY 121: làm thử đề ma trận rút đúng số câu, kèm đáp án', $q$select jsonb_array_length(x) || ':' || bool_and(e ? 'answer') from exam_preview(platform_org_id(), '{"kind":"pick","subject":"ISO TH9","matrix":[{"topic":"Robot","level":"nhan_biet","count":2}],"shuffle":true}') x, jsonb_array_elements(x) e group by x$q$, '2:true');
+select pg_temp.chk('kdi', 'GY 121: làm thử bài test nội dung rút ngẫu nhiên số câu mỗi lượt', $q$select jsonb_array_length(exam_preview(platform_org_id(), jsonb_build_object('kind', 'sample', 'count', 1, 'qids', (select jsonb_agg(id) from question_bank where subject = 'ISO TH9'))))$q$, '1');
+select pg_temp.chk('admin_kb', 'GY 121: làm thử đề luyện theo mức độ (Phân hệ 2)', $q$select jsonb_array_length(exam_preview(my_org_id(), '{"kind":"levels","subject":"ISO Toán","grade":6,"count":2,"levels":{"nhan_biet":1}}'))$q$, '2');
+select pg_temp.chk('admin_ph', 'GY 121: trường không làm thử đề của KDI', $q$select exam_preview(platform_org_id(), '{"kind":"pick","subject":"ISO TH9","matrix":[{"count":1}]}')$q$, 'ERR');
+select pg_temp.chk('kdi', 'GY 121: ma trận sai bị từ chối', $q$select exam_preview(platform_org_id(), '{"kind":"pick","matrix":[{"count":0}]}')$q$, 'ERR*');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

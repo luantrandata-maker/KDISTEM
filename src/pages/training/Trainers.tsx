@@ -6,9 +6,11 @@ import { OrgFilter, OrgPick, useAllMode, useOrgName } from '../../components/Org
 import { ElView } from '../../components/ElView'
 import { MultiSelect } from '../../components/MultiSelect'
 import { Chip } from '../dist/Editor'
+import { score } from './Feedback'
 
 export type Trainer = { id: string; org_id: string; full_name: string; title: string | null; workplace: string | null; expertise: string | null
   email: string | null; phone: string | null; note: string | null; active: boolean }
+type TRate = { trainer_id: string; responses: number; plans: number; expertise: number; delivery: number; interaction: number; overall: number }
 const SEL = 'id, org_id, full_name, title, workplace, expertise, email, phone, note, active'
 const errText = (m: string) => /schema cache|does not exist|relation .*trainers/i.test(m) ? 'Hãy chạy migration 098 trên Supabase.'
   : /duplicate|23505|trainers_name/i.test(m) ? 'Đã có giảng viên cùng họ tên và đơn vị công tác.'
@@ -75,6 +77,9 @@ export function TrainersPage({ orgId }: { orgId: string }) {
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [q, setQ] = useState('')
   const [fs, setFs] = useState<'' | 'active' | 'off'>('active')
+  // Điểm giáo viên chấm giảng viên sau khoá (114)
+  const [rate, setRate] = useState<Map<string, TRate>>(new Map())
+  useEffect(() => { supabase.rpc('trainer_feedback_stats', { p_year: null }).then(({ data, error }) => { if (!error) setRate(new Map(((data as TRate[]) ?? []).map(r => [r.trainer_id, r]))) }) }, [orgId])
   useEffect(() => { supabase.rpc('training_can_write', { p_org: orgId }).then(({ data }) => setCan(!!data)) }, [orgId])
   // Số chương trình trong kế hoạch + buổi tập huấn đã phân công mỗi giảng viên
   useEffect(() => {
@@ -121,7 +126,7 @@ export function TrainersPage({ orgId }: { orgId: string }) {
     </div>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {!list ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-      <thead><tr><th>Giảng viên</th><th>Đơn vị công tác</th><th>Chuyên môn</th><th>Liên hệ</th><th style={{ width: 90 }}>Phân công</th><th>Trạng thái</th>{can && <th></th>}</tr></thead>
+      <thead><tr><th>Giảng viên</th><th>Đơn vị công tác</th><th>Chuyên môn</th><th>Liên hệ</th><th style={{ width: 90 }}>Phân công</th><th>Đánh giá của GV</th><th>Trạng thái</th>{can && <th></th>}</tr></thead>
       <tbody>{shown.map(t => <tr key={t.id}>
         <td>{can ? <button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'edit', t }) }}>{trainerName(t)}</button> : <b>{trainerName(t)}</b>}
           {(every || t.note) && <><br /><small className="sub">{[every && 'Danh sách của ' + orgName(t.org_id), t.note].filter(Boolean).join(' · ')}</small></>}</td>
@@ -129,11 +134,13 @@ export function TrainersPage({ orgId }: { orgId: string }) {
         <td style={{ whiteSpace: 'normal' }}>{t.expertise || '—'}</td>
         <td>{[t.phone, t.email].filter(Boolean).join(' · ') || '—'}</td>
         <td>{use.get(t.id) ?? 0}</td>
+        <td>{(r => r ? <><Chip tone={r.overall >= 4 ? 'good' : r.overall >= 3 ? 'warn' : 'bad'}>{score(r.overall)}★</Chip> <small className="sub">{r.responses} phiếu · {r.plans} khoá</small><br />
+          <small className="sub" title="Chuyên môn · Truyền đạt · Tương tác">CM {score(r.expertise)} · TĐ {score(r.delivery)} · TT {score(r.interaction)}</small></> : <small className="sub">Chưa có</small>)(rate.get(t.id))}</td>
         <td><Chip tone={t.active ? 'good' : ''}>{t.active ? 'Đang mời' : 'Ngừng mời'}</Chip></td>
         {can && <td><div className="tools"><button type="button" onClick={() => toggle(t)}>{t.active ? 'Ngừng mời' : 'Mời lại'}</button>
           {!use.get(t.id) && <button type="button" aria-label={`Xoá ${t.full_name}`} onClick={() => del(t)}>×</button>}</div></td>}
       </tr>)}
-        {!shown.length && <tr><td colSpan={can ? 7 : 6}>{all.length ? 'Không có giảng viên nào khớp.' : can ? 'Chưa có giảng viên nào. Bấm "Thêm giảng viên".' : 'Chưa có giảng viên nào.'}</td></tr>}</tbody>
+        {!shown.length && <tr><td colSpan={can ? 8 : 7}>{all.length ? 'Không có giảng viên nào khớp.' : can ? 'Chưa có giảng viên nào. Bấm "Thêm giảng viên".' : 'Chưa có giảng viên nào.'}</td></tr>}</tbody>
     </table></div>}
   </>
 }

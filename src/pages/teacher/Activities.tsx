@@ -35,7 +35,7 @@ export function TeacherActivities({ teacherId, orgId, go }: TProps) {
 
   async function load() {
     const [a, l] = await Promise.all([
-      supabase.from('activities').select(COLS).order('updated_at', { ascending: false }),
+      supabase.from('activities').select(COLS).eq('domain', 'school').order('updated_at', { ascending: false }),
       supabase.from('lesson_plans').select('id, title, subject, grades, program, is_template, status, slides, teacher_id, teachers(full_name), lesson, cover_url, summary, periods')
         .or('status.eq.published,is_template.eq.true').is('draft_of', null).order('updated_at', { ascending: false }).limit(200),
     ])
@@ -139,7 +139,7 @@ function KindPicker({ onBack, onPick }: { onBack: () => void; onPick: (k: ActKin
 
 // Cổng Quản trị nền tảng: thêm hoạt động của KDI (bài mẫu, không gắn giáo viên) và xem chi tiết / chơi thử hoạt động bất kỳ
 type Desk = { mode: 'new' } | { mode: 'open'; id: string } | { mode: 'edit'; a: Activity } | { mode: 'play'; a: Activity; big: boolean }
-export function ActivityDesk({ orgId, start, onClose }: { orgId: string | null; start: { mode: 'new' } | { mode: 'open'; id: string }; onClose: () => void }) {
+export function ActivityDesk({ orgId, start, onClose, domain = 'school' }: { orgId: string | null; start: { mode: 'new' } | { mode: 'open'; id: string }; onClose: () => void; domain?: 'school' | 'training' }) {
   const [v, setV] = useState<Desk>(start)
   const [err, setErr] = useState('')
   useEffect(() => {
@@ -151,7 +151,7 @@ export function ActivityDesk({ orgId, start, onClose }: { orgId: string | null; 
   }, [v.mode === 'open' ? v.id : ''])
   async function create(k: ActKind) {
     if (!orgId) return setErr('Chưa xác định đơn vị KDI.')
-    const { data, error } = await supabase.from('activities').insert({ org_id: orgId, teacher_id: null, is_template: true, status: 'draft',
+    const { data, error } = await supabase.from('activities').insert({ org_id: orgId, teacher_id: null, is_template: true, status: 'draft', domain,
       kind: k, title: `${ACT[k].label} mới`, content: STARTER[k] }).select(COLS).single()
     if (error || !data) return setErr('Không tạo được hoạt động: ' + (error?.message ?? ''))
     setV({ mode: 'edit', a: data as unknown as Activity })

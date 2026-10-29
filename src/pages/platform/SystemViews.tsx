@@ -1,7 +1,6 @@
 import { Fragment, Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../../components/MultiFilters'
-import { switchOrg } from '../../lib/auth'
 import { downloadXlsx, norm } from '../../lib/sheet'
 import { Tabs } from '../teacher/common'
 
@@ -449,6 +448,7 @@ const A_KIND: Record<string, string> = { quiz: 'Trắc nghiệm', truefalse: 'Đ
 export const ACTIVITIES: Spec = {
   table: 'activities', order: 'updated_at', asc: false,
   select: 'id, org_id, kind, title, subject, grades, status, is_template, updated_at, teachers(full_name)',
+  where: q => q.eq('domain', 'school'),
   cols: [
     { label: 'Hoạt động', get: r => <><b>{r.title}</b>{r.is_template && <> {pill('Mẫu')}</>}</>, text: r => r.title, wrap: true },
     { label: 'Loại', get: r => A_KIND[r.kind] ?? r.kind },
@@ -534,25 +534,6 @@ export const SysEduPlan = one(EDUPLAN)
 export const SysRegistrations = one(REGISTRATIONS)
 export const SysHomework = one(HOMEWORK)
 export const SysCurriculum = one(CURRICULUM)
-// Vào "Trường thử nghiệm KDI" với vai giáo viên để thao tác như giáo viên thật (tạo trường ở lần đầu)
-function SandboxBar() {
-  const [busy, setBusy] = useState(false)
-  const [msg, setMsg] = useState('')
-  const go = async () => {
-    setBusy(true); setMsg('')
-    const { data, error } = await supabase.rpc('platform_sandbox_school')
-    if (error || !data) { setBusy(false); setMsg(error?.message ?? 'Không tạo được trường thử nghiệm'); return }
-    // Sau khi tải lại: mở thẳng màn Soạn bài giảng của giáo viên
-    history.replaceState({ role: 'teacher', page: 'Soạn bài giảng' }, '')
-    const err = await switchOrg(data as string)
-    if (err) { setBusy(false); setMsg(err) }
-  }
-  return <div className="sandboxbar">
-    <span>Muốn thử soạn bài giảng, hoạt động như giáo viên? Vào <b>Trường thử nghiệm KDI</b> (dữ liệu thử, không ảnh hưởng trường thật). Quay lại KDI bằng nút đổi đơn vị ở thanh trên cùng.</span>
-    <button className="primary" onClick={go} disabled={busy}>{busy ? 'Đang chuẩn bị…' : 'Thử như giáo viên'}</button>
-    {msg && <p className="msg">{msg}</p>}
-  </div>
-}
 // Kho hoạt động / bài giảng (094): KDI thêm bài của mình; bấm một dòng để xem chi tiết (chơi thử, giáo án đầy đủ)
 const ActivityDesk = lazy(() => import('../teacher/Activities').then(m => ({ default: m.ActivityDesk })))
 const LessonDesk = lazy(() => import('../lessons/Studio').then(m => ({ default: m.LessonDesk })))
@@ -567,7 +548,6 @@ function BankList({ spec, orgId, add, desk: Desk }: {
     {d && <Suspense fallback={<p className="sub">Đang tải…</p>}>{Desk({ start: d, onClose: () => { setD(null); setK(x => x + 1) } })}</Suspense>}
     {/* Giữ danh sách (bộ lọc, ô tìm) khi mở chi tiết */}
     <div hidden={!!d}>
-      <SandboxBar />
       <SystemList spec={spec} reloadKey={k} onOpen={r => setD({ mode: 'open', id: r.id })}
         actions={orgId ? <button className="primary" onClick={() => setD({ mode: 'new' })}>{add}</button> : undefined} />
     </div>
@@ -577,5 +557,11 @@ export const SysActivities = ({ orgId }: { orgId?: string | null }) => <BankList
   desk={({ start, onClose }) => <ActivityDesk orgId={orgId ?? null} start={start} onClose={onClose} />} />
 export const SysSchoolLessons = ({ orgId }: { orgId?: string | null }) => <BankList spec={LESSONS} orgId={orgId} add="+ Thêm bài giảng"
   desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'new' ? start : { mode: 'view', id: start.id }} onClose={onClose} />} />
+// Kho hoạt động của Đào tạo tập huấn (116): cùng kiểu hoạt động, cách soạn và chơi thử như Kho hoạt động của Chương trình & học liệu
+const TRAINING_ACTIVITIES: Spec = { ...ACTIVITIES, where: q => q.eq('domain', 'training'),
+  cols: ACTIVITIES.cols.map(c => c.label === 'Giáo viên' ? { ...c, label: 'Người soạn', get: (r: Row) => r.teachers?.full_name ?? <small>KDI</small> } : c),
+  search: r => `${r.title} ${r.subject ?? ''}`, searchHint: 'Tên hoạt động, môn…', file: 'kho-hoat-dong-tap-huan', empty: 'Chưa có hoạt động tập huấn. Bấm "+ Thêm hoạt động".' }
+export const SysTrainingActivities = ({ orgId }: { orgId?: string | null }) => <BankList spec={TRAINING_ACTIVITIES} orgId={orgId} add="+ Thêm hoạt động"
+  desk={({ start, onClose }) => <ActivityDesk orgId={orgId ?? null} start={start} onClose={onClose} domain="training" />} />
 export const SysTrainingLessons = () => <TwoTabs tabs={[['Bài giảng tập huấn', TRAINING_LESSONS], ['Lớp học ảo', VIRTUAL]]} />
 export const SysCertificates = one(CERTIFICATES)

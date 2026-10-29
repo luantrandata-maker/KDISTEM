@@ -3479,6 +3479,50 @@ select pg_temp.chk('gv_both', 'SL 111: được nhận từ danh sách chờ →
 select pg_temp.probe('kdi@iso-test.local', $q$update training_plans set max_learners = 2 where name = 'ISO KH CAP'$q$, true);
 select pg_temp.chk('gv_ph2', 'SL 111: tăng số lượng thì đăng ký lại được', $q$select training_register(id) from training_plans where name = 'ISO KH CAP'$q$, 'pending');
 
+-- ===== SL 114: phiếu đánh giá sau khoá tập huấn, đánh giá giảng viên =====
+select pg_temp.probe('gv_both@iso-test.local', format('select public.switch_org(%s)', quote_literal(pg_temp.oid_('THCS-KB'))), true);
+select pg_temp.probe('kdi@iso-test.local', $q$update training_sessions set trainer_ids = array[(select id from trainers where full_name = 'ISO GV Một')] where plan_id = (select id from training_plans where name = 'ISO KH')$q$, true);
+select pg_temp.chk('gv_both', 'SL 114: có kết quả thì phiếu mở, kèm giảng viên của kế hoạch', $q$select (x ->> 'open') || ':' || jsonb_array_length(x -> 'trainers') || ':' || coalesce(x ->> 'mine', '-') from (select training_feedback_form(id) x from training_plans where name = 'ISO KH') t$q$, 'true:1:-');
+select pg_temp.chk('gv_ph2', 'SL 114: GV không có tên trong kế hoạch không mở được phiếu', format('select training_feedback_form(%L)::text', (select id from training_plans where name = 'ISO KH')), 'ERR');
+select pg_temp.chk('gv_both', 'SL 114: điểm ngoài 1–5 bị từ chối', $q$select training_feedback_submit(id, '{"content":6,"method":5,"organize":4,"materials":3,"applicable":5,"overall":4}')::text from training_plans where name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.chk('gv_both', 'SL 114: thiếu tiêu chí bị từ chối', $q$select training_feedback_submit(id, '{"content":4}')::text from training_plans where name = 'ISO KH'$q$, 'ERR 22023');
+select pg_temp.chk('gv_both', 'SL 114: không chấm giảng viên ngoài kế hoạch', format($q$select training_feedback_submit(id, '{"content":4,"method":5,"organize":4,"materials":3,"applicable":5,"overall":4}', null, jsonb_build_array(jsonb_build_object('id', %L::uuid, 'expertise', 5, 'delivery', 4, 'interaction', 4)))::text from training_plans where name = 'ISO KH'$q$, (select id from trainers where full_name = 'ISO GV Hai')), 'ERR 22023');
+select pg_temp.chk('gv_both', 'SL 114: GV không ghi thẳng bảng phiếu', $q$insert into training_feedback (plan_id, teacher_id, org_id, content, method, organize, materials, applicable, overall) select id, my_teacher_id(), my_org_id(), 5, 5, 5, 5, 5, 5 from training_plans where name = 'ISO KH'$q$, 'ERR');
+select pg_temp.chk('gv_both', 'SL 114: GV gửi phiếu khoá học và giảng viên', format($q$select training_feedback_submit(id, '{"content":4,"method":5,"organize":4,"materials":3,"applicable":5,"overall":4}', ' Nên thêm giờ thực hành ', jsonb_build_array(jsonb_build_object('id', %L::uuid, 'expertise', 5, 'delivery', 4, 'interaction', 4, 'comment', 'Dễ hiểu')))::text from training_plans where name = 'ISO KH'$q$, (select id from trainers where full_name = 'ISO GV Một')), '');
+select pg_temp.probe('gv_both@iso-test.local', format($q$select training_feedback_submit(id, '{"content":4,"method":5,"organize":4,"materials":3,"applicable":5,"overall":4}', ' Nên thêm giờ thực hành ', jsonb_build_array(jsonb_build_object('id', %L::uuid, 'expertise', 5, 'delivery', 4, 'interaction', 4, 'comment', 'Dễ hiểu')))::text from training_plans where name = 'ISO KH'$q$, (select id from trainers where full_name = 'ISO GV Một')), true);
+select pg_temp.chk('gv_both', 'SL 114: GV thấy lại phiếu đã gửi', $q$select (x #>> '{mine,overall}') || ':' || (x #>> '{mine,comment}') || ':' || (x #>> '{trainers,0,mine,expertise}') from (select training_feedback_form(id) x from training_plans where name = 'ISO KH') t$q$, '4:Nên thêm giờ thực hành:5');
+select pg_temp.chk('admin_kb', 'SL 114: trường xem tổng hợp mức hài lòng của trường mình', $q$select s.enrolled || ':' || s.responses || ':' || s.overall || ':' || s.materials from training_feedback_stats() s join training_plans k on k.id = s.plan_id where k.name = 'ISO KH'$q$, '1:1:4.00:3.00');
+select pg_temp.chk('admin_ph', 'SL 114: trường khác không xem tổng hợp', $q$select count(*) from training_feedback_stats() s join training_plans k on k.id = s.plan_id where k.name = 'ISO KH'$q$, '0');
+select pg_temp.chk('kdi', 'SL 114: đơn vị lập kế hoạch xem góp ý, không kèm tên GV', $q$select string_agg(kind || ':' || comment, ',' order by kind) from training_feedback_comments((select id from training_plans where name = 'ISO KH'))$q$, 'course:Nên thêm giờ thực hành,trainer:Dễ hiểu');
+select pg_temp.chk('admin_ph', 'SL 114: trường khác không xem góp ý', $q$select count(*) from training_feedback_comments((select id from training_plans where name = 'ISO KH'))$q$, '0');
+select pg_temp.chk('kdi', 'SL 114: điểm giảng viên ở đơn vị quản lý giảng viên', $q$select s.responses || ':' || s.overall from trainer_feedback_stats() s join trainers t on t.id = s.trainer_id where t.full_name = 'ISO GV Một'$q$, '1:4.33');
+select pg_temp.chk('admin_kb', 'SL 114: trường không xem điểm giảng viên của KDI', $q$select count(*) from trainer_feedback_stats()$q$, '0');
+select pg_temp.chk('admin_kb', 'SL 114: không đọc thẳng bảng phiếu của GV', $q$select count(*) from training_feedback$q$, '0');
+
+-- ===== SL 115: đáp ứng chương trình — GV được phân công có chứng chỉ hoặc đạt năng lực của chương trình cùng loại =====
+insert into training_programs (org_id, title, ct_code, competencies, target_level) values (platform_org_id(), 'ISO CTTH RD', 'CT3', array['gv_thiet_ke'], 3);
+insert into training_program_units (program_id, kind, seq, title, hours) select id, 'subject', 1, 'ISO RD môn', 0 from training_programs where title = 'ISO CTTH RD';
+insert into training_program_units (program_id, parent_id, kind, seq, title, hours) select p.id, u.id, 'content', 1, 'ISO RD bài', 2 from training_programs p join training_program_units u on u.program_id = p.id where p.title = 'ISO CTTH RD';
+update training_programs set status = 'published' where title = 'ISO CTTH RD';
+insert into teachers (org_id, full_name) values (pg_temp.oid_('THCS-KB'), 'GV thử RD'), (pg_temp.oid_('THCS-KB'), 'GV thử RD2');
+insert into stem_teacher_programs (org_id, teacher_id, program) select org_id, id, 'CT3' from teachers where full_name in ('GV thử B', 'GV thử RD', 'GV thử RD2') on conflict do nothing;
+insert into classes (org_id, name, grade) values (pg_temp.oid_('THCS-KB'), 'ISO 6RD', 6);
+insert into class_programs (org_id, class_id, program) select org_id, id, 'CT3' from classes where name = 'ISO 6RD';
+insert into training_plans (org_id, name, pub_status, mode) values (platform_org_id(), 'ISO KH RD', 'draft', 'hybrid');
+insert into training_plan_items (plan_id, program_id) select k.id, p.id from training_plans k, training_programs p where k.name = 'ISO KH RD' and p.title = 'ISO CTTH RD';
+insert into certificates (org_id, teacher_id, plan_id, code, issued_on, status) select t.org_id, t.id, k.id, 'ISO-RD-1', current_date, 'issued' from teachers t, training_plans k where t.full_name = 'GV thử RD' and k.name = 'ISO KH RD';
+select pg_temp.chk('admin_kb', 'SL 115: trường thấy số lớp, GV phân công, GV đạt chuẩn theo chương trình', format($q$select classes || ':' || assigned || ':' || qualified from program_readiness() where org_id = %L and ct_code = 'CT3'$q$, pg_temp.oid_('THCS-KB')), '1:3:2');
+select pg_temp.chk('admin_kb', 'SL 115: đạt chuẩn nhờ chứng chỉ cùng loại hoặc năng lực đạt mức đích', format($q$select string_agg((x ->> 'name') || ':' || (x ->> 'ok') || ':' || coalesce(x ->> 'cert', '-') || ':' || jsonb_array_length(coalesce(x -> 'missing', '[]')), ',' order by x ->> 'name') from program_readiness() r, jsonb_array_elements(r.teachers) x where r.org_id = %L and r.ct_code = 'CT3'$q$, pg_temp.oid_('THCS-KB')), 'GV thử B:true:-:0,GV thử RD:true:ISO-RD-1:0,GV thử RD2:false:-:1');
+select pg_temp.chk('admin_kb', 'SL 115: gợi ý chương trình tập huấn cùng loại', format($q$select (suggest @> '[{"title":"ISO CTTH RD"}]')::text from program_readiness() where org_id = %L and ct_code = 'CT3'$q$, pg_temp.oid_('THCS-KB')), 'true');
+select pg_temp.chk('kdi', 'SL 115: quản trị nền tảng xem mọi trường', format($q$select count(*) from program_readiness() where org_id = %L and ct_code = 'CT3'$q$, pg_temp.oid_('THCS-KB')), '1');
+select pg_temp.chk('admin_ph', 'SL 115: trường khác không xem', format($q$select count(*) from program_readiness() where org_id = %L$q$, pg_temp.oid_('THCS-KB')), '0');
+select pg_temp.chk('gv_ph2', 'SL 115: giáo viên không xem bảng đáp ứng', $q$select count(*) from program_readiness()$q$, '0');
+
+-- ===== SL 116: Kho hoạt động của Đào tạo tập huấn (activities.domain) =====
+select pg_temp.chk('kdi', 'SL 116: hoạt động cũ thuộc kho dạy học', $q$select count(*) filter (where domain <> 'school') from activities$q$, '0');
+select pg_temp.chk('kdi', 'SL 116: KDI tạo hoạt động trong kho tập huấn', $q$with x as (insert into activities (org_id, kind, title, is_template, status, domain) values (platform_org_id(), 'quiz', 'ISO HĐ tập huấn', true, 'draft', 'training') returning domain) select domain from x$q$, 'training');
+select pg_temp.chk('kdi', 'SL 116: kho không hợp lệ bị từ chối', $q$insert into activities (org_id, kind, title, domain) values (platform_org_id(), 'quiz', 'ISO HĐ sai', 'other')$q$, 'ERR 23514');
+
 -- ===== PV 117: phạm vi áp dụng của chương trình tập huấn; mời đăng ký, kế hoạch không cần duyệt =====
 select pg_temp.chk('kdi', 'PV 117: GV đăng ký chờ duyệt → đơn vị tổ chức (cấp trên) nhận thông báo', $q$select count(*) from notifications where kind = 'training_registration' and user_id = auth.uid() and title like 'Giáo viên đăng ký tập huấn chờ duyệt%ISO KH CAP'$q$, '1');
 select pg_temp.probe('kdi@iso-test.local', $q$insert into training_programs (org_id, title) values (platform_org_id(), 'ISO CTTH PV')$q$, true);
@@ -3522,6 +3566,7 @@ select pg_temp.chk('gv_ph2', 'PV 117: mời lại không gửi cho GV đã có t
 select pg_temp.probe('kdi@iso-test.local', $q$update training_programs set effective_to = '2020-01-01' where title = 'ISO CTTH PV' and status = 'published'$q$, true);
 select pg_temp.chk('kdi', 'PV 117: hết hiệu lực thì không chọn cho kế hoạch mới', $q$insert into training_plan_items (plan_id, program_id, seq) select k.id, p.id, 1 from training_plans k, training_programs p where k.name = 'ISO KH PV2' and p.title = 'ISO CTTH PV' and p.status = 'published'$q$, 'ERR 22023');
 select pg_temp.chk('kdi', 'PV 117: ghi lần mời gần nhất của trường', $q$select (invited_at is not null)::text from training_plan_orgs where plan_id = (select id from training_plans where name = 'ISO KH PV')$q$, 'true');
+
 
 -- ===== KT 118: đơn vị xây dựng, trợ giảng, kết thúc kế hoạch, báo cáo =====
 select pg_temp.chk('kdi', 'KT 118: lưu đơn vị xây dựng (gọn khoảng trắng)', $q$with u as (update training_programs set builder = '  Sở GD&ĐT   Hưng Yên ' where title = 'ISO CTTH PV' and status = 'draft' returning builder) select builder from u$q$, 'Sở GD&ĐT Hưng Yên');

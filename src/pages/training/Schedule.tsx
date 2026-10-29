@@ -1,6 +1,7 @@
 // Phân hệ 1 — Lịch tập huấn & điểm danh (085). Tab "Lịch tập huấn" của mục Kế hoạch & lịch tập huấn (KDI, Sở / Phòng).
 // Xếp lịch tự động từ kế hoạch (mỗi nội dung tập huấn một buổi) hoặc thêm buổi; xem dạng bảng hoặc lịch (tháng / tuần);
 // mở buổi để đưa mã điểm danh (QR), nhắc lịch, ghi có mặt / vắng, duyệt xin vắng, chốt điểm danh, xem GV trùng lịch.
+import { TimeGrid } from '../../components/TimeGrid'
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import { supabase } from '../../lib/supabase'
@@ -214,11 +215,14 @@ export function SessCal({ rows, label, planName, onOpen }: { rows: Sess[]; label
         </div>
       </div>)}
       {!byPlan.length && <p className="sub" style={{ margin: 8 }}>Không có buổi nào trong năm {y}.</p>}
-    </div> : <div className={'tscal tpcal ' + view}>
+    </div> : view === 'week' ? <TimeGrid days={week} label="Lịch tập huấn theo giờ trong tuần"
+      events={week.flatMap(on).map(s => ({ id: s.id, start: new Date(s.starts_at), end: new Date(s.ends_at), title: s.title, sub: label(s), cls: TONE[sessSt(s, now)],
+        tip: `${s.title}\n${hm(s.starts_at)}–${hm(s.ends_at)} · ${ST[sessSt(s, now)][0]}\n${label(s)}`, onClick: () => onOpen(s.id) }))} />
+    : <div className={'tscal tpcal ' + view}>
       {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <div key={d} className="tscalh">{d}</div>)}
       {days.map(d => { const ss = on(d), k = ymd(d), cut = view === 'month' && ss.length > MAX
         return <div key={k} className={'tscald' + (view === 'month' && d.getMonth() !== anchor.getMonth() ? ' out' : '') + (sameDay(d, today) ? ' today' : '') + (pick === k ? ' pick' : '')}>
-          <small>{d.getDate()}{view === 'week' && `/${d.getMonth() + 1}`}</small>
+          <small>{d.getDate()}</small>
           {(cut ? ss.slice(0, MAX - 1) : ss).map(chip)}
           {cut && <button type="button" className="tpcalmore" onClick={() => setPick(pick === k ? null : k)}>+{ss.length - MAX + 1} buổi</button>}
         </div> })}

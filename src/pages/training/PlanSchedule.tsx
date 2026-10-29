@@ -6,6 +6,7 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Chip } from '../dist/Editor'
 import { colorOf } from '../dist/Grid'
+import { TimeGrid } from '../../components/TimeGrid'
 
 type Mode = 'online' | 'offline'
 export type SUnit = { id: string; title: string; hours: number; mode?: Mode | null }
@@ -28,7 +29,7 @@ const WD = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
 export const vnDay = (d: string) => { const x = new Date(d + 'T00:00'); return `${WD[x.getDay()]} ${pad(x.getDate())}/${pad(x.getMonth() + 1)}` }
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 const nextMonday = () => { const d = new Date(); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); return ymd(d) }
-const LUNCH_FROM = 11 * 60 + 30, LUNCH_TO = 13 * 60 + 30
+const LUNCH_FROM = 11 * 60 + 30, LUNCH_TO = 13 * 60 + 30, AFTERNOON = 17 * 60 + 30 - LUNCH_TO
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp' }
 
 /** Nội dung tập huấn của kế hoạch theo thứ tự chương trình › môn › nội dung (chỉ nội dung được chọn) */
@@ -90,10 +91,14 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
         if (r.locked) continue
         const h = Math.min(Math.max(r.hours || 0, 0.5), 10)
         if (used > 0 && used + h > c.perDay) { date = addDays(date, 1); skipWk(); at = start0; used = 0 }
-        let from = at
-        if (c.lunch && from < LUNCH_FROM && from + h * 60 > LUNCH_FROM) from = Math.max(from, LUNCH_TO)
+        let from = at, len = Math.round(h * 60)
         if (c.lunch && from >= LUNCH_FROM && from < LUNCH_TO) from = LUNCH_TO
-        const to = from + Math.round(h * 60)
+        // Buổi vắt qua giờ nghỉ trưa: phần sáng ít và buổi chiều đủ chỗ thì dời sang chiều; còn lại giữ giờ vào học, cộng giờ nghỉ trưa vào giờ kết thúc
+        else if (c.lunch && from < LUNCH_FROM && from + len > LUNCH_FROM) {
+          if (len <= AFTERNOON && LUNCH_FROM - from < len / 2) from = LUNCH_TO
+          else len += LUNCH_TO - LUNCH_FROM
+        }
+        const to = from + len
         next = next.map(x => x.unit_id === r.unit_id ? { ...x, date, from: hhmm(from), to: hhmm(to), mode: c.mode, location: c.location || x.location, url: c.url || x.url } : x)
         at = to; used += h
       }
@@ -226,9 +231,44 @@ export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPl
       </div>
     })}</div>
     <h4 className="distsec">Chi tiết theo ngày</h4>
-    <DayGrid s={s} />
+    <ScheduleView s={s} />
     <div className="formactions" style={{ textAlign: 'right' }}><button type="button" className="primary" onClick={onNext}>Tiếp tục: Xem kết quả →</button></div>
   </>
+}
+
+/** Xem lịch đã xếp: theo khung giờ trong tuần (mặc định) hoặc tổng giờ theo ngày */
+export function ScheduleView({ s }: { s: Schedule }) {
+  const [mode, setMode] = useState<'time' | 'day'>('time')
+  const done = s.rows.filter(r => r.date && r.from && r.to)
+  const first = done.map(r => r.date).sort()[0]
+  const monOf = (d: string) => { const x = new Date(d + 'T00:00'); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return ymd(x) }
+  const [wk, setWk] = useState<string | null>(null)
+  const cur = wk ?? (first ? monOf(first) : monOf(ymd(new Date())))
+  const weeks = [...new Set(done.map(r => monOf(r.date)))].sort()
+  const days = Array.from({ length: 7 }, (_, k) => new Date(addDays(cur, k) + 'T00:00'))
+  const idx = weeks.indexOf(cur), n = done.filter(r => r.date >= cur && r.date <= addDays(cur, 6)).length
+  const colorFor = (pid: string) => colorOf(Math.max(0, s.order.indexOf(pid)))
+  return <div style={{ display: 'grid', gap: 8 }}>
+    <div className="bar" style={{ margin: 0 }}>
+      <div className="segmented" style={{ margin: 0 }} role="group" aria-label="Kiểu xem lịch">
+        <button type="button" className={mode === 'time' ? 'on' : ''} aria-pressed={mode === 'time'} onClick={() => setMode('time')}>Theo khung giờ</button>
+        <button type="button" className={mode === 'day' ? 'on' : ''} aria-pressed={mode === 'day'} onClick={() => setMode('day')}>Tổng giờ theo ngày</button></div>
+      {mode === 'time' && done.length > 0 && <div className="tools">
+        <button type="button" aria-label="Tuần trước" onClick={() => setWk(addDays(cur, -7))}>‹</button>
+        <b>{vnDay(cur)} – {vnDay(addDays(cur, 6))}</b>
+        <button type="button" aria-label="Tuần sau" onClick={() => setWk(addDays(cur, 7))}>›</button>
+        {weeks.length > 1 && <small className="sub">Tuần {idx >= 0 ? idx + 1 : '–'}/{weeks.length} có buổi · {n} buổi</small>}
+        {weeks.length > 1 && idx < 0 && <button type="button" onClick={() => setWk(weeks[0])}>Về tuần có buổi</button>}</div>}
+    </div>
+    {mode === 'day' ? <DayGrid s={s} /> : !done.length ? <p className="sub">Chưa có buổi nào được xếp.</p>
+      : <TimeGrid days={days} shade={[LUNCH_FROM, LUNCH_TO, 'Nghỉ trưa']} label="Lịch tập huấn theo khung giờ"
+          events={done.map(r => { const p = s.progs.find(x => x.id === r.program_id)
+            return { id: r.unit_id, start: new Date(`${r.date}T${r.from}`), end: new Date(`${r.date}T${r.to}`), title: r.title, color: colorFor(r.program_id),
+              sub: `${p?.code || p?.title || ''} · ${r.subj} · ${MODE[r.mode]}${r.mode === 'offline' && r.location ? ' · ' + r.location : ''}` } })} />}
+    {mode === 'time' && done.length > 0 && <div className="tools" style={{ flexWrap: 'wrap' }}>{s.order.map(pid => { const p = s.progs.find(x => x.id === pid)
+      return <small key={pid} className="sub" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><i style={{ width: 10, height: 10, borderRadius: 3, background: colorFor(pid), display: 'inline-block' }} />{p?.code || p?.title}</small> })}
+      <small className="sub">· vùng gạch chéo là giờ nghỉ trưa</small></div>}
+  </div>
 }
 
 /** Lưới ngày: mỗi chương trình một vạch, mỗi môn một hàng; số trong ô là giờ học của môn trong ngày */
@@ -284,7 +324,7 @@ export function ResultStep({ s, plan }: { s: Schedule; plan: SPlan }) {
       <button type="button" className={view === 'table' ? 'on' : ''} aria-pressed={view === 'table'} onClick={() => setView('table')}>Bảng</button>
       <button type="button" className={view === 'cal' ? 'on' : ''} aria-pressed={view === 'cal'} onClick={() => setView('cal')}>Lịch</button></div>
       {s.dirty && <Chip tone="warn">Có thay đổi chưa lưu</Chip>}</div>
-    {view === 'cal' ? <DayGrid s={s} /> : <div className="wrap"><table className="libtable disttable">
+    {view === 'cal' ? <ScheduleView s={s} /> : <div className="wrap"><table className="libtable disttable">
       <thead><tr><th style={{ width: 130 }}>Thời gian</th><th>Nội dung tập huấn</th><th>Chương trình · môn</th><th style={{ width: 110 }}>Hình thức</th><th>Địa điểm / link họp</th></tr></thead>
       <tbody>{days.map(d => <Fragment key={d}>
         <tr className="distgprog"><th colSpan={5}><b>{vnDay(d)}</b>/{d.slice(0, 4)} <small className="sub">{done.filter(r => r.date === d).length} buổi · {num(done.filter(r => r.date === d).reduce((a, r) => a + r.hours, 0))} giờ</small></th></tr>

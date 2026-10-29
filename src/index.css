@@ -2075,3 +2075,21 @@ span.namelink{cursor:default;text-decoration:none}
 /* Lịch tập huấn: nội dung tập huấn của buổi + bài giảng xem ngay */
 .sesslessons { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
 .sesslessons li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
+/* Lưới tuần theo giờ (TimeGrid) */
+.tgrid{border:1px solid var(--line);border-radius:12px;overflow:auto;max-height:760px;background:var(--surface)}
+.tghead{display:grid;position:sticky;top:0;z-index:3;background:var(--surface);border-bottom:1px solid var(--line);min-width:max-content}
+.tghead>b{padding:8px 6px;text-align:center;font-size:13px;font-weight:600;border-left:1px solid var(--line)}
+.tghead>b small{color:var(--muted);font-weight:500}.tghead>b.today{color:var(--primary)}.tghead>b.today small{color:var(--primary)}.tghead>b.wkend{color:var(--muted)}
+.tgbody{display:grid;position:relative;min-width:max-content}
+.tghours{position:relative}.tghours small{position:absolute;right:6px;transform:translateY(-50%);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.tghours small:first-child{transform:none}
+.tgday{position:relative;border-left:1px solid var(--line)}.tgday.wkend{background:var(--bg)}.tgday.today{background:#f3f8ff}
+.tgline{position:absolute;left:0;right:0;border-top:1px solid var(--line);opacity:.7}
+.tgshade{position:absolute;left:0;right:0;background:repeating-linear-gradient(135deg,transparent 0 6px,rgba(148,163,184,.14) 6px 12px)}
+.tgnow{position:absolute;left:0;right:0;border-top:2px solid var(--bad);z-index:2}
+.tgnow::before{content:'';position:absolute;left:-4px;top:-5px;width:8px;height:8px;border-radius:50%;background:var(--bad)}
+.main .tgev{position:absolute;z-index:1;display:flex;flex-direction:column;gap:1px;overflow:hidden;text-align:left;border:0;border-left:3px solid var(--ok-fg);border-radius:6px;padding:3px 6px;font-size:12px;line-height:1.3;background:var(--ok-bg);color:var(--text);cursor:default}
+.main button.tgev{cursor:pointer}.main .tgev:hover{filter:brightness(.96);z-index:2}
+.main .tgev>b{font-weight:700;font-size:11px}.main .tgev>span{font-weight:600;overflow:hidden;text-overflow:ellipsis}.main .tgev>small{opacity:.85;color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.main .tgev.live{background:var(--bad-bg);border-left-color:var(--bad)}.main .tgev.draft{background:var(--warn-bg);border-left-color:var(--warn-fg)}
+.main .tgev.off{background:var(--neutral-bg);border-left-color:#9aa3b2;color:var(--muted)}

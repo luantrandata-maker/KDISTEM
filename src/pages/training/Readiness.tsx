@@ -2,6 +2,7 @@
 // thiếu thì lập kế hoạch tập huấn (tạo kế hoạch nháp với chương trình tập huấn gợi ý, hoặc gán trường vào kế hoạch đang mở).
 // GV đạt chuẩn: có chứng chỉ tập huấn cùng loại chương trình, hoặc đạt mọi năng lực đích của một chương trình tập huấn cùng loại.
 import { useEffect, useState } from 'react'
+import { MultiSelect } from '../../components/MultiSelect'
 import { supabase } from '../../lib/supabase'
 import { Chip } from '../dist/Editor'
 import { Drawer } from '../../components/Drawer'
@@ -28,7 +29,7 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
   const [per, setPerS] = useState(() => { try { return Number(localStorage.getItem(PER_KEY)) || 6 } catch { return 6 } })
   const setPer = (n: number) => { setPerS(n); try { localStorage.setItem(PER_KEY, String(n)) } catch { /* bỏ qua */ } }
   const [ct, setCt] = useState('')
-  const [q, setQ] = useState('')
+  const [orgs, setOrgs] = useState<string[]>([])
   const [f, setF] = useState<'' | Verdict>('')
   const [open, setOpen] = useState<string | null>(null)
   const [sel, setSel] = useState<Set<string>>(new Set())
@@ -44,7 +45,7 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
   const all = rows ?? []
   const key = (r: Row) => r.org_id + '|' + r.ct_code
   const cts = [...new Map(all.map(r => [r.ct_code, r.ct_name ?? r.ct_code])).entries()].sort()
-  const scope = all.filter(r => (!ct || r.ct_code === ct) && (!q || r.org_name.toLowerCase().includes(q.toLowerCase())))
+  const scope = all.filter(r => (!ct || r.ct_code === ct) && (!orgs.length || orgs.includes(r.org_id)))
   const shown = scope.filter(r => !f || verdict(r, per) === f)
   const n = (v: Verdict) => scope.filter(r => verdict(r, per) === v).length
   const toTrain = scope.reduce((t, r) => t + r.teachers.filter(x => !x.ok).length, 0)
@@ -71,7 +72,8 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
       <div className="distfilter">
         <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học">{[-1, 0, 1].map(o => <option key={o} value={schoolYear(o)}>Năm học {schoolYear(o)}</option>)}<option value="">Mọi năm học</option></select>
         {cts.length > 1 && <select value={ct} onChange={e => setCt(e.target.value)} aria-label="Chương trình"><option value="">Mọi chương trình</option>{cts.map(([c, l]) => <option key={c} value={c}>{c} · {l}</option>)}</select>}
-        {multi && <input placeholder="Tìm trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm trường" />}
+        {multi && <MultiSelect compact value={orgs} onChange={setOrgs} placeholder="Mọi trường" ariaLabel="Lọc trường" style={{ minWidth: 240 }}
+          options={[...new Map(all.map(r => [r.org_id, r.org_name])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'vi'))} />}
         <label className="field inline"><span className="sub">Số lớp tối đa / GV</span> <input type="number" min={1} max={40} value={per} style={{ width: 64 }} onChange={e => setPer(Math.max(1, Math.round(Number(e.target.value) || 1)))} aria-label="Số lớp tối đa một giáo viên dạy" /></label>
       </div>
       <div className="distfilter">{([['', 'Tất cả', scope.length], ['short', 'Thiếu GV đạt chuẩn', n('short')], ['none', 'Chưa phân công', n('none')], ['ok', 'Đáp ứng', n('ok')]] as const)

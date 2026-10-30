@@ -66,6 +66,8 @@ export function UserMenu({ name, email, roleLabel, orgs, views, view, onView, ac
     return () => { document.removeEventListener('mousedown', out); document.removeEventListener('keydown', esc) }
   }, [open])
   const active = orgs.find(o => o.active)
+  const schools = orgs.filter(o => o.type === 'school'), others = orgs.filter(o => o.type !== 'school')
+  const pick = async (o: MyOrg) => { if (!o.active) setErr((await switchOrg(o.org_id)) ?? '') }
   const initial = (name || email).trim().split(/\s+/).pop()?.charAt(0).toUpperCase() ?? '?'
   const Icon = ({ d }: { d: string }) => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
   const USER = 'M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10'
@@ -94,11 +96,20 @@ export function UserMenu({ name, email, roleLabel, orgs, views, view, onView, ac
           </div>}
           {orgs.length > 1 && <div className="usersec">
             <small className="ushead">Đang làm việc tại</small>
-            {orgs.map(o => (
+            {others.map(o => (
               <button type="button" role="menuitemradio" aria-checked={o.active} key={o.org_id} className={o.active ? 'on' : ''}
-                onClick={async () => { if (!o.active) setErr((await switchOrg(o.org_id)) ?? '') }}>
+                onClick={() => pick(o)}>
                 <Icon d={ORG} /><span>{o.name}<br /><small>{o.roles.join(', ')}</small></span></button>
             ))}
+            {/* Các trường gộp vào một ô chọn (kể cả trường thử nghiệm), giống chọn giáo viên */}
+            {schools.length > 0 && <>
+              {others.length > 0 && <small className="ushead">Trường</small>}
+              <select value={active?.type === 'school' ? active.org_id : ''} aria-label="Chọn trường"
+                onChange={e => { const o = schools.find(x => x.org_id === e.target.value); if (o) pick(o) }}>
+                {active?.type !== 'school' && <option value="">Chọn trường…</option>}
+                {schools.map(o => <option key={o.org_id} value={o.org_id}>{o.name} · {o.roles.join(', ')}</option>)}
+              </select>
+            </>}
             {err && <p className="msg" style={{ padding: '0 10px' }}>{err}</p>}
           </div>}
           {acting && acting.options.length > 0 && <div className="usersec">

@@ -31,7 +31,7 @@ import QuestionBank from './pages/elearning/Bank'
 import StudentElearning from './pages/elearning/Student'
 import { saveQuizToBank } from './pages/elearning/common'
 import { AllOrgs } from './components/OrgScope'
-import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysActivities, SysTrainingActivities } from './pages/platform/SystemViews'
+import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysActivities, SysTrainingActivities, SysLessonTemplates } from './pages/platform/SystemViews'
 import Classes from './pages/Classes'
 import Rooms from './pages/Rooms'
 import Equipment from './pages/Equipment'
@@ -54,6 +54,7 @@ import { TeacherAssignments, TeacherGrading } from './pages/teacher/Assignments'
 import { TeacherClassroom } from './pages/teacher/Classroom'
 import { TeacherTrainingSchedule, TeacherTrainingLessons } from './pages/teacher/Training'
 import { TeacherActivities } from './pages/teacher/Activities'
+import { PLAN_MODE } from './lib/planMode'
 import { TeacherSelfStudy } from './pages/teacher/SelfStudy'
 import { TeacherAttendance, SchoolSessions } from './pages/attendance/Sessions'
 // Dashboard điểm danh & TKB toàn hệ thống (027): tải riêng khi mở
@@ -227,7 +228,9 @@ function PlatformEduProgramsPage(p: any) {
 }
 const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [
   ['Bài giảng KDI', (p: any) => <LibraryManage {...p} only="lesson" />], ['Kho hoạt động', SysActivities],
-  ['Giáo án các trường', PH2_TABS.lessons], ['Mẫu giáo án', allOrgs(PlatformLessonTemplates)]]
+  // Giáo án tạm ẩn (PLAN_MODE): chỉ còn bài giảng, kho hoạt động và mẫu bài giảng
+  ...(PLAN_MODE ? [['Giáo án các trường', PH2_TABS.lessons], ['Mẫu giáo án', allOrgs(PlatformLessonTemplates)]] as [string, ComponentType<any>][]
+    : [['Mẫu bài giảng', SysLessonTemplates]] as [string, ComponentType<any>][])]
 const PlatformLessonsPage = (p: any) => <TabbedPages {...p} tabs={PLATFORM_LESSON_TABS} />
 const PlatformCatalog = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformCatalog })))
 const PlatformOrders = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformOrders })))
@@ -317,7 +320,7 @@ const SCHOOL: PageMap = {
   'Kho học liệu dùng chung': LibraryBrowse,
   'Phát hành học liệu': LibraryManage,
   'Định mức vật tư': MaterialNorms,
-  'Giáo án & bài giảng': SchoolLessons,
+  'Bài giảng': SchoolLessons,
   'Hỗ trợ từ KDI': CustomerSupport,
   'Ứng dụng di động': MobileAppPage,
   'Trợ lý AI': (p: any) => <AssistantPage {...p} onSaveQuiz={(i: any, m: any) => saveQuizToBank(p.orgId, i, m)} />,
@@ -419,7 +422,7 @@ const DEPARTMENT: PageMap = {
   'Phát hành học liệu': LibraryManage,
   'Kho học liệu dùng chung': LibraryBrowse,
   'Định mức vật tư': MaterialNorms,
-  'Giáo án & bài giảng': DeptLessons,
+  'Bài giảng': DeptLessons,
   'Hỗ trợ từ KDI': CustomerSupport,
 }
 // Cổng Quản trị nền tảng: chỉ nối các trang đọc được dữ liệu toàn hệ thống (trang nền tảng, trang cấp Sở, học liệu, phê duyệt, tập huấn).

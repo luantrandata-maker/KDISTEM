@@ -8,9 +8,9 @@ export const BUILTIN: Record<string, [string, string][]> = {
   'Phát hành học liệu': [['add', 'Thêm học liệu / bài học'], ['import', 'Nhập từ file…']],
   'Chương trình giáo dục': [['add', 'Thêm chương trình'], ['ppct', 'Tạo PPCT từ chương trình'], ['version', 'Tạo phiên bản mới'], ['export', 'Xuất Excel']],
   'Phân phối chương trình': [['create', '+ Tạo bản phân phối'], ['tier', '+ Thêm cấp']],
-  'Soạn bài giảng & kho hoạt động': [['new', '+ Tạo giáo án'], ['publish', 'Xuất bản']],
-  'Giáo án & bài giảng': [['new', '+ Tạo giáo án'], ['publish', 'Xuất bản']],
-  'Soạn bài giảng': [['new', '+ Tạo giáo án'], ['publish', 'Xuất bản']],
+  'Soạn bài giảng & kho hoạt động': [['new', '+ Tạo bài giảng'], ['publish', 'Xuất bản']],
+  'Bài giảng': [['new', '+ Tạo bài giảng'], ['publish', 'Xuất bản']],
+  'Soạn bài giảng': [['new', '+ Tạo bài giảng'], ['publish', 'Xuất bản']],
 }
 export const ACTIONS: [CustomButton['action'], string][] = [['link', 'Mở liên kết'], ['page', 'Chuyển trang'], ['csv', 'Xuất CSV bảng đang xem'], ['notify', 'Hiện thông báo']]
 

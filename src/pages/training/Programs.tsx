@@ -220,19 +220,26 @@ function PrereqNames({ ids }: { ids: string[] }) {
 
 function ProgramForm({ admin, onBack, onSaved }: { admin: boolean; onBack: () => void; onSaved: (id: string) => void }) {
   const [f, setF] = useState<Info>(BLANK)
+  const [x, setX] = useState<Extra>(EXTRA_BLANK)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!admin) return
+    const bad = extraBad(x); if (bad) return setErr(bad)
     setBusy(true); setErr('')
-    const { data, error } = await supabase.from('training_programs').insert({ ...f, title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null, builder: f.builder?.trim() || null }).select('id').single()
+    const { data, error } = await supabase.from('training_programs').insert({ ...f, title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null, builder: f.builder?.trim() || null,
+      scope: x.scope, effective_from: x.effective_from || null, effective_to: x.effective_to || null }).select('id').single()
+    if (error) { setBusy(false); return setErr(errText(error.message)) }
+    const id = (data as { id: string }).id
+    const e2 = await saveExtra(id, x, { ...EXTRA_BLANK, scope: x.scope })
     setBusy(false)
-    if (error) return setErr(errText(error.message))
-    onSaved((data as { id: string }).id)
+    if (e2) return setErr(`Đã tạo bản nháp nhưng chưa lưu được phạm vi / chương trình giáo dục: ${e2}`)
+    onSaved(id)
   }
   return <ElView back="Chương trình tập huấn" onBack={onBack} title="Thêm chương trình tập huấn" sub="Lưu xong thì thêm các môn và nội dung tập huấn.">
     <form className="panel" onSubmit={save} style={{ display: 'grid', gap: 12 }}>
       <InfoFields f={f} set={setF} />
+      <ScopeEduFields x={x} set={setX} />
       {err && <p className="msg">{err}</p>}
       <div className="formactions"><button type="submit" className="primary" disabled={busy || !f.title.trim()}>Tạo bản nháp</button> <button type="button" onClick={onBack}>Huỷ</button></div>
     </form>
@@ -247,6 +254,8 @@ export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab
   const [p, setP] = useState<TProgram | null>(null)
   const [units, setUnits] = useState<Unit[]>([])
   const [f, setF] = useState<Info | null>(null)
+  const [x, setX] = useState<Extra | null>(null)
+  const [x0, setX0] = useState<Extra | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [openC, setOpenC] = useState<string | null>(initialContent ?? null)
   const [tab, setTab] = useState<PTab>(initialTab ?? 'info')
@@ -265,6 +274,7 @@ export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab
     setF({ title: x.title, ct_codes: ctsOf(x), levels: lvsOf(x), audience: x.audience ?? '', mode: x.mode, description: x.description ?? '', competencies: x.competencies ?? [],
       target_level: x.target_level, pass_attendance: x.pass_attendance, pass_score: x.pass_score, need_product: x.need_product,
       objectives: x.objectives ?? '', entry_conditions: x.entry_conditions ?? '', outcomes: x.outcomes ?? '', prereq_families: x.prereq_families ?? [], builder: x.builder ?? '' })
+    const ex = await loadExtra(x); setX(ex); setX0(ex)
   }
   useEffect(() => { load() }, [id])
   if (!p || !f) return <ElView back={back} onBack={onBack} title="Đang tải…">{msg && <p className="msg">{msg[0]}</p>}</ElView>
@@ -282,8 +292,13 @@ export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab
     return !error
   }
   async function saveInfo() {
-    if (!f) return
-    await run(supabase.from('training_programs').update({ ...f, title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null, builder: f.builder?.trim() || null }).eq('id', p!.id), 'Đã lưu thông tin.')
+    if (!f || !x || !x0) return
+    const bad = extraBad(x); if (bad) return setMsg([bad, true])
+    const { error } = await supabase.from('training_programs').update({ ...f, title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null, builder: f.builder?.trim() || null }).eq('id', p!.id)
+    if (error) { setMsg([errText(error.message), true]); return load() }
+    const e2 = await saveExtra(p!.id, x, x0)
+    setMsg(e2 ? [`Đã lưu thông tin nhưng chưa lưu được phạm vi / chương trình giáo dục: ${e2}`, true] : ['Đã lưu thông tin, phạm vi áp dụng và chương trình giáo dục đáp ứng.', false])
+    await load()
   }
   async function del() {
     if (!confirm(`Xoá bản nháp "${p!.title}"?`)) return
@@ -318,6 +333,7 @@ export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab
       <h3 style={{ margin: 0 }}>Thông tin & điều kiện đạt</h3>
       {edit ? <>
         <InfoFields f={f} set={setF} family={p.family_id} />
+        {x && <ScopeEduFields x={x} set={setX} owner={p.org_id} />}
         <div className="formactions"><button type="button" className="primary" disabled={!f.title.trim()} onClick={saveInfo}>Lưu thông tin</button></div>
       </> : <dl className="tpkv">
         <dt>Loại · cấp học</dt><dd>{[ctsOf(p).map(c => `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`).join(', '), lvsOf(p).length ? lvsOf(p).map(levelName).join(', ') : 'Mọi cấp học'].filter(Boolean).join(' · ')}</dd>
@@ -334,8 +350,9 @@ export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab
       </dl>}
     </section>}
 
-    {tab === 'info' && <ProgramScope p={p} admin={admin} onMsg={(m, e) => { setMsg([m, !!e]); if (!e) load() }} />}
-    {tab === 'info' && <ProgramEduLinks p={p} admin={admin} onMsg={(m, e) => setMsg([m, !!e])} />}
+    {/* Bản nháp sửa trong form ở trên; bản đã phát hành vẫn sửa riêng phạm vi và chương trình giáo dục ở đây */}
+    {tab === 'info' && !edit && <ProgramScope p={p} admin={admin} onMsg={(m, e) => { setMsg([m, !!e]); if (!e) load() }} />}
+    {tab === 'info' && !edit && <ProgramEduLinks p={p} admin={admin} onMsg={(m, e) => setMsg([m, !!e])} />}
 
     {tab === 'units' && <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <TrainingUnits programId={p.id} programTitle={p.title} programMode={p.mode} units={units} editable={edit} catalog={suggest}
@@ -535,6 +552,94 @@ function ProgramEduLinks({ p, admin, onMsg }: { p: TProgram; admin: boolean; onM
       <div className="formactions"><button type="button" className="primary" disabled={!dirty || busy} onClick={save}>Lưu chương trình giáo dục</button></div>
     </> : <p style={{ margin: 0 }}>{saved == null ? '…' : saved.length ? saved.map(nameOf).join('; ') : <small className="sub">Chưa gắn chương trình giáo dục.</small>}</p>}
   </section>
+}
+
+// ===== Trong form: phạm vi áp dụng & hiệu lực + chương trình giáo dục đáp ứng (lưu cùng nút Lưu của form) =====
+type Extra = { scope: 'all' | 'selected'; effective_from: string; effective_to: string; targets: string[]; edu: string[] }
+const EXTRA_BLANK: Extra = { scope: 'all', effective_from: '', effective_to: '', targets: [], edu: [] }
+const extraBad = (x: Extra) => x.scope === 'selected' && !x.targets.length ? 'Chọn ít nhất một đơn vị áp dụng.'
+  : x.effective_from && x.effective_to && x.effective_to < x.effective_from ? 'Ngày hết hiệu lực phải sau ngày bắt đầu.' : ''
+
+/** Chương trình giáo dục, mỗi họ phiên bản một dòng (bản đang ban hành, chưa có thì bản mới nhất). */
+let eduCache: Promise<EduOpt[]> | null = null
+function loadEduOpts() {
+  eduCache ??= Promise.resolve(supabase.from('edu_programs').select('id, family_id, code, title, version_no, status').neq('status', 'archived').order('version_no', { ascending: false })
+    .then(({ data }) => {
+      const m = new Map<string, EduOpt>()
+      for (const r of (data ?? []) as EduOpt[]) { const k = r.family_id ?? r.id, cur = m.get(k)
+        if (!cur || (r.status === 'published' && cur.status !== 'published')) m.set(k, r) }
+      return [...m.values()].sort((a, b) => a.title.localeCompare(b.title, 'vi'))
+    }))
+  return eduCache
+}
+function useEduOpts() {
+  const [opts, setOpts] = useState<EduOpt[] | null>(null)
+  useEffect(() => { loadEduOpts().then(setOpts) }, [])
+  return opts
+}
+const famOf = (o: EduOpt) => o.family_id ?? o.id
+const eduLabel = (o: EduOpt) => `${o.code ? o.code + ' · ' : ''}${o.title}${o.status !== 'published' ? ` (${EDU_ST[o.status] ?? o.status})` : ''}`
+
+/** Đọc phạm vi + chương trình giáo dục đã lưu của một chương trình tập huấn. */
+async function loadExtra(p: TProgram): Promise<Extra> {
+  const [t, e] = await Promise.all([
+    supabase.from('training_program_targets').select('org_id').eq('program_id', p.id),
+    supabase.from('training_program_edu').select('edu_family').eq('training_family', p.family_id),
+  ])
+  return { scope: p.scope ?? 'all', effective_from: p.effective_from ?? '', effective_to: p.effective_to ?? '',
+    targets: ((t.data ?? []) as { org_id: string }[]).map(r => r.org_id), edu: ((e.data ?? []) as { edu_family: string }[]).map(r => r.edu_family) }
+}
+/** Lưu phạm vi + chương trình giáo dục; prev = bản đã lưu trước đó. Trả về lỗi (nếu có). */
+async function saveExtra(id: string, x: Extra, prev: Extra): Promise<string | null> {
+  const add = x.targets.filter(o => !prev.targets.includes(o)), del = prev.targets.filter(o => !x.targets.includes(o))
+  if (add.length) { const r = await supabase.from('training_program_targets').insert(add.map(org_id => ({ program_id: id, org_id }))); if (r.error) return errText(r.error.message) }
+  if (del.length) { const r = await supabase.from('training_program_targets').delete().eq('program_id', id).in('org_id', del); if (r.error) return errText(r.error.message) }
+  const u = await supabase.from('training_programs').update({ scope: x.scope, effective_from: x.effective_from || null, effective_to: x.effective_to || null }).eq('id', id)
+  if (u.error) return errText(u.error.message)
+  const same = x.edu.length === prev.edu.length && x.edu.every(f => prev.edu.includes(f))
+  if (!same) {
+    const opts = await loadEduOpts()
+    const ids = x.edu.map(f => opts.find(o => famOf(o) === f)?.id ?? f)
+    const { error } = await supabase.rpc('training_program_set_edu', { p_program: id, p_edu: ids })
+    if (error) return /schema cache|does not exist|not find/i.test(error.message) ? 'Hãy chạy migration 124 trên Supabase.' : errText(error.message)
+  }
+  return null
+}
+
+function ScopeEduFields({ x, set, owner, disabled }: { x: Extra; set: (x: Extra) => void; owner?: string | null; disabled?: boolean }) {
+  const orgs = useAllOrgs()
+  const opts = useEduOpts()
+  const byId = useMemo(() => new Map((orgs ?? []).map(o => [o.id, o])), [orgs])
+  const label = (id: string) => { const o = byId.get(id); if (!o) return 'Đơn vị'
+    const par = o.parent_id ? byId.get(o.parent_id) : undefined
+    return `${o.name} · ${OTYPE[o.type] ?? o.type}${par && o.type === 'school' ? ` (${par.name})` : ''}` }
+  const orgOpts = useMemo(() => (orgs ?? []).filter(o => !o.is_platform && o.id !== owner && o.type !== 'provider')
+    .sort((a, b) => (a.type === 'school' ? 1 : 0) - (b.type === 'school' ? 1 : 0) || a.name.localeCompare(b.name, 'vi'))
+    .map(o => [o.id, label(o.id)] as [string, string]), [orgs, byId, owner])
+  const eduOpts = (opts ?? []).map(o => [famOf(o), eduLabel(o)] as [string, string])
+  const bad = extraBad(x)
+  return <>
+    <fieldset className="libtargets wide"><legend>Phạm vi áp dụng & hiệu lực</legend>
+      <p className="sub" style={{ margin: '0 0 8px' }}>Đơn vị trong phạm vi (và đơn vị trực thuộc) mới thấy chương trình, chọn được khi lập kế hoạch và được gán kế hoạch dùng chương trình này.</p>
+      <div className="formgrid" style={{ alignItems: 'start' }}>
+        <label className="field"><span>Phạm vi áp dụng</span><select disabled={disabled} value={x.scope} onChange={e => set({ ...x, scope: e.target.value as Extra['scope'] })}>
+          <option value="all">Mọi đơn vị</option><option value="selected">Chỉ đơn vị được chọn</option></select></label>
+        <label className="field"><span>Hiệu lực từ</span><input type="date" disabled={disabled} value={x.effective_from} onChange={e => set({ ...x, effective_from: e.target.value })} /></label>
+        <label className="field"><span>Hiệu lực đến</span><input type="date" disabled={disabled} value={x.effective_to} min={x.effective_from || undefined} onChange={e => set({ ...x, effective_to: e.target.value })} /></label>
+        {x.scope === 'selected' && <div className="field" style={{ gridColumn: '1/-1' }}><span>Đơn vị áp dụng * <small className="sub">(chọn Sở / Phòng là áp dụng cho mọi trường trực thuộc)</small></span>
+          <MultiSelect disabled={disabled} value={x.targets} onChange={v => set({ ...x, targets: v })} options={[...orgOpts, ...x.targets.filter(id => !orgOpts.some(o => o[0] === id)).map(id => [id, label(id)] as [string, string])]}
+            placeholder="Chọn Sở, Phòng hoặc trường…" ariaLabel="Đơn vị áp dụng" empty="Chưa có đơn vị nào." /></div>}
+      </div>
+      {bad && <small className="warnline">{bad}</small>}
+    </fieldset>
+    <fieldset className="libtargets wide"><legend>Chương trình giáo dục đáp ứng</legend>
+      <p className="sub" style={{ margin: '0 0 8px' }}>Giáo viên Đạt một khoá tập huấn dùng chương trình này được tính là đáp ứng các chương trình giáo dục dưới đây, kèm năng lực đích của khoá.</p>
+      <div className="field"><span>Chương trình giáo dục</span>
+        <MultiSelect disabled={disabled} value={x.edu} onChange={v => set({ ...x, edu: v })}
+          options={[...eduOpts, ...x.edu.filter(f => !eduOpts.some(o => o[0] === f)).map(f => [f, 'Chương trình giáo dục'] as [string, string])]}
+          placeholder={opts ? 'Chọn chương trình giáo dục…' : 'Đang tải…'} ariaLabel="Chương trình giáo dục đáp ứng" empty="Chưa có chương trình giáo dục nào." /></div>
+    </fieldset>
+  </>
 }
 
 function ProgramScope({ p, admin, onMsg }: { p: TProgram; admin: boolean; onMsg: (m: string, err?: boolean) => void }) {

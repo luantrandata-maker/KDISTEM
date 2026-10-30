@@ -33,7 +33,7 @@ type Item = { plan_id: string; program_id: string; seq: number; quota: number | 
   training_programs: { code: string; title: string; ct_code: string | null } | null }
 type POrg = { plan_id: string; org_id: string; quota: number | null; status: OrgSt; note: string | null; submitted_at: string | null; decided_at: string | null; invited_at?: string | null }
 type PUnit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string; hours: number; mode: 'online' | 'offline' | null }
-type Prog = { id: string; code: string; title: string; ct_code: string | null; levels: string[] | null; hours: number; subjects: (PUnit & { contents: PUnit[] })[] }
+type Prog = { id: string; code: string; title: string; ct_code: string | null; levels: string[] | null; status: string; version_no: number; family_id: string; hours: number; subjects: (PUnit & { contents: PUnit[] })[] }
 type Enr = { plan_id: string; teacher_id: string; source?: string; units?: string[] | null; exempt_units?: string[]; teachers: { full_name: string; subject: string | null; org_id: string } | null }
 type Reg = { plan_id: string; teacher_id: string; org_id: string; units: string[] | null; exempt_units: string[]; note: string | null; warnings: string[]
   status: 'pending' | 'waitlist' | 'accepted' | 'rejected' | 'cancelled'; reason: string | null; created_at: string; teachers: { full_name: string; subject: string | null } | null }
@@ -54,13 +54,13 @@ function yearOptions() {
   const d = new Date(), y = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1
   return [y - 1, y, y + 1, y + 2].map(a => `${a}-${a + 1}`)
 }
-/** Chương trình tập huấn đã phát hành: cây Môn → Nội dung, tổng giờ */
+/** Chương trình tập huấn đã phát hành, kèm phiên bản đã thay thế (kế hoạch cũ vẫn dùng): cây Môn → Nội dung, tổng giờ */
 function usePrograms() {
   const [list, setList] = useState<Prog[]>([])
   useEffect(() => {
     (async () => {
       const [p, u] = await Promise.all([
-        supabase.from('training_programs').select('id, code, title, ct_code, levels').eq('status', 'published').order('code'),
+        supabase.from('training_programs').select('id, code, title, ct_code, levels, status, version_no, family_id').in('status', ['published', 'superseded']).order('code'),
         supabase.from('training_program_units').select('id, program_id, parent_id, kind, seq, title, hours, mode'),
       ])
       const us = ((u.data ?? []) as PUnit[]).map(x => ({ ...x, hours: Number(x.hours) || 0 })).sort((a, b) => a.seq - b.seq)
@@ -319,6 +319,9 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
     if (!i.units) return g.hours
     const pick = new Set(i.units); return g.subjects.reduce((a, sj) => a + sj.contents.filter(c => pick.has(c.id)).reduce((b, c) => b + c.hours, 0), 0) }
   const totalHours = items.reduce((a, i) => a + hoursOf(i), 0)
+  const verOf = (i: Item) => { const g = progs.find(x => x.id === i.program_id); return g ? `v${g.version_no}` : '' }
+  const newerOf = (i: Item) => { const g = progs.find(x => x.id === i.program_id)
+    return g && g.status !== 'published' ? progs.find(x => x.family_id === g.family_id && x.status === 'published' && x.version_no > g.version_no) : undefined }
   const totalQuota = items.reduce((a, i) => a + (i.quota ?? 0), 0)
   const warn = [!p.year_name && 'chưa chọn năm học', !items.length && 'chưa chọn chương trình tập huấn'].filter(Boolean) as string[]
   const sc = checks(sched, p)
@@ -452,13 +455,13 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
       <div className={edit ? "tppick" : ""}>
         {edit && <div>
           <p className="distpickhead"><b>Chương trình tập huấn đã phát hành</b> <span className="sub">{lvl ? `ưu tiên chương trình dùng cho ${cls.path(p.node_id).find(n => n.edu_level)?.name}` : 'tick để thêm vào kế hoạch'}</span></p>
-          {[...progs].sort((a, b) => Number(fits(b)) - Number(fits(a))).map(g => { const on = items.some(i => i.program_id === g.id)
+          {[...progs].filter(g => g.status === 'published').sort((a, b) => Number(fits(b)) - Number(fits(a))).map(g => { const on = items.some(i => i.program_id === g.id)
             return <div key={g.id} className={'distprogcard' + (on ? ' on' : '') + (fits(g) ? '' : ' off')}>
               <label className="distproghead"><input type="checkbox" checked={on} onChange={() => toggleProg(g, !on)} />
                 <span>{g.ct_code && <Chip tone="ct">{g.ct_code}</Chip>} <b>{g.code} · {g.title}</b><br />
                   <small className="sub">{g.subjects.length} môn · {g.subjects.reduce((a, sj) => a + sj.contents.length, 0)} nội dung · {num(g.hours)} giờ{!fits(g) ? ' · khác cấp học' : ''}</small></span></label>
             </div> })}
-          {!progs.length && <p className="sub">Chưa có chương trình tập huấn nào được phát hành.</p>}
+          {!progs.some(g => g.status === 'published') && <p className="sub">Chưa có chương trình tập huấn nào được phát hành.</p>}
         </div>}
         <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
           <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Chương trình trong kế hoạch</h3><small className="sub">{items.length} chương trình · {num(totalHours)} giờ{totalQuota ? ` · chỉ tiêu ${totalQuota} GV` : ''}</small></div>
@@ -466,7 +469,8 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
             <thead><tr><th style={{ width: 40 }}>STT</th><th>Chương trình</th><th style={{ width: 70 }}>Số giờ</th><th style={{ width: 100 }}>Chỉ tiêu GV</th><th>Giảng viên</th><th>Trợ giảng</th>{edit && <th style={{ width: 90 }}></th>}</tr></thead>
             <tbody>{items.map((i, k) => <tr key={i.program_id}>
               <td>{k + 1}</td>
-              <td style={{ whiteSpace: 'normal' }}><i className="tpdot" style={{ background: colorOf(k) }} /><b>{i.training_programs?.title ?? '—'}</b><br /><small className="sub">{[i.training_programs?.code, i.training_programs?.ct_code].filter(Boolean).join(' · ')}</small>
+              <td style={{ whiteSpace: 'normal' }}><i className="tpdot" style={{ background: colorOf(k) }} /><b>{i.training_programs?.title ?? '—'}</b><br /><small className="sub">{[i.training_programs?.code, verOf(i), i.training_programs?.ct_code].filter(Boolean).join(' · ')}</small>
+                {newerOf(i) && <><br /><small className="holwarn">⚠ Đã có phiên bản mới v{newerOf(i)!.version_no}{edit ? ': bỏ chọn bản này và tick bản mới nếu muốn dùng' : '; kế hoạch giữ phiên bản đã chọn'}</small></>}
                 <UnitPick prog={progs.find(x => x.id === i.program_id)} value={i.units ?? null} edit={edit} onSave={v => patchItem(i, { units: v })} /></td>
               <td>{num(hoursOf(i))}</td>
               <td>{edit ? <input type="number" min={0} defaultValue={i.quota ?? ''} aria-label="Chỉ tiêu GV" style={{ width: 76 }}

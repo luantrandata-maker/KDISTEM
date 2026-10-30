@@ -3,6 +3,7 @@
 //  mở trang tạo bản: đặt tên, chọn phân loại), Theo khung phân loại, Gán theo trường (tạo PPCT theo trường),
 //  Lịch sử áp dụng (125: các lần gán theo năm học, phiên bản).
 // Theo dõi thực hiện nằm ở menu riêng "Theo dõi Chương trình/Môn học".
+import { YearSelect } from '../../components/YearSelect'
 import { MultiSelect } from '../../components/MultiSelect'
 import { useHiddenBtn } from '../../components/PageButtons'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -282,7 +283,7 @@ function DistAssign({ plans, initial, onDone, onHistory }: { plans: Plan[]; init
         <div className="formgrid">
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Bản phân phối đã phát hành</span>
             <select value={pid} onChange={e => setPid(e.target.value)}><option value="">— chọn bản —</option>{pub.map(p => <option key={p.id} value={p.id}>{p.code} v{p.version_no ?? 1} · {p.title} ({crumb(p)})</option>)}</select></label>
-          <label className="field"><span>Năm học</span><input value={year} onChange={e => setYear(e.target.value)} placeholder="Để trống = năm học hiện tại của trường" /></label>
+          <label className="field"><span>Năm học</span><YearSelect value={year} onChange={setYear} emptyLabel="Năm học hiện tại của trường" /></label>
         </div>
         {pub.length === 0 && <p className="sub">Chưa có bản nào đã phát hành. Phát hành bản ở tab “Danh sách bản phân phối”.</p>}
         {plan && <>

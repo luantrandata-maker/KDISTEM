@@ -2106,3 +2106,13 @@ span.namelink{cursor:default;text-decoration:none}
 .disthistory{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}
 .disthistory h3{margin:0 0 8px}
 tr.distyear td{background:var(--surface-2,var(--surface));border-top:2px solid var(--line)}
+/* Ngày nghỉ trong lịch tập huấn */
+.holwarn{color:var(--bad,#c0392b);font-weight:600}
+.tghead>b.hol{color:var(--bad,#c0392b)}
+.tghead>b .tghol{display:block;font-style:normal;font-size:11px;font-weight:600;color:var(--bad,#c0392b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tgday.hol{background:repeating-linear-gradient(135deg,transparent 0 8px,rgba(192,57,43,.06) 8px 16px)}
+.tscald.hol{background:#fff4f2}
+.tscald .tscalhol{font-style:normal;color:var(--bad,#c0392b);font-weight:600}
+.tpcalev.onhol{outline:2px solid var(--bad,#c0392b);outline-offset:-2px}
+.distgrid .wk.holday{color:var(--bad,#c0392b);font-weight:700}
+.distgrid .cell.holbad{outline:2px solid var(--bad,#c0392b);outline-offset:-2px}

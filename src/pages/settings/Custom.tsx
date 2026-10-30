@@ -7,6 +7,7 @@ import { NAV, ROLE_LABEL, labelOf, type RoleKey } from '../../lib/nav'
 import { layers, reloadSettings, slug, useSettings, orderItems, type CatalogsCfg, type CustomButton, type CustomField, type FieldsCfg, type FieldType, type MenuCfg, type MenuRole, type ButtonsCfg } from '../../lib/settings'
 import { BUILTIN, ACTIONS } from '../../components/PageButtons'
 import { MAT_TYPE } from '../library/common'
+import { DEFAULT_TITLE, PLATFORM_TITLE } from '../../lib/branding'
 
 const BrandingPage = lazy(() => import('../branding').then(m => ({ default: m.BrandingPage })))
 const errText = (m: string) => /schema cache|does not exist|check constraint|org_settings_key/i.test(m) ? 'Hãy chạy migration 096 trên Supabase.'
@@ -57,6 +58,10 @@ export function MenuTab({ scope, platform, orgId }: { scope: string | null; plat
           {roles.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</select></label></div>
       <p className="sub">Để trống ô “Tên hiển thị” là giữ tên gốc. {platform ? 'Đây là mặc định cho mọi trường; trường có thể tự chỉnh phần của trường.' : 'Chỉ áp cho người dùng của trường. Ô mờ là tên KDI đang đặt.'}</p>
       {own.status}
+      <label className="field setapptitle"><span>Tên hệ thống của cổng {ROLE_LABEL[role]}</span>
+        <input value={cur.title ?? ''} maxLength={80} placeholder={base.title || (role === 'platform' ? PLATFORM_TITLE : DEFAULT_TITLE)} aria-label="Tên hệ thống"
+          onChange={e => put({ title: e.target.value })} />
+        <small className="sub">Hiện ở thanh trên cùng{role === 'platform' ? ' và đầu thanh menu' : ''}. Để trống là dùng tên mặc định.{role !== 'platform' ? ' Đơn vị có thương hiệu riêng thì dùng tên trong thương hiệu.' : ''}</small></label>
       {NAV[role].map(g => {
         const items = orderItems(g.items, cur.order?.[g.title] ?? base.order?.[g.title])
         return <div key={g.title} className="setmenugroup">

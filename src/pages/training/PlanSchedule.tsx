@@ -2,11 +2,13 @@
 // Mỗi nội dung tập huấn là một buổi: ngày, giờ học, hình thức, địa điểm / link họp. Xếp tự động theo từng chương trình
 // (ngày bắt đầu hoặc nối tiếp chương trình trước, giờ vào học, số giờ mỗi ngày, nghỉ trưa, bỏ cuối tuần) rồi sửa tay từng buổi.
 // Lưu vào training_sessions (giữ buổi đã chốt điểm danh).
+// Ngày nghỉ (lịch chuẩn chung + ngày nghỉ của đơn vị): xếp tự động bỏ qua, buổi rơi vào ngày nghỉ được cảnh báo ở bảng, lịch và phần kiểm tra.
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Chip } from '../dist/Editor'
 import { colorOf } from '../dist/Grid'
 import { TimeGrid } from '../../components/TimeGrid'
+import { useHolidays } from '../../lib/holidays'
 
 type Mode = 'online' | 'offline'
 export type SUnit = { id: string; title: string; hours: number; mode?: Mode | null }
@@ -16,7 +18,7 @@ export type SPlan = { id: string; org_id: string; mode: string; starts_on: strin
 type Sess = { id: string; unit_id: string | null; title: string; starts_at: string; ends_at: string; mode: Mode; location: string | null; meeting_url: string | null; closed_at: string | null }
 export type Row = { unit_id: string; program_id: string; subj: string; title: string; hours: number; date: string; from: string; to: string
   mode: Mode; location: string; url: string; sid?: string; locked: boolean }
-type Cfg = { start: string; time: string; perDay: number; lunch: boolean; skip: boolean; mode: Mode; location: string; url: string }
+type Cfg = { start: string; time: string; perDay: number; lunch: boolean; skip: boolean; skipHol: boolean; mode: Mode; location: string; url: string }
 
 const SSEL = 'id, unit_id, title, starts_at, ends_at, mode, location, meeting_url, closed_at'
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -50,6 +52,7 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
   const [dirty, setDirty] = useState(false)
   const [rk, setRk] = useState(0)
   const list = useMemo(() => contentsOf(items, progs), [items, progs])
+  const hol = useHolidays(plan.org_id || null)
   const defMode: Mode = plan.mode === 'online' ? 'online' : 'offline'
   useEffect(() => {
     supabase.from('training_sessions').select(SSEL).eq('plan_id', plan.id).order('starts_at').then(({ data }) => setSess((data as Sess[]) ?? []))
@@ -65,7 +68,7 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
     }))
     setDirty(false)
   }, [sess, list])
-  const cfgOf = (pid: string, k: number): Cfg => cfg[pid] ?? { start: k === 0 ? plan.starts_on || nextMonday() : 'after', time: '08:00', perDay: 4, lunch: true, skip: true, mode: defMode, location: '', url: '' }
+  const cfgOf = (pid: string, k: number): Cfg => cfg[pid] ?? { start: k === 0 ? plan.starts_on || nextMonday() : 'after', time: '08:00', perDay: 4, lunch: true, skip: true, skipHol: true, mode: defMode, location: '', url: '' }
   const setCfg = (pid: string, k: number, v: Partial<Cfg>) => setCfgs(c => ({ ...c, [pid]: { ...cfgOf(pid, k), ...v } }))
   const setRow = (id: string, v: Partial<Row>) => { setRows(rs => rs.map(r => r.unit_id === id ? { ...r, ...v } : r)); setDirty(true) }
   const order = useMemo(() => [...new Set(list.map(x => x.p.id))], [list])
@@ -85,7 +88,7 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
       const start0 = mins(c.time)
       let date = c.start !== 'after' ? c.start : cursor ? cursor.date : plan.starts_on || nextMonday()
       let at = c.start === 'after' && cursor ? cursor.at : start0, used = c.start === 'after' && cursor ? Math.max(0, cursor.at - start0) / 60 : 0
-      const skipWk = () => { while (c.skip && (dow(date) === 0 || dow(date) === 6)) date = addDays(date, 1) }
+      const skipWk = () => { for (let n = 0; n < 400 && ((c.skip && (dow(date) === 0 || dow(date) === 6)) || (c.skipHol && hol.holOn(date).length)); n++) date = addDays(date, 1) }
       skipWk()
       for (const r of mine) {
         if (r.locked) continue
@@ -140,7 +143,7 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
     return null
   }
   const reset = () => setRk(k => k + 1)
-  return { loaded: !!sess, rows, order, cfgOf, setCfg, setRow, auto, save, reset, dirty, progs }
+  return { loaded: !!sess, rows, order, cfgOf, setCfg, setRow, auto, save, reset, dirty, progs, hol }
 }
 export type Schedule = ReturnType<typeof useSchedule>
 
@@ -158,6 +161,8 @@ export function checks(s: Schedule, plan: SPlan) {
   }
   const out_ = done.filter(r => (plan.starts_on && r.date < plan.starts_on) || (plan.ends_on && r.date > plan.ends_on))
   if (out_.length) out.push({ level: 'warn', text: `${out_.length} buổi nằm ngoài thời gian kế hoạch (${plan.starts_on ? vnDay(plan.starts_on) : '…'} – ${plan.ends_on ? vnDay(plan.ends_on) : '…'})` })
+  const onHol = done.filter(r => s.hol.holOn(r.date).length)
+  if (onHol.length) out.push({ level: 'warn', text: `${onHol.length} buổi rơi vào ngày nghỉ: ${[...new Set(onHol.map(r => `${vnDay(r.date)} (${s.hol.holName(r.date)})`))].slice(0, 4).join('; ')}${onHol.length > 4 ? '…' : ''}` })
   const noLoc = done.filter(r => r.mode === 'offline' && !r.location.trim())
   if (noLoc.length) out.push({ level: 'warn', text: `${noLoc.length} buổi trực tiếp chưa có địa điểm` })
   const noUrl = done.filter(r => r.mode === 'online' && !r.url.trim())
@@ -197,6 +202,7 @@ export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPl
         <div className="tools tpschedopts">
           <label className="tpcheck"><input type="checkbox" checked={c.lunch} onChange={e => s.setCfg(pid, k, { lunch: e.target.checked })} /> Nghỉ trưa 11:30–13:30</label>
           <label className="tpcheck"><input type="checkbox" checked={c.skip} onChange={e => s.setCfg(pid, k, { skip: e.target.checked })} /> Bỏ qua thứ Bảy, Chủ nhật</label>
+          <label className="tpcheck"><input type="checkbox" checked={c.skipHol} onChange={e => s.setCfg(pid, k, { skipHol: e.target.checked })} /> Bỏ qua ngày nghỉ lễ</label>
           <button type="button" className="primary" onClick={() => { s.auto(pid); setOpen(o => new Set(o).add(pid)) }}>Xếp tự động</button>
         </div></>}
         <div className={'distresult ' + (done.length === mine.length ? 'good' : done.length ? 'warn' : '')}>
@@ -210,11 +216,12 @@ export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPl
           <tbody>{subjs.map(sj => <Fragment key={sj}>
             <tr className="distgsubj"><th colSpan={6}><b>{sj}</b></th></tr>
             {mine.filter(r => r.subj === sj).map((r, j) => {
-              const ro = !edit || r.locked
+              const ro = !edit || r.locked, hn = s.hol.holName(r.date)
               return <tr key={r.unit_id}>
                 <td>{j + 1}</td>
                 <td style={{ whiteSpace: 'normal' }}>{r.title}<br /><small className="sub">{num(r.hours)} giờ{r.locked ? ' · đã chốt điểm danh' : ''}</small></td>
-                <td>{ro ? (r.date ? vnDay(r.date) : '—') : <input type="date" value={r.date} aria-label={'Ngày học ' + r.title} onChange={e => s.setRow(r.unit_id, { date: e.target.value })} />}</td>
+                <td>{ro ? (r.date ? vnDay(r.date) : '—') : <input type="date" value={r.date} aria-label={'Ngày học ' + r.title} onChange={e => s.setRow(r.unit_id, { date: e.target.value })} />}
+                  {hn && <><br /><small className="holwarn" title="Buổi rơi vào ngày nghỉ">⚠ Nghỉ: {hn}</small></>}</td>
                 <td>{ro ? (r.from ? `${r.from}–${r.to}` : '—') : <span className="tptime">
                   <input type="time" value={r.from} aria-label="Giờ bắt đầu" onChange={e => { const f = e.target.value; s.setRow(r.unit_id, { from: f, to: r.to && mins(r.to) > mins(f) ? r.to : f ? hhmm(mins(f) + Math.round(r.hours * 60)) : '' }) }} />
                   <span>–</span><input type="time" value={r.to} aria-label="Giờ kết thúc" onChange={e => s.setRow(r.unit_id, { to: e.target.value })} /></span>}</td>
@@ -261,9 +268,9 @@ export function ScheduleView({ s }: { s: Schedule }) {
         {weeks.length > 1 && idx < 0 && <button type="button" onClick={() => setWk(weeks[0])}>Về tuần có buổi</button>}</div>}
     </div>
     {mode === 'day' ? <DayGrid s={s} /> : !done.length ? <p className="sub">Chưa có buổi nào được xếp.</p>
-      : <TimeGrid days={days} shade={[LUNCH_FROM, LUNCH_TO, 'Nghỉ trưa']} label="Lịch tập huấn theo khung giờ"
+      : <TimeGrid days={days} shade={[LUNCH_FROM, LUNCH_TO, 'Nghỉ trưa']} label="Lịch tập huấn theo khung giờ" dayNote={d => s.hol.holName(ymd(d)) || undefined}
           events={done.map(r => { const p = s.progs.find(x => x.id === r.program_id)
-            return { id: r.unit_id, start: new Date(`${r.date}T${r.from}`), end: new Date(`${r.date}T${r.to}`), title: r.title, color: colorFor(r.program_id),
+            return { id: r.unit_id, start: new Date(`${r.date}T${r.from}`), end: new Date(`${r.date}T${r.to}`), title: (s.hol.holOn(r.date).length ? '⚠ ' : '') + r.title, color: colorFor(r.program_id),
               sub: `${p?.code || p?.title || ''} · ${r.subj} · ${MODE[r.mode]}${r.mode === 'offline' && r.location ? ' · ' + r.location : ''}` } })} />}
     {mode === 'time' && done.length > 0 && <div className="tools" style={{ flexWrap: 'wrap' }}>{s.order.map(pid => { const p = s.progs.find(x => x.id === pid)
       return <small key={pid} className="sub" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><i style={{ width: 10, height: 10, borderRadius: 3, background: colorFor(pid), display: 'inline-block' }} />{p?.code || p?.title}</small> })}
@@ -280,10 +287,11 @@ export function DayGrid({ s }: { s: Schedule }) {
   for (let d = ds[0]; d <= ds[ds.length - 1] && days.length < 62; d = addDays(d, 1)) days.push(d)
   const cols = `150px repeat(${days.length}, minmax(34px, 1fr))`
   const hoursOn = (rs: Row[], d: string) => rs.filter(r => r.date === d).reduce((a, r) => a + r.hours, 0)
-  const wk = (d: string) => dow(d) === 0 || dow(d) === 6 ? ' hol' : ''
+  const wk = (d: string) => dow(d) === 0 || dow(d) === 6 || s.hol.holOn(d).length ? ' hol' : ''
   return <div className="distgridouter"><div className="distgridwrap">
     <div className="distgrid" role="table" aria-label="Lịch theo ngày">
-      <div className="grow weeks" style={{ gridTemplateColumns: cols }}><b className="lab">Ngày</b>{days.map(d => <small key={d} className={'wk' + wk(d)} title={vnDay(d)}>{WD[dow(d)]}<br />{d.slice(8)}/{d.slice(5, 7)}</small>)}</div>
+      <div className="grow weeks" style={{ gridTemplateColumns: cols }}><b className="lab">Ngày</b>{days.map(d => { const hn = s.hol.holName(d)
+        return <small key={d} className={'wk' + wk(d) + (hn ? ' holday' : '')} title={vnDay(d) + (hn ? ' · Nghỉ: ' + hn : '')}>{WD[dow(d)]}<br />{d.slice(8)}/{d.slice(5, 7)}</small> })}</div>
       {s.order.map((pid, k) => {
         const p = s.progs.find(x => x.id === pid), mine = done.filter(r => r.program_id === pid), color = colorOf(k)
         const subjs = [...new Set(s.rows.filter(r => r.program_id === pid).map(r => r.subj))]
@@ -292,7 +300,8 @@ export function DayGrid({ s }: { s: Schedule }) {
             <span className="track" style={{ gridColumn: '2 / -1' }} /></div>
           {subjs.map(sj => <div key={sj} className="grow subjrow" style={{ gridTemplateColumns: cols }}><span className="lab subj">{sj}</span>
             {days.map(d => { const h = hoursOn(mine.filter(r => r.subj === sj), d)
-              return h ? <span key={d} className={'cell on' + wk(d)} style={{ background: color }} title={`${sj} · ${vnDay(d)}: ${num(h)} giờ`}>{num(h)}</span> : <span key={d} className={'cell' + wk(d)} /> })}</div>)}
+              const hn = s.hol.holName(d)
+              return h ? <span key={d} className={'cell on' + wk(d) + (hn ? ' holbad' : '')} style={{ background: color }} title={`${sj} · ${vnDay(d)}: ${num(h)} giờ${hn ? ' · ⚠ Ngày nghỉ: ' + hn : ''}`}>{num(h)}</span> : <span key={d} className={'cell' + wk(d)} /> })}</div>)}
         </Fragment>
       })}
       <div className="grow totrow" style={{ gridTemplateColumns: cols }}><b className="lab total">Giờ/ngày</b>
@@ -327,7 +336,7 @@ export function ResultStep({ s, plan }: { s: Schedule; plan: SPlan }) {
     {view === 'cal' ? <ScheduleView s={s} /> : <div className="wrap"><table className="libtable disttable">
       <thead><tr><th style={{ width: 130 }}>Thời gian</th><th>Nội dung tập huấn</th><th>Chương trình · môn</th><th style={{ width: 110 }}>Hình thức</th><th>Địa điểm / link họp</th></tr></thead>
       <tbody>{days.map(d => <Fragment key={d}>
-        <tr className="distgprog"><th colSpan={5}><b>{vnDay(d)}</b>/{d.slice(0, 4)} <small className="sub">{done.filter(r => r.date === d).length} buổi · {num(done.filter(r => r.date === d).reduce((a, r) => a + r.hours, 0))} giờ</small></th></tr>
+        <tr className="distgprog"><th colSpan={5}><b>{vnDay(d)}</b>/{d.slice(0, 4)} {s.hol.holName(d) && <Chip tone="bad">⚠ Ngày nghỉ: {s.hol.holName(d)}</Chip>} <small className="sub">{done.filter(r => r.date === d).length} buổi · {num(done.filter(r => r.date === d).reduce((a, r) => a + r.hours, 0))} giờ</small></th></tr>
         {done.filter(r => r.date === d).map(r => <tr key={r.unit_id}>
           <td>{r.from}–{r.to}</td>
           <td style={{ whiteSpace: 'normal' }}><i className="tpdot" style={{ background: colorOf(pIdx(r.program_id)) }} />{r.title}</td>

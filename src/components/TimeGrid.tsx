@@ -27,8 +27,9 @@ function lanes(evs: TEvent[]) {
   return out
 }
 
-export function TimeGrid({ days, events, from = 7, to = 18, shade, label = 'Lịch theo giờ' }:
-  { days: Date[]; events: TEvent[]; from?: number; to?: number; shade?: [number, number, string]; label?: string }) {
+/** dayNote: ghi chú của ngày (VD: tên ngày nghỉ) — tô đầu cột và cả cột, hiện khi rê chuột. */
+export function TimeGrid({ days, events, from = 7, to = 18, shade, label = 'Lịch theo giờ', dayNote }:
+  { days: Date[]; events: TEvent[]; from?: number; to?: number; shade?: [number, number, string]; label?: string; dayNote?: (d: Date) => string | undefined }) {
   // Mở rộng khung giờ cho đủ mọi buổi trong tuần
   const inDays = events.filter(e => days.some(d => same(d, e.start)))
   const h0 = Math.max(0, Math.min(from, ...inDays.map(e => e.start.getHours())))
@@ -40,12 +41,14 @@ export function TimeGrid({ days, events, from = 7, to = 18, shade, label = 'Lị
   const cols = `52px repeat(${days.length}, minmax(96px, 1fr))`
   return <div className="tgrid" role="table" aria-label={label}>
     <div className="tghead" style={{ gridTemplateColumns: cols }}><span />
-      {days.map(d => <b key={+d} className={same(d, now) ? 'today' : d.getDay() === 0 || d.getDay() === 6 ? 'wkend' : ''}>{WD[d.getDay()]} <small>{pad(d.getDate())}/{pad(d.getMonth() + 1)}</small></b>)}</div>
+      {days.map(d => { const note = dayNote?.(d)
+        return <b key={+d} className={(same(d, now) ? 'today' : d.getDay() === 0 || d.getDay() === 6 ? 'wkend' : '') + (note ? ' hol' : '')} title={note ? 'Ngày nghỉ: ' + note : undefined}>
+          {WD[d.getDay()]} <small>{pad(d.getDate())}/{pad(d.getMonth() + 1)}</small>{note && <em className="tghol">Nghỉ: {note}</em>}</b> })}</div>
     <div className="tgbody" style={{ gridTemplateColumns: cols, height: hours.length * HH }}>
       <div className="tghours">{hours.map(h => <small key={h} style={{ top: (h - h0) * HH }}>{pad(h)}:00</small>)}</div>
       {days.map(d => {
         const evs = lanes(events.filter(e => same(d, e.start)))
-        return <div key={+d} className={'tgday' + (same(d, now) ? ' today' : '') + (d.getDay() === 0 || d.getDay() === 6 ? ' wkend' : '')}>
+        return <div key={+d} className={'tgday' + (same(d, now) ? ' today' : '') + (d.getDay() === 0 || d.getDay() === 6 ? ' wkend' : '') + (dayNote?.(d) ? ' hol' : '')}>
           {hours.map(h => <i key={h} className="tgline" style={{ top: (h - h0) * HH }} />)}
           {shade && <span className="tgshade" style={{ top: y(shade[0]), height: y(shade[1]) - y(shade[0]) }} title={shade[2]} />}
           {same(d, now) && minOf(now) >= h0 * 60 && minOf(now) <= h1 * 60 && <i className="tgnow" style={{ top: y(minOf(now)) }} aria-hidden="true" />}

@@ -18,7 +18,7 @@ import { NavIcon } from './components/NavIcon'
 import { MenuSearch, UserMenu } from './components/TopBar'
 import Login, { SetPassword } from './pages/Login'
 import { mustChangePassword } from './lib/login'
-import { useBranding, DEFAULT_TITLE } from './lib/branding'
+import { useBranding, DEFAULT_TITLE, PLATFORM_TITLE } from './lib/branding'
 import LegalGate from './components/LegalGate'
 import Dashboard from './pages/Dashboard'
 import Teachers from './pages/Teachers'
@@ -683,6 +683,9 @@ function Shell({ session }: { session: Session }) {
   const locked = new Set(NAV[role].flatMap(g => g.items).filter(i => UPSELL_PORTALS.has(role) && roleOk(i) && !inPlan(i)))
   // Thiết lập chung › Tên & menu: tên, thứ tự, ẩn/hiện (KDI mặc định, trường tự chỉnh); "Thiết lập chung" không ẩn được
   const menu = menuOf(settings, role)
+  // Tên hệ thống: đặt ở Thiết lập chung › Menu (từng cổng); cổng khách hàng ưu tiên tên trong thương hiệu
+  const appTitle = role === 'platform' ? menu.title || PLATFORM_TITLE : brand?.display_name ?? (menu.title || DEFAULT_TITLE)
+  if (document.title !== appTitle) document.title = appTitle
   const lab = (i: string) => menu.labels[i] || labelOf(role, i)
   const groups = NAV[role]
     .map(g => ({ ...g, label: menu.groups[g.title] || g.title,
@@ -705,7 +708,7 @@ function Shell({ session }: { session: Session }) {
       <nav className="side" aria-label="Menu chính">
         <div className="sidebrand">
           {brand?.logo_dark ? <img src={brand.logo_dark} alt={brand.display_name ?? 'Logo'} /> : brand?.logo ? <img src={brand.logo} alt={brand.display_name ?? 'Logo'} className="onchip" /> : <img src={logoWhite} alt="KDI education" />}
-          <b>{role === 'platform' ? 'Hệ thống quản lý vận hành' : ROLE_LABEL[role]}</b>
+          <b>{role === 'platform' ? appTitle : ROLE_LABEL[role]}</b>
         </div>
         {role !== 'department' && role !== 'platform' && role !== 'parent' && <label className="yearpick">
           <span>Năm học · học kỳ</span>
@@ -766,7 +769,7 @@ function Shell({ session }: { session: Session }) {
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg>
           </button>
           <img src={brand?.logo ?? logo} alt={brand?.display_name ?? 'KDI education'} />
-          <span className="title">{role === 'platform' ? 'Hệ thống quản lý vận hành' : brand?.display_name ?? DEFAULT_TITLE}</span>
+          <span className="title">{appTitle}</span>
           <MenuSearch entries={groups.flatMap(g => g.items.map(item => ({ item, label: lab(item), group: g.section ? `${g.section} › ${g.label}` : g.label })))} onGo={i => show(role, i)} />
           <div className="user">
             <Bell open={openFrom} portals={views} orgId={access.profile.org_id} />

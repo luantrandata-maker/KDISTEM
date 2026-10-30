@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 
-export type MenuRole = { labels?: Record<string, string>; groups?: Record<string, string>; order?: Record<string, string[]>; hidden?: string[] }
+export type MenuRole = { title?: string; labels?: Record<string, string>; groups?: Record<string, string>; order?: Record<string, string[]>; hidden?: string[] }
 export type MenuCfg = Record<string, MenuRole>
 export type FieldType = 'text' | 'number' | 'date' | 'select' | 'textarea'
 export type CustomField = { key: string; label: string; type: FieldType; options?: string[]; required?: boolean; column?: boolean; detail?: boolean }
@@ -60,6 +60,7 @@ export function menuOf(s: Settings, role: string): Required<MenuRole> {
   const { std, own } = layers<MenuCfg>(s, 'menu')
   const a = std?.[role] ?? {}, b = own?.[role] ?? {}
   return {
+    title: b.title?.trim() || a.title?.trim() || '',
     labels: { ...a.labels, ...b.labels }, groups: { ...renameKeys(a.groups), ...renameKeys(b.groups) }, order: { ...renameKeys(a.order), ...renameKeys(b.order) },
     hidden: [...new Set([...(a.hidden ?? []), ...(b.hidden ?? [])])],
   }

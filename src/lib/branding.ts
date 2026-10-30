@@ -10,6 +10,7 @@ export type Branding = {
 }
 export const DEFAULT_COLORS = { primary: '#1f5bb8', sidebar: '#0f3a76', accent: '#f9b147' }
 export const DEFAULT_TITLE = 'Hệ thống Quản trị STEM'
+export const PLATFORM_TITLE = 'Hệ thống quản lý vận hành'
 
 const hex = (h: string) => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16))
 const toHex = (c: number[]) => '#' + c.map(v => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')

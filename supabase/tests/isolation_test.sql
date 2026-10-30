@@ -3623,6 +3623,22 @@ select pg_temp.chk('admin_kb', 'GY 121: làm thử đề luyện theo mức đ�
 select pg_temp.chk('admin_ph', 'GY 121: trường không làm thử đề của KDI', $q$select exam_preview(platform_org_id(), '{"kind":"pick","subject":"ISO TH9","matrix":[{"count":1}]}')$q$, 'ERR');
 select pg_temp.chk('kdi', 'GY 121: ma trận sai bị từ chối', $q$select exam_preview(platform_org_id(), '{"kind":"pick","matrix":[{"count":0}]}')$q$, 'ERR*');
 
+-- ===== 122: quản trị KDI chọn được mọi trường =====
+select pg_temp.chk('admin_ph', 'Chọn mọi trường: quản trị trường không thấy danh sách', $q$select count(*)::text from platform_school_list()$q$, '0');
+select pg_temp.chk('admin_ph', 'Chọn mọi trường: quản trị trường không vào được trường khác', format('select platform_enter_school(%s)::text', quote_literal(pg_temp.oid_('ISO-TRUONG'))), 'ERR');
+select pg_temp.chk('kdi', 'Chọn mọi trường: KDI thấy trường không có vai trò', $q$select count(*)::text from platform_school_list() where name = 'Trường thử ISO 2' and not member$q$, '1');
+select pg_temp.chk('kdi', 'Chọn mọi trường: chỉ liệt kê trường', $q$select count(*)::text from platform_school_list() l join organizations o on o.id = l.org_id where o.type <> 'school'$q$, '0');
+select pg_temp.chk('kdi', 'Chọn mọi trường: không vào được đơn vị không phải trường', format('select platform_enter_school(%s)::text', quote_literal(pg_temp.oid_('ISO-SO'))), 'ERR*');
+select pg_temp.probe('kdi@iso-test.local', format('select platform_enter_school(%s)::text', quote_literal(pg_temp.oid_('ISO-TRUONG'))), true);
+select pg_temp.chk('kdi', 'Chọn mọi trường: vào trường với vai trò Hiệu trưởng và đang làm việc ở đó',
+  $q$select (select string_agg(r.key, ',') from memberships m join roles r on r.id = m.role_id join organizations o on o.id = m.org_id where m.user_id = auth.uid() and o.code = 'ISO-TRUONG') || '|' || ((select code from organizations where id = my_org_id()))$q$, 'principal|ISO-TRUONG');
+select pg_temp.chk('kdi', 'Chọn mọi trường: đang ở trường vẫn chuyển sang trường khác được', format('select (platform_enter_school(%s) is not null)::text', quote_literal(pg_temp.oid_('ISO-SCH'))), 'true');
+select pg_temp.chk('kdi', 'Chọn mọi trường: vào lại không gán trùng', format('select platform_enter_school(%s)::text = %s', quote_literal(pg_temp.oid_('ISO-TRUONG')), quote_literal(pg_temp.oid_('ISO-TRUONG'))), 'true');
+do $$ begin
+  delete from memberships where user_id = (select id from auth.users where email = 'kdi@iso-test.local') and org_id = pg_temp.oid_('ISO-TRUONG');
+  update profiles set org_id = (select id from organizations where is_platform) where id = (select id from auth.users where email = 'kdi@iso-test.local');
+end $$;
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

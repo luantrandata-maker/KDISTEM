@@ -1,6 +1,7 @@
 // Đầu trang gọn: ô tìm chức năng (Ctrl K) và menu tài khoản (chế độ xem, đơn vị đang làm việc, xem với tư cách, đổi mật khẩu, đăng xuất)
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { switchOrg, type MyOrg } from '../lib/auth'
+import { enterSchool, switchOrg, type MyOrg } from '../lib/auth'
+import { supabase } from '../lib/supabase'
 import { norm } from '../lib/sheet'
 
 // ================= Tìm chức năng trong menu =================
@@ -68,6 +69,19 @@ export function UserMenu({ name, email, roleLabel, orgs, views, view, onView, ac
   const active = orgs.find(o => o.active)
   const schools = orgs.filter(o => o.type === 'school'), others = orgs.filter(o => o.type !== 'school')
   const pick = async (o: MyOrg) => { if (!o.active) setErr((await switchOrg(o.org_id)) ?? '') }
+  // Quản trị KDI: chọn được mọi trường trong hệ thống (người khác nhận danh sách rỗng)
+  const [all, setAll] = useState<{ org_id: string; name: string; parent_name: string | null }[]>([])
+  useEffect(() => { supabase.rpc('platform_school_list').then(({ data }) => setAll((data as typeof all) ?? [])) }, [])
+  const groups = useMemo(() => {
+    const m = new Map<string, typeof all>()
+    for (const s of all) { const k = s.parent_name ?? 'Khác'; m.set(k, [...(m.get(k) ?? []), s]) }
+    return [...m]
+  }, [all])
+  const pickSchool = async (id: string) => {
+    if (id === active?.org_id) return
+    const mine = schools.find(x => x.org_id === id)
+    setErr((mine ? await switchOrg(id) : await enterSchool(id)) ?? '')
+  }
   const initial = (name || email).trim().split(/\s+/).pop()?.charAt(0).toUpperCase() ?? '?'
   const Icon = ({ d }: { d: string }) => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
   const USER = 'M20 21a8 8 0 0 0-16 0M12 13a5 5 0 1 0 0-10 5 5 0 0 0 0 10'
@@ -94,21 +108,24 @@ export function UserMenu({ name, email, roleLabel, orgs, views, view, onView, ac
                 onClick={() => { onView(v.key); setOpen(false) }}><Icon d={USER} />{v.label}</button>
             ))}
           </div>}
-          {orgs.length > 1 && <div className="usersec">
+          {(orgs.length > 1 || all.length > 0) && <div className="usersec">
             <small className="ushead">Đang làm việc tại</small>
             {others.map(o => (
               <button type="button" role="menuitemradio" aria-checked={o.active} key={o.org_id} className={o.active ? 'on' : ''}
                 onClick={() => pick(o)}>
                 <Icon d={ORG} /><span>{o.name}<br /><small>{o.roles.join(', ')}</small></span></button>
             ))}
-            {/* Các trường gộp vào một ô chọn (kể cả trường thử nghiệm), giống chọn giáo viên */}
-            {schools.length > 0 && <>
-              {others.length > 0 && <small className="ushead">Trường</small>}
-              <select value={active?.type === 'school' ? active.org_id : ''} aria-label="Chọn trường"
-                onChange={e => { const o = schools.find(x => x.org_id === e.target.value); if (o) pick(o) }}>
+            {/* Các trường gộp vào một ô chọn (kể cả trường thử nghiệm), giống chọn giáo viên; quản trị KDI thấy mọi trường */}
+            {(schools.length > 0 || all.length > 0) && <>
+              {others.length > 0 && <small className="ushead">Trường{all.length ? ` (${all.length})` : ''}</small>}
+              <select value={active?.type === 'school' ? active.org_id : ''} aria-label="Chọn trường" onChange={e => pickSchool(e.target.value)}>
                 {active?.type !== 'school' && <option value="">Chọn trường…</option>}
-                {schools.map(o => <option key={o.org_id} value={o.org_id}>{o.name} · {o.roles.join(', ')}</option>)}
+                {all.length ? groups.map(([g, list]) => <optgroup key={g} label={g}>
+                  {list.map(o => <option key={o.org_id} value={o.org_id}>{o.name}{schools.find(x => x.org_id === o.org_id) ? ` · ${schools.find(x => x.org_id === o.org_id)!.roles.join(', ')}` : ''}</option>)}
+                </optgroup>)
+                  : schools.map(o => <option key={o.org_id} value={o.org_id}>{o.name} · {o.roles.join(', ')}</option>)}
               </select>
+              {all.length > 0 && <small className="sub" style={{ padding: '0 10px' }}>Vào trường chưa có vai trò: hệ thống gán Hiệu trưởng cho tài khoản này và ghi nhật ký.</small>}
             </>}
             {err && <p className="msg" style={{ padding: '0 10px' }}>{err}</p>}
           </div>}

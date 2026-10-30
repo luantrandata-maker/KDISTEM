@@ -10,6 +10,7 @@ import { useCls } from './cls'
 import { useTiers } from './Tiers'
 import { WeekGrid, colorOf } from './Grid'
 import { useDistCalendar, type DistCal } from './calendar'
+import { PlanHistory } from './History'
 import {
   checks, effSubjects, lessonsOf, orderLessons, reordered, progCode, schedule, spanOf, subjectsIn, termRange, weekLoad, TERM_LABEL, LOAD_MAX,
   type Item, type Mode, type Plan, type Prog, type Row, type Status, type Subj, type SubjMode, type U,
@@ -17,7 +18,7 @@ import {
 
 const PSEL = 'id, code, title, version_no, status, ct_code, level, grade_from, grade_to, grades, main_subject, periods_per_week, deploy_term'
 const USEL = 'id, program_id, parent_id, unit_type, seq, title, periods, grade, grades, subject'
-export const STATUS: Record<Status, [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], archived: ['Ngừng dùng', 'off'] }
+export const STATUS: Record<Status, [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], superseded: ['Đã thay thế', 'off'], archived: ['Ngừng dùng', 'off'] }
 export const Chip = ({ tone, children }: { tone?: string; children: ReactNode }) => <span className={'distchip2 ' + (tone ?? '')}>{children}</span>
 export const errText = (m: string) => (/schema cache|does not exist|column .* of relation/i.test(m) ? 'Hãy chạy migration 078, 079 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Bạn không có quyền với bản phân phối này.' : m)
@@ -123,8 +124,8 @@ function useToast() {
   return [t ? <div className={'disttoast' + (t.bad ? ' bad' : '')} role="status">{t.text}</div> : null, setT] as const
 }
 
-export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
-  plan: Plan; back: () => void; backLabel: string
+export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign }: {
+  plan: Plan; orgId?: string | null; back: () => void; backLabel: string
   onChanged: (openId?: string, msg?: string) => void; onAssign?: (id: string) => void
 }) {
   const crumb = useBreadcrumb()
@@ -137,6 +138,8 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
   const [units, setUnits] = useState<U[]>([])
   const [loaded, setLoaded] = useState(false)
   const editable = plan.status === 'draft'
+  /** Bản của đơn vị mình: tạo được phiên bản mới; bản của đơn vị khác chỉ nhân bản. */
+  const own = !!orgId && plan.org_id === orgId
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [view, setView] = useState<'table' | 'cal'>(editable ? 'table' : 'cal')
   const [editRows, setEditRows] = useState(false)
@@ -263,6 +266,11 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
     if (error) return setToast({ text: errText(error.message), bad: true })
     onChanged(data as string, `Đã tạo bản nháp mới từ ${plan.code}.`)
   }
+  async function newVersion() {
+    const { data, error } = await supabase.rpc('dist_plan_new_version', { p_plan: plan.id })
+    if (error) return setToast({ text: errText(error.message), bad: true })
+    onChanged(data as string, `Đã tạo phiên bản ${(plan.version_no ?? 1) + 1} (nháp) của ${plan.code}. Phát hành xong thì phiên bản cũ chuyển sang "Đã thay thế".`)
+  }
   async function remove() {
     if (!confirm(`Xoá bản phân phối ${plan.code}? PPCT đã gán cho trường vẫn giữ nguyên.`)) return
     const { error } = await supabase.from('dist_plans').delete().eq('id', plan.id)
@@ -279,7 +287,7 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
   const head = (
     <div className="disthead">
       <button type="button" className="distback" onClick={leave}>← {backLabel}</button>
-      <span className="distcrumb">{crumb(plan)} · {plan.code}</span>
+      <span className="distcrumb">{crumb(plan)} · {plan.code} · Phiên bản {plan.version_no ?? 1}</span>
       <span className="distheadright">
         <Chip tone={STATUS[plan.status][1]}>{STATUS[plan.status][0]}</Chip>
         {savedChip}
@@ -287,9 +295,10 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
         {editable && <button type="button" disabled={!dirty || busy} onClick={() => onChanged(plan.id)}>Hủy thay đổi</button>}
         {editable && <button type="button" className={dirty ? 'primary' : ''} disabled={!dirty || busy} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu nháp'}</button>}
         {editable && <button type="button" className="primary" disabled={busy} title={errors.length ? 'Còn lỗi chặn phát hành' : undefined} onClick={publish}>Phát hành</button>}
-        {!editable && <button type="button" className="primary" onClick={copy}>Tạo bản mới từ bản này</button>}
+        {!editable && own && <button type="button" className="primary" onClick={newVersion}>Tạo phiên bản mới</button>}
+        {!editable && !own && <button type="button" className="primary" onClick={copy}>Nhân bản để sửa</button>}
         <MoreMenu>
-          {editable && <button type="button" onClick={copy}>Nhân bản</button>}
+          {(editable || own) && <button type="button" onClick={copy}>Nhân bản thành bản khác</button>}
           {plan.status === 'published' && onAssign && <button type="button" onClick={() => onAssign(plan.id)}>Gán cho trường</button>}
           {plan.status === 'published' && <button type="button" onClick={() => setStatus('draft', 'Đã chuyển về nháp. PPCT đã gán cho trường không đổi.')}>Chuyển về nháp</button>}
           {plan.status === 'published' && <button type="button" onClick={() => setStatus('archived', 'Đã ngừng dùng bản phân phối.')}>Ngừng dùng</button>}
@@ -310,12 +319,13 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
   if (!editable) return (
     <div className="panel distpanel">
       {head}
-      <h2 className="disttitle">{plan.title}</h2>
+      <h2 className="disttitle">{plan.title} <small className="sub">· Phiên bản {plan.version_no ?? 1}</small></h2>
       {plan.note && <p className="sub">{plan.note}</p>}
-      <div className="distinfo"><b>{plan.status === 'published' ? 'Bản đã phát hành, không sửa trực tiếp.' : 'Bản đã ngừng dùng.'}</b>{' '}
-        Muốn thay đổi, bấm “Tạo bản mới từ bản này” để chỉnh trên một bản nháp. PPCT đã gán cho trường không đổi theo.</div>
+      <div className="distinfo"><b>{plan.status === 'published' ? 'Bản đã phát hành, không sửa trực tiếp.' : plan.status === 'superseded' ? 'Phiên bản này đã có phiên bản mới thay thế, không gán mới được.' : 'Bản đã ngừng dùng.'}</b>{' '}
+        {own ? 'Muốn thay đổi, bấm “Tạo phiên bản mới” để chỉnh trên một bản nháp cùng mã.' : 'Muốn thay đổi, bấm “Nhân bản để sửa” để có bản nháp của đơn vị mình.'} PPCT đã gán cho trường không đổi theo.</div>
       <div className="distviewbar"><ViewSwitch view={view} setView={setView} />{stats}</div>
       {view === 'cal' ? Calendar() : Table()}
+      <PlanHistory plan={plan} />
       {toast}
     </div>
   )
@@ -323,8 +333,13 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
   return (
     <div className="panel distpanel">
       {head}
-      <input className="disttitlein" value={plan.title} maxLength={200} aria-label="Tên bản phân phối" onChange={e => { setPlan({ ...plan, title: e.target.value }); touch() }} onFocus={e => e.target.select()} />
-      <input className="distnotein" value={plan.note ?? ''} maxLength={2000} placeholder="Ghi chú: mục tiêu, đối tượng áp dụng…" aria-label="Ghi chú" onChange={e => { setPlan({ ...plan, note: e.target.value }); touch() }} />
+      <div className="distnamegrid">
+        <label className="field"><span>Tên bản phân phối *</span>
+          <input value={plan.title} maxLength={200} required placeholder="VD: Phân phối STEM Tiểu học khối 1 — cơ bản" onChange={e => { setPlan({ ...plan, title: e.target.value }); touch() }} /></label>
+        <label className="field"><span>Phiên bản</span><input value={`${plan.version_no ?? 1} · ${plan.code}`} readOnly disabled /></label>
+        <label className="field distnamewide"><span>Ghi chú</span>
+          <input value={plan.note ?? ''} maxLength={2000} placeholder="Mục tiêu, đối tượng áp dụng…" onChange={e => { setPlan({ ...plan, note: e.target.value }); touch() }} /></label>
+      </div>
       <ol className="diststeps">
         {([[1, 'Chọn chương trình', `${items.length} chương trình · ${onSubjects} môn`],
           [2, 'Xếp lịch', all ? `Tuần ${all.from}–${all.to}` : 'Chưa xếp'],
@@ -335,6 +350,7 @@ export function PlanBody({ plan: p0, back, backLabel, onChanged, onAssign }: {
       {step === 1 && Step1()}
       {step === 2 && Step2()}
       {step === 3 && Step3()}
+      {(plan.version_no ?? 1) > 1 && <PlanHistory plan={plan} />}
       {toast}
     </div>
   )

@@ -2098,3 +2098,11 @@ span.namelink{cursor:default;text-decoration:none}
 .main .tgev>b{font-weight:700;font-size:11px}.main .tgev>span{font-weight:600;overflow:hidden;text-overflow:ellipsis}.main .tgev>small{opacity:.85;color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .main .tgev.live{background:var(--bad-bg);border-left-color:var(--bad)}.main .tgev.draft{background:var(--warn-bg);border-left-color:var(--warn-fg)}
 .main .tgev.off{background:var(--neutral-bg);border-left-color:#9aa3b2;color:var(--muted)}
+/* 125: tên bản phân phối, lịch sử áp dụng */
+.distnamegrid{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:10px 14px;margin:8px 0 14px}
+.distnamegrid .distnamewide{grid-column:1 / -1}
+@media (max-width:640px){.distnamegrid{grid-template-columns:1fr}}
+.distcreate{margin-left:auto}
+.disthistory{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}
+.disthistory h3{margin:0 0 8px}
+tr.distyear td{background:var(--surface-2,var(--surface));border-top:2px solid var(--line)}

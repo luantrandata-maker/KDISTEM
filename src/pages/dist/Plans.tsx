@@ -1,6 +1,7 @@
 // Phân phối chương trình — theo video demo được duyệt (23/10). Một trang gồm:
-//  hướng dẫn 3 bước · 3 thẻ số liệu · 3 tab: Bản phân phối (khung phân loại + các bản trong mục + trình soạn),
-//  Danh sách bản phân phối (lọc, sắp xếp, xem bản đã phát hành), Gán theo trường (tạo PPCT theo trường).
+//  hướng dẫn 3 bước · 3 thẻ số liệu · các tab: Danh sách bản phân phối (mặc định: lọc, sắp xếp, "+ Tạo bản phân phối"
+//  mở trang tạo bản: đặt tên, chọn phân loại), Theo khung phân loại, Gán theo trường (tạo PPCT theo trường),
+//  Lịch sử áp dụng (125: các lần gán theo năm học, phiên bản).
 // Theo dõi thực hiện nằm ở menu riêng "Theo dõi Chương trình/Môn học".
 import { MultiSelect } from '../../components/MultiSelect'
 import { useHiddenBtn } from '../../components/PageButtons'
@@ -13,13 +14,15 @@ import { Drawer } from '../../components/Drawer'
 import { PlanBody, Chip, STATUS, errText, useBreadcrumb } from './Editor'
 import type { Plan, Status } from './sched'
 import { FlowGuide } from '../../components/FlowGuide'
+import { useCls } from './cls'
+import { DistHistory } from './History'
 
 export type { Plan } from './sched'
-type Tab = 'tree' | 'list' | 'assign'
+type Tab = 'list' | 'create' | 'tree' | 'assign' | 'history'
 type Meta = { programs: number; subjects: number; lessons: number; periods: number; books: number }
 type Book = { id: string; title: string; status: string; year_name: string | null; org_id: string; dist_plan_id: string; program_id: string | null; curriculum_lessons: { count: number }[] }
 const BOOK_STATUS: Record<string, string> = { draft: 'Nháp', pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Bị trả lại', published: 'Đã ban hành' }
-const PLAN_SEL = 'id, org_id, code, title, level, grade, tier, node_id, status, hk1_weeks, hk2_weeks, note, updated_at, published_at'
+const PLAN_SEL = 'id, org_id, code, title, level, grade, tier, node_id, status, hk1_weeks, hk2_weeks, note, updated_at, published_at, family_id, version_no'
 
 function useDistData(rk: number) {
   const [plans, setPlans] = useState<Plan[] | null>(null)
@@ -29,7 +32,7 @@ function useDistData(rk: number) {
   useEffect(() => {
     (async () => {
       const [pl, it, rw, bk] = await Promise.all([
-        supabase.from('dist_plans').select(PLAN_SEL).order('code'),
+        supabase.from('dist_plans').select(PLAN_SEL).order('code').order('version_no', { ascending: false }),
         supabase.from('dist_plan_items').select('plan_id, subjects'),
         supabase.from('dist_plan_rows').select('plan_id, periods, skipped'),
         supabase.from('curriculum_books').select('id, title, status, year_name, org_id, dist_plan_id, program_id, curriculum_lessons(count)').not('dist_plan_id', 'is', null).order('updated_at', { ascending: false }),
@@ -50,7 +53,7 @@ function useDistData(rk: number) {
 }
 
 export function DistPage({ orgId }: { orgId: string | null }) {
-  const [tab, setTab] = useState<Tab>('tree')
+  const [tab, setTab] = useState<Tab>('list')
   const [rk, setRk] = useState(0)
   const { plans, meta, books, err } = useDistData(rk)
   const [openTree, setOpenTree] = useState<string | null>(null)
@@ -70,14 +73,14 @@ export function DistPage({ orgId }: { orgId: string | null }) {
   const pub = (plans ?? []).filter(p => p.status === 'published').length
   const drafts = (plans ?? []).filter(p => p.status === 'draft').length
   const steps: [Tab, string, string][] = [
-    ['tree', 'Soạn bản phân phối', 'Chọn nhánh trong Khung phân loại, tick chương trình phù hợp, xếp lịch học kỳ và nhịp tiết/tuần, xem Bảng hoặc Lịch rồi Lưu nháp.'],
+    ['create', 'Soạn bản phân phối', 'Bấm “+ Tạo bản phân phối”, đặt tên và chọn phân loại, tick chương trình phù hợp, xếp lịch học kỳ và nhịp tiết/tuần, xem Bảng hoặc Lịch rồi Lưu nháp.'],
     ['list', 'Phát hành bản', 'Soát cảnh báo (lỗi sẽ chặn phát hành), rồi chuyển bản sang Đã phát hành. Xem tất cả bản ở danh sách này.'],
     ['assign', 'Gán theo trường', 'Gán bản đã phát hành cho trường, lớp, năm học và học kỳ để tạo PPCT theo trường.']]
   return (
     <>
       <FlowGuide id="dist-plans">
         <ol className="distguide">{steps.map(([t, h, d], k) => <li key={t}>
-          <button type="button" className={tab === t ? 'on' : ''} onClick={() => setTab(t)}><i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
+          <button type="button" className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setMsg(null); if (t === 'list') setOpenList(null) }}><i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
         <p className="sub" style={{ margin: 0 }}>Bản phân phối là mẫu lắp ghép từ nhiều chương trình. PPCT theo trường là bản đã gán cho từng trường, lớp để theo dõi.</p>
       </FlowGuide>
       <div className="diststatcards">
@@ -86,21 +89,26 @@ export function DistPage({ orgId }: { orgId: string | null }) {
         <div className="panel"><i aria-hidden="true" className="good">▦</i><span><b>{books.length}</b><small>PPCT theo trường</small><small>{books.filter(b => b.status === 'published').length} đã ban hành</small></span></div>
       </div>
       <div className="distpills" role="tablist">
-        {([['tree', 'Bản phân phối'], ['list', 'Danh sách bản phân phối'], ['assign', 'Gán theo trường']] as [Tab, string][]).map(([t, l]) =>
-          <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setMsg(null) }}>{l}</button>)}
+        {([['list', 'Danh sách bản phân phối'], ['tree', 'Theo khung phân loại'], ['assign', 'Gán theo trường'], ['history', 'Lịch sử áp dụng']] as [Tab, string][]).map(([t, l]) => {
+          const on = tab === t || (t === 'list' && tab === 'create')
+          return <button key={t} type="button" role="tab" aria-selected={on} className={on ? 'on' : ''} onClick={() => { setTab(t); setMsg(null); if (t === 'list') setOpenList(null) }}>{l}</button>
+        })}
       </div>
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
       {!plans ? <p className="sub">Đang tải…</p> : <>
         {tab === 'tree' && (openTree && plans.some(p => p.id === openTree)
-          ? <PlanBody key={openTree + ':' + rk} plan={plans.find(p => p.id === openTree)!} back={() => { setOpenTree(null); setMsg(null) }} backLabel="Các bản trong mục"
+          ? <PlanBody key={openTree + ':' + rk} plan={plans.find(p => p.id === openTree)!} orgId={orgId} back={() => { setOpenTree(null); setMsg(null) }} backLabel="Các bản trong mục"
               onChanged={changed('tree')} onAssign={assign} />
           : <DistTree orgId={orgId} plans={plans} meta={meta} focus={openTree} onOpen={id => { setOpenTree(id); setMsg(null) }} onCreated={id => { reload(); setOpenTree(id) }} />)}
         {tab === 'list' && (openList && plans.some(p => p.id === openList)
-          ? <PlanBody key={openList + ':' + rk} plan={plans.find(p => p.id === openList)!} back={() => { setOpenList(null); setMsg(null) }} backLabel="Danh sách"
+          ? <PlanBody key={openList + ':' + rk} plan={plans.find(p => p.id === openList)!} orgId={orgId} back={() => { setOpenList(null); setMsg(null) }} backLabel="Danh sách"
               onChanged={changed('list')} onAssign={assign} />
-          : <DistList plans={plans} meta={meta} onOpen={p => { setMsg(null); if (p.status === 'draft') { setOpenTree(p.id); setTab('tree') } else setOpenList(p.id) }}
-              onCopied={(id, m) => { reload(); setMsg(m); setOpenTree(id); setTab('tree') }} onAssign={assign} />)}
-        {tab === 'assign' && <DistAssign plans={plans} books={books} initial={assignId} onDone={reload} />}
+          : <DistList plans={plans} meta={meta} canCreate={!!orgId} onCreate={() => { setMsg(null); setTab('create') }} onOpen={p => { setMsg(null); setOpenList(p.id) }}
+              onCopied={(id, m) => { reload(); setMsg(m); setOpenList(id) }} onAssign={assign} />)}
+        {tab === 'create' && orgId && <CreatePlan orgId={orgId} onCancel={() => setTab('list')}
+          onCreated={id => { reload(); setOpenList(id); setTab('list'); setMsg('Đã tạo bản phân phối nháp. Tiếp tục chọn chương trình và xếp lịch.') }} />}
+        {tab === 'assign' && <DistAssign plans={plans} initial={assignId} onDone={reload} onHistory={() => setTab('history')} />}
+        {tab === 'history' && <DistHistory plans={plans} rk={rk} />}
       </>}
     </>
   )
@@ -121,7 +129,7 @@ const COLS: Col[] = [{ key: 'plan', label: 'Bản phân phối', fixed: true }, 
 
 function PlanCells({ p, m, has, crumb, onOpen }: { p: Plan; m: Meta | undefined; has: (k: string) => boolean | undefined; crumb: string; onOpen: () => void }) {
   return <>
-    <td><button type="button" className="namelink" onClick={onOpen}>{p.title}</button><br /><small className="sub">{p.code}</small></td>
+    <td><button type="button" className="namelink" onClick={onOpen}>{p.title}</button><br /><small className="sub">{p.code} · Phiên bản {p.version_no ?? 1}</small></td>
     {has('cls') && <td>{crumb}</td>}
     {has('parts') && <td>{m?.programs ?? 0} chương trình · {m?.subjects ?? 0} môn</td>}
     {has('lessons') && <td>{m?.lessons ?? 0} bài · {m?.periods ?? 0} tiết</td>}
@@ -161,10 +169,11 @@ function DistTree({ orgId, plans, meta, focus, onOpen, onCreated }: {
 
 // ===== Tab "Danh sách bản phân phối" =====
 type SortKey = 'title' | 'cls' | 'parts' | 'lessons' | 'books' | 'status' | 'updated'
-function DistList({ plans, meta, onOpen, onCopied, onAssign }: {
-  plans: Plan[]; meta: Map<string, Meta>; onOpen: (p: Plan) => void; onCopied: (id: string, msg: string) => void; onAssign: (id: string) => void
+function DistList({ plans, meta, canCreate, onCreate, onOpen, onCopied, onAssign }: {
+  plans: Plan[]; meta: Map<string, Meta>; canCreate: boolean; onCreate: () => void; onOpen: (p: Plan) => void; onCopied: (id: string, msg: string) => void; onAssign: (id: string) => void
 }) {
   const crumb = useBreadcrumb()
+  const hid = useHiddenBtn()
   const [fs, setFs] = useState<Status | ''>('')
   const [q, setQ] = useState('')
   const [fc, setFc] = useState('')
@@ -197,13 +206,14 @@ function DistList({ plans, meta, onOpen, onCopied, onAssign }: {
   return (
     <>
       <div className="distfilter">
-        {([['', 'Tất cả', plans.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['archived', 'Ngừng dùng', n('archived')]] as [Status | '', string, number][]).map(([s, l, c]) =>
+        {([['', 'Tất cả', plans.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['superseded', 'Đã thay thế', n('superseded')], ['archived', 'Ngừng dùng', n('archived')]] as [Status | '', string, number][]).map(([s, l, c]) =>
           <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
       </div>
       <div className="distfilter">
         <input placeholder="Tìm tên, mã, phân loại…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
         <select value={fc} onChange={e => setFc(e.target.value)} aria-label="Phân loại"><option value="">Mọi phân loại</option>{classes.map(c => <option key={c} value={c}>{c}</option>)}</select>
         <small className="sub">{shown.length}/{plans.length} bản</small>
+        {!hid('create') && <button type="button" className="primary distcreate" disabled={!canCreate} onClick={onCreate}>+ Tạo bản phân phối</button>}
       </div>
       {err && <p className="msg">{err}</p>}
       <div className="panel">
@@ -223,7 +233,7 @@ function DistList({ plans, meta, onOpen, onCopied, onAssign }: {
           <tbody>{shown.map(p => <tr key={p.id} className={sel.is(p) ? 'picked' : undefined}>
             <td className="sel"><input type="checkbox" checked={sel.is(p)} onChange={() => sel.toggle(p)} aria-label={'Chọn ' + p.code} /></td>
             <PlanCells p={p} m={meta.get(p.id)} has={has} crumb={crumb(p)} onOpen={() => onOpen(p)} /></tr>)}
-            {shown.length === 0 && <tr><td colSpan={COLS.length + 1}>{plans.length ? 'Không có bản nào khớp bộ lọc.' : 'Chưa có bản phân phối nào. Soạn ở tab "Bản phân phối".'}</td></tr>}</tbody>
+            {shown.length === 0 && <tr><td colSpan={COLS.length + 1}>{plans.length ? 'Không có bản nào khớp bộ lọc.' : 'Chưa có bản phân phối nào. Bấm “+ Tạo bản phân phối”.'}</td></tr>}</tbody>
         </table></div>
       </div>
     </>
@@ -234,7 +244,7 @@ function DistList({ plans, meta, onOpen, onCopied, onAssign }: {
 type Org = { id: string; name: string; type: string; parent_id: string | null }
 type Cls = { id: string; name: string; grade: number; org_id: string }
 
-function DistAssign({ plans, books, initial, onDone }: { plans: Plan[]; books: Book[]; initial: string; onDone: () => void }) {
+function DistAssign({ plans, initial, onDone, onHistory }: { plans: Plan[]; initial: string; onDone: () => void; onHistory: () => void }) {
   const crumb = useBreadcrumb()
   const [pid, setPid] = useState(initial)
   const [orgs, setOrgs] = useState<Org[]>([])
@@ -254,8 +264,6 @@ function DistAssign({ plans, books, initial, onDone }: { plans: Plan[]; books: B
     supabase.from('classes').select('id, name, grade, org_id').eq('org_id', picked[0]).eq('grade', plan.grade).order('name').then(({ data }) => setClasses((data as Cls[]) ?? []))
   }, [picked.join(','), plan?.id])
   const schools = orgs.filter(o => o.type === 'school')
-  const orgName = (id: string) => orgs.find(o => o.id === id)?.name ?? '—'
-  const planOf = (id: string) => plans.find(p => p.id === id)
 
   async function assign() {
     if (!plan || !picked.length) return
@@ -273,10 +281,10 @@ function DistAssign({ plans, books, initial, onDone }: { plans: Plan[]; books: B
       <div className="panel">
         <div className="formgrid">
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Bản phân phối đã phát hành</span>
-            <select value={pid} onChange={e => setPid(e.target.value)}><option value="">— chọn bản —</option>{pub.map(p => <option key={p.id} value={p.id}>{p.code} · {p.title} ({crumb(p)})</option>)}</select></label>
+            <select value={pid} onChange={e => setPid(e.target.value)}><option value="">— chọn bản —</option>{pub.map(p => <option key={p.id} value={p.id}>{p.code} v{p.version_no ?? 1} · {p.title} ({crumb(p)})</option>)}</select></label>
           <label className="field"><span>Năm học</span><input value={year} onChange={e => setYear(e.target.value)} placeholder="Để trống = năm học hiện tại của trường" /></label>
         </div>
-        {pub.length === 0 && <p className="sub">Chưa có bản nào đã phát hành. Phát hành bản ở tab “Bản phân phối”.</p>}
+        {pub.length === 0 && <p className="sub">Chưa có bản nào đã phát hành. Phát hành bản ở tab “Danh sách bản phân phối”.</p>}
         {plan && <>
           <div className="field" style={{ marginBottom: 10 }}><span>Chọn trường ({picked.length})</span>
             <MultiSelect value={picked} onChange={setPicked} options={schools.map(o => [o.id, o.name])} placeholder="Chọn trường…" ariaLabel="Trường" empty="Không có trường nào trong phạm vi." /></div>
@@ -287,14 +295,48 @@ function DistAssign({ plans, books, initial, onDone }: { plans: Plan[]; books: B
         </>}
         {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       </div>
-      <h4>PPCT theo trường từ bản phân phối</h4>
-      <div className="wrap"><table className="libtable">
-        <thead><tr><th>Trường</th><th>Bản phân phối</th><th>PPCT</th><th>Năm học</th><th>Số tiết</th><th>Trạng thái</th></tr></thead>
-        <tbody>{books.map(b => <tr key={b.id}>
-          <td>{orgName(b.org_id)}</td><td>{planOf(b.dist_plan_id)?.code ?? '—'}</td><td>{b.title}</td><td>{b.year_name ?? '—'}</td>
-          <td>{b.curriculum_lessons?.[0]?.count ?? 0}</td><td>{BOOK_STATUS[b.status] ?? b.status}</td></tr>)}
-          {books.length === 0 && <tr><td colSpan={6}>Chưa gán bản phân phối nào.</td></tr>}</tbody>
-      </table></div>
+      <p className="sub">Các lần đã gán, theo năm học và phiên bản: <button type="button" className="linkbtn" onClick={onHistory}>Xem lịch sử áp dụng</button></p>
     </>
   )
+}
+
+// ===== Tạo bản phân phối: đặt tên, chọn phân loại (mục cấp cuối), ghi chú =====
+function CreatePlan({ orgId, onCancel, onCreated }: { orgId: string; onCancel: () => void; onCreated: (id: string) => void }) {
+  const { active, nodes, path, ready } = useCls('dist')
+  const last = active[active.length - 1]
+  const finals = useMemo(() => nodes.filter(n => n.cls_level_id === last?.id)
+    .map(n => [n.id, path(n.id).map(x => x.name).join(' › ')] as [string, string]).sort((a, b) => a[1].localeCompare(b[1], 'vi')), [nodes, last?.id])
+  const [title, setTitle] = useState('')
+  const [node, setNode] = useState('')
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!title.trim()) return setErr('Nhập tên bản phân phối.')
+    if (!node) return setErr('Chọn phân loại cho bản.')
+    setBusy(true); setErr('')
+    const { data, error } = await supabase.from('dist_plans').insert({ org_id: orgId, title: title.trim(), node_id: node, note: note.trim() || null }).select('id').single()
+    setBusy(false)
+    if (error) return setErr(errText(error.message))
+    onCreated((data as { id: string }).id)
+  }
+  return <form className="panel distpanel" onSubmit={submit}>
+    <div className="disthead"><button type="button" className="distback" onClick={onCancel}>← Danh sách bản phân phối</button></div>
+    <h2 className="disttitle">Tạo bản phân phối</h2>
+    <p className="sub">Đặt tên và chọn phân loại. Bước sau: chọn chương trình, xếp lịch và phát hành.</p>
+    <div className="distnamegrid">
+      <label className="field"><span>Tên bản phân phối *</span>
+        <input value={title} onChange={e => setTitle(e.target.value)} maxLength={200} autoFocus placeholder="VD: Phân phối STEM Tiểu học khối 1 — cơ bản" /></label>
+      <label className="field"><span>Phân loại ({active.map(l => l.name.toLowerCase()).join(' › ') || '…'}) *</span>
+        <select value={node} onChange={e => setNode(e.target.value)} aria-label="Phân loại"><option value="">— chọn —</option>
+          {finals.map(([id, l]) => <option key={id} value={id}>{l}</option>)}</select></label>
+      <label className="field distnamewide"><span>Ghi chú</span>
+        <input value={note} onChange={e => setNote(e.target.value)} maxLength={2000} placeholder="Mục tiêu, đối tượng áp dụng…" /></label>
+    </div>
+    {ready && finals.length === 0 && <p className="sub">Khung phân loại chưa có mục {last?.name.toLowerCase() ?? ''} nào. Thêm mục ở tab “Theo khung phân loại”.</p>}
+    {err && <p className="msg">{err}</p>}
+    <div className="formactions"><button type="submit" className="primary" disabled={busy}>{busy ? 'Đang tạo…' : 'Tạo và soạn tiếp'}</button>
+      <button type="button" onClick={onCancel}>Huỷ</button></div>
+  </form>
 }

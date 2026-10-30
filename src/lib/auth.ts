@@ -71,6 +71,14 @@ export function useAccess(session: Session | null): Access {
 }
 
 // Đổi tổ chức đang làm việc rồi tải lại để mọi quyền, menu, dữ liệu tính theo tổ chức mới
+/** Quản trị KDI vào một trường bất kỳ (migration 122), rồi tải lại như khi đổi đơn vị */
+export async function enterSchool(orgId: string) {
+  const { error } = await supabase.rpc('platform_enter_school', { p_org: orgId })
+  if (error) return /schema cache|does not exist/i.test(error.message) ? 'Hãy chạy migration 122 trên Supabase.' : error.message
+  try { sessionStorage.clear() } catch { /* bỏ qua */ }
+  window.location.reload()
+  return null
+}
 export async function switchOrg(orgId: string) {
   const { error } = await supabase.rpc('switch_org', { p_org: orgId })
   if (error) return error.message

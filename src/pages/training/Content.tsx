@@ -1,5 +1,6 @@
 // Nội dung tập huấn: 5 phần như bài học — Nội dung · Bài giảng · Link tài liệu · Định mức vật tư · Kho hoạt động.
 // Lưu trong training_program_units.detail (083). Chỉ sửa khi chương trình còn nháp.
+import { LEVEL as ELEVEL } from '../elearning/common'
 import { TryButton } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -108,8 +109,8 @@ export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, 
 }
 
 // ===== Bài kiểm tra: chọn câu hỏi từ ngân hàng, đặt số câu, thời gian, số lượt, điểm đạt =====
-type BankQ = { id: string; subject: string; grade: number | null; topic: string | null; level: string; kind: string; stem: string; shared: boolean }
-const LEVEL: Record<string, string> = { nhan_biet: 'Nhận biết', thong_hieu: 'Thông hiểu', van_dung: 'Vận dụng', van_dung_cao: 'Vận dụng cao' }
+type BankQ = { id: string; subject: string; grade: number | null; grades?: number[]; topic: string | null; level: string; kind: string; stem: string; shared: boolean }
+const LEVEL: Record<string, string> = ELEVEL
 const KIND: Record<string, string> = { single: 'Một đáp án', multi: 'Nhiều đáp án', truefalse: 'Đúng / sai' }
 
 function TestEditor({ t, edit, passScore, hasTest, onChange }: { t: TestCfg; edit: boolean; passScore: number | null; hasTest: boolean; onChange: (t: TestCfg) => void }) {
@@ -119,7 +120,7 @@ function TestEditor({ t, edit, passScore, hasTest, onChange }: { t: TestCfg; edi
   const [subj, setSubj] = useState('')
   const [onlyChosen, setOnlyChosen] = useState(!edit)
   useEffect(() => {
-    supabase.from('question_bank').select('id, subject, grade, topic, level, kind, stem, shared').neq('status', 'retired').order('subject').order('created_at', { ascending: false }).limit(2000)
+    supabase.from('question_bank').select('*').neq('status', 'retired').order('subject').order('created_at', { ascending: false }).limit(2000)
       .then(({ data, error }) => { if (error) setErr(error.message); else setBank((data as BankQ[]) ?? []) })
   }, [])
   const chosen = useMemo(() => new Set(t.qids ?? []), [t.qids])
@@ -175,7 +176,7 @@ function TestEditor({ t, edit, passScore, hasTest, onChange }: { t: TestCfg; edi
       <tbody>{shown.map(b => <tr key={b.id} className={chosen.has(b.id) ? 'on' : ''}>
         {edit && <td><input type="checkbox" checked={chosen.has(b.id)} onChange={() => toggle(b.id)} aria-label="Chọn câu hỏi" /></td>}
         <td style={{ whiteSpace: 'normal' }}>{b.stem.length > 220 ? b.stem.slice(0, 220) + '…' : b.stem}<br /><small className="sub">{KIND[b.kind] ?? b.kind}{b.shared ? ' · dùng chung' : ''}</small></td>
-        <td style={{ whiteSpace: 'normal' }}>{b.subject}{b.grade ? ` · lớp ${b.grade}` : ''}{b.topic && <><br /><small className="sub">{b.topic}</small></>}</td>
+        <td style={{ whiteSpace: 'normal' }}>{b.subject}{b.grades?.length ? ` · khối ${b.grades.join(', ')}` : b.grade ? ` · khối ${b.grade}` : ''}{b.topic && <><br /><small className="sub">{b.topic}</small></>}</td>
         <td>{LEVEL[b.level] ?? b.level}</td>
       </tr>)}
         {!shown.length && <tr><td colSpan={edit ? 4 : 3}><small className="sub">{bank.length ? 'Không có câu hỏi nào khớp.' : 'Ngân hàng câu hỏi chưa có câu nào. Thêm câu ở mục E-learning › Ngân hàng câu hỏi.'}</small></td></tr>}</tbody>

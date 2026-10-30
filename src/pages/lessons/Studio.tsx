@@ -12,11 +12,11 @@ import { TProps, NoTeacher, PROGRAM_COLOR, Tabs, handoff, useMyClasses } from '.
 import { SlideView, SlideStudio, newSlide, ago } from '../teacher/Lessons'
 import { useProgramOptions, unitTree, progLabel } from '../library/common'
 import { GradeChecks, SubjectPicker, gradeList } from '../../components/Pickers'
-import { asLesson, emptyLesson, lessonStats, LessonEditor, LessonPlayer, LessonShow, type ILesson } from '../../lib/lessonBlocks'
+import { asLesson, emptyLesson, lessonStats, LessonEditor, LessonOutline, LessonPlayer, LessonShow, type ILesson } from '../../lib/lessonBlocks'
 import {
   type LPlan, type LStatus, type Template, type Step, type Adjust, type Version, type Review, type NormItem, type NormLite,
   LStatusPill, editable, BASIS, uid, fmtD, errText, PLAN_COLS, useTemplates, useAttachables, libLabel, actLabel, phasesOf, totalMinutes,
-  PlanDocument, printPlan,
+  PlanDocument, printPlan, PLAN_MODE,
 } from './common'
 
 // Hàng cũ (trước 060) có thể thiếu cột mới → chuẩn hoá về giá trị rỗng
@@ -91,13 +91,13 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
     setLibrary(false); setTab('all'); await load(); setView({ mode: 'edit', id: data as string })
   }
   async function remove(p: LPlan) {
-    if (!confirm(`Xoá giáo án “${p.title}”? Lịch sử phiên bản và góp ý của giáo án cũng bị xoá.`)) return
+    if (!confirm(`Xoá bài giảng “${p.title}”? Lịch sử phiên bản và góp ý của bài cũng bị xoá.`)) return
     const { error } = await supabase.from('lesson_plans').delete().eq('id', p.id)
     if (error) setErr(errText(error.message)); load()
   }
 
   if (!teacherId) return <NoTeacher />
-  if (view.mode === 'new') return <NewPlan teacherId={teacherId} orgId={orgId} templates={templates}
+  if (view.mode === 'new') return <NewPlan teacherId={teacherId} orgId={orgId} templates={templates} onTemplates={() => { setView({ mode: 'list' }); setLibrary(true) }}
     onCancel={() => setView({ mode: 'list' })} onCreated={id => { load(); setView({ mode: 'edit', id }) }} />
   if (view.mode === 'edit') return <Editor id={view.id} teacherId={teacherId} orgId={orgId} go={go} templates={templates} reviewRequired={reviewRequired}
     onClose={() => { setView({ mode: 'list' }); load() }} onOpen={id => setView({ mode: 'edit', id })} onPresent={p => setView({ mode: 'present', plan: p, i: 0, back: p.id })} />
@@ -109,20 +109,20 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
       <PlanOverlay o={overlay} onClose={() => setOverlay(null)} />
       <div className="bar">
         {library
-          ? <p className="sub" style={{ margin: 0 }}><button onClick={() => setLibrary(false)} style={{ marginRight: 10 }}>← Giáo án của tôi</button><b>Kho bài giảng mẫu</b> · bài mẫu của trường và giáo án đồng nghiệp đã xuất bản. Bấm “Dùng bài này” để tạo bản nháp của bạn.</p>
+          ? <p className="sub" style={{ margin: 0 }}><button onClick={() => setLibrary(false)} style={{ marginRight: 10 }}>← Bài giảng của tôi</button><b>Mẫu bài giảng</b> · bài mẫu của KDI, của trường và bài đồng nghiệp đã xuất bản. Bấm “Dùng mẫu này” để có bản của bạn rồi sửa tiếp.</p>
           : <Tabs<LTab> value={tab} onChange={setTab} items={[['all', 'Tất cả', count('all')], ['draft', 'Đang soạn', count('draft')],
               ['pending', 'Chờ duyệt / đã duyệt', count('pending')], ['rejected', 'Bị trả lại', count('rejected')], ['published', 'Đã xuất bản', count('published')]]} />}
         <span className="tools">
-          {!library && <button onClick={() => setLibrary(true)}>Kho bài giảng mẫu</button>}
+          {!library && <button onClick={() => setLibrary(true)}>Mẫu bài giảng</button>}
           {go && <button onClick={() => go('Thư viện STEM')} title="Học liệu do Sở, Phòng, KDI Education phát hành">Thư viện STEM</button>}
-          {!hid('new') && <button className="primary" onClick={() => setView({ mode: 'new' })}>+ Tạo giáo án</button>}
+          {!hid('new') && <button className="primary" onClick={() => setView({ mode: 'new' })}>+ Tạo bài giảng</button>}
         </span>
       </div>
       {!library && <p className="sub" style={{ marginTop: 0 }}>{reviewRequired
-        ? 'Trường đang bật quy trình duyệt giáo án: soạn xong bấm “Gửi duyệt”, được duyệt rồi mới xuất bản.'
-        : 'Trường chưa bật quy trình duyệt giáo án: soạn xong bạn tự xuất bản. Có thể gửi duyệt nếu muốn tổ chuyên môn góp ý.'}</p>}
+        ? 'Trường đang bật quy trình duyệt bài giảng: soạn xong bấm “Gửi duyệt”, được duyệt rồi mới xuất bản.'
+        : 'Trường chưa bật quy trình duyệt bài giảng: soạn xong bạn tự xuất bản. Có thể gửi duyệt nếu muốn tổ chuyên môn góp ý.'}</p>}
       <div className="tools" style={{ marginBottom: 12 }}>
-        <input className="search" style={{ margin: 0 }} placeholder="Tìm theo tên bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo án" />
+        <input className="search" style={{ margin: 0 }} placeholder="Tìm theo tên bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài giảng" />
         <select value={program} onChange={e => setProgram(e.target.value)} aria-label="Lọc chương trình">
           <option value="">Tất cả chương trình</option>{PROGRAMS.map(c => <option key={c}>{c}</option>)}</select>
       </div>
@@ -137,10 +137,10 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
                 {p.from_package && <span className="progchip pkgchip">Gói STEM</span>}
                 {p.is_template && <span className="progchip pkgchip">Mẫu</span>}
                 {p.library_item_id && <span className="progchip pkgchip" title={`Từ kho học liệu dùng chung, phiên bản ${p.library_version ?? '?'}`}>Từ kho v{p.library_version}</span>}
-                <span className="slidecount">{blocksOf(p) > 0 ? `${blocksOf(p)} khối · ${lessonStats(asLesson(p.lesson)).interactive} tương tác` : `${p.steps.length} bước · ${p.slides.length} slide`}</span>
+                <span className="slidecount">{blocksOf(p) > 0 ? `${blocksOf(p)} khối · ${lessonStats(asLesson(p.lesson)).interactive} tương tác` : PLAN_MODE ? `${p.steps.length} bước · ${p.slides.length} slide` : `${p.slides.length} slide`}</span>
               </div>
               <b>{p.title}</b>
-              <small>{[p.subject, p.grades && `Khối ${p.grades}`, p.periods && `${p.periods} tiết`, tpl?.name].filter(Boolean).join(' · ')}{library && p.teachers ? ` · ${p.teachers.full_name}` : ''}</small>
+              <small>{[p.subject, p.grades && `Khối ${p.grades}`, PLAN_MODE && p.periods && `${p.periods} tiết`, PLAN_MODE && tpl?.name].filter(Boolean).join(' · ')}{library && p.teachers ? ` · ${p.teachers.full_name}` : ''}</small>
               <div className="lessonfoot">
                 <LStatusPill s={p.status} />{p.version_no > 0 && <small>v{p.version_no}</small>}
                 <small>{ago(p.updated_at)}</small>
@@ -149,7 +149,7 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
               {!library && draftOf.has(p.id) && <small className="sub" style={{ margin: 0 }}><Icon n="pencil" /> Đang có bản nháp sửa · {ago(draftOf.get(p.id)!.updated_at)}</small>}
               <div className="tools">
                 {library ? <>
-                  <button className="primary" onClick={() => clone(p)}>Dùng bài này</button>
+                  <button className="primary" onClick={() => clone(p)}>Dùng mẫu này</button>
                   <button onClick={() => present(p)}>Trình chiếu</button>
                   {blocksOf(p) > 0 && <button onClick={() => setOverlay({ plan: p, kind: 'player' })}>Xem như học sinh</button>}
                 </> : <>
@@ -162,7 +162,7 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
             </div>
           )
         })}
-        {shown.length === 0 && <p className="sub">{library ? 'Kho chưa có bài nào.' : 'Chưa có giáo án nào ở mục này. Bấm “Tạo giáo án” hoặc lấy từ Kho bài giảng mẫu.'}</p>}
+        {shown.length === 0 && <p className="sub">{library ? 'Kho chưa có bài nào.' : 'Chưa có bài giảng nào ở mục này. Bấm “Tạo bài giảng” để soạn từ bài trống, hoặc vào “Mẫu bài giảng” để dùng mẫu.'}</p>}
       </div>
     </>
   )
@@ -170,8 +170,8 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
 
 // ===== Tạo giáo án: chọn mẫu hoặc trang trắng =====
 // teacherId = null: bài giảng của KDI (quản trị nền tảng) — lưu là bài mẫu, không gắn giáo viên
-function NewPlan({ teacherId, orgId, templates, onCancel, onCreated }: {
-  teacherId: string | null; orgId: string | null; templates: Template[]; onCancel: () => void; onCreated: (id: string) => void
+function NewPlan({ teacherId, orgId, templates, onCancel, onCreated, onTemplates }: {
+  teacherId: string | null; orgId: string | null; templates: Template[]; onCancel: () => void; onCreated: (id: string) => void; onTemplates?: () => void
 }) {
   const { codes: PROGRAMS } = useStemTracks()
   const [tpl, setTpl] = useState<string>('')
@@ -184,16 +184,20 @@ function NewPlan({ teacherId, orgId, templates, onCancel, onCreated }: {
     const t = templates.find(x => x.id === tpl)
     const { data, error } = await supabase.from('lesson_plans').insert({
       org_id: orgId, teacher_id: teacherId, is_template: !teacherId, status: 'draft', title: f.title.trim(), subject: f.subject || null, grades: f.grades || null,
-      periods: Number(f.periods) || null, template_id: t?.id ?? null, doc: Object.fromEntries((t?.sections ?? []).map(s => [s.key, ''])),
+      periods: PLAN_MODE ? Number(f.periods) || null : null, template_id: PLAN_MODE ? t?.id ?? null : null, doc: Object.fromEntries((t?.sections ?? []).map(s => [s.key, ''])),
       steps: [], slides: [{ ...newSlide('title'), title: f.title.trim() }], program: f.program || null, lesson: emptyLesson(f.program || null),
     }).select('id').single()
-    if (error || !data) return setErr('Không tạo được giáo án: ' + errText(error?.message ?? ''))
+    if (error || !data) return setErr('Không tạo được bài giảng: ' + errText(error?.message ?? ''))
     onCreated((data as { id: string }).id)
   }
   return (
     <form onSubmit={create}>
-      <div className="bar"><b>{teacherId ? 'Tạo giáo án mới' : 'Thêm bài giảng của KDI'}</b><span className="tools"><button type="button" onClick={onCancel}>← Danh sách</button></span></div>
-      <h3>1. Chọn mẫu giáo án</h3>
+      <div className="bar"><b>{teacherId ? 'Tạo bài giảng mới' : 'Thêm mẫu bài giảng của KDI'}</b><span className="tools"><button type="button" onClick={onCancel}>← Danh sách</button></span></div>
+      {!PLAN_MODE && onTemplates && <div className="tplpick">
+        <label className="panel on"><input type="radio" name="from" checked readOnly /><b>Bài trống</b><small className="sub">Đặt tên bài rồi tự soạn slide, bài giảng tương tác, thêm hoạt động từ kho.</small></label>
+        <label className="panel"><input type="radio" name="from" checked={false} onChange={onTemplates} /><b>Từ mẫu bài giảng</b><small className="sub">Chọn một mẫu của KDI / trường, bấm “Dùng mẫu này” để có bản của bạn rồi sửa tiếp.</small></label>
+      </div>}
+      {PLAN_MODE && <><h3>1. Chọn mẫu giáo án</h3>
       <div className="tplpick">
         <label className={'panel' + (tpl === '' ? ' on' : '')}><input type="radio" name="tpl" checked={tpl === ''} onChange={() => setTpl('')} />
           <b>Trang trắng</b><small className="sub">Tự đặt các mục và các bước hoạt động.</small></label>
@@ -202,13 +206,13 @@ function NewPlan({ teacherId, orgId, templates, onCancel, onCreated }: {
             <b>{t.name}</b>{t.description && <small className="sub">{t.description}</small>}
             <small>{t.sections.length} mục · {t.phases.length ? t.phases.map(p => p.title).join(' → ') : 'không chia pha'}</small></label>
         ))}
-      </div>
-      <h3>2. Thông tin bài</h3>
+      </div></>}
+      <h3>{PLAN_MODE ? '2. Thông tin bài' : 'Thông tin bài'}</h3>
       <div className="panel formgrid">
         <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên bài *</span><input value={f.title} onChange={e => setF({ ...f, title: e.target.value })} maxLength={200} autoFocus /></label>
         <label className="field"><span>Môn</span><SubjectPicker value={f.subject} onChange={v => setF({ ...f, subject: v })} emptyLabel="— Không chọn —" /></label>
         <div className="field" style={{ gridColumn: 'span 2' }}><span>Khối</span><GradeChecks value={gradeList(f.grades)} onChange={g => setF({ ...f, grades: g.join(',') })} /></div>
-        <label className="field"><span>Số tiết</span><input type="number" min={1} max={20} value={f.periods} onChange={e => setF({ ...f, periods: e.target.value })} /></label>
+        {PLAN_MODE && <label className="field"><span>Số tiết</span><input type="number" min={1} max={20} value={f.periods} onChange={e => setF({ ...f, periods: e.target.value })} /></label>}
         <label className="field"><span>Chương trình STEM (tiến trình bài giảng)</span><select value={f.program} onChange={e => setF({ ...f, program: e.target.value })}>
           <option value="">— không theo CT —</option>{PROGRAMS.map(c => <option key={c}>{c}</option>)}</select></label>
         <div className="formactions"><button className="primary" type="submit">Tạo và bắt đầu soạn</button></div>
@@ -266,7 +270,7 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
 
   async function load() {
     const { data, error } = await supabase.from('lesson_plans').select(PLAN_COLS).eq('id', id).maybeSingle()
-    if (error || !data) return setMsg([errText(error?.message ?? 'Không tìm thấy giáo án.'), true])
+    if (error || !data) return setMsg([errText(error?.message ?? 'Không tìm thấy bài giảng.'), true])
     setP(normPlan(data as LPlan)); setDirty(false)
     const d = data as LPlan
     const l = d.draft_of ? await supabase.from('lesson_plans').select('id, title').eq('id', d.draft_of).maybeSingle()
@@ -297,17 +301,19 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
 
   function problems(): string[] {
     const out: string[] = []
+    if (!PLAN_MODE) return out
     p!.steps.forEach((s, i) => { if (!s.title.trim()) out.push(`Bước ${i + 1} chưa có tên`) })
     return out
   }
   function missingRequired(): string[] {
+    if (!PLAN_MODE) return []
     return (tpl?.sections ?? []).filter(s => s.required && !(p!.doc[s.key] ?? '').trim()).map(s => s.title)
   }
   async function save(quiet = false): Promise<boolean> {
     const bad = problems(); if (bad.length) { say(bad.join(' · '), true); return false }
     setBusy(true)
     const body = {
-      title: p!.title.trim() || 'Giáo án chưa đặt tên', subject: p!.subject || null, grades: p!.grades || null, program: p!.program || null,
+      title: p!.title.trim() || 'Bài giảng chưa đặt tên', subject: p!.subject || null, grades: p!.grades || null, program: p!.program || null,
       from_package: p!.from_package, summary: p!.summary || null, slides: p!.slides, template_id: p!.template_id, doc: p!.doc, steps: p!.steps,
       program_id: p!.program_id, unit_id: p!.unit_id, library_ids: p!.library_ids, rubric_ids: p!.rubric_ids, norm_id: p!.norm_id,
       norm_adjust: p!.norm_adjust, periods: p!.periods, lesson: p!.lesson?.goals ? { ...p!.lesson, goals: p!.lesson.goals.map((g: string) => g.trim()).filter(Boolean) } : (p!.lesson ?? {}), cover_url: p!.cover_url?.trim() || null,
@@ -327,7 +333,7 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
     const { error } = await supabase.from('lesson_plans').update({ status: 'pending' }).eq('id', p!.id)
     setBusy(false)
     if (error) return say(errText(error.message), true)
-    await load(); say(reviewRequired ? 'Đã gửi duyệt. Giáo án khoá sửa cho tới khi có kết quả.' : 'Đã gửi duyệt.')
+    await load(); say(reviewRequired ? 'Đã gửi duyệt. Bài giảng khoá sửa cho tới khi có kết quả.' : 'Đã gửi duyệt.')
   }
   async function run(fn: string, args: Record<string, unknown>, ok: string) {
     if (dirty && !ro && !(await save(true))) return
@@ -347,7 +353,7 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
       if (r.err) return say(r.err, true)
       return onOpen(p!.draft_of)
     }
-    run('lesson_plan_publish', { p_plan: p!.id, p_note: note }, 'Đã xuất bản — đồng nghiệp thấy giáo án trong Kho bài giảng mẫu.')
+    run('lesson_plan_publish', { p_plan: p!.id, p_note: note }, 'Đã xuất bản — đồng nghiệp thấy bài trong Mẫu bài giảng.')
   }
   async function makeDraft() {
     setBusy(true); const r = await rpcErr('lesson_plan_draft', { p_plan: p!.id }); setBusy(false)
@@ -377,10 +383,10 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
           <LStatusPill s={p.status} />{p.version_no > 0 && <small>Phiên bản {p.version_no}</small>}
           {dirty && <small>Chưa lưu</small>}</span>
         <span className="tools">
-          <button onClick={() => setPreview(!preview)}>{preview ? 'Quay lại soạn' : 'Xem trước giáo án'}</button>
+          {PLAN_MODE && <button onClick={() => setPreview(!preview)}>{preview ? 'Quay lại soạn' : 'Xem trước giáo án'}</button>}
           {blocksOf(p) > 0 && <button onClick={() => setOverlay({ plan: p, kind: 'player' })}><Icon n="eye" /> Xem như học sinh</button>}
           <button onClick={() => (blocksOf(p) > 0 ? setOverlay({ plan: p, kind: 'show' }) : onPresent(p))} disabled={!p.slides.length && !blocksOf(p)}>Trình chiếu</button>
-          {go && <button onClick={teachTrial} title="Mở lớp học Giáo dục STEM với giáo án này">Dạy thử</button>}
+          {go && <button onClick={teachTrial} title="Mở lớp học Giáo dục STEM với bài giảng này">Dạy thử</button>}
           {!ro && <button onClick={() => save()} disabled={busy || !dirty}>Lưu nháp</button>}
           {canSubmit && reviewRequired && <button className="primary" onClick={submit} disabled={busy}>Gửi duyệt</button>}
           {canPublish && !hid('publish') && <button className={reviewRequired && p.status !== 'approved' ? '' : 'primary'} onClick={publish} disabled={busy}>{p.draft_of ? 'Xuất bản thay bản cũ' : 'Xuất bản'}</button>}
@@ -395,36 +401,38 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
           <button className="danger" onClick={dropDraft} disabled={busy}>Bỏ bản nháp</button></span>
       </div>}
       {ro && <ReadOnlyBanner p={p} busy={busy} draftId={link && !p.draft_of ? link.id : null}
-        onWithdraw={() => run('lesson_plan_withdraw', { p_plan: p.id }, 'Đã rút lại — giáo án trở về bản nháp.')}
+        onWithdraw={() => run('lesson_plan_withdraw', { p_plan: p.id }, 'Đã rút lại — bài giảng trở về bản nháp.')}
         onDraft={makeDraft} onOpenDraft={() => link && onOpen(link.id)}
         onNewVersion={() => {
           if (p.status === 'published' && !confirm('Gỡ xuất bản để sửa thẳng? Đồng nghiệp không còn thấy bài trong kho, lớp đang dùng sẽ thấy nội dung đang sửa. Muốn giữ bản đang dùng, chọn "Tạo bản nháp để sửa".')) return
           run('lesson_plan_new_version', { p_plan: p.id }, p.status === 'published' ? 'Đã gỡ xuất bản — bài trở về đang soạn. Bản cũ vẫn lưu trong lịch sử.' : 'Đã tạo phiên bản mới để soạn. Bản cũ vẫn lưu trong lịch sử.')
         }} />}
       {p.status === 'rejected' && <div className="panel" style={{ borderLeft: '4px solid var(--bad, #dc2626)' }}>
-        <b>Giáo án bị trả lại.</b> {p.review_note ? <>Góp ý: <i>{p.review_note}</i></> : 'Sửa theo góp ý rồi gửi duyệt lại.'}</div>}
+        <b>Bài giảng bị trả lại.</b> {p.review_note ? <>Góp ý: <i>{p.review_note}</i></> : 'Sửa theo góp ý rồi gửi duyệt lại.'}</div>}
 
-      {preview ? (
+      {PLAN_MODE && preview ? (
         <>
           <div className="tools" style={{ margin: '8px 0' }}><button className="primary" onClick={() => printPlan(p.title)}>In / lưu PDF</button></div>
           <div className="panel"><PlanDocument plan={p} tpl={tpl} acts={att.acts} libs={att.libs} rubs={att.rubs} norm={norm} items={items}
             teacher={p.teachers?.full_name} schoolName={school} /></div>
         </>
       ) : <>
-        <Tabs<ETab> value={tab} onChange={setTab} items={[
+        <Tabs<ETab> value={tab} onChange={setTab} items={PLAN_MODE ? [
           ['info', 'Thông tin'], ['doc', 'Giáo án'], ['steps', 'Tiến trình dạy học', p.steps.length], ['lesson', 'Bài giảng tương tác', blocksOf(p)], ['slides', 'Slide trình chiếu', p.slides.length],
           ['res', 'Học liệu & đánh giá', p.library_ids.length + p.rubric_ids.length], ['mat', 'Vật tư'], ['ver', 'Phiên bản & duyệt', versions.length],
+        ] : [
+          ['info', 'Thông tin'], ['lesson', 'Bài giảng tương tác', blocksOf(p)], ['slides', 'Slide trình chiếu', p.slides.length], ['ver', 'Phiên bản & duyệt', versions.length],
         ]} />
         {tab === 'info' && <InfoTab p={p} upd={upd} ro={ro} templates={templates} programs={programs} units={units} />}
         {tab === 'lesson' && <LessonTab p={p} upd={upd} ro={ro} />}
-        {tab === 'doc' && <DocTab p={p} upd={upd} ro={ro} tpl={tpl} />}
-        {tab === 'steps' && <StepsTab p={p} upd={upd} ro={ro} tpl={tpl} att={att} teacherId={teacherId} go={go} />}
+        {PLAN_MODE && tab === 'doc' && <DocTab p={p} upd={upd} ro={ro} tpl={tpl} />}
+        {PLAN_MODE && tab === 'steps' && <StepsTab p={p} upd={upd} ro={ro} tpl={tpl} att={att} teacherId={teacherId} go={go} />}
         {tab === 'slides' && <>
           {!ro && <p className="sub">Slide dùng để trình chiếu trên lớp (Giáo dục STEM) và cho học sinh xem theo thời gian thực.</p>}
           <SlideStudio slides={p.slides} onChange={s => upd({ slides: s })} readOnly={ro} />
         </>}
-        {tab === 'res' && <ResTab p={p} upd={upd} ro={ro} att={att} />}
-        {tab === 'mat' && <MatTab p={p} upd={upd} ro={ro} norms={att.norms} norm={norm} items={items} classes={classes} dirty={dirty} say={say} onSaved={() => save(true)} />}
+        {PLAN_MODE && tab === 'res' && <ResTab p={p} upd={upd} ro={ro} att={att} />}
+        {PLAN_MODE && tab === 'mat' && <MatTab p={p} upd={upd} ro={ro} norms={att.norms} norm={norm} items={items} classes={classes} dirty={dirty} say={say} onSaved={() => save(true)} />}
         {tab === 'ver' && <VerTab p={p} versions={versions} reviews={reviews} classes={classes} reviewRequired={reviewRequired} busy={busy}
           onRestore={v => { if (confirm(`Khôi phục nội dung phiên bản ${v} vào bản đang soạn? Nội dung hiện tại sẽ bị thay thế.`)) run('lesson_plan_restore', { p_plan: p.id, p_version: v }, `Đã khôi phục nội dung phiên bản ${v}.`) }}
           onNewVersion={() => run('lesson_plan_new_version', { p_plan: p.id }, 'Đã tạo phiên bản mới để soạn.')}
@@ -439,11 +447,11 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
 function ReadOnlyBanner({ p, busy, draftId, onWithdraw, onNewVersion, onDraft, onOpenDraft }: {
   p: LPlan; busy: boolean; draftId: string | null; onWithdraw: () => void; onNewVersion: () => void; onDraft: () => void; onOpenDraft: () => void
 }) {
-  const text = p.status === 'pending' ? 'Giáo án đang chờ duyệt nên không sửa được. Rút lại nếu cần sửa tiếp.'
-    : p.status === 'approved' ? 'Giáo án đã được duyệt. Bấm “Xuất bản” để phát hành, hoặc tạo phiên bản mới nếu cần sửa.'
+  const text = p.status === 'pending' ? 'Bài giảng đang chờ duyệt nên không sửa được. Rút lại nếu cần sửa tiếp.'
+    : p.status === 'approved' ? 'Bài giảng đã được duyệt. Bấm “Xuất bản” để phát hành, hoặc tạo phiên bản mới nếu cần sửa.'
     : p.status === 'published' ? (draftId ? `Đã xuất bản (phiên bản ${p.version_no}, ${fmtD(p.published_at)}) và đang có một bản nháp sửa. Học sinh vẫn xem bản này.`
       : `Đã xuất bản (phiên bản ${p.version_no}, ${fmtD(p.published_at)}) nên đang ở chế độ xem. Muốn sửa, tạo bản nháp — học sinh vẫn xem bản này cho tới khi bạn xuất bản thay.`)
-    : 'Giáo án đang lưu trữ. Tạo phiên bản mới để soạn tiếp.'
+    : 'Bài giảng đang lưu trữ. Tạo phiên bản mới để soạn tiếp.'
   return (
     <div className="panel bar" style={{ borderLeft: '4px solid var(--warn, #d97706)', alignItems: 'center' }}>
       <span><Icon n="lock" /> {text}</span>
@@ -473,12 +481,12 @@ function InfoTab({ p, upd, ro, templates, programs, units }: TabP & { templates:
       <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên bài *</span><input value={p.title} onChange={e => upd({ title: e.target.value })} maxLength={200} /></label>
       <label className="field"><span>Môn</span><SubjectPicker value={p.subject} onChange={v => upd({ subject: v })} emptyLabel="— Không chọn —" /></label>
       <div className="field" style={{ gridColumn: 'span 2' }}><span>Khối</span><GradeChecks value={gradeList(p.grades ?? '')} onChange={g => upd({ grades: g.join(',') })} /></div>
-      <label className="field"><span>Số tiết</span><input type="number" min={1} max={20} value={p.periods ?? ''} onChange={e => upd({ periods: e.target.value ? Number(e.target.value) : null })} /></label>
+      {PLAN_MODE && <label className="field"><span>Số tiết</span><input type="number" min={1} max={20} value={p.periods ?? ''} onChange={e => upd({ periods: e.target.value ? Number(e.target.value) : null })} /></label>}
       <label className="field"><span>Nhóm chương trình</span>
         <select value={p.program ?? ''} onChange={e => upd({ program: e.target.value || null })}><option value="">—</option>{PROGRAMS.map(c => <option key={c}>{c}</option>)}</select></label>
-      <label className="field"><span>Mẫu giáo án</span>
+      {PLAN_MODE && <label className="field"><span>Mẫu giáo án</span>
         <select value={p.template_id ?? ''} onChange={e => pickTemplate(e.target.value)} aria-label="Mẫu giáo án">
-          <option value="">Trang trắng (không theo mẫu)</option>{templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>
+          <option value="">Trang trắng (không theo mẫu)</option>{templates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></label>}
       <label className="field"><span>Chương trình giáo dục</span>
         <select value={p.program_id ?? ''} onChange={e => upd({ program_id: e.target.value || null, unit_id: null })} aria-label="Chương trình giáo dục">
           <option value="">— không gắn —</option>{programs.map(x => <option key={x.id} value={x.id}>{progLabel(x)}{x.status === 'draft' ? ' · nháp' : ''}</option>)}</select></label>
@@ -758,7 +766,7 @@ function VerTab({ p, versions, reviews, classes, reviewRequired, busy, onRestore
         </ol>
         <p className="sub" style={{ margin: '4px 0 8px' }}>{reviewRequired
           ? 'Trường yêu cầu duyệt: gửi duyệt → tổ trưởng / BGH duyệt → bạn xuất bản. Mỗi lần xuất bản lưu một phiên bản.'
-          : 'Trường chưa bật duyệt giáo án: bạn tự xuất bản (không qua duyệt). Mỗi lần xuất bản lưu một phiên bản.'}</p>
+          : 'Trường chưa bật duyệt bài giảng: bạn tự xuất bản (không qua duyệt). Mỗi lần xuất bản lưu một phiên bản.'}</p>
         <span className="tools">
           {canSubmit && <button className={reviewRequired ? 'primary' : ''} onClick={onSubmit} disabled={busy}>Gửi duyệt</button>}
           {p.status === 'pending' && <button onClick={onWithdraw} disabled={busy}>Rút lại</button>}
@@ -794,7 +802,7 @@ function VerTab({ p, versions, reviews, classes, reviewRequired, busy, onRestore
             {[5, 4, 3, 2, 1].map(n => <option key={n} value={n}>{'★'.repeat(n)}{'☆'.repeat(5 - n)}</option>)}</select></label>
         </>}
         <label className="field" style={{ gridColumn: '1 / -1' }}><span>Nhận xét *</span><textarea rows={2} value={f.note} onChange={e => setF({ ...f, note: e.target.value })}
-          placeholder={f.kind === 'trial' ? 'Học sinh hứng thú? Thời gian các bước? Cần điều chỉnh gì?' : 'Góp ý cho giáo án'} /></label>
+          placeholder={f.kind === 'trial' ? 'Học sinh hứng thú? Thời gian các bước? Cần điều chỉnh gì?' : 'Góp ý cho bài giảng'} /></label>
         <div className="formactions"><button className="primary" type="submit">Lưu</button></div>
       </form>
       {reviews.length > 0 && (<>
@@ -857,7 +865,7 @@ function PlanDetail({ id, orgId, templates, onClose, onEdit, onPresent }: {
         <span className="tools">
           {st.blocks > 0 && <button onClick={() => setOverlay({ plan: p, kind: 'player' })}><Icon n="eye" /> Xem như học sinh</button>}
           <button onClick={() => (st.blocks > 0 ? setOverlay({ plan: p, kind: 'show' }) : onPresent(p))} disabled={!p.slides.length && !st.blocks}>Trình chiếu</button>
-          <button onClick={() => printPlan(p.title)}>In / lưu PDF</button>
+          {PLAN_MODE && <button onClick={() => printPlan(p.title)}>In / lưu PDF</button>}
           {orgId && p.org_id === orgId && <button className="primary" onClick={() => onEdit(p.id)}>Soạn</button>}
         </span>
       </div>
@@ -865,11 +873,33 @@ function PlanDetail({ id, orgId, templates, onClose, onEdit, onPresent }: {
       <div className="cards syscards">
         <div className="card"><strong style={{ fontSize: 16 }}>{school ?? '—'}</strong><span>Đơn vị</span></div>
         <div className="card"><strong style={{ fontSize: 16 }}>{p.teachers?.full_name ?? (p.is_template ? 'Bài mẫu' : '—')}</strong><span>Giáo viên</span></div>
-        <div className="card"><strong>{st.blocks || p.steps.length}</strong><span>{st.blocks ? `khối · ${st.interactive} tương tác` : 'bước hoạt động'}</span></div>
+        <div className="card"><strong>{PLAN_MODE ? st.blocks || p.steps.length : st.blocks}</strong><span>{st.blocks || !PLAN_MODE ? `khối · ${st.interactive} tương tác` : 'bước hoạt động'}</span></div>
         <div className="card"><strong>{p.slides.length}</strong><span>Slide</span></div>
       </div>
-      <div className="panel"><PlanDocument plan={p} tpl={tpl} acts={att.acts} libs={att.libs} rubs={att.rubs} norm={norm} items={items}
-        teacher={p.teachers?.full_name} schoolName={school} /></div>
+      <div className="panel">{PLAN_MODE ? <PlanDocument plan={p} tpl={tpl} acts={att.acts} libs={att.libs} rubs={att.rubs} norm={norm} items={items}
+        teacher={p.teachers?.full_name} schoolName={school} /> : <LectureView plan={p} teacher={p.teachers?.full_name} school={school} />}</div>
     </>
+  )
+}
+
+// Nội dung một bài giảng để xem (chế độ chỉ bài giảng): thông tin, mục tiêu, tiến trình các khối, danh sách slide
+export function LectureView({ plan, teacher, school }: { plan: LPlan; teacher?: string | null; school?: string | null }) {
+  const l = asLesson(plan.lesson)
+  const blocks = lessonStats(l).blocks
+  return (
+    <article className="plandoc">
+      <header>
+        {school && <small>{school}</small>}
+        <h1>{plan.title}</h1>
+        <p>{[plan.subject && `Môn ${plan.subject}`, plan.grades && `Khối ${plan.grades}`, plan.program, teacher && `Giáo viên: ${teacher}`,
+          plan.version_no > 0 && `Phiên bản ${plan.version_no}`].filter(Boolean).join(' · ')}</p>
+        {plan.summary && <p><i>{plan.summary}</i></p>}
+      </header>
+      {(l?.goals ?? []).length > 0 && <section><h2>Mục tiêu bài học</h2><ul>{l!.goals!.map((g, i) => <li key={i}>{g}</li>)}</ul></section>}
+      {l && blocks > 0 && <section><h2>Bài giảng tương tác</h2><LessonOutline lesson={l} ct={plan.program} /></section>}
+      {plan.slides.length > 0 && <section><h2>Slide trình chiếu ({plan.slides.length})</h2>
+        <ol>{plan.slides.map((x, i) => <li key={x.id ?? i}>{x.title || `Slide ${i + 1}`}</li>)}</ol></section>}
+      {!blocks && !plan.slides.length && <p className="sub">Bài chưa có nội dung.</p>}
+    </article>
   )
 }

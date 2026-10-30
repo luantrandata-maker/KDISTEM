@@ -557,6 +557,13 @@ export const SysActivities = ({ orgId }: { orgId?: string | null }) => <BankList
   desk={({ start, onClose }) => <ActivityDesk orgId={orgId ?? null} start={start} onClose={onClose} />} />
 export const SysSchoolLessons = ({ orgId }: { orgId?: string | null }) => <BankList spec={LESSONS} orgId={orgId} add="+ Thêm bài giảng"
   desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'new' ? start : { mode: 'view', id: start.id }} onClose={onClose} />} />
+// Mẫu bài giảng: bài giảng soạn sẵn (is_template) — giáo viên bấm "Dùng mẫu này" để có bản của mình rồi sửa tiếp
+const LESSON_TEMPLATES: Spec = { ...LESSONS, where: q => q.eq('is_template', true).is('draft_of', null),
+  cols: LESSONS.cols.filter(c => c.label !== 'Giáo viên'),
+  stats: [{ label: 'Đã xuất bản', get: rs => rs.filter(r => r.status === 'published').length }, { label: 'Môn', get: rs => new Set(rs.map(r => r.subject).filter(Boolean)).size }],
+  noun: 'Mẫu bài giảng', file: 'mau-bai-giang', empty: 'Chưa có mẫu bài giảng. Bấm "+ Thêm mẫu bài giảng".' }
+export const SysLessonTemplates = ({ orgId }: { orgId?: string | null }) => <BankList spec={LESSON_TEMPLATES} orgId={orgId} add="+ Thêm mẫu bài giảng"
+  desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'new' ? start : { mode: 'view', id: start.id }} onClose={onClose} />} />
 // Kho hoạt động của Đào tạo tập huấn (116): cùng kiểu hoạt động, cách soạn và chơi thử như Kho hoạt động của Chương trình & học liệu
 const TRAINING_ACTIVITIES: Spec = { ...ACTIVITIES, where: q => q.eq('domain', 'training'),
   cols: ACTIVITIES.cols.map(c => c.label === 'Giáo viên' ? { ...c, label: 'Người soạn', get: (r: Row) => r.teachers?.full_name ?? <small>KDI</small> } : c),

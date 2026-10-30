@@ -2,6 +2,7 @@ import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { useSettings, menuOf, orderItems } from './lib/settings'
+import { applyLevelLabels } from './lib/levels'
 import { CatalogLists, PageButtons, PageCtx } from './components/PageButtons'
 import { NAV, ROLE_LABEL, MODULE_OF, ENT_MODULE_OF, RoleKey, UPSELL_PORTALS, PHASE_OF, labelOf } from './lib/nav'
 import { LockedModule } from './components/LockedModule'
@@ -31,7 +32,7 @@ import QuestionBank from './pages/elearning/Bank'
 import StudentElearning from './pages/elearning/Student'
 import { saveQuizToBank } from './pages/elearning/common'
 import { AllOrgs } from './components/OrgScope'
-import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysActivities, SysTrainingActivities } from './pages/platform/SystemViews'
+import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysActivities, SysTrainingActivities, SysLessonTemplates } from './pages/platform/SystemViews'
 import Classes from './pages/Classes'
 import Rooms from './pages/Rooms'
 import Equipment from './pages/Equipment'
@@ -54,6 +55,7 @@ import { TeacherAssignments, TeacherGrading } from './pages/teacher/Assignments'
 import { TeacherClassroom } from './pages/teacher/Classroom'
 import { TeacherTrainingSchedule, TeacherTrainingLessons } from './pages/teacher/Training'
 import { TeacherActivities } from './pages/teacher/Activities'
+import { PLAN_MODE } from './lib/planMode'
 import { TeacherSelfStudy } from './pages/teacher/SelfStudy'
 import { TeacherAttendance, SchoolSessions } from './pages/attendance/Sessions'
 // Dashboard điểm danh & TKB toàn hệ thống (027): tải riêng khi mở
@@ -181,7 +183,7 @@ const eduProgramTabs = (mode: 'school' | 'authority') => {
 // Danh mục loại chương trình (CT1–CT5 và loại thêm sau): tên, mô tả, môn học, cấp học (062, 064)
 const EduLevelsCatalog = lazy(() => import('./pages/eduLevels').then(m => ({ default: m.EduLevelsCatalog })))
 const StemTracksCatalog = lazy(() => import('./pages/stemTracks').then(m => ({ default: m.StemTracksCatalog })))
-const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Nhóm chương trình', StemTracksCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog]]} />
+const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Nhóm chương trình', StemTracksCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog], ['Khung năng lực', CompetencyFrameworkPage]]} />
 const ProgressPlatform = (q: any) => <CurriculumProgress {...q} mode="platform" />
 // Định mức vật tư theo bài / chủ đề, danh mục vật tư, dự trù, đề xuất điều chỉnh (059)
 const MaterialNorms = lazy(() => import('./pages/materialNorms').then(m => ({ default: m.MaterialNorms })))
@@ -228,7 +230,9 @@ function PlatformEduProgramsPage(p: any) {
 }
 const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [
   ['Bài giảng KDI', (p: any) => <LibraryManage {...p} only="lesson" />], ['Kho hoạt động', SysActivities],
-  ['Giáo án các trường', PH2_TABS.lessons], ['Mẫu giáo án', allOrgs(PlatformLessonTemplates)]]
+  // Giáo án tạm ẩn (PLAN_MODE): chỉ còn bài giảng, kho hoạt động và mẫu bài giảng
+  ...(PLAN_MODE ? [['Giáo án các trường', PH2_TABS.lessons], ['Mẫu giáo án', allOrgs(PlatformLessonTemplates)]] as [string, ComponentType<any>][]
+    : [['Mẫu bài giảng', SysLessonTemplates]] as [string, ComponentType<any>][])]
 const PlatformLessonsPage = (p: any) => <TabbedPages {...p} tabs={PLATFORM_LESSON_TABS} />
 const PlatformCatalog = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformCatalog })))
 const PlatformOrders = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformOrders })))
@@ -318,7 +322,7 @@ const SCHOOL: PageMap = {
   'Kho học liệu dùng chung': LibraryBrowse,
   'Phát hành học liệu': LibraryManage,
   'Định mức vật tư': MaterialNorms,
-  'Giáo án & bài giảng': SchoolLessons,
+  'Bài giảng': SchoolLessons,
   'Hỗ trợ từ KDI': CustomerSupport,
   'Ứng dụng di động': MobileAppPage,
   'Trợ lý AI': (p: any) => <AssistantPage {...p} onSaveQuiz={(i: any, m: any) => saveQuizToBank(p.orgId, i, m)} />,
@@ -420,7 +424,7 @@ const DEPARTMENT: PageMap = {
   'Phát hành học liệu': LibraryManage,
   'Kho học liệu dùng chung': LibraryBrowse,
   'Định mức vật tư': MaterialNorms,
-  'Giáo án & bài giảng': DeptLessons,
+  'Bài giảng': DeptLessons,
   'Hỗ trợ từ KDI': CustomerSupport,
 }
 // Cổng Quản trị nền tảng: chỉ nối các trang đọc được dữ liệu toàn hệ thống (trang nền tảng, trang cấp Sở, học liệu, phê duyệt, tập huấn).
@@ -583,6 +587,7 @@ function Shell({ session }: { session: Session }) {
   const [changingPw, setChangingPw] = useState(false)
   const yrs = useYears(access.profile?.org_id)
   const settings = useSettings(access.profile?.org_id ?? null)
+  applyLevelLabels(settings)
 
   const views: RoleKey[] = access.portals
 

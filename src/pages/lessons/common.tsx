@@ -43,6 +43,7 @@ export function LStatusPill({ s }: { s: LStatus }) {
   return <span className={'gpill ' + tone}>{label}</span>
 }
 // Nội dung chỉ sửa được khi giáo án đang là bản soạn (CSDL cũng chặn)
+export { PLAN_MODE } from '../../lib/planMode'
 export const editable = (s: LStatus) => s === 'draft' || s === 'editing' || s === 'rejected'
 export const BASIS: Record<NormLite['basis'], string> = { product: '1 sản phẩm', group: '1 nhóm', student: '1 học sinh' }
 export const uid = () => Math.random().toString(36).slice(2, 9)

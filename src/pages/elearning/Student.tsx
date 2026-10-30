@@ -58,7 +58,7 @@ function ExamList({ studentId, onStart }: { studentId: string; onStart: (id: str
         const left = x.max_attempts ? x.max_attempts - tries.length : null
         return <section key={x.id} className="panel examcard">
           <b>{x.title}</b>
-          <small>{[x.subject, x.grade ? 'Khối ' + x.grade : null, x.mode === 'random' ? `${x.criteria.count} câu` : `${x.question_ids.length} câu`, x.duration_min ? `${x.duration_min} phút` : 'Không giới hạn giờ'].filter(Boolean).join(' · ')}</small>
+          <small>{[x.subjects?.length ? x.subjects.join(', ') : x.subject, x.grades?.length ? 'Khối ' + x.grades.join(', ') : x.grade ? 'Khối ' + x.grade : null, x.mode === 'random' ? `${x.criteria.count} câu` : `${x.question_ids.length} câu`, x.duration_min ? `${x.duration_min} phút` : 'Không giới hạn giờ'].filter(Boolean).join(' · ')}</small>
           {x.description && <p className="sub">{x.description}</p>}
           <div className="bar">
             <span>{best >= 0 ? <>Điểm cao nhất: <b>{best}</b> · {tries.length} lượt</> : <small>Chưa làm</small>}{x.closes_at && <><br /><small>Hạn: {new Date(x.closes_at).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}</small></>}</span>

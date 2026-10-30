@@ -1,4 +1,6 @@
 import { Icon } from '../components/Icon'
+import { CompetencySetupLink } from '../components/CompetencySetup'
+import { useCompetencies } from './competency'
 import { useHiddenBtn } from '../components/PageButtons'
 import { CustomInputs, customCell } from '../components/CustomFields'
 import { fieldsOf, useSettings } from '../lib/settings'
@@ -322,7 +324,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
   const hid = useHiddenBtn()
   const [p, setP] = useState<Program | null>(null)
   const [tab, setTab] = useState<Tab>('info')
-  const [comps, setComps] = useState<Comp[]>([])
+  const comps: Comp[] = useCompetencies('student')
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [mkBook, setMkBook] = useState<{ grade: number; subject: string; year: string; ppw: string } | null>(null)
   const { name: levelName } = useEduLevels()
@@ -333,9 +335,6 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
     setP(data as Program | null)
   }
   useEffect(() => { load(); setTab('info'); setMsg(null) }, [id])
-  useEffect(() => {
-    supabase.from('competencies').select('key, name, grp').eq('audience', 'student').order('sort').then(({ data }) => setComps((data as Comp[]) ?? []))
-  }, [])
   const every = useAllMode()
   if (!p) return <><button className="linkbtn" onClick={onClose}>← Danh sách chương trình</button>{msg ? <p className="msg">{msg[0]}</p> : <p className="sub">Đang tải…</p>}</>
 
@@ -490,7 +489,7 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
       <div className="formgrid" style={{ marginTop: 8 }}>
         <div className="field" style={{ gridColumn: '1/-1' }}><span>Khung năng lực</span>
           <MultiSelect disabled={!editable} value={f.competency_keys} onChange={v => setF({ ...f, competency_keys: v })} options={comps.map(c => [c.key, c.name])}
-            placeholder="Chọn năng lực…" ariaLabel="Khung năng lực" empty="Chưa có khung năng lực." /></div>
+            placeholder="Chọn năng lực…" ariaLabel="Khung năng lực" empty="Chưa có khung năng lực." />{editable && <CompetencySetupLink audience="student" />}</div>
         <div className="field" style={{ gridColumn: '1/-1' }}><span>Tiêu chí đánh giá (rubric)</span>
           <MultiSelect disabled={!editable} value={f.rubric_ids} onChange={v => setF({ ...f, rubric_ids: v })} placeholder="Chọn rubric…" ariaLabel="Rubric" empty="Chưa có rubric nào."
             options={[...rubrics.map(r => [r.id, r.title] as [string, string]), ...f.rubric_ids.filter(id => !rubrics.some(r => r.id === id)).map(id => [id, 'Rubric'] as [string, string])]} /></div>

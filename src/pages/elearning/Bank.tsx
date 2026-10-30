@@ -6,7 +6,8 @@ import { OrgPick, useAllMode } from '../../components/OrgScope'
 import { norm, downloadXlsx, type Column } from '../../lib/sheet'
 import ImportExcel from '../../components/ImportExcel'
 import AssistantQuiz from './AiQuiz'
-import { LEVEL, QKIND, letter, errText, type Level, type QKind, type Question } from './common'
+import { LEVEL, QKIND, letter, errText, gradesText, qGrades, type Level, type QKind, type Question } from './common'
+import { GradeMulti, SubjectPicker, gradeList } from '../../components/Pickers'
 
 // Ngân hàng câu hỏi: soạn tay, nhập Excel, tạo bằng Trợ lý AI; duyệt (Nháp → Sẵn sàng), dùng chung cho đơn vị trực thuộc.
 const COLS: Column[] = [
@@ -17,8 +18,8 @@ const COLS: Column[] = [
   { key: 'answer', label: 'Đáp án', required: true, aliases: ['Đáp án đúng'] }, { key: 'explain', label: 'Giải thích', width: 40 },
 ]
 const LV_IN: Record<string, Level> = { 'nhan biet': 'nhan_biet', 'thong hieu': 'thong_hieu', 'van dung': 'van_dung', 'van dung cao': 'van_dung_cao', nb: 'nhan_biet', th: 'thong_hieu', vd: 'van_dung', vdc: 'van_dung_cao' }
-type Form = { id?: string; org?: string; subject: string; grade: string; topic: string; level: Level; kind: QKind; stem: string; options: string[]; answer: number[]; explain: string; shared: boolean; status: Question['status'] }
-const EMPTY: Form = { subject: '', grade: '', topic: '', level: 'thong_hieu', kind: 'single', stem: '', options: ['', '', '', ''], answer: [0], explain: '', shared: false, status: 'ready' }
+type Form = { id?: string; org?: string; subject: string; grades: number[]; topic: string; level: Level; kind: QKind; stem: string; options: string[]; answer: number[]; explain: string; shared: boolean; status: Question['status'] }
+const EMPTY: Form = { subject: '', grades: [], topic: '', level: 'thong_hieu', kind: 'single', stem: '', options: ['', '', '', ''], answer: [0], explain: '', shared: false, status: 'ready' }
 
 export default function QuestionBank({ orgId }: { orgId: string | null }) {
   const [rows, setRows] = useState<Question[]>([])
@@ -42,7 +43,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
 
   const subjects = [...new Set(rows.map(r => r.subject))].sort((a, b) => a.localeCompare(b, 'vi'))
   const needle = norm(f.q.trim().toLowerCase())
-  const list = rows.filter(r => (!f.subject || r.subject === f.subject) && (!f.grade || String(r.grade) === f.grade) && (!f.level || r.level === f.level)
+  const list = rows.filter(r => (!f.subject || r.subject === f.subject) && (!f.grade || qGrades(r).includes(Number(f.grade))) && (!f.level || r.level === f.level)
     && (!f.status || r.status === f.status) && (!needle || norm(`${r.stem} ${r.topic ?? ''}`.toLowerCase()).includes(needle)))
   // Quản trị hệ thống: câu hỏi của mọi đơn vị, sửa thẳng; thêm mới chọn đơn vị trong form
   const every = useAllMode()
@@ -54,7 +55,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
     if (options.length < 2) return setMsg(['Cần ít nhất 2 lựa chọn.', true])
     const answer = form.answer.filter(i => i < options.length)
     if (!answer.length) return setMsg(['Chọn đáp án đúng.', true])
-    const body = { subject: form.subject.trim(), grade: form.grade ? Number(form.grade) : null, topic: form.topic.trim() || null, level: form.level, kind: form.kind,
+    const body = { subject: form.subject.trim(), grades: form.grades, topic: form.topic.trim() || null, level: form.level, kind: form.kind,
       stem: form.stem.trim(), options, answer: form.kind === 'multi' ? answer : [answer[0]], explain: form.explain.trim() || null, shared: form.shared, status: form.status }
     const { error } = form.id ? await supabase.from('question_bank').update(body).eq('id', form.id) : await supabase.from('question_bank').insert({ ...body, org_id: form.org || orgId })
     if (error) return setMsg([errText(error.message), true])
@@ -77,8 +78,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
       const ans = [...(r.answer ?? '').toUpperCase().replace(/[^A-F]/g, '')].map(c => c.charCodeAt(0) - 65)
       const tf = opts.length === 0 && /^(Đ|ĐÚNG|S|SAI|DUNG)$/i.test((r.answer ?? '').trim())
       if (!tf && (opts.length < 2 || !ans.length || ans.some(i => i >= opts.length))) { bad.push(`dòng ${r._line}: thiếu lựa chọn hoặc đáp án`); return [] }
-      const g = Number((r.grade ?? '').replace(/\D/g, ''))
-      return [{ org_id: orgId, subject: r.subject.trim(), grade: g >= 1 && g <= 12 ? g : null, topic: r.topic?.trim() || null,
+      return [{ org_id: orgId, subject: r.subject.trim(), grades: gradeList(r.grade ?? ''), topic: r.topic?.trim() || null,
         level: LV_IN[norm((r.level ?? '').toLowerCase().trim())] ?? 'thong_hieu', kind: tf ? 'truefalse' : ans.length > 1 ? 'multi' : 'single',
         stem: r.stem.trim(), options: tf ? ['Đúng', 'Sai'] : opts, answer: tf ? [/^S/i.test(r.answer.trim()) ? 1 : 0] : [...new Set(ans)],
         explain: r.explain?.trim() || null, source: 'import', status: 'ready' }]
@@ -88,23 +88,23 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
     return `Đã nhập ${ins.length} câu.` + (bad.length ? ` Bỏ qua ${bad.length}: ${bad.slice(0, 5).join('; ')}${bad.length > 5 ? '…' : ''}` : '')
   }
   function exportExcel() {
-    downloadXlsx('ngan-hang-cau-hoi', COLS, list.map(r => [r.subject, r.grade, r.topic, LEVEL[r.level], r.stem, ...Array.from({ length: 6 }, (_, i) => r.options[i] ?? ''),
+    downloadXlsx('ngan-hang-cau-hoi', COLS, list.map(r => [r.subject, qGrades(r).join(', '), r.topic, LEVEL[r.level], r.stem, ...Array.from({ length: 6 }, (_, i) => r.options[i] ?? ''),
       r.kind === 'truefalse' ? (r.answer[0] === 0 ? 'Đúng' : 'Sai') : r.answer.map(letter).join(''), r.explain]))
   }
 
   const drafts = list.filter(r => r.status === 'draft' && mine(r))
   const qsel = useRowSel(list.filter(mine))
-  const toForm = (r: Question): Form => ({ id: r.id, subject: r.subject, grade: r.grade ? String(r.grade) : '', topic: r.topic ?? '', level: r.level, kind: r.kind, stem: r.stem,
+  const toForm = (r: Question): Form => ({ id: r.id, subject: r.subject, grades: qGrades(r), topic: r.topic ?? '', level: r.level, kind: r.kind, stem: r.stem,
     options: [...r.options, ...Array(Math.max(0, 4 - r.options.length)).fill('')], answer: r.answer, explain: r.explain ?? '', shared: r.shared, status: r.status })
   const note = msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>
   const cur = rows.find(r => r.id === open)
   if (form) return (
     <ElView back={cur ? 'Chi tiết câu hỏi' : 'Ngân hàng câu hỏi'} onBack={() => setForm(null)} title={form.id ? 'Sửa câu hỏi' : 'Thêm câu hỏi'}>
-      {note}<QuestionForm form={form} setForm={setForm} onSubmit={save} canShare={every ? every.find(o => o.id === (form.org || cur?.org_id))?.type !== 'school' : orgType !== 'school'} />
+      {note}<QuestionForm subjects={subjects} form={form} setForm={setForm} onSubmit={save} canShare={every ? every.find(o => o.id === (form.org || cur?.org_id))?.type !== 'school' : orgType !== 'school'} />
     </ElView>)
   if (cur) return (
     <ElView back="Ngân hàng câu hỏi" onBack={() => setOpen(null)} title="Chi tiết câu hỏi"
-      sub={<>{cur.subject}{cur.grade ? ` · Khối ${cur.grade}` : ''}{cur.topic ? ` · ${cur.topic}` : ''} · {LEVEL[cur.level]} · {QKIND[cur.kind]} · <span className={'pill ' + (cur.status === 'ready' ? 'active' : cur.status === 'draft' ? 'maintenance' : 'inactive')}>{cur.status === 'ready' ? 'Sẵn sàng' : cur.status === 'draft' ? 'Nháp' : 'Ngừng dùng'}</span></>}
+      sub={<>{cur.subject}{qGrades(cur).length ? ` · ${gradesText(qGrades(cur))}` : ''}{cur.topic ? ` · ${cur.topic}` : ''} · {LEVEL[cur.level]} · {QKIND[cur.kind]} · <span className={'pill ' + (cur.status === 'ready' ? 'active' : cur.status === 'draft' ? 'maintenance' : 'inactive')}>{cur.status === 'ready' ? 'Sẵn sàng' : cur.status === 'draft' ? 'Nháp' : 'Ngừng dùng'}</span></>}
       actions={mine(cur) && <>
         <button className="primary" onClick={() => setForm(toForm(cur))}>Sửa</button>
         {cur.status !== 'ready' && <button onClick={() => setStatus([cur.id], 'ready')}>Duyệt — Sẵn sàng</button>}
@@ -164,7 +164,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
             <tr key={r.id} className={'clickrow' + (qsel.is(r) ? ' picked' : '')} onClick={() => { setOpen(r.id); setMsg(null) }}>
               <td className="sel" onClick={e => e.stopPropagation()}>{mine(r) && <input type="checkbox" checked={qsel.is(r)} onChange={() => qsel.toggle(r)} aria-label="Chọn câu hỏi" />}</td>
               <td style={{ whiteSpace: 'normal', maxWidth: 460 }}><b>{r.stem.length > 140 ? r.stem.slice(0, 140) + '…' : r.stem}</b>{r.topic && <><br /><small>{r.topic}</small></>}</td>
-              <td>{r.subject}{r.grade ? ` · ${r.grade}` : ''}</td><td>{LEVEL[r.level]}</td><td>{QKIND[r.kind]}</td>
+              <td>{r.subject}{qGrades(r).length ? ` · ${qGrades(r).join(', ')}` : ''}</td><td>{LEVEL[r.level]}</td><td>{QKIND[r.kind]}</td>
               <td><small>{every ? (orgNames.get(r.org_id) ?? '') + ' · ' : ''}{!mine(r) ? orgNames.get(r.org_id) ?? 'Cấp trên' : r.source === 'ai' ? 'Trợ lý AI' : r.source === 'import' ? 'Nhập Excel' : 'Soạn tay'}{r.shared && mine(r) ? ' · dùng chung' : ''}</small></td>
               <td><span className={'pill ' + (r.status === 'ready' ? 'active' : r.status === 'draft' ? 'maintenance' : 'inactive')}>{r.status === 'ready' ? 'Sẵn sàng' : r.status === 'draft' ? 'Nháp' : 'Ngừng dùng'}</span></td>
             </tr>)}
@@ -176,15 +176,15 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
   )
 }
 
-function QuestionForm({ form, setForm, onSubmit, canShare }: { form: Form; setForm: (f: Form | null) => void; onSubmit: (e: React.FormEvent) => void; canShare: boolean }) {
+function QuestionForm({ form, setForm, onSubmit, canShare, subjects = [] }: { form: Form; setForm: (f: Form | null) => void; onSubmit: (e: React.FormEvent) => void; canShare: boolean; subjects?: string[] }) {
   const set = (p: Partial<Form>) => setForm({ ...form, ...p })
   const opts = form.kind === 'truefalse' ? ['Đúng', 'Sai'] : form.options
   const toggle = (i: number) => set({ answer: form.kind === 'multi' ? (form.answer.includes(i) ? form.answer.filter(x => x !== i) : [...form.answer, i]) : [i] })
   return (
     <form className="panel formgrid" onSubmit={onSubmit}>
       {!form.id && <OrgPick kind="any" value={form.org ?? ''} onChange={org => set({ org, shared: false })} />}
-      <label className="field"><span>Môn *</span><input required value={form.subject} onChange={e => set({ subject: e.target.value })} /></label>
-      <label className="field"><span>Khối</span><input type="number" min={1} max={12} value={form.grade} onChange={e => set({ grade: e.target.value })} /></label>
+      <label className="field"><span>Môn *</span><SubjectPicker required value={form.subject} onChange={v => set({ subject: v })} extra={subjects} /></label>
+      <div className="field"><span>Khối (chọn được nhiều)</span><GradeMulti value={form.grades} onChange={v => set({ grades: v })} /></div>
       <label className="field"><span>Chủ đề</span><input value={form.topic} onChange={e => set({ topic: e.target.value })} /></label>
       <label className="field"><span>Mức độ</span><select value={form.level} onChange={e => set({ level: e.target.value as Level })}>{Object.entries(LEVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
       <label className="field"><span>Loại câu</span><select value={form.kind} onChange={e => set({ kind: e.target.value as QKind, answer: [0] })}>{Object.entries(QKIND).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>

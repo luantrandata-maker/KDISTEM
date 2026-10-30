@@ -3658,6 +3658,26 @@ select pg_temp.chk('gv_both', 'ĐƯ 124: giáo viên không xem bảng đáp ứ
 select pg_temp.probe('kdi@iso-test.local', $q$select training_program_set_edu((select i.program_id from training_plan_items i join training_plans k on k.id = i.plan_id where k.name = 'ISO KH' limit 1), '{}')$q$, true);
 select pg_temp.chk('kdi', 'ĐƯ 124: bỏ gắn thì không còn đáp ứng', $q$select count(*) from teacher_edu_programs((select id from teachers where full_name = 'GV thử B'))$q$, '0');
 
+-- ===== 123: nhiều khối, nhiều môn =====
+select pg_temp.chk('kdi', 'MG 123: ghi khối kiểu cũ thì danh sách khối đổi theo', $q$with x as (insert into question_bank (org_id, subject, grade, stem, options, answer) values (platform_org_id(), 'ISO MG Z', 7, 'MG cũ?', '["a","b"]', '[0]') returning grades, grade) select grades::text || '|' || grade from x$q$, '{7}|7');
+select pg_temp.chk('kdi', 'MG 123: nhiều khối được sắp, bỏ trùng; khối chính là khối nhỏ nhất', $q$with x as (insert into question_bank (org_id, subject, grades, stem, options, answer) values (platform_org_id(), 'ISO MG Z', '{8,6,6}', 'MG mới?', '["a","b"]', '[0]') returning grades, grade) select grades::text || '|' || grade from x$q$, '{6,8}|6');
+select pg_temp.chk('kdi', 'MG 123: khối ngoài 1–12 bị từ chối', $q$insert into question_bank (org_id, subject, grades, stem, options, answer) values (platform_org_id(), 'ISO MG Z', '{13}', 'MG sai?', '["a","b"]', '[0]')$q$, 'ERR*');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into question_bank (org_id, subject, grades, level, stem, options, answer) values
+  (platform_org_id(), 'ISO MG A', '{6,7}', 'nhan_biet', 'MG A1?', '["a","b"]', '[0]'),
+  (platform_org_id(), 'ISO MG A', '{6}', 'nhan_biet', 'MG A2?', '["a","b"]', '[0]'),
+  (platform_org_id(), 'ISO MG A', '{9}', 'nhan_biet', 'MG A3?', '["a","b"]', '[0]'),
+  (platform_org_id(), 'ISO MG B', '{8}', 'nhan_biet', 'MG B1?', '["a","b"]', '[0]'),
+  (platform_org_id(), 'ISO MG B', '{8,9}', 'van_dung', 'MG B2?', '["a","b"]', '[0]')$q$, true);
+select pg_temp.chk('kdi', 'MG 123: ma trận nhiều môn rút đúng môn từng dòng, đúng các khối', $q$select string_agg(s || '=' || n, ',' order by s) from (select e ->> 'subject' s, count(*) n from jsonb_array_elements(exam_preview(platform_org_id(), '{"kind":"pick","subjects":["ISO MG A","ISO MG B"],"grades":[6,8],"matrix":[{"subject":"ISO MG A","count":5},{"subject":"ISO MG B","count":5}]}')) e group by 1) z$q$, 'ISO MG A=2,ISO MG B=2');
+select pg_temp.chk('kdi', 'MG 123: dòng không ghi môn rút từ mọi môn của đề', $q$select jsonb_array_length(exam_preview(platform_org_id(), '{"kind":"pick","subjects":["ISO MG A","ISO MG B"],"grades":[9],"matrix":[{"count":10}]}'))$q$, '2');
+select pg_temp.chk('kdi', 'MG 123: đề theo mức độ lọc theo nhiều khối', $q$select jsonb_array_length(exam_preview(platform_org_id(), '{"kind":"levels","subjects":["ISO MG A"],"grades":[7,9],"count":5,"levels":{"nhan_biet":5}}'))$q$, '2');
+select pg_temp.chk('kdi', 'MG 123: số câu sẵn có theo môn × chủ đề × mức độ', $q$select string_agg(subject || '/' || level || '=' || n, ',' order by subject, level) from exam_bank_stats_multi(platform_org_id(), '{ISO MG A,ISO MG B}', '{8}')$q$, 'ISO MG B/nhan_biet=1,ISO MG B/van_dung=1');
+select pg_temp.chk('kdi', 'MG 123: hàm cũ một khối tính câu có khối đó trong danh sách', $q$select sum(n)::text from exam_bank_stats(platform_org_id(), 'ISO MG A', 7)$q$, '1');
+select pg_temp.chk('admin_ph', 'MG 123: trường không xem ngân hàng nhiều môn của KDI', $q$select count(*) from exam_bank_stats_multi(platform_org_id(), '{ISO MG A}', '{}')$q$, 'ERR');
+select pg_temp.chk('kdi', 'MG 123: đề luyện tập huấn nhiều môn, môn chính là môn đầu', $q$with x as (insert into training_practice_exams (org_id, program_id, title, subject, subjects, grades, matrix) values (platform_org_id(), (select id from training_programs where title = 'ISO CTTH E' and status = 'published'), 'ISO luyện MG', 'x', '{ISO MG B,ISO MG A}', '{9,8}', '[{"subject":"ISO MG B","count":1}]') returning subject, subjects, grades) select subject || '|' || array_to_string(subjects, ',') || '|' || grades::text from x$q$, 'ISO MG B|ISO MG B,ISO MG A|{8,9}');
+select pg_temp.chk('kdi', 'MG 123: ma trận ghi môn quá dài bị từ chối', $q$select exam_preview(platform_org_id(), jsonb_build_object('kind', 'pick', 'matrix', jsonb_build_array(jsonb_build_object('subject', repeat('x', 81), 'count', 1))))$q$, 'ERR*');
+do $$ begin delete from question_bank where subject like 'ISO MG %'; end $$;
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

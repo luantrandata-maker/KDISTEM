@@ -1,5 +1,6 @@
 // Thiết lập chung đợt 2 (096): Tên & menu · Trường tùy chỉnh · Danh mục · Nút.
 // KDI (platform) sửa mặc định toàn hệ thống; quản trị trường sửa phần của trường (đè lên mặc định KDI).
+import { LEVEL_CATALOGS } from '../../lib/levels'
 import { Fragment, lazy, Suspense, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { NAV, ROLE_LABEL, labelOf, type RoleKey } from '../../lib/nav'
@@ -139,7 +140,7 @@ export function CatalogTab({ scope, platform }: { scope: string | null; platform
     <h3 style={{ marginTop: 0 }}>Danh mục</h3>
     <p className="sub">{platform ? 'Danh mục mặc định cho toàn hệ thống.' : 'Trường sửa danh mục thì dùng danh mục của trường thay cho của KDI.'}</p>
     {own.status}
-    <div className="setcats">{CATALOGS.map(c => {
+    <div className="setcats">{([...CATALOGS, ...(platform ? LEVEL_CATALOGS : [])] as typeof CATALOGS).map(c => {
       const cur = own.v[c.key]
       if (c.coded) {
         const order = orderItems(Object.keys(c.coded), cur?.items?.length ? cur.items : kdi[c.key]?.items)
@@ -162,6 +163,23 @@ export function CatalogTab({ scope, platform }: { scope: string | null; platform
     <div className="formactions setsave">
       <button type="button" onClick={() => own.save('Đã khôi phục danh mục mặc định.', {})}>Khôi phục mặc định</button>
       <button type="button" className="primary" disabled={!own.dirty} onClick={() => own.save('Đã lưu danh mục.')}>Lưu danh mục</button></div>
+  </div>
+}
+
+// Tên các mức (KDI): dùng ngay trong Khung năng lực và Ngân hàng câu hỏi, lưu chung vào danh mục của KDI
+export function LevelNames({ keys }: { keys: string[] }) {
+  const s = useSettings()
+  const own = useOwn<CatalogsCfg>(s.std, 'catalogs', {})
+  return <div className="panel" style={{ marginTop: 14 }}>
+    {LEVEL_CATALOGS.filter(c => keys.includes(c.key)).map(c => {
+      const labels = own.v[c.key]?.labels ?? {}
+      const put = (k: string, v: string) => own.set({ ...own.v, [c.key]: { items: own.v[c.key]?.items ?? [], labels: { ...labels, [k]: v } } })
+      return <div key={c.key}><b>{c.name}</b> <small className="sub">{c.note}</small>
+        <div className="formgrid" style={{ marginTop: 8 }}>{Object.entries(c.coded).map(([k, base], i) => <label key={k} className="field"><span>Mức {i + 1}</span>
+          <input value={labels[k] ?? ''} placeholder={base} maxLength={60} aria-label={`${c.name} mức ${i + 1}`} onChange={e => put(k, e.target.value)} /></label>)}</div></div>
+    })}
+    {own.status}
+    <div className="formactions"><button type="button" className="primary" disabled={!own.dirty} onClick={() => own.save('Đã lưu tên các mức.')}>Lưu tên các mức</button></div>
   </div>
 }
 

@@ -1,7 +1,7 @@
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { MultiSelect } from '../../components/MultiSelect'
-import { GradeChecks, SubjectMulti } from '../../components/Pickers'
+import { GradeChecks, GradeMulti, SubjectMulti } from '../../components/Pickers'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
 import { OrgPick, useAllMode, useOrgName } from '../../components/OrgScope'
@@ -12,7 +12,7 @@ import Analytics from './Analytics'
 import { ElView } from '../../components/ElView'
 import { useSubjects } from '../subjects'
 import { ExamMatrix, matrixTotal } from '../../components/ExamMatrix'
-import { ESTATUS, LEVEL, LKIND, SHOW, courseGrades, courseMeta, courseSubjects, dueBadge, errText, pathName, type Attempt, type Course, type Exam, type Lesson, type Level, type Question } from './common'
+import { ESTATUS, LEVEL, LKIND, SHOW, courseGrades, courseMeta, courseSubjects, dueBadge, errText, gradesText, qGrades, pathName, type Attempt, type Course, type Exam, type Lesson, type Level, type Question } from './common'
 
 // E-learning & luyện thi (GV, trường, Sở, KDI): đề luyện, khoá học, phân tích kết quả, ngân hàng câu hỏi.
 type Cls = { id: string; name: string; grade: number | null }
@@ -118,13 +118,13 @@ function AudiencePicker({ orgId, classes, groups, value, onChange }: { orgId: st
 
 // ================= Đề luyện =================
 // Cấu hình làm thử theo cách ra đề: ma trận / ngẫu nhiên theo mức độ / cố định
-const examSpec = (x: Pick<Exam, 'mode' | 'subject' | 'grade' | 'question_ids' | 'criteria' | 'shuffle'>): TrySpec =>
+const examSpec = (x: Pick<Exam, 'mode' | 'subject' | 'grade' | 'subjects' | 'grades' | 'question_ids' | 'criteria' | 'shuffle'>): TrySpec =>
   x.mode === 'fixed' ? { kind: 'pick', qids: x.question_ids, shuffle: !!x.shuffle }
-  : x.criteria.matrix ? { kind: 'pick', subject: x.subject, grade: x.grade, matrix: x.criteria.matrix, shuffle: !!x.shuffle }
-  : { kind: 'levels', subject: x.subject, grade: x.grade, count: x.criteria.count ?? 10, topics: x.criteria.topics ?? [],
+  : x.criteria.matrix ? { kind: 'pick', subjects: courseSubjects(x), grades: courseGrades(x), matrix: x.criteria.matrix, shuffle: !!x.shuffle }
+  : { kind: 'levels', subjects: courseSubjects(x), grades: courseGrades(x), count: x.criteria.count ?? 10, topics: x.criteria.topics ?? [],
       levels: Object.fromEntries(Object.entries(x.criteria.levels ?? {}).filter(([, v]) => v != null)) as Record<string, number> }
 type EForm = Omit<Exam, 'id' | 'org_id' | 'created_by' | 'created_at'> & { id?: string; org?: string }
-const EEMPTY: EForm = { title: '', description: '', subject: '', grade: null, mode: 'random', question_ids: [], criteria: { count: 10, levels: {}, topics: [] },
+const EEMPTY: EForm = { title: '', description: '', subject: '', grade: null, subjects: [], grades: [], mode: 'random', question_ids: [], criteria: { count: 10, levels: {}, topics: [] },
   duration_min: 15, max_attempts: 0, show_answers: 'after_submit', class_ids: null, group_ids: null, student_ids: null, shared: false, opens_at: new Date().toISOString(), closes_at: null, status: 'draft', shuffle: true }
 const howText = (x: Exam) => x.mode === 'random' ? `${x.criteria.matrix?.length ? 'Ma trận' : 'Ngẫu nhiên'} ${x.criteria.count} câu` : `Cố định ${x.question_ids.length} câu`
 
@@ -155,7 +155,8 @@ function Exams({ orgId, subject }: { orgId: string | null; subject?: string }) {
     e.preventDefault(); if (!form) return
     if (form.mode === 'random' && form.criteria.matrix && !matrixTotal(form.criteria.matrix)) return setMsg(['Ma trận đề cần ít nhất 1 câu.', true])
     const { id, org, ...body } = form; const sch = schoolOf(org || orgId)
-    const payload = { ...body, subject: body.subject?.trim() || null, description: body.description?.trim() || null, shared: sch ? false : body.shared,
+    const subs = courseSubjects(body), grs = courseGrades(body)
+    const payload = { ...body, subjects: subs, grades: grs, subject: subs[0] ?? null, grade: grs[0] ?? null, description: body.description?.trim() || null, shared: sch ? false : body.shared,
       class_ids: sch ? some(body.class_ids) : null, group_ids: sch ? some(body.group_ids) : null, student_ids: sch ? some(body.student_ids) : null }
     const { data, error } = id ? await supabase.from('practice_exams').update(payload).eq('id', id).select('id') : await supabase.from('practice_exams').insert({ ...payload, org_id: org || orgId }).select('id')
     if (error) return setMsg([errText(error.message), true])
@@ -168,7 +169,7 @@ function Exams({ orgId, subject }: { orgId: string | null; subject?: string }) {
   }
   const editable = (x: Exam) => x.org_id === orgId || !!every
   const editForm = (x: Exam) => { const { id, title, description, subject, grade, mode, question_ids, criteria, duration_min, max_attempts, show_answers, class_ids, group_ids, student_ids, shared, opens_at, closes_at, status, shuffle } = x
-    setMsg(null); setForm({ id, org: x.org_id, title, description, subject, grade, mode, question_ids, criteria: { levels: {}, topics: [], ...criteria }, duration_min, max_attempts, show_answers, class_ids, group_ids: group_ids ?? null, student_ids: student_ids ?? null, shared, opens_at, closes_at, status, shuffle: !!shuffle }) }
+    setMsg(null); setForm({ id, org: x.org_id, title, description, subject, grade, subjects: courseSubjects(x), grades: courseGrades(x), mode, question_ids, criteria: { levels: {}, topics: [], ...criteria }, duration_min, max_attempts, show_answers, class_ids, group_ids: group_ids ?? null, student_ids: student_ids ?? null, shared, opens_at, closes_at, status, shuffle: !!shuffle }) }
   const statusBtns = (x: Exam) => <>
     {x.status === 'draft' && <button className="primary" onClick={() => setStatus(x, 'published')}>Công bố</button>}
     {x.status === 'published' && <button onClick={() => setStatus(x, 'closed')}>Đóng</button>}
@@ -180,19 +181,19 @@ function Exams({ orgId, subject }: { orgId: string | null; subject?: string }) {
   // Chi tiết đề: trang riêng
   const cur = rows.find(x => x.id === open)
   if (cur) return <ElView back="Danh sách đề luyện" onBack={() => { setOpen(null); setMsg(null) }} title={cur.title}
-    sub={<>{[cur.subject, cur.grade ? 'Khối ' + cur.grade : null, howText(cur), cur.duration_min ? `${cur.duration_min} phút` : null,
+    sub={<>{[courseSubjects(cur).join(', '), gradesText(courseGrades(cur)), howText(cur), cur.duration_min ? `${cur.duration_min} phút` : null,
       `${dt(cur.opens_at)}${cur.closes_at ? ' → ' + dt(cur.closes_at) : ''}`].filter(Boolean).join(' · ')} <span className={'pill ' + ESTATUS[cur.status][1]}>{ESTATUS[cur.status][0]}</span></>}
     actions={<><TryButton orgId={cur.org_id} spec={examSpec(cur)} title={cur.title} minutes={cur.duration_min} />{editable(cur) && <>{statusBtns(cur)}<button onClick={() => editForm(cur)}>Sửa</button></>}</>}>
     {note}<ExamResults exam={cur} roster={schoolOf(cur.org_id) && editable(cur)} /></ElView>
   return (
     <>
-      <div className="bar"><span /><button className="primary" onClick={() => { setMsg(null); setForm({ ...EEMPTY, subject: subject ?? '', title: subject ? `Đề kiểm tra ${subject}` : '', shared: !isSchool && !every }) }}>{subject ? 'Tạo đề kiểm tra' : 'Tạo đề luyện'}</button></div>
+      <div className="bar"><span /><button className="primary" onClick={() => { setMsg(null); setForm({ ...EEMPTY, subject: subject ?? '', subjects: subject ? [subject] : [], title: subject ? `Đề kiểm tra ${subject}` : '', shared: !isSchool && !every }) }}>{subject ? 'Tạo đề kiểm tra' : 'Tạo đề luyện'}</button></div>
       {note}
       <div className="wrap"><table className="systable">
         <thead><tr><th>Đề luyện</th><th>Cách ra đề</th><th>Thời gian</th><th>Mở</th><th className="num">Lượt nộp</th><th className="num">Điểm TB</th><th>Trạng thái</th></tr></thead>
         <tbody>{rows.map(x => { const c = counts.get(x.id); return <Fragment key={x.id}>
           <tr className="clickrow" onClick={() => { setMsg(null); setOpen(x.id) }}>
-            <td><b>{x.title}</b><br /><small>{[x.subject, x.grade ? 'Khối ' + x.grade : null, !editable(x) ? 'của cấp trên' : every ? orgName(x.org_id) : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></td>
+            <td><b>{x.title}</b><br /><small>{[courseSubjects(x).join(', '), gradesText(courseGrades(x)), !editable(x) ? 'của cấp trên' : every ? orgName(x.org_id) : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></td>
             <td>{howText(x)}{x.shuffle ? <><br /><small>trộn câu</small></> : null}</td>
             <td>{x.duration_min ? `${x.duration_min} phút` : 'Không giới hạn'}{x.max_attempts ? <><br /><small>{x.max_attempts} lượt</small></> : null}</td>
             <td><small>{dt(x.opens_at)}{x.closes_at ? ` → ${dt(x.closes_at)}` : ''}</small></td>
@@ -213,9 +214,10 @@ function ExamForm({ form, setForm, onSubmit, orgId, classes, groups, isSchool }:
   // Quản trị hệ thống: lớp, nhóm và loại đơn vị theo đơn vị ra đề (không theo KDI)
   const every = useAllMode(), tctx = useOrgCtx(every ? form.org || null : null)
   if (every) { classes = tctx.classes; groups = tctx.groups; isSchool = !!form.org && tctx.isSchool; orgId = form.org || null }
-  useEffect(() => { supabase.from('question_bank').select('id, subject, grade, topic, level, stem, status').eq('status', 'ready').limit(5000).then(({ data }) => setBank((data as Question[]) ?? [])) }, [])
+  useEffect(() => { supabase.from('question_bank').select('*').eq('status', 'ready').limit(5000).then(({ data }) => setBank((data as Question[]) ?? [])) }, [])
   const set = (p: Partial<EForm>) => setForm({ ...form, ...p })
-  const pool = bank.filter(b => (!form.subject || b.subject === form.subject) && (!form.grade || b.grade === form.grade))
+  const fs = courseSubjects(form), fg = courseGrades(form)
+  const pool = bank.filter(b => (!fs.length || fs.includes(b.subject)) && (!fg.length || qGrades(b).some(g => fg.includes(g))))
   const topics = [...new Set(pool.map(b => b.topic).filter(Boolean))] as string[]
   const inTopic = pool.filter(b => !form.criteria.topics?.length || form.criteria.topics.includes(b.topic ?? ''))
   const lvCount = (l: Level) => inTopic.filter(b => b.level === l).length
@@ -224,15 +226,15 @@ function ExamForm({ form, setForm, onSubmit, orgId, classes, groups, isSchool }:
     <form className="panel formgrid" onSubmit={onSubmit}>
       {!form.id && <OrgPick kind="any" value={form.org ?? ''} onChange={org => set({ org, class_ids: null, group_ids: null, student_ids: null, shared: false })} title="Đơn vị ra đề" />}
       <label className="field wide"><span>Tên đề *</span><input required value={form.title} onChange={e => set({ title: e.target.value })} placeholder="VD: Luyện tập chương Điện — Khoa học tự nhiên 7" /></label>
-      <label className="field"><span>Môn</span><input list="el-subjects" value={form.subject ?? ''} onChange={e => set({ subject: e.target.value })} /><datalist id="el-subjects">{subjects.map(s => <option key={s} value={s} />)}</datalist></label>
-      <label className="field"><span>Khối</span><input type="number" min={1} max={12} value={form.grade ?? ''} onChange={e => set({ grade: e.target.value ? Number(e.target.value) : null })} /></label>
+      <div className="field"><span>Môn (chọn được nhiều)</span><SubjectMulti value={fs} onChange={v => set({ subjects: v, subject: v[0] ?? null })} extra={subjects} placeholder="Mọi môn" ariaLabel="Môn của đề" /></div>
+      <div className="field"><span>Khối (chọn được nhiều)</span><GradeMulti value={fg} onChange={v => set({ grades: v, grade: v[0] ?? null })} /></div>
       <label className="field"><span>Cách ra đề</span><select value={form.mode === 'random' && form.criteria.matrix ? 'matrix' : form.mode}
         onChange={e => { const v = e.target.value; const { matrix, ...rest } = form.criteria
           set(v === 'matrix' ? { mode: 'random', criteria: { ...rest, matrix: matrix ?? [] } } : { mode: v as EForm['mode'], criteria: rest }) }}>
         <option value="matrix">Ma trận chủ đề × mức độ (rút ngẫu nhiên)</option><option value="random">Ngẫu nhiên từ ngân hàng (mỗi lượt khác nhau)</option><option value="fixed">Chọn từng câu (cố định)</option></select></label>
       <label className="field inline"><input type="checkbox" checked={!!form.shuffle} onChange={e => set({ shuffle: e.target.checked })} /> Trộn thứ tự câu mỗi lượt</label>
       {form.mode === 'random' && form.criteria.matrix ? <div className="field wide"><span>Ma trận đề ({matrixTotal(form.criteria.matrix)} câu)</span>
-        <ExamMatrix org={orgId} subject={form.subject ?? ''} grade={form.grade} rows={form.criteria.matrix}
+        <ExamMatrix org={orgId} subjects={fs} grades={fg} rows={form.criteria.matrix}
           onChange={m => set({ criteria: { ...form.criteria, matrix: m, count: matrixTotal(m) } })} /></div>
       : form.mode === 'random' ? <>
         <label className="field"><span>Số câu mỗi lượt</span><input type="number" min={1} max={200} value={form.criteria.count ?? 10} onChange={e => set({ criteria: { ...form.criteria, count: Number(e.target.value) } })} /></label>

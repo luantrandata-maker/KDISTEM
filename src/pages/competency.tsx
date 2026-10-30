@@ -4,6 +4,7 @@ import { useAllMode } from '../components/OrgScope'
 import { downloadXlsx } from '../lib/sheet'
 import { schoolYear } from './department/Governance'
 import { ElView } from '../components/ElView'
+import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../components/MultiFilters'
 
 // Đánh giá năng lực (migration 042): khung năng lực, hồ sơ năng lực HS (từ chấm theo tiêu chí), đánh giá năng lực GV.
 export type Comp = { key: string; audience: 'student' | 'teacher'; grp: string; name: string; description: string | null; levels: string[]; sort: number }
@@ -446,50 +447,67 @@ export function TeacherCompetencyProfile({ teacherId, orgId }: { teacherId: stri
 }
 
 // Quản trị trường: Đánh giá năng lực GV (danh sách → trang riêng của từng người). Quản trị nền tảng / Sở: chỉ xem.
-type TRow = { id: string; full_name: string; org_id: string; email?: string | null; subject?: string | null; grade?: number | null; organizations?: { name: string } | null }
+type TRow = { id: string; full_name: string; org_id: string; email?: string | null; subject?: string | null; grade?: number | null; organizations?: { name: string; parent_id?: string | null } | null }
 export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: string | null; readOnly?: boolean; profile?: boolean }) {
   const comps = useCompetencies('teacher')
   const year = schoolYear()
   const [teachers, setTeachers] = useState<TRow[]>([])
-  const [q, setQ] = useState('')
   const [list, setList] = useState<TA[]>([])
+  // Lọc chọn nhiều: đơn vị quản lý, trường, giáo viên, môn, tình trạng đánh giá
+  const mf = useMultiFilters()
+  const [units, setUnits] = useState<Map<string, string>>(new Map())
   const [sel, setSel] = useState<string | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [canEdit, setCanEdit] = useState(false)
   const [certs, setCerts] = useState<Map<string, number>>(new Map())
-  const [subj, setSubj] = useState('')
   // Quản trị hệ thống: GV của mọi trường trong một danh sách, đánh giá thay trường
   const all = useAllMode()
   async function load() {
     const [t, a, adm, c] = await Promise.all([
-      supabase.from('teachers').select('id, full_name, org_id, email, subject, grade, organizations(name)').eq('status', 'active').order('full_name'),
+      supabase.from('teachers').select('id, full_name, org_id, email, subject, grade, organizations(name, parent_id)').eq('status', 'active').order('full_name'),
       supabase.from('teacher_assessments').select('*').eq('school_year', year),
       supabase.rpc('is_admin'),
       profile ? supabase.from('certificates').select('teacher_id').eq('status', 'issued').is('revoked_at', null) : Promise.resolve({ data: [] }),
     ])
     const cm = new Map<string, number>(); for (const x of (c.data ?? []) as { teacher_id: string }[]) cm.set(x.teacher_id, (cm.get(x.teacher_id) ?? 0) + 1); setCerts(cm)
-    setTeachers(((t.data as any[]) ?? []).filter(x => !orgId || x.org_id === orgId)); setList((a.data as TA[]) ?? []); setCanEdit(!readOnly && (!!adm.data || !!all))
+    const ts = ((t.data as any[]) ?? []).filter(x => !orgId || x.org_id === orgId) as TRow[]
+    setTeachers(ts); setList((a.data as TA[]) ?? []); setCanEdit(!readOnly && (!!adm.data || !!all))
+    const pids = [...new Set(ts.map(x => x.organizations?.parent_id).filter(Boolean) as string[])]
+    if (!orgId && pids.length) supabase.from('organizations').select('id, name').in('id', pids)
+      .then(({ data }) => setUnits(new Map(((data ?? []) as { id: string; name: string }[]).map(o => [o.id, o.name]))))
   }
   useEffect(() => { load() }, [orgId])
   const of = (id: string, k: 'self' | 'manager') => list.find(x => x.teacher_id === id && x.kind === k)
   function excel() {
-    downloadXlsx(`danh-gia-nang-luc-gv-${year}`, [{ key: 'n', label: 'Giáo viên', width: 26 }, ...comps.flatMap(c => [{ key: c.key + 's', label: c.name + ' (tự ĐG)', width: 14 }, { key: c.key + 'm', label: c.name + ' (trường)', width: 14 }]),
+    downloadXlsx(`danh-gia-nang-luc-gv-${year}`, [{ key: 'n', label: 'Giáo viên', width: 26 }, { key: 'o', label: 'Trường', width: 28 }, ...comps.flatMap(c => [{ key: c.key + 's', label: c.name + ' (tự ĐG)', width: 14 }, { key: c.key + 'm', label: c.name + ' (trường)', width: 14 }]),
       { key: 'cm', label: 'Nhận xét của trường', width: 40 }, { key: 'pl', label: 'Kế hoạch bồi dưỡng', width: 40 }],
-      teachers.map(t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); return [t.full_name, ...comps.flatMap(c => [s?.levels[c.key] ?? '', m?.status === 'submitted' ? m.levels[c.key] ?? '' : '']), m?.comment ?? '', m?.plan ?? ''] }), 'Năng lực GV')
+      teachers.filter(t => fit(t)).map(t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); return [t.full_name, t.organizations?.name ?? '', ...comps.flatMap(c => [s?.levels[c.key] ?? '', m?.status === 'submitted' ? m.levels[c.key] ?? '' : '']), m?.comment ?? '', m?.plan ?? ''] }), 'Năng lực GV')
   }
   const cur = teachers.find(t => t.id === sel)
   if (cur) return <TeacherAssessDetail t={cur} year={year} comps={comps} self={of(cur.id, 'self')} mgr={of(cur.id, 'manager')} canEdit={canEdit}
     initialTab={profile ? 'profile' : 'assess'} back={profile ? 'Hồ sơ năng lực' : 'Đánh giá năng lực giáo viên'} onBack={() => setSel(null)} onChanged={load} />
   const selfDone = teachers.filter(t => of(t.id, 'self')?.status === 'submitted').length
   const mgrDone = teachers.filter(t => of(t.id, 'manager')?.status === 'submitted').length
-  const subjects = [...new Set(teachers.map(t => t.subject).filter(Boolean) as string[])].sort()
-  const shownT = teachers.filter(t => (!q || (t.full_name + ' ' + (t.organizations?.name ?? '')).toLowerCase().includes(q.toLowerCase())) && (!subj || t.subject === subj)).slice(0, 500)
+  const stOf = (t: TRow) => { const s = of(t.id, 'self'), m = of(t.id, 'manager')
+    return m?.status === 'submitted' ? 'mgr' : s?.status === 'submitted' ? 'self' : s || m ? 'draft' : 'none' }
+  // Mỗi bộ lọc chỉ gợi ý giá trị khớp với các bộ lọc khác (bỏ qua chính nó)
+  const fit = (t: TRow, skip?: string) => (skip === 'unit' || mf.has('unit', t.organizations?.parent_id)) && (skip === 'school' || mf.has('school', t.org_id))
+    && (skip === 'teacher' || mf.has('teacher', t.id)) && (skip === 'subj' || mf.has('subj', t.subject)) && (skip === 'st' || mf.has('st', stOf(t)))
+  const filterDefs: FilterDef[] = [
+    { key: 'unit', label: 'Đơn vị', placeholder: 'Mọi đơn vị', options: opts(teachers.filter(t => fit(t, 'unit')).map(t => [t.organizations?.parent_id, units.get(t.organizations?.parent_id ?? '')])), hidden: !!orgId },
+    { key: 'school', label: 'Trường', placeholder: 'Mọi trường', options: opts(teachers.filter(t => fit(t, 'school')).map(t => [t.org_id, t.organizations?.name])), hidden: !!orgId },
+    { key: 'teacher', label: 'Giáo viên', placeholder: 'Mọi giáo viên', options: opts(teachers.filter(t => fit(t, 'teacher')).map(t => [t.id, orgId ? t.full_name : `${t.full_name} · ${t.organizations?.name ?? ''}`])) },
+    { key: 'subj', label: 'Môn', placeholder: 'Mọi môn', options: opts(teachers.filter(t => fit(t, 'subj')).map(t => [t.subject, t.subject])) },
+    { key: 'st', label: 'Tình trạng đánh giá', placeholder: 'Mọi tình trạng', options: [['mgr', 'Trường đã đánh giá'], ['self', 'Mới tự đánh giá'], ['draft', 'Đang làm nháp'], ['none', 'Chưa đánh giá']] },
+  ]
+  const matched = teachers.filter(t => fit(t))
+  const shownT = matched.slice(0, 500)
+  const filterBar = <div className="tools" style={{ flexWrap: 'wrap' }}><MultiFilters defs={filterDefs} f={mf} count={`${matched.length}/${teachers.length} GV${matched.length > 500 ? ' · hiện 500 đầu' : ''}`} /></div>
   if (profile) return <section className="panel" style={{ display: 'grid', gap: 12 }}>
     <div className="bar" style={{ margin: 0 }}>
       <h3 style={{ margin: 0 }}>Hồ sơ năng lực nhà giáo <small className="sub">· {teachers.length} giáo viên</small></h3>
-      <span className="tools"><input placeholder="Tìm giáo viên, trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo viên" />
-        <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(x => <option key={x}>{x}</option>)}</select></span>
     </div>
+    {filterBar}
     <div className="wrap"><table className="libtable">
       <thead><tr><th>Giáo viên</th>{!orgId && <th>Trường</th>}<th>Môn · khối</th><th>Mức năng lực ({year})</th>{comps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}<th>Chứng chỉ</th></tr></thead>
       <tbody>{shownT.map(t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); const lv = m?.status === 'submitted' ? m.levels : s?.status === 'submitted' ? s.levels : {}
@@ -510,9 +528,9 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
       <section className="panel" style={{ display: 'grid', gap: 12 }}>
         <div className="bar" style={{ margin: 0 }}>
           <h3 style={{ margin: 0 }}>Đánh giá năng lực giáo viên <small className="sub">· năm học {year}: {selfDone}/{teachers.length} đã tự đánh giá · {mgrDone}/{teachers.length} trường đã đánh giá</small></h3>
-          <span className="tools">{!orgId && <input placeholder="Tìm giáo viên, trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo viên" />}
-            <button type="button" onClick={excel} disabled={!teachers.length}>Xuất Excel</button></span>
+          <span className="tools"><button type="button" onClick={excel} disabled={!teachers.length}>Xuất Excel</button></span>
         </div>
+        {filterBar}
         <div className="wrap"><table className="libtable">
           <thead><tr><th>Giáo viên</th>{!orgId && <th>Trường</th>}<th>Tự đánh giá</th><th>Trường đánh giá</th>{comps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}<th /></tr></thead>
           <tbody>{shownT.map(t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); const lv = m?.status === 'submitted' ? m.levels : s?.levels ?? {}

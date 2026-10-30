@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useAllMode } from '../components/OrgScope'
 import { downloadXlsx } from '../lib/sheet'
 import { schoolYear } from './department/Governance'
+import { ElView } from '../components/ElView'
 
 // Đánh giá năng lực (migration 042): khung năng lực, hồ sơ năng lực HS (từ chấm theo tiêu chí), đánh giá năng lực GV.
 export type Comp = { key: string; audience: 'student' | 'teacher'; grp: string; name: string; description: string | null; levels: string[]; sort: number }
@@ -444,96 +445,208 @@ export function TeacherCompetencyProfile({ teacherId, orgId }: { teacherId: stri
   )
 }
 
-// Quản trị trường: Đánh giá năng lực GV (danh sách + đánh giá từng người). Quản trị nền tảng / Sở: chỉ xem.
-export function SchoolTeacherAssessments({ orgId, readOnly }: { orgId: string | null; readOnly?: boolean }) {
+// Quản trị trường: Đánh giá năng lực GV (danh sách → trang riêng của từng người). Quản trị nền tảng / Sở: chỉ xem.
+type TRow = { id: string; full_name: string; org_id: string; email?: string | null; subject?: string | null; grade?: number | null; organizations?: { name: string } | null }
+export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: string | null; readOnly?: boolean; profile?: boolean }) {
   const comps = useCompetencies('teacher')
   const year = schoolYear()
-  const [teachers, setTeachers] = useState<{ id: string; full_name: string; org_id: string; organizations?: { name: string } | null }[]>([])
+  const [teachers, setTeachers] = useState<TRow[]>([])
   const [q, setQ] = useState('')
   const [list, setList] = useState<TA[]>([])
   const [sel, setSel] = useState<string | null>(null)
-  const [form, setForm] = useState<Partial<TA> | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [canEdit, setCanEdit] = useState(false)
+  const [certs, setCerts] = useState<Map<string, number>>(new Map())
+  const [subj, setSubj] = useState('')
   // Quản trị hệ thống: GV của mọi trường trong một danh sách, đánh giá thay trường
   const all = useAllMode()
   async function load() {
-    const [t, a, adm] = await Promise.all([
-      supabase.from('teachers').select('id, full_name, org_id, organizations(name)').eq('status', 'active').order('full_name'),
+    const [t, a, adm, c] = await Promise.all([
+      supabase.from('teachers').select('id, full_name, org_id, email, subject, grade, organizations(name)').eq('status', 'active').order('full_name'),
       supabase.from('teacher_assessments').select('*').eq('school_year', year),
       supabase.rpc('is_admin'),
+      profile ? supabase.from('certificates').select('teacher_id').eq('status', 'issued').is('revoked_at', null) : Promise.resolve({ data: [] }),
     ])
+    const cm = new Map<string, number>(); for (const x of (c.data ?? []) as { teacher_id: string }[]) cm.set(x.teacher_id, (cm.get(x.teacher_id) ?? 0) + 1); setCerts(cm)
     setTeachers(((t.data as any[]) ?? []).filter(x => !orgId || x.org_id === orgId)); setList((a.data as TA[]) ?? []); setCanEdit(!readOnly && (!!adm.data || !!all))
   }
   useEffect(() => { load() }, [orgId])
   const of = (id: string, k: 'self' | 'manager') => list.find(x => x.teacher_id === id && x.kind === k)
-  function open(id: string) {
-    setSel(id); setMsg(null)
-    const m = of(id, 'manager'); setForm(m ?? { levels: { ...(of(id, 'self')?.levels ?? {}) }, comment: '', plan: '', status: 'draft' })
-  }
-  async function save(submit: boolean) {
-    if (!sel || !form) return
-    if (submit && comps.some(c => !form.levels?.[c.key])) return setMsg([`Chọn mức cho đủ ${comps.length} năng lực.`, true])
-    const t = teachers.find(x => x.id === sel)!
-    const row = { org_id: t.org_id, teacher_id: sel, school_year: year, kind: 'manager', levels: form.levels ?? {}, comment: form.comment || null, plan: form.plan || null, status: submit ? 'submitted' : 'draft' }
-    const { error } = form.id ? await supabase.from('teacher_assessments').update(row).eq('id', form.id) : await supabase.from('teacher_assessments').insert(row)
-    if (error) return setMsg([/row-level/i.test(error.message) ? 'Chỉ Hiệu trưởng / QTV của trường đánh giá được.' : error.message, true])
-    setMsg([submit ? 'Đã lưu đánh giá.' : 'Đã lưu nháp.', false]); await load()
-  }
-  async function reopen() {
-    const s = sel && of(sel, 'self'); if (!s) return
-    const { error } = await supabase.from('teacher_assessments').update({ status: 'draft' }).eq('id', s.id)
-    if (error) return setMsg([error.message, true]); setMsg(['Đã mở lại để giáo viên sửa bản tự đánh giá.', false]); load()
-  }
   function excel() {
     downloadXlsx(`danh-gia-nang-luc-gv-${year}`, [{ key: 'n', label: 'Giáo viên', width: 26 }, ...comps.flatMap(c => [{ key: c.key + 's', label: c.name + ' (tự ĐG)', width: 14 }, { key: c.key + 'm', label: c.name + ' (trường)', width: 14 }]),
       { key: 'cm', label: 'Nhận xét của trường', width: 40 }, { key: 'pl', label: 'Kế hoạch bồi dưỡng', width: 40 }],
       teachers.map(t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); return [t.full_name, ...comps.flatMap(c => [s?.levels[c.key] ?? '', m?.status === 'submitted' ? m.levels[c.key] ?? '' : '']), m?.comment ?? '', m?.plan ?? ''] }), 'Năng lực GV')
   }
+  const cur = teachers.find(t => t.id === sel)
+  if (cur) return <TeacherAssessDetail t={cur} year={year} comps={comps} self={of(cur.id, 'self')} mgr={of(cur.id, 'manager')} canEdit={canEdit}
+    initialTab={profile ? 'profile' : 'assess'} back={profile ? 'Hồ sơ năng lực' : 'Đánh giá năng lực giáo viên'} onBack={() => setSel(null)} onChanged={load} />
   const selfDone = teachers.filter(t => of(t.id, 'self')?.status === 'submitted').length
   const mgrDone = teachers.filter(t => of(t.id, 'manager')?.status === 'submitted').length
-  const cur = teachers.find(t => t.id === sel)
-  const shownT = teachers.filter(t => !q || (t.full_name + ' ' + (t.organizations?.name ?? '')).toLowerCase().includes(q.toLowerCase())).slice(0, 500)
+  const subjects = [...new Set(teachers.map(t => t.subject).filter(Boolean) as string[])].sort()
+  const shownT = teachers.filter(t => (!q || (t.full_name + ' ' + (t.organizations?.name ?? '')).toLowerCase().includes(q.toLowerCase())) && (!subj || t.subject === subj)).slice(0, 500)
+  if (profile) return <section className="panel" style={{ display: 'grid', gap: 12 }}>
+    <div className="bar" style={{ margin: 0 }}>
+      <h3 style={{ margin: 0 }}>Hồ sơ năng lực nhà giáo <small className="sub">· {teachers.length} giáo viên</small></h3>
+      <span className="tools"><input placeholder="Tìm giáo viên, trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo viên" />
+        <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(x => <option key={x}>{x}</option>)}</select></span>
+    </div>
+    <div className="wrap"><table className="libtable">
+      <thead><tr><th>Giáo viên</th>{!orgId && <th>Trường</th>}<th>Môn · khối</th><th>Mức năng lực ({year})</th>{comps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}<th>Chứng chỉ</th></tr></thead>
+      <tbody>{shownT.map(t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); const lv = m?.status === 'submitted' ? m.levels : s?.status === 'submitted' ? s.levels : {}
+        return <tr key={t.id}>
+          <td><button type="button" className="namelink" onClick={() => setSel(t.id)}>{t.full_name}</button>{t.email && <><br /><small className="sub">{t.email}</small></>}</td>
+          {!orgId && <td>{t.organizations?.name ?? '—'}</td>}
+          <td><small>{[t.subject, t.grade && `khối ${t.grade}`].filter(Boolean).join(' · ') || '—'}</small></td>
+          <td>{Object.keys(lv).length ? <><LevelChip v={avgLv(lv)} /> <small className="sub">{m?.status === 'submitted' ? 'trường ĐG' : 'tự ĐG'}</small></> : <small className="sub">chưa đánh giá</small>}</td>
+          {comps.map(c => <td key={c.key}><LevelChip v={lv[c.key] ?? null} comp={c} /></td>)}
+          <td>{certs.get(t.id) ?? <small className="sub">0</small>}</td></tr> })}
+        {!shownT.length && <tr><td colSpan={comps.length + 5}>{teachers.length ? 'Không có giáo viên nào khớp.' : 'Chưa có giáo viên.'}</td></tr>}</tbody>
+    </table></div>
+    <p className="sub covhint" style={{ margin: 0 }}>Bấm tên giáo viên để xem hồ sơ: thông tin, năng lực, chứng chỉ, chương trình giáo dục đáp ứng, lịch sử tập huấn.</p>
+  </section>
   return (
     <>
-      <div className="bar">
-        <p className="sub" style={{ margin: 0 }}>Năm học {year}: {selfDone}/{teachers.length} GV đã nộp tự đánh giá · {mgrDone}/{teachers.length} đã được trường đánh giá.</p>
-        <span style={{ flex: 1 }} />{!orgId && <input placeholder="Tìm giáo viên, trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo viên" />}
-        <button onClick={excel} disabled={!teachers.length}>Xuất Excel</button>
-      </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
-      {cur && form && (
-        <div className="panel">
-          <div className="bar"><h3 style={{ margin: 0 }}>{cur.full_name}</h3><button onClick={() => setSel(null)}>Đóng</button></div>
-          <h4>Minh chứng</h4><Evidence teacherId={cur.id} />
-          <h4>Mức đạt qua tập huấn</h4><TrainingLevels teacherId={cur.id} comps={comps} />
-          <h4>Chương trình giáo dục đáp ứng</h4><EduProgramsMet teacherId={cur.id} comps={comps} />
-          <h4>Lịch sử tập huấn</h4><TrainingHistory teacherId={cur.id} comps={comps} name={cur.full_name} />
-          <h4>Tiến bộ qua các năm</h4><TrainingProgress teacherId={cur.id} comps={comps} />
-          {of(cur.id, 'self') ? <><h4>Tự đánh giá {of(cur.id, 'self')!.status === 'submitted' ? <span className="plbadge ok">Đã nộp</span> : <span className="plbadge mute">Nháp</span>}
-            {canEdit && of(cur.id, 'self')!.status === 'submitted' && <button className="linkbtn" onClick={reopen}> · Mở lại cho GV sửa</button>}</h4>
-            <AssessForm comps={comps} value={of(cur.id, 'self')!.levels} onChange={() => {}} disabled />
-            {of(cur.id, 'self')!.comment && <p><b>GV tự nhận xét:</b> {of(cur.id, 'self')!.comment}</p>}</> : <p className="sub">Giáo viên chưa tự đánh giá.</p>}
-          <h4>Đánh giá của nhà trường {form.status === 'submitted' && <span className="plbadge ok">Đã lưu</span>}</h4>
-          <AssessForm comps={comps} value={form.levels ?? {}} disabled={!canEdit} onChange={v => setForm({ ...form, levels: v })} />
-          <div className="formgrid">
-            <label className="field"><span>Nhận xét</span><textarea rows={3} disabled={!canEdit} value={form.comment ?? ''} onChange={e => setForm({ ...form, comment: e.target.value })} /></label>
-            <label className="field"><span>Kế hoạch bồi dưỡng</span><textarea rows={3} disabled={!canEdit} value={form.plan ?? ''} onChange={e => setForm({ ...form, plan: e.target.value })} placeholder="VD: tham gia khoá Thiết kế bài học STEM HK2; dự giờ tiết mẫu…" /></label>
-          </div>
-          {canEdit && <div className="formactions"><button onClick={() => save(false)}>Lưu nháp</button> <button className="primary" onClick={() => save(true)}>Lưu đánh giá</button></div>}
+      <section className="panel" style={{ display: 'grid', gap: 12 }}>
+        <div className="bar" style={{ margin: 0 }}>
+          <h3 style={{ margin: 0 }}>Đánh giá năng lực giáo viên <small className="sub">· năm học {year}: {selfDone}/{teachers.length} đã tự đánh giá · {mgrDone}/{teachers.length} trường đã đánh giá</small></h3>
+          <span className="tools">{!orgId && <input placeholder="Tìm giáo viên, trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo viên" />}
+            <button type="button" onClick={excel} disabled={!teachers.length}>Xuất Excel</button></span>
         </div>
-      )}
-      <div className="wrap"><table>
-        <thead><tr><th>Giáo viên</th>{!orgId && <th>Trường</th>}<th>Tự đánh giá</th><th>Trường đánh giá</th>{comps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}<th /></tr></thead>
-        <tbody>{shownT.map(t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); const lv = m?.status === 'submitted' ? m.levels : s?.levels ?? {}; return (
-          <tr key={t.id}><td><b>{t.full_name}</b></td>{!orgId && <td>{t.organizations?.name ?? '—'}</td>}
-            <td>{s ? (s.status === 'submitted' ? <><LevelChip v={avgLv(s.levels)} /> <small>đã nộp</small></> : <small>nháp</small>) : <small className="sub">chưa</small>}</td>
-            <td>{m?.status === 'submitted' ? <LevelChip v={avgLv(m.levels)} /> : <small className="sub">chưa</small>}</td>
-            {comps.map(c => <td key={c.key}><LevelChip v={lv[c.key] ?? null} comp={c} /></td>)}
-            <td><button className={s?.status === 'submitted' && m?.status !== 'submitted' && canEdit ? 'primary' : ''} onClick={() => open(t.id)}>{canEdit ? 'Đánh giá' : 'Xem'}</button></td></tr>) })}
-          {!shownT.length && <tr><td colSpan={comps.length + 5}>{teachers.length ? 'Không có giáo viên nào khớp.' : 'Chưa có giáo viên.'}</td></tr>}</tbody>
-      </table></div>
-      <p className="sub covhint">Cột năng lực hiện mức trường đánh giá (nếu đã có), nếu chưa thì hiện mức GV tự đánh giá.</p>
+        <div className="wrap"><table className="libtable">
+          <thead><tr><th>Giáo viên</th>{!orgId && <th>Trường</th>}<th>Tự đánh giá</th><th>Trường đánh giá</th>{comps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}<th /></tr></thead>
+          <tbody>{shownT.map(t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); const lv = m?.status === 'submitted' ? m.levels : s?.levels ?? {}
+            const todo = canEdit && s?.status === 'submitted' && m?.status !== 'submitted'
+            return (
+            <tr key={t.id}><td><button type="button" className="namelink" onClick={() => { setMsg(null); setSel(t.id) }}>{t.full_name}</button></td>{!orgId && <td>{t.organizations?.name ?? '—'}</td>}
+              <td>{s ? (s.status === 'submitted' ? <><LevelChip v={avgLv(s.levels)} /> <small>đã nộp</small></> : <small>nháp</small>) : <small className="sub">chưa</small>}</td>
+              <td>{m?.status === 'submitted' ? <LevelChip v={avgLv(m.levels)} /> : m ? <small>nháp</small> : <small className="sub">chưa</small>}</td>
+              {comps.map(c => <td key={c.key}><LevelChip v={lv[c.key] ?? null} comp={c} /></td>)}
+              <td><button type="button" className={todo ? 'primary' : ''} onClick={() => { setMsg(null); setSel(t.id) }}>{todo ? 'Đánh giá' : 'Xem'}</button></td></tr>) })}
+            {!shownT.length && <tr><td colSpan={comps.length + 5}>{teachers.length ? 'Không có giáo viên nào khớp.' : 'Chưa có giáo viên.'}</td></tr>}</tbody>
+        </table></div>
+        <p className="sub covhint" style={{ margin: 0 }}>Cột năng lực hiện mức trường đánh giá (nếu đã có), nếu chưa thì hiện mức GV tự đánh giá. Bấm tên giáo viên để xem và đánh giá.</p>
+      </section>
     </>
   )
+}
+
+const TA_ST = (a: TA | undefined): [string, string] => !a ? ['Chưa có', 'off'] : a.status === 'submitted' ? ['Đã nộp', 'good'] : ['Nháp', 'warn']
+const StChip = ({ v }: { v: [string, string] }) => <span className={`plbadge ${v[1] === 'good' ? 'ok' : v[1] === 'warn' ? 'warn' : 'mute'}`}>{v[0]}</span>
+
+/** Trang riêng của một giáo viên: xem đánh giá; bấm "Đánh giá" / "Sửa đánh giá" để chỉnh (giống các trang phân hệ 2). */
+type DTab = 'profile' | 'assess' | 'evidence' | 'training'
+function TeacherAssessDetail({ t, year, comps, self, mgr, canEdit, initialTab = 'assess', back, onBack, onChanged }: { t: TRow; year: string; comps: Comp[]; self?: TA; mgr?: TA; canEdit: boolean
+  initialTab?: DTab; back: string; onBack: () => void; onChanged: () => Promise<void> }) {
+  const [tab, setTab] = useState<DTab>(initialTab)
+  const [form, setForm] = useState<Partial<TA> | null>(null)
+  const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const startEdit = () => { setMsg(null); setTab('assess'); setForm(mgr ? { ...mgr, levels: { ...mgr.levels } } : { levels: { ...(self?.levels ?? {}) }, comment: '', plan: '', status: 'draft' }) }
+  async function save(submit: boolean) {
+    if (!form) return
+    if (submit && comps.some(c => !form.levels?.[c.key])) return setMsg([`Chọn mức cho đủ ${comps.length} năng lực.`, true])
+    const row = { org_id: t.org_id, teacher_id: t.id, school_year: year, kind: 'manager', levels: form.levels ?? {}, comment: form.comment?.trim() || null, plan: form.plan?.trim() || null, status: submit ? 'submitted' : 'draft' }
+    const { error } = mgr ? await supabase.from('teacher_assessments').update(row).eq('id', mgr.id) : await supabase.from('teacher_assessments').insert(row)
+    if (error) return setMsg([/row-level/i.test(error.message) ? 'Chỉ Hiệu trưởng / QTV của trường đánh giá được.' : error.message, true])
+    setForm(null); setMsg([submit ? 'Đã lưu đánh giá.' : 'Đã lưu nháp.', false]); await onChanged()
+  }
+  async function reopen() {
+    if (!self || !confirm('Mở lại bản tự đánh giá để giáo viên sửa?')) return
+    const { error } = await supabase.from('teacher_assessments').update({ status: 'draft' }).eq('id', self.id)
+    if (error) return setMsg([error.message, true]); setMsg(['Đã mở lại để giáo viên sửa bản tự đánh giá.', false]); await onChanged()
+  }
+  const editing = !!form
+  return <ElView back={back} onBack={onBack} title={t.full_name}
+    sub={<>{t.organizations?.name ?? '—'} · năm học {year} · tự đánh giá <StChip v={TA_ST(self)} /> · trường đánh giá <StChip v={TA_ST(mgr)} /></>}
+    actions={canEdit && !editing && <>
+      {self?.status === 'submitted' && <button type="button" onClick={reopen}>Mở lại cho GV sửa</button>}
+      <button type="button" className="primary" onClick={startEdit}>{mgr ? 'Sửa đánh giá' : 'Đánh giá'}</button></>}>
+    {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+    <div className="segmented" style={{ marginBottom: 12 }}>
+      {([['profile', 'Hồ sơ năng lực'], ['assess', 'Đánh giá năm học'], ['evidence', 'Minh chứng'], ['training', 'Tập huấn & tiến bộ']] as const).map(([k, l]) =>
+        <button key={k} type="button" className={tab === k ? 'on' : ''} disabled={editing && k !== 'assess'} onClick={() => setTab(k)}>{l}</button>)}
+    </div>
+    {tab === 'assess' && <>
+      <section className="panel" style={{ display: 'grid', gap: 12 }}>
+        <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Đánh giá của nhà trường</h3>{!editing && <StChip v={TA_ST(mgr)} />}</div>
+        {editing ? <>
+          <p className="sub" style={{ margin: 0 }}>{mgr ? 'Sửa mức từng năng lực, nhận xét và kế hoạch bồi dưỡng.' : 'Mức ban đầu lấy theo bản tự đánh giá của giáo viên (nếu có).'}</p>
+          <AssessForm comps={comps} value={form!.levels ?? {}} onChange={v => setForm({ ...form!, levels: v })} />
+          <div className="formgrid">
+            <label className="field"><span>Nhận xét</span><textarea rows={3} value={form!.comment ?? ''} onChange={e => setForm({ ...form!, comment: e.target.value })} /></label>
+            <label className="field"><span>Kế hoạch bồi dưỡng</span><textarea rows={3} value={form!.plan ?? ''} onChange={e => setForm({ ...form!, plan: e.target.value })} placeholder="VD: tham gia khoá Thiết kế bài học STEM HK2; dự giờ tiết mẫu…" /></label>
+          </div>
+          <div className="formactions"><button type="button" onClick={() => { setForm(null); setMsg(null) }}>Huỷ thay đổi</button> <button type="button" onClick={() => save(false)}>Lưu nháp</button> <button type="button" className="primary" onClick={() => save(true)}>Lưu đánh giá</button></div>
+        </> : mgr ? <>
+          <AssessForm comps={comps} value={mgr.levels} onChange={() => {}} disabled />
+          <dl className="tpkv"><dt>Nhận xét</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{mgr.comment || '—'}</dd><dt>Kế hoạch bồi dưỡng</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{mgr.plan || '—'}</dd></dl>
+        </> : <p className="sub" style={{ margin: 0 }}>Nhà trường chưa đánh giá năm học này.{canEdit ? ' Bấm "Đánh giá" để bắt đầu.' : ''}</p>}
+      </section>
+      <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
+        <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Tự đánh giá của giáo viên</h3><StChip v={TA_ST(self)} /></div>
+        {self ? <>
+          <AssessForm comps={comps} value={self.levels} onChange={() => {}} disabled />
+          <dl className="tpkv"><dt>GV tự nhận xét</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{self.comment || '—'}</dd></dl>
+        </> : <p className="sub" style={{ margin: 0 }}>Giáo viên chưa tự đánh giá.</p>}
+      </section>
+    </>}
+    {tab === 'profile' && <TeacherProfile t={t} year={year} comps={comps} self={self} mgr={mgr} />}
+    {tab === 'evidence' && <section className="panel"><h3 style={{ marginTop: 0 }}>Minh chứng</h3><Evidence teacherId={t.id} /></section>}
+    {tab === 'training' && <div style={{ display: 'grid', gap: 14 }}>
+      <section className="panel"><h3 style={{ marginTop: 0 }}>Mức đạt qua tập huấn</h3><TrainingLevels teacherId={t.id} comps={comps} /></section>
+      <section className="panel"><h3 style={{ marginTop: 0 }}>Chương trình giáo dục đáp ứng</h3><EduProgramsMet teacherId={t.id} comps={comps} /></section>
+      <section className="panel"><h3 style={{ marginTop: 0 }}>Lịch sử tập huấn</h3><TrainingHistory teacherId={t.id} comps={comps} name={t.full_name} /></section>
+      <section className="panel"><h3 style={{ marginTop: 0 }}>Tiến bộ qua các năm</h3><TrainingProgress teacherId={t.id} comps={comps} /></section>
+    </div>}
+  </ElView>
+}
+
+// ===== Hồ sơ năng lực nhà giáo: thông tin, năng lực hiện tại, chứng chỉ, chương trình giáo dục đáp ứng =====
+type Cert = { id: string; code: string; issued_on: string | null; expires_on: string | null; status: string; revoked_at: string | null; hours: number | null; program_titles: string[] | null; grade: string | null }
+function TeacherProfile({ t, year, comps, self, mgr }: { t: TRow; year: string; comps: Comp[]; self?: TA; mgr?: TA }) {
+  const [certs, setCerts] = useState<Cert[] | null>(null)
+  const [tl, setTl] = useState<TLv[]>([])
+  useEffect(() => {
+    supabase.from('certificates').select('id, code, issued_on, expires_on, status, revoked_at, hours, program_titles, grade').eq('teacher_id', t.id).order('issued_on', { ascending: false })
+      .then(({ data }) => setCerts((data as Cert[]) ?? []))
+    supabase.rpc('teacher_training_levels', { p_teacher: t.id }).then(({ data }) => setTl((data as TLv[]) ?? []))
+  }, [t.id])
+  const sub = (a?: TA) => a?.status === 'submitted' ? a.levels : {}
+  const today = new Date().toISOString().slice(0, 10)
+  const certSt = (c: Cert): [string, string] => c.revoked_at || c.status === 'revoked' ? ['Đã thu hồi', 'bad'] : c.expires_on && c.expires_on < today ? ['Hết hiệu lực', 'mute'] : ['Còn hiệu lực', 'ok']
+  return <div style={{ display: 'grid', gap: 14 }}>
+    <section className="panel">
+      <h3 style={{ marginTop: 0 }}>Thông tin giáo viên</h3>
+      <dl className="tpkv">
+        <dt>Họ tên</dt><dd>{t.full_name}</dd>
+        <dt>Trường</dt><dd>{t.organizations?.name ?? '—'}</dd>
+        <dt>Môn · khối</dt><dd>{[t.subject, t.grade && `khối ${t.grade}`].filter(Boolean).join(' · ') || '—'}</dd>
+        <dt>Email</dt><dd>{t.email || '—'}</dd>
+        <dt>Chứng chỉ còn hiệu lực</dt><dd>{certs ? certs.filter(c => certSt(c)[1] === 'ok').length : '…'}</dd>
+      </dl>
+    </section>
+    <section className="panel">
+      <h3 style={{ marginTop: 0 }}>Năng lực <small className="sub">· năm học {year}</small></h3>
+      <div className="wrap"><table className="libtable">
+        <thead><tr><th>Năng lực</th><th>Tự đánh giá</th><th>Trường đánh giá</th><th>Đạt qua tập huấn</th></tr></thead>
+        <tbody>{comps.map(c => { const tr = tl.filter(x => x.competency === c.key).sort((a, b) => b.level - a.level)[0]
+          return <tr key={c.key}><td><b>{c.name}</b>{c.description && <><br /><small className="sub">{c.description}</small></>}</td>
+            <td><LevelChip v={sub(self)[c.key] ?? null} comp={c} /></td><td><LevelChip v={sub(mgr)[c.key] ?? null} comp={c} /></td>
+            <td>{tr ? <><LevelChip v={tr.level} comp={c} /> <small className="sub">{tr.program}</small></> : <small className="sub">—</small>}</td></tr> })}</tbody>
+      </table></div>
+      {mgr?.status === 'submitted' && (mgr.comment || mgr.plan) && <dl className="tpkv" style={{ marginTop: 10 }}>
+        {mgr.comment && <><dt>Nhận xét của trường</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{mgr.comment}</dd></>}
+        {mgr.plan && <><dt>Kế hoạch bồi dưỡng</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{mgr.plan}</dd></>}</dl>}
+    </section>
+    <section className="panel">
+      <h3 style={{ marginTop: 0 }}>Chứng chỉ tập huấn</h3>
+      {!certs ? <p className="sub">Đang tải…</p> : certs.length ? <div className="wrap"><table className="libtable">
+        <thead><tr><th>Mã</th><th>Chương trình</th><th>Số giờ</th><th>Xếp loại</th><th>Ngày cấp</th><th>Hiệu lực</th></tr></thead>
+        <tbody>{certs.map(c => { const st = certSt(c); return <tr key={c.id}><td>{c.code}</td><td><small>{(c.program_titles ?? []).join('; ') || '—'}</small></td>
+          <td>{c.hours ?? '—'}</td><td>{c.grade ?? '—'}</td><td><small>{dvn(c.issued_on) || '—'}</small></td>
+          <td><span className={`plbadge ${st[1]}`}>{st[0]}</span>{c.expires_on && <small className="sub"> · đến {dvn(c.expires_on)}</small>}</td></tr> })}</tbody>
+      </table></div> : <p className="sub" style={{ margin: 0 }}>Chưa có chứng chỉ tập huấn.</p>}
+    </section>
+    <section className="panel"><h3 style={{ marginTop: 0 }}>Chương trình giáo dục đáp ứng</h3><EduProgramsMet teacherId={t.id} comps={comps} /></section>
+  </div>
 }

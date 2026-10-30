@@ -28,28 +28,21 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
   const [can, setCan] = useState(false)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [open, setOpen] = useState<string | null>(null)
-  const [form, setForm] = useState<Partial<Round> | null>(null)
+  const [creating, setCreating] = useState(false)
   const load = () => supabase.from('assessment_rounds').select('*, organizations(name)').order('created_at', { ascending: false })
     .then(({ data, error }) => { if (error) setMsg([errText(error.message), true]); setRows((data as Round[]) ?? []) })
   useEffect(() => { load(); supabase.rpc('training_can_write', { p_org: orgId }).then(({ data }) => setCan(!!data)) }, [orgId])
   const cur = rows?.find(r => r.id === open)
+  if (creating) return <RoundForm orgId={orgId} onBack={() => setCreating(false)}
+    onSaved={id => { setCreating(false); setMsg(['Đã mở đợt đánh giá. Theo dõi tiến độ và nhắc giáo viên ở tab "Tiến độ".', false]); load().then(() => setOpen(id)) }} />
   if (cur) return <RoundDetail r={cur} onBack={() => setOpen(null)} onChanged={m => { setMsg([m, false]); load() }} />
-
-  async function save() {
-    if (!form) return
-    if (!form.name?.trim() || !form.due_on) return setMsg(['Nhập tên đợt và hạn nộp.', true])
-    if (form.due_on < (form.opens_on ?? today())) return setMsg(['Hạn nộp phải sau ngày mở.', true])
-    const { error } = await supabase.from('assessment_rounds').insert({ org_id: form.org_id || orgId, name: form.name.trim(), school_year: form.school_year, opens_on: form.opens_on,
-      due_on: form.due_on, target_level: form.target_level, note: form.note?.trim() || null })
-    if (error) return setMsg([errText(error.message), true])
-    setForm(null); setMsg(['Đã mở đợt đánh giá. Bấm vào đợt để theo dõi tiến độ và nhắc giáo viên.', false]); load()
-  }
   const all = rows ?? []
   const openN = all.filter(r => r.status === 'open').length
+  const add = () => { setMsg(null); setCreating(true) }
   return <>
     <FlowGuide id="training-rounds">
       <ol className="distguide">
-        <li><button type="button" onClick={() => can && setForm(f => f ?? { school_year: schoolYear(), opens_on: today(), target_level: 2 })}><i>1</i><span><b>Mở đợt đánh giá</b><small>Đặt năm học, hạn nộp và mức yêu cầu. Đợt áp dụng cho mọi giáo viên trong đơn vị và các trường trực thuộc.</small></span></button></li>
+        <li><button type="button" onClick={() => can && add()}><i>1</i><span><b>Mở đợt đánh giá</b><small>Đặt năm học, hạn nộp và mức yêu cầu. Đợt áp dụng cho mọi giáo viên trong đơn vị và các trường trực thuộc.</small></span></button></li>
         <li><button type="button" onClick={() => all[0] && setOpen(all[0].id)}><i>2</i><span><b>Theo dõi & nhắc</b><small>Xem từng trường đã tự đánh giá / được trường đánh giá bao nhiêu, gửi nhắc giáo viên chưa nộp.</small></span></button></li>
         <li><button type="button" disabled><i>3</i><span><b>Xem thiếu hụt</b><small>Kết quả vào hồ sơ năng lực; mục Khoảng thiếu hụt gợi ý chương trình tập huấn cho người dưới mức yêu cầu.</small></span></button></li>
       </ol>
@@ -57,30 +50,54 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
       <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Đợt đánh giá năng lực <small className="sub">· {openN} đang mở</small></h3>
-        {can && !form && <button type="button" className="primary" onClick={() => setForm({ school_year: schoolYear(), opens_on: today(), target_level: 2 })}>Mở đợt mới</button>}</div>
-      {form && <div className="panel" style={{ display: 'grid', gap: 10, background: 'var(--soft)' }}>
-        <div className="formgrid">
-          <OrgPick kind="unit" value={form.org_id ?? orgId} onChange={v => setForm({ ...form, org_id: v })} title="Đơn vị mở đợt" />
-          <label className="field"><span>Tên đợt</span><input value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} placeholder={`Đánh giá năng lực GV năm học ${form.school_year}`} /></label>
-          <label className="field"><span>Năm học</span><select value={form.school_year} onChange={e => setForm({ ...form, school_year: e.target.value })}>{years().map(y => <option key={y}>{y}</option>)}</select></label>
-          <label className="field"><span>Ngày mở</span><input type="date" value={form.opens_on ?? ''} onChange={e => setForm({ ...form, opens_on: e.target.value })} /></label>
-          <label className="field"><span>Hạn nộp</span><input type="date" value={form.due_on ?? ''} onChange={e => setForm({ ...form, due_on: e.target.value })} /></label>
-          <label className="field"><span>Mức yêu cầu</span><select value={form.target_level} onChange={e => setForm({ ...form, target_level: +e.target.value })}>
-            {[1, 2, 3, 4].map(l => <option key={l} value={l}>Mức {l} · {LV_NAME[l - 1]}</option>)}</select></label>
-        </div>
-        <label className="field"><span>Ghi chú cho giáo viên</span><textarea rows={2} value={form.note ?? ''} onChange={e => setForm({ ...form, note: e.target.value })} /></label>
-        <div className="formactions"><button type="button" onClick={() => setForm(null)}>Huỷ</button> <button type="button" className="primary" onClick={save}>Mở đợt</button></div>
-      </div>}
+        {can && <button type="button" className="primary" onClick={add}>+ Mở đợt đánh giá</button>}</div>
       {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
         <thead><tr><th>Đợt</th><th>Đơn vị mở</th><th>Năm học</th><th>Thời gian</th><th>Mức yêu cầu</th><th>Trạng thái</th></tr></thead>
         <tbody>{all.map(r => { const st = roundSt(r); return <tr key={r.id}>
           <td><button type="button" className="namelink" onClick={() => setOpen(r.id)}>{r.name}</button></td>
           <td>{r.organizations?.name ?? '—'}</td><td>{r.school_year}</td><td>{vnDate(r.opens_on)} – {vnDate(r.due_on)}</td>
           <td>Mức {r.target_level} · {LV_NAME[r.target_level - 1]}</td><td><Chip tone={st[1]}>{st[0]}</Chip></td></tr> })}
-          {!all.length && <tr><td colSpan={6}><small className="sub">Chưa có đợt đánh giá nào.{can ? ' Bấm "Mở đợt mới" để bắt đầu.' : ''}</small></td></tr>}</tbody>
+          {!all.length && <tr><td colSpan={6}><small className="sub">Chưa có đợt đánh giá nào.{can ? ' Bấm "+ Mở đợt đánh giá" để bắt đầu.' : ''}</small></td></tr>}</tbody>
       </table></div>}
     </section>
   </>
+}
+
+type RForm = { org_id?: string; name: string; school_year: string; opens_on: string; due_on: string; target_level: number; note: string }
+const roundBad = (f: RForm) => !f.name.trim() ? 'Nhập tên đợt.' : !f.due_on ? 'Chọn hạn nộp.' : f.due_on < f.opens_on ? 'Hạn nộp phải sau ngày mở.' : ''
+function RoundFields({ f, set, orgPick }: { f: RForm; set: (f: RForm) => void; orgPick?: boolean }) {
+  return <>
+    <div className="formgrid">
+      {orgPick && <OrgPick kind="unit" value={f.org_id ?? ''} onChange={v => set({ ...f, org_id: v })} title="Đơn vị mở đợt" />}
+      <label className="field"><span>Tên đợt *</span><input value={f.name} onChange={e => set({ ...f, name: e.target.value })} placeholder={`Đánh giá năng lực GV năm học ${f.school_year}`} /></label>
+      <label className="field"><span>Năm học</span><select value={f.school_year} onChange={e => set({ ...f, school_year: e.target.value })}>{[...new Set([...years(), f.school_year])].map(y => <option key={y}>{y}</option>)}</select></label>
+      <label className="field"><span>Ngày mở</span><input type="date" value={f.opens_on} onChange={e => set({ ...f, opens_on: e.target.value })} /></label>
+      <label className="field"><span>Hạn nộp *</span><input type="date" value={f.due_on} onChange={e => set({ ...f, due_on: e.target.value })} /></label>
+      <label className="field"><span>Mức yêu cầu</span><select value={f.target_level} onChange={e => set({ ...f, target_level: +e.target.value })}>
+        {[1, 2, 3, 4].map(l => <option key={l} value={l}>Mức {l} · {LV_NAME[l - 1]}</option>)}</select></label>
+    </div>
+    <label className="field"><span>Ghi chú cho giáo viên</span><textarea rows={3} value={f.note} onChange={e => set({ ...f, note: e.target.value })} /></label>
+  </>
+}
+
+/** Trang riêng để mở đợt đánh giá mới (giống "Thêm chương trình tập huấn"). */
+function RoundForm({ orgId, onBack, onSaved }: { orgId: string; onBack: () => void; onSaved: (id: string) => void }) {
+  const [f, setF] = useState<RForm>({ org_id: orgId, name: '', school_year: schoolYear(), opens_on: today(), due_on: '', target_level: 2, note: '' })
+  const [err, setErr] = useState('')
+  async function save() {
+    const bad = roundBad(f); if (bad) return setErr(bad)
+    const { data, error } = await supabase.from('assessment_rounds').insert({ org_id: f.org_id || orgId, name: f.name.trim(), school_year: f.school_year, opens_on: f.opens_on,
+      due_on: f.due_on, target_level: f.target_level, note: f.note.trim() || null }).select('id').single()
+    if (error) return setErr(errText(error.message))
+    onSaved((data as { id: string }).id)
+  }
+  return <ElView back="Đợt đánh giá" onBack={onBack} title="Mở đợt đánh giá năng lực" sub="Đợt áp dụng cho mọi giáo viên trong đơn vị mở đợt và các trường trực thuộc.">
+    <section className="panel" style={{ display: 'grid', gap: 12 }}>
+      {err && <p className="msg" role="alert">{err}</p>}
+      <RoundFields f={f} set={setF} orgPick />
+      <div className="formactions"><button type="button" onClick={onBack}>Huỷ</button> <button type="button" className="primary" onClick={save}>Mở đợt</button></div>
+    </section>
+  </ElView>
 }
 
 function RoundDetail({ r, onBack, onChanged }: { r: Round; onBack: () => void; onChanged: (m: string) => void }) {
@@ -89,6 +106,8 @@ function RoundDetail({ r, onBack, onChanged }: { r: Round; onBack: () => void; o
   const [err, setErr] = useState('')
   const [info, setInfo] = useState('')
   const [busy, setBusy] = useState(false)
+  const [tab, setTab] = useState<'info' | 'progress'>('progress')
+  const [f, setF] = useState<RForm | null>(null)
   useEffect(() => {
     supabase.rpc('assessment_round_progress', { p_round: r.id }).then(({ data, error }) => { if (error) setErr(errText(error.message)); setRows((data as Prog[]) ?? []) })
     supabase.rpc('training_can_write', { p_org: r.org_id }).then(({ data }) => setCan(!!data))
@@ -105,7 +124,21 @@ function RoundDetail({ r, onBack, onChanged }: { r: Round; onBack: () => void; o
   async function setStatus(status: 'open' | 'closed') {
     const { error } = await supabase.from('assessment_rounds').update({ status }).eq('id', r.id)
     if (error) return setErr(errText(error.message))
-    onChanged(status === 'closed' ? 'Đã đóng đợt đánh giá.' : 'Đã mở lại đợt đánh giá.'); onBack()
+    onChanged(status === 'closed' ? 'Đã đóng đợt đánh giá.' : 'Đã mở lại đợt đánh giá.')
+  }
+  async function saveInfo() {
+    if (!f) return
+    const bad = roundBad(f); if (bad) return setErr(bad)
+    const { error } = await supabase.from('assessment_rounds').update({ name: f.name.trim(), school_year: f.school_year, opens_on: f.opens_on, due_on: f.due_on,
+      target_level: f.target_level, note: f.note.trim() || null }).eq('id', r.id)
+    if (error) return setErr(errText(error.message))
+    setF(null); setErr(''); onChanged('Đã lưu thông tin đợt đánh giá.')
+  }
+  async function del() {
+    if (!confirm(`Xoá đợt "${r.name}"? Bản đánh giá giáo viên đã làm vẫn giữ trong hồ sơ năng lực.`)) return
+    const { error } = await supabase.from('assessment_rounds').delete().eq('id', r.id)
+    if (error) return setErr(errText(error.message))
+    onChanged('Đã xoá đợt đánh giá.'); onBack()
   }
   function excel() {
     downloadXlsx(`dot-danh-gia-${r.school_year}`, [{ key: 'o', label: 'Trường', width: 30 }, { key: 't', label: 'Số GV' }, { key: 's', label: 'Đã tự đánh giá' }, { key: 'sp', label: '% tự ĐG' },
@@ -113,15 +146,36 @@ function RoundDetail({ r, onBack, onChanged }: { r: Round; onBack: () => void; o
       all.map(x => [x.org_name, x.teachers, x.self_done, pct(x.self_done, x.teachers), x.manager_done, pct(x.manager_done, x.teachers)]), 'Tiến độ')
   }
   const st = roundSt(r)
+  const startEdit = () => { setErr(''); setTab('info'); setF({ name: r.name, school_year: r.school_year, opens_on: r.opens_on, due_on: r.due_on, target_level: r.target_level, note: r.note ?? '' }) }
   return <ElView back="Đợt đánh giá" onBack={onBack} title={r.name}
     sub={<>{r.organizations?.name} · năm học {r.school_year} · {vnDate(r.opens_on)} – {vnDate(r.due_on)} · mức yêu cầu {r.target_level} · <Chip tone={st[1]}>{st[0]}</Chip></>}
     actions={<>
       <button type="button" onClick={excel} disabled={!all.length}>Xuất Excel</button>
       {can && r.status === 'open' && <button type="button" disabled={busy} onClick={remind}>Nhắc GV chưa nộp</button>}
-      {can && <button type="button" onClick={() => setStatus(r.status === 'open' ? 'closed' : 'open')}>{r.status === 'open' ? 'Đóng đợt' : 'Mở lại'}</button>}</>}>
+      {can && <details className="distmore"><summary aria-label="Thao tác khác">···</summary><div className="distmenu">
+        <button type="button" onClick={() => setStatus(r.status === 'open' ? 'closed' : 'open')}>{r.status === 'open' ? 'Đóng đợt' : 'Mở lại đợt'}</button>
+        <button type="button" className="danger" onClick={del}>Xoá đợt</button></div></details>}</>}>
     {err && <p className="msg" role="alert">{err}</p>}
     {info && <p className="sub" role="status"><b>{info}</b></p>}
-    {r.note && <p className="sub">{r.note}</p>}
+    <div className="segmented" style={{ marginBottom: 12 }}>
+      {([['info', 'Thông tin đợt'], ['progress', 'Tiến độ']] as const).map(([k, l]) => <button key={k} type="button" className={tab === k ? 'on' : ''} disabled={!!f && k !== 'info'} onClick={() => setTab(k)}>{l}</button>)}
+    </div>
+    {tab === 'info' && <section className="panel" style={{ display: 'grid', gap: 12 }}>
+      <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Thông tin đợt</h3>{can && !f && <button type="button" onClick={startEdit}>Sửa thông tin</button>}</div>
+      {f ? <>
+        <RoundFields f={f} set={setF} />
+        <div className="formactions"><button type="button" onClick={() => { setF(null); setErr('') }}>Huỷ thay đổi</button> <button type="button" className="primary" onClick={saveInfo}>Lưu thông tin</button></div>
+      </> : <dl className="tpkv">
+        <dt>Đơn vị mở</dt><dd>{r.organizations?.name ?? '—'}</dd>
+        <dt>Năm học</dt><dd>{r.school_year}</dd>
+        <dt>Thời gian</dt><dd>{vnDate(r.opens_on)} – {vnDate(r.due_on)}</dd>
+        <dt>Mức yêu cầu</dt><dd>Mức {r.target_level} · {LV_NAME[r.target_level - 1]}</dd>
+        <dt>Trạng thái</dt><dd><Chip tone={st[1]}>{st[0]}</Chip></dd>
+        <dt>Ghi chú cho GV</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{r.note || '—'}</dd>
+        <dt>Nhắc gần nhất</dt><dd>{r.reminded_at ? new Date(r.reminded_at).toLocaleString('vi-VN') : '—'}</dd>
+      </dl>}
+    </section>}
+    {tab === 'progress' && <>
     <div className="diststatcards four">
       <div className="panel"><i aria-hidden="true">🏫</i><span><b>{rows ? all.length : '…'}</b><small>Trường</small></span></div>
       <div className="panel"><i aria-hidden="true">👥</i><span><b>{tot.t}</b><small>Giáo viên</small></span></div>
@@ -135,7 +189,7 @@ function RoundDetail({ r, onBack, onChanged }: { r: Round; onBack: () => void; o
           <td><Bar v={pct(x.self_done, x.teachers)} /> {x.self_done}/{x.teachers}</td><td><Bar v={pct(x.manager_done, x.teachers)} /> {x.manager_done}/{x.teachers}</td></tr>)}
           {!all.length && <tr><td colSpan={4}><small className="sub">Chưa có giáo viên trong phạm vi đợt.</small></td></tr>}</tbody>
       </table></div>}
-    </section>
+    </section></>}
   </ElView>
 }
 export const Bar = ({ v, warnBelow = 50 }: { v: number; warnBelow?: number }) =>
@@ -290,14 +344,13 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
     setIsNew(true); setMsg(null)
     setEdit({ key: A.prefix, audience, grp: list[list.length - 1]?.grp ?? A.grp, name: '', description: '', levels: ['', '', '', ''], sort: (list[list.length - 1]?.sort ?? 100) + 10 })
   }
-  return <>
-    {!compact && <div className="panel distintro"><p style={{ margin: 0 }}>{A.intro} Sửa mô tả mức có hiệu lực ngay; mã năng lực không đổi được vì kết quả đã lưu theo mã.</p></div>}
-    {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    {edit && <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-      <h3 style={{ margin: 0 }}>{isNew ? 'Thêm năng lực' : edit.name}</h3>
+  if (edit) return <ElView back={A.title} onBack={() => { setEdit(null); setMsg(null) }} title={isNew ? 'Thêm năng lực' : edit.name}
+    sub={isNew ? 'Mã năng lực không đổi được sau khi lưu vì kết quả đánh giá lưu theo mã.' : <>{edit.key} · {edit.grp}</>}>
+    {msg && msg[1] && <p className="msg" role="alert"><b>{msg[0]}</b></p>}
+    <section className="panel" style={{ display: 'grid', gap: 10 }}>
       <div className="formgrid">
-        <label className="field"><span>Mã</span><input value={edit.key} disabled={!isNew} onChange={e => setEdit({ ...edit, key: e.target.value })} placeholder={A.example} /></label>
-        <label className="field"><span>Tên năng lực</span><input value={edit.name} onChange={e => setEdit({ ...edit, name: e.target.value })} /></label>
+        <label className="field"><span>Mã *</span><input value={edit.key} disabled={!isNew} onChange={e => setEdit({ ...edit, key: e.target.value })} placeholder={A.example} /></label>
+        <label className="field"><span>Tên năng lực *</span><input value={edit.name} onChange={e => setEdit({ ...edit, name: e.target.value })} /></label>
         <label className="field"><span>Nhóm</span><input list={'cgrp-' + audience} value={edit.grp} onChange={e => setEdit({ ...edit, grp: e.target.value })} />
           <datalist id={'cgrp-' + audience}>{groups.map(g => <option key={g} value={g} />)}</datalist></label>
         <label className="field"><span>Thứ tự</span><input type="number" value={edit.sort} onChange={e => setEdit({ ...edit, sort: +e.target.value })} /></label>
@@ -305,16 +358,20 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
       <label className="field"><span>Mô tả</span><textarea rows={2} value={edit.description ?? ''} onChange={e => setEdit({ ...edit, description: e.target.value })} /></label>
       <div className="formgrid">{edit.levels.map((l, i) => <label key={i} className="field"><span>{lvLabel(i)}</span>
         <textarea rows={3} value={l} onChange={e => setEdit({ ...edit, levels: edit.levels.map((x, k) => k === i ? e.target.value : x) })} /></label>)}</div>
-      <div className="formactions"><button type="button" onClick={() => setEdit(null)}>Huỷ</button> <button type="button" className="primary" onClick={save}>Lưu</button></div>
-    </section>}
+      <div className="formactions"><button type="button" onClick={() => { setEdit(null); setMsg(null) }}>Huỷ</button> <button type="button" className="primary" onClick={save}>{isNew ? 'Thêm năng lực' : 'Lưu'}</button></div>
+    </section>
+  </ElView>
+  return <>
+    {!compact && <div className="panel distintro"><p style={{ margin: 0 }}>{A.intro} Sửa mô tả mức có hiệu lực ngay; mã năng lực không đổi được vì kết quả đã lưu theo mã.</p></div>}
+    {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
       <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>{A.title} ({list.length})</h3>
         <span className="tools"><button type="button" onClick={() => setNames(!names)}>{names ? 'Đóng tên các mức' : 'Đổi tên các mức'}</button>
-          {!edit && <button type="button" className="primary" onClick={add}>Thêm năng lực</button>}</span></div>
+          <button type="button" className="primary" onClick={add}>+ Thêm năng lực</button></span></div>
       {names && <LevelNames keys={[audience === 'teacher' ? 'comp_level_teacher' : 'comp_level_student']} />}
       <div className="wrap"><table className="libtable">
         <thead><tr><th>Năng lực</th><th>Nhóm</th>{A.levels.map((_, i) => <th key={i}>{lvLabel(i)}</th>)}<th /></tr></thead>
-        <tbody>{list.map(c => <tr key={c.key}><td><b>{c.name}</b><br /><small className="sub">{c.key}</small>{c.description && <><br /><small>{c.description}</small></>}</td>
+        <tbody>{list.map(c => <tr key={c.key}><td><button type="button" className="namelink" onClick={() => { setIsNew(false); setMsg(null); setEdit({ ...c, levels: [...c.levels] }) }}>{c.name}</button><br /><small className="sub">{c.key}</small>{c.description && <><br /><small>{c.description}</small></>}</td>
           <td><small>{c.grp}</small></td>
           {c.levels.map((l, i) => <td key={i}><small>{l}</small></td>)}
           <td><button type="button" onClick={() => { setIsNew(false); setMsg(null); setEdit({ ...c, levels: [...c.levels] }) }}>Sửa</button></td></tr>)}

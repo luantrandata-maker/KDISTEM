@@ -3,12 +3,14 @@
 // Khung đánh giá: trọng số thành phần, điều kiện bắt buộc để đạt, thang xếp loại; dùng khi đánh giá kết quả và in chứng chỉ.
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { ExamMatrix, matrixText, matrixTotal, useBankSubjects, type MRow } from '../../components/ExamMatrix'
+import { ExamMatrix, cleanMatrix, listGrades, listSubjects, matrixText, matrixTotal, useBankSubjects, type MRow } from '../../components/ExamMatrix'
+import { MultiSelect } from '../../components/MultiSelect'
+import { GradeMulti } from '../../components/Pickers'
 import type { Detail } from './Content'
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 
-export type FinalExam = { title?: string; subject?: string; grade?: number | null; matrix?: MRow[]; qids?: string[]; minutes?: number | null; attempts?: number | null; pass?: number | null; shuffle?: boolean }
-const finalSpec = (x: FinalExam): TrySpec => ({ kind: 'pick', subject: x.subject, grade: x.grade ?? null, matrix: (x.matrix ?? []).map(r => ({ topic: r.topic, level: r.level, count: r.count })), qids: x.qids ?? [], shuffle: x.shuffle !== false })
+export type FinalExam = { title?: string; subject?: string; grade?: number | null; subjects?: string[]; grades?: number[]; matrix?: MRow[]; qids?: string[]; minutes?: number | null; attempts?: number | null; pass?: number | null; shuffle?: boolean }
+const finalSpec = (x: FinalExam): TrySpec => ({ kind: 'pick', subjects: listSubjects(x), grades: listGrades(x), matrix: cleanMatrix(x.matrix ?? []), qids: x.qids ?? [], shuffle: x.shuffle !== false })
 export type Frame = {
   weights: { att: number; tests: number; final: number; product: number }
   req: { att: number | null; tests: boolean; units: boolean; final: number | null; product: number | null; total: number | null }
@@ -33,16 +35,18 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
   const fe = p.final_exam ?? null
   const [f, setF] = useState<FinalExam | null>(null)
   const tests = units.filter(u => u.kind === 'content' && u.has_test).sort((a, b) => (units.find(x => x.id === a.parent_id)?.seq ?? 0) - (units.find(x => x.id === b.parent_id)?.seq ?? 0) || a.seq - b.seq)
-  const startEdit = () => setF(fe ? { ...fe, matrix: [...(fe.matrix ?? [])] } : { title: '', subject: subjects[0]?.subject ?? '', grade: null, matrix: [], minutes: 30, attempts: 2, pass: 5, shuffle: true })
+  const startEdit = () => setF(fe ? { ...fe, subjects: listSubjects(fe), grades: listGrades(fe), matrix: [...(fe.matrix ?? [])] } : { title: '', subjects: subjects[0] ? [subjects[0].subject] : [], grades: [], matrix: [], minutes: 30, attempts: 2, pass: 5, shuffle: true })
   // Mở từ "+ Thêm đề kiểm tra": vào thẳng form đề cuối khoá (một lần)
   const [auto, setAuto] = useState(!!autoStart)
   useEffect(() => { if (auto && edit) { setAuto(false); if (!f) startEdit() } }, [auto, edit])
   const total = f ? matrixTotal(f.matrix ?? []) + (f.qids?.length ?? 0) : 0
   async function saveFinal() {
     if (!f) return
-    if (!f.subject) return alert('Chọn môn của đề.')
+    const subs = listSubjects(f), grs = listGrades(f)
+    if (!subs.length) return alert('Chọn môn của đề.')
     if (total < 1) return alert('Ma trận cần ít nhất 1 câu.')
-    const clean: FinalExam = { ...f, title: f.title?.trim() || undefined, matrix: (f.matrix ?? []).map(r => ({ topic: r.topic, level: r.level, count: r.count })) }
+    const clean: FinalExam = { ...f, title: f.title?.trim() || undefined, subjects: subs, grades: grs, subject: subs[0], grade: grs[0] ?? null,
+      matrix: cleanMatrix(f.matrix ?? []).map(r => (r.subject && !subs.includes(r.subject) ? { ...r, subject: undefined } : r)) }
     if (await save({ final_exam: clean }, 'Đã lưu đề cuối khoá.')) setF(null)
   }
 
@@ -73,22 +77,21 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
     {f ? <div style={{ display: 'grid', gap: 12 }}>
       <div className="formgrid">
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên đề</span><input maxLength={200} value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} placeholder="Để trống = Đề cuối khoá · tên chương trình" /></label>
-        <label className="field"><span>Môn (ngân hàng câu hỏi) *</span><select value={f.subject ?? ''} onChange={e => setF({ ...f, subject: e.target.value, matrix: [] })}>
-          <option value="">— Chọn môn —</option>{subjects.map(s => <option key={s.subject} value={s.subject}>{s.subject} ({s.n} câu)</option>)}
-          {f.subject && !subjects.some(s => s.subject === f.subject) && <option value={f.subject}>{f.subject}</option>}</select></label>
-        <label className="field"><span>Khối</span><select value={f.grade ?? ''} onChange={e => setF({ ...f, grade: e.target.value ? Number(e.target.value) : null })}>
-          <option value="">Mọi khối</option>{Array.from({ length: 12 }, (_, k) => <option key={k + 1} value={k + 1}>Khối {k + 1}</option>)}</select></label>
+        <div className="field" style={{ gridColumn: 'span 2' }}><span>Môn (ngân hàng câu hỏi, chọn được nhiều) *</span>
+          <MultiSelect value={listSubjects(f)} onChange={v => setF({ ...f, subjects: v, subject: v[0] })} ariaLabel="Môn của đề" placeholder="— Chọn môn —"
+            options={[...subjects.map(s => [s.subject, `${s.subject} (${s.n} câu)`] as [string, string]), ...listSubjects(f).filter(x => !subjects.some(s => s.subject === x)).map(x => [x, x] as [string, string])]} empty="Ngân hàng chưa có câu hỏi." /></div>
+        <div className="field"><span>Khối (chọn được nhiều)</span><GradeMulti value={listGrades(f)} onChange={v => setF({ ...f, grades: v, grade: v[0] ?? null })} /></div>
         <label className="field"><span>Thời gian (phút)</span><input type="number" min={1} max={300} value={f.minutes ?? ''} placeholder="Không giới hạn" onChange={e => setF({ ...f, minutes: nOrNull(e.target.value) })} /></label>
         <label className="field"><span>Số lượt làm</span><input type="number" min={0} max={50} value={f.attempts ?? 0} onChange={e => setF({ ...f, attempts: Number(e.target.value) || 0 })} /><small className="sub">0 = không giới hạn</small></label>
         <label className="field"><span>Điểm đạt (thang 10)</span><input type="number" min={0} max={10} step={0.5} value={f.pass ?? ''} placeholder="Không xét" onChange={e => setF({ ...f, pass: nOrNull(e.target.value) })} /></label>
         <div className="field"><span>Trộn câu</span><label><input type="checkbox" checked={f.shuffle !== false} onChange={e => setF({ ...f, shuffle: e.target.checked })} /> Trộn thứ tự câu mỗi lượt</label></div>
       </div>
-      <ExamMatrix org={p.org_id} subject={f.subject ?? ''} grade={f.grade ?? null} rows={f.matrix ?? []} onChange={m => setF({ ...f, matrix: m })} />
+      <ExamMatrix org={p.org_id} subjects={listSubjects(f)} grades={listGrades(f)} rows={f.matrix ?? []} onChange={m => setF({ ...f, matrix: m })} />
       <div className="formactions"><button type="button" className="primary" onClick={saveFinal}>Lưu đề ({total} câu)</button> <TryButton orgId={p.org_id} spec={finalSpec(f)} title={f.title || 'Đề cuối khoá'} minutes={f.minutes} pass={f.pass} /> <button type="button" onClick={() => setF(null)}>Huỷ</button></div>
     </div>
     : fe ? <dl className="tpkv">
       <dt>Tên đề</dt><dd>{fe.title || 'Đề cuối khoá'}</dd>
-      <dt>Môn · khối</dt><dd>{fe.subject}{fe.grade ? ` · khối ${fe.grade}` : ' · mọi khối'}</dd>
+      <dt>Môn · khối</dt><dd>{listSubjects(fe).join(', ') || '—'}{listGrades(fe).length ? ` · khối ${listGrades(fe).join(', ')}` : ' · mọi khối'}</dd>
       <dt>Ma trận</dt><dd>{matrixTotal(fe.matrix ?? [])} câu: {matrixText(fe.matrix ?? []) || '—'}</dd>
       <dt>Cách làm</dt><dd>{fe.minutes ? `${fe.minutes} phút` : 'không giới hạn thời gian'} · {fe.attempts ? `${fe.attempts} lượt` : 'không giới hạn lượt'} · điểm đạt {fe.pass != null ? num(fe.pass) : 'không xét'} · {fe.shuffle !== false ? 'trộn câu' : 'giữ thứ tự'}</dd>
     </dl>

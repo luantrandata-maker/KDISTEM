@@ -2677,6 +2677,28 @@ select pg_temp.chk('kdi', 'Nhân bản: bản sao là nháp, đủ chương trì
   $q$select d.status || ':' || (select count(*) from dist_plan_items i where i.plan_id = d.id) || ':' || (select count(*) from dist_plan_rows r where r.plan_id = d.id) from dist_plans d where d.title = 'ISO bản phối (bản sao)'$q$, 'draft:1:2');
 select pg_temp.chk('kdi', 'Nhân bản: chép cả môn và tuần từng tiết',
   $q$select (select i.split::text || jsonb_array_length(i.subjects) from dist_plan_items i join dist_plans d on d.id = i.plan_id where d.title = 'ISO bản phối (bản sao)') || ':' || (select string_agg(array_to_string(r.weeks, ','), '|' order by r.seq) from dist_plan_rows r join dist_plans d on d.id = r.plan_id where d.title = 'ISO bản phối (bản sao)')$q$, 'true1:1,2|2,3');
+-- 125: phiên bản bản phân phối, lịch sử áp dụng
+select pg_temp.chk('kdi', 'PB 125: bản cũ là phiên bản 1 của chính nó', $q$select version_no || ':' || (family_id = id)::text from dist_plans where title = 'ISO bản phối'$q$, '1:true');
+select pg_temp.chk('kdi', 'PB 125: bản sao là bản khác, phiên bản 1, mã mới', $q$select d.version_no || ':' || (d.family_id = d.id)::text || ':' || (d.code <> s.code)::text from dist_plans d, dist_plans s where d.title = 'ISO bản phối (bản sao)' and s.title = 'ISO bản phối'$q$, '1:true:true');
+select pg_temp.chk('admin_ph', 'PB 125: trường không tạo phiên bản mới cho bản của KDI', $q$select dist_plan_new_version((select id from dist_plans where title = 'ISO bản phối'))::text$q$, 'ERR 42501');
+select pg_temp.probe('kdi@iso-test.local', $q$select dist_plan_new_version((select id from dist_plans where title = 'ISO bản phối'))::text$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$update dist_plans set title = 'ISO bản phối v2' where title = 'ISO bản phối' and version_no = 2$q$, true);
+select pg_temp.chk('kdi', 'PB 125: phiên bản mới là nháp v2, cùng mã, chép lịch bài',
+  $q$select n.status || ':' || n.version_no || ':' || (n.code = o.code)::text || ':' || (n.family_id = o.family_id)::text || ':' || (select count(*) from dist_plan_rows r where r.plan_id = n.id) from dist_plans n, dist_plans o where n.title = 'ISO bản phối v2' and o.title = 'ISO bản phối'$q$, 'draft:2:true:true:2');
+select pg_temp.chk('kdi', 'PB 125: đang có nháp thì không tạo thêm phiên bản', $q$select dist_plan_new_version((select id from dist_plans where title = 'ISO bản phối'))::text$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'PB 125: không đổi số phiên bản', $q$update dist_plans set version_no = 5 where title = 'ISO bản phối v2'$q$, 'ERR 22023');
+select pg_temp.chk('admin_ph', 'PB 125: trường không thấy phiên bản nháp', $q$select count(*) from dist_plans where title = 'ISO bản phối v2'$q$, '0');
+select pg_temp.probe('kdi@iso-test.local', $q$update dist_plans set status = 'published' where title = 'ISO bản phối v2'$q$, true);
+select pg_temp.chk('kdi', 'PB 125: phát hành v2 thì v1 chuyển sang Đã thay thế', $q$select string_agg(version_no || '=' || status, ',' order by version_no) from dist_plans where title in ('ISO bản phối', 'ISO bản phối v2')$q$, '1=superseded,2=published');
+select pg_temp.chk('kdi', 'PB 125: bản đã thay thế không gán mới được',
+  $q$select dist_plan_assign((select id from dist_plans where title = 'ISO bản phối'), array[(select id from organizations where code = 'THCS-PH')])::text$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'PB 125: lịch sử áp dụng có lần gán của v1',
+  $q$select string_agg(code_ok || ':' || version_no || ':' || lessons || ':' || (assigned_at is not null)::text, ',') from (select (h.code = d.code)::text as code_ok, h.version_no, h.lessons, h.assigned_at from dist_plan_history((select family_id from dist_plans where title = 'ISO bản phối')) h, dist_plans d where d.title = 'ISO bản phối') x$q$, 'true:1:4:true');
+select pg_temp.chk('kdi', 'PB 125: lọc lịch sử theo năm học khác thì rỗng',
+  $q$select count(*) from dist_plan_history((select family_id from dist_plans where title = 'ISO bản phối'), 'ISO 1999-2000')$q$, '0');
+select pg_temp.chk('admin_ph', 'PB 125: trường xem lịch sử áp dụng của trường mình',
+  $q$select count(*) from dist_plan_history(null, null) h join organizations o on o.id = h.org_id where o.code = 'THCS-PH' and h.plan_title = 'ISO bản phối'$q$, '1');
+select pg_temp.chk('admin_ph', 'PB 125: trường không thấy lịch sử của trường khác', $q$select count(*) from dist_plan_history(null, null) h join organizations o on o.id = h.org_id where o.code <> 'THCS-PH'$q$, '0');
 -- ===== 082: cấp phân loại bản phân phối =====
 select pg_temp.chk('admin_ph', 'Cấp phân loại: mặc định Cấp học › Khối lớp › Mức độ', $q$select string_agg(name, ' › ' order by sort) from dist_cls_levels$q$, 'Cấp học › Khối lớp › Mức độ');
 select pg_temp.chk('kdi', 'Cấp phân loại: bản cũ đã gắn vào mục mức độ', $q$select n.name from dist_plans d join dist_nodes n on n.id = d.node_id where d.title = 'ISO bản phối'$q$, 'Cơ bản');

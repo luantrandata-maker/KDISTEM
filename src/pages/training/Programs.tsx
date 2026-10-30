@@ -335,6 +335,7 @@ export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab
     </section>}
 
     {tab === 'info' && <ProgramScope p={p} admin={admin} onMsg={(m, e) => { setMsg([m, !!e]); if (!e) load() }} />}
+    {tab === 'info' && <ProgramEduLinks p={p} admin={admin} onMsg={(m, e) => setMsg([m, !!e])} />}
 
     {tab === 'units' && <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <TrainingUnits programId={p.id} programTitle={p.title} programMode={p.mode} units={units} editable={edit} catalog={suggest}
@@ -488,6 +489,54 @@ function effNote(p: Pick<TProgram, 'effective_from' | 'effective_to'>) {
   return ''
 }
 const OTYPE: Record<string, string> = { ministry: 'Bộ', province: 'Tỉnh', department: 'Sở', district: 'Phòng', school: 'Trường', provider: 'Đơn vị' }
+// Chương trình giáo dục đáp ứng (124): giáo viên Đạt khoá dùng chương trình tập huấn này thì được tính đáp ứng các chương trình giáo dục đã gắn.
+// Gắn theo họ phiên bản ở cả hai phía; sửa được cả khi chương trình đã phát hành.
+type EduOpt = { id: string; family_id: string | null; code: string | null; title: string; version_no: number; status: string }
+const EDU_ST: Record<string, string> = { draft: 'nháp', pending: 'chờ duyệt', approved: 'đã duyệt', rejected: 'bị trả lại', superseded: 'bản cũ', archived: 'lưu trữ' }
+function ProgramEduLinks({ p, admin, onMsg }: { p: TProgram; admin: boolean; onMsg: (m: string, err?: boolean) => void }) {
+  const [opts, setOpts] = useState<EduOpt[] | null>(null)
+  const [saved, setSaved] = useState<string[] | null>(null)
+  const [sel, setSel] = useState<string[]>([])
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    supabase.from('edu_programs').select('id, family_id, code, title, version_no, status').neq('status', 'archived').order('version_no', { ascending: false })
+      .then(({ data }) => {
+        // Mỗi họ một dòng: bản đang ban hành, chưa có thì bản mới nhất
+        const m = new Map<string, EduOpt>()
+        for (const r of (data ?? []) as EduOpt[]) { const k = r.family_id ?? r.id, cur = m.get(k)
+          if (!cur || (r.status === 'published' && cur.status !== 'published')) m.set(k, r) }
+        setOpts([...m.values()].sort((a, b) => a.title.localeCompare(b.title, 'vi')))
+      })
+    supabase.from('training_program_edu').select('edu_family').eq('training_family', p.family_id).then(({ data }) => {
+      const ids = ((data ?? []) as { edu_family: string }[]).map(r => r.edu_family); setSaved(ids); setSel(ids)
+    })
+  }, [p.family_id])
+  const famOf = (o: EduOpt) => o.family_id ?? o.id
+  const label = (o: EduOpt) => `${o.code ? o.code + ' · ' : ''}${o.title}${o.status !== 'published' ? ` (${EDU_ST[o.status] ?? o.status})` : ''}`
+  const options = (opts ?? []).map(o => [famOf(o), label(o)] as [string, string])
+  const nameOf = (f: string) => { const o = (opts ?? []).find(x => famOf(x) === f); return o ? label(o) : 'Chương trình giáo dục' }
+  const dirty = saved != null && (sel.length !== saved.length || sel.some(x => !saved.includes(x)))
+  async function save() {
+    setBusy(true)
+    const ids = sel.map(f => (opts ?? []).find(o => famOf(o) === f)?.id ?? f)
+    const { error } = await supabase.rpc('training_program_set_edu', { p_program: p.id, p_edu: ids })
+    setBusy(false)
+    if (error) return onMsg(/schema cache|does not exist|not find/i.test(error.message) ? 'Hãy chạy migration 124 trên Supabase.' : errText(error.message), true)
+    setSaved(sel); onMsg(sel.length ? `Đã lưu: giáo viên Đạt khoá này được tính đáp ứng ${sel.length} chương trình giáo dục.` : 'Đã bỏ gắn chương trình giáo dục.')
+  }
+  return <section className="panel" style={{ display: 'grid', gap: 12 }}>
+    <h3 style={{ margin: 0 }}>Chương trình giáo dục đáp ứng</h3>
+    <p className="sub" style={{ margin: 0 }}>Giáo viên Đạt một khoá tập huấn dùng chương trình này được tính là đáp ứng các chương trình giáo dục dưới đây, kèm năng lực đích của khoá.
+      Kết quả hiện ở hồ sơ năng lực giáo viên và bảng Đáp ứng chương trình giáo dục của trường, Sở. Phiên bản mới của hai bên vẫn giữ liên kết.</p>
+    {admin && p.status !== 'archived' ? <>
+      <div className="field"><span>Chương trình giáo dục</span>
+        <MultiSelect value={sel} onChange={setSel} options={[...options, ...sel.filter(f => !options.some(o => o[0] === f)).map(f => [f, nameOf(f)] as [string, string])]}
+          placeholder={opts ? 'Chọn chương trình giáo dục…' : 'Đang tải…'} ariaLabel="Chương trình giáo dục đáp ứng" empty="Chưa có chương trình giáo dục nào." /></div>
+      <div className="formactions"><button type="button" className="primary" disabled={!dirty || busy} onClick={save}>Lưu chương trình giáo dục</button></div>
+    </> : <p style={{ margin: 0 }}>{saved == null ? '…' : saved.length ? saved.map(nameOf).join('; ') : <small className="sub">Chưa gắn chương trình giáo dục.</small>}</p>}
+  </section>
+}
+
 function ProgramScope({ p, admin, onMsg }: { p: TProgram; admin: boolean; onMsg: (m: string, err?: boolean) => void }) {
   const orgs = useAllOrgs()
   const [saved, setSaved] = useState<string[] | null>(null)

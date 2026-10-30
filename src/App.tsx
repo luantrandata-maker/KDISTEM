@@ -148,6 +148,7 @@ const PH1_TABS = {
 const PlatformTrainingMonitor = allOrgs(TrainingMonitorHub, { work: true, manage: true })
 const ProgramReadinessPage = lazy(() => import('./pages/training/Readiness').then(m => ({ default: m.ProgramReadinessPage })))
 const PlatformReadiness = allOrgs(ProgramReadinessPage)
+const EduReadinessPage = lazy(() => import('./pages/training/EduReadiness').then(m => ({ default: m.EduReadinessPage })))
 const SchoolTrainingMonitor = (p: any) => <TrainingMonitorHub {...p} work />
 const trMat = (part: string) => (p: any) => <TrainingMaterials {...p} part={part} />
 const trainingMaterialTabs = (lessons: ComponentType<any>) => (p: any) => <TabbedPages {...p} tabs={[['Nội dung tập huấn', trMat('content')], ['Bài giảng', lessons],
@@ -278,7 +279,7 @@ const SCHOOL: PageMap = {
   'Cuộc thi': CompetitionsPage,
   'Sự kiện': EventManager,
   'Đánh giá năng lực GV': SchoolCompetencyTabs,
-  'Giám sát tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Giám sát', SchoolTrainingMonitor], ['Đáp ứng chương trình', ProgramReadinessPage]]} />,
+  'Giám sát tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Giám sát', SchoolTrainingMonitor], ['Đáp ứng chương trình', ProgramReadinessPage], ['Đáp ứng chương trình giáo dục', EduReadinessPage]]} />,
   'Báo cáo tập huấn': TrainingReportPage,
   'Khảo sát': SurveyManager,
   'Năng lực học sinh': ClassCompetencies,
@@ -403,7 +404,7 @@ const DEPARTMENT: PageMap = {
   'Dashboard điểm danh': AttendanceDashboard,
   'Chương trình CT1–CT5': DeptPrograms,
   'Theo dõi Môn học STEM': DeptSubjects,
-  'Giám sát Tập huấn GV': (p: any) => <TabbedPages {...p} tabs={[['Giám sát', TrainingMonitorHub], ['Đáp ứng chương trình', ProgramReadinessPage]]} />,
+  'Giám sát Tập huấn GV': (p: any) => <TabbedPages {...p} tabs={[['Giám sát', TrainingMonitorHub], ['Đáp ứng chương trình', ProgramReadinessPage], ['Đáp ứng chương trình giáo dục', EduReadinessPage]]} />,
   'Báo cáo tập huấn': TrainingReportPage,
   'Đánh giá năng lực nhà giáo': AuthorityCompetencyTabs,
   'Kế hoạch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', TrainingPlansPage], ['Giảng viên', TrainersPage]]} />,
@@ -469,7 +470,7 @@ const PLATFORM: PageMap = {
   'Chương trình tập huấn': TrainingProgramsPage,
   'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch tập huấn', PH1_TABS.cal], ['Lớp học ảo', PH1_TABS.virtual],
     // 27/10: Đánh giá kết quả và Giám sát tập huấn gom vào đây (đều theo từng kế hoạch); các màn giám sát gộp một tab
-    ['Đánh giá kết quả', TrainingResultsPage], ['Giảng viên', PH1_TABS.trainers], ['Giám sát', PlatformTrainingMonitor], ['Đáp ứng chương trình', PlatformReadiness], ['Báo cáo', allOrgs(TrainingReportPage)]]} />,
+    ['Đánh giá kết quả', TrainingResultsPage], ['Giảng viên', PH1_TABS.trainers], ['Giám sát', PlatformTrainingMonitor], ['Đáp ứng chương trình', PlatformReadiness], ['Đáp ứng chương trình giáo dục', EduReadinessPage], ['Báo cáo', allOrgs(TrainingReportPage)]]} />,
   // 2. Chương trình & học liệu
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
   // Tạm thời: "Theo dõi Chương trình/Môn học" mở bằng nút góc trên phải của trang này (không còn là mục menu riêng)

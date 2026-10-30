@@ -6,8 +6,8 @@ import { LEVEL, letter, type Level } from '../pages/elearning/common'
 
 export type TrySpec =
   | { kind: 'sample'; qids: string[]; count?: number | null }
-  | { kind: 'pick'; subject?: string | null; grade?: number | null; matrix?: { topic: string; level: string; count: number }[] | null; qids?: string[]; shuffle?: boolean }
-  | { kind: 'levels'; subject?: string | null; grade?: number | null; count: number; levels: Record<string, number>; topics?: string[] }
+  | { kind: 'pick'; subject?: string | null; grade?: number | null; subjects?: string[]; grades?: number[]; matrix?: { topic: string; level: string; count: number; subject?: string }[] | null; qids?: string[]; shuffle?: boolean }
+  | { kind: 'levels'; subject?: string | null; grade?: number | null; subjects?: string[]; grades?: number[]; count: number; levels: Record<string, number>; topics?: string[] }
 
 type Q = { id: string; stem: string; options: string[]; kind: string; answer: number[]; explain: string | null; topic: string | null; level: Level }
 

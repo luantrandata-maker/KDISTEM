@@ -115,3 +115,13 @@ export function GradeChecks({ value, onChange, disabled, from, to, placeholder =
   const list = (from && to ? opts.filter(o => o.value >= from && o.value <= to) : opts.length ? opts : gradeRange(1, 12).map(g => ({ value: g, label: `Khối ${g}` })))
   return <NumMultiSelect value={value} onChange={onChange} options={list} disabled={disabled} placeholder={placeholder} ariaLabel={ariaLabel} />
 }
+
+/** Chọn nhiều khối (ô tick). Để trống = mọi khối. */
+export function GradeMulti({ value, onChange, disabled, placeholder = 'Mọi khối', ariaLabel = 'Khối', compact }: {
+  value: number[]; onChange: (v: number[]) => void; disabled?: boolean; placeholder?: string; ariaLabel?: string; compact?: boolean
+}) {
+  const { grades } = useEduLevels()
+  const list = [...new Set([...(grades.length ? grades : gradeRange(1, 12)), ...value])].sort((a, b) => a - b)
+  return <NumMultiSelect value={value} onChange={onChange} options={list.map(g => ({ value: g, label: `Khối ${g}` }))} disabled={disabled}
+    placeholder={placeholder} ariaLabel={ariaLabel} compact={compact} empty="Chưa có khối" />
+}

@@ -328,6 +328,18 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   const scErr = sc.filter(c => c.level === 'error')
   const scheduled = sched.rows.filter(r => r.date).length
   const enrOf = (org: string) => enr.filter(e => e.teachers?.org_id === org)
+  // Chuyển chương trình trong kế hoạch sang phiên bản phát hành mới nhất (126)
+  const upgrade = async (i: Item) => {
+    const n = newerOf(i); if (!n) return
+    if (!confirm(`Chuyển "${i.training_programs?.title ?? n.title}" trong kế hoạch sang phiên bản v${n.version_no}?\n\nNội dung đã chọn, buổi đã xếp và nội dung giáo viên đăng ký được nối sang nội dung cùng tên của v${n.version_no}. Nội dung không còn trong v${n.version_no} sẽ bỏ khỏi lựa chọn; buổi của nội dung đó giữ nguyên nhưng không gắn nội dung.`)) return
+    setBusy(true)
+    const { data, error } = await supabase.rpc('training_plan_item_upgrade', { p_plan: i.plan_id, p_program: i.program_id })
+    setBusy(false)
+    if (error) { setMsg([errText(error.message), true]); return }
+    const d = data as { version: number; sessions: number; dropped: number }
+    setMsg([`Đã chuyển sang v${d.version}.${d.sessions ? ` ${d.sessions} buổi đã xếp được nối nội dung.` : ''}${d.dropped ? ` ${d.dropped} nội dung không còn trong phiên bản mới: kiểm tra lại lịch.` : ''}`, false])
+    await load()
+  }
   const patchItem = (i: Item, v: Partial<Item>) => run(supabase.from('training_plan_items').update(v).eq('plan_id', i.plan_id).eq('program_id', i.program_id))
   // Chương trình gợi ý theo cấp học của mục phân loại
   const lvl = cls.path(p.node_id).map(n => n.edu_level).find(Boolean) ?? null
@@ -422,7 +434,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
     <p className="sub" style={{ margin: '0 0 8px' }}>{[p.year_name, p.term && TERM[p.term], span(p), p.provider].filter(Boolean).join(' · ') || 'Chưa nhập năm học, thời gian'}</p>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {edit && warn.length > 0 && <p className="warnline">Chưa phát hành được: {warn.join('; ')}.</p>}
-    {can && p.pub_status === 'published' && <p className="sub">{orgs.length ? 'Kế hoạch đã gán cho trường: không đổi chương trình được, lịch vẫn chỉnh được.' : 'Muốn đổi chương trình thì vào ··· › "Chuyển về nháp" (khi chưa gán trường). Lịch vẫn chỉnh được.'}</p>}
+    {can && p.pub_status === 'published' && <p className="sub">{orgs.length ? 'Kế hoạch đã gán cho trường: không thêm, bỏ chương trình được (vẫn chuyển được sang phiên bản mới của chương trình), lịch vẫn chỉnh được.' : 'Muốn đổi chương trình thì vào ··· › "Chuyển về nháp" (khi chưa gán trường). Lịch vẫn chỉnh được.'}</p>}
     <ol className="diststeps five">
       {([[1, 'Chọn chương trình', `${items.length} chương trình · ${num(totalHours)} giờ`],
         [2, 'Xếp lịch', items.length ? `${scheduled}/${sched.rows.length} buổi đã xếp` : 'Chưa có nội dung'],
@@ -470,7 +482,8 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
             <tbody>{items.map((i, k) => <tr key={i.program_id}>
               <td>{k + 1}</td>
               <td style={{ whiteSpace: 'normal' }}><i className="tpdot" style={{ background: colorOf(k) }} /><b>{i.training_programs?.title ?? '—'}</b><br /><small className="sub">{[i.training_programs?.code, verOf(i), i.training_programs?.ct_code].filter(Boolean).join(' · ')}</small>
-                {newerOf(i) && <><br /><small className="holwarn">⚠ Đã có phiên bản mới v{newerOf(i)!.version_no}{edit ? ': bỏ chọn bản này và tick bản mới nếu muốn dùng' : '; kế hoạch giữ phiên bản đã chọn'}</small></>}
+                {newerOf(i) && <div className="tpnewer"><small className={p.pub_status === 'draft' ? 'holwarn' : 'sub'}>Đã có phiên bản mới v{newerOf(i)!.version_no}. Kế hoạch vẫn dùng v{progs.find(x => x.id === i.program_id)?.version_no} bình thường{p.pub_status === 'draft' ? ', nhưng cần chuyển sang bản mới trước khi phát hành' : ''}.</small>
+                  {can && p.pub_status !== 'archived' && !p.closed_at && <button type="button" disabled={busy} onClick={() => upgrade(i)}>Chuyển sang v{newerOf(i)!.version_no}</button>}</div>}
                 <UnitPick prog={progs.find(x => x.id === i.program_id)} value={i.units ?? null} edit={edit} onSave={v => patchItem(i, { units: v })} /></td>
               <td>{num(hoursOf(i))}</td>
               <td>{edit ? <input type="number" min={0} defaultValue={i.quota ?? ''} aria-label="Chỉ tiêu GV" style={{ width: 76 }}

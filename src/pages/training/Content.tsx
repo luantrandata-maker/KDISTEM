@@ -1,5 +1,6 @@
 // Nội dung tập huấn: 5 phần như bài học — Nội dung · Bài giảng · Link tài liệu · Định mức vật tư · Kho hoạt động.
 // Lưu trong training_program_units.detail (083). Chỉ sửa khi chương trình còn nháp.
+import { LEVEL as ELEVEL } from '../elearning/common'
 import { TryButton } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -109,7 +110,7 @@ export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, 
 
 // ===== Bài kiểm tra: chọn câu hỏi từ ngân hàng, đặt số câu, thời gian, số lượt, điểm đạt =====
 type BankQ = { id: string; subject: string; grade: number | null; grades?: number[]; topic: string | null; level: string; kind: string; stem: string; shared: boolean }
-const LEVEL: Record<string, string> = { nhan_biet: 'Nhận biết', thong_hieu: 'Thông hiểu', van_dung: 'Vận dụng', van_dung_cao: 'Vận dụng cao' }
+const LEVEL: Record<string, string> = ELEVEL
 const KIND: Record<string, string> = { single: 'Một đáp án', multi: 'Nhiều đáp án', truefalse: 'Đúng / sai' }
 
 function TestEditor({ t, edit, passScore, hasTest, onChange }: { t: TestCfg; edit: boolean; passScore: number | null; hasTest: boolean; onChange: (t: TestCfg) => void }) {

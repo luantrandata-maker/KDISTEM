@@ -7,16 +7,21 @@ import { schoolYear } from './department/Governance'
 // Đánh giá năng lực (migration 042): khung năng lực, hồ sơ năng lực HS (từ chấm theo tiêu chí), đánh giá năng lực GV.
 export type Comp = { key: string; audience: 'student' | 'teacher'; grp: string; name: string; description: string | null; levels: string[]; sort: number }
 let compCache: Comp[] | null = null
+const compSubs = new Set<(l: Comp[]) => void>()
+function fetchCompetencies() {
+  return supabase.from('competencies').select('*').order('sort').then(({ data }) => { compCache = (data as Comp[]) ?? []; compSubs.forEach(f => f(compCache!)) })
+}
 export function useCompetencies(audience: 'student' | 'teacher') {
   const [list, setList] = useState<Comp[]>(compCache ?? [])
   useEffect(() => {
-    if (compCache) return
-    supabase.from('competencies').select('*').order('sort').then(({ data }) => { compCache = (data as Comp[]) ?? []; setList(compCache) })
+    compSubs.add(setList)
+    if (!compCache) fetchCompetencies()
+    return () => { compSubs.delete(setList) }
   }, [])
   return list.filter(c => c.audience === audience)
 }
-// Gọi sau khi KDI sửa khung năng lực để các trang tải lại
-export const resetCompetencies = () => { compCache = null }
+// Gọi sau khi KDI sửa khung năng lực: tải lại và cập nhật mọi ô chọn năng lực đang mở
+export const resetCompetencies = () => { compCache = null; return fetchCompetencies() }
 const LV = ['#f6d5d3', '#fbe7c2', '#d7ebdb', '#a9d8b8']   // nền mức 1–4 (luôn kèm số và chữ)
 const lvIdx = (v: number) => Math.max(1, Math.min(4, Math.round(v)))
 export const LevelChip = ({ v, comp }: { v: number | null; comp?: Comp }) => v == null
@@ -187,7 +192,9 @@ function useOpenRounds(year: string) {
   }, [year])
   return rows
 }
-const LV_NAME = ['Chưa đạt', 'Đạt', 'Khá', 'Tốt']
+// Tên mức năng lực: KDI đổi tên trong Khung năng lực (lib/levels cập nhật tại chỗ)
+export const LV_NAME = ['Chưa đạt', 'Đạt', 'Khá', 'Tốt']
+export const SLV_NAME = ['Mức 1', 'Mức 2', 'Mức 3', 'Mức 4']
 const avgLv = (l: Record<string, number>) => { const v = Object.values(l); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null }
 
 // GV: Hồ sơ năng lực (tự đánh giá + xem đánh giá của quản lý)

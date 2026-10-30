@@ -1,4 +1,5 @@
 // Phân hệ 1 — Chương trình tập huấn (083): mẫu khoá tập huấn chuẩn của KDI, dùng lại cho các kế hoạch tập huấn.
+import { CompetencySetupLink } from '../../components/CompetencySetup'
 // Cấu trúc 3 cấp: Chương trình tập huấn → Môn → Nội dung tập huấn. Cách làm giống Phân hệ 2: hướng dẫn các bước,
 // thẻ số liệu, danh sách có lọc; thêm / sửa / xem chi tiết mở view riêng; Nháp → Đã phát hành → Ngừng dùng, nhân bản để sửa.
 import { MultiSelect } from '../../components/MultiSelect'
@@ -7,7 +8,7 @@ import { supabase } from '../../lib/supabase'
 import { useEduLevels } from '../../lib/eduLevels'
 import { useStemTracks } from '../../lib/stemTracks'
 import { useSubjects } from '../subjects'
-import { useCompetencies } from '../competency'
+import { useCompetencies, LV_NAME } from '../competency'
 import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
 import { ContentDetail, detailCount, type Detail } from './Content'
@@ -195,9 +196,9 @@ function InfoFields({ f, set, disabled, family }: { f: Info; set: (f: Info) => v
     <fieldset className="libtargets wide"><legend>Năng lực đích (khung năng lực giáo viên)</legend>
       <div className="formgrid" style={{ alignItems: 'start' }}>
         <div className="field" style={{ gridColumn: 'span 3' }}><span>Năng lực đích</span><MultiSelect disabled={disabled} value={f.competencies} onChange={v => set({ ...f, competencies: v })}
-          options={comps.map(c => [c.key, c.name])} placeholder="Chọn năng lực đích…" ariaLabel="Năng lực đích" empty="Chưa có khung năng lực giáo viên." /></div>
+          options={comps.map(c => [c.key, c.name])} placeholder="Chọn năng lực đích…" ariaLabel="Năng lực đích" empty="Chưa có khung năng lực giáo viên." /><CompetencySetupLink audience="teacher" /></div>
         <label className="field"><span>Mức cần đạt sau tập huấn</span><select disabled={disabled} value={f.target_level} onChange={e => set({ ...f, target_level: Number(e.target.value) })}>
-          {[1, 2, 3, 4].map(l => <option key={l} value={l}>Mức {l}</option>)}</select></label>
+          {[1, 2, 3, 4].map(l => <option key={l} value={l}>Mức {l} · {LV_NAME[l - 1]}</option>)}</select></label>
       </div>
     </fieldset>
     <fieldset className="libtargets wide"><legend>Điều kiện đạt (dùng khi đánh giá kết quả và cấp chứng chỉ)</legend>

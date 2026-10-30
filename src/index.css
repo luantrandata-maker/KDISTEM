@@ -646,7 +646,7 @@ tr.muted td{color:var(--muted)}
 .user .usersec button:hover{background:var(--soft)}
 .user .usersec button.on{background:var(--soft);font-weight:700}
 .usersec button small{color:var(--muted);font-weight:400}
-.usersec select{margin:0 10px 4px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit}
+.usersec select{margin:0 10px 4px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;width:calc(100% - 20px);min-width:0;box-sizing:border-box}
 @media (max-width:900px){.top .title,.userbtn .who,.topsearch kbd{display:none}.topsearch{flex:1 1 auto}}
 
 /* Cơ sở triển khai (032) */

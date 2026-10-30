@@ -1,4 +1,5 @@
 import { Icon } from '../../components/Icon'
+import { YearSelect } from '../../components/YearSelect'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { norm, downloadXlsx } from '../../lib/sheet'
@@ -102,7 +103,7 @@ export function ProjectsPage({ orgId, teacherId, studentId, readOnly = false }: 
           <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên dự án *</span><input required value={form.title ?? ''} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
           <label className="field"><span>Loại</span><select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as P['kind'] })}>{Object.entries(KIND).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
           <label className="field"><span>Lĩnh vực</span><input list="pj-fields" value={form.field ?? ''} onChange={e => setForm({ ...form, field: e.target.value })} /><datalist id="pj-fields">{fieldList.map(f => <option key={f} value={f} />)}</datalist></label>
-          <label className="field"><span>Năm học</span><input value={form.school_year ?? ''} onChange={e => setForm({ ...form, school_year: e.target.value })} placeholder="2026-2027" /></label>
+          <label className="field"><span>Năm học</span><YearSelect value={form.school_year ?? ''} onChange={v => setForm({ ...form, school_year: v })} emptyLabel="— Chọn năm học —" /></label>
           <label className="field"><span>Giáo viên hướng dẫn</span><select value={form.mentor_teacher_id ?? ''} onChange={e => setForm({ ...form, mentor_teacher_id: e.target.value || null })}><option value="">—</option>{teachers.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}</select></label>
           <label className="field"><span>Người hướng dẫn ngoài (nhà khoa học…)</span><input value={form.external_mentor ?? ''} onChange={e => setForm({ ...form, external_mentor: e.target.value })} /></label>
           <div className="field" style={{ gridColumn: '1 / -1' }}><span>Học sinh thực hiện *</span>

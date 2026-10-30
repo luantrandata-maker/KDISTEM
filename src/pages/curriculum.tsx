@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { YearSelect } from '../components/YearSelect'
 import { MultiSelect } from '../components/MultiSelect'
 import { supabase } from '../lib/supabase'
 import { OrgFilter, OrgPick, useAllMode, useProvinceOf } from '../components/OrgScope'
@@ -206,7 +207,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
             ? <label className="field"><span>Năm học *</span><select value={form.year_name ?? ''} onChange={e => setForm({ ...form, year_name: e.target.value })}>
                 {!yearNames.includes(form.year_name ?? '') && <option value={form.year_name ?? ''}>{form.year_name || '— Năm học hiện tại —'}</option>}
                 {yearNames.map(n => <option key={n}>{n}</option>)}</select></label>
-            : <label className="field"><span>Năm học</span><input value={form.year_name ?? ''} onChange={e => setForm({ ...form, year_name: e.target.value })} placeholder={mode === 'school' ? 'Để trống: năm học hiện tại' : 'Để trống: dùng mọi năm'} /></label>}
+            : <label className="field"><span>Năm học</span><YearSelect value={form.year_name ?? ''} onChange={v => setForm({ ...form, year_name: v })} emptyLabel={mode === 'school' ? 'Năm học hiện tại' : 'Dùng mọi năm'} /></label>}
           <label className="field"><span>Số tiết / tuần</span><input inputMode="decimal" value={form.periods_per_week ?? ''} onChange={e => setForm({ ...form, periods_per_week: e.target.value as any })} placeholder="VD: 1 hoặc 1,5" /></label>
           {!form.id && <label className="field"><span>Tổng số tiết (dự kiến)</span><input type="number" min={0} value={form.total_periods ?? ''} onChange={e => setForm({ ...form, total_periods: Number(e.target.value) || null })} placeholder="Tự cập nhật khi soạn tiết" /></label>}
           {(!form.id || form.status === 'draft' || form.status === 'published') && <label className="field"><span>Trạng thái</span><select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as Book['status'] })}>

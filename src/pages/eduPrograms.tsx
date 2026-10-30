@@ -1,4 +1,5 @@
 import { Icon } from '../components/Icon'
+import { YearSelect } from '../components/YearSelect'
 import { CompetencySetupLink } from '../components/CompetencySetup'
 import { useCompetencies } from './competency'
 import { useHiddenBtn } from '../components/PageButtons'
@@ -386,7 +387,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
         <form className="panel formgrid" onSubmit={createBook} style={{ marginBottom: 12 }}>
           <label className="field"><span>Khối</span><select value={mkBook.grade} onChange={e => setMkBook({ ...mkBook, grade: Number(e.target.value) })}>{progGrades(p).map(g => <option key={g} value={g}>Khối {g}</option>)}</select></label>
           <label className="field"><span>Môn</span><SubjectPicker level={p.level} value={mkBook.subject} onChange={v => setMkBook({ ...mkBook, subject: v })} extra={[...mainsOf(p), ...p.integrated_subjects]} /></label>
-          <label className="field"><span>Năm học</span><input value={mkBook.year} onChange={e => setMkBook({ ...mkBook, year: e.target.value })} placeholder="Để trống: mọi năm" /></label>
+          <label className="field"><span>Năm học</span><YearSelect value={mkBook.year} onChange={v => setMkBook({ ...mkBook, year: v })} emptyLabel="Mọi năm" /></label>
           <label className="field"><span>Số tiết / tuần</span><input inputMode="decimal" value={mkBook.ppw} onChange={e => setMkBook({ ...mkBook, ppw: e.target.value })} placeholder="VD: 1 hoặc 1,5" /></label>
           <div className="formactions"><button className="primary" type="submit">Tạo PPCT nháp</button> <button type="button" onClick={() => setMkBook(null)}>Huỷ</button></div>
         </form>

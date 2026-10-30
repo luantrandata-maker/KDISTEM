@@ -6,7 +6,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Drawer } from '../../components/Drawer'
 import { ElView } from '../../components/ElView'
-import { ExamMatrix, LEVELS, levelName, matrixText, matrixTotal, useBankSubjects, type MRow } from '../../components/ExamMatrix'
+import { ExamMatrix, LEVELS, cleanMatrix, levelName, listGrades, listSubjects, matrixText, matrixTotal, useBankSubjects, type MRow } from '../../components/ExamMatrix'
+import { MultiSelect } from '../../components/MultiSelect'
+import { GradeMulti } from '../../components/Pickers'
 import { MultiFilters, opts, useMultiFilters, type FilterDef } from '../../components/MultiFilters'
 import { downloadXlsx } from '../../lib/sheet'
 import { Chip } from '../dist/Editor'
@@ -73,10 +75,11 @@ function QuestionList({ qids, title }: { qids: string[]; title: string }) {
 /** Bảng ma trận chủ đề × mức độ */
 function MatrixTable({ rows }: { rows: MRow[] }) {
   if (!rows.length) return null
+  const ms = rows.some(r => r.subject)
   return <section className="panel" style={{ display: 'grid', gap: 10 }}>
     <h3 style={{ margin: 0 }}>Ma trận đề ({matrixTotal(rows)} câu, rút ngẫu nhiên mỗi lượt)</h3>
-    <div className="wrap"><table className="libtable"><thead><tr><th>Chủ đề</th><th>Mức độ</th><th className="num">Số câu</th></tr></thead>
-      <tbody>{rows.map((r, k) => <tr key={k}><td>{r.topic || 'Mọi chủ đề'}</td><td>{levelName(r.level)}</td><td className="num">{r.count}</td></tr>)}</tbody></table></div>
+    <div className="wrap"><table className="libtable"><thead><tr>{ms && <th>Môn</th>}<th>Chủ đề</th><th>Mức độ</th><th className="num">Số câu</th></tr></thead>
+      <tbody>{rows.map((r, k) => <tr key={k}>{ms && <td>{r.subject || 'Mọi môn của đề'}</td>}<td>{r.topic || 'Mọi chủ đề'}</td><td>{levelName(r.level)}</td><td className="num">{r.count}</td></tr>)}</tbody></table></div>
   </section>
 }
 function StatCards({ s }: { s?: Stat }) {
@@ -86,6 +89,10 @@ function StatCards({ s }: { s?: Stat }) {
     <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{s?.passed ?? 0}</b><small>Giáo viên đạt</small></span></div>
   </div>
 }
+const subjGrade = (x: { subject?: string | null; subjects?: string[] | null; grade?: number | null; grades?: number[] | null } | null | undefined) =>
+  `${listSubjects(x).join(', ') || '—'}${listGrades(x).length ? ` · khối ${listGrades(x).join(', ')}` : ' · mọi khối'}`
+const pSpec = (x: { subject?: string | null; subjects?: string[] | null; grade?: number | null; grades?: number[] | null; matrix: MRow[]; qids?: string[]; shuffle: boolean }): TrySpec =>
+  ({ kind: 'pick', subjects: listSubjects(x), grades: listGrades(x), matrix: cleanMatrix(x.matrix ?? []), qids: x.qids ?? [], shuffle: x.shuffle })
 const MODE_LABEL: Record<string, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
 
 /** Chi tiết bài test nội dung / đề cuối khoá */
@@ -109,7 +116,7 @@ function ExamDetail({ r, subjName, stat, onBack, onEdit }: { r: Row; subjName: s
           <dt>Nội dung</dt><dd><b>{u?.title}</b></dd>
           <dt>Thời lượng</dt><dd>{u?.hours != null ? `${num(u.hours)} giờ` : '—'}{u?.mode ? ` · ${MODE_LABEL[u.mode] ?? u.mode}` : ''}</dd>
         </> : <>
-          <dt>Môn (ngân hàng câu hỏi)</dt><dd>{fe?.subject || '—'}{fe?.grade ? ` · khối ${fe.grade}` : ' · mọi khối'}</dd>
+          <dt>Môn (ngân hàng câu hỏi)</dt><dd>{subjGrade(fe)}</dd>
           <dt>Khi nào làm</dt><dd>Sau khi giáo viên học xong mọi nội dung của chương trình</dd>
         </>}
       </dl>
@@ -142,7 +149,7 @@ const progLabel = (p: Prog | undefined) => p ? <><small>{p.code} · v{p.version_
 const rowSpec = (r: { kind: 'unit' | 'final'; prog: Prog; unit: TUnit | null }): TrySpec | null => {
   if (r.kind === 'unit') { const t = r.unit?.detail?.test; return t && t.kind !== 'link' && t.qids?.length ? { kind: 'sample', qids: t.qids, count: t.count ?? null } : null }
   const fe = r.prog.final_exam
-  return fe ? { kind: 'pick', subject: fe.subject, grade: fe.grade ?? null, matrix: fe.matrix ?? [], qids: fe.qids ?? [], shuffle: fe.shuffle !== false } : null
+  return fe ? { kind: 'pick', subjects: listSubjects(fe), grades: listGrades(fe), matrix: cleanMatrix(fe.matrix ?? []), qids: fe.qids ?? [], shuffle: fe.shuffle !== false } : null
 }
 const Stop = ({ children }: { children: React.ReactNode }) => <span onClick={e => e.stopPropagation()}>{children}</span>
 type Row = { key: string; kind: 'unit' | 'final'; prog: Prog; unit: TUnit | null; title: string; sub: string; cfg: string; missing: boolean }
@@ -180,7 +187,7 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
           cfg: link ? 'Làm qua link' : n ? `${t.count ?? n}/${n} câu · ${t.minutes ? t.minutes + ' phút' : 'không giới hạn giờ'} · ${t.attempts ? t.attempts + ' lượt' : 'không giới hạn lượt'} · đạt ${num(t.pass ?? p.pass_score ?? 5)}` : 'Chưa chọn câu hỏi' })
       })
       const fe = p.final_exam
-      if (fe) out.push({ key: 'f' + p.id, kind: 'final', prog: p, unit: null, title: fe.title || 'Đề cuối khoá', sub: `${fe.subject ?? ''}${fe.grade ? ' · khối ' + fe.grade : ''}`, missing: false,
+      if (fe) out.push({ key: 'f' + p.id, kind: 'final', prog: p, unit: null, title: fe.title || 'Đề cuối khoá', sub: subjGrade(fe), missing: false,
         cfg: `${matrixTotal(fe.matrix ?? []) + (fe.qids?.length ?? 0)} câu · ${fe.minutes ? fe.minutes + ' phút' : 'không giới hạn giờ'} · ${fe.attempts ? fe.attempts + ' lượt' : 'không giới hạn lượt'} · đạt ${fe.pass != null ? num(fe.pass) : 'không xét'}` })
     }
     return out
@@ -293,7 +300,7 @@ function AddExam({ progs, onClose, onGo, onErr }: { progs: Prog[]; onClose: () =
 }
 
 // ===== Tab 2: Đề luyện =====
-type Practice = { id: string; org_id: string; program_id: string; title: string; subject: string; grade: number | null; matrix: MRow[]; qids: string[]
+type Practice = { id: string; org_id: string; program_id: string; title: string; subject: string; grade: number | null; subjects?: string[]; grades?: number[]; matrix: MRow[]; qids: string[]
   minutes: number | null; attempts: number; pass: number | null; shuffle: boolean; show_answers: boolean; status: 'draft' | 'published' | 'closed'; note: string | null; updated_at: string }
 const PST: Record<Practice['status'], [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đang mở', 'good'], closed: ['Đã đóng', 'off'] }
 type PForm = Omit<Practice, 'id' | 'org_id' | 'updated_at' | 'qids'> & { id?: string }
@@ -302,8 +309,8 @@ type PForm = Omit<Practice, 'id' | 'org_id' | 'updated_at' | 'qids'> & { id?: st
 function PracticeDetail({ x, prog, stat, admin, msg, onBack, onEdit }: { x: Practice; prog?: Prog; stat?: Stat; admin: boolean; msg: [string, boolean] | null; onBack: () => void; onEdit: () => void }) {
   const n = matrixTotal(x.matrix ?? []) + (x.qids?.length ?? 0)
   return <ElView back="Đề luyện" onBack={onBack} title={x.title}
-    sub={<><Chip tone={PST[x.status][1]}>{PST[x.status][0]}</Chip> {x.subject}{x.grade ? ` · khối ${x.grade}` : ''}{prog ? ` · ${prog.code} · ${prog.title}` : ''}</>}
-    actions={<><TryButton orgId={x.org_id} spec={{ kind: 'pick', subject: x.subject, grade: x.grade, matrix: x.matrix ?? [], qids: x.qids ?? [], shuffle: x.shuffle }} title={x.title} minutes={x.minutes} pass={x.pass} />
+    sub={<><Chip tone={PST[x.status][1]}>{PST[x.status][0]}</Chip> {subjGrade(x)}{prog ? ` · ${prog.code} · ${prog.title}` : ''}</>}
+    actions={<><TryButton orgId={x.org_id} spec={pSpec(x)} title={x.title} minutes={x.minutes} pass={x.pass} />
       {admin && <button type="button" onClick={onEdit}>Sửa đề</button>}</>}>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status" style={{ marginTop: 0 }}><b>{msg[0]}</b></p>}
     <StatCards s={stat} />
@@ -311,7 +318,7 @@ function PracticeDetail({ x, prog, stat, admin, msg, onBack, onEdit }: { x: Prac
       <h3 style={{ margin: 0 }}>Thông tin đề</h3>
       <dl className="tpkv">
         <dt>Chương trình</dt><dd>{prog ? <>{prog.code} · {prog.title} (v{prog.version_no})</> : '—'}</dd>
-        <dt>Môn (ngân hàng câu hỏi)</dt><dd>{x.subject}{x.grade ? ` · khối ${x.grade}` : ' · mọi khối'}</dd>
+        <dt>Môn (ngân hàng câu hỏi)</dt><dd>{subjGrade(x)}</dd>
         <dt>Trạng thái</dt><dd><Chip tone={PST[x.status][1]}>{PST[x.status][0]}</Chip>{x.status === 'published' ? ' · giáo viên đang thấy đề' : ''}</dd>
         {x.note && <><dt>Ghi chú cho giáo viên</dt><dd>{x.note}</dd></>}
       </dl>
@@ -355,10 +362,11 @@ export function TrainingPracticeExams() {
   async function save(status?: Practice['status']) {
     if (!form || !fp) return setMsg(['Chọn chương trình tập huấn.', true])
     if (!form.title.trim()) return setMsg(['Nhập tên đề.', true])
-    if (!form.subject) return setMsg(['Chọn môn của đề.', true])
+    const subs = listSubjects(form), grs = listGrades(form)
+    if (!subs.length) return setMsg(['Chọn môn của đề.', true])
     if (total < 1) return setMsg(['Ma trận cần ít nhất 1 câu.', true])
     setBusy(true)
-    const row = { program_id: form.program_id, title: form.title.trim(), subject: form.subject, grade: form.grade, matrix: form.matrix.map(r => ({ topic: r.topic, level: r.level, count: r.count })),
+    const row = { program_id: form.program_id, title: form.title.trim(), subject: subs[0], subjects: subs, grade: grs[0] ?? null, grades: grs, matrix: cleanMatrix(form.matrix).map(r => (r.subject && !subs.includes(r.subject) ? { ...r, subject: undefined } : r)),
       minutes: form.minutes, attempts: form.attempts, pass: form.pass, shuffle: form.shuffle, show_answers: form.show_answers, note: form.note?.trim() || null, status: status ?? form.status }
     const { error } = form.id ? await supabase.from('training_practice_exams').update(row).eq('id', form.id)
       : await supabase.from('training_practice_exams').insert({ ...row, org_id: fp.org_id })
@@ -372,17 +380,17 @@ export function TrainingPracticeExams() {
     if (error) return setMsg([error.message, true])
     setMsg(['Đã xoá đề luyện.', false]); setForm(null); setPv(null); setRk(k => k + 1)
   }
-  const blank = (): PForm => ({ program_id: usable.find(p => p.status === 'published')?.id ?? usable[0]?.id ?? '', title: '', subject: '', grade: null, matrix: [], minutes: 20, attempts: 0, pass: 5,
+  const blank = (): PForm => ({ program_id: usable.find(p => p.status === 'published')?.id ?? usable[0]?.id ?? '', title: '', subject: '', grade: null, subjects: [], grades: [], matrix: [], minutes: 20, attempts: 0, pass: 5,
     shuffle: true, show_answers: true, status: 'draft', note: '' })
 
   const all = list ?? []
   const defs: FilterDef[] = [
     { key: 'prog', label: 'Chương trình', placeholder: 'Mọi chương trình', options: opts(all.map(x => [x.program_id, progOf(x.program_id) ? `${progOf(x.program_id)!.code} · ${progOf(x.program_id)!.title}` : '—'])) },
-    { key: 'subj', label: 'Môn', placeholder: 'Mọi môn', options: opts(all.map(x => [x.subject, x.subject])) },
+    { key: 'subj', label: 'Môn', placeholder: 'Mọi môn', options: opts(all.flatMap(x => listSubjects(x).map(s => [s, s] as [string, string]))) },
     { key: 'st', label: 'Trạng thái', placeholder: 'Mọi trạng thái', options: (Object.keys(PST) as Practice['status'][]).map(k => [k, PST[k][0]]) },
   ]
   const ql = q.trim().toLowerCase()
-  const shown = all.filter(x => f.has('prog', x.program_id) && f.has('subj', x.subject) && f.has('st', x.status) && (!ql || `${x.title} ${x.subject} ${x.note ?? ''}`.toLowerCase().includes(ql)))
+  const shown = all.filter(x => f.has('prog', x.program_id) && listSubjects(x).some(s => f.has('subj', s)) && f.has('st', x.status) && (!ql || `${x.title} ${x.subject} ${x.note ?? ''}`.toLowerCase().includes(ql)))
   const stat = (id: string) => stats.find(s => s.kind === 'practice' && s.ref === id)
 
   const px = pv ? all.find(x => x.id === pv) : undefined
@@ -405,13 +413,13 @@ export function TrainingPracticeExams() {
       <thead><tr><th>Đề luyện</th><th>Câu hỏi</th><th>Cách làm</th><th>Chương trình</th><th>Trạng thái</th><th className="num">Lượt · GV</th><th className="num">Điểm TB</th><th></th></tr></thead>
       <tbody>{shown.map(x => { const s = stat(x.id)
         return <tr key={x.id} className="clickrow" onClick={() => { setMsg(null); setPv(x.id) }}>
-          <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink">{x.title}</button><br /><small className="sub">{x.subject}{x.grade ? ` · khối ${x.grade}` : ''}</small></td>
+          <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink">{x.title}</button><br /><small className="sub">{subjGrade(x)}</small></td>
           <td style={{ whiteSpace: 'normal' }}><small>{matrixTotal(x.matrix ?? [])} câu: {matrixText(x.matrix ?? [])}</small></td>
           <td><small>{x.minutes ? `${x.minutes} phút` : 'Không giới hạn'} · {x.attempts ? `${x.attempts} lượt` : 'không giới hạn lượt'}{x.show_answers ? ' · xem đáp án' : ''}</small></td>
           <td style={{ whiteSpace: 'normal' }}>{progLabel(progOf(x.program_id))}</td>
           <td><Chip tone={PST[x.status][1]}>{PST[x.status][0]}</Chip></td>
           <td className="num">{s ? `${s.attempts} · ${s.teachers}` : '0'}</td><td className="num">{num(s?.avg_score)}</td>
-          <td><Stop><TryButton orgId={x.org_id} spec={{ kind: 'pick', subject: x.subject, grade: x.grade, matrix: x.matrix ?? [], qids: x.qids ?? [], shuffle: x.shuffle }} title={x.title} minutes={x.minutes} pass={x.pass} /></Stop></td></tr> })}
+          <td><Stop><TryButton orgId={x.org_id} spec={pSpec(x)} title={x.title} minutes={x.minutes} pass={x.pass} /></Stop></td></tr> })}
         {!shown.length && <tr><td colSpan={8}><small className="sub">{all.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có đề luyện. Bấm “+ Thêm đề luyện”.'}</small></td></tr>}</tbody>
     </table></div>}
     </>}
@@ -425,16 +433,15 @@ export function TrainingPracticeExams() {
       <div className="panel libform">
         {msg && msg[1] && <p className="msg">{msg[0]}</p>}
         <div className="formgrid libgrid4">
-          <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình tập huấn *</span><select disabled={!admin} value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, subject: '', matrix: [] })}>
+          <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình tập huấn *</span><select disabled={!admin} value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, subject: '', subjects: [], matrix: [] })}>
             {usable.map(p => <option key={p.id} value={p.id}>{p.code} · {p.title} · v{p.version_no} · {STATUS[p.status]?.[0]?.toLowerCase()}</option>)}
             {fp && OLD.includes(fp.status) && <option value={fp.id}>{fp.code} · {fp.title} · v{fp.version_no}</option>}</select>
             <small className="sub">Giáo viên học mọi phiên bản của chương trình này đều thấy đề.</small></label>
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Tên đề *</span><input disabled={!admin} maxLength={200} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Luyện tập cảm biến và robot" /></label>
-          <label className="field"><span>Môn (ngân hàng câu hỏi) *</span><select disabled={!admin} value={form.subject} onChange={e => setForm({ ...form, subject: e.target.value, matrix: [] })}>
-            <option value="">— Chọn môn —</option>{subjects.map(s => <option key={s.subject} value={s.subject}>{s.subject} ({s.n} câu)</option>)}
-            {form.subject && !subjects.some(s => s.subject === form.subject) && <option value={form.subject}>{form.subject}</option>}</select></label>
-          <label className="field"><span>Khối</span><select disabled={!admin} value={form.grade ?? ''} onChange={e => setForm({ ...form, grade: e.target.value ? Number(e.target.value) : null })}>
-            <option value="">Mọi khối</option>{Array.from({ length: 12 }, (_, k) => <option key={k + 1} value={k + 1}>Khối {k + 1}</option>)}</select></label>
+          <div className="field" style={{ gridColumn: 'span 2' }}><span>Môn (ngân hàng câu hỏi, chọn được nhiều) *</span>
+            <MultiSelect disabled={!admin} value={listSubjects(form)} onChange={v => setForm({ ...form, subjects: v, subject: v[0] ?? '' })} ariaLabel="Môn của đề" placeholder="— Chọn môn —"
+              options={[...subjects.map(s => [s.subject, `${s.subject} (${s.n} câu)`] as [string, string]), ...listSubjects(form).filter(x => !subjects.some(s => s.subject === x)).map(x => [x, x] as [string, string])]} empty="Ngân hàng chưa có câu hỏi." /></div>
+          <div className="field"><span>Khối (chọn được nhiều)</span><GradeMulti disabled={!admin} value={listGrades(form)} onChange={v => setForm({ ...form, grades: v, grade: v[0] ?? null })} /></div>
           <label className="field"><span>Thời gian (phút)</span><input disabled={!admin} type="number" min={1} max={300} value={form.minutes ?? ''} placeholder="Không giới hạn"
             onChange={e => setForm({ ...form, minutes: e.target.value ? Number(e.target.value) : null })} /></label>
           <label className="field"><span>Số lượt làm</span><input disabled={!admin} type="number" min={0} max={50} value={form.attempts} onChange={e => setForm({ ...form, attempts: Number(e.target.value) || 0 })} /><small className="sub">0 = không giới hạn</small></label>
@@ -445,9 +452,9 @@ export function TrainingPracticeExams() {
           <label className="field" style={{ gridColumn: '1 / -1' }}><span>Ghi chú cho giáo viên</span><input disabled={!admin} maxLength={2000} value={form.note ?? ''} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="VD: Ôn trước buổi 3" /></label>
         </div>
         <div className="bar" style={{ margin: 0 }}><h4 className="libparthead">Ma trận đề ({total} câu)</h4>
-          <TryButton orgId={fp?.org_id} spec={{ kind: 'pick', subject: form.subject, grade: form.grade, matrix: form.matrix, qids: (form as PForm & { qids?: string[] }).qids ?? [], shuffle: form.shuffle }}
-            title={form.title || 'Đề luyện'} minutes={form.minutes} pass={form.pass} disabled={!form.subject} /></div>
-        <ExamMatrix org={fp?.org_id} subject={form.subject} grade={form.grade} rows={form.matrix} onChange={m => setForm({ ...form, matrix: m })} disabled={!admin} />
+          <TryButton orgId={fp?.org_id} spec={pSpec({ ...form, qids: (form as PForm & { qids?: string[] }).qids ?? [] })}
+            title={form.title || 'Đề luyện'} minutes={form.minutes} pass={form.pass} disabled={!listSubjects(form).length} /></div>
+        <ExamMatrix org={fp?.org_id} subjects={listSubjects(form)} grades={listGrades(form)} rows={form.matrix} onChange={m => setForm({ ...form, matrix: m })} disabled={!admin} />
       </div>
     </Drawer>}
   </>

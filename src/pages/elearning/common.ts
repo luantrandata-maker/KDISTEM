@@ -4,9 +4,9 @@ import type { QuizItem } from '../ai'
 // E-learning & luyện thi (migration 053) — kiểu dữ liệu và hàm dùng chung
 export type Level = 'nhan_biet' | 'thong_hieu' | 'van_dung' | 'van_dung_cao'
 export type QKind = 'single' | 'multi' | 'truefalse'
-export type Question = { id: string; org_id: string; created_by: string | null; subject: string; grade: number | null; topic: string | null; level: Level; kind: QKind
+export type Question = { id: string; org_id: string; created_by: string | null; subject: string; grade: number | null; grades?: number[]; topic: string | null; level: Level; kind: QKind
   stem: string; options: string[]; answer: number[]; explain: string | null; source: string; shared: boolean; status: 'draft' | 'ready' | 'retired'; created_at: string }
-export type Exam = { id: string; org_id: string; created_by: string | null; title: string; description: string | null; subject: string | null; grade: number | null
+export type Exam = { id: string; org_id: string; created_by: string | null; title: string; description: string | null; subject: string | null; grade: number | null; subjects?: string[]; grades?: number[]
   mode: 'fixed' | 'random'; question_ids: string[]; criteria: { count?: number; topics?: string[]; levels?: Partial<Record<Level, number>>; matrix?: { topic: string; level: string; count: number }[] }
   shuffle?: boolean
   duration_min: number | null; max_attempts: number; show_answers: 'after_submit' | 'after_close' | 'never'; class_ids: string[] | null; group_ids: string[] | null; student_ids: string[] | null; shared: boolean
@@ -74,3 +74,6 @@ export function dueBadge(due: string | null, finished: boolean): { text: string;
 export const courseSubjects = (c: Pick<Course, 'subject' | 'subjects'>) => c.subjects?.length ? c.subjects : c.subject?.trim() ? [c.subject.trim()] : []
 export const courseGrades = (c: Pick<Course, 'grade' | 'grades'>) => c.grades?.length ? c.grades : c.grade ? [c.grade] : []
 export const courseMeta = (c: Course) => [courseSubjects(c).join(', ') || null, courseGrades(c).length ? 'Khối ' + courseGrades(c).join(', ') : null]
+/** Khối của câu hỏi (danh sách; dữ liệu cũ chỉ có một khối) */
+export const qGrades = (q: Pick<Question, 'grade' | 'grades'>) => q.grades?.length ? q.grades : q.grade ? [q.grade] : []
+export const gradesText = (g: number[]) => g.length ? 'Khối ' + g.join(', ') : ''

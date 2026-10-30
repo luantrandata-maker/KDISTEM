@@ -2,6 +2,7 @@ import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { useSettings, menuOf, orderItems } from './lib/settings'
+import { applyLevelLabels } from './lib/levels'
 import { CatalogLists, PageButtons, PageCtx } from './components/PageButtons'
 import { NAV, ROLE_LABEL, MODULE_OF, ENT_MODULE_OF, RoleKey, UPSELL_PORTALS, PHASE_OF, labelOf } from './lib/nav'
 import { LockedModule } from './components/LockedModule'
@@ -180,7 +181,7 @@ const eduProgramTabs = (mode: 'school' | 'authority') => {
 // Danh mục loại chương trình (CT1–CT5 và loại thêm sau): tên, mô tả, môn học, cấp học (062, 064)
 const EduLevelsCatalog = lazy(() => import('./pages/eduLevels').then(m => ({ default: m.EduLevelsCatalog })))
 const StemTracksCatalog = lazy(() => import('./pages/stemTracks').then(m => ({ default: m.StemTracksCatalog })))
-const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Nhóm chương trình', StemTracksCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog]]} />
+const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Nhóm chương trình', StemTracksCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog], ['Khung năng lực', CompetencyFrameworkPage]]} />
 const ProgressPlatform = (q: any) => <CurriculumProgress {...q} mode="platform" />
 // Định mức vật tư theo bài / chủ đề, danh mục vật tư, dự trù, đề xuất điều chỉnh (059)
 const MaterialNorms = lazy(() => import('./pages/materialNorms').then(m => ({ default: m.MaterialNorms })))
@@ -582,6 +583,7 @@ function Shell({ session }: { session: Session }) {
   const [changingPw, setChangingPw] = useState(false)
   const yrs = useYears(access.profile?.org_id)
   const settings = useSettings(access.profile?.org_id ?? null)
+  applyLevelLabels(settings)
 
   const views: RoleKey[] = access.portals
 

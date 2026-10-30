@@ -6,13 +6,14 @@ import { downloadXlsx } from '../../lib/sheet'
 import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
 import { schoolYear } from '../department/Governance'
-import { LevelChip, useCompetencies, resetCompetencies, type Comp } from '../competency'
+import { LevelChip, useCompetencies, resetCompetencies, LV_NAME, SLV_NAME, type Comp } from '../competency'
 import { FlowGuide } from '../../components/FlowGuide'
+import { Tabs } from '../teacher/common'
+import { LevelNames } from '../settings/Custom'
 
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 088 trên Supabase.' : /row-level|42501/i.test(m) ? 'Bạn không có quyền với mục này.' : m
 const vnDate = (d: string | null) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 const today = () => new Date().toISOString().slice(0, 10)
-const LV_NAME = ['Chưa đạt', 'Đạt', 'Khá', 'Tốt']
 const pct = (a: number, b: number) => b ? Math.round(a * 100 / b) : 0
 const years = () => { const y = schoolYear(); const s = +y.slice(0, 4); return [`${s + 1}-${s + 2}`, y, `${s - 1}-${s}`] }
 
@@ -251,56 +252,73 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
   </>
 }
 
-// ================= Khung năng lực (KDI) =================
+// ================= Khung năng lực (KDI): giáo viên và học sinh =================
 export function CompetencyFrameworkPage() {
-  const comps = useCompetencies('teacher')
-  const [list, setList] = useState<Comp[]>([])
+  const [aud, setAud] = useState<'teacher' | 'student'>('teacher')
+  return <>
+    <Tabs value={aud} onChange={setAud} items={[['teacher', 'Năng lực giáo viên'], ['student', 'Năng lực học sinh']]} />
+    <CompetencyFramework key={aud} audience={aud} />
+  </>
+}
+
+const AUD = {
+  teacher: { title: 'Năng lực giáo viên', grp: 'Giáo viên STEM', prefix: 'gv_', example: 'gv_hop_tac', levels: LV_NAME,
+    intro: 'Khung năng lực giáo viên dùng chung cho mọi đơn vị: tự đánh giá, trường đánh giá, khoảng thiếu hụt và năng lực đích của chương trình tập huấn đều theo khung này.' },
+  student: { title: 'Năng lực học sinh', grp: 'Năng lực đặc thù', prefix: '', example: 'ngoai_ngu', levels: SLV_NAME,
+    intro: 'Khung năng lực học sinh dùng chung: năng lực của chương trình giáo dục, yêu cầu cần đạt, tiêu chí chấm (rubric) và hồ sơ năng lực học sinh đều theo khung này.' },
+}
+export function CompetencyFramework({ audience, compact }: { audience: 'teacher' | 'student'; compact?: boolean }) {
+  const A = AUD[audience]
+  const lvLabel = (i: number) => A.levels[i] === `Mức ${i + 1}` ? A.levels[i] : `Mức ${i + 1} · ${A.levels[i]}`
+  const [names, setNames] = useState(false)
+  const comps = useCompetencies(audience)
   const [edit, setEdit] = useState<Comp | null>(null)
   const [isNew, setIsNew] = useState(false)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
-  useEffect(() => { setList(comps) }, [comps.length])
-  async function reload() {
-    resetCompetencies()
-    const { data } = await supabase.from('competencies').select('*').eq('audience', 'teacher').order('sort')
-    setList((data as Comp[]) ?? [])
-  }
+  const list = comps
+  const groups = [...new Set(list.map(c => c.grp))]
   async function save() {
     if (!edit) return
-    if (!edit.key.match(/^[a-z][a-z0-9_]{1,40}$/)) return setMsg(['Mã chỉ gồm chữ thường không dấu, số và dấu gạch dưới (VD: gv_hop_tac).', true])
+    if (!edit.key.match(/^[a-z][a-z_]{1,40}$/)) return setMsg([`Mã chỉ gồm chữ thường không dấu và dấu gạch dưới (VD: ${A.example}).`, true])
     if (!edit.name.trim() || edit.levels.some(l => !l.trim())) return setMsg(['Nhập tên và mô tả đủ 4 mức.', true])
-    const row = { key: edit.key, audience: 'teacher', grp: edit.grp || 'Năng lực giáo viên STEM', name: edit.name.trim(), description: edit.description?.trim() || null, levels: edit.levels.map(l => l.trim()), sort: edit.sort }
+    const row = { key: edit.key, audience, grp: edit.grp.trim() || A.grp, name: edit.name.trim(), description: edit.description?.trim() || null, levels: edit.levels.map(l => l.trim()), sort: edit.sort }
     const { error } = isNew ? await supabase.from('competencies').insert(row) : await supabase.from('competencies').update(row).eq('key', edit.key)
     if (error) return setMsg([/duplicate|unique/i.test(error.message) ? 'Mã năng lực đã có.' : errText(error.message), true])
-    setMsg([isNew ? 'Đã thêm năng lực.' : 'Đã lưu năng lực.', false]); setEdit(null); reload()
+    setMsg([isNew ? 'Đã thêm năng lực.' : 'Đã lưu năng lực.', false]); setEdit(null); resetCompetencies()
   }
   function add() {
     setIsNew(true); setMsg(null)
-    setEdit({ key: 'gv_', audience: 'teacher', grp: list[0]?.grp ?? 'Năng lực giáo viên STEM', name: '', description: '', levels: ['', '', '', ''], sort: (list[list.length - 1]?.sort ?? 100) + 10 })
+    setEdit({ key: A.prefix, audience, grp: list[list.length - 1]?.grp ?? A.grp, name: '', description: '', levels: ['', '', '', ''], sort: (list[list.length - 1]?.sort ?? 100) + 10 })
   }
   return <>
-    <div className="panel distintro"><p style={{ margin: 0 }}>Khung năng lực giáo viên STEM dùng chung cho mọi đơn vị: tự đánh giá, trường đánh giá, khoảng thiếu hụt và năng lực đích của chương trình tập huấn đều theo khung này.
-      Sửa mô tả mức có hiệu lực ngay; mã năng lực không đổi được vì kết quả đánh giá đã lưu theo mã.</p></div>
+    {!compact && <div className="panel distintro"><p style={{ margin: 0 }}>{A.intro} Sửa mô tả mức có hiệu lực ngay; mã năng lực không đổi được vì kết quả đã lưu theo mã.</p></div>}
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {edit && <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
       <h3 style={{ margin: 0 }}>{isNew ? 'Thêm năng lực' : edit.name}</h3>
       <div className="formgrid">
-        <label className="field"><span>Mã</span><input value={edit.key} disabled={!isNew} onChange={e => setEdit({ ...edit, key: e.target.value })} /></label>
+        <label className="field"><span>Mã</span><input value={edit.key} disabled={!isNew} onChange={e => setEdit({ ...edit, key: e.target.value })} placeholder={A.example} /></label>
         <label className="field"><span>Tên năng lực</span><input value={edit.name} onChange={e => setEdit({ ...edit, name: e.target.value })} /></label>
+        <label className="field"><span>Nhóm</span><input list={'cgrp-' + audience} value={edit.grp} onChange={e => setEdit({ ...edit, grp: e.target.value })} />
+          <datalist id={'cgrp-' + audience}>{groups.map(g => <option key={g} value={g} />)}</datalist></label>
         <label className="field"><span>Thứ tự</span><input type="number" value={edit.sort} onChange={e => setEdit({ ...edit, sort: +e.target.value })} /></label>
       </div>
       <label className="field"><span>Mô tả</span><textarea rows={2} value={edit.description ?? ''} onChange={e => setEdit({ ...edit, description: e.target.value })} /></label>
-      <div className="formgrid">{edit.levels.map((l, i) => <label key={i} className="field"><span>Mức {i + 1} · {LV_NAME[i]}</span>
+      <div className="formgrid">{edit.levels.map((l, i) => <label key={i} className="field"><span>{lvLabel(i)}</span>
         <textarea rows={3} value={l} onChange={e => setEdit({ ...edit, levels: edit.levels.map((x, k) => k === i ? e.target.value : x) })} /></label>)}</div>
       <div className="formactions"><button type="button" onClick={() => setEdit(null)}>Huỷ</button> <button type="button" className="primary" onClick={save}>Lưu</button></div>
     </section>}
     <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
-      <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Năng lực giáo viên ({list.length})</h3>{!edit && <button type="button" className="primary" onClick={add}>Thêm năng lực</button>}</div>
+      <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>{A.title} ({list.length})</h3>
+        <span className="tools"><button type="button" onClick={() => setNames(!names)}>{names ? 'Đóng tên các mức' : 'Đổi tên các mức'}</button>
+          {!edit && <button type="button" className="primary" onClick={add}>Thêm năng lực</button>}</span></div>
+      {names && <LevelNames keys={[audience === 'teacher' ? 'comp_level_teacher' : 'comp_level_student']} />}
       <div className="wrap"><table className="libtable">
-        <thead><tr><th>Năng lực</th>{LV_NAME.map((l, i) => <th key={l}>Mức {i + 1} · {l}</th>)}<th /></tr></thead>
+        <thead><tr><th>Năng lực</th><th>Nhóm</th>{A.levels.map((_, i) => <th key={i}>{lvLabel(i)}</th>)}<th /></tr></thead>
         <tbody>{list.map(c => <tr key={c.key}><td><b>{c.name}</b><br /><small className="sub">{c.key}</small>{c.description && <><br /><small>{c.description}</small></>}</td>
+          <td><small>{c.grp}</small></td>
           {c.levels.map((l, i) => <td key={i}><small>{l}</small></td>)}
           <td><button type="button" onClick={() => { setIsNew(false); setMsg(null); setEdit({ ...c, levels: [...c.levels] }) }}>Sửa</button></td></tr>)}
-          {!list.length && <tr><td colSpan={6}><small className="sub">Đang tải…</small></td></tr>}</tbody>
+          {!list.length && <tr><td colSpan={7}><small className="sub">Chưa có năng lực nào.</small></td></tr>}</tbody>
       </table></div>
     </section>
   </>

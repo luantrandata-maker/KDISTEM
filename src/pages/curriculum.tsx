@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { MultiSelect } from '../components/MultiSelect'
 import { supabase } from '../lib/supabase'
 import { OrgFilter, OrgPick, useAllMode, useProvinceOf } from '../components/OrgScope'
@@ -8,7 +8,8 @@ import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
 import { uploadLearningFile, openFile } from '../lib/files'
 import { GradePicker, SubjectPicker } from '../components/Pickers'
-import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
+import { NameLink } from '../components/TableSel'
+import { ElView } from '../components/ElView'
 
 // Phân phối chương trình theo từng tiết + tiến độ dạy (migration 057; 058: học kỳ, liên kết chương trình chuẩn,
 // gán lớp, gửi duyệt / công bố, nhật ký điều chỉnh, nội dung chưa hoàn thành, yêu cầu cần đạt, minh chứng).
@@ -146,13 +147,13 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
     if (!row.subject || !row.grade) return setMsg(['Nhập khối và môn học.', true])
     const { error } = form.id ? await supabase.from('curriculum_books').update(row).eq('id', form.id) : await supabase.from('curriculum_books').insert(row)
     if (error) return setMsg([errText(error.message), true])
-    setForm(null); setMsg([form.id ? 'Đã lưu thông tin môn.' : 'Đã thêm môn — bấm "Mở" để soạn từng tiết.', false]); load()
+    setForm(null); setMsg([form.id ? 'Đã lưu thông tin môn.' : 'Đã thêm môn — bấm vào tên môn để soạn từng tiết.', false]); load()
   }
   async function remove(b: Book) {
     if (!confirm(`Xoá PPCT "${b.title}" và toàn bộ các tiết? Tiết dạy đã gắn với PPCT này sẽ bỏ liên kết.`)) return
     const { error } = await supabase.from('curriculum_books').delete().eq('id', b.id)
     if (error) return setMsg([errText(error.message), true])
-    setMsg(['Đã xoá.', false]); load()
+    setOpen(null); setMsg(['Đã xoá.', false]); load()
   }
   async function setStatus(b: Book, status: BookStatus, confirmText?: string) {
     if (confirmText && !confirm(confirmText)) return
@@ -183,36 +184,19 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
     ], shown.map(b => [b.grade, b.subject, b.title, b.year_name, b.total_periods, b.periods_per_week, b.status === 'draft' ? 'Nháp' : 'Đã ban hành']))
   }
 
-  const tsel = useRowSel(templates)
-  const bsel = useRowSel(shown)
-  if (open) return <LessonEditor book={open} canEdit={canEdit && (open.org_id === orgId || !!every)} mode={mode} onClose={() => { setOpen(null); load() }} onChanged={load} />
-
   const scopeLabel = mode === 'platform' ? 'Mẫu cho mọi trường' : 'Ban hành cho đơn vị trực thuộc'
-  return (
-    <>
-      <p className="sub">
-        {mode === 'school' ? 'Phân phối chương trình theo từng tiết của từng môn, khối. Khi giáo viên điểm danh, tiết dạy được gắn với tiết kế tiếp trong PPCT để theo dõi tiến độ (xem tab Tiến độ dạy).'
-          : mode === 'platform' ? 'Mẫu PPCT của KDI: trường sao chép về rồi điều chỉnh theo kế hoạch của tổ chuyên môn. Bản nháp chưa hiện với trường.'
-          : 'PPCT của đơn vị. Bật "Ban hành cho đơn vị trực thuộc" để các trường thấy và sao chép làm mẫu.'}
-      </p>
-      <div className="bar">
-        <div className="tools">
-          {grades.length > 1 && <div className="segmented" style={{ margin: 0 }}>
-            {[0, ...grades].map(g => <button key={g} className={grade === g ? 'on' : ''} onClick={() => setGrade(g)}>{g ? `Khối ${g}` : 'Tất cả'}</button>)}
-          </div>}
-          {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn học"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
-          <input placeholder="Tìm môn, tên PPCT…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-          <OrgFilter ids={books.map(b => b.org_id)} value={fo} onChange={setFo} />
-        </div>
-        <div className="tools">
-          {canEdit && templates.length > 0 && <button onClick={() => setShowTpl(v => !v)}>{showTpl ? 'Ẩn mẫu' : `Dùng mẫu (${templates.length})`}</button>}
-          {shown.length > 0 && <button onClick={exportList}>Xuất Excel</button>}
-          {canEdit && <button className="primary" onClick={() => setForm({ grade: grade || undefined, subject, status: 'published', scope: mode === 'school' ? 'own' : 'children', year_name: mode === 'school' ? year?.name ?? '' : '' })}>Thêm môn</button>}
-        </div>
-      </div>
-      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+  // Nút thao tác của một PPCT, đặt ở trang chi tiết (không tick chọn ở danh sách)
+  const bookActions = (b: Book): ReactNode => canEdit && (b.org_id === orgId || !!every) ? <>
+    {mode === 'school' && (b.status === 'draft' || b.status === 'rejected') && <button onClick={() => setStatus(b, 'pending')}>Gửi duyệt</button>}
+    {b.status === 'pending' && <><button onClick={() => decide(b, 'approve')}>Duyệt</button><button onClick={() => decide(b, 'reject')}>Trả lại</button></>}
+    {b.status === 'approved' && <button className="primary" onClick={() => setStatus(b, 'published', `Công bố "${b.title}"? Lớp cùng khối sẽ theo dõi tiến độ theo PPCT này.`)}>Công bố</button>}
+    <button disabled={b.status === 'pending'} onClick={() => { setMsg(null); setForm(b) }}>Sửa thông tin PPCT</button>
+    <button className="danger" disabled={b.status === 'pending'} onClick={() => remove(b)}>Xoá PPCT</button>
+  </> : null
 
-      {form && (
+  // Thêm / sửa: trang riêng
+  if (form) return <ElView back={open ? open.title : 'Danh sách môn'} onBack={() => setForm(null)} title={form.id ? `Sửa PPCT: ${form.title}` : 'Thêm môn vào phân phối chương trình'}>
+    {msg && msg[1] && <p className="msg" role="status"><b>{msg[0]}</b></p>}
         <form className="panel formgrid" onSubmit={save} style={{ marginBottom: 12 }}>
           {!form.id && <OrgPick kind="any" value={form.org_id ?? orgId ?? ''} onChange={v => setForm({ ...form, org_id: v })} />}
           <label className="field"><span>Khối *</span><GradePicker value={form.grade} onChange={g => setForm({ ...form, grade: g ?? undefined })} emptyLabel="— Chọn khối —" /></label>
@@ -232,19 +216,46 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
           <label className="field" style={{ gridColumn: '1/-1' }}><span>Ghi chú</span><input value={form.note ?? ''} onChange={e => setForm({ ...form, note: e.target.value })} /></label>
           <div className="formactions"><button className="primary" type="submit">Lưu</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
-      )}
+  </ElView>
+  // Xem chi tiết (soạn tiết) kèm nút Sửa / Xoá / duyệt
+  if (open) return <>{msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+    <LessonEditor book={open} canEdit={canEdit && (open.org_id === orgId || !!every)} mode={mode} actions={bookActions(open)} onClose={() => { setOpen(null); setMsg(null); load() }} onChanged={load} /></>
+
+  return (
+    <>
+      <p className="sub">
+        {mode === 'school' ? 'Phân phối chương trình theo từng tiết của từng môn, khối. Khi giáo viên điểm danh, tiết dạy được gắn với tiết kế tiếp trong PPCT để theo dõi tiến độ (xem tab Tiến độ dạy).'
+          : mode === 'platform' ? 'Mẫu PPCT của KDI: trường sao chép về rồi điều chỉnh theo kế hoạch của tổ chuyên môn. Bản nháp chưa hiện với trường.'
+          : 'PPCT của đơn vị. Bật "Ban hành cho đơn vị trực thuộc" để các trường thấy và sao chép làm mẫu.'}
+      </p>
+      <div className="bar">
+        <div className="tools">
+          {grades.length > 1 && <div className="segmented" style={{ margin: 0 }}>
+            {[0, ...grades].map(g => <button key={g} className={grade === g ? 'on' : ''} onClick={() => setGrade(g)}>{g ? `Khối ${g}` : 'Tất cả'}</button>)}
+          </div>}
+          {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn học"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
+          <input placeholder="Tìm môn, tên PPCT…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
+          <OrgFilter ids={books.map(b => b.org_id)} value={fo} onChange={setFo} />
+        </div>
+        <div className="tools">
+          {canEdit && templates.length > 0 && <button onClick={() => setShowTpl(v => !v)}>{showTpl ? 'Ẩn mẫu' : `Dùng mẫu (${templates.length})`}</button>}
+          {shown.length > 0 && <button onClick={exportList}>Xuất Excel</button>}
+          {canEdit && <button className="primary" onClick={() => { setMsg(null); setForm({ grade: grade || undefined, subject, status: 'published', scope: mode === 'school' ? 'own' : 'children', year_name: mode === 'school' ? year?.name ?? '' : '' }) }}>Thêm môn</button>}
+        </div>
+      </div>
+      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+
 
       {showTpl && (
         <div className="panel" style={{ marginBottom: 12 }}>
-          <SelBar picked={tsel.cur?.title ?? null} left={<h3 style={{ margin: 0 }}>Mẫu PPCT từ KDI và cấp trên</h3>}>
-            <button className="primary" disabled={!tsel.cur} onClick={() => tsel.cur && copy(tsel.cur)}>Sao chép</button>
-          </SelBar>
+          <h3 style={{ margin: '0 0 8px' }}>Mẫu PPCT từ KDI và cấp trên</h3>
           <div className="wrap"><table>
-            <thead><tr><SelTh /><th>Khối</th><th>Môn</th><th>Tên mẫu</th><th>Số tiết</th><th>Ban hành bởi</th></tr></thead>
+            <thead><tr><th>Khối</th><th>Môn</th><th>Tên mẫu</th><th>Số tiết</th><th>Ban hành bởi</th><th></th></tr></thead>
             <tbody>{templates.map(t => (
-              <tr key={t.id} className={tsel.is(t) ? 'picked' : undefined}><SelTd on={tsel.is(t)} onToggle={() => tsel.toggle(t)} label={t.title} />
+              <tr key={t.id} className="clickrow" onClick={() => setOpen(t)}>
                 <td>{t.grade}</td><td>{t.subject}</td><td><NameLink onClick={() => setOpen(t)}>{t.title}</NameLink>{t.note && <><br /><small>{t.note}</small></>}</td>
-                <td>{t.total_periods ?? '—'}</td><td>{t.organizations?.name ?? '—'}</td></tr>
+                <td>{t.total_periods ?? '—'}</td><td>{t.organizations?.name ?? '—'}</td>
+                <td onClick={e => e.stopPropagation()}><button className="primary" onClick={() => copy(t)}>Sao chép</button></td></tr>
             ))}</tbody>
           </table></div>
         </div>
@@ -254,21 +265,12 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
         <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có môn nào trong phân phối chương trình.
           {canEdit && (templates.length ? ' Bấm "Dùng mẫu" để sao chép PPCT mẫu, hoặc "Thêm môn" để tự soạn.' : ' Bấm "Thêm môn" để bắt đầu.')}</p></div>
       ) : (
-        <>{canEdit && (() => { const b = bsel.cur; return (
-          <SelBar picked={b?.title ?? null}>
-            {mode === 'school' && <button disabled={!b || !(b.status === 'draft' || b.status === 'rejected')} onClick={() => b && setStatus(b, 'pending')}>Gửi duyệt</button>}
-            {b?.status === 'pending' && <><button onClick={() => decide(b, 'approve')}>Duyệt</button><button onClick={() => decide(b, 'reject')}>Trả lại</button></>}
-            {b?.status === 'approved' && <button className="primary" onClick={() => setStatus(b, 'published', `Công bố "${b.title}"? Lớp cùng khối sẽ theo dõi tiến độ theo PPCT này.`)}>Công bố</button>}
-            <button disabled={!b || b.status === 'pending'} onClick={() => b && setForm(b)}>Sửa</button>
-            <button className="danger" disabled={!b || b.status === 'pending'} onClick={() => { if (b) { remove(b); bsel.clear() } }}>Xoá</button>
-          </SelBar>) })()}
-        <div className="wrap"><table>
-          <thead><tr>{canEdit && <SelTh />}<th>Khối</th><th>Môn</th><th>Tên PPCT</th><th>Năm học</th><th>Số tiết</th><th>Tiết/tuần</th><th>Trạng thái</th></tr></thead>
+        <><div className="wrap"><table>
+          <thead><tr><th>Khối</th><th>Môn</th><th>Tên PPCT</th><th>Năm học</th><th>Số tiết</th><th>Tiết/tuần</th><th>Trạng thái</th></tr></thead>
           <tbody>{shown.map(b => (
-            <tr key={b.id} className={bsel.is(b) ? 'picked' : undefined}>
-              {canEdit && <SelTd on={bsel.is(b)} onToggle={() => bsel.toggle(b)} label={b.title} />}
+            <tr key={b.id} className="clickrow" onClick={() => { setMsg(null); setOpen(b) }}>
               <td>{b.grade}</td><td>{b.subject}</td>
-              <td><NameLink onClick={() => setOpen(b)} title={canEdit ? 'Soạn tiết' : 'Xem'}>{b.title}</NameLink>{every && <><br /><small className="sub">{b.organizations?.name ?? '—'}</small></>}{b.edu_programs && <><br /><small>Theo chương trình: {b.edu_programs.title} (v{b.edu_programs.version_no})</small></>}
+              <td><NameLink onClick={() => { setMsg(null); setOpen(b) }} title="Xem chi tiết">{b.title}</NameLink>{every && <><br /><small className="sub">{b.organizations?.name ?? '—'}</small></>}{b.edu_programs && <><br /><small>Theo chương trình: {b.edu_programs.title} (v{b.edu_programs.version_no})</small></>}
                 {b.source_id && <><br /><small>Sao chép từ mẫu</small></>}{mode !== 'school' && b.scope === 'children' && <><br /><small>{scopeLabel}</small></>}</td>
               <td>{b.year_name ?? 'Mọi năm'}</td><td>{b.total_periods ?? '—'}</td><td>{b.periods_per_week ?? '—'}</td>
               <td><span className={'pill ' + BOOK_STATUS[b.status][1]}>{b.status === 'published' && mode !== 'school' ? 'Đã ban hành' : BOOK_STATUS[b.status][0]}</span></td>
@@ -300,7 +302,7 @@ const termIn = (s: string): number | null => { const n = norm(s); return !n ? nu
 const ACTION: Record<string, string> = { insert: 'Thêm tiết', update: 'Sửa tiết', delete: 'Xoá tiết', import: 'Nhập lại / sinh lại cả môn', reschedule: 'Xếp lại lịch',
   shift: 'Dời tiết', swap: 'Đổi chỗ hai tiết', makeup: 'Chèn tiết dạy bù', version: 'Lưu phiên bản', publish: 'Công bố' }
 
-export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book: Book; canEdit: boolean; mode: PpctMode; onClose: () => void; onChanged: () => void }) {
+export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged }: { book: Book; canEdit: boolean; mode: PpctMode; actions?: ReactNode; onClose: () => void; onChanged: () => void }) {
   const [rows, setRows] = useState<Lesson[] | null>(null)
   const [topics, setTopics] = useState<Topic[]>([])
   const [units, setUnits] = useState<Unit[]>([])
@@ -417,11 +419,9 @@ export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book
   const weeks = new Set((rows ?? []).map(l => l.week).filter(Boolean)).size
   const t1 = (rows ?? []).filter(l => termOf(l) === 1).length, t2 = (rows ?? []).filter(l => termOf(l) === 2).length
   const shownRows = (rows ?? []).filter(l => !term || termOf(l) === term)
-  const lsel = useRowSel(shownRows)
   const hasUnits = units.length > 0
   const formRow = (
     <tr>
-      {canEdit && <td className="sel" />}
       <td><input type="number" min={1} required value={edit?.seq ?? ''} onChange={e => setEdit({ ...edit, seq: Number(e.target.value) })} aria-label="Tiết" style={{ width: 64 }} /></td>
       <td><input type="number" min={1} max={52} value={edit?.week ?? ''} onChange={e => setEdit({ ...edit, week: Number(e.target.value) || null })} aria-label="Tuần" style={{ width: 64 }} placeholder={ppw && edit?.seq ? String(Math.ceil(Number(edit.seq) / ppw)) : ''} /></td>
       <td><select value={edit?.term ?? ''} onChange={e => setEdit({ ...edit, term: Number(e.target.value) || null })} aria-label="Học kỳ">
@@ -447,6 +447,7 @@ export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book
           <small className="sub">Khối {book.grade} · {book.subject} · {book.year_name ?? 'mọi năm học'}{ppw ? ` · ${ppw} tiết/tuần` : ''}
             {book.edu_programs ? ` · theo chương trình ${book.edu_programs.title} (v${book.edu_programs.version_no})` : ''}
             {!canEdit && book.scope === 'children' && book.organizations?.name && mode === 'school' ? ` · mẫu của ${book.organizations.name}` : ''}</small>
+          {actions && <div className="tools" style={{ marginTop: 8 }}>{actions}</div>}
         </div>
         <div className="tools">
           {canEdit && <ImportExcel columns={IMPORT} template={`Mau-PPCT-${book.subject}-${book.grade}`}
@@ -480,20 +481,16 @@ export function LessonEditor({ book, canEdit, mode, onClose, onChanged }: { book
       {!rows ? <p className="sub">Đang tải…</p> : rows.length === 0 && !edit ? (
         <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có tiết nào.{canEdit && ' Bấm "Thêm tiết", hoặc "Nhập Excel" (bấm "Tải file mẫu" để có file đúng cột).'}</p></div>
       ) : (
-        <>{canEdit && <SelBar picked={lsel.cur ? `Tiết ${lsel.cur.seq}` : null}>
-          <button disabled={!lsel.cur} onClick={() => lsel.cur && setEdit(lsel.cur)}>Sửa</button>
-          <button className="danger" disabled={!lsel.cur} onClick={() => { if (lsel.cur) { del(lsel.cur); lsel.clear() } }}>Xoá</button>
-        </SelBar>}
+        <>
         <div className="wrap"><table>
-          <thead><tr>{canEdit && <SelTh />}<th>Tiết</th><th>Tuần</th><th>HK</th><th>Tháng</th><th>Tên bài / nội dung</th>{hasUnits && <th>Bài trong chương trình</th>}<th>Loại</th><th>Chủ đề STEM</th><th>Ghi chú</th>{edit && <th></th>}</tr></thead>
+          <thead><tr><th>Tiết</th><th>Tuần</th><th>HK</th><th>Tháng</th><th>Tên bài / nội dung</th>{hasUnits && <th>Bài trong chương trình</th>}<th>Loại</th><th>Chủ đề STEM</th><th>Ghi chú</th>{canEdit && <th></th>}</tr></thead>
           <tbody>
             {shownRows.map(l => edit?.id === l.id ? <Fragment key={l.id}>{formRow}</Fragment> : (
-              <tr key={l.id} className={lsel.is(l) ? 'picked' : undefined}>
-                {canEdit && <SelTd on={lsel.is(l)} onToggle={() => lsel.toggle(l)} label={`tiết ${l.seq}`} />}
+              <tr key={l.id}>
                 <td><b>{l.seq}</b></td><td>{l.week ?? '—'}</td><td><small>{HK(termOf(l))}</small></td><td><small>{monthOf(l.week)}</small></td><td>{l.title}</td>
                 {hasUnits && <td><small>{unitLabel(l.unit_id)}</small></td>}
                 <td>{l.kind !== 'lesson' ? <span className={'gpill ' + KIND_PILL[l.kind]}>{KIND[l.kind]}</span> : <small>{KIND.lesson}</small>}</td>
-                <td><small>{topicName(l.package_topic_id)}</small></td><td><small>{l.note}</small></td>{edit && <td />}
+                <td><small>{topicName(l.package_topic_id)}</small></td><td><small>{l.note}</small></td>{canEdit && <td className="tools" style={{ whiteSpace: 'nowrap' }}><button type="button" onClick={() => setEdit(l)}>Sửa</button><button type="button" className="danger" onClick={() => del(l)}>Xoá</button></td>}
               </tr>
             ))}
             {edit && !edit.id && formRow}

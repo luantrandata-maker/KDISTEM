@@ -189,8 +189,7 @@ function Exams({ orgId, subject }: { orgId: string | null; subject?: string }) {
     {note}<ExamResults exam={cur} roster={schoolOf(cur.org_id) && editable(cur)} /></ElView>
   return (
     <>
-      <div className="bar"><span /><button className="primary" onClick={() => { setMsg(null); setForm({ ...EEMPTY, subject: subject ?? '', subjects: subject ? [subject] : [], title: subject ? `Đề kiểm tra ${subject}` : '', shared: !isSchool && !every }) }}>{subject ? 'Tạo đề kiểm tra' : 'Tạo đề luyện'}</button></div>
-      {rows.length > 0 && <div className="tools" style={{ flexWrap: 'wrap', marginBottom: 10 }}>{ofl.node(rows.map(x => x.org_id))}</div>}
+      <div className="bar"><div className="tools" style={{ flexWrap: 'wrap' }}>{ofl.node(rows.map(x => x.org_id))}</div><button className="primary" onClick={() => { setMsg(null); setForm({ ...EEMPTY, subject: subject ?? '', subjects: subject ? [subject] : [], title: subject ? `Đề kiểm tra ${subject}` : '', shared: !isSchool && !every }) }}>{subject ? 'Tạo đề kiểm tra' : 'Tạo đề luyện'}</button></div>
       {note}
       <div className="wrap"><table className="systable">
         <thead><tr><th>Đề luyện</th><th>Cách ra đề</th><th>Thời gian</th><th>Mở</th><th className="num">Lượt nộp</th><th className="num">Điểm TB</th><th>Trạng thái</th></tr></thead>
@@ -384,8 +383,7 @@ function Courses({ orgId }: { orgId: string | null }) {
     </ElView> }
   return (
     <>
-      <div className="bar"><span /><button className="primary" onClick={() => { setMsg(null); setForm({ ...CEMPTY, shared: !isSchool && !every }) }}>Tạo khoá học</button></div>
-      {rows.length > 0 && <div className="tools" style={{ flexWrap: 'wrap', marginBottom: 10 }}>{ofl.node(rows.map(c => c.org_id))}</div>}
+      <div className="bar"><div className="tools" style={{ flexWrap: 'wrap' }}>{ofl.node(rows.map(c => c.org_id))}</div><button className="primary" onClick={() => { setMsg(null); setForm({ ...CEMPTY, shared: !isSchool && !every }) }}>Tạo khoá học</button></div>
       {note}
       <div className="coursegrid">
         {rows.filter(c => ofl.fit(c.org_id)).map(c => { const ls = lessons.filter(l => l.course_id === c.id); const mine = c.org_id === orgId || !!every

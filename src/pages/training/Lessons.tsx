@@ -2,9 +2,10 @@
 // Kho hoạt động tuỳ chọn (105): chốt đủ 4 thẻ còn lại là phát hành được.
 // Thêm bài theo 4 cách như thêm bài học (tải giáo án Word/PowerPoint, tự tạo, sao chép, file mẫu Excel); mở bài để sửa, chốt từng thẻ, phát hành.
 // Bài gắn với chương trình tập huấn và một nội dung trong chương trình; giáo viên thấy bài đã phát hành của kế hoạch mình tham gia.
+import { useOrgFilter } from '../../components/OrgFilters'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { OrgFilter, useAllMode } from '../../components/OrgScope'
+import { useAllMode } from '../../components/OrgScope'
 import { fmtDate } from '../../lib/time'
 import { LessonPage } from '../library/lesson/LessonPage'
 import { CreateLesson, kitSubject, type ProgRef } from '../library/lesson/Create'
@@ -50,7 +51,7 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
   const [open, setOpen] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [msg, setMsg] = useState('')
-  const [q, setQ] = useState(''); const [fp, setFp] = useState(''); const [fs, setFs] = useState<St>(''); const [fo, setFo] = useState('')
+  const [q, setQ] = useState(''); const [fp, setFp] = useState(''); const [fs, setFs] = useState<St>(''); const ofl = useOrgFilter()
   const all = !!useAllMode()
   const { progs, subjectsOf, unitOf, labelOf } = useTrainingPrograms()
   const reload = () => setRk(x => x + 1)
@@ -62,8 +63,8 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
   }, [rk])
 
   const progLabel = (pid: string | null) => { const p = progs.find(x => x.id === pid); return p ? `${p.code ? p.code + ' · ' : ''}${p.title}` : '' }
-  const shown = useMemo(() => (rows ?? []).filter(r => (!fs || r.status === fs) && (!fp || r.program_id === fp) && (!fo || r.org_id === fo)
-    && (!q || `${r.title} ${r.subject ?? ''} ${r.author ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [rows, fs, fp, fo, q])
+  const shown = useMemo(() => (rows ?? []).filter(r => (!fs || r.status === fs) && (!fp || r.program_id === fp) && ofl.fit(r.org_id)
+    && (!q || `${r.title} ${r.subject ?? ''} ${r.author ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [rows, fs, fp, ofl, q])
 
   if (open) return <>
     {msg && <p className="sub" role="status"><b>{msg}</b></p>}
@@ -101,7 +102,7 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
           <input placeholder="Tìm tên bài giảng, môn, tác giả…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình tập huấn"><option value="">Mọi chương trình tập huấn</option>
             {progs.map(p => <option key={p.id} value={p.id}>{progLabel(p.id)}</option>)}</select>
-          <OrgFilter ids={(rows ?? []).map(r => r.org_id)} value={fo} onChange={setFo} />
+          {ofl.node((rows ?? []).map(r => r.org_id))}
           <small className="sub">{shown.length}/{rows?.length ?? 0} bài giảng</small>
         </div>
         <div className="tools"><button type="button" className="primary" disabled={!p0} title={p0 ? undefined : 'Chưa có chương trình tập huấn để gắn bài giảng'}

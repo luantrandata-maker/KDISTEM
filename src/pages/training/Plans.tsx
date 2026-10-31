@@ -2,9 +2,10 @@
 // tạo kế hoạch trong một mục rồi soạn theo bước: Chọn chương trình → Xếp lịch (ngày, giờ, địa điểm) → Xem kết quả → Gán trường.
 // Sau phát hành: gán trường → trường chọn giáo viên, gửi danh sách → đơn vị lập kế hoạch duyệt hoặc trả lại.
 // TrainingPlansPage: KDI và Sở / Phòng (kế hoạch của đơn vị mình). SchoolTrainingAssigned: trường (kế hoạch được giao).
+import { useOrgFilter } from '../../components/OrgFilters'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { OrgFilter, OrgPick, useAllMode, useOrgName, useProvinceOf } from '../../components/OrgScope'
+import { OrgPick, useAllMode, useOrgName, useProvinceOf } from '../../components/OrgScope'
 import { MultiSelect } from '../../components/MultiSelect'
 import { ElView } from '../../components/ElView'
 import { Chip, STATUS } from '../dist/Editor'
@@ -94,7 +95,8 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   const cls = useCls('training')
   // Quản trị hệ thống: kế hoạch của mọi đơn vị trong một danh sách, sửa thẳng
   const all = useAllMode(), orgName = useOrgName()
-  const [fo, setFo] = useState('')
+  // Lọc Tỉnh / Sở, trường: khớp đơn vị lập kế hoạch hoặc trường được giao
+  const ofl = useOrgFilter()
   const reload = () => setRk(k => k + 1)
   useEffect(() => { supabase.rpc('training_can_write', { p_org: orgId }).then(({ data }) => setCan(!!data)) }, [orgId])
   useEffect(() => {
@@ -112,9 +114,9 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   }, [rk, orgId])
 
   const wait = (id: string) => orgs.filter(o => o.plan_id === id && o.status === 'submitted').length
-  const shown = useMemo(() => (list ?? []).filter(p => (!fs || (fs === 'wait' ? wait(p.id) > 0 : p.pub_status === fs)) && (!yr || p.year_name === yr) && (!fo || p.org_id === fo)
+  const shown = useMemo(() => (list ?? []).filter(p => (!fs || (fs === 'wait' ? wait(p.id) > 0 : p.pub_status === fs)) && (!yr || p.year_name === yr) && ofl.fit([p.org_id, ...orgs.filter(o => o.plan_id === p.id).map(o => o.org_id)])
     && (!fp || items.some(i => i.plan_id === p.id && i.program_id === fp))
-    && (!q || `${p.plan_code ?? ''} ${p.name} ${p.provider ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, orgs, items, fs, yr, q, fo, fp])
+    && (!q || `${p.plan_code ?? ''} ${p.name} ${p.provider ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, orgs, items, fs, yr, q, ofl, fp])
 
   if (open) return <PlanDetail key={open} id={open} can={can} onBack={() => { setOpen(null); reload() }} onMsg={m => { setMsg(m); reload() }} />
 
@@ -159,9 +161,9 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : tab === 'tree'
-        ? <ClsTree scope="training" items={all && fo ? list.filter(p => p.org_id === fo) : list}
+        ? <ClsTree scope="training" items={ofl.active ? list.filter(p => ofl.fit([p.org_id, ...orgs.filter(o => o.plan_id === p.id).map(o => o.org_id)])) : list}
             header={({ sel, isFinal }) => <>
-              <OrgFilter ids={list.map(p => p.org_id)} value={fo} onChange={setFo} />
+              {ofl.node([...list.map(p => p.org_id), ...orgs.map(o => o.org_id)])}
               <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình tập huấn"><option value="">Mọi chương trình</option>
                 {[...new Map(items.map(i => [i.program_id, i.training_programs?.title ?? '—'])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'vi')).map(([id, t]) => <option key={id} value={id}>{t}</option>)}</select>
               {can && isFinal && sel && <button type="button" className="primary" onClick={() => setCreate({ node: sel })}>+ Lập kế hoạch tập huấn</button>}</>}>
@@ -176,7 +178,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
             <div className="tools">
               <input placeholder="Tìm mã, tên, đơn vị tập huấn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
               <select value={yr} onChange={e => setYr(e.target.value)} aria-label="Năm học"><option value="">Mọi năm học</option>{years.map(y => <option key={y} value={y}>{y}</option>)}</select>
-              <OrgFilter ids={list.map(p => p.org_id)} value={fo} onChange={setFo} />
+              {ofl.node([...list.map(p => p.org_id), ...orgs.map(o => o.org_id)])}
               <small className="sub">{shown.length}/{list.length} kế hoạch</small>
             </div>
             <div className="tools">

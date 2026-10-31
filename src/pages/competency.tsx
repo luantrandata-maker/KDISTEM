@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { useAllMode } from '../components/OrgScope'
+import { useAllMode, useProvinceOf } from '../components/OrgScope'
 import { downloadXlsx } from '../lib/sheet'
 import { schoolYear } from './department/Governance'
 import { ElView } from '../components/ElView'
@@ -454,8 +454,7 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
   const [teachers, setTeachers] = useState<TRow[]>([])
   const [list, setList] = useState<TA[]>([])
   // Lọc chọn nhiều: đơn vị quản lý, trường, giáo viên, môn, tình trạng đánh giá
-  const mf = useMultiFilters()
-  const [units, setUnits] = useState<Map<string, string>>(new Map())
+  const mf = useMultiFilters(), provOf = useProvinceOf()
   const [sel, setSel] = useState<string | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [canEdit, setCanEdit] = useState(false)
@@ -472,9 +471,6 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
     const cm = new Map<string, number>(); for (const x of (c.data ?? []) as { teacher_id: string }[]) cm.set(x.teacher_id, (cm.get(x.teacher_id) ?? 0) + 1); setCerts(cm)
     const ts = ((t.data as any[]) ?? []).filter(x => !orgId || x.org_id === orgId) as TRow[]
     setTeachers(ts); setList((a.data as TA[]) ?? []); setCanEdit(!readOnly && (!!adm.data || !!all))
-    const pids = [...new Set(ts.map(x => x.organizations?.parent_id).filter(Boolean) as string[])]
-    if (!orgId && pids.length) supabase.from('organizations').select('id, name').in('id', pids)
-      .then(({ data }) => setUnits(new Map(((data ?? []) as { id: string; name: string }[]).map(o => [o.id, o.name]))))
   }
   useEffect(() => { load() }, [orgId])
   const of = (id: string, k: 'self' | 'manager') => list.find(x => x.teacher_id === id && x.kind === k)
@@ -491,10 +487,10 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
   const stOf = (t: TRow) => { const s = of(t.id, 'self'), m = of(t.id, 'manager')
     return m?.status === 'submitted' ? 'mgr' : s?.status === 'submitted' ? 'self' : s || m ? 'draft' : 'none' }
   // Mỗi bộ lọc chỉ gợi ý giá trị khớp với các bộ lọc khác (bỏ qua chính nó)
-  const fit = (t: TRow, skip?: string) => (skip === 'unit' || mf.has('unit', t.organizations?.parent_id)) && (skip === 'school' || mf.has('school', t.org_id))
+  const fit = (t: TRow, skip?: string) => (skip === 'unit' || mf.has('unit', provOf(t.org_id)?.id)) && (skip === 'school' || mf.has('school', t.org_id))
     && (skip === 'teacher' || mf.has('teacher', t.id)) && (skip === 'subj' || mf.has('subj', t.subject)) && (skip === 'st' || mf.has('st', stOf(t)))
   const filterDefs: FilterDef[] = [
-    { key: 'unit', label: 'Đơn vị', placeholder: 'Mọi đơn vị', options: opts(teachers.filter(t => fit(t, 'unit')).map(t => [t.organizations?.parent_id, units.get(t.organizations?.parent_id ?? '')])), hidden: !!orgId },
+    { key: 'unit', label: 'Tỉnh / Sở', placeholder: 'Mọi Tỉnh / Sở', options: opts(teachers.filter(t => fit(t, 'unit')).map(t => { const p = provOf(t.org_id); return [p?.id, p?.name] })), hidden: !!orgId },
     { key: 'school', label: 'Trường', placeholder: 'Mọi trường', options: opts(teachers.filter(t => fit(t, 'school')).map(t => [t.org_id, t.organizations?.name])), hidden: !!orgId },
     { key: 'teacher', label: 'Giáo viên', placeholder: 'Mọi giáo viên', options: opts(teachers.filter(t => fit(t, 'teacher')).map(t => [t.id, orgId ? t.full_name : `${t.full_name} · ${t.organizations?.name ?? ''}`])) },
     { key: 'subj', label: 'Môn', placeholder: 'Mọi môn', options: opts(teachers.filter(t => fit(t, 'subj')).map(t => [t.subject, t.subject])) },

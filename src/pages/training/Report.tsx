@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
 import { useAllOrgs } from '../../components/OrgScope'
+import { useOrgFilter } from '../../components/OrgFilters'
 
 type Row = { plan_id: string; plan_code: string | null; plan_name: string; plan_org: string | null; year_name: string | null; term: string | null
   starts_on: string | null; ends_on: string | null; hours: number | null; closed: boolean; org_id: string; org_name: string; quota: number | null
@@ -38,6 +39,7 @@ export function TrainingReportPage() {
   const [term, setTerm] = useState('')
   const [by, setBy] = useState<By>('period')
   const [only, setOnly] = useState<'all' | 'closed' | 'open'>('all')
+  const ofl = useOrgFilter()
   const orgs = useAllOrgs()
   useEffect(() => {
     supabase.rpc('training_report', { p_year: null }).then(({ data, error }) => {
@@ -47,7 +49,7 @@ export function TrainingReportPage() {
   const byId = useMemo(() => new Map((orgs ?? []).map(o => [o.id, o])), [orgs])
   const years = useMemo(() => [...new Set((rows ?? []).map(r => r.year_name).filter(Boolean) as string[])].sort().reverse(), [rows])
   const shown = useMemo(() => (rows ?? []).filter(r => (!year || r.year_name === year) && (!term || (r.term ?? 'other') === term)
-    && (only === 'all' || (only === 'closed') === r.closed)), [rows, year, term, only])
+    && (only === 'all' || (only === 'closed') === r.closed) && ofl.fit(r.org_id)), [rows, year, term, only, ofl])
   const parentOf = (id: string) => { const o = byId.get(id); const p = o?.parent_id ? byId.get(o.parent_id) : undefined; return p ? [p.id, p.name] : ['?', 'Chưa rõ đơn vị quản lý'] }
   const groups = useMemo(() => {
     const keyOf = (r: Row): [string, string, string] => by === 'school' ? [r.org_id, r.org_name, parentOf(r.org_id)[1]]
@@ -76,6 +78,7 @@ export function TrainingReportPage() {
         <select value={term} onChange={e => setTerm(e.target.value)} aria-label="Đợt"><option value="">Mọi đợt</option>{Object.entries(TERM).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
         <select value={only} onChange={e => setOnly(e.target.value as typeof only)} aria-label="Trạng thái kế hoạch">
           <option value="all">Mọi kế hoạch</option><option value="closed">Đã kết thúc</option><option value="open">Đang triển khai</option></select>
+        {ofl.node(rows.map(r => r.org_id))}
       </div>
       <div className="tools"><button type="button" onClick={exportX} disabled={!groups.length}>Xuất Excel</button></div>
     </div>

@@ -1,11 +1,12 @@
 // Phân hệ 1 — Lịch tập huấn & điểm danh (085). Tab "Lịch tập huấn" của mục Kế hoạch & lịch tập huấn (KDI, Sở / Phòng).
 // Xếp lịch tự động từ kế hoạch (mỗi nội dung tập huấn một buổi) hoặc thêm buổi; xem dạng bảng hoặc lịch (tháng / tuần);
 // mở buổi để đưa mã điểm danh (QR), nhắc lịch, ghi có mặt / vắng, duyệt xin vắng, chốt điểm danh, xem GV trùng lịch.
+import { useOrgFilter } from '../../components/OrgFilters'
 import { TimeGrid } from '../../components/TimeGrid'
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
 import { supabase } from '../../lib/supabase'
-import { OrgFilter, useAllMode, useOrgName } from '../../components/OrgScope'
+import { useAllMode, useOrgName } from '../../components/OrgScope'
 import { ElView } from '../../components/ElView'
 import { TrainerPick } from './Trainers'
 import { Chip } from '../dist/Editor'
@@ -82,7 +83,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
   const reload = () => setRk(k => k + 1)
   // Quản trị hệ thống: lịch của mọi đơn vị trong một danh sách, sửa thẳng
   const all = useAllMode(), orgName = useOrgName()
-  const [fo, setFo] = useState('')
+  const ofl = useOrgFilter()
   useEffect(() => { supabase.rpc('training_can_write', { p_org: orgId }).then(({ data }) => setCan(!!data)) }, [orgId])
   useEffect(() => {
     (async () => {
@@ -100,9 +101,9 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
   const now = Date.now()
   const pl = (id: string) => plans?.find(p => p.id === id)
   // Ngày nghỉ của đơn vị đang xem (lọc theo đơn vị thì lấy đơn vị đó) — cảnh báo buổi rơi vào ngày nghỉ
-  const hol = useHolidays(fo || orgId)
+  const hol = useHolidays(ofl.one || orgId)
   const holOf = (iso: string) => hol.holName(dayKey(new Date(iso)))
-  const base = rows.filter(s => (!online || s.mode === 'online') && (!plan || s.plan_id === plan) && (!fo || pl(s.plan_id)?.org_id === fo))
+  const base = rows.filter(s => (!online || s.mode === 'online') && (!plan || s.plan_id === plan) && ofl.fit(pl(s.plan_id)?.org_id))
   const shown = base.filter(s => !fs || sessSt(s, now) === fs)
   const n = (k: St) => base.filter(s => sessSt(s, now) === k).length
   const pend = att.filter(a => a.excuse_status === 'pending' && base.some(s => s.id === a.session_id)).length
@@ -134,8 +135,8 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
     <div className="bar">
       <div className="tools">
         <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Kế hoạch"><option value="">Mọi kế hoạch</option>
-          {(plans ?? []).filter(p => !fo || p.org_id === fo).map(p => <option key={p.id} value={p.id}>{p.plan_code} · {p.name}</option>)}</select>
-        <OrgFilter ids={(plans ?? []).map(p => p.org_id)} value={fo} onChange={v => { setFo(v); setPlan('') }} />
+          {(plans ?? []).filter(p => ofl.fit(p.org_id)).map(p => <option key={p.id} value={p.id}>{p.plan_code} · {p.name}</option>)}</select>
+        {ofl.node((plans ?? []).map(p => p.org_id), () => setPlan(''))}
         <small className="sub">{shown.length}/{base.length} buổi</small>
       </div>
       <div className="tools">

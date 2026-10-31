@@ -1,12 +1,13 @@
 // Phân hệ 1 — Đánh giá kết quả tập huấn (087). Mỗi kế hoạch một bảng kết quả, mỗi giáo viên một dòng.
 // Hệ thống tự tính chuyên cần, bài kiểm tra, tiến độ học, sản phẩm và gợi ý Đạt / Chưa đạt theo điều kiện của chương trình;
 // đơn vị lập kế hoạch chấm sản phẩm, kết luận, cho thi lại. Đạt thì có chứng chỉ chờ duyệt ở mục Chứng chỉ tập huấn.
+import { useOrgFilter } from '../../components/OrgFilters'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
 import { ClsTree } from '../dist/ClsTree'
-import { OrgFilter, useAllMode } from '../../components/OrgScope'
+import { useAllMode } from '../../components/OrgScope'
 import { PlanResults } from './ResultsWork'
 import { FlowGuide } from '../../components/FlowGuide'
 
@@ -38,7 +39,7 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
   const [open, setOpen] = useState<string | null>(null)
   const [tab, setTab] = useState<'tree' | 'list'>('list')
   const [q, setQ] = useState('')
-  const [fo, setFo] = useState('')
+  const ofl = useOrgFilter()
   const [err, setErr] = useState('')
   const [rk, setRk] = useState(0)
   const all = !!useAllMode()
@@ -69,7 +70,7 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
   if (cur) return <ElView back="Đánh giá kết quả tập huấn" onBack={() => { setOpen(null); setRk(x => x + 1) }} title={cur.name}
     sub={[cur.plan_code, cur.year_name].filter(Boolean).join(' · ')}><PlanResults plan={cur} /></ElView>
 
-  const list = (plans ?? []).filter(p => (!fo || p.org_id === fo) && (!q || `${p.plan_code ?? ''} ${p.name}`.toLowerCase().includes(q.toLowerCase())))
+  const list = (plans ?? []).filter(p => ofl.fit(p.org_id) && (!q || `${p.plan_code ?? ''} ${p.name}`.toLowerCase().includes(q.toLowerCase())))
   const tot = [...cnt.values()].reduce((a, c) => ({ n: a.n + c.n, pass: a.pass + c.pass, fail: a.fail + c.fail, cert: a.cert + c.cert }), { n: 0, pass: 0, fail: 0, cert: 0 })
   const table = (rows: TPlanRow[], empty: string) => <div className="wrap"><table className="libtable">
     <thead><tr><th>Kế hoạch tập huấn</th><th>Giáo viên</th><th>Đạt</th><th>Chưa đạt</th><th>Chờ kết luận</th><th>Chứng chỉ đã cấp</th></tr></thead>
@@ -105,12 +106,12 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
     </div>
     {err && <p className="msg">{err}</p>}
     {!plans ? <p className="sub">Đang tải…</p> : tab === 'tree'
-      ? <ClsTree scope="training" items={list} header={() => <OrgFilter ids={plans.map(p => p.org_id)} value={fo} onChange={setFo} />}>
+      ? <ClsTree scope="training" items={list} header={() => <>{ofl.node(plans.map(p => p.org_id))}</>}>
           {rows => table(rows, 'Không có kế hoạch đã phát hành trong mục này.')}</ClsTree>
       : <>
         <div className="bar"><div className="tools">
           <input placeholder="Tìm mã, tên kế hoạch…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm kế hoạch" />
-          {all && <OrgFilter ids={plans.map(p => p.org_id)} value={fo} onChange={setFo} />}
+          {ofl.node(plans.map(p => p.org_id))}
           <small className="sub">{list.length}/{plans.length} kế hoạch</small></div></div>
         {table(list, 'Chưa có kế hoạch tập huấn đã phát hành.')}
       </>}

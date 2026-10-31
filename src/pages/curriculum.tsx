@@ -1,8 +1,9 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useOrgFilter } from '../components/OrgFilters'
 import { YearSelect } from '../components/YearSelect'
 import { MultiSelect } from '../components/MultiSelect'
 import { supabase } from '../lib/supabase'
-import { OrgFilter, OrgPick, useAllMode, useProvinceOf } from '../components/OrgScope'
+import { OrgPick, useAllMode, useProvinceOf } from '../components/OrgScope'
 import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../components/MultiFilters'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
@@ -130,8 +131,8 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
 
   // Quản trị hệ thống: PPCT của mọi đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
   const every = useAllMode()
-  const [fo, setFo] = useState('')
-  const own = every ? books.filter(b => !fo || b.org_id === fo) : books.filter(b => b.org_id === orgId)
+  const ofl = useOrgFilter()
+  const own = every ? books.filter(b => ofl.fit(b.org_id)) : books.filter(b => b.org_id === orgId)
   const templates = every ? [] : books.filter(b => b.org_id !== orgId && b.scope === 'children' && b.status === 'published')
   const grades = [...new Set(own.map(b => b.grade))].sort((a, b) => a - b)
   const subjects = [...new Set(own.map(b => b.subject))].sort((a, b) => a.localeCompare(b, 'vi'))
@@ -236,7 +237,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
           </div>}
           {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn học"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
           <input placeholder="Tìm môn, tên PPCT…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-          <OrgFilter ids={books.map(b => b.org_id)} value={fo} onChange={setFo} />
+          {every && ofl.node(books.map(b => b.org_id))}
         </div>
         <div className="tools">
           {canEdit && templates.length > 0 && <button onClick={() => setShowTpl(v => !v)}>{showTpl ? 'Ẩn mẫu' : `Dùng mẫu (${templates.length})`}</button>}

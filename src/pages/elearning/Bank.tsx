@@ -128,35 +128,29 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
         <div className="card"><strong>{rows.filter(r => r.status === 'draft').length}</strong><span>Nháp (chờ duyệt)</span></div>
         <div className="card"><strong>{rows.filter(r => !mine(r)).length}</strong><span>Dùng chung từ cấp trên</span></div>
       </div>
-      <div className="bar" style={{ marginTop: 14 }}>
-        <span />
-        <span className="tools">
+      {/* Một dòng: bộ lọc bên trái; thao tác với câu đang chọn và các nút thêm / nhập / xuất bên phải */}
+      {(() => { const r = qsel.cur; return (
+        <div style={{ marginTop: 14 }}><SelBar picked={null} left={<span className="tools" style={{ flexWrap: 'wrap' }}>
+          <input className="search" style={{ margin: 0, minWidth: 180 }} type="search" placeholder="Tìm câu hỏi, chủ đề…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} aria-label="Tìm câu hỏi" />
+          <select value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
+          <select value={f.grade} onChange={e => setF({ ...f, grade: e.target.value })} aria-label="Khối"><option value="">Mọi khối</option>{Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>Khối {i + 1}</option>)}</select>
+          <select value={f.level} onChange={e => setF({ ...f, level: e.target.value })} aria-label="Mức độ"><option value="">Mọi mức độ</option>{Object.entries(LEVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+          <select value={f.status} onChange={e => setF({ ...f, status: e.target.value })} aria-label="Trạng thái"><option value="">Mọi trạng thái</option><option value="ready">Sẵn sàng</option><option value="draft">Nháp</option><option value="retired">Ngừng dùng</option></select>
+          {drafts.length > 0 && <button onClick={() => setStatus(drafts.map(d => d.id), 'ready')}>Duyệt {drafts.length} câu nháp đang lọc</button>}
+        </span>}>
+          {r && <>
+            <button disabled={r.status === 'ready'} onClick={() => setStatus([r.id], 'ready')}>Duyệt — Sẵn sàng</button>
+            <button disabled={r.status === 'retired'} onClick={() => setStatus([r.id], 'retired')}>Ngừng dùng</button>
+            <button className="danger" disabled={r.created_by !== me} onClick={() => { remove(r); qsel.clear() }}>Xoá</button></>}
           <button className="primary" onClick={() => { setForm({ ...EMPTY, shared: !every && orgType !== 'school' }); setAi(false) }}>Thêm câu hỏi</button>
           <button onClick={() => { setAi(!ai); setForm(null) }}>{ai ? 'Đóng Trợ lý AI' : 'Tạo bằng Trợ lý AI'}</button>
           <ImportExcel columns={COLS} template="mau-ngan-hang-cau-hoi" onRecords={importRecords} onMessage={(m, bad) => setMsg([m, !!bad])}
             sample={[['Khoa học tự nhiên', '7', 'Mạch điện', 'Nhận biết', 'Đơn vị đo cường độ dòng điện là gì?', 'Vôn', 'Ampe', 'Ôm', 'Oát', '', '', 'B', 'Cường độ dòng điện đo bằng ampe (A).'],
               ['Công nghệ', '8', 'An toàn điện', 'Thông hiểu', 'Chọn các việc làm an toàn khi sửa điện', 'Ngắt cầu dao', 'Dùng tay ướt', 'Đi dép cao su', 'Chạm dây trần', '', '', 'AC', '']]} />
           <button onClick={exportExcel} disabled={!list.length}>Xuất Excel</button>
-        </span>
-      </div>
+        </SelBar></div>) })()}
       {note}
       {ai && <div className="panel"><AssistantQuiz orgId={orgId} onSaved={load} /></div>}
-      <div className="bar" style={{ margin: '12px 0' }}>
-        <span className="tools">
-          <input className="search" style={{ margin: 0, minWidth: 220 }} type="search" placeholder="Tìm câu hỏi, chủ đề…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} aria-label="Tìm câu hỏi" />
-          <select value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
-          <select value={f.grade} onChange={e => setF({ ...f, grade: e.target.value })} aria-label="Khối"><option value="">Mọi khối</option>{Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>Khối {i + 1}</option>)}</select>
-          <select value={f.level} onChange={e => setF({ ...f, level: e.target.value })} aria-label="Mức độ"><option value="">Mọi mức độ</option>{Object.entries(LEVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
-          <select value={f.status} onChange={e => setF({ ...f, status: e.target.value })} aria-label="Trạng thái"><option value="">Mọi trạng thái</option><option value="ready">Sẵn sàng</option><option value="draft">Nháp</option><option value="retired">Ngừng dùng</option></select>
-        </span>
-        {drafts.length > 0 && <button onClick={() => setStatus(drafts.map(d => d.id), 'ready')}>Duyệt {drafts.length} câu nháp đang lọc</button>}
-      </div>
-      {(() => { const r = qsel.cur; return (
-        <SelBar picked={r ? (r.stem.length > 40 ? r.stem.slice(0, 40) + '…' : r.stem) : null}>
-          <button disabled={!r || r.status === 'ready'} onClick={() => r && setStatus([r.id], 'ready')}>Duyệt — Sẵn sàng</button>
-          <button disabled={!r || r.status === 'retired'} onClick={() => r && setStatus([r.id], 'retired')}>Ngừng dùng</button>
-          <button className="danger" disabled={!r || r.created_by !== me} onClick={() => { if (r) { remove(r); qsel.clear() } }}>Xoá</button>
-        </SelBar>) })()}
       <div className="wrap"><table className="systable">
         <thead><tr><SelTh /><th>Câu hỏi</th><th>Môn · khối</th><th>Mức độ</th><th>Loại</th><th>Nguồn</th><th>Trạng thái</th></tr></thead>
         <tbody>

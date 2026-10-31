@@ -1,4 +1,4 @@
-import { SelBar, SelTh, useRowSel } from '../../components/TableSel'
+import { SelBar } from '../../components/TableSel'
 import { useEffect, useState } from 'react'
 import { ElView } from '../../components/ElView'
 import { supabase } from '../../lib/supabase'
@@ -31,6 +31,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
   const [open, setOpen] = useState<string | null>(null)
   const [ai, setAi] = useState(false)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const [sel, setSel] = useState<Set<string>>(new Set())
 
   async function load() {
     const [q, o, u] = await Promise.all([supabase.from('question_bank').select('*').order('created_at', { ascending: false }).limit(5000),
@@ -71,6 +72,12 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
     if (error) { setMsg([errText(error.message), true]); return false }
     load(); return true
   }
+  // Xoá nhiều câu đã chọn (chỉ câu do mình tạo)
+  async function removeMany(ids: string[]) {
+    if (!confirm(`Xoá ${ids.length} câu hỏi đã chọn? Đề cố định đang dùng các câu này sẽ bỏ qua chúng.`)) return
+    const { error } = await supabase.from('question_bank').delete().in('id', ids)
+    setMsg(error ? [errText(error.message), true] : [`Đã xoá ${ids.length} câu.`, false]); setSel(new Set()); load()
+  }
   async function importRecords(recs: (Record<string, string> & { _line: number })[]) {
     const bad: string[] = []
     const ins = recs.flatMap(r => {
@@ -93,7 +100,11 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
   }
 
   const drafts = list.filter(r => r.status === 'draft' && mine(r))
-  const qsel = useRowSel(list.filter(mine))
+  // Tick chọn nhiều câu (chỉ câu của đơn vị mình); ô ở tiêu đề chọn / bỏ chọn mọi câu đang hiện
+  const canPick = list.slice(0, 300).filter(mine)
+  const picked = rows.filter(r => sel.has(r.id) && mine(r))
+  const allOn = canPick.length > 0 && canPick.every(r => sel.has(r.id))
+  const toggle = (id: string) => setSel(x => { const y = new Set(x); if (y.has(id)) y.delete(id); else y.add(id); return y })
   const toForm = (r: Question): Form => ({ id: r.id, subject: r.subject, grades: qGrades(r), topic: r.topic ?? '', level: r.level, kind: r.kind, stem: r.stem,
     options: [...r.options, ...Array(Math.max(0, 4 - r.options.length)).fill('')], answer: r.answer, explain: r.explain ?? '', shared: r.shared, status: r.status })
   const note = msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>
@@ -129,7 +140,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
         <div className="card"><strong>{rows.filter(r => !mine(r)).length}</strong><span>Dùng chung từ cấp trên</span></div>
       </div>
       {/* Một dòng: bộ lọc bên trái; thao tác với câu đang chọn và các nút thêm / nhập / xuất bên phải */}
-      {(() => { const r = qsel.cur; return (
+      {(() => { const ids = picked.map(r => r.id), del = picked.filter(r => r.created_by === me).map(r => r.id); return (
         <div style={{ marginTop: 14 }}><SelBar picked={null} left={<span className="tools" style={{ flexWrap: 'wrap' }}>
           <input className="search" style={{ margin: 0, minWidth: 180 }} type="search" placeholder="Tìm câu hỏi, chủ đề…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} aria-label="Tìm câu hỏi" />
           <select value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
@@ -138,10 +149,10 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
           <select value={f.status} onChange={e => setF({ ...f, status: e.target.value })} aria-label="Trạng thái"><option value="">Mọi trạng thái</option><option value="ready">Sẵn sàng</option><option value="draft">Nháp</option><option value="retired">Ngừng dùng</option></select>
           {drafts.length > 0 && <button onClick={() => setStatus(drafts.map(d => d.id), 'ready')}>Duyệt {drafts.length} câu nháp đang lọc</button>}
         </span>}>
-          {r && <>
-            <button disabled={r.status === 'ready'} onClick={() => setStatus([r.id], 'ready')}>Duyệt — Sẵn sàng</button>
-            <button disabled={r.status === 'retired'} onClick={() => setStatus([r.id], 'retired')}>Ngừng dùng</button>
-            <button className="danger" disabled={r.created_by !== me} onClick={() => { remove(r); qsel.clear() }}>Xoá</button></>}
+          {ids.length > 0 && <>
+            <button disabled={picked.every(r => r.status === 'ready')} onClick={() => { setStatus(ids, 'ready'); setSel(new Set()) }}>Duyệt — Sẵn sàng</button>
+            <button disabled={picked.every(r => r.status === 'retired')} onClick={() => { setStatus(ids, 'retired'); setSel(new Set()) }}>Ngừng dùng</button>
+            <button className="danger" disabled={!del.length} title={del.length < ids.length ? 'Chỉ xoá được câu do mình tạo' : `Xoá ${ids.length} câu đã chọn`} onClick={() => removeMany(del)}>Xoá ({del.length})</button></>}
           <button className="primary" onClick={() => { setForm({ ...EMPTY, shared: !every && orgType !== 'school' }); setAi(false) }}>Thêm câu hỏi</button>
           <button onClick={() => { setAi(!ai); setForm(null) }}>{ai ? 'Đóng Trợ lý AI' : 'Tạo bằng Trợ lý AI'}</button>
           <ImportExcel columns={COLS} template="mau-ngan-hang-cau-hoi" onRecords={importRecords} onMessage={(m, bad) => setMsg([m, !!bad])}
@@ -152,11 +163,12 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
       {note}
       {ai && <div className="panel"><AssistantQuiz orgId={orgId} onSaved={load} /></div>}
       <div className="wrap"><table className="systable">
-        <thead><tr><SelTh /><th>Câu hỏi</th><th>Môn · khối</th><th>Mức độ</th><th>Loại</th><th>Nguồn</th><th>Trạng thái</th></tr></thead>
+        <thead><tr><th className="sel"><input type="checkbox" checked={allOn} disabled={!canPick.length} aria-label="Chọn mọi câu đang hiện"
+          onChange={() => setSel(x => { const y = new Set(x); canPick.forEach(r => allOn ? y.delete(r.id) : y.add(r.id)); return y })} /></th><th>Câu hỏi</th><th>Môn · khối</th><th>Mức độ</th><th>Loại</th><th>Nguồn</th><th>Trạng thái</th></tr></thead>
         <tbody>
           {list.slice(0, 300).map(r =>
-            <tr key={r.id} className={'clickrow' + (qsel.is(r) ? ' picked' : '')} onClick={() => { setOpen(r.id); setMsg(null) }}>
-              <td className="sel" onClick={e => e.stopPropagation()}>{mine(r) && <input type="checkbox" checked={qsel.is(r)} onChange={() => qsel.toggle(r)} aria-label="Chọn câu hỏi" />}</td>
+            <tr key={r.id} className={'clickrow' + (sel.has(r.id) ? ' picked' : '')} onClick={() => { setOpen(r.id); setMsg(null) }}>
+              <td className="sel" onClick={e => e.stopPropagation()}>{mine(r) && <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggle(r.id)} aria-label="Chọn câu hỏi" />}</td>
               <td style={{ whiteSpace: 'normal', maxWidth: 460 }}><b>{r.stem.length > 140 ? r.stem.slice(0, 140) + '…' : r.stem}</b>{r.topic && <><br /><small>{r.topic}</small></>}</td>
               <td>{r.subject}{qGrades(r).length ? ` · ${qGrades(r).join(', ')}` : ''}</td><td>{LEVEL[r.level]}</td><td>{QKIND[r.kind]}</td>
               <td><small>{every ? (orgNames.get(r.org_id) ?? '') + ' · ' : ''}{!mine(r) ? orgNames.get(r.org_id) ?? 'Cấp trên' : r.source === 'ai' ? 'Trợ lý AI' : r.source === 'import' ? 'Nhập Excel' : 'Soạn tay'}{r.shared && mine(r) ? ' · dùng chung' : ''}</small></td>

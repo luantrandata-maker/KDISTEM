@@ -2,7 +2,8 @@
 // thiếu thì lập kế hoạch tập huấn (tạo kế hoạch nháp với chương trình tập huấn gợi ý, hoặc gán trường vào kế hoạch đang mở).
 // GV đạt chuẩn: có chứng chỉ tập huấn cùng loại chương trình, hoặc đạt mọi năng lực đích của một chương trình tập huấn cùng loại.
 import { useEffect, useState } from 'react'
-import { MultiSelect } from '../../components/MultiSelect'
+import { MultiFilters, useMultiFilters } from '../../components/MultiFilters'
+import { useOrgFilters } from '../../components/OrgFilters'
 import { supabase } from '../../lib/supabase'
 import { Chip } from '../dist/Editor'
 import { Drawer } from '../../components/Drawer'
@@ -29,7 +30,8 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
   const [per, setPerS] = useState(() => { try { return Number(localStorage.getItem(PER_KEY)) || 6 } catch { return 6 } })
   const setPer = (n: number) => { setPerS(n); try { localStorage.setItem(PER_KEY, String(n)) } catch { /* bỏ qua */ } }
   const [ct, setCt] = useState('')
-  const [orgs, setOrgs] = useState<string[]>([])
+  const mf = useMultiFilters()
+  const [view, setView] = useState<'program' | 'school'>('program')
   const [f, setF] = useState<'' | Verdict>('')
   const [open, setOpen] = useState<string | null>(null)
   const [sel, setSel] = useState<Set<string>>(new Set())
@@ -45,11 +47,19 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
   const all = rows ?? []
   const key = (r: Row) => r.org_id + '|' + r.ct_code
   const cts = [...new Map(all.map(r => [r.ct_code, r.ct_name ?? r.ct_code])).entries()].sort()
-  const scope = all.filter(r => (!ct || r.ct_code === ct) && (!orgs.length || orgs.includes(r.org_id)))
+  const of = useOrgFilters(all, mf)
+  const scope = all.filter(r => (!ct || r.ct_code === ct) && of.fit(r.org_id))
   const shown = scope.filter(r => !f || verdict(r, per) === f)
   const n = (v: Verdict) => scope.filter(r => verdict(r, per) === v).length
   const toTrain = scope.reduce((t, r) => t + r.teachers.filter(x => !x.ok).length, 0)
-  const multi = new Set(all.map(r => r.org_id)).size > 1
+  const multi = of.multi
+  // Tổng hợp theo trường: trường dạy bao nhiêu chương trình, đáp ứng mấy, thiếu bao nhiêu GV, cần bồi dưỡng bao nhiêu GV
+  const bySchool = [...scope.reduce((m, r) => { const x = m.get(r.org_id) ?? { id: r.org_id, name: r.org_name, rows: [] as Row[] }; x.rows.push(r); return m.set(r.org_id, x) }, new Map<string, { id: string; name: string; rows: Row[] }>()).values()]
+    .map(x => { const tids = new Set(x.rows.flatMap(r => r.teachers.filter(t => !t.ok).map(t => t.id)))
+      return { ...x, ok: x.rows.filter(r => verdict(r, per) === 'ok').length, none: x.rows.filter(r => verdict(r, per) === 'none').length,
+        lack: x.rows.reduce((t, r) => t + (r.assigned ? short(r, per) : need(r, per)), 0), train: tids.size,
+        progs: x.rows.filter(r => verdict(r, per) !== 'ok').map(r => r.ct_code) } })
+    .sort((a, b) => b.lack - a.lack || a.name.localeCompare(b.name, 'vi'))
   const picked = all.filter(r => sel.has(key(r)))
   const toggle = (r: Row) => setSel(s => { const x = new Set(s); if (x.has(key(r))) x.delete(key(r)); else x.add(key(r)); return x })
   const needsWork = (r: Row) => verdict(r, per) !== 'ok' || r.teachers.some(x => !x.ok)
@@ -72,14 +82,29 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
       <div className="distfilter">
         <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học">{[-1, 0, 1].map(o => <option key={o} value={schoolYear(o)}>Năm học {schoolYear(o)}</option>)}<option value="">Mọi năm học</option></select>
         {cts.length > 1 && <select value={ct} onChange={e => setCt(e.target.value)} aria-label="Chương trình"><option value="">Mọi chương trình</option>{cts.map(([c, l]) => <option key={c} value={c}>{c} · {l}</option>)}</select>}
-        {multi && <MultiSelect compact value={orgs} onChange={setOrgs} placeholder="Mọi trường" ariaLabel="Lọc trường" style={{ minWidth: 240 }}
-          options={[...new Map(all.map(r => [r.org_id, r.org_name])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'vi'))} />}
+        <MultiFilters defs={of.defs} f={mf} />
         <label className="field inline"><span className="sub">Số lớp tối đa / GV</span> <input type="number" min={1} max={40} value={per} style={{ width: 64 }} onChange={e => setPer(Math.max(1, Math.round(Number(e.target.value) || 1)))} aria-label="Số lớp tối đa một giáo viên dạy" /></label>
       </div>
       <div className="distfilter">{([['', 'Tất cả', scope.length], ['short', 'Thiếu GV đạt chuẩn', n('short')], ['none', 'Chưa phân công', n('none')], ['ok', 'Đáp ứng', n('ok')]] as const)
-        .map(([k, l, c]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} aria-pressed={f === k} onClick={() => setF(k)}>{l} ({c})</button>)}</div>
+        .map(([k, l, c]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} aria-pressed={f === k} onClick={() => setF(k)}>{l} ({c})</button>)}
+        <span style={{ flex: 1 }} />
+        {([['program', 'Theo chương trình'], ['school', 'Tổng hợp theo trường']] as const).map(([k, l]) =>
+          <button key={k} type="button" className={`distfchip${view === k ? ' on' : ''}`} aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>)}</div>
     </section>
-    {can && sel.size === 0 && shown.some(needsWork) && <div className="panel readyhint" style={{ marginTop: 14 }} role="note">
+    {view === 'school' && <section className="panel" style={{ marginTop: 14 }}>
+      <p className="sub" style={{ marginTop: 0 }}>Mỗi dòng là một trường: số chương trình STEM trường đang dạy, số chương trình đã đủ GV đạt chuẩn, số GV còn thiếu để đủ dạy và số GV đã phân công cần tập huấn (một GV dạy nhiều chương trình chỉ tính một lần).</p>
+      {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
+        <thead><tr><th>Trường</th><th>Chương trình đang dạy</th><th>Đáp ứng</th><th>Thiếu GV đạt chuẩn</th><th>GV cần tập huấn</th><th>Chương trình chưa đáp ứng</th></tr></thead>
+        <tbody>{bySchool.map(x => <tr key={x.id} className="clickrow" onClick={() => { mf.set('school', [x.id]); setView('program') }} title="Xem từng chương trình của trường">
+          <td><b>{x.name}</b></td><td>{x.rows.length}</td>
+          <td>{x.ok === x.rows.length ? <Chip tone="good">{x.ok}/{x.rows.length}</Chip> : <Chip tone="warn">{x.ok}/{x.rows.length}</Chip>}</td>
+          <td>{x.lack ? <b>{x.lack} GV</b> : <small className="sub">0</small>}{x.none > 0 && <><br /><small className="sub">{x.none} chương trình chưa phân công GV</small></>}</td>
+          <td>{x.train ? <b>{x.train} GV</b> : <small className="sub">0</small>}</td>
+          <td><small>{x.progs.join(', ') || '—'}</small></td></tr>)}
+          {!bySchool.length && <tr><td colSpan={6}><small className="sub">Không có trường nào khớp bộ lọc.</small></td></tr>}</tbody>
+      </table></div>}
+    </section>}
+    {view === 'program' && can && sel.size === 0 && shown.some(needsWork) && <div className="panel readyhint" style={{ marginTop: 14 }} role="note">
       <b>Lập kế hoạch tập huấn từ màn này</b>
       <ol>
         <li>Tick ô ở đầu các dòng cần bồi dưỡng (dòng Thiếu GV đạt chuẩn / Chưa phân công, hoặc còn GV chưa đạt chuẩn). Bấm vào dòng để xem từng GV.</li>
@@ -88,12 +113,12 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
       </ol>
       <button type="button" onClick={() => setSel(new Set(shown.filter(needsWork).map(key)))}>Chọn tất cả {shown.filter(needsWork).length} dòng cần bồi dưỡng</button>
     </div>}
-    {can && sel.size > 0 && <div className="panel bar" style={{ marginTop: 14 }} role="region" aria-label="Lập kế hoạch tập huấn">
+    {view === 'program' && can && sel.size > 0 && <div className="panel bar" style={{ marginTop: 14 }} role="region" aria-label="Lập kế hoạch tập huấn">
       <span>Đã chọn <b>{sel.size}</b> dòng · {picked.reduce((t, r) => t + r.teachers.filter(x => !x.ok).length, 0)} GV chưa đạt chuẩn</span>
       <div className="tools"><button type="button" onClick={() => setSel(new Set())}>Bỏ chọn</button>
         <button type="button" className="primary" onClick={() => { setMsg(null); setPlan(true) }}>Lập kế hoạch tập huấn</button></div>
     </div>}
-    <section className="panel" style={{ marginTop: 14 }}>
+    {view === 'program' && <section className="panel" style={{ marginTop: 14 }}>
       {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
         <thead><tr>{can && <th style={{ width: 32 }} aria-label="Chọn"></th>}{multi && <th>Trường</th>}<th>Chương trình</th><th>Lớp</th><th>GV phân công</th><th>Đạt chuẩn / cần</th><th>Kết luận</th></tr></thead>
         <tbody>{shown.map(r => { const v = verdict(r, per), k = key(r), bad = r.teachers.filter(x => !x.ok).length
@@ -117,7 +142,7 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
           </td></tr>] })}
           {!shown.length && <tr><td colSpan={(can ? 1 : 0) + (multi ? 6 : 5)}><small className="sub">{all.length ? 'Không có dòng nào khớp bộ lọc.' : 'Chưa có trường nào có lớp học, chương trình STEM hoặc phân công GV theo chương trình.'}</small></td></tr>}</tbody>
       </table></div>}
-    </section>
+    </section>}
     {plan && <PlanFromGaps orgId={orgId} rows={picked} per={per} year={year || schoolYear()} onClose={() => setPlan(false)} onDone={m => { setPlan(false); setSel(new Set()); setMsg(m) }} />}
   </>
 }

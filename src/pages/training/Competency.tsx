@@ -9,6 +9,8 @@ import { schoolYear } from '../department/Governance'
 import { LevelChip, useCompetencies, resetCompetencies, LV_NAME, SLV_NAME, type Comp } from '../competency'
 import { FlowGuide } from '../../components/FlowGuide'
 import { Tabs } from '../teacher/common'
+import { MultiFilters, useMultiFilters } from '../../components/MultiFilters'
+import { useOrgFilters } from '../../components/OrgFilters'
 import { LevelNames } from '../settings/Custom'
 
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 088 trên Supabase.' : /row-level|42501/i.test(m) ? 'Bạn không có quyền với mục này.' : m
@@ -227,8 +229,11 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
   }
   useEffect(loadPlans, [orgId])
 
-  const all = rows ?? []
-  const shown = all.filter(g => (!comp || g.competency === comp) && (!q || (g.teacher_name + ' ' + (g.org_name ?? '')).toLowerCase().includes(q.toLowerCase())))
+  // Lọc Tỉnh / Sở, trường (chọn nhiều); ô tìm chỉ tìm tên giáo viên
+  const mf = useMultiFilters()
+  const of = useOrgFilters(rows ?? [], mf)
+  const all = (rows ?? []).filter(g => of.fit(g.org_id))
+  const shown = all.filter(g => (!comp || g.competency === comp) && (!q || g.teacher_name.toLowerCase().includes(q.toLowerCase())))
   const byTeacher = useMemo(() => {
     const m = new Map<string, Gap[]>()
     shown.forEach(g => m.set(g.teacher_id, [...(m.get(g.teacher_id) ?? []), g]))
@@ -270,7 +275,8 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
       <div className="distfilter">
         <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học">{years().map(y => <option key={y} value={y}>Năm học {y}</option>)}</select>
         <select value={target} onChange={e => setTarget(+e.target.value)} aria-label="Mức yêu cầu">{[2, 3, 4].map(l => <option key={l} value={l}>Yêu cầu từ Mức {l} ({LV_NAME[l - 1]})</option>)}</select>
-        <input placeholder="Tìm giáo viên, trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo viên" />
+        <MultiFilters defs={of.defs} f={mf} />
+        <input placeholder="Tìm tên giáo viên…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo viên" />
         <button type="button" onClick={excel} disabled={!shown.length}>Xuất Excel</button>
       </div>
       <div className="distfilter">

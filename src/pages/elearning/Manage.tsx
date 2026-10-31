@@ -307,6 +307,8 @@ function Courses({ orgId }: { orgId: string | null }) {
   const [exams, setExams] = useState<Exam[]>([])
   const [form, setForm] = useState<CForm | null>(null)
   const [open, setOpen] = useState<string | null>(null)
+  // Khoá vừa tạo: mở thẳng trang chi tiết với ô thêm bài học sẵn sàng
+  const [fresh, setFresh] = useState<string | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const subjList = useSubjects().subjects
   // Quản trị hệ thống: thấy khoá học của mọi đơn vị, sửa thẳng; lớp/nhóm theo đơn vị của khoá đang soạn
@@ -327,11 +329,15 @@ function Courses({ orgId }: { orgId: string | null }) {
     const subs = (body.subjects ?? []).map(x => x.trim()).filter(Boolean), grs = [...(body.grades ?? [])].sort((a, b) => a - b)
     const payload = { ...body, subjects: subs, grades: grs, subject: subs[0] ?? null, grade: grs[0] ?? null, description: body.description?.trim() || null, cover_url: body.cover_url?.trim() || null, shared: fSchool ? false : body.shared,
       class_ids: fSchool ? some(body.class_ids) : null, group_ids: fSchool ? some(body.group_ids) : null, student_ids: fSchool ? some(body.student_ids) : null }
-    // Thêm mới không đọc lại dòng vừa tạo: chính sách đọc courses (course_visible) chưa thấy dòng mới trong cùng câu lệnh
-    const { data, error } = id ? await supabase.from('courses').update(payload).eq('id', id).select('id') : await supabase.from('courses').insert({ ...payload, org_id: org || orgId })
+    // Thêm mới không đọc lại dòng vừa tạo: chính sách đọc courses (course_visible) chưa thấy dòng mới trong cùng câu lệnh,
+    // nên tạo sẵn id để mở thẳng khoá vừa tạo
+    const newId = id ? null : crypto.randomUUID()
+    const { data, error } = id ? await supabase.from('courses').update(payload).eq('id', id).select('id') : await supabase.from('courses').insert({ ...payload, id: newId, org_id: org || orgId })
     if (error) return setMsg([errText(error.message), true])
     if (id && !data?.length) return setMsg([NOT_OWNER, true])
-    setForm(null); setMsg(['Đã lưu khoá học.', false]); load()
+    await load(); setForm(null)
+    if (newId) { setOpen(newId); setFresh(newId); setMsg(['Đã tạo khoá học. Thêm bài học ngay bên dưới.', false]) }
+    else setMsg(['Đã lưu khoá học.', false])
   }
   async function setStatus(c: Course, status: Course['status']) {
     const { data, error } = await supabase.from('courses').update({ status }).eq('id', c.id).select('id')
@@ -359,17 +365,17 @@ function Courses({ orgId }: { orgId: string | null }) {
         <label className="field wide"><span>Giới thiệu</span><textarea rows={3} value={form.description ?? ''} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
         {fSchool ? <AudiencePicker key={(form.id ?? 'new') + fOrg} orgId={fOrg} classes={fClasses} groups={fGroups} value={form} onChange={v => setForm({ ...form, ...v })} />
           : <label className="field inline wide"><input type="checkbox" checked={form.shared} onChange={e => setForm({ ...form, shared: e.target.checked })} /> Dành cho học sinh mọi trường trực thuộc</label>}
-        <div className="actions wide"><button className="primary">Lưu khoá học</button><button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
+        <div className="actions wide"><button className="primary">{form.id ? 'Lưu khoá học' : 'Lưu & thêm bài học'}</button><button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
       </form></ElView>
   // Chi tiết khoá học (bài học, tiến độ): trang riêng
   const cur = rows.find(c => c.id === open)
   if (cur) { const ls = lessons.filter(l => l.course_id === cur.id); const mine = cur.org_id === orgId || !!every
-    return <ElView back="Danh sách khoá học" onBack={() => { setOpen(null); setMsg(null) }} title={cur.title}
+    return <ElView back="Danh sách khoá học" onBack={() => { setOpen(null); setFresh(null); setMsg(null) }} title={cur.title}
       sub={<>{[...courseMeta(cur), `${ls.length} bài`, !mine ? 'của cấp trên' : every ? orgName(cur.org_id) : isSchool ? audienceText(cur, classes, groups) : cur.shared ? 'dùng chung' : null, cur.due_at ? 'Hạn hoàn thành: ' + dt(cur.due_at) : null].filter(Boolean).join(' · ')} <span className={'pill ' + ESTATUS[cur.status][1]}>{ESTATUS[cur.status][0]}</span></>}
       actions={mine ? <>{statusBtns(cur, ls)}<button onClick={() => editCourse(cur)}>Sửa</button></> : undefined}>
       {note}
       {cur.description && <p className="sub">{cur.description}</p>}
-      <section className="panel"><h3>Bài học</h3><LessonEditor course={cur} lessons={ls} exams={exams} progress={progress} editable={mine} onChange={load} /></section>
+      <section className="panel"><h3>Bài học</h3><LessonEditor key={cur.id} autoAdd={mine && fresh === cur.id && !ls.length} course={cur} lessons={ls} exams={exams} progress={progress} editable={mine} onChange={load} /></section>
       {mine && <CourseProgress key={ls.length} course={cur} />}
     </ElView> }
   return (
@@ -401,8 +407,11 @@ type LibOpt = { id: string; kind: 'material' | 'unit'; title: string; subject: s
 const normSub = (x: string | null | undefined) => (x ?? '').trim().toLowerCase()
 const MAT: Record<string, string> = { lesson_plan: 'Giáo án', worksheet: 'Phiếu học tập', image: 'Hình ảnh', video: 'Video', guide: 'Tài liệu hướng dẫn', document: 'Tài liệu', link: 'Đường dẫn' }
 
-function LessonEditor({ course, lessons, exams, progress, editable, onChange }: { course: Course; lessons: Lesson[]; exams: Exam[]; progress: Map<string, number>; editable: boolean; onChange: () => void }) {
-  const [f, setF] = useState<Partial<Lesson> | null>(null)
+function LessonEditor({ course, lessons, exams, progress, editable, onChange, autoAdd }: { course: Course; lessons: Lesson[]; exams: Exam[]; progress: Map<string, number>; editable: boolean; onChange: () => unknown; autoAdd?: boolean }) {
+  const [f, setF] = useState<Partial<Lesson> | null>(autoAdd ? { kind: 'video', title: '' } : null)
+  // "Lưu & thêm bài tiếp": lưu xong mở ngay ô thêm bài mới cùng loại
+  const [more, setMore] = useState(false)
+  const [round, setRound] = useState(0)
   const [file, setFile] = useState<File | null>(null)
   const [lib, setLib] = useState<LibOpt[] | null>(null)
   const [libQ, setLibQ] = useState('')
@@ -418,7 +427,7 @@ function LessonEditor({ course, lessons, exams, progress, editable, onChange }: 
       supabase.from('library_items').select('id, kind, title, subject, grades, owner_name, content').eq('status', 'published').in('kind', ['material', 'unit']).order('title').limit(3000)
         .then(({ data }) => setLib((data as LibOpt[]) ?? []))
   }, [f?.kind, lessons.length])
-  function edit(l: Partial<Lesson> | null) { setF(l); setFile(null); setErr(''); setLibQ(''); setPick('material'); setUnitId('') }
+  function edit(l: Partial<Lesson> | null) { setF(l); setRound(n => n + 1); setFile(null); setErr(''); setLibQ(''); setPick('material'); setUnitId('') }
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!f) return
     setBusy(true); setErr('')
@@ -433,7 +442,7 @@ function LessonEditor({ course, lessons, exams, progress, editable, onChange }: 
         const { error } = await supabase.from('course_lessons').insert(mats.map((m, i) => ({ course_id: course.id, title: `${u.title}: ${m.title}`.slice(0, 200), kind: 'library',
           library_item_id: m.id, body: f.body?.trim() || null, duration_min: f.duration_min || null, position: start + i })))
         if (error) throw new Error(errText(error.message, '061'))
-        edit(null); onChange(); return
+        await done(); return
       }
       let path = f.kind === 'file' ? f.path ?? null : null
       if (f.kind === 'file' && file) path = (await uploadLearningFile(course.org_id, 'courses', file)).path
@@ -444,9 +453,10 @@ function LessonEditor({ course, lessons, exams, progress, editable, onChange }: 
         duration_min: f.duration_min || null, position: f.position ?? (lessons.length ? Math.max(...lessons.map(l => l.position)) + 1 : 1) }
       const { error } = f.id ? await supabase.from('course_lessons').update(body).eq('id', f.id) : await supabase.from('course_lessons').insert(body)
       if (error) throw new Error(errText(error.message, '061'))
-      edit(null); onChange()
+      await done()
     } catch (x: any) { setErr(x.message) } finally { setBusy(false) }
   }
+  async function done() { const k = f?.kind; await onChange(); edit(more && k ? { kind: k, title: '' } : null) }
   async function move(l: Lesson, d: number) {
     const i = lessons.findIndex(x => x.id === l.id), o = lessons[i + d]; if (!o) return
     await supabase.from('course_lessons').update({ position: o.position }).eq('id', l.id); await supabase.from('course_lessons').update({ position: l.position }).eq('id', o.id); onChange()
@@ -470,9 +480,9 @@ function LessonEditor({ course, lessons, exams, progress, editable, onChange }: 
       </li>)}</ol>
       {!lessons.length && <p className="sub">Khoá chưa có bài học.</p>}
       {editable && !f && <button onClick={() => edit({ kind: 'video', title: '' })}>+ Thêm bài học</button>}
-      {f && <form className="formgrid" onSubmit={save}>
+      {f && <form key={round} className="formgrid" onSubmit={save}>
         <label className="field"><span>Loại bài</span><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Lesson['kind'] })}>{Object.entries(LKIND).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
-        {!(f.kind === 'library' && pick === 'unit' && !f.id) && <label className="field wide"><span>Tên bài *</span><input required value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} /></label>}
+        {!(f.kind === 'library' && pick === 'unit' && !f.id) && <label className="field wide"><span>Tên bài *</span><input required autoFocus={!f.id} value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} /></label>}
         {(f.kind === 'video' || f.kind === 'link') && <label className="field wide"><span>Đường dẫn *</span><input required type="url" value={f.url ?? ''} onChange={e => setF({ ...f, url: e.target.value })} placeholder={f.kind === 'video' ? 'https://www.youtube.com/watch?v=… hoặc Google Drive' : 'https://…'} /></label>}
         {f.kind === 'exam' && <label className="field wide"><span>Đề luyện *</span><select required value={f.exam_id ?? ''} onChange={e => setF({ ...f, exam_id: e.target.value })}><option value="">Chọn đề đã công bố…</option>{exams.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}</select></label>}
         {f.kind === 'file' && <label className="field wide"><span>Tệp (PDF, Word, PowerPoint, hình ảnh… tối đa {MAX_FILE_MB} MB) *</span>
@@ -498,7 +508,8 @@ function LessonEditor({ course, lessons, exams, progress, editable, onChange }: 
         <label className="field wide"><span>{f.kind === 'reading' ? 'Nội dung bài đọc (Markdown) *' : 'Ghi chú cho học sinh'}</span><textarea rows={f.kind === 'reading' ? 8 : 2} required={f.kind === 'reading'} value={f.body ?? ''} onChange={e => setF({ ...f, body: e.target.value })} /></label>
         <label className="field"><span>Thời lượng (phút)</span><input type="number" min={1} max={600} value={f.duration_min ?? ''} onChange={e => setF({ ...f, duration_min: e.target.value ? Number(e.target.value) : null })} /></label>
         {err && <p className="msg">{err}</p>}
-        <div className="actions wide"><button className="primary" disabled={busy}>{busy ? (file ? 'Đang tải tệp lên…' : 'Đang lưu…') : 'Lưu bài học'}</button><button type="button" onClick={() => edit(null)}>Huỷ</button></div>
+        <div className="actions wide"><button className="primary" disabled={busy} onClick={() => setMore(false)}>{busy ? (file ? 'Đang tải tệp lên…' : 'Đang lưu…') : 'Lưu bài học'}</button>
+          {!f.id && <button disabled={busy} onClick={() => setMore(true)}>Lưu & thêm bài tiếp</button>}<button type="button" onClick={() => edit(null)}>Huỷ</button></div>
       </form>}
     </div>
   )

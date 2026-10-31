@@ -1,8 +1,9 @@
 // Phân hệ 1 — Danh sách giảng viên tập huấn (098). Đơn vị lập kế hoạch (KDI, Sở, Phòng) quản lý; chương trình trong kế hoạch
 // và buổi tập huấn chọn nhiều giảng viên từ danh sách này (TrainerPick). Gõ tên chưa có thì thêm nhanh vào danh sách.
+import { useOrgFilter } from '../../components/OrgFilters'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { OrgFilter, OrgPick, useAllMode, useOrgName } from '../../components/OrgScope'
+import { OrgPick, useAllMode, useOrgName } from '../../components/OrgScope'
 import { ElView } from '../../components/ElView'
 import { MultiSelect } from '../../components/MultiSelect'
 import { Chip } from '../dist/Editor'
@@ -69,7 +70,7 @@ const toRow = (f: Form) => ({ full_name: f.full_name.trim(), title: f.title.trim
 export function TrainersPage({ orgId }: { orgId: string }) {
   // Quản trị hệ thống: giảng viên của mọi đơn vị trong một danh sách, sửa thẳng
   const every = useAllMode(), orgName = useOrgName()
-  const [fo, setFo] = useState('')
+  const ofl = useOrgFilter()
   const { list, reload } = useTrainers(orgId, !!every)
   const [can, setCan] = useState(false)
   const [use, setUse] = useState<Map<string, number>>(new Map())
@@ -98,7 +99,7 @@ export function TrainersPage({ orgId }: { orgId: string }) {
     onDone={m => { setView(null); setMsg([m, false]); reload() }} />
 
   const all = list ?? []
-  const shown = all.filter(t => (!fs || (fs === 'active') === t.active) && (!fo || t.org_id === fo)
+  const shown = all.filter(t => (!fs || (fs === 'active') === t.active) && ofl.fit(t.org_id)
     && (!q || `${t.full_name} ${t.title ?? ''} ${t.workplace ?? ''} ${t.expertise ?? ''}`.toLowerCase().includes(q.toLowerCase())))
   async function toggle(t: Trainer) {
     const { error } = await supabase.from('trainers').update({ active: !t.active }).eq('id', t.id)
@@ -120,7 +121,7 @@ export function TrainersPage({ orgId }: { orgId: string }) {
     </div>
     <div className="bar">
       <div className="tools"><input placeholder="Tìm họ tên, đơn vị công tác, chuyên môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giảng viên" />
-        <OrgFilter ids={all.map(t => t.org_id)} value={fo} onChange={setFo} />
+        {ofl.node(all.map(t => t.org_id))}
         <small className="sub">{shown.length}/{all.length} giảng viên</small></div>
       {can && <div className="tools"><button type="button" className="primary" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>Thêm giảng viên</button></div>}
     </div>

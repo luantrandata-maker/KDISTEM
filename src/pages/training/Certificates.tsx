@@ -1,5 +1,6 @@
 // Phân hệ 1 — Chứng chỉ tập huấn (087): danh sách, duyệt cấp, thu hồi, in (PDF qua hộp thoại in), QR tra cứu công khai;
 // mẫu chứng chỉ (KDI soạn, chương trình tập huấn chọn mẫu); chứng chỉ của tôi (cổng giáo viên); trang tra cứu ?cc=<mã>.
+import { useOrgFilter } from '../../components/OrgFilters'
 import { MultiSelect } from '../../components/MultiSelect'
 import { useEffect, useMemo, useState } from 'react'
 import QRCode from 'qrcode'
@@ -74,6 +75,13 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
   const [q, setQ] = useState('')
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState<string | null>(null)
+  const ofl = useOrgFilter()
+  // Trường của từng GV (danh sách chứng chỉ chỉ có tên trường) để lọc Tỉnh / Sở, trường
+  const [tOrg, setTOrg] = useState<Map<string, string>>(new Map())
+  useEffect(() => {
+    const ids = [...new Set((rows ?? []).map(c => c.teacher_id))]
+    if (ids.length) supabase.from('teachers').select('id, org_id').in('id', ids).then(({ data }) => setTOrg(new Map(((data ?? []) as { id: string; org_id: string }[]).map(t => [t.id, t.org_id]))))
+  }, [rows])
   const load = () => supabase.rpc('training_cert_list', { p_mine: false }).then(({ data, error }) => {
     if (error) { setMsg([errText(error.message), true]); setRows([]) } else { setRows((data as Cert[]) ?? []); setSel(new Set()) }
   })
@@ -81,9 +89,9 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
   if (open) return <CertView id={open} back="Chứng chỉ tập huấn" onBack={() => setOpen(null)} />
   const all = rows ?? []
   const plans = [...new Map(all.map(c => [c.plan_id, `${c.plan_code ?? ''} · ${c.plan_name ?? ''}`])).entries()]
-  const base = all.filter(c => !plan || c.plan_id === plan)
+  const base = all.filter(c => (!plan || c.plan_id === plan) && ofl.fit(tOrg.get(c.teacher_id)))
   const cnt = (k: F) => k === 'all' ? base.length : base.filter(c => c.status === k).length
-  const shown = base.filter(c => (f === 'all' || c.status === f) && (c.teacher_name + ' ' + (c.code ?? '') + ' ' + (c.org_name ?? '')).toLowerCase().includes(q.toLowerCase()))
+  const shown = base.filter(c => (f === 'all' || c.status === f) && (c.teacher_name + ' ' + (c.code ?? '')).toLowerCase().includes(q.toLowerCase()))
   const pick = shown.filter(c => c.can_manage && c.status !== 'issued')
 
   async function issue(ids: string[]) {
@@ -116,6 +124,7 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
     <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
       <div className="distfilter">
         <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Kế hoạch"><option value="">Tất cả kế hoạch</option>{plans.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
+        {ofl.node(all.map(c => tOrg.get(c.teacher_id)))}
         <input placeholder="Tìm giáo viên, số chứng chỉ…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chứng chỉ" />
         {sel.size > 0 && <button type="button" className="primary" onClick={() => issue([...sel])}>Duyệt cấp ({sel.size})</button>}
       </div>

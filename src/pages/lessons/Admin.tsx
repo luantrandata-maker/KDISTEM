@@ -3,8 +3,9 @@ import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../../components/Tabl
 // và KDI (mẫu giáo án dùng chung toàn hệ thống)
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { OrgFilter, useAllMode, useOrgName } from '../../components/OrgScope'
+import { useAllMode, useOrgName } from '../../components/OrgScope'
 import { Tabs } from '../teacher/common'
+import { useOrgFilter } from '../../components/OrgFilters'
 import { Tiles } from '../department/charts'
 import { downloadXlsx } from '../../lib/sheet'
 import {
@@ -90,7 +91,7 @@ function SchoolPlans({ orgId, go }: P) {
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [reviewRequired, setReviewRequired] = useState<boolean | null>(null)
   const every = useAllMode(), orgName = useOrgName()
-  const [fo, setFo] = useState('')
+  const ofl = useOrgFilter()
   async function load() {
     const base = supabase.from('lesson_plans').select(PLAN_COLS)
     const { data, error } = await (every ? base : base.eq('org_id', orgId ?? '')).order('updated_at', { ascending: false })
@@ -102,7 +103,7 @@ function SchoolPlans({ orgId, go }: P) {
   useEffect(() => { load() }, [orgId])
   useEffect(() => { if (orgId && !every) supabase.rpc('lesson_review_required', { p_org: orgId }).then(({ data }) => setReviewRequired(!!data)) }, [orgId])
 
-  const plans = rows.filter(r => !r.is_template && (!fo || r.org_id === fo))
+  const plans = rows.filter(r => !r.is_template && ofl.fit(r.org_id))
   const teachers = [...new Map(plans.filter(p => p.teacher_id).map(p => [p.teacher_id!, p.teachers?.full_name ?? '—'])).entries()].sort((a, b) => a[1].localeCompare(b[1]))
   const statuses = FILTERS.find(f => f[0] === st)?.[2] ?? []
   const shown = plans.filter(p => (!statuses.length || statuses.includes(p.status)) && (!teacher || p.teacher_id === teacher)
@@ -146,7 +147,7 @@ function SchoolPlans({ orgId, go }: P) {
       <div className="tools" style={{ marginBottom: 12 }}>
         <input className="search" style={{ margin: 0 }} placeholder={`Tìm ${NOUN}…`} value={q} onChange={e => setQ(e.target.value)} aria-label={`Tìm ${NOUN}`} />
         <select value={st} onChange={e => setSt(e.target.value)} aria-label="Lọc trạng thái">{FILTERS.map(([k, l, ss]) => <option key={k} value={k}>{l}{ss.length ? ` (${n(ss)})` : ''}</option>)}</select>
-        <OrgFilter ids={rows.map(r => r.org_id)} value={fo} onChange={setFo} />
+        {ofl.node(rows.map(r => r.org_id))}
         <select value={teacher} onChange={e => setTeacher(e.target.value)} aria-label="Lọc giáo viên"><option value="">Tất cả giáo viên</option>{teachers.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select>
         <button onClick={exportX} disabled={!shown.length}>Xuất Excel</button>
       </div>

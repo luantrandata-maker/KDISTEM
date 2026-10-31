@@ -10,6 +10,7 @@ import { Tabs } from '../teacher/common'
 import QuestionBank from './Bank'
 import Analytics from './Analytics'
 import { ElView } from '../../components/ElView'
+import { useOrgFilter } from '../../components/OrgFilters'
 import { useSubjects } from '../subjects'
 import { ExamMatrix, matrixTotal } from '../../components/ExamMatrix'
 import { ESTATUS, LEVEL, LKIND, SHOW, courseGrades, courseMeta, courseSubjects, dueBadge, errText, gradesText, qGrades, pathName, type Attempt, type Course, type Exam, type Lesson, type Level, type Question } from './common'
@@ -138,6 +139,7 @@ function Exams({ orgId, subject }: { orgId: string | null; subject?: string }) {
   const schoolOf = (id?: string | null) => every ? every.find(o => o.id === id)?.type === 'school' : isSchool
   const [rows, setRows] = useState<Exam[]>([])
   const [counts, setCounts] = useState<Map<string, { n: number; students: Set<string>; sum: number }>>(new Map())
+  const ofl = useOrgFilter()
   const [form, setForm] = useState<EForm | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
@@ -188,10 +190,11 @@ function Exams({ orgId, subject }: { orgId: string | null; subject?: string }) {
   return (
     <>
       <div className="bar"><span /><button className="primary" onClick={() => { setMsg(null); setForm({ ...EEMPTY, subject: subject ?? '', subjects: subject ? [subject] : [], title: subject ? `Đề kiểm tra ${subject}` : '', shared: !isSchool && !every }) }}>{subject ? 'Tạo đề kiểm tra' : 'Tạo đề luyện'}</button></div>
+      {rows.length > 0 && <div className="tools" style={{ flexWrap: 'wrap', marginBottom: 10 }}>{ofl.node(rows.map(x => x.org_id))}</div>}
       {note}
       <div className="wrap"><table className="systable">
         <thead><tr><th>Đề luyện</th><th>Cách ra đề</th><th>Thời gian</th><th>Mở</th><th className="num">Lượt nộp</th><th className="num">Điểm TB</th><th>Trạng thái</th></tr></thead>
-        <tbody>{rows.map(x => { const c = counts.get(x.id); return <Fragment key={x.id}>
+        <tbody>{rows.filter(x => ofl.fit(x.org_id)).map(x => { const c = counts.get(x.id); return <Fragment key={x.id}>
           <tr className="clickrow" onClick={() => { setMsg(null); setOpen(x.id) }}>
             <td><b>{x.title}</b><br /><small>{[courseSubjects(x).join(', '), gradesText(courseGrades(x)), !editable(x) ? 'của cấp trên' : every ? orgName(x.org_id) : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></td>
             <td>{howText(x)}{x.shuffle ? <><br /><small>trộn câu</small></> : null}</td>
@@ -305,6 +308,7 @@ function Courses({ orgId }: { orgId: string | null }) {
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [progress, setProgress] = useState<Map<string, number>>(new Map())
   const [exams, setExams] = useState<Exam[]>([])
+  const ofl = useOrgFilter()
   const [form, setForm] = useState<CForm | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   // Khoá vừa tạo: mở thẳng trang chi tiết với ô thêm bài học sẵn sàng
@@ -381,9 +385,10 @@ function Courses({ orgId }: { orgId: string | null }) {
   return (
     <>
       <div className="bar"><span /><button className="primary" onClick={() => { setMsg(null); setForm({ ...CEMPTY, shared: !isSchool && !every }) }}>Tạo khoá học</button></div>
+      {rows.length > 0 && <div className="tools" style={{ flexWrap: 'wrap', marginBottom: 10 }}>{ofl.node(rows.map(c => c.org_id))}</div>}
       {note}
       <div className="coursegrid">
-        {rows.map(c => { const ls = lessons.filter(l => l.course_id === c.id); const mine = c.org_id === orgId || !!every
+        {rows.filter(c => ofl.fit(c.org_id)).map(c => { const ls = lessons.filter(l => l.course_id === c.id); const mine = c.org_id === orgId || !!every
           return <section key={c.id} className="panel coursecard">
             <header className="clickrow" onClick={() => { setMsg(null); setOpen(c.id) }}>
               <div><b>{c.title}</b><small>{[...courseMeta(c), `${ls.length} bài`, !mine ? 'của cấp trên' : every ? orgName(c.org_id) : isSchool ? audienceText(c, classes, groups) : c.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small>

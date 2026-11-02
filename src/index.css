@@ -945,20 +945,29 @@ td.good,b.good{color:var(--ok);font-weight:700}tr.muted td{opacity:.55}
 .coursecard.pick img{width:100%;aspect-ratio:16/7;object-fit:cover;border-radius:10px}
 .lessons ol{padding-left:22px;display:grid;gap:6px}.lessons li{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .lessons .lk{font-size:12px;background:var(--soft);border-radius:6px;padding:1px 7px;color:var(--muted)}.lessons .done{margin-left:auto;color:var(--muted)}
-.lsplit{display:grid;grid-template-columns:minmax(280px,380px) minmax(0,1fr);gap:16px;align-items:start}
-.lsplit .lslist{border-right:1px solid var(--line);padding-right:14px;min-width:0}
-.lsplit .lshead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}.lsplit .lshead small{color:var(--muted)}
-.lsplit ol{padding-left:0;list-style:none;counter-reset:ls;gap:2px}
 .lessons .lsmain,.lessons .lsmeta{display:contents}
-.lsplit li{counter-increment:ls;display:grid;grid-template-columns:22px minmax(0,1fr) auto;column-gap:6px;row-gap:2px;align-items:center;padding:8px 10px;border-radius:8px;cursor:pointer;border:1px solid transparent}
-.lsplit li::before{content:counter(ls);grid-row:1;font-weight:600;color:var(--muted)}
-.lsplit li:hover{background:var(--soft)}.lsplit li.on{background:var(--soft);border-color:var(--primary)}
-.lsplit .lsmain{display:flex;gap:8px;align-items:baseline;min-width:0;grid-column:2}.lsplit .lsmain b{min-width:0;overflow-wrap:anywhere}.lsplit .lsmain .lk{flex-shrink:0;white-space:nowrap}
-.lsplit .lsmeta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;grid-column:2;color:var(--muted);font-size:12px}.lsplit .lsmeta .done{margin-left:0}
-.lsplit li .tools{grid-column:3;grid-row:1/span 2;margin:0;flex-wrap:nowrap;gap:4px;display:none}.lsplit li .tools .xbtn{padding:2px 8px}
+.lessons .lsgroup+.lsgroup{margin-top:10px}
+.lessons .lstopic{display:flex;align-items:center;gap:8px;padding:6px 10px;margin:4px 0;border-radius:8px;background:var(--soft);border:1px solid transparent}
+.lessons .lstopic b{flex:1 1 auto;min-width:0}.lessons .lstopic small{color:var(--muted);white-space:nowrap}.lessons .lstopic .xbtn{white-space:nowrap}.lessons .lstopic .tools{margin-left:auto;gap:4px;flex-wrap:nowrap}.lessons .lstopic .tools .xbtn{padding:2px 8px}
+.lessons .lstopic.on{border-color:var(--primary)}.lessons .lstopic.dropin,.lessons .lsnone.dropin{border:1px dashed var(--primary);background:var(--surface)}
+.lessons .lsnone{margin:2px 0 0 30px;padding:4px 8px;border-radius:8px;border:1px dashed transparent}
+.lsplit{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+.lsplit.open{grid-template-columns:minmax(300px,400px) minmax(0,1fr)}
+.lsplit.open .lslist{border-right:1px solid var(--line);padding-right:14px}.lsplit .lslist{min-width:0}
+.lsplit .lshead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap}.lsplit .lshead small{color:var(--muted)}.lsplit .lshead .tools{gap:6px}
+.lsplit ol{padding-left:0;list-style:none;counter-reset:ls;gap:2px;margin:0}
+.lsplit li{counter-increment:ls;display:grid;grid-template-columns:12px 20px minmax(0,1fr) auto;column-gap:6px;row-gap:2px;align-items:center;padding:8px 10px 8px 4px;border-radius:8px;cursor:pointer;border:1px solid transparent;border-top:2px solid transparent}
+.lsplit li .grip{grid-column:1;grid-row:1/span 2;color:var(--muted);cursor:grab;letter-spacing:-3px;font-size:12px;opacity:.5;user-select:none}
+.lsplit li::before{content:counter(ls);grid-column:2;grid-row:1;font-weight:600;color:var(--muted)}
+.lsplit li:hover{background:var(--soft)}.lsplit li:hover .grip{opacity:1}.lsplit li.on{background:var(--soft);border-color:var(--primary)}
+.lsplit li.dragging{opacity:.4}.lsplit li.dropbefore{border-top-color:var(--primary)}.lsplit ol.dropend{border-bottom:2px solid var(--primary)}
+.lsplit .lsmain{display:flex;gap:8px;align-items:baseline;min-width:0;grid-column:3}.lsplit .lsmain b{min-width:0;overflow-wrap:anywhere}.lsplit .lsmain .lk{flex-shrink:0;white-space:nowrap}
+.lsplit .lsmeta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;grid-column:3;color:var(--muted);font-size:12px}.lsplit .lsmeta .done{margin-left:0}
+.lsplit li .tools{grid-column:4;grid-row:1/span 2;margin:0;flex-wrap:nowrap;gap:4px;display:none}.lsplit li .tools .xbtn{padding:2px 8px}
 .lsplit li:hover .tools,.lsplit li.on .tools,.lsplit li .tools:focus-within{display:flex}
-.lsplit .lsedit{min-width:0;max-width:760px}.lsplit .lsedit h4{margin:0 0 10px}.lsplit .lsempty{align-self:stretch;display:flex;align-items:center;justify-content:center;min-height:160px;border:1px dashed var(--line);border-radius:var(--radius)}
-@media (max-width:900px){.lsplit{grid-template-columns:1fr}.lsplit .lslist{border-right:0;padding-right:0}}
+.lsplit li .tools .mv{display:none}@media (pointer:coarse){.lsplit li .tools .mv{display:inline-block}.lsplit li .grip{display:none}}
+.lsplit .lsedit{min-width:0;max-width:760px}.lsplit .lsedit h4{margin:0 0 10px}
+@media (max-width:900px){.lsplit.open{grid-template-columns:1fr}.lsplit.open .lslist{border-right:0;padding-right:0}}
 .examcard{margin:0;display:grid;gap:6px;align-content:start}.examcard>small{color:var(--muted)}.examcard .bar{margin:6px 0 0}
 .takeexam{max-width:880px}
 .examhead{position:sticky;top:0;z-index:5;display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 14px;margin-bottom:14px}
@@ -974,7 +983,7 @@ td.good,b.good{color:var(--ok);font-weight:700}tr.muted td{opacity:.55}
 .coursebody{display:grid;grid-template-columns:280px 1fr;gap:14px;margin-top:12px;align-items:start}
 .lessonnav{list-style:none;padding:0;margin:0;display:grid;gap:4px}
 .lessonnav button{display:grid;grid-template-columns:22px 1fr;gap:8px;width:100%;text-align:left;border:1px solid transparent;background:none;padding:8px;border-radius:10px;cursor:pointer;font:inherit;color:inherit}
-.lessonnav button.on{background:var(--surface);border-color:var(--line)}.lessonnav small{display:block;color:var(--muted)}
+.lessonnav .lntopic{font-weight:600;font-size:13px;color:var(--muted);padding:8px 8px 2px}.lessonnav button.on{background:var(--surface);border-color:var(--line)}.lessonnav small{display:block;color:var(--muted)}
 .lessonnav .chk{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;font-size:12px}
 .lessonnav .chk.yes{background:var(--ok);border-color:var(--ok);color:#fff}
 .lessonbody{margin:0}.video{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#000}.video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}

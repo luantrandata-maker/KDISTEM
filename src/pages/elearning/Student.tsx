@@ -4,7 +4,7 @@ import { supabase } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
 import { md } from '../ai'
 import { openFile } from '../../lib/files'
-import { courseMeta, dueBadge, embedUrl, errText, letter, LKIND, pathName, type Course, type Exam, type Lesson, type Material } from './common'
+import { courseMeta, dueBadge, embedUrl, errText, letter, LKIND, pathName, type Course, type Exam, type Lesson, type Material, type Topic, groupLessons } from './common'
 
 // Học sinh: E-learning & luyện thi — khoá học, đề luyện (có giờ), lịch sử và xem lại bài.
 type Paper = { attempt: string; deadline: string | null; title: string; questions: { id: string; stem: string; options: string[]; kind: string }[]; answers: Record<string, number[]> | null }
@@ -182,10 +182,12 @@ function History({ onReview }: { onReview: (a: string) => void }) {
 function CourseList({ studentId, onExam }: { studentId: string; onExam: (id: string) => void }) {
   const [courses, setCourses] = useState<Course[] | null>(null)
   const [lessons, setLessons] = useState<Lesson[]>([])
+  const [topics, setTopics] = useState<Topic[]>([])
   const [done, setDone] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState<string | null>(null)
   const [lesson, setLesson] = useState<Lesson | null>(null)
   async function load() {
+    supabase.from('course_topics').select('*').order('position').then(({ data }) => setTopics((data as Topic[]) ?? []))
     const [c, l, p] = await Promise.all([supabase.from('courses').select('*').eq('status', 'published').order('created_at', { ascending: false }),
       supabase.from('course_lessons').select('*').order('position'), supabase.from('course_progress').select('lesson_id').eq('student_id', studentId)])
     setCourses((c.data as Course[]) ?? []); setLessons((l.data as Lesson[]) ?? []); setDone(new Set(((p.data as any[]) ?? []).map(x => x.lesson_id)))
@@ -199,16 +201,19 @@ function CourseList({ studentId, onExam }: { studentId: string; onExam: (id: str
   if (!courses) return <p className="sub">Đang tải…</p>
   const c = courses.find(x => x.id === open)
   if (c) {
-    const ls = lessons.filter(l => l.course_id === c.id), n = ls.filter(l => done.has(l.id)).length
+    const groups = groupLessons(lessons.filter(l => l.course_id === c.id), topics.filter(t => t.course_id === c.id))
+    const ls = groups.flatMap(g => g.lessons), n = ls.filter(l => done.has(l.id)).length
     const cur = lesson ?? ls.find(l => !done.has(l.id)) ?? ls[0]
     return (
       <div className="courseview">
         <div className="bar"><div><b>{c.title}</b><br /><small>Đã học {n}/{ls.length} bài</small> <Due c={c} finished={!!ls.length && n >= ls.length} /></div><button onClick={() => { setOpen(null); setLesson(null) }}>Tất cả khoá học</button></div>
         <div className="progress"><i style={{ width: (ls.length ? (100 * n) / ls.length : 0) + '%' }} /></div>
         <div className="coursebody">
-          <ol className="lessonnav">{ls.map(l => <li key={l.id}><button className={cur?.id === l.id ? 'on' : ''} onClick={() => setLesson(l)}>
+          <ol className="lessonnav">{groups.flatMap((g, gi) => [
+            ...(g.topic || groups.length > 1 ? [<li key={'t' + gi} className="lntopic">{g.topic ? `Chủ đề ${gi + 1}: ${g.topic.title}` : 'Bài khác'}</li>] : []),
+            ...g.lessons.map(l => <li key={l.id}><button className={cur?.id === l.id ? 'on' : ''} onClick={() => setLesson(l)}>
             <span className={'chk' + (done.has(l.id) ? ' yes' : '')} aria-label={done.has(l.id) ? 'Đã học' : 'Chưa học'}>{done.has(l.id) ? '✓' : ''}</span>
-            <span>{l.title}<small>{LKIND[l.kind]}{l.duration_min ? ` · ${l.duration_min} phút` : ''}</small></span></button></li>)}</ol>
+            <span>{l.title}<small>{LKIND[l.kind]}{l.duration_min ? ` · ${l.duration_min} phút` : ''}</small></span></button></li>)])}</ol>
           {cur && <article className="panel lessonbody">
             <h3>{cur.title}</h3>
             {cur.kind === 'video' && (embedUrl(cur.url) ? <div className="video"><iframe src={embedUrl(cur.url)!} title={cur.title} allow="accelerometer; encrypted-media; picture-in-picture; fullscreen" allowFullScreen /></div>

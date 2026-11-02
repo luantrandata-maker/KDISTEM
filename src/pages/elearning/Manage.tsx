@@ -13,7 +13,7 @@ import { ElView } from '../../components/ElView'
 import { useOrgFilter } from '../../components/OrgFilters'
 import { useSubjects } from '../subjects'
 import { ExamMatrix, matrixTotal } from '../../components/ExamMatrix'
-import { ESTATUS, LEVEL, LKIND, SHOW, courseGrades, courseMeta, courseSubjects, dueBadge, errText, gradesText, qGrades, pathName, type Attempt, type Course, type Exam, type Lesson, type Level, type Question } from './common'
+import { ESTATUS, LEVEL, LKIND, SHOW, courseGrades, courseMeta, courseSubjects, dueBadge, errText, gradesText, qGrades, pathName, type Attempt, type Course, type Exam, type Lesson, type Level, type Question, type Topic, groupLessons } from './common'
 
 // E-learning & luyện thi (GV, trường, Sở, KDI): đề luyện, khoá học, phân tích kết quả, ngân hàng câu hỏi.
 type Cls = { id: string; name: string; grade: number | null }
@@ -305,6 +305,7 @@ function Courses({ orgId }: { orgId: string | null }) {
   const { classes, groups, isSchool } = useOrgCtx(orgId)
   const [rows, setRows] = useState<Course[]>([])
   const [lessons, setLessons] = useState<Lesson[]>([])
+  const [topics, setTopics] = useState<Topic[]>([])
   const [progress, setProgress] = useState<Map<string, number>>(new Map())
   const [exams, setExams] = useState<Exam[]>([])
   const ofl = useOrgFilter()
@@ -319,8 +320,10 @@ function Courses({ orgId }: { orgId: string | null }) {
   const fClasses = every ? tctx.classes : classes, fGroups = every ? tctx.groups : groups
   const fSchool = every ? !!form?.org && tctx.isSchool : isSchool, fOrg = every ? form?.org || null : orgId
   async function load() {
-    const [c, l, p, e] = await Promise.all([supabase.from('courses').select('*').order('created_at', { ascending: false }), supabase.from('course_lessons').select('*').order('position'),
-      supabase.from('course_progress').select('lesson_id').limit(50000), supabase.from('practice_exams').select('id, title, status').neq('status', 'draft')])
+    const [c, l, p, e, t] = await Promise.all([supabase.from('courses').select('*').order('created_at', { ascending: false }), supabase.from('course_lessons').select('*').order('position'),
+      supabase.from('course_progress').select('lesson_id').limit(50000), supabase.from('practice_exams').select('id, title, status').neq('status', 'draft'),
+      supabase.from('course_topics').select('*').order('position')])
+    setTopics((t.data as Topic[]) ?? [])
     if (c.error) setMsg([errText(c.error.message), true])
     setRows((c.data as Course[]) ?? []); setLessons((l.data as Lesson[]) ?? []); setExams((e.data as Exam[]) ?? [])
     const m = new Map<string, number>(); ((p.data as any[]) ?? []).forEach(x => m.set(x.lesson_id, (m.get(x.lesson_id) ?? 0) + 1)); setProgress(m)
@@ -378,7 +381,7 @@ function Courses({ orgId }: { orgId: string | null }) {
       actions={mine ? <>{statusBtns(cur, ls)}<button onClick={() => editCourse(cur)}>Sửa</button></> : undefined}>
       {note}
       {cur.description && <p className="sub">{cur.description}</p>}
-      <section className="panel"><h3>Bài học</h3><LessonEditor key={cur.id} autoAdd={mine && fresh === cur.id && !ls.length} course={cur} lessons={ls} exams={exams} progress={progress} editable={mine} onChange={load} /></section>
+      <section className="panel"><h3>Bài học</h3><LessonEditor key={cur.id} autoAdd={mine && fresh === cur.id && !ls.length} course={cur} lessons={ls} topics={topics.filter(t => t.course_id === cur.id)} exams={exams} progress={progress} editable={mine} onChange={load} /></section>
       {mine && <CourseProgress key={ls.length} course={cur} />}
     </ElView> }
   return (
@@ -410,7 +413,7 @@ type LibOpt = { id: string; kind: 'material' | 'unit'; title: string; subject: s
 const normSub = (x: string | null | undefined) => (x ?? '').trim().toLowerCase()
 const MAT: Record<string, string> = { lesson_plan: 'Giáo án', worksheet: 'Phiếu học tập', image: 'Hình ảnh', video: 'Video', guide: 'Tài liệu hướng dẫn', document: 'Tài liệu', link: 'Đường dẫn' }
 
-function LessonEditor({ course, lessons, exams, progress, editable, onChange, autoAdd }: { course: Course; lessons: Lesson[]; exams: Exam[]; progress: Map<string, number>; editable: boolean; onChange: () => unknown; autoAdd?: boolean }) {
+function LessonEditor({ course, lessons, topics, exams, progress, editable, onChange, autoAdd }: { course: Course; lessons: Lesson[]; topics: Topic[]; exams: Exam[]; progress: Map<string, number>; editable: boolean; onChange: () => unknown; autoAdd?: boolean }) {
   const [f, setF] = useState<Partial<Lesson> | null>(autoAdd ? { kind: 'video', title: '' } : null)
   // "Lưu & thêm bài tiếp": lưu xong mở ngay ô thêm bài mới cùng loại
   const [more, setMore] = useState(false)
@@ -424,13 +427,21 @@ function LessonEditor({ course, lessons, exams, progress, editable, onChange, au
   const [unitId, setUnitId] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  // Form chủ đề (thêm / đổi tên) — mở ở cột phải thay cho form bài học
+  const [tf, setTf] = useState<{ id?: string; title: string } | null>(null)
+  // Bản sao tại chỗ để kéo thả / đổi thứ tự hiện ngay, không chờ tải lại
+  const [loc, setLoc] = useState(lessons), [tloc, setTloc] = useState(topics)
+  useEffect(() => setLoc(lessons), [lessons]); useEffect(() => setTloc(topics), [topics])
+  const [drag, setDrag] = useState<string | null>(null), [over, setOver] = useState<string | null>(null)
+  const groups = groupLessons(loc, tloc)
+  const lastTopic = groups.filter(g => g.topic).slice(-1)[0]?.topic?.id ?? null
   // Học liệu đã xuất bản trong Kho học liệu mà đơn vị thấy (chỉ loại "Học liệu": tệp / đường dẫn)
   useEffect(() => {
     if ((f?.kind === 'library' || lessons.some(l => l.kind === 'library')) && !lib)
       supabase.from('library_items').select('id, kind, title, subject, grades, owner_name, content').eq('status', 'published').in('kind', ['material', 'unit']).order('title').limit(3000)
         .then(({ data }) => setLib((data as LibOpt[]) ?? []))
   }, [f?.kind, lessons.length])
-  function edit(l: Partial<Lesson> | null) { setF(l); setRound(n => n + 1); setFile(null); setErr(''); setLibQ(''); setPick('material'); setUnitId('') }
+  function edit(l: Partial<Lesson> | null) { setTf(null); setF(l); setRound(n => n + 1); setFile(null); setErr(''); setLibQ(''); setPick('material'); setUnitId('') }
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!f) return
     setBusy(true); setErr('')
@@ -443,7 +454,7 @@ function LessonEditor({ course, lessons, exams, progress, editable, onChange, au
         if (!mats.length) throw new Error('Bài học này chưa có học liệu đã xuất bản để đưa vào khoá.')
         const start = lessons.length ? Math.max(...lessons.map(l => l.position)) + 1 : 1
         const { error } = await supabase.from('course_lessons').insert(mats.map((m, i) => ({ course_id: course.id, title: `${u.title}: ${m.title}`.slice(0, 200), kind: 'library',
-          library_item_id: m.id, body: f.body?.trim() || null, duration_min: f.duration_min || null, position: start + i })))
+          library_item_id: m.id, body: f.body?.trim() || null, duration_min: f.duration_min || null, position: start + i, topic_id: f.topic_id || null })))
         if (error) throw new Error(errText(error.message, '061'))
         await done(); return
       }
@@ -453,17 +464,59 @@ function LessonEditor({ course, lessons, exams, progress, editable, onChange, au
       if (f.kind === 'library' && !f.library_item_id) throw new Error('Chọn học liệu trong kho.')
       const body = { course_id: course.id, title: f.title, kind: f.kind, url: f.kind === 'video' || f.kind === 'link' ? f.url?.trim() || null : null, body: f.body?.trim() || null,
         exam_id: f.kind === 'exam' ? f.exam_id : null, path, library_item_id: f.kind === 'library' ? f.library_item_id : null,
-        duration_min: f.duration_min || null, position: f.position ?? (lessons.length ? Math.max(...lessons.map(l => l.position)) + 1 : 1) }
+        duration_min: f.duration_min || null, position: f.position ?? (lessons.length ? Math.max(...lessons.map(l => l.position)) + 1 : 1), topic_id: f.topic_id || null }
       const { error } = f.id ? await supabase.from('course_lessons').update(body).eq('id', f.id) : await supabase.from('course_lessons').insert(body)
       if (error) throw new Error(errText(error.message, '061'))
       await done()
     } catch (x: any) { setErr(x.message) } finally { setBusy(false) }
   }
-  async function done() { const k = f?.kind; await onChange(); edit(more && k ? { kind: k, title: '' } : null) }
-  async function move(l: Lesson, d: number) {
-    const i = lessons.findIndex(x => x.id === l.id), o = lessons[i + d]; if (!o) return
-    await supabase.from('course_lessons').update({ position: o.position }).eq('id', l.id); await supabase.from('course_lessons').update({ position: l.position }).eq('id', o.id); onChange()
+  async function done() { const k = f?.kind, t = f?.topic_id ?? null; await onChange(); edit(more && k ? { kind: k, title: '', topic_id: t } : null) }
+  // Đặt bài vào chủ đề topicId, trước bài beforeId (null = cuối chủ đề); đánh lại thứ tự các bài trong chủ đề đó
+  async function place(id: string, topicId: string | null, beforeId: string | null) {
+    const l = loc.find(x => x.id === id); if (!l || id === beforeId) return
+    const g = (groups.find(x => (x.topic?.id ?? null) === topicId)?.lessons ?? []).filter(x => x.id !== id)
+    const at = beforeId ? g.findIndex(x => x.id === beforeId) : -1
+    g.splice(at < 0 ? g.length : at, 0, { ...l, topic_id: topicId })
+    const next = g.map((x, i) => ({ ...x, position: i + 1 }))
+    const changed = next.filter(x => { const o = loc.find(y => y.id === x.id)!; return o.position !== x.position || (o.topic_id ?? null) !== (x.topic_id ?? null) })
+    if (!changed.length) return
+    setLoc(loc.map(x => next.find(y => y.id === x.id) ?? x))
+    const res = await Promise.all(changed.map(x => supabase.from('course_lessons').update({ position: x.position, topic_id: x.topic_id ?? null }).eq('id', x.id)))
+    const bad = res.find(r => r.error); if (bad) alert(errText(bad.error!.message, '127'))
+    onChange()
   }
+  // Nút lên / xuống (dùng trên màn cảm ứng, nơi không kéo thả được)
+  function move(l: Lesson, d: number) {
+    const g = groups.find(x => x.lessons.some(y => y.id === l.id)); if (!g) return
+    const i = g.lessons.findIndex(x => x.id === l.id), tid = g.topic?.id ?? null
+    if (d < 0 && i > 0) place(l.id, tid, g.lessons[i - 1].id)
+    if (d > 0 && i < g.lessons.length - 1) place(l.id, tid, g.lessons[i + 2]?.id ?? null)
+  }
+  const dropOn = (topicId: string | null, beforeId: string | null) => ({
+    onDragOver: (e: React.DragEvent) => { if (!drag) return; e.preventDefault(); e.stopPropagation(); setOver(beforeId ?? 'end:' + (topicId ?? '')) },
+    onDrop: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); const id = drag; setDrag(null); setOver(null); if (id) place(id, topicId, beforeId) },
+  })
+  async function saveTopic(e: React.FormEvent) {
+    e.preventDefault(); if (!tf) return
+    setBusy(true); setErr('')
+    const { error } = tf.id ? await supabase.from('course_topics').update({ title: tf.title.trim() }).eq('id', tf.id)
+      : await supabase.from('course_topics').insert({ course_id: course.id, title: tf.title.trim(), position: topics.length ? Math.max(...topics.map(t => t.position)) + 1 : 1 })
+    setBusy(false)
+    if (error) return setErr(errText(error.message, '127'))
+    await onChange(); setTf(null)
+  }
+  async function moveTopic(t: Topic, d: number) {
+    const ts = groups.filter(g => g.topic).map(g => g.topic!), i = ts.findIndex(x => x.id === t.id); if (!ts[i + d]) return
+    ;[ts[i], ts[i + d]] = [ts[i + d], ts[i]]; const next = ts.map((x, k) => ({ ...x, position: k + 1 }))
+    setTloc(next)
+    await Promise.all(next.filter(x => tloc.find(y => y.id === x.id)?.position !== x.position).map(x => supabase.from('course_topics').update({ position: x.position }).eq('id', x.id)))
+    onChange()
+  }
+  async function removeTopic(t: Topic, n: number) {
+    if (!confirm(n ? `Xoá chủ đề "${t.title}"? ${n} bài trong chủ đề vẫn giữ, chuyển về "Chưa xếp chủ đề".` : `Xoá chủ đề "${t.title}"?`)) return
+    await supabase.from('course_topics').delete().eq('id', t.id); if (tf?.id === t.id) setTf(null); onChange()
+  }
+  function openTopic(t: { id?: string; title: string }) { setF(null); setErr(''); setTf(t); setRound(n => n + 1) }
   const libName = (id: string | null) => lib?.find(x => x.id === id)?.title
   const ln = libQ.trim().toLowerCase(), cs = courseSubjects(course).map(normSub)
   const subOk = (x: LibOpt) => anySub || !cs.length || cs.includes(normSub(x.subject))
@@ -472,23 +525,49 @@ function LessonEditor({ course, lessons, exams, progress, editable, onChange, au
   const unitMats = (u?: LibOpt) => (u?.content.material_ids ?? []).filter(id => lib?.some(x => x.id === id && x.kind === 'material')).length
   const subName = courseSubjects(course).join(', ')
   return (
-    <div className={'lessons' + (editable ? ' lsplit' : '')}>
+    <div className={'lessons' + (editable ? ' lsplit' : '') + (f || tf ? ' open' : '')}>
       <div className="lslist">
-      {editable && <div className="lshead"><small>{lessons.length} bài · bấm vào bài để sửa</small><button className={!f || f.id ? 'primary' : ''} onClick={() => edit({ kind: f?.kind && !f.id ? f.kind : 'video', title: '' })}>+ Thêm bài học</button></div>}
-      <ol>{lessons.map((l, i) => <li key={l.id} className={editable ? 'clickrow' + (f?.id === l.id ? ' on' : '') : undefined} onClick={editable ? () => edit(l) : undefined}>
+      {editable && <div className="lshead"><small>{topics.length ? `${topics.length} chủ đề · ` : ''}{lessons.length} bài · bấm vào bài để sửa</small>
+        <span className="tools"><button onClick={() => openTopic({ title: '' })}>+ Thêm chủ đề</button>
+          <button className="primary" onClick={() => edit({ kind: f?.kind && !f.id ? f.kind : 'video', title: '', topic_id: lastTopic })}>+ Thêm bài học</button></span></div>}
+      {groups.map((g, gi) => { const t = g.topic, tn = groups.filter(x => x.topic).length
+        return <div key={t?.id ?? 'none'} className="lsgroup">
+        {(t || topics.length > 0) && <div className={'lstopic' + (editable && t ? ' clickrow' : '') + (t && tf?.id === t.id ? ' on' : '') + (over === 'end:' + (t?.id ?? '') ? ' dropin' : '')}
+          onClick={editable && t ? () => openTopic({ id: t.id, title: t.title }) : undefined} {...(editable ? dropOn(t?.id ?? null, null) : {})}>
+          <b>{t ? `Chủ đề ${gi + 1}: ${t.title}` : 'Chưa xếp chủ đề'}</b><small>{g.lessons.length} bài</small>
+          {editable && t && <span className="tools" onClick={e => e.stopPropagation()}>
+            <button className="xbtn" onClick={() => edit({ kind: f?.kind && !f.id ? f.kind : 'video', title: '', topic_id: t.id })} title="Thêm bài vào chủ đề này">+ Bài</button>
+            <button className="xbtn" disabled={!gi} onClick={() => moveTopic(t, -1)} aria-label="Chủ đề lên" title="Lên">↑</button><button className="xbtn" disabled={gi >= tn - 1} onClick={() => moveTopic(t, 1)} aria-label="Chủ đề xuống" title="Xuống">↓</button>
+            <button className="xbtn" onClick={() => removeTopic(t, g.lessons.length)}>Xoá</button></span>}
+        </div>}
+        <ol {...(editable ? dropOn(t?.id ?? null, null) : {})} className={over === 'end:' + (t?.id ?? '') && g.lessons.length ? 'dropend' : undefined}>{g.lessons.map((l, i) => <li key={l.id}
+          className={editable ? 'clickrow' + (f?.id === l.id ? ' on' : '') + (drag === l.id ? ' dragging' : '') + (over === l.id && drag !== l.id ? ' dropbefore' : '') : undefined}
+          onClick={editable ? () => edit(l) : undefined} draggable={editable} {...(editable ? { ...dropOn(t?.id ?? null, l.id),
+            onDragStart: (e: React.DragEvent) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', l.id); setDrag(l.id) },
+            onDragEnd: () => { setDrag(null); setOver(null) } } : {})}>
+        {editable && <span className="grip" aria-hidden title="Giữ chuột và kéo để đổi thứ tự">⋮⋮</span>}
         <span className="lsmain"><span className="lk">{LKIND[l.kind] ?? l.kind}</span><b>{l.title}</b></span>
         <span className="lsmeta">{l.duration_min ? <small>{l.duration_min} phút ·</small> : null}
         {l.kind === 'file' && l.path && <button className="xbtn" onClick={e => { e.stopPropagation(); openFile(l.path!) }} title="Mở tệp">{pathName(l.path)}</button>}
         {l.kind === 'library' && libName(l.library_item_id) !== l.title && <small>{libName(l.library_item_id) ?? 'Học liệu trong kho'} ·</small>}
         <small className="done">{progress.get(l.id) ?? 0} người học đã học</small></span>
-        {editable && <span className="tools" onClick={e => e.stopPropagation()}><button className="xbtn" disabled={!i} onClick={() => move(l, -1)} aria-label="Lên" title="Lên">↑</button><button className="xbtn" disabled={i === lessons.length - 1} onClick={() => move(l, 1)} aria-label="Xuống" title="Xuống">↓</button>
+        {editable && <span className="tools" onClick={e => e.stopPropagation()}><button className="xbtn mv" disabled={!i} onClick={() => move(l, -1)} aria-label="Lên" title="Lên">↑</button><button className="xbtn mv" disabled={i === g.lessons.length - 1} onClick={() => move(l, 1)} aria-label="Xuống" title="Xuống">↓</button>
           <button className="xbtn" onClick={async () => { if (confirm('Xoá bài này?')) { await supabase.from('course_lessons').delete().eq('id', l.id); if (f?.id === l.id) edit(null); onChange() } }}>Xoá</button></span>}
       </li>)}</ol>
-      {!lessons.length && <p className="sub">Khoá chưa có bài học.</p>}
+        {t && !g.lessons.length && <p className={'sub lsnone' + (over === 'end:' + t.id ? ' dropin' : '')} {...(editable ? dropOn(t.id, null) : {})}>Chưa có bài.{editable && <> <button className="linkbtn" onClick={() => edit({ kind: 'video', title: '', topic_id: t.id })}>Thêm bài</button></>}</p>}
+        </div> })}
+      {!lessons.length && !topics.length && <p className="sub">Khoá chưa có bài học. {editable && 'Có thể tạo chủ đề trước (vd Chủ đề 1, Chủ đề 2) rồi thêm bài vào từng chủ đề.'}</p>}
       </div>
-      {editable && !f && <div className="lsedit lsempty"><p className="sub">Chọn một bài bên trái để sửa, hoặc bấm <b>+ Thêm bài học</b>.</p></div>}
-      {f && <div className="lsedit"><h4>{f.id ? 'Sửa bài: ' + (lessons.find(x => x.id === f.id)?.title ?? '') : `Bài mới (bài ${lessons.length + 1})`}</h4><form key={round} className="formgrid" onSubmit={save}>
+      {tf && <div className="lsedit"><h4>{tf.id ? 'Sửa chủ đề' : `Chủ đề mới (chủ đề ${topics.length + 1})`}</h4><form key={round} className="formgrid" onSubmit={saveTopic}>
+        <label className="field wide"><span>Tên chủ đề *</span><input required autoFocus maxLength={200} value={tf.title} onChange={e => setTf({ ...tf, title: e.target.value })} placeholder="vd Làm quen với lập trình" /></label>
+        {err && <p className="msg">{err}</p>}
+        <div className="actions wide"><button className="primary" disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu chủ đề'}</button><button type="button" onClick={() => setTf(null)}>Huỷ</button></div>
+      </form></div>}
+      {f && <div className="lsedit"><h4>{f.id ? 'Sửa bài: ' + (lessons.find(x => x.id === f.id)?.title ?? '') : (() => { const gi = groups.findIndex(g => (g.topic?.id ?? null) === (f.topic_id ?? null)), g = groups[gi]
+        return `Bài mới${g?.topic ? ` · Chủ đề ${gi + 1}` : ''} (bài ${(g?.lessons.length ?? 0) + 1})` })()}</h4><form key={round} className="formgrid" onSubmit={save}>
         <label className="field"><span>Loại bài</span><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Lesson['kind'] })}>{Object.entries(LKIND).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+        {topics.length > 0 && <label className="field"><span>Chủ đề</span><select value={f.topic_id ?? ''} onChange={e => setF({ ...f, topic_id: e.target.value || null })}>
+          {groups.filter(g => g.topic).map((g, i) => <option key={g.topic!.id} value={g.topic!.id}>Chủ đề {i + 1}: {g.topic!.title}</option>)}<option value="">Chưa xếp chủ đề</option></select></label>}
         {!(f.kind === 'library' && pick === 'unit' && !f.id) && <label className="field wide"><span>Tên bài *</span><input required autoFocus={!f.id} value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} /></label>}
         {(f.kind === 'video' || f.kind === 'link') && <label className="field wide"><span>Đường dẫn *</span><input required type="url" value={f.url ?? ''} onChange={e => setF({ ...f, url: e.target.value })} placeholder={f.kind === 'video' ? 'https://www.youtube.com/watch?v=… hoặc Google Drive' : 'https://…'} /></label>}
         {f.kind === 'exam' && <label className="field wide"><span>Đề luyện *</span><select required value={f.exam_id ?? ''} onChange={e => setF({ ...f, exam_id: e.target.value })}><option value="">Chọn đề đã công bố…</option>{exams.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}</select></label>}

@@ -15,7 +15,16 @@ export type Course = { id: string; org_id: string; created_by: string | null; ti
   cover_url: string | null; class_ids: string[] | null; group_ids: string[] | null; student_ids: string[] | null; due_at: string | null; shared: boolean
   status: 'draft' | 'published' | 'archived'; created_at: string }
 export type Lesson = { id: string; course_id: string; position: number; title: string; kind: 'video' | 'reading' | 'link' | 'exam' | 'file' | 'library'; url: string | null; body: string | null
-  exam_id: string | null; duration_min: number | null; path: string | null; library_item_id: string | null }
+  exam_id: string | null; duration_min: number | null; path: string | null; library_item_id: string | null; topic_id?: string | null }
+// Chủ đề trong khoá học (course_topics, migration 127): khoá → chủ đề → bài học
+export type Topic = { id: string; course_id: string; position: number; title: string }
+// Nhóm bài theo chủ đề (theo thứ tự chủ đề, rồi thứ tự bài). Bài chưa xếp chủ đề nằm cuối; khoá chưa có chủ đề trả về 1 nhóm không tên.
+export function groupLessons(lessons: Lesson[], topics: Topic[]): { topic: Topic | null; lessons: Lesson[] }[] {
+  const ts = [...topics].sort((a, b) => a.position - b.position), ids = new Set(ts.map(t => t.id))
+  const by = (id: string | null) => lessons.filter(l => (id ? l.topic_id === id : !l.topic_id || !ids.has(l.topic_id))).sort((a, b) => a.position - b.position)
+  const rest = by(null)
+  return [...ts.map(t => ({ topic: t as Topic | null, lessons: by(t.id) })), ...(rest.length || !ts.length ? [{ topic: null, lessons: rest }] : [])]
+}
 // Học liệu của bài học dạng "Học liệu" (course_lesson_material, migration 061)
 export type Material = { title: string; summary: string | null; type: string | null; url: string | null; path: string | null; file_name: string | null }
 export type Attempt = { id: string; exam_id: string; student_id: string; org_id: string; started_at: string; submitted_at: string | null; status: string; correct: number | null; total: number | null; score: number | null; late: boolean }

@@ -472,18 +472,22 @@ function LessonEditor({ course, lessons, exams, progress, editable, onChange, au
   const unitMats = (u?: LibOpt) => (u?.content.material_ids ?? []).filter(id => lib?.some(x => x.id === id && x.kind === 'material')).length
   const subName = courseSubjects(course).join(', ')
   return (
-    <div className="lessons">
-      <ol>{lessons.map((l, i) => <li key={l.id}>
-        <span className="lk">{LKIND[l.kind] ?? l.kind}</span><b>{l.title}</b>{l.duration_min ? <small> · {l.duration_min} phút</small> : null}
-        {l.kind === 'file' && l.path && <button className="xbtn" onClick={() => openFile(l.path!)} title="Mở tệp">{pathName(l.path)}</button>}
-        {l.kind === 'library' && libName(l.library_item_id) !== l.title && <small>· {libName(l.library_item_id) ?? 'Học liệu trong kho'}</small>}
-        <small className="done">{progress.get(l.id) ?? 0} HS đã học</small>
-        {editable && <span className="tools"><button className="xbtn" disabled={!i} onClick={() => move(l, -1)} aria-label="Lên">↑</button><button className="xbtn" disabled={i === lessons.length - 1} onClick={() => move(l, 1)} aria-label="Xuống">↓</button>
-          <button className="xbtn" onClick={() => edit(l)}>Sửa</button><button className="xbtn" onClick={async () => { if (confirm('Xoá bài này?')) { await supabase.from('course_lessons').delete().eq('id', l.id); onChange() } }}>Xoá</button></span>}
+    <div className={'lessons' + (editable ? ' lsplit' : '')}>
+      <div className="lslist">
+      {editable && <div className="lshead"><small>{lessons.length} bài · bấm vào bài để sửa</small><button className={!f || f.id ? 'primary' : ''} onClick={() => edit({ kind: f?.kind && !f.id ? f.kind : 'video', title: '' })}>+ Thêm bài học</button></div>}
+      <ol>{lessons.map((l, i) => <li key={l.id} className={editable ? 'clickrow' + (f?.id === l.id ? ' on' : '') : undefined} onClick={editable ? () => edit(l) : undefined}>
+        <span className="lsmain"><span className="lk">{LKIND[l.kind] ?? l.kind}</span><b>{l.title}</b></span>
+        <span className="lsmeta">{l.duration_min ? <small>{l.duration_min} phút ·</small> : null}
+        {l.kind === 'file' && l.path && <button className="xbtn" onClick={e => { e.stopPropagation(); openFile(l.path!) }} title="Mở tệp">{pathName(l.path)}</button>}
+        {l.kind === 'library' && libName(l.library_item_id) !== l.title && <small>{libName(l.library_item_id) ?? 'Học liệu trong kho'} ·</small>}
+        <small className="done">{progress.get(l.id) ?? 0} người học đã học</small></span>
+        {editable && <span className="tools" onClick={e => e.stopPropagation()}><button className="xbtn" disabled={!i} onClick={() => move(l, -1)} aria-label="Lên" title="Lên">↑</button><button className="xbtn" disabled={i === lessons.length - 1} onClick={() => move(l, 1)} aria-label="Xuống" title="Xuống">↓</button>
+          <button className="xbtn" onClick={async () => { if (confirm('Xoá bài này?')) { await supabase.from('course_lessons').delete().eq('id', l.id); if (f?.id === l.id) edit(null); onChange() } }}>Xoá</button></span>}
       </li>)}</ol>
       {!lessons.length && <p className="sub">Khoá chưa có bài học.</p>}
-      {editable && !f && <button onClick={() => edit({ kind: 'video', title: '' })}>+ Thêm bài học</button>}
-      {f && <form key={round} className="formgrid" onSubmit={save}>
+      </div>
+      {editable && !f && <div className="lsedit lsempty"><p className="sub">Chọn một bài bên trái để sửa, hoặc bấm <b>+ Thêm bài học</b>.</p></div>}
+      {f && <div className="lsedit"><h4>{f.id ? 'Sửa bài: ' + (lessons.find(x => x.id === f.id)?.title ?? '') : `Bài mới (bài ${lessons.length + 1})`}</h4><form key={round} className="formgrid" onSubmit={save}>
         <label className="field"><span>Loại bài</span><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Lesson['kind'] })}>{Object.entries(LKIND).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
         {!(f.kind === 'library' && pick === 'unit' && !f.id) && <label className="field wide"><span>Tên bài *</span><input required autoFocus={!f.id} value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} /></label>}
         {(f.kind === 'video' || f.kind === 'link') && <label className="field wide"><span>Đường dẫn *</span><input required type="url" value={f.url ?? ''} onChange={e => setF({ ...f, url: e.target.value })} placeholder={f.kind === 'video' ? 'https://www.youtube.com/watch?v=… hoặc Google Drive' : 'https://…'} /></label>}
@@ -508,12 +512,12 @@ function LessonEditor({ course, lessons, exams, progress, editable, onChange, au
             {libList.map(x => <option key={x.id} value={x.id}>{x.title}{x.content?.type ? ` — ${MAT[x.content.type] ?? x.content.type}` : ''}{x.owner_name ? ` · ${x.owner_name}` : ''}</option>)}
           </select>}
           {lib && !(pick === 'unit' ? unitList : libList).length && <small>{subName && !anySub ? `Kho chưa có ${pick === 'unit' ? 'bài học' : 'học liệu'} đã xuất bản của môn ${subName}. Tick "Mọi môn" để xem cả các môn khác.` : `Chưa có ${pick === 'unit' ? 'bài học' : 'học liệu'} nào được xuất bản trong Kho học liệu.`}</small>}</div>}
-        <label className="field wide"><span>{f.kind === 'reading' ? 'Nội dung bài đọc (Markdown) *' : 'Ghi chú cho học sinh'}</span><textarea rows={f.kind === 'reading' ? 8 : 2} required={f.kind === 'reading'} value={f.body ?? ''} onChange={e => setF({ ...f, body: e.target.value })} /></label>
+        <label className="field wide"><span>{f.kind === 'reading' ? 'Nội dung bài đọc (Markdown) *' : 'Ghi chú cho người học'}</span><textarea rows={f.kind === 'reading' ? 8 : 2} required={f.kind === 'reading'} value={f.body ?? ''} onChange={e => setF({ ...f, body: e.target.value })} /></label>
         <label className="field"><span>Thời lượng (phút)</span><input type="number" min={1} max={600} value={f.duration_min ?? ''} onChange={e => setF({ ...f, duration_min: e.target.value ? Number(e.target.value) : null })} /></label>
         {err && <p className="msg">{err}</p>}
         <div className="actions wide"><button className="primary" disabled={busy} onClick={() => setMore(false)}>{busy ? (file ? 'Đang tải tệp lên…' : 'Đang lưu…') : 'Lưu bài học'}</button>
           {!f.id && <button disabled={busy} onClick={() => setMore(true)}>Lưu & thêm bài tiếp</button>}<button type="button" onClick={() => edit(null)}>Huỷ</button></div>
-      </form>}
+      </form></div>}
     </div>
   )
 }

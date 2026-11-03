@@ -8,7 +8,7 @@ import { MultiSelect } from '../../components/MultiSelect'
 import { useHiddenBtn } from '../../components/PageButtons'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../../lib/supabase'
-import { useRowSel } from '../../components/TableSel'
+import { useMultiSel, SelAllTh } from '../../components/TableSel'
 import type { ClsNode } from './cls'
 import { ClsTree } from './ClsTree'
 import { Drawer } from '../../components/Drawer'
@@ -105,7 +105,7 @@ export function DistPage({ orgId }: { orgId: string | null }) {
           ? <PlanBody key={openList + ':' + rk} plan={plans.find(p => p.id === openList)!} orgId={orgId} back={() => { setOpenList(null); setMsg(null) }} backLabel="Danh sách"
               onChanged={changed('list')} onAssign={assign} />
           : <DistList plans={plans} meta={meta} canCreate={!!orgId} onCreate={() => { setMsg(null); setTab('create') }} onOpen={p => { setMsg(null); setOpenList(p.id) }}
-              onCopied={(id, m) => { reload(); setMsg(m); setOpenList(id) }} onAssign={assign} />)}
+              onCopied={(id, m) => { reload(); setMsg(m); if (id) setOpenList(id) }} onAssign={assign} />)}
         {tab === 'create' && orgId && <CreatePlan orgId={orgId} onCancel={() => setTab('list')}
           onCreated={id => { reload(); setOpenList(id); setTab('list'); setMsg('Đã tạo bản phân phối nháp. Tiếp tục chọn chương trình và xếp lịch.') }} />}
         {tab === 'assign' && <DistAssign plans={plans} initial={assignId} onDone={reload} onHistory={() => setTab('history')} />}
@@ -171,7 +171,7 @@ function DistTree({ orgId, plans, meta, focus, onOpen, onCreated }: {
 // ===== Tab "Danh sách bản phân phối" =====
 type SortKey = 'title' | 'cls' | 'parts' | 'lessons' | 'books' | 'status' | 'updated'
 function DistList({ plans, meta, canCreate, onCreate, onOpen, onCopied, onAssign }: {
-  plans: Plan[]; meta: Map<string, Meta>; canCreate: boolean; onCreate: () => void; onOpen: (p: Plan) => void; onCopied: (id: string, msg: string) => void; onAssign: (id: string) => void
+  plans: Plan[]; meta: Map<string, Meta>; canCreate: boolean; onCreate: () => void; onOpen: (p: Plan) => void; onCopied: (id: string | null, msg: string) => void; onAssign: (id: string) => void
 }) {
   const crumb = useBreadcrumb()
   const hid = useHiddenBtn()
@@ -194,12 +194,21 @@ function DistList({ plans, meta, canCreate, onCreate, onOpen, onCopied, onAssign
       && (!q || `${p.code} ${p.title} ${crumb(p)}`.toLowerCase().includes(q.toLowerCase())))
       .sort((a, b) => { const x = val(a), y = val(b); return (x < y ? -1 : x > y ? 1 : 0) * sort[1] })
   }, [plans, meta, fs, fc, q, sort, crumb])
-  const sel = useRowSel(shown)
-  const cur = sel.cur
-  async function copy(p: Plan) {
-    const { data, error } = await supabase.rpc('dist_plan_copy', { p_plan: p.id })
-    if (error) return setErr(errText(error.message))
-    onCopied(data as string, `Đã nhân bản ${p.code} thành bản nháp mới.`)
+  const sel = useMultiSel(shown)
+  const picked = sel.list
+  const one = picked.length === 1 ? picked[0] : null
+  const [busy, setBusy] = useState(false)
+  async function copy(ps: Plan[]) {
+    setBusy(true); setErr('')
+    let last: string | null = null
+    for (const p of ps) {
+      const { data, error } = await supabase.rpc('dist_plan_copy', { p_plan: p.id })
+      if (error) { setBusy(false); return setErr(`${p.code}: ${errText(error.message)}`) }
+      last = data as string
+    }
+    setBusy(false); sel.clear()
+    if (ps.length === 1) onCopied(last, `Đã nhân bản ${ps[0].code} thành bản nháp mới.`)
+    else onCopied(null, `Đã nhân bản ${ps.length} bản thành bản nháp mới.`)
   }
   const n = (s: Status) => plans.filter(p => p.status === s).length
   const th = (k: SortKey, label: string) => <th key={k}><button type="button" className="distsort" onClick={() => setSort([k, sort[0] === k ? (-sort[1] as 1 | -1) : 1])}>
@@ -220,15 +229,16 @@ function DistList({ plans, meta, canCreate, onCreate, onOpen, onCopied, onAssign
       <div className="panel">
         <div className="bar"><b>Bản phân phối</b>
           <div className="tools">
-            {cur && <small className="sub">Đã chọn: <b>{cur.code}</b></small>}
-            <button type="button" disabled={!cur} onClick={() => cur && copy(cur)}>Nhân bản</button>
-            <button type="button" className="primary" disabled={!cur || cur.status !== 'published'} title={cur && cur.status !== 'published' ? 'Chỉ gán bản đã phát hành' : undefined}
-              onClick={() => cur && onAssign(cur.id)}>Gán trường</button>
+            {picked.length > 0 && <small className="sub">Đã chọn: <b>{one ? one.code : picked.length + ' bản'}</b> <button type="button" className="linkbtn" onClick={sel.clear}>Bỏ chọn</button></small>}
+            <button type="button" disabled={!picked.length || busy} onClick={() => copy(picked)}>Nhân bản{picked.length > 1 ? ` (${picked.length})` : ''}</button>
+            <button type="button" className="primary" disabled={!one || one.status !== 'published'}
+              title={picked.length > 1 ? 'Gán trường làm cho từng bản một' : one && one.status !== 'published' ? 'Chỉ gán bản đã phát hành' : undefined}
+              onClick={() => one && onAssign(one.id)}>Gán trường</button>
             {menu}
           </div>
         </div>
         <div className="wrap"><table className="libtable">
-          <thead><tr><th className="sel"><span className="sronly">Chọn</span></th>
+          <thead><tr><SelAllTh all={sel.all} some={sel.some} onToggle={sel.toggleAll} />
             {th('title', 'Bản phân phối')}{has('cls') && th('cls', 'Phân loại')}{has('parts') && th('parts', 'Thành phần')}{has('lessons') && th('lessons', 'Bài · tiết')}
             {has('books') && th('books', 'Đã gán')}{has('status') && th('status', 'Trạng thái')}{has('updated') && th('updated', 'Cập nhật')}</tr></thead>
           <tbody>{shown.map(p => <tr key={p.id} className={sel.is(p) ? 'picked' : undefined}>

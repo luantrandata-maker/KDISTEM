@@ -1,9 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAllMode, useProvinceOf } from '../components/OrgScope'
 import { downloadXlsx } from '../lib/sheet'
 import { schoolYear } from './department/Governance'
 import { ElView } from '../components/ElView'
+// Chứng chỉ tập huấn của giáo viên (tải khi mở hồ sơ)
+const TeacherCertList = lazy(() => import('./training/Certificates').then(m => ({ default: m.TeacherCertList })))
 import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../components/MultiFilters'
 
 // Đánh giá năng lực (migration 042): khung năng lực, hồ sơ năng lực HS (từ chấm theo tiêu chí), đánh giá năng lực GV.
@@ -423,6 +425,7 @@ export function TeacherCompetencyProfile({ teacherId, orgId }: { teacherId: stri
         </div>) })}
       <p className="sub">Năm học {year}. Tự đánh giá theo {comps.length} năng lực của giáo viên STEM (mức như chuẩn nghề nghiệp: Chưa đạt / Đạt / Khá / Tốt). Minh chứng dưới đây hệ thống tự tổng hợp.</p>
       <div className="panel"><h4 style={{ marginTop: 0 }}>Minh chứng</h4><Evidence teacherId={teacherId} /></div>
+      <div className="panel"><h4 style={{ marginTop: 0 }}>Chứng chỉ tập huấn</h4><Suspense fallback={<p className="sub">Đang tải…</p>}><TeacherCertList teacherId={teacherId} /></Suspense></div>
       <div className="panel"><h4 style={{ marginTop: 0 }}>Mức đạt qua tập huấn</h4><TrainingLevels teacherId={teacherId} comps={comps} /></div>
       <div className="panel"><h4 style={{ marginTop: 0 }}>Chương trình giáo dục đáp ứng</h4><EduProgramsMet teacherId={teacherId} comps={comps} /></div>
       <div className="panel"><h4 style={{ marginTop: 0 }}>Lịch sử tập huấn</h4><TrainingHistory teacherId={teacherId} comps={comps} /></div>
@@ -607,6 +610,7 @@ function TeacherAssessDetail({ t, year, comps, self, mgr, canEdit, initialTab = 
     {tab === 'profile' && <TeacherProfile t={t} year={year} comps={comps} self={self} mgr={mgr} />}
     {tab === 'evidence' && <section className="panel"><h3 style={{ marginTop: 0 }}>Minh chứng</h3><Evidence teacherId={t.id} /></section>}
     {tab === 'training' && <div style={{ display: 'grid', gap: 14 }}>
+      <section className="panel"><h3 style={{ marginTop: 0 }}>Chứng chỉ tập huấn</h3><Suspense fallback={<p className="sub">Đang tải…</p>}><TeacherCertList teacherId={t.id} /></Suspense></section>
       <section className="panel"><h3 style={{ marginTop: 0 }}>Mức đạt qua tập huấn</h3><TrainingLevels teacherId={t.id} comps={comps} /></section>
       <section className="panel"><h3 style={{ marginTop: 0 }}>Chương trình giáo dục đáp ứng</h3><EduProgramsMet teacherId={t.id} comps={comps} /></section>
       <section className="panel"><h3 style={{ marginTop: 0 }}>Lịch sử tập huấn</h3><TrainingHistory teacherId={t.id} comps={comps} name={t.full_name} /></section>

@@ -1,7 +1,7 @@
 import { NameLink } from '../components/TableSel'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { useEduLevels, type EduLevel } from '../lib/eduLevels'
+import { useEduLevels, type EduLevel, gradeName, fmtGrades, gradeRange } from '../lib/eduLevels'
 import { ElView } from '../components/ElView'
 import { NumMultiSelect } from '../components/MultiSelect'
 
@@ -12,8 +12,8 @@ const errText = (m: string) => (/schema cache|does not exist/i.test(m) ? 'Hãy c
   : /23503|foreign key/i.test(m) ? 'Cấp học đang được chương trình dùng — hãy chuyển sang "Ngừng dùng".'
   : /23505|duplicate/i.test(m) ? 'Mã cấp học đã có.'
   : /edu_levels_code_check/i.test(m) ? 'Mã gồm 2–20 ký tự thường không dấu, số hoặc "_", bắt đầu bằng chữ (vd. lien_cap).'
-  : /grade_to|edu_levels_check/i.test(m) ? 'Khối đến phải lớn hơn hoặc bằng khối từ (1–12).' : m)
-const GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
+  : /grade_to|edu_levels_check/i.test(m) ? 'Khối đến phải lớn hơn hoặc bằng khối từ (mầm non: Nhà trẻ, Mầm, Chồi, Lá; phổ thông: 1–12).' : m)
+const GRADES = [-4, -3, -2, -1, ...Array.from({ length: 12 }, (_, i) => i + 1)]
 
 export function EduLevelsCatalog() {
   const { all, reload } = useEduLevels()
@@ -69,7 +69,7 @@ export function EduLevelsCatalog() {
           <label className="field"><span>Tên cấp học *</span><input required maxLength={60} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="VD: Liên cấp THCS–THPT" /></label>
           <label className="field"><span>Mã {form.isNew ? '*' : '(không đổi được)'}</span><input required disabled={!form.isNew} maxLength={20} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: lien_cap" /></label>
           <div className="field" style={{ gridColumn: 'span 2' }}><span>Khối *</span>
-            <NumMultiSelect value={gradeVal} onChange={pickGrades} options={GRADES.map(g => ({ value: g, label: `Khối ${g}` }))} placeholder="Chọn khối…" ariaLabel="Khối" /></div>
+            <NumMultiSelect value={gradeVal} onChange={pickGrades} options={GRADES.map(g => ({ value: g, label: gradeName(g) }))} placeholder="Chọn khối…" ariaLabel="Khối" /></div>
           <label className="field"><span>Thứ tự</span><input type="number" min={0} value={form.sort ?? 0} onChange={e => setForm({ ...form, sort: Number(e.target.value) })} /></label>
           <div className="formactions tools"><button className="primary" type="submit">{form.isNew ? 'Thêm' : 'Lưu'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button>
             {!form.isNew && <><button type="button" onClick={() => setActive(form, form.active === false)}>{form.active === false ? 'Dùng lại' : 'Ngừng dùng'}</button>
@@ -91,7 +91,7 @@ export function EduLevelsCatalog() {
           <tr key={l.code} style={l.active === false ? { opacity: 0.6 } : undefined}>
             <td>{admin ? <NameLink onClick={() => { setMsg(null); setForm({ ...l }) }}><b>{l.name}</b></NameLink> : <b>{l.name}</b>}{l.active === false && <> <span className="pill">Ngừng dùng</span></>}</td>
             <td><small className="sub">{l.code}</small></td>
-            <td>Khối {l.grade_from}{l.grade_to !== l.grade_from ? `–${l.grade_to}` : ''}</td>
+            <td>{fmtGrades(gradeRange(l.grade_from, l.grade_to))}</td>
             <td>{used[l.code] ?? 0}</td>
           </tr>))}</tbody>
       </table></div>

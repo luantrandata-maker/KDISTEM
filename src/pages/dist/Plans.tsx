@@ -17,6 +17,7 @@ import type { Plan, Status } from './sched'
 import { FlowGuide } from '../../components/FlowGuide'
 import { useCls } from './cls'
 import { DistHistory } from './History'
+import { gradeName } from '../../lib/eduLevels'
 
 export type { Plan } from './sched'
 type Tab = 'list' | 'create' | 'tree' | 'assign' | 'history'
@@ -303,7 +304,7 @@ function DistAssign({ plans, initial, onDone, onHistory }: { plans: Plan[]; init
           <div className="wrap"><table className="libtable">
             <thead><tr><th>Bản phân phối</th><th>Phân loại</th><th>Khối</th></tr></thead>
             <tbody>{pub.map(p => <tr key={p.id}><td><button type="button" className="namelink" onClick={() => setPid(p.id)}>{p.code} · {p.title}</button> <small className="sub">v{p.version_no ?? 1}</small></td>
-              <td><small>{crumb(p)}</small></td><td>{p.grade ? `Khối ${p.grade}` : '—'}</td></tr>)}</tbody>
+              <td><small>{crumb(p)}</small></td><td>{p.grade ? gradeName(p.grade) : '—'}</td></tr>)}</tbody>
           </table></div>
         </>}
         {plan && <>

@@ -8,6 +8,7 @@ import { Tabs } from './teacher/common'
 import { useProgramOptions, unitTree, progLabel } from './library/common'
 import { GradePicker, SubjectPicker } from '../components/Pickers'
 import { Drawer } from '../components/Drawer'
+import { gradeName } from '../lib/eduLevels'
 
 // Định mức vật tư (migration 059): danh mục vật tư / công cụ / thiết bị, định mức theo sản phẩm / nhóm / học sinh gắn bài,
 // phiên bản & ban hành, sao chép về trường, dự trù cho lớp so với tồn kho, đề xuất điều chỉnh.
@@ -187,7 +188,7 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
       <thead><tr><th>Định mức</th><th>Tính cho</th><th>Số vật tư</th><th>Gắn với</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
       <tbody>{rows.map(n => (
         <tr key={n.id} className={'rowlink' + (openId === n.id ? ' on' : '')} onClick={() => onOpen(n.id)} tabIndex={0} onKeyDown={e => { if (e.key === 'Enter') onOpen(n.id) }}>
-          <td><b>{n.title}</b> <small className="sub">v{n.version_no}</small><div className="sub" style={{ fontSize: 12 }}>{[n.subject, n.grade && `Khối ${n.grade}`, (!mine || every) && ownerName(n, orgId)].filter(Boolean).join(' · ') || '—'}</div></td>
+          <td><b>{n.title}</b> <small className="sub">v{n.version_no}</small><div className="sub" style={{ fontSize: 12 }}>{[n.subject, n.grade && gradeName(n.grade), (!mine || every) && ownerName(n, orgId)].filter(Boolean).join(' · ') || '—'}</div></td>
           <td>{BASIS[n.basis]}{n.basis === 'group' && <small className="sub"> ({n.group_size} HS)</small>}<div className="sub" style={{ fontSize: 12 }}>{n.sessions} buổi</div></td>
           <td>{n.material_norm_items?.[0]?.count ?? '—'}</td>
           <td><small>{n.edu_programs ? `${n.edu_programs.title}${n.edu_program_units ? ' › ' + n.edu_program_units.title : ''}` : ''}{n.library_items ? <>{n.edu_programs ? <br /> : null}Bài: {n.library_items.title}</> : null}{!n.edu_programs && !n.library_items ? '—' : null}</small></td>
@@ -359,7 +360,7 @@ function NormDetail({ id, orgId, rights, onOpen, onClose, onChanged }: { id: str
           {!mine && n.status === 'published' && <button onClick={() => setPropose(!propose)}>Đề xuất điều chỉnh</button>}
         </>}>
       <div className="drawermeta"><Pill s={n.status} /></div>
-      <p className="sub" style={{ margin: 0 }}>{[`Tính cho ${BASIS[n.basis]}${n.basis === 'group' ? ` (${n.group_size} HS)` : ''}`, `${n.sessions} buổi`, n.subject, n.grade && `Khối ${n.grade}`, ownerName(n, orgId)].filter(Boolean).join(' · ')}</p>
+      <p className="sub" style={{ margin: 0 }}>{[`Tính cho ${BASIS[n.basis]}${n.basis === 'group' ? ` (${n.group_size} HS)` : ''}`, `${n.sessions} buổi`, n.subject, n.grade && gradeName(n.grade), ownerName(n, orgId)].filter(Boolean).join(' · ')}</p>
           {(n.edu_programs || n.library_items) && <p className="sub" style={{ margin: 0 }}>{n.edu_programs && <>Chương trình: {n.edu_programs.title} (v{n.edu_programs.version_no}){n.edu_program_units ? ` › ${n.edu_program_units.title}` : ''}</>}{n.library_items && <>{n.edu_programs ? ' · ' : ''}Học liệu: {n.library_items.title}</>}</p>}
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
       {n.note && <p className="sub">Ghi chú: {n.note}</p>}

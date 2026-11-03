@@ -17,7 +17,7 @@ import { asLesson, lessonStats, LessonEditor, type ILesson } from '../lib/lesson
 import { useSubjects } from './subjects'
 import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
 import { ViewToggle, useViewMode } from '../components/ViewToggle'
-import { fmtGrades, progGrades, useEduLevels } from '../lib/eduLevels'
+import { fmtGrades, progGrades, useEduLevels, gradeName } from '../lib/eduLevels'
 import { ChipMulti, GradeChecks, GradePicker, LevelPicker, SubjectMulti, SubjectPicker, gradeList } from '../components/Pickers'
 import { ElView } from '../components/ElView'
 import { StructureDraft, newKey, saveDraftTree, type DCol, type DRow } from '../components/StructureDraft'
@@ -1038,7 +1038,7 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
           <label className="field"><span>Đơn vị trực thuộc</span><select value={form.org} onChange={e => setForm({ ...form, org: e.target.value })}>
             <option value="">— chọn —</option>{below.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
           <div className="field"><span>Khối (không chọn = mọi khối)</span>
-            <NumMultiSelect value={form.grades} onChange={g => setForm({ ...form, grades: g })} options={progGrades(p).map(g => ({ value: g, label: `Khối ${g}` }))} placeholder="Mọi khối" ariaLabel="Khối" /></div>
+            <NumMultiSelect value={form.grades} onChange={g => setForm({ ...form, grades: g })} options={progGrades(p).map(g => ({ value: g, label: gradeName(g) }))} placeholder="Mọi khối" ariaLabel="Khối" /></div>
           <label className="field"><span>Ghi chú</span><input value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} /></label>
           <div className="formactions"><button className="primary" type="submit">Gán</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>

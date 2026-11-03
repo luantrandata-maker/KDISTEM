@@ -263,6 +263,37 @@ export function TeacherCertificates({ teacherId }: { teacherId: string | null })
   </div>
 }
 
+/** Chứng chỉ của một giáo viên (bảng gọn, có Xem / In) — dùng trong Hồ sơ năng lực */
+export function TeacherCertList({ teacherId }: { teacherId: string }) {
+  const [rows, setRows] = useState<Cert[] | null>(null)
+  const [open, setOpen] = useState<string | null>(null)
+  useEffect(() => {
+    ;(async () => {
+      // Người quản lý / trường: danh sách theo quyền xem; giáo viên tự xem: danh sách của tôi
+      const a = await supabase.rpc('training_cert_list', { p_mine: false })
+      let xs = ((a.data as Cert[]) ?? []).filter(c => c.teacher_id === teacherId && c.status !== 'pending')
+      if (!xs.length) {
+        const b = await supabase.rpc('training_cert_list', { p_mine: true })
+        xs = ((b.data as Cert[]) ?? []).filter(c => c.teacher_id === teacherId)
+      }
+      setRows(xs)
+    })()
+  }, [teacherId])
+  if (open) return <CertView id={open} back="Hồ sơ năng lực" onBack={() => setOpen(null)} />
+  if (!rows) return <p className="sub" style={{ margin: 0 }}>Đang tải…</p>
+  if (!rows.length) return <p className="sub" style={{ margin: 0 }}>Chưa có chứng chỉ tập huấn nào. Hoàn thành khoá tập huấn và được kết luận Đạt để nhận chứng chỉ.</p>
+  return <div className="wrap"><table className="libtable">
+    <thead><tr><th>Số chứng chỉ</th><th>Kế hoạch / chương trình tập huấn</th><th>Ngày cấp</th><th>Hiệu lực đến</th><th>Trạng thái</th><th></th></tr></thead>
+    <tbody>{rows.map(c => <tr key={c.id}>
+      <td>{c.code ?? '—'}</td>
+      <td style={{ whiteSpace: 'normal' }}>{c.plan_name ?? '—'}<br /><small className="sub">{c.program_titles}{c.hours ? ` · ${String(c.hours).replace('.', ',')} giờ` : ''}</small></td>
+      <td>{day(c.issued_on)}</td><td>{c.expires_on ? day(c.expires_on) : 'Không thời hạn'}</td>
+      <td><Chip tone={CERT_ST[c.status][1]}>{CERT_ST[c.status][0]}</Chip></td>
+      <td><button type="button" onClick={() => setOpen(c.id)}>Xem / In</button></td>
+    </tr>)}</tbody>
+  </table></div>
+}
+
 // ===== Trang tra cứu công khai (không cần đăng nhập): /?cc=<mã> =====
 export function CertVerify({ token }: { token: string }) {
   const [p, setP] = useState<Payload | null | undefined>(undefined)

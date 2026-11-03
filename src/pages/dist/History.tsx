@@ -4,6 +4,9 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Chip, STATUS, errText } from './Editor'
+import { schoolYear } from '../department/Governance'
+import { useOrgFilters } from '../../components/OrgFilters'
+import { MultiFilters, opts, useMultiFilters, type FilterDef } from '../../components/MultiFilters'
 import type { Plan } from './sched'
 
 export type HistRow = {
@@ -33,13 +36,15 @@ function byYear(rows: HistRow[]) {
   return [...m.entries()].sort((a, b) => (a[0] === NO_YEAR ? 1 : b[0] === NO_YEAR ? -1 : b[0].localeCompare(a[0])))
 }
 
+const nextYear = () => { const a = +schoolYear().slice(0, 4) + 1; return `${a}-${a + 1}` }
+
 function HistTable({ rows, showPlan }: { rows: HistRow[]; showPlan: boolean }) {
   const groups = byYear(rows)
   const cols = showPlan ? 7 : 6
   return <div className="wrap"><table className="libtable">
     <thead><tr><th>Trường</th>{showPlan && <th>Bản phân phối</th>}<th>Phiên bản</th><th>PPCT</th><th>Số tiết</th><th>Trạng thái</th><th>Ngày gán</th></tr></thead>
     <tbody>{groups.map(([y, rs]) => <Fragment key={y}>
-      <tr className="distyear"><td colSpan={cols}><b>Năm học {y}</b> <small className="sub">· {new Set(rs.map(r => r.org_id)).size} trường · {rs.length} PPCT</small></td></tr>
+      <tr className="distyear"><td colSpan={cols}><b>Năm học {y}{y === schoolYear() ? ' (năm nay)' : y === nextYear() ? ' (năm tới)' : ''}</b> <small className="sub">· {new Set(rs.map(r => r.org_id)).size} trường · {rs.length} PPCT</small></td></tr>
       {rs.map(r => <tr key={r.book_id}>
         <td>{r.school}</td>
         {showPlan && <td>{r.plan_title}<br /><small className="sub">{r.code}</small></td>}
@@ -77,30 +82,47 @@ export function PlanHistory({ plan }: { plan: Plan }) {
   </section>
 }
 
-/** Tab "Lịch sử áp dụng": mọi lần gán bản phân phối cho trường, lọc theo năm học. */
-export function DistHistory({ plans, rk }: { plans: Plan[]; rk: number }) {
+/** Danh sách các lần gán kèm bộ lọc Tỉnh / Sở, trường, năm học (và bản phân phối khi không cố định một bản).
+ *  now: chỉ năm học hiện tại và năm tới (tab Gán theo trường); không thì mọi năm (tab Lịch sử áp dụng).
+ *  Bản gán không ghi năm học = năm học hiện tại của trường. */
+function AssignView({ plans, rk, now, family }: { plans: Plan[]; rk: number; now: boolean; family?: string | null }) {
   const { rows, err } = useHistory(null, rk)
-  const [year, setYear] = useState('')
-  const [fam, setFam] = useState('')
-  const [q, setQ] = useState('')
-  const years = useMemo(() => byYear(rows ?? []).map(([y]) => y), [rows])
+  const mf = useMultiFilters()
+  const cur = schoolYear(), next = nextYear()
+  const base = (rows ?? []).map(r => r.year_name || !now ? r : { ...r, year_name: cur })
+    .filter(r => (!family || r.family_id === family) && (!now || r.year_name === cur || r.year_name === next))
+  const of = useOrgFilters(base.map(r => ({ org_id: r.org_id, org_name: r.school })), mf)
   const fams = useMemo(() => {
     const m = new Map<string, string>()
     for (const r of rows ?? []) if (!m.has(r.family_id)) m.set(r.family_id, `${r.code} · ${r.plan_title}`)
     for (const p of plans) if (!m.has(p.family_id ?? p.id)) m.set(p.family_id ?? p.id, `${p.code} · ${p.title}`)
-    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]))
+    return [...m.entries()]
   }, [rows, plans])
   if (err) return <p className="msg">{err}</p>
   if (!rows) return <p className="sub">Đang tải…</p>
-  const shown = rows.filter(r => (!year || (r.year_name ?? NO_YEAR) === year) && (!fam || r.family_id === fam)
-    && (!q || r.school.toLowerCase().includes(q.toLowerCase())))
+  const yname = (r: HistRow) => r.year_name ?? NO_YEAR
+  const yearOpts = opts([...(now ? [cur] : []), ...base.map(yname)].map(y => [y, y === cur ? `${y} (năm nay)` : y === next ? `${y} (năm tới)` : y] as [string, string]), 'desc')
+  const defs: FilterDef[] = [...of.defs,
+    { key: 'year', label: 'Năm học', placeholder: now ? 'Năm nay và năm tới' : 'Mọi năm học', options: yearOpts },
+    ...(family ? [] : [{ key: 'fam', label: 'Bản phân phối', placeholder: 'Mọi bản phân phối', options: opts(fams) }])]
+  const shown = base.filter(r => of.fit(r.org_id) && mf.has('year', yname(r)) && mf.has('fam', r.family_id))
   return <>
-    <div className="distfilter">
-      <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học"><option value="">Mọi năm học</option>{years.map(y => <option key={y} value={y}>{y}</option>)}</select>
-      <select value={fam} onChange={e => setFam(e.target.value)} aria-label="Bản phân phối"><option value="">Mọi bản phân phối</option>{fams.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-      <input placeholder="Tìm trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm trường" />
-      <small className="sub">{new Set(shown.map(r => r.org_id)).size} trường · {shown.length} PPCT</small>
+    <div className="tools distfilter" style={{ flexWrap: 'wrap' }}>
+      <MultiFilters defs={defs} f={mf} count={`${new Set(shown.map(r => r.org_id)).size} trường · ${shown.length} PPCT`} />
     </div>
-    <HistTable rows={shown} showPlan />
+    <HistTable rows={shown} showPlan={!family} />
   </>
+}
+
+/** Tab "Gán theo trường": các lần gán năm học hiện tại và năm tới (của bản đang chọn, hoặc mọi bản). */
+export function PlanAssigned({ plans, plan, rk }: { plans: Plan[]; plan: Plan | null; rk: number }) {
+  return <section className="panel" style={{ marginTop: 14, display: 'grid', gap: 10 }}>
+    <h3 style={{ margin: 0 }}>Đã gán năm nay và năm tới{plan ? <small className="sub"> · {plan.code} · {plan.title}</small> : null}</h3>
+    <AssignView plans={plans} rk={rk} now family={plan ? plan.family_id ?? plan.id : null} />
+  </section>
+}
+
+/** Tab "Lịch sử áp dụng": mọi lần gán bản phân phối cho trường, mọi năm học. */
+export function DistHistory({ plans, rk }: { plans: Plan[]; rk: number }) {
+  return <AssignView plans={plans} rk={rk} now={false} />
 }

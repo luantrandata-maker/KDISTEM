@@ -687,6 +687,8 @@ function Shell({ session }: { session: Session }) {
   const appTitle = role === 'platform' ? menu.title || PLATFORM_TITLE : brand?.display_name ?? (menu.title || DEFAULT_TITLE)
   if (document.title !== appTitle) document.title = appTitle
   const lab = (i: string) => menu.labels[i] || labelOf(role, i)
+  // Phân hệ 1 (Chương trình & học liệu): tên bấm được không gạch dưới (index.css, .main[data-ph="1"])
+  const ph1 = NAV[role].some(g => g.title.includes('Chương trình & học liệu') && g.items.includes(page))
   const groups = NAV[role]
     .map(g => ({ ...g, label: menu.groups[g.title] || g.title,
       items: orderItems(g.items, menu.order[g.title]).filter(i => roleOk(i) && (inPlan(i) || locked.has(i)) && (i === 'Thiết lập chung' || !menu.hidden.includes(i))) }))
@@ -782,7 +784,7 @@ function Shell({ session }: { session: Session }) {
               onPassword={() => setChangingPw(true)} onSignOut={() => supabase.auth.signOut()} />
           </div>
         </header>
-        <main className="main"><PageCtx.Provider value={page}><CatalogLists />
+        <main className="main" data-ph={ph1 ? '1' : undefined}><PageCtx.Provider value={page}><CatalogLists />
           <div className="pagehead"><h1>{lab(page)}</h1><PageButtons page={page} title={lab(page)} go={goPage} /></div>
           {locked.has(page) ? <LockedModule name={lab(page)} phase={PHASE_OF[ENT_MODULE_OF[page]] ?? null} entitlement={access.entitlement} go={goPage} />
             : Page ? <Suspense fallback={<p className="sub">Đang tải…</p>}><Page key={page + (yrs.year?.id ?? '') + (studentId ?? '')} teacherId={teacherId} studentId={studentId} orgId={access.profile.org_id} userName={access.profile.full_name} go={goPage} name={page}

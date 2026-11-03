@@ -429,7 +429,7 @@ function NormDetail({ id, orgId, rights, onOpen, onClose, onChanged }: { id: str
             <thead><tr><th>Phiên bản</th><th>Trạng thái</th><th>Ban hành</th><th>Ghi chú</th><th></th></tr></thead>
             <tbody>{family.map(f => (
               <tr key={f.id}><td>v{f.version_no}{f.id === n.id && <small className="sub"> (đang xem)</small>}</td><td><Pill s={f.status} /></td><td>{fmtD(f.published_at)}</td>
-                <td><small>{f.note}</small></td><td>{f.id !== n.id && <button onClick={() => onOpen(f.id)}>Mở</button>}</td></tr>
+                <td><small>{f.note}</small></td><td>{f.id !== n.id && <button data-rowopen onClick={() => onOpen(f.id)}>Mở</button>}</td></tr>
             ))}</tbody>
           </table></div>
         </>
@@ -649,7 +649,7 @@ function CatalogTab({ orgId, rights }: { orgId: string | null; rights: Rights })
           <tbody>{shown.map(c => (
             <tr key={c.id} style={c.active ? undefined : { opacity: 0.55 }}><td><small>{c.code}</small></td><td><b>{c.name}</b>{c.reusable && <small className="sub"> · dùng lại</small>}{!c.active && <small className="sub"> · ngừng dùng</small>}</td>
               <td>{MKIND[c.kind]}</td><td>{c.unit}</td><td><small>{c.spec}</small></td><td>{c.unit_price != null ? money(c.unit_price) : '—'}</td><td><small>{srcName(c)}</small></td>
-              <td className="actions">{(c.org_id === orgId || every) && rights.canWrite && <><button onClick={() => setForm({ ...c, price: c.unit_price != null ? String(c.unit_price) : '' })}>Sửa</button><button className="danger" onClick={() => remove(c)}>Xoá</button></>}</td></tr>
+              <td className="actions">{(c.org_id === orgId || every) && rights.canWrite && <><button data-rowopen onClick={() => setForm({ ...c, price: c.unit_price != null ? String(c.unit_price) : '' })}>Sửa</button><button className="danger" onClick={() => remove(c)}>Xoá</button></>}</td></tr>
           ))}
           {shown.length === 0 && <tr><td colSpan={8}><small className="sub">Chưa có vật tư nào.</small></td></tr>}</tbody>
         </table></div>
@@ -694,7 +694,7 @@ function ProposalsTab({ orgId, rights, onOpenNorm }: { orgId: string | null; rig
       <thead><tr><th>Định mức</th>{incoming && <th>Đơn vị đề xuất</th>}<th>Điều chỉnh</th><th>Lý do</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>{rows.map(p => (
         <tr key={p.id}>
-          <td><button className="linkbtn" onClick={() => onOpenNorm(p.norm_id)}>{p.material_norms?.title ?? 'Định mức'} v{p.material_norms?.version_no}</button><br /><small className="sub">{fmtD(p.created_at)}</small></td>
+          <td><button className="namelink" onClick={() => onOpenNorm(p.norm_id)}>{p.material_norms?.title ?? 'Định mức'} v{p.material_norms?.version_no}</button><br /><small className="sub">{fmtD(p.created_at)}</small></td>
           {incoming && <td>{p.organizations?.name ?? '—'}{p.profiles?.full_name ? <><br /><small className="sub">{p.profiles.full_name}</small></> : null}</td>}
           <td>{lines(p)}</td><td><small>{p.reason}</small>{p.response && <><br /><small className="sub">Phản hồi: {p.response}</small></>}</td>
           <td><span className={'gpill ' + PSTAT[p.status][1]}>{PSTAT[p.status][0]}</span></td>

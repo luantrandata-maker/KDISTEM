@@ -492,7 +492,7 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
                 <td><b>{l.seq}</b></td><td>{l.week ?? '—'}</td><td><small>{HK(termOf(l))}</small></td><td><small>{monthOf(l.week)}</small></td><td>{l.title}</td>
                 {hasUnits && <td><small>{unitLabel(l.unit_id)}</small></td>}
                 <td>{l.kind !== 'lesson' ? <span className={'gpill ' + KIND_PILL[l.kind]}>{KIND[l.kind]}</span> : <small>{KIND.lesson}</small>}</td>
-                <td><small>{topicName(l.package_topic_id)}</small></td><td><small>{l.note}</small></td>{canEdit && <td className="tools" style={{ whiteSpace: 'nowrap' }}><button type="button" onClick={() => setEdit(l)}>Sửa</button><button type="button" className="danger" onClick={() => del(l)}>Xoá</button></td>}
+                <td><small>{topicName(l.package_topic_id)}</small></td><td><small>{l.note}</small></td>{canEdit && <td className="tools" style={{ whiteSpace: 'nowrap' }}><button type="button" data-rowopen onClick={() => setEdit(l)}>Sửa</button><button type="button" className="danger" onClick={() => del(l)}>Xoá</button></td>}
               </tr>
             ))}
             {edit && !edit.id && formRow}

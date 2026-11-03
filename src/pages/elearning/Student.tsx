@@ -174,7 +174,7 @@ function History({ onReview }: { onReview: (a: string) => void }) {
   if (!rows) return <p className="sub">Đang tải…</p>
   return <div className="wrap"><table className="systable"><thead><tr><th>Đề</th><th className="num">Điểm</th><th>Nộp lúc</th><th /></tr></thead><tbody>
     {rows.map(h => <tr key={h.id}><td>{h.practice_exams?.title}</td><td className="num"><b>{h.score}</b> <small>({h.correct}/{h.total})</small></td><td>{h.submitted_at && new Date(h.submitted_at).toLocaleString('vi-VN', { dateStyle: 'short', timeStyle: 'short' })}</td>
-      <td><button onClick={() => onReview(h.id)}>Xem lại</button></td></tr>)}
+      <td><button data-rowopen onClick={() => onReview(h.id)}>Xem lại</button></td></tr>)}
     {!rows.length && <tr><td colSpan={4}>Em chưa làm đề nào.</td></tr>}
   </tbody></table></div>
 }

@@ -142,7 +142,7 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
           <td>{c.code ?? <small className="sub">Chưa có</small>}</td>
           <td>{day(c.issued_on)}{c.expires_on && <><br /><small className="sub">Hết hạn {day(c.expires_on)}</small></>}</td>
           <td><Chip tone={CERT_ST[c.status][1]}>{CERT_ST[c.status][0]}</Chip>{c.revoked_reason && <><br /><small className="sub">{c.revoked_reason}</small></>}</td>
-          <td><div className="tools"><button type="button" onClick={() => setOpen(c.id)}>Xem{c.status === 'issued' ? ' / In' : ''}</button>
+          <td><div className="tools"><button type="button" data-rowopen onClick={() => setOpen(c.id)}>Xem{c.status === 'issued' ? ' / In' : ''}</button>
             {c.can_manage && c.status === 'pending' && <button type="button" className="primary" onClick={() => issue([c.id])}>Duyệt cấp</button>}
             {c.can_manage && c.status === 'issued' && <button type="button" onClick={() => revoke(c)}>Thu hồi</button>}
             {c.can_manage && c.status === 'revoked' && <button type="button" onClick={() => issue([c.id])}>Cấp lại</button>}</div></td>
@@ -183,7 +183,7 @@ export function CertTemplatesPage() {
           <td>{t.issuer_name || '—'}<br /><small className="sub">{[t.signer_title, t.signer_name].filter(Boolean).join(' · ') || '—'}</small></td>
           <td>{t.valid_months ? `${t.valid_months} tháng` : 'Không thời hạn'}</td>
           <td style={{ whiteSpace: 'normal' }}>{ps.length ? ps.map(p => p.code).join(', ') : <small className="sub">{t.is_default ? 'Các chương trình chưa chọn mẫu' : 'Chưa có'}</small>}</td>
-          <td><button type="button" onClick={() => setEdit(t)}>{admin ? 'Sửa' : 'Xem'}</button></td>
+          <td><button type="button" data-rowopen onClick={() => setEdit(t)}>{admin ? 'Sửa' : 'Xem'}</button></td>
         </tr> })}
         {!rows.length && <tr><td colSpan={5}><small className="sub">Chưa có mẫu.</small></td></tr>}</tbody>
     </table></div>}

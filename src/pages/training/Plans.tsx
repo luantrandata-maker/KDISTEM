@@ -531,7 +531,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
               <td><b>{names.get(o.org_id) ?? '…'}</b></td>
               <td>{can && p.pub_status === 'published' ? <input type="number" min={0} defaultValue={o.quota ?? ''} aria-label="Chỉ tiêu của trường" style={{ width: 70 }}
                 onBlur={e => { if ((e.target.value === '' ? null : Number(e.target.value)) !== o.quota && e.target.value !== '') setQuota(o, e.target.value) }} /> : o.quota ?? '—'}</td>
-              <td><button type="button" className="linkbtn" onClick={() => setOpenOrg(openOrg === o.org_id ? null : o.org_id)}>{es.length} giáo viên {openOrg === o.org_id ? '▴' : '▾'}</button>
+              <td><button type="button" className="linkbtn" data-rowopen onClick={() => setOpenOrg(openOrg === o.org_id ? null : o.org_id)}>{es.length} giáo viên {openOrg === o.org_id ? '▴' : '▾'}</button>
                 {over && <><br /><small className="warnline">Vượt chỉ tiêu</small></>}
                 {pend > 0 && <><br /><Chip tone="warn">{pend} GV đăng ký chờ duyệt</Chip></>}
                 {o.quota != null && !over && es.length + pend >= o.quota && <><br /><small className="sub">Đủ chỉ tiêu</small></>}</td>

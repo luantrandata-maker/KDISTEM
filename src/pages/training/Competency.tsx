@@ -380,7 +380,7 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
         <tbody>{list.map(c => <tr key={c.key}><td><button type="button" className="namelink" onClick={() => { setIsNew(false); setMsg(null); setEdit({ ...c, levels: [...c.levels] }) }}>{c.name}</button><br /><small className="sub">{c.key}</small>{c.description && <><br /><small>{c.description}</small></>}</td>
           <td><small>{c.grp}</small></td>
           {c.levels.map((l, i) => <td key={i}><small>{l}</small></td>)}
-          <td><button type="button" onClick={() => { setIsNew(false); setMsg(null); setEdit({ ...c, levels: [...c.levels] }) }}>Sửa</button></td></tr>)}
+          <td><button type="button" data-rowopen onClick={() => { setIsNew(false); setMsg(null); setEdit({ ...c, levels: [...c.levels] }) }}>Sửa</button></td></tr>)}
           {!list.length && <tr><td colSpan={7}><small className="sub">Chưa có năng lực nào.</small></td></tr>}</tbody>
       </table></div>
     </section>

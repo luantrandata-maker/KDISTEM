@@ -77,7 +77,7 @@ export function EduReadinessPage() {
         <td><b>{r.title}</b>{r.code && <><br /><small className="sub">{r.code}</small></>}</td>
         <td>{r.assigned ? 'Có' : <small className="sub">Không</small>}</td>
         <td>{r.met ? <Chip tone="good">{r.met}/{r.teachers} GV</Chip> : r.assigned ? <Chip tone="bad">Chưa có GV</Chip> : <small className="sub">0</small>}
-          {r.met > 0 && <> <button type="button" className="linkbtn" onClick={() => setOpen(open === k ? null : k)}>{open === k ? 'Ẩn' : 'Xem'}</button></>}
+          {r.met > 0 && <> <button type="button" className="linkbtn" data-rowopen onClick={() => setOpen(open === k ? null : k)}>{open === k ? 'Ẩn' : 'Xem'}</button></>}
           {open === k && <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>{r.met_list.map(t => <li key={t.id}><small><b>{t.name}</b>{t.via ? ` · ${t.via}` : ''}{t.date ? ` · ${new Date(t.date).toLocaleDateString('vi-VN')}` : ''}</small></li>)}</ul>}</td>
         <td><small>{r.suggest.length ? r.suggest.map(g => g.title).join('; ') : <span className="sub">Chưa gắn khoá nào</span>}</small></td>
       </tr> })}</tbody>

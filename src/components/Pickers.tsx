@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { MultiSelect, NumMultiSelect, type MsOption } from './MultiSelect'
 import { useSubjects } from '../pages/subjects'
-import { gradeRange, useEduLevels } from '../lib/eduLevels'
+import { gradeRange, useEduLevels, gradeName } from '../lib/eduLevels'
 
 // Ô chọn dùng chung thay cho ô nhập tay: môn học (danh mục môn, 064), cấp học và khối (danh mục cấp học, 065).
 // Giá trị cũ không có trong danh mục vẫn hiện thành một lựa chọn để không mất dữ liệu.
@@ -111,7 +111,7 @@ export function GradeChecks({ value, onChange, disabled, from, to, placeholder =
 }) {
   const { levels } = useEduLevels()
   const shown = new Set<number>()
-  const opts = levels.flatMap(l => gradeRange(l.grade_from, l.grade_to).filter(g => !shown.has(g) && (shown.add(g), true)).map(g => ({ value: g, label: `Khối ${g}`, group: l.name })))
+  const opts = levels.flatMap(l => gradeRange(l.grade_from, l.grade_to).filter(g => !shown.has(g) && (shown.add(g), true)).map(g => ({ value: g, label: gradeName(g), group: l.name })))
   const list = (from && to ? opts.filter(o => o.value >= from && o.value <= to) : opts.length ? opts : gradeRange(1, 12).map(g => ({ value: g, label: `Khối ${g}` })))
   return <NumMultiSelect value={value} onChange={onChange} options={list} disabled={disabled} placeholder={placeholder} ariaLabel={ariaLabel} />
 }
@@ -122,6 +122,6 @@ export function GradeMulti({ value, onChange, disabled, placeholder = 'Mọi kh�
 }) {
   const { grades } = useEduLevels()
   const list = [...new Set([...(grades.length ? grades : gradeRange(1, 12)), ...value])].sort((a, b) => a - b)
-  return <NumMultiSelect value={value} onChange={onChange} options={list.map(g => ({ value: g, label: `Khối ${g}` }))} disabled={disabled}
+  return <NumMultiSelect value={value} onChange={onChange} options={list.map(g => ({ value: g, label: gradeName(g) }))} disabled={disabled}
     placeholder={placeholder} ariaLabel={ariaLabel} compact={compact} empty="Chưa có khối" />
 }

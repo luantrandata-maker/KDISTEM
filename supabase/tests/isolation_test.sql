@@ -2421,11 +2421,17 @@ select pg_temp.chk('kdi', 'Chương trình: dùng cấp học mới với khối
 select pg_temp.chk('kdi', 'Chương trình: khối ngoài cấp học bị chặn',
   $q$insert into edu_programs (org_id, title, ct_code, level, grade_from, grade_to, main_subject) values (platform_org_id(), 'ISO CT sai khối', 'CT1', 'thcs', 8, 10, 'Tin học')$q$, 'ERR*');
 select pg_temp.chk('kdi', 'Chương trình: cấp học không có trong danh mục bị chặn',
-  $q$insert into edu_programs (org_id, title, ct_code, level, grade_from, grade_to, main_subject) values (platform_org_id(), 'ISO CT lạ', 'CT1', 'mamnon', 1, 1, 'Tin học')$q$, 'ERR*');
+  $q$insert into edu_programs (org_id, title, ct_code, level, grade_from, grade_to, main_subject) values (platform_org_id(), 'ISO CT lạ', 'CT1', 'khongco', 1, 1, 'Tin học')$q$, 'ERR*');
 select pg_temp.chk('kdi', 'Cấp học: không thu hẹp khối làm chương trình đang có nằm ngoài', $q$update edu_levels set grade_to = 8 where code = 'thcs'$q$, 'ERR*');
 select pg_temp.chk('kdi', 'Cấp học: đổi tên được', $q$update edu_levels set name = 'Trung học cơ sở' where code = 'thcs'$q$, 'rows:1');
 select pg_temp.chk('kdi', 'Môn học: cấp học lạ bị bỏ khi lưu',
-  $q$with x as (insert into subjects (org_id, name, levels) values (platform_org_id(), 'ISO môn cấp', '{thcs,mamnon,iso_lien}') returning levels) select array_to_string(levels, ',') from x$q$, 'thcs,iso_lien');
+  $q$with x as (insert into subjects (org_id, name, levels) values (platform_org_id(), 'ISO môn cấp', '{thcs,khongco,iso_lien}') returning levels) select array_to_string(levels, ',') from x$q$, 'thcs,iso_lien');
+-- 128: cấp Mầm non, khối -4…-1
+select pg_temp.chk('kdi', 'Mầm non: có trong danh mục cấp học', $q$select grade_from || '..' || grade_to from edu_levels where code = 'mamnon'$q$, '-4..-1');
+select pg_temp.chk('kdi', 'Mầm non: tạo chương trình khối Chồi, Lá',
+  $q$insert into edu_programs (org_id, title, ct_code, level, grades, grade_from, grade_to, main_subject) values (platform_org_id(), 'ISO CT mầm non', 'CT1', 'mamnon', '{-2,-1}', -2, -1, 'Tin học')$q$, 'rows:1');
+select pg_temp.chk('kdi', 'Mầm non: khối 0 bị chặn',
+  $q$insert into edu_programs (org_id, title, ct_code, level, grades, grade_from, grade_to, main_subject) values (platform_org_id(), 'ISO CT khối 0', 'CT1', 'mamnon', '{0}', 0, 0, 'Tin học')$q$, 'ERR*');
 
 -- ===== 066: giáo án soạn trong kho học liệu =====
 select pg_temp.probe('kdi@iso-test.local', $q$insert into library_items (owner_org_id, kind, title, status, scope, content) values (my_org_id(), 'material', 'ISO giáo án kho', 'draft', 'public',

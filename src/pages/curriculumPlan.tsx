@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase'
 import { Tiles } from './department/charts'
 import { BOOK_STATUS, KIND, LessonEditor, REASONS, errText, useCanEdit, useReasonDialog, type Book, type PpctMode, type ReasonCode } from './curriculum'
 import { downloadXlsx, norm } from '../lib/sheet'
-import { progGrades, fmtGrades, unitGradesOf } from '../lib/eduLevels'
+import { progGrades, fmtGrades, unitGradesOf, gradeName } from '../lib/eduLevels'
 
 // Kế hoạch dạy học — đợt 1 (migration 071)
 //  • Kế hoạch năm: bảng môn × khối của một năm học (trường) hoặc của bộ mẫu (KDI / Sở): số tiết HK I / HK II,
@@ -705,7 +705,7 @@ export function AssignPrograms({ orgId, mode = 'authority' }: { orgId: string | 
         <div className="panel bar">
           <span className="tools">
             <b>Khối:</b>
-            <NumMultiSelect value={grades} onChange={setGrades} options={progGrades(prog).map(g => ({ value: g, label: `Khối ${g}` }))} placeholder="Chọn khối…" ariaLabel="Khối" style={{ width: 260 }} />
+            <NumMultiSelect value={grades} onChange={setGrades} options={progGrades(prog).map(g => ({ value: g, label: gradeName(g) }))} placeholder="Chọn khối…" ariaLabel="Khối" style={{ width: 260 }} />
             <label style={{ marginLeft: 12 }}><input type="checkbox" checked={make} onChange={e => setMake(e.target.checked)} /> Tạo sẵn PPCT nháp cho trường</label>
           </span>
           <span className="tools">
@@ -791,7 +791,7 @@ export function ClassCoverage({ orgId, years }: { orgId: string | null; years?: 
       <p className="sub">Mỗi ô là PPCT mà lớp đang học theo trong năm học {cur ?? 'hiện tại'}. Ô đỏ là môn khối đó cần học (đã có PPCT hoặc được gán chương trình) nhưng lớp chưa có PPCT đang dùng. "Riêng" là PPCT chọn riêng cho lớp. PPCT không chọn lớp nào áp dụng cho mọi lớp còn lại của khối.</p>
       <div className="bar">
         {grades.length > 1 && <div className="segmented" style={{ margin: 0 }}>
-          {[0, ...grades].map(g => <button key={g} className={grade === g ? 'on' : ''} onClick={() => setGrade(g)}>{g ? `Khối ${g}` : 'Tất cả'}</button>)}
+          {[0, ...grades].map(g => <button key={g} className={grade === g ? 'on' : ''} onClick={() => setGrade(g)}>{g ? gradeName(g) : 'Tất cả'}</button>)}
         </div>}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
@@ -898,7 +898,7 @@ export function PlanVsActual({ orgId, mode = 'school' }: { orgId: string | null;
     { key: 'prov', label: 'Tỉnh', placeholder: 'Mọi tỉnh', options: provs, hidden: provs.length < 2 },
     { key: 'school', label: 'Trường', placeholder: 'Mọi trường', options: opts(pool.filter(r => fitP(r, 'school')).map(r => [r.org_id, r.school])) },
     { key: 'prog', label: 'Chương trình', placeholder: 'Mọi chương trình', options: opts(pool.filter(r => fitP(r, 'prog')).map(r => [r.program_id, progNames.get(r.program_id ?? '') ?? 'Chương trình khác'])) },
-    { key: 'grade', label: 'Khối', placeholder: 'Mọi khối', options: opts(pool.filter(r => fitP(r, 'grade')).map(r => [r.grade, `Khối ${r.grade}`])) },
+    { key: 'grade', label: 'Khối', placeholder: 'Mọi khối', options: opts(pool.filter(r => fitP(r, 'grade')).map(r => [r.grade, gradeName(Number(r.grade))])) },
     { key: 'cls', label: 'Lớp', placeholder: 'Mọi lớp', options: opts(pool.filter(r => fitP(r, 'cls')).map(r => [r.class_id, `${r.class_name} · ${r.school}`])) },
   ]
   const fKey = mode === 'school' ? '' : JSON.stringify(f.vals)

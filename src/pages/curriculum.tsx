@@ -12,6 +12,7 @@ import { uploadLearningFile, openFile } from '../lib/files'
 import { GradePicker, SubjectPicker } from '../components/Pickers'
 import { NameLink } from '../components/TableSel'
 import { ElView } from '../components/ElView'
+import { gradeName } from '../lib/eduLevels'
 
 // Phân phối chương trình theo từng tiết + tiến độ dạy (migration 057; 058: học kỳ, liên kết chương trình chuẩn,
 // gán lớp, gửi duyệt / công bố, nhật ký điều chỉnh, nội dung chưa hoàn thành, yêu cầu cần đạt, minh chứng).
@@ -233,7 +234,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
       <div className="bar">
         <div className="tools">
           {grades.length > 1 && <div className="segmented" style={{ margin: 0 }}>
-            {[0, ...grades].map(g => <button key={g} className={grade === g ? 'on' : ''} onClick={() => setGrade(g)}>{g ? `Khối ${g}` : 'Tất cả'}</button>)}
+            {[0, ...grades].map(g => <button key={g} className={grade === g ? 'on' : ''} onClick={() => setGrade(g)}>{g ? gradeName(g) : 'Tất cả'}</button>)}
           </div>}
           {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn học"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
           <input placeholder="Tìm môn, tên PPCT…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
@@ -611,7 +612,7 @@ export function CurriculumProgress({ orgId, mode = 'school' }: { orgId: string |
       onPick: v => { if (v.length === 1) setView('class') } },
     { key: 'prog', label: 'Chương trình', placeholder: 'Mọi chương trình', options: opts(rows.map(r => [r.program_id, progNames.get(r.program_id ?? '') ?? 'Chương trình khác'])) },
     { key: 'subj', label: 'Môn', placeholder: 'Mọi môn', options: subjects.map(x => [x, x] as [string, string]) },
-    { key: 'grade', label: 'Khối', placeholder: 'Mọi khối', options: grades.map(g => [String(g), `Khối ${g}`] as [string, string]) },
+    { key: 'grade', label: 'Khối', placeholder: 'Mọi khối', options: grades.map(g => [String(g), gradeName(g)] as [string, string]) },
     { key: 'state', label: 'Tình trạng', placeholder: 'Mọi tình trạng', hidden: view !== 'class', options: [['late', 'Chậm tiến độ'], ['ok', 'Đúng / vượt tiến độ'],
       ['missed', 'Có nội dung chưa hoàn thành'], ['evidence', 'Thiếu minh chứng'], ['none', 'Chưa ghi nhận']] },
   ]

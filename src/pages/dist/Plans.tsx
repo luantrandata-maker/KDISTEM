@@ -318,7 +318,7 @@ function DistAssign({ plans, initial, onDone, onHistory }: { plans: Plan[]; init
         </>}
         {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       </div>
-      {plan && <PlanAssigned plan={plan} rk={rk} />}
+      <PlanAssigned plans={plans} plan={plan} rk={rk} />
       <p className="sub">Các lần đã gán, theo năm học và phiên bản: <button type="button" className="linkbtn" onClick={onHistory}>Xem lịch sử áp dụng</button></p>
     </>
   )

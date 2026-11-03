@@ -268,6 +268,8 @@ function DistAssign({ plans, initial, onDone, onHistory }: { plans: Plan[]; init
   const pub = plans.filter(p => p.status === 'published')
   const plan = pub.find(p => p.id === pid) ?? null
   useEffect(() => { setPid(initial) }, [initial])
+  // Chỉ có một bản đã phát hành: chọn sẵn để thấy ngay phần chọn trường
+  useEffect(() => { if (!pid && pub.length === 1) setPid(pub[0].id) }, [pub.length, pid]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { supabase.from('organizations').select('id, name, type, parent_id').order('name').then(({ data }) => setOrgs((data as Org[]) ?? [])) }, [])
   useEffect(() => {
     setCls([])
@@ -296,6 +298,14 @@ function DistAssign({ plans, initial, onDone, onHistory }: { plans: Plan[]; init
           <label className="field"><span>Năm học</span><YearSelect value={year} onChange={setYear} emptyLabel="Năm học hiện tại của trường" /></label>
         </div>
         {pub.length === 0 && <p className="sub">Chưa có bản nào đã phát hành. Phát hành bản ở tab “Danh sách bản phân phối”.</p>}
+        {!plan && pub.length > 0 && <>
+          <p className="sub">Chọn một bản đã phát hành để chọn trường và gán.</p>
+          <div className="wrap"><table className="libtable">
+            <thead><tr><th>Bản phân phối</th><th>Phân loại</th><th>Khối</th></tr></thead>
+            <tbody>{pub.map(p => <tr key={p.id}><td><button type="button" className="namelink" onClick={() => setPid(p.id)}>{p.code} · {p.title}</button> <small className="sub">v{p.version_no ?? 1}</small></td>
+              <td><small>{crumb(p)}</small></td><td>{p.grade ? `Khối ${p.grade}` : '—'}</td></tr>)}</tbody>
+          </table></div>
+        </>}
         {plan && <>
           <div className="field" style={{ marginBottom: 10 }}><span>Chọn trường ({picked.length})</span>
             <MultiSelect value={picked} onChange={setPicked} options={schools.map(o => [o.id, o.name])} placeholder="Chọn trường…" ariaLabel="Trường" empty="Không có trường nào trong phạm vi." /></div>

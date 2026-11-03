@@ -77,6 +77,15 @@ export function PlanHistory({ plan }: { plan: Plan }) {
   </section>
 }
 
+/** Tab "Gán theo trường": các trường đã được gán bản này (mọi phiên bản cùng mã), theo năm học. */
+export function PlanAssigned({ plan, rk }: { plan: Plan; rk: number }) {
+  const { rows, err } = useHistory(plan.family_id ?? plan.id, rk)
+  return <section className="panel" style={{ marginTop: 14 }}>
+    <h3 style={{ marginTop: 0 }}>Đã gán cho trường{rows ? <small className="sub"> · {new Set(rows.map(r => r.org_id)).size} trường · {rows.length} PPCT</small> : null}</h3>
+    {err ? <p className="msg">{err}</p> : !rows ? <p className="sub">Đang tải…</p> : <HistTable rows={rows} showPlan={false} />}
+  </section>
+}
+
 /** Tab "Lịch sử áp dụng": mọi lần gán bản phân phối cho trường, lọc theo năm học. */
 export function DistHistory({ plans, rk }: { plans: Plan[]; rk: number }) {
   const { rows, err } = useHistory(null, rk)

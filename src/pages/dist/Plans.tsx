@@ -16,7 +16,7 @@ import { PlanBody, Chip, STATUS, errText, useBreadcrumb } from './Editor'
 import type { Plan, Status } from './sched'
 import { FlowGuide } from '../../components/FlowGuide'
 import { useCls } from './cls'
-import { DistHistory } from './History'
+import { DistHistory, PlanAssigned } from './History'
 import { gradeName } from '../../lib/eduLevels'
 
 export type { Plan } from './sched'
@@ -266,6 +266,7 @@ function DistAssign({ plans, initial, onDone, onHistory }: { plans: Plan[]; init
   const [cls, setCls] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const [rk, setRk] = useState(0)
   const pub = plans.filter(p => p.status === 'published')
   const plan = pub.find(p => p.id === pid) ?? null
   useEffect(() => { setPid(initial) }, [initial])
@@ -287,7 +288,7 @@ function DistAssign({ plans, initial, onDone, onHistory }: { plans: Plan[]; init
     if (error) return setMsg([errText(error.message), true])
     const r = data as { books: number; skipped: number }
     setMsg([`Đã tạo ${r.books} PPCT nháp cho ${picked.length} trường${r.skipped ? `; ${r.skipped} PPCT đã có từ trước nên bỏ qua` : ''}. Trường kiểm tra rồi ban hành PPCT như thường lệ.`, false])
-    setPicked([]); onDone()
+    setPicked([]); setRk(k => k + 1); onDone()
   }
 
   return (
@@ -317,6 +318,7 @@ function DistAssign({ plans, initial, onDone, onHistory }: { plans: Plan[]; init
         </>}
         {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       </div>
+      {plan && <PlanAssigned plan={plan} rk={rk} />}
       <p className="sub">Các lần đã gán, theo năm học và phiên bản: <button type="button" className="linkbtn" onClick={onHistory}>Xem lịch sử áp dụng</button></p>
     </>
   )

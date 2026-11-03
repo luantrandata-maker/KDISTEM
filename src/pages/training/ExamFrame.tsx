@@ -6,10 +6,10 @@ import { supabase } from '../../lib/supabase'
 import { ExamMatrix, cleanMatrix, listGrades, listSubjects, matrixText, matrixTotal, useBankSubjects, type MRow } from '../../components/ExamMatrix'
 import { MultiSelect } from '../../components/MultiSelect'
 import { GradeMulti } from '../../components/Pickers'
-import type { Detail } from './Content'
+import { ExamModePick, type Detail } from './Content'
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 
-export type FinalExam = { title?: string; subject?: string; grade?: number | null; subjects?: string[]; grades?: number[]; matrix?: MRow[]; qids?: string[]; minutes?: number | null; attempts?: number | null; pass?: number | null; shuffle?: boolean }
+export type FinalExam = { title?: string; subject?: string; grade?: number | null; subjects?: string[]; grades?: number[]; matrix?: MRow[]; qids?: string[]; minutes?: number | null; attempts?: number | null; pass?: number | null; shuffle?: boolean; mode?: 'self' | 'trainer' }
 const finalSpec = (x: FinalExam): TrySpec => ({ kind: 'pick', subjects: listSubjects(x), grades: listGrades(x), matrix: cleanMatrix(x.matrix ?? []), qids: x.qids ?? [], shuffle: x.shuffle !== false })
 export type Frame = {
   weights: { att: number; tests: number; final: number; product: number }
@@ -85,6 +85,7 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
         <label className="field"><span>Số lượt làm</span><input type="number" min={0} max={50} value={f.attempts ?? 0} onChange={e => setF({ ...f, attempts: Number(e.target.value) || 0 })} /><small className="sub">0 = không giới hạn</small></label>
         <label className="field"><span>Điểm đạt (thang 10)</span><input type="number" min={0} max={10} step={0.5} value={f.pass ?? ''} placeholder="Không xét" onChange={e => setF({ ...f, pass: nOrNull(e.target.value) })} /></label>
         <div className="field"><span>Trộn câu</span><label><input type="checkbox" checked={f.shuffle !== false} onChange={e => setF({ ...f, shuffle: e.target.checked })} /> Trộn thứ tự câu mỗi lượt</label></div>
+        <div style={{ gridColumn: '1/-1' }}><ExamModePick value={f.mode} edit onChange={m => setF({ ...f, mode: m })} /></div>
       </div>
       <ExamMatrix org={p.org_id} subjects={listSubjects(f)} grades={listGrades(f)} rows={f.matrix ?? []} onChange={m => setF({ ...f, matrix: m })} />
       <div className="formactions"><button type="button" className="primary" onClick={saveFinal}>Lưu đề ({total} câu)</button> <TryButton orgId={p.org_id} spec={finalSpec(f)} title={f.title || 'Đề cuối khoá'} minutes={f.minutes} pass={f.pass} /> <button type="button" onClick={() => setF(null)}>Huỷ</button></div>
@@ -93,6 +94,7 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
       <dt>Tên đề</dt><dd>{fe.title || 'Đề cuối khoá'}</dd>
       <dt>Môn · khối</dt><dd>{listSubjects(fe).join(', ') || '—'}{listGrades(fe).length ? ` · khối ${listGrades(fe).join(', ')}` : ' · mọi khối'}</dd>
       <dt>Ma trận</dt><dd>{matrixTotal(fe.matrix ?? [])} câu: {matrixText(fe.matrix ?? []) || '—'}</dd>
+      <dt>Ai mở đề</dt><dd>{fe.mode === 'trainer' ? 'Giảng viên mở đề ở buổi học' : 'Học viên tự làm khi học xong'}</dd>
       <dt>Cách làm</dt><dd>{fe.minutes ? `${fe.minutes} phút` : 'không giới hạn thời gian'} · {fe.attempts ? `${fe.attempts} lượt` : 'không giới hạn lượt'} · điểm đạt {fe.pass != null ? num(fe.pass) : 'không xét'} · {fe.shuffle !== false ? 'trộn câu' : 'giữ thứ tự'}</dd>
     </dl>
     : <p className="sub" style={{ margin: 0 }}>Chương trình chưa có đề cuối khoá.</p>}

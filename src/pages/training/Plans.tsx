@@ -28,7 +28,7 @@ export type TPlan = {
   id: string; org_id: string; plan_code: string | null; name: string; pub_status: Status; status: string; year_name: string | null; term: Term | null
   mode: Mode; provider: string | null; starts_on: string | null; ends_on: string | null; budget: number | null; note: string | null; hours: number | null
   updated_at: string; published_at: string | null; self_register?: boolean; register_until?: string | null; node_id: string | null; max_learners?: number | null
-  register_approval?: boolean; closed_at?: string | null; close_note?: string | null
+  register_approval?: boolean; closed_at?: string | null; close_note?: string | null; exam_mode?: ExamMode
 }
 type Item = { plan_id: string; program_id: string; seq: number; quota: number | null; trainer: string | null; trainer_ids?: string[]; assistant?: string | null; assistant_ids?: string[]; note: string | null; units?: string[] | null
   training_programs: { code: string; title: string; ct_code: string | null } | null }
@@ -44,7 +44,10 @@ const RSEL = 'plan_id, teacher_id, org_id, units, exempt_units, note, warnings, 
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
 const TERM: Record<Term, string> = { summer: 'Dịp hè', hk1: 'Học kỳ I', hk2: 'Học kỳ II', other: 'Khác' }
 export const ORG_ST: Record<OrgSt, [string, string]> = { assigned: ['Chờ trường chọn GV', ''], submitted: ['Chờ duyệt', 'warn'], approved: ['Đã duyệt', 'good'], returned: ['Trả lại', 'bad'] }
-const SEL = 'id, org_id, plan_code, name, pub_status, status, year_name, term, mode, provider, starts_on, ends_on, budget, note, hours, updated_at, published_at, self_register, register_until, node_id, max_learners, register_approval, closed_at, close_note'
+const SEL = 'id, org_id, plan_code, name, pub_status, status, year_name, term, mode, provider, starts_on, ends_on, budget, note, hours, updated_at, published_at, self_register, register_until, node_id, max_learners, register_approval, closed_at, close_note, exam_mode'
+// Cách làm bài kiểm tra của cả khoá (129)
+type ExamMode = 'content' | 'self' | 'trainer'
+const EXAM_MODE: [ExamMode, string][] = [['content', 'Theo cài đặt từng bài trong chương trình'], ['self', 'Học viên tự làm tất cả các bài'], ['trainer', 'Giảng viên mở đề tất cả các bài']]
 const errText = (m: string) => /schema cache|does not exist|column .* of relation/i.test(m) ? 'Hãy chạy migration 084 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Bạn không có quyền với kế hoạch tập huấn này.' : m
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
@@ -449,11 +452,14 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
 
     {step === 1 && <>
       <details className="panel tpinfo" open={!p.year_name}>
-        <summary><b>Thông tin kế hoạch</b> <small className="sub">năm học, đợt, hình thức, thời gian, kinh phí, phân loại</small></summary>
+        <summary><b>Thông tin kế hoạch</b> <small className="sub">năm học, đợt, hình thức, thời gian, kinh phí, phân loại, cách làm bài kiểm tra</small></summary>
         {edit ? <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
           <InfoFields f={f} set={setF} />
           <label className="field"><span>Phân loại</span><select value={p.node_id ?? ''} onChange={e => run(supabase.from('training_plans').update({ node_id: e.target.value || null }).eq('id', p.id), 'Đã đổi phân loại.')}>
             <option value="">— Chưa phân loại —</option>{finals.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
+          <label className="field"><span>Cách làm bài kiểm tra</span><select value={p.exam_mode ?? 'content'} onChange={e => run(supabase.from('training_plans').update({ exam_mode: e.target.value }).eq('id', p.id), 'Đã đổi cách làm bài kiểm tra.')}>
+            {EXAM_MODE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+            <small className="sub">Giảng viên mở đề: giáo viên chỉ vào làm khi giảng viên bấm "Mở đề" ở buổi học (Lịch tập huấn › mở buổi › Đề kiểm tra).</small></label>
           <div className="formactions"><button type="button" className="primary" disabled={!f.name.trim() || badDates(f)} onClick={() => run(supabase.from('training_plans').update(toRow(f)).eq('id', p.id), 'Đã lưu thông tin.')}>Lưu thông tin</button></div>
         </div> : <dl className="tpkv" style={{ marginTop: 12 }}>
           <dt>Phân loại</dt><dd>{crumbTxt}</dd>
@@ -463,6 +469,8 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
           <dt>Đơn vị tập huấn</dt><dd>{p.provider || '—'}</dd>
           <dt>Kinh phí dự kiến</dt><dd>{money(p.budget)}</dd>
           <dt>Số lượng tối đa</dt><dd>{p.max_learners ? `${p.max_learners} giáo viên` : 'Không giới hạn'}</dd>
+          <dt>Làm bài kiểm tra</dt><dd>{can && !p.closed_at ? <select value={p.exam_mode ?? 'content'} aria-label="Cách làm bài kiểm tra" onChange={e => run(supabase.from('training_plans').update({ exam_mode: e.target.value }).eq('id', p.id), 'Đã đổi cách làm bài kiểm tra.')}>
+            {EXAM_MODE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select> : EXAM_MODE.find(x => x[0] === (p.exam_mode ?? 'content'))?.[1]}</dd>
           {p.note && <><dt>Ghi chú</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{p.note}</dd></>}
         </dl>}
       </details>

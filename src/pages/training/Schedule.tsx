@@ -14,6 +14,7 @@ import { FlowGuide } from '../../components/FlowGuide'
 import { useTrainingPrograms } from './Lessons'
 import { useHolidays, dayKey, type Holidays } from '../../lib/holidays'
 import { detailCount, type Detail } from './Content'
+import { SessionExams } from './ExamOpen'
 const LessonPage = lazy(() => import('../library/lesson/LessonPage').then(m => ({ default: m.LessonPage })))
 const ContentDetail = lazy(() => import('./Content').then(m => ({ default: m.ContentDetail })))
 
@@ -538,6 +539,7 @@ export function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; pl
       </section>
     </div>
     <SessionContent unitId={s.unit_id} can={can} onOpen={setView} />
+    {can && <SessionExams planId={s.plan_id} sessionId={id} offline={s.mode === 'offline'} />}
 
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Điểm danh</h3>

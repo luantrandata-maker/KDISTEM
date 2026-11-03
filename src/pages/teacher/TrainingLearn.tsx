@@ -27,6 +27,13 @@ type Full = { plan: { id: string; code: string | null; name: string; starts_on: 
 type Q = { id: string; stem: string; options: string[]; kind: 'single' | 'multi' | 'truefalse' }
 // 109: đề cuối khoá và kết quả theo khung đánh giá
 type Final = { program_id: string; title: string; count: number; minutes: number | null; pass: number | null; attempts: number; used: number; best: number | null; ready: boolean; open: string | null }
+// 129: bài do giảng viên mở đề — đang mở cho mình hay chưa (theo id nội dung / id chương trình của đề cuối khoá)
+type Gate = { mode: 'self' | 'trainer'; open: boolean; closes_at: string | null }
+type Gates = Record<string, Gate>
+function GateNote({ g }: { g: Gate }) {
+  return g.open ? <small style={{ color: 'var(--ok-fg)' }}><b>Giảng viên đã mở đề</b>{g.closes_at ? `, đóng lúc ${fmtTime(g.closes_at)}` : ''}.</small>
+    : <small className="sub">Bài này do giảng viên mở đề trong hoặc sau buổi học. Chờ giảng viên mở đề rồi vào làm.</small>
+}
 type Metrics = { total: number | null; grade: string; suggest: 'pass' | 'fail'; scores: Record<'att' | 'tests' | 'final' | 'product', number | null>; weights: Record<'att' | 'tests' | 'final' | 'product', number> }
 type Finals = { finals: Final[]; metrics: Metrics; frame: { grades?: { label: string; min: number }[] } }
 const COMP: [keyof Metrics['scores'], string][] = [['att', 'Chuyên cần'], ['tests', 'Bài test nội dung'], ['final', 'Đề cuối khoá'], ['product', 'Sản phẩm']]
@@ -93,7 +100,10 @@ function CourseView({ planId, onBack }: { planId: string; onBack: () => void }) 
   const [testing, setTesting] = useState<Unit | null>(null)
   const [fin, setFin] = useState<Finals | null>(null)
   const [finalRun, setFinalRun] = useState<Final | null>(null)
+  const [gates, setGates] = useState<Gates>({})
+  const loadGates = () => supabase.rpc('training_exam_gates', { p_plan: planId }).then(({ data, error }) => { if (!error) setGates((data ?? {}) as Gates) })
   const load = () => {
+    loadGates()
     // Đề cuối khoá + kết quả theo khung (109); CSDL chưa có thì bỏ qua
     supabase.rpc('training_course_finals', { p_plan: planId }).then(({ data, error }) => setFin(error ? null : data as Finals))
     return supabase.rpc('training_course', { p_plan: planId }).then(({ data, error }) => {
@@ -105,6 +115,13 @@ function CourseView({ planId, onBack }: { planId: string; onBack: () => void }) 
     })
   }
   useEffect(() => { load() }, [planId])
+  // Có bài do giảng viên mở đề: kiểm tra lại mỗi 15 giây để nút Làm bài hiện ngay khi giảng viên mở
+  const hasLed = Object.values(gates).some(g => g.mode === 'trainer')
+  useEffect(() => {
+    if (!hasLed || testing || finalRun) return
+    const t = setInterval(loadGates, 15000)
+    return () => clearInterval(t)
+  }, [hasLed, testing, finalRun, planId])
   if (!c) return <ElView back="Khoá tập huấn của tôi" onBack={onBack} title="Khoá tập huấn">{err ? <p className="sub" role="alert">{err}</p> : <p className="sub">Đang tải…</p>}</ElView>
   if (testing) return <TestRun back={testing.title} title={`Bài kiểm tra: ${testing.title}`}
     sub={testing.test ? `${testing.test.count} câu · điểm đạt ${num(testing.test.pass)}/10` : undefined}
@@ -144,13 +161,15 @@ function CourseView({ planId, onBack }: { planId: string; onBack: () => void }) 
         {!c.units.length && <small className="sub">Chương trình chưa có nội dung.</small>}
       </nav>
       <div style={{ display: 'grid', gap: 14, minWidth: 0 }}>
-        {u && <UnitPanel key={u.id} planId={planId} u={u} onChange={load} onTest={() => setTesting(u)} onErr={setErr} />}
+        {u && <UnitPanel key={u.id} planId={planId} u={u} gate={gates[u.id]} onChange={load} onTest={() => setTesting(u)} onErr={setErr} />}
         {needProduct && <ProductPanel planId={planId} p={c.product} allDone={done === c.units.length} onChange={load} />}
         {fin?.finals.map(f => <section key={f.program_id} className="panel tltest">
           <div><b>📝 {f.title}</b><br /><small className="sub">{f.count} câu{f.minutes ? ` · ${f.minutes} phút` : ' · không giới hạn thời gian'}
             {f.pass != null ? ` · điểm đạt ${num(f.pass)}/10` : ''}{f.attempts ? ` · đã làm ${f.used}/${f.attempts} lượt` : f.used ? ` · đã làm ${f.used} lượt` : ''}</small><br />
-            <small>Điểm cao nhất: <b>{num(f.best)}</b>{f.best != null && f.pass != null && (f.best >= f.pass ? ' · Đạt' : ' · Chưa đạt')}</small></div>
-          {!f.ready ? <small className="sub">Học xong mọi nội dung của chương trình để làm đề cuối khoá.</small>
+            <small>Điểm cao nhất: <b>{num(f.best)}</b>{f.best != null && f.pass != null && (f.best >= f.pass ? ' · Đạt' : ' · Chưa đạt')}</small>
+            {gates[f.program_id]?.mode === 'trainer' && <><br /><GateNote g={gates[f.program_id]} /></>}</div>
+          {gates[f.program_id]?.mode === 'trainer' && !gates[f.program_id].open ? null
+            : !f.ready && gates[f.program_id]?.mode !== 'trainer' ? <small className="sub">Học xong mọi nội dung của chương trình để làm đề cuối khoá.</small>
             : f.attempts && f.used >= f.attempts && !f.open ? <small className="sub">Đã hết lượt làm bài.</small>
             : <button type="button" className="primary" onClick={() => setFinalRun(f)}>{f.open ? 'Làm tiếp' : f.used ? 'Làm lại' : 'Làm bài'}</button>}
         </section>)}
@@ -168,12 +187,14 @@ function CourseView({ planId, onBack }: { planId: string; onBack: () => void }) 
   </ElView>
 }
 
-function UnitPanel({ planId, u, onChange, onTest, onErr }: { planId: string; u: Unit; onChange: () => void; onTest: () => void; onErr: (s: string) => void }) {
+function UnitPanel({ planId, u, gate, onChange, onTest, onErr }: { planId: string; u: Unit; gate?: Gate; onChange: () => void; onTest: () => void; onErr: (s: string) => void }) {
   const [busy, setBusy] = useState('')
   const [play, setPlay] = useState<string | null>(null)
   const items: [string, Row, 'l' | 'd'][] = [...(u.detail.lectures ?? []).map((r, i) => [`l${i}`, r, 'l'] as [string, Row, 'l']),
     ...(u.detail.docs ?? []).map((r, i) => [`d${i}`, r, 'd'] as [string, Row, 'd'])]
   const seenAll = items.every(([k]) => u.seen.includes(k))
+  // Giảng viên mở đề: không cần mở hết bài giảng trước (đã học trên lớp); chưa mở đề thì chờ
+  const led = gate?.mode === 'trainer', wait = led && !gate!.open, ready = seenAll || led
   const body = u.detail.body ?? {}
 
   async function mark(key: string) {
@@ -252,15 +273,17 @@ function UnitPanel({ planId, u, onChange, onTest, onErr }: { planId: string; u: 
     {u.test?.kind === 'link' && <div className="tltest">
       <div><b>Bài kiểm tra (làm qua link)</b><br /><small className="sub">Điểm đạt {num(u.test.pass)}/10{u.test.due ? ` · hạn ${fmtDate(u.test.due)}` : ''}{u.test.opened ? ' · đã mở bài' : ''}</small>
         {u.test.note && <><br /><small>{u.test.note}</small></>}<br />
-        <small>Điểm: <b>{u.best_score == null ? 'chờ người tổ chức nhập' : num(u.best_score)}</b>{u.best_score != null && (u.best_score >= u.test.pass ? ' · Đạt' : ' · Chưa đạt')}</small></div>
-      {!seenAll ? <small className="sub">Mở hết bài giảng và tài liệu để làm bài.</small>
+        <small>Điểm: <b>{u.best_score == null ? 'chờ người tổ chức nhập' : num(u.best_score)}</b>{u.best_score != null && (u.best_score >= u.test.pass ? ' · Đạt' : ' · Chưa đạt')}</small>
+        {led && <><br /><GateNote g={gate!} /></>}</div>
+      {wait ? null : !ready ? <small className="sub">Mở hết bài giảng và tài liệu để làm bài.</small>
         : <button type="button" className="primary" disabled={busy === 'test'} onClick={openLink}>{u.test.opened ? 'Mở lại bài ↗' : 'Làm bài ↗'}</button>}
     </div>}
     {u.test && u.test.kind !== 'link' && <div className="tltest">
       <div><b>Bài kiểm tra</b><br /><small className="sub">{u.test.count} câu{u.test.minutes ? ` · ${u.test.minutes} phút` : ' · không giới hạn thời gian'} · điểm đạt {num(u.test.pass)}/10
         {u.test.attempts ? ` · đã làm ${u.test.used}/${u.test.attempts} lượt` : u.test.used ? ` · đã làm ${u.test.used} lượt` : ''}</small><br />
-        <small>Điểm cao nhất: <b>{num(u.best_score)}</b>{u.best_score != null && (u.best_score >= u.test.pass ? ' · Đạt' : ' · Chưa đạt')}</small></div>
-      {!seenAll ? <small className="sub">Mở hết bài giảng và tài liệu để làm bài.</small>
+        <small>Điểm cao nhất: <b>{num(u.best_score)}</b>{u.best_score != null && (u.best_score >= u.test.pass ? ' · Đạt' : ' · Chưa đạt')}</small>
+        {led && <><br /><GateNote g={gate!} /></>}</div>
+      {wait ? null : !ready ? <small className="sub">Mở hết bài giảng và tài liệu để làm bài.</small>
         : u.test.attempts && u.test.used >= u.test.attempts && !u.test.open ? <small className="sub">Đã hết lượt làm bài.</small>
         : <button type="button" className="primary" onClick={onTest}>{u.test.open ? 'Làm tiếp' : u.test.used ? 'Làm lại' : 'Làm bài'}</button>}
     </div>}

@@ -11,8 +11,18 @@ type Row = Record<string, string>
 // test: bài kiểm tra (086) — câu hỏi từ Ngân hàng câu hỏi E-learning; count = số câu rút ngẫu nhiên mỗi lượt
 // kind 'link' (105): làm bài qua link ngoài (Google Forms, Azota…), người tổ chức nhập điểm ở Kết quả tập huấn
 export type TestCfg = { kind?: 'bank' | 'link'; qids?: string[]; count?: number | null; minutes?: number | null; attempts?: number | null; pass?: number | null
-  url?: string | null; due?: string | null; note?: string | null }
+  url?: string | null; due?: string | null; note?: string | null; mode?: 'self' | 'trainer' }
 export type Detail = { body?: { goal?: string; text?: string; reqs?: string[] }; lectures?: Row[]; docs?: Row[]; mats?: Row[]; acts?: Row[]; test?: TestCfg }
+/** Cách làm bài (129): học viên tự làm, hoặc giảng viên mở đề trong / sau buổi dạy */
+export function ExamModePick({ value, edit, onChange }: { value?: 'self' | 'trainer'; edit: boolean; onChange: (v: 'self' | 'trainer') => void }) {
+  const v = value === 'trainer' ? 'trainer' : 'self'
+  return <div className="field"><span>Ai mở đề</span>
+    <div className="distpills" role="radiogroup" aria-label="Ai mở đề" style={{ margin: 0 }}>
+      {([['self', 'Học viên tự làm khi học xong'], ['trainer', 'Giảng viên mở đề']] as ['self' | 'trainer', string][]).map(([k, l]) =>
+        <button key={k} type="button" role="radio" aria-checked={v === k} className={v === k ? 'on' : ''} disabled={!edit} onClick={() => onChange(k)}>{l}</button>)}</div>
+    <small className="sub">{v === 'trainer' ? 'Giáo viên chỉ vào làm khi giảng viên bấm "Mở đề" ở buổi học (trong hoặc sau khi dạy). Kế hoạch tập huấn có thể đặt chung cho cả khoá.'
+      : 'Giáo viên tự học nội dung rồi làm bài, nộp bài lúc nào cũng được. Kế hoạch tập huấn có thể đặt chung cho cả khoá.'}</small></div>
+}
 type Col = { key: string; label: string; type?: 'text' | 'url' | 'number' | 'select'; options?: [string, string][]; width?: number; placeholder?: string }
 export type ListKey = 'lectures' | 'docs' | 'mats' | 'acts'
 
@@ -139,6 +149,7 @@ function TestEditor({ t, edit, passScore, hasTest, onChange }: { t: TestCfg; edi
   if (link) return <div style={{ display: 'grid', gap: 12 }}>
     {!hasTest && <p className="warnline">Nội dung này đang không bật "Có bài test". Bật ở bảng nội dung để giáo viên làm bài.</p>}
     {kindPick}
+    <ExamModePick value={t.mode} edit={edit} onChange={m => onChange({ ...t, mode: m })} />
     <p className="sub" style={{ margin: 0 }}>Giáo viên mở hết bài giảng, tài liệu rồi bấm "Làm bài" để mở link. Mở link là học tiếp được nội dung sau.
       Điểm do người tổ chức nhập ở Đánh giá kết quả tập huấn › Chấm điểm › Điểm bài test (gõ tay hoặc nhập file Excel), đủ điểm đạt mới tính bài test đạt.</p>
     <label className="field"><span>Link bài kiểm tra</span><input type="url" disabled={!edit} value={t.url ?? ''} placeholder="https://forms.gle/…"
@@ -154,6 +165,7 @@ function TestEditor({ t, edit, passScore, hasTest, onChange }: { t: TestCfg; edi
   return <div style={{ display: 'grid', gap: 12 }}>
     {!hasTest && <p className="warnline">Nội dung này đang không bật "Có bài test". Bật ở bảng nội dung để giáo viên làm bài.</p>}
     {kindPick}
+    <ExamModePick value={t.mode} edit={edit} onChange={m => onChange({ ...t, mode: m })} />
     <p className="sub" style={{ margin: 0 }}>Giáo viên làm bài sau khi mở hết bài giảng và tài liệu của nội dung. Đạt điểm đạt thì nội dung được tính hoàn thành và mở nội dung tiếp theo.</p>
     <div className="formgrid">
       <label className="field"><span>Số câu mỗi lượt</span><input type="number" min={1} max={Math.max(n, 1)} disabled={!edit} value={t.count ?? ''} placeholder={`Tất cả (${n})`} onChange={e => setNum('count', e.target.value)} /></label>

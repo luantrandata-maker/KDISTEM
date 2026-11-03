@@ -209,9 +209,9 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
         return <tr key={u.id}>
           <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen(u.id) }}>{u.title}</button><br /><small className="sub">{crumb(u)}</small></td>
           <td>{String(u.hours).replace('.', ',')}</td>
-          <td style={{ whiteSpace: 'normal' }}>{dc ? <small>{dc}</small> : <small className="warnline">Chưa có học liệu</small>}{u.has_test && !dc.includes('kiểm tra') ? <><br /><small className="sub">Có bài test</small></> : null}</td>
-          <td style={{ whiteSpace: 'normal' }}>{ls.length ? ls.map(l => <div key={l.id}><small>{l.title} <Chip tone={LSTATUS[l.status]?.[1]}>{LSTATUS[l.status]?.[0] ?? l.status}</Chip></small></div>) : <small className="sub">—</small>}</td>
-          <td>{p ? <><small>{p.code}</small><br /><Chip tone={STATUS[p.status]?.[1]}>{STATUS[p.status]?.[0]}</Chip></> : '—'}</td>
+          <td style={{ whiteSpace: 'normal' }}>{dc || '—'}{u.has_test && !dc.includes('kiểm tra') ? <> <small className="sub">· Có bài test</small></> : null}</td>
+          <td style={{ whiteSpace: 'normal' }}>{ls.length ? ls.map(l => <div key={l.id}>{l.title} <small className="sub">· {LSTATUS[l.status]?.[0] ?? l.status}</small></div>) : '—'}</td>
+          <td>{p ? <>{p.code} <small className="sub">· {STATUS[p.status]?.[0] ?? p.status}</small></> : '—'}</td>
         </tr> })}
         {!shownC.length && <tr><td colSpan={5}><small className="sub">{contents.length ? 'Không có nội dung nào khớp bộ lọc.' : 'Chưa có nội dung tập huấn. Tạo chương trình và nội dung ở mục Chương trình tập huấn.'}</small></td></tr>}</tbody>
     </table></div>

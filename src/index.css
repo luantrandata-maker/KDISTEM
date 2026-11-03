@@ -1381,8 +1381,8 @@ th.sel,td.sel{width:40px;padding-right:0}
 tr.picked td{background:#f3f7fd}
 a.namelink{color:var(--navy);font-weight:600;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
 a.namelink:hover{color:var(--primary)}
-/* Phân hệ 1: bỏ gạch dưới ở tên bấm được */
-.main[data-ph="1"] :is(button.namelink,a.namelink,.lcrumbs .linkbtn){text-decoration:none}
+/* Phân hệ 1 và 2: bỏ gạch dưới ở tên bấm được */
+.main:is([data-ph="1"],[data-ph="2"]) :is(button.namelink,a.namelink,.lcrumbs .linkbtn){text-decoration:none}
 /* Dòng bảng có tên dạng .namelink: bấm cả dòng để mở (lib/rowClick.ts) */
 tbody tr:is(:has(.namelink:not(:disabled)),:has([data-rowopen]:not(:disabled))):not(.clickrow){cursor:pointer}
 tbody tr:is(:has(.namelink:not(:disabled)),:has([data-rowopen]:not(:disabled))):not(.clickrow):hover>td{background:var(--soft)}

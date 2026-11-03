@@ -1381,6 +1381,9 @@ th.sel,td.sel{width:40px;padding-right:0}
 tr.picked td{background:#f3f7fd}
 a.namelink{color:var(--navy);font-weight:600;text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
 a.namelink:hover{color:var(--primary)}
+/* Dòng bảng có tên dạng .namelink: bấm cả dòng để mở (lib/rowClick.ts) */
+tbody tr:is(:has(.namelink:not(:disabled)),:has([data-rowopen]:not(:disabled))):not(.clickrow){cursor:pointer}
+tbody tr:is(:has(.namelink:not(:disabled)),:has([data-rowopen]:not(:disabled))):not(.clickrow):hover>td{background:var(--soft)}
 /* Công tắc Thẻ | Danh sách và lưới thẻ theo quy ước */
 .segmented.viewtoggle{margin:0}.main .segmented.viewtoggle button{min-height:30px;padding:0 12px;font-size:13px}
 .tilegrid.sq{grid-template-columns:repeat(4,minmax(0,1fr))}.tilegrid.sq .tileart{height:auto;aspect-ratio:1/1}

@@ -136,7 +136,7 @@ export function ClassCompetencies({ teacherId }: { teacherId: string | null }) {
         <tbody>
           <tr className="avgrow"><td><b>Trung bình lớp</b></td>{shownComps.map(c => <td key={c.key}><LevelChip v={avgOf(c.key)} comp={c} /></td>)}</tr>
           {students.map(s => (
-            <tr key={s.id}><td><button className="linkbtn" onClick={() => setSel(s.id)}>{s.full_name}</button> <small>{s.student_code}</small></td>
+            <tr key={s.id}><td><button className="namelink" onClick={() => setSel(s.id)}>{s.full_name}</button> <small>{s.student_code}</small></td>
               {shownComps.map(c => { const v = cell.get(s.id + '|' + c.key); return <td key={c.key}>{v ? <><LevelChip v={Number(v.avg_level)} comp={c} /> <small className="sub">×{v.evidences}</small></> : <small className="sub">—</small>}</td> })}</tr>
           ))}
           {!students.length && <tr><td colSpan={shownComps.length + 1}>Lớp chưa có học sinh.</td></tr>}
@@ -536,7 +536,7 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
               <td>{s ? (s.status === 'submitted' ? <><LevelChip v={avgLv(s.levels)} /> <small>đã nộp</small></> : <small>nháp</small>) : <small className="sub">chưa</small>}</td>
               <td>{m?.status === 'submitted' ? <LevelChip v={avgLv(m.levels)} /> : m ? <small>nháp</small> : <small className="sub">chưa</small>}</td>
               {comps.map(c => <td key={c.key}><LevelChip v={lv[c.key] ?? null} comp={c} /></td>)}
-              <td><button type="button" className={todo ? 'primary' : ''} onClick={() => { setMsg(null); setSel(t.id) }}>{todo ? 'Đánh giá' : 'Xem'}</button></td></tr>) })}
+              <td><button type="button" data-rowopen className={todo ? 'primary' : ''} onClick={() => { setMsg(null); setSel(t.id) }}>{todo ? 'Đánh giá' : 'Xem'}</button></td></tr>) })}
             {!shownT.length && <tr><td colSpan={comps.length + 5}>{teachers.length ? 'Không có giáo viên nào khớp.' : 'Chưa có giáo viên.'}</td></tr>}</tbody>
         </table></div>
         <p className="sub covhint" style={{ margin: 0 }}>Cột năng lực hiện mức trường đánh giá (nếu đã có), nếu chưa thì hiện mức GV tự đánh giá. Bấm tên giáo viên để xem và đánh giá.</p>

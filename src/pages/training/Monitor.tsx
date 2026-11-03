@@ -252,7 +252,7 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
           <thead><tr><th>Kế hoạch</th><th>Trường</th><th>GV / chỉ tiêu</th><th>Buổi học</th><th>Chuyên cần</th><th>Học trực tuyến</th><th>Kết quả</th><th>Chứng chỉ</th><th>Hài lòng</th></tr></thead>
           <tbody>{shown.map(r => <tr key={r.plan_id + r.org_id}>
             <td><b>{r.plan_name}</b><br /><small className="sub">{r.plan_code} · {r.plan_org} · {vnDate(r.starts_on)} – {vnDate(r.ends_on)}</small></td>
-            <td><button type="button" className="linkbtn" onClick={() => setSchool(r.org_id)}>{r.org_name}</button><br /><Chip tone={ORG_ST[r.org_status]?.[1]}>{ORG_ST[r.org_status]?.[0] ?? r.org_status}</Chip></td>
+            <td><button type="button" className="namelink" onClick={() => setSchool(r.org_id)}>{r.org_name}</button><br /><Chip tone={ORG_ST[r.org_status]?.[1]}>{ORG_ST[r.org_status]?.[0] ?? r.org_status}</Chip></td>
             <td style={{ whiteSpace: 'nowrap' }}>{r.quota != null ? <><Bar v={pct(r.enrolled, r.quota)} warnBelow={100} /> {r.enrolled}/{r.quota}</> : r.enrolled}</td>
             <td>{r.sessions_closed}/{r.sessions} <small className="sub">đã chốt</small></td>
             <td>{r.att_pct == null ? '—' : `${num(r.att_pct)}%`}{r.low_att > 0 && <><br /><small className="warnline">{r.low_att} GV vắng nhiều</small></>}</td>
@@ -315,7 +315,7 @@ function SchoolDetail({ s, year, fb, onClose, work, manage, onWork, onReview }: 
           <small className="sub">Buổi đã chốt {r.sessions_closed}/{r.sessions} · Học trực tuyến {r.online_done}/{r.enrolled}</small><br />
           <Chip tone={ORG_ST[r.org_status]?.[1]}>{ORG_ST[r.org_status]?.[0] ?? r.org_status}</Chip>
           {(work || (manage && r.org_status === 'submitted')) && <div className="tools" style={{ marginTop: 6 }}>
-            {work && <button type="button" className={todo ? 'primary' : ''} onClick={() => onWork(r)}>{todo ? 'Chọn giáo viên' : 'Danh sách giáo viên'}</button>}
+            {work && <button type="button" data-rowopen className={todo ? 'primary' : ''} onClick={() => onWork(r)}>{todo ? 'Chọn giáo viên' : 'Danh sách giáo viên'}</button>}
             {manage && r.org_status === 'submitted' && <><button type="button" className="primary" onClick={() => onReview(r, true)}>Duyệt DS</button>
               <button type="button" onClick={() => onReview(r, false)}>Trả lại</button></>}</div>}</td>
         <td style={{ whiteSpace: 'nowrap' }}>{r.quota != null ? <><Bar v={pct(r.enrolled, r.quota)} warnBelow={100} /> {r.enrolled}/{r.quota}</> : r.enrolled}</td>

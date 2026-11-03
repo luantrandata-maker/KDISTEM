@@ -136,7 +136,7 @@ export function KindChip({ kind }: { kind: Item['kind'] }) {
   return <span className={'libkind k-' + kind}><i aria-hidden="true">{icon}</i>{label}</span>
 }
 export function ProgChip({ p }: { p: string | null }) {
-  return p ? <span className="progchip" style={{ background: PROGRAM_COLOR[p] }}>{p}</span> : null
+  return p ? <span className="progchip" style={{ background: PROGRAM_COLOR[p], color: '#fff' }}>{p}</span> : null
 }
 export function StatusChip({ s }: { s: Item['status'] }) {
   const [icon, label, tone] = STATUS[s]

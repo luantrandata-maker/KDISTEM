@@ -658,12 +658,8 @@ function TeacherProfile({ t, year, comps, self, mgr }: { t: TRow; year: string; 
     </section>
     <section className="panel">
       <h3 style={{ marginTop: 0 }}>Chứng chỉ tập huấn</h3>
-      {!certs ? <p className="sub">Đang tải…</p> : certs.length ? <div className="wrap"><table className="libtable">
-        <thead><tr><th>Mã</th><th>Chương trình</th><th>Số giờ</th><th>Xếp loại</th><th>Ngày cấp</th><th>Hiệu lực</th></tr></thead>
-        <tbody>{certs.map(c => { const st = certSt(c); return <tr key={c.id}><td>{c.code}</td><td><small>{(c.program_titles ?? []).join('; ') || '—'}</small></td>
-          <td>{c.hours ?? '—'}</td><td>{c.grade ?? '—'}</td><td><small>{dvn(c.issued_on) || '—'}</small></td>
-          <td><span className={`plbadge ${st[1]}`}>{st[0]}</span>{c.expires_on && <small className="sub"> · đến {dvn(c.expires_on)}</small>}</td></tr> })}</tbody>
-      </table></div> : <p className="sub" style={{ margin: 0 }}>Chưa có chứng chỉ tập huấn.</p>}
+      {/* Cùng bảng với tab Tập huấn & tiến bộ: lấy tên kế hoạch, chương trình, số giờ theo kế hoạch tập huấn */}
+      <Suspense fallback={<p className="sub">Đang tải…</p>}><TeacherCertList teacherId={t.id} /></Suspense>
     </section>
     <section className="panel"><h3 style={{ marginTop: 0 }}>Chương trình giáo dục đáp ứng</h3><EduProgramsMet teacherId={t.id} comps={comps} /></section>
   </div>

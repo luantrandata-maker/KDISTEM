@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { MultiSelect } from '../components/MultiSelect'
+import { SubjectMulti } from '../components/Pickers'
 import { supabase } from '../lib/supabase'
 import { PROGRAM_COLOR } from './teacher/common'
 import { useEduLevels } from '../lib/eduLevels'
@@ -82,20 +83,8 @@ export function StemTracksCatalog() {
 
 function TrackForm({ t, isNew = false, onCancel, onSaved }: { t: StemTrack; isNew?: boolean; onCancel: () => void; onSaved: () => void }) {
   const [f, setF] = useState<StemTrack>({ ...t, subjects: [...t.subjects], levels: [...t.levels] })
-  const [add, setAdd] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
-  const addSubject = () => {
-    const parts = add.split(/[,;\n]/).map(s => s.trim()).filter(Boolean)
-    const next = [...f.subjects]
-    for (const p of parts) if (!next.some(x => x.toLowerCase() === p.toLowerCase())) next.push(p)
-    setF({ ...f, subjects: next }); setAdd('')
-  }
-  const move = (i: number, d: number) => {
-    const s = [...f.subjects]; const j = i + d
-    if (j < 0 || j >= s.length) return
-    ;[s[i], s[j]] = [s[j], s[i]]; setF({ ...f, subjects: s })
-  }
   const toggle = (l: StemLevel) => setF({ ...f, levels: f.levels.includes(l) ? f.levels.filter(x => x !== l) : [...f.levels, l] })
   async function save() {
     if (!f.name.trim() || !f.title.trim()) return setErr('Nhập tên và tên đầy đủ.')
@@ -122,19 +111,8 @@ function TrackForm({ t, isNew = false, onCancel, onSaved }: { t: StemTrack; isNe
         <label className="field"><span>Tên đầy đủ</span><input value={f.title} maxLength={160} onChange={e => setF({ ...f, title: e.target.value })} /></label>
         <label className="field wide"><span>Mô tả</span><textarea rows={2} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>
       </div>
-      <div className="sub" style={{ margin: '12px 0 4px' }}>Các môn học trong chương trình</div>
-      <div>{f.subjects.map((s, i) => (
-        <span key={s} className="chip">{s}
-          <button type="button" className="x" aria-label={`Đưa ${s} lên trước`} disabled={i === 0} onClick={() => move(i, -1)}>‹</button>
-          <button type="button" className="x" aria-label={`Đưa ${s} ra sau`} disabled={i === f.subjects.length - 1} onClick={() => move(i, 1)}>›</button>
-          <button type="button" className="x" aria-label={`Bỏ ${s}`} onClick={() => setF({ ...f, subjects: f.subjects.filter(x => x !== s) })}>×</button>
-        </span>
-      ))}</div>
-      <div className="actions" style={{ marginTop: 6 }}>
-        <input value={add} placeholder="Thêm môn, ví dụ: Toán STEM (nhiều môn cách nhau dấu phẩy)" aria-label="Thêm môn học" style={{ flex: 1, minWidth: 220 }}
-          onChange={e => setAdd(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSubject() } }} />
-        <button type="button" onClick={addSubject} disabled={!add.trim()}>Thêm môn</button>
-      </div>
+      <div className="field" style={{ marginTop: 12 }}><span className="sub">Các môn học trong chương trình</span>
+        <SubjectMulti value={f.subjects} onChange={v => setF({ ...f, subjects: v })} placeholder="Chọn môn từ danh mục Môn học…" ariaLabel="Các môn học trong chương trình" /></div>
       <div className="field" style={{ marginTop: 12, maxWidth: 560 }}><span className="sub">Cấp học áp dụng</span>
         <MultiSelect value={f.levels} onChange={v => setF({ ...f, levels: v as StemLevel[] })} options={STEM_LEVELS.map(([k, l]) => [k, l])} placeholder="Chọn cấp học…" ariaLabel="Cấp học áp dụng" /></div>
       {err && <p className="warnline">{err}</p>}

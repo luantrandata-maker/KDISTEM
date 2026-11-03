@@ -359,7 +359,7 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
         <label className="field"><span>Tên năng lực *</span><input value={edit.name} onChange={e => setEdit({ ...edit, name: e.target.value })} /></label>
         <label className="field"><span>Nhóm</span><input list={'cgrp-' + audience} value={edit.grp} onChange={e => setEdit({ ...edit, grp: e.target.value })} />
           <datalist id={'cgrp-' + audience}>{groups.map(g => <option key={g} value={g} />)}</datalist></label>
-        <label className="field"><span>Thứ tự</span><input type="number" value={edit.sort} onChange={e => setEdit({ ...edit, sort: +e.target.value })} /></label>
+        <label className="field"><span>Thứ tự hiển thị <small className="sub">(số nhỏ hiện trước)</small></span><input type="number" value={edit.sort} onChange={e => setEdit({ ...edit, sort: +e.target.value })} title="Vị trí của năng lực trong danh sách và phiếu đánh giá: số nhỏ đứng trước. Mặc định đứng cuối nhóm." /></label>
       </div>
       <label className="field"><span>Mô tả</span><textarea rows={2} value={edit.description ?? ''} onChange={e => setEdit({ ...edit, description: e.target.value })} /></label>
       <div className="formgrid">{edit.levels.map((l, i) => <label key={i} className="field"><span>{lvLabel(i)}</span>

@@ -134,6 +134,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   const [old, setOld] = useState(false)
   const [form, setForm] = useState<Partial<Program> | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
+  const [saving, setSaving] = useState(false)
 
   const [counts, setCounts] = useState<{ subjects: number; lessons: number } | null>(null)
   // Quản trị hệ thống: chương trình của mọi đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
@@ -178,15 +179,18 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
       scope: mode === 'school' || pickedSchool ? 'own' : form.scope ?? 'children',
       ...(progFields.length ? { custom: form.custom ?? {} } : {}),
     }
+    setSaving(true)
     const { data, error } = await supabase.from('edu_programs').insert(row).select('id').single()
+    setSaving(false)
     if (error) return setMsg([errText(error.message), true])
-    setForm(null); setMsg(null); await load(); setOpenId((data as { id: string }).id)
+    // Mở ngay chương trình vừa tạo để sửa tiếp; danh sách tải lại ở nền (đóng chi tiết cũng tải lại)
+    setForm(null); setMsg(null); setOpenId((data as { id: string }).id); load()
   }
   async function copy(p: Program) {
     if (!confirm(`Sao chép "${p.title}" (phiên bản ${p.version_no}) về đơn vị thành bản nháp để điều chỉnh?`)) return
     const { data, error } = await supabase.rpc('edu_program_copy', { p_program: p.id, p_org: orgId })
     if (error) return setMsg([errText(error.message), true])
-    await load(); setOpenId(data as string)
+    setOpenId(data as string); load()
   }
 
   const sel = useRowSel(shared)
@@ -265,7 +269,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
           {mode !== 'school' && !pickedSchool && <label className="field"><span>Phạm vi</span><select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Program['scope'] })}>
             <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
           <CustomInputs fields={progFields} value={form.custom ?? {}} onChange={v => setForm({ ...form, custom: v })} />
-          <div className="formactions" style={{ gridColumn: '1/-1' }}><button className="primary" type="submit">Tạo bản nháp</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
+          <div className="formactions" style={{ gridColumn: '1/-1' }}><button className="primary" type="submit" disabled={saving}>{saving ? 'Đang tạo…' : 'Tạo bản nháp'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
     </ElView>
   )

@@ -4,6 +4,7 @@ import { useState, type ReactNode } from 'react'
 //  • Bảng chỉ có một tác vụ (Xem / Mở / Soạn…): không ô tick, không nút — bấm vào tên là làm (NameLink).
 //  • Bảng nhiều tác vụ: ô tick ở cột đầu (SelTh / SelTd), các nút thao tác nằm trên bảng, bên phải (SelBar).
 //  • Tác vụ phá huỷ (Xoá, Gỡ, Bỏ gán…) luôn đi qua ô tick + nút trên bảng, không bấm thẳng trên dòng.
+//  • Danh mục (Môn học, Cấp học & khối, Mức độ phân phối): không ô tick; bấm tên mở chi tiết, Sửa / Ngừng dùng / Xoá nằm trong chi tiết.
 
 /** Chọn một dòng trong bảng (tick lại để bỏ chọn). */
 export function useRowSel<T>(rows: T[], key: (r: T) => string = r => (r as { id: string }).id) {

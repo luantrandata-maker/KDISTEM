@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
-import { SelBar, SelTd, SelTh, useRowSel } from '../../components/TableSel'
+import { NameLink } from '../../components/TableSel'
 import { ElView } from '../../components/ElView'
 
 // Danh mục mức độ của bản phân phối (078): Cơ bản, Tiêu chuẩn, Nâng cao… KDI thêm / đổi tên / ngừng dùng; đơn vị khác chỉ xem.
@@ -24,7 +24,6 @@ const errText = (m: string) => (/schema cache|does not exist/i.test(m) ? 'Hãy c
 
 export function DistTiersCatalog() {
   const { all, reload } = useTiers()
-  const sel = useRowSel(all, t => t.code)
   const [admin, setAdmin] = useState(false)
   const [used, setUsed] = useState<Record<string, number>>({})
   const [form, setForm] = useState<(Tier & { isNew?: boolean }) | null>(null)
@@ -52,14 +51,14 @@ export function DistTiersCatalog() {
   async function setActive(t: Tier, active: boolean) {
     const { error } = await supabase.from('dist_tiers').update({ active }).eq('code', t.code)
     if (error) return setMsg([errText(error.message), true])
-    reload()
+    setForm(null); setMsg([active ? `Đã dùng lại mức độ "${t.name}".` : `Đã ngừng dùng mức độ "${t.name}".`, false]); reload()
   }
   async function remove(t: Tier) {
     if (!confirm(`Xoá mức độ "${t.name}"? Mức độ đang có bản phân phối dùng thì không xoá được, hãy ngừng dùng.`)) return
     const { data, error } = await supabase.from('dist_tiers').delete().eq('code', t.code).select('code')
     if (error) return setMsg([errText(error.message + ' ' + (error.code ?? '')), true])
     if (!data?.length) return setMsg([errText('row-level'), true])
-    setMsg(null); reload()
+    setForm(null); setMsg([`Đã xoá mức độ "${t.name}".`, false]); reload()
   }
 
   if (form) return (
@@ -69,7 +68,9 @@ export function DistTiersCatalog() {
           <label className="field"><span>Tên mức độ *</span><input required maxLength={60} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="VD: Nâng cao" /></label>
           <label className="field"><span>Mã {form.isNew ? '*' : '(không đổi được)'}</span><input required disabled={!form.isNew} maxLength={20} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: nang_cao" /></label>
           <label className="field"><span>Thứ tự</span><input type="number" min={0} value={form.sort} onChange={e => setForm({ ...form, sort: Number(e.target.value) })} /></label>
-          <div className="formactions"><button className="primary" type="submit">{form.isNew ? 'Thêm' : 'Lưu'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
+          <div className="formactions tools"><button className="primary" type="submit">{form.isNew ? 'Thêm' : 'Lưu'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button>
+            {!form.isNew && <><button type="button" onClick={() => setActive(form, !form.active)}>{form.active ? 'Ngừng dùng' : 'Dùng lại'}</button>
+              <button type="button" className="danger" onClick={() => remove(form)}>Xoá</button></>}</div>
         </form>
     </ElView>
   )
@@ -81,21 +82,14 @@ export function DistTiersCatalog() {
         {admin && <button className="primary" onClick={() => { setMsg(null); setForm({ code: '', name: '', sort: all.reduce((m, x) => Math.max(m, x.sort), 0) + 1, active: true, isNew: true }) }}>Thêm mức độ</button>}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      {admin && (() => { const t = sel.cur; return (
-        <SelBar picked={t?.name ?? null}>
-          <button disabled={!t} onClick={() => { if (t) { setMsg(null); setForm({ ...t }) } }}>Sửa</button>
-          <button disabled={!t} onClick={() => t && setActive(t, !t.active)}>{t && !t.active ? 'Dùng lại' : 'Ngừng dùng'}</button>
-          <button className="danger" disabled={!t} onClick={() => { if (t) { remove(t); sel.clear() } }}>Xoá</button>
-        </SelBar>) })()}
       <div className="wrap"><table>
-        <thead><tr>{admin && <SelTh />}<th>Mức độ</th><th>Mã</th><th>Thứ tự</th><th>Bản phân phối</th></tr></thead>
+        <thead><tr><th>Mức độ</th><th>Mã</th><th>Thứ tự</th><th>Bản phân phối</th></tr></thead>
         <tbody>{all.map(t => (
-          <tr key={t.code} className={sel.is(t) ? 'picked' : undefined} style={!t.active ? { opacity: 0.6 } : undefined}>
-            {admin && <SelTd on={sel.is(t)} onToggle={() => sel.toggle(t)} label={t.name} />}
-            <td><b>{t.name}</b>{!t.active && <> <span className="pill">Ngừng dùng</span></>}</td>
+          <tr key={t.code} style={!t.active ? { opacity: 0.6 } : undefined}>
+            <td>{admin ? <NameLink onClick={() => { setMsg(null); setForm({ ...t }) }}><b>{t.name}</b></NameLink> : <b>{t.name}</b>}{!t.active && <> <span className="pill">Ngừng dùng</span></>}</td>
             <td><small className="sub">{t.code}</small></td><td>{t.sort}</td><td>{used[t.code] ?? 0}</td>
           </tr>))}
-          {all.length === 0 && <tr><td colSpan={admin ? 5 : 4}>Chưa có mức độ nào.</td></tr>}</tbody>
+          {all.length === 0 && <tr><td colSpan={4}>Chưa có mức độ nào.</td></tr>}</tbody>
       </table></div>
     </>
   )

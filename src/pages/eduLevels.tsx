@@ -1,4 +1,4 @@
-import { SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
+import { NameLink } from '../components/TableSel'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useEduLevels, type EduLevel } from '../lib/eduLevels'
@@ -17,7 +17,6 @@ const GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
 
 export function EduLevelsCatalog() {
   const { all, reload } = useEduLevels()
-  const lsel = useRowSel(all, l => l.code)
   const [admin, setAdmin] = useState(false)
   const [used, setUsed] = useState<Record<string, number>>({})
   const [form, setForm] = useState<(EduLevel & { isNew?: boolean }) | null>(null)
@@ -50,14 +49,14 @@ export function EduLevelsCatalog() {
   async function setActive(l: EduLevel, active: boolean) {
     const { error } = await supabase.from('edu_levels').update({ active }).eq('code', l.code)
     if (error) return setMsg([errText(error.message), true])
-    reload()
+    setForm(null); setMsg([active ? `Đã dùng lại cấp học "${l.name}".` : `Đã ngừng dùng cấp học "${l.name}".`, false]); reload()
   }
   async function remove(l: EduLevel) {
     if (!confirm(`Xoá cấp học "${l.name}"? Cấp đang có chương trình dùng thì không xoá được, hãy ngừng dùng.`)) return
     const { data, error } = await supabase.from('edu_levels').delete().eq('code', l.code).select('code')
     if (error) return setMsg([errText(error.message + ' ' + (error.code ?? '')), true])
     if (!data?.length) return setMsg([errText('row-level'), true])
-    setMsg(null); reload()
+    setForm(null); setMsg([`Đã xoá cấp học "${l.name}".`, false]); reload()
   }
   // Chọn khối bằng danh sách tick; cấp học lưu khối nhỏ nhất – lớn nhất nên các khối phải liền nhau
   const gradeVal = gradePick ?? (form ? GRADES.filter(g => g >= form.grade_from && g <= form.grade_to) : [])
@@ -72,7 +71,9 @@ export function EduLevelsCatalog() {
           <div className="field" style={{ gridColumn: 'span 2' }}><span>Khối *</span>
             <NumMultiSelect value={gradeVal} onChange={pickGrades} options={GRADES.map(g => ({ value: g, label: `Khối ${g}` }))} placeholder="Chọn khối…" ariaLabel="Khối" /></div>
           <label className="field"><span>Thứ tự</span><input type="number" min={0} value={form.sort ?? 0} onChange={e => setForm({ ...form, sort: Number(e.target.value) })} /></label>
-          <div className="formactions"><button className="primary" type="submit">{form.isNew ? 'Thêm' : 'Lưu'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
+          <div className="formactions tools"><button className="primary" type="submit">{form.isNew ? 'Thêm' : 'Lưu'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button>
+            {!form.isNew && <><button type="button" onClick={() => setActive(form, form.active === false)}>{form.active === false ? 'Dùng lại' : 'Ngừng dùng'}</button>
+              <button type="button" className="danger" onClick={() => remove(form)}>Xoá</button></>}</div>
         </form>
     </ElView>
   )
@@ -84,18 +85,11 @@ export function EduLevelsCatalog() {
         {admin && <button className="primary" onClick={() => { setMsg(null); setForm({ code: '', name: '', grade_from: 1, grade_to: 5, sort: all.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1, active: true, isNew: true }) }}>Thêm cấp học</button>}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      {admin && (() => { const l = lsel.cur; return (
-        <SelBar picked={l?.name ?? null}>
-          <button disabled={!l} onClick={() => { if (l) { setMsg(null); setForm({ ...l }) } }}>Sửa</button>
-          <button disabled={!l} onClick={() => l && setActive(l, l.active === false)}>{l?.active === false ? 'Dùng lại' : 'Ngừng dùng'}</button>
-          <button className="danger" disabled={!l} onClick={() => { if (l) { remove(l); lsel.clear() } }}>Xoá</button>
-        </SelBar>) })()}
       <div className="wrap"><table>
-        <thead><tr>{admin && <SelTh />}<th>Cấp học</th><th>Mã</th><th>Khối</th><th>Chương trình</th></tr></thead>
+        <thead><tr><th>Cấp học</th><th>Mã</th><th>Khối</th><th>Chương trình</th></tr></thead>
         <tbody>{all.map(l => (
-          <tr key={l.code} className={lsel.is(l) ? 'picked' : undefined} style={l.active === false ? { opacity: 0.6 } : undefined}>
-            {admin && <SelTd on={lsel.is(l)} onToggle={() => lsel.toggle(l)} label={l.name} />}
-            <td><b>{l.name}</b>{l.active === false && <> <span className="pill">Ngừng dùng</span></>}</td>
+          <tr key={l.code} style={l.active === false ? { opacity: 0.6 } : undefined}>
+            <td>{admin ? <NameLink onClick={() => { setMsg(null); setForm({ ...l }) }}><b>{l.name}</b></NameLink> : <b>{l.name}</b>}{l.active === false && <> <span className="pill">Ngừng dùng</span></>}</td>
             <td><small className="sub">{l.code}</small></td>
             <td>Khối {l.grade_from}{l.grade_to !== l.grade_from ? `–${l.grade_to}` : ''}</td>
             <td>{used[l.code] ?? 0}</td>

@@ -1,4 +1,3 @@
-import { SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
 import { MultiSelect } from '../components/MultiSelect'
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
@@ -74,7 +73,6 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
   // Quản trị hệ thống: môn học của mọi đơn vị trong một danh sách, sửa thẳng
   const every = useAllMode()
   const own = every ? shown : shown.filter(s => s.org_id === orgId)
-  const sel = useRowSel(own)
   const shared = every ? [] : shown.filter(s => s.org_id !== orgId)
 
   async function save(e: React.FormEvent) {
@@ -95,14 +93,15 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
   async function setActive(s: Subject, active: boolean) {
     const { error } = await supabase.from('subjects').update({ active }).eq('id', s.id)
     if (error) return setMsg([errText(error.message), true])
-    reload()
+    setMsg([active ? 'Đã dùng lại môn học.' : 'Đã ngừng dùng môn học.', false])
+    setView(v => v && v.id === s.id ? { ...v, active } : v); reload()
   }
   async function remove(s: Subject) {
     if (!confirm(`Xoá môn "${s.name}"? Môn đang được học phần dùng thì không xoá được, hãy ngừng dùng.`)) return
     const { data, error } = await supabase.from('subjects').delete().eq('id', s.id).select('id')
     if (error) return setMsg([errText(error.message + ' ' + (error.code ?? '')), true])
     if (!data?.length) return setMsg([errText('row-level'), true])
-    setMsg(null); reload()
+    setMsg([`Đã xoá môn "${s.name}".`, false]); setView(null); reload()
   }
   const toggle = (k: 'levels' | 'ct_codes', v: string) => {
     if (!form) return
@@ -111,9 +110,8 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
   }
 
   const row = (s: Subject, mine: boolean) => (
-    <tr key={s.id} className={mine && sel.is(s) ? 'picked' : undefined} style={s.active ? undefined : { opacity: 0.6 }}>
-      {mine && canEdit && <SelTd on={sel.is(s)} onToggle={() => sel.toggle(s)} label={s.name} />}
-      <td>{s.code && <small className="sub">{s.code}<br /></small>}<button type="button" className="namelink" onClick={() => { setVtab('info'); setView(s) }}><b>{s.name}</b></button>{!s.active && <> <span className="pill">Ngừng dùng</span></>}
+    <tr key={s.id} style={s.active ? undefined : { opacity: 0.6 }}>
+      <td>{s.code && <small className="sub">{s.code}<br /></small>}<button type="button" className="namelink" onClick={() => { setVtab('info'); setMsg(null); setView(s) }}><b>{s.name}</b></button>{!s.active && <> <span className="pill">Ngừng dùng</span></>}
         {s.description && <><br /><small className="sub">{s.description}</small></>}</td>
       <td>{s.domain ?? '—'}</td>
       <td>{s.levels.length ? s.levels.map(levelName).join(', ') : <small className="sub">Mọi cấp</small>}</td>
@@ -123,21 +121,16 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
     </tr>
   )
   const table = (rows: Subject[], mine: boolean) => (<>
-    {mine && canEdit && (() => { const s = sel.cur; return (
-      <SelBar picked={s?.name ?? null}>
-        <button disabled={!s} onClick={() => { if (s) { setMsg(null); setForm(s) } }}>Sửa</button>
-        <button disabled={!s} onClick={() => s && setActive(s, !s.active)}>{s && !s.active ? 'Dùng lại' : 'Ngừng dùng'}</button>
-        <button className="danger" disabled={!s} onClick={() => { if (s) { remove(s); sel.clear() } }}>Xoá</button>
-      </SelBar>) })()}
     <div className="wrap"><table>
-      <thead><tr>{mine && canEdit && <SelTh />}<th>Môn học</th><th>Lĩnh vực</th><th>Cấp học</th><th>Loại chương trình</th><th>{mine ? 'Phạm vi' : 'Đơn vị'}</th></tr></thead>
+      <thead><tr><th>Môn học</th><th>Lĩnh vực</th><th>Cấp học</th><th>Loại chương trình</th><th>{mine ? 'Phạm vi' : 'Đơn vị'}</th></tr></thead>
       <tbody>{rows.map(s => row(s, mine))}</tbody>
     </table></div>
   </>)
   const domains = [...new Set(subjects.map(s => s.domain).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi'))
 
   if (view && !form) return (
-    <ElView back="Môn học" onBack={() => setView(null)} title={view.name} sub={[view.code, view.domain, view.owner_name].filter(Boolean).join(' · ')}>
+    <ElView back="Môn học" onBack={() => { setMsg(null); setView(null) }} title={view.name} sub={[view.code, view.domain, view.owner_name].filter(Boolean).join(' · ')}>
+      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       <div className="segmented" style={{ marginBottom: 12 }}>
         {([['info', 'Thông tin'], ['exam', 'Đề kiểm tra']] as const).map(([k, l]) => <button key={k} type="button" className={vtab === k ? 'on' : ''} onClick={() => setVtab(k)}>{l}</button>)}
       </div>
@@ -146,7 +139,10 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
         <dt>Cấp học</dt><dd>{view.levels.length ? view.levels.map(levelName).join(', ') : 'Mọi cấp'}</dd>
         <dt>Loại chương trình</dt><dd>{view.ct_codes.join(', ') || '—'}</dd>
         <dt>Mô tả</dt><dd>{view.description || '—'}</dd>
-      </dl>{canEdit && (every || view.org_id === orgId) && <div className="formactions"><button type="button" onClick={() => { setMsg(null); setForm(view) }}>Sửa môn học</button></div>}</section>
+      </dl>{canEdit && (every || view.org_id === orgId) && <div className="formactions tools">
+        <button type="button" onClick={() => { setMsg(null); setForm(view) }}>Sửa môn học</button>
+        <button type="button" onClick={() => setActive(view, !view.active)}>{view.active ? 'Ngừng dùng' : 'Dùng lại'}</button>
+        <button type="button" className="danger" onClick={() => remove(view)}>Xoá</button></div>}</section>
       : <Suspense fallback={<p className="sub">Đang tải…</p>}>
         <p className="sub">Đề kiểm tra của môn {view.name}: rút câu từ Ngân hàng câu hỏi theo ma trận chủ đề × mức độ, đặt số câu, thời gian, số lượt, trộn câu. Đề hiện cùng ở mục E-learning & luyện thi.</p>
         <SubjectExams orgId={orgId} subject={view.name} /></Suspense>}

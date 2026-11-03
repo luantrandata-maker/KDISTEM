@@ -1,5 +1,5 @@
 // Học liệu (Phân hệ 2) theo video demo (23/10): quy trình 3 bước (chỉ bước 1 cần nhập) · 4 thẻ số liệu ·
-// tab Học liệu theo chương trình | Cần chuẩn bị theo chương trình | Danh mục học liệu | Kho học liệu dùng chung.
+// tab Học liệu theo chương trình | Cần chuẩn bị (theo chương trình hoặc theo trường) | Danh mục học liệu | Kho học liệu dùng chung.
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { LibraryByProgram, LibraryNeeds, usePrograms } from './ByProgram'
@@ -42,7 +42,7 @@ export function LibraryPage({ orgId, teacherId, go }: { orgId: string | null; te
   const progs = usePrograms(orgId)
   const steps: [Tab, string, string, string][] = [
     ['prog', 'Bước 01', 'Tải giáo án theo bài', 'Đi theo Chương trình → Môn → Bài học, tải giáo án Word hoặc bài giảng PowerPoint để tách thành bộ học liệu 5 thẻ.'],
-    ['needs', 'Bước 02 · Tự tổng hợp', 'Cần chuẩn bị', 'Tự tổng hợp học liệu, thiết bị, vật tư cần có theo chương trình từ định mức của từng bài.'],
+    ['needs', 'Bước 02 · Tự tổng hợp', 'Cần chuẩn bị', 'Tự tổng hợp học liệu, thiết bị, vật tư cần có theo chương trình hoặc theo trường từ định mức của từng bài.'],
     ['catalog', 'Bước 03 · Tự tổng hợp', 'Danh mục học liệu', 'Danh mục tổng: tự tổng hợp mọi học liệu từ giáo án để tra cứu, lọc, đổi trạng thái và cập nhật ảnh đại diện.']]
   const n = (v: number | undefined) => (v == null ? '…' : v)
   const total = s ? s.docs + s.tools + s.supplies : undefined
@@ -60,7 +60,7 @@ export function LibraryPage({ orgId, teacherId, go }: { orgId: string | null; te
         <div className="panel"><i aria-hidden="true" className="warn">⬡</i><span><b>{n(s?.needs)}</b><small>Thiết bị, vật tư cần chuẩn bị</small></span></div>
       </div>
       <div className="distpills" role="tablist">
-        {([['prog', 'Học liệu theo chương trình'], ['needs', 'Cần chuẩn bị theo chương trình'], ['catalog', 'Danh mục học liệu'], ['shared', 'Kho học liệu dùng chung']] as [Tab, string][]).map(([t, l]) =>
+        {([['prog', 'Học liệu theo chương trình'], ['needs', 'Cần chuẩn bị'], ['catalog', 'Danh mục học liệu'], ['shared', 'Kho học liệu dùng chung']] as [Tab, string][]).map(([t, l]) =>
           <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{l}</button>)}
       </div>
       {tab === 'prog' && <LibraryByProgram orgId={orgId} onChanged={() => setRk(k => k + 1)} />}

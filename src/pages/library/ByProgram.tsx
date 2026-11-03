@@ -1,6 +1,6 @@
 // Học liệu theo chương trình (Phân hệ 2, theo video demo 23/10): chương trình → môn học → bài học → trang bài học 5 thẻ.
 // Bài học là bộ học liệu (library_items kind 'unit', 077/080): bài trong cây chương trình hoặc bài tạo thêm bằng "Tạo giáo án".
-// Cần chuẩn bị theo chương trình: tự tổng hợp vật tư / công cụ / thiết bị từ định mức của các bài × số nhóm.
+// Cần chuẩn bị theo chương trình hoặc theo trường: tự tổng hợp vật tư / công cụ / thiết bị từ định mức của các bài × số nhóm.
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
@@ -11,6 +11,7 @@ import { KIT_SEL, errMsg, type KitRow } from './lesson/save'
 import { CreateLesson, kitSubject } from './lesson/Create'
 import { LessonPage, useColsLocal } from './lesson/LessonPage'
 import { fmtGrades, progGrades } from '../../lib/eduLevels'
+import { downloadXlsx } from '../../lib/sheet'
 
 type Prog = { id: string; title: string; version_no: number; status: string; org_id: string; ct_code: string | null; code: string | null
   grade_from: number | null; grade_to: number | null; grades?: number[] | null; main_subject: string | null }
@@ -248,90 +249,225 @@ function LessonList({ prog, subj, rows, msg, onBack, onOpen, onCreate, onDeleted
   </>
 }
 
-// ===== Cần chuẩn bị theo chương trình =====
+// ===== Cần chuẩn bị theo chương trình / theo trường =====
 type NItem = { name: string; unit: string; kind: 'supply' | 'tool' | 'equipment'; qty: number; reusable: boolean }
 type Norm = { id: string; family_id: string; status: string; version_no: number; basis: 'product' | 'group' | 'student'; group_size: number; sessions: number
   unit_id: string | null; library_item_id: string | null; program_id: string | null; material_norm_items: NItem[] }
 const MKIND: Record<NItem['kind'], string> = { supply: 'Vật tư tiêu hao', tool: 'Công cụ', equipment: 'Thiết bị' }
 type Need = { key: string; name: string; unit: string; kind: NItem['kind']; reusable: boolean; total: number; uses: { lesson: string; qty: number }[] }
+type NormData = { units: U[]; norms: (Norm & { uid?: string })[] }
+const fmtN = (v: number) => Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/\.?0+$/, '')
+
+/** Định mức vật tư của các bài thuộc các chương trình: mỗi định mức lấy một bản (đã ban hành, chưa có thì bản nháp), kèm bài gắn với định mức */
+async function loadNorms(pids: string[]): Promise<NormData> {
+  if (!pids.length) return { units: [], norms: [] }
+  const [u, k] = await Promise.all([
+    supabase.from('edu_program_units').select('id, program_id, parent_id, unit_type, seq, title, periods, objectives, grade').in('program_id', pids),
+    supabase.from('library_items').select('id, unit_id').eq('kind', 'unit').in('program_id', pids),
+  ])
+  const ks = ((k.data as { id: string; unit_id: string | null }[]) ?? [])
+  const kitUnit = new Map(ks.filter(x => x.unit_id).map(x => [x.id, x.unit_id!]))
+  const sel = 'id, family_id, status, version_no, basis, group_size, sessions, unit_id, library_item_id, program_id, material_norm_items(name, unit, kind, qty, reusable)'
+  const [a, b] = await Promise.all([
+    supabase.from('material_norms').select(sel).in('program_id', pids).in('status', ['published', 'draft']),
+    ks.length ? supabase.from('material_norms').select(sel).in('library_item_id', ks.map(x => x.id)).in('status', ['published', 'draft']) : Promise.resolve({ data: [] }),
+  ])
+  const all = [...((a.data as unknown as Norm[]) ?? []), ...((b.data as unknown as Norm[]) ?? [])]
+  const best = new Map<string, Norm>()
+  all.forEach(n => { const cur = best.get(n.family_id); if (!cur || (n.status === 'published' && cur.status !== 'published')) best.set(n.family_id, n) })
+  return { units: (u.data as U[]) ?? [], norms: [...best.values()].map(n => ({ ...n, uid: n.unit_id ?? (n.library_item_id ? kitUnit.get(n.library_item_id) : undefined) })) }
+}
+
+/** Cộng một dòng định mức vào bảng cần chuẩn bị. Đồ dùng lại: lấy mức cần nhiều nhất giữa các bài; vật tư tiêu hao: cộng dồn */
+function addNeed(m: Map<string, Need>, i: NItem, lesson: string, qty: number) {
+  const key = `${i.name.trim().toLowerCase()}|${i.unit}|${i.kind}`
+  const x = m.get(key) ?? { key, name: i.name.trim(), unit: i.unit, kind: i.kind, reusable: i.reusable, total: 0, uses: [] }
+  x.uses.push({ lesson, qty })
+  x.total = i.reusable ? Math.max(x.total, qty) : x.total + qty
+  m.set(key, x)
+}
+const sortNeeds = (m: Map<string, Need>) => [...m.values()].sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, 'vi'))
+
+function NeedsTable({ needs }: { needs: Need[] }) {
+  const [open, setOpen] = useState<string | null>(null)
+  return <div className="wrap"><table className="libtable">
+    <thead><tr><th>Tên</th><th>Loại</th><th>Đơn vị</th><th>Dùng ở</th><th style={{ textAlign: 'right' }}>Cần chuẩn bị</th></tr></thead>
+    <tbody>{needs.map(x => <Fragment key={x.key}>
+      <tr className={'rowlink' + (open === x.key ? ' on' : '')} tabIndex={0} onClick={() => setOpen(open === x.key ? null : x.key)} onKeyDown={e => { if (e.key === 'Enter') setOpen(open === x.key ? null : x.key) }}>
+        <td><b>{x.name}</b>{x.reusable && <small className="sub"> · dùng lại</small>}</td><td>{MKIND[x.kind]}</td><td>{x.unit}</td>
+        <td>{new Set(x.uses.map(u => u.lesson)).size} bài</td><td style={{ textAlign: 'right' }}><b>{fmtN(x.total)}</b></td>
+      </tr>
+      {open === x.key && x.uses.map((u, k) => <tr key={k} className="subrow"><td colSpan={4} style={{ paddingLeft: 28 }}><small>{u.lesson}</small></td><td style={{ textAlign: 'right' }}><small>{fmtN(u.qty)}</small></td></tr>)}
+    </Fragment>)}</tbody>
+  </table></div>
+}
+
+function exportNeeds(file: string, needs: Need[]) {
+  downloadXlsx(file, [{ key: 'n', label: 'Tên', width: 34 }, { key: 'k', label: 'Loại', width: 16 }, { key: 'u', label: 'Đơn vị', width: 10 },
+    { key: 'b', label: 'Số bài dùng', width: 12 }, { key: 'q', label: 'Cần chuẩn bị', width: 14 }],
+    needs.map(x => [x.name + (x.reusable ? ' (dùng lại)' : ''), MKIND[x.kind], x.unit, new Set(x.uses.map(u => u.lesson)).size, Number(fmtN(x.total))]), 'Cần chuẩn bị')
+}
 
 export function LibraryNeeds({ orgId }: { orgId: string | null }) {
+  const [mode, setMode] = useState<'prog' | 'school'>('prog')
+  return <>
+    <div className="distfilter">{([['prog', 'Theo chương trình'], ['school', 'Theo trường']] as const).map(([k, l]) =>
+      <button key={k} type="button" className={`distfchip${mode === k ? ' on' : ''}`} onClick={() => setMode(k)}>{l}</button>)}</div>
+    {mode === 'prog' ? <NeedsByProgram orgId={orgId} /> : <NeedsBySchool orgId={orgId} />}
+  </>
+}
+
+function NeedsByProgram({ orgId }: { orgId: string | null }) {
   const progs = usePrograms(orgId)
   const [pid, setPid] = useState('')
   const [groups, setGroups] = useState(6)
-  const [units, setUnits] = useState<U[]>([])
-  const [norms, setNorms] = useState<Norm[]>([])
-  const [kitUnit, setKitUnit] = useState<Map<string, string>>(new Map())
-  const [open, setOpen] = useState<string | null>(null)
+  const [d, setD] = useState<NormData>({ units: [], norms: [] })
   const [loading, setLoading] = useState(false)
 
   useEffect(() => { if (!pid && progs.length) setPid((progs.find(p => p.status === 'published') ?? progs[0]).id) }, [progs, pid])
   useEffect(() => {
     if (!pid) return
     setLoading(true)
-    ;(async () => {
-      const [u, k] = await Promise.all([
-        supabase.from('edu_program_units').select('id, program_id, parent_id, unit_type, seq, title, periods, objectives, grade').eq('program_id', pid),
-        supabase.from('library_items').select('id, unit_id').eq('kind', 'unit').eq('program_id', pid),
-      ])
-      const ks = ((k.data as { id: string; unit_id: string | null }[]) ?? [])
-      const sel = 'id, family_id, status, version_no, basis, group_size, sessions, unit_id, library_item_id, program_id, material_norm_items(name, unit, kind, qty, reusable)'
-      const [a, b] = await Promise.all([
-        supabase.from('material_norms').select(sel).eq('program_id', pid).in('status', ['published', 'draft']),
-        ks.length ? supabase.from('material_norms').select(sel).in('library_item_id', ks.map(x => x.id)).in('status', ['published', 'draft']) : Promise.resolve({ data: [] }),
-      ])
-      // Mỗi định mức lấy một bản: bản đã ban hành, chưa có thì bản nháp
-      const all = [...((a.data as unknown as Norm[]) ?? []), ...((b.data as unknown as Norm[]) ?? [])]
-      const best = new Map<string, Norm>()
-      all.forEach(n => { const cur = best.get(n.family_id); if (!cur || (n.status === 'published' && cur.status !== 'published')) best.set(n.family_id, n) })
-      setUnits((u.data as U[]) ?? []); setNorms([...best.values()])
-      setKitUnit(new Map(ks.filter(x => x.unit_id).map(x => [x.id, x.unit_id!])))
-      setLoading(false)
-    })()
+    loadNorms([pid]).then(x => { setD(x); setLoading(false) })
   }, [pid])
 
   const needs = useMemo(() => {
     const m = new Map<string, Need>()
-    norms.forEach(n => {
-      const uid = n.unit_id ?? (n.library_item_id ? kitUnit.get(n.library_item_id) : undefined)
-      const lesson = units.find(u => u.id === uid)?.title ?? 'Cả chương trình'
+    d.norms.forEach(n => {
+      const lesson = d.units.find(u => u.id === n.uid)?.title ?? 'Cả chương trình'
       const per = n.basis === 'student' ? groups * n.group_size : groups
-      n.material_norm_items.forEach(i => {
-        const qty = i.qty * per * (i.reusable ? 1 : n.sessions)
-        const key = `${i.name.trim().toLowerCase()}|${i.unit}|${i.kind}`
-        const x = m.get(key) ?? { key, name: i.name.trim(), unit: i.unit, kind: i.kind, reusable: i.reusable, total: 0, uses: [] }
-        x.uses.push({ lesson, qty })
-        // Đồ dùng lại được (công cụ, thiết bị) dùng chung giữa các bài: lấy mức cần nhiều nhất; vật tư tiêu hao cộng dồn
-        x.total = i.reusable ? Math.max(x.total, qty) : x.total + qty
-        m.set(key, x)
-      })
+      n.material_norm_items.forEach(i => addNeed(m, i, lesson, i.qty * per * (i.reusable ? 1 : n.sessions)))
     })
-    return [...m.values()].sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name, 'vi'))
-  }, [norms, units, kitUnit, groups])
-  const fmt = (v: number) => Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/\.?0+$/, '')
+    return sortNeeds(m)
+  }, [d, groups])
+  const p = progs.find(x => x.id === pid)
 
   return (
     <>
       <div className="bar">
         <div className="tools">
-          <select value={pid} onChange={e => { setPid(e.target.value); setOpen(null) }} aria-label="Chương trình">
+          <select value={pid} onChange={e => setPid(e.target.value)} aria-label="Chương trình">
             {progs.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version_no}){p.status !== 'published' ? ' · nháp' : ''}</option>)}</select>
           <label className="tools">Số nhóm <input type="number" min={1} max={200} value={groups} onChange={e => setGroups(Math.max(1, Math.min(200, Number(e.target.value) || 1)))} style={{ width: 80 }} aria-label="Số nhóm" /></label>
         </div>
+        {needs.length > 0 && <div className="tools"><button type="button" onClick={() => exportNeeds(`Can-chuan-bi-${p?.code ?? 'chuong-trinh'}.xlsx`, needs)}>Xuất Excel</button></div>}
       </div>
       <p className="sub">Tự tổng hợp từ định mức vật tư của các bài (thẻ 04): định mức × số nhóm (định mức theo học sinh thì × số học sinh mỗi nhóm), vật tư tiêu hao nhân thêm số buổi. Công cụ, thiết bị dùng lại được lấy mức cần nhiều nhất giữa các bài.</p>
-      {loading ? <p className="sub">Đang tải…</p> : needs.length === 0 ? <p className="sub">{pid ? 'Các bài của chương trình chưa có định mức vật tư. Nhập ở thẻ 04 của bộ học liệu.' : 'Chọn chương trình.'}</p> : (
+      {loading ? <p className="sub">Đang tải…</p> : needs.length === 0 ? <p className="sub">{pid ? 'Các bài của chương trình chưa có định mức vật tư. Nhập ở thẻ 04 của bộ học liệu.' : 'Chọn chương trình.'}</p>
+        : <NeedsTable key={pid} needs={needs} />}
+    </>
+  )
+}
+
+// Theo trường: chương trình gán cho trường (edu_program_assignments, khối áp dụng) × lớp của năm học hiện tại × sĩ số, số nhóm thật.
+// Lớp chưa chia nhóm: số nhóm = sĩ số ÷ số học sinh mỗi nhóm (mặc định 4).
+// Đồ dùng lại (công cụ, thiết bị): đủ cho số lớp học cùng lúc (mặc định = số phòng STEM đang dùng), lấy các lớp đông nhất; vật tư tiêu hao cộng cho mọi lớp, mọi buổi.
+type SProg = Prog & { aGrades: number[] }
+type SClass = { id: string; name: string; grade: number; students: number; groups: number }
+function NeedsBySchool({ orgId }: { orgId: string | null }) {
+  const [schools, setSchools] = useState<{ id: string; name: string }[] | null>(null)
+  const [sid, setSid] = useState('')
+  const [perGroup, setPerGroup] = useState(4)
+  const [conc, setConc] = useState<number | null>(null)
+  const [data, setData] = useState<{ progs: SProg[]; classes: SClass[]; rooms: number; year: string | null; norms: NormData } | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    supabase.from('organizations').select('id, name').eq('type', 'school').order('name').then(({ data }) => {
+      const xs = (data as { id: string; name: string }[]) ?? []
+      setSchools(xs); setSid(s => s || (xs.find(x => x.id === orgId) ?? xs[0])?.id || '')
+    })
+  }, [orgId])
+
+  useEffect(() => {
+    if (!sid) return
+    setLoading(true); setConc(null)
+    ;(async () => {
+      const [as, ys, rs] = await Promise.all([
+        supabase.from('edu_program_assignments').select('program_id, grades').eq('org_id', sid),
+        supabase.from('academic_years').select('id, name, is_current').eq('org_id', sid),
+        supabase.from('stem_rooms').select('id', { count: 'exact', head: true }).eq('org_id', sid).eq('status', 'active'),
+      ])
+      const asg = (as.data as { program_id: string; grades: number[] | null }[]) ?? []
+      const yrs = (ys.data as { id: string; name: string; is_current: boolean | null }[]) ?? []
+      const cur = yrs.find(y => y.is_current)?.name ?? null
+      const yids = cur ? yrs.filter(y => y.name === cur).map(y => y.id) : []
+      const [ps, cs, st, gr] = await Promise.all([
+        asg.length ? supabase.from('edu_programs').select('id, title, version_no, status, org_id, ct_code, code, grade_from, grade_to, grades, main_subject').in('id', asg.map(a => a.program_id)) : Promise.resolve({ data: [] }),
+        (yids.length ? supabase.from('classes').select('id, name, grade, year_id').eq('org_id', sid).in('year_id', yids) : supabase.from('classes').select('id, name, grade, year_id').eq('org_id', sid)),
+        supabase.from('students').select('class_id').eq('org_id', sid).eq('status', 'studying').not('class_id', 'is', null),
+        supabase.from('student_groups').select('class_id').eq('org_id', sid),
+      ])
+      const count = (rows: { class_id: string }[] | null) => { const m = new Map<string, number>(); (rows ?? []).forEach(r => m.set(r.class_id, (m.get(r.class_id) ?? 0) + 1)); return m }
+      const nSt = count(st.data as { class_id: string }[]), nGr = count(gr.data as { class_id: string }[])
+      const progs = ((ps.data as Prog[]) ?? []).map(p => {
+        const a = asg.find(x => x.program_id === p.id)?.grades, pg = progGrades(p)
+        return { ...p, aGrades: a?.length ? a.filter(g => !pg.length || pg.includes(g)) : pg }
+      }).sort((a, b) => progName(a).localeCompare(progName(b), 'vi'))
+      const classes = ((cs.data as { id: string; name: string; grade: number }[]) ?? []).map(c => ({ id: c.id, name: c.name, grade: c.grade, students: nSt.get(c.id) ?? 0, groups: nGr.get(c.id) ?? 0 }))
+      const norms = await loadNorms(progs.map(p => p.id))
+      setData({ progs, classes, rooms: rs.count ?? 0, year: cur, norms })
+      setLoading(false)
+    })()
+  }, [sid])
+
+  // Số nhóm của lớp: nhóm đã chia, chưa chia thì sĩ số ÷ số học sinh mỗi nhóm
+  const groupsOf = (c: SClass) => c.groups || Math.ceil(c.students / perGroup)
+  const k = conc ?? Math.max(1, data?.rooms ?? 1)
+  const rows = useMemo(() => (data?.progs ?? []).map(p => {
+    const cls = (data?.classes ?? []).filter(c => p.aGrades.includes(c.grade))
+    return { p, grades: [...new Set(cls.map(c => c.grade))].sort((a, b) => a - b), cls, students: cls.reduce((s, c) => s + c.students, 0), groups: cls.reduce((s, c) => s + groupsOf(c), 0) }
+  }), [data, perGroup]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const needs = useMemo(() => {
+    const m = new Map<string, Need>()
+    if (!data) return []
+    rows.forEach(({ p, cls }) => data.norms.norms.filter(n => {
+      const u = data.norms.units.find(x => x.id === n.uid)
+      return (u ? u.program_id : n.program_id) === p.id
+    }).forEach(n => {
+      const u = data.norms.units.find(x => x.id === n.uid)
+      const on = u?.grade ? cls.filter(c => c.grade === u.grade) : cls
+      if (!on.length) return
+      // Mức cần của từng lớp cho định mức này: theo nhóm, hoặc theo học sinh
+      const per = on.map(c => n.basis === 'student' ? c.students : groupsOf(c)).sort((a, b) => b - a)
+      const all = per.reduce((s, v) => s + v, 0), top = per.slice(0, k).reduce((s, v) => s + v, 0)
+      const lesson = `${p.code ?? p.title} · ${u?.title ?? 'Cả chương trình'} · ${fmtGrades([...new Set(on.map(c => c.grade))].sort((a, b) => a - b))}`
+      n.material_norm_items.forEach(i => addNeed(m, i, lesson, i.qty * (i.reusable ? top : all * n.sessions)))
+    }))
+    return sortNeeds(m)
+  }, [data, rows, k]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const allCls = new Map(rows.flatMap(r => r.cls).map(c => [c.id, c]))
+  const tot = { progs: rows.length, grades: new Set([...allCls.values()].map(c => c.grade)).size, cls: allCls.size,
+    students: [...allCls.values()].reduce((s, c) => s + c.students, 0), groups: [...allCls.values()].reduce((s, c) => s + groupsOf(c), 0) }
+  const guessed = [...allCls.values()].filter(c => !c.groups).length
+  const school = schools?.find(s => s.id === sid)?.name ?? ''
+
+  return (
+    <>
+      <div className="bar">
+        <div className="tools">
+          <select value={sid} onChange={e => setSid(e.target.value)} aria-label="Trường">
+            {!schools ? <option>Đang tải…</option> : schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+          <label className="tools">Học sinh/nhóm <input type="number" min={1} max={20} value={perGroup} onChange={e => setPerGroup(Math.max(1, Math.min(20, Number(e.target.value) || 1)))} style={{ width: 64 }} aria-label="Số học sinh mỗi nhóm" /></label>
+          <label className="tools">Lớp học cùng lúc <input type="number" min={1} max={50} value={k} onChange={e => setConc(Math.max(1, Math.min(50, Number(e.target.value) || 1)))} style={{ width: 64 }} aria-label="Số lớp học cùng lúc" /></label>
+        </div>
+        {needs.length > 0 && <div className="tools"><button type="button" onClick={() => exportNeeds(`Can-chuan-bi-${school || 'truong'}.xlsx`, needs)}>Xuất Excel</button></div>}
+      </div>
+      {loading || !data ? <p className="sub">{sid || !schools ? 'Đang tải…' : 'Chưa có trường nào.'}</p> : !rows.length ? <p className="sub">Trường chưa được gán chương trình nào. Gán ở Chương trình giáo dục › Gán cho đơn vị.</p> : <>
+        <p className="sub"><b>{tot.progs} chương trình · {tot.grades} khối · {tot.cls} lớp · {tot.students} học sinh · {tot.groups} nhóm</b>
+          {data.year ? ` · năm học ${data.year}` : ''}{guessed ? ` · ${guessed} lớp chưa chia nhóm, tạm tính ${perGroup} học sinh/nhóm` : ''}</p>
         <div className="wrap"><table className="libtable">
-          <thead><tr><th>Tên</th><th>Loại</th><th>Đơn vị</th><th>Dùng ở</th><th style={{ textAlign: 'right' }}>Cần chuẩn bị</th></tr></thead>
-          <tbody>{needs.map(x => <Fragment key={x.key}>
-            <tr className={'rowlink' + (open === x.key ? ' on' : '')} tabIndex={0} onClick={() => setOpen(open === x.key ? null : x.key)} onKeyDown={e => { if (e.key === 'Enter') setOpen(open === x.key ? null : x.key) }}>
-              <td><b>{x.name}</b>{x.reusable && <small className="sub"> · dùng lại</small>}</td><td>{MKIND[x.kind]}</td><td>{x.unit}</td>
-              <td>{new Set(x.uses.map(u => u.lesson)).size} bài</td><td style={{ textAlign: 'right' }}><b>{fmt(x.total)}</b></td>
-            </tr>
-            {open === x.key && x.uses.map((u, k) => <tr key={k} className="subrow"><td colSpan={4} style={{ paddingLeft: 28 }}><small>{u.lesson}</small></td><td style={{ textAlign: 'right' }}><small>{fmt(u.qty)}</small></td></tr>)}
-          </Fragment>)}</tbody>
+          <thead><tr><th>Chương trình</th><th>Khối</th><th>Lớp</th><th>Học sinh</th><th>Nhóm</th></tr></thead>
+          <tbody>{rows.map(r => <tr key={r.p.id}>
+            <td>{progName(r.p)} <small className="sub">v{r.p.version_no} · {PSTATUS[r.p.status] ?? r.p.status}</small></td>
+            <td>{fmtGrades(r.grades) || <small className="sub">Chưa có lớp ở {fmtGrades(r.p.aGrades) || 'khối áp dụng'}</small>}</td>
+            <td>{r.cls.length}</td><td>{r.students}</td><td>{r.groups}</td></tr>)}</tbody>
         </table></div>
-      )}
+        <p className="sub">Vật tư tiêu hao: định mức × số nhóm của mọi lớp áp dụng × số buổi. Công cụ, thiết bị dùng lại: đủ cho {k} lớp học cùng lúc (mặc định bằng số phòng STEM đang dùng{data.rooms ? `: ${data.rooms}` : ''}; cộng thêm nếu có lớp học tại lớp), tính theo các lớp đông nhất, lấy mức cần nhiều nhất giữa các bài.</p>
+        {needs.length === 0 ? <p className="sub">{tot.cls ? 'Các bài của những chương trình này chưa có định mức vật tư. Nhập ở thẻ 04 của bộ học liệu.' : 'Trường chưa có lớp ở các khối áp dụng.'}</p> : <NeedsTable key={sid} needs={needs} />}
+      </>}
     </>
   )
 }

@@ -70,7 +70,7 @@ function CertView({ id, onBack, back }: { id: string; onBack: () => void; back: 
 export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
   const [rows, setRows] = useState<Cert[] | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
-  const [f, setF] = useState<F>('pending')
+  const [f, setF] = useState<F>('all')
   const [plan, setPlan] = useState('')
   const [q, setQ] = useState('')
   const [sel, setSel] = useState<Set<string>>(new Set())
@@ -128,7 +128,7 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
         <input placeholder="Tìm giáo viên, số chứng chỉ…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chứng chỉ" />
         {sel.size > 0 && <button type="button" className="primary" onClick={() => issue([...sel])}>Duyệt cấp ({sel.size})</button>}
       </div>
-      <div className="distfilter">{([['pending', 'Chờ duyệt'], ['issued', 'Đã cấp'], ['revoked', 'Đã thu hồi'], ['all', 'Tất cả']] as [F, string][])
+      <div className="distfilter">{([['all', 'Tất cả'], ['pending', 'Chờ duyệt'], ['issued', 'Đã cấp'], ['revoked', 'Đã thu hồi']] as [F, string][])
         .map(([k, l]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => { setF(k); setSel(new Set()) }}>{l} ({cnt(k)})</button>)}</div>
       {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
         <thead><tr><th style={{ width: 36 }}>{pick.length > 0 && <input type="checkbox" aria-label="Chọn tất cả" checked={pick.every(c => sel.has(c.id))}

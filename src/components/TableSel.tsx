@@ -13,6 +13,25 @@ export function useRowSel<T>(rows: T[], key: (r: T) => string = r => (r as { id:
   return { cur, is, toggle: (r: T) => setId(is(r) ? null : key(r)), clear: () => setId(null) }
 }
 
+/** Chọn nhiều dòng; chỉ giữ các dòng đang hiện (lọc đi thì tự bỏ chọn). */
+export function useMultiSel<T>(rows: T[], key: (r: T) => string = r => (r as { id: string }).id) {
+  const [ids, setIds] = useState<Set<string>>(() => new Set())
+  const list = rows.filter(r => ids.has(key(r)))
+  const is = (r: T) => ids.has(key(r))
+  const all = rows.length > 0 && list.length === rows.length
+  return {
+    list, is, all, some: list.length > 0 && !all,
+    toggle: (r: T) => setIds(s => { const n = new Set(s); if (n.has(key(r))) n.delete(key(r)); else n.add(key(r)); return n }),
+    toggleAll: () => setIds(all ? new Set() : new Set(rows.map(key))),
+    clear: () => setIds(new Set()),
+  }
+}
+
+/** Ô tick ở tiêu đề: chọn / bỏ chọn tất cả dòng đang hiện. */
+export function SelAllTh({ all, some, onToggle }: { all: boolean; some: boolean; onToggle: () => void }) {
+  return <th className="sel"><input type="checkbox" checked={all} ref={el => { if (el) el.indeterminate = some }} onChange={onToggle} aria-label="Chọn tất cả" /></th>
+}
+
 export function SelTh() {
   return <th className="sel"><span className="sronly">Chọn</span></th>
 }

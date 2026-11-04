@@ -3814,6 +3814,16 @@ select pg_temp.chk('kdi', 'NL 132: xoá hết yêu cầu', $q$select edu_program
 select pg_temp.probe('kdi@iso-test.local', $q$select edu_program_set_teacher_reqs((select id from edu_programs where title = 'ISO CT KDI' limit 1), '[]')::text$q$, true);
 delete from teacher_assessments where kind = 'manager' and school_year = '2026-2027' and teacher_id = (select id from teachers where full_name = 'GV thử C');
 
+-- ===== 133: xoá năng lực =====
+select pg_temp.chk('admin_ph', 'NL 133: trường không xoá năng lực', $q$select competency_delete('gv_thiet_ke')::text$q$, 'ERR 42501');
+select pg_temp.chk('admin_ph', 'NL 133: trường không xem nơi dùng năng lực', $q$select count(*) from competency_usage('gv_thiet_ke')$q$, 'ERR 42501');
+select pg_temp.chk('kdi', 'NL 133: năng lực đang dùng thì chặn xoá', $q$select competency_delete('gv_thiet_ke')::text$q$, 'ERR 23503');
+select pg_temp.chk('kdi', 'NL 133: liệt kê nơi đang dùng', $q$select (count(*) > 0)::text from competency_usage('gv_thiet_ke')$q$, 'true');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into competencies (key, audience, grp, name, levels, sort) values ('gv_iso_xoa', 'teacher', 'X', 'ISO xoá', '["a","b","c","d"]', 999) returning key$q$, true);
+select pg_temp.chk('kdi', 'NL 133: năng lực chưa dùng thì chưa có nơi dùng', $q$select count(*) from competency_usage('gv_iso_xoa')$q$, '0');
+select pg_temp.probe('kdi@iso-test.local', $q$select competency_delete('gv_iso_xoa')::text$q$, true);
+select pg_temp.chk('kdi', 'NL 133: năng lực chưa dùng thì xoá được', $q$select count(*) from competencies where key = 'gv_iso_xoa'$q$, '0');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

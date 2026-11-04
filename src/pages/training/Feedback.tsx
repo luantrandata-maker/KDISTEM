@@ -1,10 +1,10 @@
-// Phiếu đánh giá sau khoá tập huấn (migration 114): giáo viên chấm khoá học và giảng viên; tổng hợp và góp ý cho đơn vị quản lý.
+// Phiếu đánh giá sau khoá đào tạo (migration 114): giáo viên chấm khoá học và giảng viên; tổng hợp và góp ý cho đơn vị quản lý.
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { fmtDate } from '../../lib/time'
 
 export const FB_CRIT = [
-  ['content', 'Nội dung thiết thực, phù hợp'], ['method', 'Phương pháp tập huấn'], ['organize', 'Tổ chức, thời gian, địa điểm'],
+  ['content', 'Nội dung thiết thực, phù hợp'], ['method', 'Phương pháp đào tạo'], ['organize', 'Tổ chức, thời gian, địa điểm'],
   ['materials', 'Tài liệu, thiết bị thực hành'], ['applicable', 'Áp dụng được vào giờ dạy'], ['overall', 'Mức hài lòng chung'],
 ] as const
 export const TR_CRIT = [['expertise', 'Chuyên môn'], ['delivery', 'Truyền đạt dễ hiểu'], ['interaction', 'Tương tác, hỗ trợ học viên']] as const
@@ -53,10 +53,10 @@ export function FeedbackPanel({ planId }: { planId: string }) {
     if (error) return setMsg(error.message)
     setMsg('Đã gửi phiếu đánh giá. Cảm ơn thầy/cô!'); load()
   }
-  return <section className="panel" style={{ display: 'grid', gap: 10 }} aria-label="Phiếu đánh giá khoá tập huấn">
-    <div className="bar" style={{ margin: 0 }}><b>⭐ Đánh giá khoá tập huấn</b>
+  return <section className="panel" style={{ display: 'grid', gap: 10 }} aria-label="Phiếu đánh giá khoá đào tạo">
+    <div className="bar" style={{ margin: 0 }}><b>⭐ Đánh giá khoá đào tạo</b>
       {f.mine ? <span className="pill active">Đã gửi {fmtDate(f.mine.updated_at)}</span> : f.open ? <span className="pill maintenance">Chưa đánh giá</span> : null}</div>
-    {!f.open ? <small className="sub">Phiếu mở khi khoá tập huấn kết thúc hoặc khi thầy/cô đã có kết quả.</small> : <>
+    {!f.open ? <small className="sub">Phiếu mở khi khoá đào tạo kết thúc hoặc khi thầy/cô đã có kết quả.</small> : <>
       <small className="sub">Chấm 1–5 sao. Phiếu không ghi tên người đánh giá khi đơn vị tổng hợp.</small>
       <div className="fbgrid">
         {FB_CRIT.map(([k, l]) => <div key={k} className="fbrow"><span>{l}</span>

@@ -394,7 +394,7 @@ function Profile({ r, staff, onBack, onSaved, go }: { r: Reg; staff: Staff[]; on
       {tab === 'stem' && (s ? (
         <>
           <Tiles items={[
-            { label: 'KPI STEM', value: s.kpi }, { label: 'Giáo viên', value: s.teachers, sub: `${s.stem_teachers} dạy STEM · ${s.training_done} hoàn thành tập huấn` },
+            { label: 'KPI STEM', value: s.kpi }, { label: 'Giáo viên', value: s.teachers, sub: `${s.stem_teachers} dạy STEM · ${s.training_done} hoàn thành đào tạo` },
             { label: 'Học sinh', value: nf(s.students), sub: `${s.stem_students} học STEM · ${s.classes} lớp` },
             { label: 'Phòng STEM', value: `${s.rooms_active}/${s.rooms}`, sub: `${s.room_periods} tiết/tuần dùng phòng` },
             { label: 'Thiết bị', value: s.units, sub: `${s.units_broken} hỏng · ${s.units_maintenance} bảo trì` },

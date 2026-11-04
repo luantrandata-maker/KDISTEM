@@ -1,5 +1,5 @@
-// Cổng giáo viên › Bài giảng tập huấn › Khoá tập huấn của tôi (migration 086)
-// Học lần lượt các nội dung của kế hoạch tập huấn: mở bài giảng / tài liệu, làm bài kiểm tra, vào lớp học ảo, nộp sản phẩm.
+// Cổng giáo viên › Bài giảng đào tạo › Khoá đào tạo của tôi (migration 086)
+// Học lần lượt các nội dung của kế hoạch đào tạo: mở bài giảng / tài liệu, làm bài kiểm tra, vào lớp học ảo, nộp sản phẩm.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { fmtDate, fmtTime } from '../../lib/time'
@@ -88,7 +88,7 @@ export function TeacherTrainingLearn({ teacherId }: TProps) {
         </div>
         <button type="button" className="primary" onClick={() => setOpen(r.plan_id)}>{r.done ? 'Học tiếp' : 'Vào học'}</button>
       </div>)}
-      {!rows.length && <p className="sub">Bạn chưa được ghi danh vào khoá tập huấn nào. Trường chọn giáo viên tham gia ở mục Kế hoạch tập huấn.</p>}
+      {!rows.length && <p className="sub">Bạn chưa được ghi danh vào khoá đào tạo nào. Trường chọn giáo viên tham gia ở mục Kế hoạch đào tạo.</p>}
     </div>
   </>
 }
@@ -122,7 +122,7 @@ function CourseView({ planId, onBack }: { planId: string; onBack: () => void }) 
     const t = setInterval(loadGates, 15000)
     return () => clearInterval(t)
   }, [hasLed, testing, finalRun, planId])
-  if (!c) return <ElView back="Khoá tập huấn của tôi" onBack={onBack} title="Khoá tập huấn">{err ? <p className="sub" role="alert">{err}</p> : <p className="sub">Đang tải…</p>}</ElView>
+  if (!c) return <ElView back="Khoá đào tạo của tôi" onBack={onBack} title="Khoá đào tạo">{err ? <p className="sub" role="alert">{err}</p> : <p className="sub">Đang tải…</p>}</ElView>
   if (testing) return <TestRun back={testing.title} title={`Bài kiểm tra: ${testing.title}`}
     sub={testing.test ? `${testing.test.count} câu · điểm đạt ${num(testing.test.pass)}/10` : undefined}
     start={() => supabase.rpc('training_test_start', { p_plan: planId, p_unit: testing.id })}
@@ -137,7 +137,7 @@ function CourseView({ planId, onBack }: { planId: string; onBack: () => void }) 
   const needProduct = c.programs.some(p => p.need_product)
   const passAtt = Math.max(0, ...c.programs.map(p => p.pass_attendance))
   const subjects = [...new Set(c.units.map(x => x.subject))]
-  return <ElView back="Khoá tập huấn của tôi" onBack={onBack} title={c.plan.name}
+  return <ElView back="Khoá đào tạo của tôi" onBack={onBack} title={c.plan.name}
     sub={[c.plan.code, c.plan.org_name, c.programs.map(p => p.title).join(' · ')].filter(Boolean).join(' · ')}>
     <div className="diststatcards four">
       <div className="panel"><i className={done === c.units.length && done ? 'good' : ''}>📘</i><span><small>Nội dung đã học</small><b>{done}/{c.units.length}</b><small>{pct(done, c.units.length)}%</small></span></div>
@@ -148,11 +148,11 @@ function CourseView({ planId, onBack }: { planId: string; onBack: () => void }) 
     </div>
     {c.result && c.result.result !== 'pending' && <p className={c.result.result === 'pass' ? 'sub' : 'warnline'} role="status" style={{ marginTop: 12, color: c.result.result === 'pass' ? 'var(--ok-fg)' : undefined }}>
       <b>Kết quả: {c.result.result === 'pass' ? 'Đạt' : 'Chưa đạt'}</b>{c.result.reason ? ` · ${c.result.reason}` : ''}
-      {c.result.result === 'pass' && (c.cert?.status === 'issued' ? ` · Đã có chứng chỉ ${c.cert.code}, xem ở mục Chứng chỉ tập huấn.` : ' · Chứng chỉ đang chờ duyệt cấp.')}</p>}
+      {c.result.result === 'pass' && (c.cert?.status === 'issued' ? ` · Đã có chứng chỉ ${c.cert.code}, xem ở mục Chứng chỉ đào tạo.` : ' · Chứng chỉ đang chờ duyệt cấp.')}</p>}
     {c.result?.comment && <p className="sub">Nhận xét của giảng viên: {c.result.comment}{c.result.product_score != null ? ` · điểm sản phẩm ${num(c.result.product_score)}` : ''}</p>}
     {err && <p className="sub" role="alert" style={{ color: 'var(--bad)' }}>{err}</p>}
     <div className="tlgrid">
-      <nav className="panel tlnav" aria-label="Nội dung tập huấn">
+      <nav className="panel tlnav" aria-label="Nội dung đào tạo">
         {subjects.map(s => <div key={s}><small className="sub"><b>{s}</b></small>
           {c.units.filter(x => x.subject === s).map(x => <button key={x.id} type="button" className={`tlunit${x.id === sel ? ' on' : ''}${x.unlocked ? '' : ' locked'}`}
             onClick={() => setSel(x.id)} aria-current={x.id === sel}>
@@ -264,7 +264,7 @@ function UnitPanel({ planId, u, gate, onChange, onTest, onErr }: { planId: strin
           <span className="tools">
             {live && s.mode === 'online' && s.present !== true && <button type="button" className="primary" disabled={busy === s.id} onClick={() => join(s)}>{s.meeting_url ? 'Tham gia' : 'Điểm danh'}</button>}
             {live && s.mode === 'online' && s.present === true && s.meeting_url && <a className="filebtn" href={s.meeting_url} target="_blank" rel="noreferrer">Vào lại phòng họp</a>}
-            {live && s.mode !== 'online' && <small className="sub">Điểm danh bằng mã ở mục Lịch tập huấn</small>}
+            {live && s.mode !== 'online' && <small className="sub">Điểm danh bằng mã ở mục Lịch đào tạo</small>}
             {s.recording_url && <a className="filebtn" href={s.recording_url} target="_blank" rel="noreferrer">▶ Xem bản ghi</a>}
           </span>
         </li>
@@ -287,7 +287,7 @@ function UnitPanel({ planId, u, gate, onChange, onTest, onErr }: { planId: strin
         : u.test.attempts && u.test.used >= u.test.attempts && !u.test.open ? <small className="sub">Đã hết lượt làm bài.</small>
         : <button type="button" className="primary" onClick={onTest}>{u.test.open ? 'Làm tiếp' : u.test.used ? 'Làm lại' : 'Làm bài'}</button>}
     </div>}
-    {!items.length && !u.test && !u.sessions.length && !body.text && <p className="sub">Nội dung này học ở buổi tập huấn, không có phần học trực tuyến.</p>}
+    {!items.length && !u.test && !u.sessions.length && !body.text && <p className="sub">Nội dung này học ở buổi đào tạo, không có phần học trực tuyến.</p>}
   </section>
 }
 
@@ -402,7 +402,7 @@ function ProductPanel({ planId, p, allDone, onChange }: { planId: string; p: Pro
   </section>
 }
 
-// ===== Luyện tập (110): đề tự luyện của các chương trình giáo viên đang học, không tính điểm tập huấn =====
+// ===== Luyện tập (110): đề tự luyện của các chương trình giáo viên đang học, không tính điểm đào tạo =====
 type PExam = { id: string; title: string; subject: string; grade: number | null; program: string; program_code: string; note: string | null
   count: number; minutes: number | null; attempts: number; pass: number | null; show_answers: boolean; used: number; best: number | null; last: number | null; open: string | null }
 export function TeacherTrainingPractice({ teacherId }: TProps) {
@@ -419,7 +419,7 @@ export function TeacherTrainingPractice({ teacherId }: TProps) {
     onBack={() => { setRun(null); load() }} />
   if (!rows) return err ? <p className="sub" role="alert">{err}</p> : <p className="sub">Đang tải…</p>
   return <>
-    <p className="sub">Đề tự luyện của các chương trình tập huấn bạn đang học. Điểm luyện tập không tính vào kết quả tập huấn.</p>
+    <p className="sub">Đề tự luyện của các chương trình đào tạo bạn đang học. Điểm luyện tập không tính vào kết quả đào tạo.</p>
     {err && <p className="sub" role="alert">{err}</p>}
     <div className="wrap"><table className="libtable">
       <thead><tr><th>Đề luyện</th><th>Chương trình</th><th>Cách làm</th><th className="num">Đã làm</th><th className="num">Điểm cao nhất</th><th></th></tr></thead>

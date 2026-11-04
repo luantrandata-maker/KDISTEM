@@ -1,7 +1,7 @@
-// Bài giảng tập huấn soạn như bài học (102): mỗi bài là bộ 5 thẻ — Thông tin · Nội dung · Link tài liệu · Định mức vật tư · Kho hoạt động.
+// Bài giảng đào tạo soạn như bài học (102): mỗi bài là bộ 5 thẻ — Thông tin · Nội dung · Link tài liệu · Định mức vật tư · Kho hoạt động.
 // Kho hoạt động tuỳ chọn (105): chốt đủ 4 thẻ còn lại là phát hành được.
 // Thêm bài theo 4 cách như thêm bài học (tải giáo án Word/PowerPoint, tự tạo, sao chép, file mẫu Excel); mở bài để sửa, chốt từng thẻ, phát hành.
-// Bài gắn với chương trình tập huấn và một nội dung trong chương trình; giáo viên thấy bài đã phát hành của kế hoạch mình tham gia.
+// Bài gắn với chương trình đào tạo và một nội dung trong chương trình; giáo viên thấy bài đã phát hành của kế hoạch mình tham gia.
 import { useOrgFilter } from '../../components/OrgFilters'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -19,7 +19,7 @@ const STATUS: Record<string, [string, string]> = { draft: ['Nháp', 'warn'], pub
 const SEL = 'id, org_id, owner_org_id:org_id, title, subject, grades, program_id, unit_id, status, version, updated_at, content, author, created_on, training_plans(name)'
 const Chip = ({ tone, children }: { tone?: string; children: React.ReactNode }) => <span className={'distchip2 ' + (tone ?? '')}>{children}</span>
 
-/** Chương trình tập huấn + nội dung (Môn › Nội dung) để gắn bài giảng */
+/** Chương trình đào tạo + nội dung (Môn › Nội dung) để gắn bài giảng */
 export function useTrainingPrograms() {
   const [progs, setProgs] = useState<TProg[]>([])
   const [units, setUnits] = useState<TUnit[]>([])
@@ -69,7 +69,7 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
   if (open) return <>
     {msg && <p className="sub" role="status"><b>{msg}</b></p>}
     <LessonPage key={open} orgId={rows?.find(r => r.id === open)?.org_id ?? orgId} id={open} store="training" unitOf={unitOf}
-      programs={progs} subjectsOf={subjectsOf} code="" backLabel="← Bài giảng tập huấn"
+      programs={progs} subjectsOf={subjectsOf} code="" backLabel="← Bài giảng đào tạo"
       onBack={() => { setOpen(null); setMsg(''); reload() }} onChanged={reload} />
   </>
 
@@ -89,9 +89,9 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
   return (
     <>
       <div className="diststatcards">
-        <div className="panel"><i aria-hidden="true">≋</i><span><b>{rows?.length ?? '…'}</b><small>Bài giảng tập huấn</small><small>{n('published')} đã phát hành · {n('draft')} nháp</small></span></div>
+        <div className="panel"><i aria-hidden="true">≋</i><span><b>{rows?.length ?? '…'}</b><small>Bài giảng đào tạo</small><small>{n('published')} đã phát hành · {n('draft')} nháp</small></span></div>
         <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{(rows ?? []).filter(r => checked(r) >= 4).length}</b><small>Đã chốt đủ 4 thẻ bắt buộc</small></span></div>
-        <div className="panel"><i aria-hidden="true">▤</i><span><b>{new Set((rows ?? []).map(r => r.program_id).filter(Boolean)).size}</b><small>Chương trình tập huấn có bài giảng</small></span></div>
+        <div className="panel"><i aria-hidden="true">▤</i><span><b>{new Set((rows ?? []).map(r => r.program_id).filter(Boolean)).size}</b><small>Chương trình đào tạo có bài giảng</small></span></div>
       </div>
       <div className="distfilter">
         {([['', 'Tất cả', rows?.length ?? 0], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['inactive', 'Ngừng dùng', n('inactive')]] as [St, string, number][]).map(([s, l, c]) =>
@@ -100,18 +100,18 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
       <div className="bar">
         <div className="tools">
           <input placeholder="Tìm tên bài giảng, môn, tác giả…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-          <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình tập huấn"><option value="">Mọi chương trình tập huấn</option>
+          <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Mọi chương trình đào tạo</option>
             {progs.map(p => <option key={p.id} value={p.id}>{progLabel(p.id)}</option>)}</select>
           {ofl.node((rows ?? []).map(r => r.org_id))}
           <small className="sub">{shown.length}/{rows?.length ?? 0} bài giảng</small>
         </div>
-        <div className="tools"><button type="button" className="primary" disabled={!p0} title={p0 ? undefined : 'Chưa có chương trình tập huấn để gắn bài giảng'}
-          onClick={() => { setMsg(''); setAdding(true) }}>+ Thêm bài giảng tập huấn</button></div>
+        <div className="tools"><button type="button" className="primary" disabled={!p0} title={p0 ? undefined : 'Chưa có chương trình đào tạo để gắn bài giảng'}
+          onClick={() => { setMsg(''); setAdding(true) }}>+ Thêm bài giảng đào tạo</button></div>
       </div>
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
       {err ? <p className="msg">{err}</p> : !rows ? <p className="sub">Đang tải…</p> :
         <div className="wrap"><table className="libtable tllist">
-          <thead><tr><th>Bài giảng tập huấn</th><th>Chương trình tập huấn · nội dung</th><th>Thẻ đã chốt</th><th>Trạng thái</th><th>Cập nhật</th><th /></tr></thead>
+          <thead><tr><th>Bài giảng đào tạo</th><th>Chương trình đào tạo · nội dung</th><th>Thẻ đã chốt</th><th>Trạng thái</th><th>Cập nhật</th><th /></tr></thead>
           <tbody>{shown.map(r => { const c = checked(r), legacy = !r.content?.kit
             return <tr key={r.id}>
               <td><button type="button" className="namelink" onClick={() => { setMsg(''); setOpen(r.id) }}>{r.title}</button><br />
@@ -127,7 +127,7 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
                   : <button type="button" onClick={() => setStatus(r, 'inactive')}>Ngừng dùng</button>}
                 <button type="button" className="danger" onClick={() => remove(r)}>Xoá</button></div></details></td>
             </tr> })}
-            {shown.length === 0 && <tr><td colSpan={6}>{rows.length ? 'Không có bài giảng nào khớp bộ lọc.' : 'Chưa có bài giảng tập huấn nào. Bấm “+ Thêm bài giảng tập huấn”.'}</td></tr>}</tbody>
+            {shown.length === 0 && <tr><td colSpan={6}>{rows.length ? 'Không có bài giảng nào khớp bộ lọc.' : 'Chưa có bài giảng đào tạo nào. Bấm “+ Thêm bài giảng đào tạo”.'}</td></tr>}</tbody>
         </table></div>}
       {adding && p0 && <CreateLesson orgId={orgId} store="training" unitOf={unitOf} programs={progs} subjectsOf={subjectsOf}
         program={progs.find(p => p.id === fp) ?? p0} subject={subjectsOf((progs.find(p => p.id === fp) ?? p0).id)[0] ?? ''} pickPlace

@@ -1,6 +1,6 @@
-// Xem chi tiết / sửa một dòng ở tab Link tài liệu, Định mức vật tư, Kho hoạt động (Học liệu tập huấn).
+// Xem chi tiết / sửa một dòng ở tab Link tài liệu, Định mức vật tư, Kho hoạt động (Học liệu đào tạo).
 // Dòng của nội dung chương trình: sửa hoặc xoá khi chương trình còn nháp / bị trả lại; đã phát hành thì tạo phiên bản mới để sửa.
-// Dòng của bài giảng tập huấn: mở bài giảng để sửa.
+// Dòng của bài giảng đào tạo: mở bài giảng để sửa.
 import { Fragment, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { openFile } from '../../lib/files'
@@ -109,7 +109,7 @@ export function MaterialItem({ it, admin, draftId, autoEdit, onClose, onDone, on
   </div>
 
   const note = !admin || edit ? null
-    : it.lesson ? 'Dòng này lấy từ bài giảng tập huấn. Bấm “Mở bài giảng để sửa” để sửa trong thẻ học liệu của bài.'
+    : it.lesson ? 'Dòng này lấy từ bài giảng đào tạo. Bấm “Mở bài giảng để sửa” để sửa trong thẻ học liệu của bài.'
     : canVersion && draftId ? 'Chương trình đã phát hành và đang có một phiên bản nháp. Mở bản nháp đó để sửa, rồi gửi duyệt và phát hành lại.'
     : canVersion ? 'Chương trình đã phát hành nên không sửa trực tiếp. Tạo phiên bản mới để sửa, rồi gửi duyệt và phát hành lại.'
     : !canEdit && fromUnit ? `Chương trình đang ở trạng thái "${STATUS[status as keyof typeof STATUS]?.[0] ?? status}", chưa sửa được.` : null

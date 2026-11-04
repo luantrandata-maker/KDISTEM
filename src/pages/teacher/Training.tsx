@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { sessionState, STATE_LABEL, fmtDate, fmtTime, type SessionState } from '../../lib/time'
 import { NoTeacher, Tabs, PROGRAM_COLOR, type TProps } from './common'
 
-// Cổng giáo viên › Khác › Lịch tập huấn & Bài giảng tập huấn (migration 026; mã điểm danh, xin vắng: 085)
+// Cổng giáo viên › Khác › Lịch đào tạo & Bài giảng đào tạo (migration 026; mã điểm danh, xin vắng: 085)
 
 type Sess = {
   id: string; plan_id: string | null; plan_name: string | null; program: string | null; provider: string | null; title: string
@@ -112,7 +112,7 @@ export function TeacherTrainingSchedule({ teacherId }: TProps) {
         ]} />
       </div>
       <div className="wrap"><table>
-        <thead><tr><th>Buổi tập huấn</th><th>Thời gian</th><th>Hình thức</th><th>Điểm danh</th><th></th></tr></thead>
+        <thead><tr><th>Buổi đào tạo</th><th>Thời gian</th><th>Hình thức</th><th>Điểm danh</th><th></th></tr></thead>
         <tbody>
           {shown.map(s => {
             const state = st(s); const open = canCheckIn(s) && !s.closed
@@ -139,7 +139,7 @@ export function TeacherTrainingSchedule({ teacherId }: TProps) {
               </tr>
             )
           })}
-          {shown.length === 0 && <tr><td colSpan={5}>{rows.length === 0 ? 'Bạn chưa được ghi danh vào buổi tập huấn nào.' : 'Không có buổi phù hợp.'}</td></tr>}
+          {shown.length === 0 && <tr><td colSpan={5}>{rows.length === 0 ? 'Bạn chưa được ghi danh vào buổi đào tạo nào.' : 'Không có buổi phù hợp.'}</td></tr>}
         </tbody>
       </table></div>
       <p className="sub" style={{ marginTop: 10 }}>Bạn tự điểm danh "có mặt" trong khung giờ điểm danh của buổi (có buổi mở trước giờ học hoặc vẫn mở sau khi kết thúc); buổi trực tiếp cần nhập mã giảng viên đưa. Không dự được thì bấm "Xin vắng" trước khi buổi kết thúc. Ghi nhận vắng hoặc sửa điểm danh do đơn vị tổ chức thực hiện.</p>
@@ -168,14 +168,14 @@ export function TeacherTrainingLessons({ teacherId }: TProps) {
       <div className="bar">
         <input className="search" style={{ margin: 0 }} placeholder="Tìm bài giảng, môn, tác giả…" value={q} onChange={e => setQ(e.target.value)} />
         <div className="tools">
-          <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Khoá tập huấn">
-            <option value="">Tất cả khoá tập huấn</option>
+          <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Khoá đào tạo">
+            <option value="">Tất cả khoá đào tạo</option>
             {plans.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
           </select>
         </div>
       </div>
       <div className="wrap" style={{ marginTop: 12 }}><table>
-        <thead><tr><th>Bài giảng</th><th>Khoá tập huấn</th><th>Nội dung</th><th>Tác giả</th></tr></thead>
+        <thead><tr><th>Bài giảng</th><th>Khoá đào tạo</th><th>Nội dung</th><th>Tác giả</th></tr></thead>
         <tbody>
           {shown.map(l => (
             <tr key={l.id}>
@@ -185,7 +185,7 @@ export function TeacherTrainingLessons({ teacherId }: TProps) {
               <td>{l.author ?? '—'}<br /><small>{fmtDate(l.created_on)}</small></td>
             </tr>
           ))}
-          {shown.length === 0 && <tr><td colSpan={4}>{rows.length === 0 ? 'Chưa có bài giảng tập huấn nào được xuất bản cho các khoá bạn tham gia.' : 'Không có bài giảng phù hợp.'}</td></tr>}
+          {shown.length === 0 && <tr><td colSpan={4}>{rows.length === 0 ? 'Chưa có bài giảng đào tạo nào được xuất bản cho các khoá bạn tham gia.' : 'Không có bài giảng phù hợp.'}</td></tr>}
         </tbody>
       </table></div>
     </>

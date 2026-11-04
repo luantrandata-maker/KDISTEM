@@ -27,7 +27,7 @@ export const TEMPLATES: Template[] = [
     row: s => [short(s.name), LEVEL[s.level ?? ''], s.stem_students, s.graded, s.avg_score] },
   { key: 'QUY', code: 'Báo cáo quý', title: 'Báo cáo triển khai STEM theo quý', note: 'KPI tổng hợp và xếp loại từng trường.',
     columns: [{ key: 'a', label: 'Trường', width: 34 }, { key: 'b', label: 'Xã/phường', width: 14 }, { key: 'c', label: 'KPI' }, { key: 'd', label: 'Xếp loại' }, { key: 'e', label: 'Số CT' },
-      { key: 'f', label: 'Phòng STEM' }, { key: 'g', label: 'Tiết STEM / lớp' }, { key: 'h', label: 'GV hoàn thành tập huấn (%)' }],
+      { key: 'f', label: 'Phòng STEM' }, { key: 'g', label: 'Tiết STEM / lớp' }, { key: 'h', label: 'GV hoàn thành đào tạo (%)' }],
     row: s => [short(s.name), s.ward, s.kpi, grade(s.kpi).label, s.programs.length, s.rooms_active, s.classes ? Math.round((s.stem_periods / s.classes) * 10) / 10 : 0, pct(s.training_done, s.teachers)] },
 ]
 const FORMAT: Record<string, string> = { xlsx: 'Excel', pdf: 'PDF', doc: 'Word' }

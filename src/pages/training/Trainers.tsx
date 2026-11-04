@@ -1,5 +1,5 @@
-// Phân hệ 1 — Danh sách giảng viên tập huấn (098). Đơn vị lập kế hoạch (KDI, Sở, Phòng) quản lý; chương trình trong kế hoạch
-// và buổi tập huấn chọn nhiều giảng viên từ danh sách này (TrainerPick). Gõ tên chưa có thì thêm nhanh vào danh sách.
+// Phân hệ 1 — Danh sách giảng viên đào tạo (098). Đơn vị lập kế hoạch (KDI, Sở, Phòng) quản lý; chương trình trong kế hoạch
+// và buổi đào tạo chọn nhiều giảng viên từ danh sách này (TrainerPick). Gõ tên chưa có thì thêm nhanh vào danh sách.
 import { useOrgFilter } from '../../components/OrgFilters'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -82,7 +82,7 @@ export function TrainersPage({ orgId }: { orgId: string }) {
   const [rate, setRate] = useState<Map<string, TRate>>(new Map())
   useEffect(() => { supabase.rpc('trainer_feedback_stats', { p_year: null }).then(({ data, error }) => { if (!error) setRate(new Map(((data as TRate[]) ?? []).map(r => [r.trainer_id, r]))) }) }, [orgId])
   useEffect(() => { supabase.rpc('training_can_write', { p_org: orgId }).then(({ data }) => setCan(!!data)) }, [orgId])
-  // Số chương trình trong kế hoạch + buổi tập huấn đã phân công mỗi giảng viên
+  // Số chương trình trong kế hoạch + buổi đào tạo đã phân công mỗi giảng viên
   useEffect(() => {
     (async () => {
       const [i, s] = await Promise.all([
@@ -112,7 +112,7 @@ export function TrainersPage({ orgId }: { orgId: string }) {
   }
   return <>
     <div className="panel distintro">
-      <p className="sub" style={{ margin: 0 }}>Danh sách giảng viên dùng chung cho mọi kế hoạch và buổi tập huấn của đơn vị. Ở kế hoạch và lịch, ô Giảng viên chọn được nhiều người từ danh sách này;
+      <p className="sub" style={{ margin: 0 }}>Danh sách giảng viên dùng chung cho mọi kế hoạch và buổi đào tạo của đơn vị. Ở kế hoạch và lịch, ô Giảng viên chọn được nhiều người từ danh sách này;
         gõ họ tên chưa có thì thêm nhanh. Giảng viên đã phân công không xoá được, chuyển sang "Ngừng mời" để ẩn khỏi ô chọn.</p>
     </div>
     <div className="distfilter">
@@ -159,7 +159,7 @@ function TrainerForm({ orgId, t, onBack, onDone }: { orgId: string; t: Trainer |
     if (error) return setErr(errText(error.message))
     onDone(t ? 'Đã lưu giảng viên. Tên ở kế hoạch và lịch đã cập nhật theo.' : `Đã thêm giảng viên ${f.full_name.trim()}.`)
   }
-  return <ElView back="Giảng viên" onBack={onBack} title={t ? trainerName(t) : 'Thêm giảng viên'} sub="Thông tin dùng khi chọn giảng viên cho kế hoạch và buổi tập huấn.">
+  return <ElView back="Giảng viên" onBack={onBack} title={t ? trainerName(t) : 'Thêm giảng viên'} sub="Thông tin dùng khi chọn giảng viên cho kế hoạch và buổi đào tạo.">
     <form className="panel" onSubmit={save} style={{ display: 'grid', gap: 12 }}>
       {!t && <OrgPick kind="unit" value={org} onChange={setOrg} title="Thuộc danh sách giảng viên của" />}
       <div className="formgrid">

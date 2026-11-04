@@ -1,8 +1,8 @@
-// Kết quả & chứng chỉ của một kế hoạch tập huấn, theo 3 bước như lập kế hoạch:
+// Kết quả & chứng chỉ của một kế hoạch đào tạo, theo 3 bước như lập kế hoạch:
 //  1. Chấm điểm: bảng tổng hợp tự tính (chuyên cần, bài kiểm tra, học trực tuyến, sản phẩm), nhập điểm sản phẩm hàng loạt; bảng điểm danh theo buổi.
 //  2. Kết luận: chọn nhiều giáo viên, kết luận Đạt / Chưa đạt / huỷ; xác nhận Đạt cho người đủ điều kiện.
 //  3. Chứng chỉ: duyệt cấp hàng loạt, in hàng loạt (mỗi chứng chỉ một trang A4 ngang).
-// Dùng ở mục Đánh giá kết quả tập huấn và bước 5 của chi tiết kế hoạch. Dữ liệu và quy tắc ở migration 087.
+// Dùng ở mục Đánh giá kết quả đào tạo và bước 5 của chi tiết kế hoạch. Dữ liệu và quy tắc ở migration 087.
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../../lib/supabase'
@@ -283,7 +283,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
             </tr>)}
               {!list.length && <tr><td colSpan={5}><small className="sub">Chưa có chứng chỉ. Kết luận Đạt ở bước 2 thì chứng chỉ vào danh sách chờ duyệt.</small></td></tr>}</tbody>
           </table></div>
-          <small className="sub">Số chứng chỉ, hạn hiệu lực lấy theo mẫu chứng chỉ của chương trình. Thu hồi, xem từng chứng chỉ ở mục Chứng chỉ tập huấn.</small>
+          <small className="sub">Số chứng chỉ, hạn hiệu lực lấy theo mẫu chứng chỉ của chương trình. Thu hồi, xem từng chứng chỉ ở mục Chứng chỉ đào tạo.</small>
         </>
       })()}
     </section>}
@@ -311,6 +311,6 @@ function AttGrid({ rows, sess, att }: { rows: ResRow[]; sess: Sess[]; att: Att[]
         {sess.map(s => <td key={s.id}>{cell(s, r.teacher_id)}</td>)}
         <td><b>{r.metrics.present}</b>/{r.metrics.sessions - r.metrics.excused}</td></tr>)}</tbody>
     </table></div>
-    <small className="sub">✓ có mặt · ✗ vắng · P vắng có phép (không tính vào mẫu số) · · chưa điểm danh. Điểm danh ở mục Lịch tập huấn.</small>
+    <small className="sub">✓ có mặt · ✗ vắng · P vắng có phép (không tính vào mẫu số) · · chưa điểm danh. Điểm danh ở mục Lịch đào tạo.</small>
   </>
 }

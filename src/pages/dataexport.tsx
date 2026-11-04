@@ -13,7 +13,7 @@ const GROUPS: Group[] = [
     ['stem_registrations', 'Đăng ký dạy STEM'], ['assignments', 'Bài tập'], ['submissions', 'Bài nộp']] },
   { key: 'equip', label: 'Thiết bị & kho', tables: [['equipment_types', 'Loại thiết bị'], ['equipment_units', 'Thiết bị'], ['equipment_events', 'Lịch sử thiết bị'], ['warranty_tickets', 'Bảo hành'],
     ['borrow_requests', 'Phiếu mượn'], ['supplies', 'Vật tư'], ['supply_moves', 'Sổ nhập xuất vật tư'], ['stocktakes', 'Đợt kiểm kê'], ['supply_requests', 'Đề xuất mua vật tư'], ['stock_transfers', 'Phiếu vận chuyển']] },
-  { key: 'train', label: 'Tập huấn, đánh giá & khảo sát', tables: [['training_plans', 'Kế hoạch tập huấn'], ['training_sessions', 'Buổi tập huấn'], ['certificates', 'Chứng chỉ'],
+  { key: 'train', label: 'Đào tạo, đánh giá & khảo sát', tables: [['training_plans', 'Kế hoạch đào tạo'], ['training_sessions', 'Buổi đào tạo'], ['certificates', 'Chứng chỉ'],
     ['teacher_assessments', 'Đánh giá năng lực GV'], ['surveys', 'Khảo sát'], ['survey_responses', 'Câu trả lời khảo sát']] },
 ]
 const LABEL = Object.fromEntries(GROUPS.flatMap(g => g.tables)) as Record<string, string>

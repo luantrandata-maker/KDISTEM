@@ -11,7 +11,7 @@ export const T_LEVEL_BASE: Record<string, string> = { '1': 'Chưa đạt', '2': 
 export const S_LEVEL_BASE: Record<string, string> = { '1': 'Mức 1', '2': 'Mức 2', '3': 'Mức 3', '4': 'Mức 4' }
 export const LEVEL_CATALOGS = [
   { key: 'q_level', name: 'Mức độ câu hỏi', note: 'Đổi tên 4 mức độ của câu hỏi, đề và ma trận đề (mức độ gắn với dữ liệu nên không thêm / xoá).', coded: Q_LEVEL_BASE },
-  { key: 'comp_level_teacher', name: 'Mức năng lực giáo viên', note: 'Tên 4 mức của khung năng lực giáo viên (đánh giá, năng lực đích của tập huấn).', coded: T_LEVEL_BASE },
+  { key: 'comp_level_teacher', name: 'Mức năng lực giáo viên', note: 'Tên 4 mức của khung năng lực giáo viên (đánh giá, năng lực đích của đào tạo).', coded: T_LEVEL_BASE },
   { key: 'comp_level_student', name: 'Mức năng lực học sinh', note: 'Tên 4 mức của khung năng lực học sinh.', coded: S_LEVEL_BASE },
 ]
 

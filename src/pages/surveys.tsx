@@ -194,7 +194,7 @@ export function SurveyManager() {
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
       {form && (
         <form className="panel formgrid" onSubmit={e => { e.preventDefault(); save() }}>
-          <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên khảo sát *</span><input required value={form.title ?? ''} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Khảo sát nhu cầu tập huấn STEM HK2" /></label>
+          <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên khảo sát *</span><input required value={form.title ?? ''} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Khảo sát nhu cầu đào tạo STEM HK2" /></label>
           {platform && <label className="field"><span>Đơn vị phát hành</span><select value={form.org_id ?? ''} onChange={e => setForm({ ...form, org_id: e.target.value })}>
             {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>}
           <label className="field"><span>Đối tượng</span><select value={form.audience} onChange={e => setForm({ ...form, audience: e.target.value as Survey['audience'] })}>

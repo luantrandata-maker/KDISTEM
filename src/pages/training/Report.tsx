@@ -1,4 +1,4 @@
-// Báo cáo, thống kê tập huấn (118): số lượng, tỷ lệ hoàn thành, kết quả — theo kỳ (năm học · đợt), theo đơn vị, theo kế hoạch.
+// Báo cáo, thống kê đào tạo (118): số lượng, tỷ lệ hoàn thành, kết quả — theo kỳ (năm học · đợt), theo đơn vị, theo kế hoạch.
 // Số liệu theo phạm vi người xem (KDI: mọi trường; Sở / Phòng: trường trực thuộc; trường: trường mình) — RPC training_report.
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -83,7 +83,7 @@ export function TrainingReportPage() {
       <div className="tools"><button type="button" onClick={exportX} disabled={!groups.length}>Xuất Excel</button></div>
     </div>
     <div className="diststatcards rptcards">
-      <div className="panel"><i aria-hidden="true">≋</i><span><b>{tot?.plans.size ?? 0}</b><small>Kế hoạch tập huấn</small><small>{tot?.closed.size ?? 0} đã kết thúc</small></span></div>
+      <div className="panel"><i aria-hidden="true">≋</i><span><b>{tot?.plans.size ?? 0}</b><small>Kế hoạch đào tạo</small><small>{tot?.closed.size ?? 0} đã kết thúc</small></span></div>
       <div className="panel"><i aria-hidden="true">⌂</i><span><b>{tot?.schools.size ?? 0}</b><small>Trường tham gia</small></span></div>
       <div className="panel"><i aria-hidden="true">☺</i><span><b>{tot?.enrolled ?? 0}</b><small>Lượt giáo viên tham gia</small><small>{(tot?.hours ?? 0).toLocaleString('vi-VN')} giờ bồi dưỡng</small></span></div>
       <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{fmtPct(tot ? pct(tot.passed, tot.enrolled) : null)}</b><small>Tỷ lệ hoàn thành (Đạt / tham gia)</small>
@@ -93,7 +93,7 @@ export function TrainingReportPage() {
     <div className="segmented" style={{ margin: '12px 0' }}>
       {BY.map(([k, l]) => <button key={k} type="button" className={by === k ? 'on' : ''} onClick={() => setBy(k)}>{l}</button>)}
     </div>
-    {!groups.length ? <div className="panel"><p className="sub" style={{ margin: 0 }}>{rows.length ? 'Không có số liệu khớp bộ lọc.' : 'Chưa có kế hoạch tập huấn nào đã phát hành và gán trường trong phạm vi của bạn.'}</p></div>
+    {!groups.length ? <div className="panel"><p className="sub" style={{ margin: 0 }}>{rows.length ? 'Không có số liệu khớp bộ lọc.' : 'Chưa có kế hoạch đào tạo nào đã phát hành và gán trường trong phạm vi của bạn.'}</p></div>
       : <div className="wrap"><table className="libtable rpttable">
         <thead><tr><th>{BY.find(b => b[0] === by)![1].replace('Theo ', '').replace(/^./, c => c.toUpperCase())}</th>{by !== 'plan' && <th>Kế hoạch</th>}{by !== 'school' && <th>Trường</th>}
           <th>Lượt GV</th><th>Đạt</th><th>Chưa đạt</th><th>Chưa kết luận</th><th style={{ minWidth: 170 }}>Tỷ lệ hoàn thành</th><th>Chuyên cần</th><th>Chứng chỉ</th><th>Giờ bồi dưỡng</th></tr></thead>

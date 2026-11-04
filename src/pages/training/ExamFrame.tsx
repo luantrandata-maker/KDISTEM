@@ -1,4 +1,4 @@
-// Chương trình tập huấn › Đề kiểm tra và Khung đánh giá (109).
+// Chương trình đào tạo › Đề kiểm tra và Khung đánh giá (109).
 // Đề kiểm tra: bài test từng nội dung (soạn trong nội dung) + đề cuối khoá rút câu theo ma trận chủ đề × mức độ.
 // Khung đánh giá: trọng số thành phần, điều kiện bắt buộc để đạt, thang xếp loại; dùng khi đánh giá kết quả và in chứng chỉ.
 import { useEffect, useState } from 'react'

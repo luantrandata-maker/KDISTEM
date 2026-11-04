@@ -1,4 +1,4 @@
-// Kế hoạch tập huấn dạng lịch: xem theo tuần / tháng (mỗi ngày các kế hoạch đang diễn ra) hoặc theo năm (mỗi kế hoạch một thanh trên 12 tháng).
+// Kế hoạch đào tạo dạng lịch: xem theo tuần / tháng (mỗi ngày các kế hoạch đang diễn ra) hoặc theo năm (mỗi kế hoạch một thanh trên 12 tháng).
 // Dùng chung bộ lọc với tab "Danh sách kế hoạch". Bấm kế hoạch để mở.
 import { useMemo, useState } from 'react'
 import type { TPlan } from './Plans'

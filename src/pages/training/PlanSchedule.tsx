@@ -1,5 +1,5 @@
-// Kế hoạch tập huấn — bước 2 "Xếp lịch" và bước 3 "Xem kết quả" (khuôn Phân phối chương trình).
-// Mỗi nội dung tập huấn là một buổi: ngày, giờ học, hình thức, địa điểm / link họp. Xếp tự động theo từng chương trình
+// Kế hoạch đào tạo — bước 2 "Xếp lịch" và bước 3 "Xem kết quả" (khuôn Phân phối chương trình).
+// Mỗi nội dung đào tạo là một buổi: ngày, giờ học, hình thức, địa điểm / link họp. Xếp tự động theo từng chương trình
 // (ngày bắt đầu hoặc nối tiếp chương trình trước, giờ vào học, số giờ mỗi ngày, nghỉ trưa, bỏ cuối tuần) rồi sửa tay từng buổi.
 // Lưu vào training_sessions (giữ buổi đã chốt điểm danh).
 // Ngày nghỉ (lịch chuẩn chung + ngày nghỉ của đơn vị): xếp tự động bỏ qua, buổi rơi vào ngày nghỉ được cảnh báo ở bảng, lịch và phần kiểm tra.
@@ -34,7 +34,7 @@ const nextMonday = () => { const d = new Date(); d.setDate(d.getDate() + ((8 - d
 const LUNCH_FROM = 11 * 60 + 30, LUNCH_TO = 13 * 60 + 30, AFTERNOON = 17 * 60 + 30 - LUNCH_TO
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp' }
 
-/** Nội dung tập huấn của kế hoạch theo thứ tự chương trình › môn › nội dung (chỉ nội dung được chọn) */
+/** Nội dung đào tạo của kế hoạch theo thứ tự chương trình › môn › nội dung (chỉ nội dung được chọn) */
 function contentsOf(items: SItem[], progs: SProg[]) {
   const out: { p: SProg; it: SItem; subj: string; u: SUnit }[] = []
   for (const it of [...items].sort((a, b) => a.seq - b.seq)) {
@@ -176,7 +176,7 @@ const progName = (p: SProg | undefined) => p ? (p.code ? p.code + ' · ' : '') +
 export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPlan; edit: boolean; onNext: () => void }) {
   const [open, setOpen] = useState<Set<string>>(new Set(s.order.slice(0, 1)))
   if (!s.loaded) return <p className="sub">Đang tải…</p>
-  if (!s.order.length) return <p className="sub">Chọn chương trình tập huấn ở bước 1 trước.</p>
+  if (!s.order.length) return <p className="sub">Chọn chương trình đào tạo ở bước 1 trước.</p>
   return <>
     <div className="distcards tpcards">{s.order.map((pid, k) => {
       const p = s.progs.find(x => x.id === pid), c = s.cfgOf(pid, k)
@@ -212,7 +212,7 @@ export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPl
         <button type="button" className="linkbtn" aria-expanded={!shut} onClick={() => setOpen(o => { const n = new Set(o); if (shut) n.add(pid); else n.delete(pid); return n })}>
           {shut ? '▸ Xem và sửa từng buổi' : '▾ Thu gọn danh sách buổi'}</button>
         {!shut && <div className="wrap"><table className="libtable tpschedtable">
-          <thead><tr><th style={{ width: 36 }}>#</th><th>Nội dung tập huấn</th><th style={{ width: 150 }}>Ngày học</th><th style={{ width: 200 }}>Thời gian</th><th style={{ width: 130 }}>Hình thức</th><th>Địa điểm / link họp</th></tr></thead>
+          <thead><tr><th style={{ width: 36 }}>#</th><th>Nội dung đào tạo</th><th style={{ width: 150 }}>Ngày học</th><th style={{ width: 200 }}>Thời gian</th><th style={{ width: 130 }}>Hình thức</th><th>Địa điểm / link họp</th></tr></thead>
           <tbody>{subjs.map(sj => <Fragment key={sj}>
             <tr className="distgsubj"><th colSpan={6}><b>{sj}</b></th></tr>
             {mine.filter(r => r.subj === sj).map((r, j) => {
@@ -268,7 +268,7 @@ export function ScheduleView({ s }: { s: Schedule }) {
         {weeks.length > 1 && idx < 0 && <button type="button" onClick={() => setWk(weeks[0])}>Về tuần có buổi</button>}</div>}
     </div>
     {mode === 'day' ? <DayGrid s={s} /> : !done.length ? <p className="sub">Chưa có buổi nào được xếp.</p>
-      : <TimeGrid days={days} shade={[LUNCH_FROM, LUNCH_TO, 'Nghỉ trưa']} label="Lịch tập huấn theo khung giờ" dayNote={d => s.hol.holName(ymd(d)) || undefined}
+      : <TimeGrid days={days} shade={[LUNCH_FROM, LUNCH_TO, 'Nghỉ trưa']} label="Lịch đào tạo theo khung giờ" dayNote={d => s.hol.holName(ymd(d)) || undefined}
           events={done.map(r => { const p = s.progs.find(x => x.id === r.program_id)
             return { id: r.unit_id, start: new Date(`${r.date}T${r.from}`), end: new Date(`${r.date}T${r.to}`), title: (s.hol.holOn(r.date).length ? '⚠ ' : '') + r.title, color: colorFor(r.program_id),
               sub: `${p?.code || p?.title || ''} · ${r.subj} · ${MODE[r.mode]}${r.mode === 'offline' && r.location ? ' · ' + r.location : ''}` } })} />}
@@ -323,7 +323,7 @@ export function ResultStep({ s, plan }: { s: Schedule; plan: SPlan }) {
       <div><b>{s.order.length}</b><small>chương trình</small></div>
       <div><b>{done.length}/{s.rows.length}</b><small>buổi đã xếp / nội dung</small></div>
       <div><b>{days.length}</b><small>ngày học{days.length ? ` · ${vnDay(days[0])} – ${vnDay(days[days.length - 1])}` : ''}</small></div>
-      <div><b>{num(done.reduce((a, r) => a + r.hours, 0))}</b><small>giờ tập huấn</small></div>
+      <div><b>{num(done.reduce((a, r) => a + r.hours, 0))}</b><small>giờ đào tạo</small></div>
     </div>
     <div className={'distchecks ' + (errors.length ? 'bad' : list.length ? 'warn' : 'good')}>
       <b>{errors.length ? 'Có lỗi cần sửa' : list.length ? 'Lưu ý' : 'Lịch hợp lệ'}</b>
@@ -334,7 +334,7 @@ export function ResultStep({ s, plan }: { s: Schedule; plan: SPlan }) {
       <button type="button" className={view === 'cal' ? 'on' : ''} aria-pressed={view === 'cal'} onClick={() => setView('cal')}>Lịch</button></div>
       {s.dirty && <Chip tone="warn">Có thay đổi chưa lưu</Chip>}</div>
     {view === 'cal' ? <ScheduleView s={s} /> : <div className="wrap"><table className="libtable disttable">
-      <thead><tr><th style={{ width: 130 }}>Thời gian</th><th>Nội dung tập huấn</th><th>Chương trình · môn</th><th style={{ width: 110 }}>Hình thức</th><th>Địa điểm / link họp</th></tr></thead>
+      <thead><tr><th style={{ width: 130 }}>Thời gian</th><th>Nội dung đào tạo</th><th>Chương trình · môn</th><th style={{ width: 110 }}>Hình thức</th><th>Địa điểm / link họp</th></tr></thead>
       <tbody>{days.map(d => <Fragment key={d}>
         <tr className="distgprog"><th colSpan={5}><b>{vnDay(d)}</b>/{d.slice(0, 4)} {s.hol.holName(d) && <Chip tone="bad">⚠ Ngày nghỉ: {s.hol.holName(d)}</Chip>} <small className="sub">{done.filter(r => r.date === d).length} buổi · {num(done.filter(r => r.date === d).reduce((a, r) => a + r.hours, 0))} giờ</small></th></tr>
         {done.filter(r => r.date === d).map(r => <tr key={r.unit_id}>

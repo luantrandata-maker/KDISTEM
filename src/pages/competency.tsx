@@ -4,7 +4,7 @@ import { useAllMode, useProvinceOf } from '../components/OrgScope'
 import { downloadXlsx } from '../lib/sheet'
 import { schoolYear } from './department/Governance'
 import { ElView } from '../components/ElView'
-// Chứng chỉ tập huấn của giáo viên (tải khi mở hồ sơ)
+// Chứng chỉ đào tạo của giáo viên (tải khi mở hồ sơ)
 const TeacherCertList = lazy(() => import('./training/Certificates').then(m => ({ default: m.TeacherCertList })))
 import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../components/MultiFilters'
 
@@ -152,7 +152,7 @@ export function ClassCompetencies({ teacherId }: { teacherId: string | null }) {
 // ================= Đánh giá năng lực giáo viên =================
 type TA = { id: string; org_id: string; teacher_id: string; school_year: string; kind: 'self' | 'manager'; levels: Record<string, number>; comment: string | null; plan: string | null; status: 'draft' | 'submitted'; submitted_at: string | null }
 type Evd = Record<string, number>
-const EV_LABEL: [string, string][] = [['training_completed', 'Khoá tập huấn hoàn thành'], ['training_present', 'Buổi tập huấn có mặt'], ['certificates', 'Chứng chỉ'], ['test_avg', 'Điểm kiểm tra tập huấn TB'],
+const EV_LABEL: [string, string][] = [['training_completed', 'Khoá đào tạo hoàn thành'], ['training_present', 'Buổi đào tạo có mặt'], ['certificates', 'Chứng chỉ'], ['test_avg', 'Điểm kiểm tra đào tạo TB'],
   ['stem_taught_12m', 'Tiết STEM đã dạy (12 tháng)'], ['lesson_plans', 'Giáo án / bài giảng tự soạn'], ['rubric_assignments', 'Bài giao có chấm theo tiêu chí']]
 
 function Evidence({ teacherId }: { teacherId: string }) {
@@ -174,19 +174,19 @@ function AssessForm({ comps, value, onChange, disabled }: { comps: Comp[]; value
     </table></div>
   )
 }
-// Mức đạt qua tập huấn: chứng chỉ đã cấp, còn hiệu lực → mức đích của chương trình ở năng lực đích (088)
+// Mức đạt qua đào tạo: chứng chỉ đã cấp, còn hiệu lực → mức đích của chương trình ở năng lực đích (088)
 type TLv = { competency: string; level: number; program: string; cert_code: string; issued_on: string | null }
 function TrainingLevels({ teacherId, comps }: { teacherId: string; comps: Comp[] }) {
   const [rows, setRows] = useState<TLv[] | null>(null)
   useEffect(() => { supabase.rpc('teacher_training_levels', { p_teacher: teacherId }).then(({ data }) => setRows((data as TLv[]) ?? [])) }, [teacherId])
   if (!rows) return null
-  if (!rows.length) return <p className="sub" style={{ margin: 0 }}>Chưa có chứng chỉ tập huấn nào gắn năng lực. Khi giáo viên Đạt khoá tập huấn và được cấp chứng chỉ, mức đích của chương trình được tính vào hồ sơ.</p>
-  return <div className="wrap"><table className="libtable"><thead><tr><th>Năng lực</th><th>Mức đạt</th><th>Chương trình tập huấn</th><th>Chứng chỉ</th></tr></thead>
+  if (!rows.length) return <p className="sub" style={{ margin: 0 }}>Chưa có chứng chỉ đào tạo nào gắn năng lực. Khi giáo viên Đạt khoá đào tạo và được cấp chứng chỉ, mức đích của chương trình được tính vào hồ sơ.</p>
+  return <div className="wrap"><table className="libtable"><thead><tr><th>Năng lực</th><th>Mức đạt</th><th>Chương trình đào tạo</th><th>Chứng chỉ</th></tr></thead>
     <tbody>{rows.map((r, i) => { const c = comps.find(x => x.key === r.competency); return <tr key={i}><td>{c?.name ?? r.competency}</td><td><LevelChip v={r.level} comp={c} /></td><td>{r.program}</td>
       <td>{r.cert_code}{r.issued_on && <small className="sub"> · {new Date(r.issued_on).toLocaleDateString('vi-VN')}</small>}</td></tr> })}</tbody></table></div>
 }
 
-// ===== Chương trình giáo dục giáo viên đáp ứng (124): Đạt một khoá tập huấn có chương trình gắn với chương trình giáo dục =====
+// ===== Chương trình giáo dục giáo viên đáp ứng (124): Đạt một khoá đào tạo có chương trình gắn với chương trình giáo dục =====
 type EduMetRow = { edu_family: string; code: string | null; title: string; kind: string; ct_code: string | null; level: string; grade_from: number; grade_to: number
   main_subject: string; met_on: string | null; via: { plan: string; program: string; date: string | null; cert: string | null }[]; competencies: Record<string, number> }
 const EDU_KIND: Record<string, string> = { subject: 'Môn học', stem: 'STEM', school: 'Nhà trường' }
@@ -202,10 +202,10 @@ export function EduProgramsMet({ teacherId, comps }: { teacherId: string; comps:
   }, [teacherId])
   if (err) return <p className="msg">{err}</p>
   if (!rows) return <p className="sub">Đang tải…</p>
-  if (!rows.length) return <p className="sub" style={{ margin: 0 }}>Chưa đáp ứng chương trình giáo dục nào. Giáo viên Đạt khoá tập huấn có chương trình tập huấn gắn với chương trình giáo dục thì được tính đáp ứng chương trình đó.</p>
+  if (!rows.length) return <p className="sub" style={{ margin: 0 }}>Chưa đáp ứng chương trình giáo dục nào. Giáo viên Đạt khoá đào tạo có chương trình đào tạo gắn với chương trình giáo dục thì được tính đáp ứng chương trình đó.</p>
   const compOf = (k: string) => comps.find(c => c.key === k)
   return <div className="wrap"><table className="libtable">
-    <thead><tr><th>Chương trình giáo dục</th><th>Khối · môn</th><th>Qua khoá tập huấn</th><th>Năng lực đạt</th><th>Từ ngày</th></tr></thead>
+    <thead><tr><th>Chương trình giáo dục</th><th>Khối · môn</th><th>Qua khoá đào tạo</th><th>Năng lực đạt</th><th>Từ ngày</th></tr></thead>
     <tbody>{rows.map(r => <tr key={r.edu_family}>
       <td><b>{r.title}</b>{r.code && <><br /><small className="sub">{r.code}</small></>} <small className="sub">· {EDU_KIND[r.kind] ?? r.kind}{r.ct_code ? ' ' + r.ct_code : ''}</small></td>
       <td><small>Khối {r.grade_from === r.grade_to ? r.grade_from : `${r.grade_from}–${r.grade_to}`} · {r.main_subject}</small></td>
@@ -216,7 +216,7 @@ export function EduProgramsMet({ teacherId, comps }: { teacherId: string; comps:
     </tr>)}</tbody></table></div>
 }
 
-// ===== Lịch sử tập huấn + tiến bộ qua các năm (124) =====
+// ===== Lịch sử đào tạo + tiến bộ qua các năm (124) =====
 type HProg = { code: string | null; title: string; competencies: string[]; target_level: number | null }
 type Hist = { plan_id: string; plan_code: string | null; plan_name: string; plan_org: string | null; year_name: string | null; term: string | null
   starts_on: string | null; ends_on: string | null; hours: number | null; closed: boolean; programs: HProg[]; sessions: number; present: number; excused: number
@@ -244,7 +244,7 @@ export function TrainingHistory({ teacherId, comps, name }: { teacherId: string;
   const [year, setYear] = useState('')
   if (!rows) return <p className="sub">Đang tải…</p>
   if (err) return <p className="msg">{err}</p>
-  if (!rows.length) return <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa tham gia đợt tập huấn nào. Khi được ghi danh vào kế hoạch tập huấn, các đợt sẽ hiện ở đây cùng chuyên cần, kết quả và chứng chỉ.</p></div>
+  if (!rows.length) return <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa tham gia đợt đào tạo nào. Khi được ghi danh vào kế hoạch đào tạo, các đợt sẽ hiện ở đây cùng chuyên cần, kết quả và chứng chỉ.</p></div>
   const years = [...new Set(rows.map(r => r.year_name).filter(Boolean) as string[])].sort().reverse()
   const shown = rows.filter(r => !year || r.year_name === year)
   const passed = shown.filter(r => r.result === 'pass')
@@ -259,7 +259,7 @@ export function TrainingHistory({ teacherId, comps, name }: { teacherId: string;
       shown.map(r => [r.year_name ?? '', TERM_NAME[r.term ?? 'other'], r.plan_code ?? '', r.plan_name, r.plan_org ?? '', r.programs.map(g => g.title).join('; '),
         [...new Set(r.programs.flatMap(g => g.competencies.map(c => compName(c) + (g.target_level ? ` (M${g.target_level})` : ''))))].join('; '),
         [dvn(r.starts_on), dvn(r.ends_on)].filter(Boolean).join(' – '), r.hours ?? '', r.att_pct ?? '', RES[r.result][0], r.total_score ?? '', r.grade ?? '',
-        r.cert_code ?? '', dvn(r.cert_issued_on)]), 'Lịch sử tập huấn')
+        r.cert_code ?? '', dvn(r.cert_issued_on)]), 'Lịch sử đào tạo')
   }
   return <>
     <div className="bar">
@@ -267,13 +267,13 @@ export function TrainingHistory({ teacherId, comps, name }: { teacherId: string;
       <span style={{ flex: 1 }} /><button type="button" onClick={excel}>Xuất Excel</button>
     </div>
     <div className="evgrid histcards">
-      <div><b>{shown.length}</b><small>Đợt tập huấn tham gia</small></div>
+      <div><b>{shown.length}</b><small>Đợt đào tạo tham gia</small></div>
       <div><b>{passed.length}</b><small>Đạt · {shown.filter(r => r.result === 'fail').length} chưa đạt · {shown.filter(r => r.result === 'pending').length} chưa kết luận</small></div>
       <div><b>{hours.toLocaleString('vi-VN')}</b><small>Giờ bồi dưỡng (các đợt Đạt)</small></div>
       <div><b>{certs}</b><small>Chứng chỉ còn hiệu lực</small></div>
     </div>
     <div className="wrap"><table className="libtable histtable">
-      <thead><tr><th>Năm học · đợt</th><th>Kế hoạch tập huấn</th><th>Chương trình · năng lực</th><th>Số giờ</th><th>Chuyên cần</th><th>Kết quả</th><th>Chứng chỉ</th></tr></thead>
+      <thead><tr><th>Năm học · đợt</th><th>Kế hoạch đào tạo</th><th>Chương trình · năng lực</th><th>Số giờ</th><th>Chuyên cần</th><th>Kết quả</th><th>Chứng chỉ</th></tr></thead>
       <tbody>{shown.map(r => <tr key={r.plan_id}>
         <td><b>{r.year_name ?? '—'}</b><br /><small className="sub">{TERM_NAME[r.term ?? 'other']}</small></td>
         <td style={{ whiteSpace: 'normal' }}><b>{r.plan_name}</b>{r.closed && <> <span className="plbadge mute">Đã kết thúc</span></>}<br />
@@ -290,10 +290,10 @@ export function TrainingHistory({ teacherId, comps, name }: { teacherId: string;
   </>
 }
 
-// Tiến bộ: mức năng lực theo năm học (trường đánh giá / tự đánh giá / mức đạt qua tập huấn, cộng dồn) + số đợt, giờ bồi dưỡng
+// Tiến bộ: mức năng lực theo năm học (trường đánh giá / tự đánh giá / mức đạt qua đào tạo, cộng dồn) + số đợt, giờ bồi dưỡng
 type YearPt = { year: string; self: number | null; mgr: number | null; train: number | null; plans: number; passed: number; hours: number }
 const SERIES: { k: 'mgr' | 'self' | 'train'; label: string; cls: string }[] = [
-  { k: 'mgr', label: 'Nhà trường đánh giá', cls: 'mgr' }, { k: 'self', label: 'Tự đánh giá', cls: 'self' }, { k: 'train', label: 'Mức đạt qua tập huấn', cls: 'train' }]
+  { k: 'mgr', label: 'Nhà trường đánh giá', cls: 'mgr' }, { k: 'self', label: 'Tự đánh giá', cls: 'self' }, { k: 'train', label: 'Mức đạt qua đào tạo', cls: 'train' }]
 export function TrainingProgress({ teacherId, comps }: { teacherId: string; comps: Comp[] }) {
   const [hist, err] = useTrainingHistory(teacherId)
   const [ass, setAss] = useState<TA[] | null>(null)
@@ -321,7 +321,7 @@ export function TrainingProgress({ teacherId, comps }: { teacherId: string; comp
   }, [hist, ass, comp, comps])
   if (!hist || !ass) return <p className="sub">Đang tải…</p>
   if (err) return <p className="msg">{err}</p>
-  if (!pts.length) return <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có dữ liệu: biểu đồ hiện khi có bản đánh giá năng lực đã nộp hoặc đợt tập huấn đã tham gia.</p></div>
+  if (!pts.length) return <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có dữ liệu: biểu đồ hiện khi có bản đánh giá năng lực đã nộp hoặc đợt đào tạo đã tham gia.</p></div>
   const W = 640, H = 240, L = 34, R = 16, T = 14, B = 30
   const x = (i: number) => pts.length === 1 ? (L + W - R) / 2 : L + i * (W - L - R) / (pts.length - 1)
   const y = (v: number) => T + (4 - v) * (H - T - B) / 3
@@ -359,14 +359,14 @@ export function TrainingProgress({ teacherId, comps }: { teacherId: string; comp
         {hp && <div className="progtip" style={{ left: `${x(hover!) / W * 100}%` }}>
           <b>Năm học {hp.year}</b>
           {SERIES.map(s => <div key={s.k}><i className={'k ' + s.cls} />{s.label}: <b>{hp[s.k] == null ? '—' : 'M' + num(hp[s.k])}</b></div>)}
-          <div>{hp.plans} đợt tập huấn · {hp.passed} Đạt · {hp.hours} giờ</div>
+          <div>{hp.plans} đợt đào tạo · {hp.passed} Đạt · {hp.hours} giờ</div>
         </div>}
       </div>
       <div className="chartlegend proglegend">{SERIES.map(s => <span key={s.k}><i className={'k ' + s.cls} />{s.label}</span>)}</div>
-      <p className="sub" style={{ marginBottom: 0 }}>Mức đánh giá lấy từ bản đã nộp của từng năm học. Mức đạt qua tập huấn là mức đích của các chương trình đã Đạt và được cấp chứng chỉ, cộng dồn tới năm đó.</p>
+      <p className="sub" style={{ marginBottom: 0 }}>Mức đánh giá lấy từ bản đã nộp của từng năm học. Mức đạt qua đào tạo là mức đích của các chương trình đã Đạt và được cấp chứng chỉ, cộng dồn tới năm đó.</p>
     </div>
     <div className="wrap"><table className="libtable">
-      <thead><tr><th>Năm học</th><th>Đợt tập huấn</th><th>Đạt</th><th>Giờ bồi dưỡng</th>{SERIES.map(s => <th key={s.k}>{s.label}</th>)}</tr></thead>
+      <thead><tr><th>Năm học</th><th>Đợt đào tạo</th><th>Đạt</th><th>Giờ bồi dưỡng</th>{SERIES.map(s => <th key={s.k}>{s.label}</th>)}</tr></thead>
       <tbody>{[...pts].reverse().map(p => <tr key={p.year}><td><b>{p.year}</b></td><td>{p.plans}</td><td>{p.passed}</td><td>{p.hours}</td>
         {SERIES.map(s => <td key={s.k}><LevelChip v={p[s.k]} comp={sel} /></td>)}</tr>)}</tbody>
     </table></div>
@@ -425,10 +425,10 @@ export function TeacherCompetencyProfile({ teacherId, orgId }: { teacherId: stri
         </div>) })}
       <p className="sub">Năm học {year}. Tự đánh giá theo {comps.length} năng lực của giáo viên STEM (mức như chuẩn nghề nghiệp: Chưa đạt / Đạt / Khá / Tốt). Minh chứng dưới đây hệ thống tự tổng hợp.</p>
       <div className="panel"><h4 style={{ marginTop: 0 }}>Minh chứng</h4><Evidence teacherId={teacherId} /></div>
-      <div className="panel"><h4 style={{ marginTop: 0 }}>Chứng chỉ tập huấn</h4><Suspense fallback={<p className="sub">Đang tải…</p>}><TeacherCertList teacherId={teacherId} /></Suspense></div>
-      <div className="panel"><h4 style={{ marginTop: 0 }}>Mức đạt qua tập huấn</h4><TrainingLevels teacherId={teacherId} comps={comps} /></div>
+      <div className="panel"><h4 style={{ marginTop: 0 }}>Chứng chỉ đào tạo</h4><Suspense fallback={<p className="sub">Đang tải…</p>}><TeacherCertList teacherId={teacherId} /></Suspense></div>
+      <div className="panel"><h4 style={{ marginTop: 0 }}>Mức đạt qua đào tạo</h4><TrainingLevels teacherId={teacherId} comps={comps} /></div>
       <div className="panel"><h4 style={{ marginTop: 0 }}>Chương trình giáo dục đáp ứng</h4><EduProgramsMet teacherId={teacherId} comps={comps} /></div>
-      <div className="panel"><h4 style={{ marginTop: 0 }}>Lịch sử tập huấn</h4><TrainingHistory teacherId={teacherId} comps={comps} /></div>
+      <div className="panel"><h4 style={{ marginTop: 0 }}>Lịch sử đào tạo</h4><TrainingHistory teacherId={teacherId} comps={comps} /></div>
       <div className="panel"><h4 style={{ marginTop: 0 }}>Tiến bộ qua các năm</h4><TrainingProgress teacherId={teacherId} comps={comps} /></div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
       <div className="panel">
@@ -519,7 +519,7 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
           <td>{certs.get(t.id) ?? <small className="sub">0</small>}</td></tr> })}
         {!shownT.length && <tr><td colSpan={comps.length + 5}>{teachers.length ? 'Không có giáo viên nào khớp.' : 'Chưa có giáo viên.'}</td></tr>}</tbody>
     </table></div>
-    <p className="sub covhint" style={{ margin: 0 }}>Bấm tên giáo viên để xem hồ sơ: thông tin, năng lực, chứng chỉ, chương trình giáo dục đáp ứng, lịch sử tập huấn.</p>
+    <p className="sub covhint" style={{ margin: 0 }}>Bấm tên giáo viên để xem hồ sơ: thông tin, năng lực, chứng chỉ, chương trình giáo dục đáp ứng, lịch sử đào tạo.</p>
   </section>
   return (
     <>
@@ -580,7 +580,7 @@ function TeacherAssessDetail({ t, year, comps, self, mgr, canEdit, initialTab = 
       <button type="button" className="primary" onClick={startEdit}>{mgr ? 'Sửa đánh giá' : 'Đánh giá'}</button></>}>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <div className="segmented" style={{ marginBottom: 12 }}>
-      {([['profile', 'Hồ sơ năng lực'], ['assess', 'Đánh giá năm học'], ['evidence', 'Minh chứng'], ['training', 'Tập huấn & tiến bộ']] as const).map(([k, l]) =>
+      {([['profile', 'Hồ sơ năng lực'], ['assess', 'Đánh giá năm học'], ['evidence', 'Minh chứng'], ['training', 'Đào tạo & tiến bộ']] as const).map(([k, l]) =>
         <button key={k} type="button" className={tab === k ? 'on' : ''} disabled={editing && k !== 'assess'} onClick={() => setTab(k)}>{l}</button>)}
     </div>
     {tab === 'assess' && <>
@@ -610,10 +610,10 @@ function TeacherAssessDetail({ t, year, comps, self, mgr, canEdit, initialTab = 
     {tab === 'profile' && <TeacherProfile t={t} year={year} comps={comps} self={self} mgr={mgr} />}
     {tab === 'evidence' && <section className="panel"><h3 style={{ marginTop: 0 }}>Minh chứng</h3><Evidence teacherId={t.id} /></section>}
     {tab === 'training' && <div style={{ display: 'grid', gap: 14 }}>
-      <section className="panel"><h3 style={{ marginTop: 0 }}>Chứng chỉ tập huấn</h3><Suspense fallback={<p className="sub">Đang tải…</p>}><TeacherCertList teacherId={t.id} /></Suspense></section>
-      <section className="panel"><h3 style={{ marginTop: 0 }}>Mức đạt qua tập huấn</h3><TrainingLevels teacherId={t.id} comps={comps} /></section>
+      <section className="panel"><h3 style={{ marginTop: 0 }}>Chứng chỉ đào tạo</h3><Suspense fallback={<p className="sub">Đang tải…</p>}><TeacherCertList teacherId={t.id} /></Suspense></section>
+      <section className="panel"><h3 style={{ marginTop: 0 }}>Mức đạt qua đào tạo</h3><TrainingLevels teacherId={t.id} comps={comps} /></section>
       <section className="panel"><h3 style={{ marginTop: 0 }}>Chương trình giáo dục đáp ứng</h3><EduProgramsMet teacherId={t.id} comps={comps} /></section>
-      <section className="panel"><h3 style={{ marginTop: 0 }}>Lịch sử tập huấn</h3><TrainingHistory teacherId={t.id} comps={comps} name={t.full_name} /></section>
+      <section className="panel"><h3 style={{ marginTop: 0 }}>Lịch sử đào tạo</h3><TrainingHistory teacherId={t.id} comps={comps} name={t.full_name} /></section>
       <section className="panel"><h3 style={{ marginTop: 0 }}>Tiến bộ qua các năm</h3><TrainingProgress teacherId={t.id} comps={comps} /></section>
     </div>}
   </ElView>
@@ -646,7 +646,7 @@ function TeacherProfile({ t, year, comps, self, mgr }: { t: TRow; year: string; 
     <section className="panel">
       <h3 style={{ marginTop: 0 }}>Năng lực <small className="sub">· năm học {year}</small></h3>
       <div className="wrap"><table className="libtable">
-        <thead><tr><th>Năng lực</th><th>Tự đánh giá</th><th>Trường đánh giá</th><th>Đạt qua tập huấn</th></tr></thead>
+        <thead><tr><th>Năng lực</th><th>Tự đánh giá</th><th>Trường đánh giá</th><th>Đạt qua đào tạo</th></tr></thead>
         <tbody>{comps.map(c => { const tr = tl.filter(x => x.competency === c.key).sort((a, b) => b.level - a.level)[0]
           return <tr key={c.key}><td><b>{c.name}</b>{c.description && <><br /><small className="sub">{c.description}</small></>}</td>
             <td><LevelChip v={sub(self)[c.key] ?? null} comp={c} /></td><td><LevelChip v={sub(mgr)[c.key] ?? null} comp={c} /></td>
@@ -657,8 +657,8 @@ function TeacherProfile({ t, year, comps, self, mgr }: { t: TRow; year: string; 
         {mgr.plan && <><dt>Kế hoạch bồi dưỡng</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{mgr.plan}</dd></>}</dl>}
     </section>
     <section className="panel">
-      <h3 style={{ marginTop: 0 }}>Chứng chỉ tập huấn</h3>
-      {/* Cùng bảng với tab Tập huấn & tiến bộ: lấy tên kế hoạch, chương trình, số giờ theo kế hoạch tập huấn */}
+      <h3 style={{ marginTop: 0 }}>Chứng chỉ đào tạo</h3>
+      {/* Cùng bảng với tab Đào tạo & tiến bộ: lấy tên kế hoạch, chương trình, số giờ theo kế hoạch đào tạo */}
       <Suspense fallback={<p className="sub">Đang tải…</p>}><TeacherCertList teacherId={t.id} /></Suspense>
     </section>
     <section className="panel"><h3 style={{ marginTop: 0 }}>Chương trình giáo dục đáp ứng</h3><EduProgramsMet teacherId={t.id} comps={comps} /></section>

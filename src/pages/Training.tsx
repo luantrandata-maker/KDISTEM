@@ -68,11 +68,11 @@ export function TrainingPlans({ orgId }: { orgId: string }) {
 
   return (
     <>
-      <div className="bar"><p className="sub">Lộ trình tập huấn giáo viên theo năm và module</p><button className="primary" onClick={() => setAdding(true)}>Thêm kế hoạch</button></div>
+      <div className="bar"><p className="sub">Lộ trình đào tạo giáo viên theo năm và module</p><button className="primary" onClick={() => setAdding(true)}>Thêm kế hoạch</button></div>
       {adding && <FormPanel fields={[
-        { key: 'name', label: 'Tên khóa tập huấn', required: true }, { key: 'program', label: 'Chương trình', type: 'select', options: PROGRAMS },
+        { key: 'name', label: 'Tên khóa đào tạo', required: true }, { key: 'program', label: 'Chương trình', type: 'select', options: PROGRAMS },
         { key: 'year_no', label: 'Năm (1–5)', type: 'number' }, { key: 'module_no', label: 'Module (1–3)', type: 'number' },
-        { key: 'provider', label: 'Đơn vị tập huấn' }, { key: 'hours', label: 'Số giờ', type: 'number' },
+        { key: 'provider', label: 'Đơn vị đào tạo' }, { key: 'hours', label: 'Số giờ', type: 'number' },
         { key: 'mode', label: 'Hình thức', type: 'select', required: true, options: [{ value: 'online', label: 'Trực tuyến' }, { value: 'offline', label: 'Trực tiếp' }, { value: 'hybrid', label: 'Kết hợp' }] },
         { key: 'status', label: 'Trạng thái', type: 'select', required: true, options: [{ value: 'planned', label: 'Dự kiến' }, { value: 'ongoing', label: 'Đang thực hiện' }, { value: 'done', label: 'Hoàn thành' }] },
       ]} initial={{ mode: 'online', status: 'ongoing' }} onSubmit={add} onCancel={() => setAdding(false)} />}
@@ -83,7 +83,7 @@ export function TrainingPlans({ orgId }: { orgId: string }) {
       </tbody></table></div>
       <h3 style={{ margin: '18px 0 8px' }}>Khóa đang mở ({open.length})</h3>
       <div className="wrap"><table>
-        <thead><tr><th>Khóa tập huấn</th><th>Hình thức</th><th>GV trường</th><th>Tiến độ</th><th>Thao tác</th></tr></thead>
+        <thead><tr><th>Khóa đào tạo</th><th>Hình thức</th><th>GV trường</th><th>Tiến độ</th><th>Thao tác</th></tr></thead>
         <tbody>{open.map(p => {
           const e = list(p.id); const done = e.filter(x => x.completed).length; const target = Math.max(targets[p.program ?? ''] ?? 0, e.length); const pct = target ? Math.round((e.length / target) * 100) : 0
           return (<Fragment key={p.id}>
@@ -155,7 +155,7 @@ export function TrainingSchedule({ onlineOnly = false, orgId }: { onlineOnly?: b
     <>
       <div className="bar">
         <div className="segmented" style={{ margin: 0 }}><button className={view === 'list' ? 'on' : ''} onClick={() => setView('list')}>Danh sách</button><button className={view === 'cal' ? 'on' : ''} onClick={() => setView('cal')}>Lịch</button></div>
-        <button className="primary" onClick={() => setAdding(true)} disabled={planOpts.length === 0}>Thêm buổi {onlineOnly ? 'online' : 'tập huấn'}</button>
+        <button className="primary" onClick={() => setAdding(true)} disabled={planOpts.length === 0}>Thêm buổi {onlineOnly ? 'online' : 'đào tạo'}</button>
       </div>
       {adding && <FormPanel fields={[
         { key: 'plan_id', label: 'Kế hoạch', type: 'select', required: true, options: planOpts }, { key: 'title', label: 'Tên buổi', required: true },
@@ -167,7 +167,7 @@ export function TrainingSchedule({ onlineOnly = false, orgId }: { onlineOnly?: b
         <div className="card"><strong>{n('upcoming')}</strong><span>Chưa diễn ra</span></div><div className="card"><strong>{n('live')}</strong><span>Đang diễn ra</span></div><div className="card"><strong>{n('done')}</strong><span>Kết thúc</span></div>
       </div>
       <div className="bar" style={{ margin: '14px 0' }}>
-        <input className="search" style={{ margin: 0 }} placeholder="Tìm tiêu đề buổi tập huấn…" value={q} onChange={e => setQ(e.target.value)} />
+        <input className="search" style={{ margin: 0 }} placeholder="Tìm tiêu đề buổi đào tạo…" value={q} onChange={e => setQ(e.target.value)} />
         <div className="tools">
           {[['all', 'Tất cả'], ['upcoming', 'Chưa diễn ra'], ['live', 'Đang diễn ra'], ['done', 'Kết thúc']].map(([k, l]) => <button key={k} className={'chipbtn' + (state === k ? ' on' : '')} onClick={() => setState(k)}>{l}</button>)}
           {!onlineOnly && <select value={mode} onChange={e => setMode(e.target.value)} aria-label="Hình thức"><option value="all">Tất cả</option><option value="online">Online</option><option value="offline">Offline</option></select>}
@@ -175,7 +175,7 @@ export function TrainingSchedule({ onlineOnly = false, orgId }: { onlineOnly?: b
       </div>
       {view === 'list' ? (
         <div className="wrap"><table>
-          <thead><tr><th>#</th>{onlineOnly ? <th>Buổi học / Kế hoạch</th> : <th>Buổi tập huấn</th>}<th>Ngày & giờ</th><th>Điểm danh</th><th>Trạng thái</th><th></th></tr></thead>
+          <thead><tr><th>#</th>{onlineOnly ? <th>Buổi học / Kế hoạch</th> : <th>Buổi đào tạo</th>}<th>Ngày & giờ</th><th>Điểm danh</th><th>Trạng thái</th><th></th></tr></thead>
           <tbody>{rows.map((s, i) => { const a = info(s.id); const stt = st(s); return (<Fragment key={s.id}>
             <tr><td>{i + 1}</td><td><b>{s.title}</b><br /><small>{s.training_plans?.name} · {s.mode === 'online' ? 'Online' : `Offline · ${s.location ?? ''}`}</small></td>
               <td>{fmtDate(s.starts_at)}<br /><small>{fmtTime(s.starts_at)}–{fmtTime(s.ends_at)}</small></td>
@@ -200,7 +200,7 @@ export function TrainingSchedule({ onlineOnly = false, orgId }: { onlineOnly?: b
 }
 export const VirtualClass = ({ orgId }: { orgId: string }) => <TrainingSchedule onlineOnly orgId={orgId} />
 
-// Bài giảng tập huấn: bộ 5 thẻ như bài học (102), tải khi mở
+// Bài giảng đào tạo: bộ 5 thẻ như bài học (102), tải khi mở
 const LessonsPage = lazy(() => import('./training/Lessons').then(m => ({ default: m.TrainingLessonsPage })))
 export const TrainingLessons = ({ orgId }: { orgId: string }) => <Suspense fallback={<p className="sub">Đang tải…</p>}><LessonsPage orgId={orgId} /></Suspense>
 
@@ -222,11 +222,11 @@ export function Certificates({ orgId }: { orgId: string }) {
     <>
       <div className="bar"><p className="sub">{rows.length} chứng chỉ đã cấp</p><button className="primary" onClick={() => setAdding(true)}>Cấp chứng chỉ</button></div>
       {adding && <FormPanel submitLabel="Cấp" fields={[
-        { key: 'teacher_id', label: 'Giáo viên', type: 'select', required: true, options: teachers }, { key: 'plan_id', label: 'Khóa tập huấn', type: 'select', required: true, options: planOpts },
+        { key: 'teacher_id', label: 'Giáo viên', type: 'select', required: true, options: teachers }, { key: 'plan_id', label: 'Khóa đào tạo', type: 'select', required: true, options: planOpts },
         { key: 'issued_on', label: 'Ngày cấp', type: 'date', required: true },
       ]} initial={{ issued_on: new Date().toISOString().slice(0, 10) }} onSubmit={add} onCancel={() => setAdding(false)} />}
       <table>
-        <thead><tr><th>Mã chứng chỉ</th><th>Giáo viên</th><th>Khóa tập huấn</th><th>Ngày cấp</th></tr></thead>
+        <thead><tr><th>Mã chứng chỉ</th><th>Giáo viên</th><th>Khóa đào tạo</th><th>Ngày cấp</th></tr></thead>
         <tbody>
           {rows.map(c => (
             <tr key={c.id}><td><b>{c.code}</b></td><td>{c.teachers?.full_name}<br /><small>{c.teachers?.subject}</small></td>

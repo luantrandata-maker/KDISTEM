@@ -1,5 +1,5 @@
 // Ngày nghỉ hiệu lực của một đơn vị (095: effective_holidays — lịch chuẩn chung + ngày nghỉ riêng, bỏ ngày đơn vị đã bỏ qua).
-// Dùng để cảnh báo buổi học / buổi tập huấn rơi vào ngày nghỉ, như khi xếp lịch bản phân phối chương trình.
+// Dùng để cảnh báo buổi học / buổi đào tạo rơi vào ngày nghỉ, như khi xếp lịch bản phân phối chương trình.
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from './supabase'
 

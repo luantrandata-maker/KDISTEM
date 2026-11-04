@@ -1,5 +1,5 @@
 // Lưới tuần theo giờ (kiểu lịch Google): mỗi ngày một cột, trục dọc là giờ trong ngày, mỗi buổi là một khối
-// đặt đúng khung giờ. Buổi trùng giờ chia cột trong ngày. Dùng ở Lịch tập huấn (tuần) và Xếp lịch kế hoạch tập huấn.
+// đặt đúng khung giờ. Buổi trùng giờ chia cột trong ngày. Dùng ở Lịch đào tạo (tuần) và Xếp lịch kế hoạch đào tạo.
 import { useEffect, useState } from 'react'
 
 export type TEvent = { id: string; start: Date; end: Date; title: string; sub?: string; cls?: string; color?: string; tip?: string; onClick?: () => void }

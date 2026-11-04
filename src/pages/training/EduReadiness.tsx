@@ -1,5 +1,5 @@
 // Đáp ứng chương trình giáo dục (migration 124): mỗi trường × chương trình giáo dục (được gán cho trường, hoặc đã có GV đáp ứng)
-// có bao nhiêu giáo viên đáp ứng. GV đáp ứng khi đã Đạt một khoá tập huấn có chương trình tập huấn gắn với chương trình giáo dục đó.
+// có bao nhiêu giáo viên đáp ứng. GV đáp ứng khi đã Đạt một khoá đào tạo có chương trình đào tạo gắn với chương trình giáo dục đó.
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Chip } from '../dist/Editor'
@@ -34,7 +34,7 @@ export function EduReadinessPage() {
   const assigned = scope.filter(r => r.assigned)
   const missing = assigned.filter(r => !r.met)
   const schools = new Set(scope.map(r => r.org_id)).size
-  // Tổng hợp theo trường: chương trình được gán, đã có GV đáp ứng, chưa có (mỗi chương trình chưa có cần tập huấn ít nhất 1 GV)
+  // Tổng hợp theo trường: chương trình được gán, đã có GV đáp ứng, chưa có (mỗi chương trình chưa có cần đào tạo ít nhất 1 GV)
   const bySchool = [...assigned.reduce((m, r) => { const x = m.get(r.org_id) ?? { id: r.org_id, name: r.org_name, teachers: r.teachers, rows: [] as Row[] }; x.rows.push(r); return m.set(r.org_id, x) },
     new Map<string, { id: string; name: string; teachers: number; rows: Row[] }>()).values()]
     .map(x => ({ ...x, met: x.rows.filter(r => r.met).length, metT: new Set(x.rows.flatMap(r => r.met_list.map(t => t.id))).size, miss: x.rows.filter(r => !r.met) }))
@@ -42,7 +42,7 @@ export function EduReadinessPage() {
   const key = (r: Row) => r.org_id + r.edu_family
   function excel() {
     downloadXlsx('dap-ung-chuong-trinh-giao-duc', [{ key: 's', label: 'Trường', width: 30 }, { key: 'c', label: 'Mã', width: 12 }, { key: 'p', label: 'Chương trình giáo dục', width: 40 },
-      { key: 'a', label: 'Được gán cho trường' }, { key: 'm', label: 'GV đáp ứng' }, { key: 't', label: 'Tổng GV' }, { key: 'l', label: 'Giáo viên đáp ứng', width: 50 }, { key: 'g', label: 'Khoá tập huấn gợi ý', width: 40 }],
+      { key: 'a', label: 'Được gán cho trường' }, { key: 'm', label: 'GV đáp ứng' }, { key: 't', label: 'Tổng GV' }, { key: 'l', label: 'Giáo viên đáp ứng', width: 50 }, { key: 'g', label: 'Khoá đào tạo gợi ý', width: 40 }],
       shown.map(r => [r.org_name, r.code ?? '', r.title, r.assigned ? 'Có' : 'Không', r.met, r.teachers, r.met_list.map(t => t.name).join('; '), r.suggest.map(g => g.title).join('; ')]), 'Đáp ứng CTGD')
   }
   return <>
@@ -52,7 +52,7 @@ export function EduReadinessPage() {
       <div className="card"><strong>{assigned.length - missing.length}/{assigned.length}</strong><span>Đã có GV đáp ứng</span></div>
       <div className="card"><strong style={{ color: missing.length ? 'var(--bad, #dc2626)' : undefined }}>{missing.length}</strong><span>Chưa có GV đáp ứng</span></div>
     </div>
-    <p className="sub">Giáo viên đáp ứng một chương trình giáo dục khi đã Đạt một khoá tập huấn có chương trình tập huấn gắn với chương trình đó (KDI gắn trong Chương trình tập huấn › Thông tin).</p>
+    <p className="sub">Giáo viên đáp ứng một chương trình giáo dục khi đã Đạt một khoá đào tạo có chương trình đào tạo gắn với chương trình đó (KDI gắn trong Chương trình đào tạo › Thông tin).</p>
     <div className="tools" style={{ marginBottom: 12 }}>
       <MultiFilters defs={of.defs} f={mf} />
       <input className="search" style={{ margin: 0 }} placeholder="Tìm chương trình…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chương trình" />
@@ -61,9 +61,9 @@ export function EduReadinessPage() {
       {([['program', 'Theo chương trình'], ['school', 'Tổng hợp theo trường']] as const).map(([k, l]) =>
         <button key={k} type="button" className={`distfchip${view === k ? ' on' : ''}`} aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>)}<button type="button" onClick={excel} disabled={!shown.length}>Xuất Excel</button>
     </div>
-    {view === 'school' ? <><p className="sub">Mỗi dòng là một trường: số chương trình giáo dục được gán cho trường, số chương trình đã có GV đáp ứng và các chương trình chưa có. Mỗi chương trình chưa có GV đáp ứng cần tập huấn ít nhất 1 GV qua khoá gợi ý.</p>
+    {view === 'school' ? <><p className="sub">Mỗi dòng là một trường: số chương trình giáo dục được gán cho trường, số chương trình đã có GV đáp ứng và các chương trình chưa có. Mỗi chương trình chưa có GV đáp ứng cần đào tạo ít nhất 1 GV qua khoá gợi ý.</p>
     <div className="wrap"><table className="libtable">
-      <thead><tr><th>Trường</th><th>CTGD được gán</th><th>Đã có GV đáp ứng</th><th>GV đáp ứng / tổng GV</th><th>Chưa có GV đáp ứng (cần tập huấn tối thiểu)</th></tr></thead>
+      <thead><tr><th>Trường</th><th>CTGD được gán</th><th>Đã có GV đáp ứng</th><th>GV đáp ứng / tổng GV</th><th>Chưa có GV đáp ứng (cần đào tạo tối thiểu)</th></tr></thead>
       <tbody>{bySchool.map(x => <tr key={x.id} className="clickrow" onClick={() => { mf.set('school', [x.id]); setView('program') }} title="Xem từng chương trình của trường">
         <td><b>{x.name}</b></td><td>{x.rows.length}</td>
         <td><Chip tone={x.met === x.rows.length ? 'good' : 'warn'}>{x.met}/{x.rows.length}</Chip></td>
@@ -71,7 +71,7 @@ export function EduReadinessPage() {
         <td>{x.miss.length ? <><b>{x.miss.length} chương trình · ít nhất {x.miss.length} GV</b><br /><small className="sub">{x.miss.map(r => r.code || r.title).join(', ')}</small></> : <small className="sub">Đủ</small>}</td></tr>)}
         {!bySchool.length && <tr><td colSpan={5}><small className="sub">Không có trường nào được gán chương trình giáo dục trong bộ lọc.</small></td></tr>}</tbody>
     </table></div></> : <><div className="wrap"><table className="libtable">
-      <thead><tr><th>Trường</th><th>Chương trình giáo dục</th><th>Gán cho trường</th><th>GV đáp ứng</th><th>Khoá tập huấn gợi ý</th></tr></thead>
+      <thead><tr><th>Trường</th><th>Chương trình giáo dục</th><th>Gán cho trường</th><th>GV đáp ứng</th><th>Khoá đào tạo gợi ý</th></tr></thead>
       <tbody>{shown.map(r => { const k = key(r); return <tr key={k}>
         <td>{r.org_name}</td>
         <td><b>{r.title}</b>{r.code && <><br /><small className="sub">{r.code}</small></>}</td>

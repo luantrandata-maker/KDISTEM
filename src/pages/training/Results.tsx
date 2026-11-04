@@ -1,6 +1,6 @@
-// Phân hệ 1 — Đánh giá kết quả tập huấn (087). Mỗi kế hoạch một bảng kết quả, mỗi giáo viên một dòng.
+// Phân hệ 1 — Đánh giá kết quả đào tạo (087). Mỗi kế hoạch một bảng kết quả, mỗi giáo viên một dòng.
 // Hệ thống tự tính chuyên cần, bài kiểm tra, tiến độ học, sản phẩm và gợi ý Đạt / Chưa đạt theo điều kiện của chương trình;
-// đơn vị lập kế hoạch chấm sản phẩm, kết luận, cho thi lại. Đạt thì có chứng chỉ chờ duyệt ở mục Chứng chỉ tập huấn.
+// đơn vị lập kế hoạch chấm sản phẩm, kết luận, cho thi lại. Đạt thì có chứng chỉ chờ duyệt ở mục Chứng chỉ đào tạo.
 import { useOrgFilter } from '../../components/OrgFilters'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -67,13 +67,13 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
   }, [orgId, rk])
 
   const cur = plans?.find(p => p.id === open)
-  if (cur) return <ElView back="Đánh giá kết quả tập huấn" onBack={() => { setOpen(null); setRk(x => x + 1) }} title={cur.name}
+  if (cur) return <ElView back="Đánh giá kết quả đào tạo" onBack={() => { setOpen(null); setRk(x => x + 1) }} title={cur.name}
     sub={[cur.plan_code, cur.year_name].filter(Boolean).join(' · ')}><PlanResults plan={cur} /></ElView>
 
   const list = (plans ?? []).filter(p => ofl.fit(p.org_id) && (!q || `${p.plan_code ?? ''} ${p.name}`.toLowerCase().includes(q.toLowerCase())))
   const tot = [...cnt.values()].reduce((a, c) => ({ n: a.n + c.n, pass: a.pass + c.pass, fail: a.fail + c.fail, cert: a.cert + c.cert }), { n: 0, pass: 0, fail: 0, cert: 0 })
   const table = (rows: TPlanRow[], empty: string) => <div className="wrap"><table className="libtable">
-    <thead><tr><th>Kế hoạch tập huấn</th><th>Giáo viên</th><th>Đạt</th><th>Chưa đạt</th><th>Chờ kết luận</th><th>Chứng chỉ đã cấp</th></tr></thead>
+    <thead><tr><th>Kế hoạch đào tạo</th><th>Giáo viên</th><th>Đạt</th><th>Chưa đạt</th><th>Chờ kết luận</th><th>Chứng chỉ đã cấp</th></tr></thead>
     <tbody>{rows.map(p => { const c = cnt.get(p.id) ?? { n: 0, pass: 0, fail: 0, cert: 0 }, wait = Math.max(0, c.n - c.pass - c.fail)
       return <tr key={p.id}>
         <td><button type="button" className="namelink" onClick={() => setOpen(p.id)}>{p.name}</button><br /><small className="sub">{[p.plan_code, p.year_name, p.org_id === orgId ? '' : 'được giao'].filter(Boolean).join(' · ')}</small></td>
@@ -113,7 +113,7 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
           <input placeholder="Tìm mã, tên kế hoạch…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm kế hoạch" />
           {ofl.node(plans.map(p => p.org_id))}
           <small className="sub">{list.length}/{plans.length} kế hoạch</small></div></div>
-        {table(list, 'Chưa có kế hoạch tập huấn đã phát hành.')}
+        {table(list, 'Chưa có kế hoạch đào tạo đã phát hành.')}
       </>}
   </>
 }
@@ -155,7 +155,7 @@ export function ResultDetail({ plan, r, can, onBack, onDone, back = 'Đánh giá
         <Chip tone={m.suggest === 'pass' ? 'good' : 'warn'}>{num(m.total)}/10 · {m.grade}</Chip></div>
       <div className="wrap"><table><thead><tr><th>Thành phần</th><th className="num">Điểm</th><th className="num">Trọng số</th></tr></thead>
         <tbody>{COMP.filter(([k]) => m.weights![k] > 0).map(([k, l]) => <tr key={k}><td>{l}</td><td className="num">{num(m.scores![k])}</td><td className="num">{m.weights![k]}</td></tr>)}</tbody></table></div>
-      <small className="sub">Trọng số, điều kiện và thang xếp loại lấy từ Khung đánh giá của chương trình tập huấn.</small>
+      <small className="sub">Trọng số, điều kiện và thang xếp loại lấy từ Khung đánh giá của chương trình đào tạo.</small>
     </section>}
     {m.need_product && <section className="panel" style={{ display: 'grid', gap: 10 }}>
       <h3 style={{ margin: 0 }}>Sản phẩm & nhận xét của giảng viên</h3>

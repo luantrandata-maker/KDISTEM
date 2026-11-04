@@ -389,7 +389,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
   const [reqs0, setReqs0] = useState<Req[]>([])
   const [reqs, setReqs] = useState<Req[]>([])
   const [busy, setBusy] = useState(false)
-  useEffect(() => { setF(p) }, [p])
+  useEffect(() => { if (!isNew) setF(p) }, [p])   // thêm mới: giữ nội dung đang nhập khi đổi đơn vị quản lý
   useEffect(() => { supabase.from('rubrics').select('id, title').order('title').then(({ data }) => setRubrics((data as Rubric[]) ?? [])) }, [])
   useEffect(() => {
     if (!fam) return
@@ -398,6 +398,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
   const [asgN, setAsgN] = useState<number | null>(null)
   useEffect(() => { if (p.id) supabase.from('edu_program_assignments').select('id', { count: 'exact', head: true }).eq('program_id', p.id).then(({ count }) => setAsgN(count ?? 0)) }, [p.id])
   const orgs = useAllOrgs()
+  const allMode = useAllMode()
   const builders = useMemo(() => [...new Set(['KDI Education', ...(orgs ?? []).filter(o => !o.is_platform && o.type !== 'school').map(o => o.name)])], [orgs])
 
   const dis = !editable
@@ -409,6 +410,21 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
   const today = new Date().toISOString().slice(0, 10)
   const effNote = p.effective_to && p.effective_to < today ? 'Hết hiệu lực' : p.effective_from && p.effective_from > today ? 'Chưa đến ngày hiệu lực' : ''
   const showScope = mode !== 'school' && !pickedSchool
+  // Đơn vị quản lý (chỉ chọn khi Quản trị hệ thống thêm mới): mặc định theo đơn vị xây dựng, chọn tay thì thôi đi theo
+  const orgPick = !!(isNew && onOrg && allMode)
+  const [orgTouched, setOrgTouched] = useState(false)
+  const setOrg = (id: string) => { setF(x => ({ ...x, org_id: id })); onOrg?.(id) }
+  const pickBuilder = (v: string) => {
+    setF(x => ({ ...x, builder: v }))
+    const k = v.trim().toLowerCase(), hit = k && (orgs ?? []).find(o => o.name.trim().toLowerCase() === k)
+    if (orgPick && !orgTouched && hit) setOrg(hit.id)
+  }
+  useEffect(() => {   // thêm mới: điền sẵn đơn vị xây dựng bằng tên đơn vị đang làm việc
+    if (!isNew || f.builder || !orgs) return
+    const own = orgs.find(o => o.id === (f.org_id || orgId))
+    if (own && !own.is_platform) setF(x => x.builder ? x : { ...x, builder: own.name })
+  }, [isNew, orgs])
+  const oSpan = orgPick ? (showScope ? 4 : 6) : 0, scSpan = showScope ? (orgPick ? 4 : 6) : 0, dSpan = (12 - oSpan - scSpan) / 2
   const reqDirty = JSON.stringify(reqs) !== JSON.stringify(reqs0)
   const integ = f.integrated_subjects ?? []
 
@@ -456,15 +472,17 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
   return <form className="panel pform" onSubmit={save}>
     {!isNew && !editable && <p className="sub" style={{ margin: 0 }}>{p.status === 'draft' || p.status === 'rejected' ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình đã gửi duyệt hoặc phát hành: nội dung không sửa được (tạo phiên bản mới ở tab "Phiên bản & duyệt"). Phạm vi, hiệu lực và yêu cầu năng lực giáo viên vẫn sửa được.'}</p>}
     <div className="pgrid">
-      {isNew && onOrg && <div style={S(4)}><OrgPick kind="any" value={f.org_id ?? orgId ?? ''} onChange={onOrg} /></div>}
-      <label className="field" style={S(isNew && onOrg ? 8 : 6)}><span>Tên chương trình *</span><input disabled={dis} value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} placeholder="VD: Tin học THCS (CT GDPT 2018)" /></label>
-      <div className="field" style={S(isNew && onOrg ? 12 : 6)}><span>Nhóm chương trình * <small className="sub">(mục chọn đầu là chính)</small></span>
+      <label className="field" style={S(6)}><span>Đơn vị xây dựng <small className="sub">(nơi biên soạn nội dung)</small></span>
+        <input list="edu-builders" maxLength={200} disabled={!scopeEdit} value={f.builder ?? ''} onChange={e => pickBuilder(e.target.value)} placeholder="KDI Education, Sở GD&ĐT…, Trường…" />
+        <datalist id="edu-builders">{builders.map(b => <option key={b} value={b} />)}</datalist></label>
+      <label className="field" style={S(6)}><span>Mã chương trình</span><input disabled={dis} value={f.code ?? ''} onChange={e => setF({ ...f, code: e.target.value })} placeholder="VD: TIN-THCS" /></label>
+      <label className="field" style={S(6)}><span>Tên chương trình *</span><input disabled={dis} value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} placeholder="VD: Tin học THCS (CT GDPT 2018)" /></label>
+      <div className="field" style={S(6)}><span>Nhóm chương trình * <small className="sub">(mục chọn đầu là chính)</small></span>
         <ChipMulti disabled={dis} value={ctsOf(f as Program)} onChange={v => setF({ ...f, ct_codes: v, ct_code: v[0] ?? null })} options={CT.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])} ariaLabel="Nhóm chương trình" firstHint="Nhóm chính" /></div>
-      <label className="field" style={S(3)}><span>Mã</span><input disabled={dis} value={f.code ?? ''} onChange={e => setF({ ...f, code: e.target.value })} placeholder="VD: TIN-THCS" /></label>
-      <label className="field" style={S(3)}><span>Kiểu chương trình</span><select disabled={dis} value={f.kind ?? 'subject'} onChange={e => setF({ ...f, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
-      <label className="field" style={S(3)}><span>Số tiết / tuần</span><input disabled={dis} type="number" min={0.5} max={40} step={0.5} value={f.periods_per_week ?? ''} onChange={e => setF({ ...f, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })}
+      <label className="field" style={S(4)}><span>Kiểu chương trình</span><select disabled={dis} value={f.kind ?? 'subject'} onChange={e => setF({ ...f, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
+      <label className="field" style={S(4)}><span>Số tiết / tuần</span><input disabled={dis} type="number" min={0.5} max={40} step={0.5} value={f.periods_per_week ?? ''} onChange={e => setF({ ...f, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })}
         placeholder="VD: 2" title="Dùng làm mặc định khi tạo phân phối chương trình" /></label>
-      <label className="field" style={S(3)}><span>Thời gian triển khai</span><select disabled={dis} value={f.deploy_term ?? 'year'} onChange={e => setF({ ...f, deploy_term: e.target.value as Deploy })}>{(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} ({DEPLOY[d][1]})</option>)}</select></label>
+      <label className="field" style={S(4)}><span>Thời gian triển khai</span><select disabled={dis} value={f.deploy_term ?? 'year'} onChange={e => setF({ ...f, deploy_term: e.target.value as Deploy })}>{(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} ({DEPLOY[d][1]})</option>)}</select></label>
       <div className="field" style={S(6)}><span>Cấp học * <small className="sub">(mục chọn đầu là chính)</small></span>
         <ChipMulti disabled={dis} value={lvsOf(f as Program)} onChange={v => setF({ ...f, levels: v, level: v[0] ?? f.level, grades: gradesForLevels(LV, v, progGrades(f as Program)) })} options={levelOpts} ariaLabel="Cấp học" firstHint="Cấp học chính" /></div>
       <div className="field" style={S(6)}><span>Khối *</span><GradeChecks disabled={dis} from={span[0]} to={span[1]} value={progGrades(f as Program)} onChange={g => setF({ ...f, grades: g })} /></div>
@@ -486,13 +504,12 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
 
     <h4 className="psec">Phạm vi áp dụng & hiệu lực {effNote && <span className={'pill ' + (effNote.startsWith('Hết') ? 'bad' : 'warn')}>{effNote}</span>}</h4>
     <div className="pgrid">
-      <label className="field" style={S(showScope ? 4 : 6)}><span>Đơn vị xây dựng</span>
-        <input list="edu-builders" maxLength={200} disabled={!scopeEdit} value={f.builder ?? ''} onChange={e => setF({ ...f, builder: e.target.value })} placeholder="KDI Education, Sở GD&ĐT…, Trường…" />
-        <datalist id="edu-builders">{builders.map(b => <option key={b} value={b} />)}</datalist></label>
-      {showScope && <label className="field" style={S(4)}><span>Phạm vi áp dụng</span><select value={f.scope ?? 'children'} disabled={!scopeEdit} onChange={e => setF({ ...f, scope: e.target.value as Program['scope'] })}>
+      {orgPick && <div style={S(oSpan)}><OrgPick kind="any" title="Đơn vị quản lý" value={f.org_id ?? orgId ?? ''} onChange={v => { setOrgTouched(true); setOrg(v) }} />
+        <small className="sub">Đơn vị sở hữu, sửa và phát hành chương trình. Mặc định theo đơn vị xây dựng.</small></div>}
+      {showScope && <label className="field" style={S(scSpan)}><span>Phạm vi áp dụng</span><select value={f.scope ?? 'children'} disabled={!scopeEdit} onChange={e => setF({ ...f, scope: e.target.value as Program['scope'] })}>
         <option value="children">Mọi đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình và đơn vị được gán</option></select></label>}
-      <label className="field" style={S(showScope ? 2 : 3)}><span>Hiệu lực từ</span><input disabled={!scopeEdit} type="date" value={f.effective_from ?? ''} onChange={e => setF({ ...f, effective_from: e.target.value || null })} /></label>
-      <label className="field" style={S(showScope ? 2 : 3)}><span>Hiệu lực đến</span><input disabled={!scopeEdit} type="date" min={f.effective_from ?? undefined} value={f.effective_to ?? ''} onChange={e => setF({ ...f, effective_to: e.target.value || null })} /></label>
+      <label className="field" style={S(dSpan)}><span>Hiệu lực từ</span><input disabled={!scopeEdit} type="date" value={f.effective_from ?? ''} onChange={e => setF({ ...f, effective_from: e.target.value || null })} /></label>
+      <label className="field" style={S(dSpan)}><span>Hiệu lực đến</span><input disabled={!scopeEdit} type="date" min={f.effective_from ?? undefined} value={f.effective_to ?? ''} onChange={e => setF({ ...f, effective_to: e.target.value || null })} /></label>
     </div>
     {!isNew && mode !== 'school' && <small className="sub">Đơn vị được gán: <b>{asgN ?? '…'}</b>{f.scope === 'own' ? ' (chỉ các đơn vị này và đơn vị mình thấy chương trình khi đã phát hành)' : ' (thêm vào phạm vi, kèm khối triển khai)'}.
       {onGoAssign && <> <button type="button" className="linkbtn" onClick={onGoAssign}>Gán cho đơn vị →</button></>}</small>}

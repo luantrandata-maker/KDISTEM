@@ -1,5 +1,6 @@
 // Đáp ứng chương trình giáo dục (migration 124): mỗi trường × chương trình giáo dục (được gán cho trường, hoặc đã có GV đáp ứng)
-// có bao nhiêu giáo viên đáp ứng. GV đáp ứng khi đã Đạt một khoá đào tạo có chương trình đào tạo gắn với chương trình giáo dục đó.
+// có bao nhiêu giáo viên đáp ứng. GV đáp ứng khi đã Đạt một khoá đào tạo có chương trình đào tạo gắn với chương trình giáo dục đó,
+// hoặc khi mức năng lực đạt đủ yêu cầu năng lực giáo viên của chương trình giáo dục (migration 132).
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Chip } from '../dist/Editor'
@@ -52,7 +53,7 @@ export function EduReadinessPage() {
       <div className="card"><strong>{assigned.length - missing.length}/{assigned.length}</strong><span>Đã có GV đáp ứng</span></div>
       <div className="card"><strong style={{ color: missing.length ? 'var(--bad, #dc2626)' : undefined }}>{missing.length}</strong><span>Chưa có GV đáp ứng</span></div>
     </div>
-    <p className="sub">Giáo viên đáp ứng một chương trình giáo dục khi đã Đạt một khoá đào tạo có chương trình đào tạo gắn với chương trình đó (KDI gắn trong Chương trình đào tạo › Thông tin).</p>
+    <p className="sub">Giáo viên đáp ứng một chương trình giáo dục khi đã Đạt một khoá đào tạo có chương trình đào tạo gắn với chương trình đó, hoặc khi mức năng lực đạt đủ "Yêu cầu năng lực giáo viên" đặt trong Chương trình giáo dục › Thông tin (mức cao hơn giữa lần trường đánh giá gần nhất và mức đạt qua các khoá đào tạo; tự đánh giá không tính).</p>
     <div className="tools" style={{ marginBottom: 12 }}>
       <MultiFilters defs={of.defs} f={mf} />
       <input className="search" style={{ margin: 0 }} placeholder="Tìm chương trình…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chương trình" />

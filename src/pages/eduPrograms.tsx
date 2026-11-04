@@ -1,7 +1,7 @@
 import { Icon } from '../components/Icon'
 import { YearSelect } from '../components/YearSelect'
 import { CompetencySetupLink } from '../components/CompetencySetup'
-import { useCompetencies } from './competency'
+import { useCompetencies, LV_NAME } from './competency'
 import { useHiddenBtn } from '../components/PageButtons'
 import { CustomInputs, customCell } from '../components/CustomFields'
 import { fieldsOf, useSettings } from '../lib/settings'
@@ -400,7 +400,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
         {tabs.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      {tab === 'info' && <InfoTab p={p} editable={editable} onGoAssign={tabs.some(t => t[0] === 'assign') ? () => setTab('assign') : undefined} onDelete={editable ? removeDraft : undefined} scopeEditable={mine && canEdit && p.status === 'published' && mode !== 'school'} mode={mode} comps={comps} onSaved={m => { setMsg([m, false]); load() }} onError={m => setMsg([m, true])} />}
+      {tab === 'info' && <InfoTab p={p} editable={editable} onGoAssign={tabs.some(t => t[0] === 'assign') ? () => setTab('assign') : undefined} onDelete={editable ? removeDraft : undefined} scopeEditable={mine && canEdit && p.status === 'published' && mode !== 'school'} reqEditable={mine && canEdit} mode={mode} comps={comps} onSaved={m => { setMsg([m, false]); load() }} onError={m => setMsg([m, true])} />}
       {tab === 'units' && <UnitsTab p={p} editable={editable} comps={comps} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
       {tab === 'versions' && <VersionsTab p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
       {tab === 'assign' && <AssignTab p={p} orgId={orgId} mine={mine} onMessage={(m, e) => setMsg([m, !!e])} />}
@@ -409,8 +409,8 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
 }
 
 // ----- Thông tin -----
-function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, onDelete, onGoAssign }: {
-  onDelete?: () => void; onGoAssign?: () => void
+function InfoTab({ p, editable, scopeEditable, reqEditable, mode, comps, onSaved, onError, onDelete, onGoAssign }: {
+  onDelete?: () => void; onGoAssign?: () => void; reqEditable?: boolean
   p: Program; editable: boolean; scopeEditable: boolean; mode: ProgMode; comps: Comp[]; onSaved: (m: string) => void; onError: (m: string) => void
 }) {
   const [f, setF] = useState<Program>(p)
@@ -521,8 +521,62 @@ function InfoTab({ p, editable, scopeEditable, mode, comps, onSaved, onError, on
         {scopeEdit && <div className="tools"><button type="button" className="primary" disabled={!scopeDirty || !!scopeBad} onClick={saveScope}>Lưu phạm vi áp dụng</button>
           {editable && <small className="sub">Bản nháp: nút Lưu ở trên cũng lưu đơn vị xây dựng.</small>}</div>}
       </section>
+      <TeacherReqs p={p} editable={!!reqEditable || editable} onSaved={onSaved} onError={onError} />
     </>
   )
+}
+
+// ----- Yêu cầu năng lực giáo viên (132) -----
+// Người dạy chương trình cần đạt các năng lực này (khung năng lực giáo viên) từ mức tối thiểu. Giáo viên được tính đáp ứng khi
+// Đạt khoá đào tạo có gắn chương trình giáo dục, hoặc mức năng lực (trường đánh giá, mức đạt qua các khoá đào tạo) đủ các yêu cầu này.
+type Req = { competency: string; min_level: number }
+function TeacherReqs({ p, editable, onSaved, onError }: { p: Program; editable: boolean; onSaved: (m: string) => void; onError: (m: string) => void }) {
+  const tcomps = useCompetencies('teacher')
+  const fam = p.family_id ?? p.id
+  const [saved, setSaved] = useState<Req[] | null>(null)
+  const [rows, setRows] = useState<Req[]>([])
+  const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    supabase.from('edu_program_teacher_reqs').select('competency, min_level').eq('edu_family', fam).then(({ data, error }) => {
+      if (error) { setSaved([]); setRows([]); return }
+      const r = (data as Req[]) ?? []; setSaved(r); setRows(r)
+    })
+  }, [fam])
+  const dirty = JSON.stringify(rows) !== JSON.stringify(saved ?? [])
+  const free = tcomps.filter(c => !rows.some(r => r.competency === c.key))
+  const nameOf = (k: string) => tcomps.find(c => c.key === k)?.name ?? k
+  async function save() {
+    if (rows.some(r => !r.competency)) return onError('Chọn năng lực cho mọi dòng yêu cầu.')
+    setBusy(true)
+    const { error } = await supabase.rpc('edu_program_set_teacher_reqs', { p_program: p.id, p_reqs: rows })
+    setBusy(false)
+    if (error) return onError(/schema cache|does not exist|Could not find/i.test(error.message) ? 'Hãy chạy migration 132 trên Supabase.' : errText(error.message))
+    setSaved(rows); onSaved('Đã lưu yêu cầu năng lực giáo viên.')
+  }
+  return <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+    <h3 style={{ margin: 0 }}>Yêu cầu năng lực giáo viên</h3>
+    <p className="sub" style={{ margin: 0 }}>Giáo viên được tính đáp ứng chương trình này khi Đạt một khoá đào tạo có gắn chương trình, hoặc khi mức năng lực đạt đủ các yêu cầu dưới đây.
+      Mức năng lực lấy mức cao hơn giữa lần trường đánh giá gần nhất và mức đạt qua các khoá đào tạo (cộng dồn qua các đợt); tự đánh giá không tính.
+      Sửa được cả khi chương trình đã phát hành; phiên bản mới giữ nguyên yêu cầu.</p>
+    {saved == null ? <p className="sub">Đang tải…</p> : !rows.length && !editable ? <p className="sub" style={{ margin: 0 }}>Chưa đặt yêu cầu năng lực.</p>
+    : <div style={{ display: 'grid', gap: 8 }}>
+      {rows.map((r, i) => <div key={i} className="addrow" style={{ flexWrap: 'wrap', gap: 8 }}>
+        {editable ? <select value={r.competency} aria-label={`Năng lực ${i + 1}`} style={{ flex: 2, minWidth: 200 }}
+          onChange={e => setRows(rows.map((x, j) => j === i ? { ...x, competency: e.target.value } : x))}>
+          <option value="">Chọn năng lực…</option>
+          {tcomps.filter(c => c.key === r.competency || !rows.some(x => x.competency === c.key)).map(c => <option key={c.key} value={c.key}>{c.name}</option>)}
+        </select> : <b style={{ flex: 2 }}>{nameOf(r.competency)}</b>}
+        {editable ? <select value={r.min_level} aria-label={`Mức tối thiểu ${i + 1}`} onChange={e => setRows(rows.map((x, j) => j === i ? { ...x, min_level: +e.target.value } : x))}>
+          {[1, 2, 3, 4].map(l => <option key={l} value={l}>Từ Mức {l} · {LV_NAME[l - 1]}</option>)}</select>
+          : <span>Từ Mức {r.min_level} · {LV_NAME[r.min_level - 1]}</span>}
+        {editable && <button type="button" className="x" aria-label="Bỏ yêu cầu" onClick={() => setRows(rows.filter((_, j) => j !== i))}>×</button>}
+      </div>)}
+      {!rows.length && <small className="sub">Chưa đặt yêu cầu năng lực: chỉ giáo viên Đạt khoá đào tạo có gắn chương trình mới được tính đáp ứng.</small>}
+      {editable && <div className="tools">
+        {free.length > 0 && <button type="button" className="linkbtn" onClick={() => setRows([...rows, { competency: free[0].key, min_level: 2 }])}>+ Thêm năng lực</button>}
+        <button type="button" className="primary" disabled={!dirty || busy} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu yêu cầu năng lực'}</button></div>}
+    </div>}
+  </section>
 }
 
 // ----- Cấu trúc + YCCĐ -----

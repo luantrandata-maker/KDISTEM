@@ -2160,3 +2160,14 @@ tr.distyear td{background:var(--surface-2,var(--surface));border-top:2px solid v
 .statcards small{color:var(--muted)}.statcards small+small{color:var(--text);font-size:12px}
 @media(max-width:900px){.statcards,.statcards.c3,.statcards.c4{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.statcards,.statcards.c2,.statcards.c3,.statcards.c4{grid-template-columns:1fr}}
+/* Form chương trình giáo dục: lưới 12 cột, các ô liên quan đứng cạnh nhau */
+.pform{display:grid;gap:12px}
+.pform .pgrid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:10px 12px;align-items:start}
+.pform .pgrid>*{min-width:0}
+.pform .pgrid input,.pform .pgrid select,.pform .pgrid textarea{padding:9px;border:1px solid var(--line);border-radius:10px;font-family:inherit;width:100%;box-sizing:border-box}
+.pform .psec{margin:6px 0 0;padding-top:12px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;font-size:15px}
+.pform .preqs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 12px}
+.pform .preq{display:grid;grid-template-columns:minmax(0,1fr) 170px auto;gap:8px;align-items:center}
+.pform .preq select{padding:8px;border:1px solid var(--line);border-radius:10px;font-family:inherit;min-width:0}
+.pform .formactions{margin:0}
+@media(max-width:900px){.pform .pgrid>*{grid-column:1/-1 !important}.pform .preqs{grid-template-columns:1fr}}

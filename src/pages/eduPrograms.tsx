@@ -134,7 +134,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   const [old, setOld] = useState(false)
   const [form, setForm] = useState<Partial<Program> | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
-  const [saving, setSaving] = useState(false)
+  const comps: Comp[] = useCompetencies('student')
 
   const [counts, setCounts] = useState<{ subjects: number; lessons: number } | null>(null)
   // Quản trị hệ thống: chương trình của mọi đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
@@ -164,28 +164,6 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   const own = every ? shown : shown.filter(p => p.org_id === orgId)
   const shared = every ? [] : shown.filter(p => p.org_id !== orgId)
 
-  async function create(e: React.FormEvent) {
-    e.preventDefault(); if (!form || !orgId) return
-    const lvs = lvsOf(form), cts = ctsOf(form), mains = mainsOf(form)
-    if (!(form.title ?? '').trim() || !mains.length || !cts.length || !lvs.length) return setMsg(['Nhập tên chương trình, chọn nhóm chương trình, cấp học và môn chủ đạo.', true])
-    const span = gradeSpan(LV, lvs)
-    const gs = progGrades(form).filter(g => g >= span[0] && g <= span[1])
-    if (!gs.length) return setMsg(['Chọn ít nhất một khối.', true])
-    const row = {
-      org_id: form.org_id || orgId, title: (form.title ?? '').trim(), code: form.code?.trim() || null, kind: form.kind ?? 'subject',
-      ct_codes: cts, levels: lvs, main_subjects: mains, ct_code: cts[0], level: lvs[0], main_subject: mains[0],
-      periods_per_week: Number(form.periods_per_week) || null, deploy_term: form.deploy_term ?? 'year',
-      grades: gs, grade_from: gs[0], grade_to: gs[gs.length - 1],
-      scope: mode === 'school' || pickedSchool ? 'own' : form.scope ?? 'children',
-      ...(progFields.length ? { custom: form.custom ?? {} } : {}),
-    }
-    setSaving(true)
-    const { data, error } = await supabase.from('edu_programs').insert(row).select('id').single()
-    setSaving(false)
-    if (error) return setMsg([errText(error.message), true])
-    // Mở ngay chương trình vừa tạo để sửa tiếp; danh sách tải lại ở nền (đóng chi tiết cũng tải lại)
-    setForm(null); setMsg(null); setOpenId((data as { id: string }).id); load()
-  }
   async function copy(p: Program) {
     if (!confirm(`Sao chép "${p.title}" (phiên bản ${p.version_no}) về đơn vị thành bản nháp để điều chỉnh?`)) return
     const { data, error } = await supabase.rpc('edu_program_copy', { p_program: p.id, p_org: orgId })
@@ -251,26 +229,9 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   if (form) return (
     <ElView back="Chương trình giáo dục" onBack={() => setForm(null)} title={'Thêm chương trình'}>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-        <form className="panel formgrid" onSubmit={create} style={{ marginBottom: 12 }}>
-          <OrgPick kind="any" value={form.org_id ?? orgId ?? ''} onChange={v => setForm({ ...form, org_id: v })} />
-          <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình *</span><input required value={form.title ?? ''} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Tin học THCS (CT GDPT 2018)" /></label>
-          <label className="field"><span>Mã</span><input value={form.code ?? ''} onChange={e => setForm({ ...form, code: e.target.value })} placeholder="VD: TIN-THCS" /></label>
-          <label className="field"><span>Kiểu chương trình</span><select value={form.kind} onChange={e => setForm({ ...form, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
-          <label className="field"><span>Số tiết / tuần</span><input type="number" min={0.5} max={40} step={0.5} value={form.periods_per_week ?? ''} onChange={e => setForm({ ...form, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })} placeholder="VD: 2" title="Dùng làm mặc định khi tạo phân phối chương trình" /></label>
-          <label className="field"><span>Thời gian triển khai</span><select value={form.deploy_term ?? 'year'} onChange={e => setForm({ ...form, deploy_term: e.target.value as Deploy })}>{(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} ({DEPLOY[d][1]})</option>)}</select></label>
-          <div className="field" style={{ gridColumn: '1/-1' }}><span>Nhóm chương trình * <small className="sub">(tick một hoặc nhiều; mục tick đầu tiên là chính)</small></span>
-            <ChipMulti value={ctsOf(form)} onChange={v => setForm({ ...form, ct_codes: v, ct_code: v[0] ?? null })} options={CT.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])} addLabel="+ Thêm nhóm" ariaLabel="Nhóm chương trình" firstHint="Nhóm chính" /></div>
-          <div className="field" style={{ gridColumn: '1/-1' }}><span>Cấp học * <small className="sub">(tick một hoặc nhiều; mục tick đầu tiên là chính)</small></span>
-            <ChipMulti value={lvsOf(form)} onChange={v => setForm({ ...form, levels: v, level: v[0] ?? form.level, grades: gradesForLevels(LV, v, progGrades(form)) })} options={levelOpts} addLabel="+ Thêm cấp học" ariaLabel="Cấp học" firstHint="Cấp học chính" /></div>
-          <div className="field" style={{ gridColumn: '1/-1' }}><span>Khối * <small className="sub">(tick các khối áp dụng)</small></span><GradeChecks from={gradeSpan(LV, lvsOf(form))[0]} to={gradeSpan(LV, lvsOf(form))[1]} value={progGrades(form)} onChange={g => setForm({ ...form, grades: g })} /></div>
-          <div className="field" style={{ gridColumn: '1/-1' }}><span>Môn chủ đạo * <small className="sub">(tick một hoặc nhiều; mục tick đầu tiên là chính)</small></span>
-            <SubjectMulti primary="chính" level={lvsOf(form).length === 1 ? lvsOf(form)[0] : null} value={mainsOf(form)} onChange={v => setForm({ ...form, main_subjects: v, main_subject: v[0] ?? '' })}
-              extra={form.kind === 'stem' ? ctsOf(form).flatMap(c => tracks[c]?.subjects ?? []) : []} /></div>
-          {mode !== 'school' && !pickedSchool && <label className="field"><span>Phạm vi</span><select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Program['scope'] })}>
-            <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
-          <CustomInputs fields={progFields} value={form.custom ?? {}} onChange={v => setForm({ ...form, custom: v })} />
-          <div className="formactions" style={{ gridColumn: '1/-1' }}><button className="primary" type="submit" disabled={saving}>{saving ? 'Đang tạo…' : 'Tạo bản nháp'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
-        </form>
+      <InfoTab p={form} isNew editable scopeEditable reqEditable mode={mode} comps={comps} orgId={orgId} pickedSchool={pickedSchool}
+        onOrg={v => setForm({ ...form, org_id: v })} onCancel={() => setForm(null)}
+        onError={m => setMsg([m, true])} onSaved={(_, id) => { setForm(null); setMsg(null); if (id) setOpenId(id); load() }} />
     </ElView>
   )
   return (
@@ -301,7 +262,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
         </div>
         <div className="tools">
           <ViewToggle value={view} onChange={setView} />
-          {canEdit && !hid('add') && <button className="primary" onClick={() => setForm({ level: 'thcs', kind: 'subject', grade_from: 6, grade_to: 9, grades: [6, 7, 8, 9], scope: mode === 'school' ? 'own' : 'children' })}>Thêm chương trình</button>}
+          {canEdit && !hid('add') && <button className="primary" onClick={() => setForm({ level: 'thcs', levels: ['thcs'], kind: 'subject', grade_from: 6, grade_to: 9, grades: [6, 7, 8, 9], scope: mode === 'school' ? 'own' : 'children', integrated_subjects: [], competency_keys: [], rubric_ids: [], deploy_term: 'year' })}>Thêm chương trình</button>}
         </div>
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
@@ -409,174 +370,158 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
 }
 
 // ----- Thông tin -----
-function InfoTab({ p, editable, scopeEditable, reqEditable, mode, comps, onSaved, onError, onDelete, onGoAssign }: {
-  onDelete?: () => void; onGoAssign?: () => void; reqEditable?: boolean
-  p: Program; editable: boolean; scopeEditable: boolean; mode: ProgMode; comps: Comp[]; onSaved: (m: string) => void; onError: (m: string) => void
-}) {
-  const [f, setF] = useState<Program>(p)
-  const [integ, setInteg] = useState<string[]>(p.integrated_subjects)
+// Một form cho cả thêm mới và sửa: đủ mọi thông tin chương trình, phạm vi & hiệu lực, yêu cầu năng lực giáo viên; một nút Lưu.
+type Req = { competency: string; min_level: number }
+type InfoProps = {
+  p: Partial<Program>; isNew?: boolean; editable: boolean; scopeEditable: boolean; reqEditable?: boolean; mode: ProgMode; comps: Comp[]
+  orgId?: string | null; pickedSchool?: boolean; onOrg?: (id: string) => void
+  onSaved: (m: string, newId?: string) => void; onError: (m: string) => void; onDelete?: () => void; onGoAssign?: () => void; onCancel?: () => void
+}
+function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, orgId, pickedSchool, onOrg, onSaved, onError, onDelete, onGoAssign, onCancel }: InfoProps) {
+  const [f, setF] = useState<Partial<Program>>(p)
   const { byCode: tracks, allCodes: CT } = useStemTracks()
   const { byCode: LV, levels: LVL } = useEduLevels()
   const progFields = fieldsOf(useSettings(), 'program')
   const levelOpts: [string, string][] = LVL.map(l => [l.code, l.name])
   const [rubrics, setRubrics] = useState<Rubric[]>([])
-  useEffect(() => { setF(p); setInteg(p.integrated_subjects) }, [p])
+  const tcomps = useCompetencies('teacher')
+  const fam = p.family_id ?? p.id
+  const [reqs0, setReqs0] = useState<Req[]>([])
+  const [reqs, setReqs] = useState<Req[]>([])
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { setF(p) }, [p])
   useEffect(() => { supabase.from('rubrics').select('id, title').order('title').then(({ data }) => setRubrics((data as Rubric[]) ?? [])) }, [])
-  const toggle = <T,>(arr: T[], v: T) => (arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v])
+  useEffect(() => {
+    if (!fam) return
+    supabase.from('edu_program_teacher_reqs').select('competency, min_level').eq('edu_family', fam).then(({ data }) => { const r = (data as Req[]) ?? []; setReqs0(r); setReqs(r) })
+  }, [fam])
+  const [asgN, setAsgN] = useState<number | null>(null)
+  useEffect(() => { if (p.id) supabase.from('edu_program_assignments').select('id', { count: 'exact', head: true }).eq('program_id', p.id).then(({ count }) => setAsgN(count ?? 0)) }, [p.id])
+  const orgs = useAllOrgs()
+  const builders = useMemo(() => [...new Set(['KDI Education', ...(orgs ?? []).filter(o => !o.is_platform && o.type !== 'school').map(o => o.name)])], [orgs])
+
+  const dis = !editable
+  const scopeEdit = editable || scopeEditable
+  const reqEdit = editable || !!reqEditable
+  const canSave = editable || scopeEditable || !!reqEditable
+  const span = gradeSpan(LV, lvsOf(f as Program))
+  const trackSubjects = f.kind === 'stem' ? ctsOf(f as Program).flatMap(c => tracks[c]?.subjects ?? []) : []
+  const today = new Date().toISOString().slice(0, 10)
+  const effNote = p.effective_to && p.effective_to < today ? 'Hết hiệu lực' : p.effective_from && p.effective_from > today ? 'Chưa đến ngày hiệu lực' : ''
+  const showScope = mode !== 'school' && !pickedSchool
+  const reqDirty = JSON.stringify(reqs) !== JSON.stringify(reqs0)
+  const integ = f.integrated_subjects ?? []
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
-    const cts = ctsOf(f), lvs = lvsOf(f), mains = mainsOf(f)
-    if (!cts.length || !lvs.length || !mains.length) return onError('Chọn ít nhất một nhóm chương trình, một cấp học và một môn chủ đạo.')
-    const sp = gradeSpan(LV, lvs), gs = progGrades(f).filter(g => g >= sp[0] && g <= sp[1])
-    if (!gs.length) return onError('Chọn ít nhất một khối.')
-    const body = {
-      code: f.code?.trim() || null, title: f.title.trim(), kind: f.kind, ct_codes: cts, levels: lvs, main_subjects: mains,
-      periods_per_week: f.periods_per_week ? Number(f.periods_per_week) : null, deploy_term: f.deploy_term ?? 'year',
-      grades: gs, grade_from: gs[0], grade_to: gs[gs.length - 1],
-      integrated_subjects: integ, objectives: f.objectives?.trim() || null,
-      competency_keys: f.competency_keys, rubric_ids: f.rubric_ids, note: f.note?.trim() || null, builder: f.builder?.trim() || null,
-      ...(progFields.length ? { custom: f.custom ?? {} } : {}),
-    }
-    const { error } = await supabase.from('edu_programs').update(body).eq('id', p.id)
-    if (error) return onError(errText(error.message))
-    onSaved('Đã lưu thông tin chương trình.')
-  }
-  // Phạm vi, ngày hiệu lực, đơn vị xây dựng đổi được cả khi đã phát hành (không đổi nội dung)
-  const scopeEdit = editable || scopeEditable
-  const scopeDirty = f.scope !== p.scope || (f.effective_from || null) !== (p.effective_from ?? null) || (f.effective_to || null) !== (p.effective_to ?? null)
-    || (f.builder?.trim() || null) !== (p.builder ?? null)
-  const scopeBad = f.effective_from && f.effective_to && f.effective_to < f.effective_from ? 'Ngày hết hiệu lực phải sau ngày bắt đầu.' : ''
-  async function saveScope() {
-    if (scopeBad) return onError(scopeBad)
-    const { error } = await supabase.from('edu_programs').update({ ...(mode !== 'school' ? { scope: f.scope } : {}), effective_from: f.effective_from || null,
-      effective_to: f.effective_to || null, builder: f.builder?.trim() || null }).eq('id', p.id)
-    if (error) return onError(errText(error.message))
-    onSaved('Đã lưu phạm vi áp dụng & hiệu lực.')
-  }
-  const [asgN, setAsgN] = useState<number | null>(null)
-  useEffect(() => { supabase.from('edu_program_assignments').select('id', { count: 'exact', head: true }).eq('program_id', p.id).then(({ count }) => setAsgN(count ?? 0)) }, [p.id])
-  const orgs = useAllOrgs()
-  const builders = useMemo(() => [...new Set(['KDI Education', ...(orgs ?? []).filter(o => !o.is_platform && o.type !== 'school').map(o => o.name)])], [orgs])
-  const today = new Date().toISOString().slice(0, 10)
-  const effNote = p.effective_to && p.effective_to < today ? 'Hết hiệu lực' : p.effective_from && p.effective_from > today ? 'Chưa đến ngày hiệu lực' : ''
-  const compName = (k: string) => comps.find(c => c.key === k)?.name ?? k
-  const dis = !editable
-  const span = gradeSpan(LV, lvsOf(f))
-  const trackSubjects = f.kind === 'stem' ? ctsOf(f).flatMap(c => tracks[c]?.subjects ?? []) : []
-  return (
-    <><form className="panel" onSubmit={save}>
-      {!editable && <p className="sub" style={{ marginTop: 0 }}>{p.status === 'draft' || p.status === 'rejected' ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình đã gửi duyệt hoặc phát hành: nội dung không sửa được. Tạo phiên bản mới ở tab "Phiên bản & duyệt" để điều chỉnh.'}</p>}
-      <div className="formgrid">
-        <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình</span><input disabled={dis} value={f.title} onChange={e => setF({ ...f, title: e.target.value })} /></label>
-        <label className="field"><span>Mã</span><input disabled={dis} value={f.code ?? ''} onChange={e => setF({ ...f, code: e.target.value })} /></label>
-        <label className="field"><span>Kiểu chương trình</span><select disabled={dis} value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
-        <label className="field"><span>Số tiết / tuần</span><input disabled={dis} type="number" min={0.5} max={40} step={0.5} value={f.periods_per_week ?? ''} onChange={e => setF({ ...f, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })}
-          placeholder="VD: 2" title="Dùng làm mặc định khi tạo phân phối chương trình" /></label>
-        <label className="field"><span>Thời gian triển khai</span><select disabled={dis} value={f.deploy_term ?? 'year'} onChange={e => setF({ ...f, deploy_term: e.target.value as Deploy })}>{(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} ({DEPLOY[d][1]})</option>)}</select></label>
-        <div className="field" style={{ gridColumn: '1/-1' }}><span>Nhóm chương trình * <small className="sub">(tick một hoặc nhiều; mục tick đầu tiên là chính)</small></span>
-          <ChipMulti disabled={dis} value={ctsOf(f)} onChange={v => setF({ ...f, ct_codes: v, ct_code: v[0] ?? null })} options={CT.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])} addLabel="+ Thêm nhóm" ariaLabel="Nhóm chương trình" firstHint="Nhóm chính" />
-          {!ctsOf(f).length && <small>Bắt buộc trước khi gửi duyệt hoặc phát hành.</small>}</div>
-        <div className="field" style={{ gridColumn: '1/-1' }}><span>Cấp học * <small className="sub">(tick một hoặc nhiều; mục tick đầu tiên là chính)</small></span>
-          <ChipMulti disabled={dis} value={lvsOf(f)} onChange={v => setF({ ...f, levels: v, level: v[0] ?? f.level, grades: gradesForLevels(LV, v, progGrades(f)) })} options={levelOpts} addLabel="+ Thêm cấp học" ariaLabel="Cấp học" firstHint="Cấp học chính" /></div>
-        <div className="field" style={{ gridColumn: '1/-1' }}><span>Khối * <small className="sub">(tick các khối áp dụng)</small></span><GradeChecks disabled={dis} from={span[0]} to={span[1]} value={progGrades(f)} onChange={g => setF({ ...f, grades: g })} /></div>
-        <div className="field" style={{ gridColumn: '1/-1' }}><span>Môn chủ đạo * <small className="sub">(tick một hoặc nhiều; mục tick đầu tiên là chính)</small></span>
-          <SubjectMulti primary="chính" disabled={dis} level={lvsOf(f).length === 1 ? lvsOf(f)[0] : null} value={mainsOf(f)} onChange={v => { setF({ ...f, main_subjects: v, main_subject: v[0] ?? '' }); setInteg(integ.filter(x => !v.includes(x))) }} extra={trackSubjects} /></div>
-        <div className="field" style={{ gridColumn: '1/-1' }}><span>Môn tích hợp</span><SubjectMulti disabled={dis} level={lvsOf(f).length === 1 ? lvsOf(f)[0] : null} value={integ} onChange={setInteg} exclude={mainsOf(f)}
-          extra={trackSubjects} /></div>
-        <label className="field"><span>Đơn vị xây dựng <small className="sub">(không bắt buộc)</small></span>
-          <input list="edu-builders" maxLength={200} disabled={!scopeEdit} value={f.builder ?? ''} onChange={e => setF({ ...f, builder: e.target.value })} placeholder="Chọn hoặc gõ: KDI Education, Sở GD&ĐT…, Trường…" />
-          <datalist id="edu-builders">{builders.map(b => <option key={b} value={b} />)}</datalist></label>
-        <label className="field" style={{ gridColumn: '1/-1' }}><span>Mục tiêu chương trình</span><textarea disabled={dis} rows={3} value={f.objectives ?? ''} onChange={e => setF({ ...f, objectives: e.target.value })} /></label>
-        <label className="field" style={{ gridColumn: '1/-1' }}><span>Ghi chú</span><input disabled={dis} value={f.note ?? ''} onChange={e => setF({ ...f, note: e.target.value })} /></label>
-        <CustomInputs disabled={dis} fields={progFields} value={f.custom ?? {}} onChange={v => setF({ ...f, custom: v })} />
-      </div>
-      <div className="formgrid" style={{ marginTop: 8 }}>
-        <div className="field" style={{ gridColumn: '1/-1' }}><span>Khung năng lực</span>
-          <MultiSelect disabled={!editable} value={f.competency_keys} onChange={v => setF({ ...f, competency_keys: v })} options={comps.map(c => [c.key, c.name])}
-            placeholder="Chọn năng lực…" ariaLabel="Khung năng lực" empty="Chưa có khung năng lực." />{editable && <CompetencySetupLink audience="student" />}</div>
-        <div className="field" style={{ gridColumn: '1/-1' }}><span>Tiêu chí đánh giá (rubric)</span>
-          <MultiSelect disabled={!editable} value={f.rubric_ids} onChange={v => setF({ ...f, rubric_ids: v })} placeholder="Chọn rubric…" ariaLabel="Rubric" empty="Chưa có rubric nào."
-            options={[...rubrics.map(r => [r.id, r.title] as [string, string]), ...f.rubric_ids.filter(id => !rubrics.some(r => r.id === id)).map(id => [id, 'Rubric'] as [string, string])]} /></div>
-      </div>
-      <div className="formactions">
-        {editable && <button className="primary" type="submit">Lưu</button>}
-        {onDelete && <button type="button" className="danger" onClick={onDelete}>Xoá bản nháp</button>}
-      </div>
-    </form>
-      <section className="panel progscope" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-        <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Phạm vi áp dụng & hiệu lực</h3>
-          {effNote && <span className={'pill ' + (effNote.startsWith('Hết') ? 'bad' : 'warn')}>{effNote}</span>}</div>
-        <p className="sub" style={{ margin: 0 }}>Đơn vị trong phạm vi mới thấy chương trình, tạo được phân phối chương trình và kế hoạch dạy học từ chương trình này.
-          Sửa được cả khi chương trình đã phát hành; phiên bản mới giữ nguyên phạm vi và đơn vị xây dựng.</p>
-        <div className="formgrid" style={{ alignItems: 'start' }}>
-          {mode !== 'school' && <label className="field"><span>Phạm vi áp dụng</span><select value={f.scope} disabled={!scopeEdit} onChange={e => setF({ ...f, scope: e.target.value as Program['scope'] })}>
-            <option value="children">Mọi đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình và đơn vị được gán</option></select></label>}
-          <label className="field"><span>Hiệu lực từ</span><input disabled={!scopeEdit} type="date" value={f.effective_from ?? ''} onChange={e => setF({ ...f, effective_from: e.target.value || null })} /></label>
-          <label className="field"><span>Hiệu lực đến</span><input disabled={!scopeEdit} type="date" min={f.effective_from ?? undefined} value={f.effective_to ?? ''} onChange={e => setF({ ...f, effective_to: e.target.value || null })} /></label>
-        </div>
-        {mode !== 'school' && <p className="sub" style={{ margin: 0 }}>Đơn vị được gán: <b>{asgN ?? '…'}</b>{f.scope === 'own' ? ' (chỉ các đơn vị này và đơn vị mình thấy chương trình khi đã phát hành)' : ' (thêm vào phạm vi, kèm khối triển khai)'}.
-          {onGoAssign && <> <button type="button" className="linkbtn" onClick={onGoAssign}>Gán cho đơn vị →</button></>}</p>}
-        {scopeBad && <small className="warnline">{scopeBad}</small>}
-        {scopeEdit && <div className="tools"><button type="button" className="primary" disabled={!scopeDirty || !!scopeBad} onClick={saveScope}>Lưu phạm vi áp dụng</button>
-          {editable && <small className="sub">Bản nháp: nút Lưu ở trên cũng lưu đơn vị xây dựng.</small>}</div>}
-      </section>
-      <TeacherReqs p={p} editable={!!reqEditable || editable} onSaved={onSaved} onError={onError} />
-    </>
-  )
-}
-
-// ----- Yêu cầu năng lực giáo viên (132) -----
-// Người dạy chương trình cần đạt các năng lực này (khung năng lực giáo viên) từ mức tối thiểu. Giáo viên được tính đáp ứng khi
-// Đạt khoá đào tạo có gắn chương trình giáo dục, hoặc mức năng lực (trường đánh giá, mức đạt qua các khoá đào tạo) đủ các yêu cầu này.
-type Req = { competency: string; min_level: number }
-function TeacherReqs({ p, editable, onSaved, onError }: { p: Program; editable: boolean; onSaved: (m: string) => void; onError: (m: string) => void }) {
-  const tcomps = useCompetencies('teacher')
-  const fam = p.family_id ?? p.id
-  const [saved, setSaved] = useState<Req[] | null>(null)
-  const [rows, setRows] = useState<Req[]>([])
-  const [busy, setBusy] = useState(false)
-  useEffect(() => {
-    supabase.from('edu_program_teacher_reqs').select('competency, min_level').eq('edu_family', fam).then(({ data, error }) => {
-      if (error) { setSaved([]); setRows([]); return }
-      const r = (data as Req[]) ?? []; setSaved(r); setRows(r)
-    })
-  }, [fam])
-  const dirty = JSON.stringify(rows) !== JSON.stringify(saved ?? [])
-  const free = tcomps.filter(c => !rows.some(r => r.competency === c.key))
-  const nameOf = (k: string) => tcomps.find(c => c.key === k)?.name ?? k
-  async function save() {
-    if (rows.some(r => !r.competency)) return onError('Chọn năng lực cho mọi dòng yêu cầu.')
+    if (f.effective_from && f.effective_to && f.effective_to < f.effective_from) return onError('Ngày hết hiệu lực phải sau ngày bắt đầu.')
+    if (reqs.some(r => !r.competency)) return onError('Chọn năng lực cho mọi dòng yêu cầu năng lực giáo viên.')
+    const scopePart = { ...(showScope ? { scope: f.scope ?? 'children' } : isNew ? { scope: 'own' as const } : {}),
+      effective_from: f.effective_from || null, effective_to: f.effective_to || null, builder: f.builder?.trim() || null }
+    let body: Record<string, unknown> | null = null
+    if (editable) {
+      const cts = ctsOf(f as Program), lvs = lvsOf(f as Program), mains = mainsOf(f as Program)
+      if (!(f.title ?? '').trim()) return onError('Nhập tên chương trình.')
+      if (!cts.length || !lvs.length || !mains.length) return onError('Chọn ít nhất một nhóm chương trình, một cấp học và một môn chủ đạo.')
+      const gs = progGrades(f as Program).filter(g => g >= span[0] && g <= span[1])
+      if (!gs.length) return onError('Chọn ít nhất một khối.')
+      body = {
+        code: f.code?.trim() || null, title: (f.title ?? '').trim(), kind: f.kind ?? 'subject', ct_codes: cts, ct_code: cts[0], levels: lvs, level: lvs[0],
+        main_subjects: mains, main_subject: mains[0], periods_per_week: f.periods_per_week ? Number(f.periods_per_week) : null, deploy_term: f.deploy_term ?? 'year',
+        grades: gs, grade_from: gs[0], grade_to: gs[gs.length - 1], integrated_subjects: integ.filter(x => !mains.includes(x)), objectives: f.objectives?.trim() || null,
+        competency_keys: f.competency_keys ?? [], rubric_ids: f.rubric_ids ?? [], note: f.note?.trim() || null,
+        ...(progFields.length ? { custom: f.custom ?? {} } : {}), ...scopePart,
+      }
+    } else if (scopeEditable) body = scopePart
     setBusy(true)
-    const { error } = await supabase.rpc('edu_program_set_teacher_reqs', { p_program: p.id, p_reqs: rows })
+    let id = p.id
+    if (isNew) {
+      const { data, error } = await supabase.from('edu_programs').insert({ ...body, org_id: f.org_id || orgId }).select('id').single()
+      if (error) { setBusy(false); return onError(errText(error.message)) }
+      id = (data as { id: string }).id
+    } else if (body) {
+      const { error } = await supabase.from('edu_programs').update(body).eq('id', p.id!)
+      if (error) { setBusy(false); return onError(errText(error.message)) }
+    }
+    if (reqEdit && id && (isNew ? reqs.length > 0 : reqDirty)) {
+      const { error } = await supabase.rpc('edu_program_set_teacher_reqs', { p_program: id, p_reqs: reqs })
+      if (error) { setBusy(false); return onError((isNew ? 'Đã tạo chương trình nhưng chưa lưu được yêu cầu năng lực giáo viên: ' : '') + errText(error.message)) }
+      setReqs0(reqs)
+    }
     setBusy(false)
-    if (error) return onError(/schema cache|does not exist|Could not find/i.test(error.message) ? 'Hãy chạy migration 132 trên Supabase.' : errText(error.message))
-    setSaved(rows); onSaved('Đã lưu yêu cầu năng lực giáo viên.')
+    onSaved(isNew ? 'Đã tạo chương trình nháp.' : 'Đã lưu chương trình.', isNew ? id : undefined)
   }
-  return <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-    <h3 style={{ margin: 0 }}>Yêu cầu năng lực giáo viên</h3>
-    <p className="sub" style={{ margin: 0 }}>Giáo viên được tính đáp ứng chương trình này khi Đạt một khoá đào tạo có gắn chương trình, hoặc khi mức năng lực đạt đủ các yêu cầu dưới đây.
-      Mức năng lực lấy mức cao hơn giữa lần trường đánh giá gần nhất và mức đạt qua các khoá đào tạo (cộng dồn qua các đợt); tự đánh giá không tính.
-      Sửa được cả khi chương trình đã phát hành; phiên bản mới giữ nguyên yêu cầu.</p>
-    {saved == null ? <p className="sub">Đang tải…</p> : !rows.length && !editable ? <p className="sub" style={{ margin: 0 }}>Chưa đặt yêu cầu năng lực.</p>
-    : <div style={{ display: 'grid', gap: 8 }}>
-      {rows.map((r, i) => <div key={i} className="addrow" style={{ flexWrap: 'wrap', gap: 8 }}>
-        {editable ? <select value={r.competency} aria-label={`Năng lực ${i + 1}`} style={{ flex: 2, minWidth: 200 }}
-          onChange={e => setRows(rows.map((x, j) => j === i ? { ...x, competency: e.target.value } : x))}>
+
+  const S = (n: number) => ({ gridColumn: `span ${n}` })
+  return <form className="panel pform" onSubmit={save}>
+    {!isNew && !editable && <p className="sub" style={{ margin: 0 }}>{p.status === 'draft' || p.status === 'rejected' ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình đã gửi duyệt hoặc phát hành: nội dung không sửa được (tạo phiên bản mới ở tab "Phiên bản & duyệt"). Phạm vi, hiệu lực và yêu cầu năng lực giáo viên vẫn sửa được.'}</p>}
+    <div className="pgrid">
+      {isNew && onOrg && <div style={S(4)}><OrgPick kind="any" value={f.org_id ?? orgId ?? ''} onChange={onOrg} /></div>}
+      <label className="field" style={S(isNew && onOrg ? 8 : 6)}><span>Tên chương trình *</span><input disabled={dis} value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} placeholder="VD: Tin học THCS (CT GDPT 2018)" /></label>
+      <div className="field" style={S(isNew && onOrg ? 12 : 6)}><span>Nhóm chương trình * <small className="sub">(mục chọn đầu là chính)</small></span>
+        <ChipMulti disabled={dis} value={ctsOf(f as Program)} onChange={v => setF({ ...f, ct_codes: v, ct_code: v[0] ?? null })} options={CT.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])} ariaLabel="Nhóm chương trình" firstHint="Nhóm chính" /></div>
+      <label className="field" style={S(3)}><span>Mã</span><input disabled={dis} value={f.code ?? ''} onChange={e => setF({ ...f, code: e.target.value })} placeholder="VD: TIN-THCS" /></label>
+      <label className="field" style={S(3)}><span>Kiểu chương trình</span><select disabled={dis} value={f.kind ?? 'subject'} onChange={e => setF({ ...f, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
+      <label className="field" style={S(3)}><span>Số tiết / tuần</span><input disabled={dis} type="number" min={0.5} max={40} step={0.5} value={f.periods_per_week ?? ''} onChange={e => setF({ ...f, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })}
+        placeholder="VD: 2" title="Dùng làm mặc định khi tạo phân phối chương trình" /></label>
+      <label className="field" style={S(3)}><span>Thời gian triển khai</span><select disabled={dis} value={f.deploy_term ?? 'year'} onChange={e => setF({ ...f, deploy_term: e.target.value as Deploy })}>{(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} ({DEPLOY[d][1]})</option>)}</select></label>
+      <div className="field" style={S(6)}><span>Cấp học * <small className="sub">(mục chọn đầu là chính)</small></span>
+        <ChipMulti disabled={dis} value={lvsOf(f as Program)} onChange={v => setF({ ...f, levels: v, level: v[0] ?? f.level, grades: gradesForLevels(LV, v, progGrades(f as Program)) })} options={levelOpts} ariaLabel="Cấp học" firstHint="Cấp học chính" /></div>
+      <div className="field" style={S(6)}><span>Khối *</span><GradeChecks disabled={dis} from={span[0]} to={span[1]} value={progGrades(f as Program)} onChange={g => setF({ ...f, grades: g })} /></div>
+      <div className="field" style={S(6)}><span>Môn chủ đạo * <small className="sub">(mục chọn đầu là chính)</small></span>
+        <SubjectMulti primary="chính" disabled={dis} level={lvsOf(f as Program).length === 1 ? lvsOf(f as Program)[0] : null} value={mainsOf(f as Program)}
+          onChange={v => setF({ ...f, main_subjects: v, main_subject: v[0] ?? '', integrated_subjects: integ.filter(x => !v.includes(x)) })} extra={trackSubjects} /></div>
+      <div className="field" style={S(6)}><span>Môn tích hợp</span><SubjectMulti disabled={dis} level={lvsOf(f as Program).length === 1 ? lvsOf(f as Program)[0] : null} value={integ}
+        onChange={v => setF({ ...f, integrated_subjects: v })} exclude={mainsOf(f as Program)} extra={trackSubjects} /></div>
+      <div className="field" style={S(6)}><span>Khung năng lực học sinh</span>
+        <MultiSelect disabled={dis} value={f.competency_keys ?? []} onChange={v => setF({ ...f, competency_keys: v })} options={comps.map(c => [c.key, c.name])}
+          placeholder="Chọn năng lực…" ariaLabel="Khung năng lực" empty="Chưa có khung năng lực." />{editable && <CompetencySetupLink audience="student" />}</div>
+      <div className="field" style={S(6)}><span>Tiêu chí đánh giá (rubric)</span>
+        <MultiSelect disabled={dis} value={f.rubric_ids ?? []} onChange={v => setF({ ...f, rubric_ids: v })} placeholder="Chọn rubric…" ariaLabel="Rubric" empty="Chưa có rubric nào."
+          options={[...rubrics.map(r => [r.id, r.title] as [string, string]), ...(f.rubric_ids ?? []).filter(id => !rubrics.some(r => r.id === id)).map(id => [id, 'Rubric'] as [string, string])]} /></div>
+      <label className="field" style={S(6)}><span>Mục tiêu chương trình</span><textarea disabled={dis} rows={2} value={f.objectives ?? ''} onChange={e => setF({ ...f, objectives: e.target.value })} /></label>
+      <label className="field" style={S(6)}><span>Ghi chú</span><textarea disabled={dis} rows={2} value={f.note ?? ''} onChange={e => setF({ ...f, note: e.target.value })} /></label>
+      {progFields.length > 0 && <div style={{ gridColumn: '1/-1' }} className="formgrid"><CustomInputs disabled={dis} fields={progFields} value={f.custom ?? {}} onChange={v => setF({ ...f, custom: v })} /></div>}
+    </div>
+
+    <h4 className="psec">Phạm vi áp dụng & hiệu lực {effNote && <span className={'pill ' + (effNote.startsWith('Hết') ? 'bad' : 'warn')}>{effNote}</span>}</h4>
+    <div className="pgrid">
+      <label className="field" style={S(showScope ? 4 : 6)}><span>Đơn vị xây dựng</span>
+        <input list="edu-builders" maxLength={200} disabled={!scopeEdit} value={f.builder ?? ''} onChange={e => setF({ ...f, builder: e.target.value })} placeholder="KDI Education, Sở GD&ĐT…, Trường…" />
+        <datalist id="edu-builders">{builders.map(b => <option key={b} value={b} />)}</datalist></label>
+      {showScope && <label className="field" style={S(4)}><span>Phạm vi áp dụng</span><select value={f.scope ?? 'children'} disabled={!scopeEdit} onChange={e => setF({ ...f, scope: e.target.value as Program['scope'] })}>
+        <option value="children">Mọi đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình và đơn vị được gán</option></select></label>}
+      <label className="field" style={S(showScope ? 2 : 3)}><span>Hiệu lực từ</span><input disabled={!scopeEdit} type="date" value={f.effective_from ?? ''} onChange={e => setF({ ...f, effective_from: e.target.value || null })} /></label>
+      <label className="field" style={S(showScope ? 2 : 3)}><span>Hiệu lực đến</span><input disabled={!scopeEdit} type="date" min={f.effective_from ?? undefined} value={f.effective_to ?? ''} onChange={e => setF({ ...f, effective_to: e.target.value || null })} /></label>
+    </div>
+    {!isNew && mode !== 'school' && <small className="sub">Đơn vị được gán: <b>{asgN ?? '…'}</b>{f.scope === 'own' ? ' (chỉ các đơn vị này và đơn vị mình thấy chương trình khi đã phát hành)' : ' (thêm vào phạm vi, kèm khối triển khai)'}.
+      {onGoAssign && <> <button type="button" className="linkbtn" onClick={onGoAssign}>Gán cho đơn vị →</button></>}</small>}
+
+    <h4 className="psec">Yêu cầu năng lực giáo viên</h4>
+    <small className="sub">Giáo viên được tính đáp ứng chương trình khi Đạt một khoá đào tạo có gắn chương trình, hoặc khi mức năng lực đạt đủ các yêu cầu dưới đây
+      (mức cao hơn giữa lần trường đánh giá gần nhất và mức đạt qua các khoá đào tạo, cộng dồn qua các đợt; tự đánh giá không tính).</small>
+    <div className="preqs">
+      {reqs.map((r, i) => <div key={i} className="preq">
+        <select disabled={!reqEdit} value={r.competency} aria-label={`Năng lực ${i + 1}`} onChange={e => setReqs(reqs.map((x, j) => j === i ? { ...x, competency: e.target.value } : x))}>
           <option value="">Chọn năng lực…</option>
-          {tcomps.filter(c => c.key === r.competency || !rows.some(x => x.competency === c.key)).map(c => <option key={c.key} value={c.key}>{c.name}</option>)}
-        </select> : <b style={{ flex: 2 }}>{nameOf(r.competency)}</b>}
-        {editable ? <select value={r.min_level} aria-label={`Mức tối thiểu ${i + 1}`} onChange={e => setRows(rows.map((x, j) => j === i ? { ...x, min_level: +e.target.value } : x))}>
+          {tcomps.filter(c => c.key === r.competency || !reqs.some(x => x.competency === c.key)).map(c => <option key={c.key} value={c.key}>{c.name}</option>)}
+        </select>
+        <select disabled={!reqEdit} value={r.min_level} aria-label={`Mức tối thiểu ${i + 1}`} onChange={e => setReqs(reqs.map((x, j) => j === i ? { ...x, min_level: +e.target.value } : x))}>
           {[1, 2, 3, 4].map(l => <option key={l} value={l}>Từ Mức {l} · {LV_NAME[l - 1]}</option>)}</select>
-          : <span>Từ Mức {r.min_level} · {LV_NAME[r.min_level - 1]}</span>}
-        {editable && <button type="button" className="x" aria-label="Bỏ yêu cầu" onClick={() => setRows(rows.filter((_, j) => j !== i))}>×</button>}
+        {reqEdit && <button type="button" className="x" aria-label="Bỏ yêu cầu" onClick={() => setReqs(reqs.filter((_, j) => j !== i))}>×</button>}
       </div>)}
-      {!rows.length && <small className="sub">Chưa đặt yêu cầu năng lực: chỉ giáo viên Đạt khoá đào tạo có gắn chương trình mới được tính đáp ứng.</small>}
-      {editable && <div className="tools">
-        {free.length > 0 && <button type="button" className="linkbtn" onClick={() => setRows([...rows, { competency: free[0].key, min_level: 2 }])}>+ Thêm năng lực</button>}
-        <button type="button" className="primary" disabled={!dirty || busy} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu yêu cầu năng lực'}</button></div>}
+      {!reqs.length && <small className="sub">Chưa đặt yêu cầu: chỉ giáo viên Đạt khoá đào tạo có gắn chương trình mới được tính đáp ứng.</small>}
+    </div>
+    {reqEdit && tcomps.some(c => !reqs.some(r => r.competency === c.key)) && <div><button type="button" className="linkbtn"
+      onClick={() => { const c = tcomps.find(c => !reqs.some(r => r.competency === c.key)); if (c) setReqs([...reqs, { competency: c.key, min_level: 2 }]) }}>+ Thêm năng lực</button>
+      {reqs.length === 0 && <> · <button type="button" className="linkbtn" onClick={() => setReqs(tcomps.map(c => ({ competency: c.key, min_level: 2 })))}>Thêm mọi năng lực (Mức 2)</button></>}</div>}
+
+    {(canSave || onDelete || onCancel) && <div className="formactions">
+      {canSave && <button className="primary" type="submit" disabled={busy}>{busy ? 'Đang lưu…' : isNew ? 'Tạo bản nháp' : 'Lưu'}</button>}
+      {onCancel && <button type="button" onClick={onCancel}>Huỷ</button>}
+      {onDelete && <button type="button" className="danger" onClick={onDelete}>Xoá bản nháp</button>}
     </div>}
-  </section>
+  </form>
 }
 
 // ----- Cấu trúc + YCCĐ -----
@@ -635,7 +580,9 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
   const usable = subjects.filter(s => s.active && (!s.levels.length || s.levels.includes(p.level)))
   // Môn chọn được lấy từ tab Thông tin: môn chủ đạo + môn tích hợp
   const lc = (x: string) => x.trim().toLowerCase()
-  const progSubjects = [...new Set([p.main_subject, ...p.integrated_subjects].map(x => x?.trim()).filter(Boolean) as string[])]
+  const progMains = [...new Set(mainsOf(p).map(x => x?.trim()).filter(Boolean) as string[])]
+  const progSubjects = [...new Set([...progMains, ...p.integrated_subjects].map(x => x?.trim()).filter(Boolean) as string[])]
+  const isMainSubj = (n: string) => progMains.some(m => lc(m) === lc(n))
   const progCatalog = usable.filter(s => progSubjects.some(n => lc(n) === lc(s.name)))
   async function addSubject(unitId: string, subjectId: string) {
     if (!subjectId) return
@@ -717,7 +664,11 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
     { label: 'Khối', width: 170, cell: (r, set) => <NumMultiSelect value={r.f.grades} onChange={g => set({ grades: g })} placeholder="Mọi khối" ariaLabel="Khối"
       options={progGrades(p).map(g => ({ value: g, label: String(g) }))} /> },
     { label: 'Môn', width: 170, cell: (r, set, rows) => { const list = draftSubjects(r, rows); return <select value={r.f.subject ?? ''} onChange={e => set({ subject: e.target.value || null, libId: '' })} aria-label="Môn" style={{ maxWidth: 170 }}>
-      <option value="">{r.type === 'topic' ? `(${p.main_subject})` : list.length > 1 ? '— Mọi môn —' : '—'}</option>{list.map(n => <option key={n} value={n}>{n}</option>)}</select> } },
+      <option value="">{r.type === 'topic' ? `(${mainsOf(p)[0] ?? p.main_subject})` : list.length > 1 ? '— Mọi môn —' : '—'}</option>
+      {list.some(isMainSubj) && list.some(n => !isMainSubj(n)) ? <>
+        <optgroup label="Môn chủ đạo">{list.filter(isMainSubj).map(n => <option key={n} value={n}>{n}</option>)}</optgroup>
+        <optgroup label="Môn tích hợp">{list.filter(n => !isMainSubj(n)).map(n => <option key={n} value={n}>{n}</option>)}</optgroup></>
+        : list.map(n => <option key={n} value={n}>{n}</option>)}</select> } },
     { label: 'Số tiết', width: 90, cell: (r, set) => <input type="number" min={0} max={999} value={r.f.periods} onChange={e => set({ periods: Math.max(0, Number(e.target.value) || 0) })} aria-label="Số tiết" style={{ width: 76 }} /> },
   ]
   // Bài mới: chọn từ danh sách bài học (điền sẵn tên, mục tiêu, số tiết; gắn học liệu của bài khi lưu)

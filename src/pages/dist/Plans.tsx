@@ -15,6 +15,7 @@ import { Drawer } from '../../components/Drawer'
 import { PlanBody, Chip, STATUS, errText, useBreadcrumb } from './Editor'
 import type { Plan, Status } from './sched'
 import { FlowGuide } from '../../components/FlowGuide'
+import { StatCards } from '../../components/StatCards'
 import { useCls } from './cls'
 import { DistHistory, PlanAssigned } from './History'
 import { gradeName } from '../../lib/eduLevels'
@@ -62,6 +63,8 @@ export function DistPage({ orgId }: { orgId: string | null }) {
   const [openList, setOpenList] = useState<string | null>(null)
   const [assignId, setAssignId] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
+  const [lf, setLf] = useState<ListF>({ fs: '', q: '', fc: '', card: null })
+  const crumb = useBreadcrumb()
   const reload = () => setRk(k => k + 1)
   const assign = (id: string) => { setAssignId(id); setTab('assign') }
   /** Sau khi lưu / phát hành / nhân bản: mở bản (nháp mở ở trình soạn) và tải lại số liệu. */
@@ -72,8 +75,12 @@ export function DistPage({ orgId }: { orgId: string | null }) {
     else { setOpenList(null); setTimeout(() => setOpenList(id)) }
   }
   if (err) return <p className="msg">{err}</p>
-  const pub = (plans ?? []).filter(p => p.status === 'published').length
-  const drafts = (plans ?? []).filter(p => p.status === 'draft').length
+  // Số trên thẻ chạy theo ô tìm và phân loại của danh sách
+  const cardBase = (plans ?? []).filter(p => listMatch(p, lf, crumb))
+  const baseIds = new Set(cardBase.map(p => p.id))
+  const cardBooks = books.filter(b => baseIds.has(b.dist_plan_id))
+  const pub = cardBase.filter(p => p.status === 'published').length
+  const drafts = cardBase.filter(p => p.status === 'draft').length
   const steps: [Tab, string, string][] = [
     ['create', 'Soạn bản phân phối', 'Bấm “+ Tạo bản phân phối”, đặt tên và chọn phân loại, tick chương trình phù hợp, xếp lịch học kỳ và nhịp tiết/tuần, xem Bảng hoặc Lịch rồi Lưu nháp.'],
     ['list', 'Phát hành bản', 'Soát cảnh báo (lỗi sẽ chặn phát hành), rồi chuyển bản sang Đã phát hành. Xem tất cả bản ở danh sách này.'],
@@ -85,11 +92,11 @@ export function DistPage({ orgId }: { orgId: string | null }) {
           <button type="button" className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setMsg(null); if (t === 'list') setOpenList(null) }}><i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
         <p className="sub" style={{ margin: 0 }}>Bản phân phối là mẫu lắp ghép từ nhiều chương trình. PPCT theo trường là bản đã gán cho từng trường, lớp để theo dõi.</p>
       </FlowGuide>
-      <div className="diststatcards">
-        <div className="panel"><i aria-hidden="true">≋</i><span><b>{plans?.length ?? '…'}</b><small>Bản phân phối</small><small>{pub} đã phát hành · {drafts} nháp</small></span></div>
-        <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{plans ? pub : '…'}</b><small>Bản có thể gán</small></span></div>
-        <div className="panel"><i aria-hidden="true" className="good">▦</i><span><b>{books.length}</b><small>PPCT theo trường</small><small>{books.filter(b => b.status === 'published').length} đã ban hành</small></span></div>
-      </div>
+      <StatCards active={lf.card} onPick={k => { setLf({ ...lf, card: k, fs: '' }); setTab('list'); setOpenList(null); setMsg(null) }} items={[
+        { icon: 'layers', value: plans ? cardBase.length : '…', label: 'Bản phân phối', sub: `${pub} đã phát hành · ${drafts} nháp` },
+        { k: 'published', icon: 'checkCircle', tone: 'good', value: plans ? pub : '…', label: 'Bản có thể gán' },
+        { k: 'books', icon: 'grid', tone: 'good', value: cardBooks.length, label: 'PPCT theo trường', sub: `${cardBooks.filter(b => b.status === 'published').length} đã ban hành` },
+      ]} />
       <div className="distpills" role="tablist">
         {([['list', 'Danh sách bản phân phối'], ['tree', 'Theo khung phân loại'], ['assign', 'Gán theo trường'], ['history', 'Lịch sử áp dụng']] as [Tab, string][]).map(([t, l]) => {
           const on = tab === t || (t === 'list' && tab === 'create')
@@ -105,7 +112,7 @@ export function DistPage({ orgId }: { orgId: string | null }) {
         {tab === 'list' && (openList && plans.some(p => p.id === openList)
           ? <PlanBody key={openList + ':' + rk} plan={plans.find(p => p.id === openList)!} orgId={orgId} back={() => { setOpenList(null); setMsg(null) }} backLabel="Danh sách"
               onChanged={changed('list')} onAssign={assign} />
-          : <DistList plans={plans} meta={meta} canCreate={!!orgId} onCreate={() => { setMsg(null); setTab('create') }} onOpen={p => { setMsg(null); setOpenList(p.id) }}
+          : <DistList plans={plans} meta={meta} f={lf} setF={setLf} canCreate={!!orgId} onCreate={() => { setMsg(null); setTab('create') }} onOpen={p => { setMsg(null); setOpenList(p.id) }}
               onCopied={(id, m) => { reload(); setMsg(m); if (id) setOpenList(id) }} onAssign={assign} />)}
         {tab === 'create' && orgId && <CreatePlan orgId={orgId} onCancel={() => setTab('list')}
           onCreated={id => { reload(); setOpenList(id); setTab('list'); setMsg('Đã tạo bản phân phối nháp. Tiếp tục chọn chương trình và xếp lịch.') }} />}
@@ -171,14 +178,19 @@ function DistTree({ orgId, plans, meta, focus, onOpen, onCreated }: {
 
 // ===== Tab "Danh sách bản phân phối" =====
 type SortKey = 'title' | 'cls' | 'parts' | 'lessons' | 'books' | 'status' | 'updated'
-function DistList({ plans, meta, canCreate, onCreate, onOpen, onCopied, onAssign }: {
-  plans: Plan[]; meta: Map<string, Meta>; canCreate: boolean; onCreate: () => void; onOpen: (p: Plan) => void; onCopied: (id: string | null, msg: string) => void; onAssign: (id: string) => void
+/** Bộ lọc danh sách, giữ ở trang để thẻ tổng số tính theo (card: thẻ đang bấm) */
+type ListF = { fs: Status | ''; q: string; fc: string; card: string | null }
+const listMatch = (p: Plan, f: ListF, crumb: (p: Plan) => string) =>
+  (!f.fc || crumb(p) === f.fc) && (!f.q || `${p.code} ${p.title} ${crumb(p)}`.toLowerCase().includes(f.q.toLowerCase()))
+function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied, onAssign }: {
+  plans: Plan[]; meta: Map<string, Meta>; f: ListF; setF: (f: ListF) => void; canCreate: boolean; onCreate: () => void; onOpen: (p: Plan) => void; onCopied: (id: string | null, msg: string) => void; onAssign: (id: string) => void
 }) {
   const crumb = useBreadcrumb()
   const hid = useHiddenBtn()
-  const [fs, setFs] = useState<Status | ''>('')
-  const [q, setQ] = useState('')
-  const [fc, setFc] = useState('')
+  const { fs, q, fc, card } = f
+  const setFs = (fs: Status | '') => setF({ ...f, fs, card: null })
+  const setQ = (q: string) => setF({ ...f, q })
+  const setFc = (fc: string) => setF({ ...f, fc })
   const [sort, setSort] = useState<[SortKey, 1 | -1]>(['title', 1])
   const [err, setErr] = useState('')
   const { has, menu } = useCols('dist-list-cols', COLS, COLS.map(c => c.key))
@@ -191,10 +203,10 @@ function DistList({ plans, meta, canCreate, onCreate, onOpen, onCopied, onAssign
         case 'status': return p.status; case 'updated': return p.updated_at; default: return p.code + ' ' + p.title
       }
     }
-    return plans.filter(p => (!fs || p.status === fs) && (!fc || crumb(p) === fc)
-      && (!q || `${p.code} ${p.title} ${crumb(p)}`.toLowerCase().includes(q.toLowerCase())))
+    return plans.filter(p => (!fs || p.status === fs) && listMatch(p, f, crumb)
+      && (card !== 'published' || p.status === 'published') && (card !== 'books' || (meta.get(p.id)?.books ?? 0) > 0))
       .sort((a, b) => { const x = val(a), y = val(b); return (x < y ? -1 : x > y ? 1 : 0) * sort[1] })
-  }, [plans, meta, fs, fc, q, sort, crumb])
+  }, [plans, meta, f, sort, crumb])
   const sel = useMultiSel(shown)
   const picked = sel.list
   const one = picked.length === 1 ? picked[0] : null
@@ -211,13 +223,13 @@ function DistList({ plans, meta, canCreate, onCreate, onOpen, onCopied, onAssign
     if (ps.length === 1) onCopied(last, `Đã nhân bản ${ps[0].code} thành bản nháp mới.`)
     else onCopied(null, `Đã nhân bản ${ps.length} bản thành bản nháp mới.`)
   }
-  const n = (s: Status) => plans.filter(p => p.status === s).length
+  const n = (s: Status) => plans.filter(p => p.status === s && listMatch(p, f, crumb)).length
   const th = (k: SortKey, label: string) => <th key={k}><button type="button" className="distsort" onClick={() => setSort([k, sort[0] === k ? (-sort[1] as 1 | -1) : 1])}>
     {label} <small aria-hidden="true">{sort[0] === k ? (sort[1] === 1 ? '↑' : '↓') : '↕'}</small></button></th>
   return (
     <>
       <div className="distfilter">
-        {([['', 'Tất cả', plans.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['superseded', 'Đã thay thế', n('superseded')], ['archived', 'Ngừng dùng', n('archived')]] as [Status | '', string, number][]).map(([s, l, c]) =>
+        {([['', 'Tất cả', plans.filter(p => listMatch(p, f, crumb)).length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['superseded', 'Đã thay thế', n('superseded')], ['archived', 'Ngừng dùng', n('archived')]] as [Status | '', string, number][]).map(([s, l, c]) =>
           <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
       </div>
       <div className="distfilter">

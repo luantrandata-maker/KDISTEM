@@ -10,6 +10,7 @@ import { ClsTree } from '../dist/ClsTree'
 import { useAllMode } from '../../components/OrgScope'
 import { PlanResults } from './ResultsWork'
 import { FlowGuide } from '../../components/FlowGuide'
+import { StatCards } from '../../components/StatCards'
 
 export type RPlan = { id: string; org_id: string; plan_code: string | null; name: string }
 type M = { sessions: number; present: number; excused: number; att_pct: number | null; att_req: number; units: number; done: number; tests: number
@@ -71,7 +72,8 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
     sub={[cur.plan_code, cur.year_name].filter(Boolean).join(' · ')}><PlanResults plan={cur} /></ElView>
 
   const list = (plans ?? []).filter(p => ofl.fit(p.org_id) && (!q || `${p.plan_code ?? ''} ${p.name}`.toLowerCase().includes(q.toLowerCase())))
-  const tot = [...cnt.values()].reduce((a, c) => ({ n: a.n + c.n, pass: a.pass + c.pass, fail: a.fail + c.fail, cert: a.cert + c.cert }), { n: 0, pass: 0, fail: 0, cert: 0 })
+  // Thẻ tổng số tính theo các kế hoạch đang lọc
+  const tot = list.map(p => cnt.get(p.id)).filter(Boolean).reduce<{ n: number; pass: number; fail: number; cert: number }>((a, c) => ({ n: a.n + c!.n, pass: a.pass + c!.pass, fail: a.fail + c!.fail, cert: a.cert + c!.cert }), { n: 0, pass: 0, fail: 0, cert: 0 })
   const table = (rows: TPlanRow[], empty: string) => <div className="wrap"><table className="libtable">
     <thead><tr><th>Kế hoạch đào tạo</th><th>Giáo viên</th><th>Đạt</th><th>Chưa đạt</th><th>Chờ kết luận</th><th>Chứng chỉ đã cấp</th></tr></thead>
     <tbody>{rows.map(p => { const c = cnt.get(p.id) ?? { n: 0, pass: 0, fail: 0, cert: 0 }, wait = Math.max(0, c.n - c.pass - c.fail)
@@ -94,12 +96,12 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
     <FlowGuide id="training-results">
       <ol className="distguide four">{steps.map(([h, d], i) => <li key={h}><button type="button" onClick={() => setTab('list')}><i>{i + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
     </FlowGuide>
-    <div className="diststatcards four">
-      <div className="panel"><i aria-hidden="true">≋</i><span><b>{plans?.length ?? '…'}</b><small>Kế hoạch đã phát hành</small></span></div>
-      <div className="panel"><i aria-hidden="true">👥</i><span><b>{tot.n}</b><small>Lượt giáo viên ghi danh</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{tot.pass}</b><small>Đạt</small><small>{tot.n ? Math.round(tot.pass * 100 / tot.n) : 0}% · {Math.max(0, tot.n - tot.pass - tot.fail)} chờ kết luận</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="good">▣</i><span><b>{tot.cert}</b><small>Chứng chỉ đã cấp</small></span></div>
-    </div>
+    <StatCards items={[
+      { icon: 'layers', value: plans ? list.length : '…', label: 'Kế hoạch đã phát hành' },
+      { icon: 'users', value: tot.n, label: 'Lượt giáo viên ghi danh' },
+      { icon: 'checkCircle', tone: 'good', value: tot.pass, label: 'Đạt', sub: `${tot.n ? Math.round(tot.pass * 100 / tot.n) : 0}% · ${Math.max(0, tot.n - tot.pass - tot.fail)} chờ kết luận` },
+      { icon: 'award', tone: 'good', value: tot.cert, label: 'Chứng chỉ đã cấp' },
+    ]} />
     <div className="distpills" role="tablist">
       {([['list', 'Tất cả kế hoạch'], ['tree', 'Theo khung phân loại']] as ['tree' | 'list', string][]).map(([t, l]) =>
         <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{l}</button>)}

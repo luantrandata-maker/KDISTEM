@@ -8,6 +8,7 @@ import { supabase } from '../../lib/supabase'
 import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
 import { CERT_ST } from './Results'
+import { StatCards } from '../../components/StatCards'
 import { FlowGuide } from '../../components/FlowGuide'
 
 type Cert = { id: string; code: string | null; status: 'pending' | 'issued' | 'revoked'; issued_on: string | null; expires_on: string | null; revoked_reason: string | null
@@ -89,9 +90,10 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
   if (open) return <CertView id={open} back="Chứng chỉ đào tạo" onBack={() => setOpen(null)} />
   const all = rows ?? []
   const plans = [...new Map(all.map(c => [c.plan_id, `${c.plan_code ?? ''} · ${c.plan_name ?? ''}`])).entries()]
-  const base = all.filter(c => (!plan || c.plan_id === plan) && ofl.fit(tOrg.get(c.teacher_id)))
+  // base: theo kế hoạch, đơn vị và ô tìm; thẻ tổng số và nút trạng thái đếm trên base
+  const base = all.filter(c => (!plan || c.plan_id === plan) && ofl.fit(tOrg.get(c.teacher_id)) && (c.teacher_name + ' ' + (c.code ?? '')).toLowerCase().includes(q.toLowerCase()))
   const cnt = (k: F) => k === 'all' ? base.length : base.filter(c => c.status === k).length
-  const shown = base.filter(c => (f === 'all' || c.status === f) && (c.teacher_name + ' ' + (c.code ?? '')).toLowerCase().includes(q.toLowerCase()))
+  const shown = base.filter(c => f === 'all' || c.status === f)
   const pick = shown.filter(c => c.can_manage && c.status !== 'issued')
 
   async function issue(ids: string[]) {
@@ -114,12 +116,12 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
     <FlowGuide id="training-certs">
       <ol className="distguide">{steps.map(([h, d, k], i) => <li key={h}><button type="button" onClick={() => setF(k)}><i>{i + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
     </FlowGuide>
-    <div className="diststatcards four">
-      <div className="panel"><i aria-hidden="true">🎓</i><span><b>{rows ? base.length : '…'}</b><small>Chứng chỉ</small></span></div>
-      <div className="panel"><i aria-hidden="true" className={cnt('pending') ? 'warn' : ''}>…</i><span><b>{cnt('pending')}</b><small>Chờ duyệt cấp</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{cnt('issued')}</b><small>Đã cấp</small></span></div>
-      <div className="panel"><i aria-hidden="true">✗</i><span><b>{cnt('revoked')}</b><small>Đã thu hồi</small></span></div>
-    </div>
+    <StatCards active={f === 'all' ? null : f} onPick={k => { setF((k ?? 'all') as F); setSel(new Set()) }} items={[
+      { icon: 'award', value: rows ? base.length : '…', label: 'Chứng chỉ' },
+      { k: 'pending', icon: 'hourglass', tone: cnt('pending') ? 'warn' : '', value: cnt('pending'), label: 'Chờ duyệt cấp' },
+      { k: 'issued', icon: 'checkCircle', tone: 'good', value: cnt('issued'), label: 'Đã cấp' },
+      { k: 'revoked', icon: 'alert', value: cnt('revoked'), label: 'Đã thu hồi' },
+    ]} />
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
       <div className="distfilter">

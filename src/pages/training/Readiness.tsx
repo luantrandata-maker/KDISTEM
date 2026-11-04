@@ -7,6 +7,7 @@ import { useOrgFilters } from '../../components/OrgFilters'
 import { supabase } from '../../lib/supabase'
 import { Chip } from '../dist/Editor'
 import { Drawer } from '../../components/Drawer'
+import { StatCards } from '../../components/StatCards'
 
 type T = { id: string; name: string; cert: string | null; comp: boolean; program: string | null; missing: string[] | null; ok: boolean }
 type Sug = { id: string; code: string | null; title: string }
@@ -70,12 +71,12 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
         Giáo viên <b>đạt chuẩn</b> khi có chứng chỉ đào tạo cùng loại chương trình, hoặc đạt mọi năng lực đích của một chương trình đào tạo cùng loại ở lần đánh giá gần nhất.
         Số GV cần = số lớp ÷ số lớp tối đa một GV dạy.</p>
     </div>
-    <div className="diststatcards four">
-      <div className="panel"><i aria-hidden="true">📚</i><span><b>{rows ? scope.length : '…'}</b><small>Chương trình đang dạy</small><small>{new Set(scope.map(r => r.org_id)).size} trường</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{n('ok')}</b><small>Đáp ứng</small><small>Đủ GV đạt chuẩn</small></span></div>
-      <div className="panel"><i aria-hidden="true" className={n('short') ? 'warn' : 'good'}>!</i><span><b>{n('short')}</b><small>Thiếu GV đạt chuẩn</small><small>Thiếu {scope.reduce((t, r) => t + (r.assigned ? short(r, per) : 0), 0)} GV · {toTrain} GV cần bồi dưỡng</small></span></div>
-      <div className="panel"><i aria-hidden="true" className={n('none') ? 'warn' : 'good'}>∅</i><span><b>{n('none')}</b><small>Chưa phân công GV</small><small>Có lớp / chương trình nhưng chưa có GV dạy</small></span></div>
-    </div>
+    <StatCards active={f || null} onPick={k => setF((k ?? '') as typeof f)} items={[
+      { icon: 'book', value: rows ? scope.length : '…', label: 'Chương trình đang dạy', sub: `${new Set(scope.map(r => r.org_id)).size} trường` },
+      { k: 'ok', icon: 'checkCircle', tone: 'good', value: n('ok'), label: 'Đáp ứng', sub: 'Đủ GV đạt chuẩn' },
+      { k: 'short', icon: 'alert', tone: n('short') ? 'warn' : 'good', value: n('short'), label: 'Thiếu GV đạt chuẩn', sub: `Thiếu ${scope.reduce((t, r) => t + (r.assigned ? short(r, per) : 0), 0)} GV · ${toTrain} GV cần bồi dưỡng` },
+      { k: 'none', icon: 'user', tone: n('none') ? 'warn' : 'good', value: n('none'), label: 'Chưa phân công GV', sub: 'Có lớp / chương trình nhưng chưa có GV dạy' },
+    ]} />
     {err && <p className="msg" role="alert">{err}</p>}
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>

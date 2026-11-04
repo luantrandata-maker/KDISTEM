@@ -11,6 +11,7 @@ import QuestionBank from './Bank'
 import Analytics from './Analytics'
 import { ElView } from '../../components/ElView'
 import { useOrgFilter } from '../../components/OrgFilters'
+import { StatCards } from '../../components/StatCards'
 import { useSubjects } from '../subjects'
 import { ExamMatrix, matrixTotal } from '../../components/ExamMatrix'
 import { ESTATUS, LEVEL, LKIND, SHOW, courseGrades, courseMeta, courseSubjects, dueBadge, errText, gradesText, qGrades, pathName, type Attempt, type Course, type Exam, type Lesson, type Level, type Question, type Topic, groupLessons } from './common'
@@ -25,13 +26,38 @@ const dt = (s: string | null) => (s ? new Date(s).toLocaleString('vi-VN', { date
 const NOT_OWNER = 'Chỉ người tạo hoặc quản trị đơn vị được sửa nội dung này.'
 const toLocal = (s: string | null) => (s ? new Date(new Date(s).getTime() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '')
 
+type OrgF = ReturnType<typeof useOrgFilter>
 export default function ElearningManage({ orgId }: { orgId: string | null }) {
   const [tab, setTab] = useState<'exam' | 'course' | 'hard' | 'review' | 'bank'>('exam')
+  // Bộ lọc Tỉnh / trường dùng chung cho tab Đề luyện và Khoá học, để số trên thẻ chạy theo bộ lọc
+  const ofl = useOrgFilter()
   return <>
+    <ElCards orgId={orgId} ofl={ofl} onOpen={t => setTab(t as 'exam' | 'course')} />
     <Tabs value={tab} onChange={setTab} items={[['exam', 'Đề luyện'], ['course', 'Khoá học e-learning'], ['hard', 'Câu hỏi khó'], ['review', 'Nội dung cần ôn'], ['bank', 'Ngân hàng câu hỏi']]} />
-    {tab === 'exam' ? <Exams orgId={orgId} /> : tab === 'course' ? <Courses orgId={orgId} /> : tab === 'hard' || tab === 'review' ? <Analytics key={tab} orgId={orgId} kind={tab} />
+    {tab === 'exam' ? <Exams orgId={orgId} ofl={ofl} /> : tab === 'course' ? <Courses orgId={orgId} ofl={ofl} /> : tab === 'hard' || tab === 'review' ? <Analytics key={tab} orgId={orgId} kind={tab} />
       : <QuestionBank orgId={orgId} />}
   </>
+}
+
+// Thẻ tổng số của E-learning & luyện thi (theo bộ lọc Tỉnh / trường): bấm thẻ để mở tab tương ứng
+function ElCards({ orgId, ofl, onOpen }: { orgId: string | null; ofl: OrgF; onOpen: (t: string) => void }) {
+  const [d, setD] = useState<{ courses: { org_id: string; status: string }[]; exams: { id: string; org_id: string; status: string }[]; att: { exam_id: string; student_id: string; score: number | null }[] } | null>(null)
+  useEffect(() => {
+    Promise.all([supabase.from('courses').select('org_id, status'), supabase.from('practice_exams').select('id, org_id, status'),
+      supabase.from('exam_attempts').select('exam_id, student_id, score').eq('status', 'submitted').limit(20000)])
+      .then(([c, e, a]) => setD({ courses: (c.data as any[]) ?? [], exams: (e.data as any[]) ?? [], att: (a.data as any[]) ?? [] }))
+  }, [orgId])
+  const cs = (d?.courses ?? []).filter(c => ofl.fit(c.org_id)), es = (d?.exams ?? []).filter(x => ofl.fit(x.org_id))
+  const ids = new Set(es.map(x => x.id)), at = (d?.att ?? []).filter(x => ids.has(x.exam_id))
+  const pub = cs.filter(c => c.status === 'published').length, draft = cs.filter(c => c.status === 'draft').length
+  const avg = at.length ? at.reduce((n, x) => n + Number(x.score ?? 0), 0) / at.length : null
+  const w = (v: number | string) => (d ? v : '…')
+  return <StatCards nav onPick={k => k && onOpen(k)} items={[
+    { k: 'course', icon: 'book', value: w(cs.length), label: 'Khoá học', sub: d ? `${pub} đã phát hành · ${draft} nháp` : undefined },
+    { k: 'exam', icon: 'clipboard', value: w(es.length), label: 'Đề luyện', sub: d ? `${es.filter(x => x.status === 'published').length} đang mở` : undefined },
+    { k: 'exam', icon: 'users', value: w(at.length.toLocaleString('vi-VN')), label: 'Lượt học sinh làm bài', sub: d ? `${new Set(at.map(x => x.student_id)).size} học sinh` : undefined },
+    { icon: 'trophy', tone: avg == null ? '' : avg >= 5 ? 'good' : 'warn', value: w(avg == null ? '—' : avg.toFixed(1)), label: 'Điểm trung bình', sub: 'Thang 10, các bài đã nộp' },
+  ]} />
 }
 
 function useOrgCtx(orgId: string | null) {
@@ -132,14 +158,14 @@ const howText = (x: Exam) => x.mode === 'random' ? `${x.criteria.matrix?.length 
 /** Đề kiểm tra của một môn học (109): danh sách đề của môn, tạo đề có sẵn môn */
 export function SubjectExams({ orgId, subject }: { orgId: string | null; subject: string }) { return <Exams orgId={orgId} subject={subject} /> }
 
-function Exams({ orgId, subject }: { orgId: string | null; subject?: string }) {
+function Exams({ orgId, subject, ofl: shared }: { orgId: string | null; subject?: string; ofl?: OrgF }) {
   const { classes, groups, isSchool } = useOrgCtx(orgId)
   // Quản trị hệ thống: thấy đề của mọi đơn vị, sửa thẳng; thêm mới thì chọn đơn vị ra đề
   const every = useAllMode(), orgName = useOrgName()
   const schoolOf = (id?: string | null) => every ? every.find(o => o.id === id)?.type === 'school' : isSchool
   const [rows, setRows] = useState<Exam[]>([])
   const [counts, setCounts] = useState<Map<string, { n: number; students: Set<string>; sum: number }>>(new Map())
-  const ofl = useOrgFilter()
+  const own = useOrgFilter(), ofl = shared ?? own
   const [form, setForm] = useState<EForm | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
@@ -301,14 +327,14 @@ function ExamResults({ exam, roster }: { exam: Exam; roster: boolean }) {
 type CForm = Omit<Course, 'id' | 'org_id' | 'created_by' | 'created_at'> & { id?: string; org?: string }
 const CEMPTY: CForm = { title: '', description: '', subject: '', grade: null, subjects: [], grades: [], cover_url: null, class_ids: null, group_ids: null, student_ids: null, due_at: null, shared: false, status: 'draft' }
 
-function Courses({ orgId }: { orgId: string | null }) {
+function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
   const { classes, groups, isSchool } = useOrgCtx(orgId)
   const [rows, setRows] = useState<Course[]>([])
   const [lessons, setLessons] = useState<Lesson[]>([])
   const [topics, setTopics] = useState<Topic[]>([])
   const [progress, setProgress] = useState<Map<string, number>>(new Map())
   const [exams, setExams] = useState<Exam[]>([])
-  const ofl = useOrgFilter()
+  const own = useOrgFilter(), ofl = shared ?? own
   const [form, setForm] = useState<CForm | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   // Khoá vừa tạo: mở thẳng trang chi tiết với ô thêm bài học sẵn sàng

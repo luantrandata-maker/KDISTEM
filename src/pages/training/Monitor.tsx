@@ -11,6 +11,7 @@ import { Drawer } from '../../components/Drawer'
 import { useAllOrgs, type ScopeOrg } from '../../components/OrgScope'
 import { SchoolPlanWork } from './Plans'
 import { FB_CRIT, FeedbackComments, score } from './Feedback'
+import { StatCards } from '../../components/StatCards'
 
 type Row = { plan_id: string; plan_code: string | null; plan_name: string; plan_org: string | null; year_name: string | null; starts_on: string | null; ends_on: string | null
   org_id: string; org_name: string; quota: number | null; org_status: string; enrolled: number; sessions: number; sessions_closed: number
@@ -198,12 +199,12 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
     {list.length > 15 && <button type="button" className="linkbtn" onClick={() => setMore(!more)}>{more ? 'Thu gọn' : `Xem cả ${list.length} trường`}</button>}</>
 
   return <>
-    <div className="diststatcards four">
-      <div className="panel"><i aria-hidden="true">📋</i><span><b>{rows ? new Set(shown.map(r => r.plan_id)).size : '…'}</b><small>Kế hoạch đang theo dõi</small><small>{shown.length} lượt giao · {schools.length} trường</small></span></div>
-      <div className="panel"><i aria-hidden="true" className={pct(sum('enrolled'), quota) >= 90 ? 'good' : 'warn'}>👥</i><span><b>{sum('enrolled')}{quota ? `/${quota}` : ''}</b><small>GV đã chọn / chỉ tiêu</small><small>{full}/{schools.length} trường đủ chỉ tiêu</small></span></div>
-      <div className="panel"><i aria-hidden="true" className={nSt('assigned', 'returned') ? 'warn' : 'good'}>📝</i><span><b>{nSt('assigned', 'returned')}</b><small>Lượt cần chọn GV · {nSt('returned')} bị trả lại</small><small>{nSt('submitted')} chờ duyệt · {nSt('approved')} đã duyệt</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{sum('passed')}</b><small>GV Đạt · {pct(sum('passed'), sum('enrolled'))}% · {sum('certs')} chứng chỉ</small><small>Chuyên cần {attAvg == null ? '—' : `${attAvg}%`} · {sum('low_att')} GV vắng nhiều</small></span></div>
-    </div>
+    <StatCards active={st === 'todo' ? 'todo' : null} onPick={k => setSt((k ?? '') as St)} items={[
+      { icon: 'clipboard', value: rows ? new Set(shown.map(r => r.plan_id)).size : '…', label: 'Kế hoạch đang theo dõi', sub: `${shown.length} lượt giao · ${schools.length} trường` },
+      { icon: 'users', tone: pct(sum('enrolled'), quota) >= 90 ? 'good' : 'warn', value: `${sum('enrolled')}${quota ? `/${quota}` : ''}`, label: 'GV đã chọn / chỉ tiêu', sub: `${full}/${schools.length} trường đủ chỉ tiêu` },
+      { k: 'todo', icon: 'edit', tone: nSt('assigned', 'returned') ? 'warn' : 'good', value: nSt('assigned', 'returned'), label: `Lượt cần chọn GV · ${nSt('returned')} bị trả lại`, sub: `${nSt('submitted')} chờ duyệt · ${nSt('approved')} đã duyệt` },
+      { icon: 'checkCircle', tone: 'good', value: sum('passed'), label: `GV Đạt · ${pct(sum('passed'), sum('enrolled'))}% · ${sum('certs')} chứng chỉ`, sub: `Chuyên cần ${attAvg == null ? '—' : `${attAvg}%`} · ${sum('low_att')} GV vắng nhiều` },
+    ]} />
     {err && <p className="msg" role="alert">{err}</p>}
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
@@ -294,12 +295,12 @@ function SchoolDetail({ s, year, fb, onClose, work, manage, onWork, onReview }: 
   const [cm, setCm] = useState<string | null>(null)
   const fbOf = (r: Row) => fbAgg([fb.get(r.plan_id + '|' + r.org_id)])
   return <Drawer title={<><b>{s.org_name}</b><br /><small className="sub">{s.rows.length} kế hoạch đào tạo được giao</small></>} onClose={onClose}>
-    <div className="diststatcards four">
-      <div className="panel"><span><b>{s.enrolled}/{s.quota}</b><small>GV đã chọn / chỉ tiêu</small></span></div>
-      <div className="panel"><span><b>{s.att == null ? '—' : `${s.att}%`}</b><small>Chuyên cần</small><small>{s.low_att} GV vắng nhiều</small></span></div>
-      <div className="panel"><span><b>{s.passed}</b><small>GV Đạt · {pct(s.passed, s.enrolled)}%</small></span></div>
-      <div className="panel"><span><b>{s.certs}</b><small>Chứng chỉ đã cấp</small></span></div>
-    </div>
+    <StatCards items={[
+      { icon: 'users', value: `${s.enrolled}/${s.quota}`, label: 'GV đã chọn / chỉ tiêu' },
+      { icon: 'calendar', tone: s.low_att ? 'warn' : '', value: s.att == null ? '—' : `${s.att}%`, label: 'Chuyên cần', sub: `${s.low_att} GV vắng nhiều` },
+      { icon: 'checkCircle', tone: 'good', value: s.passed, label: `GV Đạt · ${pct(s.passed, s.enrolled)}%` },
+      { icon: 'award', tone: 'good', value: s.certs, label: 'Chứng chỉ đã cấp' },
+    ]} />
     {s.alerts.length > 0 && <section className="monalerts" style={{ marginTop: 14 }}>
       <div className="monhead"><h3 style={{ margin: 0 }}>Cảnh báo ({s.alerts.length})</h3><AlertCounts alerts={s.alerts} />
         <button type="button" className="linkbtn" aria-expanded={open} onClick={() => toggle(!open)}>{open ? 'Thu gọn ▴' : 'Mở rộng ▾'}</button></div>

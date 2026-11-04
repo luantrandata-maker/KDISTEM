@@ -11,6 +11,7 @@ import { Chip } from '../dist/Editor'
 import { CERT_ST, RESULT, ResultDetail, type ResRow, type RPlan } from './Results'
 import { CertPaper, type Payload } from './Certificates'
 import { TestScores } from './TestScores'
+import { StatCards } from '../../components/StatCards'
 
 type Tab = 'grade' | 'decide' | 'cert'
 type F = 'all' | 'ready' | 'pending' | 'pass' | 'fail'
@@ -97,10 +98,12 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
   if (cur) return <ResultDetail plan={plan} r={cur} can={can} back={embedded ? 'Kết quả & chứng chỉ' : 'Đánh giá kết quả'} onBack={() => setOpen(null)}
     onDone={m => { setOpen(null); setMsg([m, false]); load() }} />
 
-  const cnt = (k: F) => (k === 'all' ? all.length : k === 'ready' ? all.filter(ready).length : all.filter(r => r.result === k).length)
-  const shown = all.filter(r => (f === 'all' || (f === 'ready' ? ready(r) : r.result === f))
-    && `${r.teacher_name} ${r.org_name ?? ''}`.toLowerCase().includes(q.toLowerCase()))
-  const issued = certs.filter(c => c.status === 'issued').length
+  // base: theo ô tìm; thẻ tổng số và nút lọc đếm trên base
+  const base = all.filter(r => `${r.teacher_name} ${r.org_name ?? ''}`.toLowerCase().includes(q.toLowerCase()))
+  const cnt = (k: F) => (k === 'all' ? base.length : k === 'ready' ? base.filter(ready).length : base.filter(r => r.result === k).length)
+  const shown = base.filter(r => f === 'all' || (f === 'ready' ? ready(r) : r.result === f))
+  const baseT = new Set(base.map(r => r.teacher_id))
+  const issued = certs.filter(c => c.status === 'issued' && baseT.has(c.teacher_id)).length
   const name = (r: ResRow) => <><button type="button" className="namelink" onClick={() => setOpen(r.teacher_id)}>{r.teacher_name}</button><br /><small className="sub">{r.org_name ?? '—'}</small></>
   const toggle = (id: string) => setSel(s => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const allBox = (ids: string[]) => <input type="checkbox" aria-label="Chọn tất cả" checked={ids.length > 0 && ids.every(i => sel.has(i))}
@@ -183,12 +186,12 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
   </div>
 
   return <div style={{ display: 'grid', gap: 12 }}>
-    <div className="diststatcards four">
-      <div className="panel"><i aria-hidden="true">👥</i><span><b>{rows ? all.length : '…'}</b><small>Giáo viên ghi danh</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{cnt('pass')}</b><small>Đạt</small><small>{all.length ? Math.round(cnt('pass') * 100 / all.length) : 0}% số giáo viên</small></span></div>
-      <div className="panel"><i aria-hidden="true" className={cnt('ready') ? 'warn' : ''}>…</i><span><b>{cnt('pending')}</b><small>Chờ kết luận</small><small>{cnt('ready')} đủ điều kiện</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="good">▣</i><span><b>{issued}</b><small>Chứng chỉ đã cấp</small></span></div>
-    </div>
+    <StatCards active={f === 'all' ? null : f} onPick={k => { setF((k ?? 'all') as F); setSel(new Set()) }} items={[
+      { icon: 'users', value: rows ? base.length : '…', label: 'Giáo viên ghi danh' },
+      { k: 'pass', icon: 'checkCircle', tone: 'good', value: cnt('pass'), label: 'Đạt', sub: `${base.length ? Math.round(cnt('pass') * 100 / base.length) : 0}% số giáo viên` },
+      { k: 'pending', icon: 'hourglass', tone: cnt('ready') ? 'warn' : '', value: cnt('pending'), label: 'Chờ kết luận', sub: `${cnt('ready')} đủ điều kiện` },
+      { icon: 'award', tone: 'good', value: issued, label: 'Chứng chỉ đã cấp' },
+    ]} />
     <ol className="diststeps">{steps.map(([k, t, s], i) => <li key={k}><button type="button" className={tab === k ? 'on' : ''} aria-current={tab === k ? 'step' : undefined}
       onClick={() => { setTab(k); setSel(new Set()) }}><i>{i + 1}</i><span><b>{t}</b><small>{s}</small></span></button></li>)}</ol>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}

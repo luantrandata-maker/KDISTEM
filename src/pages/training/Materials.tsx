@@ -7,6 +7,7 @@ import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
 import { openFile } from '../../lib/files'
 import { Chip } from '../dist/Editor'
+import { StatCards } from '../../components/StatCards'
 import { STATUS } from './Programs'
 import { ContentDetail, LISTS, detailCount, lab, type Detail } from './Content'
 import { DOC_TYPE, kitOf } from '../library/lesson/model'
@@ -64,6 +65,7 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
   const [admin, setAdmin] = useState(false)
   const [prog, setProg] = useState('')
   const [src, setSrc] = useState<'' | 'unit' | 'lesson'>('')
+  const [card, setCard] = useState<string | null>(null)
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
@@ -152,7 +154,12 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
 
   const ql = q.trim().toLowerCase()
   const progs = d.progs.filter(p => contents.some(u => u.program_id === p.id) || d.lessons.some(l => l.program_id === p.id))
-  const shownC = contents.filter(u => (!prog || u.program_id === prog) && (!ql || `${u.title} ${crumb(u)}`.toLowerCase().includes(ql)))
+  // baseC / baseL: theo bộ lọc bên dưới (trừ nguồn); thẻ tổng số tính trên đó
+  const baseC = contents.filter(u => (!prog || u.program_id === prog) && (!ql || `${u.title} ${crumb(u)}`.toLowerCase().includes(ql)))
+  const shownC = baseC.filter(u => card !== 'has' || detailCount(u.detail))
+  const baseL = lines.filter(x => (!prog || x.prog?.id === prog)
+    && (!ql || `${Object.values(x.cells).join(' ')} ${x.unit?.title ?? ''} ${x.lesson?.title ?? ''} ${x.prog?.title ?? ''}`.toLowerCase().includes(ql)))
+  const baseLessons = d.lessons.filter(l => !prog || l.program_id === prog)
   const shownL = lines.filter(x => (!prog || x.prog?.id === prog) && (!src || (src === 'unit' ? !x.lesson : !!x.lesson))
     && (!ql || `${Object.values(x.cells).join(' ')} ${x.unit?.title ?? ''} ${x.lesson?.title ?? ''} ${x.prog?.title ?? ''}`.toLowerCase().includes(ql)))
   const cols = part === 'content' ? [] : LISTS[part].cols.filter(c => c.key !== 'url')
@@ -170,19 +177,19 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
       shownL.map(x => [...cols.map(c => x.cells[c.key]), ...(part === 'docs' ? [x.url ?? ''] : []), x.lesson ? `Bài giảng: ${x.lesson.title}` : `Nội dung: ${x.unit?.title ?? ''}`, x.prog?.title]), LISTS[part].tab)
   }
 
-  const nU = lines.filter(x => !x.lesson).length
+  const nU = baseL.filter(x => !x.lesson).length
   return <>
-    <div className="diststatcards">
-      {part === 'content' ? <>
-        <div className="panel"><i aria-hidden="true">≋</i><span><b>{contents.length}</b><small>Nội dung đào tạo</small><small>{progs.length} chương trình</small></span></div>
-        <div className="panel"><i aria-hidden="true" className="good">▤</i><span><b>{contents.filter(u => detailCount(u.detail)).length}</b><small>Nội dung đã có học liệu</small><small>{contents.filter(u => !detailCount(u.detail)).length} chưa có</small></span></div>
-        <div className="panel"><i aria-hidden="true" className="good">✎</i><span><b>{d.lessons.length}</b><small>Bài giảng đào tạo</small><small>{d.lessons.filter(l => l.status === 'published').length} đã phát hành</small></span></div>
-      </> : <>
-        <div className="panel"><i aria-hidden="true">≋</i><span><b>{lines.length}</b><small>{LISTS[part].tab}</small><small>{progs.length} chương trình</small></span></div>
-        <div className="panel"><i aria-hidden="true" className="good">▤</i><span><b>{nU}</b><small>Từ nội dung chương trình</small></span></div>
-        <div className="panel"><i aria-hidden="true" className="good">✎</i><span><b>{lines.length - nU}</b><small>Từ bài giảng đào tạo</small></span></div>
-      </>}
-    </div>
+    {part === 'content'
+      ? <StatCards active={card} onPick={setCard} items={[
+        { icon: 'layers', value: baseC.length, label: 'Nội dung đào tạo', sub: `${progs.length} chương trình` },
+        { k: 'has', icon: 'folders', tone: 'good', value: baseC.filter(u => detailCount(u.detail)).length, label: 'Nội dung đã có học liệu', sub: `${baseC.filter(u => !detailCount(u.detail)).length} chưa có` },
+        { icon: 'edit', tone: 'good', value: baseLessons.length, label: 'Bài giảng đào tạo', sub: `${baseLessons.filter(l => l.status === 'published').length} đã phát hành` },
+      ]} />
+      : <StatCards active={src || null} onPick={k => setSrc((k ?? '') as typeof src)} items={[
+        { icon: 'layers', value: baseL.length, label: LISTS[part].tab, sub: `${progs.length} chương trình` },
+        { k: 'unit', icon: 'folders', tone: 'good', value: nU, label: 'Từ nội dung chương trình' },
+        { k: 'lesson', icon: 'edit', tone: 'good', value: baseL.length - nU, label: 'Từ bài giảng đào tạo' },
+      ]} />}
     <div className="bar">
       <div className="tools">
         <input placeholder={part === 'content' ? 'Tìm nội dung, chương trình…' : 'Tìm tên, ghi chú, nội dung, bài giảng…'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />

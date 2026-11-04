@@ -13,6 +13,7 @@ import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
 import { ContentDetail, detailCount, type Detail } from './Content'
 import { TrainingUnits } from './Units'
+import { StatCards } from '../../components/StatCards'
 import { FlowGuide } from '../../components/FlowGuide'
 import { ProgramExams, ProgramEvalFrame, type FinalExam, type Frame } from './ExamFrame'
 import { useAllOrgs } from '../../components/OrgScope'
@@ -78,15 +79,18 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
   }, [rk])
 
   const inGroup = (p: TProgram, f: Status | '') => !f || p.status === f || (f === 'draft' && p.status === 'rejected') || (f === 'pending' && p.status === 'approved') || (f === 'archived' && p.status === 'superseded')
-  const shown = useMemo(() => (list ?? []).filter(p => inGroup(p, fs) && (!ct || ctsOf(p).includes(ct))
-    && (!q || `${p.code} ${p.title} ${p.audience ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, fs, ct, q])
+  // base: theo ô tìm và loại chương trình (thẻ tổng số và các nút trạng thái tính trên base)
+  const base = useMemo(() => (list ?? []).filter(p => (!ct || ctsOf(p).includes(ct))
+    && (!q || `${p.code} ${p.title} ${p.audience ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, ct, q])
+  const shown = useMemo(() => base.filter(p => inGroup(p, fs)), [base, fs])
 
   if (view?.kind === 'new') return <ProgramForm admin={admin} onBack={() => setView(null)} onSaved={id => { reload(); setView({ kind: 'open', id }) }} />
   if (view?.kind === 'open') return <ProgramDetail key={view.id + ':' + rk} id={view.id} admin={admin} go={go} onBack={() => { setView(null); reload() }}
     onOpen={id => { reload(); setView({ kind: 'open', id }) }} onMsg={m => { setMsg(m); reload() }} />
 
-  const n = (s: Status) => (list ?? []).filter(p => inGroup(p, s)).length
-  const totalContents = [...stats.values()].reduce((a, x) => a + x.contents, 0)
+  const n = (s: Status) => base.filter(p => inGroup(p, s)).length
+  const baseStats = base.map(p => stats.get(p.id)).filter(Boolean) as Stat[]
+  const totalContents = baseStats.reduce((a, x) => a + x.contents, 0)
   const steps: [string, string][] = [
     ['Soạn chương trình', 'Nhập thông tin, năng lực đích và điều kiện đạt; thêm các môn và nội dung đào tạo kèm số giờ.'],
     ['Duyệt & phát hành', 'Gửi duyệt hoặc phát hành thẳng. Bản đã phát hành không sửa được, muốn sửa thì tạo phiên bản mới.'],
@@ -98,13 +102,13 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
           <i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
         <p className="sub" style={{ margin: 0 }}>Chương trình đào tạo là mẫu khoá học chuẩn của KDI, gồm các môn, mỗi môn có các nội dung đào tạo. Một chương trình dùng lại được cho nhiều kế hoạch đào tạo.</p>
       </FlowGuide>
-      <div className="diststatcards">
-        <div className="panel"><i aria-hidden="true">≋</i><span><b>{list?.length ?? '…'}</b><small>Chương trình đào tạo</small><small>{n('published')} đã phát hành · {n('draft')} nháp</small></span></div>
-        <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{list ? n('published') : '…'}</b><small>Dùng được trong kế hoạch</small></span></div>
-        <div className="panel"><i aria-hidden="true" className="good">▦</i><span><b>{totalContents}</b><small>Nội dung đào tạo</small><small>{[...stats.values()].reduce((a, x) => a + x.subjects, 0)} môn</small></span></div>
-      </div>
+      <StatCards active={fs || null} onPick={k => setFs((k ?? '') as Status | '')} items={[
+        { icon: 'layers', value: list ? base.length : '…', label: 'Chương trình đào tạo', sub: `${n('published')} đã phát hành · ${n('draft')} nháp` },
+        { k: 'published', icon: 'checkCircle', tone: 'good', value: list ? n('published') : '…', label: 'Dùng được trong kế hoạch' },
+        { icon: 'grid', value: totalContents, label: 'Nội dung đào tạo', sub: `${baseStats.reduce((a, x) => a + x.subjects, 0)} môn` },
+      ]} />
       <div className="distfilter">
-        {([['', 'Tất cả', list?.length ?? 0], ['draft', 'Nháp', n('draft')], ['pending', 'Chờ duyệt', n('pending')], ['published', 'Đã phát hành', n('published')], ['archived', 'Ngừng dùng', n('archived')]] as [Status | '', string, number][]).map(([s, l, c]) =>
+        {([['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['pending', 'Chờ duyệt', n('pending')], ['published', 'Đã phát hành', n('published')], ['archived', 'Ngừng dùng', n('archived')]] as [Status | '', string, number][]).map(([s, l, c]) =>
           <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
       </div>
       <div className="bar">
@@ -470,12 +474,12 @@ function TrainingDeploy({ p, go }: { p: TProgram; go?: (page: string) => void })
     <p className="sub" style={{ margin: 0 }}>Chương trình đào tạo đến trường / giáo viên qua Kế hoạch đào tạo: chọn chương trình đã phát hành, gán đơn vị tham gia và chỉ tiêu. Bảng dưới tính trên mọi phiên bản của chương trình.</p>
     {p.status !== 'published' && <p className="sub" style={{ margin: 0 }}>Phiên bản này chưa phát hành nên chưa chọn được trong kế hoạch mới.</p>}
     {!plans ? <p className="sub">Đang tải…</p> : plans.length === 0 ? <p className="sub" style={{ margin: 0 }}>Chưa có kế hoạch đào tạo nào dùng chương trình này.</p> : <>
-      <div className="diststatcards">
-        <div className="panel"><i aria-hidden="true">≋</i><span><b>{plans.length}</b><small>Kế hoạch</small></span></div>
-        <div className="panel"><i aria-hidden="true">⌂</i><span><b>{orgs}</b><small>Đơn vị tham gia</small></span></div>
-        <div className="panel"><i aria-hidden="true">☺</i><span><b>{sum('enrolled')}</b><small>Giáo viên đăng ký</small></span></div>
-        <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{sum('passed')}</b><small>Đạt</small><small>{sum('certs')} chứng chỉ đã cấp</small></span></div>
-      </div>
+      <StatCards items={[
+        { icon: 'layers', value: plans.length, label: 'Kế hoạch' },
+        { icon: 'school', value: orgs, label: 'Đơn vị tham gia' },
+        { icon: 'users', value: sum('enrolled'), label: 'Giáo viên đăng ký' },
+        { icon: 'checkCircle', tone: 'good', value: sum('passed'), label: 'Đạt', sub: `${sum('certs')} chứng chỉ đã cấp` },
+      ]} />
       <div className="wrap"><table>
         <thead><tr><th>Kế hoạch</th><th>Đơn vị lập</th><th>Năm học</th><th>Thời gian</th><th>Phiên bản</th><th>Chỉ tiêu</th><th>Trạng thái</th></tr></thead>
         <tbody>{plans.map(x => { const k = x.training_plans!; const st = PLAN_ST[k.pub_status] ?? [k.pub_status, ''] ; return <tr key={x.plan_id + x.program_id}>

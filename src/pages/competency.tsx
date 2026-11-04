@@ -4,6 +4,7 @@ import { useAllMode, useProvinceOf } from '../components/OrgScope'
 import { downloadXlsx } from '../lib/sheet'
 import { schoolYear } from './department/Governance'
 import { ElView } from '../components/ElView'
+import { StatCards } from '../components/StatCards'
 // Chứng chỉ đào tạo của giáo viên (tải khi mở hồ sơ)
 const TeacherCertList = lazy(() => import('./training/Certificates').then(m => ({ default: m.TeacherCertList })))
 import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../components/MultiFilters'
@@ -462,6 +463,7 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [canEdit, setCanEdit] = useState(false)
   const [certs, setCerts] = useState<Map<string, number>>(new Map())
+  const [card, setCard] = useState<string | null>(null)
   // Quản trị hệ thống: GV của mọi trường trong một danh sách, đánh giá thay trường
   const all = useAllMode()
   async function load() {
@@ -500,9 +502,32 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
     { key: 'st', label: 'Tình trạng đánh giá', placeholder: 'Mọi tình trạng', options: [['mgr', 'Trường đã đánh giá'], ['self', 'Mới tự đánh giá'], ['draft', 'Đang làm nháp'], ['none', 'Chưa đánh giá']] },
   ]
   const matched = teachers.filter(t => fit(t))
-  const shownT = matched.slice(0, 500)
-  const filterBar = <div className="tools" style={{ flexWrap: 'wrap' }}><MultiFilters defs={filterDefs} f={mf} count={`${matched.length}/${teachers.length} GV${matched.length > 500 ? ' · hiện 500 đầu' : ''}`} /></div>
-  if (profile) return <section className="panel" style={{ display: 'grid', gap: 12 }}>
+  // Thẻ tổng số: tính trên giáo viên khớp bộ lọc; bấm thẻ để lọc thêm danh sách, bấm lại để bỏ
+  const lvOf = (t: TRow) => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); return m?.status === 'submitted' ? m.levels : s?.status === 'submitted' ? s.levels : null }
+  const REQ = 2
+  const meets = (t: TRow) => { const lv = lvOf(t); return !!lv && comps.length > 0 && comps.every(c => (lv[c.key] ?? 0) >= REQ) }
+  const sub = (t: TRow, k: 'self' | 'manager') => of(t.id, k)?.status === 'submitted'
+  const cardFit: Record<string, (t: TRow) => boolean> = {
+    assessed: t => !!lvOf(t), cert: t => (certs.get(t.id) ?? 0) > 0, meets,
+    self: t => sub(t, 'self'), mgr: t => sub(t, 'manager'), wait: t => sub(t, 'self') && !sub(t, 'manager'),
+  }
+  const shownAll = card && cardFit[card] ? matched.filter(cardFit[card]) : matched
+  const shownT = shownAll.slice(0, 500)
+  const nOf = (k: string) => matched.filter(cardFit[k]).length
+  const ids = new Set(matched.map(t => t.id))
+  const cards = profile ? <StatCards active={card} onPick={setCard} items={[
+    { icon: 'users', value: matched.length, label: 'Giáo viên', sub: matched.length < teachers.length ? `Trong ${teachers.length} giáo viên` : `Năm học ${year}` },
+    { k: 'assessed', icon: 'clipboard', tone: nOf('assessed') ? 'good' : '', value: nOf('assessed'), label: 'Đã có đánh giá', sub: `${matched.length - nOf('assessed')} chưa có` },
+    { k: 'cert', icon: 'award', value: nOf('cert'), label: 'Có chứng chỉ', sub: `${matched.reduce((n, t) => n + (certs.get(t.id) ?? 0), 0)} chứng chỉ đào tạo` },
+    { k: 'meets', icon: 'target', tone: nOf('meets') ? 'good' : '', value: nOf('meets'), label: 'Đạt mức yêu cầu', sub: `Mọi năng lực từ Mức ${REQ}` },
+  ]} /> : <StatCards active={card} onPick={setCard} items={[
+    { icon: 'layers', value: list.filter(a => ids.has(a.teacher_id)).length, label: 'Số bản đánh giá', sub: `Năm học ${year} · ${matched.length} giáo viên` },
+    { k: 'self', icon: 'user', value: nOf('self'), label: 'Tự đánh giá', sub: 'Giáo viên đã nộp' },
+    { k: 'mgr', icon: 'school', tone: nOf('mgr') ? 'good' : '', value: nOf('mgr'), label: 'Trường đánh giá', sub: 'Đã lưu đánh giá' },
+    { k: 'wait', icon: 'hourglass', tone: nOf('wait') ? 'warn' : 'good', value: nOf('wait'), label: 'Chờ trường đánh giá', sub: 'Đã tự đánh giá, trường chưa đánh giá' },
+  ]} />
+  const filterBar = <div className="tools" style={{ flexWrap: 'wrap' }}><MultiFilters defs={filterDefs} f={mf} count={`${shownAll.length}/${teachers.length} GV${shownAll.length > 500 ? ' · hiện 500 đầu' : ''}`} /></div>
+  if (profile) return <>{cards}<section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
     <div className="bar" style={{ margin: 0 }}>
       <h3 style={{ margin: 0 }}>Hồ sơ năng lực nhà giáo <small className="sub">· {teachers.length} giáo viên</small></h3>
     </div>
@@ -520,11 +545,12 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
         {!shownT.length && <tr><td colSpan={comps.length + 5}>{teachers.length ? 'Không có giáo viên nào khớp.' : 'Chưa có giáo viên.'}</td></tr>}</tbody>
     </table></div>
     <p className="sub covhint" style={{ margin: 0 }}>Bấm tên giáo viên để xem hồ sơ: thông tin, năng lực, chứng chỉ, chương trình giáo dục đáp ứng, lịch sử đào tạo.</p>
-  </section>
+  </section></>
   return (
     <>
+      {cards}
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
-      <section className="panel" style={{ display: 'grid', gap: 12 }}>
+      <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
         <div className="bar" style={{ margin: 0 }}>
           <h3 style={{ margin: 0 }}>Đánh giá năng lực giáo viên <small className="sub">· năm học {year}: {selfDone}/{teachers.length} đã tự đánh giá · {mgrDone}/{teachers.length} trường đã đánh giá</small></h3>
           <span className="tools"><button type="button" onClick={excel} disabled={!teachers.length}>Xuất Excel</button></span>

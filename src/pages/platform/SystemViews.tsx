@@ -5,7 +5,7 @@ import { downloadXlsx, norm } from '../../lib/sheet'
 import { Tabs } from '../teacher/common'
 import { StatCards, type Stat as CardStat } from '../../components/StatCards'
 
-// Màn xem toàn hệ thống cho cổng Quản trị nền tảng (KDI): gom dữ liệu của mọi trường trên một trang,
+// Màn xem toàn hệ thống cho cổng Quản trị nền tảng (KDI): gom dữ liệu của tất cả trường trên một trang,
 // lọc theo Sở / tỉnh → trường, có bảng tổng hợp theo trường và danh sách chi tiết. Chỉ đọc
 // (trừ phiếu bảo hành: KDI là bên tiếp nhận). Dữ liệu do RLS giới hạn trong cây tổ chức của người xem.
 
@@ -133,7 +133,7 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
   const pickOrg = (id: string) => { if (multi) mf.set('org', id ? [id] : []); else setOrg(id); setView(id ? 'list' : 'sum'); setOpen(null) }
   const facetDefs: FilterDef[] = multi ? [
     { key: 'prov', label: 'Sở / tỉnh', placeholder: 'Toàn hệ thống', options: regions.map(r => [r.id, r.name] as [string, string]), onPick: () => mf.set('org', []) },
-    { key: 'org', label: 'Đơn vị', placeholder: `Mọi đơn vị (${schoolsInRegion.length} trường)`, options: inRegion.map(o => [o.id, (o.type === 'school' ? '' : '◆ ') + o.name + (o.is_platform ? ' (KDI)' : '')] as [string, string]),
+    { key: 'org', label: 'Đơn vị', placeholder: `Tất cả đơn vị (${schoolsInRegion.length} trường)`, options: inRegion.map(o => [o.id, (o.type === 'school' ? '' : '◆ ') + o.name + (o.is_platform ? ' (KDI)' : '')] as [string, string]),
       onPick: v => setView(v.length === 1 ? 'list' : 'sum') },
     ...spec.facets!.map(fc => ({ key: fc.key, label: fc.label, placeholder: fc.placeholder, options: opts(rows.map(r => [fc.get(r), fc.name ? fc.name(r) : String(fc.get(r) ?? '')]), fc.sort ?? 'label') })),
   ] : []
@@ -420,10 +420,10 @@ export const HOMEWORK: Spec = {
 export const CURRICULUM: Spec = {
   table: 'curriculum_books', order: 'grade', select: 'id, org_id, grade, subject, title, total_periods, year_name, program_id, edu_programs(title)',
   facets: [
-    { key: 'year', label: 'Năm học', placeholder: 'Mọi năm học', get: r => r.year_name, sort: 'desc' },
-    { key: 'prog', label: 'Chương trình', placeholder: 'Mọi chương trình', get: r => r.program_id, name: r => r.edu_programs?.title ?? 'Chương trình khác' },
-    { key: 'subj', label: 'Môn', placeholder: 'Mọi môn', get: r => r.subject },
-    { key: 'grade', label: 'Khối', placeholder: 'Mọi khối', get: r => r.grade, name: r => `Khối ${r.grade}` },
+    { key: 'year', label: 'Năm học', placeholder: 'Tất cả năm học', get: r => r.year_name, sort: 'desc' },
+    { key: 'prog', label: 'Chương trình', placeholder: 'Tất cả chương trình', get: r => r.program_id, name: r => r.edu_programs?.title ?? 'Chương trình khác' },
+    { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', get: r => r.subject },
+    { key: 'grade', label: 'Khối', placeholder: 'Tất cả khối', get: r => r.grade, name: r => `Khối ${r.grade}` },
   ],
   cols: [
     { label: 'Năm học', get: r => r.year_name ?? '' },

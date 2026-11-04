@@ -311,7 +311,7 @@ function RegisterModal({ prog, topic, sess, teacherId, onClose, onDone }: { prog
                 <select value={f.period_id} onChange={e => setF({ ...f, period_id: e.target.value })} aria-label="Tiết học" style={{ width: '100%', marginTop: 6 }}>
                   <option value="">— Chọn tiết —</option>
                   {slots && slots.length > 0 && <optgroup label="Tiết của bạn trong TKB">{slots.map(s => <option key={'s' + s.period_id} value={s.period_id}>{period(s.period_id)?.name ?? 'Tiết'} · {s.subject}</option>)}</optgroup>}
-                  <optgroup label="Mọi tiết">{periods.map(p => <option key={p.id} value={p.id}>{p.name} ({p.starts_at.slice(0, 5)}–{p.ends_at.slice(0, 5)})</option>)}</optgroup>
+                  <optgroup label="Tất cả tiết">{periods.map(p => <option key={p.id} value={p.id}>{p.name} ({p.starts_at.slice(0, 5)}–{p.ends_at.slice(0, 5)})</option>)}</optgroup>
                 </select></div>
               <div><b><span className="stepnum">4</span>Địa điểm</b>
                 <div className="addrow" style={{ marginTop: 6 }}>

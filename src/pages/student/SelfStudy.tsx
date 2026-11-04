@@ -74,7 +74,7 @@ export function StudentSelfStudy({ studentId }: SProps) {
           </div>
         )
       })}
-      {shown.length === 0 && <p className="sub">{tab === 'todo' ? 'Em đã hoàn thành mọi bài học trước và tự học. Tuyệt vời! 🎉' : 'Chưa có bài nào.'}</p>}
+      {shown.length === 0 && <p className="sub">{tab === 'todo' ? 'Em đã hoàn thành tất cả bài học trước và tự học. Tuyệt vời! 🎉' : 'Chưa có bài nào.'}</p>}
     </>
   )
 }

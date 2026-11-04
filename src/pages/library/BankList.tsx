@@ -17,8 +17,8 @@ export function BankList({ items, onOpen, note }: { items: Item[]; onOpen?: (id:
   return <>
     <div className="bar">
       <div className="tools">
-        <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại hoạt động"><option value="">Mọi loại</option>{kinds.map(k => <option key={k} value={k}>{ACT_LABEL[k] ?? k}</option>)}</select>
-        <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(x => <option key={x}>{x}</option>)}</select>
+        <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại hoạt động"><option value="">Tất cả loại</option>{kinds.map(k => <option key={k} value={k}>{ACT_LABEL[k] ?? k}</option>)}</select>
+        <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(x => <option key={x}>{x}</option>)}</select>
         <input placeholder="Tìm hoạt động, bài học…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm hoạt động" />
       </div>
     </div>

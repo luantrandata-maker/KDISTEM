@@ -1,4 +1,4 @@
-// Quản trị hệ thống thao tác mọi đơn vị ngay trên màn hình như người dùng (26/10): một danh sách chung gồm dữ liệu của mọi
+// Quản trị hệ thống thao tác tất cả đơn vị ngay trên màn hình như người dùng (26/10): một danh sách chung gồm dữ liệu của tất cả
 // đơn vị (kèm tên đơn vị), sửa thẳng từng dòng; thêm mới thì chọn đơn vị ngay trong form. Quyền ghi kiểm tra ở CSDL (099, 100).
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../lib/supabase'
@@ -22,12 +22,12 @@ export function useAllOrgs() {
 }
 
 const Ctx = createContext<ScopeOrg[] | null>(null)
-/** Bọc màn của Quản trị hệ thống: các màn bên trong hiện dữ liệu mọi đơn vị và cho sửa thẳng */
+/** Bọc màn của Quản trị hệ thống: các màn bên trong hiện dữ liệu tất cả đơn vị và cho sửa thẳng */
 export function AllOrgs({ children }: { children: ReactNode }) {
   const all = useAllOrgs()
   return all ? <Ctx.Provider value={all}>{children}</Ctx.Provider> : <p className="sub">Đang tải…</p>
 }
-/** Danh sách mọi đơn vị khi đang ở màn của Quản trị hệ thống; null ở màn của người dùng thường */
+/** Danh sách tất cả đơn vị khi đang ở màn của Quản trị hệ thống; null ở màn của người dùng thường */
 export const useAllMode = () => useContext(Ctx)
 /** Tên đơn vị theo id (rỗng khi không ở màn của Quản trị hệ thống) */
 export function useOrgName() {
@@ -37,7 +37,7 @@ export function useOrgName() {
 
 /** Tỉnh của một đơn vị: cấp trên gần nhất loại Tỉnh; không có thì Sở / Phòng cao nhất (vd. Sở GD&ĐT không gắn tỉnh) */
 export function useProvinceOf() {
-  // Ngoài màn "mọi đơn vị" vẫn dùng được (danh sách đơn vị đọc được theo quyền)
+  // Ngoài màn "tất cả đơn vị" vẫn dùng được (danh sách đơn vị đọc được theo quyền)
   const ctx = useAllMode(), loaded = useAllOrgs()
   const all = ctx ?? loaded
   return useMemo(() => {
@@ -81,13 +81,13 @@ export function OrgPick({ kind, value, onChange, title = 'Đơn vị' }: { kind:
     </select></label>
 }
 
-/** Bộ lọc "Mọi đơn vị" trên thanh công cụ (chỉ hiện ở màn của Quản trị hệ thống); ids = đơn vị có trong dữ liệu */
+/** Bộ lọc "Tất cả đơn vị" trên thanh công cụ (chỉ hiện ở màn của Quản trị hệ thống); ids = đơn vị có trong dữ liệu */
 export function OrgFilter({ ids, value, onChange }: { ids: (string | null | undefined)[]; value: string; onChange: (id: string) => void }) {
   const rows = useTree('any')
   if (!useAllMode()) return null
   const has = new Set(ids.filter(Boolean))
   return <select value={value} onChange={e => onChange(e.target.value)} aria-label="Đơn vị">
-    <option value="">Mọi đơn vị</option>
+    <option value="">Tất cả đơn vị</option>
     {rows.filter(o => has.has(o.id)).map(o => <option key={o.id} value={o.id}>{label(o)}</option>)}
   </select>
 }

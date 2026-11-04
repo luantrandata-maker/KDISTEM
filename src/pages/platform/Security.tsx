@@ -150,7 +150,7 @@ export function PlatformSecurity() {
       )}
       {t === 'lock' && (
         <div className="panel">
-          <p className="sub">Tài khoản bị khoá mất quyền đọc và ghi mọi dữ liệu ngay lập tức, kể cả khi phiên đăng nhập vẫn còn. Không khoá được quản trị nền tảng: hãy gỡ vai trò trước.</p>
+          <p className="sub">Tài khoản bị khoá mất quyền đọc và ghi tất cả dữ liệu ngay lập tức, kể cả khi phiên đăng nhập vẫn còn. Không khoá được quản trị nền tảng: hãy gỡ vai trò trước.</p>
           <input className="search" type="search" placeholder="Nhập tên hoặc email (ít nhất 2 ký tự)…" aria-label="Tìm tài khoản để khoá" value={q} onChange={e => setQ(e.target.value)} />
           <ul className="plmaplist">
             {found.map(u => <li key={u.id}><span><b>{who(u)}</b> <small>{u.email}</small></span>

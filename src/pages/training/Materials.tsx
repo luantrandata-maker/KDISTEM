@@ -1,4 +1,4 @@
-// Học liệu đào tạo (khuôn Học liệu của Phân hệ 2): gom học liệu của mọi chương trình đào tạo vào một chỗ.
+// Học liệu đào tạo (khuôn Học liệu của Phân hệ 2): gom học liệu của tất cả chương trình đào tạo vào một chỗ.
 // Tab Nội dung đào tạo: mỗi nội dung của chương trình, mở ra soạn 5 phần. Chương trình nháp / bị trả lại thì sửa thẳng;
 // đã phát hành thì tạo phiên bản mới (hoặc mở bản nháp đang có) rồi sửa đúng nội dung / dòng đó trong bản nháp.
 // Tab Link tài liệu, Định mức vật tư, Kho hoạt động: gộp các dòng tương ứng của nội dung chương trình và của bài giảng đào tạo (bộ 5 thẻ).
@@ -29,7 +29,7 @@ const MKIND: Record<string, string> = { supply: 'Vật tư tiêu hao', tool: 'D�
 const PER = Object.fromEntries(LISTS.mats.cols.find(c => c.key === 'per')!.options!)
 const SHEET: Record<Exclude<Part, 'content'>, string> = { docs: 'Link-tai-lieu', mats: 'Dinh-muc-vat-tu', acts: 'Kho-hoat-dong' }
 
-// Đọc hết cấu trúc mọi chương trình theo trang 1000 dòng (máy chủ chỉ trả tối đa 1000 dòng mỗi lần)
+// Đọc hết cấu trúc tất cả chương trình theo trang 1000 dòng (máy chủ chỉ trả tối đa 1000 dòng mỗi lần)
 async function allUnits() {
   const out: Unit[] = []
   for (let i = 0; ; i += 1000) {
@@ -193,7 +193,7 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
     <div className="bar">
       <div className="tools">
         <input placeholder={part === 'content' ? 'Tìm nội dung, chương trình…' : 'Tìm tên, ghi chú, nội dung, bài giảng…'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-        <select value={prog} onChange={e => setProg(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Mọi chương trình</option>
+        <select value={prog} onChange={e => setProg(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Tất cả chương trình</option>
           {progs.map(p => <option key={p.id} value={p.id}>{p.code} · {p.title}</option>)}</select>
         {part !== 'content' && <select value={src} onChange={e => setSrc(e.target.value as typeof src)} aria-label="Nguồn"><option value="">Nội dung CT và bài giảng</option>
           <option value="unit">Chỉ nội dung chương trình</option><option value="lesson">Chỉ bài giảng</option></select>}

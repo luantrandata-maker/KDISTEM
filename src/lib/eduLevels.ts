@@ -36,7 +36,7 @@ export const PRESCHOOL: Record<number, [string, string]> = { [-4]: ['Nhà trẻ'
 /** Tên một khối: "Khối 6", "Chồi (4–5 tuổi)" */
 export const gradeName = (g: number) => PRESCHOOL[g]?.[1] ?? `Khối ${g}`
 
-/** Danh mục cấp học dùng chung trong phiên; `reload()` sau khi sửa để mọi màn cập nhật.
+/** Danh mục cấp học dùng chung trong phiên; `reload()` sau khi sửa để tất cả màn cập nhật.
  *  `levels`: cấp đang dùng (để chọn khi soạn mới); `all`: gồm cả cấp đã ngừng dùng (để hiện dữ liệu cũ). */
 export function useEduLevels() {
   const [all, setAll] = useState<EduLevel[]>(cache ?? DEFAULT_LEVELS)

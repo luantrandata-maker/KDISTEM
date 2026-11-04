@@ -72,7 +72,7 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
     setBusy(null)
     if (error) return setMsg(error.message)
     const d = data as { kind: string; count?: number }
-    const where = template ? 'bài giảng mẫu của trường (mọi giáo viên thấy ở Soạn bài giảng)' : 'bản nháp của bạn trong Soạn bài giảng'
+    const where = template ? 'bài giảng mẫu của trường (tất cả giáo viên thấy ở Soạn bài giảng)' : 'bản nháp của bạn trong Soạn bài giảng'
     setInfo({ text: d.kind === 'program' || d.kind === 'unit' ? `Đã thêm ${d.kind === 'unit' ? 'bài học' : 'chương trình'} “${i.title}”: ${d.count ?? 0} bài giảng thành ${where}.` : `Đã tạo ${where}: “${i.title}”. Bạn chỉnh sửa thoải mái — bản của kho không đổi.`, lesson: true })
     load()
   }
@@ -101,12 +101,12 @@ export function LibraryBrowse({ orgId, teacherId, go }: Props) {
       {k === 'norm' ? <Suspense fallback={<p className="sub">Đang tải…</p>}><MaterialNorms orgId={orgId} sharedOnly /></Suspense>
       : k === 'bank' ? <BankList items={items} onOpen={setOpen} note="Hoạt động trong thẻ 05 “Kho hoạt động” của các bài học đã phát hành. Bấm một dòng để xem bài học." /> : <>
       <div className="bar small">
-        <select value={src} onChange={e => setSrc(e.target.value)} aria-label="Nguồn phát hành"><option value="">Mọi nguồn phát hành</option>{sources.map(s => <option key={s}>{s}</option>)}</select>
-        <select value={prog} onChange={e => setProg(e.target.value)} aria-label="Chương trình"><option value="">Mọi loại chương trình</option>{PROGRAMS.map(p => <option key={p}>{p}</option>)}</select>
-        {eprogs.length > 0 && <select value={eprog} onChange={e => setEprog(e.target.value)} aria-label="Chương trình giáo dục"><option value="">Mọi chương trình giáo dục</option>{eprogs.map(([id, t]) => <option key={id} value={id}>{t}</option>)}</select>}
-        <select value={mtype} onChange={e => setMtype(e.target.value)} aria-label="Loại học liệu"><option value="">Mọi loại học liệu</option>{Object.entries(MAT_TYPE).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
-        <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(x => <option key={x}>{x}</option>)}</select>
-        <select value={grade} onChange={e => setGrade(e.target.value)} aria-label="Khối"><option value="">Mọi khối</option>{['6', '7', '8', '9', '10', '11', '12'].map(g => <option key={g} value={g}>Khối {g}</option>)}</select>
+        <select value={src} onChange={e => setSrc(e.target.value)} aria-label="Nguồn phát hành"><option value="">Tất cả nguồn phát hành</option>{sources.map(s => <option key={s}>{s}</option>)}</select>
+        <select value={prog} onChange={e => setProg(e.target.value)} aria-label="Chương trình"><option value="">Tất cả loại chương trình</option>{PROGRAMS.map(p => <option key={p}>{p}</option>)}</select>
+        {eprogs.length > 0 && <select value={eprog} onChange={e => setEprog(e.target.value)} aria-label="Chương trình giáo dục"><option value="">Tất cả chương trình giáo dục</option>{eprogs.map(([id, t]) => <option key={id} value={id}>{t}</option>)}</select>}
+        <select value={mtype} onChange={e => setMtype(e.target.value)} aria-label="Loại học liệu"><option value="">Tất cả loại học liệu</option>{Object.entries(MAT_TYPE).map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+        <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(x => <option key={x}>{x}</option>)}</select>
+        <select value={grade} onChange={e => setGrade(e.target.value)} aria-label="Khối"><option value="">Tất cả khối</option>{['6', '7', '8', '9', '10', '11', '12'].map(g => <option key={g} value={g}>Khối {g}</option>)}</select>
       </div>
       {!isSchool && me && <p className="sub">Đây là học liệu cấp trên và KDI Education phát hành tới đơn vị của bạn. Trường học mới “dùng” được học liệu vào bài giảng.</p>}
       {msg && <p className="msg">{msg}</p>}

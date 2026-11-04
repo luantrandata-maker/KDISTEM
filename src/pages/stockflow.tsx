@@ -266,7 +266,7 @@ export function TransfersPage({ orgId }: { orgId: string | null }) {
         <span className="tools"><button onClick={excel}>Xuất Excel</button>
           {orgId && <button className="primary" onClick={() => setForm({ to_org: '', title: '', note: '', items: [] })} disabled={!targets.length} title={targets.length ? '' : 'Chưa có đơn vị nhận trong phạm vi'}>+ Phiếu vận chuyển</button>}</span>
       </div>
-      <p className="sub">Lập phiếu → duyệt (đơn vị gửi) → <b>Xuất hàng</b> (trừ kho, in biên bản) → đơn vị nhận <b>Xác nhận nhận</b> (cộng kho bên nhận, thiết bị chuyển đơn vị). Gửi được trong cây đơn vị, cùng Sở/Tỉnh; KDI gửi được mọi đơn vị.</p>
+      <p className="sub">Lập phiếu → duyệt (đơn vị gửi) → <b>Xuất hàng</b> (trừ kho, in biên bản) → đơn vị nhận <b>Xác nhận nhận</b> (cộng kho bên nhận, thiết bị chuyển đơn vị). Gửi được trong cây đơn vị, cùng Sở/Tỉnh; KDI gửi được tất cả đơn vị.</p>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {form && (
         <form className="panel" onSubmit={e => { e.preventDefault(); save(false) }}>

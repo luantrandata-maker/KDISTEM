@@ -84,7 +84,7 @@ function Editor({ row, platform, onSaved, onCancel }: { row: Row; platform: bool
           {platform && <>
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên miền riêng (mỗi dòng một tên; trang đăng nhập hiện thương hiệu này)</span>
               <textarea rows={2} value={domains} onChange={e => setDomains(e.target.value)} placeholder="stem.hungyen.edu.vn" /></label>
-            <label style={{ gridColumn: '1 / -1' }}><input type="checkbox" checked={r.applies_to_children} onChange={e => set({ applies_to_children: e.target.checked })} /> Áp dụng cho mọi đơn vị trực thuộc (trường trong tỉnh dùng chung giao diện)</label>
+            <label style={{ gridColumn: '1 / -1' }}><input type="checkbox" checked={r.applies_to_children} onChange={e => set({ applies_to_children: e.target.checked })} /> Áp dụng cho tất cả đơn vị trực thuộc (trường trong tỉnh dùng chung giao diện)</label>
             <label style={{ gridColumn: '1 / -1' }}><input type="checkbox" checked={r.self_edit} onChange={e => set({ self_edit: e.target.checked })} /> Cho đơn vị tự sửa (trừ tên miền và quyền này)</label>
           </>}
         </div>
@@ -138,7 +138,7 @@ export function BrandingPage({ orgId, platform = false }: { orgId: string | null
   const free = orgs.filter(o => !rows.some(r => r.org_id === o.id) && (!q || norm(o.name + ' ' + (o.code ?? '')).includes(norm(q)))).slice(0, 60)
   return (
     <>
-      <p className="sub">Đặt tên hệ thống, logo, màu và tên miền riêng cho Sở / Phòng / khách hàng. Thương hiệu của Sở áp cho mọi trường trực thuộc (trường không có thương hiệu riêng). Cổng KDI luôn giữ giao diện gốc.</p>
+      <p className="sub">Đặt tên hệ thống, logo, màu và tên miền riêng cho Sở / Phòng / khách hàng. Thương hiệu của Sở áp cho tất cả trường trực thuộc (trường không có thương hiệu riêng). Cổng KDI luôn giữ giao diện gốc.</p>
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
       <div className="panel formgrid">
         <label className="field"><span>Tìm đơn vị</span><input value={q} onChange={e => setQ(e.target.value)} placeholder="Tên hoặc mã Sở / Phòng…" /></label>

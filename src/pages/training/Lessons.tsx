@@ -105,7 +105,7 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
       <div className="bar">
         <div className="tools">
           <input placeholder="Tìm tên bài giảng, môn, tác giả…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-          <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Mọi chương trình đào tạo</option>
+          <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Tất cả chương trình đào tạo</option>
             {progs.map(p => <option key={p.id} value={p.id}>{progLabel(p.id)}</option>)}</select>
           {ofl.node((rows ?? []).map(r => r.org_id))}
           <small className="sub">{shown.length}/{rows?.length ?? 0} bài giảng</small>

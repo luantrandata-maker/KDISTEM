@@ -30,7 +30,7 @@ function lanes(evs: TEvent[]) {
 /** dayNote: ghi chú của ngày (VD: tên ngày nghỉ) — tô đầu cột và cả cột, hiện khi rê chuột. */
 export function TimeGrid({ days, events, from = 7, to = 18, shade, label = 'Lịch theo giờ', dayNote }:
   { days: Date[]; events: TEvent[]; from?: number; to?: number; shade?: [number, number, string]; label?: string; dayNote?: (d: Date) => string | undefined }) {
-  // Mở rộng khung giờ cho đủ mọi buổi trong tuần
+  // Mở rộng khung giờ cho đủ tất cả buổi trong tuần
   const inDays = events.filter(e => days.some(d => same(d, e.start)))
   const h0 = Math.max(0, Math.min(from, ...inDays.map(e => e.start.getHours())))
   const h1 = Math.min(24, Math.max(to, ...inDays.map(e => same(e.start, e.end) ? Math.ceil(minOf(e.end) / 60) : 24)))

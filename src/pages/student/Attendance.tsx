@@ -61,7 +61,7 @@ export function StudentAttendance({ studentId, year, orgId }: SProps) {
           ))}
         </div>
       )}
-      <div className="bar"><Tabs value={only} onChange={setOnly} items={[['issues', 'Vắng, muộn, có phép', rows.length - c.present], ['all', 'Mọi tiết', rows.length]]} /></div>
+      <div className="bar"><Tabs value={only} onChange={setOnly} items={[['issues', 'Vắng, muộn, có phép', rows.length - c.present], ['all', 'Tất cả tiết', rows.length]]} /></div>
       {err && <p className="msg">{err}</p>}
       <div className="wrap"><table>
         <thead><tr><th>Ngày</th><th>Tiết</th><th>Môn</th><th>Thầy cô</th><th>Điểm danh</th><th>Ghi chú</th></tr></thead>

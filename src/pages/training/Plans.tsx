@@ -97,7 +97,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   const [yr, setYr] = useState('')
   const [fp, setFp] = useState('')
   const cls = useCls('training')
-  // Quản trị hệ thống: kế hoạch của mọi đơn vị trong một danh sách, sửa thẳng
+  // Quản trị hệ thống: kế hoạch của tất cả đơn vị trong một danh sách, sửa thẳng
   const all = useAllMode(), orgName = useOrgName()
   // Lọc Tỉnh / Sở, trường: khớp đơn vị lập kế hoạch hoặc trường được giao
   const ofl = useOrgFilter()
@@ -172,7 +172,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
         ? <ClsTree scope="training" items={ofl.active ? list.filter(p => ofl.fit([p.org_id, ...orgs.filter(o => o.plan_id === p.id).map(o => o.org_id)])) : list}
             header={({ sel, isFinal }) => <>
               {ofl.node([...list.map(p => p.org_id), ...orgs.map(o => o.org_id)])}
-              <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Mọi chương trình</option>
+              <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Tất cả chương trình</option>
                 {[...new Map(items.map(i => [i.program_id, i.training_programs?.title ?? '—'])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'vi')).map(([id, t]) => <option key={id} value={id}>{t}</option>)}</select>
               {can && isFinal && sel && <button type="button" className="primary" onClick={() => setCreate({ node: sel })}>+ Lập kế hoạch đào tạo</button>}</>}>
             {(rows, { isFinal, unsorted }) => table(rows, unsorted ? 'Không có kế hoạch nào.' : isFinal && can ? 'Chưa có kế hoạch nào trong mục này. Bấm “+ Lập kế hoạch đào tạo”.' : 'Chưa có kế hoạch nào trong mục này.')}
@@ -185,7 +185,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
           <div className="bar">
             <div className="tools">
               <input placeholder="Tìm mã, tên, đơn vị đào tạo…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-              <select value={yr} onChange={e => setYr(e.target.value)} aria-label="Năm học"><option value="">Mọi năm học</option>{years.map(y => <option key={y} value={y}>{y}</option>)}</select>
+              <select value={yr} onChange={e => setYr(e.target.value)} aria-label="Năm học"><option value="">Tất cả năm học</option>{years.map(y => <option key={y} value={y}>{y}</option>)}</select>
               {ofl.node([...list.map(p => p.org_id), ...orgs.map(o => o.org_id)])}
               <small className="sub">{shown.length}/{list.length} kế hoạch</small>
             </div>
@@ -376,7 +376,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   }
   // Kết thúc kế hoạch (118): chốt điểm danh các buổi, đóng đăng ký, báo GV; kết quả và chứng chỉ vẫn làm tiếp ở bước 5
   async function closePlan() {
-    const note = prompt('Kết thúc kế hoạch đào tạo?\n\nHệ thống chốt điểm danh mọi buổi (chưa điểm danh = vắng), đóng đăng ký, không ghi danh thêm và báo cho giáo viên có tên. Kết quả, chứng chỉ vẫn làm tiếp ở bước 5. Mở lại được nếu cần.\n\nGhi chú (không bắt buộc):', '')
+    const note = prompt('Kết thúc kế hoạch đào tạo?\n\nHệ thống chốt điểm danh tất cả buổi (chưa điểm danh = vắng), đóng đăng ký, không ghi danh thêm và báo cho giáo viên có tên. Kết quả, chứng chỉ vẫn làm tiếp ở bước 5. Mở lại được nếu cần.\n\nGhi chú (không bắt buộc):', '')
     if (note === null) return
     const { data, error } = await supabase.rpc('training_plan_close', { p_plan: p!.id, p_note: note.trim() || null })
     if (error) { setMsg([errText(error.message), true]); return }
@@ -681,7 +681,7 @@ function UnitPick({ prog, value, edit, onSave }: { prog?: Prog; value: string[] 
 
 // ===== Giáo viên tự đăng ký (098): bật / tắt, hạn đăng ký =====
 const today = () => { const d = new Date(); return new Date(+d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10) }
-/** Gửi thông báo mời GV đăng ký (đơn vị lập kế hoạch: mọi trường được gán; trường: GV của trường) */
+/** Gửi thông báo mời GV đăng ký (đơn vị lập kế hoạch: tất cả trường được gán; trường: GV của trường) */
 async function invite(planId: string, orgId: string | null): Promise<[string, boolean]> {
   const { data, error } = await supabase.rpc('training_register_invite', { p_plan: planId, p_org: orgId })
   if (error) return [errText(error.message), true]
@@ -870,7 +870,7 @@ function AssignSchools({ plan, taken, onBack, onDone }: { plan: TPlan; taken: Se
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   useEffect(() => {
-    // RLS chỉ trả về trường trong phạm vi quản lý (KDI thấy mọi trường); RPC gán kiểm tra lại phạm vi
+    // RLS chỉ trả về trường trong phạm vi quản lý (KDI thấy tất cả trường); RPC gán kiểm tra lại phạm vi
     supabase.from('organizations').select('id, name, parent:parent_id(name)').eq('type', 'school').order('name').then(({ data }) =>
       setSchools(((data ?? []) as unknown as { id: string; name: string; parent: { name: string } | null }[]).map(o => ({ id: o.id, name: o.name, parent: o.parent?.name ?? null }))))
   }, [])
@@ -923,7 +923,7 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
   const [open, setOpen] = useState<string | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [rk, setRk] = useState(0)
-  // Quản trị hệ thống: kế hoạch giao cho mọi trường trong một danh sách; mở một dòng để chọn GV, gửi duyệt thay trường
+  // Quản trị hệ thống: kế hoạch giao cho tất cả trường trong một danh sách; mở một dòng để chọn GV, gửi duyệt thay trường
   const all = useAllMode(), orgName = useOrgName()
   const provOf = useProvinceOf()
   // Bộ lọc chọn nhiều: năm học, tỉnh, trường, chương trình đào tạo (rỗng = tất cả)
@@ -978,10 +978,10 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
       { k: 'sent', icon: 'checkCircle', tone: 'good', value: n('approved'), label: 'Đã duyệt', sub: `${n('submitted')} chờ duyệt` },
     ]} />
     <div className="bar"><div className="tools">
-      <MultiSelect value={fYear} onChange={setFYear} options={yearOpts} placeholder="Mọi năm học" ariaLabel="Năm học" style={ms} compact />
-      {all && <MultiSelect value={fProv} onChange={v => { setFProv(v); setFOrg([]) }} options={provOpts} placeholder="Mọi tỉnh" ariaLabel="Tỉnh" style={ms} compact />}
-      {all && <MultiSelect value={fOrg} onChange={setFOrg} options={orgOpts} placeholder="Mọi trường" ariaLabel="Trường" style={ms} compact />}
-      <MultiSelect value={fProg} onChange={setFProg} options={progOpts} placeholder="Mọi chương trình" ariaLabel="Chương trình đào tạo" style={ms} compact />
+      <MultiSelect value={fYear} onChange={setFYear} options={yearOpts} placeholder="Tất cả năm học" ariaLabel="Năm học" style={ms} compact />
+      {all && <MultiSelect value={fProv} onChange={v => { setFProv(v); setFOrg([]) }} options={provOpts} placeholder="Tất cả tỉnh" ariaLabel="Tỉnh" style={ms} compact />}
+      {all && <MultiSelect value={fOrg} onChange={setFOrg} options={orgOpts} placeholder="Tất cả trường" ariaLabel="Trường" style={ms} compact />}
+      <MultiSelect value={fProg} onChange={setFProg} options={progOpts} placeholder="Tất cả chương trình" ariaLabel="Chương trình đào tạo" style={ms} compact />
       {(fYear.length + fProv.length + fOrg.length + fProg.length > 0) && <button type="button" className="fclear" onClick={() => { setFYear([]); setFProv([]); setFOrg([]); setFProg([]) }}>Bỏ lọc</button>}
       <small className="sub">{nShown}/{rows?.length ?? 0} kế hoạch</small>
     </div></div>

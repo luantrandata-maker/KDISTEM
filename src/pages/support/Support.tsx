@@ -4,7 +4,7 @@ import { Tabs } from '../teacher/common'
 import { Tiles } from '../department/charts'
 
 // Hỗ trợ khách hàng (migration 024)
-//  • mode 'platform': KDI xem mọi phiếu, đổi trạng thái / mức ưu tiên / người xử lý, ghi chú nội bộ, xử lý phiếu bảo hành thiết bị.
+//  • mode 'platform': KDI xem tất cả phiếu, đổi trạng thái / mức ưu tiên / người xử lý, ghi chú nội bộ, xử lý phiếu bảo hành thiết bị.
 //  • mode 'customer': trường / Sở gửi yêu cầu, trao đổi với KDI, đóng hoặc mở lại phiếu.
 
 type Ticket = {
@@ -215,7 +215,7 @@ function TicketDetail({ t, kdi, staff, onChange, onClose }: { t: Ticket; kdi: bo
   )
 }
 
-// KDI xử lý phiếu bảo hành thiết bị của mọi trường
+// KDI xử lý phiếu bảo hành thiết bị của tất cả trường
 function WarrantyList() {
   const [rows, setRows] = useState<Warranty[]>([])
   const [err, setErr] = useState('')

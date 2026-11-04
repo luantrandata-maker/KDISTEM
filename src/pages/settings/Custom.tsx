@@ -56,7 +56,7 @@ export function MenuTab({ scope, platform, orgId }: { scope: string | null; plat
       <div className="bar"><h3 style={{ margin: 0, flex: 1 }}>Menu: tên, thứ tự, ẩn/hiện</h3>
         <label className="field" style={{ margin: 0 }}><span>Cổng</span><select value={role} onChange={e => setRole(e.target.value as RoleKey)}>
           {roles.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</select></label></div>
-      <p className="sub">Để trống ô “Tên hiển thị” là giữ tên gốc. {platform ? 'Đây là mặc định cho mọi trường; trường có thể tự chỉnh phần của trường.' : 'Chỉ áp cho người dùng của trường. Ô mờ là tên KDI đang đặt.'}</p>
+      <p className="sub">Để trống ô “Tên hiển thị” là giữ tên gốc. {platform ? 'Đây là mặc định cho tất cả trường; trường có thể tự chỉnh phần của trường.' : 'Chỉ áp cho người dùng của trường. Ô mờ là tên KDI đang đặt.'}</p>
       {own.status}
       <label className="field setapptitle"><span>Tên hệ thống của cổng {ROLE_LABEL[role]}</span>
         <input value={cur.title ?? ''} maxLength={80} placeholder={base.title || (role === 'platform' ? PLATFORM_TITLE : DEFAULT_TITLE)} aria-label="Tên hệ thống"
@@ -111,7 +111,7 @@ export function FieldsTab({ scope, platform }: { scope: string | null; platform:
         <button type="button" key={k} className={ent === k ? 'on' : ''} aria-pressed={ent === k} onClick={() => setEnt(k)}>{l}</button>)}</div></div>
     <p className="sub">Trường thêm vào cuối form Thêm / Sửa {ent === 'library' ? 'học liệu' : 'chương trình'}, hiện ở trang chi tiết, và có thể hiện thành cột trong danh sách.</p>
     {own.status}
-    {kdi.length > 0 && <p className="sub">Trường của KDI (áp cho mọi trường): {kdi.map(f => f.label).join(', ')}.</p>}
+    {kdi.length > 0 && <p className="sub">Trường của KDI (áp cho tất cả trường): {kdi.map(f => f.label).join(', ')}.</p>}
     <div className="wrap"><table className="libtable setfields">
       <thead><tr><th style={{ width: 70 }} /><th>Tên trường</th><th>Kiểu</th><th>Lựa chọn (cách nhau bởi dấu phẩy)</th><th>Bắt buộc</th><th>Hiện thành cột</th><th>Ở chi tiết</th><th /></tr></thead>
       <tbody>{list.map((f, k) => <tr key={f.key}>

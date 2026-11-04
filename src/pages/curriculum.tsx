@@ -130,7 +130,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
   }
   useEffect(() => { load() }, [orgId])
 
-  // Quản trị hệ thống: PPCT của mọi đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
+  // Quản trị hệ thống: PPCT của tất cả đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
   const every = useAllMode()
   const ofl = useOrgFilter()
   const own = every ? books.filter(b => ofl.fit(b.org_id)) : books.filter(b => b.org_id === orgId)
@@ -187,7 +187,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
     ], shown.map(b => [b.grade, b.subject, b.title, b.year_name, b.total_periods, b.periods_per_week, b.status === 'draft' ? 'Nháp' : 'Đã ban hành']))
   }
 
-  const scopeLabel = mode === 'platform' ? 'Mẫu cho mọi trường' : 'Ban hành cho đơn vị trực thuộc'
+  const scopeLabel = mode === 'platform' ? 'Mẫu cho tất cả trường' : 'Ban hành cho đơn vị trực thuộc'
   // Nút thao tác của một PPCT, đặt ở trang chi tiết (không tick chọn ở danh sách)
   const bookActions = (b: Book): ReactNode => canEdit && (b.org_id === orgId || !!every) ? <>
     {mode === 'school' && (b.status === 'draft' || b.status === 'rejected') && <button onClick={() => setStatus(b, 'pending')}>Gửi duyệt</button>}
@@ -209,7 +209,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
             ? <label className="field"><span>Năm học *</span><select value={form.year_name ?? ''} onChange={e => setForm({ ...form, year_name: e.target.value })}>
                 {!yearNames.includes(form.year_name ?? '') && <option value={form.year_name ?? ''}>{form.year_name || '— Năm học hiện tại —'}</option>}
                 {yearNames.map(n => <option key={n}>{n}</option>)}</select></label>
-            : <label className="field"><span>Năm học</span><YearSelect value={form.year_name ?? ''} onChange={v => setForm({ ...form, year_name: v })} emptyLabel={mode === 'school' ? 'Năm học hiện tại' : 'Dùng mọi năm'} /></label>}
+            : <label className="field"><span>Năm học</span><YearSelect value={form.year_name ?? ''} onChange={v => setForm({ ...form, year_name: v })} emptyLabel={mode === 'school' ? 'Năm học hiện tại' : 'Dùng tất cả năm'} /></label>}
           <label className="field"><span>Số tiết / tuần</span><input inputMode="decimal" value={form.periods_per_week ?? ''} onChange={e => setForm({ ...form, periods_per_week: e.target.value as any })} placeholder="VD: 1 hoặc 1,5" /></label>
           {!form.id && <label className="field"><span>Tổng số tiết (dự kiến)</span><input type="number" min={0} value={form.total_periods ?? ''} onChange={e => setForm({ ...form, total_periods: Number(e.target.value) || null })} placeholder="Tự cập nhật khi soạn tiết" /></label>}
           {(!form.id || form.status === 'draft' || form.status === 'published') && <label className="field"><span>Trạng thái</span><select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as Book['status'] })}>
@@ -236,7 +236,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
           {grades.length > 1 && <div className="segmented" style={{ margin: 0 }}>
             {[0, ...grades].map(g => <button key={g} className={grade === g ? 'on' : ''} onClick={() => setGrade(g)}>{g ? gradeName(g) : 'Tất cả'}</button>)}
           </div>}
-          {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn học"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
+          {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn học"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
           <input placeholder="Tìm môn, tên PPCT…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           {every && ofl.node(books.map(b => b.org_id))}
         </div>
@@ -275,7 +275,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
               <td>{b.grade}</td><td>{b.subject}</td>
               <td><NameLink onClick={() => { setMsg(null); setOpen(b) }} title="Xem chi tiết">{b.title}</NameLink>{every && <><br /><small className="sub">{b.organizations?.name ?? '—'}</small></>}{b.edu_programs && <><br /><small>Theo chương trình: {b.edu_programs.title} (v{b.edu_programs.version_no})</small></>}
                 {b.source_id && <><br /><small>Sao chép từ mẫu</small></>}{mode !== 'school' && b.scope === 'children' && <><br /><small>{scopeLabel}</small></>}</td>
-              <td>{b.year_name ?? 'Mọi năm'}</td><td>{b.total_periods ?? '—'}</td><td>{b.periods_per_week ?? '—'}</td>
+              <td>{b.year_name ?? 'Tất cả năm'}</td><td>{b.total_periods ?? '—'}</td><td>{b.periods_per_week ?? '—'}</td>
               <td><span className={'pill ' + BOOK_STATUS[b.status][1]}>{b.status === 'published' && mode !== 'school' ? 'Đã ban hành' : BOOK_STATUS[b.status][0]}</span></td>
             </tr>
           ))}</tbody>
@@ -379,7 +379,7 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
   }
   async function autoWeeks() {
     if (!ppw) return setMsg(['Nhập "Số tiết / tuần" của môn (nút Sửa ở danh sách) để tự chia tuần.', true])
-    if (!confirm(`Đặt lại tuần cho mọi tiết theo ${ppw} tiết/tuần (tiết 1–${ppw} → tuần 1…)? Học kỳ tính lại theo tuần (tuần 1–18: HK I).`)) return
+    if (!confirm(`Đặt lại tuần cho tất cả tiết theo ${ppw} tiết/tuần (tiết 1–${ppw} → tuần 1…)? Học kỳ tính lại theo tuần (tuần 1–18: HK I).`)) return
     const reason = await ask(book, 'chia lại tuần')
     if (reason === null) return
     setBusy(true)
@@ -447,7 +447,7 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
         <div>
           <button className="linkbtn" onClick={onClose}>← Danh sách môn</button>
           <h3 style={{ margin: '4px 0 0' }}>{book.title} <span className={'pill ' + BOOK_STATUS[book.status][1]}>{BOOK_STATUS[book.status][0]}</span></h3>
-          <small className="sub">Khối {book.grade} · {book.subject} · {book.year_name ?? 'mọi năm học'}{ppw ? ` · ${ppw} tiết/tuần` : ''}
+          <small className="sub">Khối {book.grade} · {book.subject} · {book.year_name ?? 'tất cả năm học'}{ppw ? ` · ${ppw} tiết/tuần` : ''}
             {book.edu_programs ? ` · theo chương trình ${book.edu_programs.title} (v${book.edu_programs.version_no})` : ''}
             {!canEdit && book.scope === 'children' && book.organizations?.name && mode === 'school' ? ` · mẫu của ${book.organizations.name}` : ''}</small>
           {actions && <div className="tools" style={{ marginTop: 8 }}>{actions}</div>}
@@ -504,7 +504,7 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
   )
 }
 
-// PPCT áp dụng cho lớp nào (không chọn = mọi lớp cùng khối)
+// PPCT áp dụng cho lớp nào (không chọn = tất cả lớp cùng khối)
 function BookClasses({ book, canEdit, onMsg }: { book: Book; canEdit: boolean; onMsg: (m: [string, boolean]) => void }) {
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([])
   const [sel, setSel] = useState<Set<string> | null>(null)
@@ -525,9 +525,9 @@ function BookClasses({ book, canEdit, onMsg }: { book: Book; canEdit: boolean; o
   if (!sel) return null
   return (
     <div className="panel" style={{ marginBottom: 12 }}>
-      <b>Áp dụng cho lớp</b> <small className="sub">{sel.size ? `${sel.size} lớp được chọn — các lớp khác dùng PPCT chung của khối (nếu có).` : `Mọi lớp khối ${book.grade} (chưa chọn lớp riêng).`}</small>
+      <b>Áp dụng cho lớp</b> <small className="sub">{sel.size ? `${sel.size} lớp được chọn — các lớp khác dùng PPCT chung của khối (nếu có).` : `Tất cả lớp khối ${book.grade} (chưa chọn lớp riêng).`}</small>
       <div style={{ marginTop: 8, maxWidth: 640 }}>
-        <MultiSelect disabled={!canEdit} value={[...sel]} options={classes.map(c => [c.id, c.name])} placeholder={`Mọi lớp khối ${book.grade}`} ariaLabel="Áp dụng cho lớp"
+        <MultiSelect disabled={!canEdit} value={[...sel]} options={classes.map(c => [c.id, c.name])} placeholder={`Tất cả lớp khối ${book.grade}`} ariaLabel="Áp dụng cho lớp"
           empty={`Trường chưa có lớp khối ${book.grade}.`}
           onChange={async v => { for (const id of v.filter(x => !sel.has(x))) await toggle(id, true); for (const id of [...sel].filter(x => !v.includes(x))) await toggle(id, false) }} />
       </div>
@@ -607,13 +607,13 @@ export function CurriculumProgress({ orgId, mode = 'school' }: { orgId: string |
     : st === 'missed' ? r.missed > 0 : st === 'evidence' ? r.no_evidence > 0 : !r.taught)
   const provs = opts(rows.map(r => { const p = provOf(r.org_id); return [p?.id, p?.name] }))
   const defs: FilterDef[] = [
-    { key: 'prov', label: 'Tỉnh', placeholder: 'Mọi tỉnh', options: provs, hidden: !multi || provs.length < 2 },
-    { key: 'school', label: 'Trường', placeholder: `Mọi trường (${schools.length})`, options: opts(rows.filter(r => fit(r, 'school')).map(r => [r.org_id, r.school])), hidden: !multi,
+    { key: 'prov', label: 'Tỉnh', placeholder: 'Tất cả tỉnh', options: provs, hidden: !multi || provs.length < 2 },
+    { key: 'school', label: 'Trường', placeholder: `Tất cả trường (${schools.length})`, options: opts(rows.filter(r => fit(r, 'school')).map(r => [r.org_id, r.school])), hidden: !multi,
       onPick: v => { if (v.length === 1) setView('class') } },
-    { key: 'prog', label: 'Chương trình', placeholder: 'Mọi chương trình', options: opts(rows.map(r => [r.program_id, progNames.get(r.program_id ?? '') ?? 'Chương trình khác'])) },
-    { key: 'subj', label: 'Môn', placeholder: 'Mọi môn', options: subjects.map(x => [x, x] as [string, string]) },
-    { key: 'grade', label: 'Khối', placeholder: 'Mọi khối', options: grades.map(g => [String(g), gradeName(g)] as [string, string]) },
-    { key: 'state', label: 'Tình trạng', placeholder: 'Mọi tình trạng', hidden: view !== 'class', options: [['late', 'Chậm tiến độ'], ['ok', 'Đúng / vượt tiến độ'],
+    { key: 'prog', label: 'Chương trình', placeholder: 'Tất cả chương trình', options: opts(rows.map(r => [r.program_id, progNames.get(r.program_id ?? '') ?? 'Chương trình khác'])) },
+    { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', options: subjects.map(x => [x, x] as [string, string]) },
+    { key: 'grade', label: 'Khối', placeholder: 'Tất cả khối', options: grades.map(g => [String(g), gradeName(g)] as [string, string]) },
+    { key: 'state', label: 'Tình trạng', placeholder: 'Tất cả tình trạng', hidden: view !== 'class', options: [['late', 'Chậm tiến độ'], ['ok', 'Đúng / vượt tiến độ'],
       ['missed', 'Có nội dung chưa hoàn thành'], ['evidence', 'Thiếu minh chứng'], ['none', 'Chưa ghi nhận']] },
   ]
   const state = states.length === 1 ? states[0] : ''
@@ -799,7 +799,7 @@ function ClassDetail({ row, mode, onClose }: { row: Progress; mode: PpctMode; on
           <button className={tab === 'outcomes' ? 'on' : ''} onClick={() => setTab('outcomes')}>Yêu cầu cần đạt ({outcomes.length})</button>
         </div>
         {tab === 'lessons' && <select value={filter} onChange={e => setFilter(e.target.value as any)} aria-label="Lọc">
-          <option value="">Mọi tiết</option><option value="missed">Chưa hoàn thành</option><option value="evidence">Thiếu minh chứng</option></select>}
+          <option value="">Tất cả tiết</option><option value="missed">Chưa hoàn thành</option><option value="evidence">Thiếu minh chứng</option></select>}
       </div>
       {add && (
         <form className="panel formgrid" onSubmit={saveEvidence} style={{ marginBottom: 12 }}>

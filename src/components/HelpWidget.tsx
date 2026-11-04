@@ -98,7 +98,7 @@ function Chat({ role, page, menu, toTicket, brand }: { role: RoleKey; page: stri
     setMsgs(next); setQ('')
     if (!ai?.on) {
       const off = role === 'platform'
-        ? 'Trợ lý AI chưa bật nên mình chỉ tra được câu hỏi thường gặp. Để trả lời được mọi câu hỏi: đặt khoá API (ví dụ `GEMINI_API_KEY` miễn phí) rồi bật ở **"Trợ lý AI"** › Cấu hình.'
+        ? 'Trợ lý AI chưa bật nên mình chỉ tra được câu hỏi thường gặp. Để trả lời được tất cả câu hỏi: đặt khoá API (ví dụ `GEMINI_API_KEY` miễn phí) rồi bật ở **"Trợ lý AI"** › Cấu hình.'
         : 'Trợ lý AI chưa được KDI bật nên hiện mình chỉ tra được câu hỏi thường gặp về cách dùng hệ thống.'
       setMsgs([...next, { role: 'assistant', content: faq.length ? 'Các hướng dẫn có thể giúp bạn:' : off + '\n\nMình chưa có câu trả lời sẵn cho câu này — bạn có thể bấm **Gửi yêu cầu hỗ trợ** để KDI trả lời trực tiếp.', faq }])
       return

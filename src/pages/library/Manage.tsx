@@ -127,13 +127,13 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   const [targets, setTargets] = useState<Map<string, string[]>>(new Map())
   const [orgs, setOrgs] = useState<Org[]>([])
   const [me, setMe] = useState<Org | null>(null)
-  // Quản trị hệ thống: học liệu của mọi đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
+  // Quản trị hệ thống: học liệu của tất cả đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
   const every = useAllMode()
   const mineOf = (owner?: string | null) => owner === orgId || !!every
   const [lessons, setLessons] = useState<LP[]>([])
   const [form, setForm] = useState<Form | null>(null)
   const [tab, setTab] = useState<T>(only ?? 'unit')
-  // Lọc chọn nhiều (27/10): tỉnh, đơn vị (màn mọi đơn vị), chương trình, môn, khối, loại, trạng thái
+  // Lọc chọn nhiều (27/10): tỉnh, đơn vị (màn tất cả đơn vị), chương trình, môn, khối, loại, trạng thái
   const mf = useMultiFilters(), provOf = useProvinceOf(), orgName = useOrgName()
   const [q, setQ] = useState('')
   const [card, setCard] = useState<string | null>(null)
@@ -480,13 +480,13 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
     && (tab !== 'material' || mf.has('type', i.content.type ?? 'link')) && mf.has('status', i.status)
   const provs = opts(ofTab.map(i => { const p = provOf(i.owner_org_id); return [p?.id, p?.name] }))
   const filterDefs: FilterDef[] = [
-    { key: 'prov', label: 'Tỉnh', placeholder: 'Mọi tỉnh', options: provs, hidden: !every || provs.length < 2 },
-    { key: 'org', label: 'Đơn vị', placeholder: 'Mọi đơn vị', options: opts(ofTab.filter(i => fitI(i, 'org')).map(i => [i.owner_org_id, orgName(i.owner_org_id)])), hidden: !every },
-    { key: 'prog', label: 'Chương trình giáo dục', placeholder: 'Mọi chương trình', options: opts(ofTab.map(i => [i.program, i.program])) },
-    { key: 'subj', label: 'Môn', placeholder: 'Mọi môn', options: subjects.map(x => [x, x] as [string, string]) },
-    { key: 'grade', label: 'Khối', placeholder: 'Mọi khối', options: Array.from({ length: 12 }, (_, k) => [String(k + 1), `Khối ${k + 1}`] as [string, string]) },
-    { key: 'type', label: 'Loại học liệu', placeholder: 'Mọi loại', options: MAT_OPTS as [string, string][], hidden: tab !== 'material' },
-    { key: 'status', label: 'Trạng thái', placeholder: 'Mọi trạng thái', options: [['published', 'Đã phát hành'], ['draft', 'Nháp'], ['archived', 'Đã thu hồi']] },
+    { key: 'prov', label: 'Tỉnh', placeholder: 'Tất cả tỉnh', options: provs, hidden: !every || provs.length < 2 },
+    { key: 'org', label: 'Đơn vị', placeholder: 'Tất cả đơn vị', options: opts(ofTab.filter(i => fitI(i, 'org')).map(i => [i.owner_org_id, orgName(i.owner_org_id)])), hidden: !every },
+    { key: 'prog', label: 'Chương trình giáo dục', placeholder: 'Tất cả chương trình', options: opts(ofTab.map(i => [i.program, i.program])) },
+    { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', options: subjects.map(x => [x, x] as [string, string]) },
+    { key: 'grade', label: 'Khối', placeholder: 'Tất cả khối', options: Array.from({ length: 12 }, (_, k) => [String(k + 1), `Khối ${k + 1}`] as [string, string]) },
+    { key: 'type', label: 'Loại học liệu', placeholder: 'Tất cả loại', options: MAT_OPTS as [string, string][], hidden: tab !== 'material' },
+    { key: 'status', label: 'Trạng thái', placeholder: 'Tất cả trạng thái', options: [['published', 'Đã phát hành'], ['draft', 'Nháp'], ['archived', 'Đã thu hồi']] },
   ]
   const base = ofTab.filter(i => fitI(i)
     && (!q || normText([i.title, i.summary, i.subject, ...i.tags].join(' ')).includes(normText(q))))
@@ -709,7 +709,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
                   <div className="formactions"><button type="button" className="primary" disabled={subBusy} onClick={saveSub}>Thêm vào bài</button> <button type="button" onClick={() => setSub(null)}>Huỷ</button></div>
                 </div>
               )}
-              <p className="sub" style={{ gridColumn: '1 / -1', margin: 0 }}>Giáo án, bài giảng, vật tư và học liệu soạn ở đây đi theo bài học: dùng cùng môn, khối, nơi phát hành và được phát hành cùng bài. Vật tư của bài được lưu thành định mức vật tư, ban hành cùng bài học. Trường bấm “Dùng bài học” sẽ có bản riêng của mọi bài giảng được gắn.</p>
+              <p className="sub" style={{ gridColumn: '1 / -1', margin: 0 }}>Giáo án, bài giảng, vật tư và học liệu soạn ở đây đi theo bài học: dùng cùng môn, khối, nơi phát hành và được phát hành cùng bài. Vật tư của bài được lưu thành định mức vật tư, ban hành cùng bài học. Trường bấm “Dùng bài học” sẽ có bản riêng của tất cả bài giảng được gắn.</p>
             </div>
           )}
           {form.kind === 'lesson' && ltab === 'content' && <>

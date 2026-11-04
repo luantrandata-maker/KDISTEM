@@ -203,7 +203,7 @@ export function DefaultPermissions() {
 
   return (
     <>
-      <p className="sub">Quyền mặc định áp dụng cho <b>mọi trường chưa chỉnh riêng</b>. Trường tự chỉnh ở <i>Vai trò và phân quyền</i> — phần chỉnh riêng của trường được giữ nguyên khi
+      <p className="sub">Quyền mặc định áp dụng cho <b>tất cả trường chưa chỉnh riêng</b>. Trường tự chỉnh ở <i>Vai trò và phân quyền</i> — phần chỉnh riêng của trường được giữ nguyên khi
         KDI đổi mặc định (cột "Trường chỉnh riêng" cho biết bao nhiêu trường không chịu ảnh hưởng). Chức năng thuộc phân hệ nào chỉ dùng được khi trường có phân hệ đó trong gói.</p>
       <div className="bar">
         <Tabs value={sel} onChange={setSel} items={roles.map(r => [r.id, r.name] as [string, string])} />

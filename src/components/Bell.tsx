@@ -67,7 +67,7 @@ export default function Bell({ open: openPage, portals, orgId }: { open: (portal
       setNotes(notes.map(x => x.id === n.id ? { ...x, read_at: new Date().toISOString() } : x))
       window.dispatchEvent(new Event('notifications-changed'))
     }
-    // KDI trả lời phiếu hỗ trợ của tôi → mở khung Trợ giúp (góc phải) tại đúng phiếu, mọi vai trò đều có
+    // KDI trả lời phiếu hỗ trợ của tôi → mở khung Trợ giúp (góc phải) tại đúng phiếu, tất cả vai trò đều có
     if (n.kind === 'support' && n.page === 'Hỗ trợ từ KDI') {
       window.dispatchEvent(new CustomEvent('help-open', { detail: { ticket: n.ref_id ?? null } })); setShow(false); return
     }

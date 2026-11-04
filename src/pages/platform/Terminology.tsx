@@ -66,7 +66,7 @@ function TermList({ dict, domain, setDomain, mapped }: { dict: Dictionary; domai
             {dict.domains.filter(d => d.level === 3).map(d => <option key={d.code} value={d.code}>{d.code} · {d.name}</option>)}
           </select></label>
           <label className="pickfield"><span>Kiểu</span><select value={type} onChange={e => setType(e.target.value)} aria-label="Lọc theo kiểu dữ liệu">
-            <option value="">Mọi kiểu</option>{Object.entries(TYPE_VI).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            <option value="">Tất cả kiểu</option>{Object.entries(TYPE_VI).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
           </select></label>
           <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ thuật ngữ hệ thống đang dùng</label>
         </span>
@@ -118,7 +118,7 @@ function Taxonomy({ dict, open }: { dict: Dictionary; open: (d: string) => void 
             <code>{k.code}</code><span>{k.name}</span><b>{count.get(k.code) ?? 0}</b></button></li>)}</ul>
         </section>
       })}
-      <p className="sub" style={{ gridColumn: '1 / -1' }}>Đơn vị quản lý và chủ sở hữu dữ liệu của mọi miền: {dict.domains[0]?.unit} — {dict.domains[0]?.owner}. Bấm một miền để xem thuật ngữ.</p>
+      <p className="sub" style={{ gridColumn: '1 / -1' }}>Đơn vị quản lý và chủ sở hữu dữ liệu của tất cả miền: {dict.domains[0]?.unit} — {dict.domains[0]?.owner}. Bấm một miền để xem thuật ngữ.</p>
     </div>
   )
 }

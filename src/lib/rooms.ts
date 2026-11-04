@@ -18,7 +18,7 @@ export type RoomUnit = { id: string; type_id: string; serial: string | null; sta
 export type RoomStock = { id: string; supply_id: string; room_id: string | null; qty: number
   supplies: { name: string; sku: string | null; unit: string; category: string | null; min_qty: number } | null }
 
-/** Phòng của trường (mọi loại), sắp theo loại rồi mã/tên. Lỗi "room_kind" = CSDL chưa có migration 056 → coi mọi phòng là STEM. */
+/** Phòng của trường (tất cả loại), sắp theo loại rồi mã/tên. Lỗi "room_kind" = CSDL chưa có migration 056 → coi tất cả phòng là STEM. */
 export async function loadRooms(kind?: RoomKind): Promise<RoomLite[]> {
   let q = supabase.from('stem_rooms').select('id, name, code, room_kind, status')
   if (kind) q = q.eq('room_kind', kind)

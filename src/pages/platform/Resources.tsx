@@ -5,7 +5,7 @@ import { downloadXlsx } from '../../lib/sheet'
 import { Tiles, HBars } from '../department/charts'
 
 // Phòng STEM & lịch phòng, Thiết bị, vật tư & kho — cổng Quản trị nền tảng (migration 029).
-// Số liệu theo phạm vi người xem: nền tảng thấy mọi trường; Sở/Phòng thấy trường trực thuộc.
+// Số liệu theo phạm vi người xem: nền tảng thấy tất cả trường; Sở/Phòng thấy trường trực thuộc.
 
 const nf = (n: number) => n.toLocaleString('vi-VN')
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 1000) / 10 : null)

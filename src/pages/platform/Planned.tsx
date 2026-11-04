@@ -18,7 +18,7 @@ const S = ['THCS Lê Quý Đôn', 'TH Kim Đồng', 'THCS Nguyễn Trãi', 'TH&T
 
 // Ô bảng: "~tone:Nhãn" → nhãn trạng thái; "%72" → thanh phần trăm; còn lại là chữ
 export const PLANNED: Record<string, Cfg> = {
-  'Thuật ngữ chuẩn': { desc: 'Từ điển dùng chung để mọi phân hệ, báo cáo và trợ lý AI hiểu cùng một nghĩa.', primary: 'Thêm thuật ngữ',
+  'Thuật ngữ chuẩn': { desc: 'Từ điển dùng chung để tất cả phân hệ, báo cáo và trợ lý AI hiểu cùng một nghĩa.', primary: 'Thêm thuật ngữ',
     tabs: ['Tất cả', 'Đào tạo', 'Thiết bị', 'Kinh doanh'], cols: ['Thuật ngữ', 'Định nghĩa', 'Mã', 'Phân hệ dùng'],
     rows: [['Buổi dạy', 'Một lần lên lớp theo TKB, gắn với lớp, GV, phòng và chủ đề', 'SESSION', 'Lịch dạy, Điểm danh'], ['Chủ đề STEM', 'Đơn vị nội dung gồm nhiều buổi, thuộc 1 chương trình CT1–CT5', 'TOPIC', 'Chương trình, Học liệu'], ['Tỉ lệ chuyên cần', 'Số lượt có mặt / số lượt phải có mặt trong kỳ', 'ATT_RATE', 'Dashboard, KPI'], ['Phiếu mượn', 'Yêu cầu mượn thiết bị/phòng có thời hạn trả', 'LOAN', 'Thiết bị, Phòng STEM'], ['Nghiệm thu', 'Xác nhận hoàn thành một đợt dịch vụ theo hợp đồng', 'ACCEPT', 'Thương mại']] },
 
@@ -149,7 +149,7 @@ const DESC: Record<string, string> = {
   'Duyệt đăng ký dạy STEM': 'Đăng ký dạy STEM chờ duyệt trên toàn hệ thống (trường đã có ở cổng Trường).',
   'Bài tập & chấm bài': 'Thống kê bài tập, bài nộp, tỉ lệ đã chấm theo trường/lớp (giáo viên đã có ở cổng Giáo viên).',
   'Chỉ số STEM (STEM Index)': 'Chỉ số tổng hợp mức độ triển khai STEM của trường/xã/tỉnh từ chương trình, đào tạo, phòng, buổi dạy.',
-  'Dashboard tổng hợp': 'Màn tổng hợp các chỉ số chính của mọi phân hệ cho lãnh đạo, theo phạm vi quyền.',
+  'Dashboard tổng hợp': 'Màn tổng hợp các chỉ số chính của tất cả phân hệ cho lãnh đạo, theo phạm vi quyền.',
   'Điều hành toàn tỉnh': 'Bảng điều hành của Sở: tiến độ 5 bước đề án, việc cần chỉ đạo, trường chậm tiến độ.',
 }
 
@@ -323,7 +323,7 @@ export function SystemMap({ live, go }: { live: Set<string>; go?: (p: string) =>
 
       <div className="smhead">
         <span className="smtag a">A</span>
-        <div><h2>Quản trị hệ thống</h2><small>Phần chung KDI dùng để vận hành toàn nền tảng, áp dụng cho mọi trường và Sở.</small></div>
+        <div><h2>Quản trị hệ thống</h2><small>Phần chung KDI dùng để vận hành toàn nền tảng, áp dụng cho tất cả trường và Sở.</small></div>
       </div>
       <div className="smadmin">
         {admin.map(g => (

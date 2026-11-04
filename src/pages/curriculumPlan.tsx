@@ -105,7 +105,7 @@ export function YearPlan({ orgId, mode = 'school', year, years }: { orgId: strin
   }
   async function rollover() {
     if (!roll) return
-    if (!confirm(`Sao chép mọi PPCT năm học ${yname} sang ${roll} (bản nháp)? Môn đã có PPCT ở năm ${roll} được giữ nguyên.`)) return
+    if (!confirm(`Sao chép tất cả PPCT năm học ${yname} sang ${roll} (bản nháp)? Môn đã có PPCT ở năm ${roll} được giữ nguyên.`)) return
     const { data, error } = await supabase.rpc('curriculum_rollover', { p_from: yname, p_to: roll, p_org: orgId })
     if (error) return setMsg([errText(error.message), true])
     setMsg([`Đã chuyển ${data} PPCT sang năm học ${roll} (bản nháp). Chọn năm ${roll} để xem và gửi duyệt.`, false]); setRoll(null)
@@ -659,7 +659,7 @@ export function AssignPrograms({ orgId, mode = 'authority' }: { orgId: string | 
 
   async function assign() {
     if (!prog || sel.size === 0) return
-    if (!confirm(`Gán "${prog.title}" (khối ${grades.join(', ') || 'mọi khối'}) cho ${sel.size} trường${make ? ' và tạo sẵn PPCT nháp cho các trường' : ''}?`)) return
+    if (!confirm(`Gán "${prog.title}" (khối ${grades.join(', ') || 'tất cả khối'}) cho ${sel.size} trường${make ? ' và tạo sẵn PPCT nháp cho các trường' : ''}?`)) return
     setBusy(true)
     const { data, error } = await supabase.rpc('edu_program_assign_bulk', { p_program: prog.id, p_orgs: [...sel], p_grades: grades, p_make_books: make, p_note: null })
     setBusy(false)
@@ -725,7 +725,7 @@ export function AssignPrograms({ orgId, mode = 'authority' }: { orgId: string | 
               <tr key={o.id}>
                 {canEdit && <td><input type="checkbox" checked={sel.has(o.id)} onChange={e => toggle(o.id, e.target.checked)} aria-label={`Chọn ${o.name}`} /></td>}
                 <td><b>{o.name}</b></td><td><small>{area(o)}</small></td>
-                <td>{c?.assigned ? (c.grades?.length ? 'Khối ' + c.grades.join(', ') : 'Mọi khối') : <small className="sub">Chưa gán</small>}</td>
+                <td>{c?.assigned ? (c.grades?.length ? 'Khối ' + c.grades.join(', ') : 'Tất cả khối') : <small className="sub">Chưa gán</small>}</td>
                 <td>{c?.books ? c.books : c?.assigned ? <span className="pill inactive">Chưa có</span> : '—'}</td>
                 <td>{c?.classes || '—'}</td>
               </tr>
@@ -788,7 +788,7 @@ export function ClassCoverage({ orgId, years }: { orgId: string | null; years?: 
 
   return (
     <>
-      <p className="sub">Mỗi ô là PPCT mà lớp đang học theo trong năm học {cur ?? 'hiện tại'}. Ô đỏ là môn khối đó cần học (đã có PPCT hoặc được gán chương trình) nhưng lớp chưa có PPCT đang dùng. "Riêng" là PPCT chọn riêng cho lớp. PPCT không chọn lớp nào áp dụng cho mọi lớp còn lại của khối.</p>
+      <p className="sub">Mỗi ô là PPCT mà lớp đang học theo trong năm học {cur ?? 'hiện tại'}. Ô đỏ là môn khối đó cần học (đã có PPCT hoặc được gán chương trình) nhưng lớp chưa có PPCT đang dùng. "Riêng" là PPCT chọn riêng cho lớp. PPCT không chọn lớp nào áp dụng cho tất cả lớp còn lại của khối.</p>
       <div className="bar">
         {grades.length > 1 && <div className="segmented" style={{ margin: 0 }}>
           {[0, ...grades].map(g => <button key={g} className={grade === g ? 'on' : ''} onClick={() => setGrade(g)}>{g ? gradeName(g) : 'Tất cả'}</button>)}
@@ -895,11 +895,11 @@ export function PlanVsActual({ orgId, mode = 'school' }: { orgId: string | null;
   const picked = pool.filter(r => fitP(r))
   const provs = opts(pool.map(r => { const p = provOf(r.org_id); return [p?.id, p?.name] }))
   const defs: FilterDef[] = [
-    { key: 'prov', label: 'Tỉnh', placeholder: 'Mọi tỉnh', options: provs, hidden: provs.length < 2 },
-    { key: 'school', label: 'Trường', placeholder: 'Mọi trường', options: opts(pool.filter(r => fitP(r, 'school')).map(r => [r.org_id, r.school])) },
-    { key: 'prog', label: 'Chương trình', placeholder: 'Mọi chương trình', options: opts(pool.filter(r => fitP(r, 'prog')).map(r => [r.program_id, progNames.get(r.program_id ?? '') ?? 'Chương trình khác'])) },
-    { key: 'grade', label: 'Khối', placeholder: 'Mọi khối', options: opts(pool.filter(r => fitP(r, 'grade')).map(r => [r.grade, gradeName(Number(r.grade))])) },
-    { key: 'cls', label: 'Lớp', placeholder: 'Mọi lớp', options: opts(pool.filter(r => fitP(r, 'cls')).map(r => [r.class_id, `${r.class_name} · ${r.school}`])) },
+    { key: 'prov', label: 'Tỉnh', placeholder: 'Tất cả tỉnh', options: provs, hidden: provs.length < 2 },
+    { key: 'school', label: 'Trường', placeholder: 'Tất cả trường', options: opts(pool.filter(r => fitP(r, 'school')).map(r => [r.org_id, r.school])) },
+    { key: 'prog', label: 'Chương trình', placeholder: 'Tất cả chương trình', options: opts(pool.filter(r => fitP(r, 'prog')).map(r => [r.program_id, progNames.get(r.program_id ?? '') ?? 'Chương trình khác'])) },
+    { key: 'grade', label: 'Khối', placeholder: 'Tất cả khối', options: opts(pool.filter(r => fitP(r, 'grade')).map(r => [r.grade, gradeName(Number(r.grade))])) },
+    { key: 'cls', label: 'Lớp', placeholder: 'Tất cả lớp', options: opts(pool.filter(r => fitP(r, 'cls')).map(r => [r.class_id, `${r.class_name} · ${r.school}`])) },
   ]
   const fKey = mode === 'school' ? '' : JSON.stringify(f.vals)
   const arr = (k: string) => f.get(k).length ? f.get(k) : null
@@ -981,7 +981,7 @@ export function PlanVsActual({ orgId, mode = 'school' }: { orgId: string | null;
         <div className="tools">
           {mode === 'school' && <>
             <select value={grade} onChange={e => { setGrade(Number(e.target.value)); setClassId('') }} aria-label="Khối"><option value={0}>Cả trường</option>{grades.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>
-            <select value={classId} onChange={e => setClassId(e.target.value)} aria-label="Lớp"><option value="">Mọi lớp</option>{classes.filter(c => !grade || c.grade === grade).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+            <select value={classId} onChange={e => setClassId(e.target.value)} aria-label="Lớp"><option value="">Tất cả lớp</option>{classes.filter(c => !grade || c.grade === grade).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
           </>}
           {mode !== 'school' && <MultiFilters defs={defs} f={f} />}
           <button onClick={exportReport}>Xuất báo cáo học kỳ</button>

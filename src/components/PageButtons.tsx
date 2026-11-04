@@ -52,7 +52,7 @@ export function PageButtons({ page, title, go }: { page: string; title: string; 
 
 export const UNIT_BASE = ['Bộ', 'Chiếc', 'Cái', 'Gói', 'Hộp', 'Lọ', 'Cuộn', 'Tờ', 'Miếng', 'Sợi', 'Quyển', 'm', 'Cm']
 export const SUPPLY_CAT_BASE = ['Vật tư tiêu hao', 'Công cụ', 'Linh kiện điện tử', 'Hóa chất', 'Văn phòng phẩm']
-/** Gợi ý theo Danh mục (Thiết lập chung) cho mọi ô nhập: list="cat-units", list="cat-supply_category". */
+/** Gợi ý theo Danh mục (Thiết lập chung) cho tất cả ô nhập: list="cat-units", list="cat-supply_category". */
 export function CatalogLists() {
   const s = useSettings()
   return <>

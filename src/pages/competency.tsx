@@ -25,7 +25,7 @@ export function useCompetencies(audience: 'student' | 'teacher') {
   }, [])
   return list.filter(c => c.audience === audience)
 }
-// Gọi sau khi KDI sửa khung năng lực: tải lại và cập nhật mọi ô chọn năng lực đang mở
+// Gọi sau khi KDI sửa khung năng lực: tải lại và cập nhật tất cả ô chọn năng lực đang mở
 export const resetCompetencies = () => { compCache = null; return fetchCompetencies() }
 const LV = ['#f6d5d3', '#fbe7c2', '#d7ebdb', '#a9d8b8']   // nền mức 1–4 (luôn kèm số và chữ)
 const lvIdx = (v: number) => Math.max(1, Math.min(4, Math.round(v)))
@@ -264,7 +264,7 @@ export function TrainingHistory({ teacherId, comps, name }: { teacherId: string;
   }
   return <>
     <div className="bar">
-      <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học"><option value="">Mọi năm học</option>{years.map(y => <option key={y}>{y}</option>)}</select>
+      <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học"><option value="">Tất cả năm học</option>{years.map(y => <option key={y}>{y}</option>)}</select>
       <span style={{ flex: 1 }} /><button type="button" onClick={excel}>Xuất Excel</button>
     </div>
     <div className="evgrid histcards">
@@ -464,7 +464,7 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
   const [canEdit, setCanEdit] = useState(false)
   const [certs, setCerts] = useState<Map<string, number>>(new Map())
   const [card, setCard] = useState<string | null>(null)
-  // Quản trị hệ thống: GV của mọi trường trong một danh sách, đánh giá thay trường
+  // Quản trị hệ thống: GV của tất cả trường trong một danh sách, đánh giá thay trường
   const all = useAllMode()
   async function load() {
     const [t, a, adm, c] = await Promise.all([
@@ -495,11 +495,11 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
   const fit = (t: TRow, skip?: string) => (skip === 'unit' || mf.has('unit', provOf(t.org_id)?.id)) && (skip === 'school' || mf.has('school', t.org_id))
     && (skip === 'teacher' || mf.has('teacher', t.id)) && (skip === 'subj' || mf.has('subj', t.subject)) && (skip === 'st' || mf.has('st', stOf(t)))
   const filterDefs: FilterDef[] = [
-    { key: 'unit', label: 'Tỉnh / Sở', placeholder: 'Mọi Tỉnh / Sở', options: opts(teachers.filter(t => fit(t, 'unit')).map(t => { const p = provOf(t.org_id); return [p?.id, p?.name] })), hidden: !!orgId },
-    { key: 'school', label: 'Trường', placeholder: 'Mọi trường', options: opts(teachers.filter(t => fit(t, 'school')).map(t => [t.org_id, t.organizations?.name])), hidden: !!orgId },
-    { key: 'teacher', label: 'Giáo viên', placeholder: 'Mọi giáo viên', options: opts(teachers.filter(t => fit(t, 'teacher')).map(t => [t.id, orgId ? t.full_name : `${t.full_name} · ${t.organizations?.name ?? ''}`])) },
-    { key: 'subj', label: 'Môn', placeholder: 'Mọi môn', options: opts(teachers.filter(t => fit(t, 'subj')).map(t => [t.subject, t.subject])) },
-    { key: 'st', label: 'Tình trạng đánh giá', placeholder: 'Mọi tình trạng', options: [['mgr', 'Trường đã đánh giá'], ['self', 'Mới tự đánh giá'], ['draft', 'Đang làm nháp'], ['none', 'Chưa đánh giá']] },
+    { key: 'unit', label: 'Tỉnh / Sở', placeholder: 'Tất cả Tỉnh / Sở', options: opts(teachers.filter(t => fit(t, 'unit')).map(t => { const p = provOf(t.org_id); return [p?.id, p?.name] })), hidden: !!orgId },
+    { key: 'school', label: 'Trường', placeholder: 'Tất cả trường', options: opts(teachers.filter(t => fit(t, 'school')).map(t => [t.org_id, t.organizations?.name])), hidden: !!orgId },
+    { key: 'teacher', label: 'Giáo viên', placeholder: 'Tất cả giáo viên', options: opts(teachers.filter(t => fit(t, 'teacher')).map(t => [t.id, orgId ? t.full_name : `${t.full_name} · ${t.organizations?.name ?? ''}`])) },
+    { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', options: opts(teachers.filter(t => fit(t, 'subj')).map(t => [t.subject, t.subject])) },
+    { key: 'st', label: 'Tình trạng đánh giá', placeholder: 'Tất cả tình trạng', options: [['mgr', 'Trường đã đánh giá'], ['self', 'Mới tự đánh giá'], ['draft', 'Đang làm nháp'], ['none', 'Chưa đánh giá']] },
   ]
   const matched = teachers.filter(t => fit(t))
   // Thẻ tổng số: tính trên giáo viên khớp bộ lọc; bấm thẻ để lọc thêm danh sách, bấm lại để bỏ
@@ -519,7 +519,7 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
     { icon: 'users', value: matched.length, label: 'Giáo viên', sub: matched.length < teachers.length ? `Trong ${teachers.length} giáo viên` : `Năm học ${year}` },
     { k: 'assessed', icon: 'clipboard', tone: nOf('assessed') ? 'good' : '', value: nOf('assessed'), label: 'Đã có đánh giá', sub: `${matched.length - nOf('assessed')} chưa có` },
     { k: 'cert', icon: 'award', value: nOf('cert'), label: 'Có chứng chỉ', sub: `${matched.reduce((n, t) => n + (certs.get(t.id) ?? 0), 0)} chứng chỉ đào tạo` },
-    { k: 'meets', icon: 'target', tone: nOf('meets') ? 'good' : '', value: nOf('meets'), label: 'Đạt mức yêu cầu', sub: `Mọi năng lực từ Mức ${REQ}` },
+    { k: 'meets', icon: 'target', tone: nOf('meets') ? 'good' : '', value: nOf('meets'), label: 'Đạt mức yêu cầu', sub: `Tất cả năng lực từ Mức ${REQ}` },
   ]} /> : <StatCards active={card} onPick={setCard} items={[
     { icon: 'layers', value: list.filter(a => ids.has(a.teacher_id)).length, label: 'Số bản đánh giá', sub: `Năm học ${year} · ${matched.length} giáo viên` },
     { k: 'self', icon: 'user', value: nOf('self'), label: 'Tự đánh giá', sub: 'Giáo viên đã nộp' },

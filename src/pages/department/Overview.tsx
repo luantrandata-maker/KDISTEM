@@ -210,11 +210,11 @@ export function DeptPrograms() {
   const shown = schools.filter(s => f.any('ct', s.programs)).sort((a, b) => b.programs.length - a.programs.length || b.kpi - a.kpi)
   const provs = opts(all.map(s => { const p = provOf(s.school_id); return [p?.id, p?.name] }))
   const defs: FilterDef[] = [
-    { key: 'prov', label: 'Tỉnh', placeholder: 'Mọi tỉnh', options: provs, hidden: provs.length < 2 },
-    { key: 'ward', label: 'Xã/phường', placeholder: 'Mọi xã/phường', options: opts(all.filter(s => geo(s, 'ward')).map(s => [s.ward, s.ward])) },
-    { key: 'level', label: 'Cấp học', placeholder: 'Mọi cấp học', options: opts(all.map(s => [s.level, LEVEL[s.level ?? ''] ?? s.level]), 'none') },
-    { key: 'school', label: 'Trường', placeholder: 'Mọi trường', options: opts(all.filter(s => geo(s)).map(s => [s.school_id, short(s.name)])) },
-    { key: 'ct', label: 'Chương trình', placeholder: 'Mọi chương trình', options: PROGRAMS.map(p => [p, `${p} · ${byCode[p]?.name ?? p}`] as [string, string]) },
+    { key: 'prov', label: 'Tỉnh', placeholder: 'Tất cả tỉnh', options: provs, hidden: provs.length < 2 },
+    { key: 'ward', label: 'Xã/phường', placeholder: 'Tất cả xã/phường', options: opts(all.filter(s => geo(s, 'ward')).map(s => [s.ward, s.ward])) },
+    { key: 'level', label: 'Cấp học', placeholder: 'Tất cả cấp học', options: opts(all.map(s => [s.level, LEVEL[s.level ?? ''] ?? s.level]), 'none') },
+    { key: 'school', label: 'Trường', placeholder: 'Tất cả trường', options: opts(all.filter(s => geo(s)).map(s => [s.school_id, short(s.name)])) },
+    { key: 'ct', label: 'Chương trình', placeholder: 'Tất cả chương trình', options: PROGRAMS.map(p => [p, `${p} · ${byCode[p]?.name ?? p}`] as [string, string]) },
   ]
   return (
     <>
@@ -282,11 +282,11 @@ export function DeptSubjects() {
     return m.set(r.subject, o) }, new Map<string, typeof allSubjects[number]>()).values()].sort((a, b) => b.stem - a.stem) : allSubjects
   const provs = opts(allSchools.map(s => { const p = provOf(s.school_id); return [p?.id, p?.name] }))
   const defs: FilterDef[] = [
-    { key: 'prov', label: 'Tỉnh', placeholder: 'Mọi tỉnh', options: provs, hidden: !per || provs.length < 2 },
-    { key: 'ward', label: 'Xã/phường', placeholder: 'Mọi xã/phường', options: opts(allSchools.filter(s => geo(s, 'ward')).map(s => [s.ward, s.ward])), hidden: !per },
-    { key: 'level', label: 'Cấp học', placeholder: 'Mọi cấp học', options: opts(allSchools.map(s => [s.level, LEVEL[s.level ?? ''] ?? s.level]), 'none'), hidden: !per },
-    { key: 'school', label: 'Trường', placeholder: 'Mọi trường', options: opts(allSchools.filter(s => geo(s)).map(s => [s.school_id, short(s.name)])), hidden: !per },
-    { key: 'subj', label: 'Môn học', placeholder: 'Mọi môn học', options: opts(subjects.filter(s => s.stem > 0).map(s => [s.subject, s.subject])) },
+    { key: 'prov', label: 'Tỉnh', placeholder: 'Tất cả tỉnh', options: provs, hidden: !per || provs.length < 2 },
+    { key: 'ward', label: 'Xã/phường', placeholder: 'Tất cả xã/phường', options: opts(allSchools.filter(s => geo(s, 'ward')).map(s => [s.ward, s.ward])), hidden: !per },
+    { key: 'level', label: 'Cấp học', placeholder: 'Tất cả cấp học', options: opts(allSchools.map(s => [s.level, LEVEL[s.level ?? ''] ?? s.level]), 'none'), hidden: !per },
+    { key: 'school', label: 'Trường', placeholder: 'Tất cả trường', options: opts(allSchools.filter(s => geo(s)).map(s => [s.school_id, short(s.name)])), hidden: !per },
+    { key: 'subj', label: 'Môn học', placeholder: 'Tất cả môn học', options: opts(subjects.filter(s => s.stem > 0).map(s => [s.subject, s.subject])) },
   ]
   const stemSubjects = subjects.filter(s => s.stem > 0 && f.has('subj', s.subject))
   const rows = stemSubjects.map(s => ({ ...s, rate: pct(s.stem, s.total) }))

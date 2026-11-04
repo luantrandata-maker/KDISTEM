@@ -68,7 +68,7 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
     </table></div>
 
     <div className="bar" style={{ margin: '8px 0 0' }}><div><h3 style={{ margin: 0 }}>Đề cuối khoá</h3>
-      <p className="sub" style={{ margin: '4px 0 0' }}>Rút ngẫu nhiên từ Ngân hàng câu hỏi theo ma trận chủ đề × mức độ. Giáo viên làm sau khi học xong mọi nội dung của chương trình.</p></div>
+      <p className="sub" style={{ margin: '4px 0 0' }}>Rút ngẫu nhiên từ Ngân hàng câu hỏi theo ma trận chủ đề × mức độ. Giáo viên làm sau khi học xong tất cả nội dung của chương trình.</p></div>
       {!f && fe && !edit && <TryButton orgId={p.org_id} spec={finalSpec(fe)} title={fe.title || 'Đề cuối khoá'} minutes={fe.minutes} pass={fe.pass} />}
       {edit && !f && <div className="tools">{fe ? <><TryButton orgId={p.org_id} spec={finalSpec(fe)} title={fe.title || 'Đề cuối khoá'} minutes={fe.minutes} pass={fe.pass} /><button type="button" onClick={startEdit}>Sửa đề</button>
         <button type="button" className="danger" onClick={() => confirm('Bỏ đề cuối khoá của chương trình?') && save({ final_exam: null }, 'Đã bỏ đề cuối khoá.')}>Bỏ đề</button></>
@@ -92,7 +92,7 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
     </div>
     : fe ? <dl className="tpkv">
       <dt>Tên đề</dt><dd>{fe.title || 'Đề cuối khoá'}</dd>
-      <dt>Môn · khối</dt><dd>{listSubjects(fe).join(', ') || '—'}{listGrades(fe).length ? ` · khối ${listGrades(fe).join(', ')}` : ' · mọi khối'}</dd>
+      <dt>Môn · khối</dt><dd>{listSubjects(fe).join(', ') || '—'}{listGrades(fe).length ? ` · khối ${listGrades(fe).join(', ')}` : ' · tất cả khối'}</dd>
       <dt>Ma trận</dt><dd>{matrixTotal(fe.matrix ?? [])} câu: {matrixText(fe.matrix ?? []) || '—'}</dd>
       <dt>Ai mở đề</dt><dd>{fe.mode === 'trainer' ? 'Giảng viên mở đề ở buổi học' : 'Học viên tự làm khi học xong'}</dd>
       <dt>Cách làm</dt><dd>{fe.minutes ? `${fe.minutes} phút` : 'không giới hạn thời gian'} · {fe.attempts ? `${fe.attempts} lượt` : 'không giới hạn lượt'} · điểm đạt {fe.pass != null ? num(fe.pass) : 'không xét'} · {fe.shuffle !== false ? 'trộn câu' : 'giữ thứ tự'}</dd>
@@ -125,7 +125,7 @@ export function ProgramEvalFrame({ p, edit, hasFinal, hasTests, save }: { p: Pro
   return <section className="panel" style={{ display: 'grid', gap: 14 }}>
     <div><h3 style={{ margin: 0 }}>Khung đánh giá</h3>
       <p className="sub" style={{ margin: '4px 0 0' }}>Tổng điểm (thang 10) = trung bình có trọng số của các thành phần. Thành phần không có trong kế hoạch (VD chưa có đề cuối khoá) được bỏ ra, các thành phần còn lại chia lại theo tỉ lệ.
-        Đạt khi đủ mọi điều kiện bắt buộc; xếp loại theo tổng điểm.{!p.eval_frame && ' Chương trình đang dùng khung mặc định.'}</p></div>
+        Đạt khi đủ tất cả điều kiện bắt buộc; xếp loại theo tổng điểm.{!p.eval_frame && ' Chương trình đang dùng khung mặc định.'}</p></div>
 
     <fieldset className="libtargets wide"><legend>Thành phần điểm và trọng số</legend>
       <div className="wrap"><table>
@@ -149,8 +149,8 @@ export function ProgramEvalFrame({ p, edit, hasFinal, hasTests, save }: { p: Pro
           onChange={e => up({ req: { ...f.req, final: nOrNull(e.target.value) } })} /></label>
         {p.need_product && <label className="field"><span>Điểm sản phẩm tối thiểu</span><input type="number" min={0} max={10} step={0.5} disabled={dis} value={f.req.product ?? ''} placeholder="5"
           onChange={e => up({ req: { ...f.req, product: nOrNull(e.target.value) } })} /></label>}
-        <div className="field"><span>Nội dung</span><label><input type="checkbox" disabled={dis} checked={f.req.units} onChange={e => up({ req: { ...f.req, units: e.target.checked } })} /> Học xong mọi nội dung</label></div>
-        <div className="field"><span>Bài test</span><label><input type="checkbox" disabled={dis} checked={f.req.tests} onChange={e => up({ req: { ...f.req, tests: e.target.checked } })} /> Đạt mọi bài test nội dung</label></div>
+        <div className="field"><span>Nội dung</span><label><input type="checkbox" disabled={dis} checked={f.req.units} onChange={e => up({ req: { ...f.req, units: e.target.checked } })} /> Học xong tất cả nội dung</label></div>
+        <div className="field"><span>Bài test</span><label><input type="checkbox" disabled={dis} checked={f.req.tests} onChange={e => up({ req: { ...f.req, tests: e.target.checked } })} /> Đạt tất cả bài test nội dung</label></div>
       </div>
       {p.need_product && <small className="sub">Sản phẩm bắt buộc phải được nhận (đạt) theo cấu hình chương trình.</small>}
     </fieldset>

@@ -463,7 +463,7 @@ function LessonBank({ rows, teacherId, go, onAssign }: { rows: LessonLite[]; tea
       <h3 style={{ margin: '4px 0 0' }}>Kho bài giảng</h3>
       <p className="sub" style={{ marginTop: 2 }}>Bài giảng đã soạn đầy đủ — chọn một bài rồi chỉnh sửa cho lớp của mình.</p>
       <div className="statrow">
-        <button className={'statcard' + (kind === '' ? ' on' : '')} onClick={() => setKind('')}><i>◎</i><span><small>Mọi loại tương tác</small><b>{base.length}</b></span></button>
+        <button className={'statcard' + (kind === '' ? ' on' : '')} onClick={() => setKind('')}><i>◎</i><span><small>Tất cả loại tương tác</small><b>{base.length}</b></span></button>
         {(Object.keys(INTERACTION) as KindKey[]).map(k => (
           <button key={k} className={'statcard' + (kind === k ? ' on' : '')} onClick={() => setKind(kind === k ? '' : k)}><i><Icon n={KIND_ICON[k]} size={20} /></i><span><small>{HAS_LABEL[k]}</small><b>{has(k)}</b></span></button>
         ))}
@@ -473,7 +473,7 @@ function LessonBank({ rows, teacherId, go, onAssign }: { rows: LessonLite[]; tea
         <select value={ct} onChange={e => setCt(e.target.value)} aria-label="Chương trình"><option value="">Tất cả chương trình</option>{CTS.map(c => <option key={c}>{c}</option>)}</select>
         <select value={grade} onChange={e => setGrade(e.target.value)} aria-label="Khối"><option value="">Tất cả khối</option>{grades.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>
         <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
-        <select value={kind} onChange={e => setKind(e.target.value as KindKey | '')} aria-label="Loại tương tác"><option value="">Mọi loại tương tác</option>
+        <select value={kind} onChange={e => setKind(e.target.value as KindKey | '')} aria-label="Loại tương tác"><option value="">Tất cả loại tương tác</option>
           {(Object.keys(INTERACTION) as KindKey[]).map(k => <option key={k} value={k}>{INTERACTION[k]}</option>)}</select>
         <ViewToggle value={view} onChange={setView} />
       </div>

@@ -69,7 +69,7 @@ export function UserMenu({ name, email, roleLabel, orgs, views, view, onView, ac
   const active = orgs.find(o => o.active)
   const schools = orgs.filter(o => o.type === 'school'), others = orgs.filter(o => o.type !== 'school')
   const pick = async (o: MyOrg) => { if (!o.active) setErr((await switchOrg(o.org_id)) ?? '') }
-  // Quản trị KDI: chọn được mọi trường trong hệ thống (người khác nhận danh sách rỗng)
+  // Quản trị KDI: chọn được tất cả trường trong hệ thống (người khác nhận danh sách rỗng)
   const [all, setAll] = useState<{ org_id: string; name: string; parent_name: string | null }[]>([])
   useEffect(() => { supabase.rpc('platform_school_list').then(({ data }) => setAll((data as typeof all) ?? [])) }, [])
   const groups = useMemo(() => {
@@ -115,7 +115,7 @@ export function UserMenu({ name, email, roleLabel, orgs, views, view, onView, ac
                 onClick={() => pick(o)}>
                 <Icon d={ORG} /><span>{o.name}<br /><small>{o.roles.join(', ')}</small></span></button>
             ))}
-            {/* Các trường gộp vào một ô chọn (kể cả trường thử nghiệm), giống chọn giáo viên; quản trị KDI thấy mọi trường */}
+            {/* Các trường gộp vào một ô chọn (kể cả trường thử nghiệm), giống chọn giáo viên; quản trị KDI thấy tất cả trường */}
             {(schools.length > 0 || all.length > 0) && <>
               {others.length > 0 && <small className="ushead">Trường{all.length ? ` (${all.length})` : ''}</small>}
               <select value={active?.type === 'school' ? active.org_id : ''} aria-label="Chọn trường" onChange={e => pickSchool(e.target.value)}>

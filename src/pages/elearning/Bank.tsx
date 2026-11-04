@@ -46,7 +46,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
   const needle = norm(f.q.trim().toLowerCase())
   const list = rows.filter(r => (!f.subject || r.subject === f.subject) && (!f.grade || qGrades(r).includes(Number(f.grade))) && (!f.level || r.level === f.level)
     && (!f.status || r.status === f.status) && (!needle || norm(`${r.stem} ${r.topic ?? ''}`.toLowerCase()).includes(needle)))
-  // Quản trị hệ thống: câu hỏi của mọi đơn vị, sửa thẳng; thêm mới chọn đơn vị trong form
+  // Quản trị hệ thống: câu hỏi của tất cả đơn vị, sửa thẳng; thêm mới chọn đơn vị trong form
   const every = useAllMode()
   const mine = (r: Question) => r.org_id === orgId || !!every
 
@@ -100,7 +100,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
   }
 
   const drafts = list.filter(r => r.status === 'draft' && mine(r))
-  // Tick chọn nhiều câu (chỉ câu của đơn vị mình); ô ở tiêu đề chọn / bỏ chọn mọi câu đang hiện
+  // Tick chọn nhiều câu (chỉ câu của đơn vị mình); ô ở tiêu đề chọn / bỏ chọn tất cả câu đang hiện
   const canPick = list.slice(0, 300).filter(mine)
   const picked = rows.filter(r => sel.has(r.id) && mine(r))
   const allOn = canPick.length > 0 && canPick.every(r => sel.has(r.id))
@@ -143,10 +143,10 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
       {(() => { const ids = picked.map(r => r.id), del = picked.filter(r => r.created_by === me).map(r => r.id); return (
         <div style={{ marginTop: 14 }}><SelBar picked={null} left={<span className="tools" style={{ flexWrap: 'wrap' }}>
           <input className="search" style={{ margin: 0, minWidth: 180 }} type="search" placeholder="Tìm câu hỏi, chủ đề…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} aria-label="Tìm câu hỏi" />
-          <select value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
-          <select value={f.grade} onChange={e => setF({ ...f, grade: e.target.value })} aria-label="Khối"><option value="">Mọi khối</option>{Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>Khối {i + 1}</option>)}</select>
-          <select value={f.level} onChange={e => setF({ ...f, level: e.target.value })} aria-label="Mức độ"><option value="">Mọi mức độ</option>{Object.entries(LEVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
-          <select value={f.status} onChange={e => setF({ ...f, status: e.target.value })} aria-label="Trạng thái"><option value="">Mọi trạng thái</option><option value="ready">Sẵn sàng</option><option value="draft">Nháp</option><option value="retired">Ngừng dùng</option></select>
+          <select value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
+          <select value={f.grade} onChange={e => setF({ ...f, grade: e.target.value })} aria-label="Khối"><option value="">Tất cả khối</option>{Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>Khối {i + 1}</option>)}</select>
+          <select value={f.level} onChange={e => setF({ ...f, level: e.target.value })} aria-label="Mức độ"><option value="">Tất cả mức độ</option>{Object.entries(LEVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+          <select value={f.status} onChange={e => setF({ ...f, status: e.target.value })} aria-label="Trạng thái"><option value="">Tất cả trạng thái</option><option value="ready">Sẵn sàng</option><option value="draft">Nháp</option><option value="retired">Ngừng dùng</option></select>
           {drafts.length > 0 && <button onClick={() => setStatus(drafts.map(d => d.id), 'ready')}>Duyệt {drafts.length} câu nháp đang lọc</button>}
         </span>}>
           {ids.length > 0 && <>
@@ -163,7 +163,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
       {note}
       {ai && <div className="panel"><AssistantQuiz orgId={orgId} onSaved={load} /></div>}
       <div className="wrap"><table className="systable">
-        <thead><tr><th className="sel"><input type="checkbox" checked={allOn} disabled={!canPick.length} aria-label="Chọn mọi câu đang hiện"
+        <thead><tr><th className="sel"><input type="checkbox" checked={allOn} disabled={!canPick.length} aria-label="Chọn tất cả câu đang hiện"
           onChange={() => setSel(x => { const y = new Set(x); canPick.forEach(r => allOn ? y.delete(r.id) : y.add(r.id)); return y })} /></th><th>Câu hỏi</th><th>Môn · khối</th><th>Mức độ</th><th>Loại</th><th>Nguồn</th><th>Trạng thái</th></tr></thead>
         <tbody>
           {list.slice(0, 300).map(r =>

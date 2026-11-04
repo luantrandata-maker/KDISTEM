@@ -1,6 +1,6 @@
 // Đáp ứng chương trình (migration 115): mỗi trường dạy những chương trình STEM nào, GV được phân công có đủ chuẩn không,
 // thiếu thì lập kế hoạch đào tạo (tạo kế hoạch nháp với chương trình đào tạo gợi ý, hoặc gán trường vào kế hoạch đang mở).
-// GV đạt chuẩn: có chứng chỉ đào tạo cùng loại chương trình, hoặc đạt mọi năng lực đích của một chương trình đào tạo cùng loại.
+// GV đạt chuẩn: có chứng chỉ đào tạo cùng loại chương trình, hoặc đạt tất cả năng lực đích của một chương trình đào tạo cùng loại.
 import { useEffect, useState } from 'react'
 import { MultiFilters, useMultiFilters } from '../../components/MultiFilters'
 import { useOrgFilters } from '../../components/OrgFilters'
@@ -68,7 +68,7 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
   return <>
     <div className="panel distintro">
       <p className="sub" style={{ margin: 0 }}>Mỗi dòng là một chương trình STEM trường đang dạy (lớp học theo chương trình, chương trình giáo dục được gán) và giáo viên được phân công dạy.
-        Giáo viên <b>đạt chuẩn</b> khi có chứng chỉ đào tạo cùng loại chương trình, hoặc đạt mọi năng lực đích của một chương trình đào tạo cùng loại ở lần đánh giá gần nhất.
+        Giáo viên <b>đạt chuẩn</b> khi có chứng chỉ đào tạo cùng loại chương trình, hoặc đạt tất cả năng lực đích của một chương trình đào tạo cùng loại ở lần đánh giá gần nhất.
         Số GV cần = số lớp ÷ số lớp tối đa một GV dạy.</p>
     </div>
     <StatCards active={f || null} onPick={k => setF((k ?? '') as typeof f)} items={[
@@ -81,8 +81,8 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
       <div className="distfilter">
-        <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học">{[-1, 0, 1].map(o => <option key={o} value={schoolYear(o)}>Năm học {schoolYear(o)}</option>)}<option value="">Mọi năm học</option></select>
-        {cts.length > 1 && <select value={ct} onChange={e => setCt(e.target.value)} aria-label="Chương trình"><option value="">Mọi chương trình</option>{cts.map(([c, l]) => <option key={c} value={c}>{c} · {l}</option>)}</select>}
+        <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học">{[-1, 0, 1].map(o => <option key={o} value={schoolYear(o)}>Năm học {schoolYear(o)}</option>)}<option value="">Tất cả năm học</option></select>
+        {cts.length > 1 && <select value={ct} onChange={e => setCt(e.target.value)} aria-label="Chương trình"><option value="">Tất cả chương trình</option>{cts.map(([c, l]) => <option key={c} value={c}>{c} · {l}</option>)}</select>}
         <MultiFilters defs={of.defs} f={mf} />
         <label className="field inline"><span className="sub">Số lớp tối đa / GV</span> <input type="number" min={1} max={40} value={per} style={{ width: 64 }} onChange={e => setPer(Math.max(1, Math.round(Number(e.target.value) || 1)))} aria-label="Số lớp tối đa một giáo viên dạy" /></label>
       </div>
@@ -204,7 +204,7 @@ function PlanFromGaps({ orgId, rows, per, year, onClose, onDone }: { orgId: stri
         <fieldset className="field" style={{ border: 0, padding: 0, margin: 0 }}><legend className="sub">Chương trình đào tạo (gợi ý cùng loại chương trình)</legend>
           {sugs.length ? sugs.map(s => <label key={s.id} className="field inline"><input type="checkbox" checked={progs.has(s.id)} onChange={() => setProgs(x => { const y = new Set(x); if (y.has(s.id)) y.delete(s.id); else y.add(s.id); return y })} /> {[s.code, s.title].filter(Boolean).join(' · ')}</label>)
             : <small className="sub">Chưa có chương trình đào tạo cùng loại đã phát hành; tạo kế hoạch rồi chọn chương trình sau.</small>}</fieldset>
-        <small className="sub">Kế hoạch tạo ở dạng nháp, ghi sẵn danh sách trường, chỉ tiêu và GV cần bồi dưỡng. Xếp lịch, phát hành rồi gán trường như mọi kế hoạch.</small>
+        <small className="sub">Kế hoạch tạo ở dạng nháp, ghi sẵn danh sách trường, chỉ tiêu và GV cần bồi dưỡng. Xếp lịch, phát hành rồi gán trường như tất cả kế hoạch.</small>
         {err && <p className="msg">{err}</p>}
         <div className="formactions"><button type="button" className="primary" disabled={busy || !name.trim()} onClick={create}>{busy ? 'Đang tạo…' : 'Tạo kế hoạch nháp'}</button></div>
       </> : <>

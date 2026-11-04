@@ -130,7 +130,7 @@ export function DeptAlerts() {
       ]} />
       <div className="tools" style={{ marginBottom: 12 }}>
         <input className="search" style={{ margin: 0 }} placeholder="Tìm trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm trường" />
-        <select value={rule} onChange={e => setRule(e.target.value)} aria-label="Loại cảnh báo"><option value="">Mọi loại cảnh báo</option>
+        <select value={rule} onChange={e => setRule(e.target.value)} aria-label="Loại cảnh báo"><option value="">Tất cả loại cảnh báo</option>
           {RULES.map(r => <option key={r.key} value={r.key}>{r.label} ({rows.filter(x => x.issues.some(i => i.key === r.key)).length})</option>)}</select>
         <label className="field inline"><input type="checkbox" checked={onlyHigh} onChange={e => setOnlyHigh(e.target.checked)} /> Chỉ mức cao</label>
         <span style={{ flex: 1 }} /><button onClick={excel} disabled={!shown.length}>Xuất Excel</button>
@@ -207,7 +207,7 @@ export function DeptTargets() {
           <label className="field"><span>Chỉ số</span><select value={form.metric} onChange={e => setForm({ ...form, metric: e.target.value as Metric })}>
             {(Object.keys(METRICS) as Metric[]).map(k => <option key={k} value={k}>{METRICS[k].label}</option>)}</select></label>
           <label className="field"><span>Áp dụng cho</span><select value={form.level ?? ''} onChange={e => setForm({ ...form, level: e.target.value || null })}>
-            <option value="">Mọi cấp học</option>{Object.entries(LEVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+            <option value="">Tất cả cấp học</option>{Object.entries(LEVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
           <label className="field"><span>Chỉ tiêu (%)</span><input type="number" min={0} max={100} step={1} required value={form.target ?? ''} onChange={e => setForm({ ...form, target: Number(e.target.value) })} /></label>
           <label className="field"><span>Hạn hoàn thành</span><input type="date" value={form.due_on ?? ''} onChange={e => setForm({ ...form, due_on: e.target.value })} /></label>
           <label className="field" style={{ gridColumn: '1 / -1' }}><span>Ghi chú / căn cứ (vd: Kế hoạch số …/KH-SGDĐT)</span><input value={form.note ?? ''} onChange={e => setForm({ ...form, note: e.target.value })} /></label>
@@ -222,7 +222,7 @@ export function DeptTargets() {
             <Fragment key={t.id}>
               <tr>
                 <td><b>{METRICS[t.metric].label}</b>{t.note && <><br /><small>{t.note}</small></>}</td>
-                <td>{t.level ? LEVEL[t.level] : 'Mọi cấp'} <small>({scope.length} trường)</small></td>
+                <td>{t.level ? LEVEL[t.level] : 'Tất cả cấp'} <small>({scope.length} trường)</small></td>
                 <td>{t.target}%</td>
                 <td><b>{cur == null ? '—' : cur + '%'}</b></td>
                 <td><span className="covtrack" style={{ display: 'block' }}><i style={{ width: Math.min(100, cur ?? 0) + '%', background: cur != null && cur >= t.target ? '#1f8a4c' : '#d08a00' }} /></span>

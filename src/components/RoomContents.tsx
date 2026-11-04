@@ -13,7 +13,7 @@ export function contentSummary(units: RoomUnit[], stocks: RoomStock[]) {
     stocks.length ? `${stocks.length} loại vật tư` : null].filter(Boolean).join(' · ')
 }
 
-/** Chi tiết mọi thiết bị (theo loại → từng chiếc) và vật tư tiêu hao đang ở một phòng / kho */
+/** Chi tiết tất cả thiết bị (theo loại → từng chiếc) và vật tư tiêu hao đang ở một phòng / kho */
 export function RoomContents({ units, stocks, rooms, onMoveUnit }: {
   units: RoomUnit[]; stocks: RoomStock[]
   rooms?: RoomLite[]; onMoveUnit?: (u: RoomUnit, roomId: string) => void

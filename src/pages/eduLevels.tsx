@@ -6,7 +6,7 @@ import { ElView } from '../components/ElView'
 import { NumMultiSelect } from '../components/MultiSelect'
 
 // Danh mục cấp học & khối (migration 065): KDI thêm / sửa cấp học và khoảng khối áp dụng; chương trình giáo dục,
-// môn học và các ô chọn khối ở mọi màn dùng danh mục này. Đơn vị khác chỉ xem.
+// môn học và các ô chọn khối ở tất cả màn dùng danh mục này. Đơn vị khác chỉ xem.
 const errText = (m: string) => (/schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 065 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'
   : /23503|foreign key/i.test(m) ? 'Cấp học đang được chương trình dùng — hãy chuyển sang "Ngừng dùng".'

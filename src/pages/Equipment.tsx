@@ -126,8 +126,8 @@ export default function Equipment({ orgId }: { orgId: string }) {
         <div className="tools">
           <input className="search" style={{ margin: 0 }} placeholder="Tìm tên / mã tài sản / số seri…" value={q} onChange={e => setQ(e.target.value)} />
           <select value={source} onChange={e => setSource(e.target.value)} aria-label="Nguồn"><option value="">Tất cả nguồn</option><option value="package">Gói STEM</option><option value="purchase">Tự mua</option></select>
-          <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Tình trạng"><option value="">Mọi tình trạng</option>{Object.entries(UNIT_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
-          <select value={room} onChange={e => setRoom(e.target.value)} aria-label="Phòng"><option value="">Mọi phòng / kho</option><option value="none">Chưa xếp phòng</option>{rooms.map(r => <option key={r.id} value={r.id}>{roomLabel(r)}</option>)}</select>
+          <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Tình trạng"><option value="">Tất cả tình trạng</option>{Object.entries(UNIT_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+          <select value={room} onChange={e => setRoom(e.target.value)} aria-label="Phòng"><option value="">Tất cả phòng / kho</option><option value="none">Chưa xếp phòng</option>{rooms.map(r => <option key={r.id} value={r.id}>{roomLabel(r)}</option>)}</select>
         </div>
         <div className="tools"><small style={{ alignSelf: 'center' }}>Lọc nhanh:</small>
           {([['broken', 'Chỉ hỏng'], ['maintenance', 'Chỉ bảo trì'], ['warranty', 'Sắp hết BH']] as const).map(([k, l]) => <button key={k} className={'chipbtn' + (quick === k ? ' on' : '')} onClick={() => setQuick(quick === k ? '' : k)}>{l}</button>)}</div>

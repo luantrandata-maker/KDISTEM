@@ -51,7 +51,7 @@ export function trackColor(code: string): string {
 /** Bảng màu tra theo mã, có màu cho cả mã chưa biết: PROGRAM_COLOR[code] */
 export const TRACK_COLOR: Record<string, string> = new Proxy(BASE_COLOR, { get: (_t, k) => (typeof k === 'string' ? trackColor(k) : undefined) })
 
-/** Danh mục loại chương trình dùng chung trong phiên; `reload()` sau khi sửa để mọi màn cập nhật.
+/** Danh mục loại chương trình dùng chung trong phiên; `reload()` sau khi sửa để tất cả màn cập nhật.
  *  `codes`: mã các loại đang dùng (để chọn khi soạn mới); `allCodes`: gồm cả loại đã ngừng dùng (để lọc dữ liệu cũ). */
 export function useStemTracks() {
   const [tracks, setTracks] = useState<StemTrack[]>(cache ?? DEFAULT_TRACKS)

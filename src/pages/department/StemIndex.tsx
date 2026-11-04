@@ -112,8 +112,8 @@ export function StemIndexPage({ platform = false, groupBy: g0 = 'none' }: { plat
       <div className="bar" style={{ marginTop: 12 }}>
         <span className="tools">
           <input className="search" style={{ margin: 0 }} placeholder="Tìm trường, xã/phường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-          <select value={level} onChange={e => setLevel(e.target.value)} aria-label="Cấp học"><option value="">Mọi cấp</option>{Object.entries(LEVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
-          <select value={lv} onChange={e => setLv(e.target.value ? +e.target.value as 1 : '')} aria-label="Mức"><option value="">Mọi mức</option>{[3, 2, 1].map(l => <option key={l} value={l}>{LV[l][0]}</option>)}</select>
+          <select value={level} onChange={e => setLevel(e.target.value)} aria-label="Cấp học"><option value="">Tất cả cấp</option>{Object.entries(LEVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+          <select value={lv} onChange={e => setLv(e.target.value ? +e.target.value as 1 : '')} aria-label="Mức"><option value="">Tất cả mức</option>{[3, 2, 1].map(l => <option key={l} value={l}>{LV[l][0]}</option>)}</select>
           <div className="segmented" style={{ margin: 0 }}>{([['none', 'Theo trường'], ['ward', 'Theo xã/phường'], ...(platform ? [['department', 'Theo Sở']] : [])] as [typeof groupBy, string][]).map(([k, l]) =>
             <button key={k} className={groupBy === k ? 'on' : ''} onClick={() => setGroupBy(k)}>{l}</button>)}</div>
         </span>
@@ -170,7 +170,7 @@ export function IndexConfigPage({ orgId, platform = false }: { orgId: string | n
   return (
     <>
       <p className="sub">{cfg?.own ? 'Đơn vị đang dùng bộ chỉ số riêng.' : `Đơn vị đang dùng ${cfg?.source ? 'bộ chỉ số của ' + cfg.source : 'bộ chỉ số mặc định của KDI'} — lưu để tạo bộ riêng.`}
-        {platform && ' Bộ chỉ số lưu ở cổng KDI là mặc định cho mọi Sở chưa đặt bộ riêng.'} Mỗi chỉ số cho điểm 0–100; trọng số không cần cộng đủ 100 (hệ thống tự chia tỉ lệ).</p>
+        {platform && ' Bộ chỉ số lưu ở cổng KDI là mặc định cho tất cả Sở chưa đặt bộ riêng.'} Mỗi chỉ số cho điểm 0–100; trọng số không cần cộng đủ 100 (hệ thống tự chia tỉ lệ).</p>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       <div className="panel formgrid">
         <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên bộ chỉ số</span><input value={c.name} onChange={e => setC({ ...c, name: e.target.value })} /></label>

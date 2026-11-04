@@ -65,7 +65,7 @@ export function AttendanceDashboard({ name }: { name?: string }) {
         <button onClick={exportXlsx} disabled={!list.length}>Xuất Excel</button>
       </div>
       <Tiles items={[
-        { label: 'Trường có tiết theo lịch', value: `${active.length}/${rows.length}`, sub: rows.length > active.length ? `${rows.length - active.length} trường chưa có TKB / chưa sinh buổi dạy` : 'Mọi trường đã có buổi dạy' },
+        { label: 'Trường có tiết theo lịch', value: `${active.length}/${rows.length}`, sub: rows.length > active.length ? `${rows.length - active.length} trường chưa có TKB / chưa sinh buổi dạy` : 'Tất cả trường đã có buổi dạy' },
         { label: 'Tiết đã dạy (đã điểm danh)', value: tp === null ? '—' : tp + '%', sub: `${nf(sum('taught'))} / ${nf(sum('taught') + sum('not_marked'))} tiết đã diễn ra`, tone: tp !== null && tp < 90 ? 'warn' : '' },
         { label: 'Tiết chưa điểm danh', value: nf(sum('not_marked')), sub: `${nf(sum('teachers_not_marked'))} lượt GV cần đôn đốc`, tone: sum('not_marked') ? 'bad' : '' },
         { label: 'Chuyên cần học sinh', value: rate === null ? '—' : rate + '%', sub: `${nf(tot.absent)} lượt vắng · ${nf(tot.excused)} có phép` },
@@ -147,7 +147,7 @@ export function TimetableOverview() {
                 <td>Thứ {c.weekday} · {c.period_name}</td><td><b>{c.resource}</b></td><td>{c.classes}</td></tr>
             ))}</tbody>
           </table></div>
-          <small>Thường do một tiết áp dụng mọi học kỳ trùng với tiết riêng của học kỳ. Trường sửa ở mục Thời khoá biểu.</small>
+          <small>Thường do một tiết áp dụng tất cả học kỳ trùng với tiết riêng của học kỳ. Trường sửa ở mục Thời khoá biểu.</small>
         </div>
       )}
       <div className="bar" style={{ margin: '16px 0 8px' }}>

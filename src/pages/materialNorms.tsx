@@ -122,7 +122,7 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [q, setQ] = useState(''); const [subject, setSubject] = useState(''); const [basis, setBasis] = useState(''); const [old, setOld] = useState(false)
   const [form, setForm] = useState<{ title: string; basis: Basis; group_size: string; sessions: string; subject: string; grade: string; program_id: string; unit_id: string; org?: string } | null>(null)
-  // Quản trị hệ thống: định mức của mọi đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
+  // Quản trị hệ thống: định mức của tất cả đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
   const every = useAllMode()
   const { programs, units } = useProgramOptions(orgId)
 
@@ -204,8 +204,8 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
       <p className="sub">Định mức vật tư cho 1 sản phẩm, 1 nhóm hoặc 1 học sinh, gắn với học phần / bài của chương trình. Định mức do KDI và cấp trên ban hành được dùng chung; trường sao chép về để điều chỉnh hoặc gửi đề xuất điều chỉnh.</p>
       <div className="bar small">
         <input className="search" placeholder="Tìm định mức…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm định mức" />
-        <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
-        <select value={basis} onChange={e => setBasis(e.target.value)} aria-label="Tính cho"><option value="">Mọi cách tính</option>{(Object.keys(BASIS) as Basis[]).map(b => <option key={b} value={b}>Theo {BASIS[b]}</option>)}</select>
+        <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
+        <select value={basis} onChange={e => setBasis(e.target.value)} aria-label="Tính cho"><option value="">Tất cả cách tính</option>{(Object.keys(BASIS) as Basis[]).map(b => <option key={b} value={b}>Theo {BASIS[b]}</option>)}</select>
         <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện bản cũ / lưu trữ</label>
         {rights.canWrite && !sharedOnly && <button className="primary" onClick={openForm}>Thêm định mức</button>}
       </div>
@@ -255,7 +255,7 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
         </Drawer>
       )}
       {!list ? <p className="sub">Đang tải…</p> : <>
-        {!sharedOnly && <><h3>{every ? 'Mọi đơn vị' : 'Của đơn vị'} ({own.length})</h3>
+        {!sharedOnly && <><h3>{every ? 'Tất cả đơn vị' : 'Của đơn vị'} ({own.length})</h3>
         {own.length ? table(own, true) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có định mức nào của đơn vị.{rights.canWrite ? ' Bấm “Thêm định mức” hoặc sao chép định mức dùng chung bên dưới.' : ''}</p></div>}</>}
         {!every && <><h3>Dùng chung từ KDI / cấp trên ({shared.length})</h3>
         {shared.length ? table(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có định mức dùng chung.</p></div>}</>}
@@ -621,8 +621,8 @@ function CatalogTab({ orgId, rights }: { orgId: string | null; rights: Rights })
       <p className="sub">Danh mục chuẩn để lập định mức. Danh mục của KDI và cấp trên dùng chung cho đơn vị trực thuộc. Khi dự trù, vật tư trong kho của trường được ghép với danh mục theo mã liên kết, mã vật tư trùng mã danh mục hoặc trùng tên để so tồn kho.</p>
       <div className="bar small">
         <input className="search" placeholder="Tìm vật tư…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm vật tư" />
-        <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại vật tư"><option value="">Mọi loại</option>{(Object.keys(MKIND) as MKind[]).map(k => <option key={k} value={k}>{MKIND[k]}</option>)}</select>
-        <select value={src} onChange={e => setSrc(e.target.value)} aria-label="Nguồn"><option value="">Mọi nguồn</option>{sources.map(s => <option key={s}>{s}</option>)}</select>
+        <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại vật tư"><option value="">Tất cả loại</option>{(Object.keys(MKIND) as MKind[]).map(k => <option key={k} value={k}>{MKIND[k]}</option>)}</select>
+        <select value={src} onChange={e => setSrc(e.target.value)} aria-label="Nguồn"><option value="">Tất cả nguồn</option>{sources.map(s => <option key={s}>{s}</option>)}</select>
         <button onClick={() => downloadXlsx('Danh-muc-vat-tu', CAT_COLS, shown.map(c => [c.code ?? '', c.name, MKIND[c.kind], c.unit, c.spec ?? '', c.unit_price ?? '']))}>Xuất Excel</button>
         {rights.canWrite && <ImportExcel columns={CAT_COLS} template="Mau-danh-muc-vat-tu" sample={[['PIN-AA', 'Pin AA', 'Vật tư tiêu hao', 'viên', '1,5 V', '6000']]}
           onRecords={importRows} onMessage={(m, e) => setMsg([m, !!e])} />}

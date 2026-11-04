@@ -97,7 +97,7 @@ export default function Roles({ orgId }: { orgId?: string | null }) {
   return (
     <>
       <div className="bar">
-        <p className="sub" style={{ margin: 0, flex: 1, minWidth: 260 }}>Vai trò hệ thống dùng chung mọi trường; quyền bạn chỉnh ở đây chỉ áp dụng cho trường của bạn.</p>
+        <p className="sub" style={{ margin: 0, flex: 1, minWidth: 260 }}>Vai trò hệ thống dùng chung tất cả trường; quyền bạn chỉnh ở đây chỉ áp dụng cho trường của bạn.</p>
         <button className="primary" onClick={() => setForm({ name: '', description: '', portal: 'school_admin', copyFrom: '' })}>+ Thêm vai trò</button>
       </div>
       {err && <p className="msg">{err}</p>}

@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase'
 import { Drawer } from './Drawer'
 
 // Lối vào thiết lập khung năng lực ngay cạnh ô chọn năng lực (chỉ quản trị KDI sửa được khung dùng chung).
-// Thêm / sửa xong, mọi ô chọn năng lực đang mở tự cập nhật danh sách.
+// Thêm / sửa xong, tất cả ô chọn năng lực đang mở tự cập nhật danh sách.
 const Framework = lazy(() => import('../pages/training/Competency').then(m => ({ default: m.CompetencyFramework })))
 let adminCache: boolean | null = null
 export function CompetencySetupLink({ audience }: { audience: 'teacher' | 'student' }) {

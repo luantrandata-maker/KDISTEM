@@ -83,7 +83,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
   const pickLook = (k: 'table' | 'cal') => { setLook(k); try { localStorage.setItem('kdi-tsched-look', k) } catch { /* bỏ qua */ } }
   const [open, setOpen] = useState<{ kind: 'auto' } | { kind: 'new' } | { kind: 'sess'; id: string } | null>(null)
   const reload = () => setRk(k => k + 1)
-  // Quản trị hệ thống: lịch của mọi đơn vị trong một danh sách, sửa thẳng
+  // Quản trị hệ thống: lịch của tất cả đơn vị trong một danh sách, sửa thẳng
   const all = useAllMode(), orgName = useOrgName()
   const ofl = useOrgFilter()
   useEffect(() => { supabase.rpc('training_can_write', { p_org: orgId }).then(({ data }) => setCan(!!data)) }, [orgId])
@@ -136,7 +136,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
     </div>
     <div className="bar">
       <div className="tools">
-        <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Kế hoạch"><option value="">Mọi kế hoạch</option>
+        <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Kế hoạch"><option value="">Tất cả kế hoạch</option>
           {(plans ?? []).filter(p => ofl.fit(p.org_id)).map(p => <option key={p.id} value={p.id}>{p.plan_code} · {p.name}</option>)}</select>
         {ofl.node((plans ?? []).map(p => p.org_id), () => setPlan(''))}
         <small className="sub">{shown.length}/{base.length} buổi</small>
@@ -308,7 +308,7 @@ function AutoSchedule({ plans, initial, onBack, onDone }: { plans: Plan[]; initi
         <tbody>{preview.map((x, k) => <tr key={x.u.id}><td>{k + 1}</td><td style={{ whiteSpace: 'normal' }}>{x.u.title}<br /><small className="sub">{num(Number(x.u.hours))} giờ</small></td>
           <td>{x.day.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' })}{hol.holName(dayKey(x.day)) && <><br /><small className="holwarn">⚠ Nghỉ: {hol.holName(dayKey(x.day))}</small></>}</td><td>{x.from}–{x.to}</td>
           <td>{x.u.mode ? MODE[x.u.mode] : p?.mode === 'online' ? 'Trực tuyến' : 'Trực tiếp'}</td><td>{(x.u as Unit & { trainer: string | null }).trainer || '—'}</td></tr>)}
-          {!preview.length && <tr><td colSpan={6}><small className="sub">{units.length ? 'Mọi nội dung đã có buổi.' : 'Kế hoạch chưa có nội dung đào tạo (kế hoạch cũ hoặc chưa chọn chương trình). Dùng "Thêm buổi".'}</small></td></tr>}</tbody>
+          {!preview.length && <tr><td colSpan={6}><small className="sub">{units.length ? 'Tất cả nội dung đã có buổi.' : 'Kế hoạch chưa có nội dung đào tạo (kế hoạch cũ hoặc chưa chọn chương trình). Dùng "Thêm buổi".'}</small></td></tr>}</tbody>
       </table></div>}
     </section>
   </ElView>

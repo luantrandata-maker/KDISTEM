@@ -30,7 +30,7 @@ export function RollPanel({ session, onDone, onClose }: { session: SessionRow; o
     loadRoll(session).then(([s, a]) => {
       const list = (s.data as Stu[]) ?? []
       const old = new Map(((a.data as { student_id: string; status: Mark; note: string | null }[]) ?? []).map(x => [x.student_id, x]))
-      // Lần đầu điểm danh: mặc định mọi học sinh có mặt, giáo viên chỉ chỉnh người vắng/muộn
+      // Lần đầu điểm danh: mặc định tất cả học sinh có mặt, giáo viên chỉ chỉnh người vắng/muộn
       setMarks(Object.fromEntries(list.map(x => [x.id, old.get(x.id)?.status ?? 'present'])))
       setNotes(Object.fromEntries(list.map(x => [x.id, old.get(x.id)?.note ?? ''])))
       setStudents(list)

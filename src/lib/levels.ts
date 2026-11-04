@@ -1,6 +1,6 @@
 // Tên hiển thị các mức (Thiết lập chung › Danh mục, hoặc ngay trong Khung năng lực): KDI đổi tên, số mức cố định là 4
 // vì dữ liệu đã lưu theo mã (mức độ câu hỏi) và theo số 1–4 (mức năng lực).
-// Các bảng tên dùng chung trong mã được cập nhật tại chỗ khi thiết lập tải xong, nên mọi trang đang dùng chúng đổi theo.
+// Các bảng tên dùng chung trong mã được cập nhật tại chỗ khi thiết lập tải xong, nên tất cả trang đang dùng chúng đổi theo.
 import { codedCatalog, type Settings } from './settings'
 import { LEVEL } from '../pages/elearning/common'
 import { LEVELS } from '../components/ExamMatrix'

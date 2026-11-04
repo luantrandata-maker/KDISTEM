@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase'
 
 export type MRow = { topic: string; level: string; count: number; subject?: string }
 export const LEVELS: [string, string][] = [['nhan_biet', 'Nhận biết'], ['thong_hieu', 'Thông hiểu'], ['van_dung', 'Vận dụng'], ['van_dung_cao', 'Vận dụng cao']]
-export const levelName = (k: string) => LEVELS.find(l => l[0] === k)?.[1] ?? 'Mọi mức độ'
+export const levelName = (k: string) => LEVELS.find(l => l[0] === k)?.[1] ?? 'Tất cả mức độ'
 type Stat = { subject: string; topic: string; level: string; n: number }
 
 /** Các môn có câu hỏi dùng được của đơn vị */
@@ -42,7 +42,7 @@ export const listGrades = (x: { grade?: number | null; grades?: number[] | null 
 export const cleanMatrix = (rows: MRow[]) => rows.map(r => ({ ...(r.subject ? { subject: r.subject } : {}), topic: r.topic, level: r.level, count: r.count }))
 
 export const matrixTotal = (rows: MRow[]) => rows.reduce((a, r) => a + (Number(r.count) || 0), 0)
-export const matrixText = (rows: MRow[]) => rows.map(r => `${r.count} câu ${r.subject ? r.subject + ' · ' : ''}${r.topic || 'mọi chủ đề'} · ${levelName(r.level).toLowerCase()}`).join('; ')
+export const matrixText = (rows: MRow[]) => rows.map(r => `${r.count} câu ${r.subject ? r.subject + ' · ' : ''}${r.topic || 'tất cả chủ đề'} · ${levelName(r.level).toLowerCase()}`).join('; ')
 
 export function ExamMatrix({ org, subjects, grades, rows, onChange, disabled }: {
   org: string | null | undefined; subjects: string[]; grades: number[]; rows: MRow[]; onChange: (r: MRow[]) => void; disabled?: boolean
@@ -74,14 +74,14 @@ export function ExamMatrix({ org, subjects, grades, rows, onChange, disabled }: 
     <div className="wrap"><table>
       <thead><tr>{multi && <th>Môn</th>}<th>Chủ đề</th><th>Mức độ</th><th className="num">Số câu</th><th>Ngân hàng có</th>{!disabled && <th></th>}</tr></thead>
       <tbody>{rows.map((r, i) => { const sub = r.subject ?? '', a = avail(sub, r.topic, r.level), topics = topicsOf(sub); return <tr key={i}>
-        {multi && <td>{disabled ? sub || 'Mọi môn của đề' : <select value={sub} onChange={e => set(i, { subject: e.target.value || undefined, topic: '' })} aria-label="Môn">
-          <option value="">Mọi môn của đề</option>{subjects.map(x => <option key={x}>{x}</option>)}
+        {multi && <td>{disabled ? sub || 'Tất cả môn của đề' : <select value={sub} onChange={e => set(i, { subject: e.target.value || undefined, topic: '' })} aria-label="Môn">
+          <option value="">Tất cả môn của đề</option>{subjects.map(x => <option key={x}>{x}</option>)}
           {sub && !subjects.includes(sub) && <option>{sub}</option>}</select>}</td>}
-        <td>{disabled ? r.topic || 'Mọi chủ đề' : <select value={r.topic} onChange={e => set(i, { topic: e.target.value })} aria-label="Chủ đề">
-          <option value="">Mọi chủ đề</option>{topics.filter(Boolean).map(t => <option key={t}>{t}</option>)}
+        <td>{disabled ? r.topic || 'Tất cả chủ đề' : <select value={r.topic} onChange={e => set(i, { topic: e.target.value })} aria-label="Chủ đề">
+          <option value="">Tất cả chủ đề</option>{topics.filter(Boolean).map(t => <option key={t}>{t}</option>)}
           {r.topic && !topics.includes(r.topic) && <option>{r.topic}</option>}</select>}</td>
         <td>{disabled ? levelName(r.level) : <select value={r.level} onChange={e => set(i, { level: e.target.value })} aria-label="Mức độ">
-          <option value="">Mọi mức độ</option>{LEVELS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>}</td>
+          <option value="">Tất cả mức độ</option>{LEVELS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>}</td>
         <td className="num">{disabled ? r.count : <input type="number" min={1} max={200} value={r.count} style={{ width: 80 }} aria-label="Số câu"
           onChange={e => set(i, { count: Math.max(1, Math.min(200, Math.round(Number(e.target.value) || 1))) })} />}</td>
         <td>{stats === null ? '…' : r.count > a ? <small className="warnline">chỉ có {a} câu</small> : <small className="sub">{a} câu</small>}</td>

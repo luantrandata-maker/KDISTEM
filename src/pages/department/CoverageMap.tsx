@@ -155,7 +155,7 @@ export default function CoverageMap({ schools, nation = false }: { schools: Scho
   }, [geo, schools, locs, nation, prov, provOf])
 
   const shown = useMemo(() => schools.filter(s => !khoi || s.level === khoi), [schools, khoi])
-  // Phạm vi đang xem: cả nước = mọi trường; một tỉnh (chế độ cả nước) = trường nằm trong tỉnh; Sở = mọi trường của Sở
+  // Phạm vi đang xem: cả nước = tất cả trường; một tỉnh (chế độ cả nước) = trường nằm trong tỉnh; Sở = tất cả trường của Sở
   const inScope = useMemo(() => !nation ? shown : atNation ? shown
     : shown.filter(s => provOf[s.school_id] === prov!.code || (!provOf[s.school_id] && wardOf[s.school_id])), [shown, nation, atNation, prov, provOf, wardOf])
   const unitGeo = atNation ? provGeo : geo

@@ -137,7 +137,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   const comps: Comp[] = useCompetencies('student')
 
   const [counts, setCounts] = useState<{ subjects: number; lessons: number } | null>(null)
-  // Quản trị hệ thống: chương trình của mọi đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
+  // Quản trị hệ thống: chương trình của tất cả đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
   const every = useAllMode()
   const pickedSchool = !!form?.org_id && every?.find(o => o.id === form.org_id)?.type === 'school'
   async function load() {
@@ -248,15 +248,15 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
       </ol>}
       <p className="sub">
         {mode === 'school' ? 'Chương trình chuẩn của trường và chương trình do KDI, Sở, Phòng phát hành hoặc gán cho trường. Từ chương trình đang phát hành, trường tạo phân phối chương trình theo tiết.'
-          : mode === 'platform' ? 'Chương trình chuẩn của KDI: cấu trúc, yêu cầu cần đạt, phiên bản. Bản đã phát hành và chọn "dùng chung" hiện với mọi đơn vị.'
+          : mode === 'platform' ? 'Chương trình chuẩn của KDI: cấu trúc, yêu cầu cần đạt, phiên bản. Bản đã phát hành và chọn "dùng chung" hiện với tất cả đơn vị.'
           : 'Chương trình của đơn vị: soạn, phát hành, gán cho trường trực thuộc và theo dõi mức độ triển khai.'}
       </p>
       <div className="bar">
         <div className="tools">
-          <LevelPicker value={level} onChange={setLevel} emptyLabel="Mọi cấp học" />
-          <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Kiểu chương trình"><option value="">Mọi kiểu</option>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select>
-          {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
-          <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Trạng thái"><option value="">Mọi trạng thái</option>{Object.entries(SGROUP).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}</select>
+          <LevelPicker value={level} onChange={setLevel} emptyLabel="Tất cả cấp học" />
+          <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Kiểu chương trình"><option value="">Tất cả kiểu</option>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select>
+          {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
+          <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Trạng thái"><option value="">Tất cả trạng thái</option>{Object.entries(SGROUP).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}</select>
           <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện chương trình ngừng dùng</label>
         </div>
@@ -268,7 +268,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : (
         <>
-          <h3>{every ? 'Mọi đơn vị' : 'Của đơn vị'} ({own.length})</h3>
+          <h3>{every ? 'Tất cả đơn vị' : 'Của đơn vị'} ({own.length})</h3>
           {own.length ? show(own, true) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chương trình nào.{canEdit && ' Bấm "Thêm chương trình", hoặc sao chép chương trình dùng chung bên dưới.'}</p></div>}
           {!every && <>
           <h3>Dùng chung / được gán ({shared.length})</h3>
@@ -352,7 +352,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
         <form className="panel formgrid" onSubmit={createBook} style={{ marginBottom: 12 }}>
           <label className="field"><span>Khối</span><select value={mkBook.grade} onChange={e => setMkBook({ ...mkBook, grade: Number(e.target.value) })}>{progGrades(p).map(g => <option key={g} value={g}>Khối {g}</option>)}</select></label>
           <label className="field"><span>Môn</span><SubjectPicker level={p.level} value={mkBook.subject} onChange={v => setMkBook({ ...mkBook, subject: v })} extra={[...mainsOf(p), ...p.integrated_subjects]} /></label>
-          <label className="field"><span>Năm học</span><YearSelect value={mkBook.year} onChange={v => setMkBook({ ...mkBook, year: v })} emptyLabel="Mọi năm" /></label>
+          <label className="field"><span>Năm học</span><YearSelect value={mkBook.year} onChange={v => setMkBook({ ...mkBook, year: v })} emptyLabel="Tất cả năm" /></label>
           <label className="field"><span>Số tiết / tuần</span><input inputMode="decimal" value={mkBook.ppw} onChange={e => setMkBook({ ...mkBook, ppw: e.target.value })} placeholder="VD: 1 hoặc 1,5" /></label>
           <div className="formactions"><button className="primary" type="submit">Tạo PPCT nháp</button> <button type="button" onClick={() => setMkBook(null)}>Huỷ</button></div>
         </form>
@@ -370,7 +370,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
 }
 
 // ----- Thông tin -----
-// Một form cho cả thêm mới và sửa: đủ mọi thông tin chương trình, phạm vi & hiệu lực, yêu cầu năng lực giáo viên; một nút Lưu.
+// Một form cho cả thêm mới và sửa: đủ tất cả thông tin chương trình, phạm vi & hiệu lực, yêu cầu năng lực giáo viên; một nút Lưu.
 type Req = { competency: string; min_level: number }
 type InfoProps = {
   p: Partial<Program>; isNew?: boolean; editable: boolean; scopeEditable: boolean; reqEditable?: boolean; mode: ProgMode; comps: Comp[]
@@ -431,7 +431,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
   async function save(e: React.FormEvent) {
     e.preventDefault()
     if (f.effective_from && f.effective_to && f.effective_to < f.effective_from) return onError('Ngày hết hiệu lực phải sau ngày bắt đầu.')
-    if (reqs.some(r => !r.competency)) return onError('Chọn năng lực cho mọi dòng yêu cầu năng lực giáo viên.')
+    if (reqs.some(r => !r.competency)) return onError('Chọn năng lực cho tất cả dòng yêu cầu năng lực giáo viên.')
     const scopePart = { ...(showScope ? { scope: f.scope ?? 'children' } : isNew ? { scope: 'own' as const } : {}),
       effective_from: f.effective_from || null, effective_to: f.effective_to || null, builder: f.builder?.trim() || null }
     let body: Record<string, unknown> | null = null
@@ -507,7 +507,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
       {orgPick && <div style={S(oSpan)}><OrgPick kind="any" title="Đơn vị quản lý" value={f.org_id ?? orgId ?? ''} onChange={v => { setOrgTouched(true); setOrg(v) }} />
         <small className="sub">Đơn vị sở hữu, sửa và phát hành chương trình. Mặc định theo đơn vị xây dựng.</small></div>}
       {showScope && <label className="field" style={S(scSpan)}><span>Phạm vi áp dụng</span><select value={f.scope ?? 'children'} disabled={!scopeEdit} onChange={e => setF({ ...f, scope: e.target.value as Program['scope'] })}>
-        <option value="children">Mọi đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình và đơn vị được gán</option></select></label>}
+        <option value="children">Tất cả đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình và đơn vị được gán</option></select></label>}
       <label className="field" style={S(dSpan)}><span>Hiệu lực từ</span><input disabled={!scopeEdit} type="date" value={f.effective_from ?? ''} onChange={e => setF({ ...f, effective_from: e.target.value || null })} /></label>
       <label className="field" style={S(dSpan)}><span>Hiệu lực đến</span><input disabled={!scopeEdit} type="date" min={f.effective_from ?? undefined} value={f.effective_to ?? ''} onChange={e => setF({ ...f, effective_to: e.target.value || null })} /></label>
     </div>
@@ -531,7 +531,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
     </div>
     {reqEdit && tcomps.some(c => !reqs.some(r => r.competency === c.key)) && <div><button type="button" className="linkbtn"
       onClick={() => { const c = tcomps.find(c => !reqs.some(r => r.competency === c.key)); if (c) setReqs([...reqs, { competency: c.key, min_level: 2 }]) }}>+ Thêm năng lực</button>
-      {reqs.length === 0 && <> · <button type="button" className="linkbtn" onClick={() => setReqs(tcomps.map(c => ({ competency: c.key, min_level: 2 })))}>Thêm mọi năng lực (Mức 2)</button></>}</div>}
+      {reqs.length === 0 && <> · <button type="button" className="linkbtn" onClick={() => setReqs(tcomps.map(c => ({ competency: c.key, min_level: 2 })))}>Thêm tất cả năng lực (Mức 2)</button></>}</div>}
 
     {(canSave || onDelete || onCancel) && <div className="formactions">
       {canSave && <button className="primary" type="submit" disabled={busy}>{busy ? 'Đang lưu…' : isNew ? 'Tạo bản nháp' : 'Lưu'}</button>}
@@ -585,7 +585,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
     setUsubs((us.data as USubject[]) ?? []); setUmats((um.data as unknown as UMaterial[]) ?? [])
   }
   useEffect(() => { load() }, [p.id])
-  // Học liệu chọn được: học liệu của đơn vị (mọi trạng thái) và học liệu đã phát hành tới đơn vị
+  // Học liệu chọn được: học liệu của đơn vị (tất cả trạng thái) và học liệu đã phát hành tới đơn vị
   async function openMatPicker(unitId: string) {
     setMatFor({ unit: unitId, item: '', note: '' })
     if (matOpts) return
@@ -678,10 +678,10 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
     return r.f.subject && !base.some(n => lc(n) === lc(r.f.subject!)) ? [r.f.subject, ...base] : base
   }
   const draftCols: DCol<UF>[] = [
-    { label: 'Khối', width: 170, cell: (r, set) => <NumMultiSelect value={r.f.grades} onChange={g => set({ grades: g })} placeholder="Mọi khối" ariaLabel="Khối"
+    { label: 'Khối', width: 170, cell: (r, set) => <NumMultiSelect value={r.f.grades} onChange={g => set({ grades: g })} placeholder="Tất cả khối" ariaLabel="Khối"
       options={progGrades(p).map(g => ({ value: g, label: String(g) }))} /> },
     { label: 'Môn', width: 170, cell: (r, set, rows) => { const list = draftSubjects(r, rows); return <select value={r.f.subject ?? ''} onChange={e => set({ subject: e.target.value || null, libId: '' })} aria-label="Môn" style={{ maxWidth: 170 }}>
-      <option value="">{r.type === 'topic' ? `(${mainsOf(p)[0] ?? p.main_subject})` : list.length > 1 ? '— Mọi môn —' : '—'}</option>
+      <option value="">{r.type === 'topic' ? `(${mainsOf(p)[0] ?? p.main_subject})` : list.length > 1 ? '— Tất cả môn —' : '—'}</option>
       {list.some(isMainSubj) && list.some(n => !isMainSubj(n)) ? <>
         <optgroup label="Môn chủ đạo">{list.filter(isMainSubj).map(n => <option key={n} value={n}>{n}</option>)}</optgroup>
         <optgroup label="Môn tích hợp">{list.filter(n => !isMainSubj(n)).map(n => <option key={n} value={n}>{n}</option>)}</optgroup></>
@@ -1059,8 +1059,8 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
         <form className="panel formgrid" onSubmit={add} style={{ marginBottom: 12 }}>
           <label className="field"><span>Đơn vị trực thuộc</span><select value={form.org} onChange={e => setForm({ ...form, org: e.target.value })}>
             <option value="">— chọn —</option>{below.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
-          <div className="field"><span>Khối (không chọn = mọi khối)</span>
-            <NumMultiSelect value={form.grades} onChange={g => setForm({ ...form, grades: g })} options={progGrades(p).map(g => ({ value: g, label: gradeName(g) }))} placeholder="Mọi khối" ariaLabel="Khối" /></div>
+          <div className="field"><span>Khối (không chọn = tất cả khối)</span>
+            <NumMultiSelect value={form.grades} onChange={g => setForm({ ...form, grades: g })} options={progGrades(p).map(g => ({ value: g, label: gradeName(g) }))} placeholder="Tất cả khối" ariaLabel="Khối" /></div>
           <label className="field"><span>Ghi chú</span><input value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} /></label>
           <div className="formactions"><button className="primary" type="submit">Gán</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
@@ -1073,7 +1073,7 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
           <thead><tr><SelTh /><th>Đơn vị</th><th>Khối</th><th>Ghi chú</th><th>Ngày gán</th></tr></thead>
           <tbody>{asg.map(a => (
             <tr key={a.id} className={asel.is(a) ? 'picked' : undefined}><SelTd on={asel.is(a)} onToggle={() => asel.toggle(a)} label={orgName(a.org_id)} />
-              <td><b>{orgName(a.org_id)}</b></td><td>{a.grades?.length ? a.grades.join(', ') : 'Mọi khối'}</td><td><small>{a.note}</small></td><td>{fmtD(a.created_at)}</td></tr>
+              <td><b>{orgName(a.org_id)}</b></td><td>{a.grades?.length ? a.grades.join(', ') : 'Tất cả khối'}</td><td><small>{a.note}</small></td><td>{fmtD(a.created_at)}</td></tr>
           ))}</tbody>
         </table></div>
       </>)}
@@ -1081,7 +1081,7 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
         <h3 style={{ margin: 0 }}>Mức độ triển khai</h3>
         {rows.length > 0 && !hid('export') && <button onClick={exportCov}>Xuất Excel</button>}
       </div>
-      <p className="sub">Tính trên mọi phiên bản của chương trình: trường được gán, trường có PPCT tạo từ chương trình, tiết đã dạy và yêu cầu cần đạt đã đạt.</p>
+      <p className="sub">Tính trên tất cả phiên bản của chương trình: trường được gán, trường có PPCT tạo từ chương trình, tiết đã dạy và yêu cầu cần đạt đã đạt.</p>
       {!cov ? <p className="sub">Đang tải…</p> : rows.length === 0 ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có trường nào được gán hoặc dùng chương trình này.</p></div> : (
         <>
           <Tiles items={[

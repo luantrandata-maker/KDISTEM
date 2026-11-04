@@ -265,7 +265,7 @@ function AISettings() {
           onChange={e => setS({ ...s, portals: e.target.checked ? [...s.portals, k] : s.portals.filter(x => x !== k) })} /> {l}</label>)}</div>
           <small className="sub">Học sinh, phụ huynh và giám khảo không dùng trợ lý.</small></div>
         {s.help_all_roles !== undefined && <label className="field inline wide"><input type="checkbox" checked={s.help_all_roles} onChange={e => setS({ ...s, help_all_roles: e.target.checked })} />
-          Nút <b>Trợ giúp</b> (góc phải) trả lời bằng AI cho mọi người dùng, kể cả học sinh, phụ huynh — chỉ hỏi cách dùng hệ thống, tính chung hạn mức</label>}
+          Nút <b>Trợ giúp</b> (góc phải) trả lời bằng AI cho tất cả người dùng, kể cả học sinh, phụ huynh — chỉ hỏi cách dùng hệ thống, tính chung hạn mức</label>}
         <div className="field wide"><span>Đơn giá để ước tính chi phí (USD / 1 triệu token: vào · ra) — xem bảng giá của nhà cung cấp; gói miễn phí để 0</span>
           <div className="tools">{models.map(m => <label key={m} className="field inline"><code>{m}</code>
             <input type="number" min={0} step="0.01" style={{ width: 80 }} value={s.prices[m]?.[0] ?? ''} onChange={e => setS({ ...s, prices: { ...s.prices, [m]: [Number(e.target.value), s.prices[m]?.[1] ?? 0] } })} aria-label={'Giá vào ' + m} />

@@ -77,7 +77,7 @@ function AlertCounts({ alerts }: { alerts: Alert[] }) {
 type View = 'school' | 'unit' | 'province' | 'plan'
 const VIEWS: [View, string][] = [['school', 'Trường'], ['unit', 'Phòng / đơn vị quản lý'], ['province', 'Tỉnh'], ['plan', 'Kế hoạch']]
 type St = '' | 'todo' | 'submitted' | 'approved'
-const ST_OPTS: [St, string][] = [['', 'Mọi trạng thái danh sách'], ['todo', 'Cần chọn GV / bị trả lại'], ['submitted', 'Chờ duyệt danh sách'], ['approved', 'Đã duyệt danh sách']]
+const ST_OPTS: [St, string][] = [['', 'Tất cả trạng thái danh sách'], ['todo', 'Cần chọn GV / bị trả lại'], ['submitted', 'Chờ duyệt danh sách'], ['approved', 'Đã duyệt danh sách']]
 function ancestors(orgs: ScopeOrg[] | null) {
   const byId = new Map((orgs ?? []).map(o => [o.id, o]))
   return (id: string) => {
@@ -132,7 +132,7 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
   const unitOpts = uniq(all.filter(r => !prov || anc(r.org_id).prov?.id === prov).map(r => anc(r.org_id).unit).filter((o): o is ScopeOrg => !!o).map(o => [o.id, o.name] as [string, string]))
   const running = (r: Row) => (!r.starts_on || r.starts_on <= today()) && (!r.ends_on || r.ends_on >= today())
   const stOk = (r: Row) => !st || (st === 'todo' ? r.org_status === 'assigned' || r.org_status === 'returned' : r.org_status === st)
-  // Phạm vi: mọi bộ lọc trừ nhóm nhanh (cảnh báo / đang diễn ra / đã kết thúc)
+  // Phạm vi: tất cả bộ lọc trừ nhóm nhanh (cảnh báo / đang diễn ra / đã kết thúc)
   const scope = all.filter(r => (!year || r.year_name === year) && (!prov || anc(r.org_id).prov?.id === prov) && (!unit || anc(r.org_id).unit?.id === unit) && stOk(r)
     && (!q || `${r.plan_code ?? ''} ${r.plan_name} ${r.org_name}`.toLowerCase().includes(q.toLowerCase())))
   const alerts = scope.flatMap(alertsOf)
@@ -209,9 +209,9 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
       <div className="distfilter">
-        <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học"><option value="">Mọi năm học</option>{yearOpts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
-        {provOpts.length > 1 && <select value={prov} onChange={e => { setProv(e.target.value); setUnit('') }} aria-label="Tỉnh"><option value="">Mọi tỉnh</option>{provOpts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>}
-        {unitOpts.length > 1 && <select value={unit} onChange={e => setUnit(e.target.value)} aria-label="Phòng / đơn vị quản lý"><option value="">Mọi phòng / đơn vị</option>{unitOpts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>}
+        <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học"><option value="">Tất cả năm học</option>{yearOpts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+        {provOpts.length > 1 && <select value={prov} onChange={e => { setProv(e.target.value); setUnit('') }} aria-label="Tỉnh"><option value="">Tất cả tỉnh</option>{provOpts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>}
+        {unitOpts.length > 1 && <select value={unit} onChange={e => setUnit(e.target.value)} aria-label="Phòng / đơn vị quản lý"><option value="">Tất cả phòng / đơn vị</option>{unitOpts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>}
         <select value={st} onChange={e => setSt(e.target.value as St)} aria-label="Trạng thái danh sách">{ST_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
         <input placeholder="Tìm kế hoạch, trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm kế hoạch, trường" />
         {filtered && <button type="button" className="fclear" onClick={() => { setYear(''); setProv(''); setUnit(''); setSt(''); setQ(''); setF('all') }}>Bỏ lọc</button>}

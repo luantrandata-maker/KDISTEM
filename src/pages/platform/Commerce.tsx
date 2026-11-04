@@ -282,7 +282,7 @@ export function PlatformContracts() {
           <label className="field spanall"><span>Mô tả</span><input name="description" defaultValue={p0?.description ?? ''} /></label>
           <fieldset className="spanall modpick"><legend>Phân hệ trong gói</legend>
             {d.mods.map(m => <label key={m.key} className="field inline"><input type="checkbox" name="modules" value={m.key} defaultChecked={p0?.modules.includes(m.key)} /> <span><b>{m.name}</b><br /><small>{m.description}</small></span></label>)}
-            <p className="sub spanall">Phần lõi (tài khoản, vai trò, giáo viên, lớp, học sinh, phân công, năm học, toà nhà) luôn có trong mọi gói.</p>
+            <p className="sub spanall">Phần lõi (tài khoản, vai trò, giáo viên, lớp, học sinh, phân công, năm học, toà nhà) luôn có trong tất cả gói.</p>
           </fieldset>
           <div className="formactions"><button className="primary" type="submit">Lưu gói</button> <button type="button" onClick={() => setEditP(null)}>Huỷ</button></div>
         </form>

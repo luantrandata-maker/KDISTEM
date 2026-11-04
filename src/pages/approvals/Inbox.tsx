@@ -68,7 +68,7 @@ export function ApprovalInbox({ orgId }: { orgId: string | null }) {
         <Tabs items={[['mine', 'Chờ tôi duyệt', lists.mine.length], ['sent', 'Tôi đã gửi', lists.sent.length],
           ['open', 'Đang xử lý', lists.open.length], ['done', 'Đã xong']]} value={tab} onChange={t => { setTab(t); setOpen(null) }} />
         <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại hồ sơ">
-          <option value="">Mọi loại hồ sơ</option>{KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          <option value="">Tất cả loại hồ sơ</option>{KINDS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
         </select>
       </div>
       {msg && <p className="msg">{msg}</p>}

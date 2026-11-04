@@ -44,7 +44,7 @@ export function PlatformBroadcast() {
   const summary = (t: B['target']) => [
     t.org_ids?.length ? t.org_ids.map(id => byId.get(id)?.name ?? '?').join(', ') : 'Toàn hệ thống',
     t.org_types?.length ? t.org_types.map(x => TYPE_FULL[x] ?? x).join(', ') : null,
-    t.role_keys?.length ? t.role_keys.map(roleName).join(', ') : 'mọi vai trò',
+    t.role_keys?.length ? t.role_keys.map(roleName).join(', ') : 'tất cả vai trò',
   ].filter(Boolean).join(' · ')
 
   async function send(e: React.FormEvent) {
@@ -74,10 +74,10 @@ export function PlatformBroadcast() {
             {orgOpts.filter(o => !orgIds.includes(o.id)).map(o => <label key={o.id} className="field inline"><input type="checkbox" checked={false} onChange={() => tog(orgIds, o.id, setOrgIds)} /> {label(o.id)}</label>)}
           </fieldset>
           <div>
-            <fieldset className="modpick"><legend>Loại đơn vị — bỏ trống = mọi loại</legend>
+            <fieldset className="modpick"><legend>Loại đơn vị — bỏ trống = tất cả loại</legend>
               {TYPES.map(t => <label key={t} className="field inline"><input type="checkbox" checked={types.includes(t)} onChange={() => tog(types, t, setTypes)} /> {TYPE_FULL[t]}</label>)}
             </fieldset>
-            <fieldset className="modpick"><legend>Vai trò — bỏ trống = mọi vai trò</legend>
+            <fieldset className="modpick"><legend>Vai trò — bỏ trống = tất cả vai trò</legend>
               {roles.map(r => <label key={r.key} className="field inline"><input type="checkbox" checked={roleKeys.includes(r.key)} onChange={() => tog(roleKeys, r.key, setRoleKeys)} /> {r.name}</label>)}
             </fieldset>
           </div>

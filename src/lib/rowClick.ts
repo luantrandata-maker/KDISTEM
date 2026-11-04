@@ -1,5 +1,5 @@
 // Bấm vào bất kỳ chỗ nào trên một dòng bảng = bấm vào tên (nút / liên kết .namelink) của dòng đó.
-// Áp cho mọi bảng: dòng có nút data-rowopen hoặc tên .namelink và chưa tự xử lý bấm dòng (tr.clickrow).
+// Áp cho tất cả bảng: dòng có nút data-rowopen hoặc tên .namelink và chưa tự xử lý bấm dòng (tr.clickrow).
 // Bỏ qua khi bấm vào ô chọn, nút, liên kết, ô nhập… hoặc khi đang bôi đen chữ để sao chép.
 const INTERACTIVE = 'a, button, input, select, textarea, label, summary, [role="button"], [role="checkbox"], [contenteditable="true"], td.sel, .norow'
 

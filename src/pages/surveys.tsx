@@ -12,7 +12,7 @@ type Res = { responses: number; by_org: { org: string | null; n: number }[]; que
   rows: { who: string; org: string | null; at: string; answers: Record<string, unknown> }[] | null }
 
 const QTYPE: Record<QType, string> = { single: 'Một lựa chọn', multi: 'Nhiều lựa chọn', scale: 'Thang 1–5', text: 'Trả lời ngắn' }
-const AUD = { teacher: 'Giáo viên', student: 'Học sinh', parent: 'Phụ huynh', staff: 'Mọi cán bộ, giáo viên' } as const
+const AUD = { teacher: 'Giáo viên', student: 'Học sinh', parent: 'Phụ huynh', staff: 'Tất cả cán bộ, giáo viên' } as const
 const STATUS = { draft: 'Nháp', open: 'Đang mở', closed: 'Đã đóng' } as const
 const day = (d: string | null) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—')
 const toLocal = (iso: string | null) => { if (!iso) return ''; const d = new Date(iso); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16) }
@@ -178,7 +178,7 @@ export function SurveyManager() {
     if (error) return setMsg([error.message, true]); load()
   }
   async function remove(s: Survey) {
-    if (!confirm(`Xoá khảo sát "${s.title}" và mọi câu trả lời?`)) return
+    if (!confirm(`Xoá khảo sát "${s.title}" và tất cả câu trả lời?`)) return
     const { error } = await supabase.from('surveys').delete().eq('id', s.id)
     if (error) return setMsg([error.message, true]); load()
   }

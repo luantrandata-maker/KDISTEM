@@ -81,7 +81,7 @@ export default function Guardians({ orgId, go }: { orgId: string | null; go?: (p
       <div className="bar" style={{ marginTop: 12 }}>
         <span className="tools">
           <select value={cls} onChange={e => setCls(e.target.value)} aria-label="Lớp"><option value="">Tất cả lớp</option>{classes.map(c => <option key={c}>{c}</option>)}</select>
-          <select value={only} onChange={e => setOnly(e.target.value as typeof only)} aria-label="Lọc"><option value="">Mọi học sinh</option><option value="none">Chưa có phụ huynh</option><option value="noacc">Phụ huynh chưa có tài khoản</option></select>
+          <select value={only} onChange={e => setOnly(e.target.value as typeof only)} aria-label="Lọc"><option value="">Tất cả học sinh</option><option value="none">Chưa có phụ huynh</option><option value="noacc">Phụ huynh chưa có tài khoản</option></select>
           <input className="search" style={{ margin: 0 }} placeholder="Tìm HS, phụ huynh, SĐT…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
         </span>
         <span className="tools">

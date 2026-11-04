@@ -361,7 +361,7 @@ function NeedsByProgram({ orgId }: { orgId: string | null }) {
 
 // Theo trường: chương trình gán cho trường (edu_program_assignments, khối áp dụng) × lớp của năm học hiện tại × sĩ số, số nhóm thật.
 // Lớp chưa chia nhóm: số nhóm = sĩ số ÷ số học sinh mỗi nhóm (mặc định 4).
-// Đồ dùng lại (công cụ, thiết bị): đủ cho số lớp học cùng lúc (mặc định = số phòng STEM đang dùng), lấy các lớp đông nhất; vật tư tiêu hao cộng cho mọi lớp, mọi buổi.
+// Đồ dùng lại (công cụ, thiết bị): đủ cho số lớp học cùng lúc (mặc định = số phòng STEM đang dùng), lấy các lớp đông nhất; vật tư tiêu hao cộng cho tất cả lớp, tất cả buổi.
 type SProg = Prog & { aGrades: number[] }
 type SClass = { id: string; name: string; grade: number; students: number; groups: number }
 function NeedsBySchool({ orgId }: { orgId: string | null }) {
@@ -465,7 +465,7 @@ function NeedsBySchool({ orgId }: { orgId: string | null }) {
             <td>{fmtGrades(r.grades) || <small className="sub">Chưa có lớp ở {fmtGrades(r.p.aGrades) || 'khối áp dụng'}</small>}</td>
             <td>{r.cls.length}</td><td>{r.students}</td><td>{r.groups}</td></tr>)}</tbody>
         </table></div>
-        <p className="sub">Vật tư tiêu hao: định mức × số nhóm của mọi lớp áp dụng × số buổi. Công cụ, thiết bị dùng lại: đủ cho {k} lớp học cùng lúc (mặc định bằng số phòng STEM đang dùng{data.rooms ? `: ${data.rooms}` : ''}; cộng thêm nếu có lớp học tại lớp), tính theo các lớp đông nhất, lấy mức cần nhiều nhất giữa các bài.</p>
+        <p className="sub">Vật tư tiêu hao: định mức × số nhóm của tất cả lớp áp dụng × số buổi. Công cụ, thiết bị dùng lại: đủ cho {k} lớp học cùng lúc (mặc định bằng số phòng STEM đang dùng{data.rooms ? `: ${data.rooms}` : ''}; cộng thêm nếu có lớp học tại lớp), tính theo các lớp đông nhất, lấy mức cần nhiều nhất giữa các bài.</p>
         {needs.length === 0 ? <p className="sub">{tot.cls ? 'Các bài của những chương trình này chưa có định mức vật tư. Nhập ở thẻ 04 của bộ học liệu.' : 'Trường chưa có lớp ở các khối áp dụng.'}</p> : <NeedsTable key={sid} needs={needs} />}
       </>}
     </>

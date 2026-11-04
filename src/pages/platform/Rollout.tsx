@@ -102,7 +102,7 @@ export function PlatformRollout() {
         <Tabs items={[['progress', 'Đang triển khai', inDept.filter(s => state(s) === 'progress').length], ['new', 'Mới bắt đầu', inDept.filter(s => state(s) === 'new').length],
           ['idle', 'Không hoạt động', inDept.filter(idle).length], ['done', 'Hoàn tất', inDept.filter(s => state(s) === 'done').length], ['all', 'Tất cả', inDept.length]]} value={f} onChange={setF} />
         <div className="plactions">
-          <select value={dept} onChange={e => setDept(e.target.value)} aria-label="Lọc theo Sở"><option value="">Mọi Sở</option>{depts.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
+          <select value={dept} onChange={e => setDept(e.target.value)} aria-label="Lọc theo Sở"><option value="">Tất cả Sở</option>{depts.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
           <input className="search" type="search" placeholder="Tìm trường…" aria-label="Tìm trường" value={q} onChange={e => setQ(e.target.value)} />
           <button type="button" onClick={() => { reload(); loadChecks() }}>Làm mới</button>
         </div>

@@ -671,23 +671,23 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
         : list.map(n => <option key={n} value={n}>{n}</option>)}</select> } },
     { label: 'Số tiết', width: 90, cell: (r, set) => <input type="number" min={0} max={999} value={r.f.periods} onChange={e => set({ periods: Math.max(0, Number(e.target.value) || 0) })} aria-label="Số tiết" style={{ width: 76 }} /> },
   ]
-  // Bài mới: chọn từ danh sách bài học (điền sẵn tên, mục tiêu, số tiết; gắn học liệu của bài khi lưu)
-  const libPicker = (r: DRow<UF>, patch: (x: Partial<DRow<UF>>) => void, rows: DRow<UF>[]) => {
-    if (r.type !== 'lesson' || r.id) return null
+  // Bài mới: gõ tên hoặc chọn bài có sẵn trong cùng một ô (chọn đúng tên thì điền sẵn mục tiêu, số tiết; gắn học liệu của bài khi lưu)
+  const libList = (r: DRow<UF>, rows: DRow<UF>[]) => {
+    if (r.type !== 'lesson' || r.id) return []
     const names = (r.f.subject ? [r.f.subject] : draftSubjects(r, rows)).map(lc)
     const used = new Set(rows.filter(x => x.parent === r.parent && x.key !== r.key).map(x => lc(x.title)))
-    const list = (libUnits ?? []).filter(i => i.subject && names.includes(lc(i.subject)) && !used.has(lc(i.title))
+    return (libUnits ?? []).filter(i => i.subject && names.includes(lc(i.subject)) && !used.has(lc(i.title))
       && (!r.f.grades.length || !i.grades || !gradeList(i.grades).length || gradeList(i.grades).some(g => r.f.grades.includes(g))))
-    return <select value={r.f.libId} aria-label="Chọn từ danh sách bài học" style={{ width: '100%', marginBottom: 6 }} onChange={e => {
-      const i = libUnits?.find(x => x.id === e.target.value)
-      if (!i) return patch({ f: { ...r.f, libId: '' } })
-      const g = gradeList(i.grades ?? '').filter(x => progGrades(p).includes(x))
-      patch({ title: i.title, goal: i.content?.objectives ?? r.goal, f: { ...r.f, libId: i.id, periods: Number(i.content?.periods) || r.f.periods || 1,
-        subject: i.subject ?? r.f.subject, grades: r.f.grades.length ? r.f.grades : g } })
-    }}>
-      <option value="">{!libUnits ? 'Đang tải danh sách bài học…' : list.length ? `— Chọn từ danh sách bài học (${list.length}) hoặc nhập tên bên dưới —` : 'Danh sách bài học chưa có bài nào của môn này — nhập tên bên dưới'}</option>
-      {list.map(i => <option key={i.id} value={i.id}>{i.title}{i.grades ? ` · khối ${i.grades}` : ''}{i.subject ? ` · ${i.subject}` : ''}{i.status !== 'published' ? ' (nháp)' : ''}</option>)}
-    </select>
+  }
+  const libTitles = (r: DRow<UF>, rows: DRow<UF>[]) => { const l = libList(r, rows); return l.length ? [...new Set(l.map(i => i.title))] : null }
+  const libPick = (r: DRow<UF>, title: string, rows: DRow<UF>[]): Partial<DRow<UF>> | null => {
+    if (r.type !== 'lesson' || r.id) return null
+    const i = libList(r, rows).find(x => lc(x.title) === lc(title))
+    if (!i) return r.f.libId ? { f: { ...r.f, libId: '' } } : null
+    if (i.id === r.f.libId) return null
+    const g = gradeList(i.grades ?? '').filter(x => progGrades(p).includes(x))
+    return { goal: i.content?.objectives ?? r.goal, f: { ...r.f, libId: i.id, periods: Number(i.content?.periods) || r.f.periods || 1,
+      subject: i.subject ?? r.f.subject, grades: r.f.grades.length ? r.f.grades : g } }
   }
   async function saveDraft(rows: DRow<UF>[]) {
     const errs = await saveDraftTree(toDraft(), rows, {
@@ -784,7 +784,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
           {editable && !draft && <button className="primary" onClick={() => startDraft(true)}>Thêm học phần</button>}
         </div>
       </div>
-      {draft ? <StructureDraft<UF> levels={DLEVELS} root="topic" initial={draft} cols={draftCols} titleExtra={libPicker}
+      {draft ? <StructureDraft<UF> levels={DLEVELS} root="topic" initial={draft} cols={draftCols} titleOptions={libTitles} titlePick={libPick}
         comps={comps.map(c => [c.key, c.name])} newFields={(t, par, rows) => ({ grades: par ? par.f.grades : progGrades(p), subject: t === 'topic' || !par ? null : (() => { const l = draftSubjects({ ...par, key: '_', parent: par.key, type: t, f: { ...par.f, subject: null } }, rows); return l.length === 1 ? l[0] : null })(), periods: t === 'topic' ? 0 : 1, libId: '' })}
         onSave={saveDraft} onCancel={() => setDraft(null)} />
       : all.length === 0 ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có học phần nào.{editable && ' Bấm "Thêm học phần" hoặc "Nhập Excel".'}</p></div> : (

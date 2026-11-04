@@ -20,6 +20,7 @@ import { TrainerPick } from './Trainers'
 import { PlanResults } from './ResultsWork'
 import { PlanCal } from './PlanCal'
 import { FlowGuide } from '../../components/FlowGuide'
+import { StatCards } from '../../components/StatCards'
 
 type Mode = 'online' | 'offline' | 'hybrid'
 type Term = 'summer' | 'hk1' | 'hk2' | 'other'
@@ -117,14 +118,18 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   }, [rk, orgId])
 
   const wait = (id: string) => orgs.filter(o => o.plan_id === id && o.status === 'submitted').length
-  const shown = useMemo(() => (list ?? []).filter(p => (!fs || (fs === 'wait' ? wait(p.id) > 0 : p.pub_status === fs)) && (!yr || p.year_name === yr) && ofl.fit([p.org_id, ...orgs.filter(o => o.plan_id === p.id).map(o => o.org_id)])
+  // base: theo năm học, đơn vị, chương trình, ô tìm (không theo trạng thái); thẻ tổng số tính trên base
+  const base = useMemo(() => (list ?? []).filter(p => (!yr || p.year_name === yr) && ofl.fit([p.org_id, ...orgs.filter(o => o.plan_id === p.id).map(o => o.org_id)])
     && (!fp || items.some(i => i.plan_id === p.id && i.program_id === fp))
-    && (!q || `${p.plan_code ?? ''} ${p.name} ${p.provider ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, orgs, items, fs, yr, q, ofl, fp])
+    && (!q || `${p.plan_code ?? ''} ${p.name} ${p.provider ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, orgs, items, yr, q, ofl, fp])
+  const shown = useMemo(() => base.filter(p => !fs || (fs === 'wait' ? wait(p.id) > 0 : p.pub_status === fs)), [base, fs, orgs])
 
   if (open) return <PlanDetail key={open} id={open} can={can} onBack={() => { setOpen(null); reload() }} onMsg={m => { setMsg(m); reload() }} />
 
-  const n = (s: Status) => (list ?? []).filter(p => p.pub_status === s).length
-  const waiting = orgs.filter(o => o.status === 'submitted').length
+  const n = (s: Status) => base.filter(p => p.pub_status === s).length
+  const baseIds = new Set(base.map(p => p.id))
+  const baseOrgs = orgs.filter(o => baseIds.has(o.plan_id))
+  const waiting = baseOrgs.filter(o => o.status === 'submitted').length
   const years = [...new Set((list ?? []).map(p => p.year_name).filter(Boolean) as string[])].sort().reverse()
   const crumb = (p: TPlan) => cls.path(p.node_id).map(x => x.name).join(' › ') || 'Chưa phân loại'
   const table = (rows: TPlan[], empty: string) => <div className="wrap"><table className="libtable">
@@ -153,11 +158,11 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
           <i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
         <p className="sub" style={{ margin: 0 }}>Kế hoạch đào tạo gom các chương trình đào tạo vào một đợt, xếp lịch học cụ thể rồi giao cho trường.</p>
       </FlowGuide>
-      <div className="diststatcards">
-        <div className="panel"><i aria-hidden="true">≋</i><span><b>{list?.length ?? '…'}</b><small>Kế hoạch đào tạo</small><small>{n('published')} đã phát hành · {n('draft')} nháp</small></span></div>
-        <div className="panel"><i aria-hidden="true" className="good">⌂</i><span><b>{new Set(orgs.map(o => o.org_id)).size}</b><small>Trường được gán</small><small>{orgs.filter(o => o.status === 'approved').length} danh sách đã duyệt</small></span></div>
-        <div className="panel"><i aria-hidden="true" className={waiting ? 'warn' : 'good'}>!</i><span><b>{waiting}</b><small>Danh sách chờ duyệt</small></span></div>
-      </div>
+      <StatCards active={fs === 'wait' ? 'wait' : null} onPick={k => setFs((k ?? '') as typeof fs)} items={[
+        { icon: 'layers', value: list ? base.length : '…', label: 'Kế hoạch đào tạo', sub: `${n('published')} đã phát hành · ${n('draft')} nháp` },
+        { icon: 'school', tone: 'good', value: new Set(baseOrgs.map(o => o.org_id)).size, label: 'Trường được gán', sub: `${baseOrgs.filter(o => o.status === 'approved').length} danh sách đã duyệt` },
+        { k: 'wait', icon: 'hourglass', tone: waiting ? 'warn' : 'good', value: waiting, label: 'Danh sách chờ duyệt' },
+      ]} />
       <div className="distpills" role="tablist">
         {([['list', 'Danh sách kế hoạch'], ['tree', 'Khung phân loại']] as ['tree' | 'list', string][]).map(([t, l]) =>
           <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setMsg(null) }}>{l}</button>)}
@@ -174,7 +179,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
           </ClsTree>
         : <>
           <div className="distfilter">
-            {([['', 'Tất cả', list.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['wait', 'Có danh sách chờ duyệt', list.filter(p => wait(p.id)).length], ['archived', 'Ngừng dùng', n('archived')]] as [Status | 'wait' | '', string, number][]).map(([s, l, c]) =>
+            {([['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['wait', 'Có danh sách chờ duyệt', base.filter(p => wait(p.id)).length], ['archived', 'Ngừng dùng', n('archived')]] as [Status | 'wait' | '', string, number][]).map(([s, l, c]) =>
               <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
           </div>
           <div className="bar">
@@ -949,15 +954,15 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
   const cur = open ? rows?.find(r => key(r) === open) : undefined
   if (cur) return <SchoolPlanTeachers row={cur} orgId={cur.org_id} items={items.filter(i => i.plan_id === cur.plan_id)} onBack={() => { setOpen(null); setRk(k => k + 1) }}
     onMsg={m => { setMsg(m); setOpen(null); setRk(k => k + 1) }} />
-  const n = (s: OrgSt) => (rows ?? []).filter(r => r.status === s).length
+  const n = (s: OrgSt) => (rows ?? []).filter(r => r.status === s && fitBase(r)).length
   const uniq = (xs: [string, string][]) => [...new Map(xs).entries()].sort((a, b) => a[1].localeCompare(b[1], 'vi'))
   const yearOpts = uniq((rows ?? []).map(r => r.training_plans!.year_name).filter(Boolean).map(y => [y!, y!] as [string, string])).reverse()
   const provOpts = uniq((rows ?? []).map(r => provOf(r.org_id)).filter(Boolean).map(o => [o!.id, o!.name] as [string, string]))
   const orgOpts = uniq((rows ?? []).filter(r => !fProv.length || fProv.includes(provOf(r.org_id)?.id ?? '')).map(r => [r.org_id, orgName(r.org_id)] as [string, string]))
   const progOpts = uniq(items.map(i => [i.program_id, i.training_programs?.title ?? '—'] as [string, string]))
-  const fit = (r: Assigned) => (!fs || (fs === 'todo' ? r.status === 'assigned' || r.status === 'returned' : r.status === 'submitted' || r.status === 'approved'))
-    && (!fYear.length || fYear.includes(r.training_plans!.year_name ?? '')) && (!fProv.length || fProv.includes(provOf(r.org_id)?.id ?? ''))
+  const fitBase = (r: Assigned) => (!fYear.length || fYear.includes(r.training_plans!.year_name ?? '')) && (!fProv.length || fProv.includes(provOf(r.org_id)?.id ?? ''))
     && (!fOrg.length || fOrg.includes(r.org_id)) && (!fProg.length || items.some(i => i.plan_id === r.plan_id && fProg.includes(i.program_id)))
+  const fit = (r: Assigned) => fitBase(r) && (!fs || (fs === 'todo' ? r.status === 'assigned' || r.status === 'returned' : r.status === 'submitted' || r.status === 'approved'))
   const nShown = (rows ?? []).filter(fit).length
   const ms = { width: 168, flex: '0 0 168px' }
   return <>
@@ -967,11 +972,11 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
         ['Gửi duyệt', 'Gửi danh sách lên. Bị trả lại thì sửa theo lý do rồi gửi lại.']] as [string, string][]).map(([h, d], k) =>
         <li key={h}><button type="button" onClick={() => setFs(k === 0 ? '' : k === 1 ? 'todo' : 'sent')}><i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
     </FlowGuide>
-    <div className="diststatcards">
-      <div className="panel"><i aria-hidden="true">≋</i><span><b>{rows?.length ?? '…'}</b><small>Kế hoạch được giao</small></span></div>
-      <div className="panel"><i aria-hidden="true" className={n('assigned') + n('returned') ? 'warn' : 'good'}>!</i><span><b>{n('assigned') + n('returned')}</b><small>Cần chọn giáo viên</small><small>{n('returned')} bị trả lại</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{n('approved')}</b><small>Đã duyệt</small><small>{n('submitted')} chờ duyệt</small></span></div>
-    </div>
+    <StatCards active={fs || null} onPick={k => setFs((k ?? '') as typeof fs)} items={[
+      { icon: 'layers', value: rows ? (rows ?? []).filter(fitBase).length : '…', label: 'Kế hoạch được giao' },
+      { k: 'todo', icon: 'edit', tone: n('assigned') + n('returned') ? 'warn' : 'good', value: n('assigned') + n('returned'), label: 'Cần chọn giáo viên', sub: `${n('returned')} bị trả lại` },
+      { k: 'sent', icon: 'checkCircle', tone: 'good', value: n('approved'), label: 'Đã duyệt', sub: `${n('submitted')} chờ duyệt` },
+    ]} />
     <div className="bar"><div className="tools">
       <MultiSelect value={fYear} onChange={setFYear} options={yearOpts} placeholder="Mọi năm học" ariaLabel="Năm học" style={ms} compact />
       {all && <MultiSelect value={fProv} onChange={v => { setFProv(v); setFOrg([]) }} options={provOpts} placeholder="Mọi tỉnh" ariaLabel="Tỉnh" style={ms} compact />}

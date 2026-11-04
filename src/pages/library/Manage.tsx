@@ -6,6 +6,7 @@ import { MultiSelect } from '../../components/MultiSelect'
 import { useStemTracks } from '../../lib/stemTracks'
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { Icon } from '../../components/Icon'
+import { StatCards } from '../../components/StatCards'
 import { lazy, Suspense } from 'react'
 import { norm as normText } from '../../lib/sheet'
 import { BankList } from './BankList'
@@ -135,6 +136,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   // Lọc chọn nhiều (27/10): tỉnh, đơn vị (màn mọi đơn vị), chương trình, môn, khối, loại, trạng thái
   const mf = useMultiFilters(), provOf = useProvinceOf(), orgName = useOrgName()
   const [q, setQ] = useState('')
+  const [card, setCard] = useState<string | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [view, setView] = useViewMode('hoc-lieu', 'list')
   const [msg, setMsg] = useState(''); const [info, setInfo] = useState('')
@@ -486,8 +488,14 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
     { key: 'type', label: 'Loại học liệu', placeholder: 'Mọi loại', options: MAT_OPTS as [string, string][], hidden: tab !== 'material' },
     { key: 'status', label: 'Trạng thái', placeholder: 'Mọi trạng thái', options: [['published', 'Đã phát hành'], ['draft', 'Nháp'], ['archived', 'Đã thu hồi']] },
   ]
-  const shown = ofTab.filter(i => fitI(i)
+  const base = ofTab.filter(i => fitI(i)
     && (!q || normText([i.title, i.summary, i.subject, ...i.tags].join(' ')).includes(normText(q))))
+  // Thẻ tổng số (Bài giảng KDI): tính theo bộ lọc và ô tìm; bấm thẻ để lọc danh sách
+  const kids = (id: string): string[] => orgs.filter(o => o.parent_id === id).flatMap(o => [o.id, ...kids(o.id)])
+  const reachOf = (i: Item): string[] => i.status !== 'published' ? [] : i.scope === 'public' ? orgs.filter(o => o.id !== i.owner_org_id).map(o => o.id)
+    : i.scope === 'selected' ? targets.get(i.id) ?? [] : kids(i.owner_org_id)
+  const cardFit = (i: Item) => !card || (card === 'reach' ? reachOf(i).length > 0 : card === 'used' ? (stats.get(i.id)?.schools ?? 0) > 0 : !i.program_id)
+  const shown = base.filter(cardFit)
   // Giáo án không còn tab riêng (giáo án đi theo bài học); "Học liệu" đổi thành "Tài liệu"
   const kindTabs: T[] = ['unit', 'lesson', 'material', 'norm', 'bank']
   const tabLabel = (t: T) => t === 'bank' ? 'Kho hoạt động' : t === 'norm' ? 'Định mức vật tư' : t === 'plan' ? 'Giáo án' : t === 'material' ? 'Tài liệu' : KIND[t][0]
@@ -519,6 +527,18 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
       </div>}
       {tab === 'bank' ? <BankList items={items} onOpen={id => setFlow({ id })} note="Hoạt động gom từ thẻ 05 “Kho hoạt động” của các bài học. Bấm một dòng để mở bài học." />
       : tab === 'norm' ? <Suspense fallback={<p className="sub">Đang tải…</p>}><MaterialNorms orgId={orgId} /></Suspense> : <>
+      {!start && only === 'lesson' && (() => {
+        const pub = base.filter(i => i.status === 'published').length
+        const reach = new Set(base.flatMap(reachOf)).size
+        const usedN = base.filter(i => (stats.get(i.id)?.schools ?? 0) > 0)
+        const noProg = base.filter(i => !i.program_id).length
+        return <StatCards active={card} onPick={setCard} items={[
+          { icon: 'book', value: base.length, label: 'Bài giảng', sub: `${pub} đã phát hành · ${base.length - pub} nháp` },
+          { k: 'reach', icon: 'send', value: reach, label: 'Phát hành tới đơn vị', sub: `${base.filter(i => reachOf(i).length).length} bài đã phát hành tới đơn vị` },
+          { k: 'used', icon: 'school', tone: usedN.length ? 'good' : '', value: usedN.reduce((n, i) => n + (stats.get(i.id)?.schools ?? 0), 0), label: 'Trường đã dùng', sub: `Lượt trường · ${usedN.length} bài được dùng` },
+          { k: 'noprog', icon: 'alert', tone: noProg ? 'warn' : 'good', value: noProg, label: 'Bài chưa gắn chương trình', sub: 'Chưa gắn chương trình giáo dục' },
+        ]} />
+      })()}
       {!start && <><div className="bar">
         <div className="tools">
           <MultiFilters defs={filterDefs} f={mf} count={`${shown.length}/${ofTab.length}`} />

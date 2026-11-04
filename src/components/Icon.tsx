@@ -1,5 +1,16 @@
 // Biểu tượng SVG nét mảnh dùng chung (thay cho emoji làm icon). Theo màu chữ, cỡ mặc định 16px.
 const P: Record<string, string> = {
+  layers: 'M12 2 2 7l10 5 10-5zM2 17l10 5 10-5M2 12l10 5 10-5',
+  grid: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
+  school: 'M3 21h18M5 21V10l7-5 7 5v11M9 21v-6h6v6M12 9h.01',
+  target: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4',
+  chart: 'M4 20V10M10 20V4M16 20v-7M2 20h20',
+  send: 'M22 2 11 13M22 2l-7 20-4-9-9-4z',
+  award: 'M12 15a7 7 0 1 0 0-14 7 7 0 0 0 0 14M8.2 13.9 7 23l5-3 5 3-1.2-9.1',
+  calendar: 'M4 5h16v16H4zM16 3v4M8 3v4M4 10h16',
+  edit: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z',
+  gap: 'M4 12h6M14 12h6M10 8l-4 4 4 4M14 8l4 4-4 4',
+  help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01',
   hourglass: 'M6 2h12M6 22h12M7 2v4a5 5 0 0 0 10 0V2M7 22v-4a5 5 0 0 1 10 0v4',
   refresh: 'M21 12a9 9 0 0 1-15.5 6.2L3 16M3 12a9 9 0 0 1 15.5-6.2L21 8M21 3v5h-5M3 21v-5h5',
   inbox: 'M22 12h-6l-2 3h-4l-2-3H2M5.5 5h13L22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-6z',

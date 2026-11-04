@@ -12,6 +12,7 @@ import { GradeMulti } from '../../components/Pickers'
 import { MultiFilters, opts, useMultiFilters, type FilterDef } from '../../components/MultiFilters'
 import { downloadXlsx } from '../../lib/sheet'
 import { Chip } from '../dist/Editor'
+import { StatCards } from '../../components/StatCards'
 import { ProgramDetail, STATUS, type Status } from './Programs'
 import type { FinalExam } from './ExamFrame'
 
@@ -82,12 +83,12 @@ function MatrixTable({ rows }: { rows: MRow[] }) {
       <tbody>{rows.map((r, k) => <tr key={k}>{ms && <td>{r.subject || 'Mọi môn của đề'}</td>}<td>{r.topic || 'Mọi chủ đề'}</td><td>{levelName(r.level)}</td><td className="num">{r.count}</td></tr>)}</tbody></table></div>
   </section>
 }
-function StatCards({ s }: { s?: Stat }) {
-  return <div className="diststatcards">
-    <div className="panel"><i aria-hidden="true">✎</i><span><b>{s?.attempts ?? 0}</b><small>Lượt làm đã nộp</small><small>{s?.teachers ?? 0} giáo viên</small></span></div>
-    <div className="panel"><i aria-hidden="true" className="good">★</i><span><b>{num(s?.avg_score)}</b><small>Điểm trung bình</small><small>điểm cao nhất TB {num(s?.best_avg)}</small></span></div>
-    <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{s?.passed ?? 0}</b><small>Giáo viên đạt</small></span></div>
-  </div>
+function ExamStatCards({ s }: { s?: Stat }) {
+  return <StatCards items={[
+    { icon: 'edit', value: s?.attempts ?? 0, label: 'Lượt làm đã nộp', sub: `${s?.teachers ?? 0} giáo viên` },
+    { icon: 'trophy', tone: 'good', value: num(s?.avg_score), label: 'Điểm trung bình', sub: `điểm cao nhất TB ${num(s?.best_avg)}` },
+    { icon: 'checkCircle', tone: 'good', value: s?.passed ?? 0, label: 'Giáo viên đạt' },
+  ]} />
 }
 const subjGrade = (x: { subject?: string | null; subjects?: string[] | null; grade?: number | null; grades?: number[] | null } | null | undefined) =>
   `${listSubjects(x).join(', ') || '—'}${listGrades(x).length ? ` · khối ${listGrades(x).join(', ')}` : ' · mọi khối'}`
@@ -106,7 +107,7 @@ function ExamDetail({ r, subjName, stat, onBack, onEdit }: { r: Row; subjName: s
       pass={r.kind === 'unit' ? t.pass ?? p.pass_score ?? 5 : fe?.pass ?? null} />}
       <button type="button" onClick={onEdit}>{editable ? 'Sửa đề' : 'Mở trong chương trình'}</button></>}>
     {!editable && <p className="sub" style={{ marginTop: 0 }}>Chương trình đã {STATUS[p.status]?.[0]?.toLowerCase()}: muốn sửa đề thì tạo phiên bản mới của chương trình.</p>}
-    <StatCards s={stat} />
+    <ExamStatCards s={stat} />
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <h3 style={{ margin: 0 }}>{r.kind === 'unit' ? 'Nội dung đào tạo' : 'Thông tin đề'}</h3>
       <dl className="tpkv">
@@ -166,6 +167,7 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
   const [add, setAdd] = useState(false)
   const [view, setView] = useState<string | null>(null)
   const f = useMultiFilters()
+  const [card, setCard] = useState<string | null>(null)
   useEffect(() => {
     supabase.from('training_program_units').select('id, program_id, parent_id, title, seq, hours, mode, detail').eq('kind', 'content').eq('has_test', true)
       .then(({ data }) => setUnits((data as TUnit[]) ?? []))
@@ -206,17 +208,20 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
     { key: 'st', label: 'Trạng thái', placeholder: 'Mọi trạng thái', options: opts(rows.map(r => [r.prog.status, STATUS[r.prog.status]?.[0]])) },
   ]
   const ql = q.trim().toLowerCase()
-  const shown = rows.filter(r => (old || !OLD.includes(r.prog.status)) && f.has('prog', r.prog.family_id) && f.has('kind', r.kind) && f.has('st', r.prog.status)
+  // base: theo mọi bộ lọc bên dưới; thẻ tổng số tính trên base, bấm thẻ lọc thêm theo loại đề
+  const base = rows.filter(r => (old || !OLD.includes(r.prog.status)) && f.has('prog', r.prog.family_id) && f.has('kind', r.kind) && f.has('st', r.prog.status)
     && (!ql || `${r.title} ${r.sub} ${r.prog.code} ${r.prog.title}`.toLowerCase().includes(ql)))
+  const shown = base.filter(r => !card || (card === 'missing' ? r.missing : r.kind === card))
     .sort((a, b) => ord(a.prog).localeCompare(ord(b.prog)) || (a.kind === b.kind ? 0 : a.kind === 'unit' ? -1 : 1))
-  const nUnit = rows.filter(r => r.kind === 'unit' && !OLD.includes(r.prog.status)).length, nFinal = rows.filter(r => r.kind === 'final' && !OLD.includes(r.prog.status)).length
+  const nUnit = base.filter(r => r.kind === 'unit').length, nFinal = base.filter(r => r.kind === 'final').length
+  const baseProgs = new Set(base.map(r => r.prog.id))
 
   return <>
-    <div className="diststatcards">
-      <div className="panel"><i aria-hidden="true">≋</i><span><b>{nUnit}</b><small>Bài test nội dung</small><small>{rows.filter(r => r.missing && !OLD.includes(r.prog.status)).length} chưa chọn câu hỏi</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="warn">★</i><span><b>{nFinal}</b><small>Đề cuối khoá</small><small>{(progs ?? []).filter(p => !OLD.includes(p.status) && !p.final_exam).length} chương trình chưa có</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{stats.filter(s => s.kind !== 'practice').reduce((a, s) => a + s.attempts, 0)}</b><small>Lượt làm bài đã nộp</small></span></div>
-    </div>
+    <StatCards active={card} onPick={setCard} items={[
+      { k: 'unit', icon: 'clipboard', value: nUnit, label: 'Bài test nội dung', sub: `${base.filter(r => r.missing).length} chưa chọn câu hỏi` },
+      { k: 'final', icon: 'award', tone: 'warn', value: nFinal, label: 'Đề cuối khoá', sub: `${(progs ?? []).filter(p => baseProgs.has(p.id) && !p.final_exam).length} chương trình chưa có` },
+      { icon: 'checkCircle', tone: 'good', value: stats.filter(s => s.kind !== 'practice' && base.some(r => statOf(r) === s)).reduce((a, s) => a + s.attempts, 0), label: 'Lượt làm bài đã nộp' },
+    ]} />
     <div className="bar">
       <div className="tools"><MultiFilters defs={defs} f={f} count={`${shown.length}/${rows.length}`} />
         <input placeholder="Tìm đề, nội dung, chương trình…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đề" />
@@ -313,7 +318,7 @@ function PracticeDetail({ x, prog, stat, admin, msg, onBack, onEdit }: { x: Prac
     actions={<><TryButton orgId={x.org_id} spec={pSpec(x)} title={x.title} minutes={x.minutes} pass={x.pass} />
       {admin && <button type="button" onClick={onEdit}>Sửa đề</button>}</>}>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status" style={{ marginTop: 0 }}><b>{msg[0]}</b></p>}
-    <StatCards s={stat} />
+    <ExamStatCards s={stat} />
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <h3 style={{ margin: 0 }}>Thông tin đề</h3>
       <dl className="tpkv">
@@ -347,6 +352,7 @@ export function TrainingPracticeExams() {
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [q, setQ] = useState('')
   const f = useMultiFilters()
+  const [card, setCard] = useState<string | null>(null)
   useEffect(() => {
     supabase.from('training_practice_exams').select('*').order('updated_at', { ascending: false }).then(({ data, error }) => {
       if (error) setMsg([/schema cache|does not exist/i.test(error.message) ? 'Hãy chạy migration 110 trên Supabase.' : error.message, true])
@@ -390,18 +396,20 @@ export function TrainingPracticeExams() {
     { key: 'st', label: 'Trạng thái', placeholder: 'Mọi trạng thái', options: (Object.keys(PST) as Practice['status'][]).map(k => [k, PST[k][0]]) },
   ]
   const ql = q.trim().toLowerCase()
-  const shown = all.filter(x => f.has('prog', x.program_id) && listSubjects(x).some(s => f.has('subj', s)) && f.has('st', x.status) && (!ql || `${x.title} ${x.subject} ${x.note ?? ''}`.toLowerCase().includes(ql)))
+  const base = all.filter(x => f.has('prog', x.program_id) && listSubjects(x).some(s => f.has('subj', s)) && f.has('st', x.status) && (!ql || `${x.title} ${x.subject} ${x.note ?? ''}`.toLowerCase().includes(ql)))
+  const shown = base.filter(x => card !== 'open' || x.status === 'published')
   const stat = (id: string) => stats.find(s => s.kind === 'practice' && s.ref === id)
+  const baseStats = base.map(x => stat(x.id)).filter(Boolean) as Stat[]
 
   const px = pv ? all.find(x => x.id === pv) : undefined
   return <>
     {px ? <PracticeDetail x={px} prog={progOf(px.program_id)} stat={stat(px.id)} admin={admin} msg={form ? null : msg} onBack={() => { setPv(null); setMsg(null) }}
       onEdit={() => { setMsg(null); setForm({ ...px, matrix: [...(px.matrix ?? [])] }) }} /> : <>
-    <div className="diststatcards">
-      <div className="panel"><i aria-hidden="true">≋</i><span><b>{all.length}</b><small>Đề luyện</small><small>{all.filter(x => x.status === 'published').length} đang mở</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="good">✎</i><span><b>{stats.filter(s => s.kind === 'practice').reduce((a, s) => a + s.attempts, 0)}</b><small>Lượt luyện đã nộp</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="good">👥</i><span><b>{stats.filter(s => s.kind === 'practice').reduce((a, s) => a + s.teachers, 0)}</b><small>Lượt giáo viên tham gia</small></span></div>
-    </div>
+    <StatCards active={card} onPick={setCard} items={[
+      { k: 'open', icon: 'layers', value: base.length, label: 'Đề luyện', sub: `${base.filter(x => x.status === 'published').length} đang mở` },
+      { icon: 'edit', tone: 'good', value: baseStats.reduce((a, s) => a + s.attempts, 0), label: 'Lượt luyện đã nộp' },
+      { icon: 'users', tone: 'good', value: baseStats.reduce((a, s) => a + s.teachers, 0), label: 'Lượt giáo viên tham gia' },
+    ]} />
     <div className="bar">
       <div className="tools"><MultiFilters defs={defs} f={f} count={`${shown.length}/${all.length}`} />
         <input placeholder="Tìm tên đề, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đề luyện" /></div>
@@ -469,6 +477,7 @@ export function TrainingExamStats() {
   const [open, setOpen] = useState<Stat | null>(null)
   const [hard, setHard] = useState<Hard[] | null>(null)
   const f = useMultiFilters()
+  const [card, setCard] = useState<string | null>(null)
   useEffect(() => {
     if (!open) return
     setHard(null)
@@ -479,15 +488,17 @@ export function TrainingExamStats() {
     { key: 'kind', label: 'Loại đề', placeholder: 'Mọi loại đề', options: (Object.keys(KIND) as Kind[]).map(k => [k, KIND[k][0]]) },
     { key: 'prog', label: 'Chương trình', placeholder: 'Mọi chương trình', options: opts(stats.map(s => [progOf(s.program_id)?.family_id ?? s.program_id, progOf(s.program_id) ? `${progOf(s.program_id)!.code} · ${progOf(s.program_id)!.title}` : '—'])) },
   ]
-  const shown = stats.filter(s => f.has('kind', s.kind) && f.has('prog', progOf(s.program_id)?.family_id ?? s.program_id)).sort((a, b) => b.attempts - a.attempts)
   const rate = (s: Stat) => s.teachers ? Math.round(100 * s.passed / s.teachers) : 0
+  const base = stats.filter(s => f.has('kind', s.kind) && f.has('prog', progOf(s.program_id)?.family_id ?? s.program_id))
+  const low = (s: Stat) => !!s.teachers && rate(s) < 50
+  const shown = base.filter(s => card !== 'low' || low(s)).sort((a, b) => b.attempts - a.attempts)
 
   return <>
-    <div className="diststatcards">
-      <div className="panel"><i aria-hidden="true">≋</i><span><b>{stats.length}</b><small>Đề đã có người làm</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="good">✎</i><span><b>{stats.reduce((a, s) => a + s.attempts, 0)}</b><small>Lượt làm bài đã nộp</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="warn">!</i><span><b>{stats.filter(s => s.teachers && rate(s) < 50).length}</b><small>Đề dưới 50% giáo viên đạt</small></span></div>
-    </div>
+    <StatCards active={card} onPick={setCard} items={[
+      { icon: 'layers', value: base.length, label: 'Đề đã có người làm' },
+      { icon: 'edit', tone: 'good', value: base.reduce((a, s) => a + s.attempts, 0), label: 'Lượt làm bài đã nộp' },
+      { k: 'low', icon: 'alert', tone: 'warn', value: base.filter(low).length, label: 'Đề dưới 50% giáo viên đạt' },
+    ]} />
     <div className="bar"><div className="tools"><MultiFilters defs={defs} f={f} count={`${shown.length}/${stats.length}`} /></div>
       <div className="tools"><button type="button" onClick={() => downloadXlsx('Ket-qua-de-tap-huan', [{ key: 't', label: 'Đề', width: 36 }, { key: 'k', label: 'Loại', width: 18 }, { key: 'p', label: 'Chương trình', width: 34 },
         { key: 'n', label: 'Lượt làm', width: 10 }, { key: 'g', label: 'Giáo viên', width: 10 }, { key: 'a', label: 'Điểm TB', width: 10 }, { key: 'b', label: 'TB điểm cao nhất', width: 14 }, { key: 'r', label: 'Tỉ lệ đạt (%)', width: 12 }],

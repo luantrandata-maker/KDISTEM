@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../../components/MultiFilters'
 import { downloadXlsx, norm } from '../../lib/sheet'
 import { Tabs } from '../teacher/common'
+import { StatCards, type Stat as CardStat } from '../../components/StatCards'
 
 // Màn xem toàn hệ thống cho cổng Quản trị nền tảng (KDI): gom dữ liệu của mọi trường trên một trang,
 // lọc theo Sở / tỉnh → trường, có bảng tổng hợp theo trường và danh sách chi tiết. Chỉ đọc
@@ -22,6 +23,9 @@ export type Spec = {
   detail?: (r: Row, reload: () => void) => ReactNode
   /** Bộ lọc chọn nhiều (27/10): có facets thì Sở / tỉnh và Đơn vị cũng chọn được nhiều */
   facets?: { key: string; label: string; placeholder: string; get: (r: Row) => string | number | null | undefined; name?: (r: Row) => string; sort?: 'label' | 'desc' }[]
+  /** Thẻ tổng số riêng (thay cho hàng thẻ mặc định): items tính trên các dòng đã lọc; thẻ có k lọc danh sách theo fit[k].
+   *  extra: dữ liệu phụ nạp một lần (vd. hoạt động nào đã được dùng trong bài giảng) */
+  cards?: { items: (rows: Row[], extra: any) => CardStat[]; fit: Record<string, (r: Row, extra: any) => boolean>; extra?: () => Promise<any> }
 }
 
 const PAGE = 1000, CAP = 20000, SHOW = 500
@@ -84,6 +88,9 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
   const [err, setErr] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
+  const [card, setCard] = useState<string | null>(null)
+  const [extra, setExtra] = useState<any>(null)
+  useEffect(() => { spec.cards?.extra?.().then(setExtra).catch(() => setExtra(null)) }, [spec, tick, reloadKey])
 
   useEffect(() => { if (!multi) try { localStorage.setItem(KEY, JSON.stringify({ region: region0, org: org0 })) } catch { /* bỏ qua */ } }, [region0, org0])
 
@@ -106,11 +113,15 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
   const reload = () => setTick(t => t + 1)
   const nameOf = (id: string) => byId.get(id)?.name ?? '—'
   const needle = norm(q.trim().toLowerCase())
-  const shown = rows.filter(r => (st === 'all' || spec.status?.get(r) === st) && (spec.facets ?? []).every(fc => mf.has(fc.key, fc.get(r))) && (!needle || norm((spec.search(r) + ' ' + nameOf(r.org_id)).toLowerCase()).includes(needle)))
+  // Số trên thẻ và trên nút trạng thái chạy theo bộ lọc, ô tìm (thẻ đang chọn lọc thêm danh sách)
+  const fitted = rows.filter(r => (spec.facets ?? []).every(fc => mf.has(fc.key, fc.get(r))) && (!needle || norm((spec.search(r) + ' ' + nameOf(r.org_id)).toLowerCase()).includes(needle)))
+  const base = fitted.filter(r => st === 'all' || spec.status?.get(r) === st)
+  const cardFit = card ? spec.cards?.fit[card] : undefined
+  const shown = cardFit ? base.filter(r => cardFit(r, extra)) : base
   const groups = [...shown.reduce((m, r) => m.set(r.org_id, [...(m.get(r.org_id) ?? []), r]), new Map<string, Row[]>())]
     .sort((a, b) => b[1].length - a[1].length || nameOf(a[0]).localeCompare(nameOf(b[0]), 'vi'))
   const empty = schoolsInRegion.filter(s => !groups.some(([id]) => id === s.id))
-  const count = (k: string) => rows.filter(r => spec.status?.get(r) === k).length
+  const count = (k: string) => fitted.filter(r => spec.status?.get(r) === k).length
   const regionName = (id: string) => regionOf(id)?.name ?? ''
 
   async function excel() {
@@ -152,14 +163,15 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
         </span>
       </div>
 
-      <div className="cards syscards">
-        <div className="card"><strong>{busy ? '…' : shown.length.toLocaleString('vi-VN')}</strong><span>{spec.noun}</span></div>
-        {spec.stats.map(s => <div key={s.label} className="card"><strong>{busy ? '…' : typeof s.get(shown) === 'number' ? (s.get(shown) as number).toLocaleString('vi-VN') : s.get(shown)}</strong><span>{s.label}</span></div>)}
-        {!org && <div className="card"><strong>{busy ? '…' : `${groups.filter(([id]) => !byId.get(id)?.is_platform).length}/${schoolsInRegion.length}`}</strong><span>Trường có dữ liệu</span></div>}
-      </div>
+      {spec.cards ? <StatCards active={card} onPick={setCard} items={busy ? spec.cards.items([], extra).map(c => ({ ...c, value: '…', sub: undefined })) : spec.cards.items(base, extra)} />
+        : <StatCards items={[
+          { icon: 'layers', value: busy ? '…' : shown.length.toLocaleString('vi-VN'), label: spec.noun,
+            sub: org || busy ? undefined : `${groups.filter(([id]) => !byId.get(id)?.is_platform).length}/${schoolsInRegion.length} trường có dữ liệu` },
+          ...spec.stats.slice(0, 3).map(x => { const v = busy ? '…' : x.get(shown); return { icon: 'chart', value: typeof v === 'number' ? v.toLocaleString('vi-VN') : v, label: x.label } }),
+        ]} />}
 
       {spec.status && <div className="tools" style={{ margin: '14px 0 4px' }}>
-        <button className={'chipbtn' + (st === 'all' ? ' on' : '')} onClick={() => setSt('all')}>Tất cả ({rows.length})</button>
+        <button className={'chipbtn' + (st === 'all' ? ' on' : '')} onClick={() => setSt('all')}>Tất cả ({fitted.length})</button>
         {Object.entries(spec.status.labels).map(([k, l]) => count(k) > 0 && <button key={k} className={'chipbtn' + (st === k ? ' on' : '')} onClick={() => setSt(k)}>{l} ({count(k)})</button>)}
       </div>}
 
@@ -463,6 +475,34 @@ export const ACTIVITIES: Spec = {
   ],
   status: { get: r => r.kind, labels: A_KIND },
   search: r => `${r.title} ${r.subject ?? ''} ${r.teachers?.full_name ?? ''}`, searchHint: 'Tên hoạt động, môn, giáo viên…', noun: 'Hoạt động', file: 'kho-hoat-dong-toan-he-thong', empty: 'Chưa có hoạt động.',
+  // Thẻ tổng số: "được dùng" = hoạt động gắn vào bước của bài giảng hoặc thẻ 05 của bài học
+  cards: {
+    extra: usedActivities,
+    items: (rs, used: Set<string> | null) => {
+      const pub = rs.filter(r => r.status === 'published').length, u = used ? rs.filter(r => used.has(r.id)).length : null
+      return [
+        { icon: 'layers', value: rs.length, label: 'Hoạt động', sub: `${rs.filter(r => r.is_template).length} bản mẫu · ${rs.length - pub} nháp` },
+        { k: 'published', icon: 'checkCircle', tone: pub ? 'good' : '', value: pub, label: 'Đã phát hành' },
+        { k: 'used', icon: 'book', tone: u ? 'good' : '', value: u ?? '…', label: 'Được dùng trong bài giảng', sub: u == null ? undefined : `${rs.length - u} hoạt động chưa được dùng` },
+      ]
+    },
+    fit: { published: r => r.status === 'published', used: (r, used: Set<string> | null) => !!used?.has(r.id) },
+  },
+}
+async function usedActivities(): Promise<Set<string>> {
+  const [l, k] = await Promise.all([
+    supabase.from('lesson_plans').select('steps').not('steps', 'is', null).limit(5000),
+    supabase.from('library_items').select('bank:content->kit->bank').eq('kind', 'unit').limit(5000),
+  ])
+  const ids = new Set<string>()
+  ;((l.data ?? []) as { steps: { activity_id?: string | null }[] | null }[]).forEach(p => (Array.isArray(p.steps) ? p.steps : []).forEach(x => x?.activity_id && ids.add(x.activity_id)))
+  ;((k.data ?? []) as { bank: { activity_id?: string | null }[] | null }[]).forEach(p => (Array.isArray(p.bank) ? p.bank : []).forEach(x => x?.activity_id && ids.add(x.activity_id)))
+  return ids
+}
+async function usedTemplates(): Promise<Map<string, number>> {
+  const { data } = await supabase.from('lesson_plans').select('source_id').not('source_id', 'is', null).limit(20000)
+  const m = new Map<string, number>(); ((data ?? []) as { source_id: string }[]).forEach(x => m.set(x.source_id, (m.get(x.source_id) ?? 0) + 1))
+  return m
 }
 
 const TL_ST: Record<string, string> = { published: 'Đang dùng', draft: 'Nháp', inactive: 'Ngừng dùng' }
@@ -561,11 +601,24 @@ export const SysSchoolLessons = ({ orgId }: { orgId?: string | null }) => <BankL
 const LESSON_TEMPLATES: Spec = { ...LESSONS, where: q => q.eq('is_template', true).is('draft_of', null),
   cols: LESSONS.cols.filter(c => c.label !== 'Giáo viên'),
   stats: [{ label: 'Đã xuất bản', get: rs => rs.filter(r => r.status === 'published').length }, { label: 'Môn', get: rs => new Set(rs.map(r => r.subject).filter(Boolean)).size }],
+  // Thẻ tổng số: "đang dùng" = mẫu đã có giáo viên bấm "Dùng mẫu này" (bài tạo từ mẫu)
+  cards: {
+    extra: usedTemplates,
+    items: (rs, used: Map<string, number> | null) => {
+      const u = used ? rs.filter(r => used.has(r.id)) : null
+      return [
+        { icon: 'layers', value: rs.length, label: 'Số mẫu', sub: `${rs.filter(r => r.status === 'published').length} đã xuất bản · ${new Set(rs.map(r => r.subject).filter(Boolean)).size} môn` },
+        { k: 'used', icon: 'users', tone: u?.length ? 'good' : '', value: u ? u.length : '…', label: 'Mẫu đang dùng',
+          sub: u ? `${u.reduce((n, r) => n + (used!.get(r.id) ?? 0), 0)} bài giảng tạo từ mẫu` : undefined },
+      ]
+    },
+    fit: { used: (r, used: Map<string, number> | null) => !!used?.has(r.id) },
+  },
   noun: 'Mẫu bài giảng', file: 'mau-bai-giang', empty: 'Chưa có mẫu bài giảng. Bấm "+ Thêm mẫu bài giảng".' }
 export const SysLessonTemplates = ({ orgId }: { orgId?: string | null }) => <BankList spec={LESSON_TEMPLATES} orgId={orgId} add="+ Thêm mẫu bài giảng"
   desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'new' ? start : { mode: 'view', id: start.id }} onClose={onClose} />} />
 // Kho hoạt động của Đào tạo đào tạo (116): cùng kiểu hoạt động, cách soạn và chơi thử như Kho hoạt động của Chương trình & học liệu
-const TRAINING_ACTIVITIES: Spec = { ...ACTIVITIES, where: q => q.eq('domain', 'training'),
+const TRAINING_ACTIVITIES: Spec = { ...ACTIVITIES, cards: undefined, where: q => q.eq('domain', 'training'),
   cols: ACTIVITIES.cols.map(c => c.label === 'Giáo viên' ? { ...c, label: 'Người soạn', get: (r: Row) => r.teachers?.full_name ?? <small>KDI</small> } : c),
   search: r => `${r.title} ${r.subject ?? ''}`, searchHint: 'Tên hoạt động, môn…', file: 'kho-hoat-dong-tap-huan', empty: 'Chưa có hoạt động đào tạo. Bấm "+ Thêm hoạt động".' }
 export const SysTrainingActivities = ({ orgId }: { orgId?: string | null }) => <BankList spec={TRAINING_ACTIVITIES} orgId={orgId} add="+ Thêm hoạt động"

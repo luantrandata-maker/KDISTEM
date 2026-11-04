@@ -15,6 +15,7 @@ import { useTrainingPrograms } from './Lessons'
 import { useHolidays, dayKey, type Holidays } from '../../lib/holidays'
 import { detailCount, type Detail } from './Content'
 import { SessionExams } from './ExamOpen'
+import { StatCards } from '../../components/StatCards'
 const LessonPage = lazy(() => import('../library/lesson/LessonPage').then(m => ({ default: m.LessonPage })))
 const ContentDetail = lazy(() => import('./Content').then(m => ({ default: m.ContentDetail })))
 
@@ -123,12 +124,12 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
     <FlowGuide id="training-schedule">
       <ol className="distguide">{steps.map(([h, d, f], k) => <li key={h}><button type="button" onClick={() => setFs(f)}><i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
     </FlowGuide>
-    <div className="diststatcards four">
-      <div className="panel"><i aria-hidden="true">◷</i><span><b>{plans ? n('upcoming') : '…'}</b><small>Buổi sắp diễn ra</small><small>{base.length} buổi trong lịch</small></span></div>
-      <div className="panel"><i aria-hidden="true" className={n('live') ? 'warn' : 'good'}>●</i><span><b>{n('live')}</b><small>Đang diễn ra</small></span></div>
-      <div className="panel"><i aria-hidden="true" className={n('toclose') ? 'warn' : 'good'}>✓</i><span><b>{n('toclose')}</b><small>Chờ chốt điểm danh</small><small>{n('closed')} đã chốt</small></span></div>
-      <div className="panel"><i aria-hidden="true" className={pend ? 'warn' : 'good'}>!</i><span><b>{pend}</b><small>Xin vắng chờ duyệt</small></span></div>
-    </div>
+    <StatCards active={fs || null} onPick={k => setFs((k ?? '') as St | '')} items={[
+      { k: 'upcoming', icon: 'clock', value: plans ? n('upcoming') : '…', label: 'Buổi sắp diễn ra', sub: `${base.length} buổi trong lịch` },
+      { k: 'live', icon: 'dot', tone: n('live') ? 'warn' : 'good', value: n('live'), label: 'Đang diễn ra' },
+      { k: 'toclose', icon: 'checkCircle', tone: n('toclose') ? 'warn' : 'good', value: n('toclose'), label: 'Chờ chốt điểm danh', sub: `${n('closed')} đã chốt` },
+      { icon: 'alert', tone: pend ? 'warn' : 'good', value: pend, label: 'Xin vắng chờ duyệt' },
+    ]} />
     <div className="distfilter">
       {([['', 'Tất cả', base.length], ...(Object.keys(ST) as St[]).map(k => [k, ST[k][0], n(k)])] as [St | '', string, number][]).map(([s, l, c]) =>
         <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}

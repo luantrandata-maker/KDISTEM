@@ -1,6 +1,7 @@
 // Cổng giáo viên › Bài giảng đào tạo › Khoá đào tạo của tôi (migration 086)
 // Học lần lượt các nội dung của kế hoạch đào tạo: mở bài giảng / tài liệu, làm bài kiểm tra, vào lớp học ảo, nộp sản phẩm.
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { StatCards } from '../../components/StatCards'
 import { supabase } from '../../lib/supabase'
 import { fmtDate, fmtTime } from '../../lib/time'
 import { ElView } from '../../components/ElView'
@@ -139,13 +140,12 @@ function CourseView({ planId, onBack }: { planId: string; onBack: () => void }) 
   const subjects = [...new Set(c.units.map(x => x.subject))]
   return <ElView back="Khoá đào tạo của tôi" onBack={onBack} title={c.plan.name}
     sub={[c.plan.code, c.plan.org_name, c.programs.map(p => p.title).join(' · ')].filter(Boolean).join(' · ')}>
-    <div className="diststatcards four">
-      <div className="panel"><i className={done === c.units.length && done ? 'good' : ''}>📘</i><span><small>Nội dung đã học</small><b>{done}/{c.units.length}</b><small>{pct(done, c.units.length)}%</small></span></div>
-      <div className="panel"><i>🗓</i><span><small>Chuyên cần</small><b>{c.attendance.total ? `${pct(c.attendance.present, c.attendance.total)}%` : '—'}</b><small>{c.attendance.present}/{c.attendance.total} buổi · cần {passAtt}%</small></span></div>
-      <div className="panel"><i>📝</i><span><small>Bài kiểm tra đạt</small><b>{c.units.filter(x => x.test && (x.best_score ?? -1) >= x.test.pass).length}/{c.units.filter(x => x.test).length}</b><small>Theo điểm cao nhất</small></span></div>
-      <div className={`panel`}><i className={c.product?.status === 'accepted' ? 'good' : c.product?.status === 'returned' ? 'warn' : ''}>📦</i><span><small>Sản phẩm cuối khoá</small>
-        <b style={{ fontSize: 16 }}>{!needProduct ? 'Không yêu cầu' : c.product ? PRODUCT_ST[c.product.status][0] : 'Chưa nộp'}</b></span></div>
-    </div>
+    <StatCards items={[
+      { icon: 'book', tone: done === c.units.length && done ? 'good' : '', value: `${done}/${c.units.length}`, label: 'Nội dung đã học', sub: `${pct(done, c.units.length)}%` },
+      { icon: 'calendar', value: c.attendance.total ? `${pct(c.attendance.present, c.attendance.total)}%` : '—', label: 'Chuyên cần', sub: `${c.attendance.present}/${c.attendance.total} buổi · cần ${passAtt}%` },
+      { icon: 'clipboard', value: `${c.units.filter(x => x.test && (x.best_score ?? -1) >= x.test.pass).length}/${c.units.filter(x => x.test).length}`, label: 'Bài kiểm tra đạt', sub: 'Theo điểm cao nhất' },
+      { icon: 'package', tone: c.product?.status === 'accepted' ? 'good' : c.product?.status === 'returned' ? 'warn' : '', value: !needProduct ? 'Không yêu cầu' : c.product ? PRODUCT_ST[c.product.status][0] : 'Chưa nộp', label: 'Sản phẩm cuối khoá' },
+    ]} />
     {c.result && c.result.result !== 'pending' && <p className={c.result.result === 'pass' ? 'sub' : 'warnline'} role="status" style={{ marginTop: 12, color: c.result.result === 'pass' ? 'var(--ok-fg)' : undefined }}>
       <b>Kết quả: {c.result.result === 'pass' ? 'Đạt' : 'Chưa đạt'}</b>{c.result.reason ? ` · ${c.result.reason}` : ''}
       {c.result.result === 'pass' && (c.cert?.status === 'issued' ? ` · Đã có chứng chỉ ${c.cert.code}, xem ở mục Chứng chỉ đào tạo.` : ' · Chứng chỉ đang chờ duyệt cấp.')}</p>}

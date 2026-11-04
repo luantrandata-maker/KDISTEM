@@ -12,6 +12,7 @@ import { Tabs } from '../teacher/common'
 import { MultiFilters, useMultiFilters } from '../../components/MultiFilters'
 import { useOrgFilters } from '../../components/OrgFilters'
 import { LevelNames } from '../settings/Custom'
+import { StatCards } from '../../components/StatCards'
 
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 088 trên Supabase.' : /row-level|42501/i.test(m) ? 'Bạn không có quyền với mục này.' : m
 const vnDate = (d: string | null) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
@@ -178,12 +179,12 @@ function RoundDetail({ r, onBack, onChanged }: { r: Round; onBack: () => void; o
       </dl>}
     </section>}
     {tab === 'progress' && <>
-    <div className="diststatcards four">
-      <div className="panel"><i aria-hidden="true">🏫</i><span><b>{rows ? all.length : '…'}</b><small>Trường</small></span></div>
-      <div className="panel"><i aria-hidden="true">👥</i><span><b>{tot.t}</b><small>Giáo viên</small></span></div>
-      <div className="panel"><i aria-hidden="true" className={pct(tot.s, tot.t) >= 80 ? 'good' : 'warn'}>✎</i><span><b>{pct(tot.s, tot.t)}%</b><small>Đã tự đánh giá</small><small>{tot.s}/{tot.t} GV</small></span></div>
-      <div className="panel"><i aria-hidden="true" className={pct(tot.m, tot.t) >= 80 ? 'good' : 'warn'}>✓</i><span><b>{pct(tot.m, tot.t)}%</b><small>Trường đã đánh giá</small><small>{tot.m}/{tot.t} GV</small></span></div>
-    </div>
+    <StatCards items={[
+      { icon: 'school', value: rows ? all.length : '…', label: 'Trường' },
+      { icon: 'users', value: tot.t, label: 'Giáo viên' },
+      { icon: 'edit', tone: pct(tot.s, tot.t) >= 80 ? 'good' : 'warn', value: `${pct(tot.s, tot.t)}%`, label: 'Đã tự đánh giá', sub: `${tot.s}/${tot.t} GV` },
+      { icon: 'checkCircle', tone: pct(tot.m, tot.t) >= 80 ? 'good' : 'warn', value: `${pct(tot.m, tot.t)}%`, label: 'Trường đã đánh giá', sub: `${tot.m}/${tot.t} GV` },
+    ]} />
     <section className="panel" style={{ marginTop: 14 }}>
       {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
         <thead><tr><th>Trường</th><th>Số GV</th><th>Tự đánh giá</th><th>Trường đánh giá</th></tr></thead>
@@ -233,7 +234,10 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
   const mf = useMultiFilters()
   const of = useOrgFilters(rows ?? [], mf)
   const all = (rows ?? []).filter(g => of.fit(g.org_id))
-  const shown = all.filter(g => (!comp || g.competency === comp) && (!q || g.teacher_name.toLowerCase().includes(q.toLowerCase())))
+  const [card, setCard] = useState<string | null>(null)
+  // Thẻ tổng số tính theo ô tìm và bộ lọc đơn vị; bấm thẻ "Chưa có chương trình phù hợp" để lọc
+  const base = all.filter(g => !q || g.teacher_name.toLowerCase().includes(q.toLowerCase()))
+  const shown = base.filter(g => (!comp || g.competency === comp) && (card !== 'nosuggest' || !g.suggest.length))
   const byTeacher = useMemo(() => {
     const m = new Map<string, Gap[]>()
     shown.forEach(g => m.set(g.teacher_id, [...(m.get(g.teacher_id) ?? []), g]))
@@ -244,10 +248,12 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
     all.forEach(g => { const k = g.org_id; const x = m.get(k) ?? { name: g.org_name ?? '—', teachers: new Set(), per: {} }; x.teachers.add(g.teacher_id); x.per[g.competency] = (x.per[g.competency] ?? 0) + 1; m.set(k, x) })
     return [...m.values()].sort((a, b) => b.teachers.size - a.teachers.size)
   }, [all])
-  const perComp = comps.map(c => [c, all.filter(g => g.competency === c.key).length] as [Comp, number])
+  const perComp = comps.map(c => [c, base.filter(g => g.competency === c.key).length] as [Comp, number])
   const top = [...perComp].sort((a, b) => b[1] - a[1])[0]
-  const teachersN = new Set(all.map(g => g.teacher_id)).size
-  const noSuggest = all.filter(g => !g.suggest.length).length
+  const cardBase = base.filter(g => !comp || g.competency === comp)
+  const teachersN = new Set(cardBase.map(g => g.teacher_id)).size
+  const noSuggest = cardBase.filter(g => !g.suggest.length).length
+  const gapActive = card ?? (comp && top && top[1] && comp === top[0].key ? 'top' : null)
 
   async function enroll(planId: string, teacherId: string, name: string) {
     const { error } = await supabase.from('training_enrollments').insert({ org_id: orgId, plan_id: planId, teacher_id: teacherId })
@@ -264,12 +270,18 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
       <p style={{ margin: 0 }}>Mức năng lực lấy theo đánh giá năm học (ưu tiên mức trường đánh giá, nếu chưa có thì mức tự đánh giá đã nộp). Chứng chỉ đào tạo đã cấp nâng mức lên bằng mức đích của chương trình.
         Giáo viên dưới mức yêu cầu được gợi ý chương trình đào tạo đã phát hành có bồi dưỡng năng lực đó.</p>
     </div>
-    <div className="diststatcards four">
-      <div className="panel"><i aria-hidden="true" className={teachersN ? 'warn' : 'good'}>👥</i><span><b>{rows ? teachersN : '…'}</b><small>GV có thiếu hụt</small></span></div>
-      <div className="panel"><i aria-hidden="true">≠</i><span><b>{all.length}</b><small>Lượt thiếu hụt</small></span></div>
-      <div className="panel"><i aria-hidden="true">▲</i><span><b>{top && top[1] ? top[0].name : '—'}</b><small>Thiếu nhiều nhất{top && top[1] ? ` · ${top[1]} GV` : ''}</small></span></div>
-      <div className="panel"><i aria-hidden="true" className={noSuggest ? 'warn' : ''}>?</i><span><b>{noSuggest}</b><small>Chưa có chương trình phù hợp</small></span></div>
-    </div>
+    <StatCards active={gapActive} onPick={k => {
+      // "Thiếu nhiều nhất" chọn năng lực đó; "Chưa có chương trình" lọc riêng; bấm lại để bỏ
+      if (k === 'top') { setCard(null); if (top) setComp(top[0].key) }
+      else if (k) setCard(k)
+      else if (gapActive === 'top') setComp('')
+      else setCard(null)
+    }} items={[
+      { icon: 'users', tone: teachersN ? 'warn' : 'good', value: rows ? teachersN : '…', label: 'GV có thiếu hụt' },
+      { icon: 'gap', value: cardBase.length, label: 'Lượt thiếu hụt' },
+      { k: top && top[1] ? 'top' : undefined, icon: 'chart', value: top && top[1] ? top[0].name : '—', label: `Thiếu nhiều nhất${top && top[1] ? ` · ${top[1]} GV` : ''}` },
+      { k: 'nosuggest', icon: 'help', tone: noSuggest ? 'warn' : '', value: noSuggest, label: 'Chưa có chương trình phù hợp' },
+    ]} />
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
       <div className="distfilter">
@@ -280,7 +292,7 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
         <button type="button" onClick={excel} disabled={!shown.length}>Xuất Excel</button>
       </div>
       <div className="distfilter">
-        <button type="button" className={`distfchip${!comp ? ' on' : ''}`} onClick={() => setComp('')}>Mọi năng lực ({all.length})</button>
+        <button type="button" className={`distfchip${!comp ? ' on' : ''}`} onClick={() => setComp('')}>Mọi năng lực ({base.length})</button>
         {perComp.map(([c, n]) => <button key={c.key} type="button" className={`distfchip${comp === c.key ? ' on' : ''}`} onClick={() => setComp(c.key)}>{c.name} ({n})</button>)}
         <span style={{ flex: 1 }} />
         <button type="button" className={`distfchip${view === 'school' ? ' on' : ''}`} onClick={() => setView('school')}>Tổng hợp theo trường</button>
@@ -335,8 +347,10 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
   const [edit, setEdit] = useState<Comp | null>(null)
   const [isNew, setIsNew] = useState(false)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
-  const list = comps
-  const groups = [...new Set(list.map(c => c.grp))]
+  const [card, setCard] = useState<string | null>(null)
+  const lack = (c: Comp) => c.levels.some(l => !l?.trim())
+  const list = card === 'lack' ? comps.filter(lack) : comps
+  const groups = [...new Set(comps.map(c => c.grp))]
   async function save() {
     if (!edit) return
     if (!edit.key.match(/^[a-z][a-z_]{1,40}$/)) return setMsg([`Mã chỉ gồm chữ thường không dấu và dấu gạch dưới (VD: ${A.example}).`, true])
@@ -348,7 +362,7 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
   }
   function add() {
     setIsNew(true); setMsg(null)
-    setEdit({ key: A.prefix, audience, grp: list[list.length - 1]?.grp ?? A.grp, name: '', description: '', levels: ['', '', '', ''], sort: (list[list.length - 1]?.sort ?? 100) + 10 })
+    setEdit({ key: A.prefix, audience, grp: comps[comps.length - 1]?.grp ?? A.grp, name: '', description: '', levels: ['', '', '', ''], sort: (comps[comps.length - 1]?.sort ?? 100) + 10 })
   }
   if (edit) return <ElView back={A.title} onBack={() => { setEdit(null); setMsg(null) }} title={isNew ? 'Thêm năng lực' : edit.name}
     sub={isNew ? 'Mã năng lực không đổi được sau khi lưu vì kết quả đánh giá lưu theo mã.' : <>{edit.key} · {edit.grp}</>}>
@@ -369,6 +383,14 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
   </ElView>
   return <>
     {!compact && <div className="panel distintro"><p style={{ margin: 0 }}>{A.intro} Sửa mô tả mức có hiệu lực ngay; mã năng lực không đổi được vì kết quả đã lưu theo mã.</p></div>}
+    {!compact && (() => {
+      const filled = comps.reduce((n, c) => n + c.levels.filter(l => l?.trim()).length, 0), nLack = comps.filter(lack).length
+      return <StatCards active={card} onPick={setCard} items={[
+        { icon: 'target', value: comps.length, label: 'Năng lực', sub: `${groups.length} nhóm` },
+        { icon: 'layers', value: A.levels.length, label: 'Mức', sub: A.levels.join(' · ') },
+        { k: 'lack', icon: 'clipboard', tone: nLack ? 'warn' : 'good', value: filled, label: 'Tiêu chí', sub: nLack ? `Mô tả mức · ${nLack} năng lực còn thiếu` : 'Mô tả mức · đủ cho mọi năng lực' },
+      ]} />
+    })()}
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
       <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>{A.title} ({list.length})</h3>
@@ -381,7 +403,7 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
           <td><small>{c.grp}</small></td>
           {c.levels.map((l, i) => <td key={i}><small>{l}</small></td>)}
           <td><button type="button" data-rowopen onClick={() => { setIsNew(false); setMsg(null); setEdit({ ...c, levels: [...c.levels] }) }}>Sửa</button></td></tr>)}
-          {!list.length && <tr><td colSpan={7}><small className="sub">Chưa có năng lực nào.</small></td></tr>}</tbody>
+          {!list.length && <tr><td colSpan={7}><small className="sub">{comps.length ? 'Không có năng lực nào khớp.' : 'Chưa có năng lực nào.'}</small></td></tr>}</tbody>
       </table></div>
     </section>
   </>

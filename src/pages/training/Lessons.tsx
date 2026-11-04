@@ -10,6 +10,7 @@ import { fmtDate } from '../../lib/time'
 import { LessonPage } from '../library/lesson/LessonPage'
 import { CreateLesson, kitSubject, type ProgRef } from '../library/lesson/Create'
 import type { KitRow } from '../library/lesson/save'
+import { StatCards } from '../../components/StatCards'
 
 type TProg = ProgRef & { status: string }
 type TUnit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string }
@@ -63,8 +64,12 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
   }, [rk])
 
   const progLabel = (pid: string | null) => { const p = progs.find(x => x.id === pid); return p ? `${p.code ? p.code + ' · ' : ''}${p.title}` : '' }
-  const shown = useMemo(() => (rows ?? []).filter(r => (!fs || r.status === fs) && (!fp || r.program_id === fp) && ofl.fit(r.org_id)
-    && (!q || `${r.title} ${r.subject ?? ''} ${r.author ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [rows, fs, fp, ofl, q])
+  // base: theo chương trình, đơn vị, ô tìm; thẻ tổng số và nút trạng thái đếm trên base
+  const base = useMemo(() => (rows ?? []).filter(r => (!fp || r.program_id === fp) && ofl.fit(r.org_id)
+    && (!q || `${r.title} ${r.subject ?? ''} ${r.author ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [rows, fp, ofl, q])
+  const [card, setCard] = useState<string | null>(null)
+  const ready4 = (r: TLesson) => (r.content?.checked ?? []).filter(k => k !== 'bank').length >= 4
+  const shown = useMemo(() => base.filter(r => (!fs || r.status === fs) && (card !== 'ready' || ready4(r))), [base, fs, card])
 
   if (open) return <>
     {msg && <p className="sub" role="status"><b>{msg}</b></p>}
@@ -73,7 +78,7 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
       onBack={() => { setOpen(null); setMsg(''); reload() }} onChanged={reload} />
   </>
 
-  const n = (s: St) => (rows ?? []).filter(r => r.status === s).length
+  const n = (s: St) => base.filter(r => r.status === s).length
   async function setStatus(r: TLesson, status: 'inactive' | 'published' | 'draft') {
     const x = await supabase.from('training_lessons').update({ status }).eq('id', r.id)
     setMsg(x.error ? x.error.message : status === 'inactive' ? `Đã ngừng dùng “${r.title}”.` : `Đã dùng lại “${r.title}”.`); reload()
@@ -88,13 +93,13 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
 
   return (
     <>
-      <div className="diststatcards">
-        <div className="panel"><i aria-hidden="true">≋</i><span><b>{rows?.length ?? '…'}</b><small>Bài giảng đào tạo</small><small>{n('published')} đã phát hành · {n('draft')} nháp</small></span></div>
-        <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{(rows ?? []).filter(r => checked(r) >= 4).length}</b><small>Đã chốt đủ 4 thẻ bắt buộc</small></span></div>
-        <div className="panel"><i aria-hidden="true">▤</i><span><b>{new Set((rows ?? []).map(r => r.program_id).filter(Boolean)).size}</b><small>Chương trình đào tạo có bài giảng</small></span></div>
-      </div>
+      <StatCards active={card} onPick={setCard} items={[
+        { icon: 'edit', value: rows ? base.length : '…', label: 'Bài giảng đào tạo', sub: `${n('published')} đã phát hành · ${n('draft')} nháp` },
+        { k: 'ready', icon: 'checkCircle', tone: 'good', value: base.filter(ready4).length, label: 'Đã chốt đủ 4 thẻ bắt buộc' },
+        { icon: 'book', value: new Set(base.map(r => r.program_id).filter(Boolean)).size, label: 'Chương trình đào tạo có bài giảng' },
+      ]} />
       <div className="distfilter">
-        {([['', 'Tất cả', rows?.length ?? 0], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['inactive', 'Ngừng dùng', n('inactive')]] as [St, string, number][]).map(([s, l, c]) =>
+        {([['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['inactive', 'Ngừng dùng', n('inactive')]] as [St, string, number][]).map(([s, l, c]) =>
           <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
       </div>
       <div className="bar">

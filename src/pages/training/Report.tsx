@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
 import { useAllOrgs } from '../../components/OrgScope'
 import { useOrgFilter } from '../../components/OrgFilters'
+import { StatCards } from '../../components/StatCards'
 
 type Row = { plan_id: string; plan_code: string | null; plan_name: string; plan_org: string | null; year_name: string | null; term: string | null
   starts_on: string | null; ends_on: string | null; hours: number | null; closed: boolean; org_id: string; org_name: string; quota: number | null
@@ -82,14 +83,13 @@ export function TrainingReportPage() {
       </div>
       <div className="tools"><button type="button" onClick={exportX} disabled={!groups.length}>Xuất Excel</button></div>
     </div>
-    <div className="diststatcards rptcards">
-      <div className="panel"><i aria-hidden="true">≋</i><span><b>{tot?.plans.size ?? 0}</b><small>Kế hoạch đào tạo</small><small>{tot?.closed.size ?? 0} đã kết thúc</small></span></div>
-      <div className="panel"><i aria-hidden="true">⌂</i><span><b>{tot?.schools.size ?? 0}</b><small>Trường tham gia</small></span></div>
-      <div className="panel"><i aria-hidden="true">☺</i><span><b>{tot?.enrolled ?? 0}</b><small>Lượt giáo viên tham gia</small><small>{(tot?.hours ?? 0).toLocaleString('vi-VN')} giờ bồi dưỡng</small></span></div>
-      <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{fmtPct(tot ? pct(tot.passed, tot.enrolled) : null)}</b><small>Tỷ lệ hoàn thành (Đạt / tham gia)</small>
-        <small>{tot?.passed ?? 0} Đạt · {tot?.failed ?? 0} Chưa đạt · {tot ? tot.enrolled - done : 0} chưa kết luận</small></span></div>
-      <div className="panel"><i aria-hidden="true">▣</i><span><b>{tot?.certs ?? 0}</b><small>Chứng chỉ đã cấp</small><small>Chuyên cần TB {fmtPct(tot?.attN ? Math.round(tot.attW / tot.attN * 10) / 10 : null)}</small></span></div>
-    </div>
+    <StatCards items={[
+      { icon: 'layers', value: tot?.plans.size ?? 0, label: 'Kế hoạch đào tạo', sub: `${tot?.closed.size ?? 0} đã kết thúc · ${tot?.schools.size ?? 0} trường tham gia` },
+      { icon: 'users', value: tot?.enrolled ?? 0, label: 'Lượt giáo viên tham gia', sub: `${(tot?.hours ?? 0).toLocaleString('vi-VN')} giờ bồi dưỡng` },
+      { icon: 'checkCircle', tone: 'good', value: fmtPct(tot ? pct(tot.passed, tot.enrolled) : null), label: 'Tỷ lệ hoàn thành (Đạt / tham gia)',
+        sub: `${tot?.passed ?? 0} Đạt · ${tot?.failed ?? 0} Chưa đạt · ${tot ? tot.enrolled - done : 0} chưa kết luận` },
+      { icon: 'award', value: tot?.certs ?? 0, label: 'Chứng chỉ đã cấp', sub: `Chuyên cần TB ${fmtPct(tot?.attN ? Math.round(tot.attW / tot.attN * 10) / 10 : null)}` },
+    ]} />
     <div className="segmented" style={{ margin: '12px 0' }}>
       {BY.map(([k, l]) => <button key={k} type="button" className={by === k ? 'on' : ''} onClick={() => setBy(k)}>{l}</button>)}
     </div>

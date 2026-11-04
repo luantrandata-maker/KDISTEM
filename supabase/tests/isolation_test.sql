@@ -3789,6 +3789,31 @@ select pg_temp.chk('so_hy', 'MO 131: Sở làm được phiên bản mới', $q$
 select pg_temp.chk('admin_ph', 'MO 131: trường tạo được chương trình của trường', $q$insert into training_programs (org_id, title) values (my_org_id(), 'ISO CT trường') returning 'ok'$q$, 'rows:1');
 select pg_temp.chk('gv_both', 'MO 131: giáo viên không tạo chương trình', $q$insert into training_programs (org_id, title) values (my_org_id(), 'ISO CT GV')$q$, 'ERR');
 
+-- ===== 132: yêu cầu năng lực giáo viên của chương trình giáo dục =====
+select pg_temp.chk('admin_ph', 'NL 132: trường không đặt yêu cầu năng lực cho chương trình của KDI', $q$select edu_program_set_teacher_reqs((select id from edu_programs where title = 'ISO CT KDI' limit 1), '[{"competency":"gv_thiet_ke","min_level":3}]')::text$q$, 'ERR 42501');
+select pg_temp.chk('kdi', 'NL 132: năng lực ngoài khung giáo viên bị từ chối', $q$select edu_program_set_teacher_reqs((select id from edu_programs where title = 'ISO CT KDI' limit 1), '[{"competency":"khongco","min_level":3}]')::text$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'NL 132: mức ngoài 1–4 bị từ chối', $q$select edu_program_set_teacher_reqs((select id from edu_programs where title = 'ISO CT KDI' limit 1), '[{"competency":"gv_thiet_ke","min_level":5}]')::text$q$, 'ERR 22023');
+select pg_temp.chk('kdi', 'NL 132: KDI đặt yêu cầu năng lực', $q$select edu_program_set_teacher_reqs((select id from edu_programs where title = 'ISO CT KDI' limit 1), '[{"competency":"gv_thiet_ke","min_level":3}]')::text$q$, '1');
+select pg_temp.probe('kdi@iso-test.local', $q$select edu_program_set_teacher_reqs((select id from edu_programs where title = 'ISO CT KDI' limit 1), '[{"competency":"gv_thiet_ke","min_level":3}]')::text$q$, true);
+select pg_temp.chk('kdi', 'NL 132: chưa có trường đánh giá thì chưa đáp ứng', $q$select count(*) from teacher_edu_programs((select id from teachers where full_name = 'GV thử C'))$q$, '0');
+insert into teacher_assessments (org_id, teacher_id, school_year, kind, levels, status)
+  select org_id, id, '2026-2027', 'manager', '{"gv_thiet_ke":2}', 'submitted' from teachers where full_name = 'GV thử C'
+  on conflict (teacher_id, school_year, kind) do update set levels = excluded.levels, status = excluded.status;
+select pg_temp.chk('kdi', 'NL 132: trường đánh giá dưới mức yêu cầu thì chưa đáp ứng', $q$select count(*) from teacher_edu_programs((select id from teachers where full_name = 'GV thử C'))$q$, '0');
+update teacher_assessments set levels = '{"gv_thiet_ke":3}' where kind = 'manager' and school_year = '2026-2027' and teacher_id = (select id from teachers where full_name = 'GV thử C');
+select pg_temp.chk('kdi', 'NL 132: trường đánh giá đạt mức yêu cầu thì đáp ứng', $q$select title || ':' || (via -> 0 ->> 'program') from teacher_edu_programs((select id from teachers where full_name = 'GV thử C'))$q$, 'ISO CT KDI:Đạt yêu cầu năng lực');
+update teacher_assessments set status = 'draft' where kind = 'manager' and school_year = '2026-2027' and teacher_id = (select id from teachers where full_name = 'GV thử C');
+select pg_temp.chk('kdi', 'NL 132: đánh giá còn nháp thì không tính', $q$select count(*) from teacher_edu_programs((select id from teachers where full_name = 'GV thử C'))$q$, '0');
+select pg_temp.chk('kdi', 'NL 132: chỉ tự đánh giá đạt mức thì không tính', $q$select count(*) from teacher_edu_programs((select id from teachers where full_name = 'GV thử A')) where via::text like '%Đạt yêu cầu năng lực%'$q$, '0');
+select pg_temp.probe('kdi@iso-test.local', $q$select edu_program_set_teacher_reqs((select id from edu_programs where title = 'ISO CT Sở HY' limit 1), jsonb_build_array(jsonb_build_object('competency', 'gv_thiet_ke', 'min_level', (select g.target_level from training_programs g where g.title = 'ISO CTTH' and g.status = 'published' limit 1))))::text$q$, true);
+select pg_temp.chk('kdi', 'NL 132: mức đạt qua khoá đào tạo (không gắn chương trình) cũng được tính', $q$select count(*) from teacher_edu_programs((select id from teachers where full_name = 'GV thử B')) where title = 'ISO CT Sở HY'$q$, '1');
+select pg_temp.probe('kdi@iso-test.local', $q$select edu_program_set_teacher_reqs((select id from edu_programs where title = 'ISO CT Sở HY' limit 1), '[{"competency":"gv_thiet_ke","min_level":4},{"competency":"gv_to_chuc","min_level":4}]')::text$q$, true);
+select pg_temp.chk('kdi', 'NL 132: khoá đạt dưới mức yêu cầu thì không tính', $q$select count(*) from teacher_edu_programs((select id from teachers where full_name = 'GV thử B')) where title = 'ISO CT Sở HY'$q$, '0');
+select pg_temp.probe('kdi@iso-test.local', $q$select edu_program_set_teacher_reqs((select id from edu_programs where title = 'ISO CT Sở HY' limit 1), '[]')::text$q$, true);
+select pg_temp.chk('kdi', 'NL 132: xoá hết yêu cầu', $q$select edu_program_set_teacher_reqs((select id from edu_programs where title = 'ISO CT KDI' limit 1), '[]')::text$q$, '0');
+select pg_temp.probe('kdi@iso-test.local', $q$select edu_program_set_teacher_reqs((select id from edu_programs where title = 'ISO CT KDI' limit 1), '[]')::text$q$, true);
+delete from teacher_assessments where kind = 'manager' and school_year = '2026-2027' and teacher_id = (select id from teachers where full_name = 'GV thử C');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

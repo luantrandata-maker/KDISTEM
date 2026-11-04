@@ -1783,7 +1783,7 @@ tbody tr:is(:has(.namelink:not(:disabled)),:has([data-rowopen]:not(:disabled))):
 .msel.sm .mselchip{font-size:12px;padding:1px 2px 1px 8px;min-width:0;flex:0 1 auto}
 .msel.sm .mselchips{gap:3px}
 .msel.sm .mselchip>span{max-width:100px}
-.msel.sm .mselmore{font-size:12px;color:var(--muted);white-space:nowrap;flex:none}
+.msel.sm .mselmore{border:0;padding:0;font-size:12px;color:var(--muted);white-space:nowrap;flex:none}
 .msel.sm .mselq{min-width:16px;flex:1 1 0;padding:4px 2px;font-size:13px}
 .msel.sm .mselx{font-size:14px;padding:0 3px}.msel.sm .mselplus{font-size:16px}
 .libcopy{margin-bottom:12px;gap:10px;flex-wrap:wrap}.libcopy select{min-width:260px}
@@ -1892,6 +1892,8 @@ tr.clickrow:focus-visible{outline:2px solid var(--primary)}.libtable tr.clickrow
 /* ô tìm trong ô chọn nhiều luôn liền với khung ngoài, kể cả khi form có luật viền cho input */
 .msel input.mselq.mselq{border:0;background:transparent;box-shadow:none}
 .msel .mselq{flex:1 1 90px;width:0;min-width:90px;border:0;outline:0;padding:5px 4px;background:transparent;font:inherit;color:var(--text);border-radius:0}
+.mselmore{display:inline-flex;align-items:center;border:1px dashed var(--line);border-radius:999px;padding:2px 9px;font-size:13px;color:var(--muted);white-space:nowrap;cursor:pointer}
+.msel.has:not(.open) .mselq{min-width:8px;flex-basis:8px}
 .mseltools{display:flex;align-items:center;gap:2px;align-self:center}
 .msel .mselplus{font-size:20px;color:var(--text)}
 .mselpop{position:fixed;z-index:1000;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 28px rgba(15,23,42,.18);display:flex;flex-direction:column;overflow:hidden;font-size:14px}

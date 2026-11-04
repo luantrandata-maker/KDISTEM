@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom'
 export type MsOption = [string, string] | { value: string; label: string; group?: string }
 const norm = (o: MsOption) => Array.isArray(o) ? { value: o[0], label: o[1], group: undefined as string | undefined } : o
 const LIMIT = 300
+const FOLD = 3
 const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
 
 /**
@@ -73,19 +74,22 @@ export function MultiSelect({ value, onChange, options, disabled, placeholder = 
     else if (e.key === 'Backspace' && !q && value.length) onChange(value.slice(0, -1))
   }
 
+  // Khi không mở: chỉ hiện vài thẻ đầu và "+N" cho gọn; bấm vào ô mới hiện đủ
+  const fold3 = !compact && !open && value.length > FOLD + 1
   let lastGroup: string | undefined
   return (
-    <div ref={box} className={'msel' + (compact ? ' sm' : '') + (open ? ' open' : '') + (disabled ? ' dis' : '')} style={style} title={compact && value.length > 1 ? value.map(labelOf).join(', ') : undefined}
+    <div ref={box} className={'msel' + (compact ? ' sm' : '') + (open ? ' open' : '') + (value.length ? ' has' : '') + (disabled ? ' dis' : '')} style={style} title={compact && value.length > 1 ? value.map(labelOf).join(', ') : undefined}
       onMouseDown={e => { if (disabled || (e.target as HTMLElement).closest('button')) return; if (e.target !== inp.current) e.preventDefault(); setOpen(true); inp.current?.focus() }}>
       <div className="mselchips">
-        {(compact ? value.slice(0, 1) : value).map((v, i) => (
+        {(compact ? value.slice(0, 1) : fold3 ? value.slice(0, FOLD) : value).map((v, i) => (
           <span key={v} className="mselchip" title={labelOf(v)}>
             <span>{labelOf(v)}</span>{primary && i === 0 && value.length > 1 && <small className="checkmain">{primary}</small>}
             {!disabled && <button type="button" className="mselx" aria-label={`Bỏ ${labelOf(v)}`} onClick={() => onChange(value.filter(x => x !== v))}>×</button>}
           </span>))}
         {compact && value.length > 1 && <span className="mselmore">+{value.length - 1}</span>}
+        {fold3 && <span className="mselmore" title={value.slice(FOLD).map(labelOf).join(', ')}>+{value.length - FOLD}</span>}
         {!disabled && <input ref={inp} className="mselq" value={q} onChange={e => { setQ(e.target.value); setOpen(true) }} onKeyDown={key} onFocus={() => setOpen(true)}
-          placeholder={value.length ? (compact ? '' : 'Tìm…') : placeholder} aria-label={ariaLabel ? `${ariaLabel}: tìm và chọn` : 'Tìm và chọn'} aria-expanded={open} role="combobox" />}
+          placeholder={value.length ? (compact || !open ? '' : 'Tìm…') : placeholder} aria-label={ariaLabel ? `${ariaLabel}: tìm và chọn` : 'Tìm và chọn'} aria-expanded={open} role="combobox" />}
         {disabled && !value.length && <span className="sub">—</span>}
       </div>
       {!disabled && <span className="mseltools">

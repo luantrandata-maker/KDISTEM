@@ -14,6 +14,7 @@ import { useOrgFilters } from '../../components/OrgFilters'
 import { LevelNames } from '../settings/Custom'
 import { StatCards } from '../../components/StatCards'
 
+const m133 = (m: string) => /schema cache|does not exist|Could not find/i.test(m) ? 'Hãy chạy migration 133 trên Supabase.' : errText(m)
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 088 trên Supabase.' : /row-level|42501/i.test(m) ? 'Bạn không có quyền với mục này.' : m
 const vnDate = (d: string | null) => d ? new Date(d).toLocaleDateString('vi-VN') : '—'
 const today = () => new Date().toISOString().slice(0, 10)
@@ -373,6 +374,19 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
   const [isNew, setIsNew] = useState(false)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [card, setCard] = useState<string | null>(null)
+  const [view, setView] = useState<Comp | null>(null)
+  const [usage, setUsage] = useState<{ source: string; n: number }[] | null>(null)
+  useEffect(() => {
+    setUsage(null); if (!view) return
+    supabase.rpc('competency_usage', { p_key: view.key }).then(({ data, error }) => { if (error) setMsg([m133(error.message), true]); else setUsage((data as { source: string; n: number }[]) ?? []) })
+  }, [view?.key])
+  async function del() {
+    if (!view || !confirm(`Xoá năng lực "${view.name}"? Không hoàn tác được.`)) return
+    const { error } = await supabase.rpc('competency_delete', { p_key: view.key })
+    if (error) return setMsg([m133(error.message), true])
+    setMsg([`Đã xoá năng lực "${view.name}".`, false]); setView(null); resetCompetencies()
+  }
+  const openEdit = (c: Comp) => { setIsNew(false); setMsg(null); setEdit({ ...c, levels: [...c.levels] }) }
   const lack = (c: Comp) => c.levels.some(l => !l?.trim())
   const list = card === 'lack' ? comps.filter(lack) : comps
   const groups = [...new Set(comps.map(c => c.grp))]
@@ -383,7 +397,7 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
     const row = { key: edit.key, audience, grp: edit.grp.trim() || A.grp, name: edit.name.trim(), description: edit.description?.trim() || null, levels: edit.levels.map(l => l.trim()), sort: edit.sort }
     const { error } = isNew ? await supabase.from('competencies').insert(row) : await supabase.from('competencies').update(row).eq('key', edit.key)
     if (error) return setMsg([/duplicate|unique/i.test(error.message) ? 'Mã năng lực đã có.' : errText(error.message), true])
-    setMsg([isNew ? 'Đã thêm năng lực.' : 'Đã lưu năng lực.', false]); setEdit(null); resetCompetencies()
+    setMsg([isNew ? 'Đã thêm năng lực.' : 'Đã lưu năng lực.', false]); if (!isNew) setView({ ...edit, ...row }); setEdit(null); resetCompetencies()
   }
   function add() {
     setIsNew(true); setMsg(null)
@@ -406,6 +420,26 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
       <div className="formactions"><button type="button" onClick={() => { setEdit(null); setMsg(null) }}>Huỷ</button> <button type="button" className="primary" onClick={save}>{isNew ? 'Thêm năng lực' : 'Lưu'}</button></div>
     </section>
   </ElView>
+  if (view) {
+    const used = (usage ?? []).length > 0
+    return <ElView back={A.title} onBack={() => { setView(null); setMsg(null) }} title={view.name} sub={<>{view.key} · {view.grp}</>}
+      actions={<><button type="button" onClick={() => openEdit(view)}>Sửa</button>
+        <button type="button" className="danger" disabled={usage === null || used} title={used ? 'Năng lực đang được dùng nên không xoá được' : undefined} onClick={del}>Xoá</button></>}>
+      {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+      <section className="panel" style={{ display: 'grid', gap: 12 }}>
+        {view.description && <p style={{ margin: 0 }}>{view.description}</p>}
+        <div className="wrap"><table className="libtable">
+          <thead><tr><th style={{ width: 200 }}>Mức</th><th>Mô tả</th></tr></thead>
+          <tbody>{view.levels.map((l, i) => <tr key={i}><td><b>{lvLabel(i)}</b></td><td>{l || <small className="sub">Chưa mô tả</small>}</td></tr>)}</tbody>
+        </table></div>
+        <small className="sub">Mã <b>{view.key}</b> · Nhóm <b>{view.grp}</b> · Thứ tự hiển thị <b>{view.sort}</b></small>
+        <div><b>Nơi đang dùng</b>{usage === null ? <small className="sub"> · đang kiểm tra…</small>
+          : used ? <ul style={{ margin: '6px 0 0' }}>{usage.map(u => <li key={u.source}>{u.source}: {u.n}</li>)}</ul>
+          : <small className="sub"> · chưa dùng ở đâu, xoá được.</small>}
+          {used && <small className="sub">Năng lực đã được dùng nên không xoá được, vì kết quả cũ lưu theo mã năng lực. Anh/chị vẫn sửa được tên và mô tả.</small>}</div>
+      </section>
+    </ElView>
+  }
   return <>
     {!compact && <div className="panel distintro"><p style={{ margin: 0 }}>{A.intro} Sửa mô tả mức có hiệu lực ngay; mã năng lực không đổi được vì kết quả đã lưu theo mã.</p></div>}
     {!compact && (() => {
@@ -423,12 +457,11 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
           <button type="button" className="primary" onClick={add}>+ Thêm năng lực</button></span></div>
       {names && <LevelNames keys={[audience === 'teacher' ? 'comp_level_teacher' : 'comp_level_student']} />}
       <div className="wrap"><table className="libtable">
-        <thead><tr><th>Năng lực</th><th>Nhóm</th>{A.levels.map((_, i) => <th key={i}>{lvLabel(i)}</th>)}<th /></tr></thead>
-        <tbody>{list.map(c => <tr key={c.key}><td><button type="button" className="namelink" onClick={() => { setIsNew(false); setMsg(null); setEdit({ ...c, levels: [...c.levels] }) }}>{c.name}</button><br /><small className="sub">{c.key}</small>{c.description && <><br /><small>{c.description}</small></>}</td>
+        <thead><tr><th>Năng lực</th><th>Nhóm</th>{A.levels.map((_, i) => <th key={i}>{lvLabel(i)}</th>)}</tr></thead>
+        <tbody>{list.map(c => <tr key={c.key}><td><button type="button" className="namelink" data-rowopen onClick={() => { setMsg(null); setView(c) }}>{c.name}</button><br /><small className="sub">{c.key}</small>{c.description && <><br /><small>{c.description}</small></>}</td>
           <td><small>{c.grp}</small></td>
-          {c.levels.map((l, i) => <td key={i}><small>{l}</small></td>)}
-          <td><button type="button" data-rowopen onClick={() => { setIsNew(false); setMsg(null); setEdit({ ...c, levels: [...c.levels] }) }}>Sửa</button></td></tr>)}
-          {!list.length && <tr><td colSpan={7}><small className="sub">{comps.length ? 'Không có năng lực nào khớp.' : 'Chưa có năng lực nào.'}</small></td></tr>}</tbody>
+          {c.levels.map((l, i) => <td key={i}><small>{l}</small></td>)}</tr>)}
+          {!list.length && <tr><td colSpan={6}><small className="sub">{comps.length ? 'Không có năng lực nào khớp.' : 'Chưa có năng lực nào.'}</small></td></tr>}</tbody>
       </table></div>
     </section>
   </>

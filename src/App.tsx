@@ -4,7 +4,7 @@ import { supabase } from './lib/supabase'
 import { useSettings, menuOf, orderItems } from './lib/settings'
 import { applyLevelLabels } from './lib/levels'
 import { CatalogLists, PageButtons, PageCtx } from './components/PageButtons'
-import { NAV, ROLE_LABEL, MODULE_OF, ENT_MODULE_OF, RoleKey, UPSELL_PORTALS, PHASE_OF, labelOf } from './lib/nav'
+import { NAV, ROLE_LABEL, MODULE_OF, ENT_MODULE_OF, RoleKey, UPSELL_PORTALS, PHASE_OF, labelOf, renamedPage } from './lib/nav'
 import { LockedModule } from './components/LockedModule'
 import { useAccess, switchOrg } from './lib/auth'
 import { useYears, yearLabel } from './lib/year'
@@ -126,7 +126,7 @@ const SchoolTrainingAssigned = lazy(() => import('./pages/training/Plans').then(
 // Trường: kế hoạch được cấp trên giao (chọn GV, gửi duyệt) + kế hoạch riêng của trường
 const SchoolTrainingPlans = (p: any) => <TabbedPages {...p} tabs={[['Được giao', SchoolTrainingAssigned], ['Kế hoạch của trường', TrainingPlans]]} />
 const SchoolTeacherAssessments = lazy(() => import('./pages/competency').then(m => ({ default: m.SchoolTeacherAssessments })))
-// Đợt 6 (088): đợt đánh giá, khoảng thiếu hụt, khung năng lực, giám sát tập huấn
+// Đợt 6 (088): đợt đánh giá, khoảng thiếu hụt, khung năng lực, giám sát đào tạo
 const AssessmentRoundsPage = lazy(() => import('./pages/training/Competency').then(m => ({ default: m.AssessmentRoundsPage })))
 const CompetencyGapsPage = lazy(() => import('./pages/training/Competency').then(m => ({ default: m.CompetencyGapsPage })))
 const CompetencyFrameworkPage = lazy(() => import('./pages/training/Competency').then(m => ({ default: m.CompetencyFrameworkPage })))
@@ -145,15 +145,15 @@ const PH1_TABS = {
   plans: allOrgs(TrainingPlansPage), cal: allOrgs(TrainingCalendarPage), trainers: allOrgs(TrainersPage),
   lessons: allOrgs(TrainingLessons), virtual: allOrgs(TrainingCalendarPage, { online: true }),
 }
-// Học liệu tập huấn (27/10): khuôn Học liệu của Phân hệ 2 — nội dung, bài giảng, link tài liệu, định mức vật tư, kho hoạt động
-// Giám sát tập huấn: một màn duy nhất (lọc, số tổng quan, cảnh báo, bảng theo trường / phòng / tỉnh / kế hoạch); KDI chọn GV và duyệt DS ngay trong chi tiết trường
+// Học liệu đào tạo (27/10): khuôn Học liệu của Phân hệ 2 — nội dung, bài giảng, link tài liệu, định mức vật tư, kho hoạt động
+// Giám sát đào tạo: một màn duy nhất (lọc, số tổng quan, cảnh báo, bảng theo trường / phòng / tỉnh / kế hoạch); KDI chọn GV và duyệt DS ngay trong chi tiết trường
 const PlatformTrainingMonitor = allOrgs(TrainingMonitorHub, { work: true, manage: true })
 const ProgramReadinessPage = lazy(() => import('./pages/training/Readiness').then(m => ({ default: m.ProgramReadinessPage })))
 const PlatformReadiness = allOrgs(ProgramReadinessPage)
 const EduReadinessPage = lazy(() => import('./pages/training/EduReadiness').then(m => ({ default: m.EduReadinessPage })))
 const SchoolTrainingMonitor = (p: any) => <TrainingMonitorHub {...p} work />
 const trMat = (part: string) => (p: any) => <TrainingMaterials {...p} part={part} />
-const trainingMaterialTabs = (lessons: ComponentType<any>) => (p: any) => <TabbedPages {...p} tabs={[['Nội dung tập huấn', trMat('content')], ['Bài giảng', lessons],
+const trainingMaterialTabs = (lessons: ComponentType<any>) => (p: any) => <TabbedPages {...p} tabs={[['Nội dung đào tạo', trMat('content')], ['Bài giảng', lessons],
   ['Link tài liệu', trMat('docs')], ['Định mức vật tư', trMat('mats')], ['Kho hoạt động', SysTrainingActivities]]} />
 const PlatformCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Hồ sơ năng lực', PH1_TABS.profiles], ['Đánh giá', PH1_TABS.assess],
   ['Đợt đánh giá', PH1_TABS.rounds], ['Khoảng thiếu hụt', CompetencyGapsPage], ['Khung năng lực', CompetencyFrameworkPage]]} />
@@ -281,8 +281,8 @@ const SCHOOL: PageMap = {
   'Cuộc thi': CompetitionsPage,
   'Sự kiện': EventManager,
   'Đánh giá năng lực GV': SchoolCompetencyTabs,
-  'Giám sát tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Giám sát', SchoolTrainingMonitor], ['Đáp ứng chương trình', ProgramReadinessPage], ['Đáp ứng chương trình giáo dục', EduReadinessPage]]} />,
-  'Báo cáo tập huấn': TrainingReportPage,
+  'Giám sát đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Giám sát', SchoolTrainingMonitor], ['Đáp ứng chương trình', ProgramReadinessPage], ['Đáp ứng chương trình giáo dục', EduReadinessPage]]} />,
+  'Báo cáo đào tạo': TrainingReportPage,
   'Khảo sát': SurveyManager,
   'Năng lực học sinh': ClassCompetencies,
   'Dashboard Trường': Dashboard,
@@ -310,12 +310,12 @@ const SCHOOL: PageMap = {
   'Phân phối chương trình': ppctTabs('school'),
   'Chương trình giáo dục': eduProgramTabs('school'),
   'Hồ sơ Trường học': SchoolProfile,
-  'Kế hoạch tập huấn': SchoolTrainingPlans,
-  // Lớp học ảo (buổi trực tuyến) chuyển vào Lịch tập huấn; Bài giảng thành Học liệu tập huấn
-  'Lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Lịch tập huấn', TrainingSchedule], ['Lớp học ảo', VirtualClass]]} />,
-  'Học liệu tập huấn': trainingMaterialTabs(TrainingLessons),
+  'Kế hoạch đào tạo': SchoolTrainingPlans,
+  // Lớp học ảo (buổi trực tuyến) chuyển vào Lịch đào tạo; Bài giảng thành Học liệu đào tạo
+  'Lịch đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Lịch đào tạo', TrainingSchedule], ['Lớp học ảo', VirtualClass]]} />,
+  'Học liệu đào tạo': trainingMaterialTabs(TrainingLessons),
   'Chứng chỉ': TrainingCertificatesPage,
-  'Đánh giá kết quả tập huấn': TrainingResultsPage,
+  'Đánh giá kết quả đào tạo': TrainingResultsPage,
   'Năm học & học kỳ': Years,
   'Thiết lập chung': GeneralSettings,
   'Hộp phê duyệt': ApprovalInbox,
@@ -362,10 +362,10 @@ const TEACHER: PageMap = {
   'Hộp phê duyệt': ApprovalInbox,
   'Thư viện STEM': (p: any) => <TabbedPages {...p} tabs={[['Theo chương trình', LibraryPrograms], ['Kho học liệu', LibraryBrowse]]} />,
   'Định mức vật tư': MaterialNorms,
-  'Lịch tập huấn': TeacherTrainingSchedule,
-  'Đăng ký tập huấn': TeacherTrainingRegister,
-  'Chứng chỉ tập huấn': TeacherCertificates,
-  'Bài giảng tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Khoá tập huấn của tôi', TeacherTrainingLearn], ['Luyện tập', TeacherTrainingPractice], ['Bài giảng của trường', TeacherTrainingLessons]]} />,
+  'Lịch đào tạo': TeacherTrainingSchedule,
+  'Đăng ký đào tạo': TeacherTrainingRegister,
+  'Chứng chỉ đào tạo': TeacherCertificates,
+  'Bài giảng đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Khoá đào tạo của tôi', TeacherTrainingLearn], ['Luyện tập', TeacherTrainingPractice], ['Bài giảng của trường', TeacherTrainingLessons]]} />,
   'Hỗ trợ từ KDI': CustomerSupport,
   'Kho hoạt động & Bài giảng': TeacherActivities,
   'Học trước & tự học': TeacherSelfStudy,
@@ -406,13 +406,13 @@ const DEPARTMENT: PageMap = {
   'Dashboard điểm danh': AttendanceDashboard,
   'Chương trình CT1–CT5': DeptPrograms,
   'Theo dõi Môn học STEM': DeptSubjects,
-  'Giám sát Tập huấn GV': (p: any) => <TabbedPages {...p} tabs={[['Giám sát', TrainingMonitorHub], ['Đáp ứng chương trình', ProgramReadinessPage], ['Đáp ứng chương trình giáo dục', EduReadinessPage]]} />,
-  'Báo cáo tập huấn': TrainingReportPage,
+  'Giám sát Đào tạo GV': (p: any) => <TabbedPages {...p} tabs={[['Giám sát', TrainingMonitorHub], ['Đáp ứng chương trình', ProgramReadinessPage], ['Đáp ứng chương trình giáo dục', EduReadinessPage]]} />,
+  'Báo cáo đào tạo': TrainingReportPage,
   'Đánh giá năng lực nhà giáo': AuthorityCompetencyTabs,
-  'Kế hoạch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', TrainingPlansPage], ['Giảng viên', TrainersPage]]} />,
-  'Lịch tập huấn': TrainingCalendarPage,
-  'Đánh giá kết quả tập huấn': TrainingResultsPage,
-  'Chứng chỉ tập huấn': TrainingCertificatesPage,
+  'Kế hoạch đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', TrainingPlansPage], ['Giảng viên', TrainersPage]]} />,
+  'Lịch đào tạo': TrainingCalendarPage,
+  'Đánh giá kết quả đào tạo': TrainingResultsPage,
+  'Chứng chỉ đào tạo': TrainingCertificatesPage,
   'Hiệu quả Phòng STEM': DeptRoomEffect,
   'Phòng STEM & lịch phòng': RoomsOverview,
   'Thiết bị & kho': EquipmentOverview,
@@ -429,7 +429,7 @@ const DEPARTMENT: PageMap = {
   'Bài giảng': DeptLessons,
   'Hỗ trợ từ KDI': CustomerSupport,
 }
-// Cổng Quản trị nền tảng: chỉ nối các trang đọc được dữ liệu toàn hệ thống (trang nền tảng, trang cấp Sở, học liệu, phê duyệt, tập huấn).
+// Cổng Quản trị nền tảng: chỉ nối các trang đọc được dữ liệu toàn hệ thống (trang nền tảng, trang cấp Sở, học liệu, phê duyệt, đào tạo).
 // Mục menu không có ở đây hiện khung giao diện (PlannedPage); build xong phân hệ nào thì thêm trang vào đây.
 const PLATFORM: PageMap = {
   'Dự án STEM': (p: any) => <ProjectsPage {...p} readOnly />,
@@ -469,9 +469,9 @@ const PLATFORM: PageMap = {
   'Đơn đặt gói STEM': (p: any) => <TabbedPages {...p} tabs={[['Đơn đặt gói', PlatformOrders], ['Gói STEM của KDI', PlatformCatalog]]} />,
   'Tích hợp & dữ liệu': PlatformIntegrations,
   // 1. Đào tạo & đánh giá năng lực nhà giáo — làm lại theo khuôn Phân hệ 2 (kế hoạch: Chương trình → Kế hoạch & lịch → … → Giám sát)
-  'Chương trình tập huấn': TrainingProgramsPage,
-  'Kế hoạch & lịch tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch tập huấn', PH1_TABS.cal], ['Lớp học ảo', PH1_TABS.virtual],
-    // 27/10: Đánh giá kết quả và Giám sát tập huấn gom vào đây (đều theo từng kế hoạch); các màn giám sát gộp một tab
+  'Chương trình đào tạo': TrainingProgramsPage,
+  'Kế hoạch & lịch đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch đào tạo', PH1_TABS.cal], ['Lớp học ảo', PH1_TABS.virtual],
+    // 27/10: Đánh giá kết quả và Giám sát đào tạo gom vào đây (đều theo từng kế hoạch); các màn giám sát gộp một tab
     ['Đánh giá kết quả', TrainingResultsPage], ['Giảng viên', PH1_TABS.trainers], ['Giám sát', PlatformTrainingMonitor], ['Đáp ứng chương trình', PlatformReadiness], ['Đáp ứng chương trình giáo dục', EduReadinessPage], ['Báo cáo', allOrgs(TrainingReportPage)]]} />,
   // 2. Chương trình & học liệu
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
@@ -519,9 +519,9 @@ const PLATFORM: PageMap = {
   'Bài tập & chấm bài': SysHomework,
   'Phân phối chương trình': PlatformDistPage,
   'Soạn bài giảng & kho hoạt động': PlatformLessonsPage,
-  'Học liệu tập huấn': trainingMaterialTabs(PH1_TABS.lessons),
+  'Học liệu đào tạo': trainingMaterialTabs(PH1_TABS.lessons),
   'Kiểm tra & luyện tập': (p: any) => <TabbedPages {...p} tabs={[['Đề kiểm tra', TrainingExamList], ['Đề luyện', TrainingPracticeExams], ['Kết quả & câu khó', TrainingExamStats], ['Ngân hàng câu hỏi', QuestionBank]]} />,
-  'Chứng chỉ tập huấn': (p: any) => <TabbedPages {...p} tabs={[['Chứng chỉ', TrainingCertificatesPage], ['Mẫu chứng chỉ', CertTemplatesPage]]} />,
+  'Chứng chỉ đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Chứng chỉ', TrainingCertificatesPage], ['Mẫu chứng chỉ', CertTemplatesPage]]} />,
 }
 const PLATFORM_LIVE = new Set(Object.keys(PLATFORM))
 PLATFORM['Sơ đồ hệ thống'] = (p: any) => <SystemMap {...p} live={PLATFORM_LIVE} />
@@ -531,9 +531,9 @@ PLATFORM_LIVE.add('Phân hệ & mức sử dụng')
 const PLATFORM_ALIAS: Record<string, string> = {
   'KPI & Xếp hạng Xã/Phường': 'KPI & xếp hạng', 'Thiết bị & kho': 'Thiết bị & vật tư', 'Hiệu quả Phòng STEM': 'Hiệu quả sử dụng phòng STEM',
   'Dashboard điểm danh': 'Buổi dạy & điểm danh', 'Thời khoá biểu & xếp lịch': 'Thời khóa biểu & xếp lịch',
-  'Đánh giá năng lực giáo viên': 'Đánh giá năng lực nhà giáo', 'Kế hoạch tập huấn': 'Kế hoạch & lịch tập huấn', 'Lịch tập huấn': 'Kế hoạch & lịch tập huấn',
-  'Bài giảng tập huấn & lớp học ảo': 'Học liệu tập huấn',
-  'Giám sát tập huấn nhà giáo': 'Kế hoạch & lịch tập huấn', 'Đánh giá kết quả tập huấn': 'Kế hoạch & lịch tập huấn', 'Giám sát Tập huấn GV': 'Kế hoạch & lịch tập huấn', 'Lớp học ảo': 'Kế hoạch & lịch tập huấn',
+  'Đánh giá năng lực giáo viên': 'Đánh giá năng lực nhà giáo', 'Kế hoạch đào tạo': 'Kế hoạch & lịch đào tạo', 'Lịch đào tạo': 'Kế hoạch & lịch đào tạo',
+  'Bài giảng đào tạo & lớp học ảo': 'Học liệu đào tạo',
+  'Giám sát đào tạo nhà giáo': 'Kế hoạch & lịch đào tạo', 'Đánh giá kết quả đào tạo': 'Kế hoạch & lịch đào tạo', 'Giám sát Đào tạo GV': 'Kế hoạch & lịch đào tạo', 'Lớp học ảo': 'Kế hoạch & lịch đào tạo',
 }
 export const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM, parent: PARENT, judge: JUDGE }
 // Khi dev: mục menu không có trang (thường do sửa chuỗi mã trong NAV thay vì thêm LABEL — xem lib/nav.ts)
@@ -563,7 +563,7 @@ function AppMain() {
   if (!session) return <Login />
   // Quên mật khẩu; hoặc tài khoản mã lần đầu đăng nhập / vừa được trường đặt lại mật khẩu (bắt buộc đổi)
   if (recovery || mustChangePassword(session.user.user_metadata)) return <SetPassword forced={!recovery} onDone={() => setRecovery(false)} />
-  // Quét QR điểm danh tập huấn: /?dd=<mã> (chưa đăng nhập thì đăng nhập xong mới điểm danh)
+  // Quét QR điểm danh đào tạo: /?dd=<mã> (chưa đăng nhập thì đăng nhập xong mới điểm danh)
   const dd = /^\d{6}$/.test(checkin ?? '') ? checkin : null
   return <MfaGate key={session.user.id}><LegalGate>{dd
     ? <Suspense fallback={null}><CheckInLanding code={dd} onDone={() => { history.replaceState(null, '', location.pathname); setCheckin(null) }} /></Suspense>
@@ -596,11 +596,11 @@ function Shell({ session }: { session: Session }) {
   useEffect(() => {
     if (!access.loading && !role && views.length) {
       // Tải lại trang: mở lại đúng trang đang xem (lưu trong lịch sử trình duyệt) nếu vẫn còn quyền
-      const st = (history.state ?? {}) as { role?: RoleKey; page?: string }
+      const st0 = (history.state ?? {}) as { role?: RoleKey; page?: string }, st = { ...st0, page: st0.page && renamedPage(st0.page) }
       const keep = st.role && views.includes(st.role) && NAV[st.role].some(g => g.items.includes(st.page ?? ''))
-      // Link mời đăng ký tập huấn (?dk=<kế hoạch>): mở thẳng mục Đăng ký tập huấn của giáo viên
-      const dk = new URLSearchParams(location.search).get('dk') && views.includes('teacher') && NAV.teacher.some(g => g.items.includes('Đăng ký tập huấn'))
-      const r = dk ? 'teacher' : keep ? st.role! : views[0], p = dk ? 'Đăng ký tập huấn' : keep ? st.page! : NAV[views[0]][0].items[0]
+      // Link mời đăng ký đào tạo (?dk=<kế hoạch>): mở thẳng mục Đăng ký đào tạo của giáo viên
+      const dk = new URLSearchParams(location.search).get('dk') && views.includes('teacher') && NAV.teacher.some(g => g.items.includes('Đăng ký đào tạo'))
+      const r = dk ? 'teacher' : keep ? st.role! : views[0], p = dk ? 'Đăng ký đào tạo' : keep ? st.page! : NAV[views[0]][0].items[0]
       navigatePage(r, p, true); setRole(r); setPage(p)
     }
   }, [access.loading, views.length])
@@ -609,6 +609,7 @@ function Shell({ session }: { session: Session }) {
   useEffect(() => {
     onHistoryPage(s => {
       const r = s.role as RoleKey | undefined
+      s = { ...s, page: s.page && renamedPage(s.page) }
       if (r && s.page && views.includes(r) && NAV[r].some(g => g.items.includes(s.page!))) { setRole(r); setPage(s.page) }
     })
     return () => onHistoryPage(null)
@@ -663,7 +664,7 @@ function Shell({ session }: { session: Session }) {
   if (!role) return null
 
   // Mọi lần đổi trang đi qua show() để ghi vào lịch sử trình duyệt
-  const show = (r: RoleKey, p: string) => { navigatePage(r, p); setRole(r); setPage(p) }
+  const show = (r: RoleKey, p0: string) => { const p = renamedPage(p0); navigatePage(r, p); setRole(r); setPage(p) }
   const changeRole = (r: RoleKey) => show(r, NAV[r][0].items[0])
   // Mở một trang từ thông báo (có thể ở giao diện khác)
   const openFrom = (portal: RoleKey | null, target: string) => {
@@ -687,10 +688,10 @@ function Shell({ session }: { session: Session }) {
   const appTitle = role === 'platform' ? menu.title || PLATFORM_TITLE : brand?.display_name ?? (menu.title || DEFAULT_TITLE)
   if (document.title !== appTitle) document.title = appTitle
   const lab = (i: string) => menu.labels[i] || labelOf(role, i)
-  // Phân hệ 1 (Chương trình & học liệu) và 2 (Đào tạo nhà giáo / Tập huấn GV): tên bấm được không gạch dưới (index.css, .main[data-ph])
+  // Phân hệ 1 (Chương trình & học liệu) và 2 (Đào tạo nhà giáo / Đào tạo GV): tên bấm được không gạch dưới (index.css, .main[data-ph])
   const inGroup = (t: (title: string) => boolean) => NAV[role].some(g => t(g.title) && g.items.includes(page))
   const ph = inGroup(t => t.includes('Chương trình & học liệu')) ? '1'
-    : inGroup(t => t.includes('Đào tạo & đánh giá năng lực nhà giáo') || t === 'Tập huấn giáo viên') ? '2' : undefined
+    : inGroup(t => t.includes('Đào tạo & đánh giá năng lực nhà giáo') || t === 'Đào tạo giáo viên') ? '2' : undefined
   const groups = NAV[role]
     .map(g => ({ ...g, label: menu.groups[g.title] || g.title,
       items: orderItems(g.items, menu.order[g.title]).filter(i => roleOk(i) && (inPlan(i) || locked.has(i)) && (i === 'Thiết lập chung' || !menu.hidden.includes(i))) }))

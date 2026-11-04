@@ -1,5 +1,5 @@
-// Phân hệ 1 — Chứng chỉ tập huấn (087): danh sách, duyệt cấp, thu hồi, in (PDF qua hộp thoại in), QR tra cứu công khai;
-// mẫu chứng chỉ (KDI soạn, chương trình tập huấn chọn mẫu); chứng chỉ của tôi (cổng giáo viên); trang tra cứu ?cc=<mã>.
+// Phân hệ 1 — Chứng chỉ đào tạo (087): danh sách, duyệt cấp, thu hồi, in (PDF qua hộp thoại in), QR tra cứu công khai;
+// mẫu chứng chỉ (KDI soạn, chương trình đào tạo chọn mẫu); chứng chỉ của tôi (cổng giáo viên); trang tra cứu ?cc=<mã>.
 import { useOrgFilter } from '../../components/OrgFilters'
 import { MultiSelect } from '../../components/MultiSelect'
 import { useEffect, useMemo, useState } from 'react'
@@ -34,7 +34,7 @@ function fill(t: string, p: Payload) {
 export function CertPaper({ p }: { p: Payload }) {
   const [qr, setQr] = useState('')
   useEffect(() => { if (p.token) QRCode.toDataURL(verifyUrl(p.token), { margin: 1, width: 160, errorCorrectionLevel: 'M' }).then(setQr) }, [p.token])
-  const t = p.template ?? { title: 'CHỨNG CHỈ', body: 'Đã hoàn thành chương trình tập huấn {chuong_trinh} ({so_gio} giờ) thuộc {ke_hoach}.', issuer_name: p.plan_org, signer_name: null, signer_title: null, logo_url: null } as Tpl
+  const t = p.template ?? { title: 'CHỨNG CHỈ', body: 'Đã hoàn thành chương trình đào tạo {chuong_trinh} ({so_gio} giờ) thuộc {ke_hoach}.', issuer_name: p.plan_org, signer_name: null, signer_title: null, logo_url: null } as Tpl
   return <div className={`certpaper${p.status === 'revoked' ? ' revoked' : ''}`}>
     <div className="certhead">{t.logo_url ? <img src={t.logo_url} alt="" /> : <span />}<b>{t.issuer_name || p.plan_org}</b></div>
     <h2>{t.title || 'CHỨNG CHỈ'}</h2>
@@ -86,7 +86,7 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
     if (error) { setMsg([errText(error.message), true]); setRows([]) } else { setRows((data as Cert[]) ?? []); setSel(new Set()) }
   })
   useEffect(() => { load() }, [orgId])
-  if (open) return <CertView id={open} back="Chứng chỉ tập huấn" onBack={() => setOpen(null)} />
+  if (open) return <CertView id={open} back="Chứng chỉ đào tạo" onBack={() => setOpen(null)} />
   const all = rows ?? []
   const plans = [...new Map(all.map(c => [c.plan_id, `${c.plan_code ?? ''} · ${c.plan_name ?? ''}`])).entries()]
   const base = all.filter(c => (!plan || c.plan_id === plan) && ofl.fit(tOrg.get(c.teacher_id)))
@@ -147,17 +147,17 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
             {c.can_manage && c.status === 'issued' && <button type="button" onClick={() => revoke(c)}>Thu hồi</button>}
             {c.can_manage && c.status === 'revoked' && <button type="button" onClick={() => issue([c.id])}>Cấp lại</button>}</div></td>
         </tr>)}
-          {!shown.length && <tr><td colSpan={7}><small className="sub">{all.length ? 'Không có chứng chỉ nào khớp.' : 'Chưa có chứng chỉ. Kết luận Đạt ở mục Đánh giá kết quả tập huấn để có chứng chỉ chờ duyệt.'}</small></td></tr>}</tbody>
+          {!shown.length && <tr><td colSpan={7}><small className="sub">{all.length ? 'Không có chứng chỉ nào khớp.' : 'Chưa có chứng chỉ. Kết luận Đạt ở mục Đánh giá kết quả đào tạo để có chứng chỉ chờ duyệt.'}</small></td></tr>}</tbody>
       </table></div>}
     </section>
   </>
 }
 
 // ===== Mẫu chứng chỉ =====
-const BLANK: Omit<Tpl, 'id'> = { name: '', title: 'CHỨNG CHỈ', body: 'Đã hoàn thành chương trình tập huấn {chuong_trinh} ({so_gio} giờ) thuộc {ke_hoach}.',
+const BLANK: Omit<Tpl, 'id'> = { name: '', title: 'CHỨNG CHỈ', body: 'Đã hoàn thành chương trình đào tạo {chuong_trinh} ({so_gio} giờ) thuộc {ke_hoach}.',
   issuer_name: 'KDI Education', signer_name: '', signer_title: 'Giám đốc', logo_url: '', valid_months: null, is_default: false }
 const SAMPLE: Payload = { code: 'CCTH-2027-00001', status: 'issued', issued_on: new Date().toISOString().slice(0, 10), expires_on: null, revoked_reason: null,
-  hours: 24, programs: 'STEM cơ bản cho GV THCS', teacher: 'Nguyễn Văn A', school: 'THCS Phố Hiến', plan: 'Tập huấn STEM hè 2027', plan_code: 'KHTH-001', plan_org: 'KDI Education', template: null, grade: 'Giỏi', score: 8.4 }
+  hours: 24, programs: 'STEM cơ bản cho GV THCS', teacher: 'Nguyễn Văn A', school: 'THCS Phố Hiến', plan: 'Đào tạo STEM hè 2027', plan_code: 'KHTH-001', plan_org: 'KDI Education', template: null, grade: 'Giỏi', score: 8.4 }
 
 export function CertTemplatesPage() {
   const [rows, setRows] = useState<Tpl[] | null>(null)
@@ -173,7 +173,7 @@ export function CertTemplatesPage() {
   if (edit) return <TplForm t={edit} progs={progs} onBack={() => setEdit(null)} onDone={m => { setEdit(null); setMsg(m); load() }} />
   return <section className="panel" style={{ display: 'grid', gap: 12 }}>
     <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Mẫu chứng chỉ</h3>{admin && <button type="button" className="primary" onClick={() => setEdit({ ...BLANK })}>Thêm mẫu</button>}</div>
-    <small className="sub">Chương trình tập huấn chọn mẫu ở đây; chương trình chưa chọn thì dùng mẫu mặc định. {!admin && 'Chỉ KDI soạn mẫu.'}</small>
+    <small className="sub">Chương trình đào tạo chọn mẫu ở đây; chương trình chưa chọn thì dùng mẫu mặc định. {!admin && 'Chỉ KDI soạn mẫu.'}</small>
     {msg && <p className="sub" role="status"><b>{msg}</b></p>}
     {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
       <thead><tr><th>Mẫu</th><th>Đơn vị cấp · người ký</th><th>Hiệu lực</th><th>Áp dụng cho chương trình</th><th></th></tr></thead>
@@ -237,7 +237,7 @@ function TplForm({ t, progs, onBack, onDone }: { t: Tpl | Omit<Tpl, 'id'>; progs
         <label style={{ display: 'flex', gap: 8, alignItems: 'center', gridColumn: '1/-1' }}><input type="checkbox" checked={f.is_default} onChange={e => set('is_default', e.target.checked)} />Mẫu mặc định (cho chương trình chưa chọn mẫu)</label>
         <div style={{ gridColumn: '1/-1' }}><b>Áp dụng cho chương trình</b>
           <div style={{ marginTop: 6 }}><MultiSelect value={[...use]} onChange={v => setUse(new Set(v))} options={progs.map(p => [p.id, `${p.code} · ${p.title}`])}
-            placeholder="Chọn chương trình tập huấn…" ariaLabel="Áp dụng cho chương trình" empty="Chưa có chương trình tập huấn." /></div></div>
+            placeholder="Chọn chương trình đào tạo…" ariaLabel="Áp dụng cho chương trình" empty="Chưa có chương trình đào tạo." /></div></div>
       </section>
       <section className="panel"><b>Xem trước</b><div className="certwrap small"><CertPaper p={preview} /></div></section>
     </div>
@@ -259,7 +259,7 @@ export function TeacherCertificates({ teacherId }: { teacherId: string | null })
       <div><small>Ngày cấp {day(c.issued_on)}</small>{c.expires_on && <><br /><small className="sub">Hiệu lực đến {day(c.expires_on)}</small></>}</div>
       <button type="button" className="primary" onClick={() => setOpen(c.id)}>Xem / In</button>
     </div>)}
-    {!rows.length && <p className="sub">Bạn chưa có chứng chỉ tập huấn nào. Hoàn thành khoá tập huấn và được kết luận Đạt để nhận chứng chỉ.</p>}
+    {!rows.length && <p className="sub">Bạn chưa có chứng chỉ đào tạo nào. Hoàn thành khoá đào tạo và được kết luận Đạt để nhận chứng chỉ.</p>}
   </div>
 }
 
@@ -281,9 +281,9 @@ export function TeacherCertList({ teacherId }: { teacherId: string }) {
   }, [teacherId])
   if (open) return <CertView id={open} back="Hồ sơ năng lực" onBack={() => setOpen(null)} />
   if (!rows) return <p className="sub" style={{ margin: 0 }}>Đang tải…</p>
-  if (!rows.length) return <p className="sub" style={{ margin: 0 }}>Chưa có chứng chỉ tập huấn nào. Hoàn thành khoá tập huấn và được kết luận Đạt để nhận chứng chỉ.</p>
+  if (!rows.length) return <p className="sub" style={{ margin: 0 }}>Chưa có chứng chỉ đào tạo nào. Hoàn thành khoá đào tạo và được kết luận Đạt để nhận chứng chỉ.</p>
   return <div className="wrap"><table className="libtable">
-    <thead><tr><th>Số chứng chỉ</th><th>Kế hoạch / chương trình tập huấn</th><th>Ngày cấp</th><th>Hiệu lực đến</th><th>Trạng thái</th><th></th></tr></thead>
+    <thead><tr><th>Số chứng chỉ</th><th>Kế hoạch / chương trình đào tạo</th><th>Ngày cấp</th><th>Hiệu lực đến</th><th>Trạng thái</th><th></th></tr></thead>
     <tbody>{rows.map(c => <tr key={c.id}>
       <td>{c.code ?? '—'}</td>
       <td style={{ whiteSpace: 'normal' }}>{c.plan_name ?? '—'}<br /><small className="sub">{c.program_titles}{c.hours ? ` · ${String(c.hours).replace('.', ',')} giờ` : ''}</small></td>
@@ -299,7 +299,7 @@ export function CertVerify({ token }: { token: string }) {
   const [p, setP] = useState<Payload | null | undefined>(undefined)
   useEffect(() => { supabase.rpc('training_cert_verify', { p_token: token }).then(({ data, error }) => setP(error ? null : (data as Payload | null))) }, [token])
   return <div className="certverify">
-    <h1>Tra cứu chứng chỉ tập huấn</h1>
+    <h1>Tra cứu chứng chỉ đào tạo</h1>
     {p === undefined ? <p className="sub">Đang tra cứu…</p>
       : !p ? <div className="panel"><b>Không tìm thấy chứng chỉ.</b><p className="sub">Mã tra cứu không đúng hoặc chứng chỉ chưa được cấp.</p></div>
       : <>

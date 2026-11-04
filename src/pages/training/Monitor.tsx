@@ -1,4 +1,4 @@
-// Giám sát tập huấn (088, 113): một màn duy nhất — bộ lọc, số tổng quan, cảnh báo và một bảng đổi cách xem (trường / phòng / tỉnh / kế hoạch).
+// Giám sát đào tạo (088, 113): một màn duy nhất — bộ lọc, số tổng quan, cảnh báo và một bảng đổi cách xem (trường / phòng / tỉnh / kế hoạch).
 // Bấm một trường mở chi tiết: từng kế hoạch, từng GV, và việc cần làm (chọn GV, duyệt / trả lại danh sách).
 // KDI / Sở / Phòng thấy các trường trong phạm vi, trường thấy dòng của mình.
 // Cảnh báo: trường chưa chọn đủ GV theo chỉ tiêu, GV vắng nhiều, khoá sắp kết thúc mà còn GV chưa đủ điều kiện. Hiệu quả: mức năng lực trước / sau.
@@ -193,7 +193,7 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
         <td>{todo ? <Chip tone="warn">{todo} cần chọn GV</Chip> : null}{sub ? <> <Chip>{sub} chờ duyệt</Chip></> : null}{!todo && !sub && <small className="tlok">Đã xong</small>}</td>
         <td>{s.att == null ? '—' : `${s.att}%`}{s.low_att > 0 && <><br /><small className="warnline">{s.low_att} GV vắng nhiều</small></>}</td>
         <td>{s.passed} <small className="sub">({pct(s.passed, s.enrolled)}%)</small></td><td>{s.certs}</td><td><FbCell a={fbOf(s.rows)} /></td><td><AlertCounts alerts={s.alerts} /></td></tr> })}
-      {!list.length && <tr><td colSpan={9}><small className="sub">{all.length ? 'Không có trường nào khớp bộ lọc.' : 'Chưa có kế hoạch tập huấn đã phát hành được giao cho trường.'}</small></td></tr>}</tbody>
+      {!list.length && <tr><td colSpan={9}><small className="sub">{all.length ? 'Không có trường nào khớp bộ lọc.' : 'Chưa có kế hoạch đào tạo đã phát hành được giao cho trường.'}</small></td></tr>}</tbody>
   </table></div>
     {list.length > 15 && <button type="button" className="linkbtn" onClick={() => setMore(!more)}>{more ? 'Thu gọn' : `Xem cả ${list.length} trường`}</button>}</>
 
@@ -260,11 +260,11 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
             <td><span className="tlok">{r.passed} Đạt</span>{r.failed > 0 && <> · <span className="warnline">{r.failed} chưa đạt</span></>}
               {r.not_ready > 0 && <><br /><small className="warnline">{r.not_ready} GV chưa đủ ĐK, sắp kết thúc</small></>}</td>
             <td>{r.certs}</td><td><FbCell a={fbOf([r])} /></td></tr>)}
-            {!shown.length && <tr><td colSpan={9}><small className="sub">{all.length ? 'Không có dòng nào khớp bộ lọc.' : 'Chưa có kế hoạch tập huấn đã phát hành được giao cho trường.'}</small></td></tr>}</tbody>
+            {!shown.length && <tr><td colSpan={9}><small className="sub">{all.length ? 'Không có dòng nào khớp bộ lọc.' : 'Chưa có kế hoạch đào tạo đã phát hành được giao cho trường.'}</small></td></tr>}</tbody>
         </table></div>}
     </section>
-    <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }} aria-label="Mức hài lòng sau tập huấn">
-      <div className="monhead"><h3 style={{ margin: 0 }}>Mức hài lòng sau tập huấn</h3>
+    <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }} aria-label="Mức hài lòng sau đào tạo">
+      <div className="monhead"><h3 style={{ margin: 0 }}>Mức hài lòng sau đào tạo</h3>
         <small className="sub">{fbAll.n ? <>Trung bình chung <b>{score(fbAll.overall)}★</b> · {fbAll.n}/{fbAll.enrolled} GV đã gửi phiếu ({pct(fbAll.n, fbAll.enrolled)}%) · {fbAll.comments} góp ý</> : 'Giáo viên gửi phiếu ở trang khoá học khi khoá kết thúc.'}</small></div>
       {fbPlans.length > 0 && <div className="wrap"><table className="libtable">
         <thead><tr><th>Kế hoạch</th><th>Phiếu</th>{FB_CRIT.map(([k, l]) => <th key={k}>{l}</th>)}<th>Góp ý</th></tr></thead>
@@ -272,14 +272,14 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
       </table></div>}
     </section>
     <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-      <h3 style={{ margin: 0 }}>Năng lực trước / sau tập huấn</h3>
-      <p className="sub" style={{ margin: 0 }}>Giáo viên đã Đạt khoá tập huấn: mức trung bình ở đánh giá năng lực gần nhất trước năm học của khoá so với đánh giá từ năm học của khoá trở đi, theo năng lực đích của chương trình.</p>
+      <h3 style={{ margin: 0 }}>Năng lực trước / sau đào tạo</h3>
+      <p className="sub" style={{ margin: 0 }}>Giáo viên đã Đạt khoá đào tạo: mức trung bình ở đánh giá năng lực gần nhất trước năm học của khoá so với đánh giá từ năm học của khoá trở đi, theo năng lực đích của chương trình.</p>
       {eff.length ? <div className="wrap"><table className="libtable">
         <thead><tr><th>Năng lực</th><th>Số GV</th><th>Trước</th><th>Sau</th><th>Thay đổi</th></tr></thead>
         <tbody>{eff.map(e => { const d = e.before_avg != null && e.after_avg != null ? Number(e.after_avg) - Number(e.before_avg) : null
           return <tr key={e.competency}><td>{e.competency_name}</td><td>{e.teachers}</td><td>{num(e.before_avg)}</td><td>{num(e.after_avg)}</td>
             <td>{d == null ? <small className="sub">chưa đủ dữ liệu</small> : <Chip tone={d > 0 ? 'good' : d < 0 ? 'bad' : ''}>{d > 0 ? '+' : ''}{num(Math.round(d * 100) / 100)}</Chip>}</td></tr> })}</tbody>
-      </table></div> : <small className="sub">Chưa có giáo viên Đạt khoá tập huấn có năng lực đích.</small>}
+      </table></div> : <small className="sub">Chưa có giáo viên Đạt khoá đào tạo có năng lực đích.</small>}
     </section>
     {sel && <SchoolDetail s={sel} year={year} fb={fb} onClose={() => setSchool(null)} work={work} manage={manage}
       onWork={r => { setSchool(null); setDoing({ plan: r.plan_id, org: r.org_id }) }} onReview={review} />}
@@ -293,7 +293,7 @@ function SchoolDetail({ s, year, fb, onClose, work, manage, onWork, onReview }: 
   const toggle = (v: boolean) => { setOpen(v); try { localStorage.setItem(SCHOOL_OPEN_KEY, v ? '1' : '0') } catch { /* bỏ qua */ } }
   const [cm, setCm] = useState<string | null>(null)
   const fbOf = (r: Row) => fbAgg([fb.get(r.plan_id + '|' + r.org_id)])
-  return <Drawer title={<><b>{s.org_name}</b><br /><small className="sub">{s.rows.length} kế hoạch tập huấn được giao</small></>} onClose={onClose}>
+  return <Drawer title={<><b>{s.org_name}</b><br /><small className="sub">{s.rows.length} kế hoạch đào tạo được giao</small></>} onClose={onClose}>
     <div className="diststatcards four">
       <div className="panel"><span><b>{s.enrolled}/{s.quota}</b><small>GV đã chọn / chỉ tiêu</small></span></div>
       <div className="panel"><span><b>{s.att == null ? '—' : `${s.att}%`}</b><small>Chuyên cần</small><small>{s.low_att} GV vắng nhiều</small></span></div>

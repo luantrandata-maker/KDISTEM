@@ -1,5 +1,5 @@
 // Khung phân loại dùng chung: cấu hình cấp + cây mục + danh sách các bản trong mục đang chọn.
-// Dùng cho Bản phân phối (dist_*) và Kế hoạch tập huấn (training_*).
+// Dùng cho Bản phân phối (dist_*) và Kế hoạch đào tạo (training_*).
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useHiddenBtn } from '../../components/PageButtons'
@@ -16,7 +16,7 @@ type Cls = ReturnType<typeof useCls> & { admin: boolean }
 /** Cấp không tắt / xoá được của từng loại khung */
 const LOCKED: Record<ClsScope, ClsLevel['kind'][]> = { dist: ['level', 'grade'], training: ['subject'] }
 const MIG: Record<ClsScope, string> = { dist: '082', training: '101' }
-const NOUN: Record<ClsScope, string> = { dist: 'Bản phân phối', training: 'Kế hoạch tập huấn' }
+const NOUN: Record<ClsScope, string> = { dist: 'Bản phân phối', training: 'Kế hoạch đào tạo' }
 const UNSORTED = '__none__'
 
 export function ClsConfig({ cls, used, onMsg }: { cls: Cls; used: (levelId: string) => number; onMsg: (m: [string, boolean]) => void }) {
@@ -95,7 +95,7 @@ export function ClsTree<T extends { id: string; node_id: string | null }>({ scop
   const [selId, setSelId] = useState<string | null>(null)
   const [form, setForm] = useState<AddForm | null>(null)
   useEffect(() => { supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)) }, [])
-  // Gợi ý khi thêm mục ở cấp gốc: tên chương trình tập huấn (kế hoạch tập huấn) hoặc danh mục môn học
+  // Gợi ý khi thêm mục ở cấp gốc: tên chương trình đào tạo (kế hoạch đào tạo) hoặc danh mục môn học
   const [subjects, setSubjects] = useState<string[]>([])
   useEffect(() => {
     if (!base.levels.some(l => l.kind === 'subject')) return
@@ -218,9 +218,9 @@ export function ClsTree<T extends { id: string; node_id: string | null }>({ scop
           <label className="field" style={{ gridColumn: '1 / -1' }}><span>{form.level?.name ?? 'Tên'}</span>
             <input autoFocus required maxLength={80} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
               list={form.level?.kind === 'subject' ? 'cls-subjects' : undefined}
-              placeholder={'Ví dụ: ' + (({ subject: scope === 'training' ? 'Tập huấn STEM cho giáo viên' : 'Tin học', level: 'Tiểu học', grade: 'Khối 6', tier: scope === 'training' ? 'Nâng cao' : 'Tăng cường', custom: scope === 'training' ? 'Cán bộ quản lý' : 'Giai đoạn 1' } as Record<string, string>)[form.level?.kind ?? 'custom'])} />
+              placeholder={'Ví dụ: ' + (({ subject: scope === 'training' ? 'Đào tạo STEM cho giáo viên' : 'Tin học', level: 'Tiểu học', grade: 'Khối 6', tier: scope === 'training' ? 'Nâng cao' : 'Tăng cường', custom: scope === 'training' ? 'Cán bộ quản lý' : 'Giai đoạn 1' } as Record<string, string>)[form.level?.kind ?? 'custom'])} />
             {form.level?.kind === 'subject' && <><datalist id="cls-subjects">{subjects.map(n => <option key={n} value={n} />)}</datalist>
-              <small className="sub">{scope === 'training' ? 'Gõ hoặc chọn trong danh sách chương trình tập huấn.' : 'Gõ hoặc chọn môn trong danh mục môn học. Môn mới có sẵn các mục Cơ bản, Nâng cao.'}</small></>}
+              <small className="sub">{scope === 'training' ? 'Gõ hoặc chọn trong danh sách chương trình đào tạo.' : 'Gõ hoặc chọn môn trong danh mục môn học. Môn mới có sẵn các mục Cơ bản, Nâng cao.'}</small></>}
             {form.mode === 'add' && form.parent && <small className="sub">Thuộc: {base.path(form.parent.id).map(n => n.name).join(' › ')}</small>}
           </label>
           <div className="formactions" style={{ gridColumn: '1 / -1' }}><button type="submit" className="primary" disabled={!form.name.trim()}>Lưu</button></div>

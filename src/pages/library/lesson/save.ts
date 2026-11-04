@@ -14,7 +14,7 @@ export type KitRow = {
   content: { objectives?: string | null; periods?: number | null; plan_ids?: string[]; lesson_ids?: string[]; norm_ids?: string[]; material_ids?: string[]; checked?: KitCard[]; kit?: unknown }
 }
 export const KIT_SEL = 'id, owner_org_id, title, subject, grades, program, program_id, unit_id, status, version, updated_at, scope, usage_rights, content'
-/** Nơi lưu bộ 5 thẻ: bài học trong Học liệu (library_items) hoặc bài giảng tập huấn (training_lessons, 102) */
+/** Nơi lưu bộ 5 thẻ: bài học trong Học liệu (library_items) hoặc bài giảng đào tạo (training_lessons, 102) */
 export type KitStore = 'library' | 'training'
 export const kitTable = (s: KitStore = 'library') => (s === 'training' ? 'training_lessons' : 'library_items')
 export const kitSel = (s: KitStore = 'library') => (s === 'training'
@@ -56,7 +56,7 @@ export type NewKit = {
   existing?: KitRow | null
   store?: KitStore
 }
-/** Dòng mới: bài giảng tập huấn gắn chương trình tập huấn + nội dung; bài học gắn chương trình giáo dục */
+/** Dòng mới: bài giảng đào tạo gắn chương trình đào tạo + nội dung; bài học gắn chương trình giáo dục */
 const newRow = (store: KitStore | undefined, o: { orgId: string; title: string; subject: string | null; grades: string | null; programId: string | null; ctCode: string | null; unitId: string | null; content: Record<string, unknown> }): Record<string, unknown> =>
   store === 'training'
     ? { org_id: o.orgId, title: o.title, subject: o.subject, grades: o.grades, program_id: o.programId, unit_id: o.unitId, status: 'draft', content: o.content }
@@ -209,7 +209,7 @@ async function chotNorms(c: Ctx, content: KitRow['content']) {
 }
 
 /** Chốt một thẻ: tạo các mục danh mục của thẻ rồi ghi trạng thái chốt */
-// Bài giảng tập huấn: thẻ 02, 03 chỉ ghi chốt (tài liệu nằm trong bài, không tạo học liệu trong danh mục);
+// Bài giảng đào tạo: thẻ 02, 03 chỉ ghi chốt (tài liệu nằm trong bài, không tạo học liệu trong danh mục);
 // thẻ 04 thêm vật tư mới vào danh mục; thẻ 05 tạo bản mẫu hoạt động trong Kho hoạt động như bài học.
 export async function chotCard(orgId: string, row: KitRow, kit0: KitData, card: KitCard, store: KitStore = 'library'): Promise<{ error?: string }> {
   const kit: KitData = JSON.parse(JSON.stringify(kit0))

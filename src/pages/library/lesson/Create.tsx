@@ -56,7 +56,7 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
   kits: KitRow[]; onClose: () => void; onCreated: (id: string, msg: string) => void
   /** Mở từ Danh mục học liệu (không đi theo chương trình → môn): chọn chương trình, môn ngay trong hộp */
   pickPlace?: boolean
-  /** training: thêm bài giảng tập huấn (training_lessons) gắn chương trình tập huấn và nội dung (unitOf tìm theo tên) */
+  /** training: thêm bài giảng đào tạo (training_lessons) gắn chương trình đào tạo và nội dung (unitOf tìm theo tên) */
   store?: KitStore; unitOf?: (pid: string, label: string) => string | null
 }) {
   const tr = store === 'training'
@@ -106,7 +106,7 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
   )
   const head = pickPlace ? L('Thêm bài học') : L('Tạo bài học')
   const place = <div className="formgrid lgrid2">
-    <label className="field"><span>{tr ? 'Chương trình tập huấn' : 'Chương trình'}</span>
+    <label className="field"><span>{tr ? 'Chương trình đào tạo' : 'Chương trình'}</span>
       <select value={pid} onChange={e => { setPid(e.target.value); setSubj(subjectsOf(e.target.value)[0] ?? '') }}>
         {programs.map(p => <option key={p.id} value={p.id}>{p.code ? p.code + ' · ' : ''}{p.title}</option>)}</select></label>
     <label className="field"><span>{tr ? 'Nội dung trong chương trình' : 'Môn học trong chương trình'}</span>
@@ -115,7 +115,7 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
   const status = <>{busy && <p className="sub" role="status">{busy}</p>}{err && <p className="msg">{err}</p>}</>
 
   if (step === 'menu') return (
-    <Modal title={head} sub={pickPlace ? (tr ? 'Chọn chương trình tập huấn, nội dung rồi chọn cách nhập. Bài giảng mới là bản nháp, chưa phát hành.' : 'Chọn chương trình, môn rồi chọn cách nhập. Bài học mới là bản nháp, chưa phát hành.') : crumb} onClose={onClose} foot={<button type="button" onClick={onClose}>Hủy</button>}>
+    <Modal title={head} sub={pickPlace ? (tr ? 'Chọn chương trình đào tạo, nội dung rồi chọn cách nhập. Bài giảng mới là bản nháp, chưa phát hành.' : 'Chọn chương trình, môn rồi chọn cách nhập. Bài học mới là bản nháp, chưa phát hành.') : crumb} onClose={onClose} foot={<button type="button" onClick={onClose}>Hủy</button>}>
       {pickPlace && place}
       <div className="lways">
         {([['upload', 'Tải giáo án từ nguồn', 'Tệp Word (.docx), bài giảng PowerPoint. Hệ thống tách thành bộ học liệu 5 thẻ.'],

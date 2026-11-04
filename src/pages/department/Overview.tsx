@@ -122,7 +122,7 @@ export function DeptWardKpi() {
       ) : (
         <div className="wrap">
           <table>
-            <thead><tr><th>#</th><th>Xã/phường</th><th>Số trường</th><th>Triển khai STEM</th><th>GV đã hoàn thành tập huấn</th><th>Học sinh</th><th>KPI</th><th>Xếp loại</th></tr></thead>
+            <thead><tr><th>#</th><th>Xã/phường</th><th>Số trường</th><th>Triển khai STEM</th><th>GV đã hoàn thành đào tạo</th><th>Học sinh</th><th>KPI</th><th>Xếp loại</th></tr></thead>
             <tbody>
               {shown.map((w, i) => (
                 <tr key={w.ward}>
@@ -136,7 +136,7 @@ export function DeptWardKpi() {
           </table>
         </div>
       )}
-      <p className="sub" style={{ marginTop: 10 }}><small>KPI trường (0–100) = độ phủ CT1–CT5 (25) + phòng STEM hoạt động (15) + tiết STEM/lớp (20) + tỉ lệ GV hoàn thành tập huấn (20) + giáo án GV tự soạn (10) + đồng bộ K12 (10). KPI xã/phường = trung bình các trường. Đạt ≥ 70, Cần cải thiện 45–69, Chưa đạt &lt; 45.</small></p>
+      <p className="sub" style={{ marginTop: 10 }}><small>KPI trường (0–100) = độ phủ CT1–CT5 (25) + phòng STEM hoạt động (15) + tiết STEM/lớp (20) + tỉ lệ GV hoàn thành đào tạo (20) + giáo án GV tự soạn (10) + đồng bộ K12 (10). KPI xã/phường = trung bình các trường. Đạt ≥ 70, Cần cải thiện 45–69, Chưa đạt &lt; 45.</small></p>
     </>
   )
 }
@@ -167,7 +167,7 @@ export function DeptSchools() {
           <div className="bar"><h3>{cur.name}</h3><button onClick={() => setOpen(null)}>Đóng</button></div>
           <Tiles items={[
             { label: 'KPI', value: cur.kpi, sub: grade(cur.kpi).label },
-            { label: 'Giáo viên', value: cur.teachers, sub: `${cur.stem_teachers} dạy STEM · ${cur.training_done} hoàn thành tập huấn` },
+            { label: 'Giáo viên', value: cur.teachers, sub: `${cur.stem_teachers} dạy STEM · ${cur.training_done} hoàn thành đào tạo` },
             { label: 'Học sinh', value: nf(cur.students), sub: `${cur.stem_students} học STEM · ${cur.classes} lớp` },
             { label: 'Phòng STEM', value: `${cur.rooms_active}/${cur.rooms}`, sub: `${cur.room_periods} tiết/tuần dùng phòng` },
             { label: 'Thiết bị', value: cur.units, sub: `${cur.units_broken} hỏng · ${cur.units_maintenance} bảo trì` },
@@ -326,7 +326,7 @@ export function DeptSubjects() {
   )
 }
 
-// ================= Giám sát tập huấn GV =================
+// ================= Giám sát đào tạo GV =================
 export function DeptTrainingMonitor() {
   const { schools, loading, err } = useDeptStats()
   const [f, setF] = useState<'all' | 'good' | 'warn' | 'bad'>('all')

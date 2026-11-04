@@ -1,7 +1,7 @@
-// Học liệu tập huấn (khuôn Học liệu của Phân hệ 2): gom học liệu của mọi chương trình tập huấn vào một chỗ.
-// Tab Nội dung tập huấn: mỗi nội dung của chương trình, mở ra soạn 5 phần. Chương trình nháp / bị trả lại thì sửa thẳng;
+// Học liệu đào tạo (khuôn Học liệu của Phân hệ 2): gom học liệu của mọi chương trình đào tạo vào một chỗ.
+// Tab Nội dung đào tạo: mỗi nội dung của chương trình, mở ra soạn 5 phần. Chương trình nháp / bị trả lại thì sửa thẳng;
 // đã phát hành thì tạo phiên bản mới (hoặc mở bản nháp đang có) rồi sửa đúng nội dung / dòng đó trong bản nháp.
-// Tab Link tài liệu, Định mức vật tư, Kho hoạt động: gộp các dòng tương ứng của nội dung chương trình và của bài giảng tập huấn (bộ 5 thẻ).
+// Tab Link tài liệu, Định mức vật tư, Kho hoạt động: gộp các dòng tương ứng của nội dung chương trình và của bài giảng đào tạo (bộ 5 thẻ).
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
@@ -148,7 +148,7 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
         : <button type="button" className="primary" onClick={newVersion}>Tạo phiên bản mới để sửa</button>)}
       hasTest={oc.has_test} passScore={p?.pass_score} onBack={() => setOpen(null)}
       onSave={async dd => { const { error } = await supabase.from('training_program_units').update({ detail: dd }).eq('id', oc.id)
-        if (error) { setMsg([error.message, true]); return false } setMsg(['Đã lưu nội dung tập huấn.', false]); reload(); return true }} /> }
+        if (error) { setMsg([error.message, true]); return false } setMsg(['Đã lưu nội dung đào tạo.', false]); reload(); return true }} /> }
 
   const ql = q.trim().toLowerCase()
   const progs = d.progs.filter(p => contents.some(u => u.program_id === p.id) || d.lessons.some(l => l.program_id === p.id))
@@ -161,9 +161,9 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
 
   function exportXlsx() {
     if (part === 'content') return downloadXlsx('Noi-dung-tap-huan.xlsx',
-      [{ key: 'p', label: 'Chương trình', width: 30 }, { key: 's', label: 'Học phần', width: 26 }, { key: 'c', label: 'Nội dung tập huấn', width: 34 }, { key: 'h', label: 'Số giờ', width: 8 },
+      [{ key: 'p', label: 'Chương trình', width: 30 }, { key: 's', label: 'Học phần', width: 26 }, { key: 'c', label: 'Nội dung đào tạo', width: 34 }, { key: 'h', label: 'Số giờ', width: 8 },
        { key: 'm', label: 'Học liệu', width: 40 }, { key: 'l', label: 'Bài giảng', width: 30 }],
-      shownC.map(u => [progOf(u.program_id)?.title, unitOf(u.parent_id)?.title, u.title, u.hours, detailCount(u.detail), lessonsOf(u).map(l => l.title).join('; ')]), 'Nội dung tập huấn')
+      shownC.map(u => [progOf(u.program_id)?.title, unitOf(u.parent_id)?.title, u.title, u.hours, detailCount(u.detail), lessonsOf(u).map(l => l.title).join('; ')]), 'Nội dung đào tạo')
     downloadXlsx(`${SHEET[part]}-tap-huan.xlsx`,
       [...cols.map(c => ({ key: c.key, label: c.label, width: c.width ? Math.round(c.width / 7) : 30 })), ...(part === 'docs' ? [{ key: 'url', label: 'Link', width: 40 }] : []),
        { key: 'src', label: 'Thuộc', width: 34 }, { key: 'p', label: 'Chương trình', width: 30 }],
@@ -174,19 +174,19 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
   return <>
     <div className="diststatcards">
       {part === 'content' ? <>
-        <div className="panel"><i aria-hidden="true">≋</i><span><b>{contents.length}</b><small>Nội dung tập huấn</small><small>{progs.length} chương trình</small></span></div>
+        <div className="panel"><i aria-hidden="true">≋</i><span><b>{contents.length}</b><small>Nội dung đào tạo</small><small>{progs.length} chương trình</small></span></div>
         <div className="panel"><i aria-hidden="true" className="good">▤</i><span><b>{contents.filter(u => detailCount(u.detail)).length}</b><small>Nội dung đã có học liệu</small><small>{contents.filter(u => !detailCount(u.detail)).length} chưa có</small></span></div>
-        <div className="panel"><i aria-hidden="true" className="good">✎</i><span><b>{d.lessons.length}</b><small>Bài giảng tập huấn</small><small>{d.lessons.filter(l => l.status === 'published').length} đã phát hành</small></span></div>
+        <div className="panel"><i aria-hidden="true" className="good">✎</i><span><b>{d.lessons.length}</b><small>Bài giảng đào tạo</small><small>{d.lessons.filter(l => l.status === 'published').length} đã phát hành</small></span></div>
       </> : <>
         <div className="panel"><i aria-hidden="true">≋</i><span><b>{lines.length}</b><small>{LISTS[part].tab}</small><small>{progs.length} chương trình</small></span></div>
         <div className="panel"><i aria-hidden="true" className="good">▤</i><span><b>{nU}</b><small>Từ nội dung chương trình</small></span></div>
-        <div className="panel"><i aria-hidden="true" className="good">✎</i><span><b>{lines.length - nU}</b><small>Từ bài giảng tập huấn</small></span></div>
+        <div className="panel"><i aria-hidden="true" className="good">✎</i><span><b>{lines.length - nU}</b><small>Từ bài giảng đào tạo</small></span></div>
       </>}
     </div>
     <div className="bar">
       <div className="tools">
         <input placeholder={part === 'content' ? 'Tìm nội dung, chương trình…' : 'Tìm tên, ghi chú, nội dung, bài giảng…'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-        <select value={prog} onChange={e => setProg(e.target.value)} aria-label="Chương trình tập huấn"><option value="">Mọi chương trình</option>
+        <select value={prog} onChange={e => setProg(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Mọi chương trình</option>
           {progs.map(p => <option key={p.id} value={p.id}>{p.code} · {p.title}</option>)}</select>
         {part !== 'content' && <select value={src} onChange={e => setSrc(e.target.value as typeof src)} aria-label="Nguồn"><option value="">Nội dung CT và bài giảng</option>
           <option value="unit">Chỉ nội dung chương trình</option><option value="lesson">Chỉ bài giảng</option></select>}
@@ -204,7 +204,7 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
         if (draft && it.unit) toDraft(m, draft, it.unit.id, it.idx); else { setMsg([m, false]); reload() } }} />}
     {(msg || err) && <p className={msg?.[1] || err ? 'msg' : 'sub'} role="status"><b>{err || msg?.[0]}</b></p>}
     {part === 'content' ? <div className="wrap"><table className="libtable">
-      <thead><tr><th>Nội dung tập huấn</th><th>Số giờ</th><th>Học liệu</th><th>Bài giảng</th><th>Chương trình</th></tr></thead>
+      <thead><tr><th>Nội dung đào tạo</th><th>Số giờ</th><th>Học liệu</th><th>Bài giảng</th><th>Chương trình</th></tr></thead>
       <tbody>{shownC.map(u => { const p = progOf(u.program_id), ls = lessonsOf(u), dc = detailCount(u.detail)
         return <tr key={u.id}>
           <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen(u.id) }}>{u.title}</button><br /><small className="sub">{crumb(u)}</small></td>
@@ -213,7 +213,7 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
           <td style={{ whiteSpace: 'normal' }}>{ls.length ? ls.map(l => <div key={l.id}>{l.title} <small className="sub">· {LSTATUS[l.status]?.[0] ?? l.status}</small></div>) : '—'}</td>
           <td>{p ? <>{p.code} <small className="sub">· {STATUS[p.status]?.[0] ?? p.status}</small></> : '—'}</td>
         </tr> })}
-        {!shownC.length && <tr><td colSpan={5}><small className="sub">{contents.length ? 'Không có nội dung nào khớp bộ lọc.' : 'Chưa có nội dung tập huấn. Tạo chương trình và nội dung ở mục Chương trình tập huấn.'}</small></td></tr>}</tbody>
+        {!shownC.length && <tr><td colSpan={5}><small className="sub">{contents.length ? 'Không có nội dung nào khớp bộ lọc.' : 'Chưa có nội dung đào tạo. Tạo chương trình và nội dung ở mục Chương trình đào tạo.'}</small></td></tr>}</tbody>
     </table></div>
       : <div className="wrap"><table className="libtable">
         <thead><tr>{cols.map(c => <th key={c.key}>{c.label}</th>)}{part === 'docs' && <th>Link</th>}<th>Thuộc</th><th>Chương trình</th></tr></thead>
@@ -225,7 +225,7 @@ export function TrainingMaterials({ part, orgId }: { part: Part; orgId?: string 
           <td style={{ whiteSpace: 'normal' }}><small>{x.prog ? `${x.prog.code} · ${x.prog.title}` : '—'}</small></td>
         </tr>)}
           {!shownL.length && <tr><td colSpan={cols.length + (part === 'docs' ? 3 : 2)}><small className="sub">{lines.length ? 'Không có dòng nào khớp bộ lọc.'
-            : `Chưa có ${LISTS[part].tab.toLowerCase()}. Thêm ở tab Nội dung tập huấn (mở một nội dung) hoặc trong bài giảng tập huấn.`}</small></td></tr>}</tbody>
+            : `Chưa có ${LISTS[part].tab.toLowerCase()}. Thêm ở tab Nội dung đào tạo (mở một nội dung) hoặc trong bài giảng đào tạo.`}</small></td></tr>}</tbody>
       </table></div>}
   </>
 }

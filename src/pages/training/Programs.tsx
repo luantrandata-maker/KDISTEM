@@ -1,6 +1,6 @@
-// Phân hệ 1 — Chương trình tập huấn (083): mẫu khoá tập huấn chuẩn của KDI, dùng lại cho các kế hoạch tập huấn.
+// Phân hệ 1 — Chương trình đào tạo (083): mẫu khoá đào tạo chuẩn của KDI, dùng lại cho các kế hoạch đào tạo.
 import { CompetencySetupLink } from '../../components/CompetencySetup'
-// Cấu trúc 3 cấp: Chương trình tập huấn → Môn → Nội dung tập huấn. Cách làm giống Phân hệ 2: hướng dẫn các bước,
+// Cấu trúc 3 cấp: Chương trình đào tạo → Môn → Nội dung đào tạo. Cách làm giống Phân hệ 2: hướng dẫn các bước,
 // thẻ số liệu, danh sách có lọc; thêm / sửa / xem chi tiết mở view riêng; Nháp → Đã phát hành → Ngừng dùng, nhân bản để sửa.
 import { MultiSelect } from '../../components/MultiSelect'
 import { useEffect, useMemo, useState } from 'react'
@@ -38,7 +38,7 @@ const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực 
 const SEL = 'id, org_id, code, title, ct_code, level, ct_codes, levels, audience, mode, description, competencies, target_level, pass_attendance, pass_score, need_product, status, version_no, source_id, updated_at, published_at, family_id, note, objectives, entry_conditions, outcomes, prereq_families, scope, effective_from, effective_to, builder'
 const SEL_X = SEL + ', final_exam, eval_frame'
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 083 trên Supabase.'
-  : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI soạn được chương trình tập huấn.' : m
+  : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI soạn được chương trình đào tạo.' : m
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 type Stat = { subjects: number; contents: number; hours: number }
 
@@ -88,20 +88,20 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
   const n = (s: Status) => (list ?? []).filter(p => inGroup(p, s)).length
   const totalContents = [...stats.values()].reduce((a, x) => a + x.contents, 0)
   const steps: [string, string][] = [
-    ['Soạn chương trình', 'Nhập thông tin, năng lực đích và điều kiện đạt; thêm các môn và nội dung tập huấn kèm số giờ.'],
+    ['Soạn chương trình', 'Nhập thông tin, năng lực đích và điều kiện đạt; thêm các môn và nội dung đào tạo kèm số giờ.'],
     ['Duyệt & phát hành', 'Gửi duyệt hoặc phát hành thẳng. Bản đã phát hành không sửa được, muốn sửa thì tạo phiên bản mới.'],
-    ['Dùng trong kế hoạch', 'Chọn chương trình đã phát hành khi lập Kế hoạch & lịch tập huấn cho trường, giáo viên.']]
+    ['Dùng trong kế hoạch', 'Chọn chương trình đã phát hành khi lập Kế hoạch & lịch đào tạo cho trường, giáo viên.']]
   return (
     <>
       <FlowGuide id="training-programs">
         <ol className="distguide">{steps.map(([h, d], k) => <li key={h}><button type="button" onClick={() => setFs(k === 0 ? 'draft' : k === 1 ? 'published' : '')}>
           <i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
-        <p className="sub" style={{ margin: 0 }}>Chương trình tập huấn là mẫu khoá học chuẩn của KDI, gồm các môn, mỗi môn có các nội dung tập huấn. Một chương trình dùng lại được cho nhiều kế hoạch tập huấn.</p>
+        <p className="sub" style={{ margin: 0 }}>Chương trình đào tạo là mẫu khoá học chuẩn của KDI, gồm các môn, mỗi môn có các nội dung đào tạo. Một chương trình dùng lại được cho nhiều kế hoạch đào tạo.</p>
       </FlowGuide>
       <div className="diststatcards">
-        <div className="panel"><i aria-hidden="true">≋</i><span><b>{list?.length ?? '…'}</b><small>Chương trình tập huấn</small><small>{n('published')} đã phát hành · {n('draft')} nháp</small></span></div>
+        <div className="panel"><i aria-hidden="true">≋</i><span><b>{list?.length ?? '…'}</b><small>Chương trình đào tạo</small><small>{n('published')} đã phát hành · {n('draft')} nháp</small></span></div>
         <div className="panel"><i aria-hidden="true" className="good">✓</i><span><b>{list ? n('published') : '…'}</b><small>Dùng được trong kế hoạch</small></span></div>
-        <div className="panel"><i aria-hidden="true" className="good">▦</i><span><b>{totalContents}</b><small>Nội dung tập huấn</small><small>{[...stats.values()].reduce((a, x) => a + x.subjects, 0)} môn</small></span></div>
+        <div className="panel"><i aria-hidden="true" className="good">▦</i><span><b>{totalContents}</b><small>Nội dung đào tạo</small><small>{[...stats.values()].reduce((a, x) => a + x.subjects, 0)} môn</small></span></div>
       </div>
       <div className="distfilter">
         {([['', 'Tất cả', list?.length ?? 0], ['draft', 'Nháp', n('draft')], ['pending', 'Chờ duyệt', n('pending')], ['published', 'Đã phát hành', n('published')], ['archived', 'Ngừng dùng', n('archived')]] as [Status | '', string, number][]).map(([s, l, c]) =>
@@ -114,11 +114,11 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
             {codes.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select>
           <small className="sub">{shown.length}/{list?.length ?? 0} chương trình</small>
         </div>
-        {admin && <div className="tools"><button type="button" className="primary" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>Thêm chương trình tập huấn</button></div>}
+        {admin && <div className="tools"><button type="button" className="primary" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>Thêm chương trình đào tạo</button></div>}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-        <thead><tr><th>Chương trình tập huấn</th><th>Loại · cấp học</th><th>Đối tượng</th><th>Phạm vi áp dụng</th><th>Môn · nội dung · giờ</th><th>Hình thức</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
+        <thead><tr><th>Chương trình đào tạo</th><th>Loại · cấp học</th><th>Đối tượng</th><th>Phạm vi áp dụng</th><th>Môn · nội dung · giờ</th><th>Hình thức</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
         <tbody>{shown.map(p => { const s = stats.get(p.id); return <tr key={p.id}>
           <td><button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'open', id: p.id }) }}>{p.title}</button><br /><small className="sub">{p.code} · v{p.version_no}{p.builder ? ` · XD: ${p.builder}` : ''}</small></td>
           <td>{[ctsOf(p).join(', '), lvsOf(p).map(levelName).join(', ')].filter(Boolean).join(' · ') || '—'}</td>
@@ -129,7 +129,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
           <td><Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip></td>
           <td><small>{new Date(p.updated_at).toLocaleDateString('vi-VN')}</small></td>
         </tr> })}
-          {shown.length === 0 && <tr><td colSpan={8}>{list.length ? 'Không có chương trình nào khớp bộ lọc.' : admin ? 'Chưa có chương trình tập huấn nào. Bấm "Thêm chương trình tập huấn".' : 'Chưa có chương trình tập huấn nào được KDI phát hành.'}</td></tr>}</tbody>
+          {shown.length === 0 && <tr><td colSpan={8}>{list.length ? 'Không có chương trình nào khớp bộ lọc.' : admin ? 'Chưa có chương trình đào tạo nào. Bấm "Thêm chương trình đào tạo".' : 'Chưa có chương trình đào tạo nào được KDI phát hành.'}</td></tr>}</tbody>
       </table></div>}
     </>
   )
@@ -143,7 +143,7 @@ type Info = typeof BLANK
 const ctsOf = (p: { ct_codes?: string[] | null; ct_code: string | null }) => p.ct_codes?.length ? p.ct_codes : p.ct_code ? [p.ct_code] : []
 const lvsOf = (p: { levels?: string[] | null; level: string | null }) => p.levels?.length ? p.levels : p.level ? [p.level] : []
 
-/** Các chương trình tập huấn khác (theo họ phiên bản) để chọn làm tiên quyết */
+/** Các chương trình đào tạo khác (theo họ phiên bản) để chọn làm tiên quyết */
 function useFamilies(self?: string | null) {
   const [list, setList] = useState<[string, string][]>([])
   useEffect(() => {
@@ -166,7 +166,7 @@ function InfoFields({ f, set, disabled, family }: { f: Info; set: (f: Info) => v
   const builders = useMemo(() => [...new Set((orgs ?? []).filter(o => o.type !== 'school').map(o => o.name))].sort((a, b) => a.localeCompare(b, 'vi')), [orgs])
   return <>
     <div className="formgrid" style={{ alignItems: 'start' }}>
-      <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình tập huấn *</span><input required disabled={disabled} maxLength={200} value={f.title} onChange={e => set({ ...f, title: e.target.value })} placeholder="VD: Tập huấn dạy học STEM tích hợp cho giáo viên THCS" /></label>
+      <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình đào tạo *</span><input required disabled={disabled} maxLength={200} value={f.title} onChange={e => set({ ...f, title: e.target.value })} placeholder="VD: Đào tạo dạy học STEM tích hợp cho giáo viên THCS" /></label>
       <div className="field" style={{ gridColumn: 'span 2' }}><span>Loại chương trình</span>
         <MultiSelect disabled={disabled} value={f.ct_codes} onChange={v => set({ ...f, ct_codes: v })} options={codes.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])}
           placeholder="Không chọn" ariaLabel="Loại chương trình" /></div>
@@ -180,7 +180,7 @@ function InfoFields({ f, set, disabled, family }: { f: Info; set: (f: Info) => v
         <datalist id="tp-builders">{builders.map(n => <option key={n} value={n} />)}</datalist></label>
       <label className="field" style={{ gridColumn: '1/-1' }}><span>Mô tả</span><textarea disabled={disabled} rows={2} maxLength={4000} value={f.description ?? ''} onChange={e => set({ ...f, description: e.target.value })} /></label>
       <label className="field" style={{ gridColumn: '1/-1' }}><span>Mục tiêu</span><textarea disabled={disabled} rows={3} maxLength={4000} value={f.objectives ?? ''} onChange={e => set({ ...f, objectives: e.target.value })}
-        placeholder="Sau tập huấn, giáo viên…" /></label>
+        placeholder="Sau đào tạo, giáo viên…" /></label>
       <label className="field" style={{ gridColumn: '1/-1' }}><span>Yêu cầu đầu ra</span><textarea disabled={disabled} rows={3} maxLength={4000} value={f.outcomes ?? ''} onChange={e => set({ ...f, outcomes: e.target.value })}
         placeholder="VD: Thiết kế được 1 kế hoạch bài dạy STEM; lắp ráp và lập trình được robot cơ bản" /></label>
     </div>
@@ -190,14 +190,14 @@ function InfoFields({ f, set, disabled, family }: { f: Info; set: (f: Info) => v
           placeholder="VD: Giáo viên đang dạy Khoa học tự nhiên hoặc Công nghệ, có máy tính cá nhân" /></label>
         <div className="field" style={{ gridColumn: '1/-1' }}><span>Chương trình tiên quyết (phải đạt trước)</span>
           <MultiSelect disabled={disabled} value={f.prereq_families} onChange={v => set({ ...f, prereq_families: v })} options={fams} placeholder="Không có"
-            ariaLabel="Chương trình tiên quyết" empty="Chưa có chương trình tập huấn khác." /></div>
+            ariaLabel="Chương trình tiên quyết" empty="Chưa có chương trình đào tạo khác." /></div>
       </div>
     </fieldset>
     <fieldset className="libtargets wide"><legend>Năng lực đích (khung năng lực giáo viên)</legend>
       <div className="formgrid" style={{ alignItems: 'start' }}>
         <div className="field" style={{ gridColumn: 'span 3' }}><span>Năng lực đích</span><MultiSelect disabled={disabled} value={f.competencies} onChange={v => set({ ...f, competencies: v })}
           options={comps.map(c => [c.key, c.name])} placeholder="Chọn năng lực đích…" ariaLabel="Năng lực đích" empty="Chưa có khung năng lực giáo viên." /><CompetencySetupLink audience="teacher" /></div>
-        <label className="field"><span>Mức cần đạt sau tập huấn</span><select disabled={disabled} value={f.target_level} onChange={e => set({ ...f, target_level: Number(e.target.value) })}>
+        <label className="field"><span>Mức cần đạt sau đào tạo</span><select disabled={disabled} value={f.target_level} onChange={e => set({ ...f, target_level: Number(e.target.value) })}>
           {[1, 2, 3, 4].map(l => <option key={l} value={l}>Mức {l} · {LV_NAME[l - 1]}</option>)}</select></label>
       </div>
     </fieldset>
@@ -236,7 +236,7 @@ function ProgramForm({ admin, onBack, onSaved }: { admin: boolean; onBack: () =>
     if (e2) return setErr(`Đã tạo bản nháp nhưng chưa lưu được phạm vi / chương trình giáo dục: ${e2}`)
     onSaved(id)
   }
-  return <ElView back="Chương trình tập huấn" onBack={onBack} title="Thêm chương trình tập huấn" sub="Lưu xong thì thêm các môn và nội dung tập huấn.">
+  return <ElView back="Chương trình đào tạo" onBack={onBack} title="Thêm chương trình đào tạo" sub="Lưu xong thì thêm các môn và nội dung đào tạo.">
     <form className="panel" onSubmit={save} style={{ display: 'grid', gap: 12 }}>
       <InfoFields f={f} set={setF} />
       <ScopeEduFields x={x} set={setX} />
@@ -246,10 +246,10 @@ function ProgramForm({ admin, onBack, onSaved }: { admin: boolean; onBack: () =>
   </ElView>
 }
 
-// ===== Chi tiết: thông tin + môn & nội dung tập huấn =====
+// ===== Chi tiết: thông tin + môn & nội dung đào tạo =====
 export type PTab = 'info' | 'units' | 'exam' | 'eval' | 'versions' | 'assign'
 /** initialTab / initialContent: mở sẵn một tab hoặc một nội dung (VD: từ mục Kiểm tra & luyện tập); startFinal: mở sẵn form đề cuối khoá; back: nhãn nút quay lại */
-export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab, initialContent, startFinal, back = 'Chương trình tập huấn' }: { id: string; admin: boolean; go?: (page: string) => void; onBack: () => void; onOpen: (id: string) => void; onMsg: (m: [string, boolean]) => void
+export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab, initialContent, startFinal, back = 'Chương trình đào tạo' }: { id: string; admin: boolean; go?: (page: string) => void; onBack: () => void; onOpen: (id: string) => void; onMsg: (m: [string, boolean]) => void
   initialTab?: PTab; initialContent?: string | null; startFinal?: boolean; back?: string }) {
   const [p, setP] = useState<TProgram | null>(null)
   const [units, setUnits] = useState<Unit[]>([])
@@ -312,7 +312,7 @@ export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab
     return <ContentDetail key={oc.id} title={oc.title} crumb={`${p.title} › ${sj?.title ?? ''}`} hours={Number(oc.hours)} detail={oc.detail ?? {}} editable={edit} hasTest={oc.has_test} passScore={p.pass_score}
       initialTab={initialContent === oc.id ? 'test' : undefined} onBack={() => setOpenC(null)} onSave={dd => run(supabase.from('training_program_units').update({ detail: dd }).eq('id', oc.id))} />
   }
-  const warn = [!contents.length && 'chưa có nội dung tập huấn nào', p.pass_score != null && !contents.some(u => u.has_test) && 'có điều kiện điểm bài test nhưng chưa nội dung nào có bài test',
+  const warn = [!contents.length && 'chưa có nội dung đào tạo nào', p.pass_score != null && !contents.some(u => u.has_test) && 'có điều kiện điểm bài test nhưng chưa nội dung nào có bài test',
     subjs.some(s => !kids(s.id).length) && 'có môn chưa có nội dung'].filter(Boolean) as string[]
 
   return <ElView back={back} onBack={onBack} title={p.title}
@@ -405,7 +405,7 @@ function TrainingVersions({ p, admin, warn, onOpen, onChanged }: {
   const ready = !warn.length
   return <section className="panel" style={{ display: 'grid', gap: 12 }}>
     <h3 style={{ margin: 0 }}>Phiên bản & duyệt</h3>
-    <p className="sub" style={{ margin: 0 }}>Nháp → Chờ duyệt → Đã duyệt → Đã phát hành. Phát hành phiên bản mới thì phiên bản cũ chuyển sang "Đã thay thế"; kế hoạch tập huấn đã dùng bản cũ vẫn giữ nguyên.</p>
+    <p className="sub" style={{ margin: 0 }}>Nháp → Chờ duyệt → Đã duyệt → Đã phát hành. Phát hành phiên bản mới thì phiên bản cũ chuyển sang "Đã thay thế"; kế hoạch đào tạo đã dùng bản cũ vẫn giữ nguyên.</p>
     {admin ? <div className="tools">
       {(s === 'draft' || s === 'rejected') && <button type="button" disabled={busy || !ready} onClick={() => setStatus('pending', 'Ghi chú gửi người duyệt (không bắt buộc):')}>Gửi duyệt</button>}
       {s === 'draft' && <button type="button" className="primary" disabled={busy || !ready} onClick={() => confirm('Phát hành ngay phiên bản này? Phiên bản đang phát hành (nếu có) sẽ được thay thế.') && setStatus('published')}>Phát hành</button>}
@@ -417,7 +417,7 @@ function TrainingVersions({ p, admin, warn, onOpen, onChanged }: {
       {['published', 'superseded', 'approved', 'rejected', 'draft'].includes(s) && <button type="button" disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Kế hoạch đã có vẫn giữ nguyên.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng</button>}
       {s === 'archived' && <button type="button" disabled={busy} onClick={() => setStatus('published', 'Ghi chú (không bắt buộc):')}>Dùng lại</button>}
       {!ready && (s === 'draft' || s === 'rejected') && <small className="sub">Chưa gửi duyệt / phát hành được: {warn.join('; ')}.</small>}
-    </div> : <p className="sub" style={{ margin: 0 }}>Chỉ quản trị nền tảng KDI duyệt và phát hành chương trình tập huấn.</p>}
+    </div> : <p className="sub" style={{ margin: 0 }}>Chỉ quản trị nền tảng KDI duyệt và phát hành chương trình đào tạo.</p>}
     <h3 style={{ margin: '8px 0 0' }}>Các phiên bản</h3>
     <div className="wrap"><table>
       <thead><tr><th>Phiên bản</th><th>Trạng thái</th><th>Phát hành</th><th>Cập nhật</th></tr></thead>
@@ -435,7 +435,7 @@ function TrainingVersions({ p, admin, warn, onOpen, onChanged }: {
   </section>
 }
 
-// ===== Gán & triển khai: chương trình đến đơn vị qua Kế hoạch tập huấn =====
+// ===== Gán & triển khai: chương trình đến đơn vị qua Kế hoạch đào tạo =====
 type DPlan = { plan_id: string; program_id: string; quota: number | null
   training_plans: { id: string; plan_code: string | null; name: string; year_name: string | null; starts_on: string | null; ends_on: string | null; pub_status: string; organizations: { name: string } | null } | null }
 type DRowM = { plan_id: string; org_id: string; org_name: string; quota: number | null; org_status: string; enrolled: number; att_pct: number | null; passed: number; failed: number; certs: number }
@@ -465,11 +465,11 @@ function TrainingDeploy({ p, go }: { p: TProgram; go?: (page: string) => void })
   const orgs = new Set(rows.map(r => r.org_id)).size
   const planName = (id: string) => plans?.find(x => x.plan_id === id)?.training_plans?.name ?? ''
   return <section className="panel" style={{ display: 'grid', gap: 12 }}>
-    <div className="bar"><h3 style={{ margin: 0 }}>Kế hoạch tập huấn dùng chương trình ({plans?.length ?? '…'})</h3>
-      {go && p.status === 'published' && <button type="button" className="primary" onClick={() => go('Kế hoạch & lịch tập huấn')}>Lập kế hoạch tập huấn</button>}</div>
-    <p className="sub" style={{ margin: 0 }}>Chương trình tập huấn đến trường / giáo viên qua Kế hoạch tập huấn: chọn chương trình đã phát hành, gán đơn vị tham gia và chỉ tiêu. Bảng dưới tính trên mọi phiên bản của chương trình.</p>
+    <div className="bar"><h3 style={{ margin: 0 }}>Kế hoạch đào tạo dùng chương trình ({plans?.length ?? '…'})</h3>
+      {go && p.status === 'published' && <button type="button" className="primary" onClick={() => go('Kế hoạch & lịch đào tạo')}>Lập kế hoạch đào tạo</button>}</div>
+    <p className="sub" style={{ margin: 0 }}>Chương trình đào tạo đến trường / giáo viên qua Kế hoạch đào tạo: chọn chương trình đã phát hành, gán đơn vị tham gia và chỉ tiêu. Bảng dưới tính trên mọi phiên bản của chương trình.</p>
     {p.status !== 'published' && <p className="sub" style={{ margin: 0 }}>Phiên bản này chưa phát hành nên chưa chọn được trong kế hoạch mới.</p>}
-    {!plans ? <p className="sub">Đang tải…</p> : plans.length === 0 ? <p className="sub" style={{ margin: 0 }}>Chưa có kế hoạch tập huấn nào dùng chương trình này.</p> : <>
+    {!plans ? <p className="sub">Đang tải…</p> : plans.length === 0 ? <p className="sub" style={{ margin: 0 }}>Chưa có kế hoạch đào tạo nào dùng chương trình này.</p> : <>
       <div className="diststatcards">
         <div className="panel"><i aria-hidden="true">≋</i><span><b>{plans.length}</b><small>Kế hoạch</small></span></div>
         <div className="panel"><i aria-hidden="true">⌂</i><span><b>{orgs}</b><small>Đơn vị tham gia</small></span></div>
@@ -506,7 +506,7 @@ function effNote(p: Pick<TProgram, 'effective_from' | 'effective_to'>) {
   return ''
 }
 const OTYPE: Record<string, string> = { ministry: 'Bộ', province: 'Tỉnh', department: 'Sở', district: 'Phòng', school: 'Trường', provider: 'Đơn vị' }
-// Chương trình giáo dục đáp ứng (124): giáo viên Đạt khoá dùng chương trình tập huấn này thì được tính đáp ứng các chương trình giáo dục đã gắn.
+// Chương trình giáo dục đáp ứng (124): giáo viên Đạt khoá dùng chương trình đào tạo này thì được tính đáp ứng các chương trình giáo dục đã gắn.
 // Gắn theo họ phiên bản ở cả hai phía; sửa được cả khi chương trình đã phát hành.
 type EduOpt = { id: string; family_id: string | null; code: string | null; title: string; version_no: number; status: string }
 const EDU_ST: Record<string, string> = { draft: 'nháp', pending: 'chờ duyệt', approved: 'đã duyệt', rejected: 'bị trả lại', superseded: 'bản cũ', archived: 'lưu trữ' }
@@ -543,7 +543,7 @@ function ProgramEduLinks({ p, admin, onMsg }: { p: TProgram; admin: boolean; onM
   }
   return <section className="panel" style={{ display: 'grid', gap: 12 }}>
     <h3 style={{ margin: 0 }}>Chương trình giáo dục đáp ứng</h3>
-    <p className="sub" style={{ margin: 0 }}>Giáo viên Đạt một khoá tập huấn dùng chương trình này được tính là đáp ứng các chương trình giáo dục dưới đây, kèm năng lực đích của khoá.
+    <p className="sub" style={{ margin: 0 }}>Giáo viên Đạt một khoá đào tạo dùng chương trình này được tính là đáp ứng các chương trình giáo dục dưới đây, kèm năng lực đích của khoá.
       Kết quả hiện ở hồ sơ năng lực giáo viên và bảng Đáp ứng chương trình giáo dục của trường, Sở. Phiên bản mới của hai bên vẫn giữ liên kết.</p>
     {admin && p.status !== 'archived' ? <>
       <div className="field"><span>Chương trình giáo dục</span>
@@ -580,7 +580,7 @@ function useEduOpts() {
 const famOf = (o: EduOpt) => o.family_id ?? o.id
 const eduLabel = (o: EduOpt) => `${o.code ? o.code + ' · ' : ''}${o.title}${o.status !== 'published' ? ` (${EDU_ST[o.status] ?? o.status})` : ''}`
 
-/** Đọc phạm vi + chương trình giáo dục đã lưu của một chương trình tập huấn. */
+/** Đọc phạm vi + chương trình giáo dục đã lưu của một chương trình đào tạo. */
 async function loadExtra(p: TProgram): Promise<Extra> {
   const [t, e] = await Promise.all([
     supabase.from('training_program_targets').select('org_id').eq('program_id', p.id),
@@ -633,7 +633,7 @@ function ScopeEduFields({ x, set, owner, disabled }: { x: Extra; set: (x: Extra)
       {bad && <small className="warnline">{bad}</small>}
     </fieldset>
     <fieldset className="libtargets wide"><legend>Chương trình giáo dục đáp ứng</legend>
-      <p className="sub" style={{ margin: '0 0 8px' }}>Giáo viên Đạt một khoá tập huấn dùng chương trình này được tính là đáp ứng các chương trình giáo dục dưới đây, kèm năng lực đích của khoá.</p>
+      <p className="sub" style={{ margin: '0 0 8px' }}>Giáo viên Đạt một khoá đào tạo dùng chương trình này được tính là đáp ứng các chương trình giáo dục dưới đây, kèm năng lực đích của khoá.</p>
       <div className="field"><span>Chương trình giáo dục</span>
         <MultiSelect disabled={disabled} value={x.edu} onChange={v => set({ ...x, edu: v })}
           options={[...eduOpts, ...x.edu.filter(f => !eduOpts.some(o => o[0] === f)).map(f => [f, 'Chương trình giáo dục'] as [string, string])]}

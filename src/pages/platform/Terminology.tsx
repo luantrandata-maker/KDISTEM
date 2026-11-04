@@ -209,7 +209,7 @@ function entities(orgName: (id: string) => string, orgCode: (id: string) => stri
     { key: 'teacher', label: 'Nhà giáo', table: 'teachers', select: 'id, org_id, full_name, email, subject, status', order: 'full_name', fields: [
       ...school, { term: 'BG_00238', get: r => r.full_name, source: 'teachers.full_name' }, { term: 'BG_00257', get: r => r.email, source: 'teachers.email' },
       { term: 'BG_00297', get: r => r.subject, source: 'teachers.subject' }, { term: 'BG_00256', get: r => (r.status === 'active' ? 'Đang làm việc' : 'Ngừng'), source: 'teachers.status' }] },
-    { key: 'training', label: 'Tập huấn & chứng chỉ', table: 'certificates', select: 'id, org_id, code, issued_on, teachers(full_name), training_plans(name, provider, mode)', order: 'issued_on', fields: [
+    { key: 'training', label: 'Đào tạo & chứng chỉ', table: 'certificates', select: 'id, org_id, code, issued_on, teachers(full_name), training_plans(name, provider, mode)', order: 'issued_on', fields: [
       ...school, { term: 'BG_00238', get: r => r.teachers?.full_name, source: 'teachers.full_name' }, { term: 'BG_00346', get: r => r.training_plans?.name, source: 'training_plans.name' },
       { term: 'BG_00347', get: r => r.training_plans?.provider, source: 'training_plans.provider' }, { term: 'BG_00335', get: r => MODE[r.training_plans?.mode] ?? r.training_plans?.mode, source: 'training_plans.mode' },
       { term: 'BG_00350', get: r => r.code, source: 'certificates.code' }, { term: 'BG_00351', get: r => r.issued_on, source: 'certificates.issued_on' }] },

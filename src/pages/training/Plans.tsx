@@ -1,4 +1,4 @@
-// Phân hệ 1 — Kế hoạch tập huấn (084, 101). Khuôn Phân phối chương trình: khung phân loại (mặc định chỉ cấp Chương trình, cấu hình thêm cấp),
+// Phân hệ 1 — Kế hoạch đào tạo (084, 101). Khuôn Phân phối chương trình: khung phân loại (mặc định chỉ cấp Chương trình, cấu hình thêm cấp),
 // tạo kế hoạch trong một mục rồi soạn theo bước: Chọn chương trình → Xếp lịch (ngày, giờ, địa điểm) → Xem kết quả → Gán trường.
 // Sau phát hành: gán trường → trường chọn giáo viên, gửi danh sách → đơn vị lập kế hoạch duyệt hoặc trả lại.
 // TrainingPlansPage: KDI và Sở / Phòng (kế hoạch của đơn vị mình). SchoolTrainingAssigned: trường (kế hoạch được giao).
@@ -49,7 +49,7 @@ const SEL = 'id, org_id, plan_code, name, pub_status, status, year_name, term, m
 type ExamMode = 'content' | 'self' | 'trainer'
 const EXAM_MODE: [ExamMode, string][] = [['content', 'Theo cài đặt từng bài trong chương trình'], ['self', 'Học viên tự làm tất cả các bài'], ['trainer', 'Giảng viên mở đề tất cả các bài']]
 const errText = (m: string) => /schema cache|does not exist|column .* of relation/i.test(m) ? 'Hãy chạy migration 084 trên Supabase.'
-  : /row-level|42501|permission/i.test(m) ? 'Bạn không có quyền với kế hoạch tập huấn này.' : m
+  : /row-level|42501|permission/i.test(m) ? 'Bạn không có quyền với kế hoạch đào tạo này.' : m
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 const day = (d: string | null) => d ? new Date(d + (d.length === 10 ? 'T00:00' : '')).toLocaleDateString('vi-VN') : ''
 const money = (n: number | null) => n == null ? '—' : n.toLocaleString('vi-VN') + ' đ'
@@ -58,7 +58,7 @@ function yearOptions() {
   const d = new Date(), y = d.getMonth() >= 6 ? d.getFullYear() : d.getFullYear() - 1
   return [y - 1, y, y + 1, y + 2].map(a => `${a}-${a + 1}`)
 }
-/** Chương trình tập huấn đã phát hành, kèm phiên bản đã thay thế (kế hoạch cũ vẫn dùng): cây Môn → Nội dung, tổng giờ */
+/** Chương trình đào tạo đã phát hành, kèm phiên bản đã thay thế (kế hoạch cũ vẫn dùng): cây Môn → Nội dung, tổng giờ */
 function usePrograms() {
   const [list, setList] = useState<Prog[]>([])
   useEffect(() => {
@@ -128,7 +128,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   const years = [...new Set((list ?? []).map(p => p.year_name).filter(Boolean) as string[])].sort().reverse()
   const crumb = (p: TPlan) => cls.path(p.node_id).map(x => x.name).join(' › ') || 'Chưa phân loại'
   const table = (rows: TPlan[], empty: string) => <div className="wrap"><table className="libtable">
-    <thead><tr><th>Kế hoạch tập huấn</th><th>Phân loại</th><th>Năm học · đợt</th><th>Chương trình</th><th>Trường</th><th>Trạng thái</th></tr></thead>
+    <thead><tr><th>Kế hoạch đào tạo</th><th>Phân loại</th><th>Năm học · đợt</th><th>Chương trình</th><th>Trường</th><th>Trạng thái</th></tr></thead>
     <tbody>{rows.map(p => { const its = items.filter(i => i.plan_id === p.id), os = orgs.filter(o => o.plan_id === p.id), w = wait(p.id)
       return <tr key={p.id}>
         <td><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen(p.id) }}>{p.name}</button><br /><small className="sub">{[all && orgName(p.org_id), p.plan_code, span(p)].filter(Boolean).join(' · ')}</small></td>
@@ -142,8 +142,8 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
       {rows.length === 0 && <tr><td colSpan={6}>{empty}</td></tr>}</tbody>
   </table></div>
   const steps: [string, string][] = [
-    ['Tạo kế hoạch', 'Chọn mục trong khung phân loại (cấp học, cấp độ…) rồi bấm “Lập kế hoạch tập huấn”.'],
-    ['Chọn chương trình', 'Tick các chương trình tập huấn đã phát hành, chọn nội dung, chỉ tiêu và giảng viên.'],
+    ['Tạo kế hoạch', 'Chọn mục trong khung phân loại (cấp học, cấp độ…) rồi bấm “Lập kế hoạch đào tạo”.'],
+    ['Chọn chương trình', 'Tick các chương trình đào tạo đã phát hành, chọn nội dung, chỉ tiêu và giảng viên.'],
     ['Xếp lịch', 'Chọn ngày, giờ học, địa điểm hoặc link họp; xếp tự động rồi chỉnh từng buổi.'],
     ['Xem kết quả & phát hành', 'Soát lịch theo ngày, cảnh báo trùng giờ; phát hành rồi gán trường.']]
   return (
@@ -151,10 +151,10 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
       <FlowGuide id="training-plans">
         <ol className="distguide four">{steps.map(([h, d], k) => <li key={h}><button type="button" onClick={() => setTab('tree')}>
           <i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
-        <p className="sub" style={{ margin: 0 }}>Kế hoạch tập huấn gom các chương trình tập huấn vào một đợt, xếp lịch học cụ thể rồi giao cho trường.</p>
+        <p className="sub" style={{ margin: 0 }}>Kế hoạch đào tạo gom các chương trình đào tạo vào một đợt, xếp lịch học cụ thể rồi giao cho trường.</p>
       </FlowGuide>
       <div className="diststatcards">
-        <div className="panel"><i aria-hidden="true">≋</i><span><b>{list?.length ?? '…'}</b><small>Kế hoạch tập huấn</small><small>{n('published')} đã phát hành · {n('draft')} nháp</small></span></div>
+        <div className="panel"><i aria-hidden="true">≋</i><span><b>{list?.length ?? '…'}</b><small>Kế hoạch đào tạo</small><small>{n('published')} đã phát hành · {n('draft')} nháp</small></span></div>
         <div className="panel"><i aria-hidden="true" className="good">⌂</i><span><b>{new Set(orgs.map(o => o.org_id)).size}</b><small>Trường được gán</small><small>{orgs.filter(o => o.status === 'approved').length} danh sách đã duyệt</small></span></div>
         <div className="panel"><i aria-hidden="true" className={waiting ? 'warn' : 'good'}>!</i><span><b>{waiting}</b><small>Danh sách chờ duyệt</small></span></div>
       </div>
@@ -167,10 +167,10 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
         ? <ClsTree scope="training" items={ofl.active ? list.filter(p => ofl.fit([p.org_id, ...orgs.filter(o => o.plan_id === p.id).map(o => o.org_id)])) : list}
             header={({ sel, isFinal }) => <>
               {ofl.node([...list.map(p => p.org_id), ...orgs.map(o => o.org_id)])}
-              <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình tập huấn"><option value="">Mọi chương trình</option>
+              <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Mọi chương trình</option>
                 {[...new Map(items.map(i => [i.program_id, i.training_programs?.title ?? '—'])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'vi')).map(([id, t]) => <option key={id} value={id}>{t}</option>)}</select>
-              {can && isFinal && sel && <button type="button" className="primary" onClick={() => setCreate({ node: sel })}>+ Lập kế hoạch tập huấn</button>}</>}>
-            {(rows, { isFinal, unsorted }) => table(rows, unsorted ? 'Không có kế hoạch nào.' : isFinal && can ? 'Chưa có kế hoạch nào trong mục này. Bấm “+ Lập kế hoạch tập huấn”.' : 'Chưa có kế hoạch nào trong mục này.')}
+              {can && isFinal && sel && <button type="button" className="primary" onClick={() => setCreate({ node: sel })}>+ Lập kế hoạch đào tạo</button>}</>}>
+            {(rows, { isFinal, unsorted }) => table(rows, unsorted ? 'Không có kế hoạch nào.' : isFinal && can ? 'Chưa có kế hoạch nào trong mục này. Bấm “+ Lập kế hoạch đào tạo”.' : 'Chưa có kế hoạch nào trong mục này.')}
           </ClsTree>
         : <>
           <div className="distfilter">
@@ -179,7 +179,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
           </div>
           <div className="bar">
             <div className="tools">
-              <input placeholder="Tìm mã, tên, đơn vị tập huấn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
+              <input placeholder="Tìm mã, tên, đơn vị đào tạo…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
               <select value={yr} onChange={e => setYr(e.target.value)} aria-label="Năm học"><option value="">Mọi năm học</option>{years.map(y => <option key={y} value={y}>{y}</option>)}</select>
               {ofl.node([...list.map(p => p.org_id), ...orgs.map(o => o.org_id)])}
               <small className="sub">{shown.length}/{list.length} kế hoạch</small>
@@ -187,10 +187,10 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
             <div className="tools">
               <span className="segmented viewtoggle" role="group" aria-label="Kiểu xem">{([['table', 'Bảng'], ['cal', 'Lịch']] as const).map(([k, l]) =>
                 <button key={k} type="button" className={look === k ? 'on' : ''} aria-pressed={look === k} onClick={() => setLook(k)}>{l}</button>)}</span>
-              {can && <button type="button" className="primary" onClick={() => { setMsg(null); setCreate({ node: null }) }}>Lập kế hoạch tập huấn</button>}</div>
+              {can && <button type="button" className="primary" onClick={() => { setMsg(null); setCreate({ node: null }) }}>Lập kế hoạch đào tạo</button>}</div>
           </div>
           {look === 'cal' ? <PlanCal plans={shown} label={p => [all && orgName(p.org_id), p.plan_code].filter(Boolean).join(' · ')} onOpen={id => { setMsg(null); setOpen(id) }} />
-            : table(shown, list.length ? 'Không có kế hoạch nào khớp bộ lọc.' : can ? 'Chưa có kế hoạch tập huấn nào. Bấm "Lập kế hoạch tập huấn".' : 'Chưa có kế hoạch tập huấn nào.')}
+            : table(shown, list.length ? 'Không có kế hoạch nào khớp bộ lọc.' : can ? 'Chưa có kế hoạch đào tạo nào. Bấm "Lập kế hoạch đào tạo".' : 'Chưa có kế hoạch đào tạo nào.')}
         </>}
       {create && <PlanCreate orgId={orgId} node={create.node} onClose={() => setCreate(null)} onSaved={id => { setCreate(null); reload(); setOpen(id) }} />}
     </>
@@ -208,14 +208,14 @@ const badDates = (f: Info) => !!(f.starts_on && f.ends_on && f.ends_on < f.start
 function InfoFields({ f, set }: { f: Info; set: (f: Info) => void }) {
   const years = [...new Set([...yearOptions(), ...(f.year_name ? [f.year_name] : [])])]
   return <div className="formgrid">
-    <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên kế hoạch tập huấn *</span><input required maxLength={200} value={f.name} onChange={e => set({ ...f, name: e.target.value })} placeholder="VD: Tập huấn STEM hè 2027 cho giáo viên THCS" /></label>
+    <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên kế hoạch đào tạo *</span><input required maxLength={200} value={f.name} onChange={e => set({ ...f, name: e.target.value })} placeholder="VD: Đào tạo STEM hè 2027 cho giáo viên THCS" /></label>
     <label className="field"><span>Năm học *</span><select value={f.year_name} onChange={e => set({ ...f, year_name: e.target.value })}><option value="">— Chọn năm học —</option>
       {years.map(y => <option key={y} value={y}>{y}</option>)}</select></label>
     <label className="field"><span>Đợt</span><select value={f.term} onChange={e => set({ ...f, term: e.target.value as Term | '' })}><option value="">— Không chọn —</option>
       {(Object.keys(TERM) as Term[]).map(t => <option key={t} value={t}>{TERM[t]}</option>)}</select></label>
     <label className="field"><span>Hình thức</span><select value={f.mode} onChange={e => set({ ...f, mode: e.target.value as Mode })}>
       {(Object.keys(MODE) as Mode[]).map(m => <option key={m} value={m}>{MODE[m]}</option>)}</select></label>
-    <label className="field"><span>Đơn vị tập huấn</span><input maxLength={200} value={f.provider} onChange={e => set({ ...f, provider: e.target.value })} placeholder="VD: KDI Education STEM" /></label>
+    <label className="field"><span>Đơn vị đào tạo</span><input maxLength={200} value={f.provider} onChange={e => set({ ...f, provider: e.target.value })} placeholder="VD: KDI Education STEM" /></label>
     <label className="field"><span>Từ ngày</span><input type="date" value={f.starts_on} onChange={e => set({ ...f, starts_on: e.target.value })} /></label>
     <label className="field"><span>Đến ngày</span><input type="date" value={f.ends_on} onChange={e => set({ ...f, ends_on: e.target.value })} /></label>
     <label className="field"><span>Kinh phí dự kiến (đồng)</span><input type="number" min={0} step={100000} value={f.budget} onChange={e => set({ ...f, budget: e.target.value })} /></label>
@@ -225,7 +225,7 @@ function InfoFields({ f, set }: { f: Info; set: (f: Info) => void }) {
   </div>
 }
 
-/** Mục ở cấp cuối của khung phân loại kế hoạch tập huấn (để chọn / đổi phân loại) */
+/** Mục ở cấp cuối của khung phân loại kế hoạch đào tạo (để chọn / đổi phân loại) */
 function useFinalNodes() {
   const cls = useCls('training')
   const last = cls.active[cls.active.length - 1]
@@ -247,10 +247,10 @@ function PlanCreate({ orgId, node, onClose, onSaved }: { orgId: string; node: Cl
     if (error) return setErr(errText(error.message))
     onSaved((data as { id: string }).id)
   }
-  return <Drawer title="Lập kế hoạch tập huấn" onClose={onClose} closeOnOutside={false}>
+  return <Drawer title="Lập kế hoạch đào tạo" onClose={onClose} closeOnOutside={false}>
     <form className="formgrid" onSubmit={save}>
       <OrgPick kind="unit" value={org} onChange={setOrg} title="Đơn vị lập kế hoạch" />
-      <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên kế hoạch tập huấn *</span><input autoFocus required maxLength={200} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="VD: Tập huấn STEM hè 2027 cho giáo viên THCS" /></label>
+      <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên kế hoạch đào tạo *</span><input autoFocus required maxLength={200} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="VD: Đào tạo STEM hè 2027 cho giáo viên THCS" /></label>
       <label className="field"><span>Năm học *</span><select value={f.year_name} onChange={e => setF({ ...f, year_name: e.target.value })}>{yearOptions().map(y => <option key={y} value={y}>{y}</option>)}</select></label>
       <label className="field"><span>Phân loại</span>{node ? <input disabled value={cls.path(node.id).map(x => x.name).join(' › ')} />
         : <select value={f.node_id} onChange={e => setF({ ...f, node_id: e.target.value })}><option value="">— Chưa phân loại —</option>{finals.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select>}</label>
@@ -300,7 +300,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   const sProgs = useMemo(() => progs.map(g => ({ id: g.id, code: g.code, title: g.title, ct_code: g.ct_code,
     subjects: g.subjects.map(sj => ({ id: sj.id, title: sj.title, hours: sj.hours, contents: sj.contents.map(c => ({ id: c.id, title: c.title, hours: c.hours, mode: c.mode })) })) })), [progs])
   const sched = useSchedule(p ?? { id, org_id: '', mode: 'hybrid', starts_on: null, ends_on: null }, items, sProgs)
-  if (!p || !f) return <ElView back="Kế hoạch tập huấn" onBack={onBack} title="Đang tải…">{msg && <p className="msg">{msg[0]}</p>}</ElView>
+  if (!p || !f) return <ElView back="Kế hoạch đào tạo" onBack={onBack} title="Đang tải…">{msg && <p className="msg">{msg[0]}</p>}</ElView>
 
   const edit = can && p.pub_status === 'draft'
   const editSched = can && p.pub_status !== 'archived'
@@ -328,7 +328,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   const newerOf = (i: Item) => { const g = progs.find(x => x.id === i.program_id)
     return g && g.status !== 'published' ? progs.find(x => x.family_id === g.family_id && x.status === 'published' && x.version_no > g.version_no) : undefined }
   const totalQuota = items.reduce((a, i) => a + (i.quota ?? 0), 0)
-  const warn = [!p.year_name && 'chưa chọn năm học', !items.length && 'chưa chọn chương trình tập huấn'].filter(Boolean) as string[]
+  const warn = [!p.year_name && 'chưa chọn năm học', !items.length && 'chưa chọn chương trình đào tạo'].filter(Boolean) as string[]
   const sc = checks(sched, p)
   const scErr = sc.filter(c => c.level === 'error')
   const scheduled = sched.rows.filter(r => r.date).length
@@ -363,7 +363,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
     const e = await sched.save()
     setBusy(false)
     if (e) return setMsg([e, true])
-    setMsg([`Đã lưu lịch tập huấn.`, false]); load()
+    setMsg([`Đã lưu lịch đào tạo.`, false]); load()
   }
   async function setStatus(s: Status, ok: string) {
     if (s === 'published' && sched.dirty) await saveSched()
@@ -371,7 +371,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   }
   // Kết thúc kế hoạch (118): chốt điểm danh các buổi, đóng đăng ký, báo GV; kết quả và chứng chỉ vẫn làm tiếp ở bước 5
   async function closePlan() {
-    const note = prompt('Kết thúc kế hoạch tập huấn?\n\nHệ thống chốt điểm danh mọi buổi (chưa điểm danh = vắng), đóng đăng ký, không ghi danh thêm và báo cho giáo viên có tên. Kết quả, chứng chỉ vẫn làm tiếp ở bước 5. Mở lại được nếu cần.\n\nGhi chú (không bắt buộc):', '')
+    const note = prompt('Kết thúc kế hoạch đào tạo?\n\nHệ thống chốt điểm danh mọi buổi (chưa điểm danh = vắng), đóng đăng ký, không ghi danh thêm và báo cho giáo viên có tên. Kết quả, chứng chỉ vẫn làm tiếp ở bước 5. Mở lại được nếu cần.\n\nGhi chú (không bắt buộc):', '')
     if (note === null) return
     const { data, error } = await supabase.rpc('training_plan_close', { p_plan: p!.id, p_note: note.trim() || null })
     if (error) { setMsg([errText(error.message), true]); return }
@@ -407,7 +407,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   const validity = !items.length ? null : scErr.length ? <Chip tone="bad">⊗ {scErr.length} lỗi lịch</Chip> : sc.length ? <Chip tone="warn">⚠ {sc.length} lưu ý</Chip> : <Chip tone="good">✓ Lịch hợp lệ</Chip>
 
   const head = <div className="disthead">
-    <button type="button" className="distback" onClick={leave}>← Kế hoạch tập huấn</button>
+    <button type="button" className="distback" onClick={leave}>← Kế hoạch đào tạo</button>
     <span className="distcrumb">{crumbTxt} · {p.plan_code}</span>
     <span className="distheadright">
       <Chip tone={STATUS[p.pub_status][1]}>{STATUS[p.pub_status][0]}</Chip>
@@ -459,14 +459,14 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
             <option value="">— Chưa phân loại —</option>{finals.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
           <label className="field"><span>Cách làm bài kiểm tra</span><select value={p.exam_mode ?? 'content'} onChange={e => run(supabase.from('training_plans').update({ exam_mode: e.target.value }).eq('id', p.id), 'Đã đổi cách làm bài kiểm tra.')}>
             {EXAM_MODE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-            <small className="sub">Giảng viên mở đề: giáo viên chỉ vào làm khi giảng viên bấm "Mở đề" ở buổi học (Lịch tập huấn › mở buổi › Đề kiểm tra).</small></label>
+            <small className="sub">Giảng viên mở đề: giáo viên chỉ vào làm khi giảng viên bấm "Mở đề" ở buổi học (Lịch đào tạo › mở buổi › Đề kiểm tra).</small></label>
           <div className="formactions"><button type="button" className="primary" disabled={!f.name.trim() || badDates(f)} onClick={() => run(supabase.from('training_plans').update(toRow(f)).eq('id', p.id), 'Đã lưu thông tin.')}>Lưu thông tin</button></div>
         </div> : <dl className="tpkv" style={{ marginTop: 12 }}>
           <dt>Phân loại</dt><dd>{crumbTxt}</dd>
           <dt>Năm học · đợt</dt><dd>{[p.year_name, p.term && TERM[p.term]].filter(Boolean).join(' · ') || '—'}</dd>
           <dt>Thời gian</dt><dd>{span(p) || '—'}</dd>
           <dt>Hình thức</dt><dd>{MODE[p.mode] ?? p.mode}</dd>
-          <dt>Đơn vị tập huấn</dt><dd>{p.provider || '—'}</dd>
+          <dt>Đơn vị đào tạo</dt><dd>{p.provider || '—'}</dd>
           <dt>Kinh phí dự kiến</dt><dd>{money(p.budget)}</dd>
           <dt>Số lượng tối đa</dt><dd>{p.max_learners ? `${p.max_learners} giáo viên` : 'Không giới hạn'}</dd>
           <dt>Làm bài kiểm tra</dt><dd>{can && !p.closed_at ? <select value={p.exam_mode ?? 'content'} aria-label="Cách làm bài kiểm tra" onChange={e => run(supabase.from('training_plans').update({ exam_mode: e.target.value }).eq('id', p.id), 'Đã đổi cách làm bài kiểm tra.')}>
@@ -476,14 +476,14 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
       </details>
       <div className={edit ? "tppick" : ""}>
         {edit && <div>
-          <p className="distpickhead"><b>Chương trình tập huấn đã phát hành</b> <span className="sub">{lvl ? `ưu tiên chương trình dùng cho ${cls.path(p.node_id).find(n => n.edu_level)?.name}` : 'tick để thêm vào kế hoạch'}</span></p>
+          <p className="distpickhead"><b>Chương trình đào tạo đã phát hành</b> <span className="sub">{lvl ? `ưu tiên chương trình dùng cho ${cls.path(p.node_id).find(n => n.edu_level)?.name}` : 'tick để thêm vào kế hoạch'}</span></p>
           {[...progs].filter(g => g.status === 'published').sort((a, b) => Number(fits(b)) - Number(fits(a))).map(g => { const on = items.some(i => i.program_id === g.id)
             return <div key={g.id} className={'distprogcard' + (on ? ' on' : '') + (fits(g) ? '' : ' off')}>
               <label className="distproghead"><input type="checkbox" checked={on} onChange={() => toggleProg(g, !on)} />
                 <span>{g.ct_code && <Chip tone="ct">{g.ct_code}</Chip>} <b>{g.code} · {g.title}</b><br />
                   <small className="sub">{g.subjects.length} môn · {g.subjects.reduce((a, sj) => a + sj.contents.length, 0)} nội dung · {num(g.hours)} giờ{!fits(g) ? ' · khác cấp học' : ''}</small></span></label>
             </div> })}
-          {!progs.some(g => g.status === 'published') && <p className="sub">Chưa có chương trình tập huấn nào được phát hành.</p>}
+          {!progs.some(g => g.status === 'published') && <p className="sub">Chưa có chương trình đào tạo nào được phát hành.</p>}
         </div>}
         <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
           <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Chương trình trong kế hoạch</h3><small className="sub">{items.length} chương trình · {num(totalHours)} giờ{totalQuota ? ` · chỉ tiêu ${totalQuota} GV` : ''}</small></div>
@@ -506,7 +506,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
               {edit && <td><div className="tools"><button type="button" aria-label="Chuyển lên" disabled={!k} onClick={() => move(k, -1)}>↑</button>
                 <button type="button" aria-label="Chuyển xuống" disabled={k === items.length - 1} onClick={() => move(k, 1)}>↓</button></div></td>}
             </tr>)}
-              {!items.length && <tr><td colSpan={edit ? 7 : 6}><small className="sub">{edit ? 'Tick chương trình bên trái để thêm vào kế hoạch.' : 'Kế hoạch chưa gắn chương trình tập huấn.'}</small></td></tr>}</tbody>
+              {!items.length && <tr><td colSpan={edit ? 7 : 6}><small className="sub">{edit ? 'Tick chương trình bên trái để thêm vào kế hoạch.' : 'Kế hoạch chưa gắn chương trình đào tạo.'}</small></td></tr>}</tbody>
           </table></div>
           <button type="button" className="primary" style={{ justifySelf: 'end' }} disabled={!items.length} onClick={() => setStep(2)}>Tiếp tục: Xếp lịch →</button>
         </div>
@@ -642,7 +642,7 @@ function DirectAdd({ planId, enr, onDone }: { planId: string; enr: Enr[]; onDone
   </section>
 }
 
-// ===== Nội dung tập huấn chọn trong kế hoạch (097): toàn bộ hoặc một phần =====
+// ===== Nội dung đào tạo chọn trong kế hoạch (097): toàn bộ hoặc một phần =====
 function UnitPick({ prog, value, edit, onSave }: { prog?: Prog; value: string[] | null; edit: boolean; onSave: (v: string[] | null) => Promise<boolean> }) {
   const [open, setOpen] = useState(false)
   const all = prog ? prog.subjects.flatMap(sj => sj.contents.map(c => c.id)) : []
@@ -779,7 +779,7 @@ function SelfRegister({ p, can, regs, orgs, names, onSave, onInvite, onReview }:
         </tr>)}</tbody>
       </table></div>
     </>}
-    <small className="sub">Giáo viên đăng ký ở mục Đăng ký tập huấn (hoặc bấm link mời). Hệ thống kiểm tra hạn đăng ký, chương trình tiên quyết, chỉ tiêu của trường và trùng lịch;
+    <small className="sub">Giáo viên đăng ký ở mục Đăng ký đào tạo (hoặc bấm link mời). Hệ thống kiểm tra hạn đăng ký, chương trình tiên quyết, chỉ tiêu của trường và trùng lịch;
       nội dung đã đạt ở kế hoạch trước được đề xuất miễn. Trường gửi danh sách duyệt như thường lệ.{p.pub_status === 'draft' ? ' Giáo viên chỉ thấy kế hoạch sau khi phát hành và gán trường.' : ''}</small>
   </section>
 }
@@ -882,7 +882,7 @@ function AssignSchools({ plan, taken, onBack, onDone }: { plan: TPlan; taken: Se
     const { error } = await supabase.rpc('training_plan_assign', { p_plan: plan.id, p_orgs: [...sel], p_quota: quota === '' ? null : Math.max(0, Math.round(Number(quota))) })
     setBusy(false)
     if (error) return setErr(errText(error.message))
-    onDone(`Đã gán ${sel.size} trường. Trường sẽ thấy kế hoạch ở mục Kế hoạch tập huấn và chọn giáo viên.`)
+    onDone(`Đã gán ${sel.size} trường. Trường sẽ thấy kế hoạch ở mục Kế hoạch đào tạo và chọn giáo viên.`)
   }
   return <ElView back={plan.name} onBack={onBack} title="Gán trường" sub={`${plan.plan_code} · chọn các trường tham gia kế hoạch`}
     actions={<button type="button" className="primary" disabled={!sel.size || busy} onClick={save}>Gán {sel.size || ''} trường</button>}>
@@ -901,7 +901,7 @@ function AssignSchools({ plan, taken, onBack, onDone }: { plan: TPlan; taken: Se
           <input type="checkbox" checked={sel.has(s.id)} onChange={e => { const n = new Set(sel); if (e.target.checked) n.add(s.id); else n.delete(s.id); setSel(n) }} /></label>)}
         {!shown.length && <small className="sub">{schools.length ? 'Không còn trường nào để gán.' : 'Không có trường nào trong phạm vi quản lý.'}</small>}
       </div>}
-      {outShown.length > 0 && <details className="outscope"><summary>{outShown.length} trường ngoài phạm vi áp dụng của chương trình tập huấn (không gán được)</summary>
+      {outShown.length > 0 && <details className="outscope"><summary>{outShown.length} trường ngoài phạm vi áp dụng của chương trình đào tạo (không gán được)</summary>
         <div className="reggrid">{outShown.map(s => <label className="roomrow off" key={s.id}><span>{s.name}{s.parent && <><br /><small className="sub">{s.parent}</small></>}</span>
           <input type="checkbox" disabled /></label>)}</div></details>}
     </section>
@@ -921,7 +921,7 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
   // Quản trị hệ thống: kế hoạch giao cho mọi trường trong một danh sách; mở một dòng để chọn GV, gửi duyệt thay trường
   const all = useAllMode(), orgName = useOrgName()
   const provOf = useProvinceOf()
-  // Bộ lọc chọn nhiều: năm học, tỉnh, trường, chương trình tập huấn (rỗng = tất cả)
+  // Bộ lọc chọn nhiều: năm học, tỉnh, trường, chương trình đào tạo (rỗng = tất cả)
   const [fYear, setFYear] = useState<string[]>([])
   const [fProv, setFProv] = useState<string[]>([])
   const [fOrg, setFOrg] = useState<string[]>([])
@@ -962,7 +962,7 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
   const ms = { width: 168, flex: '0 0 168px' }
   return <>
     <FlowGuide id="training-school">
-      <ol className="distguide">{([['Nhận kế hoạch', 'KDI, Sở hoặc Phòng gán kế hoạch tập huấn cho trường, kèm chỉ tiêu giáo viên.'],
+      <ol className="distguide">{([['Nhận kế hoạch', 'KDI, Sở hoặc Phòng gán kế hoạch đào tạo cho trường, kèm chỉ tiêu giáo viên.'],
         ['Chọn giáo viên', 'Mở kế hoạch, đánh dấu giáo viên tham gia, không vượt chỉ tiêu.'],
         ['Gửi duyệt', 'Gửi danh sách lên. Bị trả lại thì sửa theo lý do rồi gửi lại.']] as [string, string][]).map(([h, d], k) =>
         <li key={h}><button type="button" onClick={() => setFs(k === 0 ? '' : k === 1 ? 'todo' : 'sent')}><i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
@@ -976,13 +976,13 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
       <MultiSelect value={fYear} onChange={setFYear} options={yearOpts} placeholder="Mọi năm học" ariaLabel="Năm học" style={ms} compact />
       {all && <MultiSelect value={fProv} onChange={v => { setFProv(v); setFOrg([]) }} options={provOpts} placeholder="Mọi tỉnh" ariaLabel="Tỉnh" style={ms} compact />}
       {all && <MultiSelect value={fOrg} onChange={setFOrg} options={orgOpts} placeholder="Mọi trường" ariaLabel="Trường" style={ms} compact />}
-      <MultiSelect value={fProg} onChange={setFProg} options={progOpts} placeholder="Mọi chương trình" ariaLabel="Chương trình tập huấn" style={ms} compact />
+      <MultiSelect value={fProg} onChange={setFProg} options={progOpts} placeholder="Mọi chương trình" ariaLabel="Chương trình đào tạo" style={ms} compact />
       {(fYear.length + fProv.length + fOrg.length + fProg.length > 0) && <button type="button" className="fclear" onClick={() => { setFYear([]); setFProv([]); setFOrg([]); setFProg([]) }}>Bỏ lọc</button>}
       <small className="sub">{nShown}/{rows?.length ?? 0} kế hoạch</small>
     </div></div>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-      <thead><tr><th>Kế hoạch tập huấn</th>{all && <th>Trường</th>}<th>Năm học · đợt</th><th>Chương trình</th><th>Giáo viên / chỉ tiêu</th><th>Trạng thái</th></tr></thead>
+      <thead><tr><th>Kế hoạch đào tạo</th>{all && <th>Trường</th>}<th>Năm học · đợt</th><th>Chương trình</th><th>Giáo viên / chỉ tiêu</th><th>Trạng thái</th></tr></thead>
       <tbody>{rows.filter(fit).map(r => {
         const p = r.training_plans!, its = items.filter(i => i.plan_id === r.plan_id).sort((a, b) => a.seq - b.seq), c = enr.filter(e => e.plan_id === r.plan_id && e.teachers?.org_id === r.org_id).length
         const pd = pend.filter(x => x.plan_id === r.plan_id && x.org_id === r.org_id).length
@@ -995,7 +995,7 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
             {p.self_register && !pd && <><br /><small className="sub">Mở tự đăng ký{p.register_until ? ` đến ${day(p.register_until)}` : ''}</small></>}</td>
           <td><Chip tone={ORG_ST[r.status][1]}>{ORG_ST[r.status][0]}</Chip>{r.status === 'returned' && r.note && <><br /><small className="sub">Lý do: {r.note}</small></>}</td>
         </tr> })}
-        {!rows.length ? <tr><td colSpan={all ? 6 : 5}>Chưa có kế hoạch tập huấn nào được giao cho trường.</td></tr> : !nShown && <tr><td colSpan={all ? 6 : 5}>Không có kế hoạch nào khớp bộ lọc.</td></tr>}</tbody>
+        {!rows.length ? <tr><td colSpan={all ? 6 : 5}>Chưa có kế hoạch đào tạo nào được giao cho trường.</td></tr> : !nShown && <tr><td colSpan={all ? 6 : 5}>Không có kế hoạch nào khớp bộ lọc.</td></tr>}</tbody>
     </table></div>}
   </>
 }
@@ -1105,7 +1105,7 @@ function SchoolPlanTeachers({ row, orgId, items, onBack, onMsg, backLabel = 'K�
         <dt>Năm học · đợt</dt><dd>{[p.year_name, p.term && TERM[p.term]].filter(Boolean).join(' · ') || '—'}</dd>
         <dt>Thời gian</dt><dd>{span(p) || '—'}</dd>
         <dt>Hình thức</dt><dd>{MODE[p.mode] ?? p.mode}{p.provider ? ` · ${p.provider}` : ''}</dd>
-        {p.self_register && <><dt>Tự đăng ký</dt><dd>Giáo viên tự đăng ký ở mục Đăng ký tập huấn{p.register_until ? `, hạn ${day(p.register_until)}` : ''} · {p.register_approval !== false ? 'cần duyệt' : 'không cần duyệt (đăng ký là có tên)'}</dd></>}
+        {p.self_register && <><dt>Tự đăng ký</dt><dd>Giáo viên tự đăng ký ở mục Đăng ký đào tạo{p.register_until ? `, hạn ${day(p.register_until)}` : ''} · {p.register_approval !== false ? 'cần duyệt' : 'không cần duyệt (đăng ký là có tên)'}</dd></>}
         <dt>Chương trình</dt><dd>{items.length ? <ol style={{ margin: 0, paddingLeft: 18 }}>{[...items].sort((a, b) => a.seq - b.seq).map(i => <li key={i.program_id}>{i.training_programs?.title}{i.trainer && <small className="sub"> · GV: {i.trainer}</small>}{i.assistant && <small className="sub"> · Trợ giảng: {i.assistant}</small>}
           <UnitPick prog={progs.find(x => x.id === i.program_id)} value={i.units ?? null} edit={false} onSave={async () => false} /></li>)}</ol> : '—'}</dd>
         {p.note && <><dt>Ghi chú</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{p.note}</dd></>}

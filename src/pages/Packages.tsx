@@ -245,7 +245,7 @@ function PackageDetail({ pkg, state, onBack }: { pkg: Pkg; state: string; onBack
         <div className="segmented" style={{ margin: 0 }}>
           <button className={tab === 'units' ? 'on' : ''} onClick={() => setTab('units')}>Thiết bị {devs.length || units.length}</button>
           <button className={tab === 'topics' ? 'on' : ''} onClick={() => setTab('topics')}>Chương trình {topics.length}</button>
-          <button className={tab === 'training' ? 'on' : ''} onClick={() => setTab('training')}>Tập huấn {plans.length}</button></div>
+          <button className={tab === 'training' ? 'on' : ''} onClick={() => setTab('training')}>Đào tạo {plans.length}</button></div>
         <div className="tools">
           {tab === 'units' && <><small style={{ alignSelf: 'center' }}>{devQty} thiết bị · {devs.length} loại</small>{!dform && <button onClick={() => setDform({ ...EMPTY_DEV, supplier: pkg.provider ?? '' })}>+ Thêm thiết bị</button>}</>}
           {tab === 'topics' && <><small style={{ alignSelf: 'center' }}>{topics.length} chương trình · {totalSessions} buổi học · {totalMin} phút</small><button className="primary" onClick={() => setAssign(true)} disabled={!topics.length}>Gán khối</button></>}
@@ -309,9 +309,9 @@ function PackageDetail({ pkg, state, onBack }: { pkg: Pkg; state: string; onBack
           {open === t.id && [...t.package_topic_sessions].sort((a, b) => a.seq - b.seq).map(s => <div className="roomrow" key={s.id}><span>{s.seq}. {s.title}</span><small>{s.minutes} phút</small></div>)}
         </div>))}
       {tab === 'topics' && topics.length === 0 && <p className="sub">Gói này chưa có nội dung chương trình chi tiết.</p>}
-      {tab === 'training' && <table><thead><tr><th>Khóa tập huấn</th><th>Chương trình</th><th>Đơn vị</th><th>Số giờ</th></tr></thead><tbody>
+      {tab === 'training' && <table><thead><tr><th>Khóa đào tạo</th><th>Chương trình</th><th>Đơn vị</th><th>Số giờ</th></tr></thead><tbody>
         {plans.map(p => <tr key={p.id}><td><b>{p.name}</b></td><td><ProgChips programs={p.program} /></td><td>{p.provider}</td><td>{p.hours}</td></tr>)}
-        {plans.length === 0 && <tr><td colSpan={4}>Chưa có kế hoạch tập huấn.</td></tr>}</tbody></table>}
+        {plans.length === 0 && <tr><td colSpan={4}>Chưa có kế hoạch đào tạo.</td></tr>}</tbody></table>}
       {assign && <AssignModal pkg={pkg} topics={topics} onClose={() => setAssign(false)} onSaved={() => { setAssign(false); load() }} />}
     </>
   )

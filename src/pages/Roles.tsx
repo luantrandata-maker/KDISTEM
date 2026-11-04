@@ -10,7 +10,7 @@ const MODULES: [string, string][] = [
   ['stem_registrations', 'Đăng ký dạy STEM'], ['buildings', 'Tòa nhà & Tầng'], ['periods', 'Cấu hình tiết học'],
   ['accounts', 'Tài khoản'], ['roles', 'Vai trò và phân quyền'],
   ['edu_plan', 'Kế hoạch giáo dục'], ['stem_assign', 'Phân công GV dạy STEM'], ['curriculum', 'Phân phối chương trình'],
-  ['packages', 'Gói STEM'], ['training', 'Tập huấn giáo viên'],
+  ['packages', 'Gói STEM'], ['training', 'Đào tạo giáo viên'],
 ]
 const ACTIONS = [['can_view', 'Xem'], ['can_detail', 'Chi tiết'], ['can_create', 'Tạo mới'], ['can_edit', 'Chỉnh sửa'], ['can_delete', 'Xoá']] as const
 const PORTAL_LABEL: Record<string, string> = { school_admin: 'Giao diện Quản trị trường', teacher: 'Giao diện Giáo viên' }

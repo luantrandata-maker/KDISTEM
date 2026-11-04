@@ -1,4 +1,4 @@
-// Nội dung tập huấn: 5 phần như bài học — Nội dung · Bài giảng · Link tài liệu · Định mức vật tư · Kho hoạt động.
+// Nội dung đào tạo: 5 phần như bài học — Nội dung · Bài giảng · Link tài liệu · Định mức vật tư · Kho hoạt động.
 // Lưu trong training_program_units.detail (083). Chỉ sửa khi chương trình còn nháp.
 import { LEVEL as ELEVEL } from '../elearning/common'
 import { TryButton } from '../../components/ExamTryout'
@@ -9,7 +9,7 @@ import { openFile } from '../../lib/files'
 
 type Row = Record<string, string>
 // test: bài kiểm tra (086) — câu hỏi từ Ngân hàng câu hỏi E-learning; count = số câu rút ngẫu nhiên mỗi lượt
-// kind 'link' (105): làm bài qua link ngoài (Google Forms, Azota…), người tổ chức nhập điểm ở Kết quả tập huấn
+// kind 'link' (105): làm bài qua link ngoài (Google Forms, Azota…), người tổ chức nhập điểm ở Kết quả đào tạo
 export type TestCfg = { kind?: 'bank' | 'link'; qids?: string[]; count?: number | null; minutes?: number | null; attempts?: number | null; pass?: number | null
   url?: string | null; due?: string | null; note?: string | null; mode?: 'self' | 'trainer' }
 export type Detail = { body?: { goal?: string; text?: string; reqs?: string[] }; lectures?: Row[]; docs?: Row[]; mats?: Row[]; acts?: Row[]; test?: TestCfg }
@@ -20,8 +20,8 @@ export function ExamModePick({ value, edit, onChange }: { value?: 'self' | 'trai
     <div className="distpills" role="radiogroup" aria-label="Ai mở đề" style={{ margin: 0 }}>
       {([['self', 'Học viên tự làm khi học xong'], ['trainer', 'Giảng viên mở đề']] as ['self' | 'trainer', string][]).map(([k, l]) =>
         <button key={k} type="button" role="radio" aria-checked={v === k} className={v === k ? 'on' : ''} disabled={!edit} onClick={() => onChange(k)}>{l}</button>)}</div>
-    <small className="sub">{v === 'trainer' ? 'Giáo viên chỉ vào làm khi giảng viên bấm "Mở đề" ở buổi học (trong hoặc sau khi dạy). Kế hoạch tập huấn có thể đặt chung cho cả khoá.'
-      : 'Giáo viên tự học nội dung rồi làm bài, nộp bài lúc nào cũng được. Kế hoạch tập huấn có thể đặt chung cho cả khoá.'}</small></div>
+    <small className="sub">{v === 'trainer' ? 'Giáo viên chỉ vào làm khi giảng viên bấm "Mở đề" ở buổi học (trong hoặc sau khi dạy). Kế hoạch đào tạo có thể đặt chung cho cả khoá.'
+      : 'Giáo viên tự học nội dung rồi làm bài, nộp bài lúc nào cũng được. Kế hoạch đào tạo có thể đặt chung cho cả khoá.'}</small></div>
 }
 type Col = { key: string; label: string; type?: 'text' | 'url' | 'number' | 'select'; options?: [string, string][]; width?: number; placeholder?: string }
 export type ListKey = 'lectures' | 'docs' | 'mats' | 'acts'
@@ -69,7 +69,7 @@ function ListEditor({ cols, rows, edit, empty, onChange }: { cols: Col[]; rows: 
 }
 
 type Tab = 'body' | ListKey | 'test'
-export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, passScore, onBack, onSave, notice, extra, initialTab, backLabel = 'Môn & nội dung tập huấn' }: {
+export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, passScore, onBack, onSave, notice, extra, initialTab, backLabel = 'Môn & nội dung đào tạo' }: {
   title: string; crumb: string; hours: number; detail: Detail; editable: boolean; hasTest?: boolean; passScore?: number | null; onBack: () => void; onSave: (d: Detail) => Promise<boolean>
   /** Ghi chú khi chỉ xem và nút thêm (VD: tạo phiên bản mới để sửa) */
   notice?: React.ReactNode; extra?: React.ReactNode; initialTab?: 'test'; backLabel?: string
@@ -105,7 +105,7 @@ export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, 
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       {tab === 'body' ? (editable ? <>
         <label className="field"><span>Mục tiêu</span><textarea rows={2} value={body.goal ?? ''} onChange={e => up({ ...d, body: { ...body, goal: e.target.value } })} placeholder="Sau nội dung này, giáo viên làm được gì" /></label>
-        <label className="field"><span>Nội dung chi tiết</span><textarea rows={8} value={body.text ?? ''} onChange={e => up({ ...d, body: { ...body, text: e.target.value } })} placeholder="Các ý chính, tiến trình tập huấn" /></label>
+        <label className="field"><span>Nội dung chi tiết</span><textarea rows={8} value={body.text ?? ''} onChange={e => up({ ...d, body: { ...body, text: e.target.value } })} placeholder="Các ý chính, tiến trình đào tạo" /></label>
         <label className="field"><span>Yêu cầu cần đạt (mỗi dòng một yêu cầu)</span><textarea rows={4} value={(body.reqs ?? []).join('\n')} onChange={e => up({ ...d, body: { ...body, reqs: e.target.value.split('\n') } })} /></label>
       </> : <dl className="tpkv">
         <dt>Mục tiêu</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{body.goal || '—'}</dd>
@@ -151,7 +151,7 @@ function TestEditor({ t, edit, passScore, hasTest, onChange }: { t: TestCfg; edi
     {kindPick}
     <ExamModePick value={t.mode} edit={edit} onChange={m => onChange({ ...t, mode: m })} />
     <p className="sub" style={{ margin: 0 }}>Giáo viên mở hết bài giảng, tài liệu rồi bấm "Làm bài" để mở link. Mở link là học tiếp được nội dung sau.
-      Điểm do người tổ chức nhập ở Đánh giá kết quả tập huấn › Chấm điểm › Điểm bài test (gõ tay hoặc nhập file Excel), đủ điểm đạt mới tính bài test đạt.</p>
+      Điểm do người tổ chức nhập ở Đánh giá kết quả đào tạo › Chấm điểm › Điểm bài test (gõ tay hoặc nhập file Excel), đủ điểm đạt mới tính bài test đạt.</p>
     <label className="field"><span>Link bài kiểm tra</span><input type="url" disabled={!edit} value={t.url ?? ''} placeholder="https://forms.gle/…"
       onChange={e => onChange({ ...t, url: e.target.value })} /></label>
     <div className="formgrid">

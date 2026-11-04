@@ -1,6 +1,6 @@
-// Phân hệ 1 › Kiểm tra & luyện tập (110): một chỗ xem mọi đề của tập huấn.
+// Phân hệ 1 › Kiểm tra & luyện tập (110): một chỗ xem mọi đề của đào tạo.
 // Đề kiểm tra: bài test nội dung + đề cuối khoá của mọi chương trình (bấm để soạn trong chương trình).
-// Đề luyện: đề tự luyện cho giáo viên, không tính điểm tập huấn. Kết quả & câu khó: điểm theo đề, câu hay sai.
+// Đề luyện: đề tự luyện cho giáo viên, không tính điểm đào tạo. Kết quả & câu khó: điểm theo đề, câu hay sai.
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -108,7 +108,7 @@ function ExamDetail({ r, subjName, stat, onBack, onEdit }: { r: Row; subjName: s
     {!editable && <p className="sub" style={{ marginTop: 0 }}>Chương trình đã {STATUS[p.status]?.[0]?.toLowerCase()}: muốn sửa đề thì tạo phiên bản mới của chương trình.</p>}
     <StatCards s={stat} />
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
-      <h3 style={{ margin: 0 }}>{r.kind === 'unit' ? 'Nội dung tập huấn' : 'Thông tin đề'}</h3>
+      <h3 style={{ margin: 0 }}>{r.kind === 'unit' ? 'Nội dung đào tạo' : 'Thông tin đề'}</h3>
       <dl className="tpkv">
         <dt>Chương trình</dt><dd>{p.code} · {p.title} (v{p.version_no})</dd>
         {r.kind === 'unit' ? <>
@@ -280,7 +280,7 @@ function AddExam({ progs, onClose, onGo, onErr }: { progs: Prog[]; onClose: () =
   }
   return <Drawer onClose={onClose} title="Thêm đề kiểm tra">
     <div style={{ display: 'grid', gap: 12 }}>
-      <label className="field"><span>Chương trình tập huấn *</span><select value={pid} onChange={e => setPid(e.target.value)}>
+      <label className="field"><span>Chương trình đào tạo *</span><select value={pid} onChange={e => setPid(e.target.value)}>
         {sorted.map(x => <option key={x.id} value={x.id}>{x.code} · v{x.version_no} · {x.title} ({STATUS[x.status]?.[0]})</option>)}</select></label>
       {p && !editable && <p className="warnline" style={{ margin: 0 }}>Chương trình đang ở trạng thái "{STATUS[p.status]?.[0]}": mở ra rồi bấm "Tạo phiên bản mới" để soạn đề.</p>}
       <div className="field"><span>Loại đề</span>
@@ -360,7 +360,7 @@ export function TrainingPracticeExams() {
   const total = form ? matrixTotal(form.matrix) : 0
 
   async function save(status?: Practice['status']) {
-    if (!form || !fp) return setMsg(['Chọn chương trình tập huấn.', true])
+    if (!form || !fp) return setMsg(['Chọn chương trình đào tạo.', true])
     if (!form.title.trim()) return setMsg(['Nhập tên đề.', true])
     const subs = listSubjects(form), grs = listGrades(form)
     if (!subs.length) return setMsg(['Chọn môn của đề.', true])
@@ -407,7 +407,7 @@ export function TrainingPracticeExams() {
         <input placeholder="Tìm tên đề, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đề luyện" /></div>
       <div className="tools">{admin && <button type="button" className="primary" disabled={!usable.length} onClick={() => { setMsg(null); setForm(blank()) }}>+ Thêm đề luyện</button>}</div>
     </div>
-    <p className="sub">Đề tự luyện cho giáo viên, không tính vào kết quả tập huấn. Giáo viên có tên trong kế hoạch có chương trình của đề sẽ thấy đề khi đề "Đang mở" (Cổng giáo viên › Bài giảng tập huấn › Luyện tập).</p>
+    <p className="sub">Đề tự luyện cho giáo viên, không tính vào kết quả đào tạo. Giáo viên có tên trong kế hoạch có chương trình của đề sẽ thấy đề khi đề "Đang mở" (Cổng giáo viên › Bài giảng đào tạo › Luyện tập).</p>
     {msg && !form && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {!list ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
       <thead><tr><th>Đề luyện</th><th>Câu hỏi</th><th>Cách làm</th><th>Chương trình</th><th>Trạng thái</th><th className="num">Lượt · GV</th><th className="num">Điểm TB</th><th></th></tr></thead>
@@ -433,7 +433,7 @@ export function TrainingPracticeExams() {
       <div className="panel libform">
         {msg && msg[1] && <p className="msg">{msg[0]}</p>}
         <div className="formgrid libgrid4">
-          <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình tập huấn *</span><select disabled={!admin} value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, subject: '', subjects: [], matrix: [] })}>
+          <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình đào tạo *</span><select disabled={!admin} value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, subject: '', subjects: [], matrix: [] })}>
             {usable.map(p => <option key={p.id} value={p.id}>{p.code} · {p.title} · v{p.version_no} · {STATUS[p.status]?.[0]?.toLowerCase()}</option>)}
             {fp && OLD.includes(fp.status) && <option value={fp.id}>{fp.code} · {fp.title} · v{fp.version_no}</option>}</select>
             <small className="sub">Giáo viên học mọi phiên bản của chương trình này đều thấy đề.</small></label>

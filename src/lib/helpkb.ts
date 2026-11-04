@@ -9,7 +9,7 @@ const STAFF: RoleKey[] = ['school_admin', 'teacher', 'department', 'platform']
 export const FAQ: Faq[] = [
   // ---- Giới thiệu ----
   { id: 'about', cat: 'Giới thiệu', q: 'KSCHOOL STEM là gì? Ai cung cấp nền tảng này?', keys: 'đơn vị cung cấp nhà cung cấp nền tảng hệ thống là gì của ai công ty kdi education giới thiệu phần mềm',
-    a: 'KSCHOOL STEM (Hệ thống Quản trị STEM) là nền tảng web quản lý giáo dục STEM do **KDI Education** cung cấp cho trường phổ thông, Phòng / Sở GD&ĐT: lịch dạy, điểm danh, bài tập, năng lực, phòng và thiết bị STEM, tập huấn giáo viên, học liệu, e-learning, báo cáo cho Sở. Mỗi Sở / trường có thể dùng tên và logo riêng.' },
+    a: 'KSCHOOL STEM (Hệ thống Quản trị STEM) là nền tảng web quản lý giáo dục STEM do **KDI Education** cung cấp cho trường phổ thông, Phòng / Sở GD&ĐT: lịch dạy, điểm danh, bài tập, năng lực, phòng và thiết bị STEM, đào tạo giáo viên, học liệu, e-learning, báo cáo cho Sở. Mỗi Sở / trường có thể dùng tên và logo riêng.' },
   { id: 'contact', cat: 'Giới thiệu', q: 'Liên hệ KDI để được hỗ trợ', keys: 'liên hệ hotline số điện thoại email hỗ trợ kdi gặp ai tư vấn',
     a: 'Cách nhanh nhất: mở tab **Yêu cầu hỗ trợ** trong khung này → **Gửi yêu cầu hỗ trợ mới**. KDI trả lời ngay trong phiếu và báo qua chuông thông báo. Cán bộ trường / Sở còn xem được mọi phiếu của đơn vị ở mục **"Hỗ trợ từ KDI"**.' },
   { id: 'privacy', cat: 'Giới thiệu', q: 'Dữ liệu của trường, học sinh được bảo vệ thế nào?', keys: 'bảo mật dữ liệu quyền riêng tư an toàn thông tin cá nhân lộ dữ liệu',

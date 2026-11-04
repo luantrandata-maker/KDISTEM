@@ -1,4 +1,4 @@
-// Cổng giáo viên › Đăng ký tập huấn (098). GV xem kế hoạch đang mở đăng ký của trường, chọn nội dung muốn học,
+// Cổng giáo viên › Đăng ký đào tạo (098). GV xem kế hoạch đang mở đăng ký của trường, chọn nội dung muốn học,
 // đề nghị miễn nội dung đã đạt ở kế hoạch trước. Hệ thống kiểm tra hạn, tiên quyết, chỉ tiêu, trùng lịch trước khi gửi.
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -77,7 +77,7 @@ export function TeacherTrainingRegister({ teacherId }: TProps) {
     {ok && <p className="sub" role="status"><b>{ok}</b></p>}
     {err && <p className="msg" role="alert">{err}</p>}
     <div className="wrap" style={{ marginTop: 14 }}><table>
-      <thead><tr><th>Kế hoạch tập huấn</th><th>Thời gian</th><th>Hạn đăng ký</th><th>Số chỗ</th><th>Trạng thái</th><th></th></tr></thead>
+      <thead><tr><th>Kế hoạch đào tạo</th><th>Thời gian</th><th>Hạn đăng ký</th><th>Số chỗ</th><th>Trạng thái</th><th></th></tr></thead>
       <tbody>{rows.map(r => { const [st, tone] = status(r), can = isOpen(r) && !r.enrolled
         return <tr key={r.plan_id}>
           <td style={{ whiteSpace: 'normal' }}><b>{r.name}</b><br /><small>{[r.plan_code, r.org_name, r.programs].filter(Boolean).join(' · ')}</small>
@@ -92,7 +92,7 @@ export function TeacherTrainingRegister({ teacherId }: TProps) {
             {!can && !r.enrolled && <small className="sub">{r.list_status === 'submitted' || r.list_status === 'approved' ? 'Trường đã gửi danh sách' : 'Hết hạn đăng ký'}</small>}
           </td>
         </tr> })}
-        {!rows.length && <tr><td colSpan={6}>Chưa có kế hoạch tập huấn nào mở cho giáo viên tự đăng ký.</td></tr>}</tbody>
+        {!rows.length && <tr><td colSpan={6}>Chưa có kế hoạch đào tạo nào mở cho giáo viên tự đăng ký.</td></tr>}</tbody>
     </table></div>
     <p className="sub" style={{ marginTop: 10 }}>Chọn nội dung muốn học rồi gửi đăng ký. Kế hoạch cần duyệt: trường hoặc đơn vị tổ chức duyệt hoặc không duyệt (kèm lý do), bạn nhận thông báo ở chuông.
       Kế hoạch không cần duyệt: gửi đăng ký là có tên tham gia ngay.</p>
@@ -144,14 +144,14 @@ function RegisterView({ r, onBack, onDone }: { r: Row; onBack: () => void; onDon
     setBusy(false)
     if (error) return setErr(errText(error.message))
     onDone(data === 'waitlist' ? `Đã vào danh sách chờ của "${r.name}". Khi có chỗ trống và được duyệt, bạn sẽ nhận thông báo.`
-      : data === 'accepted' ? `Đã đăng ký "${r.name}" (${learn.length} nội dung). Bạn đã có tên tham gia, xem lịch ở mục Lịch tập huấn.`
+      : data === 'accepted' ? `Đã đăng ký "${r.name}" (${learn.length} nội dung). Bạn đã có tên tham gia, xem lịch ở mục Lịch đào tạo.`
       : `Đã gửi đăng ký "${r.name}" (${learn.length} nội dung). Đơn vị tổ chức sẽ duyệt và báo lại cho bạn.`)
   }
   const groups = useMemo(() => { const m = new Map<string, U[]>(); (units ?? []).forEach(u => { const k = u.program_title + ' › ' + u.subject; m.set(k, [...(m.get(k) ?? []), u]) }); return [...m] }, [units])
   const hours = learn.reduce((a, u) => a + Number(u.hours || 0), 0)
   const blocked = !chk || chk.errors.length > 0 || !learn.length
   const full = chk?.full ?? []
-  return <ElView back="Đăng ký tập huấn" onBack={onBack} title={r.name}
+  return <ElView back="Đăng ký đào tạo" onBack={onBack} title={r.name}
     sub={<>{[r.plan_code, r.org_name, [day(r.starts_on), day(r.ends_on)].filter(Boolean).join(' – '), r.register_until && `hạn đăng ký ${day(r.register_until)}`, r.register_approval === false ? 'không cần duyệt' : 'cần duyệt'].filter(Boolean).join(' · ')}</>}
     actions={full.length ? <button type="button" className="primary" disabled={busy || blocked} onClick={() => send(true)}>{r.reg_status === 'waitlist' ? 'Lưu đăng ký chờ' : 'Gửi đăng ký chờ'}</button>
       : <button type="button" className="primary" disabled={busy || blocked} onClick={() => send()}>{r.reg_status === 'pending' ? 'Lưu đăng ký' : 'Gửi đăng ký'}</button>}>

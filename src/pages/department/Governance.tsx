@@ -14,7 +14,7 @@ type Action = { id: string; school_id: string; rule: string; status: string; not
 export const METRICS: Record<Metric, { label: string; hint: string; of: (s: SchoolStat[]) => number | null; one: (s: SchoolStat) => number | null }> = {
   stem_coverage: { label: 'Trường triển khai STEM', hint: '% trường có ít nhất một chương trình CT1–CT5',
     of: s => s.length ? pct(s.filter(x => x.programs.length > 0).length, s.length) : null, one: s => (s.programs.length > 0 ? 100 : 0) },
-  teacher_trained: { label: 'Giáo viên đã tập huấn', hint: '% GV hoàn thành tập huấn STEM',
+  teacher_trained: { label: 'Giáo viên đã đào tạo', hint: '% GV hoàn thành đào tạo STEM',
     of: s => sum(s.map(x => x.teachers)) ? pct(sum(s.map(x => x.training_done)), sum(s.map(x => x.teachers))) : null, one: s => (s.teachers ? pct(s.training_done, s.teachers) : null) },
   stem_students: { label: 'Học sinh học STEM', hint: '% HS thuộc lớp có chương trình STEM',
     of: s => sum(s.map(x => x.students)) ? pct(sum(s.map(x => x.stem_students)), sum(s.map(x => x.students))) : null, one: s => (s.students ? pct(s.stem_students, s.students) : null) },
@@ -36,7 +36,7 @@ const RULES: Rule[] = [
   { key: 'idle', label: 'Không hoạt động 14 ngày', high: true },
   { key: 'no_stem', label: 'Chưa triển khai STEM', high: true },
   { key: 'no_year', label: 'Chưa khai báo năm học' },
-  { key: 'low_training', label: 'GV tập huấn < 50%' },
+  { key: 'low_training', label: 'GV đào tạo < 50%' },
   { key: 'room_idle', label: 'Có phòng STEM mà không dùng' },
   { key: 'low_attendance', label: 'Chuyên cần < 70%' },
   { key: 'below_target', label: 'Dưới chỉ tiêu Sở giao' },
@@ -50,7 +50,7 @@ function issuesOf(s: SchoolStat, targets: Target[]): Issue[] {
   if (s.activated && days > 14) add('idle', s.last_activity ? `Không hoạt động ${Math.floor(days)} ngày` : 'Chưa có hoạt động nào')
   if (s.programs.length === 0) add('no_stem', 'Chưa triển khai chương trình STEM')
   if (!s.has_year) add('no_year', 'Chưa khai báo năm học')
-  if (s.teachers > 0 && pct(s.training_done, s.teachers) < 50) add('low_training', `GV tập huấn ${pct(s.training_done, s.teachers)}%`)
+  if (s.teachers > 0 && pct(s.training_done, s.teachers) < 50) add('low_training', `GV đào tạo ${pct(s.training_done, s.teachers)}%`)
   if (s.rooms > 0 && s.room_periods === 0) add('room_idle', `${s.rooms} phòng STEM chưa có tiết dùng phòng`)
   if (s.attendance_rate != null && s.attendance_rate < 70) add('low_attendance', `Chuyên cần ${Math.round(s.attendance_rate)}%`)
   const dup: Record<string, string> = { teacher_trained: 'low_training', attendance: 'low_attendance', stem_coverage: 'no_stem' }
@@ -149,7 +149,7 @@ export function DeptAlerts() {
           {shown.length === 0 && <tr><td colSpan={4}>{rows.length ? 'Không có trường phù hợp bộ lọc.' : 'Không có trường nào cần chú ý.'}</td></tr>}
         </tbody>
       </table></div>
-      <p className="sub covhint">Quy tắc: chưa kích hoạt; không có hoạt động 14 ngày; chưa có chương trình CT1–CT5; chưa khai báo năm học; GV tập huấn &lt; 50%; có phòng STEM nhưng không có tiết dùng phòng; chuyên cần &lt; 70%; dưới chỉ tiêu Sở giao năm {schoolYear()}. "Nhắc trường" gửi thông báo trong ứng dụng tới Hiệu trưởng và QTV của trường.</p>
+      <p className="sub covhint">Quy tắc: chưa kích hoạt; không có hoạt động 14 ngày; chưa có chương trình CT1–CT5; chưa khai báo năm học; GV đào tạo &lt; 50%; có phòng STEM nhưng không có tiết dùng phòng; chuyên cần &lt; 70%; dưới chỉ tiêu Sở giao năm {schoolYear()}. "Nhắc trường" gửi thông báo trong ứng dụng tới Hiệu trưởng và QTV của trường.</p>
     </>
   )
 }

@@ -19,12 +19,12 @@ export const STEPS: Step[] = [
   { key: 'year', label: 'Khai báo năm học hiện tại' },
   { key: 'teachers', label: 'Có danh sách giáo viên' },
   { key: 'students', label: 'Có danh sách học sinh' },
-  { key: 'admin_training', label: 'Tập huấn quản trị trường', manual: true },
+  { key: 'admin_training', label: 'Đào tạo quản trị trường', manual: true },
   { key: 'rooms', label: 'Phòng STEM đang hoạt động' },
   { key: 'units', label: 'Có thiết bị trong kho' },
   { key: 'handover', label: 'Bàn giao thiết bị', manual: true },
   { key: 'timetable', label: 'Có thời khoá biểu' },
-  { key: 'teacher_training', label: 'Tập huấn giáo viên', manual: true, hint: 'tự gợi ý khi có GV hoàn thành tập huấn' },
+  { key: 'teacher_training', label: 'Đào tạo giáo viên', manual: true, hint: 'tự gợi ý khi có GV hoàn thành đào tạo' },
   { key: 'active', label: 'Đang dùng (hoạt động ≤ 7 ngày)' },
   { key: 'acceptance', label: 'Nghiệm thu triển khai', manual: true },
 ]
@@ -135,7 +135,7 @@ export function PlatformRollout() {
                                 ? <label className="field inline"><input type="checkbox" checked={ok} onChange={e => toggle(s, x.key, e.target.checked)} /> {x.label}</label>
                                 : <span><span className="ck" aria-hidden="true">{ok ? '✓' : '·'}</span> {x.label}</span>}
                               <small>{x.manual ? (c ? `KDI đánh dấu ${fmtTime(c.done_at)}` : 'KDI đánh dấu') : 'tự động'}{x.hint ? ' · ' + x.hint : ''}
-                                {suggest && ` · ${s.training_done} GV đã hoàn thành tập huấn`}</small>
+                                {suggest && ` · ${s.training_done} GV đã hoàn thành đào tạo`}</small>
                             </li>
                           )
                         })}

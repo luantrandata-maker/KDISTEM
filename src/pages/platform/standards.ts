@@ -75,14 +75,14 @@ export const MAPPINGS: Mapping[] = [
   { entity: 'Nhà giáo', field: 'Trạng thái', source: 'teachers.status', term: 'BG_00256', status: 'gan', note: 'Đang dạy / Ngừng — danh mục của Bộ chi tiết hơn (thai sản, đi học, biệt phái…).' },
   { entity: 'Nhà giáo', field: 'Mã định danh cán bộ / nhà giáo', source: '—', term: 'BG_00240', status: 'thieu', note: 'Có thể lấy khi đồng bộ K12 / CSDL ngành.' },
   { entity: 'Nhà giáo', field: 'Đánh giá năng lực dạy STEM', source: 'teacher_assessments', term: null, status: 'rieng', note: 'Khung năng lực STEM của KDI, khác đánh giá chuẩn nghề nghiệp (BG_00389).' },
-  // ---- Tập huấn ----
-  { entity: 'Tập huấn nhà giáo', field: 'Tên khoá tập huấn', source: 'training_plans.name', term: 'BG_00346', status: 'khop' },
-  { entity: 'Tập huấn nhà giáo', field: 'Đơn vị tổ chức', source: 'training_plans.provider', term: 'BG_00347', status: 'khop' },
-  { entity: 'Tập huấn nhà giáo', field: 'Hình thức', source: 'training_plans.mode', term: 'BG_00335', status: 'gan', note: 'Trực tuyến / trực tiếp / kết hợp.' },
-  { entity: 'Tập huấn nhà giáo', field: 'Ngày bắt đầu', source: 'training_sessions.starts_at (buổi đầu)', term: 'BG_00333', status: 'tinh' },
-  { entity: 'Tập huấn nhà giáo', field: 'Ngày kết thúc', source: 'training_sessions.ends_at (buổi cuối)', term: 'BG_00334', status: 'tinh' },
-  { entity: 'Tập huấn nhà giáo', field: 'Chứng chỉ được cấp', source: 'certificates.code', term: 'BG_00350', status: 'khop' },
-  { entity: 'Tập huấn nhà giáo', field: 'Ngày cấp chứng chỉ', source: 'certificates.issued_on', term: 'BG_00351', status: 'khop' },
+  // ---- Đào tạo ----
+  { entity: 'Đào tạo nhà giáo', field: 'Tên khoá đào tạo', source: 'training_plans.name', term: 'BG_00346', status: 'khop' },
+  { entity: 'Đào tạo nhà giáo', field: 'Đơn vị tổ chức', source: 'training_plans.provider', term: 'BG_00347', status: 'khop' },
+  { entity: 'Đào tạo nhà giáo', field: 'Hình thức', source: 'training_plans.mode', term: 'BG_00335', status: 'gan', note: 'Trực tuyến / trực tiếp / kết hợp.' },
+  { entity: 'Đào tạo nhà giáo', field: 'Ngày bắt đầu', source: 'training_sessions.starts_at (buổi đầu)', term: 'BG_00333', status: 'tinh' },
+  { entity: 'Đào tạo nhà giáo', field: 'Ngày kết thúc', source: 'training_sessions.ends_at (buổi cuối)', term: 'BG_00334', status: 'tinh' },
+  { entity: 'Đào tạo nhà giáo', field: 'Chứng chỉ được cấp', source: 'certificates.code', term: 'BG_00350', status: 'khop' },
+  { entity: 'Đào tạo nhà giáo', field: 'Ngày cấp chứng chỉ', source: 'certificates.issued_on', term: 'BG_00351', status: 'khop' },
   // ---- Cơ sở vật chất ----
   { entity: 'Phòng & thiết bị STEM', field: 'Tên phòng STEM', source: 'stem_rooms.name', term: 'BG_00575', status: 'gan', note: 'Phòng STEM xếp vào nhóm phòng / xưởng thực hành.' },
   { entity: 'Phòng & thiết bị STEM', field: 'Diện tích phòng', source: 'stem_rooms.area_m2', term: 'BG_00579', status: 'gan', note: 'Lưu số thập phân; chuẩn là số nguyên.' },

@@ -1,4 +1,4 @@
-// Giảng viên mở đề (129): ở một buổi tập huấn, giảng viên / đơn vị tổ chức mở bài kiểm tra hoặc đề cuối khoá cho học viên vào làm,
+// Giảng viên mở đề (129): ở một buổi đào tạo, giảng viên / đơn vị tổ chức mở bài kiểm tra hoặc đề cuối khoá cho học viên vào làm,
 // chọn cho học viên có mặt ở buổi hoặc cả kế hoạch, đặt thời gian tự đóng; theo dõi ai đã vào làm, đã nộp, điểm; đóng đề khi xong.
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -63,7 +63,7 @@ export function SessionExams({ planId, sessionId, offline }: { planId: string; s
     {err && <p className="msg">{err}</p>}
     {msg && <p className="sub" role="status"><b>{msg}</b></p>}
     {!led.length && !err && <p className="sub" style={{ margin: 0 }}>Các đề của kế hoạch này để học viên tự làm khi học xong. Muốn giảng viên mở đề trong buổi học thì đổi
-      "Làm bài kiểm tra" ở Kế hoạch tập huấn › Thông tin kế hoạch, hoặc chọn "Giảng viên mở đề" ở từng bài kiểm tra của chương trình.</p>}
+      "Làm bài kiểm tra" ở Kế hoạch đào tạo › Thông tin kế hoạch, hoặc chọn "Giảng viên mở đề" ở từng bài kiểm tra của chương trình.</p>}
     {led.map(e => {
       const k = key(e), w = e.window, n = e.rows.length
       const started = e.rows.filter(r => r.started_at || r.opened).length, sent = e.rows.filter(r => r.submitted_at).length

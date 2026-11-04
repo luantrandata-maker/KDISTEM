@@ -17,7 +17,7 @@ const nf = (n: number) => n.toLocaleString('vi-VN')
 const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0)
 const errText = (m: string) => /schema cache|does not exist|function/i.test(m) ? 'Hãy chạy migration 033_modules_ph1_ph5.sql trên Supabase.' : m
 const EVENT: Record<string, string> = {
-  ph1: 'lượt GV có mặt tập huấn', ph2: 'bài giảng, hoạt động, bài tự học được soạn/giao', ph3: 'phiếu mượn + tiết dạy tại phòng STEM',
+  ph1: 'lượt GV có mặt đào tạo', ph2: 'bài giảng, hoạt động, bài tự học được soạn/giao', ph3: 'phiếu mượn + tiết dạy tại phòng STEM',
   ph4: 'tiết đã điểm danh', ph5: 'báo cáo Sở đã xuất',
 }
 // Nhóm menu của cổng nền tảng thuộc phân hệ nào (theo số đầu). Mã gói giữ nguyên khi đổi thứ tự phân hệ:
@@ -144,7 +144,7 @@ type SM = { key: string; name: string; perm_modules: string[]; sort: number }
 const LABEL: Record<string, string> = {
   teachers: 'Giáo viên', classes: 'Lớp học', students: 'Học sinh', assignments: 'Phân công giảng dạy', accounts: 'Tài khoản', roles: 'Vai trò & phân quyền',
   buildings: 'Tòa nhà & tầng', periods: 'Năm học, tiết học, ngày nghỉ', approvals: 'Phê duyệt',
-  training: 'Tập huấn giáo viên', library: 'Kho học liệu dùng chung', packages: 'Gói STEM', curriculum: 'Phân phối chương trình',
+  training: 'Đào tạo giáo viên', library: 'Kho học liệu dùng chung', packages: 'Gói STEM', curriculum: 'Phân phối chương trình',
   stem_rooms: 'Phòng STEM', equipment: 'Thiết bị', warranty: 'Bảo hành thiết bị',
   timetable: 'Thời khoá biểu, buổi dạy & điểm danh', edu_plan: 'Kế hoạch giáo dục', stem_registrations: 'Đăng ký dạy STEM', stem_assign: 'Phân công GV dạy STEM',
 }

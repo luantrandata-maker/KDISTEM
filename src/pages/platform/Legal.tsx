@@ -35,7 +35,7 @@ Nhà trường / cơ quan quản lý giáo dục quyết định mục đích x�
 
 2. Dữ liệu được xử lý
 - Học sinh: họ tên, lớp, mã học sinh, điểm danh, bài làm, kết quả học tập, tiến độ tự học.
-- Giáo viên, cán bộ: họ tên, email/tên đăng nhập, đơn vị, vai trò, hoạt động giảng dạy và tập huấn.
+- Giáo viên, cán bộ: họ tên, email/tên đăng nhập, đơn vị, vai trò, hoạt động giảng dạy và đào tạo.
 - Nhật ký truy cập phục vụ bảo mật.
 
 3. Mục đích

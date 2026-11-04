@@ -1790,7 +1790,7 @@ tbody tr:is(:has(.namelink:not(:disabled)),:has([data-rowopen]:not(:disabled))):
 /* E-learning: trang thêm / sửa / chi tiết */
 .elview{display:grid;gap:12px;margin-top:12px}.elview>.ghostbtn{justify-self:start}
 .elviewhead{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}.elviewhead h2{margin:0}
-/* Phân hệ 1 — Chương trình tập huấn */
+/* Phân hệ 1 — Chương trình đào tạo */
 .tpunits{margin-top:4px}.tpunitpart{color:var(--warn-fg);font-weight:600}
 .tpunittree{display:grid;gap:8px;margin-top:6px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
 .tpunittree fieldset{border:0;margin:0;padding:0;display:grid;gap:2px}.tpunittree legend{padding:0;margin-bottom:2px}
@@ -1804,10 +1804,10 @@ tbody tr:is(:has(.namelink:not(:disabled)),:has([data-rowopen]:not(:disabled))):
 .tpsubj{display:grid;gap:8px;border:1px solid var(--line);border-radius:12px;padding:12px}
 .tpsubjname{font-weight:600;flex:1;min-width:200px}
 @media (max-width:640px){.tpkv{grid-template-columns:1fr}}
-/* Hướng dẫn 4 bước (Kế hoạch tập huấn) */
+/* Hướng dẫn 4 bước (Kế hoạch đào tạo) */
 .distguide.four{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media(max-width:800px){.distguide.four{grid-template-columns:1fr}}
-/* Lịch tập huấn (Phân hệ 1) */
+/* Lịch đào tạo (Phân hệ 1) */
 .diststatcards.four{grid-template-columns:repeat(4,minmax(0,1fr))}
 @media(max-width:800px){.diststatcards.four{grid-template-columns:1fr}}
 .tscal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
@@ -1824,7 +1824,7 @@ tbody tr:is(:has(.namelink:not(:disabled)),:has([data-rowopen]:not(:disabled))):
 .tscode{display:grid;gap:8px;justify-items:center;text-align:center;max-width:240px}
 .tscodenum{font-size:34px;letter-spacing:6px;font-variant-numeric:tabular-nums;color:var(--navy)}
 @media(max-width:800px){.tsgrid{grid-template-columns:1fr}.tscode{max-width:none}.tscal{overflow-x:auto;grid-template-columns:repeat(7,minmax(110px,1fr))}}
-/* Phân hệ 1 đợt 4: học tập huấn trực tuyến (086) */
+/* Phân hệ 1 đợt 4: học đào tạo trực tuyến (086) */
 .tlcourses{display:grid;gap:12px;margin-top:16px}
 .tlcourse{display:grid;grid-template-columns:minmax(0,1fr) 220px auto;gap:16px;align-items:center}.tlcourse h3{margin:2px 0}
 .tlgrid{display:grid;grid-template-columns:280px minmax(0,1fr);gap:14px;align-items:start;margin-top:14px}
@@ -1840,7 +1840,7 @@ tbody tr:is(:has(.namelink:not(:disabled)),:has([data-rowopen]:not(:disabled))):
 .tlq{display:grid;gap:6px;margin-top:10px}.tlq legend{padding:0 4px}
 .tlopt{display:flex;gap:8px;align-items:flex-start;padding:6px 8px;border-radius:6px;cursor:pointer}.tlopt:hover{background:var(--soft)}.tlopt.on{background:#e6f1fd}
 @media(max-width:800px){.tlgrid,.tlcourse{grid-template-columns:1fr}}
-/* Phân hệ 1 đợt 5: chứng chỉ tập huấn (087) */
+/* Phân hệ 1 đợt 5: chứng chỉ đào tạo (087) */
 .certwrap{display:flex;justify-content:center;margin-top:14px;overflow-x:auto}
 .certpaper{position:relative;width:760px;max-width:100%;aspect-ratio:1.414/1;background:#fff;color:#1b2a4a;border:10px double #1b4f9c;border-radius:6px;padding:28px 40px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;box-sizing:border-box}
 .certpaper h2{font-size:34px;letter-spacing:4px;margin:6px 0 0;color:#1b4f9c}
@@ -1859,7 +1859,7 @@ tbody tr:is(:has(.namelink:not(:disabled)),:has([data-rowopen]:not(:disabled))):
 @media(max-width:800px){.certpaper{aspect-ratio:auto;padding:18px}.certpaper h2{font-size:24px}.certname{font-size:22px}}
 @media print{body *{visibility:hidden}.certpaper,.certpaper *{visibility:visible}.certpaper{position:fixed;inset:0;margin:auto;width:100%;max-width:none;border-radius:0}@page{size:A4 landscape;margin:10mm}}
 
-/* 088: đánh giá năng lực + giám sát tập huấn */
+/* 088: đánh giá năng lực + giám sát đào tạo */
 .minibar{display:inline-block;vertical-align:middle;width:56px;height:6px;border-radius:99px;background:var(--soft);overflow:hidden;margin-right:4px}
 .minibar i{display:block;height:100%;background:var(--ok)}.minibar i.warn{background:var(--orange)}
 .gaptag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:99px;background:var(--warn-bg);color:var(--warn-fg);font-size:11px;font-weight:600}
@@ -1946,7 +1946,7 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
 /* 099: Quản trị hệ thống chọn đơn vị thao tác ngay trong trang */
 .orgscope{display:grid;gap:6px;margin-bottom:14px;padding:10px 14px;border-color:var(--accent,#1f5fbf);background:var(--soft)}
 .orgscopebar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.orgscopebar input{flex:0 1 200px;min-width:140px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;font:inherit;background:var(--card)}.orgscopebar select{flex:1 1 280px;min-width:0;max-width:520px}
-/* Kế hoạch tập huấn theo bước (101) */
+/* Kế hoạch đào tạo theo bước (101) */
 .tppick{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}
 @media(max-width:1000px){.tppick{grid-template-columns:1fr}}
 .tppick .distprogcard.off{opacity:.75}
@@ -1984,7 +1984,7 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
   body.certprinting .certprint .certpaper{position:static;width:100%;max-width:none;margin:0;border-radius:0;visibility:visible}
   body.certprinting .certprint *{visibility:visible}.certprintpage{break-after:page;page-break-after:always}.certprintpage:last-child{break-after:auto;page-break-after:auto}}
 .cklanding button{padding:10px 20px;border-radius:8px;font-size:16px}
-/* Kế hoạch tập huấn dạng lịch (tháng / năm) */
+/* Kế hoạch đào tạo dạng lịch (tháng / năm) */
 .tpcal .tscald{min-height:104px}.tscald.pick{outline:2px solid var(--primary)}
 .main .tpcalev{display:block;width:100%;text-align:left;border:0;border-left:3px solid var(--ok-fg);border-radius:6px;padding:2px 6px;font-size:12px;line-height:1.35;background:var(--ok-bg);color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .main .tpcalev.draft{background:var(--warn-bg);border-left-color:var(--warn-fg)}
@@ -2025,7 +2025,7 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
 @media(max-width:800px){.distintro.compact{flex-wrap:wrap}.distintro.compact .distguide{order:3;flex-basis:100%}.distintro.compact .libguide-h{flex:1}
   .distintro.compact .distguide,.distintro.compact .distguide.four{grid-template-columns:repeat(2,minmax(0,1fr))}}
 
-/* Lịch tập huấn dạng lịch (dùng chung kiểu .tpcal của lịch kế hoạch) */
+/* Lịch đào tạo dạng lịch (dùng chung kiểu .tpcal của lịch kế hoạch) */
 .main .tpcalev.live{background:var(--bad-bg);border-left-color:var(--bad)}
 .tpcallegend i.live{background:var(--bad)}
 .main .tpcalev>b{font-weight:700}
@@ -2035,7 +2035,7 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
 .main .tpganttbar.tick{width:6px;min-width:6px;margin-left:-3px;top:6px;bottom:6px}
 .main .tpganttbar.live{background:var(--bad)}
 span.namelink{cursor:default;text-decoration:none}
-/* Số lượng kế hoạch tập huấn (111) */
+/* Số lượng kế hoạch đào tạo (111) */
 .capbar{height:8px;border-radius:999px;background:var(--line);overflow:hidden}
 .capbar i{display:block;height:100%;background:var(--primary);border-radius:inherit}
 .capbar i.near{background:var(--warn-fg)}
@@ -2048,7 +2048,7 @@ span.namelink{cursor:default;text-decoration:none}
 :where(.main,.drawerwrap,.modalbg) :where(input,textarea,select):disabled{background:var(--bg,#f4f6fa);color:var(--muted)}
 :where(.main,.drawerwrap,.modalbg) :where(input:not([type=checkbox],[type=radio],[type=range],[type=file],[type=color]),textarea,select):is(:focus,:focus-visible){
   outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(28,99,187,.12)}
-/* 114: phiếu đánh giá sau khoá tập huấn */
+/* 114: phiếu đánh giá sau khoá đào tạo */
 .stars{display:inline-flex;gap:2px}.stars button{border:0;background:none;padding:0 2px;font-size:22px;line-height:1;color:#c9ced6;cursor:pointer;min-height:auto}
 .stars button.on{color:#f5a524}.stars button:focus-visible{outline:2px solid var(--accent,#1a73e8);border-radius:4px}
 .fbgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:6px 18px}
@@ -2060,7 +2060,7 @@ span.namelink{cursor:default;text-decoration:none}
 /* 115: đáp ứng chương trình */
 .rdteachers{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:6px}
 
-/* Bảng tổng hợp kết quả tập huấn: ô cảnh báo có hộp nội dung khi rê chuột / chạm, chú giải góc phải */
+/* Bảng tổng hợp kết quả đào tạo: ô cảnh báo có hộp nội dung khi rê chuột / chạm, chú giải góc phải */
 .warntip{position:relative;display:inline-block;cursor:help;color:var(--warn-fg);font-weight:600;white-space:nowrap;border-radius:6px;padding:2px 6px;background:var(--warn-bg)}
 .warntip:focus-visible{outline:2px solid var(--warn-fg);outline-offset:2px}
 .warntip-box{display:flex;position:fixed;z-index:60;width:max-content;max-width:320px;white-space:normal;background:var(--surface);color:var(--text);
@@ -2069,7 +2069,7 @@ span.namelink{cursor:default;text-decoration:none}
 .warnlegend-kinds{display:inline-flex;flex-wrap:wrap;gap:4px}.warnlegend-kinds>span{background:var(--warn-bg);color:var(--warn-fg);border-radius:999px;padding:1px 8px}
 
 
-/* 117: mời đăng ký tập huấn, tuỳ chọn cần duyệt, trường ngoài phạm vi chương trình */
+/* 117: mời đăng ký đào tạo, tuỳ chọn cần duyệt, trường ngoài phạm vi chương trình */
 .invitebar { display: grid; gap: 6px; padding: 10px 12px; border: 1px dashed var(--line); border-radius: 10px; background: var(--soft); }
 .reglink { display: inline-flex; gap: 6px; align-items: center; flex: 1 1 320px; min-width: 0; }
 .reglink input { flex: 1; min-width: 0; font-size: 12.5px; color: var(--muted); }
@@ -2082,14 +2082,14 @@ span.namelink{cursor:default;text-decoration:none}
 .roomrow.off { opacity: .55; }
 
 
-/* 118: báo cáo tập huấn */
+/* 118: báo cáo đào tạo */
 .rptrate { display: flex; align-items: center; gap: 8px; }
 .rptrate .capbar { flex: 1; min-width: 80px; }
 .rptrate b { min-width: 48px; text-align: right; font-variant-numeric: tabular-nums; }
 .rpttable td { font-variant-numeric: tabular-nums; }
 .rptcards { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
 
-/* Đáp ứng chương trình: hướng dẫn chọn dòng → lập kế hoạch tập huấn */
+/* Đáp ứng chương trình: hướng dẫn chọn dòng → lập kế hoạch đào tạo */
 .readyhint { display: grid; gap: 6px; border-left: 3px solid var(--primary); background: var(--soft); }
 .readyhint ol { margin: 0; padding-left: 20px; display: grid; gap: 2px; font-size: 13.5px; }
 .readyhint button { justify-self: start; }
@@ -2100,7 +2100,7 @@ span.namelink{cursor:default;text-decoration:none}
 .invstat summary { cursor: pointer; font-size: 13.5px; }
 .invstat[open] summary { margin-bottom: 6px; }
 
-/* Lịch tập huấn: nội dung tập huấn của buổi + bài giảng xem ngay */
+/* Lịch đào tạo: nội dung đào tạo của buổi + bài giảng xem ngay */
 .sesslessons { list-style: none; margin: 6px 0 0; padding: 0; display: grid; gap: 6px; }
 .sesslessons li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; }
 /* Làm thử đề (121) */
@@ -2134,7 +2134,7 @@ span.namelink{cursor:default;text-decoration:none}
 .disthistory{margin-top:22px;border-top:1px solid var(--line);padding-top:14px}
 .disthistory h3{margin:0 0 8px}
 tr.distyear td{background:var(--surface-2,var(--surface));border-top:2px solid var(--line)}
-/* Ngày nghỉ trong lịch tập huấn */
+/* Ngày nghỉ trong lịch đào tạo */
 .holwarn{color:var(--bad,#c0392b);font-weight:600}
 .tghead>b.hol{color:var(--bad,#c0392b)}
 .tghead>b .tghol{display:block;font-style:normal;font-size:11px;font-weight:600;color:var(--bad,#c0392b);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

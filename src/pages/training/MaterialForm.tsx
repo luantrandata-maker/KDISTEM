@@ -1,4 +1,4 @@
-// Form thêm học liệu tập huấn, theo khuôn form Học liệu của Phân hệ 2: bảng trượt bên phải, phần "Gắn với" (chương trình → nội dung),
+// Form thêm học liệu đào tạo, theo khuôn form Học liệu của Phân hệ 2: bảng trượt bên phải, phần "Gắn với" (chương trình → nội dung),
 // thông tin chính, nguồn tệp / đường dẫn; vật tư nhập theo bảng, chọn từ danh mục vật tư; hoạt động chọn từ Kho hoạt động hoặc nhập mới.
 // Lưu vào training_program_units (nội dung) hoặc detail của nội dung (tài liệu, vật tư, hoạt động). Chỉ chương trình nháp / bị trả lại.
 import { useEffect, useState } from 'react'
@@ -20,7 +20,7 @@ type MatRow = { key: string; catalog_id: string | null; name: string; unit: stri
 const MKIND: Record<MKind, string> = { supply: 'Vật tư tiêu hao', tool: 'Dụng cụ', equipment: 'Thiết bị' }
 const opts = (k: 'docs' | 'mats' | 'acts', col: string) => LISTS[k].cols.find(c => c.key === col)?.options ?? []
 const rid = () => Math.random().toString(36).slice(2, 10)
-const NOUN: Record<Part, string> = { content: 'nội dung tập huấn', docs: 'tài liệu', mats: 'định mức vật tư', acts: 'hoạt động' }
+const NOUN: Record<Part, string> = { content: 'nội dung đào tạo', docs: 'tài liệu', mats: 'định mức vật tư', acts: 'hoạt động' }
 
 export function TrainingItemForm({ orgId, part, progs, units: allUnits, initialProg, onClose, onDone }: {
   orgId: string | null; part: Part; progs: Prog[]; units: Unit[]; initialProg: string; onClose: () => void; onDone: (m: string, more: boolean) => void
@@ -74,7 +74,7 @@ export function TrainingItemForm({ orgId, part, progs, units: allUnits, initialP
     setMsg('')
     let error: { message: string } | null = null, done = ''
     if (part === 'content') {
-      if (!subj) return setMsg('Chương trình chưa có học phần. Thêm học phần ở mục Chương trình tập huấn trước.')
+      if (!subj) return setMsg('Chương trình chưa có học phần. Thêm học phần ở mục Chương trình đào tạo trước.')
       if (!f.title?.trim()) return setMsg('Nhập tên nội dung.')
       const h = Number((f.hours ?? '').replace(',', '.'))
       const seq = Math.max(0, ...units.filter(c => c.kind === 'content' && c.parent_id === subj.id).map(c => c.seq)) + 1
@@ -84,7 +84,7 @@ export function TrainingItemForm({ orgId, part, progs, units: allUnits, initialP
         hours: Number.isFinite(h) && h > 0 ? h : 1, mode: f.mode || null, has_test: test, note: f.note?.trim() || null, detail: goal ? { body: { goal } } : {} }))
       done = `Đã thêm nội dung "${f.title.trim()}".`
     } else {
-      if (!cont) return setMsg('Chương trình chưa có nội dung tập huấn. Thêm nội dung trước.')
+      if (!cont) return setMsg('Chương trình chưa có nội dung đào tạo. Thêm nội dung trước.')
       let add: Record<string, string>[] = []
       if (part === 'docs') {
         if (!f.title?.trim()) return setMsg('Nhập tên tài liệu.')
@@ -124,19 +124,19 @@ export function TrainingItemForm({ orgId, part, progs, units: allUnits, initialP
     <form className="panel libform" onSubmit={e => { e.preventDefault(); save(false) }}>
       {msg && <p className="msg">{msg}</p>}
       {!progs.length ? <p className="warnline" style={{ margin: 0 }}>Chưa có chương trình nào đang nháp hoặc bị trả lại. Chỉ thêm được vào chương trình chưa phát hành:
-        tạo chương trình mới hoặc phiên bản mới ở mục Chương trình tập huấn.</p> : <>
+        tạo chương trình mới hoặc phiên bản mới ở mục Chương trình đào tạo.</p> : <>
       <h4 className="libparthead">Gắn với</h4>
       <div className="formgrid libgrid4">
-        <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình tập huấn *</span>
-          <select value={pid} onChange={e => { setPid(e.target.value); setSid(''); setCid('') }} aria-label="Chương trình tập huấn">
+        <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình đào tạo *</span>
+          <select value={pid} onChange={e => { setPid(e.target.value); setSid(''); setCid('') }} aria-label="Chương trình đào tạo">
             {progs.map(p => <option key={p.id} value={p.id}>{p.code} · {p.title} · {STATUS[p.status]?.[0]?.toLowerCase()}</option>)}</select></label>
         {part === 'content'
           ? <label className="field" style={{ gridColumn: 'span 2' }}><span>Học phần *</span><select value={subj?.id ?? ''} onChange={e => setSid(e.target.value)} aria-label="Học phần">
               {!subjects.length && <option value="">— chương trình chưa có học phần —</option>}{subjects.map(s => <option key={s.id} value={s.id}>{s.seq}. {s.title}</option>)}</select></label>
-          : <label className="field" style={{ gridColumn: 'span 2' }}><span>Nội dung tập huấn *</span><select value={cont?.id ?? ''} onChange={e => setCid(e.target.value)} aria-label="Nội dung tập huấn">
+          : <label className="field" style={{ gridColumn: 'span 2' }}><span>Nội dung đào tạo *</span><select value={cont?.id ?? ''} onChange={e => setCid(e.target.value)} aria-label="Nội dung đào tạo">
               {!conts.length && <option value="">— chương trình chưa có nội dung —</option>}
               {subjects.filter(s => conts.some(c => c.parent_id === s.id)).map(s => <optgroup key={s.id} label={`${s.seq}. ${s.title}`}>{conts.filter(c => c.parent_id === s.id).map(c => <option key={c.id} value={c.id}>{c.title}</option>)}</optgroup>)}</select>
-              {!conts.length && <small className="warnline">{subjects.length ? `Môn ${subjects.map(s => `"${s.title}"`).join(', ')} chưa có nội dung tập huấn.` : 'Chương trình chưa có môn.'} Thêm nội dung ở mục Chương trình tập huấn › Cấu trúc hoặc mục Nội dung tập huấn.</small>}</label>}
+              {!conts.length && <small className="warnline">{subjects.length ? `Môn ${subjects.map(s => `"${s.title}"`).join(', ')} chưa có nội dung đào tạo.` : 'Chương trình chưa có môn.'} Thêm nội dung ở mục Chương trình đào tạo › Cấu trúc hoặc mục Nội dung đào tạo.</small>}</label>}
       </div>
 
       {part === 'content' && <>

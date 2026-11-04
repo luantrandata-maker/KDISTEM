@@ -28,9 +28,9 @@ const LV: Record<Lv, { label: string; color: string; ink: string }> = {
   [-1]: { label: 'Chưa có trường', color: '#e6ebf1', ink: '#4a5568' },
 } as Record<Lv, { label: string; color: string; ink: string }>
 const RULE: Record<Mode, { label: string; rules: string[] }> = {
-  level: { label: 'Mức STEM', rules: ['Bao phủ STEM ≥ 75% và GV tập huấn ≥ 80%', 'Bao phủ STEM ≥ 50% và GV tập huấn ≥ 50%', 'Bao phủ STEM ≥ 20%', 'Bao phủ STEM < 20%'] },
+  level: { label: 'Mức STEM', rules: ['Bao phủ STEM ≥ 75% và GV đào tạo ≥ 80%', 'Bao phủ STEM ≥ 50% và GV đào tạo ≥ 50%', 'Bao phủ STEM ≥ 20%', 'Bao phủ STEM < 20%'] },
   cov: { label: 'Bao phủ STEM', rules: ['≥ 75% trường triển khai STEM', '≥ 50%', '≥ 20%', '< 20%'] },
-  gv: { label: 'GV tập huấn', rules: ['≥ 80% giáo viên đã tập huấn', '≥ 50%', '≥ 20%', '< 20%'] },
+  gv: { label: 'GV đào tạo', rules: ['≥ 80% giáo viên đã đào tạo', '≥ 50%', '≥ 20%', '< 20%'] },
 }
 const KHOI: [string, string][] = [['', 'Tất cả khối'], ['mamnon', 'Mầm non'], ['tieuhoc', 'Tiểu học'], ['thcs', 'THCS'], ['thpt', 'THPT']]
 // Nhãn quần đảo trên bản đồ cả nước
@@ -202,7 +202,7 @@ export default function CoverageMap({ schools, nation = false }: { schools: Scho
       onEachFeature: (f, lyr) => {
         const w = umap.get(f.properties.code)!
         lyr.bindTooltip(() => `<b>${esc(w.fullName)}</b><br/>`
-          + (w.schools.length ? `${w.schools.length} trường · ${LV[w.level].label}<br/>Bao phủ STEM <b>${w.cov}%</b> · GV tập huấn <b>${w.gv}%</b><br/><small>HS học STEM ${w.stu}% · ${w.rooms} phòng STEM</small>`
+          + (w.schools.length ? `${w.schools.length} trường · ${LV[w.level].label}<br/>Bao phủ STEM <b>${w.cov}%</b> · GV đào tạo <b>${w.gv}%</b><br/><small>HS học STEM ${w.stu}% · ${w.rooms} phòng STEM</small>`
             : 'Chưa có trường trong hệ thống') + (atNation ? '<br/><small>Bấm để xem xã/phường</small>' : ''), { sticky: true, opacity: 1 })
         lyr.on({
           mouseover: e => (e.target as L.Path).setStyle({ weight: 2.5, color: '#0b2a52' }),
@@ -236,7 +236,7 @@ export default function CoverageMap({ schools, nation = false }: { schools: Scho
       const l = locs[s.school_id]; if (l?.lat == null) return
       const ok = s.programs.length > 0
       L.circleMarker([l.lat, l.lng!], { radius: 7, color: '#0b2a52', weight: 1.5, fillColor: ok ? '#ffffff' : '#9aa5b1', fillOpacity: 1 })
-        .bindTooltip(`<b>${esc(short(s.name))}</b> <small>${esc(LEVEL[s.level ?? ''] ?? '')}</small><br/>KPI ${s.kpi} · ${s.programs.length ? esc(s.programs.join(', ')) : 'chưa triển khai CT'}<br/><small>${nf(s.students)} HS · GV tập huấn ${pct(s.training_done, s.teachers)}%</small>`, { direction: 'top', opacity: 1 })
+        .bindTooltip(`<b>${esc(short(s.name))}</b> <small>${esc(LEVEL[s.level ?? ''] ?? '')}</small><br/>KPI ${s.kpi} · ${s.programs.length ? esc(s.programs.join(', ')) : 'chưa triển khai CT'}<br/><small>${nf(s.students)} HS · GV đào tạo ${pct(s.training_done, s.teachers)}%</small>`, { direction: 'top', opacity: 1 })
         .addTo(g)
     })
   }, [sel, umap, locs, view, atNation])
@@ -263,13 +263,13 @@ export default function CoverageMap({ schools, nation = false }: { schools: Scho
   const tiles = [
     { label: 'Tổng số trường', value: nf(scope.length), sub: cur ? cur.fullName : `${withSchools.length}/${units.length} ${noun} có trường` },
     { label: 'Bao phủ STEM', value: pct(scope.filter(s => s.programs.length > 0).length, scope.length) + '%', sub: 'trường đã triển khai STEM' },
-    { label: 'GV đã tập huấn', value: pct(sum(scope.map(s => s.training_done)), sum(scope.map(s => s.teachers))) + '%', sub: `${nf(sum(scope.map(s => s.training_done)))}/${nf(sum(scope.map(s => s.teachers)))} giáo viên` },
+    { label: 'GV đã đào tạo', value: pct(sum(scope.map(s => s.training_done)), sum(scope.map(s => s.teachers))) + '%', sub: `${nf(sum(scope.map(s => s.training_done)))}/${nf(sum(scope.map(s => s.teachers)))} giáo viên` },
     { label: 'Phòng STEM', value: nf(sum(scope.map(s => s.rooms_active))), sub: `đang hoạt động / ${nf(sum(scope.map(s => s.rooms)))} phòng` },
   ]
   const byLevel = Object.entries(LEVEL).map(([k, v]) => ({ k, v, n: scope.filter(s => s.level === k).length }))
   const rank = [...withSchools].sort((a, b) => b.level - a.level || b.cov - a.cov || b.gv - a.gv)
   const alerts = [
-    ...withSchools.filter(w => w.level <= 1).map(w => ({ key: 'u' + w.code, unit: w.code, text: w.fullName, sub: `${LV[w.level].label} · bao phủ ${w.cov}% · GV tập huấn ${w.gv}%`, lv: w.level })),
+    ...withSchools.filter(w => w.level <= 1).map(w => ({ key: 'u' + w.code, unit: w.code, text: w.fullName, sub: `${LV[w.level].label} · bao phủ ${w.cov}% · GV đào tạo ${w.gv}%`, lv: w.level })),
     ...scope.filter(s => s.programs.length === 0).map(s => ({ key: 's' + s.school_id, unit: unitOf[s.school_id], text: short(s.name), sub: 'Chưa triển khai chương trình STEM nào', lv: 0 as Lv })),
   ]
   const myAlerts = alerts.filter(a => !cur || a.unit === cur.code)
@@ -316,7 +316,7 @@ export default function CoverageMap({ schools, nation = false }: { schools: Scho
             {note && <p className="sub covhint" role="status">{note}</p>}
           </> : (
             <div className="wrap"><table className="covtable">
-              <thead><tr><th>{atNation ? 'Tỉnh/thành' : 'Xã/phường'}</th><th>Trường</th><th>Bao phủ STEM</th><th>GV tập huấn</th><th>HS học STEM</th><th>Phòng STEM</th><th>{RULE[mode].label}</th></tr></thead>
+              <thead><tr><th>{atNation ? 'Tỉnh/thành' : 'Xã/phường'}</th><th>Trường</th><th>Bao phủ STEM</th><th>GV đào tạo</th><th>HS học STEM</th><th>Phòng STEM</th><th>{RULE[mode].label}</th></tr></thead>
               <tbody>{rank.map(w => (
                 <tr key={w.code}><td><b>{w.fullName}</b></td><td>{w.schools.length}</td><td>{w.cov}%</td><td>{w.gv}%</td><td>{w.stu}%</td><td>{w.rooms}</td>
                   <td><span className="lvpill" style={{ background: LV[w.level].color, color: LV[w.level].ink }}>{LV[w.level].label}</span></td></tr>))}</tbody>

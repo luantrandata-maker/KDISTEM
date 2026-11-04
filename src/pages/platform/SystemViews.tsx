@@ -470,7 +470,7 @@ export const TRAINING_LESSONS: Spec = {
   table: 'training_lessons', order: 'created_on', asc: false,
   select: 'id, org_id, title, subject, grades, author, status, created_on, videos, docs, training_plans(name)',
   cols: [
-    { label: 'Bài giảng tập huấn', get: r => <b>{r.title}</b>, text: r => r.title, wrap: true },
+    { label: 'Bài giảng đào tạo', get: r => <b>{r.title}</b>, text: r => r.title, wrap: true },
     { label: 'Kế hoạch', get: r => r.training_plans?.name ?? '' },
     { label: 'Môn · khối', get: r => [r.subject, r.grades].filter(Boolean).join(' · ') },
     { label: 'Tác giả', get: r => r.author ?? '' },
@@ -480,7 +480,7 @@ export const TRAINING_LESSONS: Spec = {
   ],
   stats: [{ label: 'Đang dùng', get: rs => rs.filter(r => r.status === 'published').length }, { label: 'Video', get: rs => rs.reduce((s, r) => s + (r.videos ?? 0), 0) }],
   status: { get: r => r.status, labels: TL_ST },
-  search: r => `${r.title} ${r.author ?? ''} ${r.training_plans?.name ?? ''}`, searchHint: 'Tên bài, tác giả, kế hoạch…', noun: 'Bài giảng', file: 'bai-giang-tap-huan-toan-he-thong', empty: 'Chưa có bài giảng tập huấn.',
+  search: r => `${r.title} ${r.author ?? ''} ${r.training_plans?.name ?? ''}`, searchHint: 'Tên bài, tác giả, kế hoạch…', noun: 'Bài giảng', file: 'bai-giang-tap-huan-toan-he-thong', empty: 'Chưa có bài giảng đào tạo.',
 }
 export const VIRTUAL: Spec = {
   table: 'training_sessions', order: 'starts_at', asc: false, where: q => q.eq('mode', 'online'),
@@ -497,7 +497,7 @@ export const VIRTUAL: Spec = {
     { label: 'Sắp diễn ra', get: rs => rs.filter(r => new Date(r.starts_at) > new Date()).length },
     { label: 'Chưa có liên kết', get: rs => rs.filter(r => !r.meeting_url).length },
   ],
-  search: r => `${r.title} ${r.training_plans?.name ?? ''}`, searchHint: 'Tên buổi, kế hoạch…', noun: 'Buổi học ảo', file: 'lop-hoc-ao-toan-he-thong', empty: 'Chưa có buổi tập huấn trực tuyến.',
+  search: r => `${r.title} ${r.training_plans?.name ?? ''}`, searchHint: 'Tên buổi, kế hoạch…', noun: 'Buổi học ảo', file: 'lop-hoc-ao-toan-he-thong', empty: 'Chưa có buổi đào tạo trực tuyến.',
 }
 
 export const CERTIFICATES: Spec = {
@@ -506,7 +506,7 @@ export const CERTIFICATES: Spec = {
   cols: [
     { label: 'Số chứng chỉ', get: r => <b>{r.code}</b>, text: r => r.code },
     { label: 'Giáo viên', get: r => <>{r.teachers?.full_name}<br /><small>{r.teachers?.subject}</small></>, text: r => r.teachers?.full_name },
-    { label: 'Khoá tập huấn', get: r => r.training_plans?.name ?? '', wrap: true },
+    { label: 'Khoá đào tạo', get: r => r.training_plans?.name ?? '', wrap: true },
     { label: 'Ngày cấp', get: r => fmtDate(r.issued_on) },
   ],
   stats: [
@@ -564,11 +564,11 @@ const LESSON_TEMPLATES: Spec = { ...LESSONS, where: q => q.eq('is_template', tru
   noun: 'Mẫu bài giảng', file: 'mau-bai-giang', empty: 'Chưa có mẫu bài giảng. Bấm "+ Thêm mẫu bài giảng".' }
 export const SysLessonTemplates = ({ orgId }: { orgId?: string | null }) => <BankList spec={LESSON_TEMPLATES} orgId={orgId} add="+ Thêm mẫu bài giảng"
   desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'new' ? start : { mode: 'view', id: start.id }} onClose={onClose} />} />
-// Kho hoạt động của Đào tạo tập huấn (116): cùng kiểu hoạt động, cách soạn và chơi thử như Kho hoạt động của Chương trình & học liệu
+// Kho hoạt động của Đào tạo đào tạo (116): cùng kiểu hoạt động, cách soạn và chơi thử như Kho hoạt động của Chương trình & học liệu
 const TRAINING_ACTIVITIES: Spec = { ...ACTIVITIES, where: q => q.eq('domain', 'training'),
   cols: ACTIVITIES.cols.map(c => c.label === 'Giáo viên' ? { ...c, label: 'Người soạn', get: (r: Row) => r.teachers?.full_name ?? <small>KDI</small> } : c),
-  search: r => `${r.title} ${r.subject ?? ''}`, searchHint: 'Tên hoạt động, môn…', file: 'kho-hoat-dong-tap-huan', empty: 'Chưa có hoạt động tập huấn. Bấm "+ Thêm hoạt động".' }
+  search: r => `${r.title} ${r.subject ?? ''}`, searchHint: 'Tên hoạt động, môn…', file: 'kho-hoat-dong-tap-huan', empty: 'Chưa có hoạt động đào tạo. Bấm "+ Thêm hoạt động".' }
 export const SysTrainingActivities = ({ orgId }: { orgId?: string | null }) => <BankList spec={TRAINING_ACTIVITIES} orgId={orgId} add="+ Thêm hoạt động"
   desk={({ start, onClose }) => <ActivityDesk orgId={orgId ?? null} start={start} onClose={onClose} domain="training" />} />
-export const SysTrainingLessons = () => <TwoTabs tabs={[['Bài giảng tập huấn', TRAINING_LESSONS], ['Lớp học ảo', VIRTUAL]]} />
+export const SysTrainingLessons = () => <TwoTabs tabs={[['Bài giảng đào tạo', TRAINING_LESSONS], ['Lớp học ảo', VIRTUAL]]} />
 export const SysCertificates = one(CERTIFICATES)

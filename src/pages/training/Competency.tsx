@@ -1,4 +1,4 @@
-// Phân hệ 1 — Đánh giá năng lực nhà giáo (088): đợt đánh giá, khoảng thiếu hụt → gợi ý tập huấn, khung năng lực (KDI).
+// Phân hệ 1 — Đánh giá năng lực nhà giáo (088): đợt đánh giá, khoảng thiếu hụt → gợi ý đào tạo, khung năng lực (KDI).
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { OrgPick } from '../../components/OrgScope'
@@ -46,7 +46,7 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
       <ol className="distguide">
         <li><button type="button" onClick={() => can && add()}><i>1</i><span><b>Mở đợt đánh giá</b><small>Đặt năm học, hạn nộp và mức yêu cầu. Đợt áp dụng cho mọi giáo viên trong đơn vị và các trường trực thuộc.</small></span></button></li>
         <li><button type="button" onClick={() => all[0] && setOpen(all[0].id)}><i>2</i><span><b>Theo dõi & nhắc</b><small>Xem từng trường đã tự đánh giá / được trường đánh giá bao nhiêu, gửi nhắc giáo viên chưa nộp.</small></span></button></li>
-        <li><button type="button" disabled><i>3</i><span><b>Xem thiếu hụt</b><small>Kết quả vào hồ sơ năng lực; mục Khoảng thiếu hụt gợi ý chương trình tập huấn cho người dưới mức yêu cầu.</small></span></button></li>
+        <li><button type="button" disabled><i>3</i><span><b>Xem thiếu hụt</b><small>Kết quả vào hồ sơ năng lực; mục Khoảng thiếu hụt gợi ý chương trình đào tạo cho người dưới mức yêu cầu.</small></span></button></li>
       </ol>
     </FlowGuide>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
@@ -82,7 +82,7 @@ function RoundFields({ f, set, orgPick }: { f: RForm; set: (f: RForm) => void; o
   </>
 }
 
-/** Trang riêng để mở đợt đánh giá mới (giống "Thêm chương trình tập huấn"). */
+/** Trang riêng để mở đợt đánh giá mới (giống "Thêm chương trình đào tạo"). */
 function RoundForm({ orgId, onBack, onSaved }: { orgId: string; onBack: () => void; onSaved: (id: string) => void }) {
   const [f, setF] = useState<RForm>({ org_id: orgId, name: '', school_year: schoolYear(), opens_on: today(), due_on: '', target_level: 2, note: '' })
   const [err, setErr] = useState('')
@@ -197,7 +197,7 @@ function RoundDetail({ r, onBack, onChanged }: { r: Round; onBack: () => void; o
 export const Bar = ({ v, warnBelow = 50 }: { v: number; warnBelow?: number }) =>
   <span className="minibar" title={`${v}%`}><i style={{ width: `${Math.min(100, v)}%` }} className={v < warnBelow ? 'warn' : ''} /></span>
 
-// ================= Khoảng thiếu hụt → gợi ý chương trình tập huấn =================
+// ================= Khoảng thiếu hụt → gợi ý chương trình đào tạo =================
 type Gap = { teacher_id: string; teacher_name: string; org_id: string; org_name: string | null; competency: string; competency_name: string; level: number
   suggest: { id: string; code: string | null; title: string; target_level: number }[] }
 type OpenPlan = { plan_id: string; org_id: string; status: string; quota: number | null; training_plans: { plan_code: string | null; name: string; training_plan_items: { program_id: string }[] } }
@@ -252,7 +252,7 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
   async function enroll(planId: string, teacherId: string, name: string) {
     const { error } = await supabase.from('training_enrollments').insert({ org_id: orgId, plan_id: planId, teacher_id: teacherId })
     if (error) return setMsg([errText(error.message), true])
-    setMsg([`Đã ghi danh ${name} vào kế hoạch. Nhớ gửi danh sách duyệt ở mục Kế hoạch tập huấn.`, false]); loadPlans()
+    setMsg([`Đã ghi danh ${name} vào kế hoạch. Nhớ gửi danh sách duyệt ở mục Kế hoạch đào tạo.`, false]); loadPlans()
   }
   function excel() {
     downloadXlsx(`khoang-thieu-hut-${year}`, [{ key: 't', label: 'Giáo viên', width: 26 }, { key: 'o', label: 'Trường', width: 28 }, { key: 'c', label: 'Năng lực', width: 30 },
@@ -261,8 +261,8 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
   }
   return <>
     <div className="panel distintro">
-      <p style={{ margin: 0 }}>Mức năng lực lấy theo đánh giá năm học (ưu tiên mức trường đánh giá, nếu chưa có thì mức tự đánh giá đã nộp). Chứng chỉ tập huấn đã cấp nâng mức lên bằng mức đích của chương trình.
-        Giáo viên dưới mức yêu cầu được gợi ý chương trình tập huấn đã phát hành có bồi dưỡng năng lực đó.</p>
+      <p style={{ margin: 0 }}>Mức năng lực lấy theo đánh giá năm học (ưu tiên mức trường đánh giá, nếu chưa có thì mức tự đánh giá đã nộp). Chứng chỉ đào tạo đã cấp nâng mức lên bằng mức đích của chương trình.
+        Giáo viên dưới mức yêu cầu được gợi ý chương trình đào tạo đã phát hành có bồi dưỡng năng lực đó.</p>
     </div>
     <div className="diststatcards four">
       <div className="panel"><i aria-hidden="true" className={teachersN ? 'warn' : 'good'}>👥</i><span><b>{rows ? teachersN : '…'}</b><small>GV có thiếu hụt</small></span></div>
@@ -291,7 +291,7 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
         <tbody>{bySchool.map(s => <tr key={s.name}><td>{s.name}</td><td><b>{s.teachers.size}</b></td>{comps.map(c => <td key={c.key}>{s.per[c.key] ?? <small className="sub">0</small>}</td>)}</tr>)}
           {!bySchool.length && <tr><td colSpan={comps.length + 2}><small className="sub">Không có thiếu hụt.</small></td></tr>}</tbody></table></div>
       : <div className="wrap"><table className="libtable">
-        <thead><tr><th>Giáo viên</th><th>Năng lực dưới mức yêu cầu</th><th>Chương trình tập huấn gợi ý</th></tr></thead>
+        <thead><tr><th>Giáo viên</th><th>Năng lực dưới mức yêu cầu</th><th>Chương trình đào tạo gợi ý</th></tr></thead>
         <tbody>{byTeacher.slice(0, 300).map(gs => { const g0 = gs[0]
           const sug = [...new Map(gs.flatMap(g => g.suggest).map(s => [s.id, s])).values()]
           return <tr key={g0.teacher_id}>
@@ -323,7 +323,7 @@ export function CompetencyFrameworkPage() {
 
 const AUD = {
   teacher: { title: 'Năng lực giáo viên', grp: 'Giáo viên STEM', prefix: 'gv_', example: 'gv_hop_tac', levels: LV_NAME,
-    intro: 'Khung năng lực giáo viên dùng chung cho mọi đơn vị: tự đánh giá, trường đánh giá, khoảng thiếu hụt và năng lực đích của chương trình tập huấn đều theo khung này.' },
+    intro: 'Khung năng lực giáo viên dùng chung cho mọi đơn vị: tự đánh giá, trường đánh giá, khoảng thiếu hụt và năng lực đích của chương trình đào tạo đều theo khung này.' },
   student: { title: 'Năng lực học sinh', grp: 'Năng lực đặc thù', prefix: '', example: 'ngoai_ngu', levels: SLV_NAME,
     intro: 'Khung năng lực học sinh dùng chung: năng lực của chương trình giáo dục, yêu cầu cần đạt, tiêu chí chấm (rubric) và hồ sơ năng lực học sinh đều theo khung này.' },
 }

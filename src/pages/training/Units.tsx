@@ -1,4 +1,4 @@
-// Chương trình tập huấn: bảng Môn → Nội dung tập huấn và yêu cầu cần đạt, cùng cách làm với Chương trình giáo dục:
+// Chương trình đào tạo: bảng Môn → Nội dung đào tạo và yêu cầu cần đạt, cùng cách làm với Chương trình giáo dục:
 // thẻ số liệu, "Chỉnh sửa cấu trúc" mở bảng nháp (thêm / sửa / xoá / đổi thứ tự) rồi "Lưu tất cả" một lần, nhập / tải Excel.
 import { Fragment, useState } from 'react'
 import { StructureDraft, newKey, saveDraftTree, type DCol, type DRow } from '../../components/StructureDraft'
@@ -14,13 +14,13 @@ type Mode = 'online' | 'offline' | 'hybrid'
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
 const KIND = { subject: 'Môn', content: 'Nội dung' }
 type TF = { hours: number; mode: 'online' | 'offline' | null; has_test: boolean; detail: Detail }
-const TLEVELS = { subject: { label: 'Môn', child: 'content', ph: 'Tên môn, ví dụ: Phương pháp dạy học STEM' }, content: { label: 'Nội dung', ph: 'Tên nội dung tập huấn' } }
+const TLEVELS = { subject: { label: 'Môn', child: 'content', ph: 'Tên môn, ví dụ: Phương pháp dạy học STEM' }, content: { label: 'Nội dung', ph: 'Tên nội dung đào tạo' } }
 const reqsOf = (d: Detail | null | undefined) => (d?.body?.reqs ?? []).map(x => x.trim()).filter(Boolean)
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 
 const IMPORT: Column[] = [
   { key: 'type', label: 'Loại', required: true, aliases: ['Cấp', 'Loại mục'], width: 12 },
-  { key: 'title', label: 'Tên', required: true, aliases: ['Tên môn / nội dung', 'Nội dung tập huấn', 'Tên môn'], width: 44 },
+  { key: 'title', label: 'Tên', required: true, aliases: ['Tên môn / nội dung', 'Nội dung đào tạo', 'Tên môn'], width: 44 },
   { key: 'hours', label: 'Số giờ', aliases: ['Giờ'], width: 8 },
   { key: 'mode', label: 'Hình thức', width: 14 },
   { key: 'test', label: 'Bài test', aliases: ['Có bài test', 'Kiểm tra'], width: 10 },
@@ -128,12 +128,12 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
   return <>
     <Tiles items={[
       { label: 'Môn', value: subjs.length, sub: subjs.some(s => !kids(s.id).length) ? 'có môn chưa có nội dung' : undefined },
-      { label: 'Nội dung tập huấn', value: contents.length, sub: `${contents.filter(u => detailCount(u.detail)).length} nội dung đã soạn chi tiết` },
+      { label: 'Nội dung đào tạo', value: contents.length, sub: `${contents.filter(u => detailCount(u.detail)).length} nội dung đã soạn chi tiết` },
       { label: 'Tổng số giờ', value: num(hours) },
       { label: 'Có bài test', value: contents.filter(u => u.has_test).length, sub: `${contents.filter(u => (u.mode ?? programMode) === 'online').length} nội dung trực tuyến` },
     ]} />
     <div className="bar">
-      <p className="sub" style={{ margin: 0 }}>Cấu trúc: môn → nội dung tập huấn. Số giờ tính theo nội dung. Bấm "Soạn nội dung" để thêm bài giảng, tài liệu, định mức vật tư, hoạt động và bài test.</p>
+      <p className="sub" style={{ margin: 0 }}>Cấu trúc: môn → nội dung đào tạo. Số giờ tính theo nội dung. Bấm "Soạn nội dung" để thêm bài giảng, tài liệu, định mức vật tư, hoạt động và bài test.</p>
       <div className="tools">
         {editable && !draft && <ImportExcel columns={IMPORT} template="Mau-chuong-trinh-tap-huan"
           sample={[['Môn', 'Phương pháp dạy học STEM', '', '', '', 'Nắm quy trình thiết kế bài học STEM'], ['Nội dung', 'Quy trình 4 bước thiết kế bài học STEM', '3', 'Trực tiếp', 'Có', ''],

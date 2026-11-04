@@ -1,4 +1,4 @@
-// Điểm bài test của kế hoạch tập huấn (105): mỗi giáo viên một dòng, mỗi bài test một cột.
+// Điểm bài test của kế hoạch đào tạo (105): mỗi giáo viên một dòng, mỗi bài test một cột.
 // Người tổ chức gõ điểm (thang 10) hoặc nhập từ file Excel / CSV (file mẫu tải về, hoặc bảng kết quả xuất từ Google Forms, Azota… có cột email).
 // Điểm đọc từ file chỉ điền vào bảng để kiểm tra; bấm "Lưu điểm bài test" mới ghi. Ô để trống = bỏ điểm nhập tay.
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -101,7 +101,7 @@ export function TestScores({ planId, planCode, can, only, onSaved }: { planId: s
   }
 
   if (!d) return <p className="sub">Đang tải…</p>
-  if (!units.length) return <p className="sub">Kế hoạch chưa có bài test. Bật "Có bài test" cho nội dung ở Chương trình tập huấn, chọn làm trong hệ thống hoặc làm qua link.</p>
+  if (!units.length) return <p className="sub">Kế hoạch chưa có bài test. Bật "Có bài test" cho nội dung ở Chương trình đào tạo, chọn làm trong hệ thống hoặc làm qua link.</p>
   return <div style={{ display: 'grid', gap: 10 }}>
     <div className="tools" style={{ flexWrap: 'wrap' }}>
       <button type="button" onClick={template}>Tải file mẫu (Excel)</button>

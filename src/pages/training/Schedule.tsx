@@ -1,5 +1,5 @@
-// Phân hệ 1 — Lịch tập huấn & điểm danh (085). Tab "Lịch tập huấn" của mục Kế hoạch & lịch tập huấn (KDI, Sở / Phòng).
-// Xếp lịch tự động từ kế hoạch (mỗi nội dung tập huấn một buổi) hoặc thêm buổi; xem dạng bảng hoặc lịch (tháng / tuần);
+// Phân hệ 1 — Lịch đào tạo & điểm danh (085). Tab "Lịch đào tạo" của mục Kế hoạch & lịch đào tạo (KDI, Sở / Phòng).
+// Xếp lịch tự động từ kế hoạch (mỗi nội dung đào tạo một buổi) hoặc thêm buổi; xem dạng bảng hoặc lịch (tháng / tuần);
 // mở buổi để đưa mã điểm danh (QR), nhắc lịch, ghi có mặt / vắng, duyệt xin vắng, chốt điểm danh, xem GV trùng lịch.
 import { useOrgFilter } from '../../components/OrgFilters'
 import { TimeGrid } from '../../components/TimeGrid'
@@ -33,7 +33,7 @@ const SSEL = 'id, plan_id, unit_id, title, starts_at, ends_at, mode, location, m
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp' }
 const ST: Record<St, [string, string]> = { upcoming: ['Sắp diễn ra', ''], live: ['Đang diễn ra', 'bad'], toclose: ['Chờ chốt điểm danh', 'warn'], closed: ['Đã chốt', 'good'] }
 const errText = (m: string) => /schema cache|does not exist|column .* of relation/i.test(m) ? 'Hãy chạy migration 085 trên Supabase.'
-  : /row-level|42501|permission/i.test(m) ? 'Bạn không có quyền với buổi tập huấn này.' : m
+  : /row-level|42501|permission/i.test(m) ? 'Bạn không có quyền với buổi đào tạo này.' : m
 export const sessSt = (s: Pick<Sess, 'starts_at' | 'ends_at' | 'closed_at'>, now = Date.now()): St =>
   s.closed_at ? 'closed' : now < +new Date(s.starts_at) ? 'upcoming' : now <= +new Date(s.ends_at) ? 'live' : 'toclose'
 const dd = (d: string) => new Date(d).toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -52,7 +52,7 @@ const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.g
 const monday = (d: Date) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x }
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 
-/** Nội dung tập huấn của các chương trình trong kế hoạch, theo thứ tự chương trình › môn › nội dung */
+/** Nội dung đào tạo của các chương trình trong kế hoạch, theo thứ tự chương trình › môn › nội dung */
 async function planContents(planId: string) {
   const { data: it } = await supabase.from('training_plan_items').select('program_id, seq, trainer, trainer_ids, units').eq('plan_id', planId).order('seq')
   const items = (it ?? []) as Item[]
@@ -116,7 +116,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
     onBack={() => { setOpen(null); reload() }} onMsg={m => { setMsg(m); setOpen(null); reload() }} />
 
   const steps: [string, string, St | ''][] = [
-    ['Xếp lịch', 'Xếp tự động từ kế hoạch (mỗi nội dung tập huấn một buổi) hoặc thêm từng buổi; sửa giờ, địa điểm, link họp, giảng viên.', 'upcoming'],
+    ['Xếp lịch', 'Xếp tự động từ kế hoạch (mỗi nội dung đào tạo một buổi) hoặc thêm từng buổi; sửa giờ, địa điểm, link họp, giảng viên.', 'upcoming'],
     ['Nhắc lịch & điểm danh', 'Gửi nhắc lịch cho giáo viên. Buổi trực tiếp có mã 6 số / QR: giáo viên nhập mã để điểm danh; buổi trực tuyến điểm danh khi bấm Tham gia.', 'live'],
     ['Chốt điểm danh', 'Duyệt xin vắng, ghi có mặt / vắng còn thiếu rồi chốt. Chưa ghi thì tính vắng.', 'toclose']]
   return <>
@@ -149,7 +149,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
     </div>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {!plans ? <p className="sub">Đang tải…</p> : look === 'table' ? <div className="wrap"><table className="libtable">
-      <thead><tr><th>Buổi tập huấn</th><th>Thời gian</th><th>Hình thức</th><th>Giảng viên</th><th>Điểm danh</th><th>Trạng thái</th></tr></thead>
+      <thead><tr><th>Buổi đào tạo</th><th>Thời gian</th><th>Hình thức</th><th>Giảng viên</th><th>Điểm danh</th><th>Trạng thái</th></tr></thead>
       <tbody>{shown.map(s => { const st = sessSt(s, now), i = info(s.id), p = pl(s.plan_id)
         return <tr key={s.id}>
           <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen({ kind: 'sess', id: s.id }) }}>{s.title}</button><br /><small className="sub">{[all && orgName(p?.org_id), p?.plan_code, p?.name].filter(Boolean).join(' · ')}</small></td>
@@ -165,7 +165,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
   </>
 }
 
-// ===== Lịch tập huấn dạng lịch: tháng / tuần, cùng kiểu với lịch kế hoạch tập huấn =====
+// ===== Lịch đào tạo dạng lịch: tháng / tuần, cùng kiểu với lịch kế hoạch đào tạo =====
 const TONE: Record<St, string> = { upcoming: '', live: 'live', toclose: 'draft', closed: 'off' }
 const MAX = 3
 export function SessCal({ rows, label, planName, onOpen, hol }: { rows: Sess[]; label: (s: Sess) => string; planName: (id: string) => string; onOpen: (id: string) => void; hol?: Holidays }) {
@@ -222,7 +222,7 @@ export function SessCal({ rows, label, planName, onOpen, hol }: { rows: Sess[]; 
         </div>
       </div>)}
       {!byPlan.length && <p className="sub" style={{ margin: 8 }}>Không có buổi nào trong năm {y}.</p>}
-    </div> : view === 'week' ? <TimeGrid days={week} label="Lịch tập huấn theo giờ trong tuần" dayNote={d => holD(d) || undefined}
+    </div> : view === 'week' ? <TimeGrid days={week} label="Lịch đào tạo theo giờ trong tuần" dayNote={d => holD(d) || undefined}
       events={week.flatMap(on).map(s => ({ id: s.id, start: new Date(s.starts_at), end: new Date(s.ends_at), title: (holD(new Date(s.starts_at)) ? '⚠ ' : '') + s.title, sub: label(s), cls: TONE[sessSt(s, now)],
         tip: `${s.title}\n${hm(s.starts_at)}–${hm(s.ends_at)} · ${ST[sessSt(s, now)][0]}\n${label(s)}`, onClick: () => onOpen(s.id) }))} />
     : <div className={'tscal tpcal ' + view}>
@@ -282,15 +282,15 @@ function AutoSchedule({ plans, initial, onBack, onDone }: { plans: Plan[]; initi
     const { data, error } = await supabase.rpc('training_plan_schedule', { p_plan: plan, p_start: start, p_time: time, p_hours_per_day: perDay, p_skip_weekend: skip })
     setBusy(false)
     if (error) return setErr(errText(error.message))
-    onDone(`Đã xếp ${data} buổi tập huấn. Mở từng buổi để thêm địa điểm, link họp và gửi nhắc lịch.`)
+    onDone(`Đã xếp ${data} buổi đào tạo. Mở từng buổi để thêm địa điểm, link họp và gửi nhắc lịch.`)
   }
   const p = plans.find(x => x.id === plan)
   const onHol = preview.filter(x => hol.holName(dayKey(x.day)))
-  return <ElView back="Lịch tập huấn" onBack={onBack} title="Xếp lịch từ kế hoạch" sub="Mỗi nội dung tập huấn thành một buổi, theo thứ tự chương trình › môn › nội dung. Nội dung đã có buổi thì bỏ qua."
+  return <ElView back="Lịch đào tạo" onBack={onBack} title="Xếp lịch từ kế hoạch" sub="Mỗi nội dung đào tạo thành một buổi, theo thứ tự chương trình › môn › nội dung. Nội dung đã có buổi thì bỏ qua."
     actions={<button type="button" className="primary" disabled={busy || !todo.length || !start} onClick={go}>Xếp {todo.length || ''} buổi</button>}>
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <div className="formgrid">
-        <label className="field" style={{ gridColumn: '1/-1' }}><span>Kế hoạch tập huấn</span><select value={plan} onChange={e => setPlan(e.target.value)}>
+        <label className="field" style={{ gridColumn: '1/-1' }}><span>Kế hoạch đào tạo</span><select value={plan} onChange={e => setPlan(e.target.value)}>
           {plans.filter(x => x.pub_status === 'published').map(x => <option key={x.id} value={x.id}>{x.plan_code} · {x.name}</option>)}</select></label>
         <label className="field"><span>Ngày bắt đầu</span><input type="date" value={start} onChange={e => setStart(e.target.value)} /></label>
         <label className="field"><span>Giờ bắt đầu mỗi ngày</span><input type="time" value={time} onChange={e => setTime(e.target.value)} /></label>
@@ -303,11 +303,11 @@ function AutoSchedule({ plans, initial, onBack, onDone }: { plans: Plan[]; initi
       {onHol.length > 0 && <p className="warnline" style={{ margin: 0 }}>⚠ {onHol.length} buổi rơi vào ngày nghỉ: {[...new Set(onHol.map(x => `${x.day.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })} (${hol.holName(dayKey(x.day))})`))].join('; ')}. Đổi ngày bắt đầu hoặc sửa ngày từng buổi sau khi xếp.</p>}
       <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Xem trước</h3><small className="sub">{p?.plan_code} · {todo.length} buổi mới · {done.size} nội dung đã có buổi</small></div>
       {!units ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-        <thead><tr><th style={{ width: 40 }}>#</th><th>Nội dung tập huấn</th><th>Ngày</th><th>Giờ</th><th>Hình thức</th><th>Giảng viên</th></tr></thead>
+        <thead><tr><th style={{ width: 40 }}>#</th><th>Nội dung đào tạo</th><th>Ngày</th><th>Giờ</th><th>Hình thức</th><th>Giảng viên</th></tr></thead>
         <tbody>{preview.map((x, k) => <tr key={x.u.id}><td>{k + 1}</td><td style={{ whiteSpace: 'normal' }}>{x.u.title}<br /><small className="sub">{num(Number(x.u.hours))} giờ</small></td>
           <td>{x.day.toLocaleDateString('vi-VN', { weekday: 'short', day: '2-digit', month: '2-digit' })}{hol.holName(dayKey(x.day)) && <><br /><small className="holwarn">⚠ Nghỉ: {hol.holName(dayKey(x.day))}</small></>}</td><td>{x.from}–{x.to}</td>
           <td>{x.u.mode ? MODE[x.u.mode] : p?.mode === 'online' ? 'Trực tuyến' : 'Trực tiếp'}</td><td>{(x.u as Unit & { trainer: string | null }).trainer || '—'}</td></tr>)}
-          {!preview.length && <tr><td colSpan={6}><small className="sub">{units.length ? 'Mọi nội dung đã có buổi.' : 'Kế hoạch chưa có nội dung tập huấn (kế hoạch cũ hoặc chưa chọn chương trình). Dùng "Thêm buổi".'}</small></td></tr>}</tbody>
+          {!preview.length && <tr><td colSpan={6}><small className="sub">{units.length ? 'Mọi nội dung đã có buổi.' : 'Kế hoạch chưa có nội dung đào tạo (kế hoạch cũ hoặc chưa chọn chương trình). Dùng "Thêm buổi".'}</small></td></tr>}</tbody>
       </table></div>}
     </section>
   </ElView>
@@ -331,9 +331,9 @@ function InfoFields({ f, set, plans, lockPlan }: { f: Info; set: (f: Info) => vo
   const hol = useHolidays(orgOf)
   const hn = f.starts_at ? hol.holName(f.starts_at.slice(0, 10)) : ''
   return <div className="formgrid">
-    <label className="field" style={{ gridColumn: '1/-1' }}><span>Kế hoạch tập huấn *</span><select value={f.plan_id} disabled={lockPlan} onChange={e => set({ ...f, plan_id: e.target.value, unit_id: '' })}>
+    <label className="field" style={{ gridColumn: '1/-1' }}><span>Kế hoạch đào tạo *</span><select value={f.plan_id} disabled={lockPlan} onChange={e => set({ ...f, plan_id: e.target.value, unit_id: '' })}>
       <option value="">— Chọn kế hoạch —</option>{plans.filter(p => p.pub_status === 'published' || p.id === f.plan_id).map(p => <option key={p.id} value={p.id}>{p.plan_code} · {p.name}</option>)}</select></label>
-    <label className="field" style={{ gridColumn: '1/-1' }}><span>Nội dung tập huấn</span><select value={f.unit_id} onChange={e => {
+    <label className="field" style={{ gridColumn: '1/-1' }}><span>Nội dung đào tạo</span><select value={f.unit_id} onChange={e => {
       const u = units.find(x => x.id === e.target.value)
       set({ ...f, unit_id: e.target.value, title: u && (!f.title.trim() || units.some(x => x.title === f.title)) ? u.title : f.title, mode: u?.mode ?? f.mode, ...(f.trainer_ids.length || f.trainer ? {} : { trainer_ids: u?.trainer_ids ?? [], trainer: u?.trainer_ids?.length ? '' : u?.trainer ?? '' }) })
     }}><option value="">— Không gắn nội dung —</option>{units.map(u => <option key={u.id} value={u.id}>{u.title} ({num(Number(u.hours))} giờ)</option>)}</select></label>
@@ -376,7 +376,7 @@ function SessionForm({ orgId, plans, initial, onBack, onDone }: { orgId: string;
     if (error) return setErr(errText(error.message))
     onDone((data as { id: string }).id)
   }
-  return <ElView back="Lịch tập huấn" onBack={onBack} title="Thêm buổi tập huấn" sub="Giáo viên đã ghi danh vào kế hoạch tự có tên trong danh sách điểm danh của buổi."
+  return <ElView back="Lịch đào tạo" onBack={onBack} title="Thêm buổi đào tạo" sub="Giáo viên đã ghi danh vào kế hoạch tự có tên trong danh sách điểm danh của buổi."
     actions={<button type="button" className="primary" disabled={busy} onClick={save}>Lưu buổi</button>}>
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <InfoFields f={f} set={setF} plans={plans} />
@@ -386,7 +386,7 @@ function SessionForm({ orgId, plans, initial, onBack, onDone }: { orgId: string;
 }
 
 // ===== Chi tiết buổi: mã điểm danh, thông tin, danh sách điểm danh =====
-// ===== Nội dung tập huấn của buổi: chương trình, môn › nội dung, chi tiết nội dung và bài giảng xem ngay tại đây =====
+// ===== Nội dung đào tạo của buổi: chương trình, môn › nội dung, chi tiết nội dung và bài giảng xem ngay tại đây =====
 type CUnit = { id: string; program_id: string; parent_id: string | null; title: string; hours: number; mode: Mode | null; has_test: boolean; detail: Detail | null }
 type CProg = { id: string; code: string | null; title: string; version_no: number; status: string; builder: string | null; pass_score: number | null }
 type CLesson = { id: string; org_id: string; title: string; status: string; author: string | null; updated_at: string }
@@ -409,9 +409,9 @@ function SessionContent({ unitId, can, onOpen }: { unitId: string | null; can: b
     })()
   }, [unitId])
   return <section className="panel sesscontent" style={{ display: 'grid', gap: 10 }}>
-    <h3 style={{ margin: 0 }}>Nội dung tập huấn</h3>
+    <h3 style={{ margin: 0 }}>Nội dung đào tạo</h3>
     {d === null ? <p className="sub" style={{ margin: 0 }}>Đang tải…</p>
-      : d === 'none' ? <p className="sub" style={{ margin: 0 }}>Buổi chưa gắn nội dung trong chương trình tập huấn.{can ? ' Bấm Sửa ở Thông tin buổi để chọn nội dung.' : ''}</p>
+      : d === 'none' ? <p className="sub" style={{ margin: 0 }}>Buổi chưa gắn nội dung trong chương trình đào tạo.{can ? ' Bấm Sửa ở Thông tin buổi để chọn nội dung.' : ''}</p>
       : <>
         <dl className="tpkv">
           <dt>Chương trình</dt><dd>{d.prog ? <><b>{[d.prog.code, d.prog.title].filter(Boolean).join(' · ')}</b> <small className="sub">v{d.prog.version_no}{d.prog.builder ? ` · XD: ${d.prog.builder}` : ''}</small></> : '—'}</dd>
@@ -427,7 +427,7 @@ function SessionContent({ unitId, can, onOpen }: { unitId: string | null; can: b
           {d.lessons.length ? <ul className="sesslessons">{d.lessons.map(l => <li key={l.id}>
             <span>{l.title}{l.author && <small className="sub"> · {l.author}</small>} {can && <Chip tone={LST[l.status]?.[1]}>{LST[l.status]?.[0] ?? l.status}</Chip>}</span>
             <button type="button" className="primary" onClick={() => onOpen({ lesson: l.id, org: l.org_id })}>Xem bài giảng</button></li>)}</ul>
-            : <p className="sub" style={{ margin: '4px 0 0' }}>Nội dung này chưa có bài giảng{can ? ' đã soạn. Soạn ở Học liệu tập huấn › Bài giảng, chọn đúng chương trình và nội dung.' : ' đã phát hành.'}</p>}
+            : <p className="sub" style={{ margin: '4px 0 0' }}>Nội dung này chưa có bài giảng{can ? ' đã soạn. Soạn ở Học liệu đào tạo › Bài giảng, chọn đúng chương trình và nội dung.' : ' đã phát hành.'}</p>}
         </div>
       </>}
   </section>
@@ -452,7 +452,7 @@ export function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; pl
       supabase.from('training_attendance').select('session_id, teacher_id, present, excuse_status, excuse_reason, checked_in_at, method, teachers(full_name, subject, organizations(name))').eq('session_id', id),
       supabase.from('training_session_codes').select('code').eq('session_id', id).maybeSingle(),
     ])
-    if (a.error || !a.data) return setMsg([errText(a.error?.message ?? 'Không tìm thấy buổi tập huấn.'), true])
+    if (a.error || !a.data) return setMsg([errText(a.error?.message ?? 'Không tìm thấy buổi đào tạo.'), true])
     const x = a.data as Sess
     setS(x); setF(fromSess(x)); setRows((b.data as unknown as Att[]) ?? [])
     const k = (c.data as { code: string } | null)?.code ?? null
@@ -464,12 +464,12 @@ export function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; pl
     if (plan) setPlans([plan])
   }
   useEffect(() => { load() }, [id])
-  if (!s || !f) return <ElView back="Lịch tập huấn" onBack={onBack} title="Đang tải…">{msg && <p className="msg">{msg[0]}</p>}</ElView>
+  if (!s || !f) return <ElView back="Lịch đào tạo" onBack={onBack} title="Đang tải…">{msg && <p className="msg">{msg[0]}</p>}</ElView>
   if (view) return <Suspense fallback={<p className="sub">Đang tải…</p>}>{'lesson' in view
     ? <LessonPage key={view.lesson} orgId={view.org} id={view.lesson} store="training" unitOf={tp.unitOf} programs={tp.progs} subjectsOf={tp.subjectsOf} code=""
         backLabel={`← Buổi ${s.title}`} onBack={() => setView(null)} onChanged={() => undefined} />
     : <ContentDetail backLabel={`Buổi ${s.title}`} title={view.detail.title} crumb={view.crumb} hours={Number(view.detail.hours)} detail={view.detail.detail ?? {}} editable={false} hasTest={view.detail.has_test}
-        notice={<span className="sub">Xem từ buổi {s.title}. Sửa nội dung ở Chương trình tập huấn.</span>} onBack={() => setView(null)} onSave={async () => false} />}</Suspense>
+        notice={<span className="sub">Xem từ buổi {s.title}. Sửa nội dung ở Chương trình đào tạo.</span>} onBack={() => setView(null)} onSave={async () => false} />}</Suspense>
 
   const st = sessSt(s), closed = !!s.closed_at
   const run = async (q: PromiseLike<{ data?: unknown; error: { message: string } | null }>, ok?: string | ((d: unknown) => string)) => {
@@ -486,7 +486,7 @@ export function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; pl
     if (!confirm(`Xoá buổi "${s!.title}"? Điểm danh của buổi cũng bị xoá.`)) return
     const { error } = await supabase.from('training_sessions').delete().eq('id', id)
     if (error) return setMsg([errText(error.message), true])
-    onMsg(['Đã xoá buổi tập huấn.', false])
+    onMsg(['Đã xoá buổi đào tạo.', false])
   }
   const mark = (a: Att, v: string) => run(supabase.rpc('training_attendance_mark', { p_session: id, p_teacher: a.teacher_id, p_present: v === '' ? null : v === '1' }))
   const review = (a: Att, ok: boolean) => run(supabase.rpc('training_excuse_review', { p_session: id, p_teacher: a.teacher_id, p_approve: ok }), ok ? 'Đã duyệt xin vắng.' : 'Đã từ chối xin vắng.')
@@ -494,7 +494,7 @@ export function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; pl
   const present = rows.filter(a => a.present).length, absent = rows.filter(a => a.present === false).length, pend = rows.filter(a => a.excuse_status === 'pending').length
   const how = (a: Att) => a.method === 'code' ? 'nhập mã' : a.method === 'self' ? 'tự điểm danh' : a.method === 'manual' ? 'quản lý ghi' : ''
 
-  return <ElView back="Lịch tập huấn" onBack={onBack} title={s.title}
+  return <ElView back="Lịch đào tạo" onBack={onBack} title={s.title}
     sub={<>{plan?.plan_code} · {dd(s.starts_at)} {hm(s.starts_at)}–{hm(s.ends_at)} · {MODE[s.mode]} · <Chip tone={ST[st][1]}>{ST[st][0]}</Chip></>}
     actions={can && <>
       {!closed && st !== 'upcoming' && <button type="button" className="primary" onClick={() => confirm(`Chốt điểm danh? ${rows.filter(a => a.present == null).length} giáo viên chưa ghi sẽ tính vắng.`)
@@ -512,7 +512,7 @@ export function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; pl
         <b className="tscodenum">{code}</b>
         {qr && <img src={qr} alt={`QR mã điểm danh ${code}`} width={150} height={150} />}
         <button type="button" className="primary" onClick={() => setShow(true)}>Trình chiếu QR điểm danh</button>
-        <small className="sub">Chiếu QR lên màn hình: giáo viên mở camera điện thoại quét mã, đăng nhập (nếu chưa) là điểm danh xong, không cần gọi tên. Hoặc nhập mã 6 số ở Lịch tập huấn. Mở {ckWindow(s.checkin_before, s.checkin_after)}.</small>
+        <small className="sub">Chiếu QR lên màn hình: giáo viên mở camera điện thoại quét mã, đăng nhập (nếu chưa) là điểm danh xong, không cần gọi tên. Hoặc nhập mã 6 số ở Lịch đào tạo. Mở {ckWindow(s.checkin_before, s.checkin_after)}.</small>
       </section>}
       {show && code && <CheckinShow id={id} title={s.title} when={`${dd(s.starts_at)} ${hm(s.starts_at)}–${hm(s.ends_at)}`} code={code} qr={qr} onClose={() => { setShow(false); load() }} />}
       <section className="panel" style={{ display: 'grid', gap: 12 }}>
@@ -584,7 +584,7 @@ function CheckinShow({ id, title, when, code, qr, onClose }: { id: string; title
     <div className="ckside">
       <small className="sub">{when}</small>
       <h2>{title}</h2>
-      <p><b>Quét mã QR bằng camera điện thoại để điểm danh</b><br /><span className="sub">Hoặc vào Lịch tập huấn › nhập mã</span></p>
+      <p><b>Quét mã QR bằng camera điện thoại để điểm danh</b><br /><span className="sub">Hoặc vào Lịch đào tạo › nhập mã</span></p>
       <b className="ckcode">{code}</b>
       <div className="ckcount"><b>{on.length}</b>/{rows.length}<small>giáo viên đã điểm danh</small></div>
       {last.length > 0 && <ul className="cklast">{last.map((r, i) => <li key={i}>✓ {r.teachers?.full_name} <small className="sub">{hm(r.checked_in_at!)}</small></li>)}</ul>}

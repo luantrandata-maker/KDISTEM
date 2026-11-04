@@ -16,10 +16,10 @@ import { GradeChecks, SubjectPicker, gradeList } from '../../../components/Picke
 
 type Fields = { title: string; subject: string; grades: string; periods: string; program_id: string; prog_subject: string }
 const STATUS: Record<KitRow['status'], [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], archived: ['Đã thu hồi', 'off'], inactive: ['Ngừng dùng', 'off'] }
-/** Cách gọi theo nơi dùng: bài học (Học liệu) hay bài giảng tập huấn */
+/** Cách gọi theo nơi dùng: bài học (Học liệu) hay bài giảng đào tạo */
 export type KitTerms = { noun: string; program: string; progSubject: string; per: string; catalogDocs: boolean }
 export const LIB_TERMS: KitTerms = { noun: 'bài học', program: 'Chương trình', progSubject: 'Môn học trong chương trình', per: 'tiết', catalogDocs: true }
-export const TRAINING_TERMS: KitTerms = { noun: 'bài giảng', program: 'Chương trình tập huấn', progSubject: 'Nội dung trong chương trình', per: 'giờ', catalogDocs: false }
+export const TRAINING_TERMS: KitTerms = { noun: 'bài giảng', program: 'Chương trình đào tạo', progSubject: 'Nội dung trong chương trình', per: 'giờ', catalogDocs: false }
 const Terms = createContext<KitTerms>(LIB_TERMS)
 export const cardsFor = (t: KitTerms) => (t.catalogDocs ? CARDS : CARDS.map(c => ({ ...c, title: c.title.replace('bài học', t.noun),
   desc: c.k === 'links' ? 'Tài liệu, slide, video và giáo án kèm theo bài giảng.' : c.desc.replace('bài học', t.noun) })))
@@ -34,7 +34,7 @@ const UNITS = ['Cái', 'Miếng', 'Tờ', 'Bộ', 'Cm', 'm', 'Cuộn', 'Hộp', 
 export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onChanged, startEdit, backLabel = '← Danh sách bài học', store = 'library', unitOf }: {
   orgId: string; id: string; programs: ProgRef[]; subjectsOf: (pid: string) => string[]; code: string
   onBack: () => void; onChanged: () => void; startEdit?: boolean; backLabel?: string
-  /** training: bài giảng tập huấn (training_lessons); unitOf tìm nội dung trong chương trình tập huấn theo tên */
+  /** training: bài giảng đào tạo (training_lessons); unitOf tìm nội dung trong chương trình đào tạo theo tên */
   store?: KitStore; unitOf?: (pid: string, label: string) => string | null
 }) {
   const T = store === 'training' ? TRAINING_TERMS : LIB_TERMS
@@ -65,7 +65,7 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
   if (err) return <p className="msg">{err}</p>
   if (!row) return <p className="sub">Đang tải…</p>
   const checked = row.content.checked ?? []
-  // Bài giảng tập huấn (105): Kho hoạt động tuỳ chọn, phát hành chỉ cần chốt 4 thẻ còn lại
+  // Bài giảng đào tạo (105): Kho hoạt động tuỳ chọn, phát hành chỉ cần chốt 4 thẻ còn lại
   const NEED = store === 'training' ? CARDS.filter(c => c.k !== 'bank') : CARDS
   const needDone = NEED.filter(c => checked.includes(c.k)).length
   const prog = programs.find(p => p.id === row.program_id)

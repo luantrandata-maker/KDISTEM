@@ -10,7 +10,7 @@ type Ev = { id: string; org_id: string; title: string; kind: string; description
 type Reg = { id: string; event_id: string; full_name: string; role: string; status: string; note: string | null; created_at: string; student_id: string | null; organizations: { name: string } | null; students: { student_code: string | null; classes: { name: string } | null } | null }
 type Mine = { id: string; title: string; kind: string; description: string | null; starts_at: string; ends_at: string | null; location: string | null; organizer: string; audience: string[]
   registration: boolean; capacity: number | null; reg_deadline: string | null; registered: number; my_regs: { student_id: string | null; status: string; name: string }[] }
-export const KIND: Record<string, string> = { festival: 'Ngày hội', exhibition: 'Triển lãm', competition: 'Cuộc thi', workshop: 'Hội thảo / tập huấn', field_trip: 'Tham quan, trải nghiệm', other: 'Khác' }
+export const KIND: Record<string, string> = { festival: 'Ngày hội', exhibition: 'Triển lãm', competition: 'Cuộc thi', workshop: 'Hội thảo / đào tạo', field_trip: 'Tham quan, trải nghiệm', other: 'Khác' }
 const AUD: Record<string, string> = { student: 'Học sinh', teacher: 'Giáo viên', parent: 'Phụ huynh', staff: 'Cán bộ' }
 const ST: Record<string, [string, string]> = { draft: ['Nháp', 'mute'], published: ['Đã công bố', 'ok'], cancelled: ['Đã huỷ', 'bad'] }
 const RS: Record<string, [string, string]> = { registered: ['Đã đăng ký', 'mute'], attended: ['Có mặt', 'ok'], absent: ['Vắng', 'bad'], cancelled: ['Đã huỷ', 'mute'] }

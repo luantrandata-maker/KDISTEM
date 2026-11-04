@@ -178,7 +178,7 @@ export function TemplatesManager({ orgId, canWrite, isSchool }: { orgId: string 
   const [rows, setRows] = useState<Template[]>([])
   const [form, setForm] = useState<(Omit<Template, 'id' | 'org_id'> & { id?: string; org_id?: string }) | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
-  // Quản trị hệ thống: mẫu của mọi đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
+  // Quản trị hệ thống: mẫu của tất cả đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
   const every = useAllMode()
   async function load() {
     const { data, error } = await supabase.from('lesson_templates').select('*, owner_name').order('name')
@@ -209,7 +209,7 @@ export function TemplatesManager({ orgId, canWrite, isSchool }: { orgId: string 
   return (
     <>
       <div className="bar">
-        <p className="sub" style={{ margin: 0 }}>Mẫu giáo án gồm các <b>mục</b> (mục tiêu, thiết bị…) và các <b>pha hoạt động</b> của tiến trình dạy học. {isSchool ? 'Mẫu của trường dùng cho giáo viên trong trường.' : 'Mẫu dùng chung hiện cho mọi đơn vị trực thuộc.'}</p>
+        <p className="sub" style={{ margin: 0 }}>Mẫu giáo án gồm các <b>mục</b> (mục tiêu, thiết bị…) và các <b>pha hoạt động</b> của tiến trình dạy học. {isSchool ? 'Mẫu của trường dùng cho giáo viên trong trường.' : 'Mẫu dùng chung hiện cho tất cả đơn vị trực thuộc.'}</p>
         {canWrite && !form && <button className="primary" onClick={() => setForm(EMPTY_T())}>Thêm mẫu</button>}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}

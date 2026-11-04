@@ -60,7 +60,7 @@ export function useAccess(session: Session | null): Access {
   const roleKeys = state.roles.map(r => r.key)
   const isAdmin = roleKeys.some(k => k === 'principal' || k === 'it_admin')
   const own = new Set<RoleKey>(PORTAL_ORDER.filter(p => state.roles.some(r => r.portal === p)))
-  // Quản trị trường xem thử được mọi giao diện của trường; quản trị nền tảng xem được cổng quản lý trên toàn hệ thống
+  // Quản trị trường xem thử được tất cả giao diện của trường; quản trị nền tảng xem được cổng quản lý trên toàn hệ thống
   if (isAdmin) (['school_admin', 'teacher', 'student', 'department'] as RoleKey[]).forEach(p => own.add(p))
   if (own.has('platform')) own.add('department')
   const portals = PORTAL_ORDER.filter(p => own.has(p))
@@ -70,7 +70,7 @@ export function useAccess(session: Session | null): Access {
     canView: m => entitled(m) && (isAdmin || views.has(m)), permitted: m => isAdmin || views.has(m), entitled, entitlement: ent, mfaRequired: state.mfa, idleMinutes: state.idle }
 }
 
-// Đổi tổ chức đang làm việc rồi tải lại để mọi quyền, menu, dữ liệu tính theo tổ chức mới
+// Đổi tổ chức đang làm việc rồi tải lại để tất cả quyền, menu, dữ liệu tính theo tổ chức mới
 /** Quản trị KDI vào một trường bất kỳ (migration 122), rồi tải lại như khi đổi đơn vị */
 export async function enterSchool(orgId: string) {
   const { error } = await supabase.rpc('platform_enter_school', { p_org: orgId })

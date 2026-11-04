@@ -19,7 +19,7 @@ const LEVEL_ICON = { bad: ['✕', 'Cần sửa'], warn: ['!', 'Nên xem'], info:
 // Tổng quan hệ thống: số liệu toàn nền tảng + kiểm tra cấu trúc dữ liệu đa tổ chức
 export function PlatformOverview({ go }: { go?: (p: string) => void }) {
   const { orgs, stats, loading, err } = usePlatform()
-  const dept = useDeptStats()   // quản trị nền tảng: số liệu mọi trường trên toàn hệ thống
+  const dept = useDeptStats()   // quản trị nền tảng: số liệu tất cả trường trên toàn hệ thống
   const [ov, setOv] = useState<Overview | null>(null)
   const [ovErr, setOvErr] = useState('')
   const [open, setOpen] = useState<string | null>(null)

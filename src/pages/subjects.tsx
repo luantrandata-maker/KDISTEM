@@ -70,7 +70,7 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
 
   const shown = useMemo(() => subjects.filter(s => (old || s.active) && (!lv || s.levels.includes(lv) || !s.levels.length)
     && (!q || norm([s.code, s.name, s.domain].join(' ')).includes(norm(q)))), [subjects, q, lv, old])
-  // Quản trị hệ thống: môn học của mọi đơn vị trong một danh sách, sửa thẳng
+  // Quản trị hệ thống: môn học của tất cả đơn vị trong một danh sách, sửa thẳng
   const every = useAllMode()
   const own = every ? shown : shown.filter(s => s.org_id === orgId)
   const shared = every ? [] : shown.filter(s => s.org_id !== orgId)
@@ -114,7 +114,7 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
       <td>{s.code && <small className="sub">{s.code}<br /></small>}<button type="button" className="namelink" onClick={() => { setVtab('info'); setMsg(null); setView(s) }}><b>{s.name}</b></button>{!s.active && <> <span className="pill">Ngừng dùng</span></>}
         {s.description && <><br /><small className="sub">{s.description}</small></>}</td>
       <td>{s.domain ?? '—'}</td>
-      <td>{s.levels.length ? s.levels.map(levelName).join(', ') : <small className="sub">Mọi cấp</small>}</td>
+      <td>{s.levels.length ? s.levels.map(levelName).join(', ') : <small className="sub">Tất cả cấp</small>}</td>
       <td>{s.ct_codes.map(c => <span key={c} className="progchip" style={{ background: TRACK_COLOR[c], color: '#fff', marginRight: 4 }}>{c}</span>)}</td>
       <td>{mine ? (s.scope === 'children' ? 'Dùng chung cho đơn vị trực thuộc' : 'Chỉ đơn vị mình') : <small className="sub">{s.owner_name ?? '—'}</small>}
         {mine && every && <><br /><small className="sub">{s.owner_name ?? '—'}</small></>}</td>
@@ -136,7 +136,7 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
       </div>
       {vtab === 'info' ? <section className="panel"><dl className="tpkv">
         <dt>Lĩnh vực</dt><dd>{view.domain ?? '—'}</dd>
-        <dt>Cấp học</dt><dd>{view.levels.length ? view.levels.map(levelName).join(', ') : 'Mọi cấp'}</dd>
+        <dt>Cấp học</dt><dd>{view.levels.length ? view.levels.map(levelName).join(', ') : 'Tất cả cấp'}</dd>
         <dt>Loại chương trình</dt><dd>{view.ct_codes.join(', ') || '—'}</dd>
         <dt>Mô tả</dt><dd>{view.description || '—'}</dd>
       </dl>{canEdit && (every || view.org_id === orgId) && <div className="formactions tools">
@@ -161,8 +161,8 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
           {mode !== 'school' && <label className="field"><span>Phạm vi</span><select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Subject['scope'] })}>
             <option value="children">Dùng chung cho đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình</option></select></label>}
           <label className="field wide" style={{ gridColumn: '1/-1' }}><span>Mô tả</span><textarea rows={2} value={form.description ?? ''} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
-          <div className="field" style={{ gridColumn: 'span 2' }}><span>Cấp học (để trống = mọi cấp)</span>
-            <MultiSelect value={form.levels ?? []} onChange={v => setForm({ ...form, levels: v })} options={LEVELS} placeholder="Mọi cấp học" ariaLabel="Cấp học" /></div>
+          <div className="field" style={{ gridColumn: 'span 2' }}><span>Cấp học (để trống = tất cả cấp)</span>
+            <MultiSelect value={form.levels ?? []} onChange={v => setForm({ ...form, levels: v })} options={LEVELS} placeholder="Tất cả cấp học" ariaLabel="Cấp học" /></div>
           <div className="field" style={{ gridColumn: 'span 2' }}><span>Thuộc loại chương trình</span>
             <MultiSelect value={form.ct_codes ?? []} onChange={v => setForm({ ...form, ct_codes: v })} placeholder="Chọn loại chương trình…" ariaLabel="Loại chương trình"
               options={[...ctCodes, ...(form.ct_codes ?? []).filter(c => !ctCodes.includes(c) && allCodes.includes(c))].map(c => [c, `${c}${byCode[c] ? ' · ' + byCode[c]!.name : ''}`])} /></div>
@@ -173,10 +173,10 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
   return (
     <>
       <p className="sub">Danh mục môn học / lĩnh vực kiến thức dùng khi soạn chương trình: mỗi học phần gắn một hay nhiều môn.
-        {mode === 'platform' ? ' Môn "dùng chung" của KDI hiện ở mọi đơn vị.' : mode === 'authority' ? ' Môn "dùng chung" hiện ở các trường trực thuộc.' : ' Trường dùng môn của KDI, Sở, Phòng và thêm môn riêng.'}</p>
+        {mode === 'platform' ? ' Môn "dùng chung" của KDI hiện ở tất cả đơn vị.' : mode === 'authority' ? ' Môn "dùng chung" hiện ở các trường trực thuộc.' : ' Trường dùng môn của KDI, Sở, Phòng và thêm môn riêng.'}</p>
       <div className="bar">
         <div className="tools">
-          <select value={lv} onChange={e => setLv(e.target.value)} aria-label="Cấp học"><option value="">Mọi cấp học</option>{LEVELS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+          <select value={lv} onChange={e => setLv(e.target.value)} aria-label="Cấp học"><option value="">Tất cả cấp học</option>{LEVELS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
           <input placeholder="Tìm mã, tên, lĩnh vực…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện môn ngừng dùng</label>
         </div>
@@ -185,7 +185,7 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
       {(msg || err) && <p className={msg && !msg[1] ? 'sub' : 'msg'} role="status"><b>{msg?.[0] ?? err}</b></p>}
       {!loaded ? <p className="sub">Đang tải…</p> : (
         <>
-          <h3>{every ? 'Mọi đơn vị' : 'Của đơn vị'} ({own.length})</h3>
+          <h3>{every ? 'Tất cả đơn vị' : 'Của đơn vị'} ({own.length})</h3>
           {own.length ? table(own, true) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Đơn vị chưa có môn riêng.{canEdit && ' Bấm "Thêm môn học".'}</p></div>}
           {!every && <><h3>Dùng chung từ KDI / cấp trên ({shared.length})</h3>
           {shared.length ? table(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có môn dùng chung.</p></div>}</>}

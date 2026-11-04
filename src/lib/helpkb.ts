@@ -2,7 +2,7 @@ import { norm } from './sheet'
 import type { RoleKey } from './nav'
 
 // Câu hỏi thường gặp cho nút trợ giúp (055). Dùng cả khi tắt AI (tìm theo từ khoá) và làm ngữ cảnh cho AI trả lời.
-// portals: chỉ hiện cho các cổng này (bỏ trống = mọi cổng). Tên mục menu viết đúng như trên thanh menu.
+// portals: chỉ hiện cho các cổng này (bỏ trống = tất cả cổng). Tên mục menu viết đúng như trên thanh menu.
 export type Faq = { id: string; cat: string; q: string; a: string; keys?: string; portals?: RoleKey[] }
 const STAFF: RoleKey[] = ['school_admin', 'teacher', 'department', 'platform']
 
@@ -11,7 +11,7 @@ export const FAQ: Faq[] = [
   { id: 'about', cat: 'Giới thiệu', q: 'KSCHOOL STEM là gì? Ai cung cấp nền tảng này?', keys: 'đơn vị cung cấp nhà cung cấp nền tảng hệ thống là gì của ai công ty kdi education giới thiệu phần mềm',
     a: 'KSCHOOL STEM (Hệ thống Quản trị STEM) là nền tảng web quản lý giáo dục STEM do **KDI Education** cung cấp cho trường phổ thông, Phòng / Sở GD&ĐT: lịch dạy, điểm danh, bài tập, năng lực, phòng và thiết bị STEM, đào tạo giáo viên, học liệu, e-learning, báo cáo cho Sở. Mỗi Sở / trường có thể dùng tên và logo riêng.' },
   { id: 'contact', cat: 'Giới thiệu', q: 'Liên hệ KDI để được hỗ trợ', keys: 'liên hệ hotline số điện thoại email hỗ trợ kdi gặp ai tư vấn',
-    a: 'Cách nhanh nhất: mở tab **Yêu cầu hỗ trợ** trong khung này → **Gửi yêu cầu hỗ trợ mới**. KDI trả lời ngay trong phiếu và báo qua chuông thông báo. Cán bộ trường / Sở còn xem được mọi phiếu của đơn vị ở mục **"Hỗ trợ từ KDI"**.' },
+    a: 'Cách nhanh nhất: mở tab **Yêu cầu hỗ trợ** trong khung này → **Gửi yêu cầu hỗ trợ mới**. KDI trả lời ngay trong phiếu và báo qua chuông thông báo. Cán bộ trường / Sở còn xem được tất cả phiếu của đơn vị ở mục **"Hỗ trợ từ KDI"**.' },
   { id: 'privacy', cat: 'Giới thiệu', q: 'Dữ liệu của trường, học sinh được bảo vệ thế nào?', keys: 'bảo mật dữ liệu quyền riêng tư an toàn thông tin cá nhân lộ dữ liệu',
     a: 'Dữ liệu tách riêng theo từng đơn vị: mỗi trường chỉ thấy dữ liệu của mình, Sở thấy các trường trực thuộc. Điều khoản sử dụng và chính sách dữ liệu cá nhân hiện khi đăng nhập lần đầu; cha mẹ xác nhận đồng ý cho dữ liệu học sinh. Xuất / xoá dữ liệu học sinh do quản trị trường thực hiện và được ghi nhật ký.' },
   // ---- Đăng nhập & tài khoản ----
@@ -63,7 +63,7 @@ export const FAQ: Faq[] = [
   { id: 'timetable', cat: 'Quản trị', q: 'Xếp thời khoá biểu và phân công giảng dạy', portals: ['school_admin'], keys: 'thời khoá biểu phân công tkb',
     a: 'Thứ tự: **"Năm học & học kỳ"** → **"Cấu hình tiết học"** → **"Lớp học"** → **"Phân công giảng dạy"** → **"Thời khóa biểu"**. Buổi dạy để điểm danh được sinh tự động từ thời khoá biểu.' },
   { id: 'approval', cat: 'Quản trị', q: 'Duyệt đề xuất, đăng ký (Hộp phê duyệt)', portals: STAFF, keys: 'phê duyệt duyệt đề xuất quy trình',
-    a: 'Mọi việc chờ bạn duyệt nằm ở **"Hộp phê duyệt"**. Các bước duyệt (ai duyệt, mấy cấp) cấu hình ở **"Quy trình phê duyệt"**.' },
+    a: 'Tất cả việc chờ bạn duyệt nằm ở **"Hộp phê duyệt"**. Các bước duyệt (ai duyệt, mấy cấp) cấu hình ở **"Quy trình phê duyệt"**.' },
   { id: 'equipment', cat: 'Quản trị', q: 'Báo hỏng thiết bị, bảo hành', portals: ['school_admin', 'teacher'], keys: 'thiết bị hỏng bảo hành sửa chữa',
     a: 'Vào **"Bảo hành thiết bị"** → **Báo lỗi thiết bị**, chọn thiết bị (theo serial / tem QR) và mô tả sự cố. KDI tiếp nhận, phân công kỹ thuật viên và cập nhật trạng thái tại đó.' },
   { id: 'export', cat: 'Quản trị', q: 'Xuất / sao lưu dữ liệu của trường', portals: ['school_admin', 'department', 'platform'], keys: 'xuất dữ liệu sao lưu backup excel',

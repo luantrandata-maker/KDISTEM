@@ -1,5 +1,5 @@
 // Báo cáo, thống kê đào tạo (118): số lượng, tỷ lệ hoàn thành, kết quả — theo kỳ (năm học · đợt), theo đơn vị, theo kế hoạch.
-// Số liệu theo phạm vi người xem (KDI: mọi trường; Sở / Phòng: trường trực thuộc; trường: trường mình) — RPC training_report.
+// Số liệu theo phạm vi người xem (KDI: tất cả trường; Sở / Phòng: trường trực thuộc; trường: trường mình) — RPC training_report.
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
@@ -75,10 +75,10 @@ export function TrainingReportPage() {
   return <>
     <div className="bar">
       <div className="tools" style={{ flexWrap: 'wrap' }}>
-        <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học"><option value="">Mọi năm học</option>{years.map(y => <option key={y} value={y}>{y}</option>)}</select>
-        <select value={term} onChange={e => setTerm(e.target.value)} aria-label="Đợt"><option value="">Mọi đợt</option>{Object.entries(TERM).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+        <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học"><option value="">Tất cả năm học</option>{years.map(y => <option key={y} value={y}>{y}</option>)}</select>
+        <select value={term} onChange={e => setTerm(e.target.value)} aria-label="Đợt"><option value="">Tất cả đợt</option>{Object.entries(TERM).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
         <select value={only} onChange={e => setOnly(e.target.value as typeof only)} aria-label="Trạng thái kế hoạch">
-          <option value="all">Mọi kế hoạch</option><option value="closed">Đã kết thúc</option><option value="open">Đang triển khai</option></select>
+          <option value="all">Tất cả kế hoạch</option><option value="closed">Đã kết thúc</option><option value="open">Đang triển khai</option></select>
         {ofl.node(rows.map(r => r.org_id))}
       </div>
       <div className="tools"><button type="button" onClick={exportX} disabled={!groups.length}>Xuất Excel</button></div>

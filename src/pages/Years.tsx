@@ -67,7 +67,7 @@ export default function Years({ orgId, years, year, reloadYears, selectYear }: P
   return (
     <>
       <div className="bar">
-        <p className="sub" style={{ margin: 0, flex: 1, minWidth: 260 }}>Học kỳ hiện tại là mặc định cho mọi người dùng. Mỗi người vẫn chọn xem học kỳ khác ở đầu menu.</p>
+        <p className="sub" style={{ margin: 0, flex: 1, minWidth: 260 }}>Học kỳ hiện tại là mặc định cho tất cả người dùng. Mỗi người vẫn chọn xem học kỳ khác ở đầu menu.</p>
         <span className="tools">
           <button onClick={() => setCopy({ from: years.find(y => y.is_current)?.id ?? '', to: years.find(y => !y.is_current)?.id ?? '' })} disabled={years.length < 2}>Sao chép TKB</button>
           <button className="primary" onClick={() => setForm(suggest())}>+ Thêm học kỳ</button>

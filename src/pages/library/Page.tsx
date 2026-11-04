@@ -44,7 +44,7 @@ export function LibraryPage({ orgId, teacherId, go }: { orgId: string | null; te
   const steps: [Tab, string, string, string][] = [
     ['prog', 'Bước 01', 'Tải giáo án theo bài', 'Đi theo Chương trình → Môn → Bài học, tải giáo án Word hoặc bài giảng PowerPoint để tách thành bộ học liệu 5 thẻ.'],
     ['needs', 'Bước 02 · Tự tổng hợp', 'Cần chuẩn bị', 'Tự tổng hợp học liệu, thiết bị, vật tư cần có theo chương trình hoặc theo trường từ định mức của từng bài.'],
-    ['catalog', 'Bước 03 · Tự tổng hợp', 'Danh mục học liệu', 'Danh mục tổng: tự tổng hợp mọi học liệu từ giáo án để tra cứu, lọc, đổi trạng thái và cập nhật ảnh đại diện.']]
+    ['catalog', 'Bước 03 · Tự tổng hợp', 'Danh mục học liệu', 'Danh mục tổng: tự tổng hợp tất cả học liệu từ giáo án để tra cứu, lọc, đổi trạng thái và cập nhật ảnh đại diện.']]
   const n = (v: number | undefined) => (v == null ? '…' : v)
   const total = s ? s.docs + s.tools + s.supplies : undefined
   return (

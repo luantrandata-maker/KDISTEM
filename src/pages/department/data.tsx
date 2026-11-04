@@ -14,7 +14,7 @@ export type SubjectStat = { subject: string; total: number; stem: number; classe
 export const LEVEL: Record<string, string> = { mamnon: 'Mầm non', tieuhoc: 'Tiểu học', thcs: 'THCS', thpt: 'THPT' }
 export const PROGRAMS = ['CT1', 'CT2', 'CT3', 'CT4', 'CT5'] as const
 
-// Một lần tải cho mọi màn của Sở (cache 60 giây trong phiên)
+// Một lần tải cho tất cả màn của Sở (cache 60 giây trong phiên)
 let cache: { at: number; schools: SchoolStat[]; subjects: SubjectStat[] } | null = null
 export function useDeptStats() {
   const [data, setData] = useState<{ schools: SchoolStat[]; subjects: SubjectStat[] } | null>(cache)

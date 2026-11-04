@@ -11,7 +11,7 @@ export const ROLE_LABEL: Record<RoleKey, string> = {
 // (MODULE_OF, ENT_MODULE_OF), liên kết giữa các màn (go('…')), cột notifications.page trong CSDL (trigger ghi sẵn),
 // lịch sử trình duyệt. Vì vậy KHÔNG sửa chuỗi mã trong NAV/PAGES.
 //   • Đổi nhóm, thứ tự, chuyển mục sang nhóm/cổng khác, đổi tên nhóm: chỉ sửa NAV — không ảnh hưởng gì khác.
-//   • Đổi TÊN HIỂN THỊ của một mục: thêm vào LABEL (theo cổng, hoặc '*' cho mọi cổng) — menu, tiêu đề trang,
+//   • Đổi TÊN HIỂN THỊ của một mục: thêm vào LABEL (theo cổng, hoặc '*' cho tất cả cổng) — menu, tiêu đề trang,
 //     ô Tìm chức năng, Sơ đồ hệ thống đều đọc qua labelOf().
 export const LABEL: Partial<Record<RoleKey | '*', Record<string, string>>> = {
   // ví dụ: department: { 'Dashboard toàn Sở': 'Tổng quan toàn Sở' },
@@ -100,7 +100,7 @@ export const MODULE_OF: Record<string, string> = {
 }
 // Vai trò → giao diện: lưu ở cột roles.portal (vai trò hệ thống và vai trò tuỳ chỉnh của trường).
 
-// Mục menu (mọi giao diện trừ Quản trị nền tảng) → chức năng dùng để kiểm tra gói dịch vụ (migration 024).
+// Mục menu (tất cả giao diện trừ Quản trị nền tảng) → chức năng dùng để kiểm tra gói dịch vụ (migration 024).
 // Mục không có ở đây là phần lõi, luôn hiện.
 export const ENT_MODULE_OF: Record<string, string> = {
   ...MODULE_OF, 'Quy trình phê duyệt': 'approvals',

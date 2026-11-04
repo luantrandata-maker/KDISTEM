@@ -8,7 +8,7 @@ type Hard = { question_id: string; stem: string; subject: string; grade: number 
   wrong_option: { index: number; label: string | null; times: number } | null }
 type Topic = { subject: string; grade: number | null; topic: string; level: Level; questions: number; answers: number; rate: number; students: number; weak_students: number }
 type F = { exam: string; cls: string; subject: string; grade: string; days: string; min: string }
-const DAYS: [string, string][] = [['30', '30 ngày qua'], ['90', '3 tháng qua'], ['180', '6 tháng qua'], ['365', '12 tháng qua'], ['', 'Mọi thời gian']]
+const DAYS: [string, string][] = [['30', '30 ngày qua'], ['90', '3 tháng qua'], ['180', '6 tháng qua'], ['365', '12 tháng qua'], ['', 'Tất cả thời gian']]
 const tone = (r: number) => (r < 40 ? 'var(--bad)' : r < 60 ? '#d98a12' : 'var(--ok)')
 const Rate = ({ r }: { r: number }) => <span className="ibar"><i style={{ width: r + '%', background: tone(r) }} /><b>{r}%</b></span>
 
@@ -48,10 +48,10 @@ export default function Analytics({ orgId, kind }: { orgId: string | null; kind:
         : 'Tỉ lệ đúng theo chủ đề và mức độ, kèm số học sinh làm đúng dưới 50% — gợi ý nội dung cần ôn tập cho cả lớp hoặc cho nhóm học sinh yếu.'}</p>
       <div className="bar" style={{ margin: '12px 0' }}>
         <span className="tools">
-          <select value={f.exam} onChange={e => setF({ ...f, exam: e.target.value })} aria-label="Đề luyện"><option value="">Mọi đề luyện</option>{exams.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}</select>
-          {classes.length > 0 && <select value={f.cls} onChange={e => setF({ ...f, cls: e.target.value })} aria-label="Lớp"><option value="">Mọi lớp</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
-          <select value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} aria-label="Môn"><option value="">Mọi môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
-          <select value={f.grade} onChange={e => setF({ ...f, grade: e.target.value })} aria-label="Khối"><option value="">Mọi khối</option>{Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>Khối {i + 1}</option>)}</select>
+          <select value={f.exam} onChange={e => setF({ ...f, exam: e.target.value })} aria-label="Đề luyện"><option value="">Tất cả đề luyện</option>{exams.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}</select>
+          {classes.length > 0 && <select value={f.cls} onChange={e => setF({ ...f, cls: e.target.value })} aria-label="Lớp"><option value="">Tất cả lớp</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
+          <select value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
+          <select value={f.grade} onChange={e => setF({ ...f, grade: e.target.value })} aria-label="Khối"><option value="">Tất cả khối</option>{Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>Khối {i + 1}</option>)}</select>
           <select value={f.days} onChange={e => setF({ ...f, days: e.target.value })} aria-label="Thời gian">{DAYS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
           {kind === 'hard' && <select value={f.min} onChange={e => setF({ ...f, min: e.target.value })} aria-label="Số lượt tối thiểu">{['1', '3', '5', '10', '20'].map(v => <option key={v} value={v}>Từ {v} lượt trả lời</option>)}</select>}
         </span>

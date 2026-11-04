@@ -1,5 +1,5 @@
 // Ngày nghỉ & lễ (migration 030) — dùng cho Trường (Quản lý khai báo) và Sở/Phòng (Điều hành).
-// Ngày nghỉ của Sở áp dụng cho mọi trường trực thuộc. Buổi dạy không sinh vào ngày nghỉ;
+// Ngày nghỉ của Sở áp dụng cho tất cả trường trực thuộc. Buổi dạy không sinh vào ngày nghỉ;
 // tiết đã sinh sẵn (chưa điểm danh) trong ngày nghỉ được bỏ ngay khi trường lưu, hoặc khi mở tuần đó.
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
@@ -79,7 +79,7 @@ export function Holidays({ orgId }: { orgId: string | null }) {
     if (error) return setErr(error.code === '42501' ? 'Bạn chưa có quyền khai báo ngày nghỉ (cần quyền Năm học & học kỳ).' : error.message)
     const removed = await resync(form.starts_on, form.ends_on)
     setMsg(`Đã thêm “${form.name.trim()}”.` + (removed ? ` Đã bỏ ${removed} tiết chưa diễn ra trong thời gian nghỉ.` : '')
-      + (!isSchool ? ' Áp dụng cho mọi trường trực thuộc.' : ''))
+      + (!isSchool ? ' Áp dụng cho tất cả trường trực thuộc.' : ''))
     setForm(null); load()
   }
   async function remove(h: Holiday) {
@@ -118,7 +118,7 @@ export function Holidays({ orgId }: { orgId: string | null }) {
     <>
       <p className="sub">{isSchool
         ? 'Buổi dạy không được sinh từ thời khoá biểu vào ngày nghỉ. Ngày nghỉ do Sở khai báo tự áp dụng cho trường. Tiết dạy bù vẫn thêm được vào ngày nghỉ (vd: Thứ 7).'
-        : 'Ngày nghỉ khai báo ở đây áp dụng cho mọi trường trực thuộc; trường khai báo thêm ngày nghỉ riêng của mình.'}</p>
+        : 'Ngày nghỉ khai báo ở đây áp dụng cho tất cả trường trực thuộc; trường khai báo thêm ngày nghỉ riêng của mình.'}</p>
       <div className="bar">
         <label><input type="checkbox" checked={past} onChange={e => setPast(e.target.checked)} /> Hiện cả ngày nghỉ đã qua</label>
         <span className="tools">

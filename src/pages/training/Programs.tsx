@@ -115,7 +115,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
       <div className="bar">
         <div className="tools">
           <input placeholder="Tìm mã, tên, đối tượng…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-          <select value={ct} onChange={e => setCt(e.target.value)} aria-label="Loại chương trình"><option value="">Mọi loại chương trình</option>
+          <select value={ct} onChange={e => setCt(e.target.value)} aria-label="Loại chương trình"><option value="">Tất cả loại chương trình</option>
             {codes.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select>
           <small className="sub">{shown.length}/{list?.length ?? 0} chương trình</small>
         </div>
@@ -128,7 +128,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
           <td><button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'open', id: p.id }) }}>{p.title}</button><br /><small className="sub">{p.code} · v{p.version_no}{p.builder ? ` · XD: ${p.builder}` : ''}</small></td>
           <td>{[ctsOf(p).join(', '), lvsOf(p).map(levelName).join(', ')].filter(Boolean).join(' · ') || '—'}</td>
           <td style={{ whiteSpace: 'normal' }}>{p.audience || '—'}</td>
-          <td>{p.scope === 'selected' ? `${targets.get(p.id) ?? 0} đơn vị được chọn` : 'Mọi đơn vị'}{effNote(p) && <><br /><small className="sub">{effNote(p)}</small></>}</td>
+          <td>{p.scope === 'selected' ? `${targets.get(p.id) ?? 0} đơn vị được chọn` : 'Tất cả đơn vị'}{effNote(p) && <><br /><small className="sub">{effNote(p)}</small></>}</td>
           <td>{s?.subjects ?? 0} môn · {s?.contents ?? 0} nội dung · {num(s?.hours ?? 0)} giờ</td>
           <td>{MODE[p.mode]}</td>
           <td><Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip></td>
@@ -176,7 +176,7 @@ function InfoFields({ f, set, disabled, family }: { f: Info; set: (f: Info) => v
         <MultiSelect disabled={disabled} value={f.ct_codes} onChange={v => set({ ...f, ct_codes: v })} options={codes.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])}
           placeholder="Không chọn" ariaLabel="Loại chương trình" /></div>
       <div className="field" style={{ gridColumn: 'span 2' }}><span>Cấp học</span>
-        <MultiSelect disabled={disabled} value={f.levels} onChange={v => set({ ...f, levels: v })} options={levels.map(l => [l.code, l.name])} placeholder="Mọi cấp học" ariaLabel="Cấp học" /></div>
+        <MultiSelect disabled={disabled} value={f.levels} onChange={v => set({ ...f, levels: v })} options={levels.map(l => [l.code, l.name])} placeholder="Tất cả cấp học" ariaLabel="Cấp học" /></div>
       <label className="field"><span>Hình thức</span><select disabled={disabled} value={f.mode} onChange={e => set({ ...f, mode: e.target.value as Mode })}>
         {(Object.keys(MODE) as Mode[]).map(m => <option key={m} value={m}>{MODE[m]}</option>)}</select></label>
       <label className="field"><span>Đối tượng</span><input disabled={disabled} maxLength={200} value={f.audience ?? ''} onChange={e => set({ ...f, audience: e.target.value })} placeholder="VD: Giáo viên mới dạy STEM" /></label>
@@ -344,7 +344,7 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
         {x && <ScopeEduFields x={x} set={setX} owner={p.org_id} />}
         <div className="formactions"><button type="button" className="primary" disabled={!f.title.trim()} onClick={saveInfo}>Lưu thông tin</button></div>
       </> : <dl className="tpkv">
-        <dt>Loại · cấp học</dt><dd>{[ctsOf(p).map(c => `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`).join(', '), lvsOf(p).length ? lvsOf(p).map(levelName).join(', ') : 'Mọi cấp học'].filter(Boolean).join(' · ')}</dd>
+        <dt>Loại · cấp học</dt><dd>{[ctsOf(p).map(c => `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`).join(', '), lvsOf(p).length ? lvsOf(p).map(levelName).join(', ') : 'Tất cả cấp học'].filter(Boolean).join(' · ')}</dd>
         <dt>Đối tượng</dt><dd>{p.audience || '—'}</dd>
         <dt>Đơn vị xây dựng</dt><dd>{p.builder || '—'}</dd>
         <dt>Hình thức</dt><dd>{MODE[p.mode]}</dd>
@@ -475,7 +475,7 @@ function TrainingDeploy({ p, go }: { p: TProgram; go?: (page: string) => void })
   return <section className="panel" style={{ display: 'grid', gap: 12 }}>
     <div className="bar"><h3 style={{ margin: 0 }}>Kế hoạch đào tạo dùng chương trình ({plans?.length ?? '…'})</h3>
       {go && p.status === 'published' && <button type="button" className="primary" onClick={() => go('Kế hoạch & lịch đào tạo')}>Lập kế hoạch đào tạo</button>}</div>
-    <p className="sub" style={{ margin: 0 }}>Chương trình đào tạo đến trường / giáo viên qua Kế hoạch đào tạo: chọn chương trình đã phát hành, gán đơn vị tham gia và chỉ tiêu. Bảng dưới tính trên mọi phiên bản của chương trình.</p>
+    <p className="sub" style={{ margin: 0 }}>Chương trình đào tạo đến trường / giáo viên qua Kế hoạch đào tạo: chọn chương trình đã phát hành, gán đơn vị tham gia và chỉ tiêu. Bảng dưới tính trên tất cả phiên bản của chương trình.</p>
     {p.status !== 'published' && <p className="sub" style={{ margin: 0 }}>Phiên bản này chưa phát hành nên chưa chọn được trong kế hoạch mới.</p>}
     {!plans ? <p className="sub">Đang tải…</p> : plans.length === 0 ? <p className="sub" style={{ margin: 0 }}>Chưa có kế hoạch đào tạo nào dùng chương trình này.</p> : <>
       <StatCards items={[
@@ -631,10 +631,10 @@ function ScopeEduFields({ x, set, owner, disabled }: { x: Extra; set: (x: Extra)
       <p className="sub" style={{ margin: '0 0 8px' }}>Đơn vị trong phạm vi (và đơn vị trực thuộc) mới thấy chương trình, chọn được khi lập kế hoạch và được gán kế hoạch dùng chương trình này.</p>
       <div className="formgrid" style={{ alignItems: 'start' }}>
         <label className="field"><span>Phạm vi áp dụng</span><select disabled={disabled} value={x.scope} onChange={e => set({ ...x, scope: e.target.value as Extra['scope'] })}>
-          <option value="all">Mọi đơn vị trực thuộc</option><option value="selected">Chỉ đơn vị được chọn</option></select></label>
+          <option value="all">Tất cả đơn vị trực thuộc</option><option value="selected">Chỉ đơn vị được chọn</option></select></label>
         <label className="field"><span>Hiệu lực từ</span><input type="date" disabled={disabled} value={x.effective_from} onChange={e => set({ ...x, effective_from: e.target.value })} /></label>
         <label className="field"><span>Hiệu lực đến</span><input type="date" disabled={disabled} value={x.effective_to} min={x.effective_from || undefined} onChange={e => set({ ...x, effective_to: e.target.value })} /></label>
-        {x.scope === 'selected' && <div className="field" style={{ gridColumn: '1/-1' }}><span>Đơn vị áp dụng * <small className="sub">(chọn Sở / Phòng là áp dụng cho mọi trường trực thuộc)</small></span>
+        {x.scope === 'selected' && <div className="field" style={{ gridColumn: '1/-1' }}><span>Đơn vị áp dụng * <small className="sub">(chọn Sở / Phòng là áp dụng cho tất cả trường trực thuộc)</small></span>
           <MultiSelect disabled={disabled} value={x.targets} onChange={v => set({ ...x, targets: v })} options={[...orgOpts, ...x.targets.filter(id => !orgOpts.some(o => o[0] === id)).map(id => [id, label(id)] as [string, string])]}
             placeholder="Chọn Sở, Phòng hoặc trường…" ariaLabel="Đơn vị áp dụng" empty="Chưa có đơn vị nào." /></div>}
       </div>
@@ -686,7 +686,7 @@ function ProgramScope({ p, admin, onMsg }: { p: TProgram; admin: boolean; onMsg:
     const err = r1.error ?? r2.error ?? r3.error
     if (err) return onMsg(errText(err.message), true)
     setSaved(sel)
-    onMsg(scope === 'all' ? 'Đã lưu: chương trình áp dụng cho mọi đơn vị trực thuộc đơn vị soạn.' : `Đã lưu phạm vi áp dụng: ${sel.length} đơn vị và các đơn vị trực thuộc.`)
+    onMsg(scope === 'all' ? 'Đã lưu: chương trình áp dụng cho tất cả đơn vị trực thuộc đơn vị soạn.' : `Đã lưu phạm vi áp dụng: ${sel.length} đơn vị và các đơn vị trực thuộc.`)
   }
   const note = effNote(p)
   return <section className="panel" style={{ display: 'grid', gap: 12 }}>
@@ -697,17 +697,17 @@ function ProgramScope({ p, admin, onMsg }: { p: TProgram; admin: boolean; onMsg:
     {edit ? <>
       <div className="formgrid" style={{ alignItems: 'start' }}>
         <label className="field"><span>Phạm vi áp dụng</span><select value={scope} onChange={e => setScope(e.target.value as 'all' | 'selected')}>
-          <option value="all">Mọi đơn vị trực thuộc</option><option value="selected">Chỉ đơn vị được chọn</option></select></label>
+          <option value="all">Tất cả đơn vị trực thuộc</option><option value="selected">Chỉ đơn vị được chọn</option></select></label>
         <label className="field"><span>Hiệu lực từ</span><input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
         <label className="field"><span>Hiệu lực đến</span><input type="date" value={to} min={from || undefined} onChange={e => setTo(e.target.value)} /></label>
-        {scope === 'selected' && <div className="field" style={{ gridColumn: '1/-1' }}><span>Đơn vị áp dụng * <small className="sub">(chọn Sở / Phòng là áp dụng cho mọi trường trực thuộc)</small></span>
+        {scope === 'selected' && <div className="field" style={{ gridColumn: '1/-1' }}><span>Đơn vị áp dụng * <small className="sub">(chọn Sở / Phòng là áp dụng cho tất cả trường trực thuộc)</small></span>
           <MultiSelect value={sel} onChange={setSel} options={[...options, ...sel.filter(id => !options.some(o => o[0] === id)).map(id => [id, label(id)] as [string, string])]}
             placeholder="Chọn Sở, Phòng hoặc trường…" ariaLabel="Đơn vị áp dụng" empty="Chưa có đơn vị nào." /></div>}
       </div>
       {bad && dirty && <small className="warnline">{bad}</small>}
       <div className="formactions"><button type="button" className="primary" disabled={!dirty || !!bad || busy} onClick={save}>Lưu phạm vi áp dụng</button></div>
     </> : <dl className="tpkv">
-      <dt>Phạm vi</dt><dd>{p.scope === 'selected' ? (saved ? saved.map(label).join('; ') || '—' : '…') : 'Mọi đơn vị'}</dd>
+      <dt>Phạm vi</dt><dd>{p.scope === 'selected' ? (saved ? saved.map(label).join('; ') || '—' : '…') : 'Tất cả đơn vị'}</dd>
       <dt>Hiệu lực</dt><dd>{[p.effective_from && `từ ${vnDay(p.effective_from)}`, p.effective_to && `đến ${vnDay(p.effective_to)}`].filter(Boolean).join(' ') || 'Không giới hạn'}</dd>
     </dl>}
   </section>

@@ -68,7 +68,7 @@ const toRow = (f: Form) => ({ full_name: f.full_name.trim(), title: f.title.trim
   email: f.email.trim() || null, phone: f.phone.trim() || null, note: f.note.trim() || null })
 
 export function TrainersPage({ orgId }: { orgId: string }) {
-  // Quản trị hệ thống: giảng viên của mọi đơn vị trong một danh sách, sửa thẳng
+  // Quản trị hệ thống: giảng viên của tất cả đơn vị trong một danh sách, sửa thẳng
   const every = useAllMode(), orgName = useOrgName()
   const ofl = useOrgFilter()
   const { list, reload } = useTrainers(orgId, !!every)
@@ -112,7 +112,7 @@ export function TrainersPage({ orgId }: { orgId: string }) {
   }
   return <>
     <div className="panel distintro">
-      <p className="sub" style={{ margin: 0 }}>Danh sách giảng viên dùng chung cho mọi kế hoạch và buổi đào tạo của đơn vị. Ở kế hoạch và lịch, ô Giảng viên chọn được nhiều người từ danh sách này;
+      <p className="sub" style={{ margin: 0 }}>Danh sách giảng viên dùng chung cho tất cả kế hoạch và buổi đào tạo của đơn vị. Ở kế hoạch và lịch, ô Giảng viên chọn được nhiều người từ danh sách này;
         gõ họ tên chưa có thì thêm nhanh. Giảng viên đã phân công không xoá được, chuyển sang "Ngừng mời" để ẩn khỏi ô chọn.</p>
     </div>
     <div className="distfilter">

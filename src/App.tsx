@@ -137,7 +137,7 @@ const SchoolTeacherProfiles = (p: any) => <SchoolTeacherAssessments {...p} profi
 const AllTeacherProfiles = (p: any) => <SchoolTeacherAssessments {...p} orgId={null} profile readOnly />
 const SchoolCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Hồ sơ năng lực', SchoolTeacherProfiles], ['Đánh giá', SchoolTeacherAssessments], ['Đợt đánh giá', AssessmentRoundsPage], ['Khoảng thiếu hụt', CompetencyGapsPage]]} />
 const AuthorityCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Hồ sơ năng lực', AllTeacherProfiles], ['Kết quả đánh giá', AllTeacherAssessments], ['Đợt đánh giá', AssessmentRoundsPage], ['Khoảng thiếu hụt', CompetencyGapsPage]]} />
-// Quản trị hệ thống thao tác như người dùng (26/10): màn bọc AllOrgs hiện dữ liệu mọi đơn vị trong một danh sách, sửa thẳng;
+// Quản trị hệ thống thao tác như người dùng (26/10): màn bọc AllOrgs hiện dữ liệu tất cả đơn vị trong một danh sách, sửa thẳng;
 // thêm mới thì chọn đơn vị ngay trong form
 const allOrgs = (C: ComponentType<any>, extra: Record<string, unknown> = {}) => (p: any) => <AllOrgs><C {...p} {...extra} /></AllOrgs>
 const PH1_TABS = {
@@ -212,7 +212,7 @@ const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, Com
 // Theo dõi Chương trình/Môn học (cổng KDI)
 const PlatformProgramTrack = (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects],
   ['Tiến độ & yêu cầu cần đạt', ProgressPlatform], ['Kế hoạch so với thực tế', (q: any) => <PlanVsActual {...q} mode="platform" />], ['PPCT các trường', SysCurriculum]]} />
-// Phân hệ 2 (100): cùng cách làm — danh sách chung mọi đơn vị, sửa thẳng
+// Phân hệ 2 (100): cùng cách làm — danh sách chung tất cả đơn vị, sửa thẳng
 const PH2_TABS = {
   edu: allOrgs(EduProgramsPlatform), subjects: allOrgs(SubjectsPlatform), ppct: allOrgs(CurriculumBooks, { mode: 'platform' }),
   library: allOrgs(LibraryManage), norms: allOrgs(MaterialNorms), lessons: allOrgs(SchoolLessons), elearning: allOrgs(ElearningManage),
@@ -509,7 +509,7 @@ const PLATFORM: PageMap = {
   'Ứng dụng di động & ngoại tuyến': MobileAppPage,
   'Trợ lý AI': PlatformAI,
   'E-learning & luyện thi': PlatformElearningPage,
-  // Màn xem toàn hệ thống (gom dữ liệu mọi trường, lọc theo Sở / trường) — pages/platform/SystemViews.tsx
+  // Màn xem toàn hệ thống (gom dữ liệu tất cả trường, lọc theo Sở / trường) — pages/platform/SystemViews.tsx
   'Bảo hành & bảo trì thiết bị': SysWarranty,
   'Tòa nhà, tầng & tiết học': SysBuildings,
   'Nhà giáo & trợ giảng': SysTeachers,
@@ -665,7 +665,7 @@ function Shell({ session }: { session: Session }) {
   }
   if (!role) return null
 
-  // Mọi lần đổi trang đi qua show() để ghi vào lịch sử trình duyệt
+  // Tất cả lần đổi trang đi qua show() để ghi vào lịch sử trình duyệt
   const show = (r: RoleKey, p0: string) => { const p = renamedPage(p0); navigatePage(r, p); setRole(r); setPage(p) }
   const changeRole = (r: RoleKey) => show(r, NAV[r][0].items[0])
   // Mở một trang từ thông báo (có thể ở giao diện khác)

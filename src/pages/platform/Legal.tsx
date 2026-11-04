@@ -27,7 +27,7 @@ Không tải lên nội dung vi phạm pháp luật, không truy cập dữ li�
 Dữ liệu do nhà trường nhập thuộc quyền quản lý của nhà trường. KDI xử lý dữ liệu theo Chính sách quyền riêng tư.
 
 5. Liên hệ
-Mọi thắc mắc gửi về: [email hỗ trợ], [số điện thoại].`,
+Tất cả thắc mắc gửi về: [email hỗ trợ], [số điện thoại].`,
   privacy: `[BẢN NHÁP — cần luật sư rà soát trước khi công bố]
 
 1. Bên kiểm soát và bên xử lý dữ liệu
@@ -85,7 +85,7 @@ export function PlatformLegal() {
   }
   async function save(publish: boolean) {
     if (!edit?.kind || !edit.body?.trim() || !edit.title?.trim()) return
-    if (publish && !confirm(`Công bố ${edit.title} phiên bản ${edit.version}? Mọi người dùng phải đọc và đồng ý lại ở lần đăng nhập tiếp theo. Bản đã công bố không sửa được.`)) return
+    if (publish && !confirm(`Công bố ${edit.title} phiên bản ${edit.version}? Tất cả người dùng phải đọc và đồng ý lại ở lần đăng nhập tiếp theo. Bản đã công bố không sửa được.`)) return
     const row = { kind: edit.kind, version: edit.version, title: edit.title.trim(), body: edit.body, published_at: publish ? new Date().toISOString() : null }
     const { error } = edit.id ? await supabase.from('legal_documents').update(row).eq('id', edit.id) : await supabase.from('legal_documents').insert(row)
     if (error) return setMsg([error.message, true])

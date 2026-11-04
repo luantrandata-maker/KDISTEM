@@ -86,7 +86,7 @@ export function PlatformOrgs() {
       on ? 'Đã kích hoạt trường.' : 'Đã bỏ kích hoạt.')
   }
   async function setStatus(o: Org, status: 'active' | 'suspended') {
-    if (status === 'suspended' && !confirm(`Tạm dừng “${o.name}”? Mọi tài khoản của đơn vị này sẽ không vào làm việc được cho tới khi mở lại.`)) return
+    if (status === 'suspended' && !confirm(`Tạm dừng “${o.name}”? Tất cả tài khoản của đơn vị này sẽ không vào làm việc được cho tới khi mở lại.`)) return
     await done((await supabase.from('organizations').update({ status }).eq('id', o.id)).error, status === 'active' ? 'Đã mở lại đơn vị.' : 'Đã tạm dừng đơn vị.')
   }
   async function remove(o: Org) {

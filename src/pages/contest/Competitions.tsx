@@ -83,7 +83,7 @@ function Editor({ c, orgId, onDone }: { c: Partial<C>; orgId: string; onDone: (m
       <label className="field"><span>Tóm tắt tối đa (từ)</span><input type="number" min={1} value={f.abstract_words ?? ''} onChange={e => setF({ ...f, abstract_words: e.target.value ? +e.target.value : null })} placeholder="không giới hạn" /></label>
       <label className="field"><span>Lệ phí / dự án (đ)</span><input type="number" min={0} value={f.fee ?? ''} onChange={e => setF({ ...f, fee: e.target.value ? +e.target.value : null })} placeholder="miễn phí" /></label>
       <label className="field"><span>Các vòng (cách nhau dấu phẩy)</span><input value={rounds} onChange={e => setRounds(e.target.value)} placeholder="Vòng sơ khảo, Vòng chung kết" /></label>
-      <div className="field"><span>Cấp học dự thi</span><span className="tools">{Object.entries(LEVEL).map(([k, v]) => <label key={k}><input type="checkbox" checked={(f.grades ?? []).includes(k)} onChange={e => setF({ ...f, grades: e.target.checked ? [...(f.grades ?? []), k] : (f.grades ?? []).filter(x => x !== k) })} /> {v}</label>)}</span><small className="sub">không chọn = mọi cấp</small></div>
+      <div className="field"><span>Cấp học dự thi</span><span className="tools">{Object.entries(LEVEL).map(([k, v]) => <label key={k}><input type="checkbox" checked={(f.grades ?? []).includes(k)} onChange={e => setF({ ...f, grades: e.target.checked ? [...(f.grades ?? []), k] : (f.grades ?? []).filter(x => x !== k) })} /> {v}</label>)}</span><small className="sub">không chọn = tất cả cấp</small></div>
       <label style={{ gridColumn: '1 / -1' }}><input type="checkbox" checked={!!f.anonymous} onChange={e => setF({ ...f, anonymous: e.target.checked })} /> Chấm ẩn danh (giám khảo chỉ thấy mã bài, không thấy tên trường, học sinh)</label>
       <label className="field" style={{ gridColumn: '1 / -1' }}><span>Lĩnh vực (mỗi dòng một lĩnh vực; trống = không chia lĩnh vực)</span><textarea rows={4} value={fields} onChange={e => setFields(e.target.value)} /></label>
       <div className="field" style={{ gridColumn: '1 / -1' }}><span>Hồ sơ nộp (đường link)</span>
@@ -174,13 +174,13 @@ function Manage({ c, reload }: { c: C; reload: () => void }) {
         <form className="formgrid" onSubmit={addJudge} style={{ marginTop: 8 }}>
           <label className="field"><span>Họ tên giám khảo</span><input value={jf.name} onChange={e => setJf({ ...jf, name: e.target.value })} /></label>
           <label className="field"><span>Email (nếu đã có tài khoản trên hệ thống)</span><input type="email" value={jf.email} onChange={e => setJf({ ...jf, email: e.target.value })} placeholder="trống = chuyên gia ngoài, cấp tài khoản mã" /></label>
-          {c.fields.length > 0 && <label className="field"><span>Chấm lĩnh vực</span><select multiple value={jf.fields} onChange={e => setJf({ ...jf, fields: Array.from(e.target.selectedOptions, o => o.value) })} style={{ minHeight: 80 }}>{c.fields.map(x => <option key={x}>{x}</option>)}</select><small className="sub">không chọn = mọi lĩnh vực</small></label>}
+          {c.fields.length > 0 && <label className="field"><span>Chấm lĩnh vực</span><select multiple value={jf.fields} onChange={e => setJf({ ...jf, fields: Array.from(e.target.selectedOptions, o => o.value) })} style={{ minHeight: 80 }}>{c.fields.map(x => <option key={x}>{x}</option>)}</select><small className="sub">không chọn = tất cả lĩnh vực</small></label>}
           <div className="formactions"><button className="primary" type="submit">+ Thêm giám khảo</button>{judges.some(j => !j.profile_id) && <button type="button" onClick={accounts}>Cấp tài khoản cho giám khảo chưa có ({judges.filter(j => !j.profile_id).length})</button>}</div>
         </form>
         {acc && <div className="panel"><div className="bar"><b>Tài khoản giám khảo — mật khẩu chỉ hiện lần này</b><span className="tools">{acc.some(a => a.password) && <button className="primary" onClick={printSlips}>In phiếu</button>}<button onClick={() => setAcc(null)}>Đóng</button></span></div>
           <table><tbody>{acc.map((a, i) => <tr key={i}><td>{a.full_name}</td><td><code>{a.login}</code></td><td><code>{a.password ?? ''}</code></td><td><small>{a.status}</small></td></tr>)}</tbody></table></div>}
         <div className="wrap"><table><thead><tr><th>Giám khảo</th><th>Lĩnh vực</th><th>Tài khoản</th><th /></tr></thead>
-          <tbody>{judges.map(j => <tr key={j.id}><td><b>{j.full_name}</b>{j.email && <><br /><small>{j.email}</small></>}</td><td><small>{j.fields.length ? j.fields.join(', ') : 'Mọi lĩnh vực'}</small></td>
+          <tbody>{judges.map(j => <tr key={j.id}><td><b>{j.full_name}</b>{j.email && <><br /><small>{j.email}</small></>}</td><td><small>{j.fields.length ? j.fields.join(', ') : 'Tất cả lĩnh vực'}</small></td>
             <td>{j.profile_id ? <span className="plbadge ok">Đã có</span> : <span className="plbadge mute">Chưa</span>}</td>
             <td><button onClick={() => confirm(`Bỏ giám khảo ${j.full_name}?`) && run(supabase.from('competition_judges').delete().eq('id', j.id), 'Đã bỏ giám khảo.')}>Bỏ</button></td></tr>)}
             {!judges.length && <tr><td colSpan={4}>Chưa có giám khảo.</td></tr>}</tbody></table></div>
@@ -280,7 +280,7 @@ export function CompetitionsPage({ orgId, teacherId, platform = false }: { orgId
       </table></div>
       {cur && <>
         <div className="panel"><h3 style={{ marginTop: 0 }}>{cur.title}</h3>{cur.description && <p style={{ whiteSpace: 'pre-line' }}>{cur.description}</p>}
-          <p className="sub" style={{ margin: 0 }}>Nhận bài {day(cur.submit_from)} → {day(cur.submit_until)} · tối đa {cur.max_members} HS/dự án{cur.max_per_school ? ` · ${cur.max_per_school} dự án/trường` : ''} · {cur.grades.length ? cur.grades.map(g => LEVEL[g]).join(', ') : 'mọi cấp học'}
+          <p className="sub" style={{ margin: 0 }}>Nhận bài {day(cur.submit_from)} → {day(cur.submit_until)} · tối đa {cur.max_members} HS/dự án{cur.max_per_school ? ` · ${cur.max_per_school} dự án/trường` : ''} · {cur.grades.length ? cur.grades.map(g => LEVEL[g]).join(', ') : 'tất cả cấp học'}
             · Vòng: {cur.rounds.join(' → ')} · Tiêu chí: {cur.criteria.map(x => `${x.label} (${x.max})`).join('; ')}</p></div>
         {manageable(cur) && <Manage c={cur} reload={load} />}{orgType === 'school' && orgId && !platform && <Submit c={cur} orgId={orgId} teacherId={teacherId} />}
       </>}

@@ -234,7 +234,7 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
       </div>
       <div className="distfilter">
         <input placeholder="Tìm tên, mã, phân loại…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-        <select value={fc} onChange={e => setFc(e.target.value)} aria-label="Phân loại"><option value="">Mọi phân loại</option>{classes.map(c => <option key={c} value={c}>{c}</option>)}</select>
+        <select value={fc} onChange={e => setFc(e.target.value)} aria-label="Phân loại"><option value="">Tất cả phân loại</option>{classes.map(c => <option key={c} value={c}>{c}</option>)}</select>
         <small className="sub">{shown.length}/{plans.length} bản</small>
         {!hid('create') && <button type="button" className="primary distcreate" disabled={!canCreate} onClick={onCreate}>+ Tạo bản phân phối</button>}
       </div>

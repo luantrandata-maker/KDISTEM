@@ -117,7 +117,7 @@ function AudiencePicker({ orgId, classes, groups, value, onChange }: { orgId: st
   return (
     <div className="field wide"><span>Giao cho</span>
       <div className="tools">
-        <label className="field inline"><input type="radio" checked={!targeted} onChange={() => { setTargeted(false); onChange({ class_ids: null, group_ids: null, student_ids: null }) }} /> Mọi học sinh của trường</label>
+        <label className="field inline"><input type="radio" checked={!targeted} onChange={() => { setTargeted(false); onChange({ class_ids: null, group_ids: null, student_ids: null }) }} /> Tất cả học sinh của trường</label>
         <label className="field inline"><input type="radio" checked={targeted} onChange={() => setTargeted(true)} /> Chọn lớp, nhóm hoặc học sinh</label>
       </div>
       {targeted && <div className="audience">
@@ -137,7 +137,7 @@ function AudiencePicker({ orgId, classes, groups, value, onChange }: { orgId: st
           {st.length > 0 && <div>{st.map(id => { const s = known.get(id)
             return <span className="chip" key={id}>{s ? `${s.full_name}${s.classes ? ' · ' + s.classes.name : ''}` : 'Học sinh'}<button type="button" className="x" onClick={() => set({ student_ids: st.filter(x => x !== id) })} aria-label="Bỏ học sinh">×</button></span> })}</div>}
         </div>
-        {!cls.length && !grp.length && !st.length && <p className="msg">Chưa chọn lớp, nhóm hay học sinh nào — nội dung sẽ dành cho mọi học sinh của trường.</p>}
+        {!cls.length && !grp.length && !st.length && <p className="msg">Chưa chọn lớp, nhóm hay học sinh nào — nội dung sẽ dành cho tất cả học sinh của trường.</p>}
       </div>}
     </div>
   )
@@ -160,7 +160,7 @@ export function SubjectExams({ orgId, subject }: { orgId: string | null; subject
 
 function Exams({ orgId, subject, ofl: shared }: { orgId: string | null; subject?: string; ofl?: OrgF }) {
   const { classes, groups, isSchool } = useOrgCtx(orgId)
-  // Quản trị hệ thống: thấy đề của mọi đơn vị, sửa thẳng; thêm mới thì chọn đơn vị ra đề
+  // Quản trị hệ thống: thấy đề của tất cả đơn vị, sửa thẳng; thêm mới thì chọn đơn vị ra đề
   const every = useAllMode(), orgName = useOrgName()
   const schoolOf = (id?: string | null) => every ? every.find(o => o.id === id)?.type === 'school' : isSchool
   const [rows, setRows] = useState<Exam[]>([])
@@ -254,7 +254,7 @@ function ExamForm({ form, setForm, onSubmit, orgId, classes, groups, isSchool }:
     <form className="panel formgrid" onSubmit={onSubmit}>
       {!form.id && <OrgPick kind="any" value={form.org ?? ''} onChange={org => set({ org, class_ids: null, group_ids: null, student_ids: null, shared: false })} title="Đơn vị ra đề" />}
       <label className="field wide"><span>Tên đề *</span><input required value={form.title} onChange={e => set({ title: e.target.value })} placeholder="VD: Luyện tập chương Điện — Khoa học tự nhiên 7" /></label>
-      <div className="field"><span>Môn (chọn được nhiều)</span><SubjectMulti value={fs} onChange={v => set({ subjects: v, subject: v[0] ?? null })} extra={subjects} placeholder="Mọi môn" ariaLabel="Môn của đề" /></div>
+      <div className="field"><span>Môn (chọn được nhiều)</span><SubjectMulti value={fs} onChange={v => set({ subjects: v, subject: v[0] ?? null })} extra={subjects} placeholder="Tất cả môn" ariaLabel="Môn của đề" /></div>
       <div className="field"><span>Khối (chọn được nhiều)</span><GradeMulti value={fg} onChange={v => set({ grades: v, grade: v[0] ?? null })} /></div>
       <label className="field"><span>Cách ra đề</span><select value={form.mode === 'random' && form.criteria.matrix ? 'matrix' : form.mode}
         onChange={e => { const v = e.target.value; const { matrix, ...rest } = form.criteria
@@ -269,8 +269,8 @@ function ExamForm({ form, setForm, onSubmit, orgId, classes, groups, isSchool }:
         <div className="field wide"><span>Số câu theo mức độ (để trống = lấy ngẫu nhiên) — kho phù hợp: {inTopic.length} câu</span>
           <div className="tools">{(Object.keys(LEVEL) as Level[]).map(l => <label key={l} className="field inline">{LEVEL[l]} <input type="number" min={0} style={{ width: 70 }} value={form.criteria.levels?.[l] ?? ''}
             onChange={e => set({ criteria: { ...form.criteria, levels: { ...form.criteria.levels, [l]: e.target.value === '' ? undefined : Number(e.target.value) } } })} /> <small>/{lvCount(l)}</small></label>)}</div></div>
-        {topics.length > 0 && <div className="field wide"><span>Chủ đề (để trống = mọi chủ đề)</span>
-          <MultiSelect value={form.criteria.topics ?? []} onChange={v => set({ criteria: { ...form.criteria, topics: v } })} options={topics.map(t => [t, t])} placeholder="Mọi chủ đề" ariaLabel="Chủ đề" /></div>}
+        {topics.length > 0 && <div className="field wide"><span>Chủ đề (để trống = tất cả chủ đề)</span>
+          <MultiSelect value={form.criteria.topics ?? []} onChange={v => set({ criteria: { ...form.criteria, topics: v } })} options={topics.map(t => [t, t])} placeholder="Tất cả chủ đề" ariaLabel="Chủ đề" /></div>}
         {inTopic.length < (form.criteria.count ?? 0) && <p className="msg">Kho chỉ có {inTopic.length} câu "Sẵn sàng" phù hợp — mỗi lượt sẽ ít hơn {form.criteria.count} câu.</p>}
       </> : <div className="field wide"><span>Chọn câu hỏi ({form.question_ids.length} đã chọn)</span>
         <MultiSelect value={form.question_ids} onChange={v => set({ question_ids: v })} placeholder="Gõ để tìm và chọn câu hỏi…" ariaLabel="Câu hỏi"
@@ -281,7 +281,7 @@ function ExamForm({ form, setForm, onSubmit, orgId, classes, groups, isSchool }:
       <label className="field"><span>Mở từ</span><input type="datetime-local" value={toLocal(form.opens_at)} onChange={e => set({ opens_at: new Date(e.target.value).toISOString() })} /></label>
       <label className="field"><span>Đóng lúc</span><input type="datetime-local" value={toLocal(form.closes_at)} onChange={e => set({ closes_at: e.target.value ? new Date(e.target.value).toISOString() : null })} /></label>
       {isSchool ? <AudiencePicker key={form.id ?? 'new'} orgId={orgId} classes={classes} groups={groups} value={form} onChange={v => set(v)} />
-        : <label className="field inline wide"><input type="checkbox" checked={form.shared} onChange={e => set({ shared: e.target.checked })} /> Giao cho học sinh mọi trường trực thuộc</label>}
+        : <label className="field inline wide"><input type="checkbox" checked={form.shared} onChange={e => set({ shared: e.target.checked })} /> Giao cho học sinh tất cả trường trực thuộc</label>}
       <label className="field wide"><span>Hướng dẫn cho học sinh</span><textarea rows={2} value={form.description ?? ''} onChange={e => set({ description: e.target.value })} /></label>
       <div className="actions wide"><button className="primary">{form.id ? 'Lưu đề' : 'Tạo đề (nháp)'}</button>
         <TryButton orgId={orgId} spec={examSpec(form)} title={form.title || 'Đề luyện'} minutes={form.duration_min} /><button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
@@ -341,7 +341,7 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
   const [fresh, setFresh] = useState<string | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const subjList = useSubjects().subjects
-  // Quản trị hệ thống: thấy khoá học của mọi đơn vị, sửa thẳng; lớp/nhóm theo đơn vị của khoá đang soạn
+  // Quản trị hệ thống: thấy khoá học của tất cả đơn vị, sửa thẳng; lớp/nhóm theo đơn vị của khoá đang soạn
   const every = useAllMode(), orgName = useOrgName(), tctx = useOrgCtx(every && form ? form.org || null : null)
   const fClasses = every ? tctx.classes : classes, fGroups = every ? tctx.groups : groups
   const fSchool = every ? !!form?.org && tctx.isSchool : isSchool, fOrg = every ? form?.org || null : orgId
@@ -396,7 +396,7 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
         <label className="field"><span>Hạn hoàn thành</span><input type="datetime-local" value={toLocal(form.due_at)} onChange={e => setForm({ ...form, due_at: e.target.value ? new Date(e.target.value).toISOString() : null })} /></label>
         <label className="field wide"><span>Giới thiệu</span><textarea rows={3} value={form.description ?? ''} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
         {fSchool ? <AudiencePicker key={(form.id ?? 'new') + fOrg} orgId={fOrg} classes={fClasses} groups={fGroups} value={form} onChange={v => setForm({ ...form, ...v })} />
-          : <label className="field inline wide"><input type="checkbox" checked={form.shared} onChange={e => setForm({ ...form, shared: e.target.checked })} /> Dành cho học sinh mọi trường trực thuộc</label>}
+          : <label className="field inline wide"><input type="checkbox" checked={form.shared} onChange={e => setForm({ ...form, shared: e.target.checked })} /> Dành cho học sinh tất cả trường trực thuộc</label>}
         <div className="actions wide"><button className="primary">{form.id ? 'Lưu khoá học' : 'Lưu & thêm bài học'}</button><button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
       </form></ElView>
   // Chi tiết khoá học (bài học, tiến độ): trang riêng
@@ -447,7 +447,7 @@ function LessonEditor({ course, lessons, topics, exams, progress, editable, onCh
   const [file, setFile] = useState<File | null>(null)
   const [lib, setLib] = useState<LibOpt[] | null>(null)
   const [libQ, setLibQ] = useState('')
-  // Chọn từ Kho học liệu theo môn của khoá: một học liệu, hoặc cả bài học (thêm mọi học liệu đã xuất bản của bài)
+  // Chọn từ Kho học liệu theo môn của khoá: một học liệu, hoặc cả bài học (thêm tất cả học liệu đã xuất bản của bài)
   const [pick, setPick] = useState<'material' | 'unit'>('material')
   const [anySub, setAnySub] = useState(!courseSubjects(course).length)
   const [unitId, setUnitId] = useState('')
@@ -605,7 +605,7 @@ function LessonEditor({ course, lessons, topics, exams, progress, editable, onCh
             {([['material', 'Một học liệu'], ['unit', 'Cả bài học']] as const).map(([k, l]) => <button key={k} type="button" className={pick === k ? 'on' : ''} aria-pressed={pick === k} onClick={() => setPick(k)}>{l}</button>)}</div>}
           <div className="tools" style={{ margin: '0 0 6px' }}>
             <input type="search" className="search" style={{ margin: 0, flex: 1 }} placeholder={pick === 'unit' ? 'Lọc theo tên bài học…' : 'Lọc theo tên học liệu…'} value={libQ} onChange={e => setLibQ(e.target.value)} aria-label="Lọc theo tên" />
-            {subName && <label className="field inline" style={{ margin: 0 }}><input type="checkbox" checked={anySub} onChange={e => setAnySub(e.target.checked)} /> Mọi môn</label>}</div>
+            {subName && <label className="field inline" style={{ margin: 0 }}><input type="checkbox" checked={anySub} onChange={e => setAnySub(e.target.checked)} /> Tất cả môn</label>}</div>
           {pick === 'unit' && !f.id ? <>
             <select required value={unitId} onChange={e => { setUnitId(e.target.value); const u = lib?.find(x => x.id === e.target.value); if (u && !f.title?.trim()) setF({ ...f, title: u.title }) }} aria-label="Bài học">
               <option value="">{lib ? `Chọn bài học đã xuất bản (${unitList.length})…` : 'Đang tải…'}</option>
@@ -616,7 +616,7 @@ function LessonEditor({ course, lessons, topics, exams, progress, editable, onCh
             <option value="">{lib ? `Chọn học liệu đã xuất bản (${libList.length})…` : 'Đang tải…'}</option>
             {libList.map(x => <option key={x.id} value={x.id}>{x.title}{x.content?.type ? ` — ${MAT[x.content.type] ?? x.content.type}` : ''}{x.owner_name ? ` · ${x.owner_name}` : ''}</option>)}
           </select>}
-          {lib && !(pick === 'unit' ? unitList : libList).length && <small>{subName && !anySub ? `Kho chưa có ${pick === 'unit' ? 'bài học' : 'học liệu'} đã xuất bản của môn ${subName}. Tick "Mọi môn" để xem cả các môn khác.` : `Chưa có ${pick === 'unit' ? 'bài học' : 'học liệu'} nào được xuất bản trong Kho học liệu.`}</small>}</div>}
+          {lib && !(pick === 'unit' ? unitList : libList).length && <small>{subName && !anySub ? `Kho chưa có ${pick === 'unit' ? 'bài học' : 'học liệu'} đã xuất bản của môn ${subName}. Tick "Tất cả môn" để xem cả các môn khác.` : `Chưa có ${pick === 'unit' ? 'bài học' : 'học liệu'} nào được xuất bản trong Kho học liệu.`}</small>}</div>}
         <label className="field wide"><span>{f.kind === 'reading' ? 'Nội dung bài đọc (Markdown) *' : 'Ghi chú cho người học'}</span><textarea rows={f.kind === 'reading' ? 8 : 2} required={f.kind === 'reading'} value={f.body ?? ''} onChange={e => setF({ ...f, body: e.target.value })} /></label>
         <label className="field"><span>Thời lượng (phút)</span><input type="number" min={1} max={600} value={f.duration_min ?? ''} onChange={e => setF({ ...f, duration_min: e.target.value ? Number(e.target.value) : null })} /></label>
         {err && <p className="msg">{err}</p>}

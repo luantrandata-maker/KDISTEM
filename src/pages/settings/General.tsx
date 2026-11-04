@@ -36,7 +36,7 @@ export function GeneralSettings({ orgId, platform }: Props) {
   if (!orgId) return <p className="sub">Chọn đơn vị trước.</p>
   return <>
     <div className="bar sethead">
-      <p className="sub" style={{ margin: 0, flex: 1, minWidth: 260 }}>{platform ? 'Admin KDI tùy chỉnh hệ thống bằng giao diện: tên & menu, trường tùy chỉnh, danh mục, nút, năm học & ngày nghỉ. Đây là mặc định cho mọi trường; trường tự chỉnh phần của trường.'
+      <p className="sub" style={{ margin: 0, flex: 1, minWidth: 260 }}>{platform ? 'Admin KDI tùy chỉnh hệ thống bằng giao diện: tên & menu, trường tùy chỉnh, danh mục, nút, năm học & ngày nghỉ. Đây là mặc định cho tất cả trường; trường tự chỉnh phần của trường.'
         : 'Tùy chỉnh cho trường: tên & menu, trường tùy chỉnh, danh mục, nút, năm học & ngày nghỉ. Mục trường không đặt thì dùng mặc định của KDI.'}</p>
       <ConfigTools scope={scope} />
     </div>
@@ -75,7 +75,7 @@ function YearSettings({ orgId, platform }: Props) {
     <div className="panel" style={{ marginBottom: 12 }}>
       <b>Năm học & ngày nghỉ</b>
       <p className="sub" style={{ margin: '4px 0 0' }}>{platform
-        ? 'Lịch “Chuẩn chung” áp cho toàn hệ thống: mọi trường dùng ngày năm học và ngày nghỉ ở đây, trừ khi trường đặt lịch riêng. Bản phân phối chương trình cảnh báo tuần có ngày nghỉ theo lịch này.'
+        ? 'Lịch “Chuẩn chung” áp cho toàn hệ thống: tất cả trường dùng ngày năm học và ngày nghỉ ở đây, trừ khi trường đặt lịch riêng. Bản phân phối chương trình cảnh báo tuần có ngày nghỉ theo lịch này.'
         : 'Trường dùng lịch Chuẩn chung của KDI. Có thể đặt ngày năm học riêng, bỏ ngày nghỉ chuẩn chung không áp dụng và thêm ngày nghỉ riêng của trường.'}</p>
     </div>
     {err && <p className="msg">{err}</p>}
@@ -274,7 +274,7 @@ function CalTab({ orgId, platform, std, scope, year, onSaved }: { orgId: string;
         })}</tbody></table></div>}
     {platform && <>
       <h4 className="distsec">Lịch riêng của từng trường</h4>
-      {!schools.length ? <p className="sub">Chưa trường nào đặt lịch riêng cho năm học {year}: mọi trường dùng chuẩn chung.</p>
+      {!schools.length ? <p className="sub">Chưa trường nào đặt lịch riêng cho năm học {year}: tất cả trường dùng chuẩn chung.</p>
         : <div className="wrap"><table className="libtable"><thead><tr><th>Trường</th><th>Ngày năm học</th><th>Ngày nghỉ riêng</th><th>Bỏ ngày chuẩn chung</th></tr></thead>
           <tbody>{schools.map(x => <tr key={x.org_id}><td>{x.name}</td>
             <td>{x.own_year ? `${x.starts_on ? vnd(x.starts_on) : '—'} – ${x.ends_on ? vnd(x.ends_on) : '—'}` : <small className="sub">Theo chuẩn chung</small>}</td>

@@ -123,7 +123,7 @@ export function unitTree(units: UnitOpt[], programId: string | null | undefined,
 }
 export const progLabel = (p?: ProgOpt | null) => (p ? `${p.title} (v${p.version_no})` : '')
 export const SCOPE: Record<Item['scope'], string> = {
-  children: 'Mọi đơn vị trực thuộc', selected: 'Đơn vị được chọn', public: 'Công khai toàn hệ thống',
+  children: 'Tất cả đơn vị trực thuộc', selected: 'Đơn vị được chọn', public: 'Công khai toàn hệ thống',
 }
 export const STATUS: Record<Item['status'], [string, string, string]> = {
   draft: ['✎', 'Nháp', ''], published: ['✓', 'Đã phát hành', 'good'], archived: ['−', 'Đã thu hồi', 'warn'],

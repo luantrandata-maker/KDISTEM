@@ -1,6 +1,6 @@
 // Phiên bản và lịch sử áp dụng của bản phân phối (125).
 //  • PlanHistory: trong trang một bản — các phiên bản cùng mã và nơi mỗi phiên bản đã được gán, theo năm học.
-//  • DistHistory: tab "Lịch sử áp dụng" — mọi lần gán, lọc theo năm học, bản phân phối, trường.
+//  • DistHistory: tab "Lịch sử áp dụng" — tất cả lần gán, lọc theo năm học, bản phân phối, trường.
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Chip, STATUS, errText } from './Editor'
@@ -83,7 +83,7 @@ export function PlanHistory({ plan }: { plan: Plan }) {
 }
 
 /** Danh sách các lần gán kèm bộ lọc Tỉnh / Sở, trường, năm học (và bản phân phối khi không cố định một bản).
- *  now: chỉ năm học hiện tại và năm tới (tab Gán theo trường); không thì mọi năm (tab Lịch sử áp dụng).
+ *  now: chỉ năm học hiện tại và năm tới (tab Gán theo trường); không thì tất cả năm (tab Lịch sử áp dụng).
  *  Bản gán không ghi năm học = năm học hiện tại của trường. */
 function AssignView({ plans, rk, now, family }: { plans: Plan[]; rk: number; now: boolean; family?: string | null }) {
   const { rows, err } = useHistory(null, rk)
@@ -103,8 +103,8 @@ function AssignView({ plans, rk, now, family }: { plans: Plan[]; rk: number; now
   const yname = (r: HistRow) => r.year_name ?? NO_YEAR
   const yearOpts = opts([...(now ? [cur] : []), ...base.map(yname)].map(y => [y, y === cur ? `${y} (năm nay)` : y === next ? `${y} (năm tới)` : y] as [string, string]), 'desc')
   const defs: FilterDef[] = [...of.defs,
-    { key: 'year', label: 'Năm học', placeholder: now ? 'Năm nay và năm tới' : 'Mọi năm học', options: yearOpts },
-    ...(family ? [] : [{ key: 'fam', label: 'Bản phân phối', placeholder: 'Mọi bản phân phối', options: opts(fams) }])]
+    { key: 'year', label: 'Năm học', placeholder: now ? 'Năm nay và năm tới' : 'Tất cả năm học', options: yearOpts },
+    ...(family ? [] : [{ key: 'fam', label: 'Bản phân phối', placeholder: 'Tất cả bản phân phối', options: opts(fams) }])]
   const shown = base.filter(r => of.fit(r.org_id) && mf.has('year', yname(r)) && mf.has('fam', r.family_id))
   return <>
     <div className="tools distfilter" style={{ flexWrap: 'wrap' }}>
@@ -114,7 +114,7 @@ function AssignView({ plans, rk, now, family }: { plans: Plan[]; rk: number; now
   </>
 }
 
-/** Tab "Gán theo trường": các lần gán năm học hiện tại và năm tới (của bản đang chọn, hoặc mọi bản). */
+/** Tab "Gán theo trường": các lần gán năm học hiện tại và năm tới (của bản đang chọn, hoặc tất cả bản). */
 export function PlanAssigned({ plans, plan, rk }: { plans: Plan[]; plan: Plan | null; rk: number }) {
   return <section className="panel" style={{ marginTop: 14, display: 'grid', gap: 10 }}>
     <h3 style={{ margin: 0 }}>Đã gán năm nay và năm tới{plan ? <small className="sub"> · {plan.code} · {plan.title}</small> : null}</h3>
@@ -122,7 +122,7 @@ export function PlanAssigned({ plans, plan, rk }: { plans: Plan[]; plan: Plan | 
   </section>
 }
 
-/** Tab "Lịch sử áp dụng": mọi lần gán bản phân phối cho trường, mọi năm học. */
+/** Tab "Lịch sử áp dụng": tất cả lần gán bản phân phối cho trường, tất cả năm học. */
 export function DistHistory({ plans, rk }: { plans: Plan[]; rk: number }) {
   return <AssignView plans={plans} rk={rk} now={false} />
 }

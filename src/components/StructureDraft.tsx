@@ -95,7 +95,7 @@ export function StructureDraft<F>({ levels, root, initial, cols, newFields, titl
         <small className="sub">{dirty ? 'Có thay đổi chưa lưu. Thay đổi chỉ ghi lại khi bấm "Lưu tất cả".' : 'Chưa có thay đổi.'}</small>
         <span style={{ marginLeft: 'auto' }} className="tools">
           <button type="button" onClick={() => add(null)}>+ {levels[root].label}</button>
-          <button type="button" onClick={() => { if (!dirty || confirm('Bỏ mọi thay đổi chưa lưu?')) onCancel() }} disabled={isBusy}>Huỷ</button>
+          <button type="button" onClick={() => { if (!dirty || confirm('Bỏ tất cả thay đổi chưa lưu?')) onCancel() }} disabled={isBusy}>Huỷ</button>
           <button type="button" className="primary" onClick={save} disabled={isBusy || !dirty}>{isBusy ? 'Đang lưu…' : 'Lưu tất cả'}</button>
         </span>
       </div>
@@ -143,7 +143,7 @@ export function StructureDraft<F>({ levels, root, initial, cols, newFields, titl
       <div className="sdbar bottom">
         <button type="button" onClick={() => add(null)}>+ {levels[root].label}</button>
         <span style={{ marginLeft: 'auto' }} className="tools">
-          <button type="button" onClick={() => { if (!dirty || confirm('Bỏ mọi thay đổi chưa lưu?')) onCancel() }} disabled={isBusy}>Huỷ</button>
+          <button type="button" onClick={() => { if (!dirty || confirm('Bỏ tất cả thay đổi chưa lưu?')) onCancel() }} disabled={isBusy}>Huỷ</button>
           <button type="button" className="primary" onClick={save} disabled={isBusy || !dirty}>{isBusy ? 'Đang lưu…' : 'Lưu tất cả'}</button>
         </span>
       </div>

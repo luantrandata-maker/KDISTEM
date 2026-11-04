@@ -82,7 +82,7 @@ export function StudentHome({ studentId, go, year }: SProps) {
               </button>
             )
           })}
-          {todo.length === 0 && <small>Em đã hoàn thành mọi bài tập. 🎉</small>}
+          {todo.length === 0 && <small>Em đã hoàn thành tất cả bài tập. 🎉</small>}
         </div>
         {ss.items.length > 0 && <div className="panel">
           <div className="bar"><h3>Học trước & tự học · {ss.todo.length}</h3><button className="linkbtn" onClick={() => go?.('Học trước & tự học')}>Xem tất cả →</button></div>

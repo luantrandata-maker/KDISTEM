@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import ImportExcel from './ImportExcel'
 import type { Column } from '../lib/sheet'
 
-// Nhập toạ độ trường hàng loạt (migration 038) — Sở/Phòng: trường trực thuộc; quản trị nền tảng: mọi trường.
+// Nhập toạ độ trường hàng loạt (migration 038) — Sở/Phòng: trường trực thuộc; quản trị nền tảng: tất cả trường.
 // "Tải file mẫu" = danh sách trường trong phạm vi kèm toạ độ hiện có, điền tiếp rồi nhập lại.
 const COLS: Column[] = [
   { key: 'code', label: 'Mã trường', required: true, aliases: ['ma', 'ma truong'], width: 14 },

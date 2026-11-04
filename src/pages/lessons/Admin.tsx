@@ -69,7 +69,7 @@ const FILTERS: [string, string, LStatus[]][] = [
 export function SchoolLessons({ orgId, go }: P) {
   const rights = useRights(orgId)
   const [tab, setTab] = useState<'plans' | 'tpl' | 'acts'>('plans')
-  // Quản trị hệ thống: giáo án của mọi trường (mẫu giáo án ở tab riêng)
+  // Quản trị hệ thống: giáo án của tất cả trường (mẫu giáo án ở tab riêng)
   if (useAllMode()) return <SchoolPlans orgId={orgId} />
   return (
     <>

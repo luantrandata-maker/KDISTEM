@@ -1,5 +1,5 @@
 // Phân hệ 1 — Tiến độ học trực tuyến của giáo viên trong một kế hoạch đào tạo (086).
-// Đơn vị lập kế hoạch: xem mọi GV, nhận / trả lại sản phẩm. Trường: xem GV của trường mình.
+// Đơn vị lập kế hoạch: xem tất cả GV, nhận / trả lại sản phẩm. Trường: xem GV của trường mình.
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Chip } from '../dist/Editor'

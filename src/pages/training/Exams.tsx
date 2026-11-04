@@ -1,5 +1,5 @@
-// Phân hệ 1 › Kiểm tra & luyện tập (110): một chỗ xem mọi đề của đào tạo.
-// Đề kiểm tra: bài test nội dung + đề cuối khoá của mọi chương trình (bấm để soạn trong chương trình).
+// Phân hệ 1 › Kiểm tra & luyện tập (110): một chỗ xem tất cả đề của đào tạo.
+// Đề kiểm tra: bài test nội dung + đề cuối khoá của tất cả chương trình (bấm để soạn trong chương trình).
 // Đề luyện: đề tự luyện cho giáo viên, không tính điểm đào tạo. Kết quả & câu khó: điểm theo đề, câu hay sai.
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
@@ -80,7 +80,7 @@ function MatrixTable({ rows }: { rows: MRow[] }) {
   return <section className="panel" style={{ display: 'grid', gap: 10 }}>
     <h3 style={{ margin: 0 }}>Ma trận đề ({matrixTotal(rows)} câu, rút ngẫu nhiên mỗi lượt)</h3>
     <div className="wrap"><table className="libtable"><thead><tr>{ms && <th>Môn</th>}<th>Chủ đề</th><th>Mức độ</th><th className="num">Số câu</th></tr></thead>
-      <tbody>{rows.map((r, k) => <tr key={k}>{ms && <td>{r.subject || 'Mọi môn của đề'}</td>}<td>{r.topic || 'Mọi chủ đề'}</td><td>{levelName(r.level)}</td><td className="num">{r.count}</td></tr>)}</tbody></table></div>
+      <tbody>{rows.map((r, k) => <tr key={k}>{ms && <td>{r.subject || 'Tất cả môn của đề'}</td>}<td>{r.topic || 'Tất cả chủ đề'}</td><td>{levelName(r.level)}</td><td className="num">{r.count}</td></tr>)}</tbody></table></div>
   </section>
 }
 function ExamStatCards({ s }: { s?: Stat }) {
@@ -91,7 +91,7 @@ function ExamStatCards({ s }: { s?: Stat }) {
   ]} />
 }
 const subjGrade = (x: { subject?: string | null; subjects?: string[] | null; grade?: number | null; grades?: number[] | null } | null | undefined) =>
-  `${listSubjects(x).join(', ') || '—'}${listGrades(x).length ? ` · khối ${listGrades(x).join(', ')}` : ' · mọi khối'}`
+  `${listSubjects(x).join(', ') || '—'}${listGrades(x).length ? ` · khối ${listGrades(x).join(', ')}` : ' · tất cả khối'}`
 const pSpec = (x: { subject?: string | null; subjects?: string[] | null; grade?: number | null; grades?: number[] | null; matrix: MRow[]; qids?: string[]; shuffle: boolean }): TrySpec =>
   ({ kind: 'pick', subjects: listSubjects(x), grades: listGrades(x), matrix: cleanMatrix(x.matrix ?? []), qids: x.qids ?? [], shuffle: x.shuffle })
 const MODE_LABEL: Record<string, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
@@ -118,7 +118,7 @@ function ExamDetail({ r, subjName, stat, onBack, onEdit }: { r: Row; subjName: s
           <dt>Thời lượng</dt><dd>{u?.hours != null ? `${num(u.hours)} giờ` : '—'}{u?.mode ? ` · ${MODE_LABEL[u.mode] ?? u.mode}` : ''}</dd>
         </> : <>
           <dt>Môn (ngân hàng câu hỏi)</dt><dd>{subjGrade(fe)}</dd>
-          <dt>Khi nào làm</dt><dd>Sau khi giáo viên học xong mọi nội dung của chương trình</dd>
+          <dt>Khi nào làm</dt><dd>Sau khi giáo viên học xong tất cả nội dung của chương trình</dd>
         </>}
       </dl>
       <h3 style={{ margin: 0 }}>Cách làm bài</h3>
@@ -203,12 +203,12 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
   if (vr) return <ExamDetail r={vr} subjName={vr.sub} stat={statOf(vr)} onBack={() => setView(null)}
     onEdit={() => { setMsg(null); setOpen(vr.kind === 'unit' ? { id: vr.prog.id, unit: vr.unit!.id } : { id: vr.prog.id, unit: null, final: true }) }} />
   const defs: FilterDef[] = [
-    { key: 'prog', label: 'Chương trình', placeholder: 'Mọi chương trình', options: opts(rows.map(r => [r.prog.family_id, `${r.prog.code} · ${r.prog.title}`])) },
-    { key: 'kind', label: 'Loại đề', placeholder: 'Mọi loại đề', options: [['unit', 'Bài test nội dung'], ['final', 'Đề cuối khoá']] },
-    { key: 'st', label: 'Trạng thái', placeholder: 'Mọi trạng thái', options: opts(rows.map(r => [r.prog.status, STATUS[r.prog.status]?.[0]])) },
+    { key: 'prog', label: 'Chương trình', placeholder: 'Tất cả chương trình', options: opts(rows.map(r => [r.prog.family_id, `${r.prog.code} · ${r.prog.title}`])) },
+    { key: 'kind', label: 'Loại đề', placeholder: 'Tất cả loại đề', options: [['unit', 'Bài test nội dung'], ['final', 'Đề cuối khoá']] },
+    { key: 'st', label: 'Trạng thái', placeholder: 'Tất cả trạng thái', options: opts(rows.map(r => [r.prog.status, STATUS[r.prog.status]?.[0]])) },
   ]
   const ql = q.trim().toLowerCase()
-  // base: theo mọi bộ lọc bên dưới; thẻ tổng số tính trên base, bấm thẻ lọc thêm theo loại đề
+  // base: theo tất cả bộ lọc bên dưới; thẻ tổng số tính trên base, bấm thẻ lọc thêm theo loại đề
   const base = rows.filter(r => (old || !OLD.includes(r.prog.status)) && f.has('prog', r.prog.family_id) && f.has('kind', r.kind) && f.has('st', r.prog.status)
     && (!ql || `${r.title} ${r.sub} ${r.prog.code} ${r.prog.title}`.toLowerCase().includes(ql)))
   const shown = base.filter(r => !card || (card === 'missing' ? r.missing : r.kind === card))
@@ -391,9 +391,9 @@ export function TrainingPracticeExams() {
 
   const all = list ?? []
   const defs: FilterDef[] = [
-    { key: 'prog', label: 'Chương trình', placeholder: 'Mọi chương trình', options: opts(all.map(x => [x.program_id, progOf(x.program_id) ? `${progOf(x.program_id)!.code} · ${progOf(x.program_id)!.title}` : '—'])) },
-    { key: 'subj', label: 'Môn', placeholder: 'Mọi môn', options: opts(all.flatMap(x => listSubjects(x).map(s => [s, s] as [string, string]))) },
-    { key: 'st', label: 'Trạng thái', placeholder: 'Mọi trạng thái', options: (Object.keys(PST) as Practice['status'][]).map(k => [k, PST[k][0]]) },
+    { key: 'prog', label: 'Chương trình', placeholder: 'Tất cả chương trình', options: opts(all.map(x => [x.program_id, progOf(x.program_id) ? `${progOf(x.program_id)!.code} · ${progOf(x.program_id)!.title}` : '—'])) },
+    { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', options: opts(all.flatMap(x => listSubjects(x).map(s => [s, s] as [string, string]))) },
+    { key: 'st', label: 'Trạng thái', placeholder: 'Tất cả trạng thái', options: (Object.keys(PST) as Practice['status'][]).map(k => [k, PST[k][0]]) },
   ]
   const ql = q.trim().toLowerCase()
   const base = all.filter(x => f.has('prog', x.program_id) && listSubjects(x).some(s => f.has('subj', s)) && f.has('st', x.status) && (!ql || `${x.title} ${x.subject} ${x.note ?? ''}`.toLowerCase().includes(ql)))
@@ -444,7 +444,7 @@ export function TrainingPracticeExams() {
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình đào tạo *</span><select disabled={!admin} value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, subject: '', subjects: [], matrix: [] })}>
             {usable.map(p => <option key={p.id} value={p.id}>{p.code} · {p.title} · v{p.version_no} · {STATUS[p.status]?.[0]?.toLowerCase()}</option>)}
             {fp && OLD.includes(fp.status) && <option value={fp.id}>{fp.code} · {fp.title} · v{fp.version_no}</option>}</select>
-            <small className="sub">Giáo viên học mọi phiên bản của chương trình này đều thấy đề.</small></label>
+            <small className="sub">Giáo viên học tất cả phiên bản của chương trình này đều thấy đề.</small></label>
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Tên đề *</span><input disabled={!admin} maxLength={200} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Luyện tập cảm biến và robot" /></label>
           <div className="field" style={{ gridColumn: 'span 2' }}><span>Môn (ngân hàng câu hỏi, chọn được nhiều) *</span>
             <MultiSelect disabled={!admin} value={listSubjects(form)} onChange={v => setForm({ ...form, subjects: v, subject: v[0] ?? '' })} ariaLabel="Môn của đề" placeholder="— Chọn môn —"
@@ -485,8 +485,8 @@ export function TrainingExamStats() {
   }, [open])
   const progOf = (id: string) => progs?.find(p => p.id === id)
   const defs: FilterDef[] = [
-    { key: 'kind', label: 'Loại đề', placeholder: 'Mọi loại đề', options: (Object.keys(KIND) as Kind[]).map(k => [k, KIND[k][0]]) },
-    { key: 'prog', label: 'Chương trình', placeholder: 'Mọi chương trình', options: opts(stats.map(s => [progOf(s.program_id)?.family_id ?? s.program_id, progOf(s.program_id) ? `${progOf(s.program_id)!.code} · ${progOf(s.program_id)!.title}` : '—'])) },
+    { key: 'kind', label: 'Loại đề', placeholder: 'Tất cả loại đề', options: (Object.keys(KIND) as Kind[]).map(k => [k, KIND[k][0]]) },
+    { key: 'prog', label: 'Chương trình', placeholder: 'Tất cả chương trình', options: opts(stats.map(s => [progOf(s.program_id)?.family_id ?? s.program_id, progOf(s.program_id) ? `${progOf(s.program_id)!.code} · ${progOf(s.program_id)!.title}` : '—'])) },
   ]
   const rate = (s: Stat) => s.teachers ? Math.round(100 * s.passed / s.teachers) : 0
   const base = stats.filter(s => f.has('kind', s.kind) && f.has('prog', progOf(s.program_id)?.family_id ?? s.program_id))

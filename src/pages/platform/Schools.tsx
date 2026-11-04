@@ -1,5 +1,5 @@
 // Quản trị chung → Cơ sở triển khai (migration 032)
-// Sổ quản lý mọi trường đang triển khai trên toàn hệ thống: giai đoạn, tiến độ, hợp đồng, mức sử dụng, sức khoẻ, người phụ trách KDI.
+// Sổ quản lý tất cả trường đang triển khai trên toàn hệ thống: giai đoạn, tiến độ, hợp đồng, mức sử dụng, sức khoẻ, người phụ trách KDI.
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx, norm } from '../../lib/sheet'
@@ -137,7 +137,7 @@ export function PlatformSchools({ go }: { go?: (p: string) => void }) {
 
   return (
     <>
-      <p className="sub">Mọi trường trên hệ thống: giai đoạn triển khai, hợp đồng, mức sử dụng thực tế và các điểm cần chú ý. Bấm một trường để xem hồ sơ.</p>
+      <p className="sub">Tất cả trường trên hệ thống: giai đoạn triển khai, hợp đồng, mức sử dụng thực tế và các điểm cần chú ý. Bấm một trường để xem hồ sơ.</p>
       <Tiles items={[
         { label: 'Tổng số trường', value: nf(all.length), sub: `${provinces.length} tỉnh` },
         { label: 'Đang vận hành', value: cnt(r => r.stage === 'operating'), tone: 'good' },
@@ -161,10 +161,10 @@ export function PlatformSchools({ go }: { go?: (p: string) => void }) {
       </div>
       <div className="tools" style={{ marginBottom: 12 }}>
         <input className="search" style={{ margin: 0 }} placeholder="Tìm tên, mã, Sở, xã/phường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm trường" />
-        <select value={prov} onChange={e => setProv(e.target.value)} aria-label="Tỉnh"><option value="">Mọi tỉnh</option>{provinces.map(([id, nm]) => <option key={id} value={id}>{nm}</option>)}</select>
-        <select value={stage} onChange={e => setStage(e.target.value)} aria-label="Giai đoạn"><option value="">Mọi giai đoạn</option>{(Object.keys(STAGE) as Stage[]).map(k => <option key={k} value={k}>{STAGE[k][0]}</option>)}</select>
-        <select value={level} onChange={e => setLevel(e.target.value)} aria-label="Cấp học"><option value="">Mọi cấp học</option>{Object.entries(LEVEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-        <select value={owner} onChange={e => setOwner(e.target.value)} aria-label="Người phụ trách"><option value="">Mọi người phụ trách</option><option value="-">Chưa gán</option>
+        <select value={prov} onChange={e => setProv(e.target.value)} aria-label="Tỉnh"><option value="">Tất cả tỉnh</option>{provinces.map(([id, nm]) => <option key={id} value={id}>{nm}</option>)}</select>
+        <select value={stage} onChange={e => setStage(e.target.value)} aria-label="Giai đoạn"><option value="">Tất cả giai đoạn</option>{(Object.keys(STAGE) as Stage[]).map(k => <option key={k} value={k}>{STAGE[k][0]}</option>)}</select>
+        <select value={level} onChange={e => setLevel(e.target.value)} aria-label="Cấp học"><option value="">Tất cả cấp học</option>{Object.entries(LEVEL).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+        <select value={owner} onChange={e => setOwner(e.target.value)} aria-label="Người phụ trách"><option value="">Tất cả người phụ trách</option><option value="-">Chưa gán</option>
           {staff.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}</select>
         <select value={sort} onChange={e => setSort(e.target.value as typeof sort)} aria-label="Sắp xếp">
           <option value="health">Cần chú ý trước</option><option value="usage">Điểm danh cao trước</option><option value="progress">Tiến độ cao trước</option><option value="name">Theo tên</option></select>

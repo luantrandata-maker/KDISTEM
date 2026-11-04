@@ -49,7 +49,7 @@ export function StemTracksCatalog() {
     <>
       <div className="bar">
         <p className="sub" style={{ margin: 0 }}>Loại chương trình STEM của KDI (CT1–CT5 và các loại thêm sau): tên, mô tả, môn học và cấp học áp dụng. {admin
-          ? 'Bấm "Sửa" để điều chỉnh; thay đổi hiện ngay ở mọi màn chọn loại chương trình. Loại đã được dùng thì không xoá, chỉ ngừng dùng.'
+          ? 'Bấm "Sửa" để điều chỉnh; thay đổi hiện ngay ở tất cả màn chọn loại chương trình. Loại đã được dùng thì không xoá, chỉ ngừng dùng.'
           : 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'} Nội dung chi tiết (học phần, yêu cầu cần đạt) nằm trong từng chương trình giáo dục bên dưới mỗi loại.</p>
         {admin && <button className="primary" onClick={() => { setMsg(''); setEdit('') }}>Thêm loại chương trình</button>}
       </div>

@@ -48,9 +48,9 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
   const fitR = (r: Round, skip?: string) => (skip === 'org' || mf.has('org', r.org_id)) && (skip === 'year' || mf.has('year', r.school_year))
     && (skip === 'lv' || mf.has('lv', String(r.target_level)))
   const defs: FilterDef[] = [
-    { key: 'org', label: 'Đơn vị mở', placeholder: 'Mọi đơn vị', options: opts(all.filter(r => fitR(r, 'org')).map(r => [r.org_id, r.organizations?.name])) },
-    { key: 'year', label: 'Năm học', placeholder: 'Mọi năm học', options: opts(all.filter(r => fitR(r, 'year')).map(r => [r.school_year, r.school_year]), 'desc') },
-    { key: 'lv', label: 'Mức yêu cầu', placeholder: 'Mọi mức', options: opts(all.filter(r => fitR(r, 'lv')).map(r => [r.target_level, `Mức ${r.target_level} · ${LV_NAME[r.target_level - 1]}`])) },
+    { key: 'org', label: 'Đơn vị mở', placeholder: 'Tất cả đơn vị', options: opts(all.filter(r => fitR(r, 'org')).map(r => [r.org_id, r.organizations?.name])) },
+    { key: 'year', label: 'Năm học', placeholder: 'Tất cả năm học', options: opts(all.filter(r => fitR(r, 'year')).map(r => [r.school_year, r.school_year]), 'desc') },
+    { key: 'lv', label: 'Mức yêu cầu', placeholder: 'Tất cả mức', options: opts(all.filter(r => fitR(r, 'lv')).map(r => [r.target_level, `Mức ${r.target_level} · ${LV_NAME[r.target_level - 1]}`])) },
   ]
   const base = all.filter(r => fitR(r) && (!q || r.name.toLowerCase().includes(q.toLowerCase())))
   const shown = card ? base.filter(r => roundKey(r) === card) : base
@@ -60,7 +60,7 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
   return <>
     <FlowGuide id="training-rounds">
       <ol className="distguide">
-        <li><button type="button" onClick={() => can && add()}><i>1</i><span><b>Mở đợt đánh giá</b><small>Đặt năm học, hạn nộp và mức yêu cầu. Đợt áp dụng cho mọi giáo viên trong đơn vị và các trường trực thuộc.</small></span></button></li>
+        <li><button type="button" onClick={() => can && add()}><i>1</i><span><b>Mở đợt đánh giá</b><small>Đặt năm học, hạn nộp và mức yêu cầu. Đợt áp dụng cho tất cả giáo viên trong đơn vị và các trường trực thuộc.</small></span></button></li>
         <li><button type="button" onClick={() => all[0] && setOpen(all[0].id)}><i>2</i><span><b>Theo dõi & nhắc</b><small>Xem từng trường đã tự đánh giá / được trường đánh giá bao nhiêu, gửi nhắc giáo viên chưa nộp.</small></span></button></li>
         <li><button type="button" disabled><i>3</i><span><b>Xem thiếu hụt</b><small>Kết quả vào hồ sơ năng lực; mục Khoảng thiếu hụt gợi ý chương trình đào tạo cho người dưới mức yêu cầu.</small></span></button></li>
       </ol>
@@ -119,7 +119,7 @@ function RoundForm({ orgId, onBack, onSaved }: { orgId: string; onBack: () => vo
     if (error) return setErr(errText(error.message))
     onSaved((data as { id: string }).id)
   }
-  return <ElView back="Đợt đánh giá" onBack={onBack} title="Mở đợt đánh giá năng lực" sub="Đợt áp dụng cho mọi giáo viên trong đơn vị mở đợt và các trường trực thuộc.">
+  return <ElView back="Đợt đánh giá" onBack={onBack} title="Mở đợt đánh giá năng lực" sub="Đợt áp dụng cho tất cả giáo viên trong đơn vị mở đợt và các trường trực thuộc.">
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       {err && <p className="msg" role="alert">{err}</p>}
       <RoundFields f={f} set={setF} orgPick />
@@ -147,7 +147,7 @@ function RoundDetail({ r, onBack, onChanged }: { r: Round; onBack: () => void; o
     const { data, error } = await supabase.rpc('assessment_round_remind', { p_round: r.id })
     setBusy(false)
     if (error) return setErr(errText(error.message))
-    setInfo(data ? `Đã gửi nhắc tới ${data} giáo viên chưa nộp tự đánh giá.` : 'Vừa nhắc xong, hoặc mọi giáo viên có tài khoản đã nộp. Có thể nhắc lại sau 10 phút.')
+    setInfo(data ? `Đã gửi nhắc tới ${data} giáo viên chưa nộp tự đánh giá.` : 'Vừa nhắc xong, hoặc tất cả giáo viên có tài khoản đã nộp. Có thể nhắc lại sau 10 phút.')
   }
   async function setStatus(status: 'open' | 'closed') {
     const { error } = await supabase.from('assessment_rounds').update({ status }).eq('id', r.id)
@@ -317,7 +317,7 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
         <button type="button" onClick={excel} disabled={!shown.length}>Xuất Excel</button>
       </div>
       <div className="distfilter">
-        <button type="button" className={`distfchip${!comp ? ' on' : ''}`} onClick={() => setComp('')}>Mọi năng lực ({base.length})</button>
+        <button type="button" className={`distfchip${!comp ? ' on' : ''}`} onClick={() => setComp('')}>Tất cả năng lực ({base.length})</button>
         {perComp.map(([c, n]) => <button key={c.key} type="button" className={`distfchip${comp === c.key ? ' on' : ''}`} onClick={() => setComp(c.key)}>{c.name} ({n})</button>)}
         <span style={{ flex: 1 }} />
         <button type="button" className={`distfchip${view === 'school' ? ' on' : ''}`} onClick={() => setView('school')}>Tổng hợp theo trường</button>
@@ -360,7 +360,7 @@ export function CompetencyFrameworkPage() {
 
 const AUD = {
   teacher: { title: 'Năng lực giáo viên', grp: 'Giáo viên STEM', prefix: 'gv_', example: 'gv_hop_tac', levels: LV_NAME,
-    intro: 'Khung năng lực giáo viên dùng chung cho mọi đơn vị: tự đánh giá, trường đánh giá, khoảng thiếu hụt và năng lực đích của chương trình đào tạo đều theo khung này.' },
+    intro: 'Khung năng lực giáo viên dùng chung cho tất cả đơn vị: tự đánh giá, trường đánh giá, khoảng thiếu hụt và năng lực đích của chương trình đào tạo đều theo khung này.' },
   student: { title: 'Năng lực học sinh', grp: 'Năng lực đặc thù', prefix: '', example: 'ngoai_ngu', levels: SLV_NAME,
     intro: 'Khung năng lực học sinh dùng chung: năng lực của chương trình giáo dục, yêu cầu cần đạt, tiêu chí chấm (rubric) và hồ sơ năng lực học sinh đều theo khung này.' },
 }
@@ -413,7 +413,7 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
       return <StatCards active={card} onPick={setCard} items={[
         { icon: 'target', value: comps.length, label: 'Năng lực', sub: `${groups.length} nhóm` },
         { icon: 'layers', value: A.levels.length, label: 'Mức', sub: A.levels.join(' · ') },
-        { k: 'lack', icon: 'clipboard', tone: nLack ? 'warn' : 'good', value: filled, label: 'Tiêu chí', sub: nLack ? `Mô tả mức · ${nLack} năng lực còn thiếu` : 'Mô tả mức · đủ cho mọi năng lực' },
+        { k: 'lack', icon: 'clipboard', tone: nLack ? 'warn' : 'good', value: filled, label: 'Tiêu chí', sub: nLack ? `Mô tả mức · ${nLack} năng lực còn thiếu` : 'Mô tả mức · đủ cho tất cả năng lực' },
       ]} />
     })()}
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}

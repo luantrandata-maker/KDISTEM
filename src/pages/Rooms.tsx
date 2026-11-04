@@ -367,7 +367,7 @@ export default function Rooms({ orgId }: { orgId: string }) {
         {ROOM_KINDS.map(k => <div className="card" key={k}><strong>{count(k)}</strong><span>{ROOM_KIND[k]}{k === 'classroom' ? ` · ${classes.filter(c => c.room_id).length}/${classes.length} lớp đã có phòng` : k === 'stem' ? ` · ${rooms.filter(r => r.room_kind === 'stem' && r.status === 'active').length} đang hoạt động` : ''}</span></div>)}
         <div className="card"><strong>{units.length}</strong><span>Thiết bị · {units.filter(u => !u.room_id).length} chưa xếp phòng</span></div>
       </div>
-      {needMigration && <p className="msg">CSDL chưa có migration 056: mọi phòng đang được coi là phòng STEM, chưa thêm được phòng học / kho.</p>}
+      {needMigration && <p className="msg">CSDL chưa có migration 056: tất cả phòng đang được coi là phòng STEM, chưa thêm được phòng học / kho.</p>}
       <div className="bar" style={{ marginTop: 16 }}>
         <div className="segmented" style={{ margin: 0 }}>
           <button className={kind === '' ? 'on' : ''} onClick={() => setKind('')}>Tất cả<span className="count">{rooms.length}</span></button>
@@ -409,7 +409,7 @@ export default function Rooms({ orgId }: { orgId: string }) {
           {form.room_kind === 'classroom' && <div className="field" style={{ gridColumn: '1 / -1' }}><span>Lớp học tại phòng</span>
             <div>{free.map(c => <button type="button" key={c.id} className={'chipbtn' + (form.classes.includes(c.id) ? ' on' : '')} style={{ margin: '0 6px 6px 0' }}
               onClick={() => setForm({ ...form, classes: form.classes.includes(c.id) ? form.classes.filter(x => x !== c.id) : [...form.classes, c.id] })}>{c.name}</button>)}
-              {!free.length && <small className="sub">Mọi lớp đã có phòng học.</small>}</div></div>}
+              {!free.length && <small className="sub">Tất cả lớp đã có phòng học.</small>}</div></div>}
           <label className="field" style={{ gridColumn: '1 / -1' }}><span>Ghi chú</span><input value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} /></label>
           <div className="formactions"><button className="primary" type="submit">Lưu</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>

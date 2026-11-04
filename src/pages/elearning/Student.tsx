@@ -88,7 +88,7 @@ function MyReview({ studentId, exams, onStart }: { studentId: string; exams: Exa
     <section className="panel review">
       <div className="bar"><h3>Chủ đề em cần ôn</h3>{rows.length > weak.slice(0, 6).length && <button className="xbtn" onClick={() => setAll(!all)}>{all ? 'Chỉ chủ đề cần ôn' : `Xem cả ${rows.length} chủ đề`}</button>}</div>
       <p className="sub">Theo các bài em đã nộp: chủ đề có tỉ lệ trả lời đúng dưới 70% nên ôn lại và luyện thêm.</p>
-      {!weak.length && !all ? <p className="sub">Em đang làm tốt — mọi chủ đề đều đúng từ 70% trở lên. Tiếp tục luyện tập nhé!</p>
+      {!weak.length && !all ? <p className="sub">Em đang làm tốt — tất cả chủ đề đều đúng từ 70% trở lên. Tiếp tục luyện tập nhé!</p>
         : <ul className="reviewlist">{show.map(r => { const ex = match(r)
           return <li key={r.subject + r.grade + r.topic}>
             <div><b>{r.topic}</b><small>{[r.subject, r.grade ? 'Khối ' + r.grade : null, `${r.answers} câu đã làm`].filter(Boolean).join(' · ')}</small></div>

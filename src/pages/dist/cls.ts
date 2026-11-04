@@ -22,7 +22,7 @@ async function load(scope: ClsScope) {
   subs[scope].forEach(f => f(d))
 }
 
-/** Đọc khung phân loại; reload() tải lại cho mọi nơi đang dùng. */
+/** Đọc khung phân loại; reload() tải lại cho các nơi đang dùng. */
 export function useCls(scope: ClsScope = 'dist') {
   const [d, setD] = useState<Data>(cache[scope] ?? { levels: [], nodes: [] })
   useEffect(() => { subs[scope].add(setD); if (!cache[scope]) load(scope); return () => { subs[scope].delete(setD) } }, [scope])

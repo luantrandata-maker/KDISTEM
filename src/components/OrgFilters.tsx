@@ -1,4 +1,4 @@
-// Lọc theo Tỉnh / Sở và trường (chọn nhiều). Lựa chọn gồm mọi trường người dùng thấy (cả khi chưa có dữ liệu) và các đơn vị có trong dữ liệu;
+// Lọc theo Tỉnh / Sở và trường (chọn nhiều). Lựa chọn gồm tất cả trường người dùng thấy (cả khi chưa có dữ liệu) và các đơn vị có trong dữ liệu;
 // ô lọc chỉ ẩn khi người dùng chỉ thấy một trường (vd. tài khoản trường).
 import { useMemo } from 'react'
 import { useAllMode, useAllOrgs, useProvinceOf, type ScopeOrg } from './OrgScope'
@@ -23,9 +23,9 @@ export function useOrgFilters(rows: R[], mf: ReturnType<typeof useMultiFilters>)
   const xs = [...new Set([...rows.map(r => r.org_id), ...schools])]
   const multi = xs.length > 1
   const defs: FilterDef[] = [
-    { key: 'prov', label: 'Tỉnh / Sở', placeholder: 'Mọi Tỉnh / Sở', hidden: !multi,
+    { key: 'prov', label: 'Tỉnh / Sở', placeholder: 'Tất cả Tỉnh / Sở', hidden: !multi,
       options: opts(xs.filter(x => fit(x, 'prov')).map(x => { const p = provOf(x); return [p?.id, p?.name] })) },
-    { key: 'school', label: 'Trường', placeholder: 'Mọi trường', hidden: !multi,
+    { key: 'school', label: 'Trường', placeholder: 'Tất cả trường', hidden: !multi,
       options: opts(xs.filter(x => fit(x, 'school')).map(x => [x, names.get(x) || byId.get(x)?.name])) },
   ]
   return { defs, fit: (id: string) => fit(id), multi }
@@ -50,9 +50,9 @@ export function useOrgFilter() {
     if (xs.length < 2) return null
     const onlySchools = own.every(x => byId.get(x)?.type === 'school')
     const defs: FilterDef[] = [
-      { key: 'prov', label: 'Tỉnh / Sở', placeholder: 'Mọi Tỉnh / Sở', onPick,
+      { key: 'prov', label: 'Tỉnh / Sở', placeholder: 'Tất cả Tỉnh / Sở', onPick,
         options: opts(xs.filter(x => fit1(x, 'prov')).map(x => { const p = provOf(x); return [p?.id, p?.name] })) },
-      { key: 'org', label: onlySchools ? 'Trường' : 'Trường / đơn vị', placeholder: onlySchools ? 'Mọi trường' : 'Mọi trường / đơn vị', onPick,
+      { key: 'org', label: onlySchools ? 'Trường' : 'Trường / đơn vị', placeholder: onlySchools ? 'Tất cả trường' : 'Tất cả trường / đơn vị', onPick,
         options: opts(xs.filter(x => fit1(x, 'org')).map(x => [x, byId.get(x)?.name])) },
     ]
     return <MultiFilters defs={defs} f={mf} />

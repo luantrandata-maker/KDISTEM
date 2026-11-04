@@ -169,7 +169,7 @@ function CourseView({ planId, onBack }: { planId: string; onBack: () => void }) 
             <small>Điểm cao nhất: <b>{num(f.best)}</b>{f.best != null && f.pass != null && (f.best >= f.pass ? ' · Đạt' : ' · Chưa đạt')}</small>
             {gates[f.program_id]?.mode === 'trainer' && <><br /><GateNote g={gates[f.program_id]} /></>}</div>
           {gates[f.program_id]?.mode === 'trainer' && !gates[f.program_id].open ? null
-            : !f.ready && gates[f.program_id]?.mode !== 'trainer' ? <small className="sub">Học xong mọi nội dung của chương trình để làm đề cuối khoá.</small>
+            : !f.ready && gates[f.program_id]?.mode !== 'trainer' ? <small className="sub">Học xong tất cả nội dung của chương trình để làm đề cuối khoá.</small>
             : f.attempts && f.used >= f.attempts && !f.open ? <small className="sub">Đã hết lượt làm bài.</small>
             : <button type="button" className="primary" onClick={() => setFinalRun(f)}>{f.open ? 'Làm tiếp' : f.used ? 'Làm lại' : 'Làm bài'}</button>}
         </section>)}

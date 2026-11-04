@@ -361,7 +361,7 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
     onOpen(r.data as string)
   }
   async function dropDraft() {
-    if (!confirm('Bỏ bản nháp này? Mọi thay đổi trong bản nháp sẽ mất; bài đã xuất bản giữ nguyên.')) return
+    if (!confirm('Bỏ bản nháp này? Tất cả thay đổi trong bản nháp sẽ mất; bài đã xuất bản giữ nguyên.')) return
     const orig = p!.draft_of!
     setBusy(true); const { error } = await supabase.from('lesson_plans').delete().eq('id', p!.id); setBusy(false)
     if (error) return say(errText(error.message), true)

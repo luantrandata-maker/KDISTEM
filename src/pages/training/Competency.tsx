@@ -9,7 +9,7 @@ import { schoolYear } from '../department/Governance'
 import { LevelChip, useCompetencies, resetCompetencies, LV_NAME, SLV_NAME, type Comp } from '../competency'
 import { FlowGuide } from '../../components/FlowGuide'
 import { Tabs } from '../teacher/common'
-import { MultiFilters, useMultiFilters } from '../../components/MultiFilters'
+import { MultiFilters, useMultiFilters, opts, type FilterDef } from '../../components/MultiFilters'
 import { useOrgFilters } from '../../components/OrgFilters'
 import { LevelNames } from '../settings/Custom'
 import { StatCards } from '../../components/StatCards'
@@ -25,6 +25,7 @@ type Round = { id: string; org_id: string; name: string; school_year: string; op
   status: 'open' | 'closed'; reminded_at: string | null; created_at: string; organizations?: { name: string } | null }
 type Prog = { org_id: string; org_name: string; teachers: number; self_done: number; manager_done: number }
 const roundSt = (r: Round): [string, string] => r.status === 'closed' ? ['Đã đóng', ''] : r.due_on < today() ? ['Quá hạn', 'bad'] : r.opens_on > today() ? ['Sắp mở', ''] : ['Đang mở', 'good']
+const roundKey = (r: Round) => r.status === 'closed' ? 'closed' : r.due_on < today() ? 'late' : r.opens_on > today() ? 'soon' : 'open'
 
 export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
   const [rows, setRows] = useState<Round[] | null>(null)
@@ -32,6 +33,10 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
+  // Bộ lọc đơn vị mở, năm học, mức yêu cầu và ô tìm; thẻ tổng số chạy theo bộ lọc, bấm thẻ để lọc theo tình trạng
+  const mf = useMultiFilters()
+  const [q, setQ] = useState('')
+  const [card, setCard] = useState<string | null>(null)
   const load = () => supabase.from('assessment_rounds').select('*, organizations(name)').order('created_at', { ascending: false })
     .then(({ data, error }) => { if (error) setMsg([errText(error.message), true]); setRows((data as Round[]) ?? []) })
   useEffect(() => { load(); supabase.rpc('training_can_write', { p_org: orgId }).then(({ data }) => setCan(!!data)) }, [orgId])
@@ -40,6 +45,16 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
     onSaved={id => { setCreating(false); setMsg(['Đã mở đợt đánh giá. Theo dõi tiến độ và nhắc giáo viên ở tab "Tiến độ".', false]); load().then(() => setOpen(id)) }} />
   if (cur) return <RoundDetail r={cur} onBack={() => setOpen(null)} onChanged={m => { setMsg([m, false]); load() }} />
   const all = rows ?? []
+  const fitR = (r: Round, skip?: string) => (skip === 'org' || mf.has('org', r.org_id)) && (skip === 'year' || mf.has('year', r.school_year))
+    && (skip === 'lv' || mf.has('lv', String(r.target_level)))
+  const defs: FilterDef[] = [
+    { key: 'org', label: 'Đơn vị mở', placeholder: 'Mọi đơn vị', options: opts(all.filter(r => fitR(r, 'org')).map(r => [r.org_id, r.organizations?.name])) },
+    { key: 'year', label: 'Năm học', placeholder: 'Mọi năm học', options: opts(all.filter(r => fitR(r, 'year')).map(r => [r.school_year, r.school_year]), 'desc') },
+    { key: 'lv', label: 'Mức yêu cầu', placeholder: 'Mọi mức', options: opts(all.filter(r => fitR(r, 'lv')).map(r => [r.target_level, `Mức ${r.target_level} · ${LV_NAME[r.target_level - 1]}`])) },
+  ]
+  const base = all.filter(r => fitR(r) && (!q || r.name.toLowerCase().includes(q.toLowerCase())))
+  const shown = card ? base.filter(r => roundKey(r) === card) : base
+  const n = (k: string) => base.filter(r => roundKey(r) === k).length
   const openN = all.filter(r => r.status === 'open').length
   const add = () => { setMsg(null); setCreating(true) }
   return <>
@@ -50,17 +65,27 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
         <li><button type="button" disabled><i>3</i><span><b>Xem thiếu hụt</b><small>Kết quả vào hồ sơ năng lực; mục Khoảng thiếu hụt gợi ý chương trình đào tạo cho người dưới mức yêu cầu.</small></span></button></li>
       </ol>
     </FlowGuide>
+    <StatCards active={card} onPick={setCard} items={[
+      { icon: 'calendar', value: rows ? base.length : '…', label: 'Đợt đánh giá', sub: `${n('soon')} sắp mở` },
+      { k: 'open', icon: 'checkCircle', tone: n('open') ? 'good' : '', value: n('open'), label: 'Đang mở', sub: 'Trong thời gian nộp' },
+      { k: 'late', icon: 'alert', tone: n('late') ? 'warn' : '', value: n('late'), label: 'Quá hạn', sub: 'Quá hạn nộp, chưa đóng đợt' },
+      { k: 'closed', icon: 'clock', value: n('closed'), label: 'Đã đóng' },
+    ]} />
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
       <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Đợt đánh giá năng lực <small className="sub">· {openN} đang mở</small></h3>
         {can && <button type="button" className="primary" onClick={add}>+ Mở đợt đánh giá</button>}</div>
+      <div className="distfilter">
+        <MultiFilters defs={defs} f={mf} count={`${shown.length}/${all.length} đợt`} />
+        <input placeholder="Tìm tên đợt…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đợt đánh giá" />
+      </div>
       {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
         <thead><tr><th>Đợt</th><th>Đơn vị mở</th><th>Năm học</th><th>Thời gian</th><th>Mức yêu cầu</th><th>Trạng thái</th></tr></thead>
-        <tbody>{all.map(r => { const st = roundSt(r); return <tr key={r.id}>
+        <tbody>{shown.map(r => { const st = roundSt(r); return <tr key={r.id}>
           <td><button type="button" className="namelink" onClick={() => setOpen(r.id)}>{r.name}</button></td>
           <td>{r.organizations?.name ?? '—'}</td><td>{r.school_year}</td><td>{vnDate(r.opens_on)} – {vnDate(r.due_on)}</td>
           <td>Mức {r.target_level} · {LV_NAME[r.target_level - 1]}</td><td><Chip tone={st[1]}>{st[0]}</Chip></td></tr> })}
-          {!all.length && <tr><td colSpan={6}><small className="sub">Chưa có đợt đánh giá nào.{can ? ' Bấm "+ Mở đợt đánh giá" để bắt đầu.' : ''}</small></td></tr>}</tbody>
+          {!shown.length && <tr><td colSpan={6}><small className="sub">{all.length ? 'Không có đợt nào khớp bộ lọc.' : `Chưa có đợt đánh giá nào.${can ? ' Bấm "+ Mở đợt đánh giá" để bắt đầu.' : ''}`}</small></td></tr>}</tbody>
       </table></div>}
     </section>
   </>

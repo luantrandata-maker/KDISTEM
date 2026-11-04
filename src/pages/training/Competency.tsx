@@ -211,7 +211,7 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
   const [enrolled, setEnrolled] = useState<Set<string>>(new Set())
   const [comp, setComp] = useState('')
   const [q, setQ] = useState('')
-  const [view, setView] = useState<'teacher' | 'school'>('teacher')
+  const [view, setView] = useState<'teacher' | 'school'>('school')
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const load = () => {
     setRows(null)
@@ -283,8 +283,8 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
         <button type="button" className={`distfchip${!comp ? ' on' : ''}`} onClick={() => setComp('')}>Mọi năng lực ({all.length})</button>
         {perComp.map(([c, n]) => <button key={c.key} type="button" className={`distfchip${comp === c.key ? ' on' : ''}`} onClick={() => setComp(c.key)}>{c.name} ({n})</button>)}
         <span style={{ flex: 1 }} />
-        <button type="button" className={`distfchip${view === 'teacher' ? ' on' : ''}`} onClick={() => setView('teacher')}>Theo giáo viên</button>
         <button type="button" className={`distfchip${view === 'school' ? ' on' : ''}`} onClick={() => setView('school')}>Tổng hợp theo trường</button>
+        <button type="button" className={`distfchip${view === 'teacher' ? ' on' : ''}`} onClick={() => setView('teacher')}>Theo giáo viên</button>
       </div>
       {!rows ? <p className="sub">Đang tải…</p> : view === 'school' ? <div className="wrap"><table className="libtable">
         <thead><tr><th>Trường</th><th>GV có thiếu hụt</th>{comps.map(c => <th key={c.key}>{c.name}</th>)}</tr></thead>

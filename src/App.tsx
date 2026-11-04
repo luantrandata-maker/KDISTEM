@@ -310,6 +310,7 @@ const SCHOOL: PageMap = {
   'Phân phối chương trình': ppctTabs('school'),
   'Chương trình giáo dục': eduProgramTabs('school'),
   'Hồ sơ Trường học': SchoolProfile,
+  'Chương trình đào tạo': TrainingProgramsPage,
   'Kế hoạch đào tạo': SchoolTrainingPlans,
   // Lớp học ảo (buổi trực tuyến) chuyển vào Lịch đào tạo; Bài giảng thành Học liệu đào tạo
   'Lịch đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Lịch đào tạo', TrainingSchedule], ['Lớp học ảo', VirtualClass]]} />,
@@ -409,6 +410,7 @@ const DEPARTMENT: PageMap = {
   'Giám sát Đào tạo GV': (p: any) => <TabbedPages {...p} tabs={[['Giám sát', TrainingMonitorHub], ['Đáp ứng chương trình', ProgramReadinessPage], ['Đáp ứng chương trình giáo dục', EduReadinessPage]]} />,
   'Báo cáo đào tạo': TrainingReportPage,
   'Đánh giá năng lực nhà giáo': AuthorityCompetencyTabs,
+  'Chương trình đào tạo': TrainingProgramsPage,
   'Kế hoạch đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', TrainingPlansPage], ['Giảng viên', TrainersPage]]} />,
   'Lịch đào tạo': TrainingCalendarPage,
   'Đánh giá kết quả đào tạo': TrainingResultsPage,

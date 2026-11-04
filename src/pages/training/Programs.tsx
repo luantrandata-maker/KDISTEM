@@ -1,4 +1,4 @@
-// Phân hệ 1 — Chương trình đào tạo (083): mẫu khoá đào tạo chuẩn của KDI, dùng lại cho các kế hoạch đào tạo.
+// Phân hệ 2 — Chương trình đào tạo (083, 131): mẫu khoá đào tạo do KDI, Sở, Phòng, Trường soạn, dùng lại cho các kế hoạch đào tạo.
 import { CompetencySetupLink } from '../../components/CompetencySetup'
 // Cấu trúc 3 cấp: Chương trình đào tạo → Môn → Nội dung đào tạo. Cách làm giống Phân hệ 2: hướng dẫn các bước,
 // thẻ số liệu, danh sách có lọc; thêm / sửa / xem chi tiết mở view riêng; Nháp → Đã phát hành → Ngừng dùng, nhân bản để sửa.
@@ -38,7 +38,7 @@ const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực 
 const SEL = 'id, org_id, code, title, ct_code, level, ct_codes, levels, audience, mode, description, competencies, target_level, pass_attendance, pass_score, need_product, status, version_no, source_id, updated_at, published_at, family_id, note, objectives, entry_conditions, outcomes, prereq_families, scope, effective_from, effective_to, builder'
 const SEL_X = SEL + ', final_exam, eval_frame'
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 083 trên Supabase.'
-  : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI soạn được chương trình đào tạo.' : m
+  : /row-level|42501|permission/i.test(m) ? 'Chỉ đơn vị soạn chương trình (hoặc KDI) mới sửa được chương trình đào tạo này.' : m
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 type Stat = { subjects: number; contents: number; hours: number }
 
@@ -56,7 +56,8 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
   const { codes, byCode: tracks } = useStemTracks()
   const { name: levelName } = useEduLevels()
   const reload = () => setRk(k => k + 1)
-  useEffect(() => { supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)) }, [])
+  // Đơn vị có quyền đào tạo (KDI, Sở, Phòng, Trường) tự soạn chương trình của mình (131)
+  useEffect(() => { supabase.rpc('training_program_can_create').then(({ data }) => setAdmin(!!data)) }, [])
   useEffect(() => {
     (async () => {
       const [p, u, t] = await Promise.all([
@@ -96,7 +97,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
       <FlowGuide id="training-programs">
         <ol className="distguide">{steps.map(([h, d], k) => <li key={h}><button type="button" onClick={() => setFs(k === 0 ? 'draft' : k === 1 ? 'published' : '')}>
           <i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
-        <p className="sub" style={{ margin: 0 }}>Chương trình đào tạo là mẫu khoá học chuẩn của KDI, gồm các môn, mỗi môn có các nội dung đào tạo. Một chương trình dùng lại được cho nhiều kế hoạch đào tạo.</p>
+        <p className="sub" style={{ margin: 0 }}>Chương trình đào tạo là mẫu khoá học do KDI, Sở, Phòng hoặc Trường soạn, gồm các môn, mỗi môn có các nội dung đào tạo. Một chương trình dùng lại được cho nhiều kế hoạch đào tạo.</p>
       </FlowGuide>
       <div className="diststatcards">
         <div className="panel"><i aria-hidden="true">≋</i><span><b>{list?.length ?? '…'}</b><small>Chương trình đào tạo</small><small>{n('published')} đã phát hành · {n('draft')} nháp</small></span></div>
@@ -129,7 +130,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
           <td><Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip></td>
           <td><small>{new Date(p.updated_at).toLocaleDateString('vi-VN')}</small></td>
         </tr> })}
-          {shown.length === 0 && <tr><td colSpan={8}>{list.length ? 'Không có chương trình nào khớp bộ lọc.' : admin ? 'Chưa có chương trình đào tạo nào. Bấm "Thêm chương trình đào tạo".' : 'Chưa có chương trình đào tạo nào được KDI phát hành.'}</td></tr>}</tbody>
+          {shown.length === 0 && <tr><td colSpan={8}>{list.length ? 'Không có chương trình nào khớp bộ lọc.' : admin ? 'Chưa có chương trình đào tạo nào. Bấm "Thêm chương trình đào tạo".' : 'Chưa có chương trình đào tạo nào được phát hành cho đơn vị.'}</td></tr>}</tbody>
       </table></div>}
     </>
   )
@@ -249,7 +250,7 @@ function ProgramForm({ admin, onBack, onSaved }: { admin: boolean; onBack: () =>
 // ===== Chi tiết: thông tin + môn & nội dung đào tạo =====
 export type PTab = 'info' | 'units' | 'exam' | 'eval' | 'versions' | 'assign'
 /** initialTab / initialContent: mở sẵn một tab hoặc một nội dung (VD: từ mục Kiểm tra & luyện tập); startFinal: mở sẵn form đề cuối khoá; back: nhãn nút quay lại */
-export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab, initialContent, startFinal, back = 'Chương trình đào tạo' }: { id: string; admin: boolean; go?: (page: string) => void; onBack: () => void; onOpen: (id: string) => void; onMsg: (m: [string, boolean]) => void
+export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, initialTab, initialContent, startFinal, back = 'Chương trình đào tạo' }: { id: string; admin: boolean; go?: (page: string) => void; onBack: () => void; onOpen: (id: string) => void; onMsg: (m: [string, boolean]) => void
   initialTab?: PTab; initialContent?: string | null; startFinal?: boolean; back?: string }) {
   const [p, setP] = useState<TProgram | null>(null)
   const [units, setUnits] = useState<Unit[]>([])
@@ -263,6 +264,9 @@ export function ProgramDetail({ id, admin, go, onBack, onOpen, onMsg, initialTab
   const { byCode: tracks } = useStemTracks()
   const { name: levelName } = useEduLevels()
   const comps = useCompetencies('teacher')
+  // Quyền sửa theo đơn vị soạn chương trình (131): KDI hoặc chính đơn vị đó
+  const [admin, setAdmin] = useState(false)
+  useEffect(() => { supabase.rpc('training_program_can_edit', { p_program: id }).then(({ data }) => setAdmin(!!data)) }, [id])
   async function load() {
     const [a, b] = await Promise.all([
       supabase.from('training_programs').select(SEL_X).eq('id', id).single(),
@@ -417,7 +421,7 @@ function TrainingVersions({ p, admin, warn, onOpen, onChanged }: {
       {['published', 'superseded', 'approved', 'rejected', 'draft'].includes(s) && <button type="button" disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Kế hoạch đã có vẫn giữ nguyên.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng</button>}
       {s === 'archived' && <button type="button" disabled={busy} onClick={() => setStatus('published', 'Ghi chú (không bắt buộc):')}>Dùng lại</button>}
       {!ready && (s === 'draft' || s === 'rejected') && <small className="sub">Chưa gửi duyệt / phát hành được: {warn.join('; ')}.</small>}
-    </div> : <p className="sub" style={{ margin: 0 }}>Chỉ quản trị nền tảng KDI duyệt và phát hành chương trình đào tạo.</p>}
+    </div> : <p className="sub" style={{ margin: 0 }}>Chỉ đơn vị soạn chương trình (hoặc KDI) duyệt và phát hành được chương trình này.</p>}
     <h3 style={{ margin: '8px 0 0' }}>Các phiên bản</h3>
     <div className="wrap"><table>
       <thead><tr><th>Phiên bản</th><th>Trạng thái</th><th>Phát hành</th><th>Cập nhật</th></tr></thead>
@@ -623,7 +627,7 @@ function ScopeEduFields({ x, set, owner, disabled }: { x: Extra; set: (x: Extra)
       <p className="sub" style={{ margin: '0 0 8px' }}>Đơn vị trong phạm vi (và đơn vị trực thuộc) mới thấy chương trình, chọn được khi lập kế hoạch và được gán kế hoạch dùng chương trình này.</p>
       <div className="formgrid" style={{ alignItems: 'start' }}>
         <label className="field"><span>Phạm vi áp dụng</span><select disabled={disabled} value={x.scope} onChange={e => set({ ...x, scope: e.target.value as Extra['scope'] })}>
-          <option value="all">Mọi đơn vị</option><option value="selected">Chỉ đơn vị được chọn</option></select></label>
+          <option value="all">Mọi đơn vị trực thuộc</option><option value="selected">Chỉ đơn vị được chọn</option></select></label>
         <label className="field"><span>Hiệu lực từ</span><input type="date" disabled={disabled} value={x.effective_from} onChange={e => set({ ...x, effective_from: e.target.value })} /></label>
         <label className="field"><span>Hiệu lực đến</span><input type="date" disabled={disabled} value={x.effective_to} min={x.effective_from || undefined} onChange={e => set({ ...x, effective_to: e.target.value })} /></label>
         {x.scope === 'selected' && <div className="field" style={{ gridColumn: '1/-1' }}><span>Đơn vị áp dụng * <small className="sub">(chọn Sở / Phòng là áp dụng cho mọi trường trực thuộc)</small></span>
@@ -678,7 +682,7 @@ function ProgramScope({ p, admin, onMsg }: { p: TProgram; admin: boolean; onMsg:
     const err = r1.error ?? r2.error ?? r3.error
     if (err) return onMsg(errText(err.message), true)
     setSaved(sel)
-    onMsg(scope === 'all' ? 'Đã lưu: chương trình áp dụng cho mọi đơn vị.' : `Đã lưu phạm vi áp dụng: ${sel.length} đơn vị và các đơn vị trực thuộc.`)
+    onMsg(scope === 'all' ? 'Đã lưu: chương trình áp dụng cho mọi đơn vị trực thuộc đơn vị soạn.' : `Đã lưu phạm vi áp dụng: ${sel.length} đơn vị và các đơn vị trực thuộc.`)
   }
   const note = effNote(p)
   return <section className="panel" style={{ display: 'grid', gap: 12 }}>
@@ -689,7 +693,7 @@ function ProgramScope({ p, admin, onMsg }: { p: TProgram; admin: boolean; onMsg:
     {edit ? <>
       <div className="formgrid" style={{ alignItems: 'start' }}>
         <label className="field"><span>Phạm vi áp dụng</span><select value={scope} onChange={e => setScope(e.target.value as 'all' | 'selected')}>
-          <option value="all">Mọi đơn vị</option><option value="selected">Chỉ đơn vị được chọn</option></select></label>
+          <option value="all">Mọi đơn vị trực thuộc</option><option value="selected">Chỉ đơn vị được chọn</option></select></label>
         <label className="field"><span>Hiệu lực từ</span><input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
         <label className="field"><span>Hiệu lực đến</span><input type="date" value={to} min={from || undefined} onChange={e => setTo(e.target.value)} /></label>
         {scope === 'selected' && <div className="field" style={{ gridColumn: '1/-1' }}><span>Đơn vị áp dụng * <small className="sub">(chọn Sở / Phòng là áp dụng cho mọi trường trực thuộc)</small></span>

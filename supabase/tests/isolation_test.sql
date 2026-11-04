@@ -3770,6 +3770,25 @@ select pg_temp.probe('kdi@iso-test.local', $q$update training_plans set exam_mod
 select pg_temp.chk('kdi', 'MD 129: đề tự làm thì không cần mở đề', $q$select training_exam_open((select id from training_plans where name = 'ISO KH X'), null, (select id from training_programs where title = 'ISO CTTH E' and status = 'published'))::text$q$, 'ERR 22023');
 select pg_temp.chk('gv_both', 'MD 129: chuyển về tự học thì giáo viên thấy chế độ tự làm', $q$select x -> p.id::text ->> 'mode' from training_exam_gates((select id from training_plans where name = 'ISO KH X')) x, training_programs p where p.title = 'ISO CTTH E' and p.status = 'published'$q$, 'self');
 
+-- ===== 131: Sở, Phòng, Trường tự soạn chương trình đào tạo =====
+select pg_temp.chk('so_hy', 'MO 131: Sở tạo được chương trình của Sở', $q$insert into training_programs (org_id, title) values (my_org_id(), 'ISO CT Sở') returning 'ok'$q$, 'rows:1');
+select pg_temp.chk('so_hy', 'MO 131: Sở không tạo chương trình dưới tên KDI', $q$insert into training_programs (org_id, title) values (platform_org_id(), 'ISO CT Sở giả')$q$, 'ERR');
+select pg_temp.probe('so_hy@iso-test.local', $q$insert into training_programs (org_id, title) values (my_org_id(), 'ISO CT Sở')$q$, true);
+select pg_temp.chk('so_hy', 'MO 131: Sở được soạn chương trình của mình', $q$select training_program_can_edit(id)::text from training_programs where title = 'ISO CT Sở'$q$, 'true');
+select pg_temp.probe('so_hy@iso-test.local', $q$insert into training_program_units (program_id, kind, seq, title, hours) select id, 'subject', 1, 'ISO môn Sở', 0 from training_programs where title = 'ISO CT Sở'$q$, true);
+select pg_temp.probe('so_hy@iso-test.local', $q$insert into training_program_units (program_id, parent_id, kind, seq, title, hours) select p.id, u.id, 'content', 1, 'ISO bài Sở', 2 from training_programs p join training_program_units u on u.program_id = p.id where p.title = 'ISO CT Sở'$q$, true);
+select pg_temp.chk('admin_ph', 'MO 131: trường chưa thấy bản nháp của Sở', $q$select count(*) from training_programs where title = 'ISO CT Sở'$q$, '0');
+select pg_temp.chk('so_bn', 'MO 131: Sở khác không sửa chương trình của Sở', $q$select training_program_set_status((select id from training_programs where title = 'ISO CT Sở'), 'pending')$q$, 'ERR');
+select pg_temp.chk('so_hy', 'MO 131: Sở không áp dụng cho trường tỉnh khác', format($q$insert into training_program_targets (program_id, org_id) select id, %s from training_programs where title = 'ISO CT Sở'$q$, pg_temp.ids('{THCS-KB}')), 'ERR 22023');
+select pg_temp.chk('so_hy', 'MO 131: Sở tự phát hành chương trình', $q$select training_program_set_status((select id from training_programs where title = 'ISO CT Sở'), 'published')$q$, 'published');
+select pg_temp.probe('so_hy@iso-test.local', $q$select training_program_set_status((select id from training_programs where title = 'ISO CT Sở'), 'published')$q$, true);
+select pg_temp.chk('admin_ph', 'MO 131: trường trực thuộc thấy chương trình Sở đã phát hành', $q$select count(*) from training_programs where title = 'ISO CT Sở'$q$, '1');
+select pg_temp.chk('admin_kb', 'MO 131: trường tỉnh khác không thấy chương trình Sở', $q$select count(*) from training_programs where title = 'ISO CT Sở'$q$, '0');
+select pg_temp.chk('admin_ph', 'MO 131: trường không sửa chương trình của Sở', $q$update training_programs set note = 'x' where title = 'ISO CT Sở' returning 'sửa'$q$, 'rows:0');
+select pg_temp.chk('so_hy', 'MO 131: Sở làm được phiên bản mới', $q$select (training_program_new_version((select id from training_programs where title = 'ISO CT Sở' and status = 'published')) is not null)::text$q$, 'true');
+select pg_temp.chk('admin_ph', 'MO 131: trường tạo được chương trình của trường', $q$insert into training_programs (org_id, title) values (my_org_id(), 'ISO CT trường') returning 'ok'$q$, 'rows:1');
+select pg_temp.chk('gv_both', 'MO 131: giáo viên không tạo chương trình', $q$insert into training_programs (org_id, title) values (my_org_id(), 'ISO CT GV')$q$, 'ERR');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

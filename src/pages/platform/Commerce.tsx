@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase, fetchAll } from '../../lib/supabase'
+import { SchoolPicker, type PickOpt } from '../../components/SchoolPicker'
 import { Tabs } from '../teacher/common'
 import { Tiles } from '../department/charts'
 import { usePlatform, pathOf, ORG_TYPE, type Org } from './data'
@@ -189,6 +190,7 @@ export function PlatformContracts() {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     const v = (k: string) => String(fd.get(k) ?? '').trim()
+    if (!v('org_id')) return setMsg('Chọn khách hàng (đơn vị) cho hợp đồng.')
     const row = { code: v('code'), org_id: v('org_id'), plan_id: v('plan_id'), starts_on: v('starts_on'), ends_on: v('ends_on') || null,
       value: v('value') ? Number(v('value').replace(/\D/g, '')) : null, status: v('status'), include_children: fd.get('include_children') === 'on', note: v('note') || null }
     const { error } = editC === 'new' ? await supabase.from('contracts').insert(row) : await supabase.from('contracts').update(row).eq('id', (editC as Contract).id)
@@ -234,8 +236,7 @@ export function PlatformContracts() {
       {tab === 'contracts' && editC && (
         <form className="panel formgrid" onSubmit={saveContract} key={c0?.id ?? 'new'}>
           <label className="field"><span>Số hợp đồng *</span><input name="code" required defaultValue={c0?.code ?? `HĐ-${year}-`} /></label>
-          <label className="field spanall"><span>Khách hàng (đơn vị) *</span><select name="org_id" required defaultValue={c0?.org_id ?? ''}>
-            <option value="" disabled>Chọn đơn vị…</option>{orgOpts.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}</select></label>
+          <div className="field spanall"><span>Khách hàng: Tỉnh / Sở và đơn vị *</span><OrgField name="org_id" initial={c0?.org_id ?? ''} options={orgOpts.map(o => ({ id: o.id, name: o.label }))} /></div>
           <label className="field"><span>Gói dịch vụ *</span><select name="plan_id" required defaultValue={c0?.plan_id ?? d.plans.find(p => p.active)?.id}>
             {d.plans.filter(p => p.active || p.id === c0?.plan_id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
           <label className="field"><span>Trạng thái</span><select name="status" defaultValue={c0?.status ?? 'active'}>{Object.entries(C_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
@@ -304,4 +305,11 @@ export function PlatformContracts() {
       )}
     </>
   )
+}
+
+/** Ô chọn đơn vị trong form không điều khiển: Tỉnh / Sở rồi tìm, giá trị gửi qua ô ẩn */
+function OrgField({ name, initial, options }: { name: string; initial: string; options: PickOpt[] }) {
+  const [v, setV] = useState(initial)
+  return <><SchoolPicker single value={v ? [v] : []} onChange={x => setV(x[0] ?? '')} options={options} placeholder="Gõ để tìm đơn vị / trường…" ariaLabel="Khách hàng" />
+    <input type="hidden" name={name} value={v} /></>
 }

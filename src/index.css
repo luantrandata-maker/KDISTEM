@@ -2185,3 +2185,8 @@ tr.distyear td{background:var(--surface-2,var(--surface));border-top:2px solid v
 .pform .preq select{padding:8px;border:1px solid var(--line);border-radius:10px;font-family:inherit;min-width:0}
 .pform .formactions{margin:0}
 @media(max-width:900px){.pform .pgrid>*{grid-column:1/-1 !important}.pform .preqs{grid-template-columns:1fr}}
+
+/* Chọn trường: Tỉnh / Sở rồi tìm trường (SchoolPicker) */
+.schoolpicker{display:grid;grid-template-columns:minmax(170px,280px) minmax(0,1fr);gap:8px;align-items:start;min-width:0}
+.schoolpicker>select.regionsel{min-height:40px}
+@media (max-width:700px){.schoolpicker{grid-template-columns:1fr}}

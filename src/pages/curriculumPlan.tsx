@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { NumMultiSelect } from '../components/MultiSelect'
+import { useRegionFilter } from '../components/SchoolPicker'
 import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../components/MultiFilters'
 import { useProvinceOf } from '../components/OrgScope'
 import { supabase, fetchAll } from '../lib/supabase'
@@ -647,9 +648,10 @@ export function AssignPrograms({ orgId, mode = 'authority' }: { orgId: string | 
   useEffect(() => { loadCov(); setSel(new Set()); setGrades(prog ? progGrades(prog) : []) }, [progId, prog?.id])
 
   const byId = useMemo(() => new Map(orgs.map(o => [o.id, o])), [orgs])
-  const schools = orgs.filter(o => o.type === 'school' && o.id !== orgId)
+  const schools = useMemo(() => orgs.filter(o => o.type === 'school' && o.id !== orgId), [orgs, orgId])
   const area = (o: Org) => (o.parent_id ? byId.get(o.parent_id)?.name ?? '' : '')
-  const shown = schools.filter(o => {
+  const reg = useRegionFilter(schools)
+  const shown = reg.shown.filter(o => {
     const c = cov.get(o.id)
     if (only === 'assigned' && !c?.assigned) return false
     if (only === 'not' && c?.assigned) return false
@@ -687,7 +689,8 @@ export function AssignPrograms({ orgId, mode = 'authority' }: { orgId: string | 
             {programs.length === 0 && <option value="">Chưa có chương trình</option>}
             {programs.map(p => <option key={p.id} value={p.id}>{p.title} (v{p.version_no}) · {fmtGrades(progGrades(p), 'khối ')}{p.status !== 'published' ? ' · nháp' : ''}</option>)}
           </select>
-          <input placeholder="Tìm trường, địa bàn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm trường" />
+          {reg.select}
+          <input type="search" placeholder="Tìm trường, địa bàn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm trường" />
           <div className="segmented" style={{ margin: 0 }}>
             {([['all', 'Tất cả'], ['assigned', 'Đã gán'], ['not', 'Chưa gán']] as const).map(([k, l]) => <button key={k} className={only === k ? 'on' : ''} onClick={() => setOnly(k)}>{l}</button>)}
           </div>

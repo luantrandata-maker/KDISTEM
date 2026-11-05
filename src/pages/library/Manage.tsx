@@ -3,6 +3,7 @@ import { useHiddenBtn } from '../../components/PageButtons'
 import { CustomInputs, customCell } from '../../components/CustomFields'
 import { fieldsOf, useSettings } from '../../lib/settings'
 import { MultiSelect } from '../../components/MultiSelect'
+import { SchoolPicker } from '../../components/SchoolPicker'
 import { useStemTracks } from '../../lib/stemTracks'
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { Icon } from '../../components/Icon'
@@ -605,8 +606,8 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
           </div>
           {form.scope === 'selected' && (
             <fieldset className="libtargets wide"><legend>Đơn vị nhận (gồm cả đơn vị trực thuộc của đơn vị được chọn)</legend>
-              <MultiSelect value={form.targets} onChange={v => setForm({ ...form, targets: v })} options={below.map(o => [o.id, o.name])}
-                placeholder="Chọn đơn vị nhận…" ariaLabel="Đơn vị nhận" empty="Đơn vị chưa có cấp dưới." />
+              <SchoolPicker value={form.targets} onChange={v => setForm({ ...form, targets: v })} options={below}
+                placeholder="Gõ để tìm, chọn đơn vị nhận…" ariaLabel="Đơn vị nhận" empty="Đơn vị chưa có cấp dưới." />
             </fieldset>
           )}
           {form.kind === 'lesson' && <div className="formactions"><button type="button" className="primary" onClick={() => {

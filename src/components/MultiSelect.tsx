@@ -13,10 +13,11 @@ const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/
  * Thứ tự tick là thứ tự lưu; `primary` gắn nhãn cho mục đầu tiên (giá trị chính).
  * `allowCustom` cho thêm giá trị ngoài danh sách (gõ rồi Enter).
  * `compact`: ô lọc gọn một dòng (thanh công cụ): chỉ hiện mục đầu và "+N".
+ * `single`: chỉ chọn một mục (bấm mục khác thì thay, chọn xong đóng danh sách).
  */
-export function MultiSelect({ value, onChange, options, disabled, placeholder = 'Chọn…', ariaLabel, primary, allowCustom, customLabel = 'Thêm', empty = 'Không có lựa chọn', style, compact }: {
+export function MultiSelect({ value, onChange, options, disabled, placeholder = 'Chọn…', ariaLabel, primary, allowCustom, customLabel = 'Thêm', empty = 'Không có lựa chọn', style, compact, single }: {
   value: string[]; onChange: (v: string[]) => void; options: MsOption[]; disabled?: boolean; placeholder?: string; ariaLabel?: string
-  primary?: string; allowCustom?: boolean; customLabel?: string; empty?: string; style?: React.CSSProperties; compact?: boolean
+  primary?: string; allowCustom?: boolean; customLabel?: string; empty?: string; style?: React.CSSProperties; compact?: boolean; single?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
@@ -37,7 +38,10 @@ export function MultiSelect({ value, onChange, options, disabled, placeholder = 
   const vis = Math.min(shown.length, LIMIT)
   const rows = custom ? vis + 1 : vis
 
-  const toggle = (v: string) => onChange(value.includes(v) ? value.filter(x => x !== v) : [...value, v])
+  const toggle = (v: string) => {
+    if (single) { onChange(value.includes(v) ? [] : [v]); setOpen(false); setQ(''); inp.current?.blur(); return }
+    onChange(value.includes(v) ? value.filter(x => x !== v) : [...value, v])
+  }
   const addCustom = () => { if (custom) { onChange([...value, custom]); setQ('') } }
   const shownOn = shown.filter(o => value.includes(o.value)).length
   const toggleAll = () => {
@@ -97,10 +101,10 @@ export function MultiSelect({ value, onChange, options, disabled, placeholder = 
         <button type="button" className="mselx mselplus" aria-label={open ? 'Đóng danh sách' : 'Mở danh sách'} onClick={() => { setOpen(o => !o); if (!open) inp.current?.focus() }}>{open ? '−' : '+'}</button>
       </span>}
       {open && pos && createPortal(
-        <div ref={pop} className="mselpop" role="listbox" aria-multiselectable="true" aria-label={ariaLabel}
+        <div ref={pop} className="mselpop" role="listbox" aria-multiselectable={!single} aria-label={ariaLabel}
           style={{ left: pos.left, width: pos.width, maxHeight: pos.max, ...(pos.up ? { bottom: window.innerHeight - pos.top } : { top: pos.top }) }}
           onMouseDown={e => e.preventDefault()}>
-          {shown.length > 0 && <label className="mselhead">
+          {shown.length > 0 && !single && <label className="mselhead">
             <input type="checkbox" checked={shownOn > 0 && shownOn === shown.length} ref={el => { if (el) el.indeterminate = shownOn > 0 && shownOn < shown.length }} onChange={toggleAll} />
             <b>{value.length ? `Đã chọn ${value.length}` : q ? 'Chọn tất cả kết quả' : 'Chọn tất cả'}</b></label>}
           <div className="msellist">

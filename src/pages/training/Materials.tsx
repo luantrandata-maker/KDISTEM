@@ -30,7 +30,7 @@ const PER = Object.fromEntries(LISTS.mats.cols.find(c => c.key === 'per')!.optio
 const SHEET: Record<Exclude<Part, 'content'>, string> = { docs: 'Link-tai-lieu', mats: 'Dinh-muc-vat-tu', acts: 'Kho-hoat-dong' }
 
 // Đọc hết cấu trúc tất cả chương trình theo trang 1000 dòng (máy chủ chỉ trả tối đa 1000 dòng mỗi lần)
-async function allUnits() {
+export async function allUnits() {
   const out: Unit[] = []
   for (let i = 0; ; i += 1000) {
     const r = await supabase.from('training_program_units').select('id, program_id, parent_id, kind, seq, title, hours, has_test, detail').order('id').range(i, i + 999)

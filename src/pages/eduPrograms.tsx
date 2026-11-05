@@ -193,7 +193,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   )
   const table = (rows: Program[], mine: boolean) => (
     <div className="wrap"><table>
-      <thead><tr>{!mine && canCopy && <SelTh />}<th>Chương trình</th><th>Cấp · khối · kiểu · nhóm</th><th>Môn</th><th>Số tiết · triển khai</th><th>Trạng thái</th>{progFields.filter(x => x.column).map(x => <th key={x.key}>{x.label}</th>)}</tr></thead>
+      <thead><tr>{!mine && canCopy && <SelTh />}<th>Chương trình</th><th>Cấp · khối · loại · nhóm</th><th>Môn</th><th>Số tiết · triển khai</th><th>Trạng thái</th>{progFields.filter(x => x.column).map(x => <th key={x.key}>{x.label}</th>)}</tr></thead>
       <tbody>{rows.map(p => row(p, mine))}</tbody>
     </table></div>
   )
@@ -256,7 +256,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
       <div className="bar">
         <div className="tools">
           <LevelPicker value={level} onChange={setLevel} emptyLabel="Tất cả cấp học" />
-          <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Kiểu chương trình"><option value="">Tất cả kiểu</option>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select>
+          <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại chương trình"><option value="">Tất cả loại chương trình</option>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select>
           {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
           <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Trạng thái"><option value="">Tất cả trạng thái</option>{Object.entries(SGROUP).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}</select>
           <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
@@ -481,7 +481,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
       <label className="field" style={S(6)}><span>Tên chương trình *</span><input disabled={dis} value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} placeholder="VD: Tin học THCS (CT GDPT 2018)" /></label>
       <div className="field" style={S(6)}><span>Nhóm chương trình * <small className="sub">(mục chọn đầu là chính)</small></span>
         <ChipMulti disabled={dis} value={ctsOf(f as Program)} onChange={v => setF({ ...f, ct_codes: v, ct_code: v[0] ?? null })} options={CT.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])} ariaLabel="Nhóm chương trình" firstHint="Nhóm chính" /></div>
-      <label className="field" style={S(4)}><span>Kiểu chương trình</span><select disabled={dis} value={f.kind ?? 'subject'} onChange={e => setF({ ...f, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
+      <label className="field" style={S(4)}><span>Loại chương trình</span><select disabled={dis} value={f.kind ?? 'subject'} onChange={e => setF({ ...f, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
       <label className="field" style={S(4)}><span>Số tiết / tuần</span><input disabled={dis} type="number" min={0.5} max={40} step={0.5} value={f.periods_per_week ?? ''} onChange={e => setF({ ...f, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })}
         placeholder="VD: 2" title="Dùng làm mặc định khi tạo phân phối chương trình" /></label>
       <label className="field" style={S(4)}><span>Thời gian triển khai</span><select disabled={dis} value={f.deploy_term ?? 'year'} onChange={e => setF({ ...f, deploy_term: e.target.value as Deploy })}>{(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} ({DEPLOY[d][1]})</option>)}</select></label>

@@ -54,7 +54,7 @@ const HealthPill = ({ h }: { h: Health }) => h === 'na' ? <small>—</small>
   : <span className={'gpill ' + HEALTH[h][1]}><i aria-hidden="true">{HEALTH[h][2]}</i>{HEALTH[h][0]}</span>
 
 type QuickF = 'all' | 'watch' | 'expiring' | 'noowner' | 'rollout'
-const IMPORT_COLS = [
+export const IMPORT_COLS = [
   { key: 'code', label: 'Mã trường', required: true, aliases: ['ma', 'ma truong'] },
   { key: 'name', label: 'Tên trường', required: true, aliases: ['ten', 'ten truong'] },
   { key: 'level', label: 'Cấp học', aliases: ['cap'] },
@@ -68,6 +68,33 @@ const IMPORT_COLS = [
   { key: 'lng', label: 'Kinh độ', aliases: ['kinh do', 'lng', 'lon'] },
   { key: 'coord', label: 'Toạ độ (dán từ Google Maps)', aliases: ['toa do', 'tọa độ'] },
 ]
+
+type ImportRec = Record<string, string> & { _line: number }
+// Nhập trường hàng loạt (dùng ở Cơ sở triển khai và Cây tổ chức). Hàm CSDL nhận tối đa 2000 dòng một lần nên chia thành từng đợt.
+// defaultParent: mã Sở/Phòng dùng khi dòng để trống cột "Mã Sở/Phòng quản lý". Dòng trống mã trường được tự đặt mã <mã đơn vị quản lý>-<tên viết liền>.
+export async function importSchools(recs: ImportRec[], defaultParent?: string) {
+  const used = new Set<string>()
+  const rows = recs.map(r => {
+    const parent = (r.parent_code || defaultParent || '').trim()
+    let code = (r.code || '').trim()
+    if (!code && r.name) {
+      const base = `${parent}-${norm(r.name).replace(/^truong /, '').replace(/ /g, '').toUpperCase()}`.slice(0, 60)
+      code = base; for (let i = 2; used.has(code); i++) code = `${base}-${i}`
+    }
+    used.add(code)
+    return { ...r, code, parent_code: parent, line: r._line }
+  })
+  let created = 0; const skipped: { line: number; code: string; reason: string }[] = []
+  for (let i = 0; i < rows.length; i += 2000) {
+    const { data, error } = await supabase.rpc('platform_import_schools', { p_rows: rows.slice(i, i + 2000) })
+    if (error) throw new Error((created ? `Đã tạo ${created} trường rồi dừng: ` : '') + errText(error.message))
+    const d = data as { created: number; skipped: typeof skipped }
+    created += d.created; skipped.push(...d.skipped)
+  }
+  const why = [...skipped.reduce((m, s) => m.set(s.reason.replace(/ \S+ đã có$/, ' đã có'), (m.get(s.reason.replace(/ \S+ đã có$/, ' đã có')) ?? 0) + 1), new Map<string, number>())]
+  return `Đã tạo ${created} trường.` + (skipped.length ? ` Bỏ qua ${skipped.length} dòng: ${why.slice(0, 4).map(([k, n]) => `${k} (${n} dòng)`).join('; ')}${why.length > 4 ? '…' : ''}.`
+    + ` Ví dụ: ${skipped.slice(0, 3).map(s => `dòng ${s.line}`).join(', ')}.` : '')
+}
 
 export function PlatformSchools({ go }: { go?: (p: string) => void }) {
   const [rows, setRows] = useState<Reg[] | null>(null)
@@ -128,11 +155,9 @@ export function PlatformSchools({ go }: { go?: (p: string) => void }) {
       r.kdi_owner_name, r.go_live_on ? day(r.go_live_on) : '', r.contact_name, r.contact_phone, r.contact_email]), 'Cơ sở triển khai')
   }
   async function importRows(recs: (Record<string, string> & { _line: number })[]) {
-    const { data, error } = await supabase.rpc('platform_import_schools', { p_rows: recs.map(r => ({ ...r, line: r._line })) })
-    if (error) throw new Error(errText(error.message))
-    const d = data as { created: number; skipped: { line: number; code: string; reason: string }[] }
+    const m = await importSchools(recs)
     await load()
-    return `Đã tạo ${d.created} trường.` + (d.skipped.length ? ` Bỏ qua ${d.skipped.length} dòng: ${d.skipped.slice(0, 4).map(s => `dòng ${s.line} (${s.reason})`).join('; ')}${d.skipped.length > 4 ? '…' : ''}` : '')
+    return m
   }
 
   return (

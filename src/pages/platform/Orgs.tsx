@@ -2,6 +2,8 @@ import { Icon } from '../../components/Icon'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { sendInviteEmail } from '../../lib/invite'
+import ImportExcel from '../../components/ImportExcel'
+import { IMPORT_COLS, importSchools } from './Schools'
 import {
   usePlatform, ORG_TYPE, TYPE_FULL, CHILD_TYPES, NEW_CHILD_TYPES, ROOT_TYPES, LEVELS, rolesFor, pathOf, nf, errText, type Org,
 } from './data'
@@ -13,6 +15,8 @@ type Form =
   | { mode: 'move'; parent: string }
 
 const EMAIL = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
+// Nhập trường vào đơn vị đang chọn: mã trường và mã Sở/Phòng không bắt buộc (để trống thì tự đặt mã, nhận vào đơn vị đang chọn)
+const TREE_IMPORT_COLS = IMPORT_COLS.map(c => c.key === 'parent_code' || c.key === 'code' ? { ...c, required: false } : c)
 
 // Cây tổ chức: xem toàn bộ Bộ → Tỉnh → Sở → Phòng → Trường; thêm/sửa/chuyển/kích hoạt/tạm dừng; gán người phụ trách
 export function PlatformOrgs() {
@@ -208,6 +212,13 @@ export function PlatformOrgs() {
                 <div className="actions">
                   <button type="button" onClick={() => setForm({ mode: 'edit', name: org.name, code: org.code ?? '', level: org.level ?? '', ward: org.ward ?? '', address: org.address ?? '' })}>Sửa</button>
                   {NEW_CHILD_TYPES[org.type].length > 0 && <button type="button" onClick={() => setForm({ mode: 'child', type: NEW_CHILD_TYPES[org.type][0], name: '', code: '', level: '', ward: '', parent: org.id })}>+ Đơn vị trực thuộc</button>}
+                  {CHILD_TYPES[org.type].includes('school') && <ImportExcel label="Nhập trường từ Excel" columns={TREE_IMPORT_COLS} template="Mau-nhap-truong"
+                    sample={[['', 'Trường THCS ABC', 'THCS', org.code ?? '', 'Phường Sài Gòn', '12 Lê Lợi', 'Nguyễn Văn A', '0912345678', 'a@truong.edu.vn', '', '', '10.7769, 106.7009']]}
+                    onRecords={async recs => {
+                      if (!org.code && recs.some(r => !r.parent_code)) throw new Error(`“${org.name}” chưa có mã. Bấm Sửa để đặt mã đơn vị, hoặc điền cột Mã Sở/Phòng quản lý.`)
+                      const m = await importSchools(recs, org.code ?? undefined); await reload(); return m
+                    }}
+                    onMessage={(m, bad) => { if (bad) { setMsg(m); setInfo('') } else { setInfo(m); setMsg('') } }} />}
                   {!org.is_platform && (parentOptions.length > 0 || canRoot) && <button type="button" onClick={() => setForm({ mode: 'move', parent: org.parent_id ?? '' })}>Chuyển</button>}
                   {org.type === 'school' && <button type="button" onClick={() => setActive(org, !org.activated_at)}>{org.activated_at ? 'Bỏ kích hoạt' : 'Kích hoạt'}</button>}
                   {!org.is_platform && <button type="button" onClick={() => setStatus(org, org.status === 'active' ? 'suspended' : 'active')}>{org.status === 'active' ? 'Tạm dừng' : 'Mở lại'}</button>}

@@ -2,7 +2,7 @@ import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../../components/Tabl
 // Giáo án & bài giảng cho Trường (duyệt, theo dõi, mẫu giáo án), Sở / Phòng (giáo án đã xuất bản của trường trực thuộc, mẫu dùng chung)
 // và KDI (mẫu giáo án dùng chung toàn hệ thống)
 import { Suspense, lazy, useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll } from '../../lib/supabase'
 import { useAllMode, useOrgName } from '../../components/OrgScope'
 import { Tabs } from '../teacher/common'
 import { useOrgFilter } from '../../components/OrgFilters'
@@ -199,7 +199,7 @@ function PublishedPlans({ orgId }: P) {
   useEffect(() => {
     supabase.from('lesson_plans').select(PLAN_COLS).eq('status', 'published').neq('org_id', orgId ?? '').order('published_at', { ascending: false, nullsFirst: false }).limit(1000)
       .then(({ data, error }) => { if (error) setErr(errText(error.message)); setRows(((data as LPlan[]) ?? []).map(normPlan)) })
-    supabase.from('organizations').select('id, name').eq('type', 'school').then(({ data }) => setOrgs(new Map(((data as { id: string; name: string }[]) ?? []).map(o => [o.id, o.name]))))
+    fetchAll(() => supabase.from('organizations').select('id, name').eq('type', 'school').order('id')).then(({ data }) => setOrgs(new Map(((data as { id: string; name: string }[]) ?? []).map(o => [o.id, o.name]))))
   }, [orgId])
   const schools = [...new Set(rows.map(r => r.org_id))].map(id => [id, orgs.get(id) ?? '—'] as const).sort((a, b) => a[1].localeCompare(b[1]))
   const shown = rows.filter(r => (!school || r.org_id === school) && (!q || r.title.toLowerCase().includes(q.toLowerCase())))

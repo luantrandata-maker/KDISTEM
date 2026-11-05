@@ -99,9 +99,13 @@ export default function CoverageMap({ schools, nation = false }: { schools: Scho
   async function loadLocs() {
     const ids = schools.map(s => s.school_id)
     if (!ids.length) return {}
-    const { data, error } = await supabase.from('organizations').select('id, lat, lng').in('id', ids)
+    // Chia nhỏ danh sách mã trường: gửi cả nghìn mã một lần làm đường dẫn quá dài → "Failed to fetch"
+    const parts: string[][] = []
+    for (let i = 0; i < ids.length; i += 150) parts.push(ids.slice(i, i + 150))
+    const res = await Promise.all(parts.map(p => supabase.from('organizations').select('id, lat, lng').in('id', p)))
+    const error = res.find(r => r.error)?.error
     if (error) { setErr(/lat|column/i.test(error.message) ? 'CSDL chưa có cột vị trí trường (migration 036).' : error.message); return {} }
-    const m = Object.fromEntries((data as Loc[]).map(l => [l.id, l])); setLocs(m); return m
+    const m = Object.fromEntries(res.flatMap(r => (r.data ?? []) as Loc[]).map(l => [l.id, l])); setLocs(m); return m
   }
   async function openProvince(p: ProvIdx) {
     const g = await fetch(`/geo/${p.code}.json`).then(r => r.ok ? r.json() : null).catch(() => null)

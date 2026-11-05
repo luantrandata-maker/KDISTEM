@@ -2,7 +2,7 @@
 // Bài học là bộ học liệu (library_items kind 'unit', 077/080): bài trong cây chương trình hoặc bài tạo thêm bằng "Tạo giáo án".
 // Cần chuẩn bị theo chương trình hoặc theo trường: tự tổng hợp vật tư / công cụ / thiết bị từ định mức của các bài × số nhóm.
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll } from '../../lib/supabase'
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { useRowSel, SelTh, SelTd, SelBar, NameLink } from '../../components/TableSel'
 import { KIT, kitDone } from './common'
@@ -373,7 +373,7 @@ function NeedsBySchool({ orgId }: { orgId: string | null }) {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    supabase.from('organizations').select('id, name').eq('type', 'school').order('name').then(({ data }) => {
+    fetchAll(() => supabase.from('organizations').select('id, name').eq('type', 'school').order('name').order('id')).then(({ data }) => {
       const xs = (data as { id: string; name: string }[]) ?? []
       setSchools(xs); setSid(s => s || (xs.find(x => x.id === orgId) ?? xs[0])?.id || '')
     })

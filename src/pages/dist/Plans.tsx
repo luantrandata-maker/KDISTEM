@@ -7,7 +7,7 @@ import { YearSelect } from '../../components/YearSelect'
 import { MultiSelect } from '../../components/MultiSelect'
 import { useHiddenBtn } from '../../components/PageButtons'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll } from '../../lib/supabase'
 import { useMultiSel, SelAllTh } from '../../components/TableSel'
 import type { ClsNode } from './cls'
 import { ClsTree } from './ClsTree'
@@ -265,14 +265,16 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
 }
 
 // ===== Tab "Gán theo trường" =====
-type Org = { id: string; name: string; type: string; parent_id: string | null }
+type Org = { id: string; name: string; type: string; parent_id: string | null; level?: string | null }
 type Cls = { id: string; name: string; grade: number; org_id: string }
+const LEVEL_RE: Record<string, RegExp> = { mamnon: /mầm non|mẫu giáo|nhà trẻ/i, tieuhoc: /tiểu học|\bTH\b/, thcs: /THCS|trung học cơ sở/i, thpt: /THPT|trung học phổ thông/i }
 
 function DistAssign({ orgId, plans, initial, onDone, onHistory }: { orgId: string | null; plans: Plan[]; initial: string; onDone: () => void; onHistory: () => void }) {
   const crumb = useBreadcrumb()
   const [pid, setPid] = useState(initial)
   const [orgs, setOrgs] = useState<Org[]>([])
   const [picked, setPicked] = useState<string[]>([])
+  const [region, setRegion] = useState('')
   const [year, setYear] = useState('')
   const [classes, setClasses] = useState<Cls[]>([])
   const [cls, setCls] = useState<string[]>([])
@@ -284,13 +286,32 @@ function DistAssign({ orgId, plans, initial, onDone, onHistory }: { orgId: strin
   useEffect(() => { setPid(initial) }, [initial])
   // Chỉ có một bản đã phát hành: chọn sẵn để thấy ngay phần chọn trường
   useEffect(() => { if (!pid && pub.length === 1) setPid(pub[0].id) }, [pub.length, pid]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { supabase.from('organizations').select('id, name, type, parent_id').order('name').then(({ data }) => setOrgs((data as Org[]) ?? [])) }, [])
+  useEffect(() => { fetchAll(() => supabase.from('organizations').select('id, name, type, parent_id, level').order('name').order('id')).then(({ data }) => setOrgs((data as Org[]) ?? [])) }, [])
   useEffect(() => {
     setCls([])
     if (picked.length !== 1 || !plan) { setClasses([]); return }
     supabase.from('classes').select('id, name, grade, org_id').eq('org_id', picked[0]).eq('grade', plan.grade).order('name').then(({ data }) => setClasses((data as Cls[]) ?? []))
   }, [picked.join(','), plan?.id])
-  const schools = orgs.filter(o => o.type === 'school')
+  // Chỉ hiện trường đúng cấp học của bản (bản THCS khối 6 thì không hiện trường mầm non, tiểu học);
+  // trường liên cấp nhận ra qua tên (vd. "TH, THCS và THPT …"), trường chưa khai báo cấp vẫn hiện
+  const fitsLevel = (o: Org) => !plan?.level || !o.level || o.level === plan.level || LEVEL_RE[plan.level]?.test(o.name)
+  const schools = orgs.filter(o => o.type === 'school' && fitsLevel(o))
+  // Đổi bản khác cấp: bỏ các trường đã chọn không còn hợp
+  useEffect(() => { setPicked(p => p.filter(id => schools.some(o => o.id === id))) }, [plan?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Tỉnh / Sở của mỗi trường = cấp Sở / tỉnh cao nhất phía trên trường
+  const { regions, regionOf } = useMemo(() => {
+    const byId = new Map(orgs.map(o => [o.id, o]))
+    const regionOf = new Map<string, string>()
+    for (const sc of schools) {
+      let r = '', cur = sc.parent_id ? byId.get(sc.parent_id) : undefined, n = 0
+      while (cur && n++ < 20) { if (cur.type === 'department' || cur.type === 'province') r = cur.id; cur = cur.parent_id ? byId.get(cur.parent_id) : undefined }
+      if (r) regionOf.set(sc.id, r)
+    }
+    const ids = new Set(regionOf.values())
+    return { regionOf, regions: orgs.filter(o => ids.has(o.id)) }
+  }, [orgs, plan?.level]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Đổi Sở vẫn giữ các trường đã chọn trước đó
+  const schoolOpts = region ? schools.filter(o => regionOf.get(o.id) === region || picked.includes(o.id)) : schools
   // Trường tự gán vẫn gửi duyệt PPCT như thường lệ; cấp trên / quản trị nền tảng mới áp dụng thẳng (DB cũng chặn, migration 134)
   const canApply = !orgId || orgs.find(o => o.id === orgId)?.type !== 'school'
 
@@ -327,8 +348,11 @@ function DistAssign({ orgId, plans, initial, onDone, onHistory }: { orgId: strin
           </table></div>
         </>}
         {plan && <>
+          {regions.length > 0 && <label className="field" style={{ marginBottom: 10 }}><span>Tỉnh / Sở</span>
+            <select value={region} onChange={e => setRegion(e.target.value)}><option value="">Tất cả Tỉnh / Sở ({schools.length} trường)</option>
+              {regions.map(r => <option key={r.id} value={r.id}>{r.name} ({schools.filter(o => regionOf.get(o.id) === r.id).length} trường)</option>)}</select></label>}
           <div className="field" style={{ marginBottom: 10 }}><span>Chọn trường ({picked.length})</span>
-            <MultiSelect value={picked} onChange={setPicked} options={schools.map(o => [o.id, o.name])} placeholder="Chọn trường…" ariaLabel="Trường" empty="Không có trường nào trong phạm vi." /></div>
+            <MultiSelect value={picked} onChange={setPicked} options={schoolOpts.map(o => [o.id, o.name])} placeholder="Chọn trường…" ariaLabel="Trường" empty="Không có trường nào trong phạm vi." /></div>
           {picked.length === 1 && <fieldset className="libtargets wide"><legend>Lớp khối {plan.grade} (không chọn = áp dụng cả khối)</legend>
             <MultiSelect value={cls} onChange={setCls} options={classes.map(c => [c.id, c.name])} placeholder="Cả khối" ariaLabel="Lớp" empty={`Trường chưa có lớp khối ${plan.grade}.`} /></fieldset>}
           <div className="formactions"><button type="button" className="primary" disabled={busy || !picked.length} onClick={() => assign()}>Gán và tạo PPCT</button>

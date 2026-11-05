@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import { supabase } from '../lib/supabase'
+import { supabase, fetchAll } from '../lib/supabase'
 import { Tabs } from './teacher/common'
 
 // Trợ lý AI (migration 052, hàm máy chủ ai-assistant). Nội dung câu hỏi / trả lời không lưu trên hệ thống.
@@ -219,7 +219,7 @@ function AISettings() {
   const [test, setTest] = useState('')
   async function load() {
     const [a, b, c] = await Promise.all([supabase.from('ai_settings').select('*').eq('id', 1).maybeSingle(), supabase.from('ai_org_limits').select('*'),
-      supabase.from('organizations').select('id, name, type').neq('type', 'provider').order('name')])
+      fetchAll(() => supabase.from('organizations').select('id, name, type').neq('type', 'provider').order('name').order('id'))])
     if (a.error) setMsg([/does not exist|schema cache/i.test(a.error.message) ? 'Hãy chạy migration 052 trên Supabase.' : a.error.message, true])
     setS(a.data ? { provider: 'anthropic', fallback_provider: null, fallback_model: null, prices: {}, ...(a.data as any) } : null); setLimits((b.data as Limit[]) ?? []); setOrgs((c.data as any[]) ?? [])
     supabase.functions.invoke('ai-assistant', { body: { action: 'keys' } }).then(({ data }) => data && !data.error && setKeys(data))
@@ -307,7 +307,7 @@ function AIUsage() {
   useEffect(() => {
     const from = new Date(month + '-01T00:00:00'), to = new Date(from); to.setMonth(to.getMonth() + 1)
     Promise.all([supabase.from('ai_usage').select('org_id, user_id, task, provider, model, input_tokens, output_tokens, ok, created_at, error').gte('created_at', from.toISOString()).lt('created_at', to.toISOString()).limit(20000),
-      supabase.from('organizations').select('id, name')]).then(([u, o]) => {
+      fetchAll(() => supabase.from('organizations').select('id, name').order('id'))]).then(([u, o]) => {
       if (u.error) setErr(/does not exist|schema cache/i.test(u.error.message) ? 'Hãy chạy migration 052 trên Supabase.' : u.error.message)
       setRows((u.data as Usage[]) ?? []); setOrgs(new Map(((o.data as any[]) ?? []).map(x => [x.id, x.name])))
     })

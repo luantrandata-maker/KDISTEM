@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll } from '../../lib/supabase'
 import { downloadWorkbook, norm } from '../../lib/sheet'
 import { Tabs } from '../teacher/common'
 import { useOrgs } from './SystemViews'
@@ -235,19 +235,21 @@ function ExportView({ dict }: { dict: Dictionary }) {
       const rows: any[] = []
       if (ent.schoolOnly) {
         const want = new Set((ids ?? schools.map(s => s.id)))
-        const { data, error } = await supabase.from('organizations').select(ent.select).eq('type', 'school').order('name')
+        const { data, error } = await fetchAll(() => supabase.from('organizations').select(ent.select).eq('type', 'school').order('name').order('id'))
         if (error) throw error
         rows.push(...((data as any[]) ?? []).filter(r => want.has(r.id)))
       } else {
+        // Nhiều trường (vd. cả Sở TP.HCM) thì không gửi danh sách mã trong đường dẫn (quá dài) mà lọc sau khi tải
+        const qids = ids && ids.length <= 150 ? ids : null, want = ids && !qids ? new Set(ids) : null
         for (let from = 0; from < 100000; from += 1000) {
           let q: any = supabase.from(ent.table).select(ent.select).order(ent.order).range(from, from + 999)
-          if (ids) q = ids.length === 1 ? q.eq('org_id', ids[0]) : q.in('org_id', ids)
+          if (qids) q = qids.length === 1 ? q.eq('org_id', qids[0]) : q.in('org_id', qids)
           const { data, error } = await q
           if (error) throw error
-          rows.push(...((data as any[]) ?? []))
+          rows.push(...(((data as any[]) ?? []).filter(r => !want || want.has(r.org_id))))
           if (!data || data.length < 1000) break
         }
-        if (ent.extra) await ent.extra(rows, ids)
+        if (ent.extra) await ent.extra(rows, qids)
       }
       if (!rows.length) { setMsg(['Không có dữ liệu trong phạm vi đã chọn.', true]); return }
       const scope = org ? byId.get(org)?.name : region ? byId.get(region)?.name : 'toan-he-thong'

@@ -5,7 +5,8 @@
 // Dùng ở mục Đánh giá kết quả đào tạo và bước 5 của chi tiết kế hoạch. Dữ liệu và quy tắc ở migration 087.
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll } from '../../lib/supabase'
+import { useOrgFilter } from '../../components/OrgFilters'
 import { downloadXlsx } from '../../lib/sheet'
 import { Chip } from '../dist/Editor'
 import { CERT_ST, RESULT, ResultDetail, type ResRow, type RPlan } from './Results'
@@ -70,6 +71,9 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
   const [busy, setBusy] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const [print, setPrint] = useState<Payload[] | null>(null)
+  // Lọc Tỉnh / Sở và trường: trường của từng giáo viên ghi danh
+  const [orgOf, setOrgOf] = useState<Map<string, string>>(new Map())
+  const of = useOrgFilter()
 
   function load() {
     supabase.rpc('training_plan_results', { p_plan: plan.id }).then(({ data, error }) => {
@@ -80,6 +84,8 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
     supabase.from('training_sessions').select('id, title, starts_at').eq('plan_id', plan.id).order('starts_at').then(({ data }) => setSess((data as Sess[]) ?? []))
     supabase.from('training_attendance').select('session_id, teacher_id, present, excuse_status, training_sessions!inner(plan_id)').eq('training_sessions.plan_id', plan.id)
       .then(({ data }) => setAtt((data as unknown as Att[]) ?? []))
+    fetchAll(() => supabase.from('training_enrollments').select('teacher_id, teachers(org_id)').eq('plan_id', plan.id).order('teacher_id'))
+      .then(({ data }) => setOrgOf(new Map(((data ?? []) as unknown as { teacher_id: string; teachers: { org_id: string } | null }[]).map(e => [e.teacher_id, e.teachers?.org_id ?? '']))))
     setSel(new Set())
   }
   useEffect(load, [plan.id])
@@ -99,7 +105,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
     onDone={m => { setOpen(null); setMsg([m, false]); load() }} />
 
   // base: theo ô tìm; thẻ tổng số và nút lọc đếm trên base
-  const base = all.filter(r => `${r.teacher_name} ${r.org_name ?? ''}`.toLowerCase().includes(q.toLowerCase()))
+  const base = all.filter(r => of.fit(orgOf.get(r.teacher_id)) && `${r.teacher_name} ${r.org_name ?? ''}`.toLowerCase().includes(q.toLowerCase()))
   const cnt = (k: F) => (k === 'all' ? base.length : k === 'ready' ? base.filter(ready).length : base.filter(r => r.result === k).length)
   const shown = base.filter(r => f === 'all' || (f === 'ready' ? ready(r) : r.result === f))
   const baseT = new Set(base.map(r => r.teacher_id))
@@ -179,7 +185,9 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
     ['grade', 'Chấm điểm', `${all.length} GV · ${all.filter(r => r.metrics.need_product && r.metrics.product_status && r.product_score == null).length} sản phẩm chờ chấm`],
     ['decide', 'Kết luận', `${cnt('pass')} đạt · ${cnt('fail')} chưa đạt · ${cnt('pending')} chờ`],
     ['cert', 'Cấp chứng chỉ', `${issued} đã cấp · ${certs.filter(c => c.status === 'pending').length} chờ duyệt`]]
+  const orgNode = of.node([...orgOf.values()], () => setSel(new Set()))
   const filters = <div className="distfilter">
+    {orgNode}
     <input placeholder="Tìm giáo viên, trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo viên" />
     {([['all', 'Tất cả'], ['ready', 'Đủ điều kiện, chờ kết luận'], ['pending', 'Chờ kết luận'], ['pass', 'Đạt'], ['fail', 'Chưa đạt']] as [F, string][])
       .map(([k, l]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => { setF(k); setSel(new Set()) }}>{l} <b>{cnt(k)}</b></button>)}
@@ -267,11 +275,11 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
 
     {tab === 'cert' && <section className="panel" style={{ display: 'grid', gap: 12 }}>
       {(() => {
-        const list = certs.filter(c => `${c.teacher_name} ${c.org_name ?? ''} ${c.code ?? ''}`.toLowerCase().includes(q.toLowerCase()))
+        const list = certs.filter(c => of.fit(orgOf.get(c.teacher_id)) && `${c.teacher_name} ${c.org_name ?? ''} ${c.code ?? ''}`.toLowerCase().includes(q.toLowerCase()))
         const pickIssue = [...sel].filter(id => certs.find(c => c.id === id && c.can_manage && c.status !== 'issued'))
         const pickPrint = [...sel].filter(id => certs.find(c => c.id === id && c.status === 'issued'))
         return <>
-          <div className="distfilter"><input placeholder="Tìm giáo viên, số chứng chỉ…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chứng chỉ" />
+          <div className="distfilter">{orgNode}<input placeholder="Tìm giáo viên, số chứng chỉ…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chứng chỉ" />
             <span className="sub">{sel.size ? `Đã chọn ${sel.size}` : 'Chọn chứng chỉ để duyệt cấp hoặc in hàng loạt.'}</span>
             {can && <button type="button" className="primary" disabled={!pickIssue.length || !!busy} onClick={() => issue(pickIssue)}>Duyệt cấp{pickIssue.length ? ` (${pickIssue.length})` : ''}</button>}
             <button type="button" disabled={!pickPrint.length || !!busy} onClick={() => printMany(pickPrint)}>In / Lưu PDF{pickPrint.length ? ` (${pickPrint.length})` : ''}</button></div>

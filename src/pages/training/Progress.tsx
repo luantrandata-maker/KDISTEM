@@ -1,7 +1,8 @@
 // Phân hệ 1 — Tiến độ học trực tuyến của giáo viên trong một kế hoạch đào tạo (086).
 // Đơn vị lập kế hoạch: xem tất cả GV, nhận / trả lại sản phẩm. Trường: xem GV của trường mình.
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll } from '../../lib/supabase'
+import { useOrgFilter } from '../../components/OrgFilters'
 import { Chip } from '../dist/Editor'
 
 type Row = { teacher_id: string; teacher_name: string; org_name: string | null; units: number; done: number; tests: number; tests_passed: number
@@ -17,6 +18,13 @@ export function PlanProgress({ planId, manage }: { planId: string; manage: boole
   const [err, setErr] = useState('')
   const [f, setF] = useState<F>('all')
   const [busy, setBusy] = useState('')
+  // Lọc Tỉnh / Sở và trường: trường của từng giáo viên ghi danh
+  const [orgOf, setOrgOf] = useState<Map<string, string>>(new Map())
+  const orgF = useOrgFilter()
+  useEffect(() => {
+    fetchAll(() => supabase.from('training_enrollments').select('teacher_id, teachers(org_id)').eq('plan_id', planId).order('teacher_id'))
+      .then(({ data }) => setOrgOf(new Map(((data ?? []) as unknown as { teacher_id: string; teachers: { org_id: string } | null }[]).map(e => [e.teacher_id, e.teachers?.org_id ?? '']))))
+  }, [planId])
   const load = () => supabase.rpc('training_plan_progress', { p_plan: planId }).then(({ data, error }) => {
     if (error) setErr(/does not exist|schema cache/i.test(error.message) ? 'Hãy chạy migration 086 trên Supabase.' : error.message)
     else { setErr(''); setRows((data as Row[]) ?? []) }
@@ -33,14 +41,15 @@ export function PlanProgress({ planId, manage }: { planId: string; manage: boole
   }
 
   if (!rows) return <section className="panel">{err ? <p className="sub" role="alert">{err}</p> : <p className="sub">Đang tải tiến độ…</p>}</section>
-  const n = (k: F) => k === 'all' ? rows.length : k === 'product' ? rows.filter(r => r.product_status === 'submitted').length : rows.filter(r => stOf(r) === k).length
-  const shown = rows.filter(r => f === 'all' || (f === 'product' ? r.product_status === 'submitted' : stOf(r) === f))
+  const mine = rows.filter(r => orgF.fit(orgOf.get(r.teacher_id)))
+  const n = (k: F) => k === 'all' ? mine.length : k === 'product' ? mine.filter(r => r.product_status === 'submitted').length : mine.filter(r => stOf(r) === k).length
+  const shown = mine.filter(r => f === 'all' || (f === 'product' ? r.product_status === 'submitted' : stOf(r) === f))
   const chips: [F, string][] = [['all', 'Tất cả'], ['none', 'Chưa học'], ['doing', 'Đang học'], ['done', 'Đã học xong'], ['product', 'Sản phẩm chờ nhận xét']]
   return <section className="panel" style={{ display: 'grid', gap: 12 }}>
     <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Tiến độ học trực tuyến</h3>
       <small className="sub">{rows.length} giáo viên · {n('done')} đã học xong · {rows.filter(r => r.product_status).length} đã nộp sản phẩm</small></div>
     {err && <p className="sub" role="alert" style={{ color: 'var(--bad)' }}>{err}</p>}
-    <div className="distfilter">{chips.map(([k, l]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => setF(k)}>{l} ({n(k)})</button>)}</div>
+    <div className="distfilter">{orgF.node([...orgOf.values()])}{chips.map(([k, l]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => setF(k)}>{l} ({n(k)})</button>)}</div>
     <div className="wrap"><table className="libtable">
       <thead><tr><th>Giáo viên</th><th style={{ width: 170 }}>Nội dung đã học</th><th>Bài kiểm tra</th><th>Chuyên cần</th><th>Sản phẩm</th>{manage && <th></th>}</tr></thead>
       <tbody>{shown.map(r => <tr key={r.teacher_id}>

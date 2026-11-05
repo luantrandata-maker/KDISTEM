@@ -6,6 +6,8 @@ import { useHiddenBtn } from '../components/PageButtons'
 import { CustomInputs, customCell } from '../components/CustomFields'
 import { fieldsOf, useSettings } from '../lib/settings'
 import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
+import { SchoolPicker } from '../components/SchoolPicker'
+import { useOrgFilter } from '../components/OrgFilters'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase, fetchAll } from '../lib/supabase'
 import { OrgPick, useAllMode, useAllOrgs } from '../components/OrgScope'
@@ -1008,6 +1010,7 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
   const [cov, setCov] = useState<Cover[] | null>(null)
   const [form, setForm] = useState<{ org: string; grades: number[]; note: string } | null>(null)
   const asel = useRowSel(asg)
+  const orgF = useOrgFilter()
   async function load() {
     const [o, a, c] = await Promise.all([
       fetchAll(() => supabase.from('organizations').select('id, name, type, parent_id').order('name').order('id')),
@@ -1019,14 +1022,19 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
     setCov((c.data as Cover[]) ?? [])
   }
   useEffect(() => { load() }, [p.id])
-  const below: Org[] = []
-  const walk = (id: string | null, depth: number) => orgs.filter(o => o.parent_id === id).forEach(o => {
-    if (o.id !== p.org_id) below.push({ ...o, name: ' '.repeat(depth * 3) + o.name })
-    walk(o.id, depth + 1) })
   const every = useAllMode()
   // Quản trị nền tảng (xem tất cả đơn vị): gán được cho đơn vị bất kỳ, kể cả trường không thuộc đơn vị sở hữu (vd. chương trình của KDI Education)
-  if (every) walk(null, 0)
-  else if (orgId) walk(orgId, 0)
+  const below = useMemo(() => {
+    const kids = new Map<string | null, Org[]>()
+    orgs.forEach(o => kids.set(o.parent_id, [...(kids.get(o.parent_id) ?? []), o]))
+    const out: Org[] = []
+    const walk = (id: string | null, depth: number) => (kids.get(id) ?? []).forEach(o => {
+      if (o.id !== p.org_id) out.push({ ...o, name: '\u00a0'.repeat(depth * 3) + o.name })
+      walk(o.id, depth + 1) })
+    if (every) walk(null, 0)
+    else if (orgId) walk(orgId, 0)
+    return out
+  }, [orgs, every, orgId, p.org_id])
   const orgName = (id: string) => orgs.find(o => o.id === id)?.name ?? '—'
 
   async function add(e: React.FormEvent) {
@@ -1060,8 +1068,9 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
       {!mine && <p className="sub">Chương trình của {p.organizations?.name ?? 'đơn vị khác'}: đơn vị gán cho trường trực thuộc để triển khai; chỉ bỏ được các bản gán do đơn vị mình tạo.</p>}
       {form && (
         <form className="panel formgrid" onSubmit={add} style={{ marginBottom: 12 }}>
-          <label className="field"><span>Đơn vị trực thuộc</span><select value={form.org} onChange={e => setForm({ ...form, org: e.target.value })}>
-            <option value="">— chọn —</option>{below.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select></label>
+          <div className="field" style={{ gridColumn: '1 / -1' }}><span>Tỉnh / Sở và đơn vị trực thuộc</span>
+            <SchoolPicker single value={form.org ? [form.org] : []} onChange={v => setForm({ ...form, org: v[0] ?? '' })} options={below}
+              placeholder="Gõ để tìm trường / đơn vị…" ariaLabel="Đơn vị trực thuộc" empty="Không có đơn vị trực thuộc." /></div>
           <div className="field"><span>Khối (không chọn = tất cả khối)</span>
             <NumMultiSelect value={form.grades} onChange={g => setForm({ ...form, grades: g })} options={progGrades(p).map(g => ({ value: g, label: gradeName(g) }))} placeholder="Tất cả khối" ariaLabel="Khối" /></div>
           <label className="field"><span>Ghi chú</span><input value={form.note} onChange={e => setForm({ ...form, note: e.target.value })} /></label>
@@ -1069,12 +1078,13 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
         </form>
       )}
       {asg.length > 0 && (<>
+        {asg.length > 1 && <div className="distfilter">{orgF.node(asg.map(a => a.org_id))}</div>}
         <SelBar picked={asel.cur ? orgName(asel.cur.org_id) : null}>
           <button className="danger" disabled={!asel.cur || !(mine || asel.cur.assigner_org === orgId)} onClick={() => { if (asel.cur) { remove(asel.cur); asel.clear() } }}>Bỏ gán</button>
         </SelBar>
         <div className="wrap"><table>
           <thead><tr><SelTh /><th>Đơn vị</th><th>Khối</th><th>Ghi chú</th><th>Ngày gán</th></tr></thead>
-          <tbody>{asg.map(a => (
+          <tbody>{asg.filter(a => orgF.fit(a.org_id)).map(a => (
             <tr key={a.id} className={asel.is(a) ? 'picked' : undefined}><SelTd on={asel.is(a)} onToggle={() => asel.toggle(a)} label={orgName(a.org_id)} />
               <td><b>{orgName(a.org_id)}</b></td><td>{a.grades?.length ? a.grades.join(', ') : 'Tất cả khối'}</td><td><small>{a.note}</small></td><td>{fmtD(a.created_at)}</td></tr>
           ))}</tbody>

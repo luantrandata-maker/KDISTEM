@@ -3,6 +3,7 @@
 // Cần chuẩn bị theo chương trình hoặc theo trường: tự tổng hợp vật tư / công cụ / thiết bị từ định mức của các bài × số nhóm.
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase, fetchAll } from '../../lib/supabase'
+import { SchoolPicker } from '../../components/SchoolPicker'
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { useRowSel, SelTh, SelTd, SelBar, NameLink } from '../../components/TableSel'
 import { KIT, kitDone } from './common'
@@ -448,8 +449,8 @@ function NeedsBySchool({ orgId }: { orgId: string | null }) {
     <>
       <div className="bar">
         <div className="tools">
-          <select value={sid} onChange={e => setSid(e.target.value)} aria-label="Trường">
-            {!schools ? <option>Đang tải…</option> : schools.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select>
+          <SchoolPicker single value={sid ? [sid] : []} onChange={v => v[0] && setSid(v[0])} options={schools ?? []} style={{ flex: '1 1 520px' }}
+            placeholder={schools ? 'Gõ để tìm trường…' : 'Đang tải…'} />
           <label className="tools">Học sinh/nhóm <input type="number" min={1} max={20} value={perGroup} onChange={e => setPerGroup(Math.max(1, Math.min(20, Number(e.target.value) || 1)))} style={{ width: 64 }} aria-label="Số học sinh mỗi nhóm" /></label>
           <label className="tools">Lớp học cùng lúc <input type="number" min={1} max={50} value={k} onChange={e => setConc(Math.max(1, Math.min(50, Number(e.target.value) || 1)))} style={{ width: 64 }} aria-label="Số lớp học cùng lúc" /></label>
         </div>

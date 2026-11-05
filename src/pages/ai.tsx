@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { supabase, fetchAll } from '../lib/supabase'
+import { SchoolPicker } from '../components/SchoolPicker'
 import { Tabs } from './teacher/common'
 
 // Trợ lý AI (migration 052, hàm máy chủ ai-assistant). Nội dung câu hỏi / trả lời không lưu trên hệ thống.
@@ -281,7 +282,8 @@ function AISettings() {
         <h3>Hạn mức riêng theo đơn vị</h3>
         <p className="sub">Ghi đè hạn mức chung (theo gói dịch vụ / hợp đồng) hoặc tắt trợ lý cho một đơn vị.</p>
         <div className="tools" style={{ margin: '8px 0' }}>
-          <select value={add.org} onChange={e => setAdd({ ...add, org: e.target.value })} aria-label="Đơn vị"><option value="">Chọn đơn vị…</option>{orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}</select>
+          <SchoolPicker single value={add.org ? [add.org] : []} onChange={v => setAdd({ ...add, org: v[0] ?? '' })} options={orgs} style={{ flex: '1 1 520px' }}
+            placeholder="Gõ để tìm đơn vị / trường…" ariaLabel="Đơn vị" />
           <input type="number" min={0} placeholder="Lượt / tháng (trống = chung)" value={add.quota} onChange={e => setAdd({ ...add, quota: e.target.value })} aria-label="Lượt mỗi tháng" />
           <label className="field inline"><input type="checkbox" checked={add.enabled} onChange={e => setAdd({ ...add, enabled: e.target.checked })} /> Được dùng</label>
           <button onClick={upsertLimit} disabled={!add.org}>Lưu</button>

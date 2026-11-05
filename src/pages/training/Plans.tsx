@@ -7,6 +7,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase, fetchAll } from '../../lib/supabase'
 import { OrgPick, useAllMode, useOrgName, useProvinceOf } from '../../components/OrgScope'
 import { MultiSelect } from '../../components/MultiSelect'
+import { SchoolPicker, useRegionFilter } from '../../components/SchoolPicker'
+import { norm } from '../../lib/sheet'
 import { ElView } from '../../components/ElView'
 import { Chip, STATUS } from '../dist/Editor'
 import { ClsTree } from '../dist/ClsTree'
@@ -283,6 +285,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   const [busy, setBusy] = useState(false)
   const progs = usePrograms()
   const { cls, finals } = useFinalNodes()
+  const orgF = useOrgFilter()
   async function load() {
     const [a, b, c, d, r] = await Promise.all([
       supabase.from('training_plans').select(SEL).eq('id', id).single(),
@@ -407,7 +410,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   const outside = enr.filter(e => !orgs.some(o => o.org_id === e.teachers?.org_id))
   const removeEnr = (e: Enr) => confirm(`Bỏ ${e.teachers?.full_name ?? 'giáo viên'} khỏi kế hoạch?`)
     && run(supabase.from('training_enrollments').delete().eq('plan_id', e.plan_id).eq('teacher_id', e.teacher_id), `Đã bỏ ${e.teachers?.full_name ?? 'giáo viên'} khỏi kế hoạch.`)
-  const sortedOrgs = [...orgs].sort((a, b) => (a.status === 'submitted' ? 0 : 1) - (b.status === 'submitted' ? 0 : 1) || (names.get(a.org_id) ?? '').localeCompare(names.get(b.org_id) ?? '', 'vi'))
+  const sortedOrgs = orgs.filter(o => orgF.fit(o.org_id)).sort((a, b) => (a.status === 'submitted' ? 0 : 1) - (b.status === 'submitted' ? 0 : 1) || (names.get(a.org_id) ?? '').localeCompare(names.get(b.org_id) ?? '', 'vi'))
   const crumbTxt = cls.path(p.node_id).map(n => n.name).join(' › ') || 'Chưa phân loại'
   const validity = !items.length ? null : scErr.length ? <Chip tone="bad">⊗ {scErr.length} lỗi lịch</Chip> : sc.length ? <Chip tone="warn">⚠ {sc.length} lưu ý</Chip> : <Chip tone="good">✓ Lịch hợp lệ</Chip>
 
@@ -534,7 +537,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
       {can && p.pub_status === 'published' && <DirectAdd planId={p.id} enr={enr} onDone={m => { setMsg(m); load() }} />}
       <section className="panel" style={{ display: 'grid', gap: 12 }}>
         <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Trường được gán</h3>
-          <div className="tools"><small className="sub">{orgs.length} trường · {enr.length} giáo viên · {orgs.filter(o => o.status === 'submitted').length} chờ duyệt</small>
+          <div className="tools">{orgs.length > 1 && orgF.node(orgs.map(o => o.org_id))}<small className="sub">{orgs.length} trường · {enr.length} giáo viên · {orgs.filter(o => o.status === 'submitted').length} chờ duyệt</small>
             {can && p.pub_status === 'published' && <button type="button" className="primary" onClick={() => setAssign(true)}>Gán trường</button>}</div></div>
         <div className="wrap"><table className="libtable">
           <thead><tr><th>Trường</th><th style={{ width: 100 }}>Chỉ tiêu</th><th>Giáo viên đã chọn</th><th>Trạng thái</th>{can && <th></th>}</tr></thead>
@@ -594,7 +597,7 @@ function DirectAdd({ planId, enr, onDone }: { planId: string; enr: Enr[]; onDone
   const [busy, setBusy] = useState(false)
   const [me, setMe] = useState<string | null>(null)
   useEffect(() => {
-    supabase.rpc('training_plan_schools', { p_plan: planId }).then(({ data }) => setSchools((data ?? []) as { org_id: string; name: string; assigned: boolean }[]))
+    fetchAll(() => supabase.rpc('training_plan_schools', { p_plan: planId })).then(({ data }) => setSchools((data ?? []) as { org_id: string; name: string; assigned: boolean }[]))
   }, [planId])
   useEffect(() => { supabase.rpc('my_teacher_id').then(({ data }) => setMe((data as string | null) ?? null)) }, [planId, enr.length])
   useEffect(() => {
@@ -625,10 +628,8 @@ function DirectAdd({ planId, enr, onDone }: { planId: string; enr: Enr[]; onDone
         : <button type="button" disabled={busy} onClick={addMe}>Ghi danh tôi vào khoá này</button>}</div></div>
     <small className="sub">Chọn giáo viên của bất kỳ trường nào, không cần chờ trường gửi danh sách. Trường chưa được gán sẽ tự được gán.</small>
     <div className="tools" style={{ flexWrap: 'wrap' }}>
-      <select value={org} onChange={e => setOrg(e.target.value)} aria-label="Trường">
-        <option value="">Chọn trường…</option>
-        {schools.map(s => <option key={s.org_id} value={s.org_id}>{s.name}{s.assigned ? ' (đã gán)' : ''}</option>)}
-      </select>
+      <SchoolPicker single value={org ? [org] : []} onChange={v => setOrg(v[0] ?? '')} style={{ flex: '1 1 520px' }}
+        options={schools.map(s => ({ id: s.org_id, name: s.name, note: s.assigned ? 'đã gán' : null }))} />
       {org && <input placeholder="Tìm giáo viên, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo viên" />}
       {org && free.length > 0 && <button type="button" onClick={() => setPick(pick.size === free.length ? new Set() : new Set(free.map(t => t.id)))}>{pick.size === free.length ? 'Bỏ chọn' : `Chọn cả ${free.length}`}</button>}
     </div>
@@ -880,7 +881,9 @@ function AssignSchools({ plan, taken, onBack, onDone }: { plan: TPlan; taken: Se
     if (!schools?.length) return
     supabase.rpc('training_plan_out_of_scope', { p_plan: plan.id, p_orgs: schools.map(s => s.id) }).then(({ data }) => setOut(new Set((data as string[] | null) ?? [])))
   }, [schools, plan.id])
-  const match = (schools ?? []).filter(s => !taken.has(s.id) && (!q || `${s.name} ${s.parent ?? ''}`.toLowerCase().includes(q.toLowerCase())))
+  const reg = useRegionFilter(schools ?? [])
+  const fold = (x: string) => norm(x).toLowerCase(), fq = fold(q.trim())
+  const match = reg.shown.filter(s => !taken.has(s.id) && (!fq || fold(`${s.name} ${s.parent ?? ''}`).includes(fq)))
   const shown = match.filter(s => !out.has(s.id)), outShown = match.filter(s => out.has(s.id))
   async function save() {
     setBusy(true); setErr('')
@@ -894,7 +897,8 @@ function AssignSchools({ plan, taken, onBack, onDone }: { plan: TPlan; taken: Se
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <div className="bar" style={{ margin: 0 }}>
         <div className="tools">
-          <input placeholder="Tìm trường, đơn vị quản lý…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm trường" />
+          {reg.select}
+          <input type="search" placeholder="Tìm trường, đơn vị quản lý…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm trường" />
           <input type="number" min={0} value={quota} onChange={e => setQuota(e.target.value)} placeholder="Chỉ tiêu GV mỗi trường" title="Để trống = không giới hạn" style={{ width: 190 }} aria-label="Chỉ tiêu mỗi trường" />
         </div>
         <div className="tools"><button type="button" onClick={() => setSel(new Set(shown.map(s => s.id)))} disabled={!shown.length}>Chọn tất cả ({shown.length})</button>

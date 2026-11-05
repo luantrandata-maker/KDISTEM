@@ -2,6 +2,7 @@
 // đơn vị (kèm tên đơn vị), sửa thẳng từng dòng; thêm mới thì chọn đơn vị ngay trong form. Quyền ghi kiểm tra ở CSDL (099, 100).
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase, fetchAll } from '../lib/supabase'
+import { SchoolPicker } from './SchoolPicker'
 
 export type ScopeOrg = { id: string; name: string; type: string; parent_id: string | null; is_platform?: boolean | null }
 /** kind: 'school' = chỉ trường; 'unit' = KDI và cơ quan quản lý (Bộ, Tỉnh, Sở, Phòng); 'any' = tất cả */
@@ -74,6 +75,11 @@ const label = (o: ScopeOrg & { depth: number }) => `${' '.repeat(o.depth * 2)}${
 export function OrgPick({ kind, value, onChange, title = 'Đơn vị' }: { kind: ScopeKind; value: string; onChange: (id: string) => void; title?: string }) {
   const rows = useTree(kind)
   if (!useAllMode()) return null
+  // Nhiều đơn vị (vd. hàng nghìn trường): chọn Tỉnh / Sở rồi gõ để tìm
+  if (rows.length > 30) return <div className="field spanall"><span>{title} *</span>
+    <SchoolPicker single value={value ? [value] : []} onChange={v => onChange(v[0] ?? '')} ariaLabel={title}
+      placeholder={`Gõ để tìm ${kind === 'school' ? 'trường' : 'đơn vị'}…`}
+      options={rows.map(o => ({ id: o.id, name: o.name + (o.type !== 'school' && !o.is_platform ? ` (${TYPE[o.type] ?? o.type})` : '') }))} /></div>
   return <label className="field"><span>{title} *</span>
     <select required value={value} onChange={e => onChange(e.target.value)} aria-label={title}>
       <option value="">— Chọn {kind === 'school' ? 'trường' : 'đơn vị'} —</option>

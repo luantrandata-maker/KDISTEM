@@ -1923,7 +1923,7 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
 .main .sdmove button{padding:0 6px;border-radius:6px;font-size:12px;line-height:1.6}
 .sdout{display:flex;gap:6px;align-items:center;margin-top:6px}
 .main .sdout .sdx,.main button.sdx{border:0;background:none;color:var(--muted);font-size:18px;padding:0 6px}
-.main .sdtools{flex-wrap:wrap;justify-content:flex-end}
+.main .sdtools{flex-wrap:nowrap;justify-content:flex-end;white-space:nowrap}
 /* Thiết lập chung (095) */
 .setrules{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:8px 0}
 .setrules .field{margin:0}.setrules .inl{display:flex;gap:6px;align-items:center}

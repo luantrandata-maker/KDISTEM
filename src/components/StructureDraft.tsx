@@ -101,7 +101,7 @@ export function StructureDraft<F>({ levels, root, initial, cols, newFields, titl
       </div>
       {err && <p className="msg" role="alert">{err}</p>}
       <div className="wrap"><table className="sdtable">
-        <thead><tr><th style={{ width: 120 }}>Mục</th><th>Tên · {goalLabel.toLowerCase()} · yêu cầu cần đạt</th>{cols.map(c => <th key={c.label} style={{ width: c.width }}>{c.label}</th>)}<th style={{ width: 250 }}></th></tr></thead>
+        <thead><tr><th style={{ width: 120 }}>Mục</th><th>Tên · {goalLabel.toLowerCase()} · yêu cầu cần đạt</th>{cols.map(c => <th key={c.label} style={{ width: c.width }}>{c.label}</th>)}<th style={{ width: 290 }}></th></tr></thead>
         <tbody>
           {order.map(({ r, depth, seq }) => {
             const lv = levels[r.type]

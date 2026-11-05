@@ -7,7 +7,7 @@ import { CustomInputs, customCell } from '../components/CustomFields'
 import { fieldsOf, useSettings } from '../lib/settings'
 import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, fetchAll } from '../lib/supabase'
 import { OrgPick, useAllMode, useAllOrgs } from '../components/OrgScope'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
@@ -1010,7 +1010,7 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
   const asel = useRowSel(asg)
   async function load() {
     const [o, a, c] = await Promise.all([
-      supabase.from('organizations').select('id, name, type, parent_id').order('name'),
+      fetchAll(() => supabase.from('organizations').select('id, name, type, parent_id').order('name').order('id')),
       supabase.from('edu_program_assignments').select('*').eq('program_id', p.id).order('created_at'),
       supabase.rpc('edu_program_coverage', { p_program: p.id }),
     ])

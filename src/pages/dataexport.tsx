@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, fetchAll as fetchAllRows } from '../lib/supabase'
 import { downloadWorkbook, norm, type Column } from '../lib/sheet'
 
 // Sao lưu & xuất dữ liệu (migration 046): xuất toàn bộ dữ liệu của một đơn vị (và đơn vị trực thuộc) ra Excel nhiều trang
@@ -61,7 +61,7 @@ export function DataExportPage({ orgId, platform = false }: { orgId: string | nu
   const [ov, setOv] = useState<{ db_bytes: number; tables: { name: string; rows: number; bytes: number }[]; exports_30d: number; orgs_exported_90d: number; last_export: string | null } | null>(null)
   async function load() {
     const [o, h, b] = await Promise.all([
-      supabase.from('organizations').select('id, parent_id, name, type, code').order('name'),
+      fetchAllRows(() => supabase.from('organizations').select('id, parent_id, name, type, code').order('name').order('id')),
       supabase.from('data_exports').select('*, organizations(name), profiles(full_name, email)').order('created_at', { ascending: false }).limit(100),
       platform ? supabase.rpc('backup_overview') : Promise.resolve({ data: null }),
     ])

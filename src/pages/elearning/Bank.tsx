@@ -1,7 +1,7 @@
 import { SelBar } from '../../components/TableSel'
 import { useEffect, useState } from 'react'
 import { ElView } from '../../components/ElView'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll } from '../../lib/supabase'
 import { OrgPick, useAllMode } from '../../components/OrgScope'
 import { norm, downloadXlsx, type Column } from '../../lib/sheet'
 import ImportExcel from '../../components/ImportExcel'
@@ -35,7 +35,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
 
   async function load() {
     const [q, o, u] = await Promise.all([supabase.from('question_bank').select('*').order('created_at', { ascending: false }).limit(5000),
-      supabase.from('organizations').select('id, name, type'), supabase.auth.getUser()])
+      fetchAll(() => supabase.from('organizations').select('id, name, type').order('id')), supabase.auth.getUser()])
     if (q.error) setMsg([errText(q.error.message), true])
     setRows((q.data as Question[]) ?? []); setMe(u.data.user?.id ?? null)
     const os = (o.data as any[]) ?? []; setOrgNames(new Map(os.map(x => [x.id, x.name]))); setOrgType(os.find(x => x.id === orgId)?.type ?? 'school')

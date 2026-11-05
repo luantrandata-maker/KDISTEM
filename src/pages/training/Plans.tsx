@@ -4,7 +4,7 @@
 // TrainingPlansPage: KDI và Sở / Phòng (kế hoạch của đơn vị mình). SchoolTrainingAssigned: trường (kế hoạch được giao).
 import { useOrgFilter } from '../../components/OrgFilters'
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll } from '../../lib/supabase'
 import { OrgPick, useAllMode, useOrgName, useProvinceOf } from '../../components/OrgScope'
 import { MultiSelect } from '../../components/MultiSelect'
 import { ElView } from '../../components/ElView'
@@ -871,7 +871,7 @@ function AssignSchools({ plan, taken, onBack, onDone }: { plan: TPlan; taken: Se
   const [busy, setBusy] = useState(false)
   useEffect(() => {
     // RLS chỉ trả về trường trong phạm vi quản lý (KDI thấy tất cả trường); RPC gán kiểm tra lại phạm vi
-    supabase.from('organizations').select('id, name, parent:parent_id(name)').eq('type', 'school').order('name').then(({ data }) =>
+    fetchAll(() => supabase.from('organizations').select('id, name, parent:parent_id(name)').eq('type', 'school').order('name').order('id')).then(({ data }) =>
       setSchools(((data ?? []) as unknown as { id: string; name: string; parent: { name: string } | null }[]).map(o => ({ id: o.id, name: o.name, parent: o.parent?.name ?? null }))))
   }, [])
   // Trường ngoài phạm vi áp dụng của chương trình trong kế hoạch: làm mờ, không chọn được

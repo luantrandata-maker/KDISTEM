@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { NumMultiSelect } from '../components/MultiSelect'
 import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../components/MultiFilters'
 import { useProvinceOf } from '../components/OrgScope'
-import { supabase } from '../lib/supabase'
+import { supabase, fetchAll } from '../lib/supabase'
 import { Tiles } from './department/charts'
 import { BOOK_STATUS, KIND, LessonEditor, REASONS, errText, useCanEdit, useReasonDialog, type Book, type PpctMode, type ReasonCode } from './curriculum'
 import { downloadXlsx, norm } from '../lib/sheet'
@@ -636,7 +636,7 @@ export function AssignPrograms({ orgId, mode = 'authority' }: { orgId: string | 
 
   useEffect(() => { if (!progId && programs[0]) setProgId(programs[0].id) }, [programs])
   useEffect(() => {
-    supabase.from('organizations').select('id, name, type, parent_id').order('name').then(({ data }) => setOrgs((data as Org[]) ?? []))
+    fetchAll(() => supabase.from('organizations').select('id, name, type, parent_id').order('name').order('id')).then(({ data }) => setOrgs((data as Org[]) ?? []))
   }, [orgId])
   async function loadCov() {
     if (!progId) return

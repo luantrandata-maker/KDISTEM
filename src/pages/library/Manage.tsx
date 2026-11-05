@@ -11,7 +11,7 @@ import { lazy, Suspense } from 'react'
 import { norm as normText } from '../../lib/sheet'
 import { BankList } from './BankList'
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll } from '../../lib/supabase'
 import { OrgPick, useAllMode, useOrgName, useProvinceOf } from '../../components/OrgScope'
 import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../../components/MultiFilters'
 import { Tabs } from '../teacher/common'
@@ -169,7 +169,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
       selectItems('updated_at'),
       supabase.rpc('library_stats'),
       supabase.from('library_targets').select('item_id, org_id'),
-      supabase.from('organizations').select('id, name, type, parent_id').order('name'),
+      fetchAll(() => supabase.from('organizations').select('id, name, type, parent_id').order('name').order('id')),
       supabase.from('lesson_plans').select('id, title, subject, grades, program, summary, slides, lesson, org_id, teachers(full_name)').or('status.eq.published,is_template.eq.true').order('updated_at', { ascending: false }).limit(200),
     ])
     if (i.error) return setErr(/schema cache|does not exist|owner_name/i.test(i.error.message) ? 'Hãy chạy migration 023_shared_library.sql trên Supabase.' : i.error.message)

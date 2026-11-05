@@ -646,6 +646,15 @@ tr.muted td{color:var(--muted)}
 .user .usersec button:hover{background:var(--soft)}
 .user .usersec button.on{background:var(--soft);font-weight:700}
 .usersec button small{color:var(--muted);font-weight:400}
+.schoolpick{display:grid;gap:6px;padding:0 10px 4px}
+.schoolpick input{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font:inherit;width:100%;box-sizing:border-box}
+.schoolpicklist{display:grid;gap:1px;max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:3px}
+.schoolpicklist>small{padding:8px}
+.user .usersec .schoolpicklist button{padding:6px 8px;font-size:13px;font-weight:500;line-height:1.3}
+.user .usersec .schoolpicklist button.on{background:color-mix(in srgb,var(--primary) 14%,transparent);font-weight:700;box-shadow:inset 3px 0 0 var(--primary)}
+.schoolpicklist button em{font-style:normal;color:var(--muted);font-weight:400}
+.user .usersec .schoolpick>button.primary{justify-content:center;background:var(--primary);color:#fff;font-weight:600}
+.user .usersec .schoolpick>button.primary:disabled{opacity:.5}
 .usersec select{margin:0 10px 4px;padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-family:inherit;width:calc(100% - 20px);min-width:0;box-sizing:border-box}
 @media (max-width:900px){.top .title,.userbtn .who,.topsearch kbd{display:none}.topsearch{flex:1 1 auto}}
 

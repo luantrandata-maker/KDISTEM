@@ -1962,6 +1962,7 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
 .tpschedopts{flex-wrap:wrap;gap:8px 16px;margin:8px 0}.tpschedopts .tpcheck{flex:0 0 auto}
 .tpschedtable td{vertical-align:middle}.tpschedtable input[type=date]{width:140px}
 .tptime{display:inline-flex;gap:4px;align-items:center}.tptime input{width:118px}
+.tpcheck .tptime input{width:104px}.tpcheck label{display:inline-flex;gap:6px;align-items:center}
 .distcards.tpcards{grid-template-columns:1fr}
 .tpdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
 .tpschedtable{min-width:860px}.tpschedtable td:nth-child(2){min-width:140px}

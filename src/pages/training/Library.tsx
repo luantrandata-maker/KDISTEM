@@ -90,7 +90,8 @@ export function TrainingLibraryPage({ parts, ...p }: { parts: [string, Component
     {tab === 'needs' && <Needs d={d} />}
     {tab === 'catalog' && <>
       <div className="distfilter">{parts.map(([l], i) => <button key={l} type="button" className={`distfchip${part === i ? ' on' : ''}`} onClick={() => setPart(i)}>{l}</button>)}</div>
-      {Part && <Part key={part} {...p} />}
+      {/* Danh mục: bỏ hàng thẻ số liệu của từng tab con (đã có thẻ tổng ở trên) */}
+      {Part && <div className="nocards"><Part key={part} {...p} /></div>}
     </>}
   </>
 }

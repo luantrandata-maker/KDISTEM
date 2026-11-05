@@ -72,11 +72,18 @@ export function UserMenu({ name, email, roleLabel, orgs, views, view, onView, ac
   // Quản trị KDI: chọn được tất cả trường trong hệ thống (người khác nhận danh sách rỗng)
   const [all, setAll] = useState<{ org_id: string; name: string; parent_name: string | null }[]>([])
   useEffect(() => { fetchAll(() => supabase.rpc('platform_school_list')).then(({ data }) => setAll((data as typeof all) ?? [])) }, [])
+  // Tìm trường theo tên / Sở (không dấu), vì quản trị KDI có thể thấy vài nghìn trường
+  const [sq, setSq] = useState('')
   const groups = useMemo(() => {
+    const q = norm(sq)
     const m = new Map<string, typeof all>()
-    for (const s of all) { const k = s.parent_name ?? 'Khác'; m.set(k, [...(m.get(k) ?? []), s]) }
+    for (const s of all) {
+      if (q && !norm(`${s.name} ${s.parent_name ?? ''}`).includes(q)) continue
+      const k = s.parent_name ?? 'Khác'; m.set(k, [...(m.get(k) ?? []), s])
+    }
     return [...m]
-  }, [all])
+  }, [all, sq])
+  const found = groups.reduce((n, [, l]) => n + l.length, 0)
   const pickSchool = async (id: string) => {
     if (id === active?.org_id) return
     const mine = schools.find(x => x.org_id === id)
@@ -118,13 +125,18 @@ export function UserMenu({ name, email, roleLabel, orgs, views, view, onView, ac
             {/* Các trường gộp vào một ô chọn (kể cả trường thử nghiệm), giống chọn giáo viên; quản trị KDI thấy tất cả trường */}
             {(schools.length > 0 || all.length > 0) && <>
               {others.length > 0 && <small className="ushead">Trường{all.length ? ` (${all.length})` : ''}</small>}
-              <select value={active?.type === 'school' ? active.org_id : ''} aria-label="Chọn trường" onChange={e => pickSchool(e.target.value)}>
-                {active?.type !== 'school' && <option value="">Chọn trường…</option>}
+              {all.length > 20 && <input type="search" className="search" style={{ margin: '0 0 6px' }} placeholder="Tìm trường theo tên hoặc Sở…" aria-label="Tìm trường"
+                value={sq} onChange={e => setSq(e.target.value)} autoFocus />}
+              {sq && found === 0 ? <small className="sub" style={{ padding: '0 10px' }}>Không có trường nào khớp “{sq}”.</small> :
+              <select value={active?.type === 'school' ? active.org_id : ''} aria-label="Chọn trường" onChange={e => pickSchool(e.target.value)}
+                size={sq ? Math.min(10, found + groups.length) : undefined}>
+                {active?.type !== 'school' && !sq && <option value="">Chọn trường…</option>}
                 {all.length ? groups.map(([g, list]) => <optgroup key={g} label={g}>
                   {list.map(o => <option key={o.org_id} value={o.org_id}>{o.name}{schools.find(x => x.org_id === o.org_id) ? ` · ${schools.find(x => x.org_id === o.org_id)!.roles.join(', ')}` : ''}</option>)}
                 </optgroup>)
                   : schools.map(o => <option key={o.org_id} value={o.org_id}>{o.name} · {o.roles.join(', ')}</option>)}
-              </select>
+              </select>}
+              {sq && found > 0 && <small className="sub" style={{ padding: '0 10px' }}>{found} trường khớp. Bấm một trường để vào.</small>}
               {all.length > 0 && <small className="sub" style={{ padding: '0 10px' }}>Vào trường chưa có vai trò: hệ thống gán Hiệu trưởng cho tài khoản này và ghi nhật ký.</small>}
             </>}
             {err && <p className="msg" style={{ padding: '0 10px' }}>{err}</p>}

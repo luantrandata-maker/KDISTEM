@@ -2,6 +2,7 @@ import { NameLink } from '../../components/TableSel'
 import SchoolLocationImport from '../../components/SchoolLocationImport'
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { SchoolUsage } from '../../components/SchoolUsage'
 import { PROGRAM_COLOR } from '../teacher/common'
 import { STEM_LEVEL_NAME, useStemTracks } from '../../lib/stemTracks'
 import { Tabs } from '../teacher/common'
@@ -173,6 +174,7 @@ export function DeptSchools() {
             { label: 'Thiết bị', value: cur.units, sub: `${cur.units_broken} hỏng · ${cur.units_maintenance} bảo trì` },
             { label: 'Giáo án tự soạn', value: cur.lesson_plans, sub: `${cur.products} dự án đã giao` },
           ]} />
+          <SchoolUsage orgId={cur.school_id} />
         </div>
       )}
       <div className="wrap">

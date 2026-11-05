@@ -2,6 +2,7 @@
 // Sổ quản lý tất cả trường đang triển khai trên toàn hệ thống: giai đoạn, tiến độ, hợp đồng, mức sử dụng, sức khoẻ, người phụ trách KDI.
 import { useEffect, useMemo, useState } from 'react'
 import { supabase, fetchAll } from '../../lib/supabase'
+import { SchoolUsage } from '../../components/SchoolUsage'
 import { downloadXlsx, norm } from '../../lib/sheet'
 import ImportExcel from '../../components/ImportExcel'
 import SchoolLocationImport from '../../components/SchoolLocationImport'
@@ -225,7 +226,7 @@ export function PlatformSchools({ go }: { go?: (p: string) => void }) {
 }
 
 // ================= Hồ sơ một trường =================
-type PT = 'overview' | 'contract' | 'rollout' | 'usage' | 'users' | 'stem' | 'support'
+type PT = 'overview' | 'contract' | 'rollout' | 'usage' | 'programs' | 'users' | 'stem' | 'support'
 type Contract = { id: string; code: string; org_id: string; starts_on: string; ends_on: string | null; status: string; include_children: boolean; service_plans: { name: string } | null }
 type Ticket = { id: string; code: string | null; subject: string; priority: string; status: string; created_at: string }
 type Audit = { id: number; at: string; summary: string }
@@ -306,7 +307,7 @@ function Profile({ r, staff, onBack, onSaved, go }: { r: Reg; staff: Staff[]; on
       {msg && <p className="sub"><b>{msg}</b></p>}
       {err && <p className="msg">{err}</p>}
       <Tabs<PT> value={tab} onChange={setTab} items={[['overview', 'Tổng quan'], ['contract', 'Hợp đồng & gói'], ['rollout', 'Triển khai', r.rollout_done],
-        ['usage', 'Sử dụng'], ['users', 'Người dùng', r.users], ['stem', 'Chuyên môn STEM'], ['support', 'Hỗ trợ & nhật ký', openT.length]]} />
+        ['usage', 'Sử dụng'], ['programs', 'Chương trình & đào tạo'], ['users', 'Người dùng', r.users], ['stem', 'Chuyên môn STEM'], ['support', 'Hỗ trợ & nhật ký', openT.length]]} />
 
       {tab === 'overview' && (
         <>
@@ -402,6 +403,7 @@ function Profile({ r, staff, onBack, onSaved, go }: { r: Reg; staff: Staff[]; on
         </div>
       )}
 
+      {tab === 'programs' && <SchoolUsage orgId={r.org_id} />}
       {tab === 'users' && (
         <>
           <Tiles items={[{ label: 'Tài khoản', value: r.users }, { label: 'Quản trị trường', value: r.admins, tone: r.admins ? '' : 'warn' },

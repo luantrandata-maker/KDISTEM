@@ -24,11 +24,16 @@ if (typeof window !== 'undefined' && typeof indexedDB !== 'undefined') {
 // thì tải theo từng trang. make() phải tạo truy vấn mới mỗi lần gọi; nên có order ổn định để không sót/trùng dòng giữa các trang.
 type Page<T> = { data: T[] | null; error: { message: string } | null }
 export async function fetchAll<T = any>(make: () => { range: (from: number, to: number) => PromiseLike<Page<T>> }, size = 1000): Promise<Page<T>> {
-  const out: T[] = []
-  for (let from = 0; ; from += size) {
-    const r = await make().range(from, from + size - 1)
-    if (r.error) return { data: out.length ? out : null, error: r.error }
-    out.push(...(r.data ?? []))
-    if ((r.data ?? []).length < size) return { data: out, error: null }
+  // Trang đầu tải một mình (đa số danh sách dưới 1.000 dòng); còn nữa thì tải 3 trang tiếp theo cùng lúc để đỡ chờ lần lượt
+  const first = await make().range(0, size - 1)
+  if (first.error || (first.data ?? []).length < size) return first.error ? { data: null, error: first.error } : { data: first.data ?? [], error: null }
+  const out: T[] = [...(first.data ?? [])]
+  for (let from = size; ; from += size * 3) {
+    const rs = await Promise.all([0, 1, 2].map(k => make().range(from + k * size, from + (k + 1) * size - 1)))
+    for (const r of rs) {
+      if (r.error) return { data: out, error: r.error }
+      out.push(...(r.data ?? []))
+      if ((r.data ?? []).length < size) return { data: out, error: null }
+    }
   }
 }

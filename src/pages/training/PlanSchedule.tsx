@@ -1,6 +1,7 @@
 // Kế hoạch đào tạo — bước 2 "Xếp lịch" và bước 3 "Xem kết quả" (khuôn Phân phối chương trình).
 // Mỗi nội dung đào tạo là một buổi: ngày, giờ học, hình thức, địa điểm / link họp. Xếp tự động theo từng chương trình
-// (ngày bắt đầu hoặc nối tiếp chương trình trước, giờ vào học, số giờ mỗi ngày, nghỉ trưa, bỏ cuối tuần) rồi sửa tay từng buổi.
+// (ngày bắt đầu hoặc nối tiếp chương trình trước, giờ vào học, số giờ mỗi ngày, giờ nghỉ trưa, bỏ thứ Bảy / Chủ nhật) rồi sửa tay từng buổi.
+// Hình thức "Kết hợp" của chương trình: mỗi buổi lấy hình thức của nội dung đào tạo (chưa đặt thì Trực tiếp).
 // Lưu vào training_sessions (giữ buổi đã chốt điểm danh).
 // Ngày nghỉ (lịch chuẩn chung + ngày nghỉ của đơn vị): xếp tự động bỏ qua, buổi rơi vào ngày nghỉ được cảnh báo ở bảng, lịch và phần kiểm tra.
 import { Fragment, useEffect, useMemo, useState } from 'react'
@@ -18,7 +19,8 @@ export type SPlan = { id: string; org_id: string; mode: string; starts_on: strin
 type Sess = { id: string; unit_id: string | null; title: string; starts_at: string; ends_at: string; mode: Mode; location: string | null; meeting_url: string | null; closed_at: string | null }
 export type Row = { unit_id: string; program_id: string; subj: string; title: string; hours: number; date: string; from: string; to: string
   mode: Mode; location: string; url: string; sid?: string; locked: boolean }
-type Cfg = { start: string; time: string; perDay: number; lunch: boolean; skip: boolean; skipHol: boolean; mode: Mode; location: string; url: string }
+type CMode = Mode | 'hybrid'
+type Cfg = { start: string; time: string; perDay: number; lunch: boolean; lunchFrom: string; lunchTo: string; skipSat: boolean; skipSun: boolean; skipHol: boolean; mode: CMode; location: string; url: string }
 
 const SSEL = 'id, unit_id, title, starts_at, ends_at, mode, location, meeting_url, closed_at'
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -31,8 +33,9 @@ const WD = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
 export const vnDay = (d: string) => { const x = new Date(d + 'T00:00'); return `${WD[x.getDay()]} ${pad(x.getDate())}/${pad(x.getMonth() + 1)}` }
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 const nextMonday = () => { const d = new Date(); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); return ymd(d) }
-const LUNCH_FROM = 11 * 60 + 30, LUNCH_TO = 13 * 60 + 30, AFTERNOON = 17 * 60 + 30 - LUNCH_TO
+const LUNCH_FROM = '11:30', LUNCH_TO = '13:30', DAY_END = 17 * 60 + 30
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp' }
+const CMODE: Record<CMode, string> = { ...MODE, hybrid: 'Kết hợp' }
 
 /** Nội dung đào tạo của kế hoạch theo thứ tự chương trình › môn › nội dung (chỉ nội dung được chọn) */
 function contentsOf(items: SItem[], progs: SProg[]) {
@@ -54,6 +57,7 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
   const list = useMemo(() => contentsOf(items, progs), [items, progs])
   const hol = useHolidays(plan.org_id || null)
   const defMode: Mode = plan.mode === 'online' ? 'online' : 'offline'
+  const defCMode: CMode = plan.mode === 'online' || plan.mode === 'hybrid' ? plan.mode : 'offline'
   useEffect(() => {
     supabase.from('training_sessions').select(SSEL).eq('plan_id', plan.id).order('starts_at').then(({ data }) => setSess((data as Sess[]) ?? []))
   }, [plan.id, rk])
@@ -68,11 +72,12 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
     }))
     setDirty(false)
   }, [sess, list])
-  const cfgOf = (pid: string, k: number): Cfg => cfg[pid] ?? { start: k === 0 ? plan.starts_on || nextMonday() : 'after', time: '08:00', perDay: 4, lunch: true, skip: true, skipHol: true, mode: defMode, location: '', url: '' }
+  const cfgOf = (pid: string, k: number): Cfg => cfg[pid] ?? { start: k === 0 ? plan.starts_on || nextMonday() : 'after', time: '08:00', perDay: 4, lunch: true, lunchFrom: LUNCH_FROM, lunchTo: LUNCH_TO, skipSat: true, skipSun: true, skipHol: true, mode: defCMode, location: '', url: '' }
   const setCfg = (pid: string, k: number, v: Partial<Cfg>) => setCfgs(c => ({ ...c, [pid]: { ...cfgOf(pid, k), ...v } }))
   const setRow = (id: string, v: Partial<Row>) => { setRows(rs => rs.map(r => r.unit_id === id ? { ...r, ...v } : r)); setDirty(true) }
   const order = useMemo(() => [...new Set(list.map(x => x.p.id))], [list])
 
+  const unitMode = (id: string): Mode => list.find(x => x.u.id === id)?.u.mode ?? 'offline'
   /** Xếp tự động các chương trình (theo thứ tự); only = chỉ một chương trình */
   function auto(only?: string) {
     let next = [...rows]
@@ -88,21 +93,24 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
       const start0 = mins(c.time)
       let date = c.start !== 'after' ? c.start : cursor ? cursor.date : plan.starts_on || nextMonday()
       let at = c.start === 'after' && cursor ? cursor.at : start0, used = c.start === 'after' && cursor ? Math.max(0, cursor.at - start0) / 60 : 0
-      const skipWk = () => { for (let n = 0; n < 400 && ((c.skip && (dow(date) === 0 || dow(date) === 6)) || (c.skipHol && hol.holOn(date).length)); n++) date = addDays(date, 1) }
+      const L0 = mins(c.lunchFrom), L1 = mins(c.lunchTo), lunch = c.lunch && L1 > L0, AFTERNOON = Math.max(0, DAY_END - L1)
+      const skipWk = () => { for (let n = 0; n < 400 && ((c.skipSun && dow(date) === 0) || (c.skipSat && dow(date) === 6) || (c.skipHol && hol.holOn(date).length)); n++) date = addDays(date, 1) }
       skipWk()
       for (const r of mine) {
         if (r.locked) continue
         const h = Math.min(Math.max(r.hours || 0, 0.5), 10)
         if (used > 0 && used + h > c.perDay) { date = addDays(date, 1); skipWk(); at = start0; used = 0 }
         let from = at, len = Math.round(h * 60)
-        if (c.lunch && from >= LUNCH_FROM && from < LUNCH_TO) from = LUNCH_TO
+        if (lunch && from >= L0 && from < L1) from = L1
         // Buổi vắt qua giờ nghỉ trưa: phần sáng ít và buổi chiều đủ chỗ thì dời sang chiều; còn lại giữ giờ vào học, cộng giờ nghỉ trưa vào giờ kết thúc
-        else if (c.lunch && from < LUNCH_FROM && from + len > LUNCH_FROM) {
-          if (len <= AFTERNOON && LUNCH_FROM - from < len / 2) from = LUNCH_TO
-          else len += LUNCH_TO - LUNCH_FROM
+        else if (lunch && from < L0 && from + len > L0) {
+          if (len <= AFTERNOON && L0 - from < len / 2) from = L1
+          else len += L1 - L0
         }
         const to = from + len
-        next = next.map(x => x.unit_id === r.unit_id ? { ...x, date, from: hhmm(from), to: hhmm(to), mode: c.mode, location: c.location || x.location, url: c.url || x.url } : x)
+        const m: Mode = c.mode === 'hybrid' ? unitMode(r.unit_id) : c.mode
+        next = next.map(x => x.unit_id === r.unit_id ? { ...x, date, from: hhmm(from), to: hhmm(to), mode: m,
+          location: (m === 'offline' && c.location) || x.location, url: (m === 'online' && c.url) || x.url } : x)
         at = to; used += h
       }
       cursor = { date, at }
@@ -193,15 +201,19 @@ export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPl
           {c.start !== 'after' && <label className="field"><span>Ngày</span><input type="date" value={c.start} onChange={e => s.setCfg(pid, k, { start: e.target.value })} /></label>}
           <label className="field"><span>Giờ vào học</span><input type="time" value={c.time} onChange={e => s.setCfg(pid, k, { time: e.target.value || '08:00' })} /></label>
           <label className="field narrow"><span>Giờ/ngày</span><input type="number" min={1} max={10} step={0.5} value={c.perDay} onChange={e => s.setCfg(pid, k, { perDay: Math.min(10, Math.max(1, Number(e.target.value) || 1)) })} /></label>
-          <label className="field"><span>Hình thức</span><select value={c.mode} onChange={e => s.setCfg(pid, k, { mode: e.target.value as Mode })}>
-            {(Object.keys(MODE) as Mode[]).map(m => <option key={m} value={m}>{MODE[m]}</option>)}</select></label>
-          {c.mode === 'offline'
-            ? <label className="field wide"><span>Địa điểm</span><input value={c.location} maxLength={200} placeholder="VD: Hội trường Sở GD&ĐT" onChange={e => s.setCfg(pid, k, { location: e.target.value })} /></label>
-            : <label className="field wide"><span>Link họp</span><input value={c.url} maxLength={500} placeholder="https://meet.google.com/…" onChange={e => s.setCfg(pid, k, { url: e.target.value })} /></label>}
+          <label className="field"><span>Hình thức</span><select value={c.mode} onChange={e => s.setCfg(pid, k, { mode: e.target.value as CMode })}>
+            {(Object.keys(CMODE) as CMode[]).map(m => <option key={m} value={m}>{CMODE[m]}</option>)}</select></label>
+          {c.mode !== 'online' && <label className="field wide"><span>Địa điểm{c.mode === 'hybrid' ? ' (buổi trực tiếp)' : ''}</span><input value={c.location} maxLength={200} placeholder="VD: Hội trường Sở GD&ĐT" onChange={e => s.setCfg(pid, k, { location: e.target.value })} /></label>}
+          {c.mode !== 'offline' && <label className="field wide"><span>Link họp{c.mode === 'hybrid' ? ' (buổi trực tuyến)' : ''}</span><input value={c.url} maxLength={500} placeholder="https://meet.google.com/…" onChange={e => s.setCfg(pid, k, { url: e.target.value })} /></label>}
         </div>
+        {c.mode === 'hybrid' && <small className="sub">Kết hợp: mỗi buổi lấy hình thức của nội dung đào tạo (chưa đặt thì Trực tiếp). Đổi từng buổi ở danh sách bên dưới.</small>}
         <div className="tools tpschedopts">
-          <label className="tpcheck"><input type="checkbox" checked={c.lunch} onChange={e => s.setCfg(pid, k, { lunch: e.target.checked })} /> Nghỉ trưa 11:30–13:30</label>
-          <label className="tpcheck"><input type="checkbox" checked={c.skip} onChange={e => s.setCfg(pid, k, { skip: e.target.checked })} /> Bỏ qua thứ Bảy, Chủ nhật</label>
+          <span className="tpcheck"><label><input type="checkbox" checked={c.lunch} onChange={e => s.setCfg(pid, k, { lunch: e.target.checked })} /> Nghỉ trưa</label>
+            <span className="tptime"><input type="time" value={c.lunchFrom} disabled={!c.lunch} aria-label="Nghỉ trưa từ" onChange={e => s.setCfg(pid, k, { lunchFrom: e.target.value || LUNCH_FROM })} />
+              <span>–</span><input type="time" value={c.lunchTo} disabled={!c.lunch} aria-label="Nghỉ trưa đến" onChange={e => s.setCfg(pid, k, { lunchTo: e.target.value || LUNCH_TO })} /></span>
+            {c.lunch && mins(c.lunchTo) <= mins(c.lunchFrom) && <small className="warnline">Giờ kết thúc phải sau giờ bắt đầu</small>}</span>
+          <label className="tpcheck"><input type="checkbox" checked={c.skipSat} onChange={e => s.setCfg(pid, k, { skipSat: e.target.checked })} /> Bỏ qua thứ Bảy</label>
+          <label className="tpcheck"><input type="checkbox" checked={c.skipSun} onChange={e => s.setCfg(pid, k, { skipSun: e.target.checked })} /> Bỏ qua Chủ nhật</label>
           <label className="tpcheck"><input type="checkbox" checked={c.skipHol} onChange={e => s.setCfg(pid, k, { skipHol: e.target.checked })} /> Bỏ qua ngày nghỉ lễ</label>
           <button type="button" className="primary" onClick={() => { s.auto(pid); setOpen(o => new Set(o).add(pid)) }}>Xếp tự động</button>
         </div></>}
@@ -254,6 +266,8 @@ export function ScheduleView({ s }: { s: Schedule }) {
   const weeks = [...new Set(done.map(r => monOf(r.date)))].sort()
   const days = Array.from({ length: 7 }, (_, k) => new Date(addDays(cur, k) + 'T00:00'))
   const idx = weeks.indexOf(cur), n = done.filter(r => r.date >= cur && r.date <= addDays(cur, 6)).length
+  const c0 = s.order.length ? s.cfgOf(s.order[0], 0) : null
+  const shade: [number, number, string] | undefined = c0?.lunch && mins(c0.lunchTo) > mins(c0.lunchFrom) ? [mins(c0.lunchFrom), mins(c0.lunchTo), 'Nghỉ trưa'] : undefined
   const colorFor = (pid: string) => colorOf(Math.max(0, s.order.indexOf(pid)))
   return <div style={{ display: 'grid', gap: 8 }}>
     <div className="bar" style={{ margin: 0 }}>
@@ -268,13 +282,13 @@ export function ScheduleView({ s }: { s: Schedule }) {
         {weeks.length > 1 && idx < 0 && <button type="button" onClick={() => setWk(weeks[0])}>Về tuần có buổi</button>}</div>}
     </div>
     {mode === 'day' ? <DayGrid s={s} /> : !done.length ? <p className="sub">Chưa có buổi nào được xếp.</p>
-      : <TimeGrid days={days} shade={[LUNCH_FROM, LUNCH_TO, 'Nghỉ trưa']} label="Lịch đào tạo theo khung giờ" dayNote={d => s.hol.holName(ymd(d)) || undefined}
+      : <TimeGrid days={days} shade={shade} label="Lịch đào tạo theo khung giờ" dayNote={d => s.hol.holName(ymd(d)) || undefined}
           events={done.map(r => { const p = s.progs.find(x => x.id === r.program_id)
             return { id: r.unit_id, start: new Date(`${r.date}T${r.from}`), end: new Date(`${r.date}T${r.to}`), title: (s.hol.holOn(r.date).length ? '⚠ ' : '') + r.title, color: colorFor(r.program_id),
               sub: `${p?.code || p?.title || ''} · ${r.subj} · ${MODE[r.mode]}${r.mode === 'offline' && r.location ? ' · ' + r.location : ''}` } })} />}
     {mode === 'time' && done.length > 0 && <div className="tools" style={{ flexWrap: 'wrap' }}>{s.order.map(pid => { const p = s.progs.find(x => x.id === pid)
       return <small key={pid} className="sub" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><i style={{ width: 10, height: 10, borderRadius: 3, background: colorFor(pid), display: 'inline-block' }} />{p?.code || p?.title}</small> })}
-      <small className="sub">· vùng gạch chéo là giờ nghỉ trưa</small></div>}
+      {shade && <small className="sub">· vùng gạch chéo là giờ nghỉ trưa</small>}</div>}
   </div>
 }
 

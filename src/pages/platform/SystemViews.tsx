@@ -1,5 +1,5 @@
 import { Fragment, Suspense, lazy, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll as fetchAllRows } from '../../lib/supabase'
 import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../../components/MultiFilters'
 import { downloadXlsx, norm } from '../../lib/sheet'
 import { Tabs } from '../teacher/common'
@@ -40,7 +40,7 @@ const KEY = 'sysview.scope'
 export function useOrgs() {
   const [orgs, setOrgs] = useState<Org[]>([])
   useEffect(() => {
-    supabase.from('organizations').select('id, name, code, type, parent_id, is_platform').order('name')
+    fetchAllRows(() => supabase.from('organizations').select('id, name, code, type, parent_id, is_platform').order('name').order('id'))
       .then(({ data }) => setOrgs((data as Org[]) ?? []))
   }, [])
   return useMemo(() => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll } from '../../lib/supabase'
 
 export type SchoolStat = {
   school_id: string; code: string; name: string; level: string | null; ward: string | null; activated: boolean
@@ -21,7 +21,7 @@ export function useDeptStats() {
   const [err, setErr] = useState('')
   async function load(force = false) {
     if (!force && cache && Date.now() - cache.at < 60000) return setData(cache)
-    const [s, u] = await Promise.all([supabase.rpc('dept_school_stats'), supabase.rpc('dept_subject_stats')])
+    const [s, u] = await Promise.all([fetchAll<SchoolStat>(() => supabase.rpc('dept_school_stats')), supabase.rpc('dept_subject_stats')])
     if (s.error) return setErr(/schema cache|does not exist/i.test(s.error.message)
       ? 'Cơ sở dữ liệu chưa có các hàm thống kê của Sở. Hãy chạy migration 018_department_portal.sql trên Supabase (sau 012–017).'
       : s.error.message)

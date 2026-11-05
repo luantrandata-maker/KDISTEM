@@ -1,7 +1,7 @@
 // Quản trị chung → Cơ sở triển khai (migration 032)
 // Sổ quản lý tất cả trường đang triển khai trên toàn hệ thống: giai đoạn, tiến độ, hợp đồng, mức sử dụng, sức khoẻ, người phụ trách KDI.
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll } from '../../lib/supabase'
 import { downloadXlsx, norm } from '../../lib/sheet'
 import ImportExcel from '../../components/ImportExcel'
 import SchoolLocationImport from '../../components/SchoolLocationImport'
@@ -111,7 +111,7 @@ export function PlatformSchools({ go }: { go?: (p: string) => void }) {
   const [open, setOpen] = useState<string | null>(null)
 
   async function load() {
-    const [r, s] = await Promise.all([supabase.rpc('platform_school_registry'), supabase.rpc('platform_staff')])
+    const [r, s] = await Promise.all([fetchAll<Reg>(() => supabase.rpc('platform_school_registry')), supabase.rpc('platform_staff')])
     if (r.error) { setErr(errText(r.error.message)); setRows([]); return }
     setErr(''); setRows((r.data as Reg[]) ?? []); setStaff((s.data as Staff[]) ?? [])
   }

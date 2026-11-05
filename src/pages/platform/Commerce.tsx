@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
 import { Tiles } from '../department/charts'
 import { usePlatform, pathOf, ORG_TYPE, type Org } from './data'
@@ -46,8 +46,8 @@ function useCommerce() {
   const [err, setErr] = useState('')
   async function reload() {
     const [c, e, m, pl, k] = await Promise.all([
-      supabase.from('organizations').select('id, customer_status, contact_name, contact_phone, contact_email, customer_note'),
-      supabase.rpc('platform_entitlements'),
+      fetchAll<Cust>(() => supabase.from('organizations').select('id, customer_status, contact_name, contact_phone, contact_email, customer_note').order('id')),
+      fetchAll<Ent>(() => supabase.rpc('platform_entitlements')),
       supabase.from('service_modules').select('key, name, description, sort').order('sort'),
       supabase.from('service_plans').select('*').order('name'),
       supabase.from('contracts').select('*').order('created_at', { ascending: false }),

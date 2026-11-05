@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll } from '../../lib/supabase'
 import { downloadWorkbook, norm } from '../../lib/sheet'
 import { useDeptStats, LEVEL, type SchoolStat } from './data'
 import { Tiles } from './charts'
@@ -69,7 +69,7 @@ export function useIndexConfig() {
 // Gom theo Sở (cho KDI / Bộ) bằng cây đơn vị
 function useParents(enabled: boolean) {
   const [map, setMap] = useState<Map<string, { id: string; parent_id: string | null; name: string; type: string }>>(new Map())
-  useEffect(() => { if (enabled) supabase.from('organizations').select('id, parent_id, name, type').then(({ data }) => setMap(new Map(((data as any[]) ?? []).map(o => [o.id, o])))) }, [enabled])
+  useEffect(() => { if (enabled) fetchAll(() => supabase.from('organizations').select('id, parent_id, name, type').order('id')).then(({ data }) => setMap(new Map(((data as any[]) ?? []).map(o => [o.id, o])))) }, [enabled])
   return (id: string, type: string) => { let o = map.get(id); for (let k = 0; o && k < 10; k++) { if (o.type === type) return o.name; o = o.parent_id ? map.get(o.parent_id) : undefined } return 'Khác' }
 }
 

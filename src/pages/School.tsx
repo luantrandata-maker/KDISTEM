@@ -84,10 +84,18 @@ export function SchoolProfile() {
   const [org, setOrg] = useState<any>(null)
   const [orgId, setOrgId] = useState('')
   const [counts, setCounts] = useState<Record<string, number>>({})
+  const [err, setErr] = useState('')
   useEffect(() => {
+    // Đọc org_id rồi đọc trường riêng: nhúng organizations từ profiles bị trùng quan hệ (org_id và kdi_owner) nên có thể lỗi
     supabase.auth.getUser().then(async ({ data: u }) => {
-      const { data: p } = await supabase.from('profiles').select('org_id, organizations(name, code, level, parent:parent_id(name))').eq('id', u.user!.id).single()
-      setOrg((p as any)?.organizations); setOrgId((p as any)?.org_id ?? '')
+      const { data: p, error: e1 } = await supabase.from('profiles').select('org_id').eq('id', u.user?.id ?? '').maybeSingle()
+      const id = (p as { org_id: string | null } | null)?.org_id
+      if (!id) { setErr(e1?.message ?? 'Tài khoản chưa gắn với trường nào.'); return }
+      setOrgId(id)
+      const { data: o, error: e2 } = await supabase.from('organizations').select('name, code, level, parent_id').eq('id', id).maybeSingle()
+      if (!o) { setErr(e2?.message ?? 'Không đọc được thông tin trường.'); return }
+      const par = o.parent_id ? (await supabase.from('organizations').select('name').eq('id', o.parent_id).maybeSingle()).data : null
+      setOrg({ ...o, parent: par })
     })
   }, [])
   // Đếm theo đúng trường đang làm việc (quản trị KDI đọc được dữ liệu mọi trường: không lọc thì đếm cả hệ thống và rất chậm)
@@ -97,7 +105,7 @@ export function SchoolProfile() {
       .then(async r => setCounts({ ...Object.fromEntries(r), stem_rooms: (await loadRooms('stem')).length }))
   }, [orgId])
   const LEVEL: Record<string, string> = { mamnon: 'Mầm non', tieuhoc: 'Tiểu học', thcs: 'THCS', thpt: 'THPT' }
-  if (!org) return <p className="sub">Đang tải…</p>
+  if (!org) return <p className={err ? 'msg' : 'sub'}>{err || 'Đang tải…'}</p>
   return (
     <>
       <div className="panel">

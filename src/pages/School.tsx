@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { SchoolUsage } from '../components/SchoolUsage'
 import { fmtDate } from '../lib/time'
 import { loadRooms } from '../lib/rooms'
 import { useStemTracks } from '../lib/stemTracks'
@@ -81,15 +82,20 @@ export function StemTeachers() {
 
 export function SchoolProfile() {
   const [org, setOrg] = useState<any>(null)
+  const [orgId, setOrgId] = useState('')
   const [counts, setCounts] = useState<Record<string, number>>({})
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: u }) => {
       const { data: p } = await supabase.from('profiles').select('org_id, organizations(name, code, level, parent:parent_id(name))').eq('id', u.user!.id).single()
-      setOrg((p as any)?.organizations)
+      setOrg((p as any)?.organizations); setOrgId((p as any)?.org_id ?? '')
     })
-    Promise.all(['teachers', 'classes', 'students', 'equipment_units'].map(t => supabase.from(t).select('*', { count: 'exact', head: true }).then(r => [t, r.count ?? 0] as const)))
-      .then(async r => setCounts({ ...Object.fromEntries(r), stem_rooms: (await loadRooms('stem')).length }))
   }, [])
+  // Đếm theo đúng trường đang làm việc (quản trị KDI đọc được dữ liệu mọi trường: không lọc thì đếm cả hệ thống và rất chậm)
+  useEffect(() => {
+    if (!orgId) return
+    Promise.all(['teachers', 'classes', 'students', 'equipment_units'].map(t => supabase.from(t).select('id', { count: 'exact', head: true }).eq('org_id', orgId).then(r => [t, r.count ?? 0] as const)))
+      .then(async r => setCounts({ ...Object.fromEntries(r), stem_rooms: (await loadRooms('stem')).length }))
+  }, [orgId])
   const LEVEL: Record<string, string> = { mamnon: 'Mầm non', tieuhoc: 'Tiểu học', thcs: 'THCS', thpt: 'THPT' }
   if (!org) return <p className="sub">Đang tải…</p>
   return (
@@ -107,6 +113,7 @@ export function SchoolProfile() {
           <div className="card" key={k}><strong>{counts[k] ?? 0}</strong><span>{l}</span></div>
         ))}
       </div>
+      {orgId && <SchoolUsage orgId={orgId} />}
     </>
   )
 }

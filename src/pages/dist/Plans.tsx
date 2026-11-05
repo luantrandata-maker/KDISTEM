@@ -116,7 +116,7 @@ export function DistPage({ orgId }: { orgId: string | null }) {
               onCopied={(id, m) => { reload(); setMsg(m); if (id) setOpenList(id) }} onAssign={assign} />)}
         {tab === 'create' && orgId && <CreatePlan orgId={orgId} onCancel={() => setTab('list')}
           onCreated={id => { reload(); setOpenList(id); setTab('list'); setMsg('Đã tạo bản phân phối nháp. Tiếp tục chọn chương trình và xếp lịch.') }} />}
-        {tab === 'assign' && <DistAssign plans={plans} initial={assignId} onDone={reload} onHistory={() => setTab('history')} />}
+        {tab === 'assign' && <DistAssign orgId={orgId} plans={plans} initial={assignId} onDone={reload} onHistory={() => setTab('history')} />}
         {tab === 'history' && <DistHistory plans={plans} rk={rk} />}
       </>}
     </>
@@ -268,7 +268,7 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
 type Org = { id: string; name: string; type: string; parent_id: string | null }
 type Cls = { id: string; name: string; grade: number; org_id: string }
 
-function DistAssign({ plans, initial, onDone, onHistory }: { plans: Plan[]; initial: string; onDone: () => void; onHistory: () => void }) {
+function DistAssign({ orgId, plans, initial, onDone, onHistory }: { orgId: string | null; plans: Plan[]; initial: string; onDone: () => void; onHistory: () => void }) {
   const crumb = useBreadcrumb()
   const [pid, setPid] = useState(initial)
   const [orgs, setOrgs] = useState<Org[]>([])
@@ -291,15 +291,21 @@ function DistAssign({ plans, initial, onDone, onHistory }: { plans: Plan[]; init
     supabase.from('classes').select('id, name, grade, org_id').eq('org_id', picked[0]).eq('grade', plan.grade).order('name').then(({ data }) => setClasses((data as Cls[]) ?? []))
   }, [picked.join(','), plan?.id])
   const schools = orgs.filter(o => o.type === 'school')
+  // Trường tự gán vẫn gửi duyệt PPCT như thường lệ; cấp trên / quản trị nền tảng mới áp dụng thẳng (DB cũng chặn, migration 134)
+  const canApply = !orgId || orgs.find(o => o.id === orgId)?.type !== 'school'
 
-  async function assign() {
+  /** publish = áp dụng luôn: PPCT ban hành ngay, lớp theo dõi tiến độ được luôn (không chờ trường ban hành) */
+  async function assign(publish = false) {
     if (!plan || !picked.length) return
+    if (publish && !confirm(`Gán và áp dụng ngay cho ${picked.length} trường? PPCT chuyển sang "Đang dùng", ${cls.length ? 'các lớp đã chọn' : 'lớp khối ' + plan.grade} theo dõi tiến độ theo PPCT này.`)) return
     setBusy(true); setMsg(null)
-    const { data, error } = await supabase.rpc('dist_plan_assign', { p_plan: plan.id, p_orgs: picked, p_year: year.trim() || null, p_classes: cls.length ? cls : null })
+    const { data, error } = await supabase.rpc('dist_plan_assign', { p_plan: plan.id, p_orgs: picked, p_year: year.trim() || null, p_classes: cls.length ? cls : null, ...(publish ? { p_publish: true } : {}) })
     setBusy(false)
-    if (error) return setMsg([errText(error.message), true])
-    const r = data as { books: number; skipped: number }
-    setMsg([`Đã tạo ${r.books} PPCT nháp cho ${picked.length} trường${r.skipped ? `; ${r.skipped} PPCT đã có từ trước nên bỏ qua` : ''}. Trường kiểm tra rồi ban hành PPCT như thường lệ.`, false])
+    if (error) return setMsg([/p_publish|function .*does not exist|schema cache/i.test(error.message) ? 'Chưa chạy migration 134 trên cơ sở dữ liệu nên chưa áp dụng ngay được.' : errText(error.message), true])
+    const r = data as { books: number; skipped: number; published?: number }
+    setMsg([publish
+      ? `Đã áp dụng ${r.published ?? 0} PPCT cho ${picked.length} trường (tạo mới ${r.books}${r.skipped ? `, ${r.skipped} đã có từ trước` : ''}). PPCT đang dùng, lớp theo dõi tiến độ được ngay.`
+      : `Đã tạo ${r.books} PPCT nháp cho ${picked.length} trường${r.skipped ? `; ${r.skipped} PPCT đã có từ trước nên bỏ qua` : ''}. Trường kiểm tra rồi ban hành PPCT như thường lệ.`, false])
     setPicked([]); setRk(k => k + 1); onDone()
   }
 
@@ -325,8 +331,9 @@ function DistAssign({ plans, initial, onDone, onHistory }: { plans: Plan[]; init
             <MultiSelect value={picked} onChange={setPicked} options={schools.map(o => [o.id, o.name])} placeholder="Chọn trường…" ariaLabel="Trường" empty="Không có trường nào trong phạm vi." /></div>
           {picked.length === 1 && <fieldset className="libtargets wide"><legend>Lớp khối {plan.grade} (không chọn = áp dụng cả khối)</legend>
             <MultiSelect value={cls} onChange={setCls} options={classes.map(c => [c.id, c.name])} placeholder="Cả khối" ariaLabel="Lớp" empty={`Trường chưa có lớp khối ${plan.grade}.`} /></fieldset>}
-          <div className="formactions"><button type="button" className="primary" disabled={busy || !picked.length} onClick={assign}>Gán và tạo PPCT</button>
-            <small className="sub"> Mỗi chương trình trong bản thành một PPCT nháp của trường, tiết xếp đúng tuần của bản. Gán lại không tạo trùng.</small></div>
+          <div className="formactions"><button type="button" className="primary" disabled={busy || !picked.length} onClick={() => assign()}>Gán và tạo PPCT</button>
+            {canApply && <button type="button" disabled={busy || !picked.length} onClick={() => assign(true)}>Gán và áp dụng ngay</button>}
+            <small className="sub"> Gán và tạo PPCT: mỗi chương trình trong bản thành một PPCT nháp, trường kiểm tra rồi ban hành.{canApply && ' Gán và áp dụng ngay: PPCT ban hành luôn, lớp dùng được ngay.'} Tiết xếp đúng tuần của bản; gán lại không tạo trùng.</small></div>
         </>}
         {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       </div>

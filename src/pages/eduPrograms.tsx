@@ -806,7 +806,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
         onSave={saveDraft} onCancel={() => setDraft(null)} />
       : all.length === 0 ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có học phần nào.{editable && ' Bấm "Thêm học phần" hoặc "Nhập Excel".'}</p></div> : (
         <div className="wrap"><table>
-          <thead><tr><th>Mục</th><th>Tên · mục tiêu · yêu cầu cần đạt</th><th>Khối</th><th>Môn</th><th>Số tiết</th><th></th></tr></thead>
+          <thead><tr><th>Mục</th><th>Tên · mục tiêu · yêu cầu cần đạt</th><th>Khối</th><th>Môn</th><th style={{ whiteSpace: 'nowrap' }}>Số tiết</th><th></th></tr></thead>
           <tbody>
             {ordered.map(({ u, depth }) => {
               const os = outs.filter(o => o.unit_id === u.id).sort((a, b) => a.seq - b.seq)
@@ -814,7 +814,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
                 <Fragment key={u.id}>
                   {(
                     <tr>
-                      <td style={{ paddingLeft: 8 + depth * 22 }}><small className="sub">{UTYPE[u.unit_type]}</small> <b>{u.seq}</b></td>
+                      <td style={{ paddingLeft: 8 + depth * 22, whiteSpace: 'nowrap' }}><small className="sub">{UTYPE[u.unit_type]}</small> <b>{u.seq}</b></td>
                       <td>{u.unit_type === 'topic' ? <b>{u.title}</b> : u.title}{u.objectives && <><br /><small className="sub">Mục tiêu: {u.objectives}</small></>}
                         {os.map(o => (
                           <div key={o.id} style={{ fontSize: 13, marginTop: 2 }}>✓ {o.code && <b>{o.code} </b>}{o.content}{o.competency_key && <small className="sub"> · {compName(o.competency_key)}</small>}</div>
@@ -837,7 +837,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
                           </form>
                         )}
                       </td>
-                      <td>{unitGrades(u).join(', ')}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{unitGrades(u).join(', ')}</td>
                       <td>{u.unit_type === 'topic' && (subjectsOf(u.id).length || subjFor === u.id) ? (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                           {subjectsOf(u.id).map(x => (
@@ -852,13 +852,13 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
                           </select>}
                         </div>
                       ) : <small>{u.subject ?? ''}</small>}</td><td>{u.periods || (all.some(c => c.parent_id === u.id) ? '' : '—')}</td>
-                      <td className="tools">
+                      <td><span className="tools" style={{ flexWrap: 'nowrap', justifyContent: 'flex-end', whiteSpace: 'nowrap' }}>
                         {(u.unit_type === 'session' || (u.unit_type === 'lesson' && !all.some(c => c.parent_id === u.id))) && (editable || asLesson(u.lesson)) && <button onClick={() => setLessonOf(u)}>
                           {editable ? 'Soạn nội dung buổi' : 'Xem nội dung buổi'}{asLesson(u.lesson) ? ` · ${lessonStats(asLesson(u.lesson)).blocks} khối` : ''}</button>}
                         {editable && <>
                         {u.unit_type === 'topic' && <button onClick={() => setSubjFor(u.id)}>+ Môn học</button>}
                         {u.unit_type !== 'topic' && <button onClick={() => openMatPicker(u.id)}>+ Học liệu</button>}
-                      </>}</td>
+                      </>}</span></td>
                     </tr>
                   )}
                 </Fragment>

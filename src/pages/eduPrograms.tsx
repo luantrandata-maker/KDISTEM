@@ -1020,10 +1020,13 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
   }
   useEffect(() => { load() }, [p.id])
   const below: Org[] = []
-  const walk = (id: string, depth: number) => orgs.filter(o => o.parent_id === id).forEach(o => { below.push({ ...o, name: ' '.repeat(depth * 3) + o.name }); walk(o.id, depth + 1) })
+  const walk = (id: string | null, depth: number) => orgs.filter(o => o.parent_id === id).forEach(o => {
+    if (o.id !== p.org_id) below.push({ ...o, name: ' '.repeat(depth * 3) + o.name })
+    walk(o.id, depth + 1) })
   const every = useAllMode()
-  const root = every ? p.org_id : orgId
-  if (root) walk(root, 0)
+  // Quản trị nền tảng (xem tất cả đơn vị): gán được cho đơn vị bất kỳ, kể cả trường không thuộc đơn vị sở hữu (vd. chương trình của KDI Education)
+  if (every) walk(null, 0)
+  else if (orgId) walk(orgId, 0)
   const orgName = (id: string) => orgs.find(o => o.id === id)?.name ?? '—'
 
   async function add(e: React.FormEvent) {

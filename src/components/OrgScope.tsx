@@ -1,7 +1,7 @@
 // Quản trị hệ thống thao tác tất cả đơn vị ngay trên màn hình như người dùng (26/10): một danh sách chung gồm dữ liệu của tất cả
 // đơn vị (kèm tên đơn vị), sửa thẳng từng dòng; thêm mới thì chọn đơn vị ngay trong form. Quyền ghi kiểm tra ở CSDL (099, 100).
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, fetchAll } from '../lib/supabase'
 
 export type ScopeOrg = { id: string; name: string; type: string; parent_id: string | null; is_platform?: boolean | null }
 /** kind: 'school' = chỉ trường; 'unit' = KDI và cơ quan quản lý (Bộ, Tỉnh, Sở, Phòng); 'any' = tất cả */
@@ -14,7 +14,7 @@ let cache: Promise<ScopeOrg[]> | null = null
 export function useAllOrgs() {
   const [list, setList] = useState<ScopeOrg[] | null>(null)
   useEffect(() => {
-    cache ??= Promise.resolve(supabase.from('organizations').select('id, name, type, parent_id, is_platform').order('name'))
+    cache ??= fetchAll(() => supabase.from('organizations').select('id, name, type, parent_id, is_platform').order('name').order('id'))
       .then(({ data }) => (data as ScopeOrg[]) ?? [])
     cache.then(setList)
   }, [])

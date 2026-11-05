@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll } from '../../lib/supabase'
 import { ORG_TYPE } from '../../lib/auth'
 
 export type Org = {
@@ -46,8 +46,8 @@ export function usePlatform() {
   const [err, setErr] = useState('')
   async function reload() {
     const [o, s, r] = await Promise.all([
-      supabase.from('organizations').select('id, type, parent_id, code, name, level, ward, address, activated_at, status, is_platform').order('name'),
-      supabase.rpc('org_tree_stats'),
+      fetchAll<Org>(() => supabase.from('organizations').select('id, type, parent_id, code, name, level, ward, address, activated_at, status, is_platform').order('name').order('id')),
+      fetchAll<OrgStat>(() => supabase.rpc('org_tree_stats')),
       supabase.from('roles').select('id, key, name, org_id, portal').order('name'),
     ])
     if (o.error || s.error) {

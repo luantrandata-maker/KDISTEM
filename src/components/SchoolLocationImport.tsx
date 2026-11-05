@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, fetchAll } from '../lib/supabase'
 import ImportExcel from './ImportExcel'
 import type { Column } from '../lib/sheet'
 
@@ -18,7 +18,7 @@ type Org = { code: string | null; name: string; ward: string | null; lat: number
 export default function SchoolLocationImport({ onDone, onMessage }: { onDone?: () => void; onMessage: (msg: string, isError?: boolean) => void }) {
   const [orgs, setOrgs] = useState<Org[]>([])
   async function load() {
-    const { data } = await supabase.from('organizations').select('code, name, ward, lat, lng').eq('type', 'school').order('name')
+    const { data } = await fetchAll<Org>(() => supabase.from('organizations').select('code, name, ward, lat, lng').eq('type', 'school').order('name').order('code'))
     setOrgs((data as Org[]) ?? [])
   }
   useEffect(() => { load() }, [])

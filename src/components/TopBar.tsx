@@ -1,7 +1,7 @@
 // Đầu trang gọn: ô tìm chức năng (Ctrl K) và menu tài khoản (chế độ xem, đơn vị đang làm việc, xem với tư cách, đổi mật khẩu, đăng xuất)
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { enterSchool, switchOrg, type MyOrg } from '../lib/auth'
-import { supabase } from '../lib/supabase'
+import { supabase, fetchAll } from '../lib/supabase'
 import { norm } from '../lib/sheet'
 
 // ================= Tìm chức năng trong menu =================
@@ -71,7 +71,7 @@ export function UserMenu({ name, email, roleLabel, orgs, views, view, onView, ac
   const pick = async (o: MyOrg) => { if (!o.active) setErr((await switchOrg(o.org_id)) ?? '') }
   // Quản trị KDI: chọn được tất cả trường trong hệ thống (người khác nhận danh sách rỗng)
   const [all, setAll] = useState<{ org_id: string; name: string; parent_name: string | null }[]>([])
-  useEffect(() => { supabase.rpc('platform_school_list').then(({ data }) => setAll((data as typeof all) ?? [])) }, [])
+  useEffect(() => { fetchAll(() => supabase.rpc('platform_school_list')).then(({ data }) => setAll((data as typeof all) ?? [])) }, [])
   const groups = useMemo(() => {
     const m = new Map<string, typeof all>()
     for (const s of all) { const k = s.parent_name ?? 'Khác'; m.set(k, [...(m.get(k) ?? []), s]) }

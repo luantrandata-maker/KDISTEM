@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { supabase } from '../../lib/supabase'
+import { supabase, fetchAll } from '../../lib/supabase'
 import { Tabs } from '../teacher/common'
 import { Tiles } from '../department/charts'
 import { useDeptStats, type SchoolStat } from '../department/data'
@@ -58,7 +58,7 @@ export function PlatformRollout() {
   const [msg, setMsg] = useState('')
 
   async function loadChecks() {
-    const [e, c] = await Promise.all([supabase.rpc('platform_entitlements'), supabase.from('rollout_checks').select('*')])
+    const [e, c] = await Promise.all([fetchAll<Ent>(() => supabase.rpc('platform_entitlements')), fetchAll<Check>(() => supabase.from('rollout_checks').select('*').order('org_id').order('step'))])
     if (c.error) setMsg(/schema cache|does not exist|relation/i.test(c.error.message) ? 'Hãy chạy migration 025_platform_wave2_rollout_catalog_broadcast.sql trên Supabase.' : c.error.message)
     setEnts(new Map(((e.data as Ent[]) ?? []).map(x => [x.org_id, x])))
     setChecks((c.data as Check[]) ?? [])

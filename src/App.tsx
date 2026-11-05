@@ -216,10 +216,10 @@ const PlatformProgramTrack = (p: any) => <TabbedPages {...p} tabs={[['Chương t
 // Phân hệ 2 (100): cùng cách làm — danh sách chung tất cả đơn vị, sửa thẳng
 const PH2_TABS = {
   edu: allOrgs(EduProgramsPlatform), subjects: allOrgs(SubjectsPlatform), ppct: allOrgs(CurriculumBooks, { mode: 'platform' }),
-  library: allOrgs(LibraryManage), norms: allOrgs(MaterialNorms), lessons: allOrgs(SchoolLessons), elearning: allOrgs(ElearningManage),
+  library: allOrgs(LibraryManage), lessons: allOrgs(SchoolLessons), elearning: allOrgs(ElearningManage),
 }
 const PlatformDistPage = (p: any) => <TabbedPages {...p} tabs={[['Bản phân phối', DistPage], ['PPCT các đơn vị', PH2_TABS.ppct]]} />
-const PlatformLibraryPage = (p: any) => <TabbedPages {...p} tabs={[['Học liệu', LibraryPage], ['Học liệu các đơn vị', PH2_TABS.library], ['Định mức vật tư', PH2_TABS.norms]]} />
+const PlatformLibraryPage = (p: any) => <TabbedPages {...p} tabs={[['Học liệu', LibraryPage], ['Học liệu các đơn vị', PH2_TABS.library]]} />
 const PlatformElearningPage = PH2_TABS.elearning
 function PlatformEduProgramsPage(p: any) {
   const [track, setTrack] = useState(false)

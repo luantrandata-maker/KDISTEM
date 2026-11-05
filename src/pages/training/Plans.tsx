@@ -285,6 +285,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   const [busy, setBusy] = useState(false)
   const progs = usePrograms()
   const { cls, finals } = useFinalNodes()
+  const orgF = useOrgFilter()
   async function load() {
     const [a, b, c, d, r] = await Promise.all([
       supabase.from('training_plans').select(SEL).eq('id', id).single(),
@@ -409,7 +410,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   const outside = enr.filter(e => !orgs.some(o => o.org_id === e.teachers?.org_id))
   const removeEnr = (e: Enr) => confirm(`Bỏ ${e.teachers?.full_name ?? 'giáo viên'} khỏi kế hoạch?`)
     && run(supabase.from('training_enrollments').delete().eq('plan_id', e.plan_id).eq('teacher_id', e.teacher_id), `Đã bỏ ${e.teachers?.full_name ?? 'giáo viên'} khỏi kế hoạch.`)
-  const sortedOrgs = [...orgs].sort((a, b) => (a.status === 'submitted' ? 0 : 1) - (b.status === 'submitted' ? 0 : 1) || (names.get(a.org_id) ?? '').localeCompare(names.get(b.org_id) ?? '', 'vi'))
+  const sortedOrgs = orgs.filter(o => orgF.fit(o.org_id)).sort((a, b) => (a.status === 'submitted' ? 0 : 1) - (b.status === 'submitted' ? 0 : 1) || (names.get(a.org_id) ?? '').localeCompare(names.get(b.org_id) ?? '', 'vi'))
   const crumbTxt = cls.path(p.node_id).map(n => n.name).join(' › ') || 'Chưa phân loại'
   const validity = !items.length ? null : scErr.length ? <Chip tone="bad">⊗ {scErr.length} lỗi lịch</Chip> : sc.length ? <Chip tone="warn">⚠ {sc.length} lưu ý</Chip> : <Chip tone="good">✓ Lịch hợp lệ</Chip>
 
@@ -536,7 +537,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
       {can && p.pub_status === 'published' && <DirectAdd planId={p.id} enr={enr} onDone={m => { setMsg(m); load() }} />}
       <section className="panel" style={{ display: 'grid', gap: 12 }}>
         <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Trường được gán</h3>
-          <div className="tools"><small className="sub">{orgs.length} trường · {enr.length} giáo viên · {orgs.filter(o => o.status === 'submitted').length} chờ duyệt</small>
+          <div className="tools">{orgs.length > 1 && orgF.node(orgs.map(o => o.org_id))}<small className="sub">{orgs.length} trường · {enr.length} giáo viên · {orgs.filter(o => o.status === 'submitted').length} chờ duyệt</small>
             {can && p.pub_status === 'published' && <button type="button" className="primary" onClick={() => setAssign(true)}>Gán trường</button>}</div></div>
         <div className="wrap"><table className="libtable">
           <thead><tr><th>Trường</th><th style={{ width: 100 }}>Chỉ tiêu</th><th>Giáo viên đã chọn</th><th>Trạng thái</th>{can && <th></th>}</tr></thead>

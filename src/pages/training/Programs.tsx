@@ -5,6 +5,7 @@ import { CompetencySetupLink } from '../../components/CompetencySetup'
 import { MultiSelect } from '../../components/MultiSelect'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { useOrgFilter } from '../../components/OrgFilters'
 import { useEduLevels } from '../../lib/eduLevels'
 import { useStemTracks } from '../../lib/stemTracks'
 import { useSubjects } from '../subjects'
@@ -452,6 +453,7 @@ function TrainingDeploy({ p, go }: { p: TProgram; go?: (page: string) => void })
   const [plans, setPlans] = useState<DPlan[] | null>(null)
   const [rows, setRows] = useState<DRowM[]>([])
   const [vers, setVers] = useState<Map<string, number>>(new Map())
+  const orgF = useOrgFilter()
   useEffect(() => {
     (async () => {
       const v = await supabase.from('training_programs').select('id, version_no').eq('family_id', p.family_id)
@@ -492,9 +494,10 @@ function TrainingDeploy({ p, go }: { p: TProgram; go?: (page: string) => void })
           <td>v{vers.get(x.program_id) ?? '?'}</td><td>{x.quota ?? '—'}</td><td><Chip tone={st[1]}>{st[0]}</Chip></td></tr> })}</tbody>
       </table></div>
       <h3 style={{ margin: '8px 0 0' }}>Mức độ triển khai theo đơn vị</h3>
+      {rows.length > 1 && <div className="distfilter">{orgF.node(rows.map(r => r.org_id))}</div>}
       {rows.length === 0 ? <p className="sub" style={{ margin: 0 }}>Chưa có đơn vị nào được gán trong các kế hoạch đã ban hành.</p> : <div className="wrap"><table>
         <thead><tr><th>Đơn vị</th><th>Kế hoạch</th><th>Chỉ tiêu</th><th>GV đăng ký</th><th>Chuyên cần</th><th>Đạt</th><th>Chưa đạt</th><th>Chứng chỉ</th></tr></thead>
-        <tbody>{rows.map(r => <tr key={r.plan_id + r.org_id}>
+        <tbody>{rows.filter(r => orgF.fit(r.org_id)).map(r => <tr key={r.plan_id + r.org_id}>
           <td><b>{r.org_name}</b></td><td><small>{planName(r.plan_id)}</small></td><td>{r.quota ?? '—'}</td><td>{r.enrolled}</td>
           <td>{r.att_pct != null ? `${String(r.att_pct).replace('.', ',')}%` : '—'}</td><td>{r.passed}</td><td>{r.failed || 0}</td><td>{r.certs}</td></tr>)}</tbody>
       </table></div>}

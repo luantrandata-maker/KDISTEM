@@ -7,6 +7,7 @@ import { CustomInputs, customCell } from '../components/CustomFields'
 import { fieldsOf, useSettings } from '../lib/settings'
 import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
 import { SchoolPicker } from '../components/SchoolPicker'
+import { useOrgFilter } from '../components/OrgFilters'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase, fetchAll } from '../lib/supabase'
 import { OrgPick, useAllMode, useAllOrgs } from '../components/OrgScope'
@@ -1009,6 +1010,7 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
   const [cov, setCov] = useState<Cover[] | null>(null)
   const [form, setForm] = useState<{ org: string; grades: number[]; note: string } | null>(null)
   const asel = useRowSel(asg)
+  const orgF = useOrgFilter()
   async function load() {
     const [o, a, c] = await Promise.all([
       fetchAll(() => supabase.from('organizations').select('id, name, type, parent_id').order('name').order('id')),
@@ -1076,12 +1078,13 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
         </form>
       )}
       {asg.length > 0 && (<>
+        {asg.length > 1 && <div className="distfilter">{orgF.node(asg.map(a => a.org_id))}</div>}
         <SelBar picked={asel.cur ? orgName(asel.cur.org_id) : null}>
           <button className="danger" disabled={!asel.cur || !(mine || asel.cur.assigner_org === orgId)} onClick={() => { if (asel.cur) { remove(asel.cur); asel.clear() } }}>Bỏ gán</button>
         </SelBar>
         <div className="wrap"><table>
           <thead><tr><SelTh /><th>Đơn vị</th><th>Khối</th><th>Ghi chú</th><th>Ngày gán</th></tr></thead>
-          <tbody>{asg.map(a => (
+          <tbody>{asg.filter(a => orgF.fit(a.org_id)).map(a => (
             <tr key={a.id} className={asel.is(a) ? 'picked' : undefined}><SelTd on={asel.is(a)} onToggle={() => asel.toggle(a)} label={orgName(a.org_id)} />
               <td><b>{orgName(a.org_id)}</b></td><td>{a.grades?.length ? a.grades.join(', ') : 'Tất cả khối'}</td><td><small>{a.note}</small></td><td>{fmtD(a.created_at)}</td></tr>
           ))}</tbody>

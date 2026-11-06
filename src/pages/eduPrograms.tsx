@@ -130,6 +130,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   const [openId, setOpenId] = useState<string | null>(null)
   const [level, setLevel] = useState('')
   const [kind, setKind] = useState('')
+  const [maker, setMaker] = useState('')  // lọc theo đơn vị tạo
   const [subject, setSubject] = useState('')
   const [status, setStatus] = useState('')
   const [q, setQ] = useState('')
@@ -159,9 +160,10 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   useEffect(() => { load() }, [orgId])
 
   const all = list ?? []
+  const makers = useMemo(() => [...new Map(all.map(p => [p.org_id, p.organizations?.name ?? '—'] as [string, string]))].sort((a, b) => a[1].localeCompare(b[1], 'vi')), [list])
   const subjects = useMemo(() => [...new Set(all.flatMap(mainsOf))].sort((a, b) => a.localeCompare(b, 'vi')), [list])
   const shown = all.filter(p => (old || !SGROUP.off[1].includes(p.status) || status === 'off')
-    && (!level || lvsOf(p).includes(level)) && (!kind || p.kind === kind) && (!subject || mainsOf(p).includes(subject) || p.integrated_subjects.includes(subject))
+    && (!level || lvsOf(p).includes(level)) && (!kind || p.kind === kind) && (!maker || p.org_id === maker) && (!subject || mainsOf(p).includes(subject) || p.integrated_subjects.includes(subject))
     && (!status || SGROUP[status]?.[1].includes(p.status)) && (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
   const own = every ? shown : shown.filter(p => p.org_id === orgId)
   const shared = every ? [] : shown.filter(p => p.org_id !== orgId)
@@ -260,6 +262,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
           <LevelPicker value={level} onChange={setLevel} emptyLabel="Tất cả cấp học" />
           <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại chương trình"><option value="">Tất cả loại chương trình</option>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select>
           {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
+          <select value={maker} onChange={e => setMaker(e.target.value)} aria-label="Đơn vị tạo"><option value="">Tất cả đơn vị tạo</option>{makers.map(([id, nm]) => <option key={id} value={id}>{nm}</option>)}</select>
           <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Trạng thái"><option value="">Tất cả trạng thái</option>{Object.entries(SGROUP).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}</select>
           <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện chương trình ngừng dùng</label>

@@ -124,8 +124,8 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
           <input placeholder="Tìm mã, tên, đối tượng…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <select value={ct} onChange={e => setCt(e.target.value)} aria-label="Loại chương trình"><option value="">Tất cả loại chương trình</option>
             {codes.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select>
-          {owners.size > 1 && <select value={own} onChange={e => setOwn(e.target.value)} aria-label="Đơn vị tạo"><option value="">Tất cả đơn vị tạo</option>
-            {[...owners].sort((a, b) => a[1].localeCompare(b[1], 'vi')).map(([id, nm]) => <option key={id} value={id}>{nm}</option>)}</select>}
+          <select value={own} onChange={e => setOwn(e.target.value)} aria-label="Đơn vị tạo"><option value="">Tất cả đơn vị tạo</option>
+            {[...owners].sort((a, b) => a[1].localeCompare(b[1], 'vi')).map(([id, nm]) => <option key={id} value={id}>{nm}</option>)}</select>
           <small className="sub">{shown.length}/{list?.length ?? 0} chương trình</small>
         </div>
         {admin && <div className="tools"><button type="button" className="primary" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>Thêm chương trình đào tạo</button></div>}

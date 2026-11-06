@@ -494,8 +494,8 @@ const PLATFORM: PageMap = {
   'Chương trình đào tạo': TrainingProgramsPage,
   // 06/11: tách thành 2 trang — Kế hoạch & lịch (lớp học ảo là bộ lọc Hình thức trong Lịch) và Giám sát & kết quả
   'Kế hoạch & lịch đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch đào tạo', PH1_TABS.cal], ['Giảng viên', PH1_TABS.trainers]]} />,
-  'Giám sát & kết quả đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Đánh giá kết quả', TrainingResultsPage], ['Giám sát', PlatformTrainingMonitor],
-    ['Đáp ứng chương trình', ReadinessBoth], ['Báo cáo', allOrgs(TrainingReportPage)], ['Chứng chỉ', CertificatesBoth]]} />,
+  'Giám sát & kết quả đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Đánh giá kết quả', TrainingResultsPage], ['Chứng chỉ', CertificatesBoth], ['Giám sát', PlatformTrainingMonitor],
+    ['Đáp ứng chương trình', ReadinessBoth], ['Báo cáo', allOrgs(TrainingReportPage)]]} />,
   // 2. Chương trình & học liệu
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
   // Tạm thời: "Theo dõi Chương trình/Môn học" mở bằng nút góc trên phải của trang này (không còn là mục menu riêng)

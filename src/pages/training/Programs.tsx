@@ -124,21 +124,21 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
           <input placeholder="Tìm mã, tên, đối tượng…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <select value={ct} onChange={e => setCt(e.target.value)} aria-label="Loại chương trình"><option value="">Tất cả loại chương trình</option>
             {codes.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select>
-          {owners.size > 1 && <select value={own} onChange={e => setOwn(e.target.value)} aria-label="Đơn vị tạo"><option value="">Tất cả đơn vị tạo</option>
-            {[...owners].sort((a, b) => a[1].localeCompare(b[1], 'vi')).map(([id, nm]) => <option key={id} value={id}>{nm}</option>)}</select>}
+          <select value={own} onChange={e => setOwn(e.target.value)} aria-label="Đơn vị tạo"><option value="">Tất cả đơn vị tạo</option>
+            {[...owners].sort((a, b) => a[1].localeCompare(b[1], 'vi')).map(([id, nm]) => <option key={id} value={id}>{nm}</option>)}</select>
           <small className="sub">{shown.length}/{list?.length ?? 0} chương trình</small>
         </div>
         {admin && <div className="tools"><button type="button" className="primary" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>Thêm chương trình đào tạo</button></div>}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-        <thead><tr><th>Chương trình đào tạo</th><th>Đơn vị tạo</th><th>Loại · cấp học</th><th>Đối tượng</th><th>Phạm vi áp dụng</th><th>Môn · nội dung · giờ</th><th>Hình thức</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
+        <thead><tr><th>Chương trình đào tạo</th><th>Loại · cấp học</th><th>Đối tượng</th><th>Phạm vi áp dụng</th><th>Đơn vị tạo</th><th>Môn · nội dung · giờ</th><th>Hình thức</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
         <tbody>{shown.map(p => { const s = stats.get(p.id); return <tr key={p.id}>
           <td><button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'open', id: p.id }) }}>{p.title}</button><br /><small className="sub">{p.code} · v{p.version_no}{p.builder ? ` · XD: ${p.builder}` : ''}</small></td>
-          <td style={{ whiteSpace: 'normal' }}>{owners.get(p.org_id) ?? '—'}</td>
           <td>{[ctsOf(p).join(', '), lvsOf(p).map(levelName).join(', ')].filter(Boolean).join(' · ') || '—'}</td>
           <td style={{ whiteSpace: 'normal' }}>{p.audience || '—'}</td>
           <td>{p.scope === 'selected' ? `${targets.get(p.id) ?? 0} đơn vị được chọn` : 'Tất cả đơn vị'}{effNote(p) && <><br /><small className="sub">{effNote(p)}</small></>}</td>
+          <td style={{ whiteSpace: 'normal' }}>{owners.get(p.org_id) ?? '—'}</td>
           <td>{s?.subjects ?? 0} môn · {s?.contents ?? 0} nội dung · {num(s?.hours ?? 0)} giờ</td>
           <td>{MODE[p.mode]}</td>
           <td><Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip></td>

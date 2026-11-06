@@ -130,6 +130,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   const [openId, setOpenId] = useState<string | null>(null)
   const [level, setLevel] = useState('')
   const [kind, setKind] = useState('')
+  const [maker, setMaker] = useState('')  // lọc theo đơn vị tạo
   const [subject, setSubject] = useState('')
   const [status, setStatus] = useState('')
   const [q, setQ] = useState('')
@@ -159,9 +160,10 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   useEffect(() => { load() }, [orgId])
 
   const all = list ?? []
+  const makers = useMemo(() => [...new Map(all.map(p => [p.org_id, p.organizations?.name ?? '—'] as [string, string]))].sort((a, b) => a[1].localeCompare(b[1], 'vi')), [list])
   const subjects = useMemo(() => [...new Set(all.flatMap(mainsOf))].sort((a, b) => a.localeCompare(b, 'vi')), [list])
   const shown = all.filter(p => (old || !SGROUP.off[1].includes(p.status) || status === 'off')
-    && (!level || lvsOf(p).includes(level)) && (!kind || p.kind === kind) && (!subject || mainsOf(p).includes(subject) || p.integrated_subjects.includes(subject))
+    && (!level || lvsOf(p).includes(level)) && (!kind || p.kind === kind) && (!maker || p.org_id === maker) && (!subject || mainsOf(p).includes(subject) || p.integrated_subjects.includes(subject))
     && (!status || SGROUP[status]?.[1].includes(p.status)) && (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
   const own = every ? shown : shown.filter(p => p.org_id === orgId)
   const shared = every ? [] : shown.filter(p => p.org_id !== orgId)
@@ -183,17 +185,19 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
     <tr key={p.id} className={!mine && sel.is(p) ? 'picked' : undefined}>
       {!mine && canCopy && <SelTd on={sel.is(p)} onToggle={() => sel.toggle(p)} label={p.title} />}
       <td>{p.code && <small className="sub">{p.code}<br /></small>}<NameLink onClick={() => setOpenId(p.id)}>{p.title}</NameLink> <small>v{p.version_no}</small>
-        {(!mine || every) && <><br /><small className="sub">{p.organizations?.name ?? '—'}</small></>}</td>
+</td>
       <td>{lvsOf(p).map(levelName).join(', ')} · {grades(p)}<br /><small>{PKIND[p.kind]}{ctsOf(p).map(c => <Fragment key={c}> <span className="gpill">{c}</span></Fragment>)}</small></td>
       <td>{mainsOf(p).join(', ')}{p.integrated_subjects.length > 0 && <><br /><small className="sub">Tích hợp: {p.integrated_subjects.join(', ')}</small></>}</td>
       <td>{p.total_periods || '—'}<br /><small className="sub">{[p.periods_per_week && `${p.periods_per_week} tiết/tuần`, DEPLOY[p.deploy_term ?? 'year']?.[0]].filter(Boolean).join(' · ')}</small></td>
+      <td style={{ whiteSpace: 'normal' }}>{p.scope === 'own' ? 'Đơn vị tạo và đơn vị được gán' : 'Tất cả đơn vị trực thuộc'}</td>
+      <td style={{ whiteSpace: 'normal' }}>{p.organizations?.name ?? '—'}</td>
       <td><StatusPill s={p.status} />{p.status === 'published' && p.effective_from && <><br /><small className="sub">từ {fmtD(p.effective_from)}</small></>}</td>
       {progFields.filter(x => x.column).map(x => <td key={x.key}>{customCell(x, p.custom?.[x.key])}</td>)}
     </tr>
   )
   const table = (rows: Program[], mine: boolean) => (
     <div className="wrap"><table>
-      <thead><tr>{!mine && canCopy && <SelTh />}<th>Chương trình</th><th>Cấp · khối · loại · nhóm</th><th>Môn</th><th>Số tiết · triển khai</th><th>Trạng thái</th>{progFields.filter(x => x.column).map(x => <th key={x.key}>{x.label}</th>)}</tr></thead>
+      <thead><tr>{!mine && canCopy && <SelTh />}<th>Chương trình</th><th>Cấp · khối · loại · nhóm</th><th>Môn</th><th>Số tiết · triển khai</th><th>Phạm vi áp dụng</th><th>Đơn vị tạo</th><th>Trạng thái</th>{progFields.filter(x => x.column).map(x => <th key={x.key}>{x.label}</th>)}</tr></thead>
       <tbody>{rows.map(p => row(p, mine))}</tbody>
     </table></div>
   )
@@ -258,6 +262,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
           <LevelPicker value={level} onChange={setLevel} emptyLabel="Tất cả cấp học" />
           <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại chương trình"><option value="">Tất cả loại chương trình</option>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select>
           {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
+          <select value={maker} onChange={e => setMaker(e.target.value)} aria-label="Đơn vị tạo"><option value="">Tất cả đơn vị tạo</option>{makers.map(([id, nm]) => <option key={id} value={id}>{nm}</option>)}</select>
           <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Trạng thái"><option value="">Tất cả trạng thái</option>{Object.entries(SGROUP).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}</select>
           <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện chương trình ngừng dùng</label>

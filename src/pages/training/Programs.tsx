@@ -55,6 +55,9 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
   const [fs, setFs] = useState<Status | ''>('')
   const [q, setQ] = useState('')
   const [ct, setCt] = useState('')
+  // Đơn vị tạo chương trình (KDI, Sở, Phòng, Trường): tên theo org_id
+  const [owners, setOwners] = useState<Map<string, string>>(new Map())
+  const [own, setOwn] = useState('')
   const { codes, byCode: tracks } = useStemTracks()
   const { name: levelName } = useEduLevels()
   const reload = () => setRk(k => k + 1)
@@ -77,13 +80,16 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
         if (r.kind === 'subject') x.subjects++; else { x.contents++; x.hours += Number(r.hours) || 0 }
       }
       setList((p.data as TProgram[]) ?? []); setStats(m)
+      const ids = [...new Set(((p.data ?? []) as TProgram[]).map(x => x.org_id).filter(Boolean))]
+      if (ids.length) { const { data: o } = await supabase.from('organizations').select('id, name').in('id', ids)
+        setOwners(new Map(((o ?? []) as { id: string; name: string }[]).map(x => [x.id, x.name]))) }
     })()
   }, [rk])
 
   const inGroup = (p: TProgram, f: Status | '') => !f || p.status === f || (f === 'draft' && p.status === 'rejected') || (f === 'pending' && p.status === 'approved') || (f === 'archived' && p.status === 'superseded')
   // base: theo ô tìm và loại chương trình (thẻ tổng số và các nút trạng thái tính trên base)
-  const base = useMemo(() => (list ?? []).filter(p => (!ct || ctsOf(p).includes(ct))
-    && (!q || `${p.code} ${p.title} ${p.audience ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, ct, q])
+  const base = useMemo(() => (list ?? []).filter(p => (!ct || ctsOf(p).includes(ct)) && (!own || p.org_id === own)
+    && (!q || `${p.code} ${p.title} ${p.audience ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, ct, q, own])
   const shown = useMemo(() => base.filter(p => inGroup(p, fs)), [base, fs])
 
   if (view?.kind === 'new') return <ProgramForm admin={admin} onBack={() => setView(null)} onSaved={id => { reload(); setView({ kind: 'open', id }) }} />
@@ -118,15 +124,18 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
           <input placeholder="Tìm mã, tên, đối tượng…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <select value={ct} onChange={e => setCt(e.target.value)} aria-label="Loại chương trình"><option value="">Tất cả loại chương trình</option>
             {codes.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select>
+          {owners.size > 1 && <select value={own} onChange={e => setOwn(e.target.value)} aria-label="Đơn vị tạo"><option value="">Tất cả đơn vị tạo</option>
+            {[...owners].sort((a, b) => a[1].localeCompare(b[1], 'vi')).map(([id, nm]) => <option key={id} value={id}>{nm}</option>)}</select>}
           <small className="sub">{shown.length}/{list?.length ?? 0} chương trình</small>
         </div>
         {admin && <div className="tools"><button type="button" className="primary" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>Thêm chương trình đào tạo</button></div>}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-        <thead><tr><th>Chương trình đào tạo</th><th>Loại · cấp học</th><th>Đối tượng</th><th>Phạm vi áp dụng</th><th>Môn · nội dung · giờ</th><th>Hình thức</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
+        <thead><tr><th>Chương trình đào tạo</th><th>Đơn vị tạo</th><th>Loại · cấp học</th><th>Đối tượng</th><th>Phạm vi áp dụng</th><th>Môn · nội dung · giờ</th><th>Hình thức</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
         <tbody>{shown.map(p => { const s = stats.get(p.id); return <tr key={p.id}>
           <td><button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'open', id: p.id }) }}>{p.title}</button><br /><small className="sub">{p.code} · v{p.version_no}{p.builder ? ` · XD: ${p.builder}` : ''}</small></td>
+          <td style={{ whiteSpace: 'normal' }}>{owners.get(p.org_id) ?? '—'}</td>
           <td>{[ctsOf(p).join(', '), lvsOf(p).map(levelName).join(', ')].filter(Boolean).join(' · ') || '—'}</td>
           <td style={{ whiteSpace: 'normal' }}>{p.audience || '—'}</td>
           <td>{p.scope === 'selected' ? `${targets.get(p.id) ?? 0} đơn vị được chọn` : 'Tất cả đơn vị'}{effNote(p) && <><br /><small className="sub">{effNote(p)}</small></>}</td>
@@ -135,7 +144,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
           <td><Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip></td>
           <td><small>{new Date(p.updated_at).toLocaleDateString('vi-VN')}</small></td>
         </tr> })}
-          {shown.length === 0 && <tr><td colSpan={8}>{list.length ? 'Không có chương trình nào khớp bộ lọc.' : admin ? 'Chưa có chương trình đào tạo nào. Bấm "Thêm chương trình đào tạo".' : 'Chưa có chương trình đào tạo nào được phát hành cho đơn vị.'}</td></tr>}</tbody>
+          {shown.length === 0 && <tr><td colSpan={9}>{list.length ? 'Không có chương trình nào khớp bộ lọc.' : admin ? 'Chưa có chương trình đào tạo nào. Bấm "Thêm chương trình đào tạo".' : 'Chưa có chương trình đào tạo nào được phát hành cho đơn vị.'}</td></tr>}</tbody>
       </table></div>}
     </>
   )
@@ -710,6 +719,7 @@ function ProgramScope({ p, admin, onMsg }: { p: TProgram; admin: boolean; onMsg:
       {bad && dirty && <small className="warnline">{bad}</small>}
       <div className="formactions"><button type="button" className="primary" disabled={!dirty || !!bad || busy} onClick={save}>Lưu phạm vi áp dụng</button></div>
     </> : <dl className="tpkv">
+      <dt>Đơn vị tạo</dt><dd>{label(p.org_id)}</dd>
       <dt>Phạm vi</dt><dd>{p.scope === 'selected' ? (saved ? saved.map(label).join('; ') || '—' : '…') : 'Tất cả đơn vị'}</dd>
       <dt>Hiệu lực</dt><dd>{[p.effective_from && `từ ${vnDay(p.effective_from)}`, p.effective_to && `đến ${vnDay(p.effective_to)}`].filter(Boolean).join(' ') || 'Không giới hạn'}</dd>
     </dl>}

@@ -155,9 +155,18 @@ const EduReadinessPage = lazy(() => import('./pages/training/EduReadiness').then
 function ReadinessBoth(p: any) {
   const [k, setK] = useState<'tr' | 'edu'>('tr')
   return <>
-    <div className="distfilter">{([['tr', 'Chương trình đào tạo'], ['edu', 'Chương trình giáo dục']] as const).map(([v, l]) =>
+    <div className="distfilter">{([['tr', 'Theo loại chương trình (CT1–CT5)'], ['edu', 'Theo chương trình giáo dục']] as const).map(([v, l]) =>
       <button key={v} type="button" className={`distfchip${k === v ? ' on' : ''}`} onClick={() => setK(v)}>{l}</button>)}</div>
     {k === 'tr' ? <PlatformReadiness {...p} /> : <EduReadinessPage {...p} />}
+  </>
+}
+// Chứng chỉ đào tạo (06/11: chuyển vào Giám sát & kết quả, tab cuối): chứng chỉ đã cấp và mẫu chứng chỉ
+function CertificatesBoth(p: any) {
+  const [k, setK] = useState<'list' | 'tpl'>('list')
+  return <>
+    <div className="distfilter">{([['list', 'Chứng chỉ đã cấp'], ['tpl', 'Mẫu chứng chỉ']] as const).map(([v, l]) =>
+      <button key={v} type="button" className={`distfchip${k === v ? ' on' : ''}`} onClick={() => setK(v)}>{l}</button>)}</div>
+    {k === 'list' ? <TrainingCertificatesPage {...p} /> : <CertTemplatesPage {...p} />}
   </>
 }
 const SchoolTrainingMonitor = (p: any) => <TrainingMonitorHub {...p} work />
@@ -486,7 +495,7 @@ const PLATFORM: PageMap = {
   // 06/11: tách thành 2 trang — Kế hoạch & lịch (lớp học ảo là bộ lọc Hình thức trong Lịch) và Giám sát & kết quả
   'Kế hoạch & lịch đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch đào tạo', PH1_TABS.cal], ['Giảng viên', PH1_TABS.trainers]]} />,
   'Giám sát & kết quả đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Đánh giá kết quả', TrainingResultsPage], ['Giám sát', PlatformTrainingMonitor],
-    ['Đáp ứng chương trình', ReadinessBoth], ['Báo cáo', allOrgs(TrainingReportPage)]]} />,
+    ['Đáp ứng chương trình', ReadinessBoth], ['Báo cáo', allOrgs(TrainingReportPage)], ['Chứng chỉ', CertificatesBoth]]} />,
   // 2. Chương trình & học liệu
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
   // Tạm thời: "Theo dõi Chương trình/Môn học" mở bằng nút góc trên phải của trang này (không còn là mục menu riêng)

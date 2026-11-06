@@ -78,6 +78,8 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
   const [rk, setRk] = useState(0)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [plan, setPlan] = useState('')
+  // Hình thức: lọc buổi trực tuyến (lớp học ảo) hoặc trực tiếp
+  const [onl, setOnl] = useState<'' | Mode>(online ? 'online' : '')
   const [fs, setFs] = useState<St | ''>('')
   const [look, setLook] = useState<'table' | 'cal'>(() => { try { return localStorage.getItem('kdi-tsched-look') === 'cal' ? 'cal' : 'table' } catch { return 'table' } })
   const pickLook = (k: 'table' | 'cal') => { setLook(k); try { localStorage.setItem('kdi-tsched-look', k) } catch { /* bỏ qua */ } }
@@ -105,7 +107,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
   // Ngày nghỉ của đơn vị đang xem (lọc theo đơn vị thì lấy đơn vị đó) — cảnh báo buổi rơi vào ngày nghỉ
   const hol = useHolidays(ofl.one || orgId)
   const holOf = (iso: string) => hol.holName(dayKey(new Date(iso)))
-  const base = rows.filter(s => (!online || s.mode === 'online') && (!plan || s.plan_id === plan) && ofl.fit(pl(s.plan_id)?.org_id))
+  const base = rows.filter(s => (!onl || s.mode === onl) && (!plan || s.plan_id === plan) && ofl.fit(pl(s.plan_id)?.org_id))
   const shown = base.filter(s => !fs || sessSt(s, now) === fs)
   const n = (k: St) => base.filter(s => sessSt(s, now) === k).length
   const pend = att.filter(a => a.excuse_status === 'pending' && base.some(s => s.id === a.session_id)).length
@@ -139,6 +141,8 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
         <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Kế hoạch"><option value="">Tất cả kế hoạch</option>
           {(plans ?? []).filter(p => ofl.fit(p.org_id)).map(p => <option key={p.id} value={p.id}>{p.plan_code} · {p.name}</option>)}</select>
         {ofl.node((plans ?? []).map(p => p.org_id), () => setPlan(''))}
+        <select value={onl} onChange={e => setOnl(e.target.value as '' | Mode)} aria-label="Hình thức"><option value="">Tất cả hình thức</option>
+          <option value="online">Trực tuyến (lớp học ảo)</option><option value="offline">Trực tiếp</option></select>
         <small className="sub">{shown.length}/{base.length} buổi</small>
       </div>
       <div className="tools">

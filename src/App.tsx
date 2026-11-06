@@ -151,6 +151,15 @@ const PlatformTrainingMonitor = allOrgs(TrainingMonitorHub, { work: true, manage
 const ProgramReadinessPage = lazy(() => import('./pages/training/Readiness').then(m => ({ default: m.ProgramReadinessPage })))
 const PlatformReadiness = allOrgs(ProgramReadinessPage)
 const EduReadinessPage = lazy(() => import('./pages/training/EduReadiness').then(m => ({ default: m.EduReadinessPage })))
+// Đáp ứng chương trình đào tạo và chương trình giáo dục: một tab, chọn loại chương trình
+function ReadinessBoth(p: any) {
+  const [k, setK] = useState<'tr' | 'edu'>('tr')
+  return <>
+    <div className="distfilter">{([['tr', 'Chương trình đào tạo'], ['edu', 'Chương trình giáo dục']] as const).map(([v, l]) =>
+      <button key={v} type="button" className={`distfchip${k === v ? ' on' : ''}`} onClick={() => setK(v)}>{l}</button>)}</div>
+    {k === 'tr' ? <PlatformReadiness {...p} /> : <EduReadinessPage {...p} />}
+  </>
+}
 const SchoolTrainingMonitor = (p: any) => <TrainingMonitorHub {...p} work />
 const trMat = (part: string) => (p: any) => <TrainingMaterials {...p} part={part} />
 // Cùng khuôn Học liệu của chương trình giáo dục: quy trình 3 bước, thẻ số liệu, Theo chương trình | Cần chuẩn bị | Danh mục học liệu
@@ -474,9 +483,10 @@ const PLATFORM: PageMap = {
   'Tích hợp & dữ liệu': PlatformIntegrations,
   // 1. Đào tạo & đánh giá năng lực nhà giáo — làm lại theo khuôn Phân hệ 2 (kế hoạch: Chương trình → Kế hoạch & lịch → … → Giám sát)
   'Chương trình đào tạo': TrainingProgramsPage,
-  'Kế hoạch & lịch đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch đào tạo', PH1_TABS.cal], ['Lớp học ảo', PH1_TABS.virtual],
-    // 27/10: Đánh giá kết quả và Giám sát đào tạo gom vào đây (đều theo từng kế hoạch); các màn giám sát gộp một tab
-    ['Đánh giá kết quả', TrainingResultsPage], ['Giảng viên', PH1_TABS.trainers], ['Giám sát', PlatformTrainingMonitor], ['Đáp ứng chương trình', PlatformReadiness], ['Đáp ứng chương trình giáo dục', EduReadinessPage], ['Báo cáo', allOrgs(TrainingReportPage)]]} />,
+  // 06/11: tách thành 2 trang — Kế hoạch & lịch (lớp học ảo là bộ lọc Hình thức trong Lịch) và Giám sát & kết quả
+  'Kế hoạch & lịch đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch đào tạo', PH1_TABS.cal], ['Giảng viên', PH1_TABS.trainers]]} />,
+  'Giám sát & kết quả đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Đánh giá kết quả', TrainingResultsPage], ['Giám sát', PlatformTrainingMonitor],
+    ['Đáp ứng chương trình', ReadinessBoth], ['Báo cáo', allOrgs(TrainingReportPage)]]} />,
   // 2. Chương trình & học liệu
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
   // Tạm thời: "Theo dõi Chương trình/Môn học" mở bằng nút góc trên phải của trang này (không còn là mục menu riêng)
@@ -537,7 +547,7 @@ const PLATFORM_ALIAS: Record<string, string> = {
   'Dashboard điểm danh': 'Buổi dạy & điểm danh', 'Thời khoá biểu & xếp lịch': 'Thời khóa biểu & xếp lịch',
   'Đánh giá năng lực giáo viên': 'Đánh giá năng lực nhà giáo', 'Kế hoạch đào tạo': 'Kế hoạch & lịch đào tạo', 'Lịch đào tạo': 'Kế hoạch & lịch đào tạo',
   'Bài giảng đào tạo & lớp học ảo': 'Học liệu đào tạo',
-  'Giám sát đào tạo nhà giáo': 'Kế hoạch & lịch đào tạo', 'Đánh giá kết quả đào tạo': 'Kế hoạch & lịch đào tạo', 'Giám sát Đào tạo GV': 'Kế hoạch & lịch đào tạo', 'Lớp học ảo': 'Kế hoạch & lịch đào tạo',
+  'Giám sát đào tạo nhà giáo': 'Giám sát & kết quả đào tạo', 'Đánh giá kết quả đào tạo': 'Giám sát & kết quả đào tạo', 'Giám sát Đào tạo GV': 'Giám sát & kết quả đào tạo', 'Lớp học ảo': 'Kế hoạch & lịch đào tạo',
 }
 export const PAGES: Partial<Record<RoleKey, PageMap>> = { school_admin: SCHOOL, teacher: TEACHER, student: STUDENT, department: DEPARTMENT, platform: PLATFORM, parent: PARENT, judge: JUDGE }
 // Khi dev: mục menu không có trang (thường do sửa chuỗi mã trong NAV thay vì thêm LABEL — xem lib/nav.ts)

@@ -30,7 +30,7 @@ export const NAV: Record<RoleKey, NavGroup[]> = {
     { title: 'Quản trị chung · Kỹ thuật & bảo mật', items: ['Tích hợp & dữ liệu', 'Ứng dụng di động & ngoại tuyến', 'Sao lưu & xuất dữ liệu', 'Bảo mật tài khoản', 'Điều khoản & dữ liệu cá nhân', 'Nhật ký hệ thống', 'Cấu hình chung (năm học)', 'Giao diện & thương hiệu', 'Trợ lý AI'] },
     // 5 phân hệ nghiệp vụ theo file rà soát menu (16/10, "Menu_STEM_ra_soat_chinh_sua.xlsx")
     { title: '1. Chương trình & học liệu', items: ['Chương trình giáo dục', 'Phân phối chương trình', 'Học liệu', 'Soạn bài giảng & kho hoạt động', 'E-learning & luyện thi'] },
-    { title: '2. Đào tạo & đánh giá năng lực nhà giáo', items: ['Đánh giá năng lực nhà giáo', 'Chương trình đào tạo', 'Kế hoạch & lịch đào tạo', 'Học liệu đào tạo', 'Kiểm tra & luyện tập', 'Chứng chỉ đào tạo'] },
+    { title: '2. Đào tạo & đánh giá năng lực nhà giáo', items: ['Đánh giá năng lực nhà giáo', 'Chương trình đào tạo', 'Kế hoạch & lịch đào tạo', 'Giám sát & kết quả đào tạo', 'Học liệu đào tạo', 'Kiểm tra & luyện tập', 'Chứng chỉ đào tạo'] },
     { section: '3. Vật tư, thiết bị dạy & học', title: '3.1. Thiết bị, vật tư & kho', items: ['Thiết bị & vật tư', 'Kho & tồn kho', 'Mua hàng & đề xuất vật tư', 'Cấp phát & bàn giao', 'Kiểm kê', 'Vận chuyển vật tư', 'Bảo hành & bảo trì thiết bị'] },
     { section: '3. Vật tư, thiết bị dạy & học', title: '3.2. Phòng STEM & cơ sở vật chất', items: ['Tòa nhà, tầng & tiết học', 'Phòng STEM & lịch phòng', 'Hiệu quả sử dụng phòng STEM'] },
     { section: '4. Vận hành giảng dạy & đánh giá người học', title: '4.1. Nhà giáo, người học & lớp học', items: ['Cơ sở giáo dục', 'Nhà giáo & trợ giảng', 'Phân công giảng dạy', 'Người học', 'Công cụ người học & phụ huynh'] },

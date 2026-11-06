@@ -151,13 +151,15 @@ const PlatformTrainingMonitor = allOrgs(TrainingMonitorHub, { work: true, manage
 const ProgramReadinessPage = lazy(() => import('./pages/training/Readiness').then(m => ({ default: m.ProgramReadinessPage })))
 const PlatformReadiness = allOrgs(ProgramReadinessPage)
 const EduReadinessPage = lazy(() => import('./pages/training/EduReadiness').then(m => ({ default: m.EduReadinessPage })))
+// Dự tính GV theo chương trình giáo dục cho một trường (137)
+const TeacherStaffingPage = lazy(() => import('./pages/training/Staffing').then(m => ({ default: m.TeacherStaffingPage })))
 // Đáp ứng chương trình đào tạo và chương trình giáo dục: một tab, chọn loại chương trình
 function ReadinessBoth(p: any) {
-  const [k, setK] = useState<'tr' | 'edu'>('tr')
+  const [k, setK] = useState<'tr' | 'edu' | 'plan'>('tr')
   return <>
-    <div className="distfilter">{([['tr', 'Theo loại chương trình (CT1–CT5)'], ['edu', 'Theo chương trình giáo dục']] as const).map(([v, l]) =>
+    <div className="distfilter">{([['tr', 'Theo loại chương trình (CT1–CT5)'], ['edu', 'Theo chương trình giáo dục'], ['plan', 'Dự tính GV cho một trường']] as const).map(([v, l]) =>
       <button key={v} type="button" className={`distfchip${k === v ? ' on' : ''}`} onClick={() => setK(v)}>{l}</button>)}</div>
-    {k === 'tr' ? <PlatformReadiness {...p} /> : <EduReadinessPage {...p} />}
+    {k === 'tr' ? <PlatformReadiness {...p} /> : k === 'edu' ? <EduReadinessPage {...p} /> : <TeacherStaffingPage {...p} />}
   </>
 }
 // Chứng chỉ đào tạo (06/11: chuyển vào Giám sát & kết quả, tab cuối): chứng chỉ đã cấp và mẫu chứng chỉ

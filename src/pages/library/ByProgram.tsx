@@ -126,6 +126,7 @@ export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; o
   const [msg, setMsg] = useState('')
   const [view, setView] = useViewMode('hoc-lieu-ct', 'cards')
   const [tick, setTick] = useState(0)
+  const [closed, setClosed] = useState<string[]>([])   // môn đang thu gọn
   const reload = () => { setTick(t => t + 1); onChanged?.() }
   const { progs, kits, rowsOf, subjectsOf, stat, progRefs } = useLessonData(orgId, tick)
 
@@ -163,15 +164,32 @@ export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; o
       <button type="button" className="ghostbtn" onClick={() => setPid(null)}>← Danh sách chương trình</button>
       <div className="lheadrow"><div><h2>{prog.title}</h2>
         <p className="sub">{[prog.code, grades(prog), `v${prog.version_no}`, PSTATUS[prog.status] ?? prog.status, `${subs.length} môn học`].filter(Boolean).join(' · ')}</p></div></div>
-      <div className="panel"><h3 style={{ marginTop: 0 }}>Môn học</h3>
-        <div className="wrap"><table className="libtable">
-          <thead><tr><th>Môn học</th><th>Bài học</th><th>Có bộ học liệu</th><th>Chốt đủ 5 thẻ</th><th>Đã phát hành</th></tr></thead>
-          <tbody>{subs.map(s => {
-            const rows = rowsOf(prog, s); const ks = rows.map(r => r.kit).filter(Boolean) as KitRow[]
-            return <tr key={s}>
-              <td><NameLink onClick={() => setSubj(s)}>{s}</NameLink></td><td>{rows.length}</td><td>{ks.length}</td>
-              <td>{ks.filter(k => kitDone(k.content) === KIT.length).length}</td><td>{ks.filter(k => k.status === 'published').length}</td></tr>
-          })}</tbody></table></div></div>
+      {subs.map(s => {
+        const rows = rowsOf(prog, s); const ks = rows.map(r => r.kit).filter(Boolean) as KitRow[]
+        const isOpen = !closed.includes(s)
+        const go = (r: LRow) => { setSubj(s); if (r.kit) setOpen({ id: r.kit.id }); else if (r.unit) setCreate({ preset: { title: r.unit.title, unitId: r.unit.id } }) }
+        return <div key={s} className="ugroup" style={{ marginBottom: 12 }}>
+          <div className="ughead" role="button" tabIndex={0} aria-expanded={isOpen} onClick={() => setClosed(isOpen ? [...closed, s] : closed.filter(x => x !== s))}
+            onKeyDown={e => { if (e.key === 'Enter') setClosed(isOpen ? [...closed, s] : closed.filter(x => x !== s)) }}>
+            <span className={'ugchev' + (isOpen ? ' on' : '')} aria-hidden="true">›</span><small>MÔN</small> <b>{s}</b>
+            <small className="sub">{rows.length} bài · {ks.length} bộ học liệu · {ks.filter(k => kitDone(k.content) === KIT.length).length} chốt đủ 5 thẻ</small>
+            <span className="ugbadge">Đã phát hành {ks.filter(k => k.status === 'published').length}/{rows.length}</span>
+            <button type="button" onClick={e => { e.stopPropagation(); setSubj(s) }}>Quản lý bài</button>
+          </div>
+          {isOpen && (rows.length === 0 ? <p className="sub" style={{ padding: '10px 16px', margin: 0 }}>Môn này chưa có bài học.</p> : <div className="wrap"><table className="libtable utable">
+            <thead><tr><th style={{ width: 40 }}>#</th><th>Bài học</th><th>Thời lượng</th><th>Bộ học liệu</th><th>Trạng thái</th></tr></thead>
+            <tbody>{rows.map((r, i) => {
+              const k = kitOf(r.kit?.content.kit); const per = r.kit?.content.periods ?? r.unit?.periods
+              return <tr key={r.key}>
+                <td className="sub">{i + 1}</td>
+                <td><NameLink onClick={() => go(r)}>{r.title}</NameLink>{r.code && <><br /><small className="sub">{r.code}</small></>}</td>
+                <td>{per ? `${per} tiết` : '—'}{r.kit && k.sessions.length > 0 && <><br /><small className="sub">{k.sessions.length} buổi</small></>}</td>
+                <td><KitDots k={r.kit} /></td>
+                <td>{r.kit ? <span className={'distchip2 ' + KSTATUS[r.kit.status][1]}>{KSTATUS[r.kit.status][0]}</span> : <small className="sub">Chưa tạo</small>}</td>
+              </tr>
+            })}</tbody></table></div>)}
+        </div>
+      })}
     </>
   }
 

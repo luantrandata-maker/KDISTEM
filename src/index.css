@@ -2206,6 +2206,19 @@ tr.distyear td{background:var(--surface-2,var(--surface));border-top:2px solid v
 .orgtree .otsub{padding-left:28px;font-size:13px}
 @media (max-width:900px){.treelayout{grid-template-columns:1fr}.orgtree{position:static;max-height:240px}}
 .nocards .statcards{display:none}
+/* Chi tiết chương trình giáo dục: thẻ thông tin chỉ xem */
+.pview{display:grid;gap:14px;background:linear-gradient(135deg,var(--surface) 70%,var(--soft))}
+.pviewhead{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.pviewhead h4{margin:0;display:flex;gap:8px;align-items:center;font-size:16px}
+.pvgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px 20px}
+.pvi{min-width:0}.pvi>span{display:block;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
+.pvi>div{font-weight:500;overflow-wrap:anywhere;white-space:pre-line}
+.pvchips{display:flex;flex-wrap:wrap;gap:6px}
+.pvstats{display:flex;flex-wrap:wrap;gap:10px}
+.pvstats span{border:1px solid var(--line);border-radius:12px;padding:8px 14px;background:var(--surface);color:var(--muted)}
+.pvstats b{font-size:18px;color:var(--text);margin-right:2px}
+.pview .psec{margin:0;padding-top:12px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;font-size:15px}
+@media(max-width:600px){.pvi{grid-column:1/-1 !important}}
 /* Thẻ tổng hợp Phân hệ 1, 2: cùng cỡ với thẻ quy trình ở Chương trình giáo dục */
 .statcards,.diststatcards{gap:8px}
 .main .statcards .panel,.main .statcards button.panel,.main .diststatcards .panel{padding:10px 12px;min-height:56px;border-radius:12px;gap:10px;align-items:center}

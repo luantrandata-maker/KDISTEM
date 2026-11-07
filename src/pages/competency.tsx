@@ -520,6 +520,7 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
     { k: 'assessed', icon: 'clipboard', tone: nOf('assessed') ? 'good' : '', value: nOf('assessed'), label: 'Đã có đánh giá', sub: `${matched.length - nOf('assessed')} chưa có` },
     { k: 'cert', icon: 'award', value: nOf('cert'), label: 'Có chứng chỉ', sub: `${matched.reduce((n, t) => n + (certs.get(t.id) ?? 0), 0)} chứng chỉ đào tạo` },
     { k: 'meets', icon: 'target', tone: nOf('meets') ? 'good' : '', value: nOf('meets'), label: 'Đạt mức yêu cầu', sub: `Tất cả năng lực từ Mức ${REQ}` },
+    { k: 'wait', icon: 'hourglass', tone: nOf('wait') ? 'warn' : 'good', value: nOf('wait'), label: 'Chờ trường đánh giá', sub: 'Đã tự đánh giá, trường chưa đánh giá' },
   ]} /> : <StatCards active={card} onPick={setCard} items={[
     { icon: 'layers', value: list.filter(a => ids.has(a.teacher_id)).length, label: 'Số bản đánh giá', sub: `Năm học ${year} · ${matched.length} giáo viên` },
     { k: 'self', icon: 'user', value: nOf('self'), label: 'Tự đánh giá', sub: 'Giáo viên đã nộp' },
@@ -527,16 +528,17 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
     { k: 'wait', icon: 'hourglass', tone: nOf('wait') ? 'warn' : 'good', value: nOf('wait'), label: 'Chờ trường đánh giá', sub: 'Đã tự đánh giá, trường chưa đánh giá' },
   ]} />
   const filterBar = <div className="tools" style={{ flexWrap: 'wrap' }}><MultiFilters defs={filterDefs} f={mf} count={`${shownAll.length}/${teachers.length} GV${shownAll.length > 500 ? ' · hiện 500 đầu' : ''}`} /></div>
-  if (profile) return <>{cards}<section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
+  if (profile) return <>{cards}{msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}<section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
     <div className="bar" style={{ margin: 0 }}>
-      <h3 style={{ margin: 0 }}>Hồ sơ năng lực nhà giáo <small className="sub">· {teachers.length} giáo viên</small></h3>
+      <h3 style={{ margin: 0 }}>Hồ sơ năng lực nhà giáo <small className="sub">· {teachers.length} giáo viên · năm học {year}: {selfDone} đã tự đánh giá · {mgrDone} trường đã đánh giá</small></h3>
+      <span className="tools"><button type="button" onClick={excel} disabled={!teachers.length}>Xuất Excel</button></span>
     </div>
     {filterBar}
     <div className="wrap"><table className="libtable">
       <thead><tr><th>Giáo viên</th>{!orgId && <th>Trường</th>}<th>Môn · khối</th><th>Mức năng lực ({year})</th>{comps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}<th>Chứng chỉ</th></tr></thead>
       <tbody>{shownT.map(t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); const lv = m?.status === 'submitted' ? m.levels : s?.status === 'submitted' ? s.levels : {}
         return <tr key={t.id}>
-          <td><button type="button" className="namelink" onClick={() => setSel(t.id)}>{t.full_name}</button>{t.email && <><br /><small className="sub">{t.email}</small></>}</td>
+          <td><button type="button" className="namelink" onClick={() => { setMsg(null); setSel(t.id) }}>{t.full_name}</button>{canEdit && sub(t, 'self') && !sub(t, 'manager') && <> <span className="plbadge warn">Chờ đánh giá</span></>}{t.email && <><br /><small className="sub">{t.email}</small></>}</td>
           {!orgId && <td>{t.organizations?.name ?? '—'}</td>}
           <td><small>{[t.subject, t.grade && `khối ${t.grade}`].filter(Boolean).join(' · ') || '—'}</small></td>
           <td>{Object.keys(lv).length ? <><LevelChip v={avgLv(lv)} /> <small className="sub">{m?.status === 'submitted' ? 'trường ĐG' : 'tự ĐG'}</small></> : <small className="sub">chưa đánh giá</small>}</td>
@@ -544,7 +546,7 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
           <td>{certs.get(t.id) ?? <small className="sub">0</small>}</td></tr> })}
         {!shownT.length && <tr><td colSpan={comps.length + 5}>{teachers.length ? 'Không có giáo viên nào khớp.' : 'Chưa có giáo viên.'}</td></tr>}</tbody>
     </table></div>
-    <p className="sub covhint" style={{ margin: 0 }}>Bấm tên giáo viên để xem hồ sơ: thông tin, năng lực, chứng chỉ, chương trình giáo dục đáp ứng, lịch sử đào tạo.</p>
+    <p className="sub covhint" style={{ margin: 0 }}>Bấm tên giáo viên để xem hồ sơ và đánh giá (mục “Đánh giá năm học”): thông tin, năng lực, chứng chỉ, chương trình giáo dục đáp ứng, lịch sử đào tạo.</p>
   </section></>
   return (
     <>

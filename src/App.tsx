@@ -132,16 +132,15 @@ const CompetencyGapsPage = lazy(() => import('./pages/training/Competency').then
 const CompetencyFrameworkPage = lazy(() => import('./pages/training/Competency').then(m => ({ default: m.CompetencyFrameworkPage })))
 const TrainingMonitorHub = lazy(() => import('./pages/training/Monitor').then(m => ({ default: m.TrainingMonitorHub })))
 const TrainingReportPage = lazy(() => import('./pages/training/Report').then(m => ({ default: m.TrainingReportPage })))
-const AllTeacherAssessments = (p: any) => <SchoolTeacherAssessments {...p} orgId={null} readOnly />
 const SchoolTeacherProfiles = (p: any) => <SchoolTeacherAssessments {...p} profile />
 const AllTeacherProfiles = (p: any) => <SchoolTeacherAssessments {...p} orgId={null} profile readOnly />
-const SchoolCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Hồ sơ năng lực', SchoolTeacherProfiles], ['Đánh giá', SchoolTeacherAssessments], ['Đợt đánh giá', AssessmentRoundsPage], ['Khoảng thiếu hụt', CompetencyGapsPage]]} />
-const AuthorityCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Hồ sơ năng lực', AllTeacherProfiles], ['Kết quả đánh giá', AllTeacherAssessments], ['Đợt đánh giá', AssessmentRoundsPage], ['Khoảng thiếu hụt', CompetencyGapsPage]]} />
+const SchoolCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Hồ sơ năng lực', SchoolTeacherProfiles], ['Đợt đánh giá', AssessmentRoundsPage], ['Khoảng thiếu hụt', CompetencyGapsPage]]} />
+const AuthorityCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Hồ sơ năng lực', AllTeacherProfiles], ['Đợt đánh giá', AssessmentRoundsPage], ['Khoảng thiếu hụt', CompetencyGapsPage]]} />
 // Quản trị hệ thống thao tác như người dùng (26/10): màn bọc AllOrgs hiện dữ liệu tất cả đơn vị trong một danh sách, sửa thẳng;
 // thêm mới thì chọn đơn vị ngay trong form
 const allOrgs = (C: ComponentType<any>, extra: Record<string, unknown> = {}) => (p: any) => <AllOrgs><C {...p} {...extra} /></AllOrgs>
 const PH1_TABS = {
-  assess: allOrgs(SchoolTeacherAssessments, { orgId: null }), profiles: allOrgs(SchoolTeacherAssessments, { orgId: null, profile: true }), rounds: allOrgs(AssessmentRoundsPage),
+  profiles: allOrgs(SchoolTeacherAssessments, { orgId: null, profile: true }), rounds: allOrgs(AssessmentRoundsPage),
   plans: allOrgs(TrainingPlansPage), cal: allOrgs(TrainingCalendarPage), trainers: allOrgs(TrainersPage),
   lessons: allOrgs(TrainingLessons), virtual: allOrgs(TrainingCalendarPage, { online: true }),
 }
@@ -177,7 +176,7 @@ const trMat = (part: string) => (p: any) => <TrainingMaterials {...p} part={part
 const TrainingLibraryPage = lazy(() => import('./pages/training/Library').then(m => ({ default: m.TrainingLibraryPage })))
 const trainingMaterialTabs = (lessons: ComponentType<any>) => (p: any) => <TrainingLibraryPage {...p} parts={[['Nội dung đào tạo', trMat('content')], ['Bài giảng', lessons],
   ['Link tài liệu', trMat('docs')], ['Định mức vật tư', trMat('mats')], ['Kho hoạt động', SysTrainingActivities]]} />
-const PlatformCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Hồ sơ năng lực', PH1_TABS.profiles], ['Đánh giá', PH1_TABS.assess],
+const PlatformCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Hồ sơ năng lực', PH1_TABS.profiles],
   ['Đợt đánh giá', PH1_TABS.rounds], ['Khoảng thiếu hụt', CompetencyGapsPage], ['Khung năng lực', CompetencyFrameworkPage]]} />
 const PlatformSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.PlatformSupport })))
 // Đợt 2 (025): triển khai khách hàng, danh mục gói, đơn đặt gói, thông báo hàng loạt, tích hợp

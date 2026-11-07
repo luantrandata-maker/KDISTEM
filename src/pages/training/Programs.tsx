@@ -3,6 +3,7 @@ import { CompetencySetupLink } from '../../components/CompetencySetup'
 // Cấu trúc 3 cấp: Chương trình đào tạo → Môn → Nội dung đào tạo. Cách làm giống Phân hệ 2: hướng dẫn các bước,
 // thẻ số liệu, danh sách có lọc; thêm / sửa / xem chi tiết mở view riêng; Nháp → Đã phát hành → Ngừng dùng, nhân bản để sửa.
 import { MultiSelect } from '../../components/MultiSelect'
+import { Icon } from '../../components/Icon'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useOrgFilter } from '../../components/OrgFilters'
@@ -262,7 +263,8 @@ function ProgramForm({ admin, onBack, onSaved }: { admin: boolean; onBack: () =>
 }
 
 // ===== Chi tiết: thông tin + môn & nội dung đào tạo =====
-export type PTab = 'info' | 'units' | 'exam' | 'eval' | 'versions' | 'assign'
+// 3 tab như Chương trình giáo dục; tên tab cũ (units, exam, eval, versions) vẫn nhận để mở từ trang khác
+export type PTab = 'info' | 'setup' | 'assign' | 'units' | 'exam' | 'eval' | 'versions'
 /** initialTab / initialContent: mở sẵn một tab hoặc một nội dung (VD: từ mục Kiểm tra & luyện tập); startFinal: mở sẵn form đề cuối khoá; back: nhãn nút quay lại */
 export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, initialTab, initialContent, startFinal, back = 'Chương trình đào tạo' }: { id: string; admin: boolean; go?: (page: string) => void; onBack: () => void; onOpen: (id: string) => void; onMsg: (m: [string, boolean]) => void
   initialTab?: PTab; initialContent?: string | null; startFinal?: boolean; back?: string }) {
@@ -333,74 +335,97 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
   const warn = [!contents.length && 'chưa có nội dung đào tạo nào', p.pass_score != null && !contents.some(u => u.has_test) && 'có điều kiện điểm bài test nhưng chưa nội dung nào có bài test',
     subjs.some(s => !kids(s.id).length) && 'có môn chưa có nội dung'].filter(Boolean) as string[]
 
+  const t: 'info' | 'setup' | 'assign' = tab === 'assign' ? 'assign' : tab !== 'info' && tab !== 'versions' && edit ? 'setup' : 'info'
+  const saveP = (patch: Record<string, unknown>, ok?: string) => run(supabase.from('training_programs').update(patch).eq('id', p.id), ok)
+  const onVer = (m: string, e?: boolean) => { setMsg([m, !!e]); if (!e) load() }
+  const unitsBox = (editable: boolean) => <section className="panel ustruct" style={{ display: 'grid', gap: 12 }}>
+    <TrainingUnits programId={p.id} programTitle={p.title} programMode={p.mode} units={units} editable={editable} catalog={suggest}
+      onReload={load} onMessage={(m, e) => setMsg([errText(m), !!e])} onOpen={setOpenC} />
+  </section>
+
   return <ElView back={back} onBack={onBack} title={p.title}
-    sub={<>{p.code} · v{p.version_no} · <Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip> · {subjs.length} môn · {contents.length} nội dung · {num(hours)} giờ</>}
-    actions={admin && <>
-      {p.status !== 'published' && p.status !== 'superseded' && <button type="button" onClick={() => setTab('versions')}>Duyệt & phát hành</button>}
-      {p.status === 'published' && <button type="button" onClick={() => setTab('versions')}>Tạo phiên bản mới</button>}
-      {p.status === 'draft' && <button type="button" className="danger" onClick={del}>Xoá</button>}
-    </>}>
+    sub={<>{p.code} · v{p.version_no} · <Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip> · {subjs.length} môn · {contents.length} nội dung · {num(hours)} giờ</>}>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {edit && warn.length > 0 && <p className="warnline">Chưa phát hành được: {warn.join('; ')}.</p>}
-    {!edit && admin && <p className="sub">Phiên bản {STATUS[p.status][0].toLowerCase()} không sửa được nội dung. Muốn điều chỉnh thì {p.status === 'pending' || p.status === 'approved' ? 'trả lại / mở lại ở tab "Phiên bản & duyệt"' : 'tạo phiên bản mới ở tab "Phiên bản & duyệt"'}.</p>}
 
     <div className="segmented" style={{ marginBottom: 12 }}>
-      {([['info', 'Thông tin & điều kiện đạt'], ['units', 'Cấu trúc & yêu cầu cần đạt'], ['exam', 'Đề kiểm tra'], ['eval', 'Khung đánh giá'], ['versions', 'Phiên bản & duyệt'], ['assign', 'Gán & triển khai']] as const).map(([k, l]) => <button key={k} type="button" className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
+      {([['info', 'Thông tin'], ...(edit ? [['setup', 'Thiết lập']] : []), ['assign', 'Gán & triển khai']] as [PTab, string][]).map(([k, l]) => <button key={k} type="button" className={t === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
     </div>
-    {tab === 'info' &&     <section className="panel" style={{ display: 'grid', gap: 12 }}>
-      <h3 style={{ margin: 0 }}>Thông tin & điều kiện đạt</h3>
-      {edit ? <>
+
+    {t === 'info' && <>
+      <div className="panel pview">
+        <div className="pviewhead">
+          <h4><Icon n="help" size={18} /> Thông tin chương trình</h4>
+          <div className="tools">
+            {edit && <button type="button" onClick={() => setTab('setup')}><Icon n="pencil" size={15} /> Sửa</button>}
+            <TrainingVersionActions p={p} admin={admin} warn={warn} onOpen={onOpen} onChanged={onVer} />
+            {admin && p.status === 'draft' && <button type="button" className="danger" onClick={del}>Xoá</button>}
+          </div>
+        </div>
+        <div className="pvgrid">
+          <PV l="Tên chương trình" w={2}>{p.title}</PV>
+          <PV l="Mã chương trình">{p.code}</PV>
+          <PV l="Trạng thái"><Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip> <small className="sub">v{p.version_no}</small></PV>
+          <PV l="Loại chương trình" w={2}>{ctsOf(p).map(c => `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`).join(', ')}</PV>
+          <PV l="Cấp học">{lvsOf(p).length ? lvsOf(p).map(levelName).join(', ') : 'Tất cả cấp học'}</PV>
+          <PV l="Hình thức">{MODE[p.mode]}</PV>
+          <PV l="Đối tượng">{p.audience}</PV>
+          <PV l="Đơn vị xây dựng">{p.builder}</PV>
+          <PV l="Năng lực đích" w={2}>{p.competencies.length ? p.competencies.map(k => comps.find(c => c.key === k)?.name ?? k).join(', ') + ` (mức ${p.target_level})` : null}</PV>
+          <PV l="Điều kiện đạt" w={2}>{[`chuyên cần ≥ ${p.pass_attendance}%`, p.pass_score != null && `điểm bài test ≥ ${num(Number(p.pass_score))}`, p.need_product && 'sản phẩm cuối khoá đạt'].filter(Boolean).join(' · ')}</PV>
+          {!!p.prereq_families?.length && <PV l="Tiên quyết" w={2}><PrereqNames ids={p.prereq_families} /></PV>}
+          {p.description && <PV l="Mô tả" w={-1}>{p.description}</PV>}
+          {p.objectives && <PV l="Mục tiêu" w={-1}>{p.objectives}</PV>}
+          {p.outcomes && <PV l="Yêu cầu đầu ra" w={-1}>{p.outcomes}</PV>}
+          {p.entry_conditions && <PV l="Điều kiện tham gia" w={-1}>{p.entry_conditions}</PV>}
+        </div>
+        <div className="pvstats">
+          <span><b>{subjs.length}</b> môn</span>
+          <span><b>{contents.length}</b> nội dung</span>
+          <span><b>{num(hours)}</b> giờ</span>
+          <span><b>{contents.filter(u => u.has_test).length}</b> bài test</span>
+        </div>
+        {!edit && admin && <small className="sub">Phiên bản {STATUS[p.status][0].toLowerCase()} không sửa được nội dung. Muốn điều chỉnh thì {p.status === 'pending' || p.status === 'approved' ? 'trả lại / mở lại bằng nút ở trên' : 'bấm "Tạo phiên bản mới"'}. Phạm vi áp dụng và chương trình giáo dục đáp ứng vẫn điều chỉnh được bên dưới.</small>}
+      </div>
+      {/* Bản nháp sửa phạm vi và chương trình giáo dục ở tab Thiết lập; bản đã gửi duyệt / phát hành vẫn điều chỉnh ở đây */}
+      <ProgramScope p={p} admin={admin && !edit} onMsg={(m, e) => { setMsg([m, !!e]); if (!e) load() }} />
+      <ProgramEduLinks p={p} admin={admin && !edit} onMsg={(m, e) => setMsg([m, !!e])} />
+      {unitsBox(false)}
+      <ProgramExams p={p} units={units} edit={false} onOpen={setOpenC} save={saveP} />
+      <ProgramEvalFrame key={p.id + (p.eval_frame ? '1' : '0') + 'v'} p={p} edit={false} hasFinal={!!p.final_exam} hasTests={contents.some(u => u.has_test)} save={saveP} />
+      <TrainingVersions p={p} onOpen={onOpen} />
+    </>}
+
+    {t === 'setup' && <>
+      <section className="panel" style={{ display: 'grid', gap: 12 }}>
+        <h3 style={{ margin: 0 }}>Thông tin & điều kiện đạt</h3>
         <InfoFields f={f} set={setF} family={p.family_id} />
         {x && <ScopeEduFields x={x} set={setX} owner={p.org_id} />}
-        <div className="formactions"><button type="button" className="primary" disabled={!f.title.trim()} onClick={saveInfo}>Lưu thông tin</button></div>
-      </> : <dl className="tpkv">
-        <dt>Loại · cấp học</dt><dd>{[ctsOf(p).map(c => `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`).join(', '), lvsOf(p).length ? lvsOf(p).map(levelName).join(', ') : 'Tất cả cấp học'].filter(Boolean).join(' · ')}</dd>
-        <dt>Đối tượng</dt><dd>{p.audience || '—'}</dd>
-        <dt>Đơn vị xây dựng</dt><dd>{p.builder || '—'}</dd>
-        <dt>Hình thức</dt><dd>{MODE[p.mode]}</dd>
-        {p.description && <><dt>Mô tả</dt><dd>{p.description}</dd></>}
-        {p.objectives && <><dt>Mục tiêu</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{p.objectives}</dd></>}
-        {p.outcomes && <><dt>Yêu cầu đầu ra</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{p.outcomes}</dd></>}
-        {p.entry_conditions && <><dt>Điều kiện tham gia</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{p.entry_conditions}</dd></>}
-        {!!p.prereq_families?.length && <><dt>Tiên quyết</dt><dd><PrereqNames ids={p.prereq_families} /></dd></>}
-        <dt>Năng lực đích</dt><dd>{p.competencies.length ? p.competencies.map(k => comps.find(c => c.key === k)?.name ?? k).join(', ') + ` (mức ${p.target_level})` : '—'}</dd>
-        <dt>Điều kiện đạt</dt><dd>{[`chuyên cần ≥ ${p.pass_attendance}%`, p.pass_score != null && `điểm bài test ≥ ${num(Number(p.pass_score))}`, p.need_product && 'sản phẩm cuối khoá đạt'].filter(Boolean).join(' · ')}</dd>
-      </dl>}
-    </section>}
-
-    {/* Bản nháp sửa trong form ở trên; bản đã phát hành vẫn sửa riêng phạm vi và chương trình giáo dục ở đây */}
-    {tab === 'info' && !edit && <ProgramScope p={p} admin={admin} onMsg={(m, e) => { setMsg([m, !!e]); if (!e) load() }} />}
-    {tab === 'info' && !edit && <ProgramEduLinks p={p} admin={admin} onMsg={(m, e) => setMsg([m, !!e])} />}
-
-    {tab === 'units' && <section className="panel" style={{ display: 'grid', gap: 12 }}>
-      <TrainingUnits programId={p.id} programTitle={p.title} programMode={p.mode} units={units} editable={edit} catalog={suggest}
-        onReload={load} onMessage={(m, e) => setMsg([errText(m), !!e])} onOpen={setOpenC} />
-    </section>}
-    {tab === 'exam' && <ProgramExams p={p} units={units} edit={edit} onOpen={setOpenC} autoStart={startFinal}
-      save={(patch, ok) => run(supabase.from('training_programs').update(patch).eq('id', p.id), ok)} />}
-    {tab === 'eval' && <ProgramEvalFrame key={p.id + (p.eval_frame ? '1' : '0')} p={p} edit={edit} hasFinal={!!p.final_exam} hasTests={contents.some(u => u.has_test)}
-      save={(patch, ok) => run(supabase.from('training_programs').update(patch).eq('id', p.id), ok)} />}
-    {tab === 'versions' && <TrainingVersions p={p} admin={admin} warn={warn} onOpen={onOpen} onChanged={(m, e) => { setMsg([m, !!e]); if (!e) load() }} />}
-    {tab === 'assign' && <TrainingDeploy p={p} go={go} />}
+        <div className="formactions"><button type="button" className="primary" disabled={!f.title.trim()} onClick={saveInfo}>Lưu thông tin</button>
+          <button type="button" onClick={() => { load(); setTab('info') }}>Huỷ</button></div>
+      </section>
+      {unitsBox(true)}
+      <ProgramExams p={p} units={units} edit onOpen={setOpenC} autoStart={startFinal} save={saveP} />
+      <ProgramEvalFrame key={p.id + (p.eval_frame ? '1' : '0')} p={p} edit hasFinal={!!p.final_exam} hasTests={contents.some(u => u.has_test)} save={saveP} />
+    </>}
+    {t === 'assign' && <TrainingDeploy p={p} go={go} />}
   </ElView>
+}
+
+/** Một ô trong thẻ thông tin: tiêu đề nhỏ in hoa, giá trị bên dưới. w = số cột chiếm (-1: cả hàng) */
+function PV({ l, w, children }: { l: string; w?: number; children?: React.ReactNode }) {
+  const empty = children == null || children === '' || children === false
+  return <div className="pvi" style={w ? { gridColumn: w < 0 ? '1/-1' : `span ${w}` } : undefined}><span>{l}</span><div>{empty ? '—' : children}</div></div>
 }
 
 // ===== Phiên bản & duyệt (093) =====
 type TLog = { id: number; from_status: string | null; to_status: string; note: string | null; at: string }
 type TVer = Pick<TProgram, 'id' | 'version_no' | 'status' | 'published_at' | 'updated_at' | 'note'>
-function TrainingVersions({ p, admin, warn, onOpen, onChanged }: {
+/** Nút gửi duyệt / duyệt / phát hành / tạo phiên bản mới / ngừng dùng — hiện trên thẻ thông tin */
+function TrainingVersionActions({ p, admin, warn, onOpen, onChanged }: {
   p: TProgram; admin: boolean; warn: string[]; onOpen: (id: string) => void; onChanged: (m: string, err?: boolean) => void
 }) {
-  const [vers, setVers] = useState<TVer[]>([])
-  const [log, setLog] = useState<TLog[]>([])
   const [busy, setBusy] = useState(false)
-  useEffect(() => {
-    Promise.all([
-      supabase.from('training_programs').select('id, version_no, status, published_at, updated_at, note').eq('family_id', p.family_id).order('version_no', { ascending: false }),
-      supabase.from('training_program_log').select('id, from_status, to_status, note, at').eq('program_id', p.id).order('at', { ascending: false }),
-    ]).then(([v, l]) => { setVers((v.data as TVer[]) ?? []); setLog((l.data as TLog[]) ?? []) })
-  }, [p.id, p.status])
-  const stName = (s: string) => STATUS[s as Status]?.[0] ?? s
   async function setStatus(s: Status, ask?: string, required?: boolean) {
     let note: string | null = ''
     if (ask) { note = prompt(ask, ''); if (note === null) return; if (required && !note.trim()) return onChanged('Nhập lý do trả lại.', true) }
@@ -421,21 +446,34 @@ function TrainingVersions({ p, admin, warn, onOpen, onChanged }: {
   }
   const s = p.status
   const ready = !warn.length
+  if (!admin) return null
+  const why = ready ? undefined : `Chưa gửi duyệt / phát hành được: ${warn.join('; ')}.`
+  return <>
+    {(s === 'draft' || s === 'rejected') && <button type="button" disabled={busy || !ready} title={why} onClick={() => setStatus('pending', 'Ghi chú gửi người duyệt (không bắt buộc):')}>Gửi duyệt</button>}
+    {s === 'draft' && <button type="button" className="primary" disabled={busy || !ready} title={why} onClick={() => confirm('Phát hành ngay phiên bản này? Phiên bản đang phát hành (nếu có) sẽ được thay thế.') && setStatus('published')}>Phát hành</button>}
+    {s === 'pending' && <><button type="button" className="primary" disabled={busy} onClick={() => setStatus('approved', 'Ghi chú khi duyệt (không bắt buộc):')}>Duyệt</button>
+      <button type="button" className="danger" disabled={busy} onClick={() => setStatus('rejected', 'Lý do trả lại:', true)}>Trả lại</button></>}
+    {s === 'approved' && <><button type="button" className="primary" disabled={busy} onClick={() => setStatus('published', 'Ghi chú phát hành (không bắt buộc):')}>Phát hành</button>
+      <button type="button" disabled={busy} onClick={() => setStatus('draft')}>Mở lại để sửa</button></>}
+    {(s === 'published' || s === 'superseded') && <button type="button" className="primary" disabled={busy} onClick={newVersion}>Tạo phiên bản mới</button>}
+    {['published', 'superseded', 'approved', 'rejected', 'draft'].includes(s) && <button type="button" disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Kế hoạch đã có vẫn giữ nguyên.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng</button>}
+    {s === 'archived' && <button type="button" disabled={busy} onClick={() => setStatus('published', 'Ghi chú (không bắt buộc):')}>Dùng lại</button>}
+  </>
+}
+
+function TrainingVersions({ p, onOpen }: { p: TProgram; onOpen: (id: string) => void }) {
+  const [vers, setVers] = useState<TVer[]>([])
+  const [log, setLog] = useState<TLog[]>([])
+  useEffect(() => {
+    Promise.all([
+      supabase.from('training_programs').select('id, version_no, status, published_at, updated_at, note').eq('family_id', p.family_id).order('version_no', { ascending: false }),
+      supabase.from('training_program_log').select('id, from_status, to_status, note, at').eq('program_id', p.id).order('at', { ascending: false }),
+    ]).then(([v, l]) => { setVers((v.data as TVer[]) ?? []); setLog((l.data as TLog[]) ?? []) })
+  }, [p.id, p.status])
+  const stName = (s: string) => STATUS[s as Status]?.[0] ?? s
   return <section className="panel" style={{ display: 'grid', gap: 12 }}>
     <h3 style={{ margin: 0 }}>Phiên bản & duyệt</h3>
     <p className="sub" style={{ margin: 0 }}>Nháp → Chờ duyệt → Đã duyệt → Đã phát hành. Phát hành phiên bản mới thì phiên bản cũ chuyển sang "Đã thay thế"; kế hoạch đào tạo đã dùng bản cũ vẫn giữ nguyên.</p>
-    {admin ? <div className="tools">
-      {(s === 'draft' || s === 'rejected') && <button type="button" disabled={busy || !ready} onClick={() => setStatus('pending', 'Ghi chú gửi người duyệt (không bắt buộc):')}>Gửi duyệt</button>}
-      {s === 'draft' && <button type="button" className="primary" disabled={busy || !ready} onClick={() => confirm('Phát hành ngay phiên bản này? Phiên bản đang phát hành (nếu có) sẽ được thay thế.') && setStatus('published')}>Phát hành</button>}
-      {s === 'pending' && <><button type="button" className="primary" disabled={busy} onClick={() => setStatus('approved', 'Ghi chú khi duyệt (không bắt buộc):')}>Duyệt</button>
-        <button type="button" className="danger" disabled={busy} onClick={() => setStatus('rejected', 'Lý do trả lại:', true)}>Trả lại</button></>}
-      {s === 'approved' && <><button type="button" className="primary" disabled={busy} onClick={() => setStatus('published', 'Ghi chú phát hành (không bắt buộc):')}>Phát hành</button>
-        <button type="button" disabled={busy} onClick={() => setStatus('draft')}>Mở lại để sửa</button></>}
-      {(s === 'published' || s === 'superseded') && <button type="button" className="primary" disabled={busy} onClick={newVersion}>Tạo phiên bản mới</button>}
-      {['published', 'superseded', 'approved', 'rejected', 'draft'].includes(s) && <button type="button" disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Kế hoạch đã có vẫn giữ nguyên.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng</button>}
-      {s === 'archived' && <button type="button" disabled={busy} onClick={() => setStatus('published', 'Ghi chú (không bắt buộc):')}>Dùng lại</button>}
-      {!ready && (s === 'draft' || s === 'rejected') && <small className="sub">Chưa gửi duyệt / phát hành được: {warn.join('; ')}.</small>}
-    </div> : <p className="sub" style={{ margin: 0 }}>Chỉ đơn vị soạn chương trình (hoặc KDI) duyệt và phát hành được chương trình này.</p>}
     <h3 style={{ margin: '8px 0 0' }}>Các phiên bản</h3>
     <div className="wrap"><table>
       <thead><tr><th>Phiên bản</th><th>Trạng thái</th><th>Phát hành</th><th>Cập nhật</th></tr></thead>

@@ -1,11 +1,11 @@
 // Chương trình đào tạo: bảng Môn → Nội dung đào tạo và yêu cầu cần đạt, cùng cách làm với Chương trình giáo dục:
 // thẻ số liệu, "Chỉnh sửa cấu trúc" mở bảng nháp (thêm / sửa / xoá / đổi thứ tự) rồi "Lưu tất cả" một lần, nhập / tải Excel.
-import { Fragment, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { Icon } from '../../components/Icon'
 import { StructureDraft, newKey, saveDraftTree, type DCol, type DRow } from '../../components/StructureDraft'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx, importSummary, norm, type Column } from '../../lib/sheet'
 import ImportExcel from '../../components/ImportExcel'
-import { Tiles } from '../department/charts'
 import { detailCount, type Detail } from './Content'
 
 export type TUnit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string; hours: number
@@ -40,6 +40,16 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
   onReload: () => Promise<void>; onMessage: (m: string, err?: boolean) => void; onOpen: (id: string) => void
 }) {
   const [draft, setDraft] = useState<DRow<TF>[] | null>(null)
+  const [closed, setClosed] = useState<string[]>([])
+  // Bài giảng (Học liệu đào tạo) đã gắn với từng nội dung
+  const [kit, setKit] = useState<Map<string, string>>(new Map())
+  useEffect(() => {
+    supabase.from('training_lessons').select('unit_id, status').eq('program_id', programId).then(({ data }) => {
+      const m = new Map<string, string>()
+      for (const r of (data ?? []) as { unit_id: string | null; status: string }[]) if (r.unit_id && m.get(r.unit_id) !== 'published') m.set(r.unit_id, r.status)
+      setKit(m)
+    })
+  }, [programId, units])
   const kids = (parent: string | null) => units.filter(u => u.parent_id === parent).sort((a, b) => a.seq - b.seq)
   const subjs = kids(null).filter(u => u.kind === 'subject')
   const contents = units.filter(u => u.kind === 'content')
@@ -126,14 +136,9 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
   }
 
   return <>
-    <Tiles items={[
-      { label: 'Môn', value: subjs.length, sub: subjs.some(s => !kids(s.id).length) ? 'có môn chưa có nội dung' : undefined },
-      { label: 'Nội dung đào tạo', value: contents.length, sub: `${contents.filter(u => detailCount(u.detail)).length} nội dung đã soạn chi tiết` },
-      { label: 'Tổng số giờ', value: num(hours) },
-      { label: 'Có bài test', value: contents.filter(u => u.has_test).length, sub: `${contents.filter(u => (u.mode ?? programMode) === 'online').length} nội dung trực tuyến` },
-    ]} />
-    <div className="bar">
-      <p className="sub" style={{ margin: 0 }}>Cấu trúc: môn → nội dung đào tạo. Số giờ tính theo nội dung. Bấm "Soạn nội dung" để thêm bài giảng, tài liệu, định mức vật tư, hoạt động và bài test.</p>
+    <div className="pviewhead">
+      <h4><Icon n="steps" size={18} /> Cấu trúc & yêu cầu cần đạt
+        <small className="sub" style={{ fontWeight: 400 }}>{subjs.length} môn · {contents.length} nội dung đào tạo · {num(hours)} giờ · {contents.filter(u => u.has_test).length} có bài test · {contents.filter(u => detailCount(u.detail)).length} đã soạn chi tiết</small></h4>
       <div className="tools">
         {editable && !draft && <ImportExcel columns={IMPORT} template="Mau-chuong-trinh-tap-huan"
           sample={[['Môn', 'Phương pháp dạy học STEM', '', '', '', 'Nắm quy trình thiết kế bài học STEM'], ['Nội dung', 'Quy trình 4 bước thiết kế bài học STEM', '3', 'Trực tiếp', 'Có', ''],
@@ -144,29 +149,39 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
         {editable && !draft && <button type="button" className="primary" onClick={() => startDraft(true)}>Thêm môn</button>}
       </div>
     </div>
+    <small className="sub">Cấu trúc: môn → nội dung đào tạo. Số giờ tính theo nội dung.{subjs.some(s => !kids(s.id).length) ? ' Có môn chưa có nội dung.' : ''} Bấm {editable ? '"Soạn nội dung"' : '"Xem nội dung"'} để {editable ? 'thêm' : 'xem'} bài giảng, tài liệu, định mức vật tư, hoạt động và bài test.</small>
     {draft ? <StructureDraft<TF> levels={TLEVELS} root="subject" initial={draft} cols={cols} titleOptions={catalogOpts} outCode={false}
       newFields={t => ({ hours: t === 'content' ? 1 : 0, mode: null, has_test: false, detail: {} })} onSave={saveDraft} onCancel={() => setDraft(null)} />
-    : !units.length ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có môn nào.{editable && ' Bấm "Thêm môn" hoặc "Nhập Excel".'}</p></div> : (
-      <div className="wrap"><table>
-        <thead><tr><th style={{ width: 90 }}>Mục</th><th>Tên · mục tiêu · yêu cầu cần đạt</th><th style={{ width: 140 }}>Hình thức</th><th style={{ width: 80 }}>Số giờ</th><th style={{ width: 70 }}>Bài test</th><th></th></tr></thead>
-        <tbody>
-          {ordered.map(({ u, depth }) => <Fragment key={u.id}>
-            {<tr>
-              <td style={{ paddingLeft: 8 + depth * 22 }}><small className="sub">{KIND[u.kind]}</small> <b>{u.seq}</b></td>
-              <td>{u.kind === 'subject' ? <b>{u.title}</b> : <button type="button" className="namelink" onClick={() => onOpen(u.id)}>{u.title}</button>}
-                {u.note && <><br /><small className="sub">Mục tiêu: {u.note}</small></>}
-                {reqsOf(u.detail).map((x, i) => <div key={i} style={{ fontSize: 13, marginTop: 2 }}>✓ {x}</div>)}
-                {u.kind === 'content' && <><br /><small className="sub">{detailCount(u.detail) || 'Chưa soạn chi tiết'}</small></>}</td>
-              <td>{u.kind === 'content' ? (u.mode ? MODE[u.mode] : <small className="sub">{MODE[programMode]}</small>) : ''}</td>
-              <td>{u.kind === 'content' ? num(Number(u.hours)) : <small className="sub">{num(hoursOf(u))}</small>}</td>
-              <td>{u.kind === 'content' ? (u.has_test ? 'Có' : '—') : ''}</td>
-              <td className="tools">
-                {u.kind === 'content' && <button type="button" onClick={() => onOpen(u.id)}>{editable ? 'Soạn nội dung' : 'Xem nội dung'}</button>}
-              </td>
-            </tr>}
-          </Fragment>)}
-        </tbody>
-      </table></div>
-    )}
+    : !units.length ? <p className="sub" style={{ margin: 0 }}>Chưa có môn nào.{editable && ' Bấm "Thêm môn" hoặc "Nhập Excel".'}</p> : subjs.map(sj => {
+      const open = !closed.includes(sj.id)
+      const cs = kids(sj.id)
+      const ok = cs.filter(c => kit.get(c.id) === 'published').length
+      return <div key={sj.id} className="ugroup">
+        <button type="button" className="ughead" aria-expanded={open} onClick={() => setClosed(open ? [...closed, sj.id] : closed.filter(x => x !== sj.id))}>
+          <span className={'ugchev' + (open ? ' on' : '')} aria-hidden="true">›</span><small>MÔN</small> <b>{sj.title}</b>
+          <small className="sub">{cs.length} nội dung · {num(hoursOf(sj))} giờ</small>
+          <span className="ugbadge">Học liệu đủ {ok}/{cs.length}</span>
+        </button>
+        {open && <div className="wrap"><table className="utable">
+          <thead><tr><th style={{ width: 40 }}>#</th><th style={{ width: '26%' }}>Tên</th><th>Mục tiêu · yêu cầu cần đạt</th><th style={{ width: 110 }}>Hình thức</th><th style={{ width: 70 }}>Số giờ</th><th style={{ width: 70 }}>Bài test</th><th style={{ width: 150 }}>Học liệu</th><th></th></tr></thead>
+          <tbody>
+            {(sj.note || reqsOf(sj.detail).length > 0) && <tr className="utopic"><td></td><td><small className="utk">MỤC TIÊU MÔN</small></td>
+              <td colSpan={6}>{sj.note && <div className="uobj" title={sj.note}>{sj.note}</div>}{reqsOf(sj.detail).map((x, i) => <div key={i} className="uout">✓ {x}</div>)}</td></tr>}
+            {cs.map((u, i) => { const k = kit.get(u.id), rq = reqsOf(u.detail)
+              return <tr key={u.id}>
+                <td className="sub">{i + 1}</td>
+                <td><button type="button" className="namelink" onClick={() => onOpen(u.id)}>{u.title}</button><br /><small className="sub">{detailCount(u.detail) || 'Chưa soạn chi tiết'}</small></td>
+                <td>{u.note && <div className="uobj" title={u.note}>{u.note}</div>}{rq.map((x, j) => <div key={j} className="uout">✓ {x}</div>)}{!u.note && !rq.length && <span className="sub">—</span>}</td>
+                <td>{u.mode ? MODE[u.mode] : <small className="sub">{MODE[programMode]}</small>}</td>
+                <td>{num(Number(u.hours))}</td>
+                <td>{u.has_test ? 'Có' : '—'}</td>
+                <td>{k === 'published' ? <span className="gpill good">Đã phát hành</span> : k ? <span className="gpill warn">Đang soạn</span> : <span className="pill">Chưa có</span>}</td>
+                <td className="tools" style={{ whiteSpace: 'nowrap' }}><button type="button" onClick={() => onOpen(u.id)}>{editable ? 'Soạn nội dung' : 'Xem nội dung'}</button></td>
+              </tr> })}
+            {!cs.length && <tr><td colSpan={8}><small className="sub">Môn này chưa có nội dung.</small></td></tr>}
+          </tbody>
+        </table></div>}
+      </div>
+    })}
   </>
 }

@@ -238,9 +238,9 @@ export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPl
         <button type="button" className="linkbtn" aria-expanded={!shut} onClick={() => setOpen(o => { const n = new Set(o); if (shut) n.add(pid); else n.delete(pid); return n })}>
           {shut ? '▸ Xem và sửa từng buổi' : '▾ Thu gọn danh sách buổi'}</button>
         {!shut && <div className="wrap"><table className="libtable tpschedtable">
-          <thead><tr><th style={{ width: 36 }}>#</th><th>Nội dung đào tạo</th><th style={{ width: 150 }}>Ngày học</th><th style={{ width: 200 }}>Thời gian</th><th style={{ width: 130 }}>Hình thức</th><th>Địa điểm / link họp</th><th style={{ width: 220 }}>Giảng viên</th></tr></thead>
+          <thead><tr><th style={{ width: 36 }}>#</th><th>Nội dung đào tạo</th><th style={{ width: 150 }}>Ngày học</th><th style={{ width: 200 }}>Thời gian</th><th style={{ width: 130 }}>Hình thức</th><th>Địa điểm / link họp</th><th style={{ width: 220 }}>Giảng viên</th>{edit && <th style={{ width: 70 }} aria-label="Thao tác" />}</tr></thead>
           <tbody>{subjs.map(sj => <Fragment key={sj}>
-            <tr className="distgsubj"><th colSpan={7}><b>{sj}</b></th></tr>
+            <tr className="distgsubj"><th colSpan={edit ? 8 : 7}><b>{sj}</b></th></tr>
             {mine.filter(r => r.subj === sj).map((r, j) => {
               const ro = !edit || r.locked, hn = s.hol.holName(r.date)
               return <tr key={r.unit_id}>
@@ -255,12 +255,12 @@ export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPl
                   {(Object.keys(MODE) as Mode[]).map(m => <option key={m} value={m}>{MODE[m]}</option>)}</select>}</td>
                 <td>{ro ? (r.mode === 'online' ? r.url : r.location) || '—'
                   : r.mode === 'online' ? <input value={r.url} placeholder="https://…" aria-label="Link họp" onChange={e => s.setRow(r.unit_id, { url: e.target.value })} style={{ width: '100%' }} />
-                  : <input value={r.location} placeholder="Địa điểm" aria-label="Địa điểm" onChange={e => s.setRow(r.unit_id, { location: e.target.value })} style={{ width: '100%' }} />}
-                  {!ro && r.date && <button type="button" className="linkbtn" onClick={() => s.setRow(r.unit_id, { date: '', from: '', to: '' })}>Bỏ lịch</button>}</td>
+                  : <input value={r.location} placeholder="Địa điểm" aria-label="Địa điểm" onChange={e => s.setRow(r.unit_id, { location: e.target.value })} style={{ width: '100%' }} />}</td>
                 <td style={{ whiteSpace: 'normal', minWidth: 200 }}>{ro ? (r.trainers.length ? r.trainers.map(names.name).join(', ') : '—')
                   : tIds(pid).length > 1 ? <MultiSelect value={r.trainers} onChange={v => s.setRow(r.unit_id, { trainers: v })} ariaLabel={'Giảng viên buổi ' + r.title}
                       placeholder="Chọn giảng viên…" options={tIds(pid).map(id => ({ value: id, label: names.name(id) }))} empty="Chưa có giảng viên" />
                   : <TrainerPick orgId={plan.org_id} value={r.trainers} ariaLabel={'Giảng viên buổi ' + r.title} onChange={v => s.setRow(r.unit_id, { trainers: v })} />}</td>
+                {edit && <td className="tpact">{!ro && r.date && <button type="button" className="linkbtn" title="Bỏ ngày giờ của buổi này" onClick={() => s.setRow(r.unit_id, { date: '', from: '', to: '' })}>Bỏ lịch</button>}</td>}
               </tr>
             })}
           </Fragment>)}</tbody>

@@ -35,12 +35,8 @@ export function useBreadcrumb() {
   }
 }
 
-/** Nút "…" mở danh sách thao tác phụ. */
-export function MoreMenu({ children }: { children: ReactNode }) {
-  const ref = useRef<HTMLDetailsElement>(null)
-  return <details ref={ref} className="distmore" onClick={e => { if ((e.target as HTMLElement).closest('button')) ref.current?.removeAttribute('open') }}>
-    <summary aria-label="Thao tác khác">···</summary><div className="distmenu">{children}</div></details>
-}
+import { MoreMenu } from '../../components/MoreMenu'
+export { MoreMenu }
 
 function Stepper({ value, onChange, disabled, label }: { value: number; onChange: (v: number) => void; disabled?: boolean; label: string }) {
   const set = (v: number) => onChange(Math.max(0.5, Math.min(40, Math.round(v * 2) / 2)))

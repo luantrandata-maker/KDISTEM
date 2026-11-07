@@ -155,7 +155,7 @@ function Needs({ d }: { d: Data | null }) {
   return <>
     <div className="bar">
       <div className="tools">
-        <span className="segmented" role="group" aria-label="Tổng hợp theo">
+        <span className="segmented needseg" role="group" aria-label="Tổng hợp theo">
           <button type="button" className={by === 'prog' ? 'on' : ''} aria-pressed={by === 'prog'} onClick={() => setBy('prog')}>Theo chương trình</button>
           <button type="button" className={by === 'plan' ? 'on' : ''} aria-pressed={by === 'plan'} onClick={() => setBy('plan')}>Theo kế hoạch tập huấn</button></span>
         {by === 'prog' ? <select value={pid} onChange={e => setPid(e.target.value)} aria-label="Chương trình đào tạo">
@@ -164,8 +164,8 @@ function Needs({ d }: { d: Data | null }) {
         : !pl.plans.length ? <small className="sub">Chưa có kế hoạch tập huấn nào có chương trình.</small>
         : <select value={planId} onChange={e => pickPlan(e.target.value)} aria-label="Kế hoạch tập huấn">
           {pl.plans.map(x => <option key={x.id} value={x.id}>{x.plan_code ? x.plan_code + ' · ' : ''}{x.name}{x.pub_status !== 'published' ? ' · nháp' : ''}</option>)}</select>}
-        <label className="tools">Số học viên <input type="number" min={1} max={2000} value={people} onChange={e => setPeople(Math.max(1, Math.min(2000, Number(e.target.value) || 1)))} style={{ width: 80 }} aria-label="Số học viên" /></label>
-        <label className="tools">Số nhóm <input type="number" min={1} max={200} value={groups} onChange={e => setGroups(Math.max(1, Math.min(200, Number(e.target.value) || 1)))} style={{ width: 80 }} aria-label="Số nhóm" /></label>
+        <label className="tools nowrap">Số học viên <input type="number" min={1} max={2000} value={people} onChange={e => setPeople(Math.max(1, Math.min(2000, Number(e.target.value) || 1)))} style={{ width: 80 }} aria-label="Số học viên" /></label>
+        <label className="tools nowrap">Số nhóm <input type="number" min={1} max={200} value={groups} onChange={e => setGroups(Math.max(1, Math.min(200, Number(e.target.value) || 1)))} style={{ width: 80 }} aria-label="Số nhóm" /></label>
       </div>
       <div className="tools"><button type="button" disabled={!rows.length} onClick={() => downloadXlsx(`Can-chuan-bi-${(by === 'plan' ? plan?.plan_code : p?.code) || 'dao-tao'}.xlsx`,
         [{ key: 'n', label: 'Thiết bị, vật tư', width: 34 }, { key: 'u', label: 'Đơn vị', width: 10 }, { key: 't', label: 'Tổng cần', width: 10 }, { key: 'd', label: 'Định mức', width: 30 }, { key: 's', label: 'Dùng ở', width: 40 }],

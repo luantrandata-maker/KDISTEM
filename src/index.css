@@ -2297,3 +2297,4 @@ ul.slidebody{margin:0;padding-left:1.2em}ul.slidebody li{margin:0 0 6px}
 .main .distmenu .filebtn:hover{background:var(--soft)}
 .slblk{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--line);border-radius:8px;padding:1px 2px 1px 8px;font-size:13px;background:var(--surface)}
 .slformat .slblk button{padding:1px 6px;min-width:0;border:0;background:none}.slformat .slblk button:disabled{opacity:.3}
+.segmented.needseg{margin:0;padding:3px}.segmented.needseg button{padding:6px 12px;white-space:nowrap}.tools.nowrap{flex-wrap:nowrap;white-space:nowrap}

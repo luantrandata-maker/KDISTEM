@@ -2289,5 +2289,5 @@ ul.slidebody{margin:0;padding-left:1.2em}ul.slidebody li{margin:0 0 6px}
 @media(max-width:700px){.slcols,.sltwo{grid-template-columns:1fr}}
 
 /* Thẻ bộ học liệu: trạng thái + Cập nhật / Chốt nội dung ở góc trên */
-.lcardacts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
-@media(max-width:700px){.lcardhead{flex-wrap:wrap}.lcardacts{width:100%;justify-content:flex-start}}
+.lcardhead>.lcardacts{display:flex;flex:none;gap:8px;align-items:center;flex-wrap:nowrap;justify-content:flex-end;white-space:nowrap}
+@media(max-width:700px){.lcardhead{flex-wrap:wrap}.lcardhead>.lcardacts{width:100%;flex-wrap:wrap;justify-content:flex-start}}

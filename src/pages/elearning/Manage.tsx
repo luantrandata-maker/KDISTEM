@@ -34,14 +34,14 @@ export default function ElearningManage({ orgId }: { orgId: string | null }) {
   const ofl = useOrgFilter()
   return <>
     <Tabs value={tab} onChange={setTab} items={[['course', 'Khoá học e-learning'], ['exam', 'Đề luyện'], ['hard', 'Câu hỏi khó'], ['review', 'Nội dung cần ôn'], ['bank', 'Ngân hàng câu hỏi']]} />
-    <ElCards orgId={orgId} ofl={ofl} onOpen={t => setTab(t as 'exam' | 'course')} />
+    {(tab === 'course' || tab === 'exam') && <ElCards orgId={orgId} ofl={ofl} tab={tab} />}
     {tab === 'exam' ? <Exams orgId={orgId} ofl={ofl} /> : tab === 'course' ? <Courses orgId={orgId} ofl={ofl} /> : tab === 'hard' || tab === 'review' ? <Analytics key={tab} orgId={orgId} kind={tab} />
       : <QuestionBank orgId={orgId} />}
   </>
 }
 
-// Thẻ tổng số của E-learning & luyện thi (theo bộ lọc Tỉnh / trường): bấm thẻ để mở tab tương ứng
-function ElCards({ orgId, ofl, onOpen }: { orgId: string | null; ofl: OrgF; onOpen: (t: string) => void }) {
+// Thẻ tổng hợp riêng của từng tab (theo bộ lọc Tỉnh / trường). Câu hỏi khó, Nội dung cần ôn, Ngân hàng câu hỏi có thẻ riêng trong tab.
+function ElCards({ orgId, ofl, tab }: { orgId: string | null; ofl: OrgF; tab: 'course' | 'exam' }) {
   const [d, setD] = useState<{ courses: { org_id: string; status: string }[]; exams: { id: string; org_id: string; status: string }[]; att: { exam_id: string; student_id: string; score: number | null }[] } | null>(null)
   useEffect(() => {
     Promise.all([supabase.from('courses').select('org_id, status'), supabase.from('practice_exams').select('id, org_id, status'),
@@ -53,10 +53,15 @@ function ElCards({ orgId, ofl, onOpen }: { orgId: string | null; ofl: OrgF; onOp
   const pub = cs.filter(c => c.status === 'published').length, draft = cs.filter(c => c.status === 'draft').length
   const avg = at.length ? at.reduce((n, x) => n + Number(x.score ?? 0), 0) / at.length : null
   const w = (v: number | string) => (d ? v : '…')
-  return <StatCards nav onPick={k => k && onOpen(k)} items={[
-    { k: 'course', icon: 'book', value: w(cs.length), label: 'Khoá học', sub: d ? `${pub} đã phát hành · ${draft} nháp` : undefined },
-    { k: 'exam', icon: 'clipboard', value: w(es.length), label: 'Đề luyện', sub: d ? `${es.filter(x => x.status === 'published').length} đang mở` : undefined },
-    { k: 'exam', icon: 'users', value: w(at.length.toLocaleString('vi-VN')), label: 'Lượt học sinh làm bài', sub: d ? `${new Set(at.map(x => x.student_id)).size} học sinh` : undefined },
+  if (tab === 'course') return <StatCards items={[
+    { icon: 'book', value: w(cs.length), label: 'Khoá học' },
+    { icon: 'eye', tone: 'good', value: w(pub), label: 'Đang mở' },
+    { icon: 'edit', value: w(draft), label: 'Nháp' },
+    { icon: 'inbox', value: w(cs.filter(c => c.status === 'archived').length), label: 'Đã lưu trữ' },
+  ]} />
+  return <StatCards items={[
+    { icon: 'clipboard', value: w(es.length), label: 'Đề luyện', sub: d ? `${es.filter(x => x.status === 'published').length} đang mở` : undefined },
+    { icon: 'users', value: w(at.length.toLocaleString('vi-VN')), label: 'Lượt học sinh làm bài', sub: d ? `${new Set(at.map(x => x.student_id)).size} học sinh` : undefined },
     { icon: 'trophy', tone: avg == null ? '' : avg >= 5 ? 'good' : 'warn', value: w(avg == null ? '—' : avg.toFixed(1)), label: 'Điểm trung bình', sub: 'Thang 10, các bài đã nộp' },
   ]} />
 }

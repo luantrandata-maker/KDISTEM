@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 
 export type SlideKind = 'title' | 'content' | 'question' | 'task' | 'media'
-export type Slide = { id: string; kind: SlideKind; title: string; body?: string; options?: string[]; answer?: number; url?: string; minutes?: number }
+export type SlideLayout = 'text' | 'center' | 'img-right' | 'img-left' | 'two'
+/** Định dạng (tuỳ chọn, slide cũ không có vẫn hiển thị như trước): chủ đề màu, bố cục, ảnh, kiểu chữ */
+export type SlideStyle = { theme?: string; bg?: string; layout?: SlideLayout; image?: string; body2?: string
+  size?: 's' | 'm' | 'l' | 'xl'; color?: string; bold?: boolean; italic?: boolean; align?: 'left' | 'center'; bullets?: boolean }
+export type Slide = { id: string; kind: SlideKind; title: string; body?: string; options?: string[]; answer?: number; url?: string; minutes?: number } & SlideStyle
 export type Plan = {
   id: string; org_id: string; teacher_id: string | null; title: string; subject: string | null; grades: string | null; program: string | null
   from_package: boolean; is_template: boolean; status: 'draft' | 'editing' | 'pending' | 'approved' | 'rejected' | 'published' | 'archived'; summary: string | null; slides: Slide[]; updated_at: string
@@ -10,6 +14,21 @@ export type Plan = {
 }
 
 export const KIND: Record<SlideKind, string> = { title: 'Trang bìa', content: 'Nội dung', question: 'Câu hỏi', task: 'Nhiệm vụ', media: 'Video / hình' }
+/** Chủ đề màu: [tên, nền, màu chữ, màu nhấn] */
+export const THEMES: Record<string, [string, string, string, string]> = {
+  trang: ['Trắng', '#ffffff', '#0f172a', '#2563eb'],
+  giay: ['Giấy kem', '#fdf6e3', '#3f2d16', '#b45309'],
+  navy: ['Xanh đậm', '#16325c', '#ffffff', '#93c5fd'],
+  bien: ['Biển', 'linear-gradient(135deg,#0ea5e9,#2563eb)', '#ffffff', '#e0f2fe'],
+  la: ['Lá non', 'linear-gradient(135deg,#dcfce7,#86efac)', '#14532d', '#15803d'],
+  nang: ['Nắng', 'linear-gradient(135deg,#fef3c7,#fdba74)', '#431407', '#c2410c'],
+  tim: ['Tím', 'linear-gradient(135deg,#a78bfa,#6d28d9)', '#ffffff', '#ede9fe'],
+  hong: ['Hồng', 'linear-gradient(135deg,#fce7f3,#f9a8d4)', '#500724', '#be185d'],
+  toi: ['Tối', '#0b1220', '#f8fafc', '#fbbf24'],
+}
+export const LAYOUTS: Record<SlideLayout, string> = { text: 'Tiêu đề + nội dung', center: 'Căn giữa (trang lớn)', 'img-right': 'Nội dung + ảnh bên phải', 'img-left': 'Ảnh bên trái + nội dung', two: 'Hai cột chữ' }
+const SIZES = { s: 0.85, m: 1, l: 1.2, xl: 1.45 }
+const lines = (t: string) => t.split('\n').map(x => x.trim()).filter(Boolean)
 const uid = () => Math.random().toString(36).slice(2, 9)
 export const ago = (iso: string) => {
   const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
@@ -35,15 +54,33 @@ export function SlideView({ slide, reveal, hideOptions, onEdit }: { slide: Slide
   if (!slide) return <div className="slide empty">Bài giảng chưa có slide.</div>
   const ed = !!onEdit
   const opts = slide.options ?? []
+  const th = slide.theme ? THEMES[slide.theme] : undefined
+  const lay = slide.layout ?? 'text'
+  const withImg = (lay === 'img-right' || lay === 'img-left') && slide.kind !== 'media'
+  const box: React.CSSProperties & Record<string, string | number> = {
+    ...(th ? { background: th[1], color: th[2], '--sl-accent': th[3] } : {}), ...(slide.bg ? { background: slide.bg } : {}),
+    '--slz': SIZES[slide.size ?? 'm'], ...(slide.color ? { color: slide.color } : {}), ...(slide.align ? { textAlign: slide.align } : {}),
+  }
+  const bodyCls = 'slidebody' + (slide.bold ? ' b' : '') + (slide.italic ? ' i' : '')
+  const bodyView = (t: string | undefined) => t ? (slide.bullets
+    ? <ul className={bodyCls}>{lines(t).map((l, i) => <li key={i}>{l}</li>)}</ul>
+    : <div className={bodyCls}>{t.split('\n').map((l, i) => <p key={i}>{l}</p>)}</div>) : null
+  const bodyEdit = (k: 'body' | 'body2', ph: string) => <textarea className={'sledit ' + bodyCls + (slide.bullets ? ' bul' : '')} rows={Math.max(2, (slide[k] ?? '').split('\n').length)} value={slide[k] ?? ''}
+    placeholder={ph} aria-label={k === 'body' ? 'Nội dung slide' : 'Nội dung cột 2'} onChange={e => onEdit!({ [k]: e.target.value })} />
+  const title = ed ? <textarea className="sledit h2" rows={1} value={slide.title} placeholder="Bấm để nhập tiêu đề" aria-label="Tiêu đề slide"
+      onChange={e => onEdit!({ title: e.target.value.replace(/\n/g, ' ') })} />
+    : <h2>{slide.title || <i>Chưa có tiêu đề</i>}</h2>
+  const body = ed ? (slide.kind !== 'media' || slide.body) && bodyEdit('body', slide.kind === 'question' ? 'Bấm để nhập câu hỏi' : 'Bấm để nhập nội dung, mỗi dòng một ý')
+    : bodyView(slide.body)
+  const text = lay === 'two' && slide.kind !== 'media'
+    ? <>{title}<div className="sltwo"><div>{body}</div><div>{ed ? bodyEdit('body2', 'Bấm để nhập nội dung cột 2') : bodyView(slide.body2)}</div></div></>
+    : <>{title}{body}</>
+  const img = slide.image ? <img src={slide.image} alt={slide.title} /> : ed ? <div className="slimgph">Dán đường dẫn ảnh ở ô "Ảnh" trên thanh định dạng</div> : null
   return (
-    <div className={'slide ' + slide.kind + (ed ? ' editing' : '')}>
+    <div className={'slide ' + slide.kind + ' lay-' + lay + (th || slide.bg ? ' themed' : '') + (ed ? ' editing' : '')} style={box}>
       <span className="slidekind">{KIND[slide.kind]}{slide.kind === 'task' && slide.minutes ? ` · ${slide.minutes} phút` : ''}</span>
-      {ed ? <textarea className="sledit h2" rows={1} value={slide.title} placeholder="Bấm để nhập tiêu đề" aria-label="Tiêu đề slide"
-          onChange={e => onEdit!({ title: e.target.value.replace(/\n/g, ' ') })} />
-        : <h2>{slide.title || <i>Chưa có tiêu đề</i>}</h2>}
-      {ed ? (slide.kind !== 'media' || slide.body) && <textarea className="sledit slidebody" rows={Math.max(2, (slide.body ?? '').split('\n').length)} value={slide.body ?? ''}
-          placeholder={slide.kind === 'question' ? 'Bấm để nhập câu hỏi' : 'Bấm để nhập nội dung, mỗi dòng một ý'} aria-label="Nội dung slide" onChange={e => onEdit!({ body: e.target.value })} />
-        : slide.body && <div className="slidebody">{slide.body.split('\n').map((l, i) => <p key={i}>{l}</p>)}</div>}
+      {withImg ? <div className={'slcols' + (lay === 'img-left' ? ' rev' : '')}><div className="sltext">{text}</div>{img && <div className="slimg">{img}</div>}</div> : text}
+      {!withImg && lay !== 'two' && slide.image && slide.kind !== 'media' && <img className="slpic" src={slide.image} alt={slide.title} />}
       {slide.kind === 'question' && !hideOptions && (
         <ol className="opts">
           {opts.map((o, i) => (
@@ -66,6 +103,37 @@ export function SlideView({ slide, reveal, hideOptions, onEdit }: { slide: Slide
       )}
     </div>
   )
+}
+
+/** Thanh định dạng slide (kiểu Canva / PowerPoint): chủ đề màu, bố cục, ảnh, kiểu chữ. onAll: áp chủ đề cho mọi slide */
+export function SlideFormat({ slide, onEdit, onAll, onDup }: { slide: Slide; onEdit: (p: Partial<Slide>) => void; onAll?: (p: Partial<Slide>) => void; onDup?: () => void }) {
+  const tog = (k: 'bold' | 'italic' | 'bullets') => onEdit({ [k]: !slide[k] })
+  return <div className="slformat">
+    <div className="slfrow"><small>Chủ đề</small>
+      <button type="button" className={'slsw auto' + (!slide.theme && !slide.bg ? ' on' : '')} title="Mặc định" aria-label="Chủ đề mặc định" onClick={() => onEdit({ theme: undefined, bg: undefined })}>A</button>
+      {Object.entries(THEMES).map(([k, t]) => <button key={k} type="button" className={'slsw' + (slide.theme === k && !slide.bg ? ' on' : '')} title={t[0]} aria-label={'Chủ đề ' + t[0]}
+        style={{ background: t[1], color: t[2] }} onClick={() => onEdit({ theme: k, bg: undefined })}>A</button>)}
+      <label className="slcolor" title="Màu nền tự chọn">Nền <input type="color" value={slide.bg && slide.bg.startsWith('#') ? slide.bg : '#ffffff'} onChange={e => onEdit({ bg: e.target.value })} aria-label="Màu nền" /></label>
+      {onAll && <button type="button" className="linkbtn" onClick={() => onAll({ theme: slide.theme, bg: slide.bg })}>Áp dụng cho mọi slide</button>}
+    </div>
+    <div className="slfrow"><small>Bố cục</small>
+      <select value={slide.layout ?? 'text'} aria-label="Bố cục slide" onChange={e => onEdit({ layout: e.target.value as SlideLayout })}>
+        {(Object.keys(LAYOUTS) as SlideLayout[]).map(k => <option key={k} value={k}>{LAYOUTS[k]}</option>)}</select>
+      {slide.kind !== 'media' && <input type="url" className="slurl" value={slide.image ?? ''} placeholder="Ảnh: dán đường dẫn https://…" aria-label="Đường dẫn ảnh" onChange={e => onEdit({ image: e.target.value || undefined })} />}
+      {onDup && <button type="button" onClick={onDup} title="Nhân bản slide">⧉ Nhân bản</button>}
+    </div>
+    <div className="slfrow"><small>Chữ</small>
+      <button type="button" className={slide.bold ? 'on' : ''} aria-pressed={!!slide.bold} aria-label="Chữ đậm" onClick={() => tog('bold')}><b>B</b></button>
+      <button type="button" className={slide.italic ? 'on' : ''} aria-pressed={!!slide.italic} aria-label="Chữ nghiêng" onClick={() => tog('italic')}><i>I</i></button>
+      <button type="button" className={slide.bullets ? 'on' : ''} aria-pressed={!!slide.bullets} aria-label="Gạch đầu dòng" onClick={() => tog('bullets')}>• Danh sách</button>
+      <select value={slide.size ?? 'm'} aria-label="Cỡ chữ" onChange={e => onEdit({ size: e.target.value as Slide['size'] })}>
+        <option value="s">Chữ nhỏ</option><option value="m">Chữ vừa</option><option value="l">Chữ lớn</option><option value="xl">Chữ rất lớn</option></select>
+      <button type="button" className={(slide.align ?? 'left') === 'left' ? 'on' : ''} aria-label="Căn trái" onClick={() => onEdit({ align: 'left' })}>⯇ Trái</button>
+      <button type="button" className={slide.align === 'center' ? 'on' : ''} aria-label="Căn giữa" onClick={() => onEdit({ align: 'center' })}>≡ Giữa</button>
+      <label className="slcolor" title="Màu chữ">Màu chữ <input type="color" value={slide.color ?? '#0f172a'} onChange={e => onEdit({ color: e.target.value })} aria-label="Màu chữ" /></label>
+      {slide.color && <button type="button" className="linkbtn" onClick={() => onEdit({ color: undefined })}>Bỏ màu</button>}
+    </div>
+  </div>
 }
 
 // Trình chiếu toàn màn hình cho danh sách slide (← → để chuyển, Esc để thoát)
@@ -106,6 +174,7 @@ export function SlideStudio({ slides, onChange, readOnly }: { slides: Slide[]; o
     const next = [...slides]; [next[sel], next[j]] = [next[j], next[sel]]; onChange(next); setSel(j)
   }
   const del = () => { if (slides.length <= 1) return; onChange(slides.filter((_, i) => i !== sel)); setSel(Math.max(0, sel - 1)) }
+  const dup = () => { if (!cur) return; onChange([...slides.slice(0, sel + 1), { ...JSON.parse(JSON.stringify(cur)), id: uid() }, ...slides.slice(sel + 1)]); setSel(sel + 1) }
   return (
     <div className="studio">
       <div className="panel slidelist">
@@ -122,7 +191,7 @@ export function SlideStudio({ slides, onChange, readOnly }: { slides: Slide[]; o
       <div>
         <div className="sltools">
           {!readOnly && cur && <>
-            <select value={cur.kind} aria-label="Loại slide" onChange={e => setSlide({ ...newSlide(e.target.value as SlideKind), id: cur.id, title: cur.title, body: cur.body })}>
+            <select value={cur.kind} aria-label="Loại slide" onChange={e => { const { id, kind: _k, title, body, options: _o, answer: _a, url: _u, minutes: _m, ...style } = cur; setSlide({ ...newSlide(e.target.value as SlideKind), ...style, id, title, body }) }}>
               {(Object.keys(KIND) as SlideKind[]).map(k => <option key={k} value={k}>{KIND[k]}</option>)}</select>
             {cur.kind === 'task' && <label className="inl">Thời gian <input type="number" min={1} max={90} value={cur.minutes ?? 10} onChange={e => setSlide({ minutes: Number(e.target.value) || 1 })} style={{ width: 64 }} /> phút</label>}
             <button onClick={() => move(-1)} disabled={sel === 0} aria-label="Đưa lên">↑</button>
@@ -131,6 +200,8 @@ export function SlideStudio({ slides, onChange, readOnly }: { slides: Slide[]; o
           </>}
           <button className="primary" style={{ marginLeft: 'auto' }} disabled={!slides.length} onClick={() => setShow(true)}>▶ Trình chiếu</button>
         </div>
+        {!readOnly && cur && <SlideFormat slide={cur} onEdit={setSlide} onDup={dup}
+          onAll={p => onChange(slides.map(x => ({ ...x, ...p })))} />}
         <SlideView slide={cur} reveal onEdit={readOnly ? undefined : setSlide} />
         {!readOnly && cur && <small className="sub">Bấm vào tiêu đề, nội dung hoặc phương án trên slide để sửa trực tiếp.</small>}
       </div>

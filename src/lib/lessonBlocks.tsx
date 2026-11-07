@@ -368,8 +368,10 @@ export function BlockForm({ b, onChange }: { b: Block; onChange: (b: Block) => v
 }
 
 // ===== Trình soạn bài giảng tương tác =====
-export function LessonEditor({ value, ct, onChange, readOnly }: { value: ILesson | null; ct?: string | null; onChange: (l: ILesson) => void; readOnly?: boolean }) {
+// preview: nút Trình chiếu thử / Xem như học sinh ngay trong lúc soạn (tắt khi trang ngoài đã có nút này)
+export function LessonEditor({ value, ct, onChange, readOnly, title, preview = true }: { value: ILesson | null; ct?: string | null; onChange: (l: ILesson) => void; readOnly?: boolean; title?: string; preview?: boolean }) {
   const lesson = value ?? emptyLesson(ct)
+  const [view, setView] = useState<'show' | 'player' | null>(null)
   const [sel, setSel] = useState(0)
   const [edit, setEdit] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
@@ -381,7 +383,15 @@ export function LessonEditor({ value, ct, onChange, readOnly }: { value: ILesson
   const mv = (i: number, d: number) => { const bs = [...ph.blocks]; const j = i + d; if (j < 0 || j >= bs.length) return; [bs[i], bs[j]] = [bs[j], bs[i]]; setBlocks(bs) }
   const add = (t: BlockType) => { const nb = newBlock(t); setBlocks([...ph.blocks, nb]); setEdit(nb.id); setAdding(false) }
   if (!ph) return <div className="panel"><p className="sub">Chưa có giai đoạn nào.</p>{!readOnly && <button className="primary" onClick={() => onChange(emptyLesson(ct))}>Dùng tiến trình {ct ?? 'CT1'}</button>}</div>
-  return (
+  const tools = preview && <div className="sltools">
+    <small className="sub">{readOnly ? 'Xem bài giảng tương tác' : 'Đang soạn — có thể trình chiếu thử bất cứ lúc nào'}</small>
+    <button type="button" style={{ marginLeft: 'auto' }} disabled={!st.blocks} onClick={() => setView('player')}><Icon n="eye" /> Xem như học sinh</button>
+    <button type="button" className="primary" disabled={!st.blocks} onClick={() => setView('show')}>▶ Trình chiếu{readOnly ? '' : ' thử'}</button>
+  </div>
+  const overlay = view === 'show' ? <LessonShow title={title || 'Bài giảng'} ct={ct} lesson={lesson} onClose={() => setView(null)} />
+    : view === 'player' ? <LessonPlayer title={title || 'Bài giảng'} ct={ct} lesson={lesson} onClose={() => setView(null)} /> : null
+  return (<>
+    {tools}
     <div className="lessoned">
       <aside className="panel lphases">
         <small className="sub">TIẾN TRÌNH {ct ?? ''}</small>
@@ -438,7 +448,8 @@ export function LessonEditor({ value, ct, onChange, readOnly }: { value: ILesson
         ))}
       </aside>
     </div>
-  )
+    {overlay}
+  </>)
 }
 
 // ===== Dàn ý chỉ đọc (Kho bài giảng) =====

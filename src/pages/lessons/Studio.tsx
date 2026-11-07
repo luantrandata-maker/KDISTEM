@@ -526,7 +526,7 @@ function LessonTab({ p, upd, ro }: TabP) {
             <textarea rows={3} value={(l.goals ?? []).join('\n')} onChange={e => setL({ ...l, goals: e.target.value.split('\n') })} /></label>
         </fieldset>}
       </div>
-      <LessonEditor value={l} ct={p.program} onChange={setL} readOnly={ro} />
+      <LessonEditor value={l} ct={p.program} onChange={setL} readOnly={ro} preview={false} />
     </>
   )
 }

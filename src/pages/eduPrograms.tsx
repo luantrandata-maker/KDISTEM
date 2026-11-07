@@ -1014,7 +1014,7 @@ function SessionLessonEditor({ unit, ct, editable, onClose, onSaved }: { unit: U
         <button onClick={onClose}>Đóng</button>
       </div>
       <div style={{ overflow: 'auto', padding: 16, flex: 1 }}>
-        <LessonEditor value={val} ct={ct} onChange={setVal} readOnly={!editable} />
+        <LessonEditor value={val} ct={ct} onChange={setVal} readOnly={!editable} title={unit.title} />
       </div>
     </div>
   )

@@ -10,7 +10,7 @@ import { PlanView, planOf } from './PlanEditor'
 import { Drawer } from '../../components/Drawer'
 // Xem bộ học liệu 5 thẻ (tải khi mở bài học)
 const KitView = lazy(() => import('./lesson/LessonPage').then(m => ({ default: m.KitView })))
-import { LessonOutline, LessonPlayer, asLesson, lessonStats } from '../../lib/lessonBlocks'
+import { LessonOutline, LessonPlayer, LessonShow, asLesson, lessonStats } from '../../lib/lessonBlocks'
 
 export type Unit = { title: string; periods?: number; objectives?: string; lesson_ids?: string[] }
 export type Item = {
@@ -146,16 +146,18 @@ export function StatusChip({ s }: { s: Item['status'] }) {
 // Xem trước nội dung một mục kho
 export function ItemPreview({ item, all, canRestore, onRestored, onOpen }: { item: Item; all: Item[]; canRestore?: boolean; onRestored?: () => void; onOpen?: (e: DrawerEntry) => void }) {
   const [i, setI] = useState(0)
-  const [play, setPlay] = useState(false)
+  const [play, setPlay] = useState<'player' | 'show' | null>(null)
   const il = item.kind === 'lesson' && item.content.mode === 'interactive' ? asLesson(item.content.lesson) : null
   if (il) {
     const st = lessonStats(il)
     return (
       <div className="libpreview">
         <p><b>Bài giảng tương tác</b> · {st.blocks} khối nội dung · {st.interactive} khối tương tác · khoảng {st.minutes} phút{' '}
-          {st.blocks > 0 && <button type="button" className="linkbtn" onClick={() => setPlay(true)}><Icon n="eye" /> Xem như học sinh</button>}</p>
+          {st.blocks > 0 && <><button type="button" className="linkbtn" onClick={() => setPlay('player')}><Icon n="eye" /> Xem như học sinh</button>{' · '}
+            <button type="button" className="linkbtn" onClick={() => setPlay('show')}>▶ Trình chiếu</button></>}</p>
         <LessonOutline lesson={il} ct={item.program} />
-        {play && <LessonPlayer title={item.title} ct={item.program} lesson={il} onClose={() => setPlay(false)} />}
+        {play === 'player' && <LessonPlayer title={item.title} ct={item.program} lesson={il} onClose={() => setPlay(null)} />}
+        {play === 'show' && <LessonShow title={item.title} ct={item.program} lesson={il} onClose={() => setPlay(null)} />}
         <Versions item={item} canRestore={canRestore} onRestored={onRestored} />
       </div>
     )
@@ -167,7 +169,9 @@ export function ItemPreview({ item, all, canRestore, onRestored, onOpen }: { ite
         {(item.content.path || item.content.url) && <p><b>Tệp bài giảng:</b> {item.content.path
           ? <button type="button" className="linkbtn" onClick={() => openFile(item.content.path!)}>{item.content.file_name ?? 'Mở tệp'}{item.content.size ? ` (${fmtSize(item.content.size)})` : ''} ↗</button>
           : <a href={item.content.url} target="_blank" rel="noreferrer">{item.content.url}</a>}</p>}
+        {slides.length > 0 && <p><b>{slides.length} slide</b> <button type="button" className="linkbtn" onClick={() => setPlay('show')}>▶ Trình chiếu</button></p>}
         {slides.length > 0 && <SlideView slide={slides[i]} reveal />}
+        {play === 'show' && slides.length > 0 && <SlideShow slides={slides} start={i} title={item.title} onClose={() => setPlay(null)} />}
         {slides.length > 1 && (
           <div className="bar small">
             <button type="button" disabled={i === 0} onClick={() => setI(i - 1)}>← Trước</button>

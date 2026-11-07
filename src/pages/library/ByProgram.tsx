@@ -5,12 +5,12 @@ import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase, fetchAll } from '../../lib/supabase'
 import { SchoolPicker } from '../../components/SchoolPicker'
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
-import { useRowSel, SelTh, SelTd, SelBar, NameLink } from '../../components/TableSel'
+import { NameLink } from '../../components/TableSel'
 import { KIT, kitDone } from './common'
 import { kitOf } from './lesson/model'
 import { KIT_SEL, errMsg, type KitRow } from './lesson/save'
 import { CreateLesson, kitSubject } from './lesson/Create'
-import { LessonPage, useColsLocal } from './lesson/LessonPage'
+import { LessonPage } from './lesson/LessonPage'
 import { fmtGrades, progGrades } from '../../lib/eduLevels'
 import { downloadXlsx } from '../../lib/sheet'
 
@@ -121,7 +121,7 @@ export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; o
   const [pid, setPid] = useState<string | null>(null)
   const [subj, setSubj] = useState<string | null>(null)
   const [open, setOpen] = useState<{ id: string; edit?: boolean } | null>(null)
-  const [create, setCreate] = useState<{ preset?: { title: string; unitId: string } } | null>(null)
+  const [create, setCreate] = useState<{ subject: string; preset?: { title: string; unitId: string } } | null>(null)
   const [q, setQ] = useState('')
   const [msg, setMsg] = useState('')
   const [view, setView] = useViewMode('hoc-lieu-ct', 'cards')
@@ -130,12 +130,20 @@ export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; o
   const reload = () => { setTick(t => t + 1); onChanged?.() }
   const { progs, kits, rowsOf, subjectsOf, stat, progRefs } = useLessonData(orgId, tick)
 
+  // Xóa bộ học liệu của một bài (không xóa bài trong chương trình); quyền do CSDL kiểm tra
+  async function removeKit(k: KitRow) {
+    if (!confirm(`Xóa bộ học liệu “${k.title}”? Giáo án, bài giảng, học liệu đã tạo trong danh mục vẫn giữ nguyên.`)) return
+    const { data, error } = await supabase.from('library_items').delete().eq('id', k.id).select('id')
+    if (error) setMsg(errMsg(error.message))
+    else if (!data?.length) setMsg('Bạn không có quyền xóa bộ học liệu này.')
+    else { setMsg(`Đã xóa “${k.title}”.`); reload() }
+  }
   if (!orgId) return <p className="sub">Đang tải…</p>
   const prog = progs.find(p => p.id === pid)
   const crumbs = <nav className="crumbs lcrumbs" aria-label="Vị trí">
     <button type="button" className="linkbtn" onClick={() => { setPid(null); setSubj(null); setOpen(null) }}>Học liệu theo chương trình</button>
     {prog && <button type="button" className="linkbtn" onClick={() => { setSubj(null); setOpen(null) }}>{progName(prog)}</button>}
-    {prog && subj && <button type="button" className="linkbtn" onClick={() => setOpen(null)}>{subj}</button>}
+    {prog && subj && open && <span className="sub">› {subj}</span>}
     {open && <span className="sub">› {kits.find(k => k.id === open.id)?.title}</span>}
   </nav>
 
@@ -144,40 +152,34 @@ export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; o
     const r = rowsOf(prog, subj).find(x => x.kit?.id === open.id)
     return <>{crumbs}
       <LessonPage key={open.id} orgId={orgId} id={open.id} programs={progRefs} subjectsOf={subjectsOf} code={r?.code ?? ''} startEdit={open.edit}
-        onBack={() => setOpen(null)} onChanged={reload} /></>
+        onBack={() => { setOpen(null); setSubj(null) }} onChanged={reload} /></>
   }
-
-  // ----- Danh sách bài học của một môn -----
-  if (prog && subj) return <>{crumbs}
-    <LessonList key={prog.id + subj} prog={prog} subj={subj} rows={rowsOf(prog, subj)} msg={msg}
-      onBack={() => { setSubj(null); setMsg('') }} onOpen={(id, edit) => { setMsg(''); setOpen({ id, edit }) }} onCreate={preset => setCreate({ preset })}
-      onDeleted={m => { setMsg(m); reload() }} />
-    {create && <CreateLesson orgId={orgId} programs={progRefs} subjectsOf={subjectsOf} program={progRefs.find(p => p.id === prog.id)!} subject={subj}
-      preset={create.preset} kits={kits} onClose={() => setCreate(null)}
-      onCreated={(id, m) => { setCreate(null); setMsg(m); reload(); setOpen({ id }) }} />}
-  </>
 
   // ----- Danh sách môn của chương trình -----
   if (prog) {
     const subs = subjectsOf(prog.id)
     return <>{crumbs}
       <button type="button" className="ghostbtn" onClick={() => setPid(null)}>← Danh sách chương trình</button>
+      {msg && <p className="sub" role="status"><b>{msg}</b></p>}
+      {create && <CreateLesson orgId={orgId} programs={progRefs} subjectsOf={subjectsOf} program={progRefs.find(p => p.id === prog.id)!} subject={create.subject}
+        preset={create.preset} kits={kits} onClose={() => setCreate(null)}
+        onCreated={(id, m) => { const sj = create.subject; setCreate(null); setMsg(m); reload(); setSubj(sj); setOpen({ id }) }} />}
       <div className="lheadrow"><div><h2>{prog.title}</h2>
         <p className="sub">{[prog.code, grades(prog), `v${prog.version_no}`, PSTATUS[prog.status] ?? prog.status, `${subs.length} môn học`].filter(Boolean).join(' · ')}</p></div></div>
       {subs.map(s => {
         const rows = rowsOf(prog, s); const ks = rows.map(r => r.kit).filter(Boolean) as KitRow[]
         const isOpen = !closed.includes(s)
-        const go = (r: LRow) => { setSubj(s); if (r.kit) setOpen({ id: r.kit.id }); else if (r.unit) setCreate({ preset: { title: r.unit.title, unitId: r.unit.id } }) }
+        const go = (r: LRow, edit?: boolean) => { setMsg(''); if (r.kit) { setSubj(s); setOpen({ id: r.kit.id, edit }) } else if (r.unit) setCreate({ subject: s, preset: { title: r.unit.title, unitId: r.unit.id } }) }
         return <div key={s} className="ugroup" style={{ marginBottom: 12 }}>
           <div className="ughead" role="button" tabIndex={0} aria-expanded={isOpen} onClick={() => setClosed(isOpen ? [...closed, s] : closed.filter(x => x !== s))}
             onKeyDown={e => { if (e.key === 'Enter') setClosed(isOpen ? [...closed, s] : closed.filter(x => x !== s)) }}>
             <span className={'ugchev' + (isOpen ? ' on' : '')} aria-hidden="true">›</span><small>MÔN</small> <b>{s}</b>
             <small className="sub">{rows.length} bài · {ks.length} bộ học liệu · {ks.filter(k => kitDone(k.content) === KIT.length).length} chốt đủ 5 thẻ</small>
             <span className="ugbadge">Đã phát hành {ks.filter(k => k.status === 'published').length}/{rows.length}</span>
-            <button type="button" onClick={e => { e.stopPropagation(); setSubj(s) }}>Quản lý bài</button>
+            <button type="button" onClick={e => { e.stopPropagation(); setMsg(''); setCreate({ subject: s }) }}>+ Tạo bài học</button>
           </div>
           {isOpen && (rows.length === 0 ? <p className="sub" style={{ padding: '10px 16px', margin: 0 }}>Môn này chưa có bài học.</p> : <div className="wrap"><table className="libtable utable">
-            <thead><tr><th style={{ width: 40 }}>#</th><th>Bài học</th><th>Thời lượng</th><th>Bộ học liệu</th><th>Trạng thái</th></tr></thead>
+            <thead><tr><th style={{ width: 40 }}>#</th><th>Bài học</th><th>Thời lượng</th><th>Bộ học liệu</th><th>Trạng thái</th><th></th></tr></thead>
             <tbody>{rows.map((r, i) => {
               const k = kitOf(r.kit?.content.kit); const per = r.kit?.content.periods ?? r.unit?.periods
               return <tr key={r.key}>
@@ -186,6 +188,10 @@ export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; o
                 <td>{per ? `${per} tiết` : '—'}{r.kit && k.sessions.length > 0 && <><br /><small className="sub">{k.sessions.length} buổi</small></>}</td>
                 <td><KitDots k={r.kit} /></td>
                 <td>{r.kit ? <span className={'distchip2 ' + KSTATUS[r.kit.status][1]}>{KSTATUS[r.kit.status][0]}</span> : <small className="sub">Chưa tạo</small>}</td>
+                <td><span className="tools" style={{ flexWrap: 'nowrap', justifyContent: 'flex-end' }}>
+                  {r.kit ? <><button type="button" onClick={() => go(r, true)}>Sửa nội dung</button>
+                    <button type="button" className="danger" onClick={() => removeKit(r.kit!)}>Xóa</button></>
+                    : <button type="button" className="primary" onClick={() => go(r)}>+ Thêm nội dung</button>}</span></td>
               </tr>
             })}</tbody></table></div>)}
         </div>
@@ -221,51 +227,6 @@ export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; o
       </table></div>}
     </>
   )
-}
-
-function LessonList({ prog, subj, rows, msg, onBack, onOpen, onCreate, onDeleted }: {
-  prog: Prog; subj: string; rows: LRow[]; msg: string
-  onBack: () => void; onOpen: (kitId: string, edit?: boolean) => void; onCreate: (preset?: { title: string; unitId: string }) => void; onDeleted: (m: string) => void
-}) {
-  const sel = useRowSel(rows, r => r.key)
-  const { has, menu } = useColsLocal('lib.lessons.cols', [['dur', 'Thời lượng'], ['kit', 'Bộ học liệu'], ['status', 'Trạng thái']])
-  const withKit = rows.filter(r => r.kit).length
-  const go = (r: LRow, edit?: boolean) => (r.kit ? onOpen(r.kit.id, edit) : onCreate({ title: r.unit!.title, unitId: r.unit!.id }))
-  async function remove(r: LRow) {
-    if (!r.kit || !confirm(`Xóa bộ học liệu “${r.kit.title}”? Giáo án, bài giảng, học liệu đã tạo trong danh mục vẫn giữ nguyên.`)) return
-    const { error } = await supabase.from('library_items').delete().eq('id', r.kit.id)
-    if (error) alert(errMsg(error.message)); else { sel.clear(); onDeleted(`Đã xóa “${r.kit.title}”.`) }
-  }
-  return <>
-    <button type="button" className="ghostbtn" onClick={onBack}>← Danh sách môn học</button>
-    <div className="lheadrow">
-      <div><h2>{subj}</h2><p className="sub">{progName(prog)} · {withKit} bài đã có bộ học liệu</p></div>
-      <button type="button" className="primary" onClick={() => onCreate()}>+ Tạo bài học</button>
-    </div>
-    {msg && <p className="sub" role="status"><b>{msg}</b></p>}
-    <div className="panel">
-      <SelBar picked={sel.cur?.title ?? null} left={<h3 style={{ margin: 0 }}>Bài học</h3>}>
-        <small className="sub">Tick chọn dòng để thao tác</small>
-        <button type="button" disabled={!sel.cur} onClick={() => sel.cur && go(sel.cur, true)}>Sửa</button>
-        <button type="button" disabled={!sel.cur?.kit} onClick={() => sel.cur && remove(sel.cur)}>Xóa</button>
-        {menu}
-      </SelBar>
-      {rows.length === 0 ? <p className="sub">Môn này chưa có bài học. Bấm “+ Tạo bài học” để tạo bài đầu tiên.</p>
-        : <div className="wrap"><table className="libtable">
-          <thead><tr><SelTh /><th>Bài học</th>{has('dur') && <th>Thời lượng</th>}{has('kit') && <th>Bộ học liệu</th>}{has('status') && <th>Trạng thái</th>}</tr></thead>
-          <tbody>{rows.map(r => {
-            const k = kitOf(r.kit?.content.kit); const per = r.kit?.content.periods ?? r.unit?.periods
-            const src = k.source.docx ?? k.source.pptx ?? k.source.xlsx
-            return <tr key={r.key} className={sel.is(r) ? 'picked' : ''}>
-              <SelTd on={sel.is(r)} onToggle={() => sel.toggle(r)} label={r.title} />
-              <td><NameLink onClick={() => go(r)}>{r.title}</NameLink><br /><small className="sub">{[r.code, src].filter(Boolean).join(' · ')}</small></td>
-              {has('dur') && <td>{per ? `${per} tiết` : '—'}{r.kit && k.sessions.length > 0 && <><br /><small className="sub">{k.sessions.length} buổi</small></>}</td>}
-              {has('kit') && <td><KitDots k={r.kit} /></td>}
-              {has('status') && <td>{r.kit ? <span className={'distchip2 ' + KSTATUS[r.kit.status][1]}>{KSTATUS[r.kit.status][0]}</span> : <small className="sub">Chưa tạo</small>}</td>}
-            </tr>
-          })}</tbody></table></div>}
-    </div>
-  </>
 }
 
 // ===== Cần chuẩn bị theo chương trình / theo trường =====

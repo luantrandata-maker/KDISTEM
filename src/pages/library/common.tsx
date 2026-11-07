@@ -4,7 +4,7 @@ import { Icon } from '../../components/Icon'
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { openFile, fmtSize } from '../../lib/files'
-import { SlideView, KIND as SLIDE_KIND, type Slide, type SlideKind } from '../teacher/Lessons'
+import { SlideView, SlideShow, KIND as SLIDE_KIND, type Slide, type SlideKind } from '../teacher/Lessons'
 import { PROGRAM_COLOR } from '../teacher/common'
 import { PlanView, planOf } from './PlanEditor'
 import { Drawer } from '../../components/Drawer'
@@ -334,9 +334,10 @@ export function Versions({ item, canRestore, onRestored }: { item: Item; canRest
   )
 }
 
-// Soạn slide gọn cho bài giảng trong kho (cùng định dạng với trình soạn bài giảng của giáo viên)
+// Soạn slide gọn cho bài giảng trong kho (cùng định dạng với trình soạn bài giảng của giáo viên): sửa trực tiếp trên slide
 export function SlidesEditor({ slides, onChange }: { slides: Slide[]; onChange: (s: Slide[]) => void }) {
   const [sel, setSel] = useState(0)
+  const [show, setShow] = useState(false)
   const cur = slides[sel]
   const set = (p: Partial<Slide>) => onChange(slides.map((s, k) => k === sel ? { ...s, ...p } : s))
   const add = (kind: SlideKind) => {
@@ -354,29 +355,18 @@ export function SlidesEditor({ slides, onChange }: { slides: Slide[]; onChange: 
       </ol>
       {cur ? (
         <div className="slform">
-          <label className="field"><span>Tiêu đề</span><input value={cur.title} onChange={e => set({ title: e.target.value })} /></label>
-          {cur.kind !== 'media' && <label className="field"><span>Nội dung</span><textarea rows={4} value={cur.body ?? ''} onChange={e => set({ body: e.target.value })} /></label>}
-          {cur.kind === 'media' && <label className="field"><span>Đường dẫn video / hình</span><input value={cur.url ?? ''} onChange={e => set({ url: e.target.value })} placeholder="https://www.youtube.com/watch?v=…" /></label>}
-          {cur.kind === 'task' && <label className="field"><span>Thời gian (phút)</span><input type="number" min={1} value={cur.minutes ?? 10} onChange={e => set({ minutes: Number(e.target.value) })} /></label>}
-          {cur.kind === 'question' && (
-            <div className="field"><span>Phương án (chọn đáp án đúng)</span>
-              {(cur.options ?? []).map((o, k) => (
-                <div className="optrow" key={k}>
-                  <input type="radio" name={'ans' + cur.id} checked={cur.answer === k} onChange={() => set({ answer: k })} aria-label={`Đáp án ${String.fromCharCode(65 + k)} đúng`} />
-                  <input value={o} onChange={e => set({ options: (cur.options ?? []).map((x, j) => j === k ? e.target.value : x) })} placeholder={`Phương án ${String.fromCharCode(65 + k)}`} />
-                </div>
-              ))}
-              {(cur.options ?? []).length < 6 && <button type="button" className="linkbtn" onClick={() => set({ options: [...(cur.options ?? []), ''] })}>+ Thêm phương án</button>}
-            </div>
-          )}
-          <div className="actions">
+          <div className="sltools">
+            {cur.kind === 'task' && <label className="inl">Thời gian <input type="number" min={1} value={cur.minutes ?? 10} onChange={e => set({ minutes: Number(e.target.value) })} style={{ width: 64 }} /> phút</label>}
             <button type="button" disabled={sel === 0} onClick={() => { const s = [...slides]; [s[sel - 1], s[sel]] = [s[sel], s[sel - 1]]; onChange(s); setSel(sel - 1) }}>↑ Lên</button>
             <button type="button" disabled={sel >= slides.length - 1} onClick={() => { const s = [...slides]; [s[sel + 1], s[sel]] = [s[sel], s[sel + 1]]; onChange(s); setSel(sel + 1) }}>↓ Xuống</button>
             <button type="button" className="danger" onClick={() => { onChange(slides.filter((_, k) => k !== sel)); setSel(Math.max(0, sel - 1)) }}>Xoá slide</button>
+            <button type="button" className="primary" style={{ marginLeft: 'auto' }} onClick={() => setShow(true)}>▶ Trình chiếu</button>
           </div>
-          <SlideView slide={cur} reveal />
+          <SlideView slide={cur} reveal onEdit={set} />
+          <small className="sub">Bấm vào tiêu đề, nội dung hoặc phương án trên slide để sửa trực tiếp.</small>
         </div>
       ) : <p className="sub">Thêm slide đầu tiên ở cột bên trái.</p>}
+      {show && <SlideShow slides={slides} start={sel} onClose={() => setShow(false)} />}
     </div>
   )
 }

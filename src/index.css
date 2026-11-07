@@ -2299,10 +2299,10 @@ ul.slidebody{margin:0;padding-left:1.2em}ul.slidebody li{margin:0 0 6px}
 .slformat .slblk button{padding:1px 6px;min-width:0;border:0;background:none}.slformat .slblk button:disabled{opacity:.3}
 .segmented.needseg{margin:0;padding:3px}.segmented.needseg button{padding:6px 12px;white-space:nowrap}.tools.nowrap{flex-wrap:nowrap;white-space:nowrap}
 /* Phân hệ 1 và 2: bảng cao tối đa một màn hình (cuộn trong bảng), tiêu đề cố định, bấm tiêu đề để sắp xếp (lib/tableSort.ts) */
-.main:is([data-ph="1"],[data-ph="2"]) .wrap:has(>table:is(.libtable,.systable,.utable,.sdtable)){max-height:calc(100vh - 120px);overflow:auto}
-.main:is([data-ph="1"],[data-ph="2"]) .wrap>table:is(.libtable,.systable,.utable,.sdtable){overflow:clip}
-.main:is([data-ph="1"],[data-ph="2"]) .wrap>table:is(.libtable,.systable,.utable,.sdtable)>thead th{position:sticky;top:0;z-index:2;background:var(--soft)}
-.main:is([data-ph="1"],[data-ph="2"]) table:is(.libtable,.systable,.utable,.sdtable)>thead th{cursor:pointer;user-select:none}
+.main:is([data-ph="1"],[data-ph="2"]) .wrap:has(>table:not(.tkb,.yearplan,.sched,.pltkb,.weektkb)){max-height:calc(100vh - 120px);overflow:auto}
+.main:is([data-ph="1"],[data-ph="2"]) .wrap>table:not(.tkb,.yearplan,.sched,.pltkb,.weektkb){overflow:clip}
+.main:is([data-ph="1"],[data-ph="2"]) .wrap>table:not(.tkb,.yearplan,.sched,.pltkb,.weektkb)>thead th{position:sticky;top:0;z-index:2;background:var(--soft)}
+.main:is([data-ph="1"],[data-ph="2"]) table:not(.tkb,.yearplan,.sched,.pltkb,.weektkb)>thead th{cursor:pointer;user-select:none}
 .main:is([data-ph="1"],[data-ph="2"]) table>thead th:is(.sort-asc,.sort-desc){color:var(--text)}
 th.sort-asc::after{content:" ▲";font-size:10px}th.sort-desc::after{content:" ▼";font-size:10px}
 .statcards.c5{grid-template-columns:repeat(5,minmax(0,1fr))}

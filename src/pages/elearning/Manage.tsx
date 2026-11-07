@@ -33,8 +33,8 @@ export default function ElearningManage({ orgId }: { orgId: string | null }) {
   // Bộ lọc Tỉnh / trường dùng chung cho tab Đề luyện và Khoá học, để số trên thẻ chạy theo bộ lọc
   const ofl = useOrgFilter()
   return <>
-    <ElCards orgId={orgId} ofl={ofl} onOpen={t => setTab(t as 'exam' | 'course')} />
     <Tabs value={tab} onChange={setTab} items={[['course', 'Khoá học e-learning'], ['exam', 'Đề luyện'], ['hard', 'Câu hỏi khó'], ['review', 'Nội dung cần ôn'], ['bank', 'Ngân hàng câu hỏi']]} />
+    <ElCards orgId={orgId} ofl={ofl} onOpen={t => setTab(t as 'exam' | 'course')} />
     {tab === 'exam' ? <Exams orgId={orgId} ofl={ofl} /> : tab === 'course' ? <Courses orgId={orgId} ofl={ofl} /> : tab === 'hard' || tab === 'review' ? <Analytics key={tab} orgId={orgId} kind={tab} />
       : <QuestionBank orgId={orgId} />}
   </>

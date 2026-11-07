@@ -290,7 +290,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
 }
 
 // ================= Chi tiết một chương trình =================
-type Tab = 'info' | 'units' | 'versions' | 'assign'
+type Tab = 'info' | 'setup' | 'assign'
 function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
   id: string; orgId: string | null; mode: ProgMode; canEdit: boolean; isAdmin: boolean; onOpen: (id: string) => void; onClose: () => void
 }) {
@@ -313,7 +313,8 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
 
   const mine = p.org_id === orgId || !!every
   const editable = mine && canEdit && (p.status === 'draft' || p.status === 'rejected')
-  const tabs: [Tab, string][] = [['info', 'Thông tin'], ['versions', 'Phiên bản & duyệt'],
+  const scopeEditable = mine && canEdit && p.status === 'published' && mode !== 'school'
+  const tabs: [Tab, string][] = [['info', 'Thông tin'], ...(mine && canEdit ? [['setup', 'Thiết lập'] as [Tab, string]] : []),
     ...(mode !== 'school' && (mine || p.status === 'published' || p.status === 'superseded') ? [['assign', 'Gán & triển khai'] as [Tab, string]] : [])]
 
   async function openMkBook() {
@@ -375,9 +376,12 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
         {tabs.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      {tab === 'info' && <InfoTab p={p} editable={editable} onNewVersion={mine && canEdit && p.status === 'published' && !hid('version') ? newVersion : undefined} onGoAssign={tabs.some(t => t[0] === 'assign') ? () => setTab('assign') : undefined} onDelete={editable ? removeDraft : undefined} scopeEditable={mine && canEdit && p.status === 'published' && mode !== 'school'} reqEditable={mine && canEdit} mode={mode} comps={comps} onSaved={m => { setMsg([m, false]); load() }} onError={m => setMsg([m, true])} />}
-      {tab === 'info' && <UnitsTab p={p} editable={editable} comps={comps} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
-      {tab === 'versions' && <VersionsTab p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
+      {(tab === 'info' || tab === 'setup') && <InfoTab key={tab} p={p} editable={editable} forceEdit={tab === 'setup'} onEdit={() => setTab('setup')} onBack={() => setTab('info')}
+        onNewVersion={tab === 'info' && mine && canEdit && p.status === 'published' && !hid('version') ? newVersion : undefined} onGoAssign={tabs.some(t => t[0] === 'assign') ? () => setTab('assign') : undefined}
+        onDelete={editable ? removeDraft : undefined} scopeEditable={scopeEditable} reqEditable={mine && canEdit} mode={mode} comps={comps} onSaved={m => { setMsg([m, false]); load() }} onError={m => setMsg([m, true])} />}
+      {(tab === 'info' || tab === 'setup') && <UnitsTab key={'u' + tab} p={p} editable={tab === 'setup' && editable} comps={comps} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
+      {tab === 'info' && <div className="panel ustruct"><h4 style={{ margin: 0, display: 'flex', gap: 8, alignItems: 'center' }}><Icon n="layers" size={18} /> Phiên bản & duyệt</h4>
+        <VersionsTab p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} hideNew onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} /></div>}
       {tab === 'assign' && <AssignTab p={p} orgId={orgId} mine={mine} onMessage={(m, e) => setMsg([m, !!e])} />}
     </>
   )
@@ -392,11 +396,13 @@ type InfoProps = {
   onSaved: (m: string, newId?: string) => void; onError: (m: string) => void; onDelete?: () => void; onGoAssign?: () => void; onCancel?: () => void
   /** Chương trình đã phát hành: nút Tạo phiên bản mới trên thẻ thông tin */
   onNewVersion?: () => void
+  /** Tab Thiết lập: luôn hiện form; tab Thông tin: thẻ chỉ xem, bấm Sửa / Điều chỉnh thì sang tab Thiết lập */
+  forceEdit?: boolean; onEdit?: () => void; onBack?: () => void
 }
-function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, orgId, pickedSchool, onOrg, onSaved, onError, onDelete, onGoAssign, onCancel, onNewVersion }: InfoProps) {
+function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, orgId, pickedSchool, onOrg, onSaved, onError, onDelete, onGoAssign, onCancel, onNewVersion, forceEdit, onEdit, onBack }: InfoProps) {
   const [f, setF] = useState<Partial<Program>>(p)
   // Chương trình đã có: mặc định xem dạng thẻ; bấm Sửa mới mở form
-  const [editing, setEditing] = useState(!!isNew)
+  const editing = !!isNew || !!forceEdit
   const [lessonN, setLessonN] = useState<number | null>(null)
   useEffect(() => { if (p.id) supabase.from('edu_program_units').select('id', { count: 'exact', head: true }).eq('program_id', p.id).in('unit_type', ['lesson', 'session']).then(({ count }) => setLessonN(count ?? 0)) }, [p.id, p.updated_at])
   const { byCode: tracks, allCodes: CT } = useStemTracks()
@@ -485,7 +491,6 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
       setReqs0(reqs)
     }
     setBusy(false)
-    if (!isNew) setEditing(false)
     onSaved(isNew ? 'Đã tạo chương trình nháp.' : 'Đã lưu chương trình.', isNew ? id : undefined)
   }
 
@@ -494,7 +499,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
     const q = p as Program
     const mains = mainsOf(q), integs = q.integrated_subjects ?? []
     const nameOf = (list: { key?: string; id?: string; name?: string; title?: string }[], k: string) => { const x = list.find(o => (o.key ?? o.id) === k); return x?.name ?? x?.title ?? k }
-    const edit = () => { setF(p); setReqs(reqs0); setEditing(true) }
+    const edit = () => onEdit?.()
     return <div className="panel pview">
       <div className="pviewhead">
         <h4><Icon n="help" size={18} /> Thông tin chương trình</h4>
@@ -544,7 +549,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
     </div>
   }
   return <form className="panel pform" onSubmit={save}>
-    {!isNew && !editable && <p className="sub" style={{ margin: 0 }}>{p.status === 'draft' || p.status === 'rejected' ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình đã gửi duyệt hoặc phát hành: nội dung không sửa được (tạo phiên bản mới ở tab "Phiên bản & duyệt"). Phạm vi, hiệu lực và yêu cầu năng lực giáo viên vẫn sửa được.'}</p>}
+    {!isNew && !editable && <p className="sub" style={{ margin: 0 }}>{p.status === 'draft' || p.status === 'rejected' ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình đã gửi duyệt hoặc phát hành: nội dung không sửa được (tạo phiên bản mới ở tab "Thông tin"). Phạm vi, hiệu lực và yêu cầu năng lực giáo viên vẫn sửa được.'}</p>}
     <div className="pgrid">
       <label className="field" style={S(6)}><span>Đơn vị xây dựng <small className="sub">(nơi biên soạn nội dung)</small></span>
         <input list="edu-builders" maxLength={200} disabled={!scopeEdit} value={f.builder ?? ''} onChange={e => pickBuilder(e.target.value)} placeholder="KDI Education, Sở GD&ĐT…, Trường…" />
@@ -610,7 +615,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
     {(canSave || onDelete || onCancel) && <div className="formactions">
       {canSave && <button className="primary" type="submit" disabled={busy}>{busy ? 'Đang lưu…' : isNew ? 'Tạo bản nháp' : 'Lưu'}</button>}
       {onCancel && <button type="button" onClick={onCancel}>Huỷ</button>}
-      {!isNew && <button type="button" onClick={() => { setF(p); setReqs(reqs0); setEditing(false) }}>Huỷ</button>}
+      {!isNew && <button type="button" onClick={() => { setF(p); setReqs(reqs0); onBack?.() }}>Huỷ</button>}
       {onDelete && <button type="button" className="danger" onClick={onDelete}>Xoá bản nháp</button>}
     </div>}
   </form>
@@ -1023,8 +1028,8 @@ function isDesc(all: Unit[], u: Unit, ancestor: string): boolean {
 }
 
 // ----- Phiên bản & duyệt -----
-function VersionsTab({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMessage }: {
-  p: Program; mine: boolean; canEdit: boolean; mode: ProgMode; isAdmin: boolean; onOpen: (id: string) => void; onChanged: () => void
+function VersionsTab({ p, mine, canEdit, mode, isAdmin, hideNew, onOpen, onChanged, onMessage }: {
+  p: Program; mine: boolean; canEdit: boolean; mode: ProgMode; isAdmin: boolean; hideNew?: boolean; onOpen: (id: string) => void; onChanged: () => void
   onMessage: (m: string, err?: boolean) => void
 }) {
   const hid = useHiddenBtn()
@@ -1083,7 +1088,7 @@ function VersionsTab({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMes
           {p.status === 'pending' && !canAct && <small className="sub">Đang chờ duyệt ở Hộp phê duyệt.</small>}
           {can && p.status === 'approved' && <button className="primary" disabled={busy} onClick={() => setStatus('published', 'Ghi chú phát hành (không bắt buộc):')}>Phát hành</button>}
           {can && p.status === 'approved' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại để sửa</button>}
-          {can && p.status === 'published' && !hid('version') && <button className="primary" disabled={busy} onClick={newVersion}>Tạo phiên bản mới</button>}
+          {can && p.status === 'published' && !hid('version') && !hideNew && <button className="primary" disabled={busy} onClick={newVersion}>Tạo phiên bản mới</button>}
           {can && ['published', 'superseded', 'draft', 'rejected', 'approved'].includes(p.status) && <button disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Đơn vị khác không còn thấy bản ngừng dùng.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng</button>}
           {can && p.status === 'archived' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại thành nháp</button>}
         </div>

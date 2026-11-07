@@ -10,7 +10,7 @@ import { supabase } from '../../lib/supabase'
 import { TProps, NoTeacher, PROGRAM_COLOR, Tabs, handoff, useMyClasses } from './common'
 import { ACT, ACT_KINDS, STARTER, ActivityPlayer, ContentEditor, countItems, unitOf, toPlayable, emptyAnswers, answered,
   ACT_GROUP, actGroup, activityToBlock, type ActGroup, type ActKind, type Activity, type Grade } from './activity'
-import { asLesson, lessonStats, LessonOutline, LessonPlayer, emptyLesson, INTERACTION, type ILesson } from '../../lib/lessonBlocks'
+import { asLesson, lessonStats, LessonOutline, LessonPlayer, LessonShow, emptyLesson, INTERACTION, type ILesson } from '../../lib/lessonBlocks'
 import { SIMS, type SimModel } from '../../lib/sims'
 import { RaceGame } from '../../lib/games'
 import '../../styles/activities.css'
@@ -510,7 +510,7 @@ function LessonModal({ l, teacherId, go, onClose, onAssign }: { l: LessonLite; t
   useEsc(onClose)
   const classes = useMyClasses(teacherId)
   const [cls, setCls] = useState('')
-  const [preview, setPreview] = useState(false)
+  const [preview, setPreview] = useState<false | 'player' | 'show'>(false)
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
   const lesson = asLesson(l.lesson)
@@ -561,12 +561,14 @@ function LessonModal({ l, teacherId, go, onClose, onAssign }: { l: LessonLite; t
           </span>
           <span className="tools">
             <button onClick={onAssign}>Giao học trước</button>
-            <button onClick={() => lesson ? setPreview(true) : setMsg('Bài giảng chưa có nội dung tương tác để xem như học sinh.')}><Icon n="eye" /> Xem trước như học sinh</button>
+            <button onClick={() => lesson ? setPreview('player') : setMsg('Bài giảng chưa có nội dung tương tác để xem như học sinh.')}><Icon n="eye" /> Xem trước như học sinh</button>
+            {lesson && <button onClick={() => setPreview('show')}>▶ Trình chiếu</button>}
             <button className="primary violet" onClick={useTemplate} disabled={busy}>✦ Dùng mẫu</button>
           </span>
         </div>
       </div>
-      {preview && lesson && <div onClick={e => e.stopPropagation()}><LessonPlayer title={l.title} ct={l.program} sub={[l.subject, l.grades && 'Khối ' + l.grades].filter(Boolean).join(' · ')} lesson={lesson} onClose={() => setPreview(false)} /></div>}
+      {preview === 'show' && lesson && <div onClick={e => e.stopPropagation()}><LessonShow title={l.title} ct={l.program} lesson={lesson} onClose={() => setPreview(false)} /></div>}
+      {preview === 'player' && lesson && <div onClick={e => e.stopPropagation()}><LessonPlayer title={l.title} ct={l.program} sub={[l.subject, l.grades && 'Khối ' + l.grades].filter(Boolean).join(' · ')} lesson={lesson} onClose={() => setPreview(false)} /></div>}
     </div>
   )
 }

@@ -2287,3 +2287,7 @@ ul.slidebody{margin:0;padding-left:1.2em}ul.slidebody li{margin:0 0 6px}
 .slcolor{display:flex;gap:4px;align-items:center;font-size:12px}.slcolor input{width:28px;height:24px;padding:0;border:0;background:none}
 .slurl{flex:1;min-width:200px}
 @media(max-width:700px){.slcols,.sltwo{grid-template-columns:1fr}}
+
+/* Thẻ bộ học liệu: trạng thái + Cập nhật / Chốt nội dung ở góc trên */
+.lcardacts{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+@media(max-width:700px){.lcardhead{flex-wrap:wrap}.lcardacts{width:100%;justify-content:flex-start}}

@@ -213,7 +213,14 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
           <div><b>{card.title}</b><small className="sub">{card.desc}</small>
             <small className="lcsv"><button type="button" className="linkbtn" onClick={() => downloadText(`Mau-the-${card.no}-${row.title.slice(0, 30)}.csv`, cardCsv(tab, row.title))}>Tải mẫu CSV</button>
               {' · '}{pick('.csv,.xlsx', 'Tải CSV lên', f => upload(f, tab), 'linkbtn')}</small></div>
-          <Chip tone={on ? 'good' : 'warn'}>{on ? 'Đã chốt' : 'Cần kiểm tra'}</Chip>
+          <div className="lcardacts">
+            <Chip tone={on ? 'good' : 'warn'}>{on ? 'Đã chốt' : 'Cần kiểm tra'}</Chip>
+            {edit === tab
+            ? <><button type="button" onClick={cancel} disabled={!!busy}>Hủy</button><button type="button" className="primary" onClick={save} disabled={!!busy}>Lưu</button></>
+            : <><button type="button" onClick={() => begin(tab)} disabled={!!busy || !!edit}>✎ Cập nhật</button>
+              {on ? <button type="button" onClick={() => unchot(tab)} disabled={!!busy || !!edit}>Bỏ chốt</button>
+                : <button type="button" className="primary" onClick={() => chot(tab)} disabled={!!busy || !!edit}>✓ Chốt nội dung</button>}</>}
+          </div>
         </header>
         <div className="lcardbody">
           {tab === 'info' && (edit === 'info' && draft && fields
@@ -237,13 +244,10 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
               }} />
             : <BankView bank={kit.bank} acts={acts} />)}
         </div>
-        <footer className="lcardfoot">
-          {edit === tab
-            ? <><button type="button" onClick={cancel} disabled={!!busy}>Hủy</button><button type="button" className="primary" onClick={save} disabled={!!busy}>Lưu</button></>
-            : <><button type="button" onClick={() => begin(tab)} disabled={!!busy || !!edit}>✎ Cập nhật</button>
-              {on ? <button type="button" onClick={() => unchot(tab)} disabled={!!busy || !!edit}>Bỏ chốt</button>
-                : <button type="button" className="primary" onClick={() => chot(tab)} disabled={!!busy || !!edit}>✓ Chốt nội dung</button>}</>}
-        </footer>
+        {/* Đang sửa thẻ dài: nhắc lại Hủy / Lưu ở cuối thẻ */}
+        {edit === tab && <footer className="lcardfoot">
+          <button type="button" onClick={cancel} disabled={!!busy}>Hủy</button><button type="button" className="primary" onClick={save} disabled={!!busy}>Lưu</button>
+        </footer>}
       </section>
 
 

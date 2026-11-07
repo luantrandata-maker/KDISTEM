@@ -2219,3 +2219,11 @@ tr.distyear td{background:var(--surface-2,var(--surface));border-top:2px solid v
 .pvstats b{font-size:18px;color:var(--text);margin-right:2px}
 .pview .psec{margin:0;padding-top:12px;border-top:1px solid var(--line);display:flex;gap:8px;align-items:center;font-size:15px}
 @media(max-width:600px){.pvi{grid-column:1/-1 !important}}
+/* Thẻ tổng hợp Phân hệ 1, 2: cùng cỡ với thẻ quy trình ở Chương trình giáo dục */
+.statcards,.diststatcards{gap:8px}
+.main .statcards .panel,.main .statcards button.panel,.main .diststatcards .panel{padding:10px 12px;min-height:56px;border-radius:12px;gap:10px;align-items:center}
+.statcards i,.diststatcards i{width:30px;height:30px;border-radius:50%;font-size:14px}
+.statcards i svg,.diststatcards i svg{width:16px;height:16px}
+.statcards span,.diststatcards span{line-height:1.3}
+.statcards b,.diststatcards b{font-size:16px;line-height:1.2}
+.statcards small,.diststatcards small{font-size:12px}.statcards small+small,.diststatcards small+small{font-size:11px}

@@ -17,7 +17,7 @@ export type Stat = {
 
 /** nav: bấm thẻ để mở tab / mục tương ứng (không giữ trạng thái lọc) */
 export function StatCards({ items, active, onPick, nav }: { items: Stat[]; active?: string | null; onPick?: (k: string | null) => void; nav?: boolean }) {
-  const cols = Math.min(4, Math.max(1, items.length))
+  const cols = Math.min(5, Math.max(1, items.length))
   return (
     <div className={`statcards c${cols}`}>
       {items.map((s, i) => {

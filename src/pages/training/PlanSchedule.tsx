@@ -3,6 +3,7 @@
 // (ngày bắt đầu hoặc nối tiếp chương trình trước, giờ vào học, số giờ mỗi ngày, giờ nghỉ trưa, bỏ thứ Bảy / Chủ nhật) rồi sửa tay từng buổi.
 // Hình thức "Kết hợp" của chương trình: mỗi buổi lấy hình thức của nội dung đào tạo (chưa đặt thì Trực tiếp).
 // Lưu vào training_sessions (giữ buổi đã chốt điểm danh).
+// Giảng viên từng buổi: chương trình trong kế hoạch có 1 giảng viên thì tự điền vào mọi buổi; có nhiều giảng viên thì chọn cho từng buổi (một buổi được nhiều giảng viên).
 // Ngày nghỉ (lịch chuẩn chung + ngày nghỉ của đơn vị): xếp tự động bỏ qua, buổi rơi vào ngày nghỉ được cảnh báo ở bảng, lịch và phần kiểm tra.
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -10,19 +11,22 @@ import { Chip } from '../dist/Editor'
 import { colorOf } from '../dist/Grid'
 import { TimeGrid } from '../../components/TimeGrid'
 import { useHolidays } from '../../lib/holidays'
+import { MultiSelect } from '../../components/MultiSelect'
+import { TrainerPick, useTrainers, trainerName } from './Trainers'
 
 type Mode = 'online' | 'offline'
 export type SUnit = { id: string; title: string; hours: number; mode?: Mode | null }
 export type SProg = { id: string; code: string; title: string; ct_code: string | null; subjects: (SUnit & { contents: SUnit[] })[] }
 export type SItem = { program_id: string; seq: number; units?: string[] | null; trainer?: string | null; trainer_ids?: string[]; assistant_ids?: string[] }
 export type SPlan = { id: string; org_id: string; mode: string; starts_on: string | null; ends_on: string | null }
-type Sess = { id: string; unit_id: string | null; title: string; starts_at: string; ends_at: string; mode: Mode; location: string | null; meeting_url: string | null; closed_at: string | null }
+type Sess = { id: string; unit_id: string | null; title: string; starts_at: string; ends_at: string; mode: Mode; location: string | null; meeting_url: string | null; closed_at: string | null; trainer_ids?: string[] | null }
 export type Row = { unit_id: string; program_id: string; subj: string; title: string; hours: number; date: string; from: string; to: string
-  mode: Mode; location: string; url: string; sid?: string; locked: boolean }
+  mode: Mode; location: string; url: string; sid?: string; locked: boolean; trainers: string[] }
 type CMode = Mode | 'hybrid'
 type Cfg = { start: string; time: string; perDay: number; lunch: boolean; lunchFrom: string; lunchTo: string; skipSat: boolean; skipSun: boolean; skipHol: boolean; mode: CMode; location: string; url: string }
 
-const SSEL = 'id, unit_id, title, starts_at, ends_at, mode, location, meeting_url, closed_at'
+const SSEL = 'id, unit_id, title, starts_at, ends_at, mode, location, meeting_url, closed_at, trainer_ids'
+const sameIds = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x))
 const pad = (n: number) => String(n).padStart(2, '0')
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 const hhmm = (min: number) => `${pad(Math.floor(min / 60))}:${pad(min % 60)}`
@@ -64,11 +68,14 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
   // Dòng xếp lịch: lấy từ buổi đã lưu, nội dung chưa có buổi thì để trống
   useEffect(() => {
     if (!sess) return
-    setRows(list.map(({ p, subj, u }) => {
+    setRows(list.map(({ p, it, subj, u }) => {
       const s = sess.find(x => x.unit_id === u.id)
+      const tIds = it.trainer_ids ?? [], saved = s?.trainer_ids ?? []
+      // Một giảng viên: tự điền khi buổi chưa có giảng viên; nhiều giảng viên: giữ lựa chọn của buổi
+      const trainers = saved.length ? saved : tIds.length === 1 ? [...tIds] : []
       const a = s ? new Date(s.starts_at) : null, b = s ? new Date(s.ends_at) : null
       return { unit_id: u.id, program_id: p.id, subj, title: u.title, hours: u.hours, date: a ? ymd(a) : '', from: a ? hhmm(a.getHours() * 60 + a.getMinutes()) : '',
-        to: b ? hhmm(b.getHours() * 60 + b.getMinutes()) : '', mode: s?.mode ?? u.mode ?? defMode, location: s?.location ?? '', url: s?.meeting_url ?? '', sid: s?.id, locked: !!s?.closed_at }
+        to: b ? hhmm(b.getHours() * 60 + b.getMinutes()) : '', mode: s?.mode ?? u.mode ?? defMode, location: s?.location ?? '', url: s?.meeting_url ?? '', sid: s?.id, locked: !!s?.closed_at, trainers }
     }))
     setDirty(false)
   }, [sess, list])
@@ -128,18 +135,18 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
         continue
       }
       if (mins(r.to) <= mins(r.from)) return `Buổi "${r.title}": giờ kết thúc phải sau giờ bắt đầu.`
-      const v = { starts_at: at(r.date, r.from), ends_at: at(r.date, r.to), mode: r.mode, location: r.location.trim() || null, meeting_url: r.url.trim() || null }
+      const v = { starts_at: at(r.date, r.from), ends_at: at(r.date, r.to), mode: r.mode, location: r.location.trim() || null, meeting_url: r.url.trim() || null, trainer_ids: r.trainers }
       if (v.meeting_url && !/^https?:\/\//i.test(v.meeting_url)) return `Buổi "${r.title}": link họp phải bắt đầu bằng http:// hoặc https://`
       if (s) {
         const same = +new Date(s.starts_at) === +new Date(v.starts_at) && +new Date(s.ends_at) === +new Date(v.ends_at) && s.mode === v.mode
-          && (s.location ?? null) === v.location && (s.meeting_url ?? null) === v.meeting_url
+          && (s.location ?? null) === v.location && (s.meeting_url ?? null) === v.meeting_url && sameIds(s.trainer_ids ?? [], r.trainers)
         if (same) continue
         const { error } = await supabase.from('training_sessions').update(v).eq('id', s.id)
         if (error) return `Buổi "${r.title}": ${error.message}`
       } else {
         const it = items.find(i => i.program_id === r.program_id)
         const { error } = await supabase.from('training_sessions').insert({ ...v, org_id: plan.org_id, plan_id: plan.id, unit_id: r.unit_id, title: r.title,
-          trainer_ids: it?.trainer_ids ?? [], trainer: it?.trainer_ids?.length ? null : it?.trainer ?? null, assistant_ids: it?.assistant_ids ?? [] })
+          trainer: r.trainers.length || it?.trainer_ids?.length ? null : it?.trainer ?? null, assistant_ids: it?.assistant_ids ?? [] })
         if (error) return `Buổi "${r.title}": ${error.message}`
       }
     }
@@ -151,7 +158,8 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
     return null
   }
   const reset = () => setRk(k => k + 1)
-  return { loaded: !!sess, rows, order, cfgOf, setCfg, setRow, auto, save, reset, dirty, progs, hol }
+  const trainersOf = (pid: string) => items.find(i => i.program_id === pid)?.trainer_ids ?? []
+  return { loaded: !!sess, rows, order, cfgOf, setCfg, setRow, auto, save, reset, dirty, progs, hol, trainersOf }
 }
 export type Schedule = ReturnType<typeof useSchedule>
 
@@ -173,6 +181,8 @@ export function checks(s: Schedule, plan: SPlan) {
   if (onHol.length) out.push({ level: 'warn', text: `${onHol.length} buổi rơi vào ngày nghỉ: ${[...new Set(onHol.map(r => `${vnDay(r.date)} (${s.hol.holName(r.date)})`))].slice(0, 4).join('; ')}${onHol.length > 4 ? '…' : ''}` })
   const noLoc = done.filter(r => r.mode === 'offline' && !r.location.trim())
   if (noLoc.length) out.push({ level: 'warn', text: `${noLoc.length} buổi trực tiếp chưa có địa điểm` })
+  const noT = done.filter(r => !r.trainers.length && s.trainersOf(r.program_id).length > 1)
+  if (noT.length) out.push({ level: 'warn', text: `${noT.length} buổi chưa chọn giảng viên: ${noT.slice(0, 4).map(r => r.title).join('; ')}${noT.length > 4 ? '…' : ''}` })
   const noUrl = done.filter(r => r.mode === 'online' && !r.url.trim())
   if (noUrl.length) out.push({ level: 'warn', text: `${noUrl.length} buổi trực tuyến chưa có link họp` })
   return out
@@ -183,18 +193,22 @@ const progName = (p: SProg | undefined) => p ? (p.code ? p.code + ' · ' : '') +
 // ===== Bước 2: Xếp lịch =====
 export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPlan; edit: boolean; onNext: () => void }) {
   const [open, setOpen] = useState<Set<string>>(new Set(s.order.slice(0, 1)))
+  const names = useTrainerNames(plan.org_id)
   if (!s.loaded) return <p className="sub">Đang tải…</p>
   if (!s.order.length) return <p className="sub">Chọn chương trình đào tạo ở bước 1 trước.</p>
   return <>
     <div className="distcards tpcards">{s.order.map((pid, k) => {
-      const p = s.progs.find(x => x.id === pid), c = s.cfgOf(pid, k)
+      const p = s.progs.find(x => x.id === pid), c = s.cfgOf(pid, k), tIds = s.trainersOf
       const mine = s.rows.filter(r => r.program_id === pid), done = mine.filter(r => r.date)
       const ds = done.map(r => r.date).sort(), hours = mine.reduce((a, r) => a + r.hours, 0)
       const shut = !open.has(pid)
       const subjs = [...new Set(mine.map(r => r.subj))]
       return <div key={pid} className="distcard" style={{ borderTopColor: colorOf(k) }}>
         <div className="distcardhead"><i style={{ background: colorOf(k) }} />{p?.ct_code && <Chip tone="ct">{p.ct_code}</Chip>}<b>{progName(p)}</b></div>
-        <small className="sub">{mine.length} nội dung · {num(hours)} giờ</small>
+        <small className="sub">{mine.length} nội dung · {num(hours)} giờ · Giảng viên: {tIds(pid).length ? tIds(pid).map(names.name).join(', ') : 'chưa chọn ở bước 1'}
+          {tIds(pid).length > 1 && ' — chọn giảng viên cho từng buổi ở danh sách bên dưới'}</small>
+        {edit && tIds(pid).length > 1 && <div className="tools"><button type="button" onClick={() => mine.filter(r => !r.locked).forEach(r => s.setRow(r.unit_id, { trainers: [...tIds(pid)] }))}>Gán tất cả giảng viên cho mọi buổi</button>
+          <button type="button" onClick={() => mine.filter(r => !r.locked).forEach(r => s.setRow(r.unit_id, { trainers: [] }))}>Bỏ chọn giảng viên</button></div>}
         {edit && <><div className="distcardrow tpschedcfg">
           <label className="field"><span>Bắt đầu</span><select value={c.start === 'after' ? 'after' : 'date'} onChange={e => s.setCfg(pid, k, { start: e.target.value === 'after' ? 'after' : plan.starts_on || nextMonday() })}>
             <option value="date">Từ ngày…</option>{k > 0 && <option value="after">Nối tiếp chương trình trước</option>}</select></label>
@@ -224,9 +238,9 @@ export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPl
         <button type="button" className="linkbtn" aria-expanded={!shut} onClick={() => setOpen(o => { const n = new Set(o); if (shut) n.add(pid); else n.delete(pid); return n })}>
           {shut ? '▸ Xem và sửa từng buổi' : '▾ Thu gọn danh sách buổi'}</button>
         {!shut && <div className="wrap"><table className="libtable tpschedtable">
-          <thead><tr><th style={{ width: 36 }}>#</th><th>Nội dung đào tạo</th><th style={{ width: 150 }}>Ngày học</th><th style={{ width: 200 }}>Thời gian</th><th style={{ width: 130 }}>Hình thức</th><th>Địa điểm / link họp</th></tr></thead>
+          <thead><tr><th style={{ width: 36 }}>#</th><th>Nội dung đào tạo</th><th style={{ width: 150 }}>Ngày học</th><th style={{ width: 200 }}>Thời gian</th><th style={{ width: 130 }}>Hình thức</th><th>Địa điểm / link họp</th><th style={{ width: 220 }}>Giảng viên</th></tr></thead>
           <tbody>{subjs.map(sj => <Fragment key={sj}>
-            <tr className="distgsubj"><th colSpan={6}><b>{sj}</b></th></tr>
+            <tr className="distgsubj"><th colSpan={7}><b>{sj}</b></th></tr>
             {mine.filter(r => r.subj === sj).map((r, j) => {
               const ro = !edit || r.locked, hn = s.hol.holName(r.date)
               return <tr key={r.unit_id}>
@@ -243,6 +257,10 @@ export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPl
                   : r.mode === 'online' ? <input value={r.url} placeholder="https://…" aria-label="Link họp" onChange={e => s.setRow(r.unit_id, { url: e.target.value })} style={{ width: '100%' }} />
                   : <input value={r.location} placeholder="Địa điểm" aria-label="Địa điểm" onChange={e => s.setRow(r.unit_id, { location: e.target.value })} style={{ width: '100%' }} />}
                   {!ro && r.date && <button type="button" className="linkbtn" onClick={() => s.setRow(r.unit_id, { date: '', from: '', to: '' })}>Bỏ lịch</button>}</td>
+                <td style={{ whiteSpace: 'normal', minWidth: 200 }}>{ro ? (r.trainers.length ? r.trainers.map(names.name).join(', ') : '—')
+                  : tIds(pid).length > 1 ? <MultiSelect value={r.trainers} onChange={v => s.setRow(r.unit_id, { trainers: v })} ariaLabel={'Giảng viên buổi ' + r.title}
+                      placeholder="Chọn giảng viên…" options={tIds(pid).map(id => ({ value: id, label: names.name(id) }))} empty="Chưa có giảng viên" />
+                  : <TrainerPick orgId={plan.org_id} value={r.trainers} ariaLabel={'Giảng viên buổi ' + r.title} onChange={v => s.setRow(r.unit_id, { trainers: v })} />}</td>
               </tr>
             })}
           </Fragment>)}</tbody>
@@ -326,6 +344,7 @@ export function DayGrid({ s }: { s: Schedule }) {
 // ===== Bước 3: Xem kết quả =====
 export function ResultStep({ s, plan }: { s: Schedule; plan: SPlan }) {
   const [view, setView] = useState<'table' | 'cal'>('table')
+  const names = useTrainerNames(plan.org_id)
   if (!s.loaded) return <p className="sub">Đang tải…</p>
   const done = s.rows.filter(r => r.date && r.from).sort((a, b) => (a.date + a.from).localeCompare(b.date + b.from))
   const days = [...new Set(done.map(r => r.date))]
@@ -348,18 +367,26 @@ export function ResultStep({ s, plan }: { s: Schedule; plan: SPlan }) {
       <button type="button" className={view === 'cal' ? 'on' : ''} aria-pressed={view === 'cal'} onClick={() => setView('cal')}>Lịch</button></div>
       {s.dirty && <Chip tone="warn">Có thay đổi chưa lưu</Chip>}</div>
     {view === 'cal' ? <ScheduleView s={s} /> : <div className="wrap"><table className="libtable disttable">
-      <thead><tr><th style={{ width: 130 }}>Thời gian</th><th>Nội dung đào tạo</th><th>Chương trình · môn</th><th style={{ width: 110 }}>Hình thức</th><th>Địa điểm / link họp</th></tr></thead>
+      <thead><tr><th style={{ width: 130 }}>Thời gian</th><th>Nội dung đào tạo</th><th>Chương trình · môn</th><th style={{ width: 110 }}>Hình thức</th><th>Địa điểm / link họp</th><th>Giảng viên</th></tr></thead>
       <tbody>{days.map(d => <Fragment key={d}>
-        <tr className="distgprog"><th colSpan={5}><b>{vnDay(d)}</b>/{d.slice(0, 4)} {s.hol.holName(d) && <Chip tone="bad">⚠ Ngày nghỉ: {s.hol.holName(d)}</Chip>} <small className="sub">{done.filter(r => r.date === d).length} buổi · {num(done.filter(r => r.date === d).reduce((a, r) => a + r.hours, 0))} giờ</small></th></tr>
+        <tr className="distgprog"><th colSpan={6}><b>{vnDay(d)}</b>/{d.slice(0, 4)} {s.hol.holName(d) && <Chip tone="bad">⚠ Ngày nghỉ: {s.hol.holName(d)}</Chip>} <small className="sub">{done.filter(r => r.date === d).length} buổi · {num(done.filter(r => r.date === d).reduce((a, r) => a + r.hours, 0))} giờ</small></th></tr>
         {done.filter(r => r.date === d).map(r => <tr key={r.unit_id}>
           <td>{r.from}–{r.to}</td>
           <td style={{ whiteSpace: 'normal' }}><i className="tpdot" style={{ background: colorOf(pIdx(r.program_id)) }} />{r.title}</td>
           <td style={{ whiteSpace: 'normal' }}><small>{s.progs.find(p => p.id === r.program_id)?.code} · {r.subj}</small></td>
           <td>{MODE[r.mode]}</td>
           <td style={{ whiteSpace: 'normal' }}>{(r.mode === 'online' ? r.url : r.location) || <small className="warnline">Chưa có</small>}</td>
+          <td style={{ whiteSpace: 'normal' }}>{r.trainers.length ? r.trainers.map(names.name).join(', ') : <small className="sub">—</small>}</td>
         </tr>)}
       </Fragment>)}
-        {!days.length && <tr><td colSpan={5}><small className="sub">Chưa có buổi nào. Quay lại bước “Xếp lịch”.</small></td></tr>}</tbody>
+        {!days.length && <tr><td colSpan={6}><small className="sub">Chưa có buổi nào. Quay lại bước “Xếp lịch”.</small></td></tr>}</tbody>
     </table></div>}
   </>
+}
+
+/** Tên giảng viên theo id (danh sách giảng viên của đơn vị lập kế hoạch) */
+function useTrainerNames(orgId: string) {
+  const { list } = useTrainers(orgId || null)
+  const m = useMemo(() => new Map((list ?? []).map(t => [t.id, trainerName(t)])), [list])
+  return { name: (id: string) => m.get(id) ?? 'Giảng viên' }
 }

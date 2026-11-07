@@ -171,17 +171,16 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
         <div className="lheadrow">
           <div><h2>{row.title}</h2>
             <p className="sub">{[progLabel, progSubject, row.grades && `Khối ${row.grades}`, code].filter(Boolean).join(' · ')}</p></div>
-          <button type="button" onClick={() => begin('info')}>{store === 'training' ? 'Sửa thông tin' : 'Sửa tên, môn'}</button>
+          <div className="tools">
+            <Chip tone={STATUS[row.status][1]}>{STATUS[row.status][0]}{row.status === 'published' ? ` · v${row.version}` : ''}</Chip>
+            <button type="button" onClick={() => begin('info')}>{store === 'training' ? 'Sửa thông tin' : 'Sửa tên, môn'}</button>
+            <button type="button" className="primary" disabled={needDone < NEED.length || !!busy || !!edit} onClick={publish}
+              title={needDone < NEED.length ? `Chốt đủ ${NEED.length} thẻ${store === 'training' ? ' bắt buộc' : ''} để phát hành (đang ${needDone}/${NEED.length})` : 'Chỉ chốt khi đã kiểm tra nội dung từng thẻ. Có thể cập nhật lại sau khi chốt.'}>{row.status === 'published' ? 'Phát hành bản cập nhật' : store === 'training' ? 'Phát hành bài giảng' : 'Phát hành bộ học liệu'}</button>
+          </div>
         </div>
       </div>
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
       {busy && <p className="sub" role="status">{busy}</p>}
-      <div className="panel lstatus">
-        <div><b>Trạng thái {store === 'training' ? T.noun : 'bộ học liệu'}</b><small className="sub">Chỉ chốt khi đã kiểm tra nội dung từng thẻ. Có thể cập nhật lại sau khi chốt.</small></div>
-        <Chip tone={STATUS[row.status][1]}>{STATUS[row.status][0]}{row.status === 'published' ? ` · v${row.version}` : ''}</Chip>
-        <button type="button" className="primary" disabled={needDone < NEED.length || !!busy || !!edit} onClick={publish}
-          title={needDone < NEED.length ? `Chốt đủ ${NEED.length} thẻ${store === 'training' ? ' bắt buộc' : ''} để phát hành (đang ${needDone}/${NEED.length})` : undefined}>{row.status === 'published' ? 'Phát hành bản cập nhật' : store === 'training' ? 'Phát hành bài giảng' : 'Phát hành bộ học liệu'}</button>
-      </div>
       {empty && !edit && <div className="ldash lempty-kit"><div><b>Giáo án đang trống</b>
         <small>Khung 5 thẻ đã sẵn sàng. Điền trực tiếp vào khung ở từng thẻ rồi bấm “Lưu”. Chốt thẻ khi nhập xong.</small></div>
         <button type="button" className="primary" onClick={() => begin('info')}>Bắt đầu nhập thẻ 01</button></div>}

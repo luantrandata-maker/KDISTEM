@@ -335,6 +335,13 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
     setMkBook(null); setMsg(['Đã tạo PPCT nháp — xem ở Phân phối chương trình.', false])
   }
 
+  async function newVersion() {
+    if (!p || !confirm('Tạo phiên bản mới (bản nháp chép từ phiên bản này)? Phiên bản đang phát hành vẫn dùng đến khi bản mới được phát hành.')) return
+    const { data, error } = await supabase.rpc('edu_program_new_version', { p_program: p.id })
+    if (error) return setMsg([errText(error.message), true])
+    onOpen(data as string)
+  }
+
   // Xoá chương trình nháp (kèm học phần, yêu cầu cần đạt); bản đã gửi duyệt / phát hành thì ngừng dùng
   async function removeDraft() {
     if (!p || !confirm(`Xoá chương trình nháp "${p.title}" (v${p.version_no})? Toàn bộ học phần, bài và yêu cầu cần đạt của bản này cũng bị xoá.`)) return
@@ -368,7 +375,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
         {tabs.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      {tab === 'info' && <InfoTab p={p} editable={editable} onGoAssign={tabs.some(t => t[0] === 'assign') ? () => setTab('assign') : undefined} onDelete={editable ? removeDraft : undefined} scopeEditable={mine && canEdit && p.status === 'published' && mode !== 'school'} reqEditable={mine && canEdit} mode={mode} comps={comps} onSaved={m => { setMsg([m, false]); load() }} onError={m => setMsg([m, true])} />}
+      {tab === 'info' && <InfoTab p={p} editable={editable} onNewVersion={mine && canEdit && p.status === 'published' && !hid('version') ? newVersion : undefined} onGoAssign={tabs.some(t => t[0] === 'assign') ? () => setTab('assign') : undefined} onDelete={editable ? removeDraft : undefined} scopeEditable={mine && canEdit && p.status === 'published' && mode !== 'school'} reqEditable={mine && canEdit} mode={mode} comps={comps} onSaved={m => { setMsg([m, false]); load() }} onError={m => setMsg([m, true])} />}
       {tab === 'units' && <UnitsTab p={p} editable={editable} comps={comps} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
       {tab === 'versions' && <VersionsTab p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
       {tab === 'assign' && <AssignTab p={p} orgId={orgId} mine={mine} onMessage={(m, e) => setMsg([m, !!e])} />}
@@ -383,9 +390,15 @@ type InfoProps = {
   p: Partial<Program>; isNew?: boolean; editable: boolean; scopeEditable: boolean; reqEditable?: boolean; mode: ProgMode; comps: Comp[]
   orgId?: string | null; pickedSchool?: boolean; onOrg?: (id: string) => void
   onSaved: (m: string, newId?: string) => void; onError: (m: string) => void; onDelete?: () => void; onGoAssign?: () => void; onCancel?: () => void
+  /** Chương trình đã phát hành: nút Tạo phiên bản mới trên thẻ thông tin */
+  onNewVersion?: () => void
 }
-function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, orgId, pickedSchool, onOrg, onSaved, onError, onDelete, onGoAssign, onCancel }: InfoProps) {
+function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, orgId, pickedSchool, onOrg, onSaved, onError, onDelete, onGoAssign, onCancel, onNewVersion }: InfoProps) {
   const [f, setF] = useState<Partial<Program>>(p)
+  // Chương trình đã có: mặc định xem dạng thẻ; bấm Sửa mới mở form
+  const [editing, setEditing] = useState(!!isNew)
+  const [lessonN, setLessonN] = useState<number | null>(null)
+  useEffect(() => { if (p.id) supabase.from('edu_program_units').select('id', { count: 'exact', head: true }).eq('program_id', p.id).in('unit_type', ['lesson', 'session']).then(({ count }) => setLessonN(count ?? 0)) }, [p.id, p.updated_at])
   const { byCode: tracks, allCodes: CT } = useStemTracks()
   const { byCode: LV, levels: LVL } = useEduLevels()
   const progFields = fieldsOf(useSettings(), 'program')
@@ -472,10 +485,64 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
       setReqs0(reqs)
     }
     setBusy(false)
+    if (!isNew) setEditing(false)
     onSaved(isNew ? 'Đã tạo chương trình nháp.' : 'Đã lưu chương trình.', isNew ? id : undefined)
   }
 
   const S = (n: number) => ({ gridColumn: `span ${n}` })
+  if (!isNew && !editing) {
+    const q = p as Program
+    const mains = mainsOf(q), integs = q.integrated_subjects ?? []
+    const nameOf = (list: { key?: string; id?: string; name?: string; title?: string }[], k: string) => { const x = list.find(o => (o.key ?? o.id) === k); return x?.name ?? x?.title ?? k }
+    const edit = () => { setF(p); setReqs(reqs0); setEditing(true) }
+    return <div className="panel pview">
+      <div className="pviewhead">
+        <h4><Icon n="help" size={18} /> Thông tin chương trình</h4>
+        <div className="tools">
+          {editable && <button type="button" onClick={edit}><Icon n="pencil" size={15} /> Sửa</button>}
+          {onNewVersion && <button type="button" className="primary" onClick={onNewVersion}>Tạo phiên bản mới</button>}
+        </div>
+      </div>
+      <div className="pvgrid">
+        <PV l="Tên chương trình" w={2}>{q.title}</PV>
+        <PV l="Mã chương trình">{q.code}</PV>
+        <PV l="Nhóm chương trình" w={2}>{ctsOf(q).map(c => c + (tracks[c] ? ' · ' + tracks[c]!.name : '')).join(', ')}</PV>
+        <PV l="Trạng thái"><StatusPill s={q.status} /></PV>
+        <PV l="Loại chương trình">{PKIND[q.kind]}</PV>
+        <PV l="Cấp học">{lvsOf(q).map(c => LV[c]?.name ?? c).join(', ')}</PV>
+        <PV l="Khối">{progGrades(q).length ? <span className="pvchips">{progGrades(q).map(g => <span key={g} className="pill">Khối {g}</span>)}</span> : null}</PV>
+        <PV l="Môn chủ đạo">{mains.join(', ')}</PV>
+        <PV l="Môn tích hợp">{integs.join(', ')}</PV>
+        <PV l="Số tiết / tuần">{q.periods_per_week != null ? String(q.periods_per_week).replace('.', ',') : null}</PV>
+        <PV l="Thời gian triển khai">{DEPLOY[q.deploy_term ?? 'year'] ? `${DEPLOY[q.deploy_term ?? 'year'][0]} (${DEPLOY[q.deploy_term ?? 'year'][1]})` : null}</PV>
+        <PV l="Đơn vị xây dựng">{q.builder}</PV>
+        <PV l="Khung năng lực học sinh" w={2}>{(q.competency_keys ?? []).map(k => nameOf(comps, k)).join(', ')}</PV>
+        <PV l="Tiêu chí đánh giá (rubric)" w={2}>{(q.rubric_ids ?? []).map(k => nameOf(rubrics, k)).join(', ')}</PV>
+        {progFields.map(x => <PV key={x.key} l={x.label}>{customCell(x, q.custom?.[x.key])}</PV>)}
+        <PV l="Mục tiêu chương trình" w={-1}>{q.objectives}</PV>
+        {q.note && <PV l="Ghi chú" w={-1}>{q.note}</PV>}
+      </div>
+      <div className="pvstats">
+        <span><b>{mains.length + integs.filter(x => !mains.includes(x)).length}</b> môn</span>
+        <span><b>{lessonN ?? '…'}</b> bài học</span>
+        <span><b>{q.total_periods ?? 0}</b> tiết</span>
+      </div>
+
+      <h4 className="psec">Phạm vi áp dụng & hiệu lực {effNote && <span className={'pill ' + (effNote.startsWith('Hết') ? 'bad' : 'warn')}>{effNote}</span>}
+        {!editable && scopeEditable && <button type="button" className="linkbtn" style={{ marginLeft: 'auto', fontWeight: 400 }} onClick={edit}>Điều chỉnh phạm vi, hiệu lực</button>}</h4>
+      <div className="pvgrid">
+        {showScope && <PV l="Phạm vi áp dụng" w={2}>{q.scope === 'own' ? 'Chỉ đơn vị mình và đơn vị được gán' : 'Tất cả đơn vị trực thuộc'}</PV>}
+        <PV l="Hiệu lực từ">{q.effective_from ? fmtD(q.effective_from) : null}</PV>
+        <PV l="Hiệu lực đến">{q.effective_to ? fmtD(q.effective_to) : null}</PV>
+        {mode !== 'school' && <PV l="Đơn vị được gán">{asgN ?? '…'}{onGoAssign && <> · <button type="button" className="linkbtn" onClick={onGoAssign}>Gán cho đơn vị →</button></>}</PV>}
+      </div>
+
+      <h4 className="psec">Yêu cầu năng lực giáo viên
+        {!editable && reqEditable && <button type="button" className="linkbtn" style={{ marginLeft: 'auto', fontWeight: 400 }} onClick={edit}>Điều chỉnh yêu cầu</button>}</h4>
+      {reqs0.length ? <div className="pvchips">{reqs0.map(r => <span key={r.competency} className="pill">{nameOf(tcomps, r.competency)} · Từ Mức {r.min_level}</span>)}</div>
+        : <small className="sub">Chưa đặt yêu cầu: chỉ giáo viên Đạt khoá đào tạo có gắn chương trình mới được tính đáp ứng.</small>}
+    </div>
+  }
   return <form className="panel pform" onSubmit={save}>
     {!isNew && !editable && <p className="sub" style={{ margin: 0 }}>{p.status === 'draft' || p.status === 'rejected' ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình đã gửi duyệt hoặc phát hành: nội dung không sửa được (tạo phiên bản mới ở tab "Phiên bản & duyệt"). Phạm vi, hiệu lực và yêu cầu năng lực giáo viên vẫn sửa được.'}</p>}
     <div className="pgrid">
@@ -543,9 +610,16 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
     {(canSave || onDelete || onCancel) && <div className="formactions">
       {canSave && <button className="primary" type="submit" disabled={busy}>{busy ? 'Đang lưu…' : isNew ? 'Tạo bản nháp' : 'Lưu'}</button>}
       {onCancel && <button type="button" onClick={onCancel}>Huỷ</button>}
+      {!isNew && <button type="button" onClick={() => { setF(p); setReqs(reqs0); setEditing(false) }}>Huỷ</button>}
       {onDelete && <button type="button" className="danger" onClick={onDelete}>Xoá bản nháp</button>}
     </div>}
   </form>
+}
+
+/** Một ô trong thẻ thông tin: tiêu đề nhỏ in hoa, giá trị bên dưới. w = số cột chiếm (-1: cả hàng) */
+function PV({ l, w, children }: { l: string; w?: number; children?: React.ReactNode }) {
+  const empty = children == null || children === '' || children === false
+  return <div className="pvi" style={w ? { gridColumn: w < 0 ? '1/-1' : `span ${w}` } : undefined}><span>{l}</span><div>{empty ? '—' : children}</div></div>
 }
 
 // ----- Cấu trúc + YCCĐ -----

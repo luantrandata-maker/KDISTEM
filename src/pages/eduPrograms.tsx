@@ -336,13 +336,6 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
     setMkBook(null); setMsg(['Đã tạo PPCT nháp — xem ở Phân phối chương trình.', false])
   }
 
-  async function newVersion() {
-    if (!p || !confirm('Tạo phiên bản mới (bản nháp chép từ phiên bản này)? Phiên bản đang phát hành vẫn dùng đến khi bản mới được phát hành.')) return
-    const { data, error } = await supabase.rpc('edu_program_new_version', { p_program: p.id })
-    if (error) return setMsg([errText(error.message), true])
-    onOpen(data as string)
-  }
-
   // Xoá chương trình nháp (kèm học phần, yêu cầu cần đạt); bản đã gửi duyệt / phát hành thì ngừng dùng
   async function removeDraft() {
     if (!p || !confirm(`Xoá chương trình nháp "${p.title}" (v${p.version_no})? Toàn bộ học phần, bài và yêu cầu cần đạt của bản này cũng bị xoá.`)) return
@@ -377,11 +370,11 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {(tab === 'info' || tab === 'setup') && <InfoTab key={tab} p={p} editable={editable} forceEdit={tab === 'setup'} onEdit={() => setTab('setup')} onBack={() => setTab('info')}
-        onNewVersion={tab === 'info' && mine && canEdit && p.status === 'published' && !hid('version') ? newVersion : undefined} onGoAssign={tabs.some(t => t[0] === 'assign') ? () => setTab('assign') : undefined}
+        actions={tab === 'info' ? <VersionActions p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} /> : undefined} onGoAssign={tabs.some(t => t[0] === 'assign') ? () => setTab('assign') : undefined}
         onDelete={editable ? removeDraft : undefined} scopeEditable={scopeEditable} reqEditable={mine && canEdit} mode={mode} comps={comps} onSaved={m => { setMsg([m, false]); load() }} onError={m => setMsg([m, true])} />}
       {(tab === 'info' || tab === 'setup') && <UnitsTab key={'u' + tab} p={p} editable={tab === 'setup' && editable} comps={comps} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
       {tab === 'info' && <div className="panel ustruct"><h4 style={{ margin: 0, display: 'flex', gap: 8, alignItems: 'center' }}><Icon n="layers" size={18} /> Phiên bản & duyệt</h4>
-        <VersionsTab p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} hideNew onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} /></div>}
+        <VersionsTab p={p} onOpen={onOpen} /></div>}
       {tab === 'assign' && <AssignTab p={p} orgId={orgId} mine={mine} onMessage={(m, e) => setMsg([m, !!e])} />}
     </>
   )
@@ -394,12 +387,12 @@ type InfoProps = {
   p: Partial<Program>; isNew?: boolean; editable: boolean; scopeEditable: boolean; reqEditable?: boolean; mode: ProgMode; comps: Comp[]
   orgId?: string | null; pickedSchool?: boolean; onOrg?: (id: string) => void
   onSaved: (m: string, newId?: string) => void; onError: (m: string) => void; onDelete?: () => void; onGoAssign?: () => void; onCancel?: () => void
-  /** Chương trình đã phát hành: nút Tạo phiên bản mới trên thẻ thông tin */
-  onNewVersion?: () => void
+  /** Nút phiên bản & duyệt trên thẻ thông tin */
+  actions?: React.ReactNode
   /** Tab Thiết lập: luôn hiện form; tab Thông tin: thẻ chỉ xem, bấm Sửa / Điều chỉnh thì sang tab Thiết lập */
   forceEdit?: boolean; onEdit?: () => void; onBack?: () => void
 }
-function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, orgId, pickedSchool, onOrg, onSaved, onError, onDelete, onGoAssign, onCancel, onNewVersion, forceEdit, onEdit, onBack }: InfoProps) {
+function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, orgId, pickedSchool, onOrg, onSaved, onError, onDelete, onGoAssign, onCancel, actions, forceEdit, onEdit, onBack }: InfoProps) {
   const [f, setF] = useState<Partial<Program>>(p)
   // Chương trình đã có: mặc định xem dạng thẻ; bấm Sửa mới mở form
   const editing = !!isNew || !!forceEdit
@@ -505,7 +498,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
         <h4><Icon n="help" size={18} /> Thông tin chương trình</h4>
         <div className="tools">
           {editable && <button type="button" onClick={edit}><Icon n="pencil" size={15} /> Sửa</button>}
-          {onNewVersion && <button type="button" className="primary" onClick={onNewVersion}>Tạo phiên bản mới</button>}
+          {actions}
         </div>
       </div>
       <div className="pvgrid">
@@ -904,7 +897,7 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
   </> : null
   const matsOf = (u: Unit) => <>
     {umats.some(x => x.unit_id === u.id) && (
-      <div style={{ fontSize: 13, marginTop: 4 }}><small className="sub">Học liệu: </small>
+      <div className="umats">
         {umats.filter(x => x.unit_id === u.id).map(x => (
           <span key={x.item_id} className="chip" title={x.note ?? undefined}><Icon n={MAT_ICON[x.library_items?.content?.type ?? ''] ?? 'paperclip'} /> {x.library_items?.title ?? 'Học liệu không còn xem được'}{x.note && <small className="sub"> · {x.note}</small>}
             {editable && <button type="button" className="x" aria-label={`Bỏ học liệu ${x.library_items?.title ?? ''}`} onClick={() => dropMaterial(x)}>×</button>}</span>
@@ -958,23 +951,29 @@ function UnitsTab({ p, editable, comps, onChanged, onMessage }: {
             <span className="ugbadge">Học liệu đủ {ok}/{ls.length}</span>
           </button>
           {open && <div className="wrap"><table className="utable">
-            <thead><tr><th style={{ width: 40 }}>#</th><th>Tên · mục tiêu · yêu cầu cần đạt</th><th style={{ width: 80 }}>Số tiết</th><th style={{ width: 150 }}>Học liệu chính</th><th></th></tr></thead>
+            <thead><tr><th style={{ width: 40 }}>#</th><th style={{ width: '24%' }}>Tên</th><th>Mục tiêu · yêu cầu cần đạt</th><th style={{ width: 70 }}>Số tiết</th><th style={{ width: '26%' }}>Học liệu</th><th></th></tr></thead>
             <tbody>{g.rows.map(({ u, depth }) => {
               const os = outs.filter(o => o.unit_id === u.id).sort((a, b) => a.seq - b.seq)
-              const outList = os.map(o => <div key={o.id} className="uout">✓ {o.code && <b>{o.code} </b>}{o.content}{o.competency_key && <small className="sub"> · {compName(o.competency_key)}</small>}</div>)
-              if (u.unit_type === 'topic') return <tr key={u.id} className="utopic"><td colSpan={5} style={{ paddingLeft: 12 + Math.max(0, depth) * 18 }}>
-                <div className="utopicrow"><span><small>{UTYPE.topic.toUpperCase()}</small> <b>{u.title}</b>{unitGrades(u).length > 0 && <small className="sub"> · Khối {unitGrades(u).join(', ')}</small>}</span>
-                  <span className="tools" style={{ marginLeft: 'auto' }}>{subjChips(u)}{editable && <button type="button" onClick={() => setSubjFor(u.id)}>+ Môn học</button>}</span></div>
-                {u.objectives && <small className="sub">Mục tiêu: {u.objectives}</small>}{outList}</td></tr>
+              const goal = <>{u.objectives && <div className="uobj" title={u.objectives}>{u.objectives}</div>}
+                {os.map(o => <div key={o.id} className="uout">✓ {o.code && <b>{o.code} </b>}{o.content}{o.competency_key && <small className="sub"> · {compName(o.competency_key)}</small>}</div>)}
+                {!u.objectives && !os.length && <span className="sub">—</span>}</>
+              if (u.unit_type === 'topic') return <tr key={u.id} className="utopic">
+                <td></td>
+                <td style={{ paddingLeft: 10 + Math.max(0, depth) * 16 }}><small className="utk">{UTYPE.topic.toUpperCase()}</small><br /><b>{u.title}</b>{unitGrades(u).length > 0 && <><br /><small className="sub">Khối {unitGrades(u).join(', ')}</small></>}
+                  {(subjectsOf(u.id).length > 0 || subjFor === u.id || editable) && <div className="tools" style={{ marginTop: 4 }}>{subjChips(u)}{editable && <button type="button" onClick={() => setSubjFor(u.id)}>+ Môn học</button>}</div>}</td>
+                <td>{goal}</td>
+                <td></td><td></td><td></td>
+              </tr>
               const k = kitOf.get(u.id)
               const isS = u.unit_type === 'session'
               if (!isS) n++
               return <tr key={u.id} className={isS ? 'usession' : undefined}>
                 <td className="sub">{isS ? '' : n}</td>
-                <td style={isS ? { paddingLeft: 28 } : undefined}>{isS ? <small className="sub">{UTYPE.session} {u.seq} · </small> : null}{u.title}
-                  {u.objectives && <><br /><small className="sub">Mục tiêu: {u.objectives}</small></>}{outList}{matsOf(u)}</td>
+                <td style={isS ? { paddingLeft: 24 } : undefined}>{isS ? <small className="sub">{UTYPE.session} {u.seq} · </small> : null}{u.title}</td>
+                <td>{goal}</td>
                 <td>{u.periods || (all.some(c => c.parent_id === u.id) ? '' : '—')}</td>
-                <td>{isS ? null : k === 'published' ? <span className="gpill good">Đã phát hành</span> : k ? <span className="gpill warn">Đang soạn</span> : <span className="pill">Chưa có</span>}</td>
+                <td>{!isS && (k === 'published' ? <span className="gpill good">Học liệu chính: Đã phát hành</span> : k ? <span className="gpill warn">Học liệu chính: Đang soạn</span> : <span className="pill">Học liệu chính: Chưa có</span>)}
+                  {matsOf(u)}</td>
                 <td>{actions(u)}</td>
               </tr>
             })}</tbody>
@@ -1028,27 +1027,20 @@ function isDesc(all: Unit[], u: Unit, ancestor: string): boolean {
 }
 
 // ----- Phiên bản & duyệt -----
-function VersionsTab({ p, mine, canEdit, mode, isAdmin, hideNew, onOpen, onChanged, onMessage }: {
-  p: Program; mine: boolean; canEdit: boolean; mode: ProgMode; isAdmin: boolean; hideNew?: boolean; onOpen: (id: string) => void; onChanged: () => void
+/** Nút gửi duyệt / duyệt / phát hành / tạo phiên bản mới / ngừng dùng — hiện trên thẻ thông tin */
+function VersionActions({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMessage }: {
+  p: Program; mine: boolean; canEdit: boolean; mode: ProgMode; isAdmin: boolean; onOpen: (id: string) => void; onChanged: () => void
   onMessage: (m: string, err?: boolean) => void
 }) {
   const hid = useHiddenBtn()
-  const [vers, setVers] = useState<Program[]>([])
-  const [log, setLog] = useState<LogRow[]>([])
   const [canAct, setCanAct] = useState(false)
   const [busy, setBusy] = useState(false)
-  async function load() {
-    const [v, l, r] = await Promise.all([
-      supabase.from('edu_programs').select('*').eq('family_id', p.family_id).order('version_no', { ascending: false }),
-      supabase.from('edu_program_log').select('id, from_status, to_status, note, at').eq('program_id', p.id).order('at', { ascending: false }),
-      supabase.from('approval_requests').select('id').eq('ref_table', 'edu_programs').eq('ref_id', p.id).eq('status', 'pending').limit(1),
-    ])
-    setVers((v.data as Program[]) ?? []); setLog((l.data as LogRow[]) ?? [])
-    const req = ((r.data as { id: string }[]) ?? [])[0]
-    if (req) { const { data } = await supabase.rpc('approval_can_act', { p_request: req.id }); setCanAct(!!data) } else setCanAct(false)
-  }
-  useEffect(() => { load() }, [p.id, p.status])
-
+  useEffect(() => {
+    supabase.from('approval_requests').select('id').eq('ref_table', 'edu_programs').eq('ref_id', p.id).eq('status', 'pending').limit(1).then(async r => {
+      const req = ((r.data as { id: string }[]) ?? [])[0]
+      if (req) { const { data } = await supabase.rpc('approval_can_act', { p_request: req.id }); setCanAct(!!data) } else setCanAct(false)
+    })
+  }, [p.id, p.status])
   async function setStatus(s: Status, ask?: string) {
     const note = ask ? prompt(ask, '') : ''
     if (note === null) return
@@ -1078,22 +1070,30 @@ function VersionsTab({ p, mine, canEdit, mode, isAdmin, hideNew, onOpen, onChang
   }
   const can = mine && canEdit
   const canPublishDraft = mode !== 'school' || isAdmin
-  return (
-    <>
-      <div className="panel">
-        <div className="tools">
+  return <>
           {can && (p.status === 'draft' || p.status === 'rejected') && <button className={mode === 'platform' ? undefined : 'primary'} disabled={busy} onClick={() => setStatus('pending', 'Ghi chú gửi người duyệt (không bắt buộc):')}>Gửi duyệt</button>}
           {can && p.status === 'draft' && canPublishDraft && <button className={mode === 'platform' ? 'primary' : undefined} disabled={busy} onClick={() => confirm('Phát hành ngay phiên bản này? Phiên bản đang phát hành (nếu có) sẽ bị thay thế.') && setStatus('published')}>Phát hành</button>}
           {p.status === 'pending' && canAct && <><button className="primary" disabled={busy} onClick={() => decide('approve')}>Duyệt</button><button className="danger" disabled={busy} onClick={() => decide('reject')}>Trả lại</button></>}
           {p.status === 'pending' && !canAct && <small className="sub">Đang chờ duyệt ở Hộp phê duyệt.</small>}
           {can && p.status === 'approved' && <button className="primary" disabled={busy} onClick={() => setStatus('published', 'Ghi chú phát hành (không bắt buộc):')}>Phát hành</button>}
           {can && p.status === 'approved' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại để sửa</button>}
-          {can && p.status === 'published' && !hid('version') && !hideNew && <button className="primary" disabled={busy} onClick={newVersion}>Tạo phiên bản mới</button>}
+          {can && p.status === 'published' && !hid('version') && <button className="primary" disabled={busy} onClick={newVersion}>Tạo phiên bản mới</button>}
           {can && ['published', 'superseded', 'draft', 'rejected', 'approved'].includes(p.status) && <button disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Đơn vị khác không còn thấy bản ngừng dùng.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng</button>}
           {can && p.status === 'archived' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại thành nháp</button>}
-        </div>
-        {!can && p.status !== 'pending' && <p className="sub" style={{ margin: 0 }}>{mine ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình của đơn vị khác — sao chép về đơn vị để điều chỉnh.'}</p>}
-      </div>
+  </>
+}
+
+function VersionsTab({ p, onOpen }: { p: Program; onOpen: (id: string) => void }) {
+  const [vers, setVers] = useState<Program[]>([])
+  const [log, setLog] = useState<LogRow[]>([])
+  useEffect(() => {
+    Promise.all([
+      supabase.from('edu_programs').select('*').eq('family_id', p.family_id).order('version_no', { ascending: false }),
+      supabase.from('edu_program_log').select('id, from_status, to_status, note, at').eq('program_id', p.id).order('at', { ascending: false }),
+    ]).then(([v, l]) => { setVers((v.data as Program[]) ?? []); setLog((l.data as LogRow[]) ?? []) })
+  }, [p.id, p.status])
+  return (
+    <>
       <h3>Các phiên bản</h3>
       <div className="wrap"><table>
         <thead><tr><th>Phiên bản</th><th>Trạng thái</th><th>Phát hành</th><th>Hiệu lực</th><th>Ghi chú</th></tr></thead>

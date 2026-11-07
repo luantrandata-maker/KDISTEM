@@ -2244,3 +2244,7 @@ tr.distyear td{background:var(--surface-2,var(--surface));border-top:2px solid v
 .utopicrow>span>small:first-child{font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted)}
 .utable tr.usession td{font-size:13px}
 .uout{font-size:13px;margin-top:2px}
+.utable td{vertical-align:top}
+.uobj{font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.utk{font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted)}
+.umats{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;font-size:13px}

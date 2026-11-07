@@ -28,12 +28,12 @@ const toLocal = (s: string | null) => (s ? new Date(new Date(s).getTime() - new 
 
 type OrgF = ReturnType<typeof useOrgFilter>
 export default function ElearningManage({ orgId }: { orgId: string | null }) {
-  const [tab, setTab] = useState<'exam' | 'course' | 'hard' | 'review' | 'bank'>('exam')
+  const [tab, setTab] = useState<'exam' | 'course' | 'hard' | 'review' | 'bank'>('course')
   // Bộ lọc Tỉnh / trường dùng chung cho tab Đề luyện và Khoá học, để số trên thẻ chạy theo bộ lọc
   const ofl = useOrgFilter()
   return <>
     <ElCards orgId={orgId} ofl={ofl} onOpen={t => setTab(t as 'exam' | 'course')} />
-    <Tabs value={tab} onChange={setTab} items={[['exam', 'Đề luyện'], ['course', 'Khoá học e-learning'], ['hard', 'Câu hỏi khó'], ['review', 'Nội dung cần ôn'], ['bank', 'Ngân hàng câu hỏi']]} />
+    <Tabs value={tab} onChange={setTab} items={[['course', 'Khoá học e-learning'], ['exam', 'Đề luyện'], ['hard', 'Câu hỏi khó'], ['review', 'Nội dung cần ôn'], ['bank', 'Ngân hàng câu hỏi']]} />
     {tab === 'exam' ? <Exams orgId={orgId} ofl={ofl} /> : tab === 'course' ? <Courses orgId={orgId} ofl={ofl} /> : tab === 'hard' || tab === 'review' ? <Analytics key={tab} orgId={orgId} kind={tab} />
       : <QuestionBank orgId={orgId} />}
   </>

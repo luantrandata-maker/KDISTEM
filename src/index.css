@@ -2248,3 +2248,18 @@ tr.distyear td{background:var(--surface-2,var(--surface));border-top:2px solid v
 .uobj{font-size:13px;color:var(--muted);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .utk{font-size:11px;font-weight:700;letter-spacing:.04em;color:var(--muted)}
 .umats{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;font-size:13px}
+
+/* Slide: sửa trực tiếp trên slide + trình chiếu */
+.sltools{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px}.sltools .inl{display:flex;gap:6px;align-items:center;font-size:13px}
+.slide .sledit{font:inherit;color:inherit;background:transparent;border:1px dashed transparent;border-radius:8px;padding:2px 6px;width:100%;resize:none;outline:none}
+.slide .sledit:hover{border-color:var(--line)}.slide .sledit:focus{border-color:var(--blue,#2563eb);background:rgba(255,255,255,.06)}
+.slide .sledit.h2{font-size:clamp(22px,3vw,34px);font-weight:700;line-height:1.2;field-sizing:content}
+.slide.title .sledit.h2{font-size:clamp(28px,4vw,44px)}.slide.title .sledit::placeholder{color:#cfe0f7}
+.slide textarea.sledit.slidebody{field-sizing:content;min-height:2.6em}
+.slide .sledit.url{font-size:14px;border-color:var(--line)}
+.opts li:has(.sledit){display:flex;align-items:center;gap:6px}.opts li .sledit{flex:1;padding:2px 4px}
+.opts .optkey{display:inline-grid;place-items:center;width:28px;height:28px;min-width:28px;border-radius:50%;background:var(--soft);border:0;padding:0;font-weight:700;cursor:pointer}
+.opts li.right .optkey{background:var(--ok);color:#fff}.opts li.optadd{border-style:dashed;display:grid;place-items:center}
+.slide .slhint{color:var(--muted);font-size:12px}
+.showslide{width:min(1100px,100%)}.showslide .slide{max-height:calc(100vh - 140px);color:var(--text)}
+.main .showtop button:not(.x){background:transparent;color:#fff;border-color:#334155}

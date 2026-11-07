@@ -2,7 +2,7 @@
 // Chỉ áp cho bảng đơn giản: một hàng tiêu đề, một tbody, mỗi dòng đủ số ô (không gộp ô / dòng nhóm) để không làm rối bảng có nhóm.
 // Sắp xếp ngay trên DOM; khi React vẽ lại dòng (thêm, bớt, đổi dữ liệu) thì tự sắp lại theo cột đang chọn.
 const SCOPE = '.main:is([data-ph="1"],[data-ph="2"])'
-const TABLES = 'table:is(.libtable,.systable,.utable,.sdtable)'
+const TABLES = 'table:not(.tkb,.yearplan,.sched,.pltkb,.weektkb)'
 const SKIP = 'a, button, input, select, textarea, label, summary, [role="button"]'
 
 type St = { col: number; dir: 1 | -1; obs: MutationObserver; seq: WeakMap<Element, number>; n: number }

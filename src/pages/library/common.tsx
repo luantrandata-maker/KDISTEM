@@ -4,7 +4,7 @@ import { Icon } from '../../components/Icon'
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { openFile, fmtSize } from '../../lib/files'
-import { SlideView, SlideShow, KIND as SLIDE_KIND, type Slide, type SlideKind } from '../teacher/Lessons'
+import { SlideView, SlideShow, SlideFormat, KIND as SLIDE_KIND, type Slide, type SlideKind } from '../teacher/Lessons'
 import { PROGRAM_COLOR } from '../teacher/common'
 import { PlanView, planOf } from './PlanEditor'
 import { Drawer } from '../../components/Drawer'
@@ -362,6 +362,8 @@ export function SlidesEditor({ slides, onChange }: { slides: Slide[]; onChange: 
             <button type="button" className="danger" onClick={() => { onChange(slides.filter((_, k) => k !== sel)); setSel(Math.max(0, sel - 1)) }}>Xoá slide</button>
             <button type="button" className="primary" style={{ marginLeft: 'auto' }} onClick={() => setShow(true)}>▶ Trình chiếu</button>
           </div>
+          <SlideFormat slide={cur} onEdit={set} onAll={p => onChange(slides.map(x => ({ ...x, ...p })))}
+            onDup={() => { onChange([...slides.slice(0, sel + 1), { ...JSON.parse(JSON.stringify(cur)), id: uid() }, ...slides.slice(sel + 1)]); setSel(sel + 1) }} />
           <SlideView slide={cur} reveal onEdit={set} />
           <small className="sub">Bấm vào tiêu đề, nội dung hoặc phương án trên slide để sửa trực tiếp.</small>
         </div>

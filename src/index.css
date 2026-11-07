@@ -2291,3 +2291,9 @@ ul.slidebody{margin:0;padding-left:1.2em}ul.slidebody li{margin:0 0 6px}
 /* Thẻ bộ học liệu: trạng thái + Cập nhật / Chốt nội dung ở góc trên */
 .lcardhead>.lcardacts{display:flex;flex:none;gap:8px;align-items:center;flex-wrap:nowrap;justify-content:flex-end;white-space:nowrap}
 @media(max-width:700px){.lcardhead{flex-wrap:wrap}.lcardhead>.lcardacts{width:100%;flex-wrap:wrap;justify-content:flex-start}}
+.tpschedtable td>input,.tpschedtable td>select{vertical-align:middle}.tpschedtable .tpact{white-space:nowrap;text-align:center}
+.bankfilters{flex-wrap:nowrap}.bankfilters .search{min-width:150px;flex:1 1 180px}.bankfilters select{max-width:150px}
+.main .distmenu .filebtn{border:0;background:none;padding:8px 10px;border-radius:6px;font-weight:400;display:block}
+.main .distmenu .filebtn:hover{background:var(--soft)}
+.slblk{display:inline-flex;align-items:center;gap:2px;border:1px solid var(--line);border-radius:8px;padding:1px 2px 1px 8px;font-size:13px;background:var(--surface)}
+.slformat .slblk button{padding:1px 6px;min-width:0;border:0;background:none}.slformat .slblk button:disabled{opacity:.3}

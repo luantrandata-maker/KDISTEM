@@ -1,3 +1,4 @@
+import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { MultiSelect } from '../../components/MultiSelect'
@@ -376,6 +377,10 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
     if (error) setMsg([errText(error.message), true]); else if (!data?.length) setMsg([NOT_OWNER, true]); else load()
   }
   const note = msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>
+  const [view, setView] = useViewMode('el-courses')
+  const shown = rows.filter(c => ofl.fit(c.org_id))
+  const whom = (c: Course) => { const mine = c.org_id === orgId || !!every
+    return !mine ? 'của cấp trên' : every ? orgName(c.org_id) : isSchool ? audienceText(c, classes, groups) : c.shared ? 'dùng chung' : null }
   const editCourse = (c: Course) => { const { id, title, description, subject, grade, cover_url, class_ids, group_ids, student_ids, due_at, shared, status } = c
     setMsg(null); setForm({ id, org: c.org_id, title, description, subject, grade, subjects: courseSubjects(c), grades: courseGrades(c), cover_url, class_ids, group_ids: group_ids ?? null, student_ids: student_ids ?? null, due_at: due_at ?? null, shared, status }) }
   const statusBtns = (c: Course, ls: Lesson[]) => <>
@@ -412,22 +417,27 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
     </ElView> }
   return (
     <>
-      <div className="bar"><div className="tools" style={{ flexWrap: 'wrap' }}>{ofl.node(rows.map(c => c.org_id))}</div><button className="primary" onClick={() => { setMsg(null); setForm({ ...CEMPTY, shared: !isSchool && !every }) }}>Tạo khoá học</button></div>
+      <div className="bar"><div className="tools" style={{ flexWrap: 'wrap' }}>{ofl.node(rows.map(c => c.org_id))}</div>
+        <div className="tools"><ViewToggle value={view} onChange={setView} /><button className="primary" onClick={() => { setMsg(null); setForm({ ...CEMPTY, shared: !isSchool && !every }) }}>Tạo khoá học</button></div></div>
       {note}
+      {view === 'list' && shown.length > 0 && <div className="wrap"><table className="systable">
+        <thead><tr><th>Tên khoá học</th><th>Môn · khối</th><th style={{ width: 80 }}>Số bài</th><th>Đối tượng</th><th style={{ width: 170 }}>Hạn hoàn thành</th><th style={{ width: 120 }}>Trạng thái</th></tr></thead>
+        <tbody>{shown.map(c => { const n = lessons.filter(l => l.course_id === c.id).length
+          return <tr key={c.id} className="clickrow" onClick={() => { setMsg(null); setOpen(c.id) }}>
+            <td style={{ whiteSpace: 'normal' }}><b>{c.title}</b></td><td>{courseMeta(c).join(' · ') || '—'}</td><td>{n}</td>
+            <td style={{ whiteSpace: 'normal' }}>{whom(c) || '—'}</td><td>{c.due_at ? dt(c.due_at) : '—'}</td>
+            <td><span className={'pill ' + ESTATUS[c.status][1]}>{ESTATUS[c.status][0]}</span></td></tr> })}</tbody>
+      </table></div>}
       <div className="coursegrid">
-        {rows.filter(c => ofl.fit(c.org_id)).map(c => { const ls = lessons.filter(l => l.course_id === c.id); const mine = c.org_id === orgId || !!every
-          return <section key={c.id} className="panel coursecard">
-            <header className="clickrow" onClick={() => { setMsg(null); setOpen(c.id) }}>
-              <div><b>{c.title}</b><small>{[...courseMeta(c), `${ls.length} bài`, !mine ? 'của cấp trên' : every ? orgName(c.org_id) : isSchool ? audienceText(c, classes, groups) : c.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small>
+        {view === 'cards' && shown.map(c => { const ls = lessons.filter(l => l.course_id === c.id)
+          return <section key={c.id} className="panel coursecard clickrow" role="button" tabIndex={0} onClick={() => { setMsg(null); setOpen(c.id) }}
+            onKeyDown={e => { if (e.key === 'Enter') { setMsg(null); setOpen(c.id) } }}>
+            <header>
+              <div><b>{c.title}</b><small>{[...courseMeta(c), `${ls.length} bài`, whom(c)].filter(Boolean).join(' · ')}</small>
                 {c.due_at && <small className={'due ' + (c.status === 'published' ? dueBadge(c.due_at, false)!.tone : '')}>Hạn hoàn thành: {dt(c.due_at)}</small>}</div>
               <span className={'pill ' + ESTATUS[c.status][1]}>{ESTATUS[c.status][0]}</span>
             </header>
             {c.description && <p className="sub">{c.description}</p>}
-            <div className="tools">
-              <button onClick={() => { setMsg(null); setOpen(c.id) }}>{mine ? 'Bài học & tiến độ' : 'Xem bài học'}</button>
-              {mine && statusBtns(c, ls)}
-              {mine && <button onClick={() => editCourse(c)}>Sửa</button>}
-            </div>
           </section> })}
         {!rows.length && <p className="sub">Chưa có khoá học. Một khoá gồm nhiều bài: video (YouTube, Google Drive…), bài đọc, liên kết, tệp, học liệu từ Kho học liệu và đề luyện.</p>}
       </div>

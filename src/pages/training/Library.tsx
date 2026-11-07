@@ -16,7 +16,7 @@ type Unit = { id: string; program_id: string; kind: string; title: string; detai
 type Lesson = { id: string; title: string; program_id: string | null; unit_id: string | null; status: string; content: { kit?: unknown } | null }
 type Data = { progs: Prog[]; units: Unit[]; lessons: Lesson[] }
 // Một dòng vật tư: per = person (mỗi người) | group (mỗi nhóm, mỗi sản phẩm) | class (cả lớp)
-type Mat = { prog: string | null; name: string; unit: string; qty: number; per: 'person' | 'group' | 'class'; src: string }
+type Mat = { prog: string | null; uid: string | null; name: string; unit: string; qty: number; per: 'person' | 'group' | 'class'; src: string }
 
 const num = (v: unknown) => { const n = Number(String(v ?? '').replace(',', '.')); return Number.isFinite(n) && n > 0 ? n : 0 }
 
@@ -36,10 +36,10 @@ function useTrainingLib() {
 function matsOf(d: Data): Mat[] {
   const out: Mat[] = []
   d.units.forEach(u => (u.detail?.mats ?? []).forEach(r => { if (r.name?.trim())
-    out.push({ prog: u.program_id, name: r.name.trim(), unit: (r.unit ?? '').trim(), qty: num(r.qty), per: r.per === 'person' ? 'person' : r.per === 'class' ? 'class' : 'group', src: u.title }) }))
+    out.push({ prog: u.program_id, uid: u.id, name: r.name.trim(), unit: (r.unit ?? '').trim(), qty: num(r.qty), per: r.per === 'person' ? 'person' : r.per === 'class' ? 'class' : 'group', src: u.title }) }))
   d.lessons.forEach(l => { if (!l.content?.kit) return
     const k = kitOf(l.content.kit)
-    ;[...k.mats.product, ...k.mats.group].forEach(m => { if (m.name?.trim()) out.push({ prog: l.program_id, name: m.name.trim(), unit: (m.unit ?? '').trim(), qty: num(m.qty), per: 'group', src: l.title }) })
+    ;[...k.mats.product, ...k.mats.group].forEach(m => { if (m.name?.trim()) out.push({ prog: l.program_id, uid: l.unit_id, name: m.name.trim(), unit: (m.unit ?? '').trim(), qty: num(m.qty), per: 'group', src: l.title }) })
   })
   return out
 }
@@ -98,23 +98,56 @@ export function TrainingLibraryPage({ parts, ...p }: { parts: [string, Component
 
 const PER_L = { person: 'mỗi người', group: 'mỗi nhóm', class: 'cả lớp' }
 
+type PlanOpt = { id: string; plan_code: string | null; name: string; pub_status: string | null; training_plan_items: { program_id: string; quota: number | null; units: string[] | null }[] }
+
+/** Kế hoạch tập huấn + số học viên đã ghi danh của từng kế hoạch (chỉ tải khi chọn "Theo kế hoạch") */
+function usePlans(on: boolean) {
+  const [v, setV] = useState<{ plans: PlanOpt[]; enr: Map<string, number> } | null>(null)
+  useEffect(() => {
+    if (!on || v) return
+    Promise.all([
+      supabase.from('training_plans').select('id, plan_code, name, pub_status, training_plan_items(program_id, quota, units)').order('plan_code', { ascending: false }),
+      supabase.from('training_enrollments').select('plan_id').limit(50000),
+    ]).then(([p, e]) => { const m = new Map<string, number>(); ((e.data as { plan_id: string }[]) ?? []).forEach(x => m.set(x.plan_id, (m.get(x.plan_id) ?? 0) + 1))
+      setV({ plans: ((p.data as PlanOpt[]) ?? []).filter(x => x.training_plan_items?.length), enr: m }) })
+  }, [on, v])
+  return v
+}
+
 function Needs({ d }: { d: Data | null }) {
+  const [by, setBy] = useState<'prog' | 'plan'>('prog')
   const [pid, setPid] = useState('')
+  const [planId, setPlanId] = useState('')
   const [people, setPeople] = useState(30)
   const [groups, setGroups] = useState(6)
+  const pl = usePlans(by === 'plan')
   const progs = useMemo(() => { if (!d) return []; const has = new Set(matsOf(d).map(m => m.prog)); return d.progs.filter(p => has.has(p.id)) }, [d])
   useEffect(() => { if (!pid && progs.length) setPid((progs.find(p => p.status === 'published') ?? progs[0]).id) }, [progs, pid])
+  const plan = pl?.plans.find(x => x.id === planId)
+  // Chọn kế hoạch: số học viên lấy theo số đã ghi danh (chưa có thì theo tổng chỉ tiêu), số nhóm ~ 5 người/nhóm
+  function pickPlan(id: string) {
+    setPlanId(id); const x = pl?.plans.find(y => y.id === id); if (!x) return
+    const n = pl!.enr.get(id) || x.training_plan_items.reduce((a, i) => a + (i.quota ?? 0), 0)
+    if (n > 0) { setPeople(Math.min(2000, n)); setGroups(Math.max(1, Math.min(200, Math.ceil(n / 5)))) }
+  }
+  useEffect(() => { if (by === 'plan' && pl && !planId && pl.plans.length) pickPlan((pl.plans.find(x => x.pub_status === 'published') ?? pl.plans[0]).id) }, [by, pl, planId])
   const rows = useMemo(() => {
-    if (!d || !pid) return []
+    if (!d) return []
+    let mats: (Mat & { tag?: string })[]
+    if (by === 'prog') { if (!pid) return []; mats = matsOf(d).filter(x => x.prog === pid) }
+    else { if (!plan) return []
+      const items = new Map(plan.training_plan_items.map(i => [i.program_id, i])), code = new Map(d.progs.map(p => [p.id, p.code])), many = items.size > 1
+      mats = matsOf(d).filter(x => { const i = x.prog ? items.get(x.prog) : undefined; return !!i && (!i.units || !x.uid || i.units.includes(x.uid)) })
+        .map(x => many ? { ...x, src: `${code.get(x.prog!) ?? ''} · ${x.src}` } : x) }
     const m = new Map<string, { name: string; unit: string; total: number; parts: string[]; srcs: Set<string> }>()
-    matsOf(d).filter(x => x.prog === pid).forEach(x => {
+    mats.forEach(x => {
       const k = x.name.toLowerCase() + '|' + x.unit
       const r = m.get(k) ?? { name: x.name, unit: x.unit, total: 0, parts: [], srcs: new Set<string>() }
       r.total += x.qty * (x.per === 'person' ? people : x.per === 'group' ? groups : 1)
       r.parts.push(`${String(x.qty).replace('.', ',')} ${PER_L[x.per]}`); r.srcs.add(x.src); m.set(k, r)
     })
     return [...m.values()].sort((a, b) => a.name.localeCompare(b.name, 'vi'))
-  }, [d, pid, people, groups])
+  }, [d, by, pid, plan, people, groups])
   if (!d) return <p className="sub">Đang tải…</p>
   if (!progs.length) return <p className="sub">Chưa có chương trình đào tạo nào có định mức vật tư. Thêm vật tư ở thẻ 04 của nội dung hoặc bài giảng đào tạo.</p>
   const p = progs.find(x => x.id === pid)
@@ -122,16 +155,26 @@ function Needs({ d }: { d: Data | null }) {
   return <>
     <div className="bar">
       <div className="tools">
-        <select value={pid} onChange={e => setPid(e.target.value)} aria-label="Chương trình đào tạo">
+        <span className="segmented" role="group" aria-label="Tổng hợp theo">
+          <button type="button" className={by === 'prog' ? 'on' : ''} aria-pressed={by === 'prog'} onClick={() => setBy('prog')}>Theo chương trình</button>
+          <button type="button" className={by === 'plan' ? 'on' : ''} aria-pressed={by === 'plan'} onClick={() => setBy('plan')}>Theo kế hoạch tập huấn</button></span>
+        {by === 'prog' ? <select value={pid} onChange={e => setPid(e.target.value)} aria-label="Chương trình đào tạo">
           {progs.map(x => <option key={x.id} value={x.id}>{x.code} · {x.title}{x.status !== 'published' ? ' · nháp' : ''}</option>)}</select>
+        : !pl ? <small className="sub">Đang tải kế hoạch…</small>
+        : !pl.plans.length ? <small className="sub">Chưa có kế hoạch tập huấn nào có chương trình.</small>
+        : <select value={planId} onChange={e => pickPlan(e.target.value)} aria-label="Kế hoạch tập huấn">
+          {pl.plans.map(x => <option key={x.id} value={x.id}>{x.plan_code ? x.plan_code + ' · ' : ''}{x.name}{x.pub_status !== 'published' ? ' · nháp' : ''}</option>)}</select>}
         <label className="tools">Số học viên <input type="number" min={1} max={2000} value={people} onChange={e => setPeople(Math.max(1, Math.min(2000, Number(e.target.value) || 1)))} style={{ width: 80 }} aria-label="Số học viên" /></label>
         <label className="tools">Số nhóm <input type="number" min={1} max={200} value={groups} onChange={e => setGroups(Math.max(1, Math.min(200, Number(e.target.value) || 1)))} style={{ width: 80 }} aria-label="Số nhóm" /></label>
       </div>
-      <div className="tools"><button type="button" disabled={!rows.length} onClick={() => downloadXlsx(`Can-chuan-bi-${p?.code ?? 'dao-tao'}.xlsx`,
+      <div className="tools"><button type="button" disabled={!rows.length} onClick={() => downloadXlsx(`Can-chuan-bi-${(by === 'plan' ? plan?.plan_code : p?.code) || 'dao-tao'}.xlsx`,
         [{ key: 'n', label: 'Thiết bị, vật tư', width: 34 }, { key: 'u', label: 'Đơn vị', width: 10 }, { key: 't', label: 'Tổng cần', width: 10 }, { key: 'd', label: 'Định mức', width: 30 }, { key: 's', label: 'Dùng ở', width: 40 }],
         rows.map(r => [r.name, r.unit, Math.round(r.total * 100) / 100, r.parts.join('; '), [...r.srcs].join('; ')]), 'Cần chuẩn bị')}>Xuất Excel</button></div>
     </div>
-    <small className="sub">Tổng cho một khoá {people} học viên, {groups} nhóm. Vật tư ghi “mỗi sản phẩm” trong bài giảng được tính theo nhóm.</small>
+    {by === 'plan' && plan && <small className="sub" style={{ display: 'block' }}>Kế hoạch gồm {plan.training_plan_items.length} chương trình: {plan.training_plan_items.map(i => d.progs.find(x => x.id === i.program_id)?.code ?? '?').join(', ')}
+      {' · '}{pl?.enr.get(plan.id) ? `${pl.enr.get(plan.id)} học viên đã ghi danh` : 'chưa có học viên ghi danh, tạm lấy theo chỉ tiêu'}. Chỉ tính các nội dung kế hoạch chọn học.</small>}
+    {by === 'plan' && plan && !rows.length && <p className="sub">Các chương trình trong kế hoạch này chưa có định mức vật tư.</p>}
+    <small className="sub">Tổng cho {by === 'plan' ? 'kế hoạch' : 'một khoá'} {people} học viên, {groups} nhóm. Vật tư ghi “mỗi sản phẩm” trong bài giảng được tính theo nhóm.</small>
     <div className="wrap"><table className="libtable">
       <thead><tr><th>Thiết bị, vật tư</th><th>Đơn vị</th><th>Tổng cần</th><th>Định mức</th><th>Dùng ở</th></tr></thead>
       <tbody>{rows.map(r => <tr key={r.name + '|' + r.unit}>

@@ -4,7 +4,12 @@ export type SlideKind = 'title' | 'content' | 'question' | 'task' | 'media'
 export type SlideLayout = 'text' | 'center' | 'img-right' | 'img-left' | 'two'
 /** Định dạng (tuỳ chọn, slide cũ không có vẫn hiển thị như trước): chủ đề màu, bố cục, ảnh, kiểu chữ */
 export type SlideStyle = { theme?: string; bg?: string; layout?: SlideLayout; image?: string; body2?: string
-  size?: 's' | 'm' | 'l' | 'xl'; color?: string; bold?: boolean; italic?: boolean; align?: 'left' | 'center'; bullets?: boolean }
+  size?: 's' | 'm' | 'l' | 'xl'; color?: string; bold?: boolean; italic?: boolean; align?: 'left' | 'center'; bullets?: boolean
+  /** Sắp xếp các ô: thứ tự tiêu đề / nội dung / phần thêm (ảnh, phương án, video), vị trí theo chiều dọc, độ rộng cột ảnh (%) */
+  order?: SlideBlock[]; valign?: 'top' | 'middle' | 'bottom'; split?: number }
+export type SlideBlock = 'title' | 'body' | 'extra'
+const ORDER: SlideBlock[] = ['title', 'body', 'extra']
+const VALIGN = { top: 'flex-start', middle: 'center', bottom: 'flex-end' } as const
 export type Slide = { id: string; kind: SlideKind; title: string; body?: string; options?: string[]; answer?: number; url?: string; minutes?: number } & SlideStyle
 export type Plan = {
   id: string; org_id: string; teacher_id: string | null; title: string; subject: string | null; grades: string | null; program: string | null
@@ -61,28 +66,33 @@ export function SlideView({ slide, reveal, hideOptions, onEdit }: { slide: Slide
     ...(th ? { background: th[1], color: th[2], '--sl-accent': th[3] } : {}), ...(slide.bg ? { background: slide.bg } : {}),
     '--slz': SIZES[slide.size ?? 'm'], ...(slide.color ? { color: slide.color } : {}), ...(slide.align ? { textAlign: slide.align } : {}),
   }
+  const ord = slide.order?.length === 3 ? slide.order : ORDER
+  const at = (k: SlideBlock): React.CSSProperties => ({ order: ord.indexOf(k) + 1 })
+  if (slide.valign) box.justifyContent = VALIGN[slide.valign]
   const bodyCls = 'slidebody' + (slide.bold ? ' b' : '') + (slide.italic ? ' i' : '')
   const bodyView = (t: string | undefined) => t ? (slide.bullets
-    ? <ul className={bodyCls}>{lines(t).map((l, i) => <li key={i}>{l}</li>)}</ul>
-    : <div className={bodyCls}>{t.split('\n').map((l, i) => <p key={i}>{l}</p>)}</div>) : null
-  const bodyEdit = (k: 'body' | 'body2', ph: string) => <textarea className={'sledit ' + bodyCls + (slide.bullets ? ' bul' : '')} rows={Math.max(2, (slide[k] ?? '').split('\n').length)} value={slide[k] ?? ''}
+    ? <ul className={bodyCls} style={at('body')}>{lines(t).map((l, i) => <li key={i}>{l}</li>)}</ul>
+    : <div className={bodyCls} style={at('body')}>{t.split('\n').map((l, i) => <p key={i}>{l}</p>)}</div>) : null
+  const bodyEdit = (k: 'body' | 'body2', ph: string) => <textarea className={'sledit ' + bodyCls + (slide.bullets ? ' bul' : '')} rows={Math.max(2, (slide[k] ?? '').split('\n').length)} value={slide[k] ?? ''} style={at('body')}
     placeholder={ph} aria-label={k === 'body' ? 'Nội dung slide' : 'Nội dung cột 2'} onChange={e => onEdit!({ [k]: e.target.value })} />
-  const title = ed ? <textarea className="sledit h2" rows={1} value={slide.title} placeholder="Bấm để nhập tiêu đề" aria-label="Tiêu đề slide"
+  const title = ed ? <textarea className="sledit h2" rows={1} value={slide.title} style={at('title')} placeholder="Bấm để nhập tiêu đề" aria-label="Tiêu đề slide"
       onChange={e => onEdit!({ title: e.target.value.replace(/\n/g, ' ') })} />
-    : <h2>{slide.title || <i>Chưa có tiêu đề</i>}</h2>
+    : <h2 style={at('title')}>{slide.title || <i>Chưa có tiêu đề</i>}</h2>
   const body = ed ? (slide.kind !== 'media' || slide.body) && bodyEdit('body', slide.kind === 'question' ? 'Bấm để nhập câu hỏi' : 'Bấm để nhập nội dung, mỗi dòng một ý')
     : bodyView(slide.body)
   const text = lay === 'two' && slide.kind !== 'media'
-    ? <>{title}<div className="sltwo"><div>{body}</div><div>{ed ? bodyEdit('body2', 'Bấm để nhập nội dung cột 2') : bodyView(slide.body2)}</div></div></>
+    ? <>{title}<div className="sltwo" style={at('body')}><div>{body}</div><div>{ed ? bodyEdit('body2', 'Bấm để nhập nội dung cột 2') : bodyView(slide.body2)}</div></div></>
     : <>{title}{body}</>
   const img = slide.image ? <img src={slide.image} alt={slide.title} /> : ed ? <div className="slimgph">Dán đường dẫn ảnh ở ô "Ảnh" trên thanh định dạng</div> : null
   return (
     <div className={'slide ' + slide.kind + ' lay-' + lay + (th || slide.bg ? ' themed' : '') + (ed ? ' editing' : '')} style={box}>
       <span className="slidekind">{KIND[slide.kind]}{slide.kind === 'task' && slide.minutes ? ` · ${slide.minutes} phút` : ''}</span>
-      {withImg ? <div className={'slcols' + (lay === 'img-left' ? ' rev' : '')}><div className="sltext">{text}</div>{img && <div className="slimg">{img}</div>}</div> : text}
-      {!withImg && lay !== 'two' && slide.image && slide.kind !== 'media' && <img className="slpic" src={slide.image} alt={slide.title} />}
+      {withImg ? <div className={'slcols' + (lay === 'img-left' ? ' rev' : '')} style={{ order: Math.min(ord.indexOf('title'), ord.indexOf('body')) + 1, ...(slide.split ? { gridTemplateColumns: lay === 'img-left'
+          ? `minmax(0,${slide.split}fr) minmax(0,${100 - slide.split}fr)` : `minmax(0,${100 - slide.split}fr) minmax(0,${slide.split}fr)` } : {}) }}>
+        <div className="sltext" style={slide.valign ? { justifyContent: VALIGN[slide.valign], alignSelf: 'stretch' } : undefined}>{text}</div>{img && <div className="slimg">{img}</div>}</div> : text}
+      {!withImg && lay !== 'two' && slide.image && slide.kind !== 'media' && <img className="slpic" src={slide.image} alt={slide.title} style={at('extra')} />}
       {slide.kind === 'question' && !hideOptions && (
-        <ol className="opts">
+        <ol className="opts" style={at('extra')}>
           {opts.map((o, i) => (
             <li key={i} className={reveal && slide.answer === i ? 'right' : ''}>
               {ed ? <>
@@ -95,11 +105,11 @@ export function SlideView({ slide, reveal, hideOptions, onEdit }: { slide: Slide
           {ed && opts.length < 6 && <li className="optadd"><button type="button" className="linkbtn" onClick={() => onEdit!({ options: [...opts, ''] })}>+ Phương án</button></li>}
         </ol>
       )}
-      {slide.kind === 'question' && ed && <small className="slhint">Bấm chữ cái A, B, C… để chọn đáp án đúng.</small>}
-      {slide.kind === 'media' && ed && <input className="sledit url" type="url" value={slide.url ?? ''} placeholder="Dán đường dẫn video YouTube hoặc ảnh" aria-label="Đường dẫn video hoặc ảnh" onChange={e => onEdit!({ url: e.target.value })} />}
+      {slide.kind === 'question' && ed && <small className="slhint" style={at('extra')}>Bấm chữ cái A, B, C… để chọn đáp án đúng.</small>}
+      {slide.kind === 'media' && ed && <input className="sledit url" type="url" style={at('extra')} value={slide.url ?? ''} placeholder="Dán đường dẫn video YouTube hoặc ảnh" aria-label="Đường dẫn video hoặc ảnh" onChange={e => onEdit!({ url: e.target.value })} />}
       {slide.kind === 'media' && slide.url && (
-        isImage(slide.url) ? <img src={slide.url} alt={slide.title} />
-          : <iframe src={embedUrl(slide.url)} title={slide.title || 'Video'} allow="autoplay; encrypted-media; fullscreen" allowFullScreen />
+        isImage(slide.url) ? <img src={slide.url} alt={slide.title} style={at('extra')} />
+          : <iframe style={at('extra')} src={embedUrl(slide.url)} title={slide.title || 'Video'} allow="autoplay; encrypted-media; fullscreen" allowFullScreen />
       )}
     </div>
   )
@@ -122,6 +132,7 @@ export function SlideFormat({ slide, onEdit, onAll, onDup }: { slide: Slide; onE
       {slide.kind !== 'media' && <input type="url" className="slurl" value={slide.image ?? ''} placeholder="Ảnh: dán đường dẫn https://…" aria-label="Đường dẫn ảnh" onChange={e => onEdit({ image: e.target.value || undefined })} />}
       {onDup && <button type="button" onClick={onDup} title="Nhân bản slide">⧉ Nhân bản</button>}
     </div>
+    <SlideArrange slide={slide} onEdit={onEdit} />
     <div className="slfrow"><small>Chữ</small>
       <button type="button" className={slide.bold ? 'on' : ''} aria-pressed={!!slide.bold} aria-label="Chữ đậm" onClick={() => tog('bold')}><b>B</b></button>
       <button type="button" className={slide.italic ? 'on' : ''} aria-pressed={!!slide.italic} aria-label="Chữ nghiêng" onClick={() => tog('italic')}><i>I</i></button>
@@ -133,6 +144,28 @@ export function SlideFormat({ slide, onEdit, onAll, onDup }: { slide: Slide; onE
       <label className="slcolor" title="Màu chữ">Màu chữ <input type="color" value={slide.color ?? '#0f172a'} onChange={e => onEdit({ color: e.target.value })} aria-label="Màu chữ" /></label>
       {slide.color && <button type="button" className="linkbtn" onClick={() => onEdit({ color: undefined })}>Bỏ màu</button>}
     </div>
+  </div>
+}
+
+/** Sắp xếp các ô trên slide: đổi thứ tự (↑ ↓), đặt vị trí trên / giữa / dưới, chỉnh độ rộng cột ảnh */
+function SlideArrange({ slide, onEdit }: { slide: Slide; onEdit: (p: Partial<Slide>) => void }) {
+  const ord = slide.order?.length === 3 ? slide.order : ORDER
+  const lay = slide.layout ?? 'text', withImg = (lay === 'img-right' || lay === 'img-left') && slide.kind !== 'media'
+  const extra = slide.kind === 'question' ? 'Phương án' : slide.kind === 'media' ? 'Video / ảnh' : !withImg && lay !== 'two' && slide.image ? 'Ảnh' : null
+  const name: Record<SlideBlock, string | null> = { title: 'Tiêu đề', body: lay === 'two' ? 'Hai cột chữ' : 'Nội dung', extra }
+  const shown = ord.filter(k => name[k])
+  const move = (k: SlideBlock, d: number) => { const i = shown.indexOf(k), j = i + d; if (j < 0 || j >= shown.length) return
+    const a = [...shown]; [a[i], a[j]] = [a[j], a[i]]; onEdit({ order: [...a, ...ORDER.filter(x => !a.includes(x))] }) }
+  const changed = !!(slide.order || slide.valign || slide.split)
+  return <div className="slfrow"><small>Sắp xếp</small>
+    {shown.map((k, i) => <span key={k} className="slblk">{i + 1}. {name[k]}
+      <button type="button" disabled={!i} aria-label={'Đưa ' + name[k] + ' lên trước'} onClick={() => move(k, -1)}>↑</button>
+      <button type="button" disabled={i === shown.length - 1} aria-label={'Đưa ' + name[k] + ' xuống sau'} onClick={() => move(k, 1)}>↓</button></span>)}
+    <select value={slide.valign ?? ''} aria-label="Vị trí nội dung theo chiều dọc" onChange={e => onEdit({ valign: (e.target.value || undefined) as Slide['valign'] })}>
+      <option value="">Vị trí: mặc định</option><option value="top">Đặt ở trên</option><option value="middle">Đặt ở giữa</option><option value="bottom">Đặt ở dưới</option></select>
+    {withImg && <label className="slcolor" title="Độ rộng cột ảnh">Cột ảnh <input type="range" min={25} max={70} step={5} value={slide.split ?? 46} aria-label="Độ rộng cột ảnh"
+      onChange={e => onEdit({ split: Number(e.target.value) })} /> {slide.split ?? 46}%</label>}
+    {changed && <button type="button" className="linkbtn" onClick={() => onEdit({ order: undefined, valign: undefined, split: undefined })}>Đặt lại</button>}
   </div>
 }
 

@@ -1,3 +1,4 @@
+import { MoreMenu } from '../../components/MoreMenu'
 import { SelBar } from '../../components/TableSel'
 import { useEffect, useState } from 'react'
 import { ElView } from '../../components/ElView'
@@ -141,24 +142,26 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
       </div>
       {/* Một dòng: bộ lọc bên trái; thao tác với câu đang chọn và các nút thêm / nhập / xuất bên phải */}
       {(() => { const ids = picked.map(r => r.id), del = picked.filter(r => r.created_by === me).map(r => r.id); return (
-        <div style={{ marginTop: 14 }}><SelBar picked={null} left={<span className="tools" style={{ flexWrap: 'wrap' }}>
-          <input className="search" style={{ margin: 0, minWidth: 180 }} type="search" placeholder="Tìm câu hỏi, chủ đề…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} aria-label="Tìm câu hỏi" />
+        <div style={{ marginTop: 14 }}><SelBar picked={null} left={<span className="tools bankfilters">
+          <input className="search" style={{ margin: 0 }} type="search" placeholder="Tìm câu hỏi, chủ đề…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} aria-label="Tìm câu hỏi" />
           <select value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
           <select value={f.grade} onChange={e => setF({ ...f, grade: e.target.value })} aria-label="Khối"><option value="">Tất cả khối</option>{Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>Khối {i + 1}</option>)}</select>
           <select value={f.level} onChange={e => setF({ ...f, level: e.target.value })} aria-label="Mức độ"><option value="">Tất cả mức độ</option>{Object.entries(LEVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
           <select value={f.status} onChange={e => setF({ ...f, status: e.target.value })} aria-label="Trạng thái"><option value="">Tất cả trạng thái</option><option value="ready">Sẵn sàng</option><option value="draft">Nháp</option><option value="retired">Ngừng dùng</option></select>
-          {drafts.length > 0 && <button onClick={() => setStatus(drafts.map(d => d.id), 'ready')}>Duyệt {drafts.length} câu nháp đang lọc</button>}
         </span>}>
           {ids.length > 0 && <>
-            <button disabled={picked.every(r => r.status === 'ready')} onClick={() => { setStatus(ids, 'ready'); setSel(new Set()) }}>Duyệt — Sẵn sàng</button>
+            <button disabled={picked.every(r => r.status === 'ready')} onClick={() => { setStatus(ids, 'ready'); setSel(new Set()) }}>Duyệt ({ids.length})</button>
             <button disabled={picked.every(r => r.status === 'retired')} onClick={() => { setStatus(ids, 'retired'); setSel(new Set()) }}>Ngừng dùng</button>
             <button className="danger" disabled={!del.length} title={del.length < ids.length ? 'Chỉ xoá được câu do mình tạo' : `Xoá ${ids.length} câu đã chọn`} onClick={() => removeMany(del)}>Xoá ({del.length})</button></>}
           <button className="primary" onClick={() => { setForm({ ...EMPTY, shared: !every && orgType !== 'school' }); setAi(false) }}>Thêm câu hỏi</button>
-          <button onClick={() => { setAi(!ai); setForm(null) }}>{ai ? 'Đóng Trợ lý AI' : 'Tạo bằng Trợ lý AI'}</button>
-          <ImportExcel columns={COLS} template="mau-ngan-hang-cau-hoi" onRecords={importRecords} onMessage={(m, bad) => setMsg([m, !!bad])}
-            sample={[['Khoa học tự nhiên', '7', 'Mạch điện', 'Nhận biết', 'Đơn vị đo cường độ dòng điện là gì?', 'Vôn', 'Ampe', 'Ôm', 'Oát', '', '', 'B', 'Cường độ dòng điện đo bằng ampe (A).'],
-              ['Công nghệ', '8', 'An toàn điện', 'Thông hiểu', 'Chọn các việc làm an toàn khi sửa điện', 'Ngắt cầu dao', 'Dùng tay ướt', 'Đi dép cao su', 'Chạm dây trần', '', '', 'AC', '']]} />
-          <button onClick={exportExcel} disabled={!list.length}>Xuất Excel</button>
+          <MoreMenu label="Thêm ▾">
+            <button onClick={() => { setAi(!ai); setForm(null) }}>{ai ? 'Đóng Trợ lý AI' : 'Tạo bằng Trợ lý AI'}</button>
+            {drafts.length > 0 && <button onClick={() => setStatus(drafts.map(d => d.id), 'ready')}>Duyệt {drafts.length} câu nháp đang lọc</button>}
+            <ImportExcel columns={COLS} template="mau-ngan-hang-cau-hoi" onRecords={importRecords} onMessage={(m, bad) => setMsg([m, !!bad])}
+              sample={[['Khoa học tự nhiên', '7', 'Mạch điện', 'Nhận biết', 'Đơn vị đo cường độ dòng điện là gì?', 'Vôn', 'Ampe', 'Ôm', 'Oát', '', '', 'B', 'Cường độ dòng điện đo bằng ampe (A).'],
+                ['Công nghệ', '8', 'An toàn điện', 'Thông hiểu', 'Chọn các việc làm an toàn khi sửa điện', 'Ngắt cầu dao', 'Dùng tay ướt', 'Đi dép cao su', 'Chạm dây trần', '', '', 'AC', '']]} />
+            <button onClick={exportExcel} disabled={!list.length}>Xuất Excel</button>
+          </MoreMenu>
         </SelBar></div>) })()}
       {note}
       {ai && <div className="panel"><AssistantQuiz orgId={orgId} onSaved={load} /></div>}

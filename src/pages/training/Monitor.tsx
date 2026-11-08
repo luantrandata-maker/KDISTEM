@@ -208,7 +208,9 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
     {err && <p className="msg" role="alert">{err}</p>}
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
-      <div className="distfilter">
+      <div className="distfilter">{([['all', 'Tất cả'], ['alert', 'Có cảnh báo'], ['running', 'Đang diễn ra'], ['done', 'Đã kết thúc']] as const)
+        .map(([k, l]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => setF(k)}>{l}{k === 'alert' ? ` (${hasAlert.size})` : ''}</button>)}
+        <span className="tooldiv" aria-hidden="true" />
         <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học"><option value="">Tất cả năm học</option>{yearOpts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
         {provOpts.length > 1 && <select value={prov} onChange={e => { setProv(e.target.value); setUnit('') }} aria-label="Tỉnh"><option value="">Tất cả tỉnh</option>{provOpts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>}
         {unitOpts.length > 1 && <select value={unit} onChange={e => setUnit(e.target.value)} aria-label="Phòng / đơn vị quản lý"><option value="">Tất cả phòng / đơn vị</option>{unitOpts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>}
@@ -217,8 +219,6 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
         {filtered && <button type="button" className="fclear" onClick={() => { setYear(''); setProv(''); setUnit(''); setSt(''); setQ(''); setF('all') }}>Bỏ lọc</button>}
         <button type="button" onClick={excel} disabled={!shown.length}>Xuất Excel</button>
       </div>
-      <div className="distfilter">{([['all', 'Tất cả'], ['alert', 'Có cảnh báo'], ['running', 'Đang diễn ra'], ['done', 'Đã kết thúc']] as const)
-        .map(([k, l]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => setF(k)}>{l}{k === 'alert' ? ` (${hasAlert.size})` : ''}</button>)}</div>
     </section>
     {alerts.length > 0 && <section className="panel monalerts" style={{ marginTop: 14 }}>
       <div className="monhead">

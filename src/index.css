@@ -2310,3 +2310,5 @@ th.sort-asc::after{content:" â–²";font-size:10px}th.sort-desc::after{content:" â
 @media(max-width:900px){.statcards.c5{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.statcards.c5{grid-template-columns:1fr}}
 .tooldiv{width:1px;align-self:stretch;background:var(--line);margin:2px 4px}
+.bar.tblhead{margin:14px 0 10px}.bar.tblhead h3{margin:0}
+.bar>.tools:last-child:not(:first-child){margin-left:auto}

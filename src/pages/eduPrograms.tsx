@@ -267,15 +267,15 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
           <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện chương trình ngừng dùng</label>
         </div>
-        <div className="tools">
-          <ViewToggle value={view} onChange={setView} />
-          {canEdit && !hid('add') && <button className="primary" onClick={() => setForm({ level: 'thcs', levels: ['thcs'], kind: 'subject', grade_from: 6, grade_to: 9, grades: [6, 7, 8, 9], scope: mode === 'school' ? 'own' : 'children', integrated_subjects: [], competency_keys: [], rubric_ids: [], deploy_term: 'year' })}>Thêm chương trình</button>}
-        </div>
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : (
         <>
-          <h3>{every ? 'Tất cả đơn vị' : 'Của đơn vị'} ({own.length})</h3>
+          <div className="bar tblhead"><h3>{every ? 'Tất cả đơn vị' : 'Của đơn vị'} ({own.length})</h3>
+          <div className="tools">
+            <ViewToggle value={view} onChange={setView} />
+            {canEdit && !hid('add') && <button className="primary" onClick={() => setForm({ level: 'thcs', levels: ['thcs'], kind: 'subject', grade_from: 6, grade_to: 9, grades: [6, 7, 8, 9], scope: mode === 'school' ? 'own' : 'children', integrated_subjects: [], competency_keys: [], rubric_ids: [], deploy_term: 'year' })}>Thêm chương trình</button>}
+          </div></div>
           {own.length ? show(own, true) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chương trình nào.{canEdit && ' Bấm "Thêm chương trình", hoặc sao chép chương trình dùng chung bên dưới.'}</p></div>}
           {!every && <>
           <h3>Dùng chung / được gán ({shared.length})</h3>

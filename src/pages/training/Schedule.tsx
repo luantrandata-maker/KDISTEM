@@ -132,11 +132,12 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
       { k: 'toclose', icon: 'checkCircle', tone: n('toclose') ? 'warn' : 'good', value: n('toclose'), label: 'Chờ chốt điểm danh', sub: `${n('closed')} đã chốt` },
       { icon: 'alert', tone: pend ? 'warn' : 'good', value: pend, label: 'Xin vắng chờ duyệt' },
     ]} />
-    <div className="bar">
-      <div className="tools">
+    <div className="distfilter">
       {([['', 'Tất cả', base.length], ...(Object.keys(ST) as St[]).map(k => [k, ST[k][0], n(k)])] as [St | '', string, number][]).map(([s, l, c]) =>
         <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
-        <span className="tooldiv" aria-hidden="true" />
+    </div>
+    <div className="bar">
+      <div className="tools">
         <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Kế hoạch"><option value="">Tất cả kế hoạch</option>
           {(plans ?? []).filter(p => ofl.fit(p.org_id)).map(p => <option key={p.id} value={p.id}>{p.plan_code} · {p.name}</option>)}</select>
         {ofl.node((plans ?? []).map(p => p.org_id), () => setPlan(''))}

@@ -115,11 +115,12 @@ export function TrainersPage({ orgId }: { orgId: string }) {
       <p className="sub" style={{ margin: 0 }}>Danh sách giảng viên dùng chung cho tất cả kế hoạch và buổi đào tạo của đơn vị. Ở kế hoạch và lịch, ô Giảng viên chọn được nhiều người từ danh sách này;
         gõ họ tên chưa có thì thêm nhanh. Giảng viên đã phân công không xoá được, chuyển sang "Ngừng mời" để ẩn khỏi ô chọn.</p>
     </div>
-    <div className="bar">
-      <div className="tools">
+    <div className="distfilter">
       {([['active', 'Đang mời', all.filter(t => t.active).length], ['off', 'Ngừng mời', all.filter(t => !t.active).length], ['', 'Tất cả', all.length]] as ['' | 'active' | 'off', string, number][]).map(([s, l, c]) =>
         <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
-        <span className="tooldiv" aria-hidden="true" /><input placeholder="Tìm họ tên, đơn vị công tác, chuyên môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giảng viên" />
+    </div>
+    <div className="bar">
+      <div className="tools"><input placeholder="Tìm họ tên, đơn vị công tác, chuyên môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giảng viên" />
         {ofl.node(all.map(t => t.org_id))}
         <small className="sub">{shown.length}/{all.length} giảng viên</small></div>
       {can && <div className="tools"><button type="button" className="primary" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>Thêm giảng viên</button></div>}

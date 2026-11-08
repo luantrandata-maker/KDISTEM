@@ -124,14 +124,14 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
     ]} />
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
-      <div className="distfilter">{([['all', 'Tất cả'], ['pending', 'Chờ duyệt'], ['issued', 'Đã cấp'], ['revoked', 'Đã thu hồi']] as [F, string][])
-        .map(([k, l]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => { setF(k); setSel(new Set()) }}>{l} ({cnt(k)})</button>)}
-        <span className="tooldiv" aria-hidden="true" />
+      <div className="distfilter">
         <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Kế hoạch"><option value="">Tất cả kế hoạch</option>{plans.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
         {ofl.node(all.map(c => tOrg.get(c.teacher_id)))}
         <input placeholder="Tìm giáo viên, số chứng chỉ…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chứng chỉ" />
         {sel.size > 0 && <button type="button" className="primary" onClick={() => issue([...sel])}>Duyệt cấp ({sel.size})</button>}
       </div>
+      <div className="distfilter">{([['all', 'Tất cả'], ['pending', 'Chờ duyệt'], ['issued', 'Đã cấp'], ['revoked', 'Đã thu hồi']] as [F, string][])
+        .map(([k, l]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => { setF(k); setSel(new Set()) }}>{l} ({cnt(k)})</button>)}</div>
       {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
         <thead><tr><th style={{ width: 36 }}>{pick.length > 0 && <input type="checkbox" aria-label="Chọn tất cả" checked={pick.every(c => sel.has(c.id))}
           onChange={e => setSel(e.target.checked ? new Set(pick.map(c => c.id)) : new Set())} />}</th>

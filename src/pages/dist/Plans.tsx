@@ -236,7 +236,6 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
         <input placeholder="Tìm tên, mã, phân loại…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
         <select value={fc} onChange={e => setFc(e.target.value)} aria-label="Phân loại"><option value="">Tất cả phân loại</option>{classes.map(c => <option key={c} value={c}>{c}</option>)}</select>
         <small className="sub">{shown.length}/{plans.length} bản</small>
-        {!hid('create') && <button type="button" className="primary distcreate" disabled={!canCreate} onClick={onCreate}>+ Tạo bản phân phối</button>}
       </div>
       {err && <p className="msg">{err}</p>}
       <div className="panel">
@@ -248,6 +247,7 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
               title={picked.length > 1 ? 'Gán trường làm cho từng bản một' : one && one.status !== 'published' ? 'Chỉ gán bản đã phát hành' : undefined}
               onClick={() => one && onAssign(one.id)}>Gán trường</button>
             {menu}
+            {!hid('create') && <button type="button" className="primary" disabled={!canCreate} onClick={onCreate}>+ Tạo bản phân phối</button>}
           </div>
         </div>
         <div className="wrap"><table className="libtable">

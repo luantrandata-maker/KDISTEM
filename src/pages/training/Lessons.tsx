@@ -98,11 +98,12 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
         { k: 'ready', icon: 'checkCircle', tone: 'good', value: base.filter(ready4).length, label: 'Đã chốt đủ 4 thẻ bắt buộc' },
         { icon: 'book', value: new Set(base.map(r => r.program_id).filter(Boolean)).size, label: 'Chương trình đào tạo có bài giảng' },
       ]} />
-      <div className="bar">
-        <div className="tools">
+      <div className="distfilter">
         {([['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['inactive', 'Ngừng dùng', n('inactive')]] as [St, string, number][]).map(([s, l, c]) =>
           <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
-          <span className="tooldiv" aria-hidden="true" />
+      </div>
+      <div className="bar">
+        <div className="tools">
           <input placeholder="Tìm tên bài giảng, môn, tác giả…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Tất cả chương trình đào tạo</option>
             {progs.map(p => <option key={p.id} value={p.id}>{progLabel(p.id)}</option>)}</select>

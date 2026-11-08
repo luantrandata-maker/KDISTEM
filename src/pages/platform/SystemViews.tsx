@@ -140,10 +140,25 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
 
   return (
     <>
+      {spec.cards ? <StatCards active={card} onPick={setCard} items={busy ? spec.cards.items([], extra).map(c => ({ ...c, value: '…', sub: undefined })) : spec.cards.items(base, extra)} />
+        : <StatCards items={[
+          { icon: 'layers', value: busy ? '…' : shown.length.toLocaleString('vi-VN'), label: spec.noun,
+            sub: org || busy ? undefined : `${groups.filter(([id]) => !byId.get(id)?.is_platform).length}/${schoolsInRegion.length} trường có dữ liệu` },
+          ...spec.stats.slice(0, 3).map(x => { const v = busy ? '…' : x.get(shown); return { icon: 'chart', value: typeof v === 'number' ? v.toLocaleString('vi-VN') : v, label: x.label } }),
+        ]} />}
+
       <div className="bar sysbar">
-        {multi ? <span className="tools"><MultiFilters defs={facetDefs} f={mf} />
+        {multi ? <span className="tools">{spec.status && <>
+        <button className={'chipbtn' + (st === 'all' ? ' on' : '')} onClick={() => setSt('all')}>Tất cả ({fitted.length})</button>
+        {Object.entries(spec.status.labels).map(([k, l]) => count(k) > 0 && <button key={k} className={'chipbtn' + (st === k ? ' on' : '')} onClick={() => setSt(k)}>{l} ({count(k)})</button>)}
+          <span className="tooldiv" aria-hidden="true" /></>}
+          <MultiFilters defs={facetDefs} f={mf} />
           <input className="search" style={{ margin: 0, minWidth: 200 }} type="search" placeholder={spec.searchHint} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm kiếm" /></span>
         : <span className="tools">
+{spec.status && <>
+        <button className={'chipbtn' + (st === 'all' ? ' on' : '')} onClick={() => setSt('all')}>Tất cả ({fitted.length})</button>
+        {Object.entries(spec.status.labels).map(([k, l]) => count(k) > 0 && <button key={k} className={'chipbtn' + (st === k ? ' on' : '')} onClick={() => setSt(k)}>{l} ({count(k)})</button>)}
+          <span className="tooldiv" aria-hidden="true" /></>}
           <label className="pickfield"><span>Sở / tỉnh</span>
             <select value={region0} onChange={e => { setRegion(e.target.value); pickOrg('') }} aria-label="Chọn Sở hoặc tỉnh">
               <option value="">Toàn hệ thống</option>
@@ -163,17 +178,6 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
         </span>
       </div>
 
-      {spec.cards ? <StatCards active={card} onPick={setCard} items={busy ? spec.cards.items([], extra).map(c => ({ ...c, value: '…', sub: undefined })) : spec.cards.items(base, extra)} />
-        : <StatCards items={[
-          { icon: 'layers', value: busy ? '…' : shown.length.toLocaleString('vi-VN'), label: spec.noun,
-            sub: org || busy ? undefined : `${groups.filter(([id]) => !byId.get(id)?.is_platform).length}/${schoolsInRegion.length} trường có dữ liệu` },
-          ...spec.stats.slice(0, 3).map(x => { const v = busy ? '…' : x.get(shown); return { icon: 'chart', value: typeof v === 'number' ? v.toLocaleString('vi-VN') : v, label: x.label } }),
-        ]} />}
-
-      {spec.status && <div className="tools" style={{ margin: '14px 0 4px' }}>
-        <button className={'chipbtn' + (st === 'all' ? ' on' : '')} onClick={() => setSt('all')}>Tất cả ({fitted.length})</button>
-        {Object.entries(spec.status.labels).map(([k, l]) => count(k) > 0 && <button key={k} className={'chipbtn' + (st === k ? ' on' : '')} onClick={() => setSt(k)}>{l} ({count(k)})</button>)}
-      </div>}
 
       {err && <p className="msg">{err}</p>}
       {capped && <p className="msg">Đang hiện {CAP.toLocaleString('vi-VN')} dòng đầu. Chọn Sở / tỉnh hoặc trường để xem đủ.</p>}

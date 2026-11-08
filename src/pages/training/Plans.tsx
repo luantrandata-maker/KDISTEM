@@ -180,12 +180,11 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
             {(rows, { isFinal, unsorted }) => table(rows, unsorted ? 'Không có kế hoạch nào.' : isFinal && can ? 'Chưa có kế hoạch nào trong mục này. Bấm “+ Lập kế hoạch đào tạo”.' : 'Chưa có kế hoạch nào trong mục này.')}
           </ClsTree>
         : <>
-          <div className="distfilter">
-            {([['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['wait', 'Có danh sách chờ duyệt', base.filter(p => wait(p.id)).length], ['archived', 'Ngừng dùng', n('archived')]] as [Status | 'wait' | '', string, number][]).map(([s, l, c]) =>
-              <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
-          </div>
           <div className="bar">
             <div className="tools">
+            {([['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['wait', 'Có danh sách chờ duyệt', base.filter(p => wait(p.id)).length], ['archived', 'Ngừng dùng', n('archived')]] as [Status | 'wait' | '', string, number][]).map(([s, l, c]) =>
+              <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
+              <span className="tooldiv" aria-hidden="true" />
               <input placeholder="Tìm mã, tên, đơn vị đào tạo…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
               <select value={yr} onChange={e => setYr(e.target.value)} aria-label="Năm học"><option value="">Tất cả năm học</option>{years.map(y => <option key={y} value={y}>{y}</option>)}</select>
               {ofl.node([...list.map(p => p.org_id), ...orgs.map(o => o.org_id)])}

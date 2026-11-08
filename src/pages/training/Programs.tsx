@@ -116,12 +116,11 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
         { k: 'published', icon: 'checkCircle', tone: 'good', value: list ? n('published') : '…', label: 'Dùng được trong kế hoạch' },
         { icon: 'grid', value: totalContents, label: 'Nội dung đào tạo', sub: `${baseStats.reduce((a, x) => a + x.subjects, 0)} môn` },
       ]} />
-      <div className="distfilter">
-        {([['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['pending', 'Chờ duyệt', n('pending')], ['published', 'Đã phát hành', n('published')], ['archived', 'Ngừng dùng', n('archived')]] as [Status | '', string, number][]).map(([s, l, c]) =>
-          <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
-      </div>
       <div className="bar">
         <div className="tools">
+        {([['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['pending', 'Chờ duyệt', n('pending')], ['published', 'Đã phát hành', n('published')], ['archived', 'Ngừng dùng', n('archived')]] as [Status | '', string, number][]).map(([s, l, c]) =>
+          <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
+          <span className="tooldiv" aria-hidden="true" />
           <input placeholder="Tìm mã, tên, đối tượng…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <select value={ct} onChange={e => setCt(e.target.value)} aria-label="Loại chương trình"><option value="">Tất cả loại chương trình</option>
             {codes.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select>

@@ -232,8 +232,7 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
       <div className="distfilter">
         {([['', 'Tất cả', plans.filter(p => listMatch(p, f, crumb)).length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['superseded', 'Đã thay thế', n('superseded')], ['archived', 'Ngừng dùng', n('archived')]] as [Status | '', string, number][]).map(([s, l, c]) =>
           <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
-      </div>
-      <div className="distfilter">
+        <span className="tooldiv" aria-hidden="true" />
         <input placeholder="Tìm tên, mã, phân loại…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
         <select value={fc} onChange={e => setFc(e.target.value)} aria-label="Phân loại"><option value="">Tất cả phân loại</option>{classes.map(c => <option key={c} value={c}>{c}</option>)}</select>
         <small className="sub">{shown.length}/{plans.length} bản</small>

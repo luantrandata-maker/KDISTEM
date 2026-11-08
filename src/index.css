@@ -2312,3 +2312,4 @@ th.sort-asc::after{content:" â–²";font-size:10px}th.sort-desc::after{content:" â
 .tooldiv{width:1px;align-self:stretch;background:var(--line);margin:2px 4px}
 .bar.tblhead{margin:14px 0 10px}.bar.tblhead h3{margin:0}
 .bar>.tools:last-child:not(:first-child){margin-left:auto}
+.distfilter>small.sub{margin:0;white-space:nowrap;align-self:center;line-height:1}

@@ -77,8 +77,9 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
       <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Đợt đánh giá năng lực <small className="sub">· {openN} đang mở</small></h3>
         {can && <button type="button" className="primary" onClick={add}>+ Mở đợt đánh giá</button>}</div>
       <div className="distfilter">
-        <MultiFilters defs={defs} f={mf} count={`${shown.length}/${all.length} đợt`} />
+        <MultiFilters defs={defs} f={mf} />
         <input placeholder="Tìm tên đợt…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đợt đánh giá" />
+        <small className="sub">{shown.length}/{all.length} đợt</small>
       </div>
       {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
         <thead><tr><th>Đợt</th><th>Đơn vị mở</th><th>Năm học</th><th>Thời gian</th><th>Mức yêu cầu</th><th>Trạng thái</th></tr></thead>

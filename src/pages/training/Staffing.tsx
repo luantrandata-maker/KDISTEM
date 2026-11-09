@@ -1,4 +1,4 @@
-// Dự tính giáo viên theo chương trình giáo dục (137): chọn một trường, chọn các chương trình giáo dục trường đang dạy hoặc dự định dạy,
+// Dự tính nhà giáo theo chương trình giáo dục (137): chọn một trường, chọn các chương trình giáo dục trường đang dạy hoặc dự định dạy,
 // nhập số lớp (tự điền nếu trường đã có lớp học theo chương trình) và số lớp tối đa mỗi GV dạy.
 // Mỗi chương trình: GV cần = số lớp ÷ số lớp tối đa (làm tròn lên), GV đã đáp ứng (theo 124 / 132), còn thiếu.
 // Lựa chọn chỉ lưu trên trình duyệt này (theo từng trường), không ghi vào cơ sở dữ liệu.
@@ -102,7 +102,7 @@ export function TeacherStaffingPage() {
 
   return <section className="panel" style={{ display: 'grid', gap: 12 }}>
     <div>
-      <h3 style={{ margin: 0 }}>Dự tính giáo viên theo chương trình giáo dục</h3>
+      <h3 style={{ margin: 0 }}>Dự tính nhà giáo theo chương trình giáo dục</h3>
       <small className="sub">Chọn các chương trình trường đang dạy hoặc dự định dạy và số lớp mỗi chương trình. GV cần = số lớp ÷ số lớp tối đa một GV dạy (làm tròn lên).
         GV đã đáp ứng là GV của trường đã Đạt khoá đào tạo gắn với chương trình, hoặc có mức năng lực đủ yêu cầu của chương trình.</small>
     </div>

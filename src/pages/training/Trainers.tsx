@@ -78,7 +78,7 @@ export function TrainersPage({ orgId }: { orgId: string }) {
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [q, setQ] = useState('')
   const [fs, setFs] = useState<'' | 'active' | 'off'>('active')
-  // Điểm giáo viên chấm giảng viên sau khoá (114)
+  // Điểm nhà giáo chấm giảng viên sau khoá (114)
   const [rate, setRate] = useState<Map<string, TRate>>(new Map())
   useEffect(() => { supabase.rpc('trainer_feedback_stats', { p_year: null }).then(({ data, error }) => { if (!error) setRate(new Map(((data as TRate[]) ?? []).map(r => [r.trainer_id, r]))) }) }, [orgId])
   useEffect(() => { supabase.rpc('training_can_write', { p_org: orgId }).then(({ data }) => setCan(!!data)) }, [orgId])

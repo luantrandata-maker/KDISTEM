@@ -103,7 +103,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
   const steps: [string, string][] = [
     ['Soạn chương trình', 'Nhập thông tin, năng lực đích và điều kiện đạt; thêm các môn và nội dung đào tạo kèm số giờ.'],
     ['Duyệt & phát hành', 'Gửi duyệt hoặc phát hành thẳng. Bản đã phát hành không sửa được, muốn sửa thì tạo phiên bản mới.'],
-    ['Dùng trong kế hoạch', 'Chọn chương trình đã phát hành khi lập Kế hoạch & lịch đào tạo cho trường, giáo viên.']]
+    ['Dùng trong kế hoạch', 'Chọn chương trình đã phát hành khi lập Kế hoạch & lịch đào tạo cho trường, nhà giáo.']]
   return (
     <>
       <FlowGuide id="training-programs">
@@ -182,7 +182,7 @@ function InfoFields({ f, set, disabled, family }: { f: Info; set: (f: Info) => v
   const builders = useMemo(() => [...new Set((orgs ?? []).filter(o => o.type !== 'school').map(o => o.name))].sort((a, b) => a.localeCompare(b, 'vi')), [orgs])
   return <>
     <div className="formgrid" style={{ alignItems: 'start' }}>
-      <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình đào tạo *</span><input required disabled={disabled} maxLength={200} value={f.title} onChange={e => set({ ...f, title: e.target.value })} placeholder="VD: Đào tạo dạy học STEM tích hợp cho giáo viên THCS" /></label>
+      <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình đào tạo *</span><input required disabled={disabled} maxLength={200} value={f.title} onChange={e => set({ ...f, title: e.target.value })} placeholder="VD: Đào tạo dạy học STEM tích hợp cho nhà giáo THCS" /></label>
       <div className="field" style={{ gridColumn: 'span 2' }}><span>Loại chương trình</span>
         <MultiSelect disabled={disabled} value={f.ct_codes} onChange={v => set({ ...f, ct_codes: v })} options={codes.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])}
           placeholder="Không chọn" ariaLabel="Loại chương trình" /></div>
@@ -190,29 +190,29 @@ function InfoFields({ f, set, disabled, family }: { f: Info; set: (f: Info) => v
         <MultiSelect disabled={disabled} value={f.levels} onChange={v => set({ ...f, levels: v })} options={levels.map(l => [l.code, l.name])} placeholder="Tất cả cấp học" ariaLabel="Cấp học" /></div>
       <label className="field"><span>Hình thức</span><select disabled={disabled} value={f.mode} onChange={e => set({ ...f, mode: e.target.value as Mode })}>
         {(Object.keys(MODE) as Mode[]).map(m => <option key={m} value={m}>{MODE[m]}</option>)}</select></label>
-      <label className="field"><span>Đối tượng</span><input disabled={disabled} maxLength={200} value={f.audience ?? ''} onChange={e => set({ ...f, audience: e.target.value })} placeholder="VD: Giáo viên mới dạy STEM" /></label>
+      <label className="field"><span>Đối tượng</span><input disabled={disabled} maxLength={200} value={f.audience ?? ''} onChange={e => set({ ...f, audience: e.target.value })} placeholder="VD: Nhà giáo mới dạy STEM" /></label>
       <label className="field" style={{ gridColumn: 'span 2' }}><span>Đơn vị xây dựng <small className="sub">(không bắt buộc)</small></span>
         <input disabled={disabled} maxLength={200} list="tp-builders" value={f.builder ?? ''} onChange={e => set({ ...f, builder: e.target.value })} placeholder="Chọn hoặc gõ: KDI Education, Sở GD&ĐT…, Trường ĐHSP…" />
         <datalist id="tp-builders">{builders.map(n => <option key={n} value={n} />)}</datalist></label>
       <label className="field" style={{ gridColumn: '1/-1' }}><span>Mô tả</span><textarea disabled={disabled} rows={2} maxLength={4000} value={f.description ?? ''} onChange={e => set({ ...f, description: e.target.value })} /></label>
       <label className="field" style={{ gridColumn: '1/-1' }}><span>Mục tiêu</span><textarea disabled={disabled} rows={3} maxLength={4000} value={f.objectives ?? ''} onChange={e => set({ ...f, objectives: e.target.value })}
-        placeholder="Sau đào tạo, giáo viên…" /></label>
+        placeholder="Sau đào tạo, nhà giáo…" /></label>
       <label className="field" style={{ gridColumn: '1/-1' }}><span>Yêu cầu đầu ra</span><textarea disabled={disabled} rows={3} maxLength={4000} value={f.outcomes ?? ''} onChange={e => set({ ...f, outcomes: e.target.value })}
         placeholder="VD: Thiết kế được 1 kế hoạch bài dạy STEM; lắp ráp và lập trình được robot cơ bản" /></label>
     </div>
     <fieldset className="libtargets wide"><legend>Điều kiện tham gia</legend>
       <div className="formgrid" style={{ alignItems: 'start' }}>
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Điều kiện tham gia</span><textarea disabled={disabled} rows={2} maxLength={2000} value={f.entry_conditions ?? ''} onChange={e => set({ ...f, entry_conditions: e.target.value })}
-          placeholder="VD: Giáo viên đang dạy Khoa học tự nhiên hoặc Công nghệ, có máy tính cá nhân" /></label>
+          placeholder="VD: Nhà giáo đang dạy Khoa học tự nhiên hoặc Công nghệ, có máy tính cá nhân" /></label>
         <div className="field" style={{ gridColumn: '1/-1' }}><span>Chương trình tiên quyết (phải đạt trước)</span>
           <MultiSelect disabled={disabled} value={f.prereq_families} onChange={v => set({ ...f, prereq_families: v })} options={fams} placeholder="Không có"
             ariaLabel="Chương trình tiên quyết" empty="Chưa có chương trình đào tạo khác." /></div>
       </div>
     </fieldset>
-    <fieldset className="libtargets wide"><legend>Năng lực đích (khung năng lực giáo viên)</legend>
+    <fieldset className="libtargets wide"><legend>Năng lực đích (khung năng lực nhà giáo)</legend>
       <div className="formgrid" style={{ alignItems: 'start' }}>
         <div className="field" style={{ gridColumn: 'span 3' }}><span>Năng lực đích</span><MultiSelect disabled={disabled} value={f.competencies} onChange={v => set({ ...f, competencies: v })}
-          options={comps.map(c => [c.key, c.name])} placeholder="Chọn năng lực đích…" ariaLabel="Năng lực đích" empty="Chưa có khung năng lực giáo viên." /><CompetencySetupLink audience="teacher" /></div>
+          options={comps.map(c => [c.key, c.name])} placeholder="Chọn năng lực đích…" ariaLabel="Năng lực đích" empty="Chưa có khung năng lực nhà giáo." /><CompetencySetupLink audience="teacher" /></div>
         <label className="field"><span>Mức cần đạt sau đào tạo</span><select disabled={disabled} value={f.target_level} onChange={e => set({ ...f, target_level: Number(e.target.value) })}>
           {[1, 2, 3, 4].map(l => <option key={l} value={l}>Mức {l} · {LV_NAME[l - 1]}</option>)}</select></label>
       </div>
@@ -524,13 +524,13 @@ function TrainingDeploy({ p, go }: { p: TProgram; go?: (page: string) => void })
   return <section className="panel" style={{ display: 'grid', gap: 12 }}>
     <div className="bar"><h3 style={{ margin: 0 }}>Kế hoạch đào tạo dùng chương trình ({plans?.length ?? '…'})</h3>
       {go && p.status === 'published' && <button type="button" className="primary" onClick={() => go('Kế hoạch & lịch đào tạo')}>Lập kế hoạch đào tạo</button>}</div>
-    <p className="sub" style={{ margin: 0 }}>Chương trình đào tạo đến trường / giáo viên qua Kế hoạch đào tạo: chọn chương trình đã phát hành, gán đơn vị tham gia và chỉ tiêu. Bảng dưới tính trên tất cả phiên bản của chương trình.</p>
+    <p className="sub" style={{ margin: 0 }}>Chương trình đào tạo đến trường / nhà giáo qua Kế hoạch đào tạo: chọn chương trình đã phát hành, gán đơn vị tham gia và chỉ tiêu. Bảng dưới tính trên tất cả phiên bản của chương trình.</p>
     {p.status !== 'published' && <p className="sub" style={{ margin: 0 }}>Phiên bản này chưa phát hành nên chưa chọn được trong kế hoạch mới.</p>}
     {!plans ? <p className="sub">Đang tải…</p> : plans.length === 0 ? <p className="sub" style={{ margin: 0 }}>Chưa có kế hoạch đào tạo nào dùng chương trình này.</p> : <>
       <StatCards items={[
         { icon: 'layers', value: plans.length, label: 'Kế hoạch' },
         { icon: 'school', value: orgs, label: 'Đơn vị tham gia' },
-        { icon: 'users', value: sum('enrolled'), label: 'Giáo viên đăng ký' },
+        { icon: 'users', value: sum('enrolled'), label: 'Nhà giáo đăng ký' },
         { icon: 'checkCircle', tone: 'good', value: sum('passed'), label: 'Đạt', sub: `${sum('certs')} chứng chỉ đã cấp` },
       ]} />
       <div className="wrap"><table>
@@ -564,7 +564,7 @@ function effNote(p: Pick<TProgram, 'effective_from' | 'effective_to'>) {
   return ''
 }
 const OTYPE: Record<string, string> = { ministry: 'Bộ', province: 'Tỉnh', department: 'Sở', district: 'Phòng', school: 'Trường', provider: 'Đơn vị' }
-// Chương trình giáo dục đáp ứng (124): giáo viên Đạt khoá dùng chương trình đào tạo này thì được tính đáp ứng các chương trình giáo dục đã gắn.
+// Chương trình giáo dục đáp ứng (124): nhà giáo Đạt khoá dùng chương trình đào tạo này thì được tính đáp ứng các chương trình giáo dục đã gắn.
 // Gắn theo họ phiên bản ở cả hai phía; sửa được cả khi chương trình đã phát hành.
 type EduOpt = { id: string; family_id: string | null; code: string | null; title: string; version_no: number; status: string }
 const EDU_ST: Record<string, string> = { draft: 'nháp', pending: 'chờ duyệt', approved: 'đã duyệt', rejected: 'bị trả lại', superseded: 'bản cũ', archived: 'lưu trữ' }
@@ -597,12 +597,12 @@ function ProgramEduLinks({ p, admin, onMsg }: { p: TProgram; admin: boolean; onM
     const { error } = await supabase.rpc('training_program_set_edu', { p_program: p.id, p_edu: ids })
     setBusy(false)
     if (error) return onMsg(/schema cache|does not exist|not find/i.test(error.message) ? 'Hãy chạy migration 124 trên Supabase.' : errText(error.message), true)
-    setSaved(sel); onMsg(sel.length ? `Đã lưu: giáo viên Đạt khoá này được tính đáp ứng ${sel.length} chương trình giáo dục.` : 'Đã bỏ gắn chương trình giáo dục.')
+    setSaved(sel); onMsg(sel.length ? `Đã lưu: nhà giáo Đạt khoá này được tính đáp ứng ${sel.length} chương trình giáo dục.` : 'Đã bỏ gắn chương trình giáo dục.')
   }
   return <section className="panel" style={{ display: 'grid', gap: 12 }}>
     <h3 style={{ margin: 0 }}>Chương trình giáo dục đáp ứng</h3>
-    <p className="sub" style={{ margin: 0 }}>Giáo viên Đạt một khoá đào tạo dùng chương trình này được tính là đáp ứng các chương trình giáo dục dưới đây, kèm năng lực đích của khoá.
-      Kết quả hiện ở hồ sơ năng lực giáo viên và bảng Đáp ứng chương trình giáo dục của trường, Sở. Phiên bản mới của hai bên vẫn giữ liên kết.</p>
+    <p className="sub" style={{ margin: 0 }}>Nhà giáo Đạt một khoá đào tạo dùng chương trình này được tính là đáp ứng các chương trình giáo dục dưới đây, kèm năng lực đích của khoá.
+      Kết quả hiện ở hồ sơ năng lực nhà giáo và bảng Đáp ứng chương trình giáo dục của trường, Sở. Phiên bản mới của hai bên vẫn giữ liên kết.</p>
     {admin && p.status !== 'archived' ? <>
       <div className="field"><span>Chương trình giáo dục</span>
         <MultiSelect value={sel} onChange={setSel} options={[...options, ...sel.filter(f => !options.some(o => o[0] === f)).map(f => [f, nameOf(f)] as [string, string])]}
@@ -691,7 +691,7 @@ function ScopeEduFields({ x, set, owner, disabled }: { x: Extra; set: (x: Extra)
       {bad && <small className="warnline">{bad}</small>}
     </fieldset>
     <fieldset className="libtargets wide"><legend>Chương trình giáo dục đáp ứng</legend>
-      <p className="sub" style={{ margin: '0 0 8px' }}>Giáo viên Đạt một khoá đào tạo dùng chương trình này được tính là đáp ứng các chương trình giáo dục dưới đây, kèm năng lực đích của khoá.</p>
+      <p className="sub" style={{ margin: '0 0 8px' }}>Nhà giáo Đạt một khoá đào tạo dùng chương trình này được tính là đáp ứng các chương trình giáo dục dưới đây, kèm năng lực đích của khoá.</p>
       <div className="field"><span>Chương trình giáo dục</span>
         <MultiSelect disabled={disabled} value={x.edu} onChange={v => set({ ...x, edu: v })}
           options={[...eduOpts, ...x.edu.filter(f => !eduOpts.some(o => o[0] === f)).map(f => [f, 'Chương trình giáo dục'] as [string, string])]}

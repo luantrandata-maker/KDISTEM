@@ -1,5 +1,5 @@
 // Phân hệ 1 — Chứng chỉ đào tạo (087): danh sách, duyệt cấp, thu hồi, in (PDF qua hộp thoại in), QR tra cứu công khai;
-// mẫu chứng chỉ (KDI soạn, chương trình đào tạo chọn mẫu); chứng chỉ của tôi (cổng giáo viên); trang tra cứu ?cc=<mã>.
+// mẫu chứng chỉ (KDI soạn, chương trình đào tạo chọn mẫu); chứng chỉ của tôi (cổng nhà giáo); trang tra cứu ?cc=<mã>.
 import { useOrgFilter } from '../../components/OrgFilters'
 import { MultiSelect } from '../../components/MultiSelect'
 import { useEffect, useMemo, useState } from 'react'
@@ -99,7 +99,7 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
   async function issue(ids: string[]) {
     const { data, error } = await supabase.rpc('training_cert_issue', { p_ids: ids })
     if (error) return setMsg([errText(error.message), true])
-    setMsg([`Đã cấp ${data} chứng chỉ, giáo viên nhận được thông báo.`, false]); load()
+    setMsg([`Đã cấp ${data} chứng chỉ, nhà giáo nhận được thông báo.`, false]); load()
   }
   async function revoke(c: Cert) {
     const r = prompt(`Lý do thu hồi chứng chỉ ${c.code} của ${c.teacher_name}:`)
@@ -109,7 +109,7 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
     setMsg([`Đã thu hồi chứng chỉ ${c.code}.`, false]); load()
   }
   const steps: [string, string, F][] = [
-    ['Giáo viên Đạt', 'Kết luận Đạt ở mục Đánh giá kết quả thì chứng chỉ tự vào danh sách chờ duyệt.', 'pending'],
+    ['Nhà giáo Đạt', 'Kết luận Đạt ở mục Đánh giá kết quả thì chứng chỉ tự vào danh sách chờ duyệt.', 'pending'],
     ['Duyệt cấp', 'Chọn chứng chỉ và bấm Duyệt cấp: hệ thống sinh số CCTH-năm-số, ngày cấp, hạn hiệu lực theo mẫu.', 'pending'],
     ['In & tra cứu', 'In hoặc lưu PDF; QR trên chứng chỉ mở trang tra cứu công khai. Thu hồi khi cần (ghi lý do).', 'issued']]
   return <>
@@ -127,7 +127,7 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
       <div className="distfilter">
         <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Kế hoạch"><option value="">Tất cả kế hoạch</option>{plans.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
         {ofl.node(all.map(c => tOrg.get(c.teacher_id)))}
-        <input placeholder="Tìm giáo viên, số chứng chỉ…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chứng chỉ" />
+        <input placeholder="Tìm nhà giáo, số chứng chỉ…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chứng chỉ" />
         {sel.size > 0 && <button type="button" className="primary" onClick={() => issue([...sel])}>Duyệt cấp ({sel.size})</button>}
       </div>
       <div className="distfilter">{([['all', 'Tất cả'], ['pending', 'Chờ duyệt'], ['issued', 'Đã cấp'], ['revoked', 'Đã thu hồi']] as [F, string][])
@@ -135,7 +135,7 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
       {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
         <thead><tr><th style={{ width: 36 }}>{pick.length > 0 && <input type="checkbox" aria-label="Chọn tất cả" checked={pick.every(c => sel.has(c.id))}
           onChange={e => setSel(e.target.checked ? new Set(pick.map(c => c.id)) : new Set())} />}</th>
-          <th>Giáo viên</th><th>Kế hoạch / chương trình</th><th>Số chứng chỉ</th><th>Ngày cấp</th><th>Trạng thái</th><th></th></tr></thead>
+          <th>Nhà giáo</th><th>Kế hoạch / chương trình</th><th>Số chứng chỉ</th><th>Ngày cấp</th><th>Trạng thái</th><th></th></tr></thead>
         <tbody>{shown.map(c => <tr key={c.id}>
           <td>{c.can_manage && c.status !== 'issued' && <input type="checkbox" aria-label={`Chọn ${c.teacher_name}`} checked={sel.has(c.id)}
             onChange={e => { const n = new Set(sel); e.target.checked ? n.add(c.id) : n.delete(c.id); setSel(n) }} />}</td>
@@ -246,13 +246,13 @@ function TplForm({ t, progs, onBack, onDone }: { t: Tpl | Omit<Tpl, 'id'>; progs
   </ElView>
 }
 
-// ===== Cổng giáo viên: Chứng chỉ của tôi =====
+// ===== Cổng nhà giáo: Chứng chỉ của tôi =====
 export function TeacherCertificates({ teacherId }: { teacherId: string | null }) {
   const [rows, setRows] = useState<Cert[] | null>(null)
   const [err, setErr] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   useEffect(() => { if (teacherId) supabase.rpc('training_cert_list', { p_mine: true }).then(({ data, error }) => { if (error) setErr(errText(error.message)); else setRows((data as Cert[]) ?? []) }) }, [teacherId])
-  if (!teacherId) return <p className="sub">Tài khoản này chưa được liên kết với hồ sơ giáo viên.</p>
+  if (!teacherId) return <p className="sub">Tài khoản này chưa được liên kết với hồ sơ nhà giáo.</p>
   if (open) return <CertView id={open} back="Chứng chỉ của tôi" onBack={() => setOpen(null)} />
   if (!rows) return err ? <p className="sub" role="alert">{err}</p> : <p className="sub">Đang tải…</p>
   return <div className="tlcourses">
@@ -265,13 +265,13 @@ export function TeacherCertificates({ teacherId }: { teacherId: string | null })
   </div>
 }
 
-/** Chứng chỉ của một giáo viên (bảng gọn, có Xem / In) — dùng trong Hồ sơ năng lực */
+/** Chứng chỉ của một nhà giáo (bảng gọn, có Xem / In) — dùng trong Hồ sơ năng lực */
 export function TeacherCertList({ teacherId }: { teacherId: string }) {
   const [rows, setRows] = useState<Cert[] | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   useEffect(() => {
     ;(async () => {
-      // Người quản lý / trường: danh sách theo quyền xem; giáo viên tự xem: danh sách của tôi
+      // Người quản lý / trường: danh sách theo quyền xem; nhà giáo tự xem: danh sách của tôi
       const a = await supabase.rpc('training_cert_list', { p_mine: false })
       let xs = ((a.data as Cert[]) ?? []).filter(c => c.teacher_id === teacherId && c.status !== 'pending')
       if (!xs.length) {

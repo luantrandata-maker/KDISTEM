@@ -85,7 +85,7 @@ export function TrainingReportPage() {
     </div>
     <StatCards items={[
       { icon: 'layers', value: tot?.plans.size ?? 0, label: 'Kế hoạch đào tạo', sub: `${tot?.closed.size ?? 0} đã kết thúc · ${tot?.schools.size ?? 0} trường tham gia` },
-      { icon: 'users', value: tot?.enrolled ?? 0, label: 'Lượt giáo viên tham gia', sub: `${(tot?.hours ?? 0).toLocaleString('vi-VN')} giờ bồi dưỡng` },
+      { icon: 'users', value: tot?.enrolled ?? 0, label: 'Lượt nhà giáo tham gia', sub: `${(tot?.hours ?? 0).toLocaleString('vi-VN')} giờ bồi dưỡng` },
       { icon: 'checkCircle', tone: 'good', value: fmtPct(tot ? pct(tot.passed, tot.enrolled) : null), label: 'Tỷ lệ hoàn thành (Đạt / tham gia)',
         sub: `${tot?.passed ?? 0} Đạt · ${tot?.failed ?? 0} Chưa đạt · ${tot ? tot.enrolled - done : 0} chưa kết luận` },
       { icon: 'award', value: tot?.certs ?? 0, label: 'Chứng chỉ đã cấp', sub: `Chuyên cần TB ${fmtPct(tot?.attN ? Math.round(tot.attW / tot.attN * 10) / 10 : null)}` },
@@ -107,7 +107,7 @@ export function TrainingReportPage() {
             <td>{fmtPct(att)}</td><td>{a.certs}</td><td>{a.hours.toLocaleString('vi-VN')}</td>
           </tr> })}</tbody>
       </table></div>}
-    <p className="sub" style={{ marginTop: 10 }}>Tỷ lệ hoàn thành = số giáo viên Đạt / số lượt giáo viên có tên. Giờ bồi dưỡng = số giờ của kế hoạch × số giáo viên có tên.
+    <p className="sub" style={{ marginTop: 10 }}>Tỷ lệ hoàn thành = số nhà giáo Đạt / số lượt nhà giáo có tên. Giờ bồi dưỡng = số giờ của kế hoạch × số nhà giáo có tên.
       Chuyên cần tính trên các buổi đã chốt điểm danh. Số liệu chỉ gồm trường trong phạm vi quản lý của bạn.</p>
   </>
 }

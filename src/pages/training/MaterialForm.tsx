@@ -143,7 +143,7 @@ export function TrainingItemForm({ orgId, part, progs, units: allUnits, initialP
         <h4 className="libparthead">Thông tin nội dung</h4>
         <div className="formgrid libgrid4">
           <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên nội dung *</span><input required maxLength={300} value={f.title ?? ''} onChange={e => set('title', e.target.value)} placeholder="VD: Lắp ráp robot xe 2 bánh" /></label>
-          <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mục tiêu</span><textarea rows={2} value={f.goal ?? ''} onChange={e => set('goal', e.target.value)} placeholder="Sau nội dung này, giáo viên…" /></label>
+          <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mục tiêu</span><textarea rows={2} value={f.goal ?? ''} onChange={e => set('goal', e.target.value)} placeholder="Sau nội dung này, nhà giáo…" /></label>
           <label className="field"><span>Số giờ</span><input inputMode="decimal" value={f.hours ?? ''} onChange={e => set('hours', e.target.value)} /></label>
           <label className="field"><span>Hình thức</span><select value={f.mode ?? ''} onChange={e => set('mode', e.target.value)}>
             <option value="">Theo kế hoạch</option><option value="online">Trực tuyến</option><option value="offline">Trực tiếp</option></select></label>

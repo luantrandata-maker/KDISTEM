@@ -237,7 +237,7 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
         {multi ? <div className="segmented viewtoggle" role="group" aria-label="Xem theo">{VIEWS.map(([k, l]) =>
           <button key={k} type="button" className={view === k ? 'on' : ''} aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>)}</div>
           : <h3 style={{ margin: 0 }}>Theo kế hoạch</h3>}
-        <small className="sub">{view === 'school' ? 'Bấm một trường để xem từng kế hoạch, từng giáo viên và việc cần làm' : view === 'plan' ? 'Bấm tên trường để xem chi tiết' : 'Bấm một dòng để xem các trường thuộc đơn vị đó'}</small>
+        <small className="sub">{view === 'school' ? 'Bấm một trường để xem từng kế hoạch, từng nhà giáo và việc cần làm' : view === 'plan' ? 'Bấm tên trường để xem chi tiết' : 'Bấm một dòng để xem các trường thuộc đơn vị đó'}</small>
       </div>
       {!rows ? <p className="sub">Đang tải…</p> : multi && view === 'school' ? schoolTable(schools)
         : multi && (view === 'unit' || view === 'province') ? <div className="wrap"><table className="libtable">
@@ -266,7 +266,7 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
     </section>
     <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }} aria-label="Mức hài lòng sau đào tạo">
       <div className="monhead"><h3 style={{ margin: 0 }}>Mức hài lòng sau đào tạo</h3>
-        <small className="sub">{fbAll.n ? <>Trung bình chung <b>{score(fbAll.overall)}★</b> · {fbAll.n}/{fbAll.enrolled} GV đã gửi phiếu ({pct(fbAll.n, fbAll.enrolled)}%) · {fbAll.comments} góp ý</> : 'Giáo viên gửi phiếu ở trang khoá học khi khoá kết thúc.'}</small></div>
+        <small className="sub">{fbAll.n ? <>Trung bình chung <b>{score(fbAll.overall)}★</b> · {fbAll.n}/{fbAll.enrolled} GV đã gửi phiếu ({pct(fbAll.n, fbAll.enrolled)}%) · {fbAll.comments} góp ý</> : 'Nhà giáo gửi phiếu ở trang khoá học khi khoá kết thúc.'}</small></div>
       {fbPlans.length > 0 && <div className="wrap"><table className="libtable">
         <thead><tr><th>Kế hoạch</th><th>Phiếu</th>{FB_CRIT.map(([k, l]) => <th key={k}>{l}</th>)}<th>Góp ý</th></tr></thead>
         <tbody>{fbPlans.map(({ r, a }) => <FbPlanRow key={r.plan_id} r={r} a={a} open={fbPlan === r.plan_id} onToggle={() => setFbPlan(fbPlan === r.plan_id ? null : r.plan_id)} />)}</tbody>
@@ -274,20 +274,20 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
     </section>
     <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
       <h3 style={{ margin: 0 }}>Năng lực trước / sau đào tạo</h3>
-      <p className="sub" style={{ margin: 0 }}>Giáo viên đã Đạt khoá đào tạo: mức trung bình ở đánh giá năng lực gần nhất trước năm học của khoá so với đánh giá từ năm học của khoá trở đi, theo năng lực đích của chương trình.</p>
+      <p className="sub" style={{ margin: 0 }}>Nhà giáo đã Đạt khoá đào tạo: mức trung bình ở đánh giá năng lực gần nhất trước năm học của khoá so với đánh giá từ năm học của khoá trở đi, theo năng lực đích của chương trình.</p>
       {eff.length ? <div className="wrap"><table className="libtable">
         <thead><tr><th>Năng lực</th><th>Số GV</th><th>Trước</th><th>Sau</th><th>Thay đổi</th></tr></thead>
         <tbody>{eff.map(e => { const d = e.before_avg != null && e.after_avg != null ? Number(e.after_avg) - Number(e.before_avg) : null
           return <tr key={e.competency}><td>{e.competency_name}</td><td>{e.teachers}</td><td>{num(e.before_avg)}</td><td>{num(e.after_avg)}</td>
             <td>{d == null ? <small className="sub">chưa đủ dữ liệu</small> : <Chip tone={d > 0 ? 'good' : d < 0 ? 'bad' : ''}>{d > 0 ? '+' : ''}{num(Math.round(d * 100) / 100)}</Chip>}</td></tr> })}</tbody>
-      </table></div> : <small className="sub">Chưa có giáo viên Đạt khoá đào tạo có năng lực đích.</small>}
+      </table></div> : <small className="sub">Chưa có nhà giáo Đạt khoá đào tạo có năng lực đích.</small>}
     </section>
     {sel && <SchoolDetail s={sel} year={year} fb={fb} onClose={() => setSchool(null)} work={work} manage={manage}
       onWork={r => { setSchool(null); setDoing({ plan: r.plan_id, org: r.org_id }) }} onReview={review} />}
   </>
 }
 
-// Chi tiết một trường: số tổng quan, cảnh báo, từng kế hoạch được giao kèm việc cần làm, từng giáo viên
+// Chi tiết một trường: số tổng quan, cảnh báo, từng kế hoạch được giao kèm việc cần làm, từng nhà giáo
 function SchoolDetail({ s, year, fb, onClose, work, manage, onWork, onReview }: { s: School; year: string; fb: Map<string, Fb>; onClose: () => void; work: boolean; manage: boolean
   onWork: (r: Row) => void; onReview: (r: Row, ok: boolean) => void }) {
   const [open, setOpen] = useState(() => { try { return localStorage.getItem(SCHOOL_OPEN_KEY) !== '0' } catch { return true } })
@@ -316,7 +316,7 @@ function SchoolDetail({ s, year, fb, onClose, work, manage, onWork, onReview }: 
           <small className="sub">Buổi đã chốt {r.sessions_closed}/{r.sessions} · Học trực tuyến {r.online_done}/{r.enrolled}</small><br />
           <Chip tone={ORG_ST[r.org_status]?.[1]}>{ORG_ST[r.org_status]?.[0] ?? r.org_status}</Chip>
           {(work || (manage && r.org_status === 'submitted')) && <div className="tools" style={{ marginTop: 6 }}>
-            {work && <button type="button" data-rowopen className={todo ? 'primary' : ''} onClick={() => onWork(r)}>{todo ? 'Chọn giáo viên' : 'Danh sách giáo viên'}</button>}
+            {work && <button type="button" data-rowopen className={todo ? 'primary' : ''} onClick={() => onWork(r)}>{todo ? 'Chọn nhà giáo' : 'Danh sách nhà giáo'}</button>}
             {manage && r.org_status === 'submitted' && <><button type="button" className="primary" onClick={() => onReview(r, true)}>Duyệt DS</button>
               <button type="button" onClick={() => onReview(r, false)}>Trả lại</button></>}</div>}</td>
         <td style={{ whiteSpace: 'nowrap' }}>{r.quota != null ? <><Bar v={pct(r.enrolled, r.quota)} warnBelow={100} /> {r.enrolled}/{r.quota}</> : r.enrolled}</td>
@@ -327,13 +327,13 @@ function SchoolDetail({ s, year, fb, onClose, work, manage, onWork, onReview }: 
           onClick={() => setCm(cm === r.plan_id ? null : r.plan_id)}>{cm === r.plan_id ? 'Ẩn góp ý' : `${fbOf(r).comments} góp ý`}</button></>}</td></tr> })}</tbody>
     </table></div>
     {cm && <section className="panel" style={{ marginTop: 10, display: 'grid', gap: 8 }}>
-      <b>Góp ý của giáo viên · {s.rows.find(r => r.plan_id === cm)?.plan_name}</b>
+      <b>Góp ý của nhà giáo · {s.rows.find(r => r.plan_id === cm)?.plan_name}</b>
       <FeedbackComments planId={cm} orgId={s.org_id} /></section>}
     <SchoolTeachers orgId={s.org_id} year={year} />
   </Drawer>
 }
 
-// Từng giáo viên của trường: chuyên cần, bài học, bài kiểm tra, sản phẩm, kết quả, chứng chỉ (113)
+// Từng nhà giáo của trường: chuyên cần, bài học, bài kiểm tra, sản phẩm, kết quả, chứng chỉ (113)
 type Metrics = { sessions: number; present: number; excused: number; att_pct: number | null; att_req: number; units: number; done: number
   tests: number; tests_passed: number; need_product: boolean; product_status: string | null
   ok_att: boolean; ok_tests: boolean; ok_units: boolean; ok_product: boolean; suggest: 'pass' | 'fail' }
@@ -346,7 +346,7 @@ function SchoolTeachers({ orgId, year }: { orgId: string; year: string }) {
   const [f, setF] = useState<'all' | 'att' | 'ready' | 'pass'>('all')
   useEffect(() => {
     supabase.rpc('training_monitor_teachers', { p_org: orgId, p_year: year || null }).then(({ data, error }) => {
-      if (error) setErr(/schema cache|does not exist|Could not find/i.test(error.message) ? 'Hãy chạy migration 113 trên Supabase để xem từng giáo viên.' : error.message)
+      if (error) setErr(/schema cache|does not exist|Could not find/i.test(error.message) ? 'Hãy chạy migration 113 trên Supabase để xem từng nhà giáo.' : error.message)
       setRows((data as TRow[]) ?? [])
     })
   }, [orgId, year])
@@ -355,12 +355,12 @@ function SchoolTeachers({ orgId, year }: { orgId: string; year: string }) {
   const shown = (rows ?? []).filter(r => f === 'all' || (f === 'att' ? lowAtt(r) : f === 'ready' ? notReady(r) : r.result === 'pass'))
   const n = (k: 'att' | 'ready' | 'pass') => (rows ?? []).filter(r => k === 'att' ? lowAtt(r) : k === 'ready' ? notReady(r) : r.result === 'pass').length
   return <>
-    <h3 style={{ margin: '16px 0 8px' }}>Từng giáo viên{rows ? ` (${new Set(rows.map(r => r.teacher_id)).size})` : ''}</h3>
+    <h3 style={{ margin: '16px 0 8px' }}>Từng nhà giáo{rows ? ` (${new Set(rows.map(r => r.teacher_id)).size})` : ''}</h3>
     {err && <p className="msg" role="alert">{err}</p>}
     {rows && rows.length > 0 && <div className="distfilter" style={{ marginBottom: 8 }}>{([['all', 'Tất cả', rows.length], ['att', 'Vắng nhiều', n('att')], ['ready', 'Chưa đủ điều kiện', n('ready')], ['pass', 'Đã Đạt', n('pass')]] as const)
       .map(([k, l, c]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => setF(k)}>{l} ({c})</button>)}</div>}
-    {!rows ? <p className="sub">Đang tải…</p> : !rows.length ? <small className="sub">Trường chưa có giáo viên ghi danh.</small> : <div className="wrap"><table className="libtable">
-      <thead><tr><th>Giáo viên</th><th>Chuyên cần</th><th>Bài học</th><th>Kiểm tra</th><th>Kết quả</th></tr></thead>
+    {!rows ? <p className="sub">Đang tải…</p> : !rows.length ? <small className="sub">Trường chưa có nhà giáo ghi danh.</small> : <div className="wrap"><table className="libtable">
+      <thead><tr><th>Nhà giáo</th><th>Chuyên cần</th><th>Bài học</th><th>Kiểm tra</th><th>Kết quả</th></tr></thead>
       <tbody>{shown.map(r => { const m = r.metrics
         return <tr key={r.plan_id + r.teacher_id}>
           <td><b>{r.teacher_name}</b><br /><small className="sub">{r.plan_code} · {r.plan_name}</small></td>
@@ -370,7 +370,7 @@ function SchoolTeachers({ orgId, year }: { orgId: string; year: string }) {
           <td>{r.result === 'pass' ? <Chip tone="good">Đạt{r.cert ? ' · có chứng chỉ' : ''}</Chip> : r.result === 'fail' ? <Chip tone="bad">Chưa đạt</Chip>
             : m.suggest === 'pass' ? <Chip tone="good">Đủ điều kiện</Chip> : <small className="warnline">Thiếu: {missing(m)}</small>}</td>
         </tr> })}
-        {!shown.length && <tr><td colSpan={5}><small className="sub">Không có giáo viên nào khớp.</small></td></tr>}</tbody>
+        {!shown.length && <tr><td colSpan={5}><small className="sub">Không có nhà giáo nào khớp.</small></td></tr>}</tbody>
     </table></div>}
   </>
 }

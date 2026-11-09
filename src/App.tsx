@@ -130,6 +130,8 @@ const SchoolTeacherAssessments = lazy(() => import('./pages/competency').then(m 
 const AssessmentRoundsPage = lazy(() => import('./pages/training/Competency').then(m => ({ default: m.AssessmentRoundsPage })))
 const CompetencyGapsPage = lazy(() => import('./pages/training/Competency').then(m => ({ default: m.CompetencyGapsPage })))
 const CompetencyFrameworkPage = lazy(() => import('./pages/training/Competency').then(m => ({ default: m.CompetencyFrameworkPage })))
+const TeacherFramework = (p: any) => <CompetencyFrameworkPage {...p} audience="teacher" />
+const StudentFramework = (p: any) => <CompetencyFrameworkPage {...p} audience="student" />
 const TrainingMonitorHub = lazy(() => import('./pages/training/Monitor').then(m => ({ default: m.TrainingMonitorHub })))
 const TrainingReportPage = lazy(() => import('./pages/training/Report').then(m => ({ default: m.TrainingReportPage })))
 const SchoolTeacherProfiles = (p: any) => <SchoolTeacherAssessments {...p} profile />
@@ -177,7 +179,7 @@ const TrainingLibraryPage = lazy(() => import('./pages/training/Library').then(m
 const trainingMaterialTabs = (lessons: ComponentType<any>) => (p: any) => <TrainingLibraryPage {...p} parts={[['Nội dung đào tạo', trMat('content')], ['Bài giảng', lessons],
   ['Link tài liệu', trMat('docs')], ['Định mức vật tư', trMat('mats')], ['Kho hoạt động', SysTrainingActivities]]} />
 const PlatformCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Hồ sơ năng lực', PH1_TABS.profiles],
-  ['Đợt đánh giá', PH1_TABS.rounds], ['Khoảng thiếu hụt', CompetencyGapsPage], ['Khung năng lực', CompetencyFrameworkPage]]} />
+  ['Đợt đánh giá', PH1_TABS.rounds], ['Khoảng thiếu hụt', CompetencyGapsPage], ['Khung năng lực', TeacherFramework]]} />
 const PlatformSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.PlatformSupport })))
 // Đợt 2 (025): triển khai khách hàng, danh mục gói, đơn đặt gói, thông báo hàng loạt, tích hợp
 const PlatformRollout = lazy(() => import('./pages/platform/Rollout').then(m => ({ default: m.PlatformRollout })))
@@ -206,7 +208,7 @@ const eduProgramTabs = (mode: 'school' | 'authority') => {
 // Danh mục loại chương trình (CT1–CT5 và loại thêm sau): tên, mô tả, môn học, cấp học (062, 064)
 const EduLevelsCatalog = lazy(() => import('./pages/eduLevels').then(m => ({ default: m.EduLevelsCatalog })))
 const StemTracksCatalog = lazy(() => import('./pages/stemTracks').then(m => ({ default: m.StemTracksCatalog })))
-const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Nhóm chương trình', StemTracksCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog], ['Khung năng lực', CompetencyFrameworkPage]]} />
+const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Nhóm chương trình', StemTracksCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog], ['Khung năng lực', StudentFramework]]} />
 const ProgressPlatform = (q: any) => <CurriculumProgress {...q} mode="platform" />
 // Định mức vật tư theo bài / chủ đề, danh mục vật tư, dự trù, đề xuất điều chỉnh (059)
 const MaterialNorms = lazy(() => import('./pages/materialNorms').then(m => ({ default: m.MaterialNorms })))

@@ -1,6 +1,6 @@
 // Phân hệ 1 › Kiểm tra & luyện tập (110): một chỗ xem tất cả đề của đào tạo.
 // Đề kiểm tra: bài test nội dung + đề cuối khoá của tất cả chương trình (bấm để soạn trong chương trình).
-// Đề luyện: đề tự luyện cho giáo viên, không tính điểm đào tạo. Kết quả & câu khó: điểm theo đề, câu hay sai.
+// Đề luyện: đề tự luyện cho nhà giáo, không tính điểm đào tạo. Kết quả & câu khó: điểm theo đề, câu hay sai.
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -85,9 +85,9 @@ function MatrixTable({ rows }: { rows: MRow[] }) {
 }
 function ExamStatCards({ s }: { s?: Stat }) {
   return <StatCards items={[
-    { icon: 'edit', value: s?.attempts ?? 0, label: 'Lượt làm đã nộp', sub: `${s?.teachers ?? 0} giáo viên` },
+    { icon: 'edit', value: s?.attempts ?? 0, label: 'Lượt làm đã nộp', sub: `${s?.teachers ?? 0} nhà giáo` },
     { icon: 'trophy', tone: 'good', value: num(s?.avg_score), label: 'Điểm trung bình', sub: `điểm cao nhất TB ${num(s?.best_avg)}` },
-    { icon: 'checkCircle', tone: 'good', value: s?.passed ?? 0, label: 'Giáo viên đạt' },
+    { icon: 'checkCircle', tone: 'good', value: s?.passed ?? 0, label: 'Nhà giáo đạt' },
   ]} />
 }
 const subjGrade = (x: { subject?: string | null; subjects?: string[] | null; grade?: number | null; grades?: number[] | null } | null | undefined) =>
@@ -118,7 +118,7 @@ function ExamDetail({ r, subjName, stat, onBack, onEdit }: { r: Row; subjName: s
           <dt>Thời lượng</dt><dd>{u?.hours != null ? `${num(u.hours)} giờ` : '—'}{u?.mode ? ` · ${MODE_LABEL[u.mode] ?? u.mode}` : ''}</dd>
         </> : <>
           <dt>Môn (ngân hàng câu hỏi)</dt><dd>{subjGrade(fe)}</dd>
-          <dt>Khi nào làm</dt><dd>Sau khi giáo viên học xong tất cả nội dung của chương trình</dd>
+          <dt>Khi nào làm</dt><dd>Sau khi nhà giáo học xong tất cả nội dung của chương trình</dd>
         </>}
       </dl>
       <h3 style={{ margin: 0 }}>Cách làm bài</h3>
@@ -324,15 +324,15 @@ function PracticeDetail({ x, prog, stat, admin, msg, onBack, onEdit }: { x: Prac
       <dl className="tpkv">
         <dt>Chương trình</dt><dd>{prog ? <>{prog.code} · {prog.title} (v{prog.version_no})</> : '—'}</dd>
         <dt>Môn (ngân hàng câu hỏi)</dt><dd>{subjGrade(x)}</dd>
-        <dt>Trạng thái</dt><dd><Chip tone={PST[x.status][1]}>{PST[x.status][0]}</Chip>{x.status === 'published' ? ' · giáo viên đang thấy đề' : ''}</dd>
-        {x.note && <><dt>Ghi chú cho giáo viên</dt><dd>{x.note}</dd></>}
+        <dt>Trạng thái</dt><dd><Chip tone={PST[x.status][1]}>{PST[x.status][0]}</Chip>{x.status === 'published' ? ' · nhà giáo đang thấy đề' : ''}</dd>
+        {x.note && <><dt>Ghi chú cho nhà giáo</dt><dd>{x.note}</dd></>}
       </dl>
       <h3 style={{ margin: 0 }}>Cách làm bài</h3>
       <dl className="tpkv">
         <dt>Số câu mỗi lượt</dt><dd>{n} câu{x.shuffle ? ' · trộn thứ tự câu' : ''}</dd>
         <dt>Thời gian · lượt</dt><dd>{x.minutes ? `${x.minutes} phút` : 'Không giới hạn thời gian'} · {x.attempts ? `${x.attempts} lượt` : 'không giới hạn lượt'}</dd>
         <dt>Điểm đạt</dt><dd>{x.pass != null ? `${num(x.pass)}/10` : 'Không xét'}</dd>
-        <dt>Sau khi nộp</dt><dd>{x.show_answers ? 'Giáo viên xem được đáp án và lời giải' : 'Chỉ xem điểm, không xem đáp án'}</dd>
+        <dt>Sau khi nộp</dt><dd>{x.show_answers ? 'Nhà giáo xem được đáp án và lời giải' : 'Chỉ xem điểm, không xem đáp án'}</dd>
       </dl>
     </section>
     <MatrixTable rows={x.matrix ?? []} />
@@ -378,10 +378,10 @@ export function TrainingPracticeExams() {
       : await supabase.from('training_practice_exams').insert({ ...row, org_id: fp.org_id })
     setBusy(false)
     if (error) return setMsg([error.message, true])
-    setMsg([row.status === 'published' ? `Đã lưu và mở đề "${row.title}" cho giáo viên.` : `Đã lưu đề "${row.title}".`, false]); setForm(null); setRk(k => k + 1)
+    setMsg([row.status === 'published' ? `Đã lưu và mở đề "${row.title}" cho nhà giáo.` : `Đã lưu đề "${row.title}".`, false]); setForm(null); setRk(k => k + 1)
   }
   async function del() {
-    if (!form?.id || !confirm(`Xoá đề luyện "${form.title}" và các lượt làm của giáo viên?`)) return
+    if (!form?.id || !confirm(`Xoá đề luyện "${form.title}" và các lượt làm của nhà giáo?`)) return
     const { error } = await supabase.from('training_practice_exams').delete().eq('id', form.id)
     if (error) return setMsg([error.message, true])
     setMsg(['Đã xoá đề luyện.', false]); setForm(null); setPv(null); setRk(k => k + 1)
@@ -408,14 +408,14 @@ export function TrainingPracticeExams() {
     <StatCards active={card} onPick={setCard} items={[
       { k: 'open', icon: 'layers', value: base.length, label: 'Đề luyện', sub: `${base.filter(x => x.status === 'published').length} đang mở` },
       { icon: 'edit', tone: 'good', value: baseStats.reduce((a, s) => a + s.attempts, 0), label: 'Lượt luyện đã nộp' },
-      { icon: 'users', tone: 'good', value: baseStats.reduce((a, s) => a + s.teachers, 0), label: 'Lượt giáo viên tham gia' },
+      { icon: 'users', tone: 'good', value: baseStats.reduce((a, s) => a + s.teachers, 0), label: 'Lượt nhà giáo tham gia' },
     ]} />
     <div className="bar">
       <div className="tools"><MultiFilters defs={defs} f={f} count={`${shown.length}/${all.length}`} />
         <input placeholder="Tìm tên đề, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đề luyện" /></div>
       <div className="tools">{admin && <button type="button" className="primary" disabled={!usable.length} onClick={() => { setMsg(null); setForm(blank()) }}>+ Thêm đề luyện</button>}</div>
     </div>
-    <p className="sub">Đề tự luyện cho giáo viên, không tính vào kết quả đào tạo. Giáo viên có tên trong kế hoạch có chương trình của đề sẽ thấy đề khi đề "Đang mở" (Cổng giáo viên › Bài giảng đào tạo › Luyện tập).</p>
+    <p className="sub">Đề tự luyện cho nhà giáo, không tính vào kết quả đào tạo. Nhà giáo có tên trong kế hoạch có chương trình của đề sẽ thấy đề khi đề "Đang mở" (Cổng nhà giáo › Bài giảng đào tạo › Luyện tập).</p>
     {msg && !form && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {!list ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
       <thead><tr><th>Đề luyện</th><th>Câu hỏi</th><th>Cách làm</th><th>Chương trình</th><th>Trạng thái</th><th className="num">Lượt · GV</th><th className="num">Điểm TB</th><th></th></tr></thead>
@@ -444,7 +444,7 @@ export function TrainingPracticeExams() {
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình đào tạo *</span><select disabled={!admin} value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, subject: '', subjects: [], matrix: [] })}>
             {usable.map(p => <option key={p.id} value={p.id}>{p.code} · {p.title} · v{p.version_no} · {STATUS[p.status]?.[0]?.toLowerCase()}</option>)}
             {fp && OLD.includes(fp.status) && <option value={fp.id}>{fp.code} · {fp.title} · v{fp.version_no}</option>}</select>
-            <small className="sub">Giáo viên học tất cả phiên bản của chương trình này đều thấy đề.</small></label>
+            <small className="sub">Nhà giáo học tất cả phiên bản của chương trình này đều thấy đề.</small></label>
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Tên đề *</span><input disabled={!admin} maxLength={200} value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Luyện tập cảm biến và robot" /></label>
           <div className="field" style={{ gridColumn: 'span 2' }}><span>Môn (ngân hàng câu hỏi, chọn được nhiều) *</span>
             <MultiSelect disabled={!admin} value={listSubjects(form)} onChange={v => setForm({ ...form, subjects: v, subject: v[0] ?? '' })} ariaLabel="Môn của đề" placeholder="— Chọn môn —"
@@ -457,7 +457,7 @@ export function TrainingPracticeExams() {
             onChange={e => setForm({ ...form, pass: e.target.value ? Number(e.target.value) : null })} /></label>
           <div className="field"><span>Trộn câu</span><label><input disabled={!admin} type="checkbox" checked={form.shuffle} onChange={e => setForm({ ...form, shuffle: e.target.checked })} /> Trộn thứ tự câu mỗi lượt</label></div>
           <div className="field"><span>Sau khi nộp</span><label><input disabled={!admin} type="checkbox" checked={form.show_answers} onChange={e => setForm({ ...form, show_answers: e.target.checked })} /> Cho xem đáp án và lời giải</label></div>
-          <label className="field" style={{ gridColumn: '1 / -1' }}><span>Ghi chú cho giáo viên</span><input disabled={!admin} maxLength={2000} value={form.note ?? ''} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="VD: Ôn trước buổi 3" /></label>
+          <label className="field" style={{ gridColumn: '1 / -1' }}><span>Ghi chú cho nhà giáo</span><input disabled={!admin} maxLength={2000} value={form.note ?? ''} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="VD: Ôn trước buổi 3" /></label>
         </div>
         <div className="bar" style={{ margin: 0 }}><h4 className="libparthead">Ma trận đề ({total} câu)</h4>
           <TryButton orgId={fp?.org_id} spec={pSpec({ ...form, qids: (form as PForm & { qids?: string[] }).qids ?? [] })}
@@ -497,15 +497,15 @@ export function TrainingExamStats() {
     <StatCards active={card} onPick={setCard} items={[
       { icon: 'layers', value: base.length, label: 'Đề đã có người làm' },
       { icon: 'edit', tone: 'good', value: base.reduce((a, s) => a + s.attempts, 0), label: 'Lượt làm bài đã nộp' },
-      { k: 'low', icon: 'alert', tone: 'warn', value: base.filter(low).length, label: 'Đề dưới 50% giáo viên đạt' },
+      { k: 'low', icon: 'alert', tone: 'warn', value: base.filter(low).length, label: 'Đề dưới 50% nhà giáo đạt' },
     ]} />
     <div className="bar"><div className="tools"><MultiFilters defs={defs} f={f} count={`${shown.length}/${stats.length}`} /></div>
       <div className="tools"><button type="button" onClick={() => downloadXlsx('Ket-qua-de-tap-huan', [{ key: 't', label: 'Đề', width: 36 }, { key: 'k', label: 'Loại', width: 18 }, { key: 'p', label: 'Chương trình', width: 34 },
-        { key: 'n', label: 'Lượt làm', width: 10 }, { key: 'g', label: 'Giáo viên', width: 10 }, { key: 'a', label: 'Điểm TB', width: 10 }, { key: 'b', label: 'TB điểm cao nhất', width: 14 }, { key: 'r', label: 'Tỉ lệ đạt (%)', width: 12 }],
+        { key: 'n', label: 'Lượt làm', width: 10 }, { key: 'g', label: 'Nhà giáo', width: 10 }, { key: 'a', label: 'Điểm TB', width: 10 }, { key: 'b', label: 'TB điểm cao nhất', width: 14 }, { key: 'r', label: 'Tỉ lệ đạt (%)', width: 12 }],
         shown.map(s => [s.title, KIND[s.kind][0], progOf(s.program_id) ? `${progOf(s.program_id)!.code} · ${progOf(s.program_id)!.title}` : '', s.attempts, s.teachers, s.avg_score, s.best_avg, rate(s)]), 'Kết quả')}>Xuất Excel</button></div></div>
-    <p className="sub">Điểm theo từng đề của các giáo viên bạn được xem. Tỉ lệ đạt tính theo lượt cao nhất của mỗi giáo viên. Bấm một đề để xem câu hay sai, dùng để ôn tập hoặc sửa câu hỏi.</p>
+    <p className="sub">Điểm theo từng đề của các nhà giáo bạn được xem. Tỉ lệ đạt tính theo lượt cao nhất của mỗi nhà giáo. Bấm một đề để xem câu hay sai, dùng để ôn tập hoặc sửa câu hỏi.</p>
     <div className="wrap"><table className="libtable">
-      <thead><tr><th>Đề</th><th>Loại</th><th>Chương trình</th><th className="num">Lượt làm</th><th className="num">Giáo viên</th><th className="num">Điểm TB</th><th className="num">TB điểm cao nhất</th><th>Đạt</th></tr></thead>
+      <thead><tr><th>Đề</th><th>Loại</th><th>Chương trình</th><th className="num">Lượt làm</th><th className="num">Nhà giáo</th><th className="num">Điểm TB</th><th className="num">TB điểm cao nhất</th><th>Đạt</th></tr></thead>
       <tbody>{shown.map(s => <tr key={s.kind + s.ref} className="clickrow" onClick={() => setOpen(s)}>
         <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink">{s.title}</button></td>
         <td><Chip tone={KIND[s.kind][1]}>{KIND[s.kind][0]}</Chip></td>
@@ -515,7 +515,7 @@ export function TrainingExamStats() {
         {!shown.length && <tr><td colSpan={8}><small className="sub">{stats.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có lượt làm bài nào.'}</small></td></tr>}</tbody>
     </table></div>
     {open && <Drawer wide onClose={() => setOpen(null)} title={`Câu hay sai · ${open.title}`}>
-      <p className="sub" style={{ marginTop: 0 }}>{KIND[open.kind][0]} · {open.attempts} lượt · {open.teachers} giáo viên · điểm TB {num(open.avg_score)}</p>
+      <p className="sub" style={{ marginTop: 0 }}>{KIND[open.kind][0]} · {open.attempts} lượt · {open.teachers} nhà giáo · điểm TB {num(open.avg_score)}</p>
       {!hard ? <p className="sub">Đang tải…</p> : <div className="wrap"><table>
         <thead><tr><th>Câu hỏi</th><th>Chủ đề · mức độ</th><th className="num">Gặp</th><th className="num">Sai</th><th>Tỉ lệ sai</th></tr></thead>
         <tbody>{hard.map(h => <tr key={h.question_id}>

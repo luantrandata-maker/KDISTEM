@@ -1,4 +1,4 @@
-// Điểm bài test của kế hoạch đào tạo (105): mỗi giáo viên một dòng, mỗi bài test một cột.
+// Điểm bài test của kế hoạch đào tạo (105): mỗi nhà giáo một dòng, mỗi bài test một cột.
 // Người tổ chức gõ điểm (thang 10) hoặc nhập từ file Excel / CSV (file mẫu tải về, hoặc bảng kết quả xuất từ Google Forms, Azota… có cột email).
 // Điểm đọc từ file chỉ điền vào bảng để kiểm tra; bấm "Lưu điểm bài test" mới ghi. Ô để trống = bỏ điểm nhập tay.
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -55,7 +55,7 @@ export function TestScores({ planId, planCode, can, only, onSaved }: { planId: s
 
   function template() {
     downloadXlsx(`Diem-bai-test-${planCode}.xlsx`,
-      [{ key: 'n', label: 'Giáo viên', width: 26 }, { key: 'e', label: 'Email', width: 28 }, { key: 'o', label: 'Trường', width: 26 },
+      [{ key: 'n', label: 'Nhà giáo', width: 26 }, { key: 'e', label: 'Email', width: 28 }, { key: 'o', label: 'Trường', width: 26 },
        ...units.map(u => ({ key: u.id, label: label(u), width: Math.min(40, Math.max(14, label(u).length + 2)) })), { key: 'id', label: 'Mã hệ thống (không sửa)', width: 38 }],
       (d?.rows ?? []).map(r => [r.teacher_name, r.email, r.org_name, ...units.map(u => (r.units.includes(u.id) ? cur(r, u) : 'không học')), r.teacher_id]), 'Điểm bài test')
   }
@@ -65,7 +65,7 @@ export function TestScores({ planId, planCode, can, only, onSaved }: { planId: s
     let data: string[][]
     try { data = await readRows(f) } catch (e) { return setMsg([(e as Error).message, true]) }
     const hi = data.findIndex(r => r.some(h => /email|giao vien|ho ten|ho va ten|ma he thong/.test(norm(h))))
-    if (hi < 0) return setMsg(['Không thấy cột Email hoặc Giáo viên trong file.', true])
+    if (hi < 0) return setMsg(['Không thấy cột Email hoặc Nhà giáo trong file.', true])
     const head = data[hi].map(norm)
     const col = (re: RegExp) => head.findIndex(h => re.test(h))
     const cId = col(/^ma he thong/), cEmail = col(/email|dia chi email/), cName = col(/^(giao vien|ho ten|ho va ten|ten)$/)
@@ -96,7 +96,7 @@ export function TestScores({ planId, planCode, can, only, onSaved }: { planId: s
     })
     setEdit(next)
     setMsg([`Đã đọc ${n} điểm từ file, kiểm tra rồi bấm "Lưu điểm bài test".`
-      + (miss.length ? ` Không khớp giáo viên ${miss.length} dòng: ${miss.slice(0, 4).join('; ')}${miss.length > 4 ? '…' : ''}.` : '')
+      + (miss.length ? ` Không khớp nhà giáo ${miss.length} dòng: ${miss.slice(0, 4).join('; ')}${miss.length > 4 ? '…' : ''}.` : '')
       + (bad.length ? ` Bỏ qua ${bad.length} điểm không hợp lệ: ${bad.slice(0, 3).join('; ')}.` : ''), miss.length + bad.length > 0])
   }
 
@@ -112,7 +112,7 @@ export function TestScores({ planId, planCode, can, only, onSaved }: { planId: s
     </div>
     {msg && <p className={msg[1] ? 'warnline' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <div className="wrap"><table className="libtable trtesttable">
-      <thead><tr><th>Giáo viên</th>{units.map(u => <th key={u.id} title={u.subject}>{label(u)}<br />
+      <thead><tr><th>Nhà giáo</th>{units.map(u => <th key={u.id} title={u.subject}>{label(u)}<br />
         <small className="sub">{u.kind === 'link' ? <>qua link{u.url && <> · <a href={u.url} target="_blank" rel="noreferrer">mở ↗</a></>}</> : 'trong hệ thống'} · đạt ≥ {num(u.pass)}</small></th>)}</tr></thead>
       <tbody>{rows.map(r => <tr key={r.teacher_id}>
         <td><b>{r.teacher_name}</b><br /><small className="sub">{[r.org_name, r.email].filter(Boolean).join(' · ') || '—'}</small></td>
@@ -125,9 +125,9 @@ export function TestScores({ planId, planCode, can, only, onSaved }: { planId: s
             <br /><small className="sub">{c?.manual ? 'nhập tay' : c?.attempts ? `tự làm ${c.attempts} lượt` : u.kind === 'link' ? (c?.opened ? 'đã mở bài' : 'chưa mở bài') : 'chưa làm'}</small>
           </td> })}
       </tr>)}
-        {!rows.length && <tr><td colSpan={units.length + 1}><small className="sub">Không có giáo viên nào khớp.</small></td></tr>}</tbody>
+        {!rows.length && <tr><td colSpan={units.length + 1}><small className="sub">Không có nhà giáo nào khớp.</small></td></tr>}</tbody>
     </table></div>
-    <small className="sub">Thang 10, nhận cả dạng "8/10" của Google Forms. Ô để trống rồi lưu thì bỏ điểm nhập tay (bài làm trong hệ thống quay về điểm cao nhất giáo viên tự làm).
-      Nhập từ file: khớp giáo viên theo cột Email (hoặc Giáo viên), cột điểm đặt tên trùng tên bài test.</small>
+    <small className="sub">Thang 10, nhận cả dạng "8/10" của Google Forms. Ô để trống rồi lưu thì bỏ điểm nhập tay (bài làm trong hệ thống quay về điểm cao nhất nhà giáo tự làm).
+      Nhập từ file: khớp nhà giáo theo cột Email (hoặc Nhà giáo), cột điểm đặt tên trùng tên bài test.</small>
   </div>
 }

@@ -1,4 +1,4 @@
-// Phân hệ 1 — Tiến độ học trực tuyến của giáo viên trong một kế hoạch đào tạo (086).
+// Phân hệ 1 — Tiến độ học trực tuyến của nhà giáo trong một kế hoạch đào tạo (086).
 // Đơn vị lập kế hoạch: xem tất cả GV, nhận / trả lại sản phẩm. Trường: xem GV của trường mình.
 import { useEffect, useState } from 'react'
 import { supabase, fetchAll } from '../../lib/supabase'
@@ -18,7 +18,7 @@ export function PlanProgress({ planId, manage }: { planId: string; manage: boole
   const [err, setErr] = useState('')
   const [f, setF] = useState<F>('all')
   const [busy, setBusy] = useState('')
-  // Lọc Tỉnh / Sở và trường: trường của từng giáo viên ghi danh
+  // Lọc Tỉnh / Sở và trường: trường của từng nhà giáo ghi danh
   const [orgOf, setOrgOf] = useState<Map<string, string>>(new Map())
   useEffect(() => {
     fetchAll(() => supabase.from('training_enrollments').select('teacher_id, teachers(org_id)').eq('plan_id', planId).order('teacher_id'))
@@ -52,14 +52,14 @@ export function PlanProgress({ planId, manage }: { planId: string; manage: boole
   const chips: [F, string][] = [['all', 'Tất cả'], ['none', 'Chưa học'], ['doing', 'Đang học'], ['done', 'Đã học xong'], ['product', 'Sản phẩm chờ nhận xét']]
   return <section className="panel" style={{ display: 'grid', gap: 12 }}>
     <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Tiến độ học trực tuyến</h3>
-      <small className="sub">{rows.length} giáo viên · {n('done')} đã học xong · {rows.filter(r => r.product_status).length} đã nộp sản phẩm</small></div>
+      <small className="sub">{rows.length} nhà giáo · {n('done')} đã học xong · {rows.filter(r => r.product_status).length} đã nộp sản phẩm</small></div>
     {err && <p className="sub" role="alert" style={{ color: 'var(--bad)' }}>{err}</p>}
     <div className="distfilter">{chips.map(([k, l]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => setF(k)}>{l} ({n(k)})</button>)}</div>
     <div className="treelayout">{tree.side}
     <div className="wrap"><table className="libtable">
-      <thead><tr><th>Giáo viên</th><th style={{ width: 170 }}>Nội dung đã học</th><th>Bài kiểm tra</th><th>Chuyên cần</th><th>Sản phẩm</th>{manage && <th></th>}</tr></thead>
+      <thead><tr><th>Nhà giáo</th><th style={{ width: 170 }}>Nội dung đã học</th><th>Bài kiểm tra</th><th>Chuyên cần</th><th>Sản phẩm</th>{manage && <th></th>}</tr></thead>
       <tbody>{shown.map((r, i) => [multi && (i === 0 || shown[i - 1].org_name !== r.org_name) &&
-        <tr key={'g' + r.teacher_id} className="grouprow"><td colSpan={manage ? 6 : 5}><b>{r.org_name ?? 'Chưa rõ trường'}</b> <small className="sub">{perOrg.get(r.org_name ?? '')} giáo viên</small></td></tr>,
+        <tr key={'g' + r.teacher_id} className="grouprow"><td colSpan={manage ? 6 : 5}><b>{r.org_name ?? 'Chưa rõ trường'}</b> <small className="sub">{perOrg.get(r.org_name ?? '')} nhà giáo</small></td></tr>,
         <tr key={r.teacher_id}>
         <td><b>{r.teacher_name}</b><br /><small className="sub">{r.org_name ?? '—'}{r.last_at ? ` · học gần nhất ${new Date(r.last_at).toLocaleDateString('vi-VN')}` : ''}</small></td>
         <td><div className="progress"><i style={{ width: `${pct(r.done, r.units)}%` }} /></div><small className="sub">{r.done}/{r.units} · {pct(r.done, r.units)}%</small></td>
@@ -76,7 +76,7 @@ export function PlanProgress({ planId, manage }: { planId: string; manage: boole
           <button type="button" disabled={busy === r.teacher_id} onClick={() => review(r, false)}>Trả lại</button></>}
           {r.product_status === 'accepted' && <button type="button" disabled={busy === r.teacher_id} onClick={() => review(r, false)}>Trả lại</button>}</div></td>}
       </tr>])}
-        {!shown.length && <tr><td colSpan={manage ? 6 : 5}><small className="sub">{rows.length ? 'Không có giáo viên nào khớp bộ lọc.' : 'Chưa có giáo viên ghi danh.'}</small></td></tr>}</tbody>
+        {!shown.length && <tr><td colSpan={manage ? 6 : 5}><small className="sub">{rows.length ? 'Không có nhà giáo nào khớp bộ lọc.' : 'Chưa có nhà giáo ghi danh.'}</small></td></tr>}</tbody>
     </table></div></div>
   </section>
 }

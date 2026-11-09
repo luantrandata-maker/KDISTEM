@@ -1,7 +1,7 @@
 // Bài giảng đào tạo soạn như bài học (102): mỗi bài là bộ 5 thẻ — Thông tin · Nội dung · Link tài liệu · Định mức vật tư · Kho hoạt động.
 // Kho hoạt động tuỳ chọn (105): chốt đủ 4 thẻ còn lại là phát hành được.
 // Thêm bài theo 4 cách như thêm bài học (tải giáo án Word/PowerPoint, tự tạo, sao chép, file mẫu Excel); mở bài để sửa, chốt từng thẻ, phát hành.
-// Bài gắn với chương trình đào tạo và một nội dung trong chương trình; giáo viên thấy bài đã phát hành của kế hoạch mình tham gia.
+// Bài gắn với chương trình đào tạo và một nội dung trong chương trình; nhà giáo thấy bài đã phát hành của kế hoạch mình tham gia.
 import { useOrgFilter } from '../../components/OrgFilters'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'

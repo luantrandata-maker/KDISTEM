@@ -68,7 +68,7 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
     </table></div>
 
     <div className="bar" style={{ margin: '8px 0 0' }}><div><h3 style={{ margin: 0 }}>Đề cuối khoá</h3>
-      <p className="sub" style={{ margin: '4px 0 0' }}>Rút ngẫu nhiên từ Ngân hàng câu hỏi theo ma trận chủ đề × mức độ. Giáo viên làm sau khi học xong tất cả nội dung của chương trình.</p></div>
+      <p className="sub" style={{ margin: '4px 0 0' }}>Rút ngẫu nhiên từ Ngân hàng câu hỏi theo ma trận chủ đề × mức độ. Nhà giáo làm sau khi học xong tất cả nội dung của chương trình.</p></div>
       {!f && fe && !edit && <TryButton orgId={p.org_id} spec={finalSpec(fe)} title={fe.title || 'Đề cuối khoá'} minutes={fe.minutes} pass={fe.pass} />}
       {edit && !f && <div className="tools">{fe ? <><TryButton orgId={p.org_id} spec={finalSpec(fe)} title={fe.title || 'Đề cuối khoá'} minutes={fe.minutes} pass={fe.pass} /><button type="button" onClick={startEdit}>Sửa đề</button>
         <button type="button" className="danger" onClick={() => confirm('Bỏ đề cuối khoá của chương trình?') && save({ final_exam: null }, 'Đã bỏ đề cuối khoá.')}>Bỏ đề</button></>

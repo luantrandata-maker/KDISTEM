@@ -1,6 +1,6 @@
 // Kết quả & chứng chỉ của một kế hoạch đào tạo, theo 3 bước như lập kế hoạch:
 //  1. Chấm điểm: bảng tổng hợp tự tính (chuyên cần, bài kiểm tra, học trực tuyến, sản phẩm), nhập điểm sản phẩm hàng loạt; bảng điểm danh theo buổi.
-//  2. Kết luận: chọn nhiều giáo viên, kết luận Đạt / Chưa đạt / huỷ; xác nhận Đạt cho người đủ điều kiện.
+//  2. Kết luận: chọn nhiều nhà giáo, kết luận Đạt / Chưa đạt / huỷ; xác nhận Đạt cho người đủ điều kiện.
 //  3. Chứng chỉ: duyệt cấp hàng loạt, in hàng loạt (mỗi chứng chỉ một trang A4 ngang).
 // Dùng ở mục Đánh giá kết quả đào tạo và bước 5 của chi tiết kế hoạch. Dữ liệu và quy tắc ở migration 087.
 import { useEffect, useMemo, useState } from 'react'
@@ -71,7 +71,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
   const [busy, setBusy] = useState('')
   const [open, setOpen] = useState<string | null>(null)
   const [print, setPrint] = useState<Payload[] | null>(null)
-  // Lọc Tỉnh / Sở và trường: trường của từng giáo viên ghi danh
+  // Lọc Tỉnh / Sở và trường: trường của từng nhà giáo ghi danh
   const [orgOf, setOrgOf] = useState<Map<string, string>>(new Map())
   const of = useOrgFilter()
 
@@ -123,7 +123,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
       if (error) bad.push(`${all.find(r => r.teacher_id === id)?.teacher_name ?? id}: ${errText(error.message)}`); else n++
     }
     setBusy('')
-    setMsg([bad.length ? `${label}: xong ${n}, lỗi ${bad.length} (${bad.slice(0, 3).join('; ')})` : `${label}: xong ${n} giáo viên.`, bad.length > 0]); load()
+    setMsg([bad.length ? `${label}: xong ${n}, lỗi ${bad.length} (${bad.slice(0, 3).join('; ')})` : `${label}: xong ${n} nhà giáo.`, bad.length > 0]); load()
   }
   const dirty = Object.entries(scores).filter(([id, v]) => { const r = all.find(x => x.teacher_id === id); return r && v !== (r.product_score == null ? '' : String(r.product_score)) })
   function saveScores() {
@@ -138,28 +138,28 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
   function decide(result: 'pass' | 'fail' | 'pending') {
     const ids = [...sel]
     let reason: string | null = null
-    if (result === 'fail') { reason = prompt(`Lý do Chưa đạt cho ${ids.length} giáo viên:`, ''); if (!reason?.trim()) return }
+    if (result === 'fail') { reason = prompt(`Lý do Chưa đạt cho ${ids.length} nhà giáo:`, ''); if (!reason?.trim()) return }
     if (result === 'pass') {
       const weak = all.filter(r => sel.has(r.teacher_id) && r.metrics.suggest !== 'pass')
-      if (weak.length) { reason = prompt(`${weak.length} giáo viên chưa đủ điều kiện. Ghi lý do vẫn kết luận Đạt:`, ''); if (!reason?.trim()) return }
+      if (weak.length) { reason = prompt(`${weak.length} nhà giáo chưa đủ điều kiện. Ghi lý do vẫn kết luận Đạt:`, ''); if (!reason?.trim()) return }
     }
-    if (result === 'pending' && !confirm(`Huỷ kết luận của ${ids.length} giáo viên? Chứng chỉ đã cấp (nếu có) sẽ bị thu hồi.`)) return
+    if (result === 'pending' && !confirm(`Huỷ kết luận của ${ids.length} nhà giáo? Chứng chỉ đã cấp (nếu có) sẽ bị thu hồi.`)) return
     each(ids, result === 'pass' ? 'Kết luận Đạt' : result === 'fail' ? 'Kết luận Chưa đạt' : 'Huỷ kết luận',
       id => supabase.rpc('training_result_set', { p_plan: plan.id, p_teacher: id, p_result: result, p_reason: result === 'pending' ? null : reason }))
   }
   async function confirmReady() {
     const n = cnt('ready')
-    if (!confirm(`Kết luận Đạt cho ${n} giáo viên đủ điều kiện? Chứng chỉ của họ sẽ chờ duyệt cấp.`)) return
+    if (!confirm(`Kết luận Đạt cho ${n} nhà giáo đủ điều kiện? Chứng chỉ của họ sẽ chờ duyệt cấp.`)) return
     const { data, error } = await supabase.rpc('training_results_confirm', { p_plan: plan.id })
     if (error) return setMsg([errText(error.message), true])
-    setMsg([`Đã kết luận Đạt cho ${data} giáo viên. Duyệt cấp ở bước 3.`, false]); setTab('cert'); load()
+    setMsg([`Đã kết luận Đạt cho ${data} nhà giáo. Duyệt cấp ở bước 3.`, false]); setTab('cert'); load()
   }
   async function issue(ids: string[]) {
     setBusy('Đang cấp…')
     const { data, error } = await supabase.rpc('training_cert_issue', { p_ids: ids })
     setBusy('')
     if (error) return setMsg([errText(error.message), true])
-    setMsg([`Đã cấp ${data} chứng chỉ, giáo viên nhận được thông báo.`, false]); load()
+    setMsg([`Đã cấp ${data} chứng chỉ, nhà giáo nhận được thông báo.`, false]); load()
   }
   async function printMany(ids: string[]) {
     setBusy('Đang chuẩn bị bản in…')
@@ -171,7 +171,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
   function exportXlsx() {
     const st = (r: ResRow) => certs.find(c => c.teacher_id === r.teacher_id)
     downloadXlsx(`Ket-qua-tap-huan-${plan.plan_code ?? plan.name.slice(0, 30)}.xlsx`,
-      [{ key: 'n', label: 'Giáo viên', width: 26 }, { key: 'o', label: 'Trường', width: 28 }, { key: 'a', label: 'Chuyên cần (%)' }, { key: 'b', label: 'Buổi có mặt' },
+      [{ key: 'n', label: 'Nhà giáo', width: 26 }, { key: 'o', label: 'Trường', width: 28 }, { key: 'a', label: 'Chuyên cần (%)' }, { key: 'b', label: 'Buổi có mặt' },
        { key: 't', label: 'Bài kiểm tra đạt' }, { key: 'g', label: 'Điểm TB' }, { key: 'u', label: 'Học trực tuyến' }, { key: 'p', label: 'Sản phẩm', width: 20 },
        { key: 's', label: 'Điểm sản phẩm' }, { key: 'f', label: 'Đề cuối khoá' }, { key: 'z', label: 'Tổng điểm' }, { key: 'y', label: 'Xếp loại (gợi ý)' }, { key: 'k', label: 'Kết luận' }, { key: 'l', label: 'Lý do', width: 30 }, { key: 'c', label: 'Số chứng chỉ', width: 18 }],
       all.map(r => { const m = r.metrics
@@ -188,15 +188,15 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
   const orgNode = of.node([...orgOf.values()], () => setSel(new Set()))
   const filters = <div className="distfilter">
     {orgNode}
-    <input placeholder="Tìm giáo viên, trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo viên" />
+    <input placeholder="Tìm nhà giáo, trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm nhà giáo" />
     {([['all', 'Tất cả'], ['ready', 'Đủ điều kiện, chờ kết luận'], ['pending', 'Chờ kết luận'], ['pass', 'Đạt'], ['fail', 'Chưa đạt']] as [F, string][])
       .map(([k, l]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => { setF(k); setSel(new Set()) }}>{l} <b>{cnt(k)}</b></button>)}
   </div>
 
   return <div style={{ display: 'grid', gap: 12 }}>
     <StatCards active={f === 'all' ? null : f} onPick={k => { setF((k ?? 'all') as F); setSel(new Set()) }} items={[
-      { icon: 'users', value: rows ? base.length : '…', label: 'Giáo viên ghi danh' },
-      { k: 'pass', icon: 'checkCircle', tone: 'good', value: cnt('pass'), label: 'Đạt', sub: `${base.length ? Math.round(cnt('pass') * 100 / base.length) : 0}% số giáo viên` },
+      { icon: 'users', value: rows ? base.length : '…', label: 'Nhà giáo ghi danh' },
+      { k: 'pass', icon: 'checkCircle', tone: 'good', value: cnt('pass'), label: 'Đạt', sub: `${base.length ? Math.round(cnt('pass') * 100 / base.length) : 0}% số nhà giáo` },
       { k: 'pending', icon: 'hourglass', tone: cnt('ready') ? 'warn' : '', value: cnt('pending'), label: 'Chờ kết luận', sub: `${cnt('ready')} đủ điều kiện` },
       { icon: 'award', tone: 'good', value: issued, label: 'Chứng chỉ đã cấp' },
     ]} />
@@ -204,7 +204,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
       onClick={() => { setTab(k); setSel(new Set()) }}><i>{i + 1}</i><span><b>{t}</b><small>{s}</small></span></button></li>)}</ol>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {busy && <p className="sub" role="status">{busy}</p>}
-    {!can && <small className="sub">Kế hoạch của đơn vị khác: chỉ xem kết quả giáo viên trong phạm vi của mình.</small>}
+    {!can && <small className="sub">Kế hoạch của đơn vị khác: chỉ xem kết quả nhà giáo trong phạm vi của mình.</small>}
     {!rows ? <p className="sub">Đang tải…</p> : <>
 
     {tab === 'grade' && <section className="panel" style={{ display: 'grid', gap: 12 }}>
@@ -220,7 +220,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
       {view === 'sum' && <div className="warnlegend" aria-label="Giải thích cảnh báo"><span><b>⚠️ n</b> = số cảnh báo, rê chuột hoặc chạm vào để xem</span>
         <span className="warnlegend-kinds">{W_KINDS.map(([k, l]) => <span key={k}>{l}</span>)}</span><span><span className="tlok">✓</span> đạt điều kiện · <span className="warnline">✗</span> chưa đạt</span></div>}
       {view === 'sum' ? <div className="wrap"><table className="libtable trestable">
-        <thead><tr><th>Giáo viên</th><th>Chuyên cần</th><th>Bài kiểm tra</th><th>Học trực tuyến</th><th>Sản phẩm</th><th>Điểm SP</th>{all.some(r => r.metrics.finals) && <th>Đề cuối khoá</th>}<th>Cảnh báo</th><th>Tổng · xếp loại</th></tr></thead>
+        <thead><tr><th>Nhà giáo</th><th>Chuyên cần</th><th>Bài kiểm tra</th><th>Học trực tuyến</th><th>Sản phẩm</th><th>Điểm SP</th>{all.some(r => r.metrics.finals) && <th>Đề cuối khoá</th>}<th>Cảnh báo</th><th>Tổng · xếp loại</th></tr></thead>
         <tbody>{shown.map(r => { const m = r.metrics, v = scores[r.teacher_id] ?? (r.product_score == null ? '' : String(r.product_score))
           return <tr key={r.teacher_id}>
             <td>{name(r)}</td>
@@ -237,11 +237,11 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
             <td><WarnCell r={r} /></td>
             <td>{gradeChip(m)}{totalOf(m)}</td>
           </tr> })}
-          {!shown.length && <tr><td colSpan={9}><small className="sub">{all.length ? 'Không có giáo viên nào khớp.' : 'Kế hoạch chưa có giáo viên ghi danh.'}</small></td></tr>}</tbody>
+          {!shown.length && <tr><td colSpan={9}><small className="sub">{all.length ? 'Không có nhà giáo nào khớp.' : 'Kế hoạch chưa có nhà giáo ghi danh.'}</small></td></tr>}</tbody>
       </table></div>
       : view === 'test' ? <TestScores planId={plan.id} planCode={plan.plan_code ?? plan.name.slice(0, 30)} can={can} only={new Set(shown.map(r => r.teacher_id))} onSaved={load} />
       : <AttGrid rows={shown} sess={sess} att={att} />}
-      <small className="sub">Điểm sản phẩm từ 5 trở lên mới tính đạt. Nhận / trả lại sản phẩm ở chi tiết kế hoạch › Tiến độ học trực tuyến. Bấm tên giáo viên để xem chi tiết, nhận xét.</small>
+      <small className="sub">Điểm sản phẩm từ 5 trở lên mới tính đạt. Nhận / trả lại sản phẩm ở chi tiết kế hoạch › Tiến độ học trực tuyến. Bấm tên nhà giáo để xem chi tiết, nhận xét.</small>
       <button type="button" className="primary" style={{ justifySelf: 'end' }} onClick={() => setTab('decide')}>Tiếp tục: Kết luận →</button>
     </section>}
 
@@ -249,13 +249,13 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
       {filters}
       {can && <div className="tools">
         {cnt('ready') > 0 && <button type="button" className="primary" disabled={!!busy} onClick={confirmReady}>Xác nhận Đạt cho {cnt('ready')} GV đủ điều kiện</button>}
-        <span className="sub">{sel.size ? `Đã chọn ${sel.size}:` : 'Chọn giáo viên để kết luận hàng loạt.'}</span>
+        <span className="sub">{sel.size ? `Đã chọn ${sel.size}:` : 'Chọn nhà giáo để kết luận hàng loạt.'}</span>
         <button type="button" disabled={!sel.size || !!busy} onClick={() => decide('pass')}>Đạt</button>
         <button type="button" disabled={!sel.size || !!busy} onClick={() => decide('fail')}>Chưa đạt</button>
         <button type="button" disabled={!sel.size || !!busy} onClick={() => decide('pending')}>Huỷ kết luận</button>
       </div>}
       <div className="wrap"><table className="libtable">
-        <thead><tr>{can && <th style={{ width: 32 }}>{allBox(shown.map(r => r.teacher_id))}</th>}<th>Giáo viên</th><th>Điều kiện</th><th>Gợi ý</th><th>Kết luận</th><th>Chứng chỉ</th></tr></thead>
+        <thead><tr>{can && <th style={{ width: 32 }}>{allBox(shown.map(r => r.teacher_id))}</th>}<th>Nhà giáo</th><th>Điều kiện</th><th>Gợi ý</th><th>Kết luận</th><th>Chứng chỉ</th></tr></thead>
         <tbody>{shown.map(r => { const m = r.metrics, c = certs.find(x => x.teacher_id === r.teacher_id)
           return <tr key={r.teacher_id}>
             {can && <td><input type="checkbox" aria-label={`Chọn ${r.teacher_name}`} checked={sel.has(r.teacher_id)} onChange={() => toggle(r.teacher_id)} /></td>}
@@ -267,9 +267,9 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
               {r.extra_attempts > 0 && r.result === 'pending' && <><br /><small className="sub">Thi lại · +{r.extra_attempts} lượt</small></>}</td>
             <td>{c ? <><Chip tone={CERT_ST[c.status][1]}>{CERT_ST[c.status][0]}</Chip>{c.code && <><br /><small className="sub">{c.code}</small></>}</> : '—'}</td>
           </tr> })}
-          {!shown.length && <tr><td colSpan={6}><small className="sub">Không có giáo viên nào khớp.</small></td></tr>}</tbody>
+          {!shown.length && <tr><td colSpan={6}><small className="sub">Không có nhà giáo nào khớp.</small></td></tr>}</tbody>
       </table></div>
-      <small className="sub">Chưa đạt thì ghi lý do; mở từng giáo viên để cho thi lại. Huỷ kết luận Đạt sẽ thu hồi chứng chỉ đã cấp.</small>
+      <small className="sub">Chưa đạt thì ghi lý do; mở từng nhà giáo để cho thi lại. Huỷ kết luận Đạt sẽ thu hồi chứng chỉ đã cấp.</small>
       <button type="button" className="primary" style={{ justifySelf: 'end' }} onClick={() => setTab('cert')}>Tiếp tục: Cấp chứng chỉ →</button>
     </section>}
 
@@ -279,12 +279,12 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
         const pickIssue = [...sel].filter(id => certs.find(c => c.id === id && c.can_manage && c.status !== 'issued'))
         const pickPrint = [...sel].filter(id => certs.find(c => c.id === id && c.status === 'issued'))
         return <>
-          <div className="distfilter">{orgNode}<input placeholder="Tìm giáo viên, số chứng chỉ…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chứng chỉ" />
+          <div className="distfilter">{orgNode}<input placeholder="Tìm nhà giáo, số chứng chỉ…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chứng chỉ" />
             <span className="sub">{sel.size ? `Đã chọn ${sel.size}` : 'Chọn chứng chỉ để duyệt cấp hoặc in hàng loạt.'}</span>
             {can && <button type="button" className="primary" disabled={!pickIssue.length || !!busy} onClick={() => issue(pickIssue)}>Duyệt cấp{pickIssue.length ? ` (${pickIssue.length})` : ''}</button>}
             <button type="button" disabled={!pickPrint.length || !!busy} onClick={() => printMany(pickPrint)}>In / Lưu PDF{pickPrint.length ? ` (${pickPrint.length})` : ''}</button></div>
           <div className="wrap"><table className="libtable">
-            <thead><tr><th style={{ width: 32 }}>{allBox(list.map(c => c.id))}</th><th>Giáo viên</th><th>Số chứng chỉ</th><th>Ngày cấp</th><th>Trạng thái</th></tr></thead>
+            <thead><tr><th style={{ width: 32 }}>{allBox(list.map(c => c.id))}</th><th>Nhà giáo</th><th>Số chứng chỉ</th><th>Ngày cấp</th><th>Trạng thái</th></tr></thead>
             <tbody>{list.map(c => <tr key={c.id}>
               <td><input type="checkbox" aria-label={`Chọn ${c.teacher_name}`} checked={sel.has(c.id)} onChange={() => toggle(c.id)} /></td>
               <td><b>{c.teacher_name}</b><br /><small className="sub">{c.org_name ?? '—'}</small></td>
@@ -303,7 +303,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
   </div>
 }
 
-/** Điểm danh theo buổi: mỗi giáo viên một dòng, mỗi buổi một cột */
+/** Điểm danh theo buổi: mỗi nhà giáo một dòng, mỗi buổi một cột */
 function AttGrid({ rows, sess, att }: { rows: ResRow[]; sess: Sess[]; att: Att[] }) {
   const key = useMemo(() => new Map(att.map(a => [a.session_id + '|' + a.teacher_id, a])), [att])
   const now = Date.now()
@@ -317,7 +317,7 @@ function AttGrid({ rows, sess, att }: { rows: ResRow[]; sess: Sess[]; att: Att[]
   }
   return <>
     <div className="wrap"><table className="libtable tratttable">
-      <thead><tr><th>Giáo viên</th>{sess.map((s, i) => <th key={s.id} title={s.title}>B{i + 1}<br /><small className="sub">{dm(s.starts_at)}</small></th>)}<th>Có mặt</th></tr></thead>
+      <thead><tr><th>Nhà giáo</th>{sess.map((s, i) => <th key={s.id} title={s.title}>B{i + 1}<br /><small className="sub">{dm(s.starts_at)}</small></th>)}<th>Có mặt</th></tr></thead>
       <tbody>{rows.map(r => <tr key={r.teacher_id}><td><b>{r.teacher_name}</b><br /><small className="sub">{r.org_name ?? '—'}</small></td>
         {sess.map(s => <td key={s.id}>{cell(s, r.teacher_id)}</td>)}
         <td><b>{r.metrics.present}</b>/{r.metrics.sessions - r.metrics.excused}</td></tr>)}</tbody>

@@ -120,7 +120,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
 
   const steps: [string, string, St | ''][] = [
     ['Xếp lịch', 'Xếp tự động từ kế hoạch (mỗi nội dung đào tạo một buổi) hoặc thêm từng buổi; sửa giờ, địa điểm, link họp, giảng viên.', 'upcoming'],
-    ['Nhắc lịch & điểm danh', 'Gửi nhắc lịch cho giáo viên. Buổi trực tiếp có mã 6 số / QR: giáo viên nhập mã để điểm danh; buổi trực tuyến điểm danh khi bấm Tham gia.', 'live'],
+    ['Nhắc lịch & điểm danh', 'Gửi nhắc lịch cho nhà giáo. Buổi trực tiếp có mã 6 số / QR: nhà giáo nhập mã để điểm danh; buổi trực tuyến điểm danh khi bấm Tham gia.', 'live'],
     ['Chốt điểm danh', 'Duyệt xin vắng, ghi có mặt / vắng còn thiếu rồi chốt. Chưa ghi thì tính vắng.', 'toclose']]
   return <>
     <FlowGuide id="training-schedule">
@@ -358,7 +358,7 @@ function InfoFields({ f, set, plans, lockPlan }: { f: Info; set: (f: Info) => vo
           {CK_BEFORE.map(m => <option key={m} value={m}>Mở {m ? `${mins(m)} trước giờ học` : 'đúng giờ bắt đầu'}</option>)}</select>
         <select aria-label="Đóng điểm danh" value={f.checkin_after} onChange={e => set({ ...f, checkin_after: Number(e.target.value) })}>
           {CK_AFTER.map(m => <option key={m} value={m}>Đóng {m ? `${mins(m)} sau khi kết thúc` : 'khi buổi học kết thúc'}</option>)}</select></div>
-      <small className="sub">Giáo viên tự điểm danh được trước, trong và sau giờ học trong khung này, cho tới khi chốt điểm danh. Danh sách ghi rõ ai điểm danh trước giờ, trong giờ hay sau giờ.</small></div>
+      <small className="sub">Nhà giáo tự điểm danh được trước, trong và sau giờ học trong khung này, cho tới khi chốt điểm danh. Danh sách ghi rõ ai điểm danh trước giờ, trong giờ hay sau giờ.</small></div>
     {f.mode === 'offline' ? <label className="field" style={{ gridColumn: '1/-1' }}><span>Địa điểm</span><input maxLength={300} value={f.location} onChange={e => set({ ...f, location: e.target.value })} placeholder="VD: Phòng STEM, THCS Phố Hiến" /></label>
       : <label className="field" style={{ gridColumn: '1/-1' }}><span>Link phòng họp</span><input type="url" maxLength={500} value={f.meeting_url} onChange={e => set({ ...f, meeting_url: e.target.value })} placeholder="https://meet…" /></label>}
     {f.mode === 'online' && <label className="field" style={{ gridColumn: '1/-1' }}><span>Link bản ghi (sau buổi học)</span><input type="url" maxLength={1000} value={f.recording_url} onChange={e => set({ ...f, recording_url: e.target.value })} placeholder="https://… (video ghi lại buổi học)" /></label>}
@@ -381,7 +381,7 @@ function SessionForm({ orgId, plans, initial, onBack, onDone }: { orgId: string;
     if (error) return setErr(errText(error.message))
     onDone((data as { id: string }).id)
   }
-  return <ElView back="Lịch đào tạo" onBack={onBack} title="Thêm buổi đào tạo" sub="Giáo viên đã ghi danh vào kế hoạch tự có tên trong danh sách điểm danh của buổi."
+  return <ElView back="Lịch đào tạo" onBack={onBack} title="Thêm buổi đào tạo" sub="Nhà giáo đã ghi danh vào kế hoạch tự có tên trong danh sách điểm danh của buổi."
     actions={<button type="button" className="primary" disabled={busy} onClick={save}>Lưu buổi</button>}>
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <InfoFields f={f} set={setF} plans={plans} />
@@ -502,14 +502,14 @@ export function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; pl
   return <ElView back="Lịch đào tạo" onBack={onBack} title={s.title}
     sub={<>{plan?.plan_code} · {dd(s.starts_at)} {hm(s.starts_at)}–{hm(s.ends_at)} · {MODE[s.mode]} · <Chip tone={ST[st][1]}>{ST[st][0]}</Chip></>}
     actions={can && <>
-      {!closed && st !== 'upcoming' && <button type="button" className="primary" onClick={() => confirm(`Chốt điểm danh? ${rows.filter(a => a.present == null).length} giáo viên chưa ghi sẽ tính vắng.`)
+      {!closed && st !== 'upcoming' && <button type="button" className="primary" onClick={() => confirm(`Chốt điểm danh? ${rows.filter(a => a.present == null).length} nhà giáo chưa ghi sẽ tính vắng.`)
         && run(supabase.rpc('training_session_close', { p_session: id, p_close: true }), 'Đã chốt điểm danh.')}>Chốt điểm danh</button>}
       {closed && <button type="button" onClick={() => run(supabase.rpc('training_session_close', { p_session: id, p_close: false }), 'Đã mở lại điểm danh.')}>Mở lại điểm danh</button>}
-      {!closed && st !== 'toclose' && <button type="button" onClick={() => run(supabase.rpc('training_session_remind', { p_session: id }), d => Number(d) ? `Đã gửi nhắc lịch cho ${d} giáo viên.` : 'Vừa gửi nhắc lịch, hoặc chưa giáo viên nào có tài khoản.')}>Gửi nhắc lịch</button>}
+      {!closed && st !== 'toclose' && <button type="button" onClick={() => run(supabase.rpc('training_session_remind', { p_session: id }), d => Number(d) ? `Đã gửi nhắc lịch cho ${d} nhà giáo.` : 'Vừa gửi nhắc lịch, hoặc chưa nhà giáo nào có tài khoản.')}>Gửi nhắc lịch</button>}
       <button type="button" className="danger" onClick={del}>Xoá buổi</button>
     </>}>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    {conf.size > 0 && <p className="warnline">{conf.size} giáo viên bị trùng lịch (xem cột Ghi chú).</p>}
+    {conf.size > 0 && <p className="warnline">{conf.size} nhà giáo bị trùng lịch (xem cột Ghi chú).</p>}
 
     <div className="tsgrid">
       {can && s.mode === 'offline' && code && <section className="panel tscode">
@@ -517,7 +517,7 @@ export function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; pl
         <b className="tscodenum">{code}</b>
         {qr && <img src={qr} alt={`QR mã điểm danh ${code}`} width={150} height={150} />}
         <button type="button" className="primary" onClick={() => setShow(true)}>Trình chiếu QR điểm danh</button>
-        <small className="sub">Chiếu QR lên màn hình: giáo viên mở camera điện thoại quét mã, đăng nhập (nếu chưa) là điểm danh xong, không cần gọi tên. Hoặc nhập mã 6 số ở Lịch đào tạo. Mở {ckWindow(s.checkin_before, s.checkin_after)}.</small>
+        <small className="sub">Chiếu QR lên màn hình: nhà giáo mở camera điện thoại quét mã, đăng nhập (nếu chưa) là điểm danh xong, không cần gọi tên. Hoặc nhập mã 6 số ở Lịch đào tạo. Mở {ckWindow(s.checkin_before, s.checkin_after)}.</small>
       </section>}
       {show && code && <CheckinShow id={id} title={s.title} when={`${dd(s.starts_at)} ${hm(s.starts_at)}–${hm(s.ends_at)}`} code={code} qr={qr} onClose={() => { setShow(false); load() }} />}
       <section className="panel" style={{ display: 'grid', gap: 12 }}>
@@ -535,7 +535,7 @@ export function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; pl
               const u = prompt('Link bản ghi buổi học (https://…):', s.recording_url ?? '')
               if (u === null) return
               if (u.trim() && !/^https?:\/\//i.test(u.trim())) return setMsg(['Link bản ghi phải bắt đầu bằng http:// hoặc https://', true])
-              run(supabase.from('training_sessions').update({ recording_url: u.trim() || null }).eq('id', id), u.trim() ? 'Đã gắn bản ghi, giáo viên xem lại được.' : 'Đã bỏ bản ghi.')
+              run(supabase.from('training_sessions').update({ recording_url: u.trim() || null }).eq('id', id), u.trim() ? 'Đã gắn bản ghi, nhà giáo xem lại được.' : 'Đã bỏ bản ghi.')
             }}>{s.recording_url ? 'Đổi' : 'Gắn bản ghi'}</button></>}</dd></>}
           <dt>Giảng viên</dt><dd>{s.trainer || '—'}</dd>
           {s.assistant && <><dt>Trợ giảng</dt><dd>{s.assistant}</dd></>}
@@ -548,9 +548,9 @@ export function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; pl
 
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Điểm danh</h3>
-        <small className="sub">{rows.length} giáo viên · {present} có mặt · {absent} vắng{pend ? ` · ${pend} xin vắng chờ duyệt` : ''}{closed ? ' · đã chốt' : ''}</small></div>
+        <small className="sub">{rows.length} nhà giáo · {present} có mặt · {absent} vắng{pend ? ` · ${pend} xin vắng chờ duyệt` : ''}{closed ? ' · đã chốt' : ''}</small></div>
       <div className="wrap"><table className="libtable">
-        <thead><tr><th>Giáo viên</th><th>Trường</th><th style={{ width: 150 }}>Điểm danh</th><th>Xin vắng</th><th>Ghi chú</th></tr></thead>
+        <thead><tr><th>Nhà giáo</th><th>Trường</th><th style={{ width: 150 }}>Điểm danh</th><th>Xin vắng</th><th>Ghi chú</th></tr></thead>
         <tbody>{sorted.map(a => <tr key={a.teacher_id}>
           <td><b>{a.teachers?.full_name ?? '—'}</b>{a.teachers?.subject && <><br /><small className="sub">{a.teachers.subject}</small></>}</td>
           <td>{a.teachers?.organizations?.name ?? '—'}</td>
@@ -563,14 +563,14 @@ export function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; pl
             {can && a.excuse_status === 'pending' && <div className="tools" style={{ marginTop: 4 }}><button type="button" className="primary" onClick={() => review(a, true)}>Duyệt</button><button type="button" onClick={() => review(a, false)}>Từ chối</button></div>}</> : '—'}</td>
           <td style={{ whiteSpace: 'normal' }}>{conf.get(a.teacher_id)?.map((c, k) => <small key={k} className="warnline" style={{ display: 'block' }}>{c}</small>) ?? '—'}</td>
         </tr>)}
-          {!rows.length && <tr><td colSpan={5}><small className="sub">Chưa có giáo viên. Giáo viên được trường chọn trong kế hoạch sẽ tự có tên ở đây.</small></td></tr>}</tbody>
+          {!rows.length && <tr><td colSpan={5}><small className="sub">Chưa có nhà giáo. Nhà giáo được trường chọn trong kế hoạch sẽ tự có tên ở đây.</small></td></tr>}</tbody>
       </table></div>
     </section>
   </ElView>
 }
 
 export const checkinUrl = (code: string) => `${location.origin}/?dd=${code}`
-/** Trình chiếu QR điểm danh toàn màn hình, số giáo viên đã điểm danh cập nhật mỗi 5 giây */
+/** Trình chiếu QR điểm danh toàn màn hình, số nhà giáo đã điểm danh cập nhật mỗi 5 giây */
 function CheckinShow({ id, title, when, code, qr, onClose }: { id: string; title: string; when: string; code: string; qr: string; onClose: () => void }) {
   const [rows, setRows] = useState<{ present: boolean | null; checked_in_at: string | null; teachers: { full_name: string } | null }[]>([])
   useEffect(() => {
@@ -591,7 +591,7 @@ function CheckinShow({ id, title, when, code, qr, onClose }: { id: string; title
       <h2>{title}</h2>
       <p><b>Quét mã QR bằng camera điện thoại để điểm danh</b><br /><span className="sub">Hoặc vào Lịch đào tạo › nhập mã</span></p>
       <b className="ckcode">{code}</b>
-      <div className="ckcount"><b>{on.length}</b>/{rows.length}<small>giáo viên đã điểm danh</small></div>
+      <div className="ckcount"><b>{on.length}</b>/{rows.length}<small>nhà giáo đã điểm danh</small></div>
       {last.length > 0 && <ul className="cklast">{last.map((r, i) => <li key={i}>✓ {r.teachers?.full_name} <small className="sub">{hm(r.checked_in_at!)}</small></li>)}</ul>}
     </div>
   </div>

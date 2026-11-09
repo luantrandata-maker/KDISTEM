@@ -15,8 +15,8 @@ export function CompetencySetupLink({ audience }: { audience: 'teacher' | 'stude
   }, [])
   if (!admin) return null
   return <>
-    <button type="button" className="linkbtn" onClick={() => setOpen(true)}>Thiết lập khung năng lực {audience === 'teacher' ? 'giáo viên' : 'học sinh'}</button>
-    {open && createPortal(<Drawer title={`Khung năng lực ${audience === 'teacher' ? 'giáo viên' : 'học sinh'}`} onClose={() => setOpen(false)} closeOnOutside={false}>
+    <button type="button" className="linkbtn" onClick={() => setOpen(true)}>Thiết lập khung năng lực {audience === 'teacher' ? 'nhà giáo' : 'học sinh'}</button>
+    {open && createPortal(<Drawer title={`Khung năng lực ${audience === 'teacher' ? 'nhà giáo' : 'học sinh'}`} onClose={() => setOpen(false)} closeOnOutside={false}>
       <Suspense fallback={<p className="sub">Đang tải…</p>}><Framework audience={audience} compact /></Suspense>
     </Drawer>, document.querySelector('.main') ?? document.body)}
   </>

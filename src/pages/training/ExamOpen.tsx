@@ -89,7 +89,7 @@ export function SessionExams({ planId, sessionId, offline }: { planId: string; s
             {e.test_kind === 'link' ? ` ${started}/${n} đã mở bài` : ` ${started}/${n} đã vào làm · ${sent}/${n} đã nộp`}
             {' '}<button type="button" className="linkbtn" onClick={() => setSee(see === k ? null : k)}>{see === k ? 'Ẩn danh sách' : 'Xem danh sách'}</button></small>
           {see === k && <div className="wrap"><table className="libtable">
-            <thead><tr><th>Giáo viên</th><th>Trường</th><th>Trạng thái</th><th style={{ width: 80 }}>Điểm</th></tr></thead>
+            <thead><tr><th>Nhà giáo</th><th>Trường</th><th>Trạng thái</th><th style={{ width: 80 }}>Điểm</th></tr></thead>
             <tbody>{e.rows.map(r => <tr key={r.teacher_id}>
               <td><b>{r.name}</b></td><td>{r.school ?? '—'}</td>
               <td>{r.submitted_at ? <><Chip tone="good">Đã nộp</Chip> <small className="sub">{hm(r.submitted_at)}</small></>

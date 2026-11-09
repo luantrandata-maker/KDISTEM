@@ -20,8 +20,8 @@ export function ExamModePick({ value, edit, onChange }: { value?: 'self' | 'trai
     <div className="distpills" role="radiogroup" aria-label="Ai mở đề" style={{ margin: 0 }}>
       {([['self', 'Học viên tự làm khi học xong'], ['trainer', 'Giảng viên mở đề']] as ['self' | 'trainer', string][]).map(([k, l]) =>
         <button key={k} type="button" role="radio" aria-checked={v === k} className={v === k ? 'on' : ''} disabled={!edit} onClick={() => onChange(k)}>{l}</button>)}</div>
-    <small className="sub">{v === 'trainer' ? 'Giáo viên chỉ vào làm khi giảng viên bấm "Mở đề" ở buổi học (trong hoặc sau khi dạy). Kế hoạch đào tạo có thể đặt chung cho cả khoá.'
-      : 'Giáo viên tự học nội dung rồi làm bài, nộp bài lúc nào cũng được. Kế hoạch đào tạo có thể đặt chung cho cả khoá.'}</small></div>
+    <small className="sub">{v === 'trainer' ? 'Nhà giáo chỉ vào làm khi giảng viên bấm "Mở đề" ở buổi học (trong hoặc sau khi dạy). Kế hoạch đào tạo có thể đặt chung cho cả khoá.'
+      : 'Nhà giáo tự học nội dung rồi làm bài, nộp bài lúc nào cũng được. Kế hoạch đào tạo có thể đặt chung cho cả khoá.'}</small></div>
 }
 type Col = { key: string; label: string; type?: 'text' | 'url' | 'number' | 'select'; options?: [string, string][]; width?: number; placeholder?: string }
 export type ListKey = 'lectures' | 'docs' | 'mats' | 'acts'
@@ -104,7 +104,7 @@ export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, 
       <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}{n ? ` (${n})` : ''}</button>)}</div>
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       {tab === 'body' ? (editable ? <>
-        <label className="field"><span>Mục tiêu</span><textarea rows={2} value={body.goal ?? ''} onChange={e => up({ ...d, body: { ...body, goal: e.target.value } })} placeholder="Sau nội dung này, giáo viên làm được gì" /></label>
+        <label className="field"><span>Mục tiêu</span><textarea rows={2} value={body.goal ?? ''} onChange={e => up({ ...d, body: { ...body, goal: e.target.value } })} placeholder="Sau nội dung này, nhà giáo làm được gì" /></label>
         <label className="field"><span>Nội dung chi tiết</span><textarea rows={8} value={body.text ?? ''} onChange={e => up({ ...d, body: { ...body, text: e.target.value } })} placeholder="Các ý chính, tiến trình đào tạo" /></label>
         <label className="field"><span>Yêu cầu cần đạt (mỗi dòng một yêu cầu)</span><textarea rows={4} value={(body.reqs ?? []).join('\n')} onChange={e => up({ ...d, body: { ...body, reqs: e.target.value.split('\n') } })} /></label>
       </> : <dl className="tpkv">
@@ -147,10 +147,10 @@ function TestEditor({ t, edit, passScore, hasTest, onChange }: { t: TestCfg; edi
       <button key={k} type="button" role="radio" aria-checked={(t.kind ?? 'bank') === k} className={(t.kind ?? 'bank') === k ? 'on' : ''} disabled={!edit}
         onClick={() => onChange({ ...t, kind: k })}>{l}</button>)}</div>
   if (link) return <div style={{ display: 'grid', gap: 12 }}>
-    {!hasTest && <p className="warnline">Nội dung này đang không bật "Có bài test". Bật ở bảng nội dung để giáo viên làm bài.</p>}
+    {!hasTest && <p className="warnline">Nội dung này đang không bật "Có bài test". Bật ở bảng nội dung để nhà giáo làm bài.</p>}
     {kindPick}
     <ExamModePick value={t.mode} edit={edit} onChange={m => onChange({ ...t, mode: m })} />
-    <p className="sub" style={{ margin: 0 }}>Giáo viên mở hết bài giảng, tài liệu rồi bấm "Làm bài" để mở link. Mở link là học tiếp được nội dung sau.
+    <p className="sub" style={{ margin: 0 }}>Nhà giáo mở hết bài giảng, tài liệu rồi bấm "Làm bài" để mở link. Mở link là học tiếp được nội dung sau.
       Điểm do người tổ chức nhập ở Đánh giá kết quả đào tạo › Chấm điểm › Điểm bài test (gõ tay hoặc nhập file Excel), đủ điểm đạt mới tính bài test đạt.</p>
     <label className="field"><span>Link bài kiểm tra</span><input type="url" disabled={!edit} value={t.url ?? ''} placeholder="https://forms.gle/…"
       onChange={e => onChange({ ...t, url: e.target.value })} /></label>
@@ -158,15 +158,15 @@ function TestEditor({ t, edit, passScore, hasTest, onChange }: { t: TestCfg; edi
       <label className="field"><span>Điểm đạt (thang 10)</span><input type="number" min={0} max={10} step={0.5} disabled={!edit} value={t.pass ?? ''} placeholder={passScore != null ? `Theo chương trình: ${passScore}` : '5'} onChange={e => setNum('pass', e.target.value)} /></label>
       <label className="field"><span>Hạn làm bài</span><input type="date" disabled={!edit} value={t.due ?? ''} onChange={e => onChange({ ...t, due: e.target.value || null })} /></label>
     </div>
-    <label className="field"><span>Hướng dẫn cho giáo viên</span><textarea rows={2} maxLength={500} disabled={!edit} value={t.note ?? ''} placeholder="VD: Đăng nhập bằng email đã đăng ký với hệ thống để điểm khớp tên."
+    <label className="field"><span>Hướng dẫn cho nhà giáo</span><textarea rows={2} maxLength={500} disabled={!edit} value={t.note ?? ''} placeholder="VD: Đăng nhập bằng email đã đăng ký với hệ thống để điểm khớp tên."
       onChange={e => onChange({ ...t, note: e.target.value })} /></label>
     {t.url && /^https?:\/\//i.test(t.url) && <a className="linkbtn" href={t.url} target="_blank" rel="noreferrer">Mở thử link ↗</a>}
   </div>
   return <div style={{ display: 'grid', gap: 12 }}>
-    {!hasTest && <p className="warnline">Nội dung này đang không bật "Có bài test". Bật ở bảng nội dung để giáo viên làm bài.</p>}
+    {!hasTest && <p className="warnline">Nội dung này đang không bật "Có bài test". Bật ở bảng nội dung để nhà giáo làm bài.</p>}
     {kindPick}
     <ExamModePick value={t.mode} edit={edit} onChange={m => onChange({ ...t, mode: m })} />
-    <p className="sub" style={{ margin: 0 }}>Giáo viên làm bài sau khi mở hết bài giảng và tài liệu của nội dung. Đạt điểm đạt thì nội dung được tính hoàn thành và mở nội dung tiếp theo.</p>
+    <p className="sub" style={{ margin: 0 }}>Nhà giáo làm bài sau khi mở hết bài giảng và tài liệu của nội dung. Đạt điểm đạt thì nội dung được tính hoàn thành và mở nội dung tiếp theo.</p>
     <div className="formgrid">
       <label className="field"><span>Số câu mỗi lượt</span><input type="number" min={1} max={Math.max(n, 1)} disabled={!edit} value={t.count ?? ''} placeholder={`Tất cả (${n})`} onChange={e => setNum('count', e.target.value)} /></label>
       <label className="field"><span>Thời gian (phút)</span><input type="number" min={1} max={300} disabled={!edit} value={t.minutes ?? ''} placeholder="Không giới hạn" onChange={e => setNum('minutes', e.target.value)} /></label>

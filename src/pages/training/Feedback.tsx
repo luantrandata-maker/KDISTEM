@@ -1,4 +1,4 @@
-// Phiếu đánh giá sau khoá đào tạo (migration 114): giáo viên chấm khoá học và giảng viên; tổng hợp và góp ý cho đơn vị quản lý.
+// Phiếu đánh giá sau khoá đào tạo (migration 114): nhà giáo chấm khoá học và giảng viên; tổng hợp và góp ý cho đơn vị quản lý.
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { fmtDate } from '../../lib/time'

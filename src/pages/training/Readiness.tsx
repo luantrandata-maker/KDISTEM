@@ -67,8 +67,8 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
 
   return <>
     <div className="panel distintro">
-      <p className="sub" style={{ margin: 0 }}>Mỗi dòng là một chương trình STEM trường đang dạy (lớp học theo chương trình, chương trình giáo dục được gán) và giáo viên được phân công dạy.
-        Giáo viên <b>đạt chuẩn</b> khi có chứng chỉ đào tạo cùng loại chương trình, hoặc đạt tất cả năng lực đích của một chương trình đào tạo cùng loại ở lần đánh giá gần nhất.
+      <p className="sub" style={{ margin: 0 }}>Mỗi dòng là một chương trình STEM trường đang dạy (lớp học theo chương trình, chương trình giáo dục được gán) và nhà giáo được phân công dạy.
+        Nhà giáo <b>đạt chuẩn</b> khi có chứng chỉ đào tạo cùng loại chương trình, hoặc đạt tất cả năng lực đích của một chương trình đào tạo cùng loại ở lần đánh giá gần nhất.
         Số GV cần = số lớp ÷ số lớp tối đa một GV dạy.</p>
     </div>
     <StatCards active={f || null} onPick={k => setF((k ?? '') as typeof f)} items={[
@@ -84,7 +84,7 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
         <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học">{[-1, 0, 1].map(o => <option key={o} value={schoolYear(o)}>Năm học {schoolYear(o)}</option>)}<option value="">Tất cả năm học</option></select>
         {cts.length > 1 && <select value={ct} onChange={e => setCt(e.target.value)} aria-label="Chương trình"><option value="">Tất cả chương trình</option>{cts.map(([c, l]) => <option key={c} value={c}>{c} · {l}</option>)}</select>}
         <MultiFilters defs={of.defs} f={mf} />
-        <label className="field inline"><span className="sub">Số lớp tối đa / GV</span> <input type="number" min={1} max={40} value={per} style={{ width: 64 }} onChange={e => setPer(Math.max(1, Math.round(Number(e.target.value) || 1)))} aria-label="Số lớp tối đa một giáo viên dạy" /></label>
+        <label className="field inline"><span className="sub">Số lớp tối đa / GV</span> <input type="number" min={1} max={40} value={per} style={{ width: 64 }} onChange={e => setPer(Math.max(1, Math.round(Number(e.target.value) || 1)))} aria-label="Số lớp tối đa một nhà giáo dạy" /></label>
       </div>
       <div className="distfilter">{([['', 'Tất cả', scope.length], ['short', 'Thiếu GV đạt chuẩn', n('short')], ['none', 'Chưa phân công', n('none')], ['ok', 'Đáp ứng', n('ok')]] as const)
         .map(([k, l, c]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} aria-pressed={f === k} onClick={() => setF(k)}>{l} ({c})</button>)}
@@ -138,7 +138,7 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
             {r.teachers.length ? <ul className="rdteachers">{r.teachers.map(t => <li key={t.id}>
               {t.ok ? <Chip tone="good">Đạt chuẩn</Chip> : <Chip tone="warn">Chưa đạt</Chip>} <b>{t.name}</b>{' '}
               <small className="sub">{t.cert ? `Chứng chỉ ${t.cert}` : t.comp ? `Đạt năng lực của ${t.program}` : t.program ? `Thiếu năng lực: ${(t.missing ?? []).join(', ')}` : 'Chưa có chứng chỉ; chưa có chương trình đào tạo cùng loại để đối chiếu năng lực'}</small></li>)}</ul>
-              : <small className="sub">Chưa phân công giáo viên dạy chương trình này (Phân công GV dạy STEM theo chương trình).</small>}
+              : <small className="sub">Chưa phân công nhà giáo dạy chương trình này (Phân công GV dạy STEM theo chương trình).</small>}
             <small className="sub">Chương trình đào tạo gợi ý: {r.suggest.length ? r.suggest.map(s => [s.code, s.title].filter(Boolean).join(' ')).join('; ') : 'chưa có chương trình đào tạo cùng loại đã phát hành'}</small>
           </td></tr>] })}
           {!shown.length && <tr><td colSpan={(can ? 1 : 0) + (multi ? 6 : 5)}><small className="sub">{all.length ? 'Không có dòng nào khớp bộ lọc.' : 'Chưa có trường nào có lớp học, chương trình STEM hoặc phân công GV theo chương trình.'}</small></td></tr>}</tbody>

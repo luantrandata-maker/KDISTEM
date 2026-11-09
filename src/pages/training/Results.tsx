@@ -1,4 +1,4 @@
-// Phân hệ 1 — Đánh giá kết quả đào tạo (087). Mỗi kế hoạch một bảng kết quả, mỗi giáo viên một dòng.
+// Phân hệ 1 — Đánh giá kết quả đào tạo (087). Mỗi kế hoạch một bảng kết quả, mỗi nhà giáo một dòng.
 // Hệ thống tự tính chuyên cần, bài kiểm tra, tiến độ học, sản phẩm và gợi ý Đạt / Chưa đạt theo điều kiện của chương trình;
 // đơn vị lập kế hoạch chấm sản phẩm, kết luận, cho thi lại. Đạt thì có chứng chỉ chờ duyệt ở mục Chứng chỉ đào tạo.
 import { useOrgFilter } from '../../components/OrgFilters'
@@ -75,7 +75,7 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
   // Thẻ tổng số tính theo các kế hoạch đang lọc
   const tot = list.map(p => cnt.get(p.id)).filter(Boolean).reduce<{ n: number; pass: number; fail: number; cert: number }>((a, c) => ({ n: a.n + c!.n, pass: a.pass + c!.pass, fail: a.fail + c!.fail, cert: a.cert + c!.cert }), { n: 0, pass: 0, fail: 0, cert: 0 })
   const table = (rows: TPlanRow[], empty: string) => <div className="wrap"><table className="libtable">
-    <thead><tr><th>Kế hoạch đào tạo</th><th>Giáo viên</th><th>Đạt</th><th>Chưa đạt</th><th>Chờ kết luận</th><th>Chứng chỉ đã cấp</th></tr></thead>
+    <thead><tr><th>Kế hoạch đào tạo</th><th>Nhà giáo</th><th>Đạt</th><th>Chưa đạt</th><th>Chờ kết luận</th><th>Chứng chỉ đã cấp</th></tr></thead>
     <tbody>{rows.map(p => { const c = cnt.get(p.id) ?? { n: 0, pass: 0, fail: 0, cert: 0 }, wait = Math.max(0, c.n - c.pass - c.fail)
       return <tr key={p.id}>
         <td><button type="button" className="namelink" onClick={() => setOpen(p.id)}>{p.name}</button><br /><small className="sub">{[p.plan_code, p.year_name, p.org_id === orgId ? '' : 'được giao'].filter(Boolean).join(' · ')}</small></td>
@@ -90,7 +90,7 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
   const steps: [string, string][] = [
     ['Chọn kế hoạch', 'Chọn mục trong khung phân loại (môn học, cấp độ…) rồi mở kế hoạch đã phát hành.'],
     ['Chấm điểm', 'Hệ thống tự tính chuyên cần, bài kiểm tra, học trực tuyến; nhập điểm sản phẩm hàng loạt.'],
-    ['Kết luận', 'Chọn nhiều giáo viên để kết luận Đạt / Chưa đạt; xác nhận Đạt cho người đủ điều kiện.'],
+    ['Kết luận', 'Chọn nhiều nhà giáo để kết luận Đạt / Chưa đạt; xác nhận Đạt cho người đủ điều kiện.'],
     ['Cấp chứng chỉ', 'Duyệt cấp và in hàng loạt chứng chỉ có QR tra cứu.']]
   return <>
     <FlowGuide id="training-results">
@@ -98,7 +98,7 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
     </FlowGuide>
     <StatCards items={[
       { icon: 'layers', value: plans ? list.length : '…', label: 'Kế hoạch đã phát hành' },
-      { icon: 'users', value: tot.n, label: 'Lượt giáo viên ghi danh' },
+      { icon: 'users', value: tot.n, label: 'Lượt nhà giáo ghi danh' },
       { icon: 'checkCircle', tone: 'good', value: tot.pass, label: 'Đạt', sub: `${tot.n ? Math.round(tot.pass * 100 / tot.n) : 0}% · ${Math.max(0, tot.n - tot.pass - tot.fail)} chờ kết luận` },
       { icon: 'award', tone: 'good', value: tot.cert, label: 'Chứng chỉ đã cấp' },
     ]} />
@@ -162,7 +162,7 @@ export function ResultDetail({ plan, r, can, onBack, onDone, back = 'Đánh giá
     {m.need_product && <section className="panel" style={{ display: 'grid', gap: 10 }}>
       <h3 style={{ margin: 0 }}>Sản phẩm & nhận xét của giảng viên</h3>
       {r.product_url || r.product_note ? <p style={{ margin: 0 }}>{r.product_url && <a href={r.product_url} target="_blank" rel="noreferrer">Mở sản phẩm ↗</a>}{r.product_note && <><br /><small className="sub">{r.product_note}</small></>}</p>
-        : <small className="sub">Giáo viên chưa nộp sản phẩm.</small>}
+        : <small className="sub">Nhà giáo chưa nộp sản phẩm.</small>}
       {can ? <div className="formgrid">
         <label className="field"><span>Điểm sản phẩm (0–10)</span><input type="number" min={0} max={10} step={0.5} value={score} onChange={e => setScore(e.target.value)} /></label>
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Nhận xét</span><textarea rows={3} value={comment} onChange={e => setComment(e.target.value)} /></label>
@@ -184,7 +184,7 @@ export function ResultDetail({ plan, r, can, onBack, onDone, back = 'Đánh giá
         <span>Cho học bù / thi lại: thêm</span>
         <select value={extra} onChange={e => setExtra(e.target.value)} aria-label="Số lượt thêm">{[1, 2, 3, 4, 5].map(n => <option key={n}>{n}</option>)}</select>
         <span>lượt làm bài kiểm tra</span>
-        <button type="button" disabled={busy} onClick={() => call('training_result_retake', { ...base, p_extra: Number(extra) }, `Đã cho ${r.teacher_name} thi lại, giáo viên nhận được thông báo.`)}>Cho thi lại</button>
+        <button type="button" disabled={busy} onClick={() => call('training_result_retake', { ...base, p_extra: Number(extra) }, `Đã cho ${r.teacher_name} thi lại, nhà giáo nhận được thông báo.`)}>Cho thi lại</button>
       </div>}
     </section>}
   </ElView>

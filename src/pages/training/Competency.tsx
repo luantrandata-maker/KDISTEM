@@ -43,7 +43,7 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
   useEffect(() => { load(); supabase.rpc('training_can_write', { p_org: orgId }).then(({ data }) => setCan(!!data)) }, [orgId])
   const cur = rows?.find(r => r.id === open)
   if (creating) return <RoundForm orgId={orgId} onBack={() => setCreating(false)}
-    onSaved={id => { setCreating(false); setMsg(['Đã mở đợt đánh giá. Theo dõi tiến độ và nhắc giáo viên ở tab "Tiến độ".', false]); load().then(() => setOpen(id)) }} />
+    onSaved={id => { setCreating(false); setMsg(['Đã mở đợt đánh giá. Theo dõi tiến độ và nhắc nhà giáo ở tab "Tiến độ".', false]); load().then(() => setOpen(id)) }} />
   if (cur) return <RoundDetail r={cur} onBack={() => setOpen(null)} onChanged={m => { setMsg([m, false]); load() }} />
   const all = rows ?? []
   const fitR = (r: Round, skip?: string) => (skip === 'org' || mf.has('org', r.org_id)) && (skip === 'year' || mf.has('year', r.school_year))
@@ -61,8 +61,8 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
   return <>
     <FlowGuide id="training-rounds">
       <ol className="distguide">
-        <li><button type="button" onClick={() => can && add()}><i>1</i><span><b>Mở đợt đánh giá</b><small>Đặt năm học, hạn nộp và mức yêu cầu. Đợt áp dụng cho tất cả giáo viên trong đơn vị và các trường trực thuộc.</small></span></button></li>
-        <li><button type="button" onClick={() => all[0] && setOpen(all[0].id)}><i>2</i><span><b>Theo dõi & nhắc</b><small>Xem từng trường đã tự đánh giá / được trường đánh giá bao nhiêu, gửi nhắc giáo viên chưa nộp.</small></span></button></li>
+        <li><button type="button" onClick={() => can && add()}><i>1</i><span><b>Mở đợt đánh giá</b><small>Đặt năm học, hạn nộp và mức yêu cầu. Đợt áp dụng cho tất cả nhà giáo trong đơn vị và các trường trực thuộc.</small></span></button></li>
+        <li><button type="button" onClick={() => all[0] && setOpen(all[0].id)}><i>2</i><span><b>Theo dõi & nhắc</b><small>Xem từng trường đã tự đánh giá / được trường đánh giá bao nhiêu, gửi nhắc nhà giáo chưa nộp.</small></span></button></li>
         <li><button type="button" disabled><i>3</i><span><b>Xem thiếu hụt</b><small>Kết quả vào hồ sơ năng lực; mục Khoảng thiếu hụt gợi ý chương trình đào tạo cho người dưới mức yêu cầu.</small></span></button></li>
       </ol>
     </FlowGuide>
@@ -106,7 +106,7 @@ function RoundFields({ f, set, orgPick }: { f: RForm; set: (f: RForm) => void; o
       <label className="field"><span>Mức yêu cầu</span><select value={f.target_level} onChange={e => set({ ...f, target_level: +e.target.value })}>
         {[1, 2, 3, 4].map(l => <option key={l} value={l}>Mức {l} · {LV_NAME[l - 1]}</option>)}</select></label>
     </div>
-    <label className="field"><span>Ghi chú cho giáo viên</span><textarea rows={3} value={f.note} onChange={e => set({ ...f, note: e.target.value })} /></label>
+    <label className="field"><span>Ghi chú cho nhà giáo</span><textarea rows={3} value={f.note} onChange={e => set({ ...f, note: e.target.value })} /></label>
   </>
 }
 
@@ -121,7 +121,7 @@ function RoundForm({ orgId, onBack, onSaved }: { orgId: string; onBack: () => vo
     if (error) return setErr(errText(error.message))
     onSaved((data as { id: string }).id)
   }
-  return <ElView back="Đợt đánh giá" onBack={onBack} title="Mở đợt đánh giá năng lực" sub="Đợt áp dụng cho tất cả giáo viên trong đơn vị mở đợt và các trường trực thuộc.">
+  return <ElView back="Đợt đánh giá" onBack={onBack} title="Mở đợt đánh giá năng lực" sub="Đợt áp dụng cho tất cả nhà giáo trong đơn vị mở đợt và các trường trực thuộc.">
     <section className="panel" style={{ display: 'grid', gap: 12 }}>
       {err && <p className="msg" role="alert">{err}</p>}
       <RoundFields f={f} set={setF} orgPick />
@@ -149,7 +149,7 @@ function RoundDetail({ r, onBack, onChanged }: { r: Round; onBack: () => void; o
     const { data, error } = await supabase.rpc('assessment_round_remind', { p_round: r.id })
     setBusy(false)
     if (error) return setErr(errText(error.message))
-    setInfo(data ? `Đã gửi nhắc tới ${data} giáo viên chưa nộp tự đánh giá.` : 'Vừa nhắc xong, hoặc tất cả giáo viên có tài khoản đã nộp. Có thể nhắc lại sau 10 phút.')
+    setInfo(data ? `Đã gửi nhắc tới ${data} nhà giáo chưa nộp tự đánh giá.` : 'Vừa nhắc xong, hoặc tất cả nhà giáo có tài khoản đã nộp. Có thể nhắc lại sau 10 phút.')
   }
   async function setStatus(status: 'open' | 'closed') {
     const { error } = await supabase.from('assessment_rounds').update({ status }).eq('id', r.id)
@@ -165,7 +165,7 @@ function RoundDetail({ r, onBack, onChanged }: { r: Round; onBack: () => void; o
     setF(null); setErr(''); onChanged('Đã lưu thông tin đợt đánh giá.')
   }
   async function del() {
-    if (!confirm(`Xoá đợt "${r.name}"? Bản đánh giá giáo viên đã làm vẫn giữ trong hồ sơ năng lực.`)) return
+    if (!confirm(`Xoá đợt "${r.name}"? Bản đánh giá nhà giáo đã làm vẫn giữ trong hồ sơ năng lực.`)) return
     const { error } = await supabase.from('assessment_rounds').delete().eq('id', r.id)
     if (error) return setErr(errText(error.message))
     onChanged('Đã xoá đợt đánh giá.'); onBack()
@@ -208,7 +208,7 @@ function RoundDetail({ r, onBack, onChanged }: { r: Round; onBack: () => void; o
     {tab === 'progress' && <>
     <StatCards items={[
       { icon: 'school', value: rows ? all.length : '…', label: 'Trường' },
-      { icon: 'users', value: tot.t, label: 'Giáo viên' },
+      { icon: 'users', value: tot.t, label: 'Nhà giáo' },
       { icon: 'edit', tone: pct(tot.s, tot.t) >= 80 ? 'good' : 'warn', value: `${pct(tot.s, tot.t)}%`, label: 'Đã tự đánh giá', sub: `${tot.s}/${tot.t} GV` },
       { icon: 'checkCircle', tone: pct(tot.m, tot.t) >= 80 ? 'good' : 'warn', value: `${pct(tot.m, tot.t)}%`, label: 'Trường đã đánh giá', sub: `${tot.m}/${tot.t} GV` },
     ]} />
@@ -217,7 +217,7 @@ function RoundDetail({ r, onBack, onChanged }: { r: Round; onBack: () => void; o
         <thead><tr><th>Trường</th><th>Số GV</th><th>Tự đánh giá</th><th>Trường đánh giá</th></tr></thead>
         <tbody>{all.map(x => <tr key={x.org_id}><td>{x.org_name}</td><td>{x.teachers}</td>
           <td><Bar v={pct(x.self_done, x.teachers)} /> {x.self_done}/{x.teachers}</td><td><Bar v={pct(x.manager_done, x.teachers)} /> {x.manager_done}/{x.teachers}</td></tr>)}
-          {!all.length && <tr><td colSpan={4}><small className="sub">Chưa có giáo viên trong phạm vi đợt.</small></td></tr>}</tbody>
+          {!all.length && <tr><td colSpan={4}><small className="sub">Chưa có nhà giáo trong phạm vi đợt.</small></td></tr>}</tbody>
       </table></div>}
     </section></>}
   </ElView>
@@ -257,7 +257,7 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
   }
   useEffect(loadPlans, [orgId])
 
-  // Lọc Tỉnh / Sở, trường (chọn nhiều); ô tìm chỉ tìm tên giáo viên
+  // Lọc Tỉnh / Sở, trường (chọn nhiều); ô tìm chỉ tìm tên nhà giáo
   const mf = useMultiFilters()
   const of = useOrgFilters(rows ?? [], mf)
   const all = (rows ?? []).filter(g => of.fit(g.org_id))
@@ -288,14 +288,14 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
     setMsg([`Đã ghi danh ${name} vào kế hoạch. Nhớ gửi danh sách duyệt ở mục Kế hoạch đào tạo.`, false]); loadPlans()
   }
   function excel() {
-    downloadXlsx(`khoang-thieu-hut-${year}`, [{ key: 't', label: 'Giáo viên', width: 26 }, { key: 'o', label: 'Trường', width: 28 }, { key: 'c', label: 'Năng lực', width: 30 },
+    downloadXlsx(`khoang-thieu-hut-${year}`, [{ key: 't', label: 'Nhà giáo', width: 26 }, { key: 'o', label: 'Trường', width: 28 }, { key: 'c', label: 'Năng lực', width: 30 },
       { key: 'l', label: 'Mức hiện tại' }, { key: 's', label: 'Chương trình gợi ý', width: 50 }],
       shown.map(g => [g.teacher_name, g.org_name, g.competency_name, g.level, g.suggest.map(s => `${s.code ?? ''} ${s.title}`.trim()).join('; ')]), 'Thiếu hụt')
   }
   return <>
     <div className="panel distintro">
       <p style={{ margin: 0 }}>Mức năng lực lấy theo đánh giá năm học (ưu tiên mức trường đánh giá, nếu chưa có thì mức tự đánh giá đã nộp). Chứng chỉ đào tạo đã cấp nâng mức lên bằng mức đích của chương trình.
-        Giáo viên dưới mức yêu cầu được gợi ý chương trình đào tạo đã phát hành có bồi dưỡng năng lực đó.</p>
+        Nhà giáo dưới mức yêu cầu được gợi ý chương trình đào tạo đã phát hành có bồi dưỡng năng lực đó.</p>
     </div>
     <StatCards active={gapActive} onPick={k => {
       // "Thiếu nhiều nhất" chọn năng lực đó; "Chưa có chương trình" lọc riêng; bấm lại để bỏ
@@ -315,7 +315,7 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
         <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học">{years().map(y => <option key={y} value={y}>Năm học {y}</option>)}</select>
         <select value={target} onChange={e => setTarget(+e.target.value)} aria-label="Mức yêu cầu">{[2, 3, 4].map(l => <option key={l} value={l}>Yêu cầu từ Mức {l} ({LV_NAME[l - 1]})</option>)}</select>
         <MultiFilters defs={of.defs} f={mf} />
-        <input placeholder="Tìm tên giáo viên…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giáo viên" />
+        <input placeholder="Tìm tên nhà giáo…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm nhà giáo" />
         <button type="button" onClick={excel} disabled={!shown.length}>Xuất Excel</button>
       </div>
       <div className="distfilter">
@@ -323,14 +323,14 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
         {perComp.map(([c, n]) => <button key={c.key} type="button" className={`distfchip${comp === c.key ? ' on' : ''}`} onClick={() => setComp(c.key)}>{c.name} ({n})</button>)}
         <span style={{ flex: 1 }} />
         <button type="button" className={`distfchip${view === 'school' ? ' on' : ''}`} onClick={() => setView('school')}>Tổng hợp theo trường</button>
-        <button type="button" className={`distfchip${view === 'teacher' ? ' on' : ''}`} onClick={() => setView('teacher')}>Theo giáo viên</button>
+        <button type="button" className={`distfchip${view === 'teacher' ? ' on' : ''}`} onClick={() => setView('teacher')}>Theo nhà giáo</button>
       </div>
       {!rows ? <p className="sub">Đang tải…</p> : view === 'school' ? <div className="wrap"><table className="libtable">
         <thead><tr><th>Trường</th><th>GV có thiếu hụt</th>{comps.map(c => <th key={c.key}>{c.name}</th>)}</tr></thead>
         <tbody>{bySchool.map(s => <tr key={s.name}><td>{s.name}</td><td><b>{s.teachers.size}</b></td>{comps.map(c => <td key={c.key}>{s.per[c.key] ?? <small className="sub">0</small>}</td>)}</tr>)}
           {!bySchool.length && <tr><td colSpan={comps.length + 2}><small className="sub">Không có thiếu hụt.</small></td></tr>}</tbody></table></div>
       : <div className="wrap"><table className="libtable">
-        <thead><tr><th>Giáo viên</th><th>Năng lực dưới mức yêu cầu</th><th>Chương trình đào tạo gợi ý</th></tr></thead>
+        <thead><tr><th>Nhà giáo</th><th>Năng lực dưới mức yêu cầu</th><th>Chương trình đào tạo gợi ý</th></tr></thead>
         <tbody>{byTeacher.slice(0, 300).map(gs => { const g0 = gs[0]
           const sug = [...new Map(gs.flatMap(g => g.suggest).map(s => [s.id, s])).values()]
           return <tr key={g0.teacher_id}>
@@ -344,25 +344,27 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
                   : <button key={p.plan_id} type="button" className="linkbtn" onClick={() => enroll(p.plan_id, g0.teacher_id, g0.teacher_name)}>+ Ghi danh vào {p.training_plans.plan_code ?? p.training_plans.name}</button>)}
               </div> }) : <small className="sub">Chưa có chương trình đã phát hành bồi dưỡng năng lực này.</small>}</td>
           </tr> })}
-          {!byTeacher.length && <tr><td colSpan={3}><small className="sub">{all.length ? 'Không có giáo viên nào khớp.' : 'Không có giáo viên dưới mức yêu cầu (trong số giáo viên đã có kết quả đánh giá năm học này).'}</small></td></tr>}</tbody>
+          {!byTeacher.length && <tr><td colSpan={3}><small className="sub">{all.length ? 'Không có nhà giáo nào khớp.' : 'Không có nhà giáo dưới mức yêu cầu (trong số nhà giáo đã có kết quả đánh giá năm học này).'}</small></td></tr>}</tbody>
       </table></div>}
-      {plans.length === 0 && view === 'teacher' && byTeacher.length > 0 && <small className="sub">Nút ghi danh hiện khi trường có kế hoạch được giao đang chọn giáo viên và kế hoạch đó có chương trình được gợi ý.</small>}
+      {plans.length === 0 && view === 'teacher' && byTeacher.length > 0 && <small className="sub">Nút ghi danh hiện khi trường có kế hoạch được giao đang chọn nhà giáo và kế hoạch đó có chương trình được gợi ý.</small>}
     </section>
   </>
 }
 
-// ================= Khung năng lực (KDI): giáo viên và học sinh =================
-export function CompetencyFrameworkPage() {
+// ================= Khung năng lực (KDI): nhà giáo và học sinh =================
+// audience cố định: phân hệ 2 (Đào tạo nhà giáo) chỉ khung nhà giáo, phân hệ 1 (Chương trình & học liệu) chỉ khung học sinh
+export function CompetencyFrameworkPage({ audience }: { audience?: 'teacher' | 'student' }) {
   const [aud, setAud] = useState<'teacher' | 'student'>('teacher')
+  if (audience) return <CompetencyFramework audience={audience} />
   return <>
-    <Tabs value={aud} onChange={setAud} items={[['teacher', 'Năng lực giáo viên'], ['student', 'Năng lực học sinh']]} />
+    <Tabs value={aud} onChange={setAud} items={[['teacher', 'Năng lực nhà giáo'], ['student', 'Năng lực học sinh']]} />
     <CompetencyFramework key={aud} audience={aud} />
   </>
 }
 
 const AUD = {
-  teacher: { title: 'Năng lực giáo viên', grp: 'Giáo viên STEM', prefix: 'gv_', example: 'gv_hop_tac', levels: LV_NAME,
-    intro: 'Khung năng lực giáo viên dùng chung cho tất cả đơn vị: tự đánh giá, trường đánh giá, khoảng thiếu hụt và năng lực đích của chương trình đào tạo đều theo khung này.' },
+  teacher: { title: 'Năng lực nhà giáo', grp: 'Nhà giáo STEM', prefix: 'gv_', example: 'gv_hop_tac', levels: LV_NAME,
+    intro: 'Khung năng lực nhà giáo dùng chung cho tất cả đơn vị: tự đánh giá, trường đánh giá, khoảng thiếu hụt và năng lực đích của chương trình đào tạo đều theo khung này.' },
   student: { title: 'Năng lực học sinh', grp: 'Năng lực đặc thù', prefix: '', example: 'ngoai_ngu', levels: SLV_NAME,
     intro: 'Khung năng lực học sinh dùng chung: năng lực của chương trình giáo dục, yêu cầu cần đạt, tiêu chí chấm (rubric) và hồ sơ năng lực học sinh đều theo khung này.' },
 }

@@ -5,7 +5,7 @@ import { downloadXlsx } from '../lib/sheet'
 import { schoolYear } from './department/Governance'
 import { ElView } from '../components/ElView'
 import { StatCards } from '../components/StatCards'
-// Chứng chỉ đào tạo của giáo viên (tải khi mở hồ sơ)
+// Chứng chỉ đào tạo của nhà giáo (tải khi mở hồ sơ)
 const TeacherCertList = lazy(() => import('./training/Certificates').then(m => ({ default: m.TeacherCertList })))
 import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../components/MultiFilters'
 
@@ -150,7 +150,7 @@ export function ClassCompetencies({ teacherId }: { teacherId: string | null }) {
   )
 }
 
-// ================= Đánh giá năng lực giáo viên =================
+// ================= Đánh giá năng lực nhà giáo =================
 type TA = { id: string; org_id: string; teacher_id: string; school_year: string; kind: 'self' | 'manager'; levels: Record<string, number>; comment: string | null; plan: string | null; status: 'draft' | 'submitted'; submitted_at: string | null }
 type Evd = Record<string, number>
 const EV_LABEL: [string, string][] = [['training_completed', 'Khoá đào tạo hoàn thành'], ['training_present', 'Buổi đào tạo có mặt'], ['certificates', 'Chứng chỉ'], ['test_avg', 'Điểm kiểm tra đào tạo TB'],
@@ -181,13 +181,13 @@ function TrainingLevels({ teacherId, comps }: { teacherId: string; comps: Comp[]
   const [rows, setRows] = useState<TLv[] | null>(null)
   useEffect(() => { supabase.rpc('teacher_training_levels', { p_teacher: teacherId }).then(({ data }) => setRows((data as TLv[]) ?? [])) }, [teacherId])
   if (!rows) return null
-  if (!rows.length) return <p className="sub" style={{ margin: 0 }}>Chưa có chứng chỉ đào tạo nào gắn năng lực. Khi giáo viên Đạt khoá đào tạo và được cấp chứng chỉ, mức đích của chương trình được tính vào hồ sơ.</p>
+  if (!rows.length) return <p className="sub" style={{ margin: 0 }}>Chưa có chứng chỉ đào tạo nào gắn năng lực. Khi nhà giáo Đạt khoá đào tạo và được cấp chứng chỉ, mức đích của chương trình được tính vào hồ sơ.</p>
   return <div className="wrap"><table className="libtable"><thead><tr><th>Năng lực</th><th>Mức đạt</th><th>Chương trình đào tạo</th><th>Chứng chỉ</th></tr></thead>
     <tbody>{rows.map((r, i) => { const c = comps.find(x => x.key === r.competency); return <tr key={i}><td>{c?.name ?? r.competency}</td><td><LevelChip v={r.level} comp={c} /></td><td>{r.program}</td>
       <td>{r.cert_code}{r.issued_on && <small className="sub"> · {new Date(r.issued_on).toLocaleDateString('vi-VN')}</small>}</td></tr> })}</tbody></table></div>
 }
 
-// ===== Chương trình giáo dục giáo viên đáp ứng (124): Đạt một khoá đào tạo có chương trình gắn với chương trình giáo dục =====
+// ===== Chương trình giáo dục nhà giáo đáp ứng (124): Đạt một khoá đào tạo có chương trình gắn với chương trình giáo dục =====
 type EduMetRow = { edu_family: string; code: string | null; title: string; kind: string; ct_code: string | null; level: string; grade_from: number; grade_to: number
   main_subject: string; met_on: string | null; via: { plan: string; program: string; date: string | null; cert: string | null }[]; competencies: Record<string, number> }
 const EDU_KIND: Record<string, string> = { subject: 'Môn học', stem: 'STEM', school: 'Nhà trường' }
@@ -203,7 +203,7 @@ export function EduProgramsMet({ teacherId, comps }: { teacherId: string; comps:
   }, [teacherId])
   if (err) return <p className="msg">{err}</p>
   if (!rows) return <p className="sub">Đang tải…</p>
-  if (!rows.length) return <p className="sub" style={{ margin: 0 }}>Chưa đáp ứng chương trình giáo dục nào. Giáo viên Đạt khoá đào tạo có chương trình đào tạo gắn với chương trình giáo dục thì được tính đáp ứng chương trình đó.</p>
+  if (!rows.length) return <p className="sub" style={{ margin: 0 }}>Chưa đáp ứng chương trình giáo dục nào. Nhà giáo Đạt khoá đào tạo có chương trình đào tạo gắn với chương trình giáo dục thì được tính đáp ứng chương trình đó.</p>
   const compOf = (k: string) => comps.find(c => c.key === k)
   return <div className="wrap"><table className="libtable">
     <thead><tr><th>Chương trình giáo dục</th><th>Khối · môn</th><th>Qua khoá đào tạo</th><th>Năng lực đạt</th><th>Từ ngày</th></tr></thead>
@@ -404,7 +404,7 @@ export function TeacherCompetencyProfile({ teacherId, orgId }: { teacherId: stri
     setMine(l.find(x => x.kind === 'self') ?? { levels: {}, comment: '', status: 'draft' }); setMgr(l.find(x => x.kind === 'manager' && x.status === 'submitted') ?? null)
   }
   useEffect(() => { load() }, [teacherId])
-  if (!teacherId) return <p className="sub">Tài khoản chưa liên kết hồ sơ giáo viên.</p>
+  if (!teacherId) return <p className="sub">Tài khoản chưa liên kết hồ sơ nhà giáo.</p>
   if (!mine) return <p className="sub">Đang tải…</p>
   const locked = mine.status === 'submitted'
   async function save(submit: boolean) {
@@ -424,7 +424,7 @@ export function TeacherCompetencyProfile({ teacherId, orgId }: { teacherId: stri
             {locked ? ' · em đã nộp' : late ? ' · đã quá hạn, hãy nộp ngay' : ''}</span>
           {r.note && <small className="sub">{r.note}</small>}
         </div>) })}
-      <p className="sub">Năm học {year}. Tự đánh giá theo {comps.length} năng lực của giáo viên STEM (mức như chuẩn nghề nghiệp: Chưa đạt / Đạt / Khá / Tốt). Minh chứng dưới đây hệ thống tự tổng hợp.</p>
+      <p className="sub">Năm học {year}. Tự đánh giá theo {comps.length} năng lực của nhà giáo STEM (mức như chuẩn nghề nghiệp: Chưa đạt / Đạt / Khá / Tốt). Minh chứng dưới đây hệ thống tự tổng hợp.</p>
       <div className="panel"><h4 style={{ marginTop: 0 }}>Minh chứng</h4><Evidence teacherId={teacherId} /></div>
       <div className="panel"><h4 style={{ marginTop: 0 }}>Chứng chỉ đào tạo</h4><Suspense fallback={<p className="sub">Đang tải…</p>}><TeacherCertList teacherId={teacherId} /></Suspense></div>
       <div className="panel"><h4 style={{ marginTop: 0 }}>Mức đạt qua đào tạo</h4><TrainingLevels teacherId={teacherId} comps={comps} /></div>
@@ -457,7 +457,7 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
   const year = schoolYear()
   const [teachers, setTeachers] = useState<TRow[]>([])
   const [list, setList] = useState<TA[]>([])
-  // Lọc chọn nhiều: đơn vị quản lý, trường, giáo viên, môn, tình trạng đánh giá
+  // Lọc chọn nhiều: đơn vị quản lý, trường, nhà giáo, môn, tình trạng đánh giá
   const mf = useMultiFilters(), provOf = useProvinceOf()
   const [sel, setSel] = useState<string | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
@@ -480,13 +480,13 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
   useEffect(() => { load() }, [orgId])
   const of = (id: string, k: 'self' | 'manager') => list.find(x => x.teacher_id === id && x.kind === k)
   function excel() {
-    downloadXlsx(`danh-gia-nang-luc-gv-${year}`, [{ key: 'n', label: 'Giáo viên', width: 26 }, { key: 'o', label: 'Trường', width: 28 }, ...comps.flatMap(c => [{ key: c.key + 's', label: c.name + ' (tự ĐG)', width: 14 }, { key: c.key + 'm', label: c.name + ' (trường)', width: 14 }]),
+    downloadXlsx(`danh-gia-nang-luc-gv-${year}`, [{ key: 'n', label: 'Nhà giáo', width: 26 }, { key: 'o', label: 'Trường', width: 28 }, ...comps.flatMap(c => [{ key: c.key + 's', label: c.name + ' (tự ĐG)', width: 14 }, { key: c.key + 'm', label: c.name + ' (trường)', width: 14 }]),
       { key: 'cm', label: 'Nhận xét của trường', width: 40 }, { key: 'pl', label: 'Kế hoạch bồi dưỡng', width: 40 }],
       teachers.filter(t => fit(t)).map(t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); return [t.full_name, t.organizations?.name ?? '', ...comps.flatMap(c => [s?.levels[c.key] ?? '', m?.status === 'submitted' ? m.levels[c.key] ?? '' : '']), m?.comment ?? '', m?.plan ?? ''] }), 'Năng lực GV')
   }
   const cur = teachers.find(t => t.id === sel)
   if (cur) return <TeacherAssessDetail t={cur} year={year} comps={comps} self={of(cur.id, 'self')} mgr={of(cur.id, 'manager')} canEdit={canEdit}
-    initialTab={profile ? 'profile' : 'assess'} back={profile ? 'Hồ sơ năng lực' : 'Đánh giá năng lực giáo viên'} onBack={() => setSel(null)} onChanged={load} />
+    initialTab={profile ? 'profile' : 'assess'} back={profile ? 'Hồ sơ năng lực' : 'Đánh giá năng lực nhà giáo'} onBack={() => setSel(null)} onChanged={load} />
   const selfDone = teachers.filter(t => of(t.id, 'self')?.status === 'submitted').length
   const mgrDone = teachers.filter(t => of(t.id, 'manager')?.status === 'submitted').length
   const stOf = (t: TRow) => { const s = of(t.id, 'self'), m = of(t.id, 'manager')
@@ -497,12 +497,12 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
   const filterDefs: FilterDef[] = [
     { key: 'unit', label: 'Tỉnh / Sở', placeholder: 'Tất cả Tỉnh / Sở', options: opts(teachers.filter(t => fit(t, 'unit')).map(t => { const p = provOf(t.org_id); return [p?.id, p?.name] })), hidden: !!orgId },
     { key: 'school', label: 'Trường', placeholder: 'Tất cả trường', options: opts(teachers.filter(t => fit(t, 'school')).map(t => [t.org_id, t.organizations?.name])), hidden: !!orgId },
-    { key: 'teacher', label: 'Giáo viên', placeholder: 'Tất cả giáo viên', options: opts(teachers.filter(t => fit(t, 'teacher')).map(t => [t.id, orgId ? t.full_name : `${t.full_name} · ${t.organizations?.name ?? ''}`])) },
+    { key: 'teacher', label: 'Nhà giáo', placeholder: 'Tất cả nhà giáo', options: opts(teachers.filter(t => fit(t, 'teacher')).map(t => [t.id, orgId ? t.full_name : `${t.full_name} · ${t.organizations?.name ?? ''}`])) },
     { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', options: opts(teachers.filter(t => fit(t, 'subj')).map(t => [t.subject, t.subject])) },
     { key: 'st', label: 'Tình trạng đánh giá', placeholder: 'Tất cả tình trạng', options: [['mgr', 'Trường đã đánh giá'], ['self', 'Mới tự đánh giá'], ['draft', 'Đang làm nháp'], ['none', 'Chưa đánh giá']] },
   ]
   const matched = teachers.filter(t => fit(t))
-  // Thẻ tổng số: tính trên giáo viên khớp bộ lọc; bấm thẻ để lọc thêm danh sách, bấm lại để bỏ
+  // Thẻ tổng số: tính trên nhà giáo khớp bộ lọc; bấm thẻ để lọc thêm danh sách, bấm lại để bỏ
   const lvOf = (t: TRow) => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); return m?.status === 'submitted' ? m.levels : s?.status === 'submitted' ? s.levels : null }
   const REQ = 2
   const meets = (t: TRow) => { const lv = lvOf(t); return !!lv && comps.length > 0 && comps.every(c => (lv[c.key] ?? 0) >= REQ) }
@@ -516,26 +516,26 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
   const nOf = (k: string) => matched.filter(cardFit[k]).length
   const ids = new Set(matched.map(t => t.id))
   const cards = profile ? <StatCards active={card} onPick={setCard} items={[
-    { icon: 'users', value: matched.length, label: 'Giáo viên', sub: matched.length < teachers.length ? `Trong ${teachers.length} giáo viên` : `Năm học ${year}` },
+    { icon: 'users', value: matched.length, label: 'Nhà giáo', sub: matched.length < teachers.length ? `Trong ${teachers.length} nhà giáo` : `Năm học ${year}` },
     { k: 'assessed', icon: 'clipboard', tone: nOf('assessed') ? 'good' : '', value: nOf('assessed'), label: 'Đã có đánh giá', sub: `${matched.length - nOf('assessed')} chưa có` },
     { k: 'cert', icon: 'award', value: nOf('cert'), label: 'Có chứng chỉ', sub: `${matched.reduce((n, t) => n + (certs.get(t.id) ?? 0), 0)} chứng chỉ đào tạo` },
     { k: 'meets', icon: 'target', tone: nOf('meets') ? 'good' : '', value: nOf('meets'), label: 'Đạt mức yêu cầu', sub: `Tất cả năng lực từ Mức ${REQ}` },
     { k: 'wait', icon: 'hourglass', tone: nOf('wait') ? 'warn' : 'good', value: nOf('wait'), label: 'Chờ trường đánh giá', sub: 'Đã tự đánh giá, trường chưa đánh giá' },
   ]} /> : <StatCards active={card} onPick={setCard} items={[
-    { icon: 'layers', value: list.filter(a => ids.has(a.teacher_id)).length, label: 'Số bản đánh giá', sub: `Năm học ${year} · ${matched.length} giáo viên` },
-    { k: 'self', icon: 'user', value: nOf('self'), label: 'Tự đánh giá', sub: 'Giáo viên đã nộp' },
+    { icon: 'layers', value: list.filter(a => ids.has(a.teacher_id)).length, label: 'Số bản đánh giá', sub: `Năm học ${year} · ${matched.length} nhà giáo` },
+    { k: 'self', icon: 'user', value: nOf('self'), label: 'Tự đánh giá', sub: 'Nhà giáo đã nộp' },
     { k: 'mgr', icon: 'school', tone: nOf('mgr') ? 'good' : '', value: nOf('mgr'), label: 'Trường đánh giá', sub: 'Đã lưu đánh giá' },
     { k: 'wait', icon: 'hourglass', tone: nOf('wait') ? 'warn' : 'good', value: nOf('wait'), label: 'Chờ trường đánh giá', sub: 'Đã tự đánh giá, trường chưa đánh giá' },
   ]} />
   const filterBar = <div className="tools" style={{ flexWrap: 'wrap' }}><MultiFilters defs={filterDefs} f={mf} count={`${shownAll.length}/${teachers.length} GV${shownAll.length > 500 ? ' · hiện 500 đầu' : ''}`} /></div>
   if (profile) return <>{cards}{msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}<section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
     <div className="bar" style={{ margin: 0 }}>
-      <h3 style={{ margin: 0 }}>Hồ sơ năng lực nhà giáo <small className="sub">· {teachers.length} giáo viên · năm học {year}: {selfDone} đã tự đánh giá · {mgrDone} trường đã đánh giá</small></h3>
+      <h3 style={{ margin: 0 }}>Hồ sơ năng lực nhà giáo <small className="sub">· {teachers.length} nhà giáo · năm học {year}: {selfDone} đã tự đánh giá · {mgrDone} trường đã đánh giá</small></h3>
       <span className="tools"><button type="button" onClick={excel} disabled={!teachers.length}>Xuất Excel</button></span>
     </div>
     {filterBar}
     <div className="wrap"><table className="libtable">
-      <thead><tr><th>Giáo viên</th>{!orgId && <th>Trường</th>}<th>Môn · khối</th><th>Mức năng lực ({year})</th>{comps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}<th>Chứng chỉ</th></tr></thead>
+      <thead><tr><th>Nhà giáo</th>{!orgId && <th>Trường</th>}<th>Môn · khối</th><th>Mức năng lực ({year})</th>{comps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}<th>Chứng chỉ</th></tr></thead>
       <tbody>{shownT.map(t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); const lv = m?.status === 'submitted' ? m.levels : s?.status === 'submitted' ? s.levels : {}
         return <tr key={t.id}>
           <td><button type="button" className="namelink" onClick={() => { setMsg(null); setSel(t.id) }}>{t.full_name}</button>{canEdit && sub(t, 'self') && !sub(t, 'manager') && <> <span className="plbadge warn">Chờ đánh giá</span></>}{t.email && <><br /><small className="sub">{t.email}</small></>}</td>
@@ -544,9 +544,9 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
           <td>{Object.keys(lv).length ? <><LevelChip v={avgLv(lv)} /> <small className="sub">{m?.status === 'submitted' ? 'trường ĐG' : 'tự ĐG'}</small></> : <small className="sub">chưa đánh giá</small>}</td>
           {comps.map(c => <td key={c.key}><LevelChip v={lv[c.key] ?? null} comp={c} /></td>)}
           <td>{certs.get(t.id) ?? <small className="sub">0</small>}</td></tr> })}
-        {!shownT.length && <tr><td colSpan={comps.length + 5}>{teachers.length ? 'Không có giáo viên nào khớp.' : 'Chưa có giáo viên.'}</td></tr>}</tbody>
+        {!shownT.length && <tr><td colSpan={comps.length + 5}>{teachers.length ? 'Không có nhà giáo nào khớp.' : 'Chưa có nhà giáo.'}</td></tr>}</tbody>
     </table></div>
-    <p className="sub covhint" style={{ margin: 0 }}>Bấm tên giáo viên để xem hồ sơ và đánh giá (mục “Đánh giá năm học”): thông tin, năng lực, chứng chỉ, chương trình giáo dục đáp ứng, lịch sử đào tạo.</p>
+    <p className="sub covhint" style={{ margin: 0 }}>Bấm tên nhà giáo để xem hồ sơ và đánh giá (mục “Đánh giá năm học”): thông tin, năng lực, chứng chỉ, chương trình giáo dục đáp ứng, lịch sử đào tạo.</p>
   </section></>
   return (
     <>
@@ -554,12 +554,12 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
       <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
         <div className="bar" style={{ margin: 0 }}>
-          <h3 style={{ margin: 0 }}>Đánh giá năng lực giáo viên <small className="sub">· năm học {year}: {selfDone}/{teachers.length} đã tự đánh giá · {mgrDone}/{teachers.length} trường đã đánh giá</small></h3>
+          <h3 style={{ margin: 0 }}>Đánh giá năng lực nhà giáo <small className="sub">· năm học {year}: {selfDone}/{teachers.length} đã tự đánh giá · {mgrDone}/{teachers.length} trường đã đánh giá</small></h3>
           <span className="tools"><button type="button" onClick={excel} disabled={!teachers.length}>Xuất Excel</button></span>
         </div>
         {filterBar}
         <div className="wrap"><table className="libtable">
-          <thead><tr><th>Giáo viên</th>{!orgId && <th>Trường</th>}<th>Tự đánh giá</th><th>Trường đánh giá</th>{comps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}<th /></tr></thead>
+          <thead><tr><th>Nhà giáo</th>{!orgId && <th>Trường</th>}<th>Tự đánh giá</th><th>Trường đánh giá</th>{comps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}<th /></tr></thead>
           <tbody>{shownT.map(t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); const lv = m?.status === 'submitted' ? m.levels : s?.levels ?? {}
             const todo = canEdit && s?.status === 'submitted' && m?.status !== 'submitted'
             return (
@@ -568,9 +568,9 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
               <td>{m?.status === 'submitted' ? <LevelChip v={avgLv(m.levels)} /> : m ? <small>nháp</small> : <small className="sub">chưa</small>}</td>
               {comps.map(c => <td key={c.key}><LevelChip v={lv[c.key] ?? null} comp={c} /></td>)}
               <td><button type="button" data-rowopen className={todo ? 'primary' : ''} onClick={() => { setMsg(null); setSel(t.id) }}>{todo ? 'Đánh giá' : 'Xem'}</button></td></tr>) })}
-            {!shownT.length && <tr><td colSpan={comps.length + 5}>{teachers.length ? 'Không có giáo viên nào khớp.' : 'Chưa có giáo viên.'}</td></tr>}</tbody>
+            {!shownT.length && <tr><td colSpan={comps.length + 5}>{teachers.length ? 'Không có nhà giáo nào khớp.' : 'Chưa có nhà giáo.'}</td></tr>}</tbody>
         </table></div>
-        <p className="sub covhint" style={{ margin: 0 }}>Cột năng lực hiện mức trường đánh giá (nếu đã có), nếu chưa thì hiện mức GV tự đánh giá. Bấm tên giáo viên để xem và đánh giá.</p>
+        <p className="sub covhint" style={{ margin: 0 }}>Cột năng lực hiện mức trường đánh giá (nếu đã có), nếu chưa thì hiện mức GV tự đánh giá. Bấm tên nhà giáo để xem và đánh giá.</p>
       </section>
     </>
   )
@@ -579,7 +579,7 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
 const TA_ST = (a: TA | undefined): [string, string] => !a ? ['Chưa có', 'off'] : a.status === 'submitted' ? ['Đã nộp', 'good'] : ['Nháp', 'warn']
 const StChip = ({ v }: { v: [string, string] }) => <span className={`plbadge ${v[1] === 'good' ? 'ok' : v[1] === 'warn' ? 'warn' : 'mute'}`}>{v[0]}</span>
 
-/** Trang riêng của một giáo viên: xem đánh giá; bấm "Đánh giá" / "Sửa đánh giá" để chỉnh (giống các trang phân hệ 2). */
+/** Trang riêng của một nhà giáo: xem đánh giá; bấm "Đánh giá" / "Sửa đánh giá" để chỉnh (giống các trang phân hệ 2). */
 type DTab = 'profile' | 'assess' | 'evidence' | 'training'
 function TeacherAssessDetail({ t, year, comps, self, mgr, canEdit, initialTab = 'assess', back, onBack, onChanged }: { t: TRow; year: string; comps: Comp[]; self?: TA; mgr?: TA; canEdit: boolean
   initialTab?: DTab; back: string; onBack: () => void; onChanged: () => Promise<void> }) {
@@ -596,9 +596,9 @@ function TeacherAssessDetail({ t, year, comps, self, mgr, canEdit, initialTab = 
     setForm(null); setMsg([submit ? 'Đã lưu đánh giá.' : 'Đã lưu nháp.', false]); await onChanged()
   }
   async function reopen() {
-    if (!self || !confirm('Mở lại bản tự đánh giá để giáo viên sửa?')) return
+    if (!self || !confirm('Mở lại bản tự đánh giá để nhà giáo sửa?')) return
     const { error } = await supabase.from('teacher_assessments').update({ status: 'draft' }).eq('id', self.id)
-    if (error) return setMsg([error.message, true]); setMsg(['Đã mở lại để giáo viên sửa bản tự đánh giá.', false]); await onChanged()
+    if (error) return setMsg([error.message, true]); setMsg(['Đã mở lại để nhà giáo sửa bản tự đánh giá.', false]); await onChanged()
   }
   const editing = !!form
   return <ElView back={back} onBack={onBack} title={t.full_name}
@@ -615,7 +615,7 @@ function TeacherAssessDetail({ t, year, comps, self, mgr, canEdit, initialTab = 
       <section className="panel" style={{ display: 'grid', gap: 12 }}>
         <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Đánh giá của nhà trường</h3>{!editing && <StChip v={TA_ST(mgr)} />}</div>
         {editing ? <>
-          <p className="sub" style={{ margin: 0 }}>{mgr ? 'Sửa mức từng năng lực, nhận xét và kế hoạch bồi dưỡng.' : 'Mức ban đầu lấy theo bản tự đánh giá của giáo viên (nếu có).'}</p>
+          <p className="sub" style={{ margin: 0 }}>{mgr ? 'Sửa mức từng năng lực, nhận xét và kế hoạch bồi dưỡng.' : 'Mức ban đầu lấy theo bản tự đánh giá của nhà giáo (nếu có).'}</p>
           <AssessForm comps={comps} value={form!.levels ?? {}} onChange={v => setForm({ ...form!, levels: v })} />
           <div className="formgrid">
             <label className="field"><span>Nhận xét</span><textarea rows={3} value={form!.comment ?? ''} onChange={e => setForm({ ...form!, comment: e.target.value })} /></label>
@@ -628,11 +628,11 @@ function TeacherAssessDetail({ t, year, comps, self, mgr, canEdit, initialTab = 
         </> : <p className="sub" style={{ margin: 0 }}>Nhà trường chưa đánh giá năm học này.{canEdit ? ' Bấm "Đánh giá" để bắt đầu.' : ''}</p>}
       </section>
       <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
-        <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Tự đánh giá của giáo viên</h3><StChip v={TA_ST(self)} /></div>
+        <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Tự đánh giá của nhà giáo</h3><StChip v={TA_ST(self)} /></div>
         {self ? <>
           <AssessForm comps={comps} value={self.levels} onChange={() => {}} disabled />
           <dl className="tpkv"><dt>GV tự nhận xét</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{self.comment || '—'}</dd></dl>
-        </> : <p className="sub" style={{ margin: 0 }}>Giáo viên chưa tự đánh giá.</p>}
+        </> : <p className="sub" style={{ margin: 0 }}>Nhà giáo chưa tự đánh giá.</p>}
       </section>
     </>}
     {tab === 'profile' && <TeacherProfile t={t} year={year} comps={comps} self={self} mgr={mgr} />}
@@ -662,7 +662,7 @@ function TeacherProfile({ t, year, comps, self, mgr }: { t: TRow; year: string; 
   const certSt = (c: Cert): [string, string] => c.revoked_at || c.status === 'revoked' ? ['Đã thu hồi', 'bad'] : c.expires_on && c.expires_on < today ? ['Hết hiệu lực', 'mute'] : ['Còn hiệu lực', 'ok']
   return <div style={{ display: 'grid', gap: 14 }}>
     <section className="panel">
-      <h3 style={{ marginTop: 0 }}>Thông tin giáo viên</h3>
+      <h3 style={{ marginTop: 0 }}>Thông tin nhà giáo</h3>
       <dl className="tpkv">
         <dt>Họ tên</dt><dd>{t.full_name}</dd>
         <dt>Trường</dt><dd>{t.organizations?.name ?? '—'}</dd>

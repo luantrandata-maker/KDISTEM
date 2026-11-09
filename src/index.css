@@ -2371,3 +2371,27 @@ th.sort-asc::after{content:" ▲";font-size:10px}th.sort-desc::after{content:" �
 .main[data-ph="2"] td .distchip2.good{background:none;border:0;padding:0;color:var(--text);font-weight:400;display:inline-flex;align-items:center;gap:6px}
 .main[data-ph="2"] td .distchip2.good::before{content:"";width:8px;height:8px;border-radius:50%;background:#2e9d5b;flex:none}
 .chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}
+/* Bảng dùng chung có công cụ (components/DataTable) */
+.tt{display:grid;gap:6px;min-width:0}
+.tttools{display:flex;justify-content:flex-end;align-items:center;gap:6px;flex-wrap:wrap}
+.tttools>small.sub{margin-right:auto;line-height:1}
+.main .tttools button{padding:4px 10px;font-size:12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-weight:500;min-height:0}
+.main .tttools button.on{border-color:var(--primary);color:var(--primary);background:#f3f8fe}
+.ttmenu{position:relative}
+.ttpop{position:absolute;right:0;top:calc(100% + 6px);z-index:40;width:280px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(16,24,40,.15);padding:10px;display:grid;gap:6px}
+.ttpophead{display:flex;justify-content:space-between;align-items:center}
+.ttpop ul{list-style:none;margin:0;padding:0;max-height:320px;overflow:auto;display:grid;gap:2px}
+.ttpop li{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:8px;cursor:grab;font-size:13px}
+.ttpop li:hover{background:var(--soft)}.ttpop li.drag{opacity:.5;background:#eaf3fe}
+.ttpop li label{flex:1;display:flex;gap:6px;align-items:center;cursor:pointer}
+.ttgrip{color:var(--muted);font-size:14px}
+.main .ttpop .ttmv{display:flex;gap:2px}.main .ttpop .ttmv button{padding:0 6px;font-size:11px;border-radius:6px}
+.main .ttpop .ttmv button:disabled{opacity:.3}
+.main .ttpop .ttreset{justify-self:start;border:0;background:none;color:var(--primary);padding:2px 0}
+.ttresize{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:3}
+.ttresize:hover{background:var(--primary);opacity:.35}
+.main .ttable tr.ttfilter th{top:38px;padding:4px 6px;cursor:default;background:var(--surface)}
+.ttable tr.ttfilter input{width:100%;min-width:60px;padding:4px 8px;font-size:12px;border:1px solid var(--line);border-radius:6px;font-weight:400}
+.ttable.ttfit{width:100%;table-layout:fixed}
+.ttable.ttfit th,.ttable.ttfit td,.ttable.ttfit :is(th,td) *{white-space:normal!important;overflow-wrap:anywhere}
+.main .ttable.ttfit .namelink{text-align:left}

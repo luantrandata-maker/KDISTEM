@@ -3,12 +3,16 @@
 // Sắp xếp ngay trên DOM; khi React vẽ lại dòng (thêm, bớt, đổi dữ liệu) thì tự sắp lại theo cột đang chọn.
 const SCOPE = '.main:is([data-ph="1"],[data-ph="2"])'
 const TABLES = 'table:not(.tkb,.yearplan,.sched,.pltkb,.weektkb)'
-const SKIP = 'a, button, input, select, textarea, label, summary, [role="button"]'
+const SKIP = 'a, button, input, select, textarea, label, summary, [role="button"], .ttresize'
 
 type St = { col: number; dir: 1 | -1; obs: MutationObserver; seq: WeakMap<Element, number>; n: number }
 const state = new WeakMap<HTMLTableElement, St>()
 
-function headCells(t: HTMLTableElement) { return t.tHead?.rows.length === 1 ? Array.from(t.tHead.rows[0].cells) : null }
+// Hàng lọc của DataTable (tr.ttfilter) không tính là hàng tiêu đề
+function headCells(t: HTMLTableElement) {
+  const rows = Array.from(t.tHead?.rows ?? []).filter(r => !r.classList.contains('ttfilter'))
+  return rows.length === 1 ? Array.from(rows[0].cells) : null
+}
 function simple(t: HTMLTableElement, cols: number) {
   if (t.tBodies.length !== 1) return false
   const rows = Array.from(t.tBodies[0].rows)

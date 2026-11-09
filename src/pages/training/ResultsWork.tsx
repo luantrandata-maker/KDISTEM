@@ -13,6 +13,7 @@ import { CERT_ST, RESULT, ResultDetail, onlineText, type ResRow, type RPlan } fr
 import { CertPaper, type Payload } from './Certificates'
 import { TestScores } from './TestScores'
 import { StatCards } from '../../components/StatCards'
+import { DataTable, type Col } from '../../components/DataTable'
 
 type Tab = 'grade' | 'decide' | 'cert'
 type F = 'all' | 'ready' | 'pending' | 'pass' | 'fail'
@@ -193,6 +194,24 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
       .map(([k, l]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => { setF(k); setSel(new Set()) }}>{l} <b>{cnt(k)}</b></button>)}
   </div>
 
+  const hasFinal = all.some(r => r.metrics.finals)
+  const sumCols: Col<ResRow>[] = [
+    { key: 'name', label: 'Nhà giáo', fixed: true, text: r => `${r.teacher_name} ${r.org_name ?? ''}`, cell: name },
+    { key: 'att', label: 'Chuyên cần', cell: r => { const m = r.metrics; return <>{ok(m.ok_att)} {m.att_pct == null ? '—' : `${num(m.att_pct)}%`}<br /><small className="sub">{m.present}/{m.sessions - m.excused} buổi · cần {m.att_req}%</small></> } },
+    { key: 'tests', label: 'Bài kiểm tra', cell: r => { const m = r.metrics; return m.tests ? <>{ok(m.ok_tests)} {m.tests_passed}/{m.tests} đạt<br /><small className="sub">TB {num(m.avg_score)}</small></> : <small className="sub">Không có</small> } },
+    { key: 'online', label: 'Học trực tuyến', cell: r => { const m = r.metrics; return m.online_units === 0 ? <small className="sub">Không có</small> : <>{ok(m.ok_units)} {onlineText(m)}</> } },
+    { key: 'product', label: 'Sản phẩm', text: r => r.metrics.need_product ? (r.metrics.product_status ? PRODUCT[r.metrics.product_status] : 'Chưa nộp') : 'Không yêu cầu',
+      cell: r => { const m = r.metrics; return m.need_product ? <>{ok(m.ok_product)} {m.product_status ? PRODUCT[m.product_status] : 'Chưa nộp'}{r.product_url && <><br /><a href={r.product_url} target="_blank" rel="noreferrer" className="linkbtn">Mở sản phẩm ↗</a></>}</>
+        : <small className="sub">Không yêu cầu</small> } },
+    { key: 'pscore', label: 'Điểm SP', cell: r => { const m = r.metrics, v = scores[r.teacher_id] ?? (r.product_score == null ? '' : String(r.product_score))
+      return m.need_product ? (can && r.result !== 'pass'
+        ? <input className="trscore" inputMode="decimal" aria-label={`Điểm sản phẩm của ${r.teacher_name}`} placeholder="0–10" value={v}
+            onChange={e => setScores(s => ({ ...s, [r.teacher_id]: e.target.value }))} />
+        : num(r.product_score)) : '—' } },
+    ...(hasFinal ? [{ key: 'final', label: 'Đề cuối khoá', cell: (r: ResRow) => r.metrics.finals ? <>{ok(r.metrics.ok_final !== false)} {num(r.metrics.final_score)}</> : '—' }] : []),
+    { key: 'warn', label: 'Cảnh báo', cell: r => <WarnCell r={r} /> },
+    { key: 'total', label: 'Tổng · xếp loại', text: r => r.metrics.grade ?? (r.metrics.suggest === 'pass' ? 'Đủ điều kiện' : 'Chưa đủ'), cell: r => <>{gradeChip(r.metrics)}{totalOf(r.metrics)}</> },
+  ]
   return <div style={{ display: 'grid', gap: 12 }}>
     <StatCards active={f === 'all' ? null : f} onPick={k => { setF((k ?? 'all') as F); setSel(new Set()) }} items={[
       { icon: 'users', value: rows ? base.length : '…', label: 'Nhà giáo ghi danh' },
@@ -219,26 +238,8 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
       {filters}
       {view === 'sum' && <div className="warnlegend" aria-label="Giải thích cảnh báo"><span><b>⚠️ n</b> = số cảnh báo, rê chuột hoặc chạm vào để xem</span>
         <span className="warnlegend-kinds">{W_KINDS.map(([k, l]) => <span key={k}>{l}</span>)}</span><span><span className="tlok">✓</span> đạt điều kiện · <span className="warnline">✗</span> chưa đạt</span></div>}
-      {view === 'sum' ? <div className="wrap"><table className="libtable trestable">
-        <thead><tr><th>Nhà giáo</th><th>Chuyên cần</th><th>Bài kiểm tra</th><th>Học trực tuyến</th><th>Sản phẩm</th><th>Điểm SP</th>{all.some(r => r.metrics.finals) && <th>Đề cuối khoá</th>}<th>Cảnh báo</th><th>Tổng · xếp loại</th></tr></thead>
-        <tbody>{shown.map(r => { const m = r.metrics, v = scores[r.teacher_id] ?? (r.product_score == null ? '' : String(r.product_score))
-          return <tr key={r.teacher_id}>
-            <td>{name(r)}</td>
-            <td>{ok(m.ok_att)} {m.att_pct == null ? '—' : `${num(m.att_pct)}%`}<br /><small className="sub">{m.present}/{m.sessions - m.excused} buổi · cần {m.att_req}%</small></td>
-            <td>{m.tests ? <>{ok(m.ok_tests)} {m.tests_passed}/{m.tests} đạt<br /><small className="sub">TB {num(m.avg_score)}</small></> : <small className="sub">Không có</small>}</td>
-            <td>{m.online_units === 0 ? <small className="sub">Không có</small> : <>{ok(m.ok_units)} {onlineText(m)}</>}</td>
-            <td>{m.need_product ? <>{ok(m.ok_product)} {m.product_status ? PRODUCT[m.product_status] : 'Chưa nộp'}{r.product_url && <><br /><a href={r.product_url} target="_blank" rel="noreferrer" className="linkbtn">Mở sản phẩm ↗</a></>}</>
-              : <small className="sub">Không yêu cầu</small>}</td>
-            <td>{m.need_product ? (can && r.result !== 'pass'
-              ? <input className="trscore" inputMode="decimal" aria-label={`Điểm sản phẩm của ${r.teacher_name}`} placeholder="0–10" value={v}
-                  onChange={e => setScores(s => ({ ...s, [r.teacher_id]: e.target.value }))} />
-              : num(r.product_score)) : '—'}</td>
-            {all.some(x => x.metrics.finals) && <td>{m.finals ? <>{ok(m.ok_final !== false)} {num(m.final_score)}</> : '—'}</td>}
-            <td><WarnCell r={r} /></td>
-            <td>{gradeChip(m)}{totalOf(m)}</td>
-          </tr> })}
-          {!shown.length && <tr><td colSpan={9}><small className="sub">{all.length ? 'Không có nhà giáo nào khớp.' : 'Kế hoạch chưa có nhà giáo ghi danh.'}</small></td></tr>}</tbody>
-      </table></div>
+      {view === 'sum' ? <DataTable id="training-results-sum" className="trestable" rows={shown} rowKey={r => r.teacher_id} cols={sumCols}
+        empty={<small className="sub">{all.length ? 'Không có nhà giáo nào khớp.' : 'Kế hoạch chưa có nhà giáo ghi danh.'}</small>} />
       : view === 'test' ? <TestScores planId={plan.id} planCode={plan.plan_code ?? plan.name.slice(0, 30)} can={can} only={new Set(shown.map(r => r.teacher_id))} onSaved={load} />
       : <AttGrid rows={shown} sess={sess} att={att} />}
       <small className="sub">Điểm sản phẩm từ 5 trở lên mới tính đạt. Nhận / trả lại sản phẩm ở chi tiết kế hoạch › Tiến độ học trực tuyến. Bấm tên nhà giáo để xem chi tiết, nhận xét.</small>

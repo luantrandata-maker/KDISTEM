@@ -2261,7 +2261,17 @@ tr.distyear td{background:var(--surface-2,var(--surface));border-top:2px solid v
 .opts .optkey{display:inline-grid;place-items:center;width:28px;height:28px;min-width:28px;border-radius:50%;background:var(--soft);border:0;padding:0;font-weight:700;cursor:pointer}
 .opts li.right .optkey{background:var(--ok);color:#fff}.opts li.optadd{border-style:dashed;display:grid;place-items:center}
 .slide .slhint{color:var(--muted);font-size:12px}
-.showslide{width:min(1100px,100%)}.showslide .slide{max-height:calc(100vh - 140px);color:var(--text)}
+/* Trình chiếu: slide 16:9 lớn nhất vừa màn hình, căn giữa; bỏ giới hạn 560px của khung xem trước (.libpreview / .slform) */
+.showslide{width:min(100%,calc((100vh - 150px) * 16 / 9))}
+.overlay.show .showslide .slide{width:100%;max-width:none;max-height:none;min-height:0;aspect-ratio:16/9;margin:0}
+.overlay.show .showslide .slide:not(.title){color:var(--text)}
+/* Chữ phóng theo độ rộng slide để nhìn rõ khi chiếu */
+.overlay.show .showslide{container-type:inline-size}
+.overlay.show .showslide .slide{padding:3.5cqw 4.5cqw;gap:1.2cqw}
+.overlay.show .showslide .slide h2{font-size:calc(3.4cqw * var(--slz,1))}
+.overlay.show .showslide .slide.title h2{font-size:calc(4.8cqw * var(--slz,1))}
+.overlay.show .showslide .slidebody{font-size:calc(2cqw * var(--slz,1))}
+.overlay.show .showslide .slidekind{font-size:max(12px,1cqw)}
 .main .showtop button:not(.x){background:transparent;color:#fff;border-color:#334155}
 
 /* Slide: chủ đề, bố cục, kiểu chữ (mức 1 giống Canva / PowerPoint) */

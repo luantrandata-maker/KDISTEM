@@ -2401,3 +2401,5 @@ th.sort-asc::after{content:" â–²";font-size:10px}th.sort-desc::after{content:" â
 .ttable.ttfit{width:100%;table-layout:fixed}
 .ttable.ttfit th,.ttable.ttfit td,.ttable.ttfit :is(th,td) *{white-space:normal!important;overflow-wrap:anywhere}
 .main .ttable.ttfit .namelink{text-align:left}
+.main .tttools .segmented{padding:2px}.main .tttools .segmented button{border:0;padding:3px 10px;font-size:12px}
+.main .tphead .tools>button:not(.guidebtn){padding:5px 12px;font-size:13px;border-radius:8px}

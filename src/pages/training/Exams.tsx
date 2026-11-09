@@ -15,6 +15,7 @@ import { Chip } from '../dist/Editor'
 import { StatCards } from '../../components/StatCards'
 import { ProgramDetail, STATUS, type Status } from './Programs'
 import type { FinalExam } from './ExamFrame'
+import { DataTable, type Col } from '../../components/DataTable'
 
 type Prog = { id: string; org_id: string; code: string; title: string; status: Status; version_no: number; family_id: string; pass_score: number | null; final_exam: FinalExam | null }
 type TUnit = { id: string; program_id: string; parent_id: string | null; title: string; seq: number; hours?: number | null; mode?: string | null
@@ -222,33 +223,28 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
       { k: 'final', icon: 'award', tone: 'warn', value: nFinal, label: 'Đề cuối khoá', sub: `${(progs ?? []).filter(p => baseProgs.has(p.id) && !p.final_exam).length} chương trình chưa có` },
       { icon: 'checkCircle', tone: 'good', value: stats.filter(s => s.kind !== 'practice' && base.some(r => statOf(r) === s)).reduce((a, s) => a + s.attempts, 0), label: 'Lượt làm bài đã nộp' },
     ]} />
-    <div className="bar">
-      <div className="tools"><MultiFilters defs={defs} f={f} count={`${shown.length}/${rows.length}`} />
-        <input placeholder="Tìm đề, nội dung, chương trình…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đề" />
-        <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện phiên bản cũ</label></div>
-      <div className="tools"><button type="button" className="primary" onClick={() => { setMsg(null); setAdd(true) }}>+ Thêm đề kiểm tra</button>
-        <button type="button" onClick={() => downloadXlsx('De-kiem-tra-tap-huan', [{ key: 'p', label: 'Chương trình', width: 34 }, { key: 'v', label: 'Phiên bản', width: 14 },
-        { key: 'k', label: 'Loại đề', width: 18 }, { key: 't', label: 'Đề / nội dung', width: 36 }, { key: 'c', label: 'Cấu hình', width: 50 }, { key: 'n', label: 'Lượt làm', width: 10 }, { key: 'a', label: 'Điểm TB', width: 10 }],
-        shown.map(r => [`${r.prog.code} · ${r.prog.title}`, `v${r.prog.version_no} · ${STATUS[r.prog.status]?.[0]}`, KIND[r.kind][0], r.title, r.cfg, statOf(r)?.attempts ?? 0, statOf(r)?.avg_score ?? '']), 'Đề kiểm tra')}>Xuất Excel</button></div>
-    </div>
-    <p className="sub">Bấm "+ Thêm đề kiểm tra" để chọn chương trình và loại đề: bài test của một nội dung hoặc đề cuối khoá (theo ma trận). Bấm một dòng để mở và soạn; chương trình đã phát hành thì tạo phiên bản mới để sửa.</p>
+    <p className="sub" style={{ margin: '0 0 6px' }}>Bấm "+ Thêm đề kiểm tra" để chọn chương trình và loại đề: bài test của một nội dung hoặc đề cuối khoá (theo ma trận). Bấm một dòng để mở và soạn; chương trình đã phát hành thì tạo phiên bản mới để sửa.</p>
     {add && progs && <AddExam progs={progs.filter(p => !OLD.includes(p.status))} onClose={() => setAdd(false)} onErr={m => setMsg([m, true])}
       onGo={(id, unit) => { setAdd(false); setOpen(unit ? { id, unit } : { id, unit: null, final: true }) }} />}
     {(msg || err) && <p className={msg?.[1] || err ? 'msg' : 'sub'} role="status"><b>{err || msg?.[0]}</b></p>}
-    {!progs ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-      <thead><tr><th>Đề kiểm tra</th><th>Loại</th><th>Cấu hình</th><th>Chương trình</th><th className="num">Lượt làm</th><th className="num">Điểm TB</th><th></th></tr></thead>
-      <tbody>{shown.map(r => { const s = statOf(r)
-        return <tr key={r.key} className="clickrow" onClick={() => { setMsg(null); setView(r.key) }}>
-          <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink">{r.title}</button>{r.sub && <><br /><small className="sub">{r.sub}</small></>}</td>
-          <td><Chip tone={KIND[r.kind][1]}>{KIND[r.kind][0]}</Chip></td>
-          <td style={{ whiteSpace: 'normal' }}>{r.missing ? <small className="warnline">{r.cfg}</small> : <small>{r.cfg}</small>}</td>
-          <td style={{ whiteSpace: 'normal' }}>{progLabel(r.prog)}</td>
-          <td className="num">{s?.attempts ?? 0}</td><td className="num">{num(s?.avg_score)}</td>
-          <td>{(() => { const sp = rowSpec(r); const t = r.unit?.detail?.test, fe = r.prog.final_exam
-            return sp && <Stop><TryButton orgId={r.prog.org_id} spec={sp} title={r.title} minutes={r.kind === 'unit' ? t?.minutes ?? null : fe?.minutes ?? null}
-              pass={r.kind === 'unit' ? t?.pass ?? r.prog.pass_score ?? 5 : fe?.pass ?? null} /></Stop> })()}</td></tr> })}
-        {!shown.length && <tr><td colSpan={7}><small className="sub">{rows.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có đề kiểm tra. Bấm "+ Thêm đề kiểm tra" để tạo.'}</small></td></tr>}</tbody>
-    </table></div>}
+    {!progs ? <p className="sub">Đang tải…</p> : <DataTable id="training-exams" rows={shown} rowKey={r => r.key} onRow={r => { setMsg(null); setView(r.key) }} cols={[
+      { key: 'title', label: 'Đề kiểm tra', fixed: true, text: r => `${r.title} ${r.sub ?? ''}`, cell: r => <><button type="button" className="namelink">{r.title}</button>{r.sub && <><br /><small className="sub">{r.sub}</small></>}</> },
+      { key: 'kind', label: 'Loại', text: r => KIND[r.kind][0], cell: r => <Chip tone={KIND[r.kind][1]}>{KIND[r.kind][0]}</Chip> },
+      { key: 'cfg', label: 'Cấu hình', text: r => r.cfg, cell: r => r.missing ? <small className="warnline">{r.cfg}</small> : <small>{r.cfg}</small> },
+      { key: 'prog', label: 'Chương trình', text: r => String(progLabel(r.prog) ?? ''), cell: r => progLabel(r.prog) },
+      { key: 'n', label: 'Lượt làm', thClass: 'num', cell: r => <span className="num">{statOf(r)?.attempts ?? 0}</span> },
+      { key: 'avg', label: 'Điểm TB', thClass: 'num', cell: r => <span className="num">{num(statOf(r)?.avg_score)}</span> },
+      { key: 'try', label: 'Làm thử', fixed: true, cell: r => { const sp = rowSpec(r); const t = r.unit?.detail?.test, fe = r.prog.final_exam
+        return sp && <Stop><TryButton orgId={r.prog.org_id} spec={sp} title={r.title} minutes={r.kind === 'unit' ? t?.minutes ?? null : fe?.minutes ?? null}
+          pass={r.kind === 'unit' ? t?.pass ?? r.prog.pass_score ?? 5 : fe?.pass ?? null} /></Stop> } },
+    ] as Col<typeof shown[number]>[]}
+      empty={<small className="sub">{rows.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có đề kiểm tra. Bấm "+ Thêm đề kiểm tra" để tạo.'}</small>}
+      left={<><input placeholder="Tìm đề, nội dung, chương trình…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đề" />
+        <MultiFilters defs={defs} f={f} count={`${shown.length}/${rows.length}`} />
+        <label className="chk"><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện phiên bản cũ</label></>}
+      right={<><button type="button" onClick={() => downloadXlsx('De-kiem-tra-tap-huan', [{ key: 'p', label: 'Chương trình', width: 34 }, { key: 'v', label: 'Phiên bản', width: 14 },
+        { key: 'k', label: 'Loại đề', width: 18 }, { key: 't', label: 'Đề / nội dung', width: 36 }, { key: 'c', label: 'Cấu hình', width: 50 }, { key: 'n', label: 'Lượt làm', width: 10 }, { key: 'a', label: 'Điểm TB', width: 10 }],
+        shown.map(r => [`${r.prog.code} · ${r.prog.title}`, `v${r.prog.version_no} · ${STATUS[r.prog.status]?.[0]}`, KIND[r.kind][0], r.title, r.cfg, statOf(r)?.attempts ?? 0, statOf(r)?.avg_score ?? '']), 'Đề kiểm tra')}>Xuất Excel</button><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setAdd(true) }}>+ Thêm đề kiểm tra</button></>} />}
   </>
 }
 

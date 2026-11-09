@@ -25,7 +25,7 @@ const load = (id: string, cols: Col<unknown>[]): View => {
 }
 const fold = (s: string) => norm(s).toLowerCase()
 
-export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right }: {
+export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow }: {
   id: string; rows: T[]; cols: Col<T>[]; rowKey: (r: T) => string; empty?: ReactNode; className?: string
   /** Ô đầu dòng tiêu đề / dòng dữ liệu (vd. ô chọn), không lọc, không ẩn */
   head?: { th: ReactNode; td: (r: T) => ReactNode }
@@ -34,6 +34,8 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   left?: ReactNode
   /** Nút chính của trang (vd. Thêm…): cuối hàng, bên phải */
   right?: ReactNode
+  /** Bấm cả dòng để mở */
+  onRow?: (r: T) => void
 }) {
   const [view, setViewS] = useState<View>(() => load(id, cols as Col<unknown>[]))
   const setView = (f: (v: View) => View) => setViewS(v => { const n = f(v); try { localStorage.setItem('tt:' + id, JSON.stringify(n)) } catch { /* chỉ trong phiên */ } return n })
@@ -116,9 +118,15 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
           ? <input value={flt[c.key] ?? ''} placeholder="Lọc…" aria-label={`Lọc cột ${c.label}`} onChange={e => setFlt(f => ({ ...f, [c.key]: e.target.value }))} />
           : null}</th>)}</tr>}
       </thead>
-      <tbody>{shown.map(r => <tr key={rowKey(r)}>{head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key}>{c.cell(r)}</td>)}</tr>)}
+      <tbody>{shown.map(r => <tr key={rowKey(r)} className={onRow ? 'clickrow' : undefined} onClick={onRow && (() => onRow(r))}>{head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key}>{c.cell(r)}</td>)}</tr>)}
         {!shown.length && <tr><td colSpan={shownCols.length + (head ? 1 : 0)}>{rows.length ? <small className="sub">Không có dòng nào khớp bộ lọc cột.</small> : empty}</td></tr>}</tbody>
       {foot}
     </table></div>
   </div>
+}
+
+/** Gom các ô lọc ít dùng (Tỉnh / Sở, trường…) vào nút "Bộ lọc" */
+export function MoreFilters({ active, children }: { active?: boolean; children: ReactNode }) {
+  if (!children) return null
+  return <details className="morefilt"><summary>Bộ lọc{active && <b> •</b>}</summary><div className="panel">{children}</div></details>
 }

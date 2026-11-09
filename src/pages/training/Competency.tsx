@@ -14,6 +14,7 @@ import { useOrgFilters } from '../../components/OrgFilters'
 import { LevelNames } from '../settings/Custom'
 import { StatCards } from '../../components/StatCards'
 import { FilterChips } from '../../components/FilterChips'
+import { DataTable, type Col } from '../../components/DataTable'
 
 const m133 = (m: string) => /schema cache|does not exist|Could not find/i.test(m) ? 'Hãy chạy migration 133 trên Supabase.' : errText(m)
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 088 trên Supabase.' : /row-level|42501/i.test(m) ? 'Bạn không có quyền với mục này.' : m
@@ -68,24 +69,20 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
       </ol>
     </FlowGuide>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
-      <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Đợt đánh giá năng lực <small className="sub">· {openN} đang mở</small></h3>
-        {can && <button type="button" className="primary" onClick={add}>+ Mở đợt đánh giá</button>}</div>
       <FilterChips value={card ?? ''} onPick={k => setCard(k || null)} items={[['', 'Tất cả', base.length], ['soon', 'Sắp mở', n('soon')], ['open', 'Đang mở', n('open')], ['late', 'Quá hạn', n('late'), 'warn'], ['closed', 'Đã đóng', n('closed')]]} />
-      <div className="distfilter">
+    {!rows ? <p className="sub">Đang tải…</p> : <DataTable id="training-rounds" rows={shown} rowKey={r => r.id} cols={[
+      { key: 'name', label: 'Đợt', fixed: true, text: r => r.name, cell: r => <button type="button" className="namelink" onClick={() => setOpen(r.id)}>{r.name}</button> },
+      { key: 'org', label: 'Đơn vị mở', text: r => r.organizations?.name ?? '', cell: r => r.organizations?.name ?? '—' },
+      { key: 'year', label: 'Năm học', text: r => r.school_year, cell: r => r.school_year },
+      { key: 'time', label: 'Thời gian', cell: r => `${vnDate(r.opens_on)} – ${vnDate(r.due_on)}` },
+      { key: 'lv', label: 'Mức yêu cầu', cell: r => `Mức ${r.target_level} · ${LV_NAME[r.target_level - 1]}` },
+      { key: 'st', label: 'Trạng thái', text: r => roundSt(r)[0], cell: r => { const st = roundSt(r); return <Chip tone={st[1]}>{st[0]}</Chip> } },
+    ] as Col<Round>[]}
+      empty={<small className="sub">{all.length ? 'Không có đợt nào khớp bộ lọc.' : `Chưa có đợt đánh giá nào.${can ? ' Bấm "+ Mở đợt đánh giá" để bắt đầu.' : ''}`}</small>}
+      left={<><input placeholder="Tìm tên đợt…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đợt đánh giá" />
         <MultiFilters defs={defs} f={mf} />
-        <input placeholder="Tìm tên đợt…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đợt đánh giá" />
-        <small className="sub">{shown.length}/{all.length} đợt</small>
-      </div>
-      {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-        <thead><tr><th>Đợt</th><th>Đơn vị mở</th><th>Năm học</th><th>Thời gian</th><th>Mức yêu cầu</th><th>Trạng thái</th></tr></thead>
-        <tbody>{shown.map(r => { const st = roundSt(r); return <tr key={r.id}>
-          <td><button type="button" className="namelink" onClick={() => setOpen(r.id)}>{r.name}</button></td>
-          <td>{r.organizations?.name ?? '—'}</td><td>{r.school_year}</td><td>{vnDate(r.opens_on)} – {vnDate(r.due_on)}</td>
-          <td>Mức {r.target_level} · {LV_NAME[r.target_level - 1]}</td><td><Chip tone={st[1]}>{st[0]}</Chip></td></tr> })}
-          {!shown.length && <tr><td colSpan={6}><small className="sub">{all.length ? 'Không có đợt nào khớp bộ lọc.' : `Chưa có đợt đánh giá nào.${can ? ' Bấm "+ Mở đợt đánh giá" để bắt đầu.' : ''}`}</small></td></tr>}</tbody>
-      </table></div>}
-    </section>
+        <small className="sub">{shown.length}/{all.length} đợt · {openN} đang mở</small></>}
+      right={can && <button type="button" className="primary ttadd" onClick={add}>+ Mở đợt đánh giá</button>} />}
   </>
 }
 

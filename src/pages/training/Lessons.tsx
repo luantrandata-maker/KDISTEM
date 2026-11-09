@@ -10,7 +10,7 @@ import { fmtDate } from '../../lib/time'
 import { LessonPage } from '../library/lesson/LessonPage'
 import { CreateLesson, kitSubject, type ProgRef } from '../library/lesson/Create'
 import type { KitRow } from '../library/lesson/save'
-import { StatCards } from '../../components/StatCards'
+import { FilterChips } from '../../components/FilterChips'
 
 type TProg = ProgRef & { status: string }
 type TUnit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string }
@@ -93,22 +93,15 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
 
   return (
     <>
-      <StatCards active={card} onPick={setCard} items={[
-        { icon: 'edit', value: rows ? base.length : '…', label: 'Bài giảng đào tạo', sub: `${n('published')} đã phát hành · ${n('draft')} nháp` },
-        { k: 'ready', icon: 'checkCircle', tone: 'good', value: base.filter(ready4).length, label: 'Đã chốt đủ 4 thẻ bắt buộc' },
-        { icon: 'book', value: new Set(base.map(r => r.program_id).filter(Boolean)).size, label: 'Chương trình đào tạo có bài giảng' },
-      ]} />
-      <div className="distfilter">
-        {([['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['inactive', 'Ngừng dùng', n('inactive')]] as [St, string, number][]).map(([s, l, c]) =>
-          <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
-      </div>
+      <FilterChips value={fs} onPick={setFs} items={[['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['inactive', 'Ngừng dùng', n('inactive')]]} />
       <div className="bar">
         <div className="tools">
           <input placeholder="Tìm tên bài giảng, môn, tác giả…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Tất cả chương trình đào tạo</option>
             {progs.map(p => <option key={p.id} value={p.id}>{progLabel(p.id)}</option>)}</select>
           {ofl.node((rows ?? []).map(r => r.org_id))}
-          <small className="sub">{shown.length}/{rows?.length ?? 0} bài giảng</small>
+          <label className="chk"><input type="checkbox" checked={card === 'ready'} onChange={e => setCard(e.target.checked ? 'ready' : null)} /> Đã chốt đủ 4 thẻ ({base.filter(ready4).length})</label>
+          <small className="sub">{shown.length}/{rows?.length ?? 0} bài giảng · {new Set(base.map(r => r.program_id).filter(Boolean)).size} chương trình có bài giảng</small>
         </div>
         <div className="tools"><button type="button" className="primary" disabled={!p0} title={p0 ? undefined : 'Chưa có chương trình đào tạo để gắn bài giảng'}
           onClick={() => { setMsg(''); setAdding(true) }}>+ Thêm bài giảng đào tạo</button></div>

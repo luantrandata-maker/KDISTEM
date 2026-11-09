@@ -2360,3 +2360,14 @@ th.sort-asc::after{content:" ▲";font-size:10px}th.sort-desc::after{content:" �
 .morefilt>summary::after{content:" ▾";color:var(--muted)}
 .morefilt>summary>b{color:var(--primary)}
 .morefilt>.panel{position:absolute;z-index:30;top:calc(100% + 6px);left:0;display:flex;flex-wrap:wrap;gap:8px;padding:10px;min-width:280px;box-shadow:0 8px 24px rgba(16,24,40,.12)}
+/* Phân hệ 2 gọn: "Quy trình thao tác" đã thu gọn chỉ còn dòng chữ nhỏ bên phải, hàng kế tiếp nằm cạnh */
+.main[data-ph="2"] .distintro.compact{float:right;display:flex;gap:6px;align-items:center;background:none;border:0;box-shadow:none;padding:4px 0;margin:0 0 6px 12px}
+.main[data-ph="2"] .distintro.compact .distguide{display:none}
+.main[data-ph="2"] .distintro.compact .libguide-h{font-size:12px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted)}
+.main[data-ph="2"] .distintro.compact .libguide-h::before{content:"ⓘ "}
+.main[data-ph="2"] .distintro.compact>.bar>button{border:0;background:none;padding:0;min-height:0;color:var(--primary);font-size:12px;font-weight:500}
+.main[data-ph="2"] .distintro.compact>.bar>button:hover{text-decoration:underline}
+/* Phân hệ 2 gọn: trong bảng, trạng thái "tốt" (Đã phát hành, Đạt, Đã cấp…) là chấm xanh + chữ, chỉ trạng thái cần chú ý giữ nhãn màu */
+.main[data-ph="2"] td .distchip2.good{background:none;border:0;padding:0;color:var(--text);font-weight:400;display:inline-flex;align-items:center;gap:6px}
+.main[data-ph="2"] td .distchip2.good::before{content:"";width:8px;height:8px;border-radius:50%;background:#2e9d5b;flex:none}
+.chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap}

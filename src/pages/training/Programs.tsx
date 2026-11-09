@@ -16,6 +16,7 @@ import { Chip } from '../dist/Editor'
 import { ContentDetail, detailCount, type Detail } from './Content'
 import { TrainingUnits } from './Units'
 import { StatCards } from '../../components/StatCards'
+import { FilterChips } from '../../components/FilterChips'
 import { FlowGuide } from '../../components/FlowGuide'
 import { ProgramExams, ProgramEvalFrame, type FinalExam, type Frame } from './ExamFrame'
 import { useAllOrgs } from '../../components/OrgScope'
@@ -111,15 +112,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
           <i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
         <p className="sub" style={{ margin: 0 }}>Chương trình đào tạo là mẫu khoá học do KDI, Sở, Phòng hoặc Trường soạn, gồm các môn, mỗi môn có các nội dung đào tạo. Một chương trình dùng lại được cho nhiều kế hoạch đào tạo.</p>
       </FlowGuide>
-      <StatCards active={fs || null} onPick={k => setFs((k ?? '') as Status | '')} items={[
-        { icon: 'layers', value: list ? base.length : '…', label: 'Chương trình đào tạo', sub: `${n('published')} đã phát hành · ${n('draft')} nháp` },
-        { k: 'published', icon: 'checkCircle', tone: 'good', value: list ? n('published') : '…', label: 'Dùng được trong kế hoạch' },
-        { icon: 'grid', value: totalContents, label: 'Nội dung đào tạo', sub: `${baseStats.reduce((a, x) => a + x.subjects, 0)} môn` },
-      ]} />
-      <div className="distfilter">
-        {([['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['pending', 'Chờ duyệt', n('pending')], ['published', 'Đã phát hành', n('published')], ['archived', 'Ngừng dùng', n('archived')]] as [Status | '', string, number][]).map(([s, l, c]) =>
-          <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
-      </div>
+      <FilterChips value={fs} onPick={setFs} items={[['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['pending', 'Chờ duyệt', n('pending'), 'warn'], ['published', 'Đã phát hành', n('published')], ['archived', 'Ngừng dùng', n('archived')]]} />
       <div className="bar">
         <div className="tools">
           <input placeholder="Tìm mã, tên, đối tượng…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
@@ -127,7 +120,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
             {codes.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select>
           <select value={own} onChange={e => setOwn(e.target.value)} aria-label="Đơn vị tạo"><option value="">Tất cả đơn vị tạo</option>
             {[...owners].sort((a, b) => a[1].localeCompare(b[1], 'vi')).map(([id, nm]) => <option key={id} value={id}>{nm}</option>)}</select>
-          <small className="sub">{shown.length}/{list?.length ?? 0} chương trình</small>
+          <small className="sub">{shown.length}/{list?.length ?? 0} chương trình · {baseStats.reduce((a, x) => a + x.subjects, 0)} môn · {totalContents} nội dung</small>
         </div>
         {admin && <div className="tools"><button type="button" className="primary" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>Thêm chương trình đào tạo</button></div>}
       </div>

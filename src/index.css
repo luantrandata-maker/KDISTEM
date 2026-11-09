@@ -2360,8 +2360,8 @@ th.sort-asc::after{content:" ▲";font-size:10px}th.sort-desc::after{content:" �
 .morefilt>summary::after{content:" ▾";color:var(--muted)}
 .morefilt>summary>b{color:var(--primary)}
 .morefilt>.panel{position:absolute;z-index:30;top:calc(100% + 6px);left:0;display:flex;flex-wrap:wrap;gap:8px;padding:10px;min-width:280px;box-shadow:0 8px 24px rgba(16,24,40,.12)}
-/* Phân hệ 2 gọn: "Quy trình thao tác" đã thu gọn chỉ còn dòng chữ nhỏ bên phải, hàng kế tiếp nằm cạnh */
-.main[data-ph="2"] .distintro.compact{float:right;display:flex;gap:6px;align-items:center;background:none;border:0;box-shadow:none;padding:4px 0;margin:0 0 6px 12px}
+/* Phân hệ 2 gọn: "Quy trình thao tác" đã thu gọn chỉ còn một dòng chữ nhỏ canh phải (không float: float làm lệch khung trang) */
+.main[data-ph="2"] .distintro.compact{display:flex;justify-content:flex-end;gap:6px;align-items:center;background:none;border:0;box-shadow:none;padding:0;margin:0 0 4px;min-height:0;line-height:1.2}
 .main[data-ph="2"] .distintro.compact .distguide{display:none}
 .main[data-ph="2"] .distintro.compact .libguide-h{font-size:12px;font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted)}
 .main[data-ph="2"] .distintro.compact .libguide-h::before{content:"ⓘ "}
@@ -2374,7 +2374,13 @@ th.sort-asc::after{content:" ▲";font-size:10px}th.sort-desc::after{content:" �
 /* Bảng dùng chung có công cụ (components/DataTable) */
 .tt{display:grid;gap:6px;min-width:0}
 .tttools{display:flex;justify-content:flex-end;align-items:center;gap:6px;flex-wrap:wrap}
-.tttools>small.sub{margin-right:auto;line-height:1}
+.tttools>small.sub{line-height:1}
+.ttleft{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-right:auto;min-width:0}
+.main .ttleft>input{padding:5px 10px;font-size:13px;border-radius:8px;width:200px;min-width:140px}
+.main .ttleft>select{padding:5px 8px;font-size:13px;border-radius:8px;max-width:200px}
+.ttleft>small.sub{white-space:nowrap;margin:0;line-height:1}
+.tttools>.ttcount{margin-right:auto}.ttleft~.ttcount{margin-right:0}
+.main .tttools button.primary.ttadd{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:600;padding:5px 12px}
 .main .tttools button{padding:4px 10px;font-size:12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-weight:500;min-height:0}
 .main .tttools button.on{border-color:var(--primary);color:var(--primary);background:#f3f8fe}
 .ttmenu{position:relative}

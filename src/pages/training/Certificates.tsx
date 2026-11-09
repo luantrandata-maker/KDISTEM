@@ -8,7 +8,7 @@ import { supabase } from '../../lib/supabase'
 import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
 import { CERT_ST } from './Results'
-import { StatCards } from '../../components/StatCards'
+import { FilterChips } from '../../components/FilterChips'
 import { FlowGuide } from '../../components/FlowGuide'
 
 type Cert = { id: string; code: string | null; status: 'pending' | 'issued' | 'revoked'; issued_on: string | null; expires_on: string | null; revoked_reason: string | null
@@ -116,12 +116,6 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
     <FlowGuide id="training-certs">
       <ol className="distguide">{steps.map(([h, d, k], i) => <li key={h}><button type="button" onClick={() => setF(k)}><i>{i + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
     </FlowGuide>
-    <StatCards active={f === 'all' ? null : f} onPick={k => { setF((k ?? 'all') as F); setSel(new Set()) }} items={[
-      { icon: 'award', value: rows ? base.length : '…', label: 'Chứng chỉ' },
-      { k: 'pending', icon: 'hourglass', tone: cnt('pending') ? 'warn' : '', value: cnt('pending'), label: 'Chờ duyệt cấp' },
-      { k: 'issued', icon: 'checkCircle', tone: 'good', value: cnt('issued'), label: 'Đã cấp' },
-      { k: 'revoked', icon: 'alert', value: cnt('revoked'), label: 'Đã thu hồi' },
-    ]} />
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
       <div className="distfilter">
@@ -130,8 +124,7 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
         <input placeholder="Tìm nhà giáo, số chứng chỉ…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chứng chỉ" />
         {sel.size > 0 && <button type="button" className="primary" onClick={() => issue([...sel])}>Duyệt cấp ({sel.size})</button>}
       </div>
-      <div className="distfilter">{([['all', 'Tất cả'], ['pending', 'Chờ duyệt'], ['issued', 'Đã cấp'], ['revoked', 'Đã thu hồi']] as [F, string][])
-        .map(([k, l]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => { setF(k); setSel(new Set()) }}>{l} ({cnt(k)})</button>)}</div>
+      <FilterChips value={f} onPick={k => { setF(k); setSel(new Set()) }} items={[['all', 'Tất cả', cnt('all')], ['pending', 'Chờ duyệt', cnt('pending'), 'warn'], ['issued', 'Đã cấp', cnt('issued')], ['revoked', 'Đã thu hồi', cnt('revoked')]]} />
       {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
         <thead><tr><th style={{ width: 36 }}>{pick.length > 0 && <input type="checkbox" aria-label="Chọn tất cả" checked={pick.every(c => sel.has(c.id))}
           onChange={e => setSel(e.target.checked ? new Set(pick.map(c => c.id)) : new Set())} />}</th>

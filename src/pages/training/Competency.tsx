@@ -13,6 +13,7 @@ import { MultiFilters, useMultiFilters, opts, type FilterDef } from '../../compo
 import { useOrgFilters } from '../../components/OrgFilters'
 import { LevelNames } from '../settings/Custom'
 import { StatCards } from '../../components/StatCards'
+import { FilterChips } from '../../components/FilterChips'
 
 const m133 = (m: string) => /schema cache|does not exist|Could not find/i.test(m) ? 'Hãy chạy migration 133 trên Supabase.' : errText(m)
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 088 trên Supabase.' : /row-level|42501/i.test(m) ? 'Bạn không có quyền với mục này.' : m
@@ -66,16 +67,11 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
         <li><button type="button" disabled><i>3</i><span><b>Xem thiếu hụt</b><small>Kết quả vào hồ sơ năng lực; mục Khoảng thiếu hụt gợi ý chương trình đào tạo cho người dưới mức yêu cầu.</small></span></button></li>
       </ol>
     </FlowGuide>
-    <StatCards active={card} onPick={setCard} items={[
-      { icon: 'calendar', value: rows ? base.length : '…', label: 'Đợt đánh giá', sub: `${n('soon')} sắp mở` },
-      { k: 'open', icon: 'checkCircle', tone: n('open') ? 'good' : '', value: n('open'), label: 'Đang mở', sub: 'Trong thời gian nộp' },
-      { k: 'late', icon: 'alert', tone: n('late') ? 'warn' : '', value: n('late'), label: 'Quá hạn', sub: 'Quá hạn nộp, chưa đóng đợt' },
-      { k: 'closed', icon: 'clock', value: n('closed'), label: 'Đã đóng' },
-    ]} />
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
       <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Đợt đánh giá năng lực <small className="sub">· {openN} đang mở</small></h3>
         {can && <button type="button" className="primary" onClick={add}>+ Mở đợt đánh giá</button>}</div>
+      <FilterChips value={card ?? ''} onPick={k => setCard(k || null)} items={[['', 'Tất cả', base.length], ['soon', 'Sắp mở', n('soon')], ['open', 'Đang mở', n('open')], ['late', 'Quá hạn', n('late'), 'warn'], ['closed', 'Đã đóng', n('closed')]]} />
       <div className="distfilter">
         <MultiFilters defs={defs} f={mf} />
         <input placeholder="Tìm tên đợt…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đợt đánh giá" />

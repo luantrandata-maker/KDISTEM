@@ -21,6 +21,7 @@ import { PlanProgress } from './Progress'
 import { TrainerPick } from './Trainers'
 import { PlanResults } from './ResultsWork'
 import { PlanCal } from './PlanCal'
+import { PlanExams } from './PlanExams'
 import { FlowGuide } from '../../components/FlowGuide'
 import { StatCards } from '../../components/StatCards'
 
@@ -519,6 +520,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
           <button type="button" className="primary" style={{ justifySelf: 'end' }} disabled={!items.length} onClick={() => setStep(2)}>Tiếp tục: Xếp lịch →</button>
         </div>
       </div>
+      <PlanExams planId={p.id} planOrg={p.org_id} items={items} can={can && !p.closed_at && p.pub_status !== 'archived'} />
     </>}
     {step === 2 && <ScheduleStep s={sched} plan={p} edit={editSched} onNext={() => setStep(3)} />}
     {step === 3 && <>

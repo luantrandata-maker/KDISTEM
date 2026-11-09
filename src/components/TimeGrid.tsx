@@ -2,7 +2,7 @@
 // đặt đúng khung giờ. Buổi trùng giờ chia cột trong ngày. Dùng ở Lịch đào tạo (tuần) và Xếp lịch kế hoạch đào tạo.
 import { useEffect, useState } from 'react'
 
-export type TEvent = { id: string; start: Date; end: Date; title: string; sub?: string; cls?: string; color?: string; tip?: string; onClick?: () => void }
+export type TEvent = { id: string; start: Date; end: Date; title: string; prog?: string; sub?: string; cls?: string; color?: string; tip?: string; onClick?: () => void }
 
 const HH = 44   // chiều cao một giờ (px)
 const WD = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
@@ -58,8 +58,8 @@ export function TimeGrid({ days, events, from = 7, to = 18, shade, label = 'Lị
             const Tag = e.onClick ? 'button' : 'div'
             return <Tag key={e.id} type={e.onClick ? 'button' : undefined} className={'tgev ' + (e.cls ?? '')} onClick={e.onClick}
               style={{ top, height: h, left: `calc(${lane * 100 / of}% + 2px)`, width: `calc(${100 / of}% - 4px)`, ...(e.color ? { background: e.color, borderColor: e.color, color: '#fff' } : {}) }}
-              title={e.tip ?? `${e.title}\n${hm(e.start)}–${hm(e.end)}${e.sub ? '\n' + e.sub : ''}`}>
-              <b>{hm(e.start)}–{hm(e.end)}</b> <span>{e.title}</span>{e.sub && h > 50 && <small>{e.sub}</small>}</Tag>
+              title={e.tip ?? `${e.title}\n${hm(e.start)}–${hm(e.end)}${e.prog ? '\n' + e.prog : ''}${e.sub ? '\n' + e.sub : ''}`}>
+              <b>{hm(e.start)}–{hm(e.end)}</b> <span>{e.title}</span>{e.prog && h > 56 && <small className="tgprog">{e.prog}</small>}{e.sub && h > 50 && <small>{e.sub}</small>}</Tag>
           })}
         </div>
       })}

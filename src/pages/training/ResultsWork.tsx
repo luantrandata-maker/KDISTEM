@@ -196,7 +196,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
 
   const hasFinal = all.some(r => r.metrics.finals)
   const sumCols: Col<ResRow>[] = [
-    { key: 'name', label: 'Nhà giáo', fixed: true, text: r => `${r.teacher_name} ${r.org_name ?? ''}`, cell: name },
+    { key: 'name', label: 'Nhà giáo', fixed: true, values: r => [r.teacher_name], text: r => `${r.teacher_name} ${r.org_name ?? ''}`, cell: name },
     { key: 'att', label: 'Chuyên cần', cell: r => { const m = r.metrics; return <>{ok(m.ok_att)} {m.att_pct == null ? '—' : `${num(m.att_pct)}%`}<br /><small className="sub">{m.present}/{m.sessions - m.excused} buổi · cần {m.att_req}%</small></> } },
     { key: 'tests', label: 'Bài kiểm tra', cell: r => { const m = r.metrics; return m.tests ? <>{ok(m.ok_tests)} {m.tests_passed}/{m.tests} đạt<br /><small className="sub">TB {num(m.avg_score)}</small></> : <small className="sub">Không có</small> } },
     { key: 'online', label: 'Học trực tuyến', cell: r => { const m = r.metrics; return m.online_units === 0 ? <small className="sub">Không có</small> : <>{ok(m.ok_units)} {onlineText(m)}</> } },

@@ -122,12 +122,12 @@ export function TrainersPage({ orgId }: { orgId: string }) {
     </div>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {!list ? <p className="sub">Đang tải…</p> : <DataTable id="training-trainers" rows={shown} rowKey={t => t.id} cols={[
-      { key: 'name', label: 'Giảng viên', fixed: true, text: t => `${trainerName(t)} ${t.note ?? ''}`,
+      { key: 'name', label: 'Giảng viên', fixed: true, values: t => [trainerName(t)], text: t => `${trainerName(t)} ${t.note ?? ''}`,
         cell: t => <>{can ? <button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'edit', t }) }}>{trainerName(t)}</button> : <b>{trainerName(t)}</b>}
           {(every || t.note) && <><br /><small className="sub">{[every && 'Danh sách của ' + orgName(t.org_id), t.note].filter(Boolean).join(' · ')}</small></>}</> },
       { key: 'work', label: 'Đơn vị công tác', text: t => t.workplace ?? '', cell: t => t.workplace || '—' },
       { key: 'exp', label: 'Chuyên môn', text: t => t.expertise ?? '', cell: t => t.expertise || '—' },
-      { key: 'contact', label: 'Liên hệ', text: t => [t.phone, t.email].filter(Boolean).join(' '), cell: t => [t.phone, t.email].filter(Boolean).join(' · ') || '—' },
+      { key: 'contact', label: 'Liên hệ', values: t => [t.phone ?? '', t.email ?? ''], text: t => [t.phone, t.email].filter(Boolean).join(' '), cell: t => [t.phone, t.email].filter(Boolean).join(' · ') || '—' },
       { key: 'use', label: 'Phân công', cell: t => use.get(t.id) ?? 0 },
       { key: 'rate', label: 'Đánh giá của GV', cell: t => (r => r ? <><Chip tone={r.overall >= 4 ? 'good' : r.overall >= 3 ? 'warn' : 'bad'}>{score(r.overall)}★</Chip> <small className="sub">{r.responses} phiếu · {r.plans} khoá</small><br />
         <small className="sub" title="Chuyên môn · Truyền đạt · Tương tác">CM {score(r.expertise)} · TĐ {score(r.delivery)} · TT {score(r.interaction)}</small></> : <small className="sub">Chưa có</small>)(rate.get(t.id)) },

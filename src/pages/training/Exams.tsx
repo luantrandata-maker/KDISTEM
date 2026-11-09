@@ -228,7 +228,7 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
       onGo={(id, unit) => { setAdd(false); setOpen(unit ? { id, unit } : { id, unit: null, final: true }) }} />}
     {(msg || err) && <p className={msg?.[1] || err ? 'msg' : 'sub'} role="status"><b>{err || msg?.[0]}</b></p>}
     {!progs ? <p className="sub">Đang tải…</p> : <DataTable id="training-exams" rows={shown} rowKey={r => r.key} onRow={r => { setMsg(null); setView(r.key) }} cols={[
-      { key: 'title', label: 'Đề kiểm tra', fixed: true, text: r => `${r.title} ${r.sub ?? ''}`, cell: r => <><button type="button" className="namelink">{r.title}</button>{r.sub && <><br /><small className="sub">{r.sub}</small></>}</> },
+      { key: 'title', label: 'Đề kiểm tra', fixed: true, values: r => [r.title], text: r => `${r.title} ${r.sub ?? ''}`, cell: r => <><button type="button" className="namelink">{r.title}</button>{r.sub && <><br /><small className="sub">{r.sub}</small></>}</> },
       { key: 'kind', label: 'Loại', text: r => KIND[r.kind][0], cell: r => <Chip tone={KIND[r.kind][1]}>{KIND[r.kind][0]}</Chip> },
       { key: 'cfg', label: 'Cấu hình', text: r => r.cfg, cell: r => r.missing ? <small className="warnline">{r.cfg}</small> : <small>{r.cfg}</small> },
       { key: 'prog', label: 'Chương trình', text: r => String(progLabel(r.prog) ?? ''), cell: r => progLabel(r.prog) },

@@ -2397,9 +2397,23 @@ th.sort-asc::after{content:" ▲";font-size:10px}th.sort-desc::after{content:" �
 .ttresize{position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:3}
 .ttresize:hover{background:var(--primary);opacity:.35}
 .main .ttable tr.ttfilter th{top:38px;padding:4px 6px;cursor:default;background:var(--surface)}
-.ttable tr.ttfilter input{width:100%;min-width:60px;padding:4px 8px;font-size:12px;border:1px solid var(--line);border-radius:6px;font-weight:400}
+.ttfpop input[type=checkbox]{width:auto;min-width:0;padding:0;flex:none}
 .ttable.ttfit{width:100%;table-layout:fixed}
 .ttable.ttfit th,.ttable.ttfit td,.ttable.ttfit :is(th,td) *{white-space:normal!important;overflow-wrap:anywhere}
 .main .ttable.ttfit .namelink{text-align:left}
 .main .tttools .segmented{padding:2px}.main .tttools .segmented button{border:0;padding:3px 10px;font-size:12px}
 .main .tphead .tools>button:not(.guidebtn){padding:5px 12px;font-size:13px;border-radius:8px}
+/* Ô lọc cột: nút mở danh sách giá trị (tìm + tick nhiều) */
+.ttable tr.ttfilter .ttfbtn{width:100%;min-width:60px;padding:4px 8px;font-size:12px;border:1px solid var(--line);border-radius:6px;font-weight:400;background:var(--surface);color:var(--muted);text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;min-height:0}
+.ttable tr.ttfilter .ttfbtn::after{content:" ▾";float:right;color:var(--muted)}
+.ttable tr.ttfilter .ttfbtn.on{border-color:var(--primary);color:var(--primary);background:#f3f8fe;font-weight:600}
+.ttfpop{position:fixed;z-index:60;width:280px;max-height:330px;display:flex;flex-direction:column;gap:6px;padding:8px;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 8px 24px rgba(16,24,40,.16);font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;color:var(--text);white-space:normal}
+.ttfpop>input{width:100%;padding:5px 8px;font-size:13px;border:1px solid var(--line);border-radius:6px}
+.ttfacts{display:flex;justify-content:space-between;gap:6px}
+.main .ttfacts button{padding:2px 8px;font-size:12px;border:0;background:none;color:var(--primary);cursor:pointer;min-height:0}
+.ttfacts button:disabled{color:var(--muted);cursor:default}
+.ttfpop ul{list-style:none;margin:0;padding:0;overflow:auto;flex:1}
+.ttfpop li label{display:flex;align-items:flex-start;gap:6px;padding:4px 2px;cursor:pointer;border-radius:4px}
+.ttfpop li label:hover{background:var(--bg,#f5f7fa)}
+.ttfpop li label span{flex:1;overflow-wrap:anywhere}
+.ttfpop li input{margin-top:2px}

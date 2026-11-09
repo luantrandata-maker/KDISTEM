@@ -110,8 +110,8 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
     setMsg([`Đã thu hồi chứng chỉ ${c.code}.`, false]); load()
   }
   const certCols: Col<Cert>[] = [
-    { key: 'teacher', label: 'Nhà giáo', fixed: true, text: c => `${c.teacher_name} ${c.org_name ?? ''}`, cell: c => <><b>{c.teacher_name}</b><br /><small className="sub">{c.org_name ?? '—'}</small></> },
-    { key: 'plan', label: 'Kế hoạch / chương trình', text: c => `${c.plan_code} ${c.plan_name} ${c.program_titles ?? ''}`,
+    { key: 'teacher', label: 'Nhà giáo', fixed: true, values: c => [c.teacher_name], text: c => `${c.teacher_name} ${c.org_name ?? ''}`, cell: c => <><b>{c.teacher_name}</b><br /><small className="sub">{c.org_name ?? '—'}</small></> },
+    { key: 'plan', label: 'Kế hoạch / chương trình', values: c => [c.plan_name ?? ''], text: c => `${c.plan_code} ${c.plan_name} ${c.program_titles ?? ''}`,
       cell: c => <>{c.plan_code} · {c.plan_name}<br /><small className="sub">{c.program_titles ?? ''}{c.hours ? ` · ${String(c.hours).replace('.', ',')} giờ` : ''}</small></> },
     { key: 'code', label: 'Số chứng chỉ', text: c => c.code ?? '', cell: c => c.code ?? <small className="sub">Chưa có</small> },
     { key: 'date', label: 'Ngày cấp', text: c => day(c.issued_on), cell: c => <>{day(c.issued_on)}{c.expires_on && <><br /><small className="sub">Hết hạn {day(c.expires_on)}</small></>}</> },

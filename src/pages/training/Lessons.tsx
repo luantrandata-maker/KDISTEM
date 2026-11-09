@@ -93,10 +93,10 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
   const checked = (r: TLesson) => (r.content?.checked ?? []).filter(k => k !== 'bank').length
 
   const lessonCols: Col<TLesson>[] = [
-    { key: 'name', label: 'Bài giảng đào tạo', fixed: true, text: r => `${r.title} ${r.subject ?? ''} ${r.author ?? ''}`,
+    { key: 'name', label: 'Bài giảng đào tạo', fixed: true, values: r => [r.title], text: r => `${r.title} ${r.subject ?? ''} ${r.author ?? ''}`,
       cell: r => <><button type="button" className="namelink" onClick={() => { setMsg(''); setOpen(r.id) }}>{r.title}</button><br />
         <small className="sub">{[r.subject, r.grades && `Khối ${r.grades}`, r.author].filter(Boolean).join(' · ')}</small></> },
-    { key: 'prog', label: 'Chương trình đào tạo · nội dung', text: r => `${progLabel(r.program_id) || r.training_plans?.name || ''} ${labelOf(r.unit_id) || ''}`,
+    { key: 'prog', label: 'Chương trình đào tạo · nội dung', values: r => [String(progLabel(r.program_id) || r.training_plans?.name || '')], text: r => `${progLabel(r.program_id) || r.training_plans?.name || ''} ${labelOf(r.unit_id) || ''}`,
       cell: r => <>{progLabel(r.program_id) || r.training_plans?.name || <small className="sub">Chưa gắn</small>}
         {(labelOf(r.unit_id) || (r.program_id && kitSubject(r))) && <><br /><small className="sub">{labelOf(r.unit_id) || kitSubject(r)}</small></>}</> },
     { key: 'cards', label: 'Thẻ đã chốt', cell: r => !r.content?.kit ? <small className="sub">Bài cũ, chưa có 5 thẻ</small> : <><span className="tpdot" /> {checked(r)}/4 thẻ bắt buộc{(r.content?.checked ?? []).includes('bank') ? ' · có Kho hoạt động' : ''}</> },

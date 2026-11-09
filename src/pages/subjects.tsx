@@ -1,5 +1,6 @@
 import { MultiSelect } from '../components/MultiSelect'
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { DataTable, type Col } from '../components/DataTable'
 import { supabase } from '../lib/supabase'
 import { OrgPick, useAllMode } from '../components/OrgScope'
 import { norm } from '../lib/sheet'
@@ -109,23 +110,22 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
     setForm({ ...form, [k]: cur.includes(v) ? cur.filter(x => x !== v) : [...cur, v] })
   }
 
-  const row = (s: Subject, mine: boolean) => (
-    <tr key={s.id} style={s.active ? undefined : { opacity: 0.6 }}>
-      <td>{s.code && <small className="sub">{s.code}<br /></small>}<button type="button" className="namelink" onClick={() => { setVtab('info'); setMsg(null); setView(s) }}><b>{s.name}</b></button>{!s.active && <> <span className="pill">Ngừng dùng</span></>}
-        {s.description && <><br /><small className="sub">{s.description}</small></>}</td>
-      <td>{s.domain ?? '—'}</td>
-      <td>{s.levels.length ? s.levels.map(levelName).join(', ') : <small className="sub">Tất cả cấp</small>}</td>
-      <td>{s.ct_codes.map(c => <span key={c} className="progchip" style={{ background: TRACK_COLOR[c], color: '#fff', marginRight: 4 }}>{c}</span>)}</td>
-      <td>{mine ? (s.scope === 'children' ? 'Dùng chung cho đơn vị trực thuộc' : 'Chỉ đơn vị mình') : <small className="sub">{s.owner_name ?? '—'}</small>}
-        {mine && every && <><br /><small className="sub">{s.owner_name ?? '—'}</small></>}</td>
-    </tr>
+  const subjCols = (mine: boolean): Col<Subject>[] => [
+    { key: 'name', label: 'Môn học', fixed: true, values: s => [s.name], text: s => [s.code, s.name, s.description].join(' '),
+      cell: s => <>{s.code && <small className="sub">{s.code}<br /></small>}<button type="button" className="namelink" onClick={() => { setVtab('info'); setMsg(null); setView(s) }}><b>{s.name}</b></button>{!s.active && <> <span className="pill">Ngừng dùng</span></>}
+        {s.description && <><br /><small className="sub">{s.description}</small></>}</> },
+    { key: 'domain', label: 'Lĩnh vực', text: s => s.domain ?? '', cell: s => s.domain ?? '—' },
+    { key: 'levels', label: 'Cấp học', values: s => s.levels.length ? s.levels.map(levelName) : ['Tất cả cấp'], text: s => s.levels.map(levelName).join(', ') || 'Tất cả cấp',
+      cell: s => s.levels.length ? s.levels.map(levelName).join(', ') : <small className="sub">Tất cả cấp</small> },
+    { key: 'ct', label: 'Loại chương trình', values: s => s.ct_codes, text: s => s.ct_codes.join(' '),
+      cell: s => s.ct_codes.map(c => <span key={c} className="progchip" style={{ background: TRACK_COLOR[c], color: '#fff', marginRight: 4 }}>{c}</span>) },
+    { key: 'scope', label: mine ? 'Phạm vi' : 'Đơn vị', text: s => mine ? (s.scope === 'children' ? 'Dùng chung cho đơn vị trực thuộc' : 'Chỉ đơn vị mình') + ' ' + (s.owner_name ?? '') : s.owner_name ?? '',
+      cell: s => <>{mine ? (s.scope === 'children' ? 'Dùng chung cho đơn vị trực thuộc' : 'Chỉ đơn vị mình') : <small className="sub">{s.owner_name ?? '—'}</small>}
+        {mine && every && <><br /><small className="sub">{s.owner_name ?? '—'}</small></>}</> },
+  ]
+  const table = (rows: Subject[], mine: boolean, empty: ReactNode, left?: ReactNode, right?: ReactNode) => (
+    <DataTable id={mine ? 'subjects' : 'subjects-shared'} rows={rows} rowKey={s => s.id} cols={subjCols(mine)} empty={empty} left={left} right={right} />
   )
-  const table = (rows: Subject[], mine: boolean) => (<>
-    <div className="wrap"><table>
-      <thead><tr><th>Môn học</th><th>Lĩnh vực</th><th>Cấp học</th><th>Loại chương trình</th><th>{mine ? 'Phạm vi' : 'Đơn vị'}</th></tr></thead>
-      <tbody>{rows.map(s => row(s, mine))}</tbody>
-    </table></div>
-  </>)
   const domains = [...new Set(subjects.map(s => s.domain).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi'))
 
   if (view && !form) return (
@@ -174,21 +174,18 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
     <>
       <p className="sub">Danh mục môn học / lĩnh vực kiến thức dùng khi soạn chương trình: mỗi học phần gắn một hay nhiều môn.
         {mode === 'platform' ? ' Môn "dùng chung" của KDI hiện ở tất cả đơn vị.' : mode === 'authority' ? ' Môn "dùng chung" hiện ở các trường trực thuộc.' : ' Trường dùng môn của KDI, Sở, Phòng và thêm môn riêng.'}</p>
-      <div className="bar">
-        <div className="tools">
-          <select value={lv} onChange={e => setLv(e.target.value)} aria-label="Cấp học"><option value="">Tất cả cấp học</option>{LEVELS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-          <input placeholder="Tìm mã, tên, lĩnh vực…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-          <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện môn ngừng dùng</label>
-        </div>
-        {canEdit && orgId && <button className="primary" onClick={() => { setMsg(null); setForm({ levels: [], ct_codes: [], scope: mode === 'school' ? 'own' : 'children', active: true }) }}>Thêm môn học</button>}
-      </div>
       {(msg || err) && <p className={msg && !msg[1] ? 'sub' : 'msg'} role="status"><b>{msg?.[0] ?? err}</b></p>}
       {!loaded ? <p className="sub">Đang tải…</p> : (
         <>
-          <h3>{every ? 'Tất cả đơn vị' : 'Của đơn vị'} ({own.length})</h3>
-          {own.length ? table(own, true) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Đơn vị chưa có môn riêng.{canEdit && ' Bấm "Thêm môn học".'}</p></div>}
+          {!every && <h3>Của đơn vị ({own.length})</h3>}
+          {table(own, true, <small className="sub">Đơn vị chưa có môn riêng.{canEdit && ' Bấm "Thêm môn học".'}</small>, <>
+            <input placeholder="Tìm mã, tên, lĩnh vực…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
+            <select value={lv} onChange={e => setLv(e.target.value)} aria-label="Cấp học"><option value="">Tất cả cấp học</option>{LEVELS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+            <label className="chk"><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện môn ngừng dùng</label>
+            <small className="sub">{own.length} môn</small>
+          </>, canEdit && orgId && <button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ levels: [], ct_codes: [], scope: mode === 'school' ? 'own' : 'children', active: true }) }}>+ Thêm môn học</button>)}
           {!every && <><h3>Dùng chung từ KDI / cấp trên ({shared.length})</h3>
-          {shared.length ? table(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có môn dùng chung.</p></div>}</>}
+          {table(shared, false, <small className="sub">Chưa có môn dùng chung.</small>)}</>}
         </>
       )}
     </>

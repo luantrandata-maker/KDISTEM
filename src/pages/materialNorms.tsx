@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { DataTable, type Col } from '../components/DataTable'
 import { supabase } from '../lib/supabase'
 import { OrgPick, useAllMode } from '../components/OrgScope'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
@@ -183,32 +184,34 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
 
   const used = new Set(rows.map(r => r.catalog_id).filter(Boolean))
   // Bấm vào dòng để mở chi tiết bên phải (thao tác nằm trong bảng chi tiết)
-  const table = (rows: Norm[], mine: boolean) => (
-    <div className="wrap"><table className="libtable">
-      <thead><tr><th>Định mức</th><th>Tính cho</th><th>Số vật tư</th><th>Gắn với</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
-      <tbody>{rows.map(n => (
-        <tr key={n.id} className={'rowlink' + (openId === n.id ? ' on' : '')} onClick={() => onOpen(n.id)} tabIndex={0} onKeyDown={e => { if (e.key === 'Enter') onOpen(n.id) }}>
-          <td><b>{n.title}</b> <small className="sub">v{n.version_no}</small><div className="sub" style={{ fontSize: 12 }}>{[n.subject, n.grade && gradeName(n.grade), (!mine || every) && ownerName(n, orgId)].filter(Boolean).join(' · ') || '—'}</div></td>
-          <td>{BASIS[n.basis]}{n.basis === 'group' && <small className="sub"> ({n.group_size} HS)</small>}<div className="sub" style={{ fontSize: 12 }}>{n.sessions} buổi</div></td>
-          <td>{n.material_norm_items?.[0]?.count ?? '—'}</td>
-          <td><small>{n.edu_programs ? `${n.edu_programs.title}${n.edu_program_units ? ' › ' + n.edu_program_units.title : ''}` : ''}{n.library_items ? <>{n.edu_programs ? <br /> : null}Bài: {n.library_items.title}</> : null}{!n.edu_programs && !n.library_items ? '—' : null}</small></td>
-          <td><Pill s={n.status} />{n.published_at && <div className="sub" style={{ fontSize: 12 }}>từ {fmtD(n.published_at)}</div>}</td>
-          <td><small>{fmtD(n.updated_at)}</small></td>
-        </tr>
-      ))}</tbody>
-    </table></div>
+  const normCols = (mine: boolean): Col<Norm>[] => [
+    { key: 'title', label: 'Định mức', fixed: true, values: n => [n.title], text: n => [n.title, n.subject].join(' '),
+      cell: n => <><b>{n.title}</b> <small className="sub">v{n.version_no}</small><div className="sub" style={{ fontSize: 12 }}>{[n.subject, n.grade && gradeName(n.grade), (!mine || every) && ownerName(n, orgId)].filter(Boolean).join(' · ') || '—'}</div></> },
+    { key: 'basis', label: 'Tính cho', text: n => BASIS[n.basis], cell: n => <>{BASIS[n.basis]}{n.basis === 'group' && <small className="sub"> ({n.group_size} HS)</small>}<div className="sub" style={{ fontSize: 12 }}>{n.sessions} buổi</div></> },
+    { key: 'n', label: 'Số vật tư', cell: n => n.material_norm_items?.[0]?.count ?? '—' },
+    { key: 'link', label: 'Gắn với', values: n => [n.edu_programs?.title ?? '', n.library_items?.title ?? ''], text: n => [n.edu_programs?.title, n.edu_program_units?.title, n.library_items?.title].join(' '),
+      cell: n => <small>{n.edu_programs ? `${n.edu_programs.title}${n.edu_program_units ? ' › ' + n.edu_program_units.title : ''}` : ''}{n.library_items ? <>{n.edu_programs ? <br /> : null}Bài: {n.library_items.title}</> : null}{!n.edu_programs && !n.library_items ? '—' : null}</small> },
+    { key: 'st', label: 'Trạng thái', text: n => NSTATUS[n.status][0], cell: n => <><Pill s={n.status} />{n.published_at && <div className="sub" style={{ fontSize: 12 }}>từ {fmtD(n.published_at)}</div>}</> },
+    { key: 'upd', label: 'Cập nhật', cell: n => <small>{fmtD(n.updated_at)}</small> },
+  ]
+  const tools = (n: number) => ({
+    left: <>
+      <input placeholder="Tìm định mức…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm định mức" />
+      <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
+      <select value={basis} onChange={e => setBasis(e.target.value)} aria-label="Tính cho"><option value="">Tất cả cách tính</option>{(Object.keys(BASIS) as Basis[]).map(b => <option key={b} value={b}>Theo {BASIS[b]}</option>)}</select>
+      <label className="chk"><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện bản cũ / lưu trữ</label>
+      <small className="sub">{n} định mức</small>
+    </>,
+    right: rights.canWrite && !sharedOnly ? <button type="button" className="primary ttadd" onClick={openForm}>+ Thêm định mức</button> : undefined,
+  })
+  const table = (rows: Norm[], mine: boolean, empty: string, withTools: boolean) => (
+    <DataTable id={mine ? 'material-norms' : 'material-norms-shared'} rows={rows} rowKey={n => n.id} cols={normCols(mine)} onRow={n => onOpen(n.id)}
+      empty={<small className="sub">{empty}</small>} {...(withTools ? tools(rows.length) : {})} />
   )
 
   return (
     <>
       <p className="sub">Định mức vật tư cho 1 sản phẩm, 1 nhóm hoặc 1 học sinh, gắn với học phần / bài của chương trình. Định mức do KDI và cấp trên ban hành được dùng chung; trường sao chép về để điều chỉnh hoặc gửi đề xuất điều chỉnh.</p>
-      <div className="bar small">
-        <input className="search" placeholder="Tìm định mức…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm định mức" />
-        <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
-        <select value={basis} onChange={e => setBasis(e.target.value)} aria-label="Tính cho"><option value="">Tất cả cách tính</option>{(Object.keys(BASIS) as Basis[]).map(b => <option key={b} value={b}>Theo {BASIS[b]}</option>)}</select>
-        <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện bản cũ / lưu trữ</label>
-        {rights.canWrite && !sharedOnly && <button className="primary" onClick={openForm}>Thêm định mức</button>}
-      </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'}>{msg[0]}</p>}
       {form && (
         <Drawer wide title="Thêm định mức vật tư" closeOnOutside={false} onClose={() => setForm(null)}
@@ -255,10 +258,10 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
         </Drawer>
       )}
       {!list ? <p className="sub">Đang tải…</p> : <>
-        {!sharedOnly && <><h3>{every ? 'Tất cả đơn vị' : 'Của đơn vị'} ({own.length})</h3>
-        {own.length ? table(own, true) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có định mức nào của đơn vị.{rights.canWrite ? ' Bấm “Thêm định mức” hoặc sao chép định mức dùng chung bên dưới.' : ''}</p></div>}</>}
+        {!sharedOnly && <>{!every && <h3>Của đơn vị ({own.length})</h3>}
+        {table(own, true, 'Chưa có định mức nào của đơn vị.' + (rights.canWrite ? ' Bấm “Thêm định mức” hoặc sao chép định mức dùng chung bên dưới.' : ''), true)}</>}
         {!every && <><h3>Dùng chung từ KDI / cấp trên ({shared.length})</h3>
-        {shared.length ? table(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có định mức dùng chung.</p></div>}</>}
+        {table(shared, false, 'Chưa có định mức dùng chung.', !!sharedOnly)}</>}
       </>}
     </>
   )

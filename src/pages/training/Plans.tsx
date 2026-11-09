@@ -140,11 +140,11 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   // Tên đơn vị chỉ cần khi danh sách có kế hoạch của nhiều đơn vị
   const multiOrg = all && new Set((list ?? []).map(p => p.org_id)).size > 1
   const planCols: Col<TPlan>[] = [
-    { key: 'name', label: 'Kế hoạch đào tạo', fixed: true, text: p => `${p.name} ${p.plan_code ?? ''} ${multiOrg ? orgName(p.org_id) : ''}`,
+    { key: 'name', label: 'Kế hoạch đào tạo', fixed: true, values: p => [p.name], text: p => `${p.name} ${p.plan_code ?? ''} ${multiOrg ? orgName(p.org_id) : ''}`,
       cell: p => <><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen(p.id) }}>{p.name}</button><br /><small className="sub">{[multiOrg && orgName(p.org_id), p.plan_code, span(p)].filter(Boolean).join(' · ')}</small></> },
     { key: 'cls', label: 'Phân loại', text: crumb, cell: p => { const c = crumb(p); return c ? <small>{c}</small> : <small className="sub">—</small> } },
     { key: 'year', label: 'Năm học · đợt', text: p => [p.year_name, p.term && TERM[p.term]].filter(Boolean).join(' · '), cell: p => <span className="nowrap">{[p.year_name, p.term && TERM[p.term]].filter(Boolean).join(' · ') || '—'}</span> },
-    { key: 'prog', label: 'Chương trình', text: p => items.filter(i => i.plan_id === p.id).map(i => i.training_programs?.title ?? '').join(' '),
+    { key: 'prog', label: 'Chương trình', values: p => items.filter(i => i.plan_id === p.id).map(i => i.training_programs?.title ?? ''), text: p => items.filter(i => i.plan_id === p.id).map(i => i.training_programs?.title ?? '').join(' '),
       cell: p => { const titles = items.filter(i => i.plan_id === p.id).sort((a, b) => a.seq - b.seq).map(i => i.training_programs?.title ?? '—')
         return <span title={titles.length > 1 ? titles.join('\n') : undefined}>{titles.length ? <>{titles[0]}{titles.length > 1 && <small className="tpmore"> +{titles.length - 1}</small>}</> : <small className="sub">{p.pub_status === 'draft' ? 'Chưa chọn' : 'Kế hoạch cũ'}</small>}
           {p.hours ? <><br /><small className="sub">{p.hours} giờ</small></> : null}</span> } },

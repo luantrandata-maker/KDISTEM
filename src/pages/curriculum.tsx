@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { DataTable, type Col } from '../components/DataTable'
 import { useOrgFilter } from '../components/OrgFilters'
 import { YearSelect } from '../components/YearSelect'
 import { MultiSelect } from '../components/MultiSelect'
@@ -231,21 +232,6 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
           : mode === 'platform' ? 'Mẫu PPCT của KDI: trường sao chép về rồi điều chỉnh theo kế hoạch của tổ chuyên môn. Bản nháp chưa hiện với trường.'
           : 'PPCT của đơn vị. Bật "Ban hành cho đơn vị trực thuộc" để các trường thấy và sao chép làm mẫu.'}
       </p>
-      <div className="bar">
-        <div className="tools">
-          {grades.length > 1 && <div className="segmented" style={{ margin: 0 }}>
-            {[0, ...grades].map(g => <button key={g} className={grade === g ? 'on' : ''} onClick={() => setGrade(g)}>{g ? gradeName(g) : 'Tất cả'}</button>)}
-          </div>}
-          {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn học"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
-          <input placeholder="Tìm môn, tên PPCT…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-          {every && ofl.node(books.map(b => b.org_id))}
-        </div>
-        <div className="tools">
-          {canEdit && templates.length > 0 && <button onClick={() => setShowTpl(v => !v)}>{showTpl ? 'Ẩn mẫu' : `Dùng mẫu (${templates.length})`}</button>}
-          {shown.length > 0 && <button onClick={exportList}>Xuất Excel</button>}
-          {canEdit && <button className="primary" onClick={() => { setMsg(null); setForm({ grade: grade || undefined, subject, status: 'published', scope: mode === 'school' ? 'own' : 'children', year_name: mode === 'school' ? year?.name ?? '' : '' }) }}>Thêm môn</button>}
-        </div>
-      </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
 
 
@@ -264,23 +250,32 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
         </div>
       )}
 
-      {!loaded ? <p className="sub">Đang tải…</p> : own.length === 0 ? (
-        <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có môn nào trong phân phối chương trình.
-          {canEdit && (templates.length ? ' Bấm "Dùng mẫu" để sao chép PPCT mẫu, hoặc "Thêm môn" để tự soạn.' : ' Bấm "Thêm môn" để bắt đầu.')}</p></div>
-      ) : (
-        <><div className="wrap"><table>
-          <thead><tr><th>Khối</th><th>Môn</th><th>Tên PPCT</th><th>Năm học</th><th>Số tiết</th><th>Tiết/tuần</th><th>Trạng thái</th></tr></thead>
-          <tbody>{shown.map(b => (
-            <tr key={b.id} className="clickrow" onClick={() => { setMsg(null); setOpen(b) }}>
-              <td>{b.grade}</td><td>{b.subject}</td>
-              <td><NameLink onClick={() => { setMsg(null); setOpen(b) }} title="Xem chi tiết">{b.title}</NameLink>{every && <><br /><small className="sub">{b.organizations?.name ?? '—'}</small></>}{b.edu_programs && <><br /><small>Theo chương trình: {b.edu_programs.title} (v{b.edu_programs.version_no})</small></>}
-                {b.source_id && <><br /><small>Sao chép từ mẫu</small></>}{mode !== 'school' && b.scope === 'children' && <><br /><small>{scopeLabel}</small></>}</td>
-              <td>{b.year_name ?? 'Tất cả năm'}</td><td>{b.total_periods ?? '—'}</td><td>{b.periods_per_week ?? '—'}</td>
-              <td><span className={'pill ' + BOOK_STATUS[b.status][1]}>{b.status === 'published' && mode !== 'school' ? 'Đã ban hành' : BOOK_STATUS[b.status][0]}</span></td>
-            </tr>
-          ))}</tbody>
-        </table></div></>
-      )}
+      {!loaded ? <p className="sub">Đang tải…</p> : <DataTable id="ppct-books" rows={shown} rowKey={b => b.id} onRow={b => { setMsg(null); setOpen(b) }}
+        empty={<small className="sub">Chưa có môn nào trong phân phối chương trình.
+          {canEdit && (templates.length ? ' Bấm "Dùng mẫu" để sao chép PPCT mẫu, hoặc "Thêm môn" để tự soạn.' : ' Bấm "Thêm môn" để bắt đầu.')}</small>}
+        cols={[
+          { key: 'grade', label: 'Khối', text: b => String(b.grade ?? ''), cell: b => b.grade },
+          { key: 'subject', label: 'Môn', text: b => b.subject ?? '', cell: b => b.subject },
+          { key: 'title', label: 'Tên PPCT', fixed: true, values: b => [b.title], text: b => [b.title, every ? b.organizations?.name : '', b.edu_programs?.title].join(' '),
+            cell: b => <><NameLink onClick={() => { setMsg(null); setOpen(b) }} title="Xem chi tiết">{b.title}</NameLink>{every && <><br /><small className="sub">{b.organizations?.name ?? '—'}</small></>}{b.edu_programs && <><br /><small>Theo chương trình: {b.edu_programs.title} (v{b.edu_programs.version_no})</small></>}
+              {b.source_id && <><br /><small>Sao chép từ mẫu</small></>}{mode !== 'school' && b.scope === 'children' && <><br /><small>{scopeLabel}</small></>}</> },
+          { key: 'year', label: 'Năm học', text: b => b.year_name ?? 'Tất cả năm', cell: b => b.year_name ?? 'Tất cả năm' },
+          { key: 'total', label: 'Số tiết', text: b => String(b.total_periods ?? ''), cell: b => b.total_periods ?? '—' },
+          { key: 'ppw', label: 'Tiết/tuần', text: b => String(b.periods_per_week ?? ''), cell: b => b.periods_per_week ?? '—' },
+          { key: 'st', label: 'Trạng thái', text: b => b.status === 'published' && mode !== 'school' ? 'Đã ban hành' : BOOK_STATUS[b.status][0],
+            cell: b => <span className={'pill ' + BOOK_STATUS[b.status][1]}>{b.status === 'published' && mode !== 'school' ? 'Đã ban hành' : BOOK_STATUS[b.status][0]}</span> },
+        ] as Col<Book>[]}
+        left={<>
+          <input placeholder="Tìm môn, tên PPCT…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
+          {grades.length > 1 && <select value={grade} onChange={e => setGrade(Number(e.target.value))} aria-label="Khối"><option value={0}>Tất cả khối</option>{grades.map(g => <option key={g} value={g}>{gradeName(g)}</option>)}</select>}
+          {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn học"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
+          {every && ofl.node(books.map(b => b.org_id))}
+        </>}
+        right={<>
+          {canEdit && templates.length > 0 && <button type="button" className={showTpl ? 'on' : ''} onClick={() => setShowTpl(v => !v)}>{showTpl ? 'Ẩn mẫu' : `Dùng mẫu (${templates.length})`}</button>}
+          {shown.length > 0 && <button type="button" onClick={exportList}>Xuất Excel</button>}
+          {canEdit && <button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ grade: grade || undefined, subject, status: 'published', scope: mode === 'school' ? 'own' : 'children', year_name: mode === 'school' ? year?.name ?? '' : '' }) }}>+ Thêm môn</button>}
+        </>} />}
     </>
   )
 }

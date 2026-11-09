@@ -3,6 +3,8 @@
 // (ngày bắt đầu hoặc nối tiếp chương trình trước, giờ vào học, số giờ mỗi ngày, giờ nghỉ trưa, bỏ thứ Bảy / Chủ nhật) rồi sửa tay từng buổi.
 // Hình thức "Kết hợp" của chương trình: mỗi buổi lấy hình thức của nội dung đào tạo (chưa đặt thì Trực tiếp).
 // Lưu vào training_sessions (giữ buổi đã chốt điểm danh).
+// Điểm danh theo buổi (mặc định): các nội dung cùng ngày, cùng buổi sáng / chiều, cùng hình thức và địa điểm / link được gộp thành
+// một buổi (một mã, một lần điểm danh); giờ từng nội dung lưu ở unit_times. Tắt thì mỗi nội dung một buổi như trước.
 // Giảng viên từng buổi: chương trình trong kế hoạch có 1 giảng viên thì tự điền vào mọi buổi; có nhiều giảng viên thì chọn cho từng buổi (một buổi được nhiều giảng viên).
 // Ngày nghỉ (lịch chuẩn chung + ngày nghỉ của đơn vị): xếp tự động bỏ qua, buổi rơi vào ngày nghỉ được cảnh báo ở bảng, lịch và phần kiểm tra.
 import { Fragment, useEffect, useMemo, useState } from 'react'
@@ -19,13 +21,13 @@ export type SUnit = { id: string; title: string; hours: number; mode?: Mode | nu
 export type SProg = { id: string; code: string; title: string; ct_code: string | null; subjects: (SUnit & { contents: SUnit[] })[] }
 export type SItem = { program_id: string; seq: number; units?: string[] | null; trainer?: string | null; trainer_ids?: string[]; assistant_ids?: string[] }
 export type SPlan = { id: string; org_id: string; mode: string; starts_on: string | null; ends_on: string | null }
-type Sess = { id: string; unit_id: string | null; title: string; starts_at: string; ends_at: string; mode: Mode; location: string | null; meeting_url: string | null; closed_at: string | null; trainer_ids?: string[] | null }
+type Sess = { id: string; unit_id: string | null; unit_ids?: string[] | null; unit_times?: Record<string, [string, string]> | null; title: string; starts_at: string; ends_at: string; mode: Mode; location: string | null; meeting_url: string | null; closed_at: string | null; trainer_ids?: string[] | null }
 export type Row = { unit_id: string; program_id: string; subj: string; title: string; hours: number; date: string; from: string; to: string
-  mode: Mode; location: string; url: string; sid?: string; locked: boolean; trainers: string[] }
+  mode: Mode; location: string; url: string; sid?: string; locked: boolean; trainers: string[]; started?: boolean }
 type CMode = Mode | 'hybrid'
 type Cfg = { start: string; time: string; perDay: number; lunch: boolean; lunchFrom: string; lunchTo: string; skipSat: boolean; skipSun: boolean; skipHol: boolean; mode: CMode; location: string; url: string }
 
-const SSEL = 'id, unit_id, title, starts_at, ends_at, mode, location, meeting_url, closed_at, trainer_ids'
+const SSEL = 'id, unit_id, unit_ids, unit_times, title, starts_at, ends_at, mode, location, meeting_url, closed_at, trainer_ids'
 const sameIds = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x))
 const pad = (n: number) => String(n).padStart(2, '0')
 const ymd = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -39,6 +41,20 @@ const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 const nextMonday = () => { const d = new Date(); d.setDate(d.getDate() + ((8 - d.getDay()) % 7 || 7)); return ymd(d) }
 const LUNCH_FROM = '11:30', LUNCH_TO = '13:30', DAY_END = 17 * 60 + 30
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp' }
+const unitsOf = (s: Sess) => s.unit_ids?.length ? s.unit_ids : s.unit_id ? [s.unit_id] : []
+/** Buổi sáng (bắt đầu trước 12:00) hoặc chiều */
+export const halfOf = (r: Pick<Row, 'from'>) => mins(r.from) < 12 * 60 ? 'am' : 'pm'
+const HALF = { am: 'Buổi sáng', pm: 'Buổi chiều' } as const
+/** Gom các nội dung đã xếp thành buổi điểm danh: theo buổi thì cùng ngày, cùng sáng / chiều, cùng hình thức và địa điểm / link */
+export function groupRows(rows: Row[], merge: boolean) {
+  const m = new Map<string, Row[]>()
+  for (const r of rows.filter(r => r.date && r.from && r.to).sort((a, b) => (a.date + a.from).localeCompare(b.date + b.from))) {
+    // Buổi đã chốt hoặc đã bắt đầu (có thể đã có người điểm danh) giữ nguyên, không gộp
+    const k = r.locked || r.started ? 'L' + (r.sid ?? r.unit_id) : merge ? [r.date, halfOf(r), r.mode, r.mode === 'online' ? r.url.trim() : r.location.trim()].join('|') : r.unit_id
+    m.set(k, [...(m.get(k) ?? []), r])
+  }
+  return [...m.values()]
+}
 const CMODE: Record<CMode, string> = { ...MODE, hybrid: 'Kết hợp' }
 
 /** Nội dung đào tạo của kế hoạch theo thứ tự chương trình › môn › nội dung (chỉ nội dung được chọn) */
@@ -57,6 +73,8 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
   const [rows, setRows] = useState<Row[]>([])
   const [cfg, setCfgs] = useState<Record<string, Cfg>>({})
   const [dirty, setDirty] = useState(false)
+  const [merge, setMergeS] = useState(true)
+  const setMerge = (v: boolean) => { setMergeS(v); setDirty(true) }
   const [rk, setRk] = useState(0)
   const list = useMemo(() => contentsOf(items, progs), [items, progs])
   const hol = useHolidays(plan.org_id || null)
@@ -69,13 +87,13 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
   useEffect(() => {
     if (!sess) return
     setRows(list.map(({ p, it, subj, u }) => {
-      const s = sess.find(x => x.unit_id === u.id)
+      const s = sess.find(x => unitsOf(x).includes(u.id))
       const tIds = it.trainer_ids ?? [], saved = s?.trainer_ids ?? []
       // Một giảng viên: tự điền khi buổi chưa có giảng viên; nhiều giảng viên: giữ lựa chọn của buổi
       const trainers = saved.length ? saved : tIds.length === 1 ? [...tIds] : []
-      const a = s ? new Date(s.starts_at) : null, b = s ? new Date(s.ends_at) : null
+      const t = s?.unit_times?.[u.id], a = s ? new Date(t?.[0] ?? s.starts_at) : null, b = s ? new Date(t?.[1] ?? s.ends_at) : null
       return { unit_id: u.id, program_id: p.id, subj, title: u.title, hours: u.hours, date: a ? ymd(a) : '', from: a ? hhmm(a.getHours() * 60 + a.getMinutes()) : '',
-        to: b ? hhmm(b.getHours() * 60 + b.getMinutes()) : '', mode: s?.mode ?? u.mode ?? defMode, location: s?.location ?? '', url: s?.meeting_url ?? '', sid: s?.id, locked: !!s?.closed_at, trainers }
+        to: b ? hhmm(b.getHours() * 60 + b.getMinutes()) : '', mode: s?.mode ?? u.mode ?? defMode, location: s?.location ?? '', url: s?.meeting_url ?? '', sid: s?.id, locked: !!s?.closed_at, trainers, started: !!s && +new Date(s.starts_at) <= Date.now() }
     }))
     setDirty(false)
   }, [sess, list])
@@ -128,27 +146,40 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
   async function save(): Promise<string | null> {
     const at = (d: string, t: string) => new Date(`${d}T${t}`).toISOString()
     for (const r of rows) {
-      if (r.locked) continue
-      const s = sess?.find(x => x.id === r.sid)
-      if (!r.date || !r.from || !r.to) {
-        if (s) { const { error } = await supabase.from('training_sessions').delete().eq('id', s.id); if (error) return `Không bỏ được buổi "${r.title}": ${error.message}` }
-        continue
-      }
+      if (r.locked || !r.date || !r.from || !r.to) continue
       if (mins(r.to) <= mins(r.from)) return `Buổi "${r.title}": giờ kết thúc phải sau giờ bắt đầu.`
-      const v = { starts_at: at(r.date, r.from), ends_at: at(r.date, r.to), mode: r.mode, location: r.location.trim() || null, meeting_url: r.url.trim() || null, trainer_ids: r.trainers }
-      if (v.meeting_url && !/^https?:\/\//i.test(v.meeting_url)) return `Buổi "${r.title}": link họp phải bắt đầu bằng http:// hoặc https://`
+      if (r.mode === 'online' && r.url.trim() && !/^https?:\/\//i.test(r.url.trim())) return `Buổi "${r.title}": link họp phải bắt đầu bằng http:// hoặc https://`
+    }
+    // Buổi chưa chốt có nội dung trong danh sách: dùng lại cho nhóm đầu tiên chứa nội dung của buổi (giữ mã điểm danh), còn thừa thì xoá
+    const mineIds = new Set(rows.map(r => r.unit_id))
+    const cand = (sess ?? []).filter(x => !x.closed_at && unitsOf(x).some(id => mineIds.has(id)))
+    const used = new Set<string>()
+    for (const g of groupRows(rows.filter(r => !r.locked), merge)) {
+      const r0 = g[0], ids = g.map(r => r.unit_id)
+      const from = g.reduce((a, r) => mins(r.from) < mins(a) ? r.from : a, r0.from), to = g.reduce((a, r) => mins(r.to) > mins(a) ? r.to : a, r0.to)
+      const trainers = [...new Set(g.flatMap(r => r.trainers))]
+      const title = g.length === 1 ? r0.title : `${HALF[halfOf(r0)]} ${vnDay(r0.date)}: ${g.map(r => r.title).join('; ')}`.slice(0, 200)
+      const unit_times = g.length > 1 ? Object.fromEntries(g.map(r => [r.unit_id, [at(r.date, r.from), at(r.date, r.to)]])) : null
+      const v = { starts_at: at(r0.date, from), ends_at: at(r0.date, to), mode: r0.mode, location: r0.location.trim() || null, meeting_url: r0.url.trim() || null, trainer_ids: trainers, unit_ids: ids, unit_times }
+      const s = cand.find(x => !used.has(x.id) && unitsOf(x)[0] === ids[0]) ?? cand.find(x => !used.has(x.id) && unitsOf(x).some(id => ids.includes(id)))
       if (s) {
+        used.add(s.id)
         const same = +new Date(s.starts_at) === +new Date(v.starts_at) && +new Date(s.ends_at) === +new Date(v.ends_at) && s.mode === v.mode
-          && (s.location ?? null) === v.location && (s.meeting_url ?? null) === v.meeting_url && sameIds(s.trainer_ids ?? [], r.trainers)
+          && (s.location ?? null) === v.location && (s.meeting_url ?? null) === v.meeting_url && sameIds(s.trainer_ids ?? [], trainers)
+          && unitsOf(s).join() === ids.join() && JSON.stringify(s.unit_times ?? null) === JSON.stringify(unit_times)
         if (same) continue
-        const { error } = await supabase.from('training_sessions').update(v).eq('id', s.id)
-        if (error) return `Buổi "${r.title}": ${error.message}`
+        const { error } = await supabase.from('training_sessions').update(unitsOf(s).join() === ids.join() ? v : { ...v, title }).eq('id', s.id)
+        if (error) return `Buổi "${title}": ${error.message}`
       } else {
-        const it = items.find(i => i.program_id === r.program_id)
-        const { error } = await supabase.from('training_sessions').insert({ ...v, org_id: plan.org_id, plan_id: plan.id, unit_id: r.unit_id, title: r.title,
-          trainer: r.trainers.length || it?.trainer_ids?.length ? null : it?.trainer ?? null, assistant_ids: it?.assistant_ids ?? [] })
-        if (error) return `Buổi "${r.title}": ${error.message}`
+        const it = items.find(i => i.program_id === r0.program_id)
+        const { error } = await supabase.from('training_sessions').insert({ ...v, org_id: plan.org_id, plan_id: plan.id, title,
+          trainer: trainers.length || it?.trainer_ids?.length ? null : it?.trainer ?? null, assistant_ids: it?.assistant_ids ?? [] })
+        if (error) return `Buổi "${title}": ${error.message}`
       }
+    }
+    for (const x of cand.filter(x => !used.has(x.id))) {
+      const { error } = await supabase.from('training_sessions').delete().eq('id', x.id)
+      if (error) return `Không bỏ được buổi "${x.title}": ${error.message}`
     }
     // Kế hoạch chưa có thời gian thì lấy theo lịch vừa xếp
     const ds = rows.filter(r => r.date).map(r => r.date).sort()
@@ -159,7 +190,7 @@ export function useSchedule(plan: SPlan, items: SItem[], progs: SProg[]) {
   }
   const reset = () => setRk(k => k + 1)
   const trainersOf = (pid: string) => items.find(i => i.program_id === pid)?.trainer_ids ?? []
-  return { loaded: !!sess, rows, order, cfgOf, setCfg, setRow, auto, save, reset, dirty, progs, hol, trainersOf }
+  return { loaded: !!sess, rows, order, cfgOf, setCfg, setRow, auto, save, reset, dirty, progs, hol, trainersOf, merge, setMerge }
 }
 export type Schedule = ReturnType<typeof useSchedule>
 
@@ -196,7 +227,13 @@ export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPl
   const names = useTrainerNames(plan.org_id)
   if (!s.loaded) return <p className="sub">Đang tải…</p>
   if (!s.order.length) return <p className="sub">Chọn chương trình đào tạo ở bước 1 trước.</p>
+  const nSess = groupRows(s.rows, s.merge).length, nDone = s.rows.filter(r => r.date && r.from && r.to).length
   return <>
+    <div className="tpmerge">
+      {edit ? <label className="tpcheck"><input type="checkbox" checked={s.merge} onChange={e => s.setMerge(e.target.checked)} /> <b>Điểm danh theo buổi</b></label> : <b>{s.merge ? 'Điểm danh theo buổi' : 'Điểm danh theo từng nội dung'}</b>}
+      <small className="sub">{s.merge ? 'Các nội dung cùng ngày, cùng buổi sáng / chiều, cùng hình thức và địa điểm (hoặc link họp) gộp thành một buổi: một mã, nhà giáo điểm danh một lần.' : 'Mỗi nội dung là một buổi, điểm danh riêng.'}
+        {nDone > 0 && ` Hiện có ${nDone} nội dung đã xếp → ${nSess} buổi điểm danh.`}</small>
+    </div>
     <div className="distcards tpcards">{s.order.map((pid, k) => {
       const p = s.progs.find(x => x.id === pid), c = s.cfgOf(pid, k), tIds = s.trainersOf
       const mine = s.rows.filter(r => r.program_id === pid), done = mine.filter(r => r.date)
@@ -354,7 +391,8 @@ export function ResultStep({ s, plan }: { s: Schedule; plan: SPlan }) {
   return <>
     <div className="diststats">
       <div><b>{s.order.length}</b><small>chương trình</small></div>
-      <div><b>{done.length}/{s.rows.length}</b><small>buổi đã xếp / nội dung</small></div>
+      <div><b>{done.length}/{s.rows.length}</b><small>nội dung đã xếp</small></div>
+      <div><b>{groupRows(s.rows, s.merge).length}</b><small>buổi điểm danh</small></div>
       <div><b>{days.length}</b><small>ngày học{days.length ? ` · ${vnDay(days[0])} – ${vnDay(days[days.length - 1])}` : ''}</small></div>
       <div><b>{num(done.reduce((a, r) => a + r.hours, 0))}</b><small>giờ đào tạo</small></div>
     </div>
@@ -369,9 +407,9 @@ export function ResultStep({ s, plan }: { s: Schedule; plan: SPlan }) {
     {view === 'cal' ? <ScheduleView s={s} /> : <div className="wrap"><table className="libtable disttable">
       <thead><tr><th style={{ width: 130 }}>Thời gian</th><th>Nội dung đào tạo</th><th>Chương trình · môn</th><th style={{ width: 110 }}>Hình thức</th><th>Địa điểm / link họp</th><th>Giảng viên</th></tr></thead>
       <tbody>{days.map(d => <Fragment key={d}>
-        <tr className="distgprog"><th colSpan={6}><b>{vnDay(d)}</b>/{d.slice(0, 4)} {s.hol.holName(d) && <Chip tone="bad">⚠ Ngày nghỉ: {s.hol.holName(d)}</Chip>} <small className="sub">{done.filter(r => r.date === d).length} buổi · {num(done.filter(r => r.date === d).reduce((a, r) => a + r.hours, 0))} giờ</small></th></tr>
+        <tr className="distgprog"><th colSpan={6}><b>{vnDay(d)}</b>/{d.slice(0, 4)} {s.hol.holName(d) && <Chip tone="bad">⚠ Ngày nghỉ: {s.hol.holName(d)}</Chip>} <small className="sub">{done.filter(r => r.date === d).length} nội dung · {groupRows(done.filter(r => r.date === d), s.merge).length} buổi điểm danh · {num(done.filter(r => r.date === d).reduce((a, r) => a + r.hours, 0))} giờ</small></th></tr>
         {done.filter(r => r.date === d).map(r => <tr key={r.unit_id}>
-          <td>{r.from}–{r.to}</td>
+          <td>{r.from}–{r.to}{s.merge && <><br /><small className="sub">{HALF[halfOf(r)]}</small></>}</td>
           <td style={{ whiteSpace: 'normal' }}><i className="tpdot" style={{ background: colorOf(pIdx(r.program_id)) }} />{r.title}</td>
           <td style={{ whiteSpace: 'normal' }}><small>{s.progs.find(p => p.id === r.program_id)?.code} · {r.subj}</small></td>
           <td>{MODE[r.mode]}</td>

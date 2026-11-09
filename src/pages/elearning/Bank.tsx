@@ -1,6 +1,6 @@
 import { MoreMenu } from '../../components/MoreMenu'
-import { SelBar } from '../../components/TableSel'
 import { useEffect, useState } from 'react'
+import { DataTable, type Col } from '../../components/DataTable'
 import { ElView } from '../../components/ElView'
 import { supabase, fetchAll } from '../../lib/supabase'
 import { OrgPick, useAllMode } from '../../components/OrgScope'
@@ -140,20 +140,39 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
         <div className="card"><strong>{rows.filter(r => r.status === 'draft').length}</strong><span>Nháp (chờ duyệt)</span></div>
         <div className="card"><strong>{rows.filter(r => !mine(r)).length}</strong><span>Dùng chung từ cấp trên</span></div>
       </div>
+      {note}
+      {ai && <div className="panel"><AssistantQuiz orgId={orgId} onSaved={load} /></div>}
       {/* Một dòng: bộ lọc bên trái; thao tác với câu đang chọn và các nút thêm / nhập / xuất bên phải */}
       {(() => { const ids = picked.map(r => r.id), del = picked.filter(r => r.created_by === me).map(r => r.id); return (
-        <div style={{ marginTop: 14 }}><SelBar picked={null} left={<span className="tools bankfilters">
-          <input className="search" style={{ margin: 0 }} type="search" placeholder="Tìm câu hỏi, chủ đề…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} aria-label="Tìm câu hỏi" />
+        <DataTable id="question-bank" rows={list.slice(0, 300)} rowKey={r => r.id} onRow={r => { setOpen(r.id); setMsg(null) }}
+          empty={<small className="sub">Chưa có câu hỏi. Thêm tay, nhập Excel theo file mẫu, hoặc tạo bằng Trợ lý AI.</small>}
+          head={{ th: <input type="checkbox" checked={allOn} disabled={!canPick.length} aria-label="Chọn tất cả câu đang hiện"
+            onChange={() => setSel(x => { const y = new Set(x); canPick.forEach(r => allOn ? y.delete(r.id) : y.add(r.id)); return y })} />,
+            td: r => <span onClick={e => e.stopPropagation()}>{mine(r) && <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggle(r.id)} aria-label="Chọn câu hỏi" />}</span> }}
+          cols={[
+            { key: 'stem', label: 'Câu hỏi', fixed: true, values: r => [r.topic ?? ''], text: r => r.stem + ' ' + (r.topic ?? ''),
+              cell: r => <span style={{ whiteSpace: 'normal' }}><b>{r.stem.length > 140 ? r.stem.slice(0, 140) + '…' : r.stem}</b>{r.topic && <><br /><small>{r.topic}</small></>}</span> },
+            { key: 'subj', label: 'Môn · khối', values: r => [r.subject, ...qGrades(r).map(g => 'Khối ' + g)], text: r => r.subject, cell: r => `${r.subject}${qGrades(r).length ? ` · ${qGrades(r).join(', ')}` : ''}` },
+            { key: 'level', label: 'Mức độ', text: r => LEVEL[r.level], cell: r => LEVEL[r.level] },
+            { key: 'kind', label: 'Loại', text: r => QKIND[r.kind], cell: r => QKIND[r.kind] },
+            { key: 'src', label: 'Nguồn', text: r => !mine(r) ? orgNames.get(r.org_id) ?? 'Cấp trên' : r.source === 'ai' ? 'Trợ lý AI' : r.source === 'import' ? 'Nhập Excel' : 'Soạn tay',
+              cell: r => <small>{every ? (orgNames.get(r.org_id) ?? '') + ' · ' : ''}{!mine(r) ? orgNames.get(r.org_id) ?? 'Cấp trên' : r.source === 'ai' ? 'Trợ lý AI' : r.source === 'import' ? 'Nhập Excel' : 'Soạn tay'}{r.shared && mine(r) ? ' · dùng chung' : ''}</small> },
+            { key: 'st', label: 'Trạng thái', text: r => r.status === 'ready' ? 'Sẵn sàng' : r.status === 'draft' ? 'Nháp' : 'Ngừng dùng',
+              cell: r => <span className={'pill ' + (r.status === 'ready' ? 'active' : r.status === 'draft' ? 'maintenance' : 'inactive')}>{r.status === 'ready' ? 'Sẵn sàng' : r.status === 'draft' ? 'Nháp' : 'Ngừng dùng'}</span> },
+          ] as Col<typeof list[number]>[]}
+          left={<>
+          <input type="search" placeholder="Tìm câu hỏi, chủ đề…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} aria-label="Tìm câu hỏi" />
           <select value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
           <select value={f.grade} onChange={e => setF({ ...f, grade: e.target.value })} aria-label="Khối"><option value="">Tất cả khối</option>{Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>Khối {i + 1}</option>)}</select>
           <select value={f.level} onChange={e => setF({ ...f, level: e.target.value })} aria-label="Mức độ"><option value="">Tất cả mức độ</option>{Object.entries(LEVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
           <select value={f.status} onChange={e => setF({ ...f, status: e.target.value })} aria-label="Trạng thái"><option value="">Tất cả trạng thái</option><option value="ready">Sẵn sàng</option><option value="draft">Nháp</option><option value="retired">Ngừng dùng</option></select>
-        </span>}>
+        </>}
+          right={<>
           {ids.length > 0 && <>
             <button disabled={picked.every(r => r.status === 'ready')} onClick={() => { setStatus(ids, 'ready'); setSel(new Set()) }}>Duyệt ({ids.length})</button>
             <button disabled={picked.every(r => r.status === 'retired')} onClick={() => { setStatus(ids, 'retired'); setSel(new Set()) }}>Ngừng dùng</button>
             <button className="danger" disabled={!del.length} title={del.length < ids.length ? 'Chỉ xoá được câu do mình tạo' : `Xoá ${ids.length} câu đã chọn`} onClick={() => removeMany(del)}>Xoá ({del.length})</button></>}
-          <button className="primary" onClick={() => { setForm({ ...EMPTY, shared: !every && orgType !== 'school' }); setAi(false) }}>Thêm câu hỏi</button>
+          <button type="button" className="primary ttadd" onClick={() => { setForm({ ...EMPTY, shared: !every && orgType !== 'school' }); setAi(false) }}>+ Thêm câu hỏi</button>
           <MoreMenu label="Thêm ▾">
             <button onClick={() => { setAi(!ai); setForm(null) }}>{ai ? 'Đóng Trợ lý AI' : 'Tạo bằng Trợ lý AI'}</button>
             {drafts.length > 0 && <button onClick={() => setStatus(drafts.map(d => d.id), 'ready')}>Duyệt {drafts.length} câu nháp đang lọc</button>}
@@ -161,25 +180,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
               sample={[['Khoa học tự nhiên', '7', 'Mạch điện', 'Nhận biết', 'Đơn vị đo cường độ dòng điện là gì?', 'Vôn', 'Ampe', 'Ôm', 'Oát', '', '', 'B', 'Cường độ dòng điện đo bằng ampe (A).'],
                 ['Công nghệ', '8', 'An toàn điện', 'Thông hiểu', 'Chọn các việc làm an toàn khi sửa điện', 'Ngắt cầu dao', 'Dùng tay ướt', 'Đi dép cao su', 'Chạm dây trần', '', '', 'AC', '']]} />
             <button onClick={exportExcel} disabled={!list.length}>Xuất Excel</button>
-          </MoreMenu>
-        </SelBar></div>) })()}
-      {note}
-      {ai && <div className="panel"><AssistantQuiz orgId={orgId} onSaved={load} /></div>}
-      <div className="wrap"><table className="systable">
-        <thead><tr><th className="sel"><input type="checkbox" checked={allOn} disabled={!canPick.length} aria-label="Chọn tất cả câu đang hiện"
-          onChange={() => setSel(x => { const y = new Set(x); canPick.forEach(r => allOn ? y.delete(r.id) : y.add(r.id)); return y })} /></th><th>Câu hỏi</th><th>Môn · khối</th><th>Mức độ</th><th>Loại</th><th>Nguồn</th><th>Trạng thái</th></tr></thead>
-        <tbody>
-          {list.slice(0, 300).map(r =>
-            <tr key={r.id} className={'clickrow' + (sel.has(r.id) ? ' picked' : '')} onClick={() => { setOpen(r.id); setMsg(null) }}>
-              <td className="sel" onClick={e => e.stopPropagation()}>{mine(r) && <input type="checkbox" checked={sel.has(r.id)} onChange={() => toggle(r.id)} aria-label="Chọn câu hỏi" />}</td>
-              <td style={{ whiteSpace: 'normal', maxWidth: 460 }}><b>{r.stem.length > 140 ? r.stem.slice(0, 140) + '…' : r.stem}</b>{r.topic && <><br /><small>{r.topic}</small></>}</td>
-              <td>{r.subject}{qGrades(r).length ? ` · ${qGrades(r).join(', ')}` : ''}</td><td>{LEVEL[r.level]}</td><td>{QKIND[r.kind]}</td>
-              <td><small>{every ? (orgNames.get(r.org_id) ?? '') + ' · ' : ''}{!mine(r) ? orgNames.get(r.org_id) ?? 'Cấp trên' : r.source === 'ai' ? 'Trợ lý AI' : r.source === 'import' ? 'Nhập Excel' : 'Soạn tay'}{r.shared && mine(r) ? ' · dùng chung' : ''}</small></td>
-              <td><span className={'pill ' + (r.status === 'ready' ? 'active' : r.status === 'draft' ? 'maintenance' : 'inactive')}>{r.status === 'ready' ? 'Sẵn sàng' : r.status === 'draft' ? 'Nháp' : 'Ngừng dùng'}</span></td>
-            </tr>)}
-          {!list.length && <tr><td colSpan={7}>Chưa có câu hỏi. Thêm tay, nhập Excel theo file mẫu, hoặc tạo bằng Trợ lý AI.</td></tr>}
-        </tbody>
-      </table></div>
+          </MoreMenu></>} />) })()}
       {list.length > 300 && <p className="sub">Hiện 300/{list.length} câu — lọc để thu hẹp.</p>}
     </>
   )

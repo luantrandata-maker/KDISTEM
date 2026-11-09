@@ -1,4 +1,4 @@
-// Bảng dùng chung có công cụ: lọc theo cột (hàng lọc dưới tiêu đề, mặc định ẩn), ẩn/hiện và kéo đổi thứ tự cột,
+// Bảng dùng chung có công cụ: lọc theo cột (hàng lọc dưới tiêu đề, mặc định ẩn; mỗi ô mở danh sách giá trị có tìm, tick chọn nhiều), ẩn/hiện và kéo đổi thứ tự cột,
 // kéo mép tiêu đề để đổi độ rộng, nút "Vừa khít" thu bảng vừa màn hình (chữ xuống dòng, không phải kéo ngang).
 // Cách hiển thị (cột ẩn, thứ tự, độ rộng, vừa khít) nhớ theo từng bảng trên trình duyệt này.
 // Sắp xếp khi bấm tiêu đề vẫn do lib/tableSort lo (hàng lọc có class ttfilter được bỏ qua).
@@ -11,6 +11,8 @@ export type Col<T> = {
   cell: (r: T) => ReactNode
   /** Chữ để lọc cột; bỏ trống thì cột không có ô lọc */
   text?: (r: T) => string
+  /** Giá trị để tick chọn khi lọc (một dòng có thể nhiều giá trị, vd. nhiều môn); mặc định là text */
+  values?: (r: T) => string[]
   /** Không cho ẩn (vd. cột tên) */
   fixed?: boolean
   /** Ẩn mặc định */
@@ -24,6 +26,45 @@ const load = (id: string, cols: Col<unknown>[]): View => {
   return { ...EMPTY, hidden: cols.filter(c => c.off).map(c => c.key) }
 }
 const fold = (s: string) => norm(s).toLowerCase()
+const BLANK = '(Trống)'
+const valsOf = <T,>(c: Col<T>, r: T) => { const v = (c.values ? c.values(r) : [c.text!(r)]).map(x => (x ?? '').trim()).filter(Boolean); return v.length ? v : [BLANK] }
+
+/** Ô lọc một cột: bấm mở danh sách giá trị có ô tìm, tick chọn nhiều */
+function ColFilter({ label, options, value, onChange }: { label: string; options: [string, number][]; value: string[]; onChange: (v: string[]) => void }) {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
+  const [q, setQ] = useState('')
+  const box = useRef<HTMLDivElement>(null), btn = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!pos) return
+    const close = (e: Event) => { if (!box.current?.contains(e.target as Node) && !btn.current?.contains(e.target as Node)) setPos(null) }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setPos(null) }
+    const off = () => setPos(null)
+    document.addEventListener('mousedown', close); document.addEventListener('keydown', esc); window.addEventListener('resize', off)
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); window.removeEventListener('resize', off) }
+  }, [pos])
+  const open = () => {
+    if (pos) return setPos(null)
+    const r = btn.current!.getBoundingClientRect()
+    setQ(''); setPos({ top: Math.min(r.bottom + 4, window.innerHeight - 340), left: Math.max(8, Math.min(r.left, window.innerWidth - 288)) })
+  }
+  const sel = new Set(value)
+  const list = q.trim() ? options.filter(([o]) => fold(o).includes(fold(q.trim()))) : options
+  const flip = (o: string) => onChange(sel.has(o) ? value.filter(x => x !== o) : [...value, o])
+  return <>
+    <button type="button" ref={btn} className={'ttfbtn' + (value.length ? ' on' : '')} aria-expanded={!!pos} aria-label={`Lọc cột ${label}`} onClick={open}
+      title={value.join(', ') || undefined}>{value.length === 0 ? 'Tất cả' : value.length === 1 ? value[0] : `${value.length} đã chọn`}</button>
+    {pos && <div ref={box} className="ttfpop" role="dialog" aria-label={`Lọc ${label}`} style={{ top: pos.top, left: pos.left }}>
+      <input autoFocus placeholder="Tìm…" value={q} onChange={e => setQ(e.target.value)} aria-label={`Tìm giá trị ${label}`} />
+      <div className="ttfacts">
+        <button type="button" disabled={!list.length} onClick={() => onChange([...new Set([...value, ...list.map(([o]) => o)])])}>{q.trim() ? 'Chọn các mục tìm thấy' : 'Chọn tất cả'}</button>
+        <button type="button" disabled={!value.length} onClick={() => onChange([])}>Bỏ chọn</button>
+      </div>
+      <ul>{list.slice(0, 300).map(([o, n]) => <li key={o}><label><input type="checkbox" checked={sel.has(o)} onChange={() => flip(o)} /> <span>{o}</span> <small className="sub">{n}</small></label></li>)}
+        {!list.length && <li><small className="sub">Không có giá trị nào khớp.</small></li>}
+        {list.length > 300 && <li><small className="sub">Còn {list.length - 300} giá trị, gõ để tìm.</small></li>}</ul>
+    </div>}
+  </>
+}
 
 export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow }: {
   id: string; rows: T[]; cols: Col<T>[]; rowKey: (r: T) => string; empty?: ReactNode; className?: string
@@ -40,7 +81,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   const [view, setViewS] = useState<View>(() => load(id, cols as Col<unknown>[]))
   const setView = (f: (v: View) => View) => setViewS(v => { const n = f(v); try { localStorage.setItem('tt:' + id, JSON.stringify(n)) } catch { /* chỉ trong phiên */ } return n })
   const [filterOn, setFilterOn] = useState(false)
-  const [flt, setFlt] = useState<Record<string, string>>({})
+  const [flt, setFlt] = useState<Record<string, string[]>>({})
   const [menu, setMenu] = useState(false)
   const [drag, setDrag] = useState<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
@@ -59,8 +100,16 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
     return cols.map((c, i) => ({ c, i })).sort((a, b) => (pos.get(a.c.key) ?? 1000 + a.i) - (pos.get(b.c.key) ?? 1000 + b.i)).map(x => x.c)
   }, [cols, view.order])
   const shownCols = ordered.filter(c => c.fixed || !view.hidden.includes(c.key))
-  const active = Object.entries(flt).filter(([k, v]) => v.trim() && shownCols.some(c => c.key === k))
-  const shown = active.length ? rows.filter(r => active.every(([k, v]) => { const c = cols.find(x => x.key === k); return !c?.text || fold(c.text(r)).includes(fold(v.trim())) })) : rows
+  const active = Object.entries(flt).filter(([k, v]) => v.length && shownCols.some(c => c.key === k))
+  const match = (r: T, skip?: string) => active.every(([k, v]) => { if (k === skip) return true; const c = cols.find(x => x.key === k); return !c?.text || valsOf(c, r).some(x => v.includes(x)) })
+  const shown = active.length ? rows.filter(r => match(r)) : rows
+  // Giá trị của từng cột (đếm theo các dòng khớp những cột lọc khác), sắp theo chữ
+  const options = (c: Col<T>): [string, number][] => {
+    const m = new Map<string, number>()
+    rows.forEach(r => { if (match(r, c.key)) new Set(valsOf(c, r)).forEach(v => m.set(v, (m.get(v) ?? 0) + 1)) })
+    ;(flt[c.key] ?? []).forEach(v => { if (!m.has(v)) m.set(v, 0) })
+    return [...m].sort((a, b) => a[0] === BLANK ? 1 : b[0] === BLANK ? -1 : a[0].localeCompare(b[0], 'vi', { numeric: true }))
+  }
 
   const move = (from: string, to: string) => setView(v => {
     const keys = ordered.map(c => c.key), a = keys.indexOf(from), b = keys.indexOf(to)
@@ -115,7 +164,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
           <span className="ttresize" role="separator" aria-label={`Đổi độ rộng cột ${c.label}`} onMouseDown={e => resize(c.key, e)} onClick={e => e.stopPropagation()}
             onDoubleClick={e => { e.stopPropagation(); setView(v => { const w = { ...v.widths }; delete w[c.key]; return { ...v, widths: w } }) }} /></th>)}</tr>
         {filterOn && <tr className="ttfilter">{head && <th />}{shownCols.map(c => <th key={c.key}>{c.text
-          ? <input value={flt[c.key] ?? ''} placeholder="Lọc…" aria-label={`Lọc cột ${c.label}`} onChange={e => setFlt(f => ({ ...f, [c.key]: e.target.value }))} />
+          ? <ColFilter label={c.label} options={options(c)} value={flt[c.key] ?? []} onChange={v => setFlt(f => ({ ...f, [c.key]: v }))} />
           : null}</th>)}</tr>}
       </thead>
       <tbody>{shown.map(r => <tr key={rowKey(r)} className={onRow ? 'clickrow' : undefined} onClick={onRow && (() => onRow(r))}>{head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key}>{c.cell(r)}</td>)}</tr>)}

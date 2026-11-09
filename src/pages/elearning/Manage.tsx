@@ -1,6 +1,7 @@
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { DataTable, type Col } from '../../components/DataTable'
 import { MultiSelect } from '../../components/MultiSelect'
 import { GradeChecks, GradeMulti, SubjectMulti } from '../../components/Pickers'
 import { supabase } from '../../lib/supabase'
@@ -221,24 +222,22 @@ function Exams({ orgId, subject, ofl: shared }: { orgId: string | null; subject?
     {note}<ExamResults exam={cur} roster={schoolOf(cur.org_id) && editable(cur)} /></ElView>
   return (
     <>
-      <div className="bar"><div className="tools" style={{ flexWrap: 'wrap' }}>{ofl.node(rows.map(x => x.org_id))}</div><button className="primary" onClick={() => { setMsg(null); setForm({ ...EEMPTY, subject: subject ?? '', subjects: subject ? [subject] : [], title: subject ? `Đề kiểm tra ${subject}` : '', shared: !isSchool && !every }) }}>{subject ? 'Tạo đề kiểm tra' : 'Tạo đề luyện'}</button></div>
       {note}
-      <div className="wrap"><table className="systable">
-        <thead><tr><th>Đề luyện</th><th>Cách ra đề</th><th>Thời gian</th><th>Mở</th><th className="num">Lượt nộp</th><th className="num">Điểm TB</th><th>Trạng thái</th></tr></thead>
-        <tbody>{rows.filter(x => ofl.fit(x.org_id)).map(x => { const c = counts.get(x.id); return <Fragment key={x.id}>
-          <tr className="clickrow" onClick={() => { setMsg(null); setOpen(x.id) }}>
-            <td><b>{x.title}</b><br /><small>{[courseSubjects(x).join(', '), gradesText(courseGrades(x)), !editable(x) ? 'của cấp trên' : every ? orgName(x.org_id) : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></td>
-            <td>{howText(x)}{x.shuffle ? <><br /><small>trộn câu</small></> : null}</td>
-            <td>{x.duration_min ? `${x.duration_min} phút` : 'Không giới hạn'}{x.max_attempts ? <><br /><small>{x.max_attempts} lượt</small></> : null}</td>
-            <td><small>{dt(x.opens_at)}{x.closes_at ? ` → ${dt(x.closes_at)}` : ''}</small></td>
-            <td className="num">{c?.n ?? 0}<br /><small>{c?.students.size ?? 0} HS</small></td>
-            <td className="num">{c?.n ? (c.sum / c.n).toFixed(1) : '—'}</td>
-            <td><span className={'pill ' + ESTATUS[x.status][1]}>{ESTATUS[x.status][0]}</span></td>
-          </tr>
-        </Fragment> })}
-          {!rows.length && <tr><td colSpan={7}>{subject ? `Môn ${subject} chưa có đề. ` : ''}Chưa có đề luyện. Tạo đề ngẫu nhiên từ ngân hàng câu hỏi (theo môn, khối, mức độ) hoặc chọn từng câu.</td></tr>}
-        </tbody>
-      </table></div>
+      <DataTable id="elearning-exams" rows={rows.filter(x => ofl.fit(x.org_id))} rowKey={x => x.id} onRow={x => { setMsg(null); setOpen(x.id) }}
+        empty={<small className="sub">{subject ? `Môn ${subject} chưa có đề. ` : ''}Chưa có đề luyện. Tạo đề ngẫu nhiên từ ngân hàng câu hỏi (theo môn, khối, mức độ) hoặc chọn từng câu.</small>}
+        left={ofl.node(rows.map(x => x.org_id))}
+        right={<button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ ...EEMPTY, subject: subject ?? '', subjects: subject ? [subject] : [], title: subject ? `Đề kiểm tra ${subject}` : '', shared: !isSchool && !every }) }}>+ {subject ? 'Tạo đề kiểm tra' : 'Tạo đề luyện'}</button>}
+        cols={[
+          { key: 'title', label: 'Đề luyện', fixed: true, values: x => [x.title], text: x => [x.title, ...courseSubjects(x)].join(' '),
+            cell: x => <><b>{x.title}</b><br /><small>{[courseSubjects(x).join(', '), gradesText(courseGrades(x)), !editable(x) ? 'của cấp trên' : every ? orgName(x.org_id) : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></> },
+          { key: 'subj', label: 'Môn · khối', off: true, values: x => [...courseSubjects(x), gradesText(courseGrades(x))], text: x => courseSubjects(x).join(' '), cell: x => [courseSubjects(x).join(', '), gradesText(courseGrades(x))].filter(Boolean).join(' · ') || '—' },
+          { key: 'how', label: 'Cách ra đề', text: x => howText(x), cell: x => <>{howText(x)}{x.shuffle ? <><br /><small>trộn câu</small></> : null}</> },
+          { key: 'time', label: 'Thời gian', text: x => x.duration_min ? `${x.duration_min} phút` : 'Không giới hạn', cell: x => <>{x.duration_min ? `${x.duration_min} phút` : 'Không giới hạn'}{x.max_attempts ? <><br /><small>{x.max_attempts} lượt</small></> : null}</> },
+          { key: 'open', label: 'Mở', cell: x => <small>{dt(x.opens_at)}{x.closes_at ? ` → ${dt(x.closes_at)}` : ''}</small> },
+          { key: 'n', label: 'Lượt nộp', thClass: 'num', cell: x => { const c = counts.get(x.id); return <>{c?.n ?? 0}<br /><small>{c?.students.size ?? 0} HS</small></> } },
+          { key: 'avg', label: 'Điểm TB', thClass: 'num', cell: x => { const c = counts.get(x.id); return c?.n ? (c.sum / c.n).toFixed(1) : '—' } },
+          { key: 'st', label: 'Trạng thái', text: x => ESTATUS[x.status][0], cell: x => <span className={'pill ' + ESTATUS[x.status][1]}>{ESTATUS[x.status][0]}</span> },
+        ] as Col<Exam>[]} />
     </>
   )
 }
@@ -422,17 +421,21 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
     </ElView> }
   return (
     <>
-      <div className="bar"><div className="tools" style={{ flexWrap: 'wrap' }}>{ofl.node(rows.map(c => c.org_id))}</div>
-        <div className="tools"><ViewToggle value={view} onChange={setView} /><button className="primary" onClick={() => { setMsg(null); setForm({ ...CEMPTY, shared: !isSchool && !every }) }}>Tạo khoá học</button></div></div>
       {note}
-      {view === 'list' && shown.length > 0 && <div className="wrap"><table className="systable">
-        <thead><tr><th>Tên khoá học</th><th>Môn · khối</th><th style={{ width: 80 }}>Số bài</th><th>Đối tượng</th><th style={{ width: 170 }}>Hạn hoàn thành</th><th style={{ width: 120 }}>Trạng thái</th></tr></thead>
-        <tbody>{shown.map(c => { const n = lessons.filter(l => l.course_id === c.id).length
-          return <tr key={c.id} className="clickrow" onClick={() => { setMsg(null); setOpen(c.id) }}>
-            <td style={{ whiteSpace: 'normal' }}><b>{c.title}</b></td><td>{courseMeta(c).join(' · ') || '—'}</td><td>{n}</td>
-            <td style={{ whiteSpace: 'normal' }}>{whom(c) || '—'}</td><td>{c.due_at ? dt(c.due_at) : '—'}</td>
-            <td><span className={'pill ' + ESTATUS[c.status][1]}>{ESTATUS[c.status][0]}</span></td></tr> })}</tbody>
-      </table></div>}
+      {(() => {
+        const left = ofl.node(rows.map(c => c.org_id)), right = <><ViewToggle value={view} onChange={setView} /><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ ...CEMPTY, shared: !isSchool && !every }) }}>+ Tạo khoá học</button></>
+        return view === 'list' ? <DataTable id="elearning-courses" rows={shown} rowKey={c => c.id} onRow={c => { setMsg(null); setOpen(c.id) }} left={left} right={right}
+          empty={rows.length ? <small className="sub">Không có khoá học nào khớp bộ lọc.</small> : null}
+          cols={[
+            { key: 'title', label: 'Tên khoá học', fixed: true, text: c => c.title, cell: c => <b>{c.title}</b> },
+            { key: 'meta', label: 'Môn · khối', values: c => courseMeta(c), text: c => courseMeta(c).join(' · '), cell: c => courseMeta(c).join(' · ') || '—' },
+            { key: 'n', label: 'Số bài', text: c => String(lessons.filter(l => l.course_id === c.id).length), cell: c => lessons.filter(l => l.course_id === c.id).length },
+            { key: 'who', label: 'Đối tượng', text: c => String(whom(c) || ''), cell: c => whom(c) || '—' },
+            { key: 'due', label: 'Hạn hoàn thành', cell: c => c.due_at ? dt(c.due_at) : '—' },
+            { key: 'st', label: 'Trạng thái', text: c => ESTATUS[c.status][0], cell: c => <span className={'pill ' + ESTATUS[c.status][1]}>{ESTATUS[c.status][0]}</span> },
+          ] as Col<Course>[]} />
+          : <div className="tttools">{left && <div className="ttleft">{left}</div>}{right}</div>
+      })()}
       <div className="coursegrid">
         {view === 'cards' && shown.map(c => { const ls = lessons.filter(l => l.course_id === c.id)
           return <section key={c.id} className="panel coursecard clickrow" role="button" tabIndex={0} onClick={() => { setMsg(null); setOpen(c.id) }}

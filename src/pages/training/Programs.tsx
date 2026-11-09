@@ -105,9 +105,9 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
   const scopeText = (p: TProgram) => p.scope === 'selected' ? `${targets.get(p.id) ?? 0} đơn vị được chọn` : 'Tất cả đơn vị'
   const kindText = (p: TProgram) => [ctsOf(p).join(', '), lvsOf(p).map(levelName).join(', ')].filter(Boolean).join(' · ')
   const progCols: Col<TProgram>[] = [
-    { key: 'name', label: 'Chương trình đào tạo', fixed: true, text: p => `${p.title} ${p.code} ${p.builder ?? ''}`,
+    { key: 'name', label: 'Chương trình đào tạo', fixed: true, values: p => [p.title], text: p => `${p.title} ${p.code} ${p.builder ?? ''}`,
       cell: p => <><button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'open', id: p.id }) }}>{p.title}</button><br /><small className="sub">{p.code} · v{p.version_no}{p.builder ? ` · XD: ${p.builder}` : ''}</small></> },
-    { key: 'kind', label: 'Loại · cấp học', text: kindText, cell: p => kindText(p) || '—' },
+    { key: 'kind', label: 'Loại · cấp học', text: kindText, values: p => [...ctsOf(p), ...lvsOf(p).map(levelName)], cell: p => kindText(p) || '—' },
     { key: 'aud', label: 'Đối tượng', text: p => p.audience ?? '', cell: p => p.audience || '—' },
     { key: 'scope', label: 'Phạm vi áp dụng', text: scopeText, cell: p => <>{scopeText(p)}{effNote(p) && <><br /><small className="sub">{effNote(p)}</small></>}</> },
     { key: 'owner', label: 'Đơn vị tạo', text: p => owners.get(p.org_id) ?? '', cell: p => owners.get(p.org_id) ?? '—' },

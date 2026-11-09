@@ -8,7 +8,8 @@ import { fieldsOf, useSettings } from '../lib/settings'
 import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
 import { SchoolPicker } from '../components/SchoolPicker'
 import { useOrgFilter } from '../components/OrgFilters'
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { DataTable, MoreFilters, type Col } from '../components/DataTable'
 import { supabase, fetchAll } from '../lib/supabase'
 import { OrgPick, useAllMode, useAllOrgs } from '../components/OrgScope'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
@@ -181,25 +182,25 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
     onOpen={setOpenId} onClose={() => { setOpenId(null); load() }} />
 
   const canCopy = canEdit
-  const row = (p: Program, mine: boolean) => (
-    <tr key={p.id} className={!mine && sel.is(p) ? 'picked' : undefined}>
-      {!mine && canCopy && <SelTd on={sel.is(p)} onToggle={() => sel.toggle(p)} label={p.title} />}
-      <td>{p.code && <small className="sub">{p.code}<br /></small>}<NameLink onClick={() => setOpenId(p.id)}>{p.title}</NameLink> <small>v{p.version_no}</small>
-</td>
-      <td>{lvsOf(p).map(levelName).join(', ')} · {grades(p)}<br /><small>{PKIND[p.kind]}{ctsOf(p).map(c => <Fragment key={c}> <span className="gpill">{c}</span></Fragment>)}</small></td>
-      <td>{mainsOf(p).join(', ')}{p.integrated_subjects.length > 0 && <><br /><small className="sub">Tích hợp: {p.integrated_subjects.join(', ')}</small></>}</td>
-      <td>{p.total_periods || '—'}<br /><small className="sub">{[p.periods_per_week && `${p.periods_per_week} tiết/tuần`, DEPLOY[p.deploy_term ?? 'year']?.[0]].filter(Boolean).join(' · ')}</small></td>
-      <td style={{ whiteSpace: 'normal' }}>{p.scope === 'own' ? 'Đơn vị tạo và đơn vị được gán' : 'Tất cả đơn vị trực thuộc'}</td>
-      <td style={{ whiteSpace: 'normal' }}>{p.organizations?.name ?? '—'}</td>
-      <td><StatusPill s={p.status} />{p.status === 'published' && p.effective_from && <><br /><small className="sub">từ {fmtD(p.effective_from)}</small></>}</td>
-      {progFields.filter(x => x.column).map(x => <td key={x.key}>{customCell(x, p.custom?.[x.key])}</td>)}
-    </tr>
-  )
-  const table = (rows: Program[], mine: boolean) => (
-    <div className="wrap"><table>
-      <thead><tr>{!mine && canCopy && <SelTh />}<th>Chương trình</th><th>Cấp · khối · loại · nhóm</th><th>Môn</th><th>Số tiết · triển khai</th><th>Phạm vi áp dụng</th><th>Đơn vị tạo</th><th>Trạng thái</th>{progFields.filter(x => x.column).map(x => <th key={x.key}>{x.label}</th>)}</tr></thead>
-      <tbody>{rows.map(p => row(p, mine))}</tbody>
-    </table></div>
+  const progCols: Col<Program>[] = [
+    { key: 'name', label: 'Chương trình', fixed: true, values: p => [p.title], text: p => [p.code, p.title].join(' '),
+      cell: p => <>{p.code && <small className="sub">{p.code}<br /></small>}<NameLink onClick={() => setOpenId(p.id)}>{p.title}</NameLink> <small>v{p.version_no}</small></> },
+    { key: 'level', label: 'Cấp · khối · loại · nhóm', values: p => [...lvsOf(p).map(levelName), PKIND[p.kind], ...ctsOf(p)], text: p => [lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ...ctsOf(p)].join(' '),
+      cell: p => <>{lvsOf(p).map(levelName).join(', ')} · {grades(p)}<br /><small>{PKIND[p.kind]}{ctsOf(p).map(c => <Fragment key={c}> <span className="gpill">{c}</span></Fragment>)}</small></> },
+    { key: 'subj', label: 'Môn', values: p => [...mainsOf(p), ...p.integrated_subjects], text: p => [...mainsOf(p), ...p.integrated_subjects].join(' '),
+      cell: p => <>{mainsOf(p).join(', ')}{p.integrated_subjects.length > 0 && <><br /><small className="sub">Tích hợp: {p.integrated_subjects.join(', ')}</small></>}</> },
+    { key: 'periods', label: 'Số tiết · triển khai', values: p => [p.total_periods ? p.total_periods + ' tiết' : '', DEPLOY[p.deploy_term ?? 'year']?.[0] ?? ''], text: p => String(p.total_periods || ''),
+      cell: p => <>{p.total_periods || '—'}<br /><small className="sub">{[p.periods_per_week && `${p.periods_per_week} tiết/tuần`, DEPLOY[p.deploy_term ?? 'year']?.[0]].filter(Boolean).join(' · ')}</small></> },
+    { key: 'scope', label: 'Phạm vi áp dụng', text: p => p.scope === 'own' ? 'Đơn vị tạo và đơn vị được gán' : 'Tất cả đơn vị trực thuộc',
+      cell: p => p.scope === 'own' ? 'Đơn vị tạo và đơn vị được gán' : 'Tất cả đơn vị trực thuộc' },
+    { key: 'org', label: 'Đơn vị tạo', text: p => p.organizations?.name ?? '', cell: p => p.organizations?.name ?? '—' },
+    { key: 'status', label: 'Trạng thái', text: p => PSTATUS[p.status][0],
+      cell: p => <><StatusPill s={p.status} />{p.status === 'published' && p.effective_from && <><br /><small className="sub">từ {fmtD(p.effective_from)}</small></>}</> },
+    ...progFields.filter(x => x.column).map(x => ({ key: 'c_' + x.key, label: x.label, cell: (p: Program) => customCell(x, p.custom?.[x.key]) })),
+  ]
+  const table = (rows: Program[], mine: boolean, left?: ReactNode, right?: ReactNode, empty?: ReactNode) => (
+    <DataTable id={mine ? 'edu-programs' : 'edu-programs-shared'} rows={rows} rowKey={p => p.id} cols={progCols} left={left} right={right} empty={empty}
+      head={!mine && canCopy ? { th: <span className="sronly">Chọn</span>, td: p => <input type="checkbox" checked={sel.is(p)} onChange={() => sel.toggle(p)} aria-label={'Chọn ' + p.title} /> } : undefined} />
   )
   const cards = (rows: Program[], mine: boolean) => (
     <div className="tilegrid wide">
@@ -223,7 +224,9 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
       ))}
     </div>
   )
-  const show = (rows: Program[], mine: boolean) => view === 'cards' ? cards(rows, mine) : table(rows, mine)
+  const show = (rows: Program[], mine: boolean, left?: ReactNode, right?: ReactNode, empty?: ReactNode) => view === 'cards'
+    ? <>{(left || right) && <div className="tttools">{left && <div className="ttleft">{left}</div>}{right}</div>}{rows.length ? cards(rows, mine) : <p className="sub">{empty}</p>}</>
+    : table(rows, mine, left, right, empty)
   const ownLive = all.filter(p => p.org_id === orgId && !SGROUP.off[1].includes(p.status))
   const firstDraft = ownLive.find(p => SGROUP.draft[1].includes(p.status))
   const flow: [string, number, string, (() => void) | undefined][] = [
@@ -257,32 +260,29 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
           : mode === 'platform' ? 'Chương trình chuẩn của KDI: cấu trúc, yêu cầu cần đạt, phiên bản. Bản đã phát hành và chọn "dùng chung" hiện với tất cả đơn vị.'
           : 'Chương trình của đơn vị: soạn, phát hành, gán cho trường trực thuộc và theo dõi mức độ triển khai.'}
       </p>
-      <div className="bar">
-        <div className="tools">
-          <LevelPicker value={level} onChange={setLevel} emptyLabel="Tất cả cấp học" />
-          <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại chương trình"><option value="">Tất cả loại chương trình</option>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select>
-          {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
-          <select value={maker} onChange={e => setMaker(e.target.value)} aria-label="Đơn vị tạo"><option value="">Tất cả đơn vị tạo</option>{makers.map(([id, nm]) => <option key={id} value={id}>{nm}</option>)}</select>
-          <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Trạng thái"><option value="">Tất cả trạng thái</option>{Object.entries(SGROUP).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}</select>
-          <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-          <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện chương trình ngừng dùng</label>
-        </div>
-      </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : (
         <>
-          <div className="bar tblhead"><h3>{every ? 'Tất cả đơn vị' : 'Của đơn vị'} ({own.length})</h3>
-          <div className="tools">
+          {!every && <h3>Của đơn vị ({own.length})</h3>}
+          {show(own, true, <>
+            <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
+            <LevelPicker value={level} onChange={setLevel} emptyLabel="Tất cả cấp học" />
+            <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Trạng thái"><option value="">Tất cả trạng thái</option>{Object.entries(SGROUP).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}</select>
+            <MoreFilters active={!!(kind || subject || maker || old)}>
+              <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại chương trình"><option value="">Tất cả loại chương trình</option>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select>
+              {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
+              <select value={maker} onChange={e => setMaker(e.target.value)} aria-label="Đơn vị tạo"><option value="">Tất cả đơn vị tạo</option>{makers.map(([id, nm]) => <option key={id} value={id}>{nm}</option>)}</select>
+              <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện chương trình ngừng dùng</label>
+            </MoreFilters>
+            <small className="sub">{own.length} chương trình</small>
+          </>, <>
             <ViewToggle value={view} onChange={setView} />
-            {canEdit && !hid('add') && <button className="primary" onClick={() => setForm({ level: 'thcs', levels: ['thcs'], kind: 'subject', grade_from: 6, grade_to: 9, grades: [6, 7, 8, 9], scope: mode === 'school' ? 'own' : 'children', integrated_subjects: [], competency_keys: [], rubric_ids: [], deploy_term: 'year' })}>Thêm chương trình</button>}
-          </div></div>
-          {own.length ? show(own, true) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chương trình nào.{canEdit && ' Bấm "Thêm chương trình", hoặc sao chép chương trình dùng chung bên dưới.'}</p></div>}
+            {canEdit && !hid('add') && <button type="button" className="primary ttadd" onClick={() => setForm({ level: 'thcs', levels: ['thcs'], kind: 'subject', grade_from: 6, grade_to: 9, grades: [6, 7, 8, 9], scope: mode === 'school' ? 'own' : 'children', integrated_subjects: [], competency_keys: [], rubric_ids: [], deploy_term: 'year' })}>+ Thêm chương trình</button>}
+          </>, <small className="sub">Chưa có chương trình nào.{canEdit && ' Bấm "Thêm chương trình", hoặc sao chép chương trình dùng chung bên dưới.'}</small>)}
           {!every && <>
           <h3>Dùng chung / được gán ({shared.length})</h3>
-          {shared.length > 0 && canCopy && <SelBar picked={sel.cur?.title ?? null}>
-            <button disabled={!sel.cur || !['published', 'superseded'].includes(sel.cur.status)} onClick={() => sel.cur && copy(sel.cur)}>Sao chép về đơn vị</button>
-          </SelBar>}
-          {shared.length ? show(shared, false) : <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có chương trình nào do KDI hoặc cấp trên phát hành cho đơn vị.</p></div>}</>}
+          {shared.length ? show(shared, false, undefined, canCopy && <button type="button" className="primary ttadd" disabled={!sel.cur || !['published', 'superseded'].includes(sel.cur.status)} onClick={() => sel.cur && copy(sel.cur)}
+            title={sel.cur ? undefined : 'Tick một chương trình bên dưới'}>Sao chép về đơn vị</button>) : <p className="sub">Chưa có chương trình nào do KDI hoặc cấp trên phát hành cho đơn vị.</p>}</>}
         </>
       )}
     </>

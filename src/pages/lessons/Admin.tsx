@@ -1,7 +1,8 @@
-import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../../components/TableSel'
+import { NameLink, useRowSel } from '../../components/TableSel'
 // Giáo án & bài giảng cho Trường (duyệt, theo dõi, mẫu giáo án), Sở / Phòng (giáo án đã xuất bản của trường trực thuộc, mẫu dùng chung)
 // và KDI (mẫu giáo án dùng chung toàn hệ thống)
 import { Suspense, lazy, useEffect, useState } from 'react'
+import { DataTable, type Col } from '../../components/DataTable'
 import { supabase, fetchAll } from '../../lib/supabase'
 import { useAllMode, useOrgName } from '../../components/OrgScope'
 import { Tabs } from '../teacher/common'
@@ -144,33 +145,30 @@ function SchoolPlans({ orgId, go }: P) {
         : `Trường chưa bật quy trình duyệt ${NOUN}: giáo viên tự xuất bản. Bật trong Quy trình phê duyệt (loại “Giáo án”) nếu cần duyệt.`}
         {go && <> <button className="linkbtn" onClick={() => go('Quy trình phê duyệt')}>Quy trình phê duyệt</button></>}</p>
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
-      <div className="tools" style={{ marginBottom: 12 }}>
-        <input className="search" style={{ margin: 0 }} placeholder={`Tìm ${NOUN}…`} value={q} onChange={e => setQ(e.target.value)} aria-label={`Tìm ${NOUN}`} />
-        <select value={st} onChange={e => setSt(e.target.value)} aria-label="Lọc trạng thái">{FILTERS.map(([k, l, ss]) => <option key={k} value={k}>{l}{ss.length ? ` (${n(ss)})` : ''}</option>)}</select>
-        {ofl.node(rows.map(r => r.org_id))}
-        <select value={teacher} onChange={e => setTeacher(e.target.value)} aria-label="Lọc giáo viên"><option value="">Tất cả giáo viên</option>{teachers.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select>
-        <button onClick={exportX} disabled={!shown.length}>Xuất Excel</button>
-      </div>
-      <SelBar picked={psel.cur?.title ?? null}>
-        <button className="primary" disabled={psel.cur?.status !== 'pending'} onClick={() => psel.cur && decide(psel.cur, 'approve')}>Duyệt</button>
-        <button className="danger" disabled={psel.cur?.status !== 'pending'} onClick={() => psel.cur && decide(psel.cur, 'reject')}>Trả lại</button>
-      </SelBar>
-      <div className="wrap"><table>
-        <thead><tr><SelTh /><th>{PLAN_MODE ? 'Giáo án' : 'Bài giảng'}</th><th>Giáo viên</th>{PLAN_MODE && <th>Mẫu</th>}<th>{PLAN_MODE ? 'Tiến trình' : 'Nội dung'}</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
-        <tbody>{shown.map(p => (
-          <tr key={p.id} className={psel.is(p) ? 'picked' : undefined}>
-            <SelTd on={psel.is(p)} onToggle={() => psel.toggle(p)} label={p.title} />
-            <td><NameLink onClick={() => setOpen(p)}>{p.title}</NameLink><br /><small className="sub">{[p.subject, p.grades && `Khối ${p.grades}`, p.periods && `${p.periods} tiết`].filter(Boolean).join(' · ')}</small></td>
-            <td>{p.teachers?.full_name ?? '—'}{every && <><br /><small className="sub">{orgName(p.org_id)}</small></>}</td>
-            {PLAN_MODE && <td><small>{templates.find(t => t.id === p.template_id)?.name ?? 'Không theo mẫu'}</small></td>}
-            <td><small>{PLAN_MODE ? `${p.steps.length} bước · ${totalMinutes(p.steps)} phút · ${p.slides.length} slide`
-              : `${lessonStats(asLesson(p.lesson)).blocks} khối · ${p.slides.length} slide`}</small></td>
-            <td><LStatusPill s={p.status} />{p.version_no > 0 && <small> v{p.version_no}</small>}</td>
-            <td><small>{fmtD(p.updated_at)}</small></td>
-          </tr>
-        ))}</tbody>
-      </table></div>
-      {shown.length === 0 && <p className="sub">Không có {NOUN} nào.</p>}
+      <DataTable id={PLAN_MODE ? 'school-plans' : 'school-lessons'} rows={shown} rowKey={p => p.id} empty={<small className="sub">Không có {NOUN} nào.</small>}
+        head={{ th: <span className="sronly">Chọn</span>, td: p => <input type="checkbox" checked={psel.is(p)} onChange={() => psel.toggle(p)} aria-label={'Chọn ' + p.title} /> }}
+        cols={[
+          { key: 'title', label: PLAN_MODE ? 'Giáo án' : 'Bài giảng', fixed: true, values: p => [p.title], text: p => [p.title, p.subject, p.grades].join(' '),
+            cell: p => <><NameLink onClick={() => setOpen(p)}>{p.title}</NameLink><br /><small className="sub">{[p.subject, p.grades && `Khối ${p.grades}`, p.periods && `${p.periods} tiết`].filter(Boolean).join(' · ')}</small></> },
+          { key: 'subj', label: 'Môn', off: true, text: p => p.subject ?? '', cell: p => p.subject ?? '—' },
+          { key: 'teacher', label: 'Giáo viên', text: p => p.teachers?.full_name ?? '', cell: p => <>{p.teachers?.full_name ?? '—'}{every && <><br /><small className="sub">{orgName(p.org_id)}</small></>}</> },
+          ...(PLAN_MODE ? [{ key: 'tpl', label: 'Mẫu', text: (p: typeof shown[number]) => templates.find(t => t.id === p.template_id)?.name ?? 'Không theo mẫu', cell: (p: typeof shown[number]) => <small>{templates.find(t => t.id === p.template_id)?.name ?? 'Không theo mẫu'}</small> }] : []),
+          { key: 'body', label: PLAN_MODE ? 'Tiến trình' : 'Nội dung', cell: p => <small>{PLAN_MODE ? `${p.steps.length} bước · ${totalMinutes(p.steps)} phút · ${p.slides.length} slide`
+            : `${lessonStats(asLesson(p.lesson)).blocks} khối · ${p.slides.length} slide`}</small> },
+          { key: 'st', label: 'Trạng thái', text: p => LSTATUS[p.status]?.[0] ?? p.status, cell: p => <><LStatusPill s={p.status} />{p.version_no > 0 && <small> v{p.version_no}</small>}</> },
+          { key: 'upd', label: 'Cập nhật', cell: p => <small>{fmtD(p.updated_at)}</small> },
+        ] as Col<typeof shown[number]>[]}
+        left={<>
+          <input placeholder={`Tìm ${NOUN}…`} value={q} onChange={e => setQ(e.target.value)} aria-label={`Tìm ${NOUN}`} />
+          <select value={st} onChange={e => setSt(e.target.value)} aria-label="Lọc trạng thái">{FILTERS.map(([k, l, ss]) => <option key={k} value={k}>{l}{ss.length ? ` (${n(ss)})` : ''}</option>)}</select>
+          {ofl.node(rows.map(r => r.org_id))}
+          <select value={teacher} onChange={e => setTeacher(e.target.value)} aria-label="Lọc giáo viên"><option value="">Tất cả giáo viên</option>{teachers.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select>
+        </>}
+        right={<>
+          <button type="button" onClick={exportX} disabled={!shown.length}>Xuất Excel</button>
+          <button type="button" className="primary ttadd" disabled={psel.cur?.status !== 'pending'} title={psel.cur ? undefined : 'Tick một dòng để duyệt'} onClick={() => psel.cur && decide(psel.cur, 'approve')}>Duyệt</button>
+          <button type="button" className="danger" disabled={psel.cur?.status !== 'pending'} onClick={() => psel.cur && decide(psel.cur, 'reject')}>Trả lại</button>
+        </>} />
     </>
   )
 }

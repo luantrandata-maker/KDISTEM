@@ -9,7 +9,8 @@ import { SchoolPicker } from '../../components/SchoolPicker'
 import { useHiddenBtn } from '../../components/PageButtons'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase, fetchAll } from '../../lib/supabase'
-import { useMultiSel, SelAllTh } from '../../components/TableSel'
+import { useMultiSel } from '../../components/TableSel'
+import { DataTable, type Col as DCol } from '../../components/DataTable'
 import type { ClsNode } from './cls'
 import { ClsTree } from './ClsTree'
 import { Drawer } from '../../components/Drawer'
@@ -192,9 +193,8 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
   const setFs = (fs: Status | '') => setF({ ...f, fs, card: null })
   const setQ = (q: string) => setF({ ...f, q })
   const setFc = (fc: string) => setF({ ...f, fc })
-  const [sort, setSort] = useState<[SortKey, 1 | -1]>(['title', 1])
+  const sort: [SortKey, 1 | -1] = ['title', 1]
   const [err, setErr] = useState('')
-  const { has, menu } = useCols('dist-list-cols', COLS, COLS.map(c => c.key))
   const classes = useMemo(() => [...new Set(plans.map(p => crumb(p)))].sort(), [plans, crumb])
   const shown = useMemo(() => {
     const val = (p: Plan): string | number => {
@@ -225,41 +225,40 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
     else onCopied(null, `Đã nhân bản ${ps.length} bản thành bản nháp mới.`)
   }
   const n = (s: Status) => plans.filter(p => p.status === s && listMatch(p, f, crumb)).length
-  const th = (k: SortKey, label: string) => <th key={k}><button type="button" className="distsort" onClick={() => setSort([k, sort[0] === k ? (-sort[1] as 1 | -1) : 1])}>
-    {label} <small aria-hidden="true">{sort[0] === k ? (sort[1] === 1 ? '↑' : '↓') : '↕'}</small></button></th>
   return (
     <>
       <div className="distfilter">
         {([['', 'Tất cả', plans.filter(p => listMatch(p, f, crumb)).length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['superseded', 'Đã thay thế', n('superseded')], ['archived', 'Ngừng dùng', n('archived')]] as [Status | '', string, number][]).map(([s, l, c]) =>
           <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
-        <span className="tooldiv" aria-hidden="true" />
-        <input placeholder="Tìm tên, mã, phân loại…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-        <select value={fc} onChange={e => setFc(e.target.value)} aria-label="Phân loại"><option value="">Tất cả phân loại</option>{classes.map(c => <option key={c} value={c}>{c}</option>)}</select>
-        <small className="sub">{shown.length}/{plans.length} bản</small>
       </div>
       {err && <p className="msg">{err}</p>}
-      <div className="panel">
-        <div className="bar"><b>Bản phân phối</b>
-          <div className="tools">
-            {picked.length > 0 && <small className="sub">Đã chọn: <b>{one ? one.code : picked.length + ' bản'}</b> <button type="button" className="linkbtn" onClick={sel.clear}>Bỏ chọn</button></small>}
-            <button type="button" disabled={!picked.length || busy} onClick={() => copy(picked)}>Nhân bản{picked.length > 1 ? ` (${picked.length})` : ''}</button>
-            <button type="button" className="primary" disabled={!one || one.status !== 'published'}
-              title={picked.length > 1 ? 'Gán trường làm cho từng bản một' : one && one.status !== 'published' ? 'Chỉ gán bản đã phát hành' : undefined}
-              onClick={() => one && onAssign(one.id)}>Gán trường</button>
-            {menu}
-            {!hid('create') && <button type="button" className="primary" disabled={!canCreate} onClick={onCreate}>+ Tạo bản phân phối</button>}
-          </div>
-        </div>
-        <div className="wrap"><table className="libtable">
-          <thead><tr><SelAllTh all={sel.all} some={sel.some} onToggle={sel.toggleAll} />
-            {th('title', 'Bản phân phối')}{has('cls') && th('cls', 'Phân loại')}{has('parts') && th('parts', 'Thành phần')}{has('lessons') && th('lessons', 'Bài · tiết')}
-            {has('books') && th('books', 'Đã gán')}{has('status') && th('status', 'Trạng thái')}{has('updated') && th('updated', 'Cập nhật')}</tr></thead>
-          <tbody>{shown.map(p => <tr key={p.id} className={sel.is(p) ? 'picked' : undefined}>
-            <td className="sel"><input type="checkbox" checked={sel.is(p)} onChange={() => sel.toggle(p)} aria-label={'Chọn ' + p.code} /></td>
-            <PlanCells p={p} m={meta.get(p.id)} has={has} crumb={crumb(p)} onOpen={() => onOpen(p)} /></tr>)}
-            {shown.length === 0 && <tr><td colSpan={COLS.length + 1}>{plans.length ? 'Không có bản nào khớp bộ lọc.' : 'Chưa có bản phân phối nào. Bấm “+ Tạo bản phân phối”.'}</td></tr>}</tbody>
-        </table></div>
-      </div>
+      <DataTable id="dist-plans" rows={shown} rowKey={p => p.id}
+        empty={<small className="sub">{plans.length ? 'Không có bản nào khớp bộ lọc.' : 'Chưa có bản phân phối nào. Bấm “+ Tạo bản phân phối”.'}</small>}
+        head={{ th: <input type="checkbox" checked={sel.all} ref={el => { if (el) el.indeterminate = sel.some }} onChange={sel.toggleAll} aria-label="Chọn tất cả" />,
+          td: p => <input type="checkbox" checked={sel.is(p)} onChange={() => sel.toggle(p)} aria-label={'Chọn ' + p.code} /> }}
+        cols={[
+          { key: 'plan', label: 'Bản phân phối', fixed: true, values: p => [p.title], text: p => `${p.title} ${p.code}`,
+            cell: p => <><button type="button" className="namelink" onClick={() => onOpen(p)}>{p.title}</button><br /><small className="sub">{p.code} · Phiên bản {p.version_no ?? 1}</small></> },
+          { key: 'cls', label: 'Phân loại', text: p => crumb(p), cell: p => crumb(p) },
+          { key: 'parts', label: 'Thành phần', cell: p => { const m = meta.get(p.id); return `${m?.programs ?? 0} chương trình · ${m?.subjects ?? 0} môn` } },
+          { key: 'lessons', label: 'Bài · tiết', cell: p => { const m = meta.get(p.id); return `${m?.lessons ?? 0} bài · ${m?.periods ?? 0} tiết` } },
+          { key: 'books', label: 'Đã gán', cell: p => `${meta.get(p.id)?.books ?? 0} PPCT` },
+          { key: 'status', label: 'Trạng thái', text: p => STATUS[p.status][0], cell: p => <Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip> },
+          { key: 'updated', label: 'Cập nhật', cell: p => <small>{new Date(p.updated_at).toLocaleDateString('vi-VN')}</small> },
+        ] as DCol<Plan>[]}
+        left={<>
+          <input placeholder="Tìm tên, mã, phân loại…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
+          <select value={fc} onChange={e => setFc(e.target.value)} aria-label="Phân loại"><option value="">Tất cả phân loại</option>{classes.map(c => <option key={c} value={c}>{c}</option>)}</select>
+          <small className="sub">{shown.length}/{plans.length} bản</small>
+          {picked.length > 0 && <small className="sub">Đã chọn: <b>{one ? one.code : picked.length + ' bản'}</b> <button type="button" className="linkbtn" onClick={sel.clear}>Bỏ chọn</button></small>}
+        </>}
+        right={<>
+          <button type="button" disabled={!picked.length || busy} onClick={() => copy(picked)}>Nhân bản{picked.length > 1 ? ` (${picked.length})` : ''}</button>
+          <button type="button" disabled={!one || one.status !== 'published'}
+            title={picked.length > 1 ? 'Gán trường làm cho từng bản một' : one && one.status !== 'published' ? 'Chỉ gán bản đã phát hành' : undefined}
+            onClick={() => one && onAssign(one.id)}>Gán trường</button>
+          {!hid('create') && <button type="button" className="primary ttadd" disabled={!canCreate} onClick={onCreate}>+ Tạo bản phân phối</button>}
+        </>} />
     </>
   )
 }

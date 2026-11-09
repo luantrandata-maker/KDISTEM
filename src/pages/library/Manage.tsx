@@ -11,7 +11,8 @@ import { StatCards } from '../../components/StatCards'
 import { lazy, Suspense } from 'react'
 import { norm as normText } from '../../lib/sheet'
 import { BankList } from './BankList'
-import { Fragment, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { DataTable, type Col } from '../../components/DataTable'
 import { supabase, fetchAll } from '../../lib/supabase'
 import { OrgPick, useAllMode, useOrgName, useProvinceOf } from '../../components/OrgScope'
 import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../../components/MultiFilters'
@@ -19,7 +20,7 @@ import { Tabs } from '../teacher/common'
 import type { Slide } from '../teacher/Lessons'
 import { uploadLearningFile, fmtSize, MAX_FILE_MB } from '../../lib/files'
 import {
-  useMatTypes, KindChip, ProgChip, StatusChip, ItemDrawer, SlidesEditor, SCOPE, MAT_TYPE, KIND, NEW_KINDS, RIGHTS, RightsChip, ProgLine,
+  useMatTypes, KindChip, ProgChip, StatusChip, STATUS as LIB_STATUS, ItemDrawer, SlidesEditor, SCOPE, MAT_TYPE, KIND, NEW_KINDS, RIGHTS, RightsChip, ProgLine,
   fmtDate, uid, selectItems, useProgramOptions, useNormOptions, unitTree, progLabel, KIT, kitDone, type KitCard, type Item, type Unit, type Rights,
 } from './common'
 import { GradeChecks, SubjectPicker, gradeList } from '../../components/Pickers'
@@ -520,6 +521,30 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
     if (isPlan(i)) { const p = planOf(c as any); return [p.periods && `${p.periods} tiết`, p.steps.length && `${p.steps.length} bước`, c.file_name ? 'có tệp' : c.url ? 'có đường dẫn' : ''].filter(Boolean).join(' · ') || 'chưa có nội dung' }
     return [MAT_TYPE[c.type ?? 'link'], c.file_name ?? (c.url ? 'đường dẫn' : 'chưa có tệp')].filter(Boolean).join(' · ')
   }
+  const libLeft = <>
+    <input placeholder="Tìm tên, mô tả, từ khoá…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
+    <MultiFilters defs={filterDefs} f={mf} count={`${shown.length}/${ofTab.length}`} />
+  </>
+  const libRight = <>
+    <ViewToggle value={view} onChange={setView} />
+    {!hid('add') && <button type="button" className="primary ttadd" onClick={() => addNew(tab)}>+ Thêm {tabLabel(tab).toLowerCase()}</button>}
+  </>
+  const libEmpty = ofTab.length ? 'Không có mục nào khớp bộ lọc.' : `Chưa có ${tabLabel(tab).toLowerCase()} nào. Bấm “Thêm ${tabLabel(tab).toLowerCase()}” để bắt đầu.`
+  const libCols: Col<Item>[] = [
+    { key: 'title', label: tabLabel(tab), fixed: true, values: i => [i.title], text: i => [i.title, every ? i.owner_name : '', i.subject, i.grades].join(' '),
+      cell: i => <><b>{i.title}</b>
+        <div className="sub" style={{ fontSize: 12 }}>{[every && i.owner_name, i.subject, i.grades && `Khối ${i.grades}`].filter(Boolean).join(' · ') || '—'}{i.program ? <> <ProgChip p={i.program} /></> : null}{i.usage_rights && i.usage_rights !== 'adapt' && <> <RightsChip r={i.usage_rights} /></>}</div></> },
+    { key: 'prog', label: 'Chương trình', values: i => [i.edu_programs?.title ?? ''], text: i => [i.edu_programs?.title, i.edu_program_units?.title].join(' '),
+      cell: i => i.edu_programs ? <>{i.edu_programs.title} <small className="sub">v{i.edu_programs.version_no}</small>{i.edu_program_units && <div className="sub" style={{ fontSize: 12 }}>{i.edu_program_units.title}</div>}</> : <small className="sub">—</small> },
+    { key: 'parts', label: tab === 'unit' ? 'Thành phần' : 'Nội dung', text: i => String(partsOf(i) ?? ''), cell: i => <small>{partsOf(i)}</small> },
+    { key: 'scope', label: 'Phát hành tới', text: i => SCOPE[i.scope] ?? '',
+      cell: i => <>{SCOPE[i.scope]}{i.scope === 'selected' && <div className="sub" style={{ fontSize: 12 }}>{(targets.get(i.id) ?? []).map(id => orgs.find(o => o.id === id)?.name).filter(Boolean).join(', ')}</div>}</> },
+    { key: 'st', label: 'Trạng thái', text: i => LIB_STATUS[i.status]?.[1] ?? i.status, cell: i => <><StatusChip s={i.status} />{i.version > 0 && <small className="sub"> v{i.version}</small>}</> },
+    { key: 'used', label: 'Trường đã dùng', text: i => { const s = stats.get(i.id); return s ? `${s.schools} trường` : 'Chưa có' },
+      cell: i => { const s = stats.get(i.id); return s ? <>{s.schools} trường{s.outdated ? <div className="sub" style={{ fontSize: 12 }}>{s.outdated} bản dùng phiên bản cũ</div> : null}</> : <small className="sub">Chưa có</small> } },
+    ...libFields.filter(f => f.column).map(f => ({ key: 'c_' + f.key, label: f.label, cell: (i: Item) => customCell(f, i.custom?.[f.key]) })),
+    { key: 'upd', label: 'Cập nhật', text: i => fmtDate(i.updated_at), cell: i => <small>{fmtDate(i.updated_at)}</small> },
+  ]
   return (
     <>
       {!only && <div style={{ marginBottom: 10 }}>
@@ -540,17 +565,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
           { k: 'noprog', icon: 'alert', tone: noProg ? 'warn' : 'good', value: noProg, label: 'Bài chưa gắn chương trình', sub: 'Chưa gắn chương trình giáo dục' },
         ]} />
       })()}
-      {!start && <><div className="bar">
-        <div className="tools">
-          <MultiFilters defs={filterDefs} f={mf} count={`${shown.length}/${ofTab.length}`} />
-          <input placeholder="Tìm tên, mô tả, từ khoá…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-        </div>
-        <div className="tools">
-          <ViewToggle value={view} onChange={setView} />
-          {!hid('add') && <button type="button" className="primary" onClick={() => addNew(tab)}>Thêm {tabLabel(tab).toLowerCase()}</button>}
-        </div>
-      </div>
-      <p className="sub">Học liệu phát hành tới {me.type === 'provider' ? 'các đơn vị bạn chọn hoặc công khai toàn hệ thống' : `các đơn vị trực thuộc ${me.name}`}. Trường “dùng” sẽ có bản riêng để chỉnh sửa; khi bạn phát hành bản cập nhật, trường được báo nhưng bản của họ không bị ghi đè.</p></>}
+      {!start && <p className="sub">Học liệu phát hành tới {me.type === 'provider' ? 'các đơn vị bạn chọn hoặc công khai toàn hệ thống' : `các đơn vị trực thuộc ${me.name}`}. Trường “dùng” sẽ có bản riêng để chỉnh sửa; khi bạn phát hành bản cập nhật, trường được báo nhưng bản của họ không bị ghi đè.</p>}
       {msg && !form && <p className="msg">{msg}</p>}
       {info && <p className="sub"><b>{info}</b></p>}
 
@@ -790,7 +805,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
           {i.status !== 'published' && !stats.get(i.id) && <button type="button" className="danger" onClick={() => { remove(i); setOpen(null) }}>Xoá</button>}
         </>} />}
 
-      {start ? null : view === 'cards' ? (shown.length === 0 ? <p className="sub">{ofTab.length ? 'Không có mục nào khớp bộ lọc.' : `Chưa có ${tabLabel(tab).toLowerCase()} nào. Bấm “Thêm ${tabLabel(tab).toLowerCase()}” để bắt đầu.`}</p> : (
+      {start ? null : view === 'cards' ? <><div className="tttools"><div className="ttleft">{libLeft}</div>{libRight}</div>{shown.length === 0 ? <p className="sub">{libEmpty}</p> : (
         <div className={'tilegrid ' + (tab === 'lesson' ? 'wide' : 'sq')}>
           {shown.map((i, n) => {
             const s = stats.get(i.id)
@@ -812,30 +827,8 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
             )
           })}
         </div>
-      )) : <div className="wrap">
-        <table className="libtable">
-          <thead><tr><th>{tabLabel(tab)}</th><th>Chương trình</th><th>{tab === 'unit' ? 'Thành phần' : 'Nội dung'}</th><th>Phát hành tới</th><th>Trạng thái</th><th>Trường đã dùng</th>{libFields.filter(f => f.column).map(f => <th key={f.key}>{f.label}</th>)}<th>Cập nhật</th></tr></thead>
-          <tbody>
-            {shown.map(i => {
-              const s = stats.get(i.id)
-              return (<Fragment key={i.id}>
-                <tr className={'rowlink' + (open === i.id ? ' on' : '')} onClick={() => setOpen(i.id)} tabIndex={0} onKeyDown={e => { if (e.key === 'Enter') setOpen(i.id) }}>
-                  <td><b>{i.title}</b>
-                    <div className="sub" style={{ fontSize: 12 }}>{[every && i.owner_name, i.subject, i.grades && `Khối ${i.grades}`].filter(Boolean).join(' · ') || '—'}{i.program ? <> <ProgChip p={i.program} /></> : null}{i.usage_rights && i.usage_rights !== 'adapt' && <> <RightsChip r={i.usage_rights} /></>}</div></td>
-                  <td>{i.edu_programs ? <>{i.edu_programs.title} <small className="sub">v{i.edu_programs.version_no}</small>{i.edu_program_units && <div className="sub" style={{ fontSize: 12 }}>{i.edu_program_units.title}</div>}</> : <small className="sub">—</small>}</td>
-                  <td><small>{partsOf(i)}</small></td>
-                  <td>{SCOPE[i.scope]}{i.scope === 'selected' && <div className="sub" style={{ fontSize: 12 }}>{(targets.get(i.id) ?? []).map(id => orgs.find(o => o.id === id)?.name).filter(Boolean).join(', ')}</div>}</td>
-                  <td><StatusChip s={i.status} />{i.version > 0 && <small className="sub"> v{i.version}</small>}</td>
-                  <td>{s ? <>{s.schools} trường{s.outdated ? <div className="sub" style={{ fontSize: 12 }}>{s.outdated} bản dùng phiên bản cũ</div> : null}</> : <small className="sub">Chưa có</small>}</td>
-                  {libFields.filter(f => f.column).map(f => <td key={f.key}>{customCell(f, i.custom?.[f.key])}</td>)}
-                  <td><small>{fmtDate(i.updated_at)}</small></td>
-                </tr>
-              </Fragment>)
-            })}
-            {shown.length === 0 && <tr><td colSpan={7}>{ofTab.length ? 'Không có mục nào khớp bộ lọc.' : `Chưa có ${tabLabel(tab).toLowerCase()} nào. Bấm “Thêm ${tabLabel(tab).toLowerCase()}” để bắt đầu.`}</td></tr>}
-          </tbody>
-        </table>
-      </div>}
+      )}</> : <DataTable key={tab} id={'library-' + tab} rows={shown} rowKey={i => i.id} cols={libCols} left={libLeft} right={libRight}
+        empty={<small className="sub">{libEmpty}</small>} onRow={i => setOpen(i.id)} />}
       </>}
     </>
   )

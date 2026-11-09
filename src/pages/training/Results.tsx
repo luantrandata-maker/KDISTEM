@@ -80,7 +80,7 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
   const tot = list.map(p => cnt.get(p.id)).filter(Boolean).reduce<{ n: number; pass: number; fail: number; cert: number }>((a, c) => ({ n: a.n + c!.n, pass: a.pass + c!.pass, fail: a.fail + c!.fail, cert: a.cert + c!.cert }), { n: 0, pass: 0, fail: 0, cert: 0 })
   const cOf = (p: TPlanRow) => cnt.get(p.id) ?? { n: 0, pass: 0, fail: 0, cert: 0 }
   const resCols: Col<TPlanRow>[] = [
-    { key: 'name', label: 'Kế hoạch đào tạo', fixed: true, text: p => `${p.name} ${p.plan_code ?? ''} ${p.year_name ?? ''}`,
+    { key: 'name', label: 'Kế hoạch đào tạo', fixed: true, values: p => [p.name], text: p => `${p.name} ${p.plan_code ?? ''} ${p.year_name ?? ''}`,
       cell: p => <><button type="button" className="namelink" onClick={() => setOpen(p.id)}>{p.name}</button><br /><small className="sub">{[p.plan_code, p.year_name, p.org_id === orgId ? '' : 'được giao'].filter(Boolean).join(' · ')}</small></> },
     { key: 'n', label: 'Nhà giáo', cell: p => cOf(p).n },
     { key: 'pass', label: 'Đạt', cell: p => { const c = cOf(p); return <><b className="tlok">{c.pass}</b>{c.n ? <small className="sub"> · {Math.round(c.pass * 100 / c.n)}%</small> : null}</> } },

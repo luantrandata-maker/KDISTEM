@@ -1,9 +1,9 @@
 import { useState, type ReactNode } from 'react'
 
-/** Trạng thái đóng/mở của khung hướng dẫn, nhớ theo từng trang trên trình duyệt này */
+/** Trạng thái đóng/mở của khung hướng dẫn: mặc định thu gọn, bấm Mở rộng để xem; nhớ theo từng trang trên trình duyệt này */
 export function useGuide(id: string): [boolean, () => void] {
   const key = 'kdi-guide-' + id
-  const [closed, setClosed] = useState(() => { try { return localStorage.getItem(key) === '1' } catch { return false } })
+  const [closed, setClosed] = useState(() => { try { return localStorage.getItem(key) !== '0' } catch { return true } })
   const toggle = () => { setClosed(!closed); try { localStorage.setItem(key, closed ? '0' : '1') } catch { /* chỉ đổi trong phiên */ } }
   return [closed, toggle]
 }

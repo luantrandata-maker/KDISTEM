@@ -196,7 +196,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
           <td><Chip tone={ST[st][1]}>{ST[st][0]}</Chip></td>
         </tr> })}
         {!shown.length && <tr><td colSpan={6}>{rows.length ? 'Không có buổi nào khớp bộ lọc.' : plans.length ? (can ? 'Chưa có buổi nào. Bấm "Xếp lịch từ kế hoạch".' : 'Chưa có buổi nào.') : 'Chưa có kế hoạch nào đã phát hành. Phát hành kế hoạch ở tab Kế hoạch trước.'}</td></tr>}</tbody>
-    </table></div> : <SessCal rows={shown} hol={hol} info={sinfo} planName={id => { const p = pl(id); return p ? [p.plan_code, p.name].filter(Boolean).join(' · ') : '—' }} label={x => { const p = pl(x.plan_id); return [all && orgName(p?.org_id), p?.plan_code, MODE[x.mode], (i => i.total ? `${i.present}/${i.total} có mặt` : '')(info(x.id))].filter(Boolean).join(' · ') }}
+    </table></div> : <SessCal rows={shown} hol={hol} info={sinfo} planName={id => { const p = pl(id); return p ? [p.plan_code, p.name].filter(Boolean).join(' · ') : '—' }} label={x => { const p = pl(x.plan_id); return [all && orgName(p?.org_id), MODE[x.mode], x.mode === 'offline' ? x.location : '', (i => i.total ? `${i.present}/${i.total} có mặt` : '')(info(x.id))].filter(Boolean).join(' · ') }}
       onOpen={id => { setMsg(null); setOpen({ kind: 'sess', id }) }} />}
   </>
 }
@@ -208,8 +208,12 @@ export function SessCal({ rows, label, planName, onOpen, hol, info }: { rows: Se
   const prog = (s: Sess) => info?.(s).programs.join('; ') ?? ''
   // Nội dung chỉ ghi thêm khi buổi có nhiều nội dung hoặc tên buổi khác tên nội dung
   const conts = (s: Sess) => { const u = info?.(s).units ?? []; return u.length > 1 || (u.length === 1 && u[0] !== s.title) ? u : [] }
+  // Thứ tự: giờ · trạng thái › kế hoạch › chương trình › nội dung › hình thức, đơn vị, điểm danh
+  const plan = (s: Sess) => planName(s.plan_id)
   const tip = (s: Sess) => { const st = sessSt(s, now), hn = holD(new Date(s.starts_at)), p = prog(s), u = conts(s)
-    return [s.title, `${hm(s.starts_at)}–${hm(s.ends_at)} · ${ST[st][0]}`, p && 'Chương trình: ' + p, u.length ? 'Nội dung: ' + u.join('; ') : '', label(s), hn && '⚠ Ngày nghỉ: ' + hn].filter(Boolean).join('\n') }
+    return [`${hm(s.starts_at)}–${hm(s.ends_at)} · ${ST[st][0]}`, 'Kế hoạch: ' + plan(s), p && 'Chương trình: ' + p, 'Nội dung: ' + (u.length ? u.join('; ') : s.title),
+      label(s), hn && '⚠ Ngày nghỉ: ' + hn].filter(Boolean).join('\n') }
+  const sub2 = (s: Sess) => [plan(s), prog(s)].filter(Boolean).join(' › ')
   const popRef = useRef<HTMLDivElement>(null)
   const holD = (d: Date) => hol?.holName(dayKey(d)) ?? ''
   const [view, setView] = useState<'week' | 'month' | 'year'>('month')
@@ -235,9 +239,9 @@ export function SessCal({ rows, label, planName, onOpen, hol, info }: { rows: Se
   const pct = (d: number) => (d - y0) / yLen * 100
   const inView = view === 'year' ? inYear.length : view === 'week' ? week.reduce((n, d) => n + on(d).length, 0) : rows.filter(s => { const d = new Date(s.starts_at); return d.getMonth() === anchor.getMonth() && d.getFullYear() === anchor.getFullYear() }).length
   const vn = (d: Date) => d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
-  const chip = (s: Sess) => { const st = sessSt(s, now), hn = holD(new Date(s.starts_at)), p = prog(s)
+  const chip = (s: Sess) => { const st = sessSt(s, now), hn = holD(new Date(s.starts_at))
     return <button key={s.id} type="button" className={'tpcalev ' + TONE[st] + (hn ? ' onhol' : '')} title={tip(s)} onClick={() => onOpen(s.id)}>
-      <b>{hm(s.starts_at)}</b> {hn ? '⚠ ' : ''}{s.title}{p && <small className="tpcalprog">{p}</small>}</button> }
+      <b>{hm(s.starts_at)}</b> {hn ? '⚠ ' : ''}{s.title}<small className="tpcalprog">{sub2(s)}</small></button> }
   // Ô "+N buổi": bảng nổi liệt kê mọi buổi trong ngày, bấm để xem chi tiết. Bấm ra ngoài hoặc Esc để đóng.
   useEffect(() => {
     if (!pick) return
@@ -252,8 +256,9 @@ export function SessCal({ rows, label, planName, onOpen, hol, info }: { rows: Se
     <ul>{on(d).map(s => { const st = sessSt(s, now), p = prog(s), u = conts(s)
       return <li key={s.id}><button type="button" className={'tpcalpopev ' + TONE[st]} title={tip(s)} onClick={() => { setPick(null); onOpen(s.id) }}>
         <b>{hm(s.starts_at)}–{hm(s.ends_at)} · {s.title}</b>
-        {p && <small className="tpcalprog">{p}</small>}
-        {u.length > 0 && <small>Nội dung: {u.join('; ')}</small>}
+        <small><span className="sub">Kế hoạch:</span> {plan(s)}</small>
+        {p && <small className="tpcalprog"><span className="sub">Chương trình:</span> {p}</small>}
+        {u.length > 0 && <small><span className="sub">Nội dung:</span> {u.join('; ')}</small>}
         <small>{[ST[st][0], label(s)].filter(Boolean).join(' · ')}</small></button></li> })}</ul>
   </div>
 
@@ -283,7 +288,7 @@ export function SessCal({ rows, label, planName, onOpen, hol, info }: { rows: Se
       </div>)}
       {!byPlan.length && <p className="sub" style={{ margin: 8 }}>Không có buổi nào trong năm {y}.</p>}
     </div> : view === 'week' ? <TimeGrid days={week} label="Lịch đào tạo theo giờ trong tuần" dayNote={d => holD(d) || undefined}
-      events={week.flatMap(on).map(s => ({ id: s.id, start: new Date(s.starts_at), end: new Date(s.ends_at), title: (holD(new Date(s.starts_at)) ? '⚠ ' : '') + s.title, prog: prog(s), sub: label(s), cls: TONE[sessSt(s, now)],
+      events={week.flatMap(on).map(s => ({ id: s.id, start: new Date(s.starts_at), end: new Date(s.ends_at), title: (holD(new Date(s.starts_at)) ? '⚠ ' : '') + s.title, prog: sub2(s), sub: label(s), cls: TONE[sessSt(s, now)],
         tip: tip(s), onClick: () => onOpen(s.id) }))} />
     : <div className={'tscal tpcal ' + view}>
       {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <div key={d} className="tscalh">{d}</div>)}

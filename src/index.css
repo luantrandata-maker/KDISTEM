@@ -2342,7 +2342,7 @@ th.sort-asc::after{content:" â–²";font-size:10px}th.sort-desc::after{content:" â
 .tpcalpop ul{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:4px}
 .main .tpcalpopev{display:grid;gap:1px;width:100%;text-align:left;border:0;border-left:3px solid var(--ok-fg);border-radius:6px;padding:5px 8px;background:var(--ok-bg);color:var(--text);font-size:12px;line-height:1.35;cursor:pointer}
 .main .tpcalpopev:hover{filter:brightness(.95)}
-.main .tpcalpopev>b{font-weight:600}.main .tpcalpopev>small{color:var(--muted);font-size:11px}
+.main .tpcalpopev>b{font-weight:600}.main .tpcalpopev>small{color:var(--text);font-size:11px}.main .tpcalpopev>small .sub{color:var(--muted)}
 .main .tpcalpopev.live{background:var(--bad-bg);border-left-color:var(--bad)}.main .tpcalpopev.draft{background:var(--warn-bg);border-left-color:var(--warn-fg)}
 .main .tpcalpopev.off{background:var(--neutral-bg);border-left-color:#9aa3b2}
 .main .tpcalpopev>small.tpcalprog{color:var(--primary);font-weight:500}

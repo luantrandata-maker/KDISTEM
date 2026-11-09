@@ -9,7 +9,7 @@ import { supabase, fetchAll } from '../../lib/supabase'
 import { useOrgFilter } from '../../components/OrgFilters'
 import { downloadXlsx } from '../../lib/sheet'
 import { Chip } from '../dist/Editor'
-import { CERT_ST, RESULT, ResultDetail, type ResRow, type RPlan } from './Results'
+import { CERT_ST, RESULT, ResultDetail, onlineText, type ResRow, type RPlan } from './Results'
 import { CertPaper, type Payload } from './Certificates'
 import { TestScores } from './TestScores'
 import { StatCards } from '../../components/StatCards'
@@ -33,7 +33,7 @@ function warnsOf(r: ResRow): string[] {
   const m = r.metrics, w: string[] = []
   if (!m.ok_att) w.push(`Chuyên cần ${m.att_pct == null ? 'chưa có' : num(m.att_pct) + '%'}, cần ${m.att_req}% (${m.present}/${m.sessions - m.excused} buổi)`)
   if (m.tests && !m.ok_tests) w.push(`Bài kiểm tra: mới đạt ${m.tests_passed}/${m.tests}${m.score_req != null ? `, điểm đạt ${num(m.score_req)}` : ''}`)
-  if (!m.ok_units) w.push(`Học trực tuyến: xong ${m.done}/${m.units} nội dung`)
+  if (!m.ok_units) w.push(`Học trực tuyến: xong ${onlineText(m)} nội dung`)
   if (m.need_product && !m.ok_product) w.push(!m.product_status ? 'Chưa nộp sản phẩm' : m.product_status === 'returned' ? 'Sản phẩm bị trả lại, chờ GV nộp lại'
     : m.product_status === 'submitted' ? 'Sản phẩm đã nộp, chờ nhận xét / chấm điểm' : `Điểm sản phẩm ${num(r.product_score)}, cần từ 5`)
   if (m.finals && m.ok_final === false) w.push(m.final_score == null ? 'Chưa làm đề cuối khoá' : `Đề cuối khoá ${num(m.final_score)} điểm${m.final_req != null ? `, cần ${num(m.final_req)}` : ''}`)
@@ -176,7 +176,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
        { key: 's', label: 'Điểm sản phẩm' }, { key: 'f', label: 'Đề cuối khoá' }, { key: 'z', label: 'Tổng điểm' }, { key: 'y', label: 'Xếp loại (gợi ý)' }, { key: 'k', label: 'Kết luận' }, { key: 'l', label: 'Lý do', width: 30 }, { key: 'c', label: 'Số chứng chỉ', width: 18 }],
       all.map(r => { const m = r.metrics
         return [r.teacher_name, r.org_name, m.att_pct, `${m.present}/${m.sessions - m.excused}`, m.tests ? `${m.tests_passed}/${m.tests}` : '', m.avg_score,
-          `${m.done}/${m.units}`, m.need_product ? (m.product_status ? PRODUCT[m.product_status] : 'Chưa nộp') : 'Không yêu cầu', r.product_score, m.finals ? m.final_score : '', m.total,
+          onlineText(m), m.need_product ? (m.product_status ? PRODUCT[m.product_status] : 'Chưa nộp') : 'Không yêu cầu', r.product_score, m.finals ? m.final_score : '', m.total,
           m.grade ?? (m.suggest === 'pass' ? 'Đủ điều kiện' : 'Chưa đủ'), RESULT[r.result][0], r.reason, st(r)?.status === 'issued' ? st(r)?.code : st(r) ? CERT_ST[st(r)!.status][0] : ''] }),
       'Kết quả')
   }
@@ -226,7 +226,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
             <td>{name(r)}</td>
             <td>{ok(m.ok_att)} {m.att_pct == null ? '—' : `${num(m.att_pct)}%`}<br /><small className="sub">{m.present}/{m.sessions - m.excused} buổi · cần {m.att_req}%</small></td>
             <td>{m.tests ? <>{ok(m.ok_tests)} {m.tests_passed}/{m.tests} đạt<br /><small className="sub">TB {num(m.avg_score)}</small></> : <small className="sub">Không có</small>}</td>
-            <td>{ok(m.ok_units)} {m.done}/{m.units}</td>
+            <td>{m.online_units === 0 ? <small className="sub">Không có</small> : <>{ok(m.ok_units)} {onlineText(m)}</>}</td>
             <td>{m.need_product ? <>{ok(m.ok_product)} {m.product_status ? PRODUCT[m.product_status] : 'Chưa nộp'}{r.product_url && <><br /><a href={r.product_url} target="_blank" rel="noreferrer" className="linkbtn">Mở sản phẩm ↗</a></>}</>
               : <small className="sub">Không yêu cầu</small>}</td>
             <td>{m.need_product ? (can && r.result !== 'pass'

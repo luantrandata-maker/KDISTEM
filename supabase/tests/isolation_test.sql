@@ -3785,6 +3785,10 @@ select pg_temp.chk('gv_both', 'PE 140: bài kiểm tra qua link dùng link mới
 select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plan_exams (plan_id, program_id, tests) select k.id, (select program_id from training_program_units where id = (select x.unit_id from training_plans k0, training_plan_units(k0.id) x where k0.name = 'ISO KH' and x.title = 'ISO bài 1')), jsonb_build_object((select x.unit_id from training_plans k0, training_plan_units(k0.id) x where k0.name = 'ISO KH' and x.title = 'ISO bài 1')::text, jsonb_build_object('qids', (select jsonb_agg(id) from (select id from question_bank where subject = 'ISO TH' order by id limit 1) q))) from training_plans k where k.name = 'ISO KH'$q$, true);
 select pg_temp.chk('gv_both', 'PE 140: bài kiểm tra nội dung phát câu của đề riêng', $q$select jsonb_array_length(training_test_start(k.id, (select x.unit_id from training_plans k0, training_plan_units(k0.id) x where k0.name = 'ISO KH' and x.title = 'ISO bài 1')) -> 'questions')::text from training_plans k where k.name = 'ISO KH'$q$, '1');
 
+-- ===== 141: Học trực tuyến chỉ đếm nội dung có phần học trực tuyến =====
+select pg_temp.chk('kdi', 'OU 141: nội dung chỉ học trực tiếp không tính vào Học trực tuyến', $q$select concat_ws(':', metrics ->> 'units', metrics ->> 'online_units') from training_plan_results((select id from training_plans where name = 'ISO KH E'))$q$, '1:0');
+select pg_temp.chk('kdi', 'OU 141: nội dung có bài giảng hoặc bài kiểm tra vẫn tính', $q$select metrics ->> 'online_units' from training_plan_results((select id from training_plans where name = 'ISO KH L')) limit 1$q$, '2');
+
 -- ===== 129: giảng viên mở đề =====
 select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plans (org_id, name, pub_status, year_name, exam_mode) values (platform_org_id(), 'ISO KH X', 'draft', '2026-2027', 'trainer')$q$, true);
 select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plan_items (plan_id, program_id, seq) select k.id, p.id, 1 from training_plans k, training_programs p where k.name = 'ISO KH X' and p.title = 'ISO CTTH E' and p.status = 'published'$q$, true);

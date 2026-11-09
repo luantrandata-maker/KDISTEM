@@ -15,7 +15,7 @@ import { StatCards } from '../../components/StatCards'
 export type RPlan = { id: string; org_id: string; plan_code: string | null; name: string }
 type M = { sessions: number; present: number; excused: number; att_pct: number | null; att_req: number; units: number; done: number; tests: number
   tests_passed: number; avg_score: number | null; score_req: number | null; need_product: boolean; product_status: string | null
-  ok_att: boolean; ok_tests: boolean; ok_units: boolean; ok_product: boolean; suggest: 'pass' | 'fail'
+  ok_att: boolean; ok_tests: boolean; ok_units: boolean; ok_product: boolean; suggest: 'pass' | 'fail'; online_units?: number; online_done?: number
   // 109: khung đánh giá
   finals?: number; final_score?: number | null; final_req?: number | null; ok_final?: boolean; ok_total?: boolean
   scores?: Record<'att' | 'tests' | 'final' | 'product', number | null>; weights?: Record<'att' | 'tests' | 'final' | 'product', number>
@@ -23,6 +23,9 @@ type M = { sessions: number; present: number; excused: number; att_pct: number |
 export type ResRow = { teacher_id: string; teacher_name: string; subject: string | null; org_name: string | null; metrics: M; result: 'pending' | 'pass' | 'fail'
   reason: string | null; product_score: number | null; comment: string | null; extra_attempts: number; decided_at: string | null
   product_url: string | null; product_note: string | null; cert_id: string | null; cert_status: string | null; cert_code: string | null }
+/** Học trực tuyến: chỉ đếm nội dung có bài giảng, tài liệu hoặc bài kiểm tra (141). Không có thì 'Không có'. */
+export const onlineText = (m: { units: number; done: number; online_units?: number; online_done?: number }) =>
+  m.online_units == null ? `${m.done}/${m.units}` : m.online_units === 0 ? 'Không có' : `${m.online_done}/${m.online_units}`
 
 export const RESULT: Record<string, [string, string]> = { pending: ['Chờ kết luận', ''], pass: ['Đạt', 'good'], fail: ['Chưa đạt', 'bad'] }
 export const CERT_ST: Record<string, [string, string]> = { pending: ['Chờ duyệt cấp', 'warn'], issued: ['Đã cấp', 'good'], revoked: ['Đã thu hồi', 'bad'] }
@@ -138,7 +141,7 @@ export function ResultDetail({ plan, r, can, onBack, onDone, back = 'Đánh giá
   const base = { p_plan: plan.id, p_teacher: r.teacher_id }
   const conds: [string, boolean, string][] = [
     ['Chuyên cần', m.ok_att, m.sessions ? `${m.present}/${m.sessions - m.excused} buổi${m.excused ? ` (${m.excused} vắng có phép không tính)` : ''} = ${m.att_pct == null ? '—' : num(m.att_pct) + '%'} · cần ≥ ${m.att_req}%` : 'Chưa có buổi học'],
-    ['Học trực tuyến', m.ok_units, `${m.done}/${m.units} nội dung hoàn thành`],
+    ['Học trực tuyến', m.ok_units, m.online_units === 0 ? 'Không có nội dung học trực tuyến' : `${onlineText(m)} nội dung hoàn thành`],
     ['Bài kiểm tra', m.ok_tests, m.tests ? `${m.tests_passed}/${m.tests} bài đạt · điểm TB ${num(m.avg_score)}${m.score_req != null ? ` · điểm đạt ${num(m.score_req)}` : ''}` : 'Không có bài kiểm tra'],
     ['Sản phẩm cuối khoá', m.ok_product, m.need_product ? `${m.product_status ? PRODUCT[m.product_status] : 'Chưa nộp'}${r.product_score != null ? ` · điểm ${num(r.product_score)} (cần ≥ 5)` : ''}` : 'Không yêu cầu'],
     ...(m.finals ? [['Đề cuối khoá', m.ok_final !== false, `điểm ${num(m.final_score)}${m.final_req != null ? ` · cần ≥ ${num(m.final_req)}` : ''}`] as [string, boolean, string]] : []),

@@ -2417,3 +2417,29 @@ th.sort-asc::after{content:" ▲";font-size:10px}th.sort-desc::after{content:" �
 .ttfpop li label:hover{background:var(--bg,#f5f7fa)}
 .ttfpop li label span{flex:1;overflow-wrap:anywhere}
 .ttfpop li input{margin-top:2px}
+/* Chương trình giáo dục › Môn & bài học */
+.slwrap{display:grid;grid-template-columns:240px minmax(0,1fr);gap:16px;align-items:start;margin-top:12px}
+@media (max-width:820px){.slwrap{grid-template-columns:1fr}}
+.slsubj{display:flex;flex-direction:column;gap:4px;padding:10px;margin:0}
+.slsubj .slh{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin:2px 6px 6px}
+.main .slitem{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;padding:9px 10px;border:0;border-radius:8px;background:none;text-align:left;font-weight:400;cursor:pointer;min-height:0}
+.main .slitem:hover{background:var(--soft)}
+.main .slitem.on{background:#eef4fd;box-shadow:inset 3px 0 0 var(--primary)}
+.slitem small{color:var(--muted);font-size:12px;white-space:nowrap}
+.main .sladd{margin:6px 0;padding:8px;border:1px dashed #b8c4d6;border-radius:8px;background:none;color:var(--primary);font-weight:500}
+.slsubj>small.sub{margin:6px 4px 0;font-size:12px}
+.slmain{min-width:0;display:flex;flex-direction:column;gap:6px}
+.slname{font-size:15px;color:var(--navy,var(--text));margin-right:4px}
+.slcell{width:100%;min-width:40px;border:1px solid transparent;border-radius:6px;padding:4px 6px;margin:-4px -6px;font:inherit;background:transparent;resize:vertical}
+.slcell:hover{border-color:var(--line)}
+.slcell:focus{border-color:var(--primary);background:var(--surface);outline:0;box-shadow:0 0 0 3px #1f5fbf22}
+textarea.slcell{font-size:13px;color:var(--muted);min-height:28px}
+.slact{display:inline-flex;gap:2px;white-space:nowrap}
+.main .slact button{padding:2px 7px;min-height:0;font-size:12px;border:1px solid var(--line);background:var(--surface);border-radius:6px}
+.slnew td{background:#fbfcfe}
+.slnew input{width:100%;border:1px dashed #b8c4d6;border-radius:8px;padding:7px 10px;font:inherit;background:var(--surface)}
+.slnew input:focus{border-style:solid;border-color:var(--primary);outline:0}
+.slmain input.slcell[inputmode=numeric]{width:64px}
+.slmain textarea.slcell{min-width:260px}
+.slmain td:has(>input.slcell:not([inputmode])){min-width:220px}
+.main .slact button.danger{color:#c0392b;border-color:#f1c4bd;background:var(--surface)}

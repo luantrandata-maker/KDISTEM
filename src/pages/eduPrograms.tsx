@@ -10,6 +10,7 @@ import { SchoolPicker } from '../components/SchoolPicker'
 import { useOrgFilter } from '../components/OrgFilters'
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { DataTable, MoreFilters, type Col } from '../components/DataTable'
+import { FlowGuide } from '../components/FlowGuide'
 import { supabase, fetchAll } from '../lib/supabase'
 import { OrgPick, useAllMode, useAllOrgs } from '../components/OrgScope'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
@@ -245,7 +246,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   )
   return (
     <>
-      {canEdit && list && <ol className="flowsteps" aria-label="Quy trình thiết lập chương trình">
+      {canEdit && list && <FlowGuide id="edu-programs" title="Quy trình thiết lập chương trình"><ol className="flowsteps" aria-label="Quy trình thiết lập chương trình">
         {flow.map(([t, n, unit, go], k) => (
           <li key={t} className={n > 0 ? 'done' : ''}>
             <button type="button" disabled={!go} onClick={go} title={t === 'Bài học' && firstDraft ? `Mở "${firstDraft.title}" để thêm bài học` : undefined}>
@@ -254,7 +255,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
             </button>
           </li>
         ))}
-      </ol>}
+      </ol></FlowGuide>}
       <p className="sub">
         {mode === 'school' ? 'Chương trình chuẩn của trường và chương trình do KDI, Sở, Phòng phát hành hoặc gán cho trường. Từ chương trình đang phát hành, trường tạo phân phối chương trình theo tiết.'
           : mode === 'platform' ? 'Chương trình chuẩn của KDI: cấu trúc, yêu cầu cần đạt, phiên bản. Bản đã phát hành và chọn "dùng chung" hiện với tất cả đơn vị.'

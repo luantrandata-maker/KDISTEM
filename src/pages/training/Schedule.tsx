@@ -3,7 +3,7 @@
 // mở buổi để đưa mã điểm danh (QR), nhắc lịch, ghi có mặt / vắng, duyệt xin vắng, chốt điểm danh, xem GV trùng lịch.
 import { useOrgFilter } from '../../components/OrgFilters'
 import { TimeGrid } from '../../components/TimeGrid'
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { supabase } from '../../lib/supabase'
 import { useAllMode, useOrgName } from '../../components/OrgScope'
@@ -56,6 +56,30 @@ const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.g
 const monday = (d: Date) => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return x }
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 
+/** Tên nội dung và tên chương trình của các nội dung đào tạo (lấy theo lô để URL không quá dài) */
+async function unitInfo(ids: string[]) {
+  const out = new Map<string, { title: string; program: string }>()
+  const us: { id: string; title: string; program_id: string }[] = []
+  for (let k = 0; k < ids.length; k += 150) {
+    const { data } = await supabase.from('training_program_units').select('id, title, program_id').in('id', ids.slice(k, k + 150))
+    us.push(...((data ?? []) as typeof us))
+  }
+  const pids = [...new Set(us.map(u => u.program_id))]
+  const pg = new Map<string, string>()
+  for (let k = 0; k < pids.length; k += 150) {
+    const { data } = await supabase.from('training_programs').select('id, title').in('id', pids.slice(k, k + 150))
+    for (const x of (data ?? []) as { id: string; title: string }[]) pg.set(x.id, x.title)
+  }
+  for (const u of us) out.set(u.id, { title: u.title, program: pg.get(u.program_id) ?? '' })
+  return out
+}
+/** Chương trình và nội dung của một buổi */
+export type SessInfo = { programs: string[]; units: string[] }
+const sessInfoOf = (m: Map<string, { title: string; program: string }>) => (s: Sess): SessInfo => {
+  const us = unitsOf(s).map(id => m.get(id)).filter(Boolean) as { title: string; program: string }[]
+  return { programs: [...new Set(us.map(u => u.program).filter(Boolean))], units: us.map(u => u.title) }
+}
+
 /** Nội dung đào tạo của các chương trình trong kế hoạch, theo thứ tự chương trình › môn › nội dung */
 async function planContents(planId: string) {
   const { data: it } = await supabase.from('training_plan_items').select('program_id, seq, trainer, trainer_ids, units').eq('plan_id', planId).order('seq')
@@ -77,6 +101,8 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
   const [plans, setPlans] = useState<Plan[] | null>(null)
   const [rows, setRows] = useState<Sess[]>([])
   const [att, setAtt] = useState<Att[]>([])
+  // Nội dung và chương trình đào tạo của các buổi (để hiện tên chương trình trên lịch)
+  const [uinfo, setUinfo] = useState<Map<string, { title: string; program: string }>>(new Map())
   const [can, setCan] = useState(false)
   const [rk, setRk] = useState(0)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
@@ -102,6 +128,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
       const ss = (s.data as Sess[]) ?? []
       const a = ss.length ? await supabase.from('training_attendance').select('session_id, teacher_id, present, excuse_status').in('session_id', ss.map(x => x.id)) : { data: [] }
       setPlans(ps); setRows(ss); setAtt((a.data as Att[]) ?? [])
+      setUinfo(await unitInfo([...new Set(ss.flatMap(unitsOf))]))
     })()
   }, [rk, orgId])
 
@@ -114,6 +141,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
   const shown = base.filter(s => !fs || sessSt(s, now) === fs)
   const n = (k: St) => base.filter(s => sessSt(s, now) === k).length
   const pend = att.filter(a => a.excuse_status === 'pending' && base.some(s => s.id === a.session_id)).length
+  const sinfo = sessInfoOf(uinfo)
   const info = (id: string) => { const a = att.filter(x => x.session_id === id); return { total: a.length, present: a.filter(x => x.present).length, pend: a.filter(x => x.excuse_status === 'pending').length } }
 
   if (open?.kind === 'auto') return <AutoSchedule plans={plans ?? []} initial={plan} onBack={() => setOpen(null)} onDone={m => { setOpen(null); setMsg([m, false]); reload() }} />
@@ -160,7 +188,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
       <thead><tr><th>Buổi đào tạo</th><th>Thời gian</th><th>Hình thức</th><th>Giảng viên</th><th>Điểm danh</th><th>Trạng thái</th></tr></thead>
       <tbody>{shown.map(s => { const st = sessSt(s, now), i = info(s.id), p = pl(s.plan_id)
         return <tr key={s.id}>
-          <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen({ kind: 'sess', id: s.id }) }}>{s.title}</button><br /><small className="sub">{[all && orgName(p?.org_id), p?.plan_code, p?.name].filter(Boolean).join(' · ')}</small></td>
+          <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen({ kind: 'sess', id: s.id }) }}>{s.title}</button>{(pr => pr && <><br /><small className="tsprog">{pr}</small></>)(sinfo(s).programs.join('; '))}<br /><small className="sub">{[all && orgName(p?.org_id), p?.plan_code, p?.name].filter(Boolean).join(' · ')}</small></td>
           <td>{dd(s.starts_at)}<br /><small className="sub">{hm(s.starts_at)}–{hm(s.ends_at)}</small>{holOf(s.starts_at) && <><br /><small className="holwarn">⚠ Nghỉ: {holOf(s.starts_at)}</small></>}</td>
           <td>{MODE[s.mode]}{s.mode === 'offline' ? s.location && <><br /><small className="sub">{s.location}</small></> : !s.meeting_url ? <><br /><small className="warnline">Chưa có link họp</small></> : s.recording_url ? <><br /><small className="sub">▶ Có bản ghi</small></> : null}</td>
           <td>{s.trainer || '—'}</td>
@@ -168,7 +196,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
           <td><Chip tone={ST[st][1]}>{ST[st][0]}</Chip></td>
         </tr> })}
         {!shown.length && <tr><td colSpan={6}>{rows.length ? 'Không có buổi nào khớp bộ lọc.' : plans.length ? (can ? 'Chưa có buổi nào. Bấm "Xếp lịch từ kế hoạch".' : 'Chưa có buổi nào.') : 'Chưa có kế hoạch nào đã phát hành. Phát hành kế hoạch ở tab Kế hoạch trước.'}</td></tr>}</tbody>
-    </table></div> : <SessCal rows={shown} hol={hol} planName={id => { const p = pl(id); return p ? [p.plan_code, p.name].filter(Boolean).join(' · ') : '—' }} label={x => { const p = pl(x.plan_id); return [all && orgName(p?.org_id), p?.plan_code, MODE[x.mode], (i => i.total ? `${i.present}/${i.total} có mặt` : '')(info(x.id))].filter(Boolean).join(' · ') }}
+    </table></div> : <SessCal rows={shown} hol={hol} info={sinfo} planName={id => { const p = pl(id); return p ? [p.plan_code, p.name].filter(Boolean).join(' · ') : '—' }} label={x => { const p = pl(x.plan_id); return [all && orgName(p?.org_id), p?.plan_code, MODE[x.mode], (i => i.total ? `${i.present}/${i.total} có mặt` : '')(info(x.id))].filter(Boolean).join(' · ') }}
       onOpen={id => { setMsg(null); setOpen({ kind: 'sess', id }) }} />}
   </>
 }
@@ -176,7 +204,13 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
 // ===== Lịch đào tạo dạng lịch: tháng / tuần, cùng kiểu với lịch kế hoạch đào tạo =====
 const TONE: Record<St, string> = { upcoming: '', live: 'live', toclose: 'draft', closed: 'off' }
 const MAX = 3
-export function SessCal({ rows, label, planName, onOpen, hol }: { rows: Sess[]; label: (s: Sess) => string; planName: (id: string) => string; onOpen: (id: string) => void; hol?: Holidays }) {
+export function SessCal({ rows, label, planName, onOpen, hol, info }: { rows: Sess[]; label: (s: Sess) => string; planName: (id: string) => string; onOpen: (id: string) => void; hol?: Holidays; info?: (s: Sess) => SessInfo }) {
+  const prog = (s: Sess) => info?.(s).programs.join('; ') ?? ''
+  // Nội dung chỉ ghi thêm khi buổi có nhiều nội dung hoặc tên buổi khác tên nội dung
+  const conts = (s: Sess) => { const u = info?.(s).units ?? []; return u.length > 1 || (u.length === 1 && u[0] !== s.title) ? u : [] }
+  const tip = (s: Sess) => { const st = sessSt(s, now), hn = holD(new Date(s.starts_at)), p = prog(s), u = conts(s)
+    return [s.title, `${hm(s.starts_at)}–${hm(s.ends_at)} · ${ST[st][0]}`, p && 'Chương trình: ' + p, u.length ? 'Nội dung: ' + u.join('; ') : '', label(s), hn && '⚠ Ngày nghỉ: ' + hn].filter(Boolean).join('\n') }
+  const popRef = useRef<HTMLDivElement>(null)
   const holD = (d: Date) => hol?.holName(dayKey(d)) ?? ''
   const [view, setView] = useState<'week' | 'month' | 'year'>('month')
   // Mở ở tháng hiện tại; tháng này trống thì nhảy tới buổi sắp tới gần nhất (hoặc buổi gần đây nhất)
@@ -201,9 +235,27 @@ export function SessCal({ rows, label, planName, onOpen, hol }: { rows: Sess[]; 
   const pct = (d: number) => (d - y0) / yLen * 100
   const inView = view === 'year' ? inYear.length : view === 'week' ? week.reduce((n, d) => n + on(d).length, 0) : rows.filter(s => { const d = new Date(s.starts_at); return d.getMonth() === anchor.getMonth() && d.getFullYear() === anchor.getFullYear() }).length
   const vn = (d: Date) => d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
-  const chip = (s: Sess) => { const st = sessSt(s, now), hn = holD(new Date(s.starts_at))
-    return <button key={s.id} type="button" className={'tpcalev ' + TONE[st] + (hn ? ' onhol' : '')} title={`${s.title}\n${hm(s.starts_at)}–${hm(s.ends_at)} · ${ST[st][0]}\n${label(s)}${hn ? '\n⚠ Ngày nghỉ: ' + hn : ''}`} onClick={() => onOpen(s.id)}>
-      <b>{hm(s.starts_at)}</b> {hn ? '⚠ ' : ''}{s.title}{view === 'week' && <small>{label(s)}</small>}</button> }
+  const chip = (s: Sess) => { const st = sessSt(s, now), hn = holD(new Date(s.starts_at)), p = prog(s)
+    return <button key={s.id} type="button" className={'tpcalev ' + TONE[st] + (hn ? ' onhol' : '')} title={tip(s)} onClick={() => onOpen(s.id)}>
+      <b>{hm(s.starts_at)}</b> {hn ? '⚠ ' : ''}{s.title}{p && <small className="tpcalprog">{p}</small>}</button> }
+  // Ô "+N buổi": bảng nổi liệt kê mọi buổi trong ngày, bấm để xem chi tiết. Bấm ra ngoài hoặc Esc để đóng.
+  useEffect(() => {
+    if (!pick) return
+    const out = (e: MouseEvent) => { if (popRef.current && !popRef.current.contains(e.target as Node) && !(e.target as HTMLElement).closest?.('.tpcalmore')) setPick(null) }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setPick(null) }
+    document.addEventListener('mousedown', out); document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('mousedown', out); document.removeEventListener('keydown', esc) }
+  }, [pick])
+  const pop = (d: Date, right: boolean) => <div ref={popRef} className={'tpcalpop' + (right ? ' right' : '')} role="dialog" aria-label={`Các buổi ngày ${d.toLocaleDateString('vi-VN')}`}>
+    <div className="tpcalpoph"><b>{d.toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' })} · {on(d).length} buổi</b>
+      <button type="button" aria-label="Đóng" onClick={() => setPick(null)}>×</button></div>
+    <ul>{on(d).map(s => { const st = sessSt(s, now), p = prog(s), u = conts(s)
+      return <li key={s.id}><button type="button" className={'tpcalpopev ' + TONE[st]} title={tip(s)} onClick={() => { setPick(null); onOpen(s.id) }}>
+        <b>{hm(s.starts_at)}–{hm(s.ends_at)} · {s.title}</b>
+        {p && <small className="tpcalprog">{p}</small>}
+        {u.length > 0 && <small>Nội dung: {u.join('; ')}</small>}
+        <small>{[ST[st][0], label(s)].filter(Boolean).join(' · ')}</small></button></li> })}</ul>
+  </div>
 
   return <section className="panel" style={{ display: 'grid', gap: 10 }}>
     <div className="bar" style={{ margin: 0 }}>
@@ -231,21 +283,18 @@ export function SessCal({ rows, label, planName, onOpen, hol }: { rows: Sess[]; 
       </div>)}
       {!byPlan.length && <p className="sub" style={{ margin: 8 }}>Không có buổi nào trong năm {y}.</p>}
     </div> : view === 'week' ? <TimeGrid days={week} label="Lịch đào tạo theo giờ trong tuần" dayNote={d => holD(d) || undefined}
-      events={week.flatMap(on).map(s => ({ id: s.id, start: new Date(s.starts_at), end: new Date(s.ends_at), title: (holD(new Date(s.starts_at)) ? '⚠ ' : '') + s.title, sub: label(s), cls: TONE[sessSt(s, now)],
-        tip: `${s.title}\n${hm(s.starts_at)}–${hm(s.ends_at)} · ${ST[sessSt(s, now)][0]}\n${label(s)}`, onClick: () => onOpen(s.id) }))} />
+      events={week.flatMap(on).map(s => ({ id: s.id, start: new Date(s.starts_at), end: new Date(s.ends_at), title: (holD(new Date(s.starts_at)) ? '⚠ ' : '') + s.title, prog: prog(s), sub: label(s), cls: TONE[sessSt(s, now)],
+        tip: tip(s), onClick: () => onOpen(s.id) }))} />
     : <div className={'tscal tpcal ' + view}>
       {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <div key={d} className="tscalh">{d}</div>)}
-      {days.map(d => { const ss = on(d), k = ymd(d), cut = view === 'month' && ss.length > MAX, hn = holD(d)
+      {days.map((d, di) => { const ss = on(d), k = ymd(d), cut = view === 'month' && ss.length > MAX, hn = holD(d)
         return <div key={k} className={'tscald' + (view === 'month' && d.getMonth() !== anchor.getMonth() ? ' out' : '') + (sameDay(d, today) ? ' today' : '') + (pick === k ? ' pick' : '') + (hn ? ' hol' : '')} title={hn ? 'Ngày nghỉ: ' + hn : undefined}>
           <small>{d.getDate()}{hn && <em className="tscalhol"> · {hn}</em>}</small>
           {(cut ? ss.slice(0, MAX - 1) : ss).map(chip)}
-          {cut && <button type="button" className="tpcalmore" onClick={() => setPick(pick === k ? null : k)}>+{ss.length - MAX + 1} buổi</button>}
+          {cut && <button type="button" className="tpcalmore" aria-expanded={pick === k} onClick={() => setPick(pick === k ? null : k)}>+{ss.length - MAX + 1} buổi</button>}
+          {pick === k && pop(d, di % 7 >= 4)}
         </div> })}
     </div>}
-    {pick && (d => <div className="tpcalday">
-      <b>Ngày {d.toLocaleDateString('vi-VN')}: {on(d).length} buổi</b>
-      <ul>{on(d).map(s => <li key={s.id}>{chip(s)}<small className="sub">{hm(s.starts_at)}–{hm(s.ends_at)} · {label(s)}</small></li>)}</ul>
-    </div>)(new Date(pick + 'T00:00'))}
     {!rows.length && <p className="sub" style={{ margin: 0 }}>Không có buổi nào khớp bộ lọc.</p>}
   </section>
 }

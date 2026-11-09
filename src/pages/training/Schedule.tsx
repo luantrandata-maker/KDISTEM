@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase'
 import { useAllMode, useOrgName } from '../../components/OrgScope'
 import { ElView } from '../../components/ElView'
 import { TrainerPick } from './Trainers'
+import { MultiSelect } from '../../components/MultiSelect'
 import { Chip } from '../dist/Editor'
 import { FlowGuide } from '../../components/FlowGuide'
 import { useTrainingPrograms } from './Lessons'
@@ -21,7 +22,7 @@ const ContentDetail = lazy(() => import('./Content').then(m => ({ default: m.Con
 
 type Mode = 'online' | 'offline'
 type Plan = { id: string; org_id?: string; plan_code: string | null; name: string; mode: string; pub_status: string }
-export type Sess = { id: string; plan_id: string; unit_id: string | null; title: string; starts_at: string; ends_at: string; mode: Mode; location: string | null
+export type Sess = { id: string; plan_id: string; unit_id: string | null; unit_ids?: string[] | null; title: string; starts_at: string; ends_at: string; mode: Mode; location: string | null
   meeting_url: string | null; trainer: string | null; trainer_ids?: string[]; assistant?: string | null; assistant_ids?: string[]; note: string | null; closed_at: string | null; recording_url?: string | null
   checkin_before?: number; checkin_after?: number }
 type Att = { session_id: string; teacher_id: string; present: boolean | null; excuse_status: string | null; excuse_reason?: string | null; checked_in_at?: string | null; method?: string | null
@@ -30,8 +31,10 @@ type Unit = { id: string; program_id: string; parent_id: string | null; kind: st
 type Item = { program_id: string; seq: number; trainer: string | null; trainer_ids?: string[]; units?: string[] | null }
 type St = 'upcoming' | 'live' | 'toclose' | 'closed'
 
-const SSEL = 'id, plan_id, unit_id, title, starts_at, ends_at, mode, location, meeting_url, trainer, trainer_ids, assistant, assistant_ids, note, closed_at, recording_url, checkin_before, checkin_after'
+const SSEL = 'id, plan_id, unit_id, unit_ids, title, starts_at, ends_at, mode, location, meeting_url, trainer, trainer_ids, assistant, assistant_ids, note, closed_at, recording_url, checkin_before, checkin_after'
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp' }
+/** Các nội dung của buổi (buổi cũ chỉ có unit_id) */
+export const unitsOf = (s: { unit_id: string | null; unit_ids?: string[] | null }) => s.unit_ids?.length ? s.unit_ids : s.unit_id ? [s.unit_id] : []
 const ST: Record<St, [string, string]> = { upcoming: ['Sắp diễn ra', ''], live: ['Đang diễn ra', 'bad'], toclose: ['Chờ chốt điểm danh', 'warn'], closed: ['Đã chốt', 'good'] }
 const errText = (m: string) => /schema cache|does not exist|column .* of relation/i.test(m) ? 'Hãy chạy migration 085 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Bạn không có quyền với buổi đào tạo này.' : m
@@ -261,8 +264,8 @@ function AutoSchedule({ plans, initial, onBack, onDone }: { plans: Plan[]; initi
   useEffect(() => {
     if (!plan) return
     setUnits(null)
-    Promise.all([planContents(plan), supabase.from('training_sessions').select('unit_id').eq('plan_id', plan)]).then(([u, s]) => {
-      setUnits(u); setDone(new Set(((s.data ?? []) as { unit_id: string | null }[]).map(x => x.unit_id).filter(Boolean) as string[]))
+    Promise.all([planContents(plan), supabase.from('training_sessions').select('unit_id, unit_ids').eq('plan_id', plan)]).then(([u, s]) => {
+      setUnits(u); setDone(new Set(((s.data ?? []) as { unit_id: string | null; unit_ids?: string[] | null }[]).flatMap(unitsOf)))
     })
   }, [plan])
   const todo = (units ?? []).filter(u => !done.has(u.id))
@@ -319,10 +322,10 @@ function AutoSchedule({ plans, initial, onBack, onDone }: { plans: Plan[]; initi
 }
 
 // ===== Thông tin buổi (thêm / sửa) =====
-type Info = { plan_id: string; unit_id: string; title: string; starts_at: string; ends_at: string; mode: Mode; location: string; meeting_url: string; trainer: string; trainer_ids: string[]; assistant_ids: string[]; note: string; recording_url: string; checkin_before: number; checkin_after: number }
-const fromSess = (s: Sess): Info => ({ plan_id: s.plan_id, unit_id: s.unit_id ?? '', title: s.title, starts_at: toLocal(s.starts_at), ends_at: toLocal(s.ends_at), mode: s.mode,
+type Info = { plan_id: string; unit_ids: string[]; title: string; starts_at: string; ends_at: string; mode: Mode; location: string; meeting_url: string; trainer: string; trainer_ids: string[]; assistant_ids: string[]; note: string; recording_url: string; checkin_before: number; checkin_after: number }
+const fromSess = (s: Sess): Info => ({ plan_id: s.plan_id, unit_ids: unitsOf(s), title: s.title, starts_at: toLocal(s.starts_at), ends_at: toLocal(s.ends_at), mode: s.mode,
   location: s.location ?? '', meeting_url: s.meeting_url ?? '', trainer: s.trainer ?? '', trainer_ids: s.trainer_ids ?? [], assistant_ids: s.assistant_ids ?? [], note: s.note ?? '', recording_url: s.recording_url ?? '', checkin_before: s.checkin_before ?? 30, checkin_after: s.checkin_after ?? 30 })
-const toRow = (f: Info) => ({ plan_id: f.plan_id, unit_id: f.unit_id || null, title: f.title.trim(), starts_at: new Date(f.starts_at).toISOString(), ends_at: new Date(f.ends_at).toISOString(),
+const toRow = (f: Info) => ({ plan_id: f.plan_id, unit_ids: f.unit_ids, title: f.title.trim(), starts_at: new Date(f.starts_at).toISOString(), ends_at: new Date(f.ends_at).toISOString(),
   mode: f.mode, location: f.location.trim() || null, meeting_url: f.meeting_url.trim() || null, trainer_ids: f.trainer_ids, trainer: f.trainer_ids.length ? null : f.trainer.trim() || null, assistant_ids: f.assistant_ids, note: f.note.trim() || null, recording_url: f.recording_url.trim() || null,
   checkin_before: f.checkin_before, checkin_after: f.checkin_after })
 const badInfo = (f: Info) => !f.plan_id || !f.title.trim() || !f.starts_at || !f.ends_at ? 'Nhập kế hoạch, tên buổi, giờ bắt đầu và kết thúc.'
@@ -336,12 +339,18 @@ function InfoFields({ f, set, plans, lockPlan }: { f: Info; set: (f: Info) => vo
   const hol = useHolidays(orgOf)
   const hn = f.starts_at ? hol.holName(f.starts_at.slice(0, 10)) : ''
   return <div className="formgrid">
-    <label className="field" style={{ gridColumn: '1/-1' }}><span>Kế hoạch đào tạo *</span><select value={f.plan_id} disabled={lockPlan} onChange={e => set({ ...f, plan_id: e.target.value, unit_id: '' })}>
+    <label className="field" style={{ gridColumn: '1/-1' }}><span>Kế hoạch đào tạo *</span><select value={f.plan_id} disabled={lockPlan} onChange={e => set({ ...f, plan_id: e.target.value, unit_ids: [] })}>
       <option value="">— Chọn kế hoạch —</option>{plans.filter(p => p.pub_status === 'published' || p.id === f.plan_id).map(p => <option key={p.id} value={p.id}>{p.plan_code} · {p.name}</option>)}</select></label>
-    <label className="field" style={{ gridColumn: '1/-1' }}><span>Nội dung đào tạo</span><select value={f.unit_id} onChange={e => {
-      const u = units.find(x => x.id === e.target.value)
-      set({ ...f, unit_id: e.target.value, title: u && (!f.title.trim() || units.some(x => x.title === f.title)) ? u.title : f.title, mode: u?.mode ?? f.mode, ...(f.trainer_ids.length || f.trainer ? {} : { trainer_ids: u?.trainer_ids ?? [], trainer: u?.trainer_ids?.length ? '' : u?.trainer ?? '' }) })
-    }}><option value="">— Không gắn nội dung —</option>{units.map(u => <option key={u.id} value={u.id}>{u.title} ({num(Number(u.hours))} giờ)</option>)}</select></label>
+    <div className="field" style={{ gridColumn: '1/-1' }}><span>Nội dung đào tạo của buổi (chọn được nhiều nội dung, điểm danh chung một lần)</span>
+      <MultiSelect value={f.unit_ids} ariaLabel="Nội dung đào tạo của buổi" placeholder={f.plan_id ? 'Chọn nội dung…' : 'Chọn kế hoạch trước'} disabled={!f.plan_id}
+        empty="Kế hoạch chưa có nội dung đào tạo" options={units.map(u => ({ value: u.id, label: `${u.title} (${num(Number(u.hours))} giờ)` }))}
+        onChange={ids => {
+          const pick = units.filter(u => ids.includes(u.id)), first = pick[0]
+          const auto = (xs: string[]) => units.filter(u => xs.includes(u.id)).map(u => u.title).join('; ').slice(0, 200)
+          const title = !f.title.trim() || f.title === auto(f.unit_ids) ? auto(ids) : f.title
+          set({ ...f, unit_ids: ids, title, mode: first?.mode ?? f.mode, ...(f.trainer_ids.length || f.trainer || !first ? {} : { trainer_ids: first.trainer_ids ?? [], trainer: first.trainer_ids?.length ? '' : first.trainer ?? '' }) })
+        }} />
+      {f.unit_ids.length > 1 && <small className="sub">{f.unit_ids.length} nội dung · {num(units.filter(u => f.unit_ids.includes(u.id)).reduce((a, u) => a + Number(u.hours || 0), 0))} giờ. Nhà giáo học ít nhất một nội dung của buổi thì có tên trong danh sách điểm danh.</small>}</div>
     <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên buổi *</span><input maxLength={200} value={f.title} onChange={e => set({ ...f, title: e.target.value })} /></label>
     <label className="field"><span>Bắt đầu *</span><input type="datetime-local" value={f.starts_at} onChange={e => set({ ...f, starts_at: e.target.value })} /></label>
     <label className="field"><span>Kết thúc *</span><input type="datetime-local" value={f.ends_at} onChange={e => set({ ...f, ends_at: e.target.value })} /></label>
@@ -369,7 +378,7 @@ function InfoFields({ f, set, plans, lockPlan }: { f: Info; set: (f: Info) => vo
 function SessionForm({ orgId, plans, initial, onBack, onDone }: { orgId: string; plans: Plan[]; initial: string; onBack: () => void; onDone: (id: string) => void }) {
   const d = new Date(); d.setDate(d.getDate() + 7); d.setHours(8, 0, 0, 0)
   const e = new Date(d); e.setHours(11)
-  const [f, setF] = useState<Info>({ plan_id: initial && plans.some(p => p.id === initial && p.pub_status === 'published') ? initial : '', unit_id: '', title: '', starts_at: toLocal(d.toISOString()), ends_at: toLocal(e.toISOString()),
+  const [f, setF] = useState<Info>({ plan_id: initial && plans.some(p => p.id === initial && p.pub_status === 'published') ? initial : '', unit_ids: [], title: '', starts_at: toLocal(d.toISOString()), ends_at: toLocal(e.toISOString()),
     mode: 'offline', location: '', meeting_url: '', trainer: '', trainer_ids: [], assistant_ids: [], note: '', recording_url: '', checkin_before: 30, checkin_after: 30 })
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -396,7 +405,7 @@ type CUnit = { id: string; program_id: string; parent_id: string | null; title: 
 type CProg = { id: string; code: string | null; title: string; version_no: number; status: string; builder: string | null; pass_score: number | null }
 type CLesson = { id: string; org_id: string; title: string; status: string; author: string | null; updated_at: string }
 const LST: Record<string, [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], inactive: ['Ngừng dùng', 'off'] }
-function SessionContent({ unitId, can, onOpen }: { unitId: string | null; can: boolean; onOpen: (v: { lesson: string; org: string } | { detail: CUnit; crumb: string }) => void }) {
+function SessionContent({ unitId, can, onOpen, label = 'Nội dung đào tạo' }: { unitId: string | null; label?: string; can: boolean; onOpen: (v: { lesson: string; org: string } | { detail: CUnit; crumb: string }) => void }) {
   const [d, setD] = useState<{ u: CUnit; subj: string | null; prog: CProg | null; lessons: CLesson[] } | null | 'none'>(null)
   useEffect(() => {
     if (!unitId) { setD('none'); return }
@@ -414,7 +423,7 @@ function SessionContent({ unitId, can, onOpen }: { unitId: string | null; can: b
     })()
   }, [unitId])
   return <section className="panel sesscontent" style={{ display: 'grid', gap: 10 }}>
-    <h3 style={{ margin: 0 }}>Nội dung đào tạo</h3>
+    <h3 style={{ margin: 0 }}>{label}</h3>
     {d === null ? <p className="sub" style={{ margin: 0 }}>Đang tải…</p>
       : d === 'none' ? <p className="sub" style={{ margin: 0 }}>Buổi chưa gắn nội dung trong chương trình đào tạo.{can ? ' Bấm Sửa ở Thông tin buổi để chọn nội dung.' : ''}</p>
       : <>
@@ -543,7 +552,8 @@ export function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; pl
         </dl>}
       </section>
     </div>
-    <SessionContent unitId={s.unit_id} can={can} onOpen={setView} />
+    {unitsOf(s).length > 1 ? unitsOf(s).map((id, k, a) => <SessionContent key={id} unitId={id} label={`Nội dung đào tạo ${k + 1}/${a.length}`} can={can} onOpen={setView} />)
+      : <SessionContent unitId={unitsOf(s)[0] ?? null} can={can} onOpen={setView} />}
     {can && <SessionExams planId={s.plan_id} sessionId={id} offline={s.mode === 'offline'} />}
 
     <section className="panel" style={{ display: 'grid', gap: 12 }}>

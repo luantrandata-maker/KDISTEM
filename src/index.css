@@ -2323,3 +2323,6 @@ th.sort-asc::after{content:" ▲";font-size:10px}th.sort-desc::after{content:" �
 .bar.tblhead{margin:14px 0 10px}.bar.tblhead h3{margin:0}
 .bar>.tools:last-child:not(:first-child){margin-left:auto}
 .distfilter>small.sub{margin:0;white-space:nowrap;align-self:center;line-height:1}
+/* Xếp lịch kế hoạch: chọn điểm danh theo buổi / theo nội dung */
+.tpmerge{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;padding:10px 12px;margin:0 0 12px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
+.tpmerge .tpcheck{display:inline-flex;gap:6px;align-items:center}

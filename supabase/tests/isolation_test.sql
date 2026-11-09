@@ -3744,6 +3744,29 @@ select pg_temp.chk('kdi', 'UP 126: buổi đã xếp gắn nội dung của v2; 
 select pg_temp.chk('kdi', 'UP 126: đã ở phiên bản mới nhất thì không chuyển nữa', $q$select training_plan_item_upgrade(i.plan_id, i.program_id)::text from training_plan_items i join training_plans k on k.id = i.plan_id where k.name = 'ISO KH UP'$q$, 'ERR 22023');
 select pg_temp.chk('kdi', 'UP 126: kế hoạch đã phát hành vẫn không sửa trực tiếp chương trình', $q$update training_plan_items i set quota = 5 from training_plans k where k.id = i.plan_id and k.name = 'ISO KH UP'$q$, 'ERR 22023');
 
+-- ===== 139: một buổi nhiều nội dung, điểm danh theo buổi =====
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_programs (org_id, title) values (platform_org_id(), 'ISO CTTH MU')$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_program_units (program_id, kind, seq, title, hours) select id, 'subject', 1, 'ISO MU môn', 0 from training_programs where title = 'ISO CTTH MU'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_program_units (program_id, parent_id, kind, seq, title, hours) select p.id, u.id, 'content', x.s, x.t, 1 from training_programs p join training_program_units u on u.program_id = p.id and u.kind = 'subject', (values (1, 'ISO MU bài 1'), (2, 'ISO MU bài 2'), (3, 'ISO MU bài 3')) x(s, t) where p.title = 'ISO CTTH MU'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$update training_programs set status = 'published' where title = 'ISO CTTH MU'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plans (org_id, name, pub_status, year_name) values (platform_org_id(), 'ISO KH MU', 'draft', '2026-2027')$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plan_items (plan_id, program_id, seq) select k.id, p.id, 1 from training_plans k, training_programs p where k.name = 'ISO KH MU' and p.title = 'ISO CTTH MU'$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$update training_plans set pub_status = 'published' where name = 'ISO KH MU'$q$, true);
+insert into training_enrollments (org_id, plan_id, teacher_id, units)
+select t.org_id, k.id, t.id, array(select id from training_program_units where title = 'ISO MU bài 3')
+  from training_plans k, teachers t where k.name = 'ISO KH MU' and t.full_name = 'GV thử B';
+select pg_temp.probe('kdi@iso-test.local', $q$insert into training_sessions (org_id, plan_id, title, starts_at, ends_at, unit_ids) select k.org_id, k.id, 'ISO MU buổi sáng', now() + interval '3 day', now() + interval '3 day 3 hour', array(select id from training_program_units where title in ('ISO MU bài 1', 'ISO MU bài 2') order by seq) from training_plans k where k.name = 'ISO KH MU'$q$, true);
+select pg_temp.chk('kdi', 'MU 139: thêm buổi gồm 2 nội dung, nội dung đầu là unit_id', $q$select cardinality(s.unit_ids) || ':' || u.title from training_sessions s join training_program_units u on u.id = s.unit_id where s.title = 'ISO MU buổi sáng'$q$, '2:ISO MU bài 1');
+select pg_temp.chk('kdi', 'MU 139: GV chỉ học bài 3 thì không có tên trong buổi bài 1 + 2', $q$select count(*)::text from training_attendance a join training_sessions s on s.id = a.session_id where s.title = 'ISO MU buổi sáng'$q$, '0');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_sessions set unit_ids = unit_ids || array(select id from training_program_units where title = 'ISO MU bài 3') where title = 'ISO MU buổi sáng'$q$, true);
+select pg_temp.chk('kdi', 'MU 139: thêm bài 3 vào buổi thì GV có tên trong danh sách điểm danh', $q$select count(*)::text from training_attendance a join training_sessions s on s.id = a.session_id join teachers t on t.id = a.teacher_id where s.title = 'ISO MU buổi sáng' and t.full_name = 'GV thử B'$q$, '1');
+select pg_temp.chk('kdi', 'MU 139: xếp lịch tự động bỏ qua nội dung đã nằm trong buổi nhiều nội dung', $q$select training_plan_schedule(id, (now() + interval '10 day')::date, '08:00', 4, true)::text from training_plans where name = 'ISO KH MU'$q$, '0');
+select pg_temp.chk('kdi', 'MU 139: nội dung ngoài kế hoạch bị từ chối', $q$update training_sessions set unit_ids = unit_ids || array(select id from training_program_units where title = 'ISO UP bài 1' limit 1) where title = 'ISO MU buổi sáng'$q$, 'ERR 22023');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_sessions set unit_ids = array(select id from training_program_units where title = 'ISO MU bài 1') where title = 'ISO MU buổi sáng'$q$, true);
+select pg_temp.chk('kdi', 'MU 139: bỏ bài 3 khỏi buổi chưa diễn ra thì GV không còn tên', $q$select count(*)::text from training_attendance a join training_sessions s on s.id = a.session_id where s.title = 'ISO MU buổi sáng'$q$, '0');
+select pg_temp.probe('kdi@iso-test.local', $q$update training_sessions set unit_id = (select id from training_program_units where title = 'ISO MU bài 2') where title = 'ISO MU buổi sáng'$q$, true);
+select pg_temp.chk('kdi', 'MU 139: code cũ chỉ ghi unit_id thì unit_ids theo', $q$select string_agg(u.title, ',') from training_sessions s join training_program_units u on u.id = any(s.unit_ids) where s.title = 'ISO MU buổi sáng'$q$, 'ISO MU bài 2');
+
 -- ===== 129: giảng viên mở đề =====
 select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plans (org_id, name, pub_status, year_name, exam_mode) values (platform_org_id(), 'ISO KH X', 'draft', '2026-2027', 'trainer')$q$, true);
 select pg_temp.probe('kdi@iso-test.local', $q$insert into training_plan_items (plan_id, program_id, seq) select k.id, p.id, 1 from training_plans k, training_programs p where k.name = 'ISO KH X' and p.title = 'ISO CTTH E' and p.status = 'published'$q$, true);

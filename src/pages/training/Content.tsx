@@ -123,7 +123,8 @@ type BankQ = { id: string; subject: string; grade: number | null; grades?: numbe
 const LEVEL: Record<string, string> = ELEVEL
 const KIND: Record<string, string> = { single: 'Một đáp án', multi: 'Nhiều đáp án', truefalse: 'Đúng / sai' }
 
-function TestEditor({ t, edit, passScore, hasTest, onChange }: { t: TestCfg; edit: boolean; passScore: number | null; hasTest: boolean; onChange: (t: TestCfg) => void }) {
+/** limited: chỉ đổi câu hỏi / link (đề riêng của kế hoạch); cách làm, điểm đạt, số lượt theo chương trình */
+export function TestEditor({ t, edit, passScore, hasTest, onChange, limited = false }: { t: TestCfg; edit: boolean; passScore: number | null; hasTest: boolean; onChange: (t: TestCfg) => void; limited?: boolean }) {
   const [bank, setBank] = useState<BankQ[] | null>(null)
   const [err, setErr] = useState('')
   const [q, setQ] = useState('')
@@ -148,14 +149,14 @@ function TestEditor({ t, edit, passScore, hasTest, onChange }: { t: TestCfg; edi
         onClick={() => onChange({ ...t, kind: k })}>{l}</button>)}</div>
   if (link) return <div style={{ display: 'grid', gap: 12 }}>
     {!hasTest && <p className="warnline">Nội dung này đang không bật "Có bài test". Bật ở bảng nội dung để nhà giáo làm bài.</p>}
-    {kindPick}
-    <ExamModePick value={t.mode} edit={edit} onChange={m => onChange({ ...t, mode: m })} />
+    {!limited && kindPick}
+    {!limited && <ExamModePick value={t.mode} edit={edit} onChange={m => onChange({ ...t, mode: m })} />}
     <p className="sub" style={{ margin: 0 }}>Nhà giáo mở hết bài giảng, tài liệu rồi bấm "Làm bài" để mở link. Mở link là học tiếp được nội dung sau.
       Điểm do người tổ chức nhập ở Đánh giá kết quả đào tạo › Chấm điểm › Điểm bài test (gõ tay hoặc nhập file Excel), đủ điểm đạt mới tính bài test đạt.</p>
     <label className="field"><span>Link bài kiểm tra</span><input type="url" disabled={!edit} value={t.url ?? ''} placeholder="https://forms.gle/…"
       onChange={e => onChange({ ...t, url: e.target.value })} /></label>
     <div className="formgrid">
-      <label className="field"><span>Điểm đạt (thang 10)</span><input type="number" min={0} max={10} step={0.5} disabled={!edit} value={t.pass ?? ''} placeholder={passScore != null ? `Theo chương trình: ${passScore}` : '5'} onChange={e => setNum('pass', e.target.value)} /></label>
+      {!limited && <label className="field"><span>Điểm đạt (thang 10)</span><input type="number" min={0} max={10} step={0.5} disabled={!edit} value={t.pass ?? ''} placeholder={passScore != null ? `Theo chương trình: ${passScore}` : '5'} onChange={e => setNum('pass', e.target.value)} /></label>}
       <label className="field"><span>Hạn làm bài</span><input type="date" disabled={!edit} value={t.due ?? ''} onChange={e => onChange({ ...t, due: e.target.value || null })} /></label>
     </div>
     <label className="field"><span>Hướng dẫn cho nhà giáo</span><textarea rows={2} maxLength={500} disabled={!edit} value={t.note ?? ''} placeholder="VD: Đăng nhập bằng email đã đăng ký với hệ thống để điểm khớp tên."
@@ -164,14 +165,14 @@ function TestEditor({ t, edit, passScore, hasTest, onChange }: { t: TestCfg; edi
   </div>
   return <div style={{ display: 'grid', gap: 12 }}>
     {!hasTest && <p className="warnline">Nội dung này đang không bật "Có bài test". Bật ở bảng nội dung để nhà giáo làm bài.</p>}
-    {kindPick}
-    <ExamModePick value={t.mode} edit={edit} onChange={m => onChange({ ...t, mode: m })} />
+    {!limited && kindPick}
+    {!limited && <ExamModePick value={t.mode} edit={edit} onChange={m => onChange({ ...t, mode: m })} />}
     <p className="sub" style={{ margin: 0 }}>Nhà giáo làm bài sau khi mở hết bài giảng và tài liệu của nội dung. Đạt điểm đạt thì nội dung được tính hoàn thành và mở nội dung tiếp theo.</p>
     <div className="formgrid">
       <label className="field"><span>Số câu mỗi lượt</span><input type="number" min={1} max={Math.max(n, 1)} disabled={!edit} value={t.count ?? ''} placeholder={`Tất cả (${n})`} onChange={e => setNum('count', e.target.value)} /></label>
       <label className="field"><span>Thời gian (phút)</span><input type="number" min={1} max={300} disabled={!edit} value={t.minutes ?? ''} placeholder="Không giới hạn" onChange={e => setNum('minutes', e.target.value)} /></label>
-      <label className="field"><span>Số lượt làm</span><input type="number" min={0} max={50} disabled={!edit} value={t.attempts ?? ''} placeholder="Không giới hạn" onChange={e => setNum('attempts', e.target.value)} /></label>
-      <label className="field"><span>Điểm đạt (thang 10)</span><input type="number" min={0} max={10} step={0.5} disabled={!edit} value={t.pass ?? ''} placeholder={passScore != null ? `Theo chương trình: ${passScore}` : '5'} onChange={e => setNum('pass', e.target.value)} /></label>
+      {!limited && <label className="field"><span>Số lượt làm</span><input type="number" min={0} max={50} disabled={!edit} value={t.attempts ?? ''} placeholder="Không giới hạn" onChange={e => setNum('attempts', e.target.value)} /></label>}
+      {!limited && <label className="field"><span>Điểm đạt (thang 10)</span><input type="number" min={0} max={10} step={0.5} disabled={!edit} value={t.pass ?? ''} placeholder={passScore != null ? `Theo chương trình: ${passScore}` : '5'} onChange={e => setNum('pass', e.target.value)} /></label>}
     </div>
     <div className="bar" style={{ margin: 0 }}>
       <span className="tools"><b>Câu hỏi đã chọn: {n}{t.count && t.count < n ? ` · rút ngẫu nhiên ${t.count} câu mỗi lượt` : ''}</b>

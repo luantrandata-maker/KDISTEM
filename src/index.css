@@ -2326,3 +2326,6 @@ th.sort-asc::after{content:" ▲";font-size:10px}th.sort-desc::after{content:" �
 /* Xếp lịch kế hoạch: chọn điểm danh theo buổi / theo nội dung */
 .tpmerge{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;padding:10px 12px;margin:0 0 12px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
 .tpmerge .tpcheck{display:inline-flex;gap:6px;align-items:center}
+/* Kế hoạch đào tạo › Đề kiểm tra của kế hoạch */
+.tpexam{display:grid;gap:6px}
+.tpexamlog{margin:8px 0 0;padding-left:18px;display:grid;gap:4px;font-size:13px}

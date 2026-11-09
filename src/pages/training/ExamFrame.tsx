@@ -10,7 +10,7 @@ import { ExamModePick, type Detail } from './Content'
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 
 export type FinalExam = { title?: string; subject?: string; grade?: number | null; subjects?: string[]; grades?: number[]; matrix?: MRow[]; qids?: string[]; minutes?: number | null; attempts?: number | null; pass?: number | null; shuffle?: boolean; mode?: 'self' | 'trainer' }
-const finalSpec = (x: FinalExam): TrySpec => ({ kind: 'pick', subjects: listSubjects(x), grades: listGrades(x), matrix: cleanMatrix(x.matrix ?? []), qids: x.qids ?? [], shuffle: x.shuffle !== false })
+export const finalSpec = (x: FinalExam): TrySpec => ({ kind: 'pick', subjects: listSubjects(x), grades: listGrades(x), matrix: cleanMatrix(x.matrix ?? []), qids: x.qids ?? [], shuffle: x.shuffle !== false })
 export type Frame = {
   weights: { att: number; tests: number; final: number; product: number }
   req: { att: number | null; tests: boolean; units: boolean; final: number | null; product: number | null; total: number | null }
@@ -74,22 +74,7 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
         <button type="button" className="danger" onClick={() => confirm('Bỏ đề cuối khoá của chương trình?') && save({ final_exam: null }, 'Đã bỏ đề cuối khoá.')}>Bỏ đề</button></>
         : <button type="button" className="primary" onClick={startEdit}>+ Thêm đề cuối khoá</button>}</div>}</div>
 
-    {f ? <div style={{ display: 'grid', gap: 12 }}>
-      <div className="formgrid">
-        <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên đề</span><input maxLength={200} value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} placeholder="Để trống = Đề cuối khoá · tên chương trình" /></label>
-        <div className="field" style={{ gridColumn: 'span 2' }}><span>Môn (ngân hàng câu hỏi, chọn được nhiều) *</span>
-          <MultiSelect value={listSubjects(f)} onChange={v => setF({ ...f, subjects: v, subject: v[0] })} ariaLabel="Môn của đề" placeholder="— Chọn môn —"
-            options={[...subjects.map(s => [s.subject, `${s.subject} (${s.n} câu)`] as [string, string]), ...listSubjects(f).filter(x => !subjects.some(s => s.subject === x)).map(x => [x, x] as [string, string])]} empty="Ngân hàng chưa có câu hỏi." /></div>
-        <div className="field"><span>Khối (chọn được nhiều)</span><GradeMulti value={listGrades(f)} onChange={v => setF({ ...f, grades: v, grade: v[0] ?? null })} /></div>
-        <label className="field"><span>Thời gian (phút)</span><input type="number" min={1} max={300} value={f.minutes ?? ''} placeholder="Không giới hạn" onChange={e => setF({ ...f, minutes: nOrNull(e.target.value) })} /></label>
-        <label className="field"><span>Số lượt làm</span><input type="number" min={0} max={50} value={f.attempts ?? 0} onChange={e => setF({ ...f, attempts: Number(e.target.value) || 0 })} /><small className="sub">0 = không giới hạn</small></label>
-        <label className="field"><span>Điểm đạt (thang 10)</span><input type="number" min={0} max={10} step={0.5} value={f.pass ?? ''} placeholder="Không xét" onChange={e => setF({ ...f, pass: nOrNull(e.target.value) })} /></label>
-        <div className="field"><span>Trộn câu</span><label><input type="checkbox" checked={f.shuffle !== false} onChange={e => setF({ ...f, shuffle: e.target.checked })} /> Trộn thứ tự câu mỗi lượt</label></div>
-        <div style={{ gridColumn: '1/-1' }}><ExamModePick value={f.mode} edit onChange={m => setF({ ...f, mode: m })} /></div>
-      </div>
-      <ExamMatrix org={p.org_id} subjects={listSubjects(f)} grades={listGrades(f)} rows={f.matrix ?? []} onChange={m => setF({ ...f, matrix: m })} />
-      <div className="formactions"><button type="button" className="primary" onClick={saveFinal}>Lưu đề ({total} câu)</button> <TryButton orgId={p.org_id} spec={finalSpec(f)} title={f.title || 'Đề cuối khoá'} minutes={f.minutes} pass={f.pass} /> <button type="button" onClick={() => setF(null)}>Huỷ</button></div>
-    </div>
+    {f ? <FinalExamForm org={p.org_id} f={f} setF={setF} total={total} onSave={saveFinal} onCancel={() => setF(null)} />
     : fe ? <dl className="tpkv">
       <dt>Tên đề</dt><dd>{fe.title || 'Đề cuối khoá'}</dd>
       <dt>Môn · khối</dt><dd>{listSubjects(fe).join(', ') || '—'}{listGrades(fe).length ? ` · khối ${listGrades(fe).join(', ')}` : ' · tất cả khối'}</dd>
@@ -100,6 +85,28 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
     : <p className="sub" style={{ margin: 0 }}>Chương trình chưa có đề cuối khoá.</p>}
     {!edit && <p className="sub" style={{ margin: 0 }}>Phiên bản này không sửa được. Tạo phiên bản mới ở tab "Phiên bản & duyệt" để sửa đề.</p>}
   </section>
+}
+
+/** Form soạn đề cuối khoá (dùng ở chương trình và ở đề riêng của kế hoạch). lock: không đổi số lượt, điểm đạt. */
+export function FinalExamForm({ org, f, setF, total, onSave, onCancel, lock = false }: { org: string; f: FinalExam; setF: (f: FinalExam) => void; total: number; onSave: () => void; onCancel: () => void; lock?: boolean }) {
+  const subjects = useBankSubjects(org)
+  return <div style={{ display: 'grid', gap: 12 }}>
+      <div className="formgrid">
+        <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên đề</span><input maxLength={200} value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} placeholder="Để trống = Đề cuối khoá · tên chương trình" /></label>
+        <div className="field" style={{ gridColumn: 'span 2' }}><span>Môn (ngân hàng câu hỏi, chọn được nhiều) *</span>
+          <MultiSelect value={listSubjects(f)} onChange={v => setF({ ...f, subjects: v, subject: v[0] })} ariaLabel="Môn của đề" placeholder="— Chọn môn —"
+            options={[...subjects.map(s => [s.subject, `${s.subject} (${s.n} câu)`] as [string, string]), ...listSubjects(f).filter(x => !subjects.some(s => s.subject === x)).map(x => [x, x] as [string, string])]} empty="Ngân hàng chưa có câu hỏi." /></div>
+        <div className="field"><span>Khối (chọn được nhiều)</span><GradeMulti value={listGrades(f)} onChange={v => setF({ ...f, grades: v, grade: v[0] ?? null })} /></div>
+        <label className="field"><span>Thời gian (phút)</span><input type="number" min={1} max={300} value={f.minutes ?? ''} placeholder="Không giới hạn" onChange={e => setF({ ...f, minutes: nOrNull(e.target.value) })} /></label>
+        <label className="field"><span>Số lượt làm</span><input type="number" min={0} max={50} disabled={lock} value={f.attempts ?? 0} onChange={e => setF({ ...f, attempts: Number(e.target.value) || 0 })} /><small className="sub">0 = không giới hạn</small></label>
+        <label className="field"><span>Điểm đạt (thang 10)</span><input type="number" min={0} max={10} step={0.5} disabled={lock} value={f.pass ?? ''} placeholder="Không xét" onChange={e => setF({ ...f, pass: nOrNull(e.target.value) })} /></label>
+        <div className="field"><span>Trộn câu</span><label><input type="checkbox" checked={f.shuffle !== false} onChange={e => setF({ ...f, shuffle: e.target.checked })} /> Trộn thứ tự câu mỗi lượt</label></div>
+        <div style={{ gridColumn: '1/-1' }}><ExamModePick value={f.mode} edit onChange={m => setF({ ...f, mode: m })} /></div>
+      </div>
+      <ExamMatrix org={org} subjects={listSubjects(f)} grades={listGrades(f)} rows={f.matrix ?? []} onChange={m => setF({ ...f, matrix: m })} />
+      {lock && <p className="sub" style={{ margin: 0 }}>Đã có nhà giáo nộp bài nên không đổi được số lượt làm và điểm đạt.</p>}
+      <div className="formactions"><button type="button" className="primary" onClick={onSave}>Lưu đề ({total} câu)</button> <TryButton orgId={org} spec={finalSpec(f)} title={f.title || 'Đề cuối khoá'} minutes={f.minutes} pass={f.pass} /> <button type="button" onClick={onCancel}>Huỷ</button></div>
+    </div>
 }
 
 // ===== Khung đánh giá =====

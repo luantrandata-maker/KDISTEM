@@ -17,6 +17,7 @@ import { ContentDetail, detailCount, type Detail } from './Content'
 import { TrainingUnits } from './Units'
 import { StatCards } from '../../components/StatCards'
 import { FilterChips } from '../../components/FilterChips'
+import { DataTable, type Col } from '../../components/DataTable'
 import { FlowGuide } from '../../components/FlowGuide'
 import { ProgramExams, ProgramEvalFrame, type FinalExam, type Frame } from './ExamFrame'
 import { useAllOrgs } from '../../components/OrgScope'
@@ -101,6 +102,20 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
   const n = (s: Status) => base.filter(p => inGroup(p, s)).length
   const baseStats = base.map(p => stats.get(p.id)).filter(Boolean) as Stat[]
   const totalContents = baseStats.reduce((a, x) => a + x.contents, 0)
+  const scopeText = (p: TProgram) => p.scope === 'selected' ? `${targets.get(p.id) ?? 0} đơn vị được chọn` : 'Tất cả đơn vị'
+  const kindText = (p: TProgram) => [ctsOf(p).join(', '), lvsOf(p).map(levelName).join(', ')].filter(Boolean).join(' · ')
+  const progCols: Col<TProgram>[] = [
+    { key: 'name', label: 'Chương trình đào tạo', fixed: true, text: p => `${p.title} ${p.code} ${p.builder ?? ''}`,
+      cell: p => <><button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'open', id: p.id }) }}>{p.title}</button><br /><small className="sub">{p.code} · v{p.version_no}{p.builder ? ` · XD: ${p.builder}` : ''}</small></> },
+    { key: 'kind', label: 'Loại · cấp học', text: kindText, cell: p => kindText(p) || '—' },
+    { key: 'aud', label: 'Đối tượng', text: p => p.audience ?? '', cell: p => p.audience || '—' },
+    { key: 'scope', label: 'Phạm vi áp dụng', text: scopeText, cell: p => <>{scopeText(p)}{effNote(p) && <><br /><small className="sub">{effNote(p)}</small></>}</> },
+    { key: 'owner', label: 'Đơn vị tạo', text: p => owners.get(p.org_id) ?? '', cell: p => owners.get(p.org_id) ?? '—' },
+    { key: 'size', label: 'Môn · nội dung · giờ', cell: p => { const s = stats.get(p.id); return `${s?.subjects ?? 0} môn · ${s?.contents ?? 0} nội dung · ${num(s?.hours ?? 0)} giờ` } },
+    { key: 'mode', label: 'Hình thức', text: p => MODE[p.mode], cell: p => MODE[p.mode] },
+    { key: 'status', label: 'Trạng thái', text: p => STATUS[p.status][0], cell: p => <Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip> },
+    { key: 'upd', label: 'Cập nhật', cell: p => <small>{new Date(p.updated_at).toLocaleDateString('vi-VN')}</small> },
+  ]
   const steps: [string, string][] = [
     ['Soạn chương trình', 'Nhập thông tin, năng lực đích và điều kiện đạt; thêm các môn và nội dung đào tạo kèm số giờ.'],
     ['Duyệt & phát hành', 'Gửi duyệt hoặc phát hành thẳng. Bản đã phát hành không sửa được, muốn sửa thì tạo phiên bản mới.'],
@@ -125,21 +140,8 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
         {admin && <div className="tools"><button type="button" className="primary" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>Thêm chương trình đào tạo</button></div>}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      {!list ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-        <thead><tr><th>Chương trình đào tạo</th><th>Loại · cấp học</th><th>Đối tượng</th><th>Phạm vi áp dụng</th><th>Đơn vị tạo</th><th>Môn · nội dung · giờ</th><th>Hình thức</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>
-        <tbody>{shown.map(p => { const s = stats.get(p.id); return <tr key={p.id}>
-          <td><button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'open', id: p.id }) }}>{p.title}</button><br /><small className="sub">{p.code} · v{p.version_no}{p.builder ? ` · XD: ${p.builder}` : ''}</small></td>
-          <td>{[ctsOf(p).join(', '), lvsOf(p).map(levelName).join(', ')].filter(Boolean).join(' · ') || '—'}</td>
-          <td style={{ whiteSpace: 'normal' }}>{p.audience || '—'}</td>
-          <td>{p.scope === 'selected' ? `${targets.get(p.id) ?? 0} đơn vị được chọn` : 'Tất cả đơn vị'}{effNote(p) && <><br /><small className="sub">{effNote(p)}</small></>}</td>
-          <td style={{ whiteSpace: 'normal' }}>{owners.get(p.org_id) ?? '—'}</td>
-          <td>{s?.subjects ?? 0} môn · {s?.contents ?? 0} nội dung · {num(s?.hours ?? 0)} giờ</td>
-          <td>{MODE[p.mode]}</td>
-          <td><Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip></td>
-          <td><small>{new Date(p.updated_at).toLocaleDateString('vi-VN')}</small></td>
-        </tr> })}
-          {shown.length === 0 && <tr><td colSpan={9}>{list.length ? 'Không có chương trình nào khớp bộ lọc.' : admin ? 'Chưa có chương trình đào tạo nào. Bấm "Thêm chương trình đào tạo".' : 'Chưa có chương trình đào tạo nào được phát hành cho đơn vị.'}</td></tr>}</tbody>
-      </table></div>}
+      {!list ? <p className="sub">Đang tải…</p> : <DataTable id="training-programs" rows={shown} rowKey={p => p.id} cols={progCols}
+        empty={admin ? 'Chưa có chương trình đào tạo nào. Bấm "Thêm chương trình đào tạo".' : 'Chưa có chương trình đào tạo nào được phát hành cho đơn vị.'} />}
     </>
   )
 }

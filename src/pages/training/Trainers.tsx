@@ -8,6 +8,7 @@ import { ElView } from '../../components/ElView'
 import { MultiSelect } from '../../components/MultiSelect'
 import { Chip } from '../dist/Editor'
 import { score } from './Feedback'
+import { DataTable, MoreFilters, type Col } from '../../components/DataTable'
 
 export type Trainer = { id: string; org_id: string; full_name: string; title: string | null; workplace: string | null; expertise: string | null
   email: string | null; phone: string | null; note: string | null; active: boolean }
@@ -119,30 +120,26 @@ export function TrainersPage({ orgId }: { orgId: string }) {
       {([['active', 'Đang mời', all.filter(t => t.active).length], ['off', 'Ngừng mời', all.filter(t => !t.active).length], ['', 'Tất cả', all.length]] as ['' | 'active' | 'off', string, number][]).map(([s, l, c]) =>
         <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
     </div>
-    <div className="bar">
-      <div className="tools"><input placeholder="Tìm họ tên, đơn vị công tác, chuyên môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giảng viên" />
-        {ofl.node(all.map(t => t.org_id))}
-        <small className="sub">{shown.length}/{all.length} giảng viên</small></div>
-      {can && <div className="tools"><button type="button" className="primary" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>Thêm giảng viên</button></div>}
-    </div>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    {!list ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-      <thead><tr><th>Giảng viên</th><th>Đơn vị công tác</th><th>Chuyên môn</th><th>Liên hệ</th><th style={{ width: 90 }}>Phân công</th><th>Đánh giá của GV</th><th>Trạng thái</th>{can && <th></th>}</tr></thead>
-      <tbody>{shown.map(t => <tr key={t.id}>
-        <td>{can ? <button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'edit', t }) }}>{trainerName(t)}</button> : <b>{trainerName(t)}</b>}
-          {(every || t.note) && <><br /><small className="sub">{[every && 'Danh sách của ' + orgName(t.org_id), t.note].filter(Boolean).join(' · ')}</small></>}</td>
-        <td>{t.workplace || '—'}</td>
-        <td style={{ whiteSpace: 'normal' }}>{t.expertise || '—'}</td>
-        <td>{[t.phone, t.email].filter(Boolean).join(' · ') || '—'}</td>
-        <td>{use.get(t.id) ?? 0}</td>
-        <td>{(r => r ? <><Chip tone={r.overall >= 4 ? 'good' : r.overall >= 3 ? 'warn' : 'bad'}>{score(r.overall)}★</Chip> <small className="sub">{r.responses} phiếu · {r.plans} khoá</small><br />
-          <small className="sub" title="Chuyên môn · Truyền đạt · Tương tác">CM {score(r.expertise)} · TĐ {score(r.delivery)} · TT {score(r.interaction)}</small></> : <small className="sub">Chưa có</small>)(rate.get(t.id))}</td>
-        <td><Chip tone={t.active ? 'good' : ''}>{t.active ? 'Đang mời' : 'Ngừng mời'}</Chip></td>
-        {can && <td><div className="tools"><button type="button" onClick={() => toggle(t)}>{t.active ? 'Ngừng mời' : 'Mời lại'}</button>
-          {!use.get(t.id) && <button type="button" aria-label={`Xoá ${t.full_name}`} onClick={() => del(t)}>×</button>}</div></td>}
-      </tr>)}
-        {!shown.length && <tr><td colSpan={can ? 8 : 7}>{all.length ? 'Không có giảng viên nào khớp.' : can ? 'Chưa có giảng viên nào. Bấm "Thêm giảng viên".' : 'Chưa có giảng viên nào.'}</td></tr>}</tbody>
-    </table></div>}
+    {!list ? <p className="sub">Đang tải…</p> : <DataTable id="training-trainers" rows={shown} rowKey={t => t.id} cols={[
+      { key: 'name', label: 'Giảng viên', fixed: true, text: t => `${trainerName(t)} ${t.note ?? ''}`,
+        cell: t => <>{can ? <button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'edit', t }) }}>{trainerName(t)}</button> : <b>{trainerName(t)}</b>}
+          {(every || t.note) && <><br /><small className="sub">{[every && 'Danh sách của ' + orgName(t.org_id), t.note].filter(Boolean).join(' · ')}</small></>}</> },
+      { key: 'work', label: 'Đơn vị công tác', text: t => t.workplace ?? '', cell: t => t.workplace || '—' },
+      { key: 'exp', label: 'Chuyên môn', text: t => t.expertise ?? '', cell: t => t.expertise || '—' },
+      { key: 'contact', label: 'Liên hệ', text: t => [t.phone, t.email].filter(Boolean).join(' '), cell: t => [t.phone, t.email].filter(Boolean).join(' · ') || '—' },
+      { key: 'use', label: 'Phân công', cell: t => use.get(t.id) ?? 0 },
+      { key: 'rate', label: 'Đánh giá của GV', cell: t => (r => r ? <><Chip tone={r.overall >= 4 ? 'good' : r.overall >= 3 ? 'warn' : 'bad'}>{score(r.overall)}★</Chip> <small className="sub">{r.responses} phiếu · {r.plans} khoá</small><br />
+        <small className="sub" title="Chuyên môn · Truyền đạt · Tương tác">CM {score(r.expertise)} · TĐ {score(r.delivery)} · TT {score(r.interaction)}</small></> : <small className="sub">Chưa có</small>)(rate.get(t.id)) },
+      { key: 'st', label: 'Trạng thái', text: t => t.active ? 'Đang mời' : 'Ngừng mời', cell: t => <Chip tone={t.active ? 'good' : ''}>{t.active ? 'Đang mời' : 'Ngừng mời'}</Chip> },
+      ...(can ? [{ key: 'act', label: 'Thao tác', fixed: true, cell: (t: Trainer) => <div className="tools"><button type="button" onClick={() => toggle(t)}>{t.active ? 'Ngừng mời' : 'Mời lại'}</button>
+        {!use.get(t.id) && <button type="button" aria-label={`Xoá ${t.full_name}`} onClick={() => del(t)}>×</button>}</div> }] : []),
+    ] as Col<Trainer>[]}
+      empty={all.length ? 'Không có giảng viên nào khớp.' : can ? 'Chưa có giảng viên nào. Bấm "+ Thêm giảng viên".' : 'Chưa có giảng viên nào.'}
+      left={<><input placeholder="Tìm họ tên, đơn vị công tác, chuyên môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giảng viên" />
+        <MoreFilters active={ofl.active}>{ofl.node(all.map(t => t.org_id))}</MoreFilters>
+        <small className="sub">{shown.length}/{all.length} giảng viên</small></>}
+      right={can && <button type="button" className="primary ttadd" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>+ Thêm giảng viên</button>} />}
   </>
 }
 

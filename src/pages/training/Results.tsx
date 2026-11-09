@@ -2,7 +2,7 @@
 // Hệ thống tự tính chuyên cần, bài kiểm tra, tiến độ học, sản phẩm và gợi ý Đạt / Chưa đạt theo điều kiện của chương trình;
 // đơn vị lập kế hoạch chấm sản phẩm, kết luận, cho thi lại. Đạt thì có chứng chỉ chờ duyệt ở mục Chứng chỉ đào tạo.
 import { useOrgFilter } from '../../components/OrgFilters'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { supabase } from '../../lib/supabase'
 import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
@@ -11,6 +11,7 @@ import { useAllMode } from '../../components/OrgScope'
 import { PlanResults } from './ResultsWork'
 import { FlowGuide } from '../../components/FlowGuide'
 import { StatCards } from '../../components/StatCards'
+import { DataTable, MoreFilters, type Col } from '../../components/DataTable'
 
 export type RPlan = { id: string; org_id: string; plan_code: string | null; name: string }
 type M = { sessions: number; present: number; excused: number; att_pct: number | null; att_req: number; units: number; done: number; tests: number
@@ -77,19 +78,18 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
   const list = (plans ?? []).filter(p => ofl.fit(p.org_id) && (!q || `${p.plan_code ?? ''} ${p.name}`.toLowerCase().includes(q.toLowerCase())))
   // Thẻ tổng số tính theo các kế hoạch đang lọc
   const tot = list.map(p => cnt.get(p.id)).filter(Boolean).reduce<{ n: number; pass: number; fail: number; cert: number }>((a, c) => ({ n: a.n + c!.n, pass: a.pass + c!.pass, fail: a.fail + c!.fail, cert: a.cert + c!.cert }), { n: 0, pass: 0, fail: 0, cert: 0 })
-  const table = (rows: TPlanRow[], empty: string) => <div className="wrap"><table className="libtable">
-    <thead><tr><th>Kế hoạch đào tạo</th><th>Nhà giáo</th><th>Đạt</th><th>Chưa đạt</th><th>Chờ kết luận</th><th>Chứng chỉ đã cấp</th></tr></thead>
-    <tbody>{rows.map(p => { const c = cnt.get(p.id) ?? { n: 0, pass: 0, fail: 0, cert: 0 }, wait = Math.max(0, c.n - c.pass - c.fail)
-      return <tr key={p.id}>
-        <td><button type="button" className="namelink" onClick={() => setOpen(p.id)}>{p.name}</button><br /><small className="sub">{[p.plan_code, p.year_name, p.org_id === orgId ? '' : 'được giao'].filter(Boolean).join(' · ')}</small></td>
-        <td>{c.n}</td>
-        <td><b className="tlok">{c.pass}</b>{c.n ? <small className="sub"> · {Math.round(c.pass * 100 / c.n)}%</small> : null}</td>
-        <td>{c.fail || '—'}</td>
-        <td>{wait ? <Chip tone="warn">{wait} chờ</Chip> : '—'}</td>
-        <td>{c.cert}</td>
-      </tr> })}
-      {!rows.length && <tr><td colSpan={6}>{empty}</td></tr>}</tbody>
-  </table></div>
+  const cOf = (p: TPlanRow) => cnt.get(p.id) ?? { n: 0, pass: 0, fail: 0, cert: 0 }
+  const resCols: Col<TPlanRow>[] = [
+    { key: 'name', label: 'Kế hoạch đào tạo', fixed: true, text: p => `${p.name} ${p.plan_code ?? ''} ${p.year_name ?? ''}`,
+      cell: p => <><button type="button" className="namelink" onClick={() => setOpen(p.id)}>{p.name}</button><br /><small className="sub">{[p.plan_code, p.year_name, p.org_id === orgId ? '' : 'được giao'].filter(Boolean).join(' · ')}</small></> },
+    { key: 'n', label: 'Nhà giáo', cell: p => cOf(p).n },
+    { key: 'pass', label: 'Đạt', cell: p => { const c = cOf(p); return <><b className="tlok">{c.pass}</b>{c.n ? <small className="sub"> · {Math.round(c.pass * 100 / c.n)}%</small> : null}</> } },
+    { key: 'fail', label: 'Chưa đạt', cell: p => cOf(p).fail || '—' },
+    { key: 'wait', label: 'Chờ kết luận', cell: p => { const c = cOf(p), w = Math.max(0, c.n - c.pass - c.fail); return w ? <Chip tone="warn">{w} chờ</Chip> : '—' } },
+    { key: 'cert', label: 'Chứng chỉ đã cấp', cell: p => cOf(p).cert },
+  ]
+  const table = (rows: TPlanRow[], empty: string, left?: ReactNode, right?: ReactNode) =>
+    <DataTable id="training-results-plans" rows={rows} rowKey={p => p.id} cols={resCols} empty={empty} left={left} right={right} />
   const steps: [string, string][] = [
     ['Chọn kế hoạch', 'Chọn mục trong khung phân loại (môn học, cấp độ…) rồi mở kế hoạch đã phát hành.'],
     ['Chấm điểm', 'Hệ thống tự tính chuyên cần, bài kiểm tra, học trực tuyến; nhập điểm sản phẩm hàng loạt.'],
@@ -105,20 +105,18 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
       { icon: 'checkCircle', tone: 'good', value: tot.pass, label: 'Đạt', sub: `${tot.n ? Math.round(tot.pass * 100 / tot.n) : 0}% · ${Math.max(0, tot.n - tot.pass - tot.fail)} chờ kết luận` },
       { icon: 'award', tone: 'good', value: tot.cert, label: 'Chứng chỉ đã cấp' },
     ]} />
-    <div className="distpills" role="tablist">
-      {([['list', 'Tất cả kế hoạch'], ['tree', 'Theo khung phân loại']] as ['tree' | 'list', string][]).map(([t, l]) =>
-        <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{l}</button>)}
-    </div>
     {err && <p className="msg">{err}</p>}
     {!plans ? <p className="sub">Đang tải…</p> : tab === 'tree'
-      ? <ClsTree scope="training" items={list} header={() => <>{ofl.node(plans.map(p => p.org_id))}</>}>
-          {rows => table(rows, 'Không có kế hoạch đã phát hành trong mục này.')}</ClsTree>
+      ? <>
+        <div className="bar"><button type="button" onClick={() => setTab('list')}>‹ Tất cả kế hoạch</button></div>
+        <ClsTree scope="training" items={list} header={() => <>{ofl.node(plans.map(p => p.org_id))}</>}>
+          {rows => table(rows, 'Không có kế hoạch đã phát hành trong mục này.')}</ClsTree></>
       : <>
-        <div className="bar"><div className="tools">
+        {table(list, 'Chưa có kế hoạch đào tạo đã phát hành.', <>
           <input placeholder="Tìm mã, tên kế hoạch…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm kế hoạch" />
-          {ofl.node(plans.map(p => p.org_id))}
-          <small className="sub">{list.length}/{plans.length} kế hoạch</small></div></div>
-        {table(list, 'Chưa có kế hoạch đào tạo đã phát hành.')}
+          <MoreFilters active={ofl.active}>{ofl.node(plans.map(p => p.org_id))}</MoreFilters>
+          <small className="sub">{list.length}/{plans.length} kế hoạch</small></>,
+          <button type="button" onClick={() => setTab('tree')}>Theo khung phân loại</button>)}
       </>}
   </>
 }

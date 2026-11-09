@@ -9,6 +9,7 @@ import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
 import { CERT_ST } from './Results'
 import { FilterChips } from '../../components/FilterChips'
+import { DataTable, MoreFilters, type Col } from '../../components/DataTable'
 import { FlowGuide } from '../../components/FlowGuide'
 
 type Cert = { id: string; code: string | null; status: 'pending' | 'issued' | 'revoked'; issued_on: string | null; expires_on: string | null; revoked_reason: string | null
@@ -108,6 +109,18 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
     if (error) return setMsg([errText(error.message), true])
     setMsg([`Đã thu hồi chứng chỉ ${c.code}.`, false]); load()
   }
+  const certCols: Col<Cert>[] = [
+    { key: 'teacher', label: 'Nhà giáo', fixed: true, text: c => `${c.teacher_name} ${c.org_name ?? ''}`, cell: c => <><b>{c.teacher_name}</b><br /><small className="sub">{c.org_name ?? '—'}</small></> },
+    { key: 'plan', label: 'Kế hoạch / chương trình', text: c => `${c.plan_code} ${c.plan_name} ${c.program_titles ?? ''}`,
+      cell: c => <>{c.plan_code} · {c.plan_name}<br /><small className="sub">{c.program_titles ?? ''}{c.hours ? ` · ${String(c.hours).replace('.', ',')} giờ` : ''}</small></> },
+    { key: 'code', label: 'Số chứng chỉ', text: c => c.code ?? '', cell: c => c.code ?? <small className="sub">Chưa có</small> },
+    { key: 'date', label: 'Ngày cấp', text: c => day(c.issued_on), cell: c => <>{day(c.issued_on)}{c.expires_on && <><br /><small className="sub">Hết hạn {day(c.expires_on)}</small></>}</> },
+    { key: 'st', label: 'Trạng thái', text: c => CERT_ST[c.status][0], cell: c => <><Chip tone={CERT_ST[c.status][1]}>{CERT_ST[c.status][0]}</Chip>{c.revoked_reason && <><br /><small className="sub">{c.revoked_reason}</small></>}</> },
+    { key: 'act', label: 'Thao tác', fixed: true, cell: c => <div className="tools"><button type="button" data-rowopen onClick={() => setOpen(c.id)}>Xem{c.status === 'issued' ? ' / In' : ''}</button>
+      {c.can_manage && c.status === 'pending' && <button type="button" className="primary" onClick={() => issue([c.id])}>Duyệt cấp</button>}
+      {c.can_manage && c.status === 'issued' && <button type="button" onClick={() => revoke(c)}>Thu hồi</button>}
+      {c.can_manage && c.status === 'revoked' && <button type="button" onClick={() => issue([c.id])}>Cấp lại</button>}</div> },
+  ]
   const steps: [string, string, F][] = [
     ['Nhà giáo Đạt', 'Kết luận Đạt ở mục Đánh giá kết quả thì chứng chỉ tự vào danh sách chờ duyệt.', 'pending'],
     ['Duyệt cấp', 'Chọn chứng chỉ và bấm Duyệt cấp: hệ thống sinh số CCTH-năm-số, ngày cấp, hạn hiệu lực theo mẫu.', 'pending'],
@@ -117,34 +130,17 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
       <ol className="distguide">{steps.map(([h, d, k], i) => <li key={h}><button type="button" onClick={() => setF(k)}><i>{i + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
     </FlowGuide>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
-      <div className="distfilter">
-        <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Kế hoạch"><option value="">Tất cả kế hoạch</option>{plans.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
-        {ofl.node(all.map(c => tOrg.get(c.teacher_id)))}
+    <FilterChips value={f} onPick={k => { setF(k); setSel(new Set()) }} items={[['all', 'Tất cả', cnt('all')], ['pending', 'Chờ duyệt', cnt('pending'), 'warn'], ['issued', 'Đã cấp', cnt('issued')], ['revoked', 'Đã thu hồi', cnt('revoked')]]} />
+    {!rows ? <p className="sub">Đang tải…</p> : <DataTable id="training-certs" rows={shown} rowKey={c => c.id} cols={certCols}
+      empty={<small className="sub">{all.length ? 'Không có chứng chỉ nào khớp.' : 'Chưa có chứng chỉ. Kết luận Đạt ở mục Đánh giá kết quả đào tạo để có chứng chỉ chờ duyệt.'}</small>}
+      head={{ th: pick.length > 0 && <input type="checkbox" aria-label="Chọn tất cả" checked={pick.every(c => sel.has(c.id))} onChange={e => setSel(e.target.checked ? new Set(pick.map(c => c.id)) : new Set())} />,
+        td: c => c.can_manage && c.status !== 'issued' && <input type="checkbox" aria-label={`Chọn ${c.teacher_name}`} checked={sel.has(c.id)}
+          onChange={e => { const n = new Set(sel); e.target.checked ? n.add(c.id) : n.delete(c.id); setSel(n) }} /> }}
+      left={<>
         <input placeholder="Tìm nhà giáo, số chứng chỉ…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chứng chỉ" />
-        {sel.size > 0 && <button type="button" className="primary" onClick={() => issue([...sel])}>Duyệt cấp ({sel.size})</button>}
-      </div>
-      <FilterChips value={f} onPick={k => { setF(k); setSel(new Set()) }} items={[['all', 'Tất cả', cnt('all')], ['pending', 'Chờ duyệt', cnt('pending'), 'warn'], ['issued', 'Đã cấp', cnt('issued')], ['revoked', 'Đã thu hồi', cnt('revoked')]]} />
-      {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-        <thead><tr><th style={{ width: 36 }}>{pick.length > 0 && <input type="checkbox" aria-label="Chọn tất cả" checked={pick.every(c => sel.has(c.id))}
-          onChange={e => setSel(e.target.checked ? new Set(pick.map(c => c.id)) : new Set())} />}</th>
-          <th>Nhà giáo</th><th>Kế hoạch / chương trình</th><th>Số chứng chỉ</th><th>Ngày cấp</th><th>Trạng thái</th><th></th></tr></thead>
-        <tbody>{shown.map(c => <tr key={c.id}>
-          <td>{c.can_manage && c.status !== 'issued' && <input type="checkbox" aria-label={`Chọn ${c.teacher_name}`} checked={sel.has(c.id)}
-            onChange={e => { const n = new Set(sel); e.target.checked ? n.add(c.id) : n.delete(c.id); setSel(n) }} />}</td>
-          <td><b>{c.teacher_name}</b><br /><small className="sub">{c.org_name ?? '—'}</small></td>
-          <td style={{ whiteSpace: 'normal' }}>{c.plan_code} · {c.plan_name}<br /><small className="sub">{c.program_titles ?? ''}{c.hours ? ` · ${String(c.hours).replace('.', ',')} giờ` : ''}</small></td>
-          <td>{c.code ?? <small className="sub">Chưa có</small>}</td>
-          <td>{day(c.issued_on)}{c.expires_on && <><br /><small className="sub">Hết hạn {day(c.expires_on)}</small></>}</td>
-          <td><Chip tone={CERT_ST[c.status][1]}>{CERT_ST[c.status][0]}</Chip>{c.revoked_reason && <><br /><small className="sub">{c.revoked_reason}</small></>}</td>
-          <td><div className="tools"><button type="button" data-rowopen onClick={() => setOpen(c.id)}>Xem{c.status === 'issued' ? ' / In' : ''}</button>
-            {c.can_manage && c.status === 'pending' && <button type="button" className="primary" onClick={() => issue([c.id])}>Duyệt cấp</button>}
-            {c.can_manage && c.status === 'issued' && <button type="button" onClick={() => revoke(c)}>Thu hồi</button>}
-            {c.can_manage && c.status === 'revoked' && <button type="button" onClick={() => issue([c.id])}>Cấp lại</button>}</div></td>
-        </tr>)}
-          {!shown.length && <tr><td colSpan={7}><small className="sub">{all.length ? 'Không có chứng chỉ nào khớp.' : 'Chưa có chứng chỉ. Kết luận Đạt ở mục Đánh giá kết quả đào tạo để có chứng chỉ chờ duyệt.'}</small></td></tr>}</tbody>
-      </table></div>}
-    </section>
+        <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Kế hoạch"><option value="">Tất cả kế hoạch</option>{plans.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
+        <MoreFilters active={ofl.active}>{ofl.node(all.map(c => tOrg.get(c.teacher_id)))}</MoreFilters></>}
+      right={sel.size > 0 && <button type="button" className="primary ttadd" onClick={() => issue([...sel])}>Duyệt cấp ({sel.size})</button>} />}
   </>
 }
 

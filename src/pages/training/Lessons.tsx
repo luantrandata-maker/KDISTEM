@@ -11,6 +11,7 @@ import { LessonPage } from '../library/lesson/LessonPage'
 import { CreateLesson, kitSubject, type ProgRef } from '../library/lesson/Create'
 import type { KitRow } from '../library/lesson/save'
 import { FilterChips } from '../../components/FilterChips'
+import { DataTable, MoreFilters, type Col } from '../../components/DataTable'
 
 type TProg = ProgRef & { status: string }
 type TUnit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string }
@@ -91,42 +92,40 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
   const p0 = progs[0]
   const checked = (r: TLesson) => (r.content?.checked ?? []).filter(k => k !== 'bank').length
 
+  const lessonCols: Col<TLesson>[] = [
+    { key: 'name', label: 'Bài giảng đào tạo', fixed: true, text: r => `${r.title} ${r.subject ?? ''} ${r.author ?? ''}`,
+      cell: r => <><button type="button" className="namelink" onClick={() => { setMsg(''); setOpen(r.id) }}>{r.title}</button><br />
+        <small className="sub">{[r.subject, r.grades && `Khối ${r.grades}`, r.author].filter(Boolean).join(' · ')}</small></> },
+    { key: 'prog', label: 'Chương trình đào tạo · nội dung', text: r => `${progLabel(r.program_id) || r.training_plans?.name || ''} ${labelOf(r.unit_id) || ''}`,
+      cell: r => <>{progLabel(r.program_id) || r.training_plans?.name || <small className="sub">Chưa gắn</small>}
+        {(labelOf(r.unit_id) || (r.program_id && kitSubject(r))) && <><br /><small className="sub">{labelOf(r.unit_id) || kitSubject(r)}</small></>}</> },
+    { key: 'cards', label: 'Thẻ đã chốt', cell: r => !r.content?.kit ? <small className="sub">Bài cũ, chưa có 5 thẻ</small> : <><span className="tpdot" /> {checked(r)}/4 thẻ bắt buộc{(r.content?.checked ?? []).includes('bank') ? ' · có Kho hoạt động' : ''}</> },
+    { key: 'st', label: 'Trạng thái', text: r => STATUS[r.status]?.[0] ?? r.status, cell: r => <Chip tone={STATUS[r.status]?.[1]}>{STATUS[r.status]?.[0] ?? r.status}{r.status === 'published' && r.version ? ` · v${r.version}` : ''}</Chip> },
+    { key: 'upd', label: 'Cập nhật', cell: r => <small>{fmtDate((r.updated_at ?? r.created_on ?? '').slice(0, 10))}</small> },
+    { key: 'act', label: 'Thao tác', fixed: true, cell: r => <details className="distmore"><summary aria-label="Thao tác">···</summary><div className="distmenu">
+      <button type="button" onClick={() => setOpen(r.id)}>Mở bài giảng</button>
+      {r.status === 'inactive' ? <button type="button" onClick={() => setStatus(r, r.version > 0 ? 'published' : 'draft')}>Dùng lại</button>
+        : <button type="button" onClick={() => setStatus(r, 'inactive')}>Ngừng dùng</button>}
+      <button type="button" className="danger" onClick={() => remove(r)}>Xoá</button></div></details> },
+  ]
   return (
     <>
       <FilterChips value={fs} onPick={setFs} items={[['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['inactive', 'Ngừng dùng', n('inactive')]]} />
-      <div className="bar">
-        <div className="tools">
-          <input placeholder="Tìm tên bài giảng, môn, tác giả…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-          <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Tất cả chương trình đào tạo</option>
-            {progs.map(p => <option key={p.id} value={p.id}>{progLabel(p.id)}</option>)}</select>
-          {ofl.node((rows ?? []).map(r => r.org_id))}
-          <label className="chk"><input type="checkbox" checked={card === 'ready'} onChange={e => setCard(e.target.checked ? 'ready' : null)} /> Đã chốt đủ 4 thẻ ({base.filter(ready4).length})</label>
-          <small className="sub">{shown.length}/{rows?.length ?? 0} bài giảng · {new Set(base.map(r => r.program_id).filter(Boolean)).size} chương trình có bài giảng</small>
-        </div>
-        <div className="tools"><button type="button" className="primary" disabled={!p0} title={p0 ? undefined : 'Chưa có chương trình đào tạo để gắn bài giảng'}
-          onClick={() => { setMsg(''); setAdding(true) }}>+ Thêm bài giảng đào tạo</button></div>
-      </div>
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
       {err ? <p className="msg">{err}</p> : !rows ? <p className="sub">Đang tải…</p> :
-        <div className="wrap"><table className="libtable tllist">
-          <thead><tr><th>Bài giảng đào tạo</th><th>Chương trình đào tạo · nội dung</th><th>Thẻ đã chốt</th><th>Trạng thái</th><th>Cập nhật</th><th /></tr></thead>
-          <tbody>{shown.map(r => { const c = checked(r), legacy = !r.content?.kit
-            return <tr key={r.id}>
-              <td><button type="button" className="namelink" onClick={() => { setMsg(''); setOpen(r.id) }}>{r.title}</button><br />
-                <small className="sub">{[r.subject, r.grades && `Khối ${r.grades}`, r.author].filter(Boolean).join(' · ')}</small></td>
-              <td style={{ whiteSpace: 'normal' }}>{progLabel(r.program_id) || r.training_plans?.name || <small className="sub">Chưa gắn</small>}
-                {(labelOf(r.unit_id) || (r.program_id && kitSubject(r))) && <><br /><small className="sub">{labelOf(r.unit_id) || kitSubject(r)}</small></>}</td>
-              <td>{legacy ? <small className="sub">Bài cũ, chưa có 5 thẻ</small> : <><span className="tpdot" /> {c}/4 thẻ bắt buộc{(r.content?.checked ?? []).includes('bank') ? ' · có Kho hoạt động' : ''}</>}</td>
-              <td><Chip tone={STATUS[r.status]?.[1]}>{STATUS[r.status]?.[0] ?? r.status}{r.status === 'published' && r.version ? ` · v${r.version}` : ''}</Chip></td>
-              <td><small>{fmtDate((r.updated_at ?? r.created_on ?? '').slice(0, 10))}</small></td>
-              <td><details className="distmore"><summary aria-label="Thao tác">···</summary><div className="distmenu">
-                <button type="button" onClick={() => setOpen(r.id)}>Mở bài giảng</button>
-                {r.status === 'inactive' ? <button type="button" onClick={() => setStatus(r, r.version > 0 ? 'published' : 'draft')}>Dùng lại</button>
-                  : <button type="button" onClick={() => setStatus(r, 'inactive')}>Ngừng dùng</button>}
-                <button type="button" className="danger" onClick={() => remove(r)}>Xoá</button></div></details></td>
-            </tr> })}
-            {shown.length === 0 && <tr><td colSpan={6}>{rows.length ? 'Không có bài giảng nào khớp bộ lọc.' : 'Chưa có bài giảng đào tạo nào. Bấm “+ Thêm bài giảng đào tạo”.'}</td></tr>}</tbody>
-        </table></div>}
+        <DataTable id="training-lessons" className="tllist" rows={shown} rowKey={r => r.id} cols={lessonCols}
+          empty={rows.length ? 'Không có bài giảng nào khớp bộ lọc.' : 'Chưa có bài giảng đào tạo nào. Bấm “+ Thêm bài giảng”.'}
+          left={<>
+            <input placeholder="Tìm tên bài giảng, môn, tác giả…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
+            <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Tất cả chương trình đào tạo</option>
+              {progs.map(p => <option key={p.id} value={p.id}>{progLabel(p.id)}</option>)}</select>
+            <MoreFilters active={ofl.active || card === 'ready'}>
+              {ofl.node((rows ?? []).map(r => r.org_id))}
+              <label className="chk"><input type="checkbox" checked={card === 'ready'} onChange={e => setCard(e.target.checked ? 'ready' : null)} /> Đã chốt đủ 4 thẻ ({base.filter(ready4).length})</label>
+            </MoreFilters>
+            <small className="sub">{shown.length}/{rows.length} bài giảng · {new Set(base.map(r => r.program_id).filter(Boolean)).size} chương trình</small></>}
+          right={<button type="button" className="primary ttadd" disabled={!p0} title={p0 ? undefined : 'Chưa có chương trình đào tạo để gắn bài giảng'}
+            onClick={() => { setMsg(''); setAdding(true) }}>+ Thêm bài giảng</button>} />}
       {adding && p0 && <CreateLesson orgId={orgId} store="training" unitOf={unitOf} programs={progs} subjectsOf={subjectsOf}
         program={progs.find(p => p.id === fp) ?? p0} subject={subjectsOf((progs.find(p => p.id === fp) ?? p0).id)[0] ?? ''} pickPlace
         kits={rows ?? []} onClose={() => setAdding(false)} onCreated={(id, m) => { setAdding(false); setMsg(m); reload(); setOpen(id) }} />}

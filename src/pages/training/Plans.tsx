@@ -22,7 +22,7 @@ import { TrainerPick } from './Trainers'
 import { PlanResults } from './ResultsWork'
 import { PlanCal } from './PlanCal'
 import { PlanExams } from './PlanExams'
-import { FlowGuide } from '../../components/FlowGuide'
+import { FlowGuide, GuideButton, useGuide } from '../../components/FlowGuide'
 import { StatCards } from '../../components/StatCards'
 
 type Mode = 'online' | 'offline' | 'hybrid'
@@ -100,6 +100,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   const [yr, setYr] = useState('')
   const [fp, setFp] = useState('')
   const cls = useCls('training')
+  const guide = useGuide('training-plans')
   // Quản trị hệ thống: kế hoạch của tất cả đơn vị trong một danh sách, sửa thẳng
   const all = useAllMode(), orgName = useOrgName()
   // Lọc Tỉnh / Sở, trường: khớp đơn vị lập kế hoạch hoặc trường được giao
@@ -134,18 +135,21 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   const baseOrgs = orgs.filter(o => baseIds.has(o.plan_id))
   const waiting = baseOrgs.filter(o => o.status === 'submitted').length
   const years = [...new Set((list ?? []).map(p => p.year_name).filter(Boolean) as string[])].sort().reverse()
-  const crumb = (p: TPlan) => cls.path(p.node_id).map(x => x.name).join(' › ') || 'Chưa phân loại'
-  const table = (rows: TPlan[], empty: string) => <div className="wrap"><table className="libtable">
+  const crumb = (p: TPlan) => cls.path(p.node_id).map(x => x.name).join(' › ')
+  // Tên đơn vị chỉ cần khi danh sách có kế hoạch của nhiều đơn vị
+  const multiOrg = all && new Set((list ?? []).map(p => p.org_id)).size > 1
+  const table = (rows: TPlan[], empty: string) => <div className="wrap"><table className="libtable tplist">
     <thead><tr><th>Kế hoạch đào tạo</th><th>Phân loại</th><th>Năm học · đợt</th><th>Chương trình</th><th>Trường</th><th>Trạng thái</th></tr></thead>
-    <tbody>{rows.map(p => { const its = items.filter(i => i.plan_id === p.id), os = orgs.filter(o => o.plan_id === p.id), w = wait(p.id)
+    <tbody>{rows.map(p => { const its = items.filter(i => i.plan_id === p.id).sort((a, b) => a.seq - b.seq), os = orgs.filter(o => o.plan_id === p.id), w = wait(p.id)
+      const titles = its.map(i => i.training_programs?.title ?? '—'), c = crumb(p), st = STATUS[p.pub_status]
       return <tr key={p.id}>
-        <td><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen(p.id) }}>{p.name}</button><br /><small className="sub">{[all && orgName(p.org_id), p.plan_code, span(p)].filter(Boolean).join(' · ')}</small></td>
-        <td><small>{crumb(p)}</small></td>
-        <td>{[p.year_name, p.term && TERM[p.term]].filter(Boolean).join(' · ') || '—'}</td>
-        <td style={{ whiteSpace: 'normal' }}>{its.length ? its.sort((a, b) => a.seq - b.seq).map(i => i.training_programs?.title).join('; ') : <small className="sub">{p.pub_status === 'draft' ? 'Chưa chọn' : 'Kế hoạch cũ'}</small>}
+        <td><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen(p.id) }}>{p.name}</button><br /><small className="sub">{[multiOrg && orgName(p.org_id), p.plan_code, span(p)].filter(Boolean).join(' · ')}</small></td>
+        <td>{c ? <small>{c}</small> : <small className="sub">—</small>}</td>
+        <td className="nowrap">{[p.year_name, p.term && TERM[p.term]].filter(Boolean).join(' · ') || '—'}</td>
+        <td title={titles.length > 1 ? titles.join('\n') : undefined}>{titles.length ? <>{titles[0]}{titles.length > 1 && <small className="tpmore"> +{titles.length - 1}</small>}</> : <small className="sub">{p.pub_status === 'draft' ? 'Chưa chọn' : 'Kế hoạch cũ'}</small>}
           {p.hours ? <><br /><small className="sub">{p.hours} giờ</small></> : null}</td>
-        <td>{os.length ? <>{os.length} trường{w > 0 && <><br /><Chip tone="warn">{w} chờ duyệt</Chip></>}</> : '—'}</td>
-        <td><Chip tone={STATUS[p.pub_status][1]}>{STATUS[p.pub_status][0]}</Chip>{p.closed_at && <><br /><Chip tone="off">Đã kết thúc</Chip></>}</td>
+        <td className="nowrap">{os.length ? <>{os.length} trường{w > 0 && <><br /><Chip tone="warn">{w} chờ duyệt</Chip></>}</> : '—'}</td>
+        <td className="nowrap">{st[1] === 'good' ? <span className="stdot">{st[0]}</span> : <Chip tone={st[1]}>{st[0]}</Chip>}{p.closed_at && <><br /><small className="sub">Đã kết thúc</small></>}</td>
       </tr> })}
       {rows.length === 0 && <tr><td colSpan={6}>{empty}</td></tr>}</tbody>
   </table></div>
@@ -154,51 +158,55 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
     ['Chọn chương trình', 'Tick các chương trình đào tạo đã phát hành, chọn nội dung, chỉ tiêu và giảng viên.'],
     ['Xếp lịch', 'Chọn ngày, giờ học, địa điểm hoặc link họp; xếp tự động rồi chỉnh từng buổi.'],
     ['Xem kết quả & phát hành', 'Soát lịch theo ngày, cảnh báo trùng giờ; phát hành rồi gán trường.']]
+  // Chip trạng thái kèm số; chip bằng 0 thì ẩn (trừ Tất cả và chip đang chọn)
+  const chips = ([['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['wait', 'Có danh sách chờ duyệt', base.filter(p => wait(p.id)).length], ['archived', 'Ngừng dùng', n('archived')]] as [Status | 'wait' | '', string, number][])
+    .filter(([s, , c]) => !s || c > 0 || fs === s)
+  const schools = new Set(baseOrgs.map(o => o.org_id)).size
   return (
     <>
-      <FlowGuide id="training-plans">
+      <FlowGuide id="training-plans" guide={guide}>
         <ol className="distguide four">{steps.map(([h, d], k) => <li key={h}><button type="button" onClick={() => setTab('tree')}>
           <i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
         <p className="sub" style={{ margin: 0 }}>Kế hoạch đào tạo gom các chương trình đào tạo vào một đợt, xếp lịch học cụ thể rồi giao cho trường.</p>
       </FlowGuide>
-      <StatCards active={fs === 'wait' ? 'wait' : null} onPick={k => setFs((k ?? '') as typeof fs)} items={[
-        { icon: 'layers', value: list ? base.length : '…', label: 'Kế hoạch đào tạo', sub: `${n('published')} đã phát hành · ${n('draft')} nháp` },
-        { icon: 'school', tone: 'good', value: new Set(baseOrgs.map(o => o.org_id)).size, label: 'Trường được gán', sub: `${baseOrgs.filter(o => o.status === 'approved').length} danh sách đã duyệt` },
-        { k: 'wait', icon: 'hourglass', tone: waiting ? 'warn' : 'good', value: waiting, label: 'Danh sách chờ duyệt' },
-      ]} />
-      <div className="distpills" role="tablist">
-        {([['list', 'Danh sách kế hoạch'], ['tree', 'Khung phân loại']] as ['tree' | 'list', string][]).map(([t, l]) =>
-          <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setMsg(null) }}>{l}</button>)}
-      </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : tab === 'tree'
-        ? <ClsTree scope="training" items={ofl.active ? list.filter(p => ofl.fit([p.org_id, ...orgs.filter(o => o.plan_id === p.id).map(o => o.org_id)])) : list}
+        ? <>
+          <div className="bar"><button type="button" onClick={() => { setTab('list'); setMsg(null) }}>‹ Danh sách kế hoạch</button>
+            <div className="tools"><GuideButton guide={guide} /></div></div>
+          <ClsTree scope="training" items={ofl.active ? list.filter(p => ofl.fit([p.org_id, ...orgs.filter(o => o.plan_id === p.id).map(o => o.org_id)])) : list}
             header={({ sel, isFinal }) => <>
               {ofl.node([...list.map(p => p.org_id), ...orgs.map(o => o.org_id)])}
               <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Tất cả chương trình</option>
                 {[...new Map(items.map(i => [i.program_id, i.training_programs?.title ?? '—'])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'vi')).map(([id, t]) => <option key={id} value={id}>{t}</option>)}</select>
               {can && isFinal && sel && <button type="button" className="primary" onClick={() => setCreate({ node: sel })}>+ Lập kế hoạch đào tạo</button>}</>}>
             {(rows, { isFinal, unsorted }) => table(rows, unsorted ? 'Không có kế hoạch nào.' : isFinal && can ? 'Chưa có kế hoạch nào trong mục này. Bấm “+ Lập kế hoạch đào tạo”.' : 'Chưa có kế hoạch nào trong mục này.')}
-          </ClsTree>
+          </ClsTree></>
         : <>
-          <div className="distfilter">
-            {([['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['wait', 'Có danh sách chờ duyệt', base.filter(p => wait(p.id)).length], ['archived', 'Ngừng dùng', n('archived')]] as [Status | 'wait' | '', string, number][]).map(([s, l, c]) =>
-              <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
+          <div className="bar tphead">
+            <div className="distfilter" style={{ margin: 0 }}>
+              {chips.map(([s, l, c]) =>
+                <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '') + (s === 'wait' ? ' warn' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
+            </div>
+            <div className="tools">
+              <GuideButton guide={guide} />
+              <button type="button" onClick={() => { setTab('tree'); setMsg(null) }}>Khung phân loại</button>
+              {can && <button type="button" className="primary" onClick={() => { setMsg(null); setCreate({ node: null }) }}>+ Lập kế hoạch đào tạo</button>}</div>
           </div>
           <div className="bar">
             <div className="tools">
               <input placeholder="Tìm mã, tên, đơn vị đào tạo…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
               <select value={yr} onChange={e => setYr(e.target.value)} aria-label="Năm học"><option value="">Tất cả năm học</option>{years.map(y => <option key={y} value={y}>{y}</option>)}</select>
-              {ofl.node([...list.map(p => p.org_id), ...orgs.map(o => o.org_id)])}
-              <small className="sub">{shown.length}/{list.length} kế hoạch</small>
+              {(() => { const f = ofl.node([...list.map(p => p.org_id), ...orgs.map(o => o.org_id)])
+                return f && <details className="morefilt"><summary>Bộ lọc{ofl.active && <b> •</b>}</summary><div className="panel">{f}</div></details> })()}
+              <small className="sub">{shown.length}/{list.length} kế hoạch · {schools} trường được gán{waiting > 0 && <> · <b>{waiting} danh sách chờ duyệt</b></>}</small>
             </div>
             <div className="tools">
               <span className="segmented viewtoggle" role="group" aria-label="Kiểu xem">{([['table', 'Bảng'], ['cal', 'Lịch']] as const).map(([k, l]) =>
-                <button key={k} type="button" className={look === k ? 'on' : ''} aria-pressed={look === k} onClick={() => setLook(k)}>{l}</button>)}</span>
-              {can && <button type="button" className="primary" onClick={() => { setMsg(null); setCreate({ node: null }) }}>Lập kế hoạch đào tạo</button>}</div>
+                <button key={k} type="button" className={look === k ? 'on' : ''} aria-pressed={look === k} onClick={() => setLook(k)}>{l}</button>)}</span></div>
           </div>
-          {look === 'cal' ? <PlanCal plans={shown} label={p => [all && orgName(p.org_id), p.plan_code].filter(Boolean).join(' · ')} onOpen={id => { setMsg(null); setOpen(id) }} />
-            : table(shown, list.length ? 'Không có kế hoạch nào khớp bộ lọc.' : can ? 'Chưa có kế hoạch đào tạo nào. Bấm "Lập kế hoạch đào tạo".' : 'Chưa có kế hoạch đào tạo nào.')}
+          {look === 'cal' ? <PlanCal plans={shown} label={p => [multiOrg && orgName(p.org_id), p.plan_code].filter(Boolean).join(' · ')} onOpen={id => { setMsg(null); setOpen(id) }} />
+            : table(shown, list.length ? 'Không có kế hoạch nào khớp bộ lọc.' : can ? 'Chưa có kế hoạch đào tạo nào. Bấm "+ Lập kế hoạch đào tạo".' : 'Chưa có kế hoạch đào tạo nào.')}
         </>}
       {create && <PlanCreate orgId={orgId} node={create.node} onClose={() => setCreate(null)} onSaved={id => { setCreate(null); reload(); setOpen(id) }} />}
     </>

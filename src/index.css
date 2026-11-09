@@ -2346,3 +2346,17 @@ th.sort-asc::after{content:" ▲";font-size:10px}th.sort-desc::after{content:" �
 .main .tpcalpopev.live{background:var(--bad-bg);border-left-color:var(--bad)}.main .tpcalpopev.draft{background:var(--warn-bg);border-left-color:var(--warn-fg)}
 .main .tpcalpopev.off{background:var(--neutral-bg);border-left-color:#9aa3b2}
 .main .tpcalpopev>small.tpcalprog{color:var(--primary);font-weight:500}
+/* Danh sách kế hoạch đào tạo gọn */
+.main .guidebtn{border:0;background:none;color:var(--muted);padding:6px 8px;font-weight:500;font-size:13px}
+.main .guidebtn:hover{color:var(--navy);text-decoration:underline}
+.main .distfchip.warn:not(.on){border-color:#f2c97d;background:#fff8ea}
+.tplist td.nowrap{white-space:nowrap}
+.tplist .tpmore{color:var(--muted);font-weight:600}
+.stdot{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--text)}
+.stdot::before{content:"";width:8px;height:8px;border-radius:50%;background:#2e9d5b}
+.morefilt{position:relative}
+.morefilt>summary{list-style:none;cursor:pointer;padding:6px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:var(--surface)}
+.morefilt>summary::-webkit-details-marker{display:none}
+.morefilt>summary::after{content:" ▾";color:var(--muted)}
+.morefilt>summary>b{color:var(--primary)}
+.morefilt>.panel{position:absolute;z-index:30;top:calc(100% + 6px);left:0;display:flex;flex-wrap:wrap;gap:8px;padding:10px;min-width:280px;box-shadow:0 8px 24px rgba(16,24,40,.12)}

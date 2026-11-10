@@ -653,10 +653,6 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
         </div>
       </section>
 
-      {(canSave || onDelete || cancelBtn) && <div className="panel pfbar">
-        {saveBtn}{cancelBtn}<span className="sp" />
-        {onDelete && <button type="button" className="danger" onClick={onDelete}>Xoá bản nháp</button>}
-      </div>}
     </div>
 
     <aside className="pfside">
@@ -671,7 +667,8 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
           {showScope && <><dt>Áp dụng</dt><dd>{f.scope === 'own' ? 'Đơn vị mình và đơn vị được gán' : 'Tất cả đơn vị trực thuộc'}</dd></>}
         </dl>
         {editable && (missing.length ? <p className="pfmiss">Còn thiếu: {missing.join(', ')}</p> : <p className="pfok">✓ Đã đủ thông tin bắt buộc</p>)}
-        {(canSave || cancelBtn) && <div className="pfsidebtn">{saveBtn}{cancelBtn}</div>}
+        {(canSave || cancelBtn || onDelete) && <div className="pfsidebtn">{saveBtn}{cancelBtn}
+          {onDelete && <button type="button" className="danger" onClick={onDelete}>Xoá bản nháp</button>}</div>}
       </div>
     </aside>
   </form>

@@ -462,7 +462,7 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
           <div><b>{tests}</b><span>bài test</span></div>
           <div><b>{MODE[p.mode]}</b><span>hình thức</span></div>
         </div>
-        <div className="panel pdcard ustruct">
+        <div className="panel pdcard pdsl">
           <TrainingUnits programId={p.id} programTitle={p.title} programMode={p.mode} units={units} editable={edit} catalog={suggest}
             onReload={load} onMessage={(m, e) => setMsg([errText(m), !!e])} onOpen={setOpenC} />
         </div>

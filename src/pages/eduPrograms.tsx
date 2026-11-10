@@ -507,7 +507,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
             <div><b>{dep?.[0] ?? '—'}</b><span>{dep?.[1] ?? 'thời gian triển khai'}</span></div>
             {mode !== 'school' && <div><b>{asgN ?? '…'}</b><span>đơn vị được gán</span></div>}
           </div>
-          <div className="panel pdcard"><h4>Môn & bài học</h4>{lessons}</div>
+          <div className="panel pdcard pdsl"><h4>Môn & bài học</h4>{lessons}</div>
         </div>
         <div className="pdside">
           <div className="panel pdcard"><h4>Thông tin chung</h4>
@@ -932,6 +932,18 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     if (error) return onMessage(errText(error.message), true)
     setAddMain(true); setCur(name); onChanged()
   }
+  async function removeSubject(name: string) {
+    const rs = rowsOf(name), n = rs.length
+    if (!confirm(`Bạn có muốn xoá môn "${name}" khỏi chương trình không?${n ? ` Môn này đang có ${n} bài, các bài cùng yêu cầu cần đạt và buổi học của chúng cũng bị xoá.` : ''}`)) return
+    const ids = new Set(rs.map(r => r.u.id))
+    for (let grow = true; grow;) { grow = false; for (const u of all) if (u.parent_id && ids.has(u.parent_id) && !ids.has(u.id)) { ids.add(u.id); grow = true } }
+    if (ids.size) { const { error } = await supabase.from('edu_program_units').delete().in('id', [...ids]); if (error) return onMessage(errText(error.message), true) }
+    const left = mainsOf(p).filter(x => lc(x) !== lc(name))
+    const { error } = await supabase.from('edu_programs').update({ main_subjects: left, main_subject: left[0] ?? '', integrated_subjects: p.integrated_subjects.filter(x => lc(x) !== lc(name)) }).eq('id', p.id)
+    if (error) return onMessage(errText(error.message), true)
+    if (lc(cur) === lc(name)) setCur('')
+    load(); onChanged()
+  }
   const kitChip = (u: Unit) => { const k = kitOf.get(u.id), n = mats.get(u.id) ?? 0
     return <>{n > 0 && <span className="gpill good">{n} học liệu</span>} {k === 'published' ? <span className="gpill good">Bộ học liệu</span> : k ? <span className="gpill warn">Bộ học liệu đang soạn</span> : !n && <span className="gpill warn">Chưa có</span>}</> }
   const cell = (r: LRow, key: 'title' | 'grades' | 'periods' | 'outs') => {
@@ -986,8 +998,10 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
         <button type="button" aria-label={`Chép ${r.u.title} xuống dòng thêm mới`} title="Chép dòng này xuống dòng thêm mới để thêm nhanh" onClick={() => copyRow(r)}>⧉</button>
         <button type="button" className="danger" aria-label={`Xoá ${r.u.title}`} onClick={() => remove(r)}>×</button></span> }] : []),
   ]
-  const navItem = (key: string, label: string, rs: LRow[], main?: boolean) => <button key={key || '*'} type="button" className={'slnavi' + (lc(sel) === lc(key) ? ' on' : '')} onClick={() => setCur(key)}>
-    <span className="slnm">{label}{main && <small className="sub"> · chủ đạo</small>}</span><span className="slcnt">{rs.length} bài · {totalP(rs)} tiết</span></button>
+  const navItem = (key: string, label: string, rs: LRow[], main?: boolean) => <div key={key || '*'} className={'slnavrow' + (lc(sel) === lc(key) ? ' on' : '')}>
+    <button type="button" className={'slnavi' + (lc(sel) === lc(key) ? ' on' : '')} onClick={() => setCur(key)}>
+      <span className="slnm">{label}{main && <small className="sub"> · chủ đạo</small>}</span><span className="slcnt">{rs.length} bài · {totalP(rs)} tiết</span></button>
+    {editable && key && <button type="button" className="slnavx" title={`Xoá môn ${label}`} aria-label={`Xoá môn ${label}`} onClick={() => removeSubject(key)}>×</button>}</div>
 
   return <div className="slwrap">
     <nav className="slnav" aria-label="Môn trong chương trình">

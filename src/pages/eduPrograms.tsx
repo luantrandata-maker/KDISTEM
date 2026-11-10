@@ -787,6 +787,8 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
   const [nd, setNd] = useState({ title: '', grades: '', periods: '', outs: '' })
   const [paste, setPaste] = useState<{ subj: string; text: string } | null>(null)
   const [addSubj, setAddSubj] = useState(false)
+  const [drag, setDrag] = useState<string | null>(null)
+  const [over, setOver] = useState<string | null>(null)
   const [addMain, setAddMain] = useState(true)   // môn thêm mới: mặc định là môn chủ đạo
   const [busy, setBusy] = useState(false)
   const lc = (x: string) => x.trim().toLowerCase()
@@ -906,11 +908,20 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     if (error) return onMessage(errText(error.message), true)
     load(); onChanged()
   }
-  async function move(r: LRow, d: -1 | 1) {
+  // Kéo thả đổi vị trí: chỉ trong cùng môn và cùng nhóm cha; giữ nguyên tập số thứ tự, gán lại theo thứ tự mới
+  async function moveTo(dragId: string, over: LRow) {
+    const r = rows.find(x => x.u.id === dragId)
+    if (!r || r.u.id === over.u.id) return
+    if (lc(r.subject) !== lc(over.subject) || r.u.parent_id !== over.u.parent_id) return onMessage('Chỉ kéo thả được trong cùng một môn.', true)
     const sibs = rowsOf(r.subject).filter(x => x.u.parent_id === r.u.parent_id)
-    const i = sibs.findIndex(x => x.u.id === r.u.id), o = sibs[i + d]
-    if (!o) return
-    await Promise.all([supabase.from('edu_program_units').update({ seq: o.u.seq }).eq('id', r.u.id), supabase.from('edu_program_units').update({ seq: r.u.seq }).eq('id', o.u.id)])
+    const seqs = sibs.map(x => x.u.seq).sort((a, b) => a - b)
+    const from = sibs.indexOf(r), to = sibs.indexOf(over)
+    const next = [...sibs]; next.splice(from, 1); next.splice(to, 0, r)
+    const ch = next.map((x, i) => [x, seqs[i]] as const).filter(([x, sq]) => x.u.seq !== sq)
+    setUnits(us => us?.map(u => { const c = ch.find(([x]) => x.u.id === u.id); return c ? { ...u, seq: c[1] } : u }) ?? us)
+    const res = await Promise.all(ch.map(([x, sq]) => supabase.from('edu_program_units').update({ seq: sq }).eq('id', x.u.id)))
+    const err = res.find(x => x.error)?.error
+    if (err) onMessage(errText(err.message), true)
     load()
   }
   async function addSubject(name: string) {
@@ -968,8 +979,12 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     { key: 'mat', label: 'Học liệu · buổi', thClass: 'c-mat', text: r => kitOf.get(r.u.id) === 'published' || mats.get(r.u.id) ? 'Có học liệu' : 'Chưa có',
       cell: r => { const ns = all.filter(c => c.parent_id === r.u.id && c.unit_type === 'session').length
         return <button type="button" className="slopen" onClick={() => setOpenL(r.u.id)} title="Mở chi tiết: học liệu, buổi học, nội dung">{kitChip(r.u)}{ns > 0 && <span className="pill">{ns} buổi</span>}<span className="slmore">Chi tiết ›</span></button> } },
-    ...(editable ? [{ key: 'act', label: '', thClass: 'c-act', fixed: true, cell: (r: LRow) => { const sibs = rowsOf(r.subject).filter(x => x.u.parent_id === r.u.parent_id), i = sibs.indexOf(r)
-      return <span className="slact"><button type="button" aria-label={`Chép ${r.u.title} xuống dòng thêm mới`} title="Chép dòng này xuống dòng thêm mới để thêm nhanh" onClick={() => copyRow(r)}>⧉</button><button type="button" disabled={i <= 0} aria-label="Đưa lên" onClick={() => move(r, -1)}>↑</button><button type="button" disabled={i >= sibs.length - 1} aria-label="Đưa xuống" onClick={() => move(r, 1)}>↓</button><button type="button" className="danger" aria-label={`Xoá ${r.u.title}`} onClick={() => remove(r)}>×</button></span> } }] : []),
+    ...(editable ? [{ key: 'act', label: '', thClass: 'c-act', fixed: true, cell: (r: LRow) =>
+      <span className="slact"><span className="sldrag" draggable title="Kéo để đổi vị trí" aria-label={`Kéo ${r.u.title} để đổi vị trí`}
+        onDragStart={e => { setDrag(r.u.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', r.u.id); const tr = (e.target as HTMLElement).closest('tr'); if (tr) e.dataTransfer.setDragImage(tr, 20, 20) }}
+        onDragEnd={() => { setDrag(null); setOver(null) }}>⠿</span>
+        <button type="button" aria-label={`Chép ${r.u.title} xuống dòng thêm mới`} title="Chép dòng này xuống dòng thêm mới để thêm nhanh" onClick={() => copyRow(r)}>⧉</button>
+        <button type="button" className="danger" aria-label={`Xoá ${r.u.title}`} onClick={() => remove(r)}>×</button></span> }] : []),
   ]
   const navItem = (key: string, label: string, rs: LRow[], main?: boolean) => <button key={key || '*'} type="button" className={'slnavi' + (lc(sel) === lc(key) ? ' on' : '')} onClick={() => setCur(key)}>
     <span className="slnm">{label}{main && <small className="sub"> · chủ đạo</small>}</span><span className="slcnt">{rs.length} bài · {totalP(rs)} tiết</span></button>
@@ -991,6 +1006,9 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     </nav>
     <div className="slmain">
       <DataTable id="edu-lessons" simple rows={shown} rowKey={r => r.u.id} className="slt"
+        rowProps={editable ? r => ({ className: drag === r.u.id ? 'sldragging' : over === r.u.id && drag ? 'slover' : undefined,
+          onDragOver: e => { if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== r.u.id) setOver(r.u.id) },
+          onDrop: e => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id) moveTo(id, r) } }) : undefined}
         empty={<small className="sub">{inSel.length ? 'Không có bài nào khớp bộ lọc.' : !subjList.length ? 'Chưa có môn. Chọn môn chủ đạo ở “Sửa thông tin” hoặc bấm “+ Thêm môn”.' : `${sel ? 'Môn ' + sel : 'Chương trình'} chưa có bài học.${editable ? ' Gõ tên bài ở dòng dưới hoặc bấm “Dán danh sách bài”.' : ''}`}</small>}
         left={<><input placeholder={sel ? `Tìm bài môn ${sel}…` : 'Tìm bài trong mọi môn…'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
           {pg.length > 1 && <select value={gf} onChange={e => setGf(Number(e.target.value))} aria-label="Khối"><option value={0}>Tất cả khối</option>{pg.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>}</>}
@@ -1011,7 +1029,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
           <input className="slno" value={nd.outs} disabled={busy} placeholder="Yêu cầu cần đạt (ngăn cách bằng ;)" aria-label="Yêu cầu cần đạt của bài mới" onChange={e => setNd({ ...nd, outs: e.target.value })} onKeyDown={enter} />
           <button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addDraft}>+ Thêm</button>
         </div></td></tr></tfoot> : undefined} />
-      {editable && <small className="sub">Bấm vào ô để sửa ngay, rời ô là lưu. Dòng cuối: điền các cột rồi Enter để thêm bài; bấm ⧉ ở một bài để chép sẵn giá trị xuống dòng thêm mới. Bấm “Chi tiết ›” để gắn học liệu, chia buổi và soạn nội dung.</small>}
+      {editable && <small className="sub">Bấm vào ô để sửa ngay, rời ô là lưu. Kéo ⠿ để đổi vị trí bài trong cùng môn. Dòng cuối: điền các cột rồi Enter để thêm bài; bấm ⧉ ở một bài để chép sẵn giá trị xuống dòng thêm mới. Bấm “Chi tiết ›” để gắn học liệu, chia buổi và soạn nội dung.</small>}
     </div>
     {openL && byId.get(openL) && <LessonDetail u={byId.get(openL)!} p={p} all={all} umats={umats} outs={outs} editable={editable}
       onClose={() => setOpenL(null)} onChanged={() => { load(); onChanged() }} onMessage={onMessage} />}

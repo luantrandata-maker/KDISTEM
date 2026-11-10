@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
 import { LEVEL, errText, letter, type Level } from './common'
@@ -45,20 +45,20 @@ export default function Analytics({ orgId, kind }: { orgId: string | null; kind:
   const rows = kind === 'hard' ? hard : topics
   const gHard = useGradeTree('el-hard', hard ?? [], h => h.grade ? [h.grade] : [])
   const gTopic = useGradeTree('el-review', topics ?? [], t => t.grade ? [t.grade] : [])
+  const left = <>
+    <select value={f.exam} onChange={e => setF({ ...f, exam: e.target.value })} aria-label="Đề luyện"><option value="">Tất cả đề luyện</option>{exams.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}</select>
+    {classes.length > 0 && <select value={f.cls} onChange={e => setF({ ...f, cls: e.target.value })} aria-label="Lớp"><option value="">Tất cả lớp</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
+    <select value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
+    <select value={f.days} onChange={e => setF({ ...f, days: e.target.value })} aria-label="Thời gian">{DAYS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+    {kind === 'hard' && <select value={f.min} onChange={e => setF({ ...f, min: e.target.value })} aria-label="Số lượt tối thiểu">{['1', '3', '5', '10', '20'].map(v => <option key={v} value={v}>Từ {v} lượt trả lời</option>)}</select>}
+  </>
+  const right = <button type="button" onClick={exportXlsx} disabled={!rows?.length}>Xuất Excel</button>
   return (
     <>
-      <div className="bar" style={{ margin: '12px 0' }}>
-        <span className="tools">
-          <select value={f.exam} onChange={e => setF({ ...f, exam: e.target.value })} aria-label="Đề luyện"><option value="">Tất cả đề luyện</option>{exams.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}</select>
-          {classes.length > 0 && <select value={f.cls} onChange={e => setF({ ...f, cls: e.target.value })} aria-label="Lớp"><option value="">Tất cả lớp</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
-          <select value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
-          <select value={f.days} onChange={e => setF({ ...f, days: e.target.value })} aria-label="Thời gian">{DAYS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
-          {kind === 'hard' && <select value={f.min} onChange={e => setF({ ...f, min: e.target.value })} aria-label="Số lượt tối thiểu">{['1', '3', '5', '10', '20'].map(v => <option key={v} value={v}>Từ {v} lượt trả lời</option>)}</select>}
-        </span>
-        <button onClick={exportXlsx} disabled={!rows?.length}>Xuất Excel</button>
-      </div>
+      {/* Bộ lọc tải dữ liệu nằm trên thanh công cụ của bảng như các bảng khác */}
       {err && <p className="msg">{err}</p>}
-      {!rows ? <p className="sub">Đang tải…</p> : kind === 'hard' ? <HardTable rows={hard!} wrong={wrong} gt={gHard} /> : <TopicTable rows={topics!} gt={gTopic} />}
+      {!rows ? <><div className="bar"><div className="tools">{left}</div></div><p className="sub">Đang tải…</p></>
+        : kind === 'hard' ? <HardTable rows={hard!} wrong={wrong} gt={gHard} left={left} right={right} /> : <TopicTable rows={topics!} gt={gTopic} left={left} right={right} />}
     </>
   )
 }
@@ -66,8 +66,8 @@ export default function Analytics({ orgId, kind }: { orgId: string | null; kind:
 type Tree<T> = ReturnType<typeof useGradeTree<T>>
 const rateText = (r: number) => (r < 50 ? 'Dưới 50%' : r < 80 ? '50–79%' : 'Từ 80%')
 
-function HardTable({ rows, wrong, gt }: { rows: Hard[]; wrong: (h: Hard) => string; gt: Tree<Hard> }) {
-  return <DataTable id="el-hard" rows={gt.filter(rows)} rowKey={h => h.question_id} aside={rows.length ? gt.tree : undefined}
+function HardTable({ rows, wrong, gt, left, right }: { rows: Hard[]; wrong: (h: Hard) => string; gt: Tree<Hard>; left: ReactNode; right: ReactNode }) {
+  return <DataTable id="el-hard" left={left} right={right} rows={gt.filter(rows)} rowKey={h => h.question_id} aside={rows.length ? gt.tree : undefined}
     empty="Chưa đủ dữ liệu — cần các lượt làm bài đã nộp trong khoảng thời gian đã chọn."
     cols={[
       { key: 'q', label: 'Câu hỏi', fixed: true, text: h => h.stem, values: h => [h.stem],
@@ -82,7 +82,7 @@ function HardTable({ rows, wrong, gt }: { rows: Hard[]; wrong: (h: Hard) => stri
     ] as Col<Hard>[]} />
 }
 
-function TopicTable({ rows, gt }: { rows: Topic[]; gt: Tree<Topic> }) {
+function TopicTable({ rows, gt, left, right }: { rows: Topic[]; gt: Tree<Topic>; left: ReactNode; right: ReactNode }) {
   const weak = rows.filter(t => Number(t.rate) < 50)
   return <>
     {rows.length > 0 && <div className="cards syscards">
@@ -90,7 +90,7 @@ function TopicTable({ rows, gt }: { rows: Topic[]; gt: Tree<Topic> }) {
       <div className="card"><strong>{weak.length}</strong><span>Dưới 50% đúng — cần ôn</span></div>
       <div className="card"><strong>{rows.reduce((n, t) => n + t.answers, 0)}</strong><span>Lượt trả lời được phân tích</span></div>
     </div>}
-    <DataTable id="el-review" rows={gt.filter(rows)} rowKey={t => `${t.subject}|${t.grade}|${t.topic}|${t.level}`} aside={rows.length ? gt.tree : undefined}
+    <DataTable id="el-review" left={left} right={right} rows={gt.filter(rows)} rowKey={t => `${t.subject}|${t.grade}|${t.topic}|${t.level}`} aside={rows.length ? gt.tree : undefined}
       empty="Chưa có lượt làm bài đã nộp trong khoảng thời gian đã chọn."
       cols={[
         { key: 'topic', label: 'Chủ đề', fixed: true, text: t => t.topic, cell: t => <b>{t.topic}</b> },

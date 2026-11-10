@@ -2,7 +2,7 @@
 // kéo mép tiêu đề để đổi độ rộng, nút "Vừa khít" thu bảng vừa màn hình (chữ xuống dòng, không phải kéo ngang).
 // Cách hiển thị (cột ẩn, thứ tự, độ rộng, vừa khít) nhớ theo từng bảng trên trình duyệt này.
 // Sắp xếp khi bấm tiêu đề vẫn do lib/tableSort lo (hàng lọc có class ttfilter được bỏ qua).
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode, type HTMLAttributes } from 'react'
 import { norm } from '../lib/sheet'
 
 export type Col<T> = {
@@ -66,8 +66,10 @@ function ColFilter({ label, options, value, onChange }: { label: string; options
   </>
 }
 
-export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow, simple, noTools }: {
+export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow, simple, noTools, rowProps }: {
   id: string; rows: T[]; cols: Col<T>[]; rowKey: (r: T) => string; empty?: ReactNode; className?: string
+  /** Thuộc tính thêm cho từng dòng (vd: kéo thả) */
+  rowProps?: (r: T) => HTMLAttributes<HTMLTableRowElement>
   /** Ô đầu dòng tiêu đề / dòng dữ liệu (vd. ô chọn), không lọc, không ẩn */
   head?: { th: ReactNode; td: (r: T) => ReactNode }
   foot?: ReactNode
@@ -171,7 +173,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
           ? <ColFilter label={c.label} options={options(c)} value={flt[c.key] ?? []} onChange={v => setFlt(f => ({ ...f, [c.key]: v }))} />
           : null}</th>)}</tr>}
       </thead>
-      <tbody>{shown.map(r => <tr key={rowKey(r)} className={onRow ? 'clickrow' : undefined} onClick={onRow && (() => onRow(r))}>{head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key}>{c.cell(r)}</td>)}</tr>)}
+      <tbody>{shown.map(r => <tr key={rowKey(r)} className={onRow ? 'clickrow' : undefined} onClick={onRow && (() => onRow(r))} {...rowProps?.(r)}>{head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key}>{c.cell(r)}</td>)}</tr>)}
         {!shown.length && <tr><td colSpan={shownCols.length + (head ? 1 : 0)}>{rows.length ? <small className="sub">Không có dòng nào khớp bộ lọc cột.</small> : empty}</td></tr>}</tbody>
       {foot}
     </table></div>

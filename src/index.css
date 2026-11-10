@@ -2435,7 +2435,8 @@ th.sort-asc::after{content:" ▲";font-size:10px}th.sort-desc::after{content:" �
 .main .slt .slact button{padding:2px 6px}
 .main .slsubjlink{border:0;background:none;padding:0;min-height:0;color:var(--primary);font-weight:500;cursor:pointer;text-align:left}
 .sltopic{display:block;font-size:11.5px;margin-top:2px}
-.slnewrow{display:flex;gap:8px}.slnewrow select{flex:none;max-width:180px}
+.slnewrow{display:flex;gap:8px;align-items:center}.slnewrow select{flex:none;width:140px}
+.slnew input.slnt{flex:2;min-width:160px}.slnew input.slng{flex:none;width:80px}.slnew input.slnp{flex:none;width:72px}.slnew input.slno{flex:2;min-width:140px}.slnewrow>button{flex:none;white-space:nowrap}
 .slmain{min-width:0;display:flex;flex-direction:column;gap:6px}
 .slname{font-size:15px;color:var(--navy,var(--text));margin-right:4px}
 .slcell{width:100%;min-width:40px;border:1px solid transparent;border-radius:6px;padding:4px 6px;margin:-4px -6px;font:inherit;background:transparent;resize:vertical}
@@ -2521,3 +2522,34 @@ textarea.slcell{font-size:13px;color:var(--muted);min-height:28px}
 .pfok{color:#2e9d5b;font-size:12.5px;margin:10px 0 0}
 @media (max-width:1200px){.pform.pfwrap{grid-template-columns:minmax(0,1fr) 270px}.pfnav{display:none}}
 @media (max-width:900px){.pform.pfwrap{grid-template-columns:minmax(0,1fr)}.pfside{position:static;order:-1}}
+/* Trang chương trình: bỏ khoảng trắng thừa dưới thanh tab */
+.segmented.pdtabs{display:flex;width:fit-content;margin-bottom:12px}
+.pdtabs~.pdgrid{margin-top:0}
+.sladdbox{display:grid;gap:6px;margin-top:6px;padding:8px;border:1px dashed #b8c4d6;border-radius:8px;background:var(--surface)}
+.sladdbox .sladdsel{margin-top:0}
+.sladdbox .linkbtn{justify-self:start}
+.sladdkind{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.main .sladdkind button{flex:1;border:0;border-radius:0;background:none;padding:5px 8px;min-height:0;font-weight:500;font-size:12.5px}
+.main .sladdkind button+button{border-left:1px solid var(--line)}
+.main .sladdkind button.on{background:var(--primary);color:#fff}
+.main .slact .sldrag{display:inline-grid;place-items:center;width:24px;cursor:grab;color:var(--muted);font-size:15px;user-select:none}
+.main .slact .sldrag:active{cursor:grabbing}
+.slt tr.sldragging{opacity:.45}
+.slt tr.slover td{box-shadow:inset 0 2px 0 var(--primary)}
+
+/* Môn & bài học: thanh công cụ lên ngang tiêu đề thẻ, tiêu đề bảng ngang hàng với "Tất cả" */
+@media (min-width:821px){
+  .pdsl{display:grid;grid-template-columns:210px minmax(0,1fr);column-gap:14px;row-gap:8px;align-items:start}
+  .pdsl>h4{grid-column:1;grid-row:1;align-self:center;margin:0}
+  .pdsl>:not(h4):not(.slwrap){grid-column:1/-1}
+  .pdsl .slwrap,.pdsl .slmain,.pdsl .slmain>.tt{display:contents}
+  .pdsl .slmain>.tt>.tttools{grid-column:2;grid-row:1}
+  .pdsl .slnav{grid-column:1;grid-row:2/span 2;align-self:stretch}
+  .pdsl .slmain>.tt>.wrap{grid-column:2;grid-row:2}
+  .pdsl .slmain>small{grid-column:2;grid-row:3}
+}
+.slnavrow{position:relative}
+.main .slnavx{position:absolute;top:6px;right:4px;border:0;background:none;color:var(--muted);font-size:16px;line-height:1;padding:3px 6px;min-height:0;border-radius:6px;cursor:pointer;opacity:.5}
+.slnavrow:hover .slnavx,.slnavrow.on .slnavx,.main .slnavx:focus-visible{opacity:1}
+.main .slnavx:hover{color:#c0392b;background:#fdecea}
+.slnavrow .slnavi{padding-right:28px}

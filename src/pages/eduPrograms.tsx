@@ -367,7 +367,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
           <div className="formactions"><button className="primary" type="submit">Tạo PPCT nháp</button> <button type="button" onClick={() => setMkBook(null)}>Huỷ</button></div>
         </form>
       )}
-      <div className="segmented">
+      <div className="segmented pdtabs">
         {tabs.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
@@ -787,6 +787,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
   const [nd, setNd] = useState({ title: '', grades: '', periods: '', outs: '' })
   const [paste, setPaste] = useState<{ subj: string; text: string } | null>(null)
   const [addSubj, setAddSubj] = useState(false)
+  const [addMain, setAddMain] = useState(true)   // môn thêm mới: mặc định là môn chủ đạo
   const [busy, setBusy] = useState(false)
   const lc = (x: string) => x.trim().toLowerCase()
 
@@ -913,10 +914,12 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     load()
   }
   async function addSubject(name: string) {
-    setAddSubj(false); if (!name) return
-    const { error } = await supabase.from('edu_programs').update({ integrated_subjects: [...p.integrated_subjects, name] }).eq('id', p.id)
+    setAddSubj(false); if (!name) return setAddMain(true)
+    const { error } = await supabase.from('edu_programs').update(addMain
+      ? { main_subjects: [...mainsOf(p), name], integrated_subjects: p.integrated_subjects.filter(x => lc(x) !== lc(name)) }
+      : { integrated_subjects: [...p.integrated_subjects, name] }).eq('id', p.id)
     if (error) return onMessage(errText(error.message), true)
-    setCur(name); onChanged()
+    setAddMain(true); setCur(name); onChanged()
   }
   const kitChip = (u: Unit) => { const k = kitOf.get(u.id), n = mats.get(u.id) ?? 0
     return <>{n > 0 && <span className="gpill good">{n} học liệu</span>} {k === 'published' ? <span className="gpill good">Bộ học liệu</span> : k ? <span className="gpill warn">Bộ học liệu đang soạn</span> : !n && <span className="gpill warn">Chưa có</span>}</> }
@@ -975,8 +978,15 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     <nav className="slnav" aria-label="Môn trong chương trình">
       {navItem('', 'Tất cả', rows)}
       {subjList.map(x => navItem(x, x, rowsOf(x), mains.some(m => lc(m) === lc(x))))}
-      {editable && (addSubj ? <select className="sladdsel" autoFocus defaultValue="" onChange={e => addSubject(e.target.value)} onBlur={() => setAddSubj(false)} aria-label="Thêm môn">
-          <option value="">— Chọn môn —</option>{usable.map(x => <option key={x.id} value={x.name}>{x.name}</option>)}</select>
+      {editable && (addSubj ? <div className="sladdbox">
+          <div className="sladdkind" role="radiogroup" aria-label="Loại môn">
+            <button type="button" role="radio" aria-checked={addMain} className={addMain ? 'on' : ''} onClick={() => setAddMain(true)}>Chủ đạo</button>
+            <button type="button" role="radio" aria-checked={!addMain} className={!addMain ? 'on' : ''} onClick={() => setAddMain(false)}>Tích hợp</button>
+          </div>
+          <select className="sladdsel" autoFocus defaultValue="" onChange={e => addSubject(e.target.value)} aria-label="Thêm môn">
+            <option value="">— Chọn môn —</option>{usable.map(x => <option key={x.id} value={x.name}>{x.name}</option>)}</select>
+          <button type="button" className="linkbtn" onClick={() => setAddSubj(false)}>Huỷ</button>
+        </div>
         : <button type="button" className="sladdsubj" onClick={() => setAddSubj(true)}>+ Thêm môn</button>)}
     </nav>
     <div className="slmain">

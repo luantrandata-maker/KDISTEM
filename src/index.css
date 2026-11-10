@@ -2522,3 +2522,13 @@ textarea.slcell{font-size:13px;color:var(--muted);min-height:28px}
 .pfok{color:#2e9d5b;font-size:12.5px;margin:10px 0 0}
 @media (max-width:1200px){.pform.pfwrap{grid-template-columns:minmax(0,1fr) 270px}.pfnav{display:none}}
 @media (max-width:900px){.pform.pfwrap{grid-template-columns:minmax(0,1fr)}.pfside{position:static;order:-1}}
+/* Trang chương trình: bỏ khoảng trắng thừa dưới thanh tab */
+.segmented.pdtabs{display:flex;width:fit-content;margin-bottom:12px}
+.pdtabs~.pdgrid{margin-top:0}
+.sladdbox{display:grid;gap:6px;margin-top:6px;padding:8px;border:1px dashed #b8c4d6;border-radius:8px;background:var(--surface)}
+.sladdbox .sladdsel{margin-top:0}
+.sladdbox .linkbtn{justify-self:start}
+.sladdkind{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.main .sladdkind button{flex:1;border:0;border-radius:0;background:none;padding:5px 8px;min-height:0;font-weight:500;font-size:12.5px}
+.main .sladdkind button+button{border-left:1px solid var(--line)}
+.main .sladdkind button.on{background:var(--primary);color:#fff}

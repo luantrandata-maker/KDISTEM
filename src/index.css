@@ -8,7 +8,7 @@
   --radius:12px;
 }
 *{box-sizing:border-box}
-body{margin:0;font-family:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);font-size:14px}
+body{margin:0;font-family:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);font-size:14px}
 button{font-family:inherit}
 
 /* Khung chính */

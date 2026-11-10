@@ -2479,7 +2479,45 @@ textarea.slcell{font-size:13px;color:var(--muted);min-height:28px}
 .pdmore{position:relative;display:inline-block}
 .pdmore summary{list-style:none;cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:5px 12px;background:var(--surface);font-weight:700}
 .pdmore summary::-webkit-details-marker{display:none}
-.pdmore>div{position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px #0f2a4a26;padding:6px;z-index:20;min-width:200px}
+.pdmore>div{position:absolute;display:grid;gap:2px;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px #0f2a4a26;padding:6px;z-index:20;min-width:200px}
 .main .pdmore>div button{width:100%;text-align:left;border:0;background:none}
 .main .pdmore>div button.danger{color:#c0392b}
 .slmeta{color:var(--muted);font-size:12.5px;white-space:nowrap}
+/* Form thêm/sửa chương trình: 4 thẻ đánh số, mục lục trái, xem nhanh phải */
+.pform.pfwrap{grid-template-columns:200px minmax(0,1fr) 290px;gap:16px;align-items:start}
+.pfnav{position:sticky;top:12px;display:grid;gap:2px;padding:8px;margin:0}
+.pfnav button{display:flex;align-items:center;gap:10px;padding:8px 10px;border:0;background:none;border-radius:8px;text-align:left;font-weight:500;color:var(--text);cursor:pointer}
+.pfnav button:hover{background:var(--soft,#f5f7fb)}
+.pfnav i,.pfcard>h4 i{font-style:normal;display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#eef1f6;color:var(--muted);font-size:12px;font-weight:700;flex:none}
+.pfnav .ok i{background:#e8f6ee;color:#2e9d5b}
+.pfmain{display:grid;gap:14px;min-width:0}
+.panel.pfcard{margin:0;scroll-margin-top:12px}
+.pfcard>h4{margin:0;display:flex;align-items:center;gap:10px;font-size:15.5px}
+.pfcard>h4 i{background:var(--primary);color:#fff;width:24px;height:24px}
+.pfhint{margin:2px 0 12px 34px;color:var(--muted);font-size:12.5px}
+.pfseg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface,#fff);max-width:100%}
+.pfseg button{border:0;border-left:1px solid var(--line);border-radius:0;background:none;padding:8px 14px;font-weight:500;cursor:pointer;white-space:nowrap}
+.pfseg button:first-child{border-left:0}
+.pfseg button.on{background:var(--primary);color:#fff}
+.pftog{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.pftog button:not(.linkbtn){width:40px;height:38px;padding:0;border:1px solid var(--line);border-radius:8px;background:var(--surface,#fff);font-weight:600;cursor:pointer}
+.pftog button.on{background:#e7f0fd;border-color:var(--primary);color:var(--primary)}
+.pfreqs{width:100%;border-collapse:collapse}
+.pfreqs th{text-align:left;font-size:12px;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+.pfreqs td{padding:6px 8px;border-bottom:1px solid var(--line)}
+.pfreqs td:first-child{width:100%}
+.pfreqs select{width:100%;padding:8px;border:1px solid var(--line);border-radius:10px;font-family:inherit}
+.pflv{display:flex;gap:4px;align-items:center;white-space:nowrap}
+.pflv button{width:32px;height:30px;padding:0;border:1px solid var(--line);border-radius:6px;background:var(--surface,#fff);font-weight:600;cursor:pointer}
+.pflv button.in{background:#e7f0fd;border-color:#b9d2f7;color:var(--primary)}
+.pflv button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.pflv small{margin-left:6px;width:44px}
+.pfadd{margin-top:8px}
+.pfasg{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px dashed var(--line);border-radius:10px;min-height:38px}
+.pfasg .linkbtn{margin-left:auto}
+.pfside{position:sticky;top:12px;display:grid;gap:12px}
+.pfsidebtn{display:flex;flex-wrap:nowrap;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.pfmiss{color:#d14343;font-size:12.5px;margin:10px 0 0}
+.pfok{color:#2e9d5b;font-size:12.5px;margin:10px 0 0}
+@media (max-width:1200px){.pform.pfwrap{grid-template-columns:minmax(0,1fr) 270px}.pfnav{display:none}}
+@media (max-width:900px){.pform.pfwrap{grid-template-columns:minmax(0,1fr)}.pfside{position:static;order:-1}}

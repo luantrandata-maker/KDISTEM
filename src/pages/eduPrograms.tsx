@@ -22,7 +22,7 @@ import { asLesson, lessonStats, LessonEditor, type ILesson } from '../lib/lesson
 import { useSubjects } from './subjects'
 import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
 import { ViewToggle, useViewMode } from '../components/ViewToggle'
-import { fmtGrades, progGrades, useEduLevels, gradeName } from '../lib/eduLevels'
+import { fmtGrades, progGrades, useEduLevels, gradeName, gradeRange } from '../lib/eduLevels'
 import { ChipMulti, GradeChecks, GradePicker, LevelPicker, SubjectMulti, SubjectPicker, gradeList } from '../components/Pickers'
 import { ElView } from '../components/ElView'
 
@@ -355,7 +355,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
         <div className="tools">
           {!editInfo && tab === 'info' && editable && <button type="button" onClick={() => setEditInfo(true)}><Icon n="pencil" size={15} /> Sửa thông tin</button>}
           {mode === 'school' && canEdit && p.status === 'published' && !hid('ppct') && <button className="primary" onClick={openMkBook}>Tạo PPCT từ chương trình</button>}
-          {!editInfo && <VersionActions p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
+          {!editInfo && <VersionActions p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} onDelete={editable ? removeDraft : undefined} />}
         </div>
       </div>
       {mkBook && (
@@ -444,7 +444,6 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
     const own = orgs.find(o => o.id === (f.org_id || orgId))
     if (own && !own.is_platform) setF(x => x.builder ? x : { ...x, builder: own.name })
   }, [isNew, orgs])
-  const oSpan = orgPick ? (showScope ? 4 : 6) : 0, scSpan = showScope ? (orgPick ? 4 : 6) : 0, dSpan = (12 - oSpan - scSpan) / 2
   const reqDirty = JSON.stringify(reqs) !== JSON.stringify(reqs0)
   const integ = f.integrated_subjects ?? []
 
@@ -549,76 +548,129 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
       </div>
     </>
   }
-  return <form className="panel pform" onSubmit={save}>
-    {!isNew && !editable && <p className="sub" style={{ margin: 0 }}>{p.status === 'draft' || p.status === 'rejected' ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình đã gửi duyệt hoặc phát hành: nội dung không sửa được (bấm "Tạo phiên bản mới" ở đầu trang). Phạm vi, hiệu lực và yêu cầu năng lực giáo viên vẫn sửa được.'}</p>}
-    <div className="pgrid">
-      <label className="field" style={S(6)}><span>Đơn vị xây dựng <small className="sub">(nơi biên soạn nội dung)</small></span>
-        <input list="edu-builders" maxLength={200} disabled={!scopeEdit} value={f.builder ?? ''} onChange={e => pickBuilder(e.target.value)} placeholder="KDI Education, Sở GD&ĐT…, Trường…" />
-        <datalist id="edu-builders">{builders.map(b => <option key={b} value={b} />)}</datalist></label>
-      <label className="field" style={S(6)}><span>Mã chương trình</span><input disabled={dis} value={f.code ?? ''} onChange={e => setF({ ...f, code: e.target.value })} placeholder="VD: TIN-THCS" /></label>
-      <label className="field" style={S(6)}><span>Tên chương trình *</span><input disabled={dis} value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} placeholder="VD: Tin học THCS (CT GDPT 2018)" /></label>
-      <div className="field" style={S(6)}><span>Nhóm chương trình * <small className="sub">(mục chọn đầu là chính)</small></span>
-        <ChipMulti disabled={dis} value={ctsOf(f as Program)} onChange={v => setF({ ...f, ct_codes: v, ct_code: v[0] ?? null })} options={CT.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])} ariaLabel="Nhóm chương trình" firstHint="Nhóm chính" /></div>
-      <label className="field" style={S(4)}><span>Loại chương trình</span><select disabled={dis} value={f.kind ?? 'subject'} onChange={e => setF({ ...f, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
-      <label className="field" style={S(4)}><span>Số tiết / tuần</span><input disabled={dis} type="number" min={0.5} max={40} step={0.5} value={f.periods_per_week ?? ''} onChange={e => setF({ ...f, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })}
-        placeholder="VD: 2" title="Dùng làm mặc định khi tạo phân phối chương trình" /></label>
-      <label className="field" style={S(4)}><span>Thời gian triển khai</span><select disabled={dis} value={f.deploy_term ?? 'year'} onChange={e => setF({ ...f, deploy_term: e.target.value as Deploy })}>{(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} ({DEPLOY[d][1]})</option>)}</select></label>
-      <div className="field" style={S(6)}><span>Cấp học * <small className="sub">(mục chọn đầu là chính)</small></span>
-        <ChipMulti disabled={dis} value={lvsOf(f as Program)} onChange={v => setF({ ...f, levels: v, level: v[0] ?? f.level, grades: gradesForLevels(LV, v, progGrades(f as Program)) })} options={levelOpts} ariaLabel="Cấp học" firstHint="Cấp học chính" /></div>
-      <div className="field" style={S(6)}><span>Khối *</span><GradeChecks disabled={dis} from={span[0]} to={span[1]} value={progGrades(f as Program)} onChange={g => setF({ ...f, grades: g })} /></div>
-      <div className="field" style={S(6)}><span>Môn chủ đạo * <small className="sub">(mục chọn đầu là chính)</small></span>
-        <SubjectMulti primary="chính" disabled={dis} level={lvsOf(f as Program).length === 1 ? lvsOf(f as Program)[0] : null} value={mainsOf(f as Program)}
-          onChange={v => setF({ ...f, main_subjects: v, main_subject: v[0] ?? '', integrated_subjects: integ.filter(x => !v.includes(x)) })} extra={trackSubjects} /></div>
-      <div className="field" style={S(6)}><span>Môn tích hợp</span><SubjectMulti disabled={dis} level={lvsOf(f as Program).length === 1 ? lvsOf(f as Program)[0] : null} value={integ}
-        onChange={v => setF({ ...f, integrated_subjects: v })} exclude={mainsOf(f as Program)} extra={trackSubjects} /></div>
-      <div className="field" style={S(6)}><span>Khung năng lực học sinh</span>
-        <MultiSelect disabled={dis} value={f.competency_keys ?? []} onChange={v => setF({ ...f, competency_keys: v })} options={comps.map(c => [c.key, c.name])}
-          placeholder="Chọn năng lực…" ariaLabel="Khung năng lực" empty="Chưa có khung năng lực." />{editable && <CompetencySetupLink audience="student" />}</div>
-      <div className="field" style={S(6)}><span>Tiêu chí đánh giá (rubric)</span>
-        <MultiSelect disabled={dis} value={f.rubric_ids ?? []} onChange={v => setF({ ...f, rubric_ids: v })} placeholder="Chọn rubric…" ariaLabel="Rubric" empty="Chưa có rubric nào."
-          options={[...rubrics.map(r => [r.id, r.title] as [string, string]), ...(f.rubric_ids ?? []).filter(id => !rubrics.some(r => r.id === id)).map(id => [id, 'Rubric'] as [string, string])]} /></div>
-      <label className="field" style={S(6)}><span>Mục tiêu chương trình</span><textarea disabled={dis} rows={2} value={f.objectives ?? ''} onChange={e => setF({ ...f, objectives: e.target.value })} /></label>
-      <label className="field" style={S(6)}><span>Ghi chú</span><textarea disabled={dis} rows={2} value={f.note ?? ''} onChange={e => setF({ ...f, note: e.target.value })} /></label>
-      {progFields.length > 0 && <div style={{ gridColumn: '1/-1' }} className="formgrid"><CustomInputs disabled={dis} fields={progFields} value={f.custom ?? {}} onChange={v => setF({ ...f, custom: v })} /></div>}
+  const cts1 = ctsOf(f as Program), lvs1 = lvsOf(f as Program), mains1 = mainsOf(f as Program)
+  const gs1 = progGrades(f as Program).filter(g => g >= span[0] && g <= span[1])
+  const missing = [!(f.title ?? '').trim() && 'Tên chương trình', !lvs1.length && 'Cấp học', !gs1.length && 'Khối', !cts1.length && 'Nhóm chương trình', !mains1.length && 'Môn chủ đạo'].filter(Boolean) as string[]
+  const gradeOpts = span[1] >= span[0] ? gradeRange(span[0], span[1]) : []
+  const togGrade = (g: number) => { const cur = progGrades(f as Program); setF({ ...f, grades: cur.includes(g) ? cur.filter(x => x !== g) : [...cur, g].sort((a, b) => a - b) }) }
+  const secs: [string, string, boolean][] = [
+    ['pf-1', 'Thông tin cơ bản', !missing.length],
+    ['pf-2', 'Mục tiêu & đánh giá', !!(f.objectives?.trim() || f.competency_keys?.length || f.rubric_ids?.length)],
+    ['pf-3', 'Năng lực giáo viên', reqs.length > 0],
+    ['pf-4', 'Đơn vị & phạm vi', !!f.builder?.trim()],
+  ]
+  const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const cancelBtn = onCancel ? <button type="button" onClick={onCancel}>Huỷ</button>
+    : !isNew ? <button type="button" onClick={() => { setF(p); setReqs(reqs0); onBack?.() }}>Huỷ</button> : null
+  const saveBtn = canSave && <button className="primary" type="submit" disabled={busy}>{busy ? 'Đang lưu…' : isNew ? 'Tạo bản nháp' : 'Lưu thay đổi'}</button>
+  const Seg = <T extends string>({ value, opts, onPick, off }: { value: T; opts: [T, string][]; onPick: (v: T) => void; off?: boolean }) =>
+    <div className="pfseg" role="radiogroup">{opts.map(([k, l]) => <button key={k} type="button" role="radio" aria-checked={value === k} className={value === k ? 'on' : ''} disabled={off} onClick={() => onPick(k)}>{l}</button>)}</div>
+  return <form className="pform pfwrap" onSubmit={save}>
+    <nav className="panel pfnav" aria-label="Các phần của form">
+      {secs.map(([id, t, ok], i) => <button key={id} type="button" className={ok ? 'ok' : ''} onClick={() => go(id)}><i>{ok ? '✓' : i + 1}</i>{t}</button>)}
+    </nav>
+    <div className="pfmain">
+      {!isNew && !editable && <p className="sub" style={{ margin: 0 }}>{p.status === 'draft' || p.status === 'rejected' ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình đã gửi duyệt hoặc phát hành: nội dung không sửa được (bấm "Tạo phiên bản mới" ở đầu trang). Năng lực giáo viên, đơn vị, phạm vi và hiệu lực vẫn sửa được.'}</p>}
+
+      <section id="pf-1" className="panel pfcard">
+        <h4><i>1</i>Thông tin cơ bản</h4><p className="pfhint">Mục chọn đầu tiên là mục chính. Mỗi môn chủ đạo thành một nhóm bài học.</p>
+        <div className="pgrid">
+          <label className="field" style={S(6)}><span>Tên chương trình *</span><input disabled={dis} value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} placeholder="VD: Tin học THCS (CT GDPT 2018)" /></label>
+          <label className="field" style={S(2)}><span>Mã chương trình</span><input disabled={dis} value={f.code ?? ''} onChange={e => setF({ ...f, code: e.target.value })} placeholder="VD: TIN-THCS" /></label>
+          <label className="field" style={S(4)}><span>Loại chương trình</span><select disabled={dis} value={f.kind ?? 'subject'} onChange={e => setF({ ...f, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
+          <div className="field" style={S(6)}><span>Cấp học *</span>
+            <ChipMulti disabled={dis} value={lvs1} onChange={v => setF({ ...f, levels: v, level: v[0] ?? f.level, grades: gradesForLevels(LV, v, progGrades(f as Program)) })} options={levelOpts} ariaLabel="Cấp học" firstHint="Cấp học chính" /></div>
+          <div className="field" style={S(6)}><span>Khối *</span>
+            {gradeOpts.length ? <div className="pftog">{gradeOpts.map(g => <button key={g} type="button" disabled={dis} aria-pressed={gs1.includes(g)} className={gs1.includes(g) ? 'on' : ''} onClick={() => togGrade(g)} title={gradeName(g)}>{g}</button>)}
+              {!dis && gs1.length < gradeOpts.length && <button type="button" className="linkbtn" onClick={() => setF({ ...f, grades: gradeOpts })}>Chọn cả cấp</button>}</div>
+              : <GradeChecks disabled={dis} from={span[0]} to={span[1]} value={progGrades(f as Program)} onChange={g => setF({ ...f, grades: g })} />}</div>
+          <div className="field" style={S(12)}><span>Nhóm chương trình *</span>
+            <ChipMulti disabled={dis} value={cts1} onChange={v => setF({ ...f, ct_codes: v, ct_code: v[0] ?? null })} options={CT.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])} ariaLabel="Nhóm chương trình" firstHint="Nhóm chính" /></div>
+          <div className="field" style={S(6)}><span>Môn chủ đạo *</span>
+            <SubjectMulti primary="chính" disabled={dis} level={lvs1.length === 1 ? lvs1[0] : null} value={mains1}
+              onChange={v => setF({ ...f, main_subjects: v, main_subject: v[0] ?? '', integrated_subjects: integ.filter(x => !v.includes(x)) })} extra={trackSubjects} /></div>
+          <div className="field" style={S(6)}><span>Môn tích hợp</span><SubjectMulti disabled={dis} level={lvs1.length === 1 ? lvs1[0] : null} value={integ}
+            onChange={v => setF({ ...f, integrated_subjects: v })} exclude={mains1} extra={trackSubjects} /></div>
+          <label className="field" style={S(3)}><span>Số tiết / tuần</span><input disabled={dis} type="number" min={0.5} max={40} step={0.5} value={f.periods_per_week ?? ''} onChange={e => setF({ ...f, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })}
+            placeholder="VD: 2" title="Dùng làm mặc định khi tạo phân phối chương trình" /></label>
+          <div className="field" style={S(9)}><span>Thời gian triển khai</span>
+            <Seg value={(f.deploy_term ?? 'year') as Deploy} off={dis} onPick={d => setF({ ...f, deploy_term: d })} opts={(Object.keys(DEPLOY) as Deploy[]).map(d => [d, `${DEPLOY[d][0]} · ${DEPLOY[d][1]}`])} /></div>
+        </div>
+      </section>
+
+      <section id="pf-2" className="panel pfcard">
+        <h4><i>2</i>Mục tiêu & đánh giá</h4><p className="pfhint">Không bắt buộc. Có thể bổ sung sau.</p>
+        <div className="pgrid">
+          <label className="field" style={S(12)}><span>Mục tiêu chương trình</span><textarea disabled={dis} rows={2} value={f.objectives ?? ''} onChange={e => setF({ ...f, objectives: e.target.value })} placeholder="Học sinh hoàn thành chương trình sẽ…" /></label>
+          <div className="field" style={S(6)}><span>Năng lực học sinh {editable && <CompetencySetupLink audience="student" />}</span>
+            <MultiSelect disabled={dis} value={f.competency_keys ?? []} onChange={v => setF({ ...f, competency_keys: v })} options={comps.map(c => [c.key, c.name])}
+              placeholder="Chọn năng lực…" ariaLabel="Khung năng lực" empty="Chưa có khung năng lực." /></div>
+          <div className="field" style={S(6)}><span>Tiêu chí đánh giá (rubric)</span>
+            <MultiSelect disabled={dis} value={f.rubric_ids ?? []} onChange={v => setF({ ...f, rubric_ids: v })} placeholder="Chọn rubric…" ariaLabel="Rubric" empty="Chưa có rubric nào."
+              options={[...rubrics.map(r => [r.id, r.title] as [string, string]), ...(f.rubric_ids ?? []).filter(id => !rubrics.some(r => r.id === id)).map(id => [id, 'Rubric'] as [string, string])]} /></div>
+          <label className="field" style={S(12)}><span>Ghi chú</span><textarea disabled={dis} rows={1} value={f.note ?? ''} onChange={e => setF({ ...f, note: e.target.value })} /></label>
+          {progFields.length > 0 && <div style={{ gridColumn: '1/-1' }} className="formgrid"><CustomInputs disabled={dis} fields={progFields} value={f.custom ?? {}} onChange={v => setF({ ...f, custom: v })} /></div>}
+        </div>
+      </section>
+
+      <section id="pf-3" className="panel pfcard">
+        <h4><i>3</i>Yêu cầu năng lực giáo viên</h4>
+        <p className="pfhint">Giáo viên đáp ứng khi Đạt khoá đào tạo có gắn chương trình, hoặc khi đạt đủ các mức dưới đây
+          (mức cao hơn giữa lần trường đánh giá gần nhất và mức đạt qua các khoá đào tạo; tự đánh giá không tính).</p>
+        {reqs.length > 0 && <table className="pfreqs"><thead><tr><th>Năng lực</th><th>Mức tối thiểu</th><th /></tr></thead><tbody>
+          {reqs.map((r, i) => <tr key={i}>
+            <td><select disabled={!reqEdit} value={r.competency} aria-label={`Năng lực ${i + 1}`} onChange={e => setReqs(reqs.map((x, j) => j === i ? { ...x, competency: e.target.value } : x))}>
+              <option value="">Chọn năng lực…</option>
+              {tcomps.filter(c => c.key === r.competency || !reqs.some(x => x.competency === c.key)).map(c => <option key={c.key} value={c.key}>{c.name}</option>)}
+            </select></td>
+            <td><div className="pflv" role="radiogroup" aria-label={`Mức tối thiểu ${i + 1}`}>{[1, 2, 3, 4].map(l => <button key={l} type="button" role="radio" aria-checked={r.min_level === l} disabled={!reqEdit}
+              className={r.min_level === l ? 'on' : r.min_level > l ? 'in' : ''} title={`Từ Mức ${l} · ${LV_NAME[l - 1]}`} onClick={() => setReqs(reqs.map((x, j) => j === i ? { ...x, min_level: l } : x))}>{l}</button>)}
+              <small className="sub">{LV_NAME[r.min_level - 1]}</small></div></td>
+            <td>{reqEdit && <button type="button" className="x" aria-label="Bỏ yêu cầu" onClick={() => setReqs(reqs.filter((_, j) => j !== i))}>×</button>}</td>
+          </tr>)}
+        </tbody></table>}
+        {!reqs.length && <small className="sub">Chưa đặt yêu cầu: chỉ giáo viên Đạt khoá đào tạo có gắn chương trình mới được tính đáp ứng.</small>}
+        {reqEdit && tcomps.some(c => !reqs.some(r => r.competency === c.key)) && <div className="pfadd"><button type="button" className="linkbtn"
+          onClick={() => { const c = tcomps.find(c => !reqs.some(r => r.competency === c.key)); if (c) setReqs([...reqs, { competency: c.key, min_level: 2 }]) }}>+ Thêm năng lực</button>
+          {reqs.length === 0 && <> · <button type="button" className="linkbtn" onClick={() => setReqs(tcomps.map(c => ({ competency: c.key, min_level: 2 })))}>Thêm tất cả năng lực (Mức 2)</button></>}</div>}
+      </section>
+
+      <section id="pf-4" className="panel pfcard">
+        <h4><i>4</i>Đơn vị, phạm vi & hiệu lực {effNote && <span className={'pill ' + (effNote.startsWith('Hết') ? 'bad' : 'warn')}>{effNote}</span>}</h4>
+        <p className="pfhint">Vẫn sửa được sau khi phát hành.</p>
+        <div className="pgrid">
+          <label className="field" style={S(showScope ? 5 : 6)}><span>Đơn vị xây dựng <small className="sub">(nơi biên soạn nội dung)</small></span>
+            <input list="edu-builders" maxLength={200} disabled={!scopeEdit} value={f.builder ?? ''} onChange={e => pickBuilder(e.target.value)} placeholder="KDI Education, Sở GD&ĐT…, Trường…" />
+            <datalist id="edu-builders">{builders.map(b => <option key={b} value={b} />)}</datalist></label>
+          {orgPick && <div style={S(showScope ? 7 : 6)}><OrgPick kind="any" title="Đơn vị quản lý" value={f.org_id ?? orgId ?? ''} onChange={v => { setOrgTouched(true); setOrg(v) }} />
+            <small className="sub">Đơn vị sở hữu, sửa và phát hành chương trình. Mặc định theo đơn vị xây dựng.</small></div>}
+          {showScope && <div className="field" style={S(orgPick ? 12 : 7)}><span>Áp dụng cho</span>
+            <Seg value={(f.scope ?? 'children') as Program['scope']} off={!scopeEdit} onPick={v => setF({ ...f, scope: v })} opts={[['children', 'Tất cả đơn vị trực thuộc'], ['own', 'Chỉ đơn vị mình và đơn vị được gán']]} /></div>}
+          <label className="field" style={S(4)}><span>Hiệu lực từ</span><input disabled={!scopeEdit} type="date" value={f.effective_from ?? ''} onChange={e => setF({ ...f, effective_from: e.target.value || null })} /></label>
+          <label className="field" style={S(4)}><span>Hiệu lực đến <small className="sub">(để trống = không hạn)</small></span><input disabled={!scopeEdit} type="date" min={f.effective_from ?? undefined} value={f.effective_to ?? ''} onChange={e => setF({ ...f, effective_to: e.target.value || null })} /></label>
+          {!isNew && mode !== 'school' && <div className="field" style={S(4)}><span>Đơn vị được gán</span>
+            <div className="pfasg"><b>{asgN ?? '…'}</b> đơn vị{onGoAssign && <button type="button" className="linkbtn" onClick={onGoAssign}>Gán cho đơn vị →</button>}</div></div>}
+        </div>
+      </section>
+
     </div>
 
-    <h4 className="psec">Phạm vi áp dụng & hiệu lực {effNote && <span className={'pill ' + (effNote.startsWith('Hết') ? 'bad' : 'warn')}>{effNote}</span>}</h4>
-    <div className="pgrid">
-      {orgPick && <div style={S(oSpan)}><OrgPick kind="any" title="Đơn vị quản lý" value={f.org_id ?? orgId ?? ''} onChange={v => { setOrgTouched(true); setOrg(v) }} />
-        <small className="sub">Đơn vị sở hữu, sửa và phát hành chương trình. Mặc định theo đơn vị xây dựng.</small></div>}
-      {showScope && <label className="field" style={S(scSpan)}><span>Phạm vi áp dụng</span><select value={f.scope ?? 'children'} disabled={!scopeEdit} onChange={e => setF({ ...f, scope: e.target.value as Program['scope'] })}>
-        <option value="children">Tất cả đơn vị trực thuộc</option><option value="own">Chỉ đơn vị mình và đơn vị được gán</option></select></label>}
-      <label className="field" style={S(dSpan)}><span>Hiệu lực từ</span><input disabled={!scopeEdit} type="date" value={f.effective_from ?? ''} onChange={e => setF({ ...f, effective_from: e.target.value || null })} /></label>
-      <label className="field" style={S(dSpan)}><span>Hiệu lực đến</span><input disabled={!scopeEdit} type="date" min={f.effective_from ?? undefined} value={f.effective_to ?? ''} onChange={e => setF({ ...f, effective_to: e.target.value || null })} /></label>
-    </div>
-    {!isNew && mode !== 'school' && <small className="sub">Đơn vị được gán: <b>{asgN ?? '…'}</b>{f.scope === 'own' ? ' (chỉ các đơn vị này và đơn vị mình thấy chương trình khi đã phát hành)' : ' (thêm vào phạm vi, kèm khối triển khai)'}.
-      {onGoAssign && <> <button type="button" className="linkbtn" onClick={onGoAssign}>Gán cho đơn vị →</button></>}</small>}
-
-    <h4 className="psec">Yêu cầu năng lực giáo viên</h4>
-    <small className="sub">Giáo viên được tính đáp ứng chương trình khi Đạt một khoá đào tạo có gắn chương trình, hoặc khi mức năng lực đạt đủ các yêu cầu dưới đây
-      (mức cao hơn giữa lần trường đánh giá gần nhất và mức đạt qua các khoá đào tạo, cộng dồn qua các đợt; tự đánh giá không tính).</small>
-    <div className="preqs">
-      {reqs.map((r, i) => <div key={i} className="preq">
-        <select disabled={!reqEdit} value={r.competency} aria-label={`Năng lực ${i + 1}`} onChange={e => setReqs(reqs.map((x, j) => j === i ? { ...x, competency: e.target.value } : x))}>
-          <option value="">Chọn năng lực…</option>
-          {tcomps.filter(c => c.key === r.competency || !reqs.some(x => x.competency === c.key)).map(c => <option key={c.key} value={c.key}>{c.name}</option>)}
-        </select>
-        <select disabled={!reqEdit} value={r.min_level} aria-label={`Mức tối thiểu ${i + 1}`} onChange={e => setReqs(reqs.map((x, j) => j === i ? { ...x, min_level: +e.target.value } : x))}>
-          {[1, 2, 3, 4].map(l => <option key={l} value={l}>Từ Mức {l} · {LV_NAME[l - 1]}</option>)}</select>
-        {reqEdit && <button type="button" className="x" aria-label="Bỏ yêu cầu" onClick={() => setReqs(reqs.filter((_, j) => j !== i))}>×</button>}
-      </div>)}
-      {!reqs.length && <small className="sub">Chưa đặt yêu cầu: chỉ giáo viên Đạt khoá đào tạo có gắn chương trình mới được tính đáp ứng.</small>}
-    </div>
-    {reqEdit && tcomps.some(c => !reqs.some(r => r.competency === c.key)) && <div><button type="button" className="linkbtn"
-      onClick={() => { const c = tcomps.find(c => !reqs.some(r => r.competency === c.key)); if (c) setReqs([...reqs, { competency: c.key, min_level: 2 }]) }}>+ Thêm năng lực</button>
-      {reqs.length === 0 && <> · <button type="button" className="linkbtn" onClick={() => setReqs(tcomps.map(c => ({ competency: c.key, min_level: 2 })))}>Thêm tất cả năng lực (Mức 2)</button></>}</div>}
-
-    {(canSave || onDelete || onCancel) && <div className="formactions">
-      {canSave && <button className="primary" type="submit" disabled={busy}>{busy ? 'Đang lưu…' : isNew ? 'Tạo bản nháp' : 'Lưu'}</button>}
-      {onCancel && <button type="button" onClick={onCancel}>Huỷ</button>}
-      {!isNew && <button type="button" onClick={() => { setF(p); setReqs(reqs0); onBack?.() }}>Huỷ</button>}
-      {onDelete && <button type="button" className="danger" onClick={onDelete}>Xoá bản nháp</button>}
-    </div>}
+    <aside className="pfside">
+      <div className="panel pdcard">
+        <h4>Xem nhanh</h4>
+        <dl className="pddl sm">
+          <dt>Tên</dt><dd><b>{f.title?.trim() || '—'}</b></dd>
+          <dt>Đối tượng</dt><dd>{[lvs1.map(l => LV[l]?.name ?? l).join(', '), gs1.length ? fmtGrades(gs1) : ''].filter(Boolean).join(' · ') || '—'}</dd>
+          <dt>Nhóm</dt><dd>{cts1.length ? cts1.map((c, i) => i === 0 && cts1.length > 1 ? c + ' (chính)' : c).join(', ') : '—'}</dd>
+          <dt>Môn chủ đạo</dt><dd>{mains1.length ? mains1.map((c, i) => i === 0 && mains1.length > 1 ? c + ' (chính)' : c).join(', ') : '—'}</dd>
+          <dt>Thời lượng</dt><dd>{[f.periods_per_week ? `${f.periods_per_week} tiết/tuần` : '', DEPLOY[(f.deploy_term ?? 'year') as Deploy]?.[0]].filter(Boolean).join(' · ')}</dd>
+          {showScope && <><dt>Áp dụng</dt><dd>{f.scope === 'own' ? 'Đơn vị mình và đơn vị được gán' : 'Tất cả đơn vị trực thuộc'}</dd></>}
+        </dl>
+        {editable && (missing.length ? <p className="pfmiss">Còn thiếu: {missing.join(', ')}</p> : <p className="pfok">✓ Đã đủ thông tin bắt buộc</p>)}
+        {(canSave || cancelBtn || onDelete) && <div className="pfsidebtn">{saveBtn}{cancelBtn}
+          {onDelete && <button type="button" className="danger" onClick={onDelete} title="Xoá bản nháp">Xoá</button>}</div>}
+      </div>
+    </aside>
   </form>
 }
 
@@ -988,8 +1040,8 @@ function isDesc(all: Unit[], u: Unit, ancestor: string): boolean {
 
 // ----- Phiên bản & duyệt -----
 /** Nút gửi duyệt / duyệt / phát hành / tạo phiên bản mới / ngừng dùng — hiện trên thẻ thông tin */
-function VersionActions({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMessage }: {
-  p: Program; mine: boolean; canEdit: boolean; mode: ProgMode; isAdmin: boolean; onOpen: (id: string) => void; onChanged: () => void
+function VersionActions({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMessage, onDelete }: {
+  p: Program; mine: boolean; canEdit: boolean; mode: ProgMode; isAdmin: boolean; onOpen: (id: string) => void; onChanged: () => void; onDelete?: () => void
   onMessage: (m: string, err?: boolean) => void
 }) {
   const hid = useHiddenBtn()
@@ -1039,7 +1091,7 @@ function VersionActions({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, on
           {can && p.status === 'approved' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại để sửa</button>}
           {can && p.status === 'published' && !hid('version') && <button className="primary" disabled={busy} onClick={newVersion}>Tạo phiên bản mới</button>}
           {can && ['published', 'superseded', 'draft', 'rejected', 'approved'].includes(p.status) && <details className="pdmore"><summary aria-label="Thao tác khác" title="Thao tác khác">⋯</summary>
-            <div><button type="button" className="danger" disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Đơn vị khác không còn thấy bản ngừng dùng.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng phiên bản này</button></div></details>}
+            <div>{onDelete && <button type="button" className="danger" disabled={busy} onClick={onDelete}>Xoá bản nháp</button>}<button type="button" className="danger" disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Đơn vị khác không còn thấy bản ngừng dùng.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng phiên bản này</button></div></details>}
           {can && p.status === 'archived' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại thành nháp</button>}
   </>
 }

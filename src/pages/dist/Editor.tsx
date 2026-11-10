@@ -484,7 +484,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   function Calendar() {
     return <>
       <p className="distlegend">{ordered.map((it, k) => <span key={it.program_id}><i style={{ background: colorOf(k) }} /><b>{progCode(progs.get(it.program_id))}</b></span>)}
-        <span className="sub">Số trong ô là tiết của môn trong tuần (bấm ô để xem bài). Tuần ⚠ có ngày nghỉ theo lịch tham chiếu. Tổng màu cam là vượt {LOAD_MAX} tiết.</span></p>
+        <span className="sub">Số trong ô là tiết của môn trong tuần (rê chuột vào ô để xem tên bài). Tuần ⚠ có ngày nghỉ theo lịch tham chiếu. Tổng màu cam là vượt {LOAD_MAX} tiết.</span></p>
       {grid(true)}
     </>
   }

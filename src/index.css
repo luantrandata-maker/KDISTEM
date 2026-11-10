@@ -2443,3 +2443,11 @@ textarea.slcell{font-size:13px;color:var(--muted);min-height:28px}
 .slmain textarea.slcell{min-width:260px}
 .slmain td:has(>input.slcell:not([inputmode])){min-width:220px}
 .main .slact button.danger{color:#c0392b;border-color:#f1c4bd;background:var(--surface)}
+.main .tttools label.filebtn{padding:4px 10px;font-size:12px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-weight:500;min-height:0;line-height:1.4;cursor:pointer}
+.main .slopen{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;border:0;background:none;padding:0;min-height:0;font-weight:400;text-align:left;cursor:pointer}
+.slopen .slmore{color:var(--primary);font-size:12px;margin-left:4px;white-space:nowrap}
+.slopen:hover .slmore{text-decoration:underline}
+.lddet{display:flex;flex-direction:column;gap:16px}
+.lddet .field>span{font-weight:600;font-size:13px;margin-bottom:4px;display:block}
+.lddet .field>span small{font-weight:400}
+.lddet .tools input{flex:1;min-width:160px}

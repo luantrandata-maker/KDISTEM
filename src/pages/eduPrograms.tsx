@@ -886,7 +886,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
   const pasted = paste ? parseLessonLines(paste.text, defGrades).map(r => ({ ...r, lib: libUnits?.find(i => lc(i.title) === lc(r.title)) })) : []
   const totalP = (rs: LRow[]) => rs.reduce((t, r) => t + (r.u.periods || 0), 0)
 
-  const noOf = (r: LRow) => rowsOf(r.subject).indexOf(r) + 1
+  const noOf = (r: LRow) => inSel.indexOf(r) + 1
   const cols: Col<LRow>[] = [
     { key: 'no', label: '#', thClass: 'c-no', fixed: true, cell: r => <span className="sub">{noOf(r)}</span> },
     ...(!sel ? [{ key: 'subj', label: 'Môn', thClass: 'c-subj', text: (r: LRow) => r.subject, cell: (r: LRow) => <button type="button" className="slsubjlink" onClick={() => setCur(r.subject)}>{r.subject}</button> }] : []),

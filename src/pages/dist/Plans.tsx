@@ -181,7 +181,6 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
   const crumb = useBreadcrumb()
   const hid = useHiddenBtn()
   const { fs, q, fc, card } = f
-  const setFs = (fs: Status | '') => setF({ ...f, fs, card: null })
   const setQ = (q: string) => setF({ ...f, q })
   const setFc = (fc: string) => setF({ ...f, fc })
   const sort: [SortKey, 1 | -1] = ['title', 1]
@@ -217,13 +216,8 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
     if (ps.length === 1) onCopied(last, `Đã nhân bản ${ps[0].code} thành bản nháp mới.`)
     else onCopied(null, `Đã nhân bản ${ps.length} bản thành bản nháp mới.`)
   }
-  const n = (s: Status) => plans.filter(p => p.status === s && listMatch(p, f, crumb)).length
   return (
     <>
-      <div className="distfilter">
-        {([['', 'Tất cả', plans.filter(p => listMatch(p, f, crumb)).length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['superseded', 'Đã thay thế', n('superseded')], ['archived', 'Ngừng dùng', n('archived')]] as [Status | '', string, number][]).map(([s, l, c]) =>
-          <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
-      </div>
       {err && <p className="msg">{err}</p>}
       <DataTable id="dist-plans" rows={rows} rowKey={p => p.id} aside={plans.length ? gt.tree : undefined}
         empty={<small className="sub">{plans.length ? 'Không có bản nào khớp bộ lọc.' : 'Chưa có bản phân phối nào. Bấm “+ Tạo bản phân phối”.'}</small>}

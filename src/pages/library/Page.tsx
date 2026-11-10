@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { LibraryByProgram, LibraryNeeds, usePrograms } from './ByProgram'
-import { LibraryManage } from './Manage'
+import { LibraryManage, type LibSrc } from './Manage'
+import { AllOrgs } from '../../components/OrgScope'
 import { StatCards } from '../../components/StatCards'
 
 type Tab = 'prog' | 'needs' | 'catalog'
@@ -37,6 +38,8 @@ function useStats(orgId: string | null, rk: number) {
 export function LibraryPage({ orgId, teacherId, go }: { orgId: string | null; teacherId?: string | null; go?: (p: string) => void }) {
   const [tab, setTab] = useState<Tab>('prog')
   const [rk, setRk] = useState(0)
+  // Nguồn của Danh mục học liệu; "Tất cả đơn vị" mở danh sách của mọi đơn vị (thay tab "Học liệu các đơn vị")
+  const [src, setSrc] = useState<LibSrc>('own')
   const s = useStats(orgId, rk)
   const progs = usePrograms(orgId)
   const n = (v: number | undefined) => (v == null ? '…' : v)
@@ -56,7 +59,9 @@ export function LibraryPage({ orgId, teacherId, go }: { orgId: string | null; te
       </div>
       {tab === 'prog' && <LibraryByProgram orgId={orgId} onChanged={() => setRk(k => k + 1)} />}
       {tab === 'needs' && <LibraryNeeds orgId={orgId} />}
-      {tab === 'catalog' && <LibraryManage orgId={orgId} sources onChanged={() => setRk(k => k + 1)} />}
+      {tab === 'catalog' && (src === 'units'
+        ? <AllOrgs><LibraryManage key="units" orgId={orgId} sources src={src} onSrc={setSrc} onChanged={() => setRk(k => k + 1)} /></AllOrgs>
+        : <LibraryManage key="mine" orgId={orgId} sources src={src} onSrc={setSrc} onChanged={() => setRk(k => k + 1)} />)}
     </>
   )
 }

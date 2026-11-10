@@ -174,8 +174,10 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   const progCols: Col<Program>[] = [
     { key: 'name', label: 'Chương trình', fixed: true, values: p => [p.title], text: p => [p.code, p.title].join(' '),
       cell: p => <>{p.code && <small className="sub">{p.code}<br /></small>}<NameLink onClick={() => setOpenId(p.id)}>{p.title}</NameLink> <small>v{p.version_no}</small></> },
-    { key: 'level', label: 'Cấp · khối · loại · nhóm', values: p => [...lvsOf(p).map(levelName), PKIND[p.kind], ...ctsOf(p)], text: p => [lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ...ctsOf(p)].join(' '),
-      cell: p => <>{lvsOf(p).map(levelName).join(', ')} · {grades(p)}<br /><MultiTag grades={progGrades(p)} />{progGrades(p).length > 1 && <br />}<small>{PKIND[p.kind]}{ctsOf(p).map(c => <Fragment key={c}> <span className="gpill">{c}</span></Fragment>)}</small></> },
+    { key: 'grade', label: 'Khối', values: p => [grades(p)], text: p => grades(p), cell: p => <>{grades(p) || '—'}<br /><MultiTag grades={progGrades(p)} /></> },
+    { key: 'group', label: 'Nhóm', values: p => ctsOf(p), text: p => ctsOf(p).join(' '), cell: p => ctsOf(p).length ? ctsOf(p).map(c => <Fragment key={c}><span className="gpill">{c}</span> </Fragment>) : '—' },
+    { key: 'lv', label: 'Cấp', off: true, values: p => lvsOf(p).map(levelName), text: p => lvsOf(p).map(levelName).join(', '), cell: p => lvsOf(p).map(levelName).join(', ') || '—' },
+    { key: 'kind', label: 'Loại', off: true, text: p => PKIND[p.kind], cell: p => PKIND[p.kind] },
     { key: 'subj', label: 'Môn', values: p => [...mainsOf(p), ...p.integrated_subjects], text: p => [...mainsOf(p), ...p.integrated_subjects].join(' '),
       cell: p => <>{mainsOf(p).join(', ')}{p.integrated_subjects.length > 0 && <><br /><small className="sub">Tích hợp: {p.integrated_subjects.join(', ')}</small></>}</> },
     { key: 'periods', label: 'Số tiết · triển khai', values: p => [p.total_periods ? p.total_periods + ' tiết' : '', DEPLOY[p.deploy_term ?? 'year']?.[0] ?? ''], text: p => String(p.total_periods || ''),
@@ -189,7 +191,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
     ...progFields.filter(x => x.column).map(x => ({ key: 'c_' + x.key, label: x.label, cell: (p: Program) => customCell(x, p.custom?.[x.key]) })),
   ]
   const table = (rows: Program[], mine: boolean, left?: ReactNode, right?: ReactNode, empty?: ReactNode) => (
-    <DataTable id={mine ? 'edu-programs' : 'edu-programs-shared'} rows={(mine ? gtOwn : gtShared).filter(rows)} rowKey={p => p.id} cols={progCols} left={left} right={right} empty={empty}
+    <DataTable id={mine ? 'edu-programs-v3' : 'edu-programs-shared-v3'} rows={(mine ? gtOwn : gtShared).filter(rows)} rowKey={p => p.id} cols={progCols} left={left} right={right} empty={empty}
       aside={rows.length ? (mine ? gtOwn : gtShared).tree : undefined}
       head={!mine && canCopy ? { th: <span className="sronly">Chọn</span>, td: p => <input type="checkbox" checked={sel.is(p)} onChange={() => sel.toggle(p)} aria-label={'Chọn ' + p.title} /> } : undefined} />
   )

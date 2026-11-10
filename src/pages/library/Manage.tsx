@@ -119,8 +119,11 @@ const NOEV = { preventDefault() {} } as React.FormEvent
 // Phát hành học liệu: Sở/Phòng/Tỉnh/Bộ, đơn vị cung cấp (KDI Education) hoặc trường soạn và phát hành tới đơn vị trực thuộc
 /** Mở thẳng form bài học (từ "Học liệu theo chương trình"): sửa bài học có sẵn hoặc tạo bộ học liệu cho một bài của chương trình */
 export type UnitStart = { editId?: string; preset?: { program_id: string; unit_id: string; title: string; periods: number | null; objectives: string | null; program: string | null; grades: string | null } }
-/** `sources`: thêm lọc Nguồn (của đơn vị / dùng chung do đơn vị khác phát hành / tất cả) — gộp "Kho học liệu dùng chung" vào Danh mục học liệu */
-export function LibraryManage({ orgId, only, start, onDone, onChanged, sources }: { orgId: string | null; only?: T; start?: UnitStart; onDone?: () => void; onChanged?: () => void; sources?: boolean }) {
+export type LibSrc = 'own' | 'shared' | 'units'
+/** `sources`: lọc Nguồn — của đơn vị / dùng chung (đơn vị khác phát hành, chỉ xem) / tất cả đơn vị (trang bọc AllOrgs, sửa thẳng).
+ *  Gộp "Kho học liệu dùng chung" và "Học liệu các đơn vị" vào Danh mục học liệu; trang cha giữ `src` để đổi khung AllOrgs. */
+export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, src: srcProp, onSrc }: { orgId: string | null; only?: T; start?: UnitStart; onDone?: () => void; onChanged?: () => void
+  sources?: boolean; src?: LibSrc; onSrc?: (s: LibSrc) => void }) {
   const hid = useHiddenBtn()
   const libFields = fieldsOf(useSettings(), 'library')
   const MAT_OPTS = useMatTypes()
@@ -143,7 +146,8 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources }
   const [card, setCard] = useState<string | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [view, setView] = useViewMode('hoc-lieu', 'list')
-  const [srcMode, setSrcMode] = useState<'own' | 'shared' | 'all'>('own')
+  const [srcOwn, setSrcOwn] = useState<LibSrc>('own')
+  const srcMode = srcProp ?? srcOwn, setSrcMode = onSrc ?? setSrcOwn
   const gsel = useGradeSel('library')
   const [msg, setMsg] = useState(''); const [info, setInfo] = useState('')
   const [err, setErr] = useState('')
@@ -481,7 +485,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources }
 
   // Nguồn: của đơn vị (sửa được) · dùng chung (đơn vị khác phát hành, chỉ xem) · tất cả
   const sharedItems = sources && !every ? visible.filter(x => x.owner_org_id !== orgId && x.status === 'published') : []
-  const pool = srcMode === 'own' ? items : srcMode === 'shared' ? sharedItems : [...items, ...sharedItems]
+  const pool = srcMode === 'shared' ? sharedItems : items
   const ofTab = pool.filter(i => tab === 'plan' ? isPlan(i) : tab === 'material' ? i.kind === 'material' && !isPlan(i) : i.kind === tab)
   const subjects = [...new Set(ofTab.map(i => i.subject).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi'))
   const fitI = (i: Item, skip?: string) => (skip === 'prov' || mf.has('prov', provOf(i.owner_org_id)?.id)) && (skip === 'org' || mf.has('org', i.owner_org_id))
@@ -531,8 +535,8 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources }
   }
   const libLeft = <>
     <input placeholder="Tìm tên, mô tả, từ khoá…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-    {sources && !every && <select value={srcMode} onChange={e => setSrcMode(e.target.value as typeof srcMode)} aria-label="Nguồn">
-      <option value="own">Nguồn: Của đơn vị</option><option value="shared">Nguồn: Dùng chung</option><option value="all">Nguồn: Tất cả</option></select>}
+    {sources && <select value={srcMode} onChange={e => setSrcMode(e.target.value as LibSrc)} aria-label="Nguồn">
+      <option value="own">Nguồn: Của đơn vị</option><option value="shared">Nguồn: Dùng chung</option><option value="units">Nguồn: Tất cả đơn vị</option></select>}
     <MultiFilters defs={filterDefs} f={mf} count={`${shown.length}/${ofTab.length}`} />
   </>
   const libRight = <>
@@ -544,7 +548,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources }
     { key: 'title', label: tabLabel(tab), fixed: true, values: i => [i.title], text: i => [i.title, every ? i.owner_name : '', i.subject, i.grades].join(' '),
       cell: i => <><b>{i.title}</b>
         <div className="sub" style={{ fontSize: 12 }}>{[every && i.owner_name, i.subject, i.grades && `Khối ${i.grades}`].filter(Boolean).join(' · ') || '—'}{i.program ? <> <ProgChip p={i.program} /></> : null}{i.usage_rights && i.usage_rights !== 'adapt' && <> <RightsChip r={i.usage_rights} /></>}</div></> },
-    ...(srcMode !== 'own' ? [{ key: 'src', label: 'Nguồn', text: (i: Item) => i.owner_org_id === orgId ? 'Của đơn vị' : i.owner_name ?? '', cell: (i: Item) => i.owner_org_id === orgId ? 'Của đơn vị' : <>{i.owner_name ?? '—'}<div className="sub" style={{ fontSize: 12 }}>Dùng chung · chỉ xem</div></> }] : []),
+    ...(srcMode === 'shared' ? [{ key: 'src', label: 'Nguồn', text: (i: Item) => i.owner_org_id === orgId ? 'Của đơn vị' : i.owner_name ?? '', cell: (i: Item) => i.owner_org_id === orgId ? 'Của đơn vị' : <>{i.owner_name ?? '—'}<div className="sub" style={{ fontSize: 12 }}>Dùng chung · chỉ xem</div></> }] : []),
     { key: 'prog', label: 'Chương trình', values: i => [i.edu_programs?.title ?? ''], text: i => [i.edu_programs?.title, i.edu_program_units?.title].join(' '),
       cell: i => i.edu_programs ? <>{i.edu_programs.title} <small className="sub">v{i.edu_programs.version_no}</small>{i.edu_program_units && <div className="sub" style={{ fontSize: 12 }}>{i.edu_program_units.title}</div>}</> : <small className="sub">—</small> },
     { key: 'parts', label: tab === 'unit' ? 'Thành phần' : 'Nội dung', text: i => String(partsOf(i) ?? ''), cell: i => <small>{partsOf(i)}</small> },

@@ -115,8 +115,10 @@ export function schedule(plan: Plan, items: Item[], prev: Map<string, Row>, unit
         let weeks: number[] | null = null
         const manual = !!(pr?.manual && pr.week)
         if (!skipped && periods > 0) {
-          weeks = manual ? Array.from({ length: periods }, (_, k) => pr!.week! + Math.floor(k / ppw))
-            : Array.from({ length: periods }, (_, k) => sStart + Math.floor((n + k) / ppw))
+          // Đặt tay từng tiết (dời / tách trên lịch): giữ đúng các tuần đã lưu nếu còn khớp số tiết và tuần bắt đầu
+          const own = manual && pr!.weeks?.length === periods && Math.min(...pr!.weeks!) === pr!.week ? [...pr!.weeks!].sort((x, y) => x - y) : null
+          weeks = own ?? (manual ? Array.from({ length: periods }, (_, k) => pr!.week! + Math.floor(k / ppw))
+            : Array.from({ length: periods }, (_, k) => sStart + Math.floor((n + k) / ppw)))
           n += periods
           from = Math.min(from, ...weeks); to = Math.max(to, ...weeks); periodsSum += periods; count++
         }

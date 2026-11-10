@@ -114,6 +114,7 @@ const COMP: [keyof Frame['weights'], string, string][] = [
   ['att', 'Chuyên cần', 'Tỉ lệ có mặt các buổi (100% = 10 điểm)'], ['tests', 'Bài test nội dung', 'Trung bình điểm cao nhất các bài test, chưa làm tính 0'],
   ['final', 'Đề cuối khoá', 'Điểm cao nhất của đề cuối khoá'], ['product', 'Sản phẩm cuối khoá', 'Điểm giảng viên chấm sản phẩm']]
 
+const FRAME_NOTE = 'Tổng điểm (thang 10) = trung bình có trọng số của các thành phần. Thành phần không có trong kế hoạch (VD chưa có đề cuối khoá) được bỏ ra, các thành phần còn lại chia lại theo tỉ lệ. Đạt khi đủ tất cả điều kiện bắt buộc; xếp loại theo tổng điểm. Đạt đủ điều kiện nhưng tổng điểm dưới mức thấp nhất thì xếp mức thấp nhất.'
 export function ProgramEvalFrame({ p, edit, hasFinal, hasTests, save }: { p: Prog; edit: boolean; hasFinal: boolean; hasTests: boolean; save: Save }) {
   const [f, setF] = useState<Frame>(() => p.eval_frame ? { ...defaultFrame(p), ...p.eval_frame, req: { ...defaultFrame(p).req, ...p.eval_frame.req } } : defaultFrame(p))
   const [dirty, setDirty] = useState(false)
@@ -130,9 +131,8 @@ export function ProgramEvalFrame({ p, edit, hasFinal, hasTests, save }: { p: Pro
   }
   const dis = !edit
   return <section className="panel" style={{ display: 'grid', gap: 14 }}>
-    <div><h3 style={{ margin: 0 }}>Khung đánh giá</h3>
-      <p className="sub" style={{ margin: '4px 0 0' }}>Tổng điểm (thang 10) = trung bình có trọng số của các thành phần. Thành phần không có trong kế hoạch (VD chưa có đề cuối khoá) được bỏ ra, các thành phần còn lại chia lại theo tỉ lệ.
-        Đạt khi đủ tất cả điều kiện bắt buộc; xếp loại theo tổng điểm.{!p.eval_frame && ' Chương trình đang dùng khung mặc định.'}</p></div>
+    <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Khung đánh giá{!p.eval_frame && <small className="sub" style={{ fontWeight: 400 }}> · đang dùng khung mặc định</small>}</h3>
+      <span className="infotip" tabIndex={0} title={FRAME_NOTE} aria-label={FRAME_NOTE}>ⓘ Cách tính</span></div>
 
     <fieldset className="libtargets wide"><legend>Thành phần điểm và trọng số</legend>
       <div className="wrap"><table>
@@ -146,8 +146,10 @@ export function ProgramEvalFrame({ p, edit, hasFinal, hasTests, save }: { p: Pro
       </table></div>
     </fieldset>
 
+    {/* Điều kiện đạt và thang xếp loại đặt cạnh nhau để khung gọn hơn */}
+    <div className="efgrid">
     <fieldset className="libtargets wide"><legend>Điều kiện bắt buộc để đạt</legend>
-      <div className="formgrid">
+      <div className="formgrid efcond">
         <label className="field"><span>Chuyên cần tối thiểu (%)</span><input type="number" min={0} max={100} disabled={dis} value={f.req.att ?? ''} placeholder="Không xét"
           onChange={e => up({ req: { ...f.req, att: nOrNull(e.target.value) } })} /></label>
         <label className="field"><span>Tổng điểm tối thiểu</span><input type="number" min={0} max={10} step={0.5} disabled={dis} value={f.req.total ?? ''} placeholder="Không xét"
@@ -162,22 +164,24 @@ export function ProgramEvalFrame({ p, edit, hasFinal, hasTests, save }: { p: Pro
       {p.need_product && <small className="sub">Sản phẩm bắt buộc phải được nhận (đạt) theo cấu hình chương trình.</small>}
     </fieldset>
 
-    <fieldset className="libtargets wide"><legend>Thang xếp loại</legend>
-      <div className="wrap"><table>
-        <thead><tr><th>Xếp loại</th><th className="num">Tổng điểm từ</th>{!dis && <th></th>}</tr></thead>
-        <tbody>{f.grades.map((g, i) => <tr key={i}>
-          <td><input disabled={dis} maxLength={40} value={g.label} aria-label="Tên xếp loại" onChange={e => up({ grades: f.grades.map((x, j) => j === i ? { ...x, label: e.target.value } : x) })} /></td>
-          <td className="num"><input type="number" min={0} max={10} step={0.5} disabled={dis} value={g.min} style={{ width: 90 }} aria-label="Điểm từ"
-            onChange={e => up({ grades: f.grades.map((x, j) => j === i ? { ...x, min: Math.max(0, Math.min(10, Number(e.target.value) || 0)) } : x) })} /></td>
-          {!dis && <td><button type="button" className="x" aria-label="Bỏ mức" disabled={f.grades.length < 2} onClick={() => up({ grades: f.grades.filter((_, j) => j !== i) })}>×</button></td>}
-        </tr>)}
-          <tr><td><input disabled={dis} maxLength={40} value={f.fail_label} aria-label="Tên mức chưa đạt" onChange={e => up({ fail_label: e.target.value })} /></td>
-            <td className="num"><small className="sub">không đủ điều kiện</small></td>{!dis && <td></td>}</tr></tbody>
-      </table></div>
+    <fieldset className="libtargets wide"><legend>Thang xếp loại (theo tổng điểm)</legend>
+      <div className="efgrades">
+        {f.grades.map((g, i) => <span key={i} className="efgrade">
+          <input disabled={dis} maxLength={40} value={g.label} aria-label="Tên xếp loại" onChange={e => up({ grades: f.grades.map((x, j) => j === i ? { ...x, label: e.target.value } : x) })} />
+          <small className="sub">từ</small>
+          <input type="number" min={0} max={10} step={0.5} disabled={dis} value={g.min} className="efnum" aria-label="Điểm từ"
+            onChange={e => up({ grades: f.grades.map((x, j) => j === i ? { ...x, min: Math.max(0, Math.min(10, Number(e.target.value) || 0)) } : x) })} />
+          {!dis && <button type="button" className="x" aria-label="Bỏ mức" disabled={f.grades.length < 2} onClick={() => up({ grades: f.grades.filter((_, j) => j !== i) })}>×</button>}
+        </span>)}
+        <span className="efgrade">
+          <input disabled={dis} maxLength={40} value={f.fail_label} aria-label="Tên mức chưa đạt" onChange={e => up({ fail_label: e.target.value })} />
+          <small className="sub">không đủ điều kiện</small>
+        </span>
+        {!dis && f.grades.length < 8 && <button type="button" onClick={() => up({ grades: [...f.grades, { label: '', min: Math.max(0, Math.min(...f.grades.map(g => g.min)) - 1) }] })}>+ Thêm mức</button>}
+      </div>
       {dupe && <small className="warnline">Các mức phải có điểm khác nhau.</small>}
-      {!dis && f.grades.length < 8 && <div><button type="button" onClick={() => up({ grades: [...f.grades, { label: '', min: Math.max(0, Math.min(...f.grades.map(g => g.min)) - 1) }] })}>+ Thêm mức</button></div>}
-      <small className="sub">Đạt đủ điều kiện nhưng tổng điểm dưới mức thấp nhất thì xếp mức thấp nhất ({grades[grades.length - 1]?.label || '—'}).</small>
     </fieldset>
+    </div>
 
     {edit ? <div className="formactions"><button type="button" className="primary" disabled={!dirty && !!p.eval_frame} onClick={doSave}>{p.eval_frame ? 'Lưu khung đánh giá' : 'Lưu và dùng khung này'}</button>
       {' '}<button type="button" onClick={() => { setF(defaultFrame(p)); setDirty(true) }}>Về mặc định</button></div>

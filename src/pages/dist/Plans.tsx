@@ -16,7 +16,7 @@ import { ClsTree } from './ClsTree'
 import { Drawer } from '../../components/Drawer'
 import { PlanBody, Chip, STATUS, errText, useBreadcrumb } from './Editor'
 import type { Plan, Status } from './sched'
-import { FlowGuide } from '../../components/FlowGuide'
+import { useGradeTree } from '../../components/GradeTree'
 import { StatCards } from '../../components/StatCards'
 import { useCls } from './cls'
 import { DistHistory, PlanAssigned } from './History'
@@ -83,17 +83,8 @@ export function DistPage({ orgId }: { orgId: string | null }) {
   const cardBooks = books.filter(b => baseIds.has(b.dist_plan_id))
   const pub = cardBase.filter(p => p.status === 'published').length
   const drafts = cardBase.filter(p => p.status === 'draft').length
-  const steps: [Tab, string, string][] = [
-    ['create', 'Soạn bản phân phối', 'Bấm “+ Tạo bản phân phối”, đặt tên và chọn phân loại, tick chương trình phù hợp, xếp lịch học kỳ và nhịp tiết/tuần, xem Bảng hoặc Lịch rồi Lưu nháp.'],
-    ['list', 'Phát hành bản', 'Soát cảnh báo (lỗi sẽ chặn phát hành), rồi chuyển bản sang Đã phát hành. Xem tất cả bản ở danh sách này.'],
-    ['assign', 'Gán theo trường', 'Gán bản đã phát hành cho trường, lớp, năm học và học kỳ để tạo PPCT theo trường.']]
   return (
     <>
-      <FlowGuide id="dist-plans">
-        <ol className="distguide">{steps.map(([t, h, d], k) => <li key={t}>
-          <button type="button" className={tab === t ? 'on' : ''} onClick={() => { setTab(t); setMsg(null); if (t === 'list') setOpenList(null) }}><i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
-        <p className="sub" style={{ margin: 0 }}>Bản phân phối là mẫu lắp ghép từ nhiều chương trình. PPCT theo trường là bản đã gán cho từng trường, lớp để theo dõi.</p>
-      </FlowGuide>
       <StatCards active={lf.card} onPick={k => { setLf({ ...lf, card: k, fs: '' }); setTab('list'); setOpenList(null); setMsg(null) }} items={[
         { icon: 'layers', value: plans ? cardBase.length : '…', label: 'Bản phân phối', sub: `${pub} đã phát hành · ${drafts} nháp` },
         { k: 'published', icon: 'checkCircle', tone: 'good', value: plans ? pub : '…', label: 'Bản có thể gán' },
@@ -208,7 +199,9 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
       && (card !== 'published' || p.status === 'published') && (card !== 'books' || (meta.get(p.id)?.books ?? 0) > 0))
       .sort((a, b) => { const x = val(a), y = val(b); return (x < y ? -1 : x > y ? 1 : 0) * sort[1] })
   }, [plans, meta, f, sort, crumb])
-  const sel = useMultiSel(shown)
+  const gt = useGradeTree('dist-plans', shown, p => p.grade ? [p.grade] : [])
+  const rows = gt.filter(shown)
+  const sel = useMultiSel(rows)
   const picked = sel.list
   const one = picked.length === 1 ? picked[0] : null
   const [busy, setBusy] = useState(false)
@@ -232,7 +225,7 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
           <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
       </div>
       {err && <p className="msg">{err}</p>}
-      <DataTable id="dist-plans" rows={shown} rowKey={p => p.id}
+      <DataTable id="dist-plans" rows={rows} rowKey={p => p.id} aside={plans.length ? gt.tree : undefined}
         empty={<small className="sub">{plans.length ? 'Không có bản nào khớp bộ lọc.' : 'Chưa có bản phân phối nào. Bấm “+ Tạo bản phân phối”.'}</small>}
         head={{ th: <input type="checkbox" checked={sel.all} ref={el => { if (el) el.indeterminate = sel.some }} onChange={sel.toggleAll} aria-label="Chọn tất cả" />,
           td: p => <input type="checkbox" checked={sel.is(p)} onChange={() => sel.toggle(p)} aria-label={'Chọn ' + p.code} /> }}
@@ -249,7 +242,7 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
         left={<>
           <input placeholder="Tìm tên, mã, phân loại…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <select value={fc} onChange={e => setFc(e.target.value)} aria-label="Phân loại"><option value="">Tất cả phân loại</option>{classes.map(c => <option key={c} value={c}>{c}</option>)}</select>
-          <small className="sub">{shown.length}/{plans.length} bản</small>
+          <small className="sub">{rows.length}/{plans.length} bản</small>
           {picked.length > 0 && <small className="sub">Đã chọn: <b>{one ? one.code : picked.length + ' bản'}</b> <button type="button" className="linkbtn" onClick={sel.clear}>Bỏ chọn</button></small>}
         </>}
         right={<>

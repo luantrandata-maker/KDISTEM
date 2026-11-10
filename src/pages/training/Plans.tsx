@@ -22,7 +22,6 @@ import { TrainerPick } from './Trainers'
 import { PlanResults } from './ResultsWork'
 import { PlanCal } from './PlanCal'
 import { PlanExams } from './PlanExams'
-import { FlowGuide, GuideButton, useGuide } from '../../components/FlowGuide'
 import { DataTable, type Col } from '../../components/DataTable'
 import { StatCards } from '../../components/StatCards'
 
@@ -101,7 +100,6 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   const [yr, setYr] = useState('')
   const [fp, setFp] = useState('')
   const cls = useCls('training')
-  const guide = useGuide('training-plans')
   // Quản trị hệ thống: kế hoạch của tất cả đơn vị trong một danh sách, sửa thẳng
   const all = useAllMode(), orgName = useOrgName()
   // Lọc Tỉnh / Sở, trường: khớp đơn vị lập kế hoạch hoặc trường được giao
@@ -155,27 +153,16 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   ]
   const table = (rows: TPlan[], empty: string, left?: ReactNode, right?: ReactNode) =>
     <DataTable id="training-plans" className="tplist" rows={rows} rowKey={p => p.id} cols={planCols} empty={empty} left={left} right={right} />
-  const steps: [string, string][] = [
-    ['Tạo kế hoạch', 'Chọn mục trong khung phân loại (cấp học, cấp độ…) rồi bấm “Lập kế hoạch đào tạo”.'],
-    ['Chọn chương trình', 'Tick các chương trình đào tạo đã phát hành, chọn nội dung, chỉ tiêu và giảng viên.'],
-    ['Xếp lịch', 'Chọn ngày, giờ học, địa điểm hoặc link họp; xếp tự động rồi chỉnh từng buổi.'],
-    ['Xem kết quả & phát hành', 'Soát lịch theo ngày, cảnh báo trùng giờ; phát hành rồi gán trường.']]
   // Chip trạng thái kèm số; chip bằng 0 thì ẩn (trừ Tất cả và chip đang chọn)
   const chips = ([['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['wait', 'Có danh sách chờ duyệt', base.filter(p => wait(p.id)).length], ['archived', 'Ngừng dùng', n('archived')]] as [Status | 'wait' | '', string, number][])
     .filter(([s, , c]) => !s || c > 0 || fs === s)
   const schools = new Set(baseOrgs.map(o => o.org_id)).size
   return (
     <>
-      <FlowGuide id="training-plans" guide={guide}>
-        <ol className="distguide four">{steps.map(([h, d], k) => <li key={h}><button type="button" onClick={() => setTab('tree')}>
-          <i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
-        <p className="sub" style={{ margin: 0 }}>Kế hoạch đào tạo gom các chương trình đào tạo vào một đợt, xếp lịch học cụ thể rồi giao cho trường.</p>
-      </FlowGuide>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : tab === 'tree'
         ? <>
-          <div className="bar"><button type="button" onClick={() => { setTab('list'); setMsg(null) }}>‹ Danh sách kế hoạch</button>
-            <div className="tools"><GuideButton guide={guide} /></div></div>
+          <div className="bar"><button type="button" onClick={() => { setTab('list'); setMsg(null) }}>‹ Danh sách kế hoạch</button></div>
           <ClsTree scope="training" items={ofl.active ? list.filter(p => ofl.fit([p.org_id, ...orgs.filter(o => o.plan_id === p.id).map(o => o.org_id)])) : list}
             header={({ sel, isFinal }) => <>
               {ofl.node([...list.map(p => p.org_id), ...orgs.map(o => o.org_id)])}
@@ -191,7 +178,6 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
                 <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '') + (s === 'wait' ? ' warn' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
             </div>
             <div className="tools">
-              <GuideButton guide={guide} />
               <button type="button" onClick={() => { setTab('tree'); setMsg(null) }}>Khung phân loại</button>
 </div>
           </div>
@@ -983,12 +969,6 @@ export function SchoolTrainingAssigned({ orgId }: { orgId: string }) {
   const nShown = (rows ?? []).filter(fit).length
   const ms = { width: 168, flex: '0 0 168px' }
   return <>
-    <FlowGuide id="training-school">
-      <ol className="distguide">{([['Nhận kế hoạch', 'KDI, Sở hoặc Phòng gán kế hoạch đào tạo cho trường, kèm chỉ tiêu nhà giáo.'],
-        ['Chọn nhà giáo', 'Mở kế hoạch, đánh dấu nhà giáo tham gia, không vượt chỉ tiêu.'],
-        ['Gửi duyệt', 'Gửi danh sách lên. Bị trả lại thì sửa theo lý do rồi gửi lại.']] as [string, string][]).map(([h, d], k) =>
-        <li key={h}><button type="button" onClick={() => setFs(k === 0 ? '' : k === 1 ? 'todo' : 'sent')}><i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
-    </FlowGuide>
     <StatCards active={fs || null} onPick={k => setFs((k ?? '') as typeof fs)} items={[
       { icon: 'layers', value: rows ? (rows ?? []).filter(fitBase).length : '…', label: 'Kế hoạch được giao' },
       { k: 'todo', icon: 'edit', tone: n('assigned') + n('returned') ? 'warn' : 'good', value: n('assigned') + n('returned'), label: 'Cần chọn nhà giáo', sub: `${n('returned')} bị trả lại` },

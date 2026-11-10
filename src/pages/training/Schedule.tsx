@@ -11,7 +11,6 @@ import { ElView } from '../../components/ElView'
 import { TrainerPick } from './Trainers'
 import { MultiSelect } from '../../components/MultiSelect'
 import { Chip } from '../dist/Editor'
-import { FlowGuide } from '../../components/FlowGuide'
 import { useTrainingPrograms } from './Lessons'
 import { useHolidays, dayKey, type Holidays } from '../../lib/holidays'
 import { detailCount, type Detail } from './Content'
@@ -149,14 +148,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
   if (open?.kind === 'sess') return <SessionDetail key={open.id} id={open.id} plan={pl(rows.find(s => s.id === open.id)?.plan_id ?? '')} can={can}
     onBack={() => { setOpen(null); reload() }} onMsg={m => { setMsg(m); setOpen(null); reload() }} />
 
-  const steps: [string, string, St | ''][] = [
-    ['Xếp lịch', 'Xếp tự động từ kế hoạch (mỗi nội dung đào tạo một buổi) hoặc thêm từng buổi; sửa giờ, địa điểm, link họp, giảng viên.', 'upcoming'],
-    ['Nhắc lịch & điểm danh', 'Gửi nhắc lịch cho nhà giáo. Buổi trực tiếp có mã 6 số / QR: nhà giáo nhập mã để điểm danh; buổi trực tuyến điểm danh khi bấm Tham gia.', 'live'],
-    ['Chốt điểm danh', 'Duyệt xin vắng, ghi có mặt / vắng còn thiếu rồi chốt. Chưa ghi thì tính vắng.', 'toclose']]
   return <>
-    <FlowGuide id="training-schedule">
-      <ol className="distguide">{steps.map(([h, d, f], k) => <li key={h}><button type="button" onClick={() => setFs(f)}><i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
-    </FlowGuide>
     <StatCards active={fs || null} onPick={k => setFs((k ?? '') as St | '')} items={[
       { k: 'upcoming', icon: 'clock', value: plans ? n('upcoming') : '…', label: 'Buổi sắp diễn ra', sub: `${base.length} buổi trong lịch` },
       { k: 'live', icon: 'dot', tone: n('live') ? 'warn' : 'good', value: n('live'), label: 'Đang diễn ra' },

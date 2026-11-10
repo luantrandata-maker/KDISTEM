@@ -10,7 +10,6 @@ import { Chip } from '../dist/Editor'
 import { CERT_ST } from './Results'
 import { FilterChips } from '../../components/FilterChips'
 import { DataTable, MoreFilters, type Col } from '../../components/DataTable'
-import { FlowGuide } from '../../components/FlowGuide'
 
 type Cert = { id: string; code: string | null; status: 'pending' | 'issued' | 'revoked'; issued_on: string | null; expires_on: string | null; revoked_reason: string | null
   verify_token: string; plan_id: string; plan_code: string | null; plan_name: string | null; teacher_id: string; teacher_name: string; org_name: string | null
@@ -121,14 +120,7 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
       {c.can_manage && c.status === 'issued' && <button type="button" onClick={() => revoke(c)}>Thu hồi</button>}
       {c.can_manage && c.status === 'revoked' && <button type="button" onClick={() => issue([c.id])}>Cấp lại</button>}</div> },
   ]
-  const steps: [string, string, F][] = [
-    ['Nhà giáo Đạt', 'Kết luận Đạt ở mục Đánh giá kết quả thì chứng chỉ tự vào danh sách chờ duyệt.', 'pending'],
-    ['Duyệt cấp', 'Chọn chứng chỉ và bấm Duyệt cấp: hệ thống sinh số CCTH-năm-số, ngày cấp, hạn hiệu lực theo mẫu.', 'pending'],
-    ['In & tra cứu', 'In hoặc lưu PDF; QR trên chứng chỉ mở trang tra cứu công khai. Thu hồi khi cần (ghi lý do).', 'issued']]
   return <>
-    <FlowGuide id="training-certs">
-      <ol className="distguide">{steps.map(([h, d, k], i) => <li key={h}><button type="button" onClick={() => setF(k)}><i>{i + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
-    </FlowGuide>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <FilterChips value={f} onPick={k => { setF(k); setSel(new Set()) }} items={[['all', 'Tất cả', cnt('all')], ['pending', 'Chờ duyệt', cnt('pending'), 'warn'], ['issued', 'Đã cấp', cnt('issued')], ['revoked', 'Đã thu hồi', cnt('revoked')]]} />
     {!rows ? <p className="sub">Đang tải…</p> : <DataTable id="training-certs" rows={shown} rowKey={c => c.id} cols={certCols}

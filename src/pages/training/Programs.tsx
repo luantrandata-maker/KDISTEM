@@ -19,7 +19,6 @@ import { TrainingUnits } from './Units'
 import { StatCards } from '../../components/StatCards'
 import { FilterChips } from '../../components/FilterChips'
 import { DataTable, type Col } from '../../components/DataTable'
-import { FlowGuide } from '../../components/FlowGuide'
 import { ProgramExams, ProgramEvalFrame, type FinalExam, type Frame } from './ExamFrame'
 import { useAllOrgs } from '../../components/OrgScope'
 
@@ -117,17 +116,8 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
     { key: 'status', label: 'Trạng thái', text: p => STATUS[p.status][0], cell: p => <Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip> },
     { key: 'upd', label: 'Cập nhật', cell: p => <small>{new Date(p.updated_at).toLocaleDateString('vi-VN')}</small> },
   ]
-  const steps: [string, string][] = [
-    ['Soạn chương trình', 'Nhập thông tin, năng lực đích và điều kiện đạt; thêm các môn và nội dung đào tạo kèm số giờ.'],
-    ['Duyệt & phát hành', 'Gửi duyệt hoặc phát hành thẳng. Bản đã phát hành không sửa được, muốn sửa thì tạo phiên bản mới.'],
-    ['Dùng trong kế hoạch', 'Chọn chương trình đã phát hành khi lập Kế hoạch & lịch đào tạo cho trường, nhà giáo.']]
   return (
     <>
-      <FlowGuide id="training-programs">
-        <ol className="distguide">{steps.map(([h, d], k) => <li key={h}><button type="button" onClick={() => setFs(k === 0 ? 'draft' : k === 1 ? 'published' : '')}>
-          <i>{k + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
-        <p className="sub" style={{ margin: 0 }}>Chương trình đào tạo là mẫu khoá học do KDI, Sở, Phòng hoặc Trường soạn, gồm các môn, mỗi môn có các nội dung đào tạo. Một chương trình dùng lại được cho nhiều kế hoạch đào tạo.</p>
-      </FlowGuide>
       <FilterChips value={fs} onPick={setFs} items={[['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['pending', 'Chờ duyệt', n('pending'), 'warn'], ['published', 'Đã phát hành', n('published')], ['archived', 'Ngừng dùng', n('archived')]]} />
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : <DataTable id="training-programs" rows={shown} rowKey={p => p.id} cols={progCols}

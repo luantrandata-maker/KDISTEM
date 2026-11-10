@@ -1,5 +1,6 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { DataTable, type Col } from '../components/DataTable'
+import { useGradeTree } from '../components/GradeTree'
 import { useOrgFilter } from '../components/OrgFilters'
 import { YearSelect } from '../components/YearSelect'
 import { MultiSelect } from '../components/MultiSelect'
@@ -112,7 +113,6 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
   const canEdit = useCanEdit(mode)
   const [books, setBooks] = useState<Book[]>([])
   const [loaded, setLoaded] = useState(false)
-  const [grade, setGrade] = useState(0)
   const [subject, setSubject] = useState('')
   const [q, setQ] = useState('')
   const [form, setForm] = useState<Partial<Book> | null>(null)
@@ -136,9 +136,11 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
   const ofl = useOrgFilter()
   const own = every ? books.filter(b => ofl.fit(b.org_id)) : books.filter(b => b.org_id === orgId)
   const templates = every ? [] : books.filter(b => b.org_id !== orgId && b.scope === 'children' && b.status === 'published')
-  const grades = [...new Set(own.map(b => b.grade))].sort((a, b) => a - b)
   const subjects = [...new Set(own.map(b => b.subject))].sort((a, b) => a.localeCompare(b, 'vi'))
-  const shown = own.filter(b => (!grade || b.grade === grade) && (!subject || b.subject === subject) && (!q || norm(b.title + ' ' + b.subject).includes(norm(q))))
+  const shown0 = own.filter(b => (!subject || b.subject === subject) && (!q || norm(b.title + ' ' + b.subject).includes(norm(q))))
+  const gt = useGradeTree('ppct-books', shown0, b => b.grade ? [b.grade] : [])
+  const shown = gt.filter(shown0)
+  const grade = gt.sel.startsWith('g:') ? Number(gt.sel.slice(2)) : 0
 
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!form) return
@@ -222,16 +224,12 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
         </form>
   </ElView>
   // Xem chi tiết (soạn tiết) kèm nút Sửa / Xoá / duyệt
+
   if (open) return <>{msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     <LessonEditor book={open} canEdit={canEdit && (open.org_id === orgId || !!every)} mode={mode} actions={bookActions(open)} onClose={() => { setOpen(null); setMsg(null); load() }} onChanged={load} /></>
 
   return (
     <>
-      <p className="sub">
-        {mode === 'school' ? 'Phân phối chương trình theo từng tiết của từng môn, khối. Khi giáo viên điểm danh, tiết dạy được gắn với tiết kế tiếp trong PPCT để theo dõi tiến độ (xem tab Tiến độ dạy).'
-          : mode === 'platform' ? 'Mẫu PPCT của KDI: trường sao chép về rồi điều chỉnh theo kế hoạch của tổ chuyên môn. Bản nháp chưa hiện với trường.'
-          : 'PPCT của đơn vị. Bật "Ban hành cho đơn vị trực thuộc" để các trường thấy và sao chép làm mẫu.'}
-      </p>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
 
 
@@ -250,7 +248,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
         </div>
       )}
 
-      {!loaded ? <p className="sub">Đang tải…</p> : <DataTable id="ppct-books" rows={shown} rowKey={b => b.id} onRow={b => { setMsg(null); setOpen(b) }}
+      {!loaded ? <p className="sub">Đang tải…</p> : <DataTable id="ppct-books" rows={shown} rowKey={b => b.id} aside={own.length ? gt.tree : undefined} onRow={b => { setMsg(null); setOpen(b) }}
         empty={<small className="sub">Chưa có môn nào trong phân phối chương trình.
           {canEdit && (templates.length ? ' Bấm "Dùng mẫu" để sao chép PPCT mẫu, hoặc "Thêm môn" để tự soạn.' : ' Bấm "Thêm môn" để bắt đầu.')}</small>}
         cols={[
@@ -267,7 +265,6 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
         ] as Col<Book>[]}
         left={<>
           <input placeholder="Tìm môn, tên PPCT…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-          {grades.length > 1 && <select value={grade} onChange={e => setGrade(Number(e.target.value))} aria-label="Khối"><option value={0}>Tất cả khối</option>{grades.map(g => <option key={g} value={g}>{gradeName(g)}</option>)}</select>}
           {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn học"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
           {every && ofl.node(books.map(b => b.org_id))}
         </>}

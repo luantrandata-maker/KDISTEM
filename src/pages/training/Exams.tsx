@@ -223,7 +223,6 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
       { k: 'final', icon: 'award', tone: 'warn', value: nFinal, label: 'Đề cuối khoá', sub: `${(progs ?? []).filter(p => baseProgs.has(p.id) && !p.final_exam).length} chương trình chưa có` },
       { icon: 'checkCircle', tone: 'good', value: stats.filter(s => s.kind !== 'practice' && base.some(r => statOf(r) === s)).reduce((a, s) => a + s.attempts, 0), label: 'Lượt làm bài đã nộp' },
     ]} />
-    <p className="sub" style={{ margin: '0 0 6px' }}>Bấm "+ Thêm đề kiểm tra" để chọn chương trình và loại đề: bài test của một nội dung hoặc đề cuối khoá (theo ma trận). Bấm một dòng để mở và soạn; chương trình đã phát hành thì tạo phiên bản mới để sửa.</p>
     {add && progs && <AddExam progs={progs.filter(p => !OLD.includes(p.status))} onClose={() => setAdd(false)} onErr={m => setMsg([m, true])}
       onGo={(id, unit) => { setAdd(false); setOpen(unit ? { id, unit } : { id, unit: null, final: true }) }} />}
     {(msg || err) && <p className={msg?.[1] || err ? 'msg' : 'sub'} role="status"><b>{err || msg?.[0]}</b></p>}
@@ -406,26 +405,24 @@ export function TrainingPracticeExams() {
       { icon: 'edit', tone: 'good', value: baseStats.reduce((a, s) => a + s.attempts, 0), label: 'Lượt luyện đã nộp' },
       { icon: 'users', tone: 'good', value: baseStats.reduce((a, s) => a + s.teachers, 0), label: 'Lượt nhà giáo tham gia' },
     ]} />
-    <div className="bar">
-      <div className="tools"><MultiFilters defs={defs} f={f} count={`${shown.length}/${all.length}`} />
-        <input placeholder="Tìm tên đề, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đề luyện" /></div>
-      <div className="tools">{admin && <button type="button" className="primary" disabled={!usable.length} onClick={() => { setMsg(null); setForm(blank()) }}>+ Thêm đề luyện</button>}</div>
-    </div>
-    <p className="sub">Đề tự luyện cho nhà giáo, không tính vào kết quả đào tạo. Nhà giáo có tên trong kế hoạch có chương trình của đề sẽ thấy đề khi đề "Đang mở" (Cổng nhà giáo › Bài giảng đào tạo › Luyện tập).</p>
     {msg && !form && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    {!list ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-      <thead><tr><th>Đề luyện</th><th>Câu hỏi</th><th>Cách làm</th><th>Chương trình</th><th>Trạng thái</th><th className="num">Lượt · GV</th><th className="num">Điểm TB</th><th></th></tr></thead>
-      <tbody>{shown.map(x => { const s = stat(x.id)
-        return <tr key={x.id} className="clickrow" onClick={() => { setMsg(null); setPv(x.id) }}>
-          <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink">{x.title}</button><br /><small className="sub">{subjGrade(x)}</small></td>
-          <td style={{ whiteSpace: 'normal' }}><small>{matrixTotal(x.matrix ?? [])} câu: {matrixText(x.matrix ?? [])}</small></td>
-          <td><small>{x.minutes ? `${x.minutes} phút` : 'Không giới hạn'} · {x.attempts ? `${x.attempts} lượt` : 'không giới hạn lượt'}{x.show_answers ? ' · xem đáp án' : ''}</small></td>
-          <td style={{ whiteSpace: 'normal' }}>{progLabel(progOf(x.program_id))}</td>
-          <td><Chip tone={PST[x.status][1]}>{PST[x.status][0]}</Chip></td>
-          <td className="num">{s ? `${s.attempts} · ${s.teachers}` : '0'}</td><td className="num">{num(s?.avg_score)}</td>
-          <td><Stop><TryButton orgId={x.org_id} spec={pSpec(x)} title={x.title} minutes={x.minutes} pass={x.pass} /></Stop></td></tr> })}
-        {!shown.length && <tr><td colSpan={8}><small className="sub">{all.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có đề luyện. Bấm “+ Thêm đề luyện”.'}</small></td></tr>}</tbody>
-    </table></div>}
+    {!list ? <p className="sub">Đang tải…</p> : <DataTable id="training-practice" rows={shown} rowKey={x => x.id} onRow={x => { setMsg(null); setPv(x.id) }}
+      left={<><MultiFilters defs={defs} f={f} count={`${shown.length}/${all.length}`} />
+        <input placeholder="Tìm tên đề, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đề luyện" /></>}
+      right={admin && <button type="button" className="primary ttadd" disabled={!usable.length} onClick={() => { setMsg(null); setForm(blank()) }}>+ Thêm đề luyện</button>}
+      empty={<small className="sub">{all.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có đề luyện. Bấm “+ Thêm đề luyện”.'}</small>}
+      cols={[
+        { key: 'title', label: 'Đề luyện', fixed: true, values: x => [x.title], text: x => `${x.title} ${subjGrade(x)}`,
+          cell: x => <><button type="button" className="namelink">{x.title}</button><br /><small className="sub">{subjGrade(x)}</small></> },
+        { key: 'q', label: 'Câu hỏi', text: x => `${matrixTotal(x.matrix ?? [])} câu`, cell: x => <small>{matrixTotal(x.matrix ?? [])} câu: {matrixText(x.matrix ?? [])}</small> },
+        { key: 'how', label: 'Cách làm', text: x => x.minutes ? `${x.minutes} phút` : 'Không giới hạn',
+          cell: x => <small>{x.minutes ? `${x.minutes} phút` : 'Không giới hạn'} · {x.attempts ? `${x.attempts} lượt` : 'không giới hạn lượt'}{x.show_answers ? ' · xem đáp án' : ''}</small> },
+        { key: 'prog', label: 'Chương trình', text: x => progOf(x.program_id) ? `${progOf(x.program_id)!.code} · ${progOf(x.program_id)!.title}` : '', cell: x => progLabel(progOf(x.program_id)) },
+        { key: 'st', label: 'Trạng thái', text: x => PST[x.status][0], cell: x => <Chip tone={PST[x.status][1]}>{PST[x.status][0]}</Chip> },
+        { key: 'n', label: 'Lượt · GV', thClass: 'num', cell: x => { const s = stat(x.id); return <span className="num">{s ? `${s.attempts} · ${s.teachers}` : '0'}</span> } },
+        { key: 'avg', label: 'Điểm TB', thClass: 'num', cell: x => <span className="num">{num(stat(x.id)?.avg_score)}</span> },
+        { key: 'try', label: 'Làm thử', cell: x => <Stop><TryButton orgId={x.org_id} spec={pSpec(x)} title={x.title} minutes={x.minutes} pass={x.pass} /></Stop> },
+      ] as Col<Practice>[]} />}
     </>}
 
     {form && <Drawer wide closeOnOutside={false} onClose={() => setForm(null)} title={form.id ? `Đề luyện: ${form.title}` : 'Thêm đề luyện'}
@@ -495,21 +492,23 @@ export function TrainingExamStats() {
       { icon: 'edit', tone: 'good', value: base.reduce((a, s) => a + s.attempts, 0), label: 'Lượt làm bài đã nộp' },
       { k: 'low', icon: 'alert', tone: 'warn', value: base.filter(low).length, label: 'Đề dưới 50% nhà giáo đạt' },
     ]} />
-    <div className="bar"><div className="tools"><MultiFilters defs={defs} f={f} count={`${shown.length}/${stats.length}`} /></div>
-      <div className="tools"><button type="button" onClick={() => downloadXlsx('Ket-qua-de-tap-huan', [{ key: 't', label: 'Đề', width: 36 }, { key: 'k', label: 'Loại', width: 18 }, { key: 'p', label: 'Chương trình', width: 34 },
+    <DataTable id="training-exam-stats" rows={shown} rowKey={s => s.kind + s.ref} onRow={setOpen}
+      left={<MultiFilters defs={defs} f={f} count={`${shown.length}/${stats.length}`} />}
+      right={<button type="button" onClick={() => downloadXlsx('Ket-qua-de-tap-huan', [{ key: 't', label: 'Đề', width: 36 }, { key: 'k', label: 'Loại', width: 18 }, { key: 'p', label: 'Chương trình', width: 34 },
         { key: 'n', label: 'Lượt làm', width: 10 }, { key: 'g', label: 'Nhà giáo', width: 10 }, { key: 'a', label: 'Điểm TB', width: 10 }, { key: 'b', label: 'TB điểm cao nhất', width: 14 }, { key: 'r', label: 'Tỉ lệ đạt (%)', width: 12 }],
-        shown.map(s => [s.title, KIND[s.kind][0], progOf(s.program_id) ? `${progOf(s.program_id)!.code} · ${progOf(s.program_id)!.title}` : '', s.attempts, s.teachers, s.avg_score, s.best_avg, rate(s)]), 'Kết quả')}>Xuất Excel</button></div></div>
-    <p className="sub">Điểm theo từng đề của các nhà giáo bạn được xem. Tỉ lệ đạt tính theo lượt cao nhất của mỗi nhà giáo. Bấm một đề để xem câu hay sai, dùng để ôn tập hoặc sửa câu hỏi.</p>
-    <div className="wrap"><table className="libtable">
-      <thead><tr><th>Đề</th><th>Loại</th><th>Chương trình</th><th className="num">Lượt làm</th><th className="num">Nhà giáo</th><th className="num">Điểm TB</th><th className="num">TB điểm cao nhất</th><th>Đạt</th></tr></thead>
-      <tbody>{shown.map(s => <tr key={s.kind + s.ref} className="clickrow" onClick={() => setOpen(s)}>
-        <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink">{s.title}</button></td>
-        <td><Chip tone={KIND[s.kind][1]}>{KIND[s.kind][0]}</Chip></td>
-        <td style={{ whiteSpace: 'normal' }}>{progLabel(progOf(s.program_id))}</td>
-        <td className="num">{s.attempts}</td><td className="num">{s.teachers}</td><td className="num">{num(s.avg_score)}</td><td className="num">{num(s.best_avg)}</td>
-        <td><span className={'distchip2 ' + (rate(s) >= 80 ? 'good' : rate(s) >= 50 ? 'warn' : 'bad')}>{s.passed}/{s.teachers} · {rate(s)}%</span></td></tr>)}
-        {!shown.length && <tr><td colSpan={8}><small className="sub">{stats.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có lượt làm bài nào.'}</small></td></tr>}</tbody>
-    </table></div>
+        shown.map(s => [s.title, KIND[s.kind][0], progOf(s.program_id) ? `${progOf(s.program_id)!.code} · ${progOf(s.program_id)!.title}` : '', s.attempts, s.teachers, s.avg_score, s.best_avg, rate(s)]), 'Kết quả')}>Xuất Excel</button>}
+      empty={<small className="sub">{stats.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có lượt làm bài nào.'}</small>}
+      cols={[
+        { key: 'title', label: 'Đề', fixed: true, values: s => [s.title], text: s => s.title, cell: s => <button type="button" className="namelink">{s.title}</button> },
+        { key: 'kind', label: 'Loại', text: s => KIND[s.kind][0], cell: s => <Chip tone={KIND[s.kind][1]}>{KIND[s.kind][0]}</Chip> },
+        { key: 'prog', label: 'Chương trình', text: s => progOf(s.program_id) ? `${progOf(s.program_id)!.code} · ${progOf(s.program_id)!.title}` : '', cell: s => progLabel(progOf(s.program_id)) },
+        { key: 'n', label: 'Lượt làm', thClass: 'num', cell: s => <span className="num">{s.attempts}</span> },
+        { key: 'g', label: 'Nhà giáo', thClass: 'num', cell: s => <span className="num">{s.teachers}</span> },
+        { key: 'avg', label: 'Điểm TB', thClass: 'num', cell: s => <span className="num">{num(s.avg_score)}</span> },
+        { key: 'best', label: 'TB điểm cao nhất', thClass: 'num', cell: s => <span className="num">{num(s.best_avg)}</span> },
+        { key: 'pass', label: 'Đạt', text: s => rate(s) >= 80 ? 'Từ 80%' : rate(s) >= 50 ? '50–79%' : 'Dưới 50%',
+          cell: s => <span className={'distchip2 ' + (rate(s) >= 80 ? 'good' : rate(s) >= 50 ? 'warn' : 'bad')}>{s.passed}/{s.teachers} · {rate(s)}%</span> },
+      ] as Col<Stat>[]} />
     {open && <Drawer wide onClose={() => setOpen(null)} title={`Câu hay sai · ${open.title}`}>
       <p className="sub" style={{ marginTop: 0 }}>{KIND[open.kind][0]} · {open.attempts} lượt · {open.teachers} nhà giáo · điểm TB {num(open.avg_score)}</p>
       {!hard ? <p className="sub">Đang tải…</p> : <div className="wrap"><table>

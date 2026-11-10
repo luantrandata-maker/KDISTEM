@@ -2,6 +2,7 @@ import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
 import { DataTable, type Col } from '../../components/DataTable'
+import { useGradeTree, MultiTag } from '../../components/GradeTree'
 import { MultiSelect } from '../../components/MultiSelect'
 import { GradeChecks, GradeMulti, SubjectMulti } from '../../components/Pickers'
 import { supabase } from '../../lib/supabase'
@@ -210,6 +211,8 @@ function Exams({ orgId, subject, ofl: shared }: { orgId: string | null; subject?
     {x.status === 'published' && <button onClick={() => setStatus(x, 'closed')}>Đóng</button>}
     {x.status === 'closed' && <button onClick={() => setStatus(x, 'published')}>Mở lại</button>}</>
   const note = msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>
+  const fitRows = rows.filter(x => ofl.fit(x.org_id))
+  const gt = useGradeTree('elearning-exams', fitRows, courseGrades)
   // Thêm / sửa đề: trang riêng
   if (form) return <ElView back={open ? 'Chi tiết đề luyện' : 'Danh sách đề luyện'} onBack={() => setForm(null)} title={form.id ? 'Sửa đề luyện' : 'Tạo đề luyện'} sub={form.id ? form.title : undefined}>
     {note}<ExamForm form={form} setForm={setForm} onSubmit={save} orgId={orgId} classes={classes} groups={groups} isSchool={isSchool} /></ElView>
@@ -223,13 +226,13 @@ function Exams({ orgId, subject, ofl: shared }: { orgId: string | null; subject?
   return (
     <>
       {note}
-      <DataTable id="elearning-exams" rows={rows.filter(x => ofl.fit(x.org_id))} rowKey={x => x.id} onRow={x => { setMsg(null); setOpen(x.id) }}
+      <DataTable id="elearning-exams" rows={gt.filter(fitRows)} rowKey={x => x.id} aside={fitRows.length ? gt.tree : undefined} onRow={x => { setMsg(null); setOpen(x.id) }}
         empty={<small className="sub">{subject ? `Môn ${subject} chưa có đề. ` : ''}Chưa có đề luyện. Tạo đề ngẫu nhiên từ ngân hàng câu hỏi (theo môn, khối, mức độ) hoặc chọn từng câu.</small>}
         left={ofl.node(rows.map(x => x.org_id))}
         right={<button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ ...EEMPTY, subject: subject ?? '', subjects: subject ? [subject] : [], title: subject ? `Đề kiểm tra ${subject}` : '', shared: !isSchool && !every }) }}>+ {subject ? 'Tạo đề kiểm tra' : 'Tạo đề luyện'}</button>}
         cols={[
           { key: 'title', label: 'Đề luyện', fixed: true, values: x => [x.title], text: x => [x.title, ...courseSubjects(x)].join(' '),
-            cell: x => <><b>{x.title}</b><br /><small>{[courseSubjects(x).join(', '), gradesText(courseGrades(x)), !editable(x) ? 'của cấp trên' : every ? orgName(x.org_id) : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></> },
+            cell: x => <><b>{x.title}</b> <MultiTag grades={courseGrades(x)} /><br /><small>{[courseSubjects(x).join(', '), gradesText(courseGrades(x)), !editable(x) ? 'của cấp trên' : every ? orgName(x.org_id) : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></> },
           { key: 'subj', label: 'Môn · khối', off: true, values: x => [...courseSubjects(x), gradesText(courseGrades(x))], text: x => courseSubjects(x).join(' '), cell: x => [courseSubjects(x).join(', '), gradesText(courseGrades(x))].filter(Boolean).join(' · ') || '—' },
           { key: 'how', label: 'Cách ra đề', text: x => howText(x), cell: x => <>{howText(x)}{x.shuffle ? <><br /><small>trộn câu</small></> : null}</> },
           { key: 'time', label: 'Thời gian', text: x => x.duration_min ? `${x.duration_min} phút` : 'Không giới hạn', cell: x => <>{x.duration_min ? `${x.duration_min} phút` : 'Không giới hạn'}{x.max_attempts ? <><br /><small>{x.max_attempts} lượt</small></> : null}</> },
@@ -382,7 +385,9 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
   }
   const note = msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>
   const [view, setView] = useViewMode('el-courses')
-  const shown = rows.filter(c => ofl.fit(c.org_id))
+  const fitC = rows.filter(c => ofl.fit(c.org_id))
+  const gtc = useGradeTree('elearning-courses', fitC, courseGrades)
+  const shown = gtc.filter(fitC)
   const whom = (c: Course) => { const mine = c.org_id === orgId || !!every
     return !mine ? 'của cấp trên' : every ? orgName(c.org_id) : isSchool ? audienceText(c, classes, groups) : c.shared ? 'dùng chung' : null }
   const editCourse = (c: Course) => { const { id, title, description, subject, grade, cover_url, class_ids, group_ids, student_ids, due_at, shared, status } = c
@@ -424,10 +429,10 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
       {note}
       {(() => {
         const left = ofl.node(rows.map(c => c.org_id)), right = <><ViewToggle value={view} onChange={setView} /><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ ...CEMPTY, shared: !isSchool && !every }) }}>+ Tạo khoá học</button></>
-        return view === 'list' ? <DataTable id="elearning-courses" rows={shown} rowKey={c => c.id} onRow={c => { setMsg(null); setOpen(c.id) }} left={left} right={right}
+        return view === 'list' ? <DataTable id="elearning-courses" rows={shown} rowKey={c => c.id} onRow={c => { setMsg(null); setOpen(c.id) }} left={left} right={right} aside={fitC.length ? gtc.tree : undefined}
           empty={rows.length ? <small className="sub">Không có khoá học nào khớp bộ lọc.</small> : null}
           cols={[
-            { key: 'title', label: 'Tên khoá học', fixed: true, text: c => c.title, cell: c => <b>{c.title}</b> },
+            { key: 'title', label: 'Tên khoá học', fixed: true, text: c => c.title, cell: c => <><b>{c.title}</b> <MultiTag grades={courseGrades(c)} /></> },
             { key: 'meta', label: 'Môn · khối', values: c => courseMeta(c), text: c => courseMeta(c).join(' · '), cell: c => courseMeta(c).join(' · ') || '—' },
             { key: 'n', label: 'Số bài', text: c => String(lessons.filter(l => l.course_id === c.id).length), cell: c => lessons.filter(l => l.course_id === c.id).length },
             { key: 'who', label: 'Đối tượng', text: c => String(whom(c) || ''), cell: c => whom(c) || '—' },
@@ -436,8 +441,8 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
           ] as Col<Course>[]} />
           : <div className="tttools">{left && <div className="ttleft">{left}</div>}{right}</div>
       })()}
-      <div className="coursegrid">
-        {view === 'cards' && shown.map(c => { const ls = lessons.filter(l => l.course_id === c.id)
+      {view === 'cards' && fitC.length > 0 && <div className="ttbody"><div className="ttaside">{gtc.tree}</div><div className="gtcards"><div className="coursegrid">
+        {shown.map(c => { const ls = lessons.filter(l => l.course_id === c.id)
           return <section key={c.id} className="panel coursecard clickrow" role="button" tabIndex={0} onClick={() => { setMsg(null); setOpen(c.id) }}
             onKeyDown={e => { if (e.key === 'Enter') { setMsg(null); setOpen(c.id) } }}>
             <header>
@@ -447,6 +452,8 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
             </header>
             {c.description && <p className="sub">{c.description}</p>}
           </section> })}
+      </div></div></div>}
+      <div className="coursegrid">
         {!rows.length && <p className="sub">Chưa có khoá học. Một khoá gồm nhiều bài: video (YouTube, Google Drive…), bài đọc, liên kết, tệp, học liệu từ Kho học liệu và đề luyện.</p>}
       </div>
     </>

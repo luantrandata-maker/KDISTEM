@@ -3,7 +3,7 @@
 //  2. Xếp lịch — mỗi chương trình một dòng: bắt đầu, nhịp, kết quả; "Thứ tự bài" mở phần chỉnh riêng từng môn và kéo thả thứ tự.
 //  3. Bản phối — dải tóm tắt / kiểm tra, Bảng (cột trái lọc chương trình · môn, tick giữ / bỏ bài) hoặc Lịch.
 // Bản đã phát hành / ngừng dùng chỉ xem; muốn đổi thì "Tạo bản mới từ bản này".
-import { Fragment, useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { supabase } from '../../lib/supabase'
 import { fmtGrades, progGrades, useEduLevels } from '../../lib/eduLevels'
 import { useCls } from './cls'
@@ -111,6 +111,38 @@ function LessonOrder({ lessons, changed, weekOf, onMove, onReset }: SubjCardData
       <i aria-hidden="true">⠿</i><span className="t">{l.title}</span>
       <small className="sub">{l.periods} tiết</small><span className="distwk">{weekOf(l.id)}</span></li>)}</ol>
       : <p className="sub" style={{ margin: '0 4px 4px' }}>Môn này chưa có bài.</p>}
+  </div>
+}
+
+type PickOpt = { p: Prog; meta: string; off: boolean }
+/** Nút "+ Thêm chương trình": sổ danh sách có ô tìm; chương trình chưa dùng được hiện mờ cuối danh sách. */
+function ProgPicker({ opts, picked, onAdd, hint }: { opts: PickOpt[]; picked: Set<string>; onAdd: (p: Prog) => void; hint: string }) {
+  const [open, setOpen] = useState(false)
+  const [q, setQ] = useState('')
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    const close = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false) }
+    const esc = (e: globalThis.KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', close); document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc) }
+  }, [open])
+  const qq = q.trim().toLowerCase()
+  const shown = opts.filter(o => !qq || `${o.p.code ?? ''} ${o.p.ct_code ?? ''} ${o.p.title} ${o.meta}`.toLowerCase().includes(qq))
+  const free = shown.filter(o => !o.off), off = shown.filter(o => o.off)
+  const row = (o: PickOpt) => { const on = picked.has(o.p.id)
+    return <li key={o.p.id}><button type="button" disabled={o.off || on} className={on ? 'on' : undefined} onClick={() => { onAdd(o.p); setQ('') }}>
+      <span className="pk">{on ? '✓' : o.off ? '' : '+'}</span><span><b>{o.p.code || o.p.ct_code || ''}</b> {o.p.title}<small className="sub">{on ? 'Đã chọn · ' : ''}{o.meta}</small></span></button></li> }
+  return <div className="distpicker" ref={box}>
+    <button type="button" className="primary" aria-expanded={open} onClick={() => setOpen(!open)}>+ Thêm chương trình</button>
+    {open && <div className="distpickpop" role="dialog" aria-label="Chọn chương trình">
+      <input autoFocus placeholder="Tìm theo mã, tên chương trình, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chương trình" />
+      <small className="sub">{hint} · {opts.filter(o => !o.off).length} chương trình dùng được</small>
+      <ul>{free.map(row)}
+        {off.length > 0 && <li className="sep"><small className="sub">Chưa dùng được ({off.length})</small></li>}
+        {off.map(row)}
+        {!shown.length && <li className="sep"><small className="sub">Không có chương trình nào khớp.</small></li>}</ul>
+    </div>}
   </div>
 }
 
@@ -366,24 +398,26 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
     const usable = pool.filter(p => p.status === 'published' && progGrades(p).includes(plan.grade))
     const unusable = pool.filter(p => !usable.includes(p))
     const why = (p: Prog) => p.status !== 'published' ? 'chưa phát hành' : `dạy ${fmtGrades(progGrades(p), 'khối ')}`
+    const opts: PickOpt[] = [
+      ...usable.map(p => { const subs = avail(p.id); const n = subs.reduce((t, x) => t + x.lessons, 0)
+        return { p, meta: subs.length ? `${subs.map(x => x.name).join(', ')} · ${n} bài` : `chưa có bài cho khối ${plan.grade}`, off: !subs.length } }),
+      ...unusable.map(p => ({ p, meta: why(p), off: true })),
+    ]
     return <section className="distsec2 first">
-      <h3><i>1</i>Chương trình & môn <small className="sub">{items.length} chương trình · {onSubjects} môn · lọc theo cấp {levelName(plan.level)}, Khối {plan.grade}</small></h3>
-      {usable.length === 0 && <p className="sub">Chưa có chương trình đã phát hành nào của cấp này dạy khối {plan.grade}.</p>}
-      <div className="distpcs">{usable.map(p => {
-        const it = items.find(i => i.program_id === p.id)
-        const subs = avail(p.id), on = it ? subjectsOf(it) : []
-        const k = order.indexOf(p.id)
-        return <div key={p.id} className={'distpc' + (it ? ' on' : '')}>
-          <label className="distpch"><input type="checkbox" checked={!!it} onChange={() => it ? removeItem(p.id) : addItem(p)} />
-            {it && <i style={{ background: colorOf(k) }} />}<b>{p.code || progCode(p)}</b> <span>{p.title}</span></label>
-          {subs.map(x => <label key={x.name} className="distpcsub">
-            <input type="checkbox" checked={!!on.find(o => o.name === x.name)?.on} onChange={e => toggleSubj(p, x.name, e.target.checked)} />
-            {x.name} <small className="sub">{x.lessons} bài</small></label>)}
-          {subs.length === 0 && <small className="sub">Chưa có bài cho khối {plan.grade}</small>}
-        </div>
-      })}</div>
-      {unusable.length > 0 && <details className="distunusable"><summary>Chưa dùng được ({unusable.length})</summary>
-        {unusable.map(p => <div key={p.id} className="distprogcard off"><span>{p.code ? p.code + ' · ' : ''}{p.title} <small className="sub">v{p.version_no} · {why(p)}</small></span></div>)}</details>}
+      <h3><i>1</i>Chương trình & môn <small className="sub">{items.length} chương trình · {onSubjects} môn</small><span className="sp" />
+        <ProgPicker opts={opts} picked={new Set(order)} onAdd={addItem} hint={`Cấp ${levelName(plan.level)}, Khối ${plan.grade}`} /></h3>
+      {!ordered.length ? <p className="sub" style={{ margin: 0 }}>Chưa chọn chương trình. Bấm “+ Thêm chương trình” để tìm và chọn.</p>
+        : <div className="distpcs">{ordered.map((it, k) => {
+          const p = progs.get(it.program_id); if (!p) return null
+          const subs = avail(p.id), on = subjectsOf(it)
+          return <div key={p.id} className="distpc on">
+            <span className="distpch"><i style={{ background: colorOf(k) }} /><b>{p.code || progCode(p)}</b> <span>{p.title}</span></span>
+            {subs.map(x => <label key={x.name} className="distpcsub" title="Bỏ tick để bỏ môn khỏi bản">
+              <input type="checkbox" checked={!!on.find(o => o.name === x.name)?.on} onChange={e => toggleSubj(p, x.name, e.target.checked)} />
+              {x.name} <small className="sub">{x.lessons} bài</small></label>)}
+            <button type="button" className="distpcx" aria-label={`Bỏ chương trình ${p.code || p.title}`} title="Bỏ chương trình khỏi bản" onClick={() => removeItem(p.id)}>×</button>
+          </div>
+        })}</div>}
     </section>
   }
 

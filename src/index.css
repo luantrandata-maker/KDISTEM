@@ -2663,3 +2663,16 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .distwkcell{display:inline-flex;gap:4px;align-items:center}.distwkcell input{width:60px}
 .distsumline{display:flex;gap:12px;align-items:center;margin-bottom:12px}.distsumline .distsumbar{flex:1;margin:0}.distsumline .distseg{margin:0}
 .distwkin{height:28px}
+.distpcx{border:0;background:none;color:var(--muted);font-size:16px;line-height:1;padding:0 2px;cursor:pointer;margin-left:2px}.distpcx:hover{color:var(--bad)}
+.distpicker{position:relative;font-weight:400}
+.distpickpop{position:absolute;right:0;top:calc(100% + 6px);z-index:30;width:460px;max-width:calc(100vw - 40px);background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.16);padding:10px;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.distpickpop input{width:100%}
+.distpickpop ul{list-style:none;margin:0;padding:0;max-height:340px;overflow:auto}
+.distpickpop li button{display:flex;gap:8px;align-items:flex-start;width:100%;text-align:left;border:0;background:none;padding:7px 8px;border-radius:8px;cursor:pointer;font:inherit;color:var(--text);min-height:0}
+.distpickpop li button:hover:not(:disabled){background:#f1f5ff}
+.distpickpop li button:disabled{cursor:default;opacity:.55}.distpickpop li button.on{opacity:1;background:#f6faff}
+.distpickpop li button small{display:block;margin-top:1px}
+.distpickpop .pk{width:16px;flex:none;color:var(--primary);font-weight:700}
+.distpickpop li.sep{padding:6px 8px 2px;border-top:1px solid var(--line);margin-top:4px}
+.main .distpcx,.distpc .distpcx{border:0;background:none;box-shadow:none;padding:0 4px;min-height:0;height:auto;width:auto;font-size:16px}
+.distpicker>button{font-size:13px;padding:6px 12px}

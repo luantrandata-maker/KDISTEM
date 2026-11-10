@@ -221,6 +221,16 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
     if (ps.length === 1) onCopied(last, `Đã nhân bản ${ps[0].code} thành bản nháp mới.`)
     else onCopied(null, `Đã nhân bản ${ps.length} bản thành bản nháp mới.`)
   }
+  // Xoá bản nháp đã chọn (bản đã phát hành phải chuyển về nháp hoặc ngừng dùng)
+  const drafts = picked.filter(p => p.status === 'draft')
+  async function removeDrafts() {
+    if (!drafts.length || !confirm(`Xoá ${drafts.length === 1 ? drafts[0].code : drafts.length + ' bản nháp'}? Không khôi phục được. PPCT đã gán cho trường vẫn giữ nguyên.`)) return
+    setBusy(true); setErr('')
+    const { error } = await supabase.from('dist_plans').delete().in('id', drafts.map(p => p.id))
+    setBusy(false)
+    if (error) return setErr(errText(error.message))
+    sel.clear(); onCopied(null, `Đã xoá ${drafts.length} bản nháp.`)
+  }
   return (
     <>
       {err && <p className="msg">{err}</p>}
@@ -249,6 +259,8 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
           <button type="button" disabled={!one || one.status !== 'published'}
             title={picked.length > 1 ? 'Gán trường làm cho từng bản một' : one && one.status !== 'published' ? 'Chỉ gán bản đã phát hành' : undefined}
             onClick={() => one && onAssign(one.id)}>Gán trường</button>
+          <button type="button" className="danger" disabled={!drafts.length || busy} title={picked.length && !drafts.length ? 'Chỉ xoá được bản nháp' : undefined}
+            onClick={removeDrafts}>Xoá{drafts.length ? ` (${drafts.length})` : ''}</button>
           {!hid('create') && <button type="button" className="primary ttadd" disabled={!canCreate} onClick={onCreate}>+ Tạo bản phân phối</button>}
         </>} />
     </>

@@ -111,7 +111,7 @@ small{color:var(--muted)}
 .rolegrid{display:grid;grid-template-columns:240px minmax(0,1fr);gap:16px;align-items:start}
 .rolelist{display:grid;gap:4px;margin:0}.rolelist button{text-align:left;border:0;background:none}
 .main .rolelist button.on{background:var(--soft);font-weight:600}
-td input[type=checkbox]{width:18px;height:18px;accent-color:var(--primary);cursor:pointer}
+td input[type=checkbox],th input[type=checkbox]{width:14px;height:14px;margin:0;vertical-align:middle;accent-color:var(--primary);cursor:pointer}
 @media(max-width:800px){.rolegrid{grid-template-columns:1fr}.barrow{grid-template-columns:120px 1fr 28px}}
 
 /* Gói STEM */

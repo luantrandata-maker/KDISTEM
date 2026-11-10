@@ -726,8 +726,9 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
   const [kitOf, setKitOf] = useState<Map<string, string>>(new Map())
   const [libUnits, setLibUnits] = useState<LibUnit[] | null>(null)
   const { subjects } = useSubjects()
-  // Môn đang mở (khoá chữ thường); null = mặc định mở môn đầu tiên
-  const [open, setOpen] = useState<Set<string> | null>(null)
+  // Môn đang chọn ở cột trái ('' = tất cả các môn)
+  const [cur, setCur] = useState('')
+  const [newSubj, setNewSubj] = useState('')
   const [q, setQ] = useState('')
   const [gf, setGf] = useState(0)
   const [newT, setNewT] = useState<Record<string, string>>({})
@@ -780,9 +781,11 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
   const subjList = [...new Map([...mains, ...p.integrated_subjects, ...rows.map(r => r.subject)].filter(Boolean).map(s => [lc(s), s.trim()] as [string, string])).values()]
   const fit = (r: LRow) => (!gf || unitGrades(r.u).includes(gf)) && (!q || norm(r.u.title).includes(norm(q)))
   const rowsOf = (subj: string) => rows.filter(r => lc(r.subject) === lc(subj))
-  const opened = open ?? new Set(subjList.slice(0, 1).map(lc))
-  const isOpen = (subj: string) => q ? rowsOf(subj).some(fit) : opened.has(lc(subj))
-  const toggle = (subj: string) => setOpen(() => { const n = new Set(opened); if (n.has(lc(subj))) n.delete(lc(subj)); else n.add(lc(subj)); return n })
+  const sel = subjList.find(x => lc(x) === lc(cur)) ?? ''
+  const sIdx = (x: string) => { const i = subjList.findIndex(y => lc(y) === lc(x)); return i < 0 ? 999 : i }
+  const inSel = sel ? rowsOf(sel) : [...rows].sort((a, b) => sIdx(a.subject) - sIdx(b.subject))
+  const shown = inSel.filter(fit)
+  const target = sel || subjList.find(x => lc(x) === lc(newSubj)) || subjList[0] || ''
   const pg = progGrades(p)
   const defGrades = gf ? [gf] : pg.length === 1 ? pg : []
   const usable = subjects.filter(s => s.active && (!s.levels.length || p.levels?.some(l => s.levels.includes(l)) || s.levels.includes(p.level)) && !subjList.some(n => lc(n) === lc(s.name)))
@@ -860,7 +863,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     setAddSubj(false); if (!name) return
     const { error } = await supabase.from('edu_programs').update({ integrated_subjects: [...p.integrated_subjects, name] }).eq('id', p.id)
     if (error) return onMessage(errText(error.message), true)
-    setOpen(new Set([...opened, lc(name)])); onChanged()
+    setCur(name); onChanged()
   }
   const kitChip = (u: Unit) => { const k = kitOf.get(u.id), n = mats.get(u.id) ?? 0
     return <>{n > 0 && <span className="gpill good">{n} học liệu</span>} {k === 'published' ? <span className="gpill good">Bộ học liệu</span> : k ? <span className="gpill warn">Bộ học liệu đang soạn</span> : !n && <span className="gpill warn">Chưa có</span>}</> }
@@ -883,63 +886,54 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
   const pasted = paste ? parseLessonLines(paste.text, defGrades).map(r => ({ ...r, lib: libUnits?.find(i => lc(i.title) === lc(r.title)) })) : []
   const totalP = (rs: LRow[]) => rs.reduce((t, r) => t + (r.u.periods || 0), 0)
 
-  const cols = (mine: LRow[]): Col<LRow>[] => [
-    { key: 'no', label: '#', thClass: 'c-no', cell: r => <span className="sub">{mine.indexOf(r) + 1}</span> },
-    { key: 'title', label: 'Tên bài học', thClass: 'c-title', fixed: true, cell: r => <>{editable ? cell(r, 'title') : <NameLink onClick={() => setOpenL(r.u.id)}>{r.u.title}</NameLink>}
+  const noOf = (r: LRow) => rowsOf(r.subject).indexOf(r) + 1
+  const cols: Col<LRow>[] = [
+    { key: 'no', label: '#', thClass: 'c-no', fixed: true, cell: r => <span className="sub">{noOf(r)}</span> },
+    ...(!sel ? [{ key: 'subj', label: 'Môn', thClass: 'c-subj', text: (r: LRow) => r.subject, cell: (r: LRow) => <button type="button" className="slsubjlink" onClick={() => setCur(r.subject)}>{r.subject}</button> }] : []),
+    { key: 'title', label: 'Tên bài học', thClass: 'c-title', fixed: true, text: r => r.u.title, cell: r => <>{editable ? cell(r, 'title') : <NameLink onClick={() => setOpenL(r.u.id)}>{r.u.title}</NameLink>}
       {r.topic && <small className="sub sltopic">Chủ đề cũ: {r.topic}</small>}</> },
-    { key: 'grades', label: 'Khối', thClass: 'c-grade', cell: r => cell(r, 'grades') },
-    { key: 'periods', label: 'Số tiết', thClass: 'c-per', cell: r => cell(r, 'periods') },
+    { key: 'grades', label: 'Khối', thClass: 'c-grade', text: r => unitGrades(r.u).join(', '), cell: r => cell(r, 'grades') },
+    { key: 'periods', label: 'Số tiết', thClass: 'c-per', text: r => String(r.u.periods || ''), cell: r => cell(r, 'periods') },
     { key: 'outs', label: 'Yêu cầu cần đạt', thClass: 'c-outs', cell: r => cell(r, 'outs') },
-    { key: 'mat', label: 'Học liệu · buổi', thClass: 'c-mat',
+    { key: 'mat', label: 'Học liệu · buổi', thClass: 'c-mat', text: r => kitOf.get(r.u.id) === 'published' || mats.get(r.u.id) ? 'Có học liệu' : 'Chưa có',
       cell: r => { const ns = all.filter(c => c.parent_id === r.u.id && c.unit_type === 'session').length
         return <button type="button" className="slopen" onClick={() => setOpenL(r.u.id)} title="Mở chi tiết: học liệu, buổi học, nội dung">{kitChip(r.u)}{ns > 0 && <span className="pill">{ns} buổi</span>}<span className="slmore">Chi tiết ›</span></button> } },
-    ...(editable ? [{ key: 'act', label: '', thClass: 'c-act', fixed: true, cell: (r: LRow) => { const sibs = mine.filter(x => x.u.parent_id === r.u.parent_id), i = sibs.indexOf(r)
+    ...(editable ? [{ key: 'act', label: '', thClass: 'c-act', fixed: true, cell: (r: LRow) => { const sibs = rowsOf(r.subject).filter(x => x.u.parent_id === r.u.parent_id), i = sibs.indexOf(r)
       return <span className="slact"><button type="button" disabled={i <= 0} aria-label="Đưa lên" onClick={() => move(r, -1)}>↑</button><button type="button" disabled={i >= sibs.length - 1} aria-label="Đưa xuống" onClick={() => move(r, 1)}>↓</button><button type="button" className="danger" aria-label={`Xoá ${r.u.title}`} onClick={() => remove(r)}>×</button></span> } }] : []),
   ]
-  const shownN = rows.filter(fit).length
+  const navItem = (key: string, label: string, rs: LRow[], main?: boolean) => <button key={key || '*'} type="button" className={'slnavi' + (lc(sel) === lc(key) ? ' on' : '')} onClick={() => setCur(key)}>
+    <span>{label}{main && <small className="sub"> · chủ đạo</small>}</span><span className="slcnt" title={`${rs.length} bài · ${totalP(rs)} tiết`}>{rs.length}</span></button>
 
   return <div className="slwrap">
-    <div className="sltools">
-      <input placeholder="Tìm bài trong mọi môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
-      {pg.length > 1 && <select value={gf} onChange={e => setGf(Number(e.target.value))} aria-label="Khối"><option value={0}>Tất cả khối</option>{pg.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>}
-      {!q && subjList.length > 1 && <>
-        <button type="button" onClick={() => setOpen(new Set())}>⊟ Thu gọn tất cả</button>
-        <button type="button" onClick={() => setOpen(new Set(subjList.map(lc)))}>⊞ Mở tất cả</button></>}
-      {(q || gf > 0) && <small className="sub">{shownN}/{rows.length} bài khớp</small>}
-      <span style={{ flex: 1 }} />
-      {rows.length > 0 && <button type="button" onClick={exportLessons}>⤓ Tải Excel</button>}
-      {editable && <ImportExcel label="⇪ Nhập Excel" columns={LIMPORT} template="Mau-mon-bai-hoc" onRecords={importLessons} onMessage={(m, e) => onMessage(m, e)}
-        sample={[['Tin học', '6', 'Bài 1. Thông tin và dữ liệu', '2', 'Phân biệt được thông tin và dữ liệu; Nêu được ví dụ'], ['Tin học', '6', 'Bài 2. Xử lí thông tin', '2', '']]} />}
+    <nav className="slnav" aria-label="Môn trong chương trình">
+      {navItem('', 'Tất cả', rows)}
+      {subjList.map(x => navItem(x, x, rowsOf(x), mains.some(m => lc(m) === lc(x))))}
+      {editable && (addSubj ? <select className="sladdsel" autoFocus defaultValue="" onChange={e => addSubject(e.target.value)} onBlur={() => setAddSubj(false)} aria-label="Thêm môn">
+          <option value="">— Chọn môn —</option>{usable.map(x => <option key={x.id} value={x.name}>{x.name}</option>)}</select>
+        : <button type="button" className="sladdsubj" onClick={() => setAddSubj(true)}>+ Thêm môn</button>)}
+      <small className="sub slsum">{sel ? `${inSel.length} bài · ${totalP(inSel)} tiết` : `${subjList.length} môn · ${rows.length} bài · ${totalP(rows)} tiết`}</small>
+    </nav>
+    <div className="slmain">
+      <DataTable id="edu-lessons" simple rows={shown} rowKey={r => r.u.id} className="slt"
+        empty={<small className="sub">{inSel.length ? 'Không có bài nào khớp bộ lọc.' : !subjList.length ? 'Chưa có môn. Chọn môn chủ đạo ở “Sửa thông tin” hoặc bấm “+ Thêm môn”.' : `${sel ? 'Môn ' + sel : 'Chương trình'} chưa có bài học.${editable ? ' Gõ tên bài ở dòng dưới hoặc bấm “Dán danh sách bài”.' : ''}`}</small>}
+        left={<><input placeholder={sel ? `Tìm bài môn ${sel}…` : 'Tìm bài trong mọi môn…'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
+          {pg.length > 1 && <select value={gf} onChange={e => setGf(Number(e.target.value))} aria-label="Khối"><option value={0}>Tất cả khối</option>{pg.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>}</>}
+        right={<>
+          {rows.length > 0 && <button type="button" onClick={exportLessons}>⤓ Tải Excel</button>}
+          {editable && <ImportExcel label="⇪ Nhập Excel" columns={LIMPORT} template="Mau-mon-bai-hoc" onRecords={importLessons} onMessage={(m, e) => onMessage(m, e)}
+            sample={[['Tin học', '6', 'Bài 1. Thông tin và dữ liệu', '2', 'Phân biệt được thông tin và dữ liệu; Nêu được ví dụ'], ['Tin học', '6', 'Bài 2. Xử lí thông tin', '2', '']]} />}
+          {editable && target && <button type="button" className="primary ttadd" onClick={() => setPaste({ subj: target, text: '' })}>⧉ Dán danh sách bài</button>}
+        </>}
+        cols={cols}
+        foot={editable && target ? <tfoot><tr className="slnew"><td colSpan={10}><div className="slnewrow">
+          {!sel && subjList.length > 1 && <select value={target} onChange={e => setNewSubj(e.target.value)} aria-label="Môn của bài mới">{subjList.map(x => <option key={x} value={x}>{x}</option>)}</select>}
+          <input value={newT[target] ?? ''} disabled={busy} placeholder={`+ Gõ tên bài mới cho môn ${target} rồi nhấn Enter (dán nhiều dòng để thêm nhiều bài)`} aria-label={`Tên bài mới môn ${target}`}
+            onChange={e => setNewT(t => ({ ...t, [target]: e.target.value }))}
+            onPaste={e => { const t = e.clipboardData.getData('text'); if (/\n/.test(t.trim())) { e.preventDefault(); setPaste({ subj: target, text: t }) } }}
+            onKeyDown={e => { const v = newT[target] ?? ''; if (e.key === 'Enter' && v.trim()) { addLessons(parseLessonLines(v, defGrades), target); setNewT(t => ({ ...t, [target]: '' })) } }} />
+        </div></td></tr></tfoot> : undefined} />
+      {editable && <small className="sub">Bấm vào ô để sửa ngay, rời ô là lưu. Bấm “Chi tiết ›” để gắn học liệu, chia buổi và soạn nội dung.</small>}
     </div>
-    {!subjList.length && <p className="sub">Chưa có môn. Chọn môn chủ đạo ở “Sửa thông tin” hoặc bấm “+ Thêm môn”.</p>}
-    {subjList.map(subj => {
-      const mine = rowsOf(subj), shown = mine.filter(fit), on = isOpen(subj), main = mains.some(m => lc(m) === lc(subj))
-      if (q && !shown.length) return null
-      return <section key={subj} className={'slsec' + (on ? ' on' : '')}>
-        <div className="slsech">
-          <button type="button" className="sltoggle" aria-expanded={on} onClick={() => toggle(subj)}>
-            <span className="slcar" aria-hidden="true">{on ? '▾' : '▸'}</span><b>{subj}</b>{main && <span className="slmeta">môn chủ đạo</span>}</button>
-          <span style={{ flex: 1 }} />
-          {on && editable && <button type="button" className="slpaste" onClick={() => setPaste({ subj, text: '' })}>⧉ Dán danh sách bài</button>}
-          <span className="slmeta">{mine.length} bài · {totalP(mine)} tiết</span>
-        </div>
-        {on && <div className="slmain">
-          <DataTable id={'edu-lessons'} noTools rows={shown} rowKey={r => r.u.id} className="slt"
-            empty={<small className="sub">{mine.length ? 'Không có bài nào khớp bộ lọc.' : `Môn ${subj} chưa có bài học.${editable ? ' Gõ tên bài ở dòng dưới hoặc bấm “Dán danh sách bài”.' : ''}`}</small>}
-            cols={cols(mine)}
-            foot={editable ? <tfoot><tr className="slnew"><td colSpan={9}>
-              <input value={newT[subj] ?? ''} disabled={busy} placeholder={`+ Gõ tên bài mới cho môn ${subj} rồi nhấn Enter (dán nhiều dòng để thêm nhiều bài)`} aria-label={`Tên bài mới môn ${subj}`}
-                onChange={e => setNewT(t => ({ ...t, [subj]: e.target.value }))}
-                onPaste={e => { const t = e.clipboardData.getData('text'); if (/\n/.test(t.trim())) { e.preventDefault(); setPaste({ subj, text: t }) } }}
-                onKeyDown={e => { const v = newT[subj] ?? ''; if (e.key === 'Enter' && v.trim()) { addLessons(parseLessonLines(v, defGrades), subj); setNewT(t => ({ ...t, [subj]: '' })) } }} />
-            </td></tr></tfoot> : undefined} />
-        </div>}
-      </section>
-    })}
-    {editable && (addSubj ? <select className="sladdsel" autoFocus defaultValue="" onChange={e => addSubject(e.target.value)} onBlur={() => setAddSubj(false)} aria-label="Thêm môn">
-        <option value="">— Chọn môn trong danh mục —</option>{usable.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}</select>
-      : <button type="button" className="sladdsubj" onClick={() => setAddSubj(true)}>+ Thêm môn (chọn từ danh mục)</button>)}
-    {editable && <small className="sub">Bấm vào ô để sửa ngay, rời ô là lưu. Bấm “Chi tiết ›” để gắn học liệu, chia buổi và soạn nội dung.</small>}
     {openL && byId.get(openL) && <LessonDetail u={byId.get(openL)!} p={p} all={all} umats={umats} outs={outs} editable={editable}
       onClose={() => setOpenL(null)} onChanged={() => { load(); onChanged() }} onMessage={onMessage} />}
     {paste && <Drawer title={`Dán danh sách bài vào môn ${paste.subj}`} onClose={() => setPaste(null)} closeOnOutside={false}

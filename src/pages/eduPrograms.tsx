@@ -660,7 +660,6 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
     </div>
 
     <aside className="pfside">
-      {(canSave || cancelBtn) && <div className="pfsidebtn">{saveBtn}{cancelBtn}</div>}
       <div className="panel pdcard">
         <h4>Xem nhanh</h4>
         <dl className="pddl sm">
@@ -672,6 +671,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
           {showScope && <><dt>Áp dụng</dt><dd>{f.scope === 'own' ? 'Đơn vị mình và đơn vị được gán' : 'Tất cả đơn vị trực thuộc'}</dd></>}
         </dl>
         {editable && (missing.length ? <p className="pfmiss">Còn thiếu: {missing.join(', ')}</p> : <p className="pfok">✓ Đã đủ thông tin bắt buộc</p>)}
+        {(canSave || cancelBtn) && <div className="pfsidebtn">{saveBtn}{cancelBtn}</div>}
       </div>
     </aside>
   </form>

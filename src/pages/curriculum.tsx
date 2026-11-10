@@ -108,7 +108,7 @@ export function useCanEdit(mode: PpctMode) {
 }
 
 // ================= Danh sách môn / sách trong PPCT =================
-export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId: string | null; mode?: PpctMode; year?: { name: string } | null; years?: { name: string }[] }) {
+export function CurriculumBooks({ orgId, mode = 'school', year, years, lead }: { orgId: string | null; mode?: PpctMode; year?: { name: string } | null; years?: { name: string }[]; lead?: ReactNode }) {
   const yearNames = [...new Set((years ?? []).map(y => y.name))]
   const canEdit = useCanEdit(mode)
   const [books, setBooks] = useState<Book[]>([])
@@ -265,6 +265,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years }: { orgId
         ] as Col<Book>[]}
         left={<>
           <input placeholder="Tìm môn, tên PPCT…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
+          {lead}
           {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn học"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
           {every && ofl.node(books.map(b => b.org_id))}
         </>}

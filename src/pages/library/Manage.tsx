@@ -489,7 +489,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
   const ofTab = pool.filter(i => tab === 'plan' ? isPlan(i) : tab === 'material' ? i.kind === 'material' && !isPlan(i) : i.kind === tab)
   const subjects = [...new Set(ofTab.map(i => i.subject).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi'))
   const fitI = (i: Item, skip?: string) => (skip === 'prov' || mf.has('prov', provOf(i.owner_org_id)?.id)) && (skip === 'org' || mf.has('org', i.owner_org_id))
-    && mf.has('prog', i.program) && mf.has('subj', i.subject) && mf.any('grade', gradeList(i.grades ?? ''))
+    && mf.has('prog', i.program) && mf.has('subj', i.subject)
     && (tab !== 'material' || mf.has('type', i.content.type ?? 'link')) && mf.has('status', i.status)
   const provs = opts(ofTab.map(i => { const p = provOf(i.owner_org_id); return [p?.id, p?.name] }))
   const filterDefs: FilterDef[] = [
@@ -497,7 +497,6 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
     { key: 'org', label: 'Đơn vị', placeholder: 'Tất cả đơn vị', options: opts(ofTab.filter(i => fitI(i, 'org')).map(i => [i.owner_org_id, orgName(i.owner_org_id)])), hidden: !every },
     { key: 'prog', label: 'Chương trình giáo dục', placeholder: 'Tất cả chương trình', options: opts(ofTab.map(i => [i.program, i.program])) },
     { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', options: subjects.map(x => [x, x] as [string, string]) },
-    { key: 'grade', label: 'Khối', placeholder: 'Tất cả khối', options: Array.from({ length: 12 }, (_, k) => [String(k + 1), `Khối ${k + 1}`] as [string, string]) },
     { key: 'type', label: 'Loại học liệu', placeholder: 'Tất cả loại', options: MAT_OPTS as [string, string][], hidden: tab !== 'material' },
     { key: 'status', label: 'Trạng thái', placeholder: 'Tất cả trạng thái', options: [['published', 'Đã phát hành'], ['draft', 'Nháp'], ['archived', 'Đã thu hồi']] },
   ]

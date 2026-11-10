@@ -1,7 +1,7 @@
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
-import { DataTable, type Col } from '../../components/DataTable'
+import { DataTable, SideSplit, type Col } from '../../components/DataTable'
 import { useGradeTree, MultiTag } from '../../components/GradeTree'
 import { MultiSelect } from '../../components/MultiSelect'
 import { GradeChecks, GradeMulti, SubjectMulti } from '../../components/Pickers'
@@ -441,7 +441,7 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
           ] as Col<Course>[]} />
           : <div className="tttools">{left && <div className="ttleft">{left}</div>}{right}</div>
       })()}
-      {view === 'cards' && fitC.length > 0 && <div className="ttbody"><div className="ttaside">{gtc.tree}</div><div className="gtcards"><div className="coursegrid">
+      {view === 'cards' && fitC.length > 0 && <SideSplit aside={gtc.tree}><div className="gtcards"><div className="coursegrid">
         {shown.map(c => { const ls = lessons.filter(l => l.course_id === c.id)
           return <section key={c.id} className="panel coursecard clickrow" role="button" tabIndex={0} onClick={() => { setMsg(null); setOpen(c.id) }}
             onKeyDown={e => { if (e.key === 'Enter') { setMsg(null); setOpen(c.id) } }}>
@@ -452,7 +452,7 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
             </header>
             {c.description && <p className="sub">{c.description}</p>}
           </section> })}
-      </div></div></div>}
+      </div></div></SideSplit>}
       <div className="coursegrid">
         {!rows.length && <p className="sub">Chưa có khoá học. Một khoá gồm nhiều bài: video (YouTube, Google Drive…), bài đọc, liên kết, tệp, học liệu từ Kho học liệu và đề luyện.</p>}
       </div>

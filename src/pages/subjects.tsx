@@ -62,15 +62,14 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
   const [view, setView] = useState<Subject | null>(null)
   const [vtab, setVtab] = useState<'info' | 'exam'>('info')
   const [q, setQ] = useState('')
-  const [lv, setLv] = useState('')
   const [old, setOld] = useState(false)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   useEffect(() => {
     if (mode === 'school') supabase.rpc('has_perm', { p_module: 'curriculum', p_action: 'edit' }).then(({ data }) => setCanEdit(!!data))
   }, [mode])
 
-  const shown = useMemo(() => subjects.filter(s => (old || s.active) && (!lv || s.levels.includes(lv) || !s.levels.length)
-    && (!q || norm([s.code, s.name, s.domain].join(' ')).includes(norm(q)))), [subjects, q, lv, old])
+  const shown = useMemo(() => subjects.filter(s => (old || s.active)
+    && (!q || norm([s.code, s.name, s.domain].join(' ')).includes(norm(q)))), [subjects, q, old])
   // Quản trị hệ thống: môn học của tất cả đơn vị trong một danh sách, sửa thẳng
   const every = useAllMode()
   const own = every ? shown : shown.filter(s => s.org_id === orgId)
@@ -172,15 +171,12 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
   )
   return (
     <>
-      <p className="sub">Danh mục môn học / lĩnh vực kiến thức dùng khi soạn chương trình: mỗi học phần gắn một hay nhiều môn.
-        {mode === 'platform' ? ' Môn "dùng chung" của KDI hiện ở tất cả đơn vị.' : mode === 'authority' ? ' Môn "dùng chung" hiện ở các trường trực thuộc.' : ' Trường dùng môn của KDI, Sở, Phòng và thêm môn riêng.'}</p>
       {(msg || err) && <p className={msg && !msg[1] ? 'sub' : 'msg'} role="status"><b>{msg?.[0] ?? err}</b></p>}
       {!loaded ? <p className="sub">Đang tải…</p> : (
         <>
           {!every && <h3>Của đơn vị ({own.length})</h3>}
           {table(own, true, <small className="sub">Đơn vị chưa có môn riêng.{canEdit && ' Bấm "Thêm môn học".'}</small>, <>
             <input placeholder="Tìm mã, tên, lĩnh vực…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-            <select value={lv} onChange={e => setLv(e.target.value)} aria-label="Cấp học"><option value="">Tất cả cấp học</option>{LEVELS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
             <label className="chk"><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện môn ngừng dùng</label>
             <small className="sub">{own.length} môn</small>
           </>, canEdit && orgId && <button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ levels: [], ct_codes: [], scope: mode === 'school' ? 'own' : 'children', active: true }) }}>+ Thêm môn học</button>)}

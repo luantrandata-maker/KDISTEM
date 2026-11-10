@@ -204,13 +204,12 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
   if (vr) return <ExamDetail r={vr} subjName={vr.sub} stat={statOf(vr)} onBack={() => setView(null)}
     onEdit={() => { setMsg(null); setOpen(vr.kind === 'unit' ? { id: vr.prog.id, unit: vr.unit!.id } : { id: vr.prog.id, unit: null, final: true }) }} />
   const defs: FilterDef[] = [
-    { key: 'prog', label: 'Chương trình', placeholder: 'Tất cả chương trình', options: opts(rows.map(r => [r.prog.family_id, `${r.prog.code} · ${r.prog.title}`])) },
-    { key: 'kind', label: 'Loại đề', placeholder: 'Tất cả loại đề', options: [['unit', 'Bài test nội dung'], ['final', 'Đề cuối khoá']] },
+    // Chương trình, loại đề: lọc theo cột của bảng
     { key: 'st', label: 'Trạng thái', placeholder: 'Tất cả trạng thái', options: opts(rows.map(r => [r.prog.status, STATUS[r.prog.status]?.[0]])) },
   ]
   const ql = q.trim().toLowerCase()
   // base: theo tất cả bộ lọc bên dưới; thẻ tổng số tính trên base, bấm thẻ lọc thêm theo loại đề
-  const base = rows.filter(r => (old || !OLD.includes(r.prog.status)) && f.has('prog', r.prog.family_id) && f.has('kind', r.kind) && f.has('st', r.prog.status)
+  const base = rows.filter(r => (old || !OLD.includes(r.prog.status)) && f.has('st', r.prog.status)
     && (!ql || `${r.title} ${r.sub} ${r.prog.code} ${r.prog.title}`.toLowerCase().includes(ql)))
   const shown = base.filter(r => !card || (card === 'missing' ? r.missing : r.kind === card))
     .sort((a, b) => ord(a.prog).localeCompare(ord(b.prog)) || (a.kind === b.kind ? 0 : a.kind === 'unit' ? -1 : 1))
@@ -386,12 +385,11 @@ export function TrainingPracticeExams() {
 
   const all = list ?? []
   const defs: FilterDef[] = [
-    { key: 'prog', label: 'Chương trình', placeholder: 'Tất cả chương trình', options: opts(all.map(x => [x.program_id, progOf(x.program_id) ? `${progOf(x.program_id)!.code} · ${progOf(x.program_id)!.title}` : '—'])) },
+    // Chương trình, trạng thái: lọc theo cột của bảng
     { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', options: opts(all.flatMap(x => listSubjects(x).map(s => [s, s] as [string, string]))) },
-    { key: 'st', label: 'Trạng thái', placeholder: 'Tất cả trạng thái', options: (Object.keys(PST) as Practice['status'][]).map(k => [k, PST[k][0]]) },
   ]
   const ql = q.trim().toLowerCase()
-  const base = all.filter(x => f.has('prog', x.program_id) && listSubjects(x).some(s => f.has('subj', s)) && f.has('st', x.status) && (!ql || `${x.title} ${x.subject} ${x.note ?? ''}`.toLowerCase().includes(ql)))
+  const base = all.filter(x => listSubjects(x).some(s => f.has('subj', s)) && (!ql || `${x.title} ${x.subject} ${x.note ?? ''}`.toLowerCase().includes(ql)))
   const shown = base.filter(x => card !== 'open' || x.status === 'published')
   const stat = (id: string) => stats.find(s => s.kind === 'practice' && s.ref === id)
   const baseStats = base.map(x => stat(x.id)).filter(Boolean) as Stat[]
@@ -469,7 +467,6 @@ export function TrainingExamStats() {
   const stats = useStats(rk)
   const [open, setOpen] = useState<Stat | null>(null)
   const [hard, setHard] = useState<Hard[] | null>(null)
-  const f = useMultiFilters()
   const [card, setCard] = useState<string | null>(null)
   useEffect(() => {
     if (!open) return
@@ -477,12 +474,9 @@ export function TrainingExamStats() {
     supabase.rpc('training_exam_hard', { p_kind: open.kind, p_ref: open.ref }).then(({ data }) => setHard((data as Hard[]) ?? []))
   }, [open])
   const progOf = (id: string) => progs?.find(p => p.id === id)
-  const defs: FilterDef[] = [
-    { key: 'kind', label: 'Loại đề', placeholder: 'Tất cả loại đề', options: (Object.keys(KIND) as Kind[]).map(k => [k, KIND[k][0]]) },
-    { key: 'prog', label: 'Chương trình', placeholder: 'Tất cả chương trình', options: opts(stats.map(s => [progOf(s.program_id)?.family_id ?? s.program_id, progOf(s.program_id) ? `${progOf(s.program_id)!.code} · ${progOf(s.program_id)!.title}` : '—'])) },
-  ]
   const rate = (s: Stat) => s.teachers ? Math.round(100 * s.passed / s.teachers) : 0
-  const base = stats.filter(s => f.has('kind', s.kind) && f.has('prog', progOf(s.program_id)?.family_id ?? s.program_id))
+  // Loại đề, chương trình: lọc theo cột của bảng
+  const base = stats
   const low = (s: Stat) => !!s.teachers && rate(s) < 50
   const shown = base.filter(s => card !== 'low' || low(s)).sort((a, b) => b.attempts - a.attempts)
 
@@ -493,7 +487,7 @@ export function TrainingExamStats() {
       { k: 'low', icon: 'alert', tone: 'warn', value: base.filter(low).length, label: 'Đề dưới 50% nhà giáo đạt' },
     ]} />
     <DataTable id="training-exam-stats" rows={shown} rowKey={s => s.kind + s.ref} onRow={setOpen}
-      left={<MultiFilters defs={defs} f={f} count={`${shown.length}/${stats.length}`} />}
+      left={<small className="sub">{shown.length}/{stats.length} đề</small>}
       right={<button type="button" onClick={() => downloadXlsx('Ket-qua-de-tap-huan', [{ key: 't', label: 'Đề', width: 36 }, { key: 'k', label: 'Loại', width: 18 }, { key: 'p', label: 'Chương trình', width: 34 },
         { key: 'n', label: 'Lượt làm', width: 10 }, { key: 'g', label: 'Nhà giáo', width: 10 }, { key: 'a', label: 'Điểm TB', width: 10 }, { key: 'b', label: 'TB điểm cao nhất', width: 14 }, { key: 'r', label: 'Tỉ lệ đạt (%)', width: 12 }],
         shown.map(s => [s.title, KIND[s.kind][0], progOf(s.program_id) ? `${progOf(s.program_id)!.code} · ${progOf(s.program_id)!.title}` : '', s.attempts, s.teachers, s.avg_score, s.best_avg, rate(s)]), 'Kết quả')}>Xuất Excel</button>}

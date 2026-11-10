@@ -95,10 +95,8 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   const [open, setOpen] = useState<string | null>(null)
   const [create, setCreate] = useState<{ node: ClsNode | null } | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
-  const [fs, setFs] = useState<Status | 'wait' | ''>('')
   const [q, setQ] = useState('')
   const [yr, setYr] = useState('')
-  const [fp, setFp] = useState('')
   const cls = useCls('training')
   // Quản trị hệ thống: kế hoạch của tất cả đơn vị trong một danh sách, sửa thẳng
   const all = useAllMode(), orgName = useOrgName()
@@ -121,16 +119,13 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   }, [rk, orgId])
 
   const wait = (id: string) => orgs.filter(o => o.plan_id === id && o.status === 'submitted').length
-  // base: theo năm học, đơn vị, chương trình, ô tìm (không theo trạng thái); thẻ tổng số tính trên base
-  const base = useMemo(() => (list ?? []).filter(p => (!yr || p.year_name === yr) && ofl.fit([p.org_id, ...orgs.filter(o => o.plan_id === p.id).map(o => o.org_id)])
-    && (!fp || items.some(i => i.plan_id === p.id && i.program_id === fp))
-    && (!q || `${p.plan_code ?? ''} ${p.name} ${p.provider ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, orgs, items, yr, q, ofl, fp])
-  const shown = useMemo(() => base.filter(p => !fs || (fs === 'wait' ? wait(p.id) > 0 : p.pub_status === fs)), [base, fs, orgs])
+  // Theo đơn vị, ô tìm; năm học chỉ lọc ở dạng Lịch (dạng Bảng dùng bộ lọc theo cột)
+  const shown = useMemo(() => (list ?? []).filter(p => (look !== 'cal' || !yr || p.year_name === yr) && ofl.fit([p.org_id, ...orgs.filter(o => o.plan_id === p.id).map(o => o.org_id)])
+    && (!q || `${p.plan_code ?? ''} ${p.name} ${p.provider ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, orgs, yr, q, ofl, look])
 
   if (open) return <PlanDetail key={open} id={open} can={can} onBack={() => { setOpen(null); reload() }} onMsg={m => { setMsg(m); reload() }} />
 
-  const n = (s: Status) => base.filter(p => p.pub_status === s).length
-  const baseIds = new Set(base.map(p => p.id))
+  const baseIds = new Set(shown.map(p => p.id))
   const baseOrgs = orgs.filter(o => baseIds.has(o.plan_id))
   const waiting = baseOrgs.filter(o => o.status === 'submitted').length
   const years = [...new Set((list ?? []).map(p => p.year_name).filter(Boolean) as string[])].sort().reverse()
@@ -146,16 +141,13 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
       cell: p => { const titles = items.filter(i => i.plan_id === p.id).sort((a, b) => a.seq - b.seq).map(i => i.training_programs?.title ?? '—')
         return <span title={titles.length > 1 ? titles.join('\n') : undefined}>{titles.length ? <>{titles[0]}{titles.length > 1 && <small className="tpmore"> +{titles.length - 1}</small>}</> : <small className="sub">{p.pub_status === 'draft' ? 'Chưa chọn' : 'Kế hoạch cũ'}</small>}
           {p.hours ? <><br /><small className="sub">{p.hours} giờ</small></> : null}</span> } },
-    { key: 'orgs', label: 'Trường', cell: p => { const os = orgs.filter(o => o.plan_id === p.id), w = wait(p.id)
+    { key: 'orgs', label: 'Trường', text: p => wait(p.id) > 0 ? 'Có danh sách chờ duyệt' : 'Không có danh sách chờ duyệt', cell: p => { const os = orgs.filter(o => o.plan_id === p.id), w = wait(p.id)
       return <span className="nowrap">{os.length ? <>{os.length} trường{w > 0 && <><br /><Chip tone="warn">{w} chờ duyệt</Chip></>}</> : '—'}</span> } },
     { key: 'st', label: 'Trạng thái', text: p => STATUS[p.pub_status][0] + (p.closed_at ? ' Đã kết thúc' : ''),
       cell: p => { const st = STATUS[p.pub_status]; return <span className="nowrap">{st[1] === 'good' ? <span className="stdot">{st[0]}</span> : <Chip tone={st[1]}>{st[0]}</Chip>}{p.closed_at && <><br /><small className="sub">Đã kết thúc</small></>}</span> } },
   ]
   const table = (rows: TPlan[], empty: string, left?: ReactNode, right?: ReactNode) =>
     <DataTable id="training-plans" className="tplist" rows={rows} rowKey={p => p.id} cols={planCols} empty={empty} left={left} right={right} />
-  // Chip trạng thái kèm số; chip bằng 0 thì ẩn (trừ Tất cả và chip đang chọn)
-  const chips = ([['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['wait', 'Có danh sách chờ duyệt', base.filter(p => wait(p.id)).length], ['archived', 'Ngừng dùng', n('archived')]] as [Status | 'wait' | '', string, number][])
-    .filter(([s, , c]) => !s || c > 0 || fs === s)
   const schools = new Set(baseOrgs.map(o => o.org_id)).size
   return (
     <>
@@ -166,17 +158,12 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
           <ClsTree scope="training" items={ofl.active ? list.filter(p => ofl.fit([p.org_id, ...orgs.filter(o => o.plan_id === p.id).map(o => o.org_id)])) : list}
             header={({ sel, isFinal }) => <>
               {ofl.node([...list.map(p => p.org_id), ...orgs.map(o => o.org_id)])}
-              <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Tất cả chương trình</option>
-                {[...new Map(items.map(i => [i.program_id, i.training_programs?.title ?? '—'])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'vi')).map(([id, t]) => <option key={id} value={id}>{t}</option>)}</select>
               {can && isFinal && sel && <button type="button" className="primary" onClick={() => setCreate({ node: sel })}>+ Lập kế hoạch đào tạo</button>}</>}>
             {(rows, { isFinal, unsorted }) => table(rows, unsorted ? 'Không có kế hoạch nào.' : isFinal && can ? 'Chưa có kế hoạch nào trong mục này. Bấm “+ Lập kế hoạch đào tạo”.' : 'Chưa có kế hoạch nào trong mục này.')}
           </ClsTree></>
         : <>
           <div className="bar tphead">
-            <div className="distfilter" style={{ margin: 0 }}>
-              {chips.map(([s, l, c]) =>
-                <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '') + (s === 'wait' ? ' warn' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
-            </div>
+            <span />
             <div className="tools">
               <button type="button" onClick={() => { setTab('tree'); setMsg(null) }}>Khung phân loại</button>
 </div>
@@ -185,7 +172,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
             const f = ofl.node([...list.map(p => p.org_id), ...orgs.map(o => o.org_id)])
             const left = <>
               <input placeholder="Tìm mã, tên, đơn vị đào tạo…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-              <select value={yr} onChange={e => setYr(e.target.value)} aria-label="Năm học"><option value="">Tất cả năm học</option>{years.map(y => <option key={y} value={y}>{y}</option>)}</select>
+              {look === 'cal' && <select value={yr} onChange={e => setYr(e.target.value)} aria-label="Năm học"><option value="">Tất cả năm học</option>{years.map(y => <option key={y} value={y}>{y}</option>)}</select>}
               {f && <details className="morefilt"><summary>Bộ lọc{ofl.active && <b> •</b>}</summary><div className="panel">{f}</div></details>}
               <small className="sub">{shown.length}/{list.length} kế hoạch · {schools} trường được gán{waiting > 0 && <> · <b>{waiting} danh sách chờ duyệt</b></>}</small></>
             const toggle = <span className="segmented viewtoggle" role="group" aria-label="Kiểu xem">{([['table', 'Bảng'], ['cal', 'Lịch']] as const).map(([k, l]) =>

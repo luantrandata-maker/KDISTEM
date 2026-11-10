@@ -9,7 +9,7 @@ import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
 import { SchoolPicker } from '../components/SchoolPicker'
 import { useOrgFilter } from '../components/OrgFilters'
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { DataTable, MoreFilters, type Col } from '../components/DataTable'
+import { DataTable, SideSplit, type Col } from '../components/DataTable'
 import { useGradeTree, MultiTag } from '../components/GradeTree'
 import { Drawer } from '../components/Drawer'
 import { supabase, fetchAll } from '../lib/supabase'
@@ -125,10 +125,6 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   const progFields = fieldsOf(useSettings(), 'program')
   const [list, setList] = useState<Program[] | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
-  const [kind, setKind] = useState('')
-  const [maker, setMaker] = useState('')  // lọc theo đơn vị tạo
-  const [subject, setSubject] = useState('')
-  const [status, setStatus] = useState('')
   const [q, setQ] = useState('')
   const [old, setOld] = useState(false)
   const [form, setForm] = useState<Partial<Program> | null>(null)
@@ -147,11 +143,8 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   useEffect(() => { load() }, [orgId])
 
   const all = list ?? []
-  const makers = useMemo(() => [...new Map(all.map(p => [p.org_id, p.organizations?.name ?? '—'] as [string, string]))].sort((a, b) => a[1].localeCompare(b[1], 'vi')), [list])
-  const subjects = useMemo(() => [...new Set(all.flatMap(mainsOf))].sort((a, b) => a.localeCompare(b, 'vi')), [list])
-  const shown = all.filter(p => (old || !SGROUP.off[1].includes(p.status) || status === 'off')
-    && (!kind || p.kind === kind) && (!maker || p.org_id === maker) && (!subject || mainsOf(p).includes(subject) || p.integrated_subjects.includes(subject))
-    && (!status || SGROUP[status]?.[1].includes(p.status)) && (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
+  // Trạng thái, loại, môn, đơn vị tạo: lọc bằng "Lọc theo cột" của bảng
+  const shown = all.filter(p => (old || !SGROUP.off[1].includes(p.status)) && (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
   const own = every ? shown : shown.filter(p => p.org_id === orgId)
   const shared = every ? [] : shown.filter(p => p.org_id !== orgId)
   // Cây Cấp → Khối bên trái mỗi bảng
@@ -187,8 +180,8 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
     { key: 'org', label: 'Đơn vị tạo', text: p => p.organizations?.name ?? '', cell: p => p.organizations?.name ?? '—' },
     { key: 'status', label: 'Trạng thái', text: p => PSTATUS[p.status][0],
       cell: p => <><StatusPill s={p.status} />{p.status === 'published' && p.effective_from && <><br /><small className="sub">từ {fmtD(p.effective_from)}</small></>}</> },
-    { key: 'upd', label: 'Cập nhật', text: p => fmtD(p.updated_at), cell: p => <small className="sub nowrap">{fmtD(p.updated_at)}</small> },
     ...progFields.filter(x => x.column).map(x => ({ key: 'c_' + x.key, label: x.label, cell: (p: Program) => customCell(x, p.custom?.[x.key]) })),
+    { key: 'upd', label: 'Cập nhật', text: p => fmtD(p.updated_at), cell: p => <small className="sub nowrap">{fmtD(p.updated_at)}</small> },
   ]
   const table = (rows: Program[], mine: boolean, left?: ReactNode, right?: ReactNode, empty?: ReactNode) => (
     <DataTable id={mine ? 'edu-programs-v3' : 'edu-programs-shared-v3'} rows={(mine ? gtOwn : gtShared).filter(rows)} rowKey={p => p.id} cols={progCols} left={left} right={right} empty={empty}
@@ -219,7 +212,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   )
   const show = (rows: Program[], mine: boolean, left?: ReactNode, right?: ReactNode, empty?: ReactNode) => view === 'cards'
     ? <>{(left || right) && <div className="tttools">{left && <div className="ttleft">{left}</div>}{right}</div>}{rows.length
-      ? <div className="ttbody"><div className="ttaside">{(mine ? gtOwn : gtShared).tree}</div><div className="gtcards">{cards((mine ? gtOwn : gtShared).filter(rows), mine)}</div></div>
+      ? <SideSplit aside={(mine ? gtOwn : gtShared).tree}><div className="gtcards">{cards((mine ? gtOwn : gtShared).filter(rows), mine)}</div></SideSplit>
       : <p className="sub">{empty}</p>}</>
     : table(rows, mine, left, right, empty)
   if (form) return (
@@ -238,13 +231,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
           {!every && <h3>Của đơn vị ({own.length})</h3>}
           {show(own, true, <>
             <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-            <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Trạng thái"><option value="">Tất cả trạng thái</option>{Object.entries(SGROUP).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}</select>
-            <MoreFilters active={!!(kind || subject || maker || old)}>
-              <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại chương trình"><option value="">Tất cả loại chương trình</option>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select>
-              {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
-              <select value={maker} onChange={e => setMaker(e.target.value)} aria-label="Đơn vị tạo"><option value="">Tất cả đơn vị tạo</option>{makers.map(([id, nm]) => <option key={id} value={id}>{nm}</option>)}</select>
-              <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện chương trình ngừng dùng</label>
-            </MoreFilters>
+            <label className="ttcheck"><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện chương trình ngừng dùng</label>
             <small className="sub">{gtOwn.filter(own).length} chương trình</small>
           </>, <>
             <ViewToggle value={view} onChange={setView} />

@@ -13,7 +13,7 @@ import { CreateLesson, kitSubject } from './lesson/Create'
 import { LessonPage } from './lesson/LessonPage'
 import { fmtGrades, progGrades } from '../../lib/eduLevels'
 import { useGradeTree, MultiTag } from '../../components/GradeTree'
-import { DataTable } from '../../components/DataTable'
+import { DataTable, SideSplit } from '../../components/DataTable'
 import { downloadXlsx } from '../../lib/sheet'
 
 type Prog = { id: string; title: string; version_no: number; status: string; org_id: string; ct_code: string | null; code: string | null
@@ -210,7 +210,7 @@ export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; o
   const empty = <small className="sub">{progs.length ? 'Không có chương trình nào khớp.' : 'Chưa có chương trình nào. Tạo và phát hành chương trình ở Chương trình giáo dục.'}</small>
   return view === 'cards' ? <>
     <div className="tttools"><div className="ttleft">{search}</div>{toggle}</div>
-    {!found.length ? <p className="sub">{empty}</p> : <div className="ttbody"><div className="ttaside">{gt.tree}</div><div className="gtcards"><div className="tilegrid sq">
+    {!found.length ? <p className="sub">{empty}</p> : <SideSplit aside={gt.tree}><div className="gtcards"><div className="tilegrid sq">
       {shown.map(p => { const s = stat(p); return (
         <button key={p.id} type="button" className="tile" onClick={() => setPid(p.id)}>
           <div className="tilebody">
@@ -220,7 +220,7 @@ export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; o
             <div className="tilemeta"><span>{subjectsOf(p.id).length} môn</span><span>{s.lessons} bài</span><span>{s.kits} bộ học liệu</span></div>
           </div>
         </button>) })}
-    </div></div></div>}
+    </div></div></SideSplit>}
   </> : <DataTable id="hoc-lieu-ct" rows={shown} rowKey={p => p.id} left={search} right={toggle} empty={empty} aside={found.length ? gt.tree : undefined}
     cols={[
       { key: 'name', label: 'Chương trình', fixed: true, values: p => [progName(p)], text: p => progName(p),

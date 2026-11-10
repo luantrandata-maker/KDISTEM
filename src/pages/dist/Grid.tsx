@@ -111,7 +111,7 @@ export function WeekGrid({ plan, order, progs, s, titles, cal, calLabel, year, t
                   return n ? <button type="button" key={w} className={'cell on' + bandCls(w) + (h ? ' hol' : '') + rs + (pop?.w === w && pop.sub === sub.name && pop.pid === pid ? ' sel' : '')} style={{ background: color }}
                     aria-label={`${sub.name} · tuần ${w}: ${n} tiết${h ? ' · tuần có ngày nghỉ' : ''}`}
                     onMouseDown={e => down(e, pid, sub.name, w)} onMouseEnter={e => { enter(pid, sub.name, w); if (!drag.current) hover(e, pid, sub.name, w) }} onMouseLeave={() => setTip(null)}
-                    onClick={e => { setTip(null); if (skipClick.current) { skipClick.current = false; return } open(e, { w, pid, sub: sub.name }) }}>{n}</button>
+                    onClick={e => { setTip(null); if (skipClick.current) { skipClick.current = false; return } if (onShift) setRsel({ pid, sub: sub.name, a: w, b: w }); open(e, { w, pid, sub: sub.name }) }}>{n}</button>
                     : <span key={w} className={'cell' + bandCls(w) + (hol(w) ? ' hol' : '') + rs}
                       onMouseDown={e => down(e, pid, sub.name, w)} onMouseEnter={() => enter(pid, sub.name, w)} /> }))
             })}
@@ -121,12 +121,12 @@ export function WeekGrid({ plan, order, progs, s, titles, cal, calLabel, year, t
           weeks.map(w => { const n = total.get(w); return <small key={w} className={'tot' + (n && n > LOAD_MAX ? ' over' : '')}>{n || ''}</small> }))}
       </div></div>
       {onShift && (rsel ? <div className="distshiftbar">
-        <span><b>{rsel.sub}</b> · đang chọn tuần {lo}–{hi}. Kéo vùng chọn sang trái / phải để dời, hoặc:</span>
+        <span><b>{rsel.sub}</b> · đang chọn tuần {lo === hi ? lo : `${lo}–${hi}`}. Kéo vùng chọn sang trái / phải để dời, hoặc:</span>
         <button type="button" disabled={lo <= 1} onClick={() => shiftBy(-1)}>◀ Lùi 1 tuần</button>
         <button type="button" onClick={() => shiftBy(1)}>Dời 1 tuần ▶</button>
         {onAuto && <button type="button" className="linkbtn" onClick={() => { onAuto(rsel.pid, rsel.sub, lo, hi); setRsel(null) }}>Xếp lại tự động</button>}
         <button type="button" className="linkbtn" onClick={() => setRsel(null)}>Bỏ chọn</button>
-      </div> : <small className="sub distshifthint">Mẹo: giữ chuột kéo ngang trên hàng một môn để chọn một đoạn tuần, rồi kéo đoạn đó sang tuần khác để dời bài (vd. dời các bài từ tuần 20 đi 1 tuần vì nghỉ Tết).</small>)}
+      </div> : <small className="sub distshifthint">Mẹo: bấm một ô để chọn tuần đó, hoặc giữ chuột kéo ngang trên hàng một môn để chọn nhiều tuần; rồi kéo vùng chọn sang tuần khác hoặc bấm nút dời (vd. dời các bài từ tuần 20 đi 1 tuần vì nghỉ Tết).</small>)}
       {tip && !pop && <div className="disttip" style={{ left: tip.x, top: tip.y }} role="tooltip">
         <small className="sub">{tip.head}</small>{tip.items.map((t, i) => <div key={i}>{t}</div>)}</div>}
       {pop && <div className="distpop" style={{ left: pop.x, top: pop.y }} role="dialog" aria-label={`Tuần ${pop.w}`}>

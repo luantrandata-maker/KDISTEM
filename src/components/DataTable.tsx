@@ -66,7 +66,7 @@ function ColFilter({ label, options, value, onChange }: { label: string; options
   </>
 }
 
-export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow, simple }: {
+export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow, simple, noTools }: {
   id: string; rows: T[]; cols: Col<T>[]; rowKey: (r: T) => string; empty?: ReactNode; className?: string
   /** Ô đầu dòng tiêu đề / dòng dữ liệu (vd. ô chọn), không lọc, không ẩn */
   head?: { th: ReactNode; td: (r: T) => ReactNode }
@@ -79,6 +79,8 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   onRow?: (r: T) => void
   /** Bảng gọn: bỏ nút "Lọc theo cột" và "Vừa khít", chỉ giữ Ẩn/hiện cột */
   simple?: boolean
+  /** Không hiện hàng công cụ (dùng khi nhiều bảng con dùng chung một thanh công cụ ngoài) */
+  noTools?: boolean
 }) {
   const [view, setViewS] = useState<View>(() => load(id, cols as Col<unknown>[]))
   const setView = (f: (v: View) => View) => setViewS(v => { const n = f(v); try { localStorage.setItem('tt:' + id, JSON.stringify(n)) } catch { /* chỉ trong phiên */ } return n })
@@ -132,7 +134,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   const changed = nHidden > 0 || view.order.length > 0 || Object.keys(view.widths).length > 0 || view.fit
 
   return <div className="tt">
-    <div className="tttools">
+    {!noTools && <div className="tttools">
       {left && <div className="ttleft">{left}</div>}
       {shown.length !== rows.length ? <small className="sub ttcount">{shown.length}/{rows.length} dòng</small> : !left && <small className="sub ttcount">{rows.length} dòng</small>}
       {!simple && <button type="button" className={filterOn ? 'on' : ''} aria-pressed={filterOn} onClick={() => { setFilterOn(!filterOn); if (filterOn) setFlt({}) }}
@@ -157,7 +159,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
       {!simple && <button type="button" className={view.fit ? 'on' : ''} aria-pressed={view.fit} onClick={() => setView(v => ({ ...v, fit: !v.fit }))}
         title="Thu bảng vừa chiều ngang màn hình, chữ dài tự xuống dòng">⇔ Vừa khít</button>}
       {right}
-    </div>
+    </div>}
     <div className="wrap"><table className={`libtable ttable${view.fit && !simple ? ' ttfit' : ''}${className ? ' ' + className : ''}`}>
       <colgroup>{head && <col style={{ width: 36 }} />}{shownCols.map(c => <col key={c.key} style={view.widths[c.key] ? { width: view.widths[c.key] } : undefined} />)}</colgroup>
       <thead>

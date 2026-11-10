@@ -288,7 +288,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
 }
 
 // ================= Chi tiết một chương trình =================
-type Tab = 'info' | 'lessons' | 'assign'
+type Tab = 'info' | 'assign'
 function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
   id: string; orgId: string | null; mode: ProgMode; canEdit: boolean; isAdmin: boolean; onOpen: (id: string) => void; onClose: () => void
 }) {
@@ -300,6 +300,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
   const [mkBook, setMkBook] = useState<{ grade: number; subject: string; year: string; ppw: string } | null>(null)
   const { name: levelName } = useEduLevels()
   const [editInfo, setEditInfo] = useState(false)
+  const [rev, setRev] = useState(0)
 
   async function load() {
     const { data, error } = await supabase.from('edu_programs').select('*, organizations(name)').eq('id', id).maybeSingle()
@@ -313,7 +314,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
   const mine = p.org_id === orgId || !!every
   const editable = mine && canEdit && (p.status === 'draft' || p.status === 'rejected')
   const scopeEditable = mine && canEdit && p.status === 'published' && mode !== 'school'
-  const tabs: [Tab, string][] = [['info', 'Thông tin'], ['lessons', 'Môn & bài học'],
+  const tabs: [Tab, string][] = [['info', 'Chương trình'],
     ...(mode !== 'school' && (mine || p.status === 'published' || p.status === 'superseded') ? [['assign', 'Gán & triển khai'] as [Tab, string]] : [])]
 
   async function openMkBook() {
@@ -352,7 +353,9 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
           <small className="sub">{[p.code, lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ctsOf(p).join(', '), mainsOf(p).join(', '), `${p.total_periods} tiết`, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
         </div>
         <div className="tools">
+          {!editInfo && tab === 'info' && editable && <button type="button" onClick={() => setEditInfo(true)}><Icon n="pencil" size={15} /> Sửa thông tin</button>}
           {mode === 'school' && canEdit && p.status === 'published' && !hid('ppct') && <button className="primary" onClick={openMkBook}>Tạo PPCT từ chương trình</button>}
+          {!editInfo && <VersionActions p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
         </div>
       </div>
       {mkBook && (
@@ -368,12 +371,11 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
         {tabs.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      {tab === 'info' && <InfoTab key={'i' + editInfo} p={p} editable={editable} forceEdit={editInfo} onEdit={() => setEditInfo(true)} onBack={() => setEditInfo(false)}
-        actions={!editInfo ? <VersionActions p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} /> : undefined} onGoAssign={tabs.some(t => t[0] === 'assign') ? () => setTab('assign') : undefined}
+      {tab === 'info' && <InfoTab key={'i' + editInfo} p={p} editable={editable} forceEdit={editInfo} onEdit={() => setEditInfo(true)} onBack={() => setEditInfo(false)} rev={rev}
+        lessons={<SubjectLessonsTab p={p} editable={editable} onChanged={() => { load(); setRev(r => r + 1) }} onMessage={(m, e) => setMsg([m, !!e])} />}
+        versions={<VersionsTab p={p} onOpen={onOpen} compact />}
+        onGoAssign={tabs.some(t => t[0] === 'assign') ? () => setTab('assign') : undefined}
         onDelete={editable ? removeDraft : undefined} scopeEditable={scopeEditable} reqEditable={mine && canEdit} mode={mode} comps={comps} onSaved={m => { setMsg([m, false]); setEditInfo(false); load() }} onError={m => setMsg([m, true])} />}
-      {tab === 'lessons' && <SubjectLessonsTab p={p} editable={editable} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
-      {tab === 'info' && !editInfo && <div className="panel ustruct"><h4 style={{ margin: 0, display: 'flex', gap: 8, alignItems: 'center' }}><Icon n="layers" size={18} /> Phiên bản & duyệt</h4>
-        <VersionsTab p={p} onOpen={onOpen} /></div>}
       {tab === 'assign' && <AssignTab p={p} orgId={orgId} mine={mine} onMessage={(m, e) => setMsg([m, !!e])} />}
     </>
   )
@@ -386,17 +388,17 @@ type InfoProps = {
   p: Partial<Program>; isNew?: boolean; editable: boolean; scopeEditable: boolean; reqEditable?: boolean; mode: ProgMode; comps: Comp[]
   orgId?: string | null; pickedSchool?: boolean; onOrg?: (id: string) => void
   onSaved: (m: string, newId?: string) => void; onError: (m: string) => void; onDelete?: () => void; onGoAssign?: () => void; onCancel?: () => void
-  /** Nút phiên bản & duyệt trên thẻ thông tin */
-  actions?: React.ReactNode
+  /** Trang xem: khối Môn & bài học (cột chính) và Phiên bản (cột phải) */
+  lessons?: React.ReactNode; versions?: React.ReactNode; rev?: number
   /** true: hiện form sửa; false: thẻ chỉ xem, bấm Sửa thì gọi onEdit để mở form ngay tại tab Thông tin */
   forceEdit?: boolean; onEdit?: () => void; onBack?: () => void
 }
-function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, orgId, pickedSchool, onOrg, onSaved, onError, onDelete, onGoAssign, onCancel, actions, forceEdit, onEdit, onBack }: InfoProps) {
+function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, orgId, pickedSchool, onOrg, onSaved, onError, onDelete, onGoAssign, onCancel, lessons, versions, rev, forceEdit, onEdit, onBack }: InfoProps) {
   const [f, setF] = useState<Partial<Program>>(p)
   // Chương trình đã có: mặc định xem dạng thẻ; bấm Sửa mới mở form
   const editing = !!isNew || !!forceEdit
   const [lessonN, setLessonN] = useState<number | null>(null)
-  useEffect(() => { if (p.id) supabase.from('edu_program_units').select('id', { count: 'exact', head: true }).eq('program_id', p.id).in('unit_type', ['lesson', 'session']).then(({ count }) => setLessonN(count ?? 0)) }, [p.id, p.updated_at])
+  useEffect(() => { if (p.id) supabase.from('edu_program_units').select('id', { count: 'exact', head: true }).eq('program_id', p.id).eq('unit_type', 'lesson').then(({ count }) => setLessonN(count ?? 0)) }, [p.id, p.updated_at, rev])
   const { byCode: tracks, allCodes: CT } = useStemTracks()
   const { byCode: LV, levels: LVL } = useEduLevels()
   const progFields = fieldsOf(useSettings(), 'program')
@@ -492,56 +494,63 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
     const mains = mainsOf(q), integs = q.integrated_subjects ?? []
     const nameOf = (list: { key?: string; id?: string; name?: string; title?: string }[], k: string) => { const x = list.find(o => (o.key ?? o.id) === k); return x?.name ?? x?.title ?? k }
     const edit = () => onEdit?.()
-    return <div className="panel pview">
-      <div className="pviewhead">
-        <h4><Icon n="help" size={18} /> Thông tin chương trình</h4>
-        <div className="tools">
-          {editable && <button type="button" onClick={edit}><Icon n="pencil" size={15} /> Sửa</button>}
-          {actions}
+    const nSubj = mains.length + integs.filter(x => !mains.includes(x)).length
+    const dep = DEPLOY[q.deploy_term ?? 'year']
+    const none = <span className="sub">Chưa có</span>
+    const chips = (xs: string[]) => xs.length ? <span className="pvchips">{xs.map(x => <span key={x} className="pill">{x}</span>)}</span> : none
+    return <>
+      <div className="pdstats">
+        <div><b>{nSubj}</b><span>môn</span></div>
+        <div><b>{lessonN ?? '…'}</b><span>bài học</span></div>
+        <div><b>{q.total_periods ?? 0}</b><span>tiết{q.periods_per_week != null ? ` · ${String(q.periods_per_week).replace('.', ',')} tiết/tuần` : ''}</span></div>
+        <div><b>{dep?.[0] ?? '—'}</b><span>{dep?.[1] ?? 'thời gian triển khai'}</span></div>
+        {mode !== 'school' && <div><b>{asgN ?? '…'}</b><span>đơn vị được gán</span></div>}
+      </div>
+      <div className="pdgrid">
+        <div className="pdmain">
+          <div className="panel pdcard"><h4>Môn & bài học</h4>{lessons}</div>
+          <div className="panel pdcard"><h4>Mục tiêu & đánh giá</h4>
+            <dl className="pddl">
+              <dt>Mục tiêu chương trình</dt><dd style={{ whiteSpace: 'pre-line' }}>{q.objectives || <span className="sub">Chưa nhập{editable ? ' · bấm “Sửa thông tin” để thêm' : ''}</span>}</dd>
+              <dt>Năng lực học sinh</dt><dd>{chips((q.competency_keys ?? []).map(k => nameOf(comps, k)))}</dd>
+              <dt>Tiêu chí đánh giá</dt><dd>{chips((q.rubric_ids ?? []).map(k => nameOf(rubrics, k)))}</dd>
+              {progFields.map(x => <Fragment key={x.key}><dt>{x.label}</dt><dd>{customCell(x, q.custom?.[x.key]) ?? '—'}</dd></Fragment>)}
+              {q.note && <><dt>Ghi chú</dt><dd style={{ whiteSpace: 'pre-line' }}>{q.note}</dd></>}
+            </dl>
+          </div>
+        </div>
+        <div className="pdside">
+          <div className="panel pdcard"><h4>Thông tin chung</h4>
+            <dl className="pddl sm">
+              <dt>Mã</dt><dd>{q.code || none}</dd>
+              <dt>Nhóm</dt><dd>{ctsOf(q).map(c => c + (tracks[c] ? ' · ' + tracks[c]!.name : '')).join(', ') || '—'}</dd>
+              <dt>Loại</dt><dd>{PKIND[q.kind]}</dd>
+              <dt>Cấp · khối</dt><dd>{lvsOf(q).map(c => LV[c]?.name ?? c).join(', ')}{progGrades(q).length ? ' · ' + progGrades(q).join(', ') : ''}</dd>
+              <dt>Môn chủ đạo</dt><dd>{mains.join(', ') || '—'}</dd>
+              {integs.length > 0 && <><dt>Môn tích hợp</dt><dd>{integs.join(', ')}</dd></>}
+              <dt>Xây dựng</dt><dd>{q.builder || '—'}</dd>
+            </dl>
+          </div>
+          <div className="panel pdcard"><h4>Phạm vi & hiệu lực {effNote && <span className={'pill ' + (effNote.startsWith('Hết') ? 'bad' : 'warn')}>{effNote}</span>}
+            {!editable && scopeEditable && <button type="button" className="linkbtn" onClick={edit}>Điều chỉnh ›</button>}</h4>
+            <dl className="pddl sm">
+              {showScope && <><dt>Áp dụng</dt><dd>{q.scope === 'own' ? 'Chỉ đơn vị mình và đơn vị được gán' : 'Tất cả đơn vị trực thuộc'}</dd></>}
+              <dt>Hiệu lực</dt><dd>{q.effective_from ? 'Từ ' + fmtD(q.effective_from) : 'Chưa đặt'}{q.effective_to ? ' đến ' + fmtD(q.effective_to) : ''}</dd>
+              {mode !== 'school' && <><dt>Được gán</dt><dd>{asgN ?? '…'} đơn vị{onGoAssign && <> · <button type="button" className="linkbtn" onClick={onGoAssign}>Gán thêm ›</button></>}</dd></>}
+            </dl>
+          </div>
+          {versions && <div className="panel pdcard"><h4>Phiên bản</h4>{versions}</div>}
+          <div className="panel pdcard"><h4>Năng lực giáo viên
+            {!editable && reqEditable && <button type="button" className="linkbtn" onClick={edit}>Điều chỉnh ›</button>}</h4>
+            {reqs0.length ? <div className="pvchips">{reqs0.map(r => <span key={r.competency} className="pill">{nameOf(tcomps, r.competency)} · từ Mức {r.min_level}</span>)}</div>
+              : <small className="sub">Chưa đặt yêu cầu: chỉ giáo viên Đạt khoá đào tạo có gắn chương trình mới được tính đáp ứng.</small>}
+          </div>
         </div>
       </div>
-      <div className="pvgrid">
-        <PV l="Tên chương trình" w={2}>{q.title}</PV>
-        <PV l="Mã chương trình">{q.code}</PV>
-        <PV l="Nhóm chương trình" w={2}>{ctsOf(q).map(c => c + (tracks[c] ? ' · ' + tracks[c]!.name : '')).join(', ')}</PV>
-        <PV l="Trạng thái"><StatusPill s={q.status} /></PV>
-        <PV l="Loại chương trình">{PKIND[q.kind]}</PV>
-        <PV l="Cấp học">{lvsOf(q).map(c => LV[c]?.name ?? c).join(', ')}</PV>
-        <PV l="Khối">{progGrades(q).length ? <span className="pvchips">{progGrades(q).map(g => <span key={g} className="pill">Khối {g}</span>)}</span> : null}</PV>
-        <PV l="Môn chủ đạo">{mains.join(', ')}</PV>
-        <PV l="Môn tích hợp">{integs.join(', ')}</PV>
-        <PV l="Số tiết / tuần">{q.periods_per_week != null ? String(q.periods_per_week).replace('.', ',') : null}</PV>
-        <PV l="Thời gian triển khai">{DEPLOY[q.deploy_term ?? 'year'] ? `${DEPLOY[q.deploy_term ?? 'year'][0]} (${DEPLOY[q.deploy_term ?? 'year'][1]})` : null}</PV>
-        <PV l="Đơn vị xây dựng">{q.builder}</PV>
-        <PV l="Khung năng lực học sinh" w={2}>{(q.competency_keys ?? []).map(k => nameOf(comps, k)).join(', ')}</PV>
-        <PV l="Tiêu chí đánh giá (rubric)" w={2}>{(q.rubric_ids ?? []).map(k => nameOf(rubrics, k)).join(', ')}</PV>
-        {progFields.map(x => <PV key={x.key} l={x.label}>{customCell(x, q.custom?.[x.key])}</PV>)}
-        <PV l="Mục tiêu chương trình" w={-1}>{q.objectives}</PV>
-        {q.note && <PV l="Ghi chú" w={-1}>{q.note}</PV>}
-      </div>
-      <div className="pvstats">
-        <span><b>{mains.length + integs.filter(x => !mains.includes(x)).length}</b> môn</span>
-        <span><b>{lessonN ?? '…'}</b> bài học</span>
-        <span><b>{q.total_periods ?? 0}</b> tiết</span>
-      </div>
-
-      <h4 className="psec">Phạm vi áp dụng & hiệu lực {effNote && <span className={'pill ' + (effNote.startsWith('Hết') ? 'bad' : 'warn')}>{effNote}</span>}
-        {!editable && scopeEditable && <button type="button" className="linkbtn" style={{ marginLeft: 'auto', fontWeight: 400 }} onClick={edit}>Điều chỉnh phạm vi, hiệu lực</button>}</h4>
-      <div className="pvgrid">
-        {showScope && <PV l="Phạm vi áp dụng" w={2}>{q.scope === 'own' ? 'Chỉ đơn vị mình và đơn vị được gán' : 'Tất cả đơn vị trực thuộc'}</PV>}
-        <PV l="Hiệu lực từ">{q.effective_from ? fmtD(q.effective_from) : null}</PV>
-        <PV l="Hiệu lực đến">{q.effective_to ? fmtD(q.effective_to) : null}</PV>
-        {mode !== 'school' && <PV l="Đơn vị được gán">{asgN ?? '…'}{onGoAssign && <> · <button type="button" className="linkbtn" onClick={onGoAssign}>Gán cho đơn vị →</button></>}</PV>}
-      </div>
-
-      <h4 className="psec">Yêu cầu năng lực giáo viên
-        {!editable && reqEditable && <button type="button" className="linkbtn" style={{ marginLeft: 'auto', fontWeight: 400 }} onClick={edit}>Điều chỉnh yêu cầu</button>}</h4>
-      {reqs0.length ? <div className="pvchips">{reqs0.map(r => <span key={r.competency} className="pill">{nameOf(tcomps, r.competency)} · Từ Mức {r.min_level}</span>)}</div>
-        : <small className="sub">Chưa đặt yêu cầu: chỉ giáo viên Đạt khoá đào tạo có gắn chương trình mới được tính đáp ứng.</small>}
-    </div>
+    </>
   }
   return <form className="panel pform" onSubmit={save}>
-    {!isNew && !editable && <p className="sub" style={{ margin: 0 }}>{p.status === 'draft' || p.status === 'rejected' ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình đã gửi duyệt hoặc phát hành: nội dung không sửa được (tạo phiên bản mới ở tab "Thông tin"). Phạm vi, hiệu lực và yêu cầu năng lực giáo viên vẫn sửa được.'}</p>}
+    {!isNew && !editable && <p className="sub" style={{ margin: 0 }}>{p.status === 'draft' || p.status === 'rejected' ? 'Bạn chỉ xem được chương trình này.' : 'Chương trình đã gửi duyệt hoặc phát hành: nội dung không sửa được (bấm "Tạo phiên bản mới" ở đầu trang). Phạm vi, hiệu lực và yêu cầu năng lực giáo viên vẫn sửa được.'}</p>}
     <div className="pgrid">
       <label className="field" style={S(6)}><span>Đơn vị xây dựng <small className="sub">(nơi biên soạn nội dung)</small></span>
         <input list="edu-builders" maxLength={200} disabled={!scopeEdit} value={f.builder ?? ''} onChange={e => pickBuilder(e.target.value)} placeholder="KDI Education, Sở GD&ĐT…, Trường…" />
@@ -613,11 +622,6 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
   </form>
 }
 
-/** Một ô trong thẻ thông tin: tiêu đề nhỏ in hoa, giá trị bên dưới. w = số cột chiếm (-1: cả hàng) */
-function PV({ l, w, children }: { l: string; w?: number; children?: React.ReactNode }) {
-  const empty = children == null || children === '' || children === false
-  return <div className="pvi" style={w ? { gridColumn: w < 0 ? '1/-1' : `span ${w}` } : undefined}><span>{l}</span><div>{empty ? '—' : children}</div></div>
-}
 
 // ----- Môn & bài học: chương trình → môn → bài học (không qua học phần) -----
 // Bài cũ nằm trong học phần vẫn hiện, môn lấy theo học phần; tên học phần hiện ở cột "Chủ đề" (ẩn mặc định).
@@ -722,11 +726,12 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
   const [kitOf, setKitOf] = useState<Map<string, string>>(new Map())
   const [libUnits, setLibUnits] = useState<LibUnit[] | null>(null)
   const { subjects } = useSubjects()
-  const [cur, setCur] = useState<string>('')
+  // Môn đang mở (khoá chữ thường); null = mặc định mở môn đầu tiên
+  const [open, setOpen] = useState<Set<string> | null>(null)
   const [q, setQ] = useState('')
   const [gf, setGf] = useState(0)
-  const [newTitle, setNewTitle] = useState('')
-  const [paste, setPaste] = useState<string | null>(null)
+  const [newT, setNewT] = useState<Record<string, string>>({})
+  const [paste, setPaste] = useState<{ subj: string; text: string } | null>(null)
   const [addSubj, setAddSubj] = useState(false)
   const [busy, setBusy] = useState(false)
   const lc = (x: string) => x.trim().toLowerCase()
@@ -773,9 +778,11 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     return { u, subject: u.subject?.trim() || topicSubj(t) || mains[0] || 'Chưa có môn', topic: t?.title ?? '', outs: outs.filter(o => o.unit_id === u.id).sort((a, b) => a.seq - b.seq) }
   })
   const subjList = [...new Map([...mains, ...p.integrated_subjects, ...rows.map(r => r.subject)].filter(Boolean).map(s => [lc(s), s.trim()] as [string, string])).values()]
-  const sel = subjList.find(s => lc(s) === lc(cur)) ?? subjList[0] ?? ''
-  const mine = rows.filter(r => lc(r.subject) === lc(sel))
-  const shown = mine.filter(r => (!gf || unitGrades(r.u).includes(gf)) && (!q || norm(r.u.title).includes(norm(q))))
+  const fit = (r: LRow) => (!gf || unitGrades(r.u).includes(gf)) && (!q || norm(r.u.title).includes(norm(q)))
+  const rowsOf = (subj: string) => rows.filter(r => lc(r.subject) === lc(subj))
+  const opened = open ?? new Set(subjList.slice(0, 1).map(lc))
+  const isOpen = (subj: string) => q ? rowsOf(subj).some(fit) : opened.has(lc(subj))
+  const toggle = (subj: string) => setOpen(() => { const n = new Set(opened); if (n.has(lc(subj))) n.delete(lc(subj)); else n.add(lc(subj)); return n })
   const pg = progGrades(p)
   const defGrades = gf ? [gf] : pg.length === 1 ? pg : []
   const usable = subjects.filter(s => s.active && (!s.levels.length || p.levels?.some(l => s.levels.includes(l)) || s.levels.includes(p.level)) && !subjList.some(n => lc(n) === lc(s.name)))
@@ -794,7 +801,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     load()
   }
   // Thêm bài vào môn đang chọn: gắn thẳng vào chương trình (không học phần), nối cuối
-  async function addLessons(list: PasteRow[], subj = sel, quiet = false) {
+  async function addLessons(list: PasteRow[], subj: string, quiet = false) {
     if (!list.length) return 0
     setBusy(true)
     let seq = all.filter(u => u.parent_id === null).reduce((m, u) => Math.max(m, u.seq), 0)
@@ -819,7 +826,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     for (const r of recs) {
       const title = stripNo(r.title ?? '')
       if (!title) { bad.push(`dòng ${r._line}: thiếu tên bài`); continue }
-      const subj = (r.subject ?? '').trim() || sel
+      const subj = (r.subject ?? '').trim() || subjList[0] || ''
       if (!subj) { bad.push(`dòng ${r._line}: thiếu môn`); continue }
       const g = gradeList(String(r.grade ?? '')).filter(x => x >= 1 && x <= 12), n = Number(String(r.periods ?? '').replace(',', '.'))
       const k = subjList.find(x => lc(x) === lc(subj)) ?? subj
@@ -843,7 +850,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     load(); onChanged()
   }
   async function move(r: LRow, d: -1 | 1) {
-    const sibs = mine.filter(x => x.u.parent_id === r.u.parent_id)
+    const sibs = rowsOf(r.subject).filter(x => x.u.parent_id === r.u.parent_id)
     const i = sibs.findIndex(x => x.u.id === r.u.id), o = sibs[i + d]
     if (!o) return
     await Promise.all([supabase.from('edu_program_units').update({ seq: o.u.seq }).eq('id', r.u.id), supabase.from('edu_program_units').update({ seq: r.u.seq }).eq('id', o.u.id)])
@@ -853,7 +860,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     setAddSubj(false); if (!name) return
     const { error } = await supabase.from('edu_programs').update({ integrated_subjects: [...p.integrated_subjects, name] }).eq('id', p.id)
     if (error) return onMessage(errText(error.message), true)
-    setCur(name); onChanged()
+    setOpen(new Set([...opened, lc(name)])); onChanged()
   }
   const kitChip = (u: Unit) => { const k = kitOf.get(u.id), n = mats.get(u.id) ?? 0
     return <>{n > 0 && <span className="gpill good">{n} học liệu</span>} {k === 'published' ? <span className="gpill good">Bộ học liệu</span> : k ? <span className="gpill warn">Bộ học liệu đang soạn</span> : !n && <span className="gpill warn">Chưa có</span>}</> }
@@ -873,66 +880,77 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
       : <input key={u.id + val} className="slcell" defaultValue={val} aria-label={`${key === 'title' ? 'Tên' : key === 'grades' ? 'Khối' : 'Số tiết'} bài ${u.title}`}
           inputMode={key === 'title' ? undefined : 'numeric'} onBlur={e => save(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} />
   }
-  const pasted = paste != null ? parseLessonLines(paste, defGrades).map(r => ({ ...r, lib: libUnits?.find(i => lc(i.title) === lc(r.title)) })) : []
+  const pasted = paste ? parseLessonLines(paste.text, defGrades).map(r => ({ ...r, lib: libUnits?.find(i => lc(i.title) === lc(r.title)) })) : []
   const totalP = (rs: LRow[]) => rs.reduce((t, r) => t + (r.u.periods || 0), 0)
 
+  const cols = (mine: LRow[]): Col<LRow>[] => [
+    { key: 'no', label: '#', thClass: 'c-no', cell: r => <span className="sub">{mine.indexOf(r) + 1}</span> },
+    { key: 'title', label: 'Tên bài học', thClass: 'c-title', fixed: true, cell: r => <>{editable ? cell(r, 'title') : <NameLink onClick={() => setOpenL(r.u.id)}>{r.u.title}</NameLink>}
+      {r.topic && <small className="sub sltopic">Chủ đề cũ: {r.topic}</small>}</> },
+    { key: 'grades', label: 'Khối', thClass: 'c-grade', cell: r => cell(r, 'grades') },
+    { key: 'periods', label: 'Số tiết', thClass: 'c-per', cell: r => cell(r, 'periods') },
+    { key: 'outs', label: 'Yêu cầu cần đạt', thClass: 'c-outs', cell: r => cell(r, 'outs') },
+    { key: 'mat', label: 'Học liệu · buổi', thClass: 'c-mat',
+      cell: r => { const ns = all.filter(c => c.parent_id === r.u.id && c.unit_type === 'session').length
+        return <button type="button" className="slopen" onClick={() => setOpenL(r.u.id)} title="Mở chi tiết: học liệu, buổi học, nội dung">{kitChip(r.u)}{ns > 0 && <span className="pill">{ns} buổi</span>}<span className="slmore">Chi tiết ›</span></button> } },
+    ...(editable ? [{ key: 'act', label: '', thClass: 'c-act', fixed: true, cell: (r: LRow) => { const sibs = mine.filter(x => x.u.parent_id === r.u.parent_id), i = sibs.indexOf(r)
+      return <span className="slact"><button type="button" disabled={i <= 0} aria-label="Đưa lên" onClick={() => move(r, -1)}>↑</button><button type="button" disabled={i >= sibs.length - 1} aria-label="Đưa xuống" onClick={() => move(r, 1)}>↓</button><button type="button" className="danger" aria-label={`Xoá ${r.u.title}`} onClick={() => remove(r)}>×</button></span> } }] : []),
+  ]
+  const shownN = rows.filter(fit).length
+
   return <div className="slwrap">
-    <div className="panel slsubj">
-      <small className="slh">Môn trong chương trình</small>
-      {subjList.map(s => { const rs = rows.filter(r => lc(r.subject) === lc(s))
-        return <button key={s} type="button" className={'slitem' + (lc(s) === lc(sel) ? ' on' : '')} onClick={() => { setCur(s); setQ(''); setGf(0) }}>
-          <b>{s}</b><small>{rs.length} bài · {totalP(rs)} tiết</small></button> })}
-      {!subjList.length && <p className="sub">Chưa có môn. Thêm môn ở tab Thông tin hoặc bấm “+ Thêm môn”.</p>}
-      {editable && (addSubj ? <select autoFocus defaultValue="" onChange={e => addSubject(e.target.value)} onBlur={() => setAddSubj(false)} aria-label="Thêm môn">
-          <option value="">— Chọn môn trong danh mục —</option>{usable.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}</select>
-        : <button type="button" className="sladd" onClick={() => setAddSubj(true)}>+ Thêm môn</button>)}
-      <small className="sub">Bấm môn để xem bài học. Số tiết cộng theo bài.</small>
+    <div className="sltools">
+      <input placeholder="Tìm bài trong mọi môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
+      {pg.length > 1 && <select value={gf} onChange={e => setGf(Number(e.target.value))} aria-label="Khối"><option value={0}>Tất cả khối</option>{pg.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>}
+      {!q && subjList.length > 1 && <>
+        <button type="button" onClick={() => setOpen(new Set())}>⊟ Thu gọn tất cả</button>
+        <button type="button" onClick={() => setOpen(new Set(subjList.map(lc)))}>⊞ Mở tất cả</button></>}
+      {(q || gf > 0) && <small className="sub">{shownN}/{rows.length} bài khớp</small>}
+      <span style={{ flex: 1 }} />
+      {rows.length > 0 && <button type="button" onClick={exportLessons}>⤓ Tải Excel</button>}
+      {editable && <ImportExcel label="⇪ Nhập Excel" columns={LIMPORT} template="Mau-mon-bai-hoc" onRecords={importLessons} onMessage={(m, e) => onMessage(m, e)}
+        sample={[['Tin học', '6', 'Bài 1. Thông tin và dữ liệu', '2', 'Phân biệt được thông tin và dữ liệu; Nêu được ví dụ'], ['Tin học', '6', 'Bài 2. Xử lí thông tin', '2', '']]} />}
     </div>
-    <div className="slmain">
-      <DataTable id="edu-lessons" simple rows={shown} rowKey={r => r.u.id}
-        empty={<small className="sub">{mine.length ? 'Không có bài nào khớp bộ lọc.' : `Môn ${sel || '…'} chưa có bài học.${editable ? ' Gõ tên bài ở dòng dưới hoặc bấm “Dán danh sách”.' : ''}`}</small>}
-        left={<><b className="slname">{sel}</b>
-          <input placeholder="Tìm bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
-          {pg.length > 1 && <select value={gf} onChange={e => setGf(Number(e.target.value))} aria-label="Khối"><option value={0}>Tất cả khối</option>{pg.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>}
-          <small className="sub">{mine.length} bài · {totalP(mine)} tiết</small></>}
-        right={<>
-          {rows.length > 0 && <button type="button" onClick={exportLessons}>Tải Excel</button>}
-          {editable && <ImportExcel columns={LIMPORT} template="Mau-mon-bai-hoc" onRecords={importLessons} onMessage={(m, e) => onMessage(m, e)}
-            sample={[['Tin học', '6', 'Bài 1. Thông tin và dữ liệu', '2', 'Phân biệt được thông tin và dữ liệu; Nêu được ví dụ'], ['Tin học', '6', 'Bài 2. Xử lí thông tin', '2', '']]} />}
-          {editable && sel && <button type="button" className="primary ttadd" onClick={() => setPaste('')}>⧉ Dán danh sách bài</button>}
-        </>}
-        cols={[
-          { key: 'no', label: '#', cell: r => <span className="sub">{mine.indexOf(r) + 1}</span> },
-          { key: 'title', label: 'Tên bài học', fixed: true, text: r => r.u.title, cell: r => editable ? cell(r, 'title') : <NameLink onClick={() => setOpenL(r.u.id)}>{r.u.title}</NameLink> },
-          { key: 'topic', label: 'Chủ đề', off: true, text: r => r.topic, cell: r => r.topic || <span className="sub">—</span> },
-          { key: 'grades', label: 'Khối', text: r => unitGrades(r.u).join(', '), values: r => unitGrades(r.u).map(g => 'Khối ' + g), cell: r => cell(r, 'grades') },
-          { key: 'periods', label: 'Số tiết', text: r => String(r.u.periods || ''), cell: r => cell(r, 'periods') },
-          { key: 'outs', label: 'Yêu cầu cần đạt', cell: r => cell(r, 'outs') },
-          { key: 'mat', label: 'Học liệu · buổi', text: r => kitOf.get(r.u.id) === 'published' || mats.get(r.u.id) ? 'Có học liệu' : 'Chưa có',
-            cell: r => { const ns = all.filter(c => c.parent_id === r.u.id && c.unit_type === 'session').length
-              return <button type="button" className="slopen" onClick={() => setOpenL(r.u.id)} title="Mở chi tiết: học liệu, buổi học, nội dung">{kitChip(r.u)}{ns > 0 && <span className="pill">{ns} buổi</span>}<span className="slmore">Chi tiết ›</span></button> } },
-          ...(editable ? [{ key: 'act', label: '', fixed: true, cell: (r: LRow) => { const sibs = mine.filter(x => x.u.parent_id === r.u.parent_id), i = sibs.indexOf(r)
-            return <span className="slact"><button type="button" disabled={i <= 0} aria-label="Đưa lên" onClick={() => move(r, -1)}>↑</button><button type="button" disabled={i >= sibs.length - 1} aria-label="Đưa xuống" onClick={() => move(r, 1)}>↓</button><button type="button" className="danger" aria-label={`Xoá ${r.u.title}`} onClick={() => remove(r)}>×</button></span> } }] : []),
-        ] as Col<LRow>[]}
-        foot={editable && sel ? <tfoot><tr className="slnew"><td colSpan={9}>
-          <input value={newTitle} disabled={busy} placeholder={`+ Gõ tên bài mới cho môn ${sel} rồi nhấn Enter (dán nhiều dòng để thêm nhiều bài)`} aria-label="Tên bài mới"
-            onChange={e => setNewTitle(e.target.value)}
-            onPaste={e => { const t = e.clipboardData.getData('text'); if (/\n/.test(t.trim())) { e.preventDefault(); setPaste(t) } }}
-            onKeyDown={e => { if (e.key === 'Enter' && newTitle.trim()) { addLessons(parseLessonLines(newTitle, defGrades)); setNewTitle('') } }} />
-        </td></tr></tfoot> : undefined} />
-      {editable && <small className="sub">Bấm vào ô để sửa ngay, rời ô là lưu. Bấm “Chi tiết ›” để gắn học liệu, chia buổi và soạn nội dung. Học phần cũ (nếu có) hiện ở cột “Chủ đề” trong “Ẩn/hiện cột”.</small>}
-    </div>
+    {!subjList.length && <p className="sub">Chưa có môn. Chọn môn chủ đạo ở “Sửa thông tin” hoặc bấm “+ Thêm môn”.</p>}
+    {subjList.map(subj => {
+      const mine = rowsOf(subj), shown = mine.filter(fit), on = isOpen(subj), main = mains.some(m => lc(m) === lc(subj))
+      if (q && !shown.length) return null
+      return <section key={subj} className={'slsec' + (on ? ' on' : '')}>
+        <div className="slsech">
+          <button type="button" className="sltoggle" aria-expanded={on} onClick={() => toggle(subj)}>
+            <span className="slcar" aria-hidden="true">{on ? '▾' : '▸'}</span><b>{subj}</b>{main && <span className="slmeta">môn chủ đạo</span>}</button>
+          <span style={{ flex: 1 }} />
+          {on && editable && <button type="button" className="slpaste" onClick={() => setPaste({ subj, text: '' })}>⧉ Dán danh sách bài</button>}
+          <span className="slmeta">{mine.length} bài · {totalP(mine)} tiết</span>
+        </div>
+        {on && <div className="slmain">
+          <DataTable id={'edu-lessons'} noTools rows={shown} rowKey={r => r.u.id} className="slt"
+            empty={<small className="sub">{mine.length ? 'Không có bài nào khớp bộ lọc.' : `Môn ${subj} chưa có bài học.${editable ? ' Gõ tên bài ở dòng dưới hoặc bấm “Dán danh sách bài”.' : ''}`}</small>}
+            cols={cols(mine)}
+            foot={editable ? <tfoot><tr className="slnew"><td colSpan={9}>
+              <input value={newT[subj] ?? ''} disabled={busy} placeholder={`+ Gõ tên bài mới cho môn ${subj} rồi nhấn Enter (dán nhiều dòng để thêm nhiều bài)`} aria-label={`Tên bài mới môn ${subj}`}
+                onChange={e => setNewT(t => ({ ...t, [subj]: e.target.value }))}
+                onPaste={e => { const t = e.clipboardData.getData('text'); if (/\n/.test(t.trim())) { e.preventDefault(); setPaste({ subj, text: t }) } }}
+                onKeyDown={e => { const v = newT[subj] ?? ''; if (e.key === 'Enter' && v.trim()) { addLessons(parseLessonLines(v, defGrades), subj); setNewT(t => ({ ...t, [subj]: '' })) } }} />
+            </td></tr></tfoot> : undefined} />
+        </div>}
+      </section>
+    })}
+    {editable && (addSubj ? <select className="sladdsel" autoFocus defaultValue="" onChange={e => addSubject(e.target.value)} onBlur={() => setAddSubj(false)} aria-label="Thêm môn">
+        <option value="">— Chọn môn trong danh mục —</option>{usable.map(s => <option key={s.id} value={s.name}>{s.name}</option>)}</select>
+      : <button type="button" className="sladdsubj" onClick={() => setAddSubj(true)}>+ Thêm môn (chọn từ danh mục)</button>)}
+    {editable && <small className="sub">Bấm vào ô để sửa ngay, rời ô là lưu. Bấm “Chi tiết ›” để gắn học liệu, chia buổi và soạn nội dung.</small>}
     {openL && byId.get(openL) && <LessonDetail u={byId.get(openL)!} p={p} all={all} umats={umats} outs={outs} editable={editable}
       onClose={() => setOpenL(null)} onChanged={() => { load(); onChanged() }} onMessage={onMessage} />}
-    {paste != null && <Drawer title={`Dán danh sách bài vào môn ${sel}`} onClose={() => setPaste(null)} closeOnOutside={false}
-      actions={<><button type="button" className="primary" disabled={!pasted.length || busy} onClick={async () => { await addLessons(pasted); setPaste(null) }}>Thêm {pasted.length} bài</button>
+    {paste && <Drawer title={`Dán danh sách bài vào môn ${paste.subj}`} onClose={() => setPaste(null)} closeOnOutside={false}
+      actions={<><button type="button" className="primary" disabled={!pasted.length || busy} onClick={async () => { await addLessons(pasted, paste.subj); setPaste(null) }}>Thêm {pasted.length} bài</button>
         <button type="button" onClick={() => setPaste(null)}>Huỷ</button></>}>
       <p className="sub" style={{ marginTop: 0 }}>Mỗi dòng một bài. Dán thẳng từ Excel / Word được, các cột theo thứ tự: <b>Tên bài · Khối · Số tiết · Yêu cầu cần đạt</b> (chỉ tên là bắt buộc). Số thứ tự kiểu “Bài 6.” ở đầu dòng tự bỏ.</p>
-      <textarea autoFocus rows={8} value={paste} onChange={e => setPaste(e.target.value)} placeholder={'Bài 1. Thông tin và dữ liệu\t6\t2\nBài 2. Xử lí thông tin\t6\t2'} style={{ width: '100%', fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 13 }} aria-label="Danh sách bài" />
+      <textarea autoFocus rows={8} value={paste.text} onChange={e => setPaste({ ...paste, text: e.target.value })} placeholder={'Bài 1. Thông tin và dữ liệu\t6\t2\nBài 2. Xử lí thông tin\t6\t2'} style={{ width: '100%', fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 13 }} aria-label="Danh sách bài" />
       {pasted.length > 0 && <div className="wrap" style={{ marginTop: 10 }}><table>
         <thead><tr><th>Tên bài</th><th>Khối</th><th>Số tiết</th><th>Yêu cầu cần đạt</th><th></th></tr></thead>
         <tbody>{pasted.map((r, i) => <tr key={i}><td>{r.title}</td><td>{r.grades.join(', ') || '—'}</td><td>{r.periods}</td><td><small>{r.outs.join('; ') || '—'}</small></td>
-          <td>{mine.some(x => lc(x.u.title) === lc(r.title)) ? <span className="gpill warn">Trùng bài đã có</span> : r.lib ? <span className="gpill good">Có trong kho → gắn học liệu</span> : <span className="pill">Mới</span>}</td></tr>)}</tbody>
+          <td>{rowsOf(paste.subj).some(x => lc(x.u.title) === lc(r.title)) ? <span className="gpill warn">Trùng bài đã có</span> : r.lib ? <span className="gpill good">Có trong kho → gắn học liệu</span> : <span className="pill">Mới</span>}</td></tr>)}</tbody>
       </table></div>}
       <p className="sub">{pasted.length} bài · {pasted.reduce((t, r) => t + r.periods, 0)} tiết</p>
     </Drawer>}
@@ -1027,12 +1045,13 @@ function VersionActions({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, on
           {can && p.status === 'approved' && <button className="primary" disabled={busy} onClick={() => setStatus('published', 'Ghi chú phát hành (không bắt buộc):')}>Phát hành</button>}
           {can && p.status === 'approved' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại để sửa</button>}
           {can && p.status === 'published' && !hid('version') && <button className="primary" disabled={busy} onClick={newVersion}>Tạo phiên bản mới</button>}
-          {can && ['published', 'superseded', 'draft', 'rejected', 'approved'].includes(p.status) && <button disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Đơn vị khác không còn thấy bản ngừng dùng.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng</button>}
+          {can && ['published', 'superseded', 'draft', 'rejected', 'approved'].includes(p.status) && <details className="pdmore"><summary aria-label="Thao tác khác" title="Thao tác khác">⋯</summary>
+            <div><button type="button" className="danger" disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Đơn vị khác không còn thấy bản ngừng dùng.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng phiên bản này</button></div></details>}
           {can && p.status === 'archived' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại thành nháp</button>}
   </>
 }
 
-function VersionsTab({ p, onOpen }: { p: Program; onOpen: (id: string) => void }) {
+function VersionsTab({ p, onOpen, compact }: { p: Program; onOpen: (id: string) => void; compact?: boolean }) {
   const [vers, setVers] = useState<Program[]>([])
   const [log, setLog] = useState<LogRow[]>([])
   useEffect(() => {
@@ -1041,6 +1060,13 @@ function VersionsTab({ p, onOpen }: { p: Program; onOpen: (id: string) => void }
       supabase.from('edu_program_log').select('id, from_status, to_status, note, at').eq('program_id', p.id).order('at', { ascending: false }),
     ]).then(([v, l]) => { setVers((v.data as Program[]) ?? []); setLog((l.data as LogRow[]) ?? []) })
   }, [p.id, p.status])
+  if (compact) return <>
+    <ul className="pdvers">{vers.map(v => <li key={v.id} className={v.id === p.id ? 'on' : ''}>
+      {v.id === p.id ? <b>v{v.version_no}</b> : <NameLink onClick={() => onOpen(v.id)}>v{v.version_no}</NameLink>}
+      {v.id === p.id && <span className="slmeta">đang xem</span>}<span style={{ flex: 1 }} /><StatusPill s={v.status} /><small className="sub">{v.published_at ? fmtD(v.published_at) : ''}</small></li>)}</ul>
+    {log.length > 0 && <details className="pdlog"><summary>Lịch sử trạng thái ({log.length})</summary><ul className="sub">
+      {log.map(l => <li key={l.id}>{new Date(l.at).toLocaleString('vi-VN')} · {l.from_status ? `${PSTATUS[l.from_status as Status]?.[0] ?? l.from_status} → ` : ''}<b>{PSTATUS[l.to_status as Status]?.[0] ?? l.to_status}</b>{l.note ? ` — ${l.note}` : ''}</li>)}</ul></details>}
+  </>
   return (
     <>
       <h3>Các phiên bản</h3>

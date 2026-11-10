@@ -2676,3 +2676,10 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .distpickpop li.sep{padding:6px 8px 2px;border-top:1px solid var(--line);margin-top:4px}
 .main .distpcx,.distpc .distpcx{border:0;background:none;box-shadow:none;padding:0 4px;min-height:0;height:auto;width:auto;font-size:16px}
 .distpicker>button{font-size:13px;padding:6px 12px}
+.disttbl th.c-per{width:96px}.disttbl input[type=number].slcell{width:72px;min-width:72px;padding:4px 6px}
+.distgrid .cell.rsel{outline:2px solid #f59e0b;outline-offset:-1px;cursor:grab}
+.distgrid .cell.rtarget{box-shadow:inset 0 0 0 2px #2563eb;background-image:repeating-linear-gradient(45deg,rgba(37,99,235,.18) 0 4px,transparent 4px 8px)}
+.distgrid .subjrow{user-select:none}
+.distshiftbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px;padding:6px 10px;border:1px solid #fde68a;background:#fffbeb;border-radius:8px;font-size:13px}
+.distshiftbar button{font-size:12.5px;padding:4px 10px}
+.distshifthint{display:block;margin-top:6px}

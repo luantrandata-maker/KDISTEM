@@ -499,15 +499,15 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
     const none = <span className="sub">Chưa có</span>
     const chips = (xs: string[]) => xs.length ? <span className="pvchips">{xs.map(x => <span key={x} className="pill">{x}</span>)}</span> : none
     return <>
-      <div className="pdstats">
-        <div><b>{nSubj}</b><span>môn</span></div>
-        <div><b>{lessonN ?? '…'}</b><span>bài học</span></div>
-        <div><b>{q.total_periods ?? 0}</b><span>tiết{q.periods_per_week != null ? ` · ${String(q.periods_per_week).replace('.', ',')} tiết/tuần` : ''}</span></div>
-        <div><b>{dep?.[0] ?? '—'}</b><span>{dep?.[1] ?? 'thời gian triển khai'}</span></div>
-        {mode !== 'school' && <div><b>{asgN ?? '…'}</b><span>đơn vị được gán</span></div>}
-      </div>
       <div className="pdgrid">
         <div className="pdmain">
+          <div className="pdstats">
+            <div><b>{nSubj}</b><span>môn</span></div>
+            <div><b>{lessonN ?? '…'}</b><span>bài học</span></div>
+            <div><b>{q.total_periods ?? 0}</b><span>tiết{q.periods_per_week != null ? ` · ${String(q.periods_per_week).replace('.', ',')} tiết/tuần` : ''}</span></div>
+            <div><b>{dep?.[0] ?? '—'}</b><span>{dep?.[1] ?? 'thời gian triển khai'}</span></div>
+            {mode !== 'school' && <div><b>{asgN ?? '…'}</b><span>đơn vị được gán</span></div>}
+          </div>
           <div className="panel pdcard"><h4>Môn & bài học</h4>{lessons}</div>
         </div>
         <div className="pdside">

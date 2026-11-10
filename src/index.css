@@ -2599,3 +2599,19 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .ttsidehide{position:absolute;top:10px;right:8px;z-index:3}
 .ttaside .gtree>.gtitem:first-child{padding-right:34px}
 .ttaside-off{padding:10px 5px;display:flex;justify-content:center}
+/* Chú thích thu gọn: rê chuột / focus để xem */
+.infotip{display:inline-flex;align-items:center;gap:4px;font-size:13px;color:var(--muted);cursor:help;white-space:nowrap;position:relative}
+.infotip:hover,.infotip:focus{color:var(--primary);outline:none}
+.infotip:hover::after,.infotip:focus::after{content:attr(title);position:absolute;top:calc(100% + 6px);right:0;z-index:30;width:min(420px,80vw);white-space:normal;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--text);font-size:13px;line-height:1.5;box-shadow:0 8px 24px rgba(15,23,42,.12)}
+/* Khung đánh giá gọn: điều kiện | thang xếp loại cạnh nhau; thang xếp loại xếp ngang */
+.efgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:1100px){.efgrid{grid-template-columns:1fr}}
+.efgrid .libtargets{margin:0}
+.efcond{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))!important;gap:10px 12px}
+.efgrades{display:flex;flex-wrap:wrap;gap:8px 10px;align-items:center}
+.efgrade{display:inline-flex;align-items:center;gap:6px;padding:4px 6px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.efgrade input:not(.efnum){width:110px}
+.efgrade .efnum{width:64px}
+.efgrade .x{padding:0 4px}
+.efgrade input{padding:5px 8px!important;min-height:0!important}
+.efgrade small{align-self:center;margin:0}

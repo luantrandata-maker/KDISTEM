@@ -25,6 +25,7 @@ const years = () => { const y = schoolYear(); const s = +y.slice(0, 4); return [
 type Round = { id: string; org_id: string; name: string; school_year: string; opens_on: string; due_on: string; target_level: number; note: string | null
   status: 'open' | 'closed'; reminded_at: string | null; created_at: string; organizations?: { name: string } | null }
 type Prog = { org_id: string; org_name: string; teachers: number; self_done: number; manager_done: number }
+const GAP_NOTE = 'Mức năng lực lấy theo đánh giá năm học (ưu tiên mức trường đánh giá, nếu chưa có thì mức tự đánh giá đã nộp). Chứng chỉ đào tạo đã cấp nâng mức lên bằng mức đích của chương trình. Nhà giáo dưới mức yêu cầu được gợi ý chương trình đào tạo đã phát hành có bồi dưỡng năng lực đó.'
 const roundSt = (r: Round): [string, string] => r.status === 'closed' ? ['Đã đóng', ''] : r.due_on < today() ? ['Quá hạn', 'bad'] : r.opens_on > today() ? ['Sắp mở', ''] : ['Đang mở', 'good']
 
 export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
@@ -263,10 +264,6 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
       shown.map(g => [g.teacher_name, g.org_name, g.competency_name, g.level, g.suggest.map(s => `${s.code ?? ''} ${s.title}`.trim()).join('; ')]), 'Thiếu hụt')
   }
   return <>
-    <div className="panel distintro">
-      <p style={{ margin: 0 }}>Mức năng lực lấy theo đánh giá năm học (ưu tiên mức trường đánh giá, nếu chưa có thì mức tự đánh giá đã nộp). Chứng chỉ đào tạo đã cấp nâng mức lên bằng mức đích của chương trình.
-        Nhà giáo dưới mức yêu cầu được gợi ý chương trình đào tạo đã phát hành có bồi dưỡng năng lực đó.</p>
-    </div>
     <StatCards active={gapActive} onPick={k => {
       // "Thiếu nhiều nhất" chọn năng lực đó; "Chưa có chương trình" lọc riêng; bấm lại để bỏ
       if (k === 'top') { setCard(null); if (top) setComp(top[0].key) }
@@ -287,6 +284,8 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
         <MultiFilters defs={of.defs} f={mf} />
         <input placeholder="Tìm tên nhà giáo…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm nhà giáo" />
         <button type="button" onClick={excel} disabled={!shown.length}>Xuất Excel</button>
+        {/* Chú thích cách tính: rê chuột vào để xem (không chiếm chỗ trên trang) */}
+        <span className="infotip" tabIndex={0} title={GAP_NOTE} aria-label={GAP_NOTE}>ⓘ Cách tính</span>
       </div>
       <div className="distfilter">
         <button type="button" className={`distfchip${!comp ? ' on' : ''}`} onClick={() => setComp('')}>Tất cả năng lực ({base.length})</button>

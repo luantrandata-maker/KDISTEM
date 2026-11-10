@@ -217,8 +217,6 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
         {filtered && <button type="button" className="fclear" onClick={() => { setYear(''); setProv(''); setUnit(''); setSt(''); setQ(''); setF('all') }}>Bỏ lọc</button>}
         <button type="button" onClick={excel} disabled={!shown.length}>Xuất Excel</button>
       </div>
-      <div className="distfilter">{([['all', 'Tất cả'], ['alert', 'Có cảnh báo'], ['running', 'Đang diễn ra'], ['done', 'Đã kết thúc']] as const)
-        .map(([k, l]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => setF(k)}>{l}{k === 'alert' ? ` (${hasAlert.size})` : ''}</button>)}</div>
     </section>
     {alerts.length > 0 && <section className="panel monalerts" style={{ marginTop: 14 }}>
       <div className="monhead">

@@ -487,8 +487,6 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
   const cur = teachers.find(t => t.id === sel)
   if (cur) return <TeacherAssessDetail t={cur} year={year} comps={comps} self={of(cur.id, 'self')} mgr={of(cur.id, 'manager')} canEdit={canEdit}
     initialTab={profile ? 'profile' : 'assess'} back={profile ? 'Hồ sơ năng lực' : 'Đánh giá năng lực nhà giáo'} onBack={() => setSel(null)} onChanged={load} />
-  const selfDone = teachers.filter(t => of(t.id, 'self')?.status === 'submitted').length
-  const mgrDone = teachers.filter(t => of(t.id, 'manager')?.status === 'submitted').length
   const stOf = (t: TRow) => { const s = of(t.id, 'self'), m = of(t.id, 'manager')
     return m?.status === 'submitted' ? 'mgr' : s?.status === 'submitted' ? 'self' : s || m ? 'draft' : 'none' }
   // Mỗi bộ lọc chỉ gợi ý giá trị khớp với các bộ lọc khác (bỏ qua chính nó)
@@ -527,12 +525,12 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
     { k: 'mgr', icon: 'school', tone: nOf('mgr') ? 'good' : '', value: nOf('mgr'), label: 'Trường đánh giá', sub: 'Đã lưu đánh giá' },
     { k: 'wait', icon: 'hourglass', tone: nOf('wait') ? 'warn' : 'good', value: nOf('wait'), label: 'Chờ trường đánh giá', sub: 'Đã tự đánh giá, trường chưa đánh giá' },
   ]} />
-  const filterBar = <div className="tools" style={{ flexWrap: 'wrap' }}><MultiFilters defs={filterDefs} f={mf} count={`${shownAll.length}/${teachers.length} GV${shownAll.length > 500 ? ' · hiện 500 đầu' : ''}`} /></div>
+  // Bộ lọc bên trái, Xuất Excel bên phải trên cùng một hàng (bỏ dòng tiêu đề mô tả)
+  const filterBar = <div className="bar" style={{ margin: 0, alignItems: 'flex-start' }}>
+    <div className="tools" style={{ flexWrap: 'wrap' }}><MultiFilters defs={filterDefs} f={mf} count={`${shownAll.length}/${teachers.length} GV${shownAll.length > 500 ? ' · hiện 500 đầu' : ''}`} /></div>
+    <span className="tools"><button type="button" onClick={excel} disabled={!teachers.length}>Xuất Excel</button></span>
+  </div>
   if (profile) return <>{cards}{msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}<section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
-    <div className="bar" style={{ margin: 0 }}>
-      <h3 style={{ margin: 0 }}>Hồ sơ năng lực nhà giáo <small className="sub">· {teachers.length} nhà giáo · năm học {year}: {selfDone} đã tự đánh giá · {mgrDone} trường đã đánh giá</small></h3>
-      <span className="tools"><button type="button" onClick={excel} disabled={!teachers.length}>Xuất Excel</button></span>
-    </div>
     {filterBar}
     <div className="wrap"><table className="libtable">
       <thead><tr><th>Nhà giáo</th>{!orgId && <th>Trường</th>}<th>Môn · khối</th><th>Mức năng lực ({year})</th>{comps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}<th>Chứng chỉ</th></tr></thead>
@@ -553,10 +551,6 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
       {cards}
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
       <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
-        <div className="bar" style={{ margin: 0 }}>
-          <h3 style={{ margin: 0 }}>Đánh giá năng lực nhà giáo <small className="sub">· năm học {year}: {selfDone}/{teachers.length} đã tự đánh giá · {mgrDone}/{teachers.length} trường đã đánh giá</small></h3>
-          <span className="tools"><button type="button" onClick={excel} disabled={!teachers.length}>Xuất Excel</button></span>
-        </div>
         {filterBar}
         <div className="wrap"><table className="libtable">
           <thead><tr><th>Nhà giáo</th>{!orgId && <th>Trường</th>}<th>Tự đánh giá</th><th>Trường đánh giá</th>{comps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}<th /></tr></thead>

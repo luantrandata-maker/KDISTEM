@@ -162,12 +162,6 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
             {(rows, { isFinal, unsorted }) => table(rows, unsorted ? 'Không có kế hoạch nào.' : isFinal && can ? 'Chưa có kế hoạch nào trong mục này. Bấm “+ Lập kế hoạch đào tạo”.' : 'Chưa có kế hoạch nào trong mục này.')}
           </ClsTree></>
         : <>
-          <div className="bar tphead">
-            <span />
-            <div className="tools">
-              <button type="button" onClick={() => { setTab('tree'); setMsg(null) }}>Khung phân loại</button>
-</div>
-          </div>
           {(() => {
             const f = ofl.node([...list.map(p => p.org_id), ...orgs.map(o => o.org_id)])
             const left = <>
@@ -177,7 +171,10 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
               <small className="sub">{shown.length}/{list.length} kế hoạch · {schools} trường được gán{waiting > 0 && <> · <b>{waiting} danh sách chờ duyệt</b></>}</small></>
             const toggle = <span className="segmented viewtoggle" role="group" aria-label="Kiểu xem">{([['table', 'Bảng'], ['cal', 'Lịch']] as const).map(([k, l]) =>
               <button key={k} type="button" className={look === k ? 'on' : ''} aria-pressed={look === k} onClick={() => setLook(k)}>{l}</button>)}</span>
-            const add = can && <button type="button" className="primary ttadd" onClick={() => { setMsg(null); setCreate({ node: null }) }}>+ Lập kế hoạch</button>
+            const add = <>
+              {/* Khung phân loại nằm cùng hàng công cụ, cạnh Bảng / Lịch */}
+              <button type="button" onClick={() => { setTab('tree'); setMsg(null) }}>Khung phân loại</button>
+              {can && <button type="button" className="primary ttadd" onClick={() => { setMsg(null); setCreate({ node: null }) }}>+ Lập kế hoạch</button>}</>
             return look === 'cal' ? <>
               <div className="bar"><div className="tools">{left}</div><div className="tools">{toggle}{add}</div></div>
               <PlanCal plans={shown} label={p => [multiOrg && orgName(p.org_id), p.plan_code].filter(Boolean).join(' · ')} onOpen={id => { setMsg(null); setOpen(id) }} /></>

@@ -509,13 +509,12 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
       <div className="pdgrid">
         <div className="pdmain">
           <div className="panel pdcard"><h4>Môn & bài học</h4>{lessons}</div>
-          <div className="panel pdcard"><h4>Mục tiêu & đánh giá</h4>
-            <dl className="pddl">
-              <dt>Mục tiêu chương trình</dt><dd style={{ whiteSpace: 'pre-line' }}>{q.objectives || <span className="sub">Chưa nhập{editable ? ' · bấm “Sửa thông tin” để thêm' : ''}</span>}</dd>
-              <dt>Năng lực học sinh</dt><dd>{chips((q.competency_keys ?? []).map(k => nameOf(comps, k)))}</dd>
-              <dt>Tiêu chí đánh giá</dt><dd>{chips((q.rubric_ids ?? []).map(k => nameOf(rubrics, k)))}</dd>
-              {progFields.map(x => <Fragment key={x.key}><dt>{x.label}</dt><dd>{customCell(x, q.custom?.[x.key]) ?? '—'}</dd></Fragment>)}
-              {q.note && <><dt>Ghi chú</dt><dd style={{ whiteSpace: 'pre-line' }}>{q.note}</dd></>}
+          <div className="panel pdcard"><h4>Phạm vi & hiệu lực {effNote && <span className={'pill ' + (effNote.startsWith('Hết') ? 'bad' : 'warn')}>{effNote}</span>}
+            {!editable && scopeEditable && <button type="button" className="linkbtn" onClick={edit}>Điều chỉnh ›</button>}</h4>
+            <dl className="pddl sm">
+              {showScope && <><dt>Áp dụng</dt><dd>{q.scope === 'own' ? 'Chỉ đơn vị mình và đơn vị được gán' : 'Tất cả đơn vị trực thuộc'}</dd></>}
+              <dt>Hiệu lực</dt><dd>{q.effective_from ? 'Từ ' + fmtD(q.effective_from) : 'Chưa đặt'}{q.effective_to ? ' đến ' + fmtD(q.effective_to) : ''}</dd>
+              {mode !== 'school' && <><dt>Được gán</dt><dd>{asgN ?? '…'} đơn vị{onGoAssign && <> · <button type="button" className="linkbtn" onClick={onGoAssign}>Gán thêm ›</button></>}</dd></>}
             </dl>
           </div>
         </div>
@@ -531,20 +530,21 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
               <dt>Xây dựng</dt><dd>{q.builder || '—'}</dd>
             </dl>
           </div>
-          <div className="panel pdcard"><h4>Phạm vi & hiệu lực {effNote && <span className={'pill ' + (effNote.startsWith('Hết') ? 'bad' : 'warn')}>{effNote}</span>}
-            {!editable && scopeEditable && <button type="button" className="linkbtn" onClick={edit}>Điều chỉnh ›</button>}</h4>
+          <div className="panel pdcard"><h4>Mục tiêu & đánh giá</h4>
             <dl className="pddl sm">
-              {showScope && <><dt>Áp dụng</dt><dd>{q.scope === 'own' ? 'Chỉ đơn vị mình và đơn vị được gán' : 'Tất cả đơn vị trực thuộc'}</dd></>}
-              <dt>Hiệu lực</dt><dd>{q.effective_from ? 'Từ ' + fmtD(q.effective_from) : 'Chưa đặt'}{q.effective_to ? ' đến ' + fmtD(q.effective_to) : ''}</dd>
-              {mode !== 'school' && <><dt>Được gán</dt><dd>{asgN ?? '…'} đơn vị{onGoAssign && <> · <button type="button" className="linkbtn" onClick={onGoAssign}>Gán thêm ›</button></>}</dd></>}
+              <dt>Mục tiêu</dt><dd style={{ whiteSpace: 'pre-line' }}>{q.objectives || <span className="sub">Chưa nhập{editable ? ' · bấm “Sửa thông tin” để thêm' : ''}</span>}</dd>
+              <dt>Năng lực học sinh</dt><dd>{chips((q.competency_keys ?? []).map(k => nameOf(comps, k)))}</dd>
+              <dt>Tiêu chí đánh giá</dt><dd>{chips((q.rubric_ids ?? []).map(k => nameOf(rubrics, k)))}</dd>
+              {progFields.map(x => <Fragment key={x.key}><dt>{x.label}</dt><dd>{customCell(x, q.custom?.[x.key]) ?? '—'}</dd></Fragment>)}
+              {q.note && <><dt>Ghi chú</dt><dd style={{ whiteSpace: 'pre-line' }}>{q.note}</dd></>}
             </dl>
           </div>
-          {versions && <div className="panel pdcard"><h4>Phiên bản</h4>{versions}</div>}
           <div className="panel pdcard"><h4>Năng lực giáo viên
             {!editable && reqEditable && <button type="button" className="linkbtn" onClick={edit}>Điều chỉnh ›</button>}</h4>
             {reqs0.length ? <div className="pvchips">{reqs0.map(r => <span key={r.competency} className="pill">{nameOf(tcomps, r.competency)} · từ Mức {r.min_level}</span>)}</div>
               : <small className="sub">Chưa đặt yêu cầu: chỉ giáo viên Đạt khoá đào tạo có gắn chương trình mới được tính đáp ứng.</small>}
           </div>
+          {versions && <div className="panel pdcard"><h4>Phiên bản</h4>{versions}</div>}
         </div>
       </div>
     </>

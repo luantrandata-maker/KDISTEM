@@ -226,7 +226,8 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   const holWeeks = [...weekLoad(s.rows).keys()].filter(w => cal.weeks.get(w)?.holidays.length).sort((a, b) => a - b)
   const grid = (titles?: boolean) => <>
     <CalBar cal={cal} />
-    <WeekGrid plan={plan} order={order} progs={progs} s={s} titles={titles} cal={cal.state === 'ok' ? cal.weeks : undefined} calLabel={cal.label} year={cal.year} titleOf={id => title.get(id) ?? ''} />
+    <WeekGrid plan={plan} order={order} progs={progs} s={s} titles={titles} cal={cal.state === 'ok' ? cal.weeks : undefined} calLabel={cal.label} year={cal.year} titleOf={id => title.get(id) ?? ''}
+      onShift={editable ? shiftRange : undefined} onAuto={editable ? (pid, sub, a, b) => setRows(inRange(pid, sub, a, b).map(r => r.unit_id), { manual: false }) : undefined} />
   </>
 
   const touch = () => { setDirty(true) }
@@ -235,6 +236,27 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   const setRow = (uid: string, patch: Partial<Row>) => {
     const cur = s.rows.find(r => r.unit_id === uid); if (!cur) return
     setPrev(m => new Map(m).set(uid, { ...cur, ...patch })); touch()
+  }
+  /** Bài (đang dạy) của một môn có tuần bắt đầu trong đoạn [a, b] */
+  const inRange = (pid: string, sub: string, a: number, b: number) =>
+    s.rows.filter(r => r.program_id === pid && !r.skipped && s.subjOf.get(r.unit_id) === sub && r.weeks?.length && r.weeks[0] >= a && r.weeks[0] <= b)
+  /** Dời các bài trong đoạn tuần đi d tuần (đặt tuần bằng tay) */
+  function shiftRange(pid: string, sub: string, a: number, b: number, d: number) {
+    const sel = inRange(pid, sub, a, b)
+    if (!sel.length) return setToast({ text: `Không có bài nào của ${sub} bắt đầu trong tuần ${a}–${b}.`, bad: true })
+    // Bài kề bên bị đè thì dời theo (dồn tiếp), chỗ trống thì giữ nguyên
+    const all = s.rows.filter(r => r.program_id === pid && !r.skipped && s.subjOf.get(r.unit_id) === sub && r.weeks?.length).sort((x, y) => x.weeks![0] - y.weeks![0])
+    const rs = [...sel]
+    if (d > 0) {
+      let end = Math.max(...sel.map(r => Math.max(...r.weeks!) + d))
+      for (const r of all.filter(r => r.weeks![0] > b)) { if (r.weeks![0] > end) break; rs.push(r); end = Math.max(end, Math.max(...r.weeks!) + d) }
+    } else {
+      let start = Math.min(...sel.map(r => r.weeks![0] + d))
+      for (const r of all.filter(r => r.weeks![0] < a).reverse()) { if (Math.max(...r.weeks!) < start) break; rs.push(r); start = Math.min(start, r.weeks![0] + d) }
+    }
+    if (rs.some(r => r.weeks![0] + d < 1)) return setToast({ text: 'Không lùi được nữa: bài đầu đã ở tuần 1.', bad: true })
+    setPrev(m => { const n = new Map(m); for (const r of rs) n.set(r.unit_id, { ...r, week: Math.max(1, r.weeks![0] + d), manual: true }); return n }); touch()
+    setToast({ text: `Đã dời ${rs.length} bài ${sub} ${d > 0 ? 'lùi về sau' : 'lên trước'} ${Math.abs(d)} tuần${rs.length > sel.length ? ` (gồm ${rs.length - sel.length} bài kề bên bị đè)` : ''}.` })
   }
   const setRows = (uids: string[], patch: Partial<Row>) => {
     const ids = new Set(uids)

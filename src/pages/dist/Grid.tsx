@@ -1,7 +1,7 @@
 // Lưới tuần của bản phân phối: dải Học kỳ 1 / Học kỳ 2, mỗi chương trình một vạch tuần, mỗi môn một hàng ô (số tiết trong tuần),
 // hàng cuối "Tiết/tuần" — tuần vượt LOAD_MAX tô cam.
 // Có lịch tham chiếu (095): tuần có ngày nghỉ đánh dấu ⚠; bấm số tuần xem ngày thật và ngày nghỉ, bấm ô xem bài trong tuần.
-import { Fragment, useRef, useState, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { LOAD_MAX, progCode, weekLoad, type Plan, type Prog, type Row, type Sched } from './sched'
 import { WEEKDAY, dayOf, offIn, vnd, vnShort, type CalWeek } from './calendar'
 
@@ -13,10 +13,48 @@ const Warn = () => <svg aria-label="có ngày nghỉ" role="img" width="11" heig
 export const COLORS = ['#1f4e9a', '#16a34a', '#d97706', '#7c3aed', '#dc2626', '#0d9488']
 export const colorOf = (k: number) => COLORS[k % COLORS.length]
 
-export function WeekGrid({ plan, order, progs, s, titles, cal, calLabel, year, titleOf }: {
+type RSel = { pid: string; sub: string; a: number; b: number }
+export function WeekGrid({ plan, order, progs, s, titles, cal, calLabel, year, titleOf, onShift, onAuto }: {
   plan: Plan; order: string[]; progs: Map<string, Prog>; s: Sched; titles?: boolean
   cal?: Map<number, CalWeek>; calLabel?: string; year?: string; titleOf?: (unitId: string) => string
+  /** Bản nháp: kéo chọn một đoạn tuần của một môn rồi kéo / bấm nút để dời các bài trong đoạn đi `delta` tuần */
+  onShift?: (pid: string, sub: string, from: number, to: number, delta: number) => void
+  /** Trả các bài trong đoạn về xếp tự động */
+  onAuto?: (pid: string, sub: string, from: number, to: number) => void
 }) {
+  const [rsel, setRsel] = useState<RSel | null>(null)
+  const [delta, setDelta] = useState(0)
+  const drag = useRef<{ mode: 'sel' | 'move'; pid: string; sub: string; w0: number; moved: boolean } | null>(null)
+  const skipClick = useRef(false)
+  const lo = rsel ? Math.min(rsel.a, rsel.b) : 0, hi = rsel ? Math.max(rsel.a, rsel.b) : 0
+  const inSel = (pid: string, sub: string, w: number) => !!rsel && rsel.pid === pid && rsel.sub === sub && w >= lo && w <= hi
+  const inTarget = (pid: string, sub: string, w: number) => !!rsel && delta !== 0 && rsel.pid === pid && rsel.sub === sub && w >= lo + delta && w <= hi + delta
+  useEffect(() => {
+    if (!onShift) return
+    const up = () => {
+      const d = drag.current; drag.current = null
+      if (!d) return
+      if (d.moved) skipClick.current = true
+      if (d.mode === 'move' && rsel) {
+        const dd = Math.max(1 - lo, delta)
+        if (dd) { onShift(rsel.pid, rsel.sub, lo, hi, dd); setRsel({ ...rsel, a: lo + dd, b: hi + dd }) }
+        setDelta(0)
+      }
+    }
+    document.addEventListener('mouseup', up)
+    return () => document.removeEventListener('mouseup', up)
+  }, [onShift, rsel, delta, lo, hi])
+  const down = (e: React.MouseEvent, pid: string, sub: string, w: number) => {
+    if (!onShift || e.button !== 0) return
+    e.preventDefault(); skipClick.current = false
+    drag.current = { mode: inSel(pid, sub, w) ? 'move' : 'sel', pid, sub, w0: w, moved: false }
+  }
+  const enter = (pid: string, sub: string, w: number) => {
+    const d = drag.current; if (!d || d.pid !== pid || d.sub !== sub || w === d.w0 && !d.moved) return
+    d.moved = true; setTip(null); setPop(null)
+    if (d.mode === 'sel') setRsel({ pid, sub, a: d.w0, b: w }); else setDelta(w - d.w0)
+  }
+  const shiftBy = (dd: number) => { if (!rsel || !onShift || lo + dd < 1) return; onShift(rsel.pid, rsel.sub, lo, hi, dd); setRsel({ ...rsel, a: lo + dd, b: hi + dd }) }
   const [pop, setPop] = useState<Pop | null>(null)
   const [tip, setTip] = useState<{ x: number; y: number; head: string; items: string[] } | null>(null)
   const wrap = useRef<HTMLDivElement>(null), scroller = useRef<HTMLDivElement>(null)
@@ -69,16 +107,26 @@ export function WeekGrid({ plan, order, progs, s, titles, cal, calLabel, year, t
               const load = weekLoad(mine, (r: Row) => s.subjOf.get(r.unit_id) === sub.name)
               return line(sub.name, 'subjrow', <span className="lab subj">{sub.name}</span>,
                 weeks.map(w => { const n = load.get(w); const h = n && hol(w)
-                  return n ? <button type="button" key={w} className={'cell on' + bandCls(w) + (h ? ' hol' : '') + (pop?.w === w && pop.sub === sub.name && pop.pid === pid ? ' sel' : '')} style={{ background: color }}
-                    aria-label={`${sub.name} · tuần ${w}: ${n} tiết${h ? ' · tuần có ngày nghỉ' : ''}`} onMouseEnter={e => hover(e, pid, sub.name, w)} onMouseLeave={() => setTip(null)}
-                    onClick={e => { setTip(null); open(e, { w, pid, sub: sub.name }) }}>{n}</button>
-                    : <span key={w} className={'cell' + bandCls(w) + (hol(w) ? ' hol' : '')} /> }))
+                  const rs = (inSel(pid, sub.name, w) ? ' rsel' : '') + (inTarget(pid, sub.name, w) ? ' rtarget' : '')
+                  return n ? <button type="button" key={w} className={'cell on' + bandCls(w) + (h ? ' hol' : '') + rs + (pop?.w === w && pop.sub === sub.name && pop.pid === pid ? ' sel' : '')} style={{ background: color }}
+                    aria-label={`${sub.name} · tuần ${w}: ${n} tiết${h ? ' · tuần có ngày nghỉ' : ''}`}
+                    onMouseDown={e => down(e, pid, sub.name, w)} onMouseEnter={e => { enter(pid, sub.name, w); if (!drag.current) hover(e, pid, sub.name, w) }} onMouseLeave={() => setTip(null)}
+                    onClick={e => { setTip(null); if (skipClick.current) { skipClick.current = false; return } open(e, { w, pid, sub: sub.name }) }}>{n}</button>
+                    : <span key={w} className={'cell' + bandCls(w) + (hol(w) ? ' hol' : '') + rs}
+                      onMouseDown={e => down(e, pid, sub.name, w)} onMouseEnter={() => enter(pid, sub.name, w)} /> }))
             })}
           </Fragment>
         })}
         {line('tot', 'totrow', <b className="lab total">Tiết/tuần</b>,
           weeks.map(w => { const n = total.get(w); return <small key={w} className={'tot' + (n && n > LOAD_MAX ? ' over' : '')}>{n || ''}</small> }))}
       </div></div>
+      {onShift && (rsel ? <div className="distshiftbar">
+        <span><b>{rsel.sub}</b> · đang chọn tuần {lo}–{hi}. Kéo vùng chọn sang trái / phải để dời, hoặc:</span>
+        <button type="button" disabled={lo <= 1} onClick={() => shiftBy(-1)}>◀ Lùi 1 tuần</button>
+        <button type="button" onClick={() => shiftBy(1)}>Dời 1 tuần ▶</button>
+        {onAuto && <button type="button" className="linkbtn" onClick={() => { onAuto(rsel.pid, rsel.sub, lo, hi); setRsel(null) }}>Xếp lại tự động</button>}
+        <button type="button" className="linkbtn" onClick={() => setRsel(null)}>Bỏ chọn</button>
+      </div> : <small className="sub distshifthint">Mẹo: giữ chuột kéo ngang trên hàng một môn để chọn một đoạn tuần, rồi kéo đoạn đó sang tuần khác để dời bài (vd. dời các bài từ tuần 20 đi 1 tuần vì nghỉ Tết).</small>)}
       {tip && !pop && <div className="disttip" style={{ left: tip.x, top: tip.y }} role="tooltip">
         <small className="sub">{tip.head}</small>{tip.items.map((t, i) => <div key={i}>{t}</div>)}</div>}
       {pop && <div className="distpop" style={{ left: pop.x, top: pop.y }} role="dialog" aria-label={`Tuần ${pop.w}`}>

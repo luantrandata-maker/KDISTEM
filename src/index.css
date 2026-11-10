@@ -2516,7 +2516,7 @@ textarea.slcell{font-size:13px;color:var(--muted);min-height:28px}
 .pfasg{display:flex;align-items:center;gap:6px;padding:8px 10px;border:1px dashed var(--line);border-radius:10px;min-height:38px}
 .pfasg .linkbtn{margin-left:auto}
 .pfside{position:sticky;top:12px;display:grid;gap:12px}
-.pfsidebtn{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.pfsidebtn{display:flex;flex-wrap:nowrap;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .pfmiss{color:#d14343;font-size:12.5px;margin:10px 0 0}
 .pfok{color:#2e9d5b;font-size:12.5px;margin:10px 0 0}
 @media (max-width:1200px){.pform.pfwrap{grid-template-columns:minmax(0,1fr) 270px}.pfnav{display:none}}

@@ -889,7 +889,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
       <small className="sub">Bấm môn để xem bài học. Số tiết cộng theo bài.</small>
     </div>
     <div className="slmain">
-      <DataTable id="edu-lessons" rows={shown} rowKey={r => r.u.id}
+      <DataTable id="edu-lessons" simple rows={shown} rowKey={r => r.u.id}
         empty={<small className="sub">{mine.length ? 'Không có bài nào khớp bộ lọc.' : `Môn ${sel || '…'} chưa có bài học.${editable ? ' Gõ tên bài ở dòng dưới hoặc bấm “Dán danh sách”.' : ''}`}</small>}
         left={<><b className="slname">{sel}</b>
           <input placeholder="Tìm bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />

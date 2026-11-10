@@ -113,7 +113,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years, lead }: {
   const canEdit = useCanEdit(mode)
   const [books, setBooks] = useState<Book[]>([])
   const [loaded, setLoaded] = useState(false)
-  const [subject, setSubject] = useState('')
+  const subject = '' // lọc môn dùng cột Môn của bảng
   const [q, setQ] = useState('')
   const [form, setForm] = useState<Partial<Book> | null>(null)
   const [open, setOpen] = useState<Book | null>(null)
@@ -255,8 +255,9 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years, lead }: {
           { key: 'grade', label: 'Khối', text: b => String(b.grade ?? ''), cell: b => b.grade },
           { key: 'subject', label: 'Môn', text: b => b.subject ?? '', cell: b => b.subject },
           { key: 'title', label: 'Tên PPCT', fixed: true, values: b => [b.title], text: b => [b.title, every ? b.organizations?.name : '', b.edu_programs?.title].join(' '),
-            cell: b => <><NameLink onClick={() => { setMsg(null); setOpen(b) }} title="Xem chi tiết">{b.title}</NameLink>{every && <><br /><small className="sub">{b.organizations?.name ?? '—'}</small></>}{b.edu_programs && <><br /><small>Theo chương trình: {b.edu_programs.title} (v{b.edu_programs.version_no})</small></>}
+            cell: b => <><NameLink onClick={() => { setMsg(null); setOpen(b) }} title="Xem chi tiết">{b.title}</NameLink>{b.edu_programs && <><br /><small>Theo chương trình: {b.edu_programs.title} (v{b.edu_programs.version_no})</small></>}
               {b.source_id && <><br /><small>Sao chép từ mẫu</small></>}{mode !== 'school' && b.scope === 'children' && <><br /><small>{scopeLabel}</small></>}</> },
+          ...(every ? [{ key: 'org', label: 'Đơn vị', text: (b: Book) => b.organizations?.name ?? '', cell: (b: Book) => b.organizations?.name ?? '—' }] : []),
           { key: 'year', label: 'Năm học', text: b => b.year_name ?? 'Tất cả năm', cell: b => b.year_name ?? 'Tất cả năm' },
           { key: 'total', label: 'Số tiết', text: b => String(b.total_periods ?? ''), cell: b => b.total_periods ?? '—' },
           { key: 'ppw', label: 'Tiết/tuần', text: b => String(b.periods_per_week ?? ''), cell: b => b.periods_per_week ?? '—' },
@@ -266,7 +267,6 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years, lead }: {
         left={<>
           <input placeholder="Tìm môn, tên PPCT…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           {lead}
-          {subjects.length > 1 && <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn học"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>}
           {every && ofl.node(books.map(b => b.org_id))}
         </>}
         right={<>

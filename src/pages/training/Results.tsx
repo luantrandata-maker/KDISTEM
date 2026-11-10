@@ -9,7 +9,6 @@ import { Chip } from '../dist/Editor'
 import { ClsTree } from '../dist/ClsTree'
 import { useAllMode } from '../../components/OrgScope'
 import { PlanResults } from './ResultsWork'
-import { FlowGuide } from '../../components/FlowGuide'
 import { StatCards } from '../../components/StatCards'
 import { DataTable, MoreFilters, type Col } from '../../components/DataTable'
 
@@ -90,15 +89,7 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
   ]
   const table = (rows: TPlanRow[], empty: string, left?: ReactNode, right?: ReactNode) =>
     <DataTable id="training-results-plans" rows={rows} rowKey={p => p.id} cols={resCols} empty={empty} left={left} right={right} />
-  const steps: [string, string][] = [
-    ['Chọn kế hoạch', 'Chọn mục trong khung phân loại (môn học, cấp độ…) rồi mở kế hoạch đã phát hành.'],
-    ['Chấm điểm', 'Hệ thống tự tính chuyên cần, bài kiểm tra, học trực tuyến; nhập điểm sản phẩm hàng loạt.'],
-    ['Kết luận', 'Chọn nhiều nhà giáo để kết luận Đạt / Chưa đạt; xác nhận Đạt cho người đủ điều kiện.'],
-    ['Cấp chứng chỉ', 'Duyệt cấp và in hàng loạt chứng chỉ có QR tra cứu.']]
   return <>
-    <FlowGuide id="training-results">
-      <ol className="distguide four">{steps.map(([h, d], i) => <li key={h}><button type="button" onClick={() => setTab('list')}><i>{i + 1}</i><span><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
-    </FlowGuide>
     <StatCards items={[
       { icon: 'layers', value: plans ? list.length : '…', label: 'Kế hoạch đã phát hành' },
       { icon: 'users', value: tot.n, label: 'Lượt nhà giáo ghi danh' },

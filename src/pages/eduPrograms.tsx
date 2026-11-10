@@ -10,7 +10,7 @@ import { SchoolPicker } from '../components/SchoolPicker'
 import { useOrgFilter } from '../components/OrgFilters'
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { DataTable, MoreFilters, type Col } from '../components/DataTable'
-import { FlowGuide } from '../components/FlowGuide'
+import { useGradeTree, MultiTag } from '../components/GradeTree'
 import { Drawer } from '../components/Drawer'
 import { supabase, fetchAll } from '../lib/supabase'
 import { OrgPick, useAllMode, useAllOrgs } from '../components/OrgScope'
@@ -23,7 +23,7 @@ import { useSubjects } from './subjects'
 import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
 import { ViewToggle, useViewMode } from '../components/ViewToggle'
 import { fmtGrades, progGrades, useEduLevels, gradeName, gradeRange } from '../lib/eduLevels'
-import { ChipMulti, GradeChecks, GradePicker, LevelPicker, SubjectMulti, SubjectPicker, gradeList } from '../components/Pickers'
+import { ChipMulti, GradeChecks, GradePicker, SubjectMulti, SubjectPicker, gradeList } from '../components/Pickers'
 import { ElView } from '../components/ElView'
 
 // Khái niệm (064): Chương trình → Học phần (unit 'topic', trước gọi là chủ đề; gắn Môn học qua edu_unit_subjects)
@@ -118,16 +118,13 @@ function useCanEdit(mode: ProgMode) {
 }
 
 // ================= Danh sách chương trình =================
-export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string | null; mode?: ProgMode; goTab?: (tab: string) => void }) {
+export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; mode?: ProgMode; goTab?: (tab: string) => void }) {
   const hid = useHiddenBtn()
   const { canEdit, isAdmin } = useCanEdit(mode)
-  const { byCode: tracks, codes: CT } = useStemTracks()
-  const { byCode: LV, name: levelName, levels: LVL } = useEduLevels()
+  const { name: levelName } = useEduLevels()
   const progFields = fieldsOf(useSettings(), 'program')
-  const levelOpts: [string, string][] = LVL.map(l => [l.code, l.name])
   const [list, setList] = useState<Program[] | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
-  const [level, setLevel] = useState('')
   const [kind, setKind] = useState('')
   const [maker, setMaker] = useState('')  // lọc theo đơn vị tạo
   const [subject, setSubject] = useState('')
@@ -138,7 +135,6 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const comps: Comp[] = useCompetencies('student')
 
-  const [counts, setCounts] = useState<{ subjects: number; lessons: number } | null>(null)
   // Quản trị hệ thống: chương trình của tất cả đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
   const every = useAllMode()
   const pickedSchool = !!form?.org_id && every?.find(o => o.id === form.org_id)?.type === 'school'
@@ -147,14 +143,6 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
     if (error) setMsg([errText(error.message), true])
     const rows = (data as Program[]) ?? []
     setList(rows)
-    // Số liệu cho thanh quy trình: môn dùng được, bài học trong chương trình của đơn vị
-    const ownIds = rows.filter(p => p.org_id === orgId && !['superseded', 'archived'].includes(p.status)).map(p => p.id)
-    const [sj, ls] = await Promise.all([
-      supabase.from('subjects').select('id', { count: 'exact', head: true }).eq('active', true),
-      ownIds.length ? supabase.from('edu_program_units').select('id', { count: 'exact', head: true }).in('program_id', ownIds).in('unit_type', ['lesson', 'session'])
-        : Promise.resolve({ count: 0 }),
-    ])
-    setCounts({ subjects: sj.count ?? 0, lessons: ls.count ?? 0 })
   }
   useEffect(() => { load() }, [orgId])
 
@@ -162,10 +150,13 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   const makers = useMemo(() => [...new Map(all.map(p => [p.org_id, p.organizations?.name ?? '—'] as [string, string]))].sort((a, b) => a[1].localeCompare(b[1], 'vi')), [list])
   const subjects = useMemo(() => [...new Set(all.flatMap(mainsOf))].sort((a, b) => a.localeCompare(b, 'vi')), [list])
   const shown = all.filter(p => (old || !SGROUP.off[1].includes(p.status) || status === 'off')
-    && (!level || lvsOf(p).includes(level)) && (!kind || p.kind === kind) && (!maker || p.org_id === maker) && (!subject || mainsOf(p).includes(subject) || p.integrated_subjects.includes(subject))
+    && (!kind || p.kind === kind) && (!maker || p.org_id === maker) && (!subject || mainsOf(p).includes(subject) || p.integrated_subjects.includes(subject))
     && (!status || SGROUP[status]?.[1].includes(p.status)) && (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
   const own = every ? shown : shown.filter(p => p.org_id === orgId)
   const shared = every ? [] : shown.filter(p => p.org_id !== orgId)
+  // Cây Cấp → Khối bên trái mỗi bảng
+  const gtOwn = useGradeTree('edu-programs', own, progGrades)
+  const gtShared = useGradeTree('edu-programs-shared', shared, progGrades)
 
   async function copy(p: Program) {
     if (!confirm(`Sao chép "${p.title}" (phiên bản ${p.version_no}) về đơn vị thành bản nháp để điều chỉnh?`)) return
@@ -184,7 +175,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
     { key: 'name', label: 'Chương trình', fixed: true, values: p => [p.title], text: p => [p.code, p.title].join(' '),
       cell: p => <>{p.code && <small className="sub">{p.code}<br /></small>}<NameLink onClick={() => setOpenId(p.id)}>{p.title}</NameLink> <small>v{p.version_no}</small></> },
     { key: 'level', label: 'Cấp · khối · loại · nhóm', values: p => [...lvsOf(p).map(levelName), PKIND[p.kind], ...ctsOf(p)], text: p => [lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ...ctsOf(p)].join(' '),
-      cell: p => <>{lvsOf(p).map(levelName).join(', ')} · {grades(p)}<br /><small>{PKIND[p.kind]}{ctsOf(p).map(c => <Fragment key={c}> <span className="gpill">{c}</span></Fragment>)}</small></> },
+      cell: p => <>{lvsOf(p).map(levelName).join(', ')} · {grades(p)}<br /><MultiTag grades={progGrades(p)} />{progGrades(p).length > 1 && <br />}<small>{PKIND[p.kind]}{ctsOf(p).map(c => <Fragment key={c}> <span className="gpill">{c}</span></Fragment>)}</small></> },
     { key: 'subj', label: 'Môn', values: p => [...mainsOf(p), ...p.integrated_subjects], text: p => [...mainsOf(p), ...p.integrated_subjects].join(' '),
       cell: p => <>{mainsOf(p).join(', ')}{p.integrated_subjects.length > 0 && <><br /><small className="sub">Tích hợp: {p.integrated_subjects.join(', ')}</small></>}</> },
     { key: 'periods', label: 'Số tiết · triển khai', values: p => [p.total_periods ? p.total_periods + ' tiết' : '', DEPLOY[p.deploy_term ?? 'year']?.[0] ?? ''], text: p => String(p.total_periods || ''),
@@ -194,10 +185,12 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
     { key: 'org', label: 'Đơn vị tạo', text: p => p.organizations?.name ?? '', cell: p => p.organizations?.name ?? '—' },
     { key: 'status', label: 'Trạng thái', text: p => PSTATUS[p.status][0],
       cell: p => <><StatusPill s={p.status} />{p.status === 'published' && p.effective_from && <><br /><small className="sub">từ {fmtD(p.effective_from)}</small></>}</> },
+    { key: 'upd', label: 'Cập nhật', text: p => fmtD(p.updated_at), cell: p => <small className="sub nowrap">{fmtD(p.updated_at)}</small> },
     ...progFields.filter(x => x.column).map(x => ({ key: 'c_' + x.key, label: x.label, cell: (p: Program) => customCell(x, p.custom?.[x.key]) })),
   ]
   const table = (rows: Program[], mine: boolean, left?: ReactNode, right?: ReactNode, empty?: ReactNode) => (
-    <DataTable id={mine ? 'edu-programs' : 'edu-programs-shared'} rows={rows} rowKey={p => p.id} cols={progCols} left={left} right={right} empty={empty}
+    <DataTable id={mine ? 'edu-programs' : 'edu-programs-shared'} rows={(mine ? gtOwn : gtShared).filter(rows)} rowKey={p => p.id} cols={progCols} left={left} right={right} empty={empty}
+      aside={rows.length ? (mine ? gtOwn : gtShared).tree : undefined}
       head={!mine && canCopy ? { th: <span className="sronly">Chọn</span>, td: p => <input type="checkbox" checked={sel.is(p)} onChange={() => sel.toggle(p)} aria-label={'Chọn ' + p.title} /> } : undefined} />
   )
   const cards = (rows: Program[], mine: boolean) => (
@@ -223,16 +216,10 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
     </div>
   )
   const show = (rows: Program[], mine: boolean, left?: ReactNode, right?: ReactNode, empty?: ReactNode) => view === 'cards'
-    ? <>{(left || right) && <div className="tttools">{left && <div className="ttleft">{left}</div>}{right}</div>}{rows.length ? cards(rows, mine) : <p className="sub">{empty}</p>}</>
+    ? <>{(left || right) && <div className="tttools">{left && <div className="ttleft">{left}</div>}{right}</div>}{rows.length
+      ? <div className="ttbody"><div className="ttaside">{(mine ? gtOwn : gtShared).tree}</div><div className="gtcards">{cards((mine ? gtOwn : gtShared).filter(rows), mine)}</div></div>
+      : <p className="sub">{empty}</p>}</>
     : table(rows, mine, left, right, empty)
-  const ownLive = all.filter(p => p.org_id === orgId && !SGROUP.off[1].includes(p.status))
-  const firstDraft = ownLive.find(p => SGROUP.draft[1].includes(p.status))
-  const flow: [string, number, string, (() => void) | undefined][] = [
-    ['Môn học', counts?.subjects ?? 0, 'môn dùng chung', goTab ? () => goTab('Môn học') : undefined],
-    ['Chương trình', ownLive.length, 'chương trình', () => { setStatus(''); setForm(null) }],
-    ['Bài học', counts?.lessons ?? 0, 'bài học', firstDraft ? () => setOpenId(firstDraft.id) : undefined],
-    ['Phát hành', ownLive.filter(p => p.status === 'published').length, 'đã phát hành', () => setStatus('published')],
-  ]
   if (form) return (
     <ElView back="Chương trình giáo dục" onBack={() => setForm(null)} title={'Thêm chương trình'}>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
@@ -243,28 +230,12 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
   )
   return (
     <>
-      {canEdit && list && <FlowGuide id="edu-programs" title="Quy trình thiết lập chương trình"><ol className="flowsteps" aria-label="Quy trình thiết lập chương trình">
-        {flow.map(([t, n, unit, go], k) => (
-          <li key={t} className={n > 0 ? 'done' : ''}>
-            <button type="button" disabled={!go} onClick={go} title={t === 'Bài học' && firstDraft ? `Mở "${firstDraft.title}" để thêm bài học` : undefined}>
-              <i aria-hidden="true">{n > 0 ? <Icon n="checkCircle" size={16} /> : k + 1}</i>
-              <span><b>{t}</b><small>{counts || t !== 'Môn học' ? `${n} ${unit}` : '…'}</small></span>
-            </button>
-          </li>
-        ))}
-      </ol></FlowGuide>}
-      <p className="sub">
-        {mode === 'school' ? 'Chương trình chuẩn của trường và chương trình do KDI, Sở, Phòng phát hành hoặc gán cho trường. Từ chương trình đang phát hành, trường tạo phân phối chương trình theo tiết.'
-          : mode === 'platform' ? 'Chương trình chuẩn của KDI: cấu trúc, yêu cầu cần đạt, phiên bản. Bản đã phát hành và chọn "dùng chung" hiện với tất cả đơn vị.'
-          : 'Chương trình của đơn vị: soạn, phát hành, gán cho trường trực thuộc và theo dõi mức độ triển khai.'}
-      </p>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : (
         <>
           {!every && <h3>Của đơn vị ({own.length})</h3>}
           {show(own, true, <>
             <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-            <LevelPicker value={level} onChange={setLevel} emptyLabel="Tất cả cấp học" />
             <select value={status} onChange={e => setStatus(e.target.value)} aria-label="Trạng thái"><option value="">Tất cả trạng thái</option>{Object.entries(SGROUP).map(([k, [l]]) => <option key={k} value={k}>{l}</option>)}</select>
             <MoreFilters active={!!(kind || subject || maker || old)}>
               <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại chương trình"><option value="">Tất cả loại chương trình</option>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select>
@@ -272,7 +243,7 @@ export function EduPrograms({ orgId, mode = 'school', goTab }: { orgId: string |
               <select value={maker} onChange={e => setMaker(e.target.value)} aria-label="Đơn vị tạo"><option value="">Tất cả đơn vị tạo</option>{makers.map(([id, nm]) => <option key={id} value={id}>{nm}</option>)}</select>
               <label><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện chương trình ngừng dùng</label>
             </MoreFilters>
-            <small className="sub">{own.length} chương trình</small>
+            <small className="sub">{gtOwn.filter(own).length} chương trình</small>
           </>, <>
             <ViewToggle value={view} onChange={setView} />
             {canEdit && !hid('add') && <button type="button" className="primary ttadd" onClick={() => setForm({ level: 'thcs', levels: ['thcs'], kind: 'subject', grade_from: 6, grade_to: 9, grades: [6, 7, 8, 9], scope: mode === 'school' ? 'own' : 'children', integrated_subjects: [], competency_keys: [], rubric_ids: [], deploy_term: 'year' })}>+ Thêm chương trình</button>}

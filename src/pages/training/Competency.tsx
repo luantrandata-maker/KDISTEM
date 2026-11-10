@@ -7,7 +7,6 @@ import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
 import { schoolYear } from '../department/Governance'
 import { LevelChip, useCompetencies, resetCompetencies, LV_NAME, SLV_NAME, type Comp } from '../competency'
-import { FlowGuide } from '../../components/FlowGuide'
 import { Tabs } from '../teacher/common'
 import { MultiFilters, useMultiFilters, opts, type FilterDef } from '../../components/MultiFilters'
 import { useOrgFilters } from '../../components/OrgFilters'
@@ -61,13 +60,6 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
   const openN = all.filter(r => r.status === 'open').length
   const add = () => { setMsg(null); setCreating(true) }
   return <>
-    <FlowGuide id="training-rounds">
-      <ol className="distguide">
-        <li><button type="button" onClick={() => can && add()}><i>1</i><span><b>Mở đợt đánh giá</b><small>Đặt năm học, hạn nộp và mức yêu cầu. Đợt áp dụng cho tất cả nhà giáo trong đơn vị và các trường trực thuộc.</small></span></button></li>
-        <li><button type="button" onClick={() => all[0] && setOpen(all[0].id)}><i>2</i><span><b>Theo dõi & nhắc</b><small>Xem từng trường đã tự đánh giá / được trường đánh giá bao nhiêu, gửi nhắc nhà giáo chưa nộp.</small></span></button></li>
-        <li><button type="button" disabled><i>3</i><span><b>Xem thiếu hụt</b><small>Kết quả vào hồ sơ năng lực; mục Khoảng thiếu hụt gợi ý chương trình đào tạo cho người dưới mức yêu cầu.</small></span></button></li>
-      </ol>
-    </FlowGuide>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       <FilterChips value={card ?? ''} onPick={k => setCard(k || null)} items={[['', 'Tất cả', base.length], ['soon', 'Sắp mở', n('soon')], ['open', 'Đang mở', n('open')], ['late', 'Quá hạn', n('late'), 'warn'], ['closed', 'Đã đóng', n('closed')]]} />
     {!rows ? <p className="sub">Đang tải…</p> : <DataTable id="training-rounds" rows={shown} rowKey={r => r.id} cols={[

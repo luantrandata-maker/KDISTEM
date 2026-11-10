@@ -12,6 +12,8 @@ import { KIT_SEL, errMsg, type KitRow } from './lesson/save'
 import { CreateLesson, kitSubject } from './lesson/Create'
 import { LessonPage } from './lesson/LessonPage'
 import { fmtGrades, progGrades } from '../../lib/eduLevels'
+import { useGradeTree, MultiTag } from '../../components/GradeTree'
+import { DataTable } from '../../components/DataTable'
 import { downloadXlsx } from '../../lib/sheet'
 
 type Prog = { id: string; title: string; version_no: number; status: string; org_id: string; ct_code: string | null; code: string | null
@@ -129,6 +131,8 @@ export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; o
   const [closed, setClosed] = useState<string[]>([])   // môn đang thu gọn
   const reload = () => { setTick(t => t + 1); onChanged?.() }
   const { progs, kits, rowsOf, subjectsOf, stat, progRefs } = useLessonData(orgId, tick)
+  const found = progs.filter(p => !q || progName(p).toLowerCase().includes(q.toLowerCase()))
+  const gt = useGradeTree('hoc-lieu-ct', found, progGrades)
 
   // Xóa bộ học liệu của một bài (không xóa bài trong chương trình); quyền do CSDL kiểm tra
   async function removeKit(k: KitRow) {
@@ -199,34 +203,36 @@ export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; o
     </>
   }
 
-  // ----- Danh sách chương trình -----
-  const shown = progs.filter(p => !q || progName(p).toLowerCase().includes(q.toLowerCase()))
-  return (
-    <>
-      <div className="bar">
-        <div className="tools"><input placeholder="Tìm chương trình…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chương trình" /></div>
-        <div className="tools"><ViewToggle value={view} onChange={setView} /></div>
-      </div>
-      {shown.length === 0 && <p className="sub">{progs.length ? 'Không có chương trình nào khớp.' : 'Chưa có chương trình nào. Tạo và phát hành chương trình ở Chương trình giáo dục.'}</p>}
-      {view === 'cards' ? <div className="tilegrid sq">
-        {shown.map(p => { const s = stat(p); return (
-          <button key={p.id} type="button" className="tile" onClick={() => setPid(p.id)}>
-            <div className="tilebody">
-              <b>{p.title}</b>
-              <small>{[p.code ?? p.ct_code, grades(p), `v${p.version_no}`, PSTATUS[p.status] ?? p.status].filter(Boolean).join(' · ')}</small>
-              <div className="tilemeta"><span>{subjectsOf(p.id).length} môn</span><span>{s.lessons} bài</span><span>{s.kits} bộ học liệu</span></div>
-            </div>
-          </button>) })}
-      </div> : <div className="wrap"><table className="libtable">
-        <thead><tr><th>Chương trình</th><th>Nhóm</th><th>Khối</th><th>Môn</th><th>Bài</th><th>Bộ học liệu</th><th>Chốt đủ 5 thẻ</th><th>Đã phát hành</th></tr></thead>
-        <tbody>{shown.map(p => { const s = stat(p); return (
-          <tr key={p.id}>
-            <td><NameLink onClick={() => setPid(p.id)}>{progName(p)}</NameLink> <small className="sub">v{p.version_no} · {PSTATUS[p.status] ?? p.status}</small></td><td>{p.ct_code ?? '—'}</td><td>{grades(p) || '—'}</td>
-            <td>{subjectsOf(p.id).length}</td><td>{s.lessons}</td><td>{s.kits}/{s.lessons}</td><td>{s.done}</td><td>{s.published}</td>
-          </tr>) })}</tbody>
-      </table></div>}
-    </>
-  )
+  // ----- Danh sách chương trình (cây Cấp → Khối bên trái) -----
+  const shown = gt.filter(found)
+  const search = <input placeholder="Tìm chương trình…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chương trình" />
+  const toggle = <ViewToggle value={view} onChange={setView} />
+  const empty = <small className="sub">{progs.length ? 'Không có chương trình nào khớp.' : 'Chưa có chương trình nào. Tạo và phát hành chương trình ở Chương trình giáo dục.'}</small>
+  return view === 'cards' ? <>
+    <div className="tttools"><div className="ttleft">{search}</div>{toggle}</div>
+    {!found.length ? <p className="sub">{empty}</p> : <div className="ttbody"><div className="ttaside">{gt.tree}</div><div className="gtcards"><div className="tilegrid sq">
+      {shown.map(p => { const s = stat(p); return (
+        <button key={p.id} type="button" className="tile" onClick={() => setPid(p.id)}>
+          <div className="tilebody">
+            <b>{p.title}</b>
+            <small>{[p.code ?? p.ct_code, grades(p), `v${p.version_no}`, PSTATUS[p.status] ?? p.status].filter(Boolean).join(' · ')}</small>
+            <MultiTag grades={progGrades(p)} />
+            <div className="tilemeta"><span>{subjectsOf(p.id).length} môn</span><span>{s.lessons} bài</span><span>{s.kits} bộ học liệu</span></div>
+          </div>
+        </button>) })}
+    </div></div></div>}
+  </> : <DataTable id="hoc-lieu-ct" rows={shown} rowKey={p => p.id} left={search} right={toggle} empty={empty} aside={found.length ? gt.tree : undefined}
+    cols={[
+      { key: 'name', label: 'Chương trình', fixed: true, values: p => [progName(p)], text: p => progName(p),
+        cell: p => <><NameLink onClick={() => setPid(p.id)}>{progName(p)}</NameLink> <small className="sub">v{p.version_no} · {PSTATUS[p.status] ?? p.status}</small></> },
+      { key: 'ct', label: 'Nhóm', text: p => p.ct_code ?? '', cell: p => p.ct_code ?? '—' },
+      { key: 'grade', label: 'Khối', text: p => grades(p), cell: p => <>{grades(p) || '—'}<br /><MultiTag grades={progGrades(p)} /></> },
+      { key: 'subj', label: 'Môn', cell: p => subjectsOf(p.id).length },
+      { key: 'lessons', label: 'Bài', cell: p => stat(p).lessons },
+      { key: 'kits', label: 'Bộ học liệu', cell: p => `${stat(p).kits}/${stat(p).lessons}` },
+      { key: 'done', label: 'Chốt đủ 5 thẻ', cell: p => stat(p).done },
+      { key: 'pub', label: 'Đã phát hành', cell: p => stat(p).published },
+    ]} />
 }
 
 // ===== Cần chuẩn bị theo chương trình / theo trường =====

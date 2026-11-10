@@ -13,6 +13,7 @@ import { norm as normText } from '../../lib/sheet'
 import { BankList } from './BankList'
 import { useEffect, useRef, useState } from 'react'
 import { DataTable, type Col } from '../../components/DataTable'
+import { useGradeSel, gradeTree } from '../../components/GradeTree'
 import { supabase, fetchAll } from '../../lib/supabase'
 import { OrgPick, useAllMode, useOrgName, useProvinceOf } from '../../components/OrgScope'
 import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../../components/MultiFilters'
@@ -118,7 +119,8 @@ const NOEV = { preventDefault() {} } as React.FormEvent
 // Phát hành học liệu: Sở/Phòng/Tỉnh/Bộ, đơn vị cung cấp (KDI Education) hoặc trường soạn và phát hành tới đơn vị trực thuộc
 /** Mở thẳng form bài học (từ "Học liệu theo chương trình"): sửa bài học có sẵn hoặc tạo bộ học liệu cho một bài của chương trình */
 export type UnitStart = { editId?: string; preset?: { program_id: string; unit_id: string; title: string; periods: number | null; objectives: string | null; program: string | null; grades: string | null } }
-export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId: string | null; only?: T; start?: UnitStart; onDone?: () => void; onChanged?: () => void }) {
+/** `sources`: thêm lọc Nguồn (của đơn vị / dùng chung do đơn vị khác phát hành / tất cả) — gộp "Kho học liệu dùng chung" vào Danh mục học liệu */
+export function LibraryManage({ orgId, only, start, onDone, onChanged, sources }: { orgId: string | null; only?: T; start?: UnitStart; onDone?: () => void; onChanged?: () => void; sources?: boolean }) {
   const hid = useHiddenBtn()
   const libFields = fieldsOf(useSettings(), 'library')
   const MAT_OPTS = useMatTypes()
@@ -141,6 +143,8 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   const [card, setCard] = useState<string | null>(null)
   const [open, setOpen] = useState<string | null>(null)
   const [view, setView] = useViewMode('hoc-lieu', 'list')
+  const [srcMode, setSrcMode] = useState<'own' | 'shared' | 'all'>('own')
+  const gsel = useGradeSel('library')
   const [msg, setMsg] = useState(''); const [info, setInfo] = useState('')
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
@@ -475,7 +479,10 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
     setUploading(false)
   }
 
-  const ofTab = items.filter(i => tab === 'plan' ? isPlan(i) : tab === 'material' ? i.kind === 'material' && !isPlan(i) : i.kind === tab)
+  // Nguồn: của đơn vị (sửa được) · dùng chung (đơn vị khác phát hành, chỉ xem) · tất cả
+  const sharedItems = sources && !every ? visible.filter(x => x.owner_org_id !== orgId && x.status === 'published') : []
+  const pool = srcMode === 'own' ? items : srcMode === 'shared' ? sharedItems : [...items, ...sharedItems]
+  const ofTab = pool.filter(i => tab === 'plan' ? isPlan(i) : tab === 'material' ? i.kind === 'material' && !isPlan(i) : i.kind === tab)
   const subjects = [...new Set(ofTab.map(i => i.subject).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi'))
   const fitI = (i: Item, skip?: string) => (skip === 'prov' || mf.has('prov', provOf(i.owner_org_id)?.id)) && (skip === 'org' || mf.has('org', i.owner_org_id))
     && mf.has('prog', i.program) && mf.has('subj', i.subject) && mf.any('grade', gradeList(i.grades ?? ''))
@@ -497,7 +504,8 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   const reachOf = (i: Item): string[] => i.status !== 'published' ? [] : i.scope === 'public' ? orgs.filter(o => o.id !== i.owner_org_id).map(o => o.id)
     : i.scope === 'selected' ? targets.get(i.id) ?? [] : kids(i.owner_org_id)
   const cardFit = (i: Item) => !card || (card === 'reach' ? reachOf(i).length > 0 : card === 'used' ? (stats.get(i.id)?.schools ?? 0) > 0 : !i.program_id)
-  const shown = base.filter(cardFit)
+  const gt = gradeTree(gsel, base.filter(cardFit), i => gradeList(i.grades ?? ''))
+  const shown = gt.filter(base.filter(cardFit))
   // Giáo án không còn tab riêng (giáo án đi theo bài học); "Học liệu" đổi thành "Tài liệu"
   const kindTabs: T[] = ['unit', 'lesson', 'material', 'norm', 'bank']
   const tabLabel = (t: T) => t === 'bank' ? 'Kho hoạt động' : t === 'norm' ? 'Định mức vật tư' : t === 'plan' ? 'Giáo án' : t === 'material' ? 'Tài liệu' : KIND[t][0]
@@ -523,6 +531,8 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   }
   const libLeft = <>
     <input placeholder="Tìm tên, mô tả, từ khoá…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
+    {sources && !every && <select value={srcMode} onChange={e => setSrcMode(e.target.value as typeof srcMode)} aria-label="Nguồn">
+      <option value="own">Nguồn: Của đơn vị</option><option value="shared">Nguồn: Dùng chung</option><option value="all">Nguồn: Tất cả</option></select>}
     <MultiFilters defs={filterDefs} f={mf} count={`${shown.length}/${ofTab.length}`} />
   </>
   const libRight = <>
@@ -534,6 +544,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
     { key: 'title', label: tabLabel(tab), fixed: true, values: i => [i.title], text: i => [i.title, every ? i.owner_name : '', i.subject, i.grades].join(' '),
       cell: i => <><b>{i.title}</b>
         <div className="sub" style={{ fontSize: 12 }}>{[every && i.owner_name, i.subject, i.grades && `Khối ${i.grades}`].filter(Boolean).join(' · ') || '—'}{i.program ? <> <ProgChip p={i.program} /></> : null}{i.usage_rights && i.usage_rights !== 'adapt' && <> <RightsChip r={i.usage_rights} /></>}</div></> },
+    ...(srcMode !== 'own' ? [{ key: 'src', label: 'Nguồn', text: (i: Item) => i.owner_org_id === orgId ? 'Của đơn vị' : i.owner_name ?? '', cell: (i: Item) => i.owner_org_id === orgId ? 'Của đơn vị' : <>{i.owner_name ?? '—'}<div className="sub" style={{ fontSize: 12 }}>Dùng chung · chỉ xem</div></> }] : []),
     { key: 'prog', label: 'Chương trình', values: i => [i.edu_programs?.title ?? ''], text: i => [i.edu_programs?.title, i.edu_program_units?.title].join(' '),
       cell: i => i.edu_programs ? <>{i.edu_programs.title} <small className="sub">v{i.edu_programs.version_no}</small>{i.edu_program_units && <div className="sub" style={{ fontSize: 12 }}>{i.edu_program_units.title}</div>}</> : <small className="sub">—</small> },
     { key: 'parts', label: tab === 'unit' ? 'Thành phần' : 'Nội dung', text: i => String(partsOf(i) ?? ''), cell: i => <small>{partsOf(i)}</small> },
@@ -548,10 +559,10 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
   return (
     <>
       {!only && <div style={{ marginBottom: 10 }}>
-        <Tabs items={kindTabs.map(k => [k, tabLabel(k), k === 'norm' ? undefined : k === 'bank' ? items.filter(i => i.kind === 'unit').reduce((n, i) => n + (((i.content as any)?.kit?.bank ?? []) as { title?: string }[]).filter(b => b.title?.trim()).length, 0) : items.filter(i => k === 'plan' ? isPlan(i) : k === 'material' ? i.kind === 'material' && !isPlan(i) : i.kind === k).length] as [T, string, number?])}
+        <Tabs items={kindTabs.map(k => [k, tabLabel(k), k === 'norm' ? undefined : k === 'bank' ? pool.filter(i => i.kind === 'unit').reduce((n, i) => n + (((i.content as any)?.kit?.bank ?? []) as { title?: string }[]).filter(b => b.title?.trim()).length, 0) : pool.filter(i => k === 'plan' ? isPlan(i) : k === 'material' ? i.kind === 'material' && !isPlan(i) : i.kind === k).length] as [T, string, number?])}
           value={tab} onChange={t => { setTab(t); setOpen(null); mf.set('type', []) }} />
       </div>}
-      {tab === 'bank' ? <BankList items={items} onOpen={id => setFlow({ id })} note="Hoạt động gom từ thẻ 05 “Kho hoạt động” của các bài học. Bấm một dòng để mở bài học." />
+      {tab === 'bank' ? <BankList items={pool} onOpen={id => setFlow({ id })} note="Hoạt động gom từ thẻ 05 “Kho hoạt động” của các bài học. Bấm một dòng để mở bài học." />
       : tab === 'norm' ? <Suspense fallback={<p className="sub">Đang tải…</p>}><MaterialNorms orgId={orgId} /></Suspense> : <>
       {!start && only === 'lesson' && (() => {
         const pub = base.filter(i => i.status === 'published').length
@@ -827,7 +838,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged }: { orgId
             )
           })}
         </div>
-      )}</> : <DataTable key={tab} id={'library-' + tab} rows={shown} rowKey={i => i.id} cols={libCols} left={libLeft} right={libRight}
+      )}</> : <DataTable key={tab} id={'library-' + tab} rows={shown} rowKey={i => i.id} cols={libCols} left={libLeft} right={libRight} aside={ofTab.length ? gt.tree : undefined}
         empty={<small className="sub">{libEmpty}</small>} onRow={i => setOpen(i.id)} />}
       </>}
     </>

@@ -66,7 +66,7 @@ function ColFilter({ label, options, value, onChange }: { label: string; options
   </>
 }
 
-export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow, simple, noTools, rowProps }: {
+export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow, simple, noTools, rowProps, aside }: {
   id: string; rows: T[]; cols: Col<T>[]; rowKey: (r: T) => string; empty?: ReactNode; className?: string
   /** Thuộc tính thêm cho từng dòng (vd: kéo thả) */
   rowProps?: (r: T) => HTMLAttributes<HTMLTableRowElement>
@@ -83,6 +83,8 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   simple?: boolean
   /** Không hiện hàng công cụ (dùng khi nhiều bảng con dùng chung một thanh công cụ ngoài) */
   noTools?: boolean
+  /** Khung bên trái bảng, cùng viền với bảng (vd. cây nhóm theo khối) */
+  aside?: ReactNode
 }) {
   const [view, setViewS] = useState<View>(() => load(id, cols as Col<unknown>[]))
   const setView = (f: (v: View) => View) => setViewS(v => { const n = f(v); try { localStorage.setItem('tt:' + id, JSON.stringify(n)) } catch { /* chỉ trong phiên */ } return n })
@@ -135,6 +137,22 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   const nHidden = cols.filter(c => !c.fixed && view.hidden.includes(c.key)).length
   const changed = nHidden > 0 || view.order.length > 0 || Object.keys(view.widths).length > 0 || view.fit
 
+  const tbl = <div className="wrap"><table className={`libtable ttable${view.fit && !simple ? ' ttfit' : ''}${className ? ' ' + className : ''}`}>
+      <colgroup>{head && <col style={{ width: 36 }} />}{shownCols.map(c => <col key={c.key} style={view.widths[c.key] ? { width: view.widths[c.key] } : undefined} />)}</colgroup>
+      <thead>
+        <tr>{head && <th>{head.th}</th>}{shownCols.map(c => <th key={c.key} className={c.thClass}
+          style={view.widths[c.key] ? { width: view.widths[c.key], minWidth: view.widths[c.key] } : undefined}>{c.label}
+          <span className="ttresize" role="separator" aria-label={`Đổi độ rộng cột ${c.label}`} onMouseDown={e => resize(c.key, e)} onClick={e => e.stopPropagation()}
+            onDoubleClick={e => { e.stopPropagation(); setView(v => { const w = { ...v.widths }; delete w[c.key]; return { ...v, widths: w } }) }} /></th>)}</tr>
+        {filterOn && <tr className="ttfilter">{head && <th />}{shownCols.map(c => <th key={c.key}>{c.text
+          ? <ColFilter label={c.label} options={options(c)} value={flt[c.key] ?? []} onChange={v => setFlt(f => ({ ...f, [c.key]: v }))} />
+          : null}</th>)}</tr>}
+      </thead>
+      <tbody>{shown.map(r => <tr key={rowKey(r)} className={onRow ? 'clickrow' : undefined} onClick={onRow && (() => onRow(r))} {...rowProps?.(r)}>{head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key}>{c.cell(r)}</td>)}</tr>)}
+        {!shown.length && <tr><td colSpan={shownCols.length + (head ? 1 : 0)}>{rows.length ? <small className="sub">Không có dòng nào khớp bộ lọc cột.</small> : empty}</td></tr>}</tbody>
+      {foot}
+    </table></div>
+
   return <div className="tt">
     {!noTools && <div className="tttools">
       {left && <div className="ttleft">{left}</div>}
@@ -162,21 +180,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
         title="Thu bảng vừa chiều ngang màn hình, chữ dài tự xuống dòng">⇔ Vừa khít</button>}
       {right}
     </div>}
-    <div className="wrap"><table className={`libtable ttable${view.fit && !simple ? ' ttfit' : ''}${className ? ' ' + className : ''}`}>
-      <colgroup>{head && <col style={{ width: 36 }} />}{shownCols.map(c => <col key={c.key} style={view.widths[c.key] ? { width: view.widths[c.key] } : undefined} />)}</colgroup>
-      <thead>
-        <tr>{head && <th>{head.th}</th>}{shownCols.map(c => <th key={c.key} className={c.thClass}
-          style={view.widths[c.key] ? { width: view.widths[c.key], minWidth: view.widths[c.key] } : undefined}>{c.label}
-          <span className="ttresize" role="separator" aria-label={`Đổi độ rộng cột ${c.label}`} onMouseDown={e => resize(c.key, e)} onClick={e => e.stopPropagation()}
-            onDoubleClick={e => { e.stopPropagation(); setView(v => { const w = { ...v.widths }; delete w[c.key]; return { ...v, widths: w } }) }} /></th>)}</tr>
-        {filterOn && <tr className="ttfilter">{head && <th />}{shownCols.map(c => <th key={c.key}>{c.text
-          ? <ColFilter label={c.label} options={options(c)} value={flt[c.key] ?? []} onChange={v => setFlt(f => ({ ...f, [c.key]: v }))} />
-          : null}</th>)}</tr>}
-      </thead>
-      <tbody>{shown.map(r => <tr key={rowKey(r)} className={onRow ? 'clickrow' : undefined} onClick={onRow && (() => onRow(r))} {...rowProps?.(r)}>{head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key}>{c.cell(r)}</td>)}</tr>)}
-        {!shown.length && <tr><td colSpan={shownCols.length + (head ? 1 : 0)}>{rows.length ? <small className="sub">Không có dòng nào khớp bộ lọc cột.</small> : empty}</td></tr>}</tbody>
-      {foot}
-    </table></div>
+    {aside ? <div className="ttbody"><div className="ttaside">{aside}</div>{tbl}</div> : tbl}
   </div>
 }
 

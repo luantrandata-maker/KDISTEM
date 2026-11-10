@@ -1,14 +1,12 @@
 // Học liệu (Phân hệ 2) theo video demo (23/10): quy trình 3 bước (chỉ bước 1 cần nhập) · 4 thẻ số liệu ·
-// tab Học liệu theo chương trình | Cần chuẩn bị (theo chương trình hoặc theo trường) | Danh mục học liệu | Kho học liệu dùng chung.
+// tab Học liệu theo chương trình | Cần chuẩn bị (theo chương trình hoặc theo trường) | Danh mục học liệu (lọc Nguồn: của đơn vị / dùng chung / tất cả).
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { LibraryByProgram, LibraryNeeds, usePrograms } from './ByProgram'
 import { LibraryManage } from './Manage'
-import { LibraryBrowse } from './Browse'
-import { FlowGuide } from '../../components/FlowGuide'
 import { StatCards } from '../../components/StatCards'
 
-type Tab = 'prog' | 'needs' | 'catalog' | 'shared'
+type Tab = 'prog' | 'needs' | 'catalog'
 type Stats = { docs: number; tools: number; supplies: number; published: number; drafts: number; progsWithKit: number; needs: number }
 
 function useStats(orgId: string | null, rk: number) {
@@ -41,19 +39,10 @@ export function LibraryPage({ orgId, teacherId, go }: { orgId: string | null; te
   const [rk, setRk] = useState(0)
   const s = useStats(orgId, rk)
   const progs = usePrograms(orgId)
-  const steps: [Tab, string, string, string][] = [
-    ['prog', 'Bước 01', 'Tải giáo án theo bài', 'Đi theo Chương trình → Môn → Bài học, tải giáo án Word hoặc bài giảng PowerPoint để tách thành bộ học liệu 5 thẻ.'],
-    ['needs', 'Bước 02 · Tự tổng hợp', 'Cần chuẩn bị', 'Tự tổng hợp học liệu, thiết bị, vật tư cần có theo chương trình hoặc theo trường từ định mức của từng bài.'],
-    ['catalog', 'Bước 03 · Tự tổng hợp', 'Danh mục học liệu', 'Danh mục tổng: tự tổng hợp tất cả học liệu từ giáo án để tra cứu, lọc, đổi trạng thái và cập nhật ảnh đại diện.']]
   const n = (v: number | undefined) => (v == null ? '…' : v)
   const total = s ? s.docs + s.tools + s.supplies : undefined
   return (
     <>
-      <FlowGuide id="library">
-          <ol className="distguide">{steps.map(([t, k, h, d], i) => <li key={t}>
-            <button type="button" className={tab === t ? 'on' : ''} onClick={() => setTab(t)}><i>{i + 1}</i><span><small className="libstepk">{k}</small><b>{h}</b><small>{d}</small></span></button></li>)}</ol>
-          <p className="sub" style={{ margin: 0 }}>Chỉ bước 1 cần nhập. Bước 2 và 3 tự tổng hợp từ bộ học liệu của các bài, không phải nhập lại.</p>
-      </FlowGuide>
       {/* Thẻ tổng số của cả mục; bấm thẻ để mở tab tương ứng */}
       <StatCards nav onPick={k => k && setTab(k as Tab)} items={[
         { k: 'catalog', icon: 'folders', value: n(total), label: 'Học liệu', sub: s ? `${s.docs} tài liệu · ${s.tools} thiết bị · ${s.supplies} vật tư` : '' },
@@ -62,13 +51,12 @@ export function LibraryPage({ orgId, teacherId, go }: { orgId: string | null; te
         { k: 'needs', icon: 'package', tone: 'warn', value: n(s?.needs), label: 'Thiết bị, vật tư cần chuẩn bị' },
       ]} />
       <div className="distpills" role="tablist">
-        {([['prog', 'Học liệu theo chương trình'], ['needs', 'Cần chuẩn bị'], ['catalog', 'Danh mục học liệu'], ['shared', 'Kho học liệu dùng chung']] as [Tab, string][]).map(([t, l]) =>
+        {([['prog', 'Học liệu theo chương trình'], ['needs', 'Cần chuẩn bị'], ['catalog', 'Danh mục học liệu']] as [Tab, string][]).map(([t, l]) =>
           <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{l}</button>)}
       </div>
       {tab === 'prog' && <LibraryByProgram orgId={orgId} onChanged={() => setRk(k => k + 1)} />}
       {tab === 'needs' && <LibraryNeeds orgId={orgId} />}
-      {tab === 'catalog' && <LibraryManage orgId={orgId} onChanged={() => setRk(k => k + 1)} />}
-      {tab === 'shared' && <LibraryBrowse orgId={orgId} teacherId={teacherId} go={go} />}
+      {tab === 'catalog' && <LibraryManage orgId={orgId} sources onChanged={() => setRk(k => k + 1)} />}
     </>
   )
 }

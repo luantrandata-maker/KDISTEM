@@ -4,6 +4,9 @@ import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../../compo
 import { downloadXlsx, norm } from '../../lib/sheet'
 import { Tabs } from '../teacher/common'
 import { StatCards, type Stat as CardStat } from '../../components/StatCards'
+import { DataTable, type Col as DCol } from '../../components/DataTable'
+import { useGradeTree } from '../../components/GradeTree'
+import { gradeList } from '../../components/Pickers'
 
 // Màn xem toàn hệ thống cho cổng Quản trị nền tảng (KDI): gom dữ liệu của tất cả trường trên một trang,
 // lọc theo Sở / tỉnh → trường, có bảng tổng hợp theo trường và danh sách chi tiết. Chỉ đọc
@@ -26,7 +29,11 @@ export type Spec = {
   /** Thẻ tổng số riêng (thay cho hàng thẻ mặc định): items tính trên các dòng đã lọc; thẻ có k lọc danh sách theo fit[k].
    *  extra: dữ liệu phụ nạp một lần (vd. hoạt động nào đã được dùng trong bài giảng) */
   cards?: { items: (rows: Row[], extra: any) => CardStat[]; fit: Record<string, (r: Row, extra: any) => boolean>; extra?: () => Promise<any> }
+  /** Khối của dòng: có thì danh sách có cây Cấp → Khối bên trái */
+  grades?: (r: Row) => number[]
 }
+/** Khối lưu dạng chữ ("6, 7", "6–9") hoặc mảng số */
+export const rowGrades = (g: unknown): number[] => Array.isArray(g) ? g.map(Number).filter(n => !isNaN(n)) : typeof g === 'string' ? gradeList(g) : typeof g === 'number' ? [g] : []
 
 const PAGE = 1000, CAP = 20000, SHOW = 500
 const REGION_TYPES = new Set(['department', 'province'])
@@ -117,7 +124,10 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
   const fitted = rows.filter(r => (spec.facets ?? []).every(fc => mf.has(fc.key, fc.get(r))) && (!needle || norm((spec.search(r) + ' ' + nameOf(r.org_id)).toLowerCase()).includes(needle)))
   const base = fitted.filter(r => st === 'all' || spec.status?.get(r) === st)
   const cardFit = card ? spec.cards?.fit[card] : undefined
-  const shown = cardFit ? base.filter(r => cardFit(r, extra)) : base
+  const shown0 = cardFit ? base.filter(r => cardFit(r, extra)) : base
+  // Cây Cấp → Khối (spec.grades) lọc thêm danh sách chi tiết
+  const gt = useGradeTree('sys-' + spec.file, shown0, spec.grades ?? (() => []))
+  const shown = spec.grades ? gt.filter(shown0) : shown0
   const groups = [...shown.reduce((m, r) => m.set(r.org_id, [...(m.get(r.org_id) ?? []), r]), new Map<string, Row[]>())]
     .sort((a, b) => b[1].length - a[1].length || nameOf(a[0]).localeCompare(nameOf(b[0]), 'vi'))
   const empty = schoolsInRegion.filter(s => !groups.some(([id]) => id === s.id))
@@ -197,7 +207,17 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
         </tbody>
       </table></div>}
 
-      {!busy && (org || view === 'list') && <>
+      {!busy && (org || view === 'list') && !spec.detail && <DataTable id={'sys-' + spec.file} rows={shown.slice(0, SHOW)} rowKey={r => r.id} onRow={onOpen}
+        aside={spec.grades && shown0.length ? gt.tree : undefined} empty={rows.length ? 'Không có dòng phù hợp bộ lọc.' : spec.empty}
+        cols={[...(!org ? [{ key: 'org', label: 'Đơn vị', text: (r: Row) => nameOf(r.org_id), cell: (r: Row) => <small>{nameOf(r.org_id)}</small> }] : []),
+          ...spec.cols.map((c, i) => {
+            // Cột chỉ có nội dung dựng sẵn (không phải chữ) thì không có ô lọc
+            const plain = !!c.text || (shown0.length > 0 && ['string', 'number'].includes(typeof c.get(shown0[0])))
+            return { key: 'c' + i, label: c.label, fixed: i === 0, cell: c.get,
+              text: plain ? (r: Row) => { const v = c.text ? c.text(r) : c.get(r); return typeof v === 'string' || typeof v === 'number' ? String(v) : '' } : undefined }
+          })] as DCol<Row>[]} />}
+      {!busy && (org || view === 'list') && !spec.detail && shown.length > SHOW && <p className="sub">Hiện {SHOW}/{shown.length.toLocaleString('vi-VN')} dòng. Xuất Excel để có đủ, hoặc lọc thêm.</p>}
+      {!busy && (org || view === 'list') && spec.detail && <>
         <div className="wrap"><table className="systable">
           <thead><tr>{!org && <th>Đơn vị</th>}{spec.cols.map(c => <th key={c.label}>{c.label}</th>)}</tr></thead>
           <tbody>
@@ -444,6 +464,7 @@ const L_ST: Record<string, string> = { draft: 'Nháp', editing: 'Đang soạn', 
 export const LESSONS: Spec = {
   table: 'lesson_plans', order: 'updated_at', asc: false,
   select: 'id, org_id, title, subject, grades, program, status, is_template, from_package, updated_at, teachers(full_name)',
+  grades: r => rowGrades(r.grades),
   cols: [
     { label: 'Bài giảng', get: r => <><b>{r.title}</b>{r.is_template && <> {pill('Mẫu')}</>}</>, text: r => r.title, wrap: true },
     { label: 'Giáo viên', get: r => r.teachers?.full_name ?? <small>—</small>, text: r => r.teachers?.full_name },
@@ -464,7 +485,7 @@ const A_KIND: Record<string, string> = { quiz: 'Trắc nghiệm', truefalse: 'Đ
 export const ACTIVITIES: Spec = {
   table: 'activities', order: 'updated_at', asc: false,
   select: 'id, org_id, kind, title, subject, grades, status, is_template, updated_at, teachers(full_name)',
-  where: q => q.eq('domain', 'school'),
+  where: q => q.eq('domain', 'school'), grades: r => rowGrades(r.grades),
   cols: [
     { label: 'Hoạt động', get: r => <><b>{r.title}</b>{r.is_template && <> {pill('Mẫu')}</>}</>, text: r => r.title, wrap: true },
     { label: 'Loại', get: r => A_KIND[r.kind] ?? r.kind },

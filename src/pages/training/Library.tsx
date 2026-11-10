@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState, type ComponentType } from 'react'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
-import { FlowGuide } from '../../components/FlowGuide'
 import { StatCards } from '../../components/StatCards'
 import { kitOf } from '../library/lesson/model'
 import { allUnits } from './Materials'
@@ -64,18 +63,8 @@ export function TrainingLibraryPage({ parts, ...p }: { parts: [string, Component
   const d = useTrainingLib()
   const s = useStats(d)
   const n = (v: number | undefined) => (v == null ? '…' : v)
-  const steps: [Tab, string, string, string][] = [
-    ['prog', 'Bước 01', 'Soạn học liệu theo nội dung', 'Đi theo Chương trình đào tạo → Môn → Nội dung, tải giáo án Word hoặc bài giảng PowerPoint để tách thành bộ học liệu 5 thẻ.'],
-    ['needs', 'Bước 02 · Tự tổng hợp', 'Cần chuẩn bị', 'Tự tổng hợp thiết bị, vật tư cần có cho một khoá đào tạo theo số học viên và số nhóm.'],
-    ['catalog', 'Bước 03 · Tự tổng hợp', 'Danh mục học liệu', 'Danh mục tổng: nội dung, bài giảng, link tài liệu, định mức vật tư và kho hoạt động của tất cả chương trình đào tạo.'],
-  ]
   const Part = parts[part]?.[1]
   return <>
-    <FlowGuide id="training-library">
-      <ol className="distguide">{steps.map(([t, k, h, dd], i) => <li key={t}>
-        <button type="button" className={tab === t ? 'on' : ''} onClick={() => setTab(t)}><i>{i + 1}</i><span><small className="libstepk">{k}</small><b>{h}</b><small>{dd}</small></span></button></li>)}</ol>
-      <p className="sub" style={{ margin: 0 }}>Chỉ bước 1 cần nhập. Bước 2 và 3 tự tổng hợp từ học liệu của các nội dung và bài giảng, không phải nhập lại.</p>
-    </FlowGuide>
     <StatCards nav onPick={k => k && setTab(k as Tab)} items={[
       { k: 'catalog', icon: 'folders', value: n(s ? s.docs + s.mats + s.acts : undefined), label: 'Học liệu', sub: s ? `${s.docs} tài liệu · ${s.mats} vật tư · ${s.acts} hoạt động` : '' },
       { k: 'catalog', icon: 'checkCircle', tone: 'good', value: n(s?.lessons), label: 'Bài giảng đào tạo', sub: s ? `${s.published} đã phát hành` : '' },

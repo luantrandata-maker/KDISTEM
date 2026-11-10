@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
 import { LEVEL, errText, letter, type Level } from './common'
+import { DataTable, type Col } from '../../components/DataTable'
+import { useGradeTree } from '../../components/GradeTree'
 
 // Phân tích kết quả luyện thi (migration 061): câu hỏi khó và nội dung cần ôn tập theo chủ đề / mức độ.
 type Hard = { question_id: string; stem: string; subject: string; grade: number | null; topic: string; level: Level; shown: number; correct: number; rate: number; students: number
@@ -41,44 +43,46 @@ export default function Analytics({ orgId, kind }: { orgId: string | null; kind:
       topics.map(t => [t.subject, t.grade, t.topic, LEVEL[t.level] ?? t.level, t.questions, t.answers, t.rate, t.students, t.weak_students]), 'Nội dung cần ôn')
   }
   const rows = kind === 'hard' ? hard : topics
+  const gHard = useGradeTree('el-hard', hard ?? [], h => h.grade ? [h.grade] : [])
+  const gTopic = useGradeTree('el-review', topics ?? [], t => t.grade ? [t.grade] : [])
   return (
     <>
-      <p className="sub">{kind === 'hard'
-        ? 'Câu hỏi có tỉ lệ trả lời đúng thấp nhất trong các lượt đã nộp — xem lại đáp án, cách hỏi, hoặc dạy lại phần kiến thức đó. Phương án sai được chọn nhiều cho biết học sinh hay nhầm ở đâu.'
-        : 'Tỉ lệ đúng theo chủ đề và mức độ, kèm số học sinh làm đúng dưới 50% — gợi ý nội dung cần ôn tập cho cả lớp hoặc cho nhóm học sinh yếu.'}</p>
       <div className="bar" style={{ margin: '12px 0' }}>
         <span className="tools">
           <select value={f.exam} onChange={e => setF({ ...f, exam: e.target.value })} aria-label="Đề luyện"><option value="">Tất cả đề luyện</option>{exams.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}</select>
           {classes.length > 0 && <select value={f.cls} onChange={e => setF({ ...f, cls: e.target.value })} aria-label="Lớp"><option value="">Tất cả lớp</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
           <select value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
-          <select value={f.grade} onChange={e => setF({ ...f, grade: e.target.value })} aria-label="Khối"><option value="">Tất cả khối</option>{Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>Khối {i + 1}</option>)}</select>
           <select value={f.days} onChange={e => setF({ ...f, days: e.target.value })} aria-label="Thời gian">{DAYS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
           {kind === 'hard' && <select value={f.min} onChange={e => setF({ ...f, min: e.target.value })} aria-label="Số lượt tối thiểu">{['1', '3', '5', '10', '20'].map(v => <option key={v} value={v}>Từ {v} lượt trả lời</option>)}</select>}
         </span>
         <button onClick={exportXlsx} disabled={!rows?.length}>Xuất Excel</button>
       </div>
       {err && <p className="msg">{err}</p>}
-      {!rows ? <p className="sub">Đang tải…</p> : kind === 'hard' ? <HardTable rows={hard!} wrong={wrong} /> : <TopicTable rows={topics!} />}
+      {!rows ? <p className="sub">Đang tải…</p> : kind === 'hard' ? <HardTable rows={hard!} wrong={wrong} gt={gHard} /> : <TopicTable rows={topics!} gt={gTopic} />}
     </>
   )
 }
 
-function HardTable({ rows, wrong }: { rows: Hard[]; wrong: (h: Hard) => string }) {
-  return <div className="wrap"><table className="systable">
-    <thead><tr><th>Câu hỏi</th><th>Chủ đề</th><th>Mức độ</th><th className="num">Lượt trả lời</th><th style={{ minWidth: 140 }}>% đúng</th><th>Phương án sai chọn nhiều nhất</th></tr></thead>
-    <tbody>{rows.map(h => <tr key={h.question_id}>
-      <td style={{ maxWidth: 420 }}>{h.stem}<br /><small>{[h.subject, h.grade ? 'Khối ' + h.grade : null].filter(Boolean).join(' · ')}</small></td>
-      <td>{h.topic}</td><td>{LEVEL[h.level] ?? h.level}</td>
-      <td className="num">{h.shown}<br /><small>{h.students} HS</small></td>
-      <td><Rate r={Number(h.rate)} /></td>
-      <td>{h.wrong_option ? <>{wrong(h)}<br /><small>{h.wrong_option.times} lần chọn</small></> : <small>{h.correct < h.shown ? 'Bỏ trống hoặc chọn thiếu đáp án' : '—'}</small>}</td>
-    </tr>)}
-      {!rows.length && <tr><td colSpan={6}>Chưa đủ dữ liệu — cần các lượt làm bài đã nộp trong khoảng thời gian đã chọn.</td></tr>}
-    </tbody>
-  </table></div>
+type Tree<T> = ReturnType<typeof useGradeTree<T>>
+const rateText = (r: number) => (r < 50 ? 'Dưới 50%' : r < 80 ? '50–79%' : 'Từ 80%')
+
+function HardTable({ rows, wrong, gt }: { rows: Hard[]; wrong: (h: Hard) => string; gt: Tree<Hard> }) {
+  return <DataTable id="el-hard" rows={gt.filter(rows)} rowKey={h => h.question_id} aside={rows.length ? gt.tree : undefined}
+    empty="Chưa đủ dữ liệu — cần các lượt làm bài đã nộp trong khoảng thời gian đã chọn."
+    cols={[
+      { key: 'q', label: 'Câu hỏi', fixed: true, text: h => h.stem, values: h => [h.stem],
+        cell: h => <span style={{ display: 'block', maxWidth: 420 }}>{h.stem}<br /><small>{[h.subject, h.grade ? 'Khối ' + h.grade : null].filter(Boolean).join(' · ')}</small></span> },
+      { key: 'subj', label: 'Môn', off: true, text: h => h.subject, cell: h => h.subject },
+      { key: 'topic', label: 'Chủ đề', text: h => h.topic, cell: h => h.topic },
+      { key: 'lv', label: 'Mức độ', text: h => LEVEL[h.level] ?? h.level, cell: h => LEVEL[h.level] ?? h.level },
+      { key: 'n', label: 'Lượt trả lời', thClass: 'num', cell: h => <span className="num">{h.shown}<br /><small>{h.students} HS</small></span> },
+      { key: 'rate', label: '% đúng', thClass: 'c-rate', text: h => rateText(Number(h.rate)), cell: h => <Rate r={Number(h.rate)} /> },
+      { key: 'wrong', label: 'Phương án sai chọn nhiều nhất', text: h => wrong(h),
+        cell: h => h.wrong_option ? <>{wrong(h)}<br /><small>{h.wrong_option.times} lần chọn</small></> : <small>{h.correct < h.shown ? 'Bỏ trống hoặc chọn thiếu đáp án' : '—'}</small> },
+    ] as Col<Hard>[]} />
 }
 
-function TopicTable({ rows }: { rows: Topic[] }) {
+function TopicTable({ rows, gt }: { rows: Topic[]; gt: Tree<Topic> }) {
   const weak = rows.filter(t => Number(t.rate) < 50)
   return <>
     {rows.length > 0 && <div className="cards syscards">
@@ -86,15 +90,16 @@ function TopicTable({ rows }: { rows: Topic[] }) {
       <div className="card"><strong>{weak.length}</strong><span>Dưới 50% đúng — cần ôn</span></div>
       <div className="card"><strong>{rows.reduce((n, t) => n + t.answers, 0)}</strong><span>Lượt trả lời được phân tích</span></div>
     </div>}
-    <div className="wrap"><table className="systable">
-      <thead><tr><th>Chủ đề</th><th>Môn · Khối</th><th>Mức độ</th><th className="num">Số câu</th><th className="num">Lượt trả lời</th><th style={{ minWidth: 140 }}>% đúng</th><th className="num">HS dưới 50%</th></tr></thead>
-      <tbody>{rows.map(t => <tr key={`${t.subject}|${t.grade}|${t.topic}|${t.level}`}>
-        <td><b>{t.topic}</b></td><td>{t.subject}{t.grade ? ` · Khối ${t.grade}` : ''}</td><td>{LEVEL[t.level] ?? t.level}</td>
-        <td className="num">{t.questions}</td><td className="num">{t.answers}</td><td><Rate r={Number(t.rate)} /></td>
-        <td className="num">{t.weak_students ? <b className="late">{t.weak_students}</b> : 0}<small>/{t.students}</small></td>
-      </tr>)}
-        {!rows.length && <tr><td colSpan={7}>Chưa có lượt làm bài đã nộp trong khoảng thời gian đã chọn.</td></tr>}
-      </tbody>
-    </table></div>
+    <DataTable id="el-review" rows={gt.filter(rows)} rowKey={t => `${t.subject}|${t.grade}|${t.topic}|${t.level}`} aside={rows.length ? gt.tree : undefined}
+      empty="Chưa có lượt làm bài đã nộp trong khoảng thời gian đã chọn."
+      cols={[
+        { key: 'topic', label: 'Chủ đề', fixed: true, text: t => t.topic, cell: t => <b>{t.topic}</b> },
+        { key: 'subj', label: 'Môn · Khối', text: t => t.subject, cell: t => `${t.subject}${t.grade ? ` · Khối ${t.grade}` : ''}` },
+        { key: 'lv', label: 'Mức độ', text: t => LEVEL[t.level] ?? t.level, cell: t => LEVEL[t.level] ?? t.level },
+        { key: 'q', label: 'Số câu', thClass: 'num', cell: t => <span className="num">{t.questions}</span> },
+        { key: 'a', label: 'Lượt trả lời', thClass: 'num', cell: t => <span className="num">{t.answers}</span> },
+        { key: 'rate', label: '% đúng', thClass: 'c-rate', text: t => rateText(Number(t.rate)), cell: t => <Rate r={Number(t.rate)} /> },
+        { key: 'weak', label: 'HS dưới 50%', thClass: 'num', cell: t => <span className="num">{t.weak_students ? <b className="late">{t.weak_students}</b> : 0}<small>/{t.students}</small></span> },
+      ] as Col<Topic>[]} />
   </>
 }

@@ -908,18 +908,21 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     if (error) return onMessage(errText(error.message), true)
     load(); onChanged()
   }
-  // Kéo thả đổi vị trí: chỉ trong cùng môn và cùng nhóm cha; giữ nguyên tập số thứ tự, gán lại theo thứ tự mới
+  // Kéo thả đổi vị trí trong cùng môn. Bài thuộc chủ đề cũ khác nhóm thì chuyển sang cùng nhóm với bài được thả vào.
   async function moveTo(dragId: string, over: LRow) {
     const r = rows.find(x => x.u.id === dragId)
     if (!r || r.u.id === over.u.id) return
-    if (lc(r.subject) !== lc(over.subject) || r.u.parent_id !== over.u.parent_id) return onMessage('Chỉ kéo thả được trong cùng một môn.', true)
-    const sibs = rowsOf(r.subject).filter(x => x.u.parent_id === r.u.parent_id)
-    const seqs = sibs.map(x => x.u.seq).sort((a, b) => a - b)
-    const from = sibs.indexOf(r), to = sibs.indexOf(over)
-    const next = [...sibs]; next.splice(from, 1); next.splice(to, 0, r)
-    const ch = next.map((x, i) => [x, seqs[i]] as const).filter(([x, sq]) => x.u.seq !== sq)
-    setUnits(us => us?.map(u => { const c = ch.find(([x]) => x.u.id === u.id); return c ? { ...u, seq: c[1] } : u }) ?? us)
-    const res = await Promise.all(ch.map(([x, sq]) => supabase.from('edu_program_units').update({ seq: sq }).eq('id', x.u.id)))
+    if (lc(r.subject) !== lc(over.subject)) return onMessage('Chỉ kéo thả được trong cùng một môn.', true)
+    const par = over.u.parent_id, same = r.u.parent_id === par
+    const sibs = rowsOf(r.subject).filter(x => x.u.parent_id === par)
+    const rest = sibs.filter(x => x !== r)
+    const seqs = [...rest.map(x => x.u.seq), same ? r.u.seq : Math.max(0, ...all.filter(u => u.parent_id === par).map(u => u.seq)) + 1].sort((a, b) => a - b)
+    const next = [...rest]
+    const at = rest.indexOf(over) + (same && sibs.indexOf(r) < sibs.indexOf(over) ? 1 : 0)
+    next.splice(at, 0, r)
+    const ch = next.map((x, i) => [x, seqs[i]] as const).filter(([x, sq]) => x.u.seq !== sq || x === r && !same)
+    setUnits(us => us?.map(u => { const c = ch.find(([x]) => x.u.id === u.id); return c ? { ...u, seq: c[1], parent_id: u.id === r.u.id ? par : u.parent_id } : u }) ?? us)
+    const res = await Promise.all(ch.map(([x, sq]) => supabase.from('edu_program_units').update(x === r && !same ? { seq: sq, parent_id: par } : { seq: sq }).eq('id', x.u.id)))
     const err = res.find(x => x.error)?.error
     if (err) onMessage(errText(err.message), true)
     load()
@@ -995,7 +998,8 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     { key: 'no', label: '#', thClass: 'c-no', fixed: true, cell: r => <span className="sub">{noOf(r)}</span> },
     ...(!sel ? [{ key: 'subj', label: 'Môn', thClass: 'c-subj', text: (r: LRow) => r.subject, cell: (r: LRow) => <button type="button" className="slsubjlink" onClick={() => setCur(r.subject)}>{r.subject}</button> }] : []),
     { key: 'title', label: 'Tên bài học', thClass: 'c-title', fixed: true, text: r => r.u.title, cell: r => <>{editable ? cell(r, 'title') : <NameLink onClick={() => setOpenL(r.u.id)}>{r.u.title}</NameLink>}
-      {r.topic && <small className="sub sltopic">Chủ đề cũ: {r.topic}</small>}</> },
+</> },
+    { key: 'topic', label: 'Chủ đề cũ', thClass: 'c-topic', off: true, text: r => r.topic, cell: r => r.topic ? <small className="sub">{r.topic}</small> : <span className="sub">—</span> },
     { key: 'grades', label: 'Khối', thClass: 'c-grade', text: r => unitGrades(r.u).join(', '), cell: r => cell(r, 'grades') },
     { key: 'periods', label: 'Số tiết', thClass: 'c-per', text: r => String(r.u.periods || ''), cell: r => cell(r, 'periods') },
     { key: 'outs', label: 'Yêu cầu cần đạt', thClass: 'c-outs', cell: r => cell(r, 'outs') },
@@ -1030,7 +1034,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
         : <button type="button" className="sladdsubj" onClick={() => setAddSubj(true)}>+ Thêm môn</button>)}
     </nav>
     <div className="slmain">
-      <DataTable id="edu-lessons" simple rows={shown} rowKey={r => r.u.id} className="slt"
+      <DataTable id="edu-lessons-v2" simple rows={shown} rowKey={r => r.u.id} className="slt"
         rowProps={editable ? r => ({ className: drag === r.u.id ? 'sldragging' : over === r.u.id && drag ? 'slover' : undefined,
           onDragOver: e => { if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== r.u.id) setOver(r.u.id) },
           onDrop: e => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id) moveTo(id, r) } }) : undefined}

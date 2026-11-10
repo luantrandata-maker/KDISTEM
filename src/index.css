@@ -2418,7 +2418,7 @@ th.sort-asc::after{content:" ▲";font-size:10px}th.sort-desc::after{content:" �
 .ttfpop li label span{flex:1;overflow-wrap:anywhere}
 .ttfpop li input{margin-top:2px}
 /* Chương trình giáo dục › Môn & bài học */
-.slwrap{display:grid;grid-template-columns:210px minmax(0,1fr);gap:14px;align-items:start}
+.slwrap{display:grid;grid-template-columns:165px minmax(0,1fr);gap:14px;align-items:start}
 @media (max-width:820px){.slwrap{grid-template-columns:1fr}}
 .slnav{display:flex;flex-direction:column;gap:2px;border-right:1px solid var(--line);padding-right:10px}
 .main .slnavi{display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;padding:8px 10px;border:0;border-radius:8px;background:none;text-align:left;font-weight:500;cursor:pointer;min-height:0}
@@ -2465,7 +2465,7 @@ textarea.slcell{font-size:13px;color:var(--muted);min-height:28px}
 .pdstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
 .pdstats>div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 12px;display:flex;align-items:baseline;justify-content:center;gap:6px;white-space:nowrap}
 .pdstats b{font-size:16px;line-height:1.2;color:var(--navy,var(--text))}.pdstats span{color:var(--muted);font-size:12.5px}
-.pdgrid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start;margin-top:12px}
+.pdgrid{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:16px;align-items:start;margin-top:12px}
 @media (max-width:1100px){.pdgrid{grid-template-columns:minmax(0,1fr)}}
 .pdmain,.pdside{display:grid;gap:16px;min-width:0}
 .panel.pdcard{margin:0}
@@ -2539,7 +2539,7 @@ textarea.slcell{font-size:13px;color:var(--muted);min-height:28px}
 
 /* Môn & bài học: thanh công cụ lên ngang tiêu đề thẻ, tiêu đề bảng ngang hàng với "Tất cả" */
 @media (min-width:821px){
-  .pdsl{display:grid;grid-template-columns:210px minmax(0,1fr);column-gap:14px;row-gap:8px;align-items:start}
+  .pdsl{display:grid;grid-template-columns:165px minmax(0,1fr);column-gap:14px;row-gap:8px;align-items:start}
   .pdsl>h4{grid-column:1;grid-row:1;align-self:center;margin:0}
   .pdsl>:not(h4):not(.slwrap){grid-column:1/-1}
   .pdsl .slwrap,.pdsl .slmain,.pdsl .slmain>.tt{display:contents}
@@ -2553,3 +2553,8 @@ textarea.slcell{font-size:13px;color:var(--muted);min-height:28px}
 .slnavrow:hover .slnavx,.slnavrow.on .slnavx,.main .slnavx:focus-visible{opacity:1}
 .main .slnavx:hover{color:#c0392b;background:#fdecea}
 .slnavrow .slnavi{padding-right:28px}
+/* Nhãn dài trong cột phải xuống dòng, không tràn khung */
+.pdcard .pvchips{min-width:0}
+.pdcard .pvchips .pill{white-space:normal;max-width:100%;overflow-wrap:anywhere;line-height:1.35}
+.slnavrow .slnavi .slnm{overflow-wrap:anywhere}
+.slt th.c-topic{width:160px}

@@ -21,6 +21,8 @@ import { StatCards } from '../../components/StatCards'
 import { useCls } from './cls'
 import { DistHistory, PlanAssigned } from './History'
 import { gradeName } from '../../lib/eduLevels'
+import { AllOrgs } from '../../components/OrgScope'
+import { CurriculumBooks } from '../curriculum'
 
 export type { Plan } from './sched'
 type Tab = 'list' | 'create' | 'tree' | 'assign' | 'history'
@@ -57,8 +59,12 @@ function useDistData(rk: number) {
   return { plans, meta, books, err }
 }
 
-export function DistPage({ orgId }: { orgId: string | null }) {
+/** units: thêm lọc Nguồn (Bản phân phối / PPCT các đơn vị) ở danh sách, thay tab "PPCT các đơn vị" (cổng KDI) */
+export function DistPage({ orgId, units }: { orgId: string | null; units?: boolean }) {
   const [tab, setTab] = useState<Tab>('list')
+  const [src, setSrc] = useState<'own' | 'units'>('own')
+  const srcSel = units && <select value={src} onChange={e => setSrc(e.target.value as 'own' | 'units')} aria-label="Nguồn">
+    <option value="own">Nguồn: Bản phân phối</option><option value="units">Nguồn: PPCT các đơn vị</option></select>
   const [rk, setRk] = useState(0)
   const { plans, meta, books, err } = useDistData(rk)
   const [openTree, setOpenTree] = useState<string | null>(null)
@@ -85,7 +91,7 @@ export function DistPage({ orgId }: { orgId: string | null }) {
   const drafts = cardBase.filter(p => p.status === 'draft').length
   return (
     <>
-      <StatCards active={lf.card} onPick={k => { setLf({ ...lf, card: k, fs: '' }); setTab('list'); setOpenList(null); setMsg(null) }} items={[
+      <StatCards active={lf.card} onPick={k => { setLf({ ...lf, card: k, fs: '' }); setTab('list'); setSrc('own'); setOpenList(null); setMsg(null) }} items={[
         { icon: 'layers', value: plans ? cardBase.length : '…', label: 'Bản phân phối', sub: `${pub} đã phát hành · ${drafts} nháp` },
         { k: 'published', icon: 'checkCircle', tone: 'good', value: plans ? pub : '…', label: 'Bản có thể gán' },
         { k: 'books', icon: 'grid', tone: 'good', value: cardBooks.length, label: 'PPCT theo trường', sub: `${cardBooks.filter(b => b.status === 'published').length} đã ban hành` },
@@ -102,10 +108,11 @@ export function DistPage({ orgId }: { orgId: string | null }) {
           ? <PlanBody key={openTree + ':' + rk} plan={plans.find(p => p.id === openTree)!} orgId={orgId} back={() => { setOpenTree(null); setMsg(null) }} backLabel="Các bản trong mục"
               onChanged={changed('tree')} onAssign={assign} />
           : <DistTree orgId={orgId} plans={plans} meta={meta} focus={openTree} onOpen={id => { setOpenTree(id); setMsg(null) }} onCreated={id => { reload(); setOpenTree(id) }} />)}
-        {tab === 'list' && (openList && plans.some(p => p.id === openList)
+        {tab === 'list' && src === 'units' && <AllOrgs><CurriculumBooks orgId={orgId} mode="platform" lead={srcSel} /></AllOrgs>}
+        {tab === 'list' && src !== 'units' && (openList && plans.some(p => p.id === openList)
           ? <PlanBody key={openList + ':' + rk} plan={plans.find(p => p.id === openList)!} orgId={orgId} back={() => { setOpenList(null); setMsg(null) }} backLabel="Danh sách"
               onChanged={changed('list')} onAssign={assign} />
-          : <DistList plans={plans} meta={meta} f={lf} setF={setLf} canCreate={!!orgId} onCreate={() => { setMsg(null); setTab('create') }} onOpen={p => { setMsg(null); setOpenList(p.id) }}
+          : <DistList plans={plans} meta={meta} f={lf} setF={setLf} lead={srcSel} canCreate={!!orgId} onCreate={() => { setMsg(null); setTab('create') }} onOpen={p => { setMsg(null); setOpenList(p.id) }}
               onCopied={(id, m) => { reload(); setMsg(m); if (id) setOpenList(id) }} onAssign={assign} />)}
         {tab === 'create' && orgId && <CreatePlan orgId={orgId} onCancel={() => setTab('list')}
           onCreated={id => { reload(); setOpenList(id); setTab('list'); setMsg('Đã tạo bản phân phối nháp. Tiếp tục chọn chương trình và xếp lịch.') }} />}
@@ -175,17 +182,15 @@ type SortKey = 'title' | 'cls' | 'parts' | 'lessons' | 'books' | 'status' | 'upd
 type ListF = { fs: Status | ''; q: string; fc: string; card: string | null }
 const listMatch = (p: Plan, f: ListF, crumb: (p: Plan) => string) =>
   (!f.fc || crumb(p) === f.fc) && (!f.q || `${p.code} ${p.title} ${crumb(p)}`.toLowerCase().includes(f.q.toLowerCase()))
-function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied, onAssign }: {
-  plans: Plan[]; meta: Map<string, Meta>; f: ListF; setF: (f: ListF) => void; canCreate: boolean; onCreate: () => void; onOpen: (p: Plan) => void; onCopied: (id: string | null, msg: string) => void; onAssign: (id: string) => void
+function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied, onAssign, lead }: {
+  lead?: ReactNode; plans: Plan[]; meta: Map<string, Meta>; f: ListF; setF: (f: ListF) => void; canCreate: boolean; onCreate: () => void; onOpen: (p: Plan) => void; onCopied: (id: string | null, msg: string) => void; onAssign: (id: string) => void
 }) {
   const crumb = useBreadcrumb()
   const hid = useHiddenBtn()
-  const { fs, q, fc, card } = f
+  const { fs, q, card } = f
   const setQ = (q: string) => setF({ ...f, q })
-  const setFc = (fc: string) => setF({ ...f, fc })
   const sort: [SortKey, 1 | -1] = ['title', 1]
   const [err, setErr] = useState('')
-  const classes = useMemo(() => [...new Set(plans.map(p => crumb(p)))].sort(), [plans, crumb])
   const shown = useMemo(() => {
     const val = (p: Plan): string | number => {
       const m = meta.get(p.id)
@@ -235,7 +240,7 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
         ] as DCol<Plan>[]}
         left={<>
           <input placeholder="Tìm tên, mã, phân loại…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-          <select value={fc} onChange={e => setFc(e.target.value)} aria-label="Phân loại"><option value="">Tất cả phân loại</option>{classes.map(c => <option key={c} value={c}>{c}</option>)}</select>
+          {lead}
           <small className="sub">{rows.length}/{plans.length} bản</small>
           {picked.length > 0 && <small className="sub">Đã chọn: <b>{one ? one.code : picked.length + ' bản'}</b> <button type="button" className="linkbtn" onClick={sel.clear}>Bỏ chọn</button></small>}
         </>}

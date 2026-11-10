@@ -237,10 +237,11 @@ const PlatformProgramTrack = (p: any) => <TabbedPages {...p} tabs={[['Chương t
   ['Tiến độ & yêu cầu cần đạt', ProgressPlatform], ['Kế hoạch so với thực tế', (q: any) => <PlanVsActual {...q} mode="platform" />], ['PPCT các trường', SysCurriculum]]} />
 // Phân hệ 2 (100): cùng cách làm — danh sách chung tất cả đơn vị, sửa thẳng
 const PH2_TABS = {
-  edu: allOrgs(EduProgramsPlatform), subjects: allOrgs(SubjectsPlatform), ppct: allOrgs(CurriculumBooks, { mode: 'platform' }),
+  edu: allOrgs(EduProgramsPlatform), subjects: allOrgs(SubjectsPlatform),
   lessons: allOrgs(SchoolLessons), elearning: allOrgs(ElearningManage),
 }
-const PlatformDistPage = (p: any) => <TabbedPages {...p} tabs={[['Bản phân phối', DistPage], ['PPCT các đơn vị', PH2_TABS.ppct]]} />
+// PPCT các đơn vị gộp vào danh sách bản phân phối (Nguồn: PPCT các đơn vị)
+const PlatformDistPage = (p: any) => <DistPage {...p} units />
 // Học liệu các đơn vị gộp vào Danh mục học liệu (Nguồn: Tất cả đơn vị)
 const PlatformLibraryPage = LibraryPage
 const PlatformElearningPage = PH2_TABS.elearning

@@ -17,7 +17,6 @@ import { Chip } from '../dist/Editor'
 import { ContentDetail, detailCount, type Detail } from './Content'
 import { TrainingUnits } from './Units'
 import { StatCards } from '../../components/StatCards'
-import { FilterChips } from '../../components/FilterChips'
 import { DataTable, type Col } from '../../components/DataTable'
 import { ProgramExams, ProgramEvalFrame, type FinalExam, type Frame } from './ExamFrame'
 import { useAllOrgs } from '../../components/OrgScope'
@@ -55,13 +54,9 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
   const [rk, setRk] = useState(0)
   const [view, setView] = useState<{ kind: 'new' } | { kind: 'open'; id: string } | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
-  const [fs, setFs] = useState<Status | ''>('')
   const [q, setQ] = useState('')
-  const [ct, setCt] = useState('')
   // Đơn vị tạo chương trình (KDI, Sở, Phòng, Trường): tên theo org_id
   const [owners, setOwners] = useState<Map<string, string>>(new Map())
-  const [own, setOwn] = useState('')
-  const { codes, byCode: tracks } = useStemTracks()
   const { name: levelName } = useEduLevels()
   const reload = () => setRk(k => k + 1)
   // Đơn vị có quyền đào tạo (KDI, Sở, Phòng, Trường) tự soạn chương trình của mình (131)
@@ -89,18 +84,14 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
     })()
   }, [rk])
 
-  const inGroup = (p: TProgram, f: Status | '') => !f || p.status === f || (f === 'draft' && p.status === 'rejected') || (f === 'pending' && p.status === 'approved') || (f === 'archived' && p.status === 'superseded')
-  // base: theo ô tìm và loại chương trình (thẻ tổng số và các nút trạng thái tính trên base)
-  const base = useMemo(() => (list ?? []).filter(p => (!ct || ctsOf(p).includes(ct)) && (!own || p.org_id === own)
-    && (!q || `${p.code} ${p.title} ${p.audience ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, ct, q, own])
-  const shown = useMemo(() => base.filter(p => inGroup(p, fs)), [base, fs])
+  // Lọc theo loại, đơn vị tạo, trạng thái: dùng bộ lọc theo cột của bảng
+  const shown = useMemo(() => (list ?? []).filter(p => !q || `${p.code} ${p.title} ${p.audience ?? ''}`.toLowerCase().includes(q.toLowerCase())), [list, q])
 
   if (view?.kind === 'new') return <ProgramForm admin={admin} onBack={() => setView(null)} onSaved={id => { reload(); setView({ kind: 'open', id }) }} />
   if (view?.kind === 'open') return <ProgramDetail key={view.id + ':' + rk} id={view.id} admin={admin} go={go} onBack={() => { setView(null); reload() }}
     onOpen={id => { reload(); setView({ kind: 'open', id }) }} onMsg={m => { setMsg(m); reload() }} />
 
-  const n = (s: Status) => base.filter(p => inGroup(p, s)).length
-  const baseStats = base.map(p => stats.get(p.id)).filter(Boolean) as Stat[]
+  const baseStats = shown.map(p => stats.get(p.id)).filter(Boolean) as Stat[]
   const totalContents = baseStats.reduce((a, x) => a + x.contents, 0)
   const scopeText = (p: TProgram) => p.scope === 'selected' ? `${targets.get(p.id) ?? 0} đơn vị được chọn` : 'Tất cả đơn vị'
   const kindText = (p: TProgram) => [ctsOf(p).join(', '), lvsOf(p).map(levelName).join(', ')].filter(Boolean).join(' · ')
@@ -118,16 +109,11 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
   ]
   return (
     <>
-      <FilterChips value={fs} onPick={setFs} items={[['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['pending', 'Chờ duyệt', n('pending'), 'warn'], ['published', 'Đã phát hành', n('published')], ['archived', 'Ngừng dùng', n('archived')]]} />
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : <DataTable id="training-programs" rows={shown} rowKey={p => p.id} cols={progCols}
         empty={admin ? 'Chưa có chương trình đào tạo nào. Bấm "+ Thêm chương trình".' : 'Chưa có chương trình đào tạo nào được phát hành cho đơn vị.'}
         left={<>
           <input placeholder="Tìm mã, tên, đối tượng…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-          <select value={ct} onChange={e => setCt(e.target.value)} aria-label="Loại chương trình"><option value="">Tất cả loại chương trình</option>
-            {codes.map(c => <option key={c} value={c}>{c}{tracks[c] ? ` · ${tracks[c]!.name}` : ''}</option>)}</select>
-          <select value={own} onChange={e => setOwn(e.target.value)} aria-label="Đơn vị tạo"><option value="">Tất cả đơn vị tạo</option>
-            {[...owners].sort((a, b) => a[1].localeCompare(b[1], 'vi')).map(([id, nm]) => <option key={id} value={id}>{nm}</option>)}</select>
           <small className="sub">{shown.length}/{list.length} chương trình · {baseStats.reduce((a, x) => a + x.subjects, 0)} môn · {totalContents} nội dung</small></>}
         right={admin && <button type="button" className="primary ttadd" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>+ Thêm chương trình</button>} />}
     </>

@@ -10,13 +10,11 @@ import { fmtDate } from '../../lib/time'
 import { LessonPage } from '../library/lesson/LessonPage'
 import { CreateLesson, kitSubject, type ProgRef } from '../library/lesson/Create'
 import type { KitRow } from '../library/lesson/save'
-import { FilterChips } from '../../components/FilterChips'
 import { DataTable, MoreFilters, type Col } from '../../components/DataTable'
 
 type TProg = ProgRef & { status: string }
 type TUnit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string }
 type TLesson = KitRow & { org_id: string; author: string | null; created_on: string | null; training_plans: { name: string } | null }
-type St = '' | 'draft' | 'published' | 'inactive'
 const STATUS: Record<string, [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], inactive: ['Ngừng dùng', 'off'] }
 const SEL = 'id, org_id, owner_org_id:org_id, title, subject, grades, program_id, unit_id, status, version, updated_at, content, author, created_on, training_plans(name)'
 const Chip = ({ tone, children }: { tone?: string; children: React.ReactNode }) => <span className={'distchip2 ' + (tone ?? '')}>{children}</span>
@@ -53,7 +51,7 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
   const [open, setOpen] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
   const [msg, setMsg] = useState('')
-  const [q, setQ] = useState(''); const [fp, setFp] = useState(''); const [fs, setFs] = useState<St>(''); const ofl = useOrgFilter()
+  const [q, setQ] = useState(''); const ofl = useOrgFilter()
   const all = !!useAllMode()
   const { progs, subjectsOf, unitOf, labelOf } = useTrainingPrograms()
   const reload = () => setRk(x => x + 1)
@@ -65,12 +63,12 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
   }, [rk])
 
   const progLabel = (pid: string | null) => { const p = progs.find(x => x.id === pid); return p ? `${p.code ? p.code + ' · ' : ''}${p.title}` : '' }
-  // base: theo chương trình, đơn vị, ô tìm; thẻ tổng số và nút trạng thái đếm trên base
-  const base = useMemo(() => (rows ?? []).filter(r => (!fp || r.program_id === fp) && ofl.fit(r.org_id)
-    && (!q || `${r.title} ${r.subject ?? ''} ${r.author ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [rows, fp, ofl, q])
+  // base: theo đơn vị, ô tìm (chương trình, trạng thái: lọc theo cột của bảng)
+  const base = useMemo(() => (rows ?? []).filter(r => ofl.fit(r.org_id)
+    && (!q || `${r.title} ${r.subject ?? ''} ${r.author ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [rows, ofl, q])
   const [card, setCard] = useState<string | null>(null)
   const ready4 = (r: TLesson) => (r.content?.checked ?? []).filter(k => k !== 'bank').length >= 4
-  const shown = useMemo(() => base.filter(r => (!fs || r.status === fs) && (card !== 'ready' || ready4(r))), [base, fs, card])
+  const shown = useMemo(() => base.filter(r => card !== 'ready' || ready4(r)), [base, card])
 
   if (open) return <>
     {msg && <p className="sub" role="status"><b>{msg}</b></p>}
@@ -79,7 +77,6 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
       onBack={() => { setOpen(null); setMsg(''); reload() }} onChanged={reload} />
   </>
 
-  const n = (s: St) => base.filter(r => r.status === s).length
   async function setStatus(r: TLesson, status: 'inactive' | 'published' | 'draft') {
     const x = await supabase.from('training_lessons').update({ status }).eq('id', r.id)
     setMsg(x.error ? x.error.message : status === 'inactive' ? `Đã ngừng dùng “${r.title}”.` : `Đã dùng lại “${r.title}”.`); reload()
@@ -110,15 +107,12 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
   ]
   return (
     <>
-      <FilterChips value={fs} onPick={setFs} items={[['', 'Tất cả', base.length], ['draft', 'Nháp', n('draft')], ['published', 'Đã phát hành', n('published')], ['inactive', 'Ngừng dùng', n('inactive')]]} />
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
       {err ? <p className="msg">{err}</p> : !rows ? <p className="sub">Đang tải…</p> :
         <DataTable id="training-lessons" className="tllist" rows={shown} rowKey={r => r.id} cols={lessonCols}
           empty={rows.length ? 'Không có bài giảng nào khớp bộ lọc.' : 'Chưa có bài giảng đào tạo nào. Bấm “+ Thêm bài giảng”.'}
           left={<>
             <input placeholder="Tìm tên bài giảng, môn, tác giả…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-            <select value={fp} onChange={e => setFp(e.target.value)} aria-label="Chương trình đào tạo"><option value="">Tất cả chương trình đào tạo</option>
-              {progs.map(p => <option key={p.id} value={p.id}>{progLabel(p.id)}</option>)}</select>
             <MoreFilters active={ofl.active || card === 'ready'}>
               {ofl.node((rows ?? []).map(r => r.org_id))}
               <label className="chk"><input type="checkbox" checked={card === 'ready'} onChange={e => setCard(e.target.checked ? 'ready' : null)} /> Đã chốt đủ 4 thẻ ({base.filter(ready4).length})</label>
@@ -127,7 +121,7 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
           right={<button type="button" className="primary ttadd" disabled={!p0} title={p0 ? undefined : 'Chưa có chương trình đào tạo để gắn bài giảng'}
             onClick={() => { setMsg(''); setAdding(true) }}>+ Thêm bài giảng</button>} />}
       {adding && p0 && <CreateLesson orgId={orgId} store="training" unitOf={unitOf} programs={progs} subjectsOf={subjectsOf}
-        program={progs.find(p => p.id === fp) ?? p0} subject={subjectsOf((progs.find(p => p.id === fp) ?? p0).id)[0] ?? ''} pickPlace
+        program={p0} subject={subjectsOf(p0.id)[0] ?? ''} pickPlace
         kits={rows ?? []} onClose={() => setAdding(false)} onCreated={(id, m) => { setAdding(false); setMsg(m); reload(); setOpen(id) }} />}
     </>
   )

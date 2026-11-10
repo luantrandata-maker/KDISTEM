@@ -8,7 +8,6 @@ import { supabase } from '../../lib/supabase'
 import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
 import { CERT_ST } from './Results'
-import { FilterChips } from '../../components/FilterChips'
 import { DataTable, MoreFilters, type Col } from '../../components/DataTable'
 
 type Cert = { id: string; code: string | null; status: 'pending' | 'issued' | 'revoked'; issued_on: string | null; expires_on: string | null; revoked_reason: string | null
@@ -19,7 +18,6 @@ type Tpl = { id: string; name: string; title: string; body: string; issuer_name:
 export type Payload = { code: string | null; status: string; issued_on: string | null; expires_on: string | null; revoked_reason: string | null; token?: string
   hours: number | null; programs: string | null; teacher: string; school: string | null; plan: string; plan_code: string | null; plan_org: string | null; template: Tpl | null
   score?: number | null; grade?: string | null }
-type F = 'all' | 'pending' | 'issued' | 'revoked'
 
 const day = (d: string | null) => d ? new Date(d + (d.length === 10 ? 'T00:00' : '')).toLocaleDateString('vi-VN') : '—'
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 087 trên Supabase.' : m
@@ -71,8 +69,6 @@ function CertView({ id, onBack, back }: { id: string; onBack: () => void; back: 
 export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
   const [rows, setRows] = useState<Cert[] | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
-  const [f, setF] = useState<F>('all')
-  const [plan, setPlan] = useState('')
   const [q, setQ] = useState('')
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState<string | null>(null)
@@ -89,11 +85,8 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
   useEffect(() => { load() }, [orgId])
   if (open) return <CertView id={open} back="Chứng chỉ đào tạo" onBack={() => setOpen(null)} />
   const all = rows ?? []
-  const plans = [...new Map(all.map(c => [c.plan_id, `${c.plan_code ?? ''} · ${c.plan_name ?? ''}`])).entries()]
-  // base: theo kế hoạch, đơn vị và ô tìm; thẻ tổng số và nút trạng thái đếm trên base
-  const base = all.filter(c => (!plan || c.plan_id === plan) && ofl.fit(tOrg.get(c.teacher_id)) && (c.teacher_name + ' ' + (c.code ?? '')).toLowerCase().includes(q.toLowerCase()))
-  const cnt = (k: F) => k === 'all' ? base.length : base.filter(c => c.status === k).length
-  const shown = base.filter(c => f === 'all' || c.status === f)
+  // Theo đơn vị và ô tìm (kế hoạch, trạng thái: lọc theo cột của bảng)
+  const shown = all.filter(c => ofl.fit(tOrg.get(c.teacher_id)) && (c.teacher_name + ' ' + (c.code ?? '')).toLowerCase().includes(q.toLowerCase()))
   const pick = shown.filter(c => c.can_manage && c.status !== 'issued')
 
   async function issue(ids: string[]) {
@@ -122,7 +115,6 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
   ]
   return <>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    <FilterChips value={f} onPick={k => { setF(k); setSel(new Set()) }} items={[['all', 'Tất cả', cnt('all')], ['pending', 'Chờ duyệt', cnt('pending'), 'warn'], ['issued', 'Đã cấp', cnt('issued')], ['revoked', 'Đã thu hồi', cnt('revoked')]]} />
     {!rows ? <p className="sub">Đang tải…</p> : <DataTable id="training-certs" rows={shown} rowKey={c => c.id} cols={certCols}
       empty={<small className="sub">{all.length ? 'Không có chứng chỉ nào khớp.' : 'Chưa có chứng chỉ. Kết luận Đạt ở mục Đánh giá kết quả đào tạo để có chứng chỉ chờ duyệt.'}</small>}
       head={{ th: pick.length > 0 && <input type="checkbox" aria-label="Chọn tất cả" checked={pick.every(c => sel.has(c.id))} onChange={e => setSel(e.target.checked ? new Set(pick.map(c => c.id)) : new Set())} />,
@@ -130,7 +122,6 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
           onChange={e => { const n = new Set(sel); e.target.checked ? n.add(c.id) : n.delete(c.id); setSel(n) }} /> }}
       left={<>
         <input placeholder="Tìm nhà giáo, số chứng chỉ…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chứng chỉ" />
-        <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Kế hoạch"><option value="">Tất cả kế hoạch</option>{plans.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
         <MoreFilters active={ofl.active}>{ofl.node(all.map(c => tOrg.get(c.teacher_id)))}</MoreFilters></>}
       right={sel.size > 0 && <button type="button" className="primary ttadd" onClick={() => issue([...sel])}>Duyệt cấp ({sel.size})</button>} />}
   </>

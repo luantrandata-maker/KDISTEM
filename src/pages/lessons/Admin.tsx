@@ -61,10 +61,6 @@ export function PlanPreview({ plan, orgId, onClose, extra }: { plan: LPlan; orgI
   )
 }
 
-const FILTERS: [string, string, LStatus[]][] = [
-  ['', 'Tất cả', []], ['pending', 'Chờ duyệt', ['pending']], ['draft', 'Đang soạn', ['draft', 'editing']], ['approved', 'Đã duyệt', ['approved']],
-  ['rejected', 'Bị trả lại', ['rejected']], ['published', 'Đã xuất bản', ['published']], ['archived', 'Lưu trữ', ['archived']],
-]
 
 // ===== Trường =====
 export function SchoolLessons({ orgId, go }: P) {
@@ -85,8 +81,6 @@ export function SchoolLessons({ orgId, go }: P) {
 function SchoolPlans({ orgId, go }: P) {
   const templates = useTemplates()
   const [rows, setRows] = useState<LPlan[]>([])
-  const [st, setSt] = useState('')
-  const [teacher, setTeacher] = useState('')
   const [q, setQ] = useState('')
   const [open, setOpen] = useState<LPlan | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
@@ -105,10 +99,8 @@ function SchoolPlans({ orgId, go }: P) {
   useEffect(() => { if (orgId && !every) supabase.rpc('lesson_review_required', { p_org: orgId }).then(({ data }) => setReviewRequired(!!data)) }, [orgId])
 
   const plans = rows.filter(r => !r.is_template && ofl.fit(r.org_id))
-  const teachers = [...new Map(plans.filter(p => p.teacher_id).map(p => [p.teacher_id!, p.teachers?.full_name ?? '—'])).entries()].sort((a, b) => a[1].localeCompare(b[1]))
-  const statuses = FILTERS.find(f => f[0] === st)?.[2] ?? []
-  const shown = plans.filter(p => (!statuses.length || statuses.includes(p.status)) && (!teacher || p.teacher_id === teacher)
-    && (!q || p.title.toLowerCase().includes(q.toLowerCase())))
+  // Trạng thái, giáo viên: lọc bằng "Lọc theo cột"
+  const shown = plans.filter(p => (!q || p.title.toLowerCase().includes(q.toLowerCase())))
   const n = (ss: LStatus[]) => plans.filter(p => ss.includes(p.status)).length
 
   async function decide(p: LPlan, d: 'approve' | 'reject') {
@@ -160,9 +152,7 @@ function SchoolPlans({ orgId, go }: P) {
         ] as Col<typeof shown[number]>[]}
         left={<>
           <input placeholder={`Tìm ${NOUN}…`} value={q} onChange={e => setQ(e.target.value)} aria-label={`Tìm ${NOUN}`} />
-          <select value={st} onChange={e => setSt(e.target.value)} aria-label="Lọc trạng thái">{FILTERS.map(([k, l, ss]) => <option key={k} value={k}>{l}{ss.length ? ` (${n(ss)})` : ''}</option>)}</select>
           {ofl.node(rows.map(r => r.org_id))}
-          <select value={teacher} onChange={e => setTeacher(e.target.value)} aria-label="Lọc giáo viên"><option value="">Tất cả giáo viên</option>{teachers.map(([id, name]) => <option key={id} value={id}>{name}</option>)}</select>
         </>}
         right={<>
           <button type="button" onClick={exportX} disabled={!shown.length}>Xuất Excel</button>

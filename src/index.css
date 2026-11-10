@@ -2587,3 +2587,15 @@ textarea.slcell{font-size:13px;color:var(--muted);min-height:28px}
 .gtag{display:inline-block;font-size:11px;font-weight:600;color:#9a6a00;background:#fff4d6;border-radius:6px;padding:1px 6px;margin:2px 0;white-space:nowrap}
 .gtcards{padding:12px;min-width:0}
 .ttable th.c-rate{min-width:140px}
+.ttcheck{display:inline-flex;align-items:center;gap:6px;font-size:13px;white-space:nowrap;color:var(--muted)}
+/* Khung cây bên trái: kéo mép để đổi độ rộng, nút « » thu gọn */
+.ttaside{position:relative}
+.ttsidegrip{position:absolute;top:0;right:-4px;width:8px;height:100%;cursor:col-resize;z-index:2}
+.ttsidegrip::after{content:"";position:absolute;top:0;bottom:0;left:3px;width:2px;background:transparent;transition:background .15s}
+.ttsidegrip:hover::after,body.ttdragging .ttsidegrip::after{background:var(--primary)}
+body.ttdragging{cursor:col-resize;user-select:none}
+.main .ttsidebtn{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:6px;width:22px;height:22px;padding:0;min-height:0;line-height:1;font-size:13px;cursor:pointer}
+.main .ttsidebtn:hover{color:var(--primary);border-color:var(--primary)}
+.ttsidehide{position:absolute;top:10px;right:8px;z-index:3}
+.ttaside .gtree>.gtitem:first-child{padding-right:34px}
+.ttaside-off{padding:10px 5px;display:flex;justify-content:center}

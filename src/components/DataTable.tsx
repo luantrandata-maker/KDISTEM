@@ -102,10 +102,11 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
     return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc) }
   }, [menu])
 
-  // Thứ tự: theo danh sách đã lưu, cột mới (chưa có trong danh sách) giữ vị trí gốc ở cuối
+  // Thứ tự: theo danh sách đã lưu, cột mới (chưa có trong danh sách) giữ vị trí gốc ở cuối; cột "Cập nhật" mặc định luôn cuối bảng
   const ordered = useMemo(() => {
     const pos = new Map(view.order.map((k, i) => [k, i]))
-    return cols.map((c, i) => ({ c, i })).sort((a, b) => (pos.get(a.c.key) ?? 1000 + a.i) - (pos.get(b.c.key) ?? 1000 + b.i)).map(x => x.c)
+    const base = (c: Col<T>, i: number) => 1000 + i + (c.label === 'Cập nhật' ? 500 : 0)
+    return cols.map((c, i) => ({ c, i })).sort((a, b) => (pos.get(a.c.key) ?? base(a.c, a.i)) - (pos.get(b.c.key) ?? base(b.c, b.i))).map(x => x.c)
   }, [cols, view.order])
   const shownCols = ordered.filter(c => c.fixed || !view.hidden.includes(c.key))
   const active = Object.entries(flt).filter(([k, v]) => v.length && shownCols.some(c => c.key === k))
@@ -180,7 +181,36 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
         title="Thu bảng vừa chiều ngang màn hình, chữ dài tự xuống dòng">⇔ Vừa khít</button>}
       {right}
     </div>}
-    {aside ? <div className="ttbody"><div className="ttaside">{aside}</div>{tbl}</div> : tbl}
+    {aside ? <SideSplit aside={aside}>{tbl}</SideSplit> : tbl}
+  </div>
+}
+
+/** Khung bên trái (cây Cấp → Khối) cạnh bảng / thẻ: kéo mép phải để đổi độ rộng, nút « » để thu gọn / mở lại.
+ *  Độ rộng và trạng thái thu gọn nhớ chung cho mọi bảng trên trình duyệt này. */
+const SIDE_KEY = 'tt:side'
+const loadSide = (): { w: number; off: boolean } => { try { return { w: 190, off: false, ...JSON.parse(localStorage.getItem(SIDE_KEY) ?? '{}') } } catch { return { w: 190, off: false } } }
+export function SideSplit({ aside, children }: { aside: ReactNode; children: ReactNode }) {
+  const [side, setSideS] = useState(loadSide)
+  const setSide = (v: { w: number; off: boolean }) => { setSideS(v); try { localStorage.setItem(SIDE_KEY, JSON.stringify(v)) } catch { /* chỉ trong phiên */ } }
+  const drag = (e: React.MouseEvent) => {
+    e.preventDefault()
+    const x0 = e.clientX, w0 = side.w
+    let w = w0
+    const mv = (ev: MouseEvent) => { w = Math.max(140, Math.min(420, w0 + ev.clientX - x0)); setSideS(v => ({ ...v, w })) }
+    const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); document.body.classList.remove('ttdragging'); setSide({ w, off: false }) }
+    document.body.classList.add('ttdragging')
+    document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up)
+  }
+  return <div className={'ttbody' + (side.off ? ' sideoff' : '')} style={{ gridTemplateColumns: side.off ? '34px minmax(0,1fr)' : `${side.w}px minmax(0,1fr)` }}>
+    {side.off
+      ? <div className="ttaside ttaside-off"><button type="button" className="ttsidebtn" onClick={() => setSide({ ...side, off: false })} title="Hiện cây nhóm theo khối" aria-label="Hiện cây nhóm theo khối">»</button></div>
+      : <div className="ttaside">
+        <button type="button" className="ttsidebtn ttsidehide" onClick={() => setSide({ ...side, off: true })} title="Ẩn cây nhóm theo khối" aria-label="Ẩn cây nhóm theo khối">«</button>
+        {aside}
+        <span className="ttsidegrip" role="separator" aria-orientation="vertical" aria-label="Kéo để đổi độ rộng" title="Kéo để đổi độ rộng · bấm đúp để về mặc định"
+          onMouseDown={drag} onDoubleClick={() => setSide({ w: 190, off: false })} />
+      </div>}
+    {children}
   </div>
 }
 

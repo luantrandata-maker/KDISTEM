@@ -121,7 +121,7 @@ const ownerName = (n: Norm, orgId: string | null) => (n.org_id === orgId ? 'Đơ
 function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: string | null; rights: Rights; onOpen: (id: string) => void; openId: string | null; ver: number; sharedOnly?: boolean }) {
   const [list, setList] = useState<Norm[] | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
-  const [q, setQ] = useState(''); const [subject, setSubject] = useState(''); const [basis, setBasis] = useState(''); const [old, setOld] = useState(false)
+  const [q, setQ] = useState(''); const [old, setOld] = useState(false)
   const [form, setForm] = useState<{ title: string; basis: Basis; group_size: string; sessions: string; subject: string; grade: string; program_id: string; unit_id: string; org?: string } | null>(null)
   // Quản trị hệ thống: định mức của tất cả đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
   const every = useAllMode()
@@ -134,8 +134,7 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
   }
   useEffect(() => { load() }, [orgId, ver])
   const all = list ?? []
-  const subjects = useMemo(() => [...new Set(all.map(n => n.subject).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi')), [list])
-  const shown = all.filter(n => (old || !['superseded', 'archived'].includes(n.status)) && (!subject || n.subject === subject) && (!basis || n.basis === basis)
+  const shown = all.filter(n => (old || !['superseded', 'archived'].includes(n.status))
     && (!q || norm([n.title, n.subject, n.edu_programs?.title, n.edu_program_units?.title].join(' ')).includes(norm(q))))
   const own = every ? shown : shown.filter(n => n.org_id === orgId)
   const shared = every ? [] : shown.filter(n => n.org_id !== orgId)
@@ -187,6 +186,7 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
   const normCols = (mine: boolean): Col<Norm>[] => [
     { key: 'title', label: 'Định mức', fixed: true, values: n => [n.title], text: n => [n.title, n.subject].join(' '),
       cell: n => <><b>{n.title}</b> <small className="sub">v{n.version_no}</small><div className="sub" style={{ fontSize: 12 }}>{[n.subject, n.grade && gradeName(n.grade), (!mine || every) && ownerName(n, orgId)].filter(Boolean).join(' · ') || '—'}</div></> },
+    { key: 'subj', label: 'Môn · khối', values: n => [n.subject ?? ''], text: n => n.subject ?? '', cell: n => [n.subject, n.grade && gradeName(n.grade)].filter(Boolean).join(' · ') || '—' },
     { key: 'basis', label: 'Tính cho', text: n => BASIS[n.basis], cell: n => <>{BASIS[n.basis]}{n.basis === 'group' && <small className="sub"> ({n.group_size} HS)</small>}<div className="sub" style={{ fontSize: 12 }}>{n.sessions} buổi</div></> },
     { key: 'n', label: 'Số vật tư', cell: n => n.material_norm_items?.[0]?.count ?? '—' },
     { key: 'link', label: 'Gắn với', values: n => [n.edu_programs?.title ?? '', n.library_items?.title ?? ''], text: n => [n.edu_programs?.title, n.edu_program_units?.title, n.library_items?.title].join(' '),
@@ -197,8 +197,6 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
   const tools = (n: number) => ({
     left: <>
       <input placeholder="Tìm định mức…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm định mức" />
-      <select value={subject} onChange={e => setSubject(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
-      <select value={basis} onChange={e => setBasis(e.target.value)} aria-label="Tính cho"><option value="">Tất cả cách tính</option>{(Object.keys(BASIS) as Basis[]).map(b => <option key={b} value={b}>Theo {BASIS[b]}</option>)}</select>
       <label className="chk"><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện bản cũ / lưu trữ</label>
       <small className="sub">{n} định mức</small>
     </>,

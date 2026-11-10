@@ -355,7 +355,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
         <div className="tools">
           {!editInfo && tab === 'info' && editable && <button type="button" onClick={() => setEditInfo(true)}><Icon n="pencil" size={15} /> Sửa thông tin</button>}
           {mode === 'school' && canEdit && p.status === 'published' && !hid('ppct') && <button className="primary" onClick={openMkBook}>Tạo PPCT từ chương trình</button>}
-          {!editInfo && <VersionActions p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} />}
+          {!editInfo && <VersionActions p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} onDelete={editable ? removeDraft : undefined} />}
         </div>
       </div>
       {mkBook && (
@@ -375,7 +375,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
         lessons={<SubjectLessonsTab p={p} editable={editable} onChanged={() => { load(); setRev(r => r + 1) }} onMessage={(m, e) => setMsg([m, !!e])} />}
         versions={<VersionsTab p={p} onOpen={onOpen} compact />}
         onGoAssign={tabs.some(t => t[0] === 'assign') ? () => setTab('assign') : undefined}
-        onDelete={editable ? removeDraft : undefined} scopeEditable={scopeEditable} reqEditable={mine && canEdit} mode={mode} comps={comps} onSaved={m => { setMsg([m, false]); setEditInfo(false); load() }} onError={m => setMsg([m, true])} />}
+        scopeEditable={scopeEditable} reqEditable={mine && canEdit} mode={mode} comps={comps} onSaved={m => { setMsg([m, false]); setEditInfo(false); load() }} onError={m => setMsg([m, true])} />}
       {tab === 'assign' && <AssignTab p={p} orgId={orgId} mine={mine} onMessage={(m, e) => setMsg([m, !!e])} />}
     </>
   )
@@ -667,8 +667,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
           {showScope && <><dt>Áp dụng</dt><dd>{f.scope === 'own' ? 'Đơn vị mình và đơn vị được gán' : 'Tất cả đơn vị trực thuộc'}</dd></>}
         </dl>
         {editable && (missing.length ? <p className="pfmiss">Còn thiếu: {missing.join(', ')}</p> : <p className="pfok">✓ Đã đủ thông tin bắt buộc</p>)}
-        {(canSave || cancelBtn || onDelete) && <div className="pfsidebtn">{saveBtn}{cancelBtn}
-          {onDelete && <button type="button" className="danger" onClick={onDelete}>Xoá bản nháp</button>}</div>}
+        {(canSave || cancelBtn) && <div className="pfsidebtn">{saveBtn}{cancelBtn}</div>}
       </div>
     </aside>
   </form>
@@ -1040,8 +1039,8 @@ function isDesc(all: Unit[], u: Unit, ancestor: string): boolean {
 
 // ----- Phiên bản & duyệt -----
 /** Nút gửi duyệt / duyệt / phát hành / tạo phiên bản mới / ngừng dùng — hiện trên thẻ thông tin */
-function VersionActions({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMessage }: {
-  p: Program; mine: boolean; canEdit: boolean; mode: ProgMode; isAdmin: boolean; onOpen: (id: string) => void; onChanged: () => void
+function VersionActions({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMessage, onDelete }: {
+  p: Program; mine: boolean; canEdit: boolean; mode: ProgMode; isAdmin: boolean; onOpen: (id: string) => void; onChanged: () => void; onDelete?: () => void
   onMessage: (m: string, err?: boolean) => void
 }) {
   const hid = useHiddenBtn()
@@ -1091,7 +1090,7 @@ function VersionActions({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, on
           {can && p.status === 'approved' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại để sửa</button>}
           {can && p.status === 'published' && !hid('version') && <button className="primary" disabled={busy} onClick={newVersion}>Tạo phiên bản mới</button>}
           {can && ['published', 'superseded', 'draft', 'rejected', 'approved'].includes(p.status) && <details className="pdmore"><summary aria-label="Thao tác khác" title="Thao tác khác">⋯</summary>
-            <div><button type="button" className="danger" disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Đơn vị khác không còn thấy bản ngừng dùng.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng phiên bản này</button></div></details>}
+            <div>{onDelete && <button type="button" className="danger" disabled={busy} onClick={onDelete}>Xoá bản nháp</button>}<button type="button" className="danger" disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Đơn vị khác không còn thấy bản ngừng dùng.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng phiên bản này</button></div></details>}
           {can && p.status === 'archived' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại thành nháp</button>}
   </>
 }

@@ -2479,7 +2479,7 @@ textarea.slcell{font-size:13px;color:var(--muted);min-height:28px}
 .pdmore{position:relative;display:inline-block}
 .pdmore summary{list-style:none;cursor:pointer;border:1px solid var(--line);border-radius:8px;padding:5px 12px;background:var(--surface);font-weight:700}
 .pdmore summary::-webkit-details-marker{display:none}
-.pdmore>div{position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px #0f2a4a26;padding:6px;z-index:20;min-width:200px}
+.pdmore>div{position:absolute;display:grid;gap:2px;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 30px #0f2a4a26;padding:6px;z-index:20;min-width:200px}
 .main .pdmore>div button{width:100%;text-align:left;border:0;background:none}
 .main .pdmore>div button.danger{color:#c0392b}
 .slmeta{color:var(--muted);font-size:12.5px;white-space:nowrap}
@@ -2517,7 +2517,6 @@ textarea.slcell{font-size:13px;color:var(--muted);min-height:28px}
 .pfasg .linkbtn{margin-left:auto}
 .pfside{position:sticky;top:12px;display:grid;gap:12px}
 .pfsidebtn{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
-.pfsidebtn .danger{margin-left:auto}
 .pfmiss{color:#d14343;font-size:12.5px;margin:10px 0 0}
 .pfok{color:#2e9d5b;font-size:12.5px;margin:10px 0 0}
 @media (max-width:1200px){.pform.pfwrap{grid-template-columns:minmax(0,1fr) 270px}.pfnav{display:none}}

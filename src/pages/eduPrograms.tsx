@@ -783,7 +783,8 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
   const [newSubj, setNewSubj] = useState('')
   const [q, setQ] = useState('')
   const [gf, setGf] = useState(0)
-  const [newT, setNewT] = useState<Record<string, string>>({})
+  // Dòng thêm bài mới: đủ các cột; bấm ⧉ ở một dòng để chép sẵn giá trị lên đây
+  const [nd, setNd] = useState({ title: '', grades: '', periods: '', outs: '' })
   const [paste, setPaste] = useState<{ subj: string; text: string } | null>(null)
   const [addSubj, setAddSubj] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -935,6 +936,20 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
       : <input key={u.id + val} className="slcell" defaultValue={val} aria-label={`${key === 'title' ? 'Tên' : key === 'grades' ? 'Khối' : 'Số tiết'} bài ${u.title}`}
           inputMode={key === 'title' ? undefined : 'numeric'} onBlur={e => save(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} />
   }
+  async function addDraft() {
+    const t = nd.title.trim(); if (!t || busy) return
+    if (/\n/.test(t)) { setPaste({ subj: target, text: t }); return }
+    const g = gradeList(nd.grades).filter(x => x >= 1 && x <= 12), n = Number(nd.periods.replace(',', '.'))
+    const ok = await addLessons([{ title: stripNo(t), grades: g.length ? g : defGrades, periods: Number.isFinite(n) && n > 0 ? Math.round(n) : 1,
+      outs: nd.outs.split(/\n|;/).map(x => x.trim()).filter(Boolean) }], target)
+    if (ok) { setNd(d => ({ ...d, title: '', outs: '' })); document.getElementById('sl-new-title')?.focus() }
+  }
+  function copyRow(r: LRow) {
+    setNewSubj(r.subject)
+    setNd({ title: r.u.title, grades: unitGrades(r.u).join(', '), periods: String(r.u.periods || ''), outs: r.outs.map(o => o.content).join('; ') })
+    setTimeout(() => { const el = document.getElementById('sl-new-title') as HTMLInputElement | null; el?.scrollIntoView({ block: 'center' }); el?.focus(); el?.select() })
+  }
+  const enter = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addDraft() } }
   const pasted = paste ? parseLessonLines(paste.text, defGrades).map(r => ({ ...r, lib: libUnits?.find(i => lc(i.title) === lc(r.title)) })) : []
   const totalP = (rs: LRow[]) => rs.reduce((t, r) => t + (r.u.periods || 0), 0)
 
@@ -951,7 +966,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
       cell: r => { const ns = all.filter(c => c.parent_id === r.u.id && c.unit_type === 'session').length
         return <button type="button" className="slopen" onClick={() => setOpenL(r.u.id)} title="Mở chi tiết: học liệu, buổi học, nội dung">{kitChip(r.u)}{ns > 0 && <span className="pill">{ns} buổi</span>}<span className="slmore">Chi tiết ›</span></button> } },
     ...(editable ? [{ key: 'act', label: '', thClass: 'c-act', fixed: true, cell: (r: LRow) => { const sibs = rowsOf(r.subject).filter(x => x.u.parent_id === r.u.parent_id), i = sibs.indexOf(r)
-      return <span className="slact"><button type="button" disabled={i <= 0} aria-label="Đưa lên" onClick={() => move(r, -1)}>↑</button><button type="button" disabled={i >= sibs.length - 1} aria-label="Đưa xuống" onClick={() => move(r, 1)}>↓</button><button type="button" className="danger" aria-label={`Xoá ${r.u.title}`} onClick={() => remove(r)}>×</button></span> } }] : []),
+      return <span className="slact"><button type="button" aria-label={`Chép ${r.u.title} xuống dòng thêm mới`} title="Chép dòng này xuống dòng thêm mới để thêm nhanh" onClick={() => copyRow(r)}>⧉</button><button type="button" disabled={i <= 0} aria-label="Đưa lên" onClick={() => move(r, -1)}>↑</button><button type="button" disabled={i >= sibs.length - 1} aria-label="Đưa xuống" onClick={() => move(r, 1)}>↓</button><button type="button" className="danger" aria-label={`Xoá ${r.u.title}`} onClick={() => remove(r)}>×</button></span> } }] : []),
   ]
   const navItem = (key: string, label: string, rs: LRow[], main?: boolean) => <button key={key || '*'} type="button" className={'slnavi' + (lc(sel) === lc(key) ? ' on' : '')} onClick={() => setCur(key)}>
     <span className="slnm">{label}{main && <small className="sub"> · chủ đạo</small>}</span><span className="slcnt">{rs.length} bài · {totalP(rs)} tiết</span></button>
@@ -977,13 +992,16 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
         </>}
         cols={cols}
         foot={editable && target ? <tfoot><tr className="slnew"><td colSpan={10}><div className="slnewrow">
-          {!sel && subjList.length > 1 && <select value={target} onChange={e => setNewSubj(e.target.value)} aria-label="Môn của bài mới">{subjList.map(x => <option key={x} value={x}>{x}</option>)}</select>}
-          <input value={newT[target] ?? ''} disabled={busy} placeholder={`+ Gõ tên bài mới cho môn ${target} rồi nhấn Enter (dán nhiều dòng để thêm nhiều bài)`} aria-label={`Tên bài mới môn ${target}`}
-            onChange={e => setNewT(t => ({ ...t, [target]: e.target.value }))}
-            onPaste={e => { const t = e.clipboardData.getData('text'); if (/\n/.test(t.trim())) { e.preventDefault(); setPaste({ subj: target, text: t }) } }}
-            onKeyDown={e => { const v = newT[target] ?? ''; if (e.key === 'Enter' && v.trim()) { addLessons(parseLessonLines(v, defGrades), target); setNewT(t => ({ ...t, [target]: '' })) } }} />
+          <select value={target} disabled={!!sel || subjList.length < 2} onChange={e => setNewSubj(e.target.value)} aria-label="Môn của bài mới">{subjList.map(x => <option key={x} value={x}>{x}</option>)}</select>
+          <input id="sl-new-title" className="slnt" value={nd.title} disabled={busy} placeholder="+ Tên bài mới (dán nhiều dòng để thêm nhiều bài)" aria-label={`Tên bài mới môn ${target}`}
+            onChange={e => setNd({ ...nd, title: e.target.value })} onKeyDown={enter}
+            onPaste={e => { const t = e.clipboardData.getData('text'); if (/\n/.test(t.trim())) { e.preventDefault(); setPaste({ subj: target, text: t }) } }} />
+          <input className="slng" value={nd.grades} disabled={busy} placeholder={defGrades.join(', ') || 'Khối'} aria-label="Khối của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, grades: e.target.value })} onKeyDown={enter} />
+          <input className="slnp" value={nd.periods} disabled={busy} placeholder="Số tiết" aria-label="Số tiết của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, periods: e.target.value })} onKeyDown={enter} />
+          <input className="slno" value={nd.outs} disabled={busy} placeholder="Yêu cầu cần đạt (ngăn cách bằng ;)" aria-label="Yêu cầu cần đạt của bài mới" onChange={e => setNd({ ...nd, outs: e.target.value })} onKeyDown={enter} />
+          <button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addDraft}>+ Thêm</button>
         </div></td></tr></tfoot> : undefined} />
-      {editable && <small className="sub">Bấm vào ô để sửa ngay, rời ô là lưu. Bấm “Chi tiết ›” để gắn học liệu, chia buổi và soạn nội dung.</small>}
+      {editable && <small className="sub">Bấm vào ô để sửa ngay, rời ô là lưu. Dòng cuối: điền các cột rồi Enter để thêm bài; bấm ⧉ ở một bài để chép sẵn giá trị xuống dòng thêm mới. Bấm “Chi tiết ›” để gắn học liệu, chia buổi và soạn nội dung.</small>}
     </div>
     {openL && byId.get(openL) && <LessonDetail u={byId.get(openL)!} p={p} all={all} umats={umats} outs={outs} editable={editable}
       onClose={() => setOpenL(null)} onChanged={() => { load(); onChanged() }} onMessage={onMessage} />}

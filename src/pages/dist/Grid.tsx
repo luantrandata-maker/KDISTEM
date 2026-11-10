@@ -18,12 +18,21 @@ export function WeekGrid({ plan, order, progs, s, titles, cal, calLabel, year, t
   cal?: Map<number, CalWeek>; calLabel?: string; year?: string; titleOf?: (unitId: string) => string
 }) {
   const [pop, setPop] = useState<Pop | null>(null)
+  const [tip, setTip] = useState<{ x: number; y: number; head: string; items: string[] } | null>(null)
   const wrap = useRef<HTMLDivElement>(null), scroller = useRef<HTMLDivElement>(null)
   const open = (e: React.MouseEvent, p: Omit<Pop, 'x' | 'y'>) => {
     const el = wrap.current; if (!el) return
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect(), b = el.getBoundingClientRect()
     const x = Math.max(0, Math.min(r.left - b.left - 120, el.clientWidth - 330)), y = r.bottom - b.top + 6
     setPop(o => o && o.w === p.w && o.pid === p.pid && o.sub === p.sub ? null : { ...p, x, y })
+  }
+  // Rê chuột vào ô: hiện ngay tên bài của môn trong tuần đó.
+  const lessonsIn = (pid: string, sub: string, w: number) => s.rows.filter(r => r.program_id === pid && !r.skipped && s.subjOf.get(r.unit_id) === sub && (r.weeks ?? []).includes(w))
+  const hover = (e: React.MouseEvent, pid: string, sub: string, w: number) => {
+    const el = wrap.current; if (!el) return
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect(), b = el.getBoundingClientRect()
+    const items = lessonsIn(pid, sub, w).map(x => { const k = (x.weeks ?? []).filter(v => v === w).length; return `${titleOf?.(x.unit_id) || 'Bài'} · ${k} tiết` })
+    setTip({ x: Math.max(0, Math.min(r.left - b.left - 20, el.clientWidth - 280)), y: r.top - b.top, head: `${sub} · tuần ${w}`, items })
   }
   const hol = (w: number) => cal?.get(w)?.holidays.length ? cal.get(w)! : null
   const frame = plan.hk1_weeks + plan.hk2_weeks
@@ -36,7 +45,7 @@ export function WeekGrid({ plan, order, progs, s, titles, cal, calLabel, year, t
   const line = (key: string, cls: string, label: ReactNode, cells: ReactNode) =>
     <div key={key} className={'grow ' + cls} style={{ gridTemplateColumns: cols }}>{label}{cells}</div>
   return (
-    <div className="distgridouter" ref={wrap}><div className="distgridwrap" ref={scroller} onScroll={() => setPop(null)}>
+    <div className="distgridouter" ref={wrap}><div className="distgridwrap" ref={scroller} onScroll={() => { setPop(null); setTip(null) }}>
       <div className="distgrid" role="table" aria-label="Lịch theo tuần">
         {line('band', 'bands', <span />, <>
           <span className="band hk1" style={{ gridColumn: `2 / span ${plan.hk1_weeks}` }}>Học kỳ 1 · tuần 1–{plan.hk1_weeks}</span>
@@ -61,7 +70,8 @@ export function WeekGrid({ plan, order, progs, s, titles, cal, calLabel, year, t
               return line(sub.name, 'subjrow', <span className="lab subj">{sub.name}</span>,
                 weeks.map(w => { const n = load.get(w); const h = n && hol(w)
                   return n ? <button type="button" key={w} className={'cell on' + bandCls(w) + (h ? ' hol' : '') + (pop?.w === w && pop.sub === sub.name && pop.pid === pid ? ' sel' : '')} style={{ background: color }}
-                    title={`${sub.name} · tuần ${w}: ${n} tiết${h ? ' · tuần có ngày nghỉ' : ''}`} onClick={e => open(e, { w, pid, sub: sub.name })}>{n}</button>
+                    aria-label={`${sub.name} · tuần ${w}: ${n} tiết${h ? ' · tuần có ngày nghỉ' : ''}`} onMouseEnter={e => hover(e, pid, sub.name, w)} onMouseLeave={() => setTip(null)}
+                    onClick={e => { setTip(null); open(e, { w, pid, sub: sub.name }) }}>{n}</button>
                     : <span key={w} className={'cell' + bandCls(w) + (hol(w) ? ' hol' : '')} /> }))
             })}
           </Fragment>
@@ -69,6 +79,8 @@ export function WeekGrid({ plan, order, progs, s, titles, cal, calLabel, year, t
         {line('tot', 'totrow', <b className="lab total">Tiết/tuần</b>,
           weeks.map(w => { const n = total.get(w); return <small key={w} className={'tot' + (n && n > LOAD_MAX ? ' over' : '')}>{n || ''}</small> }))}
       </div></div>
+      {tip && !pop && <div className="disttip" style={{ left: tip.x, top: tip.y }} role="tooltip">
+        <small className="sub">{tip.head}</small>{tip.items.map((t, i) => <div key={i}>{t}</div>)}</div>}
       {pop && <div className="distpop" style={{ left: pop.x, top: pop.y }} role="dialog" aria-label={`Tuần ${pop.w}`}>
         <button type="button" className="x" aria-label="Đóng" onClick={() => setPop(null)}>×</button>
         {PopBody(pop)}

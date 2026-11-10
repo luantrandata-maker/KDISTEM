@@ -1645,6 +1645,8 @@ tbody tr:is(:has(.namelink:not(:disabled)),:has([data-rowopen]:not(:disabled))):
 .distgrid button.cell{border:0;cursor:pointer;font:inherit;font-weight:700;font-size:11px}
 .distgrid .cell.sel{outline:2px solid var(--text);outline-offset:1px}
 .distpop{position:absolute;z-index:20;width:320px;max-width:calc(100% - 8px);background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px rgba(0,0,0,.16);padding:12px 14px;font-size:13px}
+.disttip{position:absolute;z-index:21;transform:translateY(calc(-100% - 6px));max-width:280px;background:#0f172a;color:#fff;border-radius:8px;padding:6px 10px;font-size:12.5px;line-height:1.45;pointer-events:none;box-shadow:0 6px 18px rgba(0,0,0,.18)}
+.disttip .sub{color:#cbd5e1;display:block}
 .distpop .x{position:absolute;right:6px;top:4px;border:0;background:none;font-size:18px;cursor:pointer;color:var(--muted)}
 .distpopt{font-size:15px}
 .distpophol{list-style:none;margin:8px 0 0;padding:8px 0 0;border-top:1px solid var(--line);display:grid;gap:10px}.distpophol li{display:grid;gap:2px}.distpophol .sub{margin:0}.distpophol li>b{font-size:14px}

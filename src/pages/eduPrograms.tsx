@@ -902,7 +902,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
       return <span className="slact"><button type="button" disabled={i <= 0} aria-label="Đưa lên" onClick={() => move(r, -1)}>↑</button><button type="button" disabled={i >= sibs.length - 1} aria-label="Đưa xuống" onClick={() => move(r, 1)}>↓</button><button type="button" className="danger" aria-label={`Xoá ${r.u.title}`} onClick={() => remove(r)}>×</button></span> } }] : []),
   ]
   const navItem = (key: string, label: string, rs: LRow[], main?: boolean) => <button key={key || '*'} type="button" className={'slnavi' + (lc(sel) === lc(key) ? ' on' : '')} onClick={() => setCur(key)}>
-    <span>{label}{main && <small className="sub"> · chủ đạo</small>}</span><span className="slcnt" title={`${rs.length} bài · ${totalP(rs)} tiết`}>{rs.length}</span></button>
+    <span className="slnm">{label}{main && <small className="sub"> · chủ đạo</small>}</span><span className="slcnt">{rs.length} bài · {totalP(rs)} tiết</span></button>
 
   return <div className="slwrap">
     <nav className="slnav" aria-label="Môn trong chương trình">
@@ -911,7 +911,6 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
       {editable && (addSubj ? <select className="sladdsel" autoFocus defaultValue="" onChange={e => addSubject(e.target.value)} onBlur={() => setAddSubj(false)} aria-label="Thêm môn">
           <option value="">— Chọn môn —</option>{usable.map(x => <option key={x.id} value={x.name}>{x.name}</option>)}</select>
         : <button type="button" className="sladdsubj" onClick={() => setAddSubj(true)}>+ Thêm môn</button>)}
-      <small className="sub slsum">{sel ? `${inSel.length} bài · ${totalP(inSel)} tiết` : `${subjList.length} môn · ${rows.length} bài · ${totalP(rows)} tiết`}</small>
     </nav>
     <div className="slmain">
       <DataTable id="edu-lessons" simple rows={shown} rowKey={r => r.u.id} className="slt"

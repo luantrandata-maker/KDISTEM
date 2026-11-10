@@ -2558,3 +2558,12 @@ textarea.slcell{font-size:13px;color:var(--muted);min-height:28px}
 .pdcard .pvchips .pill{white-space:normal;max-width:100%;overflow-wrap:anywhere;line-height:1.35}
 .slnavrow .slnavi .slnm{overflow-wrap:anywhere}
 .slt th.c-topic{width:160px}
+/* Chương trình đào tạo › Môn & nội dung */
+.slt th.c-mode{width:150px}.slt th.c-test{width:64px}
+.slnewrow select.slnm2{flex:none;width:110px}
+.slnewrow .sltest{display:flex;align-items:center;gap:4px;white-space:nowrap;font-size:13px}
+.sladdbox input.sladdsel{width:100%}
+.slt select.slcell{width:100%;padding:4px 6px}
+.slt.tut th.c-subj{width:130px}.slt.tut th.c-title{min-width:200px}.slt.tut th.c-outs{min-width:170px}.slt.tut th.c-mat{width:120px}
+.slt.tut select.slcell{min-width:112px}
+.slt.tut td .slsubjlink{white-space:normal}

@@ -3,6 +3,7 @@ import { CompetencySetupLink } from '../../components/CompetencySetup'
 // Cấu trúc 3 cấp: Chương trình đào tạo → Môn → Nội dung đào tạo. Cách làm giống Phân hệ 2: hướng dẫn các bước,
 // thẻ số liệu, danh sách có lọc; thêm / sửa / xem chi tiết mở view riêng; Nháp → Đã phát hành → Ngừng dùng, nhân bản để sửa.
 import { MultiSelect } from '../../components/MultiSelect'
+import { ChipMulti } from '../../components/Pickers'
 import { Icon } from '../../components/Icon'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -164,66 +165,151 @@ function useFamilies(self?: string | null) {
   return list
 }
 
-function InfoFields({ f, set, disabled, family }: { f: Info; set: (f: Info) => void; disabled?: boolean; family?: string | null }) {
-  const fams = useFamilies(family)
-  const { codes, byCode: tracks } = useStemTracks()
-  const { levels } = useEduLevels()
-  const comps = useCompetencies('teacher')
-  // Gợi ý đơn vị xây dựng: KDI và các cơ quan quản lý (Sở, Phòng…); gõ tự do được (VD: trường đại học, viện)
-  const orgs = useAllOrgs()
-  const builders = useMemo(() => [...new Set((orgs ?? []).filter(o => o.type !== 'school').map(o => o.name))].sort((a, b) => a.localeCompare(b, 'vi')), [orgs])
-  return <>
-    <div className="formgrid" style={{ alignItems: 'start' }}>
-      <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên chương trình đào tạo *</span><input required disabled={disabled} maxLength={200} value={f.title} onChange={e => set({ ...f, title: e.target.value })} placeholder="VD: Đào tạo dạy học STEM tích hợp cho nhà giáo THCS" /></label>
-      <div className="field" style={{ gridColumn: 'span 2' }}><span>Loại chương trình</span>
-        <MultiSelect disabled={disabled} value={f.ct_codes} onChange={v => set({ ...f, ct_codes: v })} options={codes.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])}
-          placeholder="Không chọn" ariaLabel="Loại chương trình" /></div>
-      <div className="field" style={{ gridColumn: 'span 2' }}><span>Cấp học</span>
-        <MultiSelect disabled={disabled} value={f.levels} onChange={v => set({ ...f, levels: v })} options={levels.map(l => [l.code, l.name])} placeholder="Tất cả cấp học" ariaLabel="Cấp học" /></div>
-      <label className="field"><span>Hình thức</span><select disabled={disabled} value={f.mode} onChange={e => set({ ...f, mode: e.target.value as Mode })}>
-        {(Object.keys(MODE) as Mode[]).map(m => <option key={m} value={m}>{MODE[m]}</option>)}</select></label>
-      <label className="field"><span>Đối tượng</span><input disabled={disabled} maxLength={200} value={f.audience ?? ''} onChange={e => set({ ...f, audience: e.target.value })} placeholder="VD: Nhà giáo mới dạy STEM" /></label>
-      <label className="field" style={{ gridColumn: 'span 2' }}><span>Đơn vị xây dựng <small className="sub">(không bắt buộc)</small></span>
-        <input disabled={disabled} maxLength={200} list="tp-builders" value={f.builder ?? ''} onChange={e => set({ ...f, builder: e.target.value })} placeholder="Chọn hoặc gõ: KDI Education, Sở GD&ĐT…, Trường ĐHSP…" />
-        <datalist id="tp-builders">{builders.map(n => <option key={n} value={n} />)}</datalist></label>
-      <label className="field" style={{ gridColumn: '1/-1' }}><span>Mô tả</span><textarea disabled={disabled} rows={2} maxLength={4000} value={f.description ?? ''} onChange={e => set({ ...f, description: e.target.value })} /></label>
-      <label className="field" style={{ gridColumn: '1/-1' }}><span>Mục tiêu</span><textarea disabled={disabled} rows={3} maxLength={4000} value={f.objectives ?? ''} onChange={e => set({ ...f, objectives: e.target.value })}
-        placeholder="Sau đào tạo, nhà giáo…" /></label>
-      <label className="field" style={{ gridColumn: '1/-1' }}><span>Yêu cầu đầu ra</span><textarea disabled={disabled} rows={3} maxLength={4000} value={f.outcomes ?? ''} onChange={e => set({ ...f, outcomes: e.target.value })}
-        placeholder="VD: Thiết kế được 1 kế hoạch bài dạy STEM; lắp ráp và lập trình được robot cơ bản" /></label>
-    </div>
-    <fieldset className="libtargets wide"><legend>Điều kiện tham gia</legend>
-      <div className="formgrid" style={{ alignItems: 'start' }}>
-        <label className="field" style={{ gridColumn: '1/-1' }}><span>Điều kiện tham gia</span><textarea disabled={disabled} rows={2} maxLength={2000} value={f.entry_conditions ?? ''} onChange={e => set({ ...f, entry_conditions: e.target.value })}
-          placeholder="VD: Nhà giáo đang dạy Khoa học tự nhiên hoặc Công nghệ, có máy tính cá nhân" /></label>
-        <div className="field" style={{ gridColumn: '1/-1' }}><span>Chương trình tiên quyết (phải đạt trước)</span>
-          <MultiSelect disabled={disabled} value={f.prereq_families} onChange={v => set({ ...f, prereq_families: v })} options={fams} placeholder="Không có"
-            ariaLabel="Chương trình tiên quyết" empty="Chưa có chương trình đào tạo khác." /></div>
-      </div>
-    </fieldset>
-    <fieldset className="libtargets wide"><legend>Năng lực đích (khung năng lực nhà giáo)</legend>
-      <div className="formgrid" style={{ alignItems: 'start' }}>
-        <div className="field" style={{ gridColumn: 'span 3' }}><span>Năng lực đích</span><MultiSelect disabled={disabled} value={f.competencies} onChange={v => set({ ...f, competencies: v })}
-          options={comps.map(c => [c.key, c.name])} placeholder="Chọn năng lực đích…" ariaLabel="Năng lực đích" empty="Chưa có khung năng lực nhà giáo." /><CompetencySetupLink audience="teacher" /></div>
-        <label className="field"><span>Mức cần đạt sau đào tạo</span><select disabled={disabled} value={f.target_level} onChange={e => set({ ...f, target_level: Number(e.target.value) })}>
-          {[1, 2, 3, 4].map(l => <option key={l} value={l}>Mức {l} · {LV_NAME[l - 1]}</option>)}</select></label>
-      </div>
-    </fieldset>
-    <fieldset className="libtargets wide"><legend>Điều kiện đạt (dùng khi đánh giá kết quả và cấp chứng chỉ)</legend>
-      <div className="formgrid">
-        <label className="field"><span>Chuyên cần tối thiểu (%)</span><input type="number" disabled={disabled} min={0} max={100} value={f.pass_attendance} onChange={e => set({ ...f, pass_attendance: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })} /></label>
-        <label className="field"><span>Điểm bài test tối thiểu (thang 10)</span><input type="number" disabled={disabled} min={0} max={10} step={0.5} value={f.pass_score ?? ''} placeholder="Để trống = không xét điểm"
-          onChange={e => set({ ...f, pass_score: e.target.value === '' ? null : Math.max(0, Math.min(10, Number(e.target.value))) })} /></label>
-        <label className="field"><span>Sản phẩm cuối khoá</span><select disabled={disabled} value={f.need_product ? 'y' : 'n'} onChange={e => set({ ...f, need_product: e.target.value === 'y' })}>
-          <option value="n">Không bắt buộc</option><option value="y">Bắt buộc, giảng viên chấm đạt</option></select></label>
-      </div>
-    </fieldset>
-  </>
-}
-
 function PrereqNames({ ids }: { ids: string[] }) {
   const fams = useFamilies(null)
   return <>{ids.map(id => fams.find(f => f[0] === id)?.[1] ?? '…').join('; ')}</>
+}
+
+/** Nút chọn một trong vài giá trị (giống form chương trình giáo dục) */
+function Seg<T extends string>({ value, opts, onPick, off }: { value: T; opts: [T, string][]; onPick: (v: T) => void; off?: boolean }) {
+  return <div className="pfseg" role="radiogroup">{opts.map(([k, l]) => <button key={k} type="button" role="radio" aria-checked={value === k} className={value === k ? 'on' : ''} disabled={off} onClick={() => onPick(k)}>{l}</button>)}</div>
+}
+
+/** Form thêm / sửa chương trình đào tạo: mục lục bên trái, các thẻ đánh số ở giữa, Xem nhanh + nút Lưu bên phải (như chương trình giáo dục).
+ *  edit: sửa được nội dung; scopeEdit: sửa được đơn vị xây dựng, phạm vi, hiệu lực, chương trình giáo dục đáp ứng (cả khi đã phát hành). */
+function TForm({ f, set, x, setX, isNew, edit, scopeEdit, family, owner, busy, note, onSave, onCancel, onDelete }: {
+  f: Info; set: (f: Info) => void; x: Extra; setX: (x: Extra) => void; isNew?: boolean; edit: boolean; scopeEdit: boolean; family?: string | null; owner?: string | null
+  busy?: boolean; note?: React.ReactNode; onSave: () => void; onCancel: () => void; onDelete?: () => void
+}) {
+  const fams = useFamilies(family)
+  const { codes, byCode: tracks } = useStemTracks()
+  const { levels, name: levelName } = useEduLevels()
+  const comps = useCompetencies('teacher')
+  const orgs = useAllOrgs()
+  const eduOpts0 = useEduOpts()
+  const builders = useMemo(() => [...new Set(['KDI Education', ...(orgs ?? []).filter(o => o.type !== 'school').map(o => o.name)])].sort((a, b) => a.localeCompare(b, 'vi')), [orgs])
+  const byId = useMemo(() => new Map((orgs ?? []).map(o => [o.id, o])), [orgs])
+  const orgLabel = (id: string) => { const o = byId.get(id); if (!o) return 'Đơn vị'
+    const par = o.parent_id ? byId.get(o.parent_id) : undefined
+    return `${o.name} · ${OTYPE[o.type] ?? o.type}${par && o.type === 'school' ? ` (${par.name})` : ''}` }
+  const orgOpts = useMemo(() => (orgs ?? []).filter(o => !o.is_platform && o.id !== owner && o.type !== 'provider')
+    .sort((a, b) => (a.type === 'school' ? 1 : 0) - (b.type === 'school' ? 1 : 0) || a.name.localeCompare(b.name, 'vi'))
+    .map(o => [o.id, orgLabel(o.id)] as [string, string]), [orgs, byId, owner])
+  const eduOpts = (eduOpts0 ?? []).map(o => [famOf(o), eduLabel(o)] as [string, string])
+  const eduName = (fam: string) => eduOpts.find(o => o[0] === fam)?.[1] ?? 'Chương trình giáo dục'
+  const dis = !edit, sdis = !scopeEdit
+  const S = (n: number) => ({ gridColumn: `span ${n}` })
+  const bad = extraBad(x)
+  const missing = [!f.title.trim() && 'Tên chương trình'].filter(Boolean) as string[]
+  const secs: [string, string, boolean][] = [
+    ['tf-1', 'Thông tin cơ bản', !missing.length],
+    ['tf-2', 'Mục tiêu & đầu ra', !!(f.objectives?.trim() || f.outcomes?.trim())],
+    ['tf-3', 'Năng lực đích & điều kiện đạt', f.competencies.length > 0],
+    ['tf-4', 'Điều kiện tham gia', !!(f.entry_conditions?.trim() || f.prereq_families.length)],
+    ['tf-5', 'Đơn vị, phạm vi & hiệu lực', !!f.builder?.trim() && !bad],
+  ]
+  const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  const canSave = edit || scopeEdit
+  const pass = [`chuyên cần ≥ ${f.pass_attendance}%`, f.pass_score != null && `điểm test ≥ ${num(Number(f.pass_score))}`, f.need_product && 'sản phẩm cuối khoá'].filter(Boolean).join(' · ')
+  return <form className="pform pfwrap" onSubmit={e => { e.preventDefault(); if (canSave && !bad && f.title.trim()) onSave() }}>
+    <nav className="panel pfnav" aria-label="Các phần của form">
+      {secs.map(([id, t, ok], i) => <button key={id} type="button" className={ok ? 'ok' : ''} onClick={() => go(id)}><i>{ok ? '✓' : i + 1}</i>{t}</button>)}
+    </nav>
+    <div className="pfmain">
+      {note && <p className="sub" style={{ margin: 0 }}>{note}</p>}
+
+      <section id="tf-1" className="panel pfcard">
+        <h4><i>1</i>Thông tin cơ bản</h4><p className="pfhint">Mục chọn đầu tiên là mục chính.</p>
+        <div className="pgrid">
+          <label className="field" style={S(12)}><span>Tên chương trình đào tạo *</span><input required disabled={dis} maxLength={200} value={f.title} onChange={e => set({ ...f, title: e.target.value })} placeholder="VD: Đào tạo dạy học STEM tích hợp cho nhà giáo THCS" /></label>
+          <div className="field" style={S(6)}><span>Loại chương trình</span>
+            <ChipMulti disabled={dis} value={f.ct_codes} onChange={v => set({ ...f, ct_codes: v })} options={codes.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])} ariaLabel="Loại chương trình" firstHint="Loại chính" placeholder="Không chọn" /></div>
+          <div className="field" style={S(6)}><span>Cấp học</span>
+            <ChipMulti disabled={dis} value={f.levels} onChange={v => set({ ...f, levels: v })} options={levels.map(l => [l.code, l.name])} ariaLabel="Cấp học" placeholder="Tất cả cấp học" /></div>
+          <div className="field" style={S(6)}><span>Hình thức</span><Seg value={f.mode} off={dis} onPick={m => set({ ...f, mode: m })} opts={(Object.keys(MODE) as Mode[]).map(m => [m, MODE[m]])} /></div>
+          <label className="field" style={S(6)}><span>Đối tượng</span><input disabled={dis} maxLength={200} value={f.audience ?? ''} onChange={e => set({ ...f, audience: e.target.value })} placeholder="VD: Nhà giáo mới dạy STEM" /></label>
+          <label className="field" style={S(12)}><span>Mô tả</span><textarea disabled={dis} rows={2} maxLength={4000} value={f.description ?? ''} onChange={e => set({ ...f, description: e.target.value })} /></label>
+        </div>
+      </section>
+
+      <section id="tf-2" className="panel pfcard">
+        <h4><i>2</i>Mục tiêu & yêu cầu đầu ra</h4><p className="pfhint">Không bắt buộc. Có thể bổ sung sau.</p>
+        <div className="pgrid">
+          <label className="field" style={S(12)}><span>Mục tiêu</span><textarea disabled={dis} rows={2} maxLength={4000} value={f.objectives ?? ''} onChange={e => set({ ...f, objectives: e.target.value })} placeholder="Sau đào tạo, nhà giáo…" /></label>
+          <label className="field" style={S(12)}><span>Yêu cầu đầu ra</span><textarea disabled={dis} rows={2} maxLength={4000} value={f.outcomes ?? ''} onChange={e => set({ ...f, outcomes: e.target.value })}
+            placeholder="VD: Thiết kế được 1 kế hoạch bài dạy STEM; lắp ráp và lập trình được robot cơ bản" /></label>
+        </div>
+      </section>
+
+      <section id="tf-3" className="panel pfcard">
+        <h4><i>3</i>Năng lực đích & điều kiện đạt</h4><p className="pfhint">Điều kiện đạt dùng khi đánh giá kết quả và cấp chứng chỉ.</p>
+        <div className="pgrid">
+          <div className="field" style={S(8)}><span>Năng lực đích (khung năng lực nhà giáo) {edit && <CompetencySetupLink audience="teacher" />}</span>
+            <MultiSelect disabled={dis} value={f.competencies} onChange={v => set({ ...f, competencies: v })} options={comps.map(c => [c.key, c.name])} placeholder="Chọn năng lực đích…" ariaLabel="Năng lực đích" empty="Chưa có khung năng lực nhà giáo." /></div>
+          <div className="field" style={S(4)}><span>Mức cần đạt sau đào tạo</span>
+            <div className="pflv" role="radiogroup" aria-label="Mức cần đạt">{[1, 2, 3, 4].map(l => <button key={l} type="button" role="radio" aria-checked={f.target_level === l} disabled={dis}
+              className={f.target_level === l ? 'on' : f.target_level > l ? 'in' : ''} title={`Mức ${l} · ${LV_NAME[l - 1]}`} onClick={() => set({ ...f, target_level: l })}>{l}</button>)}
+              <small className="sub">{LV_NAME[f.target_level - 1]}</small></div></div>
+          <label className="field" style={S(3)}><span>Chuyên cần tối thiểu (%)</span><input type="number" disabled={dis} min={0} max={100} value={f.pass_attendance} onChange={e => set({ ...f, pass_attendance: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })} /></label>
+          <label className="field" style={S(3)}><span>Điểm test tối thiểu (thang 10)</span><input type="number" disabled={dis} min={0} max={10} step={0.5} value={f.pass_score ?? ''} placeholder="Trống = không xét"
+            onChange={e => set({ ...f, pass_score: e.target.value === '' ? null : Math.max(0, Math.min(10, Number(e.target.value))) })} /></label>
+          <div className="field" style={S(6)}><span>Sản phẩm cuối khoá</span><Seg value={f.need_product ? 'y' : 'n'} off={dis} onPick={v => set({ ...f, need_product: v === 'y' })} opts={[['n', 'Không bắt buộc'], ['y', 'Bắt buộc, giảng viên chấm đạt']]} /></div>
+        </div>
+      </section>
+
+      <section id="tf-4" className="panel pfcard">
+        <h4><i>4</i>Điều kiện tham gia</h4><p className="pfhint">Không bắt buộc.</p>
+        <div className="pgrid">
+          <label className="field" style={S(12)}><span>Điều kiện tham gia</span><textarea disabled={dis} rows={2} maxLength={2000} value={f.entry_conditions ?? ''} onChange={e => set({ ...f, entry_conditions: e.target.value })}
+            placeholder="VD: Nhà giáo đang dạy Khoa học tự nhiên hoặc Công nghệ, có máy tính cá nhân" /></label>
+          <div className="field" style={S(12)}><span>Chương trình tiên quyết (phải đạt trước)</span>
+            <MultiSelect disabled={dis} value={f.prereq_families} onChange={v => set({ ...f, prereq_families: v })} options={fams} placeholder="Không có" ariaLabel="Chương trình tiên quyết" empty="Chưa có chương trình đào tạo khác." /></div>
+        </div>
+      </section>
+
+      <section id="tf-5" className="panel pfcard">
+        <h4><i>5</i>Đơn vị, phạm vi & hiệu lực</h4><p className="pfhint">Vẫn sửa được sau khi phát hành. Đơn vị trong phạm vi (và đơn vị trực thuộc) mới thấy và chọn được chương trình khi lập kế hoạch.</p>
+        <div className="pgrid">
+          <label className="field" style={S(6)}><span>Đơn vị xây dựng <small className="sub">(nơi biên soạn nội dung)</small></span>
+            <input disabled={dis} maxLength={200} list="tp-builders" value={f.builder ?? ''} onChange={e => set({ ...f, builder: e.target.value })} placeholder="KDI Education, Sở GD&ĐT…, Trường ĐHSP…" />
+            <datalist id="tp-builders">{builders.map(n => <option key={n} value={n} />)}</datalist></label>
+          <div className="field" style={S(6)}><span>Áp dụng cho</span><Seg value={x.scope} off={sdis} onPick={v => setX({ ...x, scope: v })} opts={[['all', 'Tất cả đơn vị trực thuộc'], ['selected', 'Chỉ đơn vị được chọn']]} /></div>
+          {x.scope === 'selected' && <div className="field" style={S(12)}><span>Đơn vị áp dụng * <small className="sub">(chọn Sở / Phòng là áp dụng cho tất cả trường trực thuộc)</small></span>
+            <MultiSelect disabled={sdis} value={x.targets} onChange={v => setX({ ...x, targets: v })} options={[...orgOpts, ...x.targets.filter(id => !orgOpts.some(o => o[0] === id)).map(id => [id, orgLabel(id)] as [string, string])]}
+              placeholder="Chọn Sở, Phòng hoặc trường…" ariaLabel="Đơn vị áp dụng" empty="Chưa có đơn vị nào." /></div>}
+          <label className="field" style={S(4)}><span>Hiệu lực từ</span><input type="date" disabled={sdis} value={x.effective_from} onChange={e => setX({ ...x, effective_from: e.target.value })} /></label>
+          <label className="field" style={S(4)}><span>Hiệu lực đến <small className="sub">(trống = không hạn)</small></span><input type="date" disabled={sdis} value={x.effective_to} min={x.effective_from || undefined} onChange={e => setX({ ...x, effective_to: e.target.value })} /></label>
+          <div className="field" style={S(12)}><span>Chương trình giáo dục đáp ứng <small className="sub">(nhà giáo Đạt khoá này được tính đáp ứng các chương trình giáo dục đã chọn)</small></span>
+            <MultiSelect disabled={sdis} value={x.edu} onChange={v => setX({ ...x, edu: v })} options={[...eduOpts, ...x.edu.filter(fm => !eduOpts.some(o => o[0] === fm)).map(fm => [fm, 'Chương trình giáo dục'] as [string, string])]}
+              placeholder={eduOpts0 ? 'Chọn chương trình giáo dục…' : 'Đang tải…'} ariaLabel="Chương trình giáo dục đáp ứng" empty="Chưa có chương trình giáo dục nào." /></div>
+        </div>
+        {bad && <small className="warnline">{bad}</small>}
+      </section>
+    </div>
+
+    <aside className="pfside">
+      <div className="panel pdcard">
+        <h4>Xem nhanh</h4>
+        <dl className="pddl sm">
+          <dt>Tên</dt><dd><b>{f.title.trim() || '—'}</b></dd>
+          <dt>Loại</dt><dd>{f.ct_codes.join(', ') || '—'}</dd>
+          <dt>Cấp học</dt><dd>{f.levels.length ? f.levels.map(levelName).join(', ') : 'Tất cả cấp học'}</dd>
+          <dt>Hình thức</dt><dd>{MODE[f.mode]}</dd>
+          <dt>Đối tượng</dt><dd>{f.audience?.trim() || '—'}</dd>
+          <dt>Năng lực đích</dt><dd>{f.competencies.length ? `${f.competencies.length} năng lực · Mức ${f.target_level}` : '—'}</dd>
+          <dt>Điều kiện đạt</dt><dd>{pass}</dd>
+          <dt>Áp dụng</dt><dd>{x.scope === 'selected' ? `${x.targets.length} đơn vị được chọn` : 'Tất cả đơn vị trực thuộc'}</dd>
+          {x.edu.length > 0 && <><dt>CT giáo dục</dt><dd>{x.edu.map(eduName).join('; ')}</dd></>}
+        </dl>
+        {edit && (missing.length ? <p className="pfmiss">Còn thiếu: {missing.join(', ')}</p> : <p className="pfok">✓ Đã đủ thông tin bắt buộc</p>)}
+        <div className="pfsidebtn">
+          {canSave && <button className="primary" type="submit" disabled={busy || !f.title.trim() || !!bad}>{busy ? 'Đang lưu…' : isNew ? 'Tạo bản nháp' : 'Lưu thay đổi'}</button>}
+          <button type="button" onClick={onCancel}>Huỷ</button>
+          {onDelete && <button type="button" className="danger" onClick={onDelete} title="Xoá bản nháp">Xoá</button>}
+        </div>
+      </div>
+    </aside>
+  </form>
 }
 
 function ProgramForm({ admin, onBack, onSaved }: { admin: boolean; onBack: () => void; onSaved: (id: string) => void }) {
@@ -231,8 +317,8 @@ function ProgramForm({ admin, onBack, onSaved }: { admin: boolean; onBack: () =>
   const [x, setX] = useState<Extra>(EXTRA_BLANK)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
-  async function save(e: React.FormEvent) {
-    e.preventDefault(); if (!admin) return
+  async function save() {
+    if (!admin) return
     const bad = extraBad(x); if (bad) return setErr(bad)
     setBusy(true); setErr('')
     const { data, error } = await supabase.from('training_programs').insert({ ...f, title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null, builder: f.builder?.trim() || null,
@@ -244,14 +330,14 @@ function ProgramForm({ admin, onBack, onSaved }: { admin: boolean; onBack: () =>
     if (e2) return setErr(`Đã tạo bản nháp nhưng chưa lưu được phạm vi / chương trình giáo dục: ${e2}`)
     onSaved(id)
   }
-  return <ElView back="Chương trình đào tạo" onBack={onBack} title="Thêm chương trình đào tạo" sub="Lưu xong thì thêm các môn và nội dung đào tạo.">
-    <form className="panel" onSubmit={save} style={{ display: 'grid', gap: 12 }}>
-      <InfoFields f={f} set={setF} />
-      <ScopeEduFields x={x} set={setX} />
-      {err && <p className="msg">{err}</p>}
-      <div className="formactions"><button type="submit" className="primary" disabled={busy || !f.title.trim()}>Tạo bản nháp</button> <button type="button" onClick={onBack}>Huỷ</button></div>
-    </form>
-  </ElView>
+  return <>
+    <div className="bar"><div>
+      <button type="button" className="linkbtn" onClick={onBack}>← Danh sách chương trình</button>
+      <h3 style={{ margin: '4px 0 0' }}>Thêm chương trình đào tạo</h3>
+      <small className="sub">Lưu xong thì thêm các môn và nội dung đào tạo.</small></div></div>
+    {err && <p className="msg" role="status"><b>{err}</b></p>}
+    <TForm f={f} set={setF} x={x} setX={setX} isNew edit={admin} scopeEdit={admin} busy={busy} onSave={save} onCancel={onBack} />
+  </>
 }
 
 // ===== Chi tiết: thông tin + môn & nội dung đào tạo =====
@@ -268,6 +354,9 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [openC, setOpenC] = useState<string | null>(initialContent ?? null)
   const [tab, setTab] = useState<PTab>(initialTab ?? 'info')
+  const [editInfo, setEditInfo] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const eduOpts = useEduOpts()
   const { subjects } = useSubjects()
   const { byCode: tracks } = useStemTracks()
   const { name: levelName } = useEduLevels()
@@ -306,10 +395,15 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
   async function saveInfo() {
     if (!f || !x || !x0) return
     const bad = extraBad(x); if (bad) return setMsg([bad, true])
-    const { error } = await supabase.from('training_programs').update({ ...f, title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null, builder: f.builder?.trim() || null }).eq('id', p!.id)
-    if (error) { setMsg([errText(error.message), true]); return load() }
+    setBusy(true)
+    if (admin && EDITABLE.includes(p!.status)) {
+      const { error } = await supabase.from('training_programs').update({ ...f, title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null, builder: f.builder?.trim() || null }).eq('id', p!.id)
+      if (error) { setBusy(false); setMsg([errText(error.message), true]); return load() }
+    }
     const e2 = await saveExtra(p!.id, x, x0)
-    setMsg(e2 ? [`Đã lưu thông tin nhưng chưa lưu được phạm vi / chương trình giáo dục: ${e2}`, true] : ['Đã lưu thông tin, phạm vi áp dụng và chương trình giáo dục đáp ứng.', false])
+    setBusy(false)
+    setMsg(e2 ? [`Đã lưu thông tin nhưng chưa lưu được phạm vi / chương trình giáo dục: ${e2}`, true] : ['Đã lưu chương trình đào tạo.', false])
+    if (!e2) setEditInfo(false)
     await load()
   }
   async function del() {
@@ -327,95 +421,106 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
   const warn = [!contents.length && 'chưa có nội dung đào tạo nào', p.pass_score != null && !contents.some(u => u.has_test) && 'có điều kiện điểm bài test nhưng chưa nội dung nào có bài test',
     subjs.some(s => !kids(s.id).length) && 'có môn chưa có nội dung'].filter(Boolean) as string[]
 
-  const t: 'info' | 'setup' | 'assign' = tab === 'assign' ? 'assign' : tab !== 'info' && tab !== 'versions' && edit ? 'setup' : 'info'
+  const t: 'info' | 'assign' = tab === 'assign' ? 'assign' : 'info'
   const saveP = (patch: Record<string, unknown>, ok?: string) => run(supabase.from('training_programs').update(patch).eq('id', p.id), ok)
   const onVer = (m: string, e?: boolean) => { setMsg([m, !!e]); if (!e) load() }
-  const unitsBox = (editable: boolean) => <section className="panel ustruct" style={{ display: 'grid', gap: 12 }}>
-    <TrainingUnits programId={p.id} programTitle={p.title} programMode={p.mode} units={units} editable={editable} catalog={suggest}
-      onReload={load} onMessage={(m, e) => setMsg([errText(m), !!e])} onOpen={setOpenC} />
-  </section>
+  const scopeEdit = admin && p.status !== 'archived'
+  const none = <span className="sub">Chưa có</span>
+  const chips = (xs: string[]) => xs.length ? <span className="pvchips">{xs.map(v => <span key={v} className="pill">{v}</span>)}</span> : none
+  const note = effNote(p)
+  const tests = contents.filter(u => u.has_test).length
+  const eduNames = (x0?.edu ?? []).map(fm => { const o = (eduOpts ?? []).find(e => famOf(e) === fm); return o ? eduLabel(o) : 'Chương trình giáo dục' })
 
-  return <ElView back={back} onBack={onBack} title={p.title}
-    sub={<>{p.code} · v{p.version_no} · <Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip> · {subjs.length} môn · {contents.length} nội dung · {num(hours)} giờ</>}>
-    {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    {edit && warn.length > 0 && <p className="warnline">Chưa phát hành được: {warn.join('; ')}.</p>}
-
-    <div className="segmented" style={{ marginBottom: 12 }}>
-      {([['info', 'Thông tin'], ...(edit ? [['setup', 'Thiết lập']] : []), ['assign', 'Gán & triển khai']] as [PTab, string][]).map(([k, l]) => <button key={k} type="button" className={t === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
-    </div>
-
-    {t === 'info' && <>
-      <div className="panel pview">
-        <div className="pviewhead">
-          <h4><Icon n="help" size={18} /> Thông tin chương trình</h4>
-          <div className="tools">
-            {edit && <button type="button" onClick={() => setTab('setup')}><Icon n="pencil" size={15} /> Sửa</button>}
-            <TrainingVersionActions p={p} admin={admin} warn={warn} onOpen={onOpen} onChanged={onVer} />
-            {admin && p.status === 'draft' && <button type="button" className="danger" onClick={del}>Xoá</button>}
-          </div>
-        </div>
-        <div className="pvgrid">
-          <PV l="Tên chương trình" w={2}>{p.title}</PV>
-          <PV l="Mã chương trình">{p.code}</PV>
-          <PV l="Trạng thái"><Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip> <small className="sub">v{p.version_no}</small></PV>
-          <PV l="Loại chương trình" w={2}>{ctsOf(p).map(c => `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`).join(', ')}</PV>
-          <PV l="Cấp học">{lvsOf(p).length ? lvsOf(p).map(levelName).join(', ') : 'Tất cả cấp học'}</PV>
-          <PV l="Hình thức">{MODE[p.mode]}</PV>
-          <PV l="Đối tượng">{p.audience}</PV>
-          <PV l="Đơn vị xây dựng">{p.builder}</PV>
-          <PV l="Năng lực đích" w={2}>{p.competencies.length ? p.competencies.map(k => comps.find(c => c.key === k)?.name ?? k).join(', ') + ` (mức ${p.target_level})` : null}</PV>
-          <PV l="Điều kiện đạt" w={2}>{[`chuyên cần ≥ ${p.pass_attendance}%`, p.pass_score != null && `điểm bài test ≥ ${num(Number(p.pass_score))}`, p.need_product && 'sản phẩm cuối khoá đạt'].filter(Boolean).join(' · ')}</PV>
-          {!!p.prereq_families?.length && <PV l="Tiên quyết" w={2}><PrereqNames ids={p.prereq_families} /></PV>}
-          {p.description && <PV l="Mô tả" w={-1}>{p.description}</PV>}
-          {p.objectives && <PV l="Mục tiêu" w={-1}>{p.objectives}</PV>}
-          {p.outcomes && <PV l="Yêu cầu đầu ra" w={-1}>{p.outcomes}</PV>}
-          {p.entry_conditions && <PV l="Điều kiện tham gia" w={-1}>{p.entry_conditions}</PV>}
-        </div>
-        <div className="pvstats">
-          <span><b>{subjs.length}</b> môn</span>
-          <span><b>{contents.length}</b> nội dung</span>
-          <span><b>{num(hours)}</b> giờ</span>
-          <span><b>{contents.filter(u => u.has_test).length}</b> bài test</span>
-        </div>
-        {!edit && admin && <small className="sub">Phiên bản {STATUS[p.status][0].toLowerCase()} không sửa được nội dung. Muốn điều chỉnh thì {p.status === 'pending' || p.status === 'approved' ? 'trả lại / mở lại bằng nút ở trên' : 'bấm "Tạo phiên bản mới"'}. Phạm vi áp dụng và chương trình giáo dục đáp ứng vẫn điều chỉnh được bên dưới.</small>}
+  return <>
+    <div className="bar">
+      <div>
+        <button type="button" className="linkbtn" onClick={onBack}>← {back}</button>
+        <h3 style={{ margin: '4px 0 0' }}>{p.title} <small>v{p.version_no}</small> <Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip></h3>
+        <small className="sub">{[p.code, ctsOf(p).join(', '), lvsOf(p).length ? lvsOf(p).map(levelName).join(', ') : 'Mọi cấp học', MODE[p.mode], `${num(hours)} giờ`].filter(Boolean).join(' · ')}</small>
       </div>
-      {/* Bản nháp sửa phạm vi và chương trình giáo dục ở tab Thiết lập; bản đã gửi duyệt / phát hành vẫn điều chỉnh ở đây */}
-      <ProgramScope p={p} admin={admin && !edit} onMsg={(m, e) => { setMsg([m, !!e]); if (!e) load() }} />
-      <ProgramEduLinks p={p} admin={admin && !edit} onMsg={(m, e) => setMsg([m, !!e])} />
-      {unitsBox(false)}
-      <ProgramExams p={p} units={units} edit={false} onOpen={setOpenC} save={saveP} />
-      <ProgramEvalFrame key={p.id + (p.eval_frame ? '1' : '0') + 'v'} p={p} edit={false} hasFinal={!!p.final_exam} hasTests={contents.some(u => u.has_test)} save={saveP} />
-      <TrainingVersions p={p} onOpen={onOpen} />
-    </>}
+      <div className="tools">
+        {!editInfo && t === 'info' && edit && <button type="button" onClick={() => setEditInfo(true)}><Icon n="pencil" size={15} /> Sửa thông tin</button>}
+        {!editInfo && <TrainingVersionActions p={p} admin={admin} warn={warn} onOpen={onOpen} onChanged={onVer} onDelete={admin && p.status === 'draft' ? del : undefined} />}
+      </div>
+    </div>
+    <div className="segmented pdtabs">
+      {([['info', 'Chương trình'], ['assign', 'Gán & triển khai']] as [PTab, string][]).map(([k, l]) => <button key={k} type="button" className={t === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
+    </div>
+    {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+    {t === 'info' && edit && warn.length > 0 && !editInfo && <p className="warnline">Chưa phát hành được: {warn.join('; ')}.</p>}
 
-    {t === 'setup' && <>
-      <section className="panel" style={{ display: 'grid', gap: 12 }}>
-        <h3 style={{ margin: 0 }}>Thông tin & điều kiện đạt</h3>
-        <InfoFields f={f} set={setF} family={p.family_id} />
-        {x && <ScopeEduFields x={x} set={setX} owner={p.org_id} />}
-        <div className="formactions"><button type="button" className="primary" disabled={!f.title.trim()} onClick={saveInfo}>Lưu thông tin</button>
-          <button type="button" onClick={() => { load(); setTab('info') }}>Huỷ</button></div>
-      </section>
-      {unitsBox(true)}
-      <ProgramExams p={p} units={units} edit onOpen={setOpenC} autoStart={startFinal} save={saveP} />
-      <ProgramEvalFrame key={p.id + (p.eval_frame ? '1' : '0')} p={p} edit hasFinal={!!p.final_exam} hasTests={contents.some(u => u.has_test)} save={saveP} />
-    </>}
+    {t === 'info' && editInfo && x && <TForm f={f} set={setF} x={x} setX={setX} edit={edit} scopeEdit={scopeEdit} family={p.family_id} owner={p.org_id} busy={busy}
+      note={!edit ? 'Chương trình đã gửi duyệt hoặc phát hành: nội dung không sửa được (bấm "Tạo phiên bản mới" ở đầu trang). Đơn vị, phạm vi, hiệu lực và chương trình giáo dục đáp ứng vẫn sửa được.' : undefined}
+      onSave={saveInfo} onCancel={() => { load(); setEditInfo(false) }} onDelete={admin && p.status === 'draft' ? del : undefined} />}
+
+    {t === 'info' && !editInfo && <div className="pdgrid">
+      <div className="pdmain">
+        <div className="pdstats">
+          <div><b>{subjs.length}</b><span>môn</span></div>
+          <div><b>{contents.length}</b><span>nội dung</span></div>
+          <div><b>{num(hours)}</b><span>giờ</span></div>
+          <div><b>{tests}</b><span>bài test</span></div>
+          <div><b>{MODE[p.mode]}</b><span>hình thức</span></div>
+        </div>
+        <div className="panel pdcard pdsl">
+          <TrainingUnits programId={p.id} programTitle={p.title} programMode={p.mode} units={units} editable={edit} catalog={suggest}
+            onReload={load} onMessage={(m, e) => setMsg([errText(m), !!e])} onOpen={setOpenC} />
+        </div>
+        <ProgramExams p={p} units={units} edit={edit} onOpen={setOpenC} autoStart={startFinal} save={saveP} />
+        <ProgramEvalFrame key={p.id + (p.eval_frame ? '1' : '0') + (edit ? 'e' : 'v')} p={p} edit={edit} hasFinal={!!p.final_exam} hasTests={tests > 0} save={saveP} />
+      </div>
+      <div className="pdside">
+        <div className="panel pdcard"><h4>Thông tin chung</h4>
+          <dl className="pddl sm">
+            <dt>Mã</dt><dd>{p.code || none}</dd>
+            <dt>Loại</dt><dd>{ctsOf(p).map(c => c + (tracks[c] ? ' · ' + tracks[c]!.name : '')).join(', ') || '—'}</dd>
+            <dt>Cấp học</dt><dd>{lvsOf(p).length ? lvsOf(p).map(levelName).join(', ') : 'Tất cả cấp học'}</dd>
+            <dt>Hình thức</dt><dd>{MODE[p.mode]}</dd>
+            <dt>Đối tượng</dt><dd>{p.audience || '—'}</dd>
+            <dt>Xây dựng</dt><dd>{p.builder || '—'}</dd>
+          </dl>
+        </div>
+        <div className="panel pdcard"><h4>Mục tiêu & đầu ra</h4>
+          <dl className="pddl sm">
+            <dt>Mục tiêu</dt><dd style={{ whiteSpace: 'pre-line' }}>{p.objectives || <span className="sub">Chưa nhập{edit ? ' · bấm “Sửa thông tin” để thêm' : ''}</span>}</dd>
+            <dt>Yêu cầu đầu ra</dt><dd style={{ whiteSpace: 'pre-line' }}>{p.outcomes || none}</dd>
+            {p.description && <><dt>Mô tả</dt><dd style={{ whiteSpace: 'pre-line' }}>{p.description}</dd></>}
+          </dl>
+        </div>
+        <div className="panel pdcard"><h4>Năng lực đích & điều kiện đạt</h4>
+          <dl className="pddl sm">
+            <dt>Năng lực đích</dt><dd>{chips(p.competencies.map(k => comps.find(c => c.key === k)?.name ?? k))}</dd>
+            <dt>Mức cần đạt</dt><dd>Mức {p.target_level} · {LV_NAME[p.target_level - 1]}</dd>
+            <dt>Điều kiện đạt</dt><dd>{[`chuyên cần ≥ ${p.pass_attendance}%`, p.pass_score != null && `điểm test ≥ ${num(Number(p.pass_score))}`, p.need_product && 'sản phẩm cuối khoá đạt'].filter(Boolean).join(' · ')}</dd>
+          </dl>
+        </div>
+        {(p.entry_conditions || !!p.prereq_families?.length) && <div className="panel pdcard"><h4>Điều kiện tham gia</h4>
+          <dl className="pddl sm">
+            {p.entry_conditions && <><dt>Điều kiện</dt><dd style={{ whiteSpace: 'pre-line' }}>{p.entry_conditions}</dd></>}
+            {!!p.prereq_families?.length && <><dt>Tiên quyết</dt><dd><PrereqNames ids={p.prereq_families} /></dd></>}
+          </dl>
+        </div>}
+        <div className="panel pdcard"><h4>Phạm vi & hiệu lực {note && <span className={'pill ' + (note.startsWith('Hết') ? 'bad' : 'warn')}>{note}</span>}
+          {!edit && scopeEdit && <button type="button" className="linkbtn" onClick={() => setEditInfo(true)}>Điều chỉnh ›</button>}</h4>
+          <dl className="pddl sm">
+            <dt>Áp dụng</dt><dd>{p.scope === 'selected' ? `${x0?.targets.length ?? '…'} đơn vị được chọn` : 'Tất cả đơn vị trực thuộc'}</dd>
+            <dt>Hiệu lực</dt><dd>{[p.effective_from && `Từ ${vnDay(p.effective_from)}`, p.effective_to && `đến ${vnDay(p.effective_to)}`].filter(Boolean).join(' ') || 'Không giới hạn'}</dd>
+            <dt>CT giáo dục</dt><dd>{eduNames.length ? chips(eduNames) : <span className="sub">Chưa gắn</span>}</dd>
+          </dl>
+        </div>
+        <div className="panel pdcard"><h4>Phiên bản</h4><TrainingVersions p={p} onOpen={onOpen} /></div>
+      </div>
+    </div>}
     {t === 'assign' && <TrainingDeploy p={p} go={go} />}
-  </ElView>
-}
-
-/** Một ô trong thẻ thông tin: tiêu đề nhỏ in hoa, giá trị bên dưới. w = số cột chiếm (-1: cả hàng) */
-function PV({ l, w, children }: { l: string; w?: number; children?: React.ReactNode }) {
-  const empty = children == null || children === '' || children === false
-  return <div className="pvi" style={w ? { gridColumn: w < 0 ? '1/-1' : `span ${w}` } : undefined}><span>{l}</span><div>{empty ? '—' : children}</div></div>
+  </>
 }
 
 // ===== Phiên bản & duyệt (093) =====
 type TLog = { id: number; from_status: string | null; to_status: string; note: string | null; at: string }
 type TVer = Pick<TProgram, 'id' | 'version_no' | 'status' | 'published_at' | 'updated_at' | 'note'>
 /** Nút gửi duyệt / duyệt / phát hành / tạo phiên bản mới / ngừng dùng — hiện trên thẻ thông tin */
-function TrainingVersionActions({ p, admin, warn, onOpen, onChanged }: {
-  p: TProgram; admin: boolean; warn: string[]; onOpen: (id: string) => void; onChanged: (m: string, err?: boolean) => void
+function TrainingVersionActions({ p, admin, warn, onOpen, onChanged, onDelete }: {
+  p: TProgram; admin: boolean; warn: string[]; onOpen: (id: string) => void; onChanged: (m: string, err?: boolean) => void; onDelete?: () => void
 }) {
   const [busy, setBusy] = useState(false)
   async function setStatus(s: Status, ask?: string, required?: boolean) {
@@ -448,7 +553,9 @@ function TrainingVersionActions({ p, admin, warn, onOpen, onChanged }: {
     {s === 'approved' && <><button type="button" className="primary" disabled={busy} onClick={() => setStatus('published', 'Ghi chú phát hành (không bắt buộc):')}>Phát hành</button>
       <button type="button" disabled={busy} onClick={() => setStatus('draft')}>Mở lại để sửa</button></>}
     {(s === 'published' || s === 'superseded') && <button type="button" className="primary" disabled={busy} onClick={newVersion}>Tạo phiên bản mới</button>}
-    {['published', 'superseded', 'approved', 'rejected', 'draft'].includes(s) && <button type="button" disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Kế hoạch đã có vẫn giữ nguyên.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng</button>}
+    {['published', 'superseded', 'approved', 'rejected', 'draft'].includes(s) && <details className="pdmore"><summary aria-label="Thao tác khác" title="Thao tác khác">⋯</summary>
+      <div>{onDelete && <button type="button" className="danger" disabled={busy} onClick={onDelete}>Xoá bản nháp</button>}
+        <button type="button" className="danger" disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Kế hoạch đã có vẫn giữ nguyên.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng phiên bản này</button></div></details>}
     {s === 'archived' && <button type="button" disabled={busy} onClick={() => setStatus('published', 'Ghi chú (không bắt buộc):')}>Dùng lại</button>}
   </>
 }
@@ -463,24 +570,15 @@ function TrainingVersions({ p, onOpen }: { p: TProgram; onOpen: (id: string) => 
     ]).then(([v, l]) => { setVers((v.data as TVer[]) ?? []); setLog((l.data as TLog[]) ?? []) })
   }, [p.id, p.status])
   const stName = (s: string) => STATUS[s as Status]?.[0] ?? s
-  return <section className="panel" style={{ display: 'grid', gap: 12 }}>
-    <h3 style={{ margin: 0 }}>Phiên bản & duyệt</h3>
-    <p className="sub" style={{ margin: 0 }}>Nháp → Chờ duyệt → Đã duyệt → Đã phát hành. Phát hành phiên bản mới thì phiên bản cũ chuyển sang "Đã thay thế"; kế hoạch đào tạo đã dùng bản cũ vẫn giữ nguyên.</p>
-    <h3 style={{ margin: '8px 0 0' }}>Các phiên bản</h3>
-    <div className="wrap"><table>
-      <thead><tr><th>Phiên bản</th><th>Trạng thái</th><th>Phát hành</th><th>Cập nhật</th></tr></thead>
-      <tbody>{vers.map(v => <tr key={v.id} style={v.id === p.id ? { background: 'var(--soft)' } : undefined}>
-        <td>{v.id === p.id ? <><b>v{v.version_no}</b> <small className="sub">đang xem</small></> : <button type="button" className="namelink" onClick={() => onOpen(v.id)}>v{v.version_no}</button>}</td>
-        <td><Chip tone={STATUS[v.status][1]}>{STATUS[v.status][0]}</Chip></td>
-        <td>{v.published_at ? new Date(v.published_at).toLocaleDateString('vi-VN') : '—'}</td>
-        <td><small>{new Date(v.updated_at).toLocaleDateString('vi-VN')}</small></td>
-      </tr>)}</tbody>
-    </table></div>
-    <h3 style={{ margin: '8px 0 0' }}>Lịch sử trạng thái</h3>
-    {log.length === 0 ? <p className="sub" style={{ margin: 0 }}>Chưa có.</p> : <ul className="sub" style={{ paddingLeft: 18, margin: 0 }}>
-      {log.map(l => <li key={l.id}>{new Date(l.at).toLocaleString('vi-VN')} · {l.from_status ? `${stName(l.from_status)} → ` : ''}<b>{stName(l.to_status)}</b>{l.note ? ` — ${l.note}` : ''}</li>)}
-    </ul>}
-  </section>
+  return <>
+    <ul className="pdvers">{vers.map(v => <li key={v.id} className={v.id === p.id ? 'on' : ''}>
+      {v.id === p.id ? <b>v{v.version_no}</b> : <button type="button" className="namelink" onClick={() => onOpen(v.id)}>v{v.version_no}</button>}
+      {v.id === p.id && <small className="sub">đang xem</small>}<span style={{ flex: 1 }} /><Chip tone={STATUS[v.status][1]}>{STATUS[v.status][0]}</Chip>
+      <small className="sub">{v.published_at ? new Date(v.published_at).toLocaleDateString('vi-VN') : ''}</small></li>)}</ul>
+    {log.length > 0 && <details className="pdlog"><summary>Lịch sử trạng thái ({log.length})</summary><ul className="sub">
+      {log.map(l => <li key={l.id}>{new Date(l.at).toLocaleString('vi-VN')} · {l.from_status ? `${stName(l.from_status)} → ` : ''}<b>{stName(l.to_status)}</b>{l.note ? ` — ${l.note}` : ''}</li>)}</ul></details>}
+    <small className="sub" style={{ display: 'block', marginTop: 8 }}>Muốn đổi nội dung sau khi phát hành: bấm “Tạo phiên bản mới”.</small>
+  </>
 }
 
 // ===== Gán & triển khai: chương trình đến đơn vị qua Kế hoạch đào tạo =====
@@ -556,54 +654,9 @@ function effNote(p: Pick<TProgram, 'effective_from' | 'effective_to'>) {
   return ''
 }
 const OTYPE: Record<string, string> = { ministry: 'Bộ', province: 'Tỉnh', department: 'Sở', district: 'Phòng', school: 'Trường', provider: 'Đơn vị' }
-// Chương trình giáo dục đáp ứng (124): nhà giáo Đạt khoá dùng chương trình đào tạo này thì được tính đáp ứng các chương trình giáo dục đã gắn.
-// Gắn theo họ phiên bản ở cả hai phía; sửa được cả khi chương trình đã phát hành.
+// Chương trình giáo dục đáp ứng (124): nhà giáo Đạt khoá dùng chương trình đào tạo này thì được tính đáp ứng các chương trình giáo dục đã gắn (theo họ phiên bản).
 type EduOpt = { id: string; family_id: string | null; code: string | null; title: string; version_no: number; status: string }
 const EDU_ST: Record<string, string> = { draft: 'nháp', pending: 'chờ duyệt', approved: 'đã duyệt', rejected: 'bị trả lại', superseded: 'bản cũ', archived: 'lưu trữ' }
-function ProgramEduLinks({ p, admin, onMsg }: { p: TProgram; admin: boolean; onMsg: (m: string, err?: boolean) => void }) {
-  const [opts, setOpts] = useState<EduOpt[] | null>(null)
-  const [saved, setSaved] = useState<string[] | null>(null)
-  const [sel, setSel] = useState<string[]>([])
-  const [busy, setBusy] = useState(false)
-  useEffect(() => {
-    supabase.from('edu_programs').select('id, family_id, code, title, version_no, status').neq('status', 'archived').order('version_no', { ascending: false })
-      .then(({ data }) => {
-        // Mỗi họ một dòng: bản đang ban hành, chưa có thì bản mới nhất
-        const m = new Map<string, EduOpt>()
-        for (const r of (data ?? []) as EduOpt[]) { const k = r.family_id ?? r.id, cur = m.get(k)
-          if (!cur || (r.status === 'published' && cur.status !== 'published')) m.set(k, r) }
-        setOpts([...m.values()].sort((a, b) => a.title.localeCompare(b.title, 'vi')))
-      })
-    supabase.from('training_program_edu').select('edu_family').eq('training_family', p.family_id).then(({ data }) => {
-      const ids = ((data ?? []) as { edu_family: string }[]).map(r => r.edu_family); setSaved(ids); setSel(ids)
-    })
-  }, [p.family_id])
-  const famOf = (o: EduOpt) => o.family_id ?? o.id
-  const label = (o: EduOpt) => `${o.code ? o.code + ' · ' : ''}${o.title}${o.status !== 'published' ? ` (${EDU_ST[o.status] ?? o.status})` : ''}`
-  const options = (opts ?? []).map(o => [famOf(o), label(o)] as [string, string])
-  const nameOf = (f: string) => { const o = (opts ?? []).find(x => famOf(x) === f); return o ? label(o) : 'Chương trình giáo dục' }
-  const dirty = saved != null && (sel.length !== saved.length || sel.some(x => !saved.includes(x)))
-  async function save() {
-    setBusy(true)
-    const ids = sel.map(f => (opts ?? []).find(o => famOf(o) === f)?.id ?? f)
-    const { error } = await supabase.rpc('training_program_set_edu', { p_program: p.id, p_edu: ids })
-    setBusy(false)
-    if (error) return onMsg(/schema cache|does not exist|not find/i.test(error.message) ? 'Hãy chạy migration 124 trên Supabase.' : errText(error.message), true)
-    setSaved(sel); onMsg(sel.length ? `Đã lưu: nhà giáo Đạt khoá này được tính đáp ứng ${sel.length} chương trình giáo dục.` : 'Đã bỏ gắn chương trình giáo dục.')
-  }
-  return <section className="panel" style={{ display: 'grid', gap: 12 }}>
-    <h3 style={{ margin: 0 }}>Chương trình giáo dục đáp ứng</h3>
-    <p className="sub" style={{ margin: 0 }}>Nhà giáo Đạt một khoá đào tạo dùng chương trình này được tính là đáp ứng các chương trình giáo dục dưới đây, kèm năng lực đích của khoá.
-      Kết quả hiện ở hồ sơ năng lực nhà giáo và bảng Đáp ứng chương trình giáo dục của trường, Sở. Phiên bản mới của hai bên vẫn giữ liên kết.</p>
-    {admin && p.status !== 'archived' ? <>
-      <div className="field"><span>Chương trình giáo dục</span>
-        <MultiSelect value={sel} onChange={setSel} options={[...options, ...sel.filter(f => !options.some(o => o[0] === f)).map(f => [f, nameOf(f)] as [string, string])]}
-          placeholder={opts ? 'Chọn chương trình giáo dục…' : 'Đang tải…'} ariaLabel="Chương trình giáo dục đáp ứng" empty="Chưa có chương trình giáo dục nào." /></div>
-      <div className="formactions"><button type="button" className="primary" disabled={!dirty || busy} onClick={save}>Lưu chương trình giáo dục</button></div>
-    </> : <p style={{ margin: 0 }}>{saved == null ? '…' : saved.length ? saved.map(nameOf).join('; ') : <small className="sub">Chưa gắn chương trình giáo dục.</small>}</p>}
-  </section>
-}
-
 // ===== Trong form: phạm vi áp dụng & hiệu lực + chương trình giáo dục đáp ứng (lưu cùng nút Lưu của form) =====
 type Extra = { scope: 'all' | 'selected'; effective_from: string; effective_to: string; targets: string[]; edu: string[] }
 const EXTRA_BLANK: Extra = { scope: 'all', effective_from: '', effective_to: '', targets: [], edu: [] }
@@ -654,104 +707,4 @@ async function saveExtra(id: string, x: Extra, prev: Extra): Promise<string | nu
     if (error) return /schema cache|does not exist|not find/i.test(error.message) ? 'Hãy chạy migration 124 trên Supabase.' : errText(error.message)
   }
   return null
-}
-
-function ScopeEduFields({ x, set, owner, disabled }: { x: Extra; set: (x: Extra) => void; owner?: string | null; disabled?: boolean }) {
-  const orgs = useAllOrgs()
-  const opts = useEduOpts()
-  const byId = useMemo(() => new Map((orgs ?? []).map(o => [o.id, o])), [orgs])
-  const label = (id: string) => { const o = byId.get(id); if (!o) return 'Đơn vị'
-    const par = o.parent_id ? byId.get(o.parent_id) : undefined
-    return `${o.name} · ${OTYPE[o.type] ?? o.type}${par && o.type === 'school' ? ` (${par.name})` : ''}` }
-  const orgOpts = useMemo(() => (orgs ?? []).filter(o => !o.is_platform && o.id !== owner && o.type !== 'provider')
-    .sort((a, b) => (a.type === 'school' ? 1 : 0) - (b.type === 'school' ? 1 : 0) || a.name.localeCompare(b.name, 'vi'))
-    .map(o => [o.id, label(o.id)] as [string, string]), [orgs, byId, owner])
-  const eduOpts = (opts ?? []).map(o => [famOf(o), eduLabel(o)] as [string, string])
-  const bad = extraBad(x)
-  return <>
-    <fieldset className="libtargets wide"><legend>Phạm vi áp dụng & hiệu lực</legend>
-      <p className="sub" style={{ margin: '0 0 8px' }}>Đơn vị trong phạm vi (và đơn vị trực thuộc) mới thấy chương trình, chọn được khi lập kế hoạch và được gán kế hoạch dùng chương trình này.</p>
-      <div className="formgrid" style={{ alignItems: 'start' }}>
-        <label className="field"><span>Phạm vi áp dụng</span><select disabled={disabled} value={x.scope} onChange={e => set({ ...x, scope: e.target.value as Extra['scope'] })}>
-          <option value="all">Tất cả đơn vị trực thuộc</option><option value="selected">Chỉ đơn vị được chọn</option></select></label>
-        <label className="field"><span>Hiệu lực từ</span><input type="date" disabled={disabled} value={x.effective_from} onChange={e => set({ ...x, effective_from: e.target.value })} /></label>
-        <label className="field"><span>Hiệu lực đến</span><input type="date" disabled={disabled} value={x.effective_to} min={x.effective_from || undefined} onChange={e => set({ ...x, effective_to: e.target.value })} /></label>
-        {x.scope === 'selected' && <div className="field" style={{ gridColumn: '1/-1' }}><span>Đơn vị áp dụng * <small className="sub">(chọn Sở / Phòng là áp dụng cho tất cả trường trực thuộc)</small></span>
-          <MultiSelect disabled={disabled} value={x.targets} onChange={v => set({ ...x, targets: v })} options={[...orgOpts, ...x.targets.filter(id => !orgOpts.some(o => o[0] === id)).map(id => [id, label(id)] as [string, string])]}
-            placeholder="Chọn Sở, Phòng hoặc trường…" ariaLabel="Đơn vị áp dụng" empty="Chưa có đơn vị nào." /></div>}
-      </div>
-      {bad && <small className="warnline">{bad}</small>}
-    </fieldset>
-    <fieldset className="libtargets wide"><legend>Chương trình giáo dục đáp ứng</legend>
-      <p className="sub" style={{ margin: '0 0 8px' }}>Nhà giáo Đạt một khoá đào tạo dùng chương trình này được tính là đáp ứng các chương trình giáo dục dưới đây, kèm năng lực đích của khoá.</p>
-      <div className="field"><span>Chương trình giáo dục</span>
-        <MultiSelect disabled={disabled} value={x.edu} onChange={v => set({ ...x, edu: v })}
-          options={[...eduOpts, ...x.edu.filter(f => !eduOpts.some(o => o[0] === f)).map(f => [f, 'Chương trình giáo dục'] as [string, string])]}
-          placeholder={opts ? 'Chọn chương trình giáo dục…' : 'Đang tải…'} ariaLabel="Chương trình giáo dục đáp ứng" empty="Chưa có chương trình giáo dục nào." /></div>
-    </fieldset>
-  </>
-}
-
-function ProgramScope({ p, admin, onMsg }: { p: TProgram; admin: boolean; onMsg: (m: string, err?: boolean) => void }) {
-  const orgs = useAllOrgs()
-  const [saved, setSaved] = useState<string[] | null>(null)
-  const [sel, setSel] = useState<string[]>([])
-  const [scope, setScope] = useState<'all' | 'selected'>(p.scope ?? 'all')
-  const [from, setFrom] = useState(p.effective_from ?? '')
-  const [to, setTo] = useState(p.effective_to ?? '')
-  const [busy, setBusy] = useState(false)
-  useEffect(() => {
-    supabase.from('training_program_targets').select('org_id').eq('program_id', p.id).then(({ data }) => {
-      const ids = ((data ?? []) as { org_id: string }[]).map(r => r.org_id); setSaved(ids); setSel(ids)
-    })
-  }, [p.id])
-  useEffect(() => { setScope(p.scope ?? 'all'); setFrom(p.effective_from ?? ''); setTo(p.effective_to ?? '') }, [p.scope, p.effective_from, p.effective_to])
-  const byId = useMemo(() => new Map((orgs ?? []).map(o => [o.id, o])), [orgs])
-  const label = (id: string) => { const o = byId.get(id); if (!o) return 'Đơn vị'
-    const par = o.parent_id ? byId.get(o.parent_id) : undefined
-    return `${o.name} · ${OTYPE[o.type] ?? o.type}${par && o.type === 'school' ? ` (${par.name})` : ''}` }
-  const options = useMemo(() => (orgs ?? []).filter(o => !o.is_platform && o.id !== p.org_id && o.type !== 'provider')
-    .sort((a, b) => (a.type === 'school' ? 1 : 0) - (b.type === 'school' ? 1 : 0) || a.name.localeCompare(b.name, 'vi'))
-    .map(o => [o.id, label(o.id)] as [string, string]), [orgs, byId])
-  const edit = admin && p.status !== 'archived'
-  const same = (a: string[], b: string[]) => a.length === b.length && a.every(x => b.includes(x))
-  const dirty = saved != null && (scope !== (p.scope ?? 'all') || (from || null) !== (p.effective_from ?? null) || (to || null) !== (p.effective_to ?? null) || !same(sel, saved))
-  const bad = scope === 'selected' && !sel.length ? 'Chọn ít nhất một đơn vị áp dụng.' : from && to && to < from ? 'Ngày hết hiệu lực phải sau ngày bắt đầu.' : ''
-  async function save() {
-    if (!saved || bad) return
-    setBusy(true)
-    const add = sel.filter(x => !saved.includes(x)), del = saved.filter(x => !sel.includes(x))
-    const r1 = add.length ? await supabase.from('training_program_targets').insert(add.map(org_id => ({ program_id: p.id, org_id }))) : { error: null }
-    const r2 = !r1.error && del.length ? await supabase.from('training_program_targets').delete().eq('program_id', p.id).in('org_id', del) : { error: null }
-    const r3 = !r1.error && !r2.error ? await supabase.from('training_programs').update({ scope, effective_from: from || null, effective_to: to || null }).eq('id', p.id) : { error: null }
-    setBusy(false)
-    const err = r1.error ?? r2.error ?? r3.error
-    if (err) return onMsg(errText(err.message), true)
-    setSaved(sel)
-    onMsg(scope === 'all' ? 'Đã lưu: chương trình áp dụng cho tất cả đơn vị trực thuộc đơn vị soạn.' : `Đã lưu phạm vi áp dụng: ${sel.length} đơn vị và các đơn vị trực thuộc.`)
-  }
-  const note = effNote(p)
-  return <section className="panel" style={{ display: 'grid', gap: 12 }}>
-    <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Phạm vi áp dụng & hiệu lực</h3>
-      {note && <Chip tone={note.startsWith('Hết') ? 'bad' : 'warn'}>{note}</Chip>}</div>
-    <p className="sub" style={{ margin: 0 }}>Đơn vị trong phạm vi (và đơn vị trực thuộc) mới thấy chương trình, chọn được khi lập kế hoạch và được gán kế hoạch dùng chương trình này.
-      Sửa được cả khi chương trình đã phát hành; phiên bản mới giữ nguyên phạm vi.</p>
-    {edit ? <>
-      <div className="formgrid" style={{ alignItems: 'start' }}>
-        <label className="field"><span>Phạm vi áp dụng</span><select value={scope} onChange={e => setScope(e.target.value as 'all' | 'selected')}>
-          <option value="all">Tất cả đơn vị trực thuộc</option><option value="selected">Chỉ đơn vị được chọn</option></select></label>
-        <label className="field"><span>Hiệu lực từ</span><input type="date" value={from} onChange={e => setFrom(e.target.value)} /></label>
-        <label className="field"><span>Hiệu lực đến</span><input type="date" value={to} min={from || undefined} onChange={e => setTo(e.target.value)} /></label>
-        {scope === 'selected' && <div className="field" style={{ gridColumn: '1/-1' }}><span>Đơn vị áp dụng * <small className="sub">(chọn Sở / Phòng là áp dụng cho tất cả trường trực thuộc)</small></span>
-          <MultiSelect value={sel} onChange={setSel} options={[...options, ...sel.filter(id => !options.some(o => o[0] === id)).map(id => [id, label(id)] as [string, string])]}
-            placeholder="Chọn Sở, Phòng hoặc trường…" ariaLabel="Đơn vị áp dụng" empty="Chưa có đơn vị nào." /></div>}
-      </div>
-      {bad && dirty && <small className="warnline">{bad}</small>}
-      <div className="formactions"><button type="button" className="primary" disabled={!dirty || !!bad || busy} onClick={save}>Lưu phạm vi áp dụng</button></div>
-    </> : <dl className="tpkv">
-      <dt>Đơn vị tạo</dt><dd>{label(p.org_id)}</dd>
-      <dt>Phạm vi</dt><dd>{p.scope === 'selected' ? (saved ? saved.map(label).join('; ') || '—' : '…') : 'Tất cả đơn vị'}</dd>
-      <dt>Hiệu lực</dt><dd>{[p.effective_from && `từ ${vnDay(p.effective_from)}`, p.effective_to && `đến ${vnDay(p.effective_to)}`].filter(Boolean).join(' ') || 'Không giới hạn'}</dd>
-    </dl>}
-  </section>
 }

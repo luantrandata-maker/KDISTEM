@@ -2461,8 +2461,8 @@ textarea.slcell{font-size:13px;color:var(--muted);min-height:28px}
 .lddet .tools input{flex:1;min-width:160px}
 
 /* Trang chương trình (gộp Thông tin + Môn & bài học) */
-.pdstats{display:flex;flex-wrap:wrap;gap:8px}
-.pdstats>div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 12px;display:flex;align-items:baseline;gap:6px}
+.pdstats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.pdstats>div{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 12px;display:flex;align-items:baseline;justify-content:center;gap:6px;white-space:nowrap}
 .pdstats b{font-size:16px;line-height:1.2;color:var(--navy,var(--text))}.pdstats span{color:var(--muted);font-size:12.5px}
 .pdgrid{display:grid;grid-template-columns:minmax(0,1fr) 330px;gap:16px;align-items:start;margin-top:12px}
 @media (max-width:1100px){.pdgrid{grid-template-columns:minmax(0,1fr)}}

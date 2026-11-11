@@ -209,7 +209,6 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
 
   return (
     <>
-      <p className="sub">Định mức vật tư cho 1 sản phẩm, 1 nhóm hoặc 1 học sinh, gắn với học phần / bài của chương trình. Định mức do KDI và cấp trên ban hành được dùng chung; trường sao chép về để điều chỉnh hoặc gửi đề xuất điều chỉnh.</p>
       {msg && <p className={msg[1] ? 'msg' : 'sub'}>{msg[0]}</p>}
       {form && (
         <Drawer wide title="Thêm định mức vật tư" closeOnOutside={false} onClose={() => setForm(null)}
@@ -261,6 +260,7 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
         {!every && <><h3>Dùng chung từ KDI / cấp trên ({shared.length})</h3>
         {table(shared, false, 'Chưa có định mức dùng chung.', !!sharedOnly)}</>}
       </>}
+      <p className="sub tablenote">Định mức vật tư cho 1 sản phẩm, 1 nhóm hoặc 1 học sinh, gắn với học phần / bài của chương trình. Định mức do KDI và cấp trên ban hành được dùng chung; trường sao chép về để điều chỉnh hoặc gửi đề xuất điều chỉnh.</p>
     </>
   )
 }
@@ -619,7 +619,6 @@ function CatalogTab({ orgId, rights }: { orgId: string | null; rights: Rights })
   }
   return (
     <>
-      <p className="sub">Danh mục chuẩn để lập định mức. Danh mục của KDI và cấp trên dùng chung cho đơn vị trực thuộc. Khi dự trù, vật tư trong kho của trường được ghép với danh mục theo mã liên kết, mã vật tư trùng mã danh mục hoặc trùng tên để so tồn kho.</p>
       <div className="bar small">
         <input className="search" placeholder="Tìm vật tư…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm vật tư" />
         <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại vật tư"><option value="">Tất cả loại</option>{(Object.keys(MKIND) as MKind[]).map(k => <option key={k} value={k}>{MKIND[k]}</option>)}</select>
@@ -656,6 +655,7 @@ function CatalogTab({ orgId, rights }: { orgId: string | null; rights: Rights })
           {shown.length === 0 && <tr><td colSpan={8}><small className="sub">Chưa có vật tư nào.</small></td></tr>}</tbody>
         </table></div>
       )}
+      <p className="sub tablenote">Danh mục chuẩn để lập định mức. Danh mục của KDI và cấp trên dùng chung cho đơn vị trực thuộc. Khi dự trù, vật tư trong kho của trường được ghép với danh mục theo mã liên kết, mã vật tư trùng mã danh mục hoặc trùng tên để so tồn kho.</p>
     </>
   )
 }
@@ -712,13 +712,13 @@ function ProposalsTab({ orgId, rights, onOpenNorm }: { orgId: string | null; rig
   )
   return (
     <>
-      <p className="sub">Trường / giáo viên đề xuất điều chỉnh định mức dùng chung (mở định mức → “Đề xuất điều chỉnh”). Đơn vị ban hành chấp nhận thì hệ thống tạo phiên bản nháp mới đã áp số lượng đề xuất.</p>
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : <>
         {(!rights.isSchool || received.length > 0) && <><h3>Đề xuất gửi tới đơn vị ({received.filter(p => p.status === 'pending').length} chờ xử lý)</h3>{table(received, true)}</>}
         <h3>Đề xuất đơn vị đã gửi ({sent.length})</h3>
         {table(sent, false)}
       </>}
+      <p className="sub tablenote">Trường / giáo viên đề xuất điều chỉnh định mức dùng chung (mở định mức → “Đề xuất điều chỉnh”). Đơn vị ban hành chấp nhận thì hệ thống tạo phiên bản nháp mới đã áp số lượng đề xuất.</p>
     </>
   )
 }

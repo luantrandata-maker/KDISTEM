@@ -1277,7 +1277,6 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
         <h3 style={{ margin: 0 }}>Mức độ triển khai</h3>
         {rows.length > 0 && !hid('export') && <button onClick={exportCov}>Xuất Excel</button>}
       </div>
-      <p className="sub">Tính trên tất cả phiên bản của chương trình: trường được gán, trường có PPCT tạo từ chương trình, tiết đã dạy và yêu cầu cần đạt đã đạt.</p>
       {!cov ? <p className="sub">Đang tải…</p> : rows.length === 0 ? <div className="panel"><p className="sub" style={{ margin: 0 }}>Chưa có trường nào được gán hoặc dùng chương trình này.</p></div> : (
         <>
           <Tiles items={[
@@ -1301,6 +1300,7 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
           </table></div>
         </>
       )}
+      <p className="sub tablenote">Tính trên tất cả phiên bản của chương trình: trường được gán, trường có PPCT tạo từ chương trình, tiết đã dạy và yêu cầu cần đạt đã đạt.</p>
     </>
   )
 }

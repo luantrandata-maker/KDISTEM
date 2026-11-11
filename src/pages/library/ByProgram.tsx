@@ -339,9 +339,9 @@ function NeedsByProgram({ orgId }: { orgId: string | null }) {
         </div>
         {needs.length > 0 && <div className="tools"><button type="button" onClick={() => exportNeeds(`Can-chuan-bi-${p?.code ?? 'chuong-trinh'}.xlsx`, needs)}>Xuất Excel</button></div>}
       </div>
-      <p className="sub">Tự tổng hợp từ định mức vật tư của các bài (thẻ 04): định mức × số nhóm (định mức theo học sinh thì × số học sinh mỗi nhóm), vật tư tiêu hao nhân thêm số buổi. Công cụ, thiết bị dùng lại được lấy mức cần nhiều nhất giữa các bài.</p>
       {loading ? <p className="sub">Đang tải…</p> : needs.length === 0 ? <p className="sub">{pid ? 'Các bài của chương trình chưa có định mức vật tư. Nhập ở thẻ 04 của bộ học liệu.' : 'Chọn chương trình.'}</p>
         : <NeedsTable key={pid} needs={needs} />}
+      <p className="sub tablenote">Tự tổng hợp từ định mức vật tư của các bài (thẻ 04): định mức × số nhóm (định mức theo học sinh thì × số học sinh mỗi nhóm), vật tư tiêu hao nhân thêm số buổi. Công cụ, thiết bị dùng lại được lấy mức cần nhiều nhất giữa các bài.</p>
     </>
   )
 }
@@ -452,8 +452,8 @@ function NeedsBySchool({ orgId }: { orgId: string | null }) {
             <td>{fmtGrades(r.grades) || <small className="sub">Chưa có lớp ở {fmtGrades(r.p.aGrades) || 'khối áp dụng'}</small>}</td>
             <td>{r.cls.length}</td><td>{r.students}</td><td>{r.groups}</td></tr>)}</tbody>
         </table></div>
-        <p className="sub">Vật tư tiêu hao: định mức × số nhóm của tất cả lớp áp dụng × số buổi. Công cụ, thiết bị dùng lại: đủ cho {k} lớp học cùng lúc (mặc định bằng số phòng STEM đang dùng{data.rooms ? `: ${data.rooms}` : ''}; cộng thêm nếu có lớp học tại lớp), tính theo các lớp đông nhất, lấy mức cần nhiều nhất giữa các bài.</p>
         {needs.length === 0 ? <p className="sub">{tot.cls ? 'Các bài của những chương trình này chưa có định mức vật tư. Nhập ở thẻ 04 của bộ học liệu.' : 'Trường chưa có lớp ở các khối áp dụng.'}</p> : <NeedsTable key={sid} needs={needs} />}
+        <p className="sub tablenote">Vật tư tiêu hao: định mức × số nhóm của tất cả lớp áp dụng × số buổi. Công cụ, thiết bị dùng lại: đủ cho {k} lớp học cùng lúc (mặc định bằng số phòng STEM đang dùng{data.rooms ? `: ${data.rooms}` : ''}; cộng thêm nếu có lớp học tại lớp), tính theo các lớp đông nhất, lấy mức cần nhiều nhất giữa các bài.</p>
       </>}
     </>
   )

@@ -2704,3 +2704,6 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .statmini small{font-size:11px;white-space:nowrap}
 .main .statmini>.statflip{margin-left:6px;border:0;background:none;padding:2px 4px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer}
 .nocards .statmini{display:none}
+/* Dòng hướng dẫn của bảng: nằm dưới chân bảng, chữ nhỏ */
+.tablenote{margin:10px 0 0;font-size:12px;color:var(--muted)}
+.tablenote p{font-size:12px}

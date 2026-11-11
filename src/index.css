@@ -2688,3 +2688,19 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .distlessons li.off .t,.distlessons li.off small{opacity:.5;text-decoration:line-through}
 .distlessons li:has(input[type=checkbox]){grid-template-columns:auto auto 1fr auto auto}
 .distlessons li input[type=checkbox]{width:14px;height:14px}
+/* Thẻ tổng hợp: nút thu gọn / hiện (StatCards) */
+.statwrap{position:relative}
+.main .statwrap>.statflip{position:absolute;top:-26px;right:0;border:0;background:none;padding:2px 4px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer}
+.main .statflip:hover{color:var(--primary)}
+.statmini{display:flex;align-items:center;margin:0 0 10px;flex-wrap:wrap}
+.pagehead>.statmini{margin:0;order:1}
+.statmini>span,.main .statmini>button:not(.statflip){display:flex;flex-direction:column;align-items:flex-end;gap:0;border:0;border-radius:0;background:none;padding:0 14px;font:inherit;color:var(--muted);font-weight:400;text-align:right}
+.statmini>*+span,.main .statmini>*+button:not(.statflip){border-left:1px solid var(--line)}
+.main .statmini>button:not(.statflip){cursor:pointer}
+.main .statmini>button:not(.statflip):hover b,.main .statmini>button:not(.statflip):hover small{color:var(--primary)}
+.main .statmini>button.on b,.main .statmini>button.on small{color:var(--primary)}
+.main .statmini>button.on small{text-decoration:underline;text-underline-offset:3px}
+.statmini b{color:var(--text);font-size:20px;font-weight:700;line-height:1.1}
+.statmini small{font-size:11px;white-space:nowrap}
+.main .statmini>.statflip{margin-left:6px;border:0;background:none;padding:2px 4px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer}
+.nocards .statmini{display:none}

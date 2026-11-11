@@ -25,6 +25,7 @@ import { ViewToggle, useViewMode } from '../components/ViewToggle'
 import { fmtGrades, progGrades, useEduLevels, gradeName, gradeRange } from '../lib/eduLevels'
 import { ChipMulti, GradeChecks, GradePicker, SubjectMulti, SubjectPicker, gradeList } from '../components/Pickers'
 import { ElView } from '../components/ElView'
+import { StatCards } from '../components/StatCards'
 
 // Khái niệm (064): Chương trình → Học phần (unit 'topic', trước gọi là chủ đề; gắn Môn học qua edu_unit_subjects)
 // → Bài học / Buổi học (gắn Học liệu qua edu_unit_materials) → Bài giảng (lesson_plans gắn unit_id, soạn ở "Soạn bài giảng").
@@ -127,6 +128,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   const [openId, setOpenId] = useState<string | null>(null)
   const [q, setQ] = useState('')
   const [old, setOld] = useState(false)
+  const [card, setCard] = useState<string | null>(null)
   const [form, setForm] = useState<Partial<Program> | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const comps: Comp[] = useCompetencies('student')
@@ -144,7 +146,8 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
 
   const all = list ?? []
   // Trạng thái, loại, môn, đơn vị tạo: lọc bằng "Lọc theo cột" của bảng
-  const shown = all.filter(p => (old || !SGROUP.off[1].includes(p.status)) && (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
+  const inCard = (p: Program) => !card || SGROUP[card][1].includes(p.status)
+  const shown = all.filter(p => (old || card === 'off' || !SGROUP.off[1].includes(p.status)) && inCard(p) && (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
   const own = every ? shown : shown.filter(p => p.org_id === orgId)
   const shared = every ? [] : shown.filter(p => p.org_id !== orgId)
   // Cây Cấp → Khối bên trái mỗi bảng
@@ -228,6 +231,18 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : (
         <>
+          {(() => {
+            // Số trên thẻ: chương trình của đơn vị (cổng KDI: tất cả), theo ô tìm
+            const base = all.filter(p => (every || p.org_id === orgId) && (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
+            const n = (k: string) => base.filter(p => SGROUP[k][1].includes(p.status)).length
+            const wait = base.filter(p => p.status === 'pending').length
+            return <StatCards active={card} onPick={setCard} items={[
+              { icon: 'book', value: base.length - n('off'), label: 'Chương trình', sub: `${new Set(base.flatMap(mainsOf)).size} môn` },
+              { k: 'published', icon: 'checkCircle', tone: 'good', value: n('published'), label: 'Đã phát hành' },
+              { k: 'draft', icon: 'edit', tone: wait ? 'warn' : '', value: n('draft'), label: 'Nháp', sub: wait ? `${wait} chờ duyệt` : undefined },
+              { k: 'off', icon: 'pause', value: n('off'), label: 'Ngừng dùng' },
+            ]} />
+          })()}
           {!every && <h3>Của đơn vị ({own.length})</h3>}
           {show(own, true, <>
             <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />

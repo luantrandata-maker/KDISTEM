@@ -23,14 +23,18 @@ const readMini = () => { try { return localStorage.getItem(KEY) !== '0' } catch 
  *  Nút ▴ thu gọn: các số chuyển lên bên phải tiêu đề trang (.pagehead), không chiếm dòng riêng.
  *  Lựa chọn nhớ theo trình duyệt, dùng chung mọi trang. */
 export function StatCards({ items, active, onPick, nav }: { items: Stat[]; active?: string | null; onPick?: (k: string | null) => void; nav?: boolean }) {
-  const [mini, setMini] = useState(readMini)
-  // Chỗ đặt số khi thu gọn: tiêu đề trang; trang ẩn thẻ (.nocards) thì không hiện
+  const [miniPref, setMini] = useState(readMini)
+  // Chỗ đặt số khi thu gọn: tiêu đề trang; trang ẩn thẻ (.nocards) thì không hiện.
+  // Thẻ nằm trong khung chi tiết (.panel, ngăn kéo, hộp thoại) là số liệu của mục đó: luôn hiện đầy đủ, không thu gọn.
   const anchor = useRef<HTMLSpanElement>(null)
   const [head, setHead] = useState<Element | null | false>(null)
+  const [nested, setNested] = useState(false)
   useLayoutEffect(() => {
     const a = anchor.current
+    setNested(!!a?.parentElement?.closest('.panel, .drawerwrap, dialog, [role=dialog], .elview'))
     setHead(!a || a.closest('.nocards') ? false : a.closest('main')?.querySelector(':scope > .pagehead') ?? null)
-  }, [mini])
+  }, [miniPref])
+  const mini = miniPref && !nested
   const flip = () => { const v = !mini; setMini(v); try { localStorage.setItem(KEY, v ? '1' : '0') } catch { /* bỏ qua */ } }
   const cols = Math.min(5, Math.max(1, items.length))
   const pick = (s: Stat) => s.k && onPick ? () => onPick(!nav && active === s.k ? null : s.k!) : undefined
@@ -49,7 +53,8 @@ export function StatCards({ items, active, onPick, nav }: { items: Stat[]; activ
   }
   return (
     <div className="statwrap">
-    <button type="button" className="statflip" onClick={flip} title="Thu gọn thẻ tổng hợp" aria-label="Thu gọn thẻ tổng hợp">▴ Thu gọn</button>
+    <span ref={anchor} hidden />
+    {!nested && <button type="button" className="statflip" onClick={flip} title="Thu gọn thẻ tổng hợp" aria-label="Thu gọn thẻ tổng hợp">▴ Thu gọn</button>}
     <div className={`statcards c${cols}`}>
       {items.map((s, i) => {
         const inner = <>

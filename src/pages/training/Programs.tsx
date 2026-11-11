@@ -32,6 +32,8 @@ export type TProgram = {
 }
 // 093: phiên bản & duyệt
 export type Status = 'draft' | 'pending' | 'approved' | 'rejected' | 'published' | 'superseded' | 'archived'
+/** Nhóm trạng thái cho thẻ tổng hợp: Đã phát hành · Nháp (gồm chờ duyệt, đã duyệt, bị trả lại) · Ngừng dùng */
+const GROUP: Record<string, Status[]> = { published: ['published'], draft: ['draft', 'pending', 'approved', 'rejected'], off: ['superseded', 'archived'] }
 export const STATUS: Record<Status, [string, string]> = {
   draft: ['Nháp', 'warn'], pending: ['Chờ duyệt', 'warn'], approved: ['Đã duyệt', 'good'], rejected: ['Bị trả lại', 'bad'],
   published: ['Đã phát hành', 'good'], superseded: ['Đã thay thế', 'off'], archived: ['Ngừng dùng', 'off'],
@@ -55,6 +57,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
   const [view, setView] = useState<{ kind: 'new' } | { kind: 'open'; id: string } | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [q, setQ] = useState('')
+  const [card, setCard] = useState<string | null>(null)
   // Đơn vị tạo chương trình (KDI, Sở, Phòng, Trường): tên theo org_id
   const [owners, setOwners] = useState<Map<string, string>>(new Map())
   const { name: levelName } = useEduLevels()
@@ -85,7 +88,8 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
   }, [rk])
 
   // Lọc theo loại, đơn vị tạo, trạng thái: dùng bộ lọc theo cột của bảng
-  const shown = useMemo(() => (list ?? []).filter(p => !q || `${p.code} ${p.title} ${p.audience ?? ''}`.toLowerCase().includes(q.toLowerCase())), [list, q])
+  const found = useMemo(() => (list ?? []).filter(p => !q || `${p.code} ${p.title} ${p.audience ?? ''}`.toLowerCase().includes(q.toLowerCase())), [list, q])
+  const shown = useMemo(() => found.filter(p => !card || GROUP[card].includes(p.status)), [found, card])
 
   if (view?.kind === 'new') return <ProgramForm admin={admin} onBack={() => setView(null)} onSaved={id => { reload(); setView({ kind: 'open', id }) }} />
   if (view?.kind === 'open') return <ProgramDetail key={view.id + ':' + rk} id={view.id} admin={admin} go={go} onBack={() => { setView(null); reload() }}
@@ -110,6 +114,14 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
   return (
     <>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+      {list && <StatCards active={card} onPick={setCard} items={[
+        { icon: 'book', value: found.filter(p => !GROUP.off.includes(p.status)).length, label: 'Chương trình',
+          sub: `${found.reduce((a, p) => a + (stats.get(p.id)?.contents ?? 0), 0)} nội dung · ${num(found.reduce((a, p) => a + (stats.get(p.id)?.hours ?? 0), 0))} giờ` },
+        { k: 'published', icon: 'checkCircle', tone: 'good', value: found.filter(p => GROUP.published.includes(p.status)).length, label: 'Đã phát hành' },
+        { k: 'draft', icon: 'edit', tone: found.some(p => p.status === 'pending') ? 'warn' : '', value: found.filter(p => GROUP.draft.includes(p.status)).length, label: 'Nháp',
+          sub: found.some(p => p.status === 'pending') ? `${found.filter(p => p.status === 'pending').length} chờ duyệt` : undefined },
+        { k: 'off', icon: 'pause', value: found.filter(p => GROUP.off.includes(p.status)).length, label: 'Ngừng dùng' },
+      ]} />}
       {!list ? <p className="sub">Đang tải…</p> : <DataTable id="training-programs" rows={shown} rowKey={p => p.id} cols={progCols}
         empty={admin ? 'Chưa có chương trình đào tạo nào. Bấm "+ Thêm chương trình".' : 'Chưa có chương trình đào tạo nào được phát hành cho đơn vị.'}
         left={<>

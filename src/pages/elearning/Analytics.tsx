@@ -4,6 +4,7 @@ import { downloadXlsx } from '../../lib/sheet'
 import { LEVEL, errText, letter, type Level } from './common'
 import { DataTable, type Col } from '../../components/DataTable'
 import { useGradeTree } from '../../components/GradeTree'
+import { StatCards } from '../../components/StatCards'
 
 // Phân tích kết quả luyện thi (migration 061): câu hỏi khó và nội dung cần ôn tập theo chủ đề / mức độ.
 type Hard = { question_id: string; stem: string; subject: string; grade: number | null; topic: string; level: Level; shown: number; correct: number; rate: number; students: number
@@ -85,11 +86,11 @@ function HardTable({ rows, wrong, gt, left, right }: { rows: Hard[]; wrong: (h: 
 function TopicTable({ rows, gt, left, right }: { rows: Topic[]; gt: Tree<Topic>; left: ReactNode; right: ReactNode }) {
   const weak = rows.filter(t => Number(t.rate) < 50)
   return <>
-    {rows.length > 0 && <div className="cards syscards">
-      <div className="card"><strong>{rows.length}</strong><span>Chủ đề × mức độ có dữ liệu</span></div>
-      <div className="card"><strong>{weak.length}</strong><span>Dưới 50% đúng — cần ôn</span></div>
-      <div className="card"><strong>{rows.reduce((n, t) => n + t.answers, 0)}</strong><span>Lượt trả lời được phân tích</span></div>
-    </div>}
+    {rows.length > 0 && <StatCards items={[
+      { icon: 'grid', value: rows.length, label: 'Chủ đề × mức độ', sub: 'Có dữ liệu làm bài' },
+      { icon: 'alert', tone: weak.length ? 'warn' : 'good', value: weak.length, label: 'Cần ôn', sub: 'Dưới 50% trả lời đúng' },
+      { icon: 'chart', value: rows.reduce((n, t) => n + t.answers, 0), label: 'Lượt trả lời', sub: 'Được phân tích' },
+    ]} />}
     <DataTable id="el-review" left={left} right={right} rows={gt.filter(rows)} rowKey={t => `${t.subject}|${t.grade}|${t.topic}|${t.level}`} aside={rows.length ? gt.tree : undefined}
       empty="Chưa có lượt làm bài đã nộp trong khoảng thời gian đã chọn."
       cols={[

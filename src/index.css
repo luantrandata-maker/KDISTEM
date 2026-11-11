@@ -2716,3 +2716,16 @@ body.ttdragging{cursor:col-resize;user-select:none}
 /* Số thu gọn đứng trước nút góc phải; cách hàng công cụ bên dưới một chút */
 .pagecorner>.statmini{margin:0;order:-1;align-self:center}
 .pagehead>.statmini{margin:0 0 8px}
+/* Bản phân phối: dành cho phân loại nào, gồm chương trình nào */
+.distfor{display:grid;gap:8px;margin:4px 0 12px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2,#f7f9fc)}
+.distforrow{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.distforlab{flex:none;width:120px;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.distforpath{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.distforpath b{padding:3px 10px;border-radius:999px;background:#e7f0fd;color:var(--primary);font-weight:600;font-size:13px}
+.distforpath .sep{color:var(--muted)}
+.distforprogs{display:flex;flex-wrap:wrap;gap:6px 18px;flex:1;min-width:0}
+.distforprog{display:inline-flex;align-items:baseline;gap:6px;font-size:14px}
+.distforprog i{width:9px;height:9px;border-radius:50%;align-self:center}
+.distforprog small{color:var(--muted);font-size:12px}
+.distforprog small::before{content:'· '}
+@media (max-width:640px){.distforlab{width:auto}}

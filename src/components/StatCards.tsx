@@ -1,7 +1,7 @@
 // Hàng thẻ tổng số dùng chung cho Phân hệ 1 và 2: biểu tượng, số lớn, tên thẻ, dòng chi tiết.
 // Thẻ có `k` và trang truyền `onPick` thì bấm được: bấm để lọc danh sách bên dưới, bấm lại để bỏ lọc.
 // Số trên thẻ do trang tính theo các bộ lọc đang chọn bên dưới.
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Icon } from './Icon'
 
 export type Stat = {
@@ -15,10 +15,31 @@ export type Stat = {
   tone?: 'good' | 'warn' | ''
 }
 
-/** nav: bấm thẻ để mở tab / mục tương ứng (không giữ trạng thái lọc) */
+const KEY = 'statcards-mini'
+const readMini = () => { try { return localStorage.getItem(KEY) === '1' } catch { return false } }
+
+/** nav: bấm thẻ để mở tab / mục tương ứng (không giữ trạng thái lọc).
+ *  Nút ▴/▾ thu gọn hàng thẻ thành một dòng số nhỏ; lựa chọn nhớ theo trình duyệt, dùng chung mọi trang. */
 export function StatCards({ items, active, onPick, nav }: { items: Stat[]; active?: string | null; onPick?: (k: string | null) => void; nav?: boolean }) {
+  const [mini, setMini] = useState(readMini)
+  const flip = () => { const v = !mini; setMini(v); try { localStorage.setItem(KEY, v ? '1' : '0') } catch { /* bỏ qua */ } }
   const cols = Math.min(5, Math.max(1, items.length))
+  const pick = (s: Stat) => s.k && onPick ? () => onPick(!nav && active === s.k ? null : s.k!) : undefined
+  if (mini) return (
+    <div className="statmini">
+      {items.map((s, i) => {
+        const on = !nav && !!s.k && active === s.k
+        const inner = <><i aria-hidden="true" className={s.tone || undefined}><Icon n={s.icon} size={14} /></i><b>{s.value}</b> {s.label}</>
+        return pick(s)
+          ? <button key={i} type="button" className={on ? 'on' : ''} aria-pressed={on} title={nav ? `Mở: ${s.label}` : on ? 'Bấm để bỏ lọc' : `Lọc: ${s.label}`} onClick={pick(s)}>{inner}</button>
+          : <span key={i}>{inner}</span>
+      })}
+      <button type="button" className="statflip" onClick={flip} title="Hiện thẻ tổng hợp" aria-label="Hiện thẻ tổng hợp">▾ Hiện thẻ</button>
+    </div>
+  )
   return (
+    <div className="statwrap">
+    <button type="button" className="statflip" onClick={flip} title="Thu gọn thẻ tổng hợp" aria-label="Thu gọn thẻ tổng hợp">▴ Thu gọn</button>
     <div className={`statcards c${cols}`}>
       {items.map((s, i) => {
         const inner = <>
@@ -28,10 +49,11 @@ export function StatCards({ items, active, onPick, nav }: { items: Stat[]; activ
         if (s.k && onPick) {
           const on = !nav && active === s.k
           return <button key={i} type="button" className={'panel' + (on ? ' on' : '')} aria-pressed={on}
-            title={nav ? `Mở: ${s.label}` : on ? 'Bấm để bỏ lọc' : `Lọc: ${s.label}`} onClick={() => onPick(on ? null : s.k!)}>{inner}</button>
+            title={nav ? `Mở: ${s.label}` : on ? 'Bấm để bỏ lọc' : `Lọc: ${s.label}`} onClick={pick(s)}>{inner}</button>
         }
         return <div key={i} className="panel">{inner}</div>
       })}
+    </div>
     </div>
   )
 }

@@ -2688,3 +2688,17 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .distlessons li.off .t,.distlessons li.off small{opacity:.5;text-decoration:line-through}
 .distlessons li:has(input[type=checkbox]){grid-template-columns:auto auto 1fr auto auto}
 .distlessons li input[type=checkbox]{width:14px;height:14px}
+/* Thẻ tổng hợp: nút thu gọn / hiện (StatCards) */
+.statwrap{position:relative}
+.main .statwrap>.statflip{position:absolute;top:-26px;right:0;border:0;background:none;padding:2px 4px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer}
+.main .statflip:hover{color:var(--primary)}
+.statmini{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 12px}
+.statmini>span,.main .statmini>button:not(.statflip){display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px 4px 5px;font:inherit;font-size:13px;color:var(--muted);font-weight:400}
+.main .statmini>button:not(.statflip){cursor:pointer}
+.main .statmini>button:not(.statflip):hover{border-color:var(--primary)}
+.main .statmini>button.on{border-color:var(--primary);background:#f3f8fe;box-shadow:0 0 0 1px var(--primary) inset}
+.statmini i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#e6f1fd;color:var(--primary)}
+.statmini i.good{background:var(--ok-bg);color:var(--ok-fg)}.statmini i.warn{background:var(--warn-bg);color:var(--warn-fg)}
+.statmini b{color:var(--text);font-size:14px}
+.main .statmini>.statflip{border:0;background:none;padding:2px 4px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer}
+.nocards .statmini{display:none}

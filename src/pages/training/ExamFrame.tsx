@@ -153,7 +153,7 @@ export function ProgramEvalFrame({ p, edit, hasFinal, hasTests, save }: { p: Pro
         <label className="field"><span>Chuyên cần tối thiểu (%)</span><input type="number" min={0} max={100} disabled={dis} value={f.req.att ?? ''} placeholder="Không xét"
           onChange={e => up({ req: { ...f.req, att: nOrNull(e.target.value) } })} /></label>
         <label className="field"><span>Tổng điểm tối thiểu</span><input type="number" min={0} max={10} step={0.5} disabled={dis} value={f.req.total ?? ''} placeholder="Không xét"
-          onChange={e => up({ req: { ...f.req, total: nOrNull(e.target.value) } })} /><small className="sub">VD 5: dưới 5 điểm là {f.fail_label || 'Chưa đạt'}</small></label>
+          onChange={e => up({ req: { ...f.req, total: nOrNull(e.target.value) } })} /></label>
         <label className="field"><span>Điểm đề cuối khoá tối thiểu</span><input type="number" min={0} max={10} step={0.5} disabled={dis} value={f.req.final ?? ''} placeholder="Không xét"
           onChange={e => up({ req: { ...f.req, final: nOrNull(e.target.value) } })} /></label>
         {p.need_product && <label className="field"><span>Điểm sản phẩm tối thiểu</span><input type="number" min={0} max={10} step={0.5} disabled={dis} value={f.req.product ?? ''} placeholder="5"

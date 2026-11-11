@@ -30,14 +30,19 @@ const wkLabel = (ws: number[] | null) => {
   return a === b ? String(a) : b - a + 1 === u.length ? `${a}–${b}` : u.join(', ')   // tiết bị tách: liệt kê từng tuần
 }
 
-export function useBreadcrumb() {
+/** Các bậc phân loại của bản phân phối (theo khung phân loại; chưa gắn thì cấp học › khối › phân loại cũ) */
+export function useCrumbParts() {
   const { name: levelName } = useEduLevels()
   const { name: tierName } = useTiers()
   const { path } = useCls()
   return (p: Plan) => {
     const ns = path(p.node_id)
-    return ns.length ? ns.map(n => n.name).join(' › ') : `${levelName(p.level)} › Khối ${p.grade} › ${p.tier ? tierName(p.tier) : 'Chưa phân loại'}`
+    return ns.length ? ns.map(n => n.name) : [levelName(p.level), `Khối ${p.grade}`, p.tier ? tierName(p.tier) : 'Chưa phân loại']
   }
+}
+export function useBreadcrumb() {
+  const parts = useCrumbParts()
+  return (p: Plan) => parts(p).join(' › ')
 }
 
 import { MoreMenu } from '../../components/MoreMenu'
@@ -170,7 +175,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   plan: Plan; orgId?: string | null; back: () => void; backLabel: string
   onChanged: (openId?: string, msg?: string) => void; onAssign?: (id: string) => void
 }) {
-  const crumb = useBreadcrumb()
+  const crumbParts = useCrumbParts()
   const { name: levelName } = useEduLevels()
   const [plan, setPlan] = useState<Plan>(p0)
   const [items, setItems] = useState<Item[]>([])
@@ -179,13 +184,15 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   const [pool, setPool] = useState<Prog[]>([])
   const [units, setUnits] = useState<U[]>([])
   const [loaded, setLoaded] = useState(false)
-  const editable = plan.status === 'draft'
+  /** Bản nháp mở ở chế độ xem; bấm "Chỉnh sửa" mới sửa được */
+  const [editing, setEditing] = useState(false)
+  const editable = plan.status === 'draft' && editing
   /** Bản của đơn vị mình: tạo được phiên bản mới; bản của đơn vị khác chỉ nhân bản. */
   const own = !!orgId && plan.org_id === orgId
   const [sel, setSel] = useState('')        // lọc bảng bài: '' = tất cả, hoặc 'chương trình|môn'
   const [q, setQ] = useState('')
   const [openOrd, setOpenOrd] = useState<Set<string>>(new Set())   // chương trình đang mở "Thứ tự bài"
-  const [view, setView] = useState<'table' | 'cal'>(editable ? 'table' : 'cal')
+  const [view, setView] = useState<'table' | 'cal'>('table')
   const [editRows, setEditRows] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
@@ -363,7 +370,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   if (!loaded) return <div className="panel"><p className="sub" style={{ margin: 0 }}>Đang tải…</p></div>
   const validity = errors.length ? <Chip tone="bad">⊗ {errors.length} lỗi</Chip> : warns.length ? <Chip tone="warn">⚠ {warns.length} cảnh báo</Chip> : <Chip tone="good">✓ Hợp lệ</Chip>
   const savedText = dirty ? 'Chưa lưu thay đổi' : savedAt ? `Đã lưu lúc ${savedAt.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}` : 'Đã lưu'
-  const roNote = plan.status === 'published' ? 'Đã phát hành, không sửa trực tiếp' : plan.status === 'superseded' ? 'Đã có phiên bản mới thay thế' : 'Đã ngừng dùng'
+  const roNote = plan.status === 'draft' ? 'Bản nháp' : plan.status === 'published' ? 'Đã phát hành, không sửa trực tiếp' : plan.status === 'superseded' ? 'Đã có phiên bản mới thay thế' : 'Đã ngừng dùng'
 
   const head = (
     <div className="disthead2">
@@ -376,20 +383,22 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
           <Chip tone={STATUS[plan.status][1]}>{STATUS[plan.status][0]}</Chip>
           {editable && validity}
         </div>
-        <small className="sub">{crumb(plan)} · {plan.code} · Phiên bản {plan.version_no ?? 1} · {editable
+        <small className="sub">{plan.code} · Phiên bản {plan.version_no ?? 1} · {editable
           ? <span className={dirty ? 'distunsaved' : undefined}>{savedText}</span>
+          : plan.status === 'draft' ? <>{roNote}, bấm “Chỉnh sửa” để sửa</>
           : <>{roNote}, muốn đổi thì {own ? 'tạo phiên bản mới' : 'nhân bản để sửa'}</>}</small>
         {!editable && plan.note && <small className="sub distnote">{plan.note}</small>}
       </div>
       <span className="distheadright">
-        {editable && <button type="button" disabled={!dirty || busy} onClick={() => onChanged(plan.id)}>Hủy thay đổi</button>}
+        {plan.status === 'draft' && !editing && <button type="button" className="primary" onClick={() => setEditing(true)}>✎ Chỉnh sửa</button>}
+        {editable && <button type="button" disabled={busy} onClick={() => dirty ? (confirm('Bỏ các thay đổi chưa lưu?') && onChanged(plan.id)) : setEditing(false)}>{dirty ? 'Hủy thay đổi' : 'Xong'}</button>}
         {editable && <button type="button" className={dirty ? 'primary' : ''} disabled={!dirty || busy} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu nháp'}</button>}
-        {editable && <button type="button" className="primary" disabled={busy} title={errors.length ? 'Còn lỗi chặn phát hành' : undefined} onClick={publish}>Phát hành</button>}
+        {plan.status === 'draft' && <button type="button" className={editing ? 'primary' : ''} disabled={busy} title={errors.length ? 'Còn lỗi chặn phát hành' : undefined} onClick={publish}>Phát hành</button>}
         {plan.status === 'published' && onAssign && <button type="button" onClick={() => onAssign(plan.id)}>Gán cho trường</button>}
-        {!editable && own && <button type="button" className="primary" onClick={newVersion}>Tạo phiên bản mới</button>}
-        {!editable && !own && <button type="button" className="primary" onClick={copy}>Nhân bản để sửa</button>}
-        {(editable || own) && <button type="button" onClick={copy}>Nhân bản</button>}
-        {editable && <button type="button" className="danger" onClick={remove}>Xoá</button>}
+        {plan.status !== 'draft' && own && <button type="button" className="primary" onClick={newVersion}>Tạo phiên bản mới</button>}
+        {plan.status !== 'draft' && !own && <button type="button" className="primary" onClick={copy}>Nhân bản để sửa</button>}
+        {(plan.status === 'draft' || own) && <button type="button" onClick={copy}>Nhân bản</button>}
+        {plan.status === 'draft' && <button type="button" className="danger" onClick={remove}>Xoá</button>}
         <MoreMenu>
           {editable && <label className="distnotebox"><b>Ghi chú</b>
             <textarea rows={3} value={plan.note ?? ''} maxLength={2000} placeholder="Mục tiêu, đối tượng áp dụng…" onChange={e => { setPlan({ ...plan, note: e.target.value }); touch() }} /></label>}
@@ -400,6 +409,18 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       </span>
     </div>
   )
+
+  /** Dành cho: phân loại và các chương trình trong bản */
+  const forStrip = <div className="distfor">
+    <div className="distforrow"><span className="distforlab">Dành cho</span>
+      <span className="distforpath">{crumbParts(plan).map((x, k) => <Fragment key={k}>{k > 0 && <span className="sep">›</span>}<b>{x}</b></Fragment>)}</span></div>
+    {!editable && <div className="distforrow"><span className="distforlab">Chương trình ({ordered.length})</span>
+      <span className="distforprogs">{ordered.length ? ordered.map((it, k) => {
+        const p = progs.get(it.program_id); const subs = subjectsOf(it).filter(x => x.on).map(x => x.name)
+        return <span key={it.program_id} className="distforprog"><i style={{ background: colorOf(k) }} /><b>{progCode(p)}</b><span>{p?.title}</span>
+          {subs.length > 0 && <small>{subs.join(', ')}</small>}</span>
+      }) : <span className="sub">Chưa chọn chương trình</span>}</span></div>}
+  </div>
 
   /** Dải tóm tắt: hợp lệ / lỗi, số buổi, số tuần, tải cao nhất, tuần có ngày nghỉ */
   const summary = (withChecks: boolean) => {
@@ -420,6 +441,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   if (!editable) return (
     <div className="panel distpanel">
       {head}
+      {forStrip}
       <div className="distsumline">{summary(false)}<ViewSwitch view={view} setView={setView} /></div>
       {view === 'cal' ? Calendar() : Table()}
       <PlanHistory plan={plan} />
@@ -430,6 +452,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   return (
     <div className="panel distpanel">
       {head}
+      {forStrip}
       {Programs()}
       {Schedule()}
       <section className="distsec2">

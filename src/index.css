@@ -2707,6 +2707,12 @@ body.ttdragging{cursor:col-resize;user-select:none}
 /* Dòng hướng dẫn của bảng: nằm dưới chân bảng, chữ nhỏ */
 .tablenote{margin:10px 0 0;font-size:12px;color:var(--muted)}
 .tablenote p{font-size:12px}
+/* Chương trình đào tạo: mức cần đạt riêng cho từng năng lực đích */
+.pfcomplv{display:grid;gap:6px}
+.pfcomprow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:6px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.pfcomprow>b{font-weight:500;min-width:0}
+.pfcomprow .pflv{flex:none}
+.pfcomprow .pflv small{margin:0 0 0 6px}
 /* Số thu gọn đứng trước nút góc phải; cách hàng công cụ bên dưới một chút */
 .pagecorner>.statmini{margin:0;order:-1;align-self:center}
 .pagehead>.statmini{margin:0 0 8px}

@@ -218,7 +218,9 @@ export function EduProgramsMet({ teacherId, comps }: { teacherId: string; comps:
 }
 
 // ===== Lịch sử đào tạo + tiến bộ qua các năm (124) =====
-type HProg = { code: string | null; title: string; competencies: string[]; target_level: number | null }
+type HProg = { code: string | null; title: string; competencies: string[]; target_level: number | null; competency_levels?: Record<string, number> | null }
+/** Mức đích của năng lực c trong chương trình g: mức riêng (142) hoặc mức chung */
+const hLv = (g: HProg, c: string) => g.competency_levels?.[c] ?? g.target_level
 type Hist = { plan_id: string; plan_code: string | null; plan_name: string; plan_org: string | null; year_name: string | null; term: string | null
   starts_on: string | null; ends_on: string | null; hours: number | null; closed: boolean; programs: HProg[]; sessions: number; present: number; excused: number
   att_pct: number | null; result: 'pending' | 'pass' | 'fail'; total_score: number | null; grade: string | null
@@ -258,7 +260,7 @@ export function TrainingHistory({ teacherId, comps, name }: { teacherId: string;
       { key: 'd', label: 'Thời gian', width: 22 }, { key: 'h', label: 'Số giờ' }, { key: 'a', label: 'Chuyên cần (%)' }, { key: 'r', label: 'Kết quả' }, { key: 's', label: 'Tổng điểm' },
       { key: 'g', label: 'Xếp loại' }, { key: 'c', label: 'Chứng chỉ', width: 18 }, { key: 'ci', label: 'Ngày cấp' }],
       shown.map(r => [r.year_name ?? '', TERM_NAME[r.term ?? 'other'], r.plan_code ?? '', r.plan_name, r.plan_org ?? '', r.programs.map(g => g.title).join('; '),
-        [...new Set(r.programs.flatMap(g => g.competencies.map(c => compName(c) + (g.target_level ? ` (M${g.target_level})` : ''))))].join('; '),
+        [...new Set(r.programs.flatMap(g => g.competencies.map(c => compName(c) + (hLv(g, c) ? ` (M${hLv(g, c)})` : ''))))].join('; '),
         [dvn(r.starts_on), dvn(r.ends_on)].filter(Boolean).join(' – '), r.hours ?? '', r.att_pct ?? '', RES[r.result][0], r.total_score ?? '', r.grade ?? '',
         r.cert_code ?? '', dvn(r.cert_issued_on)]), 'Lịch sử đào tạo')
   }
@@ -280,7 +282,7 @@ export function TrainingHistory({ teacherId, comps, name }: { teacherId: string;
         <td style={{ whiteSpace: 'normal' }}><b>{r.plan_name}</b>{r.closed && <> <span className="plbadge mute">Đã kết thúc</span></>}<br />
           <small className="sub">{[r.plan_code, r.plan_org, [dvn(r.starts_on), dvn(r.ends_on)].filter(Boolean).join(' – ')].filter(Boolean).join(' · ')}</small></td>
         <td style={{ whiteSpace: 'normal' }}>{r.programs.map((g, i) => <div key={i}>{g.title}
-          {g.competencies.length > 0 && <small className="sub"><br />{g.competencies.map(compName).join(', ')}{g.target_level ? ` · mức đích M${g.target_level}` : ''}</small>}</div>)}
+          {g.competencies.length > 0 && <small className="sub"><br />{g.competencies.map(c => compName(c) + (hLv(g, c) ? ` M${hLv(g, c)}` : '')).join(', ')}</small>}</div>)}
           {!r.programs.length && <small className="sub">—</small>}</td>
         <td>{r.hours ?? '—'}</td>
         <td>{r.sessions ? <>{num(r.att_pct)}%<br /><small className="sub">{r.present}/{r.sessions - r.excused} buổi{r.excused ? ` · ${r.excused} có phép` : ''}</small></> : <small className="sub">chưa có buổi</small>}</td>
@@ -313,7 +315,7 @@ export function TrainingProgress({ teacherId, comps }: { teacherId: string; comp
     return years.map<YearPt>(y => {
       const hy = hist.filter(h => h.year_name === y)
       for (const h of hy) if (h.result === 'pass' && h.cert_code) for (const g of h.programs) for (const c of g.competencies)
-        if (g.target_level && (best[c] ?? 0) < g.target_level) best[c] = g.target_level
+        { const l = hLv(g, c); if (l && (best[c] ?? 0) < l) best[c] = l }
       const tv = keys.map(k => best[k]).filter(x => x != null)
       return { year: y, self: avg(ass.find(a => a.school_year === y && a.kind === 'self')?.levels), mgr: avg(ass.find(a => a.school_year === y && a.kind === 'manager')?.levels),
         train: tv.length ? tv.reduce((a, b) => a + b, 0) / tv.length : null, plans: hy.length, passed: hy.filter(h => h.result === 'pass').length,

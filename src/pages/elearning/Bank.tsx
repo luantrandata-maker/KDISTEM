@@ -2,6 +2,7 @@ import { MoreMenu } from '../../components/MoreMenu'
 import { useEffect, useState } from 'react'
 import { DataTable, type Col } from '../../components/DataTable'
 import { ElView } from '../../components/ElView'
+import { StatCards } from '../../components/StatCards'
 import { supabase, fetchAll } from '../../lib/supabase'
 import { OrgPick, useAllMode } from '../../components/OrgScope'
 import { norm, downloadXlsx, type Column } from '../../lib/sheet'
@@ -134,12 +135,12 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
     </ElView>)
   return (
     <>
-      <div className="cards syscards">
-        <div className="card"><strong>{rows.length}</strong><span>Câu hỏi dùng được</span></div>
-        <div className="card"><strong>{rows.filter(r => r.status === 'ready').length}</strong><span>Sẵn sàng đưa vào đề</span></div>
-        <div className="card"><strong>{rows.filter(r => r.status === 'draft').length}</strong><span>Nháp (chờ duyệt)</span></div>
-        <div className="card"><strong>{rows.filter(r => !mine(r)).length}</strong><span>Dùng chung từ cấp trên</span></div>
-      </div>
+      <StatCards items={[
+        { icon: 'help', value: rows.length, label: 'Câu hỏi', sub: 'Dùng được' },
+        { icon: 'checkCircle', tone: 'good', value: rows.filter(r => r.status === 'ready').length, label: 'Sẵn sàng', sub: 'Đưa vào đề được' },
+        { icon: 'edit', tone: rows.some(r => r.status === 'draft') ? 'warn' : '', value: rows.filter(r => r.status === 'draft').length, label: 'Nháp', sub: 'Chờ duyệt' },
+        { icon: 'layers', value: rows.filter(r => !mine(r)).length, label: 'Dùng chung', sub: 'Từ cấp trên' },
+      ]} />
       {note}
       {ai && <div className="panel"><AssistantQuiz orgId={orgId} onSaved={load} /></div>}
       {/* Một dòng: bộ lọc bên trái; thao tác với câu đang chọn và các nút thêm / nhập / xuất bên phải */}

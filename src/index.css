@@ -2688,3 +2688,4 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .distlessons li.off .t,.distlessons li.off small{opacity:.5;text-decoration:line-through}
 .distlessons li:has(input[type=checkbox]){grid-template-columns:auto auto 1fr auto auto}
 .distlessons li input[type=checkbox]{width:14px;height:14px}
+.main .distpills button.distcfg{margin-left:auto}

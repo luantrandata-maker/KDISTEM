@@ -2692,13 +2692,13 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .statwrap{position:relative}
 .main .statwrap>.statflip{position:absolute;top:-26px;right:0;border:0;background:none;padding:2px 4px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer}
 .main .statflip:hover{color:var(--primary)}
-.statmini{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 12px}
-.statmini>span,.main .statmini>button:not(.statflip){display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:4px 12px 4px 5px;font:inherit;font-size:13px;color:var(--muted);font-weight:400}
+.statmini{display:flex;align-items:center;gap:0;margin:0 0 10px;white-space:nowrap;overflow:hidden;font-size:13px;color:var(--muted);min-height:24px}
+.statmini>span,.main .statmini>button:not(.statflip){display:inline-flex;align-items:baseline;gap:4px;border:0;background:none;padding:2px 0;font:inherit;color:inherit;font-weight:400;flex:none}
+.statmini>span+span::before,.statmini>span+button::before,.statmini>button+span::before,.statmini>button:not(.statflip)+button:not(.statflip)::before{content:'·';margin:0 10px;color:var(--line-strong,#aab)}
 .main .statmini>button:not(.statflip){cursor:pointer}
-.main .statmini>button:not(.statflip):hover{border-color:var(--primary)}
-.main .statmini>button.on{border-color:var(--primary);background:#f3f8fe;box-shadow:0 0 0 1px var(--primary) inset}
-.statmini i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#e6f1fd;color:var(--primary)}
-.statmini i.good{background:var(--ok-bg);color:var(--ok-fg)}.statmini i.warn{background:var(--warn-bg);color:var(--warn-fg)}
-.statmini b{color:var(--text);font-size:14px}
-.main .statmini>.statflip{border:0;background:none;padding:2px 4px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer}
+.main .statmini>button:not(.statflip):hover{color:var(--primary)}
+.main .statmini>button.on{color:var(--primary);text-decoration:underline;text-underline-offset:3px}
+.statmini i{display:none}
+.statmini b{color:var(--text);font-size:14px;font-weight:700}
+.main .statmini>.statflip{margin-left:12px;border:0;background:none;padding:2px 4px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;flex:none}
 .nocards .statmini{display:none}

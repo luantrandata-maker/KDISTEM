@@ -66,11 +66,6 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
   const needsWork = (r: Row) => verdict(r, per) !== 'ok' || r.teachers.some(x => !x.ok)
 
   return <>
-    <div className="panel distintro">
-      <p className="sub" style={{ margin: 0 }}>Mỗi dòng là một chương trình STEM trường đang dạy (lớp học theo chương trình, chương trình giáo dục được gán) và nhà giáo được phân công dạy.
-        Nhà giáo <b>đạt chuẩn</b> khi có chứng chỉ đào tạo cùng loại chương trình, hoặc đạt tất cả năng lực đích của một chương trình đào tạo cùng loại ở lần đánh giá gần nhất.
-        Số GV cần = số lớp ÷ số lớp tối đa một GV dạy.</p>
-    </div>
     <StatCards active={f || null} onPick={k => setF((k ?? '') as typeof f)} items={[
       { icon: 'book', value: rows ? scope.length : '…', label: 'Chương trình đang dạy', sub: `${new Set(scope.map(r => r.org_id)).size} trường` },
       { k: 'ok', icon: 'checkCircle', tone: 'good', value: n('ok'), label: 'Đáp ứng', sub: 'Đủ GV đạt chuẩn' },
@@ -145,6 +140,11 @@ export function ProgramReadinessPage({ orgId }: { orgId: string }) {
       </table></div>}
     </section>}
     {plan && <PlanFromGaps orgId={orgId} rows={picked} per={per} year={year || schoolYear()} onClose={() => setPlan(false)} onDone={m => { setPlan(false); setSel(new Set()); setMsg(m) }} />}
+    <div className="tablenote">
+      <p className="sub" style={{ margin: 0 }}>Mỗi dòng là một chương trình STEM trường đang dạy (lớp học theo chương trình, chương trình giáo dục được gán) và nhà giáo được phân công dạy.
+        Nhà giáo <b>đạt chuẩn</b> khi có chứng chỉ đào tạo cùng loại chương trình, hoặc đạt tất cả năng lực đích của một chương trình đào tạo cùng loại ở lần đánh giá gần nhất.
+        Số GV cần = số lớp ÷ số lớp tối đa một GV dạy.</p>
+    </div>
   </>
 }
 

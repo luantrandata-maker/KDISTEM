@@ -112,10 +112,6 @@ export function TrainersPage({ orgId }: { orgId: string }) {
     setMsg(error ? [errText(error.message), true] : ['Đã xoá giảng viên.', false]); reload()
   }
   return <>
-    <div className="panel distintro">
-      <p className="sub" style={{ margin: 0 }}>Danh sách giảng viên dùng chung cho tất cả kế hoạch và buổi đào tạo của đơn vị. Ở kế hoạch và lịch, ô Giảng viên chọn được nhiều người từ danh sách này;
-        gõ họ tên chưa có thì thêm nhanh. Giảng viên đã phân công không xoá được, chuyển sang "Ngừng mời" để ẩn khỏi ô chọn.</p>
-    </div>
     <div className="distfilter">
       {([['active', 'Đang mời', all.filter(t => t.active).length], ['off', 'Ngừng mời', all.filter(t => !t.active).length], ['', 'Tất cả', all.length]] as ['' | 'active' | 'off', string, number][]).map(([s, l, c]) =>
         <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
@@ -140,6 +136,10 @@ export function TrainersPage({ orgId }: { orgId: string }) {
         <MoreFilters active={ofl.active}>{ofl.node(all.map(t => t.org_id))}</MoreFilters>
         <small className="sub">{shown.length}/{all.length} giảng viên</small></>}
       right={can && <button type="button" className="primary ttadd" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>+ Thêm giảng viên</button>} />}
+    <div className="tablenote">
+      <p className="sub" style={{ margin: 0 }}>Danh sách giảng viên dùng chung cho tất cả kế hoạch và buổi đào tạo của đơn vị. Ở kế hoạch và lịch, ô Giảng viên chọn được nhiều người từ danh sách này;
+        gõ họ tên chưa có thì thêm nhanh. Giảng viên đã phân công không xoá được, chuyển sang "Ngừng mời" để ẩn khỏi ô chọn.</p>
+    </div>
   </>
 }
 

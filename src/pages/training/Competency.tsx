@@ -413,7 +413,6 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
     </ElView>
   }
   return <>
-    {!compact && <div className="panel distintro"><p style={{ margin: 0 }}>{A.intro} Sửa mô tả mức có hiệu lực ngay; mã năng lực không đổi được vì kết quả đã lưu theo mã.</p></div>}
     {!compact && (() => {
       const filled = comps.reduce((n, c) => n + c.levels.filter(l => l?.trim()).length, 0), nLack = comps.filter(lack).length
       return <StatCards active={card} onPick={setCard} items={[
@@ -436,5 +435,6 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
           {!list.length && <tr><td colSpan={6}><small className="sub">{comps.length ? 'Không có năng lực nào khớp.' : 'Chưa có năng lực nào.'}</small></td></tr>}</tbody>
       </table></div>
     </section>
+    {!compact && <div className="tablenote"><p style={{ margin: 0 }}>{A.intro} Sửa mô tả mức có hiệu lực ngay; mã năng lực không đổi được vì kết quả đã lưu theo mã.</p></div>}
   </>
 }

@@ -579,7 +579,6 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
           { k: 'noprog', icon: 'alert', tone: noProg ? 'warn' : 'good', value: noProg, label: 'Bài chưa gắn chương trình', sub: 'Chưa gắn chương trình giáo dục' },
         ]} />
       })()}
-      {!start && <p className="sub">Học liệu phát hành tới {me.type === 'provider' ? 'các đơn vị bạn chọn hoặc công khai toàn hệ thống' : `các đơn vị trực thuộc ${me.name}`}. Trường “dùng” sẽ có bản riêng để chỉnh sửa; khi bạn phát hành bản cập nhật, trường được báo nhưng bản của họ không bị ghi đè.</p>}
       {msg && !form && <p className="msg">{msg}</p>}
       {info && <p className="sub"><b>{info}</b></p>}
 
@@ -844,6 +843,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
       )}</> : <DataTable key={tab} id={'library-' + tab} rows={shown} rowKey={i => i.id} cols={libCols} left={libLeft} right={libRight} aside={ofTab.length ? gt.tree : undefined}
         empty={<small className="sub">{libEmpty}</small>} onRow={i => setOpen(i.id)} />}
       </>}
+      {!start && <p className="sub tablenote">Học liệu phát hành tới {me.type === 'provider' ? 'các đơn vị bạn chọn hoặc công khai toàn hệ thống' : `các đơn vị trực thuộc ${me.name}`}. Trường “dùng” sẽ có bản riêng để chỉnh sửa; khi bạn phát hành bản cập nhật, trường được báo nhưng bản của họ không bị ghi đè.</p>}
     </>
   )
 }

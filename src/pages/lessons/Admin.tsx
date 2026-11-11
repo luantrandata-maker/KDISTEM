@@ -256,7 +256,6 @@ function SchoolActivities({ orgId, canWrite }: { orgId: string | null; canWrite:
         { label: 'Đã xuất bản', value: rows.filter(r => r.status === 'published').length },
         { label: 'Bài mẫu của trường', value: rows.filter(r => r.is_template).length },
       ]} />
-      <p className="sub">Hoạt động tương tác (trắc nghiệm, nối cặp, sắp xếp…) giáo viên thêm vào bài giảng. Bài mẫu của trường do quản trị trường soạn, giáo viên dùng lại được.</p>
       {err && <p className="msg">{err}</p>}
       <div className="tools" style={{ marginBottom: 12 }}>
         <input className="search" style={{ margin: 0 }} placeholder="Tìm hoạt động…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm hoạt động" />
@@ -277,6 +276,7 @@ function SchoolActivities({ orgId, canWrite }: { orgId: string | null; canWrite:
         ))}</tbody>
       </table></div>
       {shown.length === 0 && <p className="sub">Chưa có hoạt động nào.</p>}
+      <p className="sub tablenote">Hoạt động tương tác (trắc nghiệm, nối cặp, sắp xếp…) giáo viên thêm vào bài giảng. Bài mẫu của trường do quản trị trường soạn, giáo viên dùng lại được.</p>
     </>
   )
 }

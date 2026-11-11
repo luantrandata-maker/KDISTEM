@@ -653,8 +653,6 @@ export function CurriculumProgress({ orgId, mode = 'school' }: { orgId: string |
 
   return (
     <>
-      <p className="sub">So sánh tiết đã dạy (gắn khi giáo viên điểm danh) với kế hoạch trong PPCT đến hết tuần {week ?? '—'} của năm học.
-        Chậm từ {GAP_WARN} tiết trở lên được đánh dấu. Bấm một lớp để xem từng tiết, yêu cầu cần đạt và minh chứng.</p>
       <Tiles items={[
         { label: 'Lớp × môn có PPCT', value: base.length, sub: `${tracked.length} đã có tiết dạy ghi nhận` },
         { label: 'Đúng tiến độ', value: tracked.length - late.length, sub: `${pct(tracked.length - late.length, tracked.length)}%`, tone: 'good' },
@@ -707,6 +705,8 @@ export function CurriculumProgress({ orgId, mode = 'school' }: { orgId: string |
           })}</tbody>
         </table></div>
       )}
+      <p className="sub tablenote">So sánh tiết đã dạy (gắn khi giáo viên điểm danh) với kế hoạch trong PPCT đến hết tuần {week ?? '—'} của năm học.
+        Chậm từ {GAP_WARN} tiết trở lên được đánh dấu. Bấm một lớp để xem từng tiết, yêu cầu cần đạt và minh chứng.</p>
     </>
   )
 }

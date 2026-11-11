@@ -97,9 +97,9 @@ export function DistPage({ orgId, units }: { orgId: string | null; units?: boole
         { k: 'books', icon: 'grid', tone: 'good', value: cardBooks.length, label: 'PPCT theo trường', sub: `${cardBooks.filter(b => b.status === 'published').length} đã ban hành` },
       ]} />
       <div className="distpills" role="tablist">
-        {([['list', 'Danh sách bản phân phối'], ['assign', 'Gán theo trường'], ['history', 'Lịch sử áp dụng'], ['tree', 'Cấu hình']] as [Tab, string][]).map(([t, l]) => {
-          const on = tab === t || (t === 'list' && tab === 'create')
-          return <button key={t} type="button" role="tab" aria-selected={on} className={(on ? 'on' : '') + (t === 'tree' ? ' distcfg' : '')} onClick={() => { setTab(t); setMsg(null); if (t === 'list') setOpenList(null) }}>{l}</button>
+        {([['list', 'Danh sách bản phân phối'], ['assign', 'Gán theo trường'], ['history', 'Lịch sử áp dụng']] as [Tab, string][]).map(([t, l]) => {
+          const on = tab === t || (t === 'list' && (tab === 'create' || tab === 'tree'))
+          return <button key={t} type="button" role="tab" aria-selected={on} className={on ? 'on' : ''} onClick={() => { setTab(t); setMsg(null); if (t === 'list') setOpenList(null) }}>{l}</button>
         })}
       </div>
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
@@ -112,7 +112,7 @@ export function DistPage({ orgId, units }: { orgId: string | null; units?: boole
         {tab === 'list' && src !== 'units' && (openList && plans.some(p => p.id === openList)
           ? <PlanBody key={openList + ':' + rk} plan={plans.find(p => p.id === openList)!} orgId={orgId} back={() => { setOpenList(null); setMsg(null) }} backLabel="Danh sách"
               onChanged={changed('list')} onAssign={assign} />
-          : <DistList plans={plans} meta={meta} f={lf} setF={setLf} lead={srcSel} canCreate={!!orgId} onCreate={() => { setMsg(null); setTab('create') }} onOpen={p => { setMsg(null); setOpenList(p.id) }} onAssign={assign} />)}
+          : <DistList plans={plans} meta={meta} f={lf} setF={setLf} lead={srcSel} canCreate={!!orgId} onCreate={() => { setMsg(null); setTab('create') }} onOpen={p => { setMsg(null); setOpenList(p.id) }} onAssign={assign} onConfig={() => { setMsg(null); setTab('tree') }} />)}
         {tab === 'create' && orgId && <CreatePlan orgId={orgId} onCancel={() => setTab('list')}
           onCreated={id => { reload(); setOpenList(id); setTab('list'); setMsg('Đã tạo bản phân phối nháp. Tiếp tục chọn chương trình và xếp lịch.') }} />}
         {tab === 'assign' && <DistAssign orgId={orgId} plans={plans} initial={assignId} onDone={reload} onHistory={() => setTab('history')} />}
@@ -181,8 +181,8 @@ type SortKey = 'title' | 'cls' | 'parts' | 'lessons' | 'books' | 'status' | 'upd
 type ListF = { fs: Status | ''; q: string; fc: string; card: string | null }
 const listMatch = (p: Plan, f: ListF, crumb: (p: Plan) => string) =>
   (!f.fc || crumb(p) === f.fc) && (!f.q || `${p.code} ${p.title} ${crumb(p)}`.toLowerCase().includes(f.q.toLowerCase()))
-function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onAssign, lead }: {
-  lead?: ReactNode; plans: Plan[]; meta: Map<string, Meta>; f: ListF; setF: (f: ListF) => void; canCreate: boolean; onCreate: () => void; onOpen: (p: Plan) => void; onAssign: (id: string) => void
+function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onAssign, onConfig, lead }: {
+  lead?: ReactNode; plans: Plan[]; meta: Map<string, Meta>; f: ListF; setF: (f: ListF) => void; canCreate: boolean; onCreate: () => void; onOpen: (p: Plan) => void; onAssign: (id: string) => void; onConfig: () => void
 }) {
   const crumb = useBreadcrumb()
   const hid = useHiddenBtn()
@@ -229,6 +229,7 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onAssign,
           {picked.length > 0 && <small className="sub">Đã chọn: <b>{one ? one.code : picked.length + ' bản'}</b> <button type="button" className="linkbtn" onClick={sel.clear}>Bỏ chọn</button></small>}
         </>}
         right={<>
+          <button type="button" title="Cấu hình cấp và khung phân loại" onClick={onConfig}>⚙ Cấu hình</button>
           <button type="button" disabled={!one || one.status !== 'published'}
             title={picked.length > 1 ? 'Gán trường làm cho từng bản một' : one && one.status !== 'published' ? 'Chỉ gán bản đã phát hành' : undefined}
             onClick={() => one && onAssign(one.id)}>Gán trường</button>
@@ -357,7 +358,7 @@ function CreatePlan({ orgId, onCancel, onCreated }: { orgId: string; onCancel: (
       <label className="field distnamewide"><span>Ghi chú</span>
         <input value={note} onChange={e => setNote(e.target.value)} maxLength={2000} placeholder="Mục tiêu, đối tượng áp dụng…" /></label>
     </div>
-    {ready && finals.length === 0 && <p className="sub">Khung phân loại chưa có mục {last?.name.toLowerCase() ?? ''} nào. Thêm mục ở tab “Cấu hình”.</p>}
+    {ready && finals.length === 0 && <p className="sub">Khung phân loại chưa có mục {last?.name.toLowerCase() ?? ''} nào. Thêm mục ở nút “⚙ Cấu hình” trên danh sách bản phân phối.</p>}
     {err && <p className="msg">{err}</p>}
     <div className="formactions"><button type="submit" className="primary" disabled={busy}>{busy ? 'Đang tạo…' : 'Tạo và soạn tiếp'}</button>
       <button type="button" onClick={onCancel}>Huỷ</button></div>

@@ -2713,3 +2713,6 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .pfcomprow>b{font-weight:500;min-width:0}
 .pfcomprow .pflv{flex:none}
 .pfcomprow .pflv small{margin:0 0 0 6px}
+/* Số thu gọn đứng trước nút góc phải; cách hàng công cụ bên dưới một chút */
+.pagecorner>.statmini{margin:0;order:-1;align-self:center}
+.pagehead>.statmini{margin:0 0 8px}

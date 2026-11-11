@@ -1,7 +1,7 @@
 // Học liệu theo chương trình đào tạo: giống Học liệu theo chương trình giáo dục.
 // Chương trình đào tạo → các môn (thu gọn được) với nội dung và bài giảng (training_lessons, bộ 5 thẻ) ngay bên dưới;
 // mỗi dòng có + Thêm nội dung / Sửa nội dung / Xóa.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase, fetchAll } from '../../lib/supabase'
 import { LessonPage } from '../library/lesson/LessonPage'
 import { CreateLesson, type ProgRef } from '../library/lesson/Create'
@@ -20,7 +20,7 @@ const SEL = 'id, org_id, owner_org_id:org_id, title, subject, grades, program_id
 const done4 = (l: TLesson) => (l.content?.checked ?? []).filter(k => k !== 'bank').length
 const full = (l: TLesson) => done4(l) >= 4
 
-export function TrainingByProgram({ orgId }: { orgId: string }) {
+export function TrainingByProgram({ orgId, tools }: { orgId: string; tools?: ReactNode }) {
   const [progs, setProgs] = useState<TProg[] | null>(null)
   const [units, setUnits] = useState<TUnit[]>([])
   const [lessons, setLessons] = useState<TLesson[]>([])
@@ -155,7 +155,7 @@ export function TrainingByProgram({ orgId }: { orgId: string }) {
   return <>
     <div className="bar">
       <div className="tools"><input type="search" placeholder="Tìm chương trình đào tạo…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chương trình đào tạo" /></div>
-      <div className="tools"><ViewToggle value={view} onChange={setView} /></div>
+      <div className="tools">{tools}<ViewToggle value={view} onChange={setView} /></div>
     </div>
     {!shown.length && <p className="sub">{progs.length ? 'Không có chương trình nào khớp.' : 'Chưa có chương trình đào tạo nào.'}</p>}
     {view === 'cards' ? <div className="tilegrid sq">

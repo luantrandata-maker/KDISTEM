@@ -1,7 +1,7 @@
 // Học liệu theo chương trình (Phân hệ 2, theo video demo 23/10): chương trình → môn học → bài học → trang bài học 5 thẻ.
 // Bài học là bộ học liệu (library_items kind 'unit', 077/080): bài trong cây chương trình hoặc bài tạo thêm bằng "Tạo giáo án".
 // Cần chuẩn bị theo chương trình hoặc theo trường: tự tổng hợp vật tư / công cụ / thiết bị từ định mức của các bài × số nhóm.
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase, fetchAll } from '../../lib/supabase'
 import { SchoolPicker } from '../../components/SchoolPicker'
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
@@ -119,7 +119,8 @@ export function useLessonData(orgId: string | null, tick: number) {
 }
 
 
-export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; onChanged?: () => void }) {
+/** tools: nút thêm ở thanh công cụ danh sách chương trình (vd. Cần chuẩn bị) */
+export function LibraryByProgram({ orgId, onChanged, tools }: { orgId: string | null; onChanged?: () => void; tools?: ReactNode }) {
   const [pid, setPid] = useState<string | null>(null)
   const [subj, setSubj] = useState<string | null>(null)
   const [open, setOpen] = useState<{ id: string; edit?: boolean } | null>(null)
@@ -206,7 +207,7 @@ export function LibraryByProgram({ orgId, onChanged }: { orgId: string | null; o
   // ----- Danh sách chương trình (cây Cấp → Khối bên trái) -----
   const shown = gt.filter(found)
   const search = <input placeholder="Tìm chương trình…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chương trình" />
-  const toggle = <ViewToggle value={view} onChange={setView} />
+  const toggle = <>{tools}<ViewToggle value={view} onChange={setView} /></>
   const empty = <small className="sub">{progs.length ? 'Không có chương trình nào khớp.' : 'Chưa có chương trình nào. Tạo và phát hành chương trình ở Chương trình giáo dục.'}</small>
   return view === 'cards' ? <>
     <div className="tttools"><div className="ttleft">{search}</div>{toggle}</div>

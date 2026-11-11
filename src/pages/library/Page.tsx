@@ -1,5 +1,5 @@
 // Học liệu (Phân hệ 2) theo video demo (23/10): quy trình 3 bước (chỉ bước 1 cần nhập) · 4 thẻ số liệu ·
-// tab Học liệu theo chương trình | Cần chuẩn bị (theo chương trình hoặc theo trường) | Danh mục học liệu (lọc Nguồn: của đơn vị / dùng chung / tất cả).
+// tab Học liệu theo chương trình (nút Cần chuẩn bị: theo chương trình hoặc theo trường) | Danh mục học liệu (lọc Nguồn: của đơn vị / dùng chung / tất cả).
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { LibraryByProgram, LibraryNeeds, usePrograms } from './ByProgram'
@@ -54,11 +54,12 @@ export function LibraryPage({ orgId, teacherId, go }: { orgId: string | null; te
         { k: 'needs', icon: 'package', tone: 'warn', value: n(s?.needs), label: 'Thiết bị, vật tư cần chuẩn bị' },
       ]} />
       <div className="distpills" role="tablist">
-        {([['prog', 'Học liệu theo chương trình'], ['needs', 'Cần chuẩn bị'], ['catalog', 'Danh mục học liệu']] as [Tab, string][]).map(([t, l]) =>
-          <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>{l}</button>)}
+        {/* Cần chuẩn bị: mở bằng nút trên thanh công cụ của tab Học liệu theo chương trình (hoặc thẻ số liệu) */}
+        {([['prog', 'Học liệu theo chương trình'], ['catalog', 'Danh mục học liệu']] as [Tab, string][]).map(([t, l]) => { const on = tab === t || (t === 'prog' && tab === 'needs')
+          return <button key={t} type="button" role="tab" aria-selected={on} className={on ? 'on' : ''} onClick={() => setTab(t)}>{l}</button> })}
       </div>
-      {tab === 'prog' && <LibraryByProgram orgId={orgId} onChanged={() => setRk(k => k + 1)} />}
-      {tab === 'needs' && <LibraryNeeds orgId={orgId} />}
+      {tab === 'prog' && <LibraryByProgram orgId={orgId} onChanged={() => setRk(k => k + 1)} tools={<button type="button" title="Thiết bị, vật tư cần chuẩn bị theo chương trình" onClick={() => setTab('needs')}>📦 Cần chuẩn bị</button>} />}
+      {tab === 'needs' && <><button type="button" className="ghostbtn" onClick={() => setTab('prog')}>← Học liệu theo chương trình</button><LibraryNeeds orgId={orgId} /></>}
       {tab === 'catalog' && (src === 'units'
         ? <AllOrgs><LibraryManage key="units" orgId={orgId} sources src={src} onSrc={setSrc} onChanged={() => setRk(k => k + 1)} /></AllOrgs>
         : <LibraryManage key="mine" orgId={orgId} sources src={src} onSrc={setSrc} onChanged={() => setRk(k => k + 1)} />)}

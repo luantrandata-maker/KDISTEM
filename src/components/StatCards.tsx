@@ -32,7 +32,9 @@ export function StatCards({ items, active, onPick, nav }: { items: Stat[]; activ
   useLayoutEffect(() => {
     const a = anchor.current
     setNested(!!a?.parentElement?.closest('.panel, .drawerwrap, dialog, [role=dialog], .elview'))
-    setHead(!a || a.closest('.nocards') ? false : a.closest('main')?.querySelector(':scope > .pagehead') ?? null)
+    const m = a?.closest('main')
+    // Trang có nút góc phải (.pagecorner) thì số đứng cạnh nút đó, không bị nút che
+    setHead(!a || a.closest('.nocards') ? false : m?.querySelector(':scope > .pagecorner') ?? m?.querySelector(':scope > .pagehead') ?? null)
   }, [miniPref])
   const mini = miniPref && !nested
   const flip = () => { const v = !mini; setMini(v); try { localStorage.setItem(KEY, v ? '1' : '0') } catch { /* bỏ qua */ } }

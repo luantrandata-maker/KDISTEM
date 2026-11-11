@@ -25,7 +25,7 @@ type Mode = 'online' | 'offline' | 'hybrid'
 export type TProgram = {
   id: string; org_id: string; code: string; title: string; ct_code: string | null; level: string | null; ct_codes: string[]; levels: string[]; audience: string | null; mode: Mode
   description: string | null; objectives?: string | null; entry_conditions?: string | null; outcomes?: string | null; prereq_families?: string[]
-  competencies: string[]; target_level: number; pass_attendance: number; pass_score: number | null; need_product: boolean
+  competencies: string[]; target_level: number; competency_levels?: Record<string, number> | null; pass_attendance: number; pass_score: number | null; need_product: boolean
   status: Status; version_no: number; source_id: string | null; updated_at: string; published_at: string | null; family_id: string; note: string | null
   final_exam?: FinalExam | null; eval_frame?: Frame | null
   scope?: 'all' | 'selected'; effective_from?: string | null; effective_to?: string | null; builder?: string | null
@@ -41,7 +41,7 @@ export const STATUS: Record<Status, [string, string]> = {
 const EDITABLE: Status[] = ['draft', 'rejected']
 type Unit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string; hours: number; mode: 'online' | 'offline' | null; has_test: boolean; note: string | null; detail: Detail }
 const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực tiếp', hybrid: 'Kết hợp' }
-const SEL = 'id, org_id, code, title, ct_code, level, ct_codes, levels, audience, mode, description, competencies, target_level, pass_attendance, pass_score, need_product, status, version_no, source_id, updated_at, published_at, family_id, note, objectives, entry_conditions, outcomes, prereq_families, scope, effective_from, effective_to, builder'
+const SEL = 'id, org_id, code, title, ct_code, level, ct_codes, levels, audience, mode, description, competencies, target_level, competency_levels, pass_attendance, pass_score, need_product, status, version_no, source_id, updated_at, published_at, family_id, note, objectives, entry_conditions, outcomes, prereq_families, scope, effective_from, effective_to, builder'
 const SEL_X = SEL + ', final_exam, eval_frame'
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 083 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Chỉ đơn vị soạn chương trình (hoặc KDI) mới sửa được chương trình đào tạo này.' : m
@@ -133,9 +133,20 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
 }
 
 // ===== Thêm / sửa thông tin chương trình =====
-const BLANK = { title: '', ct_codes: [] as string[], levels: [] as string[], audience: '', mode: 'hybrid' as Mode, description: '', competencies: [] as string[], target_level: 3, pass_attendance: 80, pass_score: null as number | null, need_product: false,
+const BLANK = { title: '', ct_codes: [] as string[], levels: [] as string[], audience: '', mode: 'hybrid' as Mode, description: '', competencies: [] as string[], target_level: 3, competency_levels: {} as Record<string, number>, pass_attendance: 80, pass_score: null as number | null, need_product: false,
   objectives: '', entry_conditions: '', outcomes: '', prereq_families: [] as string[], builder: '' }
 type Info = typeof BLANK
+/** Mức cần đạt của một năng lực đích: mức riêng (142), không có thì mức chung target_level */
+const lvOf = (f: { competency_levels?: Record<string, number> | null; target_level: number }, k: string) => f.competency_levels?.[k] ?? f.target_level
+/** Khi lưu: ghi đủ mức cho mọi năng lực đích, mức chung = mức cao nhất */
+const withLv = (f: Info) => {
+  const m = Object.fromEntries(f.competencies.map(k => [k, lvOf(f, k)]))
+  return { competency_levels: m, target_level: f.competencies.length ? Math.max(...Object.values(m)) : f.target_level }
+}
+const lvRange = (f: { competencies: string[]; competency_levels?: Record<string, number> | null; target_level: number }) => {
+  const ls = f.competencies.map(k => lvOf(f, k)); const a = Math.min(...ls), b = Math.max(...ls)
+  return a === b ? `Mức ${a}` : `Mức ${a}–${b}`
+}
 // Loại chương trình / cấp học: mảng mới (090), dữ liệu cũ chỉ có cột đơn
 const ctsOf = (p: { ct_codes?: string[] | null; ct_code: string | null }) => p.ct_codes?.length ? p.ct_codes : p.ct_code ? [p.ct_code] : []
 const lvsOf = (p: { levels?: string[] | null; level: string | null }) => p.levels?.length ? p.levels : p.level ? [p.level] : []
@@ -232,12 +243,14 @@ function TForm({ f, set, x, setX, isNew, edit, scopeEdit, family, owner, busy, n
       <section id="tf-3" className="panel pfcard">
         <h4><i>3</i>Năng lực đích & điều kiện đạt</h4><p className="pfhint">Điều kiện đạt dùng khi đánh giá kết quả và cấp chứng chỉ.</p>
         <div className="pgrid">
-          <div className="field" style={S(8)}><span>Năng lực đích (khung năng lực nhà giáo) {edit && <CompetencySetupLink audience="teacher" />}</span>
+          <div className="field" style={S(12)}><span>Năng lực đích (khung năng lực nhà giáo) {edit && <CompetencySetupLink audience="teacher" />}</span>
             <MultiSelect disabled={dis} value={f.competencies} onChange={v => set({ ...f, competencies: v })} options={comps.map(c => [c.key, c.name])} placeholder="Chọn năng lực đích…" ariaLabel="Năng lực đích" empty="Chưa có khung năng lực nhà giáo." /></div>
-          <div className="field" style={S(4)}><span>Mức cần đạt sau đào tạo</span>
-            <div className="pflv" role="radiogroup" aria-label="Mức cần đạt">{[1, 2, 3, 4].map(l => <button key={l} type="button" role="radio" aria-checked={f.target_level === l} disabled={dis}
-              className={f.target_level === l ? 'on' : f.target_level > l ? 'in' : ''} title={`Mức ${l} · ${LV_NAME[l - 1]}`} onClick={() => set({ ...f, target_level: l })}>{l}</button>)}
-              <small className="sub">{LV_NAME[f.target_level - 1]}</small></div></div>
+          {f.competencies.length > 0 && <div className="field pfcomplv" style={S(12)}><span>Mức cần đạt sau đào tạo · chọn riêng cho từng năng lực</span>
+            {f.competencies.map(k => { const cur = lvOf(f, k); return <div key={k} className="pfcomprow">
+              <b>{comps.find(c => c.key === k)?.name ?? k}</b>
+              <div className="pflv" role="radiogroup" aria-label={'Mức cần đạt: ' + (comps.find(c => c.key === k)?.name ?? k)}>{[1, 2, 3, 4].map(l => <button key={l} type="button" role="radio" aria-checked={cur === l} disabled={dis}
+                className={cur === l ? 'on' : cur > l ? 'in' : ''} title={`Mức ${l} · ${LV_NAME[l - 1]}`} onClick={() => set({ ...f, competency_levels: { ...(f.competency_levels ?? {}), [k]: l } })}>{l}</button>)}
+                <small className="sub">{LV_NAME[cur - 1]}</small></div></div> })}</div>}
           <label className="field" style={S(3)}><span>Chuyên cần tối thiểu (%)</span><input type="number" disabled={dis} min={0} max={100} value={f.pass_attendance} onChange={e => set({ ...f, pass_attendance: Math.max(0, Math.min(100, Number(e.target.value) || 0)) })} /></label>
           <label className="field" style={S(3)}><span>Điểm test tối thiểu (thang 10)</span><input type="number" disabled={dis} min={0} max={10} step={0.5} value={f.pass_score ?? ''} placeholder="Trống = không xét"
             onChange={e => set({ ...f, pass_score: e.target.value === '' ? null : Math.max(0, Math.min(10, Number(e.target.value))) })} /></label>
@@ -284,7 +297,7 @@ function TForm({ f, set, x, setX, isNew, edit, scopeEdit, family, owner, busy, n
           <dt>Cấp học</dt><dd>{f.levels.length ? f.levels.map(levelName).join(', ') : 'Tất cả cấp học'}</dd>
           <dt>Hình thức</dt><dd>{MODE[f.mode]}</dd>
           <dt>Đối tượng</dt><dd>{f.audience?.trim() || '—'}</dd>
-          <dt>Năng lực đích</dt><dd>{f.competencies.length ? `${f.competencies.length} năng lực · Mức ${f.target_level}` : '—'}</dd>
+          <dt>Năng lực đích</dt><dd>{f.competencies.length ? `${f.competencies.length} năng lực · ${lvRange(f)}` : '—'}</dd>
           <dt>Điều kiện đạt</dt><dd>{pass}</dd>
           <dt>Áp dụng</dt><dd>{x.scope === 'selected' ? `${x.targets.length} đơn vị được chọn` : 'Tất cả đơn vị trực thuộc'}</dd>
           {x.edu.length > 0 && <><dt>CT giáo dục</dt><dd>{x.edu.map(eduName).join('; ')}</dd></>}
@@ -309,7 +322,7 @@ function ProgramForm({ admin, onBack, onSaved }: { admin: boolean; onBack: () =>
     if (!admin) return
     const bad = extraBad(x); if (bad) return setErr(bad)
     setBusy(true); setErr('')
-    const { data, error } = await supabase.from('training_programs').insert({ ...f, title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null, builder: f.builder?.trim() || null,
+    const { data, error } = await supabase.from('training_programs').insert({ ...f, ...withLv(f), title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null, builder: f.builder?.trim() || null,
       scope: x.scope, effective_from: x.effective_from || null, effective_to: x.effective_to || null }).select('id').single()
     if (error) { setBusy(false); return setErr(errText(error.message)) }
     const id = (data as { id: string }).id
@@ -361,7 +374,7 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
     const x = a.data as unknown as TProgram
     setP(x); setUnits((b.data as Unit[]) ?? [])
     setF({ title: x.title, ct_codes: ctsOf(x), levels: lvsOf(x), audience: x.audience ?? '', mode: x.mode, description: x.description ?? '', competencies: x.competencies ?? [],
-      target_level: x.target_level, pass_attendance: x.pass_attendance, pass_score: x.pass_score, need_product: x.need_product,
+      target_level: x.target_level, competency_levels: x.competency_levels ?? {}, pass_attendance: x.pass_attendance, pass_score: x.pass_score, need_product: x.need_product,
       objectives: x.objectives ?? '', entry_conditions: x.entry_conditions ?? '', outcomes: x.outcomes ?? '', prereq_families: x.prereq_families ?? [], builder: x.builder ?? '' })
     const ex = await loadExtra(x); setX(ex); setX0(ex)
   }
@@ -385,7 +398,7 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
     const bad = extraBad(x); if (bad) return setMsg([bad, true])
     setBusy(true)
     if (admin && EDITABLE.includes(p!.status)) {
-      const { error } = await supabase.from('training_programs').update({ ...f, title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null, builder: f.builder?.trim() || null }).eq('id', p!.id)
+      const { error } = await supabase.from('training_programs').update({ ...f, ...withLv(f), title: f.title.trim(), audience: f.audience?.trim() || null, description: f.description?.trim() || null, builder: f.builder?.trim() || null }).eq('id', p!.id)
       if (error) { setBusy(false); setMsg([errText(error.message), true]); return load() }
     }
     const e2 = await saveExtra(p!.id, x, x0)
@@ -477,8 +490,7 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
         </div>
         <div className="panel pdcard"><h4>Năng lực đích & điều kiện đạt</h4>
           <dl className="pddl sm">
-            <dt>Năng lực đích</dt><dd>{chips(p.competencies.map(k => comps.find(c => c.key === k)?.name ?? k))}</dd>
-            <dt>Mức cần đạt</dt><dd>Mức {p.target_level} · {LV_NAME[p.target_level - 1]}</dd>
+            <dt>Năng lực đích · mức cần đạt</dt><dd>{p.competencies.length ? chips(p.competencies.map(k => `${comps.find(c => c.key === k)?.name ?? k} · Mức ${lvOf(p, k)} ${LV_NAME[lvOf(p, k) - 1]}`)) : '—'}</dd>
             <dt>Điều kiện đạt</dt><dd>{[`chuyên cần ≥ ${p.pass_attendance}%`, p.pass_score != null && `điểm test ≥ ${num(Number(p.pass_score))}`, p.need_product && 'sản phẩm cuối khoá đạt'].filter(Boolean).join(' · ')}</dd>
           </dl>
         </div>

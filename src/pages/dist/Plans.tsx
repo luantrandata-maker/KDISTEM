@@ -97,8 +97,8 @@ export function DistPage({ orgId, units }: { orgId: string | null; units?: boole
         { k: 'books', icon: 'grid', tone: 'good', value: cardBooks.length, label: 'PPCT theo trường', sub: `${cardBooks.filter(b => b.status === 'published').length} đã ban hành` },
       ]} />
       <div className="distpills" role="tablist">
-        {([['list', 'Danh sách bản phân phối'], ['tree', 'Theo khung phân loại'], ['assign', 'Gán theo trường'], ['history', 'Lịch sử áp dụng']] as [Tab, string][]).map(([t, l]) => {
-          const on = tab === t || (t === 'list' && tab === 'create')
+        {([['list', 'Danh sách bản phân phối'], ['assign', 'Gán theo trường'], ['history', 'Lịch sử áp dụng']] as [Tab, string][]).map(([t, l]) => {
+          const on = tab === t || (t === 'list' && (tab === 'create' || tab === 'tree'))
           return <button key={t} type="button" role="tab" aria-selected={on} className={on ? 'on' : ''} onClick={() => { setTab(t); setMsg(null); if (t === 'list') setOpenList(null) }}>{l}</button>
         })}
       </div>
@@ -112,8 +112,7 @@ export function DistPage({ orgId, units }: { orgId: string | null; units?: boole
         {tab === 'list' && src !== 'units' && (openList && plans.some(p => p.id === openList)
           ? <PlanBody key={openList + ':' + rk} plan={plans.find(p => p.id === openList)!} orgId={orgId} back={() => { setOpenList(null); setMsg(null) }} backLabel="Danh sách"
               onChanged={changed('list')} onAssign={assign} />
-          : <DistList plans={plans} meta={meta} f={lf} setF={setLf} lead={srcSel} canCreate={!!orgId} onCreate={() => { setMsg(null); setTab('create') }} onOpen={p => { setMsg(null); setOpenList(p.id) }}
-              onCopied={(id, m) => { reload(); setMsg(m); if (id) setOpenList(id) }} onAssign={assign} />)}
+          : <DistList plans={plans} meta={meta} f={lf} setF={setLf} lead={srcSel} canCreate={!!orgId} onCreate={() => { setMsg(null); setTab('create') }} onOpen={p => { setMsg(null); setOpenList(p.id) }} onAssign={assign} onConfig={() => { setMsg(null); setTab('tree') }} />)}
         {tab === 'create' && orgId && <CreatePlan orgId={orgId} onCancel={() => setTab('list')}
           onCreated={id => { reload(); setOpenList(id); setTab('list'); setMsg('Đã tạo bản phân phối nháp. Tiếp tục chọn chương trình và xếp lịch.') }} />}
         {tab === 'assign' && <DistAssign orgId={orgId} plans={plans} initial={assignId} onDone={reload} onHistory={() => setTab('history')} />}
@@ -182,15 +181,14 @@ type SortKey = 'title' | 'cls' | 'parts' | 'lessons' | 'books' | 'status' | 'upd
 type ListF = { fs: Status | ''; q: string; fc: string; card: string | null }
 const listMatch = (p: Plan, f: ListF, crumb: (p: Plan) => string) =>
   (!f.fc || crumb(p) === f.fc) && (!f.q || `${p.code} ${p.title} ${crumb(p)}`.toLowerCase().includes(f.q.toLowerCase()))
-function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied, onAssign, lead }: {
-  lead?: ReactNode; plans: Plan[]; meta: Map<string, Meta>; f: ListF; setF: (f: ListF) => void; canCreate: boolean; onCreate: () => void; onOpen: (p: Plan) => void; onCopied: (id: string | null, msg: string) => void; onAssign: (id: string) => void
+function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onAssign, onConfig, lead }: {
+  lead?: ReactNode; plans: Plan[]; meta: Map<string, Meta>; f: ListF; setF: (f: ListF) => void; canCreate: boolean; onCreate: () => void; onOpen: (p: Plan) => void; onAssign: (id: string) => void; onConfig: () => void
 }) {
   const crumb = useBreadcrumb()
   const hid = useHiddenBtn()
   const { fs, q, card } = f
   const setQ = (q: string) => setF({ ...f, q })
   const sort: [SortKey, 1 | -1] = ['title', 1]
-  const [err, setErr] = useState('')
   const shown = useMemo(() => {
     const val = (p: Plan): string | number => {
       const m = meta.get(p.id)
@@ -208,32 +206,8 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
   const sel = useMultiSel(rows)
   const picked = sel.list
   const one = picked.length === 1 ? picked[0] : null
-  const [busy, setBusy] = useState(false)
-  async function copy(ps: Plan[]) {
-    setBusy(true); setErr('')
-    let last: string | null = null
-    for (const p of ps) {
-      const { data, error } = await supabase.rpc('dist_plan_copy', { p_plan: p.id })
-      if (error) { setBusy(false); return setErr(`${p.code}: ${errText(error.message)}`) }
-      last = data as string
-    }
-    setBusy(false); sel.clear()
-    if (ps.length === 1) onCopied(last, `Đã nhân bản ${ps[0].code} thành bản nháp mới.`)
-    else onCopied(null, `Đã nhân bản ${ps.length} bản thành bản nháp mới.`)
-  }
-  // Xoá bản nháp đã chọn (bản đã phát hành phải chuyển về nháp hoặc ngừng dùng)
-  const drafts = picked.filter(p => p.status === 'draft')
-  async function removeDrafts() {
-    if (!drafts.length || !confirm(`Xoá ${drafts.length === 1 ? drafts[0].code : drafts.length + ' bản nháp'}? Không khôi phục được. PPCT đã gán cho trường vẫn giữ nguyên.`)) return
-    setBusy(true); setErr('')
-    const { error } = await supabase.from('dist_plans').delete().in('id', drafts.map(p => p.id))
-    setBusy(false)
-    if (error) return setErr(errText(error.message))
-    sel.clear(); onCopied(null, `Đã xoá ${drafts.length} bản nháp.`)
-  }
   return (
     <>
-      {err && <p className="msg">{err}</p>}
       <DataTable id="dist-plans" rows={rows} rowKey={p => p.id} aside={plans.length ? gt.tree : undefined}
         empty={<small className="sub">{plans.length ? 'Không có bản nào khớp bộ lọc.' : 'Chưa có bản phân phối nào. Bấm “+ Tạo bản phân phối”.'}</small>}
         head={{ th: <input type="checkbox" checked={sel.all} ref={el => { if (el) el.indeterminate = sel.some }} onChange={sel.toggleAll} aria-label="Chọn tất cả" />,
@@ -255,12 +229,10 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onCopied,
           {picked.length > 0 && <small className="sub">Đã chọn: <b>{one ? one.code : picked.length + ' bản'}</b> <button type="button" className="linkbtn" onClick={sel.clear}>Bỏ chọn</button></small>}
         </>}
         right={<>
-          <button type="button" disabled={!picked.length || busy} onClick={() => copy(picked)}>Nhân bản{picked.length > 1 ? ` (${picked.length})` : ''}</button>
+          <button type="button" title="Cấu hình cấp và khung phân loại" onClick={onConfig}>⚙ Cấu hình</button>
           <button type="button" disabled={!one || one.status !== 'published'}
             title={picked.length > 1 ? 'Gán trường làm cho từng bản một' : one && one.status !== 'published' ? 'Chỉ gán bản đã phát hành' : undefined}
             onClick={() => one && onAssign(one.id)}>Gán trường</button>
-          <button type="button" className="danger" disabled={!drafts.length || busy} title={picked.length && !drafts.length ? 'Chỉ xoá được bản nháp' : undefined}
-            onClick={removeDrafts}>Xoá{drafts.length ? ` (${drafts.length})` : ''}</button>
           {!hid('create') && <button type="button" className="primary ttadd" disabled={!canCreate} onClick={onCreate}>+ Tạo bản phân phối</button>}
         </>} />
     </>
@@ -386,7 +358,7 @@ function CreatePlan({ orgId, onCancel, onCreated }: { orgId: string; onCancel: (
       <label className="field distnamewide"><span>Ghi chú</span>
         <input value={note} onChange={e => setNote(e.target.value)} maxLength={2000} placeholder="Mục tiêu, đối tượng áp dụng…" /></label>
     </div>
-    {ready && finals.length === 0 && <p className="sub">Khung phân loại chưa có mục {last?.name.toLowerCase() ?? ''} nào. Thêm mục ở tab “Theo khung phân loại”.</p>}
+    {ready && finals.length === 0 && <p className="sub">Khung phân loại chưa có mục {last?.name.toLowerCase() ?? ''} nào. Thêm mục ở nút “⚙ Cấu hình” trên danh sách bản phân phối.</p>}
     {err && <p className="msg">{err}</p>}
     <div className="formactions"><button type="submit" className="primary" disabled={busy}>{busy ? 'Đang tạo…' : 'Tạo và soạn tiếp'}</button>
       <button type="button" onClick={onCancel}>Huỷ</button></div>

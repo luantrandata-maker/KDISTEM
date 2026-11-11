@@ -388,14 +388,14 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
         {plan.status === 'published' && onAssign && <button type="button" onClick={() => onAssign(plan.id)}>Gán cho trường</button>}
         {!editable && own && <button type="button" className="primary" onClick={newVersion}>Tạo phiên bản mới</button>}
         {!editable && !own && <button type="button" className="primary" onClick={copy}>Nhân bản để sửa</button>}
+        {(editable || own) && <button type="button" onClick={copy}>Nhân bản</button>}
+        {editable && <button type="button" className="danger" onClick={remove}>Xoá</button>}
         <MoreMenu>
           {editable && <label className="distnotebox"><b>Ghi chú</b>
             <textarea rows={3} value={plan.note ?? ''} maxLength={2000} placeholder="Mục tiêu, đối tượng áp dụng…" onChange={e => { setPlan({ ...plan, note: e.target.value }); touch() }} /></label>}
-          {(editable || own) && <button type="button" onClick={copy}>Nhân bản thành bản khác</button>}
           {plan.status === 'published' && <button type="button" onClick={() => setStatus('draft', 'Đã chuyển về nháp. PPCT đã gán cho trường không đổi.')}>Chuyển về nháp</button>}
           {plan.status === 'published' && <button type="button" onClick={() => setStatus('archived', 'Đã ngừng dùng bản phân phối.')}>Ngừng dùng</button>}
           {plan.status === 'archived' && <button type="button" onClick={() => setStatus('draft', 'Đã dùng lại bản (nháp).')}>Dùng lại</button>}
-          {editable && <button type="button" className="danger" onClick={remove}>Xoá bản</button>}
         </MoreMenu>
       </span>
     </div>

@@ -55,6 +55,8 @@ function Stepper({ value, onChange, disabled, label }: { value: number; onChange
 export type SubjCardData = {
   name: string; meta: string; changed: boolean; controls: ReactNode | null
   lessons: { id: string; title: string; periods: number }[]; weekOf: (id: string) => string
+  /** Tick chọn bài đưa vào phân phối (bỏ tick = không dạy bài này trong bản) */
+  isOn?: (id: string) => boolean; onToggle?: (ids: string[], on: boolean) => void
   onMove: (from: number, to: number) => void; onReset: () => void
 }
 /** Các môn của một chương trình trong bản: mỗi môn một thẻ thu gọn được, kéo cả thẻ để đổi thứ tự môn,
@@ -93,7 +95,7 @@ function SubjCards({ items, onMoveSubj }: { items: SubjCardData[]; onMoveSubj: (
 }
 
 /** Danh sách bài của một môn trong bản: kéo thả hoặc Alt + ↑↓ để đổi thứ tự. */
-function LessonOrder({ lessons, changed, weekOf, onMove, onReset }: SubjCardData) {
+function LessonOrder({ lessons, changed, weekOf, onMove, onReset, isOn, onToggle }: SubjCardData) {
   const [drag, setDrag] = useState<number | null>(null)
   const [over, setOver] = useState<number | null>(null)
   const key = (k: number) => (e: KeyboardEvent<HTMLLIElement>) => {
@@ -105,14 +107,21 @@ function LessonOrder({ lessons, changed, weekOf, onMove, onReset }: SubjCardData
     }
   }
   return <div className="distlessons">
-    <div className="distlessonsbar"><small className="sub">Danh sách bài học</small>
+    <div className="distlessonsbar">{onToggle && isOn && lessons.length > 0 ? (() => {
+      const n = lessons.filter(l => isOn(l.id)).length
+      return <label className="distlessall"><input type="checkbox" checked={n === lessons.length} ref={el => { if (el) el.indeterminate = n > 0 && n < lessons.length }}
+        onChange={() => onToggle(lessons.map(l => l.id), n < lessons.length)} /><small className="sub">Chọn bài đưa vào phân phối · {n}/{lessons.length} bài</small></label>
+    })() : <small className="sub">Danh sách bài học</small>}
       {changed && <button type="button" className="linkbtn" onClick={onReset}>Về thứ tự khung</button>}</div>
     {lessons.length ? <ol>{lessons.map((l, k) => <li key={l.id} tabIndex={0} draggable aria-label={`${l.title}, bài ${k + 1}`}
-      className={(drag === k ? 'drag' : '') + (over === k && drag !== k ? ' over' : '')} onKeyDown={key(k)}
+      className={(drag === k ? 'drag' : '') + (over === k && drag !== k ? ' over' : '') + (isOn && !isOn(l.id) ? ' off' : '')} onKeyDown={key(k)}
       onDragStart={e => { e.stopPropagation(); setDrag(k); e.dataTransfer.effectAllowed = 'move' }} onDragEnd={() => { setDrag(null); setOver(null) }}
       onDragOver={e => { if (drag === null) return; e.preventDefault(); e.stopPropagation(); setOver(k) }}
       onDrop={e => { if (drag === null) return; e.preventDefault(); e.stopPropagation(); if (drag !== k) onMove(drag, k); setDrag(null); setOver(null) }}>
-      <i aria-hidden="true">⠿</i><span className="t">{l.title}</span>
+      <i aria-hidden="true">⠿</i>
+      {onToggle && isOn && <input type="checkbox" checked={isOn(l.id)} aria-label={`Đưa bài ${l.title} vào phân phối`} title="Bỏ tick: không đưa bài này vào phân phối"
+        onClick={e => e.stopPropagation()} onChange={e => onToggle([l.id], e.target.checked)} />}
+      <span className="t">{l.title}</span>
       <small className="sub">{l.periods} tiết</small><span className="distwk">{weekOf(l.id)}</span></li>)}</ol>
       : <p className="sub" style={{ margin: '0 4px 4px' }}>Môn này chưa có bài.</p>}
   </div>
@@ -497,7 +506,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
                 <td>{it.split ? <small className="sub">Riêng từng môn</small> : <Stepper label="nhịp" value={it.ppw} onChange={v => setItem(it.program_id, { ppw: v })} />}</td>
                 <td><span className={'gpill ' + (!sp ? '' : outFrame ? 'bad' : outTerm ? 'warn' : 'good')}>
                   {!sp ? 'Chưa có bài' : <>{outFrame || outTerm ? '⚠ ' : ''}Tuần {sp.from}–{sp.to} · {sp.periods} tiết{outFrame ? ` · ngoài khung` : outTerm ? ` · ngoài ${t!.label}` : ''}</>}</span></td>
-                <td><button type="button" className="linkbtn" aria-expanded={open} onClick={toggle}>Thứ tự bài {open ? '▾' : '▸'}</button></td>
+                <td><button type="button" className="linkbtn" aria-expanded={open} onClick={toggle}>Chọn & sắp bài {open ? '▾' : '▸'}</button></td>
               </tr>
               {open && <tr className="distschedx"><td colSpan={5}>{Order(it)}</td></tr>}
             </Fragment>
@@ -518,7 +527,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       <label className="distsplit"><input type="checkbox" checked={it.split} onChange={e => {
         setItem(it.program_id, { split: e.target.checked, subjects: subs.map(x => ({ ...x, ppw: e.target.checked ? it.ppw : x.ppw })) })
       }} /><span><b>Chỉnh riêng từng môn</b> <small className="sub">mỗi môn bắt đầu và nhịp riêng</small></span></label>
-      <small className="sub distsubjhint">Kéo môn hoặc bài để đổi thứ tự dạy (chỉ trong bản này). Bàn phím: Alt + ↑↓</small>
+      <small className="sub distsubjhint">Tick chọn bài sẽ dạy · kéo môn hoặc bài để đổi thứ tự dạy (chỉ trong bản này). Bàn phím: Alt + ↑↓</small>
       <SubjCards onMoveSubj={move} items={onSubs.map((x, j) => {
         const base = (lessonsBy.get(it.program_id) ?? []).filter(l => l.subj.trim().toLowerCase() === x.name.trim().toLowerCase())
         const list = orderLessons(base, x.order); const si = subInfo(x.name)
@@ -530,14 +539,15 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
         const span = si?.to ? `Tuần ${si.from}–${si.to} · ${si.periods} tiết` : 'Chưa xếp'
         return {
           name: x.name, changed: reordered(base, x.order),
-          meta: `${lessons.length} bài · ${si?.periods ?? total} tiết${si?.to ? ` · Tuần ${si.from}–${si.to}` : ''} · ${fmt(rate)} tiết/tuần`,
+          meta: `${lessons.filter(l => !rowOf.get(l.id)?.skipped).length}/${lessons.length} bài · ${si?.periods ?? total} tiết${si?.to ? ` · Tuần ${si.from}–${si.to}` : ''} · ${fmt(rate)} tiết/tuần`,
           controls: it.split ? <>
             <select aria-label={'Bắt đầu môn ' + x.name} value={j === 0 && x.mode === 'after' ? 'program' : x.mode} onChange={e => set({ mode: e.target.value as SubjMode, week: e.target.value === 'week' ? x.week ?? si?.from ?? 1 : x.week })}>
               <option value="program">Theo chương trình</option>{j > 0 && <option value="after">Nối tiếp môn trước</option>}<option value="week">Tuần cụ thể…</option></select>
             {x.mode === 'week' && <input className="wk" type="number" aria-label={'Tuần bắt đầu môn ' + x.name} min={1} max={60} value={x.week ?? 1} onChange={e => set({ week: Math.max(1, Math.min(60, Number(e.target.value) || 1)) })} />}
             <label className="inl">Nhịp <input type="number" min={0.5} max={40} step={0.5} value={x.ppw} onChange={e => set({ ppw: Math.max(0.5, Math.min(40, Number(e.target.value) || 1)) })} /></label>
             <span className="distsubjspan">{span}</span></> : null,
-          lessons, weekOf: (id: string) => { const r = rowOf.get(id); return r?.skipped ? 'Đã bỏ' : r?.weeks?.length ? 'Tuần ' + wkLabel(r.weeks) : '—' },
+          lessons, weekOf: (id: string) => { const r = rowOf.get(id); return r?.skipped ? 'Không dạy' : r?.weeks?.length ? 'Tuần ' + wkLabel(r.weeks) : '—' },
+          isOn: (id: string) => !rowOf.get(id)?.skipped, onToggle: (ids: string[], on: boolean) => setRows(ids, { skipped: !on }),
           onMove: (a: number, b: number) => { const ids = list.map(l => l.id); const [m] = ids.splice(a, 1); ids.splice(b, 0, m); setOrder(ids) },
           onReset: () => setOrder(null),
         }
@@ -569,7 +579,6 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
     const qq = q.trim().toLowerCase()
     const shown = qq ? inSel.filter(x => (title.get(x.r.unit_id) ?? '').toLowerCase().includes(qq)) : inSel
     const keepN = (xs: FR[]) => xs.filter(x => !x.r.skipped).length
-    const onAll = shown.length > 0 && shown.every(x => !x.r.skipped), onSome = shown.some(x => !x.r.skipped)
     const nav = (key: string, label: ReactNode, xs: FR[], meta: string) => <div key={key || '*'} className={'slnavrow' + (sel === key ? ' on' : '')}>
       <button type="button" className={'slnavi' + (sel === key ? ' on' : '')} onClick={() => setSel(key)}>
         <span className="slnm">{label}</span><span className="slcnt">{keepN(xs)}{keepN(xs) !== xs.length ? `/${xs.length}` : ''} bài · {meta}</span></button></div>
@@ -580,7 +589,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
         { key: 'subj', label: 'Môn', thClass: 'c-subj', text: (x: FR) => x.subj, cell: (x: FR) => <button type="button" className="slsubjlink" onClick={() => setSel(keyOf(x))}>{x.subj}</button> },
       ] : []),
       { key: 'title', label: 'Tên bài học', thClass: 'c-title', fixed: true, text: x => title.get(x.r.unit_id) ?? '',
-        cell: x => <>{title.get(x.r.unit_id)}{x.r.skipped && <small className="sub"> · không đưa vào phân phối</small>}</> },
+        cell: x => <>{title.get(x.r.unit_id)}{x.r.skipped && <small className="sub"> · không dạy (bỏ tick ở Xếp lịch › Chọn & sắp bài)</small>}</> },
       { key: 'week', label: 'Tuần', thClass: 'c-wk', text: x => wkLabel(x.r.weeks), cell: x => edit && !x.r.skipped ? <span className="distwkcell">
         <input type="number" className="slcell" min={1} max={60} value={x.r.week ?? ''} aria-label="Tuần" onChange={e => setRow(x.r.unit_id, { week: Number(e.target.value) || null, manual: true })} />
         {x.r.manual && <button type="button" className="linkbtn" title="Xếp lại theo nhịp" onClick={() => setRow(x.r.unit_id, { manual: false })}>Tự tính</button>}</span>
@@ -600,11 +609,6 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       <div className="slmain">
         <DataTable id="dist-rows" simple rows={shown} rowKey={x => x.r.unit_id} className="slt disttbl" cols={cols}
           rowProps={x => ({ className: x.r.skipped ? 'skipped' : undefined })}
-          head={editable ? {
-            th: <input type="checkbox" aria-label="Chọn tất cả bài đang hiện" checked={onAll} ref={el => { if (el) el.indeterminate = onSome && !onAll }}
-              onChange={() => setRows(shown.map(x => x.r.unit_id), { skipped: onAll })} title="Tick: đưa vào phân phối · bỏ tick: không đưa vào" />,
-            td: x => <input type="checkbox" checked={!x.r.skipped} aria-label={`Đưa bài ${title.get(x.r.unit_id) ?? ''} vào phân phối`} onChange={e => setRow(x.r.unit_id, { skipped: !e.target.checked })} />,
-          } : undefined}
           left={<input placeholder="Tìm bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />}
           right={editable ? <button type="button" className={editRows ? 'primary' : ''} onClick={() => setEditRows(!editRows)}>{editRows ? 'Xong chỉnh sửa' : 'Tùy chỉnh từng bài'}</button> : undefined}
           empty={<small className="sub">{inSel.length ? 'Không có bài nào khớp ô tìm.' : 'Chưa có bài.'}</small>} />

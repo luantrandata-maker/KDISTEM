@@ -1168,7 +1168,7 @@ function VersionActions({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, on
       can && st === 'approved' && { key: 'reopen', label: 'Mở lại để sửa', disabled: busy, onClick: () => setStatus('draft') },
       can && st === 'published' && !hid('version') && { key: 'ver', label: 'Tạo phiên bản mới', kind: 'primary', disabled: busy, onClick: newVersion },
       can && onDelete && { key: 'del', label: 'Xoá bản nháp', kind: 'danger', disabled: busy, onClick: onDelete },
-      can && ['published', 'superseded', 'draft', 'rejected', 'approved'].includes(st) && { key: 'arch', label: 'Ngừng dùng phiên bản này', kind: 'danger', rank: 4, disabled: busy,
+      can && ['published', 'superseded', 'draft', 'rejected', 'approved'].includes(st) && { key: 'arch', label: 'Ngừng dùng', kind: 'danger', rank: 4, disabled: busy,
         onClick: () => { if (confirm('Ngừng dùng phiên bản này? Đơn vị khác không còn thấy bản ngừng dùng.')) setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):') } },
       can && st === 'archived' && { key: 'unarch', label: 'Mở lại thành nháp', disabled: busy, onClick: () => setStatus('draft') },
     ]} />

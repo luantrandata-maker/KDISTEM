@@ -556,7 +556,7 @@ function TrainingVersionActions({ p, admin, warn, onOpen, onChanged, onDelete, l
     s === 'approved' && { key: 'reopen', label: 'Mở lại để sửa', disabled: busy, onClick: () => setStatus('draft') },
     (s === 'published' || s === 'superseded') && { key: 'ver', label: 'Tạo phiên bản mới', kind: 'primary', disabled: busy, onClick: newVersion },
     onDelete && { key: 'del', label: 'Xoá bản nháp', kind: 'danger', disabled: busy, onClick: onDelete },
-    ['published', 'superseded', 'approved', 'rejected', 'draft'].includes(s) && { key: 'arch', label: 'Ngừng dùng phiên bản này', kind: 'danger', rank: 4, disabled: busy,
+    ['published', 'superseded', 'approved', 'rejected', 'draft'].includes(s) && { key: 'arch', label: 'Ngừng dùng', kind: 'danger', rank: 4, disabled: busy,
       onClick: () => { if (confirm('Ngừng dùng phiên bản này? Kế hoạch đã có vẫn giữ nguyên.')) setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):') } },
     s === 'archived' && { key: 'reuse', label: 'Dùng lại', disabled: busy, onClick: () => setStatus('published', 'Ghi chú (không bắt buộc):') },
   ]} />

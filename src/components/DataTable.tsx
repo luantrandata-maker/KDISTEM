@@ -138,10 +138,12 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   const nHidden = cols.filter(c => !c.fixed && view.hidden.includes(c.key)).length
   const changed = nHidden > 0 || view.order.length > 0 || Object.keys(view.widths).length > 0 || view.fit
 
+  // Cột chính (thường là tên): giữ độ rộng tối thiểu để tên không bị ép từng chữ khi màn hình hẹp
+  const lead = shownCols.find(c => !/c-no|c-sel/.test(c.thClass ?? '') && c.key !== 'no')
   const tbl = <div className="wrap"><table className={`libtable ttable${view.fit && !simple ? ' ttfit' : ''}${className ? ' ' + className : ''}`}>
       <colgroup>{head && <col style={{ width: 36 }} />}{shownCols.map(c => <col key={c.key} style={view.widths[c.key] ? { width: view.widths[c.key] } : undefined} />)}</colgroup>
       <thead>
-        <tr>{head && <th>{head.th}</th>}{shownCols.map(c => <th key={c.key} className={c.thClass}
+        <tr>{head && <th className="c-sel">{head.th}</th>}{shownCols.map(c => <th key={c.key} className={[c.thClass, c === lead ? 'c-lead' : ''].filter(Boolean).join(' ') || undefined}
           style={view.widths[c.key] ? { width: view.widths[c.key], minWidth: view.widths[c.key] } : undefined}>{c.label}
           <span className="ttresize" role="separator" aria-label={`Đổi độ rộng cột ${c.label}`} onMouseDown={e => resize(c.key, e)} onClick={e => e.stopPropagation()}
             onDoubleClick={e => { e.stopPropagation(); setView(v => { const w = { ...v.widths }; delete w[c.key]; return { ...v, widths: w } }) }} /></th>)}</tr>
@@ -190,8 +192,20 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
 const SIDE_KEY = 'tt:side'
 const loadSide = (): { w: number; off: boolean } => { try { return { w: 190, off: false, ...JSON.parse(localStorage.getItem(SIDE_KEY) ?? '{}') } } catch { return { w: 190, off: false } } }
 export function SideSplit({ aside, children }: { aside: ReactNode; children: ReactNode }) {
-  const [side, setSideS] = useState(loadSide)
+  const [side0, setSideS] = useState(loadSide)
   const setSide = (v: { w: number; off: boolean }) => { setSideS(v); try { localStorage.setItem(SIDE_KEY, JSON.stringify(v)) } catch { /* chỉ trong phiên */ } }
+  // Khung hẹp (laptop nhỏ, phóng to trình duyệt): tự thu cây để bảng đủ chỗ; bấm » vẫn mở được
+  const box = useRef<HTMLDivElement>(null)
+  const [narrow, setNarrow] = useState(false)
+  const [openNarrow, setOpenNarrow] = useState(false)
+  useEffect(() => {
+    const el = box.current; if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(([e]) => setNarrow(e.contentRect.width < 900))
+    ro.observe(el); return () => ro.disconnect()
+  }, [])
+  const side = { ...side0, off: side0.off || (narrow && !openNarrow) }
+  const show = () => { setOpenNarrow(true); setSide({ ...side0, off: false }) }
+  const hide = () => { setOpenNarrow(false); setSide({ ...side0, off: true }) }
   const drag = (e: React.MouseEvent) => {
     e.preventDefault()
     const x0 = e.clientX, w0 = side.w
@@ -201,11 +215,11 @@ export function SideSplit({ aside, children }: { aside: ReactNode; children: Rea
     document.body.classList.add('ttdragging')
     document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up)
   }
-  return <div className={'ttbody' + (side.off ? ' sideoff' : '')} style={{ gridTemplateColumns: side.off ? '34px minmax(0,1fr)' : `${side.w}px minmax(0,1fr)` }}>
+  return <div ref={box} className={'ttbody' + (side.off ? ' sideoff' : '')} style={{ gridTemplateColumns: side.off ? '34px minmax(0,1fr)' : `${side.w}px minmax(0,1fr)` }}>
     {side.off
-      ? <div className="ttaside ttaside-off"><button type="button" className="ttsidebtn" onClick={() => setSide({ ...side, off: false })} title="Hiện cây nhóm theo khối" aria-label="Hiện cây nhóm theo khối">»</button></div>
+      ? <div className="ttaside ttaside-off"><button type="button" className="ttsidebtn" onClick={show} title="Hiện cây nhóm theo khối" aria-label="Hiện cây nhóm theo khối">»</button></div>
       : <div className="ttaside">
-        <button type="button" className="ttsidebtn ttsidehide" onClick={() => setSide({ ...side, off: true })} title="Ẩn cây nhóm theo khối" aria-label="Ẩn cây nhóm theo khối">«</button>
+        <button type="button" className="ttsidebtn ttsidehide" onClick={hide} title="Ẩn cây nhóm theo khối" aria-label="Ẩn cây nhóm theo khối">«</button>
         {aside}
         <span className="ttsidegrip" role="separator" aria-orientation="vertical" aria-label="Kéo để đổi độ rộng" title="Kéo để đổi độ rộng · bấm đúp để về mặc định"
           onMouseDown={drag} onDoubleClick={() => setSide({ w: 190, off: false })} />

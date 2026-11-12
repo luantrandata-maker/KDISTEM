@@ -32,7 +32,7 @@ button{font-family:inherit}
 .user select,.main select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit}
 .main{padding:28px 32px;position:relative}
 /* Nút ở góc phải, ngang tiêu đề trang */
-.pagecorner{position:absolute;top:24px;right:32px;display:flex;gap:8px}
+.pagecorner{display:flex;gap:8px;align-items:center}
 .pagesub{margin:6px 0 10px;font-size:18px}
 .main h1{margin:0 0 4px;font-size:26px;font-weight:700;letter-spacing:-.2px}
 .sub{color:var(--muted);margin:0 0 16px}
@@ -78,7 +78,6 @@ small{color:var(--muted)}
 @media(max-width:800px){
   .app{grid-template-columns:1fr}.side{position:static;height:auto;max-height:260px}
   .main{padding:20px 16px}.top .title{display:none}
-  .pagecorner{position:static;margin:4px 0 10px}
 }
 
 /* Phân công, thời khóa biểu, duyệt đăng ký */
@@ -1940,7 +1939,7 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
 .setrules{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:8px 0}
 .setrules .field{margin:0}.setrules .inl{display:flex;gap:6px;align-items:center}
 .setweeks tr.hol td{background:#fff7ea}
-.pagehead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.pagehead h1{flex:1;min-width:0}
+.pagehead{display:flex;align-items:center;gap:8px 12px;flex-wrap:wrap}.pagehead h1{flex:1 1 auto;min-width:0}
 .pagebtns{display:flex;gap:8px;flex-wrap:wrap}
 .pagenote{background:#eef4ff;border:1px solid #c9dafc;border-radius:10px;padding:8px 12px;margin:6px 0}
 .sethead{align-items:flex-start}.settools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -2714,8 +2713,8 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .pfcomprow .pflv{flex:none}
 .pfcomprow .pflv small{margin:0 0 0 6px}
 /* Số thu gọn đứng trước nút góc phải; cách hàng công cụ bên dưới một chút */
-.pagecorner>.statmini{margin:0;order:-1;align-self:center}
-.pagehead>.statmini{margin:0 0 8px}
+.pagehead>.pagecorner{order:2}
+.pagehead>.statmini{margin:0 0 0 auto}
 /* Bản phân phối: dành cho phân loại nào, gồm chương trình nào */
 .distfor{display:grid;gap:8px;margin:4px 0 12px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--surface-2,#f7f9fc)}
 .distforrow{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
@@ -2729,3 +2728,8 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .distforprog small{color:var(--muted);font-size:12px}
 .distforprog small::before{content:'· '}
 @media (max-width:640px){.distforlab{width:auto}}
+/* Màn hình hẹp / phóng to: cột không bị ép còn một chữ mỗi dòng; bảng rộng hơn thì cuộn ngang (chế độ Vừa khít vẫn ép vừa) */
+.ttable:not(.ttfit)>thead>tr:first-child>th:not(.c-sel):not(.c-no){min-width:7em}
+.pagehead>.pagecorner{margin-left:auto}
+.ttable td :is(button,a).namelink{white-space:normal}
+.ttable:not(.ttfit)>thead>tr:first-child>th.c-lead:not(.c-sel):not(.c-no){min-width:15em}

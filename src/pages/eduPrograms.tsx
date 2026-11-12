@@ -985,13 +985,13 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
   const cols: Col<LRow>[] = [
     { key: 'no', label: '#', thClass: 'c-no', fixed: true, cell: r => <span className="sub">{noOf(r)}</span> },
     ...(!sel ? [{ key: 'subj', label: 'Môn', thClass: 'c-subj', text: (r: LRow) => r.subject, cell: (r: LRow) => <button type="button" className="slsubjlink" onClick={() => setCur(r.subject)}>{r.subject}</button> }] : []),
-    { key: 'title', label: 'Tên bài học', thClass: 'c-title', fixed: true, text: r => r.u.title, cell: r => <>{editable ? cell(r, 'title') : <NameLink onClick={() => setOpenL(r.u.id)}>{r.u.title}</NameLink>}
+    { key: 'title', label: 'Tên bài', thClass: 'c-title', fixed: true, text: r => r.u.title, cell: r => <>{editable ? cell(r, 'title') : <NameLink onClick={() => setOpenL(r.u.id)}>{r.u.title}</NameLink>}
 </> },
     { key: 'topic', label: 'Chủ đề cũ', thClass: 'c-topic', off: true, text: r => r.topic, cell: r => r.topic ? <small className="sub">{r.topic}</small> : <span className="sub">—</span> },
     { key: 'grades', label: 'Khối', thClass: 'c-grade', text: r => unitGrades(r.u).join(', '), cell: r => cell(r, 'grades') },
     { key: 'periods', label: 'Số tiết', thClass: 'c-per', text: r => String(r.u.periods || ''), cell: r => cell(r, 'periods') },
     { key: 'outs', label: 'Yêu cầu cần đạt', thClass: 'c-outs', cell: r => cell(r, 'outs') },
-    { key: 'mat', label: 'Học liệu · buổi', thClass: 'c-mat', text: r => kitOf.get(r.u.id) === 'published' || mats.get(r.u.id) ? 'Có học liệu' : 'Chưa có',
+    { key: 'mat', label: 'Học liệu', thClass: 'c-mat', text: r => kitOf.get(r.u.id) === 'published' || mats.get(r.u.id) ? 'Có học liệu' : 'Chưa có',
       cell: r => { const ns = all.filter(c => c.parent_id === r.u.id && c.unit_type === 'session').length
         return <button type="button" className="slopen" onClick={() => setOpenL(r.u.id)} title="Mở chi tiết: học liệu, buổi học, nội dung">{kitChip(r.u)}{ns > 0 && <span className="pill">{ns} buổi</span>}<span className="slmore">Chi tiết ›</span></button> } },
     ...(editable ? [{ key: 'act', label: '', thClass: 'c-act', fixed: true, cell: (r: LRow) =>

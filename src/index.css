@@ -2760,3 +2760,8 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .slgone{flex:none;align-self:center;font-size:13px;color:var(--muted);padding:0 4px;white-space:nowrap}
 .slnewrow>.slgticks{flex:none;align-self:center}
 .slt th.c-grade{width:auto;min-width:70px;white-space:nowrap}
+/* Chi tiết chương trình: tab Môn & bài học rộng hết trang; tab Thông tin xếp các khung thành lưới */
+.pdgrid.pdonly-main{grid-template-columns:minmax(0,1fr)}
+.pdgrid.pdonly-side{grid-template-columns:minmax(0,1fr)}
+.pdgrid.pdonly-side>.pdside{grid-template-columns:repeat(auto-fit,minmax(360px,1fr));align-items:start}
+.pdstats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}

@@ -262,7 +262,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
 }
 
 // ================= Chi tiết một chương trình =================
-type Tab = 'info' | 'assign'
+type Tab = 'info' | 'meta' | 'assign'
 function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
   id: string; orgId: string | null; mode: ProgMode; canEdit: boolean; isAdmin: boolean; onOpen: (id: string) => void; onClose: () => void
 }) {
@@ -288,7 +288,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
   const mine = p.org_id === orgId || !!every
   const editable = mine && canEdit && (p.status === 'draft' || p.status === 'rejected')
   const scopeEditable = mine && canEdit && p.status === 'published' && mode !== 'school'
-  const tabs: [Tab, string][] = [['info', 'Chương trình'],
+  const tabs: [Tab, string][] = [['info', 'Môn & bài học'], ['meta', 'Thông tin'],
     ...(mode !== 'school' && (mine || p.status === 'published' || p.status === 'superseded') ? [['assign', 'Gán & triển khai'] as [Tab, string]] : [])]
 
   async function openMkBook() {
@@ -327,7 +327,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
           <small className="sub">{[p.code, lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ctsOf(p).join(', '), mainsOf(p).join(', '), `${p.total_periods} tiết`, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
         </div>
         <div className="tools">
-          {!editInfo && tab === 'info' && editable && <button type="button" onClick={() => setEditInfo(true)}><Icon n="pencil" size={15} /> Sửa thông tin</button>}
+          {!editInfo && (tab === 'info' || tab === 'meta') && editable && <button type="button" onClick={() => setEditInfo(true)}><Icon n="pencil" size={15} /> Sửa thông tin</button>}
           {mode === 'school' && canEdit && p.status === 'published' && !hid('ppct') && <button className="primary" onClick={openMkBook}>Tạo PPCT từ chương trình</button>}
           {!editInfo && <VersionActions p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} onDelete={editable ? removeDraft : undefined} />}
         </div>
@@ -345,7 +345,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
         {tabs.map(([k, l]) => <button key={k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      {tab === 'info' && <InfoTab key={'i' + editInfo} p={p} editable={editable} forceEdit={editInfo} onEdit={() => setEditInfo(true)} onBack={() => setEditInfo(false)} rev={rev}
+      {(tab === 'info' || tab === 'meta') && <InfoTab key={'i' + editInfo} part={tab === 'meta' ? 'meta' : 'lessons'} p={p} editable={editable} forceEdit={editInfo} onEdit={() => setEditInfo(true)} onBack={() => setEditInfo(false)} rev={rev}
         lessons={<SubjectLessonsTab p={p} editable={editable} onChanged={() => { load(); setRev(r => r + 1) }} onMessage={(m, e) => setMsg([m, !!e])} />}
         versions={<VersionsTab p={p} onOpen={onOpen} compact />}
         onGoAssign={tabs.some(t => t[0] === 'assign') ? () => setTab('assign') : undefined}
@@ -366,8 +366,10 @@ type InfoProps = {
   lessons?: React.ReactNode; versions?: React.ReactNode; rev?: number
   /** true: hiện form sửa; false: thẻ chỉ xem, bấm Sửa thì gọi onEdit để mở form ngay tại tab Thông tin */
   forceEdit?: boolean; onEdit?: () => void; onBack?: () => void
+  /** Xem: tab Môn & bài học (rộng hết trang) hoặc tab Thông tin */
+  part?: 'lessons' | 'meta'
 }
-function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, orgId, pickedSchool, onOrg, onSaved, onError, onDelete, onGoAssign, onCancel, lessons, versions, rev, forceEdit, onEdit, onBack }: InfoProps) {
+function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, orgId, pickedSchool, onOrg, onSaved, onError, onDelete, onGoAssign, onCancel, lessons, versions, rev, forceEdit, onEdit, onBack, part = 'lessons' }: InfoProps) {
   const [f, setF] = useState<Partial<Program>>(p)
   // Chương trình đã có: mặc định xem dạng thẻ; bấm Sửa mới mở form
   const editing = !!isNew || !!forceEdit
@@ -472,8 +474,8 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
     const none = <span className="sub">Chưa có</span>
     const chips = (xs: string[]) => xs.length ? <span className="pvchips">{xs.map(x => <span key={x} className="pill">{x}</span>)}</span> : none
     return <>
-      <div className="pdgrid">
-        <div className="pdmain">
+      <div className={'pdgrid ' + (part === 'meta' ? 'pdonly-side' : 'pdonly-main')}>
+        {part === 'lessons' && <div className="pdmain">
           <div className="pdstats">
             <div><b>{nSubj}</b><span>môn</span></div>
             <div><b>{lessonN ?? '…'}</b><span>bài học</span></div>
@@ -482,8 +484,8 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
             {mode !== 'school' && <div><b>{asgN ?? '…'}</b><span>đơn vị được gán</span></div>}
           </div>
           <div className="panel pdcard pdsl"><h4>Môn & bài học</h4>{lessons}</div>
-        </div>
-        <div className="pdside">
+        </div>}
+        {part === 'meta' && <div className="pdside">
           <div className="panel pdcard"><h4>Thông tin chung</h4>
             <dl className="pddl sm">
               <dt>Mã</dt><dd>{q.code || none}</dd>
@@ -518,7 +520,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
             </dl>
           </div>
           {versions && <div className="panel pdcard"><h4>Phiên bản</h4>{versions}</div>}
-        </div>
+        </div>}
       </div>
     </>
   }

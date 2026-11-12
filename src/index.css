@@ -2803,7 +2803,6 @@ body.ttdragging{cursor:col-resize;user-select:none}
 /* Đang xem chi tiết chương trình: ẩn hàng tab của trang danh sách (Chương trình giáo dục · Môn học · Danh mục) để tiêu đề, thông tin và nút thao tác liền khối */
 main:has(.pdclose)>.segmented:not(.pdtabs),main:has(.pdclose)>.tabbed>.segmented:not(.pdtabs){display:none}
 
-<<<<<<< Updated upstream
 /* Đầu trang "một khung" (PageFrame): đường dẫn nhỏ, khung trắng gồm tiêu đề + tab + nút, rồi nội dung */
 main:has(>.pframe):not(:has(.pdclose))>.pagehead>h1{display:none}
 main:has(>.pframe):not(:has(.pdclose))>.pagehead:not(:has(>:not(h1))){display:none}
@@ -2825,7 +2824,7 @@ main:has(.pdclose)>.pframe{background:none;border:0;box-shadow:none;border-radiu
 main:has(.pdclose)>.pframe>.pfbody{padding:0}
 @media (max-width:640px){.pfhead,.pfbody{padding-left:12px;padding-right:12px}.pfhead>.pfact{margin-left:0}}
 .pfbody>h3:first-child,.pfbody>.msg:first-child+h3{margin-top:2px}
-=======
+
 /* Nút chỉ có biểu tượng (bút: sửa, thùng rác: xoá): vuông, gọn */
 button.iconbtn{display:inline-grid;place-items:center;width:34px;height:34px;min-width:34px;padding:0}
 button.iconbtn .ico{display:block}
@@ -2834,4 +2833,3 @@ td button.iconbtn{width:30px;height:30px;min-width:30px;vertical-align:middle}
 /* Nút thu cột thông tin nằm ở góc tiêu đề thẻ "Thông tin chung", cột phải bắt đầu ngang hàng số liệu */
 .pdcardh{display:flex;align-items:center;gap:8px}
 .main button.pdsidetg.incard{margin-left:auto;padding:3px 10px;font-size:12.5px;font-weight:500;border-radius:8px}
->>>>>>> Stashed changes

@@ -1,5 +1,5 @@
 // Bảng dùng chung có công cụ: lọc theo cột (hàng lọc dưới tiêu đề, mặc định ẩn; mỗi ô mở danh sách giá trị có tìm, tick chọn nhiều), ẩn/hiện và kéo đổi thứ tự cột,
-// kéo mép tiêu đề để đổi độ rộng, nút "Vừa khít" thu bảng vừa màn hình (chữ xuống dòng, không phải kéo ngang).
+// kéo mép tiêu đề để đổi độ rộng, nút "Thu gọn" thu bảng vừa màn hình (chữ xuống dòng, không phải kéo ngang).
 // Cách hiển thị (cột ẩn, thứ tự, độ rộng, vừa khít) nhớ theo từng bảng trên trình duyệt này.
 // Sắp xếp khi bấm tiêu đề vẫn do lib/tableSort lo (hàng lọc có class ttfilter được bỏ qua).
 import { useEffect, useMemo, useRef, useState, type ReactNode, type HTMLAttributes } from 'react'
@@ -79,7 +79,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   right?: ReactNode
   /** Bấm cả dòng để mở */
   onRow?: (r: T) => void
-  /** Bảng gọn: bỏ nút "Lọc theo cột" và "Vừa khít", chỉ giữ Ẩn/hiện cột */
+  /** Bảng gọn: bỏ nút "Lọc theo cột" và "Thu gọn", chỉ giữ Ẩn/hiện cột */
   simple?: boolean
   /** Không hiện hàng công cụ (dùng khi nhiều bảng con dùng chung một thanh công cụ ngoài) */
   noTools?: boolean
@@ -183,7 +183,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
         </div>}
       </div>
       {!simple && <button type="button" className={view.fit ? 'on' : ''} aria-pressed={view.fit} onClick={() => setView(v => ({ ...v, fit: !v.fit }))}
-        title="Thu bảng vừa chiều ngang màn hình, chữ dài tự xuống dòng"><TIcon d={IC.fit} />Vừa khít</button>}
+        title="Thu bảng vừa chiều ngang màn hình, chữ dài tự xuống dòng"><TIcon d={IC.fit} />Thu gọn</button>}
       </div>
       {right}
     </div>}

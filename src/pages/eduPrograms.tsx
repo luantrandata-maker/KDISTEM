@@ -368,6 +368,9 @@ type InfoProps = {
   forceEdit?: boolean; onEdit?: () => void; onBack?: () => void
 }
 function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, orgId, pickedSchool, onOrg, onSaved, onError, onDelete, onGoAssign, onCancel, lessons, versions, rev, forceEdit, onEdit, onBack }: InfoProps) {
+  // Cột thông tin bên phải thu/mở được; nhớ lựa chọn trên máy này. Mặc định mở khi màn hình rộng.
+  const [side, setSide] = useState(() => { try { const v = localStorage.getItem('pd-side'); if (v) return v === '1' } catch { /* bỏ qua */ } return window.innerWidth >= 1600 })
+  const toggleSide = () => setSide(v => { try { localStorage.setItem('pd-side', v ? '0' : '1') } catch { /* bỏ qua */ } return !v })
   const [f, setF] = useState<Partial<Program>>(p)
   // Chương trình đã có: mặc định xem dạng thẻ; bấm Sửa mới mở form
   const editing = !!isNew || !!forceEdit
@@ -472,7 +475,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
     const none = <span className="sub">Chưa có</span>
     const chips = (xs: string[]) => xs.length ? <span className="pvchips">{xs.map(x => <span key={x} className="pill">{x}</span>)}</span> : none
     return <>
-      <div className="pdgrid">
+      <div className={'pdgrid' + (side ? '' : ' pdnoside')}>
         <div className="pdmain">
           <div className="pdstats">
             <div><b>{nSubj}</b><span>môn</span></div>
@@ -480,10 +483,12 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
             <div><b>{q.total_periods ?? 0}</b><span>tiết{q.periods_per_week != null ? ` · ${String(q.periods_per_week).replace('.', ',')} tiết/tuần` : ''}</span></div>
             <div><b>{dep?.[0] ?? '—'}</b><span>{dep?.[1] ?? 'thời gian triển khai'}</span></div>
             {mode !== 'school' && <div><b>{asgN ?? '…'}</b><span>đơn vị được gán</span></div>}
+            {!side && <button type="button" className="pdsidetg" onClick={toggleSide} title="Mở cột thông tin chương trình">‹ Thông tin</button>}
           </div>
           <div className="panel pdcard pdsl"><h4>Môn & bài học</h4>{lessons}</div>
         </div>
-        <div className="pdside">
+        {side && <div className="pdside">
+          <button type="button" className="pdsidetg" onClick={toggleSide} title="Thu cột thông tin để bảng rộng hơn">Thu gọn ›</button>
           <div className="panel pdcard"><h4>Thông tin chung</h4>
             <dl className="pddl sm">
               <dt>Mã</dt><dd>{q.code || none}</dd>
@@ -518,7 +523,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
             </dl>
           </div>
           {versions && <div className="panel pdcard"><h4>Phiên bản</h4>{versions}</div>}
-        </div>
+        </div>}
       </div>
     </>
   }
@@ -983,13 +988,13 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
   const cols: Col<LRow>[] = [
     { key: 'no', label: '#', thClass: 'c-no', fixed: true, cell: r => <span className="sub">{noOf(r)}</span> },
     ...(!sel ? [{ key: 'subj', label: 'Môn', thClass: 'c-subj', text: (r: LRow) => r.subject, cell: (r: LRow) => <button type="button" className="slsubjlink" onClick={() => setCur(r.subject)}>{r.subject}</button> }] : []),
-    { key: 'title', label: 'Tên bài học', thClass: 'c-title', fixed: true, text: r => r.u.title, cell: r => <>{editable ? cell(r, 'title') : <NameLink onClick={() => setOpenL(r.u.id)}>{r.u.title}</NameLink>}
+    { key: 'title', label: 'Tên bài', thClass: 'c-title', fixed: true, text: r => r.u.title, cell: r => <>{editable ? cell(r, 'title') : <NameLink onClick={() => setOpenL(r.u.id)}>{r.u.title}</NameLink>}
 </> },
     { key: 'topic', label: 'Chủ đề cũ', thClass: 'c-topic', off: true, text: r => r.topic, cell: r => r.topic ? <small className="sub">{r.topic}</small> : <span className="sub">—</span> },
     { key: 'grades', label: 'Khối', thClass: 'c-grade', text: r => unitGrades(r.u).join(', '), cell: r => cell(r, 'grades') },
     { key: 'periods', label: 'Số tiết', thClass: 'c-per', text: r => String(r.u.periods || ''), cell: r => cell(r, 'periods') },
     { key: 'outs', label: 'Yêu cầu cần đạt', thClass: 'c-outs', cell: r => cell(r, 'outs') },
-    { key: 'mat', label: 'Học liệu · buổi', thClass: 'c-mat', text: r => kitOf.get(r.u.id) === 'published' || mats.get(r.u.id) ? 'Có học liệu' : 'Chưa có',
+    { key: 'mat', label: 'Học liệu', thClass: 'c-mat', text: r => kitOf.get(r.u.id) === 'published' || mats.get(r.u.id) ? 'Có học liệu' : 'Chưa có',
       cell: r => { const ns = all.filter(c => c.parent_id === r.u.id && c.unit_type === 'session').length
         return <button type="button" className="slopen" onClick={() => setOpenL(r.u.id)} title="Mở chi tiết: học liệu, buổi học, nội dung">{kitChip(r.u)}{ns > 0 && <span className="pill">{ns} buổi</span>}<span className="slmore">Chi tiết ›</span></button> } },
     ...(editable ? [{ key: 'act', label: '', thClass: 'c-act', fixed: true, cell: (r: LRow) =>

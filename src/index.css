@@ -30,7 +30,7 @@ button{font-family:inherit}
 .user{margin-left:auto;display:flex;align-items:center;gap:10px}
 .avatar{width:32px;height:32px;border-radius:50%;background:var(--soft);color:var(--navy);display:grid;place-items:center;font-weight:700}
 .user select,.main select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit}
-.main{padding:28px 32px;position:relative}
+.main{padding:20px 20px;position:relative}
 /* Nút ở góc phải, ngang tiêu đề trang */
 .pagecorner{display:flex;gap:8px;align-items:center}
 .pagesub{margin:6px 0 10px;font-size:18px}
@@ -2760,3 +2760,12 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .slgone{flex:none;align-self:center;font-size:13px;color:var(--muted);padding:0 4px;white-space:nowrap}
 .slnewrow>.slgticks{flex:none;align-self:center}
 .slt th.c-grade{width:auto;min-width:70px;white-space:nowrap}
+/* Chi tiết chương trình: cột thông tin bên phải thu/mở được */
+.pdgrid.pdnoside{grid-template-columns:minmax(0,1fr)}
+.pdgrid{grid-template-columns:minmax(0,1fr) 340px}
+@media (max-width:1100px){.pdgrid{grid-template-columns:minmax(0,1fr)}}
+.main button.pdsidetg{justify-self:end;padding:6px 12px;border-radius:10px;font-size:13px;color:var(--primary);white-space:nowrap}
+.pdstats>button.pdsidetg{justify-self:stretch}
+.pdstats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.ttable.slt>thead>tr:first-child>th.c-subj.c-lead:not(.c-sel):not(.c-no){min-width:0;width:96px}
+.ttable.slt>thead>tr:first-child>th.c-title:not(.c-sel):not(.c-no){min-width:200px}

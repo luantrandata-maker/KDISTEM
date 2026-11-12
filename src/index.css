@@ -2790,6 +2790,12 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .main button.xclose{width:34px;height:34px;min-height:0;padding:0;display:inline-grid;place-items:center;border-radius:8px;font-size:16px;line-height:1;color:var(--muted);flex:none}
 .main button.xclose:hover{color:var(--text);background:var(--soft)}
 .pagehead>.pagecrumb{order:1;align-self:center;flex:1 1 auto;min-width:0}
-.pagehead:has(>.pagecrumb)>h1{flex:0 1 auto}
-.pagecrumb .pdcrumb{font-size:15px;gap:8px}
-.pagecrumb .pdcrumb .linkbtn{font-size:15px}
+.pagehead:has(>.pagecrumb)>h1{display:none}
+.pagehead>.pagecrumb{order:0}
+.pagecrumb .pdcrumb{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;font-size:26px;line-height:1.25}
+.pagecrumb .pdcrumb .linkbtn{font-size:26px;font-weight:700;color:var(--muted);text-decoration:none}
+.pagecrumb .pdcrumb .linkbtn:hover{color:var(--primary)}
+.pagecrumb .pdcrumb>span[aria-hidden]{color:var(--muted);font-weight:400}
+.pagecrumb .pdh1{font-weight:700;color:var(--text)}
+.pagecrumb .pdh1 small{font-size:15px;color:var(--muted);font-weight:500}
+.pagecrumb .pdh1 .pill,.pagecrumb .pdh1 [class*=status]{font-size:12px;vertical-align:middle}

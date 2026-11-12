@@ -322,12 +322,12 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
 
   return (
     <>
-      <PageCrumb><nav className="pdcrumb" aria-label="Đường dẫn"><span aria-hidden="true">›</span><button type="button" className="linkbtn" onClick={onClose}>Danh sách chương trình</button><span aria-hidden="true">›</span><span>{p.code || p.title}</span></nav></PageCrumb>
+      <PageCrumb><nav className="pdcrumb" aria-label="Đường dẫn"><button type="button" className="linkbtn" onClick={onClose} title="Về danh sách chương trình">Chương trình giáo dục</button><span aria-hidden="true">›</span>
+        <span className="pdh1">{p.title} <small>v{p.version_no}</small> <StatusPill s={p.status} /></span></nav></PageCrumb>
       <PageCorner><button type="button" className="pdclose xclose" onClick={onClose} title="Đóng, về danh sách chương trình" aria-label="Đóng chi tiết">✕</button></PageCorner>
       <div className="bar">
         <div>
-          <h3 style={{ margin: 0 }}>{p.title} <small>v{p.version_no}</small> <StatusPill s={p.status} /></h3>
-          <small className="sub">{[p.code, lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ctsOf(p).join(', '), mainsOf(p).join(', '), `${p.total_periods} tiết`, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
+          <small className="sub">{[p.code, lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ctsOf(p).join(', '), mainsOf(p).join(', '), p.total_periods != null ? `${p.total_periods} tiết` : null, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
         </div>
         <div className="tools">
           {(() => {

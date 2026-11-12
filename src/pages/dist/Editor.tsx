@@ -385,7 +385,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
         </div>
         <small className="sub">{plan.code} · Phiên bản {plan.version_no ?? 1} · {editable
           ? <span className={dirty ? 'distunsaved' : undefined}>{savedText}</span>
-          : plan.status === 'draft' ? <>{roNote}, bấm “Chỉnh sửa” để sửa</>
+          : plan.status === 'draft' ? <>{roNote}, bấm biểu tượng bút để sửa</>
           : <>{roNote}, muốn đổi thì {own ? 'tạo phiên bản mới' : 'nhân bản để sửa'}</>}</small>
         {!editable && plan.note && <small className="sub distnote">{plan.note}</small>}
       </div>
@@ -393,7 +393,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
         <ActionBar menuExtra={editable && <label className="distnotebox"><b>Ghi chú</b>
             <textarea rows={3} value={plan.note ?? ''} maxLength={2000} placeholder="Mục tiêu, đối tượng áp dụng…" onChange={e => { setPlan({ ...plan, note: e.target.value }); touch() }} /></label>}
           items={[
-            plan.status === 'draft' && !editing && { key: 'edit', label: '✎ Chỉnh sửa', kind: 'primary', onClick: () => setEditing(true) },
+            plan.status === 'draft' && !editing && { key: 'edit', label: 'Chỉnh sửa', icon: 'pencil', onClick: () => setEditing(true) },
             editable && { key: 'done', label: dirty ? 'Hủy thay đổi' : 'Xong', rank: 1, disabled: busy, onClick: () => { if (dirty) { if (confirm('Bỏ các thay đổi chưa lưu?')) onChanged(plan.id) } else setEditing(false) } },
             editable && { key: 'save', label: busy ? 'Đang lưu…' : 'Lưu nháp', kind: dirty ? 'primary' : undefined, rank: 1, disabled: !dirty || busy, onClick: save },
             plan.status === 'draft' && { key: 'pub', label: 'Phát hành', kind: editing ? 'primary' : undefined, rank: 1, disabled: busy, title: errors.length ? 'Còn lỗi chặn phát hành' : undefined, onClick: publish },
@@ -401,7 +401,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
             plan.status !== 'draft' && own && { key: 'ver', label: 'Tạo phiên bản mới', kind: 'primary', onClick: newVersion },
             plan.status !== 'draft' && !own && { key: 'copyedit', label: 'Nhân bản để sửa', kind: 'primary', onClick: copy },
             (plan.status === 'draft' || own) && { key: 'copy', label: 'Nhân bản', rank: 3, onClick: copy },
-            plan.status === 'draft' && { key: 'del', label: 'Xoá', kind: 'danger', onClick: remove },
+            plan.status === 'draft' && { key: 'del', label: 'Xoá bản phân phối', icon: 'trash', kind: 'danger', onClick: remove },
             plan.status === 'published' && { key: 'todraft', label: 'Chuyển về nháp', rank: 4, onClick: () => setStatus('draft', 'Đã chuyển về nháp. PPCT đã gán cho trường không đổi.') },
             plan.status === 'published' && { key: 'arch', label: 'Ngừng dùng', rank: 4, onClick: () => setStatus('archived', 'Đã ngừng dùng bản phân phối.') },
             plan.status === 'archived' && { key: 'reuse', label: 'Dùng lại', onClick: () => setStatus('draft', 'Đã dùng lại bản (nháp).') },

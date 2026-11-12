@@ -2800,3 +2800,5 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .pagecrumb .pdcrumb>.pdh1{flex:0 1 auto;min-width:0;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pagecrumb .pdver{font-size:13px;color:var(--muted);font-weight:500}
 .pagehead>.pagecrumb{flex:1 1 0;min-width:0}
+/* Đang xem chi tiết chương trình: ẩn hàng tab của trang danh sách (Chương trình giáo dục · Môn học · Danh mục) để tiêu đề, thông tin và nút thao tác liền khối */
+main:has(.pdclose)>.segmented:not(.pdtabs),main:has(.pdclose)>.tabbed>.segmented:not(.pdtabs){display:none}

@@ -30,7 +30,7 @@ button{font-family:inherit}
 .user{margin-left:auto;display:flex;align-items:center;gap:10px}
 .avatar{width:32px;height:32px;border-radius:50%;background:var(--soft);color:var(--navy);display:grid;place-items:center;font-weight:700}
 .user select,.main select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font-family:inherit}
-.main{padding:28px 32px;position:relative}
+.main{padding:20px 20px;position:relative}
 /* Nút ở góc phải, ngang tiêu đề trang */
 .pagecorner{display:flex;gap:8px;align-items:center}
 .pagesub{margin:6px 0 10px;font-size:18px}

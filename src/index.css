@@ -2780,3 +2780,9 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .main button.danger.abdanger{background:var(--surface);color:#c0392b;border:1px solid #e3b3ad}
 .main button.danger.abdanger:hover{background:#fdf1ef}
 .tttools>.ttsearch+.ttcount,.tttools>.ttcount{align-self:center}
+/* Chi tiết chương trình: đường dẫn nhỏ thay cho "← Danh sách", nút Đóng ở góc thay cho nút của trang danh sách */
+.pdcrumb{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.pdcrumb .linkbtn{font-size:13px;padding:0}
+.pdcrumb>span:last-child{color:var(--text);font-weight:600}
+.pagehead:has(.pdclose)>.pagecorner:not(:has(.pdclose)){display:none}
+.main button.pdclose{border-radius:10px}

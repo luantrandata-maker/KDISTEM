@@ -1,5 +1,5 @@
 import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react'
-import { PageCorner } from './components/PageCorner'
+import { FramedTabs, PageFrame } from './components/PageFrame'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { useSettings, menuOf, orderItems } from './lib/settings'
@@ -203,8 +203,8 @@ const SubjectsCatalog = lazy(() => import('./pages/subjects').then(m => ({ defau
 const subjectsTab = (mode: 'school' | 'authority' | 'platform') => (p: any) => <SubjectsCatalog {...p} mode={mode} />
 const SubjectsPlatform = subjectsTab('platform')
 const eduProgramTabs = (mode: 'school' | 'authority') => {
-  const tabs: [string, any][] = [['Chương trình giáo dục', eduPrograms(mode)], ['Môn học', subjectsTab(mode)]]
-  return (p: any) => <TabbedPages {...p} tabs={tabs} />
+  const tabs: [string, any][] = [['Chương trình', eduPrograms(mode)], ['Môn học', subjectsTab(mode)]]
+  return (p: any) => <FramedTabs {...p} tabs={tabs} />
 }
 // Danh mục loại chương trình (CT1–CT5 và loại thêm sau): tên, mô tả, môn học, cấp học (062, 064)
 const EduLevelsCatalog = lazy(() => import('./pages/eduLevels').then(m => ({ default: m.EduLevelsCatalog })))
@@ -248,13 +248,11 @@ const PlatformLibraryPage = LibraryPage
 const PlatformElearningPage = PH2_TABS.elearning
 function PlatformEduProgramsPage(p: any) {
   const [track, setTrack] = useState(false)
-  return <>
-    <PageCorner>
-      <button className={track ? '' : 'primary'} onClick={() => setTrack(!track)}>{track ? '← Chương trình giáo dục' : 'Theo dõi Chương trình/Môn học'}</button>
-    </PageCorner>
-    {track ? <><h2 className="pagesub">Theo dõi Chương trình/Môn học</h2><PlatformProgramTrack {...p} /></>
-      : <TabbedPages {...p} tabs={[['Chương trình giáo dục', PH2_TABS.edu], ['Môn học', PH2_TABS.subjects], ['Danh mục', ProgramCatalogs]]} />}
-  </>
+  const back = <button type="button" onClick={() => setTrack(false)}>← Chương trình giáo dục</button>
+  return track
+    ? <PageFrame title="Theo dõi Chương trình/Môn học" actions={back}><PlatformProgramTrack {...p} /></PageFrame>
+    : <FramedTabs {...p} tabs={[['Chương trình', PH2_TABS.edu], ['Môn học', PH2_TABS.subjects], ['Danh mục', ProgramCatalogs]]}
+      actions={<button type="button" onClick={() => setTrack(true)}>Theo dõi thực hiện</button>} />
 }
 const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [
   ['Bài giảng KDI', (p: any) => <LibraryManage {...p} only="lesson" />], ['Kho hoạt động', SysActivities],
@@ -817,7 +815,7 @@ function Shell({ session }: { session: Session }) {
           </div>
         </header>
         <main className="main" data-ph={ph}><PageCtx.Provider value={page}><CatalogLists />
-          <div className="pagehead"><h1>{lab(page)}</h1><PageButtons page={page} title={lab(page)} go={goPage} /></div>
+          <div className="pagehead" data-group={groups.find(g => g.items.includes(page))?.label}><h1>{lab(page)}</h1><PageButtons page={page} title={lab(page)} go={goPage} /></div>
           {locked.has(page) ? <LockedModule name={lab(page)} phase={PHASE_OF[ENT_MODULE_OF[page]] ?? null} entitlement={access.entitlement} go={goPage} />
             : Page ? <Suspense fallback={<p className="sub">Đang tải…</p>}><Page key={page + (yrs.year?.id ?? '') + (studentId ?? '')} teacherId={teacherId} studentId={studentId} orgId={access.profile.org_id} userName={access.profile.full_name} go={goPage} name={page}
             year={yrs.year} years={yrs.years} reloadYears={yrs.reload} selectYear={yrs.select} /></Suspense> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}

@@ -2733,3 +2733,22 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .pagehead>.pagecorner{margin-left:auto}
 .ttable td :is(button,a).namelink{white-space:normal}
 .ttable:not(.ttfit)>thead>tr:first-child>th.c-lead:not(.c-sel):not(.c-no){min-width:15em}
+/* Thanh công cụ bảng: Lọc · Cột · Vừa khít gom thành một nhóm */
+.ttgroup{display:inline-flex;align-items:stretch;border:1px solid var(--line);border-radius:9px;background:var(--surface);overflow:visible}
+.main .tttools .ttgroup button{border:0;border-radius:0;background:none;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;color:var(--muted);font-weight:500}
+.main .tttools .ttgroup>button:first-child,.main .tttools .ttgroup>:first-child>button{border-radius:8px 0 0 8px}
+.main .tttools .ttgroup>button:last-child{border-radius:0 8px 8px 0}
+.main .tttools .ttgroup>*+button,.ttgroup>*+.ttmenu{border-left:1px solid var(--line)}
+.ttgroup>.ttmenu{display:flex}
+.main .tttools .ttgroup button:hover{color:var(--primary);background:#f5f8fd}
+.main .tttools .ttgroup button.on{color:var(--primary);background:#eef4fd}
+.ticon{flex:none}
+.ttbadge{display:inline-block;padding:0 6px;border-radius:999px;background:#e7f0fd;color:var(--primary);font-size:11px;font-weight:600;line-height:16px}
+/* Bảng chương trình giáo dục */
+.eptitle{display:flex;flex-direction:column;gap:3px}
+.eptitle>small{font-size:12px}
+.epgroups{display:flex;flex-wrap:wrap;gap:4px}
+.epgroup{display:inline-block;padding:1px 8px;border-radius:6px;background:#eef2f8;color:var(--navy);font-size:12px;font-weight:600}
+.epsub{display:block;margin-top:3px;font-size:12px}
+.eptable>tbody>tr>td{padding-top:12px;padding-bottom:12px}
+.eptable>tbody>tr:hover>td{background:#f8fafd}

@@ -2769,3 +2769,5 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .pdstats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 .ttable.slt>thead>tr:first-child>th.c-subj.c-lead:not(.c-sel):not(.c-no){min-width:0;width:96px}
 .ttable.slt>thead>tr:first-child>th.c-title:not(.c-sel):not(.c-no){min-width:200px}
+.slgpick{display:inline-block;min-width:120px;max-width:200px}
+.slnewrow>.slgpick{flex:none;align-self:center;width:150px}

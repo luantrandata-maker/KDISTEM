@@ -368,8 +368,8 @@ type InfoProps = {
   forceEdit?: boolean; onEdit?: () => void; onBack?: () => void
 }
 function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, orgId, pickedSchool, onOrg, onSaved, onError, onDelete, onGoAssign, onCancel, lessons, versions, rev, forceEdit, onEdit, onBack }: InfoProps) {
-  // Cột thông tin bên phải thu/mở được; nhớ lựa chọn trên máy này. Mặc định mở khi màn hình rộng.
-  const [side, setSide] = useState(() => { try { const v = localStorage.getItem('pd-side'); if (v) return v === '1' } catch { /* bỏ qua */ } return window.innerWidth >= 1600 })
+  // Cột thông tin bên phải thu/mở được; nhớ lựa chọn trên máy này. Mặc định mở.
+  const [side, setSide] = useState(() => { try { const v = localStorage.getItem('pd-side'); if (v) return v === '1' } catch { /* bỏ qua */ } return true })
   const toggleSide = () => setSide(v => { try { localStorage.setItem('pd-side', v ? '0' : '1') } catch { /* bỏ qua */ } return !v })
   const [f, setF] = useState<Partial<Program>>(p)
   // Chương trình đã có: mặc định xem dạng thẻ; bấm Sửa mới mở form
@@ -748,11 +748,9 @@ function LessonDetail({ u, p, all, umats, outs, editable, onClose, onChanged, on
 
 /** Chọn khối bằng nút tick (khối của chương trình) */
 function GradeTicks({ options, value, onChange, disabled, label }: { options: number[]; value: number[]; onChange: (g: number[]) => void; disabled?: boolean; label: string }) {
-  return <span className="slgticks" role="group" aria-label={label}>{options.map(g => {
-    const on = value.includes(g)
-    return <button key={g} type="button" className={on ? 'on' : ''} aria-pressed={on} disabled={disabled} title={`Khối ${g}`}
-      onClick={() => onChange(on ? value.filter(x => x !== g) : [...value, g].sort((a, b) => a - b))}>{g}</button>
-  })}</span>
+  // Danh sách sổ xuống có ô tick (giống ô chọn môn); lưu theo thứ tự khối tăng dần
+  return <span className="slgpick"><MultiSelect value={value.map(String)} options={options.map(g => [String(g), `Khối ${g}`] as [string, string])} disabled={disabled}
+    ariaLabel={label} placeholder="Chọn khối" compact onChange={v => onChange(v.map(Number).filter(n => !isNaN(n)).sort((a, b) => a - b))} /></span>
 }
 
 export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {

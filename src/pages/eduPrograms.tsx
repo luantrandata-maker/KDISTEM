@@ -741,6 +741,15 @@ function LessonDetail({ u, p, all, umats, outs, editable, onClose, onChanged, on
   </Drawer>
 }
 
+/** Chọn khối bằng nút tick (khối của chương trình) */
+function GradeTicks({ options, value, onChange, disabled, label }: { options: number[]; value: number[]; onChange: (g: number[]) => void; disabled?: boolean; label: string }) {
+  return <span className="slgticks" role="group" aria-label={label}>{options.map(g => {
+    const on = value.includes(g)
+    return <button key={g} type="button" className={on ? 'on' : ''} aria-pressed={on} disabled={disabled} title={`Khối ${g}`}
+      onClick={() => onChange(on ? value.filter(x => x !== g) : [...value, g].sort((a, b) => a - b))}>{g}</button>
+  })}</span>
+}
+
 export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
   p: Program; editable: boolean; onChanged: () => void; onMessage: (m: string, err?: boolean) => void
 }) {
@@ -927,6 +936,9 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     const u = r.u
     const val = key === 'title' ? u.title : key === 'grades' ? unitGrades(u).join(', ') : key === 'periods' ? String(u.periods || '') : r.outs.map(o => o.content).join('\n')
     if (!editable) return key === 'outs' ? <span className="yc">{val || '—'}</span> : val || '—'
+    // Khối: chương trình một khối thì tự điền, nhiều khối thì tick chọn
+    if (key === 'grades' && pg.length === 1) return <span className="sub">{pg[0]}</span>
+    if (key === 'grades' && pg.length > 1) return <GradeTicks options={pg} value={unitGrades(u)} label={`Khối bài ${u.title}`} onChange={g => update(u, { grades: g })} />
     const save = (v: string) => {
       if (v === val) return
       if (key === 'title') return v.trim() ? update(u, { title: v.trim() }) : undefined
@@ -1027,7 +1039,9 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
           <input id="sl-new-title" className="slnt" value={nd.title} disabled={busy} placeholder="+ Tên bài mới (dán nhiều dòng để thêm nhiều bài)" aria-label={`Tên bài mới môn ${target}`}
             onChange={e => setNd({ ...nd, title: e.target.value })} onKeyDown={enter}
             onPaste={e => { const t = e.clipboardData.getData('text'); if (/\n/.test(t.trim())) { e.preventDefault(); setPaste({ subj: target, text: t }) } }} />
-          <input className="slng" value={nd.grades} disabled={busy} placeholder={defGrades.join(', ') || 'Khối'} aria-label="Khối của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, grades: e.target.value })} onKeyDown={enter} />
+          {pg.length === 1 ? <span className="slgone" title="Chương trình chỉ có một khối nên bài tự thuộc khối này">Khối {pg[0]}</span>
+            : pg.length > 1 ? <GradeTicks options={pg} value={nd.grades ? gradeList(nd.grades) : defGrades} disabled={busy} label="Khối của bài mới" onChange={g => setNd({ ...nd, grades: g.join(', ') })} />
+            : <input className="slng" value={nd.grades} disabled={busy} placeholder="Khối" aria-label="Khối của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, grades: e.target.value })} onKeyDown={enter} />}
           <input className="slnp" value={nd.periods} disabled={busy} placeholder="Số tiết" aria-label="Số tiết của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, periods: e.target.value })} onKeyDown={enter} />
           <input className="slno" value={nd.outs} disabled={busy} placeholder="Yêu cầu cần đạt (ngăn cách bằng ;)" aria-label="Yêu cầu cần đạt của bài mới" onChange={e => setNd({ ...nd, outs: e.target.value })} onKeyDown={enter} />
           <button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addDraft}>+ Thêm</button>

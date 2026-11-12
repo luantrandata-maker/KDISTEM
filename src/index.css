@@ -2752,3 +2752,11 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .epsub{display:block;margin-top:3px;font-size:12px}
 .eptable>tbody>tr>td{padding-top:12px;padding-bottom:12px}
 .eptable>tbody>tr:hover>td{background:#f8fafd}
+/* Môn & bài học: khối của bài chọn bằng nút tick; chương trình một khối thì tự điền */
+.slgticks{display:inline-flex;gap:3px;flex-wrap:nowrap}
+.main .slgticks button{min-width:26px;height:26px;padding:0 6px;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-size:12px;font-weight:600;min-height:0;line-height:1}
+.main .slgticks button.on{background:var(--primary);border-color:var(--primary);color:#fff}
+.main .slgticks button:not(.on):hover{border-color:var(--primary);color:var(--primary)}
+.slgone{flex:none;align-self:center;font-size:13px;color:var(--muted);padding:0 4px;white-space:nowrap}
+.slnewrow>.slgticks{flex:none;align-self:center}
+.slt th.c-grade{width:auto;min-width:70px;white-space:nowrap}

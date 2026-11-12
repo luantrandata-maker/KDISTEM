@@ -7,7 +7,7 @@ import { CustomInputs, customCell } from '../components/CustomFields'
 import { fieldsOf, useSettings } from '../lib/settings'
 import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
 import { ActionBar, type Act } from '../components/ActionBar'
-import { PageCorner } from '../components/PageCorner'
+import { PageCorner, PageCrumb } from '../components/PageCorner'
 import { SchoolPicker } from '../components/SchoolPicker'
 import { useOrgFilter } from '../components/OrgFilters'
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -322,11 +322,11 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
 
   return (
     <>
+      <PageCrumb><nav className="pdcrumb" aria-label="Đường dẫn"><span aria-hidden="true">›</span><button type="button" className="linkbtn" onClick={onClose}>Danh sách chương trình</button><span aria-hidden="true">›</span><span>{p.code || p.title}</span></nav></PageCrumb>
       <PageCorner><button type="button" className="pdclose xclose" onClick={onClose} title="Đóng, về danh sách chương trình" aria-label="Đóng chi tiết">✕</button></PageCorner>
       <div className="bar">
         <div>
-          <nav className="pdcrumb" aria-label="Đường dẫn"><button type="button" className="linkbtn" onClick={onClose}>Danh sách chương trình</button><span aria-hidden="true">›</span><span>{p.code || p.title}</span></nav>
-          <h3 style={{ margin: '4px 0 0' }}>{p.title} <small>v{p.version_no}</small> <StatusPill s={p.status} /></h3>
+          <h3 style={{ margin: 0 }}>{p.title} <small>v{p.version_no}</small> <StatusPill s={p.status} /></h3>
           <small className="sub">{[p.code, lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ctsOf(p).join(', '), mainsOf(p).join(', '), `${p.total_periods} tiết`, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
         </div>
         <div className="tools">

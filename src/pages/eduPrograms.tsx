@@ -323,7 +323,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
   return (
     <>
       <PageCrumb><nav className="pdcrumb" aria-label="Đường dẫn"><button type="button" className="linkbtn" onClick={onClose} title="Về danh sách chương trình">Chương trình giáo dục</button><span aria-hidden="true">›</span>
-        <span className="pdh1">{p.title} <small>v{p.version_no}</small> <StatusPill s={p.status} /></span></nav></PageCrumb>
+        <span className="pdh1" title={p.title}>{p.title}</span><small className="pdver">v{p.version_no}</small><StatusPill s={p.status} /></nav></PageCrumb>
       <PageCorner><button type="button" className="pdclose xclose" onClick={onClose} title="Đóng, về danh sách chương trình" aria-label="Đóng chi tiết">✕</button></PageCorner>
       <div className="bar">
         <div>

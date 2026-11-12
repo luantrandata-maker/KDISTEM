@@ -176,9 +176,9 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
     { key: 'kind', label: 'Loại', off: true, text: p => PKIND[p.kind], cell: p => PKIND[p.kind] },
     { key: 'subj', label: 'Môn', values: p => [...mainsOf(p), ...p.integrated_subjects], text: p => [...mainsOf(p), ...p.integrated_subjects].join(' '),
       cell: p => <>{mainsOf(p).join(', ')}{p.integrated_subjects.length > 0 && <><br /><small className="sub">Tích hợp: {p.integrated_subjects.join(', ')}</small></>}</> },
-    { key: 'periods', label: 'Số tiết · triển khai', values: p => [p.total_periods ? p.total_periods + ' tiết' : '', DEPLOY[p.deploy_term ?? 'year']?.[0] ?? ''], text: p => String(p.total_periods || ''),
+    { key: 'periods', label: 'Số tiết · triển khai', off: true, values: p => [p.total_periods ? p.total_periods + ' tiết' : '', DEPLOY[p.deploy_term ?? 'year']?.[0] ?? ''], text: p => String(p.total_periods || ''),
       cell: p => <>{p.total_periods || '—'}<br /><small className="sub">{[p.periods_per_week && `${p.periods_per_week} tiết/tuần`, DEPLOY[p.deploy_term ?? 'year']?.[0]].filter(Boolean).join(' · ')}</small></> },
-    { key: 'scope', label: 'Phạm vi áp dụng', text: p => p.scope === 'own' ? 'Đơn vị tạo và đơn vị được gán' : 'Tất cả đơn vị trực thuộc',
+    { key: 'scope', label: 'Phạm vi áp dụng', off: true, text: p => p.scope === 'own' ? 'Đơn vị tạo và đơn vị được gán' : 'Tất cả đơn vị trực thuộc',
       cell: p => p.scope === 'own' ? 'Đơn vị tạo và đơn vị được gán' : 'Tất cả đơn vị trực thuộc' },
     { key: 'org', label: 'Đơn vị tạo', text: p => p.organizations?.name ?? '', cell: p => p.organizations?.name ?? '—' },
     { key: 'status', label: 'Trạng thái', text: p => PSTATUS[p.status][0],
@@ -187,7 +187,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
     { key: 'upd', label: 'Cập nhật', text: p => fmtD(p.updated_at), cell: p => <small className="sub nowrap">{fmtD(p.updated_at)}</small> },
   ]
   const table = (rows: Program[], mine: boolean, left?: ReactNode, right?: ReactNode, empty?: ReactNode) => (
-    <DataTable id={mine ? 'edu-programs-v3' : 'edu-programs-shared-v3'} rows={(mine ? gtOwn : gtShared).filter(rows)} rowKey={p => p.id} cols={progCols} left={left} right={right} empty={empty}
+    <DataTable id={mine ? 'edu-programs-v4' : 'edu-programs-shared-v4'} rows={(mine ? gtOwn : gtShared).filter(rows)} rowKey={p => p.id} cols={progCols} left={left} right={right} empty={empty}
       aside={rows.length ? (mine ? gtOwn : gtShared).tree : undefined}
       head={!mine && canCopy ? { th: <span className="sronly">Chọn</span>, td: p => <input type="checkbox" checked={sel.is(p)} onChange={() => sel.toggle(p)} aria-label={'Chọn ' + p.title} /> } : undefined} />
   )

@@ -6,6 +6,7 @@ import { useHiddenBtn } from '../components/PageButtons'
 import { CustomInputs, customCell } from '../components/CustomFields'
 import { fieldsOf, useSettings } from '../lib/settings'
 import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
+import { ActionBar, type Act } from '../components/ActionBar'
 import { SchoolPicker } from '../components/SchoolPicker'
 import { useOrgFilter } from '../components/OrgFilters'
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -327,9 +328,14 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
           <small className="sub">{[p.code, lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ctsOf(p).join(', '), mainsOf(p).join(', '), `${p.total_periods} tiết`, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
         </div>
         <div className="tools">
-          {!editInfo && tab === 'info' && editable && <button type="button" onClick={() => setEditInfo(true)}><Icon n="pencil" size={15} /> Sửa thông tin</button>}
-          {mode === 'school' && canEdit && p.status === 'published' && !hid('ppct') && <button className="primary" onClick={openMkBook}>Tạo PPCT từ chương trình</button>}
-          {!editInfo && <VersionActions p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} onDelete={editable ? removeDraft : undefined} />}
+          {(() => {
+            const lead: (Act | false)[] = [
+              !editInfo && tab === 'info' && editable && { key: 'edit', label: <><Icon n="pencil" size={15} /> Sửa thông tin</>, rank: 1, onClick: () => setEditInfo(true) },
+              mode === 'school' && canEdit && p.status === 'published' && !hid('ppct') && { key: 'ppct', label: 'Tạo PPCT từ chương trình', kind: 'primary', onClick: openMkBook },
+            ]
+            return editInfo ? <ActionBar items={lead} />
+              : <VersionActions lead={lead} p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} onDelete={editable ? removeDraft : undefined} />
+          })()}
         </div>
       </div>
       {mkBook && (
@@ -1106,7 +1112,8 @@ function isDesc(all: Unit[], u: Unit, ancestor: string): boolean {
 
 // ----- Phiên bản & duyệt -----
 /** Nút gửi duyệt / duyệt / phát hành / tạo phiên bản mới / ngừng dùng — hiện trên thẻ thông tin */
-function VersionActions({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMessage, onDelete }: {
+function VersionActions({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, onMessage, onDelete, lead }: {
+  lead?: (Act | false | null | undefined)[]
   p: Program; mine: boolean; canEdit: boolean; mode: ProgMode; isAdmin: boolean; onOpen: (id: string) => void; onChanged: () => void; onDelete?: () => void
   onMessage: (m: string, err?: boolean) => void
 }) {
@@ -1148,17 +1155,23 @@ function VersionActions({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, on
   }
   const can = mine && canEdit
   const canPublishDraft = mode !== 'school' || isAdmin
+  const st = p.status
   return <>
-          {can && (p.status === 'draft' || p.status === 'rejected') && <button className={mode === 'platform' ? undefined : 'primary'} disabled={busy} onClick={() => setStatus('pending', 'Ghi chú gửi người duyệt (không bắt buộc):')}>Gửi duyệt</button>}
-          {can && p.status === 'draft' && canPublishDraft && <button className={mode === 'platform' ? 'primary' : undefined} disabled={busy} onClick={() => confirm('Phát hành ngay phiên bản này? Phiên bản đang phát hành (nếu có) sẽ bị thay thế.') && setStatus('published')}>Phát hành</button>}
-          {p.status === 'pending' && canAct && <><button className="primary" disabled={busy} onClick={() => decide('approve')}>Duyệt</button><button className="danger" disabled={busy} onClick={() => decide('reject')}>Trả lại</button></>}
-          {p.status === 'pending' && !canAct && <small className="sub">Đang chờ duyệt ở Hộp phê duyệt.</small>}
-          {can && p.status === 'approved' && <button className="primary" disabled={busy} onClick={() => setStatus('published', 'Ghi chú phát hành (không bắt buộc):')}>Phát hành</button>}
-          {can && p.status === 'approved' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại để sửa</button>}
-          {can && p.status === 'published' && !hid('version') && <button className="primary" disabled={busy} onClick={newVersion}>Tạo phiên bản mới</button>}
-          {can && ['published', 'superseded', 'draft', 'rejected', 'approved'].includes(p.status) && <details className="pdmore"><summary aria-label="Thao tác khác" title="Thao tác khác">⋯</summary>
-            <div>{onDelete && <button type="button" className="danger" disabled={busy} onClick={onDelete}>Xoá bản nháp</button>}<button type="button" className="danger" disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Đơn vị khác không còn thấy bản ngừng dùng.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng phiên bản này</button></div></details>}
-          {can && p.status === 'archived' && <button disabled={busy} onClick={() => setStatus('draft')}>Mở lại thành nháp</button>}
+    {st === 'pending' && !canAct && <small className="sub">Đang chờ duyệt ở Hộp phê duyệt.</small>}
+    <ActionBar items={[
+      ...(lead ?? []),
+      can && (st === 'draft' || st === 'rejected') && { key: 'send', label: 'Gửi duyệt', kind: mode === 'platform' ? undefined : 'primary', rank: 1, disabled: busy, onClick: () => setStatus('pending', 'Ghi chú gửi người duyệt (không bắt buộc):') },
+      can && st === 'draft' && canPublishDraft && { key: 'pub', label: 'Phát hành', kind: mode === 'platform' ? 'primary' : undefined, rank: 1, disabled: busy, onClick: () => { if (confirm('Phát hành ngay phiên bản này? Phiên bản đang phát hành (nếu có) sẽ bị thay thế.')) setStatus('published') } },
+      st === 'pending' && canAct && { key: 'ok', label: 'Duyệt', kind: 'primary', disabled: busy, onClick: () => decide('approve') },
+      st === 'pending' && canAct && { key: 'back', label: 'Trả lại', kind: 'danger', rank: 1, disabled: busy, onClick: () => decide('reject') },
+      can && st === 'approved' && { key: 'pub2', label: 'Phát hành', kind: 'primary', disabled: busy, onClick: () => setStatus('published', 'Ghi chú phát hành (không bắt buộc):') },
+      can && st === 'approved' && { key: 'reopen', label: 'Mở lại để sửa', disabled: busy, onClick: () => setStatus('draft') },
+      can && st === 'published' && !hid('version') && { key: 'ver', label: 'Tạo phiên bản mới', kind: 'primary', disabled: busy, onClick: newVersion },
+      can && onDelete && { key: 'del', label: 'Xoá bản nháp', kind: 'danger', disabled: busy, onClick: onDelete },
+      can && ['published', 'superseded', 'draft', 'rejected', 'approved'].includes(st) && { key: 'arch', label: 'Ngừng dùng phiên bản này', kind: 'danger', rank: 4, disabled: busy,
+        onClick: () => { if (confirm('Ngừng dùng phiên bản này? Đơn vị khác không còn thấy bản ngừng dùng.')) setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):') } },
+      can && st === 'archived' && { key: 'unarch', label: 'Mở lại thành nháp', disabled: busy, onClick: () => setStatus('draft') },
+    ]} />
   </>
 }
 

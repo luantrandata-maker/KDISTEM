@@ -2771,3 +2771,12 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .ttable.slt>thead>tr:first-child>th.c-title:not(.c-sel):not(.c-no){min-width:200px}
 .slgpick{display:inline-block;min-width:120px;max-width:200px}
 .slnewrow>.slgpick{flex:none;align-self:center;width:150px}
+/* Ô tìm trong bảng (DataTable) */
+.main .tttools .ttsearch{flex:0 1 240px;min-width:140px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);font:inherit;font-size:13px}
+.main .tttools .ttsearch:focus{outline:2px solid var(--primary);outline-offset:-1px}
+/* Menu ⋯: thao tác nguy hiểm màu đỏ */
+.main .distmenu button.danger{color:#c0392b}
+/* Nút nguy hiểm nằm ngoài thanh thao tác: viền đỏ nhẹ, không tô nền */
+.main button.danger.abdanger{background:var(--surface);color:#c0392b;border:1px solid #e3b3ad}
+.main button.danger.abdanger:hover{background:#fdf1ef}
+.tttools>.ttsearch+.ttcount,.tttools>.ttcount{align-self:center}

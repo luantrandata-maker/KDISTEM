@@ -22,8 +22,8 @@ const IMPORT: Column[] = [
   { key: 'type', label: 'Loại', required: true, aliases: ['Cấp', 'Loại mục'], width: 12 },
   { key: 'title', label: 'Tên', required: true, aliases: ['Tên môn / nội dung', 'Nội dung đào tạo', 'Tên môn'], width: 44 },
   { key: 'hours', label: 'Số giờ', aliases: ['Giờ'], width: 8 },
-  { key: 'mode', label: 'Hình thức', width: 14 },
   { key: 'test', label: 'Bài test', aliases: ['Có bài test', 'Kiểm tra'], width: 10 },
+  { key: 'mode', label: 'Hình thức', width: 14 },
   { key: 'note', label: 'Mục tiêu', aliases: ['Ghi chú'], width: 40 },
 ]
 const typeOf = (s: string): 'subject' | 'content' | null => {
@@ -78,10 +78,10 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
     setDraft(rows)
   }
   const cols: DCol<TF>[] = [
-    { label: 'Hình thức', width: 150, cell: (r, set) => r.type === 'content' ? <select value={r.f.mode ?? ''} onChange={e => set({ mode: (e.target.value || null) as TF['mode'] })} aria-label="Hình thức">
-      <option value="">Theo chương trình</option><option value="online">Trực tuyến</option><option value="offline">Trực tiếp</option></select> : null },
     { label: 'Số giờ', width: 90, cell: (r, set) => r.type === 'content' ? <input type="number" min={0} max={500} step={0.5} value={r.f.hours} onChange={e => set({ hours: Math.max(0, Number(e.target.value) || 0) })} aria-label="Số giờ" style={{ width: 76 }} /> : null },
     { label: 'Bài test', width: 70, cell: (r, set) => r.type === 'content' ? <input type="checkbox" checked={r.f.has_test} onChange={e => set({ has_test: e.target.checked })} aria-label="Có bài test" /> : null },
+    { label: 'Hình thức', width: 150, cell: (r, set) => r.type === 'content' ? <select value={r.f.mode ?? ''} onChange={e => set({ mode: (e.target.value || null) as TF['mode'] })} aria-label="Hình thức">
+      <option value="">Theo chương trình</option><option value="online">Trực tuyến</option><option value="offline">Trực tiếp</option></select> : null },
   ]
   // Môn: một ô duy nhất, gõ tên hoặc chọn nhanh từ danh mục (môn chưa có trong chương trình)
   const catalogOpts = (r: DRow<TF>, rows: DRow<TF>[]) => r.type !== 'subject' ? null
@@ -221,13 +221,13 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
     ...(!sel ? [{ key: 'subj', label: 'Môn', thClass: 'c-subj', text: (r: CRow) => r.subj.title, cell: (r: CRow) => <button type="button" className="slsubjlink" onClick={() => setCur(r.subj.id)}>{r.subj.title}</button> }] : []),
     { key: 'title', label: 'Tên nội dung', thClass: 'c-title', fixed: true, text: r => r.u.title, cell: r => cell(r.u, 'title') },
     { key: 'reqs', label: 'Yêu cầu cần đạt', thClass: 'c-outs', cell: r => cell(r.u, 'reqs') },
+    { key: 'hours', label: 'Số giờ', thClass: 'c-per', text: r => num(Number(r.u.hours)), cell: r => cell(r.u, 'hours') },
+    { key: 'test', label: 'Bài test', thClass: 'c-test', text: r => r.u.has_test ? 'Có' : '', cell: r => editable
+      ? <input type="checkbox" checked={r.u.has_test} aria-label={`Bài test ${r.u.title}`} onChange={e => upd(r.u, { has_test: e.target.checked })} /> : r.u.has_test ? 'Có' : '—' },
     { key: 'mode', label: 'Hình thức', thClass: 'c-mode', text: r => r.u.mode ? MODE[r.u.mode] : MODE[programMode], cell: r => editable
       ? <select className="slcell" value={r.u.mode ?? ''} aria-label={`Hình thức ${r.u.title}`} onChange={e => upd(r.u, { mode: (e.target.value || null) as TUnit['mode'] })}>
           <option value="">{MODE[programMode]} (theo CT)</option><option value="online">Trực tuyến</option><option value="offline">Trực tiếp</option></select>
       : r.u.mode ? MODE[r.u.mode] : <small className="sub">{MODE[programMode]}</small> },
-    { key: 'hours', label: 'Số giờ', thClass: 'c-per', text: r => num(Number(r.u.hours)), cell: r => cell(r.u, 'hours') },
-    { key: 'test', label: 'Bài test', thClass: 'c-test', text: r => r.u.has_test ? 'Có' : '', cell: r => editable
-      ? <input type="checkbox" checked={r.u.has_test} aria-label={`Bài test ${r.u.title}`} onChange={e => upd(r.u, { has_test: e.target.checked })} /> : r.u.has_test ? 'Có' : '—' },
     { key: 'mat', label: 'Học liệu', thClass: 'c-mat', text: r => kit.get(r.u.id) === 'published' ? 'Đã phát hành' : kit.get(r.u.id) ? 'Đang soạn' : 'Chưa có',
       cell: r => <button type="button" className="slopen" onClick={() => onOpen(r.u.id)} title={editable ? 'Soạn nội dung: bài giảng, tài liệu, hoạt động, bài test' : 'Xem nội dung'}>{kitChip(r.u)}<span className="slmore">{editable ? 'Soạn ›' : 'Xem ›'}</span></button> },
     ...(editable ? [{ key: 'act', label: '', thClass: 'c-act', fixed: true, cell: (r: CRow) =>
@@ -264,7 +264,7 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
           : <button type="button" className="sladdsubj" onClick={() => setAddS(true)}>+ Thêm môn</button>)}
       </nav>
       <div className="slmain">
-        <DataTable id="training-units" simple rows={shown} rowKey={r => r.u.id} className="slt tut"
+        <DataTable id="training-units-v2" simple rows={shown} rowKey={r => r.u.id} className="slt tut"
           rowProps={editable ? r => ({ className: drag === r.u.id ? 'sldragging' : over === r.u.id && drag ? 'slover' : undefined,
             onDragOver: e => { if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== r.u.id) setOver(r.u.id) },
             onDrop: e => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id) moveTo(id, r) } }) : undefined}

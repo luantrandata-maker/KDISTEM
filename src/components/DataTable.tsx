@@ -2,7 +2,7 @@
 // kéo mép tiêu đề để đổi độ rộng, nút "Thu gọn" thu bảng vừa màn hình (chữ xuống dòng, không phải kéo ngang).
 // Cách hiển thị (cột ẩn, thứ tự, độ rộng, vừa khít) nhớ theo từng bảng trên trình duyệt này.
 // Sắp xếp khi bấm tiêu đề vẫn do lib/tableSort lo (hàng lọc có class ttfilter được bỏ qua).
-import { useEffect, useMemo, useRef, useState, type ReactNode, type HTMLAttributes } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type HTMLAttributes } from 'react'
 import { norm } from '../lib/sheet'
 
 export type Col<T> = {
@@ -28,6 +28,7 @@ const load = (id: string, cols: Col<unknown>[]): View => {
 const fold = (s: string) => norm(s).toLowerCase()
 const BLANK = '(Trống)'
 const valsOf = <T,>(c: Col<T>, r: T) => { const v = (c.values ? c.values(r) : [c.text!(r)]).map(x => (x ?? '').trim()).filter(Boolean); return v.length ? v : [BLANK] }
+const foldVi = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
 
 /** Ô lọc một cột: bấm mở danh sách giá trị có ô tìm, tick chọn nhiều */
 function ColFilter({ label, options, value, onChange }: { label: string; options: [string, number][]; value: string[]; onChange: (v: string[]) => void }) {
@@ -89,6 +90,14 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   const [view, setViewS] = useState<View>(() => load(id, cols as Col<unknown>[]))
   const setView = (f: (v: View) => View) => setViewS(v => { const n = f(v); try { localStorage.setItem('tt:' + id, JSON.stringify(n)) } catch { /* chỉ trong phiên */ } return n })
   const [filterOn, setFilterOn] = useState(false)
+  // Ô tìm trong bảng: luôn có, trừ khi trang đã đặt ô tìm của riêng nó ở thanh công cụ (left)
+  const [q, setQ] = useState('')
+  const toolsRef = useRef<HTMLDivElement>(null)
+  const [ownSearch, setOwnSearch] = useState(false)
+  useLayoutEffect(() => {
+    const el = toolsRef.current?.querySelector('.ttleft')
+    setOwnSearch(!!el?.querySelector('input[type=search], input[placeholder^="Tìm"], input[placeholder^="tìm"]'))
+  })
   const [flt, setFlt] = useState<Record<string, string[]>>({})
   const [menu, setMenu] = useState(false)
   const [drag, setDrag] = useState<string | null>(null)
@@ -111,7 +120,9 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   const shownCols = ordered.filter(c => c.fixed || !view.hidden.includes(c.key))
   const active = Object.entries(flt).filter(([k, v]) => v.length && shownCols.some(c => c.key === k))
   const match = (r: T, skip?: string) => active.every(([k, v]) => { if (k === skip) return true; const c = cols.find(x => x.key === k); return !c?.text || valsOf(c, r).some(x => v.includes(x)) })
-  const shown = active.length ? rows.filter(r => match(r)) : rows
+  const qk = ownSearch ? '' : foldVi(q.trim())
+  const hit = (r: T) => !qk || cols.some(c => c.text && valsOf(c, r).some(v => foldVi(v).includes(qk)))
+  const shown = active.length || qk ? rows.filter(r => match(r) && hit(r)) : rows
   // Giá trị của từng cột (đếm theo các dòng khớp những cột lọc khác), sắp theo chữ
   const options = (c: Col<T>): [string, number][] => {
     const m = new Map<string, number>()
@@ -154,12 +165,13 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
           : null}</th>)}</tr>}
       </thead>
       <tbody>{shown.map(r => <tr key={rowKey(r)} className={onRow ? 'clickrow' : undefined} onClick={onRow && (() => onRow(r))} {...rowProps?.(r)}>{head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key}>{c.cell(r)}</td>)}</tr>)}
-        {!shown.length && <tr><td colSpan={shownCols.length + (head ? 1 : 0)}>{rows.length ? <small className="sub">Không có dòng nào khớp bộ lọc cột.</small> : empty}</td></tr>}</tbody>
+        {!shown.length && <tr><td colSpan={shownCols.length + (head ? 1 : 0)}>{rows.length ? <small className="sub">{qk ? `Không có dòng nào khớp “${q.trim()}”.` : 'Không có dòng nào khớp bộ lọc cột.'}</small> : empty}</td></tr>}</tbody>
       {foot}
     </table></div>
 
   return <div className="tt">
-    {!noTools && <div className="tttools">
+    {!noTools && <div className="tttools" ref={toolsRef}>
+      {!ownSearch && <input type="search" className="ttsearch" placeholder="Tìm trong bảng…" aria-label="Tìm trong bảng" value={q} onChange={e => setQ(e.target.value)} />}
       {left && <div className="ttleft">{left}</div>}
       {shown.length !== rows.length ? <small className="sub ttcount">{shown.length}/{rows.length} dòng</small> : !left && <small className="sub ttcount">{rows.length} dòng</small>}
       <div className="ttgroup" role="group" aria-label="Tuỳ chỉnh bảng">

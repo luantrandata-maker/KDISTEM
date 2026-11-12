@@ -5,6 +5,7 @@ import { CompetencySetupLink } from '../../components/CompetencySetup'
 import { MultiSelect } from '../../components/MultiSelect'
 import { ChipMulti } from '../../components/Pickers'
 import { Icon } from '../../components/Icon'
+import { ActionBar, type Act } from '../../components/ActionBar'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useOrgFilter } from '../../components/OrgFilters'
@@ -440,8 +441,7 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
         <small className="sub">{[p.code, ctsOf(p).join(', '), lvsOf(p).length ? lvsOf(p).map(levelName).join(', ') : 'Mọi cấp học', MODE[p.mode], `${num(hours)} giờ`].filter(Boolean).join(' · ')}</small>
       </div>
       <div className="tools">
-        {!editInfo && t === 'info' && edit && <button type="button" onClick={() => setEditInfo(true)}><Icon n="pencil" size={15} /> Sửa thông tin</button>}
-        {!editInfo && <TrainingVersionActions p={p} admin={admin} warn={warn} onOpen={onOpen} onChanged={onVer} onDelete={admin && p.status === 'draft' ? del : undefined} />}
+        {!editInfo && <TrainingVersionActions lead={[t === 'info' && edit && { key: 'edit', label: <><Icon n="pencil" size={15} /> Sửa thông tin</>, rank: 1, onClick: () => setEditInfo(true) }]} p={p} admin={admin} warn={warn} onOpen={onOpen} onChanged={onVer} onDelete={admin && p.status === 'draft' ? del : undefined} />}
       </div>
     </div>
     <div className="segmented pdtabs">
@@ -519,7 +519,8 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
 type TLog = { id: number; from_status: string | null; to_status: string; note: string | null; at: string }
 type TVer = Pick<TProgram, 'id' | 'version_no' | 'status' | 'published_at' | 'updated_at' | 'note'>
 /** Nút gửi duyệt / duyệt / phát hành / tạo phiên bản mới / ngừng dùng — hiện trên thẻ thông tin */
-function TrainingVersionActions({ p, admin, warn, onOpen, onChanged, onDelete }: {
+function TrainingVersionActions({ p, admin, warn, onOpen, onChanged, onDelete, lead }: {
+  lead?: (Act | false | null | undefined)[]
   p: TProgram; admin: boolean; warn: string[]; onOpen: (id: string) => void; onChanged: (m: string, err?: boolean) => void; onDelete?: () => void
 }) {
   const [busy, setBusy] = useState(false)
@@ -543,21 +544,22 @@ function TrainingVersionActions({ p, admin, warn, onOpen, onChanged, onDelete }:
   }
   const s = p.status
   const ready = !warn.length
-  if (!admin) return null
+  if (!admin) return lead?.some(Boolean) ? <ActionBar items={lead} /> : null
   const why = ready ? undefined : `Chưa gửi duyệt / phát hành được: ${warn.join('; ')}.`
-  return <>
-    {(s === 'draft' || s === 'rejected') && <button type="button" disabled={busy || !ready} title={why} onClick={() => setStatus('pending', 'Ghi chú gửi người duyệt (không bắt buộc):')}>Gửi duyệt</button>}
-    {s === 'draft' && <button type="button" className="primary" disabled={busy || !ready} title={why} onClick={() => confirm('Phát hành ngay phiên bản này? Phiên bản đang phát hành (nếu có) sẽ được thay thế.') && setStatus('published')}>Phát hành</button>}
-    {s === 'pending' && <><button type="button" className="primary" disabled={busy} onClick={() => setStatus('approved', 'Ghi chú khi duyệt (không bắt buộc):')}>Duyệt</button>
-      <button type="button" className="danger" disabled={busy} onClick={() => setStatus('rejected', 'Lý do trả lại:', true)}>Trả lại</button></>}
-    {s === 'approved' && <><button type="button" className="primary" disabled={busy} onClick={() => setStatus('published', 'Ghi chú phát hành (không bắt buộc):')}>Phát hành</button>
-      <button type="button" disabled={busy} onClick={() => setStatus('draft')}>Mở lại để sửa</button></>}
-    {(s === 'published' || s === 'superseded') && <button type="button" className="primary" disabled={busy} onClick={newVersion}>Tạo phiên bản mới</button>}
-    {['published', 'superseded', 'approved', 'rejected', 'draft'].includes(s) && <details className="pdmore"><summary aria-label="Thao tác khác" title="Thao tác khác">⋯</summary>
-      <div>{onDelete && <button type="button" className="danger" disabled={busy} onClick={onDelete}>Xoá bản nháp</button>}
-        <button type="button" className="danger" disabled={busy} onClick={() => confirm('Ngừng dùng phiên bản này? Kế hoạch đã có vẫn giữ nguyên.') && setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):')}>Ngừng dùng phiên bản này</button></div></details>}
-    {s === 'archived' && <button type="button" disabled={busy} onClick={() => setStatus('published', 'Ghi chú (không bắt buộc):')}>Dùng lại</button>}
-  </>
+  return <ActionBar items={[
+    ...(lead ?? []),
+    (s === 'draft' || s === 'rejected') && { key: 'send', label: 'Gửi duyệt', rank: 1, disabled: busy || !ready, title: why, onClick: () => setStatus('pending', 'Ghi chú gửi người duyệt (không bắt buộc):') },
+    s === 'draft' && { key: 'pub', label: 'Phát hành', kind: 'primary', disabled: busy || !ready, title: why, onClick: () => { if (confirm('Phát hành ngay phiên bản này? Phiên bản đang phát hành (nếu có) sẽ được thay thế.')) setStatus('published') } },
+    s === 'pending' && { key: 'ok', label: 'Duyệt', kind: 'primary', disabled: busy, onClick: () => setStatus('approved', 'Ghi chú khi duyệt (không bắt buộc):') },
+    s === 'pending' && { key: 'back', label: 'Trả lại', kind: 'danger', rank: 1, disabled: busy, onClick: () => setStatus('rejected', 'Lý do trả lại:', true) },
+    s === 'approved' && { key: 'pub2', label: 'Phát hành', kind: 'primary', disabled: busy, onClick: () => setStatus('published', 'Ghi chú phát hành (không bắt buộc):') },
+    s === 'approved' && { key: 'reopen', label: 'Mở lại để sửa', disabled: busy, onClick: () => setStatus('draft') },
+    (s === 'published' || s === 'superseded') && { key: 'ver', label: 'Tạo phiên bản mới', kind: 'primary', disabled: busy, onClick: newVersion },
+    onDelete && { key: 'del', label: 'Xoá bản nháp', kind: 'danger', disabled: busy, onClick: onDelete },
+    ['published', 'superseded', 'approved', 'rejected', 'draft'].includes(s) && { key: 'arch', label: 'Ngừng dùng phiên bản này', kind: 'danger', rank: 4, disabled: busy,
+      onClick: () => { if (confirm('Ngừng dùng phiên bản này? Kế hoạch đã có vẫn giữ nguyên.')) setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):') } },
+    s === 'archived' && { key: 'reuse', label: 'Dùng lại', disabled: busy, onClick: () => setStatus('published', 'Ghi chú (không bắt buộc):') },
+  ]} />
 }
 
 function TrainingVersions({ p, onOpen }: { p: TProgram; onOpen: (id: string) => void }) {

@@ -45,8 +45,8 @@ export function useBreadcrumb() {
   return (p: Plan) => parts(p).join(' › ')
 }
 
-import { MoreMenu } from '../../components/MoreMenu'
-export { MoreMenu }
+import { ActionBar } from '../../components/ActionBar'
+export { MoreMenu } from '../../components/MoreMenu'
 
 function Stepper({ value, onChange, disabled, label }: { value: number; onChange: (v: number) => void; disabled?: boolean; label: string }) {
   const set = (v: number) => onChange(Math.max(0.5, Math.min(40, Math.round(v * 2) / 2)))
@@ -390,22 +390,22 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
         {!editable && plan.note && <small className="sub distnote">{plan.note}</small>}
       </div>
       <span className="distheadright">
-        {plan.status === 'draft' && !editing && <button type="button" className="primary" onClick={() => setEditing(true)}>✎ Chỉnh sửa</button>}
-        {editable && <button type="button" disabled={busy} onClick={() => dirty ? (confirm('Bỏ các thay đổi chưa lưu?') && onChanged(plan.id)) : setEditing(false)}>{dirty ? 'Hủy thay đổi' : 'Xong'}</button>}
-        {editable && <button type="button" className={dirty ? 'primary' : ''} disabled={!dirty || busy} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu nháp'}</button>}
-        {plan.status === 'draft' && <button type="button" className={editing ? 'primary' : ''} disabled={busy} title={errors.length ? 'Còn lỗi chặn phát hành' : undefined} onClick={publish}>Phát hành</button>}
-        {plan.status === 'published' && onAssign && <button type="button" onClick={() => onAssign(plan.id)}>Gán cho trường</button>}
-        {plan.status !== 'draft' && own && <button type="button" className="primary" onClick={newVersion}>Tạo phiên bản mới</button>}
-        {plan.status !== 'draft' && !own && <button type="button" className="primary" onClick={copy}>Nhân bản để sửa</button>}
-        {(plan.status === 'draft' || own) && <button type="button" onClick={copy}>Nhân bản</button>}
-        {plan.status === 'draft' && <button type="button" className="danger" onClick={remove}>Xoá</button>}
-        <MoreMenu>
-          {editable && <label className="distnotebox"><b>Ghi chú</b>
+        <ActionBar menuExtra={editable && <label className="distnotebox"><b>Ghi chú</b>
             <textarea rows={3} value={plan.note ?? ''} maxLength={2000} placeholder="Mục tiêu, đối tượng áp dụng…" onChange={e => { setPlan({ ...plan, note: e.target.value }); touch() }} /></label>}
-          {plan.status === 'published' && <button type="button" onClick={() => setStatus('draft', 'Đã chuyển về nháp. PPCT đã gán cho trường không đổi.')}>Chuyển về nháp</button>}
-          {plan.status === 'published' && <button type="button" onClick={() => setStatus('archived', 'Đã ngừng dùng bản phân phối.')}>Ngừng dùng</button>}
-          {plan.status === 'archived' && <button type="button" onClick={() => setStatus('draft', 'Đã dùng lại bản (nháp).')}>Dùng lại</button>}
-        </MoreMenu>
+          items={[
+            plan.status === 'draft' && !editing && { key: 'edit', label: '✎ Chỉnh sửa', kind: 'primary', onClick: () => setEditing(true) },
+            editable && { key: 'done', label: dirty ? 'Hủy thay đổi' : 'Xong', rank: 1, disabled: busy, onClick: () => { if (dirty) { if (confirm('Bỏ các thay đổi chưa lưu?')) onChanged(plan.id) } else setEditing(false) } },
+            editable && { key: 'save', label: busy ? 'Đang lưu…' : 'Lưu nháp', kind: dirty ? 'primary' : undefined, rank: 1, disabled: !dirty || busy, onClick: save },
+            plan.status === 'draft' && { key: 'pub', label: 'Phát hành', kind: editing ? 'primary' : undefined, rank: 1, disabled: busy, title: errors.length ? 'Còn lỗi chặn phát hành' : undefined, onClick: publish },
+            plan.status === 'published' && onAssign && { key: 'assign', label: 'Gán cho trường', onClick: () => onAssign(plan.id) },
+            plan.status !== 'draft' && own && { key: 'ver', label: 'Tạo phiên bản mới', kind: 'primary', onClick: newVersion },
+            plan.status !== 'draft' && !own && { key: 'copyedit', label: 'Nhân bản để sửa', kind: 'primary', onClick: copy },
+            (plan.status === 'draft' || own) && { key: 'copy', label: 'Nhân bản', rank: 3, onClick: copy },
+            plan.status === 'draft' && { key: 'del', label: 'Xoá', kind: 'danger', onClick: remove },
+            plan.status === 'published' && { key: 'todraft', label: 'Chuyển về nháp', rank: 4, onClick: () => setStatus('draft', 'Đã chuyển về nháp. PPCT đã gán cho trường không đổi.') },
+            plan.status === 'published' && { key: 'arch', label: 'Ngừng dùng', rank: 4, onClick: () => setStatus('archived', 'Đã ngừng dùng bản phân phối.') },
+            plan.status === 'archived' && { key: 'reuse', label: 'Dùng lại', onClick: () => setStatus('draft', 'Đã dùng lại bản (nháp).') },
+          ]} />
       </span>
     </div>
   )

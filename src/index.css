@@ -2728,12 +2728,12 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .distforprog small{color:var(--muted);font-size:12px}
 .distforprog small::before{content:'· '}
 @media (max-width:640px){.distforlab{width:auto}}
-/* Màn hình hẹp / phóng to: cột không bị ép còn một chữ mỗi dòng; bảng rộng hơn thì cuộn ngang (chế độ Vừa khít vẫn ép vừa) */
+/* Màn hình hẹp / phóng to: cột không bị ép còn một chữ mỗi dòng; bảng rộng hơn thì cuộn ngang (chế độ Thu gọn vẫn ép vừa) */
 .ttable:not(.ttfit)>thead>tr:first-child>th:not(.c-sel):not(.c-no){min-width:7em}
 .pagehead>.pagecorner{margin-left:auto}
 .ttable td :is(button,a).namelink{white-space:normal}
 .ttable:not(.ttfit)>thead>tr:first-child>th.c-lead:not(.c-sel):not(.c-no){min-width:15em}
-/* Thanh công cụ bảng: Lọc · Cột · Vừa khít gom thành một nhóm */
+/* Thanh công cụ bảng: Lọc · Cột · Thu gọn gom thành một nhóm */
 .ttgroup{display:inline-flex;align-items:stretch;border:1px solid var(--line);border-radius:9px;background:var(--surface);overflow:visible}
 .main .tttools .ttgroup button{border:0;border-radius:0;background:none;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;color:var(--muted);font-weight:500}
 .main .tttools .ttgroup>button:first-child,.main .tttools .ttgroup>:first-child>button{border-radius:8px 0 0 8px}

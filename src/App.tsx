@@ -1,4 +1,5 @@
 import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react'
+import { PageCorner } from './components/PageCorner'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { useSettings, menuOf, orderItems } from './lib/settings'
@@ -248,9 +249,9 @@ const PlatformElearningPage = PH2_TABS.elearning
 function PlatformEduProgramsPage(p: any) {
   const [track, setTrack] = useState(false)
   return <>
-    <div className="pagecorner">
+    <PageCorner>
       <button className={track ? '' : 'primary'} onClick={() => setTrack(!track)}>{track ? '← Chương trình giáo dục' : 'Theo dõi Chương trình/Môn học'}</button>
-    </div>
+    </PageCorner>
     {track ? <><h2 className="pagesub">Theo dõi Chương trình/Môn học</h2><PlatformProgramTrack {...p} /></>
       : <TabbedPages {...p} tabs={[['Chương trình giáo dục', PH2_TABS.edu], ['Môn học', PH2_TABS.subjects], ['Danh mục', ProgramCatalogs]]} />}
   </>

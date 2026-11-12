@@ -33,8 +33,7 @@ export function StatCards({ items, active, onPick, nav }: { items: Stat[]; activ
     const a = anchor.current
     setNested(!!a?.parentElement?.closest('.panel, .drawerwrap, dialog, [role=dialog], .elview'))
     const m = a?.closest('main')
-    // Trang có nút góc phải (.pagecorner) thì số đứng cạnh nút đó, không bị nút che
-    setHead(!a || a.closest('.nocards') ? false : m?.querySelector(':scope > .pagecorner') ?? m?.querySelector(':scope > .pagehead') ?? null)
+    setHead(!a || a.closest('.nocards') ? false : m?.querySelector(':scope > .pagehead') ?? null)
   }, [miniPref])
   const mini = miniPref && !nested
   const flip = () => { const v = !mini; setMini(v); try { localStorage.setItem(KEY, v ? '1' : '0') } catch { /* bỏ qua */ } }

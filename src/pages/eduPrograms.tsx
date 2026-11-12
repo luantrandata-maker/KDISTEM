@@ -127,7 +127,6 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   const [list, setList] = useState<Program[] | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const [q, setQ] = useState('')
-  const [old, setOld] = useState(false)
   const [card, setCard] = useState<string | null>(null)
   const [form, setForm] = useState<Partial<Program> | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
@@ -147,7 +146,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   const all = list ?? []
   // Trạng thái, loại, môn, đơn vị tạo: lọc bằng "Lọc theo cột" của bảng
   const inCard = (p: Program) => !card || SGROUP[card][1].includes(p.status)
-  const shown = all.filter(p => (old || card === 'off' || !SGROUP.off[1].includes(p.status)) && inCard(p) && (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
+  const shown = all.filter(p => inCard(p) && (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
   const own = every ? shown : shown.filter(p => p.org_id === orgId)
   const shared = every ? [] : shown.filter(p => p.org_id !== orgId)
   // Cây Cấp → Khối bên trái mỗi bảng
@@ -169,25 +168,26 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   const canCopy = canEdit
   const progCols: Col<Program>[] = [
     { key: 'name', label: 'Chương trình', fixed: true, values: p => [p.title], text: p => [p.code, p.title].join(' '),
-      cell: p => <>{p.code && <small className="sub">{p.code}<br /></small>}<NameLink onClick={() => setOpenId(p.id)}>{p.title}</NameLink> <small>v{p.version_no}</small></> },
+      cell: p => <div className="eptitle"><NameLink onClick={() => setOpenId(p.id)}>{p.title}</NameLink>
+        <small className="sub">{[p.code, 'v' + p.version_no, p.organizations?.name].filter(Boolean).join(' · ')}</small></div> },
     { key: 'grade', label: 'Khối', values: p => [grades(p)], text: p => grades(p), cell: p => <>{grades(p) || '—'}<br /><MultiTag grades={progGrades(p)} /></> },
-    { key: 'group', label: 'Nhóm', values: p => ctsOf(p), text: p => ctsOf(p).join(' '), cell: p => ctsOf(p).length ? ctsOf(p).map(c => <Fragment key={c}><span className="gpill">{c}</span> </Fragment>) : '—' },
+    { key: 'group', label: 'Nhóm', values: p => ctsOf(p), text: p => ctsOf(p).join(' '), cell: p => ctsOf(p).length ? <span className="epgroups">{ctsOf(p).map(c => <span key={c} className="epgroup">{c}</span>)}</span> : '—' },
     { key: 'lv', label: 'Cấp', off: true, values: p => lvsOf(p).map(levelName), text: p => lvsOf(p).map(levelName).join(', '), cell: p => lvsOf(p).map(levelName).join(', ') || '—' },
     { key: 'kind', label: 'Loại', off: true, text: p => PKIND[p.kind], cell: p => PKIND[p.kind] },
     { key: 'subj', label: 'Môn', values: p => [...mainsOf(p), ...p.integrated_subjects], text: p => [...mainsOf(p), ...p.integrated_subjects].join(' '),
-      cell: p => <>{mainsOf(p).join(', ')}{p.integrated_subjects.length > 0 && <><br /><small className="sub">Tích hợp: {p.integrated_subjects.join(', ')}</small></>}</> },
+      cell: p => <>{mainsOf(p).join(', ')}{p.integrated_subjects.length > 0 && <small className="sub epsub">+ tích hợp {p.integrated_subjects.join(', ')}</small>}</> },
     { key: 'periods', label: 'Số tiết · triển khai', off: true, values: p => [p.total_periods ? p.total_periods + ' tiết' : '', DEPLOY[p.deploy_term ?? 'year']?.[0] ?? ''], text: p => String(p.total_periods || ''),
       cell: p => <>{p.total_periods || '—'}<br /><small className="sub">{[p.periods_per_week && `${p.periods_per_week} tiết/tuần`, DEPLOY[p.deploy_term ?? 'year']?.[0]].filter(Boolean).join(' · ')}</small></> },
     { key: 'scope', label: 'Phạm vi áp dụng', off: true, text: p => p.scope === 'own' ? 'Đơn vị tạo và đơn vị được gán' : 'Tất cả đơn vị trực thuộc',
       cell: p => p.scope === 'own' ? 'Đơn vị tạo và đơn vị được gán' : 'Tất cả đơn vị trực thuộc' },
-    { key: 'org', label: 'Đơn vị tạo', text: p => p.organizations?.name ?? '', cell: p => p.organizations?.name ?? '—' },
+    { key: 'org', label: 'Đơn vị tạo', off: true, text: p => p.organizations?.name ?? '', cell: p => p.organizations?.name ?? '—' },
     { key: 'status', label: 'Trạng thái', text: p => PSTATUS[p.status][0],
-      cell: p => <><StatusPill s={p.status} />{p.status === 'published' && p.effective_from && <><br /><small className="sub">từ {fmtD(p.effective_from)}</small></>}</> },
+      cell: p => <><StatusPill s={p.status} /><small className="sub epsub nowrap">{p.status === 'published' && p.effective_from ? `Hiệu lực từ ${fmtD(p.effective_from)}` : `Cập nhật ${fmtD(p.updated_at)}`}</small></> },
     ...progFields.filter(x => x.column).map(x => ({ key: 'c_' + x.key, label: x.label, cell: (p: Program) => customCell(x, p.custom?.[x.key]) })),
-    { key: 'upd', label: 'Cập nhật', text: p => fmtD(p.updated_at), cell: p => <small className="sub nowrap">{fmtD(p.updated_at)}</small> },
+    { key: 'upd', label: 'Cập nhật', off: true, text: p => fmtD(p.updated_at), cell: p => <small className="sub nowrap">{fmtD(p.updated_at)}</small> },
   ]
   const table = (rows: Program[], mine: boolean, left?: ReactNode, right?: ReactNode, empty?: ReactNode) => (
-    <DataTable id={mine ? 'edu-programs-v4' : 'edu-programs-shared-v4'} rows={(mine ? gtOwn : gtShared).filter(rows)} rowKey={p => p.id} cols={progCols} left={left} right={right} empty={empty}
+    <DataTable className="eptable" id={mine ? 'edu-programs-v5' : 'edu-programs-shared-v5'} rows={(mine ? gtOwn : gtShared).filter(rows)} rowKey={p => p.id} cols={progCols} left={left} right={right} empty={empty}
       aside={rows.length ? (mine ? gtOwn : gtShared).tree : undefined}
       head={!mine && canCopy ? { th: <span className="sronly">Chọn</span>, td: p => <input type="checkbox" checked={sel.is(p)} onChange={() => sel.toggle(p)} aria-label={'Chọn ' + p.title} /> } : undefined} />
   )
@@ -246,7 +246,6 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
           {!every && <h3>Của đơn vị ({own.length})</h3>}
           {show(own, true, <>
             <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-            <label className="ttcheck"><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện chương trình ngừng dùng</label>
             <small className="sub">{gtOwn.filter(own).length} chương trình</small>
           </>, <>
             <ViewToggle value={view} onChange={setView} />

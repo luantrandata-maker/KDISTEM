@@ -135,6 +135,8 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
     const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); setView(v => v) }
     document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up)
   }
+  // Chỉ nhắc số cột ẩn khi người dùng tự đổi so với mặc định
+  const customHidden = [...view.hidden].sort().join() !== cols.filter(c => c.off).map(c => c.key).sort().join()
   const nHidden = cols.filter(c => !c.fixed && view.hidden.includes(c.key)).length
   const changed = nHidden > 0 || view.order.length > 0 || Object.keys(view.widths).length > 0 || view.fit
 
@@ -160,10 +162,11 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
     {!noTools && <div className="tttools">
       {left && <div className="ttleft">{left}</div>}
       {shown.length !== rows.length ? <small className="sub ttcount">{shown.length}/{rows.length} dòng</small> : !left && <small className="sub ttcount">{rows.length} dòng</small>}
+      <div className="ttgroup" role="group" aria-label="Tuỳ chỉnh bảng">
       {!simple && <button type="button" className={filterOn ? 'on' : ''} aria-pressed={filterOn} onClick={() => { setFilterOn(!filterOn); if (filterOn) setFlt({}) }}
-        title="Hiện ô lọc dưới tiêu đề từng cột">⛉ {filterOn ? 'Ẩn bộ lọc cột' : 'Lọc theo cột'}{active.length ? ` (${active.length})` : ''}</button>}
+        title={filterOn ? 'Ẩn ô lọc dưới tiêu đề cột' : 'Hiện ô lọc dưới tiêu đề từng cột'}><TIcon d={IC.filter} />Lọc{active.length > 0 && <span className="ttbadge">{active.length}</span>}</button>}
       <div className="ttmenu" ref={menuRef}>
-        <button type="button" aria-expanded={menu} onClick={() => setMenu(!menu)} title="Chọn cột hiển thị, kéo để đổi thứ tự">▥ Ẩn/hiện cột{nHidden ? ` (${nHidden} ẩn)` : ''}</button>
+        <button type="button" className={menu ? 'on' : ''} aria-expanded={menu} onClick={() => setMenu(!menu)} title="Ẩn/hiện cột, kéo để đổi thứ tự"><TIcon d={IC.cols} />Cột{nHidden > 0 && customHidden && <span className="ttbadge" title={`${nHidden} cột đang ẩn`}>{nHidden} ẩn</span>}</button>
         {menu && <div className="ttpop" role="dialog" aria-label="Hiển thị cột">
           <div className="ttpophead"><b>Hiển thị cột</b>
             <button type="button" onClick={() => setView(v => ({ ...v, hidden: [] }))}>Hiện tất cả</button></div>
@@ -180,11 +183,22 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
         </div>}
       </div>
       {!simple && <button type="button" className={view.fit ? 'on' : ''} aria-pressed={view.fit} onClick={() => setView(v => ({ ...v, fit: !v.fit }))}
-        title="Thu bảng vừa chiều ngang màn hình, chữ dài tự xuống dòng">⇔ Vừa khít</button>}
+        title="Thu bảng vừa chiều ngang màn hình, chữ dài tự xuống dòng"><TIcon d={IC.fit} />Vừa khít</button>}
+      </div>
       {right}
     </div>}
     {aside ? <SideSplit aside={aside}>{tbl}</SideSplit> : tbl}
   </div>
+}
+
+/** Biểu tượng nét mảnh cho thanh công cụ bảng */
+const IC = {
+  filter: 'M3 5h18l-7 8v6l-4 2v-8z',
+  cols: 'M4 4h16v16H4zM9.5 4v16M14.5 4v16',
+  fit: 'M8 8l-4 4 4 4M16 8l4 4-4 4M4 12h16',
+}
+function TIcon({ d }: { d: string }) {
+  return <svg className="ticon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
 }
 
 /** Khung bên trái (cây Cấp → Khối) cạnh bảng / thẻ: kéo mép phải để đổi độ rộng, nút « » để thu gọn / mở lại.

@@ -8,6 +8,7 @@ import { fieldsOf, useSettings } from '../lib/settings'
 import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
 import { ActionBar, type Act } from '../components/ActionBar'
 import { PageCorner, PageCrumb } from '../components/PageCorner'
+import { HeadAction } from '../components/PageFrame'
 import { SchoolPicker } from '../components/SchoolPicker'
 import { useOrgFilter } from '../components/OrgFilters'
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -27,7 +28,6 @@ import { ViewToggle, useViewMode } from '../components/ViewToggle'
 import { fmtGrades, progGrades, useEduLevels, gradeName, gradeRange } from '../lib/eduLevels'
 import { ChipMulti, GradeChecks, GradePicker, SubjectMulti, SubjectPicker, gradeList } from '../components/Pickers'
 import { ElView } from '../components/ElView'
-import { StatCards } from '../components/StatCards'
 
 // Khái niệm (064): Chương trình → Học phần (unit 'topic', trước gọi là chủ đề; gắn Môn học qua edu_unit_subjects)
 // → Bài học / Buổi học (gắn Học liệu qua edu_unit_materials) → Bài giảng (lesson_plans gắn unit_id, soạn ở "Soạn bài giảng").
@@ -68,10 +68,6 @@ export const PKIND: Record<Kind, string> = { subject: 'Môn học', stem: 'Chư�
 export const PSTATUS: Record<Status, [string, string]> = {
   draft: ['Nháp', ''], pending: ['Nháp · chờ duyệt', 'warn'], approved: ['Nháp · đã duyệt', ''], rejected: ['Nháp · bị trả lại', 'bad'],
   published: ['Đã phát hành', 'good'], superseded: ['Ngừng dùng · có bản mới', 'off'], archived: ['Ngừng dùng', 'off'],
-}
-// Ba nhóm trạng thái người dùng thấy: Nháp (gồm chờ duyệt, bị trả lại) · Đã phát hành · Ngừng dùng (gồm bản đã có bản mới)
-const SGROUP: Record<string, [string, Status[]]> = {
-  draft: ['Nháp', ['draft', 'pending', 'approved', 'rejected']], published: ['Đã phát hành', ['published']], off: ['Ngừng dùng', ['superseded', 'archived']],
 }
 export const DEPLOY: Record<Deploy, [string, string]> = { year: ['Cả năm', 'tuần 1–35'], hk1: ['Học kỳ 1', 'tuần 1–18'], hk2: ['Học kỳ 2', 'tuần 19–35'] }
 type USubject = { unit_id: string; subject_id: string; is_main: boolean; seq: number }
@@ -129,7 +125,6 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   const [list, setList] = useState<Program[] | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
   const [q, setQ] = useState('')
-  const [card, setCard] = useState<string | null>(null)
   const [form, setForm] = useState<Partial<Program> | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const comps: Comp[] = useCompetencies('student')
@@ -147,8 +142,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
 
   const all = list ?? []
   // Trạng thái, loại, môn, đơn vị tạo: lọc bằng "Lọc theo cột" của bảng
-  const inCard = (p: Program) => !card || SGROUP[card][1].includes(p.status)
-  const shown = all.filter(p => inCard(p) && (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
+  const shown = all.filter(p => (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
   const own = every ? shown : shown.filter(p => p.org_id === orgId)
   const shared = every ? [] : shown.filter(p => p.org_id !== orgId)
   // Cây Cấp → Khối bên trái mỗi bảng
@@ -233,25 +227,13 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       {!list ? <p className="sub">Đang tải…</p> : (
         <>
-          {(() => {
-            // Số trên thẻ: chương trình của đơn vị (cổng KDI: tất cả), theo ô tìm
-            const base = all.filter(p => (every || p.org_id === orgId) && (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
-            const n = (k: string) => base.filter(p => SGROUP[k][1].includes(p.status)).length
-            const wait = base.filter(p => p.status === 'pending').length
-            return <StatCards active={card} onPick={setCard} items={[
-              { icon: 'book', value: base.length - n('off'), label: 'Chương trình', sub: `${new Set(base.flatMap(mainsOf)).size} môn` },
-              { k: 'published', icon: 'checkCircle', tone: 'good', value: n('published'), label: 'Đã phát hành' },
-              { k: 'draft', icon: 'edit', tone: wait ? 'warn' : '', value: n('draft'), label: 'Nháp', sub: wait ? `${wait} chờ duyệt` : undefined },
-              { k: 'off', icon: 'pause', value: n('off'), label: 'Ngừng dùng' },
-            ]} />
-          })()}
           {!every && <h3>Của đơn vị ({own.length})</h3>}
           {show(own, true, <>
             <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
             <small className="sub">{gtOwn.filter(own).length} chương trình</small>
           </>, <>
             <ViewToggle value={view} onChange={setView} />
-            {canEdit && !hid('add') && <button type="button" className="primary ttadd" onClick={() => setForm({ level: 'thcs', levels: ['thcs'], kind: 'subject', grade_from: 6, grade_to: 9, grades: [6, 7, 8, 9], scope: mode === 'school' ? 'own' : 'children', integrated_subjects: [], competency_keys: [], rubric_ids: [], deploy_term: 'year' })}>+ Thêm chương trình</button>}
+            {canEdit && !hid('add') && <HeadAction><button type="button" className="primary ttadd" onClick={() => setForm({ level: 'thcs', levels: ['thcs'], kind: 'subject', grade_from: 6, grade_to: 9, grades: [6, 7, 8, 9], scope: mode === 'school' ? 'own' : 'children', integrated_subjects: [], competency_keys: [], rubric_ids: [], deploy_term: 'year' })}>+ Thêm chương trình</button></HeadAction>}
           </>, <small className="sub">Chưa có chương trình nào.{canEdit && ' Bấm "Thêm chương trình", hoặc sao chép chương trình dùng chung bên dưới.'}</small>)}
           {!every && <>
           <h3>Dùng chung / được gán ({shared.length})</h3>
@@ -332,7 +314,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
         <div className="tools">
           {(() => {
             const lead: (Act | false)[] = [
-              !editInfo && tab === 'info' && editable && { key: 'edit', label: <><Icon n="pencil" size={15} /> Sửa thông tin</>, rank: 1, onClick: () => setEditInfo(true) },
+              !editInfo && tab === 'info' && editable && { key: 'edit', label: 'Sửa thông tin', icon: 'pencil', rank: 1, onClick: () => setEditInfo(true) },
               mode === 'school' && canEdit && p.status === 'published' && !hid('ppct') && { key: 'ppct', label: 'Tạo PPCT từ chương trình', kind: 'primary', onClick: openMkBook },
             ]
             return editInfo ? <ActionBar items={lead} />
@@ -496,8 +478,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
           <div className="panel pdcard pdsl"><h4>Môn & bài học</h4>{lessons}</div>
         </div>
         {side && <div className="pdside">
-          <button type="button" className="pdsidetg" onClick={toggleSide} title="Thu cột thông tin để bảng rộng hơn">Thu gọn ›</button>
-          <div className="panel pdcard"><h4>Thông tin chung</h4>
+          <div className="panel pdcard"><h4 className="pdcardh">Thông tin chung<button type="button" className="pdsidetg incard" onClick={toggleSide} title="Thu cột thông tin để bảng rộng hơn">Thu gọn ›</button></h4>
             <dl className="pddl sm">
               <dt>Mã</dt><dd>{q.code || none}</dd>
               <dt>Nhóm</dt><dd>{ctsOf(q).map(c => c + (tracks[c] ? ' · ' + tracks[c]!.name : '')).join(', ') || '—'}</dd>
@@ -510,7 +491,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
           </div>
           <div className="panel pdcard"><h4>Mục tiêu & đánh giá</h4>
             <dl className="pddl sm">
-              <dt>Mục tiêu</dt><dd style={{ whiteSpace: 'pre-line' }}>{q.objectives || <span className="sub">Chưa nhập{editable ? ' · bấm “Sửa thông tin” để thêm' : ''}</span>}</dd>
+              <dt>Mục tiêu</dt><dd style={{ whiteSpace: 'pre-line' }}>{q.objectives || <span className="sub">Chưa nhập{editable ? ' · bấm biểu tượng bút ở đầu trang để thêm' : ''}</span>}</dd>
               <dt>Năng lực học sinh</dt><dd>{chips((q.competency_keys ?? []).map(k => nameOf(comps, k)))}</dd>
               <dt>Tiêu chí đánh giá</dt><dd>{chips((q.rubric_ids ?? []).map(k => nameOf(rubrics, k)))}</dd>
               {progFields.map(x => <Fragment key={x.key}><dt>{x.label}</dt><dd>{customCell(x, q.custom?.[x.key]) ?? '—'}</dd></Fragment>)}
@@ -655,7 +636,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
         </dl>
         {editable && (missing.length ? <p className="pfmiss">Còn thiếu: {missing.join(', ')}</p> : <p className="pfok">✓ Đã đủ thông tin bắt buộc</p>)}
         {(canSave || cancelBtn || onDelete) && <div className="pfsidebtn">{saveBtn}{cancelBtn}
-          {onDelete && <button type="button" className="danger" onClick={onDelete} title="Xoá bản nháp">Xoá</button>}</div>}
+          {onDelete && <button type="button" className="danger iconbtn" onClick={onDelete} title="Xoá bản nháp" aria-label="Xoá bản nháp"><Icon n="trash" size={17} /></button>}</div>}
       </div>
     </aside>
   </form>
@@ -744,7 +725,7 @@ function LessonDetail({ u, p, all, umats, outs, editable, onClose, onChanged, on
         {sessions.length ? <div className="wrap"><table><tbody>{sessions.map(x => <tr key={x.id}>
           <td>{editable ? <input className="slcell" defaultValue={x.title} aria-label="Tên buổi" onBlur={e => e.target.value.trim() && e.target.value.trim() !== x.title && upd(x.id, { title: e.target.value.trim() })} /> : x.title}</td>
           <td style={{ width: 90 }}>{editable ? <input className="slcell" inputMode="numeric" defaultValue={String(x.periods || '')} aria-label="Số tiết" onBlur={e => upd(x.id, { periods: Math.max(0, Math.round(Number(e.target.value) || 0)) })} /> : x.periods} tiết</td>
-          <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{lessonBtn(x)} {editable && <button type="button" className="danger" onClick={() => delSession(x)}>Xoá</button>}</td></tr>)}</tbody></table></div>
+          <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{lessonBtn(x)} {editable && <button type="button" className="danger iconbtn" title="Xoá buổi" aria-label={`Xoá buổi ${x.title}`} onClick={() => delSession(x)}><Icon n="trash" size={16} /></button>}</td></tr>)}</tbody></table></div>
           : <div className="tools">{lessonBtn(u)}{!editable && !asLesson(u.lesson) && <small className="sub">Chưa chia buổi.</small>}</div>}
         {editable && <div><button type="button" className="linkbtn" onClick={addSession}>+ Thêm buổi học</button></div>}
       </div>
@@ -1005,12 +986,12 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
         onDragStart={e => { setDrag(r.u.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', r.u.id); const tr = (e.target as HTMLElement).closest('tr'); if (tr) e.dataTransfer.setDragImage(tr, 20, 20) }}
         onDragEnd={() => { setDrag(null); setOver(null) }}>⠿</span>
         <button type="button" disabled={busy} aria-label={`Nhân bản bài ${r.u.title}`} title="Nhân bản: tạo ngay một bài giống hệt bên dưới" onClick={() => duplicate(r)}>⧉</button>
-        <button type="button" className="danger" aria-label={`Xoá ${r.u.title}`} onClick={() => remove(r)}>×</button></span> }] : []),
+        <button type="button" className="danger iconbtn" title="Xoá bài" aria-label={`Xoá ${r.u.title}`} onClick={() => remove(r)}><Icon n="trash" size={15} /></button></span> }] : []),
   ]
   const navItem = (key: string, label: string, rs: LRow[], main?: boolean) => <div key={key || '*'} className={'slnavrow' + (lc(sel) === lc(key) ? ' on' : '')}>
     <button type="button" className={'slnavi' + (lc(sel) === lc(key) ? ' on' : '')} onClick={() => setCur(key)}>
       <span className="slnm">{label}{main && <small className="sub"> · chủ đạo</small>}</span><span className="slcnt">{rs.length} bài · {totalP(rs)} tiết</span></button>
-    {editable && key && <button type="button" className="slnavx" title={`Xoá môn ${label}`} aria-label={`Xoá môn ${label}`} onClick={() => removeSubject(key)}>×</button>}</div>
+    {editable && key && <button type="button" className="slnavx" title={`Xoá môn ${label}`} aria-label={`Xoá môn ${label}`} onClick={() => removeSubject(key)}><Icon n="trash" size={14} /></button>}</div>
 
   return <div className="slwrap">
     <nav className="slnav" aria-label="Môn trong chương trình">
@@ -1032,7 +1013,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
         rowProps={editable ? r => ({ className: drag === r.u.id ? 'sldragging' : over === r.u.id && drag ? 'slover' : undefined,
           onDragOver: e => { if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== r.u.id) setOver(r.u.id) },
           onDrop: e => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id) moveTo(id, r) } }) : undefined}
-        empty={<small className="sub">{inSel.length ? 'Không có bài nào khớp bộ lọc.' : !subjList.length ? 'Chưa có môn. Chọn môn chủ đạo ở “Sửa thông tin” hoặc bấm “+ Thêm môn”.' : `${sel ? 'Môn ' + sel : 'Chương trình'} chưa có bài học.${editable ? ' Gõ tên bài ở dòng dưới (dán nhiều dòng để thêm nhiều bài) hoặc Nhập Excel.' : ''}`}</small>}
+        empty={<small className="sub">{inSel.length ? 'Không có bài nào khớp bộ lọc.' : !subjList.length ? 'Chưa có môn. Chọn môn chủ đạo (biểu tượng bút ở đầu trang) hoặc bấm “+ Thêm môn”.' : `${sel ? 'Môn ' + sel : 'Chương trình'} chưa có bài học.${editable ? ' Gõ tên bài ở dòng dưới (dán nhiều dòng để thêm nhiều bài) hoặc Nhập Excel.' : ''}`}</small>}
         left={<><input placeholder={sel ? `Tìm bài môn ${sel}…` : 'Tìm bài trong mọi môn…'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
           {pg.length > 1 && <select value={gf} onChange={e => setGf(Number(e.target.value))} aria-label="Khối"><option value={0}>Tất cả khối</option>{pg.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>}</>}
         right={<>
@@ -1164,7 +1145,7 @@ function VersionActions({ p, mine, canEdit, mode, isAdmin, onOpen, onChanged, on
       can && st === 'approved' && { key: 'pub2', label: 'Phát hành', kind: 'primary', disabled: busy, onClick: () => setStatus('published', 'Ghi chú phát hành (không bắt buộc):') },
       can && st === 'approved' && { key: 'reopen', label: 'Mở lại để sửa', disabled: busy, onClick: () => setStatus('draft') },
       can && st === 'published' && !hid('version') && { key: 'ver', label: 'Tạo phiên bản mới', kind: 'primary', disabled: busy, onClick: newVersion },
-      can && onDelete && { key: 'del', label: 'Xoá bản nháp', kind: 'danger', disabled: busy, onClick: onDelete },
+      can && onDelete && { key: 'del', label: 'Xoá bản nháp', icon: 'trash', kind: 'danger', disabled: busy, onClick: onDelete },
       can && ['published', 'superseded', 'draft', 'rejected', 'approved'].includes(st) && { key: 'arch', label: 'Ngừng dùng', kind: 'danger', rank: 4, disabled: busy,
         onClick: () => { if (confirm('Ngừng dùng phiên bản này? Đơn vị khác không còn thấy bản ngừng dùng.')) setStatus('archived', 'Lý do ngừng dùng (không bắt buộc):') } },
       can && st === 'archived' && { key: 'unarch', label: 'Mở lại thành nháp', disabled: busy, onClick: () => setStatus('draft') },

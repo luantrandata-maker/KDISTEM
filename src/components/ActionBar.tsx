@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react'
 import { MoreMenu } from './MoreMenu'
+import { Icon } from './Icon'
 
-/** Một thao tác ở thanh nút đầu trang. rank nhỏ = quan trọng hơn (mặc định: primary 1, thường 2, danger 3). */
-export type Act = { key: string; label: ReactNode; onClick: () => void; kind?: 'primary' | 'danger'; disabled?: boolean; title?: string; rank?: number }
+/** Một thao tác ở thanh nút đầu trang. rank nhỏ = quan trọng hơn (mặc định: primary 1, thường 2, danger 3).
+ *  icon: nằm ngoài thì chỉ hiện biểu tượng (vd 'pencil' sửa, 'trash' xoá), tên thao tác ở chú thích; trong "⋯" hiện biểu tượng + tên. */
+export type Act = { key: string; label: ReactNode; icon?: string; onClick: () => void; kind?: 'primary' | 'danger'; disabled?: boolean; title?: string; rank?: number }
 
 /**
  * Thanh nút thao tác theo quy tắc chung:
@@ -15,7 +17,13 @@ export function ActionBar({ items, max = 3, menuExtra }: { items: (Act | false |
   const rankOf = (a: Act) => a.rank ?? (a.kind === 'primary' ? 1 : a.kind === 'danger' ? 3 : 2)
   const out = new Set(list.length <= max ? list.map(a => a.key)
     : list.map((a, i) => [a, i] as const).sort((x, y) => rankOf(x[0]) - rankOf(y[0]) || x[1] - y[1]).slice(0, max).map(x => x[0].key))
-  const btn = (a: Act, inMenu = false) => <button key={a.key} type="button" className={a.kind === 'danger' && !inMenu ? 'danger abdanger' : a.kind} disabled={a.disabled} title={a.title} onClick={a.onClick}>{a.label}</button>
+  const btn = (a: Act, inMenu = false) => {
+    const only = !!a.icon && !inMenu
+    const name = typeof a.label === 'string' ? a.label : undefined
+    const cls = [a.kind === 'danger' && !inMenu ? 'danger abdanger' : a.kind, only && 'iconbtn'].filter(Boolean).join(' ') || undefined
+    return <button key={a.key} type="button" className={cls} disabled={a.disabled} title={a.title ?? (only ? name : undefined)} aria-label={only ? name : undefined} onClick={a.onClick}>
+      {a.icon && <Icon n={a.icon} size={only ? 17 : 15} />}{!only && (a.icon ? <> {a.label}</> : a.label)}</button>
+  }
   const rest = list.filter(a => !out.has(a.key))
   return <>
     {list.filter(a => out.has(a.key)).map(a => btn(a))}

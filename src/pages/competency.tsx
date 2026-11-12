@@ -133,7 +133,7 @@ export function ClassCompetencies({ teacherId }: { teacherId: string | null }) {
       <p className="sub" style={{ margin: '0 0 10px' }}>Mức trung bình M1–M4 từ các bài đã chấm theo tiêu chí có gắn năng lực. Bấm tên học sinh để xem hồ sơ.</p>
       {err && <p className="msg">{err}</p>}
       {!classes.length && <p className="sub">Chưa có lớp.</p>}
-      {cur && <div className="panel"><div className="bar"><b>{cur.full_name}</b><button onClick={() => setSel(null)}>Đóng</button></div><StudentCompetencyProfile studentId={cur.id} /></div>}
+      {cur && <div className="panel"><div className="bar"><b>{cur.full_name}</b><button onClick={() => setSel(null)} className="xclose" aria-label="Đóng" title="Đóng">✕</button></div><StudentCompetencyProfile studentId={cur.id} /></div>}
       {cls && <div className="wrap"><table className="compmatrix">
         <thead><tr><th>Học sinh</th>{shownComps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}</tr></thead>
         <tbody>

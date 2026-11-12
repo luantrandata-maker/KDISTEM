@@ -2786,3 +2786,6 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .pdcrumb>span:last-child{color:var(--text);font-weight:600}
 .pagehead:has(.pdclose)>.pagecorner:not(:has(.pdclose)){display:none}
 .main button.pdclose{border-radius:10px}
+/* Nút đóng chỉ là dấu ✕ */
+.main button.xclose{width:34px;height:34px;min-height:0;padding:0;display:inline-grid;place-items:center;border-radius:8px;font-size:16px;line-height:1;color:var(--muted);flex:none}
+.main button.xclose:hover{color:var(--text);background:var(--soft)}

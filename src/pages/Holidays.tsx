@@ -130,7 +130,7 @@ export function Holidays({ orgId }: { orgId: string | null }) {
       {err && !form && <p className="msg">{err}</p>}
       {form && (
         <form className="panel" onSubmit={save}>
-          <div className="bar"><h3>Thêm ngày nghỉ</h3><button type="button" onClick={() => setForm(null)}>Đóng</button></div>
+          <div className="bar"><h3>Thêm ngày nghỉ</h3><button type="button" onClick={() => setForm(null)} className="xclose" aria-label="Đóng" title="Đóng">✕</button></div>
           {ps.length > 0 && <p className="tools" style={{ marginTop: 0 }}><small>Gợi ý:</small>
             {ps.map(p => <button type="button" className="chipbtn" key={p.name} onClick={() => setForm({ ...form, ...p })}>{p.name} · {p.starts_on.split('-').reverse().slice(0, 2).join('/')}</button>)}</p>}
           <div className="formgrid">

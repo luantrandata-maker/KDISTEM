@@ -134,7 +134,7 @@ export default function StudentPrivacy({ s, consent, canErase, onClose, onChange
 
   return (
     <div className="panel privacy">
-      <div className="bar"><h3>{s.full_name} <small className="sub">{s.student_code} · {s.classes?.name}</small></h3><button onClick={onClose}>Đóng</button></div>
+      <div className="bar"><h3>{s.full_name} <small className="sub">{s.student_code} · {s.classes?.name}</small></h3><button onClick={onClose} className="xclose" aria-label="Đóng" title="Đóng">✕</button></div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
       <h4>Đồng ý của cha mẹ / người giám hộ</h4>
       {consent ? (

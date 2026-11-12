@@ -130,7 +130,7 @@ export function TeacherSelfStudy({ teacherId, orgId }: TProps) {
 
       {form && (
         <form className="panel" onSubmit={save}>
-          <div className="bar"><h3>Giao bài học trước / tự học</h3><button type="button" onClick={() => setForm(null)}>Đóng</button></div>
+          <div className="bar"><h3>Giao bài học trước / tự học</h3><button type="button" onClick={() => setForm(null)} className="xclose" aria-label="Đóng" title="Đóng">✕</button></div>
           <div className="formgrid">
             <div className="field" style={{ gridColumn: '1 / -1' }}><span>Lớp *</span>
               <span className="tools">{classes.map(c => (

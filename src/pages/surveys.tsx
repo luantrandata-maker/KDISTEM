@@ -220,7 +220,7 @@ export function SurveyManager() {
               {' '}<button className="x" onClick={() => remove(s)} aria-label={`Xoá ${s.title}`}>×</button></>}</td></tr>))}
           {!list.length && <tr><td colSpan={5}>Chưa có khảo sát. Bấm "Tạo khảo sát".</td></tr>}</tbody>
       </table></div>
-      {cur && <div className="panel"><div className="bar"><h3 style={{ margin: 0 }}>Kết quả: {cur.title}</h3><button onClick={() => setView(null)}>Đóng</button></div><Results s={cur} /></div>}
+      {cur && <div className="panel"><div className="bar"><h3 style={{ margin: 0 }}>Kết quả: {cur.title}</h3><button onClick={() => setView(null)} className="xclose" aria-label="Đóng" title="Đóng">✕</button></div><Results s={cur} /></div>}
     </>
   )
 }

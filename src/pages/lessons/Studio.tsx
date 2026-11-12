@@ -236,7 +236,7 @@ function Presenter({ plan, i, onMove, onClose }: { plan: LPlan; i: number; onMov
         <span>{i + 1}/{n || 1}</span>
         <button onClick={() => onMove(Math.min(n - 1, i + 1))} disabled={i >= n - 1}>Sau ›</button>
         <button onClick={() => document.querySelector('.presenter .slide')?.requestFullscreen?.()}>Toàn màn hình</button>
-        <button onClick={onClose}>Đóng</button></span></div>
+        <button onClick={onClose} className="xclose" aria-label="Đóng" title="Đóng">✕</button></span></div>
       <SlideView slide={plan.slides[i]} reveal />
     </div>
   )

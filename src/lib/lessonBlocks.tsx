@@ -433,7 +433,7 @@ export function LessonEditor({ value, ct, onChange, readOnly, title, preview = t
           </div>
         ))}
         {!readOnly && (adding ? (
-          <div className="panel"><div className="bar"><b>Thêm khối nội dung</b><button type="button" onClick={() => setAdding(false)}>Đóng</button></div>
+          <div className="panel"><div className="bar"><b>Thêm khối nội dung</b><button type="button" onClick={() => setAdding(false)} className="xclose" aria-label="Đóng" title="Đóng">✕</button></div>
             <div className="blockpick">{BLOCK_TYPES.map(t => <button type="button" key={t} onClick={() => add(t)}><span><Icon n={BLOCKS[t].icon} /></span>{BLOCKS[t].label}</button>)}</div></div>
         ) : <button type="button" className="addblock" onClick={() => setAdding(true)}>＋ Thêm khối nội dung <small>{BLOCK_TYPES.length} loại khối dùng cho {ct ?? 'bài giảng'}</small></button>)}
       </section>

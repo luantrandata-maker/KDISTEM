@@ -7,6 +7,7 @@ import { CustomInputs, customCell } from '../components/CustomFields'
 import { fieldsOf, useSettings } from '../lib/settings'
 import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
 import { ActionBar, type Act } from '../components/ActionBar'
+import { PageCorner, PageCrumb } from '../components/PageCorner'
 import { SchoolPicker } from '../components/SchoolPicker'
 import { useOrgFilter } from '../components/OrgFilters'
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
@@ -321,11 +322,12 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
 
   return (
     <>
+      <PageCrumb><nav className="pdcrumb" aria-label="Đường dẫn"><button type="button" className="linkbtn" onClick={onClose} title="Về danh sách chương trình">Chương trình giáo dục</button><span aria-hidden="true">›</span>
+        <span className="pdh1" title={p.title}>{p.title}</span><small className="pdver">v{p.version_no}</small><StatusPill s={p.status} /></nav></PageCrumb>
+      <PageCorner><button type="button" className="pdclose xclose" onClick={onClose} title="Đóng, về danh sách chương trình" aria-label="Đóng chi tiết">✕</button></PageCorner>
       <div className="bar">
         <div>
-          <button className="linkbtn" onClick={onClose}>← Danh sách chương trình</button>
-          <h3 style={{ margin: '4px 0 0' }}>{p.title} <small>v{p.version_no}</small> <StatusPill s={p.status} /></h3>
-          <small className="sub">{[p.code, lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ctsOf(p).join(', '), mainsOf(p).join(', '), `${p.total_periods} tiết`, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
+          <small className="sub">{[p.code, lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ctsOf(p).join(', '), mainsOf(p).join(', '), p.total_periods != null ? `${p.total_periods} tiết` : null, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
         </div>
         <div className="tools">
           {(() => {
@@ -891,9 +893,6 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     await load(); onChanged()
     return importSummary(ok, 'bài', bad)
   }
-  function exportLessons() {
-    downloadXlsx(`Mon-bai-hoc ${p.title} v${p.version_no}`, LIMPORT, rows.map(r => [r.subject, unitGrades(r.u).join(', ') || null, r.u.title, r.u.periods || null, r.outs.map(o => o.content).join('\n')]), 'Bài học')
-  }
   async function remove(r: LRow) {
     if (!confirm(`Xoá bài "${r.u.title}"? Yêu cầu cần đạt và học liệu gắn với bài cũng bị bỏ.`)) return
     const { error } = await supabase.from('edu_program_units').delete().eq('id', r.u.id)
@@ -1033,14 +1032,12 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
         rowProps={editable ? r => ({ className: drag === r.u.id ? 'sldragging' : over === r.u.id && drag ? 'slover' : undefined,
           onDragOver: e => { if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== r.u.id) setOver(r.u.id) },
           onDrop: e => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id) moveTo(id, r) } }) : undefined}
-        empty={<small className="sub">{inSel.length ? 'Không có bài nào khớp bộ lọc.' : !subjList.length ? 'Chưa có môn. Chọn môn chủ đạo ở “Sửa thông tin” hoặc bấm “+ Thêm môn”.' : `${sel ? 'Môn ' + sel : 'Chương trình'} chưa có bài học.${editable ? ' Gõ tên bài ở dòng dưới hoặc bấm “Dán danh sách bài”.' : ''}`}</small>}
+        empty={<small className="sub">{inSel.length ? 'Không có bài nào khớp bộ lọc.' : !subjList.length ? 'Chưa có môn. Chọn môn chủ đạo ở “Sửa thông tin” hoặc bấm “+ Thêm môn”.' : `${sel ? 'Môn ' + sel : 'Chương trình'} chưa có bài học.${editable ? ' Gõ tên bài ở dòng dưới (dán nhiều dòng để thêm nhiều bài) hoặc Nhập Excel.' : ''}`}</small>}
         left={<><input placeholder={sel ? `Tìm bài môn ${sel}…` : 'Tìm bài trong mọi môn…'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
           {pg.length > 1 && <select value={gf} onChange={e => setGf(Number(e.target.value))} aria-label="Khối"><option value={0}>Tất cả khối</option>{pg.map(g => <option key={g} value={g}>Khối {g}</option>)}</select>}</>}
         right={<>
-          {rows.length > 0 && <button type="button" onClick={exportLessons}>⤓ Tải Excel</button>}
           {editable && <ImportExcel label="⇪ Nhập Excel" columns={LIMPORT} template="Mau-mon-bai-hoc" onRecords={importLessons} onMessage={(m, e) => onMessage(m, e)}
             sample={[['Tin học', '6', 'Bài 1. Thông tin và dữ liệu', '2', 'Phân biệt được thông tin và dữ liệu; Nêu được ví dụ'], ['Tin học', '6', 'Bài 2. Xử lí thông tin', '2', '']]} />}
-          {editable && target && <button type="button" className="primary ttadd" onClick={() => setPaste({ subj: target, text: '' })}>⧉ Dán danh sách bài</button>}
         </>}
         cols={cols}
         foot={editable && target ? <tfoot><tr className="slnew"><td colSpan={10}><div className="slnewrow">

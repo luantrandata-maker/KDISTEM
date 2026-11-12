@@ -165,7 +165,7 @@ export function DeptSchools() {
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
       {cur && (
         <div className="panel">
-          <div className="bar"><h3>{cur.name}</h3><button onClick={() => setOpen(null)}>Đóng</button></div>
+          <div className="bar"><h3>{cur.name}</h3><button onClick={() => setOpen(null)} className="xclose" aria-label="Đóng" title="Đóng">✕</button></div>
           <Tiles items={[
             { label: 'KPI', value: cur.kpi, sub: grade(cur.kpi).label },
             { label: 'Giáo viên', value: cur.teachers, sub: `${cur.stem_teachers} dạy STEM · ${cur.training_done} hoàn thành đào tạo` },

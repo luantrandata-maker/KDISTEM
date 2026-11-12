@@ -137,10 +137,6 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
     await onReload()
     return importSummary(rows.length, 'mục', bad)
   }
-  function exportRows() {
-    downloadXlsx(`Chuong-trinh-tap-huan ${programTitle}`, IMPORT, ordered.map(({ u }) => [KIND[u.kind], u.title, u.kind === 'content' ? Number(u.hours) : hoursOf(u),
-      u.kind === 'content' ? (u.mode ? MODE[u.mode] : '') : '', u.kind === 'content' ? (u.has_test ? 'Có' : '') : '', u.note ?? '']), 'Cấu trúc')
-  }
 
   // ----- Xem / sửa ngay trên bảng: danh sách môn bên trái, bảng nội dung bên phải (như Môn & bài học của chương trình giáo dục) -----
   type CRow = { u: TUnit; subj: TUnit }
@@ -271,7 +267,6 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
           empty={<small className="sub">{inSel.length ? 'Không có nội dung nào khớp.' : !subjs.length ? `Chưa có môn.${editable ? ' Bấm “+ Thêm môn” hoặc “Nhập Excel”.' : ''}` : `${sel ? 'Môn ' + sel.title : 'Chương trình'} chưa có nội dung.${editable ? ' Gõ tên nội dung ở dòng dưới.' : ''}`}</small>}
           left={<input placeholder={sel ? `Tìm nội dung môn ${sel.title}…` : 'Tìm nội dung trong mọi môn…'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm nội dung" />}
           right={<>
-            {units.length > 0 && <button type="button" onClick={exportRows}>⤓ Tải Excel</button>}
             {editable && <ImportExcel label="⇪ Nhập Excel" columns={IMPORT} template="Mau-chuong-trinh-tap-huan"
               sample={[['Môn', 'Phương pháp dạy học STEM', '', '', '', 'Nắm quy trình thiết kế bài học STEM'], ['Nội dung', 'Quy trình 4 bước thiết kế bài học STEM', '3', 'Trực tiếp', 'Có', ''],
                 ['Nội dung', 'Thực hành soạn kế hoạch bài dạy', '4', 'Trực tuyến', '', '']]}

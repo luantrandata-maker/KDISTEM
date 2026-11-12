@@ -2780,3 +2780,23 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .main button.danger.abdanger{background:var(--surface);color:#c0392b;border:1px solid #e3b3ad}
 .main button.danger.abdanger:hover{background:#fdf1ef}
 .tttools>.ttsearch+.ttcount,.tttools>.ttcount{align-self:center}
+/* Chi tiết chương trình: đường dẫn nhỏ thay cho "← Danh sách", nút Đóng ở góc thay cho nút của trang danh sách */
+.pdcrumb{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.pdcrumb .linkbtn{font-size:13px;padding:0}
+.pdcrumb>span:last-child{color:var(--text);font-weight:600}
+.pagehead:has(.pdclose)>.pagecorner:not(:has(.pdclose)){display:none}
+.main button.pdclose{border-radius:10px}
+/* Nút đóng chỉ là dấu ✕ */
+.main button.xclose{width:34px;height:34px;min-height:0;padding:0;display:inline-grid;place-items:center;border-radius:8px;font-size:16px;line-height:1;color:var(--muted);flex:none}
+.main button.xclose:hover{color:var(--text);background:var(--soft)}
+.pagehead>.pagecrumb{order:1;align-self:center;flex:1 1 auto;min-width:0}
+.pagehead:has(>.pagecrumb)>h1{display:none}
+.pagehead>.pagecrumb{order:0}
+.pagecrumb .pdcrumb{display:flex;flex-wrap:nowrap;align-items:center;gap:8px;font-size:20px;line-height:1.3;min-width:0}
+.pagecrumb .pdcrumb>*{flex:none}
+.pagecrumb .pdcrumb .linkbtn{font-size:20px;font-weight:600;color:var(--muted);text-decoration:none;padding:0;white-space:nowrap}
+.pagecrumb .pdcrumb .linkbtn:hover{color:var(--primary)}
+.pagecrumb .pdcrumb>span[aria-hidden]{color:var(--muted);font-weight:400}
+.pagecrumb .pdcrumb>.pdh1{flex:0 1 auto;min-width:0;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pagecrumb .pdver{font-size:13px;color:var(--muted);font-weight:500}
+.pagehead>.pagecrumb{flex:1 1 0;min-width:0}

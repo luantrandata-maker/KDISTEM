@@ -101,7 +101,7 @@ export function StudentAssignments({ studentId, orgId }: SProps) {
       {cur && (
         <form className="panel workbox" onSubmit={submit}>
           <div className="bar"><span><span className={'kind ' + cur.kind}>{KIND_LABEL[cur.kind]}</span> <b>{cur.title}</b></span>
-            <button type="button" onClick={() => setOpen(null)}>Đóng</button></div>
+            <button type="button" onClick={() => setOpen(null)} className="xclose" aria-label="Đóng" title="Đóng">✕</button></div>
           <small>{cur.subject}{cur.teachers ? ` · ${cur.teachers.full_name}` : ''} · {dueLabel(cur.due_at).text}{cur.group_mode && me?.groups[0] ? ` · Nộp chung ${me.groups[0].name}` : ''}</small>
           {cur.instructions && <div className="answer">{cur.instructions}</div>}
           {cur.rubric && <RubricView rubric={cur.rubric} levels={curSub?.status === 'graded' ? curSub.rubric_scores : null} />}

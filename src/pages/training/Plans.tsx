@@ -281,7 +281,7 @@ function PlanCreate({ orgId, node, onClose, onSaved }: { orgId: string; node: Cl
 }
 
 // ===== Chi tiết kế hoạch (khuôn Phân phối): xem (lịch đào tạo, trường & nhà giáo, đề, kết quả) · soạn (1 Chương trình → 2 Xếp lịch → 3 Lịch đào tạo → 4 Gán trường) =====
-type Tab = 'schools' | 'exams' | 'results'
+type Tab = 'sched' | 'exams' | 'reg' | 'results'
 export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBack: () => void; onMsg: (m: [string, boolean]) => void }) {
   const [p, setP] = useState<TPlan | null>(null)
   const [items, setItems] = useState<Item[]>([])
@@ -294,7 +294,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   const [assign, setAssign] = useState(false)
   const [openOrg, setOpenOrg] = useState<string | null>(null)
   const [editSt, setEditing] = useState<boolean | null>(null)
-  const [tab, setTab] = useState<Tab>('schools')
+  const [tab, setTab] = useState<Tab>('sched')
   const [busy, setBusy] = useState(false)
   const progs = usePrograms()
   const { cls, finals } = useFinalNodes()
@@ -402,7 +402,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
     setTab('results'); load()
   }
   async function reopenPlan() {
-    if (!confirm('Mở lại kế hoạch đã kết thúc? Tự đăng ký vẫn tắt, bật lại ở thẻ Trường & nhà giáo nếu cần.')) return
+    if (!confirm('Mở lại kế hoạch đã kết thúc? Tự đăng ký vẫn tắt, bật lại ở thẻ Thông tin đăng ký nếu cần.')) return
     run(supabase.rpc('training_plan_reopen', { p_plan: p!.id }), 'Đã mở lại kế hoạch.')
   }
   async function del() {
@@ -528,24 +528,24 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
         <ol style={{ margin: 0, paddingLeft: 20 }}>{outside.map(e => <li key={e.teacher_id}>{e.teachers?.full_name ?? '…'}{e.teachers?.subject && <small className="sub"> · {e.teachers.subject}</small>}
           {can && <button type="button" className="linkbtn" style={{ marginLeft: 8 }} onClick={() => removeEnr(e)}>Bỏ</button>}</li>)}</ol>
       </section>}
-      {enr.length > 0 && <PlanProgress planId={p.id} manage={can} />}
     </div>
-  const tabs: [Tab, string][] = [['schools', `Trường & nhà giáo${orgs.length ? ` (${orgs.length})` : ''}`], ['exams', 'Đề kiểm tra'], ['results', 'Kết quả & chứng chỉ']]
+  const tabs: [Tab, string][] = [['sched', 'Lịch đào tạo'], ['exams', 'Đề kiểm tra'], ['reg', `Thông tin đăng ký${orgs.length ? ` (${orgs.length} trường)` : ''}`], ['results', 'Kết quả & chứng chỉ']]
+  const tabBar = <div className="segmented pdtabs tpdtabs" role="tablist">{tabs.map(([k, l]) =>
+    <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
 
   if (!editing) return <div className="panel distpanel">
     {head}
     {p.closed_at && <p className="sub" style={{ margin: '0 0 8px' }}>Kế hoạch đã kết thúc ngày {new Date(p.closed_at).toLocaleDateString('vi-VN')}: đã chốt điểm danh, không nhận đăng ký, ghi danh thêm.{p.close_note ? ` Ghi chú: ${p.close_note}` : ''}</p>}
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {forStrip}
-    <PlanSessions s={sched} plan={p} extra={p.pub_status !== 'draft' ? <span><b>{orgs.length}</b> trường · <b>{enr.length}</b>{p.max_learners ? `/${p.max_learners}` : ''} GV</span> : undefined} />
-    <section className="distsec2">
-      <div className="segmented pdtabs tpdtabs" role="tablist">{tabs.map(([k, l]) =>
-        <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
-      {tab === 'schools' && schools}
-      {tab === 'exams' && <PlanExams planId={p.id} planOrg={p.org_id} items={items} can={can && !p.closed_at && p.pub_status !== 'archived'} />}
-      {tab === 'results' && (p.pub_status === 'draft' ? <p className="sub" style={{ margin: 0 }}>Phát hành kế hoạch và ghi danh nhà giáo trước, rồi chấm kết quả và cấp chứng chỉ ở đây.</p>
-        : <PlanResults plan={p} embedded />)}
-    </section>
+    {tab === 'sched' ? <PlanSessions s={sched} plan={p} tabs={tabBar} extra={p.pub_status !== 'draft' ? <span><b>{orgs.length}</b> trường · <b>{enr.length}</b>{p.max_learners ? `/${p.max_learners}` : ''} GV</span> : undefined} />
+      : <section className="distsec2 tpsessview">
+        <h3 className="tptabh">{tabBar}</h3>
+        {tab === 'reg' && schools}
+        {tab === 'exams' && <PlanExams planId={p.id} planOrg={p.org_id} items={items} can={can && !p.closed_at && p.pub_status !== 'archived'} />}
+        {tab === 'results' && (p.pub_status === 'draft' ? <p className="sub" style={{ margin: 0 }}>Phát hành kế hoạch và ghi danh nhà giáo trước, rồi chấm kết quả và cấp chứng chỉ ở đây.</p>
+          : <div style={{ display: 'grid', gap: 12 }}>{enr.length > 0 && <PlanProgress planId={p.id} manage={can} />}<PlanResults plan={p} embedded /></div>)}
+      </section>}
   </div>
 
   return <div className="panel distpanel">
@@ -610,7 +610,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
     <PlanSessions s={sched} plan={p} no={3} checks />
     <section className="distsec2">
       <h3><i>4</i>Gán trường & nhà giáo<span className="sp" />{can && p.pub_status === 'published' && <button type="button" className="primary" onClick={() => setAssign(true)}>Gán trường</button>}</h3>
-      <p className="sub" style={{ margin: 0 }}>{p.pub_status === 'draft' ? 'Phát hành kế hoạch rồi gán trường, duyệt danh sách nhà giáo.' : `${orgs.length} trường · ${enr.length} nhà giáo. Bấm “Xong” để xem danh sách trường, duyệt nhà giáo.`}</p>
+      <p className="sub" style={{ margin: 0 }}>{p.pub_status === 'draft' ? 'Phát hành kế hoạch rồi gán trường, duyệt danh sách nhà giáo.' : `${orgs.length} trường · ${enr.length} nhà giáo. Bấm “Xong” rồi mở thẻ Thông tin đăng ký để xem trường, duyệt nhà giáo.`}</p>
     </section>
   </div>
 }

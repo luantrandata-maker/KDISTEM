@@ -341,7 +341,7 @@ export function TestRun({ back, title, sub, start, send, onBack, doneLabel = 'Qu
     {err && <p className="sub" role="alert" style={{ color: 'var(--bad)' }}>{err}</p>}
     {res && <section className="panel" style={{ textAlign: 'center', display: 'grid', gap: 8, justifyItems: 'center' }}>
       <span className={`pill ${res.passed ? 'active' : 'inactive'}`}>{res.passed ? 'Đạt' : 'Chưa đạt'}</span>
-      <b style={{ fontSize: 36 }}>{num(res.score)}/10</b>
+      <b style={{ fontSize: 'calc(36px * var(--fz,1))' }}>{num(res.score)}/10</b>
       <span className="sub">Đúng {res.correct}/{res.total} câu{res.pass != null ? ` · điểm đạt ${num(res.pass)}` : ''}</span>
       <button type="button" className="primary" onClick={onBack}>{doneLabel}</button>
     </section>}

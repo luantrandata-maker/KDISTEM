@@ -1,11 +1,12 @@
 // Phân hệ 1 — Kế hoạch đào tạo (084, 101). Khuôn Phân phối chương trình: khung phân loại (mặc định chỉ cấp Chương trình, cấu hình thêm cấp),
-// tạo kế hoạch trong một mục rồi soạn theo bước: Chọn chương trình → Xếp lịch (ngày, giờ, địa điểm) → Xem kết quả → Gán trường.
+// tạo kế hoạch ở trang riêng rồi soạn theo mục: 1 Chương trình → 2 Xếp lịch (ngày, giờ, địa điểm) → 3 Lịch đào tạo → 4 Gán trường.
 // Sau phát hành: gán trường → trường chọn nhà giáo, gửi danh sách → đơn vị lập kế hoạch duyệt hoặc trả lại.
 // TrainingPlansPage: KDI và Sở / Phòng (kế hoạch của đơn vị mình). SchoolTrainingAssigned: trường (kế hoạch được giao).
 import { useOrgFilter } from '../../components/OrgFilters'
 import { HeadAction } from '../../components/PageFrame'
 import { DetailHead } from '../../components/DetailHead'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { ActionBar } from '../../components/ActionBar'
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase, fetchAll } from '../../lib/supabase'
 import { OrgPick, useAllMode, useOrgName, useProvinceOf } from '../../components/OrgScope'
 import { MultiSelect } from '../../components/MultiSelect'
@@ -15,8 +16,7 @@ import { ElView } from '../../components/ElView'
 import { Chip, STATUS } from '../dist/Editor'
 import { ClsTree } from '../dist/ClsTree'
 import { useCls, type ClsNode } from '../dist/cls'
-import { Drawer } from '../../components/Drawer'
-import { ScheduleStep, ResultStep, checks, useSchedule } from './PlanSchedule'
+import { ScheduleStep, PlanSessions, checks, useSchedule } from './PlanSchedule'
 import { colorOf } from '../dist/Grid'
 import type { Status } from '../dist/sched'
 import { PlanProgress } from './Progress'
@@ -125,6 +125,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   const shown = useMemo(() => (list ?? []).filter(p => (look !== 'cal' || !yr || p.year_name === yr) && ofl.fit([p.org_id, ...orgs.filter(o => o.plan_id === p.id).map(o => o.org_id)])
     && (!q || `${p.plan_code ?? ''} ${p.name} ${p.provider ?? ''}`.toLowerCase().includes(q.toLowerCase()))), [list, orgs, yr, q, ofl, look])
 
+  if (create) return <PlanCreate orgId={orgId} node={create.node} onClose={() => setCreate(null)} onSaved={id => { setCreate(null); reload(); setOpen(id) }} />
   if (open) return <PlanDetail key={open} id={open} can={can} onBack={() => { setOpen(null); reload() }} onMsg={m => { setMsg(m); reload() }} />
 
   const baseIds = new Set(shown.map(p => p.id))
@@ -189,7 +190,6 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
               : table(shown, list.length ? 'Không có kế hoạch nào khớp bộ lọc.' : can ? 'Chưa có kế hoạch đào tạo nào. Bấm "+ Lập kế hoạch".' : 'Chưa có kế hoạch đào tạo nào.', left, <>{toggle}{add}</>)
           })()}
         </>}
-      {create && <PlanCreate orgId={orgId} node={create.node} onClose={() => setCreate(null)} onSaved={id => { setCreate(null); reload(); setOpen(id) }} />}
     </>
   )
 }
@@ -231,35 +231,57 @@ function useFinalNodes() {
 
 function PlanCreate({ orgId, node, onClose, onSaved }: { orgId: string; node: ClsNode | null; onClose: () => void; onSaved: (id: string) => void }) {
   const { cls, finals } = useFinalNodes()
-  const [f, setF] = useState({ name: '', year_name: yearOptions()[1], node_id: node?.id ?? '' })
+  const [f, setF] = useState<Info>({ ...BLANK, year_name: yearOptions()[1] })
+  const [nodeId, setNodeId] = useState(node?.id ?? '')
   const [org, setOrg] = useState(orgId)
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
+  const missing = [!org && 'Đơn vị lập kế hoạch', !f.name.trim() && 'Tên kế hoạch', !f.year_name && 'Năm học'].filter(Boolean) as string[]
   async function save(e: React.FormEvent) {
     e.preventDefault()
+    if (missing.length || badDates(f)) return
     setBusy(true); setErr('')
-    const { data, error } = await supabase.from('training_plans').insert({ name: f.name.trim(), year_name: f.year_name || null, node_id: f.node_id || null, mode: 'hybrid', term: 'summer',
-      org_id: org, pub_status: 'draft', status: 'planned' }).select('id').single()
+    const { data, error } = await supabase.from('training_plans').insert({ ...toRow(f), node_id: nodeId || null, org_id: org, pub_status: 'draft', status: 'planned' }).select('id').single()
     setBusy(false)
     if (error) return setErr(errText(error.message))
     onSaved((data as { id: string }).id)
   }
-  return <Drawer title="Lập kế hoạch đào tạo" onClose={onClose} closeOnOutside={false}>
-    <form className="formgrid" onSubmit={save}>
-      <OrgPick kind="unit" value={org} onChange={setOrg} title="Đơn vị lập kế hoạch" />
-      <label className="field" style={{ gridColumn: '1/-1' }}><span>Tên kế hoạch đào tạo *</span><input autoFocus required maxLength={200} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="VD: Đào tạo STEM hè 2027 cho nhà giáo THCS" /></label>
-      <label className="field"><span>Năm học *</span><select value={f.year_name} onChange={e => setF({ ...f, year_name: e.target.value })}>{yearOptions().map(y => <option key={y} value={y}>{y}</option>)}</select></label>
-      <label className="field"><span>Phân loại</span>{node ? <input disabled value={cls.path(node.id).map(x => x.name).join(' › ')} />
-        : <select value={f.node_id} onChange={e => setF({ ...f, node_id: e.target.value })}><option value="">— Chưa phân loại —</option>{finals.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select>}</label>
-      {err && <p className="msg" style={{ gridColumn: '1/-1' }}>{err}</p>}
-      <div className="formactions" style={{ gridColumn: '1/-1' }}><button type="submit" className="primary" disabled={busy || !org || !f.name.trim()}>Tạo và soạn tiếp</button></div>
-      <small className="sub" style={{ gridColumn: '1/-1' }}>Tạo xong thì soạn theo bước: chọn chương trình → xếp lịch → xem kết quả, rồi phát hành và gán trường.</small>
+  const S = (n: number) => ({ gridColumn: `span ${n}` })
+  const years = yearOptions()
+  return <ElView back="Kế hoạch đào tạo" onBack={onClose} title="Lập kế hoạch đào tạo">
+    <form className="pform pfwrap nonav noside" onSubmit={save}>
+      <div className="pfmain">
+        <section className="panel pfcard">
+          <div className="pgrid">
+            <div style={S(12)}><OrgPick kind="unit" value={org} onChange={setOrg} title="Đơn vị lập kế hoạch" /></div>
+            <label className="field" style={S(12)}><span>Tên kế hoạch đào tạo *</span><input autoFocus required maxLength={200} value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="VD: Đào tạo STEM hè 2027 cho nhà giáo THCS" /></label>
+            <label className="field" style={S(4)}><span>Năm học *</span><select value={f.year_name} onChange={e => setF({ ...f, year_name: e.target.value })}>{years.map(y => <option key={y} value={y}>{y}</option>)}</select></label>
+            <label className="field" style={S(4)}><span>Đợt</span><select value={f.term} onChange={e => setF({ ...f, term: e.target.value as Term | '' })}><option value="">— Không chọn —</option>
+              {(Object.keys(TERM) as Term[]).map(t => <option key={t} value={t}>{TERM[t]}</option>)}</select></label>
+            <label className="field" style={S(4)}><span>Phân loại</span>{node ? <input disabled value={cls.path(node.id).map(x => x.name).join(' › ')} />
+              : <select value={nodeId} onChange={e => setNodeId(e.target.value)}><option value="">— Chưa phân loại —</option>{finals.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select>}</label>
+            <label className="field" style={S(4)}><span>Hình thức</span><select value={f.mode} onChange={e => setF({ ...f, mode: e.target.value as Mode })}>
+              {(Object.keys(MODE) as Mode[]).map(m => <option key={m} value={m}>{MODE[m]}</option>)}</select></label>
+            <label className="field" style={S(4)}><span>Từ ngày</span><input type="date" value={f.starts_on} onChange={e => setF({ ...f, starts_on: e.target.value })} /></label>
+            <label className="field" style={S(4)}><span>Đến ngày</span><input type="date" value={f.ends_on} onChange={e => setF({ ...f, ends_on: e.target.value })} /></label>
+            <label className="field" style={S(4)}><span>Đơn vị đào tạo</span><input maxLength={200} value={f.provider} onChange={e => setF({ ...f, provider: e.target.value })} placeholder="VD: KDI Education STEM" /></label>
+            <label className="field" style={S(4)}><span>Kinh phí dự kiến (đồng)</span><input type="number" min={0} step={100000} value={f.budget} onChange={e => setF({ ...f, budget: e.target.value })} placeholder="Không bắt buộc" /></label>
+            <label className="field" style={S(4)}><span>Số lượng tối đa (GV)</span><input type="number" min={1} value={f.max_learners} onChange={e => setF({ ...f, max_learners: e.target.value })} placeholder="Không giới hạn" /></label>
+            <label className="field" style={S(12)}><span>Ghi chú</span><textarea rows={2} maxLength={2000} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} placeholder="Mục tiêu, đối tượng…" /></label>
+            {badDates(f) && <p className="warnline" style={S(12)}>Ngày kết thúc phải sau ngày bắt đầu.</p>}
+            {err && <p className="msg" style={S(12)}>{err}</p>}
+          </div>
+          <div className="pfbtns">{missing.length ? <span className="pfmiss">Còn thiếu: {missing.join(', ')}</span> : null}
+            <button type="button" onClick={onClose}>Huỷ</button>
+            <button className="primary" type="submit" disabled={busy || !!missing.length || badDates(f)}>{busy ? 'Đang tạo…' : 'Tạo và soạn tiếp'}</button></div>
+        </section>
+      </div>
     </form>
-  </Drawer>
+  </ElView>
 }
 
-// ===== Soạn kế hoạch theo bước: Chọn chương trình → Xếp lịch → Xem kết quả → Gán trường =====
-type Step = 1 | 2 | 3 | 4 | 5
+// ===== Chi tiết kế hoạch (khuôn Phân phối): xem (lịch đào tạo, trường & nhà giáo, đề, kết quả) · soạn (1 Chương trình → 2 Xếp lịch → 3 Lịch đào tạo → 4 Gán trường) =====
+type Tab = 'schools' | 'exams' | 'results'
 export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolean; onBack: () => void; onMsg: (m: [string, boolean]) => void }) {
   const [p, setP] = useState<TPlan | null>(null)
   const [items, setItems] = useState<Item[]>([])
@@ -271,7 +293,8 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [assign, setAssign] = useState(false)
   const [openOrg, setOpenOrg] = useState<string | null>(null)
-  const [step, setStep] = useState<Step>(1)
+  const [editSt, setEditing] = useState<boolean | null>(null)
+  const [tab, setTab] = useState<Tab>('schools')
   const [busy, setBusy] = useState(false)
   const progs = usePrograms()
   const { cls, finals } = useFinalNodes()
@@ -301,6 +324,8 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   if (!p || !f) return <ElView back="Kế hoạch đào tạo" onBack={onBack} title="Đang tải…">{msg && <p className="msg">{msg[0]}</p>}</ElView>
 
   const edit = can && p.pub_status === 'draft'
+  // Bản nháp mở thẳng chế độ soạn; đã phát hành mở chế độ xem, bấm bút để sửa lịch
+  const editing = editSt ?? edit
   const editSched = can && p.pub_status !== 'archived'
   // Duyệt / từ chối đăng ký của GV (đơn vị tổ chức): danh sách chờ duyệt và danh sách chờ chỗ
   const reviewReg = (r: Reg, ok: boolean) => {
@@ -329,7 +354,6 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   const warn = [!p.year_name && 'chưa chọn năm học', !items.length && 'chưa chọn chương trình đào tạo'].filter(Boolean) as string[]
   const sc = checks(sched, p)
   const scErr = sc.filter(c => c.level === 'error')
-  const scheduled = sched.rows.filter(r => r.date).length
   const enrOf = (org: string) => enr.filter(e => e.teachers?.org_id === org)
   // Chuyển chương trình trong kế hoạch sang phiên bản phát hành mới nhất (126)
   const upgrade = async (i: Item) => {
@@ -369,16 +393,16 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   }
   // Kết thúc kế hoạch (118): chốt điểm danh các buổi, đóng đăng ký, báo GV; kết quả và chứng chỉ vẫn làm tiếp ở bước 5
   async function closePlan() {
-    const note = prompt('Kết thúc kế hoạch đào tạo?\n\nHệ thống chốt điểm danh tất cả buổi (chưa điểm danh = vắng), đóng đăng ký, không ghi danh thêm và báo cho nhà giáo có tên. Kết quả, chứng chỉ vẫn làm tiếp ở bước 5. Mở lại được nếu cần.\n\nGhi chú (không bắt buộc):', '')
+    const note = prompt('Kết thúc kế hoạch đào tạo?\n\nHệ thống chốt điểm danh tất cả buổi (chưa điểm danh = vắng), đóng đăng ký, không ghi danh thêm và báo cho nhà giáo có tên. Kết quả, chứng chỉ vẫn làm tiếp ở thẻ Kết quả & chứng chỉ. Mở lại được nếu cần.\n\nGhi chú (không bắt buộc):', '')
     if (note === null) return
     const { data, error } = await supabase.rpc('training_plan_close', { p_plan: p!.id, p_note: note.trim() || null })
     if (error) { setMsg([errText(error.message), true]); return }
     const r = data as { enrolled: number; passed: number; failed: number; pending: number }
-    setMsg([`Đã kết thúc kế hoạch: ${r.enrolled} nhà giáo · ${r.passed} Đạt · ${r.failed} Chưa đạt · ${r.pending} chưa kết luận. Chuyển sang bước 5 để kết luận và cấp chứng chỉ.`, false])
-    setStep(5); load()
+    setMsg([`Đã kết thúc kế hoạch: ${r.enrolled} nhà giáo · ${r.passed} Đạt · ${r.failed} Chưa đạt · ${r.pending} chưa kết luận. Mở thẻ Kết quả & chứng chỉ để kết luận và cấp chứng chỉ.`, false])
+    setTab('results'); load()
   }
   async function reopenPlan() {
-    if (!confirm('Mở lại kế hoạch đã kết thúc? Tự đăng ký vẫn tắt, bật lại ở bước 4 nếu cần.')) return
+    if (!confirm('Mở lại kế hoạch đã kết thúc? Tự đăng ký vẫn tắt, bật lại ở thẻ Trường & nhà giáo nếu cần.')) return
     run(supabase.rpc('training_plan_reopen', { p_plan: p!.id }), 'Đã mở lại kế hoạch.')
   }
   async function del() {
@@ -401,123 +425,61 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   const removeEnr = (e: Enr) => confirm(`Bỏ ${e.teachers?.full_name ?? 'nhà giáo'} khỏi kế hoạch?`)
     && run(supabase.from('training_enrollments').delete().eq('plan_id', e.plan_id).eq('teacher_id', e.teacher_id), `Đã bỏ ${e.teachers?.full_name ?? 'nhà giáo'} khỏi kế hoạch.`)
   const sortedOrgs = orgs.filter(o => orgF.fit(o.org_id)).sort((a, b) => (a.status === 'submitted' ? 0 : 1) - (b.status === 'submitted' ? 0 : 1) || (names.get(a.org_id) ?? '').localeCompare(names.get(b.org_id) ?? '', 'vi'))
-  const crumbTxt = cls.path(p.node_id).map(n => n.name).join(' › ') || 'Chưa phân loại'
   const validity = !items.length ? null : scErr.length ? <Chip tone="bad">⊗ {scErr.length} lỗi lịch</Chip> : sc.length ? <Chip tone="warn">⚠ {sc.length} lưu ý</Chip> : <Chip tone="good">✓ Lịch hợp lệ</Chip>
 
-  const head = <div className="disthead">
+  const examSel = <select value={p.exam_mode ?? 'content'} aria-label="Cách làm bài kiểm tra" onChange={e => run(supabase.from('training_plans').update({ exam_mode: e.target.value }).eq('id', p.id), 'Đã đổi cách làm bài kiểm tra.')}>
+    {EXAM_MODE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+  const progCodes = items.map((i, k) => ({ i, k, code: i.training_programs?.code ?? '', title: i.training_programs?.title ?? '—' }))
+  const meta = [p.plan_code, p.year_name, p.term && TERM[p.term], span(p)].filter(Boolean).join(' · ')
+  const doneEdit = () => { if (!sched.dirty || confirm('Lịch đang có thay đổi chưa lưu. Bỏ thay đổi?')) { if (sched.dirty) sched.reset(); setEditing(false) } }
+
+  const head = <div className="disthead2">
     <DetailHead back="Kế hoạch đào tạo" onBack={leave} />
-    <span className="distcrumb">{crumbTxt} · {p.plan_code}</span>
+    <div className="distttl">
+      <div className="distttlrow">
+        {editing && edit ? <input className="disttitlein" defaultValue={p.name} maxLength={200} aria-label="Tên kế hoạch" title="Bấm để sửa tên"
+          onBlur={e => { const v = e.target.value.trim(); if (v && v !== p.name) run(supabase.from('training_plans').update({ name: v }).eq('id', p.id)); else e.target.value = p.name }} />
+          : <h2 className="disttitle">{p.name}</h2>}
+        <Chip tone={STATUS[p.pub_status][1]}>{STATUS[p.pub_status][0]}</Chip>
+        {p.closed_at && <Chip tone="off">Đã kết thúc {new Date(p.closed_at).toLocaleDateString('vi-VN')}</Chip>}
+        {validity}
+      </div>
+      <small className="sub">{meta}{editing && <> · <span className={sched.dirty ? 'distunsaved' : undefined}>{sched.dirty ? 'Lịch chưa lưu' : 'Đã lưu'}</span></>}</small>
+    </div>
     <span className="distheadright">
-      <Chip tone={STATUS[p.pub_status][1]}>{STATUS[p.pub_status][0]}</Chip>
-      {p.closed_at && <Chip tone="off">Đã kết thúc {new Date(p.closed_at).toLocaleDateString('vi-VN')}</Chip>}
-      {editSched && (sched.dirty ? <Chip tone="warn">Lịch chưa lưu</Chip> : <Chip tone="good">Đã lưu</Chip>)}
-      {validity}
-      {editSched && <button type="button" disabled={!sched.dirty || busy} onClick={sched.reset}>Hủy thay đổi</button>}
-      {editSched && <button type="button" className={sched.dirty ? 'primary' : ''} disabled={!sched.dirty || busy} onClick={saveSched}>{busy ? 'Đang lưu…' : 'Lưu lịch'}</button>}
-      {can && p.pub_status === 'draft' && <button type="button" className="primary" disabled={warn.length > 0 || scErr.length > 0 || busy}
-        title={warn.length ? 'Chưa phát hành được: ' + warn.join('; ') : scErr.length ? 'Lịch còn lỗi' : undefined} onClick={() => setStatus('published', `Đã phát hành ${p.plan_code}.`)}>Phát hành</button>}
-      {can && p.pub_status === 'published' && <button type="button" className="primary" onClick={() => { setStep(4); setAssign(true) }}>Gán trường</button>}
-      {can && <details className="distmore"><summary aria-label="Thao tác khác">···</summary><div className="distmenu">
-        {p.pub_status === 'published' && !p.closed_at && <button type="button" onClick={closePlan}>Kết thúc kế hoạch</button>}
-        {p.closed_at && <button type="button" onClick={reopenPlan}>Mở lại kế hoạch</button>}
-        {p.pub_status === 'published' && !orgs.length && <button type="button" onClick={() => setStatus('draft', 'Đã chuyển về nháp.')}>Chuyển về nháp</button>}
-        {p.pub_status === 'published' && <button type="button" onClick={() => confirm('Ngừng dùng kế hoạch này? Trường đã gán vẫn giữ danh sách.') && setStatus('archived', 'Đã chuyển sang Ngừng dùng.')}>Ngừng dùng</button>}
-        {p.pub_status === 'archived' && <button type="button" onClick={() => setStatus('published', 'Đã dùng lại kế hoạch.')}>Dùng lại</button>}
-        {p.pub_status === 'draft' && <button type="button" className="danger" onClick={del}>Xoá kế hoạch</button>}
-      </div></details>}
+      <ActionBar items={[
+        !editing && editSched && { key: 'edit', label: 'Chỉnh sửa', icon: 'pencil', onClick: () => setEditing(true) },
+        editing && { key: 'done', label: 'Xong', rank: 1, disabled: busy, onClick: doneEdit },
+        editing && editSched && sched.dirty && { key: 'undo', label: 'Hủy thay đổi', rank: 1, disabled: busy, onClick: sched.reset },
+        editing && editSched && { key: 'save', label: busy ? 'Đang lưu…' : 'Lưu lịch', kind: sched.dirty ? 'primary' : undefined, rank: 1, disabled: !sched.dirty || busy, onClick: saveSched },
+        can && p.pub_status === 'draft' && { key: 'pub', label: 'Phát hành', kind: 'primary', rank: 1, disabled: warn.length > 0 || scErr.length > 0 || busy,
+          title: warn.length ? 'Chưa phát hành được: ' + warn.join('; ') : scErr.length ? 'Lịch còn lỗi' : undefined, onClick: () => setStatus('published', `Đã phát hành ${p.plan_code}.`) },
+        can && p.pub_status === 'published' && { key: 'assign', label: 'Gán trường', kind: 'primary', onClick: () => setAssign(true) },
+        can && p.pub_status === 'published' && !p.closed_at && { key: 'close', label: 'Kết thúc kế hoạch', rank: 4, onClick: closePlan },
+        can && !!p.closed_at && { key: 'reopen', label: 'Mở lại kế hoạch', rank: 4, onClick: reopenPlan },
+        can && p.pub_status === 'published' && !orgs.length && { key: 'todraft', label: 'Chuyển về nháp', rank: 4, onClick: () => setStatus('draft', 'Đã chuyển về nháp.') },
+        can && p.pub_status === 'published' && { key: 'arch', label: 'Ngừng dùng', rank: 4, onClick: () => { if (confirm('Ngừng dùng kế hoạch này? Trường đã gán vẫn giữ danh sách.')) setStatus('archived', 'Đã chuyển sang Ngừng dùng.') } },
+        can && p.pub_status === 'archived' && { key: 'reuse', label: 'Dùng lại', onClick: () => setStatus('published', 'Đã dùng lại kế hoạch.') },
+        can && p.pub_status === 'draft' && { key: 'del', label: 'Xoá kế hoạch', icon: 'trash', kind: 'danger', onClick: del },
+      ]} max={editing ? 5 : 2} />
     </span>
   </div>
 
-  return <div className="panel distpanel">
-    {head}
-    {p.closed_at && <p className="sub" style={{ margin: '0 0 8px' }}>Kế hoạch đã kết thúc ngày {new Date(p.closed_at).toLocaleDateString('vi-VN')}: đã chốt điểm danh, không nhận đăng ký, ghi danh thêm.{p.close_note ? ` Ghi chú: ${p.close_note}` : ''}</p>}
-    {edit ? <input className="disttitlein" defaultValue={p.name} maxLength={200} aria-label="Tên kế hoạch" onFocus={e => e.target.select()}
-      onBlur={e => { const v = e.target.value.trim(); if (v && v !== p.name) run(supabase.from('training_plans').update({ name: v }).eq('id', p.id)); else e.target.value = p.name }} />
-      : <h2 className="disttitle">{p.name}</h2>}
-    {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    {edit && warn.length > 0 && <p className="warnline">Chưa phát hành được: {warn.join('; ')}.</p>}
-    <ol className="diststeps five">
-      {([[1, 'Chọn chương trình', `${items.length} chương trình · ${num(totalHours)} giờ`],
-        [2, 'Xếp lịch', items.length ? `${scheduled}/${sched.rows.length} buổi đã xếp` : 'Chưa có nội dung'],
-        [3, 'Xem kết quả', `${new Set(sched.rows.filter(r => r.date).map(r => r.date)).size} ngày · ${scErr.length ? scErr.length + ' lỗi' : sc.length + ' lưu ý'}`],
-        [4, 'Gán trường & nhà giáo', p.pub_status === 'draft' ? 'Sau khi phát hành' : `${orgs.length} trường · ${enr.length}${p.max_learners ? `/${p.max_learners}` : ''} GV`],
-        [5, 'Kết quả & chứng chỉ', p.pub_status === 'draft' ? 'Sau khi phát hành' : 'Chấm điểm, kết luận, cấp chứng chỉ']] as [Step, string, string][]).map(([k, t, sub]) =>
-        <li key={k}><button type="button" className={step === k ? 'on' : ''} aria-current={step === k ? 'step' : undefined} onClick={() => setStep(k)}>
-          <i>{k}</i><span><b>{t}</b><small>{sub}</small></span></button></li>)}
-    </ol>
+  /** Dành cho · Chương trình · Tổ chức */
+  const forStrip = <div className="distfor">
+    <div className="distforrow"><span className="distforlab">Dành cho</span>
+      <span className="distforpath">{cls.path(p.node_id).length ? cls.path(p.node_id).map((n, k) => <Fragment key={n.id}>{k > 0 && <span className="sep">›</span>}<b>{n.name}</b></Fragment>) : <b>Chưa phân loại</b>}</span></div>
+    {!editing && <div className="distforrow"><span className="distforlab">Chương trình ({items.length})</span>
+      <span className="distforprogs">{progCodes.length ? progCodes.map(({ i, k, code, title }) => <span key={i.program_id} className="distforprog"><i style={{ background: colorOf(k) }} /><b>{code}</b><span>{title}</span>
+        <small>{num(hoursOf(i))} giờ{i.quota ? ` · chỉ tiêu ${i.quota} GV` : ''}{i.trainer ? ` · ${i.trainer}` : ''}</small></span>) : <span className="sub">Chưa chọn chương trình</span>}</span></div>}
+    {!editing && <div className="distforrow"><span className="distforlab">Tổ chức</span>
+      <span className="distforpath tporg"><span>{MODE[p.mode] ?? p.mode}</span><span className="sep">·</span><span>Đơn vị đào tạo <b>{p.provider || '—'}</b></span><span className="sep">·</span>
+        <span>Kinh phí {money(p.budget)}</span><span className="sep">·</span><span>Tối đa: {p.max_learners ? `${p.max_learners} nhà giáo` : 'không giới hạn'}</span><span className="sep">·</span>
+        <span>Bài kiểm tra: {can && !p.closed_at ? examSel : EXAM_MODE.find(x => x[0] === (p.exam_mode ?? 'content'))?.[1]}</span></span></div>}
+    {!editing && p.note && <div className="distforrow"><span className="distforlab">Ghi chú</span><span className="distforpath" style={{ whiteSpace: 'pre-wrap' }}>{p.note}</span></div>}
+  </div>
 
-    {step === 1 && <>
-      <details className="panel tpinfo" open={!p.year_name}>
-        <summary><b>Thông tin kế hoạch</b> <small className="sub">năm học, đợt, hình thức, thời gian, kinh phí, phân loại, cách làm bài kiểm tra</small></summary>
-        {edit ? <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
-          <InfoFields f={f} set={setF} />
-          <label className="field"><span>Phân loại</span><select value={p.node_id ?? ''} onChange={e => run(supabase.from('training_plans').update({ node_id: e.target.value || null }).eq('id', p.id), 'Đã đổi phân loại.')}>
-            <option value="">— Chưa phân loại —</option>{finals.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
-          <label className="field"><span>Cách làm bài kiểm tra</span><select value={p.exam_mode ?? 'content'} onChange={e => run(supabase.from('training_plans').update({ exam_mode: e.target.value }).eq('id', p.id), 'Đã đổi cách làm bài kiểm tra.')}>
-            {EXAM_MODE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
-            <small className="sub">Giảng viên mở đề: nhà giáo chỉ vào làm khi giảng viên bấm "Mở đề" ở buổi học (Lịch đào tạo › mở buổi › Đề kiểm tra).</small></label>
-          <div className="formactions"><button type="button" className="primary" disabled={!f.name.trim() || badDates(f)} onClick={() => run(supabase.from('training_plans').update(toRow(f)).eq('id', p.id), 'Đã lưu thông tin.')}>Lưu thông tin</button></div>
-        </div> : <dl className="tpkv" style={{ marginTop: 12 }}>
-          <dt>Phân loại</dt><dd>{crumbTxt}</dd>
-          <dt>Năm học · đợt</dt><dd>{[p.year_name, p.term && TERM[p.term]].filter(Boolean).join(' · ') || '—'}</dd>
-          <dt>Thời gian</dt><dd>{span(p) || '—'}</dd>
-          <dt>Hình thức</dt><dd>{MODE[p.mode] ?? p.mode}</dd>
-          <dt>Đơn vị đào tạo</dt><dd>{p.provider || '—'}</dd>
-          <dt>Kinh phí dự kiến</dt><dd>{money(p.budget)}</dd>
-          <dt>Số lượng tối đa</dt><dd>{p.max_learners ? `${p.max_learners} nhà giáo` : 'Không giới hạn'}</dd>
-          <dt>Làm bài kiểm tra</dt><dd>{can && !p.closed_at ? <select value={p.exam_mode ?? 'content'} aria-label="Cách làm bài kiểm tra" onChange={e => run(supabase.from('training_plans').update({ exam_mode: e.target.value }).eq('id', p.id), 'Đã đổi cách làm bài kiểm tra.')}>
-            {EXAM_MODE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select> : EXAM_MODE.find(x => x[0] === (p.exam_mode ?? 'content'))?.[1]}</dd>
-          {p.note && <><dt>Ghi chú</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{p.note}</dd></>}
-        </dl>}
-      </details>
-      <div className={edit ? "tppick" : ""}>
-        {edit && <div>
-          <p className="distpickhead"><b>Chương trình đào tạo đã phát hành</b> <span className="sub">{lvl ? `ưu tiên chương trình dùng cho ${cls.path(p.node_id).find(n => n.edu_level)?.name}` : 'tick để thêm vào kế hoạch'}</span></p>
-          {[...progs].filter(g => g.status === 'published').sort((a, b) => Number(fits(b)) - Number(fits(a))).map(g => { const on = items.some(i => i.program_id === g.id)
-            return <div key={g.id} className={'distprogcard' + (on ? ' on' : '') + (fits(g) ? '' : ' off')}>
-              <label className="distproghead"><input type="checkbox" checked={on} onChange={() => toggleProg(g, !on)} />
-                <span>{g.ct_code && <Chip tone="ct">{g.ct_code}</Chip>} <b>{g.code} · {g.title}</b><br />
-                  <small className="sub">{g.subjects.length} môn · {g.subjects.reduce((a, sj) => a + sj.contents.length, 0)} nội dung · {num(g.hours)} giờ{!fits(g) ? ' · khác cấp học' : ''}</small></span></label>
-            </div> })}
-          {!progs.some(g => g.status === 'published') && <p className="sub">Chưa có chương trình đào tạo nào được phát hành.</p>}
-        </div>}
-        <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
-          <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Chương trình trong kế hoạch</h3><small className="sub">{items.length} chương trình · {num(totalHours)} giờ{totalQuota ? ` · chỉ tiêu ${totalQuota} GV` : ''}</small></div>
-          <div className="wrap"><table className="libtable">
-            <thead><tr><th style={{ width: 40 }}>STT</th><th>Chương trình</th><th style={{ width: 70 }}>Số giờ</th><th style={{ width: 100 }}>Chỉ tiêu GV</th><th>Giảng viên</th><th>Trợ giảng</th>{edit && <th style={{ width: 90 }}></th>}</tr></thead>
-            <tbody>{items.map((i, k) => <tr key={i.program_id}>
-              <td>{k + 1}</td>
-              <td style={{ whiteSpace: 'normal' }}><i className="tpdot" style={{ background: colorOf(k) }} /><b>{i.training_programs?.title ?? '—'}</b><br /><small className="sub">{[i.training_programs?.code, verOf(i), i.training_programs?.ct_code].filter(Boolean).join(' · ')}</small>
-                {newerOf(i) && <div className="tpnewer"><small className={p.pub_status === 'draft' ? 'holwarn' : 'sub'}>Đã có phiên bản mới v{newerOf(i)!.version_no}. Kế hoạch vẫn dùng v{progs.find(x => x.id === i.program_id)?.version_no} bình thường{p.pub_status === 'draft' ? ', nhưng cần chuyển sang bản mới trước khi phát hành' : ''}.</small>
-                  {can && p.pub_status !== 'archived' && !p.closed_at && <button type="button" disabled={busy} onClick={() => upgrade(i)}>Chuyển sang v{newerOf(i)!.version_no}</button>}</div>}
-                <UnitPick prog={progs.find(x => x.id === i.program_id)} value={i.units ?? null} edit={edit} onSave={v => patchItem(i, { units: v })} /></td>
-              <td>{num(hoursOf(i))}</td>
-              <td>{edit ? <input type="number" min={0} defaultValue={i.quota ?? ''} aria-label="Chỉ tiêu GV" style={{ width: 76 }}
-                onBlur={e => { const v = e.target.value === '' ? null : Math.max(0, Math.round(Number(e.target.value))); if (v !== i.quota) patchItem(i, { quota: v }) }} /> : i.quota ?? '—'}</td>
-              <td style={{ minWidth: 200, whiteSpace: 'normal' }}>{edit ? <TrainerPick orgId={p.org_id} value={i.trainer_ids ?? []} ariaLabel={`Giảng viên ${i.training_programs?.title ?? ''}`}
-                onChange={ids => patchItem(i, { trainer_ids: ids, trainer: null })} /> : i.trainer || '—'}
-                {edit && !i.trainer_ids?.length && i.trainer && <small className="sub">Đang ghi tay: {i.trainer}</small>}</td>
-              <td style={{ minWidth: 180, whiteSpace: 'normal' }}>{edit ? <TrainerPick orgId={p.org_id} value={i.assistant_ids ?? []} ariaLabel={`Trợ giảng ${i.training_programs?.title ?? ''}`} placeholder="Chọn trợ giảng…"
-                onChange={ids => patchItem(i, { assistant_ids: ids })} /> : i.assistant || '—'}</td>
-              {edit && <td><div className="tools"><button type="button" aria-label="Chuyển lên" disabled={!k} onClick={() => move(k, -1)}>↑</button>
-                <button type="button" aria-label="Chuyển xuống" disabled={k === items.length - 1} onClick={() => move(k, 1)}>↓</button></div></td>}
-            </tr>)}
-              {!items.length && <tr><td colSpan={edit ? 7 : 6}><small className="sub">{edit ? 'Tick chương trình bên trái để thêm vào kế hoạch.' : 'Kế hoạch chưa gắn chương trình đào tạo.'}</small></td></tr>}</tbody>
-          </table></div>
-          <button type="button" className="primary" style={{ justifySelf: 'end' }} disabled={!items.length} onClick={() => setStep(2)}>Tiếp tục: Xếp lịch →</button>
-        </div>
-      </div>
-      <PlanExams planId={p.id} planOrg={p.org_id} items={items} can={can && !p.closed_at && p.pub_status !== 'archived'} />
-    </>}
-    {step === 2 && <ScheduleStep s={sched} plan={p} edit={editSched} onNext={() => setStep(3)} />}
-    {step === 3 && <>
-      <ResultStep s={sched} plan={p} />
-      {can && p.pub_status === 'draft' && <div className="formactions" style={{ textAlign: 'right' }}>
-        <button type="button" onClick={() => setStep(2)}>← Sửa lịch</button>
-        <button type="button" className="primary" disabled={warn.length > 0 || scErr.length > 0 || busy} onClick={() => setStatus('published', `Đã phát hành ${p.plan_code}.`)}>{sched.dirty ? 'Lưu lịch và phát hành' : 'Phát hành kế hoạch'}</button></div>}
-      {p.pub_status === 'published' && <div className="formactions" style={{ textAlign: 'right' }}><button type="button" className="primary" onClick={() => setStep(4)}>Tiếp tục: Gán trường →</button></div>}
-    </>}
-    {step === 4 && (p.pub_status === 'draft' ? <p className="sub">Phát hành kế hoạch ở bước 3 trước, rồi gán trường và mở cho nhà giáo đăng ký.</p> : <div style={{ display: 'grid', gap: 12 }}>
+  const schools = p.pub_status === 'draft' ? <p className="sub" style={{ margin: 0 }}>Phát hành kế hoạch trước, rồi gán trường và mở cho nhà giáo đăng ký.</p> : <div style={{ display: 'grid', gap: 12 }}>
       <SelfRegister p={p} can={can} regs={regs} orgs={orgs} names={names} onSave={(v, ok) => run(supabase.from('training_plans').update(v).eq('id', p.id), ok)}
         onInvite={() => load()} onReview={reviewReg} />
       <Capacity p={p} can={can} enr={enr.length} regs={regs} orgs={orgs} names={names}
@@ -567,10 +529,89 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
           {can && <button type="button" className="linkbtn" style={{ marginLeft: 8 }} onClick={() => removeEnr(e)}>Bỏ</button>}</li>)}</ol>
       </section>}
       {enr.length > 0 && <PlanProgress planId={p.id} manage={can} />}
-      {enr.length > 0 && <div className="formactions" style={{ textAlign: 'right' }}><button type="button" className="primary" onClick={() => setStep(5)}>Tiếp tục: Kết quả & chứng chỉ →</button></div>}
-    </div>)}
-    {step === 5 && (p.pub_status === 'draft' ? <p className="sub">Phát hành kế hoạch và ghi danh nhà giáo trước, rồi chấm kết quả và cấp chứng chỉ ở đây.</p>
-      : <PlanResults plan={p} embedded />)}
+    </div>
+  const tabs: [Tab, string][] = [['schools', `Trường & nhà giáo${orgs.length ? ` (${orgs.length})` : ''}`], ['exams', 'Đề kiểm tra'], ['results', 'Kết quả & chứng chỉ']]
+
+  if (!editing) return <div className="panel distpanel">
+    {head}
+    {p.closed_at && <p className="sub" style={{ margin: '0 0 8px' }}>Kế hoạch đã kết thúc ngày {new Date(p.closed_at).toLocaleDateString('vi-VN')}: đã chốt điểm danh, không nhận đăng ký, ghi danh thêm.{p.close_note ? ` Ghi chú: ${p.close_note}` : ''}</p>}
+    {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+    {forStrip}
+    <PlanSessions s={sched} plan={p} extra={p.pub_status !== 'draft' ? <span><b>{orgs.length}</b> trường · <b>{enr.length}</b>{p.max_learners ? `/${p.max_learners}` : ''} GV</span> : undefined} />
+    <section className="distsec2">
+      <div className="segmented pdtabs tpdtabs" role="tablist">{tabs.map(([k, l]) =>
+        <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}</div>
+      {tab === 'schools' && schools}
+      {tab === 'exams' && <PlanExams planId={p.id} planOrg={p.org_id} items={items} can={can && !p.closed_at && p.pub_status !== 'archived'} />}
+      {tab === 'results' && (p.pub_status === 'draft' ? <p className="sub" style={{ margin: 0 }}>Phát hành kế hoạch và ghi danh nhà giáo trước, rồi chấm kết quả và cấp chứng chỉ ở đây.</p>
+        : <PlanResults plan={p} embedded />)}
+    </section>
+  </div>
+
+  return <div className="panel distpanel">
+    {head}
+    {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+    {edit && warn.length > 0 && <p className="warnline">Chưa phát hành được: {warn.join('; ')}.</p>}
+    {forStrip}
+    <details className="panel tpinfo" open={!p.year_name}>
+      <summary><b>Thông tin kế hoạch</b> <small className="sub">năm học, đợt, hình thức, thời gian, kinh phí, phân loại, cách làm bài kiểm tra</small></summary>
+      {edit ? <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+          <InfoFields f={f} set={setF} />
+          <label className="field"><span>Phân loại</span><select value={p.node_id ?? ''} onChange={e => run(supabase.from('training_plans').update({ node_id: e.target.value || null }).eq('id', p.id), 'Đã đổi phân loại.')}>
+            <option value="">— Chưa phân loại —</option>{finals.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}</select></label>
+          <label className="field"><span>Cách làm bài kiểm tra</span><select value={p.exam_mode ?? 'content'} onChange={e => run(supabase.from('training_plans').update({ exam_mode: e.target.value }).eq('id', p.id), 'Đã đổi cách làm bài kiểm tra.')}>
+            {EXAM_MODE.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
+            <small className="sub">Giảng viên mở đề: nhà giáo chỉ vào làm khi giảng viên bấm "Mở đề" ở buổi học (Lịch đào tạo › mở buổi › Đề kiểm tra).</small></label>
+          <div className="formactions"><button type="button" className="primary" disabled={!f.name.trim() || badDates(f)} onClick={() => run(supabase.from('training_plans').update(toRow(f)).eq('id', p.id), 'Đã lưu thông tin.')}>Lưu thông tin</button></div>
+        </div> : <div className="formgrid" style={{ marginTop: 12 }}><label className="field"><span>Cách làm bài kiểm tra</span>{examSel}</label></div>}
+    </details>
+    <section className="distsec2 first">
+      <h3><i>1</i>Chương trình <small className="sub">{items.length} chương trình · {num(totalHours)} giờ{totalQuota ? ` · chỉ tiêu ${totalQuota} GV` : ''}</small></h3>
+      <div className={edit ? "tppick" : ""}>
+        {edit && <div>
+          <p className="distpickhead"><b>Chương trình đào tạo đã phát hành</b> <span className="sub">{lvl ? `ưu tiên chương trình dùng cho ${cls.path(p.node_id).find(n => n.edu_level)?.name}` : 'tick để thêm vào kế hoạch'}</span></p>
+          {[...progs].filter(g => g.status === 'published').sort((a, b) => Number(fits(b)) - Number(fits(a))).map(g => { const on = items.some(i => i.program_id === g.id)
+            return <div key={g.id} className={'distprogcard' + (on ? ' on' : '') + (fits(g) ? '' : ' off')}>
+              <label className="distproghead"><input type="checkbox" checked={on} onChange={() => toggleProg(g, !on)} />
+                <span>{g.ct_code && <Chip tone="ct">{g.ct_code}</Chip>} <b>{g.code} · {g.title}</b><br />
+                  <small className="sub">{g.subjects.length} môn · {g.subjects.reduce((a, sj) => a + sj.contents.length, 0)} nội dung · {num(g.hours)} giờ{!fits(g) ? ' · khác cấp học' : ''}</small></span></label>
+            </div> })}
+          {!progs.some(g => g.status === 'published') && <p className="sub">Chưa có chương trình đào tạo nào được phát hành.</p>}
+        </div>}
+        <div style={{ display: 'grid', gap: 10, alignContent: 'start' }}>
+          <div className="wrap"><table className="libtable">
+            <thead><tr><th style={{ width: 40 }}>STT</th><th>Chương trình</th><th style={{ width: 70 }}>Số giờ</th><th style={{ width: 100 }}>Chỉ tiêu GV</th><th>Giảng viên</th><th>Trợ giảng</th>{edit && <th style={{ width: 90 }}></th>}</tr></thead>
+            <tbody>{items.map((i, k) => <tr key={i.program_id}>
+              <td>{k + 1}</td>
+              <td style={{ whiteSpace: 'normal' }}><i className="tpdot" style={{ background: colorOf(k) }} /><b>{i.training_programs?.title ?? '—'}</b><br /><small className="sub">{[i.training_programs?.code, verOf(i), i.training_programs?.ct_code].filter(Boolean).join(' · ')}</small>
+                {newerOf(i) && <div className="tpnewer"><small className={p.pub_status === 'draft' ? 'holwarn' : 'sub'}>Đã có phiên bản mới v{newerOf(i)!.version_no}. Kế hoạch vẫn dùng v{progs.find(x => x.id === i.program_id)?.version_no} bình thường{p.pub_status === 'draft' ? ', nhưng cần chuyển sang bản mới trước khi phát hành' : ''}.</small>
+                  {can && p.pub_status !== 'archived' && !p.closed_at && <button type="button" disabled={busy} onClick={() => upgrade(i)}>Chuyển sang v{newerOf(i)!.version_no}</button>}</div>}
+                <UnitPick prog={progs.find(x => x.id === i.program_id)} value={i.units ?? null} edit={edit} onSave={v => patchItem(i, { units: v })} /></td>
+              <td>{num(hoursOf(i))}</td>
+              <td>{edit ? <input type="number" min={0} defaultValue={i.quota ?? ''} aria-label="Chỉ tiêu GV" style={{ width: 76 }}
+                onBlur={e => { const v = e.target.value === '' ? null : Math.max(0, Math.round(Number(e.target.value))); if (v !== i.quota) patchItem(i, { quota: v }) }} /> : i.quota ?? '—'}</td>
+              <td style={{ minWidth: 200, whiteSpace: 'normal' }}>{edit ? <TrainerPick orgId={p.org_id} value={i.trainer_ids ?? []} ariaLabel={`Giảng viên ${i.training_programs?.title ?? ''}`}
+                onChange={ids => patchItem(i, { trainer_ids: ids, trainer: null })} /> : i.trainer || '—'}
+                {edit && !i.trainer_ids?.length && i.trainer && <small className="sub">Đang ghi tay: {i.trainer}</small>}</td>
+              <td style={{ minWidth: 180, whiteSpace: 'normal' }}>{edit ? <TrainerPick orgId={p.org_id} value={i.assistant_ids ?? []} ariaLabel={`Trợ giảng ${i.training_programs?.title ?? ''}`} placeholder="Chọn trợ giảng…"
+                onChange={ids => patchItem(i, { assistant_ids: ids })} /> : i.assistant || '—'}</td>
+              {edit && <td><div className="tools"><button type="button" aria-label="Chuyển lên" disabled={!k} onClick={() => move(k, -1)}>↑</button>
+                <button type="button" aria-label="Chuyển xuống" disabled={k === items.length - 1} onClick={() => move(k, 1)}>↓</button></div></td>}
+            </tr>)}
+              {!items.length && <tr><td colSpan={edit ? 7 : 6}><small className="sub">{edit ? 'Tick chương trình bên trái để thêm vào kế hoạch.' : 'Kế hoạch chưa gắn chương trình đào tạo.'}</small></td></tr>}</tbody>
+          </table></div>
+        </div>
+      </div>
+    </section>
+    <section className="distsec2">
+      <h3><i>2</i>Xếp lịch</h3>
+      <ScheduleStep s={sched} plan={p} edit={editSched} />
+    </section>
+    <PlanSessions s={sched} plan={p} no={3} checks />
+    <section className="distsec2">
+      <h3><i>4</i>Gán trường & nhà giáo<span className="sp" />{can && p.pub_status === 'published' && <button type="button" className="primary" onClick={() => setAssign(true)}>Gán trường</button>}</h3>
+      <p className="sub" style={{ margin: 0 }}>{p.pub_status === 'draft' ? 'Phát hành kế hoạch rồi gán trường, duyệt danh sách nhà giáo.' : `${orgs.length} trường · ${enr.length} nhà giáo. Bấm “Xong” để xem danh sách trường, duyệt nhà giáo.`}</p>
+    </section>
   </div>
 }
 

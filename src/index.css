@@ -2877,3 +2877,8 @@ td button.iconbtn{width:30px;height:30px;min-width:30px;vertical-align:middle}
 /* Đang mở chi tiết: ẩn hàng tab mục của trang danh sách nằm trong khung (vd Phân phối chương trình) */
 main:has(.pdclose)>.pframe>.pfbody>.distpills{display:none}
 .pagehead:has(.pdclose){margin-bottom:10px}
+/* Trang không có tab: nút thao tác cùng hàng tiêu đề, bên phải */
+.pfcrumb>.pfact{margin-left:auto;display:flex;align-items:center;flex-wrap:wrap;gap:8px;align-self:center}
+.pfcrumb>.pfact:empty{display:none}
+.pfcrumb>.pfact .ttadd{margin:0}
+.pfcrumb>.pfact>.pagecorner{display:flex;gap:8px;align-items:center;flex-wrap:wrap}

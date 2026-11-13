@@ -4,6 +4,7 @@
 //  Lịch sử áp dụng (125: các lần gán theo năm học, phiên bản).
 // Theo dõi thực hiện nằm ở menu riêng "Theo dõi Chương trình/Môn học".
 import { YearSelect } from '../../components/YearSelect'
+import { DetailHead } from '../../components/DetailHead'
 import { MultiSelect } from '../../components/MultiSelect'
 import { SchoolPicker } from '../../components/SchoolPicker'
 import { useHiddenBtn } from '../../components/PageButtons'
@@ -346,8 +347,7 @@ function CreatePlan({ orgId, onCancel, onCreated }: { orgId: string; onCancel: (
     onCreated((data as { id: string }).id)
   }
   return <form className="panel distpanel" onSubmit={submit}>
-    <div className="disthead"><button type="button" className="distback" onClick={onCancel}>← Danh sách bản phân phối</button></div>
-    <h2 className="disttitle">Tạo bản phân phối</h2>
+    <DetailHead back="Danh sách bản phân phối" onBack={onCancel} title="Tạo bản phân phối" />
     <p className="sub">Đặt tên và chọn phân loại. Bước sau: chọn chương trình, xếp lịch và phát hành.</p>
     <div className="distnamegrid">
       <label className="field"><span>Tên bản phân phối *</span>

@@ -29,13 +29,17 @@ export function StatCards({ items, active, onPick, nav }: { items: Stat[]; activ
   const anchor = useRef<HTMLSpanElement>(null)
   const [head, setHead] = useState<Element | null | false>(null)
   const [nested, setNested] = useState(false)
+  // Trang trong khung (PageFrame): bỏ số tổng hợp trên đầu
+  const [framed, setFramed] = useState(false)
   useLayoutEffect(() => {
     const a = anchor.current
     setNested(!!a?.parentElement?.closest('.panel, .drawerwrap, dialog, [role=dialog], .elview'))
+    setFramed(!!a?.closest('.pframe'))
     const m = a?.closest('main')
-    setHead(!a || a.closest('.nocards') ? false : m?.querySelector(':scope > .pagehead') ?? null)
+    setHead(!a || a.closest('.nocards') ? false : m?.querySelector(':scope > .pfcrumb') ?? m?.querySelector(':scope > .pagehead') ?? null)
   }, [miniPref])
   const mini = miniPref && !nested
+  if (framed && !nested) return <span ref={anchor} hidden />
   const flip = () => { const v = !mini; setMini(v); try { localStorage.setItem(KEY, v ? '1' : '0') } catch { /* bỏ qua */ } }
   const cols = Math.min(5, Math.max(1, items.length))
   const pick = (s: Stat) => s.k && onPick ? () => onPick(!nav && active === s.k ? null : s.k!) : undefined

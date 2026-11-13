@@ -164,7 +164,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
           ? <ColFilter label={c.label} options={options(c)} value={flt[c.key] ?? []} onChange={v => setFlt(f => ({ ...f, [c.key]: v }))} />
           : null}</th>)}</tr>}
       </thead>
-      <tbody>{shown.map(r => <tr key={rowKey(r)} className={onRow ? 'clickrow' : undefined} onClick={onRow && (() => onRow(r))} {...rowProps?.(r)}>{head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key}>{c.cell(r)}</td>)}</tr>)}
+      <tbody>{shown.map(r => <tr key={rowKey(r)} className={onRow ? 'clickrow' : undefined} onClick={onRow && (() => onRow(r))} {...rowProps?.(r)}>{head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key}><div className="tdc">{c.cell(r)}</div></td>)}</tr>)}
         {!shown.length && <tr><td colSpan={shownCols.length + (head ? 1 : 0)}>{rows.length ? <small className="sub">{qk ? `Không có dòng nào khớp “${q.trim()}”.` : 'Không có dòng nào khớp bộ lọc cột.'}</small> : empty}</td></tr>}</tbody>
       {foot}
     </table></div>

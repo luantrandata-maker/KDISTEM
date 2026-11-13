@@ -1,6 +1,7 @@
 // Học liệu đào tạo: cùng khuôn với Học liệu của chương trình giáo dục — quy trình 3 bước, 4 thẻ số liệu,
 // tab Học liệu theo chương trình (nút Cần chuẩn bị) | Danh mục học liệu (Nội dung, Bài giảng, Link tài liệu, Định mức vật tư, Kho hoạt động).
 import { useEffect, useMemo, useState, type ComponentType } from 'react'
+import { DetailHead } from '../../components/DetailHead'
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx } from '../../lib/sheet'
 import { StatCards } from '../../components/StatCards'
@@ -77,7 +78,7 @@ export function TrainingLibraryPage({ parts, ...p }: { parts: [string, Component
         return <button key={t} type="button" role="tab" aria-selected={on} className={on ? 'on' : ''} onClick={() => setTab(t)}>{l}</button> })}
     </div>
     {tab === 'prog' && <TrainingByProgram orgId={p.orgId} tools={<button type="button" title="Thiết bị, vật tư cần chuẩn bị theo chương trình" onClick={() => setTab('needs')}>📦 Cần chuẩn bị</button>} />}
-    {tab === 'needs' && <><button type="button" className="ghostbtn" onClick={() => setTab('prog')}>← Học liệu theo chương trình</button><Needs d={d} /></>}
+    {tab === 'needs' && <><DetailHead back="Học liệu theo chương trình" onBack={() => setTab('prog')} title="Cần chuẩn bị" /><Needs d={d} /></>}
     {tab === 'catalog' && <>
       <div className="distfilter">{parts.map(([l], i) => <button key={l} type="button" className={`distfchip${part === i ? ' on' : ''}`} onClick={() => setPart(i)}>{l}</button>)}</div>
       {/* Danh mục: bỏ hàng thẻ số liệu của từng tab con (đã có thẻ tổng ở trên) */}

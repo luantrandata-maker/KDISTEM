@@ -1,4 +1,5 @@
 import { CoverPicker, coverStyle } from '../../components/Cover'
+import { DetailHead } from '../../components/DetailHead'
 import { useHiddenBtn } from '../../components/PageButtons'
 import { MultiSelect } from '../../components/MultiSelect'
 import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../../components/TableSel'
@@ -379,7 +380,7 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
   return (
     <>
       <div className="bar">
-        <span className="tools"><button onClick={close}>← Danh sách</button>
+        <span className="tools"><DetailHead back="Danh sách" onBack={close} />
           <LStatusPill s={p.status} />{p.version_no > 0 && <small>Phiên bản {p.version_no}</small>}
           {dirty && <small>Chưa lưu</small>}</span>
         <span className="tools">
@@ -860,7 +861,7 @@ function PlanDetail({ id, orgId, templates, onClose, onEdit, onPresent }: {
   return (
     <>
       <div className="bar">
-        <span className="tools"><button onClick={onClose}>← Danh sách</button><LStatusPill s={p.status} />{p.version_no > 0 && <small>Phiên bản {p.version_no}</small>}
+        <span className="tools"><DetailHead back="Danh sách" onBack={onClose} /><LStatusPill s={p.status} />{p.version_no > 0 && <small>Phiên bản {p.version_no}</small>}
           {p.is_template && <span className="pill">Mẫu</span>}</span>
         <span className="tools">
           {st.blocks > 0 && <button onClick={() => setOverlay({ plan: p, kind: 'player' })}><Icon n="eye" /> Xem như học sinh</button>}

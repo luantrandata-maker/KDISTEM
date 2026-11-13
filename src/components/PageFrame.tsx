@@ -15,16 +15,19 @@ export function PageFrame({ title, tabs, value, onTab, actions, children }: {
     setHead({ h1: ph?.querySelector(':scope > h1')?.textContent ?? '', group: ph?.getAttribute('data-group') ?? '' })
   }, [])
   const name = head.h1
+  const hasTabs = !!tabs && tabs.length > 1
   return <>
     <div className="pfcrumb">
       {title && <span>{name}</span>}
       <h1>{title || name}</h1>
+      {/* Không có tab: nút thêm mới / thao tác nằm cùng hàng tiêu đề, khung không cần hàng đầu */}
+      {!hasTabs && <div className="pfact">{actions}</div>}
     </div>
     <div className="pframe" ref={ref}>
-      <div className="pfhead">
-        {tabs && tabs.length > 1 && <Tabs value={String(value ?? 0)} onChange={v => onTab?.(Number(v))} items={tabs.map((l, k) => [String(k), l] as [string, string])} />}
+      {hasTabs && <div className="pfhead">
+        <Tabs value={String(value ?? 0)} onChange={v => onTab?.(Number(v))} items={tabs.map((l, k) => [String(k), l] as [string, string])} />
         <div className="pfact">{actions}</div>
-      </div>
+      </div>}
       <div className="pfbody">{children}</div>
     </div>
   </>
@@ -44,6 +47,6 @@ export function FramedTabs({ tabs, actions, ...props }: { tabs: [string, Compone
 export function HeadAction({ children }: { children: ReactNode }) {
   const anchor = useRef<HTMLSpanElement>(null)
   const [box, setBox] = useState<Element | null>(null)
-  useLayoutEffect(() => { setBox(anchor.current?.closest('.pframe')?.querySelector(':scope > .pfhead > .pfact') ?? null) }, [])
+  useLayoutEffect(() => { setBox(anchor.current?.closest('main')?.querySelector(':scope > .pfcrumb > .pfact, :scope > .pframe > .pfhead > .pfact') ?? null) }, [])
   return <><span ref={anchor} hidden />{box ? createPortal(children, box) : children}</>
 }

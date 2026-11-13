@@ -3,6 +3,7 @@
 // Sau phát hành: gán trường → trường chọn nhà giáo, gửi danh sách → đơn vị lập kế hoạch duyệt hoặc trả lại.
 // TrainingPlansPage: KDI và Sở / Phòng (kế hoạch của đơn vị mình). SchoolTrainingAssigned: trường (kế hoạch được giao).
 import { useOrgFilter } from '../../components/OrgFilters'
+import { DetailHead } from '../../components/DetailHead'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase, fetchAll } from '../../lib/supabase'
 import { OrgPick, useAllMode, useOrgName, useProvinceOf } from '../../components/OrgScope'
@@ -397,7 +398,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
   const validity = !items.length ? null : scErr.length ? <Chip tone="bad">⊗ {scErr.length} lỗi lịch</Chip> : sc.length ? <Chip tone="warn">⚠ {sc.length} lưu ý</Chip> : <Chip tone="good">✓ Lịch hợp lệ</Chip>
 
   const head = <div className="disthead">
-    <button type="button" className="distback" onClick={leave}>← Kế hoạch đào tạo</button>
+    <DetailHead back="Kế hoạch đào tạo" onBack={leave} />
     <span className="distcrumb">{crumbTxt} · {p.plan_code}</span>
     <span className="distheadright">
       <Chip tone={STATUS[p.pub_status][1]}>{STATUS[p.pub_status][0]}</Chip>
@@ -1001,7 +1002,7 @@ export function SchoolPlanWork({ planId, orgId, onBack }: { planId: string; orgI
       setRow(a.data as unknown as Assigned); setItems((i.data as unknown as Item[]) ?? [])
     })()
   }, [planId, orgId])
-  if (err) return <><button type="button" className="distback" onClick={() => onBack()}>← Giám sát</button><p className="msg">{err}</p></>
+  if (err) return <><DetailHead back="Giám sát" onBack={() => onBack()} /><p className="msg">{err}</p></>
   if (!row) return <p className="sub">Đang tải…</p>
   return <SchoolPlanTeachers row={row} orgId={orgId} items={items} backLabel="Giám sát" onBack={() => onBack()} onMsg={m => onBack(m)} />
 }

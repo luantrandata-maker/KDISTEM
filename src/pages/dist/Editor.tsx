@@ -4,6 +4,7 @@
 //  3. Bản phối — dải tóm tắt / kiểm tra, Bảng (cột trái lọc chương trình · môn, tick giữ / bỏ bài) hoặc Lịch.
 // Bản đã phát hành / ngừng dùng chỉ xem; muốn đổi thì "Tạo bản mới từ bản này".
 import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
+import { DetailHead } from '../../components/DetailHead'
 import { supabase } from '../../lib/supabase'
 import { fmtGrades, progGrades, useEduLevels } from '../../lib/eduLevels'
 import { useCls } from './cls'
@@ -374,7 +375,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
 
   const head = (
     <div className="disthead2">
-      <button type="button" className="distback" onClick={leave}>← {backLabel}</button>
+      <DetailHead back={backLabel} onBack={leave} />
       <div className="distttl">
         <div className="distttlrow">
           {editable ? <input className="disttitlein" value={plan.title} maxLength={200} aria-label="Tên bản phân phối" placeholder="Tên bản phân phối"

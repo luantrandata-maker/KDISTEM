@@ -1,4 +1,5 @@
 import { NameLink, useRowSel } from '../../components/TableSel'
+import { DetailHead } from '../../components/DetailHead'
 // Giáo án & bài giảng cho Trường (duyệt, theo dõi, mẫu giáo án), Sở / Phòng (giáo án đã xuất bản của trường trực thuộc, mẫu dùng chung)
 // và KDI (mẫu giáo án dùng chung toàn hệ thống)
 import { Suspense, lazy, useEffect, useState } from 'react'
@@ -48,7 +49,7 @@ export function PlanPreview({ plan, orgId, onClose, extra }: { plan: LPlan; orgI
   return (
     <>
       <div className="bar">
-        <span className="tools"><button onClick={onClose}>← Danh sách</button><LStatusPill s={plan.status} />{plan.version_no > 0 && <small>Phiên bản {plan.version_no}</small>}</span>
+        <span className="tools"><DetailHead back="Danh sách" onBack={onClose} /><LStatusPill s={plan.status} />{plan.version_no > 0 && <small>Phiên bản {plan.version_no}</small>}</span>
         <span className="tools">{extra}
           {!PLAN_MODE && blocks > 0 && <><button onClick={() => setOverlay({ plan, kind: 'player' })}>Xem như học sinh</button><button onClick={() => setOverlay({ plan, kind: 'show' })}>Trình chiếu</button></>}
           {PLAN_MODE && <button onClick={() => printPlan(plan.title)}>In / lưu PDF</button>}</span>

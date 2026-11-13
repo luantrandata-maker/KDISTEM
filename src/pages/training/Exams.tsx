@@ -245,7 +245,7 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
         <label className="chk"><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện phiên bản cũ</label></>}
       right={<><button type="button" onClick={() => downloadXlsx('De-kiem-tra-tap-huan', [{ key: 'p', label: 'Chương trình', width: 34 }, { key: 'v', label: 'Phiên bản', width: 14 },
         { key: 'k', label: 'Loại đề', width: 18 }, { key: 't', label: 'Đề / nội dung', width: 36 }, { key: 'c', label: 'Cấu hình', width: 50 }, { key: 'n', label: 'Lượt làm', width: 10 }, { key: 'a', label: 'Điểm TB', width: 10 }],
-        shown.map(r => [`${r.prog.code} · ${r.prog.title}`, `v${r.prog.version_no} · ${STATUS[r.prog.status]?.[0]}`, KIND[r.kind][0], r.title, r.cfg, statOf(r)?.attempts ?? 0, statOf(r)?.avg_score ?? '']), 'Đề kiểm tra')}>Xuất Excel</button><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setAdd(true) }}>+ Thêm đề kiểm tra</button></>} />}
+        shown.map(r => [`${r.prog.code} · ${r.prog.title}`, `v${r.prog.version_no} · ${STATUS[r.prog.status]?.[0]}`, KIND[r.kind][0], r.title, r.cfg, statOf(r)?.attempts ?? 0, statOf(r)?.avg_score ?? '']), 'Đề kiểm tra')}>Xuất Excel</button><HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setAdd(true) }}>+ Thêm đề kiểm tra</button></HeadAction></>} />}
   </>
 }
 

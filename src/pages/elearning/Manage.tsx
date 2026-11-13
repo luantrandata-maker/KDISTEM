@@ -1,5 +1,5 @@
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
-import { HeadAction } from '../../components/PageFrame'
+import { HeadAction, HeadTabs } from '../../components/PageFrame'
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
 import { DataTable, SideSplit, type Col } from '../../components/DataTable'
@@ -36,7 +36,7 @@ export default function ElearningManage({ orgId }: { orgId: string | null }) {
   // Bộ lọc Tỉnh / trường dùng chung cho tab Đề luyện và Khoá học, để số trên thẻ chạy theo bộ lọc
   const ofl = useOrgFilter()
   return <>
-    <Tabs value={tab} onChange={setTab} items={[['course', 'Khoá học e-learning'], ['exam', 'Đề luyện'], ['hard', 'Câu hỏi khó'], ['review', 'Nội dung cần ôn'], ['bank', 'Ngân hàng câu hỏi']]} />
+    <HeadTabs><Tabs value={tab} onChange={setTab} items={[['course', 'Khoá học e-learning'], ['exam', 'Đề luyện'], ['hard', 'Câu hỏi khó'], ['review', 'Nội dung cần ôn'], ['bank', 'Ngân hàng câu hỏi']]} /></HeadTabs>
     {(tab === 'course' || tab === 'exam') && <ElCards orgId={orgId} ofl={ofl} tab={tab} />}
     {tab === 'exam' ? <Exams orgId={orgId} ofl={ofl} /> : tab === 'course' ? <Courses orgId={orgId} ofl={ofl} /> : tab === 'hard' || tab === 'review' ? <Analytics key={tab} orgId={orgId} kind={tab} />
       : <QuestionBank orgId={orgId} />}

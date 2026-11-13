@@ -2872,8 +2872,7 @@ td button.iconbtn{width:30px;height:30px;min-width:30px;vertical-align:middle}
 .pfcrumb>.statmini{margin:0 0 0 auto;align-self:center}
 .pfcrumb>.statmini::before{content:none}
 .pfhead>.pfact>.pagecorner{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-/* Khung không có tab và nút: bỏ hàng đầu trống */
-.pfhead:not(:has(>.segmented)):not(:has(>.pfact>*)){display:none}
+
 /* Đang mở chi tiết: ẩn hàng tab mục của trang danh sách nằm trong khung (vd Phân phối chương trình) */
 main:has(.pdclose)>.pframe>.pfbody>.distpills{display:none}
 .pagehead:has(.pdclose){margin-bottom:10px}
@@ -2891,3 +2890,4 @@ main:has(.pdclose)>.pframe>.pfbody>.distpills{display:none}
 /* Trong khung (PageFrame): khối .panel duy nhất của trang không vẽ thêm khung lồng, không có khoảng trống phía trên */
 .pfbody>section.panel:only-of-type{border:0;border-radius:0;padding:0;margin-top:0!important;margin-bottom:0;background:none;box-shadow:none}
 .pfbody>section.panel:only-of-type+.tablenote{margin-top:12px}
+.pfhead>.pftabs>.segmented{margin:0}

@@ -1,4 +1,5 @@
 import { CoverPicker, coverStyle } from '../../components/Cover'
+import { HeadAction } from '../../components/PageFrame'
 import { DetailHead } from '../../components/DetailHead'
 import { useHiddenBtn } from '../../components/PageButtons'
 import { MultiSelect } from '../../components/MultiSelect'
@@ -116,7 +117,7 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
         <span className="tools">
           {!library && <button onClick={() => setLibrary(true)}>Mẫu bài giảng</button>}
           {go && <button onClick={() => go('Thư viện STEM')} title="Học liệu do Sở, Phòng, KDI Education phát hành">Thư viện STEM</button>}
-          {!hid('new') && <button className="primary" onClick={() => setView({ mode: 'new' })}>+ Tạo bài giảng</button>}
+          {!hid('new') && <HeadAction><button className="primary ttadd" onClick={() => setView({ mode: 'new' })}>+ Tạo bài giảng</button></HeadAction>}
         </span>
       </div>
       {!library && <p className="sub" style={{ marginTop: 0 }}>{reviewRequired

@@ -5,6 +5,8 @@ import { supabase } from '../lib/supabase'
 import { PROGRAM_COLOR } from './teacher/common'
 import { useEduLevels } from '../lib/eduLevels'
 import { ElView } from '../components/ElView'
+import { DataTable, type Col } from '../components/DataTable'
+import { HeadAction } from '../components/PageFrame'
 import { STEM_LEVELS, STEM_LEVEL_NAME, useStemTracks, type StemLevel, type StemTrack } from '../lib/stemTracks'
 
 // Danh mục loại chương trình (migration 062, 064): CT1–CT5 ban đầu; KDI thêm loại mới, sửa tên, mô tả, môn học,
@@ -45,38 +47,30 @@ export function StemTracksCatalog() {
         : <TrackForm t={{ ...BLANK, sort: tracks.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1 }} isNew onCancel={() => setEdit(null)} onSaved={done} />}
     </ElView>
   }
+  const cols: Col<StemTrack>[] = [
+    { key: 'code', label: 'Mã', fixed: true, thClass: 'c-no c-code', text: t => t.code, cell: t => <span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{t.code}</span> },
+    { key: 'title', label: 'Loại chương trình', fixed: true, thClass: 'c-ttl', text: t => t.title + ' ' + t.name, cell: t => <><b>{t.title}</b><div className="sub">{t.name}</div></> },
+    { key: 'desc', label: 'Mô tả', off: true, text: t => t.description ?? '', cell: t => t.description || <small className="sub">—</small> },
+    { key: 'subj', label: 'Môn học', text: t => t.subjects.join(', '), values: t => t.subjects, cell: t => t.subjects.length ? t.subjects.join(', ') : <small className="sub">Chưa có</small> },
+    { key: 'lv', label: 'Cấp học', text: t => t.levels.map(l => STEM_LEVEL_NAME[l]).join(', '), values: t => t.levels.map(l => STEM_LEVEL_NAME[l]),
+      cell: t => t.levels.length ? t.levels.map(l => STEM_LEVEL_NAME[l]).join(', ') : <small className="sub">Chưa chọn</small> },
+    { key: 'progs', label: 'CT đang ban hành', text: t => String(progs.filter(p => p.ct_code === t.code).length), cell: t => {
+      const list = progs.filter(p => p.ct_code === t.code)
+      return list.length ? <span title={list.map(p => `${p.title} · ${levelName(p.level)} · v${p.version_no}`).join('\n')}>{list.length} chương trình</span> : <small className="sub">Chưa có</small> } },
+    { key: 'st', label: 'Trạng thái', text: t => t.active === false ? 'Ngừng dùng' : 'Đang dùng', values: t => [t.active === false ? 'Ngừng dùng' : 'Đang dùng'],
+      cell: t => <span className={'pill ' + (t.active === false ? 'inactive' : 'good')}>{t.active === false ? 'Ngừng dùng' : 'Đang dùng'}</span> },
+    ...(admin ? [{ key: 'act', label: '', fixed: true, thClass: 'c-act', cell: (t: StemTrack) => <div className="tools" style={{ justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
+      <button type="button" onClick={e => { e.stopPropagation(); setMsg(''); setEdit(t.code) }}>Sửa</button>
+      <button type="button" className="danger" onClick={e => { e.stopPropagation(); remove(t) }}>Xoá</button></div> }] : []),
+  ]
   return (
     <>
-      <div className="bar">
-        <p className="sub" style={{ margin: 0 }}>Loại chương trình STEM của KDI (CT1–CT5 và các loại thêm sau): tên, mô tả, môn học và cấp học áp dụng. {admin
-          ? 'Bấm "Sửa" để điều chỉnh; thay đổi hiện ngay ở tất cả màn chọn loại chương trình. Loại đã được dùng thì không xoá, chỉ ngừng dùng.'
-          : 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'} Nội dung chi tiết (học phần, yêu cầu cần đạt) nằm trong từng chương trình giáo dục bên dưới mỗi loại.</p>
-        {admin && <button className="primary" onClick={() => { setMsg(''); setEdit('') }}>Thêm loại chương trình</button>}
-      </div>
+      {admin && <HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(''); setEdit('') }}>+ Thêm loại chương trình</button></HeadAction>}
       {msg && <p className="msg" role="status">{msg}</p>}
-      {tracks.map(t => {
-        const list = progs.filter(p => p.ct_code === t.code)
-        return (
-            <section key={t.code} className="panel">
-              <div className="bar" style={{ margin: 0 }}>
-                <h3 style={{ margin: 0 }}><span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{t.code}</span> {t.title}
-                  <small className="sub" style={{ marginLeft: 8 }}>{t.name}</small>{t.active === false && <span className="pill" style={{ marginLeft: 8 }}>Ngừng dùng</span>}</h3>
-                {admin && <div className="tools">
-                  <button onClick={() => { setMsg(''); setEdit(t.code) }}>Sửa</button>
-                  <button className="danger" onClick={() => remove(t)}>Xoá</button>
-                </div>}
-              </div>
-              {t.description && <p style={{ margin: '6px 0 10px' }}>{t.description}</p>}
-              <div className="sub" style={{ margin: '0 0 4px' }}>Các môn học trong chương trình</div>
-              <div>{t.subjects.length ? t.subjects.map(s => <span key={s} className="chip" style={{ paddingRight: 12 }}>{s}</span>) : <small className="sub">Chưa có</small>}</div>
-              <div className="sub" style={{ margin: '10px 0 4px' }}>Cấp học áp dụng</div>
-              <div>{t.levels.length ? t.levels.map(l => <span key={l} className="pill" style={{ marginRight: 6 }}>{STEM_LEVEL_NAME[l]}</span>) : <small className="sub">Chưa chọn</small>}</div>
-              <div className="sub" style={{ margin: '10px 0 4px' }}>Chương trình giáo dục đang ban hành ({list.length})</div>
-              <div>{list.length ? list.map(p => <span key={p.id} className="chip" style={{ paddingRight: 12 }}>{p.title} · {levelName(p.level)} · v{p.version_no}</span>)
-                : <small className="sub">Chưa có — tạo ở tab "Chương trình giáo dục", chọn kiểu "Chương trình STEM" và loại {t.code}.</small>}</div>
-            </section>
-          )
-      })}
+      <DataTable id="stem-tracks" className="trktbl" rows={tracks} rowKey={t => t.code} cols={cols} simple
+        onRow={admin ? t => { setMsg(''); setEdit(t.code) } : undefined}
+        empty="Chưa có loại chương trình nào." />
+      <p className="tablenote sub">{admin ? 'Bấm một dòng để sửa. Loại đã được dùng thì không xoá được, chỉ chuyển sang "Ngừng dùng".' : 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'} Học phần và yêu cầu cần đạt nằm trong từng chương trình giáo dục.</p>
     </>
   )
 }

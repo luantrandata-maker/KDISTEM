@@ -2992,3 +2992,15 @@ main:has(.pdclose)>.pframe>.pfbody>.distpills{display:none}
 .main .tscal.gcal .tpcalmore:hover{background:var(--soft)}
 .tscal.gcal .tscald.pick{outline:0;background:var(--soft)}
 @media(max-width:800px){.tscal.gcal{border-radius:6px}}
+/* Cỡ chữ chuẩn 14px (như Google Material 3, Microsoft Fluent 2): chữ chính 14px cho bảng, menu, nút, ô nhập; chữ phụ 13px */
+button,input,select,textarea{font-size:calc(14px * var(--fz,1))}
+/* Bảng kiểu gọn (như danh bạ Google / Microsoft): tiêu đề nền trắng chữ đậm cùng màu chữ, vạch dọc mảnh giữa các tiêu đề cột,
+   tên đậm không gạch chân (gạch khi rê chuột), dòng sáng nền khi rê chuột */
+.ttable th{background:var(--surface);color:var(--text);font-weight:600;font-size:calc(14px * var(--fz,1));border-bottom:1px solid var(--line)}
+.ttable th+th{box-shadow:inset 1px 0 0 var(--line)}
+.ttable tbody tr:hover>td{background:#f6f8fb}
+.main .ttable :is(button,a).namelink{color:var(--text);font-weight:600;text-decoration:none}
+.main .ttable :is(button,a).namelink:hover{color:var(--primary);text-decoration:underline}
+.main .gtitem{border-radius:999px;padding:8px 14px;font-size:calc(14px * var(--fz,1))}
+.main .gtitem.on{background:#e3eefc;color:var(--primary)}
+.gtcnt{border-radius:4px;background:#eef0f3;font-size:calc(12px * var(--fz,1))}

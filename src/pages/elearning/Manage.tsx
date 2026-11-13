@@ -412,22 +412,12 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
     const fs = form.subjects ?? [], fg = form.grades ?? []
     const missing = [!form.title.trim() && 'Tên khoá học', !fs.length && 'Môn', !fg.length && 'Khối'].filter(Boolean) as string[]
     const S = (n: number) => ({ gridColumn: `span ${n}` })
-    const secs: [string, string, boolean][] = [
-      ['cf-1', 'Thông tin khoá học', !missing.length],
-      ['cf-2', 'Thời hạn & đối tượng', !!form.due_at || !!form.shared || !!(form.class_ids?.length || form.group_ids?.length || form.student_ids?.length)],
-      ['cf-3', 'Giới thiệu', !!(form.description ?? '').trim()],
-    ]
-    const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     const aud = fSchool ? audienceText({ ...form, shared: false } as Course, fClasses, fGroups) || 'Chưa chọn lớp / nhóm' : form.shared ? 'Học sinh tất cả trường trực thuộc' : 'Chỉ đơn vị mình'
     return <ElView back={open ? 'Chi tiết khoá học' : 'Khoá học e-learning'} onBack={() => setForm(null)} title={form.id ? 'Sửa khoá học' : 'Tạo khoá học'} sub={form.id ? form.title : undefined}>
       {note}
-      <form className="pform pfwrap" onSubmit={save}>
-        <nav className="panel pfnav" aria-label="Các phần của form">
-          {secs.map(([id, t, ok], i) => <button key={id} type="button" className={ok ? 'ok' : ''} onClick={() => go(id)}><i>{ok ? '✓' : i + 1}</i>{t}</button>)}
-        </nav>
+      <form className="pform pfwrap nonav" onSubmit={save}>
         <div className="pfmain">
-          <section id="cf-1" className="panel pfcard">
-            <h4><i>1</i>Thông tin khoá học</h4><p className="pfhint">Bài học, học liệu và đề luyện của khoá chọn từ kho theo các môn này.</p>
+          <section className="panel pfcard">
             <div className="pgrid">
               {!form.id && <div style={S(12)}><OrgPick kind="any" value={form.org ?? ''} onChange={org => setForm({ ...form, org, class_ids: null, group_ids: null, student_ids: null, shared: false })} title="Đơn vị mở khoá học" /></div>}
               <label className="field" style={S(12)}><span>Tên khoá học *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Lập trình Arduino cơ bản" /></label>
@@ -435,21 +425,11 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
                 <SubjectMulti value={fs} onChange={v => setForm({ ...form, subjects: v, subject: v[0] ?? null })} placeholder="Chọn môn…" ariaLabel="Môn của khoá học" /></div>
               <div className="field" style={S(6)}><span>Khối *</span>
                 <GradeChecks value={fg} onChange={v => setForm({ ...form, grades: v, grade: [...v].sort((a, b) => a - b)[0] ?? null })} ariaLabel="Khối của khoá học" /></div>
-              <label className="field" style={S(12)}><span>Ảnh bìa (https://…)</span><input value={form.cover_url ?? ''} onChange={e => setForm({ ...form, cover_url: e.target.value })} placeholder="Không bắt buộc" /></label>
-            </div>
-          </section>
-          <section id="cf-2" className="panel pfcard">
-            <h4><i>2</i>Thời hạn & đối tượng</h4><p className="pfhint">Không bắt buộc. Có thể bổ sung sau.</p>
-            <div className="pgrid">
               <label className="field" style={S(6)}><span>Hạn hoàn thành</span><input type="datetime-local" value={toLocal(form.due_at)} onChange={e => setForm({ ...form, due_at: e.target.value ? new Date(e.target.value).toISOString() : null })} /></label>
-              <div style={S(12)}>{fSchool ? <AudiencePicker key={(form.id ?? 'new') + fOrg} orgId={fOrg} classes={fClasses} groups={fGroups} value={form} onChange={v => setForm({ ...form, ...v })} />
+              <label className="field" style={S(6)}><span>Ảnh bìa (https://…)</span><input value={form.cover_url ?? ''} onChange={e => setForm({ ...form, cover_url: e.target.value })} placeholder="Không bắt buộc" /></label>
+              <div className="field" style={S(12)}><span>Đối tượng</span>{fSchool ? <AudiencePicker key={(form.id ?? 'new') + fOrg} orgId={fOrg} classes={fClasses} groups={fGroups} value={form} onChange={v => setForm({ ...form, ...v })} />
                 : <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}><input type="checkbox" style={{ width: 'auto', margin: 0 }} checked={form.shared} onChange={e => setForm({ ...form, shared: e.target.checked })} /> Dành cho học sinh tất cả trường trực thuộc</label>}</div>
-            </div>
-          </section>
-          <section id="cf-3" className="panel pfcard">
-            <h4><i>3</i>Giới thiệu</h4><p className="pfhint">Học sinh thấy phần này khi mở khoá học.</p>
-            <div className="pgrid">
-              <label className="field" style={S(12)}><span>Giới thiệu khoá học</span><textarea rows={4} value={form.description ?? ''} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Khoá học giúp học sinh…" /></label>
+              <label className="field" style={S(12)}><span>Giới thiệu khoá học</span><textarea rows={4} value={form.description ?? ''} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Học sinh thấy phần này khi mở khoá học" /></label>
             </div>
           </section>
         </div>

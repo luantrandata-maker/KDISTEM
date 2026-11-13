@@ -560,8 +560,9 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
             onChange={v => setF({ ...f, integrated_subjects: v })} exclude={mains1} extra={trackSubjects} /></div>
           <label className="field" style={S(3)}><span>Số tiết / tuần</span><input disabled={dis} type="number" min={0.5} max={40} step={0.5} value={f.periods_per_week ?? ''} onChange={e => setF({ ...f, periods_per_week: e.target.value === '' ? null : Number(e.target.value) })}
             placeholder="VD: 2" title="Dùng làm mặc định khi tạo phân phối chương trình" /></label>
-          <div className="field" style={S(9)}><span>Thời gian triển khai</span>
-            <Seg value={(f.deploy_term ?? 'year') as Deploy} off={dis} onPick={d => setF({ ...f, deploy_term: d })} opts={(Object.keys(DEPLOY) as Deploy[]).map(d => [d, `${DEPLOY[d][0]} · ${DEPLOY[d][1]}`])} /></div>
+          <label className="field" style={S(9)}><span>Thời gian triển khai</span>
+            <select disabled={dis} value={(f.deploy_term ?? 'year') as Deploy} aria-label="Thời gian triển khai" onChange={e => setF({ ...f, deploy_term: e.target.value as Deploy })}>
+              {(Object.keys(DEPLOY) as Deploy[]).map(d => <option key={d} value={d}>{DEPLOY[d][0]} · {DEPLOY[d][1]}</option>)}</select></label>
         </div>
       </section>
 

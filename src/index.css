@@ -2950,6 +2950,8 @@ main:has(.pdclose)>.pframe>.pfbody>.distpills{display:none}
 .main .segmented.tpdtabs button{background:none;box-shadow:none;border:0;border-bottom:2px solid transparent;border-radius:0;padding:9px 2px 8px;margin-bottom:-1px;color:var(--muted);font-weight:500}
 .main .segmented.tpdtabs button:hover{background:none;color:var(--text)}
 .main .segmented.tpdtabs button.on{background:none;box-shadow:none;color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
+/* Lịch tháng vừa một màn hình (fitCal): hàng tuần chia đều chiều cao */
+.tscal.fit{align-content:stretch}.tscal.fit .tscald,.tpcal.fit .tscald{min-height:0}
 /* Dãy thẻ chi tiết kế hoạch đào tạo nằm ở hàng tiêu đề, nút Bảng / Lịch bên phải */
 .distsec2 h3.tptabh{border-bottom:1px solid var(--line);margin-bottom:12px;flex-wrap:nowrap}
 .main .distsec2 h3.tptabh .segmented.tpdtabs{width:auto;border-bottom:0;margin:0;font-size:calc(14px * var(--fz,1))}

@@ -2,6 +2,7 @@
 // Dùng chung bộ lọc với tab "Danh sách kế hoạch". Bấm kế hoạch để mở.
 import { useMemo, useState } from 'react'
 import type { TPlan } from './Plans'
+import { useFitMonth, weeksOf } from '../../lib/fitCal'
 
 const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const vn = (s: string) => s.split('-').reverse().join('/')
@@ -9,7 +10,6 @@ const from = (p: TPlan) => (p.starts_on ?? p.ends_on)!
 const to = (p: TPlan) => (p.ends_on && p.ends_on >= from(p) ? p.ends_on : from(p))
 const when = (p: TPlan) => (from(p) === to(p) ? vn(from(p)) : `${vn(from(p))} – ${vn(to(p))}`)
 const TONE: Record<string, string> = { draft: 'draft', published: 'pub', archived: 'off' }
-const MAX = 3
 
 export function PlanCal({ plans, onOpen, label }: { plans: TPlan[]; onOpen: (id: string) => void; label: (p: TPlan) => string }) {
   const dated = useMemo(() => plans.filter(p => p.starts_on || p.ends_on).sort((a, b) => from(a).localeCompare(from(b)) || a.name.localeCompare(b.name)), [plans])
@@ -27,10 +27,12 @@ export function PlanCal({ plans, onOpen, label }: { plans: TPlan[]; onOpen: (id:
   const on = (s: string) => dated.filter(p => from(p) <= s && to(p) >= s)
   const shift = (k: number) => { setPick(null); setAnchor(a => view === 'week' ? new Date(a.getFullYear(), a.getMonth(), a.getDate() + 7 * k) : view === 'month' ? new Date(a.getFullYear(), a.getMonth() + k, 1) : new Date(a.getFullYear() + k, a.getMonth(), 1)) }
 
-  // Tháng: lưới 6 tuần bắt đầu từ thứ Hai
+  // Tháng: lưới các tuần của tháng bắt đầu từ thứ Hai, vừa một màn hình
   const first = new Date(anchor.getFullYear(), anchor.getMonth(), 1)
   const start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7))
-  const days = Array.from({ length: 42 }, (_, k) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + k))
+  const nWk = weeksOf(anchor)
+  const days = Array.from({ length: nWk * 7 }, (_, k) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + k))
+  const fit = useFitMonth(view === 'month', nWk), MAX = fit.max
   // Tuần: 7 ngày từ thứ Hai của tuần chứa ngày đang xem
   const w0 = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - ((anchor.getDay() + 6) % 7))
   const week = Array.from({ length: 7 }, (_, k) => new Date(w0.getFullYear(), w0.getMonth(), w0.getDate() + k))
@@ -70,7 +72,7 @@ export function PlanCal({ plans, onOpen, label }: { plans: TPlan[]; onOpen: (id:
       {week.map(d => { const s = ymd(d)
         return <div key={s} className={'tscald' + (s === today ? ' today' : '')}>{on(s).map(p => chip(p, s))}</div> })}
     </div> : view === 'month' ? <>
-      <div className="tscal tpcal">
+      <div ref={fit.ref} style={fit.style} className={'tscal tpcal' + (fit.style ? ' fit' : '')}>
         {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <div key={d} className="tscalh">{d}</div>)}
         {days.map(d => { const s = ymd(d), ps = on(s)
           return <div key={s} className={'tscald' + (d.getMonth() !== anchor.getMonth() ? ' out' : '') + (s === today ? ' today' : '') + (pick === s ? ' pick' : '')}>

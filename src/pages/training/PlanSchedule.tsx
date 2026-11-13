@@ -394,7 +394,7 @@ function MonthGrid({ s, rows, month, color }: { s: Schedule; rows: Row[]; month:
   const m0 = new Date(month + '-01T00:00'), start = new Date(m0); start.setDate(1 - ((m0.getDay() + 6) % 7))
   const days = Array.from({ length: 42 }, (_, k) => { const d = new Date(start); d.setDate(start.getDate() + k); return ymd(d) })
   const today = ymd(new Date())
-  return <div className="tscal tpcal month tpmcal" role="table" aria-label={`Lịch đào tạo tháng ${month}`}>
+  return <div className="tscal tpcal month tpmcal gcal" role="table" aria-label={`Lịch đào tạo tháng ${month}`}>
     {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <div key={d} className="tscalh">{d}</div>)}
     {days.map(d => { const hn = s.hol.holName(d), on = rows.filter(r => r.date === d).sort((a, b) => a.from.localeCompare(b.from))
       return <div key={d} className={'tscald' + (d.slice(0, 7) !== month ? ' out' : '') + (d === today ? ' today' : '') + (hn ? ' hol' : '')} title={hn ? 'Ngày nghỉ: ' + hn : undefined}>

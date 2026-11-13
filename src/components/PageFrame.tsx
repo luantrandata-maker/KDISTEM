@@ -16,13 +16,13 @@ export function PageFrame({ title, tabs, value, onTab, actions, children }: {
   }, [])
   const name = head.h1
   return <>
-    {(head.group || title) && <nav className="pfcrumb" aria-label="Đường dẫn">
+    <div className="pfcrumb">
       {head.group && <span>{head.group}</span>}
-      {title ? <><span>{name}</span><b>{title}</b></> : <b>{name}</b>}
-    </nav>}
+      {title && <span>{name}</span>}
+      <h1>{title || name}</h1>
+    </div>
     <div className="pframe" ref={ref}>
       <div className="pfhead">
-        <h1>{title || name}</h1>
         {tabs && tabs.length > 1 && <Tabs value={String(value ?? 0)} onChange={v => onTab?.(Number(v))} items={tabs.map((l, k) => [String(k), l] as [string, string])} />}
         <div className="pfact">{actions}</div>
       </div>

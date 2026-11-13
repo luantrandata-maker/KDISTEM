@@ -1,5 +1,7 @@
 // Phân hệ 2 — Chương trình đào tạo (083, 131): mẫu khoá đào tạo do KDI, Sở, Phòng, Trường soạn, dùng lại cho các kế hoạch đào tạo.
 import { CompetencySetupLink } from '../../components/CompetencySetup'
+import { DetailHead } from '../../components/DetailHead'
+import { HeadAction } from '../../components/PageFrame'
 // Cấu trúc 3 cấp: Chương trình đào tạo → Môn → Nội dung đào tạo. Cách làm giống Phân hệ 2: hướng dẫn các bước,
 // thẻ số liệu, danh sách có lọc; thêm / sửa / xem chi tiết mở view riêng; Nháp → Đã phát hành → Ngừng dùng, nhân bản để sửa.
 import { MultiSelect } from '../../components/MultiSelect'
@@ -128,7 +130,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
         left={<>
           <input placeholder="Tìm mã, tên, đối tượng…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
           <small className="sub">{shown.length}/{list.length} chương trình · {baseStats.reduce((a, x) => a + x.subjects, 0)} môn · {totalContents} nội dung</small></>}
-        right={admin && <button type="button" className="primary ttadd" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>+ Thêm chương trình</button>} />}
+        right={admin && <HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>+ Thêm chương trình</button></HeadAction>} />}
     </>
   )
 }
@@ -333,9 +335,8 @@ function ProgramForm({ admin, onBack, onSaved }: { admin: boolean; onBack: () =>
     onSaved(id)
   }
   return <>
+    <DetailHead back="Chương trình đào tạo" onBack={onBack} title="Thêm chương trình đào tạo" />
     <div className="bar"><div>
-      <button type="button" className="linkbtn" onClick={onBack}>← Danh sách chương trình</button>
-      <h3 style={{ margin: '4px 0 0' }}>Thêm chương trình đào tạo</h3>
       <small className="sub">Lưu xong thì thêm các môn và nội dung đào tạo.</small></div></div>
     {err && <p className="msg" role="status"><b>{err}</b></p>}
     <TForm f={f} set={setF} x={x} setX={setX} isNew edit={admin} scopeEdit={admin} busy={busy} onSave={save} onCancel={onBack} />
@@ -436,8 +437,7 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
   return <>
     <div className="bar">
       <div>
-        <button type="button" className="linkbtn" onClick={onBack}>← {back}</button>
-        <h3 style={{ margin: '4px 0 0' }}>{p.title} <small>v{p.version_no}</small> <Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip></h3>
+        <DetailHead back={back} onBack={onBack} title={p.title} extra={<><small className="pdver">v{p.version_no}</small><Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip></>} />
         <small className="sub">{[p.code, ctsOf(p).join(', '), lvsOf(p).length ? lvsOf(p).map(levelName).join(', ') : 'Mọi cấp học', MODE[p.mode], `${num(hours)} giờ`].filter(Boolean).join(' · ')}</small>
       </div>
       <div className="tools">

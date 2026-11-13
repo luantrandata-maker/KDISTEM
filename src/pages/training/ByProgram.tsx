@@ -2,6 +2,7 @@
 // Chương trình đào tạo → các môn (thu gọn được) với nội dung và bài giảng (training_lessons, bộ 5 thẻ) ngay bên dưới;
 // mỗi dòng có + Thêm nội dung / Sửa nội dung / Xóa.
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { DetailHead } from '../../components/DetailHead'
 import { supabase, fetchAll } from '../../lib/supabase'
 import { LessonPage } from '../library/lesson/LessonPage'
 import { CreateLesson, type ProgRef } from '../library/lesson/Create'
@@ -139,8 +140,8 @@ export function TrainingByProgram({ orgId, tools }: { orgId: string; tools?: Rea
       </div>
     }
     return <>{crumbs}
-      <button type="button" className="ghostbtn" onClick={() => setPid(null)}>← Danh sách chương trình đào tạo</button>
-      <div className="lheadrow"><div><h2>{prog.title}</h2>
+      <DetailHead back="Danh sách chương trình đào tạo" onBack={() => setPid(null)} title={prog.title} />
+      <div className="lheadrow"><div>
         <p className="sub">{[prog.code, prog.version_no ? `v${prog.version_no}` : '', PST[prog.status] ?? prog.status, `${subs.length} môn`].filter(Boolean).join(' · ')}</p></div></div>
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
       {subs.map(sj => group(sj.id, sj.title, rowsOf(contentsOf(sj.id)), sj))}

@@ -1,5 +1,6 @@
 // Trang bài học theo video demo (23/10): bộ học liệu 5 thẻ, mỗi thẻ xem / cập nhật / chốt nội dung; đủ 5 thẻ thì phát hành.
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { DetailHead } from '../../../components/DetailHead'
 import { catalogOf, useSettings } from '../../../lib/settings'
 import { supabase } from '../../../lib/supabase'
 import { openFile, uploadLearningFile, fmtSize } from '../../../lib/files'
@@ -167,7 +168,7 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
     <Terms.Provider value={T}>
     <div className="lpage">
       <div className="lhead">
-        <button type="button" className="ghostbtn" onClick={onBack}>{backLabel}</button>
+        <DetailHead back={backLabel.replace(/^←\s*/, '')} onBack={onBack} />
         <div className="lheadrow">
           <div><h2>{row.title}</h2>
             <p className="sub">{[progLabel, progSubject, row.grades && `Khối ${row.grades}`, code].filter(Boolean).join(' · ')}</p></div>

@@ -2,6 +2,7 @@
 // Bài học là bộ học liệu (library_items kind 'unit', 077/080): bài trong cây chương trình hoặc bài tạo thêm bằng "Tạo giáo án".
 // Cần chuẩn bị theo chương trình hoặc theo trường: tự tổng hợp vật tư / công cụ / thiết bị từ định mức của các bài × số nhóm.
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { DetailHead } from '../../components/DetailHead'
 import { supabase, fetchAll } from '../../lib/supabase'
 import { SchoolPicker } from '../../components/SchoolPicker'
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
@@ -164,12 +165,12 @@ export function LibraryByProgram({ orgId, onChanged, tools }: { orgId: string | 
   if (prog) {
     const subs = subjectsOf(prog.id)
     return <>{crumbs}
-      <button type="button" className="ghostbtn" onClick={() => setPid(null)}>← Danh sách chương trình</button>
+      <DetailHead back="Danh sách chương trình" onBack={() => setPid(null)} title={prog.title} />
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
       {create && <CreateLesson orgId={orgId} programs={progRefs} subjectsOf={subjectsOf} program={progRefs.find(p => p.id === prog.id)!} subject={create.subject}
         preset={create.preset} kits={kits} onClose={() => setCreate(null)}
         onCreated={(id, m) => { const sj = create.subject; setCreate(null); setMsg(m); reload(); setSubj(sj); setOpen({ id }) }} />}
-      <div className="lheadrow"><div><h2>{prog.title}</h2>
+      <div className="lheadrow"><div>
         <p className="sub">{[prog.code, grades(prog), `v${prog.version_no}`, PSTATUS[prog.status] ?? prog.status, `${subs.length} môn học`].filter(Boolean).join(' · ')}</p></div></div>
       {subs.map(s => {
         const rows = rowsOf(prog, s); const ks = rows.map(r => r.kit).filter(Boolean) as KitRow[]

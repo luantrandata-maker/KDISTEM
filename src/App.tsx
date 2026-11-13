@@ -142,6 +142,8 @@ const AuthorityCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Hồ s�
 // Quản trị hệ thống thao tác như người dùng (26/10): màn bọc AllOrgs hiện dữ liệu tất cả đơn vị trong một danh sách, sửa thẳng;
 // thêm mới thì chọn đơn vị ngay trong form
 const allOrgs = (C: ComponentType<any>, extra: Record<string, unknown> = {}) => (p: any) => <AllOrgs><C {...p} {...extra} /></AllOrgs>
+// Trang trong khung (tiêu đề trên khung, nội dung trong khung trắng) như Chương trình giáo dục
+const framed = (C: ComponentType<any>) => (p: any) => <PageFrame><C {...p} /></PageFrame>
 const PH1_TABS = {
   profiles: allOrgs(SchoolTeacherAssessments, { orgId: null, profile: true }), rounds: allOrgs(AssessmentRoundsPage),
   plans: allOrgs(TrainingPlansPage), cal: allOrgs(TrainingCalendarPage), trainers: allOrgs(TrainersPage),
@@ -179,7 +181,7 @@ const trMat = (part: string) => (p: any) => <TrainingMaterials {...p} part={part
 const TrainingLibraryPage = lazy(() => import('./pages/training/Library').then(m => ({ default: m.TrainingLibraryPage })))
 const trainingMaterialTabs = (lessons: ComponentType<any>) => (p: any) => <TrainingLibraryPage {...p} parts={[['Nội dung đào tạo', trMat('content')], ['Bài giảng', lessons],
   ['Link tài liệu', trMat('docs')], ['Định mức vật tư', trMat('mats')], ['Kho hoạt động', SysTrainingActivities]]} />
-const PlatformCompetencyTabs = (p: any) => <TabbedPages {...p} tabs={[['Hồ sơ năng lực', PH1_TABS.profiles],
+const PlatformCompetencyTabs = (p: any) => <FramedTabs {...p} tabs={[['Hồ sơ năng lực', PH1_TABS.profiles],
   ['Đợt đánh giá', PH1_TABS.rounds], ['Khoảng thiếu hụt', CompetencyGapsPage], ['Khung năng lực', TeacherFramework]]} />
 const PlatformSupport = lazy(() => import('./pages/support/Support').then(m => ({ default: m.PlatformSupport })))
 // Đợt 2 (025): triển khai khách hàng, danh mục gói, đơn đặt gói, thông báo hàng loạt, tích hợp
@@ -242,10 +244,10 @@ const PH2_TABS = {
   lessons: allOrgs(SchoolLessons), elearning: allOrgs(ElearningManage),
 }
 // PPCT các đơn vị gộp vào danh sách bản phân phối (Nguồn: PPCT các đơn vị)
-const PlatformDistPage = (p: any) => <DistPage {...p} units />
+const PlatformDistPage = framed((p: any) => <DistPage {...p} units />)
 // Học liệu các đơn vị gộp vào Danh mục học liệu (Nguồn: Tất cả đơn vị)
-const PlatformLibraryPage = LibraryPage
-const PlatformElearningPage = PH2_TABS.elearning
+const PlatformLibraryPage = framed(LibraryPage)
+const PlatformElearningPage = framed(PH2_TABS.elearning)
 function PlatformEduProgramsPage(p: any) {
   const [track, setTrack] = useState(false)
   const back = <button type="button" onClick={() => setTrack(false)}>← Chương trình giáo dục</button>
@@ -259,7 +261,7 @@ const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [
   // Giáo án tạm ẩn (PLAN_MODE): chỉ còn bài giảng, kho hoạt động và mẫu bài giảng
   ...(PLAN_MODE ? [['Giáo án các trường', PH2_TABS.lessons], ['Mẫu giáo án', allOrgs(PlatformLessonTemplates)]] as [string, ComponentType<any>][]
     : [['Mẫu bài giảng', SysLessonTemplates]] as [string, ComponentType<any>][])]
-const PlatformLessonsPage = (p: any) => <TabbedPages {...p} tabs={PLATFORM_LESSON_TABS} />
+const PlatformLessonsPage = (p: any) => <FramedTabs {...p} tabs={PLATFORM_LESSON_TABS} />
 const PlatformCatalog = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformCatalog })))
 const PlatformOrders = lazy(() => import('./pages/platform/Catalog').then(m => ({ default: m.PlatformOrders })))
 const PlatformBroadcast = lazy(() => import('./pages/platform/Broadcast').then(m => ({ default: m.PlatformBroadcast })))
@@ -495,10 +497,10 @@ const PLATFORM: PageMap = {
   'Đơn đặt gói STEM': (p: any) => <TabbedPages {...p} tabs={[['Đơn đặt gói', PlatformOrders], ['Gói STEM của KDI', PlatformCatalog]]} />,
   'Tích hợp & dữ liệu': PlatformIntegrations,
   // 1. Đào tạo & đánh giá năng lực nhà giáo — làm lại theo khuôn Phân hệ 2 (kế hoạch: Chương trình → Kế hoạch & lịch → … → Giám sát)
-  'Chương trình đào tạo': TrainingProgramsPage,
+  'Chương trình đào tạo': framed(TrainingProgramsPage),
   // 06/11: tách thành 2 trang — Kế hoạch & lịch (lớp học ảo là bộ lọc Hình thức trong Lịch) và Giám sát & kết quả
-  'Kế hoạch & lịch đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch đào tạo', PH1_TABS.cal], ['Giảng viên', PH1_TABS.trainers]]} />,
-  'Giám sát & kết quả đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Đánh giá kết quả', TrainingResultsPage], ['Chứng chỉ', CertificatesBoth], ['Giám sát', PlatformTrainingMonitor],
+  'Kế hoạch & lịch đào tạo': (p: any) => <FramedTabs {...p} tabs={[['Kế hoạch', PH1_TABS.plans], ['Lịch đào tạo', PH1_TABS.cal], ['Giảng viên', PH1_TABS.trainers]]} />,
+  'Giám sát & kết quả đào tạo': (p: any) => <FramedTabs {...p} tabs={[['Đánh giá kết quả', TrainingResultsPage], ['Chứng chỉ', CertificatesBoth], ['Giám sát', PlatformTrainingMonitor],
     ['Đáp ứng chương trình', ReadinessBoth], ['Báo cáo', allOrgs(TrainingReportPage)]]} />,
   // 2. Chương trình & học liệu
   // Theo file thiết kế Phân hệ 2: 2 tab chính; danh mục nhóm chương trình, cấp học gom vào tab "Danh mục"
@@ -546,8 +548,8 @@ const PLATFORM: PageMap = {
   'Bài tập & chấm bài': SysHomework,
   'Phân phối chương trình': PlatformDistPage,
   'Soạn bài giảng & kho hoạt động': PlatformLessonsPage,
-  'Học liệu đào tạo': trainingMaterialTabs(PH1_TABS.lessons),
-  'Kiểm tra & luyện tập': (p: any) => <TabbedPages {...p} tabs={[['Đề kiểm tra', TrainingExamList], ['Đề luyện', TrainingPracticeExams], ['Kết quả & câu khó', TrainingExamStats], ['Ngân hàng câu hỏi', QuestionBank]]} />,
+  'Học liệu đào tạo': framed(trainingMaterialTabs(PH1_TABS.lessons)),
+  'Kiểm tra & luyện tập': (p: any) => <FramedTabs {...p} tabs={[['Đề kiểm tra', TrainingExamList], ['Đề luyện', TrainingPracticeExams], ['Kết quả & câu khó', TrainingExamStats], ['Ngân hàng câu hỏi', QuestionBank]]} />,
   'Chứng chỉ đào tạo': (p: any) => <TabbedPages {...p} tabs={[['Chứng chỉ', TrainingCertificatesPage], ['Mẫu chứng chỉ', CertTemplatesPage]]} />,
 }
 const PLATFORM_LIVE = new Set(Object.keys(PLATFORM))

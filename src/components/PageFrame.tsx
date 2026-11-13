@@ -17,7 +17,6 @@ export function PageFrame({ title, tabs, value, onTab, actions, children }: {
   const name = head.h1
   return <>
     <div className="pfcrumb">
-      {head.group && <span>{head.group}</span>}
       {title && <span>{name}</span>}
       <h1>{title || name}</h1>
     </div>

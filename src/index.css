@@ -3004,3 +3004,107 @@ button,input,select,textarea{font-size:calc(14px * var(--fz,1))}
 .main .gtitem{border-radius:999px;padding:8px 14px;font-size:calc(14px * var(--fz,1))}
 .main .gtitem.on{background:#e3eefc;color:var(--primary)}
 .gtcnt{border-radius:4px;background:#eef0f3;font-size:calc(12px * var(--fz,1))}
+
+/* ===== Bảng dạng mới (DataTable pro): thanh lọc kiểu Sapo, Bộ lọc có ghim, chọn dòng kiểu Gmail, vừa một màn hình ===== */
+.ttpro{display:flex;flex-direction:column;gap:0;border:1px solid var(--line);border-radius:10px;background:var(--surface);min-width:0}
+.ttprotools{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 14px;justify-content:flex-start}
+.ttprotools .tspacer,.tbulk .tspacer{flex:1}
+.ttprotools .ttleft{margin-right:0}
+.tsrch{display:flex;flex:0 1 440px;min-width:240px}
+.tsrch .tsq{position:relative;flex:1;min-width:0;display:flex;align-items:center}
+.tsrch .tsq svg{position:absolute;left:10px;color:var(--muted);pointer-events:none}
+.main .tsrch input{width:100%;height:36px;border:1px solid var(--line);border-right:0;border-radius:8px 0 0 8px;padding:0 10px 0 34px;margin:0;font-size:calc(14px * var(--fz,1));background:var(--surface)}
+.main .tsrch input:focus{outline:0;border-color:var(--primary)}
+.main .ttpro .tdd{height:36px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font-weight:500;white-space:nowrap}
+.main .ttpro .tdd:hover{border-color:var(--primary);color:var(--primary);background:var(--surface)}
+.main .ttpro .tdd.on{border-color:var(--primary);color:var(--primary);background:#eef4fd}
+.main .ttpro .tdd .ticon{color:var(--muted)}
+.main .tsrch .tby{border-radius:0 8px 8px 0}
+.tby b{font-weight:500}
+.tcar{width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:5px solid currentColor;opacity:.6;margin-left:2px}
+.main .ttpro .tsave{height:36px;padding:0 12px;border:1px solid transparent;border-radius:8px;background:var(--soft);color:var(--text);font-weight:500;white-space:nowrap}
+.main .ttpro .tsave:disabled{color:var(--muted);cursor:default;opacity:.8}
+.ticons{display:inline-flex;gap:6px}
+.main .ttpro .tsq{width:36px;height:36px;padding:0;display:inline-grid;place-items:center;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text)}
+.main .ttpro .tsq:hover{border-color:var(--primary);color:var(--primary);background:var(--surface)}
+.main .ttpro .tsq.on{border-color:var(--primary);color:var(--primary);background:#eef4fd}
+.ttpro .ticons .ttmenu{position:relative;display:flex}
+.ttpro .ttpop{right:0;top:calc(100% + 6px)}
+.ttpro .ttpop li{cursor:grab}
+.epscope{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.main .epscope button{border:0;border-radius:0;height:34px;padding:0 12px;background:var(--surface);color:var(--muted);font-weight:500}
+.main .epscope button+button{border-left:1px solid var(--line)}
+.main .epscope button.on{background:#eef4fd;color:var(--primary)}
+.epscope span{font-size:calc(12px * var(--fz,1));margin-left:4px;opacity:.8}
+.tchips{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:0 14px 12px}
+.tchip{display:inline-flex;align-items:center;gap:4px;padding:3px 4px 3px 10px;border-radius:999px;background:#eef4fd;color:var(--primary);font-size:calc(13px * var(--fz,1))}
+.tchip b{font-weight:600}
+.main .tchip button{border:0;background:none;padding:0 6px;color:inherit;font-size:16px;line-height:1}
+.main .ttpro .tlink,.tlink{border:0;background:none;color:var(--primary);padding:2px 4px;font-size:calc(13px * var(--fz,1));cursor:pointer}
+.tbulk{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:8px 14px;background:#eef4fd;color:var(--primary);border-top:1px solid var(--line);font-size:calc(13.5px * var(--fz,1))}
+.main .tbulk button:not(.tlink){height:30px;padding:0 12px;font-size:calc(13px * var(--fz,1))}
+.tbhint{color:var(--muted);font-size:calc(12px * var(--fz,1))}
+.ttfill{display:flex;flex-direction:column;min-height:0;border-top:1px solid var(--line)}
+.ttfill>.wrap,.ttfill>.ttbody{flex:1;min-height:0}
+.ttfill>.ttbody{border:0;border-radius:0;grid-template-rows:minmax(0,1fr)}
+.ttfill .wrap{overflow:auto;min-height:0}
+.ttfill .ttaside{overflow:auto}
+.ttfill table.ttable{border:0;border-radius:0}
+.ttfoot{padding:10px 14px;border-top:1px solid var(--line);font-size:calc(13.5px * var(--fz,1));color:var(--text)}
+/* chọn dòng: ô tick ẩn, hiện khi rê chuột hoặc đang chọn */
+table.ttsel th.c-sel,table.ttsel td.c-sel{width:36px;padding-left:12px;padding-right:0}
+table.ttsel:not(.ttselon) td.c-sel input,table.ttsel:not(.ttselon) th.c-sel input{opacity:0;transition:opacity .12s}
+table.ttsel:not(.ttselon) tbody tr:hover td.c-sel input,table.ttsel:not(.ttselon) thead:hover th.c-sel input,table.ttsel td.c-sel input:focus-visible{opacity:1}
+.ttpro tbody tr.clickrow{cursor:pointer}
+.ttpro tbody tr.tsel>td{background:#eaf1fe!important}
+.ttpro td.c-menu,.ttpro th.c-menu{width:48px;text-align:center;padding-left:4px;padding-right:8px}
+.main .trowmenu{width:30px;height:30px;padding:0;display:inline-grid;place-items:center;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--muted)}
+.trowmenu svg{fill:currentColor}
+/* thu gọn dòng */
+.ttdense>tbody>tr>td{padding-top:6px!important;padding-bottom:6px!important}
+.ttdense .eptitle>small,.ttdense .epsub,.ttdense .gtag,.ttdense td br,.ttdense td .sub{display:none}
+/* khung nổi, menu, ngăn kéo (đặt ngoài .main) */
+.tpop{position:fixed;z-index:90;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(15,23,42,.18);padding:6px;min-width:200px;display:flex;flex-direction:column;font-size:calc(14px * var(--fz,1))}
+.tmenu>button{border:0;background:none;text-align:left;padding:8px 10px;border-radius:6px;font:inherit;color:var(--text);cursor:pointer}
+.tmenu>button:hover{background:var(--soft)}
+.tmenu>button.danger{color:var(--bad-fg)}
+.tmenu .tmh{padding:6px 8px 4px;font-size:calc(13px * var(--fz,1))}
+.tmenu hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+.tradio label{display:flex;gap:8px;align-items:center;padding:7px 8px;border-radius:6px;cursor:pointer}
+.tradio label:hover{background:var(--soft)}
+.tradio input{accent-color:var(--primary);margin:0}
+.tsaveform{display:flex;gap:6px;padding:4px}
+.tsaveform input{flex:1;min-width:0;height:34px;border:1px solid var(--line);border-radius:7px;padding:0 10px;font:inherit}
+.tsaveform button{height:34px;padding:0 12px;border-radius:7px;border:1px solid var(--primary);background:var(--primary);color:#fff;font:inherit;cursor:pointer}
+.tsaveform button:disabled{opacity:.5;cursor:default}
+.tsavedrow{display:flex;align-items:center}
+.tsavedrow>button:first-child{flex:1;border:0;background:none;text-align:left;padding:8px 10px;border-radius:6px;font:inherit;cursor:pointer;color:var(--text)}
+.tsavedrow>button:first-child:hover{background:var(--soft)}
+.tx{border:0;background:none;font-size:18px;line-height:1;color:var(--muted);cursor:pointer;padding:4px 8px}
+.tscrim{position:fixed;inset:0;z-index:88;background:rgba(15,23,42,.35)}
+.tdrawer{position:fixed;z-index:89;top:0;right:0;bottom:0;width:min(400px,100vw);background:var(--surface);box-shadow:-12px 0 32px rgba(15,23,42,.2);display:flex;flex-direction:column;font-size:calc(14px * var(--fz,1));color:var(--text)}
+.tdrawer>header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--line);font-size:calc(17px * var(--fz,1))}
+.tdbody{flex:1;overflow:auto;padding:12px 18px}
+.tdsearch{width:100%;height:36px;border:1px solid var(--line);border-radius:8px;padding:0 10px;font:inherit;box-sizing:border-box}
+.tdhint{margin:10px 0 6px;font-size:calc(12.5px * var(--fz,1));color:var(--muted);line-height:1.4}
+.tdsec{border-bottom:1px solid var(--line)}
+.tdh{display:flex;align-items:center;gap:10px}
+.tdt{flex:1;display:flex;align-items:center;gap:8px;border:0;background:none;padding:11px 2px;font:inherit;color:var(--text);text-align:left;cursor:pointer}
+.tdn{background:var(--primary);color:#fff;border-radius:999px;font-size:11px;padding:0 6px;font-weight:600}
+.tdcar{margin-left:auto;color:var(--muted);transition:transform .15s;font-size:16px}
+.tdsec.open .tdcar{transform:rotate(90deg)}
+.tdpin{flex:none;display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 9px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--muted);font-size:12px;cursor:pointer;white-space:nowrap}
+.tdpin svg{fill:none;stroke:currentColor;stroke-width:2}
+.tdpin:hover{border-color:var(--primary);color:var(--primary)}
+.tdpin[aria-pressed="true"]{background:var(--primary);border-color:var(--primary);color:#fff}
+.tdpin[aria-pressed="true"] svg{fill:currentColor}
+.tdopts{display:grid;gap:2px;padding:2px 0 10px 4px}
+.tdopts label{display:flex;gap:9px;align-items:center;padding:6px 4px;border-radius:6px;cursor:pointer}
+.tdopts label:hover{background:var(--soft)}
+.tdopts label span{flex:1}
+.tdopts small{color:var(--muted)}
+.tdopts input{accent-color:var(--primary);margin:0}
+.tdrawer>footer{display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--line)}
+.tdrawer>footer button{height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font:inherit;cursor:pointer;color:var(--text)}
+.tdrawer>footer button.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+@media (max-width:640px){.tsrch{flex:1 1 100%}.ttprotools .tspacer{display:none}}

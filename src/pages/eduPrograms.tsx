@@ -12,7 +12,7 @@ import { HeadAction } from '../components/PageFrame'
 import { SchoolPicker } from '../components/SchoolPicker'
 import { useOrgFilter } from '../components/OrgFilters'
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
-import { DataTable, SideSplit, type Col } from '../components/DataTable'
+import { DataTable, type Col } from '../components/DataTable'
 import { useGradeTree, MultiTag } from '../components/GradeTree'
 import { Drawer } from '../components/Drawer'
 import { supabase, fetchAll } from '../lib/supabase'
@@ -24,7 +24,6 @@ import { useStemTracks } from '../lib/stemTracks'
 import { asLesson, lessonStats, LessonEditor, type ILesson } from '../lib/lessonBlocks'
 import { useSubjects } from './subjects'
 import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
-import { ViewToggle, useViewMode } from '../components/ViewToggle'
 import { fmtGrades, progGrades, useEduLevels, gradeName, gradeRange } from '../lib/eduLevels'
 import { ChipMulti, GradeChecks, GradePicker, SubjectMulti, SubjectPicker, gradeList } from '../components/Pickers'
 import { ElView } from '../components/ElView'
@@ -124,7 +123,6 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   const progFields = fieldsOf(useSettings(), 'program')
   const [list, setList] = useState<Program[] | null>(null)
   const [openId, setOpenId] = useState<string | null>(null)
-  const [q, setQ] = useState('')
   const [form, setForm] = useState<Partial<Program> | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const comps: Comp[] = useCompetencies('student')
@@ -141,13 +139,17 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   useEffect(() => { load() }, [orgId])
 
   const all = list ?? []
-  // Trạng thái, loại, môn, đơn vị tạo: lọc bằng "Lọc theo cột" của bảng
-  const shown = all.filter(p => (!q || norm([p.title, p.code, ...mainsOf(p), ...p.integrated_subjects].join(' ')).includes(norm(q))))
-  const own = every ? shown : shown.filter(p => p.org_id === orgId)
-  const shared = every ? [] : shown.filter(p => p.org_id !== orgId)
-  // Cây Cấp → Khối bên trái mỗi bảng
+  // Tìm, lọc (Bộ lọc, ghim), sắp xếp, chọn dòng: do bảng (DataTable pro) lo
+  const own = every ? all : all.filter(p => p.org_id === orgId)
+  const shared = every ? [] : all.filter(p => p.org_id !== orgId)
+  // Hai nhóm "Của đơn vị" / "Dùng chung" xem lần lượt trong cùng một bảng để bảng vừa một màn hình
+  const [scope, setScope] = useState<'own' | 'shared'>('own')
+  const mine = !!every || scope === 'own' || !shared.length
+  const rows0 = mine ? own : shared
+  // Cây Cấp → Khối bên trái bảng
   const gtOwn = useGradeTree('edu-programs', own, progGrades)
   const gtShared = useGradeTree('edu-programs-shared', shared, progGrades)
+  const gt = mine ? gtOwn : gtShared
 
   async function copy(p: Program) {
     if (!confirm(`Sao chép "${p.title}" (phiên bản ${p.version_no}) về đơn vị thành bản nháp để điều chỉnh?`)) return
@@ -155,13 +157,27 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
     if (error) return setMsg([errText(error.message), true])
     setOpenId(data as string); load()
   }
+  async function removeDraft(p: Program) {
+    if (!confirm(`Xoá chương trình nháp "${p.title}" (v${p.version_no})? Toàn bộ học phần, bài và yêu cầu cần đạt của bản này cũng bị xoá.`)) return
+    const { error } = await supabase.from('edu_programs').delete().eq('id', p.id)
+    if (error) return setMsg([errText(error.message), true])
+    load()
+  }
+  function exportRows(rs: Program[]) {
+    downloadXlsx('Chuong-trinh-giao-duc', [
+      { key: 'code', label: 'Mã', width: 14 }, { key: 'title', label: 'Chương trình', width: 40 }, { key: 'v', label: 'Phiên bản' },
+      { key: 'lv', label: 'Cấp', width: 14 }, { key: 'g', label: 'Khối', width: 12 }, { key: 'ct', label: 'Nhóm', width: 12 }, { key: 'kind', label: 'Loại', width: 22 },
+      { key: 'subj', label: 'Môn', width: 30 }, { key: 'int', label: 'Môn tích hợp', width: 30 }, { key: 'per', label: 'Số tiết' },
+      { key: 'org', label: 'Đơn vị tạo', width: 28 }, { key: 'st', label: 'Trạng thái', width: 16 }, { key: 'upd', label: 'Cập nhật', width: 12 },
+    ], rs.map(p => [p.code ?? '', p.title, p.version_no, lvsOf(p).map(levelName).join(', '), grades(p), ctsOf(p).join(', '), PKIND[p.kind],
+      mainsOf(p).join(', '), p.integrated_subjects.join(', '), p.total_periods ?? '', p.organizations?.name ?? '', PSTATUS[p.status][0], fmtD(p.updated_at)]))
+  }
 
-  const sel = useRowSel(shared)
-  const [view, setView] = useViewMode('chuong-trinh', 'list')
   if (openId) return <ProgramDetail id={openId} orgId={orgId} mode={mode} canEdit={canEdit} isAdmin={isAdmin}
     onOpen={setOpenId} onClose={() => { setOpenId(null); load() }} />
 
   const canCopy = canEdit
+  const copyable = (p: Program) => p.org_id !== orgId && ['published', 'superseded'].includes(p.status)
   const progCols: Col<Program>[] = [
     { key: 'name', label: 'Chương trình', fixed: true, values: p => [p.title], text: p => [p.code, p.title].join(' '),
       cell: p => <div className="eptitle"><NameLink onClick={() => setOpenId(p.id)}>{p.title}</NameLink>
@@ -182,38 +198,20 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
     ...progFields.filter(x => x.column).map(x => ({ key: 'c_' + x.key, label: x.label, cell: (p: Program) => customCell(x, p.custom?.[x.key]) })),
     { key: 'upd', label: 'Cập nhật', off: true, text: p => fmtD(p.updated_at), cell: p => <small className="sub nowrap">{fmtD(p.updated_at)}</small> },
   ]
-  const table = (rows: Program[], mine: boolean, left?: ReactNode, right?: ReactNode, empty?: ReactNode) => (
-    <DataTable className="eptable" id={mine ? 'edu-programs-v5' : 'edu-programs-shared-v5'} rows={(mine ? gtOwn : gtShared).filter(rows)} rowKey={p => p.id} cols={progCols} left={left} right={right} empty={empty}
-      aside={rows.length ? (mine ? gtOwn : gtShared).tree : undefined}
-      head={!mine && canCopy ? { th: <span className="sronly">Chọn</span>, td: p => <input type="checkbox" checked={sel.is(p)} onChange={() => sel.toggle(p)} aria-label={'Chọn ' + p.title} /> } : undefined} />
-  )
-  const cards = (rows: Program[], mine: boolean) => (
-    <div className="tilegrid wide">
-      {rows.map((p, i) => (
-        <div key={p.id} className={'tilewrap' + (!mine && sel.is(p) ? ' picked' : '')}>
-          <button className="tile" onClick={() => setOpenId(p.id)}>
-            <div className={'tileart art' + (i % 6)}>
-              {ctsOf(p).length > 0 && <span className="progchip" style={{ background: 'var(--surface)', color: 'var(--navy)' }}>{ctsOf(p).join(' · ')}</span>}
-              <span className="tilestatus"><StatusPill s={p.status} /></span>
-              <span aria-hidden="true"><Icon n="book" size={36} /></span>
-            </div>
-            <div className="tilebody">
-              <b>{p.title}</b>
-              <small>{mainsOf(p).join(', ')}{p.integrated_subjects.length > 0 ? ' · tích hợp ' + p.integrated_subjects.join(', ') : ''}</small>
-              <div className="tilemeta"><span>{lvsOf(p).map(levelName).join(', ')} · {grades(p)}</span><span>{PKIND[p.kind]}</span>{p.total_periods > 0 && <span>{p.total_periods} tiết</span>}{p.periods_per_week && <span>{p.periods_per_week} tiết/tuần</span>}<span>{DEPLOY[p.deploy_term ?? 'year']?.[0]}</span><span>v{p.version_no}</span></div>
-              {(!mine || every) && <small>{p.organizations?.name ?? '—'}</small>}
-            </div>
-          </button>
-          {!mine && canCopy && <label className="tilecheck"><input type="checkbox" checked={sel.is(p)} onChange={() => sel.toggle(p)} aria-label={'Chọn ' + p.title} /></label>}
-        </div>
-      ))}
-    </div>
-  )
-  const show = (rows: Program[], mine: boolean, left?: ReactNode, right?: ReactNode, empty?: ReactNode) => view === 'cards'
-    ? <>{(left || right) && <div className="tttools">{left && <div className="ttleft">{left}</div>}{right}</div>}{rows.length
-      ? <SideSplit aside={(mine ? gtOwn : gtShared).tree}><div className="gtcards">{cards((mine ? gtOwn : gtShared).filter(rows), mine)}</div></SideSplit>
-      : <p className="sub">{empty}</p>}</>
-    : table(rows, mine, left, right, empty)
+  const rowMenu = (p: Program) => [
+    ...(canCopy && copyable(p) ? [{ label: 'Sao chép về đơn vị', onClick: () => copy(p) }] : []),
+    { label: 'Xuất file', onClick: () => exportRows([p]) },
+    ...(canEdit && p.org_id === orgId && p.status === 'draft' ? [{ label: 'Xoá bản nháp', onClick: () => removeDraft(p), danger: true }] : []),
+  ]
+  const bulk = (rs: Program[]) => <>
+    <button type="button" onClick={() => exportRows(rs)}>Xuất file</button>
+    {canCopy && rs.length === 1 && copyable(rs[0]) && <button type="button" onClick={() => copy(rs[0])}>Sao chép về đơn vị</button>}
+  </>
+  const scopeTabs = !every && shared.length > 0 && <div className="epscope" role="tablist" aria-label="Nhóm chương trình">
+    <button type="button" role="tab" aria-selected={mine} className={mine ? 'on' : ''} onClick={() => setScope('own')}>Của đơn vị <span>{own.length}</span></button>
+    <button type="button" role="tab" aria-selected={!mine} className={!mine ? 'on' : ''} onClick={() => setScope('shared')}>Dùng chung / được gán <span>{shared.length}</span></button>
+  </div>
+
   if (form) return (
     <ElView back="Chương trình giáo dục" onBack={() => setForm(null)} title={'Thêm chương trình'}>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
@@ -225,21 +223,17 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   return (
     <>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
+      {(!hid('export') || (canEdit && !hid('add'))) && <HeadAction>
+        {!hid('export') && <button type="button" className="ttexport" disabled={!rows0.length} onClick={() => exportRows(gt.filter(rows0))}>Xuất file</button>}
+        {canEdit && !hid('add') && <button type="button" className="primary ttadd" onClick={() => setForm({ level: 'thcs', levels: ['thcs'], kind: 'stem', grade_from: 6, grade_to: 6, grades: [6], scope: mode === 'school' ? 'own' : 'children', integrated_subjects: [], competency_keys: [], rubric_ids: [], deploy_term: 'year' })}>+ Thêm chương trình</button>}
+      </HeadAction>}
       {!list ? <p className="sub">Đang tải…</p> : (
-        <>
-          {!every && <h3>Của đơn vị ({own.length})</h3>}
-          {show(own, true, <>
-            <input placeholder="Tìm tên, mã, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
-            <small className="sub">{gtOwn.filter(own).length} chương trình</small>
-          </>, <>
-            <ViewToggle value={view} onChange={setView} />
-            {canEdit && !hid('add') && <HeadAction><button type="button" className="primary ttadd" onClick={() => setForm({ level: 'thcs', levels: ['thcs'], kind: 'stem', grade_from: 6, grade_to: 6, grades: [6], scope: mode === 'school' ? 'own' : 'children', integrated_subjects: [], competency_keys: [], rubric_ids: [], deploy_term: 'year' })}>+ Thêm chương trình</button></HeadAction>}
-          </>, <small className="sub">Chưa có chương trình nào.{canEdit && ' Bấm "Thêm chương trình", hoặc sao chép chương trình dùng chung bên dưới.'}</small>)}
-          {!every && <>
-          <h3>Dùng chung / được gán ({shared.length})</h3>
-          {shared.length ? show(shared, false, undefined, canCopy && <button type="button" className="primary ttadd" disabled={!sel.cur || !['published', 'superseded'].includes(sel.cur.status)} onClick={() => sel.cur && copy(sel.cur)}
-            title={sel.cur ? undefined : 'Tick một chương trình bên dưới'}>Sao chép về đơn vị</button>) : <p className="sub">Chưa có chương trình nào do KDI hoặc cấp trên phát hành cho đơn vị.</p>}</>}
-        </>
+        <DataTable pro noun="chương trình" className="eptable" id={mine ? 'edu-programs-v6' : 'edu-programs-shared-v6'} key={mine ? 'own' : 'shared'}
+          rows={gt.filter(rows0)} rowKey={p => p.id} cols={progCols} onRow={p => setOpenId(p.id)} rowMenu={rowMenu} bulk={bulk}
+          left={scopeTabs || undefined} aside={rows0.length ? gt.tree : undefined}
+          empty={mine
+            ? <small className="sub">Chưa có chương trình nào.{canEdit && ' Bấm "Thêm chương trình", hoặc sao chép chương trình dùng chung.'}</small>
+            : <small className="sub">Chưa có chương trình nào do KDI hoặc cấp trên phát hành cho đơn vị.</small>} />
       )}
     </>
   )

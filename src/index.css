@@ -3048,21 +3048,30 @@ button,input,select,textarea{font-size:calc(14px * var(--fz,1))}
 .ttfill>.wrap,.ttfill>.ttbody{flex:1;min-height:0}
 .ttfill>.ttbody{border:0;border-radius:0;grid-template-rows:minmax(0,1fr)}
 .ttfill .wrap{overflow:auto;min-height:0}
-.ttfill .ttaside{overflow:auto}
+.ttfill .ttaside{overflow-y:auto;overflow-x:hidden}
 .ttfill table.ttable{border:0;border-radius:0}
 .ttfoot{padding:10px 14px;border-top:1px solid var(--line);font-size:calc(13.5px * var(--fz,1));color:var(--text)}
-/* chọn dòng: ô tick ẩn, hiện khi rê chuột hoặc đang chọn */
-table.ttsel th.c-sel,table.ttsel td.c-sel{width:36px;padding-left:12px;padding-right:0}
-table.ttsel:not(.ttselon) td.c-sel input,table.ttsel:not(.ttselon) th.c-sel input{opacity:0;transition:opacity .12s}
-table.ttsel:not(.ttselon) tbody tr:hover td.c-sel input,table.ttsel:not(.ttselon) thead:hover th.c-sel input,table.ttsel td.c-sel input:focus-visible{opacity:1}
+/* chọn dòng: ô tick nằm trong lề trái của cột tên, ẩn đến khi rê chuột hoặc đang chọn (không chiếm cột riêng) */
+table.ttsel>thead>tr>th.c-lead,table.ttsel>tbody>tr>td.c-leadsel{position:relative;padding-left:32px}
+.tselbox{position:absolute;left:10px;top:50%;transform:translateY(-50%);display:flex;align-items:center}
+table.ttsel>tbody>tr>td.c-leadsel>.tselbox{top:14px;transform:none}
+.tselbox input{margin:0;width:15px;height:15px;accent-color:var(--primary);cursor:pointer}
+table.ttsel:not(.ttselon) .tselbox input{opacity:0;transition:opacity .12s}
+table.ttsel:not(.ttselon) tbody tr:hover .tselbox input,table.ttsel:not(.ttselon) thead:hover .tselbox input,.tselbox input:focus-visible{opacity:1}
 .ttpro tbody tr.clickrow{cursor:pointer}
 .ttpro tbody tr.tsel>td{background:#eaf1fe!important}
 .ttpro td.c-menu,.ttpro th.c-menu{width:48px;text-align:center;padding-left:4px;padding-right:8px}
 .main .trowmenu{width:30px;height:30px;padding:0;display:inline-grid;place-items:center;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--muted)}
 .trowmenu svg{fill:currentColor}
-/* thu gọn dòng */
-.ttdense>tbody>tr>td{padding-top:6px!important;padding-bottom:6px!important}
-.ttdense .eptitle>small,.ttdense .epsub,.ttdense .gtag,.ttdense td br,.ttdense td .sub{display:none}
+/* thu gọn dòng: mỗi dòng chỉ một hàng chữ */
+.main .ttable.ttdense>tbody>tr>td{height:38px;padding-top:6px!important;padding-bottom:6px!important;white-space:nowrap}
+.main .ttable.ttdense .trowmenu{width:26px;height:26px}
+.ttdense>tbody>tr>td.c-leadsel>.tselbox{top:50%;transform:translateY(-50%)}
+.ttdense .tdc{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px}
+.ttdense .tdc *{white-space:nowrap}
+.ttdense .eptitle{display:block}
+.ttdense .eptitle>small,.ttdense .epsub,.ttdense .gtag,.ttdense td br,.ttdense td .sub,.ttdense td small{display:none!important}
+.ttdense .epgroups{flex-wrap:nowrap}
 /* khung nổi, menu, ngăn kéo (đặt ngoài .main) */
 .tpop{position:fixed;z-index:90;background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(15,23,42,.18);padding:6px;min-width:200px;display:flex;flex-direction:column;font-size:calc(14px * var(--fz,1))}
 .tmenu>button{border:0;background:none;text-align:left;padding:8px 10px;border-radius:6px;font:inherit;color:var(--text);cursor:pointer}

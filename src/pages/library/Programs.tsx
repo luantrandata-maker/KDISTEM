@@ -319,7 +319,7 @@ function RegisterModal({ prog, topic, sess, teacherId, onClose, onDone }: { prog
                   {f.place === 'room' && <select value={f.room_id} onChange={e => setF({ ...f, room_id: e.target.value })} aria-label="Phòng STEM"><option value="">— Chọn phòng —</option>{rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}</select>}
                 </div></div>
               <div><b><span className="stepnum">5</span>{f.place === 'class' ? 'Thiết bị cần mượn' : 'Thiết bị yêu cầu tại phòng'}</b>
-                <div style={{ maxHeight: 240, overflow: 'auto', marginTop: 6, border: '1px solid var(--line)', borderRadius: 10, padding: '0 10px' }}>
+                <div style={{ maxHeight: 240, overflow: 'auto', marginTop: 6, border: '1px solid var(--line)', borderRadius: 6, padding: '0 10px' }}>
                   {types.length === 0 && <p className="sub">Chưa có danh mục thiết bị.</p>}
                   {types.map(t => <label key={t.id} className="qtyrow"><span>{t.name}</span>
                     <input type="number" min={0} max={200} style={{ padding: 6, border: '1px solid var(--line)', borderRadius: 8 }} value={qty[t.id] ?? 0} onChange={e => setQty({ ...qty, [t.id]: Math.max(0, Number(e.target.value) || 0) })} aria-label={'Số lượng ' + t.name} /></label>)}

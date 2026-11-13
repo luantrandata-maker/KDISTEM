@@ -14,6 +14,8 @@ import { Tabs } from '../teacher/common'
 import QuestionBank from './Bank'
 import Analytics from './Analytics'
 import { ElView } from '../../components/ElView'
+import { DetailHead } from '../../components/DetailHead'
+import { ActionBar, type Act } from '../../components/ActionBar'
 import { useOrgFilter } from '../../components/OrgFilters'
 import { StatCards } from '../../components/StatCards'
 import { useSubjects } from '../subjects'
@@ -384,6 +386,14 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
     const { data, error } = await supabase.from('courses').update({ status }).eq('id', c.id).select('id')
     if (error) setMsg([errText(error.message), true]); else if (!data?.length) setMsg([NOT_OWNER, true]); else load()
   }
+  async function removeCourse(c: Course, done: () => void) {
+    if (!confirm(`Xoá khoá học nháp "${c.title}"? Các bài học trong khoá cũng bị xoá.`)) return
+    const { error } = await supabase.from('courses').delete().eq('id', c.id)
+    if (error) return setMsg([errText(error.message), true])
+    done(); setMsg(['Đã xoá khoá học.', false]); load()
+  }
+  const [side, setSide] = useState(() => { try { const v = localStorage.getItem('pd-side'); if (v) return v === '1' } catch { /* bỏ qua */ } return true })
+  const toggleSide = () => setSide(v => { try { localStorage.setItem('pd-side', v ? '0' : '1') } catch { /* bỏ qua */ } return !v })
   const note = msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>
   const [view, setView] = useViewMode('el-courses')
   const fitC = rows.filter(c => ofl.fit(c.org_id))
@@ -398,33 +408,88 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
     {c.status === 'published' && <button onClick={() => setStatus(c, 'archived')}>Lưu trữ</button>}
     {c.status === 'archived' && <button onClick={() => setStatus(c, 'published')}>Mở lại</button>}</>
   // Thêm / sửa khoá học: trang riêng
-  if (form) return <ElView back={open ? 'Chi tiết khoá học' : 'Danh sách khoá học'} onBack={() => setForm(null)} title={form.id ? 'Sửa khoá học' : 'Tạo khoá học'} sub={form.id ? form.title : undefined}>
+  if (form) {
+    const fs = form.subjects ?? [], fg = form.grades ?? []
+    const missing = [!form.title.trim() && 'Tên khoá học', !fs.length && 'Môn', !fg.length && 'Khối'].filter(Boolean) as string[]
+    const S = (n: number) => ({ gridColumn: `span ${n}` })
+    return <ElView back={open ? 'Chi tiết khoá học' : 'Khoá học e-learning'} onBack={() => setForm(null)} title={form.id ? 'Sửa khoá học' : 'Tạo khoá học'} sub={form.id ? form.title : undefined}>
       {note}
-      <form className="panel formgrid" onSubmit={save}>
-        {!form.id && <OrgPick kind="any" value={form.org ?? ''} onChange={org => setForm({ ...form, org, class_ids: null, group_ids: null, student_ids: null, shared: false })} title="Đơn vị mở khoá học" />}
-        <label className="field wide"><span>Tên khoá học *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Lập trình Arduino cơ bản" /></label>
-        <div className="field"><span>Môn <small className="sub">(tick một hoặc nhiều; bài học, học liệu chọn từ kho theo các môn này)</small></span>
-          <SubjectMulti value={form.subjects ?? []} onChange={v => setForm({ ...form, subjects: v, subject: v[0] ?? null })} placeholder="Chọn môn…" ariaLabel="Môn của khoá học" /></div>
-        <div className="field"><span>Khối <small className="sub">(tick một hoặc nhiều)</small></span>
-          <GradeChecks value={form.grades ?? []} onChange={v => setForm({ ...form, grades: v, grade: [...v].sort((a, b) => a - b)[0] ?? null })} ariaLabel="Khối của khoá học" /></div>
-        <label className="field"><span>Ảnh bìa (https://…)</span><input value={form.cover_url ?? ''} onChange={e => setForm({ ...form, cover_url: e.target.value })} /></label>
-        <label className="field"><span>Hạn hoàn thành</span><input type="datetime-local" value={toLocal(form.due_at)} onChange={e => setForm({ ...form, due_at: e.target.value ? new Date(e.target.value).toISOString() : null })} /></label>
-        <label className="field wide"><span>Giới thiệu</span><textarea rows={3} value={form.description ?? ''} onChange={e => setForm({ ...form, description: e.target.value })} /></label>
-        {fSchool ? <AudiencePicker key={(form.id ?? 'new') + fOrg} orgId={fOrg} classes={fClasses} groups={fGroups} value={form} onChange={v => setForm({ ...form, ...v })} />
-          : <label className="field inline wide"><input type="checkbox" checked={form.shared} onChange={e => setForm({ ...form, shared: e.target.checked })} /> Dành cho học sinh tất cả trường trực thuộc</label>}
-        <div className="actions wide"><button className="primary">{form.id ? 'Lưu khoá học' : 'Lưu & thêm bài học'}</button><button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
+      <form className="pform pfwrap nonav noside" onSubmit={save}>
+        <div className="pfmain">
+          <section className="panel pfcard">
+            <div className="pgrid">
+              {!form.id && <div style={S(12)}><OrgPick kind="any" value={form.org ?? ''} onChange={org => setForm({ ...form, org, class_ids: null, group_ids: null, student_ids: null, shared: false })} title="Đơn vị mở khoá học" /></div>}
+              <label className="field" style={S(12)}><span>Tên khoá học *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="VD: Lập trình Arduino cơ bản" /></label>
+              <div className="field" style={S(6)}><span>Môn *</span>
+                <SubjectMulti value={fs} onChange={v => setForm({ ...form, subjects: v, subject: v[0] ?? null })} placeholder="Chọn môn…" ariaLabel="Môn của khoá học" /></div>
+              <div className="field" style={S(6)}><span>Khối *</span>
+                <GradeChecks value={fg} onChange={v => setForm({ ...form, grades: v, grade: [...v].sort((a, b) => a - b)[0] ?? null })} ariaLabel="Khối của khoá học" /></div>
+              <label className="field" style={S(6)}><span>Hạn hoàn thành</span><input type="datetime-local" value={toLocal(form.due_at)} onChange={e => setForm({ ...form, due_at: e.target.value ? new Date(e.target.value).toISOString() : null })} /></label>
+              <label className="field" style={S(6)}><span>Ảnh bìa (https://…)</span><input value={form.cover_url ?? ''} onChange={e => setForm({ ...form, cover_url: e.target.value })} placeholder="Không bắt buộc" /></label>
+              <div className="field" style={S(12)}><span>Đối tượng</span>{fSchool ? <AudiencePicker key={(form.id ?? 'new') + fOrg} orgId={fOrg} classes={fClasses} groups={fGroups} value={form} onChange={v => setForm({ ...form, ...v })} />
+                : <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}><input type="checkbox" style={{ width: 'auto', margin: 0 }} checked={form.shared} onChange={e => setForm({ ...form, shared: e.target.checked })} /> Dành cho học sinh tất cả trường trực thuộc</label>}</div>
+              <label className="field" style={S(12)}><span>Giới thiệu khoá học</span><textarea rows={4} value={form.description ?? ''} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Học sinh thấy phần này khi mở khoá học" /></label>
+            </div>
+            <div className="pfbtns">{missing.length ? <span className="pfmiss">Còn thiếu: {missing.join(', ')}</span> : null}
+              <button type="button" onClick={() => setForm(null)}>Huỷ</button>
+              <button className="primary" type="submit" disabled={!!missing.length}>{form.id ? 'Lưu thay đổi' : 'Lưu & thêm bài học'}</button></div>
+          </section>
+        </div>
       </form></ElView>
+  }
   // Chi tiết khoá học (bài học, tiến độ): trang riêng
   const cur = rows.find(c => c.id === open)
   if (cur) { const ls = lessons.filter(l => l.course_id === cur.id); const mine = cur.org_id === orgId || !!every
-    return <ElView back="Danh sách khoá học" onBack={() => { setOpen(null); setFresh(null); setMsg(null) }} title={cur.title}
-      sub={<>{[...courseMeta(cur), `${ls.length} bài`, !mine ? 'của cấp trên' : every ? orgName(cur.org_id) : isSchool ? audienceText(cur, classes, groups) : cur.shared ? 'dùng chung' : null, cur.due_at ? 'Hạn hoàn thành: ' + dt(cur.due_at) : null].filter(Boolean).join(' · ')} <span className={'pill ' + ESTATUS[cur.status][1]}>{ESTATUS[cur.status][0]}</span></>}
-      actions={mine ? <>{statusBtns(cur, ls)}<button onClick={() => editCourse(cur)}>Sửa</button></> : undefined}>
+    const back = () => { setOpen(null); setFresh(null); setMsg(null) }
+    const tps = topics.filter(t => t.course_id === cur.id)
+    const learners = ls.reduce((m, l) => Math.max(m, progress.get(l.id) ?? 0), 0)
+    const acts: (Act | false)[] = mine ? [
+      cur.status === 'draft' && { key: 'pub', label: 'Công bố', kind: 'primary', disabled: !ls.length, title: ls.length ? undefined : 'Thêm ít nhất một bài học trước khi công bố', onClick: () => setStatus(cur, 'published') },
+      cur.status === 'published' && { key: 'arch', label: 'Lưu trữ', onClick: () => setStatus(cur, 'archived') },
+      cur.status === 'archived' && { key: 'reopen', label: 'Mở lại', onClick: () => setStatus(cur, 'published') },
+      { key: 'edit', label: 'Sửa thông tin', icon: 'pencil', onClick: () => editCourse(cur) },
+      cur.status === 'draft' && { key: 'del', label: 'Xoá khoá học nháp', icon: 'trash', kind: 'danger', onClick: () => removeCourse(cur, back) },
+    ] : []
+    return <>
+      <DetailHead back="Khoá học e-learning" onBack={back} title={cur.title} extra={<span className={'pill ' + ESTATUS[cur.status][1]}>{ESTATUS[cur.status][0]}</span>} />
+      <div className="bar">
+        <small className="sub">{[...courseMeta(cur), !mine ? 'của cấp trên' : every ? orgName(cur.org_id) : null].filter(Boolean).join(' · ')}</small>
+        <div className="tools"><ActionBar items={acts} /></div>
+      </div>
       {note}
-      {cur.description && <p className="sub">{cur.description}</p>}
-      <section className="panel"><h3>Bài học</h3><LessonEditor key={cur.id} autoAdd={mine && fresh === cur.id && !ls.length} course={cur} lessons={ls} topics={topics.filter(t => t.course_id === cur.id)} exams={exams} progress={progress} editable={mine} onChange={load} /></section>
-      {mine && <CourseProgress key={ls.length} course={cur} />}
-    </ElView> }
+      <div className={'pdgrid' + (side ? '' : ' pdnoside')}>
+        <div className="pdmain">
+          <div className="pdstats">
+            <div><b>{tps.length}</b><span>chủ đề</span></div>
+            <div><b>{ls.length}</b><span>bài học</span></div>
+            <div><b>{ls.filter(l => l.kind === 'exam').length}</b><span>đề luyện</span></div>
+            <div><b>{learners}</b><span>học sinh đã học</span></div>
+            {!side && <button type="button" className="pdsidetg" onClick={toggleSide} title="Mở cột thông tin khoá học">‹ Thông tin</button>}
+          </div>
+          <div className="panel pdcard pdsl"><h4>Chủ đề & bài học</h4><LessonEditor key={cur.id} autoAdd={mine && fresh === cur.id && !ls.length} course={cur} lessons={ls} topics={tps} exams={exams} progress={progress} editable={mine} onChange={load} /></div>
+          {mine && <CourseProgress key={ls.length} course={cur} />}
+        </div>
+        {side && <div className="pdside">
+          <div className="panel pdcard"><h4 className="pdcardh">Thông tin chung<button type="button" className="pdsidetg incard" onClick={toggleSide} title="Thu cột thông tin để bảng rộng hơn">Thu gọn ›</button></h4>
+            <dl className="pddl sm">
+              <dt>Môn</dt><dd>{courseSubjects(cur).join(', ') || '—'}</dd>
+              <dt>Khối</dt><dd>{courseGrades(cur).join(', ') || '—'}</dd>
+              <dt>Đơn vị mở</dt><dd>{orgName(cur.org_id) || '—'}</dd>
+              <dt>Ngày tạo</dt><dd>{new Date(cur.created_at).toLocaleDateString('vi-VN')}</dd>
+            </dl>
+          </div>
+          <div className="panel pdcard"><h4>Đối tượng & thời hạn{mine && <button type="button" className="linkbtn" onClick={() => editCourse(cur)}>Điều chỉnh ›</button>}</h4>
+            <dl className="pddl sm">
+              <dt>Đối tượng</dt><dd>{(isSchool ? audienceText(cur, classes, groups) : cur.shared ? 'Học sinh tất cả trường trực thuộc' : 'Chỉ đơn vị mình') || '—'}</dd>
+              <dt>Hạn hoàn thành</dt><dd>{cur.due_at ? dt(cur.due_at) : <span className="sub">Không đặt</span>}</dd>
+            </dl>
+          </div>
+          <div className="panel pdcard"><h4>Giới thiệu</h4>
+            {cur.description ? <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{cur.description}</p> : <small className="sub">Chưa có giới thiệu{mine ? ' · bấm biểu tượng bút ở đầu trang để thêm' : ''}</small>}
+          </div>
+        </div>}
+      </div>
+    </> }
   return (
     <>
       {note}

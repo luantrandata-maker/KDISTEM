@@ -7,7 +7,7 @@ import { CustomInputs, customCell } from '../components/CustomFields'
 import { fieldsOf, useSettings } from '../lib/settings'
 import { MultiSelect, NumMultiSelect } from '../components/MultiSelect'
 import { ActionBar, type Act } from '../components/ActionBar'
-import { PageCorner, PageCrumb } from '../components/PageCorner'
+import { PageCrumb } from '../components/PageCorner'
 import { HeadAction } from '../components/PageFrame'
 import { SchoolPicker } from '../components/SchoolPicker'
 import { useOrgFilter } from '../components/OrgFilters'
@@ -266,6 +266,17 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
     setP(data as Program | null)
   }
   useEffect(() => { load(); setTab('info'); setEditInfo(false); setMsg(null) }, [id])
+  // Esc: quay lại danh sách (trừ khi đang gõ, đang mở hộp thoại / ngăn kéo)
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return
+      const t = e.target as HTMLElement | null
+      if (t?.closest('input, textarea, select, [contenteditable], dialog, [role=dialog], .drawerwrap, .menu, details[open]')) return
+      if (document.querySelector('dialog[open], [role=dialog], .drawerwrap')) return
+      onClose()
+    }
+    window.addEventListener('keydown', h); return () => window.removeEventListener('keydown', h)
+  }, [onClose])
   const every = useAllMode()
   if (!p) return <><button className="linkbtn" onClick={onClose}>← Danh sách chương trình</button>{msg ? <p className="msg">{msg[0]}</p> : <p className="sub">Đang tải…</p>}</>
 
@@ -304,9 +315,10 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
 
   return (
     <>
-      <PageCrumb><nav className="pdcrumb" aria-label="Đường dẫn"><button type="button" className="linkbtn" onClick={onClose} title="Về danh sách chương trình">Chương trình giáo dục</button><span aria-hidden="true">›</span>
-        <span className="pdh1" title={p.title}>{p.title}</span><small className="pdver">v{p.version_no}</small><StatusPill s={p.status} /></nav></PageCrumb>
-      <PageCorner><button type="button" className="pdclose xclose" onClick={onClose} title="Đóng, về danh sách chương trình" aria-label="Đóng chi tiết">✕</button></PageCorner>
+      <PageCrumb><div className="pdhead">
+        <button type="button" className="pdback pdclose" onClick={onClose} title="Quay lại danh sách chương trình (Esc)"><span aria-hidden="true">←</span> Chương trình giáo dục</button>
+        <div className="pdtitle"><h1 className="pdh1" title={p.title}>{p.title}</h1><small className="pdver">v{p.version_no}</small><StatusPill s={p.status} /></div>
+      </div></PageCrumb>
       <div className="bar">
         <div>
           <small className="sub">{[p.code, lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ctsOf(p).join(', '), mainsOf(p).join(', '), p.total_periods != null ? `${p.total_periods} tiết` : null, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>

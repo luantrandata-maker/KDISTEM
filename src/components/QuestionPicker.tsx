@@ -1,13 +1,13 @@
 // Câu hỏi của đề (bài test nội dung, đề cuối khoá, đề luyện): làm giống "Thêm bài" của chương trình giáo dục.
-// Bảng câu đã chọn; thêm câu bằng 3 cách: chọn từ ngân hàng (lọc sẵn theo môn, chủ đề của đề), gõ câu mới ở dòng cuối
-// (hoặc soạn chi tiết), nhập Excel theo file mẫu. Câu mới / nhập Excel được lưu vào ngân hàng câu hỏi rồi đưa vào đề.
+// Bảng câu đã chọn; thêm câu bằng 3 cách: thêm câu mới (form chi tiết), chọn từ ngân hàng (lọc sẵn theo môn, chủ đề của đề),
+// nhập Excel theo file mẫu. Câu mới / nhập Excel được lưu vào ngân hàng câu hỏi rồi đưa vào đề.
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { myOrgId } from '../lib/org'
 import { Drawer } from './Drawer'
 import ImportExcel from './ImportExcel'
 import { COLS, EMPTY, SAMPLE, QuestionForm, formBody, toBankRows, type Form } from '../pages/elearning/Bank'
-import { LEVEL, QKIND, errText, letter, qGrades, type Level, type Question } from '../pages/elearning/common'
+import { LEVEL, QKIND, errText, letter, qGrades, type Question } from '../pages/elearning/common'
 
 type Q = Question
 const short = (s: string, n = 180) => (s.length > n ? s.slice(0, n) + '…' : s)
@@ -21,12 +21,9 @@ export function QuestionPicker({ value, onChange, subjects = [], grades = [], to
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [pick, setPick] = useState(false)
   const [full, setFull] = useState<Form | null>(null)
-  const [nd, setNd] = useState({ subject: subjects[0] ?? '', stem: '', opts: '', ans: '', level: 'thong_hieu' as Level })
-  const [busy, setBusy] = useState(false)
   const load = () => supabase.from('question_bank').select('*').neq('status', 'retired').order('subject').order('created_at', { ascending: false }).limit(3000)
     .then(({ data, error }) => { if (error) setErr(errText(error.message)); else setBank((data as Q[]) ?? []) })
   useEffect(() => { load() }, [])
-  useEffect(() => { if (!nd.subject && subjects[0]) setNd(x => ({ ...x, subject: subjects[0] })) }, [subjects.join('|')])
   const byId = useMemo(() => new Map((bank ?? []).map(b => [b.id, b])), [bank])
   const rows = value.map(id => byId.get(id)).filter(Boolean) as Q[]
   const missing = bank ? value.length - rows.length : 0
@@ -40,19 +37,6 @@ export function QuestionPicker({ value, onChange, subjects = [], grades = [], to
     const qs = (data as Q[]) ?? []
     setBank(b => [...qs, ...(b ?? [])]); add(qs.map(q => q.id))
     return qs
-  }
-  async function addInline() {
-    const opts = nd.opts.split(/\s*[;\n]\s*/).map(x => x.trim()).filter(Boolean)
-    const tf = !opts.length && /^(đ|đúng|dung|s|sai)$/i.test(nd.ans.trim())
-    const ans = [...nd.ans.toUpperCase().replace(/[^A-H]/g, '')].map(c => c.charCodeAt(0) - 65)
-    if (!nd.subject.trim()) return setMsg(['Nhập môn của câu hỏi.', true])
-    if (!tf && opts.length < 2) return setMsg(['Nhập ít nhất 2 lựa chọn, ngăn cách bằng dấu chấm phẩy (;).', true])
-    if (!tf && (!ans.length || ans.some(i => i >= opts.length))) return setMsg(['Đáp án là chữ cái của lựa chọn đúng, VD: B hoặc AC.', true])
-    setBusy(true); setMsg(null)
-    const ok = await insert([{ subject: nd.subject.trim(), grades, topic: topic.trim() || null, level: nd.level, kind: tf ? 'truefalse' : ans.length > 1 ? 'multi' : 'single',
-      stem: nd.stem.trim(), options: tf ? ['Đúng', 'Sai'] : opts, answer: tf ? [/^s/i.test(nd.ans.trim()) ? 1 : 0] : [...new Set(ans)], explain: null, source: 'manual', status: 'ready', shared: false }])
-    setBusy(false)
-    if (ok) { setNd({ ...nd, stem: '', opts: '', ans: '' }); setMsg(['Đã thêm câu hỏi vào đề và ngân hàng câu hỏi.', false]); document.getElementById('qp-new-stem')?.focus() }
   }
   async function saveFull(e: React.FormEvent) {
     e.preventDefault(); if (!full) return
@@ -72,9 +56,9 @@ export function QuestionPicker({ value, onChange, subjects = [], grades = [], to
     <div className="bar" style={{ margin: 0 }}>
       <b>{title} ({value.length})</b>
       {edit && <span className="tools">
-        <button type="button" onClick={() => { setPick(true); setMsg(null) }}>Chọn từ ngân hàng</button>
-        <button type="button" onClick={() => { setFull({ ...EMPTY, subject: nd.subject || subjects[0] || '', grades, topic }); setMsg(null) }}>Soạn câu chi tiết</button>
-        <ImportExcel label="⇪ Nhập Excel" columns={COLS} template="Mau-cau-hoi-cua-de" sample={SAMPLE} onRecords={importRecords} onMessage={(m, bad) => setMsg([m, !!bad])} />
+        <button type="button" className="primary" onClick={() => { setFull({ ...EMPTY, subject: subjects[0] || '', grades, topic }); setMsg(null) }}>+ Thêm câu hỏi mới</button>
+        <button type="button" onClick={() => { setPick(true); setMsg(null) }}>Chọn từ ngân hàng câu hỏi</button>
+        <ImportExcel label="⇪ Nhập từ Excel" columns={COLS} template="Mau-cau-hoi-cua-de" sample={SAMPLE} onRecords={importRecords} onMessage={(m, bad) => setMsg([m, !!bad])} />
       </span>}
     </div>
     {note && <p className="sub" style={{ margin: 0 }}>{note}</p>}
@@ -92,17 +76,7 @@ export function QuestionPicker({ value, onChange, subjects = [], grades = [], to
           <button type="button" className="iconbtn" title="Xuống" aria-label="Đưa câu xuống" disabled={i === rows.length - 1} onClick={() => move(i, 1)}>↓</button>
           <button type="button" className="iconbtn abdanger" title="Bỏ khỏi đề" aria-label="Bỏ câu khỏi đề" onClick={() => onChange(value.filter(x => x !== b.id))}>✕</button></span></td>}
       </tr>)}
-        {!rows.length && <tr><td colSpan={edit ? 5 : 4}><small className="sub">Đề chưa có câu hỏi.{edit ? ' Bấm “Chọn từ ngân hàng”, gõ câu mới ở dòng dưới, hoặc Nhập Excel theo file mẫu.' : ''}</small></td></tr>}</tbody>
-      {edit && <tfoot><tr className="slnew"><td colSpan={5}><div className="slnewrow qpnew">
-        <input className="qpsubj" value={nd.subject} list="qp-subjects" placeholder="Môn" aria-label="Môn của câu mới" onChange={e => setNd({ ...nd, subject: e.target.value })} />
-        <input id="qp-new-stem" className="slnt" value={nd.stem} disabled={busy} placeholder="+ Câu hỏi mới" aria-label="Nội dung câu hỏi mới" onChange={e => setNd({ ...nd, stem: e.target.value })} />
-        <input className="qpopts" value={nd.opts} disabled={busy} placeholder="Lựa chọn: A; B; C; D" aria-label="Các lựa chọn, ngăn cách bằng dấu chấm phẩy" onChange={e => setNd({ ...nd, opts: e.target.value })}
-          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addInline() } }} />
-        <input className="qpans" value={nd.ans} disabled={busy} placeholder="Đáp án" title="Chữ cái của lựa chọn đúng (VD: B, hoặc AC nếu nhiều đáp án); câu đúng/sai: gõ Đúng hoặc Sai và để trống lựa chọn" aria-label="Đáp án đúng"
-          onChange={e => setNd({ ...nd, ans: e.target.value })} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addInline() } }} />
-        <select value={nd.level} onChange={e => setNd({ ...nd, level: e.target.value as Level })} aria-label="Mức độ câu mới">{Object.entries(LEVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
-        <button type="button" className="primary" disabled={busy || !nd.stem.trim()} onClick={addInline}>+ Thêm</button>
-      </div><datalist id="qp-subjects">{[...new Set([...subjects, ...(bank ?? []).map(b => b.subject)])].map(s => <option key={s} value={s} />)}</datalist></td></tr></tfoot>}
+        {!rows.length && <tr><td colSpan={edit ? 5 : 4}><small className="sub">Đề chưa có câu hỏi.{edit ? ' Bấm “+ Thêm câu hỏi mới”, “Chọn từ ngân hàng câu hỏi” hoặc “Nhập từ Excel” theo file mẫu.' : ''}</small></td></tr>}</tbody>
     </table></div>}
     {pick && bank && <BankPick bank={bank} chosen={value} subjects={subjects} grades={grades} topic={topic} onClose={() => setPick(false)}
       onAdd={ids => { add(ids); setPick(false); setMsg([`Đã thêm ${ids.length} câu từ ngân hàng.`, false]) }} />}

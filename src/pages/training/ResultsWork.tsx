@@ -242,7 +242,7 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
         empty={<small className="sub">{all.length ? 'Không có nhà giáo nào khớp.' : 'Kế hoạch chưa có nhà giáo ghi danh.'}</small>} />
       : view === 'test' ? <TestScores planId={plan.id} planCode={plan.plan_code ?? plan.name.slice(0, 30)} can={can} only={new Set(shown.map(r => r.teacher_id))} onSaved={load} />
       : <AttGrid rows={shown} sess={sess} att={att} />}
-      <small className="sub">Điểm sản phẩm từ 5 trở lên mới tính đạt. Nhận / trả lại sản phẩm ở chi tiết kế hoạch › Tiến độ học trực tuyến. Bấm tên nhà giáo để xem chi tiết, nhận xét.</small>
+      <small className="sub">Điểm sản phẩm từ 5 trở lên mới tính đạt. Nhận / trả lại sản phẩm ở chi tiết kế hoạch › Kết quả & chứng chỉ › Tiến độ học. Bấm tên nhà giáo để xem chi tiết, nhận xét.</small>
       <button type="button" className="primary" style={{ justifySelf: 'end' }} onClick={() => setTab('decide')}>Tiếp tục: Kết luận →</button>
     </section>}
 

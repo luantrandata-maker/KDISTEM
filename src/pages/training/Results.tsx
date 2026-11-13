@@ -160,7 +160,7 @@ export function ResultDetail({ plan, r, can, onBack, onDone, back = 'Đánh giá
         <label className="field" style={{ gridColumn: '1/-1' }}><span>Nhận xét</span><textarea rows={3} value={comment} onChange={e => setComment(e.target.value)} /></label>
         <div><button type="button" disabled={busy} onClick={() => call('training_result_grade', { ...base, p_score: score === '' ? null : Number(score), p_comment: comment }, 'Đã lưu điểm và nhận xét.')}>Lưu điểm & nhận xét</button></div>
       </div> : <dl className="tpkv"><dt>Điểm</dt><dd>{num(r.product_score)}</dd><dt>Nhận xét</dt><dd>{r.comment || '—'}</dd></dl>}
-      <small className="sub">Nhận / trả lại sản phẩm ở chi tiết kế hoạch › Tiến độ học trực tuyến.</small>
+      <small className="sub">Nhận / trả lại sản phẩm ở chi tiết kế hoạch › Kết quả & chứng chỉ › Tiến độ học.</small>
     </section>}
     {can && <section className="panel" style={{ display: 'grid', gap: 10 }}>
       <h3 style={{ margin: 0 }}>Kết luận</h3>

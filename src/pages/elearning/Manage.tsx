@@ -412,10 +412,9 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
     const fs = form.subjects ?? [], fg = form.grades ?? []
     const missing = [!form.title.trim() && 'Tên khoá học', !fs.length && 'Môn', !fg.length && 'Khối'].filter(Boolean) as string[]
     const S = (n: number) => ({ gridColumn: `span ${n}` })
-    const aud = fSchool ? audienceText({ ...form, shared: false } as Course, fClasses, fGroups) || 'Chưa chọn lớp / nhóm' : form.shared ? 'Học sinh tất cả trường trực thuộc' : 'Chỉ đơn vị mình'
     return <ElView back={open ? 'Chi tiết khoá học' : 'Khoá học e-learning'} onBack={() => setForm(null)} title={form.id ? 'Sửa khoá học' : 'Tạo khoá học'} sub={form.id ? form.title : undefined}>
       {note}
-      <form className="pform pfwrap nonav" onSubmit={save}>
+      <form className="pform pfwrap nonav noside" onSubmit={save}>
         <div className="pfmain">
           <section className="panel pfcard">
             <div className="pgrid">
@@ -431,23 +430,11 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
                 : <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}><input type="checkbox" style={{ width: 'auto', margin: 0 }} checked={form.shared} onChange={e => setForm({ ...form, shared: e.target.checked })} /> Dành cho học sinh tất cả trường trực thuộc</label>}</div>
               <label className="field" style={S(12)}><span>Giới thiệu khoá học</span><textarea rows={4} value={form.description ?? ''} onChange={e => setForm({ ...form, description: e.target.value })} placeholder="Học sinh thấy phần này khi mở khoá học" /></label>
             </div>
+            <div className="pfbtns">{missing.length ? <span className="pfmiss">Còn thiếu: {missing.join(', ')}</span> : null}
+              <button type="button" onClick={() => setForm(null)}>Huỷ</button>
+              <button className="primary" type="submit" disabled={!!missing.length}>{form.id ? 'Lưu thay đổi' : 'Lưu & thêm bài học'}</button></div>
           </section>
         </div>
-        <aside className="pfside">
-          <div className="panel pdcard">
-            <h4>Xem nhanh</h4>
-            <dl className="pddl sm">
-              <dt>Tên</dt><dd><b>{form.title.trim() || '—'}</b></dd>
-              <dt>Môn</dt><dd>{fs.join(', ') || '—'}</dd>
-              <dt>Khối</dt><dd>{fg.length ? [...fg].sort((a, b) => a - b).join(', ') : '—'}</dd>
-              <dt>Hạn</dt><dd>{form.due_at ? dt(form.due_at) : 'Không đặt'}</dd>
-              <dt>Đối tượng</dt><dd>{aud}</dd>
-            </dl>
-            {missing.length ? <p className="pfmiss">Còn thiếu: {missing.join(', ')}</p> : <p className="pfok">✓ Đã đủ thông tin bắt buộc</p>}
-            <div className="pfsidebtn"><button className="primary" type="submit" disabled={!!missing.length}>{form.id ? 'Lưu thay đổi' : 'Lưu & thêm bài học'}</button>
-              <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
-          </div>
-        </aside>
       </form></ElView>
   }
   // Chi tiết khoá học (bài học, tiến độ): trang riêng

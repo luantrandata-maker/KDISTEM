@@ -15,6 +15,8 @@ import { TimeGrid } from '../../components/TimeGrid'
 import { useHolidays } from '../../lib/holidays'
 import { MultiSelect } from '../../components/MultiSelect'
 import { TrainerPick, useTrainers, trainerName } from './Trainers'
+import { DataTable, type Col } from '../../components/DataTable'
+import type { ReactNode } from 'react'
 
 type Mode = 'online' | 'offline'
 export type SUnit = { id: string; title: string; hours: number; mode?: Mode | null }
@@ -222,11 +224,11 @@ export function checks(s: Schedule, plan: SPlan) {
 const progName = (p: SProg | undefined) => p ? (p.code ? p.code + ' · ' : '') + p.title : '—'
 
 // ===== Bước 2: Xếp lịch =====
-export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPlan; edit: boolean; onNext: () => void }) {
+export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPlan; edit: boolean; onNext?: () => void }) {
   const [open, setOpen] = useState<Set<string>>(new Set(s.order.slice(0, 1)))
   const names = useTrainerNames(plan.org_id)
   if (!s.loaded) return <p className="sub">Đang tải…</p>
-  if (!s.order.length) return <p className="sub">Chọn chương trình đào tạo ở bước 1 trước.</p>
+  if (!s.order.length) return <p className="sub">Chọn chương trình đào tạo ở phần 1 trước.</p>
   const nSess = groupRows(s.rows, s.merge).length, nDone = s.rows.filter(r => r.date && r.from && r.to).length
   return <>
     <div className="tpmerge">
@@ -242,7 +244,7 @@ export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPl
       const subjs = [...new Set(mine.map(r => r.subj))]
       return <div key={pid} className="distcard" style={{ borderTopColor: colorOf(k) }}>
         <div className="distcardhead"><i style={{ background: colorOf(k) }} />{p?.ct_code && <Chip tone="ct">{p.ct_code}</Chip>}<b>{progName(p)}</b></div>
-        <small className="sub">{mine.length} nội dung · {num(hours)} giờ · Giảng viên: {tIds(pid).length ? tIds(pid).map(names.name).join(', ') : 'chưa chọn ở bước 1'}
+        <small className="sub">{mine.length} nội dung · {num(hours)} giờ · Giảng viên: {tIds(pid).length ? tIds(pid).map(names.name).join(', ') : 'chưa chọn ở phần 1'}
           {tIds(pid).length > 1 && ' — chọn giảng viên cho từng buổi ở danh sách bên dưới'}</small>
         {edit && tIds(pid).length > 1 && <div className="tools"><button type="button" onClick={() => mine.filter(r => !r.locked).forEach(r => s.setRow(r.unit_id, { trainers: [...tIds(pid)] }))}>Gán tất cả giảng viên cho mọi buổi</button>
           <button type="button" onClick={() => mine.filter(r => !r.locked).forEach(r => s.setRow(r.unit_id, { trainers: [] }))}>Bỏ chọn giảng viên</button></div>}
@@ -304,16 +306,17 @@ export function ScheduleStep({ s, plan, edit, onNext }: { s: Schedule; plan: SPl
         </table></div>}
       </div>
     })}</div>
-    <h4 className="distsec">Chi tiết theo ngày</h4>
+    {onNext && <><h4 className="distsec">Chi tiết theo ngày</h4>
     <ScheduleView s={s} />
-    <div className="formactions" style={{ textAlign: 'right' }}><button type="button" className="primary" onClick={onNext}>Tiếp tục: Xem kết quả →</button></div>
+    <div className="formactions" style={{ textAlign: 'right' }}><button type="button" className="primary" onClick={onNext}>Tiếp tục: Xem kết quả →</button></div></>}
   </>
 }
 
 /** Xem lịch đã xếp: theo khung giờ trong tuần (mặc định) hoặc tổng giờ theo ngày */
-export function ScheduleView({ s }: { s: Schedule }) {
-  const [mode, setMode] = useState<'time' | 'day'>('time')
-  const done = s.rows.filter(r => r.date && r.from && r.to)
+export function ScheduleView({ s, only, month }: { s: Schedule; only?: string | null; month?: boolean }) {
+  const [mode, setMode] = useState<'time' | 'month' | 'day'>('time')
+  const [mon, setMon] = useState<string | null>(null)
+  const done = s.rows.filter(r => r.date && r.from && r.to && (!only || r.program_id === only))
   const first = done.map(r => r.date).sort()[0]
   const monOf = (d: string) => { const x = new Date(d + 'T00:00'); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return ymd(x) }
   const [wk, setWk] = useState<string | null>(null)
@@ -324,11 +327,17 @@ export function ScheduleView({ s }: { s: Schedule }) {
   const c0 = s.order.length ? s.cfgOf(s.order[0], 0) : null
   const shade: [number, number, string] | undefined = c0?.lunch && mins(c0.lunchTo) > mins(c0.lunchFrom) ? [mins(c0.lunchFrom), mins(c0.lunchTo), 'Nghỉ trưa'] : undefined
   const colorFor = (pid: string) => colorOf(Math.max(0, s.order.indexOf(pid)))
+  const curM = mon ?? (first ?? ymd(new Date())).slice(0, 7)
   return <div style={{ display: 'grid', gap: 8 }}>
     <div className="bar" style={{ margin: 0 }}>
       <div className="segmented" style={{ margin: 0 }} role="group" aria-label="Kiểu xem lịch">
-        <button type="button" className={mode === 'time' ? 'on' : ''} aria-pressed={mode === 'time'} onClick={() => setMode('time')}>Theo khung giờ</button>
-        <button type="button" className={mode === 'day' ? 'on' : ''} aria-pressed={mode === 'day'} onClick={() => setMode('day')}>Tổng giờ theo ngày</button></div>
+        {((month ? [['time', 'Tuần'], ['month', 'Tháng'], ['day', 'Tổng giờ theo ngày']] : [['time', 'Theo khung giờ'], ['day', 'Tổng giờ theo ngày']]) as ['time' | 'month' | 'day', string][]).map(([k, l]) =>
+          <button key={k} type="button" className={mode === k ? 'on' : ''} aria-pressed={mode === k} onClick={() => setMode(k)}>{l}</button>)}</div>
+      {mode === 'month' && <div className="tools">
+        <button type="button" aria-label="Tháng trước" onClick={() => setMon(shiftMonth(curM, -1))}>‹</button>
+        <b>Tháng {Number(curM.slice(5))}/{curM.slice(0, 4)}</b>
+        <button type="button" aria-label="Tháng sau" onClick={() => setMon(shiftMonth(curM, 1))}>›</button>
+        <small className="sub">{done.filter(r => r.date.startsWith(curM)).length} nội dung trong tháng</small></div>}
       {mode === 'time' && done.length > 0 && <div className="tools">
         <button type="button" aria-label="Tuần trước" onClick={() => setWk(addDays(cur, -7))}>‹</button>
         <b>{vnDay(cur)} – {vnDay(addDays(cur, 6))}</b>
@@ -336,14 +345,14 @@ export function ScheduleView({ s }: { s: Schedule }) {
         {weeks.length > 1 && <small className="sub">Tuần {idx >= 0 ? idx + 1 : '–'}/{weeks.length} có buổi · {n} buổi</small>}
         {weeks.length > 1 && idx < 0 && <button type="button" onClick={() => setWk(weeks[0])}>Về tuần có buổi</button>}</div>}
     </div>
-    {mode === 'day' ? <DayGrid s={s} /> : !done.length ? <p className="sub">Chưa có buổi nào được xếp.</p>
+    {mode === 'day' ? <DayGrid s={s} /> : mode === 'month' ? <MonthGrid s={s} rows={done} month={curM} color={colorFor} /> : !done.length ? <p className="sub">Chưa có buổi nào được xếp.</p>
       : <TimeGrid days={days} shade={shade} label="Lịch đào tạo theo khung giờ" dayNote={d => s.hol.holName(ymd(d)) || undefined}
           events={done.map(r => { const p = s.progs.find(x => x.id === r.program_id)
             return { id: r.unit_id, start: new Date(`${r.date}T${r.from}`), end: new Date(`${r.date}T${r.to}`), title: (s.hol.holOn(r.date).length ? '⚠ ' : '') + r.title, color: colorFor(r.program_id),
               sub: `${p?.code || p?.title || ''} · ${r.subj} · ${MODE[r.mode]}${r.mode === 'offline' && r.location ? ' · ' + r.location : ''}` } })} />}
-    {mode === 'time' && done.length > 0 && <div className="tools" style={{ flexWrap: 'wrap' }}>{s.order.map(pid => { const p = s.progs.find(x => x.id === pid)
+    {mode !== 'day' && done.length > 0 && <div className="tools" style={{ flexWrap: 'wrap' }}>{s.order.filter(pid => !only || pid === only).map(pid => { const p = s.progs.find(x => x.id === pid)
       return <small key={pid} className="sub" style={{ display: 'inline-flex', gap: 6, alignItems: 'center' }}><i style={{ width: 10, height: 10, borderRadius: 3, background: colorFor(pid), display: 'inline-block' }} />{p?.code || p?.title}</small> })}
-      {shade && <small className="sub">· vùng gạch chéo là giờ nghỉ trưa</small>}</div>}
+      {shade && mode === 'time' && <small className="sub">· vùng gạch chéo là giờ nghỉ trưa</small>}</div>}
   </div>
 }
 
@@ -376,6 +385,91 @@ export function DayGrid({ s }: { s: Schedule }) {
       <div className="grow totrow" style={{ gridTemplateColumns: cols }}><b className="lab total">Giờ/ngày</b>
         {days.map(d => { const h = hoursOn(done, d); return <small key={d} className={'tot' + (h > 8 ? ' over' : '')}>{h ? num(h) : ''}</small> })}</div>
     </div></div></div>
+}
+
+const shiftMonth = (m: string, n: number) => { const d = new Date(m + '-01T00:00'); d.setMonth(d.getMonth() + n); return ymd(d).slice(0, 7) }
+
+/** Lịch tháng: mỗi ô một ngày, mỗi nội dung đã xếp một dòng (giờ · tên), màu theo chương trình */
+function MonthGrid({ s, rows, month, color }: { s: Schedule; rows: Row[]; month: string; color: (pid: string) => string }) {
+  const m0 = new Date(month + '-01T00:00'), start = new Date(m0); start.setDate(1 - ((m0.getDay() + 6) % 7))
+  const days = Array.from({ length: 42 }, (_, k) => { const d = new Date(start); d.setDate(start.getDate() + k); return ymd(d) })
+  const today = ymd(new Date())
+  return <div className="tscal tpcal month tpmcal" role="table" aria-label={`Lịch đào tạo tháng ${month}`}>
+    {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <div key={d} className="tscalh">{d}</div>)}
+    {days.map(d => { const hn = s.hol.holName(d), on = rows.filter(r => r.date === d).sort((a, b) => a.from.localeCompare(b.from))
+      return <div key={d} className={'tscald' + (d.slice(0, 7) !== month ? ' out' : '') + (d === today ? ' today' : '') + (hn ? ' hol' : '')} title={hn ? 'Ngày nghỉ: ' + hn : undefined}>
+        <small>{Number(d.slice(8))}{hn && <em className="tscalhol"> · {hn}</em>}</small>
+        {on.map(r => { const p = s.progs.find(x => x.id === r.program_id)
+          return <span key={r.unit_id} className="tpcalev" style={{ ['--c' as string]: color(r.program_id) }} title={`${r.from}–${r.to} · ${r.title}\n${p?.code ?? ''} · ${r.subj} · ${MODE[r.mode]}`}>
+            <b>{r.from}</b> {r.title}<small className="tpcalprog">{p?.code} · {MODE[r.mode]}</small></span> })}
+      </div> })}
+  </div>
+}
+
+/** Lịch đào tạo của kế hoạch (khuôn Bản phối của Phân phối): dải tóm tắt, cột trái lọc theo chương trình, xem dạng Bảng hoặc Lịch (Tuần / Tháng) */
+export function PlanSessions({ s, plan, no, checks: withChecks, extra }: { s: Schedule; plan: SPlan; no?: number; checks?: boolean; extra?: ReactNode }) {
+  const [view, setViewS] = useState<'table' | 'cal'>(() => { try { return localStorage.getItem('tplan.sview') === 'cal' ? 'cal' : 'table' } catch { return 'table' } })
+  const setView = (v: 'table' | 'cal') => { setViewS(v); try { localStorage.setItem('tplan.sview', v) } catch { /* chỉ đổi trong phiên */ } }
+  const [sel, setSel] = useState<string | null>(null)
+  const [q, setQ] = useState('')
+  const names = useTrainerNames(plan.org_id)
+  const head = (sum?: ReactNode) => <h3>{no != null && <i>{no}</i>}Lịch đào tạo{sum}<span className="sp" />
+    <div className="segmented distseg" role="group" aria-label="Kiểu xem">
+      <button type="button" className={view === 'table' ? 'on' : ''} aria-pressed={view === 'table'} onClick={() => setView('table')}>Bảng</button>
+      <button type="button" className={view === 'cal' ? 'on' : ''} aria-pressed={view === 'cal'} onClick={() => setView('cal')}>Lịch</button></div></h3>
+  if (!s.loaded) return <section className="distsec2">{head()}<p className="sub">Đang tải…</p></section>
+  const list = checks(s, plan), errors = list.filter(c => c.level === 'error')
+  const done = s.rows.filter(r => r.date && r.from).sort((a, b) => (a.date + a.from).localeCompare(b.date + b.from))
+  const ds = done.map(r => r.date)
+  const hours = s.rows.reduce((a, r) => a + r.hours, 0)
+  const tone = !s.order.length ? '' : errors.length ? 'bad' : list.length ? 'warn' : 'good'
+  const st = errors.length ? `⊗ ${errors.length} lỗi lịch, chưa phát hành được` : list.length ? `⚠ ${list.length} lưu ý` : '✓ Lịch hợp lệ'
+  const pIdx = (pid: string) => s.order.indexOf(pid)
+  const code = (pid: string) => { const p = s.progs.find(x => x.id === pid); return p?.code || p?.title || '' }
+  const inSel = sel ? done.filter(r => r.program_id === sel) : done
+  const qq = q.trim().toLowerCase()
+  const shown = qq ? inSel.filter(r => `${r.title} ${r.subj} ${r.location}`.toLowerCase().includes(qq)) : inSel
+  const nav = (key: string | null, label: ReactNode, rs: Row[]) => { const all = key ? s.rows.filter(r => r.program_id === key) : s.rows, h = all.reduce((a, r) => a + r.hours, 0)
+    return <div key={key ?? '*'} className={'slnavrow' + (sel === key ? ' on' : '')}><button type="button" className={'slnavi' + (sel === key ? ' on' : '')} onClick={() => setSel(key)}>
+      <span className="slnm">{label}</span><span className="slcnt">{rs.length}/{all.length} nội dung · {num(h)} giờ</span></button></div> }
+  const cols: Col<Row>[] = [
+    { key: 'no', label: '#', thClass: 'c-no', fixed: true, cell: r => <span className="sub">{inSel.indexOf(r) + 1}</span> },
+    ...(!sel ? [{ key: 'prog', label: 'Chương trình', text: (r: Row) => code(r.program_id), cell: (r: Row) => <span className="nowrap"><i className="distdot" style={{ background: colorOf(pIdx(r.program_id)) }} />{code(r.program_id)}</span> }] : []),
+    { key: 'date', label: 'Ngày', text: r => r.date, cell: r => <span className="nowrap">{vnDay(r.date)}/{r.date.slice(0, 4)}{s.hol.holName(r.date) && <><br /><small className="holwarn">⚠ Nghỉ: {s.hol.holName(r.date)}</small></>}</span> },
+    { key: 'time', label: 'Giờ', text: r => r.from, cell: r => <span className="nowrap">{r.from}–{r.to}</span> },
+    { key: 'title', label: 'Nội dung', fixed: true, text: r => r.title, cell: r => <>{r.title}<br /><small className="sub">{r.subj} · {num(r.hours)} giờ{r.locked ? ' · đã chốt điểm danh' : ''}</small></> },
+    { key: 'mode', label: 'Hình thức', text: r => MODE[r.mode], cell: r => MODE[r.mode] },
+    { key: 'place', label: 'Địa điểm / link họp', text: r => (r.mode === 'online' ? r.url : r.location) || '', cell: r => (r.mode === 'online' ? r.url : r.location) || <small className="warnline">Chưa có</small> },
+    { key: 'trainer', label: 'Giảng viên', text: r => r.trainers.map(names.name).join(', '), cell: r => r.trainers.length ? r.trainers.map(names.name).join(', ') : <small className="sub">—</small> },
+  ]
+  return <section className={'distsec2' + (no == null ? ' tpsessview' : '')}>
+    {head()}
+    <div className={'distsumbar ' + tone}>
+      <div className="distsumrow">
+        {s.order.length > 0 && <b className="distsumst">{st}</b>}
+        <span><b>{s.order.length}</b> chương trình · {s.rows.length} nội dung</span>
+        <span><b>{done.length}</b>/{s.rows.length} nội dung đã xếp</span>
+        <span><b>{groupRows(s.rows, s.merge).length}</b> buổi điểm danh</span>
+        <span><b>{num(hours)}</b> giờ</span>
+        {ds.length > 0 && <span>{ds[0] === ds[ds.length - 1] ? vnDay(ds[0]) + '/' + ds[0].slice(0, 4) : `${vnDay(ds[0])} – ${vnDay(ds[ds.length - 1])}/${ds[ds.length - 1].slice(0, 4)}`}</span>}
+        {extra}
+        {s.dirty && <span className="over">Có thay đổi chưa lưu</span>}
+      </div>
+      {withChecks && list.length > 0 && <ul>{list.map((c, k) => <li key={k} className={c.level}>{c.level === 'error' ? '⊗' : '⚠'} {c.text}</li>)}</ul>}
+    </div>
+    {!s.order.length ? <p className="sub" style={{ margin: 0 }}>Kế hoạch chưa có chương trình đào tạo.</p> : <div className="slwrap distslwrap">
+      <nav className="slnav" aria-label="Chương trình">
+        {nav(null, 'Tất cả', done)}
+        {s.order.map((pid, k) => nav(pid, <><i className="distdot" style={{ background: colorOf(k) }} />{code(pid)}</>, done.filter(r => r.program_id === pid)))}
+      </nav>
+      <div className="slmain">
+        {view === 'cal' ? <ScheduleView s={s} only={sel} month />
+          : <DataTable id="tplan-sessions" simple rows={shown} rowKey={r => r.unit_id} className="slt disttbl" cols={cols}
+            left={<input placeholder="Tìm nội dung, địa điểm…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm nội dung" />}
+            empty={<small className="sub">{inSel.length ? 'Không có nội dung nào khớp ô tìm.' : 'Chưa có nội dung nào được xếp lịch.'}</small>} />}
+      </div>
+    </div>}
+  </section>
 }
 
 // ===== Bước 3: Xem kết quả =====
@@ -417,7 +511,7 @@ export function ResultStep({ s, plan }: { s: Schedule; plan: SPlan }) {
           <td style={{ whiteSpace: 'normal' }}>{r.trainers.length ? r.trainers.map(names.name).join(', ') : <small className="sub">—</small>}</td>
         </tr>)}
       </Fragment>)}
-        {!days.length && <tr><td colSpan={6}><small className="sub">Chưa có buổi nào. Quay lại bước “Xếp lịch”.</small></td></tr>}</tbody>
+        {!days.length && <tr><td colSpan={6}><small className="sub">Chưa có buổi nào. Xếp lịch ở phần 2.</small></td></tr>}</tbody>
     </table></div>}
   </>
 }

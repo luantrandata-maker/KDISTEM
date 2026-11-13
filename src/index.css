@@ -2941,3 +2941,12 @@ main:has(.pdclose)>.pframe>.pfbody>.distpills{display:none}
 .slnew td>button{white-space:nowrap}
 /* Mở chi tiết trong tab lớp 2: ẩn hàng tab lớp 2 phía trên (giống tab đầu khung) */
 .pfbody:has(.pdsub) .segmented[role=tablist]:not(.pdtabs),.pfbody:has(.pdsub) .bar:has(>.segmented[role=tablist]){display:none}
+/* Kế hoạch đào tạo khuôn Phân phối: lịch tháng màu theo chương trình, thẻ dưới lịch, dải Tổ chức */
+.main .tpmcal .tpcalev{cursor:default;border-left-color:var(--c,var(--primary));background:color-mix(in srgb,var(--c,var(--primary)) 12%,var(--surface))}
+.tpsessview{border-top:0;padding-top:0;margin-top:4px}
+.tpdtabs{margin-bottom:12px}
+.distforpath.tporg{gap:10px;flex-wrap:wrap}.distforpath.tporg select{width:auto;max-width:280px;padding:2px 6px;font-size:13px}
+.main .segmented.tpdtabs{display:flex;width:100%;flex-wrap:wrap;background:none;padding:0;border-radius:0;gap:0 24px;border-bottom:1px solid var(--line);margin:0 0 14px}
+.main .segmented.tpdtabs button{background:none;box-shadow:none;border:0;border-bottom:2px solid transparent;border-radius:0;padding:9px 2px 8px;margin-bottom:-1px;color:var(--muted);font-weight:500}
+.main .segmented.tpdtabs button:hover{background:none;color:var(--text)}
+.main .segmented.tpdtabs button.on{background:none;box-shadow:none;color:var(--primary);border-bottom-color:var(--primary);font-weight:600}

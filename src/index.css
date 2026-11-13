@@ -2964,3 +2964,31 @@ main:has(.pdclose)>.pframe>.pfbody>.distpills{display:none}
 .user .fzopt small{font-weight:400;color:var(--muted);font-size:13px}
 .user .fzopt.on{border-color:var(--primary);background:var(--soft);color:var(--primary)}
 .user .fzopt.on small{color:var(--primary)}
+/* Lịch tháng kiểu Google Calendar: lưới kẻ liền, số ngày ở giữa, mỗi buổi một dòng (chấm màu · giờ · tên) */
+.tscal.gcal{gap:0;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.tscal.gcal .tscalh{border-right:1px solid var(--line);padding:8px 0 2px;font-size:calc(11px * var(--fz,1));letter-spacing:.04em;text-transform:uppercase}
+.tscal.gcal .tscalh:nth-child(7){border-right:0}
+.tscal.gcal .tscald{border:0;border-right:1px solid var(--line);border-top:1px solid var(--line);border-radius:0;padding:4px 4px 2px;gap:0;background:var(--surface)}
+.tscal.gcal .tscald:nth-child(7n){border-right:0}
+.tscal.gcal .tscalh+.tscald,.tscal.gcal .tscalh~.tscald:nth-child(-n+14){border-top:0}
+.tscal.gcal .tscald.out{background:var(--surface)}.tscal.gcal .tscald.out>small{opacity:.45}
+.tscal.gcal .tscald.hol{background:#fff8f6}
+.tscal.gcal .tscald>small{align-self:center;display:flex;align-items:center;justify-content:center;gap:4px;min-width:24px;height:24px;padding:0 6px;margin-bottom:2px;border-radius:12px;font-size:calc(12px * var(--fz,1));font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;max-width:100%}
+.tscal.gcal .tscald.today{border:0;border-right:1px solid var(--line);border-top:1px solid var(--line)}
+.tscal.gcal .tscald.today:nth-child(7n){border-right:0}
+.tscal.gcal .tscald.today>small{background:var(--navy,#1a3a6b);color:#fff;font-weight:700}
+.tscal.gcal .tscald.today>small .tscalhol{color:#fff}
+.main .tscal.gcal .tpcalev{display:flex;align-items:center;gap:6px;flex:none;width:100%;margin:0;border:0;border-radius:4px;padding:1px 6px;height:calc(22px * var(--fz,1));background:transparent;color:var(--text);font-size:calc(12.5px * var(--fz,1));font-weight:400;line-height:1.2}
+.main .tscal.gcal .tpcalev::before{content:'';flex:none;width:8px;height:8px;border-radius:50%;background:var(--ok-fg);box-sizing:border-box}
+.main .tscal.gcal .tpcalev.live::before{background:var(--bad)}
+.main .tscal.gcal .tpcalev.draft::before{background:transparent;border:2px solid var(--warn-fg)}
+.main .tscal.gcal .tpcalev.off{color:var(--muted)}.main .tscal.gcal .tpcalev.off::before{background:#9aa3b2}
+.main .tscal.gcal.tpmcal .tpcalev::before{background:var(--c,var(--primary))}
+.main .tscal.gcal .tpcalev>b{font-weight:400;color:var(--muted);flex:none}
+.main .tscal.gcal .tpcalev .tpcalprog{display:none}
+.main .tscal.gcal .tpcalev:hover{filter:none;background:var(--soft)}
+.main .tscal.gcal .tpcalev.onhol{outline:0;color:var(--bad)}
+.main .tscal.gcal .tpcalmore{padding:1px 6px;height:calc(22px * var(--fz,1));flex:none;font-weight:600;color:var(--text);border-radius:4px}
+.main .tscal.gcal .tpcalmore:hover{background:var(--soft)}
+.tscal.gcal .tscald.pick{outline:0;background:var(--soft)}
+@media(max-width:800px){.tscal.gcal{border-radius:6px}}

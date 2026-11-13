@@ -226,7 +226,7 @@ export function SessCal({ rows, label, planName, onOpen, hol, info }: { rows: Se
   const month = Array.from({ length: nWk * 7 }, (_, k) => new Date(mStart.getFullYear(), mStart.getMonth(), mStart.getDate() + k))
   const days = view === 'week' ? week : month
   // Tháng: vừa một màn hình, số buổi mỗi ô theo chiều cao còn lại
-  const fit = useFitMonth(view === 'month', nWk), MAX = fit.max
+  const fit = useFitMonth(view === 'month', nWk, 22), MAX = fit.max
   // Năm: mỗi kế hoạch một hàng, mỗi buổi một vạch trên 12 tháng
   const y = anchor.getFullYear(), y0 = +new Date(y, 0, 1), yLen = +new Date(y + 1, 0, 1) - y0
   const inYear = rows.filter(s => new Date(s.starts_at).getFullYear() === y)
@@ -285,7 +285,7 @@ export function SessCal({ rows, label, planName, onOpen, hol, info }: { rows: Se
     </div> : view === 'week' ? <TimeGrid days={week} label="Lịch đào tạo theo giờ trong tuần" dayNote={d => holD(d) || undefined}
       events={week.flatMap(on).map(s => ({ id: s.id, start: new Date(s.starts_at), end: new Date(s.ends_at), title: (holD(new Date(s.starts_at)) ? '⚠ ' : '') + s.title, prog: sub2(s), sub: label(s), cls: TONE[sessSt(s, now)],
         tip: tip(s), onClick: () => onOpen(s.id) }))} />
-    : <div ref={view === 'month' ? fit.ref : undefined} style={view === 'month' ? fit.style : undefined} className={'tscal tpcal ' + view + (view === 'month' && fit.style ? ' fit' : '')}>
+    : <div ref={view === 'month' ? fit.ref : undefined} style={view === 'month' ? fit.style : undefined} className={'tscal tpcal ' + view + (view === 'month' ? ' gcal' : '') + (view === 'month' && fit.style ? ' fit' : '')}>
       {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <div key={d} className="tscalh">{d}</div>)}
       {days.map((d, di) => { const ss = on(d), k = ymd(d), cut = view === 'month' && ss.length > MAX, hn = holD(d)
         return <div key={k} className={'tscald' + (view === 'month' && d.getMonth() !== anchor.getMonth() ? ' out' : '') + (sameDay(d, today) ? ' today' : '') + (pick === k ? ' pick' : '') + (hn ? ' hol' : '')} title={hn ? 'Ngày nghỉ: ' + hn : undefined}>

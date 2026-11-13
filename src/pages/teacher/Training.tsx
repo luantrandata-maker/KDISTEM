@@ -99,7 +99,7 @@ export function TeacherTrainingSchedule({ teacherId }: TProps) {
       </div>
       {rows.some(s => s.need_code && canCheckIn(s) && s.present !== true && !s.closed) && <div className="panel" style={{ marginTop: 14, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
         <b>Nhập mã điểm danh</b><small className="sub">Mã 6 số giảng viên đưa trong buổi học trực tiếp</small>
-        <input inputMode="numeric" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} placeholder="______" aria-label="Mã điểm danh" style={{ width: 110, letterSpacing: 4, fontSize: 18 }}
+        <input inputMode="numeric" maxLength={6} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, ''))} placeholder="______" aria-label="Mã điểm danh" style={{ width: 110, letterSpacing: 4, fontSize: 'calc(18px * var(--fz,1))' }}
           onKeyDown={e => { if (e.key === 'Enter' && code.length === 6) checkInCode() }} />
         <button className="primary" disabled={code.length !== 6 || busy === 'code'} onClick={checkInCode}>Điểm danh</button>
       </div>}

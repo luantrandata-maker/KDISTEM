@@ -294,7 +294,7 @@ function ExamForm({ form, setForm, onSubmit, orgId, classes, groups, isSchool }:
               : <label style={{ display: 'flex', gap: 8, alignItems: 'center', cursor: 'pointer' }}><input type="checkbox" style={{ width: 'auto', margin: 0 }} checked={form.shared} onChange={e => set({ shared: e.target.checked })} /> Học sinh tất cả trường trực thuộc</label>}</div>
             <label className="field" style={S(12)}><span>Hướng dẫn cho học sinh</span><textarea rows={2} value={form.description ?? ''} onChange={e => set({ description: e.target.value })} /></label>
           </div>
-          <div className="bar" style={{ margin: '18px 0 8px', paddingTop: 14, borderTop: '1px solid var(--line)' }}><h4 style={{ margin: 0, fontSize: 15.5 }}>Câu hỏi của đề ({total} câu)</h4>
+          <div className="bar" style={{ margin: '18px 0 8px', paddingTop: 14, borderTop: '1px solid var(--line)' }}><h4 style={{ margin: 0, fontSize: 'calc(15.5px * var(--fz,1))' }}>Câu hỏi của đề ({total} câu)</h4>
             <TryButton orgId={orgId} spec={spec} title={form.title || 'Đề luyện'} minutes={form.duration_min} disabled={!total} /></div>
           <QuestionPicker value={form.question_ids} onChange={ids => set({ question_ids: ids })} edit subjects={fs} grades={fg} title="Câu hỏi cố định"
             note="Câu chọn ở đây luôn có trong đề. Muốn rút ngẫu nhiên thêm từ ngân hàng theo chủ đề, mức độ thì đặt ma trận bên dưới." />

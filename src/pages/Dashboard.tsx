@@ -84,7 +84,7 @@ export default function Dashboard({ userName, go }: { userName?: string; go?: (p
           {today.slice(0, 2).map((e: any, i: number) => <span key={i}>{e.classes?.name} — {e.teachers?.full_name}</span>)}
           {today.length === 0 && <span>{wd === 0 ? 'Chủ nhật, không có tiết.' : 'Hôm nay chưa có tiết STEM.'}</span>}</div>
       </div>
-      <div className="cards">{stats.map(([n, l, s]) => <div className="card" key={l}><strong>{n}</strong><b style={{ fontSize: 13 }}>{l}</b><span>{s}</span></div>)}</div>
+      <div className="cards">{stats.map(([n, l, s]) => <div className="card" key={l}><strong>{n}</strong><b style={{ fontSize: 'calc(13px * var(--fz,1))' }}>{l}</b><span>{s}</span></div>)}</div>
       <div className="dash2">
         <div className="panel">
           <h3>Vận hành tuần này</h3>

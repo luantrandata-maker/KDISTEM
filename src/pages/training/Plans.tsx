@@ -528,7 +528,6 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
         <ol style={{ margin: 0, paddingLeft: 20 }}>{outside.map(e => <li key={e.teacher_id}>{e.teachers?.full_name ?? '…'}{e.teachers?.subject && <small className="sub"> · {e.teachers.subject}</small>}
           {can && <button type="button" className="linkbtn" style={{ marginLeft: 8 }} onClick={() => removeEnr(e)}>Bỏ</button>}</li>)}</ol>
       </section>}
-      {enr.length > 0 && <PlanProgress planId={p.id} manage={can} />}
     </div>
   const tabs: [Tab, string][] = [['sched', 'Lịch đào tạo'], ['exams', 'Đề kiểm tra'], ['reg', `Thông tin đăng ký${orgs.length ? ` (${orgs.length} trường)` : ''}`], ['results', 'Kết quả & chứng chỉ']]
   const tabBar = <div className="segmented pdtabs tpdtabs" role="tablist">{tabs.map(([k, l]) =>
@@ -545,7 +544,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
         {tab === 'reg' && schools}
         {tab === 'exams' && <PlanExams planId={p.id} planOrg={p.org_id} items={items} can={can && !p.closed_at && p.pub_status !== 'archived'} />}
         {tab === 'results' && (p.pub_status === 'draft' ? <p className="sub" style={{ margin: 0 }}>Phát hành kế hoạch và ghi danh nhà giáo trước, rồi chấm kết quả và cấp chứng chỉ ở đây.</p>
-          : <PlanResults plan={p} embedded />)}
+          : <div style={{ display: 'grid', gap: 12 }}>{enr.length > 0 && <PlanProgress planId={p.id} manage={can} />}<PlanResults plan={p} embedded /></div>)}
       </section>}
   </div>
 

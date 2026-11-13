@@ -13,9 +13,8 @@ button{font-family:inherit}
 
 /* Khung chính */
 .app{display:grid;grid-template-columns:256px minmax(0,1fr);min-height:100vh}
-.app.collapsed{grid-template-columns:minmax(0,1fr)}
+.app.collapsed{grid-template-columns:64px minmax(0,1fr)}
 .side{background:var(--navy);color:#f6f9fc;padding:16px 8px;overflow:auto;position:sticky;top:0;height:100vh}
-.app.collapsed .side{display:none}
 .side h4{margin:18px 10px 8px;font-size:13px;font-weight:700;color:var(--orange);letter-spacing:.2px;text-transform:uppercase}
 .side h4:first-child{margin-top:4px}
 .side button{display:block;width:100%;text-align:left;border:2px solid transparent;background:none;padding:9px 12px;border-radius:10px;cursor:pointer;color:#f6f9fc;font-size:14px;font-weight:500}
@@ -2872,8 +2871,7 @@ td button.iconbtn{width:30px;height:30px;min-width:30px;vertical-align:middle}
 .pfcrumb>.statmini{margin:0 0 0 auto;align-self:center}
 .pfcrumb>.statmini::before{content:none}
 .pfhead>.pfact>.pagecorner{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-/* Khung không có tab và nút: bỏ hàng đầu trống */
-.pfhead:not(:has(>.segmented)):not(:has(>.pfact>*)){display:none}
+
 /* Đang mở chi tiết: ẩn hàng tab mục của trang danh sách nằm trong khung (vd Phân phối chương trình) */
 main:has(.pdclose)>.pframe>.pfbody>.distpills{display:none}
 .pagehead:has(.pdclose){margin-bottom:10px}
@@ -2891,3 +2889,23 @@ main:has(.pdclose)>.pframe>.pfbody>.distpills{display:none}
 /* Trong khung (PageFrame): khối .panel duy nhất của trang không vẽ thêm khung lồng, không có khoảng trống phía trên */
 .pfbody>section.panel:only-of-type{border:0;border-radius:0;padding:0;margin-top:0!important;margin-bottom:0;background:none;box-shadow:none}
 .pfbody>section.panel:only-of-type+.tablenote{margin-top:12px}
+.pfhead>.pftabs>.segmented{margin:0}
+
+/* Menu thu gọn: dải biểu tượng 64px; rê chuột vào thì bung rộng đè lên nội dung, rời chuột thì thu lại */
+.app.collapsed .side{width:64px;z-index:60;overflow-x:hidden;transition:width .16s ease .12s,box-shadow .16s ease .12s}
+.app.collapsed .side:hover,.app.collapsed .side:focus-within{width:256px;box-shadow:8px 0 28px rgba(15,23,42,.28)}
+.app.collapsed .side:not(:hover):not(:focus-within){scrollbar-width:none}
+.app.collapsed .side:not(:hover):not(:focus-within) :is(.sidebrand b,.yearpick,.yearwarn,.navsub,.navgroup>div,.grouphead>span,.grouphead>svg:not(.navicon),.grouphead>.dot){display:none}
+.app.collapsed .side:not(:hover):not(:focus-within) .sidebrand{padding:6px 4px 16px}
+.app.collapsed .side:not(:hover):not(:focus-within) .sidebrand img{width:34px;object-fit:cover;object-position:left}
+.app.collapsed .side:not(:hover):not(:focus-within) button.grouphead{justify-content:center;padding:10px 0}
+@media(max-width:800px){.app.collapsed{grid-template-columns:1fr}.app.collapsed .side{display:none}}
+/* Nhãn ô có kèm liên kết (vd "Thiết lập khung năng lực"): cao bằng nhãn thường để các ô cùng hàng thẳng nhau */
+.field>span.fieldhead .linkbtn{padding:0;margin:0 0 0 4px;border:0;font-size:inherit;line-height:inherit;min-height:0;height:auto;vertical-align:baseline}
+.app.collapsed .side:not(:hover):not(:focus-within) .navgroup:has(button.on)>.grouphead{background:rgba(255,255,255,.14)}
+/* Câu hỏi của đề (QuestionPicker) */
+.qpick{display:grid;gap:10px}
+.qptable .qpok{color:var(--good,#15803d);font-weight:600}
+.qpick .qprow{display:inline-flex;gap:4px}
+.qpick .qprow .iconbtn{width:28px;height:28px;min-width:28px;padding:0}
+.qpnew .qpsubj{width:130px;flex:none}.qpnew .qpopts{flex:1 1 220px;min-width:160px}.qpnew .qpans{width:80px;flex:none}.qpnew select{flex:none;width:auto}

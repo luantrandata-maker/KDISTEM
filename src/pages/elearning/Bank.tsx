@@ -13,7 +13,7 @@ import { LEVEL, QKIND, letter, errText, gradesText, qGrades, type Level, type QK
 import { GradeMulti, SubjectPicker, gradeList } from '../../components/Pickers'
 
 // Ngân hàng câu hỏi: soạn tay, nhập Excel, tạo bằng Trợ lý AI; duyệt (Nháp → Sẵn sàng), dùng chung cho đơn vị trực thuộc.
-const COLS: Column[] = [
+export const COLS: Column[] = [
   { key: 'subject', label: 'Môn', required: true }, { key: 'grade', label: 'Khối' }, { key: 'topic', label: 'Chủ đề', width: 24 },
   { key: 'level', label: 'Mức độ', aliases: ['Mức'] }, { key: 'stem', label: 'Câu hỏi', required: true, width: 50 },
   { key: 'a', label: 'A', width: 20 }, { key: 'b', label: 'B', width: 20 }, { key: 'c', label: 'C', width: 20 }, { key: 'd', label: 'D', width: 20 },
@@ -21,8 +21,35 @@ const COLS: Column[] = [
   { key: 'answer', label: 'Đáp án', required: true, aliases: ['Đáp án đúng'] }, { key: 'explain', label: 'Giải thích', width: 40 },
 ]
 const LV_IN: Record<string, Level> = { 'nhan biet': 'nhan_biet', 'thong hieu': 'thong_hieu', 'van dung': 'van_dung', 'van dung cao': 'van_dung_cao', nb: 'nhan_biet', th: 'thong_hieu', vd: 'van_dung', vdc: 'van_dung_cao' }
-type Form = { id?: string; org?: string; subject: string; grades: number[]; topic: string; level: Level; kind: QKind; stem: string; options: string[]; answer: number[]; explain: string; shared: boolean; status: Question['status'] }
-const EMPTY: Form = { subject: '', grades: [], topic: '', level: 'thong_hieu', kind: 'single', stem: '', options: ['', '', '', ''], answer: [0], explain: '', shared: false, status: 'ready' }
+export type Form = { id?: string; org?: string; subject: string; grades: number[]; topic: string; level: Level; kind: QKind; stem: string; options: string[]; answer: number[]; explain: string; shared: boolean; status: Question['status'] }
+export const EMPTY: Form = { subject: '', grades: [], topic: '', level: 'thong_hieu', kind: 'single', stem: '', options: ['', '', '', ''], answer: [0], explain: '', shared: false, status: 'ready' }
+
+/** Kiểm tra form câu hỏi, trả về bản ghi để lưu hoặc câu báo lỗi */
+export function formBody(form: Form) {
+  const options = form.kind === 'truefalse' ? ['Đúng', 'Sai'] : form.options.map(o => o.trim()).filter(Boolean)
+  if (options.length < 2) return 'Cần ít nhất 2 lựa chọn.'
+  const answer = form.answer.filter(i => i < options.length)
+  if (!answer.length) return 'Chọn đáp án đúng.'
+  return { subject: form.subject.trim(), grades: form.grades, topic: form.topic.trim() || null, level: form.level, kind: form.kind,
+    stem: form.stem.trim(), options, answer: form.kind === 'multi' ? answer : [answer[0]], explain: form.explain.trim() || null, shared: form.shared, status: form.status }
+}
+/** Dòng Excel (theo COLS) → bản ghi ngân hàng câu hỏi; bad: các dòng bỏ qua */
+export function toBankRows(recs: (Record<string, string> & { _line: number })[], orgId: string | null) {
+  const bad: string[] = []
+  const ins = recs.flatMap(r => {
+      const opts = [r.a, r.b, r.c, r.d, r.e, r.f].map(x => (x ?? '').trim()).filter(Boolean)
+      const ans = [...(r.answer ?? '').toUpperCase().replace(/[^A-F]/g, '')].map(c => c.charCodeAt(0) - 65)
+      const tf = opts.length === 0 && /^(Đ|ĐÚNG|S|SAI|DUNG)$/i.test((r.answer ?? '').trim())
+      if (!tf && (opts.length < 2 || !ans.length || ans.some(i => i >= opts.length))) { bad.push(`dòng ${r._line}: thiếu lựa chọn hoặc đáp án`); return [] }
+      return [{ org_id: orgId, subject: r.subject.trim(), grades: gradeList(r.grade ?? ''), topic: r.topic?.trim() || null,
+        level: LV_IN[norm((r.level ?? '').toLowerCase().trim())] ?? 'thong_hieu', kind: tf ? 'truefalse' : ans.length > 1 ? 'multi' : 'single',
+        stem: r.stem.trim(), options: tf ? ['Đúng', 'Sai'] : opts, answer: tf ? [/^S/i.test(r.answer.trim()) ? 1 : 0] : [...new Set(ans)],
+        explain: r.explain?.trim() || null, source: 'import', status: 'ready' }]
+    })
+  return { ins, bad }
+}
+export const SAMPLE = [['Khoa học tự nhiên', '7', 'Mạch điện', 'Nhận biết', 'Đơn vị đo cường độ dòng điện là gì?', 'Vôn', 'Ampe', 'Ôm', 'Oát', '', '', 'B', 'Cường độ dòng điện đo bằng ampe (A).'],
+  ['Công nghệ', '8', 'An toàn điện', 'Thông hiểu', 'Chọn các việc làm an toàn khi sửa điện', 'Ngắt cầu dao', 'Dùng tay ướt', 'Đi dép cao su', 'Chạm dây trần', '', '', 'AC', '']]
 
 export default function QuestionBank({ orgId }: { orgId: string | null }) {
   const [rows, setRows] = useState<Question[]>([])
@@ -55,12 +82,8 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
 
   async function save(e: React.FormEvent) {
     e.preventDefault(); if (!form) return
-    const options = form.kind === 'truefalse' ? ['Đúng', 'Sai'] : form.options.map(o => o.trim()).filter(Boolean)
-    if (options.length < 2) return setMsg(['Cần ít nhất 2 lựa chọn.', true])
-    const answer = form.answer.filter(i => i < options.length)
-    if (!answer.length) return setMsg(['Chọn đáp án đúng.', true])
-    const body = { subject: form.subject.trim(), grades: form.grades, topic: form.topic.trim() || null, level: form.level, kind: form.kind,
-      stem: form.stem.trim(), options, answer: form.kind === 'multi' ? answer : [answer[0]], explain: form.explain.trim() || null, shared: form.shared, status: form.status }
+    const body = formBody(form)
+    if (typeof body === 'string') return setMsg([body, true])
     const { error } = form.id ? await supabase.from('question_bank').update(body).eq('id', form.id) : await supabase.from('question_bank').insert({ ...body, org_id: form.org || orgId })
     if (error) return setMsg([errText(error.message), true])
     setMsg([form.id ? 'Đã cập nhật câu hỏi.' : 'Đã thêm câu hỏi.', false]); setForm(null); load()
@@ -82,17 +105,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
     setMsg(error ? [errText(error.message), true] : [`Đã xoá ${ids.length} câu.`, false]); setSel(new Set()); load()
   }
   async function importRecords(recs: (Record<string, string> & { _line: number })[]) {
-    const bad: string[] = []
-    const ins = recs.flatMap(r => {
-      const opts = [r.a, r.b, r.c, r.d, r.e, r.f].map(x => (x ?? '').trim()).filter(Boolean)
-      const ans = [...(r.answer ?? '').toUpperCase().replace(/[^A-F]/g, '')].map(c => c.charCodeAt(0) - 65)
-      const tf = opts.length === 0 && /^(Đ|ĐÚNG|S|SAI|DUNG)$/i.test((r.answer ?? '').trim())
-      if (!tf && (opts.length < 2 || !ans.length || ans.some(i => i >= opts.length))) { bad.push(`dòng ${r._line}: thiếu lựa chọn hoặc đáp án`); return [] }
-      return [{ org_id: orgId, subject: r.subject.trim(), grades: gradeList(r.grade ?? ''), topic: r.topic?.trim() || null,
-        level: LV_IN[norm((r.level ?? '').toLowerCase().trim())] ?? 'thong_hieu', kind: tf ? 'truefalse' : ans.length > 1 ? 'multi' : 'single',
-        stem: r.stem.trim(), options: tf ? ['Đúng', 'Sai'] : opts, answer: tf ? [/^S/i.test(r.answer.trim()) ? 1 : 0] : [...new Set(ans)],
-        explain: r.explain?.trim() || null, source: 'import', status: 'ready' }]
-    })
+    const { ins, bad } = toBankRows(recs, orgId)
     if (ins.length) { const { error } = await supabase.from('question_bank').insert(ins); if (error) return 'Lỗi: ' + errText(error.message) }
     load()
     return `Đã nhập ${ins.length} câu.` + (bad.length ? ` Bỏ qua ${bad.length}: ${bad.slice(0, 5).join('; ')}${bad.length > 5 ? '…' : ''}` : '')
@@ -188,7 +201,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
   )
 }
 
-function QuestionForm({ form, setForm, onSubmit, canShare, subjects = [] }: { form: Form; setForm: (f: Form | null) => void; onSubmit: (e: React.FormEvent) => void; canShare: boolean; subjects?: string[] }) {
+export function QuestionForm({ form, setForm, onSubmit, canShare, subjects = [] }: { form: Form; setForm: (f: Form | null) => void; onSubmit: (e: React.FormEvent) => void; canShare: boolean; subjects?: string[] }) {
   const set = (p: Partial<Form>) => setForm({ ...form, ...p })
   const opts = form.kind === 'truefalse' ? ['Đúng', 'Sai'] : form.options
   const toggle = (i: number) => set({ answer: form.kind === 'multi' ? (form.answer.includes(i) ? form.answer.filter(x => x !== i) : [...form.answer, i]) : [i] })

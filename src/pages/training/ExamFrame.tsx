@@ -2,6 +2,7 @@
 // Đề kiểm tra: bài test từng nội dung (soạn trong nội dung) + đề cuối khoá rút câu theo ma trận chủ đề × mức độ.
 // Khung đánh giá: trọng số thành phần, điều kiện bắt buộc để đạt, thang xếp loại; dùng khi đánh giá kết quả và in chứng chỉ.
 import { useEffect, useState } from 'react'
+import { QuestionPicker } from '../../components/QuestionPicker'
 import { supabase } from '../../lib/supabase'
 import { ExamMatrix, cleanMatrix, listGrades, listSubjects, matrixText, matrixTotal, useBankSubjects, type MRow } from '../../components/ExamMatrix'
 import { MultiSelect } from '../../components/MultiSelect'
@@ -44,7 +45,7 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
     if (!f) return
     const subs = listSubjects(f), grs = listGrades(f)
     if (!subs.length) return alert('Chọn môn của đề.')
-    if (total < 1) return alert('Ma trận cần ít nhất 1 câu.')
+    if (total < 1) return alert('Đề cần ít nhất 1 câu: thêm câu hỏi hoặc đặt ma trận.')
     const clean: FinalExam = { ...f, title: f.title?.trim() || undefined, subjects: subs, grades: grs, subject: subs[0], grade: grs[0] ?? null,
       matrix: cleanMatrix(f.matrix ?? []).map(r => (r.subject && !subs.includes(r.subject) ? { ...r, subject: undefined } : r)) }
     if (await save({ final_exam: clean }, 'Đã lưu đề cuối khoá.')) setF(null)
@@ -78,6 +79,7 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
     : fe ? <dl className="tpkv">
       <dt>Tên đề</dt><dd>{fe.title || 'Đề cuối khoá'}</dd>
       <dt>Môn · khối</dt><dd>{listSubjects(fe).join(', ') || '—'}{listGrades(fe).length ? ` · khối ${listGrades(fe).join(', ')}` : ' · tất cả khối'}</dd>
+      {(fe.qids?.length ?? 0) > 0 && <><dt>Câu hỏi cố định</dt><dd>{fe.qids!.length} câu</dd></>}
       <dt>Ma trận</dt><dd>{matrixTotal(fe.matrix ?? [])} câu: {matrixText(fe.matrix ?? []) || '—'}</dd>
       <dt>Ai mở đề</dt><dd>{fe.mode === 'trainer' ? 'Giảng viên mở đề ở buổi học' : 'Học viên tự làm khi học xong'}</dd>
       <dt>Cách làm</dt><dd>{fe.minutes ? `${fe.minutes} phút` : 'không giới hạn thời gian'} · {fe.attempts ? `${fe.attempts} lượt` : 'không giới hạn lượt'} · điểm đạt {fe.pass != null ? num(fe.pass) : 'không xét'} · {fe.shuffle !== false ? 'trộn câu' : 'giữ thứ tự'}</dd>
@@ -103,6 +105,9 @@ export function FinalExamForm({ org, f, setF, total, onSave, onCancel, lock = fa
         <div className="field"><span>Trộn câu</span><label><input type="checkbox" checked={f.shuffle !== false} onChange={e => setF({ ...f, shuffle: e.target.checked })} /> Trộn thứ tự câu mỗi lượt</label></div>
         <div style={{ gridColumn: '1/-1' }}><ExamModePick value={f.mode} edit onChange={m => setF({ ...f, mode: m })} /></div>
       </div>
+      <QuestionPicker value={f.qids ?? []} onChange={ids => setF({ ...f, qids: ids })} subjects={listSubjects(f)} grades={listGrades(f)} title="Câu hỏi cố định"
+        note="Câu chọn ở đây luôn có trong đề. Muốn rút ngẫu nhiên thêm từ ngân hàng theo chủ đề, mức độ thì đặt ma trận bên dưới." />
+      <h4 className="libparthead" style={{ margin: '6px 0 0' }}>Ma trận rút ngẫu nhiên (không bắt buộc)</h4>
       <ExamMatrix org={org} subjects={listSubjects(f)} grades={listGrades(f)} rows={f.matrix ?? []} onChange={m => setF({ ...f, matrix: m })} />
       {lock && <p className="sub" style={{ margin: 0 }}>Đã có nhà giáo nộp bài nên không đổi được số lượt làm và điểm đạt.</p>}
       <div className="formactions"><button type="button" className="primary" onClick={onSave}>Lưu đề ({total} câu)</button> <TryButton orgId={org} spec={finalSpec(f)} title={f.title || 'Đề cuối khoá'} minutes={f.minutes} pass={f.pass} /> <button type="button" onClick={onCancel}>Huỷ</button></div>

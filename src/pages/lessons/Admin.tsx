@@ -1,4 +1,5 @@
 import { NameLink, useRowSel } from '../../components/TableSel'
+import { HeadAction } from '../../components/PageFrame'
 import { DetailHead } from '../../components/DetailHead'
 // Giáo án & bài giảng cho Trường (duyệt, theo dõi, mẫu giáo án), Sở / Phòng (giáo án đã xuất bản của trường trực thuộc, mẫu dùng chung)
 // và KDI (mẫu giáo án dùng chung toàn hệ thống)
@@ -261,7 +262,7 @@ function SchoolActivities({ orgId, canWrite }: { orgId: string | null; canWrite:
       <div className="tools" style={{ marginBottom: 12 }}>
         <input className="search" style={{ margin: 0 }} placeholder="Tìm hoạt động…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm hoạt động" />
         <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Lọc loại"><option value="">Tất cả loại</option>{kinds.map(k => <option key={k} value={k}>{ACT[k]?.label ?? k}</option>)}</select>
-        {canWrite && <button className="primary" onClick={() => setDesk({ mode: 'new' })}>+ Thêm hoạt động mẫu</button>}
+        {canWrite && <HeadAction><button className="primary ttadd" onClick={() => setDesk({ mode: 'new' })}>+ Thêm hoạt động mẫu</button></HeadAction>}
       </div>
       <div className="wrap"><table>
         <thead><tr><th>Hoạt động</th><th>Loại</th><th>Giáo viên</th><th>Môn · khối</th><th>Trạng thái</th><th>Cập nhật</th></tr></thead>

@@ -603,7 +603,9 @@ function Shell({ session }: { session: Session }) {
   const access = useAccess(session)
   const [role, setRole] = useState<RoleKey | null>(null)
   const [page, setPage] = useState('')
-  const [collapsed, setCollapsed] = useState(false)
+  // Thu gọn menu thành dải biểu tượng; rê chuột vào dải thì menu bung ra đè lên nội dung (nhớ theo trình duyệt)
+  const [collapsed, setCollapsedS] = useState(() => { try { return localStorage.getItem('menu.rail') === '1' } catch { return false } })
+  const setCollapsed = (v: boolean) => { setCollapsedS(v); try { localStorage.setItem('menu.rail', v ? '1' : '0') } catch { /* bỏ qua */ } }
   // Nhóm menu đang thu gọn (nhớ theo trình duyệt)
   const [closed, setClosed] = useState<Set<string>>(() => { try { return new Set(JSON.parse(localStorage.getItem('menu.closed') ?? '[]')) } catch { return new Set() } })
   const toggleGroup = (key: string) => setClosed(prev => {
@@ -799,7 +801,7 @@ function Shell({ session }: { session: Session }) {
       </nav>
       <div className="content">
         <header className="top">
-          <button className="toggle" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Hiện menu' : 'Ẩn menu'} aria-expanded={!collapsed}>
+          <button className="toggle" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Ghim menu' : 'Thu gọn menu'} title={collapsed ? 'Ghim menu' : 'Thu gọn menu (rê chuột vào dải biểu tượng để mở)'} aria-expanded={!collapsed}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg>
           </button>
           <img src={brand?.logo ?? logo} alt={brand?.display_name ?? 'KDI education'} />

@@ -105,7 +105,7 @@ function ModuleDetail({ u, funcs, onBack }: { u: Usage; funcs?: { live: number; 
   const unit = u.key === 'ph5' ? 'Sở' : 'Trường'
   return (
     <>
-      <div className="bar"><span className="tools"><button onClick={onBack}>← Các phân hệ</button><b style={{ fontSize: 18 }}>{u.name}</b></span>
+      <div className="bar"><span className="tools"><button onClick={onBack}>← Các phân hệ</button><b style={{ fontSize: 'calc(18px * var(--fz,1))' }}>{u.name}</b></span>
         <button onClick={() => downloadXlsx(`Muc-su-dung-${u.key}`, [{ key: 'a', label: unit, width: 34 }, { key: 'b', label: 'Mã' }, { key: 'c', label: 'Đơn vị quản lý', width: 26 },
           { key: 'd', label: 'Tỉnh', width: 18 }, { key: 'e', label: 'Được bật' }, { key: 'f', label: 'Gói' }, { key: 'g', label: 'Lượt dùng 28 ngày' }],
           shown.map(r => [r.name, r.code, r.parent_name, r.province_name, r.enabled ? 'Có' : 'Không', r.plan_name ?? (r.state === 'open' ? 'Chưa có HĐ' : ''), r.events]), u.key.toUpperCase())}>Xuất Excel</button></div>

@@ -189,13 +189,13 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
   // Bấm vào dòng để mở chi tiết bên phải (thao tác nằm trong bảng chi tiết)
   const normCols = (mine: boolean): Col<Norm>[] => [
     { key: 'title', label: 'Định mức', fixed: true, values: n => [n.title], text: n => [n.title, n.subject].join(' '),
-      cell: n => <><b>{n.title}</b> <small className="sub">v{n.version_no}</small><div className="sub" style={{ fontSize: 12 }}>{[n.subject, n.grade && gradeName(n.grade), (!mine || every) && ownerName(n, orgId)].filter(Boolean).join(' · ') || '—'}</div></> },
+      cell: n => <><b>{n.title}</b> <small className="sub">v{n.version_no}</small><div className="sub" style={{ fontSize: 'calc(12px * var(--fz,1))' }}>{[n.subject, n.grade && gradeName(n.grade), (!mine || every) && ownerName(n, orgId)].filter(Boolean).join(' · ') || '—'}</div></> },
     { key: 'subj', label: 'Môn · khối', values: n => [n.subject ?? ''], text: n => n.subject ?? '', cell: n => [n.subject, n.grade && gradeName(n.grade)].filter(Boolean).join(' · ') || '—' },
-    { key: 'basis', label: 'Tính cho', text: n => BASIS[n.basis], cell: n => <>{BASIS[n.basis]}{n.basis === 'group' && <small className="sub"> ({n.group_size} HS)</small>}<div className="sub" style={{ fontSize: 12 }}>{n.sessions} buổi</div></> },
+    { key: 'basis', label: 'Tính cho', text: n => BASIS[n.basis], cell: n => <>{BASIS[n.basis]}{n.basis === 'group' && <small className="sub"> ({n.group_size} HS)</small>}<div className="sub" style={{ fontSize: 'calc(12px * var(--fz,1))' }}>{n.sessions} buổi</div></> },
     { key: 'n', label: 'Số vật tư', cell: n => n.material_norm_items?.[0]?.count ?? '—' },
     { key: 'link', label: 'Gắn với', values: n => [n.edu_programs?.title ?? '', n.library_items?.title ?? ''], text: n => [n.edu_programs?.title, n.edu_program_units?.title, n.library_items?.title].join(' '),
       cell: n => <small>{n.edu_programs ? `${n.edu_programs.title}${n.edu_program_units ? ' › ' + n.edu_program_units.title : ''}` : ''}{n.library_items ? <>{n.edu_programs ? <br /> : null}Bài: {n.library_items.title}</> : null}{!n.edu_programs && !n.library_items ? '—' : null}</small> },
-    { key: 'st', label: 'Trạng thái', text: n => NSTATUS[n.status][0], cell: n => <><Pill s={n.status} />{n.published_at && <div className="sub" style={{ fontSize: 12 }}>từ {fmtD(n.published_at)}</div>}</> },
+    { key: 'st', label: 'Trạng thái', text: n => NSTATUS[n.status][0], cell: n => <><Pill s={n.status} />{n.published_at && <div className="sub" style={{ fontSize: 'calc(12px * var(--fz,1))' }}>từ {fmtD(n.published_at)}</div>}</> },
     { key: 'upd', label: 'Cập nhật', cell: n => <small>{fmtD(n.updated_at)}</small> },
   ]
   const tools = (n: number) => ({

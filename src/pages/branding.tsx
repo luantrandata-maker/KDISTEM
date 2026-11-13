@@ -26,7 +26,7 @@ function Preview({ r }: { r: Row }) {
       <div>
         <div className="bp-top"><img src={r.logo || kdiLogo} alt="" /><b>{r.display_name || DEFAULT_TITLE}</b></div>
         <div className="bp-body">
-          <b style={{ fontSize: 14 }}>Dashboard Trường</b>
+          <b style={{ fontSize: 'calc(14px * var(--fz,1))' }}>Dashboard Trường</b>
           <span className="sub">Màu chủ đạo dùng cho nút, liên kết, thanh tiến độ.</span>
           <span className="bp-btn" style={{ background: p }}>+ Thêm mới</span>
           <div style={{ height: 8, borderRadius: 4, background: '#eff4f9' }}><div style={{ width: '62%', height: '100%', borderRadius: 4, background: p }} /></div>

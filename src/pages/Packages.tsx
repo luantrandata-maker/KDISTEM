@@ -290,7 +290,7 @@ function PackageDetail({ pkg, state, onBack }: { pkg: Pkg; state: string; onBack
             {devs.length === 0 && <tr><td colSpan={9}>Chưa có danh sách thiết bị trong hợp đồng gói. Bấm "Thêm thiết bị" để nhập.</td></tr>}
           </tbody>
           {devs.length > 0 && <tfoot><tr><td colSpan={7}><b>Tổng cộng</b><br /><small className="sub">{devQty} thiết bị · {devs.length} loại</small></td>
-            <td style={{ textAlign: 'right', color: 'var(--primary)', fontWeight: 800, fontSize: 16, whiteSpace: 'nowrap' }}>{money(devTotal)}</td><td /></tr></tfoot>}
+            <td style={{ textAlign: 'right', color: 'var(--primary)', fontWeight: 800, fontSize: 'calc(16px * var(--fz,1))', whiteSpace: 'nowrap' }}>{money(devTotal)}</td><td /></tr></tfoot>}
         </table></div>
         {units.length > 0 && <>
           <h3 style={{ marginTop: 18 }}>Thiết bị đã nhập kho theo gói ({units.length})</h3>

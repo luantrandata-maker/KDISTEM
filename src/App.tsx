@@ -9,6 +9,7 @@ import { NAV, ROLE_LABEL, MODULE_OF, ENT_MODULE_OF, RoleKey, UPSELL_PORTALS, PHA
 import { LockedModule } from './components/LockedModule'
 import { useAccess, switchOrg } from './lib/auth'
 import { useYears, yearLabel } from './lib/year'
+import FontSize from './components/FontSize'
 import Bell from './components/Bell'
 import { navigatePage, onHistoryPage } from './lib/history'
 import MfaGate from './components/MfaGate'
@@ -808,6 +809,7 @@ function Shell({ session }: { session: Session }) {
           <span className="title">{appTitle}</span>
           <MenuSearch entries={groups.flatMap(g => g.items.map(item => ({ item, label: lab(item), group: g.section ? `${g.section} › ${g.label}` : g.label })))} onGo={i => show(role, i)} />
           <div className="user">
+            <FontSize />
             <Bell open={openFrom} portals={views} orgId={access.profile.org_id} />
             <UserMenu name={access.profile.full_name} email={email}
               roleLabel={access.roles.map(r => r.name).join(', ') || ROLE_LABEL[role]}

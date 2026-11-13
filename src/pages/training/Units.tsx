@@ -274,16 +274,19 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
             {editable && units.length > 0 && <button type="button" onClick={() => startDraft(false)} title="Sửa nhiều mục cùng lúc rồi lưu một lần">Sửa hàng loạt</button>}
           </>}
           cols={tcols}
-          foot={editable && target ? <tfoot><tr className="slnew"><td colSpan={12}><div className="slnewrow">
-            <select value={target.id} disabled={!!sel || subjs.length < 2} onChange={e => setNd({ ...nd, subj: e.target.value })} aria-label="Môn của nội dung mới">{subjs.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}</select>
-            <input id="tu-new-title" className="slnt" value={nd.title} disabled={busy} placeholder="+ Tên nội dung mới" aria-label={`Tên nội dung mới môn ${target.title}`} onChange={e => setNd({ ...nd, title: e.target.value })} onKeyDown={enter} />
-            <input className="slno" value={nd.reqs} disabled={busy} placeholder="Yêu cầu cần đạt (ngăn cách bằng ;)" aria-label="Yêu cầu cần đạt" onChange={e => setNd({ ...nd, reqs: e.target.value })} onKeyDown={enter} />
-            <select className="slnm2" value={nd.mode} onChange={e => setNd({ ...nd, mode: e.target.value as '' | 'online' | 'offline' })} aria-label="Hình thức nội dung mới">
-              <option value="">Theo CT</option><option value="online">Trực tuyến</option><option value="offline">Trực tiếp</option></select>
-            <input className="slnp" value={nd.hours} disabled={busy} placeholder="Số giờ" aria-label="Số giờ" inputMode="decimal" onChange={e => setNd({ ...nd, hours: e.target.value })} onKeyDown={enter} />
-            <label className="sltest"><input type="checkbox" checked={nd.test} onChange={e => setNd({ ...nd, test: e.target.checked })} /> Test</label>
-            <button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addContent}>+ Thêm</button>
-          </div></td></tr></tfoot> : undefined} />
+          foot={editable && target ? (keys: string[]) => {
+            const subjSel = <select value={target.id} disabled={!!sel || subjs.length < 2} onChange={e => setNd({ ...nd, subj: e.target.value })} aria-label="Môn của nội dung mới">{subjs.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}</select>
+            const cellOf = (k: string) => k === 'subj' ? subjSel
+              : k === 'title' ? <div className="slnewrow">{!keys.includes('subj') && !sel && subjs.length > 1 ? subjSel : null}<input id="tu-new-title" className="slnt" value={nd.title} disabled={busy} placeholder="+ Tên nội dung mới" aria-label={`Tên nội dung mới môn ${target.title}`} onChange={e => setNd({ ...nd, title: e.target.value })} onKeyDown={enter} /></div>
+              : k === 'reqs' ? <input className="slno" value={nd.reqs} disabled={busy} placeholder="Yêu cầu cần đạt (ngăn cách bằng ;)" aria-label="Yêu cầu cần đạt" onChange={e => setNd({ ...nd, reqs: e.target.value })} onKeyDown={enter} />
+              : k === 'mode' ? <><select className="slnm2" value={nd.mode} onChange={e => setNd({ ...nd, mode: e.target.value as '' | 'online' | 'offline' })} aria-label="Hình thức nội dung mới">
+<option value="">Theo CT</option><option value="online">Trực tuyến</option><option value="offline">Trực tiếp</option></select></>
+              : k === 'hours' ? <input className="slnp" value={nd.hours} disabled={busy} placeholder="Số giờ" aria-label="Số giờ" inputMode="decimal" onChange={e => setNd({ ...nd, hours: e.target.value })} onKeyDown={enter} />
+              : k === 'test' ? <label className="sltest"><input type="checkbox" checked={nd.test} onChange={e => setNd({ ...nd, test: e.target.checked })} /> Test</label>
+              : k === 'act' ? <button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addContent}>+ Thêm</button>
+              : null
+            return <tfoot><tr className="slnew">{keys.map(k => <td key={k}>{cellOf(k)}</td>)}{!keys.includes('act') && <td><button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addContent}>+ Thêm</button></td>}</tr></tfoot>
+          } : undefined} />
         {editable && <small className="sub">Bấm vào ô để sửa ngay, rời ô là lưu. Kéo ⠿ để đổi vị trí (thả vào dòng của môn khác là chuyển môn). Bấm ⧉ để nhân bản nội dung. Bấm “Soạn ›” để thêm bài giảng, tài liệu, định mức vật tư, hoạt động và bài test.</small>}
       </div>
     </div>

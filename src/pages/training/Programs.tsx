@@ -354,6 +354,9 @@ export type PTab = 'info' | 'setup' | 'assign' | 'units' | 'exam' | 'eval' | 've
 /** initialTab / initialContent: mở sẵn một tab hoặc một nội dung (VD: từ mục Kiểm tra & luyện tập); startFinal: mở sẵn form đề cuối khoá; back: nhãn nút quay lại */
 export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, initialTab, initialContent, startFinal, back = 'Chương trình đào tạo' }: { id: string; admin: boolean; go?: (page: string) => void; onBack: () => void; onOpen: (id: string) => void; onMsg: (m: [string, boolean]) => void
   initialTab?: PTab; initialContent?: string | null; startFinal?: boolean; back?: string }) {
+  // Cột thông tin bên phải thu/mở được (dùng chung lựa chọn với chương trình giáo dục)
+  const [side, setSide] = useState(() => { try { const v = localStorage.getItem('pd-side'); if (v) return v === '1' } catch { /* bỏ qua */ } return true })
+  const toggleSide = () => setSide(v => { try { localStorage.setItem('pd-side', v ? '0' : '1') } catch { /* bỏ qua */ } return !v })
   const [p, setP] = useState<TProgram | null>(null)
   const [units, setUnits] = useState<Unit[]>([])
   const [f, setF] = useState<Info | null>(null)
@@ -459,7 +462,7 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
       note={!edit ? 'Chương trình đã gửi duyệt hoặc phát hành: nội dung không sửa được (bấm "Tạo phiên bản mới" ở đầu trang). Đơn vị, phạm vi, hiệu lực và chương trình giáo dục đáp ứng vẫn sửa được.' : undefined}
       onSave={saveInfo} onCancel={() => { load(); setEditInfo(false) }} onDelete={admin && p.status === 'draft' ? del : undefined} />}
 
-    {t === 'info' && !editInfo && <div className="pdgrid">
+    {t === 'info' && !editInfo && <div className={'pdgrid' + (side ? '' : ' pdnoside')}>
       <div className="pdmain">
         <div className="pdstats">
           <div><b>{subjs.length}</b><span>môn</span></div>
@@ -467,6 +470,7 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
           <div><b>{num(hours)}</b><span>giờ</span></div>
           <div><b>{tests}</b><span>bài test</span></div>
           <div><b>{MODE[p.mode]}</b><span>hình thức</span></div>
+          {!side && <button type="button" className="pdsidetg" onClick={toggleSide} title="Mở cột thông tin chương trình">‹ Thông tin</button>}
         </div>
         <div className="panel pdcard pdsl">
           <TrainingUnits programId={p.id} programTitle={p.title} programMode={p.mode} units={units} editable={edit} catalog={suggest}
@@ -475,8 +479,8 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
         <ProgramExams p={p} units={units} edit={edit} onOpen={setOpenC} autoStart={startFinal} save={saveP} />
         <ProgramEvalFrame key={p.id + (p.eval_frame ? '1' : '0') + (edit ? 'e' : 'v')} p={p} edit={edit} hasFinal={!!p.final_exam} hasTests={tests > 0} save={saveP} />
       </div>
-      <div className="pdside">
-        <div className="panel pdcard"><h4>Thông tin chung</h4>
+      {side && <div className="pdside">
+        <div className="panel pdcard"><h4 className="pdcardh">Thông tin chung<button type="button" className="pdsidetg incard" onClick={toggleSide} title="Thu cột thông tin để bảng rộng hơn">Thu gọn ›</button></h4>
           <dl className="pddl sm">
             <dt>Mã</dt><dd>{p.code || none}</dd>
             <dt>Loại</dt><dd>{ctsOf(p).map(c => c + (tracks[c] ? ' · ' + tracks[c]!.name : '')).join(', ') || '—'}</dd>
@@ -514,7 +518,7 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
           </dl>
         </div>
         <div className="panel pdcard"><h4>Phiên bản</h4><TrainingVersions p={p} onOpen={onOpen} /></div>
-      </div>
+      </div>}
     </div>}
     {t === 'assign' && <TrainingDeploy p={p} go={go} />}
   </>

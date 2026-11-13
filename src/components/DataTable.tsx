@@ -77,7 +77,8 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   rowProps?: (r: T) => HTMLAttributes<HTMLTableRowElement>
   /** Ô đầu dòng tiêu đề / dòng dữ liệu (vd. ô chọn), không lọc, không ẩn */
   head?: { th: ReactNode; td: (r: T) => ReactNode }
-  foot?: ReactNode
+  /** Dòng cuối (vd. dòng thêm mới). Dạng hàm: nhận khoá các cột đang hiện theo thứ tự (kèm cột đầu nếu có) để dựng ô thẳng cột */
+  foot?: ReactNode | ((keys: string[]) => ReactNode)
   /** Ô tìm, bộ lọc của trang: nằm cùng hàng với công cụ bảng (bên trái) */
   left?: ReactNode
   /** Nút chính của trang (vd. Thêm…): cuối hàng, bên phải */
@@ -170,7 +171,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
       </thead>
       <tbody>{shown.map(r => <tr key={rowKey(r)} className={onRow ? 'clickrow' : undefined} onClick={onRow && (() => onRow(r))} {...rowProps?.(r)}>{head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key}><div className="tdc">{c.cell(r)}</div></td>)}</tr>)}
         {!shown.length && <tr><td colSpan={shownCols.length + (head ? 1 : 0)}>{rows.length ? <small className="sub">{qk ? `Không có dòng nào khớp “${q.trim()}”.` : 'Không có dòng nào khớp bộ lọc cột.'}</small> : empty}</td></tr>}</tbody>
-      {foot}
+      {typeof foot === 'function' ? foot([...(head ? ['_head'] : []), ...shownCols.map(c => c.key)]) : foot}
     </table></div>
 
   return <div className="tt">

@@ -1021,18 +1021,21 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
             sample={[['Tin học', '6', 'Bài 1. Thông tin và dữ liệu', '2', 'Phân biệt được thông tin và dữ liệu; Nêu được ví dụ'], ['Tin học', '6', 'Bài 2. Xử lí thông tin', '2', '']]} />}
         </>}
         cols={cols}
-        foot={editable && target ? <tfoot><tr className="slnew"><td colSpan={10}><div className="slnewrow">
-          <select value={target} disabled={!!sel || subjList.length < 2} onChange={e => setNewSubj(e.target.value)} aria-label="Môn của bài mới">{subjList.map(x => <option key={x} value={x}>{x}</option>)}</select>
-          <input id="sl-new-title" className="slnt" value={nd.title} disabled={busy} placeholder="+ Tên bài mới (dán nhiều dòng để thêm nhiều bài)" aria-label={`Tên bài mới môn ${target}`}
-            onChange={e => setNd({ ...nd, title: e.target.value })} onKeyDown={enter}
-            onPaste={e => { const t = e.clipboardData.getData('text'); if (/\n/.test(t.trim())) { e.preventDefault(); setPaste({ subj: target, text: t }) } }} />
-          {pg.length === 1 ? <span className="slgone" title="Chương trình chỉ có một khối nên bài tự thuộc khối này">Khối {pg[0]}</span>
-            : pg.length > 1 ? <GradeTicks options={pg} value={nd.grades ? gradeList(nd.grades) : defGrades} disabled={busy} label="Khối của bài mới" onChange={g => setNd({ ...nd, grades: g.join(', ') })} />
-            : <input className="slng" value={nd.grades} disabled={busy} placeholder="Khối" aria-label="Khối của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, grades: e.target.value })} onKeyDown={enter} />}
-          <input className="slnp" value={nd.periods} disabled={busy} placeholder="Số tiết" aria-label="Số tiết của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, periods: e.target.value })} onKeyDown={enter} />
-          <input className="slno" value={nd.outs} disabled={busy} placeholder="Yêu cầu cần đạt (ngăn cách bằng ;)" aria-label="Yêu cầu cần đạt của bài mới" onChange={e => setNd({ ...nd, outs: e.target.value })} onKeyDown={enter} />
-          <button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addDraft}>+ Thêm</button>
-        </div></td></tr></tfoot> : undefined} />
+        foot={editable && target ? (keys: string[]) => {
+          const subjSel = <select value={target} disabled={!!sel || subjList.length < 2} onChange={e => setNewSubj(e.target.value)} aria-label="Môn của bài mới">{subjList.map(x => <option key={x} value={x}>{x}</option>)}</select>
+          const cellOf = (k: string) => k === 'subj' ? subjSel
+            : k === 'title' ? <div className="slnewrow">{!keys.includes('subj') && !sel && subjList.length > 1 ? subjSel : null}<input id="sl-new-title" className="slnt" value={nd.title} disabled={busy} placeholder="+ Tên bài mới (dán nhiều dòng để thêm nhiều bài)" aria-label={`Tên bài mới môn ${target}`}
+onChange={e => setNd({ ...nd, title: e.target.value })} onKeyDown={enter}
+onPaste={e => { const t = e.clipboardData.getData('text'); if (/\n/.test(t.trim())) { e.preventDefault(); setPaste({ subj: target, text: t }) } }} /></div>
+            : k === 'grades' ? <>{pg.length === 1 ? <span className="slgone" title="Chương trình chỉ có một khối nên bài tự thuộc khối này">Khối {pg[0]}</span>
+: pg.length > 1 ? <GradeTicks options={pg} value={nd.grades ? gradeList(nd.grades) : defGrades} disabled={busy} label="Khối của bài mới" onChange={g => setNd({ ...nd, grades: g.join(', ') })} />
+: <input className="slng" value={nd.grades} disabled={busy} placeholder="Khối" aria-label="Khối của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, grades: e.target.value })} onKeyDown={enter} />}</>
+            : k === 'periods' ? <input className="slnp" value={nd.periods} disabled={busy} placeholder="Số tiết" aria-label="Số tiết của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, periods: e.target.value })} onKeyDown={enter} />
+            : k === 'outs' ? <input className="slno" value={nd.outs} disabled={busy} placeholder="Yêu cầu cần đạt (ngăn cách bằng ;)" aria-label="Yêu cầu cần đạt của bài mới" onChange={e => setNd({ ...nd, outs: e.target.value })} onKeyDown={enter} />
+            : k === 'act' ? <button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addDraft}>+ Thêm</button>
+            : null
+          return <tfoot><tr className="slnew">{keys.map(k => <td key={k}>{cellOf(k)}</td>)}{!keys.includes('act') && <td><button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addDraft}>+ Thêm</button></td>}</tr></tfoot>
+        } : undefined} />
       {editable && <small className="sub">Bấm vào ô để sửa ngay, rời ô là lưu. Kéo ⠿ để đổi vị trí bài trong cùng môn. Dòng cuối: điền các cột rồi Enter để thêm bài; bấm ⧉ để nhân bản bài (đủ môn, tên, khối, số tiết, yêu cầu cần đạt) ngay bên dưới. Bấm “Chi tiết ›” để gắn học liệu, chia buổi và soạn nội dung.</small>}
     </div>
     {openL && byId.get(openL) && <LessonDetail u={byId.get(openL)!} p={p} all={all} umats={umats} outs={outs} editable={editable}

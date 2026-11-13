@@ -1,6 +1,7 @@
 // Học liệu (Phân hệ 2) theo video demo (23/10): quy trình 3 bước (chỉ bước 1 cần nhập) · 4 thẻ số liệu ·
 // tab Học liệu theo chương trình (nút Cần chuẩn bị: theo chương trình hoặc theo trường) | Danh mục học liệu (lọc Nguồn: của đơn vị / dùng chung / tất cả).
 import { useEffect, useState } from 'react'
+import { HeadTabs } from '../../components/PageFrame'
 import { DetailHead } from '../../components/DetailHead'
 import { supabase } from '../../lib/supabase'
 import { LibraryByProgram, LibraryNeeds, usePrograms } from './ByProgram'
@@ -54,11 +55,11 @@ export function LibraryPage({ orgId, teacherId, go }: { orgId: string | null; te
         { k: 'prog', icon: 'book', tone: 'good', value: progs.length, label: 'Chương trình đã gắn', sub: s ? `${Math.max(0, progs.length - s.progsWithKit)} chưa có học liệu` : '' },
         { k: 'needs', icon: 'package', tone: 'warn', value: n(s?.needs), label: 'Thiết bị, vật tư cần chuẩn bị' },
       ]} />
-      <div className="distpills" role="tablist">
+      <HeadTabs><div className="distpills" role="tablist">
         {/* Cần chuẩn bị: mở bằng nút trên thanh công cụ của tab Học liệu theo chương trình (hoặc thẻ số liệu) */}
         {([['prog', 'Học liệu theo chương trình'], ['catalog', 'Danh mục học liệu']] as [Tab, string][]).map(([t, l]) => { const on = tab === t || (t === 'prog' && tab === 'needs')
           return <button key={t} type="button" role="tab" aria-selected={on} className={on ? 'on' : ''} onClick={() => setTab(t)}>{l}</button> })}
-      </div>
+      </div></HeadTabs>
       {tab === 'prog' && <LibraryByProgram orgId={orgId} onChanged={() => setRk(k => k + 1)} tools={<button type="button" title="Thiết bị, vật tư cần chuẩn bị theo chương trình" onClick={() => setTab('needs')}>📦 Cần chuẩn bị</button>} />}
       {tab === 'needs' && <><DetailHead back="Học liệu theo chương trình" onBack={() => setTab('prog')} title="Cần chuẩn bị" /><LibraryNeeds orgId={orgId} /></>}
       {tab === 'catalog' && (src === 'units'

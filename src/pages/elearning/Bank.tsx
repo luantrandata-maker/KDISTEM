@@ -1,4 +1,5 @@
 import { MoreMenu } from '../../components/MoreMenu'
+import { HeadAction } from '../../components/PageFrame'
 import { useEffect, useState } from 'react'
 import { DataTable, type Col } from '../../components/DataTable'
 import { ElView } from '../../components/ElView'
@@ -173,7 +174,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
             <button disabled={picked.every(r => r.status === 'ready')} onClick={() => { setStatus(ids, 'ready'); setSel(new Set()) }}>Duyệt ({ids.length})</button>
             <button disabled={picked.every(r => r.status === 'retired')} onClick={() => { setStatus(ids, 'retired'); setSel(new Set()) }}>Ngừng dùng</button>
             <button className="danger" disabled={!del.length} title={del.length < ids.length ? 'Chỉ xoá được câu do mình tạo' : `Xoá ${ids.length} câu đã chọn`} onClick={() => removeMany(del)}>Xoá ({del.length})</button></>}
-          <button type="button" className="primary ttadd" onClick={() => { setForm({ ...EMPTY, shared: !every && orgType !== 'school' }); setAi(false) }}>+ Thêm câu hỏi</button>
+          <HeadAction><button type="button" className="primary ttadd" onClick={() => { setForm({ ...EMPTY, shared: !every && orgType !== 'school' }); setAi(false) }}>+ Thêm câu hỏi</button></HeadAction>
           <MoreMenu label="Thêm ▾">
             <button onClick={() => { setAi(!ai); setForm(null) }}>{ai ? 'Đóng Trợ lý AI' : 'Tạo bằng Trợ lý AI'}</button>
             {drafts.length > 0 && <button onClick={() => setStatus(drafts.map(d => d.id), 'ready')}>Duyệt {drafts.length} câu nháp đang lọc</button>}

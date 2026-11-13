@@ -1,4 +1,5 @@
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
+import { HeadAction } from '../../components/PageFrame'
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
 import { DataTable, SideSplit, type Col } from '../../components/DataTable'
@@ -229,7 +230,7 @@ function Exams({ orgId, subject, ofl: shared }: { orgId: string | null; subject?
       <DataTable id="elearning-exams" rows={gt.filter(fitRows)} rowKey={x => x.id} aside={fitRows.length ? gt.tree : undefined} onRow={x => { setMsg(null); setOpen(x.id) }}
         empty={<small className="sub">{subject ? `Môn ${subject} chưa có đề. ` : ''}Chưa có đề luyện. Tạo đề ngẫu nhiên từ ngân hàng câu hỏi (theo môn, khối, mức độ) hoặc chọn từng câu.</small>}
         left={ofl.node(rows.map(x => x.org_id))}
-        right={<button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ ...EEMPTY, subject: subject ?? '', subjects: subject ? [subject] : [], title: subject ? `Đề kiểm tra ${subject}` : '', shared: !isSchool && !every }) }}>+ {subject ? 'Tạo đề kiểm tra' : 'Tạo đề luyện'}</button>}
+        right={<HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ ...EEMPTY, subject: subject ?? '', subjects: subject ? [subject] : [], title: subject ? `Đề kiểm tra ${subject}` : '', shared: !isSchool && !every }) }}>+ {subject ? 'Tạo đề kiểm tra' : 'Tạo đề luyện'}</button></HeadAction>}
         cols={[
           { key: 'title', label: 'Đề luyện', fixed: true, values: x => [x.title], text: x => [x.title, ...courseSubjects(x)].join(' '),
             cell: x => <><b>{x.title}</b> <MultiTag grades={courseGrades(x)} /><br /><small>{[courseSubjects(x).join(', '), gradesText(courseGrades(x)), !editable(x) ? 'của cấp trên' : every ? orgName(x.org_id) : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></> },
@@ -428,7 +429,7 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
     <>
       {note}
       {(() => {
-        const left = ofl.node(rows.map(c => c.org_id)), right = <><ViewToggle value={view} onChange={setView} /><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ ...CEMPTY, shared: !isSchool && !every }) }}>+ Tạo khoá học</button></>
+        const left = ofl.node(rows.map(c => c.org_id)), right = <><ViewToggle value={view} onChange={setView} /><HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ ...CEMPTY, shared: !isSchool && !every }) }}>+ Tạo khoá học</button></HeadAction></>
         return view === 'list' ? <DataTable id="elearning-courses" rows={shown} rowKey={c => c.id} onRow={c => { setMsg(null); setOpen(c.id) }} left={left} right={right} aside={fitC.length ? gtc.tree : undefined}
           empty={rows.length ? <small className="sub">Không có khoá học nào khớp bộ lọc.</small> : null}
           cols={[

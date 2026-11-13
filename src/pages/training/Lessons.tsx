@@ -3,6 +3,7 @@
 // Thêm bài theo 4 cách như thêm bài học (tải giáo án Word/PowerPoint, tự tạo, sao chép, file mẫu Excel); mở bài để sửa, chốt từng thẻ, phát hành.
 // Bài gắn với chương trình đào tạo và một nội dung trong chương trình; nhà giáo thấy bài đã phát hành của kế hoạch mình tham gia.
 import { useOrgFilter } from '../../components/OrgFilters'
+import { HeadAction } from '../../components/PageFrame'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAllMode } from '../../components/OrgScope'
@@ -98,6 +99,10 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
         {(labelOf(r.unit_id) || (r.program_id && kitSubject(r))) && <><br /><small className="sub">{labelOf(r.unit_id) || kitSubject(r)}</small></>}</> },
     { key: 'cards', label: 'Thẻ đã chốt', cell: r => !r.content?.kit ? <small className="sub">Bài cũ, chưa có 5 thẻ</small> : <><span className="tpdot" /> {checked(r)}/4 thẻ bắt buộc{(r.content?.checked ?? []).includes('bank') ? ' · có Kho hoạt động' : ''}</> },
     { key: 'st', label: 'Trạng thái', text: r => STATUS[r.status]?.[0] ?? r.status, cell: r => <Chip tone={STATUS[r.status]?.[1]}>{STATUS[r.status]?.[0] ?? r.status}{r.status === 'published' && r.version ? ` · v${r.version}` : ''}</Chip> },
+    { key: 'subj', label: 'Môn', off: true, values: r => [r.subject ?? ''], text: r => r.subject ?? '', cell: r => r.subject || <small className="sub">—</small> },
+    { key: 'author', label: 'Người soạn', off: true, values: r => [r.author ?? ''], text: r => r.author ?? '', cell: r => r.author || <small className="sub">—</small> },
+    { key: 'periods', label: 'Số tiết', off: true, text: r => String(r.content?.periods ?? ''), cell: r => r.content?.periods ?? <small className="sub">—</small> },
+    { key: 'ver', label: 'Phiên bản', off: true, text: r => `v${r.version}`, cell: r => <small>v{r.version}</small> },
     { key: 'upd', label: 'Cập nhật', cell: r => <small>{fmtDate((r.updated_at ?? r.created_on ?? '').slice(0, 10))}</small> },
     { key: 'act', label: 'Thao tác', fixed: true, cell: r => <details className="distmore"><summary aria-label="Thao tác">···</summary><div className="distmenu">
       <button type="button" onClick={() => setOpen(r.id)}>Mở bài giảng</button>
@@ -118,8 +123,8 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
               <label className="chk"><input type="checkbox" checked={card === 'ready'} onChange={e => setCard(e.target.checked ? 'ready' : null)} /> Đã chốt đủ 4 thẻ ({base.filter(ready4).length})</label>
             </MoreFilters>
             <small className="sub">{shown.length}/{rows.length} bài giảng · {new Set(base.map(r => r.program_id).filter(Boolean)).size} chương trình</small></>}
-          right={<button type="button" className="primary ttadd" disabled={!p0} title={p0 ? undefined : 'Chưa có chương trình đào tạo để gắn bài giảng'}
-            onClick={() => { setMsg(''); setAdding(true) }}>+ Thêm bài giảng</button>} />}
+          right={<HeadAction><button type="button" className="primary ttadd" disabled={!p0} title={p0 ? undefined : 'Chưa có chương trình đào tạo để gắn bài giảng'}
+            onClick={() => { setMsg(''); setAdding(true) }}>+ Thêm bài giảng</button></HeadAction>} />}
       {adding && p0 && <CreateLesson orgId={orgId} store="training" unitOf={unitOf} programs={progs} subjectsOf={subjectsOf}
         program={p0} subject={subjectsOf(p0.id)[0] ?? ''} pickPlace
         kits={rows ?? []} onClose={() => setAdding(false)} onCreated={(id, m) => { setAdding(false); setMsg(m); reload(); setOpen(id) }} />}

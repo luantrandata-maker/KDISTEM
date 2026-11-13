@@ -4,6 +4,7 @@
 //  Lịch sử áp dụng (125: các lần gán theo năm học, phiên bản).
 // Theo dõi thực hiện nằm ở menu riêng "Theo dõi Chương trình/Môn học".
 import { YearSelect } from '../../components/YearSelect'
+import { HeadAction, HeadTabs } from '../../components/PageFrame'
 import { DetailHead } from '../../components/DetailHead'
 import { MultiSelect } from '../../components/MultiSelect'
 import { SchoolPicker } from '../../components/SchoolPicker'
@@ -97,12 +98,12 @@ export function DistPage({ orgId, units }: { orgId: string | null; units?: boole
         { k: 'published', icon: 'checkCircle', tone: 'good', value: plans ? pub : '…', label: 'Bản có thể gán' },
         { k: 'books', icon: 'grid', tone: 'good', value: cardBooks.length, label: 'PPCT theo trường', sub: `${cardBooks.filter(b => b.status === 'published').length} đã ban hành` },
       ]} />
-      <div className="distpills" role="tablist">
+      <HeadTabs><div className="distpills" role="tablist">
         {([['list', 'Danh sách bản phân phối'], ['assign', 'Gán theo trường'], ['history', 'Lịch sử áp dụng']] as [Tab, string][]).map(([t, l]) => {
           const on = tab === t || (t === 'list' && (tab === 'create' || tab === 'tree'))
           return <button key={t} type="button" role="tab" aria-selected={on} className={on ? 'on' : ''} onClick={() => { setTab(t); setMsg(null); if (t === 'list') setOpenList(null) }}>{l}</button>
         })}
-      </div>
+      </div></HeadTabs>
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
       {!plans ? <p className="sub">Đang tải…</p> : <>
         {tab === 'tree' && (openTree && plans.some(p => p.id === openTree)
@@ -220,6 +221,11 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onAssign,
           { key: 'parts', label: 'Thành phần', cell: p => { const m = meta.get(p.id); return `${m?.programs ?? 0} chương trình · ${m?.subjects ?? 0} môn` } },
           { key: 'lessons', label: 'Bài · tiết', cell: p => { const m = meta.get(p.id); return `${m?.lessons ?? 0} bài · ${m?.periods ?? 0} tiết` } },
           { key: 'books', label: 'Đã gán', cell: p => `${meta.get(p.id)?.books ?? 0} PPCT` },
+          { key: 'code', label: 'Mã · phiên bản', off: true, text: p => `${p.code} v${p.version_no ?? 1}`, cell: p => <small>{p.code} · v{p.version_no ?? 1}</small> },
+          { key: 'grade', label: 'Khối', off: true, values: p => [`Khối ${p.grade}`], text: p => `Khối ${p.grade}`, cell: p => `Khối ${p.grade}` },
+          { key: 'weeks', label: 'Số tuần HK I · HK II', off: true, text: p => `${p.hk1_weeks} ${p.hk2_weeks}`, cell: p => <small>{p.hk1_weeks} · {p.hk2_weeks} tuần</small> },
+          { key: 'pub', label: 'Ngày phát hành', off: true, text: p => p.published_at ? new Date(p.published_at).toLocaleDateString('vi-VN') : '', cell: p => <small>{p.published_at ? new Date(p.published_at).toLocaleDateString('vi-VN') : '—'}</small> },
+          { key: 'note', label: 'Ghi chú', off: true, text: p => p.note ?? '', cell: p => p.note ? <small>{p.note}</small> : <small className="sub">—</small> },
           { key: 'status', label: 'Trạng thái', text: p => STATUS[p.status][0], cell: p => <Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip> },
           { key: 'updated', label: 'Cập nhật', cell: p => <small>{new Date(p.updated_at).toLocaleDateString('vi-VN')}</small> },
         ] as DCol<Plan>[]}
@@ -234,7 +240,7 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onAssign,
           <button type="button" disabled={!one || one.status !== 'published'}
             title={picked.length > 1 ? 'Gán trường làm cho từng bản một' : one && one.status !== 'published' ? 'Chỉ gán bản đã phát hành' : undefined}
             onClick={() => one && onAssign(one.id)}>Gán trường</button>
-          {!hid('create') && <button type="button" className="primary ttadd" disabled={!canCreate} onClick={onCreate}>+ Tạo bản phân phối</button>}
+          {!hid('create') && <HeadAction><button type="button" className="primary ttadd" disabled={!canCreate} onClick={onCreate}>+ Tạo bản phân phối</button></HeadAction>}
         </>} />
     </>
   )

@@ -1,4 +1,5 @@
 import { MultiSelect } from '../components/MultiSelect'
+import { HeadAction } from '../components/PageFrame'
 import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { DataTable, type Col } from '../components/DataTable'
 import { supabase } from '../lib/supabase'
@@ -116,6 +117,9 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
     { key: 'domain', label: 'Lĩnh vực', text: s => s.domain ?? '', cell: s => s.domain ?? '—' },
     { key: 'levels', label: 'Cấp học', values: s => s.levels.length ? s.levels.map(levelName) : ['Tất cả cấp'], text: s => s.levels.map(levelName).join(', ') || 'Tất cả cấp',
       cell: s => s.levels.length ? s.levels.map(levelName).join(', ') : <small className="sub">Tất cả cấp</small> },
+    { key: 'code', label: 'Mã môn', off: true, text: s => s.code ?? '', cell: s => s.code || <small className="sub">—</small> },
+    { key: 'desc', label: 'Mô tả', off: true, text: s => s.description ?? '', cell: s => s.description ? <small>{s.description}</small> : <small className="sub">—</small> },
+    { key: 'active', label: 'Trạng thái', off: true, text: s => s.active ? 'Đang dùng' : 'Ngừng dùng', cell: s => s.active ? 'Đang dùng' : <span className="pill">Ngừng dùng</span> },
     { key: 'ct', label: 'Loại chương trình', values: s => s.ct_codes, text: s => s.ct_codes.join(' '),
       cell: s => s.ct_codes.map(c => <span key={c} className="progchip" style={{ background: TRACK_COLOR[c], color: '#fff', marginRight: 4 }}>{c}</span>) },
     { key: 'scope', label: mine ? 'Phạm vi' : 'Đơn vị', text: s => mine ? (s.scope === 'children' ? 'Dùng chung cho đơn vị trực thuộc' : 'Chỉ đơn vị mình') + ' ' + (s.owner_name ?? '') : s.owner_name ?? '',
@@ -179,7 +183,7 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
             <input placeholder="Tìm mã, tên, lĩnh vực…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />
             <label className="chk"><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện môn ngừng dùng</label>
             <small className="sub">{own.length} môn</small>
-          </>, canEdit && orgId && <button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ levels: [], ct_codes: [], scope: mode === 'school' ? 'own' : 'children', active: true }) }}>+ Thêm môn học</button>)}
+          </>, canEdit && orgId && <HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ levels: [], ct_codes: [], scope: mode === 'school' ? 'own' : 'children', active: true }) }}>+ Thêm môn học</button></HeadAction>)}
           {!every && <><h3>Dùng chung từ KDI / cấp trên ({shared.length})</h3>
           {table(shared, false, <small className="sub">Chưa có môn dùng chung.</small>)}</>}
         </>

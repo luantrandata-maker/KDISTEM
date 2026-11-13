@@ -2,12 +2,13 @@
 // màn hình hẹp hay phóng to thì tự xuống dòng, không đè lên tiêu đề.
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { actionSlot } from './PageFrame'
 
 export function PageCorner({ children }: { children: ReactNode }) {
   const anchor = useRef<HTMLSpanElement>(null)
   const [head, setHead] = useState<Element | null>(null)
   // Trang trong khung (PageFrame): nút góc nằm ở hàng tab + nút của khung
-  useLayoutEffect(() => { const m = anchor.current?.closest('main'); setHead(m?.querySelector(':scope > .pfcrumb > .pfact, :scope > .pframe > .pfhead > .pfact') ?? m?.querySelector(':scope > .pagehead') ?? null) }, [])
+  useLayoutEffect(() => { const m = anchor.current?.closest('main'); setHead(actionSlot(m) ?? m?.querySelector(':scope > .pagehead') ?? null) }, [])
   const box = <div className="pagecorner">{children}</div>
   return <><span ref={anchor} hidden />{head ? createPortal(box, head) : box}</>
 }

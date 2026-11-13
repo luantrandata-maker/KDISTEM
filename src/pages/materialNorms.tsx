@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { HeadAction } from '../components/PageFrame'
 import { DataTable, type Col } from '../components/DataTable'
 import { supabase } from '../lib/supabase'
 import { OrgPick, useAllMode } from '../components/OrgScope'
@@ -200,7 +201,7 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
       <label className="chk"><input type="checkbox" checked={old} onChange={e => setOld(e.target.checked)} /> Hiện bản cũ / lưu trữ</label>
       <small className="sub">{n} định mức</small>
     </>,
-    right: rights.canWrite && !sharedOnly ? <button type="button" className="primary ttadd" onClick={openForm}>+ Thêm định mức</button> : undefined,
+    right: rights.canWrite && !sharedOnly ? <HeadAction><button type="button" className="primary ttadd" onClick={openForm}>+ Thêm định mức</button></HeadAction> : undefined,
   })
   const table = (rows: Norm[], mine: boolean, empty: string, withTools: boolean) => (
     <DataTable id={mine ? 'material-norms' : 'material-norms-shared'} rows={rows} rowKey={n => n.id} cols={normCols(mine)} onRow={n => onOpen(n.id)}

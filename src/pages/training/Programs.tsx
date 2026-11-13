@@ -112,6 +112,11 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
     { key: 'size', label: 'Môn · nội dung · giờ', cell: p => { const s = stats.get(p.id); return `${s?.subjects ?? 0} môn · ${s?.contents ?? 0} nội dung · ${num(s?.hours ?? 0)} giờ` } },
     { key: 'mode', label: 'Hình thức', text: p => MODE[p.mode], cell: p => MODE[p.mode] },
     { key: 'status', label: 'Trạng thái', text: p => STATUS[p.status][0], cell: p => <Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip> },
+    { key: 'code', label: 'Mã · phiên bản', off: true, text: p => `${p.code} v${p.version_no}`, cell: p => <small>{p.code} · v{p.version_no}</small> },
+    { key: 'builder', label: 'Đơn vị xây dựng', off: true, text: p => p.builder ?? '', cell: p => p.builder || <small className="sub">—</small> },
+    { key: 'pass', label: 'Điều kiện đạt', off: true, text: p => `${p.pass_attendance}%`, cell: p => <small>Chuyên cần ≥ {p.pass_attendance}%{p.pass_score != null ? ` · điểm ≥ ${p.pass_score}` : ''}{p.need_product ? ' · có sản phẩm' : ''}</small> },
+    { key: 'comp', label: 'Năng lực hướng tới', off: true, text: p => `${p.competencies.length} năng lực`, cell: p => <small>{p.competencies.length ? `${p.competencies.length} năng lực · mức ${p.target_level}` : '—'}</small> },
+    { key: 'pub', label: 'Ngày phát hành', off: true, text: p => p.published_at ? new Date(p.published_at).toLocaleDateString('vi-VN') : '', cell: p => <small>{p.published_at ? new Date(p.published_at).toLocaleDateString('vi-VN') : '—'}</small> },
     { key: 'upd', label: 'Cập nhật', cell: p => <small>{new Date(p.updated_at).toLocaleDateString('vi-VN')}</small> },
   ]
   return (

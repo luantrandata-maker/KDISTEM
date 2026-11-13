@@ -19,10 +19,14 @@ export type Col<T> = {
   off?: boolean
   thClass?: string
 }
-type View = { hidden: string[]; order: string[]; widths: Record<string, number>; fit: boolean }
+type View = { hidden: string[]; order: string[]; widths: Record<string, number>; fit: boolean; seen?: string[] }
 const EMPTY: View = { hidden: [], order: [], widths: {}, fit: false }
 const load = (id: string, cols: Col<unknown>[]): View => {
-  try { const v = JSON.parse(localStorage.getItem('tt:' + id) ?? 'null'); if (v) return { ...EMPTY, ...v } } catch { /* mặc định */ }
+  try {
+    const v = JSON.parse(localStorage.getItem('tt:' + id) ?? 'null')
+    // Cột mới thêm sau khi người dùng đã lưu cách hiển thị: cột "ẩn mặc định" vẫn ẩn
+    if (v) { const seen: string[] = v.seen ?? []; return { ...EMPTY, ...v, hidden: [...new Set([...(v.hidden ?? []), ...cols.filter(c => c.off && !seen.includes(c.key)).map(c => c.key)])] } }
+  } catch { /* mặc định */ }
   return { ...EMPTY, hidden: cols.filter(c => c.off).map(c => c.key) }
 }
 const fold = (s: string) => norm(s).toLowerCase()
@@ -88,7 +92,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   aside?: ReactNode
 }) {
   const [view, setViewS] = useState<View>(() => load(id, cols as Col<unknown>[]))
-  const setView = (f: (v: View) => View) => setViewS(v => { const n = f(v); try { localStorage.setItem('tt:' + id, JSON.stringify(n)) } catch { /* chỉ trong phiên */ } return n })
+  const setView = (f: (v: View) => View) => setViewS(v => { const n = { ...f(v), seen: [...new Set([...(v.seen ?? []), ...cols.map(c => c.key)])] }; try { localStorage.setItem('tt:' + id, JSON.stringify(n)) } catch { /* chỉ trong phiên */ } return n })
   const [filterOn, setFilterOn] = useState(false)
   // Ô tìm trong bảng: luôn có, trừ khi trang đã đặt ô tìm của riêng nó ở thanh công cụ (left)
   const [q, setQ] = useState('')

@@ -1,4 +1,5 @@
 import { CoverPicker, coverStyle } from '../../components/Cover'
+import { HeadAction } from '../../components/PageFrame'
 import { useHiddenBtn } from '../../components/PageButtons'
 import { CustomInputs, customCell } from '../../components/CustomFields'
 import { fieldsOf, useSettings } from '../../lib/settings'
@@ -495,10 +496,10 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
   const filterDefs: FilterDef[] = [
     { key: 'prov', label: 'Tỉnh', placeholder: 'Tất cả tỉnh', options: provs, hidden: !every || provs.length < 2 },
     { key: 'org', label: 'Đơn vị', placeholder: 'Tất cả đơn vị', options: opts(ofTab.filter(i => fitI(i, 'org')).map(i => [i.owner_org_id, orgName(i.owner_org_id)])), hidden: !every },
-    { key: 'prog', label: 'Chương trình giáo dục', placeholder: 'Tất cả chương trình', options: opts(ofTab.map(i => [i.program, i.program])) },
-    { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', options: subjects.map(x => [x, x] as [string, string]) },
+    { key: 'prog', label: 'Chương trình giáo dục', placeholder: 'Tất cả chương trình', options: opts(ofTab.map(i => [i.program, i.program])), hidden: true },
+    { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', options: subjects.map(x => [x, x] as [string, string]), hidden: true },
     { key: 'type', label: 'Loại học liệu', placeholder: 'Tất cả loại', options: MAT_OPTS as [string, string][], hidden: tab !== 'material' },
-    { key: 'status', label: 'Trạng thái', placeholder: 'Tất cả trạng thái', options: [['published', 'Đã phát hành'], ['draft', 'Nháp'], ['archived', 'Đã thu hồi']] },
+    { key: 'status', label: 'Trạng thái', placeholder: 'Tất cả trạng thái', options: [['published', 'Đã phát hành'], ['draft', 'Nháp'], ['archived', 'Đã thu hồi']], hidden: true },
   ]
   const base = ofTab.filter(i => fitI(i)
     && (!q || normText([i.title, i.summary, i.subject, ...i.tags].join(' ')).includes(normText(q))))
@@ -540,7 +541,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
   </>
   const libRight = <>
     <ViewToggle value={view} onChange={setView} />
-    {!hid('add') && <button type="button" className="primary ttadd" onClick={() => addNew(tab)}>+ Thêm {tabLabel(tab).toLowerCase()}</button>}
+    {!hid('add') && <HeadAction><button type="button" className="primary ttadd" onClick={() => addNew(tab)}>+ Thêm {tabLabel(tab).toLowerCase()}</button></HeadAction>}
   </>
   const libEmpty = ofTab.length ? 'Không có mục nào khớp bộ lọc.' : `Chưa có ${tabLabel(tab).toLowerCase()} nào. Bấm “Thêm ${tabLabel(tab).toLowerCase()}” để bắt đầu.`
   const libCols: Col<Item>[] = [
@@ -550,13 +551,19 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
     ...(srcMode === 'shared' ? [{ key: 'src', label: 'Nguồn', text: (i: Item) => i.owner_org_id === orgId ? 'Của đơn vị' : i.owner_name ?? '', cell: (i: Item) => i.owner_org_id === orgId ? 'Của đơn vị' : <>{i.owner_name ?? '—'}<div className="sub" style={{ fontSize: 12 }}>Dùng chung · chỉ xem</div></> }] : []),
     { key: 'prog', label: 'Chương trình', values: i => [i.edu_programs?.title ?? ''], text: i => [i.edu_programs?.title, i.edu_program_units?.title].join(' '),
       cell: i => i.edu_programs ? <>{i.edu_programs.title} <small className="sub">v{i.edu_programs.version_no}</small>{i.edu_program_units && <div className="sub" style={{ fontSize: 12 }}>{i.edu_program_units.title}</div>}</> : <small className="sub">—</small> },
+    { key: 'subj', label: 'Môn học', values: i => [i.subject || '—'], text: i => i.subject ?? '', cell: i => i.subject || <small className="sub">—</small> },
+    { key: 'grades', label: 'Khối', off: true, values: i => gradeList(i.grades ?? '').map(g => `Khối ${g}`), text: i => i.grades ?? '', cell: i => i.grades ? `Khối ${i.grades}` : <small className="sub">—</small> },
+    { key: 'ptype', label: 'Loại chương trình', off: true, values: i => [i.program || '—'], text: i => i.program ?? '', cell: i => i.program ? <ProgChip p={i.program} /> : <small className="sub">—</small> },
+    ...(every ? [{ key: 'owner', label: 'Đơn vị sở hữu', off: true, values: (i: Item) => [i.owner_name ?? '—'], text: (i: Item) => i.owner_name ?? '', cell: (i: Item) => i.owner_name ?? '—' }] : []),
     { key: 'parts', label: tab === 'unit' ? 'Thành phần' : 'Nội dung', text: i => String(partsOf(i) ?? ''), cell: i => <small>{partsOf(i)}</small> },
-    { key: 'scope', label: 'Phát hành tới', text: i => SCOPE[i.scope] ?? '',
+    { key: 'scope', label: 'Phát hành tới', off: true, values: i => [SCOPE[i.scope] ?? ''], text: i => SCOPE[i.scope] ?? '',
       cell: i => <>{SCOPE[i.scope]}{i.scope === 'selected' && <div className="sub" style={{ fontSize: 12 }}>{(targets.get(i.id) ?? []).map(id => orgs.find(o => o.id === id)?.name).filter(Boolean).join(', ')}</div>}</> },
-    { key: 'st', label: 'Trạng thái', text: i => LIB_STATUS[i.status]?.[1] ?? i.status, cell: i => <><StatusChip s={i.status} />{i.version > 0 && <small className="sub"> v{i.version}</small>}</> },
+    { key: 'st', label: 'Trạng thái', values: i => [LIB_STATUS[i.status]?.[1] ?? i.status], text: i => LIB_STATUS[i.status]?.[1] ?? i.status, cell: i => <><StatusChip s={i.status} />{i.version > 0 && <small className="sub"> v{i.version}</small>}</> },
     { key: 'used', label: 'Trường đã dùng', text: i => { const s = stats.get(i.id); return s ? `${s.schools} trường` : 'Chưa có' },
       cell: i => { const s = stats.get(i.id); return s ? <>{s.schools} trường{s.outdated ? <div className="sub" style={{ fontSize: 12 }}>{s.outdated} bản dùng phiên bản cũ</div> : null}</> : <small className="sub">Chưa có</small> } },
     ...libFields.filter(f => f.column).map(f => ({ key: 'c_' + f.key, label: f.label, cell: (i: Item) => customCell(f, i.custom?.[f.key]) })),
+    { key: 'tags', label: 'Từ khoá', off: true, text: i => i.tags.join(', '), cell: i => i.tags.length ? <small>{i.tags.join(', ')}</small> : <small className="sub">—</small> },
+    { key: 'rights', label: 'Quyền sử dụng', off: true, values: i => [RIGHTS[i.usage_rights ?? 'adapt']?.[0] ?? ''], text: i => RIGHTS[i.usage_rights ?? 'adapt']?.[0] ?? '', cell: i => <small>{RIGHTS[i.usage_rights ?? 'adapt']?.[0] ?? '—'}</small> },
     { key: 'upd', label: 'Cập nhật', text: i => fmtDate(i.updated_at), cell: i => <small>{fmtDate(i.updated_at)}</small> },
   ]
   return (

@@ -407,13 +407,14 @@ function MonthGrid({ s, rows, month, color }: { s: Schedule; rows: Row[]; month:
 }
 
 /** Lịch đào tạo của kế hoạch (khuôn Bản phối của Phân phối): dải tóm tắt, cột trái lọc theo chương trình, xem dạng Bảng hoặc Lịch (Tuần / Tháng) */
-export function PlanSessions({ s, plan, no, checks: withChecks, extra }: { s: Schedule; plan: SPlan; no?: number; checks?: boolean; extra?: ReactNode }) {
+export function PlanSessions({ s, plan, no, checks: withChecks, extra, tabs }: { s: Schedule; plan: SPlan; no?: number; checks?: boolean; extra?: ReactNode; tabs?: ReactNode }) {
   const [view, setViewS] = useState<'table' | 'cal'>(() => { try { return localStorage.getItem('tplan.sview') === 'cal' ? 'cal' : 'table' } catch { return 'table' } })
   const setView = (v: 'table' | 'cal') => { setViewS(v); try { localStorage.setItem('tplan.sview', v) } catch { /* chỉ đổi trong phiên */ } }
   const [sel, setSel] = useState<string | null>(null)
   const [q, setQ] = useState('')
   const names = useTrainerNames(plan.org_id)
-  const head = (sum?: ReactNode) => <h3>{no != null && <i>{no}</i>}Lịch đào tạo{sum}<span className="sp" />
+  // tabs: dãy thẻ của trang chi tiết thay cho tiêu đề, nút Bảng / Lịch nằm bên phải
+  const head = (sum?: ReactNode) => <h3 className={tabs ? 'tptabh' : undefined}>{tabs ?? <>{no != null && <i>{no}</i>}Lịch đào tạo{sum}</>}<span className="sp" />
     <div className="segmented distseg" role="group" aria-label="Kiểu xem">
       <button type="button" className={view === 'table' ? 'on' : ''} aria-pressed={view === 'table'} onClick={() => setView('table')}>Bảng</button>
       <button type="button" className={view === 'cal' ? 'on' : ''} aria-pressed={view === 'cal'} onClick={() => setView('cal')}>Lịch</button></div></h3>

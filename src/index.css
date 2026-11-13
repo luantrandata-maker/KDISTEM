@@ -2833,3 +2833,10 @@ td button.iconbtn{width:30px;height:30px;min-width:30px;vertical-align:middle}
 /* Nút thu cột thông tin nằm ở góc tiêu đề thẻ "Thông tin chung", cột phải bắt đầu ngang hàng số liệu */
 .pdcardh{display:flex;align-items:center;gap:8px}
 .main button.pdsidetg.incard{margin-left:auto;padding:3px 10px;font-size:12.5px;font-weight:500;border-radius:8px}
+
+/* Thanh nút thao tác (ActionBar): cùng nền trắng, phân biệt bằng màu chữ (xanh: chính, đỏ: cần cẩn thận) */
+.main button.abtn{background:var(--surface);color:var(--text);border:1px solid var(--line);font-weight:500}
+.main button.abtn:hover:not(:disabled){background:var(--soft)}
+.main button.abtn.abprimary{color:var(--primary);font-weight:600}
+.main button.abtn.abdanger{color:#c0392b}
+.main button.abtn.abdanger:hover:not(:disabled){background:#fdf1ef}

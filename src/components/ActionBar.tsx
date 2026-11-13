@@ -23,7 +23,7 @@ export function ActionBar({ items, max = Infinity, menuExtra }: { items: (Act | 
   const btn = (a: Act, inMenu = false) => {
     const only = !!a.icon && !inMenu
     const name = typeof a.label === 'string' ? a.label : undefined
-    const cls = [a.kind === 'danger' && !inMenu ? 'danger abdanger' : a.kind, only && 'iconbtn'].filter(Boolean).join(' ') || undefined
+    const cls = [inMenu ? a.kind : ['abtn', a.kind && 'ab' + a.kind], only && 'iconbtn'].flat().filter(Boolean).join(' ') || undefined
     return <button key={a.key} type="button" className={cls} disabled={a.disabled} title={a.title ?? (only ? name : undefined)} aria-label={only ? name : undefined} onClick={a.onClick}>
       {a.icon && <Icon n={a.icon} size={only ? 17 : 15} />}{!only && (a.icon ? <> {a.label}</> : a.label)}</button>
   }

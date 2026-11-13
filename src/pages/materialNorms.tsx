@@ -10,6 +10,9 @@ import { Tabs } from './teacher/common'
 import { useProgramOptions, unitTree, progLabel } from './library/common'
 import { GradePicker, SubjectPicker } from '../components/Pickers'
 import { Drawer } from '../components/Drawer'
+import { ElView } from '../components/ElView'
+import { DetailHead } from '../components/DetailHead'
+import { ActionBar, type Act } from '../components/ActionBar'
 import { gradeName } from '../lib/eduLevels'
 
 // Định mức vật tư (migration 059): danh mục vật tư / công cụ / thiết bị, định mức theo sản phẩm / nhóm / học sinh gắn bài,
@@ -576,6 +579,7 @@ function CatalogTab({ orgId, rights }: { orgId: string | null; rights: Rights })
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [kind, setKind] = useState(''); const [src, setSrc] = useState(''); const [q, setQ] = useState('')
   const [form, setForm] = useState<Partial<Cat> & { price?: string } | null>(null)
+  const [open, setOpen] = useState<string | null>(null)
   const every = useAllMode()
   async function load() {
     let r = await supabase.from('material_catalog').select('*, owner_name, organizations(name)').order('kind').order('name')
@@ -604,7 +608,7 @@ function CatalogTab({ orgId, rights }: { orgId: string | null; rights: Rights })
   async function remove(c: Cat) {
     if (!confirm(`Xoá "${c.name}" khỏi danh mục? Định mức đang dùng vẫn giữ tên vật tư.`)) return
     const { error } = await supabase.from('material_catalog').delete().eq('id', c.id)
-    if (error) setMsg([errText(error.message), true]); else load()
+    if (error) setMsg([errText(error.message), true]); else { setOpen(null); load() }
   }
   async function importRows(rows: (Record<string, string> & { _line: number })[]) {
     let ok = 0; const bad: string[] = []
@@ -618,20 +622,12 @@ function CatalogTab({ orgId, rights }: { orgId: string | null; rights: Rights })
     }
     load(); return importSummary(ok, 'vật tư', bad)
   }
-  return (
-    <>
-      <div className="bar small">
-        <input className="search" placeholder="Tìm vật tư…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm vật tư" />
-        <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại vật tư"><option value="">Tất cả loại</option>{(Object.keys(MKIND) as MKind[]).map(k => <option key={k} value={k}>{MKIND[k]}</option>)}</select>
-        <select value={src} onChange={e => setSrc(e.target.value)} aria-label="Nguồn"><option value="">Tất cả nguồn</option>{sources.map(s => <option key={s}>{s}</option>)}</select>
-        <button onClick={() => downloadXlsx('Danh-muc-vat-tu', CAT_COLS, shown.map(c => [c.code ?? '', c.name, MKIND[c.kind], c.unit, c.spec ?? '', c.unit_price ?? '']))}>Xuất Excel</button>
-        {rights.canWrite && <ImportExcel columns={CAT_COLS} template="Mau-danh-muc-vat-tu" sample={[['PIN-AA', 'Pin AA', 'Vật tư tiêu hao', 'viên', '1,5 V', '6000']]}
-          onRecords={importRows} onMessage={(m, e) => setMsg([m, !!e])} />}
-        {rights.canWrite && <button className="primary" onClick={() => setForm({ kind: 'supply', unit: 'cái', scope: 'children' })}>Thêm vật tư</button>}
-      </div>
-      {msg && <p className={msg[1] ? 'msg' : 'sub'}>{msg[0]}</p>}
-      {form && (
-        <form className="panel formgrid" onSubmit={save} style={{ marginBottom: 12 }}>
+  const canEdit = (c: Cat) => (c.org_id === orgId || !!every) && rights.canWrite
+  const toForm = (c: Cat) => setForm({ ...c, price: c.unit_price != null ? String(c.unit_price) : '' })
+  const msgEl = msg && <p className={msg[1] ? 'msg' : 'sub'}>{msg[0]}</p>
+  if (form) return <ElView back={open ? 'Chi tiết vật tư' : 'Danh mục vật tư'} onBack={() => setForm(null)} title={form.id ? 'Sửa vật tư' : 'Thêm vật tư'} sub={form.id ? form.name : undefined}>
+    {msgEl}
+        <form className="panel formgrid" onSubmit={save} >
           {!form.id && <OrgPick kind="any" value={form.org_id ?? orgId ?? ''} onChange={v => setForm({ ...form, org_id: v })} />}
           <label className="field"><span>Mã</span><input value={form.code ?? ''} onChange={e => setForm({ ...form, code: e.target.value })} /></label>
           <label className="field" style={{ gridColumn: 'span 2' }}><span>Tên *</span><input required value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} /></label>
@@ -644,19 +640,61 @@ function CatalogTab({ orgId, rights }: { orgId: string | null; rights: Rights })
           {form.id && <label className="field"><span>Trạng thái</span><select value={form.active === false ? '0' : '1'} onChange={e => setForm({ ...form, active: e.target.value === '1' })}><option value="1">Đang dùng</option><option value="0">Ngừng dùng</option></select></label>}
           <div className="formactions"><button className="primary" type="submit">Lưu</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button></div>
         </form>
-      )}
-      {!list ? <p className="sub">Đang tải…</p> : (
-        <div className="wrap"><table>
-          <thead><tr><th>Mã</th><th>Tên</th><th>Loại</th><th>Đơn vị</th><th>Quy cách</th><th>Đơn giá</th><th>Nguồn</th><th></th></tr></thead>
-          <tbody>{shown.map(c => (
-            <tr key={c.id} style={c.active ? undefined : { opacity: 0.55 }}><td><small>{c.code}</small></td><td><b>{c.name}</b>{c.reusable && <small className="sub"> · dùng lại</small>}{!c.active && <small className="sub"> · ngừng dùng</small>}</td>
-              <td>{MKIND[c.kind]}</td><td>{c.unit}</td><td><small>{c.spec}</small></td><td>{c.unit_price != null ? money(c.unit_price) : '—'}</td><td><small>{srcName(c)}</small></td>
-              <td className="actions">{(c.org_id === orgId || every) && rights.canWrite && <><button data-rowopen onClick={() => setForm({ ...c, price: c.unit_price != null ? String(c.unit_price) : '' })}>Sửa</button><button className="danger" onClick={() => remove(c)}>Xoá</button></>}</td></tr>
-          ))}
-          {shown.length === 0 && <tr><td colSpan={8}><small className="sub">Chưa có vật tư nào.</small></td></tr>}</tbody>
-        </table></div>
-      )}
-      <p className="sub tablenote">Danh mục chuẩn để lập định mức. Danh mục của KDI và cấp trên dùng chung cho đơn vị trực thuộc. Khi dự trù, vật tư trong kho của trường được ghép với danh mục theo mã liên kết, mã vật tư trùng mã danh mục hoặc trùng tên để so tồn kho.</p>
+  </ElView>
+  const cur = open ? all.find(c => c.id === open) : undefined
+  if (cur) {
+    const acts: Act[] = canEdit(cur) ? [
+      { key: 'edit', label: 'Sửa', icon: 'pencil', onClick: () => toForm(cur) },
+      { key: 'del', label: 'Xoá', icon: 'trash', kind: 'danger', onClick: () => remove(cur) },
+    ] : []
+    return <>
+      <DetailHead back="Danh mục vật tư" onBack={() => { setOpen(null); setMsg(null) }} title={cur.name}
+        extra={<span className={'pill ' + (cur.active ? 'good' : 'inactive')}>{cur.active ? 'Đang dùng' : 'Ngừng dùng'}</span>} />
+      <div className="bar"><small className="sub">{[cur.code, MKIND[cur.kind], srcName(cur)].filter(Boolean).join(' · ')}</small>{acts.length > 0 && <div className="tools"><ActionBar items={acts} /></div>}</div>
+      {msgEl}
+      <div className="pdsub panel pdcard" style={{ maxWidth: 760 }}><h4>Thông tin vật tư</h4>
+        <dl className="pddl">
+          <dt>Mã</dt><dd>{cur.code || '—'}</dd>
+          <dt>Tên</dt><dd><b>{cur.name}</b></dd>
+          <dt>Loại</dt><dd>{MKIND[cur.kind]}</dd>
+          <dt>Đơn vị tính</dt><dd>{cur.unit}</dd>
+          <dt>Quy cách</dt><dd>{cur.spec || '—'}</dd>
+          <dt>Đơn giá</dt><dd>{cur.unit_price != null ? money(cur.unit_price) : '—'}</dd>
+          <dt>Dùng lại được</dt><dd>{cur.reusable ? 'Có (không nhân theo buổi)' : 'Không'}</dd>
+          {!rights.isSchool && <><dt>Phạm vi</dt><dd>{cur.scope === 'own' ? 'Chỉ đơn vị mình' : 'Dùng chung cho đơn vị trực thuộc'}</dd></>}
+          <dt>Nguồn</dt><dd>{srcName(cur)}</dd>
+          {cur.note && <><dt>Ghi chú</dt><dd>{cur.note}</dd></>}
+        </dl>
+      </div>
+    </>
+  }
+  const cols: Col<Cat>[] = [
+    { key: 'code', label: 'Mã', text: c => c.code ?? '', cell: c => <small>{c.code}</small> },
+    { key: 'name', label: 'Tên', fixed: true, text: c => c.name, cell: c => <><b>{c.name}</b>{c.reusable && <small className="sub"> · dùng lại</small>}{!c.active && <small className="sub"> · ngừng dùng</small>}</> },
+    { key: 'kind', label: 'Loại', text: c => MKIND[c.kind], values: c => [MKIND[c.kind]], cell: c => MKIND[c.kind] },
+    { key: 'unit', label: 'Đơn vị', text: c => c.unit, cell: c => c.unit },
+    { key: 'spec', label: 'Quy cách', text: c => c.spec ?? '', cell: c => <small>{c.spec}</small> },
+    { key: 'price', label: 'Đơn giá', text: c => c.unit_price != null ? String(c.unit_price) : '', cell: c => c.unit_price != null ? money(c.unit_price) : '—' },
+    { key: 'src', label: 'Nguồn', text: srcName, values: c => [srcName(c)], cell: c => <small>{srcName(c)}</small> },
+  ]
+  return (
+    <>
+      {msgEl}
+      {rights.canWrite && <HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ kind: 'supply', unit: 'cái', scope: 'children' }) }}>+ Thêm vật tư</button></HeadAction>}
+      {!list ? <p className="sub">Đang tải…</p> : <DataTable id="material-catalog" rows={shown} rowKey={c => c.id} cols={cols}
+        onRow={c => { setMsg(null); setOpen(c.id) }} rowProps={c => (c.active ? {} : { style: { opacity: 0.55 } })}
+        left={<>
+          <input className="search" placeholder="Tìm vật tư…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm vật tư" />
+          <select value={kind} onChange={e => setKind(e.target.value)} aria-label="Loại vật tư"><option value="">Tất cả loại</option>{(Object.keys(MKIND) as MKind[]).map(k => <option key={k} value={k}>{MKIND[k]}</option>)}</select>
+          <select value={src} onChange={e => setSrc(e.target.value)} aria-label="Nguồn"><option value="">Tất cả nguồn</option>{sources.map(s => <option key={s}>{s}</option>)}</select>
+        </>}
+        right={<>
+          <button type="button" onClick={() => downloadXlsx('Danh-muc-vat-tu', CAT_COLS, shown.map(c => [c.code ?? '', c.name, MKIND[c.kind], c.unit, c.spec ?? '', c.unit_price ?? '']))}>Xuất Excel</button>
+          {rights.canWrite && <ImportExcel columns={CAT_COLS} template="Mau-danh-muc-vat-tu" sample={[['PIN-AA', 'Pin AA', 'Vật tư tiêu hao', 'viên', '1,5 V', '6000']]}
+            onRecords={importRows} onMessage={(m, e) => setMsg([m, !!e])} />}
+        </>}
+        empty={<small className="sub">Chưa có vật tư nào.</small>} />}
+      <p className="sub tablenote">Bấm một dòng để xem chi tiết, sửa hoặc xoá. Danh mục chuẩn để lập định mức. Danh mục của KDI và cấp trên dùng chung cho đơn vị trực thuộc. Khi dự trù, vật tư trong kho của trường được ghép với danh mục theo mã liên kết, mã vật tư trùng mã danh mục hoặc trùng tên để so tồn kho.</p>
     </>
   )
 }

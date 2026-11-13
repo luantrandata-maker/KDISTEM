@@ -7,6 +7,8 @@ import { useEduLevels } from '../lib/eduLevels'
 import { ElView } from '../components/ElView'
 import { DataTable, type Col } from '../components/DataTable'
 import { HeadAction } from '../components/PageFrame'
+import { DetailHead } from '../components/DetailHead'
+import { ActionBar, type Act } from '../components/ActionBar'
 import { STEM_LEVELS, STEM_LEVEL_NAME, useStemTracks, type StemLevel, type StemTrack } from '../lib/stemTracks'
 
 // Danh mục loại chương trình (migration 062, 064): CT1–CT5 ban đầu; KDI thêm loại mới, sửa tên, mô tả, môn học,
@@ -25,13 +27,14 @@ export function StemTracksCatalog() {
   const [admin, setAdmin] = useState(false)
   const [progs, setProgs] = useState<Prog[]>([])
   const [edit, setEdit] = useState<string | null>(null)
+  const [open, setOpen] = useState<string | null>(null)
   const [msg, setMsg] = useState('')
   async function remove(t: StemTrack) {
     if (!confirm(`Xoá loại chương trình ${t.code} · ${t.name}? Chỉ xoá được khi chưa có chương trình, bài giảng, học liệu hay lớp nào dùng.`)) return
     const { data, error } = await supabase.from('stem_tracks').delete().eq('code', t.code).select('code')
     if (error) return setMsg(errText(error.message + ' ' + (error.code ?? '')))
     if (!data?.length) return setMsg(errText('row-level'))
-    setMsg(''); reload()
+    setMsg(''); setOpen(null); reload()
   }
   useEffect(() => {
     supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data))
@@ -41,11 +44,48 @@ export function StemTracksCatalog() {
   if (edit !== null) {
     const t = tracks.find(x => x.code === edit)
     const done = () => { setEdit(null); reload() }
-    return <ElView back="Nhóm chương trình" onBack={() => setEdit(null)}
+    return <ElView back={open ? 'Chi tiết nhóm chương trình' : 'Nhóm chương trình'} onBack={() => setEdit(null)}
       title={t ? <><span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{t.code}</span> Sửa loại chương trình</> : 'Thêm loại chương trình'}>
       {t ? <TrackForm key={t.code} t={t} onCancel={() => setEdit(null)} onSaved={done} />
         : <TrackForm t={{ ...BLANK, sort: tracks.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1 }} isNew onCancel={() => setEdit(null)} onSaved={done} />}
     </ElView>
+  }
+  const cur = open ? tracks.find(x => x.code === open) : undefined
+  if (cur) {
+    const list = progs.filter(p => p.ct_code === cur.code)
+    const acts: Act[] = admin ? [
+      { key: 'edit', label: 'Sửa', icon: 'pencil', onClick: () => { setMsg(''); setEdit(cur.code) } },
+      { key: 'del', label: 'Xoá', icon: 'trash', kind: 'danger', onClick: () => remove(cur) },
+    ] : []
+    return <>
+      <DetailHead back="Nhóm chương trình" onBack={() => { setOpen(null); setMsg('') }}
+        title={<><span className="progchip" style={{ background: PROGRAM_COLOR[cur.code], color: '#fff' }}>{cur.code}</span> {cur.title}</>}
+        extra={<span className={'pill ' + (cur.active === false ? 'inactive' : 'good')}>{cur.active === false ? 'Ngừng dùng' : 'Đang dùng'}</span>} />
+      <div className="bar"><small className="sub">{cur.name}</small>{acts.length > 0 && <div className="tools"><ActionBar items={acts} /></div>}</div>
+      {msg && <p className="msg" role="status">{msg}</p>}
+      <div className="pdsub pdgrid">
+        <div className="pdmain">
+          <div className="panel pdcard"><h4>Chương trình giáo dục đang ban hành ({list.length})</h4>
+            {list.length ? <table className="table"><thead><tr><th>Chương trình</th><th>Mã</th><th>Cấp học</th><th>Phiên bản</th></tr></thead>
+              <tbody>{list.map(p => <tr key={p.id}><td>{p.title}</td><td>{p.code ?? '—'}</td><td>{levelName(p.level)}</td><td>v{p.version_no}</td></tr>)}</tbody></table>
+              : <small className="sub">Chưa có. Tạo ở tab "Chương trình", chọn nhóm {cur.code}.</small>}
+          </div>
+        </div>
+        <div className="pdside">
+          <div className="panel pdcard"><h4>Thông tin chung</h4>
+            <dl className="pddl sm">
+              <dt>Mã</dt><dd>{cur.code}</dd>
+              <dt>Tên ngắn</dt><dd>{cur.name || '—'}</dd>
+              <dt>Thứ tự</dt><dd>{cur.sort ?? 0}</dd>
+              <dt>Cấp học</dt><dd>{cur.levels.length ? cur.levels.map(l => STEM_LEVEL_NAME[l]).join(', ') : 'Chưa chọn'}</dd>
+            </dl>
+          </div>
+          <div className="panel pdcard"><h4>Mô tả</h4>{cur.description ? <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{cur.description}</p> : <small className="sub">Chưa có</small>}</div>
+          <div className="panel pdcard"><h4>Môn học ({cur.subjects.length})</h4>
+            <div>{cur.subjects.length ? cur.subjects.map(x => <span key={x} className="chip" style={{ paddingRight: 12 }}>{x}</span>) : <small className="sub">Chưa có</small>}</div></div>
+        </div>
+      </div>
+    </>
   }
   const cols: Col<StemTrack>[] = [
     { key: 'code', label: 'Mã', fixed: true, thClass: 'c-no c-code', text: t => t.code, cell: t => <span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{t.code}</span> },
@@ -59,18 +99,15 @@ export function StemTracksCatalog() {
       return list.length ? <span title={list.map(p => `${p.title} · ${levelName(p.level)} · v${p.version_no}`).join('\n')}>{list.length} chương trình</span> : <small className="sub">Chưa có</small> } },
     { key: 'st', label: 'Trạng thái', text: t => t.active === false ? 'Ngừng dùng' : 'Đang dùng', values: t => [t.active === false ? 'Ngừng dùng' : 'Đang dùng'],
       cell: t => <span className={'pill ' + (t.active === false ? 'inactive' : 'good')}>{t.active === false ? 'Ngừng dùng' : 'Đang dùng'}</span> },
-    ...(admin ? [{ key: 'act', label: '', fixed: true, thClass: 'c-act', cell: (t: StemTrack) => <div className="tools" style={{ justifyContent: 'flex-end', flexWrap: 'nowrap' }}>
-      <button type="button" onClick={e => { e.stopPropagation(); setMsg(''); setEdit(t.code) }}>Sửa</button>
-      <button type="button" className="danger" onClick={e => { e.stopPropagation(); remove(t) }}>Xoá</button></div> }] : []),
   ]
   return (
     <>
       {admin && <HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(''); setEdit('') }}>+ Thêm loại chương trình</button></HeadAction>}
       {msg && <p className="msg" role="status">{msg}</p>}
       <DataTable id="stem-tracks" className="trktbl" rows={tracks} rowKey={t => t.code} cols={cols} simple
-        onRow={admin ? t => { setMsg(''); setEdit(t.code) } : undefined}
+        onRow={t => { setMsg(''); setOpen(t.code) }}
         empty="Chưa có loại chương trình nào." />
-      <p className="tablenote sub">{admin ? 'Bấm một dòng để sửa. Loại đã được dùng thì không xoá được, chỉ chuyển sang "Ngừng dùng".' : 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'} Học phần và yêu cầu cần đạt nằm trong từng chương trình giáo dục.</p>
+      <p className="tablenote sub">{admin ? 'Bấm một dòng để xem chi tiết, sửa hoặc xoá. Loại đã được dùng thì không xoá được, chỉ chuyển sang "Ngừng dùng".' : 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'} Học phần và yêu cầu cần đạt nằm trong từng chương trình giáo dục.</p>
     </>
   )
 }

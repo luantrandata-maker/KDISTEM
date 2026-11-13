@@ -24,10 +24,11 @@ export function PageFrame({ title, tabs, value, onTab, actions, children }: {
       {!hasTabs && <div className="pfact">{actions}</div>}
     </div>
     <div className="pframe" ref={ref}>
-      {hasTabs && <div className="pfhead">
-        <Tabs value={String(value ?? 0)} onChange={v => onTab?.(Number(v))} items={tabs.map((l, k) => [String(k), l] as [string, string])} />
-        <div className="pfact">{actions}</div>
-      </div>}
+      <div className="pfhead">
+        {hasTabs ? <Tabs value={String(value ?? 0)} onChange={v => onTab?.(Number(v))} items={tabs.map((l, k) => [String(k), l] as [string, string])} />
+          : <div className="pftabs" />/* tab riêng của trang (HeadTabs) được đưa vào đây */}
+        <div className="pfact">{hasTabs && actions}</div>
+      </div>
       <div className="pfbody">{children}</div>
     </div>
   </>
@@ -43,10 +44,25 @@ export function FramedTabs({ tabs, actions, ...props }: { tabs: [string, Compone
   </PageFrame>
 }
 
-/** Nút thao tác chính của màn con: nằm ở hàng tiêu đề của khung nếu có, không thì hiện tại chỗ. */
+/** Chỗ đặt nút thao tác của trang trong khung: trang có tab → hàng tab của khung; không có tab → cùng hàng tiêu đề. */
+export function actionSlot(main: Element | null | undefined): Element | null {
+  if (!main) return null
+  const tabbed = main.querySelector(':scope > .pframe > .pfhead > .segmented, :scope > .pframe .headtabs-mark')
+  return main.querySelector(tabbed ? ':scope > .pframe > .pfhead > .pfact' : ':scope > .pfcrumb > .pfact')
+}
+
+/** Nút thao tác chính của màn con (vd "+ Thêm …"): đưa lên đầu trang trong khung; không có khung thì hiện tại chỗ. */
 export function HeadAction({ children }: { children: ReactNode }) {
   const anchor = useRef<HTMLSpanElement>(null)
   const [box, setBox] = useState<Element | null>(null)
-  useLayoutEffect(() => { setBox(anchor.current?.closest('main')?.querySelector(':scope > .pfcrumb > .pfact, :scope > .pframe > .pfhead > .pfact') ?? null) }, [])
+  useLayoutEffect(() => { setBox(actionSlot(anchor.current?.closest('main'))) }, [])
   return <><span ref={anchor} hidden />{box ? createPortal(children, box) : children}</>
+}
+
+/** Hàng tab riêng của một trang (vd Học liệu, Phân phối chương trình): đưa lên hàng đầu khung, có đường kẻ dưới. */
+export function HeadTabs({ children }: { children: ReactNode }) {
+  const anchor = useRef<HTMLSpanElement>(null)
+  const [box, setBox] = useState<Element | null>(null)
+  useLayoutEffect(() => { setBox(anchor.current?.closest('main')?.querySelector(':scope > .pframe > .pfhead > .pftabs') ?? null) }, [])
+  return <><span ref={anchor} className="headtabs-mark" hidden />{box ? createPortal(children, box) : children}</>
 }

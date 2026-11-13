@@ -1,6 +1,7 @@
 // Phân hệ 1 — Danh sách giảng viên đào tạo (098). Đơn vị lập kế hoạch (KDI, Sở, Phòng) quản lý; chương trình trong kế hoạch
 // và buổi đào tạo chọn nhiều giảng viên từ danh sách này (TrainerPick). Gõ tên chưa có thì thêm nhanh vào danh sách.
 import { useOrgFilter } from '../../components/OrgFilters'
+import { HeadAction } from '../../components/PageFrame'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { OrgPick, useAllMode, useOrgName } from '../../components/OrgScope'
@@ -123,6 +124,10 @@ export function TrainersPage({ orgId }: { orgId: string }) {
           {(every || t.note) && <><br /><small className="sub">{[every && 'Danh sách của ' + orgName(t.org_id), t.note].filter(Boolean).join(' · ')}</small></>}</> },
       { key: 'work', label: 'Đơn vị công tác', text: t => t.workplace ?? '', cell: t => t.workplace || '—' },
       { key: 'exp', label: 'Chuyên môn', text: t => t.expertise ?? '', cell: t => t.expertise || '—' },
+      { key: 'title', label: 'Học hàm · chức danh', off: true, text: t => t.title ?? '', cell: t => t.title || <small className="sub">—</small> },
+      { key: 'email', label: 'Email', off: true, text: t => t.email ?? '', cell: t => t.email ? <small>{t.email}</small> : <small className="sub">—</small> },
+      { key: 'phone', label: 'Điện thoại', off: true, text: t => t.phone ?? '', cell: t => t.phone || <small className="sub">—</small> },
+      { key: 'note', label: 'Ghi chú', off: true, text: t => t.note ?? '', cell: t => t.note ? <small>{t.note}</small> : <small className="sub">—</small> },
       { key: 'contact', label: 'Liên hệ', values: t => [t.phone ?? '', t.email ?? ''], text: t => [t.phone, t.email].filter(Boolean).join(' '), cell: t => [t.phone, t.email].filter(Boolean).join(' · ') || '—' },
       { key: 'use', label: 'Phân công', cell: t => use.get(t.id) ?? 0 },
       { key: 'rate', label: 'Đánh giá của GV', cell: t => (r => r ? <><Chip tone={r.overall >= 4 ? 'good' : r.overall >= 3 ? 'warn' : 'bad'}>{score(r.overall)}★</Chip> <small className="sub">{r.responses} phiếu · {r.plans} khoá</small><br />
@@ -135,7 +140,7 @@ export function TrainersPage({ orgId }: { orgId: string }) {
       left={<><input placeholder="Tìm họ tên, đơn vị công tác, chuyên môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giảng viên" />
         <MoreFilters active={ofl.active}>{ofl.node(all.map(t => t.org_id))}</MoreFilters>
         <small className="sub">{shown.length}/{all.length} giảng viên</small></>}
-      right={can && <button type="button" className="primary ttadd" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>+ Thêm giảng viên</button>} />}
+      right={can && <HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setView({ kind: 'new' }) }}>+ Thêm giảng viên</button></HeadAction>} />}
     <div className="tablenote">
       <p className="sub" style={{ margin: 0 }}>Danh sách giảng viên dùng chung cho tất cả kế hoạch và buổi đào tạo của đơn vị. Ở kế hoạch và lịch, ô Giảng viên chọn được nhiều người từ danh sách này;
         gõ họ tên chưa có thì thêm nhanh. Giảng viên đã phân công không xoá được, chuyển sang "Ngừng mời" để ẩn khỏi ô chọn.</p>

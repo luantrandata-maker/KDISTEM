@@ -2,6 +2,7 @@
 // Đề kiểm tra: bài test nội dung + đề cuối khoá của tất cả chương trình (bấm để soạn trong chương trình).
 // Đề luyện: đề tự luyện cho nhà giáo, không tính điểm đào tạo. Kết quả & câu khó: điểm theo đề, câu hay sai.
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
+import { HeadAction } from '../../components/PageFrame'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Drawer } from '../../components/Drawer'
@@ -205,7 +206,7 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
     onEdit={() => { setMsg(null); setOpen(vr.kind === 'unit' ? { id: vr.prog.id, unit: vr.unit!.id } : { id: vr.prog.id, unit: null, final: true }) }} />
   const defs: FilterDef[] = [
     // Chương trình, loại đề: lọc theo cột của bảng
-    { key: 'st', label: 'Trạng thái', placeholder: 'Tất cả trạng thái', options: opts(rows.map(r => [r.prog.status, STATUS[r.prog.status]?.[0]])) },
+    { key: 'st', label: 'Trạng thái', placeholder: 'Tất cả trạng thái', options: opts(rows.map(r => [r.prog.status, STATUS[r.prog.status]?.[0]])), hidden: true },
   ]
   const ql = q.trim().toLowerCase()
   // base: theo tất cả bộ lọc bên dưới; thẻ tổng số tính trên base, bấm thẻ lọc thêm theo loại đề
@@ -230,6 +231,8 @@ export function TrainingExamList({ go }: { go?: (page: string) => void }) {
       { key: 'kind', label: 'Loại', text: r => KIND[r.kind][0], cell: r => <Chip tone={KIND[r.kind][1]}>{KIND[r.kind][0]}</Chip> },
       { key: 'cfg', label: 'Cấu hình', text: r => r.cfg, cell: r => r.missing ? <small className="warnline">{r.cfg}</small> : <small>{r.cfg}</small> },
       { key: 'prog', label: 'Chương trình', text: r => String(progLabel(r.prog) ?? ''), cell: r => progLabel(r.prog) },
+      { key: 'pst', label: 'Trạng thái chương trình', off: true, text: r => STATUS[r.prog.status]?.[0] ?? r.prog.status, cell: r => <small>{STATUS[r.prog.status]?.[0] ?? r.prog.status}</small> },
+      { key: 'unit', label: 'Bài / học phần', off: true, text: r => r.unit?.title ?? (r.kind === 'final' ? 'Cuối khoá' : ''), cell: r => <small>{r.unit?.title ?? (r.kind === 'final' ? 'Cuối khoá' : '—')}</small> },
       { key: 'n', label: 'Lượt làm', thClass: 'num', cell: r => <span className="num">{statOf(r)?.attempts ?? 0}</span> },
       { key: 'avg', label: 'Điểm TB', thClass: 'num', cell: r => <span className="num">{num(statOf(r)?.avg_score)}</span> },
       { key: 'try', label: 'Làm thử', fixed: true, cell: r => { const sp = rowSpec(r); const t = r.unit?.detail?.test, fe = r.prog.final_exam
@@ -386,7 +389,7 @@ export function TrainingPracticeExams() {
   const all = list ?? []
   const defs: FilterDef[] = [
     // Chương trình, trạng thái: lọc theo cột của bảng
-    { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', options: opts(all.flatMap(x => listSubjects(x).map(s => [s, s] as [string, string]))) },
+    { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', options: opts(all.flatMap(x => listSubjects(x).map(s => [s, s] as [string, string]))), hidden: true },
   ]
   const ql = q.trim().toLowerCase()
   const base = all.filter(x => listSubjects(x).some(s => f.has('subj', s)) && (!ql || `${x.title} ${x.subject} ${x.note ?? ''}`.toLowerCase().includes(ql)))
@@ -407,11 +410,12 @@ export function TrainingPracticeExams() {
     {!list ? <p className="sub">Đang tải…</p> : <DataTable id="training-practice" rows={shown} rowKey={x => x.id} onRow={x => { setMsg(null); setPv(x.id) }}
       left={<><MultiFilters defs={defs} f={f} count={`${shown.length}/${all.length}`} />
         <input placeholder="Tìm tên đề, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đề luyện" /></>}
-      right={admin && <button type="button" className="primary ttadd" disabled={!usable.length} onClick={() => { setMsg(null); setForm(blank()) }}>+ Thêm đề luyện</button>}
+      right={admin && <HeadAction><button type="button" className="primary ttadd" disabled={!usable.length} onClick={() => { setMsg(null); setForm(blank()) }}>+ Thêm đề luyện</button></HeadAction>}
       empty={<small className="sub">{all.length ? 'Không có đề nào khớp bộ lọc.' : 'Chưa có đề luyện. Bấm “+ Thêm đề luyện”.'}</small>}
       cols={[
         { key: 'title', label: 'Đề luyện', fixed: true, values: x => [x.title], text: x => `${x.title} ${subjGrade(x)}`,
           cell: x => <><button type="button" className="namelink">{x.title}</button><br /><small className="sub">{subjGrade(x)}</small></> },
+        { key: 'subj', label: 'Môn', values: x => listSubjects(x), text: x => listSubjects(x).join(', '), cell: x => <small>{listSubjects(x).join(', ') || '—'}</small> },
         { key: 'q', label: 'Câu hỏi', text: x => `${matrixTotal(x.matrix ?? [])} câu`, cell: x => <small>{matrixTotal(x.matrix ?? [])} câu: {matrixText(x.matrix ?? [])}</small> },
         { key: 'how', label: 'Cách làm', text: x => x.minutes ? `${x.minutes} phút` : 'Không giới hạn',
           cell: x => <small>{x.minutes ? `${x.minutes} phút` : 'Không giới hạn'} · {x.attempts ? `${x.attempts} lượt` : 'không giới hạn lượt'}{x.show_answers ? ' · xem đáp án' : ''}</small> },

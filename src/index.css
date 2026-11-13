@@ -2882,3 +2882,12 @@ main:has(.pdclose)>.pframe>.pfbody>.distpills{display:none}
 .pfcrumb>.pfact:empty{display:none}
 .pfcrumb>.pfact .ttadd{margin:0}
 .pfcrumb>.pfact>.pagecorner{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+/* Tab riêng của trang đưa lên hàng đầu khung: cùng kiểu tab của Chương trình giáo dục */
+.pfhead>.pftabs:empty{display:none}
+.pfhead>.pftabs .distpills{display:inline-flex;margin:0;background:var(--soft);border-radius:12px;padding:4px;gap:2px}
+.main .pfhead>.pftabs .distpills button{border:0;background:none;border-radius:9px;padding:7px 14px;color:var(--muted);font-weight:500}
+.main .pfhead>.pftabs .distpills button.on{background:var(--surface);color:var(--text);font-weight:500;box-shadow:0 1px 2px rgba(20,31,50,.08)}
+.pfhead:has(>.pftabs:empty):not(:has(>.segmented)):not(:has(>.pfact>*)){display:none}
+/* Trong khung (PageFrame): khối .panel duy nhất của trang không vẽ thêm khung lồng, không có khoảng trống phía trên */
+.pfbody>section.panel:only-of-type{border:0;border-radius:0;padding:0;margin-top:0!important;margin-bottom:0;background:none;box-shadow:none}
+.pfbody>section.panel:only-of-type+.tablenote{margin-top:12px}

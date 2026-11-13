@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { norm as normText } from '../lib/sheet'
 import { supabase } from '../lib/supabase'
 import { useAllMode, useProvinceOf } from '../components/OrgScope'
 import { downloadXlsx } from '../lib/sheet'
@@ -461,6 +462,7 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
   const [list, setList] = useState<TA[]>([])
   // Lọc chọn nhiều: đơn vị quản lý, trường, nhà giáo, môn, tình trạng đánh giá
   const mf = useMultiFilters(), provOf = useProvinceOf()
+  const [tq, setTq] = useState('')
   const [sel, setSel] = useState<string | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [canEdit, setCanEdit] = useState(false)
@@ -501,7 +503,8 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
     { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', options: opts(teachers.filter(t => fit(t, 'subj')).map(t => [t.subject, t.subject])) },
     { key: 'st', label: 'Tình trạng đánh giá', placeholder: 'Tất cả tình trạng', options: [['mgr', 'Trường đã đánh giá'], ['self', 'Mới tự đánh giá'], ['draft', 'Đang làm nháp'], ['none', 'Chưa đánh giá']] },
   ]
-  const matched = teachers.filter(t => fit(t))
+  const tql = normText(tq.trim()).toLowerCase()
+  const matched = teachers.filter(t => fit(t) && (!tql || normText([t.full_name, t.email, t.organizations?.name, t.subject].join(' ')).toLowerCase().includes(tql)))
   // Thẻ tổng số: tính trên nhà giáo khớp bộ lọc; bấm thẻ để lọc thêm danh sách, bấm lại để bỏ
   const lvOf = (t: TRow) => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); return m?.status === 'submitted' ? m.levels : s?.status === 'submitted' ? s.levels : null }
   const REQ = 2
@@ -529,8 +532,8 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
   ]} />
   // Bộ lọc bên trái, Xuất Excel bên phải trên cùng một hàng (bỏ dòng tiêu đề mô tả)
   const filterBar = <div className="bar" style={{ margin: 0, alignItems: 'flex-start' }}>
-    <div className="tools" style={{ flexWrap: 'wrap' }}><MultiFilters defs={filterDefs} f={mf} count={`${shownAll.length}/${teachers.length} GV${shownAll.length > 500 ? ' · hiện 500 đầu' : ''}`} /></div>
-    <span className="tools"><button type="button" onClick={excel} disabled={!teachers.length}>Xuất Excel</button></span>
+    <div className="tools" style={{ flexWrap: 'wrap', flex: 1 }}><input style={{ width: 220 }} placeholder="Tìm tên, email, trường, môn…" value={tq} onChange={e => setTq(e.target.value)} aria-label="Tìm nhà giáo" /><MultiFilters defs={filterDefs} f={mf} count={`${shownAll.length}/${teachers.length} GV${shownAll.length > 500 ? ' · hiện 500 đầu' : ''}`} />
+      <button type="button" style={{ marginLeft: 'auto' }} onClick={excel} disabled={!teachers.length}>Xuất Excel</button></div>
   </div>
   if (profile) return <>{cards}{msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}<section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
     {filterBar}

@@ -3,6 +3,7 @@
 // Sau phát hành: gán trường → trường chọn nhà giáo, gửi danh sách → đơn vị lập kế hoạch duyệt hoặc trả lại.
 // TrainingPlansPage: KDI và Sở / Phòng (kế hoạch của đơn vị mình). SchoolTrainingAssigned: trường (kế hoạch được giao).
 import { useOrgFilter } from '../../components/OrgFilters'
+import { HeadAction } from '../../components/PageFrame'
 import { DetailHead } from '../../components/DetailHead'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { supabase, fetchAll } from '../../lib/supabase'
@@ -144,6 +145,12 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
           {p.hours ? <><br /><small className="sub">{p.hours} giờ</small></> : null}</span> } },
     { key: 'orgs', label: 'Trường', text: p => wait(p.id) > 0 ? 'Có danh sách chờ duyệt' : 'Không có danh sách chờ duyệt', cell: p => { const os = orgs.filter(o => o.plan_id === p.id), w = wait(p.id)
       return <span className="nowrap">{os.length ? <>{os.length} trường{w > 0 && <><br /><Chip tone="warn">{w} chờ duyệt</Chip></>}</> : '—'}</span> } },
+    { key: 'mode', label: 'Hình thức', off: true, values: p => [MODE[p.mode]], text: p => MODE[p.mode], cell: p => MODE[p.mode] },
+    { key: 'provider', label: 'Đơn vị tổ chức', off: true, text: p => p.provider ?? '', cell: p => p.provider || <small className="sub">—</small> },
+    { key: 'hours', label: 'Số giờ', off: true, text: p => String(p.hours ?? ''), cell: p => p.hours ?? <small className="sub">—</small> },
+    { key: 'max', label: 'Số học viên tối đa', off: true, text: p => String(p.max_learners ?? ''), cell: p => p.max_learners ?? <small className="sub">—</small> },
+    { key: 'reg', label: 'Hạn đăng ký', off: true, text: p => p.register_until ?? '', cell: p => <small>{p.self_register ? (p.register_until ? new Date(p.register_until).toLocaleDateString('vi-VN') : 'Mở') : 'Không tự đăng ký'}</small> },
+    { key: 'budget', label: 'Kinh phí', off: true, text: p => String(p.budget ?? ''), cell: p => p.budget != null ? <span className="num">{p.budget.toLocaleString('vi-VN')}</span> : <small className="sub">—</small> },
     { key: 'st', label: 'Trạng thái', text: p => STATUS[p.pub_status][0] + (p.closed_at ? ' Đã kết thúc' : ''),
       cell: p => { const st = STATUS[p.pub_status]; return <span className="nowrap">{st[1] === 'good' ? <span className="stdot">{st[0]}</span> : <Chip tone={st[1]}>{st[0]}</Chip>}{p.closed_at && <><br /><small className="sub">Đã kết thúc</small></>}</span> } },
   ]
@@ -175,7 +182,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
             const add = <>
               {/* Khung phân loại nằm cùng hàng công cụ, cạnh Bảng / Lịch */}
               <button type="button" onClick={() => { setTab('tree'); setMsg(null) }}>Khung phân loại</button>
-              {can && <button type="button" className="primary ttadd" onClick={() => { setMsg(null); setCreate({ node: null }) }}>+ Lập kế hoạch</button>}</>
+              {can && <HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setCreate({ node: null }) }}>+ Lập kế hoạch</button></HeadAction>}</>
             return look === 'cal' ? <>
               <div className="bar"><div className="tools">{left}</div><div className="tools">{toggle}{add}</div></div>
               <PlanCal plans={shown} label={p => [multiOrg && orgName(p.org_id), p.plan_code].filter(Boolean).join(' · ')} onOpen={id => { setMsg(null); setOpen(id) }} /></>

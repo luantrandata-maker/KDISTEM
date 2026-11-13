@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { HeadAction } from '../components/PageFrame'
 import { DataTable, type Col } from '../components/DataTable'
 import { useGradeTree } from '../components/GradeTree'
 import { useOrgFilter } from '../components/OrgFilters'
@@ -272,7 +273,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years, lead }: {
         right={<>
           {canEdit && templates.length > 0 && <button type="button" className={showTpl ? 'on' : ''} onClick={() => setShowTpl(v => !v)}>{showTpl ? 'Ẩn mẫu' : `Dùng mẫu (${templates.length})`}</button>}
           {shown.length > 0 && <button type="button" onClick={exportList}>Xuất Excel</button>}
-          {canEdit && <button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ grade: grade || undefined, subject, status: 'published', scope: mode === 'school' ? 'own' : 'children', year_name: mode === 'school' ? year?.name ?? '' : '' }) }}>+ Thêm môn</button>}
+          {canEdit && <HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ grade: grade || undefined, subject, status: 'published', scope: mode === 'school' ? 'own' : 'children', year_name: mode === 'school' ? year?.name ?? '' : '' }) }}>+ Thêm môn</button></HeadAction>}
         </>} />}
     </>
   )

@@ -1,5 +1,6 @@
 // Phân hệ 1 — Đánh giá năng lực nhà giáo (088): đợt đánh giá, khoảng thiếu hụt → gợi ý đào tạo, khung năng lực (KDI).
 import { useEffect, useMemo, useState } from 'react'
+import { HeadAction } from '../../components/PageFrame'
 import { supabase } from '../../lib/supabase'
 import { OrgPick } from '../../components/OrgScope'
 import { downloadXlsx } from '../../lib/sheet'
@@ -60,7 +61,7 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
       empty={<small className="sub">{all.length ? 'Không có đợt nào khớp bộ lọc.' : `Chưa có đợt đánh giá nào.${can ? ' Bấm "+ Mở đợt đánh giá" để bắt đầu.' : ''}`}</small>}
       left={<><input placeholder="Tìm tên đợt…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm đợt đánh giá" />
         <small className="sub">{shown.length}/{all.length} đợt · {openN} đang mở</small></>}
-      right={can && <button type="button" className="primary ttadd" onClick={add}>+ Mở đợt đánh giá</button>} />}
+      right={can && <HeadAction><button type="button" className="primary ttadd" onClick={add}>+ Mở đợt đánh giá</button></HeadAction>} />}
   </>
 }
 
@@ -425,7 +426,7 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
     <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
       <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>{A.title} ({list.length})</h3>
         <span className="tools"><button type="button" onClick={() => setNames(!names)}>{names ? 'Đóng tên các mức' : 'Đổi tên các mức'}</button>
-          <button type="button" className="primary" onClick={add}>+ Thêm năng lực</button></span></div>
+          <HeadAction><button type="button" className="primary ttadd" onClick={add}>+ Thêm năng lực</button></HeadAction></span></div>
       {names && <LevelNames keys={[audience === 'teacher' ? 'comp_level_teacher' : 'comp_level_student']} />}
       <div className="wrap"><table className="libtable">
         <thead><tr><th>Năng lực</th><th>Nhóm</th>{A.levels.map((_, i) => <th key={i}>{lvLabel(i)}</th>)}</tr></thead>

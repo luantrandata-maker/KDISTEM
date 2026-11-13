@@ -2931,3 +2931,5 @@ main:has(.pdclose)>.pframe>.pfbody>.distpills{display:none}
 .main .pfbody .segmented[role=tablist] button:hover{background:none;color:var(--text)}
 .main .pfbody .segmented[role=tablist] button.on{background:none;box-shadow:none;color:var(--primary);border-bottom-color:var(--primary);font-weight:600}
 .trktbl th.c-code{width:64px}.trktbl th.c-ttl{min-width:240px!important}.trktbl th.c-act{width:150px}
+/* Mở chi tiết trong tab lớp 2: ẩn hàng tab lớp 2 phía trên (giống tab đầu khung) */
+.pfbody:has(.pdsub) .segmented[role=tablist]:not(.pdtabs),.pfbody:has(.pdsub) .bar:has(>.segmented[role=tablist]){display:none}

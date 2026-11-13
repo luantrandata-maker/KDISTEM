@@ -95,8 +95,7 @@ export function PlanExams({ planId, planOrg, items, can }: { planId: string; pla
 
   const edit = can
   return <section className="panel" style={{ display: 'grid', gap: 12 }}>
-    <div><h3 style={{ margin: 0 }}>Đề kiểm tra của kế hoạch</h3>
-      <p className="sub" style={{ margin: '4px 0 0' }}>Mặc định dùng đề của chương trình. Cần đổi đề (VD lộ đề) thì dùng đề riêng cho kế hoạch này: đổi được cả khi đang học, bài đã nộp giữ nguyên điểm, chương trình không đổi.</p></div>
+    <div><h3 style={{ margin: 0 }}>Đề kiểm tra của kế hoạch</h3></div>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {items.map(i => { const g = progs.find(p => p.id === i.program_id); if (!g) return null
       const r = row(g.id), own = r?.final ?? null, fe = own ?? g.final_exam

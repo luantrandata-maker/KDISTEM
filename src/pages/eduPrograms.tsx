@@ -1036,7 +1036,6 @@ onPaste={e => { const t = e.clipboardData.getData('text'); if (/\n/.test(t.trim(
             : null
           return <tfoot><tr className="slnew">{keys.map(k => <td key={k}>{cellOf(k)}</td>)}{!keys.includes('act') && <td><button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addDraft}>+ Thêm</button></td>}</tr></tfoot>
         } : undefined} />
-      {editable && <small className="sub">Bấm vào ô để sửa ngay, rời ô là lưu. Kéo ⠿ để đổi vị trí bài trong cùng môn. Dòng cuối: điền các cột rồi Enter để thêm bài; bấm ⧉ để nhân bản bài (đủ môn, tên, khối, số tiết, yêu cầu cần đạt) ngay bên dưới. Bấm “Chi tiết ›” để gắn học liệu, chia buổi và soạn nội dung.</small>}
     </div>
     {openL && byId.get(openL) && <LessonDetail u={byId.get(openL)!} p={p} all={all} umats={umats} outs={outs} editable={editable}
       onClose={() => setOpenL(null)} onChanged={() => { load(); onChanged() }} onMessage={onMessage} />}

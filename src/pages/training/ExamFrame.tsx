@@ -52,8 +52,7 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
   }
 
   return <section className="panel" style={{ display: 'grid', gap: 14 }}>
-    <div><h3 style={{ margin: 0 }}>Bài test theo nội dung</h3>
-      <p className="sub" style={{ margin: '4px 0 0' }}>Mỗi nội dung có bài test riêng (chọn câu từ ngân hàng hoặc làm qua link). Bấm "Mở" để soạn ở phần Bài kiểm tra của nội dung.</p></div>
+    <div><h3 style={{ margin: 0 }}>Bài test theo nội dung</h3></div>
     <div className="wrap"><table>
       <thead><tr><th>Nội dung</th><th>Hình thức</th><th className="num">Số câu</th><th className="num">Phút</th><th className="num">Lượt</th><th className="num">Điểm đạt</th><th></th></tr></thead>
       <tbody>{tests.map(u => { const t = u.detail?.test as Record<string, unknown> | undefined; const link = t?.kind === 'link'
@@ -68,8 +67,7 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
         {!tests.length && <tr><td colSpan={7}><small className="sub">Chưa nội dung nào có bài test. Bật "Có bài test" ở nội dung trong tab Cấu trúc.</small></td></tr>}</tbody>
     </table></div>
 
-    <div className="bar" style={{ margin: '8px 0 0' }}><div><h3 style={{ margin: 0 }}>Đề cuối khoá</h3>
-      <p className="sub" style={{ margin: '4px 0 0' }}>Rút ngẫu nhiên từ Ngân hàng câu hỏi theo ma trận chủ đề × mức độ. Nhà giáo làm sau khi học xong tất cả nội dung của chương trình.</p></div>
+    <div className="bar" style={{ margin: '8px 0 0' }}><div><h3 style={{ margin: 0 }}>Đề cuối khoá</h3></div>
       {!f && fe && !edit && <TryButton orgId={p.org_id} spec={finalSpec(fe)} title={fe.title || 'Đề cuối khoá'} minutes={fe.minutes} pass={fe.pass} />}
       {edit && !f && <div className="tools">{fe ? <><TryButton orgId={p.org_id} spec={finalSpec(fe)} title={fe.title || 'Đề cuối khoá'} minutes={fe.minutes} pass={fe.pass} /><button type="button" onClick={startEdit}>Sửa đề</button>
         <button type="button" className="danger" onClick={() => confirm('Bỏ đề cuối khoá của chương trình?') && save({ final_exam: null }, 'Đã bỏ đề cuối khoá.')}>Bỏ đề</button></>

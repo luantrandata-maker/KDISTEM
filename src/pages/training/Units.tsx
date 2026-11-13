@@ -287,7 +287,6 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
               : null
             return <tfoot><tr className="slnew">{keys.map(k => <td key={k}>{cellOf(k)}</td>)}{!keys.includes('act') && <td><button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addContent}>+ Thêm</button></td>}</tr></tfoot>
           } : undefined} />
-        {editable && <small className="sub">Bấm vào ô để sửa ngay, rời ô là lưu. Kéo ⠿ để đổi vị trí (thả vào dòng của môn khác là chuyển môn). Bấm ⧉ để nhân bản nội dung. Bấm “Soạn ›” để thêm bài giảng, tài liệu, định mức vật tư, hoạt động và bài test.</small>}
       </div>
     </div>
   </>

@@ -78,7 +78,7 @@ export function TrainingPlans({ orgId }: { orgId: string }) {
       ]} initial={{ mode: 'online', status: 'ongoing' }} onSubmit={add} onCancel={() => setAdding(false)} />}
       <div className="wrap"><table className="tkb"><tbody>
         {[1, 2, 3, 4, 5].map(y => <tr key={y}><td style={{ width: 90 }}><b>Năm {y}</b></td>
-          {[1, 2, 3].map(m => <td key={m}><small>Module {m}</small>{cell(y, m).map(p => <div className="slot stem" key={p.id}><ProgChips programs={p.code} /><b style={{ fontSize: 12 }}>{p.name}</b></div>)}
+          {[1, 2, 3].map(m => <td key={m}><small>Module {m}</small>{cell(y, m).map(p => <div className="slot stem" key={p.id}><ProgChips programs={p.code} /><b style={{ fontSize: 'calc(12px * var(--fz,1))' }}>{p.name}</b></div>)}
             {cell(y, m).length === 0 && <div><small style={{ color: 'var(--muted)' }}>Chưa có kế hoạch</small></div>}</td>)}</tr>)}
       </tbody></table></div>
       <h3 style={{ margin: '18px 0 8px' }}>Khóa đang mở ({open.length})</h3>

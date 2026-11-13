@@ -483,7 +483,7 @@ function SessionContent({ unitId, can, onOpen, label = 'Nội dung đào tạo' 
             Xem chi tiết nội dung{detailCount(d.u.detail) ? ` (${detailCount(d.u.detail)})` : ''}</button>
         </div>
         <div>
-          <b style={{ fontSize: 14 }}>Bài giảng ({d.lessons.length})</b>
+          <b style={{ fontSize: 'calc(14px * var(--fz,1))' }}>Bài giảng ({d.lessons.length})</b>
           {d.lessons.length ? <ul className="sesslessons">{d.lessons.map(l => <li key={l.id}>
             <span>{l.title}{l.author && <small className="sub"> · {l.author}</small>} {can && <Chip tone={LST[l.status]?.[1]}>{LST[l.status]?.[0] ?? l.status}</Chip>}</span>
             <button type="button" className="primary" onClick={() => onOpen({ lesson: l.id, org: l.org_id })}>Xem bài giảng</button></li>)}</ul>

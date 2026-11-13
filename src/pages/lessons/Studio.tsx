@@ -873,8 +873,8 @@ function PlanDetail({ id, orgId, templates, onClose, onEdit, onPresent }: {
       </div>
       <PlanOverlay o={overlay} onClose={() => setOverlay(null)} />
       <div className="cards syscards">
-        <div className="card"><strong style={{ fontSize: 16 }}>{school ?? '—'}</strong><span>Đơn vị</span></div>
-        <div className="card"><strong style={{ fontSize: 16 }}>{p.teachers?.full_name ?? (p.is_template ? 'Bài mẫu' : '—')}</strong><span>Giáo viên</span></div>
+        <div className="card"><strong style={{ fontSize: 'calc(16px * var(--fz,1))' }}>{school ?? '—'}</strong><span>Đơn vị</span></div>
+        <div className="card"><strong style={{ fontSize: 'calc(16px * var(--fz,1))' }}>{p.teachers?.full_name ?? (p.is_template ? 'Bài mẫu' : '—')}</strong><span>Giáo viên</span></div>
         <div className="card"><strong>{PLAN_MODE ? st.blocks || p.steps.length : st.blocks}</strong><span>{st.blocks || !PLAN_MODE ? `khối · ${st.interactive} tương tác` : 'bước hoạt động'}</span></div>
         <div className="card"><strong>{p.slides.length}</strong><span>Slide</span></div>
       </div>

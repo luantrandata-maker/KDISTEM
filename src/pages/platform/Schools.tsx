@@ -296,7 +296,7 @@ function Profile({ r, staff, onBack, onSaved, go }: { r: Reg; staff: Staff[]; on
     <>
       <div className="bar">
         <span className="tools"><button onClick={onBack}>← Danh sách</button>
-          <b style={{ fontSize: 18 }}>{r.name}</b><span className={'plbadge ' + STAGE[r.stage][1]}>{STAGE[r.stage][0]}</span><HealthPill h={r.health} /></span>
+          <b style={{ fontSize: 'calc(18px * var(--fz,1))' }}>{r.name}</b><span className={'plbadge ' + STAGE[r.stage][1]}>{STAGE[r.stage][0]}</span><HealthPill h={r.health} /></span>
         <span className="tools">
           {r.status === 'active' ? <button onClick={() => setStatus('suspended')}>Tạm dừng</button> : <button onClick={() => setStatus('active')}>Mở lại</button>}
           {go && <button onClick={() => go('Cây tổ chức')}>Mở trong Cây tổ chức</button>}

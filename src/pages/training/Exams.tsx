@@ -2,6 +2,7 @@
 // Đề kiểm tra: bài test nội dung + đề cuối khoá của tất cả chương trình (bấm để soạn trong chương trình).
 // Đề luyện: đề tự luyện cho nhà giáo, không tính điểm đào tạo. Kết quả & câu khó: điểm theo đề, câu hay sai.
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
+import { QuestionPicker } from '../../components/QuestionPicker'
 import { HeadAction } from '../../components/PageFrame'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -305,7 +306,7 @@ function AddExam({ progs, onClose, onGo, onErr }: { progs: Prog[]; onClose: () =
 type Practice = { id: string; org_id: string; program_id: string; title: string; subject: string; grade: number | null; subjects?: string[]; grades?: number[]; matrix: MRow[]; qids: string[]
   minutes: number | null; attempts: number; pass: number | null; shuffle: boolean; show_answers: boolean; status: 'draft' | 'published' | 'closed'; note: string | null; updated_at: string }
 const PST: Record<Practice['status'], [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đang mở', 'good'], closed: ['Đã đóng', 'off'] }
-type PForm = Omit<Practice, 'id' | 'org_id' | 'updated_at' | 'qids'> & { id?: string }
+type PForm = Omit<Practice, 'id' | 'org_id' | 'updated_at' | 'qids'> & { id?: string; qids?: string[] }
 
 /** Chi tiết đề luyện (chỉ xem; bấm Sửa mới mở chỗ soạn) */
 function PracticeDetail({ x, prog, stat, admin, msg, onBack, onEdit }: { x: Practice; prog?: Prog; stat?: Stat; admin: boolean; msg: [string, boolean] | null; onBack: () => void; onEdit: () => void }) {
@@ -360,17 +361,17 @@ export function TrainingPracticeExams() {
   const usable = (progs ?? []).filter(p => !OLD.includes(p.status))
   const fp = form ? progOf(form.program_id) : undefined
   const subjects = useBankSubjects(fp?.org_id)
-  const total = form ? matrixTotal(form.matrix) : 0
+  const total = form ? matrixTotal(form.matrix) + (form.qids?.length ?? 0) : 0
 
   async function save(status?: Practice['status']) {
     if (!form || !fp) return setMsg(['Chọn chương trình đào tạo.', true])
     if (!form.title.trim()) return setMsg(['Nhập tên đề.', true])
     const subs = listSubjects(form), grs = listGrades(form)
     if (!subs.length) return setMsg(['Chọn môn của đề.', true])
-    if (total < 1) return setMsg(['Ma trận cần ít nhất 1 câu.', true])
+    if (total < 1) return setMsg(['Đề cần ít nhất 1 câu: thêm câu hỏi hoặc đặt ma trận.', true])
     setBusy(true)
     const row = { program_id: form.program_id, title: form.title.trim(), subject: subs[0], subjects: subs, grade: grs[0] ?? null, grades: grs, matrix: cleanMatrix(form.matrix).map(r => (r.subject && !subs.includes(r.subject) ? { ...r, subject: undefined } : r)),
-      minutes: form.minutes, attempts: form.attempts, pass: form.pass, shuffle: form.shuffle, show_answers: form.show_answers, note: form.note?.trim() || null, status: status ?? form.status }
+      qids: form.qids ?? [], minutes: form.minutes, attempts: form.attempts, pass: form.pass, shuffle: form.shuffle, show_answers: form.show_answers, note: form.note?.trim() || null, status: status ?? form.status }
     const { error } = form.id ? await supabase.from('training_practice_exams').update(row).eq('id', form.id)
       : await supabase.from('training_practice_exams').insert({ ...row, org_id: fp.org_id })
     setBusy(false)
@@ -454,9 +455,12 @@ export function TrainingPracticeExams() {
           <div className="field"><span>Sau khi nộp</span><label><input disabled={!admin} type="checkbox" checked={form.show_answers} onChange={e => setForm({ ...form, show_answers: e.target.checked })} /> Cho xem đáp án và lời giải</label></div>
           <label className="field" style={{ gridColumn: '1 / -1' }}><span>Ghi chú cho nhà giáo</span><input disabled={!admin} maxLength={2000} value={form.note ?? ''} onChange={e => setForm({ ...form, note: e.target.value })} placeholder="VD: Ôn trước buổi 3" /></label>
         </div>
-        <div className="bar" style={{ margin: 0 }}><h4 className="libparthead">Ma trận đề ({total} câu)</h4>
-          <TryButton orgId={fp?.org_id} spec={pSpec({ ...form, qids: (form as PForm & { qids?: string[] }).qids ?? [] })}
+        <div className="bar" style={{ margin: 0 }}><h4 className="libparthead">Câu hỏi của đề ({total} câu)</h4>
+          <TryButton orgId={fp?.org_id} spec={pSpec({ ...form, qids: form.qids ?? [] })}
             title={form.title || 'Đề luyện'} minutes={form.minutes} pass={form.pass} disabled={!listSubjects(form).length} /></div>
+        <QuestionPicker value={form.qids ?? []} onChange={ids => setForm({ ...form, qids: ids })} edit={admin} subjects={listSubjects(form)} grades={listGrades(form)} title="Câu hỏi cố định"
+          note="Câu chọn ở đây luôn có trong đề. Muốn rút ngẫu nhiên thêm từ ngân hàng theo chủ đề, mức độ thì đặt ma trận bên dưới." />
+        <h4 className="libparthead" style={{ margin: '6px 0 0' }}>Ma trận rút ngẫu nhiên (không bắt buộc)</h4>
         <ExamMatrix org={fp?.org_id} subjects={listSubjects(form)} grades={listGrades(form)} rows={form.matrix} onChange={m => setForm({ ...form, matrix: m })} disabled={!admin} />
       </div>
     </Drawer>}

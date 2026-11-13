@@ -1,6 +1,7 @@
 // Nội dung đào tạo: 5 phần như bài học — Nội dung · Bài giảng · Link tài liệu · Định mức vật tư · Kho hoạt động.
 // Lưu trong training_program_units.detail (083). Chỉ sửa khi chương trình còn nháp.
 import { LEVEL as ELEVEL } from '../elearning/common'
+import { QuestionPicker } from '../../components/QuestionPicker'
 import { TryButton } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -112,7 +113,7 @@ export function ContentDetail({ title, crumb, hours, detail, editable, hasTest, 
         <dt>Nội dung chi tiết</dt><dd style={{ whiteSpace: 'pre-wrap' }}>{body.text || '—'}</dd>
         <dt>Yêu cầu cần đạt</dt><dd>{body.reqs?.length ? <ul style={{ margin: 0, paddingLeft: 18 }}>{body.reqs.map((r, i) => <li key={i}>{r}</li>)}</ul> : '—'}</dd>
       </dl>)
-        : tab === 'test' ? <TestEditor t={d.test ?? {}} edit={editable} passScore={passScore ?? null} hasTest={!!hasTest} onChange={t => up({ ...d, test: t })} />
+        : tab === 'test' ? <TestEditor topic={title} t={d.test ?? {}} edit={editable} passScore={passScore ?? null} hasTest={!!hasTest} onChange={t => up({ ...d, test: t })} />
         : <ListEditor cols={LISTS[tab].cols} rows={d[tab] ?? []} edit={editable} empty={LISTS[tab].empty} onChange={r => up({ ...d, [tab]: r })} />}
     </section>
   </ElView>
@@ -124,24 +125,9 @@ const LEVEL: Record<string, string> = ELEVEL
 const KIND: Record<string, string> = { single: 'Một đáp án', multi: 'Nhiều đáp án', truefalse: 'Đúng / sai' }
 
 /** limited: chỉ đổi câu hỏi / link (đề riêng của kế hoạch); cách làm, điểm đạt, số lượt theo chương trình */
-export function TestEditor({ t, edit, passScore, hasTest, onChange, limited = false }: { t: TestCfg; edit: boolean; passScore: number | null; hasTest: boolean; onChange: (t: TestCfg) => void; limited?: boolean }) {
-  const [bank, setBank] = useState<BankQ[] | null>(null)
-  const [err, setErr] = useState('')
-  const [q, setQ] = useState('')
-  const [subj, setSubj] = useState('')
-  const [onlyChosen, setOnlyChosen] = useState(!edit)
-  useEffect(() => {
-    supabase.from('question_bank').select('*').neq('status', 'retired').order('subject').order('created_at', { ascending: false }).limit(2000)
-      .then(({ data, error }) => { if (error) setErr(error.message); else setBank((data as BankQ[]) ?? []) })
-  }, [])
-  const chosen = useMemo(() => new Set(t.qids ?? []), [t.qids])
-  const subjects = useMemo(() => [...new Set((bank ?? []).map(b => b.subject))].sort((a, b) => a.localeCompare(b, 'vi')), [bank])
-  const shown = (bank ?? []).filter(b => (!onlyChosen || chosen.has(b.id)) && (!subj || b.subject === subj)
-    && (b.stem + ' ' + (b.topic ?? '')).toLowerCase().includes(q.toLowerCase())).slice(0, 300)
-  const toggle = (id: string) => onChange({ ...t, qids: chosen.has(id) ? (t.qids ?? []).filter(x => x !== id) : [...(t.qids ?? []), id] })
+export function TestEditor({ t, edit, passScore, hasTest, onChange, limited = false, topic = '', subjects }: { t: TestCfg; edit: boolean; passScore: number | null; hasTest: boolean; onChange: (t: TestCfg) => void; limited?: boolean; topic?: string; subjects?: string[] }) {
   const setNum = (k: 'count' | 'minutes' | 'attempts' | 'pass', v: string) => onChange({ ...t, [k]: v === '' ? null : Number(v) })
   const n = t.qids?.length ?? 0
-  const missing = bank ? (t.qids ?? []).filter(id => !bank.some(b => b.id === id)).length : 0
   const link = t.kind === 'link'
   const kindPick = <div className="distpills" role="radiogroup" aria-label="Cách làm bài" style={{ margin: 0 }}>
     {([['bank', 'Làm trong hệ thống (chấm tự động)'], ['link', 'Làm qua link (Google Forms, Azota…)']] as ['bank' | 'link', string][]).map(([k, l]) =>
@@ -175,24 +161,9 @@ export function TestEditor({ t, edit, passScore, hasTest, onChange, limited = fa
       {!limited && <label className="field"><span>Điểm đạt (thang 10)</span><input type="number" min={0} max={10} step={0.5} disabled={!edit} value={t.pass ?? ''} placeholder={passScore != null ? `Theo chương trình: ${passScore}` : '5'} onChange={e => setNum('pass', e.target.value)} /></label>}
     </div>
     <div className="bar" style={{ margin: 0 }}>
-      <span className="tools"><b>Câu hỏi đã chọn: {n}{t.count && t.count < n ? ` · rút ngẫu nhiên ${t.count} câu mỗi lượt` : ''}</b>
+      <span className="tools"><b>{t.count && t.count < n ? `Rút ngẫu nhiên ${t.count}/${n} câu mỗi lượt` : `${n} câu mỗi lượt`}</b>
         <TryButton spec={{ kind: 'sample', qids: t.qids ?? [], count: t.count }} title="Bài kiểm tra của nội dung" minutes={t.minutes} pass={t.pass ?? passScore} /></span>
-      <div className="tools">
-        <input placeholder="Tìm câu hỏi, chủ đề…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm câu hỏi" />
-        <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(x => <option key={x}>{x}</option>)}</select>
-        {edit && <label style={{ display: 'flex', gap: 6, alignItems: 'center' }}><input type="checkbox" checked={onlyChosen} onChange={e => setOnlyChosen(e.target.checked)} />Chỉ câu đã chọn</label>}
-      </div>
     </div>
-    {missing > 0 && <p className="warnline">{missing} câu đã chọn không còn trong ngân hàng (đã xoá hoặc ngừng dùng).</p>}
-    {err ? <p className="sub" role="alert">{err}</p> : !bank ? <p className="sub">Đang tải ngân hàng câu hỏi…</p> : <div className="wrap"><table className="libtable">
-      <thead><tr>{edit && <th style={{ width: 40 }}></th>}<th>Câu hỏi</th><th style={{ width: 150 }}>Môn · chủ đề</th><th style={{ width: 120 }}>Mức độ</th></tr></thead>
-      <tbody>{shown.map(b => <tr key={b.id} className={chosen.has(b.id) ? 'on' : ''}>
-        {edit && <td><input type="checkbox" checked={chosen.has(b.id)} onChange={() => toggle(b.id)} aria-label="Chọn câu hỏi" /></td>}
-        <td style={{ whiteSpace: 'normal' }}>{b.stem.length > 220 ? b.stem.slice(0, 220) + '…' : b.stem}<br /><small className="sub">{KIND[b.kind] ?? b.kind}{b.shared ? ' · dùng chung' : ''}</small></td>
-        <td style={{ whiteSpace: 'normal' }}>{b.subject}{b.grades?.length ? ` · khối ${b.grades.join(', ')}` : b.grade ? ` · khối ${b.grade}` : ''}{b.topic && <><br /><small className="sub">{b.topic}</small></>}</td>
-        <td>{LEVEL[b.level] ?? b.level}</td>
-      </tr>)}
-        {!shown.length && <tr><td colSpan={edit ? 4 : 3}><small className="sub">{bank.length ? 'Không có câu hỏi nào khớp.' : 'Ngân hàng câu hỏi chưa có câu nào. Thêm câu ở mục E-learning › Ngân hàng câu hỏi.'}</small></td></tr>}</tbody>
-    </table></div>}
+    <QuestionPicker value={t.qids ?? []} onChange={ids => onChange({ ...t, qids: ids })} edit={edit} topic={topic} subjects={subjects ?? []} title="Câu hỏi của bài kiểm tra" />
   </div>
 }

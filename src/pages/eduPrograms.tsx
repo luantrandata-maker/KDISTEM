@@ -84,10 +84,10 @@ const errText = (m: string) => (/schema cache|does not exist/i.test(m) ? 'Hãy c
   : /row-level|42501/i.test(m) ? 'Bạn không có quyền thực hiện thao tác này.' : m)
 const fmtD = (d: string | null) => (d ? new Date(d).toLocaleDateString('vi-VN') : '—')
 const grades = (p: Partial<Program>) => fmtGrades(progGrades(p))
-// Đổi cấp học: giữ khối còn thuộc cấp mới, nếu không còn khối nào thì chọn hết khối của cấp
+// Đổi cấp học: giữ khối còn thuộc cấp mới, nếu không còn khối nào thì chọn khối nhỏ nhất của cấp
 const gradesForLevels = (LV: Parameters<typeof gradeSpan>[0], lvs: string[], cur: number[]) => {
   const [a, b] = gradeSpan(LV, lvs); const keep = cur.filter(g => g >= a && g <= b)
-  return keep.length ? keep : range(a, b)
+  return keep.length ? keep : [a]
 }
 // 089: nhiều nhóm / cấp học / môn chủ đạo (phần tử đầu là giá trị chính); bản ghi cũ chưa có mảng thì lấy cột đơn
 const ctsOf = (p: Partial<Program>) => p.ct_codes?.length ? p.ct_codes : p.ct_code ? [p.ct_code] : []
@@ -233,7 +233,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
             <small className="sub">{gtOwn.filter(own).length} chương trình</small>
           </>, <>
             <ViewToggle value={view} onChange={setView} />
-            {canEdit && !hid('add') && <HeadAction><button type="button" className="primary ttadd" onClick={() => setForm({ level: 'thcs', levels: ['thcs'], kind: 'subject', grade_from: 6, grade_to: 9, grades: [6, 7, 8, 9], scope: mode === 'school' ? 'own' : 'children', integrated_subjects: [], competency_keys: [], rubric_ids: [], deploy_term: 'year' })}>+ Thêm chương trình</button></HeadAction>}
+            {canEdit && !hid('add') && <HeadAction><button type="button" className="primary ttadd" onClick={() => setForm({ level: 'thcs', levels: ['thcs'], kind: 'stem', grade_from: 6, grade_to: 6, grades: [6], scope: mode === 'school' ? 'own' : 'children', integrated_subjects: [], competency_keys: [], rubric_ids: [], deploy_term: 'year' })}>+ Thêm chương trình</button></HeadAction>}
           </>, <small className="sub">Chưa có chương trình nào.{canEdit && ' Bấm "Thêm chương trình", hoặc sao chép chương trình dùng chung bên dưới.'}</small>)}
           {!every && <>
           <h3>Dùng chung / được gán ({shared.length})</h3>
@@ -544,8 +544,9 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
           <label className="field" style={S(6)}><span>Tên chương trình *</span><input disabled={dis} value={f.title ?? ''} onChange={e => setF({ ...f, title: e.target.value })} placeholder="VD: Tin học THCS (CT GDPT 2018)" /></label>
           <label className="field" style={S(2)}><span>Mã chương trình</span><input disabled={dis} value={f.code ?? ''} onChange={e => setF({ ...f, code: e.target.value })} placeholder="VD: TIN-THCS" /></label>
           <label className="field" style={S(4)}><span>Loại chương trình</span><select disabled={dis} value={f.kind ?? 'subject'} onChange={e => setF({ ...f, kind: e.target.value as Kind })}>{(Object.keys(PKIND) as Kind[]).map(k => <option key={k} value={k}>{PKIND[k]}</option>)}</select></label>
-          <div className="field" style={S(6)}><span>Cấp học *</span>
-            <ChipMulti disabled={dis} value={lvs1} onChange={v => setF({ ...f, levels: v, level: v[0] ?? f.level, grades: gradesForLevels(LV, v, progGrades(f as Program)) })} options={levelOpts} ariaLabel="Cấp học" firstHint="Cấp học chính" /></div>
+          <label className="field" style={S(6)}><span>Cấp học *</span>
+            <select disabled={dis} value={lvs1[0] ?? ''} aria-label="Cấp học" onChange={e => { const v = e.target.value ? [e.target.value] : []; setF({ ...f, levels: v, level: v[0] ?? f.level, grades: gradesForLevels(LV, v, progGrades(f as Program)) }) }}>
+              {!lvs1.length && <option value="">— Chọn cấp học —</option>}{levelOpts.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
           <div className="field" style={S(6)}><span>Khối *</span>
             {gradeOpts.length ? <div className="pftog">{gradeOpts.map(g => <button key={g} type="button" disabled={dis} aria-pressed={gs1.includes(g)} className={gs1.includes(g) ? 'on' : ''} onClick={() => togGrade(g)} title={gradeName(g)}>{g}</button>)}
               {!dis && gs1.length < gradeOpts.length && <button type="button" className="linkbtn" onClick={() => setF({ ...f, grades: gradeOpts })}>Chọn cả cấp</button>}</div>
@@ -568,7 +569,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
         <h4><i>2</i>Mục tiêu & đánh giá</h4><p className="pfhint">Không bắt buộc. Có thể bổ sung sau.</p>
         <div className="pgrid">
           <label className="field" style={S(12)}><span>Mục tiêu chương trình</span><textarea disabled={dis} rows={2} value={f.objectives ?? ''} onChange={e => setF({ ...f, objectives: e.target.value })} placeholder="Học sinh hoàn thành chương trình sẽ…" /></label>
-          <div className="field" style={S(6)}><span>Năng lực học sinh {editable && <CompetencySetupLink audience="student" />}</span>
+          <div className="field" style={S(6)}><span className="fieldhead">Năng lực học sinh {editable && <CompetencySetupLink audience="student" />}</span>
             <MultiSelect disabled={dis} value={f.competency_keys ?? []} onChange={v => setF({ ...f, competency_keys: v })} options={comps.map(c => [c.key, c.name])}
               placeholder="Chọn năng lực…" ariaLabel="Khung năng lực" empty="Chưa có khung năng lực." /></div>
           <div className="field" style={S(6)}><span>Tiêu chí đánh giá (rubric)</span>

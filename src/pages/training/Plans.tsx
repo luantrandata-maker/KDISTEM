@@ -434,10 +434,8 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
     {edit ? <input className="disttitlein" defaultValue={p.name} maxLength={200} aria-label="Tên kế hoạch" onFocus={e => e.target.select()}
       onBlur={e => { const v = e.target.value.trim(); if (v && v !== p.name) run(supabase.from('training_plans').update({ name: v }).eq('id', p.id)); else e.target.value = p.name }} />
       : <h2 className="disttitle">{p.name}</h2>}
-    <p className="sub" style={{ margin: '0 0 8px' }}>{[p.year_name, p.term && TERM[p.term], span(p), p.provider].filter(Boolean).join(' · ') || 'Chưa nhập năm học, thời gian'}</p>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {edit && warn.length > 0 && <p className="warnline">Chưa phát hành được: {warn.join('; ')}.</p>}
-    {can && p.pub_status === 'published' && <p className="sub">{orgs.length ? 'Kế hoạch đã gán cho trường: không thêm, bỏ chương trình được (vẫn chuyển được sang phiên bản mới của chương trình), lịch vẫn chỉnh được.' : 'Muốn đổi chương trình thì vào ··· › "Chuyển về nháp" (khi chưa gán trường). Lịch vẫn chỉnh được.'}</p>}
     <ol className="diststeps five">
       {([[1, 'Chọn chương trình', `${items.length} chương trình · ${num(totalHours)} giờ`],
         [2, 'Xếp lịch', items.length ? `${scheduled}/${sched.rows.length} buổi đã xếp` : 'Chưa có nội dung'],

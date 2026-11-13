@@ -284,7 +284,6 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
             <label className="sltest"><input type="checkbox" checked={nd.test} onChange={e => setNd({ ...nd, test: e.target.checked })} /> Test</label>
             <button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addContent}>+ Thêm</button>
           </div></td></tr></tfoot> : undefined} />
-        {editable && <small className="sub">Bấm vào ô để sửa ngay, rời ô là lưu. Kéo ⠿ để đổi vị trí (thả vào dòng của môn khác là chuyển môn). Bấm ⧉ để nhân bản nội dung. Bấm “Soạn ›” để thêm bài giảng, tài liệu, định mức vật tư, hoạt động và bài test.</small>}
       </div>
     </div>
   </>

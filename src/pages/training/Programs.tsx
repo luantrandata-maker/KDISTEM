@@ -584,7 +584,6 @@ function TrainingVersions({ p, onOpen }: { p: TProgram; onOpen: (id: string) => 
       <small className="sub">{v.published_at ? new Date(v.published_at).toLocaleDateString('vi-VN') : ''}</small></li>)}</ul>
     {log.length > 0 && <details className="pdlog"><summary>Lịch sử trạng thái ({log.length})</summary><ul className="sub">
       {log.map(l => <li key={l.id}>{new Date(l.at).toLocaleString('vi-VN')} · {l.from_status ? `${stName(l.from_status)} → ` : ''}<b>{stName(l.to_status)}</b>{l.note ? ` — ${l.note}` : ''}</li>)}</ul></details>}
-    <small className="sub" style={{ display: 'block', marginTop: 8 }}>Muốn đổi nội dung sau khi phát hành: bấm “Tạo phiên bản mới”.</small>
   </>
 }
 

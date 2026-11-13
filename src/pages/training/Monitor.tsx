@@ -272,7 +272,6 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
     </section>
     <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
       <h3 style={{ margin: 0 }}>Năng lực trước / sau đào tạo</h3>
-      <p className="sub" style={{ margin: 0 }}>Nhà giáo đã Đạt khoá đào tạo: mức trung bình ở đánh giá năng lực gần nhất trước năm học của khoá so với đánh giá từ năm học của khoá trở đi, theo năng lực đích của chương trình.</p>
       {eff.length ? <div className="wrap"><table className="libtable">
         <thead><tr><th>Năng lực</th><th>Số GV</th><th>Trước</th><th>Sau</th><th>Thay đổi</th></tr></thead>
         <tbody>{eff.map(e => { const d = e.before_avg != null && e.after_avg != null ? Number(e.after_avg) - Number(e.before_avg) : null

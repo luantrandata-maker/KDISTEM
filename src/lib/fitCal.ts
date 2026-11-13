@@ -1,4 +1,4 @@
-// Lịch tháng vừa một màn hình: khung lịch cao bằng phần còn lại của cửa sổ, các tuần chia đều chiều cao,
+// Lịch tháng vừa một màn hình: cả khung lịch (thanh tháng + lưới) cao bằng cửa sổ trừ thanh trên cùng, các tuần chia đều chiều cao,
 // mỗi ô hiện số buổi vừa chỗ, phần còn lại gom vào "+N".
 import { useLayoutEffect, useRef, useState } from 'react'
 
@@ -15,8 +15,12 @@ export function useFitMonth(on: boolean, weeks: number) {
     if (!on) return
     const fit = () => {
       const el = ref.current; if (!el) return
-      const top = el.getBoundingClientRect().top + window.scrollY
-      setH(Math.round(window.innerHeight - top - 28))
+      // Khung lịch (panel chứa thanh tháng + lưới) cao vừa một màn hình dưới thanh trên cùng, không phụ thuộc phần lọc phía trên
+      const box = (el.closest('.panel') as HTMLElement | null) ?? el
+      const bar = document.querySelector('.top')?.getBoundingClientRect().height ?? 0
+      const above = el.getBoundingClientRect().top - box.getBoundingClientRect().top
+      const padB = parseFloat(getComputedStyle(box).paddingBottom) || 0
+      setH(Math.round(window.innerHeight - bar - above - padB - 24))
     }
     fit(); window.addEventListener('resize', fit)
     return () => window.removeEventListener('resize', fit)

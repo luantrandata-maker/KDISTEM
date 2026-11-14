@@ -3309,3 +3309,40 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 .main .tpbar:hover{filter:brightness(.95)}
 .main .tpbmore{position:relative;z-index:1;border:0;background:none;padding:0 8px;height:var(--lane);text-align:left;font-size:calc(12px * var(--fz,1));color:var(--primary);font-weight:500;cursor:pointer;white-space:nowrap;overflow:hidden}
 @media(max-width:800px){.tpbars{overflow-x:auto}.tpbhead,.tpbwk{grid-template-columns:repeat(7,minmax(96px,1fr))}}
+
+/* Kế hoạch đào tạo dạng lịch: dòng thời gian (mỗi kế hoạch một hàng), cao vừa màn hình, cuộn bên trong;
+   cột tên và hàng ngày đứng yên khi cuộn */
+.tptlpanel{display:grid;gap:10px}
+.tptl{--nameW:280px;overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface);align-content:start;display:grid}
+.tptlrow{display:grid;grid-template-columns:var(--nameW) minmax(0,1fr);min-width:calc(var(--nameW) + 560px);border-bottom:1px solid var(--line)}
+.tptl.month .tptlrow{min-width:calc(var(--nameW) + 31 * 30px)}
+.tptlrow:last-of-type{border-bottom:0}
+.tptlrow.head{position:sticky;top:0;z-index:3;background:var(--soft);border-bottom:1px solid var(--line)}
+.main .tptlname{position:sticky;left:0;z-index:2;display:grid;align-content:center;gap:1px;min-width:0;padding:6px 12px;background:var(--surface);border:0;border-right:1px solid var(--line);border-radius:0;text-align:left;cursor:pointer;color:var(--text)}
+.main .tptlname:hover{background:var(--soft)}
+.tptlname b{font-weight:600;font-size:calc(13px * var(--fz,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tptlname small{font-size:calc(11px * var(--fz,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tptlrow.head .tptlname{background:var(--soft);cursor:default;font-size:calc(12px * var(--fz,1));font-weight:700;color:var(--muted);z-index:4}
+.tptltrack{position:relative;display:grid;align-items:center;min-height:44px}
+.tptlrow.head .tptltrack{min-height:0}
+.tptlcol{align-self:stretch;border-left:1px solid var(--line);min-width:0}
+.tptlcol:first-child{border-left:0}
+.tptlcol.wkend{background:color-mix(in srgb,var(--soft) 70%,transparent)}
+.tptlcol.today{background:color-mix(in srgb,var(--primary) 8%,transparent)}
+.tptlrow.head .tptlcol{display:grid;justify-items:center;padding:5px 0;font-size:calc(12px * var(--fz,1));color:var(--muted)}
+.tptlrow.head .tptlcol small{font-size:calc(10px * var(--fz,1));letter-spacing:.03em}
+.tptlrow.head .tptlcol b{font-weight:600;color:var(--text)}
+.tptlrow.head .tptlcol.today b{color:var(--primary)}
+.tptl.year .tptlrow.head .tptlcol{padding:8px 0;font-weight:600}
+.main .tptlbar{position:relative;z-index:1;margin:0 3px;height:24px;min-width:0;border:0;border-left:3px solid var(--ok-fg);border-radius:5px;padding:0 8px;background:var(--ok-bg);color:var(--ok-fg);font-size:calc(11px * var(--fz,1));font-weight:600;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.main .tptlbar.draft{background:var(--warn-bg);border-left-color:var(--warn-fg);color:var(--warn-fg)}
+.main .tptlbar.off{background:var(--neutral-bg);border-left-color:#9aa3b2;color:var(--muted)}
+.main .tptlbar.cont{margin-left:0;border-left:0;border-top-left-radius:0;border-bottom-left-radius:0}
+.main .tptlbar.more{margin-right:0;border-top-right-radius:0;border-bottom-right-radius:0}
+.main .tptlbar.abs{position:absolute;top:calc(50% - 7px);bottom:calc(50% - 7px);height:auto;margin:0;padding:0;border-left-width:0;background:var(--ok-fg);opacity:.85}
+.main .tptlbar.abs.draft{background:var(--warn-fg)}.main .tptlbar.abs.off{background:#9aa3b2}
+.main .tptlbar:hover{filter:brightness(.95);opacity:1}
+.tptltrack>i.now{position:absolute;top:0;bottom:0;width:2px;background:var(--bad);z-index:1}
+.tptlempty{margin:12px 14px}
+@media(max-width:800px){.tptl{--nameW:170px}}
+.tpfill{overflow:auto;min-height:0}

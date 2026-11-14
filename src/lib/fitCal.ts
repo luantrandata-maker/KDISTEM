@@ -1,6 +1,6 @@
 // Lịch tháng vừa một màn hình: cả khung lịch (thanh tháng + lưới) cao bằng cửa sổ trừ thanh trên cùng, các tuần chia đều chiều cao,
 // mỗi ô hiện số buổi vừa chỗ, phần còn lại gom vào "+N".
-import { useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 /** Số tuần (hàng) cần cho tháng chứa ngày `d`, tuần bắt đầu thứ Hai */
 export const weeksOf = (d: Date) => {
@@ -22,7 +22,7 @@ export function useFitMonth(on: boolean, weeks: number, rowH = 39, rest = false)
       const bar = document.querySelector('.top')?.getBoundingClientRect().height ?? 0
       const above = el.getBoundingClientRect().top - box.getBoundingClientRect().top
       const padB = parseFloat(getComputedStyle(box).paddingBottom) || 0
-      setH(rest ? Math.round(window.innerHeight - (el.getBoundingClientRect().top + window.scrollY) - padB - 28)
+      setH(rest ? Math.round(window.innerHeight - (el.getBoundingClientRect().top + window.scrollY) - belowOf(el))
         : Math.round(window.innerHeight - bar - above - padB - 24))
     }
     fit(); window.addEventListener('resize', fit)
@@ -36,4 +36,33 @@ export function useFitMonth(on: boolean, weeks: number, rowH = 39, rest = false)
   const cell = (height - 30) / weeks - (rowH < 30 ? 0 : 4)
   return { ref, style: { height, gridTemplateRows: `auto repeat(${weeks}, minmax(0, 1fr))` }, // max theo cách gọi: quá max buổi thì hiện max − 1 buổi + dòng "+N" (cao ~18px)
     max: Math.max(2, rowH < 30 ? Math.floor((cell - 54 * fz) / chip) + 1 : Math.floor((cell - 40 * fz) / chip) + 1) }
+}
+
+/** Phần nằm dưới khối `el` tới mép dưới màn hình khi khối kéo kín: lề dưới khung trang + lề dưới của trang */
+function belowOf(el: HTMLElement) {
+  const main = el.closest('main') as HTMLElement | null, frame = main?.querySelector(':scope > .pframe') as HTMLElement | null
+  const padMain = main ? parseFloat(getComputedStyle(main).paddingBottom || '0') : 0
+  if (!frame) return padMain + 16
+  return frame.getBoundingClientRect().bottom - el.getBoundingClientRect().bottom + padMain
+}
+
+/** Khối cuộn bên trong, cao bằng phần còn lại của màn hình (như các trang dạng bảng): trang không phải cuộn lên xuống */
+export function useFillRest(on: boolean, min = 320) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [h, setH] = useState<number | null>(null)
+  const fit = useRef(() => {})
+  fit.current = () => {
+    const el = ref.current
+    if (!on || !el || window.innerWidth < 900) { if (h !== null) setH(null); return }
+    const n = Math.max(min, Math.round(window.innerHeight - (el.getBoundingClientRect().top + window.scrollY) - belowOf(el)))
+    if (h == null || Math.abs(n - h) > 1) setH(n)
+  }
+  useLayoutEffect(() => fit.current())
+  useEffect(() => {
+    if (!on) return
+    const f = () => fit.current()
+    window.addEventListener('resize', f)
+    return () => window.removeEventListener('resize', f)
+  }, [on])
+  return { ref, style: h != null ? { height: h } : undefined }
 }

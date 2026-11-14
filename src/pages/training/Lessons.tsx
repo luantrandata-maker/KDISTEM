@@ -104,17 +104,15 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
     { key: 'periods', label: 'Số tiết', off: true, text: r => String(r.content?.periods ?? ''), cell: r => r.content?.periods ?? <small className="sub">—</small> },
     { key: 'ver', label: 'Phiên bản', off: true, text: r => `v${r.version}`, cell: r => <small>v{r.version}</small> },
     { key: 'upd', label: 'Cập nhật', cell: r => <small>{fmtDate((r.updated_at ?? r.created_on ?? '').slice(0, 10))}</small> },
-    { key: 'act', label: 'Thao tác', fixed: true, cell: r => <details className="distmore"><summary aria-label="Thao tác">···</summary><div className="distmenu">
-      <button type="button" onClick={() => setOpen(r.id)}>Mở bài giảng</button>
-      {r.status === 'inactive' ? <button type="button" onClick={() => setStatus(r, r.version > 0 ? 'published' : 'draft')}>Dùng lại</button>
-        : <button type="button" onClick={() => setStatus(r, 'inactive')}>Ngừng dùng</button>}
-      <button type="button" className="danger" onClick={() => remove(r)}>Xoá</button></div></details> },
   ]
   return (
     <>
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
       {err ? <p className="msg">{err}</p> : !rows ? <p className="sub">Đang tải…</p> :
         <DataTable id="training-lessons" className="tllist" rows={shown} rowKey={r => r.id} cols={lessonCols}
+          rowMenu={r => [{ label: 'Mở bài giảng', onClick: () => setOpen(r.id) },
+            r.status === 'inactive' ? { label: 'Dùng lại', onClick: () => setStatus(r, r.version > 0 ? 'published' : 'draft') } : { label: 'Ngừng dùng', onClick: () => setStatus(r, 'inactive') },
+            { label: 'Xoá', onClick: () => remove(r), danger: true }]}
           empty={rows.length ? 'Không có bài giảng nào khớp bộ lọc.' : 'Chưa có bài giảng đào tạo nào. Bấm “+ Thêm bài giảng”.'}
           left={<>
             <input placeholder="Tìm tên bài giảng, môn, tác giả…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />

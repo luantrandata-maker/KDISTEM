@@ -164,14 +164,13 @@ export function LibraryByProgram({ orgId, onChanged, tools }: { orgId: string | 
   // ----- Danh sách môn của chương trình -----
   if (prog) {
     const subs = subjectsOf(prog.id)
-    return <>{crumbs}
-      <DetailHead back="Danh sách chương trình" onBack={() => setPid(null)} title={prog.title} />
+    return <>
+      <DetailHead back="Danh sách chương trình" onBack={() => setPid(null)} title={prog.title}
+        sub={[prog.code, grades(prog), `v${prog.version_no}`, PSTATUS[prog.status] ?? prog.status, `${subs.length} môn học`].filter(Boolean).join(' · ')} />
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
       {create && <CreateLesson orgId={orgId} programs={progRefs} subjectsOf={subjectsOf} program={progRefs.find(p => p.id === prog.id)!} subject={create.subject}
         preset={create.preset} kits={kits} onClose={() => setCreate(null)}
         onCreated={(id, m) => { const sj = create.subject; setCreate(null); setMsg(m); reload(); setSubj(sj); setOpen({ id }) }} />}
-      <div className="lheadrow"><div>
-        <p className="sub">{[prog.code, grades(prog), `v${prog.version_no}`, PSTATUS[prog.status] ?? prog.status, `${subs.length} môn học`].filter(Boolean).join(' · ')}</p></div></div>
       {subs.map(s => {
         const rows = rowsOf(prog, s); const ks = rows.map(r => r.kit).filter(Boolean) as KitRow[]
         const isOpen = !closed.includes(s)

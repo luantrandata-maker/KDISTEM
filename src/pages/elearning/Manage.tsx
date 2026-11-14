@@ -460,11 +460,9 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
       cur.status === 'draft' && { key: 'del', label: 'Xoá khoá học nháp', icon: 'trash', kind: 'danger', onClick: () => removeCourse(cur, back) },
     ] : []
     return <>
-      <DetailHead back="Khoá học e-learning" onBack={back} title={cur.title} extra={<span className={'pill ' + ESTATUS[cur.status][1]}>{ESTATUS[cur.status][0]}</span>} />
-      <div className="bar">
-        <small className="sub">{[...courseMeta(cur), !mine ? 'của cấp trên' : every ? orgName(cur.org_id) : null].filter(Boolean).join(' · ')}</small>
-        <div className="tools"><ActionBar items={acts} /></div>
-      </div>
+      <DetailHead back="Khoá học e-learning" onBack={back} title={cur.title} extra={<span className={'pill ' + ESTATUS[cur.status][1]}>{ESTATUS[cur.status][0]}</span>}
+        sub={[...courseMeta(cur), !mine ? 'của cấp trên' : every ? orgName(cur.org_id) : null].filter(Boolean).join(' · ')}
+        actions={<div className="tools"><ActionBar items={acts} /></div>} />
       {note}
       <div className={'pdgrid' + (side ? '' : ' pdnoside')}>
         <div className="pdmain">

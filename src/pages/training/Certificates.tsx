@@ -108,14 +108,14 @@ export function TrainingCertificatesPage({ orgId }: { orgId: string }) {
     { key: 'code', label: 'Số chứng chỉ', text: c => c.code ?? '', cell: c => c.code ?? <small className="sub">Chưa có</small> },
     { key: 'date', label: 'Ngày cấp', text: c => day(c.issued_on), cell: c => <>{day(c.issued_on)}{c.expires_on && <><br /><small className="sub">Hết hạn {day(c.expires_on)}</small></>}</> },
     { key: 'st', label: 'Trạng thái', text: c => CERT_ST[c.status][0], cell: c => <><Chip tone={CERT_ST[c.status][1]}>{CERT_ST[c.status][0]}</Chip>{c.revoked_reason && <><br /><small className="sub">{c.revoked_reason}</small></>}</> },
-    { key: 'act', label: 'Thao tác', fixed: true, cell: c => <div className="tools"><button type="button" data-rowopen onClick={() => setOpen(c.id)}>Xem{c.status === 'issued' ? ' / In' : ''}</button>
-      {c.can_manage && c.status === 'pending' && <button type="button" className="primary" onClick={() => issue([c.id])}>Duyệt cấp</button>}
-      {c.can_manage && c.status === 'issued' && <button type="button" onClick={() => revoke(c)}>Thu hồi</button>}
-      {c.can_manage && c.status === 'revoked' && <button type="button" onClick={() => issue([c.id])}>Cấp lại</button>}</div> },
   ]
   return <>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    {!rows ? <p className="sub">Đang tải…</p> : <DataTable id="training-certs" rows={shown} rowKey={c => c.id} cols={certCols}
+    {!rows ? <p className="sub">Đang tải…</p> : <DataTable id="training-certs" rows={shown} rowKey={c => c.id} cols={certCols} onRow={c => setOpen(c.id)}
+      rowMenu={c => [{ label: c.status === 'issued' ? 'Xem / In' : 'Xem', onClick: () => setOpen(c.id) },
+        ...(c.can_manage && c.status === 'pending' ? [{ label: 'Duyệt cấp', onClick: () => issue([c.id]) }] : []),
+        ...(c.can_manage && c.status === 'issued' ? [{ label: 'Thu hồi', onClick: () => revoke(c), danger: true }] : []),
+        ...(c.can_manage && c.status === 'revoked' ? [{ label: 'Cấp lại', onClick: () => issue([c.id]) }] : [])]}
       empty={<small className="sub">{all.length ? 'Không có chứng chỉ nào khớp.' : 'Chưa có chứng chỉ. Kết luận Đạt ở mục Đánh giá kết quả đào tạo để có chứng chỉ chờ duyệt.'}</small>}
       head={{ th: pick.length > 0 && <input type="checkbox" aria-label="Chọn tất cả" checked={pick.every(c => sel.has(c.id))} onChange={e => setSel(e.target.checked ? new Set(pick.map(c => c.id)) : new Set())} />,
         td: c => c.can_manage && c.status !== 'issued' && <input type="checkbox" aria-label={`Chọn ${c.teacher_name}`} checked={sel.has(c.id)}

@@ -443,15 +443,9 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
   const eduNames = (x0?.edu ?? []).map(fm => { const o = (eduOpts ?? []).find(e => famOf(e) === fm); return o ? eduLabel(o) : 'Chương trình giáo dục' })
 
   return <>
-    <div className="bar">
-      <div>
-        <DetailHead back={back} onBack={onBack} title={p.title} extra={<><small className="pdver">v{p.version_no}</small><Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip></>} />
-        <small className="sub">{[p.code, ctsOf(p).join(', '), lvsOf(p).length ? lvsOf(p).map(levelName).join(', ') : 'Mọi cấp học', MODE[p.mode], `${num(hours)} giờ`].filter(Boolean).join(' · ')}</small>
-      </div>
-      <div className="tools">
-        {!editInfo && <TrainingVersionActions lead={[t === 'info' && edit && { key: 'edit', label: 'Sửa thông tin', icon: 'pencil', rank: 1, onClick: () => setEditInfo(true) }]} p={p} admin={admin} warn={warn} onOpen={onOpen} onChanged={onVer} onDelete={admin && p.status === 'draft' ? del : undefined} />}
-      </div>
-    </div>
+    <DetailHead back={back} onBack={onBack} title={p.title} extra={<><small className="pdver">v{p.version_no}</small><Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip></>}
+      sub={[p.code, ctsOf(p).join(', '), lvsOf(p).length ? lvsOf(p).map(levelName).join(', ') : 'Mọi cấp học', MODE[p.mode], `${num(hours)} giờ`].filter(Boolean).join(' · ')}
+      actions={<div className="tools">{!editInfo && <TrainingVersionActions lead={[t === 'info' && edit && { key: 'edit', label: 'Sửa thông tin', icon: 'pencil', rank: 1, onClick: () => setEditInfo(true) }]} p={p} admin={admin} warn={warn} onOpen={onOpen} onChanged={onVer} onDelete={admin && p.status === 'draft' ? del : undefined} />}</div>} />
     <div className="segmented pdtabs">
       {([['info', 'Chương trình'], ['assign', 'Gán & triển khai']] as [PTab, string][]).map(([k, l]) => <button key={k} type="button" className={t === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
     </div>

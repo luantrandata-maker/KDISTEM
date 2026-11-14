@@ -3167,16 +3167,16 @@ table.ttsel:not(.ttselon) tbody tr:hover .tselbox input,table.ttsel:not(.ttselon
 .side:hover::-webkit-scrollbar{width:6px}
 .side:hover::-webkit-scrollbar-thumb{background:rgba(255,255,255,.28);border-radius:3px}
 @media (min-width:900px){
-  main.main:has(>.pframe .ttpro):not(:has(.pdclose)){padding:12px 16px}
-  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pfcrumb>h1,
-  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pfcrumb>span{display:none}
-  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pfcrumb:not(:has(>.pfact>*)){display:none}
-  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pfcrumb{margin:0;padding:10px 18px 0}
-  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pframe{border:1px solid var(--line);border-radius:10px;box-shadow:0 1px 2px rgba(20,31,50,.04);overflow:hidden}
-  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pframe>.pfbody{padding:0}
-  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pframe>.pfbody .ttpro{border:0;border-radius:0}
-  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pframe>.pfbody .ttprotools{padding:12px 18px}
-  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pframe>.pfbody .ttfoot{padding-left:18px}
+  main.main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose)){padding:12px 16px}
+  main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pfcrumb>h1,
+  main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pfcrumb>span{display:none}
+  main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pfcrumb:not(:has(>.pfact>*)){display:none}
+  main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pfcrumb{margin:0;padding:10px 18px 0}
+  main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pframe{border:1px solid var(--line);border-radius:10px;box-shadow:0 1px 2px rgba(20,31,50,.04);overflow:hidden}
+  main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pframe>.pfbody{padding:0}
+  main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pframe>.pfbody .ttpro{border:0;border-radius:0}
+  main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pframe>.pfbody .ttprotools{padding:12px 18px}
+  main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pframe>.pfbody .ttfoot{padding-left:18px}
 }
 
 /* Đầu trang chi tiết dạng B1: nút ← nhỏ cạnh tiêu đề, nút thao tác cùng hàng, tóm tắt ngay dưới.
@@ -3202,3 +3202,20 @@ body:has(main .pdclose) .top .crumb b.crumbcur:hover{text-decoration:underline}
 .ttsidehide{top:16px}
 /* Ba nút đầu khung nhỏ lại, cùng cỡ với các nút trên thanh công cụ của bảng */
 .main .pfhead>.pfact button,.main .pfcrumb>.pfact button{height:34px;padding-left:12px;padding-right:12px;font-size:calc(13.5px * var(--fz,1));border-radius:8px}
+
+/* Trang phân hệ 1, 2 dạng một khung: các phần khác nằm cạnh bảng trong khung (thông báo, ghi chú…) vẫn có lề trái phải */
+@media (min-width:900px){
+  main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pframe>.pfbody>:not(.ttpro):not(span[hidden]){margin-left:18px;margin-right:18px}
+}
+/* Phân hệ 1, 2: mọi trang trong khung bỏ tiêu đề lớn lặp với đường dẫn trên thanh trên cùng, khung cách mép 12–16px */
+@media (min-width:900px){
+  main.main[data-ph]:has(>.pframe):not(:has(.pdclose)){padding:12px 16px}
+  main[data-ph]:has(>.pframe):not(:has(.pdclose))>.pfcrumb>h1,
+  main[data-ph]:has(>.pframe):not(:has(.pdclose))>.pfcrumb>span{display:none}
+  main[data-ph]:has(>.pframe):not(:has(.pdclose))>.pfcrumb:not(:has(>.pfact>*)){display:none}
+}
+/* Ô tìm, ô chọn, nút riêng của trang nằm trên thanh công cụ bảng dạng mới: cùng chiều cao 36px với các nút của bảng */
+.main .ttprotools .ttleft input:not([type=checkbox]):not([type=radio]),.main .ttprotools .ttleft select{height:36px;border-radius:8px;margin:0}
+.main .ttprotools .ttleft input[type=search],.main .ttprotools .ttleft input[placeholder^="Tìm"]{min-width:240px}
+.main .ttprotools .ttleft button,.main .ttprotools>button,.main .ttprotools>.segmented,.main .ttprotools>a.btn{height:36px;border-radius:8px;display:inline-flex;align-items:center;margin:0}
+.main .ttprotools .ttleft{display:flex;align-items:center;gap:8px;flex-wrap:wrap}

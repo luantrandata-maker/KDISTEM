@@ -77,6 +77,7 @@ const DeptAlerts = lazy(() => import('./pages/department/Governance').then(m => 
 const DeptTargets = lazy(() => import('./pages/department/Governance').then(m => ({ default: m.DeptTargets })))
 import { DeptReports } from './pages/department/Reports'
 import { DeptAdmin } from './pages/department/Admin'
+import { ProDefault } from './components/ProTools'
 // Kho học liệu dùng chung (023)
 const LibraryBrowse = lazy(() => import('./pages/library/Browse').then(m => ({ default: m.LibraryBrowse })))
 const LibraryPrograms = lazy(() => import('./pages/library/Programs').then(m => ({ default: m.LibraryPrograms })))
@@ -857,12 +858,12 @@ function Shell({ session }: { session: Session }) {
               onPassword={() => setChangingPw(true)} onSignOut={() => supabase.auth.signOut()} />
           </div>
         </header>
-        <main className="main" data-ph={ph}><PageCtx.Provider value={page}><CatalogLists />
+        <main className="main" data-ph={ph}><ProDefault.Provider value={!!ph}><PageCtx.Provider value={page}><CatalogLists />
           <div className="pagehead" data-group={groups.find(g => g.items.includes(page))?.label}><h1>{lab(page)}</h1><PageButtons page={page} title={lab(page)} go={goPage} /></div>
           {locked.has(page) ? <LockedModule name={lab(page)} phase={PHASE_OF[ENT_MODULE_OF[page]] ?? null} entitlement={access.entitlement} go={goPage} />
             : Page ? <Suspense fallback={<p className="sub">Đang tải…</p>}><Page key={page + (yrs.year?.id ?? '') + (studentId ?? '')} teacherId={teacherId} studentId={studentId} orgId={access.profile.org_id} userName={access.profile.full_name} go={goPage} name={page}
             year={yrs.year} years={yrs.years} reloadYears={yrs.reload} selectYear={yrs.select} /></Suspense> : <p className="sub">Màn hình này sẽ được xây dựng ở bước tiếp theo.</p>}
-        </PageCtx.Provider></main>
+        </PageCtx.Provider></ProDefault.Provider></main>
         <OfflineBar go={() => show(role, role === 'platform' ? 'Ứng dụng di động & ngoại tuyến' : 'Ứng dụng di động')} />
         <HelpWidget role={role} page={lab(page)} brand={{ name: brand?.display_name ?? null, support: brand?.support_text ?? null }} go={groups.some(g => g.items.includes('Hỗ trợ từ KDI')) ? (p: string) => show(role, p) : undefined}
           menu={groups.flatMap(g => g.items.map(i => `${g.section ? g.section + ' › ' : ''}${g.label} › ${lab(i)}`))} />

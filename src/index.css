@@ -3355,4 +3355,4 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 .main .tplegb.on{background:var(--navy,#1a3a6b);border-color:var(--navy,#1a3a6b);color:#fff}
 .tplegb i{display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--ok-fg)}
 .tplegb i.live{background:var(--bad)}.tplegb i.draft{background:var(--warn-fg)}.tplegb i.off{background:#9aa3b2}
-.tplegf>small{margin-left:4px}
+.main .tplegf>small{margin:0 0 0 4px;align-self:center;line-height:1}

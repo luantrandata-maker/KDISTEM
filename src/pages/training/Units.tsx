@@ -1,6 +1,6 @@
 // Chương trình đào tạo: bảng Môn → Nội dung đào tạo và yêu cầu cần đạt, cùng cách làm với Chương trình giáo dục:
 // thẻ số liệu, "Chỉnh sửa cấu trúc" mở bảng nháp (thêm / sửa / xoá / đổi thứ tự) rồi "Lưu tất cả" một lần, nhập / tải Excel.
-import { gridKey, gridPaste } from '../../components/sheetGrid'
+import { gridKey, gridPaste, gridMouseDown } from '../../components/sheetGrid'
 import { useEffect, useState } from 'react'
 import { DataTable, type Col } from '../../components/DataTable'
 import { StructureDraft, newKey, saveDraftTree, type DCol, type DRow } from '../../components/StructureDraft'
@@ -286,7 +286,7 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
           </div>
           : <button type="button" className="sladdsubj" onClick={() => setAddS(true)}>+ Thêm môn</button>)}
       </nav>
-      <div className="slmain" onKeyDown={editable ? onGridKey : undefined} onPaste={editable ? onGridPaste : undefined}>
+      <div className="slmain" onKeyDown={editable ? onGridKey : undefined} onPaste={editable ? onGridPaste : undefined} onMouseDown={editable ? gridMouseDown : undefined}>
         <DataTable id="training-units-v2" simple rows={shown} rowKey={r => r.u.id} className={editable ? 'slt tut slgrid' : 'slt tut'}
           rowProps={editable ? r => ({ className: drag === r.u.id ? 'sldragging' : over === r.u.id && drag ? 'slover' : undefined,
             onDragOver: e => { if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== r.u.id) setOver(r.u.id) },

@@ -3217,5 +3217,14 @@ body:has(main .pdclose) .top .crumb b.crumbcur:hover{text-decoration:underline}
 /* Ô tìm, ô chọn, nút riêng của trang nằm trên thanh công cụ bảng dạng mới: cùng chiều cao 36px với các nút của bảng */
 .main .ttprotools .ttleft input:not([type=checkbox]):not([type=radio]),.main .ttprotools .ttleft select{height:36px;border-radius:8px;margin:0}
 .main .ttprotools .ttleft input[type=search],.main .ttprotools .ttleft input[placeholder^="Tìm"]{min-width:240px}
-.main .ttprotools .ttleft button,.main .ttprotools>button,.main .ttprotools>.segmented,.main .ttprotools>a.btn{height:36px;border-radius:8px;display:inline-flex;align-items:center;margin:0}
+.main .ttprotools .ttleft>button,.main .ttprotools>button,.main .ttprotools>.segmented,.main .ttprotools>a.btn{height:36px;border-radius:8px;display:inline-flex;align-items:center;margin:0}
 .main .ttprotools .ttleft{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* Phân hệ 1, 2 — trang chi tiết tự vẽ tiêu đề (bản phân phối, kế hoạch, bài giảng…): nút ← nhỏ ngay cạnh tiêu đề,
+   không còn dòng "← <trang trước>" riêng; tiêu đề lớn của trang (trùng đường dẫn) ẩn khi đang xem chi tiết */
+main[data-ph]:has(.pdinline)>.pagehead>h1{display:none}
+main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
+.disthead2>.pdinline{margin-top:2px}
+.lhead:has(>.pdinline){display:flex;align-items:flex-start;gap:10px}
+.lhead:has(>.pdinline)>.lheadrow{flex:1;min-width:0}
+.bar .tools>.pdinline{margin-right:2px}

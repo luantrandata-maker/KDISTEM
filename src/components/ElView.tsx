@@ -13,8 +13,7 @@ export function ElView({ back, onBack, title, sub, actions, children }: { back: 
   }, [])
   return <div className="elview" ref={ref}>
     {top ? <>
-      <DetailHead back={back} onBack={onBack} title={title} />
-      {(sub || actions) && <div className="elviewhead elviewbar"><div>{sub && <p className="sub">{sub}</p>}</div>{actions && <div className="tools">{actions}</div>}</div>}
+      <DetailHead back={back} onBack={onBack} title={title} sub={sub} actions={actions && <div className="tools">{actions}</div>} />
     </> : top === false && <>
       <button type="button" className="ghostbtn" onClick={onBack}>← {back}</button>
       <div className="elviewhead"><div><h2>{title}</h2>{sub && <p className="sub">{sub}</p>}</div>{actions && <div className="tools">{actions}</div>}</div>

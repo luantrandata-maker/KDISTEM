@@ -1,4 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
+import { DataTable } from '../components/DataTable'
 import { norm as normText } from '../lib/sheet'
 import { supabase } from '../lib/supabase'
 import { useAllMode, useProvinceOf } from '../components/OrgScope'
@@ -535,22 +536,25 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
     <div className="tools" style={{ flexWrap: 'wrap', flex: 1 }}><input style={{ width: 220 }} placeholder="Tìm tên, email, trường, môn…" value={tq} onChange={e => setTq(e.target.value)} aria-label="Tìm nhà giáo" /><MultiFilters defs={filterDefs} f={mf} count={`${shownAll.length}/${teachers.length} GV${shownAll.length > 500 ? ' · hiện 500 đầu' : ''}`} />
       <button type="button" style={{ marginLeft: 'auto' }} onClick={excel} disabled={!teachers.length}>Xuất Excel</button></div>
   </div>
-  if (profile) return <>{cards}{msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}<section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
-    {filterBar}
-    <div className="wrap"><table className="libtable">
-      <thead><tr><th>Nhà giáo</th>{!orgId && <th>Trường</th>}<th>Môn · khối</th><th>Mức năng lực ({year})</th>{comps.map(c => <th key={c.key} title={c.description ?? ''}>{c.name}</th>)}<th>Chứng chỉ</th></tr></thead>
-      <tbody>{shownT.map(t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); const lv = m?.status === 'submitted' ? m.levels : s?.status === 'submitted' ? s.levels : {}
-        return <tr key={t.id}>
-          <td><button type="button" className="namelink" onClick={() => { setMsg(null); setSel(t.id) }}>{t.full_name}</button>{canEdit && sub(t, 'self') && !sub(t, 'manager') && <> <span className="plbadge warn">Chờ đánh giá</span></>}{t.email && <><br /><small className="sub">{t.email}</small></>}</td>
-          {!orgId && <td>{t.organizations?.name ?? '—'}</td>}
-          <td><small>{[t.subject, t.grade && `khối ${t.grade}`].filter(Boolean).join(' · ') || '—'}</small></td>
-          <td>{Object.keys(lv).length ? <><LevelChip v={avgLv(lv)} /> <small className="sub">{m?.status === 'submitted' ? 'trường ĐG' : 'tự ĐG'}</small></> : <small className="sub">chưa đánh giá</small>}</td>
-          {comps.map(c => <td key={c.key}><LevelChip v={lv[c.key] ?? null} comp={c} /></td>)}
-          <td>{certs.get(t.id) ?? <small className="sub">0</small>}</td></tr> })}
-        {!shownT.length && <tr><td colSpan={comps.length + 5}>{teachers.length ? 'Không có nhà giáo nào khớp.' : 'Chưa có nhà giáo.'}</td></tr>}</tbody>
-    </table></div>
-    <p className="sub covhint" style={{ margin: 0 }}>Bấm tên nhà giáo để xem hồ sơ và đánh giá (mục “Đánh giá năm học”): thông tin, năng lực, chứng chỉ, chương trình giáo dục đáp ứng, lịch sử đào tạo.</p>
-  </section></>
+  // Hồ sơ năng lực: bảng dạng mới (phân hệ 2) — bấm dòng mở hồ sơ, bộ lọc nhiều lựa chọn của trang nằm trên thanh công cụ bảng
+  if (profile) return <>{cards}{msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
+    <DataTable id="hs-nang-luc" noun="nhà giáo" rows={shownT} rowKey={t => t.id} onRow={t => { setMsg(null); setSel(t.id) }}
+      left={<><input style={{ width: 240 }} placeholder="Tìm tên, email, trường, môn…" value={tq} onChange={e => setTq(e.target.value)} aria-label="Tìm nhà giáo" />
+        <MultiFilters defs={filterDefs} f={mf} count={`${shownAll.length}/${teachers.length} GV${shownAll.length > 500 ? ' · hiện 500 đầu' : ''}`} /></>}
+      right={<button type="button" onClick={excel} disabled={!teachers.length}>Xuất Excel</button>}
+      empty={<small className="sub">{teachers.length ? 'Không có nhà giáo nào khớp.' : 'Chưa có nhà giáo.'}</small>}
+      cols={[
+        { key: 'name', label: 'Nhà giáo', fixed: true, text: t => t.full_name,
+          cell: t => <><button type="button" className="namelink" onClick={() => { setMsg(null); setSel(t.id) }}>{t.full_name}</button>{canEdit && sub(t, 'self') && !sub(t, 'manager') && <> <span className="plbadge warn">Chờ đánh giá</span></>}{t.email && <><br /><small className="sub">{t.email}</small></>}</> },
+        ...(!orgId ? [{ key: 'org', label: 'Trường', text: (t: TRow) => t.organizations?.name ?? '', cell: (t: TRow) => t.organizations?.name ?? '—' }] : []),
+        { key: 'subj', label: 'Môn · khối', text: t => [t.subject, t.grade && `khối ${t.grade}`].filter(Boolean).join(' · '), cell: t => <small>{[t.subject, t.grade && `khối ${t.grade}`].filter(Boolean).join(' · ') || '—'}</small> },
+        { key: 'lv', label: `Mức năng lực (${year})`, cell: t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); const lv = m?.status === 'submitted' ? m.levels : s?.status === 'submitted' ? s.levels : {}
+          return Object.keys(lv).length ? <><LevelChip v={avgLv(lv)} /> <small className="sub">{m?.status === 'submitted' ? 'trường ĐG' : 'tự ĐG'}</small></> : <small className="sub">chưa đánh giá</small> } },
+        ...comps.map(c => ({ key: 'c-' + c.key, label: c.name, cell: (t: TRow) => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); const lv = m?.status === 'submitted' ? m.levels : s?.status === 'submitted' ? s.levels : {}
+          return <LevelChip v={lv[c.key] ?? null} comp={c} /> } })),
+        { key: 'cert', label: 'Chứng chỉ', text: t => String(certs.get(t.id) ?? 0), cell: t => certs.get(t.id) ?? <small className="sub">0</small> },
+      ]} />
+  </>
   return (
     <>
       {cards}

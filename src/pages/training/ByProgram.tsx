@@ -9,6 +9,7 @@ import { CreateLesson, type ProgRef } from '../library/lesson/Create'
 import { errMsg, type KitRow } from '../library/lesson/save'
 import { ViewToggle, useViewMode } from '../../components/ViewToggle'
 import { NameLink } from '../../components/TableSel'
+import { DataTable } from '../../components/DataTable'
 
 type TProg = ProgRef & { status: string; version_no: number | null }
 type TUnit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string; hours?: number | null }
@@ -139,10 +140,9 @@ export function TrainingByProgram({ orgId, tools }: { orgId: string; tools?: Rea
           })}</tbody></table></div>)}
       </div>
     }
-    return <>{crumbs}
-      <DetailHead back="Danh sách chương trình đào tạo" onBack={() => setPid(null)} title={prog.title} />
-      <div className="lheadrow"><div>
-        <p className="sub">{[prog.code, prog.version_no ? `v${prog.version_no}` : '', PST[prog.status] ?? prog.status, `${subs.length} môn`].filter(Boolean).join(' · ')}</p></div></div>
+    return <>
+      <DetailHead back="Danh sách chương trình đào tạo" onBack={() => setPid(null)} title={prog.title}
+        sub={[prog.code, prog.version_no ? `v${prog.version_no}` : '', PST[prog.status] ?? prog.status, `${subs.length} môn`].filter(Boolean).join(' · ')} />
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
       {subs.map(sj => group(sj.id, sj.title, rowsOf(contentsOf(sj.id)), sj))}
       {loose.length > 0 && group('__loose', 'Bài giảng chưa gắn nội dung', loose.map(l => ({ key: l.id, title: l.title, l, first: true })))}
@@ -153,22 +153,30 @@ export function TrainingByProgram({ orgId, tools }: { orgId: string; tools?: Rea
 
   // ----- Danh sách chương trình đào tạo -----
   const shown = progs.filter(p => !q || pName(p).toLowerCase().includes(q.toLowerCase()))
+  const search = <input type="search" placeholder="Tìm chương trình đào tạo…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chương trình đào tạo" />
+  const toggle = <>{tools}<ViewToggle value={view} onChange={setView} /></>
+  if (view === 'list') return <DataTable id="hoc-lieu-ctdt" rows={shown} rowKey={p => p.id} left={search} right={toggle} noun="chương trình"
+    empty={<small className="sub">{progs.length ? 'Không có chương trình nào khớp.' : 'Chưa có chương trình đào tạo nào.'}</small>}
+    cols={[
+      { key: 'name', label: 'Chương trình đào tạo', fixed: true, text: p => pName(p),
+        cell: p => <><NameLink onClick={() => setPid(p.id)}>{pName(p)}</NameLink> <small className="sub">{PST[p.status] ?? p.status}</small></> },
+      { key: 'subs', label: 'Môn', cell: p => statP(p.id).subs },
+      { key: 'contents', label: 'Nội dung', cell: p => statP(p.id).contents },
+      { key: 'covered', label: 'Có bài giảng', cell: p => `${statP(p.id).covered}/${statP(p.id).contents}` },
+      { key: 'lessons', label: 'Bài giảng', cell: p => statP(p.id).lessons },
+      { key: 'pub', label: 'Đã phát hành', cell: p => statP(p.id).published },
+    ]} />
   return <>
     <div className="bar">
-      <div className="tools"><input type="search" placeholder="Tìm chương trình đào tạo…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chương trình đào tạo" /></div>
-      <div className="tools">{tools}<ViewToggle value={view} onChange={setView} /></div>
+      <div className="tools">{search}</div>
+      <div className="tools">{toggle}</div>
     </div>
     {!shown.length && <p className="sub">{progs.length ? 'Không có chương trình nào khớp.' : 'Chưa có chương trình đào tạo nào.'}</p>}
-    {view === 'cards' ? <div className="tilegrid sq">
+    <div className="tilegrid sq">
       {shown.map(p => { const s = statP(p.id); return <button key={p.id} type="button" className="tile" onClick={() => setPid(p.id)}>
         <div className="tilebody"><b>{p.title}</b>
           <small>{[p.code ?? p.ct_code, p.version_no ? `v${p.version_no}` : '', PST[p.status] ?? p.status].filter(Boolean).join(' · ')}</small>
           <div className="tilemeta"><span>{s.subs} môn</span><span>{s.contents} nội dung</span><span>{s.lessons} bài giảng</span></div></div></button> })}
-    </div> : <div className="wrap"><table className="libtable">
-      <thead><tr><th>Chương trình đào tạo</th><th>Môn</th><th>Nội dung</th><th>Có bài giảng</th><th>Bài giảng</th><th>Đã phát hành</th></tr></thead>
-      <tbody>{shown.map(p => { const s = statP(p.id); return <tr key={p.id}>
-        <td><NameLink onClick={() => setPid(p.id)}>{pName(p)}</NameLink> <small className="sub">{PST[p.status] ?? p.status}</small></td>
-        <td>{s.subs}</td><td>{s.contents}</td><td>{s.covered}/{s.contents}</td><td>{s.lessons}</td><td>{s.published}</td></tr> })}</tbody>
-    </table></div>}
+    </div>
   </>
 }

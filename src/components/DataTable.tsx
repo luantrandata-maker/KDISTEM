@@ -256,7 +256,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
     return <div className={'tt ttpro' + (view.dense ? ' dense' : '')}>
       {!noTools && <div className="tttools ttprotools" ref={toolsRef}>
         <div className="tsrch">
-          <label className="tsq">{ico('M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-3.5-3.5')}<input type="search" placeholder="Tìm trong bảng" aria-label="Tìm trong bảng" value={q} onChange={e => setQ(e.target.value)} /></label>
+          <label className="tsin">{ico('M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-3.5-3.5')}<input type="search" placeholder="Tìm trong bảng" aria-label="Tìm trong bảng" value={q} onChange={e => setQ(e.target.value)} /></label>
           <button type="button" className="tdd tby" aria-expanded={pop?.k === 'by'} onClick={e => setPop(pop?.k === 'by' ? null : { k: 'by', el: e.currentTarget })}>Tìm theo: <b>{byLabel}</b><span className="tcar" aria-hidden="true" /></button>
         </div>
         {left && <div className="ttleft">{left}</div>}

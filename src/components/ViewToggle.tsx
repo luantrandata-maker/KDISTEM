@@ -1,10 +1,14 @@
-import { useState } from 'react'
+import { useContext, useState } from 'react'
+import { ProDefault } from './ProTools'
 
 export type ViewMode = 'cards' | 'list'
 
 /** Kiểu xem Thẻ / Danh sách, nhớ theo từng trang trên trình duyệt này. */
 export function useViewMode(key: string, initial: ViewMode = 'cards') {
-  const k = 'kdi-view-' + key
+  // Phân hệ 1, 2 (bảng dạng mới): mặc định Danh sách; khoá nhớ mới để bỏ lựa chọn "Thẻ" cũ đã lưu
+  const pro = useContext(ProDefault)
+  if (pro) initial = 'list'
+  const k = (pro ? 'kdi-view2-' : 'kdi-view-') + key
   const [v, setV] = useState<ViewMode>(() => {
     try { const s = localStorage.getItem(k); return s === 'cards' || s === 'list' ? s : initial } catch { return initial }
   })

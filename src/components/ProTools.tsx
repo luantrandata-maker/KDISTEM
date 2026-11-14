@@ -1,6 +1,9 @@
 // Công cụ của bảng dạng mới (DataTable `pro`): ngăn kéo "Bộ lọc" có ghim, menu thao tác dòng ⋮, khung nổi dùng chung.
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+
+/** Bật dạng bảng mới mặc định cho mọi DataTable bên trong (App đặt cho phân hệ 1, 2). */
+export const ProDefault = createContext(false)
 
 /** Khung nổi gắn dưới một nút; đóng khi bấm ra ngoài hoặc Esc. */
 export function Pop({ anchor, onClose, children, width, align = 'left', className }: {
@@ -90,6 +93,8 @@ export function FilterDrawer({ defs, value, pins, onPin, onApply, onClose }: {
 }
 
 /** Bảng chiếm phần còn lại của màn hình: chỉ dòng trong bảng cuộn, tiêu đề trang và thanh lọc đứng yên. */
+/** Trang có đúng một bảng dạng mới nằm thẳng trong khung trang (xem index.css) */
+const FLAT = ':has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))'
 export function useFillHeight(on: boolean, reserve = 64) {
   const ref = useRef<HTMLDivElement>(null)
   const [h, setH] = useState<number | null>(null)
@@ -101,7 +106,9 @@ export function useFillHeight(on: boolean, reserve = 64) {
     // Trang dạng một khung (xem index.css): đo đúng phần nằm dưới bảng (chân bảng, viền khung, lề dưới của trang)
     // để khung chạm sát lề dưới, khoảng trống dưới bằng khoảng trống trên
     let flat = false
-    try { flat = !!el.closest('main')?.matches(':has(>.pframe .ttpro):not(:has(.pdclose))') } catch { /* trình duyệt cũ */ }
+    try { flat = !!el.closest('main')?.matches(FLAT) } catch { /* trình duyệt cũ */ }
+    // Chỉ kéo bảng cao kín màn hình khi nó là danh sách chính duy nhất của trang (không phải bảng con trong trang chi tiết)
+    if (!flat || (el.closest('main')?.querySelectorAll('.ttpro').length ?? 0) > 1) return setH(null)
     let below = reserve
     if (flat) {
       const main = el.closest('main') as HTMLElement, frame = main.querySelector(':scope > .pframe') as HTMLElement | null

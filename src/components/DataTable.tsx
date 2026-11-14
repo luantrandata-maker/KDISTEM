@@ -2,9 +2,9 @@
 // kéo mép tiêu đề để đổi độ rộng, nút "Thu gọn" thu bảng vừa màn hình (chữ xuống dòng, không phải kéo ngang).
 // Cách hiển thị (cột ẩn, thứ tự, độ rộng, vừa khít) nhớ theo từng bảng trên trình duyệt này.
 // Sắp xếp khi bấm tiêu đề vẫn do lib/tableSort lo (hàng lọc có class ttfilter được bỏ qua).
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type HTMLAttributes } from 'react'
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type HTMLAttributes } from 'react'
 import { norm } from '../lib/sheet'
-import { FilterDrawer, Pop, RowMenu, useFillHeight, type RowAction } from './ProTools'
+import { FilterDrawer, Pop, ProDefault, RowMenu, useFillHeight, type RowAction } from './ProTools'
 
 export type Col<T> = {
   key: string
@@ -74,7 +74,7 @@ function ColFilter({ label, options, value, onChange, pin }: { label: string; op
   </>
 }
 
-export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow, simple, noTools, rowProps, aside, pro, noun = 'dòng', bulk, rowMenu }: {
+export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow, simple, noTools, rowProps, aside, pro: proProp, noun = 'dòng', bulk, rowMenu }: {
   id: string; rows: T[]; cols: Col<T>[]; rowKey: (r: T) => string; empty?: ReactNode; className?: string
   /** Thuộc tính thêm cho từng dòng (vd: kéo thả) */
   rowProps?: (r: T) => HTMLAttributes<HTMLTableRowElement>
@@ -104,6 +104,8 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   /** Nút ⋮ cuối dòng */
   rowMenu?: (r: T) => RowAction[]
 }) {
+  // Phân hệ 1, 2: bảng tự dùng dạng mới (ProDefault), trừ bảng nhỏ `simple` hoặc trang đặt pro={false}
+  const pro = proProp ?? (useContext(ProDefault) && !simple)
   const [view, setViewS] = useState<View>(() => load(id, cols as Col<unknown>[]))
   const setView = (f: (v: View) => View) => setViewS(v => { const n = { ...f(v), seen: [...new Set([...(v.seen ?? []), ...cols.map(c => c.key)])] }; try { localStorage.setItem('tt:' + id, JSON.stringify(n)) } catch { /* chỉ trong phiên */ } return n })
   const [filterOn, setFilterOn] = useState(false)
@@ -113,7 +115,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   const [ownSearch, setOwnSearch] = useState(false)
   useLayoutEffect(() => {
     const el = toolsRef.current?.querySelector('.ttleft')
-    setOwnSearch(!pro && !!el?.querySelector('input[type=search], input[placeholder^="Tìm"], input[placeholder^="tìm"]'))
+    setOwnSearch(!!el?.querySelector('input[type=search], input[placeholder^="Tìm"], input[placeholder^="tìm"]'))
   })
   const [flt, setFlt] = useState<Record<string, string[]>>({})
   const [menu, setMenu] = useState(false)
@@ -255,10 +257,10 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
     const ico = (d: string) => <svg className="ticon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
     return <div className={'tt ttpro' + (view.dense ? ' dense' : '')}>
       {!noTools && <div className="tttools ttprotools" ref={toolsRef}>
-        <div className="tsrch">
+        {!ownSearch && <div className="tsrch">
           <label className="tsin">{ico('M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-3.5-3.5')}<input type="search" placeholder="Tìm trong bảng" aria-label="Tìm trong bảng" value={q} onChange={e => setQ(e.target.value)} /></label>
           <button type="button" className="tdd tby" aria-expanded={pop?.k === 'by'} onClick={e => setPop(pop?.k === 'by' ? null : { k: 'by', el: e.currentTarget })}>Tìm theo: <b>{byLabel}</b><span className="tcar" aria-hidden="true" /></button>
-        </div>
+        </div>}
         {left && <div className="ttleft">{left}</div>}
         <span className="tspacer" />
         {pins.map(k => { const c = cols.find(x => x.key === k)!; return <ColFilter key={k} pin label={c.label} options={options(c)} value={flt[k] ?? []} onChange={v => setFlt(f => ({ ...f, [k]: v }))} /> })}

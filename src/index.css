@@ -3346,3 +3346,13 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 .tptlempty{margin:12px 14px}
 @media(max-width:800px){.tptl{--nameW:170px}}
 .tpfill{overflow:auto;min-height:0}
+
+/* Chú thích màu trên lịch kiêm bộ lọc trạng thái: bấm để lọc như các thẻ lọc */
+.tplegf{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.main .tplegb{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;background:var(--surface);padding:4px 10px;font-size:calc(12px * var(--fz,1));color:var(--text);cursor:pointer;line-height:1.3}
+.main .tplegb:hover{background:var(--soft)}
+.main .tplegb b{font-weight:700}
+.main .tplegb.on{background:var(--navy,#1a3a6b);border-color:var(--navy,#1a3a6b);color:#fff}
+.tplegb i{display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--ok-fg)}
+.tplegb i.live{background:var(--bad)}.tplegb i.draft{background:var(--warn-fg)}.tplegb i.off{background:#9aa3b2}
+.main .tplegf>small{margin:0 0 0 4px;align-self:center;line-height:1}

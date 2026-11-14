@@ -25,6 +25,8 @@ export function PlanCal({ plans, onOpen, label }: { plans: TPlan[]; onOpen: (id:
     return new Date(from(next) + 'T00:00')
   })
   const today = ymd(new Date())
+  // Chú thích màu kiêm bộ lọc trạng thái phát hành
+  const [stF, setStF] = useState<'' | 'published' | 'draft' | 'archived'>('')
   const shift = (k: number) => setAnchor(a => view === 'week' ? new Date(a.getFullYear(), a.getMonth(), a.getDate() + 7 * k) : view === 'month' ? new Date(a.getFullYear(), a.getMonth() + k, 1) : new Date(a.getFullYear() + k, a.getMonth(), 1))
   const fill = useFillRest(true)
 
@@ -36,7 +38,7 @@ export function PlanCal({ plans, onOpen, label }: { plans: TPlan[]; onOpen: (id:
   const ds = days.map(ymd), d0 = ds[0], d1 = ds[ds.length - 1]
   const y = anchor.getFullYear(), y0 = `${y}-01-01`, y1 = `${y}-12-31`
   const [a, b] = view === 'year' ? [y0, y1] : [d0, d1]
-  const shown = dated.filter(p => from(p) <= b && to(p) >= a)
+  const inRange = dated.filter(p => from(p) <= b && to(p) >= a), shown = inRange.filter(p => !stF || p.pub_status === stF)
 
   // Vị trí thanh: theo cột ngày (tuần / tháng) hoặc theo tỉ lệ ngày trong năm
   const yDays = (Date.UTC(y + 1, 0, 1) - Date.UTC(y, 0, 1)) / 864e5
@@ -65,8 +67,11 @@ export function PlanCal({ plans, onOpen, label }: { plans: TPlan[]; onOpen: (id:
         <div className="segmented" style={{ margin: 0 }}>{([['week', 'Tuần'], ['month', 'Tháng'], ['year', 'Năm']] as const).map(([k, l]) =>
           <button key={k} type="button" className={view === k ? 'on' : ''} aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>)}</div>
       </div>
-      <small className="sub tpcallegend"><i className="pub" /> Đã phát hành <i className="draft" /> Nháp <i className="off" /> Ngừng dùng
-        · {shown.length} kế hoạch trong {({ week: 'tuần', month: 'tháng', year: 'năm' })[view]}</small>
+      <div className="tplegf" role="group" aria-label="Lọc theo trạng thái">
+        {([['', 'Tất cả'], ['published', 'Đã phát hành'], ['draft', 'Nháp'], ['archived', 'Ngừng dùng']] as const).map(([k, l]) =>
+          <button key={l} type="button" className={'tplegb' + (stF === k ? ' on' : '')} aria-pressed={stF === k} onClick={() => setStF(k)}>
+            {k && <i className={TONE[k]} />}{l} <b>{k ? inRange.filter(p => p.pub_status === k).length : inRange.length}</b></button>)}
+        <small className="sub">trong {({ week: 'tuần', month: 'tháng', year: 'năm' })[view]}</small></div>
     </div>
 
     <div ref={fill.ref} style={fill.style} className={'tptl ' + view} role="table" aria-label="Kế hoạch đào tạo theo thời gian">

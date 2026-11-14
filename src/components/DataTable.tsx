@@ -166,6 +166,11 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   const resize = (k: string, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
     const th = (e.currentTarget as HTMLElement).parentElement!, x0 = e.clientX, w0 = th.getBoundingClientRect().width
+    // Chốt độ rộng hiện tại của mọi cột để bảng chuyển sang bố cục cố định: cột co lại được dù nội dung dài
+    const ths = Array.from(th.parentElement!.children).filter(x => !x.matches('.c-sel, .c-menu')) as HTMLElement[]
+    const now: Record<string, number> = {}
+    shownCols.forEach((c, i) => { if (ths[i]) now[c.key] = Math.round(ths[i].getBoundingClientRect().width) })
+    setViewS(v => ({ ...v, widths: { ...now, ...v.widths } }))
     const mv = (ev: MouseEvent) => { const w = Math.max(48, Math.round(w0 + ev.clientX - x0)); setViewS(v => ({ ...v, widths: { ...v.widths, [k]: w } })) }
     const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); setView(v => v) }
     document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up)
@@ -212,25 +217,30 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   const fill = useFillHeight(!!pro, 76)
 
   const lead = shownCols.find(c => !/c-no|c-sel/.test(c.thClass ?? '') && c.key !== 'no')
+  // Đã kéo độ rộng mọi cột đang hiện: dùng bố cục cố định theo đúng độ rộng đã kéo
+  const fixedW = !view.fit && shownCols.length > 0 && shownCols.every(c => view.widths[c.key])
+    ? shownCols.reduce((a, c) => a + view.widths[c.key], 0) + (head && !(pro && !bulk && lead) ? 36 : 0) + (rowMenu ? 48 : 0) : 0
+  // Cột đầu (tên) đứng yên khi cuộn ngang
+  const stick = (c: Col<T>) => !!pro && c === lead && c === shownCols[0]
   // Dạng mới: ô tick riêng (head) gộp vào ô đầu dòng, ẩn tới khi rê chuột như bảng Chương trình giáo dục.
   const inSel = !!(pro && head && !bulk && lead)
   const sideHead = head && !inSel
   const selOn = bulk || inSel
-  const tbl = <div className="wrap"><table className={`libtable ttable${view.fit && !simple ? ' ttfit' : ''}${pro && view.dense ? ' ttdense' : ''}${selOn ? ' ttsel' + (selRows.length ? ' ttselon' : '') : ''}${className ? ' ' + className : ''}`}>
+  const tbl = <div className="wrap"><table className={`libtable ttable${view.fit && !simple ? ' ttfit' : ''}${pro && view.dense ? ' ttdense' : ''}${selOn ? ' ttsel' + (selRows.length ? ' ttselon' : '') : ''}${fixedW ? ' ttfixed' : ''}${className ? ' ' + className : ''}`} style={fixedW ? { width: fixedW } : undefined}>
       <colgroup>{sideHead && <col style={{ width: 36 }} />}{shownCols.map(c => <col key={c.key} style={view.widths[c.key] ? { width: view.widths[c.key] } : undefined} />)}{rowMenu && <col style={{ width: 48 }} />}</colgroup>
       <thead>
-        <tr>{sideHead && <th className="c-sel">{head.th}</th>}{shownCols.map(c => <th key={c.key} className={[c.thClass, c === lead ? 'c-lead' : ''].filter(Boolean).join(' ') || undefined}
-          style={view.widths[c.key] ? { width: view.widths[c.key], minWidth: view.widths[c.key] } : undefined}>{bulk && c === lead && <span className="tselbox"><input type="checkbox" aria-label="Chọn tất cả" checked={shown.length > 0 && selRows.length === shown.length}
+        <tr>{sideHead && <th className="c-sel">{head.th}</th>}{shownCols.map(c => <th key={c.key} className={[c.thClass, c === lead ? 'c-lead' : '', stick(c) ? 'c-stick' : ''].filter(Boolean).join(' ') || undefined}
+          style={view.widths[c.key] ? { width: view.widths[c.key], minWidth: fixedW ? undefined : view.widths[c.key] } : undefined}>{bulk && c === lead && <span className="tselbox"><input type="checkbox" aria-label="Chọn tất cả" checked={shown.length > 0 && selRows.length === shown.length}
           onChange={e => setPicked(e.target.checked ? new Set(shown.map(rowKey)) : new Set())} onClick={e => e.stopPropagation()} /></span>}{inSel && c === lead && <span className="tselbox" onClick={e => e.stopPropagation()}>{head!.th}</span>}{c.label}
           <span className="ttresize" role="separator" aria-label={`Đổi độ rộng cột ${c.label}`} onMouseDown={e => resize(c.key, e)} onClick={e => e.stopPropagation()}
             onDoubleClick={e => { e.stopPropagation(); setView(v => { const w = { ...v.widths }; delete w[c.key]; return { ...v, widths: w } }) }} /></th>)}{rowMenu && <th className="c-menu"><span className="sronly">Thao tác</span></th>}</tr>
-        {filterOn && <tr className="ttfilter">{sideHead && <th />}{shownCols.map(c => <th key={c.key}>{c.text
+        {filterOn && <tr className="ttfilter">{sideHead && <th />}{shownCols.map(c => <th key={c.key} className={stick(c) ? 'c-stick' : undefined}>{c.text
           ? <ColFilter label={c.label} options={options(c)} value={flt[c.key] ?? []} onChange={v => setFlt(f => ({ ...f, [c.key]: v }))} />
           : null}</th>)}</tr>}
       </thead>
       <tbody>{shown.map((r, i) => pro
         ? <tr key={rowKey(r)} className={'clickrow' + (picked.has(rowKey(r)) ? ' tsel' : '')} onClickCapture={e => { if (bulk && (e.shiftKey || e.ctrlKey || e.metaKey)) rowClick(r, i, e) }} onClick={e => rowClick(r, i, e)} {...rowProps?.(r)}>
-          {sideHead && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key} className={selOn && c === lead ? 'c-leadsel' : undefined}>
+          {sideHead && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key} className={[selOn && c === lead ? 'c-leadsel' : '', stick(c) ? 'c-stick' : ''].filter(Boolean).join(' ') || undefined}>
             {inSel && c === lead && <span className="tselbox">{head!.td(r)}</span>}
             {bulk && c === lead && <span className="tselbox"><input type="checkbox" checked={picked.has(rowKey(r))} onChange={() => { flipRow(r); lastIdx.current = i }} aria-label="Chọn dòng" /></span>}
             <div className="tdc">{c.cell(r)}</div></td>)}

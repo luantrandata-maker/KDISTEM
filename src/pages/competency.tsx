@@ -547,7 +547,8 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
         { key: 'name', label: 'Nhà giáo', fixed: true, text: t => t.full_name,
           cell: t => <><button type="button" className="namelink" onClick={() => { setMsg(null); setSel(t.id) }}>{t.full_name}</button>{canEdit && sub(t, 'self') && !sub(t, 'manager') && <> <span className="plbadge warn">Chờ đánh giá</span></>}{t.email && <><br /><small className="sub">{t.email}</small></>}</> },
         ...(!orgId ? [{ key: 'org', label: 'Trường', text: (t: TRow) => t.organizations?.name ?? '', cell: (t: TRow) => t.organizations?.name ?? '—' }] : []),
-        { key: 'subj', label: 'Môn · khối', text: t => [t.subject, t.grade && `khối ${t.grade}`].filter(Boolean).join(' · '), cell: t => <small>{[t.subject, t.grade && `khối ${t.grade}`].filter(Boolean).join(' · ') || '—'}</small> },
+        { key: 'subj', label: 'Môn', text: t => t.subject ?? '', cell: t => <small>{t.subject || '—'}</small> },
+        { key: 'grade', label: 'Khối', text: t => t.grade ? String(t.grade) : '', cell: t => <small>{t.grade || '—'}</small> },
         { key: 'lv', label: `Mức năng lực (${year})`, cell: t => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); const lv = m?.status === 'submitted' ? m.levels : s?.status === 'submitted' ? s.levels : {}
           return Object.keys(lv).length ? <><LevelChip v={avgLv(lv)} /> <small className="sub">{m?.status === 'submitted' ? 'trường ĐG' : 'tự ĐG'}</small></> : <small className="sub">chưa đánh giá</small> } },
         ...comps.map(c => ({ key: 'c-' + c.key, label: c.name, cell: (t: TRow) => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); const lv = m?.status === 'submitted' ? m.levels : s?.status === 'submitted' ? s.levels : {}

@@ -190,7 +190,8 @@ function NormList({ orgId, rights, onOpen, openId, ver, sharedOnly }: { orgId: s
   const normCols = (mine: boolean): Col<Norm>[] => [
     { key: 'title', label: 'Định mức', fixed: true, values: n => [n.title], text: n => [n.title, n.subject].join(' '),
       cell: n => <><b>{n.title}</b> <small className="sub">v{n.version_no}</small><div className="sub" style={{ fontSize: 'calc(12px * var(--fz,1))' }}>{[n.subject, n.grade && gradeName(n.grade), (!mine || every) && ownerName(n, orgId)].filter(Boolean).join(' · ') || '—'}</div></> },
-    { key: 'subj', label: 'Môn · khối', values: n => [n.subject ?? ''], text: n => n.subject ?? '', cell: n => [n.subject, n.grade && gradeName(n.grade)].filter(Boolean).join(' · ') || '—' },
+    { key: 'subj', label: 'Môn', values: n => [n.subject ?? ''], text: n => n.subject ?? '', cell: n => n.subject || '—' },
+    { key: 'grade', label: 'Khối', values: n => [n.grade ? gradeName(n.grade) : ''], text: n => n.grade ? gradeName(n.grade) : '', cell: n => n.grade ? gradeName(n.grade) : '—' },
     { key: 'basis', label: 'Tính cho', text: n => BASIS[n.basis], cell: n => <>{BASIS[n.basis]}{n.basis === 'group' && <small className="sub"> ({n.group_size} HS)</small>}<div className="sub" style={{ fontSize: 'calc(12px * var(--fz,1))' }}>{n.sessions} buổi</div></> },
     { key: 'n', label: 'Số vật tư', cell: n => n.material_norm_items?.[0]?.count ?? '—' },
     { key: 'link', label: 'Gắn với', values: n => [n.edu_programs?.title ?? '', n.library_items?.title ?? ''], text: n => [n.edu_programs?.title, n.edu_program_units?.title, n.library_items?.title].join(' '),

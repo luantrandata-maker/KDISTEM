@@ -95,7 +95,8 @@ function TopicTable({ rows, gt, left, right }: { rows: Topic[]; gt: Tree<Topic>;
       empty="Chưa có lượt làm bài đã nộp trong khoảng thời gian đã chọn."
       cols={[
         { key: 'topic', label: 'Chủ đề', fixed: true, text: t => t.topic, cell: t => <b>{t.topic}</b> },
-        { key: 'subj', label: 'Môn · Khối', text: t => t.subject, cell: t => `${t.subject}${t.grade ? ` · Khối ${t.grade}` : ''}` },
+        { key: 'subj', label: 'Môn', text: t => t.subject, cell: t => t.subject },
+        { key: 'grade', label: 'Khối', text: t => t.grade ? String(t.grade) : '', cell: t => t.grade || '—' },
         { key: 'lv', label: 'Mức độ', text: t => LEVEL[t.level] ?? t.level, cell: t => LEVEL[t.level] ?? t.level },
         { key: 'q', label: 'Số câu', thClass: 'num', cell: t => <span className="num">{t.questions}</span> },
         { key: 'a', label: 'Lượt trả lời', thClass: 'num', cell: t => <span className="num">{t.answers}</span> },

@@ -988,13 +988,14 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     { key: 'grades', label: 'Khối', thClass: 'c-grade', text: r => unitGrades(r.u).join(', '), cell: r => cell(r, 'grades') },
     { key: 'periods', label: 'Số tiết', thClass: 'c-per', text: r => String(r.u.periods || ''), cell: r => cell(r, 'periods') },
     { key: 'outs', label: 'Yêu cầu cần đạt', thClass: 'c-outs', cell: r => cell(r, 'outs') },
-    { key: 'mat', label: 'Học liệu', thClass: 'c-mat', text: r => kitOf.get(r.u.id) === 'published' || mats.get(r.u.id) ? 'Có học liệu' : 'Chưa có',
+    { key: 'mat', label: 'Học liệu', thClass: 'c-mat', off: true, text: r => kitOf.get(r.u.id) === 'published' || mats.get(r.u.id) ? 'Có học liệu' : 'Chưa có',
       cell: r => { const ns = all.filter(c => c.parent_id === r.u.id && c.unit_type === 'session').length
         return <button type="button" className="slopen" onClick={() => setOpenL(r.u.id)} title="Mở chi tiết: học liệu, buổi học, nội dung">{kitChip(r.u)}{ns > 0 && <span className="pill">{ns} buổi</span>}<span className="slmore">Chi tiết ›</span></button> } },
     ...(editable ? [{ key: 'act', label: '', thClass: 'c-act', fixed: true, cell: (r: LRow) =>
       <span className="slact"><span className="sldrag" draggable title="Kéo để đổi vị trí" aria-label={`Kéo ${r.u.title} để đổi vị trí`}
         onDragStart={e => { setDrag(r.u.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', r.u.id); const tr = (e.target as HTMLElement).closest('tr'); if (tr) e.dataTransfer.setDragImage(tr, 20, 20) }}
         onDragEnd={() => { setDrag(null); setOver(null) }}>⠿</span>
+        <button type="button" className="slgo" title="Mở chi tiết: học liệu, buổi học, nội dung" aria-label={`Mở chi tiết ${r.u.title}`} onClick={() => setOpenL(r.u.id)}>›</button>
         <button type="button" disabled={busy} aria-label={`Nhân bản bài ${r.u.title}`} title="Nhân bản: tạo ngay một bài giống hệt bên dưới" onClick={() => duplicate(r)}>⧉</button>
         <button type="button" className="danger iconbtn" title="Xoá bài" aria-label={`Xoá ${r.u.title}`} onClick={() => remove(r)}><Icon n="trash" size={15} /></button></span> }] : []),
   ]
@@ -1019,7 +1020,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
         : <button type="button" className="sladdsubj" onClick={() => setAddSubj(true)}>+ Thêm môn</button>)}
     </nav>
     <div className="slmain" onKeyDown={editable ? onGridKey : undefined} onPaste={editable ? onGridPaste : undefined} onMouseDown={editable ? gridMouseDown : undefined}>
-      <DataTable id="edu-lessons-v2" simple rows={shown} rowKey={r => r.u.id} className={editable ? 'slt slgrid' : 'slt'}
+      <DataTable id="edu-lessons-v3" simple rows={shown} rowKey={r => r.u.id} className={editable ? 'slt slgrid' : 'slt'}
         rowProps={editable ? r => ({ className: drag === r.u.id ? 'sldragging' : over === r.u.id && drag ? 'slover' : undefined,
           onDragOver: e => { if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== r.u.id) setOver(r.u.id) },
           onDrop: e => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id) moveTo(id, r) } }) : undefined}

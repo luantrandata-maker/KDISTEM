@@ -447,7 +447,7 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
       sub={[p.code, ctsOf(p).join(', '), lvsOf(p).length ? lvsOf(p).map(levelName).join(', ') : 'Mọi cấp học', MODE[p.mode], `${num(hours)} giờ`].filter(Boolean).join(' · ')}
       actions={<div className="tools">{!editInfo && <TrainingVersionActions lead={[t === 'info' && edit && { key: 'edit', label: 'Sửa thông tin', icon: 'pencil', rank: 1, onClick: () => setEditInfo(true) }]} p={p} admin={admin} warn={warn} onOpen={onOpen} onChanged={onVer} onDelete={admin && p.status === 'draft' ? del : undefined} />}</div>} />
     <div className="segmented pdtabs">
-      {([['info', 'Chương trình'], ['assign', 'Gán & triển khai']] as [PTab, string][]).map(([k, l]) => <button key={k} type="button" className={t === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
+      {([['info', 'Chương trình'], ['assign', 'Kế hoạch triển khai']] as [PTab, string][]).map(([k, l]) => <button key={k} type="button" className={t === k ? 'on' : ''} onClick={() => setTab(k)}>{l}</button>)}
     </div>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {t === 'info' && edit && warn.length > 0 && !editInfo && <p className="warnline">Chưa phát hành được: {warn.join('; ')}.</p>}

@@ -3167,7 +3167,7 @@ table.ttsel:not(.ttselon) tbody tr:hover .tselbox input,table.ttsel:not(.ttselon
 .side:hover::-webkit-scrollbar{width:6px}
 .side:hover::-webkit-scrollbar-thumb{background:rgba(255,255,255,.28);border-radius:3px}
 @media (min-width:900px){
-  main.main:has(>.pframe .ttpro):not(:has(.pdclose)){padding:12px 16px 16px}
+  main.main:has(>.pframe .ttpro):not(:has(.pdclose)){padding:12px 16px}
   main:has(>.pframe .ttpro):not(:has(.pdclose))>.pfcrumb>h1,
   main:has(>.pframe .ttpro):not(:has(.pdclose))>.pfcrumb>span{display:none}
   main:has(>.pframe .ttpro):not(:has(.pdclose))>.pfcrumb:not(:has(>.pfact>*)){display:none}

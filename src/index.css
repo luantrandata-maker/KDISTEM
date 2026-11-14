@@ -3230,7 +3230,7 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 .bar .tools>.pdinline{margin-right:2px}
 
 /* Kéo độ rộng cột: sau lần kéo đầu, bảng theo đúng độ rộng đã kéo, cột co lại được dù nội dung dài */
-.ttable.ttfixed{table-layout:fixed;max-width:none}
+.ttable.ttfixed{table-layout:fixed;max-width:none;min-width:100%}
 .ttable.ttfixed>thead>tr>th{min-width:0!important}
 .ttable.ttfixed>thead>tr>th,.ttable.ttfixed>tbody>tr>td{overflow:hidden;overflow-wrap:anywhere}
 .ttable.ttfixed>thead>tr>th{white-space:nowrap;text-overflow:ellipsis}

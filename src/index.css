@@ -3117,3 +3117,43 @@ table.ttsel:not(.ttselon) tbody tr:hover .tselbox input,table.ttsel:not(.ttselon
 .tdrawer>footer button{height:36px;padding:0 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font:inherit;cursor:pointer;color:var(--text)}
 .tdrawer>footer button.primary{background:var(--primary);border-color:var(--primary);color:#fff}
 @media (max-width:640px){.tsrch{flex:1 1 100%}.ttprotools .tspacer{display:none}}
+
+/* ===== Đầu trang: đường dẫn (breadcrumb); ô tìm chức năng chuyển vào menu dưới logo; nút thu gọn menu ở chân menu ===== */
+.top .crumb{display:flex;align-items:center;gap:8px;min-width:0;font-size:calc(14px * var(--fz,1));color:var(--muted)}
+.top .crumb b{color:var(--text);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top .crumbmid{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:320px}
+.top .crumbsep{color:#c3ccd8}
+.top .crumbhome{border:0;background:none;padding:6px;border-radius:6px;color:var(--muted);display:grid;place-items:center;cursor:pointer}
+.top .crumbhome:hover{background:var(--soft);color:var(--primary)}
+.top .topgap{flex:1}
+.top>.toggle{display:none}
+@media (max-width:800px){.top>.toggle{display:grid}.top .crumbmid,.top .crumbmid+.crumbsep{display:none}}
+.sidesearch{padding:0 4px 10px}
+.sidesearch .topsearch{margin:0;flex:none;width:100%;box-sizing:border-box;height:38px;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);color:#c9d6e8}
+.sidesearch .topsearch input{color:#fff}
+.sidesearch .topsearch input::placeholder{color:#a9bbd4}
+.sidesearch .topsearch kbd{background:transparent;border-color:rgba(255,255,255,.25);color:#c9d6e8}
+.sidesearch .topsearch:focus-within{background:#fff;border-color:#fff;color:var(--muted)}
+.sidesearch .topsearch:focus-within input{color:var(--text)}
+.sidesearch .topsearchlist{z-index:70}
+.side button.sidesearchmini{display:none;width:40px;height:38px;margin:0 auto;padding:0;place-items:center;border-radius:8px;background:rgba(255,255,255,.08);color:#dbe5f3}
+.sidefoot{position:sticky;bottom:-16px;margin:12px -8px -16px;padding:8px;background:var(--navy);border-top:1px solid rgba(255,255,255,.12)}
+.side button.sidecollapse{display:flex;align-items:center;gap:10px;color:#c9d6e8}
+/* Menu thu gọn: không bung cả menu khi rê chuột; mỗi phân hệ có khung nổi riêng */
+.app.collapsed .side,.app.collapsed .side:hover,.app.collapsed .side:focus-within{width:64px;box-shadow:none;scrollbar-width:none}
+.app.collapsed .side :is(.sidebrand b,.yearpick,.yearwarn,.navsub,.navgroup>div,.grouphead>span,.grouphead>svg:not(.navicon),.grouphead>.dot,.sidesearch .topsearch,.sidecollapse>span){display:none}
+.app.collapsed .side .sidebrand{padding:6px 4px 16px}
+.app.collapsed .side .sidebrand img{width:34px;object-fit:cover;object-position:left}
+.app.collapsed .side button.grouphead{justify-content:center;padding:10px 0}
+.app.collapsed .side button.sidesearchmini{display:grid}
+.app.collapsed .side button.sidecollapse{justify-content:center;padding:9px 0}
+.app.collapsed .side .navgroup:has(button.on)>.grouphead{background:rgba(255,255,255,.14)}
+.app.collapsed .side button.grouphead.flyon{background:var(--navy-2)}
+.sidefly{position:fixed;left:72px;z-index:80;min-width:240px;max-width:320px;max-height:calc(100vh - 16px);overflow:auto;background:var(--navy);color:#e6edf7;border-radius:10px;box-shadow:0 12px 32px rgba(15,23,42,.35);padding:6px;display:flex;flex-direction:column}
+.sideflyh{font-size:calc(13px * var(--fz,1));font-weight:700;color:#fff;padding:8px 10px 6px;border-bottom:1px solid rgba(255,255,255,.12);margin-bottom:4px}
+.sideflyg{display:flex;flex-direction:column}
+.sideflyg>small{padding:8px 10px 2px;color:#9fb4d1;font-size:calc(12px * var(--fz,1));font-weight:600}
+.sidefly button{border:0;background:none;color:#dbe5f3;text-align:left;font:inherit;font-size:calc(14px * var(--fz,1));padding:8px 10px;border-radius:7px;cursor:pointer}
+.sidefly button:hover{background:rgba(255,255,255,.10);color:#fff}
+.sidefly button.on{background:rgba(255,255,255,.14);color:#fff;font-weight:600;box-shadow:inset 3px 0 0 var(--orange)}
+.sidefly button.locked{opacity:.6}

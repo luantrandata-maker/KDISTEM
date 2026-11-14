@@ -8,16 +8,17 @@ type School = { org_id: string; name: string; parent_name: string | null; k?: st
 let allCache: School[] | null = null
 
 // ================= Tìm chức năng trong menu =================
-export function MenuSearch({ entries, onGo }: { entries: { item: string; label: string; group: string }[]; onGo: (item: string) => void }) {
+export function MenuSearch({ entries, onGo, beforeFocus }: { entries: { item: string; label: string; group: string }[]; onGo: (item: string) => void; beforeFocus?: () => void }) {
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const [sel, setSel] = useState(0)
   const ref = useRef<HTMLInputElement>(null)
   useEffect(() => {
-    const k = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); ref.current?.focus(); setOpen(true) } }
+    const k = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); bf.current?.(); setTimeout(() => ref.current?.focus(), 60); setOpen(true) } }
     window.addEventListener('keydown', k)
     return () => window.removeEventListener('keydown', k)
   }, [])
+  const bf = useRef(beforeFocus); bf.current = beforeFocus
   const hits = useMemo(() => {
     const n = norm(q)
     const seen = new Set<string>()

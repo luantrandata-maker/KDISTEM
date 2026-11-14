@@ -26,6 +26,7 @@ import { PlanCal } from './PlanCal'
 import { PlanExams } from './PlanExams'
 import { DataTable, type Col } from '../../components/DataTable'
 import { StatCards } from '../../components/StatCards'
+import { GroupTree, groupNodes, inGroup, useGroupSel } from '../../components/GroupTree'
 
 type Mode = 'online' | 'offline' | 'hybrid'
 type Term = 'summer' | 'hk1' | 'hk2' | 'other'
@@ -99,6 +100,8 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [q, setQ] = useState('')
   const [yr, setYr] = useState('')
+  // Cây năm học bên trái bảng kế hoạch
+  const [ysel, setYsel] = useGroupSel('training-plans-year')
   const cls = useCls('training')
   // Quản trị hệ thống: kế hoạch của tất cả đơn vị trong một danh sách, sửa thẳng
   const all = useAllMode(), orgName = useOrgName()
@@ -155,8 +158,8 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
     { key: 'st', label: 'Trạng thái', text: p => STATUS[p.pub_status][0] + (p.closed_at ? ' Đã kết thúc' : ''),
       cell: p => { const st = STATUS[p.pub_status]; return <span className="nowrap">{st[1] === 'good' ? <span className="stdot">{st[0]}</span> : <Chip tone={st[1]}>{st[0]}</Chip>}{p.closed_at && <><br /><small className="sub">Đã kết thúc</small></>}</span> } },
   ]
-  const table = (rows: TPlan[], empty: string, left?: ReactNode, right?: ReactNode) =>
-    <DataTable id="training-plans" className="tplist" rows={rows} rowKey={p => p.id} cols={planCols} empty={empty} left={left} right={right} />
+  const table = (rows: TPlan[], empty: string, left?: ReactNode, right?: ReactNode, aside?: ReactNode) =>
+    <DataTable id="training-plans" className="tplist" rows={rows} rowKey={p => p.id} cols={planCols} empty={empty} left={left} right={right} aside={aside} />
   const schools = new Set(baseOrgs.map(o => o.org_id)).size
   return (
     <>
@@ -187,7 +190,13 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
             return look === 'cal' ? <>
               <div className="bar"><div className="tools">{left}</div><div className="tools">{toggle}{add}</div></div>
               <PlanCal plans={shown} label={p => [multiOrg && orgName(p.org_id), p.plan_code].filter(Boolean).join(' · ')} onOpen={id => { setMsg(null); setOpen(id) }} /></>
-              : table(shown, list.length ? 'Không có kế hoạch nào khớp bộ lọc.' : can ? 'Chưa có kế hoạch đào tạo nào. Bấm "+ Lập kế hoạch".' : 'Chưa có kế hoạch đào tạo nào.', left, <>{toggle}{add}</>)
+              : (() => {
+                // Cây năm học: chọn năm để lọc bảng (mục đã chọn không còn dòng nào thì coi như Tất cả)
+                const nodes = groupNodes(shown, p => [p.year_name ?? ''], { desc: true, label1: y => y, none: 'Chưa có năm học' })
+                const cur = ysel === 'all' || nodes.some(n => 'a:' + n.key === ysel) ? ysel : 'all'
+                return table(shown.filter(p => inGroup(cur, p.year_name ?? '')), list.length ? 'Không có kế hoạch nào khớp bộ lọc.' : can ? 'Chưa có kế hoạch đào tạo nào. Bấm "+ Lập kế hoạch".' : 'Chưa có kế hoạch đào tạo nào.', left, <>{toggle}{add}</>,
+                  list.length ? <GroupTree nodes={nodes} total={shown.length} sel={cur} onSel={setYsel} label="Nhóm theo năm học" /> : undefined)
+              })()
           })()}
         </>}
     </>

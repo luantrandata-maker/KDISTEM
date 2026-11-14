@@ -3,7 +3,7 @@ import { HeadAction, HeadTabs } from '../../components/PageFrame'
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
 import { DataTable, SideSplit, type Col } from '../../components/DataTable'
-import { useGradeTree, MultiTag } from '../../components/GradeTree'
+import { useGradeTree } from '../../components/GradeTree'
 import { MultiSelect } from '../../components/MultiSelect'
 import { GradeChecks, GradeMulti, SubjectMulti } from '../../components/Pickers'
 import { supabase } from '../../lib/supabase'
@@ -252,7 +252,7 @@ function Exams({ orgId, subject, ofl: shared }: { orgId: string | null; subject?
         right={<HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ ...EEMPTY, subject: subject ?? '', subjects: subject ? [subject] : [], title: subject ? `Đề kiểm tra ${subject}` : '', shared: !isSchool && !every }) }}>+ {subject ? 'Tạo đề kiểm tra' : 'Tạo đề luyện'}</button></HeadAction>}
         cols={[
           { key: 'title', label: 'Đề luyện', fixed: true, values: x => [x.title], text: x => [x.title, ...courseSubjects(x)].join(' '),
-            cell: x => <><b>{x.title}</b> <MultiTag grades={courseGrades(x)} /><br /><small>{[courseSubjects(x).join(', '), gradesText(courseGrades(x)), !editable(x) ? 'của cấp trên' : every ? orgName(x.org_id) : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></> },
+            cell: x => <><b>{x.title}</b><br /><small>{[courseSubjects(x).join(', '), gradesText(courseGrades(x)), !editable(x) ? 'của cấp trên' : every ? orgName(x.org_id) : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></> },
           { key: 'subj', label: 'Môn', off: true, values: x => courseSubjects(x), text: x => courseSubjects(x).join(', '), cell: x => courseSubjects(x).join(', ') || '—' },
           { key: 'grade', label: 'Khối', off: true, values: x => courseGrades(x).map(g => 'Khối ' + g), text: x => courseGrades(x).join(', '), cell: x => courseGrades(x).join(', ') || '—' },
           { key: 'how', label: 'Câu hỏi', text: x => howText(x), cell: x => <>{howText(x)}{x.shuffle ? <><br /><small>trộn câu</small></> : null}</> },
@@ -506,7 +506,7 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
         return view === 'list' ? <DataTable id="elearning-courses" rows={shown} rowKey={c => c.id} onRow={c => { setMsg(null); setOpen(c.id) }} left={left} right={right} aside={fitC.length ? gtc.tree : undefined}
           empty={rows.length ? <small className="sub">Không có khoá học nào khớp bộ lọc.</small> : null}
           cols={[
-            { key: 'title', label: 'Tên khoá học', fixed: true, text: c => c.title, cell: c => <><b>{c.title}</b> <MultiTag grades={courseGrades(c)} /></> },
+            { key: 'title', label: 'Tên khoá học', fixed: true, text: c => c.title, cell: c => <><b>{c.title}</b></> },
             { key: 'csubj', label: 'Môn', values: c => courseSubjects(c), text: c => courseSubjects(c).join(', '), cell: c => courseSubjects(c).join(', ') || '—' },
             { key: 'cgrade', label: 'Khối', values: c => courseGrades(c).map(g => 'Khối ' + g), text: c => courseGrades(c).join(', '), cell: c => courseGrades(c).join(', ') || '—' },
             { key: 'n', label: 'Số bài', text: c => String(lessons.filter(l => l.course_id === c.id).length), cell: c => lessons.filter(l => l.course_id === c.id).length },

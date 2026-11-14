@@ -3270,3 +3270,15 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 .slt.slgrid .slnew .slnewrow{gap:4px}
 .ttable.slt.slgrid>thead>tr:first-child>th.c-outs{min-width:200px!important}
 .main .slt .slact button.slgo{font-weight:700;color:var(--primary)}
+/* Số liệu chương trình nằm trong khung Thông tin chung */
+.pdstats.pdstatsin{grid-template-columns:1fr 1fr;gap:6px;margin:2px 0 12px}
+.pdstats.pdstatsin>div{justify-content:flex-start;padding:6px 10px;background:var(--soft);border-color:transparent;white-space:normal;flex-wrap:wrap;row-gap:0}
+.pdtoprow{display:flex;justify-content:flex-end}
+/* Lưới bài học: cột Môn rộng hơn, cột Khối gọn hơn */
+.ttable.slt>thead>tr:first-child>th.c-subj.c-lead:not(.c-sel):not(.c-no),.slt th.c-subj{width:150px;min-width:130px!important}
+.ttable.slt.slgrid>thead>tr:first-child>th.c-grade{width:72px;min-width:0!important}
+.slt .slnew .slgpick,.slt .slnewrow>.slgpick{min-width:0;width:100%;max-width:none}
+.slt.slgrid .slgpick{min-width:0;width:100%;max-width:none}
+.slt.slgrid .msel{min-width:0}
+.slt.slgrid .msel .mselq{min-width:0;width:6px;flex:1 1 6px}
+.slt.slgrid .msel .mseltools>.mselx:not(.mselplus){display:none}

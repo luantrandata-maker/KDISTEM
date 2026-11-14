@@ -458,14 +458,7 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
 
     {t === 'info' && !editInfo && <div className={'pdgrid' + (side ? '' : ' pdnoside')}>
       <div className="pdmain">
-        <div className="pdstats">
-          <div><b>{subjs.length}</b><span>môn</span></div>
-          <div><b>{contents.length}</b><span>nội dung</span></div>
-          <div><b>{num(hours)}</b><span>giờ</span></div>
-          <div><b>{tests}</b><span>bài test</span></div>
-          <div><b>{MODE[p.mode]}</b><span>hình thức</span></div>
-          {!side && <button type="button" className="pdsidetg" onClick={toggleSide} title="Mở cột thông tin chương trình">‹ Thông tin</button>}
-        </div>
+        {!side && <div className="pdtoprow"><button type="button" className="pdsidetg" onClick={toggleSide} title="Mở cột thông tin chương trình">‹ Thông tin</button></div>}
         <div className="panel pdcard pdsl">
           <TrainingUnits programId={p.id} programTitle={p.title} programMode={p.mode} units={units} editable={edit} catalog={suggest}
             onReload={load} onMessage={(m, e) => setMsg([errText(m), !!e])} onOpen={setOpenC} />

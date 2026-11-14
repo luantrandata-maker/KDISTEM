@@ -238,7 +238,7 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
   const navItem = (s: TUnit | null) => { const rs = s ? rowsAll.filter(r => r.subj.id === s.id) : rowsAll, on = (s?.id ?? '') === (sel?.id ?? '')
     return <div key={s?.id ?? '*'} className={'slnavrow' + (on ? ' on' : '')}>
       <button type="button" className={'slnavi' + (on ? ' on' : '')} onClick={() => setCur(s?.id ?? '')}>
-        <span className="slnm">{s ? s.title : 'Tất cả'}</span><span className="slcnt">{rs.length} nội dung · {num(rs.reduce((a, r) => a + (Number(r.u.hours) || 0), 0))} giờ</span></button>
+        <span className="slnm">{s ? s.title : 'Tất cả'}</span><span className="slcnt">{!s ? `${subjs.length} môn · ` : ''}{rs.length} nội dung{!s ? ` · ${rs.filter(r => r.u.has_test).length} bài test` : ''} · {num(rs.reduce((a, r) => a + (Number(r.u.hours) || 0), 0))} giờ</span></button>
       {editable && s && <button type="button" className="slnavx" title={`Xoá môn ${s.title}`} aria-label={`Xoá môn ${s.title}`} onClick={() => removeSubject(s)}>×</button>}</div> }
   const enter = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addContent() } }
   // ---- Lưới kiểu Excel (Enter/↑↓/←→/Esc, dán vùng ô từ Excel) ----

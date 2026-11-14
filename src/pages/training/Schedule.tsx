@@ -16,7 +16,7 @@ import { useHolidays, dayKey, type Holidays } from '../../lib/holidays'
 import { detailCount, type Detail } from './Content'
 import { SessionExams } from './ExamOpen'
 import { StatCards } from '../../components/StatCards'
-import { useFitMonth, weeksOf } from '../../lib/fitCal'
+import { useFillRest, useFitMonth, weeksOf } from '../../lib/fitCal'
 const LessonPage = lazy(() => import('../library/lesson/LessonPage').then(m => ({ default: m.LessonPage })))
 const ContentDetail = lazy(() => import('./Content').then(m => ({ default: m.ContentDetail })))
 
@@ -226,7 +226,9 @@ export function SessCal({ rows, label, planName, onOpen, hol, info }: { rows: Se
   const month = Array.from({ length: nWk * 7 }, (_, k) => new Date(mStart.getFullYear(), mStart.getMonth(), mStart.getDate() + k))
   const days = view === 'week' ? week : month
   // Tháng: vừa một màn hình, số buổi mỗi ô theo chiều cao còn lại
-  const fit = useFitMonth(view === 'month', nWk, 22), MAX = fit.max
+  const fit = useFitMonth(view === 'month', nWk, 22, true), MAX = fit.max
+  // Tuần / Năm: khối cuộn bên trong, cao vừa phần còn lại của màn hình (trang không phải cuộn)
+  const fill = useFillRest(view !== 'month')
   // Năm: mỗi kế hoạch một hàng, mỗi buổi một vạch trên 12 tháng
   const y = anchor.getFullYear(), y0 = +new Date(y, 0, 1), yLen = +new Date(y + 1, 0, 1) - y0
   const inYear = rows.filter(s => new Date(s.starts_at).getFullYear() === y)
@@ -270,7 +272,7 @@ export function SessCal({ rows, label, planName, onOpen, hol, info }: { rows: Se
       <small className="sub tpcallegend"><i /> Sắp diễn ra <i className="live" /> Đang diễn ra <i className="draft" /> Chờ chốt <i className="off" /> Đã chốt
         · {inView} buổi trong {({ week: 'tuần', month: 'tháng', year: 'năm' })[view]}</small>
     </div>
-    {view === 'year' ? <div className="tpgantt">
+    {view !== 'month' ? <div ref={fill.ref} style={fill.style} className="tpfill">{view === 'year' ? <div className="tpgantt">
       <div className="tpganttrow head"><span />
         <div className="tpgantttrack">{Array.from({ length: 12 }, (_, m) => <span key={m}>Th{m + 1}</span>)}</div></div>
       {byPlan.map(([pid, ss]) => <div key={pid} className="tpganttrow">
@@ -282,9 +284,9 @@ export function SessCal({ rows, label, planName, onOpen, hol, info }: { rows: Se
         </div>
       </div>)}
       {!byPlan.length && <p className="sub" style={{ margin: 8 }}>Không có buổi nào trong năm {y}.</p>}
-    </div> : view === 'week' ? <TimeGrid days={week} label="Lịch đào tạo theo giờ trong tuần" dayNote={d => holD(d) || undefined}
+    </div> : <TimeGrid days={week} label="Lịch đào tạo theo giờ trong tuần" dayNote={d => holD(d) || undefined}
       events={week.flatMap(on).map(s => ({ id: s.id, start: new Date(s.starts_at), end: new Date(s.ends_at), title: (holD(new Date(s.starts_at)) ? '⚠ ' : '') + s.title, prog: sub2(s), sub: label(s), cls: TONE[sessSt(s, now)],
-        tip: tip(s), onClick: () => onOpen(s.id) }))} />
+        tip: tip(s), onClick: () => onOpen(s.id) }))} />}</div>
     : <div ref={view === 'month' ? fit.ref : undefined} style={view === 'month' ? fit.style : undefined} className={'tscal tpcal ' + view + (view === 'month' ? ' gcal' : '') + (view === 'month' && fit.style ? ' fit' : '')}>
       {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <div key={d} className="tscalh">{d}</div>)}
       {days.map((d, di) => { const ss = on(d), k = ymd(d), cut = view === 'month' && ss.length > MAX, hn = holD(d)

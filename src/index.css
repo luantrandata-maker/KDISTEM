@@ -3011,8 +3011,8 @@ button,input,select,textarea{font-size:calc(14px * var(--fz,1))}
 .ttprotools .tspacer,.tbulk .tspacer{flex:1}
 .ttprotools .ttleft{margin-right:0}
 .tsrch{display:flex;flex:0 1 440px;min-width:240px}
-.tsrch .tsq{position:relative;flex:1;min-width:0;display:flex;align-items:center}
-.tsrch .tsq svg{position:absolute;left:10px;color:var(--muted);pointer-events:none}
+.tsrch .tsin{position:relative;flex:1;min-width:0;display:flex;align-items:center}
+.tsrch .tsin svg{position:absolute;left:10px;color:var(--muted);pointer-events:none}
 .main .tsrch input{width:100%;height:36px;border:1px solid var(--line);border-right:0;border-radius:8px 0 0 8px;padding:0 10px 0 34px;margin:0;font-size:calc(14px * var(--fz,1));background:var(--surface)}
 .main .tsrch input:focus{outline:0;border-color:var(--primary)}
 .main .ttpro .tdd{height:36px;display:inline-flex;align-items:center;gap:6px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--text);font-weight:500;white-space:nowrap}
@@ -3200,3 +3200,5 @@ body:has(main .pdclose) .top .crumb b.crumbcur:hover{text-decoration:underline}
 /* Nút « ẩn cây: nền chọn của dòng "Tất cả" không chạy xuống dưới nút, nút canh giữa dòng */
 .ttaside .gtree>.gtitem:first-child{width:calc(100% - 30px);padding-right:10px}
 .ttsidehide{top:16px}
+/* Ba nút đầu khung nhỏ lại, cùng cỡ với các nút trên thanh công cụ của bảng */
+.main .pfhead>.pfact button,.main .pfcrumb>.pfact button{height:34px;padding-left:12px;padding-right:12px;font-size:calc(13.5px * var(--fz,1));border-radius:8px}

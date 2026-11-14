@@ -101,15 +101,17 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
   const baseStats = shown.map(p => stats.get(p.id)).filter(Boolean) as Stat[]
   const totalContents = baseStats.reduce((a, x) => a + x.contents, 0)
   const scopeText = (p: TProgram) => p.scope === 'selected' ? `${targets.get(p.id) ?? 0} đơn vị được chọn` : 'Tất cả đơn vị'
-  const kindText = (p: TProgram) => [ctsOf(p).join(', '), lvsOf(p).map(levelName).join(', ')].filter(Boolean).join(' · ')
   const progCols: Col<TProgram>[] = [
     { key: 'name', label: 'Chương trình đào tạo', fixed: true, values: p => [p.title], text: p => `${p.title} ${p.code} ${p.builder ?? ''}`,
       cell: p => <><button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'open', id: p.id }) }}>{p.title}</button><br /><small className="sub">{p.code} · v{p.version_no}{p.builder ? ` · XD: ${p.builder}` : ''}</small></> },
-    { key: 'kind', label: 'Loại · cấp học', text: kindText, values: p => [...ctsOf(p), ...lvsOf(p).map(levelName)], cell: p => kindText(p) || '—' },
+    { key: 'ct', label: 'Loại', text: p => ctsOf(p).join(', '), values: ctsOf, cell: p => ctsOf(p).join(', ') || '—' },
+    { key: 'lv', label: 'Cấp học', text: p => lvsOf(p).map(levelName).join(', '), values: p => lvsOf(p).map(levelName), cell: p => lvsOf(p).map(levelName).join(', ') || '—' },
     { key: 'aud', label: 'Đối tượng', off: true, text: p => p.audience ?? '', cell: p => p.audience || '—' },
     { key: 'scope', label: 'Phạm vi áp dụng', off: true, text: scopeText, cell: p => <>{scopeText(p)}{effNote(p) && <><br /><small className="sub">{effNote(p)}</small></>}</> },
     { key: 'owner', label: 'Đơn vị tạo', off: true, text: p => owners.get(p.org_id) ?? '', cell: p => owners.get(p.org_id) ?? '—' },
-    { key: 'size', label: 'Môn · nội dung · giờ', cell: p => { const s = stats.get(p.id); return `${s?.subjects ?? 0} môn · ${s?.contents ?? 0} nội dung · ${num(s?.hours ?? 0)} giờ` } },
+    { key: 'nsub', label: 'Số môn', text: p => String(stats.get(p.id)?.subjects ?? 0), cell: p => stats.get(p.id)?.subjects ?? 0 },
+    { key: 'ncont', label: 'Số nội dung', text: p => String(stats.get(p.id)?.contents ?? 0), cell: p => stats.get(p.id)?.contents ?? 0 },
+    { key: 'hours', label: 'Số giờ', text: p => String(stats.get(p.id)?.hours ?? 0), cell: p => num(stats.get(p.id)?.hours ?? 0) },
     { key: 'mode', label: 'Hình thức', text: p => MODE[p.mode], cell: p => MODE[p.mode] },
     { key: 'status', label: 'Trạng thái', text: p => STATUS[p.status][0], cell: p => <Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip> },
     { key: 'code', label: 'Mã · phiên bản', off: true, text: p => `${p.code} v${p.version_no}`, cell: p => <small>{p.code} · v{p.version_no}</small> },
@@ -130,7 +132,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
           sub: found.some(p => p.status === 'pending') ? `${found.filter(p => p.status === 'pending').length} chờ duyệt` : undefined },
         { k: 'off', icon: 'pause', value: found.filter(p => GROUP.off.includes(p.status)).length, label: 'Ngừng dùng' },
       ]} />}
-      {!list ? <p className="sub">Đang tải…</p> : <DataTable id="training-programs-v2" rows={shown} rowKey={p => p.id} cols={progCols}
+      {!list ? <p className="sub">Đang tải…</p> : <DataTable id="training-programs-v3" rows={shown} rowKey={p => p.id} cols={progCols}
         empty={admin ? 'Chưa có chương trình đào tạo nào. Bấm "+ Thêm chương trình".' : 'Chưa có chương trình đào tạo nào được phát hành cho đơn vị.'}
         left={<>
           <input placeholder="Tìm mã, tên, đối tượng…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />

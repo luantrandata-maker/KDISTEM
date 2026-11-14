@@ -167,7 +167,8 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
           cols={[
             { key: 'stem', label: 'Câu hỏi', fixed: true, values: r => [r.topic ?? ''], text: r => r.stem + ' ' + (r.topic ?? ''),
               cell: r => <span style={{ whiteSpace: 'normal' }}><b>{r.stem.length > 140 ? r.stem.slice(0, 140) + '…' : r.stem}</b>{r.topic && <><br /><small>{r.topic}</small></>}</span> },
-            { key: 'subj', label: 'Môn · khối', values: r => [r.subject, ...qGrades(r).map(g => 'Khối ' + g)], text: r => r.subject, cell: r => `${r.subject}${qGrades(r).length ? ` · ${qGrades(r).join(', ')}` : ''}` },
+            { key: 'subj', label: 'Môn', values: r => [r.subject], text: r => r.subject, cell: r => r.subject },
+            { key: 'grade', label: 'Khối', values: r => qGrades(r).map(g => 'Khối ' + g), text: r => qGrades(r).join(', '), cell: r => qGrades(r).join(', ') || '—' },
             { key: 'level', label: 'Mức độ', text: r => LEVEL[r.level], cell: r => LEVEL[r.level] },
             { key: 'kind', label: 'Loại', text: r => QKIND[r.kind], cell: r => QKIND[r.kind] },
             { key: 'src', label: 'Nguồn', text: r => !mine(r) ? orgNames.get(r.org_id) ?? 'Cấp trên' : r.source === 'ai' ? 'Trợ lý AI' : r.source === 'import' ? 'Nhập Excel' : 'Soạn tay',

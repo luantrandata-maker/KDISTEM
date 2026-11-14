@@ -253,7 +253,8 @@ function Exams({ orgId, subject, ofl: shared }: { orgId: string | null; subject?
         cols={[
           { key: 'title', label: 'Đề luyện', fixed: true, values: x => [x.title], text: x => [x.title, ...courseSubjects(x)].join(' '),
             cell: x => <><b>{x.title}</b> <MultiTag grades={courseGrades(x)} /><br /><small>{[courseSubjects(x).join(', '), gradesText(courseGrades(x)), !editable(x) ? 'của cấp trên' : every ? orgName(x.org_id) : isSchool ? audienceText(x, classes, groups) : x.shared ? 'dùng chung' : null].filter(Boolean).join(' · ')}</small></> },
-          { key: 'subj', label: 'Môn · khối', off: true, values: x => [...courseSubjects(x), gradesText(courseGrades(x))], text: x => courseSubjects(x).join(' '), cell: x => [courseSubjects(x).join(', '), gradesText(courseGrades(x))].filter(Boolean).join(' · ') || '—' },
+          { key: 'subj', label: 'Môn', off: true, values: x => courseSubjects(x), text: x => courseSubjects(x).join(', '), cell: x => courseSubjects(x).join(', ') || '—' },
+          { key: 'grade', label: 'Khối', off: true, values: x => courseGrades(x).map(g => 'Khối ' + g), text: x => courseGrades(x).join(', '), cell: x => courseGrades(x).join(', ') || '—' },
           { key: 'how', label: 'Câu hỏi', text: x => howText(x), cell: x => <>{howText(x)}{x.shuffle ? <><br /><small>trộn câu</small></> : null}</> },
           { key: 'time', label: 'Thời gian', text: x => x.duration_min ? `${x.duration_min} phút` : 'Không giới hạn', cell: x => <>{x.duration_min ? `${x.duration_min} phút` : 'Không giới hạn'}{x.max_attempts ? <><br /><small>{x.max_attempts} lượt</small></> : null}</> },
           { key: 'open', label: 'Mở', cell: x => <small>{dt(x.opens_at)}{x.closes_at ? ` → ${dt(x.closes_at)}` : ''}</small> },
@@ -506,7 +507,8 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
           empty={rows.length ? <small className="sub">Không có khoá học nào khớp bộ lọc.</small> : null}
           cols={[
             { key: 'title', label: 'Tên khoá học', fixed: true, text: c => c.title, cell: c => <><b>{c.title}</b> <MultiTag grades={courseGrades(c)} /></> },
-            { key: 'meta', label: 'Môn · khối', values: c => courseMeta(c), text: c => courseMeta(c).join(' · '), cell: c => courseMeta(c).join(' · ') || '—' },
+            { key: 'csubj', label: 'Môn', values: c => courseSubjects(c), text: c => courseSubjects(c).join(', '), cell: c => courseSubjects(c).join(', ') || '—' },
+            { key: 'cgrade', label: 'Khối', values: c => courseGrades(c).map(g => 'Khối ' + g), text: c => courseGrades(c).join(', '), cell: c => courseGrades(c).join(', ') || '—' },
             { key: 'n', label: 'Số bài', text: c => String(lessons.filter(l => l.course_id === c.id).length), cell: c => lessons.filter(l => l.course_id === c.id).length },
             { key: 'who', label: 'Đối tượng', text: c => String(whom(c) || ''), cell: c => whom(c) || '—' },
             { key: 'due', label: 'Hạn hoàn thành', cell: c => c.due_at ? dt(c.due_at) : '—' },

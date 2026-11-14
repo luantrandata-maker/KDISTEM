@@ -3239,3 +3239,14 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 .ttable>thead>tr>th.c-stick,.ttable>tbody>tr>td.c-stick{position:sticky!important;left:0;z-index:1;background:var(--surface);box-shadow:inset -1px 0 0 var(--line)}
 .ttable>thead>tr>th.c-stick{z-index:4!important;background:var(--soft)}
 .ttable tbody tr:hover>td.c-stick{background:#f6f8fb}
+
+/* Bảng bài học dạng lưới kiểu Excel */
+.slt.slgrid>tbody>tr>td,.slt.slgrid>tfoot>tr>td{border-right:1px solid var(--line)}
+.slt.slgrid>tbody>tr>td:last-child,.slt.slgrid>tfoot>tr>td:last-child{border-right:0}
+.slt.slgrid .slcell{border-radius:0;border-color:transparent;padding:6px 8px;margin:-6px -8px;width:calc(100% + 16px);max-width:none}
+.slt.slgrid .slcell:hover{border-color:transparent;background:#f4f7fc}
+.slt.slgrid .slcell:focus{border-color:var(--primary);box-shadow:none;outline:1px solid var(--primary);background:var(--surface)}
+.slmain .slt.slgrid input.slcell[inputmode=numeric]{max-width:none;text-align:right}
+.slt.slgrid textarea.slcell{resize:none;color:var(--text)}
+.main .slt.slgrid>tbody>tr>td{height:auto;padding:8px 10px;vertical-align:top}
+.slhint{margin:8px 2px 0;font-size:calc(12.5px * var(--fz,1))}

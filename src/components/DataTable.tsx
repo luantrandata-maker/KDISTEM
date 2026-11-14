@@ -346,7 +346,7 @@ function TIcon({ d }: { d: string }) {
 /** Khung bên trái (cây Cấp → Khối) cạnh bảng / thẻ: kéo mép phải để đổi độ rộng, nút « » để thu gọn / mở lại.
  *  Độ rộng và trạng thái thu gọn nhớ chung cho mọi bảng trên trình duyệt này. */
 const SIDE_KEY = 'tt:side'
-const loadSide = (): { w: number; off: boolean } => { try { return { w: 190, off: false, ...JSON.parse(localStorage.getItem(SIDE_KEY) ?? '{}') } } catch { return { w: 190, off: false } } }
+const loadSide = (): { w: number; off: boolean } => { try { return { w: 170, off: false, ...JSON.parse(localStorage.getItem(SIDE_KEY) ?? '{}') } } catch { return { w: 170, off: false } } }
 export function SideSplit({ aside, children }: { aside: ReactNode; children: ReactNode }) {
   const [side0, setSideS] = useState(loadSide)
   const setSide = (v: { w: number; off: boolean }) => { setSideS(v); try { localStorage.setItem(SIDE_KEY, JSON.stringify(v)) } catch { /* chỉ trong phiên */ } }
@@ -378,7 +378,7 @@ export function SideSplit({ aside, children }: { aside: ReactNode; children: Rea
         <button type="button" className="ttsidebtn ttsidehide" onClick={hide} title="Ẩn cây nhóm theo khối" aria-label="Ẩn cây nhóm theo khối">«</button>
         {aside}
         <span className="ttsidegrip" role="separator" aria-orientation="vertical" aria-label="Kéo để đổi độ rộng" title="Kéo để đổi độ rộng · bấm đúp để về mặc định"
-          onMouseDown={drag} onDoubleClick={() => setSide({ w: 190, off: false })} />
+          onMouseDown={drag} onDoubleClick={() => setSide({ w: 170, off: false })} />
       </div>}
     {children}
   </div>

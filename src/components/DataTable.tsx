@@ -166,12 +166,22 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   const resize = (k: string, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
     const th = (e.currentTarget as HTMLElement).parentElement!, x0 = e.clientX, w0 = th.getBoundingClientRect().width
-    // Chốt độ rộng hiện tại của mọi cột để bảng chuyển sang bố cục cố định: cột co lại được dù nội dung dài
-    const ths = Array.from(th.parentElement!.children).filter(x => !x.matches('.c-sel, .c-menu')) as HTMLElement[]
-    const now: Record<string, number> = {}
-    shownCols.forEach((c, i) => { if (ths[i]) now[c.key] = Math.round(ths[i].getBoundingClientRect().width) })
-    setViewS(v => ({ ...v, widths: { ...now, ...v.widths } }))
-    const mv = (ev: MouseEvent) => { const w = Math.max(48, Math.round(w0 + ev.clientX - x0)); setViewS(v => ({ ...v, widths: { ...v.widths, [k]: w } })) }
+    // Chốt độ rộng đang hiện của mọi cột để bảng chuyển sang bố cục cố định: cột co lại được dù nội dung dài
+    const all = Array.from(th.parentElement!.children) as HTMLElement[]
+    const ths = all.filter(x => !x.matches('.c-sel, .c-menu'))
+    const extra = (all.some(x => x.matches('.c-sel')) ? 36 : 0) + (rowMenu ? 48 : 0)
+    const snap: Record<string, number> = {}
+    shownCols.forEach((c, i) => { if (ths[i]) snap[c.key] = Math.round(ths[i].getBoundingClientRect().width) })
+    const W = (th.closest('.wrap') as HTMLElement | null)?.clientWidth ?? 0
+    const others = shownCols.map(c => c.key).filter(x => x !== k && snap[x])
+    const restSum = others.reduce((a, x) => a + snap[x], 0)
+    // Kéo hẹp: các cột còn lại giãn theo tỉ lệ để bảng vẫn đầy khung; kéo rộng quá khung thì bảng cuộn ngang
+    const mv = (ev: MouseEvent) => {
+      const w = Math.max(48, Math.round(w0 + ev.clientX - x0)), widths = { ...snap, [k]: w }
+      const room = W - extra - w
+      if (restSum > 0 && room > restSum) others.forEach(x => { widths[x] = Math.round(snap[x] * room / restSum) })
+      setViewS(v => ({ ...v, widths }))
+    }
     const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); setView(v => v) }
     document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up)
   }

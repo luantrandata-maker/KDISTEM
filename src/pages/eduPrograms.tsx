@@ -298,12 +298,9 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
 
   return (
     <>
-      <DetailHead back="Chương trình giáo dục" onBack={onClose} title={p.title} extra={<><small className="pdver">v{p.version_no}</small><StatusPill s={p.status} /></>} />
-      <div className="bar">
-        <div>
-          <small className="sub">{[p.code, lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ctsOf(p).join(', '), mainsOf(p).join(', '), p.total_periods != null ? `${p.total_periods} tiết` : null, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}</small>
-        </div>
-        <div className="tools">
+      <DetailHead back="Chương trình giáo dục" onBack={onClose} title={p.title} extra={<><small className="pdver">v{p.version_no}</small><StatusPill s={p.status} /></>}
+        sub={[p.code, lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ctsOf(p).join(', '), mainsOf(p).join(', '), p.total_periods != null ? `${p.total_periods} tiết` : null, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}
+        actions={<div className="tools">
           {(() => {
             const lead: (Act | false)[] = [
               !editInfo && tab === 'info' && editable && { key: 'edit', label: 'Sửa thông tin', icon: 'pencil', rank: 1, onClick: () => setEditInfo(true) },
@@ -312,8 +309,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
             return editInfo ? <ActionBar items={lead} />
               : <VersionActions lead={lead} p={p} mine={mine} canEdit={canEdit} mode={mode} isAdmin={isAdmin} onOpen={onOpen} onChanged={load} onMessage={(m, e) => setMsg([m, !!e])} onDelete={editable ? removeDraft : undefined} />
           })()}
-        </div>
-      </div>
+        </div>} />
       {mkBook && (
         <form className="panel formgrid" onSubmit={createBook} style={{ marginBottom: 12 }}>
           <label className="field"><span>Khối</span><select value={mkBook.grade} onChange={e => setMkBook({ ...mkBook, grade: Number(e.target.value) })}>{progGrades(p).map(g => <option key={g} value={g}>Khối {g}</option>)}</select></label>

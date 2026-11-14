@@ -3178,3 +3178,17 @@ table.ttsel:not(.ttselon) tbody tr:hover .tselbox input,table.ttsel:not(.ttselon
   main:has(>.pframe .ttpro):not(:has(.pdclose))>.pframe>.pfbody .ttprotools{padding:12px 18px}
   main:has(>.pframe .ttpro):not(:has(.pdclose))>.pframe>.pfbody .ttfoot{padding-left:18px}
 }
+
+/* Đầu trang chi tiết dạng B1: nút ← nhỏ cạnh tiêu đề, nút thao tác cùng hàng, tóm tắt ngay dưới.
+   Khi đang ở trang chi tiết, tên trang cuối đường dẫn trên thanh trên cùng thành liên kết quay lại danh sách. */
+.pagecrumb .pdhead1{gap:2px}
+.pagecrumb .pdhead1>.pdtitle{width:100%;flex-wrap:wrap;row-gap:8px}
+.main button.pdicon{width:34px;height:34px;min-height:0;padding:0;display:inline-grid;place-items:center;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--muted);cursor:pointer;flex:none}
+.main button.pdicon:hover{border-color:var(--primary);color:var(--primary)}
+.main button.pdicon svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.pagecrumb .pdtitle>.pdacts{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pagecrumb .pdtitle>.pdacts>.tools{align-items:center}
+.pagecrumb .pdsub{margin-left:44px;color:var(--muted);font-size:calc(13px * var(--fz,1));line-height:1.4}
+body:has(main .pdclose) .top .crumb b.crumbcur{color:var(--primary);font-weight:600;cursor:pointer}
+body:has(main .pdclose) .top .crumb b.crumbcur:hover{text-decoration:underline}
+.pagecrumb .pdhead1>.pdtitle>.pdh1{flex:0 1 auto}

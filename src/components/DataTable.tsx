@@ -212,27 +212,33 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   const fill = useFillHeight(!!pro, 76)
 
   const lead = shownCols.find(c => !/c-no|c-sel/.test(c.thClass ?? '') && c.key !== 'no')
-  const tbl = <div className="wrap"><table className={`libtable ttable${view.fit && !simple ? ' ttfit' : ''}${pro && view.dense ? ' ttdense' : ''}${bulk ? ' ttsel' + (selRows.length ? ' ttselon' : '') : ''}${className ? ' ' + className : ''}`}>
-      <colgroup>{head && <col style={{ width: 36 }} />}{shownCols.map(c => <col key={c.key} style={view.widths[c.key] ? { width: view.widths[c.key] } : undefined} />)}{rowMenu && <col style={{ width: 48 }} />}</colgroup>
+  // Dạng mới: ô tick riêng (head) gộp vào ô đầu dòng, ẩn tới khi rê chuột như bảng Chương trình giáo dục.
+  const inSel = !!(pro && head && !bulk && lead)
+  const sideHead = head && !inSel
+  const selOn = bulk || inSel
+  const tbl = <div className="wrap"><table className={`libtable ttable${view.fit && !simple ? ' ttfit' : ''}${pro && view.dense ? ' ttdense' : ''}${selOn ? ' ttsel' + (selRows.length ? ' ttselon' : '') : ''}${className ? ' ' + className : ''}`}>
+      <colgroup>{sideHead && <col style={{ width: 36 }} />}{shownCols.map(c => <col key={c.key} style={view.widths[c.key] ? { width: view.widths[c.key] } : undefined} />)}{rowMenu && <col style={{ width: 48 }} />}</colgroup>
       <thead>
-        <tr>{head && <th className="c-sel">{head.th}</th>}{shownCols.map(c => <th key={c.key} className={[c.thClass, c === lead ? 'c-lead' : ''].filter(Boolean).join(' ') || undefined}
+        <tr>{sideHead && <th className="c-sel">{head.th}</th>}{shownCols.map(c => <th key={c.key} className={[c.thClass, c === lead ? 'c-lead' : ''].filter(Boolean).join(' ') || undefined}
           style={view.widths[c.key] ? { width: view.widths[c.key], minWidth: view.widths[c.key] } : undefined}>{bulk && c === lead && <span className="tselbox"><input type="checkbox" aria-label="Chọn tất cả" checked={shown.length > 0 && selRows.length === shown.length}
-          onChange={e => setPicked(e.target.checked ? new Set(shown.map(rowKey)) : new Set())} onClick={e => e.stopPropagation()} /></span>}{c.label}
+          onChange={e => setPicked(e.target.checked ? new Set(shown.map(rowKey)) : new Set())} onClick={e => e.stopPropagation()} /></span>}{inSel && c === lead && <span className="tselbox" onClick={e => e.stopPropagation()}>{head!.th}</span>}{c.label}
           <span className="ttresize" role="separator" aria-label={`Đổi độ rộng cột ${c.label}`} onMouseDown={e => resize(c.key, e)} onClick={e => e.stopPropagation()}
             onDoubleClick={e => { e.stopPropagation(); setView(v => { const w = { ...v.widths }; delete w[c.key]; return { ...v, widths: w } }) }} /></th>)}{rowMenu && <th className="c-menu"><span className="sronly">Thao tác</span></th>}</tr>
-        {filterOn && <tr className="ttfilter">{head && <th />}{shownCols.map(c => <th key={c.key}>{c.text
+        {filterOn && <tr className="ttfilter">{sideHead && <th />}{shownCols.map(c => <th key={c.key}>{c.text
           ? <ColFilter label={c.label} options={options(c)} value={flt[c.key] ?? []} onChange={v => setFlt(f => ({ ...f, [c.key]: v }))} />
           : null}</th>)}</tr>}
       </thead>
       <tbody>{shown.map((r, i) => pro
         ? <tr key={rowKey(r)} className={'clickrow' + (picked.has(rowKey(r)) ? ' tsel' : '')} onClickCapture={e => { if (bulk && (e.shiftKey || e.ctrlKey || e.metaKey)) rowClick(r, i, e) }} onClick={e => rowClick(r, i, e)} {...rowProps?.(r)}>
-          {head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key} className={bulk && c === lead ? 'c-leadsel' : undefined}>
+          {sideHead && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key} className={selOn && c === lead ? 'c-leadsel' : undefined}>
+            {inSel && c === lead && <span className="tselbox">{head!.td(r)}</span>}
             {bulk && c === lead && <span className="tselbox"><input type="checkbox" checked={picked.has(rowKey(r))} onChange={() => { flipRow(r); lastIdx.current = i }} aria-label="Chọn dòng" /></span>}
             <div className="tdc">{c.cell(r)}</div></td>)}
           {rowMenu && <td className="c-menu"><RowMenu items={rowMenu(r)} label={String(lead?.text?.(r) ?? '')} /></td>}</tr>
-        : <tr key={rowKey(r)} className={onRow ? 'clickrow' : undefined} onClick={onRow && (() => onRow(r))} {...rowProps?.(r)}>{head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key}><div className="tdc">{c.cell(r)}</div></td>)}</tr>)}
-        {!shown.length && <tr><td colSpan={shownCols.length + (head ? 1 : 0) + (rowMenu ? 1 : 0)}>{rows.length ? <small className="sub">{qk ? `Không có dòng nào khớp “${q.trim()}”.` : 'Không có dòng nào khớp bộ lọc cột.'}</small> : empty}</td></tr>}</tbody>
-      {typeof foot === 'function' ? foot([...(head ? ['_head'] : []), ...shownCols.map(c => c.key)]) : foot}
+        : <tr key={rowKey(r)} className={onRow ? 'clickrow' : undefined} onClick={onRow && (() => onRow(r))} {...rowProps?.(r)}>{head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key}><div className="tdc">{c.cell(r)}</div></td>)}
+          {rowMenu && <td className="c-menu"><RowMenu items={rowMenu(r)} label={String(lead?.text?.(r) ?? '')} /></td>}</tr>)}
+        {!shown.length && <tr><td colSpan={shownCols.length + (sideHead ? 1 : 0) + (rowMenu ? 1 : 0)}>{rows.length ? <small className="sub">{qk ? `Không có dòng nào khớp “${q.trim()}”.` : 'Không có dòng nào khớp bộ lọc cột.'}</small> : empty}</td></tr>}</tbody>
+      {typeof foot === 'function' ? foot([...(sideHead ? ['_head'] : []), ...shownCols.map(c => c.key)]) : foot}
     </table></div>
 
   const colsMenu = (icon: boolean) => <>

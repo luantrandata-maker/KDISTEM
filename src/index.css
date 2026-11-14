@@ -3057,7 +3057,7 @@ table.ttsel>thead>tr>th.c-lead,table.ttsel>tbody>tr>td.c-leadsel{position:relati
 table.ttsel>tbody>tr>td.c-leadsel>.tselbox{top:14px;transform:none}
 .tselbox input{margin:0;width:15px;height:15px;accent-color:var(--primary);cursor:pointer}
 table.ttsel:not(.ttselon) .tselbox input{opacity:0;transition:opacity .12s}
-table.ttsel:not(.ttselon) tbody tr:hover .tselbox input,table.ttsel:not(.ttselon) thead:hover .tselbox input,.tselbox input:focus-visible{opacity:1}
+table.ttsel:has(>tbody .tselbox input:checked) .tselbox input,table.ttsel:not(.ttselon) tbody tr:hover .tselbox input,table.ttsel:not(.ttselon) thead:hover .tselbox input,.tselbox input:focus-visible{opacity:1}
 .ttpro tbody tr.clickrow{cursor:pointer}
 .ttpro tbody tr.tsel>td{background:#eaf1fe!important}
 .ttpro td.c-menu,.ttpro th.c-menu{width:48px;text-align:center;padding-left:4px;padding-right:8px}

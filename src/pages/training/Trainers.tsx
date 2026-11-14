@@ -133,9 +133,8 @@ export function TrainersPage({ orgId }: { orgId: string }) {
       { key: 'rate', label: 'Đánh giá của GV', cell: t => (r => r ? <><Chip tone={r.overall >= 4 ? 'good' : r.overall >= 3 ? 'warn' : 'bad'}>{score(r.overall)}★</Chip> <small className="sub">{r.responses} phiếu · {r.plans} khoá</small><br />
         <small className="sub" title="Chuyên môn · Truyền đạt · Tương tác">CM {score(r.expertise)} · TĐ {score(r.delivery)} · TT {score(r.interaction)}</small></> : <small className="sub">Chưa có</small>)(rate.get(t.id)) },
       { key: 'st', label: 'Trạng thái', text: t => t.active ? 'Đang mời' : 'Ngừng mời', cell: t => <Chip tone={t.active ? 'good' : ''}>{t.active ? 'Đang mời' : 'Ngừng mời'}</Chip> },
-      ...(can ? [{ key: 'act', label: 'Thao tác', fixed: true, cell: (t: Trainer) => <div className="tools"><button type="button" onClick={() => toggle(t)}>{t.active ? 'Ngừng mời' : 'Mời lại'}</button>
-        {!use.get(t.id) && <button type="button" aria-label={`Xoá ${t.full_name}`} onClick={() => del(t)}>×</button>}</div> }] : []),
     ] as Col<Trainer>[]}
+      rowMenu={can ? t => [{ label: t.active ? 'Ngừng mời' : 'Mời lại', onClick: () => toggle(t) }, ...(!use.get(t.id) ? [{ label: 'Xoá', onClick: () => del(t), danger: true }] : [])] : undefined}
       empty={all.length ? 'Không có giảng viên nào khớp.' : can ? 'Chưa có giảng viên nào. Bấm "+ Thêm giảng viên".' : 'Chưa có giảng viên nào.'}
       left={<><input placeholder="Tìm họ tên, đơn vị công tác, chuyên môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm giảng viên" />
         <MoreFilters active={ofl.active}>{ofl.node(all.map(t => t.org_id))}</MoreFilters>

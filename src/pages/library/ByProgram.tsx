@@ -13,7 +13,7 @@ import { KIT_SEL, errMsg, type KitRow } from './lesson/save'
 import { CreateLesson, kitSubject } from './lesson/Create'
 import { LessonPage } from './lesson/LessonPage'
 import { fmtGrades, progGrades } from '../../lib/eduLevels'
-import { useGradeTree, MultiTag } from '../../components/GradeTree'
+import { useGradeTree } from '../../components/GradeTree'
 import { DataTable, SideSplit } from '../../components/DataTable'
 import { downloadXlsx } from '../../lib/sheet'
 
@@ -217,7 +217,6 @@ export function LibraryByProgram({ orgId, onChanged, tools }: { orgId: string | 
           <div className="tilebody">
             <b>{p.title}</b>
             <small>{[p.code ?? p.ct_code, grades(p), `v${p.version_no}`, PSTATUS[p.status] ?? p.status].filter(Boolean).join(' · ')}</small>
-            <MultiTag grades={progGrades(p)} />
             <div className="tilemeta"><span>{subjectsOf(p.id).length} môn</span><span>{s.lessons} bài</span><span>{s.kits} bộ học liệu</span></div>
           </div>
         </button>) })}
@@ -227,7 +226,7 @@ export function LibraryByProgram({ orgId, onChanged, tools }: { orgId: string | 
       { key: 'name', label: 'Chương trình', fixed: true, values: p => [progName(p)], text: p => progName(p),
         cell: p => <><NameLink onClick={() => setPid(p.id)}>{progName(p)}</NameLink> <small className="sub">v{p.version_no} · {PSTATUS[p.status] ?? p.status}</small></> },
       { key: 'ct', label: 'Nhóm', text: p => p.ct_code ?? '', cell: p => p.ct_code ?? '—' },
-      { key: 'grade', label: 'Khối', text: p => grades(p), cell: p => <>{grades(p) || '—'}<br /><MultiTag grades={progGrades(p)} /></> },
+      { key: 'grade', label: 'Khối', text: p => grades(p), cell: p => grades(p) || '—' },
       { key: 'subj', label: 'Môn', cell: p => subjectsOf(p.id).length },
       { key: 'lessons', label: 'Bài', cell: p => stat(p).lessons },
       { key: 'kits', label: 'Bộ học liệu', cell: p => `${stat(p).kits}/${stat(p).lessons}` },

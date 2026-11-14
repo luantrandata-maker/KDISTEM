@@ -14,7 +14,7 @@ import { SchoolPicker } from '../components/SchoolPicker'
 import { useOrgFilter } from '../components/OrgFilters'
 import { Fragment, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { DataTable, type Col } from '../components/DataTable'
-import { useGradeTree, MultiTag } from '../components/GradeTree'
+import { useGradeTree } from '../components/GradeTree'
 import { Drawer } from '../components/Drawer'
 import { supabase, fetchAll } from '../lib/supabase'
 import { OrgPick, useAllMode, useAllOrgs } from '../components/OrgScope'
@@ -183,7 +183,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
     { key: 'name', label: 'Chương trình', fixed: true, values: p => [p.title], text: p => [p.code, p.title].join(' '),
       cell: p => <div className="eptitle"><NameLink onClick={() => setOpenId(p.id)}>{p.title}</NameLink>
         <small className="sub">{[p.code, 'v' + p.version_no, p.organizations?.name].filter(Boolean).join(' · ')}</small></div> },
-    { key: 'grade', label: 'Khối', values: p => [grades(p)], text: p => grades(p), cell: p => <>{grades(p) || '—'}<br /><MultiTag grades={progGrades(p)} /></> },
+    { key: 'grade', label: 'Khối', values: p => [grades(p)], text: p => grades(p), cell: p => grades(p) || '—' },
     { key: 'group', label: 'Nhóm', values: p => ctsOf(p), text: p => ctsOf(p).join(' '), cell: p => ctsOf(p).length ? <span className="epgroups">{ctsOf(p).map(c => <span key={c} className="epgroup">{c}</span>)}</span> : '—' },
     { key: 'lv', label: 'Cấp', off: true, values: p => lvsOf(p).map(levelName), text: p => lvsOf(p).map(levelName).join(', '), cell: p => lvsOf(p).map(levelName).join(', ') || '—' },
     { key: 'kind', label: 'Loại', off: true, text: p => PKIND[p.kind], cell: p => PKIND[p.kind] },

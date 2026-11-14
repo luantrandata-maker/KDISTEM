@@ -14,9 +14,6 @@ function bucket(lv: EduLevel[], gs: number[]): [string | null, string] {
   return [ls[0], u.length === 1 ? 'g:' + u[0] : 'multi:' + ls[0]]
 }
 
-/** Nhãn "Liên khối" cạnh tên khi dòng dạy từ 2 khối trở lên */
-export const MultiTag = ({ grades }: { grades: number[] }) => new Set(grades).size > 1 ? <span className="gtag">Liên khối</span> : null
-
 export type GradeSel = ReturnType<typeof useGradeSel>
 /** Trạng thái cây (mục đang chọn, cấp đang mở): gọi ở đầu component, trước các lệnh return sớm */
 export function useGradeSel(id: string) {

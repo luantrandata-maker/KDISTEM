@@ -160,14 +160,7 @@ const EduReadinessPage = lazy(() => import('./pages/training/EduReadiness').then
 // Dự tính GV theo chương trình giáo dục cho một trường (137)
 const TeacherStaffingPage = lazy(() => import('./pages/training/Staffing').then(m => ({ default: m.TeacherStaffingPage })))
 // Đáp ứng chương trình đào tạo và chương trình giáo dục: một tab, chọn loại chương trình
-function ReadinessBoth(p: any) {
-  const [k, setK] = useState<'tr' | 'edu' | 'plan'>('tr')
-  return <>
-    <div className="distfilter">{([['tr', 'Theo loại chương trình (CT1–CT5)'], ['edu', 'Theo chương trình giáo dục'], ['plan', 'Dự tính GV cho một trường']] as const).map(([v, l]) =>
-      <button key={v} type="button" className={`distfchip${k === v ? ' on' : ''}`} onClick={() => setK(v)}>{l}</button>)}</div>
-    {k === 'tr' ? <PlatformReadiness {...p} /> : k === 'edu' ? <EduReadinessPage {...p} /> : <TeacherStaffingPage {...p} />}
-  </>
-}
+const ReadinessBoth = (p: any) => <TabbedPages {...p} tabs={[['Theo loại chương trình (CT1–CT5)', PlatformReadiness], ['Theo chương trình giáo dục', EduReadinessPage], ['Dự tính GV cho một trường', TeacherStaffingPage]]} />
 // Chứng chỉ đào tạo (06/11: chuyển vào Giám sát & kết quả, tab cuối): chứng chỉ đã cấp và mẫu chứng chỉ
 const CertificatesBoth = (p: any) => <TabbedPages {...p} tabs={[['Chứng chỉ đã cấp', TrainingCertificatesPage], ['Mẫu chứng chỉ', CertTemplatesPage]]} />
 const SchoolTrainingMonitor = (p: any) => <TrainingMonitorHub {...p} work />
@@ -742,7 +735,8 @@ function Shell({ session }: { session: Session }) {
   return (
     <div className={'app' + (collapsed ? ' collapsed' : '')}>
       <nav className="side" aria-label="Menu chính">
-        <div className="sidebrand">
+        {/* Logo, tên hệ thống và ô tìm chức năng đứng yên khi cuộn menu */}
+        <div className="sidetop"><div className="sidebrand">
           {brand?.logo_dark ? <img src={brand.logo_dark} alt={brand.display_name ?? 'Logo'} /> : brand?.logo ? <img src={brand.logo} alt={brand.display_name ?? 'Logo'} className="onchip" /> : <img src={logoWhite} alt="KDI education" className="kdilogo" />}
           <b>{role === 'platform' ? appTitle : ROLE_LABEL[role]}</b>
         </div>
@@ -752,7 +746,7 @@ function Shell({ session }: { session: Session }) {
           <button type="button" className="sidesearchmini" aria-label="Tìm chức năng (Ctrl K)" title="Tìm chức năng (Ctrl K)"
             onClick={() => { setCollapsed(false); setTimeout(() => (document.querySelector('.sidesearch input') as HTMLInputElement | null)?.focus(), 60) }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg></button>
-        </div>
+        </div></div>
         {role !== 'department' && role !== 'platform' && role !== 'parent' && <label className="yearpick">
           <span>Năm học · học kỳ</span>
           <select value={yrs.year?.id ?? ''} onChange={e => e.target.value === '__manage' ? (role === 'school_admin' ? show(role, 'Năm học & học kỳ') : null) : yrs.select(e.target.value)}

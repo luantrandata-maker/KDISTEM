@@ -3285,3 +3285,27 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 
 /* Menu thu gọn: logo KDI chỉ hiện biểu tượng (cắt phần chữ), căn giữa như các biểu tượng menu */
 .app.collapsed .side:not(:hover):not(:focus-within) .sidebrand img.kdilogo,.app.collapsed .side .sidebrand img.kdilogo{width:22px;object-position:-3px 0;justify-self:center}
+
+/* Kế hoạch đào tạo dạng lịch (tuần / tháng): mỗi kế hoạch là một thanh liền kéo qua các ngày, kiểu Google Calendar */
+.tpbars{--lane:calc(22px * var(--fz,1));--dh:calc(28px * var(--fz,1));display:grid;grid-template-rows:auto;grid-auto-rows:minmax(0,1fr);border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.tpbars.week{grid-auto-rows:auto}
+.tpbhead{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.tpbhead span{padding:8px 0 4px;text-align:center;font-size:calc(11px * var(--fz,1));font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);border-right:1px solid var(--line)}
+.tpbhead span:last-child{border-right:0}
+.tpbwk{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));row-gap:2px;align-content:start;border-top:1px solid var(--line);min-height:0;overflow:hidden;padding-bottom:4px}
+.tpbday{grid-row:1/-1;border-right:1px solid var(--line);margin-bottom:-4px;display:flex;justify-content:center;align-items:flex-start;padding-top:3px;min-width:0}
+.tpbday:nth-child(7){border-right:0}
+.tpbday>small{min-width:24px;height:22px;padding:0 6px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:calc(12px * var(--fz,1));font-weight:500;color:var(--text)}
+.tpbday.out{background:var(--soft)}.tpbday.out>small{opacity:.45}
+.tpbday.today>small{background:var(--navy,#1a3a6b);color:#fff;font-weight:700}
+.tpbday.pick{background:color-mix(in srgb,var(--primary) 7%,var(--surface))}
+.main .tpbar{position:relative;z-index:1;margin:0 4px;min-width:0;display:flex;align-items:center;gap:4px;height:var(--lane);border:0;border-left:3px solid var(--ok-fg);border-radius:4px;padding:0 6px;background:var(--ok-bg);color:var(--text);font-size:calc(12px * var(--fz,1));line-height:1;text-align:left;white-space:nowrap;overflow:hidden;cursor:pointer}
+.main .tpbar b{font-weight:600;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;min-width:0}
+.main .tpbar small{color:var(--muted);font-size:calc(11px * var(--fz,1));overflow:hidden;text-overflow:ellipsis;flex:0 1 auto;min-width:0}
+.main .tpbar.draft{background:var(--warn-bg);border-left-color:var(--warn-fg)}
+.main .tpbar.off{background:var(--neutral-bg);border-left-color:#9aa3b2;color:var(--muted)}
+.main .tpbar.cont{margin-left:0;border-left:0;border-top-left-radius:0;border-bottom-left-radius:0;padding-left:9px}
+.main .tpbar.more{margin-right:0;border-top-right-radius:0;border-bottom-right-radius:0}
+.main .tpbar:hover{filter:brightness(.95)}
+.main .tpbmore{position:relative;z-index:1;border:0;background:none;padding:0 8px;height:var(--lane);text-align:left;font-size:calc(12px * var(--fz,1));color:var(--primary);font-weight:500;cursor:pointer;white-space:nowrap;overflow:hidden}
+@media(max-width:800px){.tpbars{overflow-x:auto}.tpbhead,.tpbwk{grid-template-columns:repeat(7,minmax(96px,1fr))}}

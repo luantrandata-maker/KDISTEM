@@ -1,5 +1,5 @@
 import { Icon } from '../components/Icon'
-import { gridKey, gridPaste } from '../components/sheetGrid'
+import { gridKey, gridPaste, gridMouseDown } from '../components/sheetGrid'
 import { YearSelect } from '../components/YearSelect'
 import { CompetencySetupLink } from '../components/CompetencySetup'
 import { useCompetencies, LV_NAME } from './competency'
@@ -1018,7 +1018,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
         </div>
         : <button type="button" className="sladdsubj" onClick={() => setAddSubj(true)}>+ Thêm môn</button>)}
     </nav>
-    <div className="slmain" onKeyDown={editable ? onGridKey : undefined} onPaste={editable ? onGridPaste : undefined}>
+    <div className="slmain" onKeyDown={editable ? onGridKey : undefined} onPaste={editable ? onGridPaste : undefined} onMouseDown={editable ? gridMouseDown : undefined}>
       <DataTable id="edu-lessons-v2" simple rows={shown} rowKey={r => r.u.id} className={editable ? 'slt slgrid' : 'slt'}
         rowProps={editable ? r => ({ className: drag === r.u.id ? 'sldragging' : over === r.u.id && drag ? 'slover' : undefined,
           onDragOver: e => { if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== r.u.id) setOver(r.u.id) },

@@ -43,3 +43,11 @@ export function gridPaste(e: React.ClipboardEvent, order: readonly string[], mul
     return { id: rid, vals, fromFirst: c0 === 0 }
   })
 }
+
+/** Bấm vào khoảng trống trong ô bảng cũng đưa con trỏ vào ô nhập của ô đó. */
+export const gridMouseDown = (e: React.MouseEvent) => {
+  const t = e.target as HTMLElement
+  if (t.tagName !== 'TD' && !t.classList.contains('tdc')) return
+  const inp = t.closest('td')?.querySelector('[data-gc]') as HTMLInputElement | null
+  if (inp) { e.preventDefault(); inp.focus() }
+}

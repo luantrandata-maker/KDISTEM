@@ -461,18 +461,12 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
         </div>
         {side && <div className="pdside">
           <div className="panel pdcard"><h4 className="pdcardh">Thông tin chung<button type="button" className="pdsidetg incard" onClick={toggleSide} title="Thu cột thông tin để bảng rộng hơn">Thu gọn ›</button></h4>
-            <div className="pdstats pdstatsin">
-              <div><b>{nSubj}</b><span>môn</span></div>
-              <div><b>{lessonN ?? '…'}</b><span>bài học</span></div>
-              <div><b>{q.total_periods ?? 0}</b><span>tiết{q.periods_per_week != null ? ` · ${String(q.periods_per_week).replace('.', ',')} tiết/tuần` : ''}</span></div>
-              <div><b>{dep?.[0] ?? '—'}</b><span>{dep?.[1] ?? 'thời gian triển khai'}</span></div>
-              {mode !== 'school' && <div><b>{asgN ?? '…'}</b><span>đơn vị được gán</span></div>}
-            </div>
             <dl className="pddl sm">
               <dt>Mã</dt><dd>{q.code || none}</dd>
               <dt>Nhóm</dt><dd>{ctsOf(q).map(c => c + (tracks[c] ? ' · ' + tracks[c]!.name : '')).join(', ') || '—'}</dd>
               <dt>Loại</dt><dd>{PKIND[q.kind]}</dd>
               <dt>Cấp · khối</dt><dd>{lvsOf(q).map(c => LV[c]?.name ?? c).join(', ')}{progGrades(q).length ? ' · ' + progGrades(q).join(', ') : ''}</dd>
+              <dt>Thời lượng</dt><dd>{[`${q.total_periods ?? 0} tiết`, q.periods_per_week != null && `${String(q.periods_per_week).replace('.', ',')} tiết/tuần`, dep && `${dep[0]} (${dep[1]})`].filter(Boolean).join(' · ')}</dd>
               <dt>Môn chủ đạo</dt><dd>{mains.join(', ') || '—'}</dd>
               {integs.length > 0 && <><dt>Môn tích hợp</dt><dd>{integs.join(', ')}</dd></>}
               <dt>Xây dựng</dt><dd>{q.builder || '—'}</dd>
@@ -496,6 +490,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
             {!editable && scopeEditable && <button type="button" className="linkbtn" onClick={edit}>Điều chỉnh ›</button>}</h4>
             <dl className="pddl sm">
               {showScope && <><dt>Áp dụng</dt><dd>{q.scope === 'own' ? 'Chỉ đơn vị mình và đơn vị được gán' : 'Tất cả đơn vị trực thuộc'}</dd></>}
+              {mode !== 'school' && <><dt>Đơn vị được gán</dt><dd>{asgN ?? '…'}</dd></>}
               <dt>Hiệu lực</dt><dd>{q.effective_from ? 'Từ ' + fmtD(q.effective_from) : 'Chưa đặt'}{q.effective_to ? ' đến ' + fmtD(q.effective_to) : ''}</dd>
               {mode !== 'school' && <><dt>Được gán</dt><dd>{asgN ?? '…'} đơn vị{onGoAssign && <> · <button type="button" className="linkbtn" onClick={onGoAssign}>Gán thêm ›</button></>}</dd></>}
             </dl>

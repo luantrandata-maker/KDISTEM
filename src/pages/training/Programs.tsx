@@ -468,13 +468,6 @@ export function ProgramDetail({ id, admin: _admin, go, onBack, onOpen, onMsg, in
       </div>
       {side && <div className="pdside">
         <div className="panel pdcard"><h4 className="pdcardh">Thông tin chung<button type="button" className="pdsidetg incard" onClick={toggleSide} title="Thu cột thông tin để bảng rộng hơn">Thu gọn ›</button></h4>
-          <div className="pdstats pdstatsin">
-            <div><b>{subjs.length}</b><span>môn</span></div>
-            <div><b>{contents.length}</b><span>nội dung</span></div>
-            <div><b>{num(hours)}</b><span>giờ</span></div>
-            <div><b>{tests}</b><span>bài test</span></div>
-            <div><b>{MODE[p.mode]}</b><span>hình thức</span></div>
-          </div>
           <dl className="pddl sm">
             <dt>Mã</dt><dd>{p.code || none}</dd>
             <dt>Loại</dt><dd>{ctsOf(p).map(c => c + (tracks[c] ? ' · ' + tracks[c]!.name : '')).join(', ') || '—'}</dd>

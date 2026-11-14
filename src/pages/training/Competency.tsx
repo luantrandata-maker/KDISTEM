@@ -14,6 +14,7 @@ import { useOrgFilters } from '../../components/OrgFilters'
 import { LevelNames } from '../settings/Custom'
 import { StatCards } from '../../components/StatCards'
 import { DataTable, type Col } from '../../components/DataTable'
+import { GroupTree, groupNodes, inGroup, useGroupSel } from '../../components/GroupTree'
 
 const m133 = (m: string) => /schema cache|does not exist|Could not find/i.test(m) ? 'Hãy chạy migration 133 trên Supabase.' : errText(m)
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 088 trên Supabase.' : /row-level|42501/i.test(m) ? 'Bạn không có quyền với mục này.' : m
@@ -37,6 +38,7 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
   const [creating, setCreating] = useState(false)
   // Ô tìm; đơn vị mở, năm học, mức yêu cầu, trạng thái lọc theo cột của bảng
   const [q, setQ] = useState('')
+  const [ysel, setYsel] = useGroupSel('training-rounds-year')
   const load = () => supabase.from('assessment_rounds').select('*, organizations(name)').order('created_at', { ascending: false })
     .then(({ data, error }) => { if (error) setMsg([errText(error.message), true]); setRows((data as Round[]) ?? []) })
   useEffect(() => { load(); supabase.rpc('training_can_write', { p_org: orgId }).then(({ data }) => setCan(!!data)) }, [orgId])
@@ -45,12 +47,17 @@ export function AssessmentRoundsPage({ orgId }: { orgId: string }) {
     onSaved={id => { setCreating(false); setMsg(['Đã mở đợt đánh giá. Theo dõi tiến độ và nhắc nhà giáo ở tab "Tiến độ".', false]); load().then(() => setOpen(id)) }} />
   if (cur) return <RoundDetail r={cur} onBack={() => setOpen(null)} onChanged={m => { setMsg([m, false]); load() }} />
   const all = rows ?? []
-  const shown = all.filter(r => !q || r.name.toLowerCase().includes(q.toLowerCase()))
+  const found = all.filter(r => !q || r.name.toLowerCase().includes(q.toLowerCase()))
+  // Cây năm học bên trái bảng
+  const ynodes = groupNodes(found, r => [r.school_year ?? ''], { desc: true, none: 'Chưa có năm học' })
+  const ycur = ysel === 'all' || ynodes.some(n => ysel === 'a:' + n.key) ? ysel : 'all'
+  const shown = found.filter(r => inGroup(ycur, r.school_year ?? ''))
   const openN = all.filter(r => r.status === 'open').length
   const add = () => { setMsg(null); setCreating(true) }
   return <>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    {!rows ? <p className="sub">Đang tải…</p> : <DataTable id="training-rounds" rows={shown} rowKey={r => r.id} cols={[
+    {!rows ? <p className="sub">Đang tải…</p> : <DataTable id="training-rounds" rows={shown} rowKey={r => r.id}
+      aside={found.length ? <GroupTree label="Năm học" nodes={ynodes} total={found.length} sel={ycur} onSel={setYsel} /> : undefined} cols={[
       { key: 'name', label: 'Đợt', fixed: true, text: r => r.name, cell: r => <button type="button" className="namelink" onClick={() => setOpen(r.id)}>{r.name}</button> },
       { key: 'org', label: 'Đơn vị mở', text: r => r.organizations?.name ?? '', cell: r => r.organizations?.name ?? '—' },
       { key: 'year', label: 'Năm học', text: r => r.school_year, cell: r => r.school_year },

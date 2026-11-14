@@ -59,20 +59,14 @@ const monday = (d: Date) => { const x = new Date(d.getFullYear(), d.getMonth(), 
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 
 /** Tên nội dung và tên chương trình của các nội dung đào tạo (lấy theo lô để URL không quá dài) */
+const chunks = <T,>(xs: T[], n: number) => Array.from({ length: Math.ceil(xs.length / n) }, (_, k) => xs.slice(k * n, k * n + n))
+
 async function unitInfo(ids: string[]) {
   const out = new Map<string, { title: string; program: string }>()
-  const us: { id: string; title: string; program_id: string }[] = []
-  for (let k = 0; k < ids.length; k += 150) {
-    const { data } = await supabase.from('training_program_units').select('id, title, program_id').in('id', ids.slice(k, k + 150))
-    us.push(...((data ?? []) as typeof us))
-  }
-  const pids = [...new Set(us.map(u => u.program_id))]
-  const pg = new Map<string, string>()
-  for (let k = 0; k < pids.length; k += 150) {
-    const { data } = await supabase.from('training_programs').select('id, title').in('id', pids.slice(k, k + 150))
-    for (const x of (data ?? []) as { id: string; title: string }[]) pg.set(x.id, x.title)
-  }
-  for (const u of us) out.set(u.id, { title: u.title, program: pg.get(u.program_id) ?? '' })
+  // Một lượt cho mỗi nhóm 150 nội dung, các nhóm chạy song song; tên chương trình lấy kèm (không cần lượt thứ hai)
+  const parts = await Promise.all(chunks(ids, 150).map(c => supabase.from('training_program_units').select('id, title, training_programs(title)').in('id', c)))
+  for (const { data } of parts) for (const u of (data ?? []) as unknown as { id: string; title: string; training_programs: { title: string } | null }[])
+    out.set(u.id, { title: u.title, program: u.training_programs?.title ?? '' })
   return out
 }
 /** Chương trình và nội dung của một buổi */
@@ -110,6 +104,8 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   // Cây năm học → kế hoạch bên trái bảng / lịch (thay ô chọn kế hoạch)
   const [tsel, setTsel] = useGroupSel('training-sched-tree')
+  // Dạng Lịch không có cây: lọc kế hoạch bằng ô chọn
+  const [cplan, setCplan] = useState('')
   // Hình thức: lọc buổi trực tuyến (lớp học ảo) hoặc trực tiếp
   const [onl, setOnl] = useState<'' | Mode>(online ? 'online' : '')
   const [fs, setFs] = useState<St | ''>('')
@@ -129,9 +125,12 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
       const ps = (p.data as Plan[]) ?? []
       const s = ps.length ? await supabase.from('training_sessions').select(SSEL).in('plan_id', ps.map(x => x.id)).order('starts_at') : { data: [] }
       const ss = (s.data as Sess[]) ?? []
-      const a = ss.length ? await supabase.from('training_attendance').select('session_id, teacher_id, present, excuse_status').in('session_id', ss.map(x => x.id)) : { data: [] }
-      setPlans(ps); setRows(ss); setAtt((a.data as Att[]) ?? [])
-      setUinfo(await unitInfo([...new Set(ss.flatMap(unitsOf))]))
+      // Hiện lịch ngay khi có buổi; điểm danh và tên nội dung / chương trình nạp song song rồi bổ sung sau
+      setPlans(ps); setRows(ss)
+      const [a, u] = await Promise.all([
+        Promise.all(chunks(ss.map(x => x.id), 150).map(c => supabase.from('training_attendance').select('session_id, teacher_id, present, excuse_status').in('session_id', c))),
+        unitInfo([...new Set(ss.flatMap(unitsOf))])])
+      setAtt(a.flatMap(r => (r.data as Att[]) ?? [])); setUinfo(u)
     })()
   }, [rk, orgId])
 
@@ -145,9 +144,9 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
   const tnodes = groupNodes(pre, s => [yOf(s), s.plan_id], { desc: true, label1: y => y, none: 'Chưa có năm học', sort2: id => pl(id)?.plan_code ?? pl(id)?.name ?? id,
     label2: id => { const p = pl(id); return p ? <span title={[p.plan_code, p.name].filter(Boolean).join(' · ')}>{p.name}</span> : '—' } })
   // Mục đã chọn không còn buổi nào (đổi bộ lọc) thì coi như Tất cả
-  const tcur = tsel === 'all' || tnodes.some(n => 'a:' + n.key === tsel || n.kids?.some(c => `b:${n.key}|${c.key}` === tsel)) ? tsel : 'all'
-  const plan = tcur.startsWith('b:') ? tcur.split('|')[1] : ''
-  const base = pre.filter(s => inGroup(tcur, yOf(s), s.plan_id))
+  const tcur = look === 'cal' ? 'all' : tsel === 'all' || tnodes.some(n => 'a:' + n.key === tsel || n.kids?.some(c => `b:${n.key}|${c.key}` === tsel)) ? tsel : 'all'
+  const plan = look === 'cal' ? cplan : tcur.startsWith('b:') ? tcur.split('|')[1] : ''
+  const base = pre.filter(s => look === 'cal' ? !cplan || s.plan_id === cplan : inGroup(tcur, yOf(s), s.plan_id))
   const shown = base.filter(s => !fs || sessSt(s, now) === fs)
   const n = (k: St) => base.filter(s => sessSt(s, now) === k).length
   const pend = att.filter(a => a.excuse_status === 'pending' && base.some(s => s.id === a.session_id)).length
@@ -172,7 +171,9 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
     </div>}
     <div className="bar">
       <div className="tools">
-        {ofl.node((plans ?? []).map(p => p.org_id), () => setTsel('all'))}
+        {look === 'cal' && <select value={cplan} onChange={e => setCplan(e.target.value)} aria-label="Kế hoạch"><option value="">Tất cả kế hoạch</option>
+          {(plans ?? []).filter(p => ofl.fit(p.org_id)).map(p => <option key={p.id} value={p.id}>{p.plan_code} · {p.name}</option>)}</select>}
+        {ofl.node((plans ?? []).map(p => p.org_id), () => { setTsel('all'); setCplan('') })}
         <select value={onl} onChange={e => setOnl(e.target.value as '' | Mode)} aria-label="Hình thức"><option value="">Tất cả hình thức</option>
           <option value="online">Trực tuyến (lớp học ảo)</option><option value="offline">Trực tiếp</option></select>
         <small className="sub">{shown.length}/{base.length} buổi</small>
@@ -185,7 +186,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
         <button type="button" className="primary" onClick={() => { setMsg(null); setOpen({ kind: 'auto' }) }} disabled={!plans?.length}>Xếp lịch từ kế hoạch</button></>}</div>
     </div>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    {!plans ? <p className="sub">Đang tải…</p> : <SideSplit aside={<GroupTree nodes={tnodes} total={pre.length} sel={tcur} onSel={setTsel} label="Nhóm theo năm học và kế hoạch" />}>{look === 'table' ? <div className="wrap"><table className="libtable">
+    {!plans ? <p className="sub">Đang tải…</p> : look === 'table' ? <SideSplit aside={<GroupTree nodes={tnodes} total={pre.length} sel={tcur} onSel={setTsel} label="Nhóm theo năm học và kế hoạch" />}><div className="wrap"><table className="libtable">
       <thead><tr><th>Buổi đào tạo</th><th>Thời gian</th><th>Hình thức</th><th>Giảng viên</th><th>Điểm danh</th><th>Trạng thái</th></tr></thead>
       <tbody>{shown.map(s => { const st = sessSt(s, now), i = info(s.id), p = pl(s.plan_id)
         return <tr key={s.id}>
@@ -197,8 +198,8 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
           <td><Chip tone={ST[st][1]}>{ST[st][0]}</Chip></td>
         </tr> })}
         {!shown.length && <tr><td colSpan={6}>{rows.length ? 'Không có buổi nào khớp bộ lọc.' : plans.length ? (can ? 'Chưa có buổi nào. Bấm "Xếp lịch từ kế hoạch".' : 'Chưa có buổi nào.') : 'Chưa có kế hoạch nào đã phát hành. Phát hành kế hoạch ở tab Kế hoạch trước.'}</td></tr>}</tbody>
-    </table></div> : <SessCal rows={shown} hol={hol} status={{ value: fs, all: base.length, n, onPick: setFs }} info={sinfo} planName={id => { const p = pl(id); return p ? [p.plan_code, p.name].filter(Boolean).join(' · ') : '—' }} label={x => { const p = pl(x.plan_id); return [all && orgName(p?.org_id), MODE[x.mode], x.mode === 'offline' ? x.location : '', (i => i.total ? `${i.present}/${i.total} có mặt` : '')(info(x.id))].filter(Boolean).join(' · ') }}
-      onOpen={id => { setMsg(null); setOpen({ kind: 'sess', id }) }} />}</SideSplit>}
+    </table></div></SideSplit> : <SessCal rows={shown} hol={hol} status={{ value: fs, all: base.length, n, onPick: setFs }} info={sinfo} planName={id => { const p = pl(id); return p ? [p.plan_code, p.name].filter(Boolean).join(' · ') : '—' }} label={x => { const p = pl(x.plan_id); return [all && orgName(p?.org_id), MODE[x.mode], x.mode === 'offline' ? x.location : '', (i => i.total ? `${i.present}/${i.total} có mặt` : '')(info(x.id))].filter(Boolean).join(' · ') }}
+      onOpen={id => { setMsg(null); setOpen({ kind: 'sess', id }) }} />}
   </>
 }
 

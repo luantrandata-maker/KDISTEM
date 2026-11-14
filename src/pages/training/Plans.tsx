@@ -115,11 +115,13 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
       const p = await (all ? base : base.eq('org_id', orgId)).order('plan_code', { ascending: false })
       if (p.error) { setMsg([errText(p.error.message), true]); setList([]); return }
       const ids = ((p.data ?? []) as TPlan[]).map(x => x.id)
+      // Hiện danh sách ngay; chương trình và trường được giao nạp song song rồi bổ sung sau
+      setList((p.data as TPlan[]) ?? [])
       const [i, o] = ids.length ? await Promise.all([
         supabase.from('training_plan_items').select('plan_id, program_id, seq, quota, trainer, trainer_ids, assistant, assistant_ids, note, units, training_programs(code, title, ct_code)').in('plan_id', ids),
         supabase.from('training_plan_orgs').select('plan_id, org_id, quota, status, note, submitted_at, decided_at').in('plan_id', ids),
       ]) : [{ data: [] }, { data: [] }]
-      setList((p.data as TPlan[]) ?? []); setItems((i.data as unknown as Item[]) ?? []); setOrgs((o.data as POrg[]) ?? [])
+      setItems((i.data as unknown as Item[]) ?? []); setOrgs((o.data as POrg[]) ?? [])
     })()
   }, [rk, orgId])
 

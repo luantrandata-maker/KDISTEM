@@ -3157,3 +3157,24 @@ table.ttsel:not(.ttselon) tbody tr:hover .tselbox input,table.ttsel:not(.ttselon
 .sidefly button:hover{background:rgba(255,255,255,.10);color:#fff}
 .sidefly button.on{background:rgba(255,255,255,.14);color:#fff;font-weight:600;box-shadow:inset 3px 0 0 var(--orange)}
 .sidefly button.locked{opacity:.6}
+
+/* Trang có bảng dạng mới trong khung (vd Chương trình giáo dục): bỏ các lớp khung lồng nhau để bảng và cây
+   cấp học nằm sát menu trái; tên trang đã có ở đường dẫn trên thanh trên cùng nên bỏ dòng tiêu đề lớn. */
+.top .crumb b{font-size:calc(17px * var(--fz,1));font-weight:700}
+.side{scrollbar-width:none}
+.side:hover{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.28) transparent}
+.side::-webkit-scrollbar{width:0}
+.side:hover::-webkit-scrollbar{width:6px}
+.side:hover::-webkit-scrollbar-thumb{background:rgba(255,255,255,.28);border-radius:3px}
+@media (min-width:900px){
+  main.main:has(>.pframe .ttpro):not(:has(.pdclose)){padding:0}
+  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pfcrumb>h1,
+  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pfcrumb>span{display:none}
+  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pfcrumb:not(:has(>.pfact>*)){display:none}
+  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pfcrumb{margin:0;padding:10px 18px 0}
+  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pframe{border:0;border-radius:0;box-shadow:none}
+  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pframe>.pfbody{padding:0}
+  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pframe>.pfbody .ttpro{border:0;border-radius:0}
+  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pframe>.pfbody .ttprotools{padding:12px 18px}
+  main:has(>.pframe .ttpro):not(:has(.pdclose))>.pframe>.pfbody .ttfoot{padding-left:18px}
+}

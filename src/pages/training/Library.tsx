@@ -1,5 +1,6 @@
 // Học liệu đào tạo: cùng khuôn với Học liệu của chương trình giáo dục — quy trình 3 bước, 4 thẻ số liệu,
 // tab Học liệu theo chương trình (nút Cần chuẩn bị) | Danh mục học liệu (Nội dung, Bài giảng, Link tài liệu, Định mức vật tư, Kho hoạt động).
+import { Tabs } from '../teacher/common'
 import { useEffect, useMemo, useState, type ComponentType } from 'react'
 import { HeadTabs } from '../../components/PageFrame'
 import { DetailHead } from '../../components/DetailHead'
@@ -81,7 +82,7 @@ export function TrainingLibraryPage({ parts, ...p }: { parts: [string, Component
     {tab === 'prog' && <TrainingByProgram orgId={p.orgId} tools={<button type="button" title="Thiết bị, vật tư cần chuẩn bị theo chương trình" onClick={() => setTab('needs')}>📦 Cần chuẩn bị</button>} />}
     {tab === 'needs' && <><DetailHead back="Học liệu theo chương trình" onBack={() => setTab('prog')} title="Cần chuẩn bị" /><Needs d={d} /></>}
     {tab === 'catalog' && <>
-      <div className="distfilter">{parts.map(([l], i) => <button key={l} type="button" className={`distfchip${part === i ? ' on' : ''}`} onClick={() => setPart(i)}>{l}</button>)}</div>
+      <Tabs value={String(part)} onChange={v => setPart(Number(v))} items={parts.map(([l], i) => [String(i), l] as [string, string])} />
       {/* Danh mục: bỏ hàng thẻ số liệu của từng tab con (đã có thẻ tổng ở trên) */}
       {Part && <div className="nocards"><Part key={part} {...p} /></div>}
     </>}

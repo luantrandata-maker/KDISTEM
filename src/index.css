@@ -3192,3 +3192,11 @@ table.ttsel:not(.ttselon) tbody tr:hover .tselbox input,table.ttsel:not(.ttselon
 body:has(main .pdclose) .top .crumb b.crumbcur{color:var(--primary);font-weight:600;cursor:pointer}
 body:has(main .pdclose) .top .crumb b.crumbcur:hover{text-decoration:underline}
 .pagecrumb .pdhead1>.pdtitle>.pdh1{flex:0 1 auto}
+
+/* Nút thao tác đầu khung (Theo dõi thực hiện, Xuất file, + Thêm…) cùng một chiều cao */
+.main .pfhead>.pfact button,.main .pfcrumb>.pfact button{height:38px;min-height:0;padding-top:0;padding-bottom:0;display:inline-flex;align-items:center;justify-content:center;gap:6px;line-height:1;box-sizing:border-box}
+/* Bảng thu gọn dòng: chữ nằm giữa dòng theo chiều dọc */
+.main .ttable.ttdense>tbody>tr>td{vertical-align:middle}
+/* Nút « ẩn cây: nền chọn của dòng "Tất cả" không chạy xuống dưới nút, nút canh giữa dòng */
+.ttaside .gtree>.gtitem:first-child{width:calc(100% - 30px);padding-right:10px}
+.ttsidehide{top:16px}

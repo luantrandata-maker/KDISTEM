@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { DataTable, type Col } from '../../components/DataTable'
 import { supabase } from '../../lib/supabase'
 import { NameLink } from '../../components/TableSel'
 import { ElView } from '../../components/ElView'
@@ -76,21 +77,16 @@ export function DistTiersCatalog() {
   )
   return (
     <>
-      <div className="bar">
-        <p className="sub" style={{ margin: 0 }}>Mức độ là tầng cuối của khung phân loại bản phân phối (Cấp học › Khối › Mức độ).
-          {admin ? '' : ' Chỉ quản trị nền tảng KDI sửa được danh mục này.'}</p>
-        {admin && <button className="primary" onClick={() => { setMsg(null); setForm({ code: '', name: '', sort: all.reduce((m, x) => Math.max(m, x.sort), 0) + 1, active: true, isNew: true }) }}>Thêm mức độ</button>}
-      </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      <div className="wrap"><table>
-        <thead><tr><th>Mức độ</th><th>Mã</th><th>Thứ tự</th><th>Bản phân phối</th></tr></thead>
-        <tbody>{all.map(t => (
-          <tr key={t.code} style={!t.active ? { opacity: 0.6 } : undefined}>
-            <td>{admin ? <NameLink onClick={() => { setMsg(null); setForm({ ...t }) }}><b>{t.name}</b></NameLink> : <b>{t.name}</b>}{!t.active && <> <span className="pill">Ngừng dùng</span></>}</td>
-            <td><small className="sub">{t.code}</small></td><td>{t.sort}</td><td>{used[t.code] ?? 0}</td>
-          </tr>))}
-          {all.length === 0 && <tr><td colSpan={4}>Chưa có mức độ nào.</td></tr>}</tbody>
-      </table></div>
+      <DataTable id="cat-dist-tiers" rows={all} rowKey={t => t.code} cols={[
+        { key: 'name', label: 'Mức độ', fixed: true, text: t => t.name, cell: t => <>{admin ? <NameLink onClick={() => { setMsg(null); setForm({ ...t }) }}><b>{t.name}</b></NameLink> : <b>{t.name}</b>}{!t.active && <> <span className="pill">Ngừng dùng</span></>}</> },
+        { key: 'code', label: 'Mã', text: t => t.code, cell: t => <small className="sub">{t.code}</small> },
+        { key: 'sort', label: 'Thứ tự', cell: t => t.sort },
+        { key: 'used', label: 'Bản phân phối', cell: t => used[t.code] ?? 0 },
+      ] as Col<(typeof all)[number]>[]}
+        empty={<small className="sub">Chưa có mức độ nào.</small>}
+        left={<span className="infotip" tabIndex={0} title={`Mức độ là tầng cuối của khung phân loại bản phân phối (Cấp học › Khối › Mức độ).${admin ? '' : ' Chỉ quản trị nền tảng KDI sửa được.'}`} aria-label="Giải thích">ⓘ Giải thích</span>}
+        right={admin && <button type="button" className="primary" onClick={() => { setMsg(null); setForm({ code: '', name: '', sort: all.reduce((m, x) => Math.max(m, x.sort), 0) + 1, active: true, isNew: true }) }}>+ Thêm mức độ</button>} />
     </>
   )
 }

@@ -182,7 +182,8 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
           <input className="search" style={{ margin: 0, minWidth: 220 }} type="search" placeholder={spec.searchHint} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm kiếm" />
         </span>}
         <span className="tools">
-          {!org && <Tabs value={view} onChange={setView} items={[['sum', 'Theo đơn vị'], ['list', 'Danh sách']]} />}
+          {!org && <span className="segmented viewtoggle" role="group" aria-label="Kiểu xem">{([['sum', 'Theo đơn vị'], ['list', 'Danh sách']] as const).map(([k, l]) =>
+            <button key={k} type="button" className={view === k ? 'on' : ''} aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>)}</span>}
           <button onClick={excel} disabled={!shown.length}>Xuất Excel</button>
           {actions}
         </span>
@@ -193,19 +194,14 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
       {capped && <p className="msg">Đang hiện {CAP.toLocaleString('vi-VN')} dòng đầu. Chọn Sở / tỉnh hoặc trường để xem đủ.</p>}
       {busy && <p className="sub">Đang tải…</p>}
 
-      {!busy && !org && view === 'sum' && <div className="wrap"><table className="systable">
-        <thead><tr><th>Đơn vị</th><th>Sở / tỉnh</th><th className="num">{spec.noun}</th>{spec.stats.map(s => <th key={s.label} className="num">{s.label}</th>)}</tr></thead>
-        <tbody>
-          {groups.map(([id, list]) => (
-            <tr key={id}><td><button className="namelink" onClick={() => pickOrg(id)}>{nameOf(id)}</button></td><td><small>{regionName(id)}</small></td>
-              <td className="num"><b>{list.length.toLocaleString('vi-VN')}</b></td>
-              {spec.stats.map(s => { const v = s.get(list); return <td key={s.label} className="num">{typeof v === 'number' ? v.toLocaleString('vi-VN') : v}</td> })}</tr>
-          ))}
-          {empty.map(s => <tr key={s.id} className="dim"><td><button className="namelink" onClick={() => pickOrg(s.id)}>{s.name}</button></td><td><small>{regionName(s.id)}</small></td>
-            <td className="num">0</td>{spec.stats.map(x => <td key={x.label} className="num">—</td>)}</tr>)}
-          {!groups.length && !empty.length && <tr><td colSpan={spec.stats.length + 3}>{spec.empty}</td></tr>}
-        </tbody>
-      </table></div>}
+      {!busy && !org && view === 'sum' && <DataTable id={'sys-sum-' + spec.file} rowKey={r => r.id}
+        rows={[...groups.map(([id, list]) => ({ id, list })), ...empty.map(o => ({ id: o.id, list: null as Row[] | null }))]}
+        empty={spec.empty} cols={[
+          { key: 'org', label: 'Đơn vị', fixed: true, text: r => nameOf(r.id), cell: r => <button className="namelink" onClick={() => pickOrg(r.id)}>{nameOf(r.id)}</button> },
+          { key: 'region', label: 'Sở / tỉnh', text: r => regionName(r.id), cell: r => <small>{regionName(r.id)}</small> },
+          { key: 'n', label: spec.noun, cell: r => r.list ? <b>{r.list.length.toLocaleString('vi-VN')}</b> : '0' },
+          ...spec.stats.map(st => ({ key: 's_' + st.label, label: st.label, cell: (r: { id: string; list: Row[] | null }) => { if (!r.list) return '—'; const v = st.get(r.list); return typeof v === 'number' ? v.toLocaleString('vi-VN') : v } })),
+        ] as DCol<{ id: string; list: Row[] | null }>[]} />}
 
       {!busy && (org || view === 'list') && !spec.detail && <DataTable id={'sys-' + spec.file} rows={shown.slice(0, SHOW)} rowKey={r => r.id} onRow={onOpen}
         aside={spec.grades && shown0.length ? gt.tree : undefined} empty={rows.length ? 'Không có dòng phù hợp bộ lọc.' : spec.empty}

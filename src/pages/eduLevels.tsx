@@ -1,4 +1,5 @@
 import { NameLink } from '../components/TableSel'
+import { DataTable, type Col } from '../components/DataTable'
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useEduLevels, type EduLevel, gradeName, fmtGrades, gradeRange } from '../lib/eduLevels'
@@ -79,22 +80,16 @@ export function EduLevelsCatalog() {
   )
   return (
     <>
-      <div className="bar">
-        <p className="sub" style={{ margin: 0 }}>Cấp học và các khối thuộc mỗi cấp. Khi soạn chương trình, môn học hay học liệu, ô "Cấp học" và "Khối" lấy từ danh mục này.
-          {admin ? ' Thu hẹp khoảng khối chỉ được khi không có chương trình nào nằm ngoài khoảng mới.' : ' Chỉ quản trị nền tảng KDI sửa được danh mục này.'}</p>
-        {admin && <button className="primary" onClick={() => { setMsg(null); setForm({ code: '', name: '', grade_from: 1, grade_to: 5, sort: all.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1, active: true, isNew: true }) }}>Thêm cấp học</button>}
-      </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      <div className="wrap"><table>
-        <thead><tr><th>Cấp học</th><th>Mã</th><th>Khối</th><th>Chương trình</th></tr></thead>
-        <tbody>{all.map(l => (
-          <tr key={l.code} style={l.active === false ? { opacity: 0.6 } : undefined}>
-            <td>{admin ? <NameLink onClick={() => { setMsg(null); setForm({ ...l }) }}><b>{l.name}</b></NameLink> : <b>{l.name}</b>}{l.active === false && <> <span className="pill">Ngừng dùng</span></>}</td>
-            <td><small className="sub">{l.code}</small></td>
-            <td>{fmtGrades(gradeRange(l.grade_from, l.grade_to))}</td>
-            <td>{used[l.code] ?? 0}</td>
-          </tr>))}</tbody>
-      </table></div>
+      <DataTable id="cat-edu-levels" rows={all} rowKey={l => l.code} cols={[
+        { key: 'name', label: 'Cấp học', fixed: true, text: l => l.name, cell: l => <>{admin ? <NameLink onClick={() => { setMsg(null); setForm({ ...l }) }}><b>{l.name}</b></NameLink> : <b>{l.name}</b>}{l.active === false && <> <span className="pill">Ngừng dùng</span></>}</> },
+        { key: 'code', label: 'Mã', text: l => l.code, cell: l => <small className="sub">{l.code}</small> },
+        { key: 'grades', label: 'Khối', text: l => fmtGrades(gradeRange(l.grade_from, l.grade_to)), cell: l => fmtGrades(gradeRange(l.grade_from, l.grade_to)) },
+        { key: 'used', label: 'Chương trình', cell: l => used[l.code] ?? 0 },
+      ] as Col<(typeof all)[number]>[]}
+        empty={<small className="sub">Chưa có cấp học nào.</small>}
+        left={<span className="infotip" tabIndex={0} title={`Ô "Cấp học" và "Khối" khi soạn chương trình, môn học, học liệu lấy từ danh mục này.${admin ? ' Thu hẹp khoảng khối chỉ được khi không có chương trình nào nằm ngoài khoảng mới.' : ' Chỉ quản trị nền tảng KDI sửa được.'}`} aria-label="Giải thích">ⓘ Giải thích</span>}
+        right={admin && <button type="button" className="primary" onClick={() => { setMsg(null); setForm({ code: '', name: '', grade_from: 1, grade_to: 5, sort: all.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1, active: true, isNew: true }) }}>+ Thêm cấp học</button>} />
     </>
   )
 }

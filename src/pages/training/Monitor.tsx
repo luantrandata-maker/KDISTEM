@@ -12,6 +12,7 @@ import { useAllOrgs, type ScopeOrg } from '../../components/OrgScope'
 import { SchoolPlanWork } from './Plans'
 import { FB_CRIT, FeedbackComments, score } from './Feedback'
 import { StatCards } from '../../components/StatCards'
+import { Tabs } from '../teacher/common'
 
 type Row = { plan_id: string; plan_code: string | null; plan_name: string; plan_org: string | null; year_name: string | null; starts_on: string | null; ends_on: string | null
   org_id: string; org_name: string; quota: number | null; org_status: string; enrolled: number; sessions: number; sessions_closed: number
@@ -105,6 +106,8 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
   const [f, setF] = useState<'all' | 'alert' | 'running' | 'done'>('all')
   const [q, setQ] = useState('')
   const [view, setView] = useState<View>('school')
+  // Ba khối số liệu tách thành tab con để trang không phải cuộn dài
+  const [sec, setSec] = useState<'track' | 'fb' | 'eff'>('track')
   const [open, setOpen] = useState(() => { try { return localStorage.getItem(OPEN_KEY) !== '0' } catch { return true } })
   const [kind, setKind] = useState<'' | Alert['kind']>('')
   const [school, setSchool] = useState<string | null>(null)
@@ -218,7 +221,8 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
         <button type="button" onClick={excel} disabled={!shown.length}>Xuất Excel</button>
       </div>
     </section>
-    {alerts.length > 0 && <section className="panel monalerts" style={{ marginTop: 14 }}>
+    <div style={{ marginTop: 14 }}><Tabs value={sec} onChange={setSec} items={[['track', 'Theo dõi tiến độ'], ['fb', 'Mức hài lòng', fbAll.n], ['eff', 'Năng lực trước / sau', eff.length]]} /></div>
+    {sec === 'track' && alerts.length > 0 && <section className="panel monalerts" style={{ marginTop: 14 }}>
       <div className="monhead">
         <h3 style={{ margin: 0 }}>Cảnh báo ({alerts.length})</h3>
         <div className="monkinds" role="group" aria-label="Lọc theo loại cảnh báo">{KINDS.map(([k, l]) => { const n = alerts.filter(a => a.kind === k).length
@@ -230,7 +234,7 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
         <span aria-hidden="true">{ALERT_ICON[a.kind]}</span><span>{a.text}<br /><small className="sub">{a.row.plan_code} · {a.row.plan_name}</small></span></button></li>)}</ul>
       {kindAlerts.length > 12 && <button type="button" className="linkbtn" onClick={() => { setF('alert'); setView('plan') }}>Xem cả {kindAlerts.length} cảnh báo trong bảng</button>}</>}
     </section>}
-    <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+    {sec === 'track' && <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
       <div className="monhead">
         {multi ? <div className="segmented viewtoggle" role="group" aria-label="Xem theo">{VIEWS.map(([k, l]) =>
           <button key={k} type="button" className={view === k ? 'on' : ''} aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>)}</div>
@@ -261,16 +265,16 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
             <td>{r.certs}</td><td><FbCell a={fbOf([r])} /></td></tr>)}
             {!shown.length && <tr><td colSpan={9}><small className="sub">{all.length ? 'Không có dòng nào khớp bộ lọc.' : 'Chưa có kế hoạch đào tạo đã phát hành được giao cho trường.'}</small></td></tr>}</tbody>
         </table></div>}
-    </section>
-    <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }} aria-label="Mức hài lòng sau đào tạo">
+    </section>}
+    {sec === 'fb' && <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }} aria-label="Mức hài lòng sau đào tạo">
       <div className="monhead"><h3 style={{ margin: 0 }}>Mức hài lòng sau đào tạo</h3>
         <small className="sub">{fbAll.n ? <>Trung bình chung <b>{score(fbAll.overall)}★</b> · {fbAll.n}/{fbAll.enrolled} GV đã gửi phiếu ({pct(fbAll.n, fbAll.enrolled)}%) · {fbAll.comments} góp ý</> : 'Nhà giáo gửi phiếu ở trang khoá học khi khoá kết thúc.'}</small></div>
       {fbPlans.length > 0 && <div className="wrap"><table className="libtable">
         <thead><tr><th>Kế hoạch</th><th>Phiếu</th>{FB_CRIT.map(([k, l]) => <th key={k}>{l}</th>)}<th>Góp ý</th></tr></thead>
         <tbody>{fbPlans.map(({ r, a }) => <FbPlanRow key={r.plan_id} r={r} a={a} open={fbPlan === r.plan_id} onToggle={() => setFbPlan(fbPlan === r.plan_id ? null : r.plan_id)} />)}</tbody>
       </table></div>}
-    </section>
-    <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
+    </section>}
+    {sec === 'eff' && <section className="panel" style={{ display: 'grid', gap: 10, marginTop: 14 }}>
       <h3 style={{ margin: 0 }}>Năng lực trước / sau đào tạo</h3>
       {eff.length ? <div className="wrap"><table className="libtable">
         <thead><tr><th>Năng lực</th><th>Số GV</th><th>Trước</th><th>Sau</th><th>Thay đổi</th></tr></thead>
@@ -278,7 +282,7 @@ export function TrainingMonitorHub({ work = false, manage = false }: { work?: bo
           return <tr key={e.competency}><td>{e.competency_name}</td><td>{e.teachers}</td><td>{num(e.before_avg)}</td><td>{num(e.after_avg)}</td>
             <td>{d == null ? <small className="sub">chưa đủ dữ liệu</small> : <Chip tone={d > 0 ? 'good' : d < 0 ? 'bad' : ''}>{d > 0 ? '+' : ''}{num(Math.round(d * 100) / 100)}</Chip>}</td></tr> })}</tbody>
       </table></div> : <small className="sub">Chưa có nhà giáo Đạt khoá đào tạo có năng lực đích.</small>}
-    </section>
+    </section>}
     {sel && <SchoolDetail s={sel} year={year} fb={fb} onClose={() => setSchool(null)} work={work} manage={manage}
       onWork={r => { setSchool(null); setDoing({ plan: r.plan_id, org: r.org_id }) }} onReview={review} />}
   </>

@@ -60,7 +60,7 @@ export function useIndexConfig() {
   async function load() {
     const { data, error } = await supabase.rpc('stem_index_config')
     if (error && /schema cache|does not exist/i.test(error.message)) setErr('Hãy chạy migration 049 trên Supabase.')
-    setCfg(data ? { ...DEFAULT_CFG, ...(data as Cfg), level3: Number((data as Cfg).level3), level2: Number((data as Cfg).level2) } : DEFAULT_CFG)
+    setCfg(data ? { ...DEFAULT_CFG, ...(data as Cfg), level3: Number((data as Cfg).level3) || DEFAULT_CFG.level3, level2: Number((data as Cfg).level2) || DEFAULT_CFG.level2 } : DEFAULT_CFG)
   }
   useEffect(() => { load() }, [])
   return { cfg, err, reload: load }

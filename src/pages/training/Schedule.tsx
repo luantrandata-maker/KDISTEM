@@ -3,7 +3,7 @@
 // mở buổi để đưa mã điểm danh (QR), nhắc lịch, ghi có mặt / vắng, duyệt xin vắng, chốt điểm danh, xem GV trùng lịch.
 import { useOrgFilter } from '../../components/OrgFilters'
 import { TimeGrid } from '../../components/TimeGrid'
-import { SideSplit } from '../../components/DataTable'
+import { DataTable, type Col } from '../../components/DataTable'
 import { GroupTree, groupNodes, inGroup, useGroupSel } from '../../components/GroupTree'
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import QRCode from 'qrcode'
@@ -169,9 +169,9 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
       {([['', 'Tất cả', base.length], ...(Object.keys(ST) as St[]).map(k => [k, ST[k][0], n(k)])] as [St | '', string, number][]).map(([s, l, c]) =>
         <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
     </div>}
-    <div className="bar">
+    {look === 'cal' && <div className="bar">
       <div className="tools">
-        {look === 'cal' && <select value={cplan} onChange={e => setCplan(e.target.value)} aria-label="Kế hoạch"><option value="">Tất cả kế hoạch</option>
+        {<select value={cplan} onChange={e => setCplan(e.target.value)} aria-label="Kế hoạch"><option value="">Tất cả kế hoạch</option>
           {(plans ?? []).filter(p => ofl.fit(p.org_id)).map(p => <option key={p.id} value={p.id}>{p.plan_code} · {p.name}</option>)}</select>}
         {ofl.node((plans ?? []).map(p => p.org_id), () => { setTsel('all'); setCplan('') })}
         <select value={onl} onChange={e => setOnl(e.target.value as '' | Mode)} aria-label="Hình thức"><option value="">Tất cả hình thức</option>
@@ -184,21 +184,30 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
         {can && <>
         <button type="button" onClick={() => { setMsg(null); setOpen({ kind: 'new' }) }} disabled={!plans?.length}>Thêm buổi</button>
         <button type="button" className="primary" onClick={() => { setMsg(null); setOpen({ kind: 'auto' }) }} disabled={!plans?.length}>Xếp lịch từ kế hoạch</button></>}</div>
-    </div>
+    </div>}
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    {!plans ? <p className="sub">Đang tải…</p> : look === 'table' ? <SideSplit aside={<GroupTree nodes={tnodes} total={pre.length} sel={tcur} onSel={setTsel} label="Nhóm theo năm học và kế hoạch" />}><div className="wrap"><table className="libtable">
-      <thead><tr><th>Buổi đào tạo</th><th>Thời gian</th><th>Hình thức</th><th>Giảng viên</th><th>Điểm danh</th><th>Trạng thái</th></tr></thead>
-      <tbody>{shown.map(s => { const st = sessSt(s, now), i = info(s.id), p = pl(s.plan_id)
-        return <tr key={s.id}>
-          <td style={{ whiteSpace: 'normal' }}><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen({ kind: 'sess', id: s.id }) }}>{s.title}</button>{(pr => pr && <><br /><small className="tsprog">{pr}</small></>)(sinfo(s).programs.join('; '))}<br /><small className="sub">{[all && orgName(p?.org_id), p?.plan_code, p?.name].filter(Boolean).join(' · ')}</small></td>
-          <td>{dd(s.starts_at)}<br /><small className="sub">{hm(s.starts_at)}–{hm(s.ends_at)}</small>{holOf(s.starts_at) && <><br /><small className="holwarn">⚠ Nghỉ: {holOf(s.starts_at)}</small></>}</td>
-          <td>{MODE[s.mode]}{s.mode === 'offline' ? s.location && <><br /><small className="sub">{s.location}</small></> : !s.meeting_url ? <><br /><small className="warnline">Chưa có link họp</small></> : s.recording_url ? <><br /><small className="sub">▶ Có bản ghi</small></> : null}</td>
-          <td>{s.trainer || '—'}</td>
-          <td>{i.total ? `${i.present}/${i.total} có mặt` : <small className="sub">Chưa có GV</small>}{i.pend > 0 && <><br /><Chip tone="warn">{i.pend} xin vắng</Chip></>}</td>
-          <td><Chip tone={ST[st][1]}>{ST[st][0]}</Chip></td>
-        </tr> })}
-        {!shown.length && <tr><td colSpan={6}>{rows.length ? 'Không có buổi nào khớp bộ lọc.' : plans.length ? (can ? 'Chưa có buổi nào. Bấm "Xếp lịch từ kế hoạch".' : 'Chưa có buổi nào.') : 'Chưa có kế hoạch nào đã phát hành. Phát hành kế hoạch ở tab Kế hoạch trước.'}</td></tr>}</tbody>
-    </table></div></SideSplit> : <SessCal rows={shown} hol={hol} status={{ value: fs, all: base.length, n, onPick: setFs }} info={sinfo} planName={id => { const p = pl(id); return p ? [p.plan_code, p.name].filter(Boolean).join(' · ') : '—' }} label={x => { const p = pl(x.plan_id); return [all && orgName(p?.org_id), MODE[x.mode], x.mode === 'offline' ? x.location : '', (i => i.total ? `${i.present}/${i.total} có mặt` : '')(info(x.id))].filter(Boolean).join(' · ') }}
+    {!plans ? <p className="sub">Đang tải…</p> : look === 'table' ? <DataTable id="training-sessions" rows={shown} rowKey={s => s.id}
+      aside={<GroupTree nodes={tnodes} total={pre.length} sel={tcur} onSel={setTsel} label="Nhóm theo năm học và kế hoạch" />}
+      left={<>{ofl.node((plans ?? []).map(p => p.org_id), () => { setTsel('all'); setCplan('') })}
+        <select value={onl} onChange={e => setOnl(e.target.value as '' | Mode)} aria-label="Hình thức"><option value="">Tất cả hình thức</option>
+          <option value="online">Trực tuyến (lớp học ảo)</option><option value="offline">Trực tiếp</option></select>
+        <small className="sub">{shown.length}/{base.length} buổi</small></>}
+      right={<><span className="segmented viewtoggle" role="group" aria-label="Kiểu xem">{([['table', 'Bảng'], ['cal', 'Lịch']] as const).map(([k, l]) =>
+          <button key={k} type="button" className={look === k ? 'on' : ''} aria-pressed={look === k} onClick={() => pickLook(k)}>{l}</button>)}</span>
+        {can && <>
+        <button type="button" onClick={() => { setMsg(null); setOpen({ kind: 'new' }) }} disabled={!plans?.length}>Thêm buổi</button>
+        <button type="button" className="primary" onClick={() => { setMsg(null); setOpen({ kind: 'auto' }) }} disabled={!plans?.length}>Xếp lịch từ kế hoạch</button></>}</>}
+      empty={<small className="sub">{rows.length ? 'Không có buổi nào khớp bộ lọc.' : plans.length ? (can ? 'Chưa có buổi nào. Bấm "Xếp lịch từ kế hoạch".' : 'Chưa có buổi nào.') : 'Chưa có kế hoạch nào đã phát hành. Phát hành kế hoạch ở tab Kế hoạch trước.'}</small>}
+      cols={[
+        { key: 'title', label: 'Buổi đào tạo', fixed: true, text: s => `${s.title} ${pl(s.plan_id)?.plan_code ?? ''} ${pl(s.plan_id)?.name ?? ''}`, cell: s => { const p = pl(s.plan_id)
+          return <><button type="button" className="namelink" onClick={() => { setMsg(null); setOpen({ kind: 'sess', id: s.id }) }}>{s.title}</button>{(pr => pr && <><br /><small className="tsprog">{pr}</small></>)(sinfo(s).programs.join('; '))}<br /><small className="sub">{[all && orgName(p?.org_id), p?.plan_code, p?.name].filter(Boolean).join(' · ')}</small></> } },
+        { key: 'time', label: 'Thời gian', text: s => dd(s.starts_at), cell: s => <>{dd(s.starts_at)}<br /><small className="sub">{hm(s.starts_at)}–{hm(s.ends_at)}</small>{holOf(s.starts_at) && <><br /><small className="holwarn">⚠ Nghỉ: {holOf(s.starts_at)}</small></>}</> },
+        { key: 'mode', label: 'Hình thức', text: s => MODE[s.mode], cell: s => <>{MODE[s.mode]}{s.mode === 'offline' ? s.location && <><br /><small className="sub">{s.location}</small></> : !s.meeting_url ? <><br /><small className="warnline">Chưa có link họp</small></> : s.recording_url ? <><br /><small className="sub">▶ Có bản ghi</small></> : null}</> },
+        { key: 'trainer', label: 'Giảng viên', text: s => s.trainer ?? '', cell: s => s.trainer || '—' },
+        { key: 'att', label: 'Điểm danh', cell: s => { const i = info(s.id); return <>{i.total ? `${i.present}/${i.total} có mặt` : <small className="sub">Chưa có GV</small>}{i.pend > 0 && <><br /><Chip tone="warn">{i.pend} xin vắng</Chip></>}</> } },
+        { key: 'st', label: 'Trạng thái', text: s => ST[sessSt(s, now)][0], cell: s => { const st = sessSt(s, now); return <Chip tone={ST[st][1]}>{ST[st][0]}</Chip> } },
+      ] as Col<(typeof shown)[number]>[]} />
+     : <SessCal rows={shown} hol={hol} status={{ value: fs, all: base.length, n, onPick: setFs }} info={sinfo} planName={id => { const p = pl(id); return p ? [p.plan_code, p.name].filter(Boolean).join(' · ') : '—' }} label={x => { const p = pl(x.plan_id); return [all && orgName(p?.org_id), MODE[x.mode], x.mode === 'offline' ? x.location : '', (i => i.total ? `${i.present}/${i.total} có mặt` : '')(info(x.id))].filter(Boolean).join(' · ') }}
       onOpen={id => { setMsg(null); setOpen({ kind: 'sess', id }) }} />}
   </>
 }

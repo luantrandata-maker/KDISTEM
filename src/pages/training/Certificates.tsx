@@ -159,7 +159,7 @@ export function CertTemplatesPage() {
     {msg && <p className="sub" role="status"><b>{msg}</b></p>}
     {!rows ? <p className="sub">Đang tải…</p> : <DataTable id="cert-templates" rows={rows} rowKey={t => t.id} cols={cols}
       empty={<small className="sub">Chưa có mẫu.{admin ? ' Bấm "+ Thêm mẫu" để tạo.' : ''}</small>}
-      left={<small className="sub">Chương trình đào tạo chọn mẫu ở đây; chương trình chưa chọn thì dùng mẫu mặc định.{admin ? '' : ' Chỉ KDI soạn mẫu.'}</small>}
+      left={<span className="infotip" tabIndex={0} title={`Chương trình đào tạo chọn mẫu ở đây; chương trình chưa chọn thì dùng mẫu mặc định.${admin ? '' : ' Chỉ KDI soạn mẫu.'}`} aria-label="Giải thích">ⓘ Giải thích</span>}
       right={admin && <button type="button" className="primary" onClick={() => setEdit({ ...BLANK })}>+ Thêm mẫu</button>} />}
   </>
 }

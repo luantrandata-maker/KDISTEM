@@ -8,6 +8,8 @@ import { schoolYear } from '../department/Governance'
 import { useOrgFilters } from '../../components/OrgFilters'
 import { MultiFilters, opts, useMultiFilters, type FilterDef } from '../../components/MultiFilters'
 import type { Plan } from './sched'
+import { DataTable, type Col } from '../../components/DataTable'
+import { GroupTree, groupNodes, inGroup, useGroupSel } from '../../components/GroupTree'
 
 export type HistRow = {
   book_id: string; year_name: string | null; org_id: string; school: string; plan_id: string; family_id: string; code: string; version_no: number
@@ -88,6 +90,7 @@ export function PlanHistory({ plan }: { plan: Plan }) {
 function AssignView({ plans, rk, now, family }: { plans: Plan[]; rk: number; now: boolean; family?: string | null }) {
   const { rows, err } = useHistory(null, rk)
   const mf = useMultiFilters()
+  const [ysel, setYsel] = useGroupSel(now ? 'dist-assign-year' : 'dist-history-year')
   const cur = schoolYear(), next = nextYear()
   const base = (rows ?? []).map(r => r.year_name || !now ? r : { ...r, year_name: cur })
     .filter(r => (!family || r.family_id === family) && (!now || r.year_name === cur || r.year_name === next))
@@ -101,17 +104,28 @@ function AssignView({ plans, rk, now, family }: { plans: Plan[]; rk: number; now
   if (err) return <p className="msg">{err}</p>
   if (!rows) return <p className="sub">Đang tải…</p>
   const yname = (r: HistRow) => r.year_name ?? NO_YEAR
-  const yearOpts = opts([...(now ? [cur] : []), ...base.map(yname)].map(y => [y, y === cur ? `${y} (năm nay)` : y === next ? `${y} (năm tới)` : y] as [string, string]), 'desc')
+  const ylabel = (y: string) => y === cur ? `${y} (năm nay)` : y === next ? `${y} (năm tới)` : y
   const defs: FilterDef[] = [...of.defs,
-    { key: 'year', label: 'Năm học', placeholder: now ? 'Năm nay và năm tới' : 'Tất cả năm học', options: yearOpts },
     ...(family ? [] : [{ key: 'fam', label: 'Bản phân phối', placeholder: 'Tất cả bản phân phối', options: opts(fams) }])]
-  const shown = base.filter(r => of.fit(r.org_id) && mf.has('year', yname(r)) && mf.has('fam', r.family_id))
-  return <>
-    <div className="tools distfilter" style={{ flexWrap: 'wrap' }}>
-      <MultiFilters defs={defs} f={mf} count={`${new Set(shown.map(r => r.org_id)).size} trường · ${shown.length} PPCT`} />
-    </div>
-    <HistTable rows={shown} showPlan={!family} />
-  </>
+  const found = base.filter(r => of.fit(r.org_id) && mf.has('fam', r.family_id))
+  // Cây năm học bên trái thay cho các dòng tiêu đề năm học trong bảng
+  const ynodes = groupNodes(found, r => [r.year_name ?? ''], { desc: true, label1: ylabel, none: NO_YEAR })
+  const ycur = ysel === 'all' || ynodes.some(n => ysel === 'a:' + n.key) ? ysel : 'all'
+  const shown = found.filter(r => inGroup(ycur, r.year_name ?? ''))
+  const cols: Col<HistRow>[] = [
+    { key: 'school', label: 'Trường', fixed: true, text: r => r.school, cell: r => r.school },
+    ...(family ? [] : [{ key: 'plan', label: 'Bản phân phối', text: (r: HistRow) => `${r.plan_title} ${r.code}`, cell: (r: HistRow) => <>{r.plan_title}<br /><small className="sub">{r.code}</small></> }]),
+    { key: 'year', label: 'Năm học', text: r => yname(r), cell: r => yname(r) },
+    { key: 'ver', label: 'Phiên bản', text: r => 'v' + r.version_no, cell: r => 'v' + r.version_no },
+    { key: 'book', label: 'PPCT', text: r => r.book_title, cell: r => r.book_title },
+    { key: 'lessons', label: 'Số tiết', cell: r => r.lessons },
+    { key: 'st', label: 'Trạng thái', text: r => BOOK_STATUS[r.book_status]?.[0] ?? r.book_status, cell: r => <Chip tone={BOOK_STATUS[r.book_status]?.[1]}>{BOOK_STATUS[r.book_status]?.[0] ?? r.book_status}</Chip> },
+    { key: 'at', label: 'Ngày gán', text: r => fmtD(r.assigned_at), cell: r => <small>{fmtD(r.assigned_at)}</small> },
+  ]
+  return <DataTable id={now ? 'dist-assigned' : 'dist-history'} rows={shown} rowKey={r => r.book_id} cols={cols}
+    aside={found.length ? <GroupTree label="Năm học" nodes={ynodes} total={found.length} sel={ycur} onSel={setYsel} /> : undefined}
+    empty={<small className="sub">Chưa gán cho trường nào.</small>}
+    left={<MultiFilters defs={defs} f={mf} count={`${new Set(shown.map(r => r.org_id)).size} trường · ${shown.length} PPCT`} />} />
 }
 
 /** Tab "Gán theo trường": các lần gán năm học hiện tại và năm tới (của bản đang chọn, hoặc tất cả bản). */

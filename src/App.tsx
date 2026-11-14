@@ -34,7 +34,7 @@ import QuestionBank from './pages/elearning/Bank'
 import StudentElearning from './pages/elearning/Student'
 import { saveQuizToBank } from './pages/elearning/common'
 import { AllOrgs } from './components/OrgScope'
-import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysActivities, SysTrainingActivities, SysLessonTemplates } from './pages/platform/SystemViews'
+import { SysWarranty, SysBuildings, SysTeachers, SysTeaching, SysStudents, SysGuardians, SysEduPlan, SysRegistrations, SysHomework, SysCurriculum, SysActivities, SysTrainingActivities, SysLessonTemplates, SysSchoolLessons } from './pages/platform/SystemViews'
 import Classes from './pages/Classes'
 import Rooms from './pages/Rooms'
 import Equipment from './pages/Equipment'
@@ -245,7 +245,8 @@ function PlatformEduProgramsPage(p: any) {
       actions={<button type="button" onClick={() => setTrack(true)}>Theo dõi thực hiện</button>} />
 }
 const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [
-  ['Bài giảng KDI', (p: any) => <LibraryManage {...p} only="lesson" />], ['Kho hoạt động', SysActivities],
+  // Bài giảng KDI soạn và phát hành; bài giảng giáo viên các trường soạn xem như Kho hoạt động (lọc Sở / tỉnh, đơn vị)
+  ['Bài giảng KDI', (p: any) => <LibraryManage {...p} only="lesson" />], ['Bài giảng các trường', SysSchoolLessons], ['Kho hoạt động', SysActivities],
   // Giáo án tạm ẩn (PLAN_MODE): chỉ còn bài giảng, kho hoạt động và mẫu bài giảng
   ...(PLAN_MODE ? [['Giáo án các trường', PH2_TABS.lessons], ['Mẫu giáo án', allOrgs(PlatformLessonTemplates)]] as [string, ComponentType<any>][]
     : [['Mẫu bài giảng', SysLessonTemplates]] as [string, ComponentType<any>][])]

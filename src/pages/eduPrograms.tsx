@@ -1,4 +1,5 @@
 import { Icon } from '../components/Icon'
+import { gridKey, gridPaste } from '../components/sheetGrid'
 import { YearSelect } from '../components/YearSelect'
 import { CompetencySetupLink } from '../components/CompetencySetup'
 import { useCompetencies, LV_NAME } from './competency'
@@ -926,9 +927,28 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
       return setOuts_(u, v)
     }
     return key === 'outs'
-      ? <textarea key={u.id + val} className="slcell" defaultValue={val} rows={Math.min(4, Math.max(1, r.outs.length))} placeholder="Mỗi dòng một yêu cầu" aria-label={`Yêu cầu cần đạt của ${u.title}`} onBlur={e => save(e.target.value)} />
-      : <input key={u.id + val} className="slcell" defaultValue={val} aria-label={`${key === 'title' ? 'Tên' : key === 'grades' ? 'Khối' : 'Số tiết'} bài ${u.title}`}
-          inputMode={key === 'title' ? undefined : 'numeric'} onBlur={e => save(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} />
+      ? <textarea key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} rows={Math.min(4, Math.max(1, r.outs.length))} placeholder="Mỗi dòng một yêu cầu" aria-label={`Yêu cầu cần đạt của ${u.title}`} onBlur={e => save(e.target.value)} />
+      : <input key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} aria-label={`${key === 'title' ? 'Tên' : key === 'grades' ? 'Khối' : 'Số tiết'} bài ${u.title}`}
+          inputMode={key === 'title' ? undefined : 'numeric'} onBlur={e => save(e.target.value)} />
+  }
+  // ---- Lưới kiểu Excel (Enter/↑↓/←→/Esc, dán vùng ô từ Excel) ----
+  const GC = ['title', 'grades', 'periods', 'outs'] as const
+  const onGridKey = gridKey(GC)
+  const onGridPaste = async (e: React.ClipboardEvent) => {
+    const lines = gridPaste(e, GC, ['outs']); if (!lines) return
+    const extra: PasteRow[] = []
+    for (const { id, vals, fromFirst } of lines) {
+      const u = id ? byId.get(id) : undefined
+      if (!u) { if (fromFirst) extra.push(...parseLessonLines([vals.title, vals.grades, vals.periods, vals.outs].map(x => x ?? '').join('\t'), defGrades)); continue }
+      const patch: Partial<Unit> = {}
+      if (vals.title) patch.title = stripNo(vals.title)
+      if (vals.grades && pg.length !== 1) { const g = gradeList(vals.grades).filter(x => x >= 1 && x <= 12); if (g.length) patch.grades = g }
+      if (vals.periods) patch.periods = Math.max(0, Math.round(Number(vals.periods.replace(',', '.')) || 0))
+      if ('outs' in vals) await setOuts_(u, vals.outs)
+      if (Object.keys(patch).length) await update(u, patch)
+    }
+    if (extra.length) await addLessons(extra, target)
+    onMessage(`Đã dán ${lines.length} dòng${extra.length ? `, thêm mới ${extra.length} bài` : ''}.`, false)
   }
   async function addDraft() {
     const t = nd.title.trim(); if (!t || busy) return
@@ -998,8 +1018,8 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
         </div>
         : <button type="button" className="sladdsubj" onClick={() => setAddSubj(true)}>+ Thêm môn</button>)}
     </nav>
-    <div className="slmain">
-      <DataTable id="edu-lessons-v2" simple rows={shown} rowKey={r => r.u.id} className="slt"
+    <div className="slmain" onKeyDown={editable ? onGridKey : undefined} onPaste={editable ? onGridPaste : undefined}>
+      <DataTable id="edu-lessons-v2" simple rows={shown} rowKey={r => r.u.id} className={editable ? 'slt slgrid' : 'slt'}
         rowProps={editable ? r => ({ className: drag === r.u.id ? 'sldragging' : over === r.u.id && drag ? 'slover' : undefined,
           onDragOver: e => { if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== r.u.id) setOver(r.u.id) },
           onDrop: e => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id) moveTo(id, r) } }) : undefined}
@@ -1014,18 +1034,19 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
         foot={editable && target ? (keys: string[]) => {
           const subjSel = <select value={target} disabled={!!sel || subjList.length < 2} onChange={e => setNewSubj(e.target.value)} aria-label="Môn của bài mới">{subjList.map(x => <option key={x} value={x}>{x}</option>)}</select>
           const cellOf = (k: string) => k === 'subj' ? subjSel
-            : k === 'title' ? <div className="slnewrow">{!keys.includes('subj') && !sel && subjList.length > 1 ? subjSel : null}<input id="sl-new-title" className="slnt" value={nd.title} disabled={busy} placeholder="+ Tên bài mới (dán nhiều dòng để thêm nhiều bài)" aria-label={`Tên bài mới môn ${target}`}
+            : k === 'title' ? <div className="slnewrow">{!keys.includes('subj') && !sel && subjList.length > 1 ? subjSel : null}<input id="sl-new-title" className="slnt" data-gc="title" value={nd.title} disabled={busy} placeholder="+ Tên bài mới (dán nhiều dòng để thêm nhiều bài)" aria-label={`Tên bài mới môn ${target}`}
 onChange={e => setNd({ ...nd, title: e.target.value })} onKeyDown={enter}
 onPaste={e => { const t = e.clipboardData.getData('text'); if (/\n/.test(t.trim())) { e.preventDefault(); setPaste({ subj: target, text: t }) } }} /></div>
             : k === 'grades' ? <>{pg.length === 1 ? <span className="slgone" title="Chương trình chỉ có một khối nên bài tự thuộc khối này">Khối {pg[0]}</span>
 : pg.length > 1 ? <GradeTicks options={pg} value={nd.grades ? gradeList(nd.grades) : defGrades} disabled={busy} label="Khối của bài mới" onChange={g => setNd({ ...nd, grades: g.join(', ') })} />
-: <input className="slng" value={nd.grades} disabled={busy} placeholder="Khối" aria-label="Khối của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, grades: e.target.value })} onKeyDown={enter} />}</>
-            : k === 'periods' ? <input className="slnp" value={nd.periods} disabled={busy} placeholder="Số tiết" aria-label="Số tiết của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, periods: e.target.value })} onKeyDown={enter} />
-            : k === 'outs' ? <input className="slno" value={nd.outs} disabled={busy} placeholder="Yêu cầu cần đạt (ngăn cách bằng ;)" aria-label="Yêu cầu cần đạt của bài mới" onChange={e => setNd({ ...nd, outs: e.target.value })} onKeyDown={enter} />
+: <input className="slng" data-gc="grades" value={nd.grades} disabled={busy} placeholder="Khối" aria-label="Khối của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, grades: e.target.value })} onKeyDown={enter} />}</>
+            : k === 'periods' ? <input className="slnp" data-gc="periods" value={nd.periods} disabled={busy} placeholder="Tiết" aria-label="Số tiết của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, periods: e.target.value })} onKeyDown={enter} />
+            : k === 'outs' ? <input className="slno" data-gc="outs" value={nd.outs} disabled={busy} placeholder="Yêu cầu cần đạt (ngăn cách bằng ;)" aria-label="Yêu cầu cần đạt của bài mới" onChange={e => setNd({ ...nd, outs: e.target.value })} onKeyDown={enter} />
             : k === 'act' ? <button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addDraft}>+ Thêm</button>
             : null
           return <tfoot><tr className="slnew">{keys.map(k => <td key={k}>{cellOf(k)}</td>)}{!keys.includes('act') && <td><button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addDraft}>+ Thêm</button></td>}</tr></tfoot>
         } : undefined} />
+      {editable && <p className="sub slhint">Gõ thẳng vào ô như Excel: Enter hoặc ↑↓ để sang dòng, ←→ ở đầu/cuối ô để sang cột, Esc để huỷ sửa. Chép một vùng ô trong Excel rồi dán vào ô bất kỳ để điền nhiều dòng, dòng thừa thành bài mới.</p>}
     </div>
     {openL && byId.get(openL) && <LessonDetail u={byId.get(openL)!} p={p} all={all} umats={umats} outs={outs} editable={editable}
       onClose={() => setOpenL(null)} onChanged={() => { load(); onChanged() }} onMessage={onMessage} />}

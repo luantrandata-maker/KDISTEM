@@ -145,23 +145,23 @@ export function CertTemplatesPage() {
   }
   useEffect(() => { load(); supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)) }, [])
   if (edit) return <TplForm t={edit} progs={progs} onBack={() => setEdit(null)} onDone={m => { setEdit(null); setMsg(m); load() }} />
-  return <section className="panel" style={{ display: 'grid', gap: 12 }}>
-    <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Mẫu chứng chỉ</h3>{admin && <button type="button" className="primary" onClick={() => setEdit({ ...BLANK })}>Thêm mẫu</button>}</div>
-    <small className="sub">Chương trình đào tạo chọn mẫu ở đây; chương trình chưa chọn thì dùng mẫu mặc định. {!admin && 'Chỉ KDI soạn mẫu.'}</small>
+  const used = (t: Tpl) => progs.filter(p => p.cert_template_id === t.id)
+  const cols: Col<Tpl>[] = [
+    { key: 'name', label: 'Mẫu', fixed: true, text: t => `${t.name} ${t.title}`, cell: t => <><button type="button" className="namelink" onClick={() => setEdit(t)}>{t.name}</button>
+      {t.is_default && <> <Chip tone="good">Mặc định</Chip></>}<br /><small className="sub">{t.title}</small></> },
+    { key: 'issuer', label: 'Đơn vị cấp', text: t => t.issuer_name ?? '', cell: t => t.issuer_name || '—' },
+    { key: 'signer', label: 'Người ký', text: t => [t.signer_title, t.signer_name].filter(Boolean).join(' · '), cell: t => [t.signer_title, t.signer_name].filter(Boolean).join(' · ') || '—' },
+    { key: 'valid', label: 'Hiệu lực', text: t => t.valid_months ? `${t.valid_months} tháng` : 'Không thời hạn', cell: t => t.valid_months ? `${t.valid_months} tháng` : 'Không thời hạn' },
+    { key: 'progs', label: 'Áp dụng cho chương trình', text: t => used(t).map(p => p.code).join(', '),
+      cell: t => { const ps = used(t); return ps.length ? ps.map(p => p.code).join(', ') : <small className="sub">{t.is_default ? 'Các chương trình chưa chọn mẫu' : 'Chưa có'}</small> } },
+  ]
+  return <>
     {msg && <p className="sub" role="status"><b>{msg}</b></p>}
-    {!rows ? <p className="sub">Đang tải…</p> : <div className="wrap"><table className="libtable">
-      <thead><tr><th>Mẫu</th><th>Đơn vị cấp · người ký</th><th>Hiệu lực</th><th>Áp dụng cho chương trình</th><th></th></tr></thead>
-      <tbody>{rows.map(t => { const ps = progs.filter(p => p.cert_template_id === t.id)
-        return <tr key={t.id}>
-          <td><b>{t.name}</b>{t.is_default && <> <Chip tone="good">Mặc định</Chip></>}<br /><small className="sub">{t.title}</small></td>
-          <td>{t.issuer_name || '—'}<br /><small className="sub">{[t.signer_title, t.signer_name].filter(Boolean).join(' · ') || '—'}</small></td>
-          <td>{t.valid_months ? `${t.valid_months} tháng` : 'Không thời hạn'}</td>
-          <td style={{ whiteSpace: 'normal' }}>{ps.length ? ps.map(p => p.code).join(', ') : <small className="sub">{t.is_default ? 'Các chương trình chưa chọn mẫu' : 'Chưa có'}</small>}</td>
-          <td><button type="button" data-rowopen onClick={() => setEdit(t)}>{admin ? 'Sửa' : 'Xem'}</button></td>
-        </tr> })}
-        {!rows.length && <tr><td colSpan={5}><small className="sub">Chưa có mẫu.</small></td></tr>}</tbody>
-    </table></div>}
-  </section>
+    {!rows ? <p className="sub">Đang tải…</p> : <DataTable id="cert-templates" rows={rows} rowKey={t => t.id} cols={cols}
+      empty={<small className="sub">Chưa có mẫu.{admin ? ' Bấm "+ Thêm mẫu" để tạo.' : ''}</small>}
+      left={<small className="sub">Chương trình đào tạo chọn mẫu ở đây; chương trình chưa chọn thì dùng mẫu mặc định.{admin ? '' : ' Chỉ KDI soạn mẫu.'}</small>}
+      right={admin && <button type="button" className="primary" onClick={() => setEdit({ ...BLANK })}>+ Thêm mẫu</button>} />}
+  </>
 }
 
 function TplForm({ t, progs, onBack, onDone }: { t: Tpl | Omit<Tpl, 'id'>; progs: { id: string; code: string; title: string; cert_template_id: string | null }[]; onBack: () => void; onDone: (m: string) => void }) {

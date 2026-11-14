@@ -285,46 +285,48 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
       { k: 'nosuggest', icon: 'help', tone: noSuggest ? 'warn' : '', value: noSuggest, label: 'Chưa có chương trình phù hợp' },
     ]} />
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
-      <div className="distfilter">
+    {(() => {
+      // Cây năng lực bên trái (thay hàng nút năng lực); chuyển Tổng hợp theo trường / Theo nhà giáo như Bảng / Lịch
+      const tree = <GroupTree label="Năng lực" total={base.length} sel={comp ? 'a:' + comp : 'all'} onSel={k => setComp(k === 'all' ? '' : k.slice(2))}
+        nodes={perComp.map(([c, n]) => ({ key: c.key, label: c.name, count: n }))} />
+      const left = <>
         <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học">{years().map(y => <option key={y} value={y}>Năm học {y}</option>)}</select>
         <select value={target} onChange={e => setTarget(+e.target.value)} aria-label="Mức yêu cầu">{[2, 3, 4].map(l => <option key={l} value={l}>Yêu cầu từ Mức {l} ({LV_NAME[l - 1]})</option>)}</select>
         <MultiFilters defs={of.defs} f={mf} />
         <input placeholder="Tìm tên nhà giáo…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm nhà giáo" />
-        <button type="button" onClick={excel} disabled={!shown.length}>Xuất Excel</button>
-        {/* Chú thích cách tính: rê chuột vào để xem (không chiếm chỗ trên trang) */}
-        <span className="infotip" tabIndex={0} title={GAP_NOTE} aria-label={GAP_NOTE}>ⓘ Cách tính</span>
-      </div>
-      <div className="distfilter">
-        <button type="button" className={`distfchip${!comp ? ' on' : ''}`} onClick={() => setComp('')}>Tất cả năng lực ({base.length})</button>
-        {perComp.map(([c, n]) => <button key={c.key} type="button" className={`distfchip${comp === c.key ? ' on' : ''}`} onClick={() => setComp(c.key)}>{c.name} ({n})</button>)}
-        <span style={{ flex: 1 }} />
-        <button type="button" className={`distfchip${view === 'school' ? ' on' : ''}`} onClick={() => setView('school')}>Tổng hợp theo trường</button>
-        <button type="button" className={`distfchip${view === 'teacher' ? ' on' : ''}`} onClick={() => setView('teacher')}>Theo nhà giáo</button>
-      </div>
-      {!rows ? <p className="sub">Đang tải…</p> : view === 'school' ? <div className="wrap"><table className="libtable">
-        <thead><tr><th>Trường</th><th>GV có thiếu hụt</th>{comps.map(c => <th key={c.key}>{c.name}</th>)}</tr></thead>
-        <tbody>{bySchool.map(s => <tr key={s.name}><td>{s.name}</td><td><b>{s.teachers.size}</b></td>{comps.map(c => <td key={c.key}>{s.per[c.key] ?? <small className="sub">0</small>}</td>)}</tr>)}
-          {!bySchool.length && <tr><td colSpan={comps.length + 2}><small className="sub">Không có thiếu hụt.</small></td></tr>}</tbody></table></div>
-      : <div className="wrap"><table className="libtable">
-        <thead><tr><th>Nhà giáo</th><th>Năng lực dưới mức yêu cầu</th><th>Chương trình đào tạo gợi ý</th></tr></thead>
-        <tbody>{byTeacher.slice(0, 300).map(gs => { const g0 = gs[0]
-          const sug = [...new Map(gs.flatMap(g => g.suggest).map(s => [s.id, s])).values()]
-          return <tr key={g0.teacher_id}>
-            <td><b>{g0.teacher_name}</b><br /><small className="sub">{g0.org_name ?? '—'}</small></td>
-            <td>{gs.map(g => <div key={g.competency} className="gaprow">{g.competency_name} <LevelChip v={g.level} comp={comps.find(c => c.key === g.competency)} /></div>)}</td>
-            <td>{sug.length ? sug.map(s => {
-              const ps = plans.filter(p => p.org_id === g0.org_id && p.training_plans.training_plan_items.some(i => i.program_id === s.id))
-              return <div key={s.id} className="gaprow"><span>{s.code && <small className="sub">{s.code} · </small>}{s.title} <small className="sub">(mức đích {s.target_level})</small></span>
-                {ps.map(p => enrolled.has(p.plan_id + '|' + g0.teacher_id)
-                  ? <Chip key={p.plan_id} tone="good">Đã ghi danh {p.training_plans.plan_code}</Chip>
-                  : <button key={p.plan_id} type="button" className="linkbtn" onClick={() => enroll(p.plan_id, g0.teacher_id, g0.teacher_name)}>+ Ghi danh vào {p.training_plans.plan_code ?? p.training_plans.name}</button>)}
-              </div> }) : <small className="sub">Chưa có chương trình đã phát hành bồi dưỡng năng lực này.</small>}</td>
-          </tr> })}
-          {!byTeacher.length && <tr><td colSpan={3}><small className="sub">{all.length ? 'Không có nhà giáo nào khớp.' : 'Không có nhà giáo dưới mức yêu cầu (trong số nhà giáo đã có kết quả đánh giá năm học này).'}</small></td></tr>}</tbody>
-      </table></div>}
-      {plans.length === 0 && view === 'teacher' && byTeacher.length > 0 && <small className="sub">Nút ghi danh hiện khi trường có kế hoạch được giao đang chọn nhà giáo và kế hoạch đó có chương trình được gợi ý.</small>}
-    </section>
+        <span className="infotip" tabIndex={0} title={GAP_NOTE} aria-label={GAP_NOTE}>ⓘ Cách tính</span></>
+      const right = <>
+        <div className="segmented viewtoggle" role="group" aria-label="Xem theo">{([['school', 'Theo trường'], ['teacher', 'Theo nhà giáo']] as const).map(([k, l]) =>
+          <button key={k} type="button" className={view === k ? 'on' : ''} aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>)}</div>
+        <button type="button" onClick={excel} disabled={!shown.length}>Xuất Excel</button></>
+      if (!rows) return <p className="sub">Đang tải…</p>
+      type BS = (typeof bySchool)[number]
+      type BT = (typeof byTeacher)[number]
+      if (view === 'school') return <DataTable id="comp-gaps-school" rows={bySchool} rowKey={s => s.name} aside={tree} left={left} right={right}
+        empty={<small className="sub">Không có thiếu hụt.</small>} cols={[
+          { key: 'name', label: 'Trường', fixed: true, text: s => s.name, cell: s => s.name },
+          { key: 'n', label: 'GV có thiếu hụt', cell: s => <b>{s.teachers.size}</b> },
+          ...comps.map(c => ({ key: 'c_' + c.key, label: c.name, cell: (s: BS) => s.per[c.key] ?? <small className="sub">0</small> })),
+        ] as Col<BS>[]} />
+      return <>
+        <DataTable id="comp-gaps-teacher" rows={byTeacher.slice(0, 300)} rowKey={gs => gs[0].teacher_id} aside={tree} left={left} right={right}
+          empty={<small className="sub">{all.length ? 'Không có nhà giáo nào khớp.' : 'Không có nhà giáo dưới mức yêu cầu (trong số nhà giáo đã có kết quả đánh giá năm học này).'}</small>} cols={[
+            { key: 'name', label: 'Nhà giáo', fixed: true, text: gs => `${gs[0].teacher_name} ${gs[0].org_name ?? ''}`, cell: gs => <><b>{gs[0].teacher_name}</b><br /><small className="sub">{gs[0].org_name ?? '—'}</small></> },
+            { key: 'gap', label: 'Năng lực dưới mức yêu cầu', text: gs => gs.map(g => g.competency_name).join(', '),
+              cell: gs => gs.map(g => <div key={g.competency} className="gaprow">{g.competency_name} <LevelChip v={g.level} comp={comps.find(c => c.key === g.competency)} /></div>) },
+            { key: 'sug', label: 'Chương trình đào tạo gợi ý', cell: gs => { const g0 = gs[0]
+              const sug = [...new Map(gs.flatMap(g => g.suggest).map(s => [s.id, s])).values()]
+              return sug.length ? sug.map(s => {
+                const ps = plans.filter(p => p.org_id === g0.org_id && p.training_plans.training_plan_items.some(i => i.program_id === s.id))
+                return <div key={s.id} className="gaprow"><span>{s.code && <small className="sub">{s.code} · </small>}{s.title} <small className="sub">(mức đích {s.target_level})</small></span>
+                  {ps.map(p => enrolled.has(p.plan_id + '|' + g0.teacher_id)
+                    ? <Chip key={p.plan_id} tone="good">Đã ghi danh {p.training_plans.plan_code}</Chip>
+                    : <button key={p.plan_id} type="button" className="linkbtn" onClick={() => enroll(p.plan_id, g0.teacher_id, g0.teacher_name)}>+ Ghi danh vào {p.training_plans.plan_code ?? p.training_plans.name}</button>)}
+                </div> }) : <small className="sub">Chưa có chương trình đã phát hành bồi dưỡng năng lực này.</small> } },
+          ] as Col<BT>[]} />
+        {plans.length === 0 && byTeacher.length > 0 && <small className="sub">Nút ghi danh hiện khi trường có kế hoạch được giao đang chọn nhà giáo và kế hoạch đó có chương trình được gợi ý.</small>}
+      </>
+    })()}
   </>
 }
 
@@ -430,19 +432,17 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
       ]} />
     })()}
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-    <section className="panel" style={{ display: 'grid', gap: 12, marginTop: 14 }}>
-      <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>{A.title} ({list.length})</h3>
-        <span className="tools"><button type="button" onClick={() => setNames(!names)}>{names ? 'Đóng tên các mức' : 'Đổi tên các mức'}</button>
-          <HeadAction><button type="button" className="primary ttadd" onClick={add}>+ Thêm năng lực</button></HeadAction></span></div>
-      {names && <LevelNames keys={[audience === 'teacher' ? 'comp_level_teacher' : 'comp_level_student']} />}
-      <div className="wrap"><table className="libtable">
-        <thead><tr><th>Năng lực</th><th>Nhóm</th>{A.levels.map((_, i) => <th key={i}>{lvLabel(i)}</th>)}</tr></thead>
-        <tbody>{list.map(c => <tr key={c.key}><td><button type="button" className="namelink" data-rowopen onClick={() => { setMsg(null); setView(c) }}>{c.name}</button><br /><small className="sub">{c.key}</small>{c.description && <><br /><small>{c.description}</small></>}</td>
-          <td><small>{c.grp}</small></td>
-          {c.levels.map((l, i) => <td key={i}><small>{l}</small></td>)}</tr>)}
-          {!list.length && <tr><td colSpan={6}><small className="sub">{comps.length ? 'Không có năng lực nào khớp.' : 'Chưa có năng lực nào.'}</small></td></tr>}</tbody>
-      </table></div>
-    </section>
+    {names && <LevelNames keys={[audience === 'teacher' ? 'comp_level_teacher' : 'comp_level_student']} />}
+    <DataTable id={'comp-framework-' + audience} rows={list} rowKey={c => c.key} cols={[
+      { key: 'name', label: 'Năng lực', fixed: true, text: c => `${c.name} ${c.key}`, cell: c => <><button type="button" className="namelink" onClick={() => { setMsg(null); setView(c) }}>{c.name}</button>
+        <br /><small className="sub">{c.key}</small>{c.description && <><br /><small>{c.description}</small></>}</> },
+      { key: 'grp', label: 'Nhóm', text: c => c.grp, cell: c => <small>{c.grp}</small> },
+      ...A.levels.map((_, i) => ({ key: 'lv' + i, label: lvLabel(i), text: (c: Comp) => c.levels[i] ?? '', cell: (c: Comp) => <small>{c.levels[i]}</small> })),
+    ] as Col<Comp>[]}
+      empty={<small className="sub">{comps.length ? 'Không có năng lực nào khớp.' : 'Chưa có năng lực nào.'}</small>}
+      left={<small className="sub">{list.length} năng lực</small>}
+      right={<><button type="button" onClick={() => setNames(!names)}>{names ? 'Đóng tên các mức' : 'Đổi tên các mức'}</button>
+        <HeadAction><button type="button" className="primary ttadd" onClick={add}>+ Thêm năng lực</button></HeadAction></>} />
     {!compact && <div className="tablenote"><p style={{ margin: 0 }}>{A.intro} Sửa mô tả mức có hiệu lực ngay; mã năng lực không đổi được vì kết quả đã lưu theo mã.</p></div>}
   </>
 }

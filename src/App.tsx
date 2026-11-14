@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense, type ComponentType } from 'react'
+import { useEffect, useRef, useState, lazy, Suspense, type ComponentType } from 'react'
 import { FramedTabs, PageFrame } from './components/PageFrame'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
@@ -606,7 +606,12 @@ function Shell({ session }: { session: Session }) {
   const [page, setPage] = useState('')
   // Thu gọn menu thành dải biểu tượng; rê chuột vào dải thì menu bung ra đè lên nội dung (nhớ theo trình duyệt)
   const [collapsed, setCollapsedS] = useState(() => { try { return localStorage.getItem('menu.rail') === '1' } catch { return false } })
-  const setCollapsed = (v: boolean) => { setCollapsedS(v); try { localStorage.setItem('menu.rail', v ? '1' : '0') } catch { /* bỏ qua */ } }
+  const setCollapsed = (v: boolean) => { setCollapsedS(v); setFly(null); try { localStorage.setItem('menu.rail', v ? '1' : '0') } catch { /* bỏ qua */ } }
+  // Menu thu gọn: rê chuột vào biểu tượng phân hệ thì hiện khung nổi liệt kê các mục con, bấm được như menu thường
+  const [fly, setFly] = useState<{ key: string; top: number } | null>(null)
+  const flyT = useRef(0)
+  const flyOpen = (key: string, el: HTMLElement) => { clearTimeout(flyT.current); setFly({ key, top: el.getBoundingClientRect().top }) }
+  const flyClose = (ms = 180) => { clearTimeout(flyT.current); flyT.current = window.setTimeout(() => setFly(null), ms) }
   // Nhóm menu đang thu gọn (nhớ theo trình duyệt)
   const [closed, setClosed] = useState<Set<string>>(() => { try { return new Set(JSON.parse(localStorage.getItem('menu.closed') ?? '[]')) } catch { return new Set() } })
   const toggleGroup = (key: string) => setClosed(prev => {
@@ -747,6 +752,13 @@ function Shell({ session }: { session: Session }) {
           {brand?.logo_dark ? <img src={brand.logo_dark} alt={brand.display_name ?? 'Logo'} /> : brand?.logo ? <img src={brand.logo} alt={brand.display_name ?? 'Logo'} className="onchip" /> : <img src={logoWhite} alt="KDI education" />}
           <b>{role === 'platform' ? appTitle : ROLE_LABEL[role]}</b>
         </div>
+        <div className="sidesearch">
+          <MenuSearch entries={groups.flatMap(g => g.items.map(item => ({ item, label: lab(item), group: g.section ? `${g.section} › ${g.label}` : g.label })))} onGo={i => show(role, i)}
+            beforeFocus={() => { if (collapsed) setCollapsed(false) }} />
+          <button type="button" className="sidesearchmini" aria-label="Tìm chức năng (Ctrl K)" title="Tìm chức năng (Ctrl K)"
+            onClick={() => { setCollapsed(false); setTimeout(() => (document.querySelector('.sidesearch input') as HTMLInputElement | null)?.focus(), 60) }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg></button>
+        </div>
         {role !== 'department' && role !== 'platform' && role !== 'parent' && <label className="yearpick">
           <span>Năm học · học kỳ</span>
           <select value={yrs.year?.id ?? ''} onChange={e => e.target.value === '__manage' ? (role === 'school_admin' ? show(role, 'Năm học & học kỳ') : null) : yrs.select(e.target.value)}
@@ -762,7 +774,10 @@ function Shell({ session }: { session: Session }) {
           const head = (key: string, title: string, items: string[], sub = false, label = title) => {
             const shut = closed.has(key)
             return (
-              <button className={'grouphead' + (sub ? ' subhead' : '') + (shut ? ' shut' : '')} onClick={() => toggleGroup(key)} aria-expanded={!shut}
+              <button className={'grouphead' + (sub ? ' subhead' : '') + (shut ? ' shut' : '') + (!sub && fly?.key === key ? ' flyon' : '')} aria-expanded={!shut}
+                onClick={e => { if (collapsed && !sub) { fly?.key === key ? setFly(null) : flyOpen(key, e.currentTarget) } else toggleGroup(key) }}
+                onMouseEnter={e => { if (collapsed && !sub) flyOpen(key, e.currentTarget) }} onMouseLeave={() => { if (collapsed && !sub) flyClose() }}
+                onFocus={e => { if (collapsed && !sub && e.currentTarget.matches(':focus-visible')) flyOpen(key, e.currentTarget) }}
                 aria-controls={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')}>
                 {!sub && <NavIcon title={title} />}<span>{label}
                   {items.length > 0 && items.every(i => locked.has(i)) && <small className="locknote">Chưa có trong gói</small>}</span>
@@ -798,16 +813,38 @@ function Shell({ session }: { session: Session }) {
             </div>
           )
         })}
-        
+        <div className="sidefoot">
+          <button type="button" className="sidecollapse" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Mở rộng menu' : 'Thu gọn menu'} title={collapsed ? 'Mở rộng menu' : 'Thu gọn menu'}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" />{collapsed ? <path d="m13 10 2 2-2 2" /> : <path d="m15 10-2 2 2 2" />}</svg>
+            <span>{collapsed ? 'Mở rộng menu' : 'Thu gọn menu'}</span></button>
+        </div>
       </nav>
+      {collapsed && fly && (() => {
+        const b = blocks.find(x => (x.section ? role + '§' + x.section : role + ':' + x.groups[0].title) === fly.key)
+        if (!b) return null
+        const item = (i: string) => <button key={i} type="button" className={(i === page ? 'on' : '') + (locked.has(i) ? ' locked' : '')} onClick={() => { setFly(null); show(role, i) }}>{lab(i)}</button>
+        return <div className="sidefly" role="menu" aria-label={b.section ?? b.groups[0].label} style={{ top: Math.max(8, Math.min(fly.top, window.innerHeight - 80)) }}
+          onMouseEnter={() => clearTimeout(flyT.current)} onMouseLeave={() => flyClose()}
+          ref={el => { if (el) { const r = el.getBoundingClientRect(); if (r.bottom > window.innerHeight - 8) el.style.top = Math.max(8, window.innerHeight - 8 - r.height) + 'px' } }}>
+          <div className="sideflyh">{b.section ?? b.groups[0].label}</div>
+          {b.section ? b.groups.map(g => <div key={g.title} className="sideflyg"><small>{g.label}</small>{g.items.map(item)}</div>) : b.groups[0].items.map(item)}
+        </div>
+      })()}
       <div className="content">
         <header className="top">
-          <button className="toggle" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Ghim menu' : 'Thu gọn menu'} title={collapsed ? 'Ghim menu' : 'Thu gọn menu (rê chuột vào dải biểu tượng để mở)'} aria-expanded={!collapsed}>
+          <button className="toggle" onClick={() => setCollapsed(!collapsed)} aria-label={collapsed ? 'Mở menu' : 'Ẩn menu'} title={collapsed ? 'Mở menu' : 'Ẩn menu'} aria-expanded={!collapsed}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /></svg>
           </button>
-          <img src={brand?.logo ?? logo} alt={brand?.display_name ?? 'KDI education'} />
-          <span className="title">{appTitle}</span>
-          <MenuSearch entries={groups.flatMap(g => g.items.map(item => ({ item, label: lab(item), group: g.section ? `${g.section} › ${g.label}` : g.label })))} onGo={i => show(role, i)} />
+          {(() => {
+            const g = groups.find(x => x.items.includes(page))
+            return <nav className="crumb" aria-label="Vị trí">
+              <button type="button" className="crumbhome" aria-label="Trang đầu" title="Trang đầu" onClick={() => groups[0]?.items[0] && show(role, groups[0].items[0])}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7M5 10v10h14V10" /></svg></button>
+              {g && <><span className="crumbsep">/</span><span className="crumbmid">{g.section ?? g.label}</span></>}
+              <span className="crumbsep">/</span><b>{lab(page)}</b>
+            </nav>
+          })()}
+          <span className="topgap" />
           <div className="user">
             <FontSize />
             <Bell open={openFrom} portals={views} orgId={access.profile.org_id} />

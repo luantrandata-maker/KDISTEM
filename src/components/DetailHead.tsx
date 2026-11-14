@@ -1,5 +1,5 @@
-// Đầu trang chi tiết dùng chung (theo mẫu Chương trình giáo dục): nút "← <trang trước>" phía trên,
-// tiêu đề lớn (kèm phiên bản, trạng thái…) ở hàng tiêu đề trang; Esc để quay lại.
+// Đầu trang chi tiết dùng chung (theo mẫu Chương trình giáo dục): nút ← nhỏ cạnh tiêu đề lớn (kèm phiên bản,
+// trạng thái…), nút thao tác cùng hàng, tóm tắt ngay dưới; Esc hoặc bấm tên trang trên đường dẫn để quay lại.
 // Nút quay lại mang class .pdclose: khi có nó, trang ẩn tab mục và khung danh sách (xem index.css).
 import { useEffect, type ReactNode } from 'react'
 import { PageCrumb } from './PageCorner'
@@ -19,10 +19,22 @@ export function useEscBack(onBack: () => void, enabled = true) {
   }, [onBack, enabled])
 }
 
-export function DetailHead({ back, onBack, title, extra }: { back: string; onBack: () => void; title?: ReactNode; extra?: ReactNode }) {
+export function DetailHead({ back, onBack, title, extra, actions, sub }: {
+  back: string; onBack: () => void; title?: ReactNode; extra?: ReactNode; actions?: ReactNode; sub?: ReactNode
+}) {
   useEscBack(onBack)
-  return <PageCrumb><div className="pdhead">
-    <button type="button" className="pdback pdclose" onClick={onBack} title={`Quay lại: ${back} (Esc)`}><span aria-hidden="true">←</span> {back}</button>
-    {title != null && <div className="pdtitle"><h1 className="pdh1" title={typeof title === 'string' ? title : undefined}>{title}</h1>{extra}</div>}
+  const tip = `Quay lại: ${back} (Esc)`
+  // Có tiêu đề: nút ← nhỏ nằm ngay cạnh tiêu đề (không còn dòng "← <trang trước>" riêng); nút thao tác cùng hàng, tóm tắt ngay dưới
+  if (title == null) return <PageCrumb><div className="pdhead">
+    <button type="button" className="pdback pdclose" onClick={onBack} title={tip}><span aria-hidden="true">←</span> {back}</button>
+  </div></PageCrumb>
+  return <PageCrumb><div className="pdhead pdhead1">
+    <div className="pdtitle">
+      <button type="button" className="pdicon pdclose" onClick={onBack} title={tip} aria-label={tip}>
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6" /></svg></button>
+      <h1 className="pdh1" title={typeof title === 'string' ? title : undefined}>{title}</h1>{extra}
+      {actions && <div className="pdacts">{actions}</div>}
+    </div>
+    {sub && <div className="pdsub">{sub}</div>}
   </div></PageCrumb>
 }

@@ -841,7 +841,7 @@ function Shell({ session }: { session: Session }) {
               <button type="button" className="crumbhome" aria-label="Trang đầu" title="Trang đầu" onClick={() => groups[0]?.items[0] && show(role, groups[0].items[0])}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7M5 10v10h14V10" /></svg></button>
               {g && <><span className="crumbsep">/</span><span className="crumbmid">{g.section ?? g.label}</span></>}
-              <span className="crumbsep">/</span><b>{lab(page)}</b>
+              <span className="crumbsep">/</span><b className="crumbcur" onClick={() => (document.querySelector('main .pdclose') as HTMLElement | null)?.click()}>{lab(page)}</b>
             </nav>
           })()}
           <span className="topgap" />

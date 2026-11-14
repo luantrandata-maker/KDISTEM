@@ -9,7 +9,8 @@ export const weeksOf = (d: Date) => {
 }
 
 /** rowH: chiều cao một dòng buổi (px ở cỡ chữ Vừa); lịch kiểu Google một dòng ~22px */
-export function useFitMonth(on: boolean, weeks: number, rowH = 39) {
+/** rest: khung lịch lấp phần còn lại của màn hình dưới thanh lọc (không cuộn trang), như các trang dạng bảng */
+export function useFitMonth(on: boolean, weeks: number, rowH = 39, rest = false) {
   const ref = useRef<HTMLDivElement>(null)
   const [h, setH] = useState<number | null>(null)
   useLayoutEffect(() => {
@@ -21,11 +22,12 @@ export function useFitMonth(on: boolean, weeks: number, rowH = 39) {
       const bar = document.querySelector('.top')?.getBoundingClientRect().height ?? 0
       const above = el.getBoundingClientRect().top - box.getBoundingClientRect().top
       const padB = parseFloat(getComputedStyle(box).paddingBottom) || 0
-      setH(Math.round(window.innerHeight - bar - above - padB - 24))
+      setH(rest ? Math.round(window.innerHeight - (el.getBoundingClientRect().top + window.scrollY) - padB - 28)
+        : Math.round(window.innerHeight - bar - above - padB - 24))
     }
     fit(); window.addEventListener('resize', fit)
     return () => window.removeEventListener('resize', fit)
-  }, [on, weeks])
+  }, [on, weeks, rest])
   const fz = typeof document === 'undefined' ? 1 : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fz')) || 1
   const chip = rowH * fz, minCell = 24 * fz + chip
   if (!on || h == null) return { ref, style: undefined, max: 3 }

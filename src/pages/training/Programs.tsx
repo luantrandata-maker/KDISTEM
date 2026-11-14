@@ -106,9 +106,9 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
     { key: 'name', label: 'Chương trình đào tạo', fixed: true, values: p => [p.title], text: p => `${p.title} ${p.code} ${p.builder ?? ''}`,
       cell: p => <><button type="button" className="namelink" onClick={() => { setMsg(null); setView({ kind: 'open', id: p.id }) }}>{p.title}</button><br /><small className="sub">{p.code} · v{p.version_no}{p.builder ? ` · XD: ${p.builder}` : ''}</small></> },
     { key: 'kind', label: 'Loại · cấp học', text: kindText, values: p => [...ctsOf(p), ...lvsOf(p).map(levelName)], cell: p => kindText(p) || '—' },
-    { key: 'aud', label: 'Đối tượng', text: p => p.audience ?? '', cell: p => p.audience || '—' },
-    { key: 'scope', label: 'Phạm vi áp dụng', text: scopeText, cell: p => <>{scopeText(p)}{effNote(p) && <><br /><small className="sub">{effNote(p)}</small></>}</> },
-    { key: 'owner', label: 'Đơn vị tạo', text: p => owners.get(p.org_id) ?? '', cell: p => owners.get(p.org_id) ?? '—' },
+    { key: 'aud', label: 'Đối tượng', off: true, text: p => p.audience ?? '', cell: p => p.audience || '—' },
+    { key: 'scope', label: 'Phạm vi áp dụng', off: true, text: scopeText, cell: p => <>{scopeText(p)}{effNote(p) && <><br /><small className="sub">{effNote(p)}</small></>}</> },
+    { key: 'owner', label: 'Đơn vị tạo', off: true, text: p => owners.get(p.org_id) ?? '', cell: p => owners.get(p.org_id) ?? '—' },
     { key: 'size', label: 'Môn · nội dung · giờ', cell: p => { const s = stats.get(p.id); return `${s?.subjects ?? 0} môn · ${s?.contents ?? 0} nội dung · ${num(s?.hours ?? 0)} giờ` } },
     { key: 'mode', label: 'Hình thức', text: p => MODE[p.mode], cell: p => MODE[p.mode] },
     { key: 'status', label: 'Trạng thái', text: p => STATUS[p.status][0], cell: p => <Chip tone={STATUS[p.status][1]}>{STATUS[p.status][0]}</Chip> },
@@ -117,7 +117,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
     { key: 'pass', label: 'Điều kiện đạt', off: true, text: p => `${p.pass_attendance}%`, cell: p => <small>Chuyên cần ≥ {p.pass_attendance}%{p.pass_score != null ? ` · điểm ≥ ${p.pass_score}` : ''}{p.need_product ? ' · có sản phẩm' : ''}</small> },
     { key: 'comp', label: 'Năng lực hướng tới', off: true, text: p => `${p.competencies.length} năng lực`, cell: p => <small>{p.competencies.length ? `${p.competencies.length} năng lực · mức ${p.target_level}` : '—'}</small> },
     { key: 'pub', label: 'Ngày phát hành', off: true, text: p => p.published_at ? new Date(p.published_at).toLocaleDateString('vi-VN') : '', cell: p => <small>{p.published_at ? new Date(p.published_at).toLocaleDateString('vi-VN') : '—'}</small> },
-    { key: 'upd', label: 'Cập nhật', cell: p => <small>{new Date(p.updated_at).toLocaleDateString('vi-VN')}</small> },
+    { key: 'upd', label: 'Cập nhật', off: true, cell: p => <small>{new Date(p.updated_at).toLocaleDateString('vi-VN')}</small> },
   ]
   return (
     <>
@@ -130,7 +130,7 @@ export function TrainingProgramsPage({ go }: { go?: (page: string) => void } = {
           sub: found.some(p => p.status === 'pending') ? `${found.filter(p => p.status === 'pending').length} chờ duyệt` : undefined },
         { k: 'off', icon: 'pause', value: found.filter(p => GROUP.off.includes(p.status)).length, label: 'Ngừng dùng' },
       ]} />}
-      {!list ? <p className="sub">Đang tải…</p> : <DataTable id="training-programs" rows={shown} rowKey={p => p.id} cols={progCols}
+      {!list ? <p className="sub">Đang tải…</p> : <DataTable id="training-programs-v2" rows={shown} rowKey={p => p.id} cols={progCols}
         empty={admin ? 'Chưa có chương trình đào tạo nào. Bấm "+ Thêm chương trình".' : 'Chưa có chương trình đào tạo nào được phát hành cho đơn vị.'}
         left={<>
           <input placeholder="Tìm mã, tên, đối tượng…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm" />

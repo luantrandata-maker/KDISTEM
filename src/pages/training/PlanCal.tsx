@@ -11,6 +11,19 @@ const to = (p: TPlan) => (p.ends_on && p.ends_on >= from(p) ? p.ends_on : from(p
 const when = (p: TPlan) => (from(p) === to(p) ? vn(from(p)) : `${vn(from(p))} – ${vn(to(p))}`)
 const TONE: Record<string, string> = { draft: 'draft', published: 'pub', archived: 'off' }
 
+/** Xếp các kế hoạch của một tuần thành thanh liền: mỗi thanh một làn, thanh dài/bắt đầu sớm nằm trên */
+type Seg = { p: TPlan; c0: number; c1: number; lane: number; cont: boolean; more: boolean }
+function lay(week: string[], plans: TPlan[]): Seg[] {
+  const a = week[0], b = week[6]
+  const segs = plans.filter(p => from(p) <= b && to(p) >= a).map(p => {
+    const c0 = from(p) < a ? 0 : week.indexOf(from(p)), c1 = to(p) > b ? 6 : week.indexOf(to(p))
+    return { p, c0, c1, lane: 0, cont: from(p) < a, more: to(p) > b }
+  }).sort((x, y) => x.c0 - y.c0 || (y.c1 - y.c0) - (x.c1 - x.c0) || x.p.name.localeCompare(y.p.name))
+  const end: number[] = []
+  for (const g of segs) { let l = end.findIndex(e => e < g.c0); if (l < 0) { l = end.length; end.push(-1) } end[l] = g.c1; g.lane = l }
+  return segs
+}
+
 export function PlanCal({ plans, onOpen, label }: { plans: TPlan[]; onOpen: (id: string) => void; label: (p: TPlan) => string }) {
   const dated = useMemo(() => plans.filter(p => p.starts_on || p.ends_on).sort((a, b) => from(a).localeCompare(from(b)) || a.name.localeCompare(b.name)), [plans])
   const undated = plans.filter(p => !p.starts_on && !p.ends_on)
@@ -32,7 +45,10 @@ export function PlanCal({ plans, onOpen, label }: { plans: TPlan[]; onOpen: (id:
   const start = new Date(first); start.setDate(1 - ((first.getDay() + 6) % 7))
   const nWk = weeksOf(anchor)
   const days = Array.from({ length: nWk * 7 }, (_, k) => new Date(start.getFullYear(), start.getMonth(), start.getDate() + k))
-  const fit = useFitMonth(view === 'month', nWk), MAX = fit.max
+  const fit = useFitMonth(view === 'month', nWk, 22, true)
+  // Số làn thanh mỗi tuần vừa chiều cao: hàng tuần trừ dòng số ngày (~26px), mỗi làn ~24px
+  const fz = typeof document === 'undefined' ? 1 : parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--fz')) || 1
+  const LANES = fit.style ? Math.max(2, Math.floor(((fit.style.height - 34 * fz) / nWk - 28 * fz) / (24 * fz))) : 4
   // Tuần: 7 ngày từ thứ Hai của tuần chứa ngày đang xem
   const w0 = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - ((anchor.getDay() + 6) % 7))
   const week = Array.from({ length: 7 }, (_, k) => new Date(w0.getFullYear(), w0.getMonth(), w0.getDate() + k))
@@ -67,18 +83,25 @@ export function PlanCal({ plans, onOpen, label }: { plans: TPlan[]; onOpen: (id:
         · {view === 'week' ? `${inWeek.length} kế hoạch trong tuần` : view === 'month' ? `${inMonth.length} kế hoạch trong tháng` : `${inYear.length} kế hoạch trong năm`}</small>
     </div>
 
-    {view === 'week' ? <div className="tscal tpcal week">
-      {week.map((d, k) => <div key={k} className="tscalh">{['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][k]} {d.getDate()}/{d.getMonth() + 1}</div>)}
-      {week.map(d => { const s = ymd(d)
-        return <div key={s} className={'tscald' + (s === today ? ' today' : '')}>{on(s).map(p => chip(p, s))}</div> })}
-    </div> : view === 'month' ? <>
-      <div ref={fit.ref} style={fit.style} className={'tscal tpcal' + (fit.style ? ' fit' : '')}>
-        {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => <div key={d} className="tscalh">{d}</div>)}
-        {days.map(d => { const s = ymd(d), ps = on(s)
-          return <div key={s} className={'tscald' + (d.getMonth() !== anchor.getMonth() ? ' out' : '') + (s === today ? ' today' : '') + (pick === s ? ' pick' : '')}>
-            <small>{d.getDate()}</small>
-            {ps.slice(0, ps.length > MAX ? MAX - 1 : MAX).map(p => chip(p, s))}
-            {ps.length > MAX && <button type="button" className="tpcalmore" onClick={() => setPick(pick === s ? null : s)}>+{ps.length - MAX + 1} kế hoạch</button>}
+    {view !== 'year' ? <>
+      <div ref={view === 'month' ? fit.ref : undefined} className={'tpbars ' + view} style={view === 'month' && fit.style ? { height: fit.style.height } : undefined}>
+        <div className="tpbhead">{(view === 'week' ? week : days.slice(0, 7)).map((d, k) =>
+          <span key={k}>{['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'][k]}</span>)}</div>
+        {(view === 'week' ? [week] : Array.from({ length: nWk }, (_, w) => days.slice(w * 7, w * 7 + 7))).map(wd => {
+          const ws = wd.map(ymd), segs = lay(ws, dated), nL = segs.reduce((m, g) => Math.max(m, g.lane + 1), 0)
+          const cap = view === 'week' ? nL : LANES, show = nL > cap ? cap - 1 : cap
+          const hidden = (c: number) => segs.filter(g => g.lane >= show && g.c0 <= c && g.c1 >= c).length
+          return <div key={ws[0]} className="tpbwk" style={{ gridTemplateRows: `var(--dh) repeat(${Math.max(view === 'week' ? Math.max(nL, 10) : cap, 1)}, var(--lane))` }}>
+            {wd.map((d, c) => { const s = ws[c]
+              return <div key={s} className={'tpbday' + (view === 'month' && d.getMonth() !== anchor.getMonth() ? ' out' : '') + (s === today ? ' today' : '') + (pick === s ? ' pick' : '')} style={{ gridColumn: c + 1 }}>
+                <small>{d.getDate()}{d.getDate() === 1 && view === 'month' ? `/${d.getMonth() + 1}` : ''}</small></div> })}
+            {segs.filter(g => g.lane < show).map(g => <button key={g.p.id} type="button"
+              className={'tpbar ' + (TONE[g.p.pub_status] ?? '') + (g.cont ? ' cont' : '') + (g.more ? ' more' : '')}
+              style={{ gridColumn: `${g.c0 + 1} / ${g.c1 + 2}`, gridRow: g.lane + 2 }}
+              title={`${g.p.name}\n${[label(g.p), when(g.p)].filter(Boolean).join(' · ')}`} onClick={() => onOpen(g.p.id)}>
+              <b>{g.p.name}</b>{g.c1 > g.c0 && label(g.p) && <small>· {label(g.p)}</small>}</button>)}
+            {nL > cap && ws.map((s, c) => { const n = hidden(c)
+              return n > 0 && <button key={'m' + s} type="button" className="tpbmore" style={{ gridColumn: c + 1, gridRow: cap + 1 }} onClick={() => setPick(pick === s ? null : s)}>+{n} kế hoạch</button> })}
           </div> })}
       </div>
       {pick && <div className="tpcalday">

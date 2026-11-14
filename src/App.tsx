@@ -169,14 +169,7 @@ function ReadinessBoth(p: any) {
   </>
 }
 // Chứng chỉ đào tạo (06/11: chuyển vào Giám sát & kết quả, tab cuối): chứng chỉ đã cấp và mẫu chứng chỉ
-function CertificatesBoth(p: any) {
-  const [k, setK] = useState<'list' | 'tpl'>('list')
-  return <>
-    <div className="distfilter">{([['list', 'Chứng chỉ đã cấp'], ['tpl', 'Mẫu chứng chỉ']] as const).map(([v, l]) =>
-      <button key={v} type="button" className={`distfchip${k === v ? ' on' : ''}`} onClick={() => setK(v)}>{l}</button>)}</div>
-    {k === 'list' ? <TrainingCertificatesPage {...p} /> : <CertTemplatesPage {...p} />}
-  </>
-}
+const CertificatesBoth = (p: any) => <TabbedPages {...p} tabs={[['Chứng chỉ đã cấp', TrainingCertificatesPage], ['Mẫu chứng chỉ', CertTemplatesPage]]} />
 const SchoolTrainingMonitor = (p: any) => <TrainingMonitorHub {...p} work />
 const trMat = (part: string) => (p: any) => <TrainingMaterials {...p} part={part} />
 // Cùng khuôn Học liệu của chương trình giáo dục: quy trình 3 bước, thẻ số liệu, Theo chương trình | Cần chuẩn bị | Danh mục học liệu

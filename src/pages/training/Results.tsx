@@ -11,6 +11,7 @@ import { useAllMode } from '../../components/OrgScope'
 import { PlanResults } from './ResultsWork'
 import { StatCards } from '../../components/StatCards'
 import { DataTable, MoreFilters, type Col } from '../../components/DataTable'
+import { GroupTree, groupNodes, inGroup, useGroupSel } from '../../components/GroupTree'
 
 export type RPlan = { id: string; org_id: string; plan_code: string | null; name: string }
 type M = { sessions: number; present: number; excused: number; att_pct: number | null; att_req: number; units: number; done: number; tests: number
@@ -46,6 +47,7 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
   const ofl = useOrgFilter()
   const [err, setErr] = useState('')
   const [rk, setRk] = useState(0)
+  const [ysel, setYsel] = useGroupSel('training-results-year')
   const all = !!useAllMode()
   useEffect(() => {
     (async () => {
@@ -74,7 +76,11 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
   if (cur) return <ElView back="Đánh giá kết quả đào tạo" onBack={() => { setOpen(null); setRk(x => x + 1) }} title={cur.name}
     sub={[cur.plan_code, cur.year_name].filter(Boolean).join(' · ')}><PlanResults plan={cur} /></ElView>
 
-  const list = (plans ?? []).filter(p => ofl.fit(p.org_id) && (!q || `${p.plan_code ?? ''} ${p.name}`.toLowerCase().includes(q.toLowerCase())))
+  const found = (plans ?? []).filter(p => ofl.fit(p.org_id) && (!q || `${p.plan_code ?? ''} ${p.name}`.toLowerCase().includes(q.toLowerCase())))
+  // Cây năm học bên trái bảng (dạng danh sách); dạng khung phân loại dùng cây riêng
+  const ynodes = groupNodes(found, p => [p.year_name ?? ''], { desc: true, none: 'Chưa có năm học' })
+  const ycur = tab === 'list' && (ysel === 'all' || ynodes.some(n => ysel === 'a:' + n.key)) ? ysel : 'all'
+  const list = found.filter(p => inGroup(ycur, p.year_name ?? ''))
   // Thẻ tổng số tính theo các kế hoạch đang lọc
   const tot = list.map(p => cnt.get(p.id)).filter(Boolean).reduce<{ n: number; pass: number; fail: number; cert: number }>((a, c) => ({ n: a.n + c!.n, pass: a.pass + c!.pass, fail: a.fail + c!.fail, cert: a.cert + c!.cert }), { n: 0, pass: 0, fail: 0, cert: 0 })
   const cOf = (p: TPlanRow) => cnt.get(p.id) ?? { n: 0, pass: 0, fail: 0, cert: 0 }
@@ -87,8 +93,8 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
     { key: 'wait', label: 'Chờ kết luận', cell: p => { const c = cOf(p), w = Math.max(0, c.n - c.pass - c.fail); return w ? <Chip tone="warn">{w} chờ</Chip> : '—' } },
     { key: 'cert', label: 'Chứng chỉ đã cấp', cell: p => cOf(p).cert },
   ]
-  const table = (rows: TPlanRow[], empty: string, left?: ReactNode, right?: ReactNode) =>
-    <DataTable id="training-results-plans" rows={rows} rowKey={p => p.id} cols={resCols} empty={empty} left={left} right={right} />
+  const table = (rows: TPlanRow[], empty: string, left?: ReactNode, right?: ReactNode, aside?: ReactNode) =>
+    <DataTable id="training-results-plans" rows={rows} rowKey={p => p.id} cols={resCols} empty={empty} left={left} right={right} aside={aside} />
   return <>
     <StatCards items={[
       { icon: 'layers', value: plans ? list.length : '…', label: 'Kế hoạch đã phát hành' },
@@ -107,7 +113,8 @@ export function TrainingResultsPage({ orgId }: { orgId: string }) {
           <input placeholder="Tìm mã, tên kế hoạch…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm kế hoạch" />
           <MoreFilters active={ofl.active}>{ofl.node(plans.map(p => p.org_id))}</MoreFilters>
           <small className="sub">{list.length}/{plans.length} kế hoạch</small></>,
-          <button type="button" onClick={() => setTab('tree')}>Theo khung phân loại</button>)}
+          <button type="button" onClick={() => setTab('tree')}>Theo khung phân loại</button>,
+          found.length ? <GroupTree label="Năm học" nodes={ynodes} total={found.length} sel={ycur} onSel={setYsel} /> : undefined)}
       </>}
   </>
 }

@@ -1,3 +1,4 @@
+import { GroupTree, groupNodes, inGroup, useGroupSel } from '../components/GroupTree'
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { DataTable } from '../components/DataTable'
 import { norm as normText } from '../lib/sheet'
@@ -469,6 +470,8 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
   const [canEdit, setCanEdit] = useState(false)
   const [certs, setCerts] = useState<Map<string, number>>(new Map())
   const [card, setCard] = useState<string | null>(null)
+  // Cây Tỉnh / Sở → Trường bên trái bảng Hồ sơ năng lực
+  const [osel, setOsel] = useGroupSel('hs-nang-luc-org')
   // Quản trị hệ thống: GV của tất cả trường trong một danh sách, đánh giá thay trường
   const all = useAllMode()
   async function load() {
@@ -505,7 +508,14 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
     { key: 'st', label: 'Tình trạng đánh giá', placeholder: 'Tất cả tình trạng', options: [['mgr', 'Trường đã đánh giá'], ['self', 'Mới tự đánh giá'], ['draft', 'Đang làm nháp'], ['none', 'Chưa đánh giá']] },
   ]
   const tql = normText(tq.trim()).toLowerCase()
-  const matched = teachers.filter(t => fit(t) && (!tql || normText([t.full_name, t.email, t.organizations?.name, t.subject].join(' ')).toLowerCase().includes(tql)))
+  const matched0 = teachers.filter(t => fit(t) && (!tql || normText([t.full_name, t.email, t.organizations?.name, t.subject].join(' ')).toLowerCase().includes(tql)))
+  // Cây Tỉnh / Sở → Trường (chỉ khi xem nhiều trường): đếm theo các bộ lọc khác, bấm để lọc tiếp
+  const useTree = profile && !orgId
+  const onodes = useTree ? groupNodes(matched0, t => [provOf(t.org_id)?.id ?? '', t.org_id], { none: 'Khác',
+    label1: k => provOf(matched0.find(t => provOf(t.org_id)?.id === k)?.org_id ?? '')?.name ?? k,
+    label2: k => matched0.find(t => t.org_id === k)?.organizations?.name ?? '…', sort2: k => matched0.find(t => t.org_id === k)?.organizations?.name ?? k }) : []
+  const ocur = osel === 'all' || onodes.some(n => 'a:' + n.key === osel || n.kids?.some(c => `b:${n.key}|${c.key}` === osel)) ? osel : 'all'
+  const matched = useTree ? matched0.filter(t => inGroup(ocur, provOf(t.org_id)?.id ?? '', t.org_id)) : matched0
   // Thẻ tổng số: tính trên nhà giáo khớp bộ lọc; bấm thẻ để lọc thêm danh sách, bấm lại để bỏ
   const lvOf = (t: TRow) => { const s = of(t.id, 'self'), m = of(t.id, 'manager'); return m?.status === 'submitted' ? m.levels : s?.status === 'submitted' ? s.levels : null }
   const REQ = 2
@@ -539,6 +549,7 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
   // Hồ sơ năng lực: bảng dạng mới (phân hệ 2) — bấm dòng mở hồ sơ, bộ lọc nhiều lựa chọn của trang nằm trên thanh công cụ bảng
   if (profile) return <>{cards}{msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
     <DataTable id="hs-nang-luc" noun="nhà giáo" rows={shownT} rowKey={t => t.id} onRow={t => { setMsg(null); setSel(t.id) }}
+      aside={useTree && matched0.length ? <GroupTree nodes={onodes} total={matched0.length} sel={ocur} onSel={setOsel} label="Lọc theo Tỉnh / Sở và trường" /> : undefined}
       left={<><input style={{ width: 240 }} placeholder="Tìm tên, email, trường, môn…" value={tq} onChange={e => setTq(e.target.value)} aria-label="Tìm nhà giáo" />
         <MultiFilters defs={filterDefs} f={mf} count={`${shownAll.length}/${teachers.length} GV${shownAll.length > 500 ? ' · hiện 500 đầu' : ''}`} /></>}
       right={<button type="button" onClick={excel} disabled={!teachers.length}>Xuất Excel</button>}

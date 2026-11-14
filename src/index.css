@@ -3356,3 +3356,9 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 .tplegb i{display:inline-block;width:9px;height:9px;border-radius:3px;background:var(--ok-fg)}
 .tplegb i.live{background:var(--bad)}.tplegb i.draft{background:var(--warn-fg)}.tplegb i.off{background:#9aa3b2}
 .main .tplegf>small{margin:0 0 0 4px;align-self:center;line-height:1}
+
+/* Cây năm học → kế hoạch: tên kế hoạch dài gói tối đa 2 dòng, mục con bo góc nhẹ thay vì hình viên thuốc */
+.main .gtree .gtsub .gtitem{border-radius:8px;padding:6px 10px}
+.gtree .gtsub .gtlbl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:calc(13px * var(--fz,1));line-height:1.3}
+/* Hàng tab con (vd. Chứng chỉ đã cấp | Mẫu chứng chỉ) trong khung bảng đầy màn hình: cách gạch chân tab chính */
+@media (min-width:900px){main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pframe>.pfbody>.segmented[role=tablist]:first-child{padding-top:10px}}

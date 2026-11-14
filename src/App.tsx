@@ -750,7 +750,7 @@ function Shell({ session }: { session: Session }) {
     <div className={'app' + (collapsed ? ' collapsed' : '')}>
       <nav className="side" aria-label="Menu chính">
         <div className="sidebrand">
-          {brand?.logo_dark ? <img src={brand.logo_dark} alt={brand.display_name ?? 'Logo'} /> : brand?.logo ? <img src={brand.logo} alt={brand.display_name ?? 'Logo'} className="onchip" /> : <img src={logoWhite} alt="KDI education" />}
+          {brand?.logo_dark ? <img src={brand.logo_dark} alt={brand.display_name ?? 'Logo'} /> : brand?.logo ? <img src={brand.logo} alt={brand.display_name ?? 'Logo'} className="onchip" /> : <img src={logoWhite} alt="KDI education" className="kdilogo" />}
           <b>{role === 'platform' ? appTitle : ROLE_LABEL[role]}</b>
         </div>
         <div className="sidesearch">

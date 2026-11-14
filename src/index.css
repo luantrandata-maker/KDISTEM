@@ -3282,3 +3282,6 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 .slt.slgrid .msel{min-width:0}
 .slt.slgrid .msel .mselq{min-width:0;width:6px;flex:1 1 6px}
 .slt.slgrid .msel .mseltools>.mselx:not(.mselplus){display:none}
+
+/* Menu thu gọn: logo KDI chỉ hiện biểu tượng (cắt phần chữ), căn giữa như các biểu tượng menu */
+.app.collapsed .side:not(:hover):not(:focus-within) .sidebrand img.kdilogo,.app.collapsed .side .sidebrand img.kdilogo{width:22px;object-position:-3px 0;justify-self:center}

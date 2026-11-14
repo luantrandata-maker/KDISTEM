@@ -98,10 +98,10 @@ export function useFillHeight(on: boolean, reserve = 64) {
     const el = ref.current; if (!on || !el) return
     if (window.innerWidth < 900) return setH(null)
     const top = el.getBoundingClientRect().top + window.scrollY
-    // Trang dạng phẳng (không lề quanh khung, xem index.css) thì bên dưới bảng chỉ còn dòng chân bảng
+    // Trang dạng một khung (xem index.css): bên dưới bảng còn dòng chân bảng, viền và lề dưới của khung
     let flat = false
     try { flat = !!el.closest('main')?.matches(':has(>.pframe .ttpro):not(:has(.pdclose))') } catch { /* trình duyệt cũ */ }
-    setH(Math.max(320, Math.round(window.innerHeight - top - (flat ? reserve - 34 : reserve))))
+    setH(Math.max(320, Math.round(window.innerHeight - top - (flat ? reserve - 16 : reserve))))
   }
   // Đo lại sau mỗi lần vẽ (thanh chọn, dòng bộ lọc hiện / ẩn làm bảng dịch xuống)
   useLayoutEffect(() => fit.current())

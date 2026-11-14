@@ -3250,3 +3250,9 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 .slt.slgrid textarea.slcell{resize:none;color:var(--text)}
 .main .slt.slgrid>tbody>tr>td{height:auto;padding:8px 10px;vertical-align:top}
 .slhint{margin:8px 2px 0;font-size:calc(12.5px * var(--fz,1))}
+.ttable.slt.slgrid>thead>tr:first-child>th.c-grade,.ttable.slt.slgrid>thead>tr:first-child>th.c-per{min-width:0!important;width:64px}
+.ttable.slt.slgrid>thead>tr:first-child>th.c-per{width:60px}
+.slt.slgrid .slnew input.slnp,.slt.slgrid .slnew input.slng{width:100%;min-width:0;padding:7px 6px}
+.slt.slgrid>thead>tr>th.c-grade,.slt.slgrid>thead>tr>th.c-per,.slt.slgrid>tbody>tr>td:has(>.tdc>[data-gc=periods]),.slt.slgrid>tfoot>tr>td:has(.slnp){padding-left:8px;padding-right:8px}
+.ttable.slt.slgrid>thead>tr:first-child>th.c-per{min-width:58px!important;white-space:nowrap}
+.slt.slgrid .slnew .slgone{white-space:nowrap;font-size:calc(12.5px * var(--fz,1))}

@@ -1,5 +1,6 @@
 // Chương trình đào tạo: bảng Môn → Nội dung đào tạo và yêu cầu cần đạt, cùng cách làm với Chương trình giáo dục:
 // thẻ số liệu, "Chỉnh sửa cấu trúc" mở bảng nháp (thêm / sửa / xoá / đổi thứ tự) rồi "Lưu tất cả" một lần, nhập / tải Excel.
+import { gridKey, gridPaste } from '../../components/sheetGrid'
 import { useEffect, useState } from 'react'
 import { DataTable, type Col } from '../../components/DataTable'
 import { StructureDraft, newKey, saveDraftTree, type DCol, type DRow } from '../../components/StructureDraft'
@@ -206,9 +207,9 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
       if (key === 'hours') { const h = Number(v.replace(',', '.')); return Number.isFinite(h) && h >= 0 ? upd(u, { hours: h }) : undefined }
       return setReqs(u, v) }
     return key === 'reqs'
-      ? <textarea key={u.id + val} className="slcell" defaultValue={val} rows={Math.min(4, Math.max(1, reqsOf(u.detail).length))} placeholder="Mỗi dòng một yêu cầu" aria-label={`Yêu cầu cần đạt của ${u.title}`} onBlur={e => save(e.target.value)} />
-      : <input key={u.id + val} className="slcell" defaultValue={val} inputMode={key === 'hours' ? 'decimal' : undefined} aria-label={`${key === 'title' ? 'Tên' : 'Số giờ'} ${u.title}`}
-          onBlur={e => save(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }} />
+      ? <textarea key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} rows={Math.min(4, Math.max(1, reqsOf(u.detail).length))} placeholder="Mỗi dòng một yêu cầu" aria-label={`Yêu cầu cần đạt của ${u.title}`} onBlur={e => save(e.target.value)} />
+      : <input key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} inputMode={key === 'hours' ? 'decimal' : undefined} aria-label={`${key === 'title' ? 'Tên' : 'Số giờ'} ${u.title}`}
+          onBlur={e => save(e.target.value)} />
   }
   const kitChip = (u: TUnit) => { const k = kit.get(u.id); return k === 'published' ? <span className="gpill good">Đã phát hành</span> : k ? <span className="gpill warn">Đang soạn</span> : <span className="gpill warn">Chưa có</span> }
   const noOf = (r: CRow) => inSel.indexOf(r) + 1
@@ -239,6 +240,32 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
         <span className="slnm">{s ? s.title : 'Tất cả'}</span><span className="slcnt">{rs.length} nội dung · {num(rs.reduce((a, r) => a + (Number(r.u.hours) || 0), 0))} giờ</span></button>
       {editable && s && <button type="button" className="slnavx" title={`Xoá môn ${s.title}`} aria-label={`Xoá môn ${s.title}`} onClick={() => removeSubject(s)}>×</button>}</div> }
   const enter = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addContent() } }
+  // ---- Lưới kiểu Excel (Enter/↑↓/←→/Esc, dán vùng ô từ Excel) ----
+  const GC = ['title', 'reqs', 'hours'] as const
+  const onGridKey = gridKey(GC)
+  const onGridPaste = async (e: React.ClipboardEvent) => {
+    const lines = gridPaste(e, GC, ['reqs']); if (!lines) return
+    let added = 0
+    for (const { id, vals, fromFirst } of lines) {
+      const u = id ? units.find(x => x.id === id) : undefined
+      const h = Number((vals.hours ?? '').replace(',', '.'))
+      if (!u) {
+        if (!fromFirst || !vals.title || !target) continue
+        const reqs = (vals.reqs ?? '').split(/\n|;/).map(x => x.trim()).filter(Boolean)
+        const { error } = await supabase.from('training_program_units').insert({ program_id: programId, parent_id: target.id, kind: 'content', seq: Math.max(0, ...kids(target.id).map(c => c.seq)) + 1 + added,
+          title: vals.title, hours: Number.isFinite(h) && h > 0 ? h : 1, mode: null, has_test: false, detail: reqs.length ? { body: { reqs } } : {} })
+        if (!fail(error)) break
+        added++; continue
+      }
+      const patch: Partial<TUnit> = {}
+      if (vals.title) patch.title = vals.title
+      if (vals.hours && Number.isFinite(h) && h >= 0) patch.hours = h
+      if (Object.keys(patch).length) await upd(u, patch)
+      if ('reqs' in vals) await setReqs(u, vals.reqs)
+    }
+    if (added) await onReload()
+    onMessage(`Đã dán ${lines.length} dòng${added ? `, thêm mới ${added} nội dung` : ''}.`)
+  }
 
   if (draft) return <>
     <h4>Môn & nội dung</h4>
@@ -259,8 +286,8 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
           </div>
           : <button type="button" className="sladdsubj" onClick={() => setAddS(true)}>+ Thêm môn</button>)}
       </nav>
-      <div className="slmain">
-        <DataTable id="training-units-v2" simple rows={shown} rowKey={r => r.u.id} className="slt tut"
+      <div className="slmain" onKeyDown={editable ? onGridKey : undefined} onPaste={editable ? onGridPaste : undefined}>
+        <DataTable id="training-units-v2" simple rows={shown} rowKey={r => r.u.id} className={editable ? 'slt tut slgrid' : 'slt tut'}
           rowProps={editable ? r => ({ className: drag === r.u.id ? 'sldragging' : over === r.u.id && drag ? 'slover' : undefined,
             onDragOver: e => { if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== r.u.id) setOver(r.u.id) },
             onDrop: e => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id) moveTo(id, r) } }) : undefined}
@@ -277,16 +304,17 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
           foot={editable && target ? (keys: string[]) => {
             const subjSel = <select value={target.id} disabled={!!sel || subjs.length < 2} onChange={e => setNd({ ...nd, subj: e.target.value })} aria-label="Môn của nội dung mới">{subjs.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}</select>
             const cellOf = (k: string) => k === 'subj' ? subjSel
-              : k === 'title' ? <div className="slnewrow">{!keys.includes('subj') && !sel && subjs.length > 1 ? subjSel : null}<input id="tu-new-title" className="slnt" value={nd.title} disabled={busy} placeholder="+ Tên nội dung mới" aria-label={`Tên nội dung mới môn ${target.title}`} onChange={e => setNd({ ...nd, title: e.target.value })} onKeyDown={enter} /></div>
-              : k === 'reqs' ? <input className="slno" value={nd.reqs} disabled={busy} placeholder="Yêu cầu cần đạt (ngăn cách bằng ;)" aria-label="Yêu cầu cần đạt" onChange={e => setNd({ ...nd, reqs: e.target.value })} onKeyDown={enter} />
+              : k === 'title' ? <div className="slnewrow">{!keys.includes('subj') && !sel && subjs.length > 1 ? subjSel : null}<input id="tu-new-title" className="slnt" data-gc="title" value={nd.title} disabled={busy} placeholder="+ Tên nội dung mới" aria-label={`Tên nội dung mới môn ${target.title}`} onChange={e => setNd({ ...nd, title: e.target.value })} onKeyDown={enter} /></div>
+              : k === 'reqs' ? <input className="slno" data-gc="reqs" value={nd.reqs} disabled={busy} placeholder="Yêu cầu cần đạt (ngăn cách bằng ;)" aria-label="Yêu cầu cần đạt" onChange={e => setNd({ ...nd, reqs: e.target.value })} onKeyDown={enter} />
               : k === 'mode' ? <><select className="slnm2" value={nd.mode} onChange={e => setNd({ ...nd, mode: e.target.value as '' | 'online' | 'offline' })} aria-label="Hình thức nội dung mới">
 <option value="">Theo CT</option><option value="online">Trực tuyến</option><option value="offline">Trực tiếp</option></select></>
-              : k === 'hours' ? <input className="slnp" value={nd.hours} disabled={busy} placeholder="Số giờ" aria-label="Số giờ" inputMode="decimal" onChange={e => setNd({ ...nd, hours: e.target.value })} onKeyDown={enter} />
+              : k === 'hours' ? <input className="slnp" data-gc="hours" value={nd.hours} disabled={busy} placeholder="Giờ" aria-label="Số giờ" inputMode="decimal" onChange={e => setNd({ ...nd, hours: e.target.value })} onKeyDown={enter} />
               : k === 'test' ? <label className="sltest"><input type="checkbox" checked={nd.test} onChange={e => setNd({ ...nd, test: e.target.checked })} /> Test</label>
               : k === 'act' ? <button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addContent}>+ Thêm</button>
               : null
             return <tfoot><tr className="slnew">{keys.map(k => <td key={k}>{cellOf(k)}</td>)}{!keys.includes('act') && <td><button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addContent}>+ Thêm</button></td>}</tr></tfoot>
           } : undefined} />
+        {editable && <p className="sub slhint">Gõ thẳng vào ô như Excel: Enter hoặc ↑↓ để sang dòng, ←→ ở đầu/cuối ô để sang cột, Esc để huỷ sửa. Chép một vùng ô trong Excel (tên nội dung, yêu cầu cần đạt, số giờ) rồi dán vào ô bất kỳ để điền nhiều dòng, dòng thừa thành nội dung mới.</p>}
       </div>
     </div>
   </>

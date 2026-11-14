@@ -1,4 +1,5 @@
 import { Icon } from '../components/Icon'
+import { gridKey, gridPaste } from '../components/sheetGrid'
 import { YearSelect } from '../components/YearSelect'
 import { CompetencySetupLink } from '../components/CompetencySetup'
 import { useCompetencies, LV_NAME } from './competency'
@@ -930,56 +931,24 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
       : <input key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} aria-label={`${key === 'title' ? 'Tên' : key === 'grades' ? 'Khối' : 'Số tiết'} bài ${u.title}`}
           inputMode={key === 'title' ? undefined : 'numeric'} onBlur={e => save(e.target.value)} />
   }
-  // ---- Lưới kiểu Excel: Enter/↑↓ đổi dòng, ←→ ở đầu/cuối ô đổi cột, Esc huỷ sửa, dán khối nhiều ô từ Excel ----
+  // ---- Lưới kiểu Excel (Enter/↑↓/←→/Esc, dán vùng ô từ Excel) ----
   const GC = ['title', 'grades', 'periods', 'outs'] as const
-  const gridRows = (el: Element) => Array.from(el.closest('table')?.querySelectorAll('tbody>tr, tfoot>tr') ?? []).filter(r => r.querySelector('[data-gc]'))
-  const focusCell = (tr: Element | undefined, col: string) => {
-    const t = tr?.querySelector(`[data-gc="${col}"]`) as HTMLInputElement | null
-    if (!t) return false
-    t.focus(); t.select?.(); return true
-  }
-  const gridKey = (e: React.KeyboardEvent) => {
-    const el = e.target as HTMLInputElement | HTMLTextAreaElement, col = el.dataset?.gc
-    if (!col || e.ctrlKey || e.metaKey) return
-    const tr = el.closest('tr')!, rows = gridRows(el), ri = rows.indexOf(tr), isNew = tr.classList.contains('slnew')
-    const ta = el.tagName === 'TEXTAREA', len = el.value.length
-    const atStart = el.selectionStart === 0 && el.selectionEnd === 0, atEnd = el.selectionStart === len && el.selectionEnd === len
-    const cols = GC.filter(k => tr.querySelector(`[data-gc="${k}"]`)), ci = cols.indexOf(col as typeof GC[number])
-    const go = (r: number, c: string) => { if (focusCell(rows[r], c) || focusCell(rows[r], 'title')) e.preventDefault() }
-    if (e.key === 'Escape' && !isNew) { el.value = el.defaultValue; el.blur(); e.preventDefault(); return }
-    if (e.key === 'Enter' && ta && (e.altKey || e.shiftKey)) { if (e.altKey) { e.preventDefault(); el.setRangeText('\n', el.selectionStart ?? len, el.selectionEnd ?? len, 'end') } return }
-    if (e.key === 'Enter' && !isNew && !e.shiftKey) return go(ri + 1, col)
-    if (e.key === 'ArrowDown' && !e.shiftKey && (!ta || atEnd)) return go(ri + 1, col)
-    if (e.key === 'ArrowUp' && !e.shiftKey && (!ta || atStart) && ri > 0) return go(ri - 1, col)
-    if (e.key === 'ArrowRight' && !e.shiftKey && atEnd && ci < cols.length - 1) { e.preventDefault(); focusCell(tr, cols[ci + 1]) }
-    if (e.key === 'ArrowLeft' && !e.shiftKey && atStart && ci > 0) { e.preventDefault(); focusCell(tr, cols[ci - 1]) }
-  }
-  const gridPaste = async (e: React.ClipboardEvent) => {
-    const el = e.target as HTMLInputElement | HTMLTextAreaElement, col = el.dataset?.gc, id = el.dataset?.gr
-    if (!col || !id) return
-    const t = e.clipboardData.getData('text').replace(/\r/g, '').replace(/\n+$/, '')
-    // Một ô: dán bình thường (Yêu cầu cần đạt được dán nhiều dòng trong một ô)
-    if (!t.includes('\t') && (col === 'outs' || !t.includes('\n'))) return
-    e.preventDefault()
-    const grid = t.split('\n').map(l => l.split('\t')), rows = gridRows(el), ri = rows.findIndex(r => r.querySelector(`[data-gr="${id}"]`))
-    const c0 = GC.indexOf(col as typeof GC[number])
+  const onGridKey = gridKey(GC)
+  const onGridPaste = async (e: React.ClipboardEvent) => {
+    const lines = gridPaste(e, GC, ['outs']); if (!lines) return
     const extra: PasteRow[] = []
-    for (const [i, line] of grid.entries()) {
-      const rid = (rows[ri + i]?.querySelector('[data-gr]') as HTMLElement | null)?.dataset.gr
-      const u = rid ? byId.get(rid) : undefined
-      if (!u) { if (c0 === 0) extra.push(...parseLessonLines(line.join('\t'), defGrades)); continue }
+    for (const { id, vals, fromFirst } of lines) {
+      const u = id ? byId.get(id) : undefined
+      if (!u) { if (fromFirst) extra.push(...parseLessonLines([vals.title, vals.grades, vals.periods, vals.outs].map(x => x ?? '').join('\t'), defGrades)); continue }
       const patch: Partial<Unit> = {}
-      for (const [j, v0] of line.entries()) {
-        const k = GC[c0 + j], v = v0.trim()
-        if (k === 'title' && v) patch.title = stripNo(v)
-        if (k === 'grades' && pg.length !== 1) { const g = gradeList(v).filter(x => x >= 1 && x <= 12); if (g.length) patch.grades = g }
-        if (k === 'periods' && v) patch.periods = Math.max(0, Math.round(Number(v.replace(',', '.')) || 0))
-        if (k === 'outs') await setOuts_(u, v)
-      }
+      if (vals.title) patch.title = stripNo(vals.title)
+      if (vals.grades && pg.length !== 1) { const g = gradeList(vals.grades).filter(x => x >= 1 && x <= 12); if (g.length) patch.grades = g }
+      if (vals.periods) patch.periods = Math.max(0, Math.round(Number(vals.periods.replace(',', '.')) || 0))
+      if ('outs' in vals) await setOuts_(u, vals.outs)
       if (Object.keys(patch).length) await update(u, patch)
     }
     if (extra.length) await addLessons(extra, target)
-    onMessage(`Đã dán ${grid.length} dòng${extra.length ? `, thêm mới ${extra.length} bài` : ''}.`, false)
+    onMessage(`Đã dán ${lines.length} dòng${extra.length ? `, thêm mới ${extra.length} bài` : ''}.`, false)
   }
   async function addDraft() {
     const t = nd.title.trim(); if (!t || busy) return
@@ -1049,7 +1018,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
         </div>
         : <button type="button" className="sladdsubj" onClick={() => setAddSubj(true)}>+ Thêm môn</button>)}
     </nav>
-    <div className="slmain" onKeyDown={editable ? gridKey : undefined} onPaste={editable ? gridPaste : undefined}>
+    <div className="slmain" onKeyDown={editable ? onGridKey : undefined} onPaste={editable ? onGridPaste : undefined}>
       <DataTable id="edu-lessons-v2" simple rows={shown} rowKey={r => r.u.id} className={editable ? 'slt slgrid' : 'slt'}
         rowProps={editable ? r => ({ className: drag === r.u.id ? 'sldragging' : over === r.u.id && drag ? 'slover' : undefined,
           onDragOver: e => { if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== r.u.id) setOver(r.u.id) },
@@ -1071,7 +1040,7 @@ onPaste={e => { const t = e.clipboardData.getData('text'); if (/\n/.test(t.trim(
             : k === 'grades' ? <>{pg.length === 1 ? <span className="slgone" title="Chương trình chỉ có một khối nên bài tự thuộc khối này">Khối {pg[0]}</span>
 : pg.length > 1 ? <GradeTicks options={pg} value={nd.grades ? gradeList(nd.grades) : defGrades} disabled={busy} label="Khối của bài mới" onChange={g => setNd({ ...nd, grades: g.join(', ') })} />
 : <input className="slng" data-gc="grades" value={nd.grades} disabled={busy} placeholder="Khối" aria-label="Khối của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, grades: e.target.value })} onKeyDown={enter} />}</>
-            : k === 'periods' ? <input className="slnp" data-gc="periods" value={nd.periods} disabled={busy} placeholder="Số tiết" aria-label="Số tiết của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, periods: e.target.value })} onKeyDown={enter} />
+            : k === 'periods' ? <input className="slnp" data-gc="periods" value={nd.periods} disabled={busy} placeholder="Tiết" aria-label="Số tiết của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, periods: e.target.value })} onKeyDown={enter} />
             : k === 'outs' ? <input className="slno" data-gc="outs" value={nd.outs} disabled={busy} placeholder="Yêu cầu cần đạt (ngăn cách bằng ;)" aria-label="Yêu cầu cần đạt của bài mới" onChange={e => setNd({ ...nd, outs: e.target.value })} onKeyDown={enter} />
             : k === 'act' ? <button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addDraft}>+ Thêm</button>
             : null

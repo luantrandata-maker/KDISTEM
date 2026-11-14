@@ -156,10 +156,10 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
       { k: 'toclose', icon: 'checkCircle', tone: n('toclose') ? 'warn' : 'good', value: n('toclose'), label: 'Chờ chốt điểm danh', sub: `${n('closed')} đã chốt` },
       { icon: 'alert', tone: pend ? 'warn' : 'good', value: pend, label: 'Xin vắng chờ duyệt' },
     ]} />
-    <div className="distfilter">
+    {look === 'table' && <div className="distfilter">
       {([['', 'Tất cả', base.length], ...(Object.keys(ST) as St[]).map(k => [k, ST[k][0], n(k)])] as [St | '', string, number][]).map(([s, l, c]) =>
         <button key={l} type="button" className={'distfchip' + (fs === s ? ' on' : '')} aria-pressed={fs === s} onClick={() => setFs(s)}>{l} <b>{c}</b></button>)}
-    </div>
+    </div>}
     <div className="bar">
       <div className="tools">
         <select value={plan} onChange={e => setPlan(e.target.value)} aria-label="Kế hoạch"><option value="">Tất cả kế hoạch</option>
@@ -189,14 +189,16 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
           <td><Chip tone={ST[st][1]}>{ST[st][0]}</Chip></td>
         </tr> })}
         {!shown.length && <tr><td colSpan={6}>{rows.length ? 'Không có buổi nào khớp bộ lọc.' : plans.length ? (can ? 'Chưa có buổi nào. Bấm "Xếp lịch từ kế hoạch".' : 'Chưa có buổi nào.') : 'Chưa có kế hoạch nào đã phát hành. Phát hành kế hoạch ở tab Kế hoạch trước.'}</td></tr>}</tbody>
-    </table></div> : <SessCal rows={shown} hol={hol} info={sinfo} planName={id => { const p = pl(id); return p ? [p.plan_code, p.name].filter(Boolean).join(' · ') : '—' }} label={x => { const p = pl(x.plan_id); return [all && orgName(p?.org_id), MODE[x.mode], x.mode === 'offline' ? x.location : '', (i => i.total ? `${i.present}/${i.total} có mặt` : '')(info(x.id))].filter(Boolean).join(' · ') }}
+    </table></div> : <SessCal rows={shown} hol={hol} status={{ value: fs, all: base.length, n, onPick: setFs }} info={sinfo} planName={id => { const p = pl(id); return p ? [p.plan_code, p.name].filter(Boolean).join(' · ') : '—' }} label={x => { const p = pl(x.plan_id); return [all && orgName(p?.org_id), MODE[x.mode], x.mode === 'offline' ? x.location : '', (i => i.total ? `${i.present}/${i.total} có mặt` : '')(info(x.id))].filter(Boolean).join(' · ') }}
       onOpen={id => { setMsg(null); setOpen({ kind: 'sess', id }) }} />}
   </>
 }
 
 // ===== Lịch đào tạo dạng lịch: tháng / tuần, cùng kiểu với lịch kế hoạch đào tạo =====
 const TONE: Record<St, string> = { upcoming: '', live: 'live', toclose: 'draft', closed: 'off' }
-export function SessCal({ rows, label, planName, onOpen, hol, info }: { rows: Sess[]; label: (s: Sess) => string; planName: (id: string) => string; onOpen: (id: string) => void; hol?: Holidays; info?: (s: Sess) => SessInfo }) {
+export function SessCal({ rows, label, planName, onOpen, hol, info, status }: { rows: Sess[]; label: (s: Sess) => string; planName: (id: string) => string; onOpen: (id: string) => void; hol?: Holidays; info?: (s: Sess) => SessInfo
+  /** Chú thích màu kiêm bộ lọc trạng thái: bấm một mục để chỉ xem buổi ở trạng thái đó (thay cho dãy nút lọc phía trên) */
+  status?: { value: St | ''; all: number; n: (k: St) => number; onPick: (k: St | '') => void } }) {
   const prog = (s: Sess) => info?.(s).programs.join('; ') ?? ''
   // Nội dung chỉ ghi thêm khi buổi có nhiều nội dung hoặc tên buổi khác tên nội dung
   const conts = (s: Sess) => { const u = info?.(s).units ?? []; return u.length > 1 || (u.length === 1 && u[0] !== s.title) ? u : [] }
@@ -269,8 +271,13 @@ export function SessCal({ rows, label, planName, onOpen, hol, info }: { rows: Se
         <div className="segmented" style={{ margin: 0 }}>{([['week', 'Tuần'], ['month', 'Tháng'], ['year', 'Năm']] as const).map(([k, l]) =>
           <button key={k} type="button" className={view === k ? 'on' : ''} aria-pressed={view === k} onClick={() => { setPick(null); setView(k) }}>{l}</button>)}</div>
       </div>
-      <small className="sub tpcallegend"><i /> Sắp diễn ra <i className="live" /> Đang diễn ra <i className="draft" /> Chờ chốt <i className="off" /> Đã chốt
-        · {inView} buổi trong {({ week: 'tuần', month: 'tháng', year: 'năm' })[view]}</small>
+      {status ? <div className="tplegf" role="group" aria-label="Lọc theo trạng thái">
+        {([['', 'Tất cả', status.all], ...(Object.keys(ST) as St[]).map(k => [k, ST[k][0], status.n(k)])] as [St | '', string, number][]).map(([k, l, c]) =>
+          <button key={l} type="button" className={'tplegb' + (status.value === k ? ' on' : '')} aria-pressed={status.value === k} onClick={() => { setPick(null); status.onPick(k) }}>
+            {k !== '' && <i className={TONE[k as St]} />}{l} <b>{c}</b></button>)}
+        <small className="sub">· {inView} buổi trong {({ week: 'tuần', month: 'tháng', year: 'năm' })[view]}</small></div>
+      : <small className="sub tpcallegend"><i /> Sắp diễn ra <i className="live" /> Đang diễn ra <i className="draft" /> Chờ chốt <i className="off" /> Đã chốt
+        · {inView} buổi trong {({ week: 'tuần', month: 'tháng', year: 'năm' })[view]}</small>}
     </div>
     {view !== 'month' ? <div ref={fill.ref} style={fill.style} className="tpfill">{view === 'year' ? <div className="tpgantt">
       <div className="tpganttrow head"><span />

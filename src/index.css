@@ -3269,3 +3269,4 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 .slt.slgrid .slnew input{min-width:0;padding:7px 8px}
 .slt.slgrid .slnew .slnewrow{gap:4px}
 .ttable.slt.slgrid>thead>tr:first-child>th.c-outs{min-width:200px!important}
+.main .slt .slact button.slgo{font-weight:700;color:var(--primary)}

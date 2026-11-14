@@ -221,16 +221,17 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
     { key: 'hours', label: 'Số giờ', thClass: 'c-per', text: r => num(Number(r.u.hours)), cell: r => cell(r.u, 'hours') },
     { key: 'test', label: 'Bài test', thClass: 'c-test', text: r => r.u.has_test ? 'Có' : '', cell: r => editable
       ? <input type="checkbox" checked={r.u.has_test} aria-label={`Bài test ${r.u.title}`} onChange={e => upd(r.u, { has_test: e.target.checked })} /> : r.u.has_test ? 'Có' : '—' },
-    { key: 'mode', label: 'Hình thức', thClass: 'c-mode', text: r => r.u.mode ? MODE[r.u.mode] : MODE[programMode], cell: r => editable
+    { key: 'mode', label: 'Hình thức', thClass: 'c-mode', off: true, text: r => r.u.mode ? MODE[r.u.mode] : MODE[programMode], cell: r => editable
       ? <select className="slcell" value={r.u.mode ?? ''} aria-label={`Hình thức ${r.u.title}`} onChange={e => upd(r.u, { mode: (e.target.value || null) as TUnit['mode'] })}>
           <option value="">{MODE[programMode]} (theo CT)</option><option value="online">Trực tuyến</option><option value="offline">Trực tiếp</option></select>
       : r.u.mode ? MODE[r.u.mode] : <small className="sub">{MODE[programMode]}</small> },
-    { key: 'mat', label: 'Học liệu', thClass: 'c-mat', text: r => kit.get(r.u.id) === 'published' ? 'Đã phát hành' : kit.get(r.u.id) ? 'Đang soạn' : 'Chưa có',
+    { key: 'mat', label: 'Học liệu', thClass: 'c-mat', off: true, text: r => kit.get(r.u.id) === 'published' ? 'Đã phát hành' : kit.get(r.u.id) ? 'Đang soạn' : 'Chưa có',
       cell: r => <button type="button" className="slopen" onClick={() => onOpen(r.u.id)} title={editable ? 'Soạn nội dung: bài giảng, tài liệu, hoạt động, bài test' : 'Xem nội dung'}>{kitChip(r.u)}<span className="slmore">{editable ? 'Soạn ›' : 'Xem ›'}</span></button> },
     ...(editable ? [{ key: 'act', label: '', thClass: 'c-act', fixed: true, cell: (r: CRow) =>
       <span className="slact"><span className="sldrag" draggable title="Kéo để đổi vị trí" aria-label={`Kéo ${r.u.title} để đổi vị trí`}
         onDragStart={e => { setDrag(r.u.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', r.u.id); const tr = (e.target as HTMLElement).closest('tr'); if (tr) e.dataTransfer.setDragImage(tr, 20, 20) }}
         onDragEnd={() => { setDrag(null); setOver(null) }}>⠿</span>
+        <button type="button" className="slgo" title="Soạn nội dung: bài giảng, tài liệu, hoạt động, bài test" aria-label={`Soạn nội dung ${r.u.title}`} onClick={() => onOpen(r.u.id)}>›</button>
         <button type="button" disabled={busy} aria-label={`Nhân bản ${r.u.title}`} title="Nhân bản: tạo ngay một nội dung giống hệt bên dưới" onClick={() => duplicate(r)}>⧉</button>
         <button type="button" className="danger" aria-label={`Xoá ${r.u.title}`} onClick={() => removeContent(r)}>×</button></span> }] : []),
   ]
@@ -287,7 +288,7 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
           : <button type="button" className="sladdsubj" onClick={() => setAddS(true)}>+ Thêm môn</button>)}
       </nav>
       <div className="slmain" onKeyDown={editable ? onGridKey : undefined} onPaste={editable ? onGridPaste : undefined} onMouseDown={editable ? gridMouseDown : undefined}>
-        <DataTable id="training-units-v2" simple rows={shown} rowKey={r => r.u.id} className={editable ? 'slt tut slgrid' : 'slt tut'}
+        <DataTable id="training-units-v3" simple rows={shown} rowKey={r => r.u.id} className={editable ? 'slt tut slgrid' : 'slt tut'}
           rowProps={editable ? r => ({ className: drag === r.u.id ? 'sldragging' : over === r.u.id && drag ? 'slover' : undefined,
             onDragOver: e => { if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== r.u.id) setOver(r.u.id) },
             onDrop: e => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id) moveTo(id, r) } }) : undefined}

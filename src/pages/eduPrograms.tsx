@@ -456,18 +456,18 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
     return <>
       <div className={'pdgrid' + (side ? '' : ' pdnoside')}>
         <div className="pdmain">
-          <div className="pdstats">
-            <div><b>{nSubj}</b><span>môn</span></div>
-            <div><b>{lessonN ?? '…'}</b><span>bài học</span></div>
-            <div><b>{q.total_periods ?? 0}</b><span>tiết{q.periods_per_week != null ? ` · ${String(q.periods_per_week).replace('.', ',')} tiết/tuần` : ''}</span></div>
-            <div><b>{dep?.[0] ?? '—'}</b><span>{dep?.[1] ?? 'thời gian triển khai'}</span></div>
-            {mode !== 'school' && <div><b>{asgN ?? '…'}</b><span>đơn vị được gán</span></div>}
-            {!side && <button type="button" className="pdsidetg" onClick={toggleSide} title="Mở cột thông tin chương trình">‹ Thông tin</button>}
-          </div>
+          {!side && <div className="pdtoprow"><button type="button" className="pdsidetg" onClick={toggleSide} title="Mở cột thông tin chương trình">‹ Thông tin</button></div>}
           <div className="panel pdcard pdsl"><h4>Môn & bài học</h4>{lessons}</div>
         </div>
         {side && <div className="pdside">
           <div className="panel pdcard"><h4 className="pdcardh">Thông tin chung<button type="button" className="pdsidetg incard" onClick={toggleSide} title="Thu cột thông tin để bảng rộng hơn">Thu gọn ›</button></h4>
+            <div className="pdstats pdstatsin">
+              <div><b>{nSubj}</b><span>môn</span></div>
+              <div><b>{lessonN ?? '…'}</b><span>bài học</span></div>
+              <div><b>{q.total_periods ?? 0}</b><span>tiết{q.periods_per_week != null ? ` · ${String(q.periods_per_week).replace('.', ',')} tiết/tuần` : ''}</span></div>
+              <div><b>{dep?.[0] ?? '—'}</b><span>{dep?.[1] ?? 'thời gian triển khai'}</span></div>
+              {mode !== 'school' && <div><b>{asgN ?? '…'}</b><span>đơn vị được gán</span></div>}
+            </div>
             <dl className="pddl sm">
               <dt>Mã</dt><dd>{q.code || none}</dd>
               <dt>Nhóm</dt><dd>{ctsOf(q).map(c => c + (tracks[c] ? ' · ' + tracks[c]!.name : '')).join(', ') || '—'}</dd>
@@ -999,14 +999,14 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
         <button type="button" disabled={busy} aria-label={`Nhân bản bài ${r.u.title}`} title="Nhân bản: tạo ngay một bài giống hệt bên dưới" onClick={() => duplicate(r)}>⧉</button>
         <button type="button" className="danger iconbtn" title="Xoá bài" aria-label={`Xoá ${r.u.title}`} onClick={() => remove(r)}><Icon n="trash" size={15} /></button></span> }] : []),
   ]
-  const navItem = (key: string, label: string, rs: LRow[], main?: boolean) => <div key={key || '*'} className={'slnavrow' + (lc(sel) === lc(key) ? ' on' : '')}>
+  const navItem = (key: string, label: string, rs: LRow[], main?: boolean, nSub?: number) => <div key={key || '*'} className={'slnavrow' + (lc(sel) === lc(key) ? ' on' : '')}>
     <button type="button" className={'slnavi' + (lc(sel) === lc(key) ? ' on' : '')} onClick={() => setCur(key)}>
-      <span className="slnm">{label}{main && <small className="sub"> · chủ đạo</small>}</span><span className="slcnt">{rs.length} bài · {totalP(rs)} tiết</span></button>
+      <span className="slnm">{label}{main && <small className="sub"> · chủ đạo</small>}</span><span className="slcnt">{nSub != null ? `${nSub} môn · ` : ''}{rs.length} bài · {totalP(rs)} tiết</span></button>
     {editable && key && <button type="button" className="slnavx" title={`Xoá môn ${label}`} aria-label={`Xoá môn ${label}`} onClick={() => removeSubject(key)}><Icon n="trash" size={14} /></button>}</div>
 
   return <div className="slwrap">
     <nav className="slnav" aria-label="Môn trong chương trình">
-      {navItem('', 'Tất cả', rows)}
+      {navItem('', 'Tất cả', rows, false, subjList.length)}
       {subjList.map(x => navItem(x, x, rowsOf(x), mains.some(m => lc(m) === lc(x))))}
       {editable && (addSubj ? <div className="sladdbox">
           <div className="sladdkind" role="radiogroup" aria-label="Loại môn">

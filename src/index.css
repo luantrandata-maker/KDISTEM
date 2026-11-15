@@ -3370,3 +3370,11 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 .side .sidetop{position:sticky;top:-16px;z-index:5;margin:-16px -8px 10px;padding:16px 8px 0;background:var(--navy);border-bottom:1px solid rgba(255,255,255,.12)}
 .side .sidetop .sidebrand{border-bottom:0;margin:0;padding-bottom:12px}
 .side .sidetop .sidesearch{padding:0 4px 12px}
+
+/* Danh sách toàn hệ thống (15/11): kiểu xem, xuất Excel, thêm mới chung một dòng với công cụ của bảng */
+.ttprotools:has(.sysright) .tsrch{flex:0 1 240px;min-width:180px}
+.main .ttprotools .sysright{display:inline-flex;align-items:center;gap:8px;margin-left:auto}
+.main .ttprotools .sysright>.segmented,.main .ttprotools .sysright>button{height:36px;border-radius:8px;margin:0;display:inline-flex;align-items:center}
+.main .ttprotools .sysright>.segmented{padding:3px}
+.main .ttprotools .sysright>.segmented>button{height:28px}
+.main .ttprotools .sysright>button.primary{background:var(--primary);border-color:var(--primary);color:#fff}

@@ -31,6 +31,8 @@ export type Spec = {
   cards?: { items: (rows: Row[], extra: any) => CardStat[]; fit: Record<string, (r: Row, extra: any) => boolean>; extra?: () => Promise<any> }
   /** Khối của dòng: có thì danh sách có cây Cấp → Khối bên trái */
   grades?: (r: Row) => number[]
+  /** Dòng nạp thêm từ bảng khác (vd. bài giảng KDI trong kho học liệu), lọc theo đơn vị như dòng chính */
+  more?: () => Promise<Row[]>
 }
 /** Khối lưu dạng chữ ("6, 7", "6–9") hoặc mảng số */
 export const rowGrades = (g: unknown): number[] => Array.isArray(g) ? g.map(Number).filter(n => !isNaN(n)) : typeof g === 'string' ? gradeList(g) : typeof g === 'number' ? [g] : []
@@ -61,6 +63,11 @@ export function useOrgs() {
   }, [orgs])
 }
 
+async function moreRows(spec: Spec, ids: string[] | null) {
+  if (!spec.more) return []
+  const rs = await spec.more().catch(() => [] as Row[])
+  return ids ? rs.filter(r => ids.includes(r.org_id)) : rs
+}
 async function fetchAll(spec: Spec, ids: string[] | null) {
   const out: Row[] = []
   for (let from = 0; from < CAP; from += PAGE) {
@@ -70,9 +77,9 @@ async function fetchAll(spec: Spec, ids: string[] | null) {
     const { data, error } = await q
     if (error) throw new Error(/schema cache|does not exist/i.test(error.message) ? 'Chưa có bảng dữ liệu này trên hệ thống.' : error.message)
     out.push(...((data as Row[]) ?? []))
-    if (!data || data.length < PAGE) return { rows: out, capped: false }
+    if (!data || data.length < PAGE) return { rows: [...out, ...await moreRows(spec, ids)], capped: false }
   }
-  return { rows: out, capped: true }
+  return { rows: [...out, ...await moreRows(spec, ids)], capped: true }
 }
 
 // onOpen: bấm một dòng để mở chi tiết (thay cho dòng mở rộng `detail`); actions: nút thêm ở thanh công cụ; reloadKey đổi → tải lại
@@ -147,6 +154,20 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
       onPick: v => setView(v.length === 1 ? 'list' : 'sum') },
     ...spec.facets!.map(fc => ({ key: fc.key, label: fc.label, placeholder: fc.placeholder, options: opts(rows.map(r => [fc.get(r), fc.name ? fc.name(r) : String(fc.get(r) ?? '')]), fc.sort ?? 'label') })),
   ] : []
+  // Bảng mới (15/11): một dòng công cụ. Sở / tỉnh, đơn vị, trạng thái lọc bằng ô tìm và lọc cột của bảng;
+  // bấm tên đơn vị để xem riêng đơn vị đó (chip để quay lại). Chỉ khi dữ liệu quá nhiều mới hiện ô chọn Sở / tỉnh.
+  const tLeft = multi ? <MultiFilters defs={facetDefs} f={mf} /> : org ? <button type="button" className="chipbtn on" onClick={() => pickOrg('')} title="Bỏ chọn, xem tất cả đơn vị">{nameOf(org)} ✕</button>
+    : capped || region0 ? <select value={region0} onChange={e => { setRegion(e.target.value); pickOrg('') }} aria-label="Chọn Sở hoặc tỉnh">
+      <option value="">Toàn hệ thống</option>
+      {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+    </select> : undefined
+  const xl = <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+  const tRight = <span className="sysright">
+    {!org && <span className="segmented viewtoggle" role="group" aria-label="Kiểu xem">{([['sum', 'Theo đơn vị'], ['list', 'Danh sách']] as const).map(([k, l]) =>
+      <button key={k} type="button" className={view === k ? 'on' : ''} aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>)}</span>}
+    <button type="button" className="tsq" onClick={excel} disabled={!shown.length} title="Xuất Excel" aria-label="Xuất Excel">{xl}</button>
+    {actions}
+  </span>
 
   return (
     <>
@@ -157,7 +178,7 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
           ...spec.stats.slice(0, 3).map(x => { const v = busy ? '…' : x.get(shown); return { icon: 'chart', value: typeof v === 'number' ? v.toLocaleString('vi-VN') : v, label: x.label } }),
         ]} />}
 
-      <div className="bar sysbar">
+      {spec.detail && <div className="bar sysbar">
         {multi ? <span className="tools">{spec.status && <>
         <button className={'chipbtn' + (st === 'all' ? ' on' : '')} onClick={() => setSt('all')}>Tất cả ({fitted.length})</button>
         {Object.entries(spec.status.labels).map(([k, l]) => count(k) > 0 && <button key={k} className={'chipbtn' + (st === k ? ' on' : '')} onClick={() => setSt(k)}>{l} ({count(k)})</button>)}
@@ -187,24 +208,24 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
           <button onClick={excel} disabled={!shown.length}>Xuất Excel</button>
           {actions}
         </span>
-      </div>
+      </div>}
 
 
       {err && <p className="msg">{err}</p>}
       {capped && <p className="msg">Đang hiện {CAP.toLocaleString('vi-VN')} dòng đầu. Chọn Sở / tỉnh hoặc trường để xem đủ.</p>}
-      {busy && <p className="sub">Đang tải…</p>}
+      {busy && spec.detail && <p className="sub">Đang tải…</p>}
 
-      {!busy && !org && view === 'sum' && <DataTable id={'sys-sum-' + spec.file} rowKey={r => r.id}
-        rows={[...groups.map(([id, list]) => ({ id, list })), ...empty.map(o => ({ id: o.id, list: null as Row[] | null }))]}
-        empty={spec.empty} cols={[
+      {!spec.detail && !org && view === 'sum' && <DataTable id={'sys-sum-' + spec.file} rowKey={r => r.id} left={tLeft} right={tRight}
+        rows={busy ? [] : [...groups.map(([id, list]) => ({ id, list })), ...empty.map(o => ({ id: o.id, list: null as Row[] | null }))]}
+        empty={busy ? 'Đang tải…' : spec.empty} cols={[
           { key: 'org', label: 'Đơn vị', fixed: true, text: r => nameOf(r.id), cell: r => <button className="namelink" onClick={() => pickOrg(r.id)}>{nameOf(r.id)}</button> },
           { key: 'region', label: 'Sở / tỉnh', text: r => regionName(r.id), cell: r => <small>{regionName(r.id)}</small> },
           { key: 'n', label: spec.noun, cell: r => r.list ? <b>{r.list.length.toLocaleString('vi-VN')}</b> : '0' },
           ...spec.stats.map(st => ({ key: 's_' + st.label, label: st.label, cell: (r: { id: string; list: Row[] | null }) => { if (!r.list) return '—'; const v = st.get(r.list); return typeof v === 'number' ? v.toLocaleString('vi-VN') : v } })),
         ] as DCol<{ id: string; list: Row[] | null }>[]} />}
 
-      {!busy && (org || view === 'list') && !spec.detail && <DataTable id={'sys-' + spec.file} rows={shown.slice(0, SHOW)} rowKey={r => r.id} onRow={onOpen}
-        aside={spec.grades && shown0.length ? gt.tree : undefined} empty={rows.length ? 'Không có dòng phù hợp bộ lọc.' : spec.empty}
+      {(org || view === 'list') && !spec.detail && <DataTable id={'sys-' + spec.file} rows={busy ? [] : shown.slice(0, SHOW)} rowKey={r => r.id} onRow={onOpen} left={tLeft} right={tRight}
+        aside={spec.grades && shown0.length ? gt.tree : undefined} empty={busy ? 'Đang tải…' : rows.length ? 'Không có dòng phù hợp bộ lọc.' : spec.empty}
         cols={[...(!org ? [{ key: 'org', label: 'Đơn vị', text: (r: Row) => nameOf(r.org_id), cell: (r: Row) => <small>{nameOf(r.org_id)}</small> }] : []),
           ...spec.cols.map((c, i) => {
             // Cột chỉ có nội dung dựng sẵn (không phải chữ) thì không có ô lọc
@@ -456,7 +477,7 @@ export const CURRICULUM: Spec = {
   search: r => `${r.title} ${r.subject ?? ''}`, searchHint: 'Tên sách, môn…', noun: 'Đầu sách', file: 'phan-phoi-chuong-trinh-toan-he-thong', empty: 'Chưa có phân phối chương trình.',
 }
 
-const L_ST: Record<string, string> = { draft: 'Nháp', editing: 'Đang soạn', published: 'Đã xuất bản' }
+const L_ST: Record<string, string> = { draft: 'Nháp', editing: 'Đang soạn', published: 'Đã xuất bản', archived: 'Đã thu hồi' }
 export const LESSONS: Spec = {
   table: 'lesson_plans', order: 'updated_at', asc: false,
   select: 'id, org_id, title, subject, grades, program, status, is_template, from_package, updated_at, teachers(full_name)',
@@ -599,9 +620,11 @@ export const SysCurriculum = one(CURRICULUM)
 const ActivityDesk = lazy(() => import('../teacher/Activities').then(m => ({ default: m.ActivityDesk })))
 const LessonDesk = lazy(() => import('../lessons/Studio').then(m => ({ default: m.LessonDesk })))
 type DeskStart = { mode: 'new' } | { mode: 'open'; id: string }
-function BankList({ spec, orgId, add, desk: Desk }: {
+function BankList({ spec, orgId, add, desk: Desk, onPick, onAdd }: {
   spec: Spec; orgId?: string | null; add: string
   desk: (p: { start: DeskStart; onClose: () => void }) => ReactNode
+  /** Trả true nếu đã tự mở dòng (vd. bài giảng KDI) */
+  onPick?: (r: Row) => boolean; onAdd?: () => void
 }) {
   const [d, setD] = useState<DeskStart | null>(null)
   const [k, setK] = useState(0)
@@ -609,8 +632,8 @@ function BankList({ spec, orgId, add, desk: Desk }: {
     {d && <Suspense fallback={<p className="sub">Đang tải…</p>}>{Desk({ start: d, onClose: () => { setD(null); setK(x => x + 1) } })}</Suspense>}
     {/* Giữ danh sách (bộ lọc, ô tìm) khi mở chi tiết */}
     <div hidden={!!d}>
-      <SystemList spec={spec} reloadKey={k} onOpen={r => setD({ mode: 'open', id: r.id })}
-        actions={orgId ? <button className="primary" onClick={() => setD({ mode: 'new' })}>{add}</button> : undefined} />
+      <SystemList spec={spec} reloadKey={k} onOpen={r => { if (!onPick?.(r)) setD({ mode: 'open', id: r.id }) }}
+        actions={orgId ? <button className="primary" onClick={() => (onAdd ? onAdd() : setD({ mode: 'new' }))}>{add}</button> : undefined} />
     </div>
   </>
 }
@@ -618,6 +641,34 @@ export const SysActivities = ({ orgId }: { orgId?: string | null }) => <BankList
   desk={({ start, onClose }) => <ActivityDesk orgId={orgId ?? null} start={start} onClose={onClose} />} />
 export const SysSchoolLessons = ({ orgId }: { orgId?: string | null }) => <BankList spec={LESSONS} orgId={orgId} add="+ Thêm bài giảng"
   desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'new' ? start : { mode: 'view', id: start.id }} onClose={onClose} />} />
+// Một danh sách bài giảng (15/11): bài giảng KDI (kho học liệu) + bài giảng giáo viên các trường soạn, như Kho hoạt động
+const LibraryManage = lazy(() => import('../library/Manage').then(m => ({ default: m.LibraryManage })))
+const ALL_LESSONS: Spec = {
+  ...LESSONS,
+  cols: [LESSONS.cols[0], { label: 'Nguồn', get: r => r.lib ? pill('Bài giảng KDI', 'active') : 'Giáo viên soạn', text: r => (r.lib ? 'Bài giảng KDI' : 'Giáo viên soạn') }, ...LESSONS.cols.slice(1)],
+  stats: [
+    { label: 'Bài giảng KDI', get: rs => rs.filter(r => r.lib).length },
+    { label: 'Đã xuất bản', get: rs => rs.filter(r => r.status === 'published').length },
+    { label: 'Giáo viên soạn', get: rs => new Set(rs.map(r => r.teachers?.full_name).filter(Boolean)).size },
+    { label: 'Từ gói STEM', get: rs => rs.filter(r => r.from_package).length },
+  ],
+  more: async () => {
+    const { data } = await supabase.from('library_items').select('id, owner_org_id, title, subject, grades, program, status, updated_at').eq('kind', 'lesson').order('updated_at', { ascending: false }).limit(5000)
+    return ((data ?? []) as any[]).map(r => ({ ...r, org_id: r.owner_org_id, lib: true, teachers: null }) as Row)
+  },
+  file: 'bai-giang', empty: 'Chưa có bài giảng.',
+}
+export function SysLessons({ orgId }: { orgId?: string | null }) {
+  // Bài KDI mở trình soạn của kho học liệu; bài giáo viên mở trình soạn bài giảng
+  const [lib, setLib] = useState<null | { editId?: string }>(null)
+  const [k, setK] = useState(0)
+  const done = () => { setLib(null); setK(x => x + 1) }
+  return <>
+    {lib && <Suspense fallback={null}><LibraryManage orgId={orgId ?? null} only="lesson" start={lib.editId ? { editId: lib.editId } : { newKind: 'lesson' }} onDone={done} onChanged={() => setK(x => x + 1)} /></Suspense>}
+    <BankList key={k} spec={ALL_LESSONS} orgId={orgId} add="+ Thêm bài giảng" onPick={r => (r.lib ? (setLib({ editId: r.id }), true) : false)} onAdd={() => setLib({})}
+      desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'new' ? start : { mode: 'view', id: start.id }} onClose={onClose} />} />
+  </>
+}
 // Mẫu bài giảng: bài giảng soạn sẵn (is_template) — giáo viên bấm "Dùng mẫu này" để có bản của mình rồi sửa tiếp
 const LESSON_TEMPLATES: Spec = { ...LESSONS, where: q => q.eq('is_template', true).is('draft_of', null),
   cols: LESSONS.cols.filter(c => c.label !== 'Giáo viên'),

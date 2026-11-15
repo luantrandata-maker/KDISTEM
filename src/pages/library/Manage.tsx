@@ -119,7 +119,7 @@ const NOEV = { preventDefault() {} } as React.FormEvent
 
 // Phát hành học liệu: Sở/Phòng/Tỉnh/Bộ, đơn vị cung cấp (KDI Education) hoặc trường soạn và phát hành tới đơn vị trực thuộc
 /** Mở thẳng form bài học (từ "Học liệu theo chương trình"): sửa bài học có sẵn hoặc tạo bộ học liệu cho một bài của chương trình */
-export type UnitStart = { editId?: string; preset?: { program_id: string; unit_id: string; title: string; periods: number | null; objectives: string | null; program: string | null; grades: string | null } }
+export type UnitStart = { editId?: string; newKind?: 'lesson'; preset?: { program_id: string; unit_id: string; title: string; periods: number | null; objectives: string | null; program: string | null; grades: string | null } }
 export type LibSrc = 'own' | 'shared' | 'units'
 /** `sources`: lọc Nguồn — của đơn vị / dùng chung (đơn vị khác phát hành, chỉ xem) / tất cả đơn vị (trang bọc AllOrgs, sửa thẳng).
  *  Gộp "Kho học liệu dùng chung" và "Học liệu các đơn vị" vào Danh mục học liệu; trang cha giữ `src` để đổi khung AllOrgs. */
@@ -198,6 +198,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
     if (start.editId && !i) return
     started.current = true
     if (i) edit(i)
+    else if (start.newKind) { setLtab('info'); setMsg(''); setInfo(''); setSub(null); setForm(EMPTY(start.newKind)) }
     else if (start.preset) {
       const p = start.preset
       setMsg(''); setInfo(''); setNorm(EMPTY_NORM); setSub(null); setNormOpen(false); setCkTouched(false); setKitShow(null)

@@ -3372,7 +3372,7 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 .side .sidetop .sidesearch{padding:0 4px 12px}
 
 /* Danh sách toàn hệ thống (15/11): kiểu xem, xuất Excel, thêm mới chung một dòng với công cụ của bảng */
-.ttprotools:has(.sysright) .tsrch{flex:0 1 240px;min-width:180px}
+.ttprotools:has(.sysright) .tsrch{flex:1 1 360px;min-width:280px;max-width:520px}
 .main .ttprotools .sysright{display:inline-flex;align-items:center;gap:8px;margin-left:auto}
 .main .ttprotools .sysright>.segmented,.main .ttprotools .sysright>button{height:36px;border-radius:8px;margin:0;display:inline-flex;align-items:center}
 .main .ttprotools .sysright>.segmented{padding:3px}

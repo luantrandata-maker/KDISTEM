@@ -83,7 +83,8 @@ async function fetchAll(spec: Spec, ids: string[] | null) {
 }
 
 // onOpen: bấm một dòng để mở chi tiết (thay cho dòng mở rộng `detail`); actions: nút thêm ở thanh công cụ; reloadKey đổi → tải lại
-export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spec; onOpen?: (r: Row) => void; actions?: ReactNode; reloadKey?: number }) {
+// listFirst: mở sẵn kiểu Danh sách, cột Đơn vị đứng cuối (kho bài giảng / hoạt động: tên bài là chính)
+export function SystemList({ spec, onOpen, actions, reloadKey = 0, listFirst }: { spec: Spec; onOpen?: (r: Row) => void; actions?: ReactNode; reloadKey?: number; listFirst?: boolean }) {
   const { byId, regionOf, regions, orgs } = useOrgs()
   const saved = (() => { try { return JSON.parse(localStorage.getItem(KEY) ?? '{}') as { region?: string; org?: string } } catch { return {} } })()
   const [region0, setRegion] = useState(saved.region ?? '')
@@ -95,7 +96,7 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
   const region = regionsSel.length === 1 ? regionsSel[0] : '', org = orgsSel.length === 1 ? orgsSel[0] : ''
   const [q, setQ] = useState('')
   const [st, setSt] = useState('all')
-  const [view, setView] = useState<'sum' | 'list'>(saved.org ? 'list' : 'sum')
+  const [view, setView] = useState<'sum' | 'list'>(saved.org || listFirst ? 'list' : 'sum')
   const [rows, setRows] = useState<Row[]>([])
   const [capped, setCapped] = useState(false)
   const [busy, setBusy] = useState(true)
@@ -156,6 +157,7 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
   ] : []
   // Bảng mới (15/11): một dòng công cụ. Sở / tỉnh, đơn vị, trạng thái lọc bằng ô tìm và lọc cột của bảng;
   // bấm tên đơn vị để xem riêng đơn vị đó (chip để quay lại). Chỉ khi dữ liệu quá nhiều mới hiện ô chọn Sở / tỉnh.
+  const orgCol = { key: 'org', label: 'Đơn vị', text: (r: Row) => nameOf(r.org_id), cell: (r: Row) => <small>{nameOf(r.org_id)}</small> }
   const tLeft = multi ? <MultiFilters defs={facetDefs} f={mf} /> : org ? <button type="button" className="chipbtn on" onClick={() => pickOrg('')} title="Bỏ chọn, xem tất cả đơn vị">{nameOf(org)} ✕</button>
     : capped || region0 ? <select value={region0} onChange={e => { setRegion(e.target.value); pickOrg('') }} aria-label="Chọn Sở hoặc tỉnh">
       <option value="">Toàn hệ thống</option>
@@ -226,13 +228,13 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0 }: { spec: Spe
 
       {(org || view === 'list') && !spec.detail && <DataTable id={'sys-' + spec.file} rows={busy ? [] : shown.slice(0, SHOW)} rowKey={r => r.id} onRow={onOpen} left={tLeft} right={tRight}
         aside={spec.grades && shown0.length ? gt.tree : undefined} empty={busy ? 'Đang tải…' : rows.length ? 'Không có dòng phù hợp bộ lọc.' : spec.empty}
-        cols={[...(!org ? [{ key: 'org', label: 'Đơn vị', text: (r: Row) => nameOf(r.org_id), cell: (r: Row) => <small>{nameOf(r.org_id)}</small> }] : []),
+        cols={[...(!org && !listFirst ? [orgCol] : []),
           ...spec.cols.map((c, i) => {
             // Cột chỉ có nội dung dựng sẵn (không phải chữ) thì không có ô lọc
             const plain = !!c.text || (shown0.length > 0 && ['string', 'number'].includes(typeof c.get(shown0[0])))
-            return { key: 'c' + i, label: c.label, fixed: i === 0, cell: c.get,
+            return { key: 'c_' + c.label, label: c.label, fixed: i === 0, cell: c.get,
               text: plain ? (r: Row) => { const v = c.text ? c.text(r) : c.get(r); return typeof v === 'string' || typeof v === 'number' ? String(v) : '' } : undefined }
-          })] as DCol<Row>[]} />}
+          }), ...(!org && listFirst ? [orgCol] : [])] as DCol<Row>[]} />}
       {!busy && (org || view === 'list') && !spec.detail && shown.length > SHOW && <p className="sub">Hiện {SHOW}/{shown.length.toLocaleString('vi-VN')} dòng. Xuất Excel để có đủ, hoặc lọc thêm.</p>}
       {!busy && (org || view === 'list') && spec.detail && <>
         <div className="wrap"><table className="systable">
@@ -477,18 +479,18 @@ export const CURRICULUM: Spec = {
   search: r => `${r.title} ${r.subject ?? ''}`, searchHint: 'Tên sách, môn…', noun: 'Đầu sách', file: 'phan-phoi-chuong-trinh-toan-he-thong', empty: 'Chưa có phân phối chương trình.',
 }
 
-const L_ST: Record<string, string> = { draft: 'Nháp', editing: 'Đang soạn', published: 'Đã xuất bản', archived: 'Đã thu hồi' }
+const L_ST: Record<string, string> = { draft: 'Nháp', editing: 'Đang soạn', published: 'Đã xuất bản', archived: 'Đã thu hồi', pending: 'Chờ duyệt', approved: 'Đã duyệt', rejected: 'Bị trả lại' }
 export const LESSONS: Spec = {
   table: 'lesson_plans', order: 'updated_at', asc: false,
   select: 'id, org_id, title, subject, grades, program, status, is_template, from_package, updated_at, teachers(full_name)',
   grades: r => rowGrades(r.grades),
   cols: [
     { label: 'Bài giảng', get: r => <><b>{r.title}</b>{r.is_template && <> {pill('Mẫu')}</>}</>, text: r => r.title, wrap: true },
-    { label: 'Giáo viên', get: r => r.teachers?.full_name ?? <small>—</small>, text: r => r.teachers?.full_name },
     { label: 'Môn · khối', get: r => [r.subject, r.grades].filter(Boolean).join(' · ') },
     { label: 'Chương trình', get: r => r.program ?? '' },
+    { label: 'Giáo viên', get: r => r.teachers?.full_name ?? <small>—</small>, text: r => r.teachers?.full_name },
+    { label: 'Trạng thái', get: r => stPill(L_ST, { published: 'active', approved: 'active', editing: 'maintenance', pending: 'maintenance', rejected: 'inactive' })(r.status), text: r => L_ST[r.status] },
     { label: 'Cập nhật', get: r => fmtDate(r.updated_at) },
-    { label: 'Trạng thái', get: r => stPill(L_ST, { published: 'active', editing: 'maintenance' })(r.status), text: r => L_ST[r.status] },
   ],
   stats: [
     { label: 'Đã xuất bản', get: rs => rs.filter(r => r.status === 'published').length },
@@ -508,8 +510,8 @@ export const ACTIVITIES: Spec = {
     { label: 'Loại', get: r => A_KIND[r.kind] ?? r.kind },
     { label: 'Giáo viên', get: r => r.teachers?.full_name ?? <small>—</small>, text: r => r.teachers?.full_name },
     { label: 'Môn · khối', get: r => [r.subject, r.grades].filter(Boolean).join(' · ') },
-    { label: 'Cập nhật', get: r => fmtDate(r.updated_at) },
     { label: 'Trạng thái', get: r => stPill({ draft: 'Nháp', published: 'Đã xuất bản' }, { published: 'active' })(r.status), text: r => (r.status === 'published' ? 'Đã xuất bản' : 'Nháp') },
+    { label: 'Cập nhật', get: r => fmtDate(r.updated_at) },
   ],
   stats: [
     { label: 'Đã xuất bản', get: rs => rs.filter(r => r.status === 'published').length },
@@ -632,7 +634,7 @@ function BankList({ spec, orgId, add, desk: Desk, onPick, onAdd }: {
     {d && <Suspense fallback={<p className="sub">Đang tải…</p>}>{Desk({ start: d, onClose: () => { setD(null); setK(x => x + 1) } })}</Suspense>}
     {/* Giữ danh sách (bộ lọc, ô tìm) khi mở chi tiết */}
     <div hidden={!!d}>
-      <SystemList spec={spec} reloadKey={k} onOpen={r => { if (!onPick?.(r)) setD({ mode: 'open', id: r.id }) }}
+      <SystemList spec={spec} reloadKey={k} listFirst onOpen={r => { if (!onPick?.(r)) setD({ mode: 'open', id: r.id }) }}
         actions={orgId ? <button className="primary" onClick={() => (onAdd ? onAdd() : setD({ mode: 'new' }))}>{add}</button> : undefined} />
     </div>
   </>
@@ -645,7 +647,7 @@ export const SysSchoolLessons = ({ orgId }: { orgId?: string | null }) => <BankL
 const LibraryManage = lazy(() => import('../library/Manage').then(m => ({ default: m.LibraryManage })))
 const ALL_LESSONS: Spec = {
   ...LESSONS,
-  cols: [LESSONS.cols[0], { label: 'Nguồn', get: r => r.lib ? pill('Bài giảng KDI', 'active') : 'Giáo viên soạn', text: r => (r.lib ? 'Bài giảng KDI' : 'Giáo viên soạn') }, ...LESSONS.cols.slice(1)],
+  cols: [...LESSONS.cols.slice(0, 4), { label: 'Nguồn', get: r => r.lib ? pill('Bài giảng KDI', 'active') : 'Giáo viên soạn', text: r => (r.lib ? 'Bài giảng KDI' : 'Giáo viên soạn') }, ...LESSONS.cols.slice(4)],
   stats: [
     { label: 'Bài giảng KDI', get: rs => rs.filter(r => r.lib).length },
     { label: 'Đã xuất bản', get: rs => rs.filter(r => r.status === 'published').length },

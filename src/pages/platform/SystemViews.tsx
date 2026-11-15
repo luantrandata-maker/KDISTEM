@@ -167,7 +167,7 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0, listFirst }: 
   const tRight = <span className="sysright">
     {!org && <span className="segmented viewtoggle" role="group" aria-label="Kiểu xem">{([['sum', 'Theo đơn vị'], ['list', 'Danh sách']] as const).map(([k, l]) =>
       <button key={k} type="button" className={view === k ? 'on' : ''} aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>)}</span>}
-    <button type="button" className="tsq" onClick={excel} disabled={!shown.length} title="Xuất Excel" aria-label="Xuất Excel">{xl}</button>
+    {!listFirst && <button type="button" className="tsq" onClick={excel} disabled={!shown.length} title="Xuất Excel" aria-label="Xuất Excel">{xl}</button>}
     {actions}
   </span>
 

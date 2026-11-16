@@ -7,6 +7,7 @@ import { type Year, sameSchoolYear } from '../lib/year'
 import ImportExcel from '../components/ImportExcel'
 import { norm, importSummary, downloadXlsx, type Column } from '../lib/sheet'
 import { loadRooms, type RoomLite } from '../lib/rooms'
+import { InfoTip } from '../components/InfoTip'
 
 const COLS: Column[] = [
   { key: 'name', label: 'Tên lớp', required: true, aliases: ['Lớp', 'Ten lop'] },
@@ -130,7 +131,7 @@ export default function Classes({ orgId, year, years = [] }: { orgId: string; ye
           <button className="primary" onClick={() => setForm('new')}>Thêm lớp</button></div>
       </div>
       {msg && <p className={msg[1] ? 'msg' : 'sub'}><b>{msg[0]}</b></p>}
-      {year && <p className="sub covhint">Lớp nhập mới thuộc năm học {year.name}. Lớp đã có (trùng tên) chỉ cập nhật GVCN, khối, chương trình nếu file có ghi.</p>}
+      {year && <div className="infotiprow"><InfoTip left label="Ghi chú nhập lớp">Lớp nhập mới thuộc năm học {year.name}. Lớp đã có (trùng tên) chỉ cập nhật GVCN, khối, chương trình nếu file có ghi.</InfoTip></div>}
       <p className="sub">{shown.length} lớp · phân công giáo viên STEM · chương trình triển khai</p>
       {form && <FormPanel fields={[
         { key: 'name', label: 'Tên lớp', required: true, placeholder: 'VD: Lớp 6B' }, { key: 'grade', label: 'Khối', type: 'number', required: true },

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { loginDomain } from '../lib/login'
 import { downloadXlsx } from '../lib/sheet'
+import { InfoTip } from '../components/InfoTip'
 
 // Tài khoản đăng nhập bằng mã cho học sinh / giáo viên (migration 037 + hàm máy chủ school-accounts).
 // Tạo hàng loạt từ hồ sơ đã nhập, in phiếu tài khoản theo lớp, đặt lại mật khẩu. Mật khẩu chỉ hiện một lần.
@@ -192,7 +193,7 @@ export default function CodeAccounts({ orgId }: { orgId: string | null }) {
           {shown.length === 0 && <tr><td colSpan={6}>{kind === 'student' ? 'Chưa có học sinh. Nhập danh sách ở mục Học sinh.' : kind === 'parent' ? 'Chưa có phụ huynh. Nhập danh sách ở mục Phụ huynh.' : 'Chưa có giáo viên. Nhập danh sách ở mục Giáo viên.'}</td></tr>}
         </tbody>
       </table></div>
-      {domain && <p className="sub covhint">Tài khoản mã dùng email nội bộ <code>…@{domain}</code> (không có hộp thư, không nhận thư).</p>}
+      {domain && <div className="infotiprow"><InfoTip left up label="Ghi chú">Tài khoản mã dùng email nội bộ <code>…@{domain}</code> (không có hộp thư, không nhận thư).</InfoTip></div>}
     </div>
   )
 }

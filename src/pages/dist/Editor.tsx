@@ -47,6 +47,7 @@ export function useBreadcrumb() {
 }
 
 import { ActionBar } from '../../components/ActionBar'
+import { InfoTip } from '../../components/InfoTip'
 export { MoreMenu } from '../../components/MoreMenu'
 
 function Stepper({ value, onChange, disabled, label }: { value: number; onChange: (v: number) => void; disabled?: boolean; label: string }) {
@@ -551,7 +552,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       <label className="distsplit"><input type="checkbox" checked={it.split} onChange={e => {
         setItem(it.program_id, { split: e.target.checked, subjects: subs.map(x => ({ ...x, ppw: e.target.checked ? it.ppw : x.ppw })) })
       }} /><span><b>Chỉnh riêng từng môn</b> <small className="sub">mỗi môn bắt đầu và nhịp riêng</small></span></label>
-      <small className="sub distsubjhint">Tick chọn bài sẽ dạy · kéo môn hoặc bài để đổi thứ tự dạy (chỉ trong bản này). Bàn phím: Alt + ↑↓</small>
+      <div className="infotiprow"><InfoTip left label="Cách chọn và sắp xếp bài">Tick chọn bài sẽ dạy. Kéo môn hoặc bài để đổi thứ tự dạy (chỉ trong bản này). Bàn phím: Alt + ↑↓.</InfoTip></div>
       <SubjCards onMoveSubj={move} items={onSubs.map((x, j) => {
         const base = (lessonsBy.get(it.program_id) ?? []).filter(l => l.subj.trim().toLowerCase() === x.name.trim().toLowerCase())
         const list = orderLessons(base, x.order); const si = subInfo(x.name)

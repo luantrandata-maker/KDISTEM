@@ -11,6 +11,7 @@ import { StatCards } from '../components/StatCards'
 // Chứng chỉ đào tạo của nhà giáo (tải khi mở hồ sơ)
 const TeacherCertList = lazy(() => import('./training/Certificates').then(m => ({ default: m.TeacherCertList })))
 import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../components/MultiFilters'
+import { InfoTip } from '../components/InfoTip'
 
 // Đánh giá năng lực (migration 042): khung năng lực, hồ sơ năng lực HS (từ chấm theo tiêu chí), đánh giá năng lực GV.
 export type Comp = { key: string; audience: 'student' | 'teacher'; grp: string; name: string; description: string | null; levels: string[]; sort: number }
@@ -148,7 +149,7 @@ export function ClassCompetencies({ teacherId }: { teacherId: string | null }) {
           {!students.length && <tr><td colSpan={shownComps.length + 1}>Lớp chưa có học sinh.</td></tr>}
         </tbody>
       </table></div>}
-      {cls && !rows.length && students.length > 0 && <p className="sub covhint">Lớp chưa có bài nào được chấm theo tiêu chí có gắn năng lực. Khi giao bài, chọn mẫu tiêu chí (mỗi tiêu chí gắn một năng lực) rồi chấm theo mức.</p>}
+      {cls && !rows.length && students.length > 0 && <div className="infotiprow"><InfoTip left up label="Cách đọc bảng">Lớp chưa có bài nào được chấm theo tiêu chí có gắn năng lực. Khi giao bài, chọn mẫu tiêu chí (mỗi tiêu chí gắn một năng lực) rồi chấm theo mức.</InfoTip></div>}
     </>
   )
 }

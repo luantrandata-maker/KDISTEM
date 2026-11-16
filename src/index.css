@@ -3484,3 +3484,5 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .distppct.flat .c-p{width:150px;white-space:nowrap}.distppct.flat .c-s{width:130px}.distppct.flat .c-n{width:120px}
 .distppct.flat td.c-w{vertical-align:top;border-right:1px solid color-mix(in srgb,var(--line) 60%,transparent)}
 .distppct.flat tr.wkhead>td{border-top:1px solid var(--line)}
+.distppct.flat .c-on{width:44px;text-align:center}.distppct.flat tr.skipped>td:not(.c-on){opacity:.5}
+.distpptools .sp{flex:1}

@@ -3467,3 +3467,7 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .distppct .distppnote{display:block}
 .distppct tr.distpphk td{background:color-mix(in srgb,var(--primary) 8%,var(--surface));color:var(--primary);font-weight:600;padding:6px 10px;border-top:1px solid var(--line)}
 @media (max-width:700px){.distppct .c-s{width:auto}}
+
+/* Học cách tuần: ô Lặp cạnh nhịp */
+.distevery{display:inline-flex;align-items:center;gap:6px}
+.distevsel{height:32px;padding:0 6px;font-size:calc(13px * var(--fz,1))}

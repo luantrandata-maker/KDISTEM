@@ -15,7 +15,7 @@ import { useDistCalendar, type DistCal } from './calendar'
 import { PlanApplied, PlanVersions } from './History'
 import { DataTable, type Col } from '../../components/DataTable'
 import {
-  checks, effSubjects, lessonsOf, orderLessons, reordered, progCode, schedule, spanOf, subjectsIn, termRange, weekLoad, LOAD_MAX,
+  checks, effSubjects, lessonsOf, progEvery, subjEvery, orderLessons, reordered, progCode, schedule, spanOf, subjectsIn, termRange, weekLoad, LOAD_MAX,
   type Item, type Mode, type Plan, type Prog, type Row, type Status, type Subj, type SubjMode, type U,
 } from './sched'
 
@@ -51,6 +51,12 @@ import { ActionBar } from '../../components/ActionBar'
 import { InfoTip } from '../../components/InfoTip'
 import { Drawer } from '../../components/Drawer'
 export { MoreMenu } from '../../components/MoreMenu'
+
+/** Học mỗi tuần hay cách tuần (2 = tuần học tuần nghỉ, ví dụ bắt đầu tuần 2 → tuần 2, 4, 6…) */
+function EverySel({ value, onChange, label, className, title }: { value: number; onChange: (v: number) => void; label: string; className?: string; title?: string }) {
+  return <select className={'distevsel ' + (className ?? '')} value={value} aria-label={label} title={title ?? 'Học mỗi tuần hay cách tuần'} onChange={e => onChange(Number(e.target.value))}>
+    <option value={1}>Mỗi tuần</option><option value={2}>Cách 1 tuần</option><option value={3}>Cách 2 tuần</option><option value={4}>Cách 3 tuần</option></select>
+}
 
 function Stepper({ value, onChange, disabled, label }: { value: number; onChange: (v: number) => void; disabled?: boolean; label: string }) {
   const set = (v: number) => onChange(Math.max(0.5, Math.min(40, Math.round(v * 2) / 2)))
@@ -519,7 +525,8 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       </span></label>
       <span className="distctlf"><span>Nhịp (tiết/tuần)</span>{it.split && many
         ? <span className="distsplitnote"><small className="sub">Riêng từng môn</small><button type="button" className="linkbtn" title="Dùng một nhịp chung, các môn nối tiếp nhau" onClick={() => setItem(pid, { split: false })}>Dùng chung</button></span>
-        : <Stepper label={'nhịp ' + progCode(p)} value={it.ppw} onChange={v => setItem(pid, { ppw: v, split: false })} />}</span>
+        : <span className="distevery"><Stepper label={'nhịp ' + progCode(p)} value={it.ppw} onChange={v => setItem(pid, { ppw: v, split: false })} />
+          <EverySel label={'Lặp lại ' + progCode(p)} value={progEvery(it)} onChange={v => setItem(pid, { subjects: subjectsOf(it).map(y => ({ ...y, pevery: v })) })} /></span>}</span>
       <span className={'gpill ' + (!sp ? '' : outFrame ? 'bad' : outTerm ? 'warn' : 'good')}>
         {!sp ? 'Chưa có bài' : <>{outFrame || outTerm ? '⚠ ' : ''}Tuần {sp.from}–{sp.to} · {sp.periods} tiết{outFrame ? ` · ngoài khung` : outTerm ? ` · ngoài ${t!.label}` : ''}</>}</span>
     </div>
@@ -547,6 +554,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       </span></label>
       <label className="distctlf"><span>Nhịp</span><input type="number" className={'distppw ' + inh} title={tip} aria-label={'Nhịp môn ' + x.name} min={0.5} max={40} step={0.5} value={it.split ? x.ppw : it.ppw}
         onChange={e => setSubj({ ppw: Math.max(0.5, Math.min(40, Number(e.target.value) || 1)) })} /></label>
+      <label className="distctlf"><span>Lặp</span><EverySel className={inh} title={tip} label={'Lặp lại môn ' + x.name} value={subjEvery(it, x)} onChange={v => setSubj({ every: v })} /></label>
       <span className="distsubspan">{si?.to ? `Tuần ${si.from}–${si.to} · ${si.periods} tiết` : 'Chưa xếp'}</span>
       <span className="sp" />{lessonsBtn(it, x, 'Sắp thứ tự bài')}
     </div>
@@ -648,14 +656,14 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       es.sort((a, b) => (a.w ?? 1e9) - (b.w ?? 1e9) || ord.get(a.x)! - ord.get(b.x)!)
       const weeks: { w: number | null; es: E[] }[] = []
       for (const e of es) { const g = weeks[weeks.length - 1]; if (g && g.w === e.w) g.es.push(e); else weeks.push({ w: e.w, es: [e] }) }
-      const showSubj = !sel || !!selPid, showT = !showSubj, cols = 3 + (showSubj ? 1 : 0) + (showT ? 1 : 0), skipped = shown.filter(x => x.r.skipped).length
+      const showSubj = !sel || !!selPid, cols = showSubj ? 4 : 3, skipped = shown.filter(x => x.r.skipped).length
       if (!weeks.length) return <p className="sub">{inSel.length ? 'Không có bài nào khớp ô tìm.' : 'Chưa có bài.'}</p>
       let hk = 0
       return <div className="distppwrap">
         <div className="distpptools"><input placeholder="Tìm bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
           <span className="sub">{es.length && `${new Set(es.map(e => e.x)).size} bài · ${es.reduce((t, e) => t + e.n, 0)} tiết`}{skipped > 0 && ` · ${skipped} bài không dạy (xem ở dạng Bảng)`}</span></div>
         <table className="distppct">
-          <thead><tr><th className="c-w">Tuần</th><th>Tên bài</th>{showSubj && <th className="c-s">Môn</th>}<th className="c-n">Thời lượng</th>{showT && <th className="c-t" title="Tiết thứ mấy của môn, đếm từ đầu năm">Tiết PPCT</th>}</tr></thead>
+          <thead><tr><th className="c-w">Tuần</th><th>Tên bài</th>{showSubj && <th className="c-s">Môn</th>}<th className="c-n">Thời lượng</th></tr></thead>
           <tbody>{weeks.map(g => {
             const load = g.es.reduce((t, e) => t + e.n, 0)
             const term = g.w === null ? 0 : g.w <= plan.hk1_weeks ? 1 : 2
@@ -665,10 +673,9 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
                 {i === 0 && <td className="c-w" rowSpan={g.es.length}><b>{g.w ?? '—'}</b>{g.w !== null && g.es.length > 1 && <small className={load > LOAD_MAX ? 'over' : undefined}>{load} tiết</small>}</td>}
                 <td>{title.get(e.x.r.unit_id)}{e.part > 0 && <small className="sub"> (tiếp)</small>}{e.x.r.note && <small className="sub distppnote">{e.x.r.note}</small>}</td>
                 {showSubj && <td className="c-s"><span className="distprogcell"><i className="distdot" style={{ background: colorOf(e.x.k) }} />{selPid ? e.x.subj : `${e.x.code} · ${e.x.subj}`}</span></td>}
-                <td className="c-n">{e.n} tiết</td>
-                {showT && <td className="c-t sub">{e.n > 1 ? `${e.from}–${e.from + e.n - 1}` : e.from}</td>}</tr>)}</Fragment>
+                <td className="c-n">{e.n} tiết</td></tr>)}</Fragment>
           })}</tbody></table>
-        <small className="sub">{showT ? '“Tiết PPCT” là thứ tự tiết của môn tính từ đầu năm. ' : 'Chọn một môn ở cột trái để xem thứ tự tiết theo PPCT. '}Chỉnh tuần, số tiết, ghi chú hoặc bỏ bài ở dạng Bảng.</small>
+        <small className="sub">Chỉnh tuần, số tiết, ghi chú hoặc bỏ bài ở dạng Bảng.</small>
       </div>
     }
     /** Ô Bắt đầu, Nhịp của mục đang chọn ở cột trái */

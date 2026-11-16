@@ -89,11 +89,12 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
     if (r.error) { setMsg(errMsg(r.error.message)); return false }
     setMsg(done); reload(); return true
   }
-  async function save() {
-    if (!draft || !fields || !edit) return
+  /** Gom phần đang sửa thành dữ liệu ghi; trả null kèm báo lỗi nếu thiếu tên */
+  function prepared(): { clean: KitData; patch: Partial<KitRow['content']>; cols: Partial<KitRow> } | null {
+    if (!draft || !fields || !edit) return null
     let cols: Partial<KitRow> = {}, patch: Partial<KitRow['content']> = { checked: checked.filter(c => c !== edit) }
     if (edit === 'info') {
-      if (!fields.title.trim()) return setMsg(`Nhập tên ${T.noun}.`)
+      if (!fields.title.trim()) { setMsg(`Nhập tên ${T.noun}.`); return null }
       const per = /\d+([.,]\d+)?/.exec(fields.periods)?.[0]?.replace(',', '.')
       const p = programs.find(x => x.id === fields.program_id)
       cols = store === 'training'
@@ -107,7 +108,52 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
     const clean: KitData = { ...draft, docs: draft.docs.filter(d => d.title.trim() || d.url.trim() || d.file),
       mats: { product: draft.mats.product.filter(m => m.name.trim()), group: draft.mats.group.filter(m => m.name.trim()) },
       bank: draft.bank.filter(b => b.title.trim()).map(b => ({ ...b, title: b.title.trim() })) }
-    if (await write(clean, patch, cols, 'Đã lưu thẻ. Kiểm tra lại rồi bấm “Chốt nội dung”.')) cancel()
+    return { clean, patch, cols }
+  }
+  async function save() {
+    const p = prepared(); if (!p) return
+    if (await write(p.clean, p.patch, p.cols, 'Đã lưu thẻ. Kiểm tra lại rồi bấm “Chốt nội dung”.')) cancel()
+  }
+  const fresh = async () => {
+    const { data, error } = await supabase.from(kitTable(store)).select(kitSel(store)).eq('id', row!.id).maybeSingle()
+    if (error || !data) throw new Error(error ? errMsg(error.message) : `Không tìm thấy ${T.noun}.`)
+    return data as unknown as KitRow
+  }
+  /** Chốt lần lượt các thẻ; mỗi thẻ đọc lại bài mới nhất vì bước chốt có thể ghi thêm liên kết vào nội dung */
+  async function chotMany(cards: KitCard[]): Promise<string[] | null> {
+    let done: string[] = []
+    for (const [i, c] of cards.entries()) {
+      setBusy(`Đang chốt thẻ ${CARDS.find(x => x.k === c)!.no}${cards.length > 1 ? ` (${i + 1}/${cards.length})` : ''}…`)
+      try {
+        const r0 = await fresh()
+        const r = await chotCard(orgId, r0, kitOf(r0.content.kit), c, store)
+        if (r.error) throw new Error(r.error)
+        done = [...new Set([...(r0.content.checked ?? []), c])]
+      } catch (e) { setBusy(''); setMsg(`Thẻ ${CARDS.find(x => x.k === c)!.no}: ${e instanceof Error ? e.message : String(e)}`); reload(); return null }
+    }
+    setBusy(''); return done
+  }
+  /** Lưu thẻ đang sửa, chốt luôn, rồi mở thẻ tiếp theo chưa chốt */
+  async function saveChot() {
+    const p = prepared(); if (!p || !edit) return
+    const card = edit
+    setBusy('Đang lưu…'); setMsg('')
+    const w = await supabase.from(kitTable(store)).update({ ...p.cols, content: fullContent(row!, p.clean, p.patch) }).eq('id', row!.id)
+    if (w.error) { setBusy(''); setMsg(errMsg(w.error.message)); return }
+    const done = await chotMany([card])
+    if (!done) { cancel(); return }
+    const i = NEED.findIndex(c => c.k === card)
+    const next = [...NEED.slice(i + 1), ...NEED.slice(0, Math.max(i, 0))].find(c => !done.includes(c.k))
+    setDraft(null); setFields(null)
+    if (next) { setEdit(next.k); setTab(next.k); setMsg(`Đã lưu và chốt thẻ ${CARDS.find(c => c.k === card)!.no}. Đang mở thẻ ${next.no}.`) }
+    else { setEdit(null); setMsg(`Đã lưu và chốt thẻ ${CARDS.find(c => c.k === card)!.no}. Đủ thẻ để phát hành.`) }
+    reload()
+  }
+  async function chotRest() {
+    const rest = NEED.filter(c => !checked.includes(c.k)).map(c => c.k)
+    if (!rest.length) return
+    setMsg('')
+    if (await chotMany(rest)) { setMsg(`Đã chốt ${rest.length} thẻ.`); reload() }
   }
   async function chot(card: KitCard) {
     setBusy('Đang chốt…'); setMsg('')
@@ -121,8 +167,14 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
     const ask = store === 'library' && row!.version > 0
     const note = ask ? prompt('Ghi chú cho bản cập nhật (trường đã dùng sẽ thấy):', '') : null
     if (note === null && ask) return
-    setBusy('Đang phát hành…'); setMsg('')
-    const r = await publishKit(orgId, row!, note, store)
+    const rest = NEED.filter(c => !checked.includes(c.k))
+    if (rest.length && !confirm(`Còn ${rest.length} thẻ chưa chốt (${rest.map(c => c.no).join(', ')}). Chốt luôn các thẻ này rồi phát hành?`)) return
+    setMsg('')
+    if (rest.length && !(await chotMany(rest.map(c => c.k)))) return
+    setBusy('Đang phát hành…')
+    let cur: KitRow
+    try { cur = rest.length ? await fresh() : row! } catch (e) { setBusy(''); return setMsg(e instanceof Error ? e.message : String(e)) }
+    const r = await publishKit(orgId, cur, note, store)
     setBusy('')
     if (r.error) return setMsg(r.error)
     setMsg(`Đã phát hành ${store === 'training' ? T.noun : 'bộ học liệu'} (phiên bản ${r.version}).`); reload()
@@ -175,8 +227,8 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
           <div className="tools">
             <Chip tone={STATUS[row.status][1]}>{STATUS[row.status][0]}{row.status === 'published' ? ` · v${row.version}` : ''}</Chip>
             <button type="button" onClick={() => begin('info')}>{store === 'training' ? 'Sửa thông tin' : 'Sửa tên, môn'}</button>
-            <button type="button" className="primary" disabled={needDone < NEED.length || !!busy || !!edit} onClick={publish}
-              title={needDone < NEED.length ? `Chốt đủ ${NEED.length} thẻ${store === 'training' ? ' bắt buộc' : ''} để phát hành (đang ${needDone}/${NEED.length})` : 'Chỉ chốt khi đã kiểm tra nội dung từng thẻ. Có thể cập nhật lại sau khi chốt.'}>{row.status === 'published' ? 'Phát hành bản cập nhật' : store === 'training' ? 'Phát hành bài giảng' : 'Phát hành bộ học liệu'}</button>
+            <button type="button" className="primary" disabled={!!busy || !!edit} onClick={publish}
+              title={needDone < NEED.length ? `Còn ${NEED.length - needDone} thẻ${store === 'training' ? ' bắt buộc' : ''} chưa chốt: bấm để chốt luôn rồi phát hành` : 'Có thể cập nhật lại sau khi phát hành.'}>{row.status === 'published' ? 'Phát hành bản cập nhật' : store === 'training' ? 'Phát hành bài giảng' : 'Phát hành bộ học liệu'}</button>
           </div>
         </div>
       </div>
@@ -198,7 +250,9 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
       <div className="panel lquick"><b>Điền nhanh bằng file mẫu</b><span className="sub">Không có giáo án Word? Tải mẫu, điền rồi tải lên, hệ thống tự điền các thẻ.</span>
         <div className="tools"><button type="button" onClick={tplAll}>Tải mẫu cả giáo án (Excel)</button>{pick('.xlsx', 'Tải file lên', upload)}</div></div>
 
-      <div className="lkithead"><h3>{store === 'training' ? 'Bài giảng' : 'Bộ học liệu'} · 5 thẻ</h3><span className="sub">{store === 'training' ? `${needDone}/${NEED.length} thẻ bắt buộc đã chốt · Kho hoạt động tuỳ chọn` : `${checked.length}/${CARDS.length} thẻ đã chốt`}</span></div>
+      <div className="lkithead"><h3>{store === 'training' ? 'Bài giảng' : 'Bộ học liệu'} · 5 thẻ</h3><span className="sub">{store === 'training' ? `${needDone}/${NEED.length} thẻ bắt buộc đã chốt · Kho hoạt động tuỳ chọn` : `${checked.length}/${CARDS.length} thẻ đã chốt`}</span>
+        {needDone < NEED.length && <button type="button" className="linkbtn" disabled={!!busy || !!edit} onClick={chotRest}
+          title="Chốt một lần tất cả thẻ chưa chốt. Chỉ dùng khi đã xem lại nội dung các thẻ.">✓ Chốt tất cả thẻ còn lại</button>}</div>
       <div className="ltabs" role="tablist">
         {CARDS.map(c => <button key={c.k} type="button" role="tab" aria-selected={tab === c.k} className={(tab === c.k ? 'on' : '') + (checked.includes(c.k) ? ' done' : '')}
           onClick={() => { if (edit && edit !== c.k) return setMsg('Lưu hoặc hủy thẻ đang sửa trước.'); setTab(c.k) }}>
@@ -217,7 +271,8 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
           <div className="lcardacts">
             <Chip tone={on ? 'good' : 'warn'}>{on ? 'Đã chốt' : 'Cần kiểm tra'}</Chip>
             {edit === tab
-            ? <><button type="button" onClick={cancel} disabled={!!busy}>Hủy</button><button type="button" className="primary" onClick={save} disabled={!!busy}>Lưu</button></>
+            ? <><button type="button" onClick={cancel} disabled={!!busy}>Hủy</button><button type="button" onClick={save} disabled={!!busy}>Lưu nháp</button>
+              <button type="button" className="primary" onClick={saveChot} disabled={!!busy} title="Lưu, chốt thẻ này rồi mở thẻ tiếp theo chưa chốt">Lưu & chốt ›</button></>
             : <><button type="button" onClick={() => begin(tab)} disabled={!!busy || !!edit}>✎ Cập nhật</button>
               {on ? <button type="button" onClick={() => unchot(tab)} disabled={!!busy || !!edit}>Bỏ chốt</button>
                 : <button type="button" className="primary" onClick={() => chot(tab)} disabled={!!busy || !!edit}>✓ Chốt nội dung</button>}</>}

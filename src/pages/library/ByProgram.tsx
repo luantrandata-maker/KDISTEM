@@ -171,7 +171,7 @@ export function LibraryByProgram({ orgId, onChanged, tools }: { orgId: string | 
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
       {create && <CreateLesson orgId={orgId} programs={progRefs} subjectsOf={subjectsOf} program={progRefs.find(p => p.id === prog.id)!} subject={create.subject}
         preset={create.preset} kits={kits} onClose={() => setCreate(null)}
-        onCreated={(id, m) => { const sj = create.subject; setCreate(null); setMsg(m); reload(); setSubj(sj); setOpen({ id }) }} />}
+        onCreated={(id, m) => { const sj = create.subject; setCreate(null); setMsg(m); reload(); setSubj(sj); setOpen({ id, edit: true }) }} />}
       {subs.map(s => {
         const rows = rowsOf(prog, s); const ks = rows.map(r => r.kit).filter(Boolean) as KitRow[]
         const isOpen = !closed.includes(s)
@@ -464,12 +464,13 @@ function NeedsBySchool({ orgId }: { orgId: string | null }) {
 export function LessonFlow({ orgId, openId, onClose, onChanged }: { orgId: string; openId?: string; onClose: () => void; onChanged?: () => void }) {
   const [tick, setTick] = useState(0)
   const [open, setOpen] = useState<string | null>(openId ?? null)
+  const [made, setMade] = useState(false)
   const [msg, setMsg] = useState('')
   const { loaded, kits, subjectsOf, progRefs } = useLessonData(orgId, tick)
   const reload = () => { setTick(t => t + 1); onChanged?.() }
   if (open) return <>
     {msg && <p className="sub" role="status"><b>{msg}</b></p>}
-    <LessonPage key={open} orgId={orgId} id={open} programs={progRefs} subjectsOf={subjectsOf} code="" backLabel="← Danh mục học liệu"
+    <LessonPage key={open} orgId={orgId} id={open} programs={progRefs} subjectsOf={subjectsOf} code="" backLabel="← Danh mục học liệu" startEdit={made}
       onBack={onClose} onChanged={reload} />
   </>
   if (!loaded) return <p className="sub">Đang tải…</p>
@@ -477,5 +478,5 @@ export function LessonFlow({ orgId, openId, onClose, onChanged }: { orgId: strin
     <button type="button" onClick={onClose}>← Danh mục học liệu</button></div>
   const p0 = progRefs[0]
   return <CreateLesson orgId={orgId} programs={progRefs} subjectsOf={subjectsOf} program={p0} subject={subjectsOf(p0.id)[0] ?? ''} pickPlace
-    kits={kits} onClose={onClose} onCreated={(id, m) => { setMsg(m); reload(); setOpen(id) }} />
+    kits={kits} onClose={onClose} onCreated={(id, m) => { setMsg(m); reload(); setMade(true); setOpen(id) }} />
 }

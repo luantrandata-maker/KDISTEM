@@ -187,7 +187,7 @@ export function TrainingCalendarPage({ orgId, online = false }: { orgId: string;
     </div>}
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {!plans ? <p className="sub">Đang tải…</p> : look === 'table' ? <DataTable id="training-sessions" rows={shown} rowKey={s => s.id}
-      aside={<GroupTree nodes={tnodes} total={pre.length} sel={tcur} onSel={setTsel} label="Nhóm theo năm học và kế hoạch" />}
+      aside={<GroupTree nodes={tnodes} total={pre.length} sel={tcur} onSel={setTsel} label="Nhóm theo năm học và kế hoạch" unit="buổi học" />}
       left={<>{ofl.node((plans ?? []).map(p => p.org_id), () => { setTsel('all'); setCplan('') })}
         <select value={onl} onChange={e => setOnl(e.target.value as '' | Mode)} aria-label="Hình thức"><option value="">Tất cả hình thức</option>
           <option value="online">Trực tuyến (lớp học ảo)</option><option value="offline">Trực tiếp</option></select>

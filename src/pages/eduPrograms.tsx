@@ -150,8 +150,8 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
   const mine = !!every || scope === 'own' || !shared.length
   const rows0 = mine ? own : shared
   // Cây Cấp → Khối bên trái bảng
-  const gtOwn = useGradeTree('edu-programs', own, progGrades)
-  const gtShared = useGradeTree('edu-programs-shared', shared, progGrades)
+  const gtOwn = useGradeTree('edu-programs', own, progGrades, 'chương trình')
+  const gtShared = useGradeTree('edu-programs-shared', shared, progGrades, 'chương trình')
   const gt = mine ? gtOwn : gtShared
 
   async function copy(p: Program) {

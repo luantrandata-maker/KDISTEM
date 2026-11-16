@@ -197,7 +197,7 @@ export function TrainingPlansPage({ orgId }: { orgId: string }) {
                 const nodes = groupNodes(shown, p => [p.year_name ?? ''], { desc: true, label1: y => y, none: 'Chưa có năm học' })
                 const cur = ysel === 'all' || nodes.some(n => 'a:' + n.key === ysel) ? ysel : 'all'
                 return table(shown.filter(p => inGroup(cur, p.year_name ?? '')), list.length ? 'Không có kế hoạch nào khớp bộ lọc.' : can ? 'Chưa có kế hoạch đào tạo nào. Bấm "+ Lập kế hoạch".' : 'Chưa có kế hoạch đào tạo nào.', left, <>{toggle}{add}</>,
-                  list.length ? <GroupTree nodes={nodes} total={shown.length} sel={cur} onSel={setYsel} label="Nhóm theo năm học" /> : undefined)
+                  list.length ? <GroupTree nodes={nodes} total={shown.length} sel={cur} onSel={setYsel} label="Nhóm theo năm học" unit="kế hoạch" /> : undefined)
               })()
           })()}
         </>}

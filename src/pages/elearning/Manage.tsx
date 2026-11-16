@@ -3,13 +3,17 @@ import { HeadAction, HeadTabs } from '../../components/PageFrame'
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
 import { DataTable, SideSplit, type Col } from '../../components/DataTable'
-import { RowMenu, type RowAction } from '../../components/ProTools'
+import { gridKey, gridPaste, gridMouseDown } from '../../components/sheetGrid'
+import { LongCell } from '../../components/LongCell'
+import { InfoTip } from '../../components/InfoTip'
+import { Icon } from '../../components/Icon'
+import ImportExcel from '../../components/ImportExcel'
 import { Drawer } from '../../components/Drawer'
 import { useGradeTree } from '../../components/GradeTree'
 import { MultiSelect } from '../../components/MultiSelect'
 import { GradeChecks, GradeMulti, SubjectMulti } from '../../components/Pickers'
 import { supabase } from '../../lib/supabase'
-import { downloadXlsx } from '../../lib/sheet'
+import { downloadXlsx, importSummary, type Column } from '../../lib/sheet'
 import { OrgPick, useAllMode, useOrgName } from '../../components/OrgScope'
 import { uploadLearningFile, openFile, MAX_FILE_MB } from '../../lib/files'
 import { Tabs } from '../teacher/common'
@@ -572,11 +576,20 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
 }
 
 type LibOpt = { id: string; kind: 'material' | 'unit'; title: string; subject: string | null; grades: string | null; owner_name: string | null; content: { type?: string; file_name?: string; material_ids?: string[] } }
+const EL_IMPORT: Column[] = [
+  { key: 'topic', label: 'Chủ đề', width: 26 },
+  { key: 'kind', label: 'Loại', aliases: ['Loại bài'], width: 12 },
+  { key: 'title', label: 'Tên bài', required: true, aliases: ['Tên bài học', 'Bài học', 'Tên'], width: 40 },
+  { key: 'url', label: 'Đường dẫn', aliases: ['Link', 'URL'], width: 40 },
+  { key: 'dur', label: 'Thời lượng (phút)', aliases: ['Thời lượng', 'Phút'], width: 12 },
+  { key: 'note', label: 'Ghi chú', aliases: ['Ghi chú cho người học'], width: 30 },
+]
 const normSub = (x: string | null | undefined) => (x ?? '').trim().toLowerCase()
 const MAT: Record<string, string> = { lesson_plan: 'Giáo án', worksheet: 'Phiếu học tập', image: 'Hình ảnh', video: 'Video', guide: 'Tài liệu hướng dẫn', document: 'Tài liệu', link: 'Đường dẫn' }
 
 function LessonEditor({ course, lessons, topics, exams, progress, editable, onChange, autoAdd }: { course: Course; lessons: Lesson[]; topics: Topic[]; exams: Exam[]; progress: Map<string, number>; editable: boolean; onChange: () => unknown; autoAdd?: boolean }) {
-  const [f, setF] = useState<Partial<Lesson> | null>(autoAdd ? { kind: 'video', title: '' } : null)
+  const [f, setF] = useState<Partial<Lesson> | null>(null)
+  const [msg, setMsg] = useState<{ text: string; bad: boolean } | null>(null)
   // "Lưu & thêm bài tiếp": lưu xong mở ngay ô thêm bài mới cùng loại
   const [more, setMore] = useState(false)
   const [round, setRound] = useState(0)
@@ -589,7 +602,7 @@ function LessonEditor({ course, lessons, topics, exams, progress, editable, onCh
   const [unitId, setUnitId] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
-  // Form chủ đề (thêm / đổi tên) — mở ở cột phải thay cho form bài học
+  // Chủ đề đang thêm / đổi tên ngay trong cột trái
   const [tf, setTf] = useState<{ id?: string; title: string } | null>(null)
   // Bản sao tại chỗ để kéo thả / đổi thứ tự hiện ngay, không chờ tải lại
   const [loc, setLoc] = useState(lessons), [tloc, setTloc] = useState(topics)
@@ -648,34 +661,10 @@ function LessonEditor({ course, lessons, topics, exams, progress, editable, onCh
     const bad = res.find(r => r.error); if (bad) alert(errText(bad.error!.message, '127'))
     onChange()
   }
-  // Nút lên / xuống (dùng trên màn cảm ứng, nơi không kéo thả được)
-  function move(l: Lesson, d: number) {
-    const g = groups.find(x => x.lessons.some(y => y.id === l.id)); if (!g) return
-    const i = g.lessons.findIndex(x => x.id === l.id), tid = g.topic?.id ?? null
-    if (d < 0 && i > 0) place(l.id, tid, g.lessons[i - 1].id)
-    if (d > 0 && i < g.lessons.length - 1) place(l.id, tid, g.lessons[i + 2]?.id ?? null)
-  }
-  async function saveTopic(e: React.FormEvent) {
-    e.preventDefault(); if (!tf) return
-    setBusy(true); setErr('')
-    const { error } = tf.id ? await supabase.from('course_topics').update({ title: tf.title.trim() }).eq('id', tf.id)
-      : await supabase.from('course_topics').insert({ course_id: course.id, title: tf.title.trim(), position: topics.length ? Math.max(...topics.map(t => t.position)) + 1 : 1 })
-    setBusy(false)
-    if (error) return setErr(errText(error.message, '127'))
-    await onChange(); setTf(null)
-  }
-  async function moveTopic(t: Topic, d: number) {
-    const ts = groups.filter(g => g.topic).map(g => g.topic!), i = ts.findIndex(x => x.id === t.id); if (!ts[i + d]) return
-    ;[ts[i], ts[i + d]] = [ts[i + d], ts[i]]; const next = ts.map((x, k) => ({ ...x, position: k + 1 }))
-    setTloc(next)
-    await Promise.all(next.filter(x => tloc.find(y => y.id === x.id)?.position !== x.position).map(x => supabase.from('course_topics').update({ position: x.position }).eq('id', x.id)))
-    onChange()
-  }
   async function removeTopic(t: Topic, n: number) {
     if (!confirm(n ? `Xoá chủ đề "${t.title}"? ${n} bài trong chủ đề vẫn giữ, chuyển về "Chưa xếp chủ đề".` : `Xoá chủ đề "${t.title}"?`)) return
     await supabase.from('course_topics').delete().eq('id', t.id); if (tf?.id === t.id) setTf(null); onChange()
   }
-  function openTopic(t: { id?: string; title: string }) { setF(null); setErr(''); setTf(t); setRound(n => n + 1) }
   const libName = (id: string | null) => lib?.find(x => x.id === id)?.title
   const ln = libQ.trim().toLowerCase(), cs = courseSubjects(course).map(normSub)
   const subOk = (x: LibOpt) => anySub || !cs.length || cs.includes(normSub(x.subject))
@@ -696,87 +685,257 @@ function LessonEditor({ course, lessons, topics, exams, progress, editable, onCh
   const cnt = (ls: Lesson[]) => `${ls.length} bài${mins(ls) ? ` · ${mins(ls)} phút` : ''}`
   const topicLabel = (id: string | null) => (id ? `Chủ đề ${topicNo.get(id)}: ${tloc.find(t => t.id === id)?.title ?? ''}` : 'Chưa xếp chủ đề')
   const newIn = () => (selKey === 'none' ? null : selKey || lastTopic)
-  const addLesson = (topic_id: string | null) => edit({ kind: f?.kind && !f.id ? f.kind : 'video', title: '', topic_id })
   async function removeLesson(l: Lesson) {
     if (!confirm(`Xoá bài "${l.title}"?`)) return
     await supabase.from('course_lessons').delete().eq('id', l.id); if (f?.id === l.id) edit(null); onChange()
   }
+  const say = (text: string, bad = false) => setMsg({ text, bad })
+  const nextPos = () => (loc.length ? Math.max(...loc.map(l => l.position)) + 1 : 1)
+  // Sửa thẳng một ô của bài (tên, loại, đường dẫn, thời lượng, ghi chú)
+  async function patch(l: Lesson, p: Partial<Lesson>) {
+    setLoc(ls => ls.map(x => (x.id === l.id ? { ...x, ...p } : x)))
+    const { error } = await supabase.from('course_lessons').update(p).eq('id', l.id)
+    if (error) { say(errText(error.message, '061'), true); setLoc(lessons); return false }
+    onChange(); return true
+  }
+  const fixUrl = (v: string) => { const t = v.trim(); return !t ? '' : /^https?:\/\//i.test(t) ? t : 'https://' + t }
+  const guessKind = (url: string): Lesson['kind'] => (/youtu\.?be|vimeo|drive\.google|\.mp4(\?|$)/i.test(url) ? 'video' : 'link')
+  const minOf = (v: string) => { const n = Math.round(Number(String(v).replace(',', '.').replace(/[^\d.]/g, ''))); return Number.isFinite(n) && n >= 1 ? Math.min(600, n) : null }
+  // Đổi loại ngay trong bảng: Video ↔ Liên kết đổi luôn; loại cần chọn tệp / đề / học liệu thì mở chi tiết để chọn
+  function setKind(l: Lesson, kind: Lesson['kind']) {
+    if (kind === l.kind) return
+    if ((kind === 'video' || kind === 'link') && l.url) return patch(l, { kind })
+    if (kind === 'reading') return patch(l, { kind })
+    edit({ ...l, kind })
+  }
+  // Thêm nhiều bài một lúc (dòng thêm mới, dán nhiều dòng, nhập Excel). Bài không có đường dẫn thành "Bài đọc" để soạn sau.
+  type NewL = { title: string; kind?: Lesson['kind']; url?: string; dur?: number | null; body?: string | null; topic_id: string | null }
+  async function insertMany(list: NewL[]) {
+    if (!list.length) return 0
+    let pos = nextPos()
+    const rows = list.map(r => { const url = fixUrl(r.url ?? ''), kind = r.kind && (r.kind !== 'video' && r.kind !== 'link' || url) ? r.kind : url ? guessKind(url) : 'reading'
+      return { course_id: course.id, title: r.title.slice(0, 200), kind, url: kind === 'video' || kind === 'link' ? url : null, body: r.body?.trim() || null, duration_min: r.dur ?? null, position: pos++, topic_id: r.topic_id } })
+    const { error } = await supabase.from('course_lessons').insert(rows)
+    if (error) { say(errText(error.message, '061'), true); return 0 }
+    await onChange(); return rows.length
+  }
+  // ---- Dòng thêm bài cuối bảng ----
+  const [nd, setNd] = useState<{ kind: Lesson['kind']; title: string; url: string; dur: string; topic: string }>({ kind: 'video', title: '', url: '', dur: '', topic: '' })
+  const [paste, setPaste] = useState<string | null>(null)
+  const ndTopic = () => (nd.topic ? (nd.topic === 'none' ? null : nd.topic) : newIn())
+  const needsPick = (k: Lesson['kind']) => k === 'file' || k === 'exam' || k === 'library'
+  async function addDraft() {
+    const t = nd.title.trim(); if (!t || busy) return
+    if (/\n/.test(t)) { setPaste(t); return }
+    if (needsPick(nd.kind)) { edit({ kind: nd.kind, title: t, topic_id: ndTopic(), duration_min: minOf(nd.dur) }); setNd(d => ({ ...d, title: '', url: '', dur: '' })); return }
+    if ((nd.kind === 'video' || nd.kind === 'link') && !nd.url.trim()) { say(`Bài ${LKIND[nd.kind]} cần đường dẫn. Dán đường dẫn vào ô "Nội dung".`, true); document.getElementById('el-new-url')?.focus(); return }
+    setBusy(true)
+    const n = await insertMany([{ title: t, kind: nd.kind, url: nd.url, dur: minOf(nd.dur), topic_id: ndTopic() }])
+    setBusy(false)
+    if (n) { setMsg(null); setNd(d => ({ ...d, title: '', url: '', dur: '' })); document.getElementById('el-new-title')?.focus() }
+  }
+  const parseLines = (text: string) => text.split(/\r?\n/).map(l => l.split('\t')).map(c => {
+    const title = (c[0] ?? '').replace(/^\s*(bài|bai)?\s*\d+\s*[.:)\-–]\s*/i, '').trim()
+    const url = (c.slice(1).find(x => /^\s*(https?:\/\/|www\.)/i.test(x)) ?? '').trim()
+    const dur = minOf(c.slice(1).find(x => /^\s*\d+([.,]\d+)?\s*(phút|p|')?\s*$/i.test(x)) ?? '')
+    return { title, url, dur }
+  }).filter(r => r.title)
+  const pasted = paste ? parseLines(paste) : []
+  // ---- Lưới kiểu Excel ----
+  const GC = ['title', 'url', 'dur', 'note'] as const
+  const onGridKey = gridKey(GC)
+  const byId = new Map(loc.map(l => [l.id, l]))
+  const onGridPaste = async (e: React.ClipboardEvent) => {
+    const lines = gridPaste(e, GC, ['note']); if (!lines) return
+    const extra: NewL[] = []
+    for (const { id, vals, fromFirst } of lines) {
+      const l = id ? byId.get(id) : undefined
+      if (!l) { if (fromFirst && vals.title) extra.push({ title: vals.title, url: vals.url, dur: minOf(vals.dur ?? ''), body: vals.note, topic_id: newIn() }); continue }
+      const p: Partial<Lesson> = {}
+      if (vals.title) p.title = vals.title.slice(0, 200)
+      if ('url' in vals && (l.kind === 'video' || l.kind === 'link') && vals.url) p.url = fixUrl(vals.url)
+      if ('dur' in vals) p.duration_min = minOf(vals.dur ?? '')
+      if ('note' in vals && l.kind !== 'reading') p.body = vals.note?.trim() || null
+      if (Object.keys(p).length) await patch(l, p)
+    }
+    if (extra.length) await insertMany(extra)
+    say(`Đã dán ${lines.length} dòng${extra.length ? `, thêm mới ${extra.length} bài` : ''}.`)
+  }
+  // ---- Nhập Excel ----
+  const KIND_OF = (s: string): Lesson['kind'] | undefined => { const t = s.trim().toLowerCase(); return (Object.entries(LKIND) as [Lesson['kind'], string][]).find(([k, v]) => v.toLowerCase() === t || k === t)?.[0] }
+  async function importLessons(recs: (Record<string, string> & { _line: number })[]) {
+    const bad: string[] = [], list: NewL[] = []
+    const tByName = new Map(tloc.map(t => [t.title.trim().toLowerCase(), t.id]))
+    let tpos = tloc.length ? Math.max(...tloc.map(t => t.position)) + 1 : 1
+    for (const r of recs) {
+      const title = (r.title ?? '').trim(); if (!title) { bad.push(`dòng ${r._line}: thiếu tên bài`); continue }
+      const k = r.kind ? KIND_OF(r.kind) : undefined
+      if (r.kind && !k) { bad.push(`dòng ${r._line}: loại "${r.kind}" không có`); continue }
+      if (k && needsPick(k)) { bad.push(`dòng ${r._line}: bài ${LKIND[k]} thêm trong bảng rồi bấm › để chọn`); continue }
+      if ((k === 'video' || k === 'link') && !(r.url ?? '').trim()) { bad.push(`dòng ${r._line}: thiếu đường dẫn`); continue }
+      let tid: string | null = null; const tn = (r.topic ?? '').replace(/^\s*chủ đề\s*\d+\s*[:.\-–]\s*/i, '').trim()
+      if (tn) {
+        tid = tByName.get(tn.toLowerCase()) ?? null
+        if (!tid) {
+          const res = await supabase.from('course_topics').insert({ course_id: course.id, title: tn.slice(0, 200), position: tpos++ }).select('id').single()
+          if (res.error) { bad.push(`dòng ${r._line}: ${errText(res.error.message, '127')}`); continue }
+          tid = (res.data as { id: string }).id; tByName.set(tn.toLowerCase(), tid)
+        }
+      }
+      list.push({ title, kind: k, url: r.url, dur: minOf(r.dur ?? ''), body: r.note, topic_id: tid })
+    }
+    const ok = await insertMany(list)
+    if (!ok) await onChange()
+    return importSummary(ok, 'bài', bad)
+  }
+  // Nhân bản: bài giống hệt ngay bên dưới
+  async function duplicate(l: Lesson) {
+    setBusy(true)
+    const later = loc.filter(x => (x.topic_id ?? null) === (l.topic_id ?? null) && x.position > l.position)
+    await Promise.all(later.map(x => supabase.from('course_lessons').update({ position: x.position + 1 }).eq('id', x.id)))
+    const { id: _i, ...rest } = l; void _i
+    const { error } = await supabase.from('course_lessons').insert({ ...rest, position: l.position + 1 })
+    setBusy(false)
+    if (error) return say(errText(error.message, '061'), true)
+    await onChange(); say(`Đã nhân bản bài "${l.title}" ngay bên dưới.`)
+  }
+  // ---- Chủ đề ngay trong cột trái: thêm, đổi tên (bấm đúp), xoá, kéo đổi thứ tự ----
+  async function saveTopicInline() {
+    if (!tf) return
+    const title = tf.title.trim(); if (!title) { setTf(null); return }
+    const { error } = tf.id ? await supabase.from('course_topics').update({ title }).eq('id', tf.id)
+      : await supabase.from('course_topics').insert({ course_id: course.id, title: title.slice(0, 200), position: tloc.length ? Math.max(...tloc.map(t => t.position)) + 1 : 1 })
+    if (error) return say(errText(error.message, '127'), true)
+    await onChange(); setTf(tf.id ? null : { title: '' })
+  }
+  async function dropTopic(dragId: string, onto: Topic) {
+    const ts = groups.filter(g => g.topic).map(g => g.topic!), from = ts.findIndex(t => t.id === dragId), to = ts.findIndex(t => t.id === onto.id)
+    if (from < 0 || to < 0 || from === to) return
+    const [m] = ts.splice(from, 1); ts.splice(to, 0, m)
+    const next = ts.map((x, k) => ({ ...x, position: k + 1 })); setTloc(next)
+    await Promise.all(next.filter(x => tloc.find(y => y.id === x.id)?.position !== x.position).map(x => supabase.from('course_topics').update({ position: x.position }).eq('id', x.id)))
+    onChange()
+  }
   const examName = (id: string | null) => exams.find(x => x.id === id)?.title
-  const src = (l: Lesson) => {
+  const srcView = (l: Lesson, plain = false) => {
+    if (l.kind === 'file' && l.path && plain) return <span>{pathName(l.path)}</span>
     if (l.kind === 'file' && l.path) return <button type="button" className="slsubjlink" onClick={() => openFile(l.path!)} title="Mở tệp">{pathName(l.path)}</button>
     if ((l.kind === 'video' || l.kind === 'link') && l.url) return <a href={l.url} target="_blank" rel="noreferrer" className="elsrc" title={l.url}>{l.url.replace(/^https?:\/\/(www\.)?/, '')}</a>
     if (l.kind === 'exam') return <span>{examName(l.exam_id) ?? 'Đề luyện'}</span>
     if (l.kind === 'library') return <span>{libName(l.library_item_id) ?? 'Học liệu trong kho'}</span>
-    if (l.kind === 'reading') return <span className="sub">Bài đọc</span>
+    if (l.kind === 'reading') return <span className="sub">{l.body ? 'Bài đọc' : 'Chưa soạn nội dung'}</span>
     return <span className="sub">—</span>
   }
   const srcText = (l: Lesson) => l.kind === 'file' ? pathName(l.path ?? '') : l.kind === 'exam' ? examName(l.exam_id) ?? '' : l.kind === 'library' ? libName(l.library_item_id) ?? '' : l.url ?? ''
+  const srcEdit = (l: Lesson) => (l.kind === 'video' || l.kind === 'link')
+    ? <input key={l.id + (l.url ?? '')} className="slcell" data-gc="url" data-gr={l.id} defaultValue={l.url ?? ''} placeholder="https://…" aria-label={`Đường dẫn bài ${l.title}`}
+        onBlur={e => { const v = fixUrl(e.target.value); if (!v) { e.target.value = l.url ?? ''; return } if (v !== l.url) patch(l, { url: v }) }} />
+    : <button type="button" className="slopen" onClick={() => edit(l)} title="Mở chi tiết để chọn">{srcView(l, true)}<span className="slmore">{l.kind === 'reading' ? 'Soạn ›' : 'Chọn ›'}</span></button>
+  const kindSel = (l: Lesson) => <select className="slcell elkindsel" value={l.kind} aria-label={`Loại bài ${l.title}`} onChange={e => setKind(l, e.target.value as Lesson['kind'])}>
+    {Object.entries(LKIND).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
   const cols: Col<Lesson>[] = [
-    { key: 'no', label: '#', thClass: 'c-no', fixed: true, cell: l => <span className="elno">{editable && <span className="sldrag" draggable title="Kéo để đổi vị trí hoặc thả vào chủ đề ở cột trái" aria-label={`Kéo ${l.title} để đổi vị trí`}
-        onDragStart={e => { setDrag(l.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', l.id); const tr = (e.target as HTMLElement).closest('tr'); if (tr) e.dataTransfer.setDragImage(tr, 20, 20) }}
-        onDragEnd={() => { setDrag(null); setOver(null) }}>⠿</span>}<span className="sub">{(groups.find(g => g.lessons.includes(l))?.lessons.indexOf(l) ?? 0) + 1}</span></span> },
+    { key: 'no', label: '#', thClass: 'c-no', fixed: true, cell: l => <span className="sub">{(groups.find(g => g.lessons.includes(l))?.lessons.indexOf(l) ?? 0) + 1}</span> },
     ...(selKey === '' && tloc.length ? [{ key: 'topic', label: 'Chủ đề', thClass: 'c-eltopic', text: (l: Lesson) => topicLabel(topicOf(l)),
-      cell: (l: Lesson) => <button type="button" className="slsubjlink" onClick={() => setCur(topicOf(l) ?? 'none')} title={topicLabel(topicOf(l))}>{topicOf(l) ? `Chủ đề ${topicNo.get(topicOf(l)!)}` : 'Chưa xếp'}</button> }] : []),
-    { key: 'kind', label: 'Loại', thClass: 'c-elkind', text: l => LKIND[l.kind] ?? l.kind, cell: l => <span className="pill">{LKIND[l.kind] ?? l.kind}</span> },
+      cell: (l: Lesson) => editable
+        ? <select className="slcell eltopicsel" value={topicOf(l) ?? ''} title={topicLabel(topicOf(l))} aria-label={`Chủ đề của bài ${l.title}`} onChange={e => place(l.id, e.target.value || null, null)}>
+            {tGroups.map((g, i) => <option key={g.topic!.id} value={g.topic!.id}>Chủ đề {i + 1}</option>)}<option value="">Chưa xếp</option></select>
+        : <button type="button" className="slsubjlink" onClick={() => setCur(topicOf(l) ?? 'none')} title={topicLabel(topicOf(l))}>{topicOf(l) ? `Chủ đề ${topicNo.get(topicOf(l)!)}` : 'Chưa xếp'}</button> }] : []),
+    { key: 'kind', label: 'Loại', thClass: 'c-elkind', text: l => LKIND[l.kind] ?? l.kind, cell: l => editable ? kindSel(l) : <span className="pill">{LKIND[l.kind] ?? l.kind}</span> },
     { key: 'title', label: 'Tên bài', thClass: 'c-title', fixed: true, text: l => l.title,
-      cell: l => editable ? <button type="button" className="slsubjlink eltitle" onClick={() => edit(l)} title="Bấm để sửa bài">{l.title}</button> : <b className="eltitle">{l.title}</b> },
-    { key: 'src', label: 'Nội dung', thClass: 'c-mat', text: srcText, cell: src },
-    { key: 'dur', label: 'Thời lượng', thClass: 'c-eldur', text: l => l.duration_min ? `${l.duration_min} phút` : '', cell: l => l.duration_min ? `${l.duration_min} phút` : <span className="sub">—</span> },
-    { key: 'note', label: 'Ghi chú', thClass: 'c-outs', off: true, text: l => l.kind === 'reading' ? '' : l.body ?? '', cell: l => l.kind !== 'reading' && l.body ? <small className="sub">{l.body}</small> : <span className="sub">—</span> },
+      cell: l => editable ? <input key={l.id + l.title} className="slcell" data-gc="title" data-gr={l.id} defaultValue={l.title} aria-label={`Tên bài ${l.title}`} maxLength={200}
+        onBlur={e => { const v = e.target.value.trim(); if (!v) { e.target.value = l.title; return } if (v !== l.title) patch(l, { title: v }) }} /> : <b className="eltitle">{l.title}</b> },
+    { key: 'src', label: 'Nội dung', thClass: 'c-mat', text: srcText, cell: l => editable ? srcEdit(l) : srcView(l) },
+    { key: 'dur', label: 'Phút', thClass: 'c-elmin', text: l => l.duration_min ? String(l.duration_min) : '',
+      cell: l => editable ? <input key={l.id + (l.duration_min ?? '')} className="slcell" data-gc="dur" data-gr={l.id} inputMode="numeric" defaultValue={l.duration_min ?? ''} aria-label={`Thời lượng bài ${l.title} (phút)`}
+        onBlur={e => { const v = minOf(e.target.value); if (v !== (l.duration_min ?? null)) patch(l, { duration_min: v }) }} /> : l.duration_min ? `${l.duration_min}` : <span className="sub">—</span> },
+    { key: 'note', label: 'Ghi chú cho người học', thClass: 'c-outs', off: true, text: l => l.kind === 'reading' ? '' : l.body ?? '',
+      cell: l => l.kind === 'reading' ? <span className="sub">—</span> : editable
+        ? <LongCell key={l.id + (l.body ?? '')} value={l.body ?? ''} gc="note" gr={l.id} placeholder="Ghi chú cho người học" label={`Ghi chú bài ${l.title}`} onSave={v => { if (v !== (l.body ?? '')) patch(l, { body: v.trim() || null }) }} />
+        : l.body ? <small className="sub">{l.body}</small> : <span className="sub">—</span> },
     { key: 'done', label: 'Đã học', thClass: 'c-eldur', text: l => String(progress.get(l.id) ?? 0), cell: l => <span className={progress.get(l.id) ? undefined : 'sub'}>{progress.get(l.id) ?? 0}</span> },
+    ...(editable ? [{ key: 'act', label: '', thClass: 'c-act', fixed: true, cell: (l: Lesson) =>
+      <span className="slact"><span className="sldrag" draggable title="Kéo để đổi vị trí hoặc thả vào chủ đề ở cột trái" aria-label={`Kéo ${l.title} để đổi vị trí`}
+        onDragStart={e => { setDrag(l.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', l.id); const tr = (e.target as HTMLElement).closest('tr'); if (tr) e.dataTransfer.setDragImage(tr, 20, 20) }}
+        onDragEnd={() => { setDrag(null); setOver(null) }}>⠿</span>
+        <button type="button" className="slgo" title="Mở chi tiết: loại bài, tệp, đề, học liệu, nội dung bài đọc" aria-label={`Mở chi tiết ${l.title}`} onClick={() => edit(l)}>›</button>
+        <button type="button" disabled={busy} aria-label={`Nhân bản bài ${l.title}`} title="Nhân bản: tạo ngay một bài giống hệt bên dưới" onClick={() => duplicate(l)}>⧉</button>
+        <button type="button" className="danger iconbtn" title="Xoá bài" aria-label={`Xoá ${l.title}`} onClick={() => removeLesson(l)}><Icon n="trash" size={15} /></button></span> }] : []),
   ]
-  const rowMenu = (l: Lesson): RowAction[] => {
-    const g = groups.find(x => x.lessons.some(y => y.id === l.id)), i = g?.lessons.findIndex(y => y.id === l.id) ?? 0
-    return [{ label: 'Sửa bài', onClick: () => edit(l) },
-      ...(i > 0 ? [{ label: 'Lên trên', onClick: () => move(l, -1) }] : []),
-      ...(g && i < g.lessons.length - 1 ? [{ label: 'Xuống dưới', onClick: () => move(l, 1) }] : []),
-      ...groups.filter(x => (x.topic?.id ?? null) !== topicOf(l) && (x.topic || tloc.length)).map(x => ({ label: `Chuyển sang ${x.topic ? `chủ đề ${topicNo.get(x.topic.id)}` : '"Chưa xếp chủ đề"'}`, onClick: () => place(l.id, x.topic?.id ?? null, null) })),
-      { label: 'Xoá bài', danger: true, onClick: () => removeLesson(l) }]
-  }
-  const navDrop = (topicId: string | null) => editable ? {
+  const navDrop = (topicId: string | null, t?: Topic) => editable ? {
     onDragOver: (e: React.DragEvent) => { if (!drag) return; e.preventDefault(); setOver('nav:' + (topicId ?? 'none')) },
     onDragLeave: () => setOver(o => (o === 'nav:' + (topicId ?? 'none') ? null : o)),
-    onDrop: (e: React.DragEvent) => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id) place(id, topicId, null) },
+    onDrop: (e: React.DragEvent) => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (!id) return
+      if (id.startsWith('t:')) { if (t) dropTopic(id.slice(2), t) } else place(id, topicId, null) },
   } : {}
-  const navItem = (key: string, label: string, ls: Lesson[], t?: Topic, ti = 0, tn = 0) => <div key={key || '*'}
-    className={'slnavrow' + (selKey === key ? ' on' : '') + (over === 'nav:' + key ? ' eldrop' : '')} {...(key ? navDrop(key === 'none' ? null : key) : {})}>
-    <button type="button" className={'slnavi' + (selKey === key ? ' on' : '')} onClick={() => setCur(key)}>
-      <span className="slnm">{label}</span><span className="slcnt">{key === '' && tloc.length ? `${tloc.length} chủ đề · ` : ''}{cnt(ls)}</span></button>
-    {editable && t && <span className="elnavm"><RowMenu label={label} items={[
-      { label: 'Thêm bài vào chủ đề', onClick: () => addLesson(t.id) },
-      { label: 'Đổi tên', onClick: () => openTopic({ id: t.id, title: t.title }) },
-      ...(ti > 0 ? [{ label: 'Lên trên', onClick: () => moveTopic(t, -1) }] : []),
-      ...(ti < tn - 1 ? [{ label: 'Xuống dưới', onClick: () => moveTopic(t, 1) }] : []),
-      { label: 'Xoá chủ đề', danger: true, onClick: () => removeTopic(t, ls.length) }]} /></span>}
-  </div>
   const tGroups = groups.filter(g => g.topic), rest = groups.find(g => !g.topic)?.lessons ?? []
+  const navItem = (key: string, label: string, ls: Lesson[], t?: Topic) => <div key={key || '*'}
+    className={'slnavrow' + (selKey === key ? ' on' : '') + (over === 'nav:' + key ? ' eldrop' : '') + (drag === 't:' + key ? ' sldragging' : '')} {...(key ? navDrop(key === 'none' ? null : key, t) : {})}
+    draggable={editable && !!t && tf?.id !== t.id} onDragStart={t ? e => { setDrag('t:' + t.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', t.id) } : undefined}
+    onDragEnd={t ? () => { setDrag(null); setOver(null) } : undefined}>
+    {t && tf?.id === t.id
+      ? <input className="elnavin" autoFocus value={tf.title} maxLength={200} aria-label="Tên chủ đề" onChange={e => setTf({ ...tf, title: e.target.value })}
+          onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveTopicInline() } if (e.key === 'Escape') setTf(null) }} onBlur={saveTopicInline} />
+      : <button type="button" className={'slnavi' + (selKey === key ? ' on' : '')} onClick={() => setCur(key)}
+          onDoubleClick={editable && t ? () => setTf({ id: t.id, title: t.title }) : undefined} title={editable && t ? 'Bấm đúp để đổi tên · kéo để đổi thứ tự' : undefined}>
+          <span className="slnm">{label}</span><span className="slcnt">{key === '' && tloc.length ? `${tloc.length} chủ đề · ` : ''}{cnt(ls)}</span></button>}
+    {editable && t && tf?.id !== t.id && <button type="button" className="slnavx" title={`Xoá chủ đề ${t.title}`} aria-label={`Xoá chủ đề ${t.title}`} onClick={() => removeTopic(t, ls.length)}><Icon n="trash" size={14} /></button>}
+  </div>
+  const enter = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addDraft() } }
   return (<>
     <div className="slwrap ellessons">
       <nav className="slnav" aria-label="Chủ đề trong khoá học">
         {navItem('', 'Tất cả', flat)}
-        {tGroups.map((g, i) => navItem(g.topic!.id, `${i + 1}. ${g.topic!.title}`, g.lessons, g.topic!, i, tGroups.length))}
+        {tGroups.map((g, i) => navItem(g.topic!.id, `${i + 1}. ${g.topic!.title}`, g.lessons, g.topic!))}
         {tGroups.length > 0 && rest.length > 0 && navItem('none', 'Chưa xếp chủ đề', rest)}
-        {editable && <button type="button" className="sladdsubj" onClick={() => openTopic({ title: '' })}>+ Thêm chủ đề</button>}
+        {editable && (tf && !tf.id ? <div className="sladdbox">
+            <input className="elnavin" autoFocus value={tf.title} maxLength={200} placeholder={`Tên chủ đề ${tloc.length + 1}`} aria-label="Tên chủ đề mới"
+              onChange={e => setTf({ ...tf, title: e.target.value })} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); saveTopicInline() } if (e.key === 'Escape') setTf(null) }} />
+            <small className="sub">Enter để thêm, thêm tiếp được ngay</small>
+            <button type="button" className="linkbtn" onClick={() => setTf(null)}>Xong</button></div>
+          : <button type="button" className="sladdsubj" onClick={() => setTf({ title: '' })}>+ Thêm chủ đề</button>)}
       </nav>
-      <div className="slmain">
-        <DataTable id="el-lessons-v1" simple rows={shown} rowKey={l => l.id} className="slt" cols={cols} rowMenu={editable ? rowMenu : undefined}
+      <div className="slmain" onKeyDown={editable ? onGridKey : undefined} onPaste={editable ? onGridPaste : undefined} onMouseDown={editable ? gridMouseDown : undefined}>
+        <DataTable id="el-lessons-v2" simple rows={shown} rowKey={l => l.id} className={editable ? 'slt slgrid' : 'slt'} cols={cols}
           rowProps={editable ? l => ({ className: drag === l.id ? 'sldragging' : over === l.id && drag ? 'slover' : undefined,
-            onDragOver: e => { if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== l.id) setOver(l.id) },
-            onDrop: e => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id && id !== l.id) place(id, topicOf(l), l.id) } }) : undefined}
+            onDragOver: e => { if (!drag || drag.startsWith('t:')) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== l.id) setOver(l.id) },
+            onDrop: e => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id && !id.startsWith('t:') && id !== l.id) place(id, topicOf(l), l.id) } }) : undefined}
           empty={<small className="sub">{inSel.length ? 'Không có bài nào khớp ô tìm.' : !lessons.length && !topics.length
-            ? `Khoá chưa có bài học.${editable ? ' Có thể tạo chủ đề trước (vd Chủ đề 1, Chủ đề 2) ở cột trái rồi thêm bài vào từng chủ đề.' : ''}`
-            : selKey && selKey !== 'none' ? <>Chủ đề chưa có bài.{editable && <> <button type="button" className="linkbtn" onClick={() => addLesson(selKey)}>Thêm bài</button> hoặc kéo bài từ chủ đề khác thả vào chủ đề này ở cột trái.</>}</> : 'Chưa có bài.'}</small>}
+            ? `Khoá chưa có bài học.${editable ? ' Gõ tên bài ở dòng dưới (dán nhiều dòng để thêm nhiều bài) hoặc Nhập Excel. Có thể tạo chủ đề trước ở cột trái.' : ''}`
+            : selKey && selKey !== 'none' ? `Chủ đề chưa có bài.${editable ? ' Gõ tên bài ở dòng dưới hoặc kéo bài từ chủ đề khác thả vào chủ đề này ở cột trái.' : ''}` : 'Chưa có bài.'}</small>}
           left={<input placeholder={selKey && selKey !== 'none' ? `Tìm bài trong chủ đề ${topicNo.get(selKey)}…` : 'Tìm bài…'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />}
-          right={editable ? <button type="button" className="primary" onClick={() => addLesson(newIn())}>+ Thêm bài học</button> : undefined} />
-        {editable && flat.length > 1 && <small className="sub">Bấm tên bài để sửa · kéo ⠿ ở đầu dòng để đổi thứ tự, thả vào chủ đề ở cột trái để chuyển chủ đề · ⋮ để lên / xuống, chuyển chủ đề, xoá.</small>}
+          right={editable ? <ImportExcel label="⇪ Nhập Excel" columns={EL_IMPORT} template="Mau-bai-hoc-e-learning" onRecords={importLessons} onMessage={(m, bad) => say(m, bad)}
+            sample={[['Làm quen với lập trình', 'Video', 'Mở đầu', 'https://www.youtube.com/watch?v=…', '5', ''], ['Làm quen với lập trình', 'Liên kết', 'Tài liệu bài 1', 'https://…', '', 'Đọc trước khi lên lớp'], ['Cảm biến', 'Bài đọc', 'Cảm biến là gì', '', '10', '']]} /> : undefined}
+          foot={editable ? (keys: string[]) => {
+            const topicSel = <select value={nd.topic || (newIn() ?? 'none')} onChange={e => setNd({ ...nd, topic: e.target.value })} aria-label="Chủ đề của bài mới">
+              {tGroups.map((g, i) => <option key={g.topic!.id} value={g.topic!.id}>Chủ đề {i + 1}</option>)}<option value="none">Chưa xếp</option></select>
+            const linky = nd.kind === 'video' || nd.kind === 'link'
+            const cellOf = (k: string) => k === 'topic' ? topicSel
+              : k === 'kind' ? <select value={nd.kind} disabled={busy} onChange={e => setNd({ ...nd, kind: e.target.value as Lesson['kind'] })} aria-label="Loại bài mới">{Object.entries(LKIND).map(([kk, v]) => <option key={kk} value={kk}>{v}</option>)}</select>
+              : k === 'title' ? <div className="slnewrow">{!keys.includes('topic') && selKey === '' && tGroups.length > 0 ? topicSel : null}<input id="el-new-title" className="slnt" data-gc="title" value={nd.title} disabled={busy} autoFocus={autoAdd}
+                  placeholder="+ Tên bài mới (dán nhiều dòng để thêm nhiều bài)" aria-label="Tên bài mới" maxLength={2000}
+                  onChange={e => setNd({ ...nd, title: e.target.value })} onKeyDown={enter}
+                  onPaste={e => { const t = e.clipboardData.getData('text'); if (/\n/.test(t.trim())) { e.preventDefault(); setPaste(t) } }} /></div>
+              : k === 'src' ? (linky ? <input id="el-new-url" data-gc="url" value={nd.url} disabled={busy} placeholder="Đường dẫn https://…" aria-label="Đường dẫn bài mới" onChange={e => setNd({ ...nd, url: e.target.value })} onKeyDown={enter} />
+                : <small className="sub">{nd.kind === 'reading' ? 'Soạn nội dung sau khi thêm (›)' : 'Thêm xong chọn trong chi tiết'}</small>)
+              : k === 'dur' ? <input className="slnp" data-gc="dur" value={nd.dur} disabled={busy} placeholder="Phút" inputMode="numeric" aria-label="Thời lượng bài mới (phút)" onChange={e => setNd({ ...nd, dur: e.target.value })} onKeyDown={enter} />
+              : k === 'act' ? <button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addDraft}>+ Thêm</button>
+              : null
+            return <tfoot><tr className="slnew">{keys.map(k => <td key={k}>{cellOf(k)}</td>)}</tr></tfoot>
+          } : undefined} />
+        {msg && <small className={msg.bad ? 'msg' : 'sub'} role="status">{msg.text}</small>}
+        {editable && <div className="infotiprow"><InfoTip up label="Cách nhập nhanh">Gõ thẳng vào ô như Excel: Enter hoặc ↑↓ để sang dòng, ←→ ở đầu/cuối ô để sang cột, Esc để huỷ sửa. Chép một vùng ô trong Excel (Tên bài · Đường dẫn · Phút) rồi dán vào ô bất kỳ để điền nhiều dòng, dòng thừa thành bài mới. Bài có đường dẫn YouTube / Google Drive tự là Video, đường dẫn khác là Liên kết, không có đường dẫn là Bài đọc. Kéo ⠿ để đổi thứ tự hoặc thả vào chủ đề ở cột trái; bấm đúp tên chủ đề để đổi tên, kéo chủ đề để đổi thứ tự.</InfoTip></div>}
       </div>
     </div>
-    {tf && <Drawer title={tf.id ? 'Sửa chủ đề' : `Chủ đề mới (chủ đề ${topics.length + 1})`} onClose={() => setTf(null)} closeOnOutside={false}>
-      <form key={round} className="formgrid" onSubmit={saveTopic}>
-        <label className="field wide"><span>Tên chủ đề *</span><input required autoFocus maxLength={200} value={tf.title} onChange={e => setTf({ ...tf, title: e.target.value })} placeholder="vd Làm quen với lập trình" /></label>
-        {err && <p className="msg">{err}</p>}
-        <div className="actions wide"><button className="primary" disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu chủ đề'}</button><button type="button" onClick={() => setTf(null)}>Huỷ</button></div>
-      </form></Drawer>}
+    {paste !== null && <Drawer title="Dán danh sách bài" onClose={() => setPaste(null)} closeOnOutside={false}
+      actions={<><button type="button" className="primary" disabled={!pasted.length || busy} onClick={async () => { setBusy(true); const n = await insertMany(pasted.map(r => ({ ...r, topic_id: ndTopic() }))); setBusy(false); if (n) { setPaste(null); setNd(d => ({ ...d, title: '' })); say(`Đã thêm ${n} bài.`) } }}>Thêm {pasted.length} bài</button>
+        <button type="button" onClick={() => setPaste(null)}>Huỷ</button></>}>
+      <p className="sub" style={{ marginTop: 0 }}>Mỗi dòng một bài, vào <b>{topicLabel(ndTopic())}</b>. Dán thẳng từ Excel / Word được, các cột: <b>Tên bài · Đường dẫn · Phút</b> (chỉ tên là bắt buộc). Có đường dẫn YouTube / Drive là Video, đường dẫn khác là Liên kết, không có là Bài đọc.</p>
+      <textarea autoFocus rows={8} value={paste} onChange={e => setPaste(e.target.value)} placeholder={'Mở đầu\thttps://www.youtube.com/watch?v=…\t5\nTài liệu bài 1\thttps://…'} style={{ width: '100%', fontFamily: 'ui-monospace, Consolas, monospace', fontSize: 'calc(13px * var(--fz,1))' }} aria-label="Danh sách bài" />
+      {pasted.length > 0 && <div className="wrap" style={{ marginTop: 10 }}><table>
+        <thead><tr><th>Tên bài</th><th>Loại</th><th>Đường dẫn</th><th>Phút</th></tr></thead>
+        <tbody>{pasted.map((r, i) => <tr key={i}><td>{r.title}</td><td>{LKIND[r.url ? guessKind(fixUrl(r.url)) : 'reading']}</td><td><small>{r.url || '—'}</small></td><td>{r.dur ?? '—'}</td></tr>)}</tbody>
+      </table></div>}
+    </Drawer>}
     {f && <Drawer closeOnOutside={false} onClose={() => edit(null)} title={f.id ? 'Sửa bài: ' + (lessons.find(x => x.id === f.id)?.title ?? '') : (() => { const gi = groups.findIndex(g => (g.topic?.id ?? null) === (f.topic_id ?? null)), g = groups[gi]
         return `Bài mới${g?.topic ? ` · Chủ đề ${gi + 1}` : ''} (bài ${(g?.lessons.length ?? 0) + 1})` })()}><form key={round} className="formgrid" onSubmit={save}>
         <label className="field"><span>Loại bài</span><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Lesson['kind'] })}>{Object.entries(LKIND).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>

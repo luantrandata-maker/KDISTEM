@@ -236,9 +236,10 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
   ]
   const normPool: Pick[] = norms.map(n => ({ id: n.id, label: `${n.title} v${n.version_no}${n.status !== 'published' ? ' (nháp)' : ''}${src(n)}` }))
 
-  const formOf = (i: Item): Form => ({
+  /** `draft`: lấy bản sửa chưa phát hành (145) nếu có, để sửa tiếp */
+  const formOf = (live: Item, draft = false): Form => { const i: Item = draft && live.pending ? { ...live, ...live.pending, content: live.pending.content ?? live.content } : live; return {
       id: i.id, kind: i.kind, title: i.title, summary: i.summary ?? '', subject: i.subject ?? '', grades: i.grades ?? '', program: i.program ?? '',
-      tags: i.tags.join(', '), scope: i.scope, targets: targets.get(i.id) ?? [], slides: i.content.slides ?? [], mtype: i.content.type ?? 'video',
+      tags: (i.tags ?? []).join(', '), scope: i.scope, targets: (draft && live.pending?.targets) || (targets.get(i.id) ?? []), slides: i.content.slides ?? [], mtype: i.content.type ?? 'video',
       url: i.content.url ?? '', units: i.content.units ?? [],
       src: i.content.path ? 'file' : 'url',
       file: i.content.path ? { path: i.content.path, file_name: i.content.file_name ?? 'tệp', size: i.content.size ?? 0, mime: i.content.mime ?? '' } : null,
@@ -247,18 +248,28 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
       plan_ids: i.content.plan_ids ?? [], lesson_ids: i.content.lesson_ids ?? [], norm_ids: i.content.norm_ids ?? [], material_ids: i.content.material_ids ?? [],
       checked: i.content.checked ?? [],
       lmode: i.content.mode === 'interactive' ? 'interactive' : 'slides', ilesson: asLesson(i.content.lesson),
-  })
+  } }
   function edit(i: Item) {
     setMsg(''); setInfo('')
     if (i.kind === 'unit' && !start) { setOpen(null); return setFlow({ id: i.id }) }
     setLtab('info')
-    setForm(formOf(i))
+    setForm(formOf(i, true))
+    if (i.pending && i.status === 'published') setInfo(`Đang sửa tiếp bản sửa chưa phát hành${i.pending.saved_at ? ` (lưu lúc ${new Date(i.pending.saved_at).toLocaleString('vi-VN')})` : ''}. Trường vẫn nhận bản đang phát hành.`)
     setNorm(EMPTY_NORM); setSub(null); setNormOpen(false); setCkTouched(false); setKitShow(false)
     // Vật tư của bài học: định mức gắn với bài (không hiện lại trong ô "định mức có sẵn")
     if (i.kind === 'unit' && orgId) loadUnitNorm(i.id, orgId).then(n => {
       setNorm(n)
       if (n.id) setForm(f => f && f.id === i.id ? { ...f, norm_ids: f.norm_ids.filter(x => x !== n.id) } : f)
     })
+  }
+  /** Bỏ bản sửa chưa phát hành (145), giữ nguyên bản đang phát hành */
+  async function discardPending(i: Item) {
+    if (!confirm(`Bỏ bản sửa của “${i.title}”? Bản đang phát hành giữ nguyên.`)) return
+    setBusy(true)
+    const { error } = await supabase.from('library_items').update({ pending: null }).eq('id', i.id)
+    setBusy(false)
+    if (error) return setMsg(error.message)
+    setInfo(`Đã bỏ bản sửa của “${i.title}”.`); close(); load()
   }
   /** Thêm bài giảng: sao chép toàn bộ một bài giảng đã có (thông tin + nội dung) thành bài mới để chỉnh sửa */
   function copyLessonItem(id: string) {
@@ -309,6 +320,19 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
       scope: form.scope, content,
       ...(libFields.length || Object.keys(form.custom ?? {}).length ? { custom: form.custom ?? {} } : {}),
     }
+    // Mục đã phát hành (145): "Lưu bản sửa" chỉ ghi vào pending, không đổi bản trường đang nhận
+    const live = form.id ? items.find(x => x.id === form.id) : undefined
+    const draftOnly = !!live && live.status === 'published' && (form.kind === 'lesson' || form.kind === 'material')
+    if (draftOnly && !publish) {
+      const { owner_org_id: _o, kind: _k, ...rest } = row
+      setBusy(true)
+      const u = await supabase.from('library_items').update({ pending: { ...rest, targets: form.scope === 'selected' ? form.targets : [], saved_at: new Date().toISOString() } }).eq('id', form.id!)
+      setBusy(false)
+      if (u.error) return setMsg(/pending/.test(u.error.message) ? 'CSDL chưa có cột lưu bản sửa: cần chạy migration 145_library_pending_edit.sql.' : u.error.message)
+      setInfo(`Đã lưu bản sửa “${row.title}”. Trường vẫn nhận bản đang phát hành cho tới khi bấm “Phát hành bản mới”.`)
+      close(); return load()
+    }
+    if (live?.pending) Object.assign(row, { pending: null })
     setBusy(true)
     const res = form.id ? await supabase.from('library_items').update(row).eq('id', form.id).select('id').single()
       : await supabase.from('library_items').insert(row).select('id').single()
@@ -593,8 +617,16 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
       {form && (
         <Drawer wide closeOnOutside={false} onClose={close}
           actions={<>
-            <button type="button" className="primary" disabled={busy || uploading} onClick={() => save(NOEV, true)}>Lưu & phát hành</button>
-            <button type="button" disabled={busy || uploading} onClick={() => save(NOEV, false)}>Lưu nháp</button></>}
+            {(() => {
+              // Mục đã phát hành: lưu thành bản sửa (chưa phát hành) hoặc phát hành bản mới (145)
+              const live = form.id ? items.find(x => x.id === form.id) : undefined
+              const pub = live?.status === 'published' && (form.kind === 'lesson' || form.kind === 'material')
+              return <>
+                <button type="button" className="primary" disabled={busy || uploading} onClick={() => save(NOEV, true)}>{pub ? 'Phát hành bản mới' : 'Lưu & phát hành'}</button>
+                <button type="button" disabled={busy || uploading} onClick={() => save(NOEV, false)} title={pub ? 'Lưu thay đổi mà chưa phát hành; trường vẫn nhận bản đang phát hành' : undefined}>{pub ? 'Lưu bản sửa' : 'Lưu nháp'}</button>
+                {pub && live?.pending && <button type="button" disabled={busy || uploading} onClick={() => discardPending(live)}>Bỏ bản sửa</button>}
+              </>
+            })()}</>}
           title={`${form.id ? 'Sửa' : 'Thêm'} ${form.kind === 'material' && form.mtype === 'lesson_plan' ? 'giáo án' : form.kind === 'material' ? 'tài liệu' : KIND[form.kind][0].toLowerCase()}${form.id && form.title ? `: ${form.title}` : ''}`}>
         <form className="panel libform" onSubmit={e => save(e, false)}>
           {msg && <p className="msg">{msg}</p>}
@@ -751,7 +783,14 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
           )}
           {form.kind === 'lesson' && ltab === 'content' && <>
           <p className="sub" style={{ margin: '0 0 8px' }}>Chọn loại bài giảng rồi soạn nội dung. <button type="button" className="linkbtn" onClick={() => setLtab('info')}>← Thông tin bài giảng</button></p>
-          <LessonModePicker value={form.lmode} onChange={lmode => setForm({ ...form, lmode })} />
+          <LessonModePicker value={form.lmode} onChange={lmode => {
+            // Đổi loại: khi lưu chỉ giữ nội dung của loại đang chọn, nên hỏi trước nếu loại cũ đã có nội dung
+            const n = form.lmode === 'interactive' ? blockCount(form.ilesson)
+              : form.slides.filter(x => (x.title ?? '').trim() || (x.body ?? '').trim()).length + (form.file || form.url.trim() ? 1 : 0)
+            const what = form.lmode === 'interactive' ? `${n} khối nội dung tương tác` : 'slide / tệp / đường dẫn đã soạn'
+            if (n > 0 && !confirm(`Bài đang có ${what}. Đổi sang “${lmode === 'interactive' ? 'Bài giảng tương tác' : 'Slide bài giảng'}” thì khi lưu, nội dung này sẽ bị bỏ (đổi lại trước khi lưu thì vẫn còn). Tiếp tục?`)) return
+            setForm({ ...form, lmode })
+          }} />
           {form.kind === 'lesson' && form.lmode === 'interactive' && <InteractiveLesson value={form.ilesson} ct={form.program} onChange={ilesson => setForm({ ...form, ilesson })} onCopy={copyInteractive} sources={iSources} skip={form.id} />}
           {form.kind === 'lesson' && form.lmode === 'interactive' && form.ilesson && asLesson(form.ilesson) && <div className="field"><span>Ảnh bìa bài giảng</span>
             <CoverPicker value={form.ilesson.cover} program={form.program} onChange={cover => setForm({ ...form, ilesson: { ...form.ilesson!, cover } })} />

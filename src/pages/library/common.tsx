@@ -30,6 +30,8 @@ export type Item = {
   owner_name?: string | null; owner_type?: string | null
   program_id?: string | null; unit_id?: string | null; usage_rights?: Rights; usage_note?: string | null; custom?: Record<string, unknown> | null
   edu_programs?: { title: string; version_no: number } | null; edu_program_units?: { title: string } | null
+  /** Bản sửa chưa phát hành của mục đã phát hành (145) */
+  pending?: (Partial<Item> & { targets?: string[]; saved_at?: string }) | null
 }
 // Truy vấn học liệu kèm chương trình / bài; CSDL chưa có 059 thì quay về truy vấn cũ
 export async function selectItems(order: 'updated_at' | 'published_at'): Promise<{ data: Item[] | null; error: { message: string } | null }> {

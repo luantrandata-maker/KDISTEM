@@ -24,7 +24,7 @@ import { Tiles } from './department/charts'
 import { useStemTracks } from '../lib/stemTracks'
 import { asLesson, lessonStats, LessonEditor, type ILesson } from '../lib/lessonBlocks'
 import { useSubjects } from './subjects'
-import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../components/TableSel'
+import { NameLink, SelTd, SelTh, useRowSel } from '../components/TableSel'
 import { fmtGrades, progGrades, useEduLevels, gradeName, gradeRange } from '../lib/eduLevels'
 import { ChipMulti, GradeChecks, GradePicker, SubjectMulti, SubjectPicker, gradeList } from '../components/Pickers'
 import { ElView } from '../components/ElView'
@@ -1266,7 +1266,11 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
     <>
       <div className="bar">
         <h3 style={{ margin: 0 }}>Đơn vị được gán ({asg.length})</h3>
-        {(mine ? !['draft', 'archived'].includes(p.status) : p.status === 'published') && <button className="primary" onClick={() => setForm({ org: '', grades: [], note: '' })}>Gán cho đơn vị</button>}
+        <div className="tools">
+          {asel.cur && <small className="sub">Đã chọn: <b>{orgName(asel.cur.org_id)}</b></small>}
+          {asg.length > 0 && <button className="danger" disabled={!asel.cur || !(mine || asel.cur.assigner_org === orgId)} title={asel.cur ? undefined : 'Tick chọn một đơn vị trong bảng để bỏ gán'} onClick={() => { if (asel.cur) { remove(asel.cur); asel.clear() } }}>Bỏ gán</button>}
+          {(mine ? !['draft', 'archived'].includes(p.status) : p.status === 'published') && <button className="primary" onClick={() => setForm({ org: '', grades: [], note: '' })}>Gán cho đơn vị</button>}
+        </div>
       </div>
       {['draft', 'pending', 'approved', 'rejected'].includes(p.status) && <p className="sub">Đơn vị được gán chỉ thấy chương trình khi đã phát hành.</p>}
       {!mine && <p className="sub">Chương trình của {p.organizations?.name ?? 'đơn vị khác'}: đơn vị gán cho trường trực thuộc để triển khai; chỉ bỏ được các bản gán do đơn vị mình tạo.</p>}
@@ -1283,9 +1287,6 @@ function AssignTab({ p, orgId, mine, onMessage }: { p: Program; orgId: string | 
       )}
       {asg.length > 0 && (<>
         {asg.length > 1 && <div className="distfilter">{orgF.node(asg.map(a => a.org_id))}</div>}
-        <SelBar picked={asel.cur ? orgName(asel.cur.org_id) : null}>
-          <button className="danger" disabled={!asel.cur || !(mine || asel.cur.assigner_org === orgId)} onClick={() => { if (asel.cur) { remove(asel.cur); asel.clear() } }}>Bỏ gán</button>
-        </SelBar>
         <div className="wrap"><table>
           <thead><tr><SelTh /><th>Đơn vị</th><th>Khối</th><th>Ghi chú</th><th>Ngày gán</th></tr></thead>
           <tbody>{asg.filter(a => orgF.fit(a.org_id)).map(a => (

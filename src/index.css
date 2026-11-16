@@ -3061,6 +3061,8 @@ table.ttsel:has(>tbody .tselbox input:checked) .tselbox input,table.ttsel:not(.t
 .ttpro tbody tr.clickrow{cursor:pointer}
 .ttpro tbody tr.tsel>td{background:#eaf1fe!important}
 .ttpro td.c-menu,.ttpro th.c-menu{width:48px;text-align:center;padding-left:4px;padding-right:8px}
+/* Cột ⋮ (thao tác) luôn hẹp vừa nút, không nhận phần rộng dư của bảng */
+.ttable th.c-menu,.ttable td.c-menu{width:44px;min-width:0!important;white-space:nowrap;padding-left:4px!important;padding-right:6px!important;text-align:center}
 .main .trowmenu{width:30px;height:30px;padding:0;display:inline-grid;place-items:center;border:1px solid var(--line);border-radius:7px;background:var(--surface);color:var(--muted)}
 .trowmenu svg{fill:currentColor}
 /* thu gọn dòng: mỗi dòng chỉ một hàng chữ */

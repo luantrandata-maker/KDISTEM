@@ -11,7 +11,7 @@ import { useCls } from './cls'
 import { useTiers } from './Tiers'
 import { WeekGrid, colorOf } from './Grid'
 import { useDistCalendar, type DistCal } from './calendar'
-import { PlanHistory } from './History'
+import { PlanApplied, PlanVersions } from './History'
 import { DataTable, type Col } from '../../components/DataTable'
 import {
   checks, effSubjects, lessonsOf, orderLessons, reordered, progCode, schedule, spanOf, subjectsIn, termRange, weekLoad, LOAD_MAX,
@@ -193,6 +193,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   const own = !!orgId && plan.org_id === orgId
   const [sel, setSel] = useState('')        // lọc bảng bài: '' = tất cả, hoặc 'chương trình|môn'
   const [q, setQ] = useState('')
+  const [ptab, setPtab] = useState<'plan' | 'apply'>('plan')
   const [openOrd, setOpenOrd] = useState<Set<string>>(new Set())   // chương trình đang mở "Thứ tự bài"
   const [view, setView] = useState<'table' | 'cal'>('table')
   const [editRows, setEditRows] = useState(false)
@@ -443,10 +444,16 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   if (!editable) return (
     <div className="panel distpanel">
       {head}
-      {forStrip}
-      <div className="distsumline">{summary(false)}<ViewSwitch view={view} setView={setView} /></div>
-      {view === 'cal' ? Calendar() : Table()}
-      <PlanHistory plan={plan} />
+      {plan.status !== 'draft' && <div className="segmented pdtabs">
+        <button type="button" className={ptab === 'plan' ? 'on' : ''} onClick={() => setPtab('plan')}>Phân phối</button>
+        <button type="button" className={ptab === 'apply' ? 'on' : ''} onClick={() => setPtab('apply')}>Gán & áp dụng</button>
+      </div>}
+      {ptab === 'apply' && plan.status !== 'draft' ? <PlanApplied plan={plan} /> : <>
+        {forStrip}
+        <div className="distsumline">{summary(false)}<ViewSwitch view={view} setView={setView} /></div>
+        {view === 'cal' ? Calendar() : Table()}
+        <PlanVersions plan={plan} />
+      </>}
       {toast}
     </div>
   )
@@ -462,7 +469,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
         {summary(true)}
         {view === 'cal' ? Calendar() : Table()}
       </section>
-      {(plan.version_no ?? 1) > 1 && <PlanHistory plan={plan} />}
+      {(plan.version_no ?? 1) > 1 && <PlanVersions plan={plan} />}
       {toast}
     </div>
   )

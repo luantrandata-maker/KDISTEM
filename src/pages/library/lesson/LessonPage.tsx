@@ -226,7 +226,6 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
             <p className="sub">{[progLabel, progSubject, row.grades && `Khối ${row.grades}`, code].filter(Boolean).join(' · ')}</p></div>
           <div className="tools">
             <Chip tone={STATUS[row.status][1]}>{STATUS[row.status][0]}{row.status === 'published' ? ` · v${row.version}` : ''}</Chip>
-            <button type="button" onClick={() => begin('info')}>{store === 'training' ? 'Sửa thông tin' : 'Sửa tên, môn'}</button>
             <MoreMenu label="Nhập từ file ▾">
               {pick('.docx,.pptx', 'Cập nhật từ giáo án Word / bài giảng PowerPoint', upload)}
               <button type="button" onClick={tplAll}>Tải mẫu Excel cả giáo án</button>

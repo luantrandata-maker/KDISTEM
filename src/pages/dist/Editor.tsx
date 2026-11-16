@@ -181,7 +181,15 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   const noteCol = colOn.includes('note')
   const COLS0 = ['w', 'prog', 'subj', 't', 'n', 'note']
   const [colOrd, setColOrd0] = useState<string[]>(() => { try { const v = JSON.parse(localStorage.getItem('dist-col-order') ?? 'null'); return Array.isArray(v) && v.length === COLS0.length && COLS0.every(k => v.includes(k)) ? v : COLS0 } catch { return COLS0 } })
-  const moveCol = (k: string, d: number) => { const n = [...colOrd], i = n.indexOf(k), j = i + d; if (j < 0 || j >= n.length) return; [n[i], n[j]] = [n[j], n[i]]; setColOrd0(n); try { localStorage.setItem('dist-col-order', JSON.stringify(n)) } catch { /* bỏ qua */ } }
+  const saveColOrd = (n: string[]) => { setColOrd0(n); try { localStorage.setItem('dist-col-order', JSON.stringify(n)) } catch { /* bỏ qua */ } }
+  const moveCol = (from: string, to: string) => { const n = colOrd.filter(k => k !== from); n.splice(n.indexOf(to) + (colOrd.indexOf(from) < colOrd.indexOf(to) ? 1 : 0), 0, from); saveColOrd(n) }
+  const [colMenu, setColMenu] = useState(false), [colDrag, setColDrag] = useState<string | null>(null)
+  const colMenuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!colMenu) return
+    const close = (e: MouseEvent) => { if (!colMenuRef.current?.contains(e.target as Node)) setColMenu(false) }
+    document.addEventListener('mousedown', close); return () => document.removeEventListener('mousedown', close)
+  }, [colMenu])
   const [dirty, setDirty] = useState(false)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [busy, setBusy] = useState(false)
@@ -658,15 +666,24 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       const live = es.filter(e => !e.skip), total = live.reduce((t, e) => t + e.n, 0)
       const tools = <div className="distpptools"><input placeholder="Tìm bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
         <span className="sub">{new Set(live.map(e => e.x)).size} bài · {total} tiết{es.length > live.length && ` · ${es.length - live.length} bài không dạy`}</span>
-        <span className="sp" /><details className="distmore distcols"><summary>⚙ Cột</summary><div className="distmenu">
-          {colOrd.map((k, i) => {
-            const l = ({ w: 'Tuần', prog: 'Chương trình', subj: 'Môn', t: 'Tên bài học', n: 'Thời lượng (tiết)', note: 'Ghi chú' } as Record<string, string>)[k]
-            const fixed = k === 'w' || k === 't' || k === 'n'
-            return <div key={k} className="distcolrow"><label><input type="checkbox" disabled={fixed} checked={fixed || colOn.includes(k)} onChange={ev => setCol(k, ev.target.checked)} /> {l}</label>
-              <span className="sp" /><button type="button" className="distcolmv" disabled={i === 0} aria-label={'Đưa cột ' + l + ' lên'} title="Đưa lên" onClick={() => moveCol(k, -1)}>↑</button>
-              <button type="button" className="distcolmv" disabled={i === colOrd.length - 1} aria-label={'Đưa cột ' + l + ' xuống'} title="Đưa xuống" onClick={() => moveCol(k, 1)}>↓</button></div>
-          })}
-          {colOrd.join() !== COLS0.join() && <button type="button" className="distcolreset" onClick={() => { setColOrd0(COLS0); try { localStorage.removeItem('dist-col-order') } catch { /* bỏ qua */ } }}>Về thứ tự mặc định</button>}</div></details>
+        <span className="sp" /><div className="ttmenu distcols" ref={colMenuRef}>
+          <button type="button" className={colMenu ? 'on' : ''} aria-expanded={colMenu} onClick={() => setColMenu(!colMenu)} title="Ẩn/hiện cột, kéo để đổi thứ tự">⚙ Cột</button>
+          {colMenu && <div className="ttpop" role="dialog" aria-label="Hiển thị cột">
+            <div className="ttpophead"><b>Hiển thị cột</b>
+              <button type="button" onClick={() => { const n = [...new Set([...colOn, 'prog', 'subj', 'note'])]; setColOn0(n); try { localStorage.setItem('dist-cols', JSON.stringify(n)) } catch { /* bỏ qua */ } }}>Hiện tất cả</button></div>
+            <small className="sub">Tick để ẩn/hiện · giữ ⠿ rồi kéo để đổi thứ tự</small>
+            <ul>{colOrd.map(k => {
+              const l = ({ w: 'Tuần', prog: 'Chương trình', subj: 'Môn', t: 'Tên bài học', n: 'Thời lượng (tiết)', note: 'Ghi chú' } as Record<string, string>)[k]
+              const fixed = k === 'w' || k === 't' || k === 'n'
+              return <li key={k} draggable onDragStart={() => setColDrag(k)} onDragEnd={() => setColDrag(null)}
+                onDragOver={e => { e.preventDefault(); if (colDrag && colDrag !== k) moveCol(colDrag, k) }} className={colDrag === k ? 'drag' : ''}>
+                <span className="ttgrip" aria-hidden="true">⠿</span>
+                <label><input type="checkbox" disabled={fixed} checked={fixed || colOn.includes(k)} onChange={ev => setCol(k, ev.target.checked)} /> {l}</label></li>
+            })}</ul>
+            {(colOrd.join() !== COLS0.join() || colOn.join() !== 'prog,subj') && <button type="button" className="ttreset" onClick={() => {
+              setColOrd0(COLS0); setColOn0(['prog', 'subj']); try { localStorage.removeItem('dist-col-order'); localStorage.removeItem('dist-cols') } catch { /* bỏ qua */ } setColMenu(false) }}>Về mặc định</button>}
+          </div>}
+        </div>
         {ord1 ? lessonsBtn(ord1.it, ord1.x, 'Thay đổi thứ tự bài', 'distordbtn')
           : ordList.length === 1 ? lessonsBtn(ordList[0].it, ordList[0].x, 'Thay đổi thứ tự bài', 'distordbtn')
           : ordList.length > 1 && <details className="distmore distordmenu"><summary>Thay đổi thứ tự bài</summary><div className="distmenu">

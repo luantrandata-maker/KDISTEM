@@ -3499,7 +3499,4 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .main .distppct .distwkreset{border:0;background:none;padding:0 2px;color:var(--brand,#1a56db);font-size:16px;line-height:1;cursor:pointer;min-width:0}
 .distppct.flat.editing td.c-w .distwkcell{justify-content:flex-end}
 .distordmenu .distmenu{max-height:360px;overflow:auto}
-.distcolrow{display:flex;align-items:center;gap:2px}.distcolrow label{flex:1}
-.main .distmenu button.distcolmv{padding:2px 7px;border:1px solid var(--line);background:var(--surface);border-radius:4px;line-height:1.2}
-.main .distmenu button.distcolmv:disabled{opacity:.35;cursor:default}
-.main .distmenu button.distcolreset{color:var(--brand,#1a56db);border-top:1px solid var(--line);border-radius:0;margin-top:4px}
+.distcols>button{font-weight:600}

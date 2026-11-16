@@ -179,6 +179,17 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   const [colOn, setColOn0] = useState<string[]>(() => { try { const v = JSON.parse(localStorage.getItem('dist-cols') ?? 'null'); return Array.isArray(v) ? v : ['prog', 'subj'] } catch { return ['prog', 'subj'] } })
   const setCol = (k: string, v: boolean) => { const n = v ? [...colOn.filter(x => x !== k), k] : colOn.filter(x => x !== k); setColOn0(n); try { localStorage.setItem('dist-cols', JSON.stringify(n)) } catch { /* bỏ qua */ } }
   const noteCol = colOn.includes('note')
+  const COLS0 = ['w', 'prog', 'subj', 't', 'n', 'note']
+  const [colOrd, setColOrd0] = useState<string[]>(() => { try { const v = JSON.parse(localStorage.getItem('dist-col-order') ?? 'null'); return Array.isArray(v) && v.length === COLS0.length && COLS0.every(k => v.includes(k)) ? v : COLS0 } catch { return COLS0 } })
+  const saveColOrd = (n: string[]) => { setColOrd0(n); try { localStorage.setItem('dist-col-order', JSON.stringify(n)) } catch { /* bỏ qua */ } }
+  const moveCol = (from: string, to: string) => { const n = colOrd.filter(k => k !== from); n.splice(n.indexOf(to) + (colOrd.indexOf(from) < colOrd.indexOf(to) ? 1 : 0), 0, from); saveColOrd(n) }
+  const [colMenu, setColMenu] = useState(false), [colDrag, setColDrag] = useState<string | null>(null)
+  const colMenuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!colMenu) return
+    const close = (e: MouseEvent) => { if (!colMenuRef.current?.contains(e.target as Node)) setColMenu(false) }
+    document.addEventListener('mousedown', close); return () => document.removeEventListener('mousedown', close)
+  }, [colMenu])
   const [dirty, setDirty] = useState(false)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [busy, setBusy] = useState(false)
@@ -650,15 +661,29 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       // Đang sửa: giữ thứ tự bài cố định để dòng không nhảy chỗ khi gõ tuần
       es.sort(edit ? (a, b) => +a.skip - +b.skip || ord.get(a.x)! - ord.get(b.x)! : (a, b) => key(a) - key(b) || ord.get(a.x)! - ord.get(b.x)!)
       const showSubj = (!sel || !!selPid) && colOn.includes('subj'), showProg = !sel && colOn.includes('prog'), on = editable
-      const cols = 3 + (on ? 1 : 0) + (showSubj ? 1 : 0) + (showProg ? 1 : 0) + (noteCol ? 1 : 0)
+      const vis = colOrd.filter(k => k === 'prog' ? showProg : k === 'subj' ? showSubj : k === 'note' ? noteCol : true)
+      const cols = vis.length + (on ? 1 : 0), nAt = vis.indexOf('n') + (on ? 1 : 0)
       const live = es.filter(e => !e.skip), total = live.reduce((t, e) => t + e.n, 0)
       const tools = <div className="distpptools"><input placeholder="Tìm bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
         <span className="sub">{new Set(live.map(e => e.x)).size} bài · {total} tiết{es.length > live.length && ` · ${es.length - live.length} bài không dạy`}</span>
-        <span className="sp" /><details className="distmore distcols"><summary>⚙ Cột</summary><div className="distmenu">
-          {[['w', 'Tuần'], ['prog', 'Chương trình'], ['subj', 'Môn'], ['t', 'Tên bài học'], ['n', 'Thời lượng (tiết)'], ['note', 'Ghi chú']].map(([k, l]) => {
-            const fixed = k === 'w' || k === 't' || k === 'n'
-            return <label key={k}><input type="checkbox" disabled={fixed} checked={fixed || colOn.includes(k)} onChange={ev => setCol(k, ev.target.checked)} /> {l}</label>
-          })}</div></details>
+        <span className="sp" /><div className="ttmenu distcols" ref={colMenuRef}>
+          <button type="button" className={colMenu ? 'on' : ''} aria-expanded={colMenu} onClick={() => setColMenu(!colMenu)} title="Ẩn/hiện cột, kéo để đổi thứ tự">⚙ Cột</button>
+          {colMenu && <div className="ttpop" role="dialog" aria-label="Hiển thị cột">
+            <div className="ttpophead"><b>Hiển thị cột</b>
+              <button type="button" onClick={() => { const n = [...new Set([...colOn, 'prog', 'subj', 'note'])]; setColOn0(n); try { localStorage.setItem('dist-cols', JSON.stringify(n)) } catch { /* bỏ qua */ } }}>Hiện tất cả</button></div>
+            <small className="sub">Tick để ẩn/hiện · giữ ⠿ rồi kéo để đổi thứ tự</small>
+            <ul>{colOrd.map(k => {
+              const l = ({ w: 'Tuần', prog: 'Chương trình', subj: 'Môn', t: 'Tên bài học', n: 'Thời lượng (tiết)', note: 'Ghi chú' } as Record<string, string>)[k]
+              const fixed = k === 'w' || k === 't' || k === 'n'
+              return <li key={k} draggable onDragStart={() => setColDrag(k)} onDragEnd={() => setColDrag(null)}
+                onDragOver={e => { e.preventDefault(); if (colDrag && colDrag !== k) moveCol(colDrag, k) }} className={colDrag === k ? 'drag' : ''}>
+                <span className="ttgrip" aria-hidden="true">⠿</span>
+                <label><input type="checkbox" disabled={fixed} checked={fixed || colOn.includes(k)} onChange={ev => setCol(k, ev.target.checked)} /> {l}</label></li>
+            })}</ul>
+            {(colOrd.join() !== COLS0.join() || colOn.join() !== 'prog,subj') && <button type="button" className="ttreset" onClick={() => {
+              setColOrd0(COLS0); setColOn0(['prog', 'subj']); try { localStorage.removeItem('dist-col-order'); localStorage.removeItem('dist-cols') } catch { /* bỏ qua */ } setColMenu(false) }}>Về mặc định</button>}
+          </div>}
+        </div>
         {ord1 ? lessonsBtn(ord1.it, ord1.x, 'Thay đổi thứ tự bài', 'distordbtn')
           : ordList.length === 1 ? lessonsBtn(ordList[0].it, ordList[0].x, 'Thay đổi thứ tự bài', 'distordbtn')
           : ordList.length > 1 && <details className="distmore distordmenu"><summary>Thay đổi thứ tự bài</summary><div className="distmenu">
@@ -670,7 +695,8 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       return <div className="distppwrap">
         {tools}
         <table className={'distppct flat' + (edit ? ' editing' : '')}>
-          <thead><tr>{on && <th className="c-on" title="Bỏ tick: không đưa bài này vào phân phối">Dạy</th>}<th className="c-w">Tuần</th>{showProg && <th className="c-p">Chương trình</th>}{showSubj && <th className="c-s">Môn</th>}<th>Tên bài học</th><th className="c-n" title={edit ? 'Tổng số tiết của bài' : 'Số tiết dạy bài này trong tuần đó'}>Thời lượng (tiết)</th>{noteCol && <th className="c-note">Ghi chú</th>}</tr></thead>
+          <thead><tr>{on && <th className="c-on" title="Bỏ tick: không đưa bài này vào phân phối">Dạy</th>}{vis.map(k => <Fragment key={k}>{({ w: <th className="c-w">Tuần</th>, prog: <th className="c-p">Chương trình</th>, subj: <th className="c-s">Môn</th>, t: <th>Tên bài học</th>,
+            n: <th className="c-n" title={edit ? 'Tổng số tiết của bài' : 'Số tiết dạy bài này trong tuần đó'}>Thời lượng (tiết)</th>, note: <th className="c-note">Ghi chú</th> } as Record<string, ReactNode>)[k]}</Fragment>)}</tr></thead>
           <tbody>{es.map((e, i) => {
             const head = edit || i === 0 || key(es[i - 1]) !== key(e)
             let span = 1; if (head && !edit) while (i + span < es.length && key(es[i + span]) === key(e)) span++
@@ -679,18 +705,20 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
             return <Fragment key={e.x.r.unit_id + '|' + e.part}>{band}<tr className={(head ? 'wkhead' : 'wkcont') + (e.skip ? ' skipped' : '')}>
               {on && <td className="c-on">{e.part === 0 && <input type="checkbox" checked={!e.skip} aria-label={'Dạy bài ' + (title.get(e.x.r.unit_id) ?? '')}
                 onChange={ev => setRows([e.x.r.unit_id], { skipped: !ev.target.checked })} />}</td>}
-              {head && <td className="c-w" rowSpan={span}>{edit && !e.skip ? <span className="distwkcell">
+              {vis.map(k => <Fragment key={k}>{({
+              w: head && <td className="c-w" rowSpan={span}>{edit && !e.skip ? <span className="distwkcell">
                 <input type="number" className="slcell" min={1} max={60} value={e.x.r.week ?? ''} aria-label="Tuần" onChange={ev => setRow(e.x.r.unit_id, { week: Number(ev.target.value) || null, manual: true })} />
                 <button type="button" className="distwkreset" style={{ visibility: e.x.r.manual ? 'visible' : 'hidden' }} title="Tuần này đang đặt tay. Bấm để bỏ, hệ thống tự xếp lại theo tuần bắt đầu và nhịp" aria-label="Bỏ tuần đặt tay" onClick={() => setRow(e.x.r.unit_id, { manual: false })}>↺</button></span>
-                : e.skip ? '—' : e.w ?? '—'}</td>}
-              {showProg && <td className="c-p"><span className="distprogcell"><i className="distdot" style={{ background: colorOf(e.x.k) }} />{e.x.code}</span></td>}
-              {showSubj && <td className="c-s">{e.x.subj}</td>}
-              <td>{title.get(e.x.r.unit_id)}{e.part > 0 && <small className="sub"> (tiếp)</small>}{e.x.r.manual && e.part === 0 && <small className="sub"> · tuần đặt tay</small>}{edit && e.x.r.weeks && new Set(e.x.r.weeks).size > 1 && <small className="sub"> · tuần {wkLabel(e.x.r.weeks)}</small>}</td>
-              <td className="c-n">{edit && !e.skip ? <input type="number" className="slcell" min={1} max={50} value={e.x.r.periods} aria-label="Số tiết"
-                onChange={ev => setRow(e.x.r.unit_id, { periods: Math.max(1, Math.min(50, Number(ev.target.value) || 1)) })} /> : e.skip ? '—' : e.n}</td>
-              {noteCol && <td className="c-note">{edit && !e.skip ? <input className="slcell" value={e.x.r.note ?? ''} maxLength={500} aria-label="Ghi chú" onChange={ev => setRow(e.x.r.unit_id, { note: ev.target.value || null })} /> : e.part === 0 ? e.x.r.note ?? '' : ''}</td>}</tr></Fragment>
+                : e.skip ? '—' : e.w ?? '—'}</td>,
+              prog: <td className="c-p"><span className="distprogcell"><i className="distdot" style={{ background: colorOf(e.x.k) }} />{e.x.code}</span></td>,
+              subj: <td className="c-s">{e.x.subj}</td>,
+              t: <td>{title.get(e.x.r.unit_id)}{e.part > 0 && <small className="sub"> (tiếp)</small>}{e.x.r.manual && e.part === 0 && <small className="sub"> · tuần đặt tay</small>}{edit && e.x.r.weeks && new Set(e.x.r.weeks).size > 1 && <small className="sub"> · tuần {wkLabel(e.x.r.weeks)}</small>}</td>,
+              n: <td className="c-n">{edit && !e.skip ? <input type="number" className="slcell" min={1} max={50} value={e.x.r.periods} aria-label="Số tiết"
+                onChange={ev => setRow(e.x.r.unit_id, { periods: Math.max(1, Math.min(50, Number(ev.target.value) || 1)) })} /> : e.skip ? '—' : e.n}</td>,
+              note: <td className="c-note">{edit && !e.skip ? <input className="slcell" value={e.x.r.note ?? ''} maxLength={500} aria-label="Ghi chú" onChange={ev => setRow(e.x.r.unit_id, { note: ev.target.value || null })} /> : e.part === 0 ? e.x.r.note ?? '' : ''}</td>
+              } as Record<string, ReactNode>)[k]}</Fragment>)}</tr></Fragment>
           })}</tbody>
-          <tfoot><tr><td colSpan={cols - 1 - (noteCol ? 1 : 0)}>Tổng cộng</td><td className="c-n">{total}</td>{noteCol && <td />}</tr></tfoot></table>
+          <tfoot><tr>{nAt > 0 && <td colSpan={nAt}>Tổng cộng</td>}<td className="c-n">{total}</td>{cols - nAt - 1 > 0 && <td colSpan={cols - nAt - 1}>{nAt === 0 ? 'Tổng cộng' : ''}</td>}</tr></tfoot></table>
       </div>
     }
     /** Ô Bắt đầu, Nhịp của mục đang chọn ở cột trái */

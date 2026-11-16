@@ -3499,3 +3499,4 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .main .distppct .distwkreset{border:0;background:none;padding:0 2px;color:var(--brand,#1a56db);font-size:16px;line-height:1;cursor:pointer;min-width:0}
 .distppct.flat.editing td.c-w .distwkcell{justify-content:flex-end}
 .distordmenu .distmenu{max-height:360px;overflow:auto}
+.distcols>button{font-weight:600}

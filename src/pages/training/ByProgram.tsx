@@ -1,3 +1,4 @@
+import { RowMenu } from '../../components/ProTools'
 // Học liệu theo chương trình đào tạo: giống Học liệu theo chương trình giáo dục.
 // Chương trình đào tạo → các môn (thu gọn được) với nội dung và bài giảng (training_lessons, bộ 5 thẻ) ngay bên dưới;
 // mỗi dòng có + Thêm nội dung / Sửa nội dung / Xóa.
@@ -120,10 +121,11 @@ export function TrainingByProgram({ orgId, tools }: { orgId: string; tools?: Rea
           <span className={'ugchev' + (isOpen ? ' on' : '')} aria-hidden="true">›</span><small>MÔN</small> <b>{name}</b>
           <small className="sub">{units} nội dung · {ls.length} bài giảng · {ls.filter(full).length} chốt đủ thẻ bắt buộc</small>
           <span className="ugbadge">Đã phát hành {ls.filter(l => l.status === 'published').length}/{units}</span>
-          <button type="button" onClick={e => { e.stopPropagation(); setMsg(''); setCreate({ subject: sj }) }}>+ Tạo bài giảng</button>
+          <span className="ugmenu" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+            <RowMenu label={`môn ${name}`} items={[{ label: 'Tạo bài giảng mới', onClick: () => { setMsg(''); setCreate({ subject: sj }) } }]} /></span>
         </div>
         {isOpen && (rows.length === 0 ? <p className="sub" style={{ padding: '10px 16px', margin: 0 }}>Môn này chưa có nội dung. Thêm nội dung ở Chương trình đào tạo.</p> : <div className="wrap"><table className="libtable utable">
-          <thead><tr><th style={{ width: 40 }}>#</th><th>Nội dung</th><th>Bài giảng</th><th>Thẻ đã chốt</th><th>Trạng thái</th><th></th></tr></thead>
+          <thead><tr><th style={{ width: 40 }}>#</th><th>Nội dung</th><th>Bài giảng</th><th>Thẻ đã chốt</th><th>Trạng thái</th><th className="c-menu"><span className="sronly">Thao tác</span></th></tr></thead>
           <tbody>{rows.map(r => {
             if (r.first) n++
             return <tr key={r.key}>
@@ -131,11 +133,11 @@ export function TrainingByProgram({ orgId, tools }: { orgId: string; tools?: Rea
               <td>{r.first ? <b>{r.title}</b> : null}{r.first && r.unit && Number(r.unit.hours) > 0 && <><br /><small className="sub">{String(r.unit.hours).replace('.', ',')} giờ</small></>}</td>
               <td>{r.l ? <NameLink onClick={() => { setMsg(''); setOpen({ id: r.l!.id }) }}>{r.l.title}</NameLink> : <small className="sub">Chưa có</small>}</td>
               <td>{r.l ? `${done4(r.l)}/4 thẻ bắt buộc` : '—'}</td>
-              <td>{r.l ? <span className={'distchip2 ' + (LST[r.l.status]?.[1] ?? '')}>{LST[r.l.status]?.[0] ?? r.l.status}</span> : <small className="sub">Chưa tạo</small>}</td>
-              <td><span className="tools" style={{ flexWrap: 'nowrap', justifyContent: 'flex-end' }}>
-                {r.l ? <><button type="button" onClick={() => { setMsg(''); setOpen({ id: r.l!.id, edit: true }) }}>Sửa nội dung</button>
-                  <button type="button" className="danger" onClick={() => removeLesson(r.l!)}>Xóa</button></>
-                  : <button type="button" className="primary" onClick={() => { setMsg(''); setCreate({ unit: r.unit }) }}>+ Thêm nội dung</button>}</span></td>
+              <td>{r.l ? <span className={'distchip2 ' + (LST[r.l.status]?.[1] ?? '')}>{LST[r.l.status]?.[0] ?? r.l.status}</span>
+                : <button type="button" className="linkbtn" onClick={() => { setMsg(''); setCreate({ unit: r.unit }) }}>+ Thêm nội dung</button>}</td>
+              <td className="c-menu"><RowMenu label={r.l?.title ?? r.title} items={r.l
+                ? [{ label: 'Sửa nội dung', onClick: () => { setMsg(''); setOpen({ id: r.l!.id, edit: true }) } }, { label: 'Xóa', danger: true, onClick: () => removeLesson(r.l!) }]
+                : [{ label: 'Thêm nội dung', onClick: () => { setMsg(''); setCreate({ unit: r.unit }) } }]} /></td>
             </tr>
           })}</tbody></table></div>)}
       </div>

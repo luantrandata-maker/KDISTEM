@@ -3436,3 +3436,8 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .disttbl th.c-on{width:56px}.disttbl td:has(>input[type=checkbox]){text-align:center}
 .disttbl tr.skipped td:has(>input[type=checkbox]){opacity:1}
 .disttbl .distprogcell{white-space:nowrap}
+/* Trang bài học: menu Nhập từ file; đầu thẻ ghim khi đang sửa (thay cho cặp Hủy / Lưu ở cuối thẻ) */
+.lmenuhd{padding:6px 10px 0;border-top:1px solid var(--line);margin-top:4px}
+.lmenuhint{padding:4px 10px 2px;white-space:normal;max-width:260px}
+.lmenulink{padding:8px 10px;border-radius:4px;color:var(--text);text-decoration:none}.lmenulink:hover{background:var(--soft)}
+.lcard.editing>.lcardhead{position:sticky;top:0;z-index:4;background:var(--surface);box-shadow:0 1px 0 var(--line)}

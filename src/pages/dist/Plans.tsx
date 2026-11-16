@@ -21,7 +21,7 @@ import type { Plan, Status } from './sched'
 import { useGradeTree } from '../../components/GradeTree'
 import { StatCards } from '../../components/StatCards'
 import { useCls } from './cls'
-import { DistHistory, PlanAssigned } from './History'
+import { DistHistory } from './History'
 import { gradeName } from '../../lib/eduLevels'
 import { AllOrgs } from '../../components/OrgScope'
 import { CurriculumBooks } from '../curriculum'
@@ -76,7 +76,9 @@ export function DistPage({ orgId, units }: { orgId: string | null; units?: boole
   const [lf, setLf] = useState<ListF>({ fs: '', q: '', fc: '', card: null })
   const crumb = useBreadcrumb()
   const reload = () => setRk(k => k + 1)
-  const assign = (id: string) => { setAssignId(id); setTab('assign') }
+  // Gán cho trường mở bảng bên phải (không còn tab riêng); danh sách đã gán ở tab "Gán & áp dụng"
+  const [assignOpen, setAssignOpen] = useState(false)
+  const assign = (id: string) => { setAssignId(id); setAssignOpen(true) }
   /** Sau khi lưu / phát hành / nhân bản: mở bản (nháp mở ở trình soạn) và tải lại số liệu. */
   const changed = (where: Tab) => (id?: string, m?: string) => {
     reload(); setMsg(m ?? null)
@@ -99,7 +101,7 @@ export function DistPage({ orgId, units }: { orgId: string | null; units?: boole
         { k: 'books', icon: 'grid', tone: 'good', value: cardBooks.length, label: 'PPCT theo trường', sub: `${cardBooks.filter(b => b.status === 'published').length} đã ban hành` },
       ]} />
       <HeadTabs><div className="distpills" role="tablist">
-        {([['list', 'Danh sách bản phân phối'], ['assign', 'Gán theo trường'], ['history', 'Lịch sử áp dụng']] as [Tab, string][]).map(([t, l]) => {
+        {([['list', 'Danh sách bản phân phối'], ['history', 'Gán & áp dụng']] as [Tab, string][]).map(([t, l]) => {
           const on = tab === t || (t === 'list' && (tab === 'create' || tab === 'tree'))
           return <button key={t} type="button" role="tab" aria-selected={on} className={on ? 'on' : ''} onClick={() => { setTab(t); setMsg(null); if (t === 'list') setOpenList(null) }}>{l}</button>
         })}
@@ -117,8 +119,11 @@ export function DistPage({ orgId, units }: { orgId: string | null; units?: boole
           : <DistList plans={plans} meta={meta} f={lf} setF={setLf} lead={srcSel} canCreate={!!orgId} onCreate={() => { setMsg(null); setTab('create') }} onOpen={p => { setMsg(null); setOpenList(p.id) }} onAssign={assign} onConfig={() => { setMsg(null); setTab('tree') }} />)}
         {tab === 'create' && orgId && <CreatePlan orgId={orgId} onCancel={() => setTab('list')}
           onCreated={id => { reload(); setOpenList(id); setTab('list'); setMsg('Đã tạo bản phân phối nháp. Tiếp tục chọn chương trình và xếp lịch.') }} />}
-        {tab === 'assign' && <DistAssign orgId={orgId} plans={plans} initial={assignId} onDone={reload} onHistory={() => setTab('history')} />}
-        {tab === 'history' && <DistHistory plans={plans} rk={rk} />}
+        {(tab === 'history' || tab === 'assign') && <><DistHistory plans={plans} rk={rk} />
+          <HeadAction><button type="button" className="primary ttadd" onClick={() => assign('')}>+ Gán cho trường</button></HeadAction></>}
+        {assignOpen && <Drawer title="Gán bản phân phối cho trường" onClose={() => setAssignOpen(false)} closeOnOutside={false}>
+          <DistAssign orgId={orgId} plans={plans} initial={assignId} onDone={() => { reload(); setTab('history') }} />
+        </Drawer>}
       </>}
     </>
   )
@@ -247,12 +252,12 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onAssign,
   )
 }
 
-// ===== Tab "Gán theo trường" =====
+// ===== Gán cho trường (bảng bên phải) =====
 type Org = { id: string; name: string; type: string; parent_id: string | null; level?: string | null }
 type Cls = { id: string; name: string; grade: number; org_id: string }
 const LEVEL_RE: Record<string, RegExp> = { mamnon: /mầm non|mẫu giáo|nhà trẻ/i, tieuhoc: /tiểu học|\bTH\b/, thcs: /THCS|trung học cơ sở/i, thpt: /THPT|trung học phổ thông/i }
 
-function DistAssign({ orgId, plans, initial, onDone, onHistory }: { orgId: string | null; plans: Plan[]; initial: string; onDone: () => void; onHistory: () => void }) {
+function DistAssign({ orgId, plans, initial, onDone }: { orgId: string | null; plans: Plan[]; initial: string; onDone: () => void }) {
   const crumb = useBreadcrumb()
   const [pid, setPid] = useState(initial)
   const [orgs, setOrgs] = useState<Org[]>([])
@@ -326,8 +331,6 @@ function DistAssign({ orgId, plans, initial, onDone, onHistory }: { orgId: strin
         </>}
         {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       </div>
-      <PlanAssigned plans={plans} plan={plan} rk={rk} />
-      <p className="sub">Các lần đã gán, theo năm học và phiên bản: <button type="button" className="linkbtn" onClick={onHistory}>Xem lịch sử áp dụng</button></p>
     </>
   )
 }

@@ -3397,3 +3397,6 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 .infotipx.up .infotippop{top:auto;bottom:calc(100% + 6px)}
 .infotiprow{display:flex;margin:6px 0}
 .infotipx:hover::after,.infotipx:focus::after{content:none;display:none}
+/* Nút ⓘ đặt dưới bảng, góc phải */
+.infotiprow{justify-content:flex-end}
+.infotiprow .infotipx .infotippop{left:auto;right:0}

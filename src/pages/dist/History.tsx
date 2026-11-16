@@ -66,7 +66,7 @@ export function PlanApplied({ plan }: { plan: Plan }) {
 /** Danh sách các lần gán kèm bộ lọc Tỉnh / Sở, trường, năm học (và bản phân phối khi không cố định một bản).
  *  now: chỉ năm học hiện tại và năm tới (tab Gán theo trường); không thì tất cả năm (tab Lịch sử áp dụng).
  *  Bản gán không ghi năm học = năm học hiện tại của trường. */
-function AssignView({ plans, rk, now, family }: { plans: Plan[]; rk: number; now: boolean; family?: string | null }) {
+function AssignView({ plans, rk, now, family, onAssign }: { plans: Plan[]; rk: number; now: boolean; family?: string | null; onAssign?: () => void }) {
   const { rows, err } = useHistory(null, rk)
   const mf = useMultiFilters()
   const [ysel, setYsel] = useGroupSel(now ? 'dist-assign-year' : 'dist-history-year')
@@ -104,6 +104,7 @@ function AssignView({ plans, rk, now, family }: { plans: Plan[]; rk: number; now
   return <DataTable id={now ? 'dist-assigned' : 'dist-history'} rows={shown} rowKey={r => r.book_id} cols={cols}
     aside={found.length ? <GroupTree label="Năm học" nodes={ynodes} total={found.length} sel={ycur} onSel={setYsel} /> : undefined}
     empty={<small className="sub">Chưa gán cho trường nào.</small>}
+    right={onAssign && <button type="button" className="primary" onClick={onAssign}>Gán cho trường</button>}
     left={<MultiFilters defs={defs} f={mf} count={`${new Set(shown.map(r => r.org_id)).size} trường · ${shown.length} PPCT`} />} />
 }
 
@@ -116,6 +117,6 @@ export function PlanAssigned({ plans, plan, rk }: { plans: Plan[]; plan: Plan | 
 }
 
 /** Tab "Lịch sử áp dụng": tất cả lần gán bản phân phối cho trường, tất cả năm học. */
-export function DistHistory({ plans, rk }: { plans: Plan[]; rk: number }) {
-  return <AssignView plans={plans} rk={rk} now={false} />
+export function DistHistory({ plans, rk, onAssign }: { plans: Plan[]; rk: number; onAssign?: () => void }) {
+  return <AssignView plans={plans} rk={rk} now={false} onAssign={onAssign} />
 }

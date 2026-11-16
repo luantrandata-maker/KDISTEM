@@ -7,6 +7,7 @@ import { StructureDraft, newKey, saveDraftTree, type DCol, type DRow } from '../
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx, importSummary, norm, type Column } from '../../lib/sheet'
 import ImportExcel from '../../components/ImportExcel'
+import { LongCell, OneLine } from '../../components/LongCell'
 import { InfoTip } from '../../components/InfoTip'
 import { type Detail } from './Content'
 
@@ -205,15 +206,15 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
   }
   const cell = (u: TUnit, key: 'title' | 'hours' | 'goal' | 'reqs') => {
     const val = key === 'title' ? u.title : key === 'hours' ? num(Number(u.hours)) : key === 'goal' ? goalOf(u) : reqsOf(u.detail).join('\n')
-    if (!editable) return key === 'reqs' || key === 'goal' ? (val ? <span className="yc" style={{ whiteSpace: 'pre-line' }}>{val}</span> : '—') : key === 'title' ? <button type="button" className="namelink" onClick={() => onOpen(u.id)}>{u.title}</button> : val
+    if (!editable) return key === 'reqs' || key === 'goal' ? <OneLine text={val} /> : key === 'title' ? <button type="button" className="namelink" onClick={() => onOpen(u.id)}>{u.title}</button> : val
     const save = (v: string) => { if (v === val) return
       if (key === 'title') return v.trim() ? upd(u, { title: v.trim() }) : undefined
       if (key === 'hours') { const h = Number(v.replace(',', '.')); return Number.isFinite(h) && h >= 0 ? upd(u, { hours: h }) : undefined }
       if (key === 'goal') return setGoal(u, v)
       return setReqs(u, v) }
-    if (key === 'goal') return <textarea key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} rows={Math.min(4, Math.max(1, val.split('\n').length))} placeholder="Sau nội dung này, nhà giáo…" aria-label={`Mục tiêu của ${u.title}`} onBlur={e => save(e.target.value)} />
+    if (key === 'goal') return <LongCell key={u.id + val} value={val} gc={key} gr={u.id} placeholder="Sau nội dung này, nhà giáo…" label={`Mục tiêu của ${u.title}`} onSave={save} />
     return key === 'reqs'
-      ? <textarea key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} rows={Math.min(4, Math.max(1, reqsOf(u.detail).length))} placeholder="Mỗi dòng một yêu cầu" aria-label={`Yêu cầu cần đạt của ${u.title}`} onBlur={e => save(e.target.value)} />
+      ? <LongCell key={u.id + val} value={val} gc={key} gr={u.id} placeholder="Mỗi dòng một yêu cầu" label={`Yêu cầu cần đạt của ${u.title}`} onSave={save} />
       : <input key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} inputMode={key === 'hours' ? 'decimal' : undefined} aria-label={`${key === 'title' ? 'Tên' : 'Số giờ'} ${u.title}`}
           onBlur={e => save(e.target.value)} />
   }
@@ -316,8 +317,8 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
             const subjSel = <select value={target.id} disabled={!!sel || subjs.length < 2} onChange={e => setNd({ ...nd, subj: e.target.value })} aria-label="Môn của nội dung mới">{subjs.map(s => <option key={s.id} value={s.id}>{s.title}</option>)}</select>
             const cellOf = (k: string) => k === 'subj' ? subjSel
               : k === 'title' ? <div className="slnewrow">{!keys.includes('subj') && !sel && subjs.length > 1 ? subjSel : null}<input id="tu-new-title" className="slnt" data-gc="title" value={nd.title} disabled={busy} placeholder="+ Tên nội dung mới" aria-label={`Tên nội dung mới môn ${target.title}`} onChange={e => setNd({ ...nd, title: e.target.value })} onKeyDown={enter} /></div>
-              : k === 'goal' ? <input className="slno" data-gc="goal" value={nd.goal} disabled={busy} placeholder="Mục tiêu" aria-label="Mục tiêu" onChange={e => setNd({ ...nd, goal: e.target.value })} onKeyDown={enter} />
-              : k === 'reqs' ? <input className="slno" data-gc="reqs" value={nd.reqs} disabled={busy} placeholder="Yêu cầu cần đạt (ngăn cách bằng ;)" aria-label="Yêu cầu cần đạt" onChange={e => setNd({ ...nd, reqs: e.target.value })} onKeyDown={enter} />
+              : k === 'goal' ? <textarea rows={1} className="slnoa" data-gc="goal" value={nd.goal} disabled={busy} placeholder="Mục tiêu" aria-label="Mục tiêu" title="Enter xuống dòng · Ctrl+Enter thêm nội dung" onChange={e => setNd({ ...nd, goal: e.target.value })} onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addContent() } }} />
+              : k === 'reqs' ? <textarea rows={1} className="slnoa" data-gc="reqs" value={nd.reqs} disabled={busy} placeholder="Yêu cầu cần đạt (mỗi dòng một yêu cầu)" aria-label="Yêu cầu cần đạt" title="Enter xuống dòng · Ctrl+Enter thêm nội dung" onChange={e => setNd({ ...nd, reqs: e.target.value })} onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addContent() } }} />
               : k === 'mode' ? <><select className="slnm2" value={nd.mode} onChange={e => setNd({ ...nd, mode: e.target.value as '' | 'online' | 'offline' })} aria-label="Hình thức nội dung mới">
 <option value="">Theo CT</option><option value="online">Trực tuyến</option><option value="offline">Trực tiếp</option></select></>
               : k === 'hours' ? <input className="slnp" data-gc="hours" value={nd.hours} disabled={busy} placeholder="Giờ" aria-label="Số giờ" inputMode="decimal" onChange={e => setNd({ ...nd, hours: e.target.value })} onKeyDown={enter} />

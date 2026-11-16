@@ -28,6 +28,7 @@ import { NameLink, SelTd, SelTh, useRowSel } from '../components/TableSel'
 import { fmtGrades, progGrades, useEduLevels, gradeName, gradeRange } from '../lib/eduLevels'
 import { ChipMulti, GradeChecks, GradePicker, SubjectMulti, SubjectPicker, gradeList } from '../components/Pickers'
 import { ElView } from '../components/ElView'
+import { LongCell, OneLine } from '../components/LongCell'
 import { InfoTip } from '../components/InfoTip'
 
 // Khái niệm (064): Chương trình → Học phần (unit 'topic', trước gọi là chủ đề; gắn Môn học qua edu_unit_subjects)
@@ -910,7 +911,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
   const cell = (r: LRow, key: 'title' | 'grades' | 'periods' | 'obj' | 'outs') => {
     const u = r.u
     const val = key === 'title' ? u.title : key === 'grades' ? unitGrades(u).join(', ') : key === 'periods' ? String(u.periods || '') : key === 'obj' ? u.objectives ?? '' : r.outs.map(o => o.content).join('\n')
-    if (!editable) return key === 'outs' || key === 'obj' ? <span className="yc">{val || '—'}</span> : val || '—'
+    if (!editable) return key === 'outs' || key === 'obj' ? <OneLine text={val} /> : val || '—'
     // Khối: chương trình một khối thì tự điền, nhiều khối thì tick chọn
     if (key === 'grades' && pg.length === 1) return <span className="sub">{pg[0]}</span>
     if (key === 'grades' && pg.length > 1) return <GradeTicks options={pg} value={unitGrades(u)} label={`Khối bài ${u.title}`} onChange={g => update(u, { grades: g })} />
@@ -922,9 +923,9 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
       if (key === 'obj') return update(u, { objectives: v.trim() || null })
       return setOuts_(u, v)
     }
-    if (key === 'obj') return <textarea key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} rows={Math.min(4, Math.max(1, val.split('\n').length))} placeholder="Sau bài này, học sinh…" aria-label={`Mục tiêu của ${u.title}`} onBlur={e => save(e.target.value)} />
+    if (key === 'obj') return <LongCell key={u.id + val} value={val} gc={key} gr={u.id} placeholder="Sau bài này, học sinh…" label={`Mục tiêu của ${u.title}`} onSave={save} />
     return key === 'outs'
-      ? <textarea key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} rows={Math.min(4, Math.max(1, r.outs.length))} placeholder="Mỗi dòng một yêu cầu" aria-label={`Yêu cầu cần đạt của ${u.title}`} onBlur={e => save(e.target.value)} />
+      ? <LongCell key={u.id + val} value={val} gc={key} gr={u.id} placeholder="Mỗi dòng một yêu cầu" label={`Yêu cầu cần đạt của ${u.title}`} onSave={save} />
       : <input key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} aria-label={`${key === 'title' ? 'Tên' : key === 'grades' ? 'Khối' : 'Số tiết'} bài ${u.title}`}
           inputMode={key === 'title' ? undefined : 'numeric'} onBlur={e => save(e.target.value)} />
   }
@@ -1041,8 +1042,8 @@ onPaste={e => { const t = e.clipboardData.getData('text'); if (/\n/.test(t.trim(
 : pg.length > 1 ? <GradeTicks options={pg} value={nd.grades ? gradeList(nd.grades) : defGrades} disabled={busy} label="Khối của bài mới" onChange={g => setNd({ ...nd, grades: g.join(', ') })} />
 : <input className="slng" data-gc="grades" value={nd.grades} disabled={busy} placeholder="Khối" aria-label="Khối của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, grades: e.target.value })} onKeyDown={enter} />}</>
             : k === 'periods' ? <input className="slnp" data-gc="periods" value={nd.periods} disabled={busy} placeholder="Tiết" aria-label="Số tiết của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, periods: e.target.value })} onKeyDown={enter} />
-            : k === 'obj' ? <input className="slno" data-gc="obj" value={nd.obj} disabled={busy} placeholder="Mục tiêu" aria-label="Mục tiêu của bài mới" onChange={e => setNd({ ...nd, obj: e.target.value })} onKeyDown={enter} />
-            : k === 'outs' ? <input className="slno" data-gc="outs" value={nd.outs} disabled={busy} placeholder="Yêu cầu cần đạt (ngăn cách bằng ;)" aria-label="Yêu cầu cần đạt của bài mới" onChange={e => setNd({ ...nd, outs: e.target.value })} onKeyDown={enter} />
+            : k === 'obj' ? <textarea rows={1} className="slnoa" data-gc="obj" value={nd.obj} disabled={busy} placeholder="Mục tiêu" aria-label="Mục tiêu của bài mới" title="Enter xuống dòng · Ctrl+Enter thêm bài" onChange={e => setNd({ ...nd, obj: e.target.value })} onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addDraft() } }} />
+            : k === 'outs' ? <textarea rows={1} className="slnoa" data-gc="outs" value={nd.outs} disabled={busy} placeholder="Yêu cầu cần đạt (mỗi dòng một yêu cầu)" aria-label="Yêu cầu cần đạt của bài mới" title="Enter xuống dòng · Ctrl+Enter thêm bài" onChange={e => setNd({ ...nd, outs: e.target.value })} onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); addDraft() } }} />
             : k === 'act' ? <button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addDraft}>+ Thêm</button>
             : null
           return <tfoot><tr className="slnew">{keys.map(k => <td key={k}>{cellOf(k)}</td>)}{!keys.includes('act') && <td><button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addDraft}>+ Thêm</button></td>}</tr></tfoot>

@@ -3400,3 +3400,10 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 /* Nút ⓘ đặt dưới bảng, góc phải */
 .infotiprow{justify-content:flex-end}
 .infotiprow .infotipx .infotippop{left:auto;right:0}
+/* Ô chữ dài (mục tiêu, yêu cầu cần đạt): trong bảng hiện một dòng "…", khi nhập thì ô cao theo nội dung, Enter xuống dòng */
+.slcell.slone{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:text;min-height:28px;resize:none;max-width:320px;line-height:20px;font-size:calc(13px * var(--fz,1));color:var(--muted)}
+.slt.slgrid .slcell.slone{max-width:320px}
+.slcell.slone .slph{opacity:.7}
+textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:260px;resize:none;overflow:auto}
+.slonero{display:block;max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
+.slnew textarea.slnoa{flex:2;min-width:140px;width:100%;font:inherit;font-size:calc(13px * var(--fz,1));padding:6px 10px;border:1px dashed var(--line);border-radius:6px;background:var(--surface);line-height:1.4}

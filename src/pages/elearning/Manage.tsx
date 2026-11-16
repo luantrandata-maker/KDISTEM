@@ -220,10 +220,21 @@ function Exams({ orgId, subject, ofl: shared }: { orgId: string | null; subject?
     setMsg([id ? 'Đã lưu đề.' : 'Đã tạo đề.', false]); setForm(null); load()
   }
   async function setStatus(x: Exam, status: Exam['status']) {
+    if (status === 'published' && x.replaces_id && !confirm('Công bố bản mới này? Bản đang dùng sẽ tự đóng; kết quả làm bài cũ vẫn giữ ở bản cũ.')) return
     const { data, error } = await supabase.from('practice_exams').update({ status }).eq('id', x.id).select('id')
     if (error) setMsg([errText(error.message), true]); else if (!data?.length) setMsg([NOT_OWNER, true]); else load()
   }
   const editable = (x: Exam) => x.org_id === orgId || !!every
+  /** Đề đã công bố / đã đóng không sửa trực tiếp: tạo bản nháp mới (sao chép), sửa rồi công bố để thay bản cũ */
+  const draftOf = (x: Exam) => rows.find(r => r.replaces_id === x.id && r.status === 'draft')
+  async function newVersion(x: Exam) {
+    const d = draftOf(x); if (d) { setMsg(null); setOpen(d.id); return }
+    const { id: _i, created_at: _c, created_by: _b, ...rest } = x
+    const nid = crypto.randomUUID()
+    const { error } = await supabase.from('practice_exams').insert({ ...rest, id: nid, status: 'draft', replaces_id: x.id })
+    if (error) return setMsg([errText(error.message), true])
+    await load(); setOpen(nid); setMsg(['Đã tạo bản nháp mới từ đề này. Sửa xong bấm Công bố, bản cũ sẽ tự đóng.', false])
+  }
   const editForm = (x: Exam) => { const { id, title, description, subject, grade, mode, question_ids, criteria, duration_min, max_attempts, show_answers, class_ids, group_ids, student_ids, shared, opens_at, closes_at, status, shuffle } = x
     setMsg(null); setForm({ id, org: x.org_id, title, description, subject, grade, subjects: courseSubjects(x), grades: courseGrades(x), mode, question_ids, criteria: { levels: {}, topics: [], ...criteria, matrix: toMatrix(criteria) }, duration_min, max_attempts, show_answers, class_ids, group_ids: group_ids ?? null, student_ids: student_ids ?? null, shared, opens_at, closes_at, status, shuffle: !!shuffle }) }
   const statusBtns = (x: Exam) => <>
@@ -241,8 +252,10 @@ function Exams({ orgId, subject, ofl: shared }: { orgId: string | null; subject?
   if (cur) return <ElView back="Danh sách đề luyện" onBack={() => { setOpen(null); setMsg(null) }} title={cur.title}
     sub={<>{[courseSubjects(cur).join(', '), gradesText(courseGrades(cur)), howText(cur), cur.duration_min ? `${cur.duration_min} phút` : null,
       `${dt(cur.opens_at)}${cur.closes_at ? ' → ' + dt(cur.closes_at) : ''}`].filter(Boolean).join(' · ')} <span className={'pill ' + ESTATUS[cur.status][1]}>{ESTATUS[cur.status][0]}</span></>}
-    actions={<><TryButton orgId={cur.org_id} spec={examSpec(cur)} title={cur.title} minutes={cur.duration_min} />{editable(cur) && <>{statusBtns(cur)}<button onClick={() => editForm(cur)}>Sửa</button></>}</>}>
-    {note}<ExamResults exam={cur} roster={schoolOf(cur.org_id) && editable(cur)} /></ElView>
+    actions={<><TryButton orgId={cur.org_id} spec={examSpec(cur)} title={cur.title} minutes={cur.duration_min} />{editable(cur) && <>{statusBtns(cur)}{cur.status === 'draft'
+      ? <button onClick={() => editForm(cur)}>Sửa</button>
+      : <button onClick={() => newVersion(cur)} title="Đề đã công bố không sửa trực tiếp: tạo bản nháp mới để sửa, công bố bản mới thì bản cũ tự đóng">{draftOf(cur) ? 'Mở bản nháp mới' : 'Phát hành bản mới'}</button>}</>}</>}>
+    {note}{cur.replaces_id && cur.status === 'draft' && <p className="sub">Bản nháp mới thay cho đề <b>{rows.find(r => r.id === cur.replaces_id)?.title ?? 'cũ'}</b>. Công bố bản này thì đề cũ tự đóng.</p>}<ExamResults exam={cur} roster={schoolOf(cur.org_id) && editable(cur)} /></ElView>
   return (
     <>
       {note}
@@ -393,8 +406,26 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
     else setMsg(['Đã lưu khoá học.', false])
   }
   async function setStatus(c: Course, status: Course['status']) {
+    if (status === 'published' && c.replaces_id && !confirm('Công bố bản mới này? Khoá đang dùng sẽ tự lưu trữ; tiến độ học của học sinh ở khoá cũ vẫn giữ ở khoá cũ.')) return
     const { data, error } = await supabase.from('courses').update({ status }).eq('id', c.id).select('id')
     if (error) setMsg([errText(error.message), true]); else if (!data?.length) setMsg([NOT_OWNER, true]); else load()
+  }
+  /** Khoá đã công bố / lưu trữ không sửa trực tiếp: sao chép thành bản nháp mới (cả chủ đề và bài học), công bố bản mới thì khoá cũ tự lưu trữ */
+  const courseDraftOf = (c: Course) => rows.find(r => r.replaces_id === c.id && r.status === 'draft')
+  async function newCourseVersion(c: Course) {
+    const d = courseDraftOf(c); if (d) { setMsg(null); setOpen(d.id); return }
+    const { id: _i, created_at: _c, created_by: _b, ...rest } = c
+    const nid = crypto.randomUUID()
+    const fail = (m: string) => setMsg([errText(m), true])
+    const r1 = await supabase.from('courses').insert({ ...rest, id: nid, status: 'draft', replaces_id: c.id })
+    if (r1.error) return fail(r1.error.message)
+    const tmap = new Map<string, string>()
+    const tps = topics.filter(t => t.course_id === c.id).map(t => { const id = crypto.randomUUID(); tmap.set(t.id, id); return { id, course_id: nid, position: t.position, title: t.title } })
+    if (tps.length) { const r = await supabase.from('course_topics').insert(tps); if (r.error) return fail(r.error.message) }
+    const ls = lessons.filter(l => l.course_id === c.id).map(l => { const { id: _l, course_id: _cc, ...lr } = l as Lesson & { topic_id?: string | null }
+      return { ...lr, course_id: nid, topic_id: lr.topic_id ? tmap.get(lr.topic_id) ?? null : null } })
+    if (ls.length) { const r = await supabase.from('course_lessons').insert(ls); if (r.error) return fail(r.error.message) }
+    await load(); setOpen(nid); setMsg(['Đã tạo bản nháp mới từ khoá này (gồm chủ đề và bài học). Sửa xong bấm Công bố, khoá cũ sẽ tự lưu trữ.', false])
   }
   async function removeCourse(c: Course, done: () => void) {
     if (!confirm(`Xoá khoá học nháp "${c.title}"? Các bài học trong khoá cũng bị xoá.`)) return
@@ -457,7 +488,8 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
       cur.status === 'draft' && { key: 'pub', label: 'Công bố', kind: 'primary', disabled: !ls.length, title: ls.length ? undefined : 'Thêm ít nhất một bài học trước khi công bố', onClick: () => setStatus(cur, 'published') },
       cur.status === 'published' && { key: 'arch', label: 'Lưu trữ', onClick: () => setStatus(cur, 'archived') },
       cur.status === 'archived' && { key: 'reopen', label: 'Mở lại', onClick: () => setStatus(cur, 'published') },
-      { key: 'edit', label: 'Sửa thông tin', icon: 'pencil', onClick: () => editCourse(cur) },
+      cur.status === 'draft' ? { key: 'edit', label: 'Sửa thông tin', icon: 'pencil', onClick: () => editCourse(cur) }
+        : { key: 'newver', label: courseDraftOf(cur) ? 'Mở bản nháp mới' : 'Phát hành bản mới', title: 'Khoá đã công bố không sửa trực tiếp: tạo bản nháp mới để sửa, công bố bản mới thì khoá cũ tự lưu trữ', onClick: () => newCourseVersion(cur) },
       cur.status === 'draft' && { key: 'del', label: 'Xoá khoá học nháp', icon: 'trash', kind: 'danger', onClick: () => removeCourse(cur, back) },
     ] : []
     return <>
@@ -474,7 +506,9 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
             <div><b>{learners}</b><span>học sinh đã học</span></div>
             {!side && <button type="button" className="pdsidetg" onClick={toggleSide} title="Mở cột thông tin khoá học">‹ Thông tin</button>}
           </div>
-          <div className="panel pdcard pdsl"><h4>Chủ đề & bài học</h4><LessonEditor key={cur.id} autoAdd={mine && fresh === cur.id && !ls.length} course={cur} lessons={ls} topics={tps} exams={exams} progress={progress} editable={mine} onChange={load} /></div>
+          <div className="panel pdcard pdsl"><h4>Chủ đề & bài học</h4>
+            {mine && cur.status !== 'draft' && <p className="sub" style={{ margin: '0 0 8px' }}>Khoá đã công bố nên không sửa trực tiếp. Bấm <b>{courseDraftOf(cur) ? 'Mở bản nháp mới' : 'Phát hành bản mới'}</b> ở đầu trang để sửa trên bản sao.</p>}
+            {cur.replaces_id && cur.status === 'draft' && <p className="sub" style={{ margin: '0 0 8px' }}>Bản nháp mới thay cho khoá <b>{rows.find(r => r.id === cur.replaces_id)?.title ?? 'cũ'}</b>. Công bố bản này thì khoá cũ tự lưu trữ.</p>}<LessonEditor key={cur.id} autoAdd={mine && fresh === cur.id && !ls.length} course={cur} lessons={ls} topics={tps} exams={exams} progress={progress} editable={mine && cur.status === 'draft'} onChange={load} /></div>
           {mine && <CourseProgress key={ls.length} course={cur} />}
         </div>
         {side && <div className="pdside">
@@ -486,14 +520,14 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
               <dt>Ngày tạo</dt><dd>{new Date(cur.created_at).toLocaleDateString('vi-VN')}</dd>
             </dl>
           </div>
-          <div className="panel pdcard"><h4>Đối tượng & thời hạn{mine && <button type="button" className="linkbtn" onClick={() => editCourse(cur)}>Điều chỉnh ›</button>}</h4>
+          <div className="panel pdcard"><h4>Đối tượng & thời hạn{mine && cur.status === 'draft' && <button type="button" className="linkbtn" onClick={() => editCourse(cur)}>Điều chỉnh ›</button>}</h4>
             <dl className="pddl sm">
               <dt>Đối tượng</dt><dd>{(isSchool ? audienceText(cur, classes, groups) : cur.shared ? 'Học sinh tất cả trường trực thuộc' : 'Chỉ đơn vị mình') || '—'}</dd>
               <dt>Hạn hoàn thành</dt><dd>{cur.due_at ? dt(cur.due_at) : <span className="sub">Không đặt</span>}</dd>
             </dl>
           </div>
           <div className="panel pdcard"><h4>Giới thiệu</h4>
-            {cur.description ? <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{cur.description}</p> : <small className="sub">Chưa có giới thiệu{mine ? ' · bấm biểu tượng bút ở đầu trang để thêm' : ''}</small>}
+            {cur.description ? <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{cur.description}</p> : <small className="sub">Chưa có giới thiệu{mine && cur.status === 'draft' ? ' · bấm biểu tượng bút ở đầu trang để thêm' : ''}</small>}
           </div>
         </div>}
       </div>

@@ -35,7 +35,8 @@ export function MaterialItem({ it, admin, draftId, autoEdit, onClose, onDone, on
   const [msg, setMsg] = useState('')
   const cols = LISTS[it.part].cols
   const set = (k: string, v: string) => setRow(r => ({ ...(r ?? {}), [k]: v }))
-  useEffect(() => { if (autoEdit && canEdit) startEdit() }, [])
+  // CTĐT còn nháp / bị trả lại: mở thẳng form sửa (không cần bấm Sửa); autoEdit giữ cho lối vào từ "mở bản nháp"
+  useEffect(() => { if ((autoEdit || EDITABLE.includes(status)) && canEdit) startEdit() }, [])
 
   async function fresh() {
     const { data, error } = await supabase.from('training_program_units').select('detail').eq('id', it.unit!.id).maybeSingle()

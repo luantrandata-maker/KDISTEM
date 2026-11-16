@@ -186,8 +186,9 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   const [pool, setPool] = useState<Prog[]>([])
   const [units, setUnits] = useState<U[]>([])
   const [loaded, setLoaded] = useState(false)
-  /** Bản nháp mở ở chế độ xem; bấm "Chỉnh sửa" mới sửa được */
-  const [editing, setEditing] = useState(false)
+  /** Bản nháp mở thẳng chế độ soạn (như kế hoạch đào tạo); bấm "Xong" để chỉ xem, "Chỉnh sửa" để soạn lại */
+  const [editing, setEditing] = useState(p0.status === 'draft')
+  useEffect(() => { if (plan.status === 'draft') setEditing(true) }, [plan.status])
   const editable = plan.status === 'draft' && editing
   /** Bản của đơn vị mình: tạo được phiên bản mới; bản của đơn vị khác chỉ nhân bản. */
   const own = !!orgId && plan.org_id === orgId

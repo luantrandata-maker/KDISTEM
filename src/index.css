@@ -3481,3 +3481,4 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .distppct.flat tfoot td{font-weight:700;border-top:1px solid var(--line);padding:10px}
 .distppct.flat tfoot td:first-child{text-align:right}
 .distppct.flat tr.distpphk td{background:none;color:var(--muted);font-size:calc(12px * var(--fz,1));text-transform:uppercase;letter-spacing:.04em;padding:12px 10px 4px}
+.distppct.flat .c-p{width:150px;white-space:nowrap}.distppct.flat .c-s{width:130px}.distppct.flat .c-n{width:120px}

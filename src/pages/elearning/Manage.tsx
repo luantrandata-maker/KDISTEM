@@ -3,6 +3,8 @@ import { HeadAction, HeadTabs } from '../../components/PageFrame'
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { useEffect, useMemo, useState } from 'react'
 import { DataTable, SideSplit, type Col } from '../../components/DataTable'
+import { RowMenu, type RowAction } from '../../components/ProTools'
+import { Drawer } from '../../components/Drawer'
 import { useGradeTree } from '../../components/GradeTree'
 import { MultiSelect } from '../../components/MultiSelect'
 import { GradeChecks, GradeMulti, SubjectMulti } from '../../components/Pickers'
@@ -506,9 +508,9 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
             <div><b>{learners}</b><span>học sinh đã học</span></div>
             {!side && <button type="button" className="pdsidetg" onClick={toggleSide} title="Mở cột thông tin khoá học">‹ Thông tin</button>}
           </div>
-          <div className="panel pdcard pdsl"><h4>Chủ đề & bài học</h4>
-            {mine && cur.status !== 'draft' && <p className="sub" style={{ margin: '0 0 8px' }}>Khoá đã công bố nên không sửa trực tiếp. Bấm <b>{courseDraftOf(cur) ? 'Mở bản nháp mới' : 'Phát hành bản mới'}</b> ở đầu trang để sửa trên bản sao.</p>}
-            {cur.replaces_id && cur.status === 'draft' && <p className="sub" style={{ margin: '0 0 8px' }}>Bản nháp mới thay cho khoá <b>{rows.find(r => r.id === cur.replaces_id)?.title ?? 'cũ'}</b>. Công bố bản này thì khoá cũ tự lưu trữ.</p>}<LessonEditor key={cur.id} autoAdd={mine && fresh === cur.id && !ls.length} course={cur} lessons={ls} topics={tps} exams={exams} progress={progress} editable={mine && cur.status === 'draft'} onChange={load} /></div>
+          {mine && cur.status !== 'draft' && <p className="sub" style={{ margin: '0 0 8px' }}>Khoá đã công bố nên không sửa trực tiếp. Bấm <b>{courseDraftOf(cur) ? 'Mở bản nháp mới' : 'Phát hành bản mới'}</b> ở đầu trang để sửa trên bản sao.</p>}
+            {cur.replaces_id && cur.status === 'draft' && <p className="sub" style={{ margin: '0 0 8px' }}>Bản nháp mới thay cho khoá <b>{rows.find(r => r.id === cur.replaces_id)?.title ?? 'cũ'}</b>. Công bố bản này thì khoá cũ tự lưu trữ.</p>}
+          <div className="panel pdcard pdsl"><h4>Chủ đề & bài học</h4><LessonEditor key={cur.id} autoAdd={mine && fresh === cur.id && !ls.length} course={cur} lessons={ls} topics={tps} exams={exams} progress={progress} editable={mine && cur.status === 'draft'} onChange={load} /></div>
           {mine && <CourseProgress key={ls.length} course={cur} />}
         </div>
         {side && <div className="pdside">
@@ -593,6 +595,7 @@ function LessonEditor({ course, lessons, topics, exams, progress, editable, onCh
   const [loc, setLoc] = useState(lessons), [tloc, setTloc] = useState(topics)
   useEffect(() => setLoc(lessons), [lessons]); useEffect(() => setTloc(topics), [topics])
   const [drag, setDrag] = useState<string | null>(null), [over, setOver] = useState<string | null>(null)
+  const [cur, setCur] = useState(''), [q, setQ] = useState('')
   const groups = groupLessons(loc, tloc)
   const lastTopic = groups.filter(g => g.topic).slice(-1)[0]?.topic?.id ?? null
   // Học liệu đã xuất bản trong Kho học liệu mà đơn vị thấy (chỉ loại "Học liệu": tệp / đường dẫn)
@@ -652,10 +655,6 @@ function LessonEditor({ course, lessons, topics, exams, progress, editable, onCh
     if (d < 0 && i > 0) place(l.id, tid, g.lessons[i - 1].id)
     if (d > 0 && i < g.lessons.length - 1) place(l.id, tid, g.lessons[i + 2]?.id ?? null)
   }
-  const dropOn = (topicId: string | null, beforeId: string | null) => ({
-    onDragOver: (e: React.DragEvent) => { if (!drag) return; e.preventDefault(); e.stopPropagation(); setOver(beforeId ?? 'end:' + (topicId ?? '')) },
-    onDrop: (e: React.DragEvent) => { e.preventDefault(); e.stopPropagation(); const id = drag; setDrag(null); setOver(null); if (id) place(id, topicId, beforeId) },
-  })
   async function saveTopic(e: React.FormEvent) {
     e.preventDefault(); if (!tf) return
     setBusy(true); setErr('')
@@ -684,47 +683,102 @@ function LessonEditor({ course, lessons, topics, exams, progress, editable, onCh
   const unitList = (lib ?? []).filter(x => x.kind === 'unit' && subOk(x) && (!ln || x.title.toLowerCase().includes(ln)))
   const unitMats = (u?: LibOpt) => (u?.content.material_ids ?? []).filter(id => lib?.some(x => x.id === id && x.kind === 'material')).length
   const subName = courseSubjects(course).join(', ')
-  return (
-    <div className={'lessons' + (editable ? ' lsplit' : '') + (f || tf ? ' open' : '')}>
-      <div className="lslist">
-      {editable && <div className="lshead"><small>{topics.length ? `${topics.length} chủ đề · ` : ''}{lessons.length} bài · bấm vào bài để sửa</small>
-        <span className="tools"><button onClick={() => openTopic({ title: '' })}>+ Thêm chủ đề</button>
-          <button className="primary" onClick={() => edit({ kind: f?.kind && !f.id ? f.kind : 'video', title: '', topic_id: lastTopic })}>+ Thêm bài học</button></span></div>}
-      {groups.map((g, gi) => { const t = g.topic, tn = groups.filter(x => x.topic).length
-        return <div key={t?.id ?? 'none'} className="lsgroup">
-        {(t || topics.length > 0) && <div className={'lstopic' + (editable && t ? ' clickrow' : '') + (t && tf?.id === t.id ? ' on' : '') + (over === 'end:' + (t?.id ?? '') ? ' dropin' : '')}
-          onClick={editable && t ? () => openTopic({ id: t.id, title: t.title }) : undefined} {...(editable ? dropOn(t?.id ?? null, null) : {})}>
-          <b>{t ? `Chủ đề ${gi + 1}: ${t.title}` : 'Chưa xếp chủ đề'}</b><small>{g.lessons.length} bài</small>
-          {editable && t && <span className="tools" onClick={e => e.stopPropagation()}>
-            <button className="xbtn" onClick={() => edit({ kind: f?.kind && !f.id ? f.kind : 'video', title: '', topic_id: t.id })} title="Thêm bài vào chủ đề này">+ Bài</button>
-            <button className="xbtn" disabled={!gi} onClick={() => moveTopic(t, -1)} aria-label="Chủ đề lên" title="Lên">↑</button><button className="xbtn" disabled={gi >= tn - 1} onClick={() => moveTopic(t, 1)} aria-label="Chủ đề xuống" title="Xuống">↓</button>
-            <button className="xbtn" onClick={() => removeTopic(t, g.lessons.length)}>Xoá</button></span>}
-        </div>}
-        <ol {...(editable ? dropOn(t?.id ?? null, null) : {})} className={over === 'end:' + (t?.id ?? '') && g.lessons.length ? 'dropend' : undefined}>{g.lessons.map((l, i) => <li key={l.id}
-          className={editable ? 'clickrow' + (f?.id === l.id ? ' on' : '') + (drag === l.id ? ' dragging' : '') + (over === l.id && drag !== l.id ? ' dropbefore' : '') : undefined}
-          onClick={editable ? () => edit(l) : undefined} draggable={editable} {...(editable ? { ...dropOn(t?.id ?? null, l.id),
-            onDragStart: (e: React.DragEvent) => { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', l.id); setDrag(l.id) },
-            onDragEnd: () => { setDrag(null); setOver(null) } } : {})}>
-        {editable && <span className="grip" aria-hidden title="Giữ chuột và kéo để đổi thứ tự">⋮⋮</span>}
-        <span className="lsmain"><span className="lk">{LKIND[l.kind] ?? l.kind}</span><b>{l.title}</b></span>
-        <span className="lsmeta">{l.duration_min ? <small>{l.duration_min} phút ·</small> : null}
-        {l.kind === 'file' && l.path && <button className="xbtn" onClick={e => { e.stopPropagation(); openFile(l.path!) }} title="Mở tệp">{pathName(l.path)}</button>}
-        {l.kind === 'library' && libName(l.library_item_id) !== l.title && <small>{libName(l.library_item_id) ?? 'Học liệu trong kho'} ·</small>}
-        <small className="done">{progress.get(l.id) ?? 0} người học đã học</small></span>
-        {editable && <span className="tools" onClick={e => e.stopPropagation()}><button className="xbtn mv" disabled={!i} onClick={() => move(l, -1)} aria-label="Lên" title="Lên">↑</button><button className="xbtn mv" disabled={i === g.lessons.length - 1} onClick={() => move(l, 1)} aria-label="Xuống" title="Xuống">↓</button>
-          <button className="xbtn" onClick={async () => { if (confirm('Xoá bài này?')) { await supabase.from('course_lessons').delete().eq('id', l.id); if (f?.id === l.id) edit(null); onChange() } }}>Xoá</button></span>}
-      </li>)}</ol>
-        {t && !g.lessons.length && <p className={'sub lsnone' + (over === 'end:' + t.id ? ' dropin' : '')} {...(editable ? dropOn(t.id, null) : {})}>Chưa có bài.{editable && <> <button className="linkbtn" onClick={() => edit({ kind: 'video', title: '', topic_id: t.id })}>Thêm bài</button></>}</p>}
-        </div> })}
-      {!lessons.length && !topics.length && <p className="sub">Khoá chưa có bài học. {editable && 'Có thể tạo chủ đề trước (vd Chủ đề 1, Chủ đề 2) rồi thêm bài vào từng chủ đề.'}</p>}
+  // ---- Dạng bảng như "Môn & bài học" của chương trình: chủ đề ở cột trái, bảng bài học phẳng bên phải ----
+  // cur: '' = tất cả, 'none' = chưa xếp chủ đề, còn lại là id chủ đề
+  const topicNo = new Map(groups.filter(g => g.topic).map((g, i) => [g.topic!.id, i + 1]))
+  const topicOf = (l: Lesson) => (l.topic_id && topicNo.has(l.topic_id) ? l.topic_id : null)
+  const flat = groups.flatMap(g => g.lessons)
+  const selKey = cur && cur !== 'none' && !topicNo.has(cur) ? '' : cur
+  const inSel = selKey === '' ? flat : flat.filter(l => (topicOf(l) ?? 'none') === selKey)
+  const qq = q.trim().toLowerCase()
+  const shown = qq ? inSel.filter(l => l.title.toLowerCase().includes(qq)) : inSel
+  const mins = (ls: Lesson[]) => ls.reduce((t, l) => t + (l.duration_min || 0), 0)
+  const cnt = (ls: Lesson[]) => `${ls.length} bài${mins(ls) ? ` · ${mins(ls)} phút` : ''}`
+  const topicLabel = (id: string | null) => (id ? `Chủ đề ${topicNo.get(id)}: ${tloc.find(t => t.id === id)?.title ?? ''}` : 'Chưa xếp chủ đề')
+  const newIn = () => (selKey === 'none' ? null : selKey || lastTopic)
+  const addLesson = (topic_id: string | null) => edit({ kind: f?.kind && !f.id ? f.kind : 'video', title: '', topic_id })
+  async function removeLesson(l: Lesson) {
+    if (!confirm(`Xoá bài "${l.title}"?`)) return
+    await supabase.from('course_lessons').delete().eq('id', l.id); if (f?.id === l.id) edit(null); onChange()
+  }
+  const examName = (id: string | null) => exams.find(x => x.id === id)?.title
+  const src = (l: Lesson) => {
+    if (l.kind === 'file' && l.path) return <button type="button" className="slsubjlink" onClick={() => openFile(l.path!)} title="Mở tệp">{pathName(l.path)}</button>
+    if ((l.kind === 'video' || l.kind === 'link') && l.url) return <a href={l.url} target="_blank" rel="noreferrer" className="elsrc" title={l.url}>{l.url.replace(/^https?:\/\/(www\.)?/, '')}</a>
+    if (l.kind === 'exam') return <span>{examName(l.exam_id) ?? 'Đề luyện'}</span>
+    if (l.kind === 'library') return <span>{libName(l.library_item_id) ?? 'Học liệu trong kho'}</span>
+    if (l.kind === 'reading') return <span className="sub">Bài đọc</span>
+    return <span className="sub">—</span>
+  }
+  const srcText = (l: Lesson) => l.kind === 'file' ? pathName(l.path ?? '') : l.kind === 'exam' ? examName(l.exam_id) ?? '' : l.kind === 'library' ? libName(l.library_item_id) ?? '' : l.url ?? ''
+  const cols: Col<Lesson>[] = [
+    { key: 'no', label: '#', thClass: 'c-no', fixed: true, cell: l => <span className="elno">{editable && <span className="sldrag" draggable title="Kéo để đổi vị trí hoặc thả vào chủ đề ở cột trái" aria-label={`Kéo ${l.title} để đổi vị trí`}
+        onDragStart={e => { setDrag(l.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', l.id); const tr = (e.target as HTMLElement).closest('tr'); if (tr) e.dataTransfer.setDragImage(tr, 20, 20) }}
+        onDragEnd={() => { setDrag(null); setOver(null) }}>⠿</span>}<span className="sub">{(groups.find(g => g.lessons.includes(l))?.lessons.indexOf(l) ?? 0) + 1}</span></span> },
+    ...(selKey === '' && tloc.length ? [{ key: 'topic', label: 'Chủ đề', thClass: 'c-eltopic', text: (l: Lesson) => topicLabel(topicOf(l)),
+      cell: (l: Lesson) => <button type="button" className="slsubjlink" onClick={() => setCur(topicOf(l) ?? 'none')} title={topicLabel(topicOf(l))}>{topicOf(l) ? `Chủ đề ${topicNo.get(topicOf(l)!)}` : 'Chưa xếp'}</button> }] : []),
+    { key: 'kind', label: 'Loại', thClass: 'c-elkind', text: l => LKIND[l.kind] ?? l.kind, cell: l => <span className="pill">{LKIND[l.kind] ?? l.kind}</span> },
+    { key: 'title', label: 'Tên bài', thClass: 'c-title', fixed: true, text: l => l.title,
+      cell: l => editable ? <button type="button" className="slsubjlink eltitle" onClick={() => edit(l)} title="Bấm để sửa bài">{l.title}</button> : <b className="eltitle">{l.title}</b> },
+    { key: 'src', label: 'Nội dung', thClass: 'c-mat', text: srcText, cell: src },
+    { key: 'dur', label: 'Thời lượng', thClass: 'c-eldur', text: l => l.duration_min ? `${l.duration_min} phút` : '', cell: l => l.duration_min ? `${l.duration_min} phút` : <span className="sub">—</span> },
+    { key: 'note', label: 'Ghi chú', thClass: 'c-outs', off: true, text: l => l.kind === 'reading' ? '' : l.body ?? '', cell: l => l.kind !== 'reading' && l.body ? <small className="sub">{l.body}</small> : <span className="sub">—</span> },
+    { key: 'done', label: 'Đã học', thClass: 'c-eldur', text: l => String(progress.get(l.id) ?? 0), cell: l => <span className={progress.get(l.id) ? undefined : 'sub'}>{progress.get(l.id) ?? 0}</span> },
+  ]
+  const rowMenu = (l: Lesson): RowAction[] => {
+    const g = groups.find(x => x.lessons.some(y => y.id === l.id)), i = g?.lessons.findIndex(y => y.id === l.id) ?? 0
+    return [{ label: 'Sửa bài', onClick: () => edit(l) },
+      ...(i > 0 ? [{ label: 'Lên trên', onClick: () => move(l, -1) }] : []),
+      ...(g && i < g.lessons.length - 1 ? [{ label: 'Xuống dưới', onClick: () => move(l, 1) }] : []),
+      ...groups.filter(x => (x.topic?.id ?? null) !== topicOf(l) && (x.topic || tloc.length)).map(x => ({ label: `Chuyển sang ${x.topic ? `chủ đề ${topicNo.get(x.topic.id)}` : '"Chưa xếp chủ đề"'}`, onClick: () => place(l.id, x.topic?.id ?? null, null) })),
+      { label: 'Xoá bài', danger: true, onClick: () => removeLesson(l) }]
+  }
+  const navDrop = (topicId: string | null) => editable ? {
+    onDragOver: (e: React.DragEvent) => { if (!drag) return; e.preventDefault(); setOver('nav:' + (topicId ?? 'none')) },
+    onDragLeave: () => setOver(o => (o === 'nav:' + (topicId ?? 'none') ? null : o)),
+    onDrop: (e: React.DragEvent) => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id) place(id, topicId, null) },
+  } : {}
+  const navItem = (key: string, label: string, ls: Lesson[], t?: Topic, ti = 0, tn = 0) => <div key={key || '*'}
+    className={'slnavrow' + (selKey === key ? ' on' : '') + (over === 'nav:' + key ? ' eldrop' : '')} {...(key ? navDrop(key === 'none' ? null : key) : {})}>
+    <button type="button" className={'slnavi' + (selKey === key ? ' on' : '')} onClick={() => setCur(key)}>
+      <span className="slnm">{label}</span><span className="slcnt">{key === '' && tloc.length ? `${tloc.length} chủ đề · ` : ''}{cnt(ls)}</span></button>
+    {editable && t && <span className="elnavm"><RowMenu label={label} items={[
+      { label: 'Thêm bài vào chủ đề', onClick: () => addLesson(t.id) },
+      { label: 'Đổi tên', onClick: () => openTopic({ id: t.id, title: t.title }) },
+      ...(ti > 0 ? [{ label: 'Lên trên', onClick: () => moveTopic(t, -1) }] : []),
+      ...(ti < tn - 1 ? [{ label: 'Xuống dưới', onClick: () => moveTopic(t, 1) }] : []),
+      { label: 'Xoá chủ đề', danger: true, onClick: () => removeTopic(t, ls.length) }]} /></span>}
+  </div>
+  const tGroups = groups.filter(g => g.topic), rest = groups.find(g => !g.topic)?.lessons ?? []
+  return (<>
+    <div className="slwrap ellessons">
+      <nav className="slnav" aria-label="Chủ đề trong khoá học">
+        {navItem('', 'Tất cả', flat)}
+        {tGroups.map((g, i) => navItem(g.topic!.id, `${i + 1}. ${g.topic!.title}`, g.lessons, g.topic!, i, tGroups.length))}
+        {tGroups.length > 0 && rest.length > 0 && navItem('none', 'Chưa xếp chủ đề', rest)}
+        {editable && <button type="button" className="sladdsubj" onClick={() => openTopic({ title: '' })}>+ Thêm chủ đề</button>}
+      </nav>
+      <div className="slmain">
+        <DataTable id="el-lessons-v1" simple rows={shown} rowKey={l => l.id} className="slt" cols={cols} rowMenu={editable ? rowMenu : undefined}
+          rowProps={editable ? l => ({ className: drag === l.id ? 'sldragging' : over === l.id && drag ? 'slover' : undefined,
+            onDragOver: e => { if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== l.id) setOver(l.id) },
+            onDrop: e => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id && id !== l.id) place(id, topicOf(l), l.id) } }) : undefined}
+          empty={<small className="sub">{inSel.length ? 'Không có bài nào khớp ô tìm.' : !lessons.length && !topics.length
+            ? `Khoá chưa có bài học.${editable ? ' Có thể tạo chủ đề trước (vd Chủ đề 1, Chủ đề 2) ở cột trái rồi thêm bài vào từng chủ đề.' : ''}`
+            : selKey && selKey !== 'none' ? <>Chủ đề chưa có bài.{editable && <> <button type="button" className="linkbtn" onClick={() => addLesson(selKey)}>Thêm bài</button> hoặc kéo bài từ chủ đề khác thả vào chủ đề này ở cột trái.</>}</> : 'Chưa có bài.'}</small>}
+          left={<input placeholder={selKey && selKey !== 'none' ? `Tìm bài trong chủ đề ${topicNo.get(selKey)}…` : 'Tìm bài…'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />}
+          right={editable ? <button type="button" className="primary" onClick={() => addLesson(newIn())}>+ Thêm bài học</button> : undefined} />
+        {editable && flat.length > 1 && <small className="sub">Bấm tên bài để sửa · kéo ⠿ ở đầu dòng để đổi thứ tự, thả vào chủ đề ở cột trái để chuyển chủ đề · ⋮ để lên / xuống, chuyển chủ đề, xoá.</small>}
       </div>
-      {tf && <div className="lsedit"><h4>{tf.id ? 'Sửa chủ đề' : `Chủ đề mới (chủ đề ${topics.length + 1})`}</h4><form key={round} className="formgrid" onSubmit={saveTopic}>
+    </div>
+    {tf && <Drawer title={tf.id ? 'Sửa chủ đề' : `Chủ đề mới (chủ đề ${topics.length + 1})`} onClose={() => setTf(null)} closeOnOutside={false}>
+      <form key={round} className="formgrid" onSubmit={saveTopic}>
         <label className="field wide"><span>Tên chủ đề *</span><input required autoFocus maxLength={200} value={tf.title} onChange={e => setTf({ ...tf, title: e.target.value })} placeholder="vd Làm quen với lập trình" /></label>
         {err && <p className="msg">{err}</p>}
         <div className="actions wide"><button className="primary" disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu chủ đề'}</button><button type="button" onClick={() => setTf(null)}>Huỷ</button></div>
-      </form></div>}
-      {f && <div className="lsedit"><h4>{f.id ? 'Sửa bài: ' + (lessons.find(x => x.id === f.id)?.title ?? '') : (() => { const gi = groups.findIndex(g => (g.topic?.id ?? null) === (f.topic_id ?? null)), g = groups[gi]
-        return `Bài mới${g?.topic ? ` · Chủ đề ${gi + 1}` : ''} (bài ${(g?.lessons.length ?? 0) + 1})` })()}</h4><form key={round} className="formgrid" onSubmit={save}>
+      </form></Drawer>}
+    {f && <Drawer closeOnOutside={false} onClose={() => edit(null)} title={f.id ? 'Sửa bài: ' + (lessons.find(x => x.id === f.id)?.title ?? '') : (() => { const gi = groups.findIndex(g => (g.topic?.id ?? null) === (f.topic_id ?? null)), g = groups[gi]
+        return `Bài mới${g?.topic ? ` · Chủ đề ${gi + 1}` : ''} (bài ${(g?.lessons.length ?? 0) + 1})` })()}><form key={round} className="formgrid" onSubmit={save}>
         <label className="field"><span>Loại bài</span><select value={f.kind} onChange={e => setF({ ...f, kind: e.target.value as Lesson['kind'] })}>{Object.entries(LKIND).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
         {topics.length > 0 && <label className="field"><span>Chủ đề</span><select value={f.topic_id ?? ''} onChange={e => setF({ ...f, topic_id: e.target.value || null })}>
           {groups.filter(g => g.topic).map((g, i) => <option key={g.topic!.id} value={g.topic!.id}>Chủ đề {i + 1}: {g.topic!.title}</option>)}<option value="">Chưa xếp chủ đề</option></select></label>}
@@ -756,9 +810,8 @@ function LessonEditor({ course, lessons, topics, exams, progress, editable, onCh
         {err && <p className="msg">{err}</p>}
         <div className="actions wide"><button className="primary" disabled={busy} onClick={() => setMore(false)}>{busy ? (file ? 'Đang tải tệp lên…' : 'Đang lưu…') : 'Lưu bài học'}</button>
           {!f.id && <button disabled={busy} onClick={() => setMore(true)}>Lưu & thêm bài tiếp</button>}<button type="button" onClick={() => edit(null)}>Huỷ</button></div>
-      </form></div>}
-    </div>
-  )
+      </form></Drawer>}
+  </>)
 }
 
 // Tiến độ từng học sinh được giao khoá học (course_progress_summary, 061)

@@ -3496,3 +3496,6 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .distctl.prog .distctlttl{overflow:hidden;text-overflow:ellipsis}.distctl.prog>.distctlname{display:flex}.distctl.prog>.distctlname .distctlttl{min-width:0}
 .distctl.prog>*:not(.distctlname){flex:none}.distctl.prog .distctlf{white-space:nowrap}}
 .distordbtn{white-space:nowrap}
+.main .distppct .distwkreset{border:0;background:none;padding:0 2px;color:var(--brand,#1a56db);font-size:16px;line-height:1;cursor:pointer;min-width:0}
+.distppct.flat.editing td.c-w .distwkcell{justify-content:flex-end}
+.distordmenu .distmenu{max-height:360px;overflow:auto}

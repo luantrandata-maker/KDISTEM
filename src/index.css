@@ -3471,3 +3471,13 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 /* Học cách tuần: ô Lặp cạnh nhịp */
 .distevery{display:inline-flex;align-items:center;gap:6px}
 .distevsel{height:32px;padding:0 6px;font-size:calc(13px * var(--fz,1))}
+
+/* Theo tuần dạng danh sách phẳng: STT · Tuần · Chương trình / Môn · Tên bài học · Số tiết, dòng Tổng cộng */
+.distppct.flat{border:0;background:none}
+.distppct.flat th{background:none;border-bottom:1px solid var(--line)}
+.distppct.flat td{border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent);padding:9px 10px}
+.distppct.flat .c-no,.distppct.flat .c-w,.distppct.flat .c-n{text-align:right;width:56px;white-space:nowrap}
+.distppct.flat td.c-w{border-right:0;background:none}
+.distppct.flat tfoot td{font-weight:700;border-top:1px solid var(--line);padding:10px}
+.distppct.flat tfoot td:first-child{text-align:right}
+.distppct.flat tr.distpphk td{background:none;color:var(--muted);font-size:calc(12px * var(--fz,1));text-transform:uppercase;letter-spacing:.04em;padding:12px 10px 4px}

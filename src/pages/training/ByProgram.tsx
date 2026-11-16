@@ -135,9 +135,8 @@ export function TrainingByProgram({ orgId, tools }: { orgId: string; tools?: Rea
               <td>{r.l ? `${done4(r.l)}/4 thẻ bắt buộc` : '—'}</td>
               <td>{r.l ? <span className={'distchip2 ' + (LST[r.l.status]?.[1] ?? '')}>{LST[r.l.status]?.[0] ?? r.l.status}</span>
                 : <button type="button" className="linkbtn" onClick={() => { setMsg(''); setCreate({ unit: r.unit }) }}>+ Thêm nội dung</button>}</td>
-              <td className="c-menu"><RowMenu label={r.l?.title ?? r.title} items={r.l
-                ? [{ label: 'Sửa nội dung', onClick: () => { setMsg(''); setOpen({ id: r.l!.id, edit: true }) } }, { label: 'Xóa', danger: true, onClick: () => removeLesson(r.l!) }]
-                : [{ label: 'Thêm nội dung', onClick: () => { setMsg(''); setCreate({ unit: r.unit }) } }]} /></td>
+              <td className="c-menu">{r.l && <RowMenu label={r.l.title} items={[{ label: 'Sửa nội dung', onClick: () => { setMsg(''); setOpen({ id: r.l!.id, edit: true }) } },
+                { label: 'Xóa', danger: true, onClick: () => removeLesson(r.l!) }]} />}</td>
             </tr>
           })}</tbody></table></div>)}
       </div>

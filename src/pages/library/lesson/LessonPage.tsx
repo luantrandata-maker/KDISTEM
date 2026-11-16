@@ -1,6 +1,7 @@
 // Trang bài học theo video demo (23/10): bộ học liệu 5 thẻ, mỗi thẻ xem / cập nhật / chốt nội dung; đủ 5 thẻ thì phát hành.
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { DetailHead } from '../../../components/DetailHead'
+import { MoreMenu } from '../../../components/MoreMenu'
 import { catalogOf, useSettings } from '../../../lib/settings'
 import { supabase } from '../../../lib/supabase'
 import { openFile, uploadLearningFile, fmtSize } from '../../../lib/files'
@@ -48,7 +49,6 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
   const [fields, setFields] = useState<Fields | null>(null)
   const [busy, setBusy] = useState('')
   const [msg, setMsg] = useState('')
-  const [docsOpen, setDocsOpen] = useState(false)
   const [check, setCheck] = useState<{ name: string; res: ParseResult; cards: KitCard[] } | null>(null)
   const [cat, setCat] = useState<{ id: string; name: string; unit: string; kind: KMat['kind'] }[]>([])
   const [acts, setActs] = useState<BankAct[]>([])
@@ -227,6 +227,15 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
           <div className="tools">
             <Chip tone={STATUS[row.status][1]}>{STATUS[row.status][0]}{row.status === 'published' ? ` · v${row.version}` : ''}</Chip>
             <button type="button" onClick={() => begin('info')}>{store === 'training' ? 'Sửa thông tin' : 'Sửa tên, môn'}</button>
+            <MoreMenu label="Nhập từ file ▾">
+              {pick('.docx,.pptx', 'Cập nhật từ giáo án Word / bài giảng PowerPoint', upload)}
+              <button type="button" onClick={tplAll}>Tải mẫu Excel cả giáo án</button>
+              {pick('.xlsx', 'Tải lên file Excel đã điền', upload)}
+              {srcFiles.length > 0 && <small className="sub lmenuhd">Tệp gốc đã tải lên</small>}
+              {srcFiles.map(d => d.file ? <button key={d.key} type="button" onClick={() => openFile(d.file!.path)}>Mở: {d.file.file_name ?? d.title}</button>
+                : d.url ? <a key={d.key} className="lmenulink" href={d.url} target="_blank" rel="noreferrer">Mở: {d.title}</a> : null)}
+              <small className="sub lmenuhint">Thẻ được điền từ file chuyển về “Cần kiểm tra”.</small>
+            </MoreMenu>
             <button type="button" className="primary" disabled={!!busy || !!edit} onClick={publish}
               title={needDone < NEED.length ? `Còn ${NEED.length - needDone} thẻ${store === 'training' ? ' bắt buộc' : ''} chưa chốt: bấm để chốt luôn rồi phát hành` : 'Có thể cập nhật lại sau khi phát hành.'}>{row.status === 'published' ? 'Phát hành bản cập nhật' : store === 'training' ? 'Phát hành bài giảng' : 'Phát hành bộ học liệu'}</button>
           </div>
@@ -235,21 +244,8 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
       {msg && <p className="sub" role="status"><b>{msg}</b></p>}
       {busy && <p className="sub" role="status">{busy}</p>}
       {empty && !edit && <div className="ldash lempty-kit"><div><b>Giáo án đang trống</b>
-        <small>Khung 5 thẻ đã sẵn sàng. Điền trực tiếp vào khung ở từng thẻ rồi bấm “Lưu”. Chốt thẻ khi nhập xong.</small></div>
+        <small>Khung 5 thẻ đã sẵn sàng. Điền trực tiếp vào từng thẻ rồi bấm “Lưu & chốt”, hoặc dùng “Nhập từ file” ở đầu trang.</small></div>
         <button type="button" className="primary" onClick={() => begin('info')}>Bắt đầu nhập thẻ 01</button></div>}
-      <div className="ldash">
-        <button type="button" className="ldocbar" aria-expanded={docsOpen} onClick={() => setDocsOpen(!docsOpen)}><span aria-hidden="true">🗎</span> <b>Tài liệu</b> <span className="sub">· Xem trước và cập nhật</span></button>
-        {docsOpen && <div className="ldocs">
-          {srcFiles.length === 0 && <p className="sub">Bài chưa có tệp giáo án hay bài giảng gốc.</p>}
-          {srcFiles.map(d => <div key={d.key} className="ldocrow"><span><b>{d.title}</b><small className="sub">{d.file?.file_name ?? d.file_name ?? d.url}{d.meta ? ' · ' + d.meta : ''}</small></span>
-            {d.file ? <button type="button" className="linkbtn" onClick={() => openFile(d.file!.path)}>Mở tệp</button> : d.url ? <a className="linkbtn" href={d.url} target="_blank" rel="noreferrer">Mở liên kết</a> : <small className="sub">chưa đính kèm</small>}</div>)}
-          <div className="tools">{pick('.docx,.pptx', 'Cập nhật từ giáo án Word / bài giảng PowerPoint', upload, 'primary')}
-            <small className="sub">Đọc lại tệp và điền các thẻ có trong tệp; thẻ được điền chuyển về “Cần kiểm tra”.</small></div>
-        </div>}
-      </div>
-      <div className="panel lquick"><b>Điền nhanh bằng file mẫu</b><span className="sub">Không có giáo án Word? Tải mẫu, điền rồi tải lên, hệ thống tự điền các thẻ.</span>
-        <div className="tools"><button type="button" onClick={tplAll}>Tải mẫu cả giáo án (Excel)</button>{pick('.xlsx', 'Tải file lên', upload)}</div></div>
-
       <div className="lkithead"><h3>{store === 'training' ? 'Bài giảng' : 'Bộ học liệu'} · 5 thẻ</h3><span className="sub">{store === 'training' ? `${needDone}/${NEED.length} thẻ bắt buộc đã chốt · Kho hoạt động tuỳ chọn` : `${checked.length}/${CARDS.length} thẻ đã chốt`}</span>
         {needDone < NEED.length && <button type="button" className="linkbtn" disabled={!!busy || !!edit} onClick={chotRest}
           title="Chốt một lần tất cả thẻ chưa chốt. Chỉ dùng khi đã xem lại nội dung các thẻ.">✓ Chốt tất cả thẻ còn lại</button>}</div>
@@ -262,7 +258,7 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
         <ul>{kit.issues.map((w, i) => <li key={i}>{w}</li>)}</ul>
         <button type="button" className="linkbtn" onClick={() => write({ ...kit, issues: [] }, {}, {}, 'Đã ẩn các điểm cần kiểm tra.')}>Đã kiểm tra, ẩn đi</button></div>}
 
-      <section className="panel lcard" aria-label={card.title}>
+      <section className={'panel lcard' + (edit === tab ? ' editing' : '')} aria-label={card.title}>
         <header className="lcardhead">
           <span className="lno">{card.no}</span>
           <div><b>{card.title}</b><small className="sub">{card.desc}</small>
@@ -300,10 +296,6 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
               }} />
             : <BankView bank={kit.bank} acts={acts} />)}
         </div>
-        {/* Đang sửa thẻ dài: nhắc lại Hủy / Lưu ở cuối thẻ */}
-        {edit === tab && <footer className="lcardfoot">
-          <button type="button" onClick={cancel} disabled={!!busy}>Hủy</button><button type="button" className="primary" onClick={save} disabled={!!busy}>Lưu</button>
-        </footer>}
       </section>
 
 

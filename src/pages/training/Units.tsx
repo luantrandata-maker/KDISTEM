@@ -224,7 +224,7 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
     ...(!sel ? [{ key: 'subj', label: 'Môn', thClass: 'c-subj', text: (r: CRow) => r.subj.title, cell: (r: CRow) => <button type="button" className="slsubjlink" onClick={() => setCur(r.subj.id)}>{r.subj.title}</button> }] : []),
     { key: 'title', label: 'Tên nội dung', thClass: 'c-title', fixed: true, text: r => r.u.title, cell: r => cell(r.u, 'title') },
     { key: 'hours', label: 'Số giờ', thClass: 'c-per', text: r => num(Number(r.u.hours)), cell: r => cell(r.u, 'hours') },
-    { key: 'goal', label: 'Mục tiêu', thClass: 'c-outs', text: r => goalOf(r.u), cell: r => cell(r.u, 'goal') },
+    { key: 'goal', label: 'Mục tiêu', thClass: 'c-outs', off: true, text: r => goalOf(r.u), cell: r => cell(r.u, 'goal') },
     { key: 'reqs', label: 'Yêu cầu cần đạt', thClass: 'c-outs', cell: r => cell(r.u, 'reqs') },
     { key: 'test', label: 'Bài test', thClass: 'c-test', text: r => r.u.has_test ? 'Có' : '', cell: r => editable
       ? <input type="checkbox" checked={r.u.has_test} aria-label={`Bài test ${r.u.title}`} onChange={e => upd(r.u, { has_test: e.target.checked })} /> : r.u.has_test ? 'Có' : '—' },

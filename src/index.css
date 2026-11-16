@@ -3414,3 +3414,9 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .main .gthint{border:0;background:none;padding:0 2px;min-height:0;color:var(--muted);cursor:help;font-size:calc(13px * var(--fz,1));line-height:1}
 .main .gthint:hover,.main .gthint[aria-expanded=true]{color:var(--primary)}
 .gtnote{margin-top:6px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);font-size:calc(12px * var(--fz,1));line-height:1.45;color:var(--text)}
+
+/* Trang bài học: menu Nhập từ file; đầu thẻ ghim khi đang sửa (thay cho cặp Hủy / Lưu ở cuối thẻ) */
+.lmenuhd{padding:6px 10px 0;border-top:1px solid var(--line);margin-top:4px}
+.lmenuhint{padding:4px 10px 2px;white-space:normal;max-width:260px}
+.lmenulink{padding:8px 10px;border-radius:4px;color:var(--text);text-decoration:none}.lmenulink:hover{background:var(--soft)}
+.lcard.editing>.lcardhead{position:sticky;top:0;z-index:4;background:var(--surface);box-shadow:0 1px 0 var(--line)}

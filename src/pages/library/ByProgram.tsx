@@ -196,9 +196,8 @@ export function LibraryByProgram({ orgId, onChanged, tools }: { orgId: string | 
                 <td><KitDots k={r.kit} /></td>
                 <td>{r.kit ? <span className={'distchip2 ' + KSTATUS[r.kit.status][1]}>{KSTATUS[r.kit.status][0]}</span>
                   : <button type="button" className="linkbtn" onClick={() => go(r)}>+ Thêm nội dung</button>}</td>
-                <td className="c-menu"><RowMenu label={r.title} items={r.kit
-                  ? [{ label: 'Sửa nội dung', onClick: () => go(r, true) }, { label: 'Xóa', danger: true, onClick: () => removeKit(r.kit!) }]
-                  : [{ label: 'Thêm nội dung', onClick: () => go(r) }]} /></td>
+                <td className="c-menu">{r.kit && <RowMenu label={r.title} items={[{ label: 'Sửa nội dung', onClick: () => go(r, true) },
+                  { label: 'Xóa', danger: true, onClick: () => removeKit(r.kit!) }]} />}</td>
               </tr>
             })}</tbody></table></div>)}
         </div>

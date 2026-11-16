@@ -102,7 +102,7 @@ function AssignView({ plans, rk, now, family, onAssign }: { plans: Plan[]; rk: n
     { key: 'at', label: 'Ngày gán', text: r => fmtD(r.assigned_at), cell: r => <small>{fmtD(r.assigned_at)}</small> },
   ]
   return <DataTable id={now ? 'dist-assigned' : 'dist-history'} rows={shown} rowKey={r => r.book_id} cols={cols}
-    aside={found.length ? <GroupTree label="Năm học" nodes={ynodes} total={found.length} sel={ycur} onSel={setYsel} /> : undefined}
+    aside={found.length ? <GroupTree label="Năm học" unit="PPCT" nodes={ynodes} total={found.length} sel={ycur} onSel={setYsel} /> : undefined}
     empty={<small className="sub">Chưa gán cho trường nào.</small>}
     right={onAssign && <button type="button" className="primary" onClick={onAssign}>Gán cho trường</button>}
     left={<MultiFilters defs={defs} f={mf} count={`${new Set(shown.map(r => r.org_id)).size} trường · ${shown.length} PPCT`} />} />

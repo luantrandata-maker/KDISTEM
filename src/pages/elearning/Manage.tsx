@@ -232,7 +232,7 @@ function Exams({ orgId, subject, ofl: shared }: { orgId: string | null; subject?
     {x.status === 'closed' && <button onClick={() => setStatus(x, 'published')}>Mở lại</button>}</>
   const note = msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>
   const fitRows = rows.filter(x => ofl.fit(x.org_id))
-  const gt = useGradeTree('elearning-exams', fitRows, courseGrades)
+  const gt = useGradeTree('elearning-exams', fitRows, courseGrades, 'bài thi')
   // Thêm / sửa đề: trang riêng
   if (form) return <ElView back={open ? 'Chi tiết đề luyện' : 'Danh sách đề luyện'} onBack={() => setForm(null)} title={form.id ? 'Sửa đề luyện' : 'Tạo đề luyện'} sub={form.id ? form.title : undefined}>
     {note}<ExamForm form={form} setForm={setForm} onSubmit={save} orgId={orgId} classes={classes} groups={groups} isSchool={isSchool} /></ElView>
@@ -407,7 +407,7 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
   const note = msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>
   const [view, setView] = useViewMode('el-courses')
   const fitC = rows.filter(c => ofl.fit(c.org_id))
-  const gtc = useGradeTree('elearning-courses', fitC, courseGrades)
+  const gtc = useGradeTree('elearning-courses', fitC, courseGrades, 'khoá học')
   const shown = gtc.filter(fitC)
   const whom = (c: Course) => { const mine = c.org_id === orgId || !!every
     return !mine ? 'của cấp trên' : every ? orgName(c.org_id) : isSchool ? audienceText(c, classes, groups) : c.shared ? 'dùng chung' : null }

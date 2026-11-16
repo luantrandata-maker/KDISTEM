@@ -509,7 +509,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
   const reachOf = (i: Item): string[] => i.status !== 'published' ? [] : i.scope === 'public' ? orgs.filter(o => o.id !== i.owner_org_id).map(o => o.id)
     : i.scope === 'selected' ? targets.get(i.id) ?? [] : kids(i.owner_org_id)
   const cardFit = (i: Item) => !card || (card === 'reach' ? reachOf(i).length > 0 : card === 'used' ? (stats.get(i.id)?.schools ?? 0) > 0 : !i.program_id)
-  const gt = gradeTree(gsel, base.filter(cardFit), i => gradeList(i.grades ?? ''))
+  const gt = gradeTree(gsel, base.filter(cardFit), i => gradeList(i.grades ?? ''), 'học liệu')
   const shown = gt.filter(base.filter(cardFit))
   // Giáo án không còn tab riêng (giáo án đi theo bài học); "Học liệu" đổi thành "Tài liệu"
   const kindTabs: T[] = ['unit', 'lesson', 'material', 'norm', 'bank']

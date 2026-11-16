@@ -139,7 +139,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years, lead }: {
   const templates = every ? [] : books.filter(b => b.org_id !== orgId && b.scope === 'children' && b.status === 'published')
   const subjects = [...new Set(own.map(b => b.subject))].sort((a, b) => a.localeCompare(b, 'vi'))
   const shown0 = own.filter(b => (!subject || b.subject === subject) && (!q || norm(b.title + ' ' + b.subject).includes(norm(q))))
-  const gt = useGradeTree('ppct-books', shown0, b => b.grade ? [b.grade] : [])
+  const gt = useGradeTree('ppct-books', shown0, b => b.grade ? [b.grade] : [], 'PPCT')
   const shown = gt.filter(shown0)
   const grade = gt.sel.startsWith('g:') ? Number(gt.sel.slice(2)) : 0
 

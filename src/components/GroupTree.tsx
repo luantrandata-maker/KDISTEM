@@ -2,6 +2,7 @@
 // cấp 1 (vd. năm học) có thể mở ra cấp 2 (vd. kế hoạch). Đếm số dòng mỗi mục, bấm để lọc.
 // Khoá chọn: 'all' · 'a:<nhóm>' · 'b:<nhóm>|<mục con>'.
 import { useState, type ReactNode } from 'react'
+import { TreeHead } from './TreeHead'
 
 export type GroupSel = string
 export type TreeNode = { key: string; label: ReactNode; count: number; kids?: { key: string; label: ReactNode; count: number }[] }
@@ -32,10 +33,11 @@ export function useGroupSel(id: string) {
   return [sel, set] as const
 }
 
-export function GroupTree({ nodes, total, sel, onSel, label }: { nodes: TreeNode[]; total: number; sel: GroupSel; onSel: (k: GroupSel) => void; label: string }) {
+export function GroupTree({ nodes, total, sel, onSel, label, unit = 'mục' }: { nodes: TreeNode[]; total: number; sel: GroupSel; onSel: (k: GroupSel) => void; label: string; unit?: string }) {
   const [open, setOpen] = useState<Record<string, boolean>>({})
-  const item = (k: GroupSel, text: ReactNode, n: number, cls = '') => <button type="button" key={k} className={'gtitem ' + cls + (sel === k ? ' on' : '')}
-    aria-pressed={sel === k} onClick={() => onSel(k)}><span className="gtlbl">{text}</span><span className="gtcnt">{n}</span></button>
+  const txt = (x: ReactNode) => typeof x === 'string' || typeof x === 'number' ? String(x) : ''
+  const item = (k: GroupSel, text: ReactNode, n: number, cls = '', onPick?: () => void, path?: string) => <button type="button" key={k} className={'gtitem ' + cls + (sel === k ? ' on' : '')}
+    title={`${path ?? txt(text)}: ${n} ${unit}`} aria-pressed={sel === k} onClick={() => { onSel(k); onPick?.() }}><span className="gtlbl">{text}</span><span className="gtcnt">{n}</span></button>
   return <nav className="gtree" aria-label={label}>
     {item('all', 'Tất cả', total)}
     {nodes.map(g => {
@@ -45,10 +47,11 @@ export function GroupTree({ nodes, total, sel, onSel, label }: { nodes: TreeNode
         <div className="gtrow">
           <button type="button" className="gtcaret" aria-expanded={isOpen} aria-label={isOpen ? 'Thu gọn' : 'Mở'}
             onClick={() => setOpen({ ...open, [g.key]: !isOpen })}>{isOpen ? '▾' : '▸'}</button>
-          {item(a, g.label, g.count, g.key ? '' : 'gtnone')}
+          {item(a, g.label, g.count, g.key ? '' : 'gtnone', () => setOpen({ ...open, [g.key]: true }))}
         </div>
-        {isOpen && <div className="gtsub">{g.kids.map(c => item(`b:${g.key}|${c.key}`, c.label, c.count))}</div>}
+        {isOpen && <div className="gtsub">{g.kids.map(c => item(`b:${g.key}|${c.key}`, c.label, c.count, '', undefined, `${txt(g.label)} › ${txt(c.label)}`))}</div>}
       </div>
     })}
+    <TreeHead>Số = số {unit}.<br />Bấm tên: lọc và mở.<br />Bấm ▸: chỉ mở / đóng.</TreeHead>
   </nav>
 }

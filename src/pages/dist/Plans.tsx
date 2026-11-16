@@ -208,7 +208,7 @@ function DistList({ plans, meta, f, setF, canCreate, onCreate, onOpen, onAssign,
       && (card !== 'published' || p.status === 'published') && (card !== 'books' || (meta.get(p.id)?.books ?? 0) > 0))
       .sort((a, b) => { const x = val(a), y = val(b); return (x < y ? -1 : x > y ? 1 : 0) * sort[1] })
   }, [plans, meta, f, sort, crumb])
-  const gt = useGradeTree('dist-plans', shown, p => p.grade ? [p.grade] : [])
+  const gt = useGradeTree('dist-plans', shown, p => p.grade ? [p.grade] : [], 'bản phân phối')
   const rows = gt.filter(shown)
   const sel = useMultiSel(rows)
   const picked = sel.list

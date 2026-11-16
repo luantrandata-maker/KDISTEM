@@ -134,7 +134,7 @@ export function LibraryByProgram({ orgId, onChanged, tools }: { orgId: string | 
   const reload = () => { setTick(t => t + 1); onChanged?.() }
   const { progs, kits, rowsOf, subjectsOf, stat, progRefs } = useLessonData(orgId, tick)
   const found = progs.filter(p => !q || progName(p).toLowerCase().includes(q.toLowerCase()))
-  const gt = useGradeTree('hoc-lieu-ct', found, progGrades)
+  const gt = useGradeTree('hoc-lieu-ct', found, progGrades, 'chương trình')
 
   // Xóa bộ học liệu của một bài (không xóa bài trong chương trình); quyền do CSDL kiểm tra
   async function removeKit(k: KitRow) {

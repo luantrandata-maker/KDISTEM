@@ -44,8 +44,8 @@ export default function Analytics({ orgId, kind }: { orgId: string | null; kind:
       topics.map(t => [t.subject, t.grade, t.topic, LEVEL[t.level] ?? t.level, t.questions, t.answers, t.rate, t.students, t.weak_students]), 'Nội dung cần ôn')
   }
   const rows = kind === 'hard' ? hard : topics
-  const gHard = useGradeTree('el-hard', hard ?? [], h => h.grade ? [h.grade] : [])
-  const gTopic = useGradeTree('el-review', topics ?? [], t => t.grade ? [t.grade] : [])
+  const gHard = useGradeTree('el-hard', hard ?? [], h => h.grade ? [h.grade] : [], 'câu hỏi')
+  const gTopic = useGradeTree('el-review', topics ?? [], t => t.grade ? [t.grade] : [], 'chủ đề')
   const left = <>
     <select value={f.exam} onChange={e => setF({ ...f, exam: e.target.value })} aria-label="Đề luyện"><option value="">Tất cả đề luyện</option>{exams.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}</select>
     {classes.length > 0 && <select value={f.cls} onChange={e => setF({ ...f, cls: e.target.value })} aria-label="Lớp"><option value="">Tất cả lớp</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}

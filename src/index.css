@@ -3463,7 +3463,7 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .distppct td.c-w{border-right:1px solid var(--line);text-align:center;width:64px;background:color-mix(in srgb,var(--soft) 50%,transparent)}
 .distppct td.c-w b{display:block;font-size:calc(15px * var(--fz,1))}
 .distppct td.c-w small{display:block;color:var(--muted);font-size:calc(11.5px * var(--fz,1));white-space:nowrap}.distppct td.c-w small.over{color:#c2410c;font-weight:600}
-.distppct th.c-w{width:64px;text-align:center}.distppct .c-t{width:64px;white-space:nowrap}.distppct .c-n{width:72px;white-space:nowrap}.distppct .c-s{width:220px}
+.distppct th.c-w{width:64px;text-align:center}.distppct .c-t{width:76px;white-space:nowrap}.distppct .c-n{width:72px;white-space:nowrap}.distppct .c-s{width:220px}
 .distppct .distppnote{display:block}
 .distppct tr.distpphk td{background:color-mix(in srgb,var(--primary) 8%,var(--surface));color:var(--primary);font-weight:600;padding:6px 10px;border-top:1px solid var(--line)}
 @media (max-width:700px){.distppct .c-s{width:auto}}

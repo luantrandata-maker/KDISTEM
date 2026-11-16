@@ -655,7 +655,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
         <div className="distpptools"><input placeholder="Tìm bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
           <span className="sub">{es.length && `${new Set(es.map(e => e.x)).size} bài · ${es.reduce((t, e) => t + e.n, 0)} tiết`}{skipped > 0 && ` · ${skipped} bài không dạy (xem ở dạng Bảng)`}</span></div>
         <table className="distppct">
-          <thead><tr><th className="c-w">Tuần</th><th className="c-t">Tiết</th><th>Tên bài</th>{showSubj && <th className="c-s">Môn</th>}<th className="c-n">Số tiết</th></tr></thead>
+          <thead><tr><th className="c-w">Tuần</th><th className="c-t" title="Tiết thứ mấy của môn, đếm từ đầu năm">Tiết thứ</th><th>Tên bài</th>{showSubj && <th className="c-s">Môn</th>}<th className="c-n">Thời lượng</th></tr></thead>
           <tbody>{weeks.map(g => {
             const load = g.es.reduce((t, e) => t + e.n, 0)
             const term = g.w === null ? 0 : g.w <= plan.hk1_weeks ? 1 : 2
@@ -668,7 +668,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
                 {showSubj && <td className="c-s"><span className="distprogcell"><i className="distdot" style={{ background: colorOf(e.x.k) }} />{selPid ? e.x.subj : `${e.x.code} · ${e.x.subj}`}</span></td>}
                 <td className="c-n">{e.n} tiết</td></tr>)}</Fragment>
           })}</tbody></table>
-        <small className="sub">Tiết đánh số riêng theo từng môn. Chỉnh tuần, số tiết, ghi chú hoặc bỏ bài ở dạng Bảng.</small>
+        <small className="sub">“Tiết thứ” đếm riêng cho từng môn từ đầu năm; “Thời lượng” là số tiết của bài trong tuần đó. Chỉnh tuần, số tiết, ghi chú hoặc bỏ bài ở dạng Bảng.</small>
       </div>
     }
     /** Ô Bắt đầu, Nhịp của mục đang chọn ở cột trái */

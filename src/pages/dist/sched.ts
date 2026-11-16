@@ -13,7 +13,9 @@ export type Plan = { id: string; org_id: string; code: string; title: string; le
 export type Mode = 'hk1' | 'hk2' | 'week' | 'after'
 export type SubjMode = 'program' | 'after' | 'week'
 /** order: thứ tự bài riêng của bản phân phối (unit_id); trống = theo thứ tự khung chương trình. */
-export type Subj = { name: string; on: boolean; mode: SubjMode; week: number | null; ppw: number; order?: string[] | null }
+/** every: học cách tuần của môn khi xếp riêng (1 = mỗi tuần, 2 = tuần học tuần nghỉ…). pevery: cách tuần của cả chương trình
+ *  (nhịp chung) — lưu trên mọi môn trong jsonb subjects để không cần thêm cột. */
+export type Subj = { name: string; on: boolean; mode: SubjMode; week: number | null; ppw: number; order?: string[] | null; every?: number; pevery?: number }
 export type Item = { program_id: string; seq: number; start_mode: Mode; start_week: number | null; after_program: string | null; ppw: number
   split: boolean; subjects: Subj[] }
 export type Row = { program_id: string; unit_id: string; seq: number; week: number | null; periods: number; note: string | null
@@ -30,6 +32,11 @@ export const TERM_LABEL: Record<string, string> = { hk1: 'Học kỳ 1', hk2: 'H
 export const progLabel = (p: Prog | undefined) => (p ? (p.code ? p.code + ' · ' : '') + p.title : '—')
 export const progCode = (p: Prog | undefined) => p?.code || p?.ct_code || p?.title.slice(0, 12) || '—'
 const lc = (s: string) => s.trim().toLowerCase()
+const ev = (n: unknown) => Math.max(1, Math.min(8, Math.round(Number(n) || 1)))
+/** Cách tuần của chương trình khi dùng nhịp chung */
+export const progEvery = (it: Item) => ev(it.subjects[0]?.pevery)
+/** Cách tuần đang áp dụng cho một môn */
+export const subjEvery = (it: Item, s: Subj) => it.split ? ev(s.every ?? s.pevery) : progEvery(it)
 
 /** Bài của chương trình cho một khối, theo thứ tự cây, kèm môn (môn của học phần gần nhất, không có thì môn chủ đạo). */
 export function lessonsOf(units: U[], prog: Prog, grade: number): Lesson[] {
@@ -71,7 +78,8 @@ export function effSubjects(it: Item, avail: string[]): Subj[] {
   const known = new Map(it.subjects.map(s => [lc(s.name), s]))
   const have = new Set(avail.map(lc))
   const kept = it.subjects.filter(s => have.has(lc(s.name)))
-  const added = avail.filter(n => !known.has(lc(n))).map(n => ({ name: n, on: true, mode: 'after' as SubjMode, week: null, ppw: it.ppw }))
+  const pevery = it.subjects[0]?.pevery
+  const added = avail.filter(n => !known.has(lc(n))).map(n => ({ name: n, on: true, mode: 'after' as SubjMode, week: null, ppw: it.ppw, ...(pevery ? { pevery } : {}) }))
   return [...kept, ...added].map((s, k) => ({ ...s, mode: k === 0 && s.mode === 'after' ? 'program' : s.mode, ppw: Number(s.ppw) || it.ppw }))
 }
 
@@ -103,7 +111,7 @@ export function schedule(plan: Plan, items: Item[], prev: Map<string, Row>, unit
     let c = 0, prevEnd = start - 1, last = start - 1
     const sinfo: { name: string; from: number; to: number; periods: number; std: number; lessons: number }[] = []
     for (const s of subs) {
-      const ppw = it.split ? Math.max(0.5, s.ppw) : Math.max(0.5, it.ppw)
+      const ppw = it.split ? Math.max(0.5, s.ppw) : Math.max(0.5, it.ppw), every = subjEvery(it, s)
       const sStart = !it.split ? start : s.mode === 'week' ? Math.max(1, s.week ?? start) : s.mode === 'after' ? prevEnd + 1 : start
       let n = it.split ? 0 : c
       let from = Infinity, to = 0, periodsSum = 0, std = 0, count = 0
@@ -117,8 +125,8 @@ export function schedule(plan: Plan, items: Item[], prev: Map<string, Row>, unit
         if (!skipped && periods > 0) {
           // Đặt tay từng tiết (dời / tách trên lịch): giữ đúng các tuần đã lưu nếu còn khớp số tiết và tuần bắt đầu
           const own = manual && pr!.weeks?.length === periods && Math.min(...pr!.weeks!) === pr!.week ? [...pr!.weeks!].sort((x, y) => x - y) : null
-          weeks = own ?? (manual ? Array.from({ length: periods }, (_, k) => pr!.week! + Math.floor(k / ppw))
-            : Array.from({ length: periods }, (_, k) => sStart + Math.floor((n + k) / ppw)))
+          weeks = own ?? (manual ? Array.from({ length: periods }, (_, k) => pr!.week! + Math.floor(k / ppw) * every)
+            : Array.from({ length: periods }, (_, k) => sStart + Math.floor((n + k) / ppw) * every))
           n += periods
           from = Math.min(from, ...weeks); to = Math.max(to, ...weeks); periodsSum += periods; count++
         }

@@ -3408,8 +3408,8 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .slonero{display:block;max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted)}
 .slnew textarea.slnoa{flex:2;min-width:140px;width:100%;font:inherit;font-size:calc(13px * var(--fz,1));padding:6px 10px;border:1px dashed var(--line);border-radius:6px;background:var(--surface);line-height:1.4}
 /* Cây nhóm: tiêu đề cách nhóm + chú thích số đếm, dòng "đang xem" */
-.gthead{padding:0 4px 4px 10px}
-.gtheadrow{padding-right:36px;display:flex;align-items:center;gap:6px;font-size:calc(11.5px * var(--fz,1));color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.gthead{padding:8px 4px 0 10px}
+.gtheadrow{display:flex;align-items:center;gap:6px;font-size:calc(11.5px * var(--fz,1));color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
 .main .gthint{border:0;background:none;padding:0 2px;min-height:0;color:var(--muted);cursor:help;font-size:calc(13px * var(--fz,1));line-height:1}
 .main .gthint:hover,.main .gthint[aria-expanded=true]{color:var(--primary)}
 .gtnote{margin-top:6px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);font-size:calc(12px * var(--fz,1));line-height:1.45;color:var(--text)}

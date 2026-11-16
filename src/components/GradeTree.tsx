@@ -65,7 +65,6 @@ export function gradeTree<T>(st: GradeSel, rows: T[], gradesOf: (r: T) => number
 
   const lvs = all.filter(l => n('lv:' + l.code) > 0)
   const tree = <nav className="gtree" aria-label="Nhóm theo khối">
-    <TreeHead>Nhóm theo <b>Cấp → Khối</b>.<br />Số = số {unit}.<br />Bấm tên: lọc và mở.<br />Bấm ▸: chỉ mở / đóng.</TreeHead>
     {item('all', 'Tất cả')}
     {lvs.map(l => {
       const k = 'lv:' + l.code
@@ -87,6 +86,7 @@ export function gradeTree<T>(st: GradeSel, rows: T[], gradesOf: (r: T) => number
     })}
     {n('cross') > 0 && item('cross', 'Liên cấp')}
     {n('none') > 0 && item('none', 'Chưa rõ khối', 'gtnone')}
+    <TreeHead>Nhóm theo <b>Cấp → Khối</b>.<br />Số = số {unit}.<br />Bấm tên: lọc và mở.<br />Bấm ▸: chỉ mở / đóng.</TreeHead>
   </nav>
   return { tree, filter, sel: cur }
 }

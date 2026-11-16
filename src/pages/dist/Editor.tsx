@@ -651,13 +651,13 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       const live = es.filter(e => !e.skip), total = live.reduce((t, e) => t + e.n, 0)
       const tools = <div className="distpptools"><input placeholder="Tìm bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
         <span className="sub">{new Set(live.map(e => e.x)).size} bài · {total} tiết{es.length > live.length && ` · ${es.length - live.length} bài không dạy`}</span>
-        <span className="sp" />{ord1 && lessonsBtn(ord1.it, ord1.x, 'Thay đổi thứ tự bài', 'distordbtn')}
-        <details className="distmore distcols"><summary>⚙ Cột</summary><div className="distmenu">
+        <span className="sp" /><details className="distmore distcols"><summary>⚙ Cột</summary><div className="distmenu">
           {[['w', 'Tuần'], ['prog', 'Chương trình'], ['subj', 'Môn'], ['t', 'Tên bài học'], ['n', 'Thời lượng (tiết)'], ['note', 'Ghi chú']].map(([k, l]) => {
             const fixed = k === 'w' || k === 't' || k === 'n'
             return <label key={k}><input type="checkbox" disabled={fixed} checked={fixed || colOn.includes(k)} onChange={ev => setCol(k, ev.target.checked)} /> {l}</label>
           })}</div></details>
-        {editable && <button type="button" className={edit ? 'primary' : ''} onClick={() => setEditRows(!editRows)} title="Sửa tuần, số tiết, ghi chú của từng bài">{edit ? 'Xong chỉnh sửa' : 'Tùy chỉnh từng bài'}</button>}</div>
+        {ord1 && lessonsBtn(ord1.it, ord1.x, 'Thay đổi thứ tự bài', 'distordbtn')}
+        {editable && <button type="button" className={edit ? 'primary' : ''} onClick={() => setEditRows(!editRows)} title="Sửa tuần, số tiết, ghi chú của từng bài">{edit ? 'Xong chỉnh sửa' : 'Tùy chỉnh'}</button>}</div>
       if (!es.length) return <div className="distppwrap">{tools}<p className="sub">{inSel.length ? 'Không có bài nào khớp ô tìm.' : 'Chưa có bài.'}</p></div>
       let band0 = -9
       return <div className="distppwrap">

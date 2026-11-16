@@ -3001,7 +3001,7 @@ button,input,select,textarea{font-size:calc(14px * var(--fz,1))}
 .ttable tbody tr:hover>td{background:#f6f8fb}
 .main .ttable :is(button,a).namelink{color:var(--text);font-weight:600;text-decoration:none}
 .main .ttable :is(button,a).namelink:hover{color:var(--primary);text-decoration:underline}
-.main .gtitem{border-radius:999px;padding:8px 14px;font-size:calc(14px * var(--fz,1))}
+.main .gtitem{border-radius:8px;padding:8px 14px;font-size:calc(14px * var(--fz,1))}
 .main .gtitem.on{background:#e3eefc;color:var(--primary)}
 .gtcnt{border-radius:4px;background:#eef0f3;font-size:calc(12px * var(--fz,1))}
 
@@ -3379,6 +3379,9 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 .main .ttprotools .sysright>.segmented{padding:3px}
 .main .ttprotools .sysright>.segmented>button{height:28px}
 .main .ttprotools .sysright>button.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+/* Cây nhóm: nút mở/đóng không hiện vòng tròn viền khi bấm chuột, chỉ khi dùng phím Tab */
+.main .gtcaret{border-radius:4px}
+.main .gtcaret:focus:not(:focus-visible){outline:none;box-shadow:none}
 
 /* Khoảng thiếu hụt: ô có nhiều dòng năng lực / gợi ý hiện đủ, không cắt 2 dòng */
 .ttable .tdc:has(.gaprow){display:block;-webkit-line-clamp:unset;line-clamp:none;max-height:none;overflow:visible}

@@ -631,6 +631,9 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       return it && x && editable ? { it, x } : null
     })()
     const ord1 = selSubj
+    /** Các môn trong phạm vi đang xem (Tất cả / một chương trình) để chọn môn đổi thứ tự bài */
+    const ordList = !editable || selSubj ? [] : ordered.filter(it => !selPid || it.program_id === selPid)
+      .flatMap(it => subjectsOf(it).filter(y => y.on).map(x => ({ it, x })))
     function ppct() {
       type E = { x: FR; w: number | null; n: number; part: number; skip: boolean }
       const es: E[] = []
@@ -656,7 +659,11 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
             const fixed = k === 'w' || k === 't' || k === 'n'
             return <label key={k}><input type="checkbox" disabled={fixed} checked={fixed || colOn.includes(k)} onChange={ev => setCol(k, ev.target.checked)} /> {l}</label>
           })}</div></details>
-        {ord1 && lessonsBtn(ord1.it, ord1.x, 'Thay đổi thứ tự bài', 'distordbtn')}
+        {ord1 ? lessonsBtn(ord1.it, ord1.x, 'Thay đổi thứ tự bài', 'distordbtn')
+          : ordList.length === 1 ? lessonsBtn(ordList[0].it, ordList[0].x, 'Thay đổi thứ tự bài', 'distordbtn')
+          : ordList.length > 1 && <details className="distmore distordmenu"><summary>Thay đổi thứ tự bài</summary><div className="distmenu">
+            {ordList.map(({ it, x }) => <button key={it.program_id + '|' + x.name} type="button" onClick={ev => { (ev.currentTarget.closest('details') as HTMLDetailsElement).open = false; setPick({ pid: it.program_id, subj: x.name }) }}>
+              {progCode(progs.get(it.program_id))} · {x.name}{subjData(it, x).data.changed && <i className="distchg" title="Đã đổi thứ tự bài" />}</button>)}</div></details>}
         {editable && <button type="button" className={edit ? 'primary' : ''} onClick={() => setEditRows(!editRows)} title="Sửa tuần, số tiết, ghi chú của từng bài">{edit ? 'Xong chỉnh sửa' : 'Tùy chỉnh'}</button>}</div>
       if (!es.length) return <div className="distppwrap">{tools}<p className="sub">{inSel.length ? 'Không có bài nào khớp ô tìm.' : 'Chưa có bài.'}</p></div>
       let band0 = -9
@@ -674,7 +681,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
                 onChange={ev => setRows([e.x.r.unit_id], { skipped: !ev.target.checked })} />}</td>}
               {head && <td className="c-w" rowSpan={span}>{edit && !e.skip ? <span className="distwkcell">
                 <input type="number" className="slcell" min={1} max={60} value={e.x.r.week ?? ''} aria-label="Tuần" onChange={ev => setRow(e.x.r.unit_id, { week: Number(ev.target.value) || null, manual: true })} />
-                {e.x.r.manual && <button type="button" className="linkbtn" title="Xếp lại theo nhịp" onClick={() => setRow(e.x.r.unit_id, { manual: false })}>Tự tính</button>}</span>
+                <button type="button" className="distwkreset" style={{ visibility: e.x.r.manual ? 'visible' : 'hidden' }} title="Tuần này đang đặt tay. Bấm để bỏ, hệ thống tự xếp lại theo tuần bắt đầu và nhịp" aria-label="Bỏ tuần đặt tay" onClick={() => setRow(e.x.r.unit_id, { manual: false })}>↺</button></span>
                 : e.skip ? '—' : e.w ?? '—'}</td>}
               {showProg && <td className="c-p"><span className="distprogcell"><i className="distdot" style={{ background: colorOf(e.x.k) }} />{e.x.code}</span></td>}
               {showSubj && <td className="c-s">{e.x.subj}</td>}

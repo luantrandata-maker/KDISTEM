@@ -1,3 +1,4 @@
+import { RowMenu } from '../../components/ProTools'
 // Học liệu theo chương trình (Phân hệ 2, theo video demo 23/10): chương trình → môn học → bài học → trang bài học 5 thẻ.
 // Bài học là bộ học liệu (library_items kind 'unit', 077/080): bài trong cây chương trình hoặc bài tạo thêm bằng "Tạo giáo án".
 // Cần chuẩn bị theo chương trình hoặc theo trường: tự tổng hợp vật tư / công cụ / thiết bị từ định mức của các bài × số nhóm.
@@ -181,10 +182,11 @@ export function LibraryByProgram({ orgId, onChanged, tools }: { orgId: string | 
             <span className={'ugchev' + (isOpen ? ' on' : '')} aria-hidden="true">›</span><small>MÔN</small> <b>{s}</b>
             <small className="sub">{rows.length} bài · {ks.length} bộ học liệu · {ks.filter(k => kitDone(k.content) === KIT.length).length} chốt đủ 5 thẻ</small>
             <span className="ugbadge">Đã phát hành {ks.filter(k => k.status === 'published').length}/{rows.length}</span>
-            <button type="button" onClick={e => { e.stopPropagation(); setMsg(''); setCreate({ subject: s }) }}>+ Tạo bài học</button>
+            <span className="ugmenu" onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+              <RowMenu label={`môn ${s}`} items={[{ label: 'Tạo bài học mới', onClick: () => { setMsg(''); setCreate({ subject: s }) } }]} /></span>
           </div>
           {isOpen && (rows.length === 0 ? <p className="sub" style={{ padding: '10px 16px', margin: 0 }}>Môn này chưa có bài học.</p> : <div className="wrap"><table className="libtable utable">
-            <thead><tr><th style={{ width: 40 }}>#</th><th>Bài học</th><th>Thời lượng</th><th>Bộ học liệu</th><th>Trạng thái</th><th></th></tr></thead>
+            <thead><tr><th style={{ width: 40 }}>#</th><th>Bài học</th><th>Thời lượng</th><th>Bộ học liệu</th><th>Trạng thái</th><th className="c-menu"><span className="sronly">Thao tác</span></th></tr></thead>
             <tbody>{rows.map((r, i) => {
               const k = kitOf(r.kit?.content.kit); const per = r.kit?.content.periods ?? r.unit?.periods
               return <tr key={r.key}>
@@ -192,11 +194,11 @@ export function LibraryByProgram({ orgId, onChanged, tools }: { orgId: string | 
                 <td><NameLink onClick={() => go(r)}>{r.title}</NameLink>{r.code && <><br /><small className="sub">{r.code}</small></>}</td>
                 <td>{per ? `${per} tiết` : '—'}{r.kit && k.sessions.length > 0 && <><br /><small className="sub">{k.sessions.length} buổi</small></>}</td>
                 <td><KitDots k={r.kit} /></td>
-                <td>{r.kit ? <span className={'distchip2 ' + KSTATUS[r.kit.status][1]}>{KSTATUS[r.kit.status][0]}</span> : <small className="sub">Chưa tạo</small>}</td>
-                <td><span className="tools" style={{ flexWrap: 'nowrap', justifyContent: 'flex-end' }}>
-                  {r.kit ? <><button type="button" onClick={() => go(r, true)}>Sửa nội dung</button>
-                    <button type="button" className="danger" onClick={() => removeKit(r.kit!)}>Xóa</button></>
-                    : <button type="button" className="primary" onClick={() => go(r)}>+ Thêm nội dung</button>}</span></td>
+                <td>{r.kit ? <span className={'distchip2 ' + KSTATUS[r.kit.status][1]}>{KSTATUS[r.kit.status][0]}</span>
+                  : <button type="button" className="linkbtn" onClick={() => go(r)}>+ Thêm nội dung</button>}</td>
+                <td className="c-menu"><RowMenu label={r.title} items={r.kit
+                  ? [{ label: 'Sửa nội dung', onClick: () => go(r, true) }, { label: 'Xóa', danger: true, onClick: () => removeKit(r.kit!) }]
+                  : [{ label: 'Thêm nội dung', onClick: () => go(r) }]} /></td>
               </tr>
             })}</tbody></table></div>)}
         </div>

@@ -39,6 +39,7 @@ export function GroupTree({ nodes, total, sel, onSel, label, unit = 'mục' }: {
   const item = (k: GroupSel, text: ReactNode, n: number, cls = '', onPick?: () => void, path?: string) => <button type="button" key={k} className={'gtitem ' + cls + (sel === k ? ' on' : '')}
     title={`${path ?? txt(text)}: ${n} ${unit}`} aria-pressed={sel === k} onClick={() => { onSel(k); onPick?.() }}><span className="gtlbl">{text}</span><span className="gtcnt">{n}</span></button>
   return <nav className="gtree" aria-label={label}>
+    <TreeHead title={label}>Số = số {unit}.<br />Bấm tên: lọc và mở.<br />Bấm ▸: chỉ mở / đóng.</TreeHead>
     {item('all', 'Tất cả', total)}
     {nodes.map(g => {
       const a = 'a:' + g.key, inside = sel === a || sel.startsWith(`b:${g.key}|`), isOpen = open[g.key] ?? inside
@@ -52,6 +53,5 @@ export function GroupTree({ nodes, total, sel, onSel, label, unit = 'mục' }: {
         {isOpen && <div className="gtsub">{g.kids.map(c => item(`b:${g.key}|${c.key}`, c.label, c.count, '', undefined, `${txt(g.label)} › ${txt(c.label)}`))}</div>}
       </div>
     })}
-    <TreeHead>Số = số {unit}.<br />Bấm tên: lọc và mở.<br />Bấm ▸: chỉ mở / đóng.</TreeHead>
   </nav>
 }

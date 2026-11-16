@@ -662,11 +662,13 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
           <span className="sub">{es.length && `${new Set(es.map(e => e.x)).size} bài · ${es.reduce((t, e) => t + e.n, 0)} tiết`}{skipped > 0 && ` · ${skipped} bài không dạy (xem ở dạng Bảng)`}</span></div>
         <table className="distppct flat">
           <thead><tr><th className="c-w">Tuần</th>{showProg && <th className="c-p">Chương trình</th>}{showSubj && <th className="c-s">Môn</th>}<th>Tên bài học</th><th className="c-n" title="Số tiết dạy bài này trong tuần đó">Thời lượng (tiết)</th></tr></thead>
-          <tbody>{es.map(e => {
+          <tbody>{es.map((e, i) => {
+            const head = i === 0 || es[i - 1].w !== e.w
+            let span = 1; if (head) while (i + span < es.length && es[i + span].w === e.w) span++
             const term = e.w === null ? 0 : e.w <= plan.hk1_weeks ? 1 : 2
             const band = term !== hk ? (hk = term, <tr className="distpphk"><td colSpan={cols}>{term === 1 ? 'Học kỳ 1' : term === 2 ? 'Học kỳ 2' : 'Chưa xếp tuần'}</td></tr>) : null
-            return <Fragment key={e.x.r.unit_id + '|' + e.part}>{band}<tr>
-              <td className="c-w">{e.w ?? '—'}</td>
+            return <Fragment key={e.x.r.unit_id + '|' + e.part}>{band}<tr className={head ? 'wkhead' : 'wkcont'}>
+              {head && <td className="c-w" rowSpan={span}>{e.w ?? '—'}</td>}
               {showProg && <td className="c-p"><span className="distprogcell"><i className="distdot" style={{ background: colorOf(e.x.k) }} />{e.x.code}</span></td>}
               {showSubj && <td className="c-s">{e.x.subj}</td>}
               <td>{title.get(e.x.r.unit_id)}{e.part > 0 && <small className="sub"> (tiếp)</small>}{e.x.r.note && <small className="sub distppnote">{e.x.r.note}</small>}</td>

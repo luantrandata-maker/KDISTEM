@@ -1704,7 +1704,7 @@ tbody tr:is(:has(.namelink:not(:disabled)),:has([data-rowopen]:not(:disabled))):
 .ldocs{display:grid;gap:8px;margin-top:10px}.ldocrow{display:flex;justify-content:space-between;gap:10px;align-items:center;border-top:1px solid var(--line);padding-top:8px}
 .ldocrow span{display:grid}
 .lquick{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.lquick .tools{margin-left:auto}
-.lkithead{display:flex;justify-content:space-between;align-items:baseline;margin-top:4px}.lkithead h3{margin:0}
+.lkithead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:4px}.lkithead>.sub{margin-left:auto}.lkithead h3{margin:0}
 .ltabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .main .ltabs button{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:10px 14px;text-align:left;font-weight:600;color:var(--text);display:flex;gap:8px;align-items:center}
 .ltabs button small{color:var(--muted);font-weight:600}

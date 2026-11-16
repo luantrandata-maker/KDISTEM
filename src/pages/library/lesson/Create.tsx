@@ -137,7 +137,7 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
       const r = await copyKit({ orgId, src, title: name, program: { id: prog.id, ct_code: prog.ct_code }, progSubject: subj, unitId: unitOf?.(prog.id, subj) ?? null, store })
       setBusy('')
       if (r.error) return setErr(r.error)
-      onCreated(r.id!, `Đã sao chép “${src.title}” thành bài “${name.trim()}”. Chỉnh sửa từng thẻ rồi chốt.`)
+      onCreated(r.id!, `Đã sao chép “${src.title}” thành bài “${name.trim()}”. Xem lại từng thẻ rồi bấm “Lưu & chốt”.`)
     }
     return (
       <Modal title={head} sub={crumb} onClose={onClose}

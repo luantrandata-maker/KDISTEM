@@ -97,7 +97,7 @@ export function TrainingByProgram({ orgId, tools }: { orgId: string; tools?: Rea
   const createBox = create && prog && <CreateLesson orgId={orgId} store="training" unitOf={unitOf} programs={refs} subjectsOf={subjectsOf}
     program={refs.find(r => r.id === prog.id)!} subject={create.unit ? labelOf(create.unit) : firstLabel(create.subject)} pickPlace={!create.unit}
     preset={create.unit ? { title: create.unit.title, unitId: create.unit.id } : null} kits={lessons}
-    onClose={() => setCreate(null)} onCreated={(id, m) => { setCreate(null); setMsg(m); reload(); setOpen({ id }) }} />
+    onClose={() => setCreate(null)} onCreated={(id, m) => { setCreate(null); setMsg(m); reload(); setOpen({ id, edit: true }) }} />
 
   // ----- Trang bài giảng -----
   if (open) return <>{crumbs}

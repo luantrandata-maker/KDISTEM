@@ -50,6 +50,7 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
   const [err, setErr] = useState('')
   const [rk, setRk] = useState(0)
   const [open, setOpen] = useState<string | null>(null)
+  const [made, setMade] = useState(false)
   const [adding, setAdding] = useState(false)
   const [msg, setMsg] = useState('')
   const [q, setQ] = useState(''); const ofl = useOrgFilter()
@@ -74,8 +75,8 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
   if (open) return <>
     {msg && <p className="sub" role="status"><b>{msg}</b></p>}
     <LessonPage key={open} orgId={rows?.find(r => r.id === open)?.org_id ?? orgId} id={open} store="training" unitOf={unitOf}
-      programs={progs} subjectsOf={subjectsOf} code="" backLabel="← Bài giảng đào tạo"
-      onBack={() => { setOpen(null); setMsg(''); reload() }} onChanged={reload} />
+      programs={progs} subjectsOf={subjectsOf} code="" backLabel="← Bài giảng đào tạo" startEdit={made}
+      onBack={() => { setOpen(null); setMade(false); setMsg(''); reload() }} onChanged={reload} />
   </>
 
   async function setStatus(r: TLesson, status: 'inactive' | 'published' | 'draft') {
@@ -125,7 +126,7 @@ export function TrainingLessonsPage({ orgId }: { orgId: string }) {
             onClick={() => { setMsg(''); setAdding(true) }}>+ Thêm bài giảng</button></HeadAction>} />}
       {adding && p0 && <CreateLesson orgId={orgId} store="training" unitOf={unitOf} programs={progs} subjectsOf={subjectsOf}
         program={p0} subject={subjectsOf(p0.id)[0] ?? ''} pickPlace
-        kits={rows ?? []} onClose={() => setAdding(false)} onCreated={(id, m) => { setAdding(false); setMsg(m); reload(); setOpen(id) }} />}
+        kits={rows ?? []} onClose={() => setAdding(false)} onCreated={(id, m) => { setAdding(false); setMsg(m); reload(); setMade(true); setOpen(id) }} />}
     </>
   )
 }

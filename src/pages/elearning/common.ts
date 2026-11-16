@@ -10,10 +10,14 @@ export type Exam = { id: string; org_id: string; created_by: string | null; titl
   mode: 'fixed' | 'random'; question_ids: string[]; criteria: { count?: number; topics?: string[]; levels?: Partial<Record<Level, number>>; matrix?: { topic: string; level: string; count: number }[] }
   shuffle?: boolean
   duration_min: number | null; max_attempts: number; show_answers: 'after_submit' | 'after_close' | 'never'; class_ids: string[] | null; group_ids: string[] | null; student_ids: string[] | null; shared: boolean
-  opens_at: string; closes_at: string | null; status: 'draft' | 'published' | 'closed'; created_at: string }
+  opens_at: string; closes_at: string | null; status: 'draft' | 'published' | 'closed'; created_at: string
+  /** Bản nháp mới thay cho đề nào (công bố bản này thì đề cũ tự đóng) */
+  replaces_id?: string | null }
 export type Course = { id: string; org_id: string; created_by: string | null; title: string; description: string | null; subject: string | null; grade: number | null; subjects?: string[]; grades?: number[]
   cover_url: string | null; class_ids: string[] | null; group_ids: string[] | null; student_ids: string[] | null; due_at: string | null; shared: boolean
-  status: 'draft' | 'published' | 'archived'; created_at: string }
+  status: 'draft' | 'published' | 'archived'; created_at: string
+  /** Bản nháp mới thay cho khoá nào (công bố bản này thì khoá cũ tự lưu trữ) */
+  replaces_id?: string | null }
 export type Lesson = { id: string; course_id: string; position: number; title: string; kind: 'video' | 'reading' | 'link' | 'exam' | 'file' | 'library'; url: string | null; body: string | null
   exam_id: string | null; duration_min: number | null; path: string | null; library_item_id: string | null; topic_id?: string | null }
 // Chủ đề trong khoá học (course_topics, migration 127): khoá → chủ đề → bài học

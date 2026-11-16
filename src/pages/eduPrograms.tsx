@@ -985,7 +985,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     { key: 'topic', label: 'Chủ đề cũ', thClass: 'c-topic', off: true, text: r => r.topic, cell: r => r.topic ? <small className="sub">{r.topic}</small> : <span className="sub">—</span> },
     { key: 'grades', label: 'Khối', thClass: 'c-grade', text: r => unitGrades(r.u).join(', '), cell: r => cell(r, 'grades') },
     { key: 'periods', label: 'Số tiết', thClass: 'c-per', text: r => String(r.u.periods || ''), cell: r => cell(r, 'periods') },
-    { key: 'obj', label: 'Mục tiêu', thClass: 'c-outs', text: r => r.u.objectives ?? '', cell: r => cell(r, 'obj') },
+    { key: 'obj', label: 'Mục tiêu', thClass: 'c-outs', off: true, text: r => r.u.objectives ?? '', cell: r => cell(r, 'obj') },
     { key: 'outs', label: 'Yêu cầu cần đạt', thClass: 'c-outs', cell: r => cell(r, 'outs') },
     { key: 'mat', label: 'Học liệu', thClass: 'c-mat', off: true, text: r => kitOf.get(r.u.id) === 'published' || mats.get(r.u.id) ? 'Có học liệu' : 'Chưa có',
       cell: r => { const ns = all.filter(c => c.parent_id === r.u.id && c.unit_type === 'session').length

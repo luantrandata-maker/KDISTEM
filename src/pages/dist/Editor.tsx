@@ -1,6 +1,6 @@
 // Soạn / xem một bản phân phối trên một trang (không chia bước):
 //  1. Chương trình & môn — thẻ gọn, tick chương trình và từng môn.
-//  2. Xếp lịch — mỗi chương trình một dòng: bắt đầu, nhịp, kết quả; "Thứ tự bài" mở phần chỉnh riêng từng môn và kéo thả thứ tự.
+//  2. Xếp lịch — một bảng: dòng đầu mỗi chương trình, các môn ngay bên dưới; "x/y bài" mở khung chọn và sắp bài của môn.
 //  3. Bản phối — dải tóm tắt / kiểm tra, Bảng (cột trái lọc chương trình · môn, tick giữ / bỏ bài) hoặc Lịch.
 // Bản đã phát hành / ngừng dùng chỉ xem; muốn đổi thì "Tạo bản mới từ bản này".
 import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
@@ -48,6 +48,7 @@ export function useBreadcrumb() {
 
 import { ActionBar } from '../../components/ActionBar'
 import { InfoTip } from '../../components/InfoTip'
+import { Drawer } from '../../components/Drawer'
 export { MoreMenu } from '../../components/MoreMenu'
 
 function Stepper({ value, onChange, disabled, label }: { value: number; onChange: (v: number) => void; disabled?: boolean; label: string }) {
@@ -66,41 +67,6 @@ export type SubjCardData = {
   isOn?: (id: string) => boolean; onToggle?: (ids: string[], on: boolean) => void
   onMove: (from: number, to: number) => void; onReset: () => void
 }
-/** Các môn của một chương trình trong bản: mỗi môn một thẻ thu gọn được, kéo cả thẻ để đổi thứ tự môn,
- *  kéo từng bài để đổi thứ tự bài (chỉ áp dụng cho bản phân phối này). Bàn phím: Alt + ↑↓. */
-function SubjCards({ items, onMoveSubj }: { items: SubjCardData[]; onMoveSubj: (from: number, to: number) => void }) {
-  const [shut, setShut] = useState<Set<string>>(new Set())
-  const [drag, setDrag] = useState<number | null>(null)
-  const [over, setOver] = useState<number | null>(null)
-  const many = items.length > 1
-  const key = (k: number) => (e: KeyboardEvent<HTMLElement>) => {
-    if (!e.altKey || e.target !== e.currentTarget) return
-    const d = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0
-    if (d && k + d >= 0 && k + d < items.length) {
-      e.preventDefault(); const list = e.currentTarget.closest('.distsubjlist'); onMoveSubj(k, k + d)
-      requestAnimationFrame(() => (list?.children[k + d]?.querySelector('.distsubjgrip') as HTMLElement | null)?.focus())
-    }
-  }
-  return <div className="distsubjlist">{items.map((x, k) => {
-    const open = !shut.has(x.name)
-    const toggle = () => setShut(o => { const n = new Set(o); if (n.has(x.name)) n.delete(x.name); else n.add(x.name); return n })
-    return <section key={x.name} className={'distsubj' + (drag === k ? ' drag' : '') + (over === k && drag !== null && drag !== k ? ' over' : '')}
-      onDragOver={many && drag !== null ? e => { e.preventDefault(); setOver(k) } : undefined}
-      onDrop={many && drag !== null ? e => { e.preventDefault(); if (drag !== k) onMoveSubj(drag, k); setDrag(null); setOver(null) } : undefined}>
-      <header>
-        {many && <span className="distsubjgrip" tabIndex={0} role="button" draggable aria-label={`Kéo để đổi thứ tự môn ${x.name}, thứ ${k + 1}`} title="Kéo để đổi thứ tự môn (Alt + ↑↓)"
-          onKeyDown={key(k)} onDragStart={e => { setDrag(k); e.dataTransfer.effectAllowed = 'move' }} onDragEnd={() => { setDrag(null); setOver(null) }}>⠿</span>}
-        <button type="button" className="distsubjtoggle" aria-expanded={open} onClick={toggle}>
-          <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(90deg)' : undefined }}><path d="m9 6 6 6-6 6" /></svg>
-          <b>{x.name}</b> <small className="sub">{x.meta}</small></button>
-        {x.changed && <span className="gpill warn">Đã đổi thứ tự bài</span>}
-      </header>
-      {x.controls && <div className="distsubjctl">{x.controls}</div>}
-      {open && <LessonOrder {...x} />}
-    </section>
-  })}</div>
-}
-
 /** Danh sách bài của một môn trong bản: kéo thả hoặc Alt + ↑↓ để đổi thứ tự. */
 function LessonOrder({ lessons, changed, weekOf, onMove, onReset, isOn, onToggle }: SubjCardData) {
   const [drag, setDrag] = useState<number | null>(null)
@@ -195,7 +161,10 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   const [sel, setSel] = useState('')        // lọc bảng bài: '' = tất cả, hoặc 'chương trình|môn'
   const [q, setQ] = useState('')
   const [ptab, setPtab] = useState<'plan' | 'apply'>('plan')
-  const [openOrd, setOpenOrd] = useState<Set<string>>(new Set())   // chương trình đang mở "Thứ tự bài"
+  const [shut, setShut] = useState<Set<string>>(new Set())          // chương trình đang thu gọn các dòng môn
+  const [pick, setPick] = useState<{ pid: string; subj: string } | null>(null)   // môn đang mở "Chọn & sắp bài"
+  const [sdrag, setSdrag] = useState<{ pid: string; k: number } | null>(null)
+  const [sover, setSover] = useState<number | null>(null)
   const [view, setView] = useState<'table' | 'cal'>('table')
   const [editRows, setEditRows] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -504,6 +473,8 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   }
 
   // ===== 2. Xếp lịch =====
+  // Một bảng duy nhất: mỗi chương trình một dòng đầu nhóm, mỗi môn một dòng ngay bên dưới (chương trình một môn thì gộp vào dòng đầu).
+  // Danh sách bài của từng môn mở trong khung bên phải ("x/y bài ›") nên bảng luôn gọn dù nhiều chương trình, nhiều môn.
   function Schedule() {
     const wk = (v: number, min: number, f: (n: number) => void, label: string) =>
       <input type="number" className="distwkin" min={min} max={30} value={v} aria-label={label} onChange={e => { f(Math.max(min, Math.min(30, Number(e.target.value) || min))); touch() }} />
@@ -511,81 +482,130 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       <h3><i>2</i>Xếp lịch<span className="sp" />
         <small className="sub distframe2">Khung: HK1 {wk(plan.hk1_weeks, 1, n => setPlan({ ...plan, hk1_weeks: n }), 'Số tuần Học kỳ 1')} tuần · HK2 {wk(plan.hk2_weeks, 0, n => setPlan({ ...plan, hk2_weeks: n }), 'Số tuần Học kỳ 2')} tuần</small></h3>
       {!ordered.length ? <p className="sub">Tick chương trình ở phần 1 để xếp lịch.</p>
-        : <div className="wrap"><table className="libtable distsched">
-          <thead><tr><th>Chương trình · môn</th><th style={{ width: 230 }}>Bắt đầu</th><th style={{ width: 150 }}>Nhịp (tiết/tuần)</th><th>Kết quả</th><th style={{ width: 120 }} /></tr></thead>
-          <tbody>{ordered.map((it, k) => {
-            const p = progs.get(it.program_id)
-            const sp = spanOf(s.rows.filter(r => r.program_id === it.program_id))
-            const t = termRange(plan, p?.deploy_term ?? null)
-            const outTerm = sp && t && (sp.from < t.from || sp.to > t.to), outFrame = sp && sp.to > frame
-            const onSubs = subjectsOf(it).filter(x => x.on)
-            const open = openOrd.has(it.program_id)
-            const toggle = () => setOpenOrd(o => { const n = new Set(o); if (open) n.delete(it.program_id); else n.add(it.program_id); return n })
-            return <Fragment key={it.program_id}>
-              <tr>
-                <td><i className="distdot" style={{ background: colorOf(k) }} /><b>{progCode(p)}</b> · {onSubs.map(x => x.name).join(', ')}
-                  <small className="sub distschedsub">{p?.title}{p?.periods_per_week ? ` · chuẩn ${fmt(Number(p.periods_per_week))} tiết/tuần` : ''}</small></td>
-                <td><span className="diststart">
-                  <select value={it.start_mode} aria-label="Bắt đầu" onChange={e => setItem(it.program_id, { start_mode: e.target.value as Mode, start_week: e.target.value === 'week' ? it.start_week ?? sp?.from ?? 1 : it.start_week })}>
-                    <option value="hk1">Đầu HK1 (tuần 1)</option>
-                    {plan.hk2_weeks > 0 && <option value="hk2">Đầu HK2 (tuần {plan.hk1_weeks + 1})</option>}
-                    <option value="week">Tuần cụ thể…</option>
-                    {k > 0 && <option value="after">Sau chương trình…</option>}</select>
-                  {it.start_mode === 'week' && <input type="number" className="distwkin" min={1} max={60} value={it.start_week ?? 1} aria-label="Tuần bắt đầu"
-                    onChange={e => setItem(it.program_id, { start_week: Math.max(1, Math.min(60, Number(e.target.value) || 1)) })} />}
-                  {it.start_mode === 'after' && <select value={it.after_program ?? ''} aria-label="Sau chương trình" onChange={e => setItem(it.program_id, { after_program: e.target.value || null })}>
-                    <option value="">— chọn —</option>{ordered.filter(x => x.seq < it.seq).map(x => <option key={x.program_id} value={x.program_id}>{progCode(progs.get(x.program_id))}</option>)}</select>}
-                </span></td>
-                <td>{it.split ? <small className="sub">Riêng từng môn</small> : <Stepper label="nhịp" value={it.ppw} onChange={v => setItem(it.program_id, { ppw: v })} />}</td>
-                <td><span className={'gpill ' + (!sp ? '' : outFrame ? 'bad' : outTerm ? 'warn' : 'good')}>
-                  {!sp ? 'Chưa có bài' : <>{outFrame || outTerm ? '⚠ ' : ''}Tuần {sp.from}–{sp.to} · {sp.periods} tiết{outFrame ? ` · ngoài khung` : outTerm ? ` · ngoài ${t!.label}` : ''}</>}</span></td>
-                <td><button type="button" className="linkbtn" aria-expanded={open} onClick={toggle}>Chọn & sắp bài {open ? '▾' : '▸'}</button></td>
-              </tr>
-              {open && <tr className="distschedx"><td colSpan={5}>{Order(it)}</td></tr>}
-            </Fragment>
-          })}</tbody></table></div>}
+        : <>
+          <div className="infotiprow distschedtip"><InfoTip left label="Cách xếp lịch">Mỗi chương trình một dòng đậm, các môn nằm ngay bên dưới. Mặc định các môn nối tiếp nhau theo nhịp chung của chương trình (chữ xám). Sửa bắt đầu hoặc nhịp ở dòng môn thì chương trình chuyển sang xếp riêng từng môn; bấm “Dùng chung” để quay lại. Kéo ⠿ để đổi thứ tự môn (Alt + ↑↓). Bấm “x/y bài” để chọn bài và đổi thứ tự bài.</InfoTip></div>
+          <div className="wrap"><table className="libtable distsched distsched2">
+            <thead><tr><th>Chương trình · môn</th><th style={{ width: 320 }}>Bắt đầu</th><th style={{ width: 175 }}>Nhịp (tiết/tuần)</th><th style={{ width: 210 }}>Kết quả</th><th style={{ width: 110 }}>Bài</th></tr></thead>
+            {ordered.map((it, k) => Group(it, k))}
+          </table></div>
+        </>}
+      {pick && LessonDrawer()}
     </section>
   }
 
-  /** Thứ tự dạy và chỉnh riêng từng môn của một chương trình (mở từ "Thứ tự bài") */
-  function Order(it: Item) {
-    const info = s.progs.get(it.program_id)
+  /** Bài của một môn trong chương trình (đã theo thứ tự của bản) và các thao tác chọn / sắp bài */
+  function subjData(it: Item, x: Subj) {
+    const base = (lessonsBy.get(it.program_id) ?? []).filter(l => l.subj.trim().toLowerCase() === x.name.trim().toLowerCase())
+    const list = orderLessons(base, x.order)
+    const lessons = list.map(l => ({ id: l.id, title: l.title, periods: rowOf.get(l.id)?.periods ?? Math.max(1, l.periods || 1) }))
+    const setOrder = (ids: string[] | null) => setSubjects(it, xs => xs.map(y => y.name === x.name ? { ...y, order: ids } : y))
+    const data: SubjCardData = {
+      name: x.name, meta: '', controls: null, changed: reordered(base, x.order), lessons,
+      weekOf: (id: string) => { const r = rowOf.get(id); return r?.skipped ? 'Không dạy' : r?.weeks?.length ? 'Tuần ' + wkLabel(r.weeks) : '—' },
+      isOn: (id: string) => !rowOf.get(id)?.skipped, onToggle: (ids: string[], on: boolean) => setRows(ids, { skipped: !on }),
+      onMove: (a: number, b: number) => { const ids = list.map(l => l.id); const [m] = ids.splice(a, 1); ids.splice(b, 0, m); setOrder(ids) },
+      onReset: () => setOrder(null),
+    }
+    return { data, on: lessons.filter(l => !rowOf.get(l.id)?.skipped).length, n: lessons.length }
+  }
+  function lessonsBtn(it: Item, x: Subj) {
+    const d = subjData(it, x)
+    return <button type="button" className="linkbtn distlessbtn" onClick={() => setPick({ pid: it.program_id, subj: x.name })}
+      title="Chọn bài đưa vào phân phối và đổi thứ tự bài">{d.n ? `${d.on}/${d.n} bài` : 'Chưa có bài'} ›{d.data.changed && <i className="distchg" title="Đã đổi thứ tự bài" />}</button>
+  }
+
+  function Group(it: Item, k: number) {
+    const pid = it.program_id, p = progs.get(pid)
+    const sp = spanOf(s.rows.filter(r => r.program_id === pid))
+    const t = termRange(plan, p?.deploy_term ?? null)
+    const outTerm = sp && t && (sp.from < t.from || sp.to > t.to), outFrame = sp && sp.to > frame
     const subs = subjectsOf(it), onSubs = subs.filter(x => x.on)
-    const subInfo = (n: string) => info?.subjects.find(x => x.name === n)
+    const info = s.progs.get(pid)
+    const many = onSubs.length > 1, closed = shut.has(pid)
+    const bar = { boxShadow: `inset 3px 0 0 ${colorOf(k)}` }
+    const toggle = () => setShut(o => { const n = new Set(o); if (closed) n.delete(pid); else n.add(pid); return n })
     const move = (a: number, b: number) => setSubjects(it, xs => {
       const onNames = xs.filter(x => x.on).map(x => x.name); const [m] = onNames.splice(a, 1); onNames.splice(b, 0, m)
       return [...onNames.map(n => xs.find(x => x.name === n)!), ...xs.filter(x => !x.on)]
     })
-    return <>
-      <label className="distsplit"><input type="checkbox" checked={it.split} onChange={e => {
-        setItem(it.program_id, { split: e.target.checked, subjects: subs.map(x => ({ ...x, ppw: e.target.checked ? it.ppw : x.ppw })) })
-      }} /><span><b>Chỉnh riêng từng môn</b> <small className="sub">mỗi môn bắt đầu và nhịp riêng</small></span></label>
-      <div className="infotiprow"><InfoTip left label="Cách chọn và sắp xếp bài">Tick chọn bài sẽ dạy. Kéo môn hoặc bài để đổi thứ tự dạy (chỉ trong bản này). Bàn phím: Alt + ↑↓.</InfoTip></div>
-      <SubjCards onMoveSubj={move} items={onSubs.map((x, j) => {
-        const base = (lessonsBy.get(it.program_id) ?? []).filter(l => l.subj.trim().toLowerCase() === x.name.trim().toLowerCase())
-        const list = orderLessons(base, x.order); const si = subInfo(x.name)
-        const lessons = list.map(l => ({ id: l.id, title: l.title, periods: rowOf.get(l.id)?.periods ?? Math.max(1, l.periods || 1) }))
-        const total = lessons.reduce((a, l) => a + l.periods, 0)
-        const set = (patch: Partial<Subj>) => setSubjects(it, xs => xs.map(y => y.name === x.name ? { ...y, ...patch } : y))
-        const setOrder = (ids: string[] | null) => set({ order: ids })
-        const rate = it.split ? x.ppw : it.ppw
-        const span = si?.to ? `Tuần ${si.from}–${si.to} · ${si.periods} tiết` : 'Chưa xếp'
-        return {
-          name: x.name, changed: reordered(base, x.order),
-          meta: `${lessons.filter(l => !rowOf.get(l.id)?.skipped).length}/${lessons.length} bài · ${si?.periods ?? total} tiết${si?.to ? ` · Tuần ${si.from}–${si.to}` : ''} · ${fmt(rate)} tiết/tuần`,
-          controls: it.split ? <>
-            <select aria-label={'Bắt đầu môn ' + x.name} value={j === 0 && x.mode === 'after' ? 'program' : x.mode} onChange={e => set({ mode: e.target.value as SubjMode, week: e.target.value === 'week' ? x.week ?? si?.from ?? 1 : x.week })}>
+    /** Sửa một môn: nếu chương trình đang dùng nhịp chung thì chuyển sang xếp riêng, giữ nguyên cách xếp hiện tại cho các môn khác */
+    const setSubj = (x: Subj, patch: Partial<Subj>) => it.split
+      ? setSubjects(it, xs => xs.map(y => y.name === x.name ? { ...y, ...patch } : y))
+      : setItem(pid, { split: true, subjects: subs.map(y => { const j = onSubs.indexOf(y), b0 = { ...y, ppw: it.ppw, mode: (j <= 0 ? 'program' : 'after') as SubjMode, week: null }
+        return y.name === x.name ? { ...b0, ...patch } : b0 }) })
+    const key = (j: number) => (e: KeyboardEvent<HTMLElement>) => {
+      if (!e.altKey) return
+      const d = e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0
+      if (d && j + d >= 0 && j + d < onSubs.length) {
+        e.preventDefault(); const body = e.currentTarget.closest('tbody'); move(j, j + d)
+        requestAnimationFrame(() => (body?.querySelectorAll('.distsubjgrip')[j + d] as HTMLElement | undefined)?.focus())
+      }
+    }
+    return <tbody key={pid} className="distgrp">
+      <tr className="distgrph">
+        <td style={bar}><div className="distgrpname">
+          {many ? <button type="button" className="distcaret" aria-expanded={!closed} aria-label={(closed ? 'Mở' : 'Thu gọn') + ' các môn của ' + progCode(p)} onClick={toggle}>
+            <svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: closed ? undefined : 'rotate(90deg)' }}><path d="m9 6 6 6-6 6" /></svg></button>
+            : <span className="distcaret" />}
+          <i className="distdot" style={{ background: colorOf(k) }} />
+          <span className="distgrpt"><b>{progCode(p)}</b> · {p?.title}
+            <small className="sub distschedsub">{many ? `${onSubs.length} môn` : onSubs[0]?.name ?? 'Chưa chọn môn'}{p?.periods_per_week ? ` · chuẩn ${fmt(Number(p.periods_per_week))} tiết/tuần` : ''}</small></span></div></td>
+        <td><span className="diststart">
+          <select value={it.start_mode} aria-label={'Bắt đầu ' + progCode(p)} onChange={e => setItem(pid, { start_mode: e.target.value as Mode, start_week: e.target.value === 'week' ? it.start_week ?? sp?.from ?? 1 : it.start_week })}>
+            <option value="hk1">Đầu HK1 (tuần 1)</option>
+            {plan.hk2_weeks > 0 && <option value="hk2">Đầu HK2 (tuần {plan.hk1_weeks + 1})</option>}
+            <option value="week">Tuần cụ thể…</option>
+            {k > 0 && <option value="after">Sau chương trình…</option>}</select>
+          {it.start_mode === 'week' && <input type="number" className="distwkin" min={1} max={60} value={it.start_week ?? 1} aria-label="Tuần bắt đầu"
+            onChange={e => setItem(pid, { start_week: Math.max(1, Math.min(60, Number(e.target.value) || 1)) })} />}
+          {it.start_mode === 'after' && <select value={it.after_program ?? ''} aria-label="Sau chương trình" onChange={e => setItem(pid, { after_program: e.target.value || null })}>
+            <option value="">— chọn —</option>{ordered.filter(x => x.seq < it.seq).map(x => <option key={x.program_id} value={x.program_id}>{progCode(progs.get(x.program_id))}</option>)}</select>}
+        </span></td>
+        <td>{it.split && many
+          ? <span className="distsplitnote"><small className="sub">Riêng từng môn</small><button type="button" className="linkbtn" title="Dùng một nhịp chung, các môn nối tiếp nhau" onClick={() => setItem(pid, { split: false })}>Dùng chung</button></span>
+          : <Stepper label={'nhịp ' + progCode(p)} value={it.ppw} onChange={v => setItem(pid, { ppw: v, split: false })} />}</td>
+        <td><span className={'gpill ' + (!sp ? '' : outFrame ? 'bad' : outTerm ? 'warn' : 'good')}>
+          {!sp ? 'Chưa có bài' : <>{outFrame || outTerm ? '⚠ ' : ''}Tuần {sp.from}–{sp.to} · {sp.periods} tiết{outFrame ? ` · ngoài khung` : outTerm ? ` · ngoài ${t!.label}` : ''}</>}</span></td>
+        <td>{!many && onSubs[0] ? lessonsBtn(it, onSubs[0]) : null}</td>
+      </tr>
+      {many && !closed && onSubs.map((x, j) => {
+        const si = info?.subjects.find(y => y.name === x.name)
+        const mode: SubjMode = !it.split ? (j === 0 ? 'program' : 'after') : j === 0 && x.mode === 'after' ? 'program' : x.mode
+        const inh = it.split ? '' : ' inh', tip = it.split ? undefined : 'Đang theo nhịp chung của chương trình. Sửa ở đây để xếp riêng môn này.'
+        const dragging = sdrag?.pid === pid
+        return <tr key={x.name} className={'distsubrow' + (dragging && sdrag!.k === j ? ' drag' : '') + (dragging && sover === j && sdrag!.k !== j ? ' over' : '')}
+          onDragOver={dragging ? e => { e.preventDefault(); setSover(j) } : undefined}
+          onDrop={dragging ? e => { e.preventDefault(); if (sdrag!.k !== j) move(sdrag!.k, j); setSdrag(null); setSover(null) } : undefined}>
+          <td style={bar}><div className="distsubname">
+            <span className="distsubjgrip" tabIndex={0} role="button" draggable aria-label={`Kéo để đổi thứ tự môn ${x.name}, thứ ${j + 1}`} title="Kéo để đổi thứ tự môn (Alt + ↑↓)"
+              onKeyDown={key(j)} onDragStart={e => { setSdrag({ pid, k: j }); e.dataTransfer.effectAllowed = 'move' }} onDragEnd={() => { setSdrag(null); setSover(null) }}>⠿</span>
+            <span>{x.name}</span></div></td>
+          <td><span className="diststart">
+            <select className={inh.trim()} title={tip} aria-label={'Bắt đầu môn ' + x.name} value={mode}
+              onChange={e => setSubj(x, { mode: e.target.value as SubjMode, week: e.target.value === 'week' ? x.week ?? si?.from ?? 1 : x.week })}>
               <option value="program">Theo chương trình</option>{j > 0 && <option value="after">Nối tiếp môn trước</option>}<option value="week">Tuần cụ thể…</option></select>
-            {x.mode === 'week' && <input className="wk" type="number" aria-label={'Tuần bắt đầu môn ' + x.name} min={1} max={60} value={x.week ?? 1} onChange={e => set({ week: Math.max(1, Math.min(60, Number(e.target.value) || 1)) })} />}
-            <label className="inl">Nhịp <input type="number" min={0.5} max={40} step={0.5} value={x.ppw} onChange={e => set({ ppw: Math.max(0.5, Math.min(40, Number(e.target.value) || 1)) })} /></label>
-            <span className="distsubjspan">{span}</span></> : null,
-          lessons, weekOf: (id: string) => { const r = rowOf.get(id); return r?.skipped ? 'Không dạy' : r?.weeks?.length ? 'Tuần ' + wkLabel(r.weeks) : '—' },
-          isOn: (id: string) => !rowOf.get(id)?.skipped, onToggle: (ids: string[], on: boolean) => setRows(ids, { skipped: !on }),
-          onMove: (a: number, b: number) => { const ids = list.map(l => l.id); const [m] = ids.splice(a, 1); ids.splice(b, 0, m); setOrder(ids) },
-          onReset: () => setOrder(null),
-        }
-      })} />
-    </>
+            {it.split && x.mode === 'week' && <input className="distwkin" type="number" aria-label={'Tuần bắt đầu môn ' + x.name} min={1} max={60} value={x.week ?? 1}
+              onChange={e => setSubj(x, { week: Math.max(1, Math.min(60, Number(e.target.value) || 1)) })} />}
+          </span></td>
+          <td><input type="number" className={'distppw' + inh} title={tip} aria-label={'Nhịp môn ' + x.name} min={0.5} max={40} step={0.5} value={it.split ? x.ppw : it.ppw}
+            onChange={e => setSubj(x, { ppw: Math.max(0.5, Math.min(40, Number(e.target.value) || 1)) })} /></td>
+          <td><small className="distsubspan">{si?.to ? `Tuần ${si.from}–${si.to} · ${si.periods} tiết` : 'Chưa xếp'}</small></td>
+          <td>{lessonsBtn(it, x)}</td>
+        </tr>
+      })}
+    </tbody>
+  }
+
+  /** Khung bên phải: chọn bài đưa vào phân phối và kéo thả thứ tự bài của một môn */
+  function LessonDrawer() {
+    const it = items.find(i => i.program_id === pick!.pid)
+    const x = it && subjectsOf(it).find(y => y.name === pick!.subj)
+    if (!it || !x) return null
+    const d = subjData(it, x)
+    return <Drawer title={<>{progCode(progs.get(it.program_id))} · {x.name}</>} onClose={() => setPick(null)}>
+      <p className="sub" style={{ marginTop: 0 }}>Tick bài sẽ dạy. Kéo bài để đổi thứ tự dạy (chỉ trong bản này). Bàn phím: Alt + ↑↓.</p>
+      <LessonOrder {...d.data} />
+    </Drawer>
   }
 
   function Calendar() {

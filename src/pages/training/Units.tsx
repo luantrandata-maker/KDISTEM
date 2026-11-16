@@ -16,6 +16,7 @@ const MODE: Record<Mode, string> = { online: 'Trực tuyến', offline: 'Trực 
 const KIND = { subject: 'Môn', content: 'Nội dung' }
 type TF = { hours: number; mode: 'online' | 'offline' | null; has_test: boolean; detail: Detail }
 const TLEVELS = { subject: { label: 'Môn', child: 'content', ph: 'Tên môn, ví dụ: Phương pháp dạy học STEM' }, content: { label: 'Nội dung', ph: 'Tên nội dung đào tạo' } }
+const goalOf = (u: { note?: string | null; detail?: Detail | null }) => u.detail?.body?.goal ?? u.note ?? ''
 const reqsOf = (d: Detail | null | undefined) => (d?.body?.reqs ?? []).map(x => x.trim()).filter(Boolean)
 const num = (n: number) => String(Math.round(n * 10) / 10).replace('.', ',')
 
@@ -150,6 +151,8 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
   const upd = async (u: TUnit, patch: Partial<TUnit>) => { if (fail((await supabase.from('training_program_units').update(patch).eq('id', u.id)).error)) await onReload() }
   const setReqs = (u: TUnit, text: string) => { const reqs = text.split(/\n|;/).map(x => x.trim()).filter(Boolean), d = u.detail ?? {}
     return upd(u, { detail: { ...d, body: { ...d.body, reqs } } as Detail }) }
+  const setGoal = (u: TUnit, text: string) => { const d = u.detail ?? {}, goal = text.trim()
+    return upd(u, { detail: { ...d, body: { ...d.body, goal } } as Detail }) }
   async function addSubject() {
     const t = newSubj.trim(); if (!t) return
     if (subjs.some(s => lc(s.title) === lc(t))) return onMessage(`Môn "${t}" đã có trong chương trình.`, true)
@@ -199,13 +202,15 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
       ? supabase.from('training_program_units').update(c.id === r.u.id && !same ? { seq: i + 1, parent_id: over.subj.id } : { seq: i + 1 }).eq('id', c.id) : Promise.resolve({ error: null })))
     fail(res.find(x => x.error)?.error ?? null); await onReload()
   }
-  const cell = (u: TUnit, key: 'title' | 'hours' | 'reqs') => {
-    const val = key === 'title' ? u.title : key === 'hours' ? num(Number(u.hours)) : reqsOf(u.detail).join('\n')
-    if (!editable) return key === 'reqs' ? (val ? <span className="yc" style={{ whiteSpace: 'pre-line' }}>{val}</span> : '—') : key === 'title' ? <button type="button" className="namelink" onClick={() => onOpen(u.id)}>{u.title}</button> : val
+  const cell = (u: TUnit, key: 'title' | 'hours' | 'goal' | 'reqs') => {
+    const val = key === 'title' ? u.title : key === 'hours' ? num(Number(u.hours)) : key === 'goal' ? goalOf(u) : reqsOf(u.detail).join('\n')
+    if (!editable) return key === 'reqs' || key === 'goal' ? (val ? <span className="yc" style={{ whiteSpace: 'pre-line' }}>{val}</span> : '—') : key === 'title' ? <button type="button" className="namelink" onClick={() => onOpen(u.id)}>{u.title}</button> : val
     const save = (v: string) => { if (v === val) return
       if (key === 'title') return v.trim() ? upd(u, { title: v.trim() }) : undefined
       if (key === 'hours') { const h = Number(v.replace(',', '.')); return Number.isFinite(h) && h >= 0 ? upd(u, { hours: h }) : undefined }
+      if (key === 'goal') return setGoal(u, v)
       return setReqs(u, v) }
+    if (key === 'goal') return <textarea key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} rows={Math.min(4, Math.max(1, val.split('\n').length))} placeholder="Sau nội dung này, nhà giáo…" aria-label={`Mục tiêu của ${u.title}`} onBlur={e => save(e.target.value)} />
     return key === 'reqs'
       ? <textarea key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} rows={Math.min(4, Math.max(1, reqsOf(u.detail).length))} placeholder="Mỗi dòng một yêu cầu" aria-label={`Yêu cầu cần đạt của ${u.title}`} onBlur={e => save(e.target.value)} />
       : <input key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} inputMode={key === 'hours' ? 'decimal' : undefined} aria-label={`${key === 'title' ? 'Tên' : 'Số giờ'} ${u.title}`}
@@ -217,6 +222,7 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
     { key: 'no', label: '#', thClass: 'c-no', fixed: true, cell: r => <span className="sub">{noOf(r)}</span> },
     ...(!sel ? [{ key: 'subj', label: 'Môn', thClass: 'c-subj', text: (r: CRow) => r.subj.title, cell: (r: CRow) => <button type="button" className="slsubjlink" onClick={() => setCur(r.subj.id)}>{r.subj.title}</button> }] : []),
     { key: 'title', label: 'Tên nội dung', thClass: 'c-title', fixed: true, text: r => r.u.title, cell: r => cell(r.u, 'title') },
+    { key: 'goal', label: 'Mục tiêu', thClass: 'c-outs', text: r => goalOf(r.u), cell: r => cell(r.u, 'goal') },
     { key: 'reqs', label: 'Yêu cầu cần đạt', thClass: 'c-outs', cell: r => cell(r.u, 'reqs') },
     { key: 'hours', label: 'Số giờ', thClass: 'c-per', text: r => num(Number(r.u.hours)), cell: r => cell(r.u, 'hours') },
     { key: 'test', label: 'Bài test', thClass: 'c-test', text: r => r.u.has_test ? 'Có' : '', cell: r => editable
@@ -242,27 +248,30 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
       {editable && s && <button type="button" className="slnavx" title={`Xoá môn ${s.title}`} aria-label={`Xoá môn ${s.title}`} onClick={() => removeSubject(s)}>×</button>}</div> }
   const enter = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addContent() } }
   // ---- Lưới kiểu Excel (Enter/↑↓/←→/Esc, dán vùng ô từ Excel) ----
-  const GC = ['title', 'reqs', 'hours'] as const
+  const GC = ['title', 'goal', 'reqs', 'hours'] as const
   const onGridKey = gridKey(GC)
   const onGridPaste = async (e: React.ClipboardEvent) => {
-    const lines = gridPaste(e, GC, ['reqs']); if (!lines) return
+    const lines = gridPaste(e, GC, ['goal', 'reqs']); if (!lines) return
     let added = 0
     for (const { id, vals, fromFirst } of lines) {
       const u = id ? units.find(x => x.id === id) : undefined
       const h = Number((vals.hours ?? '').replace(',', '.'))
       if (!u) {
         if (!fromFirst || !vals.title || !target) continue
-        const reqs = (vals.reqs ?? '').split(/\n|;/).map(x => x.trim()).filter(Boolean)
+        const reqs = (vals.reqs ?? '').split(/\n|;/).map(x => x.trim()).filter(Boolean), goal = (vals.goal ?? '').trim()
         const { error } = await supabase.from('training_program_units').insert({ program_id: programId, parent_id: target.id, kind: 'content', seq: Math.max(0, ...kids(target.id).map(c => c.seq)) + 1 + added,
-          title: vals.title, hours: Number.isFinite(h) && h > 0 ? h : 1, mode: null, has_test: false, detail: reqs.length ? { body: { reqs } } : {} })
+          title: vals.title, hours: Number.isFinite(h) && h > 0 ? h : 1, mode: null, has_test: false, detail: reqs.length || goal ? { body: { ...(goal ? { goal } : {}), ...(reqs.length ? { reqs } : {}) } } : {} })
         if (!fail(error)) break
         added++; continue
       }
       const patch: Partial<TUnit> = {}
       if (vals.title) patch.title = vals.title
       if (vals.hours && Number.isFinite(h) && h >= 0) patch.hours = h
+      if ('goal' in vals || 'reqs' in vals) { const d = u.detail ?? {}, body = { ...d.body }
+        if ('goal' in vals) body.goal = (vals.goal ?? '').trim()
+        if ('reqs' in vals) body.reqs = (vals.reqs ?? '').split(/\n|;/).map(x => x.trim()).filter(Boolean)
+        patch.detail = { ...d, body } as Detail }
       if (Object.keys(patch).length) await upd(u, patch)
-      if ('reqs' in vals) await setReqs(u, vals.reqs)
     }
     if (added) await onReload()
     onMessage(`Đã dán ${lines.length} dòng${added ? `, thêm mới ${added} nội dung` : ''}.`)
@@ -315,7 +324,7 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
               : null
             return <tfoot><tr className="slnew">{keys.map(k => <td key={k}>{cellOf(k)}</td>)}{!keys.includes('act') && <td><button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addContent}>+ Thêm</button></td>}</tr></tfoot>
           } : undefined} />
-        {editable && <p className="sub slhint">Gõ thẳng vào ô như Excel: Enter hoặc ↑↓ để sang dòng, ←→ ở đầu/cuối ô để sang cột, Esc để huỷ sửa. Chép một vùng ô trong Excel (tên nội dung, yêu cầu cần đạt, số giờ) rồi dán vào ô bất kỳ để điền nhiều dòng, dòng thừa thành nội dung mới.</p>}
+        {editable && <p className="sub slhint">Gõ thẳng vào ô như Excel: Enter hoặc ↑↓ để sang dòng, ←→ ở đầu/cuối ô để sang cột, Esc để huỷ sửa. Chép một vùng ô trong Excel (tên nội dung, mục tiêu, yêu cầu cần đạt, số giờ) rồi dán vào ô bất kỳ để điền nhiều dòng, dòng thừa thành nội dung mới.</p>}
       </div>
     </div>
   </>

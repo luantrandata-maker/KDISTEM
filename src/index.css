@@ -3382,3 +3382,7 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 /* Cây nhóm: nút mở/đóng không hiện vòng tròn viền khi bấm chuột, chỉ khi dùng phím Tab */
 .main .gtcaret{border-radius:4px}
 .main .gtcaret:focus:not(:focus-visible){outline:none;box-shadow:none}
+
+/* Khoảng thiếu hụt: ô có nhiều dòng năng lực / gợi ý hiện đủ, không cắt 2 dòng */
+.ttable .tdc:has(.gaprow){display:block;-webkit-line-clamp:unset;line-clamp:none;max-height:none;overflow:visible}
+.ttable .tdc .gaprow>button.namelink,.main .gaprow>.namelink{white-space:normal!important;text-align:left;display:inline;overflow:visible}

@@ -906,10 +906,10 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
   }
   const kitChip = (u: Unit) => { const k = kitOf.get(u.id), n = mats.get(u.id) ?? 0
     return <>{n > 0 && <span className="gpill good">{n} học liệu</span>} {k === 'published' ? <span className="gpill good">Bộ học liệu</span> : k ? <span className="gpill warn">Bộ học liệu đang soạn</span> : !n && <span className="gpill warn">Chưa có</span>}</> }
-  const cell = (r: LRow, key: 'title' | 'grades' | 'periods' | 'outs') => {
+  const cell = (r: LRow, key: 'title' | 'grades' | 'periods' | 'obj' | 'outs') => {
     const u = r.u
-    const val = key === 'title' ? u.title : key === 'grades' ? unitGrades(u).join(', ') : key === 'periods' ? String(u.periods || '') : r.outs.map(o => o.content).join('\n')
-    if (!editable) return key === 'outs' ? <span className="yc">{val || '—'}</span> : val || '—'
+    const val = key === 'title' ? u.title : key === 'grades' ? unitGrades(u).join(', ') : key === 'periods' ? String(u.periods || '') : key === 'obj' ? u.objectives ?? '' : r.outs.map(o => o.content).join('\n')
+    if (!editable) return key === 'outs' || key === 'obj' ? <span className="yc">{val || '—'}</span> : val || '—'
     // Khối: chương trình một khối thì tự điền, nhiều khối thì tick chọn
     if (key === 'grades' && pg.length === 1) return <span className="sub">{pg[0]}</span>
     if (key === 'grades' && pg.length > 1) return <GradeTicks options={pg} value={unitGrades(u)} label={`Khối bài ${u.title}`} onChange={g => update(u, { grades: g })} />
@@ -918,18 +918,20 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
       if (key === 'title') return v.trim() ? update(u, { title: v.trim() }) : undefined
       if (key === 'grades') return update(u, { grades: gradeList(v).filter(x => x >= 1 && x <= 12) })
       if (key === 'periods') return update(u, { periods: Math.max(0, Math.round(Number(v.replace(',', '.')) || 0)) })
+      if (key === 'obj') return update(u, { objectives: v.trim() || null })
       return setOuts_(u, v)
     }
+    if (key === 'obj') return <textarea key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} rows={Math.min(4, Math.max(1, val.split('\n').length))} placeholder="Sau bài này, học sinh…" aria-label={`Mục tiêu của ${u.title}`} onBlur={e => save(e.target.value)} />
     return key === 'outs'
       ? <textarea key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} rows={Math.min(4, Math.max(1, r.outs.length))} placeholder="Mỗi dòng một yêu cầu" aria-label={`Yêu cầu cần đạt của ${u.title}`} onBlur={e => save(e.target.value)} />
       : <input key={u.id + val} className="slcell" data-gc={key} data-gr={u.id} defaultValue={val} aria-label={`${key === 'title' ? 'Tên' : key === 'grades' ? 'Khối' : 'Số tiết'} bài ${u.title}`}
           inputMode={key === 'title' ? undefined : 'numeric'} onBlur={e => save(e.target.value)} />
   }
   // ---- Lưới kiểu Excel (Enter/↑↓/←→/Esc, dán vùng ô từ Excel) ----
-  const GC = ['title', 'grades', 'periods', 'outs'] as const
+  const GC = ['title', 'grades', 'periods', 'obj', 'outs'] as const
   const onGridKey = gridKey(GC)
   const onGridPaste = async (e: React.ClipboardEvent) => {
-    const lines = gridPaste(e, GC, ['outs']); if (!lines) return
+    const lines = gridPaste(e, GC, ['obj', 'outs']); if (!lines) return
     const extra: PasteRow[] = []
     for (const { id, vals, fromFirst } of lines) {
       const u = id ? byId.get(id) : undefined
@@ -938,6 +940,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
       if (vals.title) patch.title = stripNo(vals.title)
       if (vals.grades && pg.length !== 1) { const g = gradeList(vals.grades).filter(x => x >= 1 && x <= 12); if (g.length) patch.grades = g }
       if (vals.periods) patch.periods = Math.max(0, Math.round(Number(vals.periods.replace(',', '.')) || 0))
+      if ('obj' in vals) patch.objectives = vals.obj?.trim() || null
       if ('outs' in vals) await setOuts_(u, vals.outs)
       if (Object.keys(patch).length) await update(u, patch)
     }
@@ -981,6 +984,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     { key: 'topic', label: 'Chủ đề cũ', thClass: 'c-topic', off: true, text: r => r.topic, cell: r => r.topic ? <small className="sub">{r.topic}</small> : <span className="sub">—</span> },
     { key: 'grades', label: 'Khối', thClass: 'c-grade', text: r => unitGrades(r.u).join(', '), cell: r => cell(r, 'grades') },
     { key: 'periods', label: 'Số tiết', thClass: 'c-per', text: r => String(r.u.periods || ''), cell: r => cell(r, 'periods') },
+    { key: 'obj', label: 'Mục tiêu', thClass: 'c-outs', text: r => r.u.objectives ?? '', cell: r => cell(r, 'obj') },
     { key: 'outs', label: 'Yêu cầu cần đạt', thClass: 'c-outs', cell: r => cell(r, 'outs') },
     { key: 'mat', label: 'Học liệu', thClass: 'c-mat', off: true, text: r => kitOf.get(r.u.id) === 'published' || mats.get(r.u.id) ? 'Có học liệu' : 'Chưa có',
       cell: r => { const ns = all.filter(c => c.parent_id === r.u.id && c.unit_type === 'session').length

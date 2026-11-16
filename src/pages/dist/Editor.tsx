@@ -648,27 +648,27 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       es.sort((a, b) => (a.w ?? 1e9) - (b.w ?? 1e9) || ord.get(a.x)! - ord.get(b.x)!)
       const weeks: { w: number | null; es: E[] }[] = []
       for (const e of es) { const g = weeks[weeks.length - 1]; if (g && g.w === e.w) g.es.push(e); else weeks.push({ w: e.w, es: [e] }) }
-      const showSubj = !sel || !!selPid, skipped = shown.filter(x => x.r.skipped).length
+      const showSubj = !sel || !!selPid, showT = !showSubj, cols = 3 + (showSubj ? 1 : 0) + (showT ? 1 : 0), skipped = shown.filter(x => x.r.skipped).length
       if (!weeks.length) return <p className="sub">{inSel.length ? 'Không có bài nào khớp ô tìm.' : 'Chưa có bài.'}</p>
       let hk = 0
       return <div className="distppwrap">
         <div className="distpptools"><input placeholder="Tìm bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
           <span className="sub">{es.length && `${new Set(es.map(e => e.x)).size} bài · ${es.reduce((t, e) => t + e.n, 0)} tiết`}{skipped > 0 && ` · ${skipped} bài không dạy (xem ở dạng Bảng)`}</span></div>
         <table className="distppct">
-          <thead><tr><th className="c-w">Tuần</th><th className="c-t" title="Tiết thứ mấy của môn, đếm từ đầu năm">Tiết thứ</th><th>Tên bài</th>{showSubj && <th className="c-s">Môn</th>}<th className="c-n">Thời lượng</th></tr></thead>
+          <thead><tr><th className="c-w">Tuần</th><th>Tên bài</th>{showSubj && <th className="c-s">Môn</th>}<th className="c-n">Thời lượng</th>{showT && <th className="c-t" title="Tiết thứ mấy của môn, đếm từ đầu năm">Tiết PPCT</th>}</tr></thead>
           <tbody>{weeks.map(g => {
             const load = g.es.reduce((t, e) => t + e.n, 0)
             const term = g.w === null ? 0 : g.w <= plan.hk1_weeks ? 1 : 2
-            const band = term !== hk ? (hk = term, <tr className="distpphk"><td colSpan={showSubj ? 5 : 4}>{term === 1 ? 'Học kỳ 1' : term === 2 ? 'Học kỳ 2' : 'Chưa xếp tuần'}</td></tr>) : null
+            const band = term !== hk ? (hk = term, <tr className="distpphk"><td colSpan={cols}>{term === 1 ? 'Học kỳ 1' : term === 2 ? 'Học kỳ 2' : 'Chưa xếp tuần'}</td></tr>) : null
             return <Fragment key={g.w ?? 'none'}>{band}
               {g.es.map((e, i) => <tr key={e.x.r.unit_id + '|' + e.part} className={i === 0 ? 'first' : undefined}>
                 {i === 0 && <td className="c-w" rowSpan={g.es.length}><b>{g.w ?? '—'}</b>{g.w !== null && g.es.length > 1 && <small className={load > LOAD_MAX ? 'over' : undefined}>{load} tiết</small>}</td>}
-                <td className="c-t sub">{e.n > 1 ? `${e.from}–${e.from + e.n - 1}` : e.from}</td>
                 <td>{title.get(e.x.r.unit_id)}{e.part > 0 && <small className="sub"> (tiếp)</small>}{e.x.r.note && <small className="sub distppnote">{e.x.r.note}</small>}</td>
                 {showSubj && <td className="c-s"><span className="distprogcell"><i className="distdot" style={{ background: colorOf(e.x.k) }} />{selPid ? e.x.subj : `${e.x.code} · ${e.x.subj}`}</span></td>}
-                <td className="c-n">{e.n} tiết</td></tr>)}</Fragment>
+                <td className="c-n">{e.n} tiết</td>
+                {showT && <td className="c-t sub">{e.n > 1 ? `${e.from}–${e.from + e.n - 1}` : e.from}</td>}</tr>)}</Fragment>
           })}</tbody></table>
-        <small className="sub">“Tiết thứ” đếm riêng cho từng môn từ đầu năm; “Thời lượng” là số tiết của bài trong tuần đó. Chỉnh tuần, số tiết, ghi chú hoặc bỏ bài ở dạng Bảng.</small>
+        <small className="sub">{showT ? '“Tiết PPCT” là thứ tự tiết của môn tính từ đầu năm. ' : 'Chọn một môn ở cột trái để xem thứ tự tiết theo PPCT. '}Chỉnh tuần, số tiết, ghi chú hoặc bỏ bài ở dạng Bảng.</small>
       </div>
     }
     /** Ô Bắt đầu, Nhịp của mục đang chọn ở cột trái */

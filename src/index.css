@@ -3491,3 +3491,8 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .distppct.flat.editing td.c-w .distwkcell{display:inline-flex;align-items:center;gap:4px}
 .distppct.flat .c-note{width:200px}.distppct.flat .c-note input{width:100%}
 .distnotetog{display:inline-flex;align-items:center;gap:6px;font-size:calc(13px * var(--fz,1));color:var(--muted);cursor:pointer;margin-right:8px}
+/* Thanh Bắt đầu / Nhịp của chương trình: một dòng, tên dài thì rút gọn */
+@media (min-width:1000px){.distctl.prog{flex-wrap:nowrap;gap:8px 14px}.distctl.prog>.distctlname{flex:0 1 auto;min-width:60px;overflow:hidden;white-space:nowrap}
+.distctl.prog .distctlttl{overflow:hidden;text-overflow:ellipsis}.distctl.prog>.distctlname{display:flex}.distctl.prog>.distctlname .distctlttl{min-width:0}
+.distctl.prog>*:not(.distctlname){flex:none}.distctl.prog .distctlf{white-space:nowrap}}
+.distordbtn{white-space:nowrap}

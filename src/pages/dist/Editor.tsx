@@ -176,8 +176,9 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   const [view, setView] = useState<View>('table')
   const [editRows, setEditRows] = useState(false)
   /** Ẩn / hiện cột Ghi chú ở bảng bài (nhớ theo trình duyệt) */
-  const [noteCol, setNoteCol0] = useState(() => { try { return localStorage.getItem('dist-note-col') === '1' } catch { return false } })
-  const setNoteCol = (v: boolean) => { setNoteCol0(v); try { localStorage.setItem('dist-note-col', v ? '1' : '0') } catch { /* bỏ qua */ } }
+  const [colOn, setColOn0] = useState<string[]>(() => { try { const v = JSON.parse(localStorage.getItem('dist-cols') ?? 'null'); return Array.isArray(v) ? v : ['prog', 'subj'] } catch { return ['prog', 'subj'] } })
+  const setCol = (k: string, v: boolean) => { const n = v ? [...colOn.filter(x => x !== k), k] : colOn.filter(x => x !== k); setColOn0(n); try { localStorage.setItem('dist-cols', JSON.stringify(n)) } catch { /* bỏ qua */ } }
+  const noteCol = colOn.includes('note')
   const [dirty, setDirty] = useState(false)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [busy, setBusy] = useState(false)
@@ -511,9 +512,8 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
     const t = termRange(plan, p?.deploy_term ?? null)
     const outTerm = sp && t && (sp.from < t.from || sp.to > t.to), outFrame = sp && sp.to > frame
     const many = subjectsOf(it).filter(x => x.on).length > 1
-    return <div className="distctl">
-      <span className="distctlname"><i className="distdot" style={{ background: colorOf(k) }} /><b>{progCode(p)}</b> · {p?.title}
-        {p?.periods_per_week ? <small className="sub"> · chuẩn {fmt(Number(p.periods_per_week))} tiết/tuần</small> : null}</span>
+    return <div className="distctl prog">
+      <span className="distctlname" title={(p?.title ?? '') + (p?.periods_per_week ? ` · chuẩn ${fmt(Number(p.periods_per_week))} tiết/tuần` : '')}><i className="distdot" style={{ background: colorOf(k) }} /><b>{progCode(p)}</b></span>
       <label className="distctlf"><span>Bắt đầu</span><span className="diststart">
         <select value={it.start_mode} aria-label={'Bắt đầu ' + progCode(p)} onChange={e => setItem(pid, { start_mode: e.target.value as Mode, start_week: e.target.value === 'week' ? it.start_week ?? sp?.from ?? 1 : it.start_week })}>
           <option value="hk1">Đầu HK1 (tuần 1)</option>
@@ -525,7 +525,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
         {it.start_mode === 'after' && <select value={it.after_program ?? ''} aria-label="Sau chương trình" onChange={e => setItem(pid, { after_program: e.target.value || null })}>
           <option value="">— chọn —</option>{ordered.filter(x => x.seq < it.seq).map(x => <option key={x.program_id} value={x.program_id}>{progCode(progs.get(x.program_id))}</option>)}</select>}
       </span></label>
-      <span className="distctlf"><span>Nhịp (tiết/tuần)</span>{it.split && many
+      <span className="distctlf" title="Số tiết mỗi tuần học"><span>Nhịp</span>{it.split && many
         ? <span className="distsplitnote"><small className="sub">Riêng từng môn</small><button type="button" className="linkbtn" title="Dùng một nhịp chung, các môn nối tiếp nhau" onClick={() => setItem(pid, { split: false })}>Dùng chung</button></span>
         : <span className="distevery"><Stepper label={'nhịp ' + progCode(p)} value={it.ppw} onChange={v => setItem(pid, { ppw: v, split: false })} />
           <EverySel label={'Lặp lại ' + progCode(p)} value={progEvery(it)} onChange={v => setItem(pid, { subjects: subjectsOf(it).map(y => ({ ...y, pevery: v })) })} /></span>}</span>
@@ -558,7 +558,6 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
         onChange={e => setSubj({ ppw: Math.max(0.5, Math.min(40, Number(e.target.value) || 1)) })} /></label>
       <label className="distctlf"><span>Lặp</span><EverySel className={inh} title={tip} label={'Lặp lại môn ' + x.name} value={subjEvery(it, x)} onChange={v => setSubj({ every: v })} /></label>
       <span className="distsubspan">{si?.to ? `Tuần ${si.from}–${si.to} · ${si.periods} tiết` : 'Chưa xếp'}</span>
-      <span className="sp" />{lessonsBtn(it, x, 'Sắp thứ tự bài')}
     </div>
   }
 
@@ -577,9 +576,9 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
     }
     return { data, on: lessons.filter(l => !rowOf.get(l.id)?.skipped).length, n: lessons.length }
   }
-  function lessonsBtn(it: Item, x: Subj, label?: string) {
+  function lessonsBtn(it: Item, x: Subj, label?: string, cls = 'linkbtn distlessbtn') {
     const d = subjData(it, x)
-    return <button type="button" className="linkbtn distlessbtn" onClick={() => setPick({ pid: it.program_id, subj: x.name })}
+    return <button type="button" className={cls} onClick={() => setPick({ pid: it.program_id, subj: x.name })}
       title="Kéo thả để đổi thứ tự dạy các bài của môn">{label ?? (d.n ? `${d.on}/${d.n} bài` : 'Chưa có bài')} ›{d.data.changed && <i className="distchg" title="Đã đổi thứ tự bài" />}</button>
   }
 
@@ -624,6 +623,14 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       <button type="button" className={'slnavi' + (sel === key ? ' on' : '')} onClick={() => setSel(key)}>
         <span className="slnm">{label}</span><span className="slcnt">{keepN(xs)}{keepN(xs) !== xs.length ? `/${xs.length}` : ''} bài · {meta}</span></button></div>
     /** Dạng phân phối chương trình in: Tuần (gộp ô) · Tiết · Tên bài · Môn · Số tiết. Bài kéo dài nhiều tuần tách theo tuần ("tiếp"). */
+    /** Môn đang chọn ở cột trái (để mở khung đổi thứ tự bài) */
+    const selSubj = (() => {
+      if (!sel || selPid) return null
+      const pid = sel.split('|')[0], it = ordered.find(i => i.program_id === pid)
+      const x = it && subjectsOf(it).filter(y => y.on).find(y => y.name === sel.slice(pid.length + 1))
+      return it && x && editable ? { it, x } : null
+    })()
+    const ord1 = selSubj
     function ppct() {
       type E = { x: FR; w: number | null; n: number; part: number; skip: boolean }
       const es: E[] = []
@@ -639,12 +646,18 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       const key = (e: E) => e.skip ? 3e9 : e.w ?? 2e9
       // Đang sửa: giữ thứ tự bài cố định để dòng không nhảy chỗ khi gõ tuần
       es.sort(edit ? (a, b) => +a.skip - +b.skip || ord.get(a.x)! - ord.get(b.x)! : (a, b) => key(a) - key(b) || ord.get(a.x)! - ord.get(b.x)!)
-      const showSubj = !sel || !!selPid, showProg = !sel, on = editable
+      const showSubj = (!sel || !!selPid) && colOn.includes('subj'), showProg = !sel && colOn.includes('prog'), on = editable
       const cols = 3 + (on ? 1 : 0) + (showSubj ? 1 : 0) + (showProg ? 1 : 0) + (noteCol ? 1 : 0)
       const live = es.filter(e => !e.skip), total = live.reduce((t, e) => t + e.n, 0)
       const tools = <div className="distpptools"><input placeholder="Tìm bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
         <span className="sub">{new Set(live.map(e => e.x)).size} bài · {total} tiết{es.length > live.length && ` · ${es.length - live.length} bài không dạy`}</span>
-        <span className="sp" /><label className="distnotetog"><input type="checkbox" checked={noteCol} onChange={ev => setNoteCol(ev.target.checked)} /> Cột Ghi chú</label>{editable && <button type="button" className={edit ? 'primary' : ''} onClick={() => setEditRows(!editRows)} title="Sửa tuần, số tiết, ghi chú của từng bài">{edit ? 'Xong chỉnh sửa' : 'Tùy chỉnh từng bài'}</button>}</div>
+        <span className="sp" />{ord1 && lessonsBtn(ord1.it, ord1.x, 'Thay đổi thứ tự bài', 'distordbtn')}
+        <details className="distmore distcols"><summary>⚙ Cột</summary><div className="distmenu">
+          {[['w', 'Tuần'], ['prog', 'Chương trình'], ['subj', 'Môn'], ['t', 'Tên bài học'], ['n', 'Thời lượng (tiết)'], ['note', 'Ghi chú']].map(([k, l]) => {
+            const fixed = k === 'w' || k === 't' || k === 'n'
+            return <label key={k}><input type="checkbox" disabled={fixed} checked={fixed || colOn.includes(k)} onChange={ev => setCol(k, ev.target.checked)} /> {l}</label>
+          })}</div></details>
+        {editable && <button type="button" className={edit ? 'primary' : ''} onClick={() => setEditRows(!editRows)} title="Sửa tuần, số tiết, ghi chú của từng bài">{edit ? 'Xong chỉnh sửa' : 'Tùy chỉnh từng bài'}</button>}</div>
       if (!es.length) return <div className="distppwrap">{tools}<p className="sub">{inSel.length ? 'Không có bài nào khớp ô tìm.' : 'Chưa có bài.'}</p></div>
       let band0 = -9
       return <div className="distppwrap">
@@ -682,7 +695,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       const x = selPid ? null : onSubs.find(y => y.name === sel.slice(pid.length + 1))
       return <div className="distctlbar">{(selPid || onSubs.length <= 1) && progCtl(it, k)}
         {x && onSubs.length > 1 && subjCtl(it, x)}
-        {x && onSubs.length <= 1 && <div className="distctl sub2"><span className="sp" />{lessonsBtn(it, x, 'Sắp thứ tự bài')}</div>}</div>
+</div>
     }
     if (!ordered.length) return <p className="sub">Chưa có chương trình nào trong bản.</p>
     return <div className="slwrap distslwrap">

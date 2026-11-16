@@ -631,7 +631,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
 // ----- Môn & bài học: chương trình → môn → bài học (không qua học phần) -----
 // Bài cũ nằm trong học phần vẫn hiện, môn lấy theo học phần; tên học phần hiện ở cột "Chủ đề" (ẩn mặc định).
 type LRow = { u: Unit; subject: string; topic: string; outs: Outcome[] }
-type PasteRow = { title: string; grades: number[]; periods: number; outs: string[]; lib?: LibUnit }
+type PasteRow = { title: string; grades: number[]; periods: number; outs: string[]; obj?: string; lib?: LibUnit }
 const stripNo = (s: string) => s.replace(/^\s*(bài|bai|tiết|tiet|buổi|buoi)?\s*\d+\s*[.:)\-–]\s*/i, '').trim()
 export function parseLessonLines(text: string, fallbackGrades: number[]): PasteRow[] {
   return text.split(/\r?\n/).map(l => l.split('\t')).map(c => {
@@ -744,7 +744,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
   const [q, setQ] = useState('')
   const [gf, setGf] = useState(0)
   // Dòng thêm bài mới: đủ các cột; bấm ⧉ ở một dòng để chép sẵn giá trị lên đây
-  const [nd, setNd] = useState({ title: '', grades: '', periods: '', outs: '' })
+  const [nd, setNd] = useState({ title: '', grades: '', periods: '', obj: '', outs: '' })
   const [paste, setPaste] = useState<{ subj: string; text: string } | null>(null)
   const [addSubj, setAddSubj] = useState(false)
   const [drag, setDrag] = useState<string | null>(null)
@@ -828,7 +828,7 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     for (const r of list) {
       const lib = r.lib ?? libUnits?.find(i => lc(i.title) === lc(r.title) && (!i.subject || lc(i.subject) === lc(subj)))
       const res = await supabase.from('edu_program_units').insert({ program_id: p.id, parent_id: null, unit_type: 'lesson', seq: ++seq, grades: r.grades, subject: subj,
-        title: r.title, periods: r.periods, objectives: lib?.content?.objectives ?? null }).select('id').single()
+        title: r.title, periods: r.periods, objectives: r.obj?.trim() || lib?.content?.objectives || null }).select('id').single()
       if (res.error) { bad++; onMessage(errText(res.error.message), true); continue }
       const id = (res.data as { id: string }).id
       if (r.outs.length) await supabase.from('edu_outcomes').insert(r.outs.map((content, i) => ({ program_id: p.id, unit_id: id, seq: i + 1, content })))
@@ -952,8 +952,8 @@ export function SubjectLessonsTab({ p, editable, onChanged, onMessage }: {
     if (/\n/.test(t)) { setPaste({ subj: target, text: t }); return }
     const g = gradeList(nd.grades).filter(x => x >= 1 && x <= 12), n = Number(nd.periods.replace(',', '.'))
     const ok = await addLessons([{ title: stripNo(t), grades: g.length ? g : defGrades, periods: Number.isFinite(n) && n > 0 ? Math.round(n) : 1,
-      outs: nd.outs.split(/\n|;/).map(x => x.trim()).filter(Boolean) }], target)
-    if (ok) { setNd(d => ({ ...d, title: '', outs: '' })); document.getElementById('sl-new-title')?.focus() }
+      obj: nd.obj, outs: nd.outs.split(/\n|;/).map(x => x.trim()).filter(Boolean) }], target)
+    if (ok) { setNd(d => ({ ...d, title: '', obj: '', outs: '' })); document.getElementById('sl-new-title')?.focus() }
   }
   // Nhân bản bài: tạo ngay một bài giống hệt (môn, tên, khối, số tiết, yêu cầu cần đạt, học liệu) ngay dưới bài gốc
   async function duplicate(r: LRow) {
@@ -1040,6 +1040,7 @@ onPaste={e => { const t = e.clipboardData.getData('text'); if (/\n/.test(t.trim(
 : pg.length > 1 ? <GradeTicks options={pg} value={nd.grades ? gradeList(nd.grades) : defGrades} disabled={busy} label="Khối của bài mới" onChange={g => setNd({ ...nd, grades: g.join(', ') })} />
 : <input className="slng" data-gc="grades" value={nd.grades} disabled={busy} placeholder="Khối" aria-label="Khối của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, grades: e.target.value })} onKeyDown={enter} />}</>
             : k === 'periods' ? <input className="slnp" data-gc="periods" value={nd.periods} disabled={busy} placeholder="Tiết" aria-label="Số tiết của bài mới" inputMode="numeric" onChange={e => setNd({ ...nd, periods: e.target.value })} onKeyDown={enter} />
+            : k === 'obj' ? <input className="slno" data-gc="obj" value={nd.obj} disabled={busy} placeholder="Mục tiêu" aria-label="Mục tiêu của bài mới" onChange={e => setNd({ ...nd, obj: e.target.value })} onKeyDown={enter} />
             : k === 'outs' ? <input className="slno" data-gc="outs" value={nd.outs} disabled={busy} placeholder="Yêu cầu cần đạt (ngăn cách bằng ;)" aria-label="Yêu cầu cần đạt của bài mới" onChange={e => setNd({ ...nd, outs: e.target.value })} onKeyDown={enter} />
             : k === 'act' ? <button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addDraft}>+ Thêm</button>
             : null

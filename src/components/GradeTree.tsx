@@ -2,6 +2,7 @@
 // Dòng dạy từ 2 khối trở lên trong cùng một cấp vào "Liên khối"; trải nhiều cấp vào "Liên cấp"; chưa có khối vào "Chưa rõ khối".
 import { useState, type ReactNode } from 'react'
 import { useEduLevels, gradeName, type EduLevel } from '../lib/eduLevels'
+import { TreeHead } from './TreeHead'
 
 const levelOf = (lv: EduLevel[], g: number) => lv.find(l => g >= l.grade_from && g <= l.grade_to)?.code ?? null
 
@@ -26,12 +27,12 @@ export function useGradeSel(id: string) {
 }
 
 /** Cây nhóm theo khối cho một bảng. `filter` lọc dòng theo mục đang chọn; `tree` đặt vào `aside` của DataTable. */
-export function useGradeTree<T>(id: string, rows: T[], gradesOf: (r: T) => number[]) {
-  return gradeTree(useGradeSel(id), rows, gradesOf)
+export function useGradeTree<T>(id: string, rows: T[], gradesOf: (r: T) => number[], unit?: string) {
+  return gradeTree(useGradeSel(id), rows, gradesOf, unit)
 }
 
 /** Dựng cây từ trạng thái `useGradeSel` (dùng khi danh sách dòng chỉ có sau các lệnh return sớm) */
-export function gradeTree<T>(st: GradeSel, rows: T[], gradesOf: (r: T) => number[]): { tree: ReactNode; filter: (rs: T[]) => T[]; sel: string } {
+export function gradeTree<T>(st: GradeSel, rows: T[], gradesOf: (r: T) => number[], unit = 'mục'): { tree: ReactNode; filter: (rs: T[]) => T[]; sel: string } {
   const { all, sel, setSel, open, setOpen } = st
 
   const b = (r: T) => bucket(all, gradesOf(r))
@@ -50,11 +51,22 @@ export function gradeTree<T>(st: GradeSel, rows: T[], gradesOf: (r: T) => number
   const filter = (rs: T[]) => live ? rs.filter(match) : rs
   const cur = live ? sel : 'all'
 
-  const item = (k: string, label: ReactNode, cls = '') => <button type="button" key={k} className={'gtitem ' + cls + (cur === k ? ' on' : '')}
-    aria-pressed={cur === k} onClick={() => setSel(k)}><span className="gtlbl">{label}</span><span className="gtcnt">{k === 'all' ? rows.length : n(k)}</span></button>
+  const lvName = (c: string) => all.find(l => l.code === c)?.name ?? c
+  const gPath = (g: number) => { const lc = levelOf(all, g); return (lc ? lvName(lc) + ' › ' : '') + gradeName(g) }
+  /** Đường dẫn của một mục, để hiện "đang xem" và chú thích khi rê chuột */
+  const pathOf = (k: string): string => k === 'all' ? 'Tất cả' : k.startsWith('lv:') ? lvName(k.slice(3))
+    : k.startsWith('g:') ? gPath(Number(k.slice(2)))
+    : k.startsWith('multi:') ? lvName(k.slice(6)) + ' › Liên khối' : k === 'cross' ? 'Liên cấp' : 'Chưa rõ khối'
+  const item = (k: string, label: ReactNode, cls = '', onPick?: () => void) => {
+    const c = k === 'all' ? rows.length : n(k)
+    return <button type="button" key={k} className={'gtitem ' + cls + (cur === k ? ' on' : '')} title={`${pathOf(k)}: ${c} ${unit}`}
+      aria-pressed={cur === k} onClick={() => { setSel(k); onPick?.() }}><span className="gtlbl">{label}</span><span className="gtcnt">{c}</span></button>
+  }
 
   const lvs = all.filter(l => n('lv:' + l.code) > 0)
   const tree = <nav className="gtree" aria-label="Nhóm theo khối">
+    <TreeHead title="Cấp › Khối">Nhóm theo <b>Cấp → Khối</b>.<br />Số = số {unit}.<br />Bấm tên: lọc và mở.<br />Bấm ▸: chỉ mở / đóng.</TreeHead>
+    {cur !== 'all' && <div className="gtcur">Đang xem: <b>{pathOf(cur)}</b> · {cur === 'all' ? rows.length : n(cur)} {unit}</div>}
     {item('all', 'Tất cả')}
     {lvs.map(l => {
       const k = 'lv:' + l.code
@@ -66,7 +78,7 @@ export function gradeTree<T>(st: GradeSel, rows: T[], gradesOf: (r: T) => number
         <div className="gtrow">
           <button type="button" className="gtcaret" aria-expanded={isOpen} aria-label={(isOpen ? 'Thu gọn ' : 'Mở ') + l.name}
             onClick={() => setOpen({ ...open, [l.code]: !isOpen })}>{isOpen ? '▾' : '▸'}</button>
-          {item(k, l.name)}
+          {item(k, l.name, '', () => setOpen({ ...open, [l.code]: true }))}
         </div>
         {isOpen && <div className="gtsub">
           {gs.map(g => item('g:' + g, gradeName(g)))}

@@ -1,6 +1,8 @@
 // Phân hệ 1 — Đánh giá năng lực nhà giáo (088): đợt đánh giá, khoảng thiếu hụt → gợi ý đào tạo, khung năng lực (KDI).
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import { HeadAction } from '../../components/PageFrame'
+import { Drawer } from '../../components/Drawer'
+const ProgramDetail = lazy(() => import('./Programs').then(m => ({ default: m.ProgramDetail })))
 import { supabase } from '../../lib/supabase'
 import { OrgPick } from '../../components/OrgScope'
 import { downloadXlsx } from '../../lib/sheet'
@@ -217,7 +219,9 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
   const [plans, setPlans] = useState<OpenPlan[]>([])
   const [enrolled, setEnrolled] = useState<Set<string>>(new Set())
   const [comp, setComp] = useState('')
-  const [q, setQ] = useState('')
+  // Bấm tên chương trình gợi ý: mở chi tiết chương trình; bấm một dòng nhà giáo: xem đủ thiếu hụt và gợi ý
+  const [prog, setProg] = useState<string | null>(null)
+  const [rowT, setRowT] = useState<string | null>(null)
   const [view, setView] = useState<'teacher' | 'school'>('school')
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const load = () => {
@@ -242,7 +246,7 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
   const all = (rows ?? []).filter(g => of.fit(g.org_id))
   const [card, setCard] = useState<string | null>(null)
   // Thẻ tổng số tính theo ô tìm và bộ lọc đơn vị; bấm thẻ "Chưa có chương trình phù hợp" để lọc
-  const base = all.filter(g => !q || g.teacher_name.toLowerCase().includes(q.toLowerCase()))
+  const base = all
   const shown = base.filter(g => (!comp || g.competency === comp) && (card !== 'nosuggest' || !g.suggest.length))
   const byTeacher = useMemo(() => {
     const m = new Map<string, Gap[]>()
@@ -250,8 +254,8 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
     return [...m.values()]
   }, [shown])
   const bySchool = useMemo(() => {
-    const m = new Map<string, { name: string; teachers: Set<string>; per: Record<string, number> }>()
-    all.forEach(g => { const k = g.org_id; const x = m.get(k) ?? { name: g.org_name ?? '—', teachers: new Set(), per: {} }; x.teachers.add(g.teacher_id); x.per[g.competency] = (x.per[g.competency] ?? 0) + 1; m.set(k, x) })
+    const m = new Map<string, { id: string; name: string; teachers: Set<string>; per: Record<string, number> }>()
+    all.forEach(g => { const k = g.org_id; const x = m.get(k) ?? { id: k, name: g.org_name ?? '—', teachers: new Set(), per: {} }; x.teachers.add(g.teacher_id); x.per[g.competency] = (x.per[g.competency] ?? 0) + 1; m.set(k, x) })
     return [...m.values()].sort((a, b) => b.teachers.size - a.teachers.size)
   }, [all])
   const perComp = comps.map(c => [c, base.filter(g => g.competency === c.key).length] as [Comp, number])
@@ -271,7 +275,26 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
       { key: 'l', label: 'Mức hiện tại' }, { key: 's', label: 'Chương trình gợi ý', width: 50 }],
       shown.map(g => [g.teacher_name, g.org_name, g.competency_name, g.level, g.suggest.map(s => `${s.code ?? ''} ${s.title}`.trim()).join('; ')]), 'Thiếu hụt')
   }
+  const sugList = (gs: Gap[]) => { const g0 = gs[0]
+              const sug = [...new Map(gs.flatMap(g => g.suggest).map(s => [s.id, s])).values()]
+              return sug.length ? sug.map(s => {
+                const ps = plans.filter(p => p.org_id === g0.org_id && p.training_plans.training_plan_items.some(i => i.program_id === s.id))
+                return <div key={s.id} className="gaprow"><button type="button" className="namelink" title="Xem chi tiết chương trình" onClick={e => { e.stopPropagation(); setProg(s.id) }}>{s.code && <small className="sub">{s.code} · </small>}{s.title} <small className="sub">(mức đích {s.target_level})</small></button>
+                  {ps.map(p => enrolled.has(p.plan_id + '|' + g0.teacher_id)
+                    ? <Chip key={p.plan_id} tone="good">Đã ghi danh {p.training_plans.plan_code}</Chip>
+                    : <button key={p.plan_id} type="button" className="linkbtn" onClick={e => { e.stopPropagation(); enroll(p.plan_id, g0.teacher_id, g0.teacher_name) }}>+ Ghi danh vào {p.training_plans.plan_code ?? p.training_plans.name}</button>)}
+                </div> }) : <small className="sub">Chưa có chương trình đã phát hành bồi dưỡng năng lực này.</small> }
+  const rowGs = rowT ? byTeacher.find(gs => gs[0].teacher_id === rowT) : undefined
+  if (prog) return <Suspense fallback={<p className="sub">Đang tải…</p>}><ProgramDetail id={prog} admin={false} back="Khoảng thiếu hụt"
+    onBack={() => setProg(null)} onOpen={setProg} onMsg={setMsg} /></Suspense>
   return <>
+    {rowGs && <Drawer title={rowGs[0].teacher_name} onClose={() => setRowT(null)}>
+      <p className="sub" style={{ marginTop: 0 }}>{rowGs[0].org_name ?? '—'} · năm học {year} · yêu cầu từ Mức {target}</p>
+      <h4 style={{ margin: '12px 0 6px' }}>Năng lực dưới mức yêu cầu</h4>
+      {rowGs.map(g => <div key={g.competency} className="gaprow">{g.competency_name} <LevelChip v={g.level} comp={comps.find(c => c.key === g.competency)} /></div>)}
+      <h4 style={{ margin: '16px 0 6px' }}>Chương trình đào tạo gợi ý</h4>
+      {sugList(rowGs)}
+    </Drawer>}
     <StatCards active={gapActive} onPick={k => {
       // "Thiếu nhiều nhất" chọn năng lực đó; "Chưa có chương trình" lọc riêng; bấm lại để bỏ
       if (k === 'top') { setCard(null); if (top) setComp(top[0].key) }
@@ -293,7 +316,6 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
         <select value={year} onChange={e => setYear(e.target.value)} aria-label="Năm học">{years().map(y => <option key={y} value={y}>Năm học {y}</option>)}</select>
         <select value={target} onChange={e => setTarget(+e.target.value)} aria-label="Mức yêu cầu">{[2, 3, 4].map(l => <option key={l} value={l}>Yêu cầu từ Mức {l} ({LV_NAME[l - 1]})</option>)}</select>
         <MultiFilters defs={of.defs} f={mf} />
-        <input placeholder="Tìm tên nhà giáo…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm nhà giáo" />
         <span className="infotip" tabIndex={0} title={GAP_NOTE} aria-label={GAP_NOTE}>ⓘ Cách tính</span></>
       const right = <>
         <div className="segmented viewtoggle" role="group" aria-label="Xem theo">{([['school', 'Theo trường'], ['teacher', 'Theo nhà giáo']] as const).map(([k, l]) =>
@@ -302,27 +324,19 @@ export function CompetencyGapsPage({ orgId }: { orgId: string }) {
       if (!rows) return <p className="sub">Đang tải…</p>
       type BS = (typeof bySchool)[number]
       type BT = (typeof byTeacher)[number]
-      if (view === 'school') return <DataTable id="comp-gaps-school" rows={bySchool} rowKey={s => s.name} aside={tree} left={left} right={right}
+      if (view === 'school') return <DataTable id="comp-gaps-school" rows={bySchool} rowKey={s => s.id} onRow={s => { mf.set('school', [s.id]); setView('teacher') }} aside={tree} left={left} right={right}
         empty={<small className="sub">Không có thiếu hụt.</small>} cols={[
           { key: 'name', label: 'Trường', fixed: true, text: s => s.name, cell: s => s.name },
           { key: 'n', label: 'GV có thiếu hụt', cell: s => <b>{s.teachers.size}</b> },
           ...comps.map(c => ({ key: 'c_' + c.key, label: c.name, cell: (s: BS) => s.per[c.key] ?? <small className="sub">0</small> })),
         ] as Col<BS>[]} />
       return <>
-        <DataTable id="comp-gaps-teacher" rows={byTeacher.slice(0, 300)} rowKey={gs => gs[0].teacher_id} aside={tree} left={left} right={right}
+        <DataTable id="comp-gaps-teacher" rows={byTeacher.slice(0, 300)} rowKey={gs => gs[0].teacher_id} onRow={gs => setRowT(gs[0].teacher_id)} aside={tree} left={left} right={right}
           empty={<small className="sub">{all.length ? 'Không có nhà giáo nào khớp.' : 'Không có nhà giáo dưới mức yêu cầu (trong số nhà giáo đã có kết quả đánh giá năm học này).'}</small>} cols={[
             { key: 'name', label: 'Nhà giáo', fixed: true, text: gs => `${gs[0].teacher_name} ${gs[0].org_name ?? ''}`, cell: gs => <><b>{gs[0].teacher_name}</b><br /><small className="sub">{gs[0].org_name ?? '—'}</small></> },
             { key: 'gap', label: 'Năng lực dưới mức yêu cầu', text: gs => gs.map(g => g.competency_name).join(', '),
               cell: gs => gs.map(g => <div key={g.competency} className="gaprow">{g.competency_name} <LevelChip v={g.level} comp={comps.find(c => c.key === g.competency)} /></div>) },
-            { key: 'sug', label: 'Chương trình đào tạo gợi ý', cell: gs => { const g0 = gs[0]
-              const sug = [...new Map(gs.flatMap(g => g.suggest).map(s => [s.id, s])).values()]
-              return sug.length ? sug.map(s => {
-                const ps = plans.filter(p => p.org_id === g0.org_id && p.training_plans.training_plan_items.some(i => i.program_id === s.id))
-                return <div key={s.id} className="gaprow"><span>{s.code && <small className="sub">{s.code} · </small>}{s.title} <small className="sub">(mức đích {s.target_level})</small></span>
-                  {ps.map(p => enrolled.has(p.plan_id + '|' + g0.teacher_id)
-                    ? <Chip key={p.plan_id} tone="good">Đã ghi danh {p.training_plans.plan_code}</Chip>
-                    : <button key={p.plan_id} type="button" className="linkbtn" onClick={() => enroll(p.plan_id, g0.teacher_id, g0.teacher_name)}>+ Ghi danh vào {p.training_plans.plan_code ?? p.training_plans.name}</button>)}
-                </div> }) : <small className="sub">Chưa có chương trình đã phát hành bồi dưỡng năng lực này.</small> } },
+            { key: 'sug', label: 'Chương trình đào tạo gợi ý', cell: sugList },
           ] as Col<BT>[]} />
         {plans.length === 0 && byTeacher.length > 0 && <small className="sub">Nút ghi danh hiện khi trường có kế hoạch được giao đang chọn nhà giáo và kế hoạch đó có chương trình được gợi ý.</small>}
       </>

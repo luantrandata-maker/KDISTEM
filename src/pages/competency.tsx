@@ -503,9 +503,9 @@ export function SchoolTeacherAssessments({ orgId, readOnly, profile }: { orgId: 
   const filterDefs: FilterDef[] = [
     { key: 'unit', label: 'Tỉnh / Sở', placeholder: 'Tất cả Tỉnh / Sở', options: opts(teachers.filter(t => fit(t, 'unit')).map(t => { const p = provOf(t.org_id); return [p?.id, p?.name] })), hidden: !!orgId },
     { key: 'school', label: 'Trường', placeholder: 'Tất cả trường', options: opts(teachers.filter(t => fit(t, 'school')).map(t => [t.org_id, t.organizations?.name])), hidden: !!orgId },
-    { key: 'teacher', label: 'Nhà giáo', placeholder: 'Tất cả nhà giáo', options: opts(teachers.filter(t => fit(t, 'teacher')).map(t => [t.id, orgId ? t.full_name : `${t.full_name} · ${t.organizations?.name ?? ''}`])) },
-    { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', options: opts(teachers.filter(t => fit(t, 'subj')).map(t => [t.subject, t.subject])) },
-    { key: 'st', label: 'Tình trạng đánh giá', placeholder: 'Tất cả tình trạng', options: [['mgr', 'Trường đã đánh giá'], ['self', 'Mới tự đánh giá'], ['draft', 'Đang làm nháp'], ['none', 'Chưa đánh giá']] },
+    { key: 'teacher', label: 'Nhà giáo', placeholder: 'Tất cả nhà giáo', hidden: true, options: opts(teachers.filter(t => fit(t, 'teacher')).map(t => [t.id, orgId ? t.full_name : `${t.full_name} · ${t.organizations?.name ?? ''}`])) },
+    { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', hidden: true, options: opts(teachers.filter(t => fit(t, 'subj')).map(t => [t.subject, t.subject])) },
+    { key: 'st', label: 'Tình trạng đánh giá', placeholder: 'Tất cả tình trạng', hidden: true, options: [['mgr', 'Trường đã đánh giá'], ['self', 'Mới tự đánh giá'], ['draft', 'Đang làm nháp'], ['none', 'Chưa đánh giá']] },
   ]
   const tql = normText(tq.trim()).toLowerCase()
   const matched0 = teachers.filter(t => fit(t) && (!tql || normText([t.full_name, t.email, t.organizations?.name, t.subject].join(' ')).toLowerCase().includes(tql)))

@@ -3500,3 +3500,19 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .distppct.flat.editing td.c-w .distwkcell{justify-content:flex-end}
 .distordmenu .distmenu{max-height:360px;overflow:auto}
 .distcols>button{font-weight:600}
+/* E-learning › Chủ đề & bài học: dạng bảng như Môn & bài học của chương trình */
+.ellessons .slnavrow{border-radius:5px}
+.ellessons .slnavrow.eldrop{outline:1px dashed var(--primary);background:var(--surface)}
+.elnavm{position:absolute;top:4px;right:2px;opacity:.55}
+.slnavrow:hover .elnavm,.slnavrow.on .elnavm,.elnavm:focus-within{opacity:1}
+.ellessons .eltitle{font-weight:600;color:var(--text)}
+.main .ellessons button.eltitle:hover{color:var(--primary);text-decoration:underline}
+.ellessons .elsrc{display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+.ellessons .slt th.c-no{width:52px}.ellessons .slt th.c-eltopic{width:92px}.ellessons .slt th.c-elkind{width:86px}.ellessons .slt th.c-eldur{width:78px}
+.ellessons .elno{display:inline-flex;align-items:center;gap:2px;white-space:nowrap}
+.ellessons .elno .sldrag{display:inline-grid;place-items:center;width:16px;cursor:grab;color:var(--muted);user-select:none;opacity:.5}
+.ellessons tr:hover .elno .sldrag{opacity:1}
+.ellessons a.elsrc{max-width:150px;color:var(--primary);text-decoration:none}.ellessons a.elsrc:hover{text-decoration:underline}
+.ellessons .slnavi .slnm{line-height:1.3}
+.ttable.slt>thead>tr:first-child>th.c-eltopic.c-lead:not(.c-sel):not(.c-no){min-width:0;width:92px}
+.ellessons .slt th.c-mat{min-width:0}

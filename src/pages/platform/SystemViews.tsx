@@ -26,7 +26,7 @@ export type Spec = {
   noun: string; file: string; empty: string
   detail?: (r: Row, reload: () => void) => ReactNode
   /** Bộ lọc chọn nhiều (27/10): có facets thì Sở / tỉnh và Đơn vị cũng chọn được nhiều */
-  facets?: { key: string; label: string; placeholder: string; get: (r: Row) => string | number | null | undefined; name?: (r: Row) => string; sort?: 'label' | 'desc' }[]
+  facets?: { key: string; label: string; placeholder: string; get: (r: Row) => string | number | null | undefined; name?: (r: Row) => string; sort?: 'label' | 'desc'; hidden?: boolean }[]
   /** Thẻ tổng số riêng (thay cho hàng thẻ mặc định): items tính trên các dòng đã lọc; thẻ có k lọc danh sách theo fit[k].
    *  extra: dữ liệu phụ nạp một lần (vd. hoạt động nào đã được dùng trong bài giảng) */
   cards?: { items: (rows: Row[], extra: any) => CardStat[]; fit: Record<string, (r: Row, extra: any) => boolean>; extra?: () => Promise<any> }
@@ -154,7 +154,7 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0, listFirst }: 
     { key: 'prov', label: 'Sở / tỉnh', placeholder: 'Toàn hệ thống', options: regions.map(r => [r.id, r.name] as [string, string]), onPick: () => mf.set('org', []) },
     { key: 'org', label: 'Đơn vị', placeholder: `Tất cả đơn vị (${schoolsInRegion.length} trường)`, options: inRegion.map(o => [o.id, (o.type === 'school' ? '' : '◆ ') + o.name + (o.is_platform ? ' (KDI)' : '')] as [string, string]),
       onPick: v => setView(v.length === 1 ? 'list' : 'sum') },
-    ...spec.facets!.map(fc => ({ key: fc.key, label: fc.label, placeholder: fc.placeholder, options: opts(rows.map(r => [fc.get(r), fc.name ? fc.name(r) : String(fc.get(r) ?? '')]), fc.sort ?? 'label') })),
+    ...spec.facets!.map(fc => ({ key: fc.key, label: fc.label, placeholder: fc.placeholder, hidden: fc.hidden, options: opts(rows.map(r => [fc.get(r), fc.name ? fc.name(r) : String(fc.get(r) ?? '')]), fc.sort ?? 'label') })),
   ] : []
   // Bảng mới (15/11): một dòng công cụ. Sở / tỉnh, đơn vị, trạng thái lọc bằng ô tìm và lọc cột của bảng;
   // bấm tên đơn vị để xem riêng đơn vị đó (chip để quay lại). Chỉ khi dữ liệu quá nhiều mới hiện ô chọn Sở / tỉnh.
@@ -465,9 +465,9 @@ export const CURRICULUM: Spec = {
   table: 'curriculum_books', order: 'grade', select: 'id, org_id, grade, subject, title, total_periods, year_name, program_id, edu_programs(title)',
   facets: [
     { key: 'year', label: 'Năm học', placeholder: 'Tất cả năm học', get: r => r.year_name, sort: 'desc' },
-    { key: 'prog', label: 'Chương trình', placeholder: 'Tất cả chương trình', get: r => r.program_id, name: r => r.edu_programs?.title ?? 'Chương trình khác' },
-    { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', get: r => r.subject },
-    { key: 'grade', label: 'Khối', placeholder: 'Tất cả khối', get: r => r.grade, name: r => `Khối ${r.grade}` },
+    { key: 'prog', label: 'Chương trình', placeholder: 'Tất cả chương trình', get: r => r.program_id, name: r => r.edu_programs?.title ?? 'Chương trình khác', hidden: true },
+    { key: 'subj', label: 'Môn', placeholder: 'Tất cả môn', get: r => r.subject, hidden: true },
+    { key: 'grade', label: 'Khối', placeholder: 'Tất cả khối', get: r => r.grade, name: r => `Khối ${r.grade}`, hidden: true },
   ],
   cols: [
     { label: 'Năm học', get: r => r.year_name ?? '' },

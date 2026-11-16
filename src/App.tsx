@@ -224,8 +224,9 @@ const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, Com
   return (p: any) => <TabbedPages {...p} tabs={tabs} />
 }
 // Theo dõi Chương trình/Môn học (cổng KDI)
-const PlatformProgramTrack = (p: any) => <TabbedPages {...p} tabs={[['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects],
-  ['Tiến độ & yêu cầu cần đạt', ProgressPlatform], ['Kế hoạch so với thực tế', (q: any) => <PlanVsActual {...q} mode="platform" />], ['PPCT các trường', SysCurriculum]]} />
+const TRACK_TABS: [string, ComponentType<any>][] = [['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects],
+  ['Tiến độ & yêu cầu cần đạt', ProgressPlatform], ['Kế hoạch so với thực tế', (q: any) => <PlanVsActual {...q} mode="platform" />], ['PPCT các trường', SysCurriculum]]
+const PlatformProgramTrack = (p: any) => <TabbedPages {...p} tabs={TRACK_TABS} />
 // Phân hệ 2 (100): cùng cách làm — danh sách chung tất cả đơn vị, sửa thẳng
 const PH2_TABS = {
   edu: allOrgs(EduProgramsPlatform), subjects: allOrgs(SubjectsPlatform),
@@ -240,7 +241,8 @@ function PlatformEduProgramsPage(p: any) {
   const [track, setTrack] = useState(false)
   const back = <button type="button" onClick={() => setTrack(false)}>← Chương trình giáo dục</button>
   return track
-    ? <PageFrame title="Theo dõi Chương trình/Môn học" actions={back}><PlatformProgramTrack {...p} /></PageFrame>
+    // Nút quay lại nằm ở góc hàng tab (như nút Theo dõi thực hiện), không chiếm một hàng riêng
+    ? <FramedTabs {...p} tabs={TRACK_TABS} actions={back} />
     : <FramedTabs {...p} tabs={[['Chương trình', PH2_TABS.edu], ['Môn học', PH2_TABS.subjects], ['Danh mục', ProgramCatalogs]]}
       actions={<button type="button" onClick={() => setTrack(true)}>Theo dõi thực hiện</button>} />
 }

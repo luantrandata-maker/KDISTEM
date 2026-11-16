@@ -3490,3 +3490,4 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .distppct.flat.editing input.slcell[type=number]{width:64px;min-width:64px;padding:4px 6px;text-align:right}
 .distppct.flat.editing td.c-w .distwkcell{display:inline-flex;align-items:center;gap:4px}
 .distppct.flat .c-note{width:200px}.distppct.flat .c-note input{width:100%}
+.distnotetog{display:inline-flex;align-items:center;gap:6px;font-size:calc(13px * var(--fz,1));color:var(--muted);cursor:pointer;margin-right:8px}

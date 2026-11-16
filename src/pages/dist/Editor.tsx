@@ -175,6 +175,9 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   const [pover, setPover] = useState<number | null>(null)
   const [view, setView] = useState<View>('table')
   const [editRows, setEditRows] = useState(false)
+  /** Ẩn / hiện cột Ghi chú ở bảng bài (nhớ theo trình duyệt) */
+  const [noteCol, setNoteCol0] = useState(() => { try { return localStorage.getItem('dist-note-col') === '1' } catch { return false } })
+  const setNoteCol = (v: boolean) => { setNoteCol0(v); try { localStorage.setItem('dist-note-col', v ? '1' : '0') } catch { /* bỏ qua */ } }
   const [dirty, setDirty] = useState(false)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
   const [busy, setBusy] = useState(false)
@@ -637,17 +640,17 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       // Đang sửa: giữ thứ tự bài cố định để dòng không nhảy chỗ khi gõ tuần
       es.sort(edit ? (a, b) => +a.skip - +b.skip || ord.get(a.x)! - ord.get(b.x)! : (a, b) => key(a) - key(b) || ord.get(a.x)! - ord.get(b.x)!)
       const showSubj = !sel || !!selPid, showProg = !sel, on = editable
-      const cols = 3 + (on ? 1 : 0) + (showSubj ? 1 : 0) + (showProg ? 1 : 0) + (edit ? 1 : 0)
+      const cols = 3 + (on ? 1 : 0) + (showSubj ? 1 : 0) + (showProg ? 1 : 0) + (noteCol ? 1 : 0)
       const live = es.filter(e => !e.skip), total = live.reduce((t, e) => t + e.n, 0)
       const tools = <div className="distpptools"><input placeholder="Tìm bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
         <span className="sub">{new Set(live.map(e => e.x)).size} bài · {total} tiết{es.length > live.length && ` · ${es.length - live.length} bài không dạy`}</span>
-        <span className="sp" />{editable && <button type="button" className={edit ? 'primary' : ''} onClick={() => setEditRows(!editRows)} title="Sửa tuần, số tiết, ghi chú của từng bài">{edit ? 'Xong chỉnh sửa' : 'Tùy chỉnh từng bài'}</button>}</div>
+        <span className="sp" /><label className="distnotetog"><input type="checkbox" checked={noteCol} onChange={ev => setNoteCol(ev.target.checked)} /> Cột Ghi chú</label>{editable && <button type="button" className={edit ? 'primary' : ''} onClick={() => setEditRows(!editRows)} title="Sửa tuần, số tiết, ghi chú của từng bài">{edit ? 'Xong chỉnh sửa' : 'Tùy chỉnh từng bài'}</button>}</div>
       if (!es.length) return <div className="distppwrap">{tools}<p className="sub">{inSel.length ? 'Không có bài nào khớp ô tìm.' : 'Chưa có bài.'}</p></div>
       let band0 = -9
       return <div className="distppwrap">
         {tools}
         <table className={'distppct flat' + (edit ? ' editing' : '')}>
-          <thead><tr>{on && <th className="c-on" title="Bỏ tick: không đưa bài này vào phân phối">Dạy</th>}<th className="c-w">Tuần</th>{showProg && <th className="c-p">Chương trình</th>}{showSubj && <th className="c-s">Môn</th>}<th>Tên bài học</th><th className="c-n" title={edit ? 'Tổng số tiết của bài' : 'Số tiết dạy bài này trong tuần đó'}>Thời lượng (tiết)</th>{edit && <th className="c-note">Ghi chú</th>}</tr></thead>
+          <thead><tr>{on && <th className="c-on" title="Bỏ tick: không đưa bài này vào phân phối">Dạy</th>}<th className="c-w">Tuần</th>{showProg && <th className="c-p">Chương trình</th>}{showSubj && <th className="c-s">Môn</th>}<th>Tên bài học</th><th className="c-n" title={edit ? 'Tổng số tiết của bài' : 'Số tiết dạy bài này trong tuần đó'}>Thời lượng (tiết)</th>{noteCol && <th className="c-note">Ghi chú</th>}</tr></thead>
           <tbody>{es.map((e, i) => {
             const head = edit || i === 0 || key(es[i - 1]) !== key(e)
             let span = 1; if (head && !edit) while (i + span < es.length && key(es[i + span]) === key(e)) span++
@@ -662,12 +665,12 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
                 : e.skip ? '—' : e.w ?? '—'}</td>}
               {showProg && <td className="c-p"><span className="distprogcell"><i className="distdot" style={{ background: colorOf(e.x.k) }} />{e.x.code}</span></td>}
               {showSubj && <td className="c-s">{e.x.subj}</td>}
-              <td>{title.get(e.x.r.unit_id)}{e.part > 0 && <small className="sub"> (tiếp)</small>}{e.x.r.manual && e.part === 0 && <small className="sub"> · tuần đặt tay</small>}{!edit && e.x.r.note && <small className="sub distppnote">{e.x.r.note}</small>}{edit && e.x.r.weeks && new Set(e.x.r.weeks).size > 1 && <small className="sub"> · tuần {wkLabel(e.x.r.weeks)}</small>}</td>
+              <td>{title.get(e.x.r.unit_id)}{e.part > 0 && <small className="sub"> (tiếp)</small>}{e.x.r.manual && e.part === 0 && <small className="sub"> · tuần đặt tay</small>}{edit && e.x.r.weeks && new Set(e.x.r.weeks).size > 1 && <small className="sub"> · tuần {wkLabel(e.x.r.weeks)}</small>}</td>
               <td className="c-n">{edit && !e.skip ? <input type="number" className="slcell" min={1} max={50} value={e.x.r.periods} aria-label="Số tiết"
                 onChange={ev => setRow(e.x.r.unit_id, { periods: Math.max(1, Math.min(50, Number(ev.target.value) || 1)) })} /> : e.skip ? '—' : e.n}</td>
-              {edit && <td className="c-note"><input className="slcell" value={e.x.r.note ?? ''} maxLength={500} aria-label="Ghi chú" onChange={ev => setRow(e.x.r.unit_id, { note: ev.target.value || null })} /></td>}</tr></Fragment>
+              {noteCol && <td className="c-note">{edit && !e.skip ? <input className="slcell" value={e.x.r.note ?? ''} maxLength={500} aria-label="Ghi chú" onChange={ev => setRow(e.x.r.unit_id, { note: ev.target.value || null })} /> : e.part === 0 ? e.x.r.note ?? '' : ''}</td>}</tr></Fragment>
           })}</tbody>
-          <tfoot><tr><td colSpan={cols - 1 - (edit ? 1 : 0)}>Tổng cộng</td><td className="c-n">{total}</td>{edit && <td />}</tr></tfoot></table>
+          <tfoot><tr><td colSpan={cols - 1 - (noteCol ? 1 : 0)}>Tổng cộng</td><td className="c-n">{total}</td>{noteCol && <td />}</tr></tfoot></table>
       </div>
     }
     /** Ô Bắt đầu, Nhịp của mục đang chọn ở cột trái */

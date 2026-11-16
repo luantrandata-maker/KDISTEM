@@ -3415,6 +3415,27 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .main .gthint:hover,.main .gthint[aria-expanded=true]{color:var(--primary)}
 .gtnote{margin-top:6px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);font-size:calc(12px * var(--fz,1));line-height:1.45;color:var(--text)}
 
+/* Xếp lịch gộp vào bảng bài: ô điều khiển của mục đang chọn */
+.distctlbar{display:grid;gap:6px;margin-bottom:10px}
+.distctl{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;border:1px solid var(--line);background:var(--soft);border-radius:6px;padding:8px 12px}
+.distctl.sub2{background:var(--surface)}
+.distctl .sp{flex:1}
+.distctlname{display:inline-flex;align-items:center;gap:4px;min-width:0}
+.distctlf{display:inline-flex;align-items:center;gap:8px}.distctlf>span:first-child{color:var(--muted);font-size:calc(13px * var(--fz,1))}
+.distctl .diststart{flex-wrap:nowrap}.distctl select{min-width:0}
+.distctl select.inh,.distppw.inh{color:var(--muted);background:var(--soft)}
+.distppw{width:72px}
+.distsubspan{font-weight:600}
+.distsplitnote{display:inline-flex;gap:8px;align-items:center;white-space:nowrap}
+.distlessbtn{white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.distchg{width:7px;height:7px;border-radius:50%;background:#d97706;display:inline-block}
+.distctlhint{margin:0 0 8px}
+.distnavsub{display:flex;align-items:center;gap:2px;padding-left:10px}
+.distnavsub>.slnavrow{flex:1;min-width:0}
+.distnavsub.over{box-shadow:inset 0 2px 0 var(--primary)}
+.disttbl th.c-on{width:56px}.disttbl td:has(>input[type=checkbox]){text-align:center}
+.disttbl tr.skipped td:has(>input[type=checkbox]){opacity:1}
+.disttbl .distprogcell{white-space:nowrap}
 /* Trang bài học: menu Nhập từ file; đầu thẻ ghim khi đang sửa (thay cho cặp Hủy / Lưu ở cuối thẻ) */
 .lmenuhd{padding:6px 10px 0;border-top:1px solid var(--line);margin-top:4px}
 .lmenuhint{padding:4px 10px 2px;white-space:normal;max-width:260px}

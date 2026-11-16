@@ -3379,3 +3379,7 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 .main .ttprotools .sysright>.segmented{padding:3px}
 .main .ttprotools .sysright>.segmented>button{height:28px}
 .main .ttprotools .sysright>button.primary{background:var(--primary);border-color:var(--primary);color:#fff}
+
+/* Khoảng thiếu hụt: ô có nhiều dòng năng lực / gợi ý hiện đủ, không cắt 2 dòng */
+.ttable .tdc:has(.gaprow){display:block;-webkit-line-clamp:unset;line-clamp:none;max-height:none;overflow:visible}
+.ttable .tdc .gaprow>button.namelink,.main .gaprow>.namelink{white-space:normal!important;text-align:left;display:inline;overflow:visible}

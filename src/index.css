@@ -3388,3 +3388,12 @@ main[data-ph]:has(.pdinline)>.pagehead:not(:has(>:not(h1))){display:none}
 /* Khoảng thiếu hụt: ô có nhiều dòng năng lực / gợi ý hiện đủ, không cắt 2 dòng */
 .ttable .tdc:has(.gaprow){display:block;-webkit-line-clamp:unset;line-clamp:none;max-height:none;overflow:visible}
 .ttable .tdc .gaprow>button.namelink,.main .gaprow>.namelink{white-space:normal!important;text-align:left;display:inline;overflow:visible}
+
+/* InfoTip: nút ⓘ nhỏ, nội dung hiện khi rê chuột / bấm (cùng kiểu với "Cách tính") */
+.infotipx .infotippop{display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:40;width:min(420px,80vw);white-space:normal;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--surface);color:var(--text);font-size:calc(13px * var(--fz,1));font-weight:400;line-height:1.5;text-align:left;box-shadow:0 6px 18px rgba(15,23,42,.12);cursor:auto}
+.infotipx.l .infotippop{right:auto;left:0}
+.infotipx:hover .infotippop,.infotipx:focus .infotippop,.infotipx:focus-within .infotippop{display:block}
+.infotipx .infotippop b{font-weight:600}
+.infotipx.up .infotippop{top:auto;bottom:calc(100% + 6px)}
+.infotiprow{display:flex;margin:6px 0}
+.infotipx:hover::after,.infotipx:focus::after{content:none;display:none}

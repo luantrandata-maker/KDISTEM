@@ -4,6 +4,7 @@ import { SchoolPicker, type PickOpt } from '../../components/SchoolPicker'
 import { Tabs } from '../teacher/common'
 import { Tiles } from '../department/charts'
 import { usePlatform, pathOf, ORG_TYPE, type Org } from './data'
+import { InfoTip } from '../../components/InfoTip'
 
 // Khách hàng, gói dịch vụ, hợp đồng (migration 024)
 
@@ -214,8 +215,8 @@ export function PlatformContracts() {
 
   return (
     <>
-      <p className="plnote" role="note"><b>Cách tính quyền dùng</b> Mỗi đơn vị dùng hợp đồng gần nhất đi từ chính nó lên cấp trên (Sở mua → các trường trực thuộc được dùng nếu bật “Áp dụng cho đơn vị trực thuộc”).
-        Hợp đồng còn hiệu lực → chỉ dùng các phân hệ trong gói. Hết hạn hoặc tạm dừng → chỉ còn phần lõi (tài khoản, giáo viên, lớp, học sinh). Đơn vị chưa có hợp đồng nào → không giới hạn.</p>
+      <div className="infotiprow"><InfoTip left label="Cách tính quyền dùng">Mỗi đơn vị dùng hợp đồng gần nhất đi từ chính nó lên cấp trên (Sở mua → các trường trực thuộc được dùng nếu bật “Áp dụng cho đơn vị trực thuộc”).
+        Hợp đồng còn hiệu lực → chỉ dùng các phân hệ trong gói. Hết hạn hoặc tạm dừng → chỉ còn phần lõi (tài khoản, giáo viên, lớp, học sinh). Đơn vị chưa có hợp đồng nào → không giới hạn.</InfoTip></div>
       <Tiles items={[
         { label: 'Hợp đồng hiệu lực', value: live.length, tone: 'good' },
         { label: 'Giá trị hợp đồng hiệu lực', value: money(live.reduce((s, c) => s + (c.value ?? 0), 0)) },

@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase'
 import { useDeptStats, pct, avg, sum, nf, LEVEL, type SchoolStat } from './data'
 import { Tiles } from './charts'
 import { downloadXlsx } from '../../lib/sheet'
+import { InfoTip } from '../../components/InfoTip'
 
 // Điều hành của Sở (migration 040): giao chỉ tiêu theo năm học, cảnh báo trường cần chú ý.
 
@@ -149,7 +150,7 @@ export function DeptAlerts() {
           {shown.length === 0 && <tr><td colSpan={4}>{rows.length ? 'Không có trường phù hợp bộ lọc.' : 'Không có trường nào cần chú ý.'}</td></tr>}
         </tbody>
       </table></div>
-      <p className="sub covhint">Quy tắc: chưa kích hoạt; không có hoạt động 14 ngày; chưa có chương trình CT1–CT5; chưa khai báo năm học; GV đào tạo &lt; 50%; có phòng STEM nhưng không có tiết dùng phòng; chuyên cần &lt; 70%; dưới chỉ tiêu Sở giao năm {schoolYear()}. "Nhắc trường" gửi thông báo trong ứng dụng tới Hiệu trưởng và QTV của trường.</p>
+      <div className="infotiprow"><InfoTip left up label="Quy tắc">Quy tắc: chưa kích hoạt; không có hoạt động 14 ngày; chưa có chương trình CT1–CT5; chưa khai báo năm học; GV đào tạo &lt; 50%; có phòng STEM nhưng không có tiết dùng phòng; chuyên cần &lt; 70%; dưới chỉ tiêu Sở giao năm {schoolYear()}. "Nhắc trường" gửi thông báo trong ứng dụng tới Hiệu trưởng và QTV của trường.</InfoTip></div>
     </>
   )
 }

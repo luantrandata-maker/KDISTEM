@@ -4,6 +4,7 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { LOAD_MAX, progCode, weekLoad, type Plan, type Prog, type Row, type Sched } from './sched'
 import { WEEKDAY, dayOf, offIn, vnd, vnShort, type CalWeek } from './calendar'
+import { InfoTip } from '../../components/InfoTip'
 
 const KIND: Record<string, string> = { state: 'Lễ nhà nước', tet: 'Tết', break: 'Nghỉ giữa kỳ', school: 'Của trường', other: 'Khác' }
 type Pop = { w: number; pid?: string; sub?: string; x: number; y: number }
@@ -126,7 +127,7 @@ export function WeekGrid({ plan, order, progs, s, titles, cal, calLabel, year, t
         <button type="button" onClick={() => shiftBy(1)}>Dời 1 tuần ▶</button>
         {onAuto && <button type="button" className="linkbtn" onClick={() => { onAuto(rsel.pid, rsel.sub, lo, hi); setRsel(null) }}>Xếp lại tự động</button>}
         <button type="button" className="linkbtn" onClick={() => setRsel(null)}>Bỏ chọn</button>
-      </div> : <small className="sub distshifthint">Mẹo: bấm một ô để chọn tuần đó, hoặc giữ chuột kéo ngang trên hàng một môn để chọn nhiều tuần; rồi kéo vùng chọn sang tuần khác hoặc bấm nút dời (vd. dời các bài từ tuần 20 đi 1 tuần vì nghỉ Tết).</small>)}
+      </div> : <div className="infotiprow"><InfoTip left label="Mẹo dời tuần">Bấm một ô để chọn tuần đó, hoặc giữ chuột kéo ngang trên hàng một môn để chọn nhiều tuần; rồi kéo vùng chọn sang tuần khác hoặc bấm nút dời (vd. dời các bài từ tuần 20 đi 1 tuần vì nghỉ Tết).</InfoTip></div>)}
       {tip && !pop && <div className="disttip" style={{ left: tip.x, top: tip.y }} role="tooltip">
         <small className="sub">{tip.head}</small>{tip.items.map((t, i) => <div key={i}>{t}</div>)}</div>}
       {pop && <div className="distpop" style={{ left: pop.x, top: pop.y }} role="dialog" aria-label={`Tuần ${pop.w}`}>

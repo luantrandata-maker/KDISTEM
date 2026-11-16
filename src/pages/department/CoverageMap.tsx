@@ -3,6 +3,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { supabase } from '../../lib/supabase'
 import { LEVEL, nf, pct, sum, type SchoolStat } from './data'
+import { InfoTip } from '../../components/InfoTip'
 
 // Bản đồ độ phủ STEM.
 //   · Sở (mặc định): xã/phường của tỉnh có trường → bấm xã/phường xem từng trường.
@@ -315,8 +316,8 @@ export default function CoverageMap({ schools, nation = false }: { schools: Scho
           {view === 'map' ? <>
             <div ref={box} className={'covmap' + (atNation ? ' nation' : '')} role="region" tabIndex={0}
               aria-label={`Bản đồ ${units.length} ${noun}${prov ? ' ' + prov.name : ''}, tô màu theo ${RULE[mode].label}. Xem bảng Danh sách để đọc số liệu.`} />
-            <p className="sub covhint">{atNation ? 'Bấm vào tỉnh/thành để xem từng xã/phường' : 'Bấm vào xã/phường để phóng to và xem từng trường'} · bấm vào bản đồ rồi cuộn để phóng to/thu nhỏ
-              {sel && <> · <button className="linkbtn" onClick={() => pick(null)}>← Xem toàn tỉnh</button></>}</p>
+            <div className="infotiprow" style={{ gap: 12, alignItems: 'center' }}><InfoTip left up label="Cách dùng bản đồ">{atNation ? 'Bấm vào tỉnh/thành để xem từng xã/phường' : 'Bấm vào xã/phường để phóng to và xem từng trường'}. Bấm vào bản đồ rồi cuộn để phóng to/thu nhỏ.</InfoTip>
+              {sel && <button className="linkbtn" onClick={() => pick(null)}>← Xem toàn tỉnh</button>}</div>
             {note && <p className="sub covhint" role="status">{note}</p>}
           </> : (
             <div className="wrap"><table className="covtable">

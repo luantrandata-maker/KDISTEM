@@ -4,6 +4,7 @@ import { Tabs } from '../teacher/common'
 import { Tiles } from '../department/charts'
 import { fmtTime } from './data'
 import { useStemTracks } from '../../lib/stemTracks'
+import { InfoTip } from '../../components/InfoTip'
 
 // Danh mục gói STEM của KDI + xử lý đơn đặt gói (migration 025)
 // Gói danh mục = stem_packages thuộc đơn vị chủ nền tảng. "Đã giao" sao chép gói (chủ đề, buổi học) vào trường.
@@ -71,7 +72,7 @@ export function PlatformCatalog() {
   const e0 = edit && edit !== 'new' ? edit : null
   return (
     <>
-      <p className="plnote" role="note"><b>Danh mục gói</b> Các trường chọn gói ở đây khi lập đề xuất mua gói. Khi KDI chuyển đơn đã duyệt sang “Đã giao”, gói (kèm chủ đề, buổi học) được sao chép vào mục Gói STEM của trường.</p>
+      <div className="infotiprow"><InfoTip left label="Danh mục gói dùng để làm gì">Các trường chọn gói ở đây khi lập đề xuất mua gói. Khi KDI chuyển đơn đã duyệt sang “Đã giao”, gói (kèm chủ đề, buổi học) được sao chép vào mục Gói STEM của trường.</InfoTip></div>
       <Tiles items={[
         { label: 'Gói đang bán', value: pkgs.filter(p => p.catalog_active).length, tone: 'good' },
         { label: 'Chủ đề', value: pkgs.reduce((s, p) => s + (p.topics ?? 0), 0), sub: `${pkgs.reduce((s, p) => s + (p.sessions ?? 0), 0)} buổi học` },

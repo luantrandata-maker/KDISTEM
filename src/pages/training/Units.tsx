@@ -7,6 +7,7 @@ import { StructureDraft, newKey, saveDraftTree, type DCol, type DRow } from '../
 import { supabase } from '../../lib/supabase'
 import { downloadXlsx, importSummary, norm, type Column } from '../../lib/sheet'
 import ImportExcel from '../../components/ImportExcel'
+import { InfoTip } from '../../components/InfoTip'
 import { type Detail } from './Content'
 
 export type TUnit = { id: string; program_id: string; parent_id: string | null; kind: 'subject' | 'content'; seq: number; title: string; hours: number
@@ -304,6 +305,7 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
           empty={<small className="sub">{inSel.length ? 'Không có nội dung nào khớp.' : !subjs.length ? `Chưa có môn.${editable ? ' Bấm “+ Thêm môn” hoặc “Nhập Excel”.' : ''}` : `${sel ? 'Môn ' + sel.title : 'Chương trình'} chưa có nội dung.${editable ? ' Gõ tên nội dung ở dòng dưới.' : ''}`}</small>}
           left={<input placeholder={sel ? `Tìm nội dung môn ${sel.title}…` : 'Tìm nội dung trong mọi môn…'} value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm nội dung" />}
           right={<>
+            {editable && <InfoTip label="Cách nhập nhanh">Gõ thẳng vào ô như Excel: Enter hoặc ↑↓ để sang dòng, ←→ ở đầu/cuối ô để sang cột, Esc để huỷ sửa. Chép một vùng ô trong Excel (tên nội dung, số giờ, mục tiêu, yêu cầu cần đạt) rồi dán vào ô bất kỳ để điền nhiều dòng, dòng thừa thành nội dung mới.</InfoTip>}
             {editable && <ImportExcel label="⇪ Nhập Excel" columns={IMPORT} template="Mau-chuong-trinh-tap-huan"
               sample={[['Môn', 'Phương pháp dạy học STEM', '', '', '', 'Nắm quy trình thiết kế bài học STEM'], ['Nội dung', 'Quy trình 4 bước thiết kế bài học STEM', '3', 'Trực tiếp', 'Có', ''],
                 ['Nội dung', 'Thực hành soạn kế hoạch bài dạy', '4', 'Trực tuyến', '', '']]}
@@ -325,7 +327,6 @@ export function TrainingUnits({ programId, programTitle, programMode, units, edi
               : null
             return <tfoot><tr className="slnew">{keys.map(k => <td key={k}>{cellOf(k)}</td>)}{!keys.includes('act') && <td><button type="button" className="primary" disabled={busy || !nd.title.trim()} onClick={addContent}>+ Thêm</button></td>}</tr></tfoot>
           } : undefined} />
-        {editable && <p className="sub slhint">Gõ thẳng vào ô như Excel: Enter hoặc ↑↓ để sang dòng, ←→ ở đầu/cuối ô để sang cột, Esc để huỷ sửa. Chép một vùng ô trong Excel (tên nội dung, số giờ, mục tiêu, yêu cầu cần đạt) rồi dán vào ô bất kỳ để điền nhiều dòng, dòng thừa thành nội dung mới.</p>}
       </div>
     </div>
   </>

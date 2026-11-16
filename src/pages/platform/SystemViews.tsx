@@ -5,6 +5,7 @@ import { downloadXlsx, norm } from '../../lib/sheet'
 import { Tabs } from '../teacher/common'
 import { StatCards, type Stat as CardStat } from '../../components/StatCards'
 import { DataTable, type Col as DCol } from '../../components/DataTable'
+import { PageCorner } from '../../components/PageCorner'
 import { useGradeTree } from '../../components/GradeTree'
 import { gradeList } from '../../components/Pickers'
 
@@ -111,7 +112,7 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0, listFirst }: 
 
   // Đơn vị trong phạm vi lọc (trường, và cả Sở/Phòng nếu dữ liệu thuộc cấp đó)
   // Có nút thêm (kho của KDI): cho chọn cả đơn vị KDI để xem riêng bài KDI soạn
-  const inRegion = useMemo(() => orgs.filter(o => (actions && !regionsSel.length ? true : !o.is_platform) && (!regionsSel.length || regionsSel.includes(regionOf(o.id)?.id ?? ''))), [orgs, regionsSel.join(), regionOf, !!actions])
+  const inRegion = useMemo(() => orgs.filter(o => ((actions || listFirst) && !regionsSel.length ? true : !o.is_platform) && (!regionsSel.length || regionsSel.includes(regionOf(o.id)?.id ?? ''))), [orgs, regionsSel.join(), regionOf, !!actions, !!listFirst])
   const schoolsInRegion0 = inRegion.filter(o => o.type === 'school')
   const schoolsInRegion = schoolsInRegion0
 
@@ -632,10 +633,11 @@ function BankList({ spec, orgId, add, desk: Desk, onPick, onAdd }: {
   const [k, setK] = useState(0)
   return <>
     {d && <Suspense fallback={<p className="sub">Đang tải…</p>}>{Desk({ start: d, onClose: () => { setD(null); setK(x => x + 1) } })}</Suspense>}
+    {/* Nút thêm ở hàng tab (góc phải khung), như các trang khác */}
+    {orgId && !d && <PageCorner><button type="button" className="primary" onClick={() => (onAdd ? onAdd() : setD({ mode: 'new' }))}>{add}</button></PageCorner>}
     {/* Giữ danh sách (bộ lọc, ô tìm) khi mở chi tiết */}
     <div hidden={!!d}>
-      <SystemList spec={spec} reloadKey={k} listFirst onOpen={r => { if (!onPick?.(r)) setD({ mode: 'open', id: r.id }) }}
-        actions={orgId ? <button className="primary" onClick={() => (onAdd ? onAdd() : setD({ mode: 'new' }))}>{add}</button> : undefined} />
+      <SystemList spec={spec} reloadKey={k} listFirst onOpen={r => { if (!onPick?.(r)) setD({ mode: 'open', id: r.id }) }} />
     </div>
   </>
 }

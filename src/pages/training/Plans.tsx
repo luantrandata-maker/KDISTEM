@@ -468,7 +468,6 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
         can && p.pub_status === 'published' && { key: 'assign', label: 'Gán trường', kind: 'primary', onClick: () => setAssign(true) },
         can && p.pub_status === 'published' && !p.closed_at && { key: 'close', label: 'Kết thúc kế hoạch', rank: 4, onClick: closePlan },
         can && !!p.closed_at && { key: 'reopen', label: 'Mở lại kế hoạch', rank: 4, onClick: reopenPlan },
-        can && p.pub_status === 'published' && !orgs.length && { key: 'todraft', label: 'Chuyển về nháp', rank: 4, onClick: () => setStatus('draft', 'Đã chuyển về nháp.') },
         can && p.pub_status === 'published' && { key: 'arch', label: 'Ngừng dùng', rank: 4, onClick: () => { if (confirm('Ngừng dùng kế hoạch này? Trường đã gán vẫn giữ danh sách.')) setStatus('archived', 'Đã chuyển sang Ngừng dùng.') } },
         can && p.pub_status === 'archived' && { key: 'reuse', label: 'Dùng lại', onClick: () => setStatus('published', 'Đã dùng lại kế hoạch.') },
         can && p.pub_status === 'draft' && { key: 'del', label: 'Xoá kế hoạch', icon: 'trash', kind: 'danger', onClick: del },

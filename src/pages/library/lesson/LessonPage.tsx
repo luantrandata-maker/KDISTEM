@@ -49,6 +49,8 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
   const [fields, setFields] = useState<Fields | null>(null)
   const [busy, setBusy] = useState('')
   const [msg, setMsg] = useState('')
+  // Thông báo nổi góc màn hình, tự ẩn (không đẩy nội dung trang xuống)
+  useEffect(() => { if (!msg) return; const h = setTimeout(() => setMsg(''), 5000); return () => clearTimeout(h) }, [msg])
   const [check, setCheck] = useState<{ name: string; res: ParseResult; cards: KitCard[] } | null>(null)
   const [cat, setCat] = useState<{ id: string; name: string; unit: string; kind: KMat['kind'] }[]>([])
   const [acts, setActs] = useState<BankAct[]>([])
@@ -73,7 +75,6 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
   const progLabel = prog ? `${prog.code ? prog.code + ' · ' : ''}${prog.title}` : ''
   const progSubject = kit.info.prog_subject || row.subject || ''
   const k = edit && draft ? draft : kit
-  const empty = !kit.info.description && !kit.info.reqs.length && !kit.sessions.length && !kit.docs.length && !kit.mats.product.length && !kit.mats.group.length && !kit.bank.length
   const reload = () => { setRk(x => x + 1); onChanged() }
 
   function begin(card: KitCard) {
@@ -240,11 +241,8 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
           </div>
         </div>
       </div>
-      {msg && <p className="sub" role="status"><b>{msg}</b></p>}
+      {msg && <div className={'disttoast' + (/lỗi|không|chưa|hãy|thất bại|nhập tên/i.test(msg) ? ' bad' : '')} role="status">{msg}</div>}
       {busy && <p className="sub" role="status">{busy}</p>}
-      {empty && !edit && <div className="ldash lempty-kit"><div><b>Giáo án đang trống</b>
-        <small>Khung 5 thẻ đã sẵn sàng. Điền trực tiếp vào từng thẻ rồi bấm “Lưu & chốt”, hoặc dùng “Nhập từ file” ở đầu trang.</small></div>
-        <button type="button" className="primary" onClick={() => begin('info')}>Bắt đầu nhập thẻ 01</button></div>}
       <div className="lkithead"><h3>{store === 'training' ? 'Bài giảng' : 'Bộ học liệu'} · 5 thẻ</h3><span className="sub">{store === 'training' ? `${needDone}/${NEED.length} thẻ bắt buộc đã chốt · Kho hoạt động tuỳ chọn` : `${checked.length}/${CARDS.length} thẻ đã chốt`}</span>
         {needDone < NEED.length && <button type="button" className="linkbtn" disabled={!!busy || !!edit} onClick={chotRest}
           title="Chốt một lần tất cả thẻ chưa chốt. Chỉ dùng khi đã xem lại nội dung các thẻ.">✓ Chốt tất cả thẻ còn lại</button>}</div>

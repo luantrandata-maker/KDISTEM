@@ -391,7 +391,6 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
             plan.status !== 'draft' && !own && { key: 'copyedit', label: 'Nhân bản để sửa', kind: 'primary', onClick: copy },
             (plan.status === 'draft' || own) && { key: 'copy', label: 'Nhân bản', rank: 3, onClick: copy },
             plan.status === 'draft' && { key: 'del', label: 'Xoá bản phân phối', icon: 'trash', kind: 'danger', onClick: remove },
-            plan.status === 'published' && { key: 'todraft', label: 'Chuyển về nháp', rank: 4, onClick: () => setStatus('draft', 'Đã chuyển về nháp. PPCT đã gán cho trường không đổi.') },
             plan.status === 'published' && { key: 'arch', label: 'Ngừng dùng', rank: 4, onClick: () => setStatus('archived', 'Đã ngừng dùng bản phân phối.') },
             plan.status === 'archived' && { key: 'reuse', label: 'Dùng lại', onClick: () => setStatus('draft', 'Đã dùng lại bản (nháp).') },
           ]} />

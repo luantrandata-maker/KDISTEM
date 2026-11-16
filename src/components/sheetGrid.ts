@@ -9,7 +9,7 @@ const focusCell = (tr: Element | undefined, col: string) => {
   t.focus(); t.select?.(); return true
 }
 
-/** Phím: Enter hoặc ↑↓ sang dòng (cùng cột), ←→ ở đầu/cuối ô sang cột, Esc huỷ sửa, Alt+Enter xuống dòng trong ô nhiều dòng. */
+/** Phím: Enter hoặc ↑↓ sang dòng (cùng cột), ←→ ở đầu/cuối ô sang cột, Esc huỷ sửa; trong ô chữ dài Enter xuống dòng. */
 export const gridKey = (order: readonly string[]) => (e: React.KeyboardEvent) => {
   const el = e.target as HTMLInputElement | HTMLTextAreaElement, col = el.dataset?.gc
   if (!col || e.ctrlKey || e.metaKey) return
@@ -19,7 +19,8 @@ export const gridKey = (order: readonly string[]) => (e: React.KeyboardEvent) =>
   const cols = order.filter(k => tr.querySelector(`[data-gc="${k}"]`)), ci = cols.indexOf(col)
   const go = (r: number) => { if (focusCell(rows[r], col) || focusCell(rows[r], order[0])) e.preventDefault() }
   if (e.key === 'Escape' && !isNew) { el.value = el.defaultValue; el.blur(); e.preventDefault(); return }
-  if (e.key === 'Enter' && ta && (e.altKey || e.shiftKey)) { if (e.altKey) { e.preventDefault(); el.setRangeText('\n', el.selectionStart ?? len, el.selectionEnd ?? len, 'end') } return }
+  // Ô chữ dài (textarea): Enter xuống dòng ngay trong ô
+  if (e.key === 'Enter' && ta) return
   if (e.key === 'Enter' && !isNew && !e.shiftKey) return go(ri + 1)
   if (e.key === 'ArrowDown' && !e.shiftKey && (!ta || atEnd)) return go(ri + 1)
   if (e.key === 'ArrowUp' && !e.shiftKey && (!ta || atStart) && ri > 0) return go(ri - 1)

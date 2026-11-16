@@ -579,7 +579,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   function lessonsBtn(it: Item, x: Subj, label?: string, cls = 'linkbtn distlessbtn') {
     const d = subjData(it, x)
     return <button type="button" className={cls} onClick={() => setPick({ pid: it.program_id, subj: x.name })}
-      title="Kéo thả để đổi thứ tự dạy các bài của môn">{label ?? (d.n ? `${d.on}/${d.n} bài` : 'Chưa có bài')} ›{d.data.changed && <i className="distchg" title="Đã đổi thứ tự bài" />}</button>
+      title="Kéo thả để đổi thứ tự dạy các bài của môn">{label ?? (d.n ? `${d.on}/${d.n} bài` : 'Chưa có bài')}{cls.includes('linkbtn') ? ' ›' : ''}{d.data.changed && <i className="distchg" title="Đã đổi thứ tự bài" />}</button>
   }
 
   /** Khung bên phải: chọn bài đưa vào phân phối và kéo thả thứ tự bài của một môn */

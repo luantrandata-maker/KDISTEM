@@ -2722,7 +2722,7 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .distforpath{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
 .distforpath b{padding:3px 10px;border-radius:999px;background:#e7f0fd;color:var(--primary);font-weight:600;font-size:calc(13px * var(--fz,1))}
 .distforpath .sep{color:var(--muted)}
-.distforprogs{display:flex;flex-wrap:wrap;gap:6px 18px;flex:1;min-width:0}
+.distforprogs{display:flex;flex-direction:column;gap:6px;flex:1;min-width:0}
 .distforprog{display:inline-flex;align-items:baseline;gap:6px;font-size:calc(14px * var(--fz,1))}
 .distforprog i{width:9px;height:9px;border-radius:50%;align-self:center}
 .distforprog small{color:var(--muted);font-size:calc(12px * var(--fz,1))}

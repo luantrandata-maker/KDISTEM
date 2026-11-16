@@ -166,6 +166,8 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   const [pick, setPick] = useState<{ pid: string; subj: string } | null>(null)   // môn đang mở "Chọn & sắp bài"
   const [sdrag, setSdrag] = useState<{ pid: string; k: number } | null>(null)
   const [sover, setSover] = useState<number | null>(null)
+  const [pdrag, setPdrag] = useState<number | null>(null)   // kéo đổi thứ tự chương trình ở cột trái
+  const [pover, setPover] = useState<number | null>(null)
   const [view, setView] = useState<'table' | 'cal'>('table')
   const [editRows, setEditRows] = useState(false)
   const [dirty, setDirty] = useState(false)
@@ -227,6 +229,15 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   const touch = () => { setDirty(true) }
   const setItem = (pid: string, patch: Partial<Item>) => { setItems(xs => xs.map(i => i.program_id === pid ? { ...i, ...patch } : i)); touch() }
   const setSubjects = (it: Item, f: (xs: Subj[]) => Subj[]) => setItem(it.program_id, { subjects: f(subjectsOf(it)) })
+  /** Đổi thứ tự chương trình trong bản; chương trình "Sau chương trình…" mà chương trình kia giờ nằm sau thì chuyển về đầu HK1 */
+  const moveProg = (a: number, b: number) => {
+    const ids = [...items].sort((x, y) => x.seq - y.seq).map(i => i.program_id); const [m] = ids.splice(a, 1); ids.splice(b, 0, m)
+    const pos = new Map(ids.map((id, i) => [id, i]))
+    setItems(xs => xs.map(i => {
+      const bad = i.start_mode === 'after' && (!i.after_program || (pos.get(i.after_program) ?? -1) >= pos.get(i.program_id)!)
+      return { ...i, seq: pos.get(i.program_id)! + 1, ...(bad ? { start_mode: (pos.get(i.program_id) === 0 ? 'hk1' : 'after') as Mode, after_program: pos.get(i.program_id) === 0 ? null : ids[pos.get(i.program_id)! - 1] } : {}) }
+    })); touch()
+  }
   const moveSubj = (it: Item, a: number, b: number) => setSubjects(it, xs => {
     const onNames = xs.filter(x => x.on).map(x => x.name); const [m] = onNames.splice(a, 1); onNames.splice(b, 0, m)
     return [...onNames.map(n => xs.find(x => x.name === n)!), ...xs.filter(x => !x.on)]
@@ -642,17 +653,27 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
           const gs = groups.filter(g => g.pid === it.program_id), code = progCode(progs.get(it.program_id))
           const sp = spanOf(s.rows.filter(r => r.program_id === it.program_id))
           const mine = flat.filter(x => x.pid === it.program_id)
-          if (gs.length === 1) return nav(keyOf(gs[0]), <><i className="distdot" style={{ background: colorOf(k) }} />{code} · {gs[0].subj}</>, mine, sp ? `Tuần ${sp.from}–${sp.to}` : 'chưa xếp')
-          return <Fragment key={it.program_id}>
-            {nav(it.program_id + '|*', <><i className="distdot" style={{ background: colorOf(k) }} /><span><b>{code}</b>{gs.length ? ` · ${gs.length} môn` : ''}</span></>, mine, sp ? `Tuần ${sp.from}–${sp.to}` : 'chưa có bài')}
+          const head = gs.length === 1
+            ? nav(keyOf(gs[0]), <><i className="distdot" style={{ background: colorOf(k) }} />{code} · {gs[0].subj}</>, mine, sp ? `Tuần ${sp.from}–${sp.to}` : 'chưa xếp')
+            : nav(it.program_id + '|*', <><i className="distdot" style={{ background: colorOf(k) }} /><span><b>{code}</b>{gs.length ? ` · ${gs.length} môn` : ''}</span></>, mine, sp ? `Tuần ${sp.from}–${sp.to}` : 'chưa có bài')
+          const pd = pdrag !== null
+          return <div key={it.program_id} className={'distnavprog' + (pdrag === k ? ' drag' : '') + (pd && pover === k && pdrag !== k ? ' over' : '')}
+            onDragOver={pd ? e => { e.preventDefault(); setPover(k) } : undefined}
+            onDrop={pd ? e => { e.preventDefault(); if (pdrag !== k) moveProg(pdrag!, k); setPdrag(null); setPover(null) } : undefined}>
+            <div className="distnavph">
+              {editable && ordered.length > 1 && <span className="distsubjgrip" tabIndex={0} role="button" draggable aria-label={`Kéo để đổi thứ tự chương trình ${code}, thứ ${k + 1}`} title="Kéo để đổi thứ tự chương trình (Alt + ↑↓)"
+                onKeyDown={e => { const d = e.altKey ? (e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0) : 0; if (d && k + d >= 0 && k + d < ordered.length) { e.preventDefault(); moveProg(k, k + d) } }}
+                onDragStart={e => { e.stopPropagation(); setPdrag(k); e.dataTransfer.effectAllowed = 'move' }} onDragEnd={() => { setPdrag(null); setPover(null) }}>⠿</span>}
+              {head}</div>
+            {gs.length > 1 && <>
             {gs.map((g, j) => <div key={keyOf(g)} className={'distnavsub' + (sdrag?.pid === g.pid && sover === j && sdrag.k !== j ? ' over' : '')}
               onDragOver={sdrag?.pid === g.pid ? e => { e.preventDefault(); setSover(j) } : undefined}
               onDrop={sdrag?.pid === g.pid ? e => { e.preventDefault(); if (sdrag.k !== j) moveSubj(it, sdrag.k, j); setSdrag(null); setSover(null) } : undefined}>
               {editable && <span className="distsubjgrip" tabIndex={0} role="button" draggable aria-label={`Kéo để đổi thứ tự môn ${g.subj}, thứ ${j + 1}`} title="Kéo để đổi thứ tự môn (Alt + ↑↓)"
                 onKeyDown={e => { const d = e.altKey ? (e.key === 'ArrowUp' ? -1 : e.key === 'ArrowDown' ? 1 : 0) : 0; if (d && j + d >= 0 && j + d < gs.length) { e.preventDefault(); moveSubj(it, j, j + d) } }}
-                onDragStart={e => { setSdrag({ pid: g.pid, k: j }); e.dataTransfer.effectAllowed = 'move' }} onDragEnd={() => { setSdrag(null); setSover(null) }}>⠿</span>}
-              {nav(keyOf(g), g.subj, flat.filter(x => keyOf(x) === keyOf(g)), g.info.to ? `Tuần ${g.info.from}–${g.info.to}` : 'chưa xếp')}</div>)}
-          </Fragment>
+                onDragStart={e => { e.stopPropagation(); setSdrag({ pid: g.pid, k: j }); e.dataTransfer.effectAllowed = 'move' }} onDragEnd={() => { setSdrag(null); setSover(null) }}>⠿</span>}
+              {nav(keyOf(g), g.subj, flat.filter(x => keyOf(x) === keyOf(g)), g.info.to ? `Tuần ${g.info.from}–${g.info.to}` : 'chưa xếp')}</div>)}</>}
+          </div>
         })}
       </nav>
       <div className="slmain">

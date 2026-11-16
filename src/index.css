@@ -3413,5 +3413,3 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .main .gthint{border:0;background:none;padding:0 2px;min-height:0;color:var(--muted);cursor:help;font-size:calc(13px * var(--fz,1));line-height:1}
 .main .gthint:hover,.main .gthint[aria-expanded=true]{color:var(--primary)}
 .gtnote{margin-top:6px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);font-size:calc(12px * var(--fz,1));line-height:1.45;color:var(--text)}
-.gtcur{margin:0 0 4px;padding:6px 10px;border-radius:6px;background:#eef5ff;font-size:calc(12px * var(--fz,1));color:var(--muted);line-height:1.35}
-.gtcur b{color:var(--primary);font-weight:600}

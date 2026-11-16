@@ -3448,3 +3448,7 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .distnavph{display:flex;align-items:center;gap:2px}.distnavph>.slnavrow{flex:1;min-width:0}
 /* Cột "Dạy" (tick) không nhận độ rộng của cột chính */
 .ttable.disttbl>thead>tr:first-child>th.c-on.c-lead:not(.c-sel):not(.c-no),.disttbl th.c-on{min-width:0;width:52px}
+
+/* Cây lọc bên trái bảng: chỉ cột lọc cuộn (bỏ thanh cuộn thứ hai của cây, không che số đếm) */
+.ttfill .ttaside .gtree{max-height:none;overflow:visible;position:static}
+.ttfill .ttaside .gthead{top:-10px;padding-top:10px;margin-top:-10px}

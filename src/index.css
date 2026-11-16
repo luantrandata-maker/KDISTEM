@@ -3452,3 +3452,18 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 /* Cây lọc bên trái bảng: chỉ cột lọc cuộn (bỏ thanh cuộn thứ hai của cây, không che số đếm) */
 .ttfill .ttaside .gtree{max-height:none;overflow:visible;position:static}
 .ttfill .ttaside .gthead{top:-10px;padding-top:10px;margin-top:-10px}
+
+/* Bản phân phối dạng "Theo tuần" (giống phân phối chương trình in) */
+.distppwrap{display:grid;gap:8px;min-width:0}
+.distpptools{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.distpptools input{max-width:220px}
+.distppct{width:100%;border-collapse:collapse;font-size:calc(14px * var(--fz,1));background:var(--surface);border:1px solid var(--line)}
+.distppct th{background:var(--soft);text-align:left;font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.distppct td{padding:6px 10px;border-top:1px solid var(--line);vertical-align:top}
+.distppct tr:not(.first)>td{border-top-color:color-mix(in srgb,var(--line) 45%,transparent)}
+.distppct td.c-w{border-right:1px solid var(--line);text-align:center;width:64px;background:color-mix(in srgb,var(--soft) 50%,transparent)}
+.distppct td.c-w b{display:block;font-size:calc(15px * var(--fz,1))}
+.distppct td.c-w small{display:block;color:var(--muted);font-size:calc(11.5px * var(--fz,1));white-space:nowrap}.distppct td.c-w small.over{color:#c2410c;font-weight:600}
+.distppct th.c-w{width:64px;text-align:center}.distppct .c-t{width:64px;white-space:nowrap}.distppct .c-n{width:72px;white-space:nowrap}.distppct .c-s{width:220px}
+.distppct .distppnote{display:block}
+.distppct tr.distpphk td{background:color-mix(in srgb,var(--primary) 8%,var(--surface));color:var(--primary);font-weight:600;padding:6px 10px;border-top:1px solid var(--line)}
+@media (max-width:700px){.distppct .c-s{width:auto}}

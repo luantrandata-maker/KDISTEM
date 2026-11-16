@@ -168,7 +168,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   const [sover, setSover] = useState<number | null>(null)
   const [pdrag, setPdrag] = useState<number | null>(null)   // kéo đổi thứ tự chương trình ở cột trái
   const [pover, setPover] = useState<number | null>(null)
-  const [view, setView] = useState<'table' | 'cal'>('table')
+  const [view, setView] = useState<View>('week')
   const [editRows, setEditRows] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [savedAt, setSavedAt] = useState<Date | null>(null)
@@ -633,9 +633,47 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       { key: 'note', label: 'Ghi chú', thClass: 'c-note', text: x => x.r.note ?? '', cell: x => edit
         ? <input className="slcell" value={x.r.note ?? ''} maxLength={500} aria-label="Ghi chú" onChange={e => setRow(x.r.unit_id, { note: e.target.value || null })} /> : x.r.note ?? '' },
     ]
+    /** Dạng phân phối chương trình in: Tuần (gộp ô) · Tiết · Tên bài · Môn · Số tiết. Bài kéo dài nhiều tuần tách theo tuần ("tiếp"). */
+    function ppct() {
+      type E = { x: FR; w: number | null; n: number; part: number; from: number }
+      const counter = new Map<string, number>(), es: E[] = []
+      for (const x of shown) {
+        if (x.r.skipped) continue
+        const by = new Map<number, number>()
+        for (const w of x.r.weeks ?? []) by.set(w, (by.get(w) ?? 0) + 1)
+        const parts: [number | null, number][] = by.size ? [...by].sort((a, b) => a[0] - b[0]) : [[null, x.r.periods]]
+        parts.forEach(([w, n], i) => { const c = counter.get(keyOf(x)) ?? 0; counter.set(keyOf(x), c + n); es.push({ x, w, n, part: i, from: c + 1 }) })
+      }
+      const ord = new Map(flat.map((x, i) => [x, i]))
+      es.sort((a, b) => (a.w ?? 1e9) - (b.w ?? 1e9) || ord.get(a.x)! - ord.get(b.x)!)
+      const weeks: { w: number | null; es: E[] }[] = []
+      for (const e of es) { const g = weeks[weeks.length - 1]; if (g && g.w === e.w) g.es.push(e); else weeks.push({ w: e.w, es: [e] }) }
+      const showSubj = !sel || !!selPid, skipped = shown.filter(x => x.r.skipped).length
+      if (!weeks.length) return <p className="sub">{inSel.length ? 'Không có bài nào khớp ô tìm.' : 'Chưa có bài.'}</p>
+      let hk = 0
+      return <div className="distppwrap">
+        <div className="distpptools"><input placeholder="Tìm bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
+          <span className="sub">{es.length && `${new Set(es.map(e => e.x)).size} bài · ${es.reduce((t, e) => t + e.n, 0)} tiết`}{skipped > 0 && ` · ${skipped} bài không dạy (xem ở dạng Bảng)`}</span></div>
+        <table className="distppct">
+          <thead><tr><th className="c-w">Tuần</th><th className="c-t">Tiết</th><th>Tên bài</th>{showSubj && <th className="c-s">Môn</th>}<th className="c-n">Số tiết</th></tr></thead>
+          <tbody>{weeks.map(g => {
+            const load = g.es.reduce((t, e) => t + e.n, 0)
+            const term = g.w === null ? 0 : g.w <= plan.hk1_weeks ? 1 : 2
+            const band = term !== hk ? (hk = term, <tr className="distpphk"><td colSpan={showSubj ? 5 : 4}>{term === 1 ? 'Học kỳ 1' : term === 2 ? 'Học kỳ 2' : 'Chưa xếp tuần'}</td></tr>) : null
+            return <Fragment key={g.w ?? 'none'}>{band}
+              {g.es.map((e, i) => <tr key={e.x.r.unit_id + '|' + e.part} className={i === 0 ? 'first' : undefined}>
+                {i === 0 && <td className="c-w" rowSpan={g.es.length}><b>{g.w ?? '—'}</b>{g.w !== null && g.es.length > 1 && <small className={load > LOAD_MAX ? 'over' : undefined}>{load} tiết</small>}</td>}
+                <td className="c-t sub">{e.n > 1 ? `${e.from}–${e.from + e.n - 1}` : e.from}</td>
+                <td>{title.get(e.x.r.unit_id)}{e.part > 0 && <small className="sub"> (tiếp)</small>}{e.x.r.note && <small className="sub distppnote">{e.x.r.note}</small>}</td>
+                {showSubj && <td className="c-s"><span className="distprogcell"><i className="distdot" style={{ background: colorOf(e.x.k) }} />{selPid ? e.x.subj : `${e.x.code} · ${e.x.subj}`}</span></td>}
+                <td className="c-n">{e.n} tiết</td></tr>)}</Fragment>
+          })}</tbody></table>
+        <small className="sub">Tiết đánh số riêng theo từng môn. Chỉnh tuần, số tiết, ghi chú hoặc bỏ bài ở dạng Bảng.</small>
+      </div>
+    }
     /** Ô Bắt đầu, Nhịp của mục đang chọn ở cột trái */
     function ctlBar() {
-      if (!sel) return <p className="sub distctlhint">Chọn một chương trình hoặc môn ở cột trái để đặt tuần bắt đầu và nhịp. Tick cột “Dạy” để giữ hoặc bỏ bài.</p>
+      if (!sel) return <p className="sub distctlhint">Chọn một chương trình hoặc môn ở cột trái để đặt tuần bắt đầu và nhịp. Tick cột “Dạy” ở dạng Bảng để giữ hoặc bỏ bài.</p>
       const pid = selPid || sel.split('|')[0], k = ordered.findIndex(i => i.program_id === pid), it = ordered[k]
       if (!it) return null
       const onSubs = subjectsOf(it).filter(x => x.on)
@@ -677,11 +715,11 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       </nav>
       <div className="slmain">
         {editable && ctlBar()}
-        <DataTable id="dist-rows" simple rows={shown} rowKey={x => x.r.unit_id} className="slt disttbl" cols={cols}
+        {view === 'week' ? ppct() : <DataTable id="dist-rows" simple rows={shown} rowKey={x => x.r.unit_id} className="slt disttbl" cols={cols}
           rowProps={x => ({ className: x.r.skipped ? 'skipped' : undefined })}
           left={<input placeholder="Tìm bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />}
           right={editable ? <button type="button" className={editRows ? 'primary' : ''} onClick={() => setEditRows(!editRows)}>{editRows ? 'Xong chỉnh sửa' : 'Tùy chỉnh từng bài'}</button> : undefined}
-          empty={<small className="sub">{inSel.length ? 'Không có bài nào khớp ô tìm.' : 'Chưa có bài.'}</small>} />
+          empty={<small className="sub">{inSel.length ? 'Không có bài nào khớp ô tìm.' : 'Chưa có bài.'}</small>} />}
       </div>
     </div>
   }
@@ -701,8 +739,10 @@ function CalBar({ cal }: { cal: DistCal }) {
   </div>
 }
 
-function ViewSwitch({ view, setView }: { view: 'table' | 'cal'; setView: (v: 'table' | 'cal') => void }) {
+type View = 'week' | 'table' | 'cal'
+function ViewSwitch({ view, setView }: { view: View; setView: (v: View) => void }) {
   return <div className="segmented distseg" role="group" aria-label="Kiểu xem">
+    <button type="button" className={view === 'week' ? 'on' : ''} aria-pressed={view === 'week'} onClick={() => setView('week')} title="Dạng phân phối chương trình: theo tuần, tên bài, số tiết">Theo tuần</button>
     <button type="button" className={view === 'table' ? 'on' : ''} aria-pressed={view === 'table'} onClick={() => setView('table')}>Bảng</button>
     <button type="button" className={view === 'cal' ? 'on' : ''} aria-pressed={view === 'cal'} onClick={() => setView('cal')}>Lịch</button>
   </div>

@@ -30,3 +30,35 @@ export async function openFile(path: string) {
 }
 
 export const fmtSize = (n: number | null | undefined) => (n == null ? '' : n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`)
+
+// ===== Ảnh slide (bucket công khai "slide-images", migration 146) =====
+// Ảnh được thu nhỏ còn cạnh dài tối đa 1600px trước khi tải lên để slide mở nhanh.
+export const SLIDE_IMAGE_BUCKET = 'slide-images'
+const MAX_SLIDE_IMG_MB = 10
+
+async function shrinkImage(file: File, max = 1600): Promise<Blob> {
+  if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return file
+  try {
+    const bmp = await createImageBitmap(file)
+    const k = Math.min(1, max / Math.max(bmp.width, bmp.height))
+    if (k === 1 && file.size < 1.5 * 1024 * 1024) { bmp.close?.(); return file }
+    const c = document.createElement('canvas')
+    c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k)
+    c.getContext('2d')!.drawImage(bmp, 0, 0, c.width, c.height); bmp.close?.()
+    const out = await new Promise<Blob | null>(r => c.toBlob(r, file.type === 'image/png' ? 'image/png' : 'image/jpeg', 0.85))
+    return out && out.size < file.size ? out : file
+  } catch { return file }
+}
+
+/** Tải một ảnh lên kho ảnh slide, trả về đường dẫn công khai để gắn vào slide */
+export async function uploadSlideImage(orgId: string, file: File): Promise<string> {
+  if (!file.type.startsWith('image/')) throw new Error('Chỉ nhận tệp ảnh (PNG, JPG, WEBP, GIF, SVG).')
+  const blob = await shrinkImage(file)
+  if (blob.size > MAX_SLIDE_IMG_MB * 1024 * 1024) throw new Error(`Ảnh lớn hơn ${MAX_SLIDE_IMG_MB} MB.`)
+  const type = blob.type || file.type
+  const ext = ({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif', 'image/svg+xml': 'svg' } as Record<string, string>)[type] ?? 'img'
+  const path = `${orgId}/${crypto.randomUUID()}.${ext}`
+  const { error } = await supabase.storage.from(SLIDE_IMAGE_BUCKET).upload(path, blob, { contentType: type, upsert: false })
+  if (error) throw new Error(/bucket|not found/i.test(error.message) ? 'Kho ảnh slide chưa sẵn sàng — cần chạy migration 146 trên Supabase.' : error.message)
+  return supabase.storage.from(SLIDE_IMAGE_BUCKET).getPublicUrl(path).data.publicUrl
+}

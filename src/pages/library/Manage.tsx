@@ -759,7 +759,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
                       <option value="">Sao chép từ bài giảng có sẵn…</option>
                       {lessons.map(l => <option key={l.id} value={l.id}>{l.title}{l.teachers ? ` — ${l.teachers.full_name}` : ''}</option>)}
                     </select></div>
-                  <SlidesEditor slides={sub.slides} onChange={slides => setSub({ ...sub, slides })} />
+                  <SlidesEditor slides={sub.slides} onChange={slides => setSub({ ...sub, slides })} orgId={orgId} title={sub.title || form.title} />
                   <div className="formgrid" style={{ marginTop: 8 }}>
                     <div className="field"><span>Tệp / đường dẫn bài giảng (không bắt buộc)</span><div className="tools">
                       <label><input type="radio" checked={sub.src === 'file'} onChange={() => setSub({ ...sub, src: 'file' })} /> Tải tệp lên</label>
@@ -839,7 +839,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
                       <label className={'filebtn' + (uploading ? ' busy' : '')}>{uploading ? 'Đang tải lên…' : form.file ? 'Thay tệp' : 'Chọn tệp'}
                         <input type="file" hidden disabled={uploading} onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = '' }} /></label></div></div>}
               </div>
-              <SlidesEditor slides={form.slides} onChange={slides => setForm({ ...form, slides })} />
+              <SlidesEditor slides={form.slides} onChange={slides => setForm({ ...form, slides })} orgId={orgId} title={form.title} />
             </>
           )}
           </>}

@@ -431,7 +431,7 @@ function Editor({ id, teacherId, orgId, go, templates, reviewRequired, onClose, 
         {PLAN_MODE && tab === 'steps' && <StepsTab p={p} upd={upd} ro={ro} tpl={tpl} att={att} teacherId={teacherId} go={go} />}
         {tab === 'slides' && <>
           {!ro && <p className="sub">Slide dùng để trình chiếu trên lớp (Giáo dục STEM) và cho học sinh xem theo thời gian thực.</p>}
-          <SlideStudio slides={p.slides} onChange={s => upd({ slides: s })} readOnly={ro} />
+          <SlideStudio slides={p.slides} onChange={s => upd({ slides: s })} readOnly={ro} orgId={orgId} title={p.title} />
         </>}
         {PLAN_MODE && tab === 'res' && <ResTab p={p} upd={upd} ro={ro} att={att} />}
         {PLAN_MODE && tab === 'mat' && <MatTab p={p} upd={upd} ro={ro} norms={att.norms} norm={norm} items={items} classes={classes} dirty={dirty} say={say} onSaved={() => save(true)} />}

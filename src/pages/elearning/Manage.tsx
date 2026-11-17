@@ -852,7 +852,7 @@ function LessonEditor({ course, lessons, topics, exams, progress, editable, onCh
       cell: l => l.kind === 'reading' ? <span className="sub">—</span> : editable
         ? <LongCell key={l.id + (l.body ?? '')} value={l.body ?? ''} gc="note" gr={l.id} placeholder="Ghi chú cho người học" label={`Ghi chú bài ${l.title}`} onSave={v => { if (v !== (l.body ?? '')) patch(l, { body: v.trim() || null }) }} />
         : l.body ? <small className="sub">{l.body}</small> : <span className="sub">—</span> },
-    { key: 'done', label: 'Đã học', thClass: 'c-eldur', text: l => String(progress.get(l.id) ?? 0), cell: l => <span className={progress.get(l.id) ? undefined : 'sub'}>{progress.get(l.id) ?? 0}</span> },
+    { key: 'done', label: 'Đã học', thClass: 'c-eldur', off: true, text: l => String(progress.get(l.id) ?? 0), cell: l => <span className={progress.get(l.id) ? undefined : 'sub'}>{progress.get(l.id) ?? 0}</span> },
     ...(editable ? [{ key: 'act', label: '', thClass: 'c-act', fixed: true, cell: (l: Lesson) =>
       <span className="slact"><span className="sldrag" draggable title="Kéo để đổi vị trí hoặc thả vào chủ đề ở cột trái" aria-label={`Kéo ${l.title} để đổi vị trí`}
         onDragStart={e => { setDrag(l.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', l.id); const tr = (e.target as HTMLElement).closest('tr'); if (tr) e.dataTransfer.setDragImage(tr, 20, 20) }}
@@ -895,7 +895,7 @@ function LessonEditor({ course, lessons, topics, exams, progress, editable, onCh
           : <button type="button" className="sladdsubj" onClick={() => setTf({ title: '' })}>+ Thêm chủ đề</button>)}
       </nav>
       <div className="slmain" onKeyDown={editable ? onGridKey : undefined} onPaste={editable ? onGridPaste : undefined} onMouseDown={editable ? gridMouseDown : undefined}>
-        <DataTable id="el-lessons-v2" simple rows={shown} rowKey={l => l.id} className={editable ? 'slt slgrid' : 'slt'} cols={cols}
+        <DataTable id="el-lessons-v3" simple rows={shown} rowKey={l => l.id} className={editable ? 'slt slgrid' : 'slt'} cols={cols}
           rowProps={editable ? l => ({ className: drag === l.id ? 'sldragging' : over === l.id && drag ? 'slover' : undefined,
             onDragOver: e => { if (!drag || drag.startsWith('t:')) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== l.id) setOver(l.id) },
             onDrop: e => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id && !id.startsWith('t:') && id !== l.id) place(id, topicOf(l), l.id) } }) : undefined}

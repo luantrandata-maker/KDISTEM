@@ -135,6 +135,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
   const [targets, setTargets] = useState<Map<string, string[]>>(new Map())
   const [orgs, setOrgs] = useState<Org[]>([])
   const [me, setMe] = useState<Org | null>(null)
+  const [loaded, setLoaded] = useState(false)
   // Quản trị hệ thống: học liệu của tất cả đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
   const every = useAllMode()
   const mineOf = (owner?: string | null) => owner === orgId || !!every
@@ -174,6 +175,12 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
   // Bài giảng: tab 1 Thông tin, tab 2 Nội dung (tương tác hoặc slide)
   const [ltab, setLtab] = useState<'info' | 'content'>('info')
 
+  // Đơn vị đang làm việc nạp riêng, nhanh: "Thêm bài giảng" mở form ngay, không chờ nạp cả kho học liệu và cây đơn vị
+  useEffect(() => {
+    if (!orgId) return
+    supabase.from('organizations').select('id, name, type, parent_id').eq('id', orgId).maybeSingle()
+      .then(({ data }) => { if (data) setMe(m => m ?? (data as Org)) })
+  }, [orgId])
   async function load() {
     if (!orgId) return
     const [i, s, t, o, l] = await Promise.all([
@@ -190,12 +197,15 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
     const tm = new Map<string, string[]>(); ((t.data as { item_id: string; org_id: string }[]) ?? []).forEach(x => tm.set(x.item_id, [...(tm.get(x.item_id) ?? []), x.org_id])); setTargets(tm)
     const os = (o.data as Org[]) ?? []; setOrgs(os); setMe(os.find(x => x.id === orgId) ?? null)
     setLessons((l.data as unknown as LP[]) ?? [])
+    setLoaded(true)
   }
   useEffect(() => { load() }, [orgId])
   useEffect(() => {
     if (!start || started.current || !me) return
     const i = start.editId ? items.find(x => x.id === start.editId) : undefined
     if (start.editId && !i) return
+    // Sửa bài: chờ nạp xong kho (nơi nhận, nguồn sao chép) để không lưu thiếu đơn vị nhận
+    if (start.editId && !loaded) return
     started.current = true
     if (i) edit(i)
     else if (start.newKind) { setLtab('info'); setMsg(''); setInfo(''); setSub(null); setForm(EMPTY(start.newKind)) }
@@ -205,9 +215,11 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
       setForm({ ...EMPTY('unit'), title: p.title, program_id: p.program_id, unit_id: p.unit_id, program: p.program ?? '', grades: p.grades ?? '',
         periods: p.periods ? String(p.periods) : '', objectives: p.objectives ?? '' })
     }
-  }, [me, items])
+  }, [me, items, loaded])
   const close = () => { setForm(null); if (start) onDone?.() }
   if (err) return <p className="msg">{err}</p>
+  // Mở thẳng form (từ danh sách Bài giảng): khung form hiện ngay với dòng chờ, không đẩy danh sách bên dưới
+  if (start && !form) return <Drawer wide title={start.editId ? 'Đang mở bài giảng…' : 'Thêm bài giảng'} onClose={close}><p className="sub">Đang tải…</p></Drawer>
   if (!me) return <p className="sub">Đang tải…</p>
   if (flow && orgId) return <LessonFlow key={flow.id ?? 'new'} orgId={orgId} openId={flow.id} onClose={() => { setFlow(null); load() }} onChanged={() => { load(); onChanged?.() }} />
 

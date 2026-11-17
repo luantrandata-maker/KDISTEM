@@ -1691,12 +1691,12 @@ tbody tr:is(:has(.namelink:not(:disabled)),:has([data-rowopen]:not(:disabled))):
 .diststatcards i.warn{background:var(--warn-bg);color:var(--warn-fg)}
 @media(max-width:900px){.diststatcards.libstats{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:520px){.diststatcards.libstats{grid-template-columns:1fr}}
-.lcrumbs{margin:0 0 8px;font-size:calc(13px * var(--fz,1))}.lcrumbs .linkbtn{text-decoration:underline;text-underline-offset:3px}
+.lcrumbs{margin:0 0 8px;font-size:calc(13px * var(--fz,1));align-items:baseline}.lcrumbs>.sub{margin:0}.main .lcrumbs .linkbtn{padding:0}.lcrumbs .linkbtn{text-decoration:underline;text-underline-offset:3px}
 .main .ghostbtn{border:1px solid var(--line);background:var(--surface);border-radius:5px;padding:6px 12px;font-weight:600;color:var(--navy);margin:0 0 10px}
 .lheadrow{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin:0 0 12px}
 .lheadrow h2{margin:0;font-size:calc(24px * var(--fz,1))}.lheadrow p{margin:4px 0 0}
 .lpage{display:grid;gap:12px}.lpage>p{margin:0}
-.lhead .ghostbtn{margin:0 0 8px}
+.lhead .ghostbtn{margin:0 0 8px}.lhead>.lheadrow{margin-bottom:4px}
 .ldash{border:1.5px dashed var(--line);border-radius:6px;padding:12px 16px;background:var(--surface)}
 .lempty-kit{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-color:#9fb6d6}
 .lempty-kit>div{display:grid;gap:2px}.lempty-kit small{color:var(--muted)}
@@ -1704,7 +1704,7 @@ tbody tr:is(:has(.namelink:not(:disabled)),:has([data-rowopen]:not(:disabled))):
 .ldocs{display:grid;gap:8px;margin-top:10px}.ldocrow{display:flex;justify-content:space-between;gap:10px;align-items:center;border-top:1px solid var(--line);padding-top:8px}
 .ldocrow span{display:grid}
 .lquick{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.lquick .tools{margin-left:auto}
-.lkithead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-top:4px}.lkithead>.sub{margin-left:auto}.lkithead h3{margin:0}
+.lkithead{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 -4px}.lkithead>.sub{margin:0 0 0 auto}.lkithead h3{margin:0}
 .ltabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
 .main .ltabs button{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:10px 14px;text-align:left;font-weight:600;color:var(--text);display:flex;gap:8px;align-items:center}
 .ltabs button small{color:var(--muted);font-weight:600}

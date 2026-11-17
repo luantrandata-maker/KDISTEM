@@ -659,6 +659,7 @@ export const SysSchoolLessons = ({ orgId }: { orgId?: string | null }) => <BankL
   desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'open' ? { mode: 'view', id: start.id } : start} onClose={onClose} />} />
 // Một danh sách bài giảng (15/11): bài giảng KDI (kho học liệu) + bài giảng giáo viên các trường soạn, như Kho hoạt động
 const LibraryManage = lazy(() => import('../library/Manage').then(m => ({ default: m.LibraryManage })))
+const LessonDetail = lazy(() => import('../library/LessonDetail').then(m => ({ default: m.LessonDetail })))
 /** Chương trình · bài của một bài giảng: chưa gắn bài thì nhắc */
 const progUnit = (r: Row) => {
   const u = r.edu_program_units?.title
@@ -694,16 +695,19 @@ const ALL_LESSONS: Spec = {
   file: 'bai-giang', empty: 'Chưa có bài giảng.',
 }
 export function SysLessons({ orgId }: { orgId?: string | null }) {
-  // Bài KDI mở trình soạn của kho học liệu; bài giáo viên mở trình soạn bài giảng
+  // Bài KDI: bấm dòng mở trang chi tiết (xem slide, thông tin, phiên bản), nút Sửa mở trình soạn của kho học liệu; bài giáo viên mở trình soạn bài giảng
   const [lib, setLib] = useState<null | { editId?: string }>(null)
+  const [view, setView] = useState<string | null>(null)
   const [k, setK] = useState(0)
   const done = () => { setLib(null); setK(x => x + 1) }
   return <>
     {lib && <Suspense fallback={null}><LibraryManage orgId={orgId ?? null} only="lesson" start={lib.editId ? { editId: lib.editId } : { newKind: 'lesson' }} onDone={done} onChanged={() => setK(x => x + 1)} /></Suspense>}
-    <BankList key={k} spec={ALL_LESSONS} orgId={orgId} add="+ Thêm bài giảng" onPick={r => (r.lib ? (setLib({ editId: r.id }), true) : false)} onAdd={() => setLib({})}
-      menu={(r, open) => r.lib ? [{ label: 'Sửa', onClick: () => setLib({ editId: r.id }) }]
+    {view && <Suspense fallback={<p className="sub">Đang mở bài giảng…</p>}>
+      <LessonDetail key={view + k} id={view} orgId={orgId ?? null} onBack={() => setView(null)} onEdit={id => { setView(id); setLib({ editId: id }) }} /></Suspense>}
+    <div hidden={!!view}><BankList key={k} spec={ALL_LESSONS} orgId={view ? null : orgId} add="+ Thêm bài giảng" onPick={r => (r.lib ? (setView(r.id), true) : false)} onAdd={() => setLib({})}
+      menu={(r, open) => r.lib ? [{ label: 'Xem', onClick: () => setView(r.id) }, { label: 'Sửa', onClick: () => setLib({ editId: r.id }) }]
         : [{ label: 'Xem', onClick: () => open({ mode: 'open', id: r.id }) }, { label: 'Sửa', onClick: () => open({ mode: 'edit', id: r.id }) }]}
-      desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'open' ? { mode: 'view', id: start.id } : start} onClose={onClose} />} />
+      desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'open' ? { mode: 'view', id: start.id } : start} onClose={onClose} />} /></div>
   </>
 }
 // Mẫu bài giảng: bài giảng soạn sẵn (is_template) — giáo viên bấm "Dùng mẫu này" để có bản của mình rồi sửa tiếp

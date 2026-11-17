@@ -3,10 +3,17 @@ import { Icon } from '../components/Icon'
 // (tiêu đề, đoạn văn, hình, video, tệp, mô phỏng 2D, giáo cụ ảo, kéo–thả, câu hỏi, đoạn code, hoạt động nhóm, game, rubric).
 // Dùng chung cho: Soạn bài giảng (lesson_plans.lesson), Kho bài giảng, Thư viện STEM (nội dung buổi học edu_program_units.lesson),
 // Xem trước như học sinh và Trình chiếu.
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, Suspense, lazy, useEffect, useMemo, useRef, useState } from 'react'
 import { SIMS, SIM_MODELS, SIM_DEFAULTS, SimView, type SimModel } from './sims'
 import { RaceGame, WheelGame, TeamsGame, TimerGame } from './games'
-import { ActivityPlayer, ContentEditor, ACT, toPlayable, emptyAnswers, type ActKind } from '../pages/teacher/activity'
+import { ActivityPlayer, ContentEditor, ACT, toPlayable, emptyAnswers, activityToBlock, type ActKind } from '../pages/teacher/activity'
+import type { KhoAct } from '../pages/teacher/Lessons'
+// Bảng chọn hoạt động từ Kho hoạt động, mở hoạt động trong Kho (tải khi cần)
+const ActivityPicker = lazy(() => import('../pages/teacher/ActivityPicker').then(m => ({ default: m.ActivityPicker })))
+const KhoOpen = lazy(() => import('../pages/teacher/ActivityPicker').then(m => ({ default: m.KhoOpen })))
+/** Khối lấy từ Kho hoạt động: nội dung theo hoạt động (trò chơi, mô phỏng, hoạt động tương tác), kèm mã hoạt động để mở / cập nhật theo Kho */
+export const blockFromKho = (a: KhoAct, id?: string): Block => ({ ...activityToBlock({ kind: a.kind as ActKind, title: a.title, content: a.content, instructions: null }), ...(id ? { id } : {}),
+  ref: a.id, ref_at: a.updated_at ?? null, ref_label: a.label ?? null })
 
 export type BlockType = 'heading' | 'text' | 'image' | 'video' | 'file' | 'link' | 'sim' | 'tool' | 'order' | 'quiz' | 'code' | 'group' | 'game' | 'activity' | 'rubric'
 export type Block = { id: string; type: BlockType; [k: string]: any }
@@ -369,9 +376,15 @@ export function BlockForm({ b, onChange }: { b: Block; onChange: (b: Block) => v
 
 // ===== Trình soạn bài giảng tương tác =====
 // preview: nút Trình chiếu thử / Xem như học sinh ngay trong lúc soạn (tắt khi trang ngoài đã có nút này)
-export function LessonEditor({ value, ct, onChange, readOnly, title, preview = true }: { value: ILesson | null; ct?: string | null; onChange: (l: ILesson) => void; readOnly?: boolean; title?: string; preview?: boolean }) {
+export function LessonEditor({ value, ct, onChange, readOnly, title, preview = true, orgId }: { value: ILesson | null; ct?: string | null; onChange: (l: ILesson) => void; readOnly?: boolean; title?: string; preview?: boolean
+  /** Đơn vị đang làm việc (để mở và sửa hoạt động trong Kho) */
+  orgId?: string | null }) {
   const lesson = value ?? emptyLesson(ct)
   const [view, setView] = useState<'show' | 'player' | null>(null)
+  // Bảng chọn hoạt động từ Kho: thêm khối mới, hoặc đổi hoạt động của một khối (id khối)
+  const [picker, setPicker] = useState<{ swap?: string } | null>(null)
+  const [kho, setKho] = useState<string | null>(null)
+  const [refMsg, setRefMsg] = useState<[string, string] | null>(null)
   const [sel, setSel] = useState(0)
   const [edit, setEdit] = useState<string | null>(null)
   const [adding, setAdding] = useState(false)
@@ -381,7 +394,20 @@ export function LessonEditor({ value, ct, onChange, readOnly, title, preview = t
   const setPhase = (patch: Partial<LPhase>) => onChange({ ...lesson, phases: lesson.phases.map((p, i) => i === sel ? { ...p, ...patch } : p) })
   const setBlocks = (blocks: Block[]) => setPhase({ blocks })
   const mv = (i: number, d: number) => { const bs = [...ph.blocks]; const j = i + d; if (j < 0 || j >= bs.length) return; [bs[i], bs[j]] = [bs[j], bs[i]]; setBlocks(bs) }
-  const add = (t: BlockType) => { const nb = newBlock(t); setBlocks([...ph.blocks, nb]); setEdit(nb.id); setAdding(false) }
+  const add = (t: BlockType) => { if (t === 'activity') { setPicker({}); setAdding(false); return }
+    const nb = newBlock(t); setBlocks([...ph.blocks, nb]); setEdit(nb.id); setAdding(false) }
+  const pickAct = (a: KhoAct) => {
+    if (picker?.swap) setBlocks(ph.blocks.map(x => x.id === picker.swap ? blockFromKho(a, x.id) : x))
+    else { const nb = blockFromKho(a); setBlocks([...ph.blocks, nb]) }
+    setPicker(null)
+  }
+  // Lấy bản mới nhất của hoạt động trong Kho cho khối (mọi giai đoạn)
+  const refresh = async (b: Block) => {
+    const a = await (await import('../pages/teacher/ActivityPicker')).fetchAct(b.ref)
+    if (!a) return setRefMsg([b.id, 'Không tìm thấy hoạt động trong Kho (đã xoá hoặc không có quyền xem). Khối vẫn dùng bản đã chèn.'])
+    onChange({ ...lesson, phases: lesson.phases.map(p => ({ ...p, blocks: p.blocks.map(x => x.id === b.id ? blockFromKho(a, x.id) : x) })) })
+    setRefMsg([b.id, a.updated_at && a.updated_at === b.ref_at ? 'Khối đang dùng bản mới nhất trong Kho.' : 'Đã cập nhật theo bản mới nhất trong Kho.'])
+  }
   if (!ph) return <div className="panel"><p className="sub">Chưa có giai đoạn nào.</p>{!readOnly && <button className="primary" onClick={() => onChange(emptyLesson(ct))}>Dùng tiến trình {ct ?? 'CT1'}</button>}</div>
   const tools = preview && <div className="sltools">
     <small className="sub">{readOnly ? 'Xem bài giảng tương tác' : 'Đang soạn — có thể trình chiếu thử bất cứ lúc nào'}</small>
@@ -428,7 +454,17 @@ export function LessonEditor({ value, ct, onChange, readOnly, title, preview = t
                 <button type="button" aria-label="Nhân bản khối" onClick={() => { const bs = [...ph.blocks]; bs.splice(i + 1, 0, { ...JSON.parse(JSON.stringify(b)), id: uidB() }); setBlocks(bs) }}>⧉</button>
                 <button type="button" className="x" aria-label="Xoá khối" onClick={() => setBlocks(ph.blocks.filter(x => x.id !== b.id))}>×</button></span>}
             </div>
-            {edit === b.id && !readOnly && <div className="lblockform"><BlockForm b={b} onChange={nb => setBlocks(ph.blocks.map(x => x.id === b.id ? nb : x))} /></div>}
+            {edit === b.id && !readOnly && (b.ref ? <div className="lblockform"><div className="khoref">
+                <span>🧪 Lấy từ Kho hoạt động{b.ref_label ? ' · ' + b.ref_label : ''}. Nội dung sửa ở Kho, rồi bấm “↻ Cập nhật theo Kho”.</span>
+                <button type="button" onClick={() => setPicker({ swap: b.id })}>🔁 Đổi hoạt động</button>
+                <button type="button" onClick={() => setKho(b.ref)}>↗ Mở trong Kho</button>
+                <button type="button" onClick={() => refresh(b)}>↻ Cập nhật theo Kho</button>
+                <button type="button" className="linkbtn" title="Bỏ liên kết với Kho để sửa riêng trong bài này" onClick={() => { const { ref: _r, ref_at: _a, ref_label: _l, ...rest } = b; setBlocks(ph.blocks.map(x => x.id === b.id ? rest as Block : x)) }}>Sửa riêng trong bài</button>
+              </div>{refMsg?.[0] === b.id && <p className="sub" role="status">{refMsg[1]}</p>}</div>
+              : <div className="lblockform">
+                {b.type === 'activity' && <div className="khoref"><span>Khối này soạn riêng trong bài. Có thể thay bằng một hoạt động có sẵn trong Kho hoạt động.</span>
+                  <button type="button" onClick={() => setPicker({ swap: b.id })}>🧪 Chọn từ Kho…</button></div>}
+                <BlockForm b={b} onChange={nb => setBlocks(ph.blocks.map(x => x.id === b.id ? nb : x))} /></div>)}
             <div className="lblockview"><BlockView b={b} teacher /></div>
           </div>
         ))}
@@ -449,6 +485,9 @@ export function LessonEditor({ value, ct, onChange, readOnly, title, preview = t
       </aside>
     </div>
     {overlay}
+    {picker && <Suspense fallback={null}><ActivityPicker lesson={[title]} current={picker.swap ? ph.blocks.find(x => x.id === picker.swap)?.ref : undefined}
+      action={picker.swap ? 'Dùng hoạt động này' : `Thêm vào “${ph.title}”`} onPick={pickAct} onClose={() => setPicker(null)} /></Suspense>}
+    {kho && <Suspense fallback={null}><KhoOpen id={kho} orgId={orgId ?? null} onClose={() => { const b = allBlocks(lesson).find(x => x.ref === kho); setKho(null); if (b) refresh(b) }} /></Suspense>}
   </>)
 }
 

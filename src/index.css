@@ -3635,3 +3635,47 @@ img.slbrandlogo{height:28px;width:auto;border-radius:4px;border:1px solid var(--
 .sldc textarea.sledit{field-sizing:content;min-height:1.4em;line-height:1.4}
 .main .slthumbs .slgalk button{width:auto;display:inline-block}.main .slthumbs .slgalg button{width:100%}
 .sldeco .sldadd{text-align:left}
+/* ===== Slide hoạt động từ Kho hoạt động ===== */
+.slide.activity{border-left:6px solid #7c3aed}
+.slide.activity .slidekind{color:#7c3aed;font-weight:700}
+.slide.activity .slactph{flex:1;display:grid;place-items:center;text-align:center;border:1px dashed #c4b5fd;border-radius:8px;background:#f5f3ff;color:#6d28d9;padding:12px;min-height:80px}
+.slide.activity.thumb .slactph{font-size:56px}
+.slide.activity .slactbody{flex:1;min-height:0;overflow:auto;border:1px dashed #c4b5fd;border-radius:8px;background:#faf9ff;padding:10px 12px}
+.slide.activity .slactbody .bk-game>.bk-simhead,.slide.activity .slactbody .bk-sim>.bk-simhead{display:none}
+.slide.activity .slactnote{color:var(--muted)}
+.overlay.show .showslide .slide.activity{color:var(--text)}
+.overlay.show .showslide .slide.activity .slactbody{font-size:calc(1.5cqw * var(--fz,1))}
+.slgalk button.slgalact{color:#6d28d9;border-color:#c4b5fd;background:#f5f3ff}
+.slthumbs .slmini>.slide.activity{background:#fff}
+/* Bảng chọn hoạt động */
+.actpicker .modalbody{gap:8px}
+.actpickfilter{display:flex;gap:8px;flex-wrap:wrap;align-items:center;position:sticky;top:0}
+.actpickfilter input[type=search]{flex:1;min-width:220px}
+.actpick{display:flex;flex-wrap:wrap;align-items:center;gap:8px;border:1px solid var(--line);border-radius:8px;padding:8px 10px;background:var(--surface)}
+.actpick.on{border-color:var(--primary);background:#eff6ff;box-shadow:0 0 0 1px var(--primary)}
+.main .actpick button.actpickmain,.actpick button.actpickmain{flex:1;display:flex;gap:12px;align-items:center;text-align:left;border:0;background:transparent;padding:2px;min-width:0;width:auto}
+.actpickmain>span:last-child{display:grid;min-width:0}.actpickmain small{color:var(--muted)}
+.actpickic{width:40px;height:40px;flex:none;border-radius:8px;display:grid;place-items:center;background:#ede9fe;color:#6d28d9;font-size:18px}
+.actpickplay{flex-basis:100%;border-top:1px dashed var(--line);padding-top:8px}
+/* Khối lấy từ Kho trong bài giảng tương tác */
+.khoref{display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:8px 10px;margin-bottom:8px}
+.khoref>span{flex:1;min-width:220px;color:#5b21b6}
+.overlay.khoopen{z-index:90;overflow:auto}
+.khoopenin{padding:16px 20px;max-width:1200px;width:100%;margin:0 auto}
+/* ===== Trang chi tiết bài giảng ===== */
+.lsdhead .lsdtitle{font-size:calc(20px * var(--fz,1));margin:0 4px}
+.lsdhead .tools{flex-wrap:wrap}
+.lsdgrid{margin-top:0}
+.lsdstage .slide{max-width:none;max-height:none;width:100%;aspect-ratio:16/9;min-height:0}
+.lsdnav{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.main button.lsdact,.lsdact{color:#6d28d9;background:#f5f3ff;border-color:#ddd6fe;font-weight:600}
+span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-space:nowrap}
+.lsdstrip{list-style:none;margin:0;padding:2px 0 6px;display:grid;grid-auto-flow:column;grid-auto-columns:132px;gap:8px;overflow-x:auto}
+.main .lsdstrip button,.lsdstrip button{display:grid;gap:3px;width:100%;padding:3px;border:2px solid transparent;background:transparent;border-radius:6px;text-align:left}
+.lsdstrip button.on{border-color:var(--primary)}
+.lsdstrip button.act .slmini{border-color:#a78bfa;background:#f5f3ff}
+.lsdstrip button.act small{color:#6d28d9;font-weight:600}
+.lsdstrip .slmini>.slide{transform:scale(.225)}
+.lsdver{list-style:none;margin:0;padding:0;display:grid}
+.lsdver li{display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px dashed var(--line)}.lsdver li:last-child{border-bottom:0}
+.lsdver small{color:var(--muted);white-space:nowrap}

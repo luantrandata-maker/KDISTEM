@@ -182,7 +182,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
       .then(({ data }) => { if (data) setMe(m => m ?? (data as Org)) })
   }, [orgId])
   async function load() {
-    if (!orgId) return
+    if (!orgId) { setLoaded(true); return }
     const [i, s, t, o, l] = await Promise.all([
       selectItems('updated_at'),
       supabase.rpc('library_stats'),
@@ -199,25 +199,35 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
     setLessons((l.data as unknown as LP[]) ?? [])
     setLoaded(true)
   }
-  useEffect(() => { load() }, [orgId])
+  useEffect(() => { load().catch(e => setErr('Không nạp được kho học liệu: ' + ((e as Error)?.message ?? e))) }, [orgId])
   useEffect(() => {
-    if (!start || started.current || !me) return
-    const i = start.editId ? items.find(x => x.id === start.editId) : undefined
-    if (start.editId && !i) return
-    // Sửa bài: chờ nạp xong kho (nơi nhận, nguồn sao chép) để không lưu thiếu đơn vị nhận
-    if (start.editId && !loaded) return
+    if (!start || started.current) return
+    if (start.editId) {
+      // Sửa bài: chờ nạp xong kho (nơi nhận, nguồn sao chép) để không lưu thiếu đơn vị nhận.
+      // Bài của đơn vị khác (mở từ danh sách toàn hệ thống) nằm ở "visible", không ở "items";
+      // vẫn không thấy thì đọc thẳng theo id, không có thì báo thay vì "Đang tải…" mãi
+      if (!loaded) return
+      started.current = true
+      const i = items.find(x => x.id === start.editId) ?? visible.find(x => x.id === start.editId)
+      if (i) return edit(i)
+      supabase.from('library_items').select('*, owner_name, owner_type').eq('id', start.editId).maybeSingle().then(({ data, error }) => {
+        if (data) edit(data as Item)
+        else setErr(error ? 'Không mở được bài giảng: ' + error.message : 'Không mở được bài giảng: không tìm thấy hoặc anh/chị không có quyền xem bài này.')
+      })
+      return
+    }
+    if (!me) return
     started.current = true
-    if (i) edit(i)
-    else if (start.newKind) { setLtab('info'); setMsg(''); setInfo(''); setSub(null); setForm(EMPTY(start.newKind)) }
+    if (start.newKind) { setLtab('info'); setMsg(''); setInfo(''); setSub(null); setForm(EMPTY(start.newKind)) }
     else if (start.preset) {
       const p = start.preset
       setMsg(''); setInfo(''); setNorm(EMPTY_NORM); setSub(null); setNormOpen(false); setCkTouched(false); setKitShow(null)
       setForm({ ...EMPTY('unit'), title: p.title, program_id: p.program_id, unit_id: p.unit_id, program: p.program ?? '', grades: p.grades ?? '',
         periods: p.periods ? String(p.periods) : '', objectives: p.objectives ?? '' })
     }
-  }, [me, items, loaded])
+  }, [me, items, visible, loaded])
   const close = () => { setForm(null); if (start) onDone?.() }
-  if (err) return <p className="msg">{err}</p>
+  if (err) return start && !form ? <Drawer wide title="Không mở được" onClose={close}><p className="msg">{err}</p></Drawer> : <p className="msg">{err}</p>
   // Mở thẳng form (từ danh sách Bài giảng): khung form hiện ngay với dòng chờ, không đẩy danh sách bên dưới
   if (start && !form) return <Drawer wide title={start.editId ? 'Đang mở bài giảng…' : 'Thêm bài giảng'} onClose={close}><p className="sub">Đang tải…</p></Drawer>
   if (!me) return <p className="sub">Đang tải…</p>
@@ -248,8 +258,9 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
   ]
   const normPool: Pick[] = norms.map(n => ({ id: n.id, label: `${n.title} v${n.version_no}${n.status !== 'published' ? ' (nháp)' : ''}${src(n)}` }))
 
-  /** `draft`: lấy bản sửa chưa phát hành (145) nếu có, để sửa tiếp */
-  const formOf = (live: Item, draft = false): Form => { const i: Item = draft && live.pending ? { ...live, ...live.pending, content: live.pending.content ?? live.content } : live; return {
+  /** `draft`: lấy bản sửa chưa phát hành (145) nếu có, để sửa tiếp.
+   *  Khai báo function (được hoist): edit() gọi từ effect mở thẳng bài lúc màn đang ở nhánh "Đang tải…" phía trên */
+  function formOf(live: Item, draft = false): Form { const i: Item = draft && live.pending ? { ...live, ...live.pending, content: live.pending.content ?? live.content } : live; return {
       id: i.id, kind: i.kind, title: i.title, summary: i.summary ?? '', subject: i.subject ?? '', grades: i.grades ?? '', program: i.program ?? '',
       tags: (i.tags ?? []).join(', '), scope: i.scope, targets: (draft && live.pending?.targets) || (targets.get(i.id) ?? []), slides: i.content.slides ?? [], mtype: i.content.type ?? 'video',
       url: i.content.url ?? '', units: i.content.units ?? [],

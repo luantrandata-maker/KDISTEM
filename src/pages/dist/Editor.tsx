@@ -660,7 +660,9 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       const key = (e: E) => e.skip ? 3e9 : e.w ?? 2e9
       // Đang sửa: giữ thứ tự bài cố định để dòng không nhảy chỗ khi gõ tuần
       es.sort(edit ? (a, b) => +a.skip - +b.skip || ord.get(a.x)! - ord.get(b.x)! : (a, b) => key(a) - key(b) || ord.get(a.x)! - ord.get(b.x)!)
-      const showSubj = (!sel || !!selPid) && colOn.includes('subj'), showProg = !sel && colOn.includes('prog'), on = editable
+      const showSubj = (!sel || !!selPid) && colOn.includes('subj'), showProg = !sel && colOn.includes('prog')
+      // Cột Dạy (tick giữ / bỏ bài): ẩn mặc định, bật ở ⚙ Cột; đang Tùy chỉnh thì luôn hiện
+      const on = editable && (edit || colOn.includes('on'))
       const vis = colOrd.filter(k => k === 'prog' ? showProg : k === 'subj' ? showSubj : k === 'note' ? noteCol : true)
       const cols = vis.length + (on ? 1 : 0), nAt = vis.indexOf('n') + (on ? 1 : 0)
       const live = es.filter(e => !e.skip), total = live.reduce((t, e) => t + e.n, 0)
@@ -670,9 +672,11 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
           <button type="button" className={colMenu ? 'on' : ''} aria-expanded={colMenu} onClick={() => setColMenu(!colMenu)} title="Ẩn/hiện cột, kéo để đổi thứ tự">⚙ Cột</button>
           {colMenu && <div className="ttpop" role="dialog" aria-label="Hiển thị cột">
             <div className="ttpophead"><b>Hiển thị cột</b>
-              <button type="button" onClick={() => { const n = [...new Set([...colOn, 'prog', 'subj', 'note'])]; setColOn0(n); try { localStorage.setItem('dist-cols', JSON.stringify(n)) } catch { /* bỏ qua */ } }}>Hiện tất cả</button></div>
+              <button type="button" onClick={() => { const n = [...new Set([...colOn, 'prog', 'subj', 'note', 'on'])]; setColOn0(n); try { localStorage.setItem('dist-cols', JSON.stringify(n)) } catch { /* bỏ qua */ } }}>Hiện tất cả</button></div>
             <small className="sub">Tick để ẩn/hiện · giữ ⠿ rồi kéo để đổi thứ tự</small>
-            <ul>{colOrd.map(k => {
+            <ul>{editable && <li className="fixed"><span className="ttgrip" aria-hidden="true" style={{ visibility: 'hidden' }}>⠿</span>
+              <label title={edit ? 'Đang Tùy chỉnh: cột Dạy luôn hiện' : 'Tick để giữ / bỏ bài khỏi phân phối'}><input type="checkbox" disabled={edit} checked={edit || colOn.includes('on')} onChange={ev => setCol('on', ev.target.checked)} /> Dạy</label></li>}
+              {colOrd.map(k => {
               const l = ({ w: 'Tuần', prog: 'Chương trình', subj: 'Môn', t: 'Tên bài học', n: 'Thời lượng (tiết)', note: 'Ghi chú' } as Record<string, string>)[k]
               const fixed = k === 'w' || k === 't' || k === 'n'
               return <li key={k} draggable onDragStart={() => setColDrag(k)} onDragEnd={() => setColDrag(null)}

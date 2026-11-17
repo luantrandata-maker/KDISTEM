@@ -4,6 +4,7 @@
 // Sắp xếp khi bấm tiêu đề vẫn do lib/tableSort lo (hàng lọc có class ttfilter được bỏ qua).
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type HTMLAttributes } from 'react'
 import { norm } from '../lib/sheet'
+import { TreeHide } from './TreeHead'
 import { FilterDrawer, Pop, ProDefault, RowMenu, useFillHeight, type RowAction } from './ProTools'
 
 export type Col<T> = {
@@ -404,7 +405,7 @@ export function SideSplit({ aside, children }: { aside: ReactNode; children: Rea
       ? <div className="ttaside ttaside-off"><button type="button" className="ttsidebtn" onClick={show} title="Hiện cây nhóm theo khối" aria-label="Hiện cây nhóm theo khối">»</button></div>
       : <div className="ttaside">
         <button type="button" className="ttsidebtn ttsidehide" onClick={hide} title="Ẩn cây nhóm theo khối" aria-label="Ẩn cây nhóm theo khối">«</button>
-        {aside}
+        <TreeHide.Provider value={hide}>{aside}</TreeHide.Provider>
         <span className="ttsidegrip" role="separator" aria-orientation="vertical" aria-label="Kéo để đổi độ rộng" title="Kéo để đổi độ rộng · bấm đúp để về mặc định"
           onMouseDown={drag} onDoubleClick={() => setSide({ w: 170, off: false })} />
       </div>}

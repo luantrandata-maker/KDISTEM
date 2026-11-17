@@ -2598,6 +2598,8 @@ body.ttdragging{cursor:col-resize;user-select:none}
 .main .ttsidebtn{border:1px solid var(--line);background:var(--surface);color:var(--muted);border-radius:4px;width:22px;height:22px;padding:0;min-height:0;line-height:1;font-size:calc(13px * var(--fz,1));cursor:pointer}
 .main .ttsidebtn:hover{color:var(--primary);border-color:var(--primary)}
 .ttsidehide{position:absolute;top:10px;right:8px;z-index:3}
+/* Cây có dòng tiêu đề: nút « nằm cuối dòng tiêu đề (không đè lên mục Tất cả) */
+.ttaside:has(.gthead)>.ttsidehide{display:none}.gtheadrow>.gthide{margin-left:auto;flex:none;text-transform:none}
 .ttaside .gtree>.gtitem:first-child{padding-right:34px}
 .ttaside-off{padding:10px 5px;display:flex;justify-content:center}
 /* Chú thích thu gọn: rê chuột / focus để xem */
@@ -3410,7 +3412,7 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 /* Cây nhóm: tiêu đề cách nhóm + chú thích số đếm, dòng "đang xem" */
 .gtree{max-height:calc(100vh - 24px);overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
 .gthead{position:sticky;top:0;z-index:3;padding:2px 4px 6px 10px;background:var(--surface)}
-.gtheadrow{padding-right:36px;display:flex;align-items:center;gap:6px;font-size:calc(11.5px * var(--fz,1));color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.gtheadrow{display:flex;align-items:center;gap:6px;font-size:calc(11.5px * var(--fz,1));color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
 .main .gthint{border:0;background:none;padding:0 2px;min-height:0;color:var(--muted);cursor:help;font-size:calc(13px * var(--fz,1));line-height:1}
 .main .gthint:hover,.main .gthint[aria-expanded=true]{color:var(--primary)}
 .gtnote{margin-top:6px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--surface);font-size:calc(12px * var(--fz,1));line-height:1.45;color:var(--text)}

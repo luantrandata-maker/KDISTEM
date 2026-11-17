@@ -3549,3 +3549,11 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .ellessons td select.slcell{padding-right:0;text-overflow:clip}
 .pdsl>h4{flex-wrap:wrap;row-gap:2px}.pdsl>h4 .infotip{font-weight:400}
 .examqs{margin:0 0 16px}.examqs>h4{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}.examqs>h4 .infotip{font-weight:400}
+/* Kho hoạt động: Trình chiếu phủ kín cửa sổ (cả khi trình duyệt không cho toàn màn hình), nội dung giãn theo màn hình */
+.actstage{position:fixed;inset:0;z-index:1000;background:var(--surface);overflow:auto;padding:16px clamp(16px,4vw,48px);display:flex;flex-direction:column;gap:10px}
+.actstage>.bar{margin:0}
+.actstage>.sub{font-size:calc(17px * var(--fz,1))}
+.actstage .panel{flex:1 0 auto;min-height:0}
+.actstage svg{max-width:100%}
+.actstage .simstat b{font-size:calc(22px * var(--fz,1))}
+.actstage .simsvg{max-height:50vh}

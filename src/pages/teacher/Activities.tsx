@@ -5,7 +5,7 @@ import { Icon } from '../../components/Icon'
 import { GradeChecks, SubjectPicker, gradeList } from '../../components/Pickers'
 // Giáo viên → Kho hoạt động & Bài giảng (migration 030)
 // Hoạt động của tôi · Kho của trường (mẫu + đồng nghiệp đã xuất bản) · Bài giảng có thể giao học trước.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { TProps, NoTeacher, PROGRAM_COLOR, Tabs, handoff, useMyClasses } from './common'
 import { ACT, ACT_KINDS, STARTER, ActivityPlayer, ContentEditor, countItems, unitOf, toPlayable, emptyAnswers, answered,
@@ -231,6 +231,16 @@ function Play({ a, big, onBig, onClose, onEdit }: { a: Activity; big: boolean; o
   const [reveal, setReveal] = useState(false)
   const [err, setErr] = useState('')
   const prog = answered(a.kind, ans, data)
+  // Trình chiếu: phủ kín cửa sổ và xin toàn màn hình; thoát toàn màn hình (Esc) thì về chế độ thường
+  const stage = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!big) { if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); return }
+    stage.current?.requestFullscreen?.().catch(() => {})
+    const off = () => { if (!document.fullscreenElement) onBig(false) }
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape' && !document.fullscreenElement) onBig(false) }
+    document.addEventListener('fullscreenchange', off); document.addEventListener('keydown', esc)
+    return () => { document.removeEventListener('fullscreenchange', off); document.removeEventListener('keydown', esc) }
+  }, [big])
 
   async function check() {
     const { data: g, error } = await supabase.rpc('activity_grade', { p_kind: a.kind, c: a.content, a: ans })
@@ -240,12 +250,12 @@ function Play({ a, big, onBig, onClose, onEdit }: { a: Activity; big: boolean; o
   function reset() { const d = toPlayable(a.kind, a.content); setData(d); setAns(emptyAnswers(a.kind, d)); setGrade(null); setReveal(false) }
 
   return (
-    <div className={big ? 'actstage' : ''}>
+    <div ref={stage} className={big ? 'actstage' : ''}>
       <div className="bar">
-        <span className="tools"><button onClick={onClose}>← Danh sách</button><b>{a.title}</b></span>
+        <span className="tools">{!big && <button onClick={onClose}>← Danh sách</button>}<b>{a.title}</b></span>
         <span className="tools">
           {onEdit && <button onClick={onEdit}>Soạn</button>}
-          <button onClick={() => onBig(!big)}>{big ? 'Thu nhỏ' : 'Trình chiếu'}</button>
+          <button className={big ? '' : 'primary'} onClick={() => onBig(!big)}>{big ? '✕ Thoát trình chiếu' : '▶ Trình chiếu'}</button>
           <button onClick={reset}>Làm lại</button>
         </span>
       </div>

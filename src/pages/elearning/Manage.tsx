@@ -6,6 +6,7 @@ import { DataTable, SideSplit, type Col } from '../../components/DataTable'
 import { gridKey, gridPaste, gridMouseDown } from '../../components/sheetGrid'
 import { LongCell } from '../../components/LongCell'
 import { InfoTip } from '../../components/InfoTip'
+import { ExamQuestionsPanel } from '../../components/ExamQuestionsPanel'
 import { Icon } from '../../components/Icon'
 import ImportExcel from '../../components/ImportExcel'
 import { Drawer } from '../../components/Drawer'
@@ -261,7 +262,9 @@ function Exams({ orgId, subject, ofl: shared }: { orgId: string | null; subject?
     actions={<><TryButton orgId={cur.org_id} spec={examSpec(cur)} title={cur.title} minutes={cur.duration_min} />{editable(cur) && <>{statusBtns(cur)}{cur.status === 'draft'
       ? <button onClick={() => editForm(cur)}>Sửa</button>
       : <button onClick={() => newVersion(cur)} title="Đề đã công bố không sửa trực tiếp: tạo bản nháp mới để sửa, công bố bản mới thì bản cũ tự đóng">{draftOf(cur) ? 'Mở bản nháp mới' : 'Phát hành bản mới'}</button>}</>}</>}>
-    {note}{cur.replaces_id && cur.status === 'draft' && <p className="sub">Bản nháp mới thay cho đề <b>{rows.find(r => r.id === cur.replaces_id)?.title ?? 'cũ'}</b>. Công bố bản này thì đề cũ tự đóng.</p>}<ExamQuestions exam={cur} /><ExamResults exam={cur} roster={schoolOf(cur.org_id) && editable(cur)} /></ElView>
+    {note}{cur.replaces_id && cur.status === 'draft' && <p className="sub">Bản nháp mới thay cho đề <b>{rows.find(r => r.id === cur.replaces_id)?.title ?? 'cũ'}</b>. Công bố bản này thì đề cũ tự đóng.</p>}<ExamResults exam={cur} roster={schoolOf(cur.org_id) && editable(cur)} />
+    <ExamQuestionsPanel org={cur.org_id} qids={cur.question_ids ?? []} matrix={cur.criteria.matrix ?? []} subjects={courseSubjects(cur)} grades={courseGrades(cur)}
+      randomCount={cur.mode === 'random' ? cur.criteria.count ?? 0 : 0} sampleNote={!cur.criteria.matrix?.length && cur.criteria.topics?.length ? `Câu ngẫu nhiên thuộc chủ đề ${cur.criteria.topics.join(', ')}.` : undefined} /></ElView>
   return (
     <>
       {note}
@@ -327,25 +330,6 @@ function ExamForm({ form, setForm, onSubmit, orgId, classes, groups, isSchool }:
       </div>
     </form>
   )
-}
-
-/** Chi tiết đề: nội dung câu hỏi và câu hỏi lấy từ đâu (câu cố định chọn trong ngân hàng, câu rút ngẫu nhiên theo ma trận) */
-function ExamQuestions({ exam }: { exam: Exam }) {
-  const mx = exam.criteria.matrix ?? []
-  const fixed = exam.question_ids ?? []
-  const nRnd = mx.length ? matrixTotal(mx) : exam.mode === 'random' ? exam.criteria.count ?? 0 : 0
-  return <section className="panel examqs">
-    <h4 className="pdcardh">Câu hỏi của đề ({fixed.length + nRnd} câu)
-      <InfoTip left label="Câu hỏi lấy từ đâu">Mọi câu hỏi đều nằm trong <b>Ngân hàng câu hỏi</b> (tab Ngân hàng câu hỏi của E-learning & luyện thi): câu của đơn vị mình và câu cấp trên dùng chung.
-        <br /><b>Câu cố định</b>: người ra đề chọn sẵn từ ngân hàng (hoặc soạn mới / nhập Excel, câu đó được lưu vào ngân hàng), học sinh nào cũng làm các câu này. Cột Nguồn cho biết câu của đơn vị nào và được soạn tay, nhập Excel hay do Trợ lý AI tạo.
-        {nRnd > 0 && <><br /><b>Câu rút ngẫu nhiên</b>: mỗi lượt làm, hệ thống rút ngẫu nhiên từ ngân hàng theo ma trận (môn, chủ đề, mức độ) bên dưới, nên mỗi học sinh có thể nhận câu khác nhau.</>}</InfoTip></h4>
-    {fixed.length > 0 || !nRnd ? <QuestionPicker value={fixed} onChange={() => {}} edit={false} showSource subjects={courseSubjects(exam)} grades={courseGrades(exam)} title="Câu cố định" /> : null}
-    {nRnd > 0 && <>
-      <h4 className="libparthead" style={{ margin: '14px 0 6px' }}>Rút ngẫu nhiên từ ngân hàng mỗi lượt ({nRnd} câu)</h4>
-      {mx.length ? <ExamMatrix org={exam.org_id} subjects={courseSubjects(exam)} grades={courseGrades(exam)} rows={mx} onChange={() => {}} disabled />
-        : <p className="sub">{nRnd} câu{exam.criteria.topics?.length ? ` thuộc chủ đề ${exam.criteria.topics.join(', ')}` : ''}, rút theo môn và khối của đề.</p>}
-      <p className="sub" style={{ margin: '6px 0 0' }}>Bấm <b>Làm thử</b> ở đầu trang để xem một lượt rút cụ thể.</p></>}
-  </section>
 }
 
 function ExamResults({ exam, roster }: { exam: Exam; roster: boolean }) {

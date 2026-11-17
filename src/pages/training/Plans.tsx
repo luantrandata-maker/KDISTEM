@@ -554,7 +554,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
         {tab === 'reg' && schools}
         {tab === 'exams' && <PlanExams planId={p.id} planOrg={p.org_id} items={items} can={can && !p.closed_at && p.pub_status !== 'archived'} />}
         {tab === 'results' && (p.pub_status === 'draft' ? <p className="sub" style={{ margin: 0 }}>Phát hành kế hoạch và ghi danh nhà giáo trước, rồi chấm kết quả và cấp chứng chỉ ở đây.</p>
-          : <div style={{ display: 'grid', gap: 12 }}>{enr.length > 0 && <PlanProgress planId={p.id} manage={can} />}<PlanResults plan={p} embedded /></div>)}
+          : <PlanResults plan={p} embedded />)}
       </section>}
   </div>
 

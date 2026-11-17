@@ -48,7 +48,8 @@ export function ProgLine({ i }: { i: Item }) {
 }
 export type Rights = 'view' | 'use' | 'adapt'
 export type Version = { id: string; item_id: string; version: number; title: string; change_note: string | null; published_at: string; content: Item['content'] }
-export type ProgOpt = { id: string; title: string; version_no: number; status: string; org_id: string }
+export type ProgOpt = { id: string; title: string; version_no: number; status: string; org_id: string
+  ct_code?: string | null; grade_from?: number | null; grade_to?: number | null; main_subject?: string | null }
 export type UnitOpt = { id: string; program_id: string; parent_id: string | null; unit_type: 'topic' | 'lesson' | 'session'; seq: number; title: string }
 export type Copy = { item_id: string; adopted_version: number; lesson_plan_id: string | null; created_at: string; adopted_by: string | null }
 
@@ -101,7 +102,7 @@ export function useProgramOptions(orgId: string | null) {
   const [programs, setPrograms] = useState<ProgOpt[]>([])
   const [units, setUnits] = useState<UnitOpt[]>([])
   useEffect(() => {
-    supabase.from('edu_programs').select('id, title, version_no, status, org_id').in('status', ['published', 'draft', 'superseded']).order('title')
+    supabase.from('edu_programs').select('id, title, version_no, status, org_id, ct_code, grade_from, grade_to, main_subject').in('status', ['published', 'draft', 'superseded']).order('title')
       .then(({ data }) => setPrograms(((data as ProgOpt[]) ?? []).filter(p => p.status === 'published' || (p.status === 'draft' && p.org_id === orgId))))
     supabase.from('edu_program_units').select('id, program_id, parent_id, unit_type, seq, title').in('unit_type', ['topic', 'lesson']).order('seq')
       .then(({ data }) => setUnits((data as UnitOpt[]) ?? []))
@@ -344,6 +345,8 @@ export function Versions({ item, canRestore, onRestored }: { item: Item; canRest
 export function SlidesEditor({ slides, onChange }: { slides: Slide[]; onChange: (s: Slide[]) => void }) {
   const [sel, setSel] = useState(0)
   const [show, setShow] = useState(false)
+  // Thanh định dạng (chủ đề, bố cục, chữ) thu gọn sau nút "Định dạng" để khung slide rộng hơn
+  const [fmt, setFmt] = useState(false)
   const cur = slides[sel]
   const set = (p: Partial<Slide>) => onChange(slides.map((s, k) => k === sel ? { ...s, ...p } : s))
   const add = (kind: SlideKind) => {
@@ -354,10 +357,12 @@ export function SlidesEditor({ slides, onChange }: { slides: Slide[]; onChange: 
     <div className="sleditor">
       <ol className="slthumbs">
         {slides.map((s, k) => (
-          <li key={s.id}><button type="button" className={k === sel ? 'on' : ''} onClick={() => setSel(k)}>
-            <small>{k + 1} · {SLIDE_KIND[s.kind]}</small><span>{s.title || 'Chưa có tiêu đề'}</span></button></li>
+          <li key={s.id}><button type="button" className={k === sel ? 'on' : ''} onClick={() => setSel(k)} aria-label={`Slide ${k + 1}: ${s.title || 'Chưa có tiêu đề'}`}>
+            <div className="slmini" aria-hidden><SlideView slide={s} /></div>
+            <small>{k + 1} · {SLIDE_KIND[s.kind]}</small></button></li>
         ))}
-        <li className="sladd">{(Object.keys(SLIDE_KIND) as SlideKind[]).map(k => <button type="button" key={k} onClick={() => add(k)}>+ {SLIDE_KIND[k]}</button>)}</li>
+        <li><select className="sladdsel" value="" onChange={e => e.target.value && add(e.target.value as SlideKind)} aria-label="Thêm slide">
+          <option value="">+ Thêm slide…</option>{(Object.keys(SLIDE_KIND) as SlideKind[]).map(k => <option key={k} value={k}>{SLIDE_KIND[k]}</option>)}</select></li>
       </ol>
       {cur ? (
         <div className="slform">
@@ -365,11 +370,12 @@ export function SlidesEditor({ slides, onChange }: { slides: Slide[]; onChange: 
             {cur.kind === 'task' && <label className="inl">Thời gian <input type="number" min={1} value={cur.minutes ?? 10} onChange={e => set({ minutes: Number(e.target.value) })} style={{ width: 64 }} /> phút</label>}
             <button type="button" disabled={sel === 0} onClick={() => { const s = [...slides]; [s[sel - 1], s[sel]] = [s[sel], s[sel - 1]]; onChange(s); setSel(sel - 1) }}>↑ Lên</button>
             <button type="button" disabled={sel >= slides.length - 1} onClick={() => { const s = [...slides]; [s[sel + 1], s[sel]] = [s[sel], s[sel + 1]]; onChange(s); setSel(sel + 1) }}>↓ Xuống</button>
-            <button type="button" className="danger" onClick={() => { onChange(slides.filter((_, k) => k !== sel)); setSel(Math.max(0, sel - 1)) }}>Xoá slide</button>
+            <button type="button" onClick={() => { onChange([...slides.slice(0, sel + 1), { ...JSON.parse(JSON.stringify(cur)), id: uid() }, ...slides.slice(sel + 1)]); setSel(sel + 1) }}>⧉ Nhân bản</button>
+            <button type="button" className="danger" onClick={() => { if (!confirm(`Xoá slide ${sel + 1}?`)) return; onChange(slides.filter((_, k) => k !== sel)); setSel(Math.max(0, sel - 1)) }}>Xoá slide</button>
+            <button type="button" className={fmt ? 'on' : ''} aria-pressed={fmt} onClick={() => setFmt(!fmt)}>Aa Định dạng {fmt ? '▴' : '▾'}</button>
             <button type="button" className="primary" style={{ marginLeft: 'auto' }} onClick={() => setShow(true)}>▶ Trình chiếu</button>
           </div>
-          <SlideFormat slide={cur} onEdit={set} onAll={p => onChange(slides.map(x => ({ ...x, ...p })))}
-            onDup={() => { onChange([...slides.slice(0, sel + 1), { ...JSON.parse(JSON.stringify(cur)), id: uid() }, ...slides.slice(sel + 1)]); setSel(sel + 1) }} />
+          {fmt && <SlideFormat slide={cur} onEdit={set} onAll={p => onChange(slides.map(x => ({ ...x, ...p })))} />}
           <SlideView slide={cur} reveal onEdit={set} />
           <small className="sub">Bấm vào tiêu đề, nội dung hoặc phương án trên slide để sửa trực tiếp.</small>
         </div>

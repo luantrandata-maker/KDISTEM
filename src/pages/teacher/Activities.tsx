@@ -139,14 +139,17 @@ function KindPicker({ onBack, onPick }: { onBack: () => void; onPick: (k: ActKin
 
 // Cổng Quản trị nền tảng: thêm hoạt động của KDI (bài mẫu, không gắn giáo viên) và xem chi tiết / chơi thử hoạt động bất kỳ
 type Desk = { mode: 'new' } | { mode: 'open'; id: string } | { mode: 'edit'; a: Activity } | { mode: 'play'; a: Activity; big: boolean }
-export function ActivityDesk({ orgId, start, onClose, domain = 'school' }: { orgId: string | null; start: { mode: 'new' } | { mode: 'open'; id: string }; onClose: () => void; domain?: 'school' | 'training' }) {
+export function ActivityDesk({ orgId, start, onClose, domain = 'school' }: { orgId: string | null; start: { mode: 'new' } | { mode: 'open'; id: string; edit?: boolean }; onClose: () => void; domain?: 'school' | 'training' }) {
   const [v, setV] = useState<Desk>(start)
+  const editFirst = start.mode === 'open' && !!start.edit
   const [err, setErr] = useState('')
   useEffect(() => {
     if (v.mode !== 'open') return
     supabase.from('activities').select(COLS).eq('id', v.id).maybeSingle().then(({ data, error }) => {
       if (error || !data) return setErr(error?.message ?? 'Không tìm thấy hoạt động (có thể chưa xuất bản nên không xem được).')
-      setV({ mode: 'play', a: data as unknown as Activity, big: false })
+      const x = data as unknown as Activity
+      // Mở thẳng trình soạn (nút ⋮ → Sửa) nếu hoạt động thuộc đơn vị đang làm việc
+      setV(editFirst && orgId && x.org_id === orgId ? { mode: 'edit', a: x } : { mode: 'play', a: x, big: false })
     })
   }, [v.mode === 'open' ? v.id : ''])
   async function create(k: ActKind) {
@@ -198,7 +201,7 @@ function Editor({ a, onClose, onPlay }: { a: Activity; onClose: () => void; onPl
           {dirty ? <small>Chưa lưu</small> : msg && <small>{msg}</small>}</span>
         <span className="tools">
           <button onClick={() => onPlay(x)}>Chơi thử</button>
-          <button onClick={() => save()} disabled={busy}>Lưu</button>
+          <button onClick={() => save()} disabled={busy}>{x.status === 'published' ? 'Lưu thay đổi' : 'Lưu nháp'}</button>
           {x.status === 'published'
             ? <button onClick={() => save('draft')} disabled={busy}>Thu hồi xuất bản</button>
             : <button className="primary" onClick={() => save('published')} disabled={busy}>Xuất bản</button>}

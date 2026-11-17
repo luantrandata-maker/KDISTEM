@@ -824,7 +824,7 @@ function VerTab({ p, versions, reviews, classes, reviewRequired, busy, onRestore
 
 // ===== Cổng Quản trị nền tảng: thêm bài giảng của KDI, xem chi tiết bài giảng bất kỳ =====
 type Desk = { mode: 'new' } | { mode: 'view'; id: string } | { mode: 'edit'; id: string } | { mode: 'present'; plan: LPlan; i: number; back: Desk }
-export function LessonDesk({ orgId, start, onClose }: { orgId: string | null; start: { mode: 'new' } | { mode: 'view'; id: string }; onClose: () => void }) {
+export function LessonDesk({ orgId, start, onClose }: { orgId: string | null; start: { mode: 'new' } | { mode: 'view'; id: string } | { mode: 'edit'; id: string }; onClose: () => void }) {
   const [v, setV] = useState<Desk>(start)
   const templates = useTemplates()
   const [reviewRequired, setReviewRequired] = useState(false)

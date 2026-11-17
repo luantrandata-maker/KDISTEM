@@ -159,19 +159,26 @@ export async function loadCatalog(): Promise<Cat[]> {
   const { data } = await supabase.from('material_catalog').select('id, name, unit, kind, reusable').eq('active', true).order('name')
   return (data as Cat[]) ?? []
 }
-export type BankAct = { id: string; title: string; kind: string; status: string; is_template: boolean; org_id: string }
+export type BankAct = { id: string; title: string; kind: string; status: string; is_template: boolean; org_id: string; instructions?: string | null }
 /** Hoạt động trong Kho hoạt động (bảng activities) của đơn vị và bản mẫu dùng chung */
 export async function loadActivities(orgId?: string): Promise<BankAct[]> {
-  let q = supabase.from('activities').select('id, title, kind, status, is_template, org_id').eq('domain', 'school')
+  let q = supabase.from('activities').select('id, title, kind, status, is_template, org_id, instructions').eq('domain', 'school')
   if (orgId) q = q.or(`org_id.eq.${orgId},is_template.eq.true`)
   const { data } = await q.order('title').limit(500)
   return (data as BankAct[]) ?? []
 }
 /** Thẻ 05: hoạt động chưa có trong kho được tạo thành bản mẫu nháp ở Kho hoạt động (giáo viên thấy, sao chép và soạn tiếp) */
 async function chotBank(c: Ctx) {
-  const have = new Set((await loadActivities(c.orgId)).map(a => a.id))
+  const acts = await loadActivities(c.orgId)
+  const have = new Set(acts.map(a => a.id))
+  // Chốt lại thẻ nhiều lần: dùng lại hoạt động mẫu của đơn vị cùng tên, cùng loại, cùng bài học thay vì tạo bản trùng
+  const lessonOf = (ins?: string | null) => normText(/(?:^|\n)Bài học:\s*(.+)\s*$/m.exec(ins ?? '')?.[1] ?? '')
+  const key = (t: string, k: string, l: string) => normText(t) + '|' + k + '|' + l
+  const same = new Map(acts.filter(a => a.org_id === c.orgId && a.is_template).map(a => [key(a.title, a.kind, lessonOf(a.instructions)), a.id]))
   for (const b of c.kit.bank) {
     if (!b.title.trim() || (b.activity_id && have.has(b.activity_id))) continue
+    const dup = same.get(key(b.title.trim().slice(0, 200), b.kind in ACT_STARTER ? b.kind : 'quiz', normText(c.row.title)))
+    if (dup) { b.activity_id = dup; continue }
     const r = await supabase.from('activities').insert({
       org_id: c.orgId, teacher_id: null, kind: b.kind in ACT_STARTER ? b.kind : 'quiz', title: b.title.trim().slice(0, 200),
       instructions: [b.act && `Dùng ở: ${b.act}`, b.note, `Bài học: ${c.row.title}`].filter(Boolean).join('\n'),

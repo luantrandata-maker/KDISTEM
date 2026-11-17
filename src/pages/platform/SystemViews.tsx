@@ -6,6 +6,7 @@ import { Tabs } from '../teacher/common'
 import { StatCards, type Stat as CardStat } from '../../components/StatCards'
 import { DataTable, type Col as DCol } from '../../components/DataTable'
 import { PageCorner } from '../../components/PageCorner'
+import type { RowAction } from '../../components/ProTools'
 import { useGradeTree } from '../../components/GradeTree'
 import { gradeList } from '../../components/Pickers'
 
@@ -85,7 +86,9 @@ async function fetchAll(spec: Spec, ids: string[] | null) {
 
 // onOpen: bấm một dòng để mở chi tiết (thay cho dòng mở rộng `detail`); actions: nút thêm ở thanh công cụ; reloadKey đổi → tải lại
 // listFirst: mở sẵn kiểu Danh sách, cột Đơn vị đứng cuối (kho bài giảng / hoạt động: tên bài là chính)
-export function SystemList({ spec, onOpen, actions, reloadKey = 0, listFirst }: { spec: Spec; onOpen?: (r: Row) => void; actions?: ReactNode; reloadKey?: number; listFirst?: boolean }) {
+export function SystemList({ spec, onOpen, actions, reloadKey = 0, listFirst, rowMenu }: { spec: Spec; onOpen?: (r: Row) => void; actions?: ReactNode; reloadKey?: number; listFirst?: boolean
+  /** Nút ⋮ cuối dòng */
+  rowMenu?: (r: Row) => RowAction[] }) {
   const { byId, regionOf, regions, orgs } = useOrgs()
   const saved = (() => { try { return JSON.parse(localStorage.getItem(KEY) ?? '{}') as { region?: string; org?: string } } catch { return {} } })()
   const [region0, setRegion] = useState(saved.region ?? '')
@@ -227,7 +230,7 @@ export function SystemList({ spec, onOpen, actions, reloadKey = 0, listFirst }: 
           ...spec.stats.map(st => ({ key: 's_' + st.label, label: st.label, cell: (r: { id: string; list: Row[] | null }) => { if (!r.list) return '—'; const v = st.get(r.list); return typeof v === 'number' ? v.toLocaleString('vi-VN') : v } })),
         ] as DCol<{ id: string; list: Row[] | null }>[]} />}
 
-      {(org || view === 'list') && !spec.detail && <DataTable id={'sys-' + spec.file} rows={busy ? [] : shown.slice(0, SHOW)} rowKey={r => r.id} onRow={onOpen} left={tLeft} right={tRight}
+      {(org || view === 'list') && !spec.detail && <DataTable id={'sys-' + spec.file} rows={busy ? [] : shown.slice(0, SHOW)} rowKey={r => r.id} onRow={onOpen} rowMenu={rowMenu} left={tLeft} right={tRight}
         aside={spec.grades && shown0.length ? gt.tree : undefined} empty={busy ? 'Đang tải…' : rows.length ? 'Không có dòng phù hợp bộ lọc.' : spec.empty}
         cols={[...(!org && !listFirst ? [orgCol] : []),
           ...spec.cols.map((c, i) => {
@@ -504,13 +507,16 @@ export const LESSONS: Spec = {
 const A_KIND: Record<string, string> = { quiz: 'Trắc nghiệm', truefalse: 'Đúng / sai', match: 'Nối cặp', order: 'Sắp xếp', fill: 'Điền khuyết', group: 'Phân nhóm', flashcard: 'Thẻ ghi nhớ', worksheet: 'Phiếu học tập',
   // Cùng nhãn với ACT (teacher/activity.tsx): trò chơi và mô phỏng thêm sau, trước đây hiện mã thô "race", "sim"
   race: 'Đường đua tri thức', wheel: 'Vòng quay may mắn', teams: 'Chia đội thi đấu', timer: 'Đồng hồ thử thách', sim: 'Mô phỏng 2D / giáo cụ ảo' }
+const usedIn = (r: Row): string => /(?:^|\n)Bài học:\s*(.+)\s*$/m.exec(r.instructions ?? '')?.[1]?.trim() ?? ''
 export const ACTIVITIES: Spec = {
   table: 'activities', order: 'updated_at', asc: false,
-  select: 'id, org_id, kind, title, subject, grades, status, is_template, updated_at, teachers(full_name)',
+  select: 'id, org_id, kind, title, instructions, subject, grades, status, is_template, updated_at, teachers(full_name)',
   where: q => q.eq('domain', 'school'), grades: r => rowGrades(r.grades),
   cols: [
     { label: 'Hoạt động', get: r => <><b>{r.title}</b>{r.is_template && <> {pill('Mẫu')}</>}</>, text: r => r.title, wrap: true },
     { label: 'Loại', get: r => A_KIND[r.kind] ?? r.kind },
+    // Hoạt động tạo từ bộ học liệu ghi dòng "Bài học: …" trong hướng dẫn
+    { label: 'Dùng ở bài', get: r => usedIn(r) || <small>—</small>, text: r => usedIn(r), wrap: true },
     { label: 'Giáo viên', get: r => r.teachers?.full_name ?? <small>—</small>, text: r => r.teachers?.full_name },
     { label: 'Môn · khối', get: r => [r.subject, r.grades].filter(Boolean).join(' · ') },
     { label: 'Trạng thái', get: r => stPill({ draft: 'Nháp', published: 'Đã xuất bản' }, { published: 'active' })(r.status), text: r => (r.status === 'published' ? 'Đã xuất bản' : 'Nháp') },
@@ -624,12 +630,14 @@ export const SysCurriculum = one(CURRICULUM)
 // Kho hoạt động / bài giảng (094): KDI thêm bài của mình; bấm một dòng để xem chi tiết (chơi thử, giáo án đầy đủ)
 const ActivityDesk = lazy(() => import('../teacher/Activities').then(m => ({ default: m.ActivityDesk })))
 const LessonDesk = lazy(() => import('../lessons/Studio').then(m => ({ default: m.LessonDesk })))
-type DeskStart = { mode: 'new' } | { mode: 'open'; id: string }
-function BankList({ spec, orgId, add, desk: Desk, onPick, onAdd }: {
+type DeskStart = { mode: 'new' } | { mode: 'open'; id: string } | { mode: 'edit'; id: string }
+function BankList({ spec, orgId, add, desk: Desk, onPick, onAdd, menu }: {
   spec: Spec; orgId?: string | null; add: string
   desk: (p: { start: DeskStart; onClose: () => void }) => ReactNode
   /** Trả true nếu đã tự mở dòng (vd. bài giảng KDI) */
   onPick?: (r: Row) => boolean; onAdd?: () => void
+  /** Thao tác ở nút ⋮ cuối dòng; `open` mở trang xem / sửa của dòng */
+  menu?: (r: Row, open: (s: DeskStart) => void) => RowAction[]
 }) {
   const [d, setD] = useState<DeskStart | null>(null)
   const [k, setK] = useState(0)
@@ -639,29 +647,50 @@ function BankList({ spec, orgId, add, desk: Desk, onPick, onAdd }: {
     {orgId && !d && <PageCorner><button type="button" className="primary" onClick={() => (onAdd ? onAdd() : setD({ mode: 'new' }))}>{add}</button></PageCorner>}
     {/* Giữ danh sách (bộ lọc, ô tìm) khi mở chi tiết */}
     <div hidden={!!d}>
-      <SystemList spec={spec} reloadKey={k} listFirst onOpen={r => { if (!onPick?.(r)) setD({ mode: 'open', id: r.id }) }} />
+      <SystemList spec={spec} reloadKey={k} listFirst onOpen={r => { if (!onPick?.(r)) setD({ mode: 'open', id: r.id }) }} rowMenu={menu && (r => menu(r, setD))} />
     </div>
   </>
 }
 export const SysActivities = ({ orgId }: { orgId?: string | null }) => <BankList spec={ACTIVITIES} orgId={orgId} add="+ Thêm hoạt động"
-  desk={({ start, onClose }) => <ActivityDesk orgId={orgId ?? null} start={start} onClose={onClose} />} />
+  menu={(r, open) => [{ label: 'Xem / chơi thử', onClick: () => open({ mode: 'open', id: r.id }) },
+    ...(r.org_id === orgId ? [{ label: 'Sửa', onClick: () => open({ mode: 'edit', id: r.id }) }] : [])]}
+  desk={({ start, onClose }) => <ActivityDesk orgId={orgId ?? null} start={start.mode === 'edit' ? { mode: 'open', id: start.id, edit: true } : start} onClose={onClose} />} />
 export const SysSchoolLessons = ({ orgId }: { orgId?: string | null }) => <BankList spec={LESSONS} orgId={orgId} add="+ Thêm bài giảng"
-  desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'new' ? start : { mode: 'view', id: start.id }} onClose={onClose} />} />
+  desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'open' ? { mode: 'view', id: start.id } : start} onClose={onClose} />} />
 // Một danh sách bài giảng (15/11): bài giảng KDI (kho học liệu) + bài giảng giáo viên các trường soạn, như Kho hoạt động
 const LibraryManage = lazy(() => import('../library/Manage').then(m => ({ default: m.LibraryManage })))
+/** Chương trình · bài của một bài giảng: chưa gắn bài thì nhắc */
+const progUnit = (r: Row) => {
+  const u = r.edu_program_units?.title
+  return u ? <>{r.program ? <small>{r.program} · </small> : null}{u}</> : <>{r.program ? <small>{r.program} </small> : null}{pill('Chưa gắn bài', 'maintenance')}</>
+}
 const ALL_LESSONS: Spec = {
   ...LESSONS,
-  cols: [...LESSONS.cols.slice(0, 4), { label: 'Nguồn', get: r => r.lib ? pill('Bài giảng KDI', 'active') : 'Giáo viên soạn', text: r => (r.lib ? 'Bài giảng KDI' : 'Giáo viên soạn') }, ...LESSONS.cols.slice(4)],
+  // Bài Mẫu ở tab "Mẫu bài giảng"; bản nháp sửa (076) là bản phụ của bài gốc, không hiện thành dòng riêng
+  select: 'id, org_id, title, subject, grades, program, status, is_template, from_package, updated_at, library_item_id, unit_id, edu_program_units(title), teachers(full_name)',
+  where: q => q.eq('is_template', false).is('draft_of', null),
+  cols: [
+    { label: 'Bài giảng', get: r => <><b>{r.title}</b>{r.library_item_id && <><br /><small>Bản riêng từ bài giảng KDI</small></>}</>, text: r => r.title, wrap: true },
+    LESSONS.cols[1],
+    { label: 'Chương trình · bài', get: progUnit, text: r => [r.program, r.edu_program_units?.title ?? 'Chưa gắn bài'].filter(Boolean).join(' · '), wrap: true },
+    // Gộp "Giáo viên" và "Nguồn": bài KDI soạn ghi KDI, bài trường ghi tên giáo viên
+    { label: 'Người soạn', get: r => r.lib ? pill('KDI', 'active') : r.teachers?.full_name ?? <small>—</small>, text: r => (r.lib ? 'KDI' : r.teachers?.full_name ?? '') },
+    ...LESSONS.cols.slice(4),
+  ],
   stats: [
     { label: 'Bài giảng KDI', get: rs => rs.filter(r => r.lib).length },
     { label: 'Đã xuất bản', get: rs => rs.filter(r => r.status === 'published').length },
     { label: 'Giáo viên soạn', get: rs => new Set(rs.map(r => r.teachers?.full_name).filter(Boolean)).size },
-    { label: 'Từ gói STEM', get: rs => rs.filter(r => r.from_package).length },
+    { label: 'Chưa gắn bài', get: rs => rs.filter(r => !r.unit_id).length },
   ],
   more: async () => {
-    const { data } = await supabase.from('library_items').select('id, owner_org_id, title, subject, grades, program, status, updated_at').eq('kind', 'lesson').order('updated_at', { ascending: false }).limit(5000)
-    return ((data ?? []) as any[]).map(r => ({ ...r, org_id: r.owner_org_id, lib: true, teachers: null }) as Row)
+    const cols = 'id, owner_org_id, title, subject, grades, program, status, updated_at, unit_id'
+    // CSDL chưa có edu_program_units (064) thì nạp không kèm tên bài
+    let r = await supabase.from('library_items').select(cols + ', edu_program_units(title)').eq('kind', 'lesson').order('updated_at', { ascending: false }).limit(5000)
+    if (r.error) r = await supabase.from('library_items').select(cols).eq('kind', 'lesson').order('updated_at', { ascending: false }).limit(5000) as typeof r
+    return ((r.data ?? []) as any[]).map(x => ({ ...x, org_id: x.owner_org_id, lib: true, teachers: null }) as Row)
   },
+  search: r => `${r.title} ${r.subject ?? ''} ${r.lib ? 'KDI' : r.teachers?.full_name ?? ''} ${r.edu_program_units?.title ?? ''}`, searchHint: 'Tên bài, môn, người soạn, bài trong chương trình…',
   file: 'bai-giang', empty: 'Chưa có bài giảng.',
 }
 export function SysLessons({ orgId }: { orgId?: string | null }) {
@@ -672,7 +701,9 @@ export function SysLessons({ orgId }: { orgId?: string | null }) {
   return <>
     {lib && <Suspense fallback={null}><LibraryManage orgId={orgId ?? null} only="lesson" start={lib.editId ? { editId: lib.editId } : { newKind: 'lesson' }} onDone={done} onChanged={() => setK(x => x + 1)} /></Suspense>}
     <BankList key={k} spec={ALL_LESSONS} orgId={orgId} add="+ Thêm bài giảng" onPick={r => (r.lib ? (setLib({ editId: r.id }), true) : false)} onAdd={() => setLib({})}
-      desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'new' ? start : { mode: 'view', id: start.id }} onClose={onClose} />} />
+      menu={(r, open) => r.lib ? [{ label: 'Sửa', onClick: () => setLib({ editId: r.id }) }]
+        : [{ label: 'Xem', onClick: () => open({ mode: 'open', id: r.id }) }, { label: 'Sửa', onClick: () => open({ mode: 'edit', id: r.id }) }]}
+      desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'open' ? { mode: 'view', id: start.id } : start} onClose={onClose} />} />
   </>
 }
 // Mẫu bài giảng: bài giảng soạn sẵn (is_template) — giáo viên bấm "Dùng mẫu này" để có bản của mình rồi sửa tiếp
@@ -694,12 +725,14 @@ const LESSON_TEMPLATES: Spec = { ...LESSONS, where: q => q.eq('is_template', tru
   },
   noun: 'Mẫu bài giảng', file: 'mau-bai-giang', empty: 'Chưa có mẫu bài giảng. Bấm "+ Thêm mẫu bài giảng".' }
 export const SysLessonTemplates = ({ orgId }: { orgId?: string | null }) => <BankList spec={LESSON_TEMPLATES} orgId={orgId} add="+ Thêm mẫu bài giảng"
-  desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'new' ? start : { mode: 'view', id: start.id }} onClose={onClose} />} />
+  desk={({ start, onClose }) => <LessonDesk orgId={orgId ?? null} start={start.mode === 'open' ? { mode: 'view', id: start.id } : start} onClose={onClose} />} />
 // Kho hoạt động của Đào tạo đào tạo (116): cùng kiểu hoạt động, cách soạn và chơi thử như Kho hoạt động của Chương trình & học liệu
 const TRAINING_ACTIVITIES: Spec = { ...ACTIVITIES, cards: undefined, where: q => q.eq('domain', 'training'),
   cols: ACTIVITIES.cols.map(c => c.label === 'Giáo viên' ? { ...c, label: 'Người soạn', get: (r: Row) => r.teachers?.full_name ?? <small>KDI</small> } : c),
   search: r => `${r.title} ${r.subject ?? ''}`, searchHint: 'Tên hoạt động, môn…', file: 'kho-hoat-dong-tap-huan', empty: 'Chưa có hoạt động đào tạo. Bấm "+ Thêm hoạt động".' }
 export const SysTrainingActivities = ({ orgId }: { orgId?: string | null }) => <BankList spec={TRAINING_ACTIVITIES} orgId={orgId} add="+ Thêm hoạt động"
-  desk={({ start, onClose }) => <ActivityDesk orgId={orgId ?? null} start={start} onClose={onClose} domain="training" />} />
+  menu={(r, open) => [{ label: 'Xem / chơi thử', onClick: () => open({ mode: 'open', id: r.id }) },
+    ...(r.org_id === orgId ? [{ label: 'Sửa', onClick: () => open({ mode: 'edit', id: r.id }) }] : [])]}
+  desk={({ start, onClose }) => <ActivityDesk orgId={orgId ?? null} start={start.mode === 'edit' ? { mode: 'open', id: start.id, edit: true } : start} onClose={onClose} domain="training" />} />
 export const SysTrainingLessons = () => <TwoTabs tabs={[['Bài giảng đào tạo', TRAINING_LESSONS], ['Lớp học ảo', VIRTUAL]]} />
 export const SysCertificates = one(CERTIFICATES)

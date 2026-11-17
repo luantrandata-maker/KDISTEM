@@ -135,6 +135,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
   const [targets, setTargets] = useState<Map<string, string[]>>(new Map())
   const [orgs, setOrgs] = useState<Org[]>([])
   const [me, setMe] = useState<Org | null>(null)
+  const [loaded, setLoaded] = useState(false)
   // Quản trị hệ thống: học liệu của tất cả đơn vị trong một danh sách, sửa thẳng; thêm mới chọn đơn vị trong form
   const every = useAllMode()
   const mineOf = (owner?: string | null) => owner === orgId || !!every
@@ -174,6 +175,12 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
   // Bài giảng: tab 1 Thông tin, tab 2 Nội dung (tương tác hoặc slide)
   const [ltab, setLtab] = useState<'info' | 'content'>('info')
 
+  // Đơn vị đang làm việc nạp riêng, nhanh: "Thêm bài giảng" mở form ngay, không chờ nạp cả kho học liệu và cây đơn vị
+  useEffect(() => {
+    if (!orgId) return
+    supabase.from('organizations').select('id, name, type, parent_id').eq('id', orgId).maybeSingle()
+      .then(({ data }) => { if (data) setMe(m => m ?? (data as Org)) })
+  }, [orgId])
   async function load() {
     if (!orgId) return
     const [i, s, t, o, l] = await Promise.all([
@@ -190,12 +197,15 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
     const tm = new Map<string, string[]>(); ((t.data as { item_id: string; org_id: string }[]) ?? []).forEach(x => tm.set(x.item_id, [...(tm.get(x.item_id) ?? []), x.org_id])); setTargets(tm)
     const os = (o.data as Org[]) ?? []; setOrgs(os); setMe(os.find(x => x.id === orgId) ?? null)
     setLessons((l.data as unknown as LP[]) ?? [])
+    setLoaded(true)
   }
   useEffect(() => { load() }, [orgId])
   useEffect(() => {
     if (!start || started.current || !me) return
     const i = start.editId ? items.find(x => x.id === start.editId) : undefined
     if (start.editId && !i) return
+    // Sửa bài: chờ nạp xong kho (nơi nhận, nguồn sao chép) để không lưu thiếu đơn vị nhận
+    if (start.editId && !loaded) return
     started.current = true
     if (i) edit(i)
     else if (start.newKind) { setLtab('info'); setMsg(''); setInfo(''); setSub(null); setForm(EMPTY(start.newKind)) }
@@ -205,9 +215,11 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
       setForm({ ...EMPTY('unit'), title: p.title, program_id: p.program_id, unit_id: p.unit_id, program: p.program ?? '', grades: p.grades ?? '',
         periods: p.periods ? String(p.periods) : '', objectives: p.objectives ?? '' })
     }
-  }, [me, items])
+  }, [me, items, loaded])
   const close = () => { setForm(null); if (start) onDone?.() }
   if (err) return <p className="msg">{err}</p>
+  // Mở thẳng form (từ danh sách Bài giảng): khung form hiện ngay với dòng chờ, không đẩy danh sách bên dưới
+  if (start && !form) return <Drawer wide title={start.editId ? 'Đang mở bài giảng…' : 'Thêm bài giảng'} onClose={close}><p className="sub">Đang tải…</p></Drawer>
   if (!me) return <p className="sub">Đang tải…</p>
   if (flow && orgId) return <LessonFlow key={flow.id ?? 'new'} orgId={orgId} openId={flow.id} onClose={() => { setFlow(null); load() }} onChanged={() => { load(); onChanged?.() }} />
 
@@ -647,37 +659,51 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
               <option value="">— Chọn bài giảng —</option>
               {lessonPool.map(x => <option key={x.id} value={x.id}>{x.title}{x.status === 'draft' ? ' (nháp)' : ''}{src(x)}</option>)}</select></div>}
           {every && !form.id && <div className="formgrid"><OrgPick kind="any" value={form.org ?? orgId ?? ''} onChange={v => setForm({ ...form, org: v, targets: [] })} title="Đơn vị sở hữu" /></div>}
-          <div className="formgrid libgrid4">
+          {/* ① Gắn với bài trong chương trình trước: Môn, Khối, Loại chương trình tự lấy theo chương trình */}
+          <div className="formgrid libgrid4 libsec">
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình giáo dục</span>
+              <select value={form.program_id} onChange={e => {
+                const p = programs.find(x => x.id === e.target.value)
+                const g = p?.grade_from && p.grade_to && p.grade_to - p.grade_from < 4
+                  ? Array.from({ length: p.grade_to - p.grade_from + 1 }, (_, k) => String(p.grade_from! + k)).join(',') : null
+                setForm({ ...form, program_id: e.target.value, unit_id: '',
+                  ...(p ? { subject: p.main_subject || form.subject, program: p.ct_code && PROGRAMS.includes(p.ct_code) ? p.ct_code : form.program, grades: g ?? form.grades } : {}) })
+              }} aria-label="Chương trình giáo dục">
+                <option value="">— không gắn —</option>{programs.map(p => <option key={p.id} value={p.id}>{progLabel(p)}{p.status === 'draft' ? ' · nháp' : ''}</option>)}</select></label>
+            <label className="field" style={{ gridColumn: 'span 2' }}><span>Bài</span>
+              <select value={form.unit_id} disabled={!form.program_id} onChange={e => setForm({ ...form, unit_id: e.target.value })} aria-label="Bài">
+                <option value="">{form.program_id ? '— chọn bài —' : 'Chọn chương trình trước'}</option>{unitTree(units, form.program_id, 'lesson', form.unit_id).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
+            {form.program_id && <small className="sub" style={{ gridColumn: '1 / -1', marginTop: -4 }}>Môn, khối, loại chương trình đã lấy theo chương trình; sửa bên dưới nếu cần.</small>}
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên *</span><input required value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} /></label>
             <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mô tả ngắn</span><textarea rows={2} value={form.summary} onChange={e => setForm({ ...form, summary: e.target.value })} /></label>
             <label className="field"><span>Môn</span><SubjectPicker value={form.subject} onChange={v => setForm({ ...form, subject: v })} emptyLabel="— Không chọn —" /></label>
             <label className="field"><span>Loại chương trình</span><select value={form.program} onChange={e => setForm({ ...form, program: e.target.value })}><option value="">—</option>{PROGRAMS.map(p => <option key={p}>{p}</option>)}</select></label>
             <label className="field" style={{ gridColumn: 'span 2' }}><span>Từ khoá</span><input value={form.tags} onChange={e => setForm({ ...form, tags: e.target.value })} placeholder="robot, cảm biến" /></label>
             <div className="field" style={{ gridColumn: '1 / -1' }}><span>Khối</span><GradeChecks inline value={gradeList(form.grades)} onChange={g => setForm({ ...form, grades: g.join(',') })} /></div>
-            <label className="field" style={{ gridColumn: 'span 2' }}><span>Chương trình giáo dục</span>
-              <select value={form.program_id} onChange={e => setForm({ ...form, program_id: e.target.value, unit_id: '' })} aria-label="Chương trình giáo dục">
-                <option value="">— không gắn —</option>{programs.map(p => <option key={p.id} value={p.id}>{progLabel(p)}{p.status === 'draft' ? ' · nháp' : ''}</option>)}</select></label>
-            <label className="field" style={{ gridColumn: 'span 2' }}><span>Bài</span>
-              <select value={form.unit_id} disabled={!form.program_id} onChange={e => setForm({ ...form, unit_id: e.target.value })} aria-label="Bài">
-                <option value="">— chọn bài —</option>{unitTree(units, form.program_id, 'lesson', form.unit_id).map(u => <option key={u.id} value={u.id}>{u.label}</option>)}</select></label>
-            <label className="field"><span>Quyền sử dụng</span>
-              <select value={form.usage_rights} onChange={e => setForm({ ...form, usage_rights: e.target.value as Rights })} aria-label="Quyền sử dụng">
-                {(Object.keys(RIGHTS) as Rights[]).map(r => <option key={r} value={r}>{RIGHTS[r][0]}</option>)}</select></label>
-            <label className="field" style={{ gridColumn: 'span 2' }}><span>Ghi chú quyền sử dụng</span><input value={form.usage_note} onChange={e => setForm({ ...form, usage_note: e.target.value })} placeholder="VD: chỉ dùng trong năm học 2026–2027, ghi nguồn KDI" /></label>
             <CustomInputs fields={libFields} value={form.custom ?? {}} onChange={v => setForm({ ...form, custom: v })} />
-            <label className="field"><span>Phát hành tới</span>
-              <select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Item['scope'] })}>
-                {me.type !== 'provider' && <option value="children">{SCOPE.children}</option>}
-                <option value="selected">{SCOPE.selected}</option>
-                {canPublic && <option value="public">{SCOPE.public}</option>}
-              </select></label>
           </div>
-          {form.scope === 'selected' && (
-            <fieldset className="libtargets wide"><legend>Đơn vị nhận (gồm cả đơn vị trực thuộc của đơn vị được chọn)</legend>
-              <SchoolPicker value={form.targets} onChange={v => setForm({ ...form, targets: v })} options={below}
-                placeholder="Gõ để tìm, chọn đơn vị nhận…" ariaLabel="Đơn vị nhận" empty="Đơn vị chưa có cấp dưới." />
-            </fieldset>
-          )}
+          {/* Phát hành & quyền sử dụng: thu gọn, dòng tóm tắt cho biết đang chọn gì */}
+          <details className="libpub" open={form.scope === 'selected' && !form.targets.length}>
+            <summary><b>Phát hành &amp; quyền sử dụng</b> <small className="sub">· {SCOPE[form.scope]}{form.scope === 'selected' ? ` (${form.targets.length} đơn vị)` : ''} · {RIGHTS[form.usage_rights]?.[0]}</small></summary>
+            <div className="formgrid libgrid4">
+              <label className="field"><span>Phát hành tới</span>
+                <select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as Item['scope'] })}>
+                  {me.type !== 'provider' && <option value="children">{SCOPE.children}</option>}
+                  <option value="selected">{SCOPE.selected}</option>
+                  {canPublic && <option value="public">{SCOPE.public}</option>}
+                </select></label>
+              <label className="field"><span>Quyền sử dụng</span>
+                <select value={form.usage_rights} onChange={e => setForm({ ...form, usage_rights: e.target.value as Rights })} aria-label="Quyền sử dụng">
+                  {(Object.keys(RIGHTS) as Rights[]).map(r => <option key={r} value={r}>{RIGHTS[r][0]}</option>)}</select></label>
+              <label className="field" style={{ gridColumn: 'span 2' }}><span>Ghi chú quyền sử dụng</span><input value={form.usage_note} onChange={e => setForm({ ...form, usage_note: e.target.value })} placeholder="VD: chỉ dùng trong năm học 2026–2027, ghi nguồn KDI" /></label>
+            </div>
+            {form.scope === 'selected' && (
+              <fieldset className="libtargets wide"><legend>Đơn vị nhận (gồm cả đơn vị trực thuộc của đơn vị được chọn)</legend>
+                <SchoolPicker value={form.targets} onChange={v => setForm({ ...form, targets: v })} options={below}
+                  placeholder="Gõ để tìm, chọn đơn vị nhận…" ariaLabel="Đơn vị nhận" empty="Đơn vị chưa có cấp dưới." />
+              </fieldset>
+            )}
+          </details>
           {form.kind === 'lesson' && <div className="formactions"><button type="button" className="primary" onClick={() => {
             if (!form.title.trim()) return setMsg('Nhập tên bài giảng.')
             setMsg(''); setLtab('content') }}>Tiếp: Nội dung bài giảng →</button></div>}
@@ -802,9 +828,8 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
                   <option value="">Sao chép từ bài giảng có sẵn…</option>
                   {lessons.map(l => <option key={l.id} value={l.id}>{l.title}{l.teachers ? ` — ${l.teachers.full_name}` : ''}</option>)}
                 </select></div>
-              <SlidesEditor slides={form.slides} onChange={slides => setForm({ ...form, slides })} />
-              <div className="formgrid" style={{ marginTop: 10 }}>
-                <div className="field"><span>Tệp / đường dẫn bài giảng (không bắt buộc)</span><div className="tools">
+              <div className="formgrid" style={{ margin: '4px 0 8px' }}>
+                <div className="field"><span>Kèm tệp hoặc đường dẫn (không bắt buộc)</span><div className="tools">
                   <label><input type="radio" checked={form.src === 'file'} onChange={() => setForm({ ...form, src: 'file' })} /> Tải tệp lên</label>
                   <label><input type="radio" checked={form.src === 'url'} onChange={() => setForm({ ...form, src: 'url' })} /> Đường dẫn</label></div></div>
                 {form.src === 'url'
@@ -814,6 +839,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
                       <label className={'filebtn' + (uploading ? ' busy' : '')}>{uploading ? 'Đang tải lên…' : form.file ? 'Thay tệp' : 'Chọn tệp'}
                         <input type="file" hidden disabled={uploading} onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = '' }} /></label></div></div>}
               </div>
+              <SlidesEditor slides={form.slides} onChange={slides => setForm({ ...form, slides })} />
             </>
           )}
           </>}

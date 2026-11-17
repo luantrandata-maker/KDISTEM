@@ -61,7 +61,7 @@ export function ExamMatrix({ org, subjects, grades, rows, onChange, disabled }: 
   const cols = (multi ? 1 : 0) + (disabled ? 4 : 5)
 
   return <div style={{ display: 'grid', gap: 10 }}>
-    {!subjects.length ? <p className="sub" style={{ margin: 0 }}>Chọn môn để xem câu hỏi trong ngân hàng.</p>
+    {disabled ? null : !subjects.length ? <p className="sub" style={{ margin: 0 }}>Chọn môn để xem câu hỏi trong ngân hàng.</p>
       : stats === null ? <p className="sub" style={{ margin: 0 }}>Đang đếm câu hỏi…</p>
       : !stats.length ? <p className="warnline" style={{ margin: 0 }}>Ngân hàng chưa có câu hỏi sẵn sàng của {multi ? 'các môn' : 'môn'} này{grades.length ? `, khối ${grades.join(', ')}` : ''}. Thêm câu hỏi ở mục E-learning › Ngân hàng câu hỏi.</p>
       : <div className="wrap"><table>

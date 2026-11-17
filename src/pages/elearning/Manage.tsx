@@ -261,7 +261,7 @@ function Exams({ orgId, subject, ofl: shared }: { orgId: string | null; subject?
     actions={<><TryButton orgId={cur.org_id} spec={examSpec(cur)} title={cur.title} minutes={cur.duration_min} />{editable(cur) && <>{statusBtns(cur)}{cur.status === 'draft'
       ? <button onClick={() => editForm(cur)}>Sửa</button>
       : <button onClick={() => newVersion(cur)} title="Đề đã công bố không sửa trực tiếp: tạo bản nháp mới để sửa, công bố bản mới thì bản cũ tự đóng">{draftOf(cur) ? 'Mở bản nháp mới' : 'Phát hành bản mới'}</button>}</>}</>}>
-    {note}{cur.replaces_id && cur.status === 'draft' && <p className="sub">Bản nháp mới thay cho đề <b>{rows.find(r => r.id === cur.replaces_id)?.title ?? 'cũ'}</b>. Công bố bản này thì đề cũ tự đóng.</p>}<ExamResults exam={cur} roster={schoolOf(cur.org_id) && editable(cur)} /></ElView>
+    {note}{cur.replaces_id && cur.status === 'draft' && <p className="sub">Bản nháp mới thay cho đề <b>{rows.find(r => r.id === cur.replaces_id)?.title ?? 'cũ'}</b>. Công bố bản này thì đề cũ tự đóng.</p>}<ExamQuestions exam={cur} /><ExamResults exam={cur} roster={schoolOf(cur.org_id) && editable(cur)} /></ElView>
   return (
     <>
       {note}
@@ -327,6 +327,25 @@ function ExamForm({ form, setForm, onSubmit, orgId, classes, groups, isSchool }:
       </div>
     </form>
   )
+}
+
+/** Chi tiết đề: nội dung câu hỏi và câu hỏi lấy từ đâu (câu cố định chọn trong ngân hàng, câu rút ngẫu nhiên theo ma trận) */
+function ExamQuestions({ exam }: { exam: Exam }) {
+  const mx = exam.criteria.matrix ?? []
+  const fixed = exam.question_ids ?? []
+  const nRnd = mx.length ? matrixTotal(mx) : exam.mode === 'random' ? exam.criteria.count ?? 0 : 0
+  return <section className="panel examqs">
+    <h4 className="pdcardh">Câu hỏi của đề ({fixed.length + nRnd} câu)
+      <InfoTip left label="Câu hỏi lấy từ đâu">Mọi câu hỏi đều nằm trong <b>Ngân hàng câu hỏi</b> (tab Ngân hàng câu hỏi của E-learning & luyện thi): câu của đơn vị mình và câu cấp trên dùng chung.
+        <br /><b>Câu cố định</b>: người ra đề chọn sẵn từ ngân hàng (hoặc soạn mới / nhập Excel, câu đó được lưu vào ngân hàng), học sinh nào cũng làm các câu này. Cột Nguồn cho biết câu của đơn vị nào và được soạn tay, nhập Excel hay do Trợ lý AI tạo.
+        {nRnd > 0 && <><br /><b>Câu rút ngẫu nhiên</b>: mỗi lượt làm, hệ thống rút ngẫu nhiên từ ngân hàng theo ma trận (môn, chủ đề, mức độ) bên dưới, nên mỗi học sinh có thể nhận câu khác nhau.</>}</InfoTip></h4>
+    {fixed.length > 0 || !nRnd ? <QuestionPicker value={fixed} onChange={() => {}} edit={false} showSource subjects={courseSubjects(exam)} grades={courseGrades(exam)} title="Câu cố định" /> : null}
+    {nRnd > 0 && <>
+      <h4 className="libparthead" style={{ margin: '14px 0 6px' }}>Rút ngẫu nhiên từ ngân hàng mỗi lượt ({nRnd} câu)</h4>
+      {mx.length ? <ExamMatrix org={exam.org_id} subjects={courseSubjects(exam)} grades={courseGrades(exam)} rows={mx} onChange={() => {}} disabled />
+        : <p className="sub">{nRnd} câu{exam.criteria.topics?.length ? ` thuộc chủ đề ${exam.criteria.topics.join(', ')}` : ''}, rút theo môn và khối của đề.</p>}
+      <p className="sub" style={{ margin: '6px 0 0' }}>Bấm <b>Làm thử</b> ở đầu trang để xem một lượt rút cụ thể.</p></>}
+  </section>
 }
 
 function ExamResults({ exam, roster }: { exam: Exam; roster: boolean }) {
@@ -512,9 +531,9 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
             <div><b>{learners}</b><span>học sinh đã học</span></div>
             {!side && <button type="button" className="pdsidetg" onClick={toggleSide} title="Mở cột thông tin khoá học">‹ Thông tin</button>}
           </div>
-          {mine && cur.status !== 'draft' && <p className="sub" style={{ margin: '0 0 8px' }}>Khoá đã công bố nên không sửa trực tiếp. Bấm <b>{courseDraftOf(cur) ? 'Mở bản nháp mới' : 'Phát hành bản mới'}</b> ở đầu trang để sửa trên bản sao.</p>}
-            {cur.replaces_id && cur.status === 'draft' && <p className="sub" style={{ margin: '0 0 8px' }}>Bản nháp mới thay cho khoá <b>{rows.find(r => r.id === cur.replaces_id)?.title ?? 'cũ'}</b>. Công bố bản này thì khoá cũ tự lưu trữ.</p>}
-          <div className="panel pdcard pdsl"><h4>Chủ đề & bài học</h4><LessonEditor key={cur.id} autoAdd={mine && fresh === cur.id && !ls.length} course={cur} lessons={ls} topics={tps} exams={exams} progress={progress} editable={mine && cur.status === 'draft'} onChange={load} /></div>
+          <div className="panel pdcard pdsl"><h4>Chủ đề & bài học
+            {mine && cur.status !== 'draft' && <InfoTip left label="Chỉ xem">Khoá đã công bố nên không sửa trực tiếp. Bấm <b>{courseDraftOf(cur) ? 'Mở bản nháp mới' : 'Phát hành bản mới'}</b> ở đầu trang để sửa trên bản sao.</InfoTip>}
+            {cur.replaces_id && cur.status === 'draft' && <InfoTip left label="Bản nháp mới">Bản nháp mới thay cho khoá <b>{rows.find(r => r.id === cur.replaces_id)?.title ?? 'cũ'}</b>. Công bố bản này thì khoá cũ tự lưu trữ.</InfoTip>}</h4><LessonEditor key={cur.id} autoAdd={mine && fresh === cur.id && !ls.length} course={cur} lessons={ls} topics={tps} exams={exams} progress={progress} editable={mine && cur.status === 'draft'} onChange={load} /></div>
           {mine && <CourseProgress key={ls.length} course={cur} />}
         </div>
         {side && <div className="pdside">
@@ -852,7 +871,7 @@ function LessonEditor({ course, lessons, topics, exams, progress, editable, onCh
       cell: l => l.kind === 'reading' ? <span className="sub">—</span> : editable
         ? <LongCell key={l.id + (l.body ?? '')} value={l.body ?? ''} gc="note" gr={l.id} placeholder="Ghi chú cho người học" label={`Ghi chú bài ${l.title}`} onSave={v => { if (v !== (l.body ?? '')) patch(l, { body: v.trim() || null }) }} />
         : l.body ? <small className="sub">{l.body}</small> : <span className="sub">—</span> },
-    { key: 'done', label: 'Đã học', thClass: 'c-eldur', text: l => String(progress.get(l.id) ?? 0), cell: l => <span className={progress.get(l.id) ? undefined : 'sub'}>{progress.get(l.id) ?? 0}</span> },
+    { key: 'done', label: 'Đã học', thClass: 'c-eldur', off: true, text: l => String(progress.get(l.id) ?? 0), cell: l => <span className={progress.get(l.id) ? undefined : 'sub'}>{progress.get(l.id) ?? 0}</span> },
     ...(editable ? [{ key: 'act', label: '', thClass: 'c-act', fixed: true, cell: (l: Lesson) =>
       <span className="slact"><span className="sldrag" draggable title="Kéo để đổi vị trí hoặc thả vào chủ đề ở cột trái" aria-label={`Kéo ${l.title} để đổi vị trí`}
         onDragStart={e => { setDrag(l.id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', l.id); const tr = (e.target as HTMLElement).closest('tr'); if (tr) e.dataTransfer.setDragImage(tr, 20, 20) }}
@@ -895,7 +914,7 @@ function LessonEditor({ course, lessons, topics, exams, progress, editable, onCh
           : <button type="button" className="sladdsubj" onClick={() => setTf({ title: '' })}>+ Thêm chủ đề</button>)}
       </nav>
       <div className="slmain" onKeyDown={editable ? onGridKey : undefined} onPaste={editable ? onGridPaste : undefined} onMouseDown={editable ? gridMouseDown : undefined}>
-        <DataTable id="el-lessons-v2" simple rows={shown} rowKey={l => l.id} className={editable ? 'slt slgrid' : 'slt'} cols={cols}
+        <DataTable id="el-lessons-v3" simple rows={shown} rowKey={l => l.id} className={editable ? 'slt slgrid' : 'slt'} cols={cols}
           rowProps={editable ? l => ({ className: drag === l.id ? 'sldragging' : over === l.id && drag ? 'slover' : undefined,
             onDragOver: e => { if (!drag || drag.startsWith('t:')) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== l.id) setOver(l.id) },
             onDrop: e => { e.preventDefault(); const id = drag; setDrag(null); setOver(null); if (id && !id.startsWith('t:') && id !== l.id) place(id, topicOf(l), l.id) } }) : undefined}

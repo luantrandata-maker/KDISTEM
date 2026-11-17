@@ -2912,7 +2912,7 @@ main:has(.pdclose)>.pframe>.pfbody>.distpills{display:none}
 .qpnew .qpsubj{width:130px;flex:none}.qpnew .qpopts{flex:1 1 220px;min-width:160px}.qpnew .qpans{width:80px;flex:none}.qpnew select{flex:none;width:auto}
 
 /* Form một khung, không cột phụ: nút Lưu / Huỷ ở cuối khung */
-.pform.pfwrap.nonav.noside{grid-template-columns:minmax(0,1fr)!important;max-width:980px}
+.pform.pfwrap.nonav.noside{grid-template-columns:minmax(0,1fr)!important}
 .pfbtns{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
 .pfbtns .pfmiss{margin:0 auto 0 0}
 
@@ -3538,3 +3538,5 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .ellessons .ttable.slt>thead>tr:first-child>th.c-mat{width:170px}
 .ellessons .ttable.slt>thead>tr:first-child>th.c-title:not(.c-sel):not(.c-no){min-width:170px}
 .ellessons td select.slcell{padding-right:0;text-overflow:clip}
+.pdsl>h4{flex-wrap:wrap;row-gap:2px}.pdsl>h4 .infotip{font-weight:400}
+.examqs{margin:0 0 16px}.examqs>h4{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}.examqs>h4 .infotip{font-weight:400}

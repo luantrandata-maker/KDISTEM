@@ -13,8 +13,10 @@ type Q = Question
 const short = (s: string, n = 180) => (s.length > n ? s.slice(0, n) + '…' : s)
 const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
 
-export function QuestionPicker({ value, onChange, subjects = [], grades = [], topic = '', edit = true, title = 'Câu hỏi của đề', note }: {
+export function QuestionPicker({ value, onChange, subjects = [], grades = [], topic = '', edit = true, title = 'Câu hỏi của đề', note, showSource }: {
   value: string[]; onChange: (ids: string[]) => void; subjects?: string[]; grades?: number[]; topic?: string; edit?: boolean; title?: string; note?: string
+  /** Thêm cột Nguồn: câu của đơn vị nào trong ngân hàng, soạn tay / nhập Excel / AI */
+  showSource?: boolean
 }) {
   const [bank, setBank] = useState<Q[] | null>(null)
   const [err, setErr] = useState('')
@@ -27,6 +29,14 @@ export function QuestionPicker({ value, onChange, subjects = [], grades = [], to
   const byId = useMemo(() => new Map((bank ?? []).map(b => [b.id, b])), [bank])
   const rows = value.map(id => byId.get(id)).filter(Boolean) as Q[]
   const missing = bank ? value.length - rows.length : 0
+  // Tên đơn vị sở hữu câu hỏi (cột Nguồn)
+  const [orgNames, setOrgNames] = useState<Map<string, string>>(new Map())
+  const orgKey = showSource ? [...new Set(rows.map(r => r.org_id))].sort().join(',') : ''
+  useEffect(() => {
+    if (!orgKey) return
+    supabase.from('organizations').select('id, name').in('id', orgKey.split(',')).then(({ data }) => setOrgNames(new Map(((data as { id: string; name: string }[]) ?? []).map(o => [o.id, o.name]))))
+  }, [orgKey])
+  const srcOf = (b: Q) => b.source === 'ai' ? 'Trợ lý AI' : b.source === 'import' ? 'Nhập Excel' : 'Soạn tay'
   const add = (ids: string[]) => onChange([...value, ...ids.filter(id => !value.includes(id))])
 
   // Lưu câu mới vào ngân hàng rồi đưa vào đề
@@ -65,18 +75,19 @@ export function QuestionPicker({ value, onChange, subjects = [], grades = [], to
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status" style={{ margin: 0 }}><b>{msg[0]}</b></p>}
     {missing > 0 && <p className="warnline">{missing} câu đã chọn không còn trong ngân hàng (đã xoá hoặc ngừng dùng).</p>}
     {err ? <p className="sub" role="alert">{err}</p> : !bank ? <p className="sub">Đang tải câu hỏi…</p> : <div className="wrap"><table className="libtable qptable">
-      <thead><tr><th style={{ width: 44 }}>#</th><th>Câu hỏi</th><th style={{ width: 160 }}>Môn · chủ đề</th><th style={{ width: 110 }}>Mức độ</th>{edit && <th style={{ width: 96 }} />}</tr></thead>
+      <thead><tr><th style={{ width: 44 }}>#</th><th>Câu hỏi</th><th style={{ width: 160 }}>Môn · chủ đề</th><th style={{ width: 110 }}>Mức độ</th>{showSource && <th style={{ width: 170 }}>Nguồn</th>}{edit && <th style={{ width: 96 }} />}</tr></thead>
       <tbody>{rows.map((b, i) => <tr key={b.id}>
         <td className="num">{i + 1}</td>
         <td style={{ whiteSpace: 'normal' }}>{short(b.stem, 220)}<br /><small className="sub">{b.options.map((o, k) => <span key={k} className={b.answer.includes(k) ? 'qpok' : ''}>{letter(k)}. {short(o, 40)}{k < b.options.length - 1 ? '  ' : ''}</span>)}</small></td>
         <td style={{ whiteSpace: 'normal' }}>{b.subject}{qGrades(b).length ? ` · khối ${qGrades(b).join(', ')}` : ''}{b.topic && <><br /><small className="sub">{b.topic}</small></>}</td>
         <td>{LEVEL[b.level] ?? b.level}</td>
+        {showSource && <td style={{ whiteSpace: 'normal' }}>{orgNames.get(b.org_id) ?? '…'}<br /><small className="sub">{srcOf(b)}{b.shared ? ' · dùng chung' : ''}</small></td>}
         {edit && <td><span className="qprow">
           <button type="button" className="iconbtn" title="Lên" aria-label="Đưa câu lên" disabled={i === 0} onClick={() => move(i, -1)}>↑</button>
           <button type="button" className="iconbtn" title="Xuống" aria-label="Đưa câu xuống" disabled={i === rows.length - 1} onClick={() => move(i, 1)}>↓</button>
           <button type="button" className="iconbtn abdanger" title="Bỏ khỏi đề" aria-label="Bỏ câu khỏi đề" onClick={() => onChange(value.filter(x => x !== b.id))}>✕</button></span></td>}
       </tr>)}
-        {!rows.length && <tr><td colSpan={edit ? 5 : 4}><small className="sub">Đề chưa có câu hỏi.{edit ? ' Bấm “+ Thêm câu hỏi mới”, “Chọn từ ngân hàng câu hỏi” hoặc “Nhập từ Excel” theo file mẫu.' : ''}</small></td></tr>}</tbody>
+        {!rows.length && <tr><td colSpan={(edit ? 5 : 4) + (showSource ? 1 : 0)}><small className="sub">Đề chưa có câu hỏi.{edit ? ' Bấm “+ Thêm câu hỏi mới”, “Chọn từ ngân hàng câu hỏi” hoặc “Nhập từ Excel” theo file mẫu.' : ''}</small></td></tr>}</tbody>
     </table></div>}
     {pick && bank && <BankPick bank={bank} chosen={value} subjects={subjects} grades={grades} topic={topic} onClose={() => setPick(false)}
       onAdd={ids => { add(ids); setPick(false); setMsg([`Đã thêm ${ids.length} câu từ ngân hàng.`, false]) }} />}

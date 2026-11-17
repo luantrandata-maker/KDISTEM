@@ -4,12 +4,15 @@ import { Icon } from '../../components/Icon'
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { openFile, fmtSize } from '../../lib/files'
-import { SlideView, SlideShow, SlideFormat, SlideAdd, BrandPanel, useSlideImage, withImage, clipImage, KIND as SLIDE_KIND, type Slide } from '../teacher/Lessons'
+import { SlideView, SlideShow, SlideFormat, SlideAdd, BrandPanel, useSlideImage, withImage, clipImage, KIND as SLIDE_KIND, type Slide, type KhoAct } from '../teacher/Lessons'
 import { PROGRAM_COLOR } from '../teacher/common'
 import { PlanView, planOf } from './PlanEditor'
 import { Drawer } from '../../components/Drawer'
 // Xem bộ học liệu 5 thẻ (tải khi mở bài học)
 const KitView = lazy(() => import('./lesson/LessonPage').then(m => ({ default: m.KitView })))
+// Bảng chọn hoạt động từ Kho hoạt động, mở hoạt động trong Kho (tải khi cần)
+const ActivityPicker = lazy(() => import('../teacher/ActivityPicker').then(m => ({ default: m.ActivityPicker })))
+const KhoOpen = lazy(() => import('../teacher/ActivityPicker').then(m => ({ default: m.KhoOpen })))
 import { LessonOutline, LessonPlayer, LessonShow, asLesson, lessonStats } from '../../lib/lessonBlocks'
 
 export type Unit = { title: string; periods?: number; objectives?: string; lesson_ids?: string[] }
@@ -342,9 +345,15 @@ export function Versions({ item, canRestore, onRestored }: { item: Item; canRest
 }
 
 // Soạn slide gọn cho bài giảng trong kho (cùng định dạng với trình soạn bài giảng của giáo viên): sửa trực tiếp trên slide
-export function SlidesEditor({ slides, onChange, orgId, title }: { slides: Slide[]; onChange: (s: Slide[]) => void; orgId?: string | null; title?: string }) {
+export function SlidesEditor({ slides, onChange, orgId, title, lesson, grades }: { slides: Slide[]; onChange: (s: Slide[]) => void; orgId?: string | null; title?: string
+  /** Tên bài học (để đưa hoạt động cùng bài lên trước trong bảng chọn) và khối */
+  lesson?: (string | null | undefined)[]; grades?: string | null }) {
   const [sel, setSel] = useState(0)
   const [show, setShow] = useState(false)
+  // Bảng chọn hoạt động: 'add' chèn slide mới sau slide đang chọn, 'swap' đổi hoạt động của slide đang chọn
+  const [picker, setPicker] = useState<'add' | 'swap' | null>(null)
+  const [kho, setKho] = useState<string | null>(null)
+  const [actMsg, setActMsg] = useState('')
   // Thanh định dạng (chủ đề, bố cục, chữ) và bộ nhận diện thu gọn sau nút để khung slide rộng hơn
   const [fmt, setFmt] = useState(false)
   const [brand, setBrand] = useState(false)
@@ -359,15 +368,29 @@ export function SlidesEditor({ slides, onChange, orgId, title }: { slides: Slide
   const putImage = async (f: File) => { const id = cur?.id; const url = await img.upload(f); if (!url || !id) return
     onChange(slides.map(s => s.id === id ? { ...s, ...withImage(s, url) } : s)) }
   const canImg = !!orgId
+  const isAct = cur?.kind === 'activity'
+  const pickAct = (a: KhoAct) => {
+    if (picker === 'swap' && cur) set({ act: a, title: a.title })
+    else add({ kind: 'activity', title: a.title, act: a })
+    setPicker(null); setActMsg('')
+  }
+  // Lấy bản mới nhất trong Kho cho slide hoạt động đang chọn
+  const refresh = async () => {
+    if (!cur?.act) return
+    const id = cur.id, a = await (await import('../teacher/ActivityPicker')).fetchAct(cur.act.id)
+    if (!a) return setActMsg('Không tìm thấy hoạt động trong Kho (đã xoá hoặc không có quyền xem). Slide vẫn dùng bản đã chèn.')
+    onChange(slides.map(s => s.id === id ? { ...s, act: a, title: s.title === s.act?.title ? a.title : s.title } : s))
+    setActMsg(a.updated_at && a.updated_at === cur.act.updated_at ? 'Slide đang dùng bản mới nhất trong Kho.' : 'Đã cập nhật theo bản mới nhất trong Kho.')
+  }
   return (
     <div className="sleditor" onPaste={canImg ? e => { const f = clipImage(e); if (f && cur) { e.preventDefault(); putImage(f) } } : undefined}>
       <ol className="slthumbs">
         {slides.map((s, k) => (
           <li key={s.id}><button type="button" className={k === sel ? 'on' : ''} onClick={() => setSel(k)} aria-label={`Slide ${k + 1}: ${s.title || 'Chưa có tiêu đề'}`}>
-            <div className="slmini" aria-hidden><SlideView slide={s} n={k + 1} total={slides.length} /></div>
-            <small>{k + 1} · {SLIDE_KIND[s.kind]}</small></button></li>
+            <div className="slmini" aria-hidden><SlideView slide={s} n={k + 1} total={slides.length} thumb /></div>
+            <small>{k + 1} · {s.kind === 'activity' ? '🧪 ' : ''}{SLIDE_KIND[s.kind]}</small></button></li>
         ))}
-        <li><SlideAdd onAdd={add} /></li>
+        <li><SlideAdd onAdd={add} onAct={() => setPicker('add')} /></li>
       </ol>
       {cur ? (
         <div className="slform">
@@ -377,20 +400,30 @@ export function SlidesEditor({ slides, onChange, orgId, title }: { slides: Slide
             <button type="button" disabled={sel >= slides.length - 1} onClick={() => { const s = [...slides]; [s[sel + 1], s[sel]] = [s[sel], s[sel + 1]]; onChange(s); setSel(sel + 1) }}>↓ Xuống</button>
             <button type="button" onClick={() => { onChange([...slides.slice(0, sel + 1), { ...JSON.parse(JSON.stringify(cur)), id: uid() }, ...slides.slice(sel + 1)]); setSel(sel + 1) }}>⧉ Nhân bản</button>
             <button type="button" className="danger" onClick={() => { if (!confirm(`Xoá slide ${sel + 1}?`)) return; onChange(slides.filter((_, k) => k !== sel)); setSel(Math.max(0, sel - 1)) }}>Xoá slide</button>
-            {canImg && cur.kind !== 'media' && <label className={'filebtn' + (img.busy ? ' busy' : '')}>{img.busy ? 'Đang tải ảnh…' : '🖼 Ảnh'}
+            {isAct && <>
+              <button type="button" onClick={() => setPicker('swap')}>🔁 Đổi hoạt động</button>
+              {cur.act && <button type="button" onClick={() => setKho(cur.act!.id)}>↗ Mở trong Kho</button>}
+              {cur.act && <button type="button" onClick={refresh} title="Lấy bản mới nhất của hoạt động trong Kho">↻ Cập nhật theo Kho</button>}
+            </>}
+            {canImg && cur.kind !== 'media' && !isAct && <label className={'filebtn' + (img.busy ? ' busy' : '')}>{img.busy ? 'Đang tải ảnh…' : '🖼 Ảnh'}
               <input type="file" accept="image/*" hidden disabled={img.busy} onChange={e => { const f = e.target.files?.[0]; if (f) putImage(f); e.target.value = '' }} /></label>}
-            <button type="button" className={fmt ? 'on' : ''} aria-pressed={fmt} onClick={() => setFmt(!fmt)}>Aa Định dạng {fmt ? '▴' : '▾'}</button>
+            {!isAct && <button type="button" className={fmt ? 'on' : ''} aria-pressed={fmt} onClick={() => setFmt(!fmt)}>Aa Định dạng {fmt ? '▴' : '▾'}</button>}
             <button type="button" className={brand ? 'on' : ''} aria-pressed={brand} onClick={() => setBrand(!brand)}>🎨 Nhận diện {brand ? '▴' : '▾'}</button>
             <button type="button" className="primary" style={{ marginLeft: 'auto' }} onClick={() => setShow(true)}>▶ Trình chiếu</button>
           </div>
           {img.err && <p className="err" role="alert">{img.err} <button type="button" className="linkbtn" onClick={img.clear}>Đóng</button></p>}
           {brand && <BrandPanel slides={slides} deckTitle={title} onChange={onChange} upload={canImg ? img.upload : undefined} busy={img.busy} />}
-          {fmt && <SlideFormat slide={cur} onEdit={set} onAll={p => onChange(slides.map(x => ({ ...x, ...p })))} onImage={canImg ? putImage : undefined} imgBusy={img.busy} />}
+          {actMsg && <p className="sub" role="status">{actMsg}</p>}
+          {fmt && !isAct && <SlideFormat slide={cur} onEdit={set} onAll={p => onChange(slides.map(x => ({ ...x, ...p })))} onImage={canImg ? putImage : undefined} imgBusy={img.busy} />}
           <SlideView slide={cur} reveal onEdit={set} onImage={canImg ? putImage : undefined} imgBusy={img.busy} n={sel + 1} total={slides.length} />
-          <small className="sub">Bấm vào chữ trên slide để sửa trực tiếp. {canImg ? 'Kéo thả hoặc dán (Ctrl+V) ảnh vào slide để chèn ảnh.' : ''}</small>
+          <small className="sub">{isAct ? 'Slide hoạt động lấy từ Kho hoạt động: khi trình chiếu, học sinh làm ngay trên slide. Sửa hoạt động ở Kho rồi bấm “↻ Cập nhật theo Kho”.'
+            : `Bấm vào chữ trên slide để sửa trực tiếp. ${canImg ? 'Kéo thả hoặc dán (Ctrl+V) ảnh vào slide để chèn ảnh.' : ''}`}</small>
         </div>
       ) : <div className="slform"><p className="sub">Chưa có slide. Bấm “+ Thêm slide” ở cột bên trái để chọn mẫu.</p></div>}
       {show && <SlideShow slides={slides} start={sel} title={title} onClose={() => setShow(false)} />}
+      {picker && <Suspense fallback={null}><ActivityPicker lesson={lesson ?? [title]} grades={grades} current={picker === 'swap' ? cur?.act?.id : undefined}
+        action={picker === 'swap' ? `Đổi hoạt động slide ${sel + 1}` : slides.length ? `Chèn vào sau slide ${sel + 1}` : 'Chèn slide hoạt động'} onPick={pickAct} onClose={() => setPicker(null)} /></Suspense>}
+      {kho && <Suspense fallback={null}><KhoOpen id={kho} orgId={orgId ?? null} onClose={() => { setKho(null); refresh() }} /></Suspense>}
     </div>
   )
 }

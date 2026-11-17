@@ -1,7 +1,14 @@
-import { useEffect, useRef, useState } from 'react'
+import { Suspense, lazy, useEffect, useRef, useState } from 'react'
 import { uploadSlideImage } from '../../lib/files'
 
-export type SlideKind = 'title' | 'content' | 'question' | 'task' | 'media'
+export type SlideKind = 'title' | 'content' | 'question' | 'task' | 'media' | 'activity'
+/** Hoạt động lấy từ Kho hoạt động gắn vào slide: lưu mã (id) để mở / cập nhật theo Kho và bản chụp nội dung để học sinh chơi được ngay */
+export type KhoAct = { id: string; kind: string; label?: string; title: string; content: any; instructions?: string | null; updated_at?: string; status?: string }
+// Phần chơi hoạt động trên slide (tải khi cần, tránh vòng import với trình chơi hoạt động)
+const ActSlide = lazy(() => import('./ActSlide'))
+const ActivityPicker = lazy(() => import('./ActivityPicker').then(m => ({ default: m.ActivityPicker })))
+/** Hướng dẫn của hoạt động, bỏ dòng "Bài học: …" do hệ thống ghi khi chốt bài */
+export const actNote = (s?: string | null) => (s ?? '').split('\n').filter(l => !/^\s*Bài học:/.test(l)).join(' ').trim()
 export type SlideLayout = 'text' | 'center' | 'img-right' | 'img-left' | 'two'
 /** Định dạng (tuỳ chọn, slide cũ không có vẫn hiển thị như trước): chủ đề màu, bố cục, ảnh, kiểu chữ */
 export type SlideStyle = { theme?: string; bg?: string; layout?: SlideLayout; image?: string; body2?: string
@@ -22,7 +29,7 @@ export const DECOS: Record<SlideDeco | '', string> = { '': 'Đoạn chữ', card
 export type SlideBlock = 'title' | 'body' | 'extra'
 const ORDER: SlideBlock[] = ['title', 'body', 'extra']
 const VALIGN = { top: 'flex-start', middle: 'center', bottom: 'flex-end' } as const
-export type Slide = { id: string; kind: SlideKind; title: string; body?: string; options?: string[]; answer?: number; url?: string; minutes?: number } & SlideStyle
+export type Slide = { id: string; kind: SlideKind; title: string; body?: string; options?: string[]; answer?: number; url?: string; minutes?: number; act?: KhoAct } & SlideStyle
 export type Plan = {
   id: string; org_id: string; teacher_id: string | null; title: string; subject: string | null; grades: string | null; program: string | null
   from_package: boolean; is_template: boolean; status: 'draft' | 'editing' | 'pending' | 'approved' | 'rejected' | 'published' | 'archived'; summary: string | null; slides: Slide[]; updated_at: string
@@ -30,7 +37,7 @@ export type Plan = {
   teachers?: { full_name: string } | null
 }
 
-export const KIND: Record<SlideKind, string> = { title: 'Trang bìa', content: 'Nội dung', question: 'Câu hỏi', task: 'Nhiệm vụ', media: 'Video / hình' }
+export const KIND: Record<SlideKind, string> = { title: 'Trang bìa', content: 'Nội dung', question: 'Câu hỏi', task: 'Nhiệm vụ', media: 'Video / hình', activity: 'Hoạt động' }
 /** Chủ đề màu: [tên, nền, màu chữ, màu nhấn] */
 export const THEMES: Record<string, [string, string, string, string]> = {
   trang: ['Trắng', '#ffffff', '#0f172a', '#2563eb'],
@@ -68,10 +75,12 @@ const isImage = (url: string) => /\.(png|jpe?g|gif|webp|svg)(\?|$)/i.test(url)
 // Hiển thị một slide (dùng cho xem thử, trình chiếu trên lớp, và về sau màn học sinh).
 // Có onEdit: gõ thẳng tiêu đề, nội dung, phương án trên slide.
 // Có onImage: kéo thả ảnh vào slide hoặc bấm ô ảnh để chọn ảnh từ máy. n / total: số trang ở chân (khi bật trong bộ nhận diện).
-export function SlideView({ slide, reveal, hideOptions, onEdit, onImage, imgBusy, n, total }: { slide: Slide | undefined; reveal?: boolean; hideOptions?: boolean
-  onEdit?: (p: Partial<Slide>) => void; onImage?: (f: File) => void; imgBusy?: boolean; n?: number; total?: number }) {
+// thumb: ô thu nhỏ (danh sách slide, dải slide) — slide hoạt động chỉ hiện ô tím thay vì nạp trình chơi
+export function SlideView({ slide, reveal, hideOptions, onEdit, onImage, imgBusy, n, total, thumb }: { slide: Slide | undefined; reveal?: boolean; hideOptions?: boolean
+  onEdit?: (p: Partial<Slide>) => void; onImage?: (f: File) => void; imgBusy?: boolean; n?: number; total?: number; thumb?: boolean }) {
   const [drag, setDrag] = useState(false)
   if (!slide) return <div className="slide empty">Bài giảng chưa có slide.</div>
+  if (slide.kind === 'activity') return <ActivitySlide slide={slide} n={n} total={total} thumb={thumb} />
   const ed = !!onEdit
   const opts = slide.options ?? []
   const th = slide.theme ? THEMES[slide.theme] : undefined
@@ -168,6 +177,24 @@ export function SlideView({ slide, reveal, hideOptions, onEdit, onImage, imgBusy
   )
 }
 
+/** Slide hoạt động từ Kho: nhãn loại, tên, khung chơi (học sinh làm ngay trên slide khi trình chiếu), hướng dẫn */
+function ActivitySlide({ slide, n, total, thumb }: { slide: Slide; n?: number; total?: number; thumb?: boolean }) {
+  const a = slide.act
+  const br = slide.brand
+  const logo = br?.logo ? <img className="sllogo" src={br.logo} alt="Logo" /> : br?.mark ? <b className="slmark">{br.mark}</b> : null
+  const note = actNote(a?.instructions)
+  return <div className={'slide activity' + (br?.bar ? ' hasbar' : '') + (br?.num && n != null ? ' hasnum' : '') + (thumb ? ' thumb' : '')}>
+    {br?.bar && <div className="slbrand" style={br.color ? { background: br.color } : undefined}>{logo}{br.label && <span>{br.label}</span>}{br.title && <span className="slbt">{br.title}</span>}</div>}
+    {br?.num && n != null && <span className="slnum">{n}{total ? ` / ${total}` : ''}</span>}
+    <span className="slidekind">🧪 Hoạt động{a?.label ? ' · ' + a.label : ''}</span>
+    <h2>{slide.title || a?.title || <i>Chưa chọn hoạt động</i>}</h2>
+    {!a ? <div className="slactph">Chưa chọn hoạt động. Bấm “Đổi hoạt động” để chọn từ Kho hoạt động.</div>
+      : thumb ? <div className="slactph" aria-hidden>🧪</div>
+      : <div className="slactbody"><Suspense fallback={<p className="sub">Đang tải hoạt động…</p>}><ActSlide act={a} /></Suspense></div>}
+    {!thumb && note && <small className="slactnote">📝 {note}</small>}
+  </div>
+}
+
 /** Thanh định dạng slide (kiểu Canva / PowerPoint): chủ đề màu, bố cục, ảnh, kiểu chữ. onAll: áp chủ đề cho mọi slide */
 export function SlideFormat({ slide, onEdit, onAll, onDup, onImage, imgBusy }: { slide: Slide; onEdit: (p: Partial<Slide>) => void; onAll?: (p: Partial<Slide>) => void; onDup?: () => void
   onImage?: (f: File) => void; imgBusy?: boolean }) {
@@ -261,8 +288,10 @@ export const TEMPLATES: { key: string; name: string; make: () => Omit<Slide, 'id
   { key: 'sum', name: 'Tổng kết', make: () => ({ kind: 'content', title: '★ Tổng kết', body: 'Hôm nay em đã học được …\nĐiều em thích nhất là …', layout: 'center', theme: 'toi' }) },
 ]
 
+/** Loại slide trống tự soạn (slide hoạt động thêm qua bảng chọn Kho hoạt động) */
+export const BLANK_KINDS = (Object.keys(KIND) as SlideKind[]).filter(k => k !== 'activity')
 /** Nút "+ Thêm slide": mở bảng mẫu (xem trước thu nhỏ) và slide trống theo loại */
-export function SlideAdd({ onAdd }: { onAdd: (s: Omit<Slide, 'id'>) => void }) {
+export function SlideAdd({ onAdd, onAct }: { onAdd: (s: Omit<Slide, 'id'>) => void; onAct?: () => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -280,7 +309,9 @@ export function SlideAdd({ onAdd }: { onAdd: (s: Omit<Slide, 'id'>) => void }) {
       <div className="slgalg">{TEMPLATES.map(t => <button key={t.key} type="button" onClick={() => pick(t.make())}>
         <div className="slmini" aria-hidden><SlideView slide={{ id: t.key, ...t.make() }} /></div><small>{t.name}</small></button>)}</div>
       <h5>Slide trống</h5>
-      <div className="slgalk">{(Object.keys(KIND) as SlideKind[]).map(k => <button key={k} type="button" onClick={() => { const { id: _, ...s } = newSlide(k); pick(s) }}>+ {KIND[k]}</button>)}</div>
+      <div className="slgalk">{BLANK_KINDS.map(k => <button key={k} type="button" onClick={() => { const { id: _, ...s } = newSlide(k); pick(s) }}>+ {KIND[k]}</button>)}</div>
+      {onAct && <><h5>Hoạt động</h5>
+        <div className="slgalk"><button type="button" className="slgalact" onClick={() => { setOpen(false); onAct() }}>🧪 Hoạt động từ Kho…</button></div></>}
     </div>}
   </div>
 }
@@ -356,6 +387,7 @@ export function SlideStudio({ slides, onChange, readOnly, orgId, title }: { slid
   const [sel, setSel] = useState(0)
   const [show, setShow] = useState(false)
   const [brandOpen, setBrandOpen] = useState(false)
+  const [picker, setPicker] = useState<'add' | 'swap' | null>(null)
   const img = useSlideImage(orgId)
   const cur = slides[sel]
   const setSlide = (patch: Partial<Slide>) => onChange(slides.map((s, i) => i === sel ? { ...s, ...patch } : s))
@@ -378,13 +410,14 @@ export function SlideStudio({ slides, onChange, readOnly, orgId, title }: { slid
             <small>{i + 1} · {KIND[s.kind]}</small><span>{s.title || <i>Chưa có tiêu đề</i>}</span>
           </button>
         ))}
-        {!readOnly && <div className="addslide"><SlideAdd onAdd={add} /></div>}
+        {!readOnly && <div className="addslide"><SlideAdd onAdd={add} onAct={() => setPicker('add')} /></div>}
       </div>
       <div>
         <div className="sltools">
           {!readOnly && cur && <>
-            <select value={cur.kind} aria-label="Loại slide" onChange={e => { const { id, kind: _k, title, body, options: _o, answer: _a, url: _u, minutes: _m, ...style } = cur; setSlide({ ...newSlide(e.target.value as SlideKind), ...style, id, title, body }) }}>
-              {(Object.keys(KIND) as SlideKind[]).map(k => <option key={k} value={k}>{KIND[k]}</option>)}</select>
+            {cur.kind === 'activity' ? <button type="button" onClick={() => setPicker('swap')}>🔁 Đổi hoạt động</button>
+              : <select value={cur.kind} aria-label="Loại slide" onChange={e => { const { id, kind: _k, title, body, options: _o, answer: _a, url: _u, minutes: _m, ...style } = cur; setSlide({ ...newSlide(e.target.value as SlideKind), ...style, id, title, body }) }}>
+              {BLANK_KINDS.map(k => <option key={k} value={k}>{KIND[k]}</option>)}</select>}
             {cur.kind === 'task' && <label className="inl">Thời gian <input type="number" min={1} max={90} value={cur.minutes ?? 10} onChange={e => setSlide({ minutes: Number(e.target.value) || 1 })} style={{ width: 64 }} /> phút</label>}
             <button onClick={() => move(-1)} disabled={sel === 0} aria-label="Đưa lên">↑</button>
             <button onClick={() => move(1)} disabled={sel === slides.length - 1} aria-label="Đưa xuống">↓</button>
@@ -395,12 +428,15 @@ export function SlideStudio({ slides, onChange, readOnly, orgId, title }: { slid
         </div>
         {img.err && <p className="err" role="alert">{img.err} <button type="button" className="linkbtn" onClick={img.clear}>Đóng</button></p>}
         {!readOnly && brandOpen && <BrandPanel slides={slides} deckTitle={title} onChange={onChange} upload={orgId ? img.upload : undefined} busy={img.busy} />}
-        {!readOnly && cur && <SlideFormat slide={cur} onEdit={setSlide} onDup={dup} onImage={canImg ? putImage : undefined} imgBusy={img.busy}
+        {!readOnly && cur && cur.kind !== 'activity' && <SlideFormat slide={cur} onEdit={setSlide} onDup={dup} onImage={canImg ? putImage : undefined} imgBusy={img.busy}
           onAll={p => onChange(slides.map(x => ({ ...x, ...p })))} />}
         <SlideView slide={cur} reveal onEdit={readOnly ? undefined : setSlide} onImage={canImg ? putImage : undefined} imgBusy={img.busy} n={sel + 1} total={slides.length} />
         {!readOnly && cur && <small className="sub">Bấm vào tiêu đề, nội dung hoặc phương án trên slide để sửa trực tiếp. Kéo thả hoặc dán (Ctrl+V) ảnh vào slide để chèn ảnh.</small>}
       </div>
       {show && <SlideShow slides={slides} start={sel} title={title} onClose={() => setShow(false)} />}
+      {picker && <Suspense fallback={null}><ActivityPicker lesson={[title]} current={picker === 'swap' ? cur?.act?.id : undefined}
+        action={picker === 'swap' ? `Đổi hoạt động slide ${sel + 1}` : slides.length ? `Chèn vào sau slide ${sel + 1}` : 'Chèn slide hoạt động'}
+        onPick={a => { if (picker === 'swap') setSlide({ act: a, title: a.title }); else add({ kind: 'activity', title: a.title, act: a }); setPicker(null) }} onClose={() => setPicker(null)} /></Suspense>}
     </div>
   )
 }

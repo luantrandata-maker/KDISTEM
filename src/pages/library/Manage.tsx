@@ -70,8 +70,8 @@ function LessonModePicker({ value, onChange, locked }: { value: LMode; onChange:
 type SrcMeta = { title: string; summary: string | null; subject: string | null; grades: string | null; program: string | null
   tags?: string[]; program_id?: string | null; unit_id?: string | null }
 type Src = { id: string; label: string; lesson: ILesson; meta: SrcMeta }
-function InteractiveLesson({ value, ct, onChange, onCopy, sources, skip }: {
-  value: ILesson | null; ct: string; onChange: (l: ILesson) => void; onCopy: (l: ILesson, meta: SrcMeta) => void; sources: Src[]; skip?: string
+function InteractiveLesson({ value, ct, onChange, onCopy, sources, skip, title, orgId }: {
+  value: ILesson | null; ct: string; onChange: (l: ILesson) => void; onCopy: (l: ILesson, meta: SrcMeta) => void; sources: Src[]; skip?: string; title?: string; orgId?: string | null
 }) {
   const pool = sources.filter(x => x.id !== skip)
   function copy(id: string) {
@@ -85,7 +85,7 @@ function InteractiveLesson({ value, ct, onChange, onCopy, sources, skip }: {
         <option value="">{pool.length ? 'Sao chép từ bài giảng có sẵn…' : 'Chưa có bài giảng tương tác nào để sao chép'}</option>
         {pool.map(x => <option key={x.id} value={x.id}>{x.label}</option>)}
       </select></div>
-    <LessonEditor value={value} ct={ct || 'CT1'} onChange={onChange} />
+    <LessonEditor value={value} ct={ct || 'CT1'} onChange={onChange} title={title} orgId={orgId} />
   </>
 }
 // Chọn nhiều mục: các mục đã chọn hiện thành thẻ, thêm bằng ô chọn
@@ -764,13 +764,13 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
                 <div className="panel" style={{ gridColumn: '1 / -1', margin: 0 }}>
                   <label className="field"><span>Tên bài giảng</span><input value={sub.title} onChange={e => setSub({ ...sub, title: e.target.value })} placeholder={`Bài giảng: ${form.title || 'tên bài học'}`} /></label>
                   <LessonModePicker value={sub.lmode ?? 'slides'} onChange={lmode => setSub({ ...sub, lmode })} />
-                  {sub.lmode === 'interactive' ? <InteractiveLesson value={sub.ilesson ?? null} ct={form.program} onChange={ilesson => setSub({ ...sub, ilesson })} onCopy={(ilesson, m) => setSub({ ...sub, ilesson, title: sub.title || m.title })} sources={iSources} /> : <>
+                  {sub.lmode === 'interactive' ? <InteractiveLesson value={sub.ilesson ?? null} ct={form.program} onChange={ilesson => setSub({ ...sub, ilesson })} onCopy={(ilesson, m) => setSub({ ...sub, ilesson, title: sub.title || m.title })} sources={iSources} title={form.title} orgId={orgId} /> : <>
                   <div className="bar small"><b>Slide bài giảng</b>
                     <select value="" onChange={e => { const l = lessons.find(x => x.id === e.target.value); if (l) setSub({ ...sub, title: sub.title || l.title.replace(/^Mẫu:\s*/, ''), slides: l.slides.map(s => ({ ...s, id: uid() })) }) }} aria-label="Sao chép từ bài giảng có sẵn">
                       <option value="">Sao chép từ bài giảng có sẵn…</option>
                       {lessons.map(l => <option key={l.id} value={l.id}>{l.title}{l.teachers ? ` — ${l.teachers.full_name}` : ''}</option>)}
                     </select></div>
-                  <SlidesEditor slides={sub.slides} onChange={slides => setSub({ ...sub, slides })} orgId={orgId} title={sub.title || form.title} />
+                  <SlidesEditor slides={sub.slides} onChange={slides => setSub({ ...sub, slides })} orgId={orgId} title={sub.title || form.title} lesson={[form.title, sub.title]} grades={form.grades} />
                   <div className="formgrid" style={{ marginTop: 8 }}>
                     <div className="field"><span>Tệp / đường dẫn bài giảng (không bắt buộc)</span><div className="tools">
                       <label><input type="radio" checked={sub.src === 'file'} onChange={() => setSub({ ...sub, src: 'file' })} /> Tải tệp lên</label>
@@ -828,7 +828,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
             if (n > 0 && !confirm(`Bài đang có ${what}. Đổi sang “${lmode === 'interactive' ? 'Bài giảng tương tác' : 'Slide bài giảng'}” thì khi lưu, nội dung này sẽ bị bỏ (đổi lại trước khi lưu thì vẫn còn). Tiếp tục?`)) return
             setForm({ ...form, lmode })
           }} />
-          {form.kind === 'lesson' && form.lmode === 'interactive' && <InteractiveLesson value={form.ilesson} ct={form.program} onChange={ilesson => setForm({ ...form, ilesson })} onCopy={copyInteractive} sources={iSources} skip={form.id} />}
+          {form.kind === 'lesson' && form.lmode === 'interactive' && <InteractiveLesson value={form.ilesson} ct={form.program} onChange={ilesson => setForm({ ...form, ilesson })} onCopy={copyInteractive} sources={iSources} skip={form.id} title={form.title} orgId={orgId} />}
           {form.kind === 'lesson' && form.lmode === 'interactive' && form.ilesson && asLesson(form.ilesson) && <div className="field"><span>Ảnh bìa bài giảng</span>
             <CoverPicker value={form.ilesson.cover} program={form.program} onChange={cover => setForm({ ...form, ilesson: { ...form.ilesson!, cover } })} />
             <small>Màu mặc định theo nhóm chương trình; trường “dùng” bài giảng sẽ nhận cả ảnh bìa.</small></div>}
@@ -850,7 +850,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
                       <label className={'filebtn' + (uploading ? ' busy' : '')}>{uploading ? 'Đang tải lên…' : form.file ? 'Thay tệp' : 'Chọn tệp'}
                         <input type="file" hidden disabled={uploading} onChange={e => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = '' }} /></label></div></div>}
               </div>
-              <SlidesEditor slides={form.slides} onChange={slides => setForm({ ...form, slides })} orgId={orgId} title={form.title} />
+              <SlidesEditor slides={form.slides} onChange={slides => setForm({ ...form, slides })} orgId={orgId} title={form.title} lesson={[form.title]} grades={form.grades} />
             </>
           )}
           </>}

@@ -3557,3 +3557,79 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .actstage svg{max-width:100%}
 .actstage .simstat b{font-size:calc(22px * var(--fz,1))}
 .actstage .simsvg{max-height:50vh}
+
+/* ===== Slide đẹp hơn (Đợt 1): mẫu slide, ảnh, bộ nhận diện ===== */
+/* :where giữ độ ưu tiên 0 để ô thu nhỏ (.slmini>.slide, position:absolute) không bị ghi đè */
+:where(.slide){position:relative}
+.slide.hasbar{padding-top:64px}.slide.hasnum{padding-bottom:40px}
+.slbrand{position:absolute;left:0;right:0;top:0;height:40px;display:flex;align-items:center;gap:10px;padding:0 18px;background:#0f3a76;color:#fff;font-size:14px;font-weight:600;text-align:left}
+.slbrand .slbt{margin-left:auto;opacity:.85;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.slmark{background:#f9b147;color:#0f3a76;font-weight:800;border-radius:4px;padding:1px 7px;letter-spacing:.3px}
+.slide img.sllogo{width:auto;height:26px;min-height:0;flex:none;object-fit:contain;border-radius:3px;background:#fff;padding:1px}
+.slcorner{position:absolute;left:18px;top:14px;display:flex;align-items:center}
+.slnum{position:absolute;right:18px;bottom:12px;font-size:13px;opacity:.65}
+.sltimer{position:absolute;right:18px;top:14px;background:#f59e0b;color:#fff;border-radius:999px;padding:3px 12px;font-weight:700;font-size:15px}
+.slide.hasbar .sltimer{top:52px}
+.slide.task .slidekind{display:none}
+.slide.imgbg{text-shadow:0 1px 3px rgba(0,0,0,.45)}.slide.imgbg .slidekind{color:#fde68a}
+.slide .slimg img.contain{object-fit:contain}.slide img.slpic.cover{object-fit:cover}
+.slide.dragon{outline:3px dashed var(--primary,#2563eb);outline-offset:-6px}
+.slimgph.up{cursor:pointer;opacity:.7;line-height:1.6}.slimgph.up:hover{opacity:1}
+.slide.title .slcols{flex:1}
+
+/* Nội dung dạng thẻ / bước / lưới: mỗi dòng một ô */
+.sldeco{display:grid;gap:10px;font-size:calc(clamp(15px,1.6vw,20px) * var(--slz,1));line-height:1.4}
+.sldc{position:relative;display:flex;align-items:center;gap:12px;padding:10px 14px;border-radius:10px;background:color-mix(in srgb,currentColor 7%,transparent);min-width:0}
+.sldc>span{min-width:0}
+.sldn{flex:none;width:1.7em;height:1.7em;border-radius:50%;display:grid;place-items:center;background:var(--sl-accent,#1f5bb8);color:#fff;font-size:.85em}
+.slide.themed .sldn{color:#0f172a}
+.sldc .sledit{flex:1;min-width:0;padding:2px 4px}
+.sldc .x{position:absolute;right:4px;top:2px;border:0;background:none;padding:0 4px;opacity:0;cursor:pointer;color:inherit}.sldc:hover .x,.sldc:focus-within .x{opacity:.6}
+.sldeco .sldadd{justify-self:start;font-size:14px}
+.sldeco.d-steps{display:flex;flex-wrap:wrap;align-items:stretch}.sldeco.d-steps .sldc{flex:1 1 0;min-width:0}
+.sldeco.d-steps .sldc{flex-direction:column;align-items:flex-start;padding:14px;border-top:5px solid var(--sl-accent,#1f5bb8)}
+.sldeco.d-steps .sldc:not(:last-of-type)::after{content:'›';position:absolute;right:-11px;top:50%;transform:translateY(-50%);font-size:1.4em;opacity:.5}
+.sldeco.d-steps .sldadd{flex-basis:100%}
+.sldeco.d-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+.sldeco.d-grid .sldc{justify-content:center;text-align:center;min-height:3.6em;font-weight:600}
+.sldeco.d-grid .sldc:nth-of-type(6n+1){background:#fef3c7}.sldeco.d-grid .sldc:nth-of-type(6n+2){background:#dbeafe}.sldeco.d-grid .sldc:nth-of-type(6n+3){background:#dcfce7}
+.sldeco.d-grid .sldc:nth-of-type(6n+4){background:#fee2e2}.sldeco.d-grid .sldc:nth-of-type(6n+5){background:#ede9fe}.sldeco.d-grid .sldc:nth-of-type(6n){background:#ffedd5}
+.slide .sldeco.d-grid .sldc{color:#1e293b}
+.sldeco.d-grid .sldc .sledit{text-align:center}
+.sldeco.d-grid .sldadd{grid-column:1/-1}
+.slide .sldeco{margin:0}
+.slform{align-content:start}
+.slide.haslogo{padding-top:62px}.overlay.show .showslide .slide.haslogo{padding-top:6.5cqw}
+.sltwo.boxed>div{padding:14px 16px;border-radius:10px;background:#dcfce7;color:#14532d}.sltwo.boxed>div+div{background:#fee2e2;color:#7f1d1d}
+.sltwo.boxed .slidebody>p:first-child{font-weight:700}
+
+/* Trình chiếu: cỡ theo khung */
+.overlay.show .showslide .slide.hasbar{padding-top:7.5cqw}.overlay.show .showslide .slide.hasnum{padding-bottom:4.5cqw}
+.overlay.show .showslide .slbrand{height:4.6cqw;font-size:1.6cqw;padding:0 2cqw;gap:1.2cqw}
+.overlay.show .showslide img.sllogo{height:3cqw}
+.overlay.show .showslide .slcorner{left:2cqw;top:1.6cqw}
+.overlay.show .showslide .slnum{font-size:1.4cqw;right:2cqw;bottom:1.4cqw}
+.overlay.show .showslide .sltimer{font-size:1.7cqw;right:2cqw;top:1.6cqw}.overlay.show .showslide .slide.hasbar .sltimer{top:6cqw}
+.overlay.show .showslide .sldeco{font-size:calc(2cqw * var(--slz,1));gap:1.1cqw}
+.overlay.show .showslide .sldc{padding:1.1cqw 1.6cqw;border-radius:1cqw}
+.showtimer{font-variant-numeric:tabular-nums;font-weight:700}.showtimer.done{background:#dc2626;color:#fff}
+
+/* Nút thêm slide + bảng mẫu */
+.sladd{position:relative}
+.main .sladdbtn{width:100%;border-color:var(--primary);color:var(--primary);font-weight:600}
+.slgal{position:absolute;left:0;top:calc(100% + 6px);z-index:30;width:min(560px,calc(100vw - 40px));background:var(--surface,#fff);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(15,58,118,.2);padding:12px}
+.slgal h5{margin:2px 0 8px;font-size:13px}
+.slgalg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.main .slgalg button{display:grid;gap:4px;padding:4px;text-align:left;background:none}
+.main .slgalg button:hover{border-color:var(--primary);background:var(--soft)}
+.slgalg small{font-size:11.5px;line-height:1.25}
+.slgalg .slmini>.slide{transform:scale(.21)}
+.slgalk{display:flex;flex-wrap:wrap;gap:6px}.main .slgalk button{padding:4px 10px}
+.slbrandp .slfrow input:not([type]),.slbrandp .slfrow input[type=text]{padding:4px 8px}
+.slbrandp .slsw{width:24px;height:24px}
+img.slbrandlogo{height:28px;width:auto;border-radius:4px;border:1px solid var(--line)}
+.slfrow .filebtn{cursor:pointer}
+.slform .err,.studio .err{margin:0;padding:6px 10px;border-radius:6px;background:#fdecec;color:#9b2222;font-size:13px}
+.sldc textarea.sledit{field-sizing:content;min-height:1.4em;line-height:1.4}
+.main .slthumbs .slgalk button{width:auto;display:inline-block}.main .slthumbs .slgalg button{width:100%}
+.sldeco .sldadd{text-align:left}

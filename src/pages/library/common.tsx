@@ -4,7 +4,7 @@ import { Icon } from '../../components/Icon'
 import { Suspense, lazy, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { openFile, fmtSize } from '../../lib/files'
-import { SlideView, SlideShow, SlideFormat, KIND as SLIDE_KIND, type Slide, type SlideKind } from '../teacher/Lessons'
+import { SlideView, SlideShow, SlideFormat, SlideAdd, BrandPanel, useSlideImage, withImage, clipImage, KIND as SLIDE_KIND, type Slide } from '../teacher/Lessons'
 import { PROGRAM_COLOR } from '../teacher/common'
 import { PlanView, planOf } from './PlanEditor'
 import { Drawer } from '../../components/Drawer'
@@ -342,27 +342,32 @@ export function Versions({ item, canRestore, onRestored }: { item: Item; canRest
 }
 
 // Soạn slide gọn cho bài giảng trong kho (cùng định dạng với trình soạn bài giảng của giáo viên): sửa trực tiếp trên slide
-export function SlidesEditor({ slides, onChange }: { slides: Slide[]; onChange: (s: Slide[]) => void }) {
+export function SlidesEditor({ slides, onChange, orgId, title }: { slides: Slide[]; onChange: (s: Slide[]) => void; orgId?: string | null; title?: string }) {
   const [sel, setSel] = useState(0)
   const [show, setShow] = useState(false)
-  // Thanh định dạng (chủ đề, bố cục, chữ) thu gọn sau nút "Định dạng" để khung slide rộng hơn
+  // Thanh định dạng (chủ đề, bố cục, chữ) và bộ nhận diện thu gọn sau nút để khung slide rộng hơn
   const [fmt, setFmt] = useState(false)
+  const [brand, setBrand] = useState(false)
+  const img = useSlideImage(orgId)
   const cur = slides[sel]
   const set = (p: Partial<Slide>) => onChange(slides.map((s, k) => k === sel ? { ...s, ...p } : s))
-  const add = (kind: SlideKind) => {
-    const s: Slide = { id: uid(), kind, title: '', body: '', ...(kind === 'question' ? { options: ['', ''], answer: 0 } : {}), ...(kind === 'task' ? { minutes: 10 } : {}), ...(kind === 'media' ? { url: '' } : {}) }
-    onChange([...slides, s]); setSel(slides.length)
+  // Thêm slide (mẫu hoặc trống) ngay sau slide đang chọn, mang theo bộ nhận diện của bài
+  const add = (s: Omit<Slide, 'id'>) => {
+    const at = slides.length ? sel + 1 : 0
+    onChange([...slides.slice(0, at), { ...s, id: uid(), ...(cur?.brand ? { brand: cur.brand } : {}) }, ...slides.slice(at)]); setSel(at)
   }
+  const putImage = async (f: File) => { const id = cur?.id; const url = await img.upload(f); if (!url || !id) return
+    onChange(slides.map(s => s.id === id ? { ...s, ...withImage(s, url) } : s)) }
+  const canImg = !!orgId
   return (
-    <div className="sleditor">
+    <div className="sleditor" onPaste={canImg ? e => { const f = clipImage(e); if (f && cur) { e.preventDefault(); putImage(f) } } : undefined}>
       <ol className="slthumbs">
         {slides.map((s, k) => (
           <li key={s.id}><button type="button" className={k === sel ? 'on' : ''} onClick={() => setSel(k)} aria-label={`Slide ${k + 1}: ${s.title || 'Chưa có tiêu đề'}`}>
-            <div className="slmini" aria-hidden><SlideView slide={s} /></div>
+            <div className="slmini" aria-hidden><SlideView slide={s} n={k + 1} total={slides.length} /></div>
             <small>{k + 1} · {SLIDE_KIND[s.kind]}</small></button></li>
         ))}
-        <li><select className="sladdsel" value="" onChange={e => e.target.value && add(e.target.value as SlideKind)} aria-label="Thêm slide">
-          <option value="">+ Thêm slide…</option>{(Object.keys(SLIDE_KIND) as SlideKind[]).map(k => <option key={k} value={k}>{SLIDE_KIND[k]}</option>)}</select></li>
+        <li><SlideAdd onAdd={add} /></li>
       </ol>
       {cur ? (
         <div className="slform">
@@ -372,15 +377,20 @@ export function SlidesEditor({ slides, onChange }: { slides: Slide[]; onChange: 
             <button type="button" disabled={sel >= slides.length - 1} onClick={() => { const s = [...slides]; [s[sel + 1], s[sel]] = [s[sel], s[sel + 1]]; onChange(s); setSel(sel + 1) }}>↓ Xuống</button>
             <button type="button" onClick={() => { onChange([...slides.slice(0, sel + 1), { ...JSON.parse(JSON.stringify(cur)), id: uid() }, ...slides.slice(sel + 1)]); setSel(sel + 1) }}>⧉ Nhân bản</button>
             <button type="button" className="danger" onClick={() => { if (!confirm(`Xoá slide ${sel + 1}?`)) return; onChange(slides.filter((_, k) => k !== sel)); setSel(Math.max(0, sel - 1)) }}>Xoá slide</button>
+            {canImg && cur.kind !== 'media' && <label className={'filebtn' + (img.busy ? ' busy' : '')}>{img.busy ? 'Đang tải ảnh…' : '🖼 Ảnh'}
+              <input type="file" accept="image/*" hidden disabled={img.busy} onChange={e => { const f = e.target.files?.[0]; if (f) putImage(f); e.target.value = '' }} /></label>}
             <button type="button" className={fmt ? 'on' : ''} aria-pressed={fmt} onClick={() => setFmt(!fmt)}>Aa Định dạng {fmt ? '▴' : '▾'}</button>
+            <button type="button" className={brand ? 'on' : ''} aria-pressed={brand} onClick={() => setBrand(!brand)}>🎨 Nhận diện {brand ? '▴' : '▾'}</button>
             <button type="button" className="primary" style={{ marginLeft: 'auto' }} onClick={() => setShow(true)}>▶ Trình chiếu</button>
           </div>
-          {fmt && <SlideFormat slide={cur} onEdit={set} onAll={p => onChange(slides.map(x => ({ ...x, ...p })))} />}
-          <SlideView slide={cur} reveal onEdit={set} />
-          <small className="sub">Bấm vào tiêu đề, nội dung hoặc phương án trên slide để sửa trực tiếp.</small>
+          {img.err && <p className="err" role="alert">{img.err} <button type="button" className="linkbtn" onClick={img.clear}>Đóng</button></p>}
+          {brand && <BrandPanel slides={slides} deckTitle={title} onChange={onChange} upload={canImg ? img.upload : undefined} busy={img.busy} />}
+          {fmt && <SlideFormat slide={cur} onEdit={set} onAll={p => onChange(slides.map(x => ({ ...x, ...p })))} onImage={canImg ? putImage : undefined} imgBusy={img.busy} />}
+          <SlideView slide={cur} reveal onEdit={set} onImage={canImg ? putImage : undefined} imgBusy={img.busy} n={sel + 1} total={slides.length} />
+          <small className="sub">Bấm vào chữ trên slide để sửa trực tiếp. {canImg ? 'Kéo thả hoặc dán (Ctrl+V) ảnh vào slide để chèn ảnh.' : ''}</small>
         </div>
-      ) : <p className="sub">Thêm slide đầu tiên ở cột bên trái.</p>}
-      {show && <SlideShow slides={slides} start={sel} onClose={() => setShow(false)} />}
+      ) : <div className="slform"><p className="sub">Chưa có slide. Bấm “+ Thêm slide” ở cột bên trái để chọn mẫu.</p></div>}
+      {show && <SlideShow slides={slides} start={sel} title={title} onClose={() => setShow(false)} />}
     </div>
   )
 }

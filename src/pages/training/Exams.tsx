@@ -3,6 +3,7 @@
 // Đề luyện: đề tự luyện cho nhà giáo, không tính điểm đào tạo. Kết quả & câu khó: điểm theo đề, câu hay sai.
 import { TryButton, type TrySpec } from '../../components/ExamTryout'
 import { QuestionPicker } from '../../components/QuestionPicker'
+import { ExamQuestionsPanel } from '../../components/ExamQuestionsPanel'
 import { HeadAction } from '../../components/PageFrame'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
@@ -53,39 +54,6 @@ type BQ = { id: string; stem: string; options: string[]; answer: number[]; expla
 const QKIND: Record<string, string> = { single: 'Một đáp án', multi: 'Nhiều đáp án', truefalse: 'Đúng / sai' }
 const letter = (i: number) => String.fromCharCode(65 + i)
 /** Danh sách câu hỏi của đề kèm đáp án đúng và lời giải */
-function QuestionList({ qids, title }: { qids: string[]; title: string }) {
-  const [rows, setRows] = useState<BQ[] | null>(null)
-  const [all, setAll] = useState(false)
-  useEffect(() => {
-    if (!qids.length) { setRows([]); return }
-    supabase.from('question_bank').select('id, stem, options, answer, explain, level, topic, kind, subject').in('id', qids.slice(0, 500))
-      .then(({ data }) => { const m = new Map(((data as BQ[]) ?? []).map(q => [q.id, q])); setRows(qids.map(id => m.get(id)).filter(Boolean) as BQ[]) })
-  }, [qids.join(',')])
-  if (!qids.length) return null
-  const byLevel = LEVELS.map(([k, l]) => [l, rows?.filter(q => q.level === k).length ?? 0] as const).filter(([, n]) => n)
-  const shown = all ? rows ?? [] : (rows ?? []).slice(0, 10)
-  return <section className="panel" style={{ display: 'grid', gap: 10 }}>
-    <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>{title} ({qids.length})</h3>
-      {rows && <small className="sub">{byLevel.map(([l, n]) => `${l} ${n}`).join(' · ')}{rows.length < qids.length ? ` · ${qids.length - rows.length} câu không còn trong ngân hàng` : ''}</small>}</div>
-    {!rows ? <p className="sub">Đang tải câu hỏi…</p> : <ol className="paper">{shown.map(q => <li key={q.id}>
-      <p className="stem">{q.stem}</p>
-      <small className="sub">{levelName(q.level)}{q.topic ? ` · ${q.topic}` : ''} · {QKIND[q.kind] ?? q.kind}</small>
-      <div className="choices">{q.options.map((o, k) => <label key={k} className={q.answer.includes(k) ? 'right' : ''}><span aria-hidden="true">{q.answer.includes(k) ? '✓' : ''}</span><b>{letter(k)}</b><span>{o}</span></label>)}</div>
-      {q.explain && <p className="sub">Lời giải: {q.explain}</p>}
-    </li>)}</ol>}
-    {rows && rows.length > 10 && <button type="button" className="linkbtn" onClick={() => setAll(!all)}>{all ? 'Thu gọn' : `Xem cả ${rows.length} câu`}</button>}
-  </section>
-}
-/** Bảng ma trận chủ đề × mức độ */
-function MatrixTable({ rows }: { rows: MRow[] }) {
-  if (!rows.length) return null
-  const ms = rows.some(r => r.subject)
-  return <section className="panel" style={{ display: 'grid', gap: 10 }}>
-    <h3 style={{ margin: 0 }}>Ma trận đề ({matrixTotal(rows)} câu, rút ngẫu nhiên mỗi lượt)</h3>
-    <div className="wrap"><table className="libtable"><thead><tr>{ms && <th>Môn</th>}<th>Chủ đề</th><th>Mức độ</th><th className="num">Số câu</th></tr></thead>
-      <tbody>{rows.map((r, k) => <tr key={k}>{ms && <td>{r.subject || 'Tất cả môn của đề'}</td>}<td>{r.topic || 'Tất cả chủ đề'}</td><td>{levelName(r.level)}</td><td className="num">{r.count}</td></tr>)}</tbody></table></div>
-  </section>
-}
 function ExamStatCards({ s }: { s?: Stat }) {
   return <StatCards items={[
     { icon: 'edit', value: s?.attempts ?? 0, label: 'Lượt làm đã nộp', sub: `${s?.teachers ?? 0} nhà giáo` },
@@ -141,8 +109,10 @@ function ExamDetail({ r, subjName, stat, onBack, onEdit }: { r: Row; subjName: s
         <dt>Điểm đạt</dt><dd>{fe?.pass != null ? `${num(fe.pass)}/10` : 'Không xét'}</dd>
       </>}</dl>
     </section>
-    {r.kind === 'final' && <MatrixTable rows={fe?.matrix ?? []} />}
-    <QuestionList qids={(r.kind === 'unit' ? (link ? [] : t.qids) : fe?.qids) ?? []} title={r.kind === 'unit' ? 'Câu hỏi đã chọn' : 'Câu chọn sẵn'} />
+    {!link && (r.kind === 'final'
+      ? <ExamQuestionsPanel org={p.org_id} qids={fe?.qids ?? []} matrix={fe?.matrix ?? []} subjects={listSubjects(fe)} grades={listGrades(fe)} />
+      : <ExamQuestionsPanel org={p.org_id} qids={t.qids ?? []} subjects={subjName ? [subjName] : []} grades={[]}
+          sampleNote={t.count && t.qids && t.count < t.qids.length ? `Mỗi lượt rút ngẫu nhiên ${t.count} câu trong ${t.qids.length} câu đã chọn dưới đây.` : undefined} />)}
   </ElView>
 }
 
@@ -333,8 +303,7 @@ function PracticeDetail({ x, prog, stat, admin, msg, onBack, onEdit }: { x: Prac
         <dt>Sau khi nộp</dt><dd>{x.show_answers ? 'Nhà giáo xem được đáp án và lời giải' : 'Chỉ xem điểm, không xem đáp án'}</dd>
       </dl>
     </section>
-    <MatrixTable rows={x.matrix ?? []} />
-    <QuestionList qids={x.qids ?? []} title="Câu chọn sẵn" />
+    <ExamQuestionsPanel org={x.org_id} qids={x.qids ?? []} matrix={x.matrix ?? []} subjects={listSubjects(x)} grades={listGrades(x)} />
   </ElView>
 }
 

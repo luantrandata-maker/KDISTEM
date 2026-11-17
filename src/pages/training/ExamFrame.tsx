@@ -3,6 +3,7 @@
 // Khung đánh giá: trọng số thành phần, điều kiện bắt buộc để đạt, thang xếp loại; dùng khi đánh giá kết quả và in chứng chỉ.
 import { useEffect, useState } from 'react'
 import { QuestionPicker } from '../../components/QuestionPicker'
+import { ExamQuestionsPanel } from '../../components/ExamQuestionsPanel'
 import { supabase } from '../../lib/supabase'
 import { ExamMatrix, cleanMatrix, listGrades, listSubjects, matrixText, matrixTotal, useBankSubjects, type MRow } from '../../components/ExamMatrix'
 import { MultiSelect } from '../../components/MultiSelect'
@@ -83,6 +84,7 @@ export function ProgramExams({ p, units, edit, onOpen, save, autoStart }: { p: P
       <dt>Cách làm</dt><dd>{fe.minutes ? `${fe.minutes} phút` : 'không giới hạn thời gian'} · {fe.attempts ? `${fe.attempts} lượt` : 'không giới hạn lượt'} · điểm đạt {fe.pass != null ? num(fe.pass) : 'không xét'} · {fe.shuffle !== false ? 'trộn câu' : 'giữ thứ tự'}</dd>
     </dl>
     : <p className="sub" style={{ margin: 0 }}>Chương trình chưa có đề cuối khoá.</p>}
+    {!f && fe && <ExamQuestionsPanel org={p.org_id} qids={fe.qids ?? []} matrix={fe.matrix ?? []} subjects={listSubjects(fe)} grades={listGrades(fe)} title="Câu hỏi của đề cuối khoá" />}
     {!edit && <p className="sub" style={{ margin: 0 }}>Phiên bản này không sửa được. Tạo phiên bản mới ở tab "Phiên bản & duyệt" để sửa đề.</p>}
   </section>
 }

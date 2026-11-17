@@ -12,11 +12,18 @@ import { Chip } from '../dist/Editor'
 import { CERT_ST, RESULT, ResultDetail, onlineText, type ResRow, type RPlan } from './Results'
 import { CertPaper, type Payload } from './Certificates'
 import { TestScores } from './TestScores'
-import { StatCards } from '../../components/StatCards'
 import { DataTable, type Col } from '../../components/DataTable'
 
 type Tab = 'grade' | 'decide' | 'cert'
-type F = 'all' | 'ready' | 'pending' | 'pass' | 'fail'
+type F = 'all' | 'none' | 'doing' | 'done' | 'product' | 'ready' | 'pending' | 'pass' | 'fail'
+type L = 'none' | 'doing' | 'done'
+const LEARN: Record<L, [string, string]> = { none: ['Chưa học', ''], doing: ['Đang học', 'warn'], done: ['Đã học xong', 'good'] }
+/** Tiến độ học: theo học trực tuyến (nếu có) và chuyên cần */
+function learnOf(r: ResRow): L {
+  const m = r.metrics, ou = m.online_units ?? m.units, od = m.online_done ?? m.done, need = m.sessions - m.excused
+  if ((ou > 0 || need > 0) && (ou === 0 || od >= ou) && (need <= 0 || m.present >= need)) return 'done'
+  return od > 0 || m.present > 0 || m.product_status ? 'doing' : 'none'
+}
 type Sess = { id: string; title: string; starts_at: string }
 type Att = { session_id: string; teacher_id: string; present: boolean | null; excuse_status: string | null }
 type Cert = { id: string; code: string | null; status: 'pending' | 'issued' | 'revoked'; plan_id: string; teacher_id: string; teacher_name: string; org_name: string | null; issued_on: string | null; can_manage: boolean }
@@ -28,8 +35,6 @@ const ok = (b: boolean) => <span aria-label={b ? 'đạt điều kiện' : 'chư
 const dm = (iso: string) => new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
 const gradeChip = (m: ResRow['metrics']) => <Chip tone={m.suggest === 'pass' ? 'good' : ''}>{m.grade ?? (m.suggest === 'pass' ? 'Đủ điều kiện' : 'Chưa đủ')}</Chip>
 // Cảnh báo của một GV ở bảng tổng hợp: rê chuột / chạm vào ⚠️ để xem nội dung
-const W_KINDS: [string, string][] = [['att', 'Chuyên cần dưới mức'], ['tests', 'Bài kiểm tra chưa đạt'], ['units', 'Chưa học xong trực tuyến'],
-  ['product', 'Sản phẩm chưa nộp / bị trả lại / chờ nhận xét'], ['final', 'Đề cuối khoá dưới điểm đạt'], ['total', 'Tổng điểm dưới mức đạt']]
 function warnsOf(r: ResRow): string[] {
   const m = r.metrics, w: string[] = []
   if (!m.ok_att) w.push(`Chuyên cần ${m.att_pct == null ? 'chưa có' : num(m.att_pct) + '%'}, cần ${m.att_req}% (${m.present}/${m.sessions - m.excused} buổi)`)
@@ -107,8 +112,10 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
 
   // base: theo ô tìm; thẻ tổng số và nút lọc đếm trên base
   const base = all.filter(r => of.fit(orgOf.get(r.teacher_id)) && `${r.teacher_name} ${r.org_name ?? ''}`.toLowerCase().includes(q.toLowerCase()))
-  const cnt = (k: F) => (k === 'all' ? base.length : k === 'ready' ? base.filter(ready).length : base.filter(r => r.result === k).length)
-  const shown = base.filter(r => f === 'all' || (f === 'ready' ? ready(r) : r.result === f))
+  const is = (r: ResRow, k: F) => k === 'all' || (k === 'ready' ? ready(r) : k === 'product' ? r.metrics.product_status === 'submitted'
+    : k === 'none' || k === 'doing' || k === 'done' ? learnOf(r) === k : r.result === k)
+  const cnt = (k: F) => base.filter(r => is(r, k)).length
+  const shown = base.filter(r => is(r, f))
   const baseT = new Set(base.map(r => r.teacher_id))
   const issued = certs.filter(c => c.status === 'issued' && baseT.has(c.teacher_id)).length
   const name = (r: ResRow) => <><button type="button" className="namelink" onClick={() => setOpen(r.teacher_id)}>{r.teacher_name}</button><br /><small className="sub">{r.org_name ?? '—'}</small></>
@@ -135,6 +142,15 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
       const v = val.get(id)!, r = all.find(x => x.teacher_id === id)!
       return supabase.rpc('training_result_grade', { p_plan: plan.id, p_teacher: id, p_score: v === '' ? null : Number(v.replace(',', '.')), p_comment: r.comment ?? '' })
     })
+  }
+  /** Nhận / trả lại sản phẩm nhà giáo nộp */
+  async function review(r: ResRow, accept: boolean) {
+    const fb = accept ? prompt(`Nhận xét cho sản phẩm của ${r.teacher_name} (không bắt buộc):`, r.comment ?? '') : prompt(`Lý do trả lại sản phẩm của ${r.teacher_name}:`)
+    if (fb === null || (!accept && !fb.trim())) return
+    setBusy(accept ? 'Đang nhận sản phẩm…' : 'Đang trả lại sản phẩm…')
+    const { error } = await supabase.rpc('training_product_review', { p_plan: plan.id, p_teacher: r.teacher_id, p_accept: accept, p_feedback: fb })
+    setBusy('')
+    if (error) setMsg([errText(error.message), true]); else { setMsg([accept ? `Đã nhận sản phẩm của ${r.teacher_name}.` : `Đã trả lại sản phẩm của ${r.teacher_name}.`, false]); load() }
   }
   function decide(result: 'pass' | 'fail' | 'pending') {
     const ids = [...sel]
@@ -183,25 +199,31 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
   }
 
   const steps: [Tab, string, string][] = [
-    ['grade', 'Chấm điểm', `${all.length} GV · ${all.filter(r => r.metrics.need_product && r.metrics.product_status && r.product_score == null).length} sản phẩm chờ chấm`],
+    ['grade', 'Học & chấm điểm', `${cnt('none')} chưa học · ${cnt('doing')} đang học · ${all.filter(r => r.metrics.need_product && r.metrics.product_status && r.product_score == null).length} sản phẩm chờ chấm`],
     ['decide', 'Kết luận', `${cnt('pass')} đạt · ${cnt('fail')} chưa đạt · ${cnt('pending')} chờ`],
     ['cert', 'Cấp chứng chỉ', `${issued} đã cấp · ${certs.filter(c => c.status === 'pending').length} chờ duyệt`]]
-  const orgNode = of.node([...orgOf.values()], () => setSel(new Set()))
+  // Lọc Tỉnh / Sở, trường chỉ hiện khi nhà giáo đến từ 2 trường trở lên
+  const orgNode = new Set([...orgOf.values()].filter(Boolean)).size > 1 ? of.node([...orgOf.values()], () => setSel(new Set())) : null
   const filters = <div className="distfilter">
     {orgNode}
     <input placeholder="Tìm nhà giáo, trường…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm nhà giáo" />
-    {([['all', 'Tất cả'], ['ready', 'Đủ điều kiện, chờ kết luận'], ['pending', 'Chờ kết luận'], ['pass', 'Đạt'], ['fail', 'Chưa đạt']] as [F, string][])
+    {([['all', 'Tất cả'], ...(tab === 'grade' ? [['none', 'Chưa học'], ['doing', 'Đang học'], ['done', 'Đã học xong'], ['product', 'Sản phẩm chờ nhận xét']] : []),
+      ['ready', 'Đủ điều kiện, chờ kết luận'], ['pending', 'Chờ kết luận'], ['pass', 'Đạt'], ['fail', 'Chưa đạt']] as [F, string][])
       .map(([k, l]) => <button key={k} type="button" className={`distfchip${f === k ? ' on' : ''}`} onClick={() => { setF(k); setSel(new Set()) }}>{l} <b>{cnt(k)}</b></button>)}
   </div>
 
   const hasFinal = all.some(r => r.metrics.finals)
   const sumCols: Col<ResRow>[] = [
     { key: 'name', label: 'Nhà giáo', fixed: true, values: r => [r.teacher_name], text: r => `${r.teacher_name} ${r.org_name ?? ''}`, cell: name },
+    { key: 'learn', label: 'Tiến độ', text: r => LEARN[learnOf(r)][0], cell: r => <Chip tone={LEARN[learnOf(r)][1]}>{LEARN[learnOf(r)][0]}</Chip> },
     { key: 'att', label: 'Chuyên cần', cell: r => { const m = r.metrics; return <>{ok(m.ok_att)} {m.att_pct == null ? '—' : `${num(m.att_pct)}%`}<br /><small className="sub">{m.present}/{m.sessions - m.excused} buổi · cần {m.att_req}%</small></> } },
     { key: 'tests', label: 'Bài kiểm tra', cell: r => { const m = r.metrics; return m.tests ? <>{ok(m.ok_tests)} {m.tests_passed}/{m.tests} đạt<br /><small className="sub">TB {num(m.avg_score)}</small></> : <small className="sub">Không có</small> } },
     { key: 'online', label: 'Học trực tuyến', cell: r => { const m = r.metrics; return m.online_units === 0 ? <small className="sub">Không có</small> : <>{ok(m.ok_units)} {onlineText(m)}</> } },
     { key: 'product', label: 'Sản phẩm', text: r => r.metrics.need_product ? (r.metrics.product_status ? PRODUCT[r.metrics.product_status] : 'Chưa nộp') : 'Không yêu cầu',
-      cell: r => { const m = r.metrics; return m.need_product ? <>{ok(m.ok_product)} {m.product_status ? PRODUCT[m.product_status] : 'Chưa nộp'}{r.product_url && <><br /><a href={r.product_url} target="_blank" rel="noreferrer" className="linkbtn">Mở sản phẩm ↗</a></>}</>
+      cell: r => { const m = r.metrics; return m.need_product ? <>{ok(m.ok_product)} {m.product_status ? PRODUCT[m.product_status] : 'Chưa nộp'}{r.product_url && <><br /><a href={r.product_url} target="_blank" rel="noreferrer" className="linkbtn">Mở sản phẩm ↗</a></>}
+          {can && (m.product_status === 'submitted' || m.product_status === 'accepted') && <span className="tools trreview">
+            {m.product_status === 'submitted' && <button type="button" className="linkbtn" disabled={!!busy} onClick={() => review(r, true)}>Nhận</button>}
+            <button type="button" className="linkbtn" disabled={!!busy} onClick={() => review(r, false)}>Trả lại</button></span>}</>
         : <small className="sub">Không yêu cầu</small> } },
     { key: 'pscore', label: 'Điểm SP', cell: r => { const m = r.metrics, v = scores[r.teacher_id] ?? (r.product_score == null ? '' : String(r.product_score))
       return m.need_product ? (can && r.result !== 'pass'
@@ -213,21 +235,16 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
     { key: 'total', label: 'Tổng · xếp loại', text: r => r.metrics.grade ?? (r.metrics.suggest === 'pass' ? 'Đủ điều kiện' : 'Chưa đủ'), cell: r => <>{gradeChip(r.metrics)}{totalOf(r.metrics)}</> },
   ]
   return <div style={{ display: 'grid', gap: 12 }}>
-    <StatCards active={f === 'all' ? null : f} onPick={k => { setF((k ?? 'all') as F); setSel(new Set()) }} items={[
-      { icon: 'users', value: rows ? base.length : '…', label: 'Nhà giáo ghi danh' },
-      { k: 'pass', icon: 'checkCircle', tone: 'good', value: cnt('pass'), label: 'Đạt', sub: `${base.length ? Math.round(cnt('pass') * 100 / base.length) : 0}% số nhà giáo` },
-      { k: 'pending', icon: 'hourglass', tone: cnt('ready') ? 'warn' : '', value: cnt('pending'), label: 'Chờ kết luận', sub: `${cnt('ready')} đủ điều kiện` },
-      { icon: 'award', tone: 'good', value: issued, label: 'Chứng chỉ đã cấp' },
-    ]} />
     <ol className="diststeps">{steps.map(([k, t, s], i) => <li key={k}><button type="button" className={tab === k ? 'on' : ''} aria-current={tab === k ? 'step' : undefined}
-      onClick={() => { setTab(k); setSel(new Set()) }}><i>{i + 1}</i><span><b>{t}</b><small>{s}</small></span></button></li>)}</ol>
+      onClick={() => { setTab(k); setSel(new Set()); if (k !== 'grade') setF(x => ['none', 'doing', 'done', 'product'].includes(x) ? 'all' : x) }}><i>{i + 1}</i><span><b>{t}</b><small>{s}</small></span></button></li>)}</ol>
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {busy && <p className="sub" role="status">{busy}</p>}
     {!can && <small className="sub">Kế hoạch của đơn vị khác: chỉ xem kết quả nhà giáo trong phạm vi của mình.</small>}
     {!rows ? <p className="sub">Đang tải…</p> : <>
 
     {tab === 'grade' && <section className="panel" style={{ display: 'grid', gap: 12 }}>
-      <div className="bar" style={{ margin: 0 }}>
+      <div className="bar trbar" style={{ margin: 0 }}>
+        {filters}
         <div className="distpills" role="tablist" style={{ margin: 0 }}>
           {([['sum', 'Bảng tổng hợp'], ['test', 'Điểm bài test'], ['att', `Điểm danh theo buổi (${sess.length})`]] as ['sum' | 'att' | 'test', string][]).map(([k, l]) =>
             <button key={k} type="button" role="tab" aria-selected={view === k} className={view === k ? 'on' : ''} onClick={() => setView(k)}>{l}</button>)}
@@ -235,14 +252,11 @@ export function PlanResults({ plan, embedded }: { plan: RPlan; embedded?: boolea
         <div className="tools"><button type="button" onClick={exportXlsx} disabled={!all.length}>Xuất Excel</button>
           {can && view === 'sum' && <button type="button" className="primary" disabled={!dirty.length || !!busy} onClick={saveScores}>Lưu điểm{dirty.length ? ` (${dirty.length})` : ''}</button>}</div>
       </div>
-      {filters}
-      {view === 'sum' && <div className="warnlegend" aria-label="Giải thích cảnh báo"><span><b>⚠️ n</b> = số cảnh báo, rê chuột hoặc chạm vào để xem</span>
-        <span className="warnlegend-kinds">{W_KINDS.map(([k, l]) => <span key={k}>{l}</span>)}</span><span><span className="tlok">✓</span> đạt điều kiện · <span className="warnline">✗</span> chưa đạt</span></div>}
       {view === 'sum' ? <DataTable id="training-results-sum" className="trestable" rows={shown} rowKey={r => r.teacher_id} cols={sumCols}
         empty={<small className="sub">{all.length ? 'Không có nhà giáo nào khớp.' : 'Kế hoạch chưa có nhà giáo ghi danh.'}</small>} />
       : view === 'test' ? <TestScores planId={plan.id} planCode={plan.plan_code ?? plan.name.slice(0, 30)} can={can} only={new Set(shown.map(r => r.teacher_id))} onSaved={load} />
       : <AttGrid rows={shown} sess={sess} att={att} />}
-      <small className="sub">Điểm sản phẩm từ 5 trở lên mới tính đạt. Nhận / trả lại sản phẩm ở chi tiết kế hoạch › Kết quả & chứng chỉ › Tiến độ học. Bấm tên nhà giáo để xem chi tiết, nhận xét.</small>
+      <small className="sub">Điểm sản phẩm từ 5 trở lên mới tính đạt. <span className="tlok">✓</span> đạt điều kiện · <span className="warnline">✗</span> chưa đạt · ⚠️ n: rê chuột để xem cảnh báo. Bấm tên nhà giáo để xem chi tiết, nhận xét.</small>
       <button type="button" className="primary" style={{ justifySelf: 'end' }} onClick={() => setTab('decide')}>Tiếp tục: Kết luận →</button>
     </section>}
 

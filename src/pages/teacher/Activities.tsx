@@ -209,7 +209,7 @@ function Editor({ a, onClose, onPlay }: { a: Activity; onClose: () => void; onPl
         <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tên hoạt động *</span>
           <input value={x.title} onChange={e => upd({ title: e.target.value })} maxLength={200} /></label>
         <label className="field" style={{ gridColumn: '1 / -1' }}><span>Hướng dẫn cho học sinh</span>
-          <input value={x.instructions ?? ''} onChange={e => upd({ instructions: e.target.value })} /></label>
+          <textarea rows={Math.min(6, Math.max(2, (x.instructions ?? '').split('\n').length))} value={x.instructions ?? ''} onChange={e => upd({ instructions: e.target.value })} /></label>
         <label className="field"><span>Môn</span><SubjectPicker value={x.subject ?? ''} onChange={v => upd({ subject: v })} emptyLabel="— Không chọn —" /></label>
         <div className="field"><span>Khối</span><GradeChecks value={gradeList(x.grades ?? '')} onChange={g => upd({ grades: g.join(',') })} /></div>
         <label className="field"><span>Chương trình</span>
@@ -246,7 +246,7 @@ function Play({ a, big, onBig, onClose, onEdit }: { a: Activity; big: boolean; o
           <button onClick={reset}>Làm lại</button>
         </span>
       </div>
-      {a.instructions && <p className="sub">{a.instructions}</p>}
+      {a.instructions && <p className="sub" style={{ whiteSpace: 'pre-line' }}>{a.instructions}</p>}
       <div className="panel">
         <ActivityPlayer kind={a.kind} data={data} answers={ans} onChange={v => { setAns(v); setGrade(null) }} grade={grade} solution={reveal ? a.content : null} big={big} />
       </div>
@@ -407,7 +407,7 @@ function ActivityModal({ a, teacherId, orgId, go, onClose, onUse, onAssign }: {
           </div>
         </div>
         <div className="modalbody">
-          <p style={{ margin: 0 }}>{a.instructions || ACT[a.kind].desc}</p>
+          <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{a.instructions || ACT[a.kind].desc}</p>
           <div className="gvnote"><b><Icon n="settings" /> GV cấu hình</b><br /><small>Thầy/cô thay bộ câu hỏi, số đội, thời gian… khi thêm vào bài giảng — trò chơi giữ nguyên cách chơi.</small></div>
           <div className="tilemeta">{tags.map(t => <span key={t}>{t}</span>)}</div>
           <div><b>▶ Dùng thử ngay tại đây</b> <small className="sub">— {a.kind === 'sim' ? `kéo thanh trượt, bấm nút để thao tác${SIMS[a.content?.model as SimModel] ? ' với ' + SIMS[a.content.model as SimModel].label.toLowerCase() : ''}` : 'quay, lật thẻ, kéo–thả hoặc trả lời như học sinh'}, dữ liệu không được lưu.</small></div>

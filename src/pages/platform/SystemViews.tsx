@@ -501,7 +501,9 @@ export const LESSONS: Spec = {
   status: { get: r => r.status, labels: L_ST },
   search: r => `${r.title} ${r.subject ?? ''} ${r.teachers?.full_name ?? ''}`, searchHint: 'Tên bài, môn, giáo viên…', noun: 'Bài giảng', file: 'bai-giang-toan-he-thong', empty: 'Chưa có bài giảng.',
 }
-const A_KIND: Record<string, string> = { quiz: 'Trắc nghiệm', truefalse: 'Đúng / sai', match: 'Nối cặp', order: 'Sắp xếp', fill: 'Điền khuyết', group: 'Phân nhóm', flashcard: 'Thẻ ghi nhớ', worksheet: 'Phiếu học tập' }
+const A_KIND: Record<string, string> = { quiz: 'Trắc nghiệm', truefalse: 'Đúng / sai', match: 'Nối cặp', order: 'Sắp xếp', fill: 'Điền khuyết', group: 'Phân nhóm', flashcard: 'Thẻ ghi nhớ', worksheet: 'Phiếu học tập',
+  // Cùng nhãn với ACT (teacher/activity.tsx): trò chơi và mô phỏng thêm sau, trước đây hiện mã thô "race", "sim"
+  race: 'Đường đua tri thức', wheel: 'Vòng quay may mắn', teams: 'Chia đội thi đấu', timer: 'Đồng hồ thử thách', sim: 'Mô phỏng 2D / giáo cụ ảo' }
 export const ACTIVITIES: Spec = {
   table: 'activities', order: 'updated_at', asc: false,
   select: 'id, org_id, kind, title, subject, grades, status, is_template, updated_at, teachers(full_name)',

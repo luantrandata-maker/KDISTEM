@@ -512,9 +512,9 @@ function Courses({ orgId, ofl: shared }: { orgId: string | null; ofl?: OrgF }) {
             <div><b>{learners}</b><span>học sinh đã học</span></div>
             {!side && <button type="button" className="pdsidetg" onClick={toggleSide} title="Mở cột thông tin khoá học">‹ Thông tin</button>}
           </div>
-          {mine && cur.status !== 'draft' && <p className="sub" style={{ margin: '0 0 8px' }}>Khoá đã công bố nên không sửa trực tiếp. Bấm <b>{courseDraftOf(cur) ? 'Mở bản nháp mới' : 'Phát hành bản mới'}</b> ở đầu trang để sửa trên bản sao.</p>}
-            {cur.replaces_id && cur.status === 'draft' && <p className="sub" style={{ margin: '0 0 8px' }}>Bản nháp mới thay cho khoá <b>{rows.find(r => r.id === cur.replaces_id)?.title ?? 'cũ'}</b>. Công bố bản này thì khoá cũ tự lưu trữ.</p>}
-          <div className="panel pdcard pdsl"><h4>Chủ đề & bài học</h4><LessonEditor key={cur.id} autoAdd={mine && fresh === cur.id && !ls.length} course={cur} lessons={ls} topics={tps} exams={exams} progress={progress} editable={mine && cur.status === 'draft'} onChange={load} /></div>
+          <div className="panel pdcard pdsl"><h4>Chủ đề & bài học
+            {mine && cur.status !== 'draft' && <InfoTip label="Chỉ xem">Khoá đã công bố nên không sửa trực tiếp. Bấm <b>{courseDraftOf(cur) ? 'Mở bản nháp mới' : 'Phát hành bản mới'}</b> ở đầu trang để sửa trên bản sao.</InfoTip>}
+            {cur.replaces_id && cur.status === 'draft' && <InfoTip label="Bản nháp mới">Bản nháp mới thay cho khoá <b>{rows.find(r => r.id === cur.replaces_id)?.title ?? 'cũ'}</b>. Công bố bản này thì khoá cũ tự lưu trữ.</InfoTip>}</h4><LessonEditor key={cur.id} autoAdd={mine && fresh === cur.id && !ls.length} course={cur} lessons={ls} topics={tps} exams={exams} progress={progress} editable={mine && cur.status === 'draft'} onChange={load} /></div>
           {mine && <CourseProgress key={ls.length} course={cur} />}
         </div>
         {side && <div className="pdside">

@@ -3538,3 +3538,4 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .ellessons .ttable.slt>thead>tr:first-child>th.c-mat{width:170px}
 .ellessons .ttable.slt>thead>tr:first-child>th.c-title:not(.c-sel):not(.c-no){min-width:170px}
 .ellessons td select.slcell{padding-right:0;text-overflow:clip}
+.pdsl>h4{flex-wrap:wrap;row-gap:2px}.pdsl>h4 .infotip{font-weight:400}

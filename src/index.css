@@ -3516,3 +3516,25 @@ textarea.slgrow,textarea.slnoa{field-sizing:content;min-height:28px;max-height:2
 .ellessons .slnavi .slnm{line-height:1.3}
 .ttable.slt>thead>tr:first-child>th.c-eltopic.c-lead:not(.c-sel):not(.c-no){min-width:0;width:92px}
 .ellessons .slt th.c-mat{min-width:0}
+/* E-learning: bảng sửa thẳng như chương trình */
+.ellessons select.slcell{padding:3px 4px;margin:-3px -4px;cursor:pointer;appearance:auto}
+.ellessons .elkindsel{max-width:100px}.ellessons .eltopicsel{max-width:100px}
+.ellessons .slt th.c-act{width:118px}
+.ellessons input.elnavin{width:100%;padding:7px 9px;border:1px solid var(--primary);border-radius:5px;font:inherit}
+.ellessons .slnavrow[draggable=true]{cursor:grab}
+.ellessons .slnew select{width:100%;padding:6px 4px;border:1px dashed #b8c4d6;border-radius:5px;background:var(--surface);font:inherit}
+.ellessons .slnewrow select{width:110px}
+.ellessons .slt th.c-elmin{width:62px}.ellessons .slt th.c-eldur{width:70px}
+.ellessons .slt th.c-elkind{width:104px}.ellessons .elkindsel{max-width:none;width:100%}
+.ttable.slt>thead>tr:first-child>th.c-eltopic.c-lead:not(.c-sel):not(.c-no){width:104px}
+.ellessons .eltopicsel{max-width:none;width:100%}
+.ellessons td input.slcell[data-gc=dur]{text-align:left}
+.ellessons .slnew td:first-child select{min-width:92px}
+.ellessons .ttable.slt>thead>tr:first-child>th.c-elmin,.ellessons .ttable.slt>thead>tr:first-child>th.c-eldur,.ellessons .ttable.slt>thead>tr:first-child>th.c-elkind,.ellessons .ttable.slt>thead>tr:first-child>th.c-mat{min-width:0!important}
+.ellessons .ttable.slt>thead>tr:first-child>th.c-elmin{width:62px;white-space:nowrap}
+.ellessons .ttable.slt>thead>tr:first-child>th.c-eldur{width:72px;white-space:nowrap}
+.ellessons .slnew input.slnp{width:100%}
+.ellessons .ttable.slt>thead>tr:first-child>th.c-eltopic.c-lead:not(.c-sel):not(.c-no),.ellessons .ttable.slt>thead>tr:first-child>th.c-elkind{width:114px}
+.ellessons .ttable.slt>thead>tr:first-child>th.c-mat{width:170px}
+.ellessons .ttable.slt>thead>tr:first-child>th.c-title:not(.c-sel):not(.c-no){min-width:170px}
+.ellessons td select.slcell{padding-right:0;text-overflow:clip}

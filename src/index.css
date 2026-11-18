@@ -3695,3 +3695,18 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .pkgkpi b{font-size:calc(24px * var(--fz,1));line-height:1;color:var(--navy);margin-right:6px}.pkgkpi span:not(.ic){font-weight:600;color:var(--text,#1f2937)}.pkgkpi small{display:block;color:var(--muted);font-size:calc(11.5px * var(--fz,1));margin-top:2px}
 @media (max-width:760px){.pkgkpi{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .oneline{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.pkggrid{display:grid;font-size:calc(12.5px * var(--fz,1))}
+.pkggrid>*{border-top:1px solid var(--line);border-left:1px solid var(--line);min-width:0;padding:8px}
+.pkggrid .hd{border-top:0;background:var(--soft);font-weight:700;text-align:center;padding:8px 6px}
+.pkggrid .lb{border-left:0;padding-left:14px;display:flex;flex-direction:column;align-items:flex-start;gap:3px;justify-content:center;background:var(--surface)}
+.pkggrid .lb b{line-height:1.3}.pkggrid .hd.lb{justify-content:flex-end;text-align:left}
+.pkggrid .ft{background:var(--soft);text-align:center;font-weight:600}.pkggrid .ft.lb{text-align:left}
+.main .pkggrid button.gc{display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:4px;text-align:left;background:var(--surface);border-radius:0;border-right:0;border-bottom:0;min-height:0;color:inherit;font-weight:400;cursor:pointer;padding:6px}
+.main .pkggrid button.gc:hover:not(:disabled){background:var(--soft)}.main .pkggrid button.gc.on{outline:2px solid var(--primary);outline-offset:-2px}.main .pkggrid button.gc:disabled{cursor:default;opacity:1}
+.pkggrid .hp{display:block;font-size:calc(12.5px * var(--fz,1));line-height:1.3;font-weight:500;text-align:center;color:var(--text,#1f2937)}
+.pkggrid .hp i{font-style:normal;font-size:calc(11px * var(--fz,1));color:var(--muted);white-space:nowrap}
+.pkggrid .num{align-self:center;margin:auto 0;text-align:center;color:var(--muted)}.pkggrid .num b{display:block;font-size:calc(18px * var(--fz,1));color:var(--navy)}
+.pkgkpi .kpibtn{cursor:pointer}.pkgkpi .kpibtn.on{box-shadow:0 0 0 2px var(--k)}
+.main .pkggrid .alt,.main .pkggrid button.gc.alt{background:#f8fafc}
+.pkggrid .grp{border-top:2px solid #cbd5e1}
+.main .pkggrid button.gc.alt:hover:not(:disabled){background:#f1f5f9}

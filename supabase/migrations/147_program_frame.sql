@@ -103,6 +103,13 @@ declare
   i int;
 begin
   if not exists (select 1 from stem_tracks where code = 'CT5') then return; end if;
+  -- Bảng có khoá (lớp / GV, chương trình): đã có CT4 thì bỏ dòng CT5 trùng trước khi đổi mã
+  if to_regclass('public.class_programs') is not null then
+    delete from class_programs a where a.program = 'CT5' and exists (select 1 from class_programs b where b.class_id = a.class_id and b.program = 'CT4');
+  end if;
+  if to_regclass('public.stem_teacher_programs') is not null then
+    delete from stem_teacher_programs a where a.program = 'CT5' and exists (select 1 from stem_teacher_programs b where b.teacher_id = a.teacher_id and b.program = 'CT4');
+  end if;
   for i in 1 .. array_length(fk, 1) loop
     t := fk[i][1]; c := fk[i][2];
     if to_regclass('public.' || t) is null then continue; end if;

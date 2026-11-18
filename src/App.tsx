@@ -202,7 +202,11 @@ const StemTracksCatalog = lazy(() => import('./pages/stemTracks').then(m => ({ d
 // Khung chương trình mới: loại → học phần → chủ đề theo khối; danh mục nhóm vật tư (147)
 const ProgramFrame = lazy(() => import('./pages/programFrame').then(m => ({ default: m.ProgramFrame })))
 const MaterialGroupsCatalog = lazy(() => import('./pages/programFrame').then(m => ({ default: m.MaterialGroupsCatalog })))
-const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Loại chương trình', StemTracksCatalog], ['Nhóm vật tư', MaterialGroupsCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog], ['Khung năng lực', StudentFramework]]} />
+// Gói STEM theo khung chương trình: gói gồm chương trình, học phần nào theo khối; so sánh các gói (148)
+const ProgramPackages = lazy(() => import('./pages/programPackages').then(m => ({ default: m.ProgramPackages })))
+// Môn học (danh sách chung các đơn vị) nằm trong Danh mục; PH2_TABS khai báo bên dưới, chỉ đọc khi hiển thị
+const SubjectsAllOrgs = (q: any) => { const S = PH2_TABS.subjects; return <S {...q} /> }
+const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Loại chương trình', StemTracksCatalog], ['Môn học', SubjectsAllOrgs], ['Nhóm vật tư', MaterialGroupsCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog], ['Khung năng lực', StudentFramework]]} />
 const ProgressPlatform = (q: any) => <CurriculumProgress {...q} mode="platform" />
 // Định mức vật tư theo bài / chủ đề, danh mục vật tư, dự trù, đề xuất điều chỉnh (059)
 const MaterialNorms = lazy(() => import('./pages/materialNorms').then(m => ({ default: m.MaterialNorms })))
@@ -246,7 +250,7 @@ function PlatformEduProgramsPage(p: any) {
   return track
     // Nút quay lại nằm ở góc hàng tab (như nút Theo dõi thực hiện), không chiếm một hàng riêng
     ? <FramedTabs {...p} tabs={TRACK_TABS} actions={back} />
-    : <FramedTabs {...p} tabs={[['Khung chương trình', ProgramFrame], ['Chương trình', PH2_TABS.edu], ['Môn học', PH2_TABS.subjects], ['Danh mục', ProgramCatalogs]]}
+    : <FramedTabs {...p} tabs={[['Khung chương trình', ProgramFrame], ['Gói STEM', ProgramPackages], ['Chương trình', PH2_TABS.edu], ['Danh mục', ProgramCatalogs]]}
       actions={<button type="button" onClick={() => setTrack(true)}>Theo dõi thực hiện</button>} />
 }
 const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [

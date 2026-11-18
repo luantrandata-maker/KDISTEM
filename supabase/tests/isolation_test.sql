@@ -2310,6 +2310,19 @@ select pg_temp.chk('kdi', 'Khung CT: không xoá học phần còn chủ đề',
        x as (delete from program_modules where id in (select module_id from t) returning 1) select count(*) from x$q$, 'ERR*');
 select pg_temp.chk('kdi', 'Khung CT: khối 0 bị chặn', $q$insert into program_topics (module_id, grade, title) select id, 0, 'ISO' from program_modules limit 1$q$, 'ERR*');
 
+-- ===== 148: Gói STEM theo khung chương trình =====
+select pg_temp.chk('admin_ph', 'Gói STEM: trường đọc được 4 gói', $q$select count(*) from program_packages$q$, '4');
+select pg_temp.chk('hs_kb', 'Gói STEM: học sinh đọc được học phần của gói', $q$select (count(*) > 0)::text from program_package_items$q$, 'true');
+select pg_temp.chk('kdi', 'Gói STEM: các gói chỉ khác nhau ở CT2',
+  $q$select count(distinct track_code) from (select track_code, grade, slot, count(distinct module_id) n from program_package_items group by 1, 2, 3) x where n > 1$q$, '1');
+select pg_temp.chk('kdi', 'Gói STEM: Gói 3T khối 5 học AI cốt lõi ở HP2',
+  $q$select m.name from program_package_items i join program_packages p on p.id = i.package_id join program_modules m on m.id = i.module_id where p.code = '3T' and i.track_code = 'CT2' and i.grade = 5 and i.slot = 2$q$, 'AI cốt lõi');
+select pg_temp.chk('kdi', 'Gói STEM: học phần khác loại chương trình bị chặn',
+  $q$update program_package_items set module_id = (select id from program_modules where track_code = 'CT3' limit 1) where track_code = 'CT2'$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Gói STEM: trường không sửa được gói', $q$with x as (update program_packages set name = 'ISO' returning 1) select count(*) from x$q$, '0');
+select pg_temp.chk('so_hy', 'Gói STEM: Sở không xoá được học phần của gói', $q$with x as (delete from program_package_items returning 1) select count(*) from x$q$, '0');
+select pg_temp.chk('kdi', 'Bài học STEM: 10 chủ đề mẫu mỗi khối', $q$select count(*) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 7$q$, '10');
+
 -- ===== 063: bài giảng tương tác dạng khối, hoạt động trò chơi / mô phỏng, thiết bị trong gói STEM =====
 select pg_temp.chk('gv_both', 'Bài giảng tương tác: lưu giáo án dạng khối',
   $q$insert into lesson_plans (org_id, teacher_id, title, lesson) values (my_org_id(), my_teacher_id(), 'ISO BG',

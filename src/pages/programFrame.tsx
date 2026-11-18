@@ -121,7 +121,8 @@ export function ProgramFrame() {
       values: m => [...new Set(topicsOf(m.id).map(t => gradeName(t.grade)))],
       cell: m => { const g = [...new Set(topicsOf(m.id).map(t => t.grade))]; return g.length ? fmtGrades(g) : <small className="sub">Chưa có</small> } },
     { key: 'n', label: 'Số chủ đề', text: m => String(topicsOf(m.id).length), cell: m => topicsOf(m.id).length },
-    { key: 'p', label: 'Tổng tiết', text: m => String(sum(topicsOf(m.id))), cell: m => sum(topicsOf(m.id)) },
+    { key: 'hp', label: 'Tiết / khối', text: m => m.periods == null ? '' : String(m.periods), cell: m => m.periods ?? <small className="sub">—</small> },
+    { key: 'p', label: 'Tổng tiết chủ đề', text: m => String(sum(topicsOf(m.id))), cell: m => sum(topicsOf(m.id)) },
     { key: 'st', label: 'Trạng thái', text: m => m.active ? 'Đang dùng' : 'Ngừng dùng', cell: m => pill(m.active) },
     ...(admin ? [{ key: 'mv', label: 'Thứ tự', fixed: true, cell: (m: ProgramModule) => <span onClick={e => e.stopPropagation()}>
       <button type="button" className="ghostbtn" title="Lên" aria-label="Lên" onClick={() => move(m, -1)}>↑</button>
@@ -130,7 +131,7 @@ export function ProgramFrame() {
   const g = grade ?? grades[0] ?? null
   return <>
     {admin && track && <HeadAction><button type="button" className="primary ttadd"
-      onClick={() => setEditMod({ id: '', track_code: track.code, name: '', description: '', sort: mods.reduce((x, m) => Math.max(x, m.sort), 0) + 1, active: true })}>+ Thêm học phần</button></HeadAction>}
+      onClick={() => setEditMod({ id: '', track_code: track.code, name: '', description: '', periods: null, sort: mods.reduce((x, m) => Math.max(x, m.sort), 0) + 1, active: true })}>+ Thêm học phần</button></HeadAction>}
     <div className="bar">
       <div className="segmented" role="tablist" aria-label="Loại chương trình">
         {active.map(t => <button key={t.code} type="button" className={t.code === track?.code ? 'on' : ''} onClick={() => { setCode(t.code); setGrade(null) }}>{t.code} · {t.name}</button>)}
@@ -162,7 +163,7 @@ export function ProgramFrame() {
           </div>
         })}
       </>}
-    <p className="tablenote sub">Học phần dùng chung cho các gói STEM và các khối; gói nào dùng học phần nào sẽ chọn ở Gói STEM. Nội dung của từng chủ đề (kế hoạch giảng dạy, bài giảng, phiếu học tập, bài kiểm tra, vật tư, kho học liệu) và phiên bản làm ở bước tiếp theo.</p>
+    <p className="tablenote sub">Học phần dùng chung cho các gói STEM và các khối; gói nào dùng học phần nào chọn ở tab Gói STEM. Nội dung của từng chủ đề (kế hoạch giảng dạy, bài giảng, phiếu học tập, bài kiểm tra, vật tư, kho học liệu) và phiên bản làm ở bước tiếp theo.</p>
   </>
 }
 
@@ -188,7 +189,8 @@ function ModuleForm({ m, onCancel, onSaved }: { m: ProgramModule; onCancel: () =
   async function save() {
     if (!f.name.trim()) return setErr('Nhập tên học phần.')
     setBusy(true); setErr('')
-    const row = { track_code: f.track_code, name: f.name, description: f.description, sort: Number(f.sort) || 0, active: f.active }
+    const row = { track_code: f.track_code, name: f.name, description: f.description, sort: Number(f.sort) || 0, active: f.active,
+      periods: f.periods == null || (f.periods as unknown) === '' ? null : Number(f.periods) }
     const { data, error } = f.id ? await supabase.from('program_modules').update(row).eq('id', f.id).select('id')
       : await supabase.from('program_modules').insert(row).select('id')
     setBusy(false)
@@ -200,6 +202,8 @@ function ModuleForm({ m, onCancel, onSaved }: { m: ProgramModule; onCancel: () =
     <div className="formgrid">
       <label className="field wide"><span>Tên học phần *</span><input value={f.name} maxLength={120} onChange={e => setF({ ...f, name: e.target.value })} /></label>
       <label className="field"><span>Thứ tự</span><input type="number" min={0} value={f.sort} onChange={e => setF({ ...f, sort: Number(e.target.value) })} /></label>
+      <label className="field"><span>Số tiết / khối</span><input type="number" min={0} max={200} value={f.periods ?? ''} placeholder="VD: 16"
+        onChange={e => setF({ ...f, periods: e.target.value === '' ? null : Number(e.target.value) })} /></label>
       <label className="field"><span>Trạng thái</span><select value={f.active ? 'on' : 'off'} onChange={e => setF({ ...f, active: e.target.value === 'on' })}>
         <option value="on">Đang dùng</option><option value="off">Ngừng dùng</option></select></label>
       <label className="field wide"><span>Mô tả</span><textarea rows={2} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>

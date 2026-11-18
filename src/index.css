@@ -3687,3 +3687,5 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .pkgopen button{min-height:0;padding:1px 7px;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.5);color:#fff}
 .pkgnums{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:4px}.pkgnums>div{background:rgba(255,255,255,.18);border-radius:6px;padding:4px 6px;text-align:center}.pkgnums b{display:block;font-size:calc(18px * var(--fz,1));line-height:1.2;color:#fff}.pkgnums small{display:block;color:#fff;opacity:.9;font-size:calc(11px * var(--fz,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pkgnums.sm{display:flex;gap:5px;flex-wrap:nowrap}.pkgnums.sm>div{display:inline-flex;align-items:baseline;gap:3px;padding:1px 8px;border-radius:999px;white-space:nowrap;flex:none}.pkgnums.sm b{display:inline;font-size:calc(13px * var(--fz,1))}.pkgnums.sm small{display:inline;font-size:calc(11px * var(--fz,1));opacity:.95;overflow:visible}
+.pkgopen{container-type:inline-size}.pkgnums .short{display:none}
+@container (max-width:250px){.pkgnums .full{display:none}.pkgnums .short{display:inline}}

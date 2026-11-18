@@ -114,7 +114,7 @@ export function ProgramPackages() {
     <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
       <div style={{ display: 'grid', gridTemplateColumns: `220px repeat(${n}, minmax(200px, 1fr))` }}>
         {/* Hàng 1: tên gói và số liệu */}
-        <div style={{ ...labelS, borderTop: 0 }}><small className="sub">Gói STEM</small></div>
+        <div style={{ ...labelS, borderTop: 0, display: 'flex', alignItems: 'flex-end' }}><b>Loại chương trình (CT)</b></div>
         {packages.map((p, k) => { const st = statOf(p.id); return <div key={p.id} className={'pkghead pkgopen ' + (['basic', 'advanced', 'premium'][k % 3])} role="button" tabIndex={0}
           title="Bấm để xem chi tiết gói" onClick={() => { setMsg(''); setOpenId(p.id) }} onKeyDown={e => { if (e.key === 'Enter') { setMsg(''); setOpenId(p.id) } }}
           style={{ padding: '12px', color: '#fff', display: 'grid', gap: 4, alignContent: 'start', cursor: 'pointer', borderLeft: '1px solid rgba(255,255,255,.25)', ...(k % 3 === 0 && k ? { filter: 'hue-rotate(140deg)' } : {}) }}>
@@ -123,7 +123,7 @@ export function ProgramPackages() {
               <span className={'pill ' + (p.active ? 'active' : 'inactive')}>{p.active ? 'Đang dùng' : 'Ngừng dùng'}</span>
               {admin && <RowMenu items={pkgMenu(p).slice(1)} label={p.name} />}</span></div>
           <small title={p.description} style={{ color: '#fff', opacity: .92, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.35 }}>{p.description || 'Chưa có mô tả.'}</small>
-          <div className="pkgnums sm"><div><b>{st.tracks.length}</b><small>CT</small></div><div><b>{st.mods.length}</b><small>học phần</small></div><div><b>{st.topics}</b><small>chủ đề</small></div></div>
+          <div className="pkgnums sm"><div><b>{st.tracks.length}</b><small><span className="full">chương trình</span><span className="short">CT</span></small></div><div><b>{st.mods.length}</b><small>học phần</small></div><div><b>{st.topics}</b><small>chủ đề</small></div></div>
         </div> })}
         {/* Mỗi loại chương trình một hàng */}
         {active.map(t => [

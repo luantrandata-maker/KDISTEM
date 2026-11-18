@@ -121,10 +121,13 @@ export function ProgramPackages() {
           return <div key={p.id} style={{ ...cellS, borderTop: 0 }}><div className="pkgstats"><div><b>{st.tracks.length}</b><small>CT</small></div><div><b>{st.mods.length}</b><small>Học phần</small></div><div><b>{st.topics}</b><small>Chủ đề</small></div></div></div> })}
         {/* Hàng 2: tên gói */}
         <div style={labelS}><small className="sub">Gói STEM</small></div>
-        {packages.map((p, k) => <div key={p.id} className={'pkghead ' + (['basic', 'advanced', 'premium'][k % 3])}
-          style={{ padding: '12px', color: '#fff', display: 'grid', gap: 4, alignContent: 'start', borderLeft: '1px solid rgba(255,255,255,.25)', ...(k % 3 === 0 && k ? { filter: 'hue-rotate(140deg)' } : {}) }}>
-          <div className="bar" style={{ margin: 0 }}><b style={{ fontSize: '1.15em' }}>{p.name}</b>
-            <span className={'pill ' + (p.active ? 'active' : 'inactive')}>{p.active ? 'Đang dùng' : 'Ngừng dùng'}</span></div>
+        {packages.map((p, k) => <div key={p.id} className={'pkghead pkgopen ' + (['basic', 'advanced', 'premium'][k % 3])} role="button" tabIndex={0}
+          title="Bấm để xem chi tiết gói" onClick={() => { setMsg(''); setOpenId(p.id) }} onKeyDown={e => { if (e.key === 'Enter') { setMsg(''); setOpenId(p.id) } }}
+          style={{ padding: '12px', color: '#fff', display: 'grid', gap: 4, alignContent: 'start', cursor: 'pointer', borderLeft: '1px solid rgba(255,255,255,.25)', ...(k % 3 === 0 && k ? { filter: 'hue-rotate(140deg)' } : {}) }}>
+          <div className="bar" style={{ margin: 0, gap: 6 }}><b style={{ fontSize: '1.15em' }}>{p.name} ›</b>
+            <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', marginLeft: 'auto' }} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+              <span className={'pill ' + (p.active ? 'active' : 'inactive')}>{p.active ? 'Đang dùng' : 'Ngừng dùng'}</span>
+              {admin && <RowMenu items={pkgMenu(p).slice(1)} label={p.name} />}</span></div>
           <small style={{ color: '#fff', opacity: .92 }}>{p.description || 'Chưa có mô tả.'}</small>
         </div>)}
         {/* Mỗi loại chương trình một hàng */}
@@ -144,14 +147,9 @@ export function ProgramPackages() {
                     {openRows.includes(t.code) ? 'Thu gọn' : `+ ${x.mods.length - MAXN} học phần nữa`}</button>}</>}
             </div>
           })])}
-        {/* Hàng cuối: thao tác */}
-        <div style={labelS} />
-        {packages.map(p => <div key={p.id} style={{ ...cellS, display: 'flex', gap: 6, alignItems: 'center' }}>
-          <button type="button" className="primary" onClick={() => { setMsg(''); setOpenId(p.id) }}>Xem chi tiết ›</button>
-          {admin && <RowMenu items={pkgMenu(p).slice(1)} label={p.name} />}</div>)}
       </div>
     </div>}
-    <p className="tablenote sub">Mỗi cột là một gói, mỗi hàng là một loại chương trình: đọc theo hàng để so sánh các gói. Bấm "Xem chi tiết" để xem học phần, chủ đề theo từng khối.</p>
+    <p className="tablenote sub">Mỗi cột là một gói, mỗi hàng là một loại chương trình: đọc theo hàng để so sánh các gói. Bấm vào tên gói để xem học phần, chủ đề theo từng khối.</p>
   </>
 }
 

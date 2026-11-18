@@ -19,7 +19,7 @@ const GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
 const chip = (code: string) => <span className="progchip" style={{ background: PROGRAM_COLOR[code], color: '#fff' }}>{code}</span>
 const DIFF = { background: 'color-mix(in srgb, #f59e0b 18%, transparent)' }
 const keyOf = (t: string, g: number, s: number) => `${t}|${g}|${s}`
-const MAXN = 3   // số học phần hiện sẵn trong một ô, còn lại bấm để mở
+const MAXN = 4   // số học phần hiện sẵn trong một ô, còn lại bấm để mở
 
 export function ProgramPackages() {
   const { tracks } = useStemTracks()
@@ -94,7 +94,7 @@ export function ProgramPackages() {
   const allMods = new Set(items.filter(i => live.some(p => p.id === i.package_id)).map(i => i.module_id))
   const allTopics = topics.filter(t => t.active && allMods.has(t.module_id)).length
   const n = packages.length
-  const cellS = { padding: '8px 12px', borderTop: '1px solid var(--line)', borderLeft: '1px solid var(--line)', minWidth: 0 } as const
+  const cellS = { padding: '10px 12px', borderTop: '1px solid var(--line)', borderLeft: '1px solid var(--line)', minWidth: 0 } as const
   const labelS = { ...cellS, borderLeft: 0, background: 'var(--card, #fff)' } as const
   const DIFFC = { background: '#fff8ea', boxShadow: 'inset 3px 0 0 #f2c97d' }
   const perGrade = (list: ProgramTopic[]) => { const g = new Set(list.map(t => t.grade)); return g.size ? Math.round(list.length / g.size) : 0 }
@@ -104,49 +104,54 @@ export function ProgramPackages() {
       {admin && <button type="button" className="primary ttadd" onClick={() => setEditPkg({ id: '', code: '', name: '', description: '', sort: packages.reduce((x, p) => Math.max(x, p.sort), 0) + 1, active: true })}>+ Thêm gói</button>}
     </HeadAction>
     {msg && <p className="msg" role="status">{msg}</p>}
-    <p className="sub" style={{ margin: '0 0 8px' }}>{live.length} gói · {active.length} loại chương trình · {allMods.size} học phần · {allTopics} chủ đề.
-      Cấu trúc: <b>Gói STEM</b> › <b>Loại chương trình</b> › <b>Học phần</b> (theo khối) › <b>Chủ đề</b>.
-      {diffKeys.size ? ` Các gói chỉ khác ở ${[...new Set([...diffKeys].map(k => k.split('|')[0]))].join(', ')} (ô tô cam).` : ''}</p>
+    <div className="infostrip">
+      <div><small>Gói STEM</small><b>{live.length}</b></div>
+      <div><small>Loại chương trình</small><b>{active.length}</b></div>
+      <div><small>Học phần dùng trong gói</small><b>{allMods.size}</b></div>
+      <div><small>Chủ đề</small><b>{allTopics}</b></div>
+    </div>
+    <p className="sub" style={{ margin: '0 0 10px' }}>Cấu trúc: <b>Gói STEM</b> › <b>Loại chương trình</b> › <b>Học phần</b> (theo khối) › <b>Chủ đề</b>.
+      {diffKeys.size ? ` Các gói giống nhau, chỉ khác ở ${[...new Set([...diffKeys].map(k => k.split('|')[0]))].join(', ')} (ô tô cam).` : ''}</p>
     {!n ? <p className="sub">Chưa có gói STEM.</p> :
     <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: `200px repeat(${n}, minmax(200px, 1fr))` }}>
-        {/* Hàng 1: tên gói, số liệu, thao tác */}
-        <div style={{ ...labelS, borderTop: 0 }} />
-        {packages.map((p, k) => { const st = statOf(p.id)
-          return <div key={p.id} className={'pkghead ' + (['basic', 'advanced', 'premium'][k % 3])}
-          style={{ padding: '10px 12px', color: '#fff', display: 'grid', gap: 4, alignContent: 'start', borderLeft: '1px solid rgba(255,255,255,.25)', ...(k % 3 === 0 && k ? { filter: 'hue-rotate(140deg)' } : {}) }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `220px repeat(${n}, minmax(200px, 1fr))` }}>
+        {/* Hàng 1: tổng */}
+        <div style={{ ...labelS, borderTop: 0 }}><b>Tổng</b><br /><small className="sub">chương trình · học phần · chủ đề</small></div>
+        {packages.map(p => { const st = statOf(p.id)
+          return <div key={p.id} style={{ ...cellS, borderTop: 0 }}><div className="pkgstats"><div><b>{st.tracks.length}</b><small>CT</small></div><div><b>{st.mods.length}</b><small>Học phần</small></div><div><b>{st.topics}</b><small>Chủ đề</small></div></div></div> })}
+        {/* Hàng 2: tên gói */}
+        <div style={labelS}><small className="sub">Gói STEM</small></div>
+        {packages.map((p, k) => <div key={p.id} className={'pkghead ' + (['basic', 'advanced', 'premium'][k % 3])}
+          style={{ padding: '12px', color: '#fff', display: 'grid', gap: 4, alignContent: 'start', borderLeft: '1px solid rgba(255,255,255,.25)', ...(k % 3 === 0 && k ? { filter: 'hue-rotate(140deg)' } : {}) }}>
           <div className="bar" style={{ margin: 0 }}><b style={{ fontSize: '1.15em' }}>{p.name}</b>
             <span className={'pill ' + (p.active ? 'active' : 'inactive')}>{p.active ? 'Đang dùng' : 'Ngừng dùng'}</span></div>
-          <small title={p.description} style={{ color: '#fff', opacity: .92, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.description || 'Chưa có mô tả.'}</small>
-          <small style={{ color: '#fff', fontWeight: 600 }}>{st.tracks.length} chương trình · {st.mods.length} học phần · {st.topics} chủ đề</small>
-        </div> })}
+          <small style={{ color: '#fff', opacity: .92 }}>{p.description || 'Chưa có mô tả.'}</small>
+        </div>)}
         {/* Mỗi loại chương trình một hàng */}
         {active.map(t => [
-          <div key={t.code} style={{ ...labelS, boxShadow: `inset 4px 0 0 ${PROGRAM_COLOR[t.code] ?? 'var(--line)'}`, paddingLeft: 16 }}>
-            {chip(t.code)}<b style={{ display: 'block', marginTop: 4, lineHeight: 1.3 }}>{t.name}</b>
-            <small className="sub">{t.use_modules === false ? 'Chủ đề theo khối' : 'Chia học phần'}</small></div>,
+          <div key={t.code} style={{ ...labelS, boxShadow: `inset 4px 0 0 ${PROGRAM_COLOR[t.code] ?? 'var(--line)'}`, paddingLeft: 16 }}>{chip(t.code)}<br /><b>{t.name}</b><br /><small className="sub">{t.use_modules === false ? 'Chỉ có chủ đề theo khối' : 'Chia theo học phần'}</small></div>,
           ...packages.map(p => {
             const x = statOf(p.id, t.code)
             const diff = diffTracks(p.id).includes(t.code)
             const tl = x.its.flatMap(i => topicsIn(i.module_id, i.grade))
             const gs = [...new Set(x.its.map(i => i.grade))].sort((a, b) => a - b)
-            const open = openRows.includes(t.code)
             return <div key={t.code + p.id} style={{ ...cellS, ...(diff ? DIFFC : {}) }}>
               {!x.its.length ? <small className="sub">Không có trong gói</small>
                 : t.use_modules === false ? <><b>{x.topics} chủ đề</b><br /><small className="sub">{perGrade(tl) ? `${perGrade(tl)} chủ đề / khối · ` : ''}{fmtGrades(gs)}</small></>
-                : <><b>{x.mods.length} học phần · {x.topics} chủ đề</b><br />
-                  <small className="sub">{(open ? x.mods : x.mods.slice(0, MAXN)).map(modName).join(', ')}</small>
-                  {x.mods.length > MAXN && <> <button type="button" className="namelink" style={{ fontSize: 12, color: 'var(--primary)' }} onClick={() => setOpenRows(open ? openRows.filter(c => c !== t.code) : [...openRows, t.code])}>
-                    {open ? 'Thu gọn' : `+${x.mods.length - MAXN} học phần`}</button></>}</>}
+                : <><b>{x.mods.length} học phần · {x.topics} chủ đề</b>
+                  <ul style={{ margin: '4px 0 0', paddingLeft: 16 }}>{(openRows.includes(t.code) ? x.mods : x.mods.slice(0, MAXN)).map(id => <li key={id}><small>{modName(id)}</small></li>)}</ul>
+                  {x.mods.length > MAXN && <button type="button" className="namelink" style={{ fontSize: 12, marginTop: 4, color: "var(--primary)" }} onClick={() => setOpenRows(openRows.includes(t.code) ? openRows.filter(c => c !== t.code) : [...openRows, t.code])}>
+                    {openRows.includes(t.code) ? 'Thu gọn' : `+ ${x.mods.length - MAXN} học phần nữa`}</button>}</>}
             </div>
           })])}
         {/* Hàng cuối: thao tác */}
         <div style={labelS} />
-        {packages.map(p => <div key={p.id} style={{ ...cellS, padding: '8px 12px', display: 'flex', gap: 6, alignItems: 'center' }}>
+        {packages.map(p => <div key={p.id} style={{ ...cellS, display: 'flex', gap: 6, alignItems: 'center' }}>
           <button type="button" className="primary" onClick={() => { setMsg(''); setOpenId(p.id) }}>Xem chi tiết ›</button>
           {admin && <RowMenu items={pkgMenu(p).slice(1)} label={p.name} />}</div>)}
       </div>
     </div>}
+    <p className="tablenote sub">Mỗi cột là một gói, mỗi hàng là một loại chương trình: đọc theo hàng để so sánh các gói. Bấm "Xem chi tiết" để xem học phần, chủ đề theo từng khối.</p>
   </>
 }
 

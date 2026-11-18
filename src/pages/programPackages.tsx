@@ -122,8 +122,8 @@ export function ProgramPackages() {
             <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', marginLeft: 'auto' }} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
               <span className={'pill ' + (p.active ? 'active' : 'inactive')}>{p.active ? 'Đang dùng' : 'Ngừng dùng'}</span>
               {admin && <RowMenu items={pkgMenu(p).slice(1)} label={p.name} />}</span></div>
-          <small title={p.description} style={{ color: '#fff', opacity: .92, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.description || 'Chưa có mô tả.'}</small>
-          <div className="pkgnums sm"><div><b>{st.tracks.length}</b><small>chương trình</small></div><div><b>{st.mods.length}</b><small>học phần</small></div><div><b>{st.topics}</b><small>chủ đề</small></div></div>
+          <small title={p.description} style={{ color: '#fff', opacity: .92, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.35 }}>{p.description || 'Chưa có mô tả.'}</small>
+          <div className="pkgnums sm"><div><b>{st.tracks.length}</b><small>CT</small></div><div><b>{st.mods.length}</b><small>học phần</small></div><div><b>{st.topics}</b><small>chủ đề</small></div></div>
         </div> })}
         {/* Mỗi loại chương trình một hàng */}
         {active.map(t => [

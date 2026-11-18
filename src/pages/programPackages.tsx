@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useStemTracks, type StemTrack } from '../lib/stemTracks'
 import { gradeName } from '../lib/eduLevels'
-import { frameErr, loadFrame, loadPackages, type PackageItem, type ProgramModule, type ProgramPackage } from '../lib/programFrame'
+import { frameErr, loadFrame, loadPackages, type PackageItem, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
 import { PROGRAM_COLOR } from './teacher/common'
 import { HeadAction } from '../components/PageFrame'
 import { DetailHead } from '../components/DetailHead'
@@ -24,12 +24,13 @@ export function ProgramPackages() {
   const [packages, setPackages] = useState<ProgramPackage[]>([])
   const [items, setItems] = useState<PackageItem[]>([])
   const [modules, setModules] = useState<ProgramModule[]>([])
+  const [topics, setTopics] = useState<ProgramTopic[]>([])
   const [msg, setMsg] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   const [compare, setCompare] = useState(false)
   const [editPkg, setEditPkg] = useState<(ProgramPackage & { copyFrom?: string }) | null>(null)
   const reload = () => Promise.all([loadPackages(), loadFrame()]).then(([p, f]) => {
-    setPackages(p.packages); setItems(p.items); setModules(f.modules); setMsg(p.error || f.error)
+    setPackages(p.packages); setItems(p.items); setModules(f.modules); setTopics(f.topics); setMsg(p.error || f.error)
   })
   useEffect(() => { supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)); reload() }, [])
 
@@ -82,7 +83,7 @@ export function ProgramPackages() {
       <div className="bar"><small className="sub">{cur.description || 'Chưa có mô tả.'}{dt.length ? ` Khác các gói khác ở: ${dt.join(', ')} (ô tô màu).` : ''}</small>
         {acts.length > 0 && <div className="tools"><ActionBar items={acts} /></div>}</div>
       {msg && <p className="msg" role="status">{msg}</p>}
-      {active.map(t => <TrackGrid key={t.code} pkg={cur} track={t} admin={admin} items={items} modules={modules.filter(m => m.track_code === t.code)}
+      {active.map(t => <TrackGrid key={t.code} pkg={cur} track={t} admin={admin} items={items} modules={modules.filter(m => m.track_code === t.code)} topics={topics}
         slots={slotsOf(t.code, [cur.id])} diffKeys={diffKeys} onChanged={reload} onErr={setMsg} />)}
     </>
   }
@@ -100,8 +101,10 @@ export function ProgramPackages() {
         return <tr key={p.id} className="rowlink" style={{ cursor: 'pointer' }} onClick={() => { setMsg(''); setOpenId(p.id) }}>
           <td><b>{p.name}</b></td><td><small>{p.description || '—'}</small></td>
           {active.map(t => {
-            const mods = [...new Set(items.filter(i => i.package_id === p.id && i.track_code === t.code).map(i => i.module_id))]
-            return <td key={t.code} title={mods.map(modName).join('\n')}>{mods.length ? `${mods.length} học phần` : <small className="sub">Không có</small>}</td>
+            const its = items.filter(i => i.package_id === p.id && i.track_code === t.code)
+            const mods = [...new Set(its.map(i => i.module_id))]
+            const nt = its.reduce((x, i) => x + topics.filter(tp => tp.module_id === i.module_id && tp.grade === i.grade && tp.active).length, 0)
+            return <td key={t.code} title={mods.map(modName).join('\n')}>{mods.length ? <>{mods.length} học phần<div className="sub"><small>{nt ? `${nt} chủ đề` : 'chưa có chủ đề'}</small></div></> : <small className="sub">Không có</small>}</td>
           })}
           <td>{dt.length ? dt.join(', ') : <small className="sub">—</small>}</td>
           <td><span className={'pill ' + (p.active ? 'good' : 'inactive')}>{p.active ? 'Đang bán' : 'Ngừng bán'}</span></td>
@@ -109,16 +112,23 @@ export function ProgramPackages() {
       })}
       {!packages.length && <tr><td colSpan={4 + active.length}><small className="sub">Chưa có gói STEM.</small></td></tr>}</tbody>
     </table>
-    <p className="tablenote sub">Mỗi gói gồm các loại chương trình; với mỗi loại, mỗi khối, gói chọn học phần nào học trong năm. Bấm một gói để xem chi tiết{admin ? ', sửa học phần' : ''}; "So sánh các gói" để xem các gói khác nhau ở đâu.</p>
+    <p className="tablenote sub">Gói STEM → loại chương trình → học phần (theo khối) → chủ đề. Mỗi gói gồm các loại chương trình; với mỗi loại, mỗi khối, gói chọn học phần nào học trong năm; mỗi học phần gồm các chủ đề. Bấm một gói để xem chi tiết{admin ? ', sửa học phần' : ''}; "So sánh các gói" để xem các gói khác nhau ở đâu.</p>
   </>
 }
 
-function TrackGrid({ pkg, track, admin, items, modules, slots, diffKeys, onChanged, onErr }: {
-  pkg: ProgramPackage; track: StemTrack; admin: boolean; items: PackageItem[]; modules: ProgramModule[]; slots: number[]
+function TrackGrid({ pkg, track, admin, items, modules, topics, slots, diffKeys, onChanged, onErr }: {
+  pkg: ProgramPackage; track: StemTrack; admin: boolean; items: PackageItem[]; modules: ProgramModule[]; topics: ProgramTopic[]; slots: number[]
   diffKeys: Set<string>; onChanged: () => void; onErr: (m: string) => void
 }) {
   const [edit, setEdit] = useState(false)
   const [extra, setExtra] = useState(0)
+  const [open, setOpen] = useState<string | null>(null)   // "khối|vị trí" đang mở danh sách chủ đề
+  const topicsIn = (moduleId: string | undefined, g: number) => moduleId ? topics.filter(t => t.module_id === moduleId && t.grade === g && t.active).sort((a, b) => a.seq - b.seq) : []
+  const periodsOf = (moduleId: string | undefined, g: number) => {
+    const m = name(moduleId)
+    if (!m) return 0
+    return m.periods ?? topicsIn(moduleId, g).reduce((x, t) => x + (t.periods || 0), 0)
+  }
   const cols = Array.from({ length: Math.max(slots.length, 1) + extra }, (_, i) => i + 1)
   const mine = items.filter(i => i.package_id === pkg.id && i.track_code === track.code)
   const get = (g: number, s: number) => mine.find(i => i.grade === g && i.slot === s)
@@ -133,27 +143,42 @@ function TrackGrid({ pkg, track, admin, items, modules, slots, diffKeys, onChang
     if (!data?.length) return onErr(frameErr('row-level'))
     onErr(''); onChanged()
   }
-  const total = (g: number) => cols.reduce((x, s) => x + (name(get(g, s)?.module_id)?.periods ?? 0), 0)
+  const total = (g: number) => cols.reduce((x, s) => x + periodsOf(get(g, s)?.module_id, g), 0)
+  const nTopics = mine.reduce((x, i) => x + topicsIn(i.module_id, i.grade).length, 0)
   return <div className="panel pdcard" style={{ marginBottom: 12 }}>
-    <div className="bar"><h4 style={{ margin: 0 }}>{chip(track.code)} {track.name} <small className="sub">· {new Set(mine.map(i => i.module_id)).size} học phần</small></h4>
+    <div className="bar"><h4 style={{ margin: 0 }}>{chip(track.code)} {track.name} <small className="sub">· {new Set(mine.map(i => i.module_id)).size} học phần · {nTopics} chủ đề</small></h4>
       {admin && <div className="tools">
         {edit && <button type="button" onClick={() => setExtra(extra + 1)}>+ Cột học phần</button>}
         <button type="button" className={edit ? 'primary' : ''} onClick={() => { setEdit(!edit); setExtra(0) }}>{edit ? 'Xong' : 'Sửa học phần'}</button></div>}</div>
     {!rows.length ? <small className="sub">Gói chưa có học phần của loại này.{admin ? ' Bấm "Sửa học phần".' : ''}</small>
       : <table className="table">
-        <thead><tr><th>Khối</th>{cols.map(s => <th key={s}>Học phần {s}</th>)}<th>Tiết / năm</th></tr></thead>
-        <tbody>{rows.map(g => <tr key={g}>
-          <td>{gradeName(g)}</td>
-          {cols.map(s => {
-            const it = get(g, s), m = name(it?.module_id)
-            return <td key={s} style={diffKeys.has(keyOf(track.code, g, s)) ? DIFF : undefined}>
-              {edit ? <select value={it?.module_id ?? ''} onChange={e => set(g, s, e.target.value)} aria-label={`${gradeName(g)} – Học phần ${s}`}>
-                <option value="">—</option>{modules.filter(x => x.active || x.id === it?.module_id).map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select>
-                : m ? <>{m.name}{m.periods != null && <small className="sub"> · {m.periods} tiết</small>}</> : <small className="sub">—</small>}
-            </td>
-          })}
-          <td>{total(g) || <small className="sub">—</small>}</td>
-        </tr>)}</tbody>
+        <thead><tr><th>Khối</th>{cols.map(s => <th key={s}>Học phần {s} <small className="sub">(chủ đề)</small></th>)}<th>Tiết / năm</th></tr></thead>
+        <tbody>{rows.flatMap(g => {
+          const openSlot = open?.startsWith(g + '|') ? Number(open.split('|')[1]) : null
+          const openMod = openSlot ? name(get(g, openSlot)?.module_id) : undefined
+          const list = openSlot ? topicsIn(get(g, openSlot)?.module_id, g) : []
+          return [<tr key={g}>
+            <td>{gradeName(g)}</td>
+            {cols.map(s => {
+              const it = get(g, s), m = name(it?.module_id), n = topicsIn(it?.module_id, g).length, k = g + '|' + s
+              return <td key={s} style={diffKeys.has(keyOf(track.code, g, s)) ? DIFF : undefined}>
+                {edit ? <select value={it?.module_id ?? ''} onChange={e => set(g, s, e.target.value)} aria-label={`${gradeName(g)} – Học phần ${s}`}>
+                  <option value="">—</option>{modules.filter(x => x.active || x.id === it?.module_id).map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select>
+                  : m ? <>{m.name}{' '}
+                    <button type="button" className="ghostbtn" aria-expanded={open === k} title="Xem các chủ đề trong học phần"
+                      onClick={() => setOpen(open === k ? null : k)}>{open === k ? '▾' : '▸'} {n ? `${n} chủ đề` : 'chưa có chủ đề'}</button></>
+                  : <small className="sub">—</small>}
+              </td>
+            })}
+            <td>{total(g) || <small className="sub">—</small>}</td>
+          </tr>,
+          openSlot && openMod ? <tr key={g + '-topics'}><td />
+            <td colSpan={cols.length + 1}>
+              <div className="sub" style={{ marginBottom: 4 }}><b>{openMod.name}</b> · {gradeName(g)} · {list.length} chủ đề</div>
+              {list.length ? <ol style={{ margin: 0, paddingLeft: 20 }}>{list.map(t => <li key={t.id}>{t.title} <small className="sub">· {t.periods} tiết{t.main_subject ? ' · ' + t.main_subject : ''}</small></li>)}</ol>
+                : <small className="sub">Học phần chưa có chủ đề ở khối này. Thêm chủ đề ở tab "Khung chương trình".</small>}
+            </td></tr> : null]
+        })}</tbody>
       </table>}
   </div>
 }

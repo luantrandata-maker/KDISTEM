@@ -250,7 +250,7 @@ function PlatformEduProgramsPage(p: any) {
   return track
     // Nút quay lại nằm ở góc hàng tab (như nút Theo dõi thực hiện), không chiếm một hàng riêng
     ? <FramedTabs {...p} tabs={TRACK_TABS} actions={back} />
-    : <FramedTabs {...p} tabs={[['Khung chương trình', ProgramFrame], ['Gói STEM', ProgramPackages], ['Chương trình', PH2_TABS.edu], ['Danh mục', ProgramCatalogs]]}
+    : <FramedTabs {...p} tabs={[['Gói STEM', ProgramPackages], ['Khung chương trình', ProgramFrame], ['Chương trình', PH2_TABS.edu], ['Danh mục', ProgramCatalogs]]}
       actions={<button type="button" onClick={() => setTrack(true)}>Theo dõi thực hiện</button>} />
 }
 const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useStemTracks, type StemTrack } from '../lib/stemTracks'
 import { fmtGrades, gradeName } from '../lib/eduLevels'
@@ -95,7 +95,7 @@ export function ProgramPackages() {
   const allTopics = topics.filter(t => t.active && allMods.has(t.module_id)).length
   const n = packages.length
   const cellS = { padding: '10px 12px', borderTop: '1px solid var(--line)', borderLeft: '1px solid var(--line)', minWidth: 0 } as const
-  const labelS = { ...cellS, borderLeft: 0, background: 'var(--soft)' } as const
+  const labelS = { ...cellS, borderLeft: 0, background: 'var(--card, #fff)' } as const
   const DIFFC = { background: '#fff8ea', boxShadow: 'inset 3px 0 0 #f2c97d' }
   const perGrade = (list: ProgramTopic[]) => { const g = new Set(list.map(t => t.grade)); return g.size ? Math.round(list.length / g.size) : 0 }
   return <>
@@ -104,32 +104,29 @@ export function ProgramPackages() {
       {admin && <button type="button" className="primary ttadd" onClick={() => setEditPkg({ id: '', code: '', name: '', description: '', sort: packages.reduce((x, p) => Math.max(x, p.sort), 0) + 1, active: true })}>+ Thêm gói</button>}
     </HeadAction>
     {msg && <p className="msg" role="status">{msg}</p>}
-    <div className="infostrip">
-      <div><small>Gói STEM</small><b>{live.length}</b></div>
-      <div><small>Loại chương trình</small><b>{active.length}</b></div>
-      <div><small>Học phần dùng trong gói</small><b>{allMods.size}</b></div>
-      <div><small>Chủ đề</small><b>{allTopics}</b></div>
+    <div className="pkgkpi">
+      {([['▣', live.length, 'Gói STEM', 'đang dùng', '#1e3a8a'], ['◆', active.length, 'Loại chương trình', 'CT1–CT' + active.length, '#7c3aed'],
+        ['▤', allMods.size, 'Học phần', 'dùng trong các gói', '#ea580c'], ['●', allTopics, 'Chủ đề', 'trong các học phần', '#0e9f6e']] as const).map(([ic, v, l, sub, c]) =>
+        <div key={l} style={{ '--k': c } as React.CSSProperties}><span className="ic">{ic}</span><div><b>{v}</b><span>{l}</span><small>{sub}</small></div></div>)}
     </div>
-    <p className="sub" style={{ margin: '0 0 10px' }}>Cấu trúc: <b>Gói STEM</b> › <b>Loại chương trình</b> › <b>Học phần</b> (theo khối) › <b>Chủ đề</b>.
-      {diffKeys.size ? ` Các gói giống nhau, chỉ khác ở ${[...new Set([...diffKeys].map(k => k.split('|')[0]))].join(', ')} (ô tô cam).` : ''}</p>
     {!n ? <p className="sub">Chưa có gói STEM.</p> :
     <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
       <div style={{ display: 'grid', gridTemplateColumns: `220px repeat(${n}, minmax(200px, 1fr))` }}>
-        {/* Hàng 1: tên gói */}
-        <div style={{ ...labelS, borderTop: 0, display: 'flex', alignItems: 'flex-end' }}><small className="sub">Gói STEM</small></div>
-        {packages.map((p, k) => <div key={p.id} className={'pkghead ' + (['basic', 'advanced', 'premium'][k % 3])}
-          style={{ padding: '12px', color: '#fff', display: 'grid', gap: 4, alignContent: 'start', borderLeft: '1px solid rgba(255,255,255,.25)', ...(k % 3 === 0 && k ? { filter: 'hue-rotate(140deg)' } : {}) }}>
-          <div className="bar" style={{ margin: 0 }}><b style={{ fontSize: '1.15em' }}>{p.name}</b>
-            <span className={'pill ' + (p.active ? 'active' : 'inactive')}>{p.active ? 'Đang dùng' : 'Ngừng dùng'}</span></div>
-          <small style={{ color: '#fff', opacity: .92 }}>{p.description || 'Chưa có mô tả.'}</small>
-        </div>)}
-        {/* Hàng 2: tổng */}
-        <div style={labelS}><b>Tổng</b><br /><small className="sub">chương trình · học phần · chủ đề</small></div>
-        {packages.map(p => { const st = statOf(p.id)
-          return <div key={p.id} style={cellS}><div className="pkgstats"><div><b>{st.tracks.length}</b><small>CT</small></div><div><b>{st.mods.length}</b><small>Học phần</small></div><div><b>{st.topics}</b><small>Chủ đề</small></div></div></div> })}
+        {/* Hàng 1: tên gói và số liệu */}
+        <div style={{ ...labelS, borderTop: 0, display: 'flex', alignItems: 'flex-end' }}><b>Loại chương trình (CT)</b></div>
+        {packages.map((p, k) => { const st = statOf(p.id); return <div key={p.id} className={'pkghead pkgopen ' + (['basic', 'advanced', 'premium'][k % 3])} role="button" tabIndex={0}
+          title="Bấm để xem chi tiết gói" onClick={() => { setMsg(''); setOpenId(p.id) }} onKeyDown={e => { if (e.key === 'Enter') { setMsg(''); setOpenId(p.id) } }}
+          style={{ padding: '12px', color: '#fff', display: 'grid', gap: 4, alignContent: 'start', cursor: 'pointer', borderLeft: '1px solid rgba(255,255,255,.25)', ...(k % 3 === 0 && k ? { filter: 'hue-rotate(140deg)' } : {}) }}>
+          <div className="bar" style={{ margin: 0, gap: 6 }}><b style={{ fontSize: '1.15em' }}>{p.name} ›</b>
+            <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', marginLeft: 'auto' }} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+              <span className={'pill ' + (p.active ? 'active' : 'inactive')}>{p.active ? 'Đang dùng' : 'Ngừng dùng'}</span>
+              {admin && <RowMenu items={pkgMenu(p).slice(1)} label={p.name} />}</span></div>
+          <small title={p.description} style={{ color: '#fff', opacity: .92, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', lineHeight: 1.35 }}>{p.description || 'Chưa có mô tả.'}</small>
+          <div className="pkgnums sm"><div><b>{st.tracks.length}</b><small><span className="full">chương trình</span><span className="short">CT</span></small></div><div><b>{st.mods.length}</b><small>học phần</small></div><div><b>{st.topics}</b><small>chủ đề</small></div></div>
+        </div> })}
         {/* Mỗi loại chương trình một hàng */}
         {active.map(t => [
-          <div key={t.code} style={labelS}>{chip(t.code)}<br /><b>{t.name}</b><br /><small className="sub">{t.use_modules === false ? 'Chỉ có chủ đề theo khối' : 'Chia theo học phần'}</small></div>,
+          <div key={t.code} style={{ ...labelS, boxShadow: `inset 4px 0 0 ${PROGRAM_COLOR[t.code] ?? 'var(--line)'}`, paddingLeft: 16 }}>{chip(t.code)}<br /><b>{t.name}</b><br /><small className="sub">{t.use_modules === false ? 'Chỉ có chủ đề theo khối' : 'Chia theo học phần'}</small></div>,
           ...packages.map(p => {
             const x = statOf(p.id, t.code)
             const diff = diffTracks(p.id).includes(t.code)
@@ -141,17 +138,14 @@ export function ProgramPackages() {
                 : <><b>{x.mods.length} học phần · {x.topics} chủ đề</b>
                   <ul style={{ margin: '4px 0 0', paddingLeft: 16 }}>{(openRows.includes(t.code) ? x.mods : x.mods.slice(0, MAXN)).map(id => <li key={id}><small>{modName(id)}</small></li>)}</ul>
                   {x.mods.length > MAXN && <button type="button" className="namelink" style={{ fontSize: 12, marginTop: 4, color: "var(--primary)" }} onClick={() => setOpenRows(openRows.includes(t.code) ? openRows.filter(c => c !== t.code) : [...openRows, t.code])}>
-                    {openRows.includes(t.code) ? 'Thu gọn' : `+ ${x.mods.length - MAXN} học phần nữa`}</button>}</>}
+                    {openRows.includes(t.code) ? 'Thu gọn' : `+ ${x.mods.length - MAXN} học phần`}</button>}</>}
             </div>
           })])}
-        {/* Hàng cuối: thao tác */}
-        <div style={labelS} />
-        {packages.map(p => <div key={p.id} style={{ ...cellS, display: 'flex', gap: 6, alignItems: 'center' }}>
-          <button type="button" className="primary" onClick={() => { setMsg(''); setOpenId(p.id) }}>Xem chi tiết ›</button>
-          {admin && <RowMenu items={pkgMenu(p).slice(1)} label={p.name} />}</div>)}
       </div>
     </div>}
-    <p className="tablenote sub">Mỗi cột là một gói, mỗi hàng là một loại chương trình: đọc theo hàng để so sánh các gói. Bấm "Xem chi tiết" để xem học phần, chủ đề theo từng khối.</p>
+    <p className="sub" style={{ margin: '10px 0 0', fontSize: 13 }}>Cấu trúc: <b>Gói STEM</b> › <b>Loại chương trình</b> › <b>Học phần</b> (theo khối) › <b>Chủ đề</b>.
+      {diffKeys.size ? ` Các gói có cùng nội dung, chỉ khác nhau ở ${[...new Set([...diffKeys].map(k => k.split('|')[0]))].join(', ')}; ô nền vàng nhạt là phần khác biệt giữa các gói.` : ''}</p>
+    <p className="tablenote sub">Mỗi cột là một gói, mỗi hàng là một loại chương trình. Bấm vào tên gói để xem học phần, chủ đề theo từng khối.</p>
   </>
 }
 
@@ -210,7 +204,7 @@ function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg
               { key: 'p', label: 'Tiết / năm', text: g => String(its.filter(i => i.grade === g).reduce((x, i) => x + periods(i), 0)), cell: g => its.filter(i => i.grade === g).reduce((x, i) => x + periods(i), 0) || <small className="sub">—</small> },
             ] as Col<number>[]} />}
       </>)}
-    <p className="tablenote sub">Chọn loại chương trình, rồi chọn khối để xem gói học những học phần nào, mỗi học phần gồm những chủ đề nào. Ô tô cam: khác các gói khác. Chủ đề soạn ở tab "Khung chương trình".</p>
+    <p className="tablenote sub">Chọn loại chương trình, rồi chọn khối để xem gói học những học phần nào, mỗi học phần gồm những chủ đề nào. Ô nền vàng nhạt: khác biệt so với các gói khác. Chủ đề soạn ở tab "Khung chương trình".</p>
   </>
 }
 

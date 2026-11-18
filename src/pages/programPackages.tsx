@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useStemTracks, type StemTrack } from '../lib/stemTracks'
 import { fmtGrades, gradeName } from '../lib/eduLevels'
@@ -104,11 +104,10 @@ export function ProgramPackages() {
       {admin && <button type="button" className="primary ttadd" onClick={() => setEditPkg({ id: '', code: '', name: '', description: '', sort: packages.reduce((x, p) => Math.max(x, p.sort), 0) + 1, active: true })}>+ Thêm gói</button>}
     </HeadAction>
     {msg && <p className="msg" role="status">{msg}</p>}
-    <div className="infostrip">
-      <div><small>Gói STEM</small><b>{live.length}</b></div>
-      <div><small>Loại chương trình</small><b>{active.length}</b></div>
-      <div><small>Học phần dùng trong gói</small><b>{allMods.size}</b></div>
-      <div><small>Chủ đề</small><b>{allTopics}</b></div>
+    <div className="pkgkpi">
+      {([['▣', live.length, 'Gói STEM', 'đang dùng', '#1e3a8a'], ['◆', active.length, 'Loại chương trình', 'CT1–CT' + active.length, '#7c3aed'],
+        ['▤', allMods.size, 'Học phần', 'dùng trong các gói', '#ea580c'], ['●', allTopics, 'Chủ đề', 'trong các học phần', '#0e9f6e']] as const).map(([ic, v, l, sub, c]) =>
+        <div key={l} style={{ '--k': c } as React.CSSProperties}><span className="ic">{ic}</span><div><b>{v}</b><span>{l}</span><small>{sub}</small></div></div>)}
     </div>
     {!n ? <p className="sub">Chưa có gói STEM.</p> :
     <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>

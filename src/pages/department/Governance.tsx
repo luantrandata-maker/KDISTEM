@@ -13,7 +13,7 @@ type Action = { id: string; school_id: string; rule: string; status: string; not
 
 // Giá trị chỉ số cho một nhóm trường (%), và cho từng trường (để biết trường nào dưới chỉ tiêu)
 export const METRICS: Record<Metric, { label: string; hint: string; of: (s: SchoolStat[]) => number | null; one: (s: SchoolStat) => number | null }> = {
-  stem_coverage: { label: 'Trường triển khai STEM', hint: '% trường có ít nhất một chương trình CT1–CT5',
+  stem_coverage: { label: 'Trường triển khai STEM', hint: '% trường có ít nhất một chương trình CT1–CT4',
     of: s => s.length ? pct(s.filter(x => x.programs.length > 0).length, s.length) : null, one: s => (s.programs.length > 0 ? 100 : 0) },
   teacher_trained: { label: 'Giáo viên đã đào tạo', hint: '% GV hoàn thành đào tạo STEM',
     of: s => sum(s.map(x => x.teachers)) ? pct(sum(s.map(x => x.training_done)), sum(s.map(x => x.teachers))) : null, one: s => (s.teachers ? pct(s.training_done, s.teachers) : null) },
@@ -150,7 +150,7 @@ export function DeptAlerts() {
           {shown.length === 0 && <tr><td colSpan={4}>{rows.length ? 'Không có trường phù hợp bộ lọc.' : 'Không có trường nào cần chú ý.'}</td></tr>}
         </tbody>
       </table></div>
-      <div className="infotiprow"><InfoTip left up label="Quy tắc">Quy tắc: chưa kích hoạt; không có hoạt động 14 ngày; chưa có chương trình CT1–CT5; chưa khai báo năm học; GV đào tạo &lt; 50%; có phòng STEM nhưng không có tiết dùng phòng; chuyên cần &lt; 70%; dưới chỉ tiêu Sở giao năm {schoolYear()}. "Nhắc trường" gửi thông báo trong ứng dụng tới Hiệu trưởng và QTV của trường.</InfoTip></div>
+      <div className="infotiprow"><InfoTip left up label="Quy tắc">Quy tắc: chưa kích hoạt; không có hoạt động 14 ngày; chưa có chương trình CT1–CT4; chưa khai báo năm học; GV đào tạo &lt; 50%; có phòng STEM nhưng không có tiết dùng phòng; chuyên cần &lt; 70%; dưới chỉ tiêu Sở giao năm {schoolYear()}. "Nhắc trường" gửi thông báo trong ứng dụng tới Hiệu trưởng và QTV của trường.</InfoTip></div>
     </>
   )
 }

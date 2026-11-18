@@ -160,7 +160,7 @@ const EduReadinessPage = lazy(() => import('./pages/training/EduReadiness').then
 // Dự tính GV theo chương trình giáo dục cho một trường (137)
 const TeacherStaffingPage = lazy(() => import('./pages/training/Staffing').then(m => ({ default: m.TeacherStaffingPage })))
 // Đáp ứng chương trình đào tạo và chương trình giáo dục: một tab, chọn loại chương trình
-const ReadinessBoth = (p: any) => <TabbedPages {...p} tabs={[['Theo loại chương trình (CT1–CT5)', PlatformReadiness], ['Theo chương trình giáo dục', EduReadinessPage], ['Dự tính GV cho một trường', TeacherStaffingPage]]} />
+const ReadinessBoth = (p: any) => <TabbedPages {...p} tabs={[['Theo loại chương trình (CT1–CT4)', PlatformReadiness], ['Theo chương trình giáo dục', EduReadinessPage], ['Dự tính GV cho một trường', TeacherStaffingPage]]} />
 // Chứng chỉ đào tạo (06/11: chuyển vào Giám sát & kết quả, tab cuối): chứng chỉ đã cấp và mẫu chứng chỉ
 const CertificatesBoth = (p: any) => <TabbedPages {...p} tabs={[['Chứng chỉ đã cấp', TrainingCertificatesPage], ['Mẫu chứng chỉ', CertTemplatesPage]]} />
 const SchoolTrainingMonitor = (p: any) => <TrainingMonitorHub {...p} work />
@@ -196,10 +196,13 @@ const eduProgramTabs = (mode: 'school' | 'authority') => {
   const tabs: [string, any][] = [['Chương trình', eduPrograms(mode)], ['Môn học', subjectsTab(mode)]]
   return (p: any) => <FramedTabs {...p} tabs={tabs} />
 }
-// Danh mục loại chương trình (CT1–CT5 và loại thêm sau): tên, mô tả, môn học, cấp học (062, 064)
+// Danh mục loại chương trình (CT1–CT4 và loại thêm sau): tên, mô tả, môn học, cấp học, thiết lập cho trường (062, 064, 147)
 const EduLevelsCatalog = lazy(() => import('./pages/eduLevels').then(m => ({ default: m.EduLevelsCatalog })))
 const StemTracksCatalog = lazy(() => import('./pages/stemTracks').then(m => ({ default: m.StemTracksCatalog })))
-const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Nhóm chương trình', StemTracksCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog], ['Khung năng lực', StudentFramework]]} />
+// Khung chương trình mới: loại → học phần → chủ đề theo khối; danh mục nhóm vật tư (147)
+const ProgramFrame = lazy(() => import('./pages/programFrame').then(m => ({ default: m.ProgramFrame })))
+const MaterialGroupsCatalog = lazy(() => import('./pages/programFrame').then(m => ({ default: m.MaterialGroupsCatalog })))
+const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Loại chương trình', StemTracksCatalog], ['Nhóm vật tư', MaterialGroupsCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog], ['Khung năng lực', StudentFramework]]} />
 const ProgressPlatform = (q: any) => <CurriculumProgress {...q} mode="platform" />
 // Định mức vật tư theo bài / chủ đề, danh mục vật tư, dự trù, đề xuất điều chỉnh (059)
 const MaterialNorms = lazy(() => import('./pages/materialNorms').then(m => ({ default: m.MaterialNorms })))
@@ -224,7 +227,7 @@ const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, Com
   return (p: any) => <TabbedPages {...p} tabs={tabs} />
 }
 // Theo dõi Chương trình/Môn học (cổng KDI)
-const TRACK_TABS: [string, ComponentType<any>][] = [['Chương trình CT1–CT5', DeptPrograms], ['Môn học STEM', DeptSubjects],
+const TRACK_TABS: [string, ComponentType<any>][] = [['Chương trình CT1–CT4', DeptPrograms], ['Môn học STEM', DeptSubjects],
   ['Tiến độ & yêu cầu cần đạt', ProgressPlatform], ['Kế hoạch so với thực tế', (q: any) => <PlanVsActual {...q} mode="platform" />], ['PPCT các trường', SysCurriculum]]
 const PlatformProgramTrack = (p: any) => <TabbedPages {...p} tabs={TRACK_TABS} />
 // Phân hệ 2 (100): cùng cách làm — danh sách chung tất cả đơn vị, sửa thẳng
@@ -243,7 +246,7 @@ function PlatformEduProgramsPage(p: any) {
   return track
     // Nút quay lại nằm ở góc hàng tab (như nút Theo dõi thực hiện), không chiếm một hàng riêng
     ? <FramedTabs {...p} tabs={TRACK_TABS} actions={back} />
-    : <FramedTabs {...p} tabs={[['Chương trình', PH2_TABS.edu], ['Môn học', PH2_TABS.subjects], ['Danh mục', ProgramCatalogs]]}
+    : <FramedTabs {...p} tabs={[['Khung chương trình', ProgramFrame], ['Chương trình', PH2_TABS.edu], ['Môn học', PH2_TABS.subjects], ['Danh mục', ProgramCatalogs]]}
       actions={<button type="button" onClick={() => setTrack(true)}>Theo dõi thực hiện</button>} />
 }
 const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [

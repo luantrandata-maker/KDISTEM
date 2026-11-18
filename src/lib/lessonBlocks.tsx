@@ -1,5 +1,5 @@
 import { Icon } from '../components/Icon'
-// Bài giảng tương tác theo khối (migration 063): tiến trình theo CT1–CT5, mỗi giai đoạn gồm các khối nội dung
+// Bài giảng tương tác theo khối (migration 063): tiến trình theo CT1–CT4, mỗi giai đoạn gồm các khối nội dung
 // (tiêu đề, đoạn văn, hình, video, tệp, mô phỏng 2D, giáo cụ ảo, kéo–thả, câu hỏi, đoạn code, hoạt động nhóm, game, rubric).
 // Dùng chung cho: Soạn bài giảng (lesson_plans.lesson), Kho bài giảng, Thư viện STEM (nội dung buổi học edu_program_units.lesson),
 // Xem trước như học sinh và Trình chiếu.

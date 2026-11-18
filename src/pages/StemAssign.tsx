@@ -43,7 +43,7 @@ export default function StemAssign({ orgId }: { orgId: string }) {
 
   return (
     <>
-      <div className="bar"><div className="segmented"><button className={tab === 'slots' ? 'on' : ''} onClick={() => setTab('slots')}>Gán vào tiết STEM</button><button className={tab === 'programs' ? 'on' : ''} onClick={() => setTab('programs')}>Theo chương trình CT1–CT5</button></div>
+      <div className="bar"><div className="segmented"><button className={tab === 'slots' ? 'on' : ''} onClick={() => setTab('slots')}>Gán vào tiết STEM</button><button className={tab === 'programs' ? 'on' : ''} onClick={() => setTab('programs')}>Theo chương trình CT1–CT4</button></div>
         {tab === 'slots' && <select value={cls} onChange={e => setCls(e.target.value)} aria-label="Lớp"><option value="">Tất cả lớp</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}</div>
       <p className="sub">{tab === 'slots' ? 'Chọn lớp, chọn tiết STEM rồi phân công giáo viên phụ trách.' : 'Chọn chương trình mỗi giáo viên đảm nhận.'}</p>
       {tab === 'slots' ? (

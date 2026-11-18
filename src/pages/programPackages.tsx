@@ -32,7 +32,6 @@ export function ProgramPackages() {
   const [msg, setMsg] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   const [compare, setCompare] = useState(false)
-  const [layout] = useState<'cards' | 'table'>(new URLSearchParams(location.search).get('v') === 'table' ? 'table' : 'cards')
   const [openRows, setOpenRows] = useState<string[]>([])   // hàng chương trình đang mở hết danh sách học phần
   const [editPkg, setEditPkg] = useState<(ProgramPackage & { copyFrom?: string }) | null>(null)
   const reload = () => Promise.all([loadPackages(), loadFrame()]).then(([p, f]) => {
@@ -112,47 +111,8 @@ export function ProgramPackages() {
       <div><small>Chủ đề</small><b>{allTopics}</b></div>
     </div>
     <p className="sub" style={{ margin: '0 0 10px' }}>Cấu trúc: <b>Gói STEM</b> › <b>Loại chương trình</b> › <b>Học phần</b> (theo khối) › <b>Chủ đề</b>.
-      {diffKeys.size ? ` Các gói giống nhau, chỉ khác ở ${[...new Set([...diffKeys].map(k => k.split('|')[0]))].join(', ')} (đánh dấu màu cam).` : ''}</p>
-    {!n ? <p className="sub">Chưa có gói STEM.</p> : layout === 'cards' ?
-    <div style={{ overflowX: 'auto' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${n}, minmax(230px, 1fr))`, columnGap: 14 }}>
-        {(() => {
-          const side = { background: 'var(--card, #fff)', borderLeft: '1px solid var(--line)', borderRight: '1px solid var(--line)', padding: '10px 12px', minWidth: 0 } as const
-          const hues = (k: number) => (k % 3 === 0 && k ? { filter: 'hue-rotate(140deg)' } : {})
-          return [
-            ...packages.map((p, k) => <div key={'h' + p.id} className={'pkghead ' + (['basic', 'advanced', 'premium'][k % 3])}
-              style={{ padding: 12, color: '#fff', display: 'grid', gap: 4, alignContent: 'start', borderRadius: '10px 10px 0 0', ...hues(k) }}>
-              <div className="bar" style={{ margin: 0 }}><b style={{ fontSize: '1.15em' }}>{p.name}</b>
-                <span className={'pill ' + (p.active ? 'active' : 'inactive')}>{p.active ? 'Đang dùng' : 'Ngừng dùng'}</span></div>
-              <small style={{ color: '#fff', opacity: .92 }}>{p.description || 'Chưa có mô tả.'}</small>
-            </div>),
-            ...packages.map(p => { const st = statOf(p.id)
-              return <div key={'s' + p.id} style={side}><div className="pkgstats"><div><b>{st.tracks.length}</b><small>Chương trình</small></div><div><b>{st.mods.length}</b><small>Học phần</small></div><div><b>{st.topics}</b><small>Chủ đề</small></div></div></div> }),
-            ...active.flatMap(t => packages.map(p => {
-              const x = statOf(p.id, t.code)
-              const diff = diffTracks(p.id).includes(t.code)
-              const tl = x.its.flatMap(i => topicsIn(i.module_id, i.grade))
-              const gs = [...new Set(x.its.map(i => i.grade))].sort((a, b) => a - b)
-              const open = openRows.includes(t.code)
-              const names = (open ? x.mods : x.mods.slice(0, MAXN)).map(modName).join(', ')
-              return <div key={t.code + p.id} style={{ ...side, paddingTop: 0 }}>
-                <div style={{ borderTop: '1px solid var(--line)', paddingTop: 10, display: 'grid', gap: 4 }}>
-                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>{chip(t.code)}<b>{t.name}</b>
-                    {diff && <Chip tone="warn">Khác gói khác</Chip>}</div>
-                  {!x.its.length ? <small className="sub">Không có trong gói</small>
-                    : t.use_modules === false ? <small className="sub">{x.topics} chủ đề{perGrade(tl) ? ` · ${perGrade(tl)} chủ đề / khối` : ''} · {fmtGrades(gs)}</small>
-                    : <small className="sub">{x.mods.length} học phần · {x.topics} chủ đề: {names}{x.mods.length > MAXN && <> <button type="button" className="namelink" style={{ fontSize: 12, color: 'var(--primary)' }}
-                        onClick={() => setOpenRows(open ? openRows.filter(c => c !== t.code) : [...openRows, t.code])}>{open ? 'Thu gọn' : `+${x.mods.length - MAXN}`}</button></>}</small>}
-                </div>
-              </div>
-            })),
-            ...packages.map(p => <div key={'a' + p.id} style={{ ...side, borderBottom: '1px solid var(--line)', borderRadius: '0 0 10px 10px', display: 'flex', gap: 6, alignItems: 'center', paddingBottom: 14 }}>
-              <button type="button" className="primary" onClick={() => { setMsg(''); setOpenId(p.id) }}>Xem học phần, chủ đề ›</button>
-              {admin && <RowMenu items={pkgMenu(p).slice(1)} label={p.name} />}</div>),
-          ]
-        })()}
-      </div>
-    </div> :
+      {diffKeys.size ? ` Các gói giống nhau, chỉ khác ở ${[...new Set([...diffKeys].map(k => k.split('|')[0]))].join(', ')} (ô tô cam).` : ''}</p>
+    {!n ? <p className="sub">Chưa có gói STEM.</p> :
     <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
       <div style={{ display: 'grid', gridTemplateColumns: `220px repeat(${n}, minmax(200px, 1fr))` }}>
         {/* Hàng 1: tên gói */}

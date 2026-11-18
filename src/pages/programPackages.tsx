@@ -105,8 +105,8 @@ export function ProgramPackages() {
     </HeadAction>
     {msg && <p className="msg" role="status">{msg}</p>}
     <div className="pkgkpi">
-      {([['▣', live.length, 'Gói STEM', 'đang dùng', '#1e3a8a'], ['◆', active.length, 'Loại chương trình', 'CT1–CT' + active.length, '#7c3aed'],
-        ['▤', allMods.size, 'Học phần', 'dùng trong các gói', '#ea580c'], ['●', allTopics, 'Chủ đề', 'trong các học phần', '#0e9f6e']] as const).map(([ic, v, l, sub, c]) =>
+      {([['▣', live.length, 'Gói STEM', 'đang dùng', 'var(--navy)'], ['◆', active.length, 'Loại chương trình', 'CT1–CT' + active.length, 'var(--navy)'],
+        ['▤', allMods.size, 'Học phần', 'dùng trong các gói', 'var(--navy)'], ['●', allTopics, 'Chủ đề', 'trong các học phần', 'var(--navy)']] as const).map(([ic, v, l, sub, c]) =>
         <div key={l} style={{ '--k': c } as React.CSSProperties}><span className="ic">{ic}</span><div><b>{v}</b><span>{l}</span><small>{sub}</small></div></div>)}
     </div>
     {!n ? <p className="sub">Chưa có gói STEM.</p> :
@@ -167,44 +167,47 @@ function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg
   return <>
     <DetailHead back="Gói STEM" onBack={onBack} title={pkg.name}
       extra={<Chip tone={pkg.active ? 'good' : ''}>{pkg.active ? 'Đang dùng' : 'Ngừng dùng'}</Chip>} />
-    <div className="bar"><small className="sub">{pkg.description || 'Chưa có mô tả.'}{diffTracks.length ? ` Khác các gói khác ở: ${diffTracks.join(', ')}.` : ''}</small>
+    <div className="bar"><small className="sub">{pkg.description || 'Chưa có mô tả.'}</small>
       {acts.length > 0 && <div className="tools"><ActionBar items={acts} /></div>}</div>
     {msg && <p className="msg" role="status">{msg}</p>}
-    <div className="infostrip">
+    <div className="pkgkpi">
       {tracks.map(t => { const x = mine.filter(i => i.track_code === t.code)
-        return <div key={t.code}><small>{t.code} · {t.name}</small><b>{t.use_modules === false ? '' : new Set(x.map(i => i.module_id)).size + ' học phần · '}{nTopics(x)} chủ đề</b></div> })}
+        return <div key={t.code} style={{ '--k': PROGRAM_COLOR[t.code] ?? 'var(--line)', borderTop: `3px solid ${PROGRAM_COLOR[t.code] ?? 'var(--line)'}` } as React.CSSProperties}>
+          <span className="ic" style={{ fontSize: 12, fontWeight: 700 }}>{t.code}</span>
+          <div><span>{t.name}</span><small>{t.use_modules === false ? '' : new Set(x.map(i => i.module_id)).size + ' học phần · '}{nTopics(x)} chủ đề</small></div></div> })}
     </div>
     <div className="distfilter" role="group" aria-label="Loại chương trình">
-      {tracks.map(t => <button key={t.code} type="button" className={'distfchip' + (t.code === track?.code ? ' on' : '') + (diffTracks.includes(t.code) ? ' warn' : '')}
+      {tracks.map(t => <button key={t.code} type="button" className={'distfchip' + (t.code === track?.code ? ' on' : '')}
         aria-pressed={t.code === track?.code} onClick={() => { setCode(t.code); setGrade(null) }}>{t.code} · {t.name}</button>)}
       {admin && track?.use_modules !== false && <button type="button" className={'distfchip' + (edit ? ' on' : '')} aria-pressed={edit} onClick={() => setEdit(!edit)}>{edit ? 'Xong sửa' : 'Sửa học phần'}</button>}
     </div>
     {track && (edit
       ? <TrackGrid pkg={pkg} track={track} admin={admin} items={items} modules={modules.filter(m => m.track_code === track.code)} topics={topics}
-        slots={slotsOf(track.code, [pkg.id])} diffKeys={diffKeys} onChanged={onChanged} onErr={setMsg} />
+        slots={slotsOf(track.code, [pkg.id])} diffKeys={new Set<string>()} onChanged={onChanged} onErr={setMsg} />
       : <>
         <div className="distfilter" role="group" aria-label="Khối">
           <button type="button" className={'distfchip' + (grade === null ? ' on' : '')} onClick={() => setGrade(null)}>Tất cả khối <b>{grades.length}</b></button>
           {grades.map(g => <button key={g} type="button" className={'distfchip' + (grade === g ? ' on' : '')} aria-pressed={grade === g} onClick={() => setGrade(g)}>{gradeName(g)}</button>)}
         </div>
         {!grades.length ? <p className="sub">Gói chưa có học phần của {track.code}.{admin ? ' Bấm "Sửa học phần".' : ''}</p>
-          : <DataTable id={'pkg-grades-' + (track.use_modules === false ? 'flat' : 'mods')} simple noTools rows={grades.filter(g => grade === null || g === grade)} rowKey={g => String(g)} noun="khối"
+          : <DataTable id={'pkg-grades-' + (track.use_modules === false ? 'flat' : 'mods')} className={grade === null ? 'slt ttdense' : 'slt'} simple noTools rows={grades.filter(g => grade === null || g === grade)} rowKey={g => String(g)} noun="khối"
             cols={[
-              { key: 'g', label: 'Khối', fixed: true, thClass: 'c-no', text: g => gradeName(g), cell: g => <b>{gradeName(g)}</b> },
+              { key: 'g', label: 'Khối', fixed: true, thClass: 'c-no', text: g => gradeName(g), cell: g => <button type="button" className="namelink" title="Xem chủ đề của khối" onClick={() => setGrade(grade === g ? null : g)}>{gradeName(g)}</button> },
               ...(track.use_modules === false
-                ? [{ key: 'tp', label: 'Chủ đề', fixed: true, cell: (g: number) => <TopicChips list={its.filter(i => i.grade === g).flatMap(i => topicsIn(i.module_id, g))} max={grade === null ? 6 : 99} /> }]
+                ? [{ key: 'tp', label: 'Chủ đề', fixed: true, cell: (g: number) => { const tl = its.filter(i => i.grade === g).flatMap(i => topicsIn(i.module_id, g))
+                  return grade === null ? <span className="oneline" style={{ color: "var(--muted)" }} title={tl.map(t => t.title).join(', ')}>{tl.length ? tl.map(t => t.title).join(', ') : 'Chưa có chủ đề'}</span> : <TopicChips list={tl} max={99} /> } }]
                 : slotsOf(track.code, [pkg.id]).map(sl => ({ key: 's' + sl, label: 'Học phần ' + sl, fixed: true, cell: (g: number) => {
                   const i = its.find(x => x.grade === g && x.slot === sl)
                   if (!i) return <small className="sub">—</small>
-                  const diff = diffKeys.has(keyOf(track.code, g, sl))
-                  return <div style={diff ? { background: '#fff8ea', boxShadow: 'inset 3px 0 0 #f2c97d', margin: '-6px -8px', padding: '6px 8px 6px 11px' } : undefined}>
-                    <b>{mod(i.module_id)?.name ?? '?'}</b> <small className="sub">· {periods(i) || '—'} tiết</small>
-                    <TopicChips list={topicsIn(i.module_id, g)} max={grade === null ? 3 : 99} /></div> } }))),
+                  const tl = topicsIn(i.module_id, g)
+                  return grade === null
+                    ? <span className="oneline"><b>{mod(i.module_id)?.name ?? '?'}</b> <small className="sub">· {periods(i) || '—'} tiết · {tl.length} chủ đề</small></span>
+                    : <div><b>{mod(i.module_id)?.name ?? '?'}</b> <small className="sub">· {periods(i) || '—'} tiết</small><TopicChips list={tl} max={99} /></div> } }))),
               { key: 'n', label: 'Số chủ đề', text: g => String(nTopics(its.filter(i => i.grade === g))), cell: g => nTopics(its.filter(i => i.grade === g)) },
               { key: 'p', label: 'Tiết / năm', text: g => String(its.filter(i => i.grade === g).reduce((x, i) => x + periods(i), 0)), cell: g => its.filter(i => i.grade === g).reduce((x, i) => x + periods(i), 0) || <small className="sub">—</small> },
             ] as Col<number>[]} />}
       </>)}
-    <p className="tablenote sub">Chọn loại chương trình, rồi chọn khối để xem gói học những học phần nào, mỗi học phần gồm những chủ đề nào. Ô nền vàng nhạt: khác biệt so với các gói khác. Chủ đề soạn ở tab "Khung chương trình".</p>
+    <p className="tablenote sub">Chọn loại chương trình; bấm vào tên khối để xem đầy đủ chủ đề của khối đó. Chủ đề soạn ở tab "Khung chương trình".</p>
   </>
 }
 

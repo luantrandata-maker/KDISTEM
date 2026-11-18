@@ -174,20 +174,20 @@ function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg
         <div className="hd lb"><b>Loại chương trình (CT)</b></div>
         {allGrades.map(g => <div key={g} className="hd">{gradeName(g)}</div>)}
         {tracks.map(t => { const c = PROGRAM_COLOR[t.code] ?? 'var(--line)'
+          const slots = t.use_modules === false ? [0] : slotsOf(t.code, [pkg.id])
           return [
-          <div key={t.code} className="lb" style={{ boxShadow: `inset 4px 0 0 ${c}` }}>
+          <div key={t.code} className="lb" style={{ boxShadow: `inset 4px 0 0 ${c}`, gridRow: `span ${slots.length || 1}` }}>
             {chip(t.code)}<b>{t.name}</b></div>,
-          ...allGrades.map(g => {
-            const list = mine.filter(i => i.track_code === t.code && i.grade === g).sort((a, b) => a.slot - b.slot)
+          ...slots.flatMap(sl => allGrades.map(g => {
+            const list = mine.filter(i => i.track_code === t.code && i.grade === g && (sl === 0 || i.slot === sl))
             const on = sel?.t === t.code && sel.g === g
-            const n = nTopics(list)
-            return <button key={t.code + g} type="button" className={'gc' + (on ? ' on' : '')} aria-pressed={on} disabled={!list.length}
-              title={`${t.code} · ${gradeName(g)}: bấm để xem chủ đề`} onClick={() => setSel(on ? null : { t: t.code, g })} style={{ '--k': c } as React.CSSProperties}>
+            return <button key={t.code + sl + '-' + g} type="button" className={'gc' + (on ? ' on' : '')} aria-pressed={on} disabled={!list.length}
+              title={`${t.code} · ${gradeName(g)}: bấm để xem chủ đề`} onClick={() => setSel(on ? null : { t: t.code, g })}>
               {!list.length ? <span className="sub">—</span>
-                : t.use_modules === false ? <span className="num"><b>{n}</b> chủ đề</span>
-                : list.map(i => <span key={i.slot} className="hp"><i>HP{i.slot}</i>{mod(i.module_id)?.name ?? '?'}</span>)}
+                : sl === 0 ? <span className="num"><b>{nTopics(list)}</b> chủ đề</span>
+                : <span className="hp">{mod(list[0].module_id)?.name ?? '?'} <i>(HP{sl})</i></span>}
             </button>
-          })] })}
+          }))] })}
         <div className="lb ft"><b>Tiết / năm</b></div>
         {allGrades.map(g => <div key={g} className="ft">{mine.filter(i => i.grade === g).reduce((x, i) => x + periods(i), 0) || '—'}</div>)}
       </div>

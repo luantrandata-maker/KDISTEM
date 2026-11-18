@@ -125,7 +125,9 @@ export function ProgramPackages() {
               <span className={'pill ' + (p.active ? 'active' : 'inactive')}>{p.active ? 'Đang dùng' : 'Ngừng dùng'}</span>
               {admin && <RowMenu items={pkgMenu(p).slice(1)} label={p.name} />}</span></div>
           <small title={p.description} style={{ color: '#fff', opacity: .92, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.description || 'Chưa có mô tả.'}</small>
-          <div className="pkgnums"><div><b>{st.tracks.length}</b><small>Chương trình</small></div><div><b>{st.mods.length}</b><small>Học phần</small></div><div><b>{st.topics}</b><small>Chủ đề</small></div></div>
+          {new URLSearchParams(location.search).get('n') === 'box'
+            ? <div className="pkgnums sm"><div><b>{st.tracks.length}</b><small>chương trình</small></div><div><b>{st.mods.length}</b><small>học phần</small></div><div><b>{st.topics}</b><small>chủ đề</small></div></div>
+            : <div className="pkgline"><span><b>{st.tracks.length}</b> chương trình</span><span><b>{st.mods.length}</b> học phần</span><span><b>{st.topics}</b> chủ đề</span></div>}
         </div> })}
         {/* Mỗi loại chương trình một hàng */}
         {active.map(t => [

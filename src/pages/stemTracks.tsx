@@ -20,10 +20,11 @@ const errText = (m: string) => (/schema cache|does not exist|column .*(sort|acti
   : /23505|duplicate/i.test(m) ? 'Mã loại đã có.'
   : /stem_tracks_code_check/i.test(m) ? 'Mã gồm 2–12 ký tự: chữ in hoa, số, "-" hoặc "_", bắt đầu bằng chữ (vd. CT5).' : m)
 const BLANK: StemTrack = { code: '', name: '', title: '', description: '', subjects: [], levels: [], sort: 0, active: true,
-  form: '', edu_activity: '', teachers: '', audience: '', duration: '', notes: '', school_pick_topics: false, school_arrange_ppct: true, schedule_mode: 'timetable' }
+  form: '', edu_activity: '', teachers: '', audience: '', duration: '', notes: '', school_pick_topics: false, school_arrange_ppct: true, schedule_mode: 'timetable', use_modules: true }
 const yesNo = (v: boolean | undefined) => v ? 'Được' : 'Không'
 /** Thiết lập KDI cấu hình cho trường (147) — dùng chung ở chi tiết và danh sách */
 const settingsOf = (t: StemTrack) => [
+  t.use_modules === false ? 'Chỉ có chủ đề' : 'Chia học phần',
   t.school_pick_topics ? 'Trường tự chọn chủ đề' : 'Học đủ chủ đề',
   t.school_arrange_ppct !== false ? 'Trường tự xếp PPCT' : 'PPCT theo KDI / Sở',
   SCHEDULE_MODE_NAME[t.schedule_mode ?? 'timetable'],
@@ -100,6 +101,7 @@ export function StemTracksCatalog() {
           </div>
           <div className="panel pdcard"><h4>Thiết lập cho trường</h4>
             <dl className="pddl sm">
+              <dt>Chia theo học phần</dt><dd>{cur.use_modules === false ? 'Không (chỉ có chủ đề)' : 'Có'}</dd>
               <dt>Trường tự chọn chủ đề</dt><dd>{yesNo(cur.school_pick_topics)}</dd>
               <dt>Trường tự xếp PPCT</dt><dd>{yesNo(cur.school_arrange_ppct !== false)}</dd>
               <dt>Cách xếp lịch</dt><dd>{SCHEDULE_MODE_NAME[cur.schedule_mode ?? 'timetable']}</dd>
@@ -153,7 +155,7 @@ function TrackForm({ t, isNew = false, onCancel, onSaved }: { t: StemTrack; isNe
     setBusy(true); setErr('')
     const row = { name: f.name, title: f.title, description: f.description, subjects: f.subjects, levels: f.levels, sort: Number(f.sort) || 0, active: f.active !== false,
       form: f.form ?? '', edu_activity: f.edu_activity ?? '', teachers: f.teachers ?? '', audience: f.audience ?? '', duration: f.duration ?? '', notes: f.notes ?? '',
-      school_pick_topics: !!f.school_pick_topics, school_arrange_ppct: f.school_arrange_ppct !== false, schedule_mode: f.schedule_mode ?? 'timetable' }
+      use_modules: f.use_modules !== false, school_pick_topics: !!f.school_pick_topics, school_arrange_ppct: f.school_arrange_ppct !== false, schedule_mode: f.schedule_mode ?? 'timetable' }
     const { data, error } = isNew
       ? await supabase.from('stem_tracks').insert({ ...row, code }).select('code')
       : await supabase.from('stem_tracks').update(row).eq('code', t.code).select('code')
@@ -180,6 +182,9 @@ function TrackForm({ t, isNew = false, onCancel, onSaved }: { t: StemTrack; isNe
         <label className="field wide"><span>Thời lượng</span><textarea rows={2} value={f.duration ?? ''} onChange={e => setF({ ...f, duration: e.target.value })} /></label>
         <label className="field wide"><span>Ghi chú, căn cứ</span><textarea rows={3} value={f.notes ?? ''} onChange={e => setF({ ...f, notes: e.target.value })} /></label>
       </div>
+      <fieldset className="panel" style={{ marginTop: 12 }}><legend>Cấu trúc</legend>
+        <label className="field inline"><input type="checkbox" checked={f.use_modules !== false} onChange={e => setF({ ...f, use_modules: e.target.checked })} /> Chương trình chia theo học phần (tắt: chỉ có chủ đề theo khối, không hiện học phần)</label>
+      </fieldset>
       <fieldset className="panel" style={{ marginTop: 12 }}><legend>Thiết lập cho trường</legend>
         <label className="field inline"><input type="checkbox" checked={!!f.school_pick_topics} onChange={e => setF({ ...f, school_pick_topics: e.target.checked })} /> Trường được tự chọn chủ đề sẽ dạy (KDI chỉ tư vấn)</label>
         <label className="field inline"><input type="checkbox" checked={f.school_arrange_ppct !== false} onChange={e => setF({ ...f, school_arrange_ppct: e.target.checked })} /> Trường được tự xếp phân phối chương trình (theo tuần)</label>

@@ -12,6 +12,8 @@ export type StemTrack = {
   // 147: thông tin chung theo sheet Overview và thiết lập cho trường
   form?: string; edu_activity?: EduActivity; teachers?: string; audience?: string; duration?: string; notes?: string
   school_pick_topics?: boolean; school_arrange_ppct?: boolean; schedule_mode?: ScheduleMode
+  // 149: false = không chia học phần, chỉ hiện chủ đề theo khối
+  use_modules?: boolean
 }
 
 export const STEM_LEVELS: [StemLevel, string][] = [['mamnon', 'Mầm non'], ['tieuhoc', 'Tiểu học'], ['thcs', 'THCS'], ['thpt', 'THPT'], ['thpt_nghe', 'THPT Nghề']]
@@ -26,13 +28,13 @@ const ALL3: StemLevel[] = ['tieuhoc', 'thcs', 'thpt']
 export const DEFAULT_TRACKS: StemTrack[] = [
   { code: 'CT1', name: 'Bài học STEM', title: 'Bài học STEM', description: 'Dạy bài học của một hoặc nhiều môn theo phương thức STEM, xuất phát từ yêu cầu cần đạt của môn và SGK.',
     subjects: ['Toán', 'Tự nhiên và Xã hội', 'Khoa học', 'Khoa học tự nhiên', 'Vật lí', 'Hóa học', 'Sinh học'], levels: ALL3, sort: 1,
-    edu_activity: 'chinh_khoa', school_pick_topics: true, school_arrange_ppct: true, schedule_mode: 'subject' },
+    edu_activity: 'chinh_khoa', use_modules: false, school_pick_topics: true, school_arrange_ppct: true, schedule_mode: 'subject' },
   { code: 'CT2', name: 'Trải nghiệm STEM cơ bản', title: 'Trải nghiệm STEM cơ bản', description: 'Chủ đề, dự án trải nghiệm STEM tiếp nối, mở rộng bài học STEM ở mức vận dụng.',
     subjects: [], levels: ALL3, sort: 2, edu_activity: 'tang_cuong', school_pick_topics: false, school_arrange_ppct: true, schedule_mode: 'timetable' },
   { code: 'CT3', name: 'Trải nghiệm STEM nâng cao', title: 'Trải nghiệm STEM nâng cao', description: 'Giáo dục STEM về lập trình, robot, AI, IoT và giáo dục STEM ngoài nhà trường.',
     subjects: [], levels: ALL3, sort: 3, edu_activity: 'theo_nhu_cau', school_pick_topics: false, school_arrange_ppct: true, schedule_mode: 'register' },
   { code: 'CT4', name: 'Nghiên cứu khoa học, kĩ thuật', title: 'Nghiên cứu khoa học, kĩ thuật', description: 'Đề tài, dự án nghiên cứu khoa học của cá nhân hoặc nhóm, có giáo viên / nhà khoa học hướng dẫn.',
-    subjects: [], levels: ALL3, sort: 4, edu_activity: 'theo_nhu_cau', school_pick_topics: false, school_arrange_ppct: true, schedule_mode: 'subject' },
+    subjects: [], levels: ALL3, sort: 4, edu_activity: 'theo_nhu_cau', use_modules: false, school_pick_topics: false, school_arrange_ppct: true, schedule_mode: 'subject' },
 ]
 
 let cache: StemTrack[] | null = null

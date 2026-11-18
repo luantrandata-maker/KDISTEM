@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useStemTracks, type StemTrack } from '../lib/stemTracks'
-import { gradeName } from '../lib/eduLevels'
+import { fmtGrades, gradeName } from '../lib/eduLevels'
 import { frameErr, loadFrame, loadPackages, type PackageItem, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
 import { PROGRAM_COLOR } from './teacher/common'
 import { HeadAction } from '../components/PageFrame'
+import { DataTable, type Col } from '../components/DataTable'
 import { DetailHead } from '../components/DetailHead'
 import { ElView } from '../components/ElView'
 import { ActionBar, type Act } from '../components/ActionBar'
+import { RowMenu } from '../components/ProTools'
+import { Chip } from './dist/Editor'
 
 // Gói STEM theo khung chương trình (148): mỗi gói gồm các loại chương trình; mỗi loại, mỗi khối chọn học phần ở từng vị trí
 // (Học phần 1, Học phần 2…). Xem một gói, so sánh các gói (tô màu chỗ khác nhau). Chỉ KDI sửa.
@@ -16,6 +19,7 @@ const GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
 const chip = (code: string) => <span className="progchip" style={{ background: PROGRAM_COLOR[code], color: '#fff' }}>{code}</span>
 const DIFF = { background: 'color-mix(in srgb, #f59e0b 18%, transparent)' }
 const keyOf = (t: string, g: number, s: number) => `${t}|${g}|${s}`
+const MAXN = 4   // số học phần hiện sẵn trong một ô, còn lại bấm để mở
 
 export function ProgramPackages() {
   const { tracks } = useStemTracks()
@@ -28,6 +32,8 @@ export function ProgramPackages() {
   const [msg, setMsg] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   const [compare, setCompare] = useState(false)
+  const [layout] = useState<'cards' | 'table'>(new URLSearchParams(location.search).get('v') === 'table' ? 'table' : 'cards')
+  const [openRows, setOpenRows] = useState<string[]>([])   // hàng chương trình đang mở hết danh sách học phần
   const [editPkg, setEditPkg] = useState<(ProgramPackage & { copyFrom?: string }) | null>(null)
   const reload = () => Promise.all([loadPackages(), loadFrame()]).then(([p, f]) => {
     setPackages(p.packages); setItems(p.items); setModules(f.modules); setTopics(f.topics); setMsg(p.error || f.error)
@@ -70,50 +76,193 @@ export function ProgramPackages() {
   </>
 
   const cur = openId ? packages.find(p => p.id === openId) : undefined
-  if (cur) {
-    const acts: Act[] = admin ? [
-      { key: 'edit', label: 'Sửa thông tin', icon: 'pencil', onClick: () => setEditPkg(cur) },
-      { key: 'copy', label: 'Sao chép thành gói mới', onClick: () => setEditPkg({ ...cur, id: '', code: '', name: cur.name + ' (bản sao)', sort: cur.sort + 1, copyFrom: cur.id }) },
-      { key: 'del', label: 'Xoá', icon: 'trash', kind: 'danger', onClick: () => delPkg(cur) },
-    ] : []
-    const dt = diffTracks(cur.id)
-    return <>
-      <DetailHead back="Gói STEM" onBack={() => { setOpenId(null); setMsg('') }} title={cur.name}
-        extra={<span className={'pill ' + (cur.active ? 'good' : 'inactive')}>{cur.active ? 'Đang bán' : 'Ngừng bán'}</span>} />
-      <div className="bar"><small className="sub">{cur.description || 'Chưa có mô tả.'}{dt.length ? ` Khác các gói khác ở: ${dt.join(', ')} (ô tô màu).` : ''}</small>
-        {acts.length > 0 && <div className="tools"><ActionBar items={acts} /></div>}</div>
-      {msg && <p className="msg" role="status">{msg}</p>}
-      {active.map(t => <TrackGrid key={t.code} pkg={cur} track={t} admin={admin} items={items} modules={modules.filter(m => m.track_code === t.code)} topics={topics}
-        slots={slotsOf(t.code, [cur.id])} diffKeys={diffKeys} onChanged={reload} onErr={setMsg} />)}
-    </>
+  const topicsIn = (moduleId: string, g: number) => topics.filter(t => t.module_id === moduleId && t.grade === g && t.active).sort((a, b) => a.seq - b.seq)
+  const statOf = (pkg: string, t?: string) => {
+    const its = items.filter(i => i.package_id === pkg && (!t || i.track_code === t))
+    return { its, mods: [...new Set(its.map(i => i.module_id))], topics: its.reduce((x, i) => x + topicsIn(i.module_id, i.grade).length, 0),
+      tracks: [...new Set(its.map(i => i.track_code))] }
   }
+  const pkgMenu = (p: ProgramPackage) => [
+    { label: 'Xem chi tiết', onClick: () => { setMsg(''); setOpenId(p.id) } }, { label: 'Sửa thông tin', onClick: () => setEditPkg(p) },
+    { label: 'Sao chép thành gói mới', onClick: () => setEditPkg({ ...p, id: '', code: '', name: p.name + ' (bản sao)', sort: p.sort + 1, copyFrom: p.id }) },
+    { label: 'Xoá', danger: true, onClick: () => delPkg(p) }]
 
+  if (cur) return <PackageDetail pkg={cur} tracks={active} admin={admin} items={items} modules={modules} topics={topics} msg={msg} setMsg={setMsg}
+    diffKeys={diffKeys} diffTracks={diffTracks(cur.id)} slotsOf={slotsOf} topicsIn={topicsIn} onBack={() => { setOpenId(null); setMsg('') }}
+    acts={admin ? pkgMenu(cur).slice(1).map((a, k) => ({ key: String(k), label: a.label, kind: a.danger ? 'danger' : undefined, onClick: a.onClick } as Act)) : []}
+    onChanged={reload} />
+
+  const allMods = new Set(items.filter(i => live.some(p => p.id === i.package_id)).map(i => i.module_id))
+  const allTopics = topics.filter(t => t.active && allMods.has(t.module_id)).length
+  const n = packages.length
+  const cellS = { padding: '10px 12px', borderTop: '1px solid var(--line)', borderLeft: '1px solid var(--line)', minWidth: 0 } as const
+  const labelS = { ...cellS, borderLeft: 0, background: 'var(--soft)' } as const
+  const DIFFC = { background: '#fff8ea', boxShadow: 'inset 3px 0 0 #f2c97d' }
+  const perGrade = (list: ProgramTopic[]) => { const g = new Set(list.map(t => t.grade)); return g.size ? Math.round(list.length / g.size) : 0 }
   return <>
     <HeadAction>
       <button type="button" onClick={() => setCompare(true)} disabled={live.length < 2}>So sánh các gói</button>
       {admin && <button type="button" className="primary ttadd" onClick={() => setEditPkg({ id: '', code: '', name: '', description: '', sort: packages.reduce((x, p) => Math.max(x, p.sort), 0) + 1, active: true })}>+ Thêm gói</button>}
     </HeadAction>
     {msg && <p className="msg" role="status">{msg}</p>}
-    <table className="table">
-      <thead><tr><th>Gói</th><th>Mô tả</th>{active.map(t => <th key={t.code}>{chip(t.code)} {t.name}</th>)}<th>Khác các gói khác ở</th><th>Trạng thái</th></tr></thead>
-      <tbody>{packages.map(p => {
-        const dt = diffTracks(p.id)
-        return <tr key={p.id} className="rowlink" style={{ cursor: 'pointer' }} onClick={() => { setMsg(''); setOpenId(p.id) }}>
-          <td><b>{p.name}</b></td><td><small>{p.description || '—'}</small></td>
-          {active.map(t => {
-            const its = items.filter(i => i.package_id === p.id && i.track_code === t.code)
-            const mods = [...new Set(its.map(i => i.module_id))]
-            const nt = its.reduce((x, i) => x + topics.filter(tp => tp.module_id === i.module_id && tp.grade === i.grade && tp.active).length, 0)
-            return <td key={t.code} title={mods.map(modName).join('\n')}>{mods.length ? <>{mods.length} học phần<div className="sub"><small>{nt ? `${nt} chủ đề` : 'chưa có chủ đề'}</small></div></> : <small className="sub">Không có</small>}</td>
-          })}
-          <td>{dt.length ? dt.join(', ') : <small className="sub">—</small>}</td>
-          <td><span className={'pill ' + (p.active ? 'good' : 'inactive')}>{p.active ? 'Đang bán' : 'Ngừng bán'}</span></td>
-        </tr>
-      })}
-      {!packages.length && <tr><td colSpan={4 + active.length}><small className="sub">Chưa có gói STEM.</small></td></tr>}</tbody>
-    </table>
-    <p className="tablenote sub">Gói STEM → loại chương trình → học phần (theo khối) → chủ đề. Mỗi gói gồm các loại chương trình; với mỗi loại, mỗi khối, gói chọn học phần nào học trong năm; mỗi học phần gồm các chủ đề. Bấm một gói để xem chi tiết{admin ? ', sửa học phần' : ''}; "So sánh các gói" để xem các gói khác nhau ở đâu.</p>
+    <div className="infostrip">
+      <div><small>Gói STEM</small><b>{live.length}</b></div>
+      <div><small>Loại chương trình</small><b>{active.length}</b></div>
+      <div><small>Học phần dùng trong gói</small><b>{allMods.size}</b></div>
+      <div><small>Chủ đề</small><b>{allTopics}</b></div>
+    </div>
+    <p className="sub" style={{ margin: '0 0 10px' }}>Cấu trúc: <b>Gói STEM</b> › <b>Loại chương trình</b> › <b>Học phần</b> (theo khối) › <b>Chủ đề</b>.
+      {diffKeys.size ? ` Các gói giống nhau, chỉ khác ở ${[...new Set([...diffKeys].map(k => k.split('|')[0]))].join(', ')} (đánh dấu màu cam).` : ''}</p>
+    {!n ? <p className="sub">Chưa có gói STEM.</p> : layout === 'cards' ?
+    <div style={{ overflowX: 'auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${n}, minmax(230px, 1fr))`, columnGap: 14 }}>
+        {(() => {
+          const side = { background: 'var(--card, #fff)', borderLeft: '1px solid var(--line)', borderRight: '1px solid var(--line)', padding: '10px 12px', minWidth: 0 } as const
+          const hues = (k: number) => (k % 3 === 0 && k ? { filter: 'hue-rotate(140deg)' } : {})
+          return [
+            ...packages.map((p, k) => <div key={'h' + p.id} className={'pkghead ' + (['basic', 'advanced', 'premium'][k % 3])}
+              style={{ padding: 12, color: '#fff', display: 'grid', gap: 4, alignContent: 'start', borderRadius: '10px 10px 0 0', ...hues(k) }}>
+              <div className="bar" style={{ margin: 0 }}><b style={{ fontSize: '1.15em' }}>{p.name}</b>
+                <span className={'pill ' + (p.active ? 'active' : 'inactive')}>{p.active ? 'Đang dùng' : 'Ngừng dùng'}</span></div>
+              <small style={{ color: '#fff', opacity: .92 }}>{p.description || 'Chưa có mô tả.'}</small>
+            </div>),
+            ...packages.map(p => { const st = statOf(p.id)
+              return <div key={'s' + p.id} style={side}><div className="pkgstats"><div><b>{st.tracks.length}</b><small>Chương trình</small></div><div><b>{st.mods.length}</b><small>Học phần</small></div><div><b>{st.topics}</b><small>Chủ đề</small></div></div></div> }),
+            ...active.flatMap(t => packages.map(p => {
+              const x = statOf(p.id, t.code)
+              const diff = diffTracks(p.id).includes(t.code)
+              const tl = x.its.flatMap(i => topicsIn(i.module_id, i.grade))
+              const gs = [...new Set(x.its.map(i => i.grade))].sort((a, b) => a - b)
+              const open = openRows.includes(t.code)
+              const names = (open ? x.mods : x.mods.slice(0, MAXN)).map(modName).join(', ')
+              return <div key={t.code + p.id} style={{ ...side, paddingTop: 0 }}>
+                <div style={{ borderTop: '1px solid var(--line)', paddingTop: 10, display: 'grid', gap: 4 }}>
+                  <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>{chip(t.code)}<b>{t.name}</b>
+                    {diff && <Chip tone="warn">Khác gói khác</Chip>}</div>
+                  {!x.its.length ? <small className="sub">Không có trong gói</small>
+                    : t.use_modules === false ? <small className="sub">{x.topics} chủ đề{perGrade(tl) ? ` · ${perGrade(tl)} chủ đề / khối` : ''} · {fmtGrades(gs)}</small>
+                    : <small className="sub">{x.mods.length} học phần · {x.topics} chủ đề: {names}{x.mods.length > MAXN && <> <button type="button" className="namelink" style={{ fontSize: 12, color: 'var(--primary)' }}
+                        onClick={() => setOpenRows(open ? openRows.filter(c => c !== t.code) : [...openRows, t.code])}>{open ? 'Thu gọn' : `+${x.mods.length - MAXN}`}</button></>}</small>}
+                </div>
+              </div>
+            })),
+            ...packages.map(p => <div key={'a' + p.id} style={{ ...side, borderBottom: '1px solid var(--line)', borderRadius: '0 0 10px 10px', display: 'flex', gap: 6, alignItems: 'center', paddingBottom: 14 }}>
+              <button type="button" className="primary" onClick={() => { setMsg(''); setOpenId(p.id) }}>Xem học phần, chủ đề ›</button>
+              {admin && <RowMenu items={pkgMenu(p).slice(1)} label={p.name} />}</div>),
+          ]
+        })()}
+      </div>
+    </div> :
+    <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `220px repeat(${n}, minmax(200px, 1fr))` }}>
+        {/* Hàng 1: tên gói */}
+        <div style={{ ...labelS, borderTop: 0, display: 'flex', alignItems: 'flex-end' }}><small className="sub">Gói STEM</small></div>
+        {packages.map((p, k) => <div key={p.id} className={'pkghead ' + (['basic', 'advanced', 'premium'][k % 3])}
+          style={{ padding: '12px', color: '#fff', display: 'grid', gap: 4, alignContent: 'start', borderLeft: '1px solid rgba(255,255,255,.25)', ...(k % 3 === 0 && k ? { filter: 'hue-rotate(140deg)' } : {}) }}>
+          <div className="bar" style={{ margin: 0 }}><b style={{ fontSize: '1.15em' }}>{p.name}</b>
+            <span className={'pill ' + (p.active ? 'active' : 'inactive')}>{p.active ? 'Đang dùng' : 'Ngừng dùng'}</span></div>
+          <small style={{ color: '#fff', opacity: .92 }}>{p.description || 'Chưa có mô tả.'}</small>
+        </div>)}
+        {/* Hàng 2: tổng */}
+        <div style={labelS}><b>Tổng</b><br /><small className="sub">chương trình · học phần · chủ đề</small></div>
+        {packages.map(p => { const st = statOf(p.id)
+          return <div key={p.id} style={cellS}><div className="pkgstats"><div><b>{st.tracks.length}</b><small>CT</small></div><div><b>{st.mods.length}</b><small>Học phần</small></div><div><b>{st.topics}</b><small>Chủ đề</small></div></div></div> })}
+        {/* Mỗi loại chương trình một hàng */}
+        {active.map(t => [
+          <div key={t.code} style={labelS}>{chip(t.code)}<br /><b>{t.name}</b><br /><small className="sub">{t.use_modules === false ? 'Chỉ có chủ đề theo khối' : 'Chia theo học phần'}</small></div>,
+          ...packages.map(p => {
+            const x = statOf(p.id, t.code)
+            const diff = diffTracks(p.id).includes(t.code)
+            const tl = x.its.flatMap(i => topicsIn(i.module_id, i.grade))
+            const gs = [...new Set(x.its.map(i => i.grade))].sort((a, b) => a - b)
+            return <div key={t.code + p.id} style={{ ...cellS, ...(diff ? DIFFC : {}) }}>
+              {!x.its.length ? <small className="sub">Không có trong gói</small>
+                : t.use_modules === false ? <><b>{x.topics} chủ đề</b><br /><small className="sub">{perGrade(tl) ? `${perGrade(tl)} chủ đề / khối · ` : ''}{fmtGrades(gs)}</small></>
+                : <><b>{x.mods.length} học phần · {x.topics} chủ đề</b>
+                  <ul style={{ margin: '4px 0 0', paddingLeft: 16 }}>{(openRows.includes(t.code) ? x.mods : x.mods.slice(0, MAXN)).map(id => <li key={id}><small>{modName(id)}</small></li>)}</ul>
+                  {x.mods.length > MAXN && <button type="button" className="namelink" style={{ fontSize: 12, marginTop: 4, color: "var(--primary)" }} onClick={() => setOpenRows(openRows.includes(t.code) ? openRows.filter(c => c !== t.code) : [...openRows, t.code])}>
+                    {openRows.includes(t.code) ? 'Thu gọn' : `+ ${x.mods.length - MAXN} học phần nữa`}</button>}</>}
+            </div>
+          })])}
+        {/* Hàng cuối: thao tác */}
+        <div style={labelS} />
+        {packages.map(p => <div key={p.id} style={{ ...cellS, display: 'flex', gap: 6, alignItems: 'center' }}>
+          <button type="button" className="primary" onClick={() => { setMsg(''); setOpenId(p.id) }}>Xem chi tiết ›</button>
+          {admin && <RowMenu items={pkgMenu(p).slice(1)} label={p.name} />}</div>)}
+      </div>
+    </div>}
+    <p className="tablenote sub">Mỗi cột là một gói, mỗi hàng là một loại chương trình: đọc theo hàng để so sánh các gói. Bấm "Xem chi tiết" để xem học phần, chủ đề theo từng khối.</p>
   </>
+}
+
+function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg, diffKeys, diffTracks, slotsOf, topicsIn, onBack, acts, onChanged }: {
+  pkg: ProgramPackage; tracks: StemTrack[]; admin: boolean; items: PackageItem[]; modules: ProgramModule[]; topics: ProgramTopic[]
+  msg: string; setMsg: (m: string) => void; diffKeys: Set<string>; diffTracks: string[]; slotsOf: (t: string, pkgs: string[]) => number[]
+  topicsIn: (moduleId: string, g: number) => ProgramTopic[]; onBack: () => void; acts: Act[]; onChanged: () => void
+}) {
+  const mine = items.filter(i => i.package_id === pkg.id)
+  const [code, setCode] = useState(tracks[0]?.code ?? '')
+  const [edit, setEdit] = useState(false)
+  const [grade, setGrade] = useState<number | null>(null)
+  const track = tracks.find(t => t.code === code) ?? tracks[0]
+  const its = mine.filter(i => i.track_code === track?.code)
+  const grades = [...new Set(its.map(i => i.grade))].sort((a, b) => a - b)
+  const mod = (id: string) => modules.find(m => m.id === id)
+  const nTopics = (list: PackageItem[]) => list.reduce((x, i) => x + topicsIn(i.module_id, i.grade).length, 0)
+  const periods = (i: PackageItem) => mod(i.module_id)?.periods ?? topicsIn(i.module_id, i.grade).reduce((x, t) => x + (t.periods || 0), 0)
+  return <>
+    <DetailHead back="Gói STEM" onBack={onBack} title={pkg.name}
+      extra={<Chip tone={pkg.active ? 'good' : ''}>{pkg.active ? 'Đang dùng' : 'Ngừng dùng'}</Chip>} />
+    <div className="bar"><small className="sub">{pkg.description || 'Chưa có mô tả.'}{diffTracks.length ? ` Khác các gói khác ở: ${diffTracks.join(', ')}.` : ''}</small>
+      {acts.length > 0 && <div className="tools"><ActionBar items={acts} /></div>}</div>
+    {msg && <p className="msg" role="status">{msg}</p>}
+    <div className="infostrip">
+      {tracks.map(t => { const x = mine.filter(i => i.track_code === t.code)
+        return <div key={t.code}><small>{t.code} · {t.name}</small><b>{t.use_modules === false ? '' : new Set(x.map(i => i.module_id)).size + ' học phần · '}{nTopics(x)} chủ đề</b></div> })}
+    </div>
+    <div className="distfilter" role="group" aria-label="Loại chương trình">
+      {tracks.map(t => <button key={t.code} type="button" className={'distfchip' + (t.code === track?.code ? ' on' : '') + (diffTracks.includes(t.code) ? ' warn' : '')}
+        aria-pressed={t.code === track?.code} onClick={() => { setCode(t.code); setGrade(null) }}>{t.code} · {t.name}</button>)}
+      {admin && track?.use_modules !== false && <button type="button" className={'distfchip' + (edit ? ' on' : '')} aria-pressed={edit} onClick={() => setEdit(!edit)}>{edit ? 'Xong sửa' : 'Sửa học phần'}</button>}
+    </div>
+    {track && (edit
+      ? <TrackGrid pkg={pkg} track={track} admin={admin} items={items} modules={modules.filter(m => m.track_code === track.code)} topics={topics}
+        slots={slotsOf(track.code, [pkg.id])} diffKeys={diffKeys} onChanged={onChanged} onErr={setMsg} />
+      : <>
+        <div className="distfilter" role="group" aria-label="Khối">
+          <button type="button" className={'distfchip' + (grade === null ? ' on' : '')} onClick={() => setGrade(null)}>Tất cả khối <b>{grades.length}</b></button>
+          {grades.map(g => <button key={g} type="button" className={'distfchip' + (grade === g ? ' on' : '')} aria-pressed={grade === g} onClick={() => setGrade(g)}>{gradeName(g)}</button>)}
+        </div>
+        {!grades.length ? <p className="sub">Gói chưa có học phần của {track.code}.{admin ? ' Bấm "Sửa học phần".' : ''}</p>
+          : <DataTable id={'pkg-grades-' + (track.use_modules === false ? 'flat' : 'mods')} simple noTools rows={grades.filter(g => grade === null || g === grade)} rowKey={g => String(g)} noun="khối"
+            cols={[
+              { key: 'g', label: 'Khối', fixed: true, thClass: 'c-no', text: g => gradeName(g), cell: g => <b>{gradeName(g)}</b> },
+              ...(track.use_modules === false
+                ? [{ key: 'tp', label: 'Chủ đề', fixed: true, cell: (g: number) => <TopicChips list={its.filter(i => i.grade === g).flatMap(i => topicsIn(i.module_id, g))} max={grade === null ? 6 : 99} /> }]
+                : slotsOf(track.code, [pkg.id]).map(sl => ({ key: 's' + sl, label: 'Học phần ' + sl, fixed: true, cell: (g: number) => {
+                  const i = its.find(x => x.grade === g && x.slot === sl)
+                  if (!i) return <small className="sub">—</small>
+                  const diff = diffKeys.has(keyOf(track.code, g, sl))
+                  return <div style={diff ? { background: '#fff8ea', boxShadow: 'inset 3px 0 0 #f2c97d', margin: '-6px -8px', padding: '6px 8px 6px 11px' } : undefined}>
+                    <b>{mod(i.module_id)?.name ?? '?'}</b> <small className="sub">· {periods(i) || '—'} tiết</small>
+                    <TopicChips list={topicsIn(i.module_id, g)} max={grade === null ? 3 : 99} /></div> } }))),
+              { key: 'n', label: 'Số chủ đề', text: g => String(nTopics(its.filter(i => i.grade === g))), cell: g => nTopics(its.filter(i => i.grade === g)) },
+              { key: 'p', label: 'Tiết / năm', text: g => String(its.filter(i => i.grade === g).reduce((x, i) => x + periods(i), 0)), cell: g => its.filter(i => i.grade === g).reduce((x, i) => x + periods(i), 0) || <small className="sub">—</small> },
+            ] as Col<number>[]} />}
+      </>)}
+    <p className="tablenote sub">Chọn loại chương trình, rồi chọn khối để xem gói học những học phần nào, mỗi học phần gồm những chủ đề nào. Ô tô cam: khác các gói khác. Chủ đề soạn ở tab "Khung chương trình".</p>
+  </>
+}
+
+/** Danh sách chủ đề gọn trong một ô: hiện `max` chủ đề đầu, bấm để mở hết */
+function TopicChips({ list, max }: { list: ProgramTopic[]; max: number }) {
+  const [open, setOpen] = useState(false)
+  if (!list.length) return <div><small className="sub">Chưa có chủ đề</small></div>
+  const shown = open ? list : list.slice(0, max)
+  return <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
+    {shown.map((t, k) => <span key={t.id} className="distchip2" title={`${t.title} · ${t.periods} tiết`}>{k + 1}. {t.title}</span>)}
+    {list.length > max && <button type="button" className="namelink" style={{ fontSize: 12, color: "var(--primary)" }} onClick={() => setOpen(!open)}>{open ? 'Thu gọn' : `+ ${list.length - max} chủ đề`}</button>}
+  </div>
 }
 
 function TrackGrid({ pkg, track, admin, items, modules, topics, slots, diffKeys, onChanged, onErr }: {
@@ -240,7 +389,7 @@ function PackageForm({ p, onCancel, onSaved }: { p: ProgramPackage & { copyFrom?
       <label className="field"><span>Tên gói *</span><input value={f.name} maxLength={120} onChange={e => setF({ ...f, name: e.target.value })} /></label>
       <label className="field"><span>Thứ tự</span><input type="number" min={0} value={f.sort} onChange={e => setF({ ...f, sort: Number(e.target.value) })} /></label>
       <label className="field"><span>Trạng thái</span><select value={f.active ? 'on' : 'off'} onChange={e => setF({ ...f, active: e.target.value === 'on' })}>
-        <option value="on">Đang bán</option><option value="off">Ngừng bán</option></select></label>
+        <option value="on">Đang dùng</option><option value="off">Ngừng dùng</option></select></label>
       <label className="field wide"><span>Mô tả (gói khác các gói khác ở đâu)</span><textarea rows={3} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>
     </div>
     {f.copyFrom && <p className="sub">Gói mới sẽ có sẵn toàn bộ học phần của gói gốc; sửa lại chỗ khác nhau sau khi lưu.</p>}

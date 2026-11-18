@@ -16,7 +16,7 @@ export const INDICATORS: Ind[] = [
   { key: 'thiet_bi', group: 'Hạ tầng', label: 'Thiết bị dùng được', hint: '% thiết bị không hỏng / bảo trì', weight: 5, score: s => ratio(s.units_available, s.units) },
   { key: 'nhan_luc', group: 'Nhân lực', label: 'Giáo viên đã đào tạo', hint: '% giáo viên hoàn thành đào tạo STEM', weight: 15, score: s => ratio(s.training_done, s.teachers) },
   { key: 'gv_stem', group: 'Nhân lực', label: 'Giáo viên dạy STEM', hint: '% giáo viên được phân công dạy STEM', weight: 10, score: s => ratio(s.stem_teachers, s.teachers) },
-  { key: 'lop_stem', group: 'Triển khai', label: 'Lớp có chương trình STEM', hint: '% lớp có ít nhất một chương trình CT1–CT5', weight: 15, score: s => ratio(s.stem_classes, s.classes) },
+  { key: 'lop_stem', group: 'Triển khai', label: 'Lớp có chương trình STEM', hint: '% lớp có ít nhất một chương trình CT1–CT4', weight: 15, score: s => ratio(s.stem_classes, s.classes) },
   { key: 'tiet_stem', group: 'Triển khai', label: 'Tỉ lệ tiết STEM', hint: 'Tiết STEM / tổng tiết, so với mức mục tiêu (mặc định 10%)', weight: 10, target: 10, unit: '% tiết',
     score: (s, t) => (s.total_periods ? r100((100 * (100 * s.stem_periods) / s.total_periods) / t) : null) },
   { key: 'hoc_lieu', group: 'Triển khai', label: 'Giáo án & sản phẩm STEM', hint: 'Số giáo án + sản phẩm trên mỗi GV dạy STEM, so với mục tiêu (mặc định 5)', weight: 10, target: 5, unit: 'mỗi GV',

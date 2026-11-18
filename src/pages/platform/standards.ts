@@ -91,5 +91,5 @@ export const MAPPINGS: Mapping[] = [
   { entity: 'Phòng & thiết bị STEM', field: 'Số lượng thiết bị', source: 'equipment_units (đếm)', term: 'BG_00585', status: 'tinh' },
   // ---- Chương trình ----
   { entity: 'Chương trình & học liệu', field: 'Môn học', source: 'curriculum_books.subject', term: 'BG_00818', status: 'gan', note: 'Lưu tên môn; chuẩn là danh mục môn học.' },
-  { entity: 'Chương trình & học liệu', field: 'Gói / chương trình STEM (CT1–CT5)', source: 'stem_packages, class_programs', term: null, status: 'rieng' },
+  { entity: 'Chương trình & học liệu', field: 'Gói / chương trình STEM (CT1–CT4)', source: 'stem_packages, class_programs', term: null, status: 'rieng' },
 ]

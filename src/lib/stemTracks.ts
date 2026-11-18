@@ -1,25 +1,38 @@
 import { useEffect, useState } from 'react'
 import { supabase } from './supabase'
 
-// Danh mục loại chương trình (migration 062, 064): CT1–CT5 ban đầu và các loại KDI thêm sau — tên, mô tả, môn học,
-// cấp học áp dụng; KDI sửa ở "Chương trình giáo dục → Loại chương trình". Chưa chạy migration thì dùng nội dung mặc định dưới đây.
+// Danh mục loại chương trình (migration 062, 064, 147): 4 loại CT1–CT4 (Bài học STEM, Trải nghiệm STEM cơ bản / nâng cao,
+// Nghiên cứu khoa học kĩ thuật) và các loại KDI thêm sau — tên, mô tả, môn học, cấp học, hình thức, đối tượng, thời lượng
+// và các thiết lập KDI cấu hình cho trường. KDI sửa ở "Chương trình giáo dục → Danh mục → Loại chương trình".
 export type StemLevel = 'mamnon' | 'tieuhoc' | 'thcs' | 'thpt' | 'thpt_nghe'
-export type StemTrack = { code: string; name: string; title: string; description: string; subjects: string[]; levels: StemLevel[]; sort?: number; active?: boolean; updated_at?: string }
+export type EduActivity = '' | 'chinh_khoa' | 'tang_cuong' | 'theo_nhu_cau'
+export type ScheduleMode = 'subject' | 'timetable' | 'register'
+export type StemTrack = {
+  code: string; name: string; title: string; description: string; subjects: string[]; levels: StemLevel[]; sort?: number; active?: boolean; updated_at?: string
+  // 147: thông tin chung theo sheet Overview và thiết lập cho trường
+  form?: string; edu_activity?: EduActivity; teachers?: string; audience?: string; duration?: string; notes?: string
+  school_pick_topics?: boolean; school_arrange_ppct?: boolean; schedule_mode?: ScheduleMode
+}
 
 export const STEM_LEVELS: [StemLevel, string][] = [['mamnon', 'Mầm non'], ['tieuhoc', 'Tiểu học'], ['thcs', 'THCS'], ['thpt', 'THPT'], ['thpt_nghe', 'THPT Nghề']]
 export const STEM_LEVEL_NAME = Object.fromEntries(STEM_LEVELS) as Record<StemLevel, string>
+export const EDU_ACTIVITIES: [EduActivity, string][] = [['', 'Chưa chọn'], ['chinh_khoa', 'Chính khóa'], ['tang_cuong', 'Tăng cường'], ['theo_nhu_cau', 'Theo nhu cầu']]
+export const EDU_ACTIVITY_NAME = Object.fromEntries(EDU_ACTIVITIES) as Record<EduActivity, string>
+export const SCHEDULE_MODES: [ScheduleMode, string][] = [
+  ['subject', 'Dạy trong tiết môn học (thay bài SGK)'], ['timetable', 'Xếp vào thời khóa biểu (tiết riêng)'], ['register', 'Học sinh đăng ký, xếp lớp riêng']]
+export const SCHEDULE_MODE_NAME = Object.fromEntries(SCHEDULE_MODES) as Record<ScheduleMode, string>
 
+const ALL3: StemLevel[] = ['tieuhoc', 'thcs', 'thpt']
 export const DEFAULT_TRACKS: StemTrack[] = [
-  { code: 'CT1', name: 'Tích hợp nội môn', title: 'STEM Tích hợp nội môn', description: 'Giảng dạy từng môn theo hướng thực tiễn, ứng dụng sáng tạo.',
-    subjects: ['Toán STEM', 'Lý STEM', 'Hóa STEM', 'Sinh STEM', 'Khoa học TN STEM', 'Tin học STEM'], levels: ['mamnon', 'tieuhoc', 'thcs', 'thpt', 'thpt_nghe'] },
-  { code: 'CT2', name: 'Liên môn', title: 'STEM Liên môn', description: 'Vận dụng kiến thức liên môn để giải quyết vấn đề thực tiễn.',
-    subjects: ['Toán STEM', 'Lý STEM', 'Hóa STEM', 'Sinh STEM', 'Công nghệ STEM'], levels: ['thcs', 'thpt'] },
-  { code: 'CT3', name: 'Đổi mới sáng tạo', title: 'STEM Đổi mới sáng tạo', description: 'Hoạt động sáng tạo, làm sản phẩm cụ thể.',
-    subjects: ['CLB Sáng tạo', 'Ngoại khóa STEM', 'Làm sản phẩm'], levels: ['tieuhoc', 'thcs', 'thpt'] },
-  { code: 'CT4', name: 'Robotic / AI', title: 'STEM Robotic · AI · Trải nghiệm', description: 'STEM định hướng đổi mới sáng tạo: Robotic, AI, Trải nghiệm.',
-    subjects: ['Robotic', 'AI & Lập trình', 'IoT'], levels: ['thcs', 'thpt', 'thpt_nghe'] },
-  { code: 'CT5', name: 'Nghiên cứu khoa học', title: 'STEM Nghiên cứu khoa học', description: 'Tập trung nghiên cứu khoa học độc lập.',
-    subjects: ['NCKH', 'Dự án Nghiên cứu'], levels: ['thcs', 'thpt'] },
+  { code: 'CT1', name: 'Bài học STEM', title: 'Bài học STEM', description: 'Dạy bài học của một hoặc nhiều môn theo phương thức STEM, xuất phát từ yêu cầu cần đạt của môn và SGK.',
+    subjects: ['Toán', 'Tự nhiên và Xã hội', 'Khoa học', 'Khoa học tự nhiên', 'Vật lí', 'Hóa học', 'Sinh học'], levels: ALL3, sort: 1,
+    edu_activity: 'chinh_khoa', school_pick_topics: true, school_arrange_ppct: true, schedule_mode: 'subject' },
+  { code: 'CT2', name: 'Trải nghiệm STEM cơ bản', title: 'Trải nghiệm STEM cơ bản', description: 'Chủ đề, dự án trải nghiệm STEM tiếp nối, mở rộng bài học STEM ở mức vận dụng.',
+    subjects: [], levels: ALL3, sort: 2, edu_activity: 'tang_cuong', school_pick_topics: false, school_arrange_ppct: true, schedule_mode: 'timetable' },
+  { code: 'CT3', name: 'Trải nghiệm STEM nâng cao', title: 'Trải nghiệm STEM nâng cao', description: 'Giáo dục STEM về lập trình, robot, AI, IoT và giáo dục STEM ngoài nhà trường.',
+    subjects: [], levels: ALL3, sort: 3, edu_activity: 'theo_nhu_cau', school_pick_topics: false, school_arrange_ppct: true, schedule_mode: 'register' },
+  { code: 'CT4', name: 'Nghiên cứu khoa học, kĩ thuật', title: 'Nghiên cứu khoa học, kĩ thuật', description: 'Đề tài, dự án nghiên cứu khoa học của cá nhân hoặc nhóm, có giáo viên / nhà khoa học hướng dẫn.',
+    subjects: [], levels: ALL3, sort: 4, edu_activity: 'theo_nhu_cau', school_pick_topics: false, school_arrange_ppct: true, schedule_mode: 'subject' },
 ]
 
 let cache: StemTrack[] | null = null
@@ -39,7 +52,7 @@ function fetchTracks(force = false): Promise<StemTrack[]> {
   return pending
 }
 
-// Màu của từng loại: CT1–CT5 giữ màu cũ, loại thêm sau lấy màu theo mã (ổn định giữa các lần mở)
+// Màu của từng loại: CT1–CT4 giữ màu cũ (CT5 cũ để màu cho dữ liệu chưa chuyển), loại thêm sau lấy màu theo mã (ổn định giữa các lần mở)
 const BASE_COLOR: Record<string, string> = { CT1: '#64748b', CT2: '#2e95f2', CT3: '#7c3aed', CT4: '#dc2626', CT5: '#16a34a' }
 const EXTRA_COLOR = ['#0f766e', '#b45309', '#be185d', '#4338ca', '#15803d', '#a21caf', '#0369a1', '#9a3412']
 export function trackColor(code: string): string {

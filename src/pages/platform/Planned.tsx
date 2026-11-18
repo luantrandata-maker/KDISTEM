@@ -20,7 +20,7 @@ const S = ['THCS Lê Quý Đôn', 'TH Kim Đồng', 'THCS Nguyễn Trãi', 'TH&T
 export const PLANNED: Record<string, Cfg> = {
   'Thuật ngữ chuẩn': { desc: 'Từ điển dùng chung để tất cả phân hệ, báo cáo và trợ lý AI hiểu cùng một nghĩa.', primary: 'Thêm thuật ngữ',
     tabs: ['Tất cả', 'Đào tạo', 'Thiết bị', 'Kinh doanh'], cols: ['Thuật ngữ', 'Định nghĩa', 'Mã', 'Phân hệ dùng'],
-    rows: [['Buổi dạy', 'Một lần lên lớp theo TKB, gắn với lớp, GV, phòng và chủ đề', 'SESSION', 'Lịch dạy, Điểm danh'], ['Chủ đề STEM', 'Đơn vị nội dung gồm nhiều buổi, thuộc 1 chương trình CT1–CT5', 'TOPIC', 'Chương trình, Học liệu'], ['Tỉ lệ chuyên cần', 'Số lượt có mặt / số lượt phải có mặt trong kỳ', 'ATT_RATE', 'Dashboard, KPI'], ['Phiếu mượn', 'Yêu cầu mượn thiết bị/phòng có thời hạn trả', 'LOAN', 'Thiết bị, Phòng STEM'], ['Nghiệm thu', 'Xác nhận hoàn thành một đợt dịch vụ theo hợp đồng', 'ACCEPT', 'Thương mại']] },
+    rows: [['Buổi dạy', 'Một lần lên lớp theo TKB, gắn với lớp, GV, phòng và chủ đề', 'SESSION', 'Lịch dạy, Điểm danh'], ['Chủ đề STEM', 'Đơn vị nội dung gồm nhiều buổi, thuộc 1 chương trình CT1–CT4', 'TOPIC', 'Chương trình, Học liệu'], ['Tỉ lệ chuyên cần', 'Số lượt có mặt / số lượt phải có mặt trong kỳ', 'ATT_RATE', 'Dashboard, KPI'], ['Phiếu mượn', 'Yêu cầu mượn thiết bị/phòng có thời hạn trả', 'LOAN', 'Thiết bị, Phòng STEM'], ['Nghiệm thu', 'Xác nhận hoàn thành một đợt dịch vụ theo hợp đồng', 'ACCEPT', 'Thương mại']] },
 
   'Giao diện & thương hiệu': { desc: 'Logo, màu chủ đạo và tên miền riêng cho từng đơn vị khách hàng.', primary: 'Lưu thay đổi',
     cards: [['info', 'Logo & favicon', 'PNG/SVG nền trong, tối thiểu 256px', 'Đã tải lên'], ['warn', 'Màu chủ đạo', 'Navy #152E5D · nhấn cam #F2A53F', 'Áp dụng toàn hệ thống'], ['ok', 'Tên miền', '[TÊN MIỀN]', 'SSL hợp lệ']],
@@ -70,7 +70,7 @@ export const PLANNED: Record<string, Cfg> = {
   'Chỉ tiêu & bộ chỉ số': { desc: 'Sở giao chỉ tiêu STEM theo năm học cho trường/xã (số chủ đề, tiết STEM, GV đạt đào tạo, sử dụng phòng); bộ chỉ số và STEM Index tính tự động từ dữ liệu vận hành.', primary: 'Giao chỉ tiêu',
     kpis: [['Trường đạt chỉ tiêu', '14/21', 'HK I', 'warn'], ['STEM Index toàn tỉnh', '72', '+5 so với năm trước', 'good'], ['Chỉ số dưới ngưỡng', '3', 'cần can thiệp', 'bad']],
     tabs: ['Chỉ tiêu', 'Bộ chỉ số', 'STEM Index'], cols: ['Chỉ số', 'Đơn vị nhận', 'Chỉ tiêu', 'Thực hiện', 'Tiến độ', 'Trạng thái'], action: 'Chi tiết',
-    rows: [['Tiết STEM / lớp / tháng', 'Toàn tỉnh', '4', '3,6', '%90', '~ok:Đúng tiến độ'], ['GV đạt đào tạo STEM', 'Toàn tỉnh', '80%', '68%', '%85', '~warn:Chậm'], ['Công suất phòng STEM', S[1], '60%', '31%', '%52', '~bad:Dưới ngưỡng'], ['Chủ đề CT1–CT5 / năm', S[0], '5', '4', '%80', '~ok:Đúng tiến độ']] },
+    rows: [['Tiết STEM / lớp / tháng', 'Toàn tỉnh', '4', '3,6', '%90', '~ok:Đúng tiến độ'], ['GV đạt đào tạo STEM', 'Toàn tỉnh', '80%', '68%', '%85', '~warn:Chậm'], ['Công suất phòng STEM', S[1], '60%', '31%', '%52', '~bad:Dưới ngưỡng'], ['Chủ đề CT1–CT4 / năm', S[0], '5', '4', '%80', '~ok:Đúng tiến độ']] },
   'Cảnh báo & so sánh trường': { desc: 'Tự phát hiện trường cần chú ý (không dạy STEM, chưa điểm danh, phòng bỏ trống, thiết bị hỏng nhiều) và so sánh giữa trường, xã/phường, cùng cấp học.', primary: 'Cấu hình cảnh báo',
     kpis: [['Trường cần chú ý', '4', 'tuần này', 'bad'], ['Cảnh báo mới', '7', ''], ['Đã xử lý', '11', '30 ngày qua', 'good']],
     tabs: ['Cảnh báo', 'So sánh trường', 'So sánh xã/phường'], cols: ['Trường', 'Cảnh báo', 'Từ ngày', 'Mức', 'Người phụ trách', 'Trạng thái'], action: 'Xem',
@@ -138,7 +138,7 @@ const DESC: Record<string, string> = {
   'Học liệu đào tạo': 'Nội dung đào tạo, bài giảng, link tài liệu, định mức vật tư và kho hoạt động của các chương trình đào tạo.',
   'Kiểm tra & luyện tập': 'Bài test nội dung, đề cuối khoá, đề luyện cho giáo viên, kết quả theo đề và câu hay sai; ngân hàng câu hỏi dùng chung.',
   'Chứng chỉ đào tạo': 'Chứng chỉ cấp sau đào tạo: tra cứu, thu hồi, thống kê theo Sở/trường (trường đã có ở cổng Trường).',
-  'Phân phối chương trình': 'Phân phối chương trình CT1–CT5 theo khối, số tiết; mẫu chung để trường áp dụng (trường đã có ở cổng Trường).',
+  'Phân phối chương trình': 'Phân phối chương trình CT1–CT4 theo khối, số tiết; mẫu chung để trường áp dụng (trường đã có ở cổng Trường).',
   'Soạn bài giảng & kho hoạt động': 'Thống kê bài giảng và 8 mẫu hoạt động tương tác trên toàn hệ thống; quản lý mẫu dùng chung (giáo viên đã có ở cổng Giáo viên).',
   'Kho & tồn kho': 'Kho tổng KDI và kho từng cơ sở: tồn kho thiết bị, vật tư tiêu hao, cảnh báo dưới mức tối thiểu.',
   'Cấp phát & bàn giao': 'Cấp phát thiết bị/vật tư cho trường, lớp; biên bản bàn giao có ký xác nhận.',

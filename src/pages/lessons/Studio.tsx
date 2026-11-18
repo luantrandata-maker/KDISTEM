@@ -511,7 +511,7 @@ function LessonTab({ p, upd, ro }: TabP) {
   if (!l) return (
     <div className="panel">
       <b>Chưa có bài giảng tương tác.</b>
-      <p className="sub">Soạn bài giảng theo tiến trình {p.program ?? 'CT1–CT5'}: mỗi giai đoạn gồm các khối nội dung — đoạn văn, hình, video, mô phỏng 2D, giáo cụ ảo, kéo – thả, câu hỏi, game, rubric. Học sinh học trên máy, thầy cô trình chiếu từng khối.</p>
+      <p className="sub">Soạn bài giảng theo tiến trình {p.program ?? 'CT1–CT4'}: mỗi giai đoạn gồm các khối nội dung — đoạn văn, hình, video, mô phỏng 2D, giáo cụ ảo, kéo – thả, câu hỏi, game, rubric. Học sinh học trên máy, thầy cô trình chiếu từng khối.</p>
       {!ro && <div className="tools">{codes.map(c => <button key={c} className={c === (p.program ?? 'CT1') ? 'primary' : ''} onClick={() => upd({ lesson: emptyLesson(c), program: p.program ?? c })}>Tiến trình {c}</button>)}</div>}
     </div>
   )

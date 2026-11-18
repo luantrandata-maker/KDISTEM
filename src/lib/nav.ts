@@ -15,6 +15,7 @@ export const ROLE_LABEL: Record<RoleKey, string> = {
 //     ô Tìm chức năng, Sơ đồ hệ thống đều đọc qua labelOf().
 export const LABEL: Partial<Record<RoleKey | '*', Record<string, string>>> = {
   // ví dụ: department: { 'Dashboard toàn Sở': 'Tổng quan toàn Sở' },
+  '*': { 'Chương trình CT1–CT5': 'Chương trình CT1–CT4' },   // 147: còn 4 loại chương trình
   school_admin: { 'Quản lý Phòng STEM': 'Quản lý phòng' },   // 056: phòng STEM, phòng học, kho
   platform: { 'Theo dõi chương trình CT1–CT5 (Môn học)': 'Theo dõi Chương trình/Môn học' },   // theo video demo Phân hệ 2 (23/10). Tạm thời mở từ nút góc phải trang Chương trình giáo dục (không có trong menu)
 }

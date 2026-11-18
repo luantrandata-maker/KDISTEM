@@ -12,7 +12,7 @@ export type SchoolStat = {
 export type SubjectStat = { subject: string; total: number; stem: number; classes: number; schools: number; students: number }
 
 export const LEVEL: Record<string, string> = { mamnon: 'Mầm non', tieuhoc: 'Tiểu học', thcs: 'THCS', thpt: 'THPT' }
-export const PROGRAMS = ['CT1', 'CT2', 'CT3', 'CT4', 'CT5'] as const
+export const PROGRAMS = ['CT1', 'CT2', 'CT3', 'CT4'] as const
 
 // Một lần tải cho tất cả màn của Sở (cache 60 giây trong phiên)
 let cache: { at: number; schools: SchoolStat[]; subjects: SubjectStat[] } | null = null
@@ -60,7 +60,7 @@ export function byWard(schools: SchoolStat[]) {
 // Chỉ số trường dùng chung cho bản đồ nhiệt và bản đồ độ phủ STEM (max = mục tiêu, tô đậm nhất)
 export const HEAT: { key: string; label: string; get: (s: SchoolStat) => number; fmt: (v: number) => string; max: number }[] = [
   { key: 'kpi', label: 'KPI', get: s => s.kpi, fmt: v => String(v), max: 100 },
-  { key: 'ct', label: 'Phủ CT1–CT5', get: s => s.programs.length, fmt: v => `${v}/5`, max: 5 },
+  { key: 'ct', label: 'Phủ CT1–CT4', get: s => s.programs.length, fmt: v => `${v}/4`, max: 4 },
   { key: 'room', label: 'Phòng STEM', get: s => s.rooms_active, fmt: v => String(v), max: 4 },
   { key: 'per', label: 'Tiết STEM/lớp', get: s => (s.classes ? s.stem_periods / s.classes : 0), fmt: v => v.toFixed(1), max: 3 },
   { key: 'train', label: 'GV đào tạo', get: s => pct(s.training_done, s.teachers), fmt: v => v + '%', max: 100 },

@@ -56,7 +56,7 @@ const blockCount = (l: ILesson | null) => lessonStats(l).blocks
 // Chọn loại bài giảng khi tạo
 function LessonModePicker({ value, onChange, locked }: { value: LMode; onChange: (m: LMode) => void; locked?: boolean }) {
   const opts: [LMode, string, string][] = [
-    ['interactive', 'Bài giảng tương tác', 'Các khối nội dung theo tiến trình CT1–CT5: văn bản, hình, video, mô phỏng, giáo cụ ảo, câu hỏi, game. Học sinh học trên máy.'],
+    ['interactive', 'Bài giảng tương tác', 'Các khối nội dung theo tiến trình CT1–CT4: văn bản, hình, video, mô phỏng, giáo cụ ảo, câu hỏi, game. Học sinh học trên máy.'],
     ['slides', 'Slide bài giảng', 'Slide trình chiếu soạn tại đây, hoặc tải tệp PowerPoint / PDF, hoặc dán đường dẫn Canva, Google Slides.'],
   ]
   return <div className="lmodes" role="radiogroup" aria-label="Loại bài giảng">

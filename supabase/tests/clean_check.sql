@@ -18,7 +18,9 @@ declare
     'service_modules',      -- danh mục phân hệ PH1–PH5
     'service_plans',        -- danh mục gói dịch vụ
     'service_plans_legacy', -- bản ghi gói cũ trước 033
-    'stem_tracks',          -- danh mục chương trình STEM CT1–CT5 (062, 5 dòng cố định)
+    'stem_tracks',          -- danh mục loại chương trình CT1–CT4 (062, 147: 4 dòng cố định)
+    'material_groups',      -- danh mục nhóm vật tư mặc định Nhóm 1–3 của KDI (147)
+    'program_modules',      -- danh mục học phần của khung chương trình KDI theo file bộ phận chương trình (147)
     'subjects',             -- danh mục môn học hệ thống của KDI (064)
     'edu_levels',           -- danh mục cấp học & khối (065)
     'dist_tiers',           -- danh mục mức độ của bản phân phối (078)

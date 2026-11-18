@@ -2285,15 +2285,30 @@ select pg_temp.chk('hs_kb', 'Ôn tập: học sinh xem chủ đề em cần ôn'
 select pg_temp.chk('admin_ph', 'Ôn tập: trường khác không xem của học sinh trường B', format($q$select count(*) from elearning_my_review(%L)$q$, (select id from students where student_code = 'ISO-001')), '0');
 
 -- ===== 062: danh mục chương trình STEM CT1–CT5 =====
-select pg_temp.chk('admin_ph', 'Danh mục nhóm chương trình: trường đọc được (CT1–CT5, KDI-SC, Đề xuất)', $q$select count(*) from stem_tracks$q$, '7');
-select pg_temp.chk('hs_kb', 'Danh mục nhóm chương trình: học sinh đọc được', $q$select count(*) from stem_tracks$q$, '7');
+select pg_temp.chk('admin_ph', 'Danh mục nhóm chương trình: trường đọc được (CT1–CT4, KDI-SC, Đề xuất)', $q$select count(*) from stem_tracks$q$, '6');
+select pg_temp.chk('hs_kb', 'Danh mục nhóm chương trình: học sinh đọc được', $q$select count(*) from stem_tracks$q$, '6');
 select pg_temp.chk('kdi', 'Danh mục CT1–CT5: quản trị nền tảng sửa được',
   $q$with x as (update stem_tracks set description = description where code = 'CT1' returning 1) select count(*) from x$q$, '1');
 select pg_temp.chk('so_hy', 'Danh mục CT1–CT5: Sở không sửa được', $q$with x as (update stem_tracks set name = 'ISO' where code = 'CT1' returning 1) select count(*) from x$q$, '0');
 select pg_temp.chk('admin_ph', 'Danh mục CT1–CT5: trường không sửa được', $q$with x as (update stem_tracks set name = 'ISO' where code = 'CT1' returning 1) select count(*) from x$q$, '0');
 select pg_temp.chk('kdi', 'Danh mục loại CT: mã sai định dạng bị chặn', $q$insert into stem_tracks (code, name, title) values ('ct 6', 'ISO', 'ISO')$q$, 'ERR*');
-select pg_temp.chk('so_hy', 'Danh mục loại CT: Sở không xoá được', $q$with x as (delete from stem_tracks where code = 'CT5' returning 1) select count(*) from x$q$, '0');
-select pg_temp.chk('kdi', 'Danh mục loại CT: không xoá loại đang được dùng', $q$with x as (delete from stem_tracks where code = 'CT5' returning 1) select count(*) from x$q$, 'ERR*');
+select pg_temp.chk('so_hy', 'Danh mục loại CT: Sở không xoá được', $q$with x as (delete from stem_tracks where code = 'CT4' returning 1) select count(*) from x$q$, '0');
+select pg_temp.chk('kdi', 'Danh mục loại CT: không xoá loại đang được dùng', $q$with x as (delete from stem_tracks where code = 'CT4' returning 1) select count(*) from x$q$, 'ERR*');
+
+-- ===== 147: khung chương trình mới (4 loại, học phần, chủ đề theo khối, nhóm vật tư) =====
+select pg_temp.chk('kdi', 'Khung CT: CT5 cũ đã bỏ', $q$select count(*) from stem_tracks where code = 'CT5'$q$, '0');
+select pg_temp.chk('kdi', 'Khung CT: CT1 cho trường tự chọn chủ đề, dạy trong tiết môn', $q$select school_pick_topics::text || ' ' || schedule_mode from stem_tracks where code = 'CT1'$q$, 'true subject');
+select pg_temp.chk('admin_ph', 'Khung CT: trường đọc được học phần', $q$select (count(*) > 0)::text from program_modules$q$, 'true');
+select pg_temp.chk('hs_kb', 'Khung CT: học sinh đọc được nhóm vật tư', $q$select count(*) from material_groups$q$, '3');
+select pg_temp.chk('kdi', 'Khung CT: KDI thêm được chủ đề',
+  $q$with x as (insert into program_topics (module_id, grade, seq, title, periods) select id, 3, 1, 'ISO chủ đề', 2 from program_modules where track_code = 'CT2' order by sort limit 1 returning 1) select count(*) from x$q$, '1');
+select pg_temp.chk('admin_ph', 'Khung CT: trường không thêm được học phần', $q$insert into program_modules (track_code, name) values ('CT2', 'ISO')$q$, 'ERR*');
+select pg_temp.chk('so_hy', 'Khung CT: Sở không sửa được chủ đề', $q$with x as (update program_topics set title = 'ISO' returning 1) select count(*) from x$q$, '0');
+select pg_temp.chk('admin_ph', 'Khung CT: trường không xoá được nhóm vật tư', $q$with x as (delete from material_groups returning 1) select count(*) from x$q$, '0');
+select pg_temp.chk('kdi', 'Khung CT: không xoá học phần còn chủ đề', $q$with m as (select id from program_modules where track_code = 'CT2' order by sort limit 1),
+       t as (insert into program_topics (module_id, grade, title) select id, 3, 'ISO' from m returning module_id),
+       x as (delete from program_modules where id in (select module_id from t) returning 1) select count(*) from x$q$, 'ERR*');
+select pg_temp.chk('kdi', 'Khung CT: khối 0 bị chặn', $q$insert into program_topics (module_id, grade, title) select id, 0, 'ISO' from program_modules limit 1$q$, 'ERR*');
 
 -- ===== 063: bài giảng tương tác dạng khối, hoạt động trò chơi / mô phỏng, thiết bị trong gói STEM =====
 select pg_temp.chk('gv_both', 'Bài giảng tương tác: lưu giáo án dạng khối',

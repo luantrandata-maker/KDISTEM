@@ -115,21 +115,18 @@ export function ProgramPackages() {
     {!n ? <p className="sub">Chưa có gói STEM.</p> :
     <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
       <div style={{ display: 'grid', gridTemplateColumns: `220px repeat(${n}, minmax(200px, 1fr))` }}>
-        {/* Hàng 1: tổng */}
-        <div style={{ ...labelS, borderTop: 0 }}><b>Tổng</b><br /><small className="sub">chương trình · học phần · chủ đề</small></div>
-        {packages.map(p => { const st = statOf(p.id)
-          return <div key={p.id} style={{ ...cellS, borderTop: 0 }}><div className="pkgstats"><div><b>{st.tracks.length}</b><small>CT</small></div><div><b>{st.mods.length}</b><small>Học phần</small></div><div><b>{st.topics}</b><small>Chủ đề</small></div></div></div> })}
-        {/* Hàng 2: tên gói */}
-        <div style={labelS}><small className="sub">Gói STEM</small></div>
-        {packages.map((p, k) => <div key={p.id} className={'pkghead pkgopen ' + (['basic', 'advanced', 'premium'][k % 3])} role="button" tabIndex={0}
+        {/* Hàng 1: tên gói và số liệu */}
+        <div style={{ ...labelS, borderTop: 0 }}><small className="sub">Gói STEM</small></div>
+        {packages.map((p, k) => { const st = statOf(p.id); return <div key={p.id} className={'pkghead pkgopen ' + (['basic', 'advanced', 'premium'][k % 3])} role="button" tabIndex={0}
           title="Bấm để xem chi tiết gói" onClick={() => { setMsg(''); setOpenId(p.id) }} onKeyDown={e => { if (e.key === 'Enter') { setMsg(''); setOpenId(p.id) } }}
           style={{ padding: '12px', color: '#fff', display: 'grid', gap: 4, alignContent: 'start', cursor: 'pointer', borderLeft: '1px solid rgba(255,255,255,.25)', ...(k % 3 === 0 && k ? { filter: 'hue-rotate(140deg)' } : {}) }}>
           <div className="bar" style={{ margin: 0, gap: 6 }}><b style={{ fontSize: '1.15em' }}>{p.name} ›</b>
             <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center', marginLeft: 'auto' }} onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
               <span className={'pill ' + (p.active ? 'active' : 'inactive')}>{p.active ? 'Đang dùng' : 'Ngừng dùng'}</span>
               {admin && <RowMenu items={pkgMenu(p).slice(1)} label={p.name} />}</span></div>
-          <small style={{ color: '#fff', opacity: .92 }}>{p.description || 'Chưa có mô tả.'}</small>
-        </div>)}
+          <small title={p.description} style={{ color: '#fff', opacity: .92, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.description || 'Chưa có mô tả.'}</small>
+          <div className="pkgnums"><div><b>{st.tracks.length}</b><small>Chương trình</small></div><div><b>{st.mods.length}</b><small>Học phần</small></div><div><b>{st.topics}</b><small>Chủ đề</small></div></div>
+        </div> })}
         {/* Mỗi loại chương trình một hàng */}
         {active.map(t => [
           <div key={t.code} style={{ ...labelS, boxShadow: `inset 4px 0 0 ${PROGRAM_COLOR[t.code] ?? 'var(--line)'}`, paddingLeft: 16 }}>{chip(t.code)}<br /><b>{t.name}</b><br /><small className="sub">{t.use_modules === false ? 'Chỉ có chủ đề theo khối' : 'Chia theo học phần'}</small></div>,

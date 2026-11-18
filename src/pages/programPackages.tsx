@@ -110,8 +110,6 @@ export function ProgramPackages() {
       <div><small>Học phần dùng trong gói</small><b>{allMods.size}</b></div>
       <div><small>Chủ đề</small><b>{allTopics}</b></div>
     </div>
-    <p className="sub" style={{ margin: '0 0 10px' }}>Cấu trúc: <b>Gói STEM</b> › <b>Loại chương trình</b> › <b>Học phần</b> (theo khối) › <b>Chủ đề</b>.
-      {diffKeys.size ? ` Các gói giống nhau, chỉ khác ở ${[...new Set([...diffKeys].map(k => k.split('|')[0]))].join(', ')} (ô tô cam).` : ''}</p>
     {!n ? <p className="sub">Chưa có gói STEM.</p> :
     <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
       <div style={{ display: 'grid', gridTemplateColumns: `220px repeat(${n}, minmax(200px, 1fr))` }}>
@@ -125,9 +123,7 @@ export function ProgramPackages() {
               <span className={'pill ' + (p.active ? 'active' : 'inactive')}>{p.active ? 'Đang dùng' : 'Ngừng dùng'}</span>
               {admin && <RowMenu items={pkgMenu(p).slice(1)} label={p.name} />}</span></div>
           <small title={p.description} style={{ color: '#fff', opacity: .92, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{p.description || 'Chưa có mô tả.'}</small>
-          {new URLSearchParams(location.search).get('n') === 'box'
-            ? <div className="pkgnums sm"><div><b>{st.tracks.length}</b><small>chương trình</small></div><div><b>{st.mods.length}</b><small>học phần</small></div><div><b>{st.topics}</b><small>chủ đề</small></div></div>
-            : <div className="pkgline"><span><b>{st.tracks.length}</b> chương trình</span><span><b>{st.mods.length}</b> học phần</span><span><b>{st.topics}</b> chủ đề</span></div>}
+          <div className="pkgnums sm"><div><b>{st.tracks.length}</b><small>chương trình</small></div><div><b>{st.mods.length}</b><small>học phần</small></div><div><b>{st.topics}</b><small>chủ đề</small></div></div>
         </div> })}
         {/* Mỗi loại chương trình một hàng */}
         {active.map(t => [
@@ -148,7 +144,9 @@ export function ProgramPackages() {
           })])}
       </div>
     </div>}
-    <p className="tablenote sub">Mỗi cột là một gói, mỗi hàng là một loại chương trình: đọc theo hàng để so sánh các gói. Bấm vào tên gói để xem học phần, chủ đề theo từng khối.</p>
+    <p className="sub" style={{ margin: '10px 0 0', fontSize: 13 }}>Cấu trúc: <b>Gói STEM</b> › <b>Loại chương trình</b> › <b>Học phần</b> (theo khối) › <b>Chủ đề</b>.
+      {diffKeys.size ? ` Các gói có cùng nội dung, chỉ khác nhau ở ${[...new Set([...diffKeys].map(k => k.split('|')[0]))].join(', ')}; ô nền vàng nhạt là phần khác biệt giữa các gói.` : ''}</p>
+    <p className="tablenote sub">Mỗi cột là một gói, mỗi hàng là một loại chương trình. Bấm vào tên gói để xem học phần, chủ đề theo từng khối.</p>
   </>
 }
 
@@ -207,7 +205,7 @@ function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg
               { key: 'p', label: 'Tiết / năm', text: g => String(its.filter(i => i.grade === g).reduce((x, i) => x + periods(i), 0)), cell: g => its.filter(i => i.grade === g).reduce((x, i) => x + periods(i), 0) || <small className="sub">—</small> },
             ] as Col<number>[]} />}
       </>)}
-    <p className="tablenote sub">Chọn loại chương trình, rồi chọn khối để xem gói học những học phần nào, mỗi học phần gồm những chủ đề nào. Ô tô cam: khác các gói khác. Chủ đề soạn ở tab "Khung chương trình".</p>
+    <p className="tablenote sub">Chọn loại chương trình, rồi chọn khối để xem gói học những học phần nào, mỗi học phần gồm những chủ đề nào. Ô nền vàng nhạt: khác biệt so với các gói khác. Chủ đề soạn ở tab "Khung chương trình".</p>
   </>
 }
 

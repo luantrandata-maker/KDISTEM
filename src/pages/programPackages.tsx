@@ -188,8 +188,6 @@ function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg
                 : <span className="hp">{mod(list[0].module_id)?.name ?? '?'} <i>(HP{sl})</i></span>}
             </button>
           }))] })}
-        <div className="lb ft"><b>Tiết / năm</b></div>
-        {allGrades.map(g => <div key={g} className="ft">{mine.filter(i => i.grade === g).reduce((x, i) => x + periods(i), 0) || '—'}</div>)}
       </div>
     </div>
     {sel && selTrack && <div className="panel" style={{ marginTop: 10, padding: '10px 12px' }}>

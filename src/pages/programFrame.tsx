@@ -126,7 +126,7 @@ export function ProgramFrame() {
         return <div key={g} className="panel pdcard" style={{ marginBottom: 12 }}>
           <div className="bar"><h4 style={{ margin: 0 }}>{gradeName(g)} <small className="sub">· {list.length} chủ đề · {sum(list)} tiết</small></h4>
             {admin && <div className="tools"><button type="button" onClick={() => setEditTopic(blank(g))}>+ Chủ đề {gradeName(g)}</button></div>}</div>
-          <TopicTable list={list} track={track} admin={admin} weeks onEdit={t => setEditTopic(t)} onDel={delTopic} onMove={moveTopic(list)} />
+          <TopicTable list={list} track={track} admin={admin} onEdit={t => setEditTopic(t)} onDel={delTopic} onMove={moveTopic(list)} />
         </div>
       })}
     </>
@@ -196,7 +196,7 @@ export function ProgramFrame() {
             if (!list.length) return null
             return <div key={m.id} className="panel pdcard" style={{ marginBottom: 12 }}>
               <h4 style={{ marginTop: 0 }}>{m.sort}. {m.name} <small className="sub">· {list.length} chủ đề · {sum(list)} tiết</small></h4>
-              <TopicTable list={list} track={track} admin={admin} showGrade={g === 'all'} weeks={g !== 'all'} onEdit={t => setEditTopic(t)} onDel={delTopic} onMove={g === 'all' ? undefined : moveTopic(list)} />
+              <TopicTable list={list} track={track} admin={admin} showGrade={g === 'all'} onEdit={t => setEditTopic(t)} onDel={delTopic} onMove={g === 'all' ? undefined : moveTopic(list)} />
             </div>
           })}
       </>}

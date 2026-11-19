@@ -2321,7 +2321,7 @@ select pg_temp.chk('kdi', 'Gói STEM: học phần khác loại chương trình 
   $q$update program_package_items set module_id = (select id from program_modules where track_code = 'CT3' limit 1) where track_code = 'CT2'$q$, 'ERR*');
 select pg_temp.chk('admin_ph', 'Gói STEM: trường không sửa được gói', $q$with x as (update program_packages set name = 'ISO' returning 1) select count(*) from x$q$, '0');
 select pg_temp.chk('so_hy', 'Gói STEM: Sở không xoá được học phần của gói', $q$with x as (delete from program_package_items returning 1) select count(*) from x$q$, '0');
-select pg_temp.chk('kdi', 'Bài học STEM: 10 chủ đề mẫu mỗi khối', $q$select count(*) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 7$q$, '10');
+select pg_temp.chk('kdi', 'Bài học STEM: 10 chủ đề mẫu mỗi khối', $q$select count(*) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 8$q$, '10');
 
 -- ===== 149: loại chương trình chỉ có chủ đề (không chia học phần) =====
 select pg_temp.chk('kdi', 'Loại chương trình: CT1, CT4 chỉ có chủ đề', $q$select string_agg(code, ',' order by code) from stem_tracks where not use_modules$q$, 'CT1,CT4');
@@ -2330,9 +2330,12 @@ select pg_temp.chk('kdi', 'Loại chương trình: CT1, CT4 chỉ có chủ đ�
 select pg_temp.chk('kdi', 'Khung chương trình: chủ đề có cột sản phẩm', $q$select count(*) from information_schema.columns where table_name = 'program_topics' and column_name = 'product'$q$, '1');
 select pg_temp.chk('admin_ph', 'Khung chương trình: trường không sửa được sản phẩm của chủ đề', $q$with x as (update program_topics set product = 'ISO' returning 1) select count(*) from x$q$, '0');
 
--- ===== 151: dữ liệu test CT1 Khối 3, Sáng chế Khối 6 =====
-select pg_temp.chk('kdi', 'Dữ liệu test: CT1 Khối 3 có 16 chủ đề, 32 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 3$q$, '16,32');
-select pg_temp.chk('kdi', 'Dữ liệu test: Sáng chế Khối 6 có 11 chủ đề, 32 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT2' and m.name = 'Sáng chế' and t.grade = 6$q$, '11,32');
+-- ===== 151, 152: dữ liệu test CT1 Khối 6, Sáng chế Khối 6 =====
+select pg_temp.chk('kdi', 'Dữ liệu test: CT1 Khối 6 có 16 chủ đề, 32 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 6$q$, '16,32');
+select pg_temp.chk('kdi', 'Dữ liệu test: CT1 Khối 7 có 16 chủ đề, 35 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 7$q$, '16,35');
+select pg_temp.chk('kdi', 'Dữ liệu test: CT1 Khối 3 trả lại 10 chủ đề mẫu', $q$select count(*) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 3$q$, '10');
+select pg_temp.chk('kdi', 'Dữ liệu test: Sáng chế Khối 6 có 16 chủ đề, 48 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT2' and m.name = 'Sáng chế' and t.grade = 6$q$, '16,48');
+select pg_temp.chk('kdi', 'Dữ liệu test: Sáng chế Khối 7 có 14 chủ đề, 48 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT2' and m.name = 'Sáng chế' and t.grade = 7$q$, '14,48');
 
 -- ===== 063: bài giảng tương tác dạng khối, hoạt động trò chơi / mô phỏng, thiết bị trong gói STEM =====
 select pg_temp.chk('gv_both', 'Bài giảng tương tác: lưu giáo án dạng khối',

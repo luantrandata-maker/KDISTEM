@@ -3710,3 +3710,7 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .pkggrid .alt,.main .pkggrid button.gc.alt{background:#eef5ff}
 .pkggrid .grp{border-top:2px solid #cbd5e1}
 .main .pkggrid button.gc.alt:hover:not(:disabled){background:#f1f5f9}
+/* Số chủ đề trên chip khối: tách khỏi tên khối để không đọc nhầm "Khối 1 10" */
+.main .distfchip .cnt{display:inline-block;min-width:20px;padding:0 6px;margin-left:4px;border-radius:999px;background:#eef1f5;color:var(--muted);font-size:11px;font-weight:600;line-height:18px;text-align:center}
+.main .distfchip.on .cnt{background:rgba(255,255,255,.22);color:#fff}
+.main .distfilter .distfchip:has(.cnt){padding:4px 10px}

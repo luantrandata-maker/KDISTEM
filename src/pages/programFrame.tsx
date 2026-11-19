@@ -11,6 +11,7 @@ import { ElView } from '../components/ElView'
 import { ActionBar, type Act } from '../components/ActionBar'
 import { SubjectMulti, SubjectPicker } from '../components/Pickers'
 import { Chip } from './dist/Editor'
+import { OneLine } from '../components/LongCell'
 
 // Khung chương trình (147): KDI chọn loại chương trình → danh sách học phần → chủ đề theo từng khối.
 // Học phần dùng chung giữa các gói và các khối (CT1, CT4 có một học phần "CHUNG"); mỗi chủ đề thuộc một khối, có thứ tự cố định
@@ -34,7 +35,7 @@ export function ProgramFrame() {
   const [openId, setOpenId] = useState<string | null>(null)
   const [editMod, setEditMod] = useState<ProgramModule | null>(null)
   const [editTopic, setEditTopic] = useState<TopicDraft | null>(null)
-  const [grade, setGrade] = useState<number | null>(null)
+  const [grade, setGrade] = useState<number | 'all' | null>(null)
   const reload = () => loadFrame().then(r => { setModules(r.modules); setTopics(r.topics); setMsg(r.error) })
   useEffect(() => { supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)); reload() }, [])
   const track = tracks.find(t => t.code === code) ?? active[0]
@@ -123,9 +124,9 @@ export function ProgramFrame() {
       {gs.map(g => {
         const list = ts.filter(t => t.grade === g)
         return <div key={g} className="panel pdcard" style={{ marginBottom: 12 }}>
-          <div className="bar"><h4 style={{ margin: 0 }}>{gradeName(g)} <small className="sub">· {list.length} chủ đề · {sum(list)} tiết</small></h4>
+          <div className="bar"><h4 style={{ margin: 0 }}>{gradeName(g)} {list[0]?.code && <span className="progchip" style={{ background: '#eef1f5', color: 'var(--navy)' }}>{list[0].code.replace(/-\d+$/, '')}</span>} <small className="sub">· {list.length} chủ đề · {sum(list)} tiết</small></h4>
             {admin && <div className="tools"><button type="button" onClick={() => setEditTopic(blank(g))}>+ Chủ đề {gradeName(g)}</button></div>}</div>
-          <TopicTable list={list} track={track} admin={admin} onEdit={t => setEditTopic(t)} onDel={delTopic} onMove={moveTopic(list)} />
+          <TopicTable list={list} track={track} admin={admin} weeks onEdit={t => setEditTopic(t)} onDel={delTopic} onMove={moveTopic(list)} />
         </div>
       })}
     </>
@@ -150,10 +151,10 @@ export function ProgramFrame() {
   }
   const g = grade ?? grades[0] ?? null
   const showGrade = flat || view === 'grade'
-  const gTopics = g === null ? [] : trackTopics.filter(t => t.grade === g)
+  const gTopics = g === null ? [] : g === 'all' ? [...trackTopics].sort((a, b) => a.grade - b.grade || a.seq - b.seq) : trackTopics.filter(t => t.grade === g)
   return <>
     {admin && track && <HeadAction>{flat
-      ? <button type="button" className="primary ttadd" onClick={() => addFlatTopic(g ?? 1)}>+ Thêm chủ đề{g !== null ? ' ' + gradeName(g) : ''}</button>
+      ? <button type="button" className="primary ttadd" onClick={() => addFlatTopic(typeof g === 'number' ? g : 1)}>+ Thêm chủ đề{typeof g === 'number' ? ' ' + gradeName(g) : ''}</button>
       : <button type="button" className="primary ttadd"
         onClick={() => setEditMod({ id: '', track_code: track.code, name: '', description: '', periods: null, sort: mods.reduce((x, m) => Math.max(x, m.sort), 0) + 1, active: true })}>+ Thêm học phần</button>}</HeadAction>}
     <div className="distfilter" role="group" aria-label="Loại chương trình">
@@ -175,20 +176,24 @@ export function ProgramFrame() {
         empty={`Loại ${track?.code ?? ''} chưa có học phần.`} />
       : <>
         <div className="distfilter" role="group" aria-label="Khối">
+          <button type="button" className={'distfchip' + (g === 'all' ? ' on' : '')} aria-pressed={g === 'all'} onClick={() => setGrade('all')}>
+            Tất cả <span className="cnt" title="Số chủ đề">{trackTopics.length}</span></button>
           {(grades.length ? grades : flat ? [1] : []).map(x => <button key={x} type="button" className={'distfchip' + (g === x ? ' on' : '')} aria-pressed={g === x} onClick={() => setGrade(x)}>
-            {gradeName(x)} <b>{trackTopics.filter(t => t.grade === x).length}</b></button>)}
+            {gradeName(x)} <span className="cnt" title="Số chủ đề">{trackTopics.filter(t => t.grade === x).length}</span></button>)}
           {flat && admin && <select value="" onChange={e => { if (e.target.value) { setGrade(Number(e.target.value)); addFlatTopic(Number(e.target.value)) } }} aria-label="Thêm chủ đề cho khối khác">
             <option value="">+ Khối khác…</option>{Array.from({ length: 12 }, (_, k) => k + 1).filter(x => !grades.includes(x)).map(x => <option key={x} value={x}>{gradeName(x)}</option>)}</select>}
           {g !== null && <small className="sub">{gTopics.length} chủ đề · {sum(gTopics)} tiết</small>}
         </div>
         {flat
-          ? <TopicTable list={[...gTopics].sort((a, b) => a.seq - b.seq)} track={track} admin={admin} onEdit={t => setEditTopic(t)} onDel={delTopic} onMove={moveTopic([...gTopics].sort((a, b) => a.seq - b.seq))} />
+          ? g === 'all'
+            ? <TopicTable list={gTopics} track={track} admin={admin} showGrade onEdit={t => setEditTopic(t)} onDel={delTopic} />
+            : <TopicTable list={[...gTopics].sort((a, b) => a.seq - b.seq)} track={track} admin={admin} onEdit={t => setEditTopic(t)} onDel={delTopic} onMove={moveTopic([...gTopics].sort((a, b) => a.seq - b.seq))} />
           : g !== null && mods.map(m => {
-            const list = topicsOf(m.id).filter(t => t.grade === g)
+            const list = topicsOf(m.id).filter(t => g === 'all' || t.grade === g)
             if (!list.length) return null
             return <div key={m.id} className="panel pdcard" style={{ marginBottom: 12 }}>
               <h4 style={{ marginTop: 0 }}>{m.sort}. {m.name} <small className="sub">· {list.length} chủ đề · {sum(list)} tiết</small></h4>
-              <TopicTable list={list} track={track} admin={admin} onEdit={t => setEditTopic(t)} onDel={delTopic} onMove={moveTopic(list)} />
+              <TopicTable list={list} track={track} admin={admin} showGrade={g === 'all'} weeks={g !== 'all'} onEdit={t => setEditTopic(t)} onDel={delTopic} onMove={g === 'all' ? undefined : moveTopic(list)} />
             </div>
           })}
       </>}
@@ -210,22 +215,29 @@ function useRowDrag(onMove: (from: string, to: string) => void) {
   }
 }
 
-function TopicTable({ list, track, admin, onEdit, onDel, onMove }: { list: ProgramTopic[]; track?: StemTrack; admin: boolean; onEdit: (t: ProgramTopic) => void; onDel: (t: ProgramTopic) => void; onMove?: (from: string, to: string) => void }) {
+function TopicTable({ list, track, admin, showGrade, weeks, onEdit, onDel, onMove }: { list: ProgramTopic[]; track?: StemTrack; admin: boolean; showGrade?: boolean; weeks?: boolean; onEdit: (t: ProgramTopic) => void; onDel: (t: ProgramTopic) => void; onMove?: (from: string, to: string) => void }) {
   const sgk = track?.schedule_mode === 'subject'
   const dnd = useRowDrag(onMove ?? (() => {}))
+  // Tuần học: mỗi tuần 1 tiết, chủ đề nhiều tiết kéo dài nhiều tuần (VD: Tuần 1–2)
+  const wk = new Map<string, string>(); let at = 1
+  for (const t of list) { const n = Math.max(1, t.periods || 1); wk.set(t.id, n > 1 ? `${at}–${at + n - 1}` : String(at)); at += n }
+  const dash = <small className="sub">—</small>
   const cols: Col<ProgramTopic>[] = [
-    { key: 'seq', label: 'TT', fixed: true, thClass: 'c-no', text: t => String(t.seq), cell: t => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{admin && onMove && dnd.handle(t.id, t.title)}{t.seq}</span> },
-    { key: 'code', label: 'Mã', off: true, text: t => t.code ?? '', cell: t => t.code || <small className="sub">—</small> },
-    { key: 'title', label: 'Chủ đề', fixed: true, thClass: 'c-ttl', text: t => t.title + ' ' + t.objectives,
-      cell: t => <>{admin ? <button type="button" className="namelink" onClick={() => onEdit(t)}>{t.title}</button> : <b>{t.title}</b>}
-        {t.objectives && <><br /><small className="sub" style={{ whiteSpace: 'pre-line' }}>{t.objectives}</small></>}</> },
+    { key: 'seq', label: weeks ? 'Tuần' : 'TT', fixed: true, thClass: 'c-no', text: t => weeks ? wk.get(t.id) ?? '' : String(t.seq),
+      cell: t => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, whiteSpace: 'nowrap' }}>{admin && onMove && dnd.handle(t.id, t.title)}{weeks ? wk.get(t.id) : t.seq}</span> },
+    ...(showGrade ? [{ key: 'g', label: 'Khối', text: (t: ProgramTopic) => gradeName(t.grade), values: (t: ProgramTopic) => [gradeName(t.grade)], cell: (t: ProgramTopic) => gradeName(t.grade) }] : []),
+    { key: 'code', label: 'Mã', off: true, text: t => t.code ?? '', cell: t => t.code || dash },
+    { key: 'title', label: 'Chủ đề', fixed: true, thClass: 'c-ttl', text: t => t.title,
+      cell: t => admin ? <button type="button" className="namelink" onClick={() => onEdit(t)}>{t.title}</button> : <b>{t.title}</b> },
     { key: 'p', label: 'Số tiết', text: t => String(t.periods), cell: t => t.periods },
-    { key: 'main', label: 'Môn chủ trì', text: t => t.main_subject ?? '', cell: t => t.main_subject || <small className="sub">—</small> },
-    { key: 'subs', label: 'Môn phối hợp', text: t => t.subjects.join(', '), values: t => t.subjects, cell: t => t.subjects.join(', ') || <small className="sub">—</small> },
-    ...(sgk ? [{ key: 'sgk', label: 'Bài SGK liên quan', text: (t: ProgramTopic) => t.textbook_ref, cell: (t: ProgramTopic) => t.textbook_ref || <small className="sub">—</small> }] : []),
-    { key: 'st', label: 'Trạng thái', text: t => t.active ? 'Đang dùng' : 'Ngừng dùng', cell: t => pill(t.active) },
+    { key: 'main', label: 'Môn chủ trì', text: t => t.main_subject ?? '', cell: t => t.main_subject || dash },
+    { key: 'subs', label: 'Môn phối hợp', text: t => t.subjects.join(', '), values: t => t.subjects, cell: t => t.subjects.join(', ') || dash },
+    { key: 'obj', label: 'Yêu cầu cần đạt', text: t => t.objectives, cell: t => <OneLine text={t.objectives} /> },
+    { key: 'prod', label: 'Sản phẩm', text: t => t.product ?? '', cell: t => <OneLine text={t.product ?? ''} /> },
+    ...(sgk ? [{ key: 'sgk', label: 'Bài SGK liên quan', off: true, text: (t: ProgramTopic) => t.textbook_ref, cell: (t: ProgramTopic) => t.textbook_ref || dash }] : []),
+    { key: 'st', label: 'Trạng thái', off: true, text: t => t.active ? 'Đang dùng' : 'Ngừng dùng', cell: t => pill(t.active) },
   ]
-  return <DataTable id="program-topics" className="slt" rowProps={admin && onMove ? t => dnd.row(t.id) : undefined} rows={list} rowKey={t => t.id} cols={cols} simple noTools noun="chủ đề"
+  return <DataTable id="program-topics" className="slt ttdense" rowProps={admin && onMove ? t => dnd.row(t.id) : undefined} rows={list} rowKey={t => t.id} cols={cols} simple noTools noun="chủ đề"
     rowMenu={admin ? t => [{ label: 'Sửa', onClick: () => onEdit(t) }, { label: 'Xoá', danger: true, onClick: () => onDel(t) }] : undefined} empty="Chưa có chủ đề." />
 }
 

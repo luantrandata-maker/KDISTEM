@@ -3731,3 +3731,10 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .cmptbl td:not(:first-child),.main .cmptbl th:not(:first-child){text-align:center}
 .main .cmptbl .cmpgrp td{background:var(--surface);font-weight:600;border-top:2px solid var(--line)}
 .main .fitscreen .cmptbl>thead>tr>th{position:sticky;top:0;z-index:2;background:var(--surface)}
+/* Bảng tổng quan gói STEM vừa một màn hình: hàng tên gói đứng yên khi cuộn trong khung */
+.main .fitscreen>.pkgover{overflow:visible;border-radius:8px}
+.main .pkgover .pkghead,.main .pkgover .pkgstick{position:sticky;top:0;z-index:3}
+/* Khung bảng kéo kín tới lề dưới màn hình dù ít dòng (giống bảng Chương trình) */
+.main .fitscreen.fsbox{border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.main .fitscreen.fsbox>table{border:0;border-radius:0;margin:0}
+.main .fitscreen>.pkgover{min-height:100%}

@@ -111,10 +111,10 @@ export function ProgramPackages() {
         <div key={l} style={{ '--k': c } as React.CSSProperties}><span className="ic">{ic}</span><div><b>{v}</b><span>{l}</span><small>{sub}</small></div></div>)}
     </div>
     {!n ? <p className="sub">Chưa có gói STEM.</p> :
-    <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
+    <FitScreen><div className="panel pkgover" style={{ padding: 0, margin: 0 }}>
       <div style={{ display: 'grid', gridTemplateColumns: `220px repeat(${n}, minmax(200px, 1fr))` }}>
         {/* Hàng 1: tên gói và số liệu */}
-        <div style={{ ...labelS, borderTop: 0, display: 'flex', alignItems: 'flex-end' }}><b>Loại chương trình (CT)</b></div>
+        <div className="pkgstick" style={{ ...labelS, borderTop: 0, display: 'flex', alignItems: 'flex-end' }}><b>Loại chương trình (CT)</b></div>
         {packages.map((p, k) => { const st = statOf(p.id); return <div key={p.id} className={'pkghead pkgopen ' + (['basic', 'advanced', 'premium'][k % 3])} role="button" tabIndex={0}
           title="Bấm để xem chi tiết gói" onClick={() => { setMsg(''); setOpenId(p.id) }} onKeyDown={e => { if (e.key === 'Enter') { setMsg(''); setOpenId(p.id) } }}
           style={{ padding: '12px', color: '#fff', display: 'grid', gap: 4, alignContent: 'start', cursor: 'pointer', borderLeft: '1px solid rgba(255,255,255,.25)', ...(k % 3 === 0 && k ? { filter: 'hue-rotate(140deg)' } : {}) }}>
@@ -143,7 +143,7 @@ export function ProgramPackages() {
             </div>
           })])}
       </div>
-    </div>}
+    </div></FitScreen>}
     <p className="sub" style={{ margin: '10px 0 0', fontSize: 13 }}>Cấu trúc: <b>Gói STEM</b> › <b>Loại chương trình</b> › <b>Học phần</b> (theo khối) › <b>Chủ đề</b>.
       {diffKeys.size ? ` Các gói có cùng nội dung, chỉ khác nhau ở ${[...new Set([...diffKeys].map(k => k.split('|')[0]))].join(', ')}; ô nền xanh nhạt là phần khác biệt giữa các gói.` : ''}</p>
     <p className="tablenote sub">Mỗi cột là một gói, mỗi hàng là một loại chương trình. Bấm vào tên gói để xem học phần, chủ đề theo từng khối.</p>
@@ -347,7 +347,7 @@ function CompareView({ tracks, packages, items, modName }: {
   return <>
     <div className="bar"><label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện học phần các gói khác nhau</label>
       {only && same.length > 0 && <small className="sub">{same.join(', ')} giống nhau ở mọi gói.</small>}</div>
-    <FitScreen>
+    <FitScreen className="fsbox">
       <table className="table cmptbl">
         <thead><tr><th>Học phần</th>{packages.map(p => <th key={p.id}>{p.name}</th>)}</tr></thead>
         {sections.map(({ t, rows }) => <tbody key={t.code}>

@@ -395,15 +395,15 @@ function CompareView({ tracks, packages, items, modName, grades, name, filter }:
       <button type="button" onClick={() => window.print()}>In / Xuất PDF</button>
     </div>
     <FitScreen className="fsbox">
-      {by === 'mod' ? <table className="table cmptbl">
+      {by === 'mod' ? <table className="table cmptbl cmplined cmpmodt">
         <thead><tr><th>Học phần · {name}</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(k)}>{p.name}</th>)}</tr></thead>
         {sections.map(({ t, rows }) => <tbody key={t.code}>
           <tr className="cmpgrp"><td colSpan={packages.length + 1}>{chip(t.code)} {t.name}</td></tr>
-          {rows.map(({ m, d }) => <tr key={m}><td>{t.use_modules === false ? 'Chủ đề theo khối' : modName(m)}</td>
-            {packages.map((p, k) => <td key={p.id} style={d ? DIFF : pkgTd(k)}>{has(p.id, m) ? <b style={{ color: PKG_C[k % PKG_C.length] }}>Có</b> : <span className="sub">—</span>}</td>)}</tr>)}
+          {rows.map(({ m }) => <tr key={m}><td>{t.use_modules === false ? 'Chủ đề theo khối' : modName(m)}</td>
+            {packages.map((p, k) => <td key={p.id} style={pkgTd(k)}>{has(p.id, m) ? 'Có' : <span className="sub">—</span>}</td>)}</tr>)}
         </tbody>)}
       </table>
-      : <table className="table cmptbl cmpgrade">
+      : <table className="table cmptbl cmpgrade cmplined">
         <thead><tr><th>Khối</th><th>Học phần</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(k)}>{p.name}</th>)}</tr></thead>
         {gsections.map(({ t, rows }) => <tbody key={t.code}>
           <tr className="cmpgrp"><td colSpan={packages.length + 2}>{chip(t.code)} {t.name}</td></tr>

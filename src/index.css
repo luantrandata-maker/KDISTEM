@@ -3770,3 +3770,8 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .cmpgrade th:nth-child(2){width:96px}
 .main .pkggrid .hpl{align-self:stretch;display:flex;align-items:center;justify-content:center}
 .main .fitscreen .cmptbl>thead>tr>th.pkgth{font-weight:700;font-size:13px}
+/* So sánh theo học phần: kẻ cột, cột gói rộng bằng nhau như bảng theo khối */
+.main .cmplined td,.main .cmplined th{border-right:1px solid var(--line)}
+.main .cmplined td:last-child,.main .cmplined th:last-child,.main .cmplined tr.cmpgrp td{border-right:0}
+.main .cmpmodt{table-layout:fixed}
+.main .cmpmodt th:first-child{width:236px}

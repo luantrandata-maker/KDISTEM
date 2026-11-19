@@ -149,10 +149,17 @@ export function ProgramFrame() {
         const byPart = [1, 2].map(k => list.filter(t => t.part === k))
         return <div key={g} className="panel pdcard" style={{ marginBottom: 12 }}>
           <div className="bar"><h4 className="pnhead" style={{ margin: 0 }}>{gradeName(g)} <small className="sub">· {list.length} chủ đề · {sum(list)} tiết</small>
-            {byPart.some(x => x.length) && byPart.map((x, k) => x.length > 0 && <small key={k} className="partchip" style={{ marginLeft: 8, fontWeight: 500 }}>
-              <span className="pill" style={{ background: PART_C[k], color: '#fff' }}>HP{k + 1}</span> <span className="sub">{x.length} chủ đề · {sum(x)} tiết</span></small>)}</h4>
+</h4>
             {admin && <div className="tools"><button type="button" onClick={() => setEditTopic(blank(g))}>+ Chủ đề {gradeName(g)}</button></div>}</div>
-          <TopicTable list={list} track={track} admin={admin} onOpen={t => { setMsg(''); setViewId(t.id) }} onMove={moveTopic(list)} />
+          {byPart.some(x => x.length)
+            // Gom theo phần: HP1, HP2, rồi chủ đề dùng chung (vị trí nào cũng lấy)
+            ? [...byPart, list.filter(t => !t.part)].map((x, k) => x.length > 0 && <div key={k} style={{ marginTop: k ? 14 : 0 }}>
+              <div style={{ margin: '0 0 6px', paddingLeft: 8, borderLeft: `4px solid ${k < 2 ? PART_C[k] : 'var(--line)'}`, lineHeight: 1.6 }}>
+                <b>{k < 2 ? `Học phần ${k + 1} (HP${k + 1})` : 'Dùng chung'}</b>
+                <span className="sub"> · {x.length} chủ đề · {sum(x)} tiết{k === 2 ? ' · gói dùng học phần ở vị trí nào cũng học' : ''}</span></div>
+              <TopicTable list={x} track={track} admin={admin} hidePart onOpen={t => { setMsg(''); setViewId(t.id) }} onMove={moveTopic(x)} />
+            </div>)
+            : <TopicTable list={list} track={track} admin={admin} hidePart onOpen={t => { setMsg(''); setViewId(t.id) }} onMove={moveTopic(list)} />}
         </div>
       })}
       {drawer}
@@ -248,7 +255,7 @@ function useRowDrag(onMove: (from: string, to: string) => void) {
 // Màu phần HP1 / HP2 của chủ đề trong học phần
 const PART_C = ['#2563eb', '#0d9488']
 
-function TopicTable({ list, track, admin, showGrade, weeks, onOpen, onMove }: { list: ProgramTopic[]; track?: StemTrack; admin: boolean; showGrade?: boolean; weeks?: boolean; onOpen: (t: ProgramTopic) => void; onMove?: (from: string, to: string) => void }) {
+function TopicTable({ list, track, admin, showGrade, weeks, hidePart, onOpen, onMove }: { list: ProgramTopic[]; track?: StemTrack; admin: boolean; showGrade?: boolean; weeks?: boolean; hidePart?: boolean; onOpen: (t: ProgramTopic) => void; onMove?: (from: string, to: string) => void }) {
   const sgk = track?.schedule_mode === 'subject'
   const dnd = useRowDrag(onMove ?? (() => {}))
   // Tuần học: mỗi tuần 1 tiết, chủ đề nhiều tiết kéo dài nhiều tuần (VD: Tuần 1–2)
@@ -263,7 +270,7 @@ function TopicTable({ list, track, admin, showGrade, weeks, onOpen, onMove }: { 
     { key: 'title', label: 'Chủ đề', fixed: true, thClass: 'c-ttl', text: t => t.title,
       cell: t => <b>{t.title}</b> },
     { key: 'p', label: 'Số tiết', text: t => String(t.periods), cell: t => t.periods },
-    ...(track?.use_modules !== false ? [{ key: 'part', label: 'Phần', text: (t: ProgramTopic) => t.part ? 'HP' + t.part : 'Chung', values: (t: ProgramTopic) => [t.part ? 'HP' + t.part : 'Chung'],
+    ...(track?.use_modules !== false && !hidePart ? [{ key: 'part', label: 'Phần', text: (t: ProgramTopic) => t.part ? 'HP' + t.part : 'Chung', values: (t: ProgramTopic) => [t.part ? 'HP' + t.part : 'Chung'],
       cell: (t: ProgramTopic) => t.part ? <span className="pill" style={{ background: PART_C[t.part - 1], color: '#fff' }}>HP{t.part}</span> : <span style={{ color: 'var(--muted)' }}>Chung</span> }] : []),
     { key: 'main', label: 'Môn chủ trì', text: t => t.main_subject ?? '', cell: t => t.main_subject || dash },
     { key: 'subs', label: 'Môn phối hợp', text: t => t.subjects.join(', '), values: t => t.subjects, cell: t => t.subjects.join(', ') || dash },

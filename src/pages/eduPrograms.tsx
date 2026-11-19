@@ -21,7 +21,7 @@ import { OrgPick, useAllMode, useAllOrgs } from '../components/OrgScope'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
 import { Tiles } from './department/charts'
-import { useStemTracks } from '../lib/stemTracks'
+import { useStemTracks, trackLabel } from '../lib/stemTracks'
 import { asLesson, lessonStats, LessonEditor, type ILesson } from '../lib/lessonBlocks'
 import { useSubjects } from './subjects'
 import { NameLink, SelTd, SelTh, useRowSel } from '../components/TableSel'
@@ -172,7 +172,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
       { key: 'lv', label: 'Cấp', width: 14 }, { key: 'g', label: 'Khối', width: 12 }, { key: 'ct', label: 'Nhóm', width: 12 }, { key: 'kind', label: 'Loại', width: 22 },
       { key: 'subj', label: 'Môn', width: 30 }, { key: 'int', label: 'Môn tích hợp', width: 30 }, { key: 'per', label: 'Số tiết' },
       { key: 'org', label: 'Đơn vị tạo', width: 28 }, { key: 'st', label: 'Trạng thái', width: 16 }, { key: 'upd', label: 'Cập nhật', width: 12 },
-    ], rs.map(p => [p.code ?? '', p.title, p.version_no, lvsOf(p).map(levelName).join(', '), grades(p), ctsOf(p).join(', '), PKIND[p.kind],
+    ], rs.map(p => [p.code ?? '', p.title, p.version_no, lvsOf(p).map(levelName).join(', '), grades(p), ctsOf(p).map(trackLabel).join(', '), PKIND[p.kind],
       mainsOf(p).join(', '), p.integrated_subjects.join(', '), p.total_periods ?? '', p.organizations?.name ?? '', PSTATUS[p.status][0], fmtD(p.updated_at)]))
   }
 
@@ -186,7 +186,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
       cell: p => <div className="eptitle"><NameLink onClick={() => setOpenId(p.id)}>{p.title}</NameLink>
         <small className="sub">{[p.code, 'v' + p.version_no, p.organizations?.name].filter(Boolean).join(' · ')}</small></div> },
     { key: 'grade', label: 'Khối', values: p => [grades(p)], text: p => grades(p), cell: p => grades(p) || '—' },
-    { key: 'group', label: 'Nhóm', values: p => ctsOf(p), text: p => ctsOf(p).join(' '), cell: p => ctsOf(p).length ? <span className="epgroups">{ctsOf(p).map(c => <span key={c} className="epgroup">{c}</span>)}</span> : '—' },
+    { key: 'group', label: 'Nhóm', values: p => ctsOf(p), text: p => ctsOf(p).map(trackLabel).join(' '), cell: p => ctsOf(p).length ? <span className="epgroups">{ctsOf(p).map(c => <span key={c} className="epgroup">{trackLabel(c)}</span>)}</span> : '—' },
     { key: 'lv', label: 'Cấp', off: true, values: p => lvsOf(p).map(levelName), text: p => lvsOf(p).map(levelName).join(', '), cell: p => lvsOf(p).map(levelName).join(', ') || '—' },
     { key: 'kind', label: 'Loại', off: true, text: p => PKIND[p.kind], cell: p => PKIND[p.kind] },
     { key: 'subj', label: 'Môn', values: p => [...mainsOf(p), ...p.integrated_subjects], text: p => [...mainsOf(p), ...p.integrated_subjects].join(' '),
@@ -302,7 +302,7 @@ function ProgramDetail({ id, orgId, mode, canEdit, isAdmin, onOpen, onClose }: {
   return (
     <>
       <DetailHead back="Chương trình giáo dục" onBack={onClose} title={p.title} extra={<><small className="pdver">v{p.version_no}</small><StatusPill s={p.status} /></>}
-        sub={[p.code, lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ctsOf(p).join(', '), mainsOf(p).join(', '), p.total_periods != null ? `${p.total_periods} tiết` : null, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}
+        sub={[p.code, lvsOf(p).map(levelName).join(', '), grades(p), PKIND[p.kind], ctsOf(p).map(trackLabel).join(', '), mainsOf(p).join(', '), p.total_periods != null ? `${p.total_periods} tiết` : null, !mine ? p.organizations?.name : null].filter(Boolean).join(' · ')}
         actions={<div className="tools">
           {(() => {
             const lead: (Act | false)[] = [
@@ -465,7 +465,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
           <div className="panel pdcard"><h4 className="pdcardh">Thông tin chung<button type="button" className="pdsidetg incard" onClick={toggleSide} title="Thu cột thông tin để bảng rộng hơn">Thu gọn ›</button></h4>
             <dl className="pddl sm">
               <dt>Mã</dt><dd>{q.code || none}</dd>
-              <dt>Nhóm</dt><dd>{ctsOf(q).map(c => c + (tracks[c] ? ' · ' + tracks[c]!.name : '')).join(', ') || '—'}</dd>
+              <dt>Nhóm</dt><dd>{ctsOf(q).map(c => trackLabel(c) + (tracks[c] ? ' · ' + tracks[c]!.name : '')).join(', ') || '—'}</dd>
               <dt>Loại</dt><dd>{PKIND[q.kind]}</dd>
               <dt>Cấp · khối</dt><dd>{lvsOf(q).map(c => LV[c]?.name ?? c).join(', ')}{progGrades(q).length ? ' · ' + progGrades(q).join(', ') : ''}</dd>
               <dt>Thời lượng</dt><dd>{[`${q.total_periods ?? 0} tiết`, q.periods_per_week != null && `${String(q.periods_per_week).replace('.', ',')} tiết/tuần`, dep && `${dep[0]} (${dep[1]})`].filter(Boolean).join(' · ')}</dd>
@@ -539,7 +539,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
               {!dis && gs1.length < gradeOpts.length && <button type="button" className="linkbtn" onClick={() => setF({ ...f, grades: gradeOpts })}>Chọn cả cấp</button>}</div>
               : <GradeChecks disabled={dis} from={span[0]} to={span[1]} value={progGrades(f as Program)} onChange={g => setF({ ...f, grades: g })} />}</div>
           <div className="field" style={S(12)}><span>Nhóm chương trình *</span>
-            <ChipMulti disabled={dis} value={cts1} onChange={v => setF({ ...f, ct_codes: v, ct_code: v[0] ?? null })} options={CT.map(c => [c, `${c}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])} ariaLabel="Nhóm chương trình" firstHint="Nhóm chính" /></div>
+            <ChipMulti disabled={dis} value={cts1} onChange={v => setF({ ...f, ct_codes: v, ct_code: v[0] ?? null })} options={CT.map(c => [c, `${trackLabel(c)}${tracks[c] ? ' · ' + tracks[c]!.name : ''}`])} ariaLabel="Nhóm chương trình" firstHint="Nhóm chính" /></div>
           <div className="field" style={S(6)}><span>Môn chủ đạo *</span>
             <SubjectMulti primary="chính" disabled={dis} level={lvs1.length === 1 ? lvs1[0] : null} value={mains1}
               onChange={v => setF({ ...f, main_subjects: v, main_subject: v[0] ?? '', integrated_subjects: integ.filter(x => !v.includes(x)) })} extra={trackSubjects} /></div>
@@ -616,7 +616,7 @@ function InfoTab({ p, isNew, editable, scopeEditable, reqEditable, mode, comps, 
         <dl className="pddl sm">
           <dt>Tên</dt><dd><b>{f.title?.trim() || '—'}</b></dd>
           <dt>Đối tượng</dt><dd>{[lvs1.map(l => LV[l]?.name ?? l).join(', '), gs1.length ? fmtGrades(gs1) : ''].filter(Boolean).join(' · ') || '—'}</dd>
-          <dt>Nhóm</dt><dd>{cts1.length ? cts1.map((c, i) => i === 0 && cts1.length > 1 ? c + ' (chính)' : c).join(', ') : '—'}</dd>
+          <dt>Nhóm</dt><dd>{cts1.length ? cts1.map((c, i) => i === 0 && cts1.length > 1 ? trackLabel(c) + ' (chính)' : trackLabel(c)).join(', ') : '—'}</dd>
           <dt>Môn chủ đạo</dt><dd>{mains1.length ? mains1.map((c, i) => i === 0 && mains1.length > 1 ? c + ' (chính)' : c).join(', ') : '—'}</dd>
           <dt>Thời lượng</dt><dd>{[f.periods_per_week ? `${f.periods_per_week} tiết/tuần` : '', DEPLOY[(f.deploy_term ?? 'year') as Deploy]?.[0]].filter(Boolean).join(' · ')}</dd>
           {showScope && <><dt>Áp dụng</dt><dd>{f.scope === 'own' ? 'Đơn vị mình và đơn vị được gán' : 'Tất cả đơn vị trực thuộc'}</dd></>}
@@ -1083,7 +1083,7 @@ function SessionLessonEditor({ unit, ct, editable, onClose, onSaved }: { unit: U
     <div className="overlay player" role="dialog" aria-modal="true" aria-label={'Nội dung buổi học ' + unit.title}>
       <div className="playtop">
         <button type="button" className="x" onClick={onClose} aria-label="Đóng">×</button>
-        {ct && <span className="progchip ct">{ct}</span>}<b className="ellipsis">{/^buổi\s*\d/i.test(unit.title) || unit.unit_type !== 'session' ? unit.title : `Buổi ${unit.seq}: ${unit.title}`}</b>
+        {ct && <span className="progchip ct">{trackLabel(ct)}</span>}<b className="ellipsis">{/^buổi\s*\d/i.test(unit.title) || unit.unit_type !== 'session' ? unit.title : `Buổi ${unit.seq}: ${unit.title}`}</b>
         {!editable && <small className="sub">Chỉ xem — chương trình đã gửi duyệt / phát hành, tạo phiên bản mới để sửa.</small>}
         <span style={{ marginLeft: 'auto' }} />
         {err && <span className="warnline">{err}</span>}

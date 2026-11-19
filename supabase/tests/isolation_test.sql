@@ -2330,6 +2330,11 @@ select pg_temp.chk('kdi', 'Loại chương trình: CT1, CT4 chỉ có chủ đ�
 select pg_temp.chk('kdi', 'Khung chương trình: chủ đề có cột sản phẩm', $q$select count(*) from information_schema.columns where table_name = 'program_topics' and column_name = 'product'$q$, '1');
 select pg_temp.chk('admin_ph', 'Khung chương trình: trường không sửa được sản phẩm của chủ đề', $q$with x as (update program_topics set product = 'ISO' returning 1) select count(*) from x$q$, '0');
 
+-- ===== 155: mã hiển thị của loại chương trình =====
+select pg_temp.chk('kdi', 'Loại CT: KDI đặt mã hiển thị, mã gốc giữ nguyên', $q$with x as (update stem_tracks set label = '  BH  ' where code = 'CT1' returning code || ',' || label) select * from x$q$, 'CT1,BH');
+select pg_temp.chk('kdi', 'Loại CT: mã hiển thị tối đa 12 ký tự', $q$update stem_tracks set label = 'ISO-QUA-DAI-13' where code = 'CT1'$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Loại CT: trường không đổi được mã hiển thị', $q$with x as (update stem_tracks set label = 'ISO' returning 1) select count(*) from x$q$, '0');
+
 -- ===== 151, 152: dữ liệu test CT1 Khối 6, Sáng chế Khối 6 =====
 select pg_temp.chk('kdi', 'Dữ liệu test: CT1 Khối 6 có 16 chủ đề, 32 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 6$q$, '16,32');
 select pg_temp.chk('kdi', 'Dữ liệu test: CT1 Khối 7 có 16 chủ đề, 35 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 7$q$, '16,35');

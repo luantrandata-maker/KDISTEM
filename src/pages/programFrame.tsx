@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { useStemTracks, SCHEDULE_MODE_NAME, type StemTrack } from '../lib/stemTracks'
+import { useStemTracks, SCHEDULE_MODE_NAME, type StemTrack, trackLabel } from '../lib/stemTracks'
 import { fmtGrades, gradeName, useEduLevels } from '../lib/eduLevels'
 import { frameErr, loadFrame, type MaterialGroup, type ProgramModule, type ProgramTopic } from '../lib/programFrame'
 import { PROGRAM_COLOR } from './teacher/common'
@@ -19,7 +19,7 @@ import { Drawer } from '../components/Drawer'
 // Học phần dùng chung giữa các gói và các khối (CT1, CT4 có một học phần "CHUNG"); mỗi chủ đề thuộc một khối, có thứ tự cố định
 // (trường không đổi được thứ tự). Xem theo khối: toàn bộ chủ đề của một khối, theo thứ tự học phần → chủ đề, kèm tổng số tiết.
 
-const chip = (code: string) => <span className="progchip" style={{ background: PROGRAM_COLOR[code], color: '#fff' }}>{code}</span>
+const chip = (code: string) => <span className="progchip" style={{ background: PROGRAM_COLOR[code], color: '#fff' }}>{trackLabel(code)}</span>
 const pill = (on: boolean) => <Chip tone={on ? 'good' : ''}>{on ? 'Đang dùng' : 'Ngừng dùng'}</Chip>
 const sum = (ts: ProgramTopic[]) => ts.reduce((s, t) => s + (t.periods || 0), 0)
 
@@ -181,7 +181,7 @@ export function ProgramFrame() {
       {active.map(t => { const n = t.use_modules === false
           ? topics.filter(x => modules.some(m => m.id === x.module_id && m.track_code === t.code)).length : modules.filter(m => m.track_code === t.code).length
         return <button key={t.code} type="button" className={'distfchip' + (t.code === track?.code ? ' on' : '')} aria-pressed={t.code === track?.code}
-          title={t.use_modules === false ? n + ' chủ đề' : n + ' học phần'} onClick={() => { setCode(t.code); setGrade(null) }}>{t.code} · {t.name} <b>{n}</b></button> })}
+          title={t.use_modules === false ? n + ' chủ đề' : n + ' học phần'} onClick={() => { setCode(t.code); setGrade(null) }}>{trackLabel(t.code)} · {t.name} <b>{n}</b></button> })}
     </div>
     {msg && <p className="msg" role="status">{msg}</p>}
     {/* Hàng lọc luôn cùng chỗ, cùng chiều cao cho mọi loại chương trình để bảng không nhảy khi đổi loại */}

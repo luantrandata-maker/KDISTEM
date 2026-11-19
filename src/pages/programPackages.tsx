@@ -101,7 +101,7 @@ export function ProgramPackages() {
   if (cur) return <PackageDetail pkg={cur} tracks={active} admin={admin} items={items} modules={modules} topics={topics} msg={msg} setMsg={setMsg}
     diffKeys={diffKeys} diffTracks={diffTracks(cur.id)} slotsOf={slotsOf} topicsIn={topicsIn} onBack={() => { setOpenId(null); setMsg('') }}
     acts={admin ? pkgMenu(cur).slice(1).map((a, k) => ({ key: String(k), label: a.label, kind: a.danger ? 'danger' : undefined, onClick: a.onClick } as Act)) : []}
-    onChanged={reload} />
+    onChanged={reload} filter={filterBar} inGrades={selGrades} />
 
   const allMods = new Set(items.filter(i => live.some(p => p.id === i.package_id) && selGrades.includes(i.grade)).map(i => i.module_id))
   const allTopics = topics.filter(t => t.active && allMods.has(t.module_id) && selGrades.includes(t.grade)).length
@@ -162,12 +162,13 @@ export function ProgramPackages() {
   </>
 }
 
-function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg, diffKeys, diffTracks, slotsOf, topicsIn, onBack, acts, onChanged }: {
+function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg, diffKeys, diffTracks, slotsOf, topicsIn, onBack, acts, onChanged, filter, inGrades }: {
   pkg: ProgramPackage; tracks: StemTrack[]; admin: boolean; items: PackageItem[]; modules: ProgramModule[]; topics: ProgramTopic[]
   msg: string; setMsg: (m: string) => void; diffKeys: Set<string>; diffTracks: string[]; slotsOf: (t: string, pkgs: string[]) => number[]
   topicsIn: (moduleId: string, g: number) => ProgramTopic[]; onBack: () => void; acts: Act[]; onChanged: () => void
+  filter: React.ReactNode; inGrades: number[]   // bộ lọc cấp / khối giữ nguyên từ trang Gói STEM
 }) {
-  const mine = items.filter(i => i.package_id === pkg.id)
+  const mine = items.filter(i => i.package_id === pkg.id && inGrades.includes(i.grade))
   const [code, setCode] = useState('')   // '' = xem tổng quan mọi loại chương trình
   const [sel, setSel] = useState<{ t: string; g: number } | null>(null)
   const [edit, setEdit] = useState(false)
@@ -225,6 +226,7 @@ function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg
           <span className="ic" style={{ fontSize: 12, fontWeight: 700 }}>{trackLabel(t.code)}</span>
           <div><span>{t.name}</span><small>{t.use_modules === false ? '' : new Set(x.map(i => i.module_id)).size + ' học phần · '}{nTopics(x)} chủ đề</small></div></div> })}
     </div>
+    {filter}
     <div className="distfilter" role="group" aria-label="Loại chương trình">
       <button type="button" className={'distfchip' + (!track ? ' on' : '')} aria-pressed={!track} onClick={() => { setCode(''); setEdit(false) }}>Tổng quan</button>
       {tracks.map(t => <button key={t.code} type="button" className={'distfchip' + (t.code === track?.code ? ' on' : '')}
@@ -235,10 +237,6 @@ function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg
       ? <TrackGrid pkg={pkg} track={track} admin={admin} items={items} modules={modules.filter(m => m.track_code === track.code)} topics={topics}
         slots={slotsOf(track.code, [pkg.id])} diffKeys={new Set<string>()} onChanged={onChanged} onErr={setMsg} />
       : <>
-        <div className="distfilter" role="group" aria-label="Khối">
-          <button type="button" className={'distfchip' + (grade === null ? ' on' : '')} onClick={() => setGrade(null)}>Tất cả khối <b>{grades.length}</b></button>
-          {grades.map(g => <button key={g} type="button" className={'distfchip' + (grade === g ? ' on' : '')} aria-pressed={grade === g} onClick={() => setGrade(g)}>{gradeName(g)}</button>)}
-        </div>
         {!grades.length ? <p className="sub">Gói chưa có học phần của {track.code}.{admin ? ' Bấm "Sửa học phần".' : ''}</p>
           : <DataTable id={'pkg-grades-' + (track.use_modules === false ? 'flat' : 'mods')} className={grade === null ? 'slt ttdense' : 'slt'} simple noTools rows={grades.filter(g => grade === null || g === grade)} rowKey={g => String(g)} noun="khối"
             cols={[

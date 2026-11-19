@@ -108,12 +108,6 @@ export function ProgramPackages() {
   const cellS = { padding: '10px 12px', borderTop: '1px solid var(--line)', borderLeft: '1px solid var(--line)', minWidth: 0 } as const
   const labelS = { ...cellS, borderLeft: 0, background: 'var(--card, #fff)' } as const
   const DIFFC = { background: '#dbeafe', boxShadow: 'inset 3px 0 0 #93c5fd' }
-  // Số học phần mỗi khối (số vị trí HP1, HP2… có giá trị), để ô không đọc thành "cả gói chỉ có từng ấy học phần"
-  const perGradeMods = (its: PackageItem[]) => {
-    const n = [...new Set(its.map(i => i.grade))].map(g => its.filter(i => i.grade === g).length)
-    const lo = Math.min(...n), hi = Math.max(...n)
-    return lo === hi ? String(lo) : `${lo}–${hi}`
-  }
   const perGrade = (list: ProgramTopic[]) => { const g = new Set(list.map(t => t.grade)); return g.size ? Math.round(list.length / g.size) : 0 }
   return <>
     <HeadAction>
@@ -148,8 +142,7 @@ export function ProgramPackages() {
             return <div key={t.code + p.id} style={{ ...cellS, ...(diff ? DIFFC : {}) }}>
               {!x.its.length ? <small className="sub">Không có trong gói</small>
                 : t.use_modules === false ? <><b>{x.topics} chủ đề · <span style={{ whiteSpace: 'nowrap' }}>{fmtGrades(gs)}</span></b>{perGrade(tl) > 0 && <><br /><small className="sub">{perGrade(tl)} chủ đề / khối</small></>}</>
-                : <><b>{x.mods.length === 1 ? '1 học phần' : `${x.mods.length} học phần khác nhau`}{x.topics ? ` (${x.topics} chủ đề)` : ''} · <span style={{ whiteSpace: 'nowrap' }}>{fmtGrades(gs)}</span></b><br />
-                  <small className="sub">Mỗi khối {perGradeMods(x.its)} học phần:</small>
+                : <><b>{x.mods.length === 1 ? '1 học phần' : `${x.mods.length} học phần khác nhau`}{x.topics ? ` (${x.topics} chủ đề)` : ''} · <span style={{ whiteSpace: 'nowrap' }}>{fmtGrades(gs)}</span></b>
                   <ul style={{ margin: '4px 0 0', paddingLeft: 16 }}>{(openRows.includes(t.code) ? x.mods : x.mods.slice(0, MAXN)).map(id => <li key={id}><small>{modName(id)}</small></li>)}</ul>
                   {x.mods.length > MAXN && <button type="button" className="namelink" style={{ fontSize: 12, marginTop: 4, color: "var(--primary)" }} onClick={() => setOpenRows(openRows.includes(t.code) ? openRows.filter(c => c !== t.code) : [...openRows, t.code])}>
                     {openRows.includes(t.code) ? 'Thu gọn' : `+ ${x.mods.length - MAXN} học phần`}</button>}</>}

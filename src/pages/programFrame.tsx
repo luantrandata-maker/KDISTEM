@@ -84,7 +84,7 @@ export function ProgramFrame() {
   async function addFlatTopic(g: number) {
     const id = await hiddenModule(); if (!id) return
     const inG = trackTopics.filter(t => t.grade === g)
-    setEditTopic({ module_id: id, grade: g, seq: inG.reduce((x, t) => Math.max(x, t.seq), 0) + 1, code: '', title: '', periods: 1, objectives: '', product: '', main_subject: null, subjects: [], textbook_ref: '', active: true })
+    setEditTopic({ module_id: id, grade: g, seq: inG.reduce((x, t) => Math.max(x, t.seq), 0) + 1, code: '', title: '', periods: 1, objectives: '', product: '', main_subject: null, subjects: [], textbook_ref: '', active: true, part: null })
   }
 
   const dragMod = useRowDrag((a, b) => moveModule(a, b))
@@ -132,7 +132,7 @@ export function ProgramFrame() {
     const ts = topicsOf(cur.id)
     const gs = [...new Set(ts.map(t => t.grade))]
     const nextSeq = (g: number) => ts.filter(t => t.grade === g).reduce((x, t) => Math.max(x, t.seq), 0) + 1
-    const blank = (g: number): TopicDraft => ({ module_id: cur.id, grade: g, seq: nextSeq(g), code: '', title: '', periods: 1, objectives: '', product: '', main_subject: null, subjects: [], textbook_ref: '', active: true })
+    const blank = (g: number): TopicDraft => ({ module_id: cur.id, grade: g, seq: nextSeq(g), code: '', title: '', periods: 1, objectives: '', product: '', main_subject: null, subjects: [], textbook_ref: '', active: true, part: null })
     const acts: Act[] = admin ? [
       { key: 'add', label: '+ Thêm chủ đề', kind: 'primary', onClick: () => setEditTopic(blank(gs[gs.length - 1] ?? 1)) },
       { key: 'edit', label: 'Sửa học phần', icon: 'pencil', onClick: () => setEditMod(cur) },
@@ -345,7 +345,7 @@ function TopicForm({ t, track, onCancel, onSaved }: { t: TopicDraft; track?: Ste
     if (!f.title.trim()) return setErr('Nhập tên chủ đề.')
     setBusy(true); setErr('')
     const row = { module_id: f.module_id, grade: f.grade, seq: Number(f.seq) || 1, code: f.code, title: f.title, periods: Number(f.periods) || 0,
-      objectives: f.objectives, product: f.product ?? '', main_subject: f.main_subject, subjects: f.subjects, textbook_ref: f.textbook_ref, active: f.active }
+      objectives: f.objectives, product: f.product ?? '', main_subject: f.main_subject, subjects: f.subjects, textbook_ref: f.textbook_ref, active: f.active, part: track?.use_modules === false ? null : (f.part ?? null) }
     const { data, error } = f.id ? await supabase.from('program_topics').update(row).eq('id', f.id).select('id')
       : await supabase.from('program_topics').insert(row).select('id')
     setBusy(false)
@@ -362,6 +362,8 @@ function TopicForm({ t, track, onCancel, onSaved }: { t: TopicDraft; track?: Ste
       <label className="field"><span>Số tiết</span><input type="number" min={0} max={200} value={f.periods} onChange={e => setF({ ...f, periods: Number(e.target.value) })} /></label>
       <label className="field wide"><span>Tên chủ đề *</span><input value={f.title} maxLength={200} onChange={e => setF({ ...f, title: e.target.value })} /></label>
       <label className="field"><span>Môn chủ trì</span><SubjectPicker value={f.main_subject} onChange={v => setF({ ...f, main_subject: v || null })} emptyLabel="— Không —" /></label>
+      {track?.use_modules !== false && <label className="field"><span>Phần</span><select value={f.part ?? ''} onChange={e => setF({ ...f, part: e.target.value ? Number(e.target.value) : null })}>
+        <option value="">Dùng chung (cả HP1 và HP2)</option><option value="1">Học phần 1 (HP1)</option><option value="2">Học phần 2 (HP2)</option></select></label>}
       <label className="field"><span>Trạng thái</span><select value={f.active ? 'on' : 'off'} onChange={e => setF({ ...f, active: e.target.value === 'on' })}>
         <option value="on">Đang dùng</option><option value="off">Ngừng dùng</option></select></label>
       {track?.schedule_mode === 'subject' && <label className="field wide"><span>Bài SGK liên quan / được thay</span>

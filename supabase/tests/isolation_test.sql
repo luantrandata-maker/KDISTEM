@@ -2308,6 +2308,9 @@ select pg_temp.chk('admin_ph', 'Khung CT: trường không xoá được nhóm v
 select pg_temp.chk('kdi', 'Khung CT: không xoá học phần còn chủ đề', $q$with m as (select id from program_modules where track_code = 'CT2' order by sort limit 1),
        t as (insert into program_topics (module_id, grade, title) select id, 3, 'ISO' from m returning module_id),
        x as (delete from program_modules where id in (select module_id from t) returning 1) select count(*) from x$q$, 'ERR*');
+select pg_temp.chk('kdi', 'Chủ đề (160): gán phần HP2', $q$with x as (update program_topics set part = 2 where id = (select id from program_topics limit 1) returning part) select part::text from x$q$, '2');
+select pg_temp.chk('kdi', 'Chủ đề (160): phần ngoài 1/2 bị chặn', $q$update program_topics set part = 3 where id = (select id from program_topics limit 1)$q$, 'ERR*');
+select pg_temp.chk('so_hy', 'Chủ đề (160): Sở không đổi phần chủ đề', $q$with x as (update program_topics set part = 1 returning 1) select count(*) from x$q$, '0');
 select pg_temp.chk('kdi', 'Khung CT: khối 0 bị chặn', $q$insert into program_topics (module_id, grade, title) select id, 0, 'ISO' from program_modules limit 1$q$, 'ERR*');
 
 -- ===== 148: Gói STEM theo khung chương trình =====

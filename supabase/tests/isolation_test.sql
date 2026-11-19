@@ -2365,6 +2365,13 @@ select pg_temp.chk('admin_ph', 'Trường dùng gói: trường không tự gán
 select pg_temp.chk('admin_ph', 'Trường dùng gói: trường không xoá phần không áp dụng', $q$with x as (delete from school_package_skips returning 1) select count(*) from x$q$, '0');
 select pg_temp.chk('kdi', 'Trường dùng gói: danh sách có tỉnh của trường',
   $q$select province_name || ',' || coalesce(sp_id is not null, false)::text from school_package_schools('2026-2027') where code = 'THCS-PH'$q$, 'Tỉnh Hưng Yên,true');
+select pg_temp.chk('kdi', 'Gán gói (159): trường của tỉnh kèm khối đã có gói',
+  $q$select taken::text from school_package_pick('2026-2027', (select province_id from school_package_provinces('2026-2027') where province_name = 'Tỉnh Hưng Yên')) where code = 'THCS-PH'$q$, '{6,7,8,9}');
+select pg_temp.chk('kdi', 'Gán gói (159): danh sách tỉnh có số trường',
+  $q$select schools from school_package_provinces('2026-2027') where province_name = 'Tỉnh Hưng Yên'$q$, '>0');
+select pg_temp.chk('admin_ph', 'Gán gói (159): trường không xem được danh sách chọn trường',
+  $q$select count(*) from school_package_pick('2026-2027', null)$q$, '0');
+select pg_temp.chk('admin_ph', 'Gán gói (159): trường không xem được danh sách tỉnh', $q$select count(*) from school_package_provinces('2026-2027')$q$, '0');
 select pg_temp.chk('admin_ph', 'Trường dùng gói: trường chỉ thấy mình trong danh sách', $q$select count(*) from school_package_schools('2026-2027')$q$, '1');
 select pg_temp.chk('hs_kb', 'Trường dùng gói: học sinh không có danh sách', $q$select count(*) from school_package_schools('2026-2027')$q$, '0');
 select pg_temp.chk('kdi', 'Trường dùng gói: không xoá gói đang có trường dùng', $q$delete from program_packages where code = '2T'$q$, 'ERR*');

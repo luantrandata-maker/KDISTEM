@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { fetchAll, supabase } from '../lib/supabase'
 import { useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
 import { gradeName } from '../lib/eduLevels'
 import { loadFrame, loadPackages, type PackageItem, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
@@ -259,59 +259,80 @@ function GradePick({ value, onChange, allowed = ALL_GRADES }: { value: number[];
 
 type Line = { pkg: string; grades: number[] }
 
+type Pick = { org_id: string; name: string; code: string | null; level: string | null; taken: number[] }
+type Prov = { province_id: string | null; province_name: string | null; schools: number }
+
 function AssignForm({ year, schools, preset, packages, pkgColor, pkgName, onCancel, onSaved }: {
   year: string; schools: School[]; preset: string; packages: ProgramPackage[]; pkgColor: (id: string | null) => string; pkgName: (id: string | null) => string
   onCancel: () => void; onSaved: (org: string) => void
 }) {
-  // Trường còn khối chưa có gói (trường đã có gói vẫn thêm được gói cho khối khác)
-  const open = schools.filter(s => takenGrades(s).length < ALL_GRADES.length)
+  const NOPROV = '__none'
   const pre = schools.find(s => s.org_id === preset)
+  const preSchool: Pick | undefined = pre && { org_id: pre.org_id, name: pre.name, code: pre.code, level: pre.level, taken: takenGrades(pre) }
+  // Chọn tỉnh / thành trước (danh sách tỉnh nhỏ), rồi mới tải trường của tỉnh đó
+  const [provs, setProvs] = useState<Prov[] | null>(null)
+  const [prov, setProv] = useState('')
+  const [list, setList] = useState<Pick[] | null>(null)
   const [q, setQ] = useState('')
-  const [prov, setProv] = useState(pre ? pre.province_id ?? '__none' : '')   // chọn tỉnh / thành (theo cây tổ chức) trước, rồi chọn trường
   const [org, setOrg] = useState(preset)
-  const free = (s: School | undefined) => ALL_GRADES.filter(g => !takenGrades(s).includes(g))
-  // Gợi ý khối theo cấp học của trường, bỏ khối đã có gói (vẫn chọn thêm / bỏ bớt được)
-  const suggest = (s: School | undefined) => s?.level ? gradesOfLevel(s.level).filter(g => free(s).includes(g)) : []
-  const [lines, setLines] = useState<Line[]>(() => [{ pkg: packages[0]?.id ?? '', grades: pre ? (suggest(pre).length ? suggest(pre) : []) : [] }])
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
+  useEffect(() => {
+    if (preset) return
+    supabase.rpc('school_package_provinces', { p_year: year }).then(({ data, error }) => {
+      if (error) setErr(spErr(error.message + ' ' + (error.code ?? '')))
+      setProvs((data ?? []) as Prov[])
+    })
+  }, [year, preset])
+  useEffect(() => {
+    setList(null)
+    if (!prov) return
+    let live = true
+    fetchAll<Pick>(() => supabase.rpc('school_package_pick', { p_year: year, p_province: prov === NOPROV ? null : prov }) as any).then(({ data, error }) => {
+      if (!live) return
+      if (error) setErr(spErr(error.message))
+      setList((data ?? []) as Pick[])
+    })
+    return () => { live = false }
+  }, [prov, year])
+  const picked = preSchool ?? list?.find(x => x.org_id === org)
+  const free = (s: Pick | undefined) => ALL_GRADES.filter(g => !(s?.taken ?? []).includes(g))
+  // Gợi ý khối theo cấp học của trường, bỏ khối đã có gói (vẫn chọn thêm / bỏ bớt được)
+  const suggest = (s: Pick | undefined) => s?.level ? gradesOfLevel(s.level).filter(g => free(s).includes(g)) : []
+  const [lines, setLines] = useState<Line[]>(() => [{ pkg: packages[0]?.id ?? '', grades: suggest(preSchool) }])
   const nq = q.trim().toLowerCase()
-  const NOPROV = '__none'
-  const provKey = (r: School) => r.province_id ?? NOPROV
-  const provs = [...new Map(open.map(r => [provKey(r), r.province_name ?? 'Chưa thuộc tỉnh nào'])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'vi'))
-  const all = open.filter(r => prov && provKey(r) === prov).filter(r => !nq || (r.name + ' ' + (r.province_name ?? '') + ' ' + (r.code ?? '')).toLowerCase().includes(nq))
-  const matched = all.length
-  const list = all.slice(0, 300)
-  const picked = schools.find(x => x.org_id === org)
-  const has = (picked?.sps ?? []).filter(x => spState(x) !== 'ended').sort(byGrade)
-  const pickOrg = (id: string) => { setOrg(id); setLines([{ pkg: packages[0]?.id ?? '', grades: suggest(schools.find(x => x.org_id === id)) }]) }
+  const shown = useMemo(() => (list ?? []).filter(r => !nq || (r.name + ' ' + (r.code ?? '')).toLowerCase().includes(nq)), [list, nq])
+  const has = (pre?.sps ?? []).filter(x => spState(x) !== 'ended').sort(byGrade)
+  const pickOrg = (id: string) => { setOrg(id); setLines([{ pkg: packages[0]?.id ?? '', grades: suggest(list?.find(x => x.org_id === id)) }]) }
   const hint = !picked ? '' : picked.level === 'mamnon' ? ' · trường mầm non, gói chưa có khối mầm non' : picked.level ? ' · đã chọn sẵn theo cấp học của trường' : ' · trường chưa ghi cấp học, hãy chọn khối'
   const setLine = (i: number, v: Partial<Line>) => setLines(ls => ls.map((l, k) => k === i ? { ...l, ...v } : l))
   // Khối chọn được ở một dòng: chưa có gói, chưa chọn ở dòng khác
   const allowedAt = (i: number) => free(picked).filter(g => !lines.some((l, k) => k !== i && l.grades.includes(g)))
   const left = free(picked).filter(g => !lines.some(l => l.grades.includes(g)))
+  const total = (provs ?? []).reduce((x, p) => x + p.schools, 0)
   async function save() {
     if (!org) return setErr('Chọn trường.')
     const ls = lines.filter(l => l.grades.length)
     if (!ls.length) return setErr('Chọn ít nhất một khối.')
     if (ls.some(l => !l.pkg)) return setErr('Chọn gói.')
     setBusy(true); setErr('')
-    const { data, error } = await supabase.from('school_packages').insert(ls.map(l => ({ org_id: org, package_id: l.pkg, school_year: year, grades: l.grades, full_package: true }))).select('id')
+    const { error } = await supabase.from('school_packages').insert(ls.map(l => ({ org_id: org, package_id: l.pkg, school_year: year, grades: l.grades, full_package: true })))
     setBusy(false)
-    if (error || !data?.length) return setErr(spErr(error ? error.message + ' ' + (error.code ?? '') : 'row-level'))
+    if (error) return setErr(spErr(error.message + ' ' + (error.code ?? '')))
     onSaved(org)
   }
   return <div style={{ display: 'grid', gap: 12 }}>
-    {!preset && <label className="field"><span>Tỉnh / thành ({open.length.toLocaleString('vi-VN')} trường còn khối chưa có gói năm học {yearLabel(year)})</span>
-      <select value={prov} onChange={e => { setProv(e.target.value); setOrg(''); setLines([{ pkg: packages[0]?.id ?? '', grades: [] }]) }} aria-label="Chọn tỉnh / thành">
-        <option value="">— Chọn tỉnh / thành —</option>
-        {provs.map(([k, n]) => <option key={k} value={k}>{n} ({open.filter(r => provKey(r) === k).length.toLocaleString('vi-VN')} trường)</option>)}</select></label>}
+    {!preset && <label className="field"><span>Tỉnh / thành {provs ? `(${total.toLocaleString('vi-VN')} trường còn khối chưa có gói năm học ${yearLabel(year)})` : ''}</span>
+      <select value={prov} disabled={!provs} onChange={e => { setProv(e.target.value); setOrg(''); setQ(''); setLines([{ pkg: packages[0]?.id ?? '', grades: [] }]) }} aria-label="Chọn tỉnh / thành">
+        <option value="">{provs ? '— Chọn tỉnh / thành —' : 'Đang tải…'}</option>
+        {(provs ?? []).map(p => <option key={p.province_id ?? NOPROV} value={p.province_id ?? NOPROV}>{p.province_name ?? 'Chưa thuộc tỉnh nào'} ({p.schools.toLocaleString('vi-VN')} trường)</option>)}</select></label>}
     {preset ? <div className="field"><span>Trường</span><b>{pre?.name}</b></div>
       : prov && <label className="field"><span>Trường</span>
       <input placeholder="Tìm theo tên trường…" value={q} onChange={e => setQ(e.target.value)} />
+      {!list ? <small className="sub">Đang tải danh sách trường…</small> : <>
       <select size={8} value={org} onChange={e => pickOrg(e.target.value)} aria-label="Chọn trường">
-        {list.map(r => <option key={r.org_id} value={r.org_id}>{r.name}{takenGrades(r).length ? ` · đã có gói ${kRange(takenGrades(r))}` : ''}</option>)}</select>
-      {matched > list.length && <small className="sub">Đang hiện {list.length} / {matched.toLocaleString('vi-VN')} trường, gõ tên để tìm.</small>}</label>}
+        {shown.slice(0, 300).map(r => <option key={r.org_id} value={r.org_id}>{r.name}{r.taken.length ? ` · đã có gói ${kRange(r.taken)}` : ''}</option>)}</select>
+      {shown.length > 300 && <small className="sub">Đang hiện 300 / {shown.length.toLocaleString('vi-VN')} trường, gõ tên để tìm.</small>}</>}</label>}
     {has.length > 0 && <div className="field"><span>Đã có</span><div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
       {has.map(x => <span key={x.sp_id}><b style={{ color: pkgColor(x.package_id) }}>■</b> {pkgName(x.package_id)} <span className="sub">{kRange(x.grades ?? [])}</span></span>)}</div></div>}
     {picked && <>

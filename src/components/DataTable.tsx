@@ -1,3 +1,4 @@
+import { FitScreen } from './FitScreen'
 // Bảng dùng chung có công cụ: lọc theo cột (hàng lọc dưới tiêu đề, mặc định ẩn; mỗi ô mở danh sách giá trị có tìm, tick chọn nhiều), ẩn/hiện và kéo đổi thứ tự cột,
 // kéo mép tiêu đề để đổi độ rộng, nút "Thu gọn" thu bảng vừa màn hình (chữ xuống dòng, không phải kéo ngang).
 // Cách hiển thị (cột ẩn, thứ tự, độ rộng, vừa khít) nhớ theo từng bảng trên trình duyệt này.
@@ -75,7 +76,7 @@ function ColFilter({ label, options, value, onChange, pin }: { label: string; op
   </>
 }
 
-export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow, simple, noTools, rowProps, aside, pro: proProp, noun = 'dòng', bulk, rowMenu }: {
+export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow, simple, noTools, rowProps, aside, pro: proProp, noun = 'dòng', bulk, rowMenu, fit }: {
   id: string; rows: T[]; cols: Col<T>[]; rowKey: (r: T) => string; empty?: ReactNode; className?: string
   /** Thuộc tính thêm cho từng dòng (vd: kéo thả) */
   rowProps?: (r: T) => HTMLAttributes<HTMLTableRowElement>
@@ -93,6 +94,8 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   simple?: boolean
   /** Không hiện hàng công cụ (dùng khi nhiều bảng con dùng chung một thanh công cụ ngoài) */
   noTools?: boolean
+  /** Bảng vừa một màn hình: cuộn trong khung, tiêu đề cột đứng yên */
+  fit?: boolean
   /** Khung bên trái bảng, cùng viền với bảng (vd. cây nhóm theo khối) */
   aside?: ReactNode
   /** Bảng dạng mới: ô tìm có "Tìm theo", nút Bộ lọc (ngăn kéo, ghim), lưu bộ lọc, sắp xếp, thu gọn cột / dòng, đếm dòng ở chân bảng,
@@ -237,7 +240,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   const inSel = !!(pro && head && !bulk && lead)
   const sideHead = head && !inSel
   const selOn = bulk || inSel
-  const tbl = <div className="wrap"><table className={`libtable ttable${view.fit && !simple ? ' ttfit' : ''}${pro && view.dense ? ' ttdense' : ''}${selOn ? ' ttsel' + (selRows.length ? ' ttselon' : '') : ''}${fixedW ? ' ttfixed' : ''}${className ? ' ' + className : ''}`} style={fixedW ? { width: fixedW } : undefined}>
+  const tbl0 = <div className="wrap"><table className={`libtable ttable${view.fit && !simple ? ' ttfit' : ''}${pro && view.dense ? ' ttdense' : ''}${selOn ? ' ttsel' + (selRows.length ? ' ttselon' : '') : ''}${fixedW ? ' ttfixed' : ''}${className ? ' ' + className : ''}`} style={fixedW ? { width: fixedW } : undefined}>
       <colgroup>{sideHead && <col style={{ width: 36 }} />}{shownCols.map(c => <col key={c.key} style={view.widths[c.key] ? { width: view.widths[c.key] } : undefined} />)}{rowMenu && <col style={{ width: 48 }} />}</colgroup>
       <thead>
         <tr>{sideHead && <th className="c-sel">{head.th}</th>}{shownCols.map(c => <th key={c.key} className={[c.thClass, c === lead ? 'c-lead' : '', stick(c) ? 'c-stick' : ''].filter(Boolean).join(' ') || undefined}
@@ -261,6 +264,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
         {!shown.length && <tr><td colSpan={shownCols.length + (sideHead ? 1 : 0) + (rowMenu ? 1 : 0)}>{rows.length ? <small className="sub">{qk ? `Không có dòng nào khớp “${q.trim()}”.` : 'Không có dòng nào khớp bộ lọc cột.'}</small> : empty}</td></tr>}</tbody>
       {typeof foot === 'function' ? foot([...(sideHead ? ['_head'] : []), ...shownCols.map(c => c.key)]) : foot}
     </table></div>
+  const tbl = fit ? <FitScreen>{tbl0}</FitScreen> : tbl0
 
   const colsMenu = (icon: boolean) => <>
       <div className="ttmenu" ref={menuRef}>

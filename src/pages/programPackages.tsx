@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { FitScreen } from '../components/FitScreen'
 import { supabase } from '../lib/supabase'
 import { useStemTracks, type StemTrack } from '../lib/stemTracks'
 import { fmtGrades, gradeName } from '../lib/eduLevels'
@@ -17,7 +18,7 @@ import { Chip } from './dist/Editor'
 
 const GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
 const chip = (code: string) => <span className="progchip" style={{ background: PROGRAM_COLOR[code], color: '#fff' }}>{code}</span>
-const DIFF = { background: 'color-mix(in srgb, #f59e0b 18%, transparent)' }
+const DIFF = { background: '#dbeafe' }
 const keyOf = (t: string, g: number, s: number) => `${t}|${g}|${s}`
 const MAXN = 4   // số học phần hiện sẵn trong một ô, còn lại bấm để mở
 
@@ -71,7 +72,7 @@ export function ProgramPackages() {
   if (compare) return <>
     <DetailHead back="Gói STEM" onBack={() => setCompare(false)} title="So sánh các gói STEM" />
     {msg && <p className="msg" role="status">{msg}</p>}
-    <CompareView tracks={active} packages={live} cell={cell} slotsOf={slotsOf} modName={modName} diffKeys={diffKeys} />
+    <CompareView tracks={active} packages={live} items={items} modName={modName} />
   </>
 
   const cur = openId ? packages.find(p => p.id === openId) : undefined
@@ -96,7 +97,7 @@ export function ProgramPackages() {
   const n = packages.length
   const cellS = { padding: '10px 12px', borderTop: '1px solid var(--line)', borderLeft: '1px solid var(--line)', minWidth: 0 } as const
   const labelS = { ...cellS, borderLeft: 0, background: 'var(--card, #fff)' } as const
-  const DIFFC = { background: '#fff8ea', boxShadow: 'inset 3px 0 0 #f2c97d' }
+  const DIFFC = { background: '#dbeafe', boxShadow: 'inset 3px 0 0 #93c5fd' }
   const perGrade = (list: ProgramTopic[]) => { const g = new Set(list.map(t => t.grade)); return g.size ? Math.round(list.length / g.size) : 0 }
   return <>
     <HeadAction>
@@ -144,7 +145,7 @@ export function ProgramPackages() {
       </div>
     </div>}
     <p className="sub" style={{ margin: '10px 0 0', fontSize: 13 }}>Cấu trúc: <b>Gói STEM</b> › <b>Loại chương trình</b> › <b>Học phần</b> (theo khối) › <b>Chủ đề</b>.
-      {diffKeys.size ? ` Các gói có cùng nội dung, chỉ khác nhau ở ${[...new Set([...diffKeys].map(k => k.split('|')[0]))].join(', ')}; ô nền vàng nhạt là phần khác biệt giữa các gói.` : ''}</p>
+      {diffKeys.size ? ` Các gói có cùng nội dung, chỉ khác nhau ở ${[...new Set([...diffKeys].map(k => k.split('|')[0]))].join(', ')}; ô nền xanh nhạt là phần khác biệt giữa các gói.` : ''}</p>
     <p className="tablenote sub">Mỗi cột là một gói, mỗi hàng là một loại chương trình. Bấm vào tên gói để xem học phần, chủ đề theo từng khối.</p>
   </>
 }
@@ -326,32 +327,37 @@ function TrackGrid({ pkg, track, admin, items, modules, topics, slots, diffKeys,
   </div>
 }
 
-function CompareView({ tracks, packages, cell, slotsOf, modName, diffKeys }: {
-  tracks: StemTrack[]; packages: ProgramPackage[]; cell: (p: string, t: string, g: number, s: number) => PackageItem | undefined
-  slotsOf: (t: string, pkgs: string[]) => number[]; modName: (id: string) => string; diffKeys: Set<string>
+// So sánh các gói theo học phần: gói nào có học phần đó ghi "Có", không có thì "—" (không so tới từng khối)
+function CompareView({ tracks, packages, items, modName }: {
+  tracks: StemTrack[]; packages: ProgramPackage[]; items: PackageItem[]; modName: (id: string) => string
 }) {
   const [only, setOnly] = useState(true)
-  const ids = packages.map(p => p.id)
-  const shown = tracks.filter(t => !only || [...diffKeys].some(k => k.startsWith(t.code + '|')))
+  const has = (p: string, m: string) => items.some(i => i.package_id === p && i.module_id === m)
+  const sections = tracks.map(t => {
+    const mods = [...new Set(items.filter(i => i.track_code === t.code && packages.some(p => p.id === i.package_id)).map(i => i.module_id))]
+      // Xếp bậc thang: học phần có ở gói 1 lên trước, rồi gói 2, gói 3…; cùng nhóm thì theo tên
+      .sort((a, b) => {
+        for (const p of packages) { const x = has(p.id, a), y = has(p.id, b); if (x !== y) return x ? -1 : 1 }
+        return modName(a).localeCompare(modName(b), 'vi')
+      })
+    const rows = mods.map(m => ({ m, d: !packages.every(p => has(p.id, m) === has(packages[0].id, m)) }))
+    return { t, rows: only ? rows.filter(r => r.d) : rows }
+  }).filter(x => x.rows.length)
+  const same = tracks.filter(t => !sections.some(x => x.t.code === t.code)).map(t => t.code)
   return <>
-    <div className="bar"><label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện chỗ các gói khác nhau</label>
-      <small className="sub">{tracks.filter(t => !shown.includes(t)).map(t => t.code).join(', ')}{only && shown.length < tracks.length ? ' giống nhau ở mọi gói.' : ''}</small></div>
-    {shown.map(t => {
-      const slots = slotsOf(t.code, ids)
-      const rows = GRADES.flatMap(g => slots.map(s => [g, s] as const)).filter(([g, s]) => only ? diffKeys.has(keyOf(t.code, g, s)) : packages.some(p => cell(p.id, t.code, g, s)))
-      return <div key={t.code} className="panel pdcard" style={{ marginBottom: 12 }}>
-        <h4 style={{ marginTop: 0 }}>{chip(t.code)} {t.name}</h4>
-        <table className="table">
-          <thead><tr><th>Khối</th><th>Vị trí</th>{packages.map(p => <th key={p.id}>{p.name}</th>)}</tr></thead>
-          <tbody>{rows.map(([g, s]) => {
-            const d = diffKeys.has(keyOf(t.code, g, s))
-            return <tr key={g + '-' + s}><td>{gradeName(g)}</td><td>Học phần {s}</td>
-              {packages.map(p => { const it = cell(p.id, t.code, g, s); return <td key={p.id} style={d ? DIFF : undefined}>{it ? modName(it.module_id) : <small className="sub">—</small>}</td> })}</tr>
-          })}</tbody>
-        </table>
-      </div>
-    })}
-    {!shown.length && <p className="sub">Các gói giống nhau hoàn toàn.</p>}
+    <div className="bar"><label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện học phần các gói khác nhau</label>
+      {only && same.length > 0 && <small className="sub">{same.join(', ')} giống nhau ở mọi gói.</small>}</div>
+    <FitScreen>
+      <table className="table cmptbl">
+        <thead><tr><th>Học phần</th>{packages.map(p => <th key={p.id}>{p.name}</th>)}</tr></thead>
+        {sections.map(({ t, rows }) => <tbody key={t.code}>
+          <tr className="cmpgrp"><td colSpan={packages.length + 1}>{chip(t.code)} {t.name}</td></tr>
+          {rows.map(({ m, d }) => <tr key={m}><td>{t.use_modules === false ? 'Chủ đề theo khối' : modName(m)}</td>
+            {packages.map(p => <td key={p.id} style={d ? DIFF : undefined}>{has(p.id, m) ? 'Có' : <span className="sub">—</span>}</td>)}</tr>)}
+        </tbody>)}
+      </table>
+    </FitScreen>
+    {!sections.length && <p className="sub">Các gói có cùng học phần.</p>}
   </>
 }
 

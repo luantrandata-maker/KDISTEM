@@ -3718,3 +3718,16 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .frameinfo{margin:4px 0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .main .framebar{height:36px;align-items:center;flex-wrap:nowrap;overflow-x:auto;margin-bottom:8px}
 .main .framebar>*{flex:none}
+.main .framefoot{margin:10px 0 0}
+/* Tiêu đề khung (khối / học phần) và số chủ đề, số tiết nằm cùng một hàng chữ */
+.main h4.pnhead{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;line-height:1.4}
+.main h4.pnhead small.sub{font-size:12px;font-weight:400;vertical-align:baseline;position:static;top:auto}
+/* Bảng vừa một màn hình: cuộn trong khung, tiêu đề cột đứng yên */
+.main .fitscreen{overflow:auto}
+.main .fitscreen .ttable>thead>tr>th{position:sticky;top:0;z-index:2}
+.main .fitscreen .wrap,.main .fitscreen .ttable{overflow:visible}
+/* So sánh gói theo học phần */
+.main .cmptbl{width:100%}
+.main .cmptbl td:not(:first-child),.main .cmptbl th:not(:first-child){text-align:center}
+.main .cmptbl .cmpgrp td{background:var(--surface);font-weight:600;border-top:2px solid var(--line)}
+.main .fitscreen .cmptbl>thead>tr>th{position:sticky;top:0;z-index:2;background:var(--surface)}

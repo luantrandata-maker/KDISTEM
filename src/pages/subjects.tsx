@@ -127,7 +127,7 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
         {mine && every && <><br /><small className="sub">{s.owner_name ?? '—'}</small></>}</> },
   ]
   const table = (rows: Subject[], mine: boolean, empty: ReactNode, left?: ReactNode, right?: ReactNode) => (
-    <DataTable id={mine ? 'subjects' : 'subjects-shared'} rows={rows} rowKey={s => s.id} cols={subjCols(mine)} empty={empty} left={left} right={right} />
+    <DataTable fit id={mine ? 'subjects' : 'subjects-shared'} rows={rows} rowKey={s => s.id} cols={subjCols(mine)} empty={empty} left={left} right={right} />
   )
   const domains = [...new Set(subjects.map(s => s.domain).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi'))
 

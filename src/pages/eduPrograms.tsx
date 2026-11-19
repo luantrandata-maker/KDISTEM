@@ -231,7 +231,7 @@ export function EduPrograms({ orgId, mode = 'school' }: { orgId: string | null; 
         {canEdit && !hid('add') && <button type="button" className="primary ttadd" onClick={() => setForm({ level: 'thcs', levels: ['thcs'], kind: 'stem', grade_from: 6, grade_to: 6, grades: [6], scope: mode === 'school' ? 'own' : 'children', integrated_subjects: [], competency_keys: [], rubric_ids: [], deploy_term: 'year' })}>+ Thêm chương trình</button>}
       </HeadAction>}
       {!list ? <p className="sub">Đang tải…</p> : (
-        <DataTable pro noun="chương trình" className="eptable" id={mine ? 'edu-programs-v6' : 'edu-programs-shared-v6'} key={mine ? 'own' : 'shared'}
+        <DataTable pro fit noun="chương trình" className="eptable" id={mine ? 'edu-programs-v6' : 'edu-programs-shared-v6'} key={mine ? 'own' : 'shared'}
           rows={gt.filter(rows0)} rowKey={p => p.id} cols={progCols} onRow={p => setOpenId(p.id)} rowMenu={rowMenu} bulk={bulk}
           left={scopeTabs || undefined} aside={rows0.length ? gt.tree : undefined}
           empty={mine

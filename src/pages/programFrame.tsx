@@ -231,7 +231,7 @@ function TopicTable({ list, track, admin, showGrade, weeks, onEdit, onDel, onMov
       cell: t => admin ? <button type="button" className="namelink" onClick={() => onEdit(t)}>{t.title}</button> : <b>{t.title}</b> },
     { key: 'p', label: 'Số tiết', text: t => String(t.periods), cell: t => t.periods },
     { key: 'main', label: 'Môn chủ đạo', text: t => t.main_subject ?? '', cell: t => t.main_subject || dash },
-    { key: 'subs', label: 'Môn phối hợp', text: t => t.subjects.join(', '), values: t => t.subjects, cell: t => t.subjects.join(', ') || dash },
+    { key: 'subs', label: 'Môn tích hợp', text: t => t.subjects.join(', '), values: t => t.subjects, cell: t => t.subjects.join(', ') || dash },
     { key: 'obj', label: 'Yêu cầu cần đạt', text: t => t.objectives, cell: t => <OneLine text={t.objectives} /> },
     { key: 'prod', label: 'Sản phẩm', text: t => t.product ?? '', cell: t => <OneLine text={t.product ?? ''} /> },
     ...(sgk ? [{ key: 'sgk', label: 'Bài SGK liên quan', off: true, text: (t: ProgramTopic) => t.textbook_ref, cell: (t: ProgramTopic) => t.textbook_ref || dash }] : []),
@@ -308,8 +308,8 @@ function TopicForm({ t, track, onCancel, onSaved }: { t: TopicDraft; track?: Ste
         <input value={f.textbook_ref} onChange={e => setF({ ...f, textbook_ref: e.target.value })} placeholder="VD: Toán 1 – Bài 12: Hình vuông, hình tròn" /></label>}
       <label className="field wide"><span>Mục tiêu, yêu cầu cần đạt</span><textarea rows={3} value={f.objectives} onChange={e => setF({ ...f, objectives: e.target.value })} /></label>
     </div>
-    <div className="field" style={{ marginTop: 12 }}><span className="sub">Môn phối hợp</span>
-      <SubjectMulti value={f.subjects} onChange={v => setF({ ...f, subjects: v })} exclude={f.main_subject ? [f.main_subject] : []} ariaLabel="Môn phối hợp" /></div>
+    <div className="field" style={{ marginTop: 12 }}><span className="sub">Môn tích hợp</span>
+      <SubjectMulti value={f.subjects} onChange={v => setF({ ...f, subjects: v })} exclude={f.main_subject ? [f.main_subject] : []} ariaLabel="Môn tích hợp" /></div>
     {err && <p className="warnline">{err}</p>}
     <div className="actions" style={{ marginTop: 12 }}>
       <button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>

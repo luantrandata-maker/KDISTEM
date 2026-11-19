@@ -1,5 +1,5 @@
 -- 151: Dữ liệu test (19/11/2026) để xem trên hệ thống.
--- CT1 Bài học STEM, Khối 3: 16 chủ đề (35 tiết), thay 10 chủ đề mẫu "Chủ đề STEM n" của Khối 3.
+-- CT1 Bài học STEM, Khối 3: 16 chủ đề, mỗi chủ đề 2 tiết, tổng 32 tiết, thay 10 chủ đề mẫu "Chủ đề STEM n" của Khối 3.
 -- CT2 học phần Sáng chế, Khối 6: 16 chủ đề theo tuần (Tink-G0.31 rồi Tink-G0.32), mỗi chủ đề 2 tiết, tổng 32 tiết.
 -- Yêu cầu cần đạt, sản phẩm để trống, bổ sung khi có file đầy đủ.
 do $$
@@ -13,8 +13,8 @@ begin
     select ct1, 3, v.seq, v.title, v.periods, v.main_subject, v.subjects from (values
     (1, 'Thời gian biểu', 2, 'Hoạt động trải nghiệm', array['Mĩ thuật']),
     (2, 'Mô hình cứu hỏa mini (BH)', 2, 'Tự nhiên và Xã hội', array['Mĩ thuật']),
-    (3, 'Đèn học sáng tạo (BH)', 3, 'Công nghệ', array['Mĩ thuật']),
-    (4, 'Quạt điện mini (G3)', 3, 'Công nghệ', array['Mĩ thuật']),
+    (3, 'Đèn học sáng tạo (BH)', 2, 'Công nghệ', array['Mĩ thuật']),
+    (4, 'Quạt điện mini (G3)', 2, 'Công nghệ', array['Mĩ thuật']),
     (5, 'Bảng nhân xoay (BH)', 2, 'Toán', array['Công nghệ']),
     (6, 'Chiếc cân thăng bằng', 2, 'Toán', array['Công nghệ']),
     (7, 'Sổ tay tình bạn', 2, 'Hoạt động trải nghiệm', array['Mĩ thuật']),
@@ -26,7 +26,7 @@ begin
     (13, 'Lịch để bàn (BH)', 2, 'Toán', array['Mĩ thuật']),
     (14, 'Sáng chế đồ chơi', 2, 'Công nghệ', array['Mĩ thuật']),
     (15, 'Các dạng địa hình trên Trái Đất', 2, 'Tự nhiên và Xã hội', array['Mĩ thuật']),
-    (16, 'Hệ Mặt Trời (BH)', 3, 'Tự nhiên và Xã hội', array['Mĩ thuật'])
+    (16, 'Hệ Mặt Trời (BH)', 2, 'Tự nhiên và Xã hội', array['Mĩ thuật'])
     ) as v(seq, title, periods, main_subject, subjects);
   end if;
   if sc is not null then

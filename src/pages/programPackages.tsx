@@ -18,7 +18,7 @@ import { Chip } from './dist/Editor'
 
 const GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
 const chip = (code: string) => <span className="progchip" style={{ background: PROGRAM_COLOR[code], color: '#fff' }}>{code}</span>
-const DIFF = { background: 'color-mix(in srgb, #f59e0b 18%, transparent)' }
+const DIFF = { background: '#dbeafe' }
 const keyOf = (t: string, g: number, s: number) => `${t}|${g}|${s}`
 const MAXN = 4   // số học phần hiện sẵn trong một ô, còn lại bấm để mở
 
@@ -97,7 +97,7 @@ export function ProgramPackages() {
   const n = packages.length
   const cellS = { padding: '10px 12px', borderTop: '1px solid var(--line)', borderLeft: '1px solid var(--line)', minWidth: 0 } as const
   const labelS = { ...cellS, borderLeft: 0, background: 'var(--card, #fff)' } as const
-  const DIFFC = { background: '#fff8ea', boxShadow: 'inset 3px 0 0 #f2c97d' }
+  const DIFFC = { background: '#dbeafe', boxShadow: 'inset 3px 0 0 #93c5fd' }
   const perGrade = (list: ProgramTopic[]) => { const g = new Set(list.map(t => t.grade)); return g.size ? Math.round(list.length / g.size) : 0 }
   return <>
     <HeadAction>
@@ -145,7 +145,7 @@ export function ProgramPackages() {
       </div>
     </div>}
     <p className="sub" style={{ margin: '10px 0 0', fontSize: 13 }}>Cấu trúc: <b>Gói STEM</b> › <b>Loại chương trình</b> › <b>Học phần</b> (theo khối) › <b>Chủ đề</b>.
-      {diffKeys.size ? ` Các gói có cùng nội dung, chỉ khác nhau ở ${[...new Set([...diffKeys].map(k => k.split('|')[0]))].join(', ')}; ô nền vàng nhạt là phần khác biệt giữa các gói.` : ''}</p>
+      {diffKeys.size ? ` Các gói có cùng nội dung, chỉ khác nhau ở ${[...new Set([...diffKeys].map(k => k.split('|')[0]))].join(', ')}; ô nền xanh nhạt là phần khác biệt giữa các gói.` : ''}</p>
     <p className="tablenote sub">Mỗi cột là một gói, mỗi hàng là một loại chương trình. Bấm vào tên gói để xem học phần, chủ đề theo từng khối.</p>
   </>
 }
@@ -335,7 +335,11 @@ function CompareView({ tracks, packages, items, modName }: {
   const has = (p: string, m: string) => items.some(i => i.package_id === p && i.module_id === m)
   const sections = tracks.map(t => {
     const mods = [...new Set(items.filter(i => i.track_code === t.code && packages.some(p => p.id === i.package_id)).map(i => i.module_id))]
-      .sort((a, b) => modName(a).localeCompare(modName(b), 'vi'))
+      // Xếp bậc thang: học phần có ở gói 1 lên trước, rồi gói 2, gói 3…; cùng nhóm thì theo tên
+      .sort((a, b) => {
+        for (const p of packages) { const x = has(p.id, a), y = has(p.id, b); if (x !== y) return x ? -1 : 1 }
+        return modName(a).localeCompare(modName(b), 'vi')
+      })
     const rows = mods.map(m => ({ m, d: !packages.every(p => has(p.id, m) === has(packages[0].id, m)) }))
     return { t, rows: only ? rows.filter(r => r.d) : rows }
   }).filter(x => x.rows.length)

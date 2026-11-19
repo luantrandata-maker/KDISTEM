@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase'
 import { useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
 import { gradeName } from '../lib/eduLevels'
 import { loadFrame, loadPackages, type PackageItem, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
-import { currentYear, kRange, LEVEL_GRADES, loadSchoolPkgs, shiftYear, spErr, yearLabel, type PkgSkip, type SchoolPkgRow } from '../lib/schoolPackages'
+import { ALL_GRADES, currentYear, gradesOfLevel, kRange, loadSchoolPkgs, shiftYear, spErr, yearLabel, type PkgSkip, type SchoolPkgRow } from '../lib/schoolPackages'
 import { DataTable } from '../components/DataTable'
 import { ElView } from '../components/ElView'
 import { Drawer } from '../components/Drawer'
@@ -11,7 +11,6 @@ import { Drawer } from '../components/Drawer'
 // Trường dùng gói (156): danh sách trường (lọc tỉnh, gói) → chi tiết trường theo khối × loại chương trình → sửa phạm vi áp dụng
 // (đủ gói hoặc bỏ tick phần trường không áp dụng). Chỉ KDI gán / sửa; Sở, Phòng, trường xem được trường thuộc mình.
 
-const ALL_GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
 const OFF = { textDecoration: 'line-through', color: 'var(--muted)' }
 const trackHead = (t: StemTrack) => `${trackLabel(t.code)} · ${t.name}`
 const keyM = (t: string, g: number, s: number) => `m|${t}|${g}|${s}`
@@ -178,9 +177,11 @@ function ScopeView({ s, modName }: { s: ReturnType<typeof scopeAt>; modName: (id
   })}</div>
 }
 
-function GradePick({ value, onChange }: { value: number[]; onChange: (v: number[]) => void }) {
+function GradePick({ value, onChange, allowed = ALL_GRADES }: { value: number[]; onChange: (v: number[]) => void; allowed?: number[] }) {
   return <div className="distfilter" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-    {ALL_GRADES.map(g => <button key={g} type="button" className={'distfchip' + (value.includes(g) ? ' on' : '')} aria-pressed={value.includes(g)}
+    {allowed.length > 1 && <button type="button" className={'distfchip' + (allowed.every(g => value.includes(g)) ? ' on' : '')}
+      onClick={() => onChange(allowed.every(g => value.includes(g)) ? [] : [...allowed])}>Tất cả</button>}
+    {allowed.map(g => <button key={g} type="button" className={'distfchip' + (value.includes(g) ? ' on' : '')} aria-pressed={value.includes(g)}
       onClick={() => onChange(value.includes(g) ? value.filter(x => x !== g) : [...value, g].sort((a, b) => a - b))}>K{g}</button>)}
   </div>
 }
@@ -188,14 +189,23 @@ function GradePick({ value, onChange }: { value: number[]; onChange: (v: number[
 function AssignForm({ year, rows, packages, onCancel, onSaved }: { year: string; rows: SchoolPkgRow[]; packages: ProgramPackage[]; onCancel: () => void; onSaved: (org: string) => void }) {
   const free = rows.filter(r => !r.sp_id)
   const [q, setQ] = useState('')
+  const [prov, setProv] = useState('')   // chọn tỉnh / thành (theo cây tổ chức) trước, rồi chọn trường
   const [org, setOrg] = useState('')
   const [pkg, setPkg] = useState(packages[0]?.id ?? '')
   const [grades, setGrades] = useState<number[]>([])
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const nq = q.trim().toLowerCase()
-  const list = free.filter(r => !nq || (r.name + ' ' + (r.province_name ?? '') + ' ' + (r.code ?? '')).toLowerCase().includes(nq)).slice(0, 200)
-  const pickOrg = (id: string) => { setOrg(id); const r = free.find(x => x.org_id === id); setGrades(LEVEL_GRADES[r?.level ?? ''] ?? []) }
+  const NOPROV = '__none'
+  const provKey = (r: SchoolPkgRow) => r.province_id ?? NOPROV
+  const provs = [...new Map(free.map(r => [provKey(r), r.province_name ?? 'Chưa thuộc tỉnh nào'])).entries()].sort((a, b) => a[1].localeCompare(b[1], 'vi'))
+  const all = free.filter(r => prov && provKey(r) === prov).filter(r => !nq || (r.name + ' ' + (r.province_name ?? '') + ' ' + (r.code ?? '')).toLowerCase().includes(nq))
+  const matched = all.length
+  const list = all.slice(0, 300)
+  const picked = free.find(x => x.org_id === org)
+  // Gợi ý khối theo cấp học của trường (vẫn chọn thêm / bỏ bớt được)
+  const pickOrg = (id: string) => { setOrg(id); const r = free.find(x => x.org_id === id); setGrades(r?.level ? gradesOfLevel(r.level) : []) }
+  const hint = !picked ? '' : picked.level === 'mamnon' ? ' · trường mầm non, gói chưa có khối mầm non' : picked.level ? ' · đã chọn sẵn theo cấp học của trường' : ' · trường chưa ghi cấp học, hãy chọn khối'
   async function save() {
     if (!org) return setErr('Chọn trường.')
     if (!pkg) return setErr('Chọn gói.')
@@ -207,13 +217,18 @@ function AssignForm({ year, rows, packages, onCancel, onSaved }: { year: string;
     onSaved(org)
   }
   return <div style={{ display: 'grid', gap: 12 }}>
-    <label className="field"><span>Trường ({free.length} trường chưa có gói năm học {yearLabel(year)})</span>
-      <input placeholder="Tìm theo tên trường, tỉnh…" value={q} onChange={e => setQ(e.target.value)} />
+    <label className="field"><span>Tỉnh / thành ({free.length.toLocaleString('vi-VN')} trường chưa có gói năm học {yearLabel(year)})</span>
+      <select value={prov} onChange={e => { setProv(e.target.value); setOrg(''); setGrades([]) }} aria-label="Chọn tỉnh / thành">
+        <option value="">— Chọn tỉnh / thành —</option>
+        {provs.map(([k, n]) => <option key={k} value={k}>{n} ({free.filter(r => provKey(r) === k).length.toLocaleString('vi-VN')} trường)</option>)}</select></label>
+    {prov && <label className="field"><span>Trường</span>
+      <input placeholder="Tìm theo tên trường…" value={q} onChange={e => setQ(e.target.value)} />
       <select size={8} value={org} onChange={e => pickOrg(e.target.value)} aria-label="Chọn trường">
-        {list.map(r => <option key={r.org_id} value={r.org_id}>{r.name}{r.province_name ? ` · ${r.province_name}` : ''}</option>)}</select></label>
+        {list.map(r => <option key={r.org_id} value={r.org_id}>{r.name}</option>)}</select>
+      {matched > list.length && <small className="sub">Đang hiện {list.length} / {matched.toLocaleString('vi-VN')} trường, gõ tên để tìm.</small>}</label>}
     <label className="field"><span>Gói</span><select value={pkg} onChange={e => setPkg(e.target.value)}>
       {packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-    <div className="field"><span>Khối áp dụng</span><GradePick value={grades} onChange={setGrades} /></div>
+    <div className="field"><span>Khối áp dụng<small className="sub">{hint}</small></span><GradePick value={grades} onChange={setGrades} /></div>
     <small className="sub">Gán xong là áp dụng đủ gói. Trường áp dụng một phần thì mở trường, bấm "Sửa phạm vi" để bỏ tick phần không áp dụng.</small>
     {err && <p className="warnline">{err}</p>}
     <div className="actions"><button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button><button onClick={onCancel} disabled={busy}>Huỷ</button></div>
@@ -278,7 +293,8 @@ function ScopeEdit({ ctx, row, skips, packages, modName, onCancel, onSaved }: {
     <div className="formgrid" style={{ gridTemplateColumns: 'minmax(0,220px) minmax(0,1fr)' }}>
       <label className="field"><span>Gói</span><select value={pkg} onChange={e => setPkg(e.target.value)}>
         {packages.filter(p => p.active || p.id === row.package_id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-      <div className="field"><span>Khối áp dụng</span><GradePick value={grades} onChange={v => { setGrades(v); if (g && !v.includes(g)) setG(0) }} /></div>
+      <div className="field"><span>Khối áp dụng</span><GradePick value={grades}
+        onChange={v => { setGrades(v); if (g && !v.includes(g)) setG(0) }} /></div>
     </div>
     <div style={{ display: 'flex', gap: 18, margin: '12px 0' }}>
       <label className="field inline"><input type="radio" checked={full} onChange={() => setFull(true)} /> Áp dụng đủ gói</label>

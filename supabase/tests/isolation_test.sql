@@ -2331,7 +2331,7 @@ select pg_temp.chk('kdi', 'Khung chương trình: chủ đề có cột sản ph
 select pg_temp.chk('admin_ph', 'Khung chương trình: trường không sửa được sản phẩm của chủ đề', $q$with x as (update program_topics set product = 'ISO' returning 1) select count(*) from x$q$, '0');
 
 -- ===== 151: dữ liệu test CT1 Khối 3, Sáng chế Khối 6 =====
-select pg_temp.chk('kdi', 'Dữ liệu test: CT1 Khối 3 có 16 chủ đề, 32 tiết', $q$select count(*) || ',' || sum(periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 3$q$, '16,35');
+select pg_temp.chk('kdi', 'Dữ liệu test: CT1 Khối 3 có 16 chủ đề, 32 tiết', $q$select count(*) || ',' || sum(periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 3$q$, '16,32');
 select pg_temp.chk('kdi', 'Dữ liệu test: Sáng chế Khối 6 có 16 chủ đề, 32 tiết', $q$select count(*) || ',' || sum(periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT2' and m.name = 'Sáng chế' and t.grade = 6$q$, '16,32');
 
 -- ===== 063: bài giảng tương tác dạng khối, hoạt động trò chơi / mô phỏng, thiết bị trong gói STEM =====

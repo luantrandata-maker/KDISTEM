@@ -204,6 +204,7 @@ const ProgramFrame = lazy(() => import('./pages/programFrame').then(m => ({ defa
 const MaterialGroupsCatalog = lazy(() => import('./pages/programFrame').then(m => ({ default: m.MaterialGroupsCatalog })))
 // Gói STEM theo khung chương trình: gói gồm chương trình, học phần nào theo khối; so sánh các gói (148)
 const ProgramPackages = lazy(() => import('./pages/programPackages').then(m => ({ default: m.ProgramPackages })))
+const SchoolPackages = lazy(() => import('./pages/schoolPackages').then(m => ({ default: m.SchoolPackages })))
 // Môn học (danh sách chung các đơn vị) nằm trong Danh mục; PH2_TABS khai báo bên dưới, chỉ đọc khi hiển thị
 const SubjectsAllOrgs = (q: any) => { const S = PH2_TABS.subjects; return <S {...q} /> }
 const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Loại chương trình', StemTracksCatalog], ['Môn học', SubjectsAllOrgs], ['Nhóm vật tư', MaterialGroupsCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog], ['Khung năng lực', StudentFramework]]} />
@@ -250,7 +251,7 @@ function PlatformEduProgramsPage(p: any) {
   return track
     // Nút quay lại nằm ở góc hàng tab (như nút Theo dõi thực hiện), không chiếm một hàng riêng
     ? <FramedTabs {...p} tabs={TRACK_TABS} actions={back} />
-    : <FramedTabs {...p} tabs={[['Gói STEM', ProgramPackages], ['Khung chương trình', ProgramFrame], ['Chương trình', PH2_TABS.edu], ['Danh mục', ProgramCatalogs]]}
+    : <FramedTabs {...p} tabs={[['Gói STEM', ProgramPackages], ['Khung chương trình', ProgramFrame], ['Trường dùng gói', SchoolPackages], ['Chương trình', PH2_TABS.edu], ['Danh mục', ProgramCatalogs]]}
       actions={<button type="button" onClick={() => setTrack(true)}>Theo dõi thực hiện</button>} />
 }
 const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [

@@ -2333,7 +2333,8 @@ select pg_temp.chk('admin_ph', 'Khung chương trình: trường không sửa đ
 -- ===== 151, 152: dữ liệu test CT1 Khối 6, Sáng chế Khối 6 =====
 select pg_temp.chk('kdi', 'Dữ liệu test: CT1 Khối 6 có 16 chủ đề, 32 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 6$q$, '16,32');
 select pg_temp.chk('kdi', 'Dữ liệu test: CT1 Khối 3 trả lại 10 chủ đề mẫu', $q$select count(*) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 3$q$, '10');
-select pg_temp.chk('kdi', 'Dữ liệu test: Sáng chế Khối 6 có 11 chủ đề, 32 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT2' and m.name = 'Sáng chế' and t.grade = 6$q$, '11,32');
+select pg_temp.chk('kdi', 'Dữ liệu test: Sáng chế Khối 6 có 16 chủ đề, 48 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT2' and m.name = 'Sáng chế' and t.grade = 6$q$, '16,48');
+select pg_temp.chk('kdi', 'Dữ liệu test: Sáng chế Khối 7 có 14 chủ đề, 48 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT2' and m.name = 'Sáng chế' and t.grade = 7$q$, '14,48');
 
 -- ===== 063: bài giảng tương tác dạng khối, hoạt động trò chơi / mô phỏng, thiết bị trong gói STEM =====
 select pg_temp.chk('gv_both', 'Bài giảng tương tác: lưu giáo án dạng khối',

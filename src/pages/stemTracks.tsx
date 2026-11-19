@@ -135,7 +135,7 @@ export function StemTracksCatalog() {
     <>
       {admin && <HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(''); setEdit('') }}>+ Thêm loại chương trình</button></HeadAction>}
       {msg && <p className="msg" role="status">{msg}</p>}
-      <DataTable id="stem-tracks" className="trktbl" rows={tracks} rowKey={t => t.code} cols={cols} simple
+      <DataTable fit id="stem-tracks" className="trktbl" rows={tracks} rowKey={t => t.code} cols={cols} simple
         onRow={t => { setMsg(''); setOpen(t.code) }}
         empty="Chưa có loại chương trình nào." />
       <p className="tablenote sub">{admin ? 'Bấm một dòng để xem chi tiết, sửa hoặc xoá. Loại đã được dùng thì không xoá được, chỉ chuyển sang "Ngừng dùng".' : 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'} Học phần và chủ đề của từng loại soạn ở tab "Khung chương trình".</p>

@@ -3722,3 +3722,7 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 /* Tiêu đề khung (khối / học phần) và số chủ đề, số tiết nằm cùng một hàng chữ */
 .main h4.pnhead{display:flex;align-items:baseline;gap:6px;flex-wrap:wrap;line-height:1.4}
 .main h4.pnhead small.sub{font-size:12px;font-weight:400;vertical-align:baseline;position:static;top:auto}
+/* Bảng vừa một màn hình: cuộn trong khung, tiêu đề cột đứng yên */
+.main .fitscreen{overflow:auto}
+.main .fitscreen .ttable>thead>tr>th{position:sticky;top:0;z-index:2}
+.main .fitscreen .wrap,.main .fitscreen .ttable{overflow:visible}

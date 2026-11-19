@@ -81,7 +81,7 @@ export function EduLevelsCatalog() {
   return (
     <>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
-      <DataTable id="cat-edu-levels" rows={all} rowKey={l => l.code} cols={[
+      <DataTable fit id="cat-edu-levels" rows={all} rowKey={l => l.code} cols={[
         { key: 'name', label: 'Cấp học', fixed: true, text: l => l.name, cell: l => <>{admin ? <NameLink onClick={() => { setMsg(null); setForm({ ...l }) }}><b>{l.name}</b></NameLink> : <b>{l.name}</b>}{l.active === false && <> <span className="pill">Ngừng dùng</span></>}</> },
         { key: 'code', label: 'Mã', text: l => l.code, cell: l => <small className="sub">{l.code}</small> },
         { key: 'grades', label: 'Khối', text: l => fmtGrades(gradeRange(l.grade_from, l.grade_to)), cell: l => fmtGrades(gradeRange(l.grade_from, l.grade_to)) },

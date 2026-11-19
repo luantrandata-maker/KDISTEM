@@ -12,6 +12,8 @@ import { ActionBar, type Act } from '../components/ActionBar'
 import { SubjectMulti, SubjectPicker } from '../components/Pickers'
 import { Chip } from './dist/Editor'
 import { OneLine } from '../components/LongCell'
+import { FitScreen } from '../components/FitScreen'
+import { Drawer } from '../components/Drawer'
 
 // Khung chương trình (147): KDI chọn loại chương trình → danh sách học phần → chủ đề theo từng khối.
 // Học phần dùng chung giữa các gói và các khối (CT1, CT4 có một học phần "CHUNG"); mỗi chủ đề thuộc một khối, có thứ tự cố định
@@ -88,49 +90,40 @@ export function ProgramFrame() {
   const dragMod = useRowDrag((a, b) => moveModule(a, b))
 
   // ----- Sửa học phần / chủ đề -----
-  if (editMod) {
-    const done = () => { setEditMod(null); reload() }
-    return <ElView back={openId ? 'Học phần' : 'Khung chương trình'} onBack={() => setEditMod(null)}
-      title={<>{chip(editMod.track_code)} {editMod.id ? 'Sửa học phần' : 'Thêm học phần'}</>}>
-      <ModuleForm m={editMod} onCancel={() => setEditMod(null)} onSaved={done} />
-    </ElView>
-  }
-  if (editTopic) {
-    const m = modules.find(x => x.id === editTopic.module_id)
-    const done = () => { setEditTopic(null); reload() }
-    return <ElView back={m?.name ?? 'Học phần'} onBack={() => setEditTopic(null)}
-      title={<>{m && chip(m.track_code)} {editTopic.id ? 'Sửa chủ đề' : 'Thêm chủ đề'}</>} sub={m ? `Học phần: ${m.name}` : undefined}>
-      <TopicForm t={editTopic} track={track} onCancel={() => setEditTopic(null)} onSaved={done} />
-    </ElView>
-  }
-
-  // ----- Chi tiết chủ đề: bấm một dòng để xem; sửa, xoá nằm ở đây -----
+  // ----- Chi tiết chủ đề, form sửa: mở bên phải cạnh bảng (split view), không chiếm cả trang -----
   const vt = viewId ? topics.find(t => t.id === viewId) : undefined
-  if (vt) {
+  const v = (x: string | null | undefined) => x ? <span style={{ whiteSpace: 'pre-line' }}>{x}</span> : <span className="sub">—</span>
+  let drawer: React.ReactNode = null
+  if (editMod) {
+    drawer = <Drawer closeOnOutside={false} onClose={() => setEditMod(null)}
+      title={<>{chip(editMod.track_code)} {editMod.id ? 'Sửa học phần' : 'Thêm học phần'}</>}>
+      <ModuleForm m={editMod} onCancel={() => setEditMod(null)} onSaved={() => { setEditMod(null); reload() }} />
+    </Drawer>
+  } else if (editTopic) {
+    const m = modules.find(x => x.id === editTopic.module_id)
+    drawer = <Drawer closeOnOutside={false} onClose={() => setEditTopic(null)} onBack={editTopic.id && viewId ? () => setEditTopic(null) : undefined}
+      title={<>{m && chip(m.track_code)} {editTopic.id ? 'Sửa chủ đề' : 'Thêm chủ đề'}</>}>
+      <TopicForm t={editTopic} track={track} onCancel={() => setEditTopic(null)} onSaved={() => { setEditTopic(null); reload() }} />
+    </Drawer>
+  } else if (vt) {
     const m = modules.find(x => x.id === vt.module_id)
     const tr = tracks.find(t => t.code === m?.track_code)
     const acts: Act[] = admin ? [
       { key: 'edit', label: 'Sửa', icon: 'pencil', kind: 'primary', onClick: () => setEditTopic(vt) },
       { key: 'del', label: 'Xoá', icon: 'trash', kind: 'danger', onClick: () => delTopic(vt) },
     ] : []
-    const v = (x: string | null | undefined) => x ? <span style={{ whiteSpace: 'pre-line' }}>{x}</span> : <span className="sub">—</span>
-    return <>
-      <DetailHead back={openId ? m?.name ?? 'Học phần' : 'Khung chương trình'} onBack={() => { setViewId(null); setMsg('') }}
-        title={<>{m && chip(m.track_code)} {vt.title}</>} extra={pill(vt.active)} />
-      <div className="bar"><small className="sub">{gradeName(vt.grade)} · Thứ tự {vt.seq} · {vt.periods} tiết{m && tr?.use_modules !== false ? ' · Học phần ' + m.name : ''}</small>
-        {acts.length > 0 && <div className="tools"><ActionBar items={acts} /></div>}</div>
-      {msg && <p className="msg" role="status">{msg}</p>}
-      <section className="panel"><dl className="kv">
+    drawer = <Drawer onClose={() => setViewId(null)} title={<>{m && chip(m.track_code)} {vt.title} {pill(vt.active)}</>}
+      actions={acts.length ? <ActionBar items={acts} /> : undefined}>
+      <p className="sub" style={{ marginTop: 0 }}>{gradeName(vt.grade)} · Thứ tự {vt.seq} · {vt.periods} tiết{m && tr?.use_modules !== false ? ' · Học phần ' + m.name : ''}</p>
+      <dl className="kv">
         <dt>Mã chủ đề</dt><dd>{v(vt.code)}</dd>
-        <dt>Khối</dt><dd>{gradeName(vt.grade)}</dd>
-        <dt>Số tiết</dt><dd>{vt.periods}</dd>
         <dt>Môn chủ trì</dt><dd>{v(vt.main_subject)}</dd>
         <dt>Môn phối hợp</dt><dd>{v(vt.subjects.join(', '))}</dd>
         <dt>Yêu cầu cần đạt</dt><dd>{v(vt.objectives)}</dd>
         <dt>Sản phẩm</dt><dd>{v(vt.product)}</dd>
         {tr?.schedule_mode === 'subject' && <><dt>Bài SGK liên quan</dt><dd>{v(vt.textbook_ref)}</dd></>}
-      </dl></section>
-    </>
+      </dl>
+    </Drawer>
   }
 
   // ----- Chi tiết học phần: chủ đề theo khối -----
@@ -159,6 +152,7 @@ export function ProgramFrame() {
           <TopicTable list={list} track={track} admin={admin} onOpen={t => { setMsg(''); setViewId(t.id) }} onMove={moveTopic(list)} />
         </div>
       })}
+      {drawer}
     </>
   }
 
@@ -205,6 +199,7 @@ export function ProgramFrame() {
 </>}
       {!showGrade && <small className="sub">{mods.length} học phần</small>}
     </div>
+    <FitScreen>
     {!showGrade
       ? <DataTable id="program-modules" className="slt ttdense" rows={mods} rowKey={m => m.id} cols={cols} noun="học phần" onRow={m => { setMsg(''); setOpenId(m.id) }}
         rowProps={admin ? m => dragMod.row(m.id) : undefined} simple noTools
@@ -223,10 +218,12 @@ export function ProgramFrame() {
             </div>
           })}
       </>}
+    </FitScreen>
     {track && <p className="sub framefoot" title="Đổi thiết lập ở Danh mục → Loại chương trình">
       {flat ? 'Chương trình không chia học phần, chỉ có chủ đề theo khối' : 'Chương trình chia theo học phần'} · {track.school_pick_topics ? 'trường tự chọn chủ đề sẽ dạy' : 'trường học đủ các chủ đề'} · {track.school_arrange_ppct !== false ? 'trường tự xếp PPCT theo tuần' : 'PPCT theo mẫu KDI / Sở'} · {SCHEDULE_MODE_NAME[track.schedule_mode ?? 'timetable']}.
       {showGrade && g !== null && <b style={{ fontWeight: 600 }}> {g === 'all' ? 'Tất cả khối' : gradeName(g)}: {gTopics.length} chủ đề, {sum(gTopics)} tiết.</b>}</p>}
     <p className="tablenote sub">{flat ? 'Chủ đề sắp theo thứ tự trong từng khối.' : 'Học phần dùng chung cho các gói STEM và các khối; gói nào dùng học phần nào chọn ở tab Gói STEM.'} Nội dung của từng chủ đề (kế hoạch giảng dạy, bài giảng, phiếu học tập, bài kiểm tra, vật tư, kho học liệu) và phiên bản làm ở bước tiếp theo.</p>
+    {drawer}
   </>
 }
 
@@ -378,7 +375,7 @@ export function MaterialGroupsCatalog() {
     {admin && <HeadAction><button type="button" className="primary ttadd"
       onClick={() => setEdit({ id: '', name: '', description: '', sort: rows.reduce((x, g) => Math.max(x, g.sort), 0) + 1, active: true })}>+ Thêm nhóm vật tư</button></HeadAction>}
     {msg && <p className="msg" role="status">{msg}</p>}
-    <DataTable id="material-groups" rows={rows} rowKey={g => g.id} cols={cols} noun="nhóm"
+    <DataTable fit id="material-groups" rows={rows} rowKey={g => g.id} cols={cols} noun="nhóm"
       rowMenu={admin ? g => [{ label: 'Sửa', onClick: () => setEdit(g) }, { label: 'Xoá', danger: true, onClick: () => remove(g) }] : undefined} empty="Chưa có nhóm vật tư." />
     <p className="tablenote sub">Nhóm vật tư dùng để chia vật tư, thiết bị của mỗi chủ đề (VD: Nhóm 1, Nhóm 2, Nhóm 3 hoặc theo loại). {admin ? 'Bấm tên nhóm để sửa; nút ⋮ cuối dòng để xoá.' : 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'}</p>
   </>

@@ -3755,3 +3755,9 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .cmpmod.dif{background:#dbeafe;color:#1e3a8a;font-weight:600}
 .main .lvfilter>small.sub,.main .cmpbar>small.sub{align-self:center;margin:0;line-height:1.4}
 .main .cmpmod i{font-style:normal;font-size:11px;opacity:.7;margin-right:2px}
+/* Cột "Học phần" chung (HP1, HP2…) thay cho ghi (HP1) trong từng ô */
+.pkggrid .hpl{display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--muted);font-size:calc(12px * var(--fz,1));background:var(--surface)}
+.main .cmpgrade td.cmpg{vertical-align:middle;font-weight:600}
+.main .cmpgrade td.cmphp,.main .cmpgrade th:nth-child(2){color:var(--muted);font-weight:600;font-size:12.5px;width:80px;text-align:center}
+.main .cmpgrade tr.cmpsub td{border-top:1px dashed var(--line)}
+.main .cmpgrade th:nth-child(2),.pkggrid .hd{white-space:nowrap}

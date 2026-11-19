@@ -179,8 +179,8 @@ function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg
   const selIts = sel ? mine.filter(i => i.track_code === sel.t && i.grade === sel.g).sort((a, b) => a.slot - b.slot) : []
   const Overview = () => !allGrades.length ? <p className="sub">Gói chưa có học phần.</p> : <>
     <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
-      <div className="pkggrid" style={{ gridTemplateColumns: `180px repeat(${allGrades.length}, minmax(92px, 1fr))` }}>
-        <div className="hd lb"><b>Loại chương trình (CT)</b></div>
+      <div className="pkggrid" style={{ gridTemplateColumns: `180px 76px repeat(${allGrades.length}, minmax(92px, 1fr))` }}>
+        <div className="hd lb"><b>Loại chương trình (CT)</b></div><div className="hd">Học phần</div>
         {allGrades.map(g => <div key={g} className="hd">{gradeName(g)}</div>)}
         {tracks.map((t, ti) => { const c = PROGRAM_COLOR[t.code] ?? 'var(--line)'
           const band = ti % 2 ? ' alt' : ''
@@ -188,16 +188,16 @@ function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg
           return [
           <div key={t.code} className={'lb grp' + band} style={{ boxShadow: `inset 4px 0 0 ${c}`, gridRow: `span ${slots.length || 1}` }}>
             {chip(t.code)}<b>{t.name}</b></div>,
-          ...slots.flatMap(sl => allGrades.map(g => {
+          ...slots.flatMap(sl => [<div key={t.code + sl + '-hp'} className={'hpl' + band + (sl === slots[0] ? ' grp' : '')}>{sl === 0 ? <span className="sub">Chủ đề</span> : 'HP' + sl}</div>, ...allGrades.map(g => {
             const list = mine.filter(i => i.track_code === t.code && i.grade === g && (sl === 0 || i.slot === sl))
             const on = sel?.t === t.code && sel.g === g
             return <button key={t.code + sl + '-' + g} type="button" className={'gc' + band + (sl === slots[0] ? ' grp' : '') + (on ? ' on' : '')} aria-pressed={on} disabled={!list.length}
               title={`${t.code} · ${gradeName(g)}: bấm để xem chủ đề`} onClick={() => setSel(on ? null : { t: t.code, g })}>
               {!list.length ? <span className="sub">—</span>
                 : sl === 0 ? <span className="num"><b>{nTopics(list)}</b> chủ đề</span>
-                : <span className="hp">{mod(list[0].module_id)?.name ?? '?'} <i>(HP{sl})</i></span>}
+                : <span className="hp">{mod(list[0].module_id)?.name ?? '?'}</span>}
             </button>
-          }))] })}
+          })])] })}
       </div>
     </div>
     {sel && selTrack && <div className="panel" style={{ marginTop: 10, padding: '10px 12px' }}>
@@ -400,11 +400,13 @@ function CompareView({ tracks, packages, items, modName, grades, name, filter }:
         </tbody>)}
       </table>
       : <table className="table cmptbl cmpgrade">
-        <thead><tr><th>Khối</th>{packages.map(p => <th key={p.id}>{p.name}</th>)}</tr></thead>
+        <thead><tr><th>Khối</th><th>Học phần</th>{packages.map(p => <th key={p.id}>{p.name}</th>)}</tr></thead>
         {gsections.map(({ t, rows }) => <tbody key={t.code}>
-          <tr className="cmpgrp"><td colSpan={packages.length + 1}>{chip(t.code)} {t.name}</td></tr>
-          {rows.map(({ g, per, common }) => <tr key={g}><td>{gradeName(g)}</td>
-            {per.map((ms, k) => <td key={k}>{ms.length ? ms.map((m, j) => <span key={j} className={'cmpmod' + (common.has(m) ? '' : ' dif')}><i>HP{j + 1}</i> {modName(m)}</span>) : <span className="sub">—</span>}</td>)}</tr>)}
+          <tr className="cmpgrp"><td colSpan={packages.length + 2}>{chip(t.code)} {t.name}</td></tr>
+          {rows.flatMap(({ g, per, common }) => { const n = Math.max(1, ...per.map(x => x.length))
+            return Array.from({ length: n }, (_, j) => <tr key={g + '-' + j} className={j ? 'cmpsub' : 'cmpfirst'}>
+              {j === 0 && <td rowSpan={n} className="cmpg">{gradeName(g)}</td>}<td className="cmphp">HP{j + 1}</td>
+              {per.map((ms, k) => <td key={k}>{ms[j] ? <span className={'cmpmod' + (common.has(ms[j]) ? '' : ' dif')}>{modName(ms[j])}</span> : <span className="sub">—</span>}</td>)}</tr>) })}
         </tbody>)}
       </table>}
     </FitScreen>

@@ -12,6 +12,7 @@ import { ElView } from '../components/ElView'
 import { ActionBar, type Act } from '../components/ActionBar'
 import { RowMenu } from '../components/ProTools'
 import { Chip } from './dist/Editor'
+import { MultiSelect } from '../components/MultiSelect'
 
 // Gói STEM theo khung chương trình (148): mỗi gói gồm các loại chương trình; mỗi loại, mỗi khối chọn học phần ở từng vị trí
 // (Học phần 1, Học phần 2…). Xem một gói, so sánh các gói (tô màu chỗ khác nhau). Chỉ KDI sửa.
@@ -354,10 +355,14 @@ function LevelFilter({ lvs, grade, onLevels, onGrade }: { lvs: string[]; grade: 
   </div>
 }
 
-function CompareView({ tracks, packages, items, modName, grades, name, filter }: {
+function CompareView({ tracks, packages: allPkgs, items, modName, grades, name, filter }: {
   tracks: StemTrack[]; packages: ProgramPackage[]; items: PackageItem[]; topics: ProgramTopic[]; modName: (id: string) => string
   grades: number[]; levels: (typeof LEVELS)[number][]; name: string; filter: React.ReactNode
 }) {
+  // Chọn gói để so sánh: không chọn gói nào = so sánh tất cả. Màu mỗi gói giữ nguyên theo thứ tự gốc.
+  const [pick, setPick] = useState<string[]>([])
+  const packages = pick.length ? allPkgs.filter(p => pick.includes(p.id)) : allPkgs
+  const ck = (k: number) => allPkgs.indexOf(packages[k])
   const [only, setOnly] = useState(true)
   const [by, setBy] = useState<'mod' | 'grade'>('mod')
   const its = items.filter(i => grades.includes(i.grade) && packages.some(p => p.id === i.package_id))
@@ -392,27 +397,30 @@ function CompareView({ tracks, packages, items, modName, grades, name, filter }:
       <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện chỗ các gói khác nhau</label>
       {only && same.length > 0 && <small className="sub">{same.join(', ')} giống nhau ở mọi gói.</small>}
       <span style={{ flex: 1 }} />
+      <span className="lvlab">Gói</span>
+      <div style={{ flex: '0 0 220px', width: 220 }}><MultiSelect compact value={pick} onChange={setPick} options={allPkgs.map(p => [p.id, p.name] as [string, string])}
+        placeholder="Tất cả gói" ariaLabel="Chọn gói để so sánh" /></div>
       <button type="button" onClick={printCmp}>In / Xuất PDF</button>
     </div>
     <div className="cmpprint">
     <h3 className="printonly">So sánh các gói STEM · {name} · theo {by === 'mod' ? 'học phần' : 'khối'}</h3>
     <FitScreen className="fsbox">
       {by === 'mod' ? <table className="table cmptbl cmplined cmpmodt">
-        <thead><tr><th>Học phần · {name}</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(k)}>{p.name}</th>)}</tr></thead>
+        <thead><tr><th>Học phần · {name}</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(ck(k))}>{p.name}</th>)}</tr></thead>
         {sections.map(({ t, rows }) => <tbody key={t.code}>
           <tr className="cmpgrp"><td colSpan={packages.length + 1}>{chip(t.code)} {t.name}</td></tr>
           {rows.map(({ m }) => <tr key={m}><td>{t.use_modules === false ? 'Chủ đề theo khối' : modName(m)}</td>
-            {packages.map((p, k) => <td key={p.id} style={pkgTd(k)}>{has(p.id, m) ? 'Có' : <span className="sub">—</span>}</td>)}</tr>)}
+            {packages.map((p, k) => <td key={p.id} style={pkgTd(ck(k))}>{has(p.id, m) ? 'Có' : <span className="sub">—</span>}</td>)}</tr>)}
         </tbody>)}
       </table>
       : <table className="table cmptbl cmpgrade cmplined">
-        <thead><tr><th>Khối</th><th>Học phần</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(k)}>{p.name}</th>)}</tr></thead>
+        <thead><tr><th>Khối</th><th>Học phần</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(ck(k))}>{p.name}</th>)}</tr></thead>
         {gsections.map(({ t, rows }) => <tbody key={t.code}>
           <tr className="cmpgrp"><td colSpan={packages.length + 2}>{chip(t.code)} {t.name}</td></tr>
           {rows.flatMap(({ g, per }) => { const n = Math.max(1, ...per.map(x => x.length))
             return Array.from({ length: n }, (_, j) => <tr key={g + '-' + j} className={j ? 'cmpsub' : 'cmpfirst'}>
               {j === 0 && <td rowSpan={n} className="cmpg">{gradeName(g)}</td>}<td className="cmphp">HP{j + 1}</td>
-              {per.map((ms, k) => <td key={k} style={pkgTd(k)}>{ms[j] ? modName(ms[j]) : <span className="sub">—</span>}</td>)}</tr>) })}
+              {per.map((ms, k) => <td key={k} style={pkgTd(ck(k))}>{ms[j] ? modName(ms[j]) : <span className="sub">—</span>}</td>)}</tr>) })}
         </tbody>)}
       </table>}
     </FitScreen>

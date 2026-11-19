@@ -3786,3 +3786,14 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
   body.cmpprinting .cmpprint td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
   @page{size:A4 landscape;margin:10mm}
 }
+/* Khung chương trình: hàng khối gọn (chỉ số khối), không tràn ngang ở cỡ chữ lớn */
+.main .framebar{scrollbar-width:none}.main .framebar::-webkit-scrollbar{display:none}
+.main .framebar .lvlab{margin-left:2px}
+/* Ô số liệu Gói STEM gọn một dòng cho đỡ tốn chỗ */
+.main .pkgkpi{gap:8px;margin-bottom:10px}
+.main .pkgkpi>div{padding:6px 12px;gap:10px;border-radius:8px}
+.main .pkgkpi .ic{width:28px;height:28px;border-radius:7px;font-size:12px}
+.main .pkgkpi b{font-size:calc(18px * var(--fz,1))}
+.main .pkgkpi small{display:inline;margin:0 0 0 6px}
+.main .pkgkpi>div>div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.main .pkgkpi .kpibtn small{display:block;margin:1px 0 0}

@@ -3738,3 +3738,51 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .fitscreen.fsbox{border:1px solid var(--line);border-radius:8px;background:var(--surface)}
 .main .fitscreen.fsbox>table{border:0;border-radius:0;margin:0}
 .main .fitscreen>.pkgover{min-height:100%}
+/* Hàng lọc cấp / khối (Gói STEM, So sánh): nhóm nút liền nhau, nhãn thẳng hàng */
+.main .lvfilter{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin:0 0 10px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.main .lvgrp{display:flex;align-items:center;gap:8px}
+.main .lvlab{font-size:13px;color:var(--muted);font-weight:600;white-space:nowrap}
+.main .seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.main .seg>button{border:0;border-radius:0;border-left:1px solid var(--line);background:none;padding:5px 12px;min-height:0;font-size:13px;font-weight:500;color:inherit;line-height:1.4}
+.main .seg>button:first-child{border-left:0}
+.main .seg>button.on{background:var(--primary);color:#fff}
+.main .seg>button:not(.on):hover{background:var(--soft)}
+.main .cmpbar{align-items:center;gap:16px}
+/* So sánh theo khối: học phần dạng thẻ nhỏ; khác nhau tô xanh nhạt, giống nhau chữ xám */
+.main .cmpgrade td:not(:first-child){text-align:left}
+.main .cmpgrade th:not(:first-child){text-align:left}
+.main .cmpmod{display:inline-block;margin:2px 6px 2px 0;padding:2px 8px;border-radius:6px;font-size:12.5px;color:var(--muted);background:var(--soft)}
+.main .cmpmod.dif{background:#dbeafe;color:#1e3a8a;font-weight:600}
+.main .lvfilter>small.sub,.main .cmpbar>small.sub{align-self:center;margin:0;line-height:1.4}
+.main .cmpmod i{font-style:normal;font-size:11px;opacity:.7;margin-right:2px}
+/* Cột "Học phần" chung (HP1, HP2…) thay cho ghi (HP1) trong từng ô */
+.pkggrid .hpl{display:flex;align-items:center;justify-content:center;font-weight:600;color:var(--muted);font-size:calc(12px * var(--fz,1));background:var(--surface)}
+.main .cmpgrade td.cmpg{vertical-align:middle;font-weight:600}
+.main .cmpgrade td.cmphp,.main .cmpgrade th:nth-child(2){color:var(--muted);font-weight:600;font-size:12.5px;width:80px;text-align:center}
+.main .cmpgrade tr.cmpsub td{border-top:1px dashed var(--line)}
+.main .cmpgrade th:nth-child(2),.pkggrid .hd{white-space:nowrap}
+/* So sánh theo khối: chỉ tên học phần, có kẻ cột */
+.main .cmpgrade td,.main .cmpgrade th{border-right:1px solid var(--line)}
+.main .cmpgrade td:last-child,.main .cmpgrade th:last-child{border-right:0}
+.main .cmpgrade tr.cmpgrp td{border-right:0}
+.main .cmpgrade{table-layout:fixed}
+.main .cmpgrade th:first-child{width:140px}
+.main .cmpgrade th:nth-child(2){width:96px}
+.main .pkggrid .hpl{align-self:stretch;display:flex;align-items:center;justify-content:center}
+.main .fitscreen .cmptbl>thead>tr>th.pkgth{font-weight:700;font-size:13px}
+/* So sánh theo học phần: kẻ cột, cột gói rộng bằng nhau như bảng theo khối */
+.main .cmplined td,.main .cmplined th{border-right:1px solid var(--line)}
+.main .cmplined td:last-child,.main .cmplined th:last-child,.main .cmplined tr.cmpgrp td{border-right:0}
+.main .cmpmodt{table-layout:fixed}
+.main .cmpmodt th:first-child{width:236px}
+/* In bảng so sánh gói (nút "In / Xuất PDF") */
+.printonly{display:none}
+@media print{
+  body.cmpprinting .cmpprint,body.cmpprinting .cmpprint *{visibility:visible!important}
+  body.cmpprinting .cmpprint{position:absolute;left:0;top:0;width:100%}
+  body.cmpprinting .cmpprint .printonly{display:block;margin:0 0 8px}
+  body.cmpprinting .cmpprint .fitscreen{height:auto!important;overflow:visible!important}
+  body.cmpprinting .cmpprint th.pkgth{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body.cmpprinting .cmpprint td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page{size:A4 landscape;margin:10mm}
+}

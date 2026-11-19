@@ -145,7 +145,7 @@ export function ProgramFrame() {
       {msg && <p className="msg" role="status">{msg}</p>}
       {!gs.length && <p className="sub">Học phần chưa có chủ đề.{admin ? ' Bấm "+ Thêm chủ đề".' : ''}</p>}
       {gs.length > 0 && <ModuleTopicTable ts={ts} grades={gs.sort((a, b) => a - b)} admin={admin} onOpen={t => { setMsg(''); setViewId(t.id) }}
-        onAdd={g => setEditTopic(blank(g))} moveTopic={moveTopic} />}
+        moveTopic={moveTopic} />}
       {drawer}
     </>
   }
@@ -223,8 +223,8 @@ export function ProgramFrame() {
 }
 
 /** Chủ đề của một học phần trong một bảng: nhóm theo khối, trong khối nhóm theo phần HP1 / HP2 (160); chủ đề không ghi phần là "Dùng chung" */
-function ModuleTopicTable({ ts, grades, admin, onOpen, onAdd, moveTopic }: {
-  ts: ProgramTopic[]; grades: number[]; admin: boolean; onOpen: (t: ProgramTopic) => void; onAdd: (g: number) => void
+function ModuleTopicTable({ ts, grades, admin, onOpen, moveTopic }: {
+  ts: ProgramTopic[]; grades: number[]; admin: boolean; onOpen: (t: ProgramTopic) => void
   moveTopic: (list: ProgramTopic[]) => (from: string, to: string) => void
 }) {
   const groups = grades.map(g => {
@@ -241,9 +241,7 @@ function ModuleTopicTable({ ts, grades, admin, onOpen, onAdd, moveTopic }: {
   return <div className="tablewrap"><table className="table slt ttdense">
     <thead><tr><th className="c-no">TT</th><th className="c-ttl">Chủ đề</th><th style={{ width: 80 }}>Số tiết</th><th>Môn chủ trì</th><th>Môn phối hợp</th><th>Yêu cầu cần đạt</th><th>Sản phẩm</th></tr></thead>
     <tbody>{groups.map(({ g, list, parts }) => <Fragment key={g}>
-      <tr className="grouprow"><td colSpan={N}><div className="bar" style={{ margin: 0 }}>
-        <span><b>{gradeName(g)}</b> <span style={MUTED}>· {list.length} chủ đề · {sum(list)} tiết</span></span>
-        {admin && <button type="button" style={{ marginLeft: 'auto' }} onClick={() => onAdd(g)}>+ Chủ đề {gradeName(g)}</button>}</div></td></tr>
+      <tr className="grouprow"><td colSpan={N}><b>{gradeName(g)}</b> <span style={MUTED}>· {list.length} chủ đề · {sum(list)} tiết</span></td></tr>
       {parts.map(({ k, list: pl }) => <Fragment key={k}>
         {k >= 0 && <tr className="partrow"><td colSpan={N} style={{ paddingLeft: 14 }}>
           <span style={{ paddingLeft: 8, borderLeft: `4px solid ${k ? PART_C[k - 1] : 'var(--line)'}` }}>

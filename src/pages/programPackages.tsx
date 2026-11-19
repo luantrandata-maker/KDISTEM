@@ -335,48 +335,34 @@ function TrackGrid({ pkg, track, admin, items, modules, topics, slots, diffKeys,
   </div>
 }
 
-// So sánh các gói theo cấp học (để tư vấn cho từng trường): chỉ tính các khối thuộc cấp đã chọn.
-// Trên cùng là dòng tổng (học phần, chủ đề, số tiết) của mỗi gói, bên dưới là từng học phần: gói nào có ghi "Có", không có thì "—".
+// So sánh các gói (tư vấn cho từng trường): lọc theo cấp / khối, xem theo học phần hoặc theo khối.
 const LEVELS = [{ k: 'th', name: 'Tiểu học', grades: [1, 2, 3, 4, 5] }, { k: 'thcs', name: 'THCS', grades: [6, 7, 8, 9] }, { k: 'thpt', name: 'THPT', grades: [10, 11, 12] }] as const
+function Seg<T extends string | number | null>({ label, items, on, onPick }: { label: string; items: [T, string][]; on: (v: T) => boolean; onPick: (v: T) => void }) {
+  return <div className="lvgrp"><span className="lvlab">{label}</span>
+    <div className="seg" role="group" aria-label={label}>{items.map(([v, t]) =>
+      <button key={String(v)} type="button" className={on(v) ? 'on' : ''} aria-pressed={on(v)} onClick={() => onPick(v)}>{t}</button>)}</div></div>
+}
 function LevelFilter({ lvs, grade, onLevels, onGrade }: { lvs: string[]; grade: number | null; onLevels: (v: string[]) => void; onGrade: (g: number | null) => void }) {
   const sel = LEVELS.filter(l => lvs.includes(l.k))
   const toggle = (k: string) => onLevels(lvs.includes(k) ? lvs.filter(x => x !== k) : LEVELS.filter(l => [...lvs, k].includes(l.k)).map(l => l.k))
-  return <div className="distfilter framebar lvfilter" role="group" aria-label="Lọc theo cấp, khối">
-    <span className="sub">Cấp</span>
-    <button type="button" className={'distfchip' + (!lvs.length ? ' on' : '')} aria-pressed={!lvs.length} onClick={() => onLevels([])}>Tất cả</button>
-    {LEVELS.map(l => <button key={l.k} type="button" className={'distfchip' + (lvs.includes(l.k) ? ' on' : '')} aria-pressed={lvs.includes(l.k)} onClick={() => toggle(l.k)}>{l.name}</button>)}
-    {sel.length > 0 && <><span className="sub" style={{ marginLeft: 12 }}>Khối</span>
-      <button type="button" className={'distfchip' + (grade === null ? ' on' : '')} aria-pressed={grade === null} onClick={() => onGrade(null)}>Tất cả</button>
-      {sel.flatMap(l => [...l.grades]).map(g => <button key={g} type="button" className={'distfchip' + (grade === g ? ' on' : '')} aria-pressed={grade === g} onClick={() => onGrade(g)}>{g}</button>)}</>}
-    {!lvs.length && <small className="sub" style={{ marginLeft: 8 }}>Trường liên cấp: bấm nhiều cấp</small>}
+  return <div className="lvfilter">
+    <Seg label="Cấp học" items={[['', 'Tất cả'], ...LEVELS.map(l => [l.k, l.name] as [string, string])]} on={v => v ? lvs.includes(v) : !lvs.length} onPick={v => v ? toggle(v) : onLevels([])} />
+    {sel.length > 0 && <Seg label="Khối" items={[[null, 'Tất cả'], ...sel.flatMap(l => [...l.grades]).map(g => [g, String(g)] as [number, string])]} on={v => v === grade} onPick={onGrade} />}
+    <small className="sub">{lvs.length ? `Đang xem ${grade ? 'khối ' + grade : sel.map(l => l.name).join(' + ')}` : 'Trường liên cấp: chọn nhiều cấp'}</small>
   </div>
 }
 
-function CompareView({ tracks, packages, items, topics, modName, grades, levels, name, filter }: {
+function CompareView({ tracks, packages, items, modName, grades, name, filter }: {
   tracks: StemTrack[]; packages: ProgramPackage[]; items: PackageItem[]; topics: ProgramTopic[]; modName: (id: string) => string
   grades: number[]; levels: (typeof LEVELS)[number][]; name: string; filter: React.ReactNode
 }) {
-  const [only, setOnly] = useState(false)
-  const sel = levels
-  const level = { name, grades }
-  const inLv = (g: number) => grades.includes(g)
-  const its = items.filter(i => inLv(i.grade) && packages.some(p => p.id === i.package_id))
+  const [only, setOnly] = useState(true)
+  const [by, setBy] = useState<'mod' | 'grade'>('mod')
+  const its = items.filter(i => grades.includes(i.grade) && packages.some(p => p.id === i.package_id))
   const has = (p: string, m: string) => its.some(i => i.package_id === p && i.module_id === m)
-  const topicsOf = (p: string) => its.filter(i => i.package_id === p).flatMap(i => topics.filter(t => t.module_id === i.module_id && t.grade === i.grade && t.active))
-  const sum = packages.map(p => {
-    const tl = topicsOf(p.id), per = tl.reduce((x, t) => x + (t.periods || 0), 0)
-    const yr = sel.map(l => Math.round(tl.filter(t => (l.grades as readonly number[]).includes(t.grade)).reduce((x, t) => x + (t.periods || 0), 0) / l.grades.length))
-    return { mods: new Set(its.filter(i => i.package_id === p.id && tracks.find(t => t.code === i.track_code)?.use_modules !== false).map(i => i.module_id)).size,
-      tracks: new Set(its.filter(i => i.package_id === p.id).map(i => i.track_code)).size, topics: tl.length, per, yr }
-  })
-  const sumRows: [string, (x: typeof sum[number]) => number, string][] = [
-    ['Loại chương trình', x => x.tracks, ''], ['Học phần', x => x.mods, ''], ['Chủ đề (cả cấp)', x => x.topics, ''],
-    ['Số tiết (cả cấp)', x => x.per, ''],
-    ...(sel.length ? [] : [['Số tiết mỗi năm', (x: typeof sum[number]) => x.per, ''] as [string, (x: typeof sum[number]) => number, string]]),
-    ...sel.map((l, k) => [`Số tiết mỗi năm${sel.length > 1 ? ' · ' + l.name : ''} (trung bình 1 khối)`, (x: typeof sum[number]) => x.yr[k], ''] as [string, (x: typeof sum[number]) => number, string])]
+  // Theo học phần: gói nào có học phần (trong các khối đang lọc) ghi "Có"
   const sections = tracks.map(t => {
     const mods = [...new Set(its.filter(i => i.track_code === t.code).map(i => i.module_id))]
-      // Xếp bậc thang: học phần có ở gói 1 lên trước, rồi gói 2, gói 3…; cùng nhóm thì theo tên
       .sort((a, b) => {
         for (const p of packages) { const x = has(p.id, a), y = has(p.id, b); if (x !== y) return x ? -1 : 1 }
         return modName(a).localeCompare(modName(b), 'vi')
@@ -384,29 +370,45 @@ function CompareView({ tracks, packages, items, topics, modName, grades, levels,
     const rows = mods.map(m => ({ m, d: !packages.every(p => has(p.id, m) === has(packages[0].id, m)) }))
     return { t, rows: only ? rows.filter(r => r.d) : rows }
   }).filter(x => x.rows.length)
+  // Theo khối: mỗi khối một dòng, ô ghi học phần của gói ở khối đó; học phần không phải gói nào cũng có thì tô xanh
+  const modsAt = (p: string, t: string, g: number) => its.filter(i => i.package_id === p && i.track_code === t && i.grade === g).sort((a, b) => a.slot - b.slot).map(i => i.module_id)
+  const gsections = tracks.filter(t => t.use_modules !== false).map(t => {
+    const rows = grades.map(g => {
+      const per = packages.map(p => modsAt(p.id, t.code, g))
+      const common = new Set(per[0].filter(m => per.every(x => x.includes(m))))
+      return { g, per, common, d: per.some(x => x.length !== common.size) }
+    }).filter(r => r.per.some(x => x.length))
+    return { t, rows: only ? rows.filter(r => r.d) : rows }
+  }).filter(x => x.rows.length)
+  const same = tracks.filter(t => !(by === 'mod' ? sections : gsections).some(x => x.t.code === t.code)).map(t => t.code)
   return <>
     {filter}
     <div className="bar cmpbar">
-      <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện học phần các gói khác nhau</label>
+      <Seg label="Xem theo" items={[['mod', 'Học phần'], ['grade', 'Khối']] as ['mod' | 'grade', string][]} on={v => v === by} onPick={setBy} />
+      <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện chỗ các gói khác nhau</label>
+      {only && same.length > 0 && <small className="sub">{same.join(', ')} giống nhau ở mọi gói.</small>}
       <span style={{ flex: 1 }} />
       <button type="button" onClick={() => window.print()}>In / Xuất PDF</button>
     </div>
     <FitScreen className="fsbox">
-      <table className="table cmptbl">
-        <thead><tr><th>{name}</th>{packages.map(p => <th key={p.id}>{p.name}</th>)}</tr></thead>
-        <tbody className="cmpsum">
-          <tr className="cmpgrp"><td colSpan={packages.length + 1}>Tổng · {name}</td></tr>
-          {sumRows.map(([label, f]) => { const v = sum.map(f), d = v.some(x => x !== v[0])
-            return <tr key={label}><td>{label}</td>{v.map((x, k) => <td key={k} style={d ? DIFF : undefined}><b>{x}</b></td>)}</tr> })}
-        </tbody>
+      {by === 'mod' ? <table className="table cmptbl">
+        <thead><tr><th>Học phần · {name}</th>{packages.map(p => <th key={p.id}>{p.name}</th>)}</tr></thead>
         {sections.map(({ t, rows }) => <tbody key={t.code}>
           <tr className="cmpgrp"><td colSpan={packages.length + 1}>{chip(t.code)} {t.name}</td></tr>
           {rows.map(({ m, d }) => <tr key={m}><td>{t.use_modules === false ? 'Chủ đề theo khối' : modName(m)}</td>
             {packages.map(p => <td key={p.id} style={d ? DIFF : undefined}>{has(p.id, m) ? 'Có' : <span className="sub">—</span>}</td>)}</tr>)}
         </tbody>)}
       </table>
+      : <table className="table cmptbl cmpgrade">
+        <thead><tr><th>Khối</th>{packages.map(p => <th key={p.id}>{p.name}</th>)}</tr></thead>
+        {gsections.map(({ t, rows }) => <tbody key={t.code}>
+          <tr className="cmpgrp"><td colSpan={packages.length + 1}>{chip(t.code)} {t.name}</td></tr>
+          {rows.map(({ g, per, common }) => <tr key={g}><td>{gradeName(g)}</td>
+            {per.map((ms, k) => <td key={k}>{ms.length ? ms.map((m, j) => <span key={j} className={'cmpmod' + (common.has(m) ? '' : ' dif')}><i>HP{j + 1}</i> {modName(m)}</span>) : <span className="sub">—</span>}</td>)}</tr>)}
+        </tbody>)}
+      </table>}
     </FitScreen>
-    {!its.length && <p className="sub">Chưa gói nào có học phần ở {name}.</p>}
+    {by === 'grade' && <p className="sub framefoot">Ô xanh là học phần không phải gói nào cũng có ở khối đó; chữ xám là học phần các gói đều có.</p>}
   </>
 }
 

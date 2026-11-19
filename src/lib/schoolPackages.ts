@@ -56,9 +56,9 @@ export function kRange(gs: number[]) {
 
 export async function loadSchoolPkgs(year: string) {
   const [r, s] = await Promise.all([
-    // Danh sách trường có thể hơn 1.000 dòng (giới hạn mỗi lần đọc): đọc theo trang
+    // Chỉ trường đã có gói trong năm học (159); trường để chọn khi gán gói tải theo tỉnh ở ô Gán gói
     fetchAll<SchoolPkgRow>(() => supabase.rpc('school_package_schools', { p_year: year }) as any),
-    fetchAll<PkgSkip>(() => supabase.from('school_package_skips').select('id, school_package_id, track_code, grade, slot, topic_id').order('id')),
+    fetchAll<PkgSkip>(() => supabase.from('school_package_skips').select('id, school_package_id, track_code, grade, slot, topic_id, school_packages!inner(school_year)').eq('school_packages.school_year', year).order('id')),
   ])
   const error = r.error ?? s.error
   return { rows: (r.data ?? []) as SchoolPkgRow[], skips: (s.data ?? []) as PkgSkip[], error: error ? spErr(error.message + ' ' + ((error as { code?: string }).code ?? '')) : '' }

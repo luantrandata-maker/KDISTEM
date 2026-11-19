@@ -354,10 +354,15 @@ function LevelFilter({ lvs, grade, onLevels, onGrade }: { lvs: string[]; grade: 
   </div>
 }
 
-function CompareView({ tracks, packages, items, modName, grades, name, filter }: {
+function CompareView({ tracks, packages: allPkgs, items, modName, grades, name, filter }: {
   tracks: StemTrack[]; packages: ProgramPackage[]; items: PackageItem[]; topics: ProgramTopic[]; modName: (id: string) => string
   grades: number[]; levels: (typeof LEVELS)[number][]; name: string; filter: React.ReactNode
 }) {
+  // Chọn gói để so sánh: không chọn gói nào = so sánh tất cả. Màu mỗi gói giữ nguyên theo thứ tự gốc.
+  const [pick, setPick] = useState<string[]>([])
+  const packages = pick.length ? allPkgs.filter(p => pick.includes(p.id)) : allPkgs
+  const ck = (k: number) => allPkgs.indexOf(packages[k])
+  const flipPkg = (id: string) => setPick(v => v.includes(id) ? v.filter(x => x !== id) : [...v, id])
   const [only, setOnly] = useState(true)
   const [by, setBy] = useState<'mod' | 'grade'>('mod')
   const its = items.filter(i => grades.includes(i.grade) && packages.some(p => p.id === i.package_id))
@@ -392,27 +397,32 @@ function CompareView({ tracks, packages, items, modName, grades, name, filter }:
       <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện chỗ các gói khác nhau</label>
       {only && same.length > 0 && <small className="sub">{same.join(', ')} giống nhau ở mọi gói.</small>}
       <span style={{ flex: 1 }} />
+      <div className="distfilter" role="group" aria-label="Chọn gói để so sánh" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        <span className="lvlab">Gói</span>
+        <button type="button" className={'distfchip' + (!pick.length ? ' on' : '')} aria-pressed={!pick.length} onClick={() => setPick([])}>Tất cả</button>
+        {allPkgs.map(p => <button key={p.id} type="button" className={'distfchip' + (pick.includes(p.id) ? ' on' : '')} aria-pressed={pick.includes(p.id)} onClick={() => flipPkg(p.id)}>{p.name}</button>)}
+      </div>
       <button type="button" onClick={printCmp}>In / Xuất PDF</button>
     </div>
     <div className="cmpprint">
     <h3 className="printonly">So sánh các gói STEM · {name} · theo {by === 'mod' ? 'học phần' : 'khối'}</h3>
     <FitScreen className="fsbox">
       {by === 'mod' ? <table className="table cmptbl cmplined cmpmodt">
-        <thead><tr><th>Học phần · {name}</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(k)}>{p.name}</th>)}</tr></thead>
+        <thead><tr><th>Học phần · {name}</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(ck(k))}>{p.name}</th>)}</tr></thead>
         {sections.map(({ t, rows }) => <tbody key={t.code}>
           <tr className="cmpgrp"><td colSpan={packages.length + 1}>{chip(t.code)} {t.name}</td></tr>
           {rows.map(({ m }) => <tr key={m}><td>{t.use_modules === false ? 'Chủ đề theo khối' : modName(m)}</td>
-            {packages.map((p, k) => <td key={p.id} style={pkgTd(k)}>{has(p.id, m) ? 'Có' : <span className="sub">—</span>}</td>)}</tr>)}
+            {packages.map((p, k) => <td key={p.id} style={pkgTd(ck(k))}>{has(p.id, m) ? 'Có' : <span className="sub">—</span>}</td>)}</tr>)}
         </tbody>)}
       </table>
       : <table className="table cmptbl cmpgrade cmplined">
-        <thead><tr><th>Khối</th><th>Học phần</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(k)}>{p.name}</th>)}</tr></thead>
+        <thead><tr><th>Khối</th><th>Học phần</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(ck(k))}>{p.name}</th>)}</tr></thead>
         {gsections.map(({ t, rows }) => <tbody key={t.code}>
           <tr className="cmpgrp"><td colSpan={packages.length + 2}>{chip(t.code)} {t.name}</td></tr>
           {rows.flatMap(({ g, per }) => { const n = Math.max(1, ...per.map(x => x.length))
             return Array.from({ length: n }, (_, j) => <tr key={g + '-' + j} className={j ? 'cmpsub' : 'cmpfirst'}>
               {j === 0 && <td rowSpan={n} className="cmpg">{gradeName(g)}</td>}<td className="cmphp">HP{j + 1}</td>
-              {per.map((ms, k) => <td key={k} style={pkgTd(k)}>{ms[j] ? modName(ms[j]) : <span className="sub">—</span>}</td>)}</tr>) })}
+              {per.map((ms, k) => <td key={k} style={pkgTd(ck(k))}>{ms[j] ? modName(ms[j]) : <span className="sub">—</span>}</td>)}</tr>) })}
         </tbody>)}
       </table>}
     </FitScreen>

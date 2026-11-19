@@ -171,7 +171,8 @@ function TrackForm({ t, isNew = false, onCancel, onSaved }: { t: StemTrack; isNe
       <div className="formgrid">
         {isNew && <label className="field"><span>Mã loại *</span><input value={f.code} maxLength={12} placeholder="VD: CT6" onChange={e => setF({ ...f, code: e.target.value.toUpperCase() })} /></label>}
         <label className="field"><span>Mã hiển thị</span><input value={f.label ?? ''} maxLength={12} placeholder={isNew ? 'Để trống = dùng mã loại' : `Để trống = ${t.code}`}
-          onChange={e => setF({ ...f, label: e.target.value })} /><small className="sub">Mã hiện trên mọi màn hình.{isNew ? '' : ` Mã gốc ${t.code} giữ nguyên để nối dữ liệu.`}</small></label>
+          title={'Mã hiện trên mọi màn hình.' + (isNew ? '' : ` Mã gốc ${t.code} giữ nguyên để nối dữ liệu.`)}
+          onChange={e => setF({ ...f, label: e.target.value })} /></label>
         <label className="field"><span>Thứ tự hiển thị</span><input type="number" min={0} value={f.sort ?? 0} onChange={e => setF({ ...f, sort: Number(e.target.value) })} /></label>
         <label className="field"><span>Trạng thái</span><select value={f.active === false ? 'off' : 'on'} onChange={e => setF({ ...f, active: e.target.value === 'on' })}>
           <option value="on">Đang dùng</option><option value="off">Ngừng dùng (không chọn được khi soạn mới)</option></select></label>

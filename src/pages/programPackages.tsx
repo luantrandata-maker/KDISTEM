@@ -12,6 +12,7 @@ import { ElView } from '../components/ElView'
 import { ActionBar, type Act } from '../components/ActionBar'
 import { RowMenu } from '../components/ProTools'
 import { Chip } from './dist/Editor'
+import { MultiSelect } from '../components/MultiSelect'
 
 // Gói STEM theo khung chương trình (148): mỗi gói gồm các loại chương trình; mỗi loại, mỗi khối chọn học phần ở từng vị trí
 // (Học phần 1, Học phần 2…). Xem một gói, so sánh các gói (tô màu chỗ khác nhau). Chỉ KDI sửa.
@@ -362,7 +363,6 @@ function CompareView({ tracks, packages: allPkgs, items, modName, grades, name, 
   const [pick, setPick] = useState<string[]>([])
   const packages = pick.length ? allPkgs.filter(p => pick.includes(p.id)) : allPkgs
   const ck = (k: number) => allPkgs.indexOf(packages[k])
-  const flipPkg = (id: string) => setPick(v => v.includes(id) ? v.filter(x => x !== id) : [...v, id])
   const [only, setOnly] = useState(true)
   const [by, setBy] = useState<'mod' | 'grade'>('mod')
   const its = items.filter(i => grades.includes(i.grade) && packages.some(p => p.id === i.package_id))
@@ -397,11 +397,9 @@ function CompareView({ tracks, packages: allPkgs, items, modName, grades, name, 
       <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện chỗ các gói khác nhau</label>
       {only && same.length > 0 && <small className="sub">{same.join(', ')} giống nhau ở mọi gói.</small>}
       <span style={{ flex: 1 }} />
-      <div className="distfilter" role="group" aria-label="Chọn gói để so sánh" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-        <span className="lvlab">Gói</span>
-        <button type="button" className={'distfchip' + (!pick.length ? ' on' : '')} aria-pressed={!pick.length} onClick={() => setPick([])}>Tất cả</button>
-        {allPkgs.map(p => <button key={p.id} type="button" className={'distfchip' + (pick.includes(p.id) ? ' on' : '')} aria-pressed={pick.includes(p.id)} onClick={() => flipPkg(p.id)}>{p.name}</button>)}
-      </div>
+      <span className="lvlab">Gói</span>
+      <div style={{ flex: '0 0 220px', width: 220 }}><MultiSelect compact value={pick} onChange={setPick} options={allPkgs.map(p => [p.id, p.name] as [string, string])}
+        placeholder="Tất cả gói" ariaLabel="Chọn gói để so sánh" /></div>
       <button type="button" onClick={printCmp}>In / Xuất PDF</button>
     </div>
     <div className="cmpprint">

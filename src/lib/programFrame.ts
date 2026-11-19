@@ -6,11 +6,11 @@ import { supabase } from './supabase'
 export type ProgramModule = { id: string; track_code: string; name: string; description: string; sort: number; active: boolean; periods?: number | null; updated_at?: string }
 export type ProgramTopic = {
   id: string; module_id: string; grade: number; seq: number; code: string | null; title: string; periods: number
-  objectives: string; main_subject: string | null; subjects: string[]; textbook_ref: string; active: boolean; updated_at?: string
+  objectives: string; main_subject: string | null; subjects: string[]; textbook_ref: string; product?: string; active: boolean; updated_at?: string
 }
 export type MaterialGroup = { id: string; name: string; description: string; sort: number; active: boolean; updated_at?: string }
 
-export const frameErr = (m: string) => (/schema cache|does not exist|relation .* does not exist/i.test(m) ? 'Hãy chạy migration 147, 148 trên Supabase.'
+export const frameErr = (m: string) => (/schema cache|does not exist|relation .* does not exist/i.test(m) ? 'Hãy chạy migration 147–150 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI sửa được khung chương trình.'
   : /23503|foreign key/i.test(m) ? 'Mục này còn dữ liệu bên trong (học phần còn chủ đề) nên chưa xoá được — hãy chuyển sang "Ngừng dùng".'
   : /23505|duplicate/i.test(m) ? 'Tên này đã có.'

@@ -2326,6 +2326,10 @@ select pg_temp.chk('kdi', 'Bài học STEM: 10 chủ đề mẫu mỗi khối', 
 -- ===== 149: loại chương trình chỉ có chủ đề (không chia học phần) =====
 select pg_temp.chk('kdi', 'Loại chương trình: CT1, CT4 chỉ có chủ đề', $q$select string_agg(code, ',' order by code) from stem_tracks where not use_modules$q$, 'CT1,CT4');
 
+-- ===== 150: sản phẩm của chủ đề =====
+select pg_temp.chk('kdi', 'Khung chương trình: chủ đề có cột sản phẩm', $q$select count(*) from information_schema.columns where table_name = 'program_topics' and column_name = 'product'$q$, '1');
+select pg_temp.chk('admin_ph', 'Khung chương trình: trường không sửa được sản phẩm của chủ đề', $q$with x as (update program_topics set product = 'ISO' returning 1) select count(*) from x$q$, '0');
+
 -- ===== 063: bài giảng tương tác dạng khối, hoạt động trò chơi / mô phỏng, thiết bị trong gói STEM =====
 select pg_temp.chk('gv_both', 'Bài giảng tương tác: lưu giáo án dạng khối',
   $q$insert into lesson_plans (org_id, teacher_id, title, lesson) values (my_org_id(), my_teacher_id(), 'ISO BG',

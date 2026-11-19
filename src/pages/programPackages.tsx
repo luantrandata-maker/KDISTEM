@@ -33,6 +33,13 @@ export function ProgramPackages() {
   const [msg, setMsg] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   const [compare, setCompare] = useState(false)
+  // Lọc theo cấp / khối, dùng chung cho Tổng quan gói và So sánh (tư vấn cho từng trường, trường liên cấp chọn nhiều cấp)
+  const [lvs, setLvs] = useState<string[]>([])
+  const [fGrade, setFGrade] = useState<number | null>(null)
+  const sel = lvs.length ? LEVELS.filter(l => lvs.includes(l.k)) : [...LEVELS]
+  const selGrades: number[] = fGrade ? [fGrade] : sel.flatMap(l => [...l.grades])
+  const fName = fGrade ? gradeName(fGrade) : lvs.length ? sel.map(l => l.name).join(' + ') : 'Cả 12 khối'
+  const filterBar = <LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} />
   const [openRows, setOpenRows] = useState<string[]>([])   // hàng chương trình đang mở hết danh sách học phần
   const [editPkg, setEditPkg] = useState<(ProgramPackage & { copyFrom?: string }) | null>(null)
   const reload = () => Promise.all([loadPackages(), loadFrame()]).then(([p, f]) => {
@@ -72,13 +79,13 @@ export function ProgramPackages() {
   if (compare) return <>
     <DetailHead back="Gói STEM" onBack={() => setCompare(false)} title="So sánh các gói STEM" />
     {msg && <p className="msg" role="status">{msg}</p>}
-    <CompareView tracks={active} packages={live} items={items} modName={modName} />
+    <CompareView tracks={active} packages={live} items={items} topics={topics} modName={modName} grades={selGrades} levels={fGrade ? [] : sel} name={fName} filter={filterBar} />
   </>
 
   const cur = openId ? packages.find(p => p.id === openId) : undefined
   const topicsIn = (moduleId: string, g: number) => topics.filter(t => t.module_id === moduleId && t.grade === g && t.active).sort((a, b) => a.seq - b.seq)
   const statOf = (pkg: string, t?: string) => {
-    const its = items.filter(i => i.package_id === pkg && (!t || i.track_code === t))
+    const its = items.filter(i => i.package_id === pkg && (!t || i.track_code === t) && selGrades.includes(i.grade))
     return { its, mods: [...new Set(its.map(i => i.module_id))], topics: its.reduce((x, i) => x + topicsIn(i.module_id, i.grade).length, 0),
       tracks: [...new Set(its.map(i => i.track_code))] }
   }
@@ -92,8 +99,8 @@ export function ProgramPackages() {
     acts={admin ? pkgMenu(cur).slice(1).map((a, k) => ({ key: String(k), label: a.label, kind: a.danger ? 'danger' : undefined, onClick: a.onClick } as Act)) : []}
     onChanged={reload} />
 
-  const allMods = new Set(items.filter(i => live.some(p => p.id === i.package_id)).map(i => i.module_id))
-  const allTopics = topics.filter(t => t.active && allMods.has(t.module_id)).length
+  const allMods = new Set(items.filter(i => live.some(p => p.id === i.package_id) && selGrades.includes(i.grade)).map(i => i.module_id))
+  const allTopics = topics.filter(t => t.active && allMods.has(t.module_id) && selGrades.includes(t.grade)).length
   const n = packages.length
   const cellS = { padding: '10px 12px', borderTop: '1px solid var(--line)', borderLeft: '1px solid var(--line)', minWidth: 0 } as const
   const labelS = { ...cellS, borderLeft: 0, background: 'var(--card, #fff)' } as const
@@ -110,6 +117,7 @@ export function ProgramPackages() {
         ['▤', allMods.size, 'Học phần', 'dùng trong các gói', 'var(--navy)'], ['●', allTopics, 'Chủ đề', 'trong các học phần', 'var(--navy)']] as const).map(([ic, v, l, sub, c]) =>
         <div key={l} style={{ '--k': c } as React.CSSProperties}><span className="ic">{ic}</span><div><b>{v}</b><span>{l}</span><small>{sub}</small></div></div>)}
     </div>
+    {filterBar}
     {!n ? <p className="sub">Chưa có gói STEM.</p> :
     <FitScreen><div className="panel pkgover" style={{ padding: 0, margin: 0 }}>
       <div style={{ display: 'grid', gridTemplateColumns: `220px repeat(${n}, minmax(200px, 1fr))` }}>
@@ -327,14 +335,47 @@ function TrackGrid({ pkg, track, admin, items, modules, topics, slots, diffKeys,
   </div>
 }
 
-// So sánh các gói theo học phần: gói nào có học phần đó ghi "Có", không có thì "—" (không so tới từng khối)
-function CompareView({ tracks, packages, items, modName }: {
-  tracks: StemTrack[]; packages: ProgramPackage[]; items: PackageItem[]; modName: (id: string) => string
+// So sánh các gói theo cấp học (để tư vấn cho từng trường): chỉ tính các khối thuộc cấp đã chọn.
+// Trên cùng là dòng tổng (học phần, chủ đề, số tiết) của mỗi gói, bên dưới là từng học phần: gói nào có ghi "Có", không có thì "—".
+const LEVELS = [{ k: 'th', name: 'Tiểu học', grades: [1, 2, 3, 4, 5] }, { k: 'thcs', name: 'THCS', grades: [6, 7, 8, 9] }, { k: 'thpt', name: 'THPT', grades: [10, 11, 12] }] as const
+function LevelFilter({ lvs, grade, onLevels, onGrade }: { lvs: string[]; grade: number | null; onLevels: (v: string[]) => void; onGrade: (g: number | null) => void }) {
+  const sel = LEVELS.filter(l => lvs.includes(l.k))
+  const toggle = (k: string) => onLevels(lvs.includes(k) ? lvs.filter(x => x !== k) : LEVELS.filter(l => [...lvs, k].includes(l.k)).map(l => l.k))
+  return <div className="distfilter framebar lvfilter" role="group" aria-label="Lọc theo cấp, khối">
+    <span className="sub">Cấp</span>
+    <button type="button" className={'distfchip' + (!lvs.length ? ' on' : '')} aria-pressed={!lvs.length} onClick={() => onLevels([])}>Tất cả</button>
+    {LEVELS.map(l => <button key={l.k} type="button" className={'distfchip' + (lvs.includes(l.k) ? ' on' : '')} aria-pressed={lvs.includes(l.k)} onClick={() => toggle(l.k)}>{l.name}</button>)}
+    {sel.length > 0 && <><span className="sub" style={{ marginLeft: 12 }}>Khối</span>
+      <button type="button" className={'distfchip' + (grade === null ? ' on' : '')} aria-pressed={grade === null} onClick={() => onGrade(null)}>Tất cả</button>
+      {sel.flatMap(l => [...l.grades]).map(g => <button key={g} type="button" className={'distfchip' + (grade === g ? ' on' : '')} aria-pressed={grade === g} onClick={() => onGrade(g)}>{g}</button>)}</>}
+    {!lvs.length && <small className="sub" style={{ marginLeft: 8 }}>Trường liên cấp: bấm nhiều cấp</small>}
+  </div>
+}
+
+function CompareView({ tracks, packages, items, topics, modName, grades, levels, name, filter }: {
+  tracks: StemTrack[]; packages: ProgramPackage[]; items: PackageItem[]; topics: ProgramTopic[]; modName: (id: string) => string
+  grades: number[]; levels: (typeof LEVELS)[number][]; name: string; filter: React.ReactNode
 }) {
-  const [only, setOnly] = useState(true)
-  const has = (p: string, m: string) => items.some(i => i.package_id === p && i.module_id === m)
+  const [only, setOnly] = useState(false)
+  const sel = levels
+  const level = { name, grades }
+  const inLv = (g: number) => grades.includes(g)
+  const its = items.filter(i => inLv(i.grade) && packages.some(p => p.id === i.package_id))
+  const has = (p: string, m: string) => its.some(i => i.package_id === p && i.module_id === m)
+  const topicsOf = (p: string) => its.filter(i => i.package_id === p).flatMap(i => topics.filter(t => t.module_id === i.module_id && t.grade === i.grade && t.active))
+  const sum = packages.map(p => {
+    const tl = topicsOf(p.id), per = tl.reduce((x, t) => x + (t.periods || 0), 0)
+    const yr = sel.map(l => Math.round(tl.filter(t => (l.grades as readonly number[]).includes(t.grade)).reduce((x, t) => x + (t.periods || 0), 0) / l.grades.length))
+    return { mods: new Set(its.filter(i => i.package_id === p.id && tracks.find(t => t.code === i.track_code)?.use_modules !== false).map(i => i.module_id)).size,
+      tracks: new Set(its.filter(i => i.package_id === p.id).map(i => i.track_code)).size, topics: tl.length, per, yr }
+  })
+  const sumRows: [string, (x: typeof sum[number]) => number, string][] = [
+    ['Loại chương trình', x => x.tracks, ''], ['Học phần', x => x.mods, ''], ['Chủ đề (cả cấp)', x => x.topics, ''],
+    ['Số tiết (cả cấp)', x => x.per, ''],
+    ...(sel.length ? [] : [['Số tiết mỗi năm', (x: typeof sum[number]) => x.per, ''] as [string, (x: typeof sum[number]) => number, string]]),
+    ...sel.map((l, k) => [`Số tiết mỗi năm${sel.length > 1 ? ' · ' + l.name : ''} (trung bình 1 khối)`, (x: typeof sum[number]) => x.yr[k], ''] as [string, (x: typeof sum[number]) => number, string])]
   const sections = tracks.map(t => {
-    const mods = [...new Set(items.filter(i => i.track_code === t.code && packages.some(p => p.id === i.package_id)).map(i => i.module_id))]
+    const mods = [...new Set(its.filter(i => i.track_code === t.code).map(i => i.module_id))]
       // Xếp bậc thang: học phần có ở gói 1 lên trước, rồi gói 2, gói 3…; cùng nhóm thì theo tên
       .sort((a, b) => {
         for (const p of packages) { const x = has(p.id, a), y = has(p.id, b); if (x !== y) return x ? -1 : 1 }
@@ -343,13 +384,21 @@ function CompareView({ tracks, packages, items, modName }: {
     const rows = mods.map(m => ({ m, d: !packages.every(p => has(p.id, m) === has(packages[0].id, m)) }))
     return { t, rows: only ? rows.filter(r => r.d) : rows }
   }).filter(x => x.rows.length)
-  const same = tracks.filter(t => !sections.some(x => x.t.code === t.code)).map(t => t.code)
   return <>
-    <div className="bar"><label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện học phần các gói khác nhau</label>
-      {only && same.length > 0 && <small className="sub">{same.join(', ')} giống nhau ở mọi gói.</small>}</div>
+    {filter}
+    <div className="bar cmpbar">
+      <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện học phần các gói khác nhau</label>
+      <span style={{ flex: 1 }} />
+      <button type="button" onClick={() => window.print()}>In / Xuất PDF</button>
+    </div>
     <FitScreen className="fsbox">
       <table className="table cmptbl">
-        <thead><tr><th>Học phần</th>{packages.map(p => <th key={p.id}>{p.name}</th>)}</tr></thead>
+        <thead><tr><th>{name}</th>{packages.map(p => <th key={p.id}>{p.name}</th>)}</tr></thead>
+        <tbody className="cmpsum">
+          <tr className="cmpgrp"><td colSpan={packages.length + 1}>Tổng · {name}</td></tr>
+          {sumRows.map(([label, f]) => { const v = sum.map(f), d = v.some(x => x !== v[0])
+            return <tr key={label}><td>{label}</td>{v.map((x, k) => <td key={k} style={d ? DIFF : undefined}><b>{x}</b></td>)}</tr> })}
+        </tbody>
         {sections.map(({ t, rows }) => <tbody key={t.code}>
           <tr className="cmpgrp"><td colSpan={packages.length + 1}>{chip(t.code)} {t.name}</td></tr>
           {rows.map(({ m, d }) => <tr key={m}><td>{t.use_modules === false ? 'Chủ đề theo khối' : modName(m)}</td>
@@ -357,7 +406,7 @@ function CompareView({ tracks, packages, items, modName }: {
         </tbody>)}
       </table>
     </FitScreen>
-    {!sections.length && <p className="sub">Các gói có cùng học phần.</p>}
+    {!its.length && <p className="sub">Chưa gói nào có học phần ở {name}.</p>}
   </>
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import React, { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useStemTracks, SCHEDULE_MODE_NAME, type StemTrack, trackLabel } from '../lib/stemTracks'
 import { fmtGrades, gradeName, useEduLevels } from '../lib/eduLevels'
@@ -84,7 +84,7 @@ export function ProgramFrame() {
   async function addFlatTopic(g: number) {
     const id = await hiddenModule(); if (!id) return
     const inG = trackTopics.filter(t => t.grade === g)
-    setEditTopic({ module_id: id, grade: g, seq: inG.reduce((x, t) => Math.max(x, t.seq), 0) + 1, code: '', title: '', periods: 1, objectives: '', product: '', main_subject: null, subjects: [], textbook_ref: '', active: true })
+    setEditTopic({ module_id: id, grade: g, seq: inG.reduce((x, t) => Math.max(x, t.seq), 0) + 1, code: '', title: '', periods: 1, objectives: '', product: '', main_subject: null, subjects: [], textbook_ref: '', active: true, part: null })
   }
 
   const dragMod = useRowDrag((a, b) => moveModule(a, b))
@@ -132,7 +132,7 @@ export function ProgramFrame() {
     const ts = topicsOf(cur.id)
     const gs = [...new Set(ts.map(t => t.grade))]
     const nextSeq = (g: number) => ts.filter(t => t.grade === g).reduce((x, t) => Math.max(x, t.seq), 0) + 1
-    const blank = (g: number): TopicDraft => ({ module_id: cur.id, grade: g, seq: nextSeq(g), code: '', title: '', periods: 1, objectives: '', product: '', main_subject: null, subjects: [], textbook_ref: '', active: true })
+    const blank = (g: number): TopicDraft => ({ module_id: cur.id, grade: g, seq: nextSeq(g), code: '', title: '', periods: 1, objectives: '', product: '', main_subject: null, subjects: [], textbook_ref: '', active: true, part: null })
     const acts: Act[] = admin ? [
       { key: 'add', label: '+ Thêm chủ đề', kind: 'primary', onClick: () => setEditTopic(blank(gs[gs.length - 1] ?? 1)) },
       { key: 'edit', label: 'Sửa học phần', icon: 'pencil', onClick: () => setEditMod(cur) },
@@ -144,14 +144,8 @@ export function ProgramFrame() {
         {acts.length > 0 && <div className="tools"><ActionBar items={acts} /></div>}</div>
       {msg && <p className="msg" role="status">{msg}</p>}
       {!gs.length && <p className="sub">Học phần chưa có chủ đề.{admin ? ' Bấm "+ Thêm chủ đề".' : ''}</p>}
-      {gs.map(g => {
-        const list = ts.filter(t => t.grade === g)
-        return <div key={g} className="panel pdcard" style={{ marginBottom: 12 }}>
-          <div className="bar"><h4 className="pnhead" style={{ margin: 0 }}>{gradeName(g)} <small className="sub">· {list.length} chủ đề · {sum(list)} tiết</small></h4>
-            {admin && <div className="tools"><button type="button" onClick={() => setEditTopic(blank(g))}>+ Chủ đề {gradeName(g)}</button></div>}</div>
-          <TopicTable list={list} track={track} admin={admin} onOpen={t => { setMsg(''); setViewId(t.id) }} onMove={moveTopic(list)} />
-        </div>
-      })}
+      {gs.length > 0 && <ModuleTopicTable ts={ts} grades={gs.sort((a, b) => a - b)} admin={admin} onOpen={t => { setMsg(''); setViewId(t.id) }}
+        moveTopic={moveTopic} />}
       {drawer}
     </>
   }
@@ -228,6 +222,39 @@ export function ProgramFrame() {
   </>
 }
 
+/** Chủ đề của một học phần trong một bảng: nhóm theo khối, trong khối nhóm theo phần HP1 / HP2 (160); chủ đề không ghi phần là "Dùng chung" */
+function ModuleTopicTable({ ts, grades, admin, onOpen, moveTopic }: {
+  ts: ProgramTopic[]; grades: number[]; admin: boolean; onOpen: (t: ProgramTopic) => void
+  moveTopic: (list: ProgramTopic[]) => (from: string, to: string) => void
+}) {
+  const groups = grades.map(g => {
+    const list = ts.filter(t => t.grade === g).sort((a, b) => a.seq - b.seq)
+    const split = list.some(t => t.part)
+    const parts = split ? [1, 2, 0].map(k => ({ k, list: list.filter(t => (t.part ?? 0) === k) })).filter(x => x.list.length) : [{ k: -1, list }]
+    return { g, list, parts }
+  })
+  // Kéo thả chỉ đổi thứ tự trong cùng nhóm (cùng khối, cùng phần)
+  const groupOf = (id: string) => groups.flatMap(x => x.parts).find(x => x.list.some(t => t.id === id))?.list ?? []
+  const dnd = useRowDrag((from, to) => { const l = groupOf(from); if (l.some(t => t.id === to)) moveTopic(l)(from, to) })
+  const dash = <small className="sub">—</small>
+  const N = 7
+  return <div className="tablewrap"><table className="table slt ttdense">
+    <thead><tr><th className="c-no">TT</th><th className="c-ttl">Chủ đề</th><th style={{ width: 80 }}>Số tiết</th><th>Môn chủ trì</th><th>Môn phối hợp</th><th>Yêu cầu cần đạt</th><th>Sản phẩm</th></tr></thead>
+    <tbody>{groups.map(({ g, list, parts }) => <Fragment key={g}>
+      <tr className="grouprow"><td colSpan={N}><b>{gradeName(g)}</b> <span style={MUTED}>· {list.length} chủ đề · {sum(list)} tiết</span></td></tr>
+      {parts.map(({ k, list: pl }) => <Fragment key={k}>
+        {k >= 0 && <tr className="partrow"><td colSpan={N} style={{ paddingLeft: 14 }}>
+          <span style={{ paddingLeft: 8, borderLeft: `4px solid ${k ? PART_C[k - 1] : 'var(--line)'}` }}>
+            <b>{k ? `Học phần ${k} (HP${k})` : 'Dùng chung'}</b> <span style={MUTED}>· {pl.length} chủ đề · {sum(pl)} tiết{k ? '' : ' · gói dùng học phần ở vị trí nào cũng học'}</span></span></td></tr>}
+        {pl.map(t => <tr key={t.id} {...(admin ? dnd.row(t.id) : { className: 'clickrow' })} onClick={() => onOpen(t)}>
+          <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, whiteSpace: 'nowrap' }}>{admin && dnd.handle(t.id, t.title)}{t.seq}</span></td>
+          <td><b>{t.title}</b></td><td>{t.periods}</td><td>{t.main_subject || dash}</td><td>{t.subjects.join(', ') || dash}</td>
+          <td><OneLine text={t.objectives} /></td><td><OneLine text={t.product ?? ''} /></td></tr>)}
+      </Fragment>)}
+    </Fragment>)}</tbody>
+  </table></div>
+}
+
 /** Kéo thả dòng bảng để đổi thứ tự: tay cầm ⠿ ở ô đầu dòng (giống bảng bài học của chương trình giáo dục) */
 function useRowDrag(onMove: (from: string, to: string) => void) {
   const [drag, setDrag] = useState<string | null>(null)
@@ -242,7 +269,11 @@ function useRowDrag(onMove: (from: string, to: string) => void) {
   }
 }
 
-function TopicTable({ list, track, admin, showGrade, weeks, onOpen, onMove }: { list: ProgramTopic[]; track?: StemTrack; admin: boolean; showGrade?: boolean; weeks?: boolean; onOpen: (t: ProgramTopic) => void; onMove?: (from: string, to: string) => void }) {
+// Màu phần HP1 / HP2 của chủ đề trong học phần
+const PART_C = ['#2563eb', '#0d9488']
+const MUTED = { color: 'var(--muted)', fontWeight: 400 }
+
+function TopicTable({ list, track, admin, showGrade, weeks, hidePart, onOpen, onMove }: { list: ProgramTopic[]; track?: StemTrack; admin: boolean; showGrade?: boolean; weeks?: boolean; hidePart?: boolean; onOpen: (t: ProgramTopic) => void; onMove?: (from: string, to: string) => void }) {
   const sgk = track?.schedule_mode === 'subject'
   const dnd = useRowDrag(onMove ?? (() => {}))
   // Tuần học: mỗi tuần 1 tiết, chủ đề nhiều tiết kéo dài nhiều tuần (VD: Tuần 1–2)
@@ -257,6 +288,8 @@ function TopicTable({ list, track, admin, showGrade, weeks, onOpen, onMove }: { 
     { key: 'title', label: 'Chủ đề', fixed: true, thClass: 'c-ttl', text: t => t.title,
       cell: t => <b>{t.title}</b> },
     { key: 'p', label: 'Số tiết', text: t => String(t.periods), cell: t => t.periods },
+    ...(track?.use_modules !== false && !hidePart ? [{ key: 'part', label: 'Phần', text: (t: ProgramTopic) => t.part ? 'HP' + t.part : 'Chung', values: (t: ProgramTopic) => [t.part ? 'HP' + t.part : 'Chung'],
+      cell: (t: ProgramTopic) => t.part ? <span className="pill" style={{ background: PART_C[t.part - 1], color: '#fff' }}>HP{t.part}</span> : <span style={{ color: 'var(--muted)' }}>Chung</span> }] : []),
     { key: 'main', label: 'Môn chủ trì', text: t => t.main_subject ?? '', cell: t => t.main_subject || dash },
     { key: 'subs', label: 'Môn phối hợp', text: t => t.subjects.join(', '), values: t => t.subjects, cell: t => t.subjects.join(', ') || dash },
     { key: 'obj', label: 'Yêu cầu cần đạt', text: t => t.objectives, cell: t => <OneLine text={t.objectives} /> },
@@ -312,7 +345,7 @@ function TopicForm({ t, track, onCancel, onSaved }: { t: TopicDraft; track?: Ste
     if (!f.title.trim()) return setErr('Nhập tên chủ đề.')
     setBusy(true); setErr('')
     const row = { module_id: f.module_id, grade: f.grade, seq: Number(f.seq) || 1, code: f.code, title: f.title, periods: Number(f.periods) || 0,
-      objectives: f.objectives, product: f.product ?? '', main_subject: f.main_subject, subjects: f.subjects, textbook_ref: f.textbook_ref, active: f.active }
+      objectives: f.objectives, product: f.product ?? '', main_subject: f.main_subject, subjects: f.subjects, textbook_ref: f.textbook_ref, active: f.active, part: track?.use_modules === false ? null : (f.part ?? null) }
     const { data, error } = f.id ? await supabase.from('program_topics').update(row).eq('id', f.id).select('id')
       : await supabase.from('program_topics').insert(row).select('id')
     setBusy(false)
@@ -329,6 +362,8 @@ function TopicForm({ t, track, onCancel, onSaved }: { t: TopicDraft; track?: Ste
       <label className="field"><span>Số tiết</span><input type="number" min={0} max={200} value={f.periods} onChange={e => setF({ ...f, periods: Number(e.target.value) })} /></label>
       <label className="field wide"><span>Tên chủ đề *</span><input value={f.title} maxLength={200} onChange={e => setF({ ...f, title: e.target.value })} /></label>
       <label className="field"><span>Môn chủ trì</span><SubjectPicker value={f.main_subject} onChange={v => setF({ ...f, main_subject: v || null })} emptyLabel="— Không —" /></label>
+      {track?.use_modules !== false && <label className="field"><span>Phần</span><select value={f.part ?? ''} onChange={e => setF({ ...f, part: e.target.value ? Number(e.target.value) : null })}>
+        <option value="">Dùng chung (cả HP1 và HP2)</option><option value="1">Học phần 1 (HP1)</option><option value="2">Học phần 2 (HP2)</option></select></label>}
       <label className="field"><span>Trạng thái</span><select value={f.active ? 'on' : 'off'} onChange={e => setF({ ...f, active: e.target.value === 'on' })}>
         <option value="on">Đang dùng</option><option value="off">Ngừng dùng</option></select></label>
       {track?.schedule_mode === 'subject' && <label className="field wide"><span>Bài SGK liên quan / được thay</span>

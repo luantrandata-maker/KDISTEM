@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { fetchAll, supabase } from '../lib/supabase'
 import { useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
 import { gradeName } from '../lib/eduLevels'
-import { loadFrame, loadPackages, type PackageItem, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
+import { loadFrame, loadPackages, slotTopics, type PackageItem, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
 import { ALL_GRADES, currentYear, fmtDay, gradesOfLevel, kRange, loadSchoolPkgs, shiftYear, spErr, spState, todayIso, yearLabel, type PkgSkip, type SchoolPkgRow } from '../lib/schoolPackages'
 import { DataTable } from '../components/DataTable'
 import { ElView } from '../components/ElView'
@@ -24,7 +24,7 @@ type TopicState = { topic: ProgramTopic; on: boolean }
 function scopeAt(c: Ctx, pkg: string, t: StemTrack, g: number, skip: Set<string>) {
   const slots = c.items.filter(i => i.package_id === pkg && i.track_code === t.code && i.grade === g).sort((a, b) => a.slot - b.slot)
   const ss: SlotState[] = slots.map(i => ({ slot: i.slot, module_id: i.module_id, on: !skip.has(keyM(t.code, g, i.slot)) }))
-  const ts: TopicState[] = slots.flatMap(i => c.topics.filter(x => x.module_id === i.module_id && x.grade === g && x.active).sort((a, b) => a.seq - b.seq)
+  const ts: TopicState[] = slots.flatMap(i => slotTopics(c.topics, c.items, i)
     .map(x => ({ topic: x, on: !skip.has(keyM(t.code, g, i.slot)) && !skip.has(keyT(x.id)) })))
   return { slots: ss, topics: ts, mods: t.use_modules !== false }
 }
@@ -366,7 +366,7 @@ function UpgradeForm({ row, ctx, packages, pkgName, modName, onCancel, onSaved }
   const diff = ctx.tracks.map(t => {
     const at = (p: string) => ctx.items.filter(i => i.package_id === p && i.track_code === t.code && grades.includes(i.grade))
     if (t.use_modules === false) {
-      const n = (p: string) => at(p).reduce((x, i) => x + ctx.topics.filter(y => y.module_id === i.module_id && y.grade === i.grade && y.active).length, 0)
+      const n = (p: string) => at(p).reduce((x, i) => x + slotTopics(ctx.topics, ctx.items, i).length, 0)
       const a = n(row.package_id!), b = n(pkg)
       return { t, add: [] as string[], del: [] as string[], text: a === b ? '' : `${a} → ${b} chủ đề` }
     }

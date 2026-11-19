@@ -3,7 +3,7 @@ import { FitScreen } from '../components/FitScreen'
 import { supabase } from '../lib/supabase'
 import { useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
 import { fmtGrades, gradeName } from '../lib/eduLevels'
-import { frameErr, loadFrame, loadPackages, type PackageItem, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
+import { frameErr, loadFrame, loadPackages, slotTopics, type PackageItem, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
 import { PROGRAM_COLOR } from './teacher/common'
 import { HeadAction } from '../components/PageFrame'
 import { DataTable, type Col } from '../components/DataTable'
@@ -88,10 +88,10 @@ export function ProgramPackages() {
   </>
 
   const cur = openId ? packages.find(p => p.id === openId) : undefined
-  const topicsIn = (moduleId: string, g: number) => topics.filter(t => t.module_id === moduleId && t.grade === g && t.active).sort((a, b) => a.seq - b.seq)
+  const topicsOfItem = (i: PackageItem) => slotTopics(topics, items, i)
   const statOf = (pkg: string, t?: string) => {
     const its = items.filter(i => i.package_id === pkg && (!t || i.track_code === t) && selGrades.includes(i.grade))
-    return { its, mods: [...new Set(its.map(i => i.module_id))], topics: its.reduce((x, i) => x + topicsIn(i.module_id, i.grade).length, 0),
+    return { its, mods: [...new Set(its.map(i => i.module_id))], topics: its.reduce((x, i) => x + topicsOfItem(i).length, 0),
       tracks: [...new Set(its.map(i => i.track_code))] }
   }
   const pkgMenu = (p: ProgramPackage) => [
@@ -100,13 +100,13 @@ export function ProgramPackages() {
     { label: 'Xoá', danger: true, onClick: () => delPkg(p) }]
 
   if (cur) return <PackageDetail pkg={cur} tracks={active} admin={admin} items={items} modules={modules} topics={topics} msg={msg} setMsg={setMsg}
-    diffKeys={diffKeys} diffTracks={diffTracks(cur.id)} slotsOf={slotsOf} topicsIn={topicsIn} onBack={() => { setOpenId(null); setMsg('') }}
+    diffKeys={diffKeys} diffTracks={diffTracks(cur.id)} slotsOf={slotsOf} topicsOfItem={topicsOfItem} onBack={() => { setOpenId(null); setMsg('') }}
     acts={admin ? pkgMenu(cur).slice(1).map((a, k) => ({ key: String(k), label: a.label, kind: a.danger ? 'danger' : undefined, onClick: a.onClick } as Act)) : []}
     onChanged={reload} filter={filterBar} inGrades={selGrades} />
 
   const n = packages.length
   const cellS = { padding: '10px 12px', borderTop: '1px solid var(--line)', borderLeft: '1px solid var(--line)', minWidth: 0 } as const
-  const labelS = { ...cellS, borderLeft: 0, background: 'var(--card, #fff)' } as const
+  const labelS = { ...cellS, borderLeft: 0, background: 'color-mix(in srgb, var(--muted, #64748b) 14%, var(--card, #fff))' } as const
   const DIFFC = { background: '#dbeafe', boxShadow: 'inset 3px 0 0 #93c5fd' }
   const perGrade = (list: ProgramTopic[]) => { const g = new Set(list.map(t => t.grade)); return g.size ? Math.round(list.length / g.size) : 0 }
   return <>
@@ -133,11 +133,11 @@ export function ProgramPackages() {
         </div> })}
         {/* Mỗi loại chương trình một hàng */}
         {active.map(t => [
-          <div key={t.code} style={{ ...labelS, boxShadow: `inset 4px 0 0 ${PROGRAM_COLOR[t.code] ?? 'var(--line)'}`, paddingLeft: 16 }}>{chip(t.code)}<br /><b>{t.name}</b><br /><small className="sub">{t.use_modules === false ? 'Chỉ có chủ đề theo khối' : 'Chia theo học phần'}</small></div>,
+          <div key={t.code} style={{ ...labelS, boxShadow: `inset 4px 0 0 ${PROGRAM_COLOR[t.code] ?? 'var(--line)'}`, paddingLeft: 16 }}>{chip(t.code)}<br /><b>{t.name}</b><br /><small className="sub" style={{ color: 'var(--text, #0f172a)', opacity: .75 }}>{t.use_modules === false ? 'Chỉ có chủ đề theo khối' : 'Chia theo học phần'}</small></div>,
           ...packages.map(p => {
             const x = statOf(p.id, t.code)
             const diff = diffTracks(p.id).includes(t.code)
-            const tl = x.its.flatMap(i => topicsIn(i.module_id, i.grade))
+            const tl = x.its.flatMap(i => topicsOfItem(i))
             const gs = [...new Set(x.its.map(i => i.grade))].sort((a, b) => a - b)
             return <div key={t.code + p.id} style={{ ...cellS, ...(diff ? DIFFC : {}) }}>
               {!x.its.length ? <small className="sub">Không có trong gói</small>
@@ -156,10 +156,10 @@ export function ProgramPackages() {
   </>
 }
 
-function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg, diffKeys, diffTracks, slotsOf, topicsIn, onBack, acts, onChanged, filter, inGrades }: {
+function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg, diffKeys, diffTracks, slotsOf, topicsOfItem, onBack, acts, onChanged, filter, inGrades }: {
   pkg: ProgramPackage; tracks: StemTrack[]; admin: boolean; items: PackageItem[]; modules: ProgramModule[]; topics: ProgramTopic[]
   msg: string; setMsg: (m: string) => void; diffKeys: Set<string>; diffTracks: string[]; slotsOf: (t: string, pkgs: string[]) => number[]
-  topicsIn: (moduleId: string, g: number) => ProgramTopic[]; onBack: () => void; acts: Act[]; onChanged: () => void
+  topicsOfItem: (i: PackageItem) => ProgramTopic[]; onBack: () => void; acts: Act[]; onChanged: () => void
   filter: React.ReactNode; inGrades: number[]   // bộ lọc cấp / khối giữ nguyên từ trang Gói STEM
 }) {
   const mine = items.filter(i => i.package_id === pkg.id && inGrades.includes(i.grade))
@@ -171,8 +171,8 @@ function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg
   const its = mine.filter(i => i.track_code === track?.code)
   const grades = [...new Set(its.map(i => i.grade))].sort((a, b) => a - b)
   const mod = (id: string) => modules.find(m => m.id === id)
-  const nTopics = (list: PackageItem[]) => list.reduce((x, i) => x + topicsIn(i.module_id, i.grade).length, 0)
-  const periods = (i: PackageItem) => mod(i.module_id)?.periods ?? topicsIn(i.module_id, i.grade).reduce((x, t) => x + (t.periods || 0), 0)
+  const nTopics = (list: PackageItem[]) => list.reduce((x, i) => x + topicsOfItem(i).length, 0)
+  const periods = (i: PackageItem) => mod(i.module_id)?.periods ?? topicsOfItem(i).reduce((x, t) => x + (t.periods || 0), 0)
   const allGrades = [...new Set(mine.map(i => i.grade))].sort((a, b) => a - b)
   const selTrack = sel ? tracks.find(t => t.code === sel.t) : undefined
   const selIts = sel ? mine.filter(i => i.track_code === sel.t && i.grade === sel.g).sort((a, b) => a.slot - b.slot) : []
@@ -203,9 +203,9 @@ function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg
       <div className="bar" style={{ margin: '0 0 6px' }}><b>{chip(selTrack.code)} {selTrack.name} · {gradeName(sel.g)}</b>
         <button type="button" className="namelink" style={{ fontSize: 12 }} onClick={() => setSel(null)}>Đóng</button></div>
       {selTrack.use_modules === false
-        ? <TopicChips list={selIts.flatMap(i => topicsIn(i.module_id, sel.g))} max={99} />
+        ? <TopicChips list={selIts.flatMap(i => topicsOfItem(i))} max={99} />
         : selIts.map(i => <div key={i.slot} style={{ marginTop: 4 }}><b>Học phần {i.slot}: {mod(i.module_id)?.name ?? '?'}</b> <small className="sub">· {periods(i) || '—'} tiết</small>
-          <TopicChips list={topicsIn(i.module_id, sel.g)} max={99} /></div>)}
+          <TopicChips list={topicsOfItem(i)} max={99} /></div>)}
     </div>}
   </>
   return <>
@@ -236,12 +236,12 @@ function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg
             cols={[
               { key: 'g', label: 'Khối', fixed: true, thClass: 'c-no', text: g => gradeName(g), cell: g => <button type="button" className="namelink" title="Xem chủ đề của khối" onClick={() => setGrade(grade === g ? null : g)}>{gradeName(g)}</button> },
               ...(track.use_modules === false
-                ? [{ key: 'tp', label: 'Chủ đề', fixed: true, cell: (g: number) => { const tl = its.filter(i => i.grade === g).flatMap(i => topicsIn(i.module_id, g))
+                ? [{ key: 'tp', label: 'Chủ đề', fixed: true, cell: (g: number) => { const tl = its.filter(i => i.grade === g).flatMap(i => topicsOfItem(i))
                   return grade === null ? <span className="oneline" style={{ color: "var(--muted)" }} title={tl.map(t => t.title).join(', ')}>{tl.length ? tl.map(t => t.title).join(', ') : 'Chưa có chủ đề'}</span> : <TopicChips list={tl} max={99} /> } }]
                 : slotsOf(track.code, [pkg.id]).map(sl => ({ key: 's' + sl, label: 'Học phần ' + sl, fixed: true, cell: (g: number) => {
                   const i = its.find(x => x.grade === g && x.slot === sl)
                   if (!i) return <small className="sub">—</small>
-                  const tl = topicsIn(i.module_id, g)
+                  const tl = topicsOfItem(i)
                   return grade === null
                     ? <span className="oneline"><b>{mod(i.module_id)?.name ?? '?'}</b> <small className="sub">· {periods(i) || '—'} tiết · {tl.length} chủ đề</small></span>
                     : <div><b>{mod(i.module_id)?.name ?? '?'}</b> <small className="sub">· {periods(i) || '—'} tiết</small><TopicChips list={tl} max={99} /></div> } }))),
@@ -271,11 +271,11 @@ function TrackGrid({ pkg, track, admin, items, modules, topics, slots, diffKeys,
   const [edit, setEdit] = useState(false)
   const [extra, setExtra] = useState(0)
   const [open, setOpen] = useState<string | null>(null)   // "khối|vị trí" đang mở danh sách chủ đề
-  const topicsIn = (moduleId: string | undefined, g: number) => moduleId ? topics.filter(t => t.module_id === moduleId && t.grade === g && t.active).sort((a, b) => a.seq - b.seq) : []
-  const periodsOf = (moduleId: string | undefined, g: number) => {
-    const m = name(moduleId)
+  const itemTopics = (it: PackageItem | undefined) => slotTopics(topics, items, it)
+  const periodsOf = (it: PackageItem | undefined) => {
+    const m = name(it?.module_id)
     if (!m) return 0
-    return m.periods ?? topicsIn(moduleId, g).reduce((x, t) => x + (t.periods || 0), 0)
+    return m.periods ?? itemTopics(it).reduce((x, t) => x + (t.periods || 0), 0)
   }
   const cols = Array.from({ length: Math.max(slots.length, 1) + extra }, (_, i) => i + 1)
   const mine = items.filter(i => i.package_id === pkg.id && i.track_code === track.code)
@@ -291,8 +291,8 @@ function TrackGrid({ pkg, track, admin, items, modules, topics, slots, diffKeys,
     if (!data?.length) return onErr(frameErr('row-level'))
     onErr(''); onChanged()
   }
-  const total = (g: number) => cols.reduce((x, s) => x + periodsOf(get(g, s)?.module_id, g), 0)
-  const nTopics = mine.reduce((x, i) => x + topicsIn(i.module_id, i.grade).length, 0)
+  const total = (g: number) => cols.reduce((x, s) => x + periodsOf(get(g, s)), 0)
+  const nTopics = mine.reduce((x, i) => x + itemTopics(i).length, 0)
   return <div className="panel pdcard" style={{ marginBottom: 12 }}>
     <div className="bar"><h4 style={{ margin: 0 }}>{chip(track.code)} {track.name} <small className="sub">· {new Set(mine.map(i => i.module_id)).size} học phần · {nTopics} chủ đề</small></h4>
       {admin && <div className="tools">
@@ -304,11 +304,11 @@ function TrackGrid({ pkg, track, admin, items, modules, topics, slots, diffKeys,
         <tbody>{rows.flatMap(g => {
           const openSlot = open?.startsWith(g + '|') ? Number(open.split('|')[1]) : null
           const openMod = openSlot ? name(get(g, openSlot)?.module_id) : undefined
-          const list = openSlot ? topicsIn(get(g, openSlot)?.module_id, g) : []
+          const list = openSlot ? itemTopics(get(g, openSlot!)) : []
           return [<tr key={g}>
             <td>{gradeName(g)}</td>
             {cols.map(s => {
-              const it = get(g, s), m = name(it?.module_id), n = topicsIn(it?.module_id, g).length, k = g + '|' + s
+              const it = get(g, s), m = name(it?.module_id), n = itemTopics(it).length, k = g + '|' + s
               return <td key={s} style={diffKeys.has(keyOf(track.code, g, s)) ? DIFF : undefined}>
                 {edit ? <select value={it?.module_id ?? ''} onChange={e => set(g, s, e.target.value)} aria-label={`${gradeName(g)} – Học phần ${s}`}>
                   <option value="">—</option>{modules.filter(x => x.active || x.id === it?.module_id).map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select>

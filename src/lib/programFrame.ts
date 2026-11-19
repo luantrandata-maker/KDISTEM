@@ -7,6 +7,8 @@ export type ProgramModule = { id: string; track_code: string; name: string; desc
 export type ProgramTopic = {
   id: string; module_id: string; grade: number; seq: number; code: string | null; title: string; periods: number
   objectives: string; main_subject: string | null; subjects: string[]; textbook_ref: string; product?: string; active: boolean; updated_at?: string
+  /** 160: chủ đề thuộc phần nào khi gói dùng học phần này ở nhiều vị trí (1 = HP1, 2 = HP2); trống = dùng chung */
+  part?: number | null
 }
 export type MaterialGroup = { id: string; name: string; description: string; sort: number; active: boolean; updated_at?: string }
 
@@ -37,4 +39,14 @@ export async function loadPackages() {
   ])
   const error = p.error ?? i.error
   return { packages: (p.data ?? []) as ProgramPackage[], items: (i.data ?? []) as PackageItem[], error: error ? frameErr(error.message + ' ' + (error.code ?? '')) : '' }
+}
+
+/** Chủ đề của một vị trí học phần trong gói (160). Học phần dùng ở nhiều vị trí của cùng khối (VD Gói 1T: HP1 và HP2 đều là Sáng chế)
+ *  thì vị trí thứ k lấy chủ đề ghi phần k; chủ đề không ghi phần (dùng chung) vị trí nào cũng lấy. Khối chưa chia phần thì lấy hết. */
+export function slotTopics(topics: ProgramTopic[], items: PackageItem[], it: PackageItem | undefined): ProgramTopic[] {
+  if (!it) return []
+  const all = topics.filter(t => t.module_id === it.module_id && t.grade === it.grade && t.active).sort((a, b) => a.seq - b.seq)
+  if (!all.some(t => t.part)) return all
+  const k = items.filter(i => i.package_id === it.package_id && i.track_code === it.track_code && i.grade === it.grade && i.module_id === it.module_id && i.slot <= it.slot).length || 1
+  return all.filter(t => !t.part || t.part === k)
 }

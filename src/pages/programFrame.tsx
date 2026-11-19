@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import React, { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useStemTracks, SCHEDULE_MODE_NAME, type StemTrack, trackLabel } from '../lib/stemTracks'
 import { fmtGrades, gradeName, useEduLevels } from '../lib/eduLevels'
@@ -144,24 +144,8 @@ export function ProgramFrame() {
         {acts.length > 0 && <div className="tools"><ActionBar items={acts} /></div>}</div>
       {msg && <p className="msg" role="status">{msg}</p>}
       {!gs.length && <p className="sub">Học phần chưa có chủ đề.{admin ? ' Bấm "+ Thêm chủ đề".' : ''}</p>}
-      {gs.map(g => {
-        const list = ts.filter(t => t.grade === g)
-        const byPart = [1, 2].map(k => list.filter(t => t.part === k))
-        return <div key={g} className="panel pdcard" style={{ marginBottom: 12 }}>
-          <div className="bar"><h4 className="pnhead" style={{ margin: 0 }}>{gradeName(g)} <small className="sub">· {list.length} chủ đề · {sum(list)} tiết</small>
-</h4>
-            {admin && <div className="tools"><button type="button" onClick={() => setEditTopic(blank(g))}>+ Chủ đề {gradeName(g)}</button></div>}</div>
-          {byPart.some(x => x.length)
-            // Gom theo phần: HP1, HP2, rồi chủ đề dùng chung (vị trí nào cũng lấy)
-            ? [...byPart, list.filter(t => !t.part)].map((x, k) => x.length > 0 && <div key={k} style={{ marginTop: k ? 14 : 0 }}>
-              <div style={{ margin: '0 0 6px', paddingLeft: 8, borderLeft: `4px solid ${k < 2 ? PART_C[k] : 'var(--line)'}`, lineHeight: 1.6 }}>
-                <b>{k < 2 ? `Học phần ${k + 1} (HP${k + 1})` : 'Dùng chung'}</b>
-                <span className="sub"> · {x.length} chủ đề · {sum(x)} tiết{k === 2 ? ' · gói dùng học phần ở vị trí nào cũng học' : ''}</span></div>
-              <TopicTable list={x} track={track} admin={admin} hidePart onOpen={t => { setMsg(''); setViewId(t.id) }} onMove={moveTopic(x)} />
-            </div>)
-            : <TopicTable list={list} track={track} admin={admin} hidePart onOpen={t => { setMsg(''); setViewId(t.id) }} onMove={moveTopic(list)} />}
-        </div>
-      })}
+      {gs.length > 0 && <ModuleTopicTable ts={ts} grades={gs.sort((a, b) => a - b)} admin={admin} onOpen={t => { setMsg(''); setViewId(t.id) }}
+        onAdd={g => setEditTopic(blank(g))} moveTopic={moveTopic} />}
       {drawer}
     </>
   }
@@ -238,6 +222,41 @@ export function ProgramFrame() {
   </>
 }
 
+/** Chủ đề của một học phần trong một bảng: nhóm theo khối, trong khối nhóm theo phần HP1 / HP2 (160); chủ đề không ghi phần là "Dùng chung" */
+function ModuleTopicTable({ ts, grades, admin, onOpen, onAdd, moveTopic }: {
+  ts: ProgramTopic[]; grades: number[]; admin: boolean; onOpen: (t: ProgramTopic) => void; onAdd: (g: number) => void
+  moveTopic: (list: ProgramTopic[]) => (from: string, to: string) => void
+}) {
+  const groups = grades.map(g => {
+    const list = ts.filter(t => t.grade === g).sort((a, b) => a.seq - b.seq)
+    const split = list.some(t => t.part)
+    const parts = split ? [1, 2, 0].map(k => ({ k, list: list.filter(t => (t.part ?? 0) === k) })).filter(x => x.list.length) : [{ k: -1, list }]
+    return { g, list, parts }
+  })
+  // Kéo thả chỉ đổi thứ tự trong cùng nhóm (cùng khối, cùng phần)
+  const groupOf = (id: string) => groups.flatMap(x => x.parts).find(x => x.list.some(t => t.id === id))?.list ?? []
+  const dnd = useRowDrag((from, to) => { const l = groupOf(from); if (l.some(t => t.id === to)) moveTopic(l)(from, to) })
+  const dash = <small className="sub">—</small>
+  const N = 7
+  return <div className="tablewrap"><table className="table slt ttdense">
+    <thead><tr><th className="c-no">TT</th><th className="c-ttl">Chủ đề</th><th style={{ width: 80 }}>Số tiết</th><th>Môn chủ trì</th><th>Môn phối hợp</th><th>Yêu cầu cần đạt</th><th>Sản phẩm</th></tr></thead>
+    <tbody>{groups.map(({ g, list, parts }) => <Fragment key={g}>
+      <tr className="grouprow"><td colSpan={N}><div className="bar" style={{ margin: 0 }}>
+        <span><b>{gradeName(g)}</b> <span style={MUTED}>· {list.length} chủ đề · {sum(list)} tiết</span></span>
+        {admin && <button type="button" style={{ marginLeft: 'auto' }} onClick={() => onAdd(g)}>+ Chủ đề {gradeName(g)}</button>}</div></td></tr>
+      {parts.map(({ k, list: pl }) => <Fragment key={k}>
+        {k >= 0 && <tr className="partrow"><td colSpan={N} style={{ paddingLeft: 14 }}>
+          <span style={{ paddingLeft: 8, borderLeft: `4px solid ${k ? PART_C[k - 1] : 'var(--line)'}` }}>
+            <b>{k ? `Học phần ${k} (HP${k})` : 'Dùng chung'}</b> <span style={MUTED}>· {pl.length} chủ đề · {sum(pl)} tiết{k ? '' : ' · gói dùng học phần ở vị trí nào cũng học'}</span></span></td></tr>}
+        {pl.map(t => <tr key={t.id} {...(admin ? dnd.row(t.id) : { className: 'clickrow' })} onClick={() => onOpen(t)}>
+          <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, whiteSpace: 'nowrap' }}>{admin && dnd.handle(t.id, t.title)}{t.seq}</span></td>
+          <td><b>{t.title}</b></td><td>{t.periods}</td><td>{t.main_subject || dash}</td><td>{t.subjects.join(', ') || dash}</td>
+          <td><OneLine text={t.objectives} /></td><td><OneLine text={t.product ?? ''} /></td></tr>)}
+      </Fragment>)}
+    </Fragment>)}</tbody>
+  </table></div>
+}
+
 /** Kéo thả dòng bảng để đổi thứ tự: tay cầm ⠿ ở ô đầu dòng (giống bảng bài học của chương trình giáo dục) */
 function useRowDrag(onMove: (from: string, to: string) => void) {
   const [drag, setDrag] = useState<string | null>(null)
@@ -254,6 +273,7 @@ function useRowDrag(onMove: (from: string, to: string) => void) {
 
 // Màu phần HP1 / HP2 của chủ đề trong học phần
 const PART_C = ['#2563eb', '#0d9488']
+const MUTED = { color: 'var(--muted)', fontWeight: 400 }
 
 function TopicTable({ list, track, admin, showGrade, weeks, hidePart, onOpen, onMove }: { list: ProgramTopic[]; track?: StemTrack; admin: boolean; showGrade?: boolean; weeks?: boolean; hidePart?: boolean; onOpen: (t: ProgramTopic) => void; onMove?: (from: string, to: string) => void }) {
   const sgk = track?.schedule_mode === 'subject'

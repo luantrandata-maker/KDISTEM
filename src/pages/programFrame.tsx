@@ -81,7 +81,7 @@ export function ProgramFrame() {
   async function addFlatTopic(g: number) {
     const id = await hiddenModule(); if (!id) return
     const inG = trackTopics.filter(t => t.grade === g)
-    setEditTopic({ module_id: id, grade: g, seq: inG.reduce((x, t) => Math.max(x, t.seq), 0) + 1, code: '', title: '', periods: 1, objectives: '', main_subject: null, subjects: [], textbook_ref: '', active: true })
+    setEditTopic({ module_id: id, grade: g, seq: inG.reduce((x, t) => Math.max(x, t.seq), 0) + 1, code: '', title: '', periods: 1, objectives: '', product: '', main_subject: null, subjects: [], textbook_ref: '', active: true })
   }
 
   const dragMod = useRowDrag((a, b) => moveModule(a, b))
@@ -109,7 +109,7 @@ export function ProgramFrame() {
     const ts = topicsOf(cur.id)
     const gs = [...new Set(ts.map(t => t.grade))]
     const nextSeq = (g: number) => ts.filter(t => t.grade === g).reduce((x, t) => Math.max(x, t.seq), 0) + 1
-    const blank = (g: number): TopicDraft => ({ module_id: cur.id, grade: g, seq: nextSeq(g), code: '', title: '', periods: 1, objectives: '', main_subject: null, subjects: [], textbook_ref: '', active: true })
+    const blank = (g: number): TopicDraft => ({ module_id: cur.id, grade: g, seq: nextSeq(g), code: '', title: '', periods: 1, objectives: '', product: '', main_subject: null, subjects: [], textbook_ref: '', active: true })
     const acts: Act[] = admin ? [
       { key: 'add', label: '+ Thêm chủ đề', kind: 'primary', onClick: () => setEditTopic(blank(gs[gs.length - 1] ?? 1)) },
       { key: 'edit', label: 'Sửa học phần', icon: 'pencil', onClick: () => setEditMod(cur) },
@@ -124,7 +124,7 @@ export function ProgramFrame() {
       {gs.map(g => {
         const list = ts.filter(t => t.grade === g)
         return <div key={g} className="panel pdcard" style={{ marginBottom: 12 }}>
-          <div className="bar"><h4 style={{ margin: 0 }}>{gradeName(g)} {list[0]?.code && <span className="progchip" style={{ background: '#eef1f5', color: 'var(--navy)' }}>{list[0].code.replace(/-\d+$/, '')}</span>} <small className="sub">· {list.length} chủ đề · {sum(list)} tiết</small></h4>
+          <div className="bar"><h4 style={{ margin: 0 }}>{gradeName(g)} <small className="sub">· {list.length} chủ đề · {sum(list)} tiết</small></h4>
             {admin && <div className="tools"><button type="button" onClick={() => setEditTopic(blank(g))}>+ Chủ đề {gradeName(g)}</button></div>}</div>
           <TopicTable list={list} track={track} admin={admin} weeks onEdit={t => setEditTopic(t)} onDel={delTopic} onMove={moveTopic(list)} />
         </div>
@@ -162,28 +162,31 @@ export function ProgramFrame() {
           ? topics.filter(x => modules.some(m => m.id === x.module_id && m.track_code === t.code)).length : modules.filter(m => m.track_code === t.code).length
         return <button key={t.code} type="button" className={'distfchip' + (t.code === track?.code ? ' on' : '')} aria-pressed={t.code === track?.code}
           title={t.use_modules === false ? n + ' chủ đề' : n + ' học phần'} onClick={() => { setCode(t.code); setGrade(null) }}>{t.code} · {t.name} <b>{n}</b></button> })}
-      {!flat && <><span className="sub" aria-hidden>|</span>
-        {([['modules', 'Theo học phần'], ['grade', 'Theo khối']] as const).map(([k, l]) =>
-          <button key={k} type="button" className={'distfchip' + (view === k ? ' on' : '')} aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>)}</>}
     </div>
-    {track && <p className="sub" style={{ margin: '4px 0 10px' }}>
+    {track && <p className="sub frameinfo" title="Đổi thiết lập ở Danh mục → Loại chương trình">
       {flat ? 'Chương trình không chia học phần, chỉ có chủ đề theo khối' : 'Chương trình chia theo học phần'} · {track.school_pick_topics ? 'trường tự chọn chủ đề sẽ dạy' : 'trường học đủ các chủ đề'} · {track.school_arrange_ppct !== false ? 'trường tự xếp PPCT theo tuần' : 'PPCT theo mẫu KDI / Sở'} · {SCHEDULE_MODE_NAME[track.schedule_mode ?? 'timetable']}.
-      {' '}Kéo biểu tượng ⠿ để đổi thứ tự. Đổi thiết lập ở Danh mục → Loại chương trình.</p>}
+      {showGrade && g !== null && <b style={{ fontWeight: 600 }}> {g === 'all' ? 'Tất cả khối' : gradeName(g)}: {gTopics.length} chủ đề, {sum(gTopics)} tiết.</b>}</p>}
     {msg && <p className="msg" role="status">{msg}</p>}
-    {!showGrade
-      ? <DataTable id="program-modules" className="slt" rows={mods} rowKey={m => m.id} cols={cols} noun="học phần" rowMenu={admin ? modMenu : undefined}
-        rowProps={admin ? m => dragMod.row(m.id) : undefined}
-        empty={`Loại ${track?.code ?? ''} chưa có học phần.`} />
-      : <>
-        <div className="distfilter" role="group" aria-label="Khối">
+    {/* Hàng lọc luôn cùng chỗ, cùng chiều cao cho mọi loại chương trình để bảng không nhảy khi đổi loại */}
+    <div className="distfilter framebar" role="group" aria-label="Cách xem">
+      {!flat && <>{([['modules', 'Theo học phần'], ['grade', 'Theo khối']] as const).map(([k, l]) =>
+        <button key={k} type="button" className={'distfchip' + (view === k ? ' on' : '')} aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>)}
+        {showGrade && <span className="sub" aria-hidden>|</span>}</>}
+      {showGrade && <>
           <button type="button" className={'distfchip' + (g === 'all' ? ' on' : '')} aria-pressed={g === 'all'} onClick={() => setGrade('all')}>
             Tất cả <span className="cnt" title="Số chủ đề">{trackTopics.length}</span></button>
           {(grades.length ? grades : flat ? [1] : []).map(x => <button key={x} type="button" className={'distfchip' + (g === x ? ' on' : '')} aria-pressed={g === x} onClick={() => setGrade(x)}>
             {gradeName(x)} <span className="cnt" title="Số chủ đề">{trackTopics.filter(t => t.grade === x).length}</span></button>)}
           {flat && admin && <select value="" onChange={e => { if (e.target.value) { setGrade(Number(e.target.value)); addFlatTopic(Number(e.target.value)) } }} aria-label="Thêm chủ đề cho khối khác">
             <option value="">+ Khối khác…</option>{Array.from({ length: 12 }, (_, k) => k + 1).filter(x => !grades.includes(x)).map(x => <option key={x} value={x}>{gradeName(x)}</option>)}</select>}
-          {g !== null && <small className="sub">{gTopics.length} chủ đề · {sum(gTopics)} tiết</small>}
-        </div>
+</>}
+      {!showGrade && <small className="sub">{mods.length} học phần</small>}
+    </div>
+    {!showGrade
+      ? <DataTable id="program-modules" className="slt ttdense" rows={mods} rowKey={m => m.id} cols={cols} noun="học phần" rowMenu={admin ? modMenu : undefined}
+        rowProps={admin ? m => dragMod.row(m.id) : undefined} simple noTools
+        empty={`Loại ${track?.code ?? ''} chưa có học phần.`} />
+      : <>
         {flat
           ? g === 'all'
             ? <TopicTable list={gTopics} track={track} admin={admin} showGrade onEdit={t => setEditTopic(t)} onDel={delTopic} />
@@ -285,7 +288,7 @@ function TopicForm({ t, track, onCancel, onSaved }: { t: TopicDraft; track?: Ste
     if (!f.title.trim()) return setErr('Nhập tên chủ đề.')
     setBusy(true); setErr('')
     const row = { module_id: f.module_id, grade: f.grade, seq: Number(f.seq) || 1, code: f.code, title: f.title, periods: Number(f.periods) || 0,
-      objectives: f.objectives, main_subject: f.main_subject, subjects: f.subjects, textbook_ref: f.textbook_ref, active: f.active }
+      objectives: f.objectives, product: f.product ?? '', main_subject: f.main_subject, subjects: f.subjects, textbook_ref: f.textbook_ref, active: f.active }
     const { data, error } = f.id ? await supabase.from('program_topics').update(row).eq('id', f.id).select('id')
       : await supabase.from('program_topics').insert(row).select('id')
     setBusy(false)
@@ -307,6 +310,7 @@ function TopicForm({ t, track, onCancel, onSaved }: { t: TopicDraft; track?: Ste
       {track?.schedule_mode === 'subject' && <label className="field wide"><span>Bài SGK liên quan / được thay</span>
         <input value={f.textbook_ref} onChange={e => setF({ ...f, textbook_ref: e.target.value })} placeholder="VD: Toán 1 – Bài 12: Hình vuông, hình tròn" /></label>}
       <label className="field wide"><span>Mục tiêu, yêu cầu cần đạt</span><textarea rows={3} value={f.objectives} onChange={e => setF({ ...f, objectives: e.target.value })} /></label>
+      <label className="field wide"><span>Sản phẩm</span><input value={f.product ?? ''} maxLength={300} placeholder="VD: Mô hình ngôi nhà mơ ước bằng bìa giấy" onChange={e => setF({ ...f, product: e.target.value })} /></label>
     </div>
     <div className="field" style={{ marginTop: 12 }}><span className="sub">Môn phối hợp</span>
       <SubjectMulti value={f.subjects} onChange={v => setF({ ...f, subjects: v })} exclude={f.main_subject ? [f.main_subject] : []} ariaLabel="Môn phối hợp" /></div>

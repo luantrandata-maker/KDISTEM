@@ -3714,3 +3714,7 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .distfchip .cnt{display:inline-block;min-width:20px;padding:0 6px;margin-left:4px;border-radius:999px;background:#eef1f5;color:var(--muted);font-size:11px;font-weight:600;line-height:18px;text-align:center}
 .main .distfchip.on .cnt{background:rgba(255,255,255,.22);color:#fff}
 .main .distfilter .distfchip:has(.cnt){padding:4px 10px}
+/* Khung chương trình: mô tả 1 dòng, hàng lọc cố định chiều cao để bảng không nhảy khi đổi loại chương trình */
+.main .frameinfo{margin:4px 0 8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.main .framebar{height:36px;align-items:center;flex-wrap:nowrap;overflow-x:auto;margin-bottom:8px}
+.main .framebar>*{flex:none}

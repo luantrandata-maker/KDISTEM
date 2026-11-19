@@ -3769,3 +3769,4 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .cmpgrade th:first-child{width:140px}
 .main .cmpgrade th:nth-child(2){width:96px}
 .main .pkggrid .hpl{align-self:stretch;display:flex;align-items:center;justify-content:center}
+.main .fitscreen .cmptbl>thead>tr>th.pkgth{font-weight:700;font-size:13px}

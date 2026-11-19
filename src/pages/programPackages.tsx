@@ -19,6 +19,10 @@ import { Chip } from './dist/Editor'
 const GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
 const chip = (code: string) => <span className="progchip" style={{ background: PROGRAM_COLOR[code], color: '#fff' }}>{code}</span>
 const DIFF = { background: '#dbeafe' }
+// Màu từng gói, giống thẻ gói ở trang Gói STEM (xanh dương, tím, cam, đỏ)
+const PKG_C = ['#2563eb', '#9333ea', '#ea580c', '#e11d48']
+const pkgTh = (k: number) => ({ background: PKG_C[k % PKG_C.length], color: '#fff' })
+const pkgTd = (k: number) => ({ background: `color-mix(in srgb, ${PKG_C[k % PKG_C.length]} 7%, transparent)` })
 const keyOf = (t: string, g: number, s: number) => `${t}|${g}|${s}`
 const MAXN = 4   // số học phần hiện sẵn trong một ô, còn lại bấm để mở
 
@@ -392,21 +396,21 @@ function CompareView({ tracks, packages, items, modName, grades, name, filter }:
     </div>
     <FitScreen className="fsbox">
       {by === 'mod' ? <table className="table cmptbl">
-        <thead><tr><th>Học phần · {name}</th>{packages.map(p => <th key={p.id}>{p.name}</th>)}</tr></thead>
+        <thead><tr><th>Học phần · {name}</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(k)}>{p.name}</th>)}</tr></thead>
         {sections.map(({ t, rows }) => <tbody key={t.code}>
           <tr className="cmpgrp"><td colSpan={packages.length + 1}>{chip(t.code)} {t.name}</td></tr>
           {rows.map(({ m, d }) => <tr key={m}><td>{t.use_modules === false ? 'Chủ đề theo khối' : modName(m)}</td>
-            {packages.map(p => <td key={p.id} style={d ? DIFF : undefined}>{has(p.id, m) ? 'Có' : <span className="sub">—</span>}</td>)}</tr>)}
+            {packages.map((p, k) => <td key={p.id} style={d ? DIFF : pkgTd(k)}>{has(p.id, m) ? <b style={{ color: PKG_C[k % PKG_C.length] }}>Có</b> : <span className="sub">—</span>}</td>)}</tr>)}
         </tbody>)}
       </table>
       : <table className="table cmptbl cmpgrade">
-        <thead><tr><th>Khối</th><th>Học phần</th>{packages.map(p => <th key={p.id}>{p.name}</th>)}</tr></thead>
+        <thead><tr><th>Khối</th><th>Học phần</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(k)}>{p.name}</th>)}</tr></thead>
         {gsections.map(({ t, rows }) => <tbody key={t.code}>
           <tr className="cmpgrp"><td colSpan={packages.length + 2}>{chip(t.code)} {t.name}</td></tr>
           {rows.flatMap(({ g, per }) => { const n = Math.max(1, ...per.map(x => x.length))
             return Array.from({ length: n }, (_, j) => <tr key={g + '-' + j} className={j ? 'cmpsub' : 'cmpfirst'}>
               {j === 0 && <td rowSpan={n} className="cmpg">{gradeName(g)}</td>}<td className="cmphp">HP{j + 1}</td>
-              {per.map((ms, k) => <td key={k}>{ms[j] ? modName(ms[j]) : <span className="sub">—</span>}</td>)}</tr>) })}
+              {per.map((ms, k) => <td key={k} style={pkgTd(k)}>{ms[j] ? modName(ms[j]) : <span className="sub">—</span>}</td>)}</tr>) })}
         </tbody>)}
       </table>}
     </FitScreen>

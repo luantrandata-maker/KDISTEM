@@ -3726,3 +3726,8 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .fitscreen{overflow:auto}
 .main .fitscreen .ttable>thead>tr>th{position:sticky;top:0;z-index:2}
 .main .fitscreen .wrap,.main .fitscreen .ttable{overflow:visible}
+/* So sánh gói theo học phần */
+.main .cmptbl{width:100%}
+.main .cmptbl td:not(:first-child),.main .cmptbl th:not(:first-child){text-align:center}
+.main .cmptbl .cmpgrp td{background:var(--surface);font-weight:600;border-top:2px solid var(--line)}
+.main .fitscreen .cmptbl>thead>tr>th{position:sticky;top:0;z-index:2;background:var(--surface)}

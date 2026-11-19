@@ -104,12 +104,16 @@ export function ProgramPackages() {
     acts={admin ? pkgMenu(cur).slice(1).map((a, k) => ({ key: String(k), label: a.label, kind: a.danger ? 'danger' : undefined, onClick: a.onClick } as Act)) : []}
     onChanged={reload} filter={filterBar} inGrades={selGrades} />
 
-  const allMods = new Set(items.filter(i => live.some(p => p.id === i.package_id) && selGrades.includes(i.grade)).map(i => i.module_id))
-  const allTopics = topics.filter(t => t.active && allMods.has(t.module_id) && selGrades.includes(t.grade)).length
   const n = packages.length
   const cellS = { padding: '10px 12px', borderTop: '1px solid var(--line)', borderLeft: '1px solid var(--line)', minWidth: 0 } as const
   const labelS = { ...cellS, borderLeft: 0, background: 'var(--card, #fff)' } as const
   const DIFFC = { background: '#dbeafe', boxShadow: 'inset 3px 0 0 #93c5fd' }
+  // Số học phần mỗi khối (số vị trí HP1, HP2… có giá trị), để ô không đọc thành "cả gói chỉ có từng ấy học phần"
+  const perGradeMods = (its: PackageItem[]) => {
+    const n = [...new Set(its.map(i => i.grade))].map(g => its.filter(i => i.grade === g).length)
+    const lo = Math.min(...n), hi = Math.max(...n)
+    return lo === hi ? String(lo) : `${lo}–${hi}`
+  }
   const perGrade = (list: ProgramTopic[]) => { const g = new Set(list.map(t => t.grade)); return g.size ? Math.round(list.length / g.size) : 0 }
   return <>
     <HeadAction>
@@ -117,11 +121,6 @@ export function ProgramPackages() {
       {admin && <button type="button" className="primary ttadd" onClick={() => setEditPkg({ id: '', code: '', name: '', description: '', sort: packages.reduce((x, p) => Math.max(x, p.sort), 0) + 1, active: true })}>+ Thêm gói</button>}
     </HeadAction>
     {msg && <p className="msg" role="status">{msg}</p>}
-    <div className="pkgkpi">
-      {([['▣', live.length, 'Gói STEM', 'đang dùng', 'var(--navy)'], ['◆', active.length, 'Loại chương trình', active.map(t => trackLabel(t.code)).join(', '), 'var(--navy)'],
-        ['▤', allMods.size, 'Học phần', 'dùng trong các gói', 'var(--navy)'], ['●', allTopics, 'Chủ đề', 'trong các học phần', 'var(--navy)']] as const).map(([ic, v, l, sub, c]) =>
-        <div key={l} style={{ '--k': c } as React.CSSProperties}><span className="ic">{ic}</span><div><b>{v}</b><span>{l}</span><small>{sub}</small></div></div>)}
-    </div>
     {filterBar}
     {!n ? <p className="sub">Chưa có gói STEM.</p> :
     <FitScreen><div className="panel pkgover" style={{ padding: 0, margin: 0 }}>
@@ -149,7 +148,8 @@ export function ProgramPackages() {
             return <div key={t.code + p.id} style={{ ...cellS, ...(diff ? DIFFC : {}) }}>
               {!x.its.length ? <small className="sub">Không có trong gói</small>
                 : t.use_modules === false ? <><b>{x.topics} chủ đề</b><br /><small className="sub">{perGrade(tl) ? `${perGrade(tl)} chủ đề / khối · ` : ''}{fmtGrades(gs)}</small></>
-                : <><b>{x.mods.length} học phần · {x.topics} chủ đề</b>
+                : <><b>Mỗi khối {perGradeMods(x.its)} học phần · {fmtGrades(gs)}</b><br />
+                  <small className="sub">{x.mods.length === 1 ? 'Dùng 1 học phần' : `Dùng ${x.mods.length} học phần khác nhau`}{x.topics ? ` · ${x.topics} chủ đề` : ''}:</small>
                   <ul style={{ margin: '4px 0 0', paddingLeft: 16 }}>{(openRows.includes(t.code) ? x.mods : x.mods.slice(0, MAXN)).map(id => <li key={id}><small>{modName(id)}</small></li>)}</ul>
                   {x.mods.length > MAXN && <button type="button" className="namelink" style={{ fontSize: 12, marginTop: 4, color: "var(--primary)" }} onClick={() => setOpenRows(openRows.includes(t.code) ? openRows.filter(c => c !== t.code) : [...openRows, t.code])}>
                     {openRows.includes(t.code) ? 'Thu gọn' : `+ ${x.mods.length - MAXN} học phần`}</button>}</>}

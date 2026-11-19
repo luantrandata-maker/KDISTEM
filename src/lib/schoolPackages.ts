@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { fetchAll, supabase } from './supabase'
 
 // Trường dùng gói STEM nào (156): mỗi trường, mỗi năm học một gói, áp dụng cho một số khối. Trường có thể chỉ áp dụng
 // một phần của gói: các phần không áp dụng ghi ở school_package_skips (cả học phần ở một vị trí, hoặc một chủ đề).
@@ -22,10 +22,12 @@ export function currentYear(d = new Date()) {
 export const yearLabel = (y: string) => y.replace('-', '–')
 export const shiftYear = (y: string, n: number) => { const a = Number(y.slice(0, 4)) + n; return `${a}-${a + 1}` }
 
-/** Khối mặc định theo cấp học của trường */
+/** Khối theo cấp học của trường; trường chưa ghi cấp học (VD liên cấp) chọn được cả 12 khối */
 export const LEVEL_GRADES: Record<string, number[]> = {
   tieuhoc: [1, 2, 3, 4, 5], thcs: [6, 7, 8, 9], thpt: [10, 11, 12],
 }
+export const ALL_GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
+export const gradesOfLevel = (level: string | null | undefined) => level ? LEVEL_GRADES[level] ?? [] : ALL_GRADES
 
 /** K1–K5, K6, K8 */
 export function kRange(gs: number[]) {
@@ -41,9 +43,10 @@ export function kRange(gs: number[]) {
 
 export async function loadSchoolPkgs(year: string) {
   const [r, s] = await Promise.all([
-    supabase.rpc('school_package_schools', { p_year: year }),
-    supabase.from('school_package_skips').select('id, school_package_id, track_code, grade, slot, topic_id'),
+    // Danh sách trường có thể hơn 1.000 dòng (giới hạn mỗi lần đọc): đọc theo trang
+    fetchAll<SchoolPkgRow>(() => supabase.rpc('school_package_schools', { p_year: year }) as any),
+    fetchAll<PkgSkip>(() => supabase.from('school_package_skips').select('id, school_package_id, track_code, grade, slot, topic_id').order('id')),
   ])
   const error = r.error ?? s.error
-  return { rows: (r.data ?? []) as SchoolPkgRow[], skips: (s.data ?? []) as PkgSkip[], error: error ? spErr(error.message + ' ' + (error.code ?? '')) : '' }
+  return { rows: (r.data ?? []) as SchoolPkgRow[], skips: (s.data ?? []) as PkgSkip[], error: error ? spErr(error.message + ' ' + ((error as { code?: string }).code ?? '')) : '' }
 }

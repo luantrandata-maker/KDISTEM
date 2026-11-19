@@ -3761,3 +3761,11 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .cmpgrade td.cmphp,.main .cmpgrade th:nth-child(2){color:var(--muted);font-weight:600;font-size:12.5px;width:80px;text-align:center}
 .main .cmpgrade tr.cmpsub td{border-top:1px dashed var(--line)}
 .main .cmpgrade th:nth-child(2),.pkggrid .hd{white-space:nowrap}
+/* So sánh theo khối: chỉ tên học phần, có kẻ cột */
+.main .cmpgrade td,.main .cmpgrade th{border-right:1px solid var(--line)}
+.main .cmpgrade td:last-child,.main .cmpgrade th:last-child{border-right:0}
+.main .cmpgrade tr.cmpgrp td{border-right:0}
+.main .cmpgrade{table-layout:fixed}
+.main .cmpgrade th:first-child{width:140px}
+.main .cmpgrade th:nth-child(2){width:96px}
+.main .pkggrid .hpl{align-self:stretch;display:flex;align-items:center;justify-content:center}

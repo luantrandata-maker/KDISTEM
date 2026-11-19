@@ -5,7 +5,7 @@ import { DataTable, type Col } from '../components/DataTable'
 import { supabase } from '../lib/supabase'
 import { OrgPick, useAllMode } from '../components/OrgScope'
 import { norm } from '../lib/sheet'
-import { useStemTracks, TRACK_COLOR } from '../lib/stemTracks'
+import { useStemTracks, TRACK_COLOR, trackLabel } from '../lib/stemTracks'
 import { useEduLevels } from '../lib/eduLevels'
 import { ElView } from '../components/ElView'
 // Đề kiểm tra của môn (109): dùng màn đề luyện E-learning, lọc theo môn
@@ -121,7 +121,7 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
     { key: 'desc', label: 'Mô tả', off: true, text: s => s.description ?? '', cell: s => s.description ? <small>{s.description}</small> : <small className="sub">—</small> },
     { key: 'active', label: 'Trạng thái', off: true, text: s => s.active ? 'Đang dùng' : 'Ngừng dùng', cell: s => s.active ? 'Đang dùng' : <span className="pill">Ngừng dùng</span> },
     { key: 'ct', label: 'Loại chương trình', values: s => s.ct_codes, text: s => s.ct_codes.join(' '),
-      cell: s => s.ct_codes.map(c => <span key={c} className="progchip" style={{ background: TRACK_COLOR[c], color: '#fff', marginRight: 4 }}>{c}</span>) },
+      cell: s => s.ct_codes.map(c => <span key={c} className="progchip" style={{ background: TRACK_COLOR[c], color: '#fff', marginRight: 4 }}>{trackLabel(c)}</span>) },
     { key: 'scope', label: mine ? 'Phạm vi' : 'Đơn vị', text: s => mine ? (s.scope === 'children' ? 'Dùng chung cho đơn vị trực thuộc' : 'Chỉ đơn vị mình') + ' ' + (s.owner_name ?? '') : s.owner_name ?? '',
       cell: s => <>{mine ? (s.scope === 'children' ? 'Dùng chung cho đơn vị trực thuộc' : 'Chỉ đơn vị mình') : <small className="sub">{s.owner_name ?? '—'}</small>}
         {mine && every && <><br /><small className="sub">{s.owner_name ?? '—'}</small></>}</> },

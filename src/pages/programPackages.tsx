@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { FitScreen } from '../components/FitScreen'
 import { supabase } from '../lib/supabase'
-import { useStemTracks, type StemTrack } from '../lib/stemTracks'
+import { useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
 import { fmtGrades, gradeName } from '../lib/eduLevels'
 import { frameErr, loadFrame, loadPackages, type PackageItem, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
 import { PROGRAM_COLOR } from './teacher/common'
@@ -17,7 +17,7 @@ import { Chip } from './dist/Editor'
 // (Học phần 1, Học phần 2…). Xem một gói, so sánh các gói (tô màu chỗ khác nhau). Chỉ KDI sửa.
 
 const GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
-const chip = (code: string) => <span className="progchip" style={{ background: PROGRAM_COLOR[code], color: '#fff' }}>{code}</span>
+const chip = (code: string) => <span className="progchip" style={{ background: PROGRAM_COLOR[code], color: '#fff' }}>{trackLabel(code)}</span>
 const DIFF = { background: '#dbeafe' }
 // Màu từng gói, giống thẻ gói ở trang Gói STEM (xanh dương, tím, cam, đỏ)
 const PKG_C = ['#2563eb', '#9333ea', '#ea580c', '#e11d48']
@@ -117,7 +117,7 @@ export function ProgramPackages() {
     </HeadAction>
     {msg && <p className="msg" role="status">{msg}</p>}
     <div className="pkgkpi">
-      {([['▣', live.length, 'Gói STEM', 'đang dùng', 'var(--navy)'], ['◆', active.length, 'Loại chương trình', 'CT1–CT' + active.length, 'var(--navy)'],
+      {([['▣', live.length, 'Gói STEM', 'đang dùng', 'var(--navy)'], ['◆', active.length, 'Loại chương trình', active.map(t => trackLabel(t.code)).join(', '), 'var(--navy)'],
         ['▤', allMods.size, 'Học phần', 'dùng trong các gói', 'var(--navy)'], ['●', allTopics, 'Chủ đề', 'trong các học phần', 'var(--navy)']] as const).map(([ic, v, l, sub, c]) =>
         <div key={l} style={{ '--k': c } as React.CSSProperties}><span className="ic">{ic}</span><div><b>{v}</b><span>{l}</span><small>{sub}</small></div></div>)}
     </div>
@@ -157,7 +157,7 @@ export function ProgramPackages() {
       </div>
     </div></FitScreen>}
     <p className="sub" style={{ margin: '10px 0 0', fontSize: 13 }}>Cấu trúc: <b>Gói STEM</b> › <b>Loại chương trình</b> › <b>Học phần</b> (theo khối) › <b>Chủ đề</b>.
-      {diffKeys.size ? ` Các gói có cùng nội dung, chỉ khác nhau ở ${[...new Set([...diffKeys].map(k => k.split('|')[0]))].join(', ')}; ô nền xanh nhạt là phần khác biệt giữa các gói.` : ''}</p>
+      {diffKeys.size ? ` Các gói có cùng nội dung, chỉ khác nhau ở ${[...new Set([...diffKeys].map(k => trackLabel(k.split('|')[0])))].join(', ')}; ô nền xanh nhạt là phần khác biệt giữa các gói.` : ''}</p>
     <p className="tablenote sub">Mỗi cột là một gói, mỗi hàng là một loại chương trình. Bấm vào tên gói để xem học phần, chủ đề theo từng khối.</p>
   </>
 }
@@ -196,7 +196,7 @@ function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg
             const list = mine.filter(i => i.track_code === t.code && i.grade === g && (sl === 0 || i.slot === sl))
             const on = sel?.t === t.code && sel.g === g
             return <button key={t.code + sl + '-' + g} type="button" className={'gc' + band + (sl === slots[0] ? ' grp' : '') + (on ? ' on' : '')} aria-pressed={on} disabled={!list.length}
-              title={`${t.code} · ${gradeName(g)}: bấm để xem chủ đề`} onClick={() => setSel(on ? null : { t: t.code, g })}>
+              title={`${trackLabel(t.code)} · ${gradeName(g)}: bấm để xem chủ đề`} onClick={() => setSel(on ? null : { t: t.code, g })}>
               {!list.length ? <span className="sub">—</span>
                 : sl === 0 ? <span className="num" title="Số chủ đề"><b>{nTopics(list)}</b></span>
                 : <span className="hp">{mod(list[0].module_id)?.name ?? '?'}</span>}
@@ -222,13 +222,13 @@ function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg
     <div className="pkgkpi">
       {tracks.map(t => { const x = mine.filter(i => i.track_code === t.code)
         return <div key={t.code} role="button" tabIndex={0} className={'kpibtn' + (code === t.code ? ' on' : '')} onClick={() => { setCode(code === t.code ? '' : t.code); setGrade(null); setEdit(false) }} style={{ '--k': PROGRAM_COLOR[t.code] ?? 'var(--line)', borderTop: `3px solid ${PROGRAM_COLOR[t.code] ?? 'var(--line)'}` } as React.CSSProperties}>
-          <span className="ic" style={{ fontSize: 12, fontWeight: 700 }}>{t.code}</span>
+          <span className="ic" style={{ fontSize: 12, fontWeight: 700 }}>{trackLabel(t.code)}</span>
           <div><span>{t.name}</span><small>{t.use_modules === false ? '' : new Set(x.map(i => i.module_id)).size + ' học phần · '}{nTopics(x)} chủ đề</small></div></div> })}
     </div>
     <div className="distfilter" role="group" aria-label="Loại chương trình">
       <button type="button" className={'distfchip' + (!track ? ' on' : '')} aria-pressed={!track} onClick={() => { setCode(''); setEdit(false) }}>Tổng quan</button>
       {tracks.map(t => <button key={t.code} type="button" className={'distfchip' + (t.code === track?.code ? ' on' : '')}
-        aria-pressed={t.code === track?.code} onClick={() => { setCode(t.code); setGrade(null) }}>{t.code} · {t.name}</button>)}
+        aria-pressed={t.code === track?.code} onClick={() => { setCode(t.code); setGrade(null) }}>{trackLabel(t.code)} · {t.name}</button>)}
       {admin && track && track.use_modules !== false && <button type="button" className={'distfchip' + (edit ? ' on' : '')} aria-pressed={edit} onClick={() => setEdit(!edit)}>{edit ? 'Xong sửa' : 'Sửa học phần'}</button>}
     </div>
     {!track ? <Overview /> : (edit
@@ -386,7 +386,7 @@ function CompareView({ tracks, packages, items, modName, grades, name, filter }:
   }).filter(x => x.rows.length)
   // In: chỉ in bảng so sánh (trang có quy tắc in riêng cho giấy chứng nhận ẩn mọi thứ khác)
   const printCmp = () => { document.body.classList.add('cmpprinting'); window.print(); setTimeout(() => document.body.classList.remove('cmpprinting'), 500) }
-  const same = tracks.filter(t => !(by === 'mod' ? sections : gsections).some(x => x.t.code === t.code)).map(t => t.code)
+  const same = tracks.filter(t => !(by === 'mod' ? sections : gsections).some(x => x.t.code === t.code)).map(t => trackLabel(t.code))
   return <>
     {filter}
     <div className="bar cmpbar">

@@ -4,7 +4,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { SchoolUsage } from '../../components/SchoolUsage'
 import { PROGRAM_COLOR } from '../teacher/common'
-import { STEM_LEVEL_NAME, useStemTracks } from '../../lib/stemTracks'
+import { STEM_LEVEL_NAME, useStemTracks, trackLabel } from '../../lib/stemTracks'
 import { Tabs } from '../teacher/common'
 import { useMultiFilters, MultiFilters, opts, type FilterDef } from '../../components/MultiFilters'
 import { useProvinceOf } from '../../components/OrgScope'
@@ -20,7 +20,7 @@ function ProgBadges({ list }: { list: string[] }) {
   const { codes } = useStemTracks()
   return (
     <span className="nowrap">{[...codes, ...list.filter(p => !codes.includes(p))].map(p => (
-      <span key={p} className="progchip" style={list.includes(p) ? { background: PROGRAM_COLOR[p], color: '#fff' } : { background: 'var(--soft)', color: '#b6c0cc' }}>{p}</span>
+      <span key={p} className="progchip" style={list.includes(p) ? { background: PROGRAM_COLOR[p], color: '#fff' } : { background: 'var(--soft)', color: '#b6c0cc' }}>{trackLabel(p)}</span>
     ))}</span>
   )
 }
@@ -232,7 +232,7 @@ export function DeptPrograms() {
           const list = schools.filter(s => has(s, p))
           return (
             <button key={p} className={'ctcard' + (cts.includes(p) ? ' on' : '')} onClick={() => toggleCt(p)} aria-pressed={cts.includes(p)}>
-              <span className="progchip" style={{ background: PROGRAM_COLOR[p], color: '#fff' }}>{p}</span>
+              <span className="progchip" style={{ background: PROGRAM_COLOR[p], color: '#fff' }}>{trackLabel(p)}</span>
               <b>{byCode[p]?.name ?? p}</b>
               <small>{list.length} trường · {nf(sum(list.map(s => s.stem_teachers)))} GV · {nf(sum(list.map(s => s.stem_students)))} HS</small>
               <div className="track"><div className="fill" style={{ width: pct(list.length, schools.length) + '%', background: PROGRAM_COLOR[p] }} /></div>
@@ -243,7 +243,7 @@ export function DeptPrograms() {
       </div>
       {cur && (
         <section className="panel">
-          <h3><span className="progchip" style={{ background: PROGRAM_COLOR[cur.code], color: '#fff' }}>{cur.code}</span> {cur.title}</h3>
+          <h3><span className="progchip" style={{ background: PROGRAM_COLOR[cur.code], color: '#fff' }}>{trackLabel(cur.code)}</span> {cur.title}</h3>
           {cur.description && <p className="sub" style={{ margin: '0 0 10px' }}>{cur.description}</p>}
           <small className="sub">Các môn học trong chương trình</small>
           <div style={{ margin: '4px 0 8px' }}>{cur.subjects.map(x => <span key={x} className="chip" style={{ paddingRight: 12 }}>{x}</span>)}</div>

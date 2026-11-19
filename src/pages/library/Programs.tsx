@@ -1,3 +1,4 @@
+import { trackLabel } from '../../lib/stemTracks'
 import { Icon } from '../../components/Icon'
 // Thư viện STEM theo chương trình (063): chương trình → học phần → buổi học (bài giảng tương tác), tài liệu, thiết bị, mục tiêu;
 // trình chiếu buổi học và đăng ký dạy STEM (phòng STEM → đăng ký phòng; lớp học → phiếu mượn thiết bị).
@@ -18,7 +19,7 @@ type Out = { id: string; unit_id: string | null; seq: number; code: string | nul
 
 const ART: Record<string, [string, string]> = { CT1: ['art1', 'microscope'], CT2: ['art5', 'puzzle'], CT3: ['art2', 'bulb'], CT4: ['art3', 'bot'], CT5: ['art4', 'flask'] }
 const art = (ct: string | null) => ART[ct ?? ''] ?? ['art0', 'book']
-const Chip = ({ ct }: { ct: string | null }) => ct ? <span className="progchip" style={{ background: PROGRAM_COLOR[ct] ?? '#64748b', color: '#fff' }}>{ct}</span> : null
+const Chip = ({ ct }: { ct: string | null }) => ct ? <span className="progchip" style={{ background: PROGRAM_COLOR[ct] ?? '#64748b', color: '#fff' }}>{trackLabel(ct)}</span> : null
 const grades = (p: Prog) => progGrades(p)
 const sessMinutes = (u: Unit) => { const l = asLesson(u.lesson); const m = l ? lessonStats(l).minutes : 0; return m || (u.periods || 1) * 45 }
 // Các buổi dạy của một học phần: buổi học của từng bài; bài chưa chia buổi thì tính cả bài là một buổi

@@ -14,6 +14,8 @@ export type StemTrack = {
   school_pick_topics?: boolean; school_arrange_ppct?: boolean; schedule_mode?: ScheduleMode
   // 149: false = không chia học phần, chỉ hiện chủ đề theo khối
   use_modules?: boolean
+  // 155: mã hiển thị KDI tự đặt (để trống = dùng mã gốc). Mã gốc CT1… giữ nguyên làm khoá dữ liệu
+  label?: string
 }
 
 export const STEM_LEVELS: [StemLevel, string][] = [['mamnon', 'Mầm non'], ['tieuhoc', 'Tiểu học'], ['thcs', 'THCS'], ['thpt', 'THPT'], ['thpt_nghe', 'THPT Nghề']]
@@ -65,6 +67,12 @@ export function trackColor(code: string): string {
 }
 /** Bảng màu tra theo mã, có màu cho cả mã chưa biết: PROGRAM_COLOR[code] */
 export const TRACK_COLOR: Record<string, string> = new Proxy(BASE_COLOR, { get: (_t, k) => (typeof k === 'string' ? trackColor(k) : undefined) })
+
+/** Mã hiển thị của loại chương trình: KDI đặt ở Danh mục → Loại chương trình; chưa đặt thì dùng mã gốc. */
+export function trackLabel(code: string | null | undefined): string {
+  if (!code) return ''
+  return (cache ?? DEFAULT_TRACKS).find(t => t.code === code)?.label?.trim() || code
+}
 
 /** Danh mục loại chương trình dùng chung trong phiên; `reload()` sau khi sửa để tất cả màn cập nhật.
  *  `codes`: mã các loại đang dùng (để chọn khi soạn mới); `allCodes`: gồm cả loại đã ngừng dùng (để lọc dữ liệu cũ). */

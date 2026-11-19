@@ -35,6 +35,7 @@ export function ProgramFrame() {
   const [openId, setOpenId] = useState<string | null>(null)
   const [editMod, setEditMod] = useState<ProgramModule | null>(null)
   const [editTopic, setEditTopic] = useState<TopicDraft | null>(null)
+  const [viewId, setViewId] = useState<string | null>(null)
   const [grade, setGrade] = useState<number | 'all' | null>(null)
   const reload = () => loadFrame().then(r => { setModules(r.modules); setTopics(r.topics); setMsg(r.error) })
   useEffect(() => { supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)); reload() }, [])
@@ -56,7 +57,7 @@ export function ProgramFrame() {
     const { data, error } = await supabase.from('program_topics').delete().eq('id', t.id).select('id')
     if (error) return setMsg(frameErr(error.message + ' ' + (error.code ?? '')))
     if (!data?.length) return setMsg(frameErr('row-level'))
-    setMsg(''); reload()
+    setViewId(null); setMsg(''); reload()
   }
   // Kéo thả đổi thứ tự: học phần (sort) trong một loại, chủ đề (seq) trong một khối
   async function reorder(table: 'program_modules' | 'program_topics', col: 'sort' | 'seq', list: { id: string }[], from: string, to: string, cur: (x: any) => number) {
@@ -103,6 +104,35 @@ export function ProgramFrame() {
     </ElView>
   }
 
+  // ----- Chi tiết chủ đề: bấm một dòng để xem; sửa, xoá nằm ở đây -----
+  const vt = viewId ? topics.find(t => t.id === viewId) : undefined
+  if (vt) {
+    const m = modules.find(x => x.id === vt.module_id)
+    const tr = tracks.find(t => t.code === m?.track_code)
+    const acts: Act[] = admin ? [
+      { key: 'edit', label: 'Sửa', icon: 'pencil', kind: 'primary', onClick: () => setEditTopic(vt) },
+      { key: 'del', label: 'Xoá', icon: 'trash', kind: 'danger', onClick: () => delTopic(vt) },
+    ] : []
+    const v = (x: string | null | undefined) => x ? <span style={{ whiteSpace: 'pre-line' }}>{x}</span> : <span className="sub">—</span>
+    return <>
+      <DetailHead back={openId ? m?.name ?? 'Học phần' : 'Khung chương trình'} onBack={() => { setViewId(null); setMsg('') }}
+        title={<>{m && chip(m.track_code)} {vt.title}</>} extra={pill(vt.active)} />
+      <div className="bar"><small className="sub">{gradeName(vt.grade)} · Thứ tự {vt.seq} · {vt.periods} tiết{m && tr?.use_modules !== false ? ' · Học phần ' + m.name : ''}</small>
+        {acts.length > 0 && <div className="tools"><ActionBar items={acts} /></div>}</div>
+      {msg && <p className="msg" role="status">{msg}</p>}
+      <section className="panel"><dl className="kv">
+        <dt>Mã chủ đề</dt><dd>{v(vt.code)}</dd>
+        <dt>Khối</dt><dd>{gradeName(vt.grade)}</dd>
+        <dt>Số tiết</dt><dd>{vt.periods}</dd>
+        <dt>Môn chủ trì</dt><dd>{v(vt.main_subject)}</dd>
+        <dt>Môn phối hợp</dt><dd>{v(vt.subjects.join(', '))}</dd>
+        <dt>Yêu cầu cần đạt</dt><dd>{v(vt.objectives)}</dd>
+        <dt>Sản phẩm</dt><dd>{v(vt.product)}</dd>
+        {tr?.schedule_mode === 'subject' && <><dt>Bài SGK liên quan</dt><dd>{v(vt.textbook_ref)}</dd></>}
+      </dl></section>
+    </>
+  }
+
   // ----- Chi tiết học phần: chủ đề theo khối -----
   const cur = openId ? modules.find(m => m.id === openId) : undefined
   if (cur) {
@@ -124,9 +154,9 @@ export function ProgramFrame() {
       {gs.map(g => {
         const list = ts.filter(t => t.grade === g)
         return <div key={g} className="panel pdcard" style={{ marginBottom: 12 }}>
-          <div className="bar"><h4 style={{ margin: 0 }}>{gradeName(g)} <small className="sub">· {list.length} chủ đề · {sum(list)} tiết</small></h4>
+          <div className="bar"><h4 className="pnhead" style={{ margin: 0 }}>{gradeName(g)} <small className="sub">· {list.length} chủ đề · {sum(list)} tiết</small></h4>
             {admin && <div className="tools"><button type="button" onClick={() => setEditTopic(blank(g))}>+ Chủ đề {gradeName(g)}</button></div>}</div>
-          <TopicTable list={list} track={track} admin={admin} onEdit={t => setEditTopic(t)} onDel={delTopic} onMove={moveTopic(list)} />
+          <TopicTable list={list} track={track} admin={admin} onOpen={t => { setMsg(''); setViewId(t.id) }} onMove={moveTopic(list)} />
         </div>
       })}
     </>
@@ -136,7 +166,7 @@ export function ProgramFrame() {
   const cols: Col<ProgramModule>[] = [
     { key: 'sort', label: 'TT', fixed: true, thClass: 'c-no', text: m => String(m.sort), cell: m => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{admin && dragMod.handle(m.id, m.name)}{m.sort}</span> },
     { key: 'name', label: 'Học phần', fixed: true, thClass: 'c-ttl', text: m => m.name + ' ' + m.description,
-      cell: m => <><button type="button" className="namelink" onClick={() => { setMsg(''); setOpenId(m.id) }}>{m.name}</button>{m.description && <><br /><small className="sub">{m.description}</small></>}</> },
+      cell: m => <><b>{m.name}</b>{m.description && <><br /><small className="sub">{m.description}</small></>}</> },
     { key: 'grades', label: 'Khối', text: m => fmtGrades([...new Set(topicsOf(m.id).map(t => t.grade))]),
       values: m => [...new Set(topicsOf(m.id).map(t => gradeName(t.grade)))],
       cell: m => { const g = [...new Set(topicsOf(m.id).map(t => t.grade))]; return g.length ? fmtGrades(g) : <small className="sub">Chưa có</small> } },
@@ -145,10 +175,6 @@ export function ProgramFrame() {
     { key: 'p', label: 'Tổng tiết chủ đề', text: m => String(sum(topicsOf(m.id))), cell: m => sum(topicsOf(m.id)) },
     { key: 'st', label: 'Trạng thái', text: m => m.active ? 'Đang dùng' : 'Ngừng dùng', cell: m => pill(m.active) },
   ]
-  const modMenu = (m: ProgramModule) => {
-    return [{ label: 'Xem chủ đề', onClick: () => { setMsg(''); setOpenId(m.id) } }, { label: 'Sửa', onClick: () => setEditMod(m) },
-      { label: 'Xoá', danger: true, onClick: () => delModule(m) }]
-  }
   const g = grade ?? grades[0] ?? null
   const showGrade = flat || view === 'grade'
   const gTopics = g === null ? [] : g === 'all' ? [...trackTopics].sort((a, b) => a.grade - b.grade || a.seq - b.seq) : trackTopics.filter(t => t.grade === g)
@@ -163,9 +189,6 @@ export function ProgramFrame() {
         return <button key={t.code} type="button" className={'distfchip' + (t.code === track?.code ? ' on' : '')} aria-pressed={t.code === track?.code}
           title={t.use_modules === false ? n + ' chủ đề' : n + ' học phần'} onClick={() => { setCode(t.code); setGrade(null) }}>{t.code} · {t.name} <b>{n}</b></button> })}
     </div>
-    {track && <p className="sub frameinfo" title="Đổi thiết lập ở Danh mục → Loại chương trình">
-      {flat ? 'Chương trình không chia học phần, chỉ có chủ đề theo khối' : 'Chương trình chia theo học phần'} · {track.school_pick_topics ? 'trường tự chọn chủ đề sẽ dạy' : 'trường học đủ các chủ đề'} · {track.school_arrange_ppct !== false ? 'trường tự xếp PPCT theo tuần' : 'PPCT theo mẫu KDI / Sở'} · {SCHEDULE_MODE_NAME[track.schedule_mode ?? 'timetable']}.
-      {showGrade && g !== null && <b style={{ fontWeight: 600 }}> {g === 'all' ? 'Tất cả khối' : gradeName(g)}: {gTopics.length} chủ đề, {sum(gTopics)} tiết.</b>}</p>}
     {msg && <p className="msg" role="status">{msg}</p>}
     {/* Hàng lọc luôn cùng chỗ, cùng chiều cao cho mọi loại chương trình để bảng không nhảy khi đổi loại */}
     <div className="distfilter framebar" role="group" aria-label="Cách xem">
@@ -183,23 +206,26 @@ export function ProgramFrame() {
       {!showGrade && <small className="sub">{mods.length} học phần</small>}
     </div>
     {!showGrade
-      ? <DataTable id="program-modules" className="slt ttdense" rows={mods} rowKey={m => m.id} cols={cols} noun="học phần" rowMenu={admin ? modMenu : undefined}
+      ? <DataTable id="program-modules" className="slt ttdense" rows={mods} rowKey={m => m.id} cols={cols} noun="học phần" onRow={m => { setMsg(''); setOpenId(m.id) }}
         rowProps={admin ? m => dragMod.row(m.id) : undefined} simple noTools
         empty={`Loại ${track?.code ?? ''} chưa có học phần.`} />
       : <>
         {flat
           ? g === 'all'
-            ? <TopicTable list={gTopics} track={track} admin={admin} showGrade onEdit={t => setEditTopic(t)} onDel={delTopic} />
-            : <TopicTable list={[...gTopics].sort((a, b) => a.seq - b.seq)} track={track} admin={admin} onEdit={t => setEditTopic(t)} onDel={delTopic} onMove={moveTopic([...gTopics].sort((a, b) => a.seq - b.seq))} />
+            ? <TopicTable list={gTopics} track={track} admin={admin} showGrade onOpen={t => { setMsg(''); setViewId(t.id) }} />
+            : <TopicTable list={[...gTopics].sort((a, b) => a.seq - b.seq)} track={track} admin={admin} onOpen={t => { setMsg(''); setViewId(t.id) }} onMove={moveTopic([...gTopics].sort((a, b) => a.seq - b.seq))} />
           : g !== null && mods.map(m => {
             const list = topicsOf(m.id).filter(t => g === 'all' || t.grade === g)
             if (!list.length) return null
             return <div key={m.id} className="panel pdcard" style={{ marginBottom: 12 }}>
-              <h4 style={{ marginTop: 0 }}>{m.sort}. {m.name} <small className="sub">· {list.length} chủ đề · {sum(list)} tiết</small></h4>
-              <TopicTable list={list} track={track} admin={admin} showGrade={g === 'all'} onEdit={t => setEditTopic(t)} onDel={delTopic} onMove={g === 'all' ? undefined : moveTopic(list)} />
+              <h4 className="pnhead" style={{ marginTop: 0 }}>{m.sort}. {m.name} <small className="sub">· {list.length} chủ đề · {sum(list)} tiết</small></h4>
+              <TopicTable list={list} track={track} admin={admin} showGrade={g === 'all'} onOpen={t => { setMsg(''); setViewId(t.id) }} onMove={g === 'all' ? undefined : moveTopic(list)} />
             </div>
           })}
       </>}
+    {track && <p className="sub framefoot" title="Đổi thiết lập ở Danh mục → Loại chương trình">
+      {flat ? 'Chương trình không chia học phần, chỉ có chủ đề theo khối' : 'Chương trình chia theo học phần'} · {track.school_pick_topics ? 'trường tự chọn chủ đề sẽ dạy' : 'trường học đủ các chủ đề'} · {track.school_arrange_ppct !== false ? 'trường tự xếp PPCT theo tuần' : 'PPCT theo mẫu KDI / Sở'} · {SCHEDULE_MODE_NAME[track.schedule_mode ?? 'timetable']}.
+      {showGrade && g !== null && <b style={{ fontWeight: 600 }}> {g === 'all' ? 'Tất cả khối' : gradeName(g)}: {gTopics.length} chủ đề, {sum(gTopics)} tiết.</b>}</p>}
     <p className="tablenote sub">{flat ? 'Chủ đề sắp theo thứ tự trong từng khối.' : 'Học phần dùng chung cho các gói STEM và các khối; gói nào dùng học phần nào chọn ở tab Gói STEM.'} Nội dung của từng chủ đề (kế hoạch giảng dạy, bài giảng, phiếu học tập, bài kiểm tra, vật tư, kho học liệu) và phiên bản làm ở bước tiếp theo.</p>
   </>
 }
@@ -212,13 +238,13 @@ function useRowDrag(onMove: (from: string, to: string) => void) {
     handle: (id: string, label: string) => <span className="slact"><span className="sldrag" draggable title="Kéo để đổi vị trí" aria-label={`Kéo ${label} để đổi vị trí`}
       onDragStart={e => { setDrag(id); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', id); const tr = (e.target as HTMLElement).closest('tr'); if (tr) e.dataTransfer.setDragImage(tr, 20, 20) }}
       onDragEnd={() => { setDrag(null); setOver(null) }}>⠿</span></span>,
-    row: (id: string) => ({ className: drag === id ? 'sldragging' : over === id && drag ? 'slover' : undefined,
+    row: (id: string) => ({ className: 'clickrow' + (drag === id ? ' sldragging' : over === id && drag ? ' slover' : ''),
       onDragOver: (e: React.DragEvent) => { if (!drag) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (over !== id) setOver(id) },
       onDrop: (e: React.DragEvent) => { e.preventDefault(); const f = drag; setDrag(null); setOver(null); if (f && f !== id) onMove(f, id) } }),
   }
 }
 
-function TopicTable({ list, track, admin, showGrade, weeks, onEdit, onDel, onMove }: { list: ProgramTopic[]; track?: StemTrack; admin: boolean; showGrade?: boolean; weeks?: boolean; onEdit: (t: ProgramTopic) => void; onDel: (t: ProgramTopic) => void; onMove?: (from: string, to: string) => void }) {
+function TopicTable({ list, track, admin, showGrade, weeks, onOpen, onMove }: { list: ProgramTopic[]; track?: StemTrack; admin: boolean; showGrade?: boolean; weeks?: boolean; onOpen: (t: ProgramTopic) => void; onMove?: (from: string, to: string) => void }) {
   const sgk = track?.schedule_mode === 'subject'
   const dnd = useRowDrag(onMove ?? (() => {}))
   // Tuần học: mỗi tuần 1 tiết, chủ đề nhiều tiết kéo dài nhiều tuần (VD: Tuần 1–2)
@@ -231,7 +257,7 @@ function TopicTable({ list, track, admin, showGrade, weeks, onEdit, onDel, onMov
     ...(showGrade ? [{ key: 'g', label: 'Khối', text: (t: ProgramTopic) => gradeName(t.grade), values: (t: ProgramTopic) => [gradeName(t.grade)], cell: (t: ProgramTopic) => gradeName(t.grade) }] : []),
     { key: 'code', label: 'Mã', off: true, text: t => t.code ?? '', cell: t => t.code || dash },
     { key: 'title', label: 'Chủ đề', fixed: true, thClass: 'c-ttl', text: t => t.title,
-      cell: t => admin ? <button type="button" className="namelink" onClick={() => onEdit(t)}>{t.title}</button> : <b>{t.title}</b> },
+      cell: t => <b>{t.title}</b> },
     { key: 'p', label: 'Số tiết', text: t => String(t.periods), cell: t => t.periods },
     { key: 'main', label: 'Môn chủ trì', text: t => t.main_subject ?? '', cell: t => t.main_subject || dash },
     { key: 'subs', label: 'Môn phối hợp', text: t => t.subjects.join(', '), values: t => t.subjects, cell: t => t.subjects.join(', ') || dash },
@@ -241,7 +267,7 @@ function TopicTable({ list, track, admin, showGrade, weeks, onEdit, onDel, onMov
     { key: 'st', label: 'Trạng thái', off: true, text: t => t.active ? 'Đang dùng' : 'Ngừng dùng', cell: t => pill(t.active) },
   ]
   return <DataTable id="program-topics" className="slt ttdense" rowProps={admin && onMove ? t => dnd.row(t.id) : undefined} rows={list} rowKey={t => t.id} cols={cols} simple noTools noun="chủ đề"
-    rowMenu={admin ? t => [{ label: 'Sửa', onClick: () => onEdit(t) }, { label: 'Xoá', danger: true, onClick: () => onDel(t) }] : undefined} empty="Chưa có chủ đề." />
+    onRow={onOpen} empty="Chưa có chủ đề." />
 }
 
 function ModuleForm({ m, onCancel, onSaved }: { m: ProgramModule; onCancel: () => void; onSaved: () => void }) {

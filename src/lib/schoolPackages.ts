@@ -1,18 +1,31 @@
 import { fetchAll, supabase } from './supabase'
 
-// Trường dùng gói STEM nào (156): mỗi trường, mỗi năm học một gói, áp dụng cho một số khối. Trường có thể chỉ áp dụng
+// Trường dùng gói STEM nào (156, 158): trường dùng một hoặc nhiều gói trong năm học, mỗi khối một gói. Trường có thể chỉ áp dụng
 // một phần của gói: các phần không áp dụng ghi ở school_package_skips (cả học phần ở một vị trí, hoặc một chủ đề).
+// Nâng cấp gói: bản gán cũ kết thúc (ends_on), bản mới bắt đầu từ ngày áp dụng (starts_on, prev_id = bản cũ).
 export type SchoolPkgRow = {
   org_id: string; name: string; code: string | null; level: string | null; province_id: string | null; province_name: string | null
   sp_id: string | null; package_id: string | null; grades: number[] | null; full_package: boolean | null; note: string | null; updated_at: string | null
+  starts_on: string | null; ends_on: string | null; prev_id: string | null
 }
 export type PkgSkip = { id?: string; school_package_id: string; track_code: string; grade: number; slot: number | null; topic_id: string | null }
 
-export const spErr = (m: string) => (/school_package|schema cache|does not exist/i.test(m) && !/row-level/i.test(m) ? 'Hãy chạy migration 156 trên Supabase.'
-  : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI gán được gói cho trường.'
-  : /23505|duplicate|school_packages_org_id_school_year/i.test(m) ? 'Trường này đã có gói trong năm học này.'
-  : /Chỉ gán gói cho trường/i.test(m) ? 'Chỉ gán gói cho trường.'
+export const spErr = (m: string) => (/school_package|schema cache|does not exist|starts_on|ends_on|prev_id/i.test(m) && !/row-level/i.test(m) ? 'Hãy chạy migration 158 trên Supabase.'
+  : /row-level|42501|permission|Chỉ quản trị/i.test(m) ? 'Chỉ quản trị nền tảng KDI gán, nâng cấp được gói cho trường.'
+  : /Khối đã có gói khác/i.test(m) ? 'Khối đã có gói khác trong năm học này. Mỗi khối chỉ dùng một gói.'
+  : /Chỉ gán gói cho trường|Chọn ít nhất một khối|Chọn gói khác|Ngày áp dụng phải sau|đã kết thúc/i.test(m) ? m.replace(/\s*\S*$/, '') + '.'
   : m)
+
+/** Ngày hôm nay theo giờ máy, dạng 2026-11-19 */
+export const todayIso = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10) }
+/** 2027-01-05 → 05/01/2027 */
+export const fmtDay = (d: string | null | undefined) => d ? d.slice(8, 10) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4) : ''
+/** Trạng thái một bản gán theo ngày hôm nay: đang dùng, sắp áp dụng (nâng cấp từ ngày sau), đã kết thúc (lịch sử) */
+export function spState(r: Pick<SchoolPkgRow, 'starts_on' | 'ends_on'>, today = todayIso()): 'live' | 'next' | 'ended' {
+  if (r.ends_on && r.ends_on < today) return 'ended'
+  if (r.starts_on && r.starts_on > today) return 'next'
+  return 'live'
+}
 
 /** Năm học hiện tại: từ tháng 8 tính sang năm học mới */
 export function currentYear(d = new Date()) {

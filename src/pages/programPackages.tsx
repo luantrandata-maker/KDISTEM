@@ -147,9 +147,9 @@ export function ProgramPackages() {
             const gs = [...new Set(x.its.map(i => i.grade))].sort((a, b) => a - b)
             return <div key={t.code + p.id} style={{ ...cellS, ...(diff ? DIFFC : {}) }}>
               {!x.its.length ? <small className="sub">Không có trong gói</small>
-                : t.use_modules === false ? <><b>{x.topics} chủ đề</b><br /><small className="sub">{perGrade(tl) ? `${perGrade(tl)} chủ đề / khối · ` : ''}{fmtGrades(gs)}</small></>
-                : <><b>Mỗi khối {perGradeMods(x.its)} học phần · {fmtGrades(gs)}</b><br />
-                  <small className="sub">{x.mods.length === 1 ? 'Dùng 1 học phần' : `Dùng ${x.mods.length} học phần khác nhau`}{x.topics ? ` · ${x.topics} chủ đề` : ''}:</small>
+                : t.use_modules === false ? <><b>{x.topics} chủ đề · <span style={{ whiteSpace: 'nowrap' }}>{fmtGrades(gs)}</span></b>{perGrade(tl) > 0 && <><br /><small className="sub">{perGrade(tl)} chủ đề / khối</small></>}</>
+                : <><b>{x.mods.length === 1 ? '1 học phần' : `${x.mods.length} học phần khác nhau`}{x.topics ? ` (${x.topics} chủ đề)` : ''} · <span style={{ whiteSpace: 'nowrap' }}>{fmtGrades(gs)}</span></b><br />
+                  <small className="sub">Mỗi khối {perGradeMods(x.its)} học phần:</small>
                   <ul style={{ margin: '4px 0 0', paddingLeft: 16 }}>{(openRows.includes(t.code) ? x.mods : x.mods.slice(0, MAXN)).map(id => <li key={id}><small>{modName(id)}</small></li>)}</ul>
                   {x.mods.length > MAXN && <button type="button" className="namelink" style={{ fontSize: 12, marginTop: 4, color: "var(--primary)" }} onClick={() => setOpenRows(openRows.includes(t.code) ? openRows.filter(c => c !== t.code) : [...openRows, t.code])}>
                     {openRows.includes(t.code) ? 'Thu gọn' : `+ ${x.mods.length - MAXN} học phần`}</button>}</>}

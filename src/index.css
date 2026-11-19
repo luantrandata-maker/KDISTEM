@@ -3707,6 +3707,6 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .pkggrid .hp i{font-style:normal;font-size:calc(11px * var(--fz,1));color:var(--muted);white-space:nowrap}
 .pkggrid .num{align-self:center;margin:auto 0;text-align:center;color:var(--muted)}.pkggrid .num b{display:block;font-size:calc(18px * var(--fz,1));color:var(--navy)}
 .pkgkpi .kpibtn{cursor:pointer}.pkgkpi .kpibtn.on{box-shadow:0 0 0 2px var(--k)}
-.main .pkggrid .alt,.main .pkggrid button.gc.alt{background:#f8fafc}
+.main .pkggrid .alt,.main .pkggrid button.gc.alt{background:#eef5ff}
 .pkggrid .grp{border-top:2px solid #cbd5e1}
 .main .pkggrid button.gc.alt:hover:not(:disabled){background:#f1f5f9}

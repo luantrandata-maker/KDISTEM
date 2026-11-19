@@ -2335,6 +2335,41 @@ select pg_temp.chk('kdi', 'Loại CT: KDI đặt mã hiển thị, mã gốc gi�
 select pg_temp.chk('kdi', 'Loại CT: mã hiển thị tối đa 12 ký tự', $q$update stem_tracks set label = 'ISO-QUA-DAI-13' where code = 'CT1'$q$, 'ERR*');
 select pg_temp.chk('admin_ph', 'Loại CT: trường không đổi được mã hiển thị', $q$with x as (update stem_tracks set label = 'ISO' returning 1) select count(*) from x$q$, '0');
 
+-- ===== 156: trường dùng gói STEM =====
+select pg_temp.chk('kdi', 'Trường dùng gói: KDI gán gói cho trường',
+  $q$insert into school_packages (org_id, package_id, school_year, grades, full_package, note) select pg_temp.oid_('THCS-PH'), id, '2026-2027', '{9,6,7,8,6}', false, 'ISO' from program_packages where code = '2T'$q$, 'rows:1');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into school_packages (org_id, package_id, school_year, grades, full_package, note) select pg_temp.oid_('THCS-PH'), id, '2026-2027', '{9,6,7,8,6}', false, 'ISO' from program_packages where code = '2T'$q$, true);
+select pg_temp.chk('kdi', 'Trường dùng gói: khối được sắp xếp, bỏ trùng', $q$select grades::text from school_packages where note = 'ISO'$q$, '{6,7,8,9}');
+select pg_temp.chk('kdi', 'Trường dùng gói: mỗi trường một gói mỗi năm học',
+  $q$insert into school_packages (org_id, package_id, school_year) select pg_temp.oid_('THCS-PH'), id, '2026-2027' from program_packages where code = '1T'$q$, 'ERR*');
+select pg_temp.chk('kdi', 'Trường dùng gói: không gán gói cho Sở',
+  $q$insert into school_packages (org_id, package_id, school_year) select pg_temp.oid_('SO-HY'), id, '2027-2028' from program_packages where code = '1T'$q$, 'ERR*');
+select pg_temp.chk('kdi', 'Trường dùng gói: KDI bỏ học phần trường không áp dụng',
+  $q$insert into school_package_skips (school_package_id, track_code, grade, slot) select id, 'CT3', 8, 2 from school_packages where note = 'ISO'$q$, 'rows:1');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into school_package_skips (school_package_id, track_code, grade, slot) select id, 'CT3', 8, 2 from school_packages where note = 'ISO'$q$, true);
+select pg_temp.chk('kdi', 'Trường dùng gói: KDI bỏ một chủ đề CT1',
+  $q$insert into school_package_skips (school_package_id, track_code, grade, topic_id) select sp.id, 'CT1', 6, t.id from school_packages sp, program_topics t join program_modules m on m.id = t.module_id where sp.note = 'ISO' and m.track_code = 'CT1' and t.grade = 6 order by t.seq limit 1$q$, 'rows:1');
+select pg_temp.chk('kdi', 'Trường dùng gói: chủ đề khác khối bị chặn',
+  $q$insert into school_package_skips (school_package_id, track_code, grade, topic_id) select sp.id, 'CT1', 7, t.id from school_packages sp, program_topics t join program_modules m on m.id = t.module_id where sp.note = 'ISO' and m.track_code = 'CT1' and t.grade = 6 limit 1$q$, 'ERR*');
+select pg_temp.chk('kdi', 'Trường dùng gói: một dòng bỏ chỉ là học phần hoặc chủ đề',
+  $q$insert into school_package_skips (school_package_id, track_code, grade) select id, 'CT3', 8 from school_packages where note = 'ISO'$q$, 'ERR*');
+select pg_temp.chk('admin_ph', 'Trường dùng gói: trường xem được gói của mình', $q$select count(*) from school_packages$q$, '1');
+select pg_temp.chk('admin_ph', 'Trường dùng gói: trường xem được phần không áp dụng', $q$select count(*) from school_package_skips$q$, '1');
+select pg_temp.chk('admin_kb', 'Trường dùng gói: trường khác không xem được', $q$select count(*) from school_packages$q$, '0');
+select pg_temp.chk('admin_kb', 'Trường dùng gói: trường khác không xem được phần không áp dụng', $q$select count(*) from school_package_skips$q$, '0');
+select pg_temp.chk('so_hy', 'Trường dùng gói: Sở xem được trường thuộc Sở', $q$select count(*) from school_packages$q$, '1');
+select pg_temp.chk('so_bn', 'Trường dùng gói: Sở khác không xem được', $q$select count(*) from school_packages$q$, '0');
+select pg_temp.chk('hs_kb', 'Trường dùng gói: học sinh không xem được', $q$select count(*) from school_packages$q$, '0');
+select pg_temp.chk('admin_ph', 'Trường dùng gói: trường không tự sửa gói', $q$with x as (update school_packages set full_package = true returning 1) select count(*) from x$q$, '0');
+select pg_temp.chk('admin_ph', 'Trường dùng gói: trường không tự gán gói', $q$insert into school_packages (org_id, package_id, school_year) select public.my_org_id(), id, '2027-2028' from program_packages limit 1$q$, 'ERR');
+select pg_temp.chk('admin_ph', 'Trường dùng gói: trường không xoá phần không áp dụng', $q$with x as (delete from school_package_skips returning 1) select count(*) from x$q$, '0');
+select pg_temp.chk('kdi', 'Trường dùng gói: danh sách có tỉnh của trường',
+  $q$select province_name || ',' || coalesce(sp_id is not null, false)::text from school_package_schools('2026-2027') where code = 'THCS-PH'$q$, 'Tỉnh Hưng Yên,true');
+select pg_temp.chk('admin_ph', 'Trường dùng gói: trường chỉ thấy mình trong danh sách', $q$select count(*) from school_package_schools('2026-2027')$q$, '1');
+select pg_temp.chk('hs_kb', 'Trường dùng gói: học sinh không có danh sách', $q$select count(*) from school_package_schools('2026-2027')$q$, '0');
+select pg_temp.chk('kdi', 'Trường dùng gói: không xoá gói đang có trường dùng', $q$delete from program_packages where code = '2T'$q$, 'ERR*');
+delete from school_packages where note = 'ISO';
+
 -- ===== 151, 152: dữ liệu test CT1 Khối 6, Sáng chế Khối 6 =====
 select pg_temp.chk('kdi', 'Dữ liệu test: CT1 Khối 6 có 16 chủ đề, 32 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 6$q$, '16,32');
 select pg_temp.chk('kdi', 'Dữ liệu test: CT1 Khối 7 có 16 chủ đề, 35 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 7$q$, '16,35');

@@ -3797,3 +3797,7 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .pkgkpi small{display:inline;margin:0 0 0 6px}
 .main .pkgkpi>div>div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .main .pkgkpi .kpibtn small{display:block;margin:1px 0 0}
+
+/* Trường dùng gói: ô bảng bấm được để xem chủ đề (không gạch chân, không đậm như liên kết) */
+.main .cellbtn{background:none;border:0;padding:0;font:inherit;color:inherit;text-align:left;cursor:pointer;display:block}
+.main .cellbtn:hover{color:var(--navy);text-decoration:underline}

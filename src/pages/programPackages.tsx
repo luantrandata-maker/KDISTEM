@@ -384,6 +384,8 @@ function CompareView({ tracks, packages, items, modName, grades, name, filter }:
     }).filter(r => r.per.some(x => x.length))
     return { t, rows: only ? rows.filter(r => r.d) : rows }
   }).filter(x => x.rows.length)
+  // In: chỉ in bảng so sánh (trang có quy tắc in riêng cho giấy chứng nhận ẩn mọi thứ khác)
+  const printCmp = () => { document.body.classList.add('cmpprinting'); window.print(); setTimeout(() => document.body.classList.remove('cmpprinting'), 500) }
   const same = tracks.filter(t => !(by === 'mod' ? sections : gsections).some(x => x.t.code === t.code)).map(t => t.code)
   return <>
     {filter}
@@ -392,8 +394,10 @@ function CompareView({ tracks, packages, items, modName, grades, name, filter }:
       <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện chỗ các gói khác nhau</label>
       {only && same.length > 0 && <small className="sub">{same.join(', ')} giống nhau ở mọi gói.</small>}
       <span style={{ flex: 1 }} />
-      <button type="button" onClick={() => window.print()}>In / Xuất PDF</button>
+      <button type="button" onClick={printCmp}>In / Xuất PDF</button>
     </div>
+    <div className="cmpprint">
+    <h3 className="printonly">So sánh các gói STEM · {name} · theo {by === 'mod' ? 'học phần' : 'khối'}</h3>
     <FitScreen className="fsbox">
       {by === 'mod' ? <table className="table cmptbl cmplined cmpmodt">
         <thead><tr><th>Học phần · {name}</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(k)}>{p.name}</th>)}</tr></thead>
@@ -415,6 +419,7 @@ function CompareView({ tracks, packages, items, modName, grades, name, filter }:
       </table>}
     </FitScreen>
     {by === 'grade' && <p className="sub framefoot">Mỗi khối chia theo học phần HP1, HP2; đọc theo hàng ngang để thấy cùng một học phần ở mỗi gói là gì.</p>}
+    </div>
   </>
 }
 

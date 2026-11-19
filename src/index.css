@@ -3775,3 +3775,14 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .cmplined td:last-child,.main .cmplined th:last-child,.main .cmplined tr.cmpgrp td{border-right:0}
 .main .cmpmodt{table-layout:fixed}
 .main .cmpmodt th:first-child{width:236px}
+/* In bảng so sánh gói (nút "In / Xuất PDF") */
+.printonly{display:none}
+@media print{
+  body.cmpprinting .cmpprint,body.cmpprinting .cmpprint *{visibility:visible!important}
+  body.cmpprinting .cmpprint{position:absolute;left:0;top:0;width:100%}
+  body.cmpprinting .cmpprint .printonly{display:block;margin:0 0 8px}
+  body.cmpprinting .cmpprint .fitscreen{height:auto!important;overflow:visible!important}
+  body.cmpprinting .cmpprint th.pkgth{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body.cmpprinting .cmpprint td{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page{size:A4 landscape;margin:10mm}
+}

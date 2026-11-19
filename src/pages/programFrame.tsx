@@ -194,7 +194,7 @@ export function ProgramFrame() {
           <button type="button" className={'distfchip' + (g === 'all' ? ' on' : '')} aria-pressed={g === 'all'} onClick={() => setGrade('all')}>
             Tất cả <span className="cnt" title="Số chủ đề">{trackTopics.length}</span></button>
           {(grades.length ? grades : flat ? [1] : []).map(x => <button key={x} type="button" className={'distfchip' + (g === x ? ' on' : '')} aria-pressed={g === x} onClick={() => setGrade(x)} title={gradeName(x)}>
-            {x} <span className="cnt" title="Số chủ đề">{trackTopics.filter(t => t.grade === x).length}</span></button>)}
+            K{x} <span className="cnt" title="Số chủ đề">{trackTopics.filter(t => t.grade === x).length}</span></button>)}
           {flat && admin && grades.length < 12 && <select value="" onChange={e => { if (e.target.value) { setGrade(Number(e.target.value)); addFlatTopic(Number(e.target.value)) } }} aria-label="Thêm chủ đề cho khối khác">
             <option value="">+ Khối khác…</option>{Array.from({ length: 12 }, (_, k) => k + 1).filter(x => !grades.includes(x)).map(x => <option key={x} value={x}>{gradeName(x)}</option>)}</select>}
 </>}

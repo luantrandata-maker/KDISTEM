@@ -7,7 +7,7 @@ import { NameLink, SelBar, SelTd, SelTh, useRowSel } from '../../components/Tabl
 import { Icon } from '../../components/Icon'
 // Soạn bài giảng (060): giáo án theo mẫu, tiến trình dạy học theo bước, gắn hoạt động / học liệu / rubric / định mức vật tư,
 // xem trước – in, trình chiếu, dạy thử; lưu nháp → gửi duyệt → xuất bản; nhân bản, phiên bản, dạy thử & góp ý
-import { useStemTracks } from '../../lib/stemTracks'
+import { useStemTracks, trackLabel } from '../../lib/stemTracks'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { TProps, NoTeacher, PROGRAM_COLOR, Tabs, handoff, useMyClasses } from '../teacher/common'
@@ -135,7 +135,7 @@ export function TeacherLessonStudio({ teacherId, orgId, go }: TProps) {
           return (
             <div className="panel lessoncard" key={p.id}>
               <div className="lessoncover" style={coverStyle(p, true)}>
-                {p.program && <span className="progchip" style={{ background: PROGRAM_COLOR[p.program], color: '#fff' }}>{p.program}</span>}
+                {p.program && <span className="progchip" style={{ background: PROGRAM_COLOR[p.program], color: '#fff' }}>{trackLabel(p.program)}</span>}
                 {p.from_package && <span className="progchip pkgchip">Gói STEM</span>}
                 {p.is_template && <span className="progchip pkgchip">Mẫu</span>}
                 {p.library_item_id && <span className="progchip pkgchip" title={`Từ kho học liệu dùng chung, phiên bản ${p.library_version ?? '?'}`}>Từ kho v{p.library_version}</span>}

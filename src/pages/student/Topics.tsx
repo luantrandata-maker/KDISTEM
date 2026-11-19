@@ -1,3 +1,4 @@
+import { trackLabel } from '../../lib/stemTracks'
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { KIND_LABEL, PROGRAM_COLOR, dueLabel, handoff, Tabs } from '../teacher/common'
@@ -39,7 +40,7 @@ export function TopicCard({ topic, pct, onOpen }: { topic: Topic; pct: number; o
     <button className="topiccard" onClick={onOpen}>
       <div className="topiccover" style={{ background: tint(topic.subject) }}>
         <span className={'pill ' + (topic.status === 'active' ? 'active' : topic.status === 'planned' ? 'maintenance' : '')}>{ST[topic.status]}</span>
-        {topic.program && <span className="progchip" style={{ background: PROGRAM_COLOR[topic.program], color: '#fff' }}>{topic.program}</span>}
+        {topic.program && <span className="progchip" style={{ background: PROGRAM_COLOR[topic.program], color: '#fff' }}>{trackLabel(topic.program)}</span>}
       </div>
       <small className="subj">{topic.subject}</small>
       <b>{topic.title}</b>

@@ -14,7 +14,7 @@ import { asLesson, lessonStats, LessonOutline, LessonPlayer, LessonShow, emptyLe
 import { SIMS, type SimModel } from '../../lib/sims'
 import { RaceGame } from '../../lib/games'
 import '../../styles/activities.css'
-import { useStemTracks } from '../../lib/stemTracks'
+import { useStemTracks, trackLabel } from '../../lib/stemTracks'
 
 type View = { mode: 'list' } | { mode: 'new' } | { mode: 'edit'; a: Activity } | { mode: 'play'; a: Activity; big: boolean }
 type T = 'mine' | 'school' | 'lessons'
@@ -98,7 +98,7 @@ export function TeacherActivities({ teacherId, orgId, go }: TProps) {
             <div className="panel lessoncard" key={a.id}>
               <div className="lessoncover actcover">
                 <span className="progchip pkgchip"><span aria-hidden="true"><Icon n={ACT[a.kind].icon} /></span> {ACT[a.kind].label}</span>
-                {a.program && <span className="progchip" style={{ background: PROGRAM_COLOR[a.program], color: '#fff' }}>{a.program}</span>}
+                {a.program && <span className="progchip" style={{ background: PROGRAM_COLOR[a.program], color: '#fff' }}>{trackLabel(a.program)}</span>}
                 <span className="slidecount">{countItems(a.kind, a.content)} {unitOf(a.kind)}</span>
               </div>
               <b>{a.title}</b>
@@ -329,7 +329,7 @@ function ActivityBank({ rows, teacherId, orgId, go, onUse, onAssign }: {
             <div className="tilegrid" style={{ marginTop: 8 }}>
               {list.map(a => { const [icon, art] = artOf(a); return (
                 <button key={a.id} className="tile" onClick={() => setOpen(a)}>
-                  <div className={'tileart art' + art}>{a.program && <span className="progchip" style={{ background: PROGRAM_COLOR[a.program], color: '#fff' }}>{a.program}</span>}<span aria-hidden="true"><Icon n={icon} size={36} /></span></div>
+                  <div className={'tileart art' + art}>{a.program && <span className="progchip" style={{ background: PROGRAM_COLOR[a.program], color: '#fff' }}>{trackLabel(a.program)}</span>}<span aria-hidden="true"><Icon n={icon} size={36} /></span></div>
                   <div className="tilebody">
                     <b>{a.title}</b>
                     <small>{[a.subject, a.teachers?.full_name ?? (a.is_template ? (a.org_id !== orgId ? 'Mẫu của KDI' : 'Mẫu của trường') : '')].filter(Boolean).join(' · ')}</small>
@@ -495,7 +495,7 @@ function LessonBank({ rows, teacherId, go, onAssign }: { rows: LessonLite[]; tea
           {shown.map((l, i) => { const st = stats.get(l.id)!; return (
             <button key={l.id} className="tile" onClick={() => setOpen(l)}>
               <div className={'tileart art' + (i % 6)} style={coverStyle(l)}>
-                {l.program && <span className="progchip" style={{ background: PROGRAM_COLOR[l.program], color: '#fff' }}>{l.program}</span>}
+                {l.program && <span className="progchip" style={{ background: PROGRAM_COLOR[l.program], color: '#fff' }}>{trackLabel(l.program)}</span>}
 </div>
               <div className="tilebody">
                 <b>{l.title}</b><small>{l.subject}</small>
@@ -509,7 +509,7 @@ function LessonBank({ rows, teacherId, go, onAssign }: { rows: LessonLite[]; tea
         <div className="wrap"><table><thead><tr><th>Bài giảng</th><th>CT</th><th>Môn · khối</th><th>Khối nội dung</th><th>Tương tác</th></tr></thead>
           <tbody>{shown.map(l => { const st = stats.get(l.id)!; return (
             <tr key={l.id}><td><NameLink onClick={() => setOpen(l)} title="Xem chi tiết">{l.title}</NameLink><br /><small className="sub">{l.teachers?.full_name ?? (l.is_template ? 'Mẫu của trường' : '')}</small></td>
-              <td>{l.program && <span className="progchip" style={{ background: PROGRAM_COLOR[l.program], color: '#fff' }}>{l.program}</span>}</td>
+              <td>{l.program && <span className="progchip" style={{ background: PROGRAM_COLOR[l.program], color: '#fff' }}>{trackLabel(l.program)}</span>}</td>
               <td>{[l.subject, l.grades && 'Khối ' + l.grades].filter(Boolean).join(' · ')}</td><td>{st.blocks || '—'}</td>
               <td>{st.kinds.map(k => <span key={k} title={INTERACTION[k]}><Icon n={KIND_ICON[k]} /> </span>)}</td></tr>) })}</tbody></table></div>
       )}

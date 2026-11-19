@@ -9,12 +9,14 @@ import { DataTable, type Col } from '../components/DataTable'
 import { HeadAction } from '../components/PageFrame'
 import { DetailHead } from '../components/DetailHead'
 import { ActionBar, type Act } from '../components/ActionBar'
-import { EDU_ACTIVITIES, EDU_ACTIVITY_NAME, SCHEDULE_MODES, SCHEDULE_MODE_NAME, STEM_LEVELS, STEM_LEVEL_NAME, useStemTracks, type EduActivity, type ScheduleMode, type StemLevel, type StemTrack } from '../lib/stemTracks'
+import { EDU_ACTIVITIES, EDU_ACTIVITY_NAME, SCHEDULE_MODES, SCHEDULE_MODE_NAME, STEM_LEVELS, STEM_LEVEL_NAME, useStemTracks, type EduActivity, type ScheduleMode, type StemLevel, type StemTrack, trackLabel } from '../lib/stemTracks'
 
 // Danh mục loại chương trình (migration 062, 064, 147): CT1–CT4; KDI thêm loại mới, sửa tên, mô tả, môn học,
 // cấp học áp dụng, ngừng dùng hoặc xoá loại chưa được dùng; đơn vị khác xem. Kèm các chương trình giáo dục đang ban hành của từng loại.
 type Prog = { id: string; code: string | null; title: string; ct_code: string; level: string; version_no: number }
-const errText = (m: string) => (/schema cache|does not exist|column .*(sort|active|form|schedule_mode|school_)/i.test(m) ? 'Hãy chạy migration 147 trên Supabase.'
+const errText = (m: string) => (/stem_tracks_label_uq|duplicate key.*label/i.test(m) ? 'Mã hiển thị này đã có loại chương trình khác dùng.'
+  : /stem_tracks_label_check/i.test(m) ? 'Mã hiển thị tối đa 12 ký tự.'
+  : /schema cache|does not exist|column .*(sort|active|form|schedule_mode|school_|label)/i.test(m) ? 'Hãy chạy migration 147–155 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'
   : /23503|foreign key/i.test(m) ? 'Loại này đang được chương trình, bài giảng, học liệu hoặc lớp dùng — hãy chuyển sang "Ngừng dùng".'
   : /23505|duplicate/i.test(m) ? 'Mã loại đã có.'
@@ -54,7 +56,7 @@ export function StemTracksCatalog() {
     const t = tracks.find(x => x.code === edit)
     const done = () => { setEdit(null); reload() }
     return <ElView back={open ? 'Chi tiết loại chương trình' : 'Loại chương trình'} onBack={() => setEdit(null)}
-      title={t ? <><span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{t.code}</span> Sửa loại chương trình</> : 'Thêm loại chương trình'}>
+      title={t ? <><span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{trackLabel(t.code)}</span> Sửa loại chương trình</> : 'Thêm loại chương trình'}>
       {t ? <TrackForm key={t.code} t={t} onCancel={() => setEdit(null)} onSaved={done} />
         : <TrackForm t={{ ...BLANK, sort: tracks.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1 }} isNew onCancel={() => setEdit(null)} onSaved={done} />}
     </ElView>
@@ -68,7 +70,7 @@ export function StemTracksCatalog() {
     ] : []
     return <>
       <DetailHead back="Loại chương trình" onBack={() => { setOpen(null); setMsg('') }}
-        title={<><span className="progchip" style={{ background: PROGRAM_COLOR[cur.code], color: '#fff' }}>{cur.code}</span> {cur.title}</>}
+        title={<><span className="progchip" style={{ background: PROGRAM_COLOR[cur.code], color: '#fff' }}>{trackLabel(cur.code)}</span> {cur.title}</>}
         extra={<span className={'pill ' + (cur.active === false ? 'inactive' : 'good')}>{cur.active === false ? 'Ngừng dùng' : 'Đang dùng'}</span>} />
       <div className="bar"><small className="sub">{cur.name}</small>{acts.length > 0 && <div className="tools"><ActionBar items={acts} /></div>}</div>
       {msg && <p className="msg" role="status">{msg}</p>}
@@ -91,7 +93,7 @@ export function StemTracksCatalog() {
         <div className="pdside">
           <div className="panel pdcard"><h4>Thông tin chung</h4>
             <dl className="pddl sm">
-              <dt>Mã</dt><dd>{cur.code}</dd>
+              <dt>Mã hiển thị</dt><dd>{trackLabel(cur.code)}{cur.label?.trim() ? <small className="sub"> · mã gốc {cur.code}</small> : null}</dd>
               <dt>Tên ngắn</dt><dd>{cur.name || '—'}</dd>
               <dt>Thứ tự</dt><dd>{cur.sort ?? 0}</dd>
               <dt>Cấp học</dt><dd>{cur.levels.length ? cur.levels.map(l => STEM_LEVEL_NAME[l]).join(', ') : 'Chưa chọn'}</dd>
@@ -116,7 +118,7 @@ export function StemTracksCatalog() {
     </>
   }
   const cols: Col<StemTrack>[] = [
-    { key: 'code', label: 'Mã', fixed: true, thClass: 'c-no c-code', text: t => t.code, cell: t => <span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{t.code}</span> },
+    { key: 'code', label: 'Mã', fixed: true, thClass: 'c-no c-code', text: t => trackLabel(t.code), cell: t => <span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{trackLabel(t.code)}</span> },
     { key: 'title', label: 'Loại chương trình', fixed: true, thClass: 'c-ttl', text: t => t.title + ' ' + t.name, cell: t => <><b>{t.title}</b><div className="sub">{t.name}</div></> },
     { key: 'desc', label: 'Mô tả', off: true, text: t => t.description ?? '', cell: t => t.description || <small className="sub">—</small> },
     { key: 'subj', label: 'Môn học', text: t => t.subjects.join(', '), values: t => t.subjects, cell: t => t.subjects.length ? t.subjects.join(', ') : <small className="sub">Chưa có</small> },
@@ -153,7 +155,7 @@ function TrackForm({ t, isNew = false, onCancel, onSaved }: { t: StemTrack; isNe
     const code = f.code.trim().toUpperCase()
     if (isNew && !/^[A-Z][A-Z0-9_-]{1,11}$/.test(code)) return setErr(errText('stem_tracks_code_check'))
     setBusy(true); setErr('')
-    const row = { name: f.name, title: f.title, description: f.description, subjects: f.subjects, levels: f.levels, sort: Number(f.sort) || 0, active: f.active !== false,
+    const row = { label: (f.label ?? '').trim(), name: f.name, title: f.title, description: f.description, subjects: f.subjects, levels: f.levels, sort: Number(f.sort) || 0, active: f.active !== false,
       form: f.form ?? '', edu_activity: f.edu_activity ?? '', teachers: f.teachers ?? '', audience: f.audience ?? '', duration: f.duration ?? '', notes: f.notes ?? '',
       use_modules: f.use_modules !== false, school_pick_topics: !!f.school_pick_topics, school_arrange_ppct: f.school_arrange_ppct !== false, schedule_mode: f.schedule_mode ?? 'timetable' }
     const { data, error } = isNew
@@ -168,6 +170,8 @@ function TrackForm({ t, isNew = false, onCancel, onSaved }: { t: StemTrack; isNe
     <section className="panel">
       <div className="formgrid">
         {isNew && <label className="field"><span>Mã loại *</span><input value={f.code} maxLength={12} placeholder="VD: CT6" onChange={e => setF({ ...f, code: e.target.value.toUpperCase() })} /></label>}
+        <label className="field"><span>Mã hiển thị</span><input value={f.label ?? ''} maxLength={12} placeholder={isNew ? 'Để trống = dùng mã loại' : `Để trống = ${t.code}`}
+          onChange={e => setF({ ...f, label: e.target.value })} /><small className="sub">Mã hiện trên mọi màn hình.{isNew ? '' : ` Mã gốc ${t.code} giữ nguyên để nối dữ liệu.`}</small></label>
         <label className="field"><span>Thứ tự hiển thị</span><input type="number" min={0} value={f.sort ?? 0} onChange={e => setF({ ...f, sort: Number(e.target.value) })} /></label>
         <label className="field"><span>Trạng thái</span><select value={f.active === false ? 'off' : 'on'} onChange={e => setF({ ...f, active: e.target.value === 'on' })}>
           <option value="on">Đang dùng</option><option value="off">Ngừng dùng (không chọn được khi soạn mới)</option></select></label>

@@ -1,3 +1,4 @@
+import { trackLabel } from './stemTracks'
 import { Icon } from '../components/Icon'
 // Bài giảng tương tác theo khối (migration 063): tiến trình theo CT1–CT4, mỗi giai đoạn gồm các khối nội dung
 // (tiêu đề, đoạn văn, hình, video, tệp, mô phỏng 2D, giáo cụ ảo, kéo–thả, câu hỏi, đoạn code, hoạt động nhóm, game, rubric).
@@ -523,7 +524,7 @@ export function LessonPlayer({ title, ct, sub, lesson, onClose }: { title: strin
   return (
     <div className="overlay player" role="dialog" aria-modal="true" aria-label={'Xem như học sinh: ' + title}>
       <div className="playtop">
-        <button type="button" className="x" onClick={onClose} aria-label="Đóng">×</button><span className="pill">Xem như học sinh</span>{ct && <span className="progchip ct">{ct}</span>}<b className="ellipsis">{title}</b>
+        <button type="button" className="x" onClick={onClose} aria-label="Đóng">×</button><span className="pill">Xem như học sinh</span>{ct && <span className="progchip ct">{trackLabel(ct)}</span>}<b className="ellipsis">{title}</b>
         <span className="playprog"><i style={{ width: pct + '%' }} /></span><small>{pct}%</small>
         <button type="button" className={done ? 'okbtn' : 'primary'} onClick={() => setDone(true)}>{done ? '✓ Đã hoàn thành' : 'Hoàn thành bài'}</button>
       </div>
@@ -563,7 +564,7 @@ export function LessonShow({ title, ct, sub, lesson, onClose }: { title: string;
   const s = slides[i]
   return (
     <div className="overlay show" role="dialog" aria-modal="true" aria-label={'Trình chiếu: ' + title}>
-      <div className="showtop">{ct && <span className="progchip ct">{ct}</span>}<b>{title}</b>{sub && <small>{sub}</small>}<span style={{ marginLeft: 'auto' }}>Slide {i + 1}/{slides.length}</span>
+      <div className="showtop">{ct && <span className="progchip ct">{trackLabel(ct)}</span>}<b>{title}</b>{sub && <small>{sub}</small>}<span style={{ marginLeft: 'auto' }}>Slide {i + 1}/{slides.length}</span>
         <button type="button" className="x" onClick={onClose} aria-label="Thoát trình chiếu">×</button></div>
       <div className="showstage">
         {s && (s.b === null

@@ -1,6 +1,6 @@
 -- 156: Trường dùng gói STEM nào.
 -- Mỗi trường, mỗi năm học dùng một gói (program_packages), áp dụng cho một số khối.
--- Trường có thể không mua hết gói: ghi các phần không mua vào school_package_skips
+-- Trường có thể không áp dụng hết gói: ghi các phần không áp dụng vào school_package_skips
 --   • slot có giá trị: bỏ cả học phần ở vị trí đó (CT2, CT3: HP1, HP2…; CT1, CT4: slot 1 = cả loại ở khối đó)
 --   • topic_id có giá trị: bỏ một chủ đề (CT1, CT4)
 -- Chỉ KDI gán / sửa. Trường, Phòng, Sở xem được bản gán của trường thuộc mình.
@@ -32,7 +32,7 @@ create table if not exists school_package_skips (
 );
 create unique index if not exists school_package_skips_slot on school_package_skips (school_package_id, track_code, grade, slot) where slot is not null;
 create unique index if not exists school_package_skips_topic on school_package_skips (school_package_id, topic_id) where topic_id is not null;
-comment on table school_package_skips is 'Phần có trong gói nhưng trường không mua: cả học phần (slot) hoặc một chủ đề (topic_id)';
+comment on table school_package_skips is 'Phần có trong gói nhưng trường không áp dụng: cả học phần (slot) hoặc một chủ đề (topic_id)';
 
 create or replace function public.school_package_touch() returns trigger
 language plpgsql set search_path = public as $$

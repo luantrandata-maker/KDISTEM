@@ -8,8 +8,8 @@ import { DataTable } from '../components/DataTable'
 import { ElView } from '../components/ElView'
 import { Drawer } from '../components/Drawer'
 
-// Trường dùng gói (156): danh sách trường (lọc tỉnh, gói) → chi tiết trường theo khối × loại chương trình → sửa phạm vi mua
-// (đủ gói hoặc bỏ tick phần trường không mua). Chỉ KDI gán / sửa; Sở, Phòng, trường xem được trường thuộc mình.
+// Trường dùng gói (156): danh sách trường (lọc tỉnh, gói) → chi tiết trường theo khối × loại chương trình → sửa phạm vi áp dụng
+// (đủ gói hoặc bỏ tick phần trường không áp dụng). Chỉ KDI gán / sửa; Sở, Phòng, trường xem được trường thuộc mình.
 
 const ALL_GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
 const OFF = { textDecoration: 'line-through', color: 'var(--muted)' }
@@ -21,7 +21,7 @@ type Ctx = { tracks: StemTrack[]; items: PackageItem[]; modules: ProgramModule[]
 type SlotState = { slot: number; module_id: string; on: boolean }
 type TopicState = { topic: ProgramTopic; on: boolean }
 
-/** Phần trường mua ở loại t, khối g, theo gói và danh sách phần không mua (skip: tập khoá keyM / keyT) */
+/** Phần trường áp dụng ở loại t, khối g, theo gói và danh sách phần không áp dụng (skip: tập khoá keyM / keyT) */
 function scopeAt(c: Ctx, pkg: string, t: StemTrack, g: number, skip: Set<string>) {
   const slots = c.items.filter(i => i.package_id === pkg && i.track_code === t.code && i.grade === g).sort((a, b) => a.slot - b.slot)
   const ss: SlotState[] = slots.map(i => ({ slot: i.slot, module_id: i.module_id, on: !skip.has(keyM(t.code, g, i.slot)) }))
@@ -95,8 +95,8 @@ export function SchoolPackages() {
   if (cur) {
     const skip = skipSetOf(cur, skips)
     const grades = cur.grades ?? []
-    const sub = <>{cur.province_name ?? 'Chưa rõ tỉnh'} · Năm học {yearLabel(year)} · {kRange(grades)} · {cur.full_package ? 'Mua đủ gói' : 'Mua một phần'}</>
-    if (edit) return <ElView back={cur.name} onBack={() => setEdit(false)} title={<>Phạm vi mua · {cur.name}</>} sub={sub}>
+    const sub = <>{cur.province_name ?? 'Chưa rõ tỉnh'} · Năm học {yearLabel(year)} · {kRange(grades)} · {cur.full_package ? 'Áp dụng đủ gói' : 'Áp dụng một phần'}</>
+    if (edit) return <ElView back={cur.name} onBack={() => setEdit(false)} title={<>Phạm vi áp dụng · {cur.name}</>} sub={sub}>
       <ScopeEdit ctx={ctx} row={cur} skips={skips} packages={packages} modName={modName} onCancel={() => setEdit(false)}
         onSaved={() => { setEdit(false); reloadSchools() }} />
     </ElView>
@@ -123,7 +123,7 @@ export function SchoolPackages() {
               const on = s.topics.filter(x => x.on).length
               const allOff = s.slots.every(x => !x.on)
               return <td key={t.code}><button type="button" className="cellbtn" onClick={open} title="Xem chủ đề">
-                {allOff ? <span style={OFF}>Không mua</span> : !s.topics.length ? <span className="sub">Có trong gói, chưa nhập chủ đề</span>
+                {allOff ? <span style={OFF}>Không áp dụng</span> : !s.topics.length ? <span className="sub">Có trong gói, chưa nhập chủ đề</span>
                   : on === s.topics.length ? <>Đủ {on} chủ đề</> : <><b>{on}</b>/{s.topics.length} chủ đề</>}</button></td>
             }
             return <td key={t.code}><div style={{ display: 'grid', gap: 2 }}>{s.slots.map(x => <button key={x.slot} type="button" className="cellbtn" style={x.on ? undefined : OFF}
@@ -131,7 +131,7 @@ export function SchoolPackages() {
           })}</tr>)}</tbody>
         </table>
       </div>
-      <p className="sub framefoot">Phần gạch ngang có trong gói nhưng trường không mua. Bấm vào ô để xem chủ đề.</p>
+      <p className="sub framefoot">Phần gạch ngang có trong gói nhưng trường không áp dụng. Bấm vào ô để xem chủ đề.</p>
       {vt && vs && view && <Drawer title={<>{trackHead(vt)} · {gradeName(view.g)}</>} onClose={() => setView(null)}>
         <ScopeView s={vs} modName={modName} />
       </Drawer>}
@@ -157,13 +157,13 @@ export function SchoolPackages() {
         { key: 'scope', label: 'Phạm vi', text: r => r.full_package ? 'Đủ gói' : 'Một phần', cell: r => r.full_package ? 'Đủ gói' : 'Một phần' },
         ...tracks.map(t => ({ key: 't' + t.code, label: trackLabel(t.code), cell: (r: SchoolPkgRow) => <Count {...summary(r, t)} /> })),
       ]} />
-    <p className="sub framefoot">Bấm vào trường để xem chi tiết từng khối. Số in đậm là trường mua một phần, ví dụ 49/56 chủ đề.</p>
+    <p className="sub framefoot">Bấm vào trường để xem chi tiết từng khối. Số in đậm là trường áp dụng một phần, ví dụ 49/56 chủ đề.</p>
     {assignDrawer}
   </>
 }
 
 function ScopeView({ s, modName }: { s: ReturnType<typeof scopeAt>; modName: (id: string) => string }) {
-  const tag = (on: boolean) => on ? <small className="sub">Đã mua</small> : <small style={{ color: 'var(--danger, #b42318)' }}>Không mua</small>
+  const tag = (on: boolean) => on ? <small className="sub">Áp dụng</small> : <small style={{ color: 'var(--danger, #b42318)' }}>Không áp dụng</small>
   if (!s.mods) return s.topics.length
     ? <ol style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 6 }}>{s.topics.map(({ topic, on }) => <li key={topic.id}>
       <span style={on ? undefined : OFF}>{topic.title}</span> <small className="sub">· {topic.periods} tiết</small> · {tag(on)}</li>)}</ol>
@@ -214,7 +214,7 @@ function AssignForm({ year, rows, packages, onCancel, onSaved }: { year: string;
     <label className="field"><span>Gói</span><select value={pkg} onChange={e => setPkg(e.target.value)}>
       {packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
     <div className="field"><span>Khối áp dụng</span><GradePick value={grades} onChange={setGrades} /></div>
-    <small className="sub">Gán xong là mua đủ gói. Trường mua một phần thì mở trường, bấm "Sửa phạm vi" để bỏ tick phần không mua.</small>
+    <small className="sub">Gán xong là áp dụng đủ gói. Trường áp dụng một phần thì mở trường, bấm "Sửa phạm vi" để bỏ tick phần không áp dụng.</small>
     {err && <p className="warnline">{err}</p>}
     <div className="actions"><button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button><button onClick={onCancel} disabled={busy}>Huỷ</button></div>
   </div>
@@ -253,7 +253,7 @@ function ScopeEdit({ ctx, row, skips, packages, modName, onCancel, onSaved }: {
     setBusy(true); setErr('')
     const { error } = await supabase.from('school_packages').update({ package_id: pkg, grades, full_package: full }).eq('id', row.sp_id!)
     if (error) { setBusy(false); return setErr(spErr(error.message + ' ' + (error.code ?? ''))) }
-    // Lưu lại danh sách phần không mua: chỉ giữ khoá còn đúng với gói, khối đang chọn
+    // Lưu lại danh sách phần không áp dụng: chỉ giữ khoá còn đúng với gói, khối đang chọn
     const rowsOut: PkgSkip[] = []
     if (!full) for (const t of ctx.tracks) for (const gg of grades) {
       const s = scopeAt(ctx, pkg, t, gg, skip)
@@ -281,8 +281,8 @@ function ScopeEdit({ ctx, row, skips, packages, modName, onCancel, onSaved }: {
       <div className="field"><span>Khối áp dụng</span><GradePick value={grades} onChange={v => { setGrades(v); if (g && !v.includes(g)) setG(0) }} /></div>
     </div>
     <div style={{ display: 'flex', gap: 18, margin: '12px 0' }}>
-      <label className="field inline"><input type="radio" checked={full} onChange={() => setFull(true)} /> Mua đủ gói</label>
-      <label className="field inline"><input type="radio" checked={!full} onChange={() => setFull(false)} /> Chọn một phần (bỏ tick phần trường không mua)</label>
+      <label className="field inline"><input type="radio" checked={full} onChange={() => setFull(true)} /> Áp dụng đủ gói</label>
+      <label className="field inline"><input type="radio" checked={!full} onChange={() => setFull(false)} /> Chọn một phần (bỏ tick phần trường không áp dụng)</label>
     </div>
     {!full && <>
       <div className="distfilter scopegrades" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>

@@ -1,7 +1,7 @@
 import { supabase } from './supabase'
 
-// Trường dùng gói STEM nào (156): mỗi trường, mỗi năm học một gói, áp dụng cho một số khối. Trường có thể chỉ mua
-// một phần của gói: các phần không mua ghi ở school_package_skips (cả học phần ở một vị trí, hoặc một chủ đề).
+// Trường dùng gói STEM nào (156): mỗi trường, mỗi năm học một gói, áp dụng cho một số khối. Trường có thể chỉ áp dụng
+// một phần của gói: các phần không áp dụng ghi ở school_package_skips (cả học phần ở một vị trí, hoặc một chủ đề).
 export type SchoolPkgRow = {
   org_id: string; name: string; code: string | null; level: string | null; province_id: string | null; province_name: string | null
   sp_id: string | null; package_id: string | null; grades: number[] | null; full_package: boolean | null; note: string | null; updated_at: string | null

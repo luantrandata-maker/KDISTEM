@@ -7,6 +7,8 @@ export type ProgramModule = { id: string; track_code: string; name: string; desc
 export type ProgramTopic = {
   id: string; module_id: string; grade: number; seq: number; code: string | null; title: string; periods: number
   objectives: string; main_subject: string | null; subjects: string[]; textbook_ref: string; product?: string; active: boolean; updated_at?: string
+  /** 160: chủ đề thuộc phần nào khi gói dùng học phần này ở nhiều vị trí (1 = HP1, 2 = HP2); trống = dùng chung */
+  part?: number | null
 }
 export type MaterialGroup = { id: string; name: string; description: string; sort: number; active: boolean; updated_at?: string }
 

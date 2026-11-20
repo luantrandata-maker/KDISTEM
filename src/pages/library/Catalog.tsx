@@ -60,7 +60,7 @@ export function LibraryCatalog({ orgId }: { orgId: string | null }) {
   const topicLink = (t: ProgramTopic) => <button type="button" className="linkbtn" onClick={e => { e.stopPropagation(); setTopic(t) }}>{t.title}</button>
   const tp = (i: Row) => topicOf.get(i.topic_id)!
   const cols: Col<Row>[] = [
-    { key: 'title', label: 'Tên', fixed: true, text: i => i.title, cell: i => <><b>{i.title}</b>{i.detail && <div className="sub" style={{ fontSize: 12 }}>{i.detail.slice(0, 120)}</div>}</> },
+    { key: 'title', label: 'Tên', fixed: true, text: i => i.title, cell: i => <b>{i.title}</b> },
     { key: 'topic', label: 'Chủ đề', text: i => tp(i).title, cell: i => topicLink(tp(i)) },
     { key: 'track', label: 'Loại CT', text: i => trackLabel(trOf(tp(i))), cell: i => chip(trOf(tp(i))) },
     { key: 'mod', label: 'Học phần', text: i => flat(tp(i)) ? '' : modOf.get(tp(i).module_id)!.name, cell: i => flat(tp(i)) ? <span className="sub">—</span> : <small>{modOf.get(tp(i).module_id)!.name}</small> },

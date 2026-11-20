@@ -481,6 +481,6 @@ function TopicView({ t, mod, sgk, admin }: { t: ProgramTopic; mod?: string; sgk?
       <dt>Sản phẩm</dt><dd>{v(t.product)}</dd>
       {sgk && <><dt>Bài SGK liên quan</dt><dd>{v(t.textbook_ref)}</dd></>}
     </dl>
-    <TopicContents topicId={t.id} admin={admin} />
+    <TopicContents topic={t} admin={admin} />
   </>
 }

@@ -6,6 +6,7 @@ import { frameErr, loadFrame, type MaterialGroup, type ProgramModule, type Progr
 import { PROGRAM_COLOR } from './teacher/common'
 import { DataTable, SideSplit, type Col } from '../components/DataTable'
 import { GroupTree, inGroup, useGroupSel } from '../components/GroupTree'
+import { TreeHead } from '../components/TreeHead'
 import { HeadAction } from '../components/PageFrame'
 import { DetailHead } from '../components/DetailHead'
 import { ElView } from '../components/ElView'
@@ -31,7 +32,6 @@ export function ProgramFrame() {
   const active = tracks.filter(t => t.active !== false)
   const [admin, setAdmin] = useState(false)
   const [code, setCode] = useState('')
-  const [view, setView] = useState<'modules' | 'grade'>('modules')
   const [modules, setModules] = useState<ProgramModule[]>([])
   const [topics, setTopics] = useState<ProgramTopic[]>([])
   const [msg, setMsg] = useState('')
@@ -39,10 +39,10 @@ export function ProgramFrame() {
   const [editMod, setEditMod] = useState<ProgramModule | null>(null)
   const [editTopic, setEditTopic] = useState<TopicDraft | null>(null)
   const [viewId, setViewId] = useState<string | null>(null)
-  const [grade, setGrade] = useState<number | 'all' | null>(null)
+  const [treeSel, setTreeSel] = useState<Record<string, string>>({})
   const reload = () => loadFrame().then(r => { setModules(r.modules); setTopics(r.topics); setMsg(r.error) })
   useEffect(() => { supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)); reload() }, [])
-  const track = tracks.find(t => t.code === code) ?? active[0]
+  const track = code === '*' ? undefined : tracks.find(t => t.code === code) ?? active[0]
   const mods = modules.filter(m => m.track_code === track?.code)
   const topicsOf = (id: string) => topics.filter(t => t.module_id === id).sort((a, b) => a.grade - b.grade || a.seq - b.seq)
   const trackTopics = topics.filter(t => mods.some(m => m.id === t.module_id))
@@ -72,7 +72,6 @@ export function ProgramFrame() {
     if (e) setMsg(frameErr(e.message + ' ' + (e.code ?? '')))
     reload()
   }
-  const moveModule = (from: string, to: string) => reorder('program_modules', 'sort', mods, from, to, (m: ProgramModule) => m.sort)
   const moveTopic = (list: ProgramTopic[]) => (from: string, to: string) => reorder('program_topics', 'seq', list, from, to, (t: ProgramTopic) => t.seq)
   const flat = track?.use_modules === false
   // Loại không chia học phần: chủ đề nằm trong học phần ẩn (học phần đầu tiên của loại; chưa có thì tạo "CHUNG")
@@ -88,7 +87,6 @@ export function ProgramFrame() {
     setEditTopic({ module_id: id, grade: g, seq: inG.reduce((x, t) => Math.max(x, t.seq), 0) + 1, code: '', title: '', periods: 1, objectives: '', product: '', main_subject: null, subjects: [], textbook_ref: '', active: true, part: null })
   }
 
-  const dragMod = useRowDrag((a, b) => moveModule(a, b))
 
   // ----- Sửa học phần / chủ đề -----
   // ----- Chi tiết chủ đề, form sửa: mở bên phải cạnh bảng (split view), không chiếm cả trang -----
@@ -151,77 +149,132 @@ export function ProgramFrame() {
     </>
   }
 
-  // ----- Danh sách -----
-  const cols: Col<ProgramModule>[] = [
-    { key: 'sort', label: 'TT', fixed: true, thClass: 'c-no', text: m => String(m.sort), cell: m => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>{admin && dragMod.handle(m.id, m.name)}{m.sort}</span> },
-    { key: 'name', label: 'Học phần', fixed: true, thClass: 'c-ttl', text: m => m.name + ' ' + m.description,
-      cell: m => <><b>{m.name}</b>{m.description && <><br /><small className="sub">{m.description}</small></>}</> },
-    { key: 'grades', label: 'Khối', text: m => fmtGrades([...new Set(topicsOf(m.id).map(t => t.grade))]),
-      values: m => [...new Set(topicsOf(m.id).map(t => gradeName(t.grade)))],
-      cell: m => { const g = [...new Set(topicsOf(m.id).map(t => t.grade))]; return g.length ? fmtGrades(g) : <small className="sub">Chưa có</small> } },
-    { key: 'n', label: 'Số chủ đề', text: m => String(topicsOf(m.id).length), cell: m => topicsOf(m.id).length },
-    { key: 'hp', label: 'Tiết / khối', text: m => m.periods == null ? '' : String(m.periods), cell: m => m.periods ?? <small className="sub">—</small> },
-    { key: 'p', label: 'Tổng tiết chủ đề', text: m => String(sum(topicsOf(m.id))), cell: m => sum(topicsOf(m.id)) },
-    { key: 'st', label: 'Trạng thái', text: m => m.active ? 'Đang dùng' : 'Ngừng dùng', cell: m => pill(m.active) },
-  ]
-  const g = grade ?? grades[0] ?? null
-  const showGrade = flat || view === 'grade'
-  const gTopics = g === null ? [] : g === 'all' ? [...trackTopics].sort((a, b) => a.grade - b.grade || a.seq - b.seq) : trackTopics.filter(t => t.grade === g)
+  // ----- Danh sách: cây bên trái (Khối · Học phần › Khối · Loại CT › Học phần › Khối), bảng chủ đề bên phải, vừa một màn hình -----
+  const all = code === '*'
+  const sel = treeSel[all ? '*' : track?.code ?? ''] ?? (all ? active[0]?.code ?? '' : track?.code ?? '')
+  const setSel = (k: string) => setTreeSel({ ...treeSel, [all ? '*' : track?.code ?? '']: k })
+  const selGrade = (() => { const m = /\/(\d+)$/.exec(sel); return flat && m ? Number(m[1]) : null })()
   return <>
-    {admin && track && <HeadAction>{flat
-      ? <button type="button" className="primary ttadd" onClick={() => addFlatTopic(typeof g === 'number' ? g : 1)}>+ Thêm chủ đề{typeof g === 'number' ? ' ' + gradeName(g) : ''}</button>
+    {admin && track && !all && <HeadAction>{flat
+      ? <button type="button" className="primary ttadd" onClick={() => addFlatTopic(selGrade ?? 1)}>+ Thêm chủ đề{selGrade ? ' ' + gradeName(selGrade) : ''}</button>
       : <button type="button" className="primary ttadd"
         onClick={() => setEditMod({ id: '', track_code: track.code, name: '', description: '', periods: null, sort: mods.reduce((x, m) => Math.max(x, m.sort), 0) + 1, active: true })}>+ Thêm học phần</button>}</HeadAction>}
     <div className="distfilter" role="group" aria-label="Loại chương trình">
+      <button type="button" className={'distfchip' + (all ? ' on' : '')} aria-pressed={all} onClick={() => setCode('*')}>Tất cả loại CT</button>
       {active.map(t => { const n = t.use_modules === false
           ? topics.filter(x => modules.some(m => m.id === x.module_id && m.track_code === t.code)).length : modules.filter(m => m.track_code === t.code).length
-        return <button key={t.code} type="button" className={'distfchip' + (t.code === track?.code ? ' on' : '')} aria-pressed={t.code === track?.code}
-          title={t.use_modules === false ? n + ' chủ đề' : n + ' học phần'} onClick={() => { setCode(t.code); setGrade(null) }}>{trackLabel(t.code)} · {t.name} <b>{n}</b></button> })}
+        const on = !all && t.code === track?.code
+        return <button key={t.code} type="button" className={'distfchip' + (on ? ' on' : '')} aria-pressed={on}
+          title={t.use_modules === false ? n + ' chủ đề' : n + ' học phần'} onClick={() => setCode(t.code)}>{trackLabel(t.code)} · {t.name} <b>{n}</b></button> })}
     </div>
     {msg && <p className="msg" role="status">{msg}</p>}
-    {/* Hàng lọc luôn cùng chỗ, cùng chiều cao cho mọi loại chương trình để bảng không nhảy khi đổi loại */}
-    <div className="distfilter framebar" role="group" aria-label="Cách xem">
-      {!flat && <>{([['modules', 'Theo học phần'], ['grade', 'Theo khối']] as const).map(([k, l]) =>
-        <button key={k} type="button" className={'distfchip' + (view === k ? ' on' : '')} aria-pressed={view === k} onClick={() => setView(k)}>{l}</button>)}
-        {showGrade && <span className="sub" aria-hidden>|</span>}</>}
-      {showGrade && <>
-          <span className="lvlab">Khối</span>
-          <button type="button" className={'distfchip' + (g === 'all' ? ' on' : '')} aria-pressed={g === 'all'} onClick={() => setGrade('all')}>
-            Tất cả <span className="cnt" title="Số chủ đề">{trackTopics.length}</span></button>
-          {(grades.length ? grades : flat ? [1] : []).map(x => <button key={x} type="button" className={'distfchip' + (g === x ? ' on' : '')} aria-pressed={g === x} onClick={() => setGrade(x)} title={gradeName(x)}>
-            K{x} <span className="cnt" title="Số chủ đề">{trackTopics.filter(t => t.grade === x).length}</span></button>)}
-          {flat && admin && grades.length < 12 && <select value="" onChange={e => { if (e.target.value) { setGrade(Number(e.target.value)); addFlatTopic(Number(e.target.value)) } }} aria-label="Thêm chủ đề cho khối khác">
-            <option value="">+ Khối khác…</option>{Array.from({ length: 12 }, (_, k) => k + 1).filter(x => !grades.includes(x)).map(x => <option key={x} value={x}>{gradeName(x)}</option>)}</select>}
-</>}
-      {!showGrade && <small className="sub">{mods.length} học phần</small>}
-    </div>
-    <FitScreen>
-    {!showGrade
-      ? <DataTable id="program-modules" className="slt ttdense" rows={mods} rowKey={m => m.id} cols={cols} noun="học phần" onRow={m => { setMsg(''); setOpenId(m.id) }}
-        rowProps={admin ? m => dragMod.row(m.id) : undefined} simple noTools
-        empty={`Loại ${track?.code ?? ''} chưa có học phần.`} />
-      : <>
-        {flat
-          ? g === 'all'
-            ? <TopicTable list={gTopics} track={track} admin={admin} showGrade onOpen={t => { setMsg(''); setViewId(t.id) }} />
-            : <TopicTable list={[...gTopics].sort((a, b) => a.seq - b.seq)} track={track} admin={admin} onOpen={t => { setMsg(''); setViewId(t.id) }} onMove={moveTopic([...gTopics].sort((a, b) => a.seq - b.seq))} />
-          : g !== null && mods.map(m => {
-            const list = topicsOf(m.id).filter(t => g === 'all' || t.grade === g)
-            if (!list.length) return null
-            return <div key={m.id} className="panel pdcard" style={{ marginBottom: 12 }}>
-              <h4 className="pnhead" style={{ marginTop: 0 }}>{m.sort}. {m.name} <small className="sub">· {list.length} chủ đề · {sum(list)} tiết</small></h4>
-              <TopicTable list={list} track={track} admin={admin} showGrade={g === 'all'} onOpen={t => { setMsg(''); setViewId(t.id) }} onMove={g === 'all' ? undefined : moveTopic(list)} />
-            </div>
-          })}
-      </>}
-    </FitScreen>
-    {track && <p className="sub framefoot" title="Đổi thiết lập ở Danh mục → Loại chương trình">
-      {flat ? 'Chương trình không chia học phần, chỉ có chủ đề theo khối' : 'Chương trình chia theo học phần'} · {track.school_pick_topics ? 'trường tự chọn chủ đề sẽ dạy' : 'trường học đủ các chủ đề'} · {track.school_arrange_ppct !== false ? 'trường tự xếp PPCT theo tuần' : 'PPCT theo mẫu KDI / Sở'} · {SCHEDULE_MODE_NAME[track.schedule_mode ?? 'timetable']}.
-      {showGrade && g !== null && <b style={{ fontWeight: 600 }}> {g === 'all' ? 'Tất cả khối' : gradeName(g)}: {gTopics.length} chủ đề, {sum(gTopics)} tiết.</b>}</p>}
-    <p className="tablenote sub">{flat ? 'Chủ đề sắp theo thứ tự trong từng khối.' : 'Học phần dùng chung cho các gói STEM và các khối; gói nào dùng học phần nào chọn ở tab Gói STEM.'} Nội dung của từng chủ đề (kế hoạch giảng dạy, bài giảng, phiếu học tập, bài kiểm tra, vật tư, kho học liệu) và phiên bản làm ở bước tiếp theo.</p>
+    <FrameTree tracks={all ? active : track ? [track] : []} all={all} modules={modules} topics={topics} sel={sel} onSel={setSel}
+      onOpenModule={id => { setMsg(''); setOpenId(id) }} onOpen={t => { setMsg(''); setViewId(t.id) }} />
+    {track && !all && <p className="sub framefoot" title="Đổi thiết lập ở Danh mục → Loại chương trình">
+      {flat ? 'Chương trình không chia học phần, chỉ có chủ đề theo khối' : 'Chương trình chia theo học phần'} · {track.school_pick_topics ? 'trường tự chọn chủ đề sẽ dạy' : 'trường học đủ các chủ đề'} · {track.school_arrange_ppct !== false ? 'trường tự xếp PPCT theo tuần' : 'PPCT theo mẫu KDI / Sở'} · {SCHEDULE_MODE_NAME[track.schedule_mode ?? 'timetable']}.</p>}
     {drawer}
   </>
 }
+
+type FNode = { key: string; label: React.ReactNode; sub?: string; count: number; dim?: boolean; kids?: FNode[] }
+const keyOfTopic = (t: ProgramTopic, m: ProgramModule | undefined, flat: boolean) => flat ? `${m?.track_code}/${t.grade}` : `${m?.track_code}/${t.module_id}/${t.grade}`
+const under = (k: string, sel: string) => k === sel || k.startsWith(sel + '/')
+
+/** Khung chương trình dạng cây: trái là cây (đếm số chủ đề, dòng nhỏ là số tiết), phải là bảng chủ đề của mục đang chọn.
+ *  Cả khung vừa một màn hình; cây và bảng cuộn riêng bên trong. */
+function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onOpen }: {
+  tracks: StemTrack[]; all: boolean; modules: ProgramModule[]; topics: ProgramTopic[]; sel: string; onSel: (k: string) => void
+  onOpenModule: (id: string) => void; onOpen: (t: ProgramTopic) => void
+}) {
+  const [open, setOpen] = useState<Record<string, boolean>>({})
+  const modOf = useMemo(() => new Map(modules.map(m => [m.id, m])), [modules])
+  const trOf = (code?: string) => tracks.find(t => t.code === code)
+  const isFlat = (code?: string) => trOf(code)?.use_modules === false
+  const ts = useMemo(() => topics.filter(t => t.active !== false && tracks.some(tr => tr.code === modOf.get(t.module_id)?.track_code)).map(t => {
+    const m = modOf.get(t.module_id)!
+    return { t, m, key: keyOfTopic(t, m, isFlat(m.track_code)) }
+  }), [topics, tracks, modOf])
+  const tiet = (l: { t: ProgramTopic }[]) => l.reduce((x, r) => x + (r.t.periods || 0), 0)
+  const gradeNodes = (pre: string, l: typeof ts): FNode[] => [...new Set(l.map(r => r.t.grade))].sort((a, b) => a - b).map(g => {
+    const x = l.filter(r => r.t.grade === g); return { key: `${pre}/${g}`, label: gradeName(g), sub: `${tiet(x)} tiết`, count: x.length } })
+  const trackKids = (tr: StemTrack): FNode[] => {
+    const l = ts.filter(r => r.m.track_code === tr.code)
+    if (tr.use_modules === false) return gradeNodes(tr.code, l)
+    return modules.filter(m => m.track_code === tr.code && m.active !== false).sort((a, b) => a.sort - b.sort).map(m => {
+      const x = l.filter(r => r.m.id === m.id), gs = [...new Set(x.map(r => r.t.grade))].sort((a, b) => a - b)
+      return { key: `${tr.code}/${m.id}`, label: m.name, sub: x.length ? `${fmtGrades(gs)} · ${tiet(x)} tiết` : 'chưa có chủ đề', count: x.length, dim: !x.length, kids: gradeNodes(`${tr.code}/${m.id}`, x) }
+    })
+  }
+  const roots: FNode[] = all
+    ? tracks.map(tr => { const l = ts.filter(r => r.m.track_code === tr.code); const nm = modules.filter(m => m.track_code === tr.code && m.active !== false).length
+        return { key: tr.code, label: <>{chip(tr.code)} {tr.name}</>, sub: tr.use_modules === false ? `chỉ có chủ đề · ${tiet(l)} tiết` : `${nm} học phần · ${tiet(l)} tiết`, count: l.length, kids: trackKids(tr) } })
+    : tracks[0] ? [{ key: tracks[0].code, label: 'Tất cả', sub: `${tiet(ts)} tiết`, count: ts.length }, ...trackKids(tracks[0])] : []
+  const item = (n: FNode, depth: number): React.ReactNode => {
+    const inside = sel !== n.key && sel.startsWith(n.key + '/'), isOpen = open[n.key] ?? inside
+    const btn = <button type="button" className={'gtitem' + (sel === n.key ? ' on' : '') + (n.dim ? ' gtnone' : '')} aria-pressed={sel === n.key}
+      title={`${n.count} chủ đề`} onClick={() => { onSel(n.key); if (n.kids?.length) setOpen({ ...open, [n.key]: true }) }}>
+      <span className="gtlbl">{n.label}{n.sub && <small className="gtsubl">{n.sub}</small>}</span><span className="gtcnt" title={`${n.count} chủ đề`}>{n.count}</span></button>
+    if (!n.kids?.length) return <div key={n.key} className="gtrow">{depth > 0 || all ? <span className="gtcaret" aria-hidden /> : null}{btn}</div>
+    return <div key={n.key} className="gtlv">
+      <div className="gtrow"><button type="button" className="gtcaret" aria-expanded={isOpen} aria-label={isOpen ? 'Thu gọn' : 'Mở'}
+        onClick={() => setOpen({ ...open, [n.key]: !isOpen })}>{isOpen ? '▾' : '▸'}</button>{btn}</div>
+      {isOpen && <div className="gtsub">{n.kids.map(k => item(k, depth + 1))}</div>}
+    </div>
+  }
+  // Bảng: chủ đề thuộc mục đang chọn, nhóm theo các cấp nằm dưới mục chọn (Loại CT › Học phần › Khối › HP1/HP2)
+  const order = (r: typeof ts[number]) => [tracks.findIndex(t => t.code === r.m.track_code), r.m.sort, r.t.grade, r.t.part || 3, r.t.seq]
+  const rows = ts.filter(r => under(r.key, sel)).sort((a, b) => { const x = order(a), y = order(b); for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0 })
+  const split = new Set(ts.filter(r => r.t.part).map(r => r.key))
+  const levels = (r: typeof ts[number]) => {
+    const fl = isFlat(r.m.track_code)
+    return [
+      { k: r.m.track_code, lbl: <>{chip(r.m.track_code)} <b>{trOf(r.m.track_code)?.name}</b></>, mod: '' },
+      fl ? null : { k: `${r.m.track_code}/${r.m.id}`, lbl: <b>{r.m.name}</b>, mod: r.m.id },
+      { k: r.key, lbl: <b>{gradeName(r.t.grade)}</b>, mod: '' },
+      split.has(r.key) ? { k: r.key + '#' + (r.t.part ?? 0), lbl: <span style={{ paddingLeft: 8, borderLeft: `4px solid ${r.t.part ? PART_C[r.t.part - 1] : 'var(--line)'}` }}><b>{r.t.part ? `Học phần ${r.t.part} (HP${r.t.part})` : 'Dùng chung'}</b></span>, mod: '' } : null,
+    ]
+  }
+  const groupOf = (k: string) => rows.filter(r => r.key === k.split('#')[0] ? (k.includes('#') ? k === r.key + '#' + (r.t.part ?? 0) : true) : under(r.key, k))
+  const N = 6, dash = <small className="sub">—</small>
+  const body: React.ReactNode[] = []
+  const last: (string | null)[] = []
+  rows.forEach(r => {
+    levels(r).forEach((lv, i) => {
+      if (!lv || under(sel, lv.k.split('#')[0]) && !lv.k.includes('#') || last[i] === lv.k) return
+      last[i] = lv.k; for (let j = i + 1; j < 4; j++) last[j] = null
+      const g = groupOf(lv.k)
+      body.push(<tr key={'h' + lv.k} className={i < 2 ? 'grouprow' : 'partrow'}><td colSpan={N} style={{ paddingLeft: 12 + 14 * i }}>
+        {lv.lbl} <span style={MUTED}>· {g.length} chủ đề · {tiet(g)} tiết</span>
+        {lv.mod && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={() => onOpenModule(lv.mod)}>Mở học phần ›</button>}</td></tr>)
+    })
+    body.push(<tr key={r.t.id} className="clickrow" onClick={() => onOpen(r.t)}>
+      <td>{r.t.seq}</td><td><b>{r.t.title}</b></td><td>{r.t.periods}</td><td>{r.t.main_subject || dash}</td><td><OneLine text={r.t.objectives} /></td><td><OneLine text={r.t.product ?? ''} /></td></tr>)
+  })
+  const selMod = /^[^/]+\/([0-9a-f-]{36})$/.exec(sel)?.[1]
+  const crumb = (() => { const p = sel.split('/'); const out: string[] = []
+    if (p[0]) out.push(all ? `${trackLabel(p[0])} · ${trOf(p[0])?.name ?? ''}` : 'Tất cả')
+    if (p.length === 2 && !isFlat(p[0])) out.push(modOf.get(p[1])?.name ?? '')
+    if (p.length === 3) out.push(modOf.get(p[1])?.name ?? '', gradeName(Number(p[2])))
+    if (p.length === 2 && isFlat(p[0])) out.push(gradeName(Number(p[1])))
+    return (all ? out : out.slice(p.length > 1 ? 1 : 0)).join(' › ') })()
+  return <FitScreen className="fwfit">
+    <SideSplit aside={<nav className="gtree" aria-label={all ? 'Loại CT › Học phần › Khối' : flatTitle(tracks[0])}>
+      <TreeHead title={all ? 'Loại CT › Học phần › Khối' : flatTitle(tracks[0])}>Số = số chủ đề, dòng nhỏ = tổng số tiết.<br />Bấm tên: lọc bảng và mở.<br />Bấm ▸: chỉ mở / đóng.</TreeHead>
+      <div className="gtcolhead">Số chủ đề</div>
+      {roots.map(n => item(n, 0))}
+    </nav>}>
+      <div className="fwmain">
+        <div className="fwcap"><b>{crumb}</b> <span style={MUTED}>· {rows.length} chủ đề · {tiet(rows)} tiết</span>
+          {selMod && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={() => onOpenModule(selMod)}>Mở học phần ›</button>}</div>
+        <div className="fwscroll">{rows.length ? <table className="table slt ttdense fwtable">
+          <thead><tr><th className="c-no">TT</th><th className="c-ttl">Chủ đề</th><th style={{ width: 80 }}>Số tiết</th><th>Môn chủ trì</th><th>Yêu cầu cần đạt</th><th>Sản phẩm</th></tr></thead>
+          <tbody>{body}</tbody></table>
+          : <p className="sub" style={{ padding: '12px 14px' }}>Chưa có chủ đề.{selMod ? ' Bấm "Mở học phần" để thêm chủ đề.' : ''}</p>}</div>
+      </div>
+    </SideSplit>
+  </FitScreen>
+}
+const flatTitle = (t?: StemTrack) => t?.use_modules === false ? 'Khối' : 'Học phần › Khối'
 
 /** Chủ đề của một học phần trong một bảng: nhóm theo khối, trong khối nhóm theo phần HP1 / HP2 (160); chủ đề không ghi phần là "Dùng chung" */
 function ModuleTopicTable({ ts, grades, admin, onOpen, moveTopic }: {

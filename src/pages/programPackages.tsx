@@ -14,6 +14,7 @@ import { RowMenu } from '../components/ProTools'
 import { Chip } from './dist/Editor'
 import { MultiSelect } from '../components/MultiSelect'
 import { Drawer } from '../components/Drawer'
+import { TopicContents } from './topicContents'
 
 // Gói STEM theo khung chương trình (148): mỗi gói gồm các loại chương trình; mỗi loại, mỗi khối chọn học phần ở từng vị trí
 // (Học phần 1, Học phần 2…). Xem một gói, so sánh các gói (tô màu chỗ khác nhau). Chỉ KDI sửa.
@@ -203,7 +204,7 @@ function PackageDetail({ pkg, tracks, admin, items, modules, topics, msg, setMsg
     </div>
     {sel && selTrack && <Drawer closeOnOutside onClose={() => { setSel(null); setOpenTopic(null) }} onBack={openTopic ? () => setOpenTopic(null) : undefined}
       title={openTopic ? <>{chip(selTrack.code)} {openTopic.title}</> : <>{chip(selTrack.code)} {selTrack.name} · {gradeName(sel.g)}{sel.sl > 0 && selIts[0] ? ` · HP${sel.sl}` : ''}</>}>
-      {openTopic ? <TopicView t={openTopic} mod={selTrack.use_modules === false ? undefined : mod(openTopic.module_id)?.name} sgk={selTrack.schedule_mode === 'subject'} />
+      {openTopic ? <TopicView t={openTopic} admin={admin} mod={selTrack.use_modules === false ? undefined : mod(openTopic.module_id)?.name} sgk={selTrack.schedule_mode === 'subject'} />
         : <>{(() => { const all = selIts.flatMap(i => topicsOfItem(i)); return <p className="sub" style={{ marginTop: 0 }}>{all.length} chủ đề · {all.reduce((x, t) => x + (t.periods || 0), 0)} tiết · bấm vào chủ đề để xem nội dung</p> })()}
           {selIts.map(i => { const list = topicsOfItem(i); return <div key={i.slot} style={{ marginBottom: 14 }}>
             {selTrack.use_modules !== false && <h4 className="pnhead" style={{ margin: '4px 0 6px' }}>Học phần {i.slot}: {mod(i.module_id)?.name ?? '?'} <small className="sub">· {list.length} chủ đề · {periods(i) || '—'} tiết</small></h4>}
@@ -468,7 +469,7 @@ function PackageForm({ p, onCancel, onSaved }: { p: ProgramPackage & { copyFrom?
 }
 
 /** Nội dung một chủ đề (xem nhanh trong khung bên phải) */
-function TopicView({ t, mod, sgk }: { t: ProgramTopic; mod?: string; sgk?: boolean }) {
+function TopicView({ t, mod, sgk, admin }: { t: ProgramTopic; mod?: string; sgk?: boolean; admin: boolean }) {
   const v = (x: string | null | undefined) => x ? <span style={{ whiteSpace: 'pre-line' }}>{x}</span> : <span className="sub">—</span>
   return <>
     <p className="sub" style={{ marginTop: 0 }}>{gradeName(t.grade)} · Thứ tự {t.seq} · {t.periods} tiết{mod ? ' · Học phần ' + mod : ''}{t.part ? ` · HP${t.part}` : ''}</p>
@@ -480,5 +481,6 @@ function TopicView({ t, mod, sgk }: { t: ProgramTopic; mod?: string; sgk?: boole
       <dt>Sản phẩm</dt><dd>{v(t.product)}</dd>
       {sgk && <><dt>Bài SGK liên quan</dt><dd>{v(t.textbook_ref)}</dd></>}
     </dl>
+    <TopicContents topicId={t.id} admin={admin} />
   </>
 }

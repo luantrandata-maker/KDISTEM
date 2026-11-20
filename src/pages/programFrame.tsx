@@ -4,7 +4,8 @@ import { useStemTracks, SCHEDULE_MODE_NAME, type StemTrack, trackLabel } from '.
 import { fmtGrades, gradeName, useEduLevels } from '../lib/eduLevels'
 import { frameErr, loadFrame, type MaterialGroup, type ProgramModule, type ProgramTopic } from '../lib/programFrame'
 import { PROGRAM_COLOR } from './teacher/common'
-import { DataTable, type Col } from '../components/DataTable'
+import { DataTable, SideSplit, type Col } from '../components/DataTable'
+import { GroupTree, inGroup, useGroupSel } from '../components/GroupTree'
 import { HeadAction } from '../components/PageFrame'
 import { DetailHead } from '../components/DetailHead'
 import { ElView } from '../components/ElView'
@@ -238,33 +239,31 @@ function ModuleTopicTable({ ts, grades, admin, onOpen, moveTopic }: {
   const dnd = useRowDrag((from, to) => { const l = groupOf(from); if (l.some(t => t.id === to)) moveTopic(l)(from, to) })
   const dash = <small className="sub">—</small>
   const N = 7
-  // Thu gọn dạng cây: khối › học phần; mặc định mở hết
-  const [shut, setShut] = useState<Set<string>>(() => new Set())
-  const flip = (k: string) => setShut(s => { const n = new Set(s); if (n.has(k)) n.delete(k); else n.add(k); return n })
-  const allKeys = groups.map(x => 'g' + x.g)
-  const allShut = allKeys.every(k => shut.has(k))
-  const caret = (open: boolean) => <span aria-hidden style={{ display: 'inline-block', width: 16, color: 'var(--muted)' }}>{open ? '▾' : '▸'}</span>
-  const toggleRow = (k: string) => ({ onClick: () => flip(k), style: { cursor: 'pointer' }, 'aria-expanded': !shut.has(k), tabIndex: 0,
-    onKeyDown: (e: React.KeyboardEvent) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(k) } } })
-  return <>
-    {groups.length > 1 && <div className="actions" style={{ justifyContent: 'flex-end', margin: '0 0 8px' }}>
-      <button type="button" onClick={() => setShut(allShut ? new Set() : new Set(allKeys))}>{allShut ? 'Mở tất cả khối' : 'Thu gọn tất cả khối'}</button></div>}
+  // Cây bên trái: Khối › Học phần (giống cây Cấp › Khối); bấm để lọc bảng
+  const [sel, setSel] = useGroupSel('mtt')
+  const partName = (k: number) => k > 0 ? `Học phần ${k}` : k === 0 ? 'Dùng chung' : ''
+  const lbl = (name: string, l: ProgramTopic[]) => <>{name}<br /><small style={MUTED}>{sum(l)} tiết</small></>
+  const nodes = groups.map(({ g, list, parts }) => ({ key: String(g), label: lbl(gradeName(g), list), count: list.length,
+    kids: parts.some(x => x.k >= 0) ? parts.map(x => ({ key: String(x.k), label: lbl(partName(x.k), x.list), count: x.list.length })) : undefined }))
+  const known = sel === 'all' || nodes.some(n => sel === 'a:' + n.key || (n.kids ?? []).some(c => sel === `b:${n.key}|${c.key}`))
+  const cur = known ? sel : 'all'
+  const shown = groups.map(x => ({ ...x, parts: x.parts.filter(p => inGroup(cur, String(x.g), String(p.k)) || inGroup(cur, String(x.g))) })).filter(x => x.parts.length)
+  return <SideSplit aside={<GroupTree nodes={nodes} total={ts.length} sel={cur} onSel={setSel} label="Khối › Học phần" unit="chủ đề" />}>
     <div className="tablewrap"><table className="table slt ttdense">
     <thead><tr><th className="c-no">TT</th><th className="c-ttl">Chủ đề</th><th style={{ width: 80 }}>Số tiết</th><th>Môn chủ trì</th><th>Môn phối hợp</th><th>Yêu cầu cần đạt</th><th>Sản phẩm</th></tr></thead>
-    <tbody>{groups.map(({ g, list, parts }) => { const gk = 'g' + g, gOpen = !shut.has(gk); return <Fragment key={g}>
-      <tr className="grouprow" {...toggleRow(gk)}><td colSpan={N}>{caret(gOpen)}<b>{gradeName(g)}</b> <span style={MUTED}>· {list.length} chủ đề · {sum(list)} tiết</span>
-        {!gOpen && parts.some(x => x.k > 0) && <span style={MUTED}>{' · ' + parts.map(x => x.k > 0 ? `HP${x.k}: ${x.list.length}` : x.k === 0 ? `Dùng chung: ${x.list.length}` : '').filter(Boolean).join(' · ')}</span>}</td></tr>
-      {gOpen && parts.map(({ k, list: pl }) => { const pk = gk + '-' + k, pOpen = k < 0 || !shut.has(pk); return <Fragment key={k}>
-        {k >= 0 && <tr className="partrow" {...toggleRow(pk)}><td colSpan={N} style={{ paddingLeft: 22 }}>{caret(pOpen)}
+    <tbody>{shown.map(({ g, list, parts }) => <Fragment key={g}>
+      <tr className="grouprow"><td colSpan={N}><b>{gradeName(g)}</b> <span style={MUTED}>· {list.length} chủ đề · {sum(list)} tiết</span></td></tr>
+      {parts.map(({ k, list: pl }) => <Fragment key={k}>
+        {k >= 0 && <tr className="partrow"><td colSpan={N} style={{ paddingLeft: 14 }}>
           <span style={{ paddingLeft: 8, borderLeft: `4px solid ${k ? PART_C[k - 1] : 'var(--line)'}` }}>
             <b>{k ? `Học phần ${k} (HP${k})` : 'Dùng chung'}</b> <span style={MUTED}>· {pl.length} chủ đề · {sum(pl)} tiết{k ? '' : ' · gói dùng học phần ở vị trí nào cũng học'}</span></span></td></tr>}
-        {pOpen && pl.map(t => <tr key={t.id} {...(admin ? dnd.row(t.id) : { className: 'clickrow' })} onClick={() => onOpen(t)}>
-          <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, whiteSpace: 'nowrap', paddingLeft: k >= 0 ? 24 : 12 }}>{admin && dnd.handle(t.id, t.title)}{t.seq}</span></td>
+        {pl.map(t => <tr key={t.id} {...(admin ? dnd.row(t.id) : { className: 'clickrow' })} onClick={() => onOpen(t)}>
+          <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, whiteSpace: 'nowrap' }}>{admin && dnd.handle(t.id, t.title)}{t.seq}</span></td>
           <td><b>{t.title}</b></td><td>{t.periods}</td><td>{t.main_subject || dash}</td><td>{t.subjects.join(', ') || dash}</td>
           <td><OneLine text={t.objectives} /></td><td><OneLine text={t.product ?? ''} /></td></tr>)}
-      </Fragment> })}
-    </Fragment> })}</tbody>
-  </table></div></>
+      </Fragment>)}
+    </Fragment>)}</tbody>
+  </table></div></SideSplit>
 }
 
 /** Kéo thả dòng bảng để đổi thứ tự: tay cầm ⠿ ở ô đầu dòng (giống bảng bài học của chương trình giáo dục) */

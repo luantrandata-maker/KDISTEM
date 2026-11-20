@@ -27,11 +27,15 @@ export type Book = {
   id: string; org_id: string; grade: number; subject: string; title: string; total_periods: number | null; year_name: string | null
   periods_per_week: number | null; status: BookStatus; scope: 'own' | 'children'; source_id: string | null; note: string | null
   program_id?: string | null; organizations?: { name: string } | null; edu_programs?: { title: string; version_no: number } | null
+  /** 161: PPCT tạo từ Gói STEM — loại chương trình và bản gán gói */
+  track_code?: string | null; school_package_id?: string | null
 }
 export type BookStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'published'
 type Lesson = {
   id: string; book_id: string; seq: number; week: number | null; term: number | null; title: string; kind: Kind; package_topic_id: string | null
   unit_id: string | null; note: string | null
+  /** 161: chủ đề của khung chương trình mới */
+  program_topic_id?: string | null
 }
 type Unit = { id: string; parent_id: string | null; unit_type: 'topic' | 'lesson' | 'session'; seq: number; title: string }
 type Kind = 'lesson' | 'stem' | 'practice' | 'review' | 'test'
@@ -184,6 +188,22 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years, lead }: {
     await load(); const nb = (await supabase.from('curriculum_books').select('*, organizations(name)').eq('id', data as string).single()).data as Book | null
     if (nb) setOpen(nb)
   }
+  // 161: PPCT nháp cho từng loại chương trình × khối theo Gói STEM trường đang dùng
+  const [fromPkg, setFromPkg] = useState(false)
+  async function createFromPackage() {
+    if (!orgId) return
+    const y = year?.name ?? null
+    if (!confirm(`Tạo PPCT nháp theo Gói STEM của trường${y ? ` (năm học ${y})` : ''}? Mỗi loại chương trình của mỗi khối một PPCT, các tiết theo chủ đề trong gói. PPCT đã tạo từ gói trước đó giữ nguyên.`)) return
+    setFromPkg(true)
+    const { data, error } = await supabase.rpc('ppct_from_package', { p_org: orgId, p_year: y })
+    setFromPkg(false)
+    if (error) return setMsg([/ppct_from_package|schema cache|track_code/i.test(error.message) ? 'Hãy chạy migration 161 trên Supabase.' : errText(error.message), true])
+    const r = data as { books: number; lessons: number; skipped: number; year: string }
+    setMsg([r.books ? `Đã tạo ${r.books} PPCT nháp (${r.lessons} tiết) theo Gói STEM năm học ${r.year}${r.skipped ? `; ${r.skipped} PPCT đã có từ trước nên giữ nguyên` : ''}. Bấm vào từng PPCT để chỉnh tuần rồi gửi duyệt.`
+      : r.skipped ? `Các PPCT theo Gói STEM năm học ${r.year} đã có (${r.skipped} PPCT), không tạo thêm.`
+      : `Trường chưa có Gói STEM đang dùng trong năm học ${r.year}, hoặc gói chưa có chủ đề. KDI gán gói ở Chương trình giáo dục › Trường dùng gói.`, !r.books && !r.skipped])
+    load()
+  }
   function exportList() {
     downloadXlsx('Phan-phoi-chuong-trinh', [
       { key: 'g', label: 'Khối' }, { key: 's', label: 'Môn học', width: 20 }, { key: 't', label: 'Tên PPCT', width: 36 }, { key: 'y', label: 'Năm học' },
@@ -271,6 +291,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years, lead }: {
           {every && ofl.node(books.map(b => b.org_id))}
         </>}
         right={<>
+          {canEdit && mode === 'school' && !every && <button type="button" disabled={fromPkg} onClick={createFromPackage}>{fromPkg ? 'Đang tạo…' : 'Tạo từ Gói STEM'}</button>}
           {canEdit && templates.length > 0 && <button type="button" className={showTpl ? 'on' : ''} onClick={() => setShowTpl(v => !v)}>{showTpl ? 'Ẩn mẫu' : `Dùng mẫu (${templates.length})`}</button>}
           {shown.length > 0 && <button type="button" onClick={exportList}>Xuất Excel</button>}
           {canEdit && <HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ grade: grade || undefined, subject, status: 'published', scope: mode === 'school' ? 'own' : 'children', year_name: mode === 'school' ? year?.name ?? '' : '' }) }}>+ Thêm môn</button></HeadAction>}
@@ -303,6 +324,7 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
   const [rows, setRows] = useState<Lesson[] | null>(null)
   const [topics, setTopics] = useState<Topic[]>([])
   const [units, setUnits] = useState<Unit[]>([])
+  const [ptopics, setPtopics] = useState<Map<string, string>>(new Map())
   const [weekStart, setWeekStart] = useState<Map<number, string>>(new Map())
   const [edit, setEdit] = useState<Partial<Lesson> | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
@@ -318,12 +340,18 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
       book.year_name ? supabase.rpc('curriculum_calendar', { p_org: book.org_id, p_year: book.year_name }) : Promise.resolve({ data: [] }),
     ])
     if ('error' in l && l.error) setMsg([errText(l.error.message), true])
-    setRows((l.data as Lesson[]) ?? []); setTopics(((t as any).data as Topic[]) ?? []); setUnits(((u as any).data as Unit[]) ?? [])
+    const ls = (l.data as Lesson[]) ?? []
+    // 161: tên chủ đề của khung chương trình mới cho các tiết tạo từ Gói STEM
+    const pids = [...new Set(ls.map(x => x.program_topic_id).filter((x): x is string => !!x))]
+    const pt = pids.length ? (await supabase.from('program_topics').select('id, title').in('id', pids)).data as { id: string; title: string }[] | null : []
+    setPtopics(new Map((pt ?? []).map(x => [x.id, x.title])))
+    setRows(ls); setTopics(((t as any).data as Topic[]) ?? []); setUnits(((u as any).data as Unit[]) ?? [])
     const cal = ((y as any).data as { week: number | null; starts_on: string }[]) ?? []
     setWeekStart(new Map(cal.filter(c => c.week != null).map(c => [c.week as number, c.starts_on])))
   }
   useEffect(() => { load() }, [book.id])
   const topicName = (id: string | null) => (id ? topics.find(t => t.id === id)?.title ?? 'Chủ đề STEM' : '')
+  const lessonTopic = (l: Lesson) => (l.program_topic_id ? ptopics.get(l.program_topic_id) ?? 'Chủ đề STEM' : topicName(l.package_topic_id))
   // Bài trong chương trình: tên kèm học phần cha để dễ chọn
   const unitLabel = useMemo(() => {
     const by = new Map(units.map(u => [u.id, u]))
@@ -409,7 +437,7 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
     return importSummary(data.length, 'tiết', bad)
   }
   function exportRows() {
-    downloadXlsx(`PPCT ${book.title}`, IMPORT, (rows ?? []).map(l => [l.seq, l.week, HK(termOf(l)), l.title, KIND[l.kind], unitLabel(l.unit_id), topicName(l.package_topic_id), l.note]), book.title)
+    downloadXlsx(`PPCT ${book.title}`, IMPORT, (rows ?? []).map(l => [l.seq, l.week, HK(termOf(l)), l.title, KIND[l.kind], unitLabel(l.unit_id), lessonTopic(l), l.note]), book.title)
   }
 
   const counts = useMemo(() => (rows ?? []).reduce((m, l) => ({ ...m, [l.kind]: (m[l.kind] ?? 0) + 1 }), {} as Record<string, number>), [rows])
@@ -487,7 +515,7 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
                 <td><b>{l.seq}</b></td><td>{l.week ?? '—'}</td><td><small>{HK(termOf(l))}</small></td><td><small>{monthOf(l.week)}</small></td><td>{l.title}</td>
                 {hasUnits && <td><small>{unitLabel(l.unit_id)}</small></td>}
                 <td>{l.kind !== 'lesson' ? <span className={'gpill ' + KIND_PILL[l.kind]}>{KIND[l.kind]}</span> : <small>{KIND.lesson}</small>}</td>
-                <td><small>{topicName(l.package_topic_id)}</small></td><td><small>{l.note}</small></td>{canEdit && <td className="tools" style={{ whiteSpace: 'nowrap' }}><button type="button" data-rowopen onClick={() => setEdit(l)}>Sửa</button><button type="button" className="danger" onClick={() => del(l)}>Xoá</button></td>}
+                <td><small>{lessonTopic(l)}</small></td><td><small>{l.note}</small></td>{canEdit && <td className="tools" style={{ whiteSpace: 'nowrap' }}><button type="button" data-rowopen onClick={() => setEdit(l)}>Sửa</button><button type="button" className="danger" onClick={() => del(l)}>Xoá</button></td>}
               </tr>
             ))}
             {edit && !edit.id && formRow}

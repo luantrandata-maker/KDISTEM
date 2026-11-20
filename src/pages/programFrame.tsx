@@ -231,19 +231,25 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onO
       { k: r.m.track_code, lbl: <>{chip(r.m.track_code)} <b>{trOf(r.m.track_code)?.name}</b></>, mod: '' },
       fl ? null : { k: `${r.m.track_code}/${r.m.id}`, lbl: <b>{r.m.name}</b>, mod: r.m.id },
       { k: r.key, lbl: <b>{gradeName(r.t.grade)}</b>, mod: '' },
-      split.has(r.key) ? { k: r.key + '#' + (r.t.part ?? 0), lbl: <span style={{ paddingLeft: 8, borderLeft: `4px solid ${r.t.part ? PART_C[r.t.part - 1] : 'var(--line)'}` }}><b>{r.t.part ? `Học phần ${r.t.part} (HP${r.t.part})` : 'Dùng chung'}</b></span>, mod: '' } : null,
+      split.has(r.key) ? { k: r.key + '#' + (r.t.part ?? 0), lbl: <b>{r.t.part ? `Học phần ${r.t.part} (HP${r.t.part})` : 'Dùng chung'}</b>, mod: '', part: r.t.part ?? 0 } : null,
     ]
   }
   const groupOf = (k: string) => rows.filter(r => r.key === k.split('#')[0] ? (k.includes('#') ? k === r.key + '#' + (r.t.part ?? 0) : true) : under(r.key, k))
   const N = 6, dash = <small className="sub">—</small>
   const body: React.ReactNode[] = []
   const last: (string | null)[] = []
+  const first = rows.length ? levels(rows[0]).findIndex(lv => lv && !(under(sel, lv.k.split('#')[0]) && !lv.k.includes('#'))) : 0
   rows.forEach(r => {
     levels(r).forEach((lv, i) => {
       if (!lv || under(sel, lv.k.split('#')[0]) && !lv.k.includes('#') || last[i] === lv.k) return
       last[i] = lv.k; for (let j = i + 1; j < 4; j++) last[j] = null
       const g = groupOf(lv.k)
-      body.push(<tr key={'h' + lv.k} className={i < 2 ? 'grouprow' : 'partrow'}><td colSpan={N} style={{ paddingLeft: 12 + 14 * i }}>
+      // Thụt lề tính từ cấp đầu tiên đang hiện (cấp đã chọn trên cây thì không lặp lại)
+      const d = i - first, part = (lv as { part?: number }).part
+      const look: React.CSSProperties = i === 3
+        ? { background: part === 1 ? '#eff6ff' : part === 2 ? '#ecfdf5' : 'var(--soft)', boxShadow: `inset ${12 + 16 * d}px 0 0 var(--surface), inset ${16 + 16 * d}px 0 0 ${part ? PART_C[part - 1] : 'var(--line)'}` }
+        : { background: i === 2 ? '#f1f5f9' : '#e2e8f0', fontSize: i === 2 ? undefined : 'calc(15px * var(--fz,1))' }
+      body.push(<tr key={'h' + lv.k} className="fwgrp"><td colSpan={N} style={{ paddingLeft: 12 + 16 * d + (i === 3 ? 14 : 0), ...look }}>
         {lv.lbl} <span style={MUTED}>· {g.length} chủ đề · {tiet(g)} tiết</span>
         {lv.mod && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={() => onOpenModule(lv.mod)}>Mở học phần ›</button>}</td></tr>)
     })

@@ -4059,6 +4059,9 @@ select pg_temp.chk('gv_both', 'ND 164: giáo viên xem được nội dung chủ
 select pg_temp.chk('gv_both', 'ND 164: giáo viên mở được tệp nội dung chủ đề', $q$select learning_file_readable('x/program-topics/iso.pdf')::text$q$, 'true');
 select pg_temp.chk('hs_kb', 'ND 164: học sinh không mở được tệp nội dung chủ đề', $q$select learning_file_readable('x/program-topics/iso.pdf')::text$q$, 'false');
 select pg_temp.chk('kdi', 'ND 164: kind sai bị chặn', $q$insert into program_topic_items (topic_id, kind, title) select id, 'xx', 'x' from program_topics where title = 'ISO 164'$q$, 'ERR*');
+select pg_temp.chk('kdi', 'ND 165: vật tư tính theo 1 sản phẩm', $q$insert into program_topic_items (topic_id, kind, title, qty, unit, per) select id, 'material', 'Que tre', 1, 'cái', 'product' from program_topics where title = 'ISO 164'$q$, 'rows:1');
+select pg_temp.chk('kdi', 'ND 165: tính theo sai bị chặn', $q$insert into program_topic_items (topic_id, kind, title, per) select id, 'material', 'x', 'xx' from program_topics where title = 'ISO 164'$q$, 'ERR*');
+select pg_temp.chk('kdi', 'ND 165: chỉ bài kiểm tra mới gắn đề', $q$with x as (insert into program_topic_items (topic_id, kind, title, exam_id, content) select t.id, 'plan', 'x', (select id from practice_exams limit 1), '{"steps":[]}' from program_topics t where t.title = 'ISO 164' returning exam_id, content) select coalesce(exam_id::text, '-') || ':' || (content ? 'steps')::text from x$q$, '-:true');
 select pg_temp.probe('kdi@iso-test.local', $q$delete from program_topics where title = 'ISO 164' returning 1$q$, true);
 select pg_temp.chk('kdi', 'ND 164: xoá chủ đề thì xoá nội dung', $q$select count(*) from program_topic_items where title in ('Giáo án ISO', 'Giấy màu')$q$, '0');
 

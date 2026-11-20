@@ -123,7 +123,7 @@ export function ProgramFrame() {
         <dt>Sản phẩm</dt><dd>{v(vt.product)}</dd>
         {tr?.schedule_mode === 'subject' && <><dt>Bài SGK liên quan</dt><dd>{v(vt.textbook_ref)}</dd></>}
       </dl>
-      <TopicContents topicId={vt.id} admin={admin} />
+      <TopicContents topic={vt} admin={admin} onTopicChanged={reload} />
     </Drawer>
   }
 

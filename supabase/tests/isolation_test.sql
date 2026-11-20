@@ -2425,13 +2425,41 @@ select pg_temp.chk('admin_ph', 'PPCT từ gói: CT1 Khối 6 đủ số tiết c
      from curriculum_books b where b.org_id = my_org_id() and b.track_code = 'CT1' and b.grade = 6 and b.school_package_id is not null$q$, 'true,draft,1.0');
 select pg_temp.chk('admin_ph', 'PPCT từ gói: CT2 Khối 6 có 48 tiết, tiết gắn chủ đề, chia tuần',
   $q$select count(*) || ',' || count(l.program_topic_id) || ',' || max(l.week) || ',' || min(l.kind) from curriculum_lessons l join curriculum_books b on b.id = l.book_id
-     where b.org_id = my_org_id() and b.track_code = 'CT2' and b.grade = 6 and b.school_package_id is not null$q$, '48,48,32,stem');
+     where b.org_id = my_org_id() and b.track_code = 'CT2' and b.grade = 6 and b.school_package_id is not null$q$, '48,48,35,stem');
 select pg_temp.chk('admin_ph', 'PPCT từ gói: chạy lại không tạo trùng',
   $q$select (public.ppct_from_package(my_org_id(), '2026-2027') ->> 'skipped')$q$, '2');
 select pg_temp.chk('gv_both', 'PPCT từ gói: giáo viên đọc được PPCT đã tạo',
   $q$select count(*) from curriculum_books where track_code is not null and school_package_id is not null$q$, '2');
 delete from curriculum_books where school_package_id in (select id from school_packages where note = 'ISO-PPCT');
 delete from school_packages where note = 'ISO-PPCT';
+
+-- ===== 162: PPCT chuẩn của KDI =====
+select pg_temp.chk('admin_ph', 'PPCT chuẩn: trường không soạn PPCT chuẩn',
+  $q$select public.ppct_std_fill((select id from program_packages where code = '2T'), 'CT2', 6, 32)$q$, 'ERR');
+select pg_temp.chk('admin_ph', 'PPCT chuẩn: trường không thêm PPCT chuẩn',
+  $q$insert into ppct_std (package_id, track_code, grade) select id, 'CT2', 6 from program_packages where code = '2T'$q$, 'ERR');
+select pg_temp.chk('kdi', 'PPCT chuẩn: KDI tự chia 16 chủ đề Sáng chế K6 trên 32 tuần dạy',
+  $q$select public.ppct_std_fill((select id from program_packages where code = '2T'), 'CT2', 6, 32)$q$, '16');
+select pg_temp.probe('kdi@iso-test.local', $q$select public.ppct_std_fill((select id from program_packages where code = '2T'), 'CT2', 6, 32)$q$, true);
+select pg_temp.chk('kdi', 'PPCT chuẩn: chủ đề nối tiếp từ tuần dạy 1 đến 32',
+  $q$select min(week_from) || ',' || max(week_to) || ',' || count(*) filter (where week_to < week_from) from ppct_std_topics s join program_packages p on p.id = s.package_id where p.code = '2T' and s.grade = 6$q$, '1,32,0');
+select pg_temp.chk('kdi', 'PPCT chuẩn: không xếp quá số tuần dạy',
+  $q$update ppct_std_topics set week_to = 33 where grade = 6 and track_code = 'CT2'$q$, 'ERR*');
+select pg_temp.chk('gv_both', 'PPCT chuẩn: giáo viên xem được', $q$select count(*) from ppct_std_topics where grade = 6 and track_code = 'CT2'$q$, '16');
+select pg_temp.chk('gv_both', 'PPCT chuẩn: giáo viên không sửa', $q$with x as (update ppct_std_topics set week_to = week_from returning 1) select count(*) from x$q$, '0');
+insert into school_packages (org_id, package_id, school_year, grades, note)
+  select pg_temp.oid_('THCS-PH'), id, '2026-2027', '{6}', 'ISO-STD' from program_packages where code = '2T';
+select pg_temp.chk('admin_ph', 'PPCT chuẩn: PPCT trường lấy tuần theo PPCT chuẩn',
+  $q$select (public.ppct_from_package(my_org_id(), '2026-2027') ->> 'standard')$q$, '1');
+select pg_temp.probe('admin_ph@iso-test.local', $q$select public.ppct_from_package(my_org_id(), '2026-2027')$q$, true);
+select pg_temp.chk('admin_ph', 'PPCT chuẩn: CT2 Khối 6 trải từ tuần dạy 1 đến 32',
+  $q$select min(l.week) || ',' || max(l.week) || ',' || count(*) from curriculum_lessons l join curriculum_books b on b.id = l.book_id
+     where b.org_id = my_org_id() and b.track_code = 'CT2' and b.grade = 6 and b.school_package_id is not null$q$, '1,32,48');
+select pg_temp.chk('admin_ph', 'PPCT chuẩn: tuần không lùi theo thứ tự tiết',
+  $q$select count(*) from (select l.week, lag(l.week) over (order by l.seq) pw from curriculum_lessons l join curriculum_books b on b.id = l.book_id
+     where b.org_id = my_org_id() and b.track_code = 'CT2' and b.grade = 6 and b.school_package_id is not null) x where week < pw$q$, '0');
+delete from curriculum_books where school_package_id in (select id from school_packages where note = 'ISO-STD');
+delete from school_packages where note = 'ISO-STD';
 
 -- ===== 151, 152: dữ liệu test CT1 Khối 6, Sáng chế Khối 6 =====
 select pg_temp.chk('kdi', 'Dữ liệu test: CT1 Khối 6 có 16 chủ đề, 32 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 6$q$, '16,32');

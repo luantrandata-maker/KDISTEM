@@ -198,8 +198,8 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years, lead }: {
     const { data, error } = await supabase.rpc('ppct_from_package', { p_org: orgId, p_year: y })
     setFromPkg(false)
     if (error) return setMsg([/ppct_from_package|schema cache|track_code/i.test(error.message) ? 'Hãy chạy migration 161 trên Supabase.' : errText(error.message), true])
-    const r = data as { books: number; lessons: number; skipped: number; year: string }
-    setMsg([r.books ? `Đã tạo ${r.books} PPCT nháp (${r.lessons} tiết) theo Gói STEM năm học ${r.year}${r.skipped ? `; ${r.skipped} PPCT đã có từ trước nên giữ nguyên` : ''}. Bấm vào từng PPCT để chỉnh tuần rồi gửi duyệt.`
+    const r = data as { books: number; lessons: number; skipped: number; standard?: number; year: string }
+    setMsg([r.books ? `Đã tạo ${r.books} PPCT nháp (${r.lessons} tiết) theo Gói STEM năm học ${r.year}${r.books > (r.standard ?? 0) ? ` — ${r.standard ? `${r.standard} PPCT theo PPCT chuẩn của KDI, ${r.books - r.standard} PPCT ` : ''}chưa có PPCT chuẩn nên tự chia đều 35 tuần` : ' theo PPCT chuẩn của KDI'}${r.skipped ? `; ${r.skipped} PPCT đã có từ trước nên giữ nguyên` : ''}. Bấm vào từng PPCT để chỉnh tuần rồi gửi duyệt.`
       : r.skipped ? `Các PPCT theo Gói STEM năm học ${r.year} đã có (${r.skipped} PPCT), không tạo thêm.`
       : `Trường chưa có Gói STEM đang dùng trong năm học ${r.year}, hoặc gói chưa có chủ đề. KDI gán gói ở Chương trình giáo dục › Trường dùng gói.`, !r.books && !r.skipped])
     load()
@@ -326,6 +326,8 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
   const [units, setUnits] = useState<Unit[]>([])
   const [ptopics, setPtopics] = useState<Map<string, string>>(new Map())
   const [weekStart, setWeekStart] = useState<Map<number, string>>(new Map())
+  // Tuần có ngày nghỉ (chưa nghỉ cả tuần) theo lịch của đơn vị: cảnh báo tiết rơi vào tuần đó
+  const [weekOff, setWeekOff] = useState<Map<number, string>>(new Map())
   const [edit, setEdit] = useState<Partial<Lesson> | null>(null)
   const [msg, setMsg] = useState<[string, boolean] | null>(null)
   const [busy, setBusy] = useState(false)
@@ -348,6 +350,8 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
     setRows(ls); setTopics(((t as any).data as Topic[]) ?? []); setUnits(((u as any).data as Unit[]) ?? [])
     const cal = ((y as any).data as { week: number | null; starts_on: string }[]) ?? []
     setWeekStart(new Map(cal.filter(c => c.week != null).map(c => [c.week as number, c.starts_on])))
+    setWeekOff(new Map((cal as { week: number | null; off_days?: number; holiday?: string | null }[])
+      .filter(c => c.week != null && (c.off_days ?? 0) > 0).map(c => [c.week as number, `Tuần ${c.week} có ${c.off_days} ngày nghỉ${c.holiday ? ': ' + c.holiday : ''}`])))
   }
   useEffect(() => { load() }, [book.id])
   const topicName = (id: string | null) => (id ? topics.find(t => t.id === id)?.title ?? 'Chủ đề STEM' : '')
@@ -512,7 +516,8 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
           <tbody>
             {shownRows.map(l => edit?.id === l.id ? <Fragment key={l.id}>{formRow}</Fragment> : (
               <tr key={l.id}>
-                <td><b>{l.seq}</b></td><td>{l.week ?? '—'}</td><td><small>{HK(termOf(l))}</small></td><td><small>{monthOf(l.week)}</small></td><td>{l.title}</td>
+                <td><b>{l.seq}</b></td><td>{l.week ?? '—'}</td><td><small>{HK(termOf(l))}</small></td><td><small>{monthOf(l.week)}</small>{l.week != null && weekOff.has(l.week) && <span style={{ color: "#a8650c" }} title={weekOff.get(l.week)} aria-label={weekOff.get(l.week)}> ⚠</span>}
+                  {l.week != null && weekStart.size > 0 && !weekStart.has(l.week) && <span style={{ color: "#a8650c" }} title="Tuần này ngoài lịch tuần học của năm học" aria-label="Ngoài lịch tuần học"> ⚠</span>}</td><td>{l.title}</td>
                 {hasUnits && <td><small>{unitLabel(l.unit_id)}</small></td>}
                 <td>{l.kind !== 'lesson' ? <span className={'gpill ' + KIND_PILL[l.kind]}>{KIND[l.kind]}</span> : <small>{KIND.lesson}</small>}</td>
                 <td><small>{lessonTopic(l)}</small></td><td><small>{l.note}</small></td>{canEdit && <td className="tools" style={{ whiteSpace: 'nowrap' }}><button type="button" data-rowopen onClick={() => setEdit(l)}>Sửa</button><button type="button" className="danger" onClick={() => del(l)}>Xoá</button></td>}

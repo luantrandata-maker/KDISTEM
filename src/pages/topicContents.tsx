@@ -64,7 +64,7 @@ function viewSrc(i: TopicItem, signed: string | null): { src: string; full: stri
   return null
 }
 
-function Viewer({ item }: { item: TopicItem }) {
+export function Viewer({ item }: { item: TopicItem }) {
   const [signed, setSigned] = useState<string | null>(null)
   const [ready, setReady] = useState(!item.file_path)
   useEffect(() => { if (item.file_path) fileUrl(item.file_path).then(u => { setSigned(u); setReady(true) }) }, [item.file_path])
@@ -79,14 +79,14 @@ function Viewer({ item }: { item: TopicItem }) {
   </div>
 }
 
-function Steps({ steps }: { steps: KitStep[] }) {
+export function Steps({ steps }: { steps: KitStep[] }) {
   return <div className="wrap" style={{ marginTop: 8 }}><table className="slt ttdense" style={{ width: '100%' }}>
     <thead><tr><th>#</th><th>Buổi</th><th>Hoạt động</th><th>Phút</th></tr></thead>
     <tbody>{steps.map((s, k) => <tr key={k}><td>{k + 1}</td><td>{s.phase ?? ''}</td><td>{s.title}{s.goal && <div className="sub">Mục tiêu: {s.goal}</div>}</td><td>{s.minutes ?? ''}</td></tr>)}</tbody>
   </table></div>
 }
 
-function ExamView({ id }: { id: string }) {
+export function ExamView({ id }: { id: string }) {
   const [qs, setQs] = useState<{ id: string; stem: string }[] | null>(null)
   const [e, setE] = useState<Exam | null | undefined>(undefined)
   useEffect(() => {

@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react'
 import { HeadTabs } from '../../components/PageFrame'
 import { DetailHead } from '../../components/DetailHead'
 import { supabase } from '../../lib/supabase'
-import { LibraryByProgram, LibraryNeeds, usePrograms } from './ByProgram'
+import { LibraryNeeds } from './ByProgram'
+import { LibraryByPackage } from './ByPackage'
 import { LibraryManage, type LibSrc } from './Manage'
 import { AllOrgs } from '../../components/OrgScope'
 import { StatCards } from '../../components/StatCards'
 
-type Tab = 'prog' | 'needs' | 'catalog'
+type Tab = 'pkg' | 'needs' | 'catalog'
 type Stats = { docs: number; tools: number; supplies: number; published: number; drafts: number; progsWithKit: number; needs: number }
 
 function useStats(orgId: string | null, rk: number) {
@@ -38,12 +39,11 @@ function useStats(orgId: string | null, rk: number) {
 }
 
 export function LibraryPage({ orgId, teacherId, go }: { orgId: string | null; teacherId?: string | null; go?: (p: string) => void }) {
-  const [tab, setTab] = useState<Tab>('prog')
+  const [tab, setTab] = useState<Tab>('pkg')
   const [rk, setRk] = useState(0)
   // Nguồn của Danh mục học liệu; "Tất cả đơn vị" mở danh sách của mọi đơn vị (thay tab "Học liệu các đơn vị")
   const [src, setSrc] = useState<LibSrc>('own')
   const s = useStats(orgId, rk)
-  const progs = usePrograms(orgId)
   const n = (v: number | undefined) => (v == null ? '…' : v)
   const total = s ? s.docs + s.tools + s.supplies : undefined
   return (
@@ -52,16 +52,15 @@ export function LibraryPage({ orgId, teacherId, go }: { orgId: string | null; te
       <StatCards nav onPick={k => k && setTab(k as Tab)} items={[
         { k: 'catalog', icon: 'folders', value: n(total), label: 'Học liệu', sub: s ? `${s.docs} tài liệu · ${s.tools} thiết bị · ${s.supplies} vật tư` : '' },
         { k: 'catalog', icon: 'checkCircle', tone: 'good', value: n(s?.published), label: 'Đã phát hành', sub: s ? `${s.drafts} bản nháp` : '' },
-        { k: 'prog', icon: 'book', tone: 'good', value: progs.length, label: 'Chương trình đã gắn', sub: s ? `${Math.max(0, progs.length - s.progsWithKit)} chưa có học liệu` : '' },
         { k: 'needs', icon: 'package', tone: 'warn', value: n(s?.needs), label: 'Thiết bị, vật tư cần chuẩn bị' },
       ]} />
       <HeadTabs><div className="distpills" role="tablist">
         {/* Cần chuẩn bị: mở bằng nút trên thanh công cụ của tab Học liệu theo chương trình (hoặc thẻ số liệu) */}
-        {([['prog', 'Học liệu theo chương trình'], ['catalog', 'Danh mục học liệu']] as [Tab, string][]).map(([t, l]) => { const on = tab === t || (t === 'prog' && tab === 'needs')
+        {([['pkg', 'Học liệu theo chương trình'], ['catalog', 'Danh mục học liệu']] as [Tab, string][]).map(([t, l]) => { const on = tab === t || (t === 'pkg' && tab === 'needs')
           return <button key={t} type="button" role="tab" aria-selected={on} className={on ? 'on' : ''} onClick={() => setTab(t)}>{l}</button> })}
       </div></HeadTabs>
-      {tab === 'prog' && <LibraryByProgram orgId={orgId} onChanged={() => setRk(k => k + 1)} tools={<button type="button" title="Thiết bị, vật tư cần chuẩn bị theo chương trình" onClick={() => setTab('needs')}>📦 Cần chuẩn bị</button>} />}
-      {tab === 'needs' && <><DetailHead back="Học liệu theo chương trình" onBack={() => setTab('prog')} title="Cần chuẩn bị" /><LibraryNeeds orgId={orgId} /></>}
+      {tab === 'pkg' && <LibraryByPackage orgId={orgId} />}
+      {tab === 'needs' && <><DetailHead back="Học liệu theo chương trình" onBack={() => setTab('pkg')} title="Cần chuẩn bị" /><LibraryNeeds orgId={orgId} /></>}
       {tab === 'catalog' && (src === 'units'
         ? <AllOrgs><LibraryManage key="units" orgId={orgId} sources src={src} onSrc={setSrc} onChanged={() => setRk(k => k + 1)} /></AllOrgs>
         : <LibraryManage key="mine" orgId={orgId} sources src={src} onSrc={setSrc} onChanged={() => setRk(k => k + 1)} />)}

@@ -3816,3 +3816,4 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .gtsubl{display:block;font-size:calc(11.5px * var(--fz,1));color:var(--muted);font-weight:400}
 .gtcolhead{text-align:right;font-size:calc(11px * var(--fz,1));font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;padding:0 6px 4px;border-bottom:1px solid var(--line);margin-bottom:4px}
 .main .gtree .gtrow>span.gtcaret{display:inline-block}
+.fwtable .fwgrp>td{padding-top:9px;padding-bottom:9px;color:var(--text)}

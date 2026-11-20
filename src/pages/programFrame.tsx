@@ -16,6 +16,7 @@ import { Chip } from './dist/Editor'
 import { OneLine } from '../components/LongCell'
 import { FitScreen } from '../components/FitScreen'
 import { Drawer } from '../components/Drawer'
+import { TopicContents } from './topicContents'
 
 // Khung chương trình (147): KDI chọn loại chương trình → danh sách học phần → chủ đề theo từng khối.
 // Học phần dùng chung giữa các gói và các khối (CT1, CT4 có một học phần "CHUNG"); mỗi chủ đề thuộc một khối, có thứ tự cố định
@@ -113,7 +114,7 @@ export function ProgramFrame() {
     ] : []
     drawer = <Drawer onClose={() => setViewId(null)} title={<>{m && chip(m.track_code)} {vt.title} {pill(vt.active)}</>}
       actions={acts.length ? <ActionBar items={acts} /> : undefined}>
-      <p className="sub" style={{ marginTop: 0 }}>{gradeName(vt.grade)} · Thứ tự {vt.seq} · {vt.periods} tiết{m && tr?.use_modules !== false ? ' · Học phần ' + m.name : ''}</p>
+      <p className="sub" style={{ marginTop: 0 }}>{m && tr?.use_modules !== false ? m.name + ' · ' : ''}{gradeName(vt.grade)} · {vt.periods} tiết</p>
       <dl className="kv">
         <dt>Mã chủ đề</dt><dd>{v(vt.code)}</dd>
         <dt>Môn chủ trì</dt><dd>{v(vt.main_subject)}</dd>
@@ -122,6 +123,7 @@ export function ProgramFrame() {
         <dt>Sản phẩm</dt><dd>{v(vt.product)}</dd>
         {tr?.schedule_mode === 'subject' && <><dt>Bài SGK liên quan</dt><dd>{v(vt.textbook_ref)}</dd></>}
       </dl>
+      <TopicContents topicId={vt.id} admin={admin} />
     </Drawer>
   }
 

@@ -1,6 +1,6 @@
 import React, { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { useStemTracks, SCHEDULE_MODE_NAME, type StemTrack, trackLabel } from '../lib/stemTracks'
+import { useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
 import { fmtGrades, gradeName, useEduLevels } from '../lib/eduLevels'
 import { frameErr, loadFrame, type MaterialGroup, type ProgramModule, type ProgramTopic } from '../lib/programFrame'
 import { PROGRAM_COLOR } from './teacher/common'
@@ -32,7 +32,6 @@ export function ProgramFrame() {
   const { tracks } = useStemTracks()
   const active = tracks.filter(t => t.active !== false)
   const [admin, setAdmin] = useState(false)
-  const [code, setCode] = useState('')
   const [modules, setModules] = useState<ProgramModule[]>([])
   const [topics, setTopics] = useState<ProgramTopic[]>([])
   const [msg, setMsg] = useState('')
@@ -43,7 +42,9 @@ export function ProgramFrame() {
   const [treeSel, setTreeSel] = useState<Record<string, string>>({})
   const reload = () => loadFrame().then(r => { setModules(r.modules); setTopics(r.topics); setMsg(r.error) })
   useEffect(() => { supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)); reload() }, [])
-  const track = code === '*' ? undefined : tracks.find(t => t.code === code) ?? active[0]
+  // Chỉ còn view Tất cả loại CT: loại CT đang làm việc = nhánh gốc đang chọn trên cây
+  const allSel = treeSel['*'] ?? active[0]?.code ?? ''
+  const track = tracks.find(t => t.code === allSel.split('/')[0]) ?? active[0]
   const mods = modules.filter(m => m.track_code === track?.code)
   const topicsOf = (id: string) => topics.filter(t => t.module_id === id).sort((a, b) => a.grade - b.grade || a.seq - b.seq)
   const trackTopics = topics.filter(t => mods.some(m => m.id === t.module_id))
@@ -152,26 +153,18 @@ export function ProgramFrame() {
   }
 
   // ----- Danh sách: cây bên trái (Khối · Học phần › Khối · Loại CT › Học phần › Khối), bảng chủ đề bên phải, vừa một màn hình -----
-  const all = code === '*'
-  const sel = treeSel[all ? '*' : track?.code ?? ''] ?? (all ? active[0]?.code ?? '' : track?.code ?? '')
-  const setSel = (k: string) => setTreeSel({ ...treeSel, [all ? '*' : track?.code ?? '']: k })
+  const all = true
+  const sel = allSel
+  const setSel = (k: string) => setTreeSel({ ...treeSel, '*': k })
   const selGrade = (() => { const m = /\/(\d+)$/.exec(sel); return flat && m ? Number(m[1]) : null })()
   return <>
-    {admin && track && !all && <HeadAction>{flat
+    {admin && track && <HeadAction>{flat
       ? <button type="button" className="primary ttadd" onClick={() => addFlatTopic(selGrade ?? 1)}>+ Thêm chủ đề{selGrade ? ' ' + gradeName(selGrade) : ''}</button>
       : <button type="button" className="primary ttadd"
         onClick={() => setEditMod({ id: '', track_code: track.code, name: '', description: '', periods: null, sort: mods.reduce((x, m) => Math.max(x, m.sort), 0) + 1, active: true })}>+ Thêm học phần</button>}</HeadAction>}
-    <div className="distfilter" role="group" aria-label="Loại chương trình">
-      <button type="button" className={'distfchip' + (all ? ' on' : '')} aria-pressed={all} onClick={() => setCode('*')}>Tất cả loại CT</button>
-      {active.map(t => { const on = !all && t.code === track?.code
-        return <button key={t.code} type="button" className={'distfchip' + (on ? ' on' : '')} aria-pressed={on}
-          onClick={() => setCode(t.code)}>{trackLabel(t.code)} · {t.name}</button> })}
-    </div>
     {msg && <p className="msg" role="status">{msg}</p>}
-    <FrameTree tracks={all ? active : track ? [track] : []} all={all} modules={modules} topics={topics} sel={sel} onSel={setSel}
+    <FrameTree tracks={active} all={all} modules={modules} topics={topics} sel={sel} onSel={setSel}
       onOpenModule={id => { setMsg(''); setOpenId(id) }} onOpen={t => { setMsg(''); setViewId(t.id) }} />
-    {track && !all && <p className="sub framefoot" title="Đổi thiết lập ở Danh mục → Loại chương trình">
-      {flat ? 'Chương trình không chia học phần, chỉ có chủ đề theo khối' : 'Chương trình chia theo học phần'} · {track.school_pick_topics ? 'trường tự chọn chủ đề sẽ dạy' : 'trường học đủ các chủ đề'} · {track.school_arrange_ppct !== false ? 'trường tự xếp PPCT theo tuần' : 'PPCT theo mẫu KDI / Sở'} · {SCHEDULE_MODE_NAME[track.schedule_mode ?? 'timetable']}.</p>}
     {drawer}
   </>
 }
@@ -225,39 +218,8 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onO
   const order = (r: typeof ts[number]) => [tracks.findIndex(t => t.code === r.m.track_code), r.m.sort, r.t.grade, r.t.part || 3, r.t.seq]
   const rows = ts.filter(r => under(r.key, sel)).sort((a, b) => { const x = order(a), y = order(b); for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0 })
   const split = new Set(ts.filter(r => r.t.part).map(r => r.key))
-  const levels = (r: typeof ts[number]) => {
-    const fl = isFlat(r.m.track_code)
-    return [
-      { k: r.m.track_code, lbl: <>{chip(r.m.track_code)} <b>{trOf(r.m.track_code)?.name}</b></>, mod: '' },
-      fl ? null : { k: `${r.m.track_code}/${r.m.id}`, lbl: <b>{r.m.name}</b>, mod: r.m.id },
-      { k: r.key, lbl: <b>{gradeName(r.t.grade)}</b>, mod: '' },
-      split.has(r.key) ? { k: r.key + '#' + (r.t.part ?? 0), lbl: <b>{r.t.part ? `Học phần ${r.t.part} (HP${r.t.part})` : 'Dùng chung'}</b>, mod: '', part: r.t.part ?? 0 } : null,
-    ]
-  }
   type R = typeof ts[number]
   const dash = <small className="sub">—</small>
-  // Dòng tiêu đề nhóm trước mỗi dòng khi đổi cấp; đếm theo các dòng đang hiện (sau khi tìm / lọc)
-  const groupRows = (r: R, prev: R | undefined, span: number, shown: R[]) => {
-    const lv = levels(r), pv = prev ? levels(prev) : []
-    const first = lv.findIndex(x => x && !(under(sel, x.k.split('#')[0]) && !x.k.includes('#')))
-    const out: React.ReactNode[] = []
-    let changed = false
-    lv.forEach((x, i) => {
-      if (!x || under(sel, x.k.split('#')[0]) && !x.k.includes('#')) return
-      if (!changed && pv[i]?.k === x.k) return
-      changed = true
-      const key = x.k, base = key.split('#')[0]
-      const g = shown.filter(y => key.includes('#') ? y.key + '#' + (y.t.part ?? 0) === key : under(y.key, base))
-      const d = i - first, part = (x as { part?: number }).part
-      const look: React.CSSProperties = i === 3
-        ? { background: part === 1 ? '#eff6ff' : part === 2 ? '#ecfdf5' : 'var(--soft)', boxShadow: `inset ${12 + 16 * d}px 0 0 var(--surface), inset ${16 + 16 * d}px 0 0 ${part ? PART_C[part - 1] : 'var(--line)'}` }
-        : { background: i === 2 ? '#f1f5f9' : '#e2e8f0', fontSize: i === 2 ? undefined : 'calc(15px * var(--fz,1))' }
-      out.push(<tr key={'h' + key} className="fwgrp"><td colSpan={span} style={{ paddingLeft: 12 + 16 * d + (i === 3 ? 14 : 0), ...look }}>
-        {x.lbl} <span style={MUTED}>· {g.length} chủ đề · {tiet(g)} tiết</span>
-        {x.mod && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={e => { e.stopPropagation(); onOpenModule(x.mod) }}>Mở học phần ›</button>}</td></tr>)
-    })
-    return out
-  }
   const partName = (r: R) => !split.has(r.key) ? '' : r.t.part ? `HP${r.t.part}` : 'Dùng chung'
   const cols: Col<R>[] = [
     { key: 'seq', label: 'TT', fixed: true, thClass: 'c-no', text: r => String(r.t.seq), cell: r => r.t.seq },
@@ -268,9 +230,9 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onO
     { key: 'obj', label: 'Yêu cầu cần đạt', text: r => r.t.objectives, cell: r => <OneLine text={r.t.objectives} /> },
     { key: 'prod', label: 'Sản phẩm', text: r => r.t.product ?? '', cell: r => <OneLine text={r.t.product ?? ''} /> },
     { key: 'track', label: 'Loại CT', off: true, text: r => `${trackLabel(r.m.track_code)} · ${trOf(r.m.track_code)?.name ?? ''}`, cell: r => chip(r.m.track_code) },
-    { key: 'mod', label: 'Học phần', off: true, text: r => isFlat(r.m.track_code) ? '' : r.m.name, cell: r => isFlat(r.m.track_code) ? dash : r.m.name },
-    { key: 'grade', label: 'Khối', off: true, text: r => gradeName(r.t.grade), cell: r => gradeName(r.t.grade) },
-    { key: 'part', label: 'Phần', off: true, text: partName, cell: r => partName(r) || dash },
+    { key: 'mod', label: 'Học phần', text: r => isFlat(r.m.track_code) ? '' : r.m.name, cell: r => isFlat(r.m.track_code) ? dash : r.m.name },
+    { key: 'grade', label: 'Khối', text: r => gradeName(r.t.grade), cell: r => gradeName(r.t.grade) },
+    { key: 'part', label: 'Phần', text: partName, cell: r => partName(r) || dash },
   ]
   const selMod = /^[^/]+\/([0-9a-f-]{36})$/.exec(sel)?.[1]
   const crumb = (() => { const p = sel.split('/'); const out: string[] = []
@@ -279,7 +241,7 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onO
     if (p.length === 3) out.push(modOf.get(p[1])?.name ?? '', gradeName(Number(p[2])))
     if (p.length === 2 && isFlat(p[0])) out.push(gradeName(Number(p[1])))
     return (all ? out : out.slice(p.length > 1 ? 1 : 0)).join(' › ') })()
-  return <div className="fwtree"><DataTable id="frame-topics" pro rows={rows} rowKey={r => r.t.id} cols={cols} noun="chủ đề" onRow={r => onOpen(r.t)} groupRows={groupRows}
+  return <div className="fwtree"><DataTable id="frame-topics-flat" pro rows={rows} rowKey={r => r.t.id} cols={cols} noun="chủ đề" onRow={r => onOpen(r.t)}
     className="slt"
     left={<span className="fwcap"><b>{crumb}</b> <span style={MUTED}>· {tiet(rows)} tiết</span>
       {selMod && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={() => onOpenModule(selMod)}>Mở học phần ›</button>}</span>}
@@ -437,7 +399,7 @@ function TopicForm({ t, track, onCancel, onSaved }: { t: TopicDraft; track?: Ste
     <div className="formgrid">
       <label className="field"><span>Khối *</span><select value={f.grade} onChange={e => setF({ ...f, grade: Number(e.target.value) })}>
         {gradeList.map(g => <option key={g} value={g}>{gradeName(g)}</option>)}</select></label>
-      <label className="field"><span>Thứ tự trong khối</span><input type="number" min={1} max={999} value={f.seq} onChange={e => setF({ ...f, seq: Number(e.target.value) })} /></label>
+      <label className="field"><span>Thứ tự bài</span><input type="number" min={1} max={999} value={f.seq} onChange={e => setF({ ...f, seq: Number(e.target.value) })} /></label>
       <label className="field"><span>Mã chủ đề</span><input value={f.code ?? ''} maxLength={40} placeholder="VD: G1-01" onChange={e => setF({ ...f, code: e.target.value })} /></label>
       <label className="field"><span>Số tiết</span><input type="number" min={0} max={200} value={f.periods} onChange={e => setF({ ...f, periods: Number(e.target.value) })} /></label>
       <label className="field wide"><span>Tên chủ đề *</span><input value={f.title} maxLength={200} onChange={e => setF({ ...f, title: e.target.value })} /></label>

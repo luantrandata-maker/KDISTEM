@@ -82,7 +82,6 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
     return ta - tb || ma.sort - mb.sort || ma.name.localeCompare(mb.name) || a.grade - b.grade || a.seq - b.seq
   })
   const grades = [...new Set(usable.map(t => t.grade))].sort((a, b) => a - b)
-  const stat = { all: usable.length, plan: usable.filter(t => cnt(t).plan).length, lecture: usable.filter(t => cnt(t).lecture).length, empty: usable.filter(t => isEmpty(cnt(t))).length }
   const n = (v: number) => (v ? v : <span className="sub">—</span>)
   const yes = (v: number) => (v ? <span style={{ color: 'var(--good, #1c7a43)', fontWeight: 600 }}>✓{v > 1 ? ' ' + v : ''}</span> : <span style={{ color: 'var(--bad, #c0392b)' }}>Chưa có</span>)
 
@@ -105,11 +104,6 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
   const selTr = sel.startsWith('t:') ? sel.slice(2) : selMod ? modOf.get(selMod)?.track_code : ''
 
   return <>
-    <div className="tiles" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
-      {([['Chủ đề', stat.all, ''], ['Đã có kế hoạch giảng dạy', stat.plan, 'noplan'], ['Đã có bài giảng', stat.lecture, 'nolecture'], ['Chưa có nội dung', stat.empty, 'empty']] as [string, number, Status][]).map(([l, v, s]) =>
-        <button key={l} type="button" className="panel" onClick={() => setStatus(s === 'empty' ? 'empty' : '')} style={{ padding: '8px 14px', textAlign: 'left', minWidth: 140, cursor: 'pointer' }}>
-          <b style={{ fontSize: 20, display: 'block' }}>{loaded ? v : '…'}</b><small className="sub">{l}</small></button>)}
-    </div>
     <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
       <input value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm chủ đề, học phần…" style={{ minWidth: 240 }} />
       <select value={grade} onChange={e => setGrade(Number(e.target.value))}><option value={0}>Khối: Tất cả</option>{grades.map(g => <option key={g} value={g}>{gradeName(g)}</option>)}</select>

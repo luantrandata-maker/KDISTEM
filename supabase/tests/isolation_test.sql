@@ -4048,6 +4048,20 @@ select pg_temp.chk('kdi', 'NL 133: năng lực chưa dùng thì chưa có nơi d
 select pg_temp.probe('kdi@iso-test.local', $q$select competency_delete('gv_iso_xoa')::text$q$, true);
 select pg_temp.chk('kdi', 'NL 133: năng lực chưa dùng thì xoá được', $q$select count(*) from competencies where key = 'gv_iso_xoa'$q$, '0');
 
+-- ===== 164: 6 nội dung của chủ đề =====
+select pg_temp.probe('kdi@iso-test.local', $q$insert into program_topics (module_id, grade, seq, title, periods) select id, 5, 99, 'ISO 164', 2 from program_modules where track_code = 'CT2' order by sort limit 1 returning 1$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into program_topic_items (topic_id, kind, title, file_path, qty, unit) select id, 'plan', '  Giáo án ISO ', 'x/program-topics/iso.pdf', 3, 'tờ' from program_topics where title = 'ISO 164' returning 1$q$, true);
+select pg_temp.chk('kdi', 'ND 164: KDI thêm giáo án (tên được cắt khoảng trắng, bỏ số lượng vật tư)', $q$select title || ':' || coalesce(qty::text, '-') from program_topic_items where kind = 'plan' and title like '%Giáo án ISO%'$q$, 'Giáo án ISO:-');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into program_topic_items (topic_id, kind, title, qty, unit, per) select id, 'material', 'Giấy màu', 2, 'tờ', 'student' from program_topics where title = 'ISO 164' returning 1$q$, true);
+select pg_temp.chk('admin_ph', 'ND 164: trường không thêm được nội dung chủ đề', $q$insert into program_topic_items (topic_id, kind, title) select id, 'plan', 'x' from program_topics where title = 'ISO 164'$q$, 'ERR 42501');
+select pg_temp.chk('admin_ph', 'ND 164: trường không sửa được nội dung chủ đề', $q$with x as (update program_topic_items set title = 'x' returning 1) select count(*) from x$q$, '0');
+select pg_temp.chk('gv_both', 'ND 164: giáo viên xem được nội dung chủ đề', $q$select count(*) from program_topic_items x join program_topics t on t.id = x.topic_id where t.title = 'ISO 164'$q$, '2');
+select pg_temp.chk('gv_both', 'ND 164: giáo viên mở được tệp nội dung chủ đề', $q$select learning_file_readable('x/program-topics/iso.pdf')::text$q$, 'true');
+select pg_temp.chk('hs_kb', 'ND 164: học sinh không mở được tệp nội dung chủ đề', $q$select learning_file_readable('x/program-topics/iso.pdf')::text$q$, 'false');
+select pg_temp.chk('kdi', 'ND 164: kind sai bị chặn', $q$insert into program_topic_items (topic_id, kind, title) select id, 'xx', 'x' from program_topics where title = 'ISO 164'$q$, 'ERR*');
+select pg_temp.probe('kdi@iso-test.local', $q$delete from program_topics where title = 'ISO 164' returning 1$q$, true);
+select pg_temp.chk('kdi', 'ND 164: xoá chủ đề thì xoá nội dung', $q$select count(*) from program_topic_items where title in ('Giáo án ISO', 'Giấy màu')$q$, '0');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

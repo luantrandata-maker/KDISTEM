@@ -188,8 +188,8 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
               </div>
               {on && <>
                 {i.exam_id && <ExamView id={i.exam_id} />}
-                {(i.file_path || i.url) && <Viewer item={i} />}
                 {!!i.content?.steps?.length && <Steps steps={i.content.steps} />}
+                {(i.file_path || i.url) && <Viewer item={i} />}
                 {!!i.content?.slides?.length && !i.file_path && <ol className="sub" style={{ paddingLeft: 20 }}>{i.content.slides.map((s, k) => <li key={k}>{s}</li>)}</ol>}
               </>}
             </div>

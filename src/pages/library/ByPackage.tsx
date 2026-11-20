@@ -6,13 +6,13 @@ import { gradeName } from '../../lib/eduLevels'
 import { PROGRAM_COLOR } from '../teacher/common'
 import { Drawer } from '../../components/Drawer'
 import { TopicContents } from '../topicContents'
+import { DataTable, type Col } from '../../components/DataTable'
 
 // Học liệu theo chương trình (khung mới, thay tab cũ theo Chương trình giáo dục): Loại CT › Học phần › Khối → chủ đề,
 // mỗi chủ đề có 6 nội dung (164–165). Cột cho biết chủ đề đã có kế hoạch giảng dạy, bài giảng chưa và số phiếu, bài kiểm tra, vật tư, học liệu.
 // KDI thấy mọi chủ đề và sửa được; trường chỉ thấy chủ đề thuộc gói đã gán cho trường (năm học hiện tại), chỉ xem.
 
 type Count = Record<'plan' | 'lecture' | 'worksheet' | 'test' | 'material' | 'resource', number>
-type Status = '' | 'empty' | 'noplan' | 'nolecture' | 'full'
 const ZERO: Count = { plan: 0, lecture: 0, worksheet: 0, test: 0, material: 0, resource: 0 }
 const chip = (code: string) => <span className="progchip" style={{ background: PROGRAM_COLOR[code], color: '#fff' }}>{trackLabel(code)}</span>
 
@@ -49,9 +49,6 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
   const { admin, modules, modOf, usable, allowed, msg, loaded } = useLibFrame(orgId)
   const [counts, setCounts] = useState<Map<string, Count>>(new Map())
   const [sel, setSel] = useState('')            // '' | 't:CT1' | 'm:<id>' | 'g:<module>:<grade>'
-  const [q, setQ] = useState('')
-  const [grade, setGrade] = useState(0)
-  const [status, setStatus] = useState<Status>('')
   const [open, setOpen] = useState<ProgramTopic | null>(null)
   const [fold, setFold] = useState<Record<string, boolean>>({})   // nhánh cây đang mở
 
@@ -70,18 +67,11 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
     const [k, a, b] = sel.split(':')
     return k === 't' ? m.track_code === a : k === 'm' ? m.id === a : m.id === a && t.grade === Number(b)
   }
-  const qq = q.trim().toLowerCase()
-  const shown = usable.filter(t => {
-    const c = cnt(t), m = modOf.get(t.module_id)!
-    if (!inSel(t) || (grade && t.grade !== grade)) return false
-    if (qq && !`${t.title} ${t.code ?? ''} ${m.name}`.toLowerCase().includes(qq)) return false
-    return status === '' || (status === 'empty' ? isEmpty(c) : status === 'noplan' ? !c.plan : status === 'nolecture' ? !c.lecture : c.plan > 0 && c.lecture > 0)
-  }).sort((a, b) => {
+  const shown = usable.filter(inSel).sort((a, b) => {
     const ma = modOf.get(a.module_id)!, mb = modOf.get(b.module_id)!
     const ta = tracks.findIndex(x => x.code === ma.track_code), tb = tracks.findIndex(x => x.code === mb.track_code)
     return ta - tb || ma.sort - mb.sort || ma.name.localeCompare(mb.name) || a.grade - b.grade || a.seq - b.seq
   })
-  const grades = [...new Set(usable.map(t => t.grade))].sort((a, b) => a - b)
   const n = (v: number) => (v ? v : <span className="sub">—</span>)
   const yes = (v: number) => (v ? <span style={{ color: 'var(--good, #1c7a43)', fontWeight: 600 }}>✓{v > 1 ? ' ' + v : ''}</span> : <span style={{ color: 'var(--bad, #c0392b)' }}>Chưa có</span>)
 
@@ -103,18 +93,28 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
   const selMod = sel.startsWith('m:') ? sel.slice(2) : sel.startsWith('g:') ? sel.split(':')[1] : ''
   const selTr = sel.startsWith('t:') ? sel.slice(2) : selMod ? modOf.get(selMod)?.track_code : ''
 
+  const has = (v: number) => (v ? 'Đã có' : 'Chưa có')
+  const num = (k: keyof Count, label: string): Col<ProgramTopic> => ({ key: k, label, text: t => (cnt(t)[k] ? 'Có' : 'Không có'), cell: t => n(cnt(t)[k]) })
+  const cols: Col<ProgramTopic>[] = [
+    { key: 'title', label: 'Chủ đề', fixed: true, text: t => `${t.title} ${t.code ?? ''}`, cell: t => <>{chip(modOf.get(t.module_id)!.track_code)} <b>{t.title}</b>{t.code && <small className="sub"> · {t.code}</small>}</> },
+    { key: 'track', label: 'Loại CT', off: true, text: t => trackLabel(modOf.get(t.module_id)!.track_code), cell: t => chip(modOf.get(t.module_id)!.track_code) },
+    { key: 'mod', label: 'Học phần', text: t => modOf.get(t.module_id)!.name, cell: t => <small>{modOf.get(t.module_id)!.name}</small> },
+    { key: 'grade', label: 'Khối', text: t => gradeName(t.grade), cell: t => gradeName(t.grade) },
+    { key: 'periods', label: 'Tiết', text: t => String(t.periods), cell: t => t.periods },
+    { key: 'plan', label: 'Kế hoạch giảng dạy', text: t => has(cnt(t).plan), cell: t => yes(cnt(t).plan) },
+    { key: 'lecture', label: 'Bài giảng', text: t => has(cnt(t).lecture), cell: t => yes(cnt(t).lecture) },
+    num('worksheet', 'Phiếu'), num('test', 'Kiểm tra'), num('material', 'Vật tư'), num('resource', 'Kho HL'),
+    { key: 'state', label: 'Tình trạng', off: true, text: t => { const c = cnt(t); return isEmpty(c) ? 'Chưa có nội dung' : c.plan && c.lecture ? 'Đủ kế hoạch và bài giảng' : 'Còn thiếu' }, cell: t => { const c = cnt(t); return isEmpty(c) ? 'Chưa có nội dung' : c.plan && c.lecture ? 'Đủ' : 'Còn thiếu' } },
+  ]
+  const crumb = !sel ? 'Tất cả' : sel.startsWith('t:') ? `${trackLabel(selTr!)} · ${tracks.find(x => x.code === selTr)?.name ?? ''}`
+    : sel.startsWith('m:') ? modOf.get(selMod)?.name : `${modOf.get(selMod)?.name} › ${gradeName(Number(sel.split(':')[2]))}`
+
   return <>
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Tìm chủ đề, học phần…" style={{ minWidth: 240 }} />
-      <select value={grade} onChange={e => setGrade(Number(e.target.value))}><option value={0}>Khối: Tất cả</option>{grades.map(g => <option key={g} value={g}>{gradeName(g)}</option>)}</select>
-      <select value={status} onChange={e => setStatus(e.target.value as Status)}>
-        <option value="">Tình trạng: Tất cả</option><option value="noplan">Chưa có kế hoạch giảng dạy</option><option value="nolecture">Chưa có bài giảng</option>
-        <option value="empty">Chưa có nội dung</option><option value="full">Đã có kế hoạch giảng dạy và bài giảng</option></select>
-      <span className="sub" style={{ alignSelf: 'center' }}>{shown.length} chủ đề{allowed ? ' · theo gói trường đang dùng' : ''}</span>
-    </div>
     {msg && <p className="msg">{msg}</p>}
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 250px) 1fr', gap: 12, alignItems: 'start' }}>
-      <nav className="panel gtree" style={{ padding: 8 }} aria-label="Loại CT › Học phần › Khối">
+    <div className="fwtree"><DataTable id="lib-topics" pro rows={shown} rowKey={t => t.id} cols={cols} noun="chủ đề" onRow={setOpen} className="slt"
+      left={<span className="fwcap"><b>{crumb}</b>{allowed ? <span className="sub"> · theo gói trường đang dùng</span> : null}</span>}
+      empty={<span className="sub">{!loaded ? 'Đang tải…' : allowed && !allowed.size ? 'Trường chưa được gán Gói STEM cho năm học hiện tại.' : 'Không có chủ đề phù hợp.'}</span>}
+      aside={<nav className="gtree" aria-label="Loại CT › Học phần › Khối">
         {node('', 'Tất cả', usable.length, 'none')}
         {tree.map(({ tr, mods }) => { const tk = 't:' + tr.code, to = isOpen(tk, selTr === tr.code && sel !== tk), withMod = tr.use_modules !== false
           return <div key={tr.code} className="gtlv">
@@ -127,21 +127,7 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
                 {mo && <div className="gtsub">{grades}</div>}</div>
             })}</div>}
           </div> })}
-      </nav>
-      <div className="wrap" style={{ overflowX: 'auto' }}>
-        <table className="slt ttdense" style={{ width: '100%' }}>
-          <thead><tr><th>Chủ đề</th><th>Học phần · Khối</th><th>Tiết</th><th>Kế hoạch giảng dạy</th><th>Bài giảng</th><th>Phiếu</th><th>Kiểm tra</th><th>Vật tư</th><th>Kho HL</th></tr></thead>
-          <tbody>{shown.map(t => { const m = modOf.get(t.module_id)!, c = cnt(t)
-            return <tr key={t.id} onClick={() => setOpen(t)} style={{ cursor: 'pointer' }}>
-              <td>{chip(m.track_code)} <b>{t.title}</b>{t.code && <small className="sub"> · {t.code}</small>}</td>
-              <td><small>{m.name} · {gradeName(t.grade)}</small></td><td>{t.periods}</td>
-              <td>{yes(c.plan)}</td><td>{yes(c.lecture)}</td><td>{n(c.worksheet)}</td><td>{n(c.test)}</td><td>{n(c.material)}</td><td>{n(c.resource)}</td>
-            </tr> })}
-            {loaded && !shown.length && <tr><td colSpan={9} className="sub">{allowed && !allowed.size ? 'Trường chưa được gán Gói STEM cho năm học hiện tại.' : 'Không có chủ đề phù hợp.'}</td></tr>}
-          </tbody>
-        </table>
-      </div>
-    </div>
+      </nav>} /></div>
     {open && (() => { const m = modOf.get(open.module_id)
       return <Drawer onClose={() => { setOpen(null); loadCounts() }} title={<>{m && chip(m.track_code)} {open.title}</>}>
         <p className="sub" style={{ marginTop: 0 }}>{m ? m.name + ' · ' : ''}{gradeName(open.grade)} · {open.periods} tiết</p>

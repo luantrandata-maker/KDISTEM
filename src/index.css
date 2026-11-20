@@ -3817,3 +3817,8 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .gtcolhead{text-align:right;font-size:calc(11px * var(--fz,1));font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;padding:0 6px 4px;border-bottom:1px solid var(--line);margin-bottom:4px}
 .main .gtree .gtrow>span.gtcaret{display:inline-block}
 .fwtable .fwgrp>td{padding-top:9px;padding-bottom:9px;color:var(--text)}
+.fwtree .ttbody:not(.sideoff){grid-template-columns:290px minmax(0,1fr)!important}
+.fwtree .ttaside{overflow-y:auto;overflow-x:hidden}
+.fwtree .gtree{max-height:none;position:static;overflow:visible}
+.fwtree .fwcap{border:0;padding:0 4px;background:none;white-space:nowrap}
+.main .fwtree .ttable>tbody>tr.fwgrp>td{height:auto;padding-top:9px;padding-bottom:9px;color:var(--text);cursor:default}

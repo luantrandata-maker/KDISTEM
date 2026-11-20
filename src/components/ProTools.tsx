@@ -94,7 +94,8 @@ export function FilterDrawer({ defs, value, pins, onPin, onApply, onClose }: {
 
 /** Bảng chiếm phần còn lại của màn hình: chỉ dòng trong bảng cuộn, tiêu đề trang và thanh lọc đứng yên. */
 /** Trang có đúng một bảng dạng mới nằm thẳng trong khung trang (xem index.css) */
-const FLAT = ':has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))'
+// Bảng chính nằm trong khung trang (có thể bọc thêm lớp ngoài, vd. cây + bảng của Khung chương trình, Học liệu)
+const FLAT = ':has(>.pframe>.pfbody .ttpro):not(:has(.pdclose))'
 export function useFillHeight(on: boolean, reserve = 64) {
   const ref = useRef<HTMLDivElement>(null)
   const [h, setH] = useState<number | null>(null)

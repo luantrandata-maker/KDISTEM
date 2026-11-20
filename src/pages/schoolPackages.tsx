@@ -227,7 +227,6 @@ export function SchoolPackages() {
         { key: 'scope', label: 'Phạm vi', text: r => liveOf(r).every(x => x.full_package) ? 'Đủ gói' : 'Một phần', cell: r => liveOf(r).every(x => x.full_package) ? 'Đủ gói' : 'Một phần' },
         ...tracks.map(t => ({ key: 't' + t.code, label: trackLabel(t.code), cell: (r: School) => <Count {...summary(liveOf(r), t)} /> })),
       ]} />
-    <p className="sub framefoot">Bấm vào trường để xem chi tiết từng khối. Trường dùng được nhiều gói, mỗi khối một gói. Số in đậm là trường áp dụng một phần, ví dụ 49/56 chủ đề.</p>
     {assignDrawer}
   </>
 }

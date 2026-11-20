@@ -161,11 +161,9 @@ export function ProgramFrame() {
         onClick={() => setEditMod({ id: '', track_code: track.code, name: '', description: '', periods: null, sort: mods.reduce((x, m) => Math.max(x, m.sort), 0) + 1, active: true })}>+ Thêm học phần</button>}</HeadAction>}
     <div className="distfilter" role="group" aria-label="Loại chương trình">
       <button type="button" className={'distfchip' + (all ? ' on' : '')} aria-pressed={all} onClick={() => setCode('*')}>Tất cả loại CT</button>
-      {active.map(t => { const n = t.use_modules === false
-          ? topics.filter(x => modules.some(m => m.id === x.module_id && m.track_code === t.code)).length : modules.filter(m => m.track_code === t.code).length
-        const on = !all && t.code === track?.code
+      {active.map(t => { const on = !all && t.code === track?.code
         return <button key={t.code} type="button" className={'distfchip' + (on ? ' on' : '')} aria-pressed={on}
-          title={t.use_modules === false ? n + ' chủ đề' : n + ' học phần'} onClick={() => setCode(t.code)}>{trackLabel(t.code)} · {t.name} <b>{n}</b></button> })}
+          onClick={() => setCode(t.code)}>{trackLabel(t.code)} · {t.name}</button> })}
     </div>
     {msg && <p className="msg" role="status">{msg}</p>}
     <FrameTree tracks={all ? active : track ? [track] : []} all={all} modules={modules} topics={topics} sel={sel} onSel={setSel}
@@ -234,28 +232,44 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onO
       split.has(r.key) ? { k: r.key + '#' + (r.t.part ?? 0), lbl: <b>{r.t.part ? `Học phần ${r.t.part} (HP${r.t.part})` : 'Dùng chung'}</b>, mod: '', part: r.t.part ?? 0 } : null,
     ]
   }
-  const groupOf = (k: string) => rows.filter(r => r.key === k.split('#')[0] ? (k.includes('#') ? k === r.key + '#' + (r.t.part ?? 0) : true) : under(r.key, k))
-  const N = 6, dash = <small className="sub">—</small>
-  const body: React.ReactNode[] = []
-  const last: (string | null)[] = []
-  const first = rows.length ? levels(rows[0]).findIndex(lv => lv && !(under(sel, lv.k.split('#')[0]) && !lv.k.includes('#'))) : 0
-  rows.forEach(r => {
-    levels(r).forEach((lv, i) => {
-      if (!lv || under(sel, lv.k.split('#')[0]) && !lv.k.includes('#') || last[i] === lv.k) return
-      last[i] = lv.k; for (let j = i + 1; j < 4; j++) last[j] = null
-      const g = groupOf(lv.k)
-      // Thụt lề tính từ cấp đầu tiên đang hiện (cấp đã chọn trên cây thì không lặp lại)
-      const d = i - first, part = (lv as { part?: number }).part
+  type R = typeof ts[number]
+  const dash = <small className="sub">—</small>
+  // Dòng tiêu đề nhóm trước mỗi dòng khi đổi cấp; đếm theo các dòng đang hiện (sau khi tìm / lọc)
+  const groupRows = (r: R, prev: R | undefined, span: number, shown: R[]) => {
+    const lv = levels(r), pv = prev ? levels(prev) : []
+    const first = lv.findIndex(x => x && !(under(sel, x.k.split('#')[0]) && !x.k.includes('#')))
+    const out: React.ReactNode[] = []
+    let changed = false
+    lv.forEach((x, i) => {
+      if (!x || under(sel, x.k.split('#')[0]) && !x.k.includes('#')) return
+      if (!changed && pv[i]?.k === x.k) return
+      changed = true
+      const key = x.k, base = key.split('#')[0]
+      const g = shown.filter(y => key.includes('#') ? y.key + '#' + (y.t.part ?? 0) === key : under(y.key, base))
+      const d = i - first, part = (x as { part?: number }).part
       const look: React.CSSProperties = i === 3
         ? { background: part === 1 ? '#eff6ff' : part === 2 ? '#ecfdf5' : 'var(--soft)', boxShadow: `inset ${12 + 16 * d}px 0 0 var(--surface), inset ${16 + 16 * d}px 0 0 ${part ? PART_C[part - 1] : 'var(--line)'}` }
         : { background: i === 2 ? '#f1f5f9' : '#e2e8f0', fontSize: i === 2 ? undefined : 'calc(15px * var(--fz,1))' }
-      body.push(<tr key={'h' + lv.k} className="fwgrp"><td colSpan={N} style={{ paddingLeft: 12 + 16 * d + (i === 3 ? 14 : 0), ...look }}>
-        {lv.lbl} <span style={MUTED}>· {g.length} chủ đề · {tiet(g)} tiết</span>
-        {lv.mod && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={() => onOpenModule(lv.mod)}>Mở học phần ›</button>}</td></tr>)
+      out.push(<tr key={'h' + key} className="fwgrp"><td colSpan={span} style={{ paddingLeft: 12 + 16 * d + (i === 3 ? 14 : 0), ...look }}>
+        {x.lbl} <span style={MUTED}>· {g.length} chủ đề · {tiet(g)} tiết</span>
+        {x.mod && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={e => { e.stopPropagation(); onOpenModule(x.mod) }}>Mở học phần ›</button>}</td></tr>)
     })
-    body.push(<tr key={r.t.id} className="clickrow" onClick={() => onOpen(r.t)}>
-      <td>{r.t.seq}</td><td><b>{r.t.title}</b></td><td>{r.t.periods}</td><td>{r.t.main_subject || dash}</td><td><OneLine text={r.t.objectives} /></td><td><OneLine text={r.t.product ?? ''} /></td></tr>)
-  })
+    return out
+  }
+  const partName = (r: R) => !split.has(r.key) ? '' : r.t.part ? `HP${r.t.part}` : 'Dùng chung'
+  const cols: Col<R>[] = [
+    { key: 'seq', label: 'TT', fixed: true, thClass: 'c-no', text: r => String(r.t.seq), cell: r => r.t.seq },
+    { key: 'title', label: 'Chủ đề', fixed: true, thClass: 'c-ttl', text: r => r.t.title, cell: r => <b>{r.t.title}</b> },
+    { key: 'periods', label: 'Số tiết', text: r => String(r.t.periods), cell: r => r.t.periods },
+    { key: 'main', label: 'Môn chủ trì', text: r => r.t.main_subject ?? '', cell: r => r.t.main_subject || dash },
+    { key: 'subs', label: 'Môn phối hợp', text: r => r.t.subjects.join(', '), values: r => r.t.subjects, cell: r => r.t.subjects.join(', ') || dash },
+    { key: 'obj', label: 'Yêu cầu cần đạt', text: r => r.t.objectives, cell: r => <OneLine text={r.t.objectives} /> },
+    { key: 'prod', label: 'Sản phẩm', text: r => r.t.product ?? '', cell: r => <OneLine text={r.t.product ?? ''} /> },
+    { key: 'track', label: 'Loại CT', off: true, text: r => `${trackLabel(r.m.track_code)} · ${trOf(r.m.track_code)?.name ?? ''}`, cell: r => chip(r.m.track_code) },
+    { key: 'mod', label: 'Học phần', off: true, text: r => isFlat(r.m.track_code) ? '' : r.m.name, cell: r => isFlat(r.m.track_code) ? dash : r.m.name },
+    { key: 'grade', label: 'Khối', off: true, text: r => gradeName(r.t.grade), cell: r => gradeName(r.t.grade) },
+    { key: 'part', label: 'Phần', off: true, text: partName, cell: r => partName(r) || dash },
+  ]
   const selMod = /^[^/]+\/([0-9a-f-]{36})$/.exec(sel)?.[1]
   const crumb = (() => { const p = sel.split('/'); const out: string[] = []
     if (p[0]) out.push(all ? `${trackLabel(p[0])} · ${trOf(p[0])?.name ?? ''}` : 'Tất cả')
@@ -263,22 +277,16 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onO
     if (p.length === 3) out.push(modOf.get(p[1])?.name ?? '', gradeName(Number(p[2])))
     if (p.length === 2 && isFlat(p[0])) out.push(gradeName(Number(p[1])))
     return (all ? out : out.slice(p.length > 1 ? 1 : 0)).join(' › ') })()
-  return <FitScreen className="fwfit">
-    <SideSplit aside={<nav className="gtree" aria-label={all ? 'Loại CT › Học phần › Khối' : flatTitle(tracks[0])}>
+  return <div className="fwtree"><DataTable id="frame-topics" pro rows={rows} rowKey={r => r.t.id} cols={cols} noun="chủ đề" onRow={r => onOpen(r.t)} groupRows={groupRows}
+    className="slt"
+    left={<span className="fwcap"><b>{crumb}</b> <span style={MUTED}>· {tiet(rows)} tiết</span>
+      {selMod && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={() => onOpenModule(selMod)}>Mở học phần ›</button>}</span>}
+    empty={<span className="sub">Chưa có chủ đề.{selMod ? ' Bấm "Mở học phần" để thêm chủ đề.' : ''}</span>}
+    aside={<nav className="gtree" aria-label={all ? 'Loại CT › Học phần › Khối' : flatTitle(tracks[0])}>
       <TreeHead title={all ? 'Loại CT › Học phần › Khối' : flatTitle(tracks[0])}>Số = số chủ đề, dòng nhỏ = tổng số tiết.<br />Bấm tên: lọc bảng và mở.<br />Bấm ▸: chỉ mở / đóng.</TreeHead>
       <div className="gtcolhead">Số chủ đề</div>
       {roots.map(n => item(n, 0))}
-    </nav>}>
-      <div className="fwmain">
-        <div className="fwcap"><b>{crumb}</b> <span style={MUTED}>· {rows.length} chủ đề · {tiet(rows)} tiết</span>
-          {selMod && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={() => onOpenModule(selMod)}>Mở học phần ›</button>}</div>
-        <div className="fwscroll">{rows.length ? <table className="table slt ttdense fwtable">
-          <thead><tr><th className="c-no">TT</th><th className="c-ttl">Chủ đề</th><th style={{ width: 80 }}>Số tiết</th><th>Môn chủ trì</th><th>Yêu cầu cần đạt</th><th>Sản phẩm</th></tr></thead>
-          <tbody>{body}</tbody></table>
-          : <p className="sub" style={{ padding: '12px 14px' }}>Chưa có chủ đề.{selMod ? ' Bấm "Mở học phần" để thêm chủ đề.' : ''}</p>}</div>
-      </div>
-    </SideSplit>
-  </FitScreen>
+    </nav>} /></div>
 }
 const flatTitle = (t?: StemTrack) => t?.use_modules === false ? 'Khối' : 'Học phần › Khối'
 

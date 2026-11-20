@@ -3,7 +3,7 @@ import { FitScreen } from './FitScreen'
 // kéo mép tiêu đề để đổi độ rộng, nút "Thu gọn" thu bảng vừa màn hình (chữ xuống dòng, không phải kéo ngang).
 // Cách hiển thị (cột ẩn, thứ tự, độ rộng, vừa khít) nhớ theo từng bảng trên trình duyệt này.
 // Sắp xếp khi bấm tiêu đề vẫn do lib/tableSort lo (hàng lọc có class ttfilter được bỏ qua).
-import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type HTMLAttributes } from 'react'
+import { Fragment, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode, type HTMLAttributes } from 'react'
 import { norm } from '../lib/sheet'
 import { TreeHide } from './TreeHead'
 import { FilterDrawer, Pop, ProDefault, RowMenu, useFillHeight, type RowAction } from './ProTools'
@@ -76,7 +76,7 @@ function ColFilter({ label, options, value, onChange, pin }: { label: string; op
   </>
 }
 
-export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow, simple, noTools, rowProps, aside, pro: proProp, noun = 'dòng', bulk, rowMenu, fit }: {
+export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow, simple, noTools, rowProps, aside, pro: proProp, noun = 'dòng', bulk, rowMenu, fit, groupRows }: {
   id: string; rows: T[]; cols: Col<T>[]; rowKey: (r: T) => string; empty?: ReactNode; className?: string
   /** Thuộc tính thêm cho từng dòng (vd: kéo thả) */
   rowProps?: (r: T) => HTMLAttributes<HTMLTableRowElement>
@@ -107,6 +107,9 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   bulk?: (rows: T[], clear: () => void) => ReactNode
   /** Nút ⋮ cuối dòng */
   rowMenu?: (r: T) => RowAction[]
+  /** Dòng tiêu đề nhóm chèn trước một dòng (vd. Học phần › Khối), nhận dòng trước đó, số cột và các dòng đang hiện.
+   *  Chỉ dùng khi bảng đang ở thứ tự mặc định (người dùng chưa chọn sắp xếp). */
+  groupRows?: (r: T, prev: T | undefined, span: number, shown: T[]) => ReactNode
 }) {
   // Phân hệ 1, 2: bảng tự dùng dạng mới (ProDefault), trừ bảng nhỏ `simple` hoặc trang đặt pro={false}
   const pro = proProp ?? (useContext(ProDefault) && !simple)
@@ -253,12 +256,12 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
           : null}</th>)}</tr>}
       </thead>
       <tbody>{shown.map((r, i) => pro
-        ? <tr key={rowKey(r)} className={'clickrow' + (picked.has(rowKey(r)) ? ' tsel' : '')} onClickCapture={e => { if (bulk && (e.shiftKey || e.ctrlKey || e.metaKey)) rowClick(r, i, e) }} onClick={e => rowClick(r, i, e)} {...rowProps?.(r)}>
+        ? <Fragment key={rowKey(r)}>{groupRows && !view.sort && groupRows(r, shown[i - 1], shownCols.length + (sideHead ? 1 : 0) + (rowMenu ? 1 : 0), shown)}<tr className={'clickrow' + (picked.has(rowKey(r)) ? ' tsel' : '')} onClickCapture={e => { if (bulk && (e.shiftKey || e.ctrlKey || e.metaKey)) rowClick(r, i, e) }} onClick={e => rowClick(r, i, e)} {...rowProps?.(r)}>
           {sideHead && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key} className={[selOn && c === lead ? 'c-leadsel' : '', stick(c) ? 'c-stick' : ''].filter(Boolean).join(' ') || undefined}>
             {inSel && c === lead && <span className="tselbox">{head!.td(r)}</span>}
             {bulk && c === lead && <span className="tselbox"><input type="checkbox" checked={picked.has(rowKey(r))} onChange={() => { flipRow(r); lastIdx.current = i }} aria-label="Chọn dòng" /></span>}
             <div className="tdc">{c.cell(r)}</div></td>)}
-          {rowMenu && <td className="c-menu"><RowMenu items={rowMenu(r)} label={String(lead?.text?.(r) ?? '')} /></td>}</tr>
+          {rowMenu && <td className="c-menu"><RowMenu items={rowMenu(r)} label={String(lead?.text?.(r) ?? '')} /></td>}</tr></Fragment>
         : <tr key={rowKey(r)} className={onRow ? 'clickrow' : undefined} onClick={onRow && (() => onRow(r))} {...rowProps?.(r)}>{head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key}><div className="tdc">{c.cell(r)}</div></td>)}
           {rowMenu && <td className="c-menu"><RowMenu items={rowMenu(r)} label={String(lead?.text?.(r) ?? '')} /></td>}</tr>)}
         {!shown.length && <tr><td colSpan={shownCols.length + (sideHead ? 1 : 0) + (rowMenu ? 1 : 0)}>{rows.length ? <small className="sub">{qk ? `Không có dòng nào khớp “${q.trim()}”.` : 'Không có dòng nào khớp bộ lọc cột.'}</small> : empty}</td></tr>}</tbody>

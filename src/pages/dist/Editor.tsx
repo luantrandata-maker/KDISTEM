@@ -18,7 +18,7 @@ import {
   type Item, type Mode, type Plan, type Prog, type Row, type Status, type Subj, type SubjMode, type U,
 } from './sched'
 
-const PSEL = 'id, code, title, version_no, status, ct_code, level, grade_from, grade_to, grades, main_subject, periods_per_week, deploy_term'
+const PSEL = 'id, code, title, version_no, status, ct_code, level, grade_from, grade_to, grades, main_subject, periods_per_week, deploy_term, package_id'
 const USEL = 'id, program_id, parent_id, unit_type, seq, title, periods, grade, grades, subject'
 export const STATUS: Record<Status, [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], superseded: ['Đã thay thế', 'off'], archived: ['Ngừng dùng', 'off'] }
 export const Chip = ({ tone, children }: { tone?: string; children: ReactNode }) => <span className={'distchip2 ' + (tone ?? '')}>{children}</span>
@@ -49,6 +49,7 @@ export function useBreadcrumb() {
 import { ActionBar } from '../../components/ActionBar'
 import { InfoTip } from '../../components/InfoTip'
 import { Drawer } from '../../components/Drawer'
+import { trackLabel } from '../../lib/stemTracks'
 export { MoreMenu } from '../../components/MoreMenu'
 
 /** Học mỗi tuần hay cách tuần (2 = tuần học tuần nghỉ, ví dụ bắt đầu tuần 2 → tuần 2, 4, 6…) */
@@ -134,6 +135,40 @@ function ProgPicker({ opts, picked, onAdd, hint }: { opts: PickOpt[]; picked: Se
         {off.length > 0 && <li className="sep"><small className="sub">Chưa dùng được ({off.length})</small></li>}
         {off.map(row)}
         {!shown.length && <li className="sep"><small className="sub">Không có chương trình nào khớp.</small></li>}</ul>
+    </div>}
+  </div>
+}
+
+type PkgOpt = { package_id: string; package_code: string; package_name: string; track_code: string; track_name: string; topics: number; periods: number; program_id: string | null }
+/** 166: Nút "+ Thêm từ Gói STEM": chọn gói × loại chương trình có chủ đề ở khối của bản; chủ đề lấy đúng theo gói, kèm số tiết. */
+function PkgPicker({ grade, picked, onPick }: { grade: number; picked: Set<string>; onPick: (o: PkgOpt) => Promise<void> }) {
+  const [open, setOpen] = useState(false)
+  const [opts, setOpts] = useState<PkgOpt[] | null>(null)
+  const [busy, setBusy] = useState('')
+  const [err, setErr] = useState('')
+  const box = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!open) return
+    supabase.rpc('dist_pkg_options', { p_grade: grade }).then(({ data, error }) => { setOpts((data as PkgOpt[]) ?? []); setErr(error ? errText(error.message) : '') })
+    const close = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', close); return () => document.removeEventListener('mousedown', close)
+  }, [open, grade])
+  const groups = [...new Map((opts ?? []).map(o => [o.package_id, o])).values()]
+  return <div className="distpicker" ref={box}>
+    <button type="button" className="primary" aria-expanded={open} onClick={() => setOpen(!open)}>+ Thêm từ Gói STEM</button>
+    {open && <div className="distpickpop" role="dialog" aria-label="Chọn từ Gói STEM">
+      <small className="sub">Khối {grade} · chủ đề lấy đúng theo gói (HP1 / HP2), kèm số tiết</small>
+      {err && <p className="msg">{err}</p>}
+      <ul>{opts === null ? <li className="sep"><small className="sub">Đang tải…</small></li>
+        : !opts.length ? <li className="sep"><small className="sub">Chưa có gói nào có chủ đề ở khối {grade}.</small></li>
+        : groups.map(g => <Fragment key={g.package_id}>
+          <li className="sep"><small className="sub">Gói {g.package_code} · {g.package_name}</small></li>
+          {opts.filter(o => o.package_id === g.package_id).map(o => { const on = !!o.program_id && picked.has(o.program_id), k = o.package_id + o.track_code
+            return <li key={k}><button type="button" disabled={on || !!busy} className={on ? 'on' : undefined}
+              onClick={async () => { setBusy(k); setErr(''); try { await onPick(o); setOpen(false) } catch (e) { setErr((e as Error).message) } setBusy('') }}>
+              <span className="pk">{on ? '✓' : busy === k ? '…' : '+'}</span><span><b>{trackLabel(o.track_code)}</b> {o.track_name}
+                <small className="sub">{on ? 'Đã chọn · ' : ''}{o.topics} chủ đề · {o.periods} tiết</small></span></button></li> })}
+        </Fragment>)}</ul>
     </div>}
   </div>
 }
@@ -305,10 +340,24 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
     const ids = new Set(uids)
     setPrev(m => { const n = new Map(m); for (const r of s.rows) if (ids.has(r.unit_id)) n.set(r.unit_id, { ...r, ...patch }); return n }); touch()
   }
-  function addItem(p: Prog, only?: string) {
-    const subs = avail(p.id).map(x => ({ name: x.name, on: !only || x.name === only, mode: 'after' as SubjMode, week: null, ppw: Number(p.periods_per_week) || 1 }))
+  function addItem(p: Prog, only?: string, us?: U[]) {
+    const subs = (us ? subjectsIn(lessonsOf(us, p, plan.grade)) : avail(p.id)).map(x => ({ name: x.name, on: !only || x.name === only, mode: 'after' as SubjMode, week: null, ppw: Number(p.periods_per_week) || 1 }))
     setItems(xs => [...xs, { program_id: p.id, seq: xs.length + 1, start_mode: p.deploy_term === 'hk2' ? 'hk2' : 'hk1', start_week: null, after_program: null,
       ppw: Number(p.periods_per_week) || 1, split: false, subjects: subs }]); touch()
+  }
+  /** 166: tạo / cập nhật chương trình theo gói rồi thêm vào bản */
+  async function addPkg(o: PkgOpt) {
+    const { data: id, error } = await supabase.rpc('dist_pkg_program', { p_package: o.package_id, p_track: o.track_code, p_grade: plan.grade })
+    if (error || !id) throw new Error(errText(error?.message ?? 'Không tạo được chương trình theo gói'))
+    const [{ data: pr }, { data: us }] = await Promise.all([
+      supabase.from('edu_programs').select(PSEL).eq('id', id as string).single(),
+      supabase.from('edu_program_units').select(USEL).eq('program_id', id as string),
+    ])
+    if (!pr) throw new Error('Không đọc được chương trình theo gói')
+    const p = pr as Prog, nu = (us as U[]) ?? []
+    setPool(xs => [...xs.filter(x => x.id !== p.id), p]); setProgs(m => new Map(m).set(p.id, p))
+    setUnits(xs => [...xs.filter(x => x.program_id !== p.id), ...nu])
+    if (!items.some(i => i.program_id === p.id)) addItem(p, undefined, nu)
   }
   function removeItem(pid: string) {
     setItems(xs => xs.filter(i => i.program_id !== pid).map((i, k) => ({ ...i, seq: k + 1, after_program: i.after_program === pid ? null : i.after_program }))); touch()
@@ -481,8 +530,8 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
 
   // ===== 1. Chương trình & môn =====
   function Programs() {
-    const usable = pool.filter(p => p.status === 'published' && progGrades(p).includes(plan.grade))
-    const unusable = pool.filter(p => !usable.includes(p))
+    const usable = pool.filter(p => p.status === 'published' && progGrades(p).includes(plan.grade) && !p.package_id)
+    const unusable = pool.filter(p => !usable.includes(p) && !p.package_id)
     const why = (p: Prog) => p.status !== 'published' ? 'chưa phát hành' : `dạy ${fmtGrades(progGrades(p), 'khối ')}`
     const opts: PickOpt[] = [
       ...usable.map(p => { const subs = avail(p.id); const n = subs.reduce((t, x) => t + x.lessons, 0)
@@ -491,8 +540,9 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
     ]
     return <section className="distsec2 first">
       <h3><i>1</i>Chương trình & môn <small className="sub">{items.length} chương trình · {onSubjects} môn</small><span className="sp" />
-        <ProgPicker opts={opts} picked={new Set(order)} onAdd={addItem} hint={`Cấp ${levelName(plan.level)}, Khối ${plan.grade}`} /></h3>
-      {!ordered.length ? <p className="sub" style={{ margin: 0 }}>Chưa chọn chương trình. Bấm “+ Thêm chương trình” để tìm và chọn.</p>
+        {editable && <PkgPicker grade={plan.grade} picked={new Set(order)} onPick={addPkg} />}
+        <ProgPicker opts={opts} picked={new Set(order)} onAdd={p => addItem(p)} hint={`Cấp ${levelName(plan.level)}, Khối ${plan.grade}`} /></h3>
+      {!ordered.length ? <p className="sub" style={{ margin: 0 }}>Chưa chọn chương trình. Bấm “+ Thêm từ Gói STEM” hoặc “+ Thêm chương trình” để chọn.</p>
         : <div className="distpcs">{ordered.map((it, k) => {
           const p = progs.get(it.program_id); if (!p) return null
           const subs = avail(p.id), on = subjectsOf(it)

@@ -16,6 +16,9 @@ import { GradePicker, SubjectPicker } from '../components/Pickers'
 import { NameLink } from '../components/TableSel'
 import { ElView } from '../components/ElView'
 import { gradeName } from '../lib/eduLevels'
+import { Drawer } from '../components/Drawer'
+import { TopicContents } from './topicContents'
+import type { ProgramTopic } from '../lib/programFrame'
 
 // Phân phối chương trình theo từng tiết + tiến độ dạy (migration 057; 058: học kỳ, liên kết chương trình chuẩn,
 // gán lớp, gửi duyệt / công bố, nhật ký điều chỉnh, nội dung chưa hoàn thành, yêu cầu cần đạt, minh chứng).
@@ -324,7 +327,8 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
   const [rows, setRows] = useState<Lesson[] | null>(null)
   const [topics, setTopics] = useState<Topic[]>([])
   const [units, setUnits] = useState<Unit[]>([])
-  const [ptopics, setPtopics] = useState<Map<string, string>>(new Map())
+  const [ptopics, setPtopics] = useState<Map<string, ProgramTopic>>(new Map())
+  const [matTopic, setMatTopic] = useState<ProgramTopic | null>(null)
   const [weekStart, setWeekStart] = useState<Map<number, string>>(new Map())
   // Tuần có ngày nghỉ (chưa nghỉ cả tuần) theo lịch của đơn vị: cảnh báo tiết rơi vào tuần đó
   const [weekOff, setWeekOff] = useState<Map<number, string>>(new Map())
@@ -345,8 +349,8 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
     const ls = (l.data as Lesson[]) ?? []
     // 161: tên chủ đề của khung chương trình mới cho các tiết tạo từ Gói STEM
     const pids = [...new Set(ls.map(x => x.program_topic_id).filter((x): x is string => !!x))]
-    const pt = pids.length ? (await supabase.from('program_topics').select('id, title').in('id', pids)).data as { id: string; title: string }[] | null : []
-    setPtopics(new Map((pt ?? []).map(x => [x.id, x.title])))
+    const pt = pids.length ? (await supabase.from('program_topics').select('*').in('id', pids)).data as ProgramTopic[] | null : []
+    setPtopics(new Map((pt ?? []).map(x => [x.id, x])))
     setRows(ls); setTopics(((t as any).data as Topic[]) ?? []); setUnits(((u as any).data as Unit[]) ?? [])
     const cal = ((y as any).data as { week: number | null; starts_on: string }[]) ?? []
     setWeekStart(new Map(cal.filter(c => c.week != null).map(c => [c.week as number, c.starts_on])))
@@ -355,7 +359,7 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
   }
   useEffect(() => { load() }, [book.id])
   const topicName = (id: string | null) => (id ? topics.find(t => t.id === id)?.title ?? 'Chủ đề STEM' : '')
-  const lessonTopic = (l: Lesson) => (l.program_topic_id ? ptopics.get(l.program_topic_id) ?? 'Chủ đề STEM' : topicName(l.package_topic_id))
+  const lessonTopic = (l: Lesson) => (l.program_topic_id ? ptopics.get(l.program_topic_id)?.title ?? 'Chủ đề STEM' : topicName(l.package_topic_id))
   // Bài trong chương trình: tên kèm học phần cha để dễ chọn
   const unitLabel = useMemo(() => {
     const by = new Map(units.map(u => [u.id, u]))
@@ -520,13 +524,17 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
                   {l.week != null && weekStart.size > 0 && !weekStart.has(l.week) && <span style={{ color: "#a8650c" }} title="Tuần này ngoài lịch tuần học của năm học" aria-label="Ngoài lịch tuần học"> ⚠</span>}</td><td>{l.title}</td>
                 {hasUnits && <td><small>{unitLabel(l.unit_id)}</small></td>}
                 <td>{l.kind !== 'lesson' ? <span className={'gpill ' + KIND_PILL[l.kind]}>{KIND[l.kind]}</span> : <small>{KIND.lesson}</small>}</td>
-                <td><small>{lessonTopic(l)}</small></td><td><small>{l.note}</small></td>{canEdit && <td className="tools" style={{ whiteSpace: 'nowrap' }}><button type="button" data-rowopen onClick={() => setEdit(l)}>Sửa</button><button type="button" className="danger" onClick={() => del(l)}>Xoá</button></td>}
+                <td><small>{lessonTopic(l)}</small>{l.program_topic_id && ptopics.has(l.program_topic_id) && <> <button type="button" className="linkbtn" onClick={() => setMatTopic(ptopics.get(l.program_topic_id!)!)}>Học liệu ›</button></>}</td><td><small>{l.note}</small></td>{canEdit && <td className="tools" style={{ whiteSpace: 'nowrap' }}><button type="button" data-rowopen onClick={() => setEdit(l)}>Sửa</button><button type="button" className="danger" onClick={() => del(l)}>Xoá</button></td>}
               </tr>
             ))}
             {edit && !edit.id && formRow}
           </tbody>
         </table></div></>
       )}
+      {matTopic && <Drawer onClose={() => setMatTopic(null)} title={<>Học liệu · {matTopic.title}</>}>
+        <p className="sub" style={{ marginTop: 0 }}>{gradeName(matTopic.grade)} · {matTopic.periods} tiết</p>
+        <TopicContents topic={matTopic} admin={false} />
+      </Drawer>}
     </>
   )
 }

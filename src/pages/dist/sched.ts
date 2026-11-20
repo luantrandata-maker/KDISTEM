@@ -21,7 +21,7 @@ export type Item = { program_id: string; seq: number; start_mode: Mode; start_we
 export type Row = { program_id: string; unit_id: string; seq: number; week: number | null; periods: number; note: string | null
   manual: boolean; skipped: boolean; weeks: number[] | null }
 export type Prog = { id: string; code: string | null; title: string; version_no: number; status: string; ct_code: string | null; level: string
-  grade_from: number; grade_to: number; grades?: number[]; main_subject: string; periods_per_week: number | null; deploy_term: string | null }
+  grade_from: number; grade_to: number; grades?: number[]; main_subject: string; periods_per_week: number | null; deploy_term: string | null; package_id?: string | null }
 export type U = { id: string; program_id: string; parent_id: string | null; unit_type: 'topic' | 'lesson' | 'session'; seq: number; title: string
   periods: number; grade: number | null; grades?: number[]; subject: string | null }
 export type Lesson = U & { subj: string }

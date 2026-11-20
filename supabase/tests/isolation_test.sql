@@ -4065,6 +4065,22 @@ select pg_temp.chk('kdi', 'ND 165: chỉ bài kiểm tra mới gắn đề', $q$
 select pg_temp.probe('kdi@iso-test.local', $q$delete from program_topics where title = 'ISO 164' returning 1$q$, true);
 select pg_temp.chk('kdi', 'ND 164: xoá chủ đề thì xoá nội dung', $q$select count(*) from program_topic_items where title in ('Giáo án ISO', 'Giấy màu')$q$, '0');
 
+-- ===== 166: Bản phân phối lấy chương trình từ Gói STEM =====
+select pg_temp.chk('hs_kb', 'PP gói 166: học sinh không xem lựa chọn gói', $q$select count(*) from dist_pkg_options(6)$q$, '0');
+select pg_temp.chk('hs_kb', 'PP gói 166: học sinh không tạo chương trình theo gói', $q$select dist_pkg_program((select id from program_packages where code = '2T'), 'CT2', 6)$q$, 'ERR 42501');
+select pg_temp.chk('kdi', 'PP gói 166: lựa chọn gói 2T · CT2 · Khối 6', $q$select topics || ',' || periods || ',' || coalesce(program_id::text, '-') from dist_pkg_options(6) o join program_packages p on p.id = o.package_id where p.code = '2T' and o.track_code = 'CT2'$q$, '16,48,-');
+select pg_temp.probe('kdi@iso-test.local', $q$select dist_pkg_program((select id from program_packages where code = '2T'), 'CT2', 6)$q$, true);
+select pg_temp.chk('kdi', 'PP gói 166: chương trình theo gói đã ban hành, đủ chủ đề và số tiết', $q$select e.status || ',' || count(u.*) || ',' || sum(u.periods) || ',' || count(u.program_topic_id) from edu_programs e join edu_program_units u on u.program_id = e.id where e.package_track = 'CT2' and e.package_id = (select id from program_packages where code = '2T') group by e.status$q$, 'published,16,48,16');
+select pg_temp.chk('kdi', 'PP gói 166: gọi lại không tạo trùng', $q$select (dist_pkg_program((select id from program_packages where code = '2T'), 'CT2', 6) = (select program_id from dist_pkg_options(6) o join program_packages p on p.id = o.package_id where p.code = '2T' and o.track_code = 'CT2'))::text$q$, 'true');
+select pg_temp.chk('gv_both', 'PP gói 166: giáo viên tạo được chương trình theo gói (dùng lại bản đã có)', $q$select (dist_pkg_program((select id from program_packages where code = '2T'), 'CT2', 6) is not null)::text$q$, 'true');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into dist_plans (org_id, title, level, grade) values (platform_org_id(), 'ISO bản phối gói', 'thcs', 6) returning 1$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into dist_plan_items (plan_id, program_id, ppw) select d.id, e.id, 2 from dist_plans d, edu_programs e where d.title = 'ISO bản phối gói' and e.package_track = 'CT2' and e.package_id is not null returning 1$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$insert into dist_plan_rows (plan_id, program_id, unit_id, seq, week, periods) select d.id, u.program_id, u.id, u.seq, u.seq, u.periods from dist_plans d, edu_program_units u join edu_programs e on e.id = u.program_id where d.title = 'ISO bản phối gói' and e.package_track = 'CT2' and e.package_id is not null returning 1$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$update dist_plans set status = 'published' where title = 'ISO bản phối gói' returning 1$q$, true);
+select pg_temp.probe('kdi@iso-test.local', $q$select dist_plan_assign((select id from dist_plans where title = 'ISO bản phối gói'), array[(select id from organizations where code = 'THCS-PH')])::text$q$, true);
+select pg_temp.chk('admin_ph', 'PP gói 166: PPCT từ bản phân phối có tuần, mọi tiết gắn chủ đề', $q$select count(*) || ',' || count(l.program_topic_id) || ',' || min(l.week) || ',' || max(l.week) || ',' || min(l.kind) from curriculum_lessons l join curriculum_books b on b.id = l.book_id join dist_plans d on d.id = b.dist_plan_id where d.title = 'ISO bản phối gói' and b.org_id = my_org_id()$q$, '48,48,1,17,stem');
+delete from curriculum_books where dist_plan_id in (select id from dist_plans where title = 'ISO bản phối gói');
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

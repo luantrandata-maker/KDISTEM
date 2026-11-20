@@ -22,6 +22,7 @@ declare
     'material_groups',      -- danh mục nhóm vật tư mặc định Nhóm 1–3 của KDI (147)
     'program_modules',      -- danh mục học phần của khung chương trình KDI theo file bộ phận chương trình (147)
     'program_topics',       -- 10 chủ đề mẫu / khối của Bài học STEM, tên tạm để KDI sửa (148)
+    'program_topic_levels', -- bản mức 1 tiết/tuần của các chủ đề mẫu (163)
     'program_packages',     -- Gói STEM 1T–4T của KDI (148)
     'program_package_items',-- học phần của từng gói theo loại chương trình, khối (148)
     'subjects',             -- danh mục môn học hệ thống của KDI (064)

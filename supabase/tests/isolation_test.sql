@@ -2461,6 +2461,51 @@ select pg_temp.chk('admin_ph', 'PPCT chuẩn: tuần không lùi theo thứ tự
 delete from curriculum_books where school_package_id in (select id from school_packages where note = 'ISO-STD');
 delete from school_packages where note = 'ISO-STD';
 
+-- ===== 163: chủ đề theo mức tiết/tuần =====
+select pg_temp.chk('kdi', 'Mức tiết/tuần: chủ đề hiện có là bản mức 1',
+  $q$select (count(*) = (select count(*) from program_topics))::text from program_topic_levels where level = 1$q$, 'true');
+select pg_temp.probe('kdi@iso-test.local', $q$update program_topic_levels set periods = periods + 100 where level = 1 and topic_id = (select t.id from program_topics t join program_modules m on m.id = t.module_id where m.name = 'Sáng chế' and t.grade = 6 order by t.seq limit 1)$q$, true);
+select pg_temp.chk('kdi', 'Mức tiết/tuần: sửa số tiết mức 1 thì chủ đề cập nhật theo',
+  $q$select (t.periods = l.periods and t.periods >= 100)::text from program_topics t join program_topic_levels l on l.topic_id = t.id and l.level = 1 join program_modules m on m.id = t.module_id where m.name = 'Sáng chế' and t.grade = 6 order by t.seq limit 1$q$, 'true');
+select pg_temp.probe('kdi@iso-test.local', $q$update program_topics set periods = periods - 100 where periods >= 100$q$, true);
+select pg_temp.chk('kdi', 'Mức tiết/tuần: sửa chủ đề thì bản mức 1 cập nhật theo', $q$select count(*) from program_topic_levels where level = 1 and periods >= 100$q$, '0');
+select pg_temp.chk('kdi', 'Mức tiết/tuần: KDI thêm 10 chủ đề Sáng chế K6 ở mức 2 tiết/tuần',
+  $q$insert into program_topic_levels (topic_id, level, seq, periods) select t.id, 2, t.seq, 3 from program_topics t join program_modules m on m.id = t.module_id where m.name = 'Sáng chế' and t.grade = 6 and t.seq <= 10$q$, 'rows:10');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into program_topic_levels (topic_id, level, seq, periods) select t.id, 2, t.seq, 3 from program_topics t join program_modules m on m.id = t.module_id where m.name = 'Sáng chế' and t.grade = 6 and t.seq <= 10$q$, true);
+select pg_temp.chk('admin_ph', 'Mức tiết/tuần: trường không sửa chủ đề theo mức', $q$with x as (update program_topic_levels set periods = 1 returning 1) select count(*) from x$q$, '0');
+select pg_temp.chk('kdi', 'Mức của gói: KDI chọn mức 1 và 2 cho CT2 của gói 2T',
+  $q$with x as (insert into program_package_levels (package_id, track_code, levels) select id, 'CT2', '{2,1,2}' from program_packages where code = '2T' returning levels) select levels::text from x$q$, '{1,2}');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into program_package_levels (package_id, track_code, levels) select id, 'CT2', '{1,2}' from program_packages where code = '2T'$q$, true);
+select pg_temp.chk('admin_ph', 'Mức của gói: trường không sửa mức của gói', $q$with x as (update program_package_levels set levels = '{3}' returning 1) select count(*) from x$q$, '0');
+insert into school_packages (org_id, package_id, school_year, grades, note)
+  select pg_temp.oid_('THCS-PH'), id, '2026-2027', '{6}', 'ISO-LV' from program_packages where code = '2T';
+select pg_temp.chk('admin_ph', 'Mức trường chọn: mặc định mức nhỏ nhất của gói',
+  $q$select count(*) from school_package_topic_list(my_org_id(), '2026-2027') where track_code = 'CT2' and level = 1$q$, '16');
+select pg_temp.chk('admin_ph', 'Mức trường chọn: không chọn mức ngoài gói',
+  $q$select public.school_package_set_level((select id from school_packages where note = 'ISO-LV'), 'CT2', 3)$q$, 'ERR*');
+select pg_temp.chk('admin_kb', 'Mức trường chọn: trường khác không đổi được',
+  $q$select public.school_package_set_level((select id from school_packages where note = 'ISO-LV'), 'CT2', 2)$q$, 'ERR');
+select pg_temp.chk('gv_both', 'Mức trường chọn: giáo viên không đổi được',
+  $q$select public.school_package_set_level((select id from school_packages where note = 'ISO-LV'), 'CT2', 2)$q$, 'ERR');
+select pg_temp.chk('admin_ph', 'Mức trường chọn: trường chọn mức 2 trong gói',
+  $q$select public.school_package_set_level((select id from school_packages where note = 'ISO-LV'), 'CT2', 2)::text$q$, '');
+select pg_temp.probe('admin_ph@iso-test.local', $q$select public.school_package_set_level((select id from school_packages where note = 'ISO-LV'), 'CT2', 2)$q$, true);
+select pg_temp.chk('admin_ph', 'Mức trường chọn: danh sách mức của trường',
+  $q$select levels::text || ',' || level from school_package_track_levels(my_org_id(), '2026-2027') where track_code = 'CT2'$q$, '{1,2},2');
+select pg_temp.chk('admin_ph', 'Mức trường chọn: chủ đề theo mức 2',
+  $q$select count(*) || ',' || sum(periods) from school_package_topic_list(my_org_id(), '2026-2027') where track_code = 'CT2'$q$, '10,30');
+select pg_temp.chk('kdi', 'PPCT chuẩn theo mức: KDI tự chia mức 2 trên 30 tuần',
+  $q$select public.ppct_std_fill((select id from program_packages where code = '2T'), 'CT2', 6, 30, 2)$q$, '10');
+select pg_temp.probe('kdi@iso-test.local', $q$select public.ppct_std_fill((select id from program_packages where code = '2T'), 'CT2', 6, 30, 2)$q$, true);
+select pg_temp.chk('admin_ph', 'PPCT theo mức: PPCT CT2 có 30 tiết mức 2, theo PPCT chuẩn 30 tuần',
+  $q$with r as (select public.ppct_from_package(my_org_id(), '2026-2027') j)
+     select b.topic_level || ',' || b.total_periods || ',' || (select max(week) from curriculum_lessons l where l.book_id = b.id)
+       from r, curriculum_books b where b.org_id = my_org_id() and b.track_code = 'CT2' and b.school_package_id is not null$q$, '2,30,30');
+delete from school_packages where note = 'ISO-LV';
+delete from program_package_levels where track_code = 'CT2';
+delete from ppct_std where level = 2;
+delete from program_topic_levels where level = 2;
+
 -- ===== 151, 152: dữ liệu test CT1 Khối 6, Sáng chế Khối 6 =====
 select pg_temp.chk('kdi', 'Dữ liệu test: CT1 Khối 6 có 16 chủ đề, 32 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 6$q$, '16,32');
 select pg_temp.chk('kdi', 'Dữ liệu test: CT1 Khối 7 có 16 chủ đề, 35 tiết', $q$select count(*) || ',' || sum(t.periods) from program_topics t join program_modules m on m.id = t.module_id where m.track_code = 'CT1' and t.grade = 7$q$, '16,35');

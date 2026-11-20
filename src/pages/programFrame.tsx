@@ -1,6 +1,6 @@
 import React, { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { useStemTracks, SCHEDULE_MODE_NAME, type StemTrack, trackLabel } from '../lib/stemTracks'
+import { useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
 import { fmtGrades, gradeName, useEduLevels } from '../lib/eduLevels'
 import { frameErr, loadFrame, type MaterialGroup, type ProgramModule, type ProgramTopic } from '../lib/programFrame'
 import { PROGRAM_COLOR } from './teacher/common'
@@ -32,7 +32,6 @@ export function ProgramFrame() {
   const { tracks } = useStemTracks()
   const active = tracks.filter(t => t.active !== false)
   const [admin, setAdmin] = useState(false)
-  const [code, setCode] = useState('')
   const [modules, setModules] = useState<ProgramModule[]>([])
   const [topics, setTopics] = useState<ProgramTopic[]>([])
   const [msg, setMsg] = useState('')
@@ -43,7 +42,9 @@ export function ProgramFrame() {
   const [treeSel, setTreeSel] = useState<Record<string, string>>({})
   const reload = () => loadFrame().then(r => { setModules(r.modules); setTopics(r.topics); setMsg(r.error) })
   useEffect(() => { supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)); reload() }, [])
-  const track = code === '*' ? undefined : tracks.find(t => t.code === code) ?? active[0]
+  // Chỉ còn view Tất cả loại CT: loại CT đang làm việc = nhánh gốc đang chọn trên cây
+  const allSel = treeSel['*'] ?? active[0]?.code ?? ''
+  const track = tracks.find(t => t.code === allSel.split('/')[0]) ?? active[0]
   const mods = modules.filter(m => m.track_code === track?.code)
   const topicsOf = (id: string) => topics.filter(t => t.module_id === id).sort((a, b) => a.grade - b.grade || a.seq - b.seq)
   const trackTopics = topics.filter(t => mods.some(m => m.id === t.module_id))
@@ -152,26 +153,18 @@ export function ProgramFrame() {
   }
 
   // ----- Danh sách: cây bên trái (Khối · Học phần › Khối · Loại CT › Học phần › Khối), bảng chủ đề bên phải, vừa một màn hình -----
-  const all = code === '*'
-  const sel = treeSel[all ? '*' : track?.code ?? ''] ?? (all ? active[0]?.code ?? '' : track?.code ?? '')
-  const setSel = (k: string) => setTreeSel({ ...treeSel, [all ? '*' : track?.code ?? '']: k })
+  const all = true
+  const sel = allSel
+  const setSel = (k: string) => setTreeSel({ ...treeSel, '*': k })
   const selGrade = (() => { const m = /\/(\d+)$/.exec(sel); return flat && m ? Number(m[1]) : null })()
   return <>
-    {admin && track && !all && <HeadAction>{flat
+    {admin && track && <HeadAction>{flat
       ? <button type="button" className="primary ttadd" onClick={() => addFlatTopic(selGrade ?? 1)}>+ Thêm chủ đề{selGrade ? ' ' + gradeName(selGrade) : ''}</button>
       : <button type="button" className="primary ttadd"
         onClick={() => setEditMod({ id: '', track_code: track.code, name: '', description: '', periods: null, sort: mods.reduce((x, m) => Math.max(x, m.sort), 0) + 1, active: true })}>+ Thêm học phần</button>}</HeadAction>}
-    <div className="distfilter" role="group" aria-label="Loại chương trình">
-      <button type="button" className={'distfchip' + (all ? ' on' : '')} aria-pressed={all} onClick={() => setCode('*')}>Tất cả loại CT</button>
-      {active.map(t => { const on = !all && t.code === track?.code
-        return <button key={t.code} type="button" className={'distfchip' + (on ? ' on' : '')} aria-pressed={on}
-          onClick={() => setCode(t.code)}>{trackLabel(t.code)} · {t.name}</button> })}
-    </div>
     {msg && <p className="msg" role="status">{msg}</p>}
-    <FrameTree tracks={all ? active : track ? [track] : []} all={all} modules={modules} topics={topics} sel={sel} onSel={setSel}
+    <FrameTree tracks={active} all={all} modules={modules} topics={topics} sel={sel} onSel={setSel}
       onOpenModule={id => { setMsg(''); setOpenId(id) }} onOpen={t => { setMsg(''); setViewId(t.id) }} />
-    {track && !all && <p className="sub framefoot" title="Đổi thiết lập ở Danh mục → Loại chương trình">
-      {flat ? 'Chương trình không chia học phần, chỉ có chủ đề theo khối' : 'Chương trình chia theo học phần'} · {track.school_pick_topics ? 'trường tự chọn chủ đề sẽ dạy' : 'trường học đủ các chủ đề'} · {track.school_arrange_ppct !== false ? 'trường tự xếp PPCT theo tuần' : 'PPCT theo mẫu KDI / Sở'} · {SCHEDULE_MODE_NAME[track.schedule_mode ?? 'timetable']}.</p>}
     {drawer}
   </>
 }

@@ -530,19 +530,12 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
 
   // ===== 1. Chương trình & môn =====
   function Programs() {
-    const usable = pool.filter(p => p.status === 'published' && progGrades(p).includes(plan.grade) && !p.package_id)
-    const unusable = pool.filter(p => !usable.includes(p) && !p.package_id)
-    const why = (p: Prog) => p.status !== 'published' ? 'chưa phát hành' : `dạy ${fmtGrades(progGrades(p), 'khối ')}`
-    const opts: PickOpt[] = [
-      ...usable.map(p => { const subs = avail(p.id); const n = subs.reduce((t, x) => t + x.lessons, 0)
-        return { p, meta: subs.length ? `${subs.map(x => x.name).join(', ')} · ${n} bài` : `chưa có bài cho khối ${plan.grade}`, off: !subs.length } }),
-      ...unusable.map(p => ({ p, meta: why(p), off: true })),
-    ]
+    // Chương trình kiểu cũ (edu_programs) đã ẩn: chỉ thêm từ Gói STEM
     return <section className="distsec2 first">
       <h3><i>1</i>Chương trình & môn <small className="sub">{items.length} chương trình · {onSubjects} môn</small><span className="sp" />
         {editable && <PkgPicker grade={plan.grade} picked={new Set(order)} onPick={addPkg} />}
-        <ProgPicker opts={opts} picked={new Set(order)} onAdd={p => addItem(p)} hint={`Cấp ${levelName(plan.level)}, Khối ${plan.grade}`} /></h3>
-      {!ordered.length ? <p className="sub" style={{ margin: 0 }}>Chưa chọn chương trình. Bấm “+ Thêm từ Gói STEM” hoặc “+ Thêm chương trình” để chọn.</p>
+</h3>
+      {!ordered.length ? <p className="sub" style={{ margin: 0 }}>Chưa chọn chương trình. Bấm “+ Thêm từ Gói STEM” để chọn.</p>
         : <div className="distpcs">{ordered.map((it, k) => {
           const p = progs.get(it.program_id); if (!p) return null
           const subs = avail(p.id), on = subjectsOf(it)

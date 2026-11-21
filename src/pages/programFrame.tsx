@@ -404,6 +404,8 @@ function TopicForm({ t, track, onCancel, onSaved }: { t: TopicDraft; track?: Ste
       <label className="field"><span>Số tiết</span><input type="number" min={0} max={200} value={f.periods} onChange={e => setF({ ...f, periods: Number(e.target.value) })} /></label>
       <label className="field wide"><span>Tên chủ đề *</span><input value={f.title} maxLength={200} onChange={e => setF({ ...f, title: e.target.value })} /></label>
       <label className="field"><span>Môn chủ trì</span><SubjectPicker value={f.main_subject} onChange={v => setF({ ...f, main_subject: v || null })} emptyLabel="— Không —" /></label>
+      <div className="field" style={{ gridColumn: 'span 2' }}><span>Môn phối hợp</span>
+        <SubjectMulti value={f.subjects} onChange={v => setF({ ...f, subjects: v })} exclude={f.main_subject ? [f.main_subject] : []} ariaLabel="Môn phối hợp" /></div>
       {track?.use_modules !== false && <label className="field"><span>Phần</span><select value={f.part ?? ''} onChange={e => setF({ ...f, part: e.target.value ? Number(e.target.value) : null })}>
         <option value="">Dùng chung (cả HP1 và HP2)</option><option value="1">Học phần 1 (HP1)</option><option value="2">Học phần 2 (HP2)</option></select></label>}
       <label className="field"><span>Trạng thái</span><select value={f.active ? 'on' : 'off'} onChange={e => setF({ ...f, active: e.target.value === 'on' })}>
@@ -413,8 +415,6 @@ function TopicForm({ t, track, onCancel, onSaved }: { t: TopicDraft; track?: Ste
       <label className="field wide"><span>Mục tiêu, yêu cầu cần đạt</span><textarea rows={3} value={f.objectives} onChange={e => setF({ ...f, objectives: e.target.value })} /></label>
       <label className="field wide"><span>Sản phẩm</span><input value={f.product ?? ''} maxLength={300} placeholder="VD: Mô hình ngôi nhà mơ ước bằng bìa giấy" onChange={e => setF({ ...f, product: e.target.value })} /></label>
     </div>
-    <div className="field" style={{ marginTop: 12 }}><span className="sub">Môn phối hợp</span>
-      <SubjectMulti value={f.subjects} onChange={v => setF({ ...f, subjects: v })} exclude={f.main_subject ? [f.main_subject] : []} ariaLabel="Môn phối hợp" /></div>
     {err && <p className="warnline">{err}</p>}
     <div className="actions" style={{ marginTop: 12 }}>
       <button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>

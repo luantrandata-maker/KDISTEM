@@ -222,17 +222,17 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onO
   const dash = <small className="sub">—</small>
   const partName = (r: R) => !split.has(r.key) ? '' : r.t.part ? `HP${r.t.part}` : 'Dùng chung'
   const cols: Col<R>[] = [
-    { key: 'seq', label: 'TT', fixed: true, thClass: 'c-no', text: r => String(r.t.seq), cell: r => r.t.seq },
+    { key: 'mod', label: 'Học phần', text: r => isFlat(r.m.track_code) ? '' : r.m.name, cell: r => isFlat(r.m.track_code) ? dash : r.m.name },
+    { key: 'grade', label: 'Khối', text: r => gradeName(r.t.grade), cell: r => gradeName(r.t.grade) },
+    { key: 'part', label: 'Phần', text: partName, cell: r => partName(r) || dash },
+    { key: 'seq', label: 'Thứ tự bài', text: r => String(r.t.seq), cell: r => `Bài ${r.t.seq}` },
     { key: 'title', label: 'Chủ đề', fixed: true, thClass: 'c-ttl', text: r => r.t.title, cell: r => <b>{r.t.title}</b> },
     { key: 'periods', label: 'Số tiết', text: r => String(r.t.periods), cell: r => r.t.periods },
     { key: 'main', label: 'Môn chủ trì', text: r => r.t.main_subject ?? '', cell: r => r.t.main_subject || dash },
     { key: 'subs', label: 'Môn phối hợp', text: r => r.t.subjects.join(', '), values: r => r.t.subjects, cell: r => r.t.subjects.join(', ') || dash },
     { key: 'obj', label: 'Yêu cầu cần đạt', text: r => r.t.objectives, cell: r => <OneLine text={r.t.objectives} /> },
-    { key: 'prod', label: 'Sản phẩm', text: r => r.t.product ?? '', cell: r => <OneLine text={r.t.product ?? ''} /> },
+    { key: 'prod', label: 'Sản phẩm', off: true, text: r => r.t.product ?? '', cell: r => <OneLine text={r.t.product ?? ''} /> },
     { key: 'track', label: 'Loại CT', off: true, text: r => `${trackLabel(r.m.track_code)} · ${trOf(r.m.track_code)?.name ?? ''}`, cell: r => chip(r.m.track_code) },
-    { key: 'mod', label: 'Học phần', text: r => isFlat(r.m.track_code) ? '' : r.m.name, cell: r => isFlat(r.m.track_code) ? dash : r.m.name },
-    { key: 'grade', label: 'Khối', text: r => gradeName(r.t.grade), cell: r => gradeName(r.t.grade) },
-    { key: 'part', label: 'Phần', text: partName, cell: r => partName(r) || dash },
   ]
   const selMod = /^[^/]+\/([0-9a-f-]{36})$/.exec(sel)?.[1]
   const crumb = (() => { const p = sel.split('/'); const out: string[] = []
@@ -241,7 +241,7 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onO
     if (p.length === 3) out.push(modOf.get(p[1])?.name ?? '', gradeName(Number(p[2])))
     if (p.length === 2 && isFlat(p[0])) out.push(gradeName(Number(p[1])))
     return (all ? out : out.slice(p.length > 1 ? 1 : 0)).join(' › ') })()
-  return <div className="fwtree"><DataTable id="frame-topics-flat" pro rows={rows} rowKey={r => r.t.id} cols={cols} noun="chủ đề" onRow={r => onOpen(r.t)}
+  return <div className="fwtree"><DataTable id="frame-topics-v3" pro rows={rows} rowKey={r => r.t.id} cols={cols} noun="chủ đề" onRow={r => onOpen(r.t)}
     className="slt"
     left={<span className="fwcap"><b>{crumb}</b> <span style={MUTED}>· {tiet(rows)} tiết</span>
       {selMod && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={() => onOpenModule(selMod)}>Mở học phần ›</button>}</span>}
@@ -323,7 +323,7 @@ function TopicTable({ list, track, admin, showGrade, weeks, hidePart, onOpen, on
   for (const t of list) { const n = Math.max(1, t.periods || 1); wk.set(t.id, n > 1 ? `${at}–${at + n - 1}` : String(at)); at += n }
   const dash = <small className="sub">—</small>
   const cols: Col<ProgramTopic>[] = [
-    { key: 'seq', label: weeks ? 'Tuần' : 'TT', fixed: true, thClass: 'c-no', text: t => weeks ? wk.get(t.id) ?? '' : String(t.seq),
+    { key: 'seq', label: weeks ? 'Tuần' : 'Thứ tự bài', fixed: true, thClass: 'c-no', text: t => weeks ? wk.get(t.id) ?? '' : String(t.seq),
       cell: t => <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2, whiteSpace: 'nowrap' }}>{admin && onMove && dnd.handle(t.id, t.title)}{weeks ? wk.get(t.id) : t.seq}</span> },
     ...(showGrade ? [{ key: 'g', label: 'Khối', text: (t: ProgramTopic) => gradeName(t.grade), values: (t: ProgramTopic) => [gradeName(t.grade)], cell: (t: ProgramTopic) => gradeName(t.grade) }] : []),
     { key: 'code', label: 'Mã', off: true, text: t => t.code ?? '', cell: t => t.code || dash },

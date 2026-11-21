@@ -260,7 +260,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
           {sideHead && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key} className={[selOn && c === lead ? 'c-leadsel' : '', stick(c) ? 'c-stick' : ''].filter(Boolean).join(' ') || undefined}>
             {inSel && c === lead && <span className="tselbox">{head!.td(r)}</span>}
             {bulk && c === lead && <span className="tselbox"><input type="checkbox" checked={picked.has(rowKey(r))} onChange={() => { flipRow(r); lastIdx.current = i }} aria-label="Chọn dòng" /></span>}
-            <div className="tdc">{c.cell(r)}</div></td>)}
+            <div className="tdc" title={c.text?.(r) || undefined}>{c.cell(r)}</div></td>)}
           {rowMenu && <td className="c-menu"><RowMenu items={rowMenu(r)} label={String(lead?.text?.(r) ?? '')} /></td>}</tr></Fragment>
         : <tr key={rowKey(r)} className={onRow ? 'clickrow' : undefined} onClick={onRow && (() => onRow(r))} {...rowProps?.(r)}>{head && <td>{head.td(r)}</td>}{shownCols.map(c => <td key={c.key}><div className="tdc">{c.cell(r)}</div></td>)}
           {rowMenu && <td className="c-menu"><RowMenu items={rowMenu(r)} label={String(lead?.text?.(r) ?? '')} /></td>}</tr>)}

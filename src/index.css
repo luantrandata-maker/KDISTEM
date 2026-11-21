@@ -3822,3 +3822,9 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .fwtree .gtree{max-height:none;position:static;overflow:visible}
 .fwtree .fwcap{border:0;padding:0 4px;background:none;white-space:nowrap}
 .main .fwtree .ttable>tbody>tr.fwgrp>td{height:auto;padding-top:9px;padding-bottom:9px;color:var(--text);cursor:default}
+
+/* Phân hệ 1 (Chương trình & học liệu): mọi bảng 1 dòng, chữ dài cắt "…" (rê chuột xem đủ), trừ khi người dùng bật "Thu gọn cột" */
+.main[data-ph="1"] .ttable:not(.ttfit) th{white-space:nowrap}
+.main[data-ph="1"] .ttable:not(.ttfit) .tdc:not(:has(input,select,textarea,[aria-expanded],details,.slact,.slopen)){display:block;-webkit-line-clamp:unset;line-clamp:unset;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px;max-height:none}
+.main[data-ph="1"] .ttable:not(.ttfit) .tdc *{white-space:nowrap}
+.main[data-ph="1"] .ttable:not(.ttfit) .tdc :is(div,p){display:inline}

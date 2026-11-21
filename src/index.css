@@ -3828,3 +3828,4 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main[data-ph="1"] .ttable:not(.ttfit) .tdc:not(:has(input,select,textarea,[aria-expanded],details,.slact,.slopen)){display:block;-webkit-line-clamp:unset;line-clamp:unset;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px;max-height:none}
 .main[data-ph="1"] .ttable:not(.ttfit) .tdc *{white-space:nowrap}
 .main[data-ph="1"] .ttable:not(.ttfit) .tdc :is(div,p){display:inline}
+.main[data-ph="1"] .ttable:not(.ttfit)>tbody>tr>td{height:42px;padding-top:8px;padding-bottom:8px}

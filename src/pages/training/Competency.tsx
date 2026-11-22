@@ -447,9 +447,10 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
     })()}
     {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
     {names && <LevelNames keys={[audience === 'teacher' ? 'comp_level_teacher' : 'comp_level_student']} />}
-    <DataTable id={'comp-framework-' + audience} rows={list} rowKey={c => c.key} cols={[
-      { key: 'name', label: 'Năng lực', fixed: true, text: c => `${c.name} ${c.key}`, cell: c => <><button type="button" className="namelink" onClick={() => { setMsg(null); setView(c) }}>{c.name}</button>
-        <br /><small className="sub">{c.key}</small>{c.description && <><br /><small>{c.description}</small></>}</> },
+    <DataTable id={'comp-framework-v2-' + audience} rows={list} rowKey={c => c.key} cols={[
+      { key: 'name', label: 'Năng lực', fixed: true, text: c => `${c.name} ${c.key}`, cell: c => <><button type="button" className="namelink" onClick={() => { setMsg(null); setView(c) }}>{c.name}</button></> },
+      { key: 'code', label: 'Mã', text: c => c.key, cell: c => <small className="sub">{c.key}</small> },
+      { key: 'desc', label: 'Mô tả', off: true, text: c => c.description ?? '', cell: c => <small>{c.description}</small> },
       { key: 'grp', label: 'Nhóm', text: c => c.grp, cell: c => <small>{c.grp}</small> },
       ...A.levels.map((_, i) => ({ key: 'lv' + i, label: lvLabel(i), text: (c: Comp) => c.levels[i] ?? '', cell: (c: Comp) => <small>{c.levels[i]}</small> })),
     ] as Col<Comp>[]}

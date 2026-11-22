@@ -3828,7 +3828,7 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main[data-ph="1"] .ttable:not(.ttfit) .tdc:not(:has(input,select,textarea,[aria-expanded],details,.slact,.slopen)){display:block;-webkit-line-clamp:unset;line-clamp:unset;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px;max-height:none}
 .main[data-ph="1"] .ttable:not(.ttfit) .tdc *{white-space:nowrap}
 .main[data-ph="1"] .ttable:not(.ttfit) .tdc :is(div,p){display:inline}
-.main[data-ph="1"] .ttable:not(.ttfit)>tbody>tr>td{height:42px;padding-top:8px;padding-bottom:8px}
+.main[data-ph="1"] .ttable:not(.ttfit)>tbody>tr>td{height:36px;padding-top:6px;padding-bottom:6px}
 /* Chi tiết chủ đề: 6 nội dung dạng tab gạch chân, mỗi mục 1 dòng gọn */
 .tctabs{display:flex;align-items:flex-end;gap:12px;border-bottom:1px solid var(--line,#e2e8f0);margin-bottom:10px;flex-wrap:wrap}
 .tctablist{display:flex;gap:20px;flex:1;min-width:0;overflow-x:auto}
@@ -3847,3 +3847,24 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 /* Phân hệ 1: bảng thường (không pro) cũng 1 dòng mỗi hàng */
 .main[data-ph="1"] .ttable:not(.ttfit)>tbody>tr>td:not(:has(input,select,textarea,details,.tdc)){white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px}
 .main[data-ph="1"] .ttable:not(.ttfit)>tbody>tr>td:not(:has(.tdc)) br{display:none}
+/* Phân hệ 1 luôn gọn nhưng vẫn giữ chữ nhỏ (mã, dấu —, học phần) trong ô */
+.main[data-ph="1"] .ttdense td :is(.sub,small){display:inline!important}
+/* Khung chương trình: kiểu xem Tổng hợp theo khối */
+.main .frmode{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-left:6px}
+.main .frmode>button{border:0;border-radius:0;height:34px;padding:0 12px;background:var(--surface);color:var(--text);font-weight:500;white-space:nowrap;margin:0}
+.main .frmode>button+button{border-left:1px solid var(--line)}
+.main .frmode>button.on{background:var(--primary,#1d4ed8);color:#fff}
+.main .frgrid{border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+.main .frgridbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.main .frgridwrap{overflow:auto;max-height:calc(100vh - 260px)}
+.main .frgridtbl{width:100%;border-collapse:collapse}
+.main .frgridtbl th{position:sticky;top:0;background:var(--soft,#f8fafc);z-index:1;white-space:nowrap}
+.main .frgridtbl td,.main .frgridtbl th{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+.main .frgridtbl tr.frgrp>td{background:var(--soft,#f1f5f9)}
+.main .frcell{min-width:58px;border:1px solid color-mix(in srgb,var(--k) 30%,transparent);background:color-mix(in srgb,var(--k) 12%,var(--surface,#fff));color:inherit;border-radius:6px;padding:2px 6px;line-height:1.15;cursor:pointer;display:inline-flex;flex-direction:column;align-items:center}
+.main .frcell small{font-size:10px;opacity:.75}
+.main .frcell:hover{outline:2px solid var(--k)}
+/* Gói STEM mới: hướng dẫn thêm nội dung */
+.main .pkgguide{margin:4px 0 12px;padding:14px;border:1px dashed #93c5fd;border-radius:10px;background:color-mix(in srgb,#2563eb 4%,var(--surface,#fff))}
+.main .pkgguide ol{margin:8px 0 12px;padding-left:20px}
+.main .pkgguidecards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}

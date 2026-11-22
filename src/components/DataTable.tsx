@@ -38,7 +38,7 @@ const valsOf = <T,>(c: Col<T>, r: T) => { const v = (c.values ? c.values(r) : [c
 const foldVi = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
 
 /** Ô lọc một cột: bấm mở danh sách giá trị có ô tìm, tick chọn nhiều */
-function ColFilter({ label, options, value, onChange, pin }: { label: string; options: [string, number][]; value: string[]; onChange: (v: string[]) => void; pin?: boolean }) {
+export function ColFilter({ label, options, value, onChange, pin }: { label: string; options: [string, number][]; value: string[]; onChange: (v: string[]) => void; pin?: boolean }) {
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const [q, setQ] = useState('')
   const box = useRef<HTMLDivElement>(null), btn = useRef<HTMLButtonElement>(null)
@@ -235,7 +235,10 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
 
   const lead = shownCols.find(c => !/c-no|c-sel/.test(c.thClass ?? '') && c.key !== 'no')
   // Đã kéo độ rộng mọi cột đang hiện: dùng bố cục cố định theo đúng độ rộng đã kéo
-  const fixedW = !view.fit && shownCols.length > 0 && shownCols.every(c => view.widths[c.key])
+  // Phân hệ 1: bảng luôn gọn (dòng thấp, 1 dòng), bỏ 2 nút thu gọn cột / dòng
+  const ph1 = typeof document !== 'undefined' && document.querySelector('main.main')?.getAttribute('data-ph') === '1'
+  const vfit = view.fit && !ph1, vdense = !!view.dense || ph1
+  const fixedW = !vfit && shownCols.length > 0 && shownCols.every(c => view.widths[c.key])
     ? shownCols.reduce((a, c) => a + view.widths[c.key], 0) + (head && !(pro && !bulk && lead) ? 36 : 0) + (rowMenu ? 48 : 0) : 0
   // Cột đầu (tên) đứng yên khi cuộn ngang
   const stick = (c: Col<T>) => !!pro && c === lead && c === shownCols[0]
@@ -243,7 +246,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   const inSel = !!(pro && head && !bulk && lead)
   const sideHead = head && !inSel
   const selOn = bulk || inSel
-  const tbl0 = <div className="wrap"><table className={`libtable ttable${view.fit && !simple ? ' ttfit' : ''}${pro && view.dense ? ' ttdense' : ''}${selOn ? ' ttsel' + (selRows.length ? ' ttselon' : '') : ''}${fixedW ? ' ttfixed' : ''}${className ? ' ' + className : ''}`} style={fixedW ? { width: fixedW } : undefined}>
+  const tbl0 = <div className="wrap"><table className={`libtable ttable${vfit && !simple ? ' ttfit' : ''}${pro && vdense ? ' ttdense' : ''}${selOn ? ' ttsel' + (selRows.length ? ' ttselon' : '') : ''}${fixedW ? ' ttfixed' : ''}${className ? ' ' + className : ''}`} style={fixedW ? { width: fixedW } : undefined}>
       <colgroup>{sideHead && <col style={{ width: 36 }} />}{shownCols.map(c => <col key={c.key} style={view.widths[c.key] ? { width: view.widths[c.key] } : undefined} />)}{rowMenu && <col style={{ width: 48 }} />}</colgroup>
       <thead>
         <tr>{sideHead && <th className="c-sel">{head.th}</th>}{shownCols.map(c => <th key={c.key} className={[c.thClass, c === lead ? 'c-lead' : '', stick(c) ? 'c-stick' : ''].filter(Boolean).join(' ') || undefined}
@@ -289,7 +292,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   if (pro) {
     const byLabel = by ? cols.find(c => c.key === by)?.label ?? 'Tất cả' : 'Tất cả'
     const ico = (d: string) => <svg className="ticon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
-    return <div className={'tt ttpro' + (view.dense ? ' dense' : '')}>
+    return <div className={'tt ttpro' + (vdense ? ' dense' : '')}>
       {!noTools && <div className="tttools ttprotools" ref={toolsRef}>
         {!ownSearch && <div className="tsrch">
           <label className="tsin">{ico('M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-3.5-3.5')}<input type="search" placeholder="Tìm trong bảng" aria-label="Tìm trong bảng" value={q} onChange={e => setQ(e.target.value)} /></label>
@@ -303,8 +306,8 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
         {saved.length > 0 && <button type="button" className="tdd" aria-expanded={pop?.k === 'saved'} onClick={e => setPop(pop?.k === 'saved' ? null : { k: 'saved', el: e.currentTarget })}>Bộ lọc đã lưu <span className="ttbadge">{saved.length}</span><span className="tcar" aria-hidden="true" /></button>}
         <div className="ticons" role="group" aria-label="Tuỳ chỉnh bảng">
           <button type="button" className={'tsq' + (view.sort ? ' on' : '')} title="Sắp xếp" aria-label="Sắp xếp" aria-expanded={pop?.k === 'sort'} onClick={e => setPop(pop?.k === 'sort' ? null : { k: 'sort', el: e.currentTarget })}>{ico(IC.sort)}</button>
-          <button type="button" className={'tsq' + (view.fit ? ' on' : '')} aria-pressed={view.fit} title={view.fit ? 'Bỏ thu gọn cột' : 'Thu gọn cột cho vừa màn hình'} aria-label="Thu gọn cột" onClick={() => setView(v => ({ ...v, fit: !v.fit }))}>{ico(IC.fitc)}</button>
-          <button type="button" className={'tsq' + (view.dense ? ' on' : '')} aria-pressed={!!view.dense} title={view.dense ? 'Mở rộng dòng' : 'Thu gọn dòng'} aria-label="Thu gọn dòng" onClick={() => setView(v => ({ ...v, dense: !v.dense }))}>{ico(IC.dense)}</button>
+          {!ph1 && <button type="button" className={'tsq' + (view.fit ? ' on' : '')} aria-pressed={view.fit} title={view.fit ? 'Bỏ thu gọn cột' : 'Thu gọn cột cho vừa màn hình'} aria-label="Thu gọn cột" onClick={() => setView(v => ({ ...v, fit: !v.fit }))}>{ico(IC.fitc)}</button>}
+          {!ph1 && <button type="button" className={'tsq' + (view.dense ? ' on' : '')} aria-pressed={!!view.dense} title={view.dense ? 'Mở rộng dòng' : 'Thu gọn dòng'} aria-label="Thu gọn dòng" onClick={() => setView(v => ({ ...v, dense: !v.dense }))}>{ico(IC.dense)}</button>}
           {colsMenu(true)}
         </div>
         {right}
@@ -357,7 +360,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
       {!simple && <button type="button" className={filterOn ? 'on' : ''} aria-pressed={filterOn} onClick={() => { setFilterOn(!filterOn); if (filterOn) setFlt({}) }}
         title={filterOn ? 'Ẩn ô lọc dưới tiêu đề cột' : 'Hiện ô lọc dưới tiêu đề từng cột'}><TIcon d={IC.filter} />Lọc{active.length > 0 && <span className="ttbadge">{active.length}</span>}</button>}
       {colsMenu(false)}
-      {!simple && <button type="button" className={view.fit ? 'on' : ''} aria-pressed={view.fit} onClick={() => setView(v => ({ ...v, fit: !v.fit }))}
+      {!simple && !ph1 && <button type="button" className={view.fit ? 'on' : ''} aria-pressed={view.fit} onClick={() => setView(v => ({ ...v, fit: !v.fit }))}
         title="Thu bảng vừa chiều ngang màn hình, chữ dài tự xuống dòng"><TIcon d={IC.fit} />Thu gọn</button>}
       </div>
       {right}

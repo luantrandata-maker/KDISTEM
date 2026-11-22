@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchAll, supabase } from '../lib/supabase'
-import { useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
+import { useStemTracks, type StemTrack, trackLabel, TRACK_COLOR } from '../lib/stemTracks'
 import { gradeName } from '../lib/eduLevels'
 import { loadFrame, loadPackages, slotTopics, type PackageItem, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
 import { ALL_GRADES, currentYear, fmtDay, gradesOfLevel, kRange, loadSchoolPkgs, shiftYear, spErr, spState, todayIso, yearLabel, type PkgSkip, type SchoolPkgRow } from '../lib/schoolPackages'
@@ -160,28 +160,45 @@ export function SchoolPackages() {
               <button type="button" onClick={() => unassign(r)}>Bỏ gán</button></div>}
           </section> })}
       </div>
-      {grades.length > 0 && <div className="tablewrap">
+      {grades.length > 0 && (() => {
+        // Mỗi loại CT có học phần tách thành cột con HP1, HP2…; ẩn loại CT không có trong gói của trường
+        const scopes = new Map(grades.flatMap(g => { const r = spAt(g)!; const skip = skipSetOf(r, skips)
+          return tracks.map(t => [t.code + '|' + g, scopeAt(ctx, r.package_id!, t, g, skip)] as const) }))
+        const sc = (t: StemTrack, g: number) => scopes.get(t.code + '|' + g)!
+        const shownT = tracks.filter(t => grades.some(g => sc(t, g).slots.length))
+        const nSl = (t: StemTrack) => t.use_modules === false ? 0 : Math.max(0, ...grades.flatMap(g => sc(t, g).slots.map(x => x.slot)))
+        const modP = (id: string, s: ReturnType<typeof sc>) => ctx.modules.find(x => x.id === id)?.periods ?? s.topics.filter(x => x.topic.module_id === id).reduce((a, x) => a + (x.topic.periods || 0), 0)
+        const tiet = (g: number) => shownT.reduce((a, t) => { const s = sc(t, g)
+          return a + (s.mods ? s.slots.filter(x => x.on).reduce((b, x) => b + modP(x.module_id, s), 0) : s.topics.filter(x => x.on).reduce((b, x) => b + (x.topic.periods || 0), 0)) }, 0)
+        const two = shownT.some(t => nSl(t) > 0)
+        const rs = two ? 2 : 1
+        return <div className="tablewrap">
         <table className="table cmplined">
-          <thead><tr><th style={{ width: 70 }}>Khối</th>{live.length > 1 && <th style={{ width: 110 }}>Gói</th>}{tracks.map(t => <th key={t.code}>{trackHead(t)}</th>)}</tr></thead>
-          <tbody>{grades.map(g => { const r = spAt(g)!; const skip = skipSetOf(r, skips)
+          <thead><tr><th rowSpan={rs} style={{ width: 70 }}>Khối</th>{live.length > 1 && <th rowSpan={rs} style={{ width: 110 }}>Gói</th>}
+            {shownT.map(t => nSl(t) > 0
+              ? <th key={t.code} colSpan={nSl(t)} style={{ textAlign: 'center', borderTop: `3px solid ${TRACK_COLOR[t.code]}` }}>{trackHead(t)}</th>
+              : <th key={t.code} rowSpan={rs} style={{ borderTop: `3px solid ${TRACK_COLOR[t.code]}` }}>{trackHead(t)}</th>)}
+            <th rowSpan={rs} style={{ width: 90 }}>Tiết / năm</th></tr>
+            {two && <tr>{shownT.flatMap(t => Array.from({ length: nSl(t) }, (_, i) => <th key={t.code + i}>HP{i + 1}</th>))}</tr>}</thead>
+          <tbody>{grades.map(g => { const r = spAt(g)!
             return <tr key={g} style={live.length > 1 ? { boxShadow: `inset 3px 0 0 ${pkgColor(r.package_id)}` } : undefined}><td><b>K{g}</b></td>
             {live.length > 1 && <td><Pk id={r.package_id} /></td>}
-            {tracks.map(t => {
-            const s = scopeAt(ctx, r.package_id!, t, g, skip)
+            {shownT.flatMap(t => {
+            const s = sc(t, g)
             const open = () => setView({ t: t.code, g })
-            if (!s.slots.length) return <td key={t.code}><span className="sub">—</span></td>
             if (!s.mods) {
+              if (!s.slots.length) return [<td key={t.code}><span className="sub">—</span></td>]
               const on = s.topics.filter(x => x.on).length
               const allOff = s.slots.every(x => !x.on)
-              return <td key={t.code}><button type="button" className="cellbtn" onClick={open} title="Xem chủ đề">
+              return [<td key={t.code}><button type="button" className="cellbtn" onClick={open} title="Xem chủ đề">
                 {allOff ? <span style={OFF}>Không áp dụng</span> : !s.topics.length ? <span className="sub">Có trong gói, chưa nhập chủ đề</span>
-                  : on === s.topics.length ? <>Đủ {on} chủ đề</> : <><b>{on}</b>/{s.topics.length} chủ đề</>}</button></td>
+                  : on === s.topics.length ? <>Đủ {on} chủ đề</> : <><b>{on}</b>/{s.topics.length} chủ đề</>}</button></td>]
             }
-            return <td key={t.code}><div style={{ display: 'grid', gap: 2 }}>{s.slots.map(x => <button key={x.slot} type="button" className="cellbtn" style={x.on ? undefined : OFF}
-              onClick={open} title="Xem học phần và chủ đề">HP{x.slot} {modName(x.module_id)}</button>)}</div></td>
-          })}</tr> })}</tbody>
+            return Array.from({ length: nSl(t) }, (_, i) => { const x = s.slots.find(y => y.slot === i + 1)
+              return <td key={t.code + i}>{x ? <button type="button" className="cellbtn" style={x.on ? undefined : OFF} onClick={open} title="Xem học phần và chủ đề">{modName(x.module_id)}</button> : <span className="sub">—</span>}</td> })
+          })}<td>{tiet(g) || <span className="sub">—</span>}</td></tr> })}</tbody>
         </table>
-      </div>}
+      </div> })()}
       <p className="sub framefoot">{live.length > 1 ? 'Mỗi khối dùng một gói. ' : ''}Phần gạch ngang có trong gói nhưng trường không áp dụng. Bấm vào ô để xem chủ đề.</p>
       {hist && <>
         <h4 style={{ margin: '16px 0 6px' }}>Lịch sử gói của trường</h4>

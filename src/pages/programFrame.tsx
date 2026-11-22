@@ -180,6 +180,11 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onO
   onOpenModule: (id: string) => void; onOpen: (t: ProgramTopic) => void
 }) {
   const [open, setOpen] = useState<Record<string, boolean>>({})
+  const [mode, setModeS] = useState<'list' | 'grid'>(() => { try { return localStorage.getItem('frame-mode') === 'grid' ? 'grid' : 'list' } catch { return 'list' } })
+  const setMode = (m: 'list' | 'grid') => { setModeS(m); try { localStorage.setItem('frame-mode', m) } catch { /* bỏ qua */ } }
+  const modeSw = <div className="seg frmode" role="group" aria-label="Kiểu xem">
+    <button type="button" className={mode === 'list' ? 'on' : ''} aria-pressed={mode === 'list'} onClick={() => setMode('list')}>☰ Danh sách</button>
+    <button type="button" className={mode === 'grid' ? 'on' : ''} aria-pressed={mode === 'grid'} onClick={() => setMode('grid')}>▦ Tổng hợp theo khối</button></div>
   const modOf = useMemo(() => new Map(modules.map(m => [m.id, m])), [modules])
   const trOf = (code?: string) => tracks.find(t => t.code === code)
   const isFlat = (code?: string) => trOf(code)?.use_modules === false
@@ -241,7 +246,30 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onO
     if (p.length === 3) out.push(modOf.get(p[1])?.name ?? '', gradeName(Number(p[2])))
     if (p.length === 2 && isFlat(p[0])) out.push(gradeName(Number(p[1])))
     return (all ? out : out.slice(p.length > 1 ? 1 : 0)).join(' › ') })()
-  return <div className="fwtree"><DataTable id="frame-topics-v4" pro rows={rows} rowKey={r => r.t.id} cols={cols} noun="chủ đề" onRow={r => onOpen(r.t)}
+  if (mode === 'grid') {
+    // Tổng hợp theo khối: mỗi cột một khối, mỗi hàng một học phần (loại chỉ có chủ đề: một hàng); ô = số chủ đề · số tiết, bấm để xem danh sách
+    const gs = [...new Set(ts.map(r => r.t.grade))].sort((a, b) => a - b)
+    const pick = (k: string) => { onSel(k); setOpen(o => ({ ...o, [k.split('/')[0]]: true, [k.split('/').slice(0, 2).join('/')]: true })); setMode('list') }
+    const cellOf = (l: typeof ts, k: (g: number) => string, c: string) => gs.map(g => { const x = l.filter(r => r.t.grade === g)
+      return <td key={g} style={{ textAlign: 'center' }}>{x.length ? <button type="button" className="frcell" style={{ '--k': c } as React.CSSProperties} title={`Xem ${x.length} chủ đề`} onClick={() => pick(k(g))}>
+        <b>{x.length}</b><small>{tiet(x)} tiết</small></button> : null}</td> })
+    return <div className="frgrid">
+      <div className="frgridbar"><span className="fwcap"><b>Tổng hợp theo khối</b> <span style={MUTED}>· bấm một ô để xem danh sách chủ đề</span></span><span style={{ flex: 1 }} />{modeSw}</div>
+      <div className="frgridwrap"><table className="slt frgridtbl">
+        <thead><tr><th>Học phần</th>{gs.map(g => <th key={g} style={{ textAlign: 'center' }}>K{g}</th>)}<th style={{ textAlign: 'center' }}>Tổng</th></tr></thead>
+        <tbody>{tracks.map(tr => { const l = ts.filter(r => r.m.track_code === tr.code); const c = PROGRAM_COLOR[tr.code] ?? '#64748b'
+          const mods = modules.filter(m => m.track_code === tr.code && m.active !== false).sort((a, b) => a.sort - b.sort)
+          return <Fragment key={tr.code}>
+            <tr className="frgrp"><td colSpan={gs.length + 2}>{chip(tr.code)} <b>{tr.name}</b> <small className="sub">· {tr.use_modules === false ? 'chỉ có chủ đề' : `${mods.length} học phần`} · {tiet(l)} tiết</small></td></tr>
+            {tr.use_modules === false
+              ? <tr><td>Chủ đề theo khối</td>{cellOf(l, g => `${tr.code}/${g}`, c)}<td style={{ textAlign: 'center' }}><b>{l.length}</b></td></tr>
+              : mods.map(m => { const x = l.filter(r => r.m.id === m.id)
+                return <tr key={m.id}><td>{x.length ? <b>{m.name}</b> : m.name}</td>{x.length ? cellOf(x, g => `${tr.code}/${m.id}/${g}`, c)
+                  : <td colSpan={gs.length} className="sub" style={{ textAlign: 'center' }}>chưa có chủ đề</td>}<td style={{ textAlign: 'center' }}><b>{x.length}</b></td></tr> })}
+          </Fragment> })}</tbody></table></div>
+    </div>
+  }
+  return <div className="fwtree"><DataTable id="frame-topics-v4" right={modeSw} pro rows={rows} rowKey={r => r.t.id} cols={cols} noun="chủ đề" onRow={r => onOpen(r.t)}
     className="slt"
     left={<span className="fwcap"><b>{crumb}</b> <span style={MUTED}>· {tiet(rows)} tiết</span>
       {selMod && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={() => onOpenModule(selMod)}>Mở học phần ›</button>}</span>}

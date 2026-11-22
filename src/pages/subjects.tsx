@@ -112,22 +112,21 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
 
   const subjCols = (mine: boolean): Col<Subject>[] => [
     { key: 'name', label: 'Môn học', fixed: true, values: s => [s.name], text: s => [s.code, s.name, s.description].join(' '),
-      cell: s => <>{s.code && <small className="sub">{s.code}<br /></small>}<button type="button" className="namelink" onClick={() => { setVtab('info'); setMsg(null); setView(s) }}><b>{s.name}</b></button>{!s.active && <> <span className="pill">Ngừng dùng</span></>}
-        {s.description && <><br /><small className="sub">{s.description}</small></>}</> },
+      cell: s => <><button type="button" className="namelink" onClick={() => { setVtab('info'); setMsg(null); setView(s) }}><b>{s.name}</b></button>{!s.active && <> <span className="pill">Ngừng dùng</span></>}</> },
     { key: 'domain', label: 'Lĩnh vực', text: s => s.domain ?? '', cell: s => s.domain ?? '—' },
     { key: 'levels', label: 'Cấp học', values: s => s.levels.length ? s.levels.map(levelName) : ['Tất cả cấp'], text: s => s.levels.map(levelName).join(', ') || 'Tất cả cấp',
       cell: s => s.levels.length ? s.levels.map(levelName).join(', ') : <small className="sub">Tất cả cấp</small> },
-    { key: 'code', label: 'Mã môn', off: true, text: s => s.code ?? '', cell: s => s.code || <small className="sub">—</small> },
+    { key: 'code', label: 'Mã môn', text: s => s.code ?? '', cell: s => s.code || <small className="sub">—</small> },
     { key: 'desc', label: 'Mô tả', off: true, text: s => s.description ?? '', cell: s => s.description ? <small>{s.description}</small> : <small className="sub">—</small> },
     { key: 'active', label: 'Trạng thái', off: true, text: s => s.active ? 'Đang dùng' : 'Ngừng dùng', cell: s => s.active ? 'Đang dùng' : <span className="pill">Ngừng dùng</span> },
     { key: 'ct', label: 'Loại chương trình', values: s => s.ct_codes, text: s => s.ct_codes.join(' '),
       cell: s => s.ct_codes.map(c => <span key={c} className="progchip" style={{ background: TRACK_COLOR[c], color: '#fff', marginRight: 4 }}>{trackLabel(c)}</span>) },
     { key: 'scope', label: mine ? 'Phạm vi' : 'Đơn vị', text: s => mine ? (s.scope === 'children' ? 'Dùng chung cho đơn vị trực thuộc' : 'Chỉ đơn vị mình') + ' ' + (s.owner_name ?? '') : s.owner_name ?? '',
       cell: s => <>{mine ? (s.scope === 'children' ? 'Dùng chung cho đơn vị trực thuộc' : 'Chỉ đơn vị mình') : <small className="sub">{s.owner_name ?? '—'}</small>}
-        {mine && every && <><br /><small className="sub">{s.owner_name ?? '—'}</small></>}</> },
+        {mine && every && <small className="sub"> · {s.owner_name ?? '—'}</small>}</> },
   ]
   const table = (rows: Subject[], mine: boolean, empty: ReactNode, left?: ReactNode, right?: ReactNode) => (
-    <DataTable fit id={mine ? 'subjects' : 'subjects-shared'} rows={rows} rowKey={s => s.id} cols={subjCols(mine)} empty={empty} left={left} right={right} />
+    <DataTable fit id={mine ? 'subjects-v2' : 'subjects-shared-v2'} rows={rows} rowKey={s => s.id} cols={subjCols(mine)} empty={empty} left={left} right={right} />
   )
   const domains = [...new Set(subjects.map(s => s.domain).filter(Boolean) as string[])].sort((a, b) => a.localeCompare(b, 'vi'))
 

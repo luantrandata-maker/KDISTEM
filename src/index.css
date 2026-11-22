@@ -3844,3 +3844,6 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .tcmain>*{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tcdetail{margin:6px 0 0 44px;white-space:pre-wrap}
 .tcbody{margin-top:8px}
+/* Phân hệ 1: bảng thường (không pro) cũng 1 dòng mỗi hàng */
+.main[data-ph="1"] .ttable:not(.ttfit)>tbody>tr>td:not(:has(input,select,textarea,details,.tdc)){white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px}
+.main[data-ph="1"] .ttable:not(.ttfit)>tbody>tr>td:not(:has(.tdc)) br{display:none}

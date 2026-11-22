@@ -215,6 +215,12 @@ function PackageDetail({ pkg, others, tracks, admin, items, modules, topics, msg
         {tracks.filter(t => !tf.length || tf.includes(t.code)).map((t, ti) => { const c = PROGRAM_COLOR[t.code] ?? 'var(--line)'
           const band = ti % 2 ? ' alt' : ''
           const slots = t.use_modules === false ? [0] : slotsOf(t.code, [pkg.id])
+          // Loại CT chưa có trong gói: một ô trải hết các khối, có nút thêm ngay tại đây
+          if (!mine.some(i => i.track_code === t.code)) return [
+            <div key={t.code} className={'lb grp' + band} style={{ boxShadow: `inset 4px 0 0 ${c}` }}>{chip(t.code)}<b>{t.name}</b></div>,
+            <div key={t.code + '-none'} className={'hpl grp' + band} style={{ gridColumn: `span ${allGrades.length + 1}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span className="sub">Chưa có trong gói{inGrades.length < 12 ? ' (ở khối đang lọc)' : ''}</span>
+              {admin && <button type="button" onClick={() => addTrack(t)}>+ Thêm vào gói</button>}</div>]
           return [
           <div key={t.code} className={'lb grp' + band} style={{ boxShadow: `inset 4px 0 0 ${c}`, gridRow: `span ${slots.length || 1}` }}>
             {chip(t.code)}<b>{t.name}</b></div>,

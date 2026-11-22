@@ -3876,3 +3876,17 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .pkfchk.on{border-color:var(--primary,#2563eb);background:color-mix(in srgb,var(--primary,#2563eb) 8%,var(--surface,#fff))}
 .main .pkfchk.off{opacity:.45;cursor:not-allowed}
 .main .pkfchk input{margin:0}
+
+/* Sửa gói: chọn chủ đề cho loại CT chỉ có chủ đề (168) */
+.pkfcur td { background: #eff6ff; }
+.pkfwarn { color: #b45309; font-weight: 600; }
+.pkfpick { font-size: 12.5px; padding: 3px 10px; border-radius: 6px; }
+.pkfpick.on { border-color: #2563eb; color: #1d4ed8; background: #eff6ff; }
+.pkfbar { display: flex; align-items: center; gap: 8px; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--line, #e2e8f0); }
+.pkfbar button { font-size: 12.5px; padding: 3px 10px; }
+.pkftopics { display: flex; flex-direction: column; gap: 6px; }
+.pkftp { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--line, #e2e8f0); border-radius: 8px; cursor: pointer; font-size: 13.5px; }
+.pkftp.on { border-color: #bfdbfe; background: #f8fbff; }
+.pkftp:not(.on) .pkfname { color: #94a3b8; text-decoration: line-through; }
+.pkfseq { width: 22px; text-align: right; }
+.pkfname { flex: 1; }

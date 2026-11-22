@@ -4081,6 +4081,15 @@ select pg_temp.probe('kdi@iso-test.local', $q$select dist_plan_assign((select id
 select pg_temp.chk('admin_ph', 'PP gói 166: PPCT từ bản phân phối có tuần, mọi tiết gắn chủ đề', $q$select count(*) || ',' || count(l.program_topic_id) || ',' || min(l.week) || ',' || max(l.week) || ',' || min(l.kind) from curriculum_lessons l join curriculum_books b on b.id = l.book_id join dist_plans d on d.id = b.dist_plan_id where d.title = 'ISO bản phối gói' and b.org_id = my_org_id()$q$, '48,48,1,17,stem');
 delete from curriculum_books where dist_plan_id in (select id from dist_plans where title = 'ISO bản phối gói');
 
+-- ===== 168: Gói bỏ từng chủ đề =====
+select pg_temp.chk('admin_ph', 'Gói 168: trường không bỏ được chủ đề của gói', $q$insert into program_package_topic_skips (package_id, topic_id) select p.id, t.id from program_packages p, program_topics t join program_modules m on m.id = t.module_id where p.code = '1T' and m.track_code = 'CT1' and t.grade = 3 limit 1$q$, 'ERR');
+select pg_temp.chk('kdi', 'Gói 168: CT1 khối 3 gói 1T trước khi bỏ', $q$select count(*) from package_topic_list((select id from program_packages where code = '1T')) where track_code = 'CT1' and grade = 3$q$, '10');
+select pg_temp.probe('kdi@iso-test.local', $q$insert into program_package_topic_skips (package_id, topic_id) select p.id, t.id from program_packages p, program_topics t join program_modules m on m.id = t.module_id where p.code = '1T' and m.track_code = 'CT1' and t.grade = 3 order by t.seq limit 2 returning 1$q$, true);
+select pg_temp.chk('kdi', 'Gói 168: bỏ 2 chủ đề thì gói còn 8', $q$select count(*) from package_topic_list((select id from program_packages where code = '1T')) where track_code = 'CT1' and grade = 3$q$, '8');
+select pg_temp.chk('kdi', 'Gói 168: gói khác không bị ảnh hưởng', $q$select count(*) from package_topic_list((select id from program_packages where code = '2T')) where track_code = 'CT1' and grade = 3$q$, '10');
+select pg_temp.chk('hs_kb', 'Gói 168: học sinh đọc được chủ đề bỏ', $q$select count(*) from program_package_topic_skips$q$, '2');
+select pg_temp.probe('kdi@iso-test.local', $q$delete from program_package_topic_skips where true returning 1$q$, true);
+
 -- ===== Dọn dẹp + kết quả =====
 select pg_temp.cleanup();
 select case when bool_and(ok) then 'PASS' else 'FAIL' end || ' ' || count(*) filter (where ok) || '/' || count(*) as "Tổng"

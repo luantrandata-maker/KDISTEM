@@ -32,20 +32,29 @@ export async function loadFrame() {
 export type ProgramPackage = { id: string; code: string; name: string; description: string; sort: number; active: boolean; updated_at?: string }
 export type PackageItem = { package_id: string; track_code: string; grade: number; slot: number; module_id: string; note: string }
 
+export type PackageSkip = { package_id: string; topic_id: string }
+/** Chủ đề gói không đưa vào (168), khoá `${gói}|${chủ đề}`; loadPackages nạp lại, slotTopics tự bỏ các chủ đề này */
+let pkgSkips = new Set<string>()
+export const pkgSkipKey = (pkg: string, topic: string) => pkg + '|' + topic
+
 export async function loadPackages() {
-  const [p, i] = await Promise.all([
+  const [p, i, s] = await Promise.all([
     supabase.from('program_packages').select('*').order('sort').order('code'),
     supabase.from('program_package_items').select('package_id, track_code, grade, slot, module_id, note'),
+    supabase.from('program_package_topic_skips').select('package_id, topic_id'),
   ])
+  // Chưa chạy migration 168 thì coi như gói không bỏ chủ đề nào
+  const skips = (s.error ? [] : s.data ?? []) as PackageSkip[]
+  pkgSkips = new Set(skips.map(x => pkgSkipKey(x.package_id, x.topic_id)))
   const error = p.error ?? i.error
-  return { packages: (p.data ?? []) as ProgramPackage[], items: (i.data ?? []) as PackageItem[], error: error ? frameErr(error.message + ' ' + (error.code ?? '')) : '' }
+  return { packages: (p.data ?? []) as ProgramPackage[], items: (i.data ?? []) as PackageItem[], skips, error: error ? frameErr(error.message + ' ' + (error.code ?? '')) : '' }
 }
 
 /** Chủ đề của một vị trí học phần trong gói (160). Học phần dùng ở nhiều vị trí của cùng khối (VD Gói 1T: HP1 và HP2 đều là Sáng chế)
  *  thì vị trí thứ k lấy chủ đề ghi phần k; chủ đề không ghi phần (dùng chung) vị trí nào cũng lấy. Khối chưa chia phần thì lấy hết. */
 export function slotTopics(topics: ProgramTopic[], items: PackageItem[], it: PackageItem | undefined): ProgramTopic[] {
   if (!it) return []
-  const all = topics.filter(t => t.module_id === it.module_id && t.grade === it.grade && t.active).sort((a, b) => a.seq - b.seq)
+  const all = topics.filter(t => t.module_id === it.module_id && t.grade === it.grade && t.active && !pkgSkips.has(pkgSkipKey(it.package_id, t.id))).sort((a, b) => a.seq - b.seq)
   if (!all.some(t => t.part)) return all
   const k = items.filter(i => i.package_id === it.package_id && i.track_code === it.track_code && i.grade === it.grade && i.module_id === it.module_id && i.slot <= it.slot).length || 1
   return all.filter(t => !t.part || t.part === k)

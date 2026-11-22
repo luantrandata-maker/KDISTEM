@@ -3,7 +3,7 @@ import { FitScreen } from '../components/FitScreen'
 import { supabase } from '../lib/supabase'
 import { useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
 import { fmtGrades, gradeName } from '../lib/eduLevels'
-import { frameErr, loadFrame, loadPackages, slotTopics, type PackageItem, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
+import { frameErr, loadFrame, loadPackages, slotTopics, type PackageItem, type PackageSkip, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
 import { PROGRAM_COLOR } from './teacher/common'
 import { HeadAction } from '../components/PageFrame'
 import { ColFilter, DataTable, type Col } from '../components/DataTable'
@@ -35,6 +35,7 @@ export function ProgramPackages() {
   const [admin, setAdmin] = useState(false)
   const [packages, setPackages] = useState<ProgramPackage[]>([])
   const [items, setItems] = useState<PackageItem[]>([])
+  const [skips, setSkips] = useState<PackageSkip[]>([])
   const [modules, setModules] = useState<ProgramModule[]>([])
   const [topics, setTopics] = useState<ProgramTopic[]>([])
   const [msg, setMsg] = useState('')
@@ -50,7 +51,7 @@ export function ProgramPackages() {
   const [openRows, setOpenRows] = useState<string[]>([])   // hàng chương trình đang mở hết danh sách học phần
   const [editPkg, setEditPkg] = useState<(ProgramPackage & { copyFrom?: string; tab?: string }) | null>(null)
   const reload = () => Promise.all([loadPackages(), loadFrame()]).then(([p, f]) => {
-    setPackages(p.packages); setItems(p.items); setModules(f.modules); setTopics(f.topics); setMsg(p.error || f.error)
+    setPackages(p.packages); setItems(p.items); setSkips(p.skips); setModules(f.modules); setTopics(f.topics); setMsg(p.error || f.error)
   })
   useEffect(() => { supabase.rpc('is_platform_admin').then(({ data }) => setAdmin(!!data)); reload() }, [])
 
@@ -81,7 +82,7 @@ export function ProgramPackages() {
 
   if (editPkg) return <ElView back={openId ? 'Gói STEM' : 'Danh sách gói'} onBack={() => setEditPkg(null)}
     title={editPkg.id ? `Sửa gói · ${editPkg.name}` : editPkg.copyFrom ? 'Sao chép gói STEM' : 'Thêm gói STEM'}>
-    <PackageForm p={editPkg} tracks={active} items={items} modules={modules} topics={topics} onCancel={() => setEditPkg(null)} onSaved={id => { setEditPkg(null); if (id) setOpenId(id); reload() }} />
+    <PackageForm p={editPkg} tracks={active} items={items} skips={skips} modules={modules} topics={topics} onCancel={() => setEditPkg(null)} onSaved={id => { setEditPkg(null); if (id) setOpenId(id); reload() }} />
   </ElView>
 
   if (compare) return <>
@@ -234,6 +235,11 @@ function PackageDetail({ pkg, onEdit, others, tracks, admin, items, modules, top
     if (!src?.length) return setMsg('Gói đã chọn chưa có học phần.')
     const r = await supabase.from('program_package_items').upsert(src.map(x => ({ ...x, package_id: pkg.id })))
     if (r.error) return setMsg(frameErr(r.error.message + ' ' + (r.error.code ?? '')))
+    const sk = await supabase.from('program_package_topic_skips').select('topic_id').eq('package_id', copySrc)
+    if (sk.data?.length) {
+      const r2 = await supabase.from('program_package_topic_skips').upsert(sk.data.map(x => ({ package_id: pkg.id, topic_id: x.topic_id })))
+      if (r2.error) return setMsg(frameErr(r2.error.message + ' ' + (r2.error.code ?? '')))
+    }
     setMsg(''); onChanged()
   }
   const empty = !items.some(i => i.package_id === pkg.id)
@@ -529,8 +535,8 @@ function CompareView({ tracks, packages: allPkgs, items, modName, grades, name, 
 
 type Draft = Record<string, string>   // `${track}|${khối}|${HP}` → học phần ('' = khối đã tick, chưa chọn học phần)
 const dk = (t: string, g: number, sl: number) => `${t}|${g}|${sl}`
-function PackageForm({ p, tracks, items, modules, topics, onCancel, onSaved }: {
-  p: ProgramPackage & { copyFrom?: string; tab?: string }; tracks: StemTrack[]; items: PackageItem[]; modules: ProgramModule[]; topics: ProgramTopic[]
+function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSaved }: {
+  p: ProgramPackage & { copyFrom?: string; tab?: string }; tracks: StemTrack[]; items: PackageItem[]; skips: PackageSkip[]; modules: ProgramModule[]; topics: ProgramTopic[]
   onCancel: () => void; onSaved: (id?: string) => void
 }) {
   const [f, setF] = useState(p)
@@ -540,6 +546,9 @@ function PackageForm({ p, tracks, items, modules, topics, onCancel, onSaved }: {
   const srcId = p.id || p.copyFrom || ''
   const start = (): Draft => Object.fromEntries(items.filter(i => i.package_id === srcId).map(i => [dk(i.track_code, i.grade, i.slot), i.module_id]))
   const [draft, setDraft] = useState<Draft>(start)
+  // Chủ đề bỏ khỏi gói (loại CT chỉ có chủ đề), mặc định chọn hết
+  const [skip, setSkip] = useState<Set<string>>(() => new Set(skips.filter(s => s.package_id === srcId).map(s => s.topic_id)))
+  const [pick, setPick] = useState<{ t: StemTrack; g: number } | null>(null)
   const [tab, setTab] = useState(p.tab && tracks.some(t => t.code === p.tab) ? p.tab : tracks[0]?.code ?? '')
   const tr = tracks.find(t => t.code === tab)
   const flat = (t?: StemTrack) => t?.use_modules === false
@@ -550,7 +559,10 @@ function PackageForm({ p, tracks, items, modules, topics, onCancel, onSaved }: {
   const fake = (t: string, g: number, sl: number): PackageItem => ({ package_id: '_', track_code: t, grade: g, slot: sl, module_id: draft[dk(t, g, sl)], note: null } as unknown as PackageItem)
   const fakeAll = Object.keys(draft).filter(k => draft[k]).map(k => { const [t, g, sl] = k.split('|'); return fake(t, Number(g), Number(sl)) })
   const tps = (t: string, g: number, sl: number) => draft[dk(t, g, sl)] ? slotTopics(topics, fakeAll, fake(t, g, sl)) : []
-  const flatTopics = (t: StemTrack, g: number) => topics.filter(x => x.module_id === flatMod(t)?.id && x.grade === g && x.active !== false)
+  const flatTopics = (t: StemTrack, g: number) => topics.filter(x => x.module_id === flatMod(t)?.id && x.grade === g && x.active !== false).sort((a, b) => a.seq - b.seq)
+  const flatOn = (t: StemTrack, g: number) => flatTopics(t, g).filter(x => !skip.has(x.id))
+  const flipTopic = (id: string) => { const s = new Set(skip); if (s.has(id)) s.delete(id); else s.add(id); setSkip(s) }
+  const setAll = (t: StemTrack, g: number, on: boolean) => { const s = new Set(skip); flatTopics(t, g).forEach(x => on ? s.delete(x.id) : s.add(x.id)); setSkip(s) }
   function flipGrade(t: StemTrack, g: number) {
     const d = { ...draft }
     if (keysOf(t.code, g).length) keysOf(t.code, g).forEach(k => delete d[k])
@@ -570,6 +582,11 @@ function PackageForm({ p, tracks, items, modules, topics, onCancel, onSaved }: {
       setTab(missT[0].code)
       return setErr(`Chưa chọn học phần: ${missT.flatMap(t => gradesOf(t.code).filter(g => !keysOf(t.code, g).some(k => draft[k])).map(g => `${trackLabel(t.code)} ${gradeName(g)}`)).join(', ')}. Chọn học phần hoặc bỏ tick khối.`)
     }
+    const noTopic = tracks.filter(flat).flatMap(t => gradesOf(t.code).filter(g => flatTopics(t, g).length && !flatOn(t, g).length).map(g => ({ t, g })))
+    if (noTopic.length) {
+      setTab(noTopic[0].t.code)
+      return setErr(`Chưa chọn chủ đề nào: ${noTopic.map(x => `${trackLabel(x.t.code)} ${gradeName(x.g)}`).join(', ')}. Chọn ít nhất một chủ đề hoặc bỏ tick khối.`)
+    }
     setBusy(true); setErr('')
     const row = { code: f.code.trim(), name: f.name, description: f.description, sort: Number(f.sort) || 0, active: f.active }
     const { data, error } = f.id ? await supabase.from('program_packages').update(row).eq('id', f.id).select('id')
@@ -587,6 +604,18 @@ function PackageForm({ p, tracks, items, modules, topics, onCancel, onSaved }: {
     const up = want.filter(([k, m]) => old.get(k) !== m).map(([k, m]) => { const [t, g, sl] = k.split('|'); return { package_id: id, track_code: t, grade: Number(g), slot: Number(sl), module_id: m } })
     if (up.length) {
       const r = await supabase.from('program_package_items').upsert(up)
+      if (r.error) { setBusy(false); return setErr(frameErr(r.error.message + ' ' + (r.error.code ?? ''))) }
+    }
+    // Chủ đề bỏ: chỉ giữ chủ đề của khối còn tick; xoá chủ đề chọn lại, thêm chủ đề mới bỏ
+    const wantSk = new Set(tracks.filter(flat).flatMap(t => gradesOf(t.code).flatMap(g => flatTopics(t, g).filter(x => skip.has(x.id)).map(x => x.id))))
+    const oldSk = new Set(f.id ? skips.filter(s => s.package_id === f.id).map(s => s.topic_id) : [])
+    const delSk = [...oldSk].filter(x => !wantSk.has(x)), addSk = [...wantSk].filter(x => !oldSk.has(x))
+    if (delSk.length) {
+      const r = await supabase.from('program_package_topic_skips').delete().eq('package_id', id).in('topic_id', delSk)
+      if (r.error) { setBusy(false); return setErr(frameErr(r.error.message + ' ' + (r.error.code ?? ''))) }
+    }
+    if (addSk.length) {
+      const r = await supabase.from('program_package_topic_skips').upsert(addSk.map(x => ({ package_id: id, topic_id: x })))
       if (r.error) { setBusy(false); return setErr(frameErr(r.error.message + ' ' + (r.error.code ?? ''))) }
     }
     setBusy(false)
@@ -616,7 +645,15 @@ function PackageForm({ p, tracks, items, modules, topics, onCancel, onSaved }: {
           return <label key={g} className={'pkfchk' + (on ? ' on' : '') + (none && !on ? ' off' : '')} title={none ? 'Khung chương trình chưa có chủ đề của khối này' : undefined}>
             <input type="checkbox" checked={on} disabled={none && !on} onChange={() => flipGrade(tr, g)} /> K{g}{flat(tr) && !none ? <small className="sub"> · {flatTopics(tr, g).length}</small> : null}</label> })}</div>
         {flat(tr)
-          ? <p className="sub" style={{ margin: '8px 12px' }}>{gradesOf(tr.code).length ? `${gradesOf(tr.code).map(g => 'K' + g).join(', ')} · ${gradesOf(tr.code).reduce((x, g) => x + flatTopics(tr, g).length, 0)} chủ đề · ${gradesOf(tr.code).reduce((x, g) => x + flatTopics(tr, g).reduce((y, t) => y + (t.periods || 0), 0), 0)} tiết` : 'Chưa tick khối nào.'}</p>
+          ? gradesOf(tr.code).length === 0 ? <p className="sub" style={{ margin: '8px 12px' }}>Chưa tick khối nào.</p>
+          : <table className="table slt ttdense" style={{ width: '100%' }}>
+            <thead><tr><th style={{ width: 120 }}>Khối</th><th style={{ width: 120 }}>Số chủ đề</th><th style={{ width: 110 }}>Tiết / năm</th><th /><th style={{ width: 90 }} /></tr></thead>
+            <tbody>{gradesOf(tr.code).map(g => { const all = flatTopics(tr, g), on = flatOn(tr, g), cur = pick?.t.code === tr.code && pick.g === g
+              return <tr key={g} className={cur ? 'pkfcur' : undefined}><td>{gradeName(g)}</td>
+                <td className={on.length < all.length ? 'pkfwarn' : undefined}>{on.length} / {all.length}</td>
+                <td>{on.reduce((x, t) => x + (t.periods || 0), 0) || <span className="sub">—</span>}</td>
+                <td><button type="button" className={'pkfpick' + (cur ? ' on' : '')} disabled={!all.length} onClick={() => setPick({ t: tr, g })}>☰ Chọn chủ đề ›</button></td>
+                <td><button type="button" className="linkbtn" onClick={() => flipGrade(tr, g)}>✕ bỏ khối</button></td></tr> })}</tbody></table>
           : gradesOf(tr.code).length === 0 ? <p className="sub" style={{ margin: '8px 12px' }}>Chưa tick khối nào.</p>
           : <table className="table slt ttdense" style={{ width: '100%' }}>
             <thead><tr><th style={{ width: 80 }}>Khối</th>{Array.from({ length: nSl(tr) }, (_, i) => <th key={i}>Học phần {i + 1}</th>)}<th style={{ width: 90 }}>Số chủ đề</th><th style={{ width: 90 }}>Tiết / năm</th><th style={{ width: 90 }} /></tr></thead>
@@ -628,6 +665,16 @@ function PackageForm({ p, tracks, items, modules, topics, onCancel, onSaved }: {
                 <td><button type="button" className="linkbtn" onClick={() => flipGrade(tr, g)}>✕ bỏ khối</button></td></tr> })}</tbody></table>}
       </div>}
     </section>
+    {pick && (() => { const all = flatTopics(pick.t, pick.g), on = flatOn(pick.t, pick.g)
+      return <Drawer onClose={() => setPick(null)} title={<>{chip(pick.t.code)} Chủ đề {gradeName(pick.g)}</>}
+        actions={<button className="primary" onClick={() => setPick(null)}>Xong</button>}>
+        <div className="pkfbar"><span className="sub">Đang chọn</span><b className={on.length < all.length ? 'pkfwarn' : undefined}>{on.length} / {all.length}</b>
+          <span className="sub">· {on.reduce((x, t) => x + (t.periods || 0), 0)} tiết</span>
+          <span style={{ marginLeft: 'auto' }} /><button type="button" onClick={() => setAll(pick.t, pick.g, true)}>Chọn hết</button><button type="button" onClick={() => setAll(pick.t, pick.g, false)}>Bỏ hết</button></div>
+        <div className="pkftopics">{all.map(x => <label key={x.id} className={'pkftp' + (skip.has(x.id) ? '' : ' on')}>
+          <input type="checkbox" checked={!skip.has(x.id)} onChange={() => flipTopic(x.id)} /><span className="sub pkfseq">{x.seq}</span><span className="pkfname">{x.title}</span><span className="sub">{x.periods} tiết</span></label>)}</div>
+        <p className="sub">Chủ đề bỏ tick sẽ không có trong gói. Bấm Lưu ở form để lưu.</p>
+      </Drawer> })()}
     {err && <p className="warnline">{err}</p>}
     <div className="actions" style={{ marginTop: 12 }}>
       <button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>

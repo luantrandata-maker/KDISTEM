@@ -3890,3 +3890,15 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .pkftp:not(.on) .pkfname { color: #94a3b8; text-decoration: line-through; }
 .pkfseq { width: 22px; text-align: right; }
 .pkfname { flex: 1; }
+
+/* Gói STEM dạng bảng: phân bổ chương trình (hàng = khối, nhóm cột = loại CT) */
+.pkgpb table { width: 100%; border-collapse: collapse; }
+.pkgpb th, .pkgpb td { border: 1px solid var(--line, #e5e7eb); padding: 7px 10px; font-size: 13px; vertical-align: middle; }
+.pkgpb thead th { text-align: center; background: var(--surface-2, #f8fafc); font-weight: 600; white-space: nowrap; }
+.pkgpb .pblv { font-weight: 600; background: var(--surface-2, #f8fafc); width: 130px; }
+.pkgpb tr.pblast td { border-bottom: 2px solid #cbd5e1; }
+.pkgpb .pbnum { text-align: center; white-space: nowrap; }
+.pkgpb .pbmod { min-width: 120px; }
+.pkgpb .pbcell { cursor: pointer; }
+.pkgpb .pbcell:hover { background: color-mix(in srgb, var(--k, #2563eb) 10%, transparent); }
+.pkgpb .pbcell.on { background: color-mix(in srgb, var(--k, #2563eb) 18%, transparent); box-shadow: inset 0 0 0 2px var(--k, #2563eb); }

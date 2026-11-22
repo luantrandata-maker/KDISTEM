@@ -175,6 +175,8 @@ function PackageDetail({ pkg, others, tracks, admin, items, modules, topics, msg
   const [copySrc, setCopySrc] = useState('')
   const [tf, setTf] = useState<string[]>([])   // lọc loại CT ở Tổng quan (rỗng = tất cả)
   const tl = (t: StemTrack) => `${trackLabel(t.code)} · ${t.name}`
+  const [tsel, setTsel] = useState('')   // mục đang chọn trên cây dạng bảng
+  const [topen, setTopen] = useState<Record<string, boolean>>({})
   const [pv, setPvS] = useState<'grid' | 'table'>(() => { try { return localStorage.getItem('pkg-view') === 'table' ? 'table' : 'grid' } catch { return 'grid' } })
   const setPv = (v: 'grid' | 'table') => { setSel(null); setPvS(v); try { localStorage.setItem('pkg-view', v) } catch { /* bỏ qua */ } }
   const track = tracks.find(t => t.code === code)
@@ -187,9 +189,9 @@ function PackageDetail({ pkg, others, tracks, admin, items, modules, topics, msg
   const selTrack = sel ? tracks.find(t => t.code === sel.t) : undefined
   const selIts = sel ? mine.filter(i => i.track_code === sel.t && i.grade === sel.g && (sel.sl === 0 || i.slot === sel.sl)).sort((a, b) => a.slot - b.slot) : []
   // Dạng bảng: mỗi dòng một chủ đề của gói (theo khối, loại CT đang lọc)
-  type TRow = { key: string; t: ProgramTopic; i: PackageItem; tr: StemTrack }
+  type TRow = { key: string; t: ProgramTopic; i: PackageItem; tr: StemTrack; path: string }
   const trows: TRow[] = tracks.filter(tr => !tf.length || tf.includes(tr.code)).flatMap(tr => mine.filter(i => i.track_code === tr.code)
-    .sort((a, b) => a.grade - b.grade || a.slot - b.slot).flatMap(i => topicsOfItem(i).map(t => ({ key: i.slot + '|' + t.id, t, i, tr }))))
+    .sort((a, b) => a.grade - b.grade || a.slot - b.slot).flatMap(i => topicsOfItem(i).map(t => ({ key: i.slot + '|' + t.id, t, i, tr, path: tr.use_modules === false ? `${tr.code}/${i.grade}` : `${tr.code}/${i.module_id}/${i.grade}` }))))
   const dash = <small className="sub">—</small>
   const tcols: Col<TRow>[] = [
     { key: 'grade', label: 'Khối', text: r => gradeName(r.t.grade), cell: r => gradeName(r.t.grade) },
@@ -199,9 +201,31 @@ function PackageDetail({ pkg, others, tracks, admin, items, modules, topics, msg
     { key: 'track', label: 'Loại CT', text: r => tl(r.tr), cell: r => chip(r.tr.code) },
     { key: 'part', label: 'Phần', text: r => r.tr.use_modules === false ? '' : 'HP' + r.i.slot, cell: r => r.tr.use_modules === false ? dash : 'HP' + r.i.slot },
     { key: 'mod', label: 'Học phần', text: r => r.tr.use_modules === false ? '' : mod(r.i.module_id)?.name ?? '', cell: r => r.tr.use_modules === false ? dash : mod(r.i.module_id)?.name ?? '?' },
-    { key: 'main', label: 'Môn chủ trì', text: r => r.t.main_subject ?? '', cell: r => r.t.main_subject || dash },
-    { key: 'subs', label: 'Môn phối hợp', text: r => (r.t.subjects ?? []).join(', '), values: r => r.t.subjects ?? [], cell: r => (r.t.subjects ?? []).join(', ') || dash },
   ]
+  // Cây bên trái dạng bảng: Loại CT › Học phần › Khối (loại chỉ có chủ đề: Loại CT › Khối), giống Khung chương trình
+  const under = (k: string, x: string) => !x || k === x || k.startsWith(x + '/')
+  const shownRows = trows.filter(r => under(r.path, tsel))
+  const tiet = (l: TRow[]) => l.reduce((x, r) => x + (r.t.periods || 0), 0)
+  type TN = { key: string; label: React.ReactNode; sub: string; n: number; kids: TN[] }
+  const gNodes = (pre: string, l: TRow[]): TN[] => [...new Set(l.map(r => r.t.grade))].sort((a, b) => a - b)
+    .map(g => { const x = l.filter(r => r.t.grade === g); return { key: `${pre}/${g}`, label: gradeName(g), sub: `${tiet(x)} tiết`, n: x.length, kids: [] } })
+  const tree: TN[] = tracks.filter(tr => trows.some(r => r.tr.code === tr.code)).map(tr => { const l = trows.filter(r => r.tr.code === tr.code)
+    const kids = tr.use_modules === false ? gNodes(tr.code, l) : [...new Set(l.map(r => r.i.module_id))].map(id => { const x = l.filter(r => r.i.module_id === id)
+      return { key: `${tr.code}/${id}`, label: mod(id)?.name ?? '?', sub: `${fmtGrades([...new Set(x.map(r => r.t.grade))].sort((a, b) => a - b))} · ${tiet(x)} tiết`, n: x.length, kids: gNodes(`${tr.code}/${id}`, x) } })
+    return { key: tr.code, label: <>{chip(tr.code)} {tr.name}</>, sub: `${tiet(l)} tiết`, n: l.length, kids } })
+  const tnode = (n: TN, depth: number): React.ReactNode => {
+    const isOpen = topen[n.key] ?? (tsel !== n.key && tsel.startsWith(n.key + '/'))
+    const btn = <button type="button" className={'gtitem' + (tsel === n.key ? ' on' : '')} aria-pressed={tsel === n.key} onClick={() => { setTsel(n.key); if (n.kids.length) setTopen({ ...topen, [n.key]: true }) }}>
+      <span className="gtlbl">{n.label}<small className="gtsubl">{n.sub}</small></span><span className="gtcnt">{n.n}</span></button>
+    if (!n.kids.length) return <div key={n.key} className="gtrow"><span className="gtcaret" aria-hidden />{btn}</div>
+    return <div key={n.key} className="gtlv"><div className="gtrow"><button type="button" className="gtcaret" aria-expanded={isOpen} aria-label={isOpen ? 'Thu gọn' : 'Mở'}
+      onClick={() => setTopen({ ...topen, [n.key]: !isOpen })}>{isOpen ? '▾' : '▸'}</button>{btn}</div>
+      {isOpen && <div className="gtsub">{n.kids.map(k => tnode(k, depth + 1))}</div>}</div>
+  }
+  const treeNav = <nav className="gtree" aria-label="Loại CT › Học phần › Khối">
+    <div className="gtrow"><span className="gtcaret" aria-hidden /><button type="button" className={'gtitem' + (!tsel ? ' on' : '')} aria-pressed={!tsel} onClick={() => setTsel('')}>
+      <span className="gtlbl">Tất cả<small className="gtsubl">{tiet(trows)} tiết</small></span><span className="gtcnt">{trows.length}</span></button></div>
+    {tree.map(n => tnode(n, 0))}</nav>
   const addTrack = (t: StemTrack) => { setSel(null); if (t.use_modules === false) setFlatPick(t); else { setCode(t.code); setGrade(null); setEdit(true) } }
   async function copyFrom() {
     if (!copySrc || !confirm('Chép toàn bộ học phần, chủ đề của gói đã chọn vào gói này?')) return
@@ -266,14 +290,14 @@ function PackageDetail({ pkg, others, tracks, admin, items, modules, topics, msg
     <div className="pkgkpi">
       {tracks.map(t => { const x = mine.filter(i => i.track_code === t.code); const on = tf.length === 1 && tf[0] === t.code
         return <div key={t.code} role="button" tabIndex={0} className={'kpibtn' + (on ? ' on' : '')} title="Bấm để chỉ xem loại này"
-          onClick={() => { setSel(null); setEdit(false); setCode(''); setTf(on ? [] : [t.code]) }} style={{ '--k': PROGRAM_COLOR[t.code] ?? 'var(--line)', borderTop: `3px solid ${PROGRAM_COLOR[t.code] ?? 'var(--line)'}` } as React.CSSProperties}>
+          onClick={() => { setSel(null); setTsel(''); setEdit(false); setCode(''); setTf(on ? [] : [t.code]) }} style={{ '--k': PROGRAM_COLOR[t.code] ?? 'var(--line)', borderTop: `3px solid ${PROGRAM_COLOR[t.code] ?? 'var(--line)'}` } as React.CSSProperties}>
           <span className="ic" style={{ fontSize: 12, fontWeight: 700 }}>{trackLabel(t.code)}</span>
           <div><span>{t.name}</span><small>{t.use_modules === false ? '' : new Set(x.map(i => i.module_id)).size + ' học phần · '}{nTopics(x)} chủ đề</small></div></div> })}
     </div>
     {!edit && React.isValidElement(filter) ? React.cloneElement(filter as React.ReactElement<{ extra?: React.ReactNode }>, { extra: <span style={{ display: 'inline-flex', gap: 14, alignItems: 'center' }}>
       <span className="lvgrp"><span className="lvlab">Loại CT</span><ColFilter pin label={tf.length ? tf.map(trackLabel).join(', ') : 'Tất cả'} value={tracks.filter(t => tf.includes(t.code)).map(tl)}
         options={tracks.map(t => [tl(t), nTopics(mine.filter(i => i.track_code === t.code))] as [string, number])}
-        onChange={v => { setSel(null); setTf(tracks.filter(t => v.includes(tl(t))).map(t => t.code)) }} /></span>
+        onChange={v => { setSel(null); setTsel(''); setTf(tracks.filter(t => v.includes(tl(t))).map(t => t.code)) }} /></span>
       <div className="seg frmode" role="group" aria-label="Kiểu xem">
         <button type="button" className={pv === 'grid' ? 'on' : ''} aria-pressed={pv === 'grid'} onClick={() => setPv('grid')}>▦ Tổng quan</button>
         <button type="button" className={pv === 'table' ? 'on' : ''} aria-pressed={pv === 'table'} onClick={() => setPv('table')}>☰ Dạng bảng</button></div>
@@ -282,10 +306,9 @@ function PackageDetail({ pkg, others, tracks, admin, items, modules, topics, msg
       ? <TrackGrid pkg={pkg} track={track} admin={admin} items={items} modules={modules.filter(m => m.track_code === track.code)} topics={topics}
         slots={slotsOf(track.code, [pkg.id])} diffKeys={new Set<string>()} onChanged={onChanged} onErr={setMsg} startEdit onDone={() => { setEdit(false); setCode('') }} />
       : pv === 'grid' || empty ? <Overview />
-      : <DataTable id="pkg-topics" pro rows={trows} rowKey={r => r.key} cols={tcols} noun="chủ đề" className="slt"
-        onRow={r => { setSel({ t: r.tr.code, g: r.t.grade, sl: 0 }); setOpenTopic(r.t) }}
-        left={<span className="fwcap"><b>{pkg.name}</b> <span className="sub">· {trows.reduce((x, r) => x + (r.t.periods || 0), 0)} tiết</span></span>}
-        empty={<span className="sub">Không có chủ đề ở khối / loại CT đang lọc.</span>} />}
+      : <div className="fwtree"><DataTable id="pkg-topics-v2" pro noTools rows={shownRows} rowKey={r => r.key} cols={tcols} noun="chủ đề" className="slt"
+        onRow={r => { setSel({ t: r.tr.code, g: r.t.grade, sl: 0 }); setOpenTopic(r.t) }} aside={treeNav}
+        empty={<span className="sub">Không có chủ đề ở mục đang chọn.</span>} /></div>}
     {sel && selTrack && <Drawer closeOnOutside onClose={() => { setSel(null); setOpenTopic(null) }} onBack={openTopic ? () => setOpenTopic(null) : undefined}
       title={openTopic ? <>{chip(selTrack.code)} {openTopic.title}</> : <>{chip(selTrack.code)} {selTrack.name} · {gradeName(sel.g)}{sel.sl > 0 && selIts[0] ? ` · HP${sel.sl}` : ''}</>}>
       {openTopic ? <TopicView t={openTopic} admin={admin} mod={selTrack.use_modules === false ? undefined : mod(openTopic.module_id)?.name} sgk={selTrack.schedule_mode === 'subject'} />

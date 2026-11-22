@@ -14,6 +14,7 @@ import { RowMenu } from '../components/ProTools'
 import { Chip } from './dist/Editor'
 import { MultiSelect } from '../components/MultiSelect'
 import { Drawer } from '../components/Drawer'
+import { TreeHead } from '../components/TreeHead'
 import { TopicContents } from './topicContents'
 
 // Gói STEM theo khung chương trình (148): mỗi gói gồm các loại chương trình; mỗi loại, mỗi khối chọn học phần ở từng vị trí
@@ -199,9 +200,9 @@ function PackageDetail({ pkg, onEdit, others, tracks, admin, items, modules, top
     { key: 'title', label: 'Chủ đề', fixed: true, text: r => r.t.title, cell: r => <b>{r.t.title}</b> },
     { key: 'seq', label: 'Thứ tự bài', text: r => String(r.t.seq), cell: r => `Bài ${r.t.seq}` },
     { key: 'periods', label: 'Số tiết', text: r => String(r.t.periods), cell: r => r.t.periods },
-    { key: 'track', label: 'Loại CT', text: r => tl(r.tr), cell: r => chip(r.tr.code) },
     { key: 'part', label: 'Phần', text: r => r.tr.use_modules === false ? '' : 'HP' + r.i.slot, cell: r => r.tr.use_modules === false ? dash : 'HP' + r.i.slot },
     { key: 'mod', label: 'Học phần', text: r => r.tr.use_modules === false ? '' : mod(r.i.module_id)?.name ?? '', cell: r => r.tr.use_modules === false ? dash : mod(r.i.module_id)?.name ?? '?' },
+    { key: 'track', label: 'Loại CT', text: r => tl(r.tr), cell: r => chip(r.tr.code) },
   ]
   // Cây bên trái dạng bảng: Loại CT › Học phần › Khối (loại chỉ có chủ đề: Loại CT › Khối), giống Khung chương trình
   const under = (k: string, x: string) => !x || k === x || k.startsWith(x + '/')
@@ -224,6 +225,8 @@ function PackageDetail({ pkg, onEdit, others, tracks, admin, items, modules, top
       {isOpen && <div className="gtsub">{n.kids.map(k => tnode(k, depth + 1))}</div>}</div>
   }
   const treeNav = <nav className="gtree" aria-label="Loại CT › Học phần › Khối">
+    <TreeHead title="Loại CT › Học phần › Khối">Số = số chủ đề, dòng nhỏ = tổng số tiết.<br />Bấm tên: lọc bảng và mở.<br />Bấm ▸: chỉ mở / đóng.</TreeHead>
+    <div className="gtcolhead">Số chủ đề</div>
     <div className="gtrow"><span className="gtcaret" aria-hidden /><button type="button" className={'gtitem' + (!tsel ? ' on' : '')} aria-pressed={!tsel} onClick={() => setTsel('')}>
       <span className="gtlbl">Tất cả<small className="gtsubl">{tiet(trows)} tiết</small></span><span className="gtcnt">{trows.length}</span></button></div>
     {tree.map(n => tnode(n, 0))}</nav>
@@ -311,7 +314,7 @@ function PackageDetail({ pkg, onEdit, others, tracks, admin, items, modules, top
       ? <TrackGrid pkg={pkg} track={track} admin={admin} items={items} modules={modules.filter(m => m.track_code === track.code)} topics={topics}
         slots={slotsOf(track.code, [pkg.id])} diffKeys={new Set<string>()} onChanged={onChanged} onErr={setMsg} startEdit onDone={() => { setEdit(false); setCode('') }} />
       : pv === 'grid' || empty ? <Overview />
-      : <div className="fwtree"><DataTable id="pkg-topics-v2" pro noTools rows={shownRows} rowKey={r => r.key} cols={tcols} noun="chủ đề" className="slt"
+      : <div className="fwtree"><DataTable id="pkg-topics-v3" pro noTools rows={shownRows} rowKey={r => r.key} cols={tcols} noun="chủ đề" className="slt"
         onRow={r => { setSel({ t: r.tr.code, g: r.t.grade, sl: 0 }); setOpenTopic(r.t) }} aside={treeNav}
         empty={<span className="sub">Không có chủ đề ở mục đang chọn.</span>} /></div>}
     {sel && selTrack && <Drawer closeOnOutside onClose={() => { setSel(null); setOpenTopic(null) }} onBack={openTopic ? () => setOpenTopic(null) : undefined}

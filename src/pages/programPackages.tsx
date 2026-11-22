@@ -48,7 +48,7 @@ export function ProgramPackages() {
   const fName = fGrade ? gradeName(fGrade) : lvs.length ? sel.map(l => l.name).join(' + ') : 'Cả 12 khối'
   const filterBar = <LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} />
   const [openRows, setOpenRows] = useState<string[]>([])   // hàng chương trình đang mở hết danh sách học phần
-  const [editPkg, setEditPkg] = useState<(ProgramPackage & { copyFrom?: string }) | null>(null)
+  const [editPkg, setEditPkg] = useState<(ProgramPackage & { copyFrom?: string; tab?: string }) | null>(null)
   const reload = () => Promise.all([loadPackages(), loadFrame()]).then(([p, f]) => {
     setPackages(p.packages); setItems(p.items); setModules(f.modules); setTopics(f.topics); setMsg(p.error || f.error)
   })
@@ -80,8 +80,8 @@ export function ProgramPackages() {
   }
 
   if (editPkg) return <ElView back={openId ? 'Gói STEM' : 'Danh sách gói'} onBack={() => setEditPkg(null)}
-    title={editPkg.id ? 'Sửa gói STEM' : editPkg.copyFrom ? 'Sao chép gói STEM' : 'Thêm gói STEM'}>
-    <PackageForm p={editPkg} onCancel={() => setEditPkg(null)} onSaved={id => { setEditPkg(null); if (id) setOpenId(id); reload() }} />
+    title={editPkg.id ? `Sửa gói · ${editPkg.name}` : editPkg.copyFrom ? 'Sao chép gói STEM' : 'Thêm gói STEM'}>
+    <PackageForm p={editPkg} tracks={active} items={items} modules={modules} topics={topics} onCancel={() => setEditPkg(null)} onSaved={id => { setEditPkg(null); if (id) setOpenId(id); reload() }} />
   </ElView>
 
   if (compare) return <>
@@ -98,14 +98,14 @@ export function ProgramPackages() {
       tracks: [...new Set(its.map(i => i.track_code))] }
   }
   const pkgMenu = (p: ProgramPackage) => [
-    { label: 'Xem chi tiết', onClick: () => { setMsg(''); setOpenId(p.id) } }, { label: 'Sửa thông tin', onClick: () => setEditPkg(p) },
+    { label: 'Xem chi tiết', onClick: () => { setMsg(''); setOpenId(p.id) } }, { label: 'Sửa gói', onClick: () => setEditPkg(p) },
     { label: 'Sao chép thành gói mới', onClick: () => setEditPkg({ ...p, id: '', code: '', name: p.name + ' (bản sao)', sort: p.sort + 1, copyFrom: p.id }) },
     { label: 'Xoá', danger: true, onClick: () => delPkg(p) }]
 
   if (cur) return <PackageDetail pkg={cur} others={packages.filter(p => p.id !== cur.id)} tracks={active} admin={admin} items={items} modules={modules} topics={topics} msg={msg} setMsg={setMsg}
     diffKeys={diffKeys} diffTracks={diffTracks(cur.id)} slotsOf={slotsOf} topicsOfItem={topicsOfItem} onBack={() => { setOpenId(null); setMsg('') }}
     acts={admin ? pkgMenu(cur).slice(1).map((a, k) => ({ key: String(k), label: a.label, kind: a.danger ? 'danger' : undefined, onClick: a.onClick } as Act)) : []}
-    onChanged={reload} filter={filterBar} inGrades={selGrades} />
+    onChanged={reload} filter={filterBar} inGrades={selGrades} onEdit={tab => setEditPkg({ ...cur, tab })} />
 
   const n = packages.length
   const cellS = { padding: '10px 12px', borderTop: '1px solid var(--line)', borderLeft: '1px solid var(--line)', minWidth: 0 } as const
@@ -159,8 +159,8 @@ export function ProgramPackages() {
   </>
 }
 
-function PackageDetail({ pkg, others, tracks, admin, items, modules, topics, msg, setMsg, diffKeys, diffTracks, slotsOf, topicsOfItem, onBack, acts, onChanged, filter, inGrades }: {
-  pkg: ProgramPackage; others: ProgramPackage[]; tracks: StemTrack[]; admin: boolean; items: PackageItem[]; modules: ProgramModule[]; topics: ProgramTopic[]
+function PackageDetail({ pkg, onEdit, others, tracks, admin, items, modules, topics, msg, setMsg, diffKeys, diffTracks, slotsOf, topicsOfItem, onBack, acts, onChanged, filter, inGrades }: {
+  pkg: ProgramPackage; onEdit: (tab?: string) => void; others: ProgramPackage[]; tracks: StemTrack[]; admin: boolean; items: PackageItem[]; modules: ProgramModule[]; topics: ProgramTopic[]
   msg: string; setMsg: (m: string) => void; diffKeys: Set<string>; diffTracks: string[]; slotsOf: (t: string, pkgs: string[]) => number[]
   topicsOfItem: (i: PackageItem) => ProgramTopic[]; onBack: () => void; acts: Act[]; onChanged: () => void
   filter: React.ReactNode; inGrades: number[]   // bộ lọc cấp / khối giữ nguyên từ trang Gói STEM
@@ -226,7 +226,7 @@ function PackageDetail({ pkg, others, tracks, admin, items, modules, topics, msg
     <div className="gtrow"><span className="gtcaret" aria-hidden /><button type="button" className={'gtitem' + (!tsel ? ' on' : '')} aria-pressed={!tsel} onClick={() => setTsel('')}>
       <span className="gtlbl">Tất cả<small className="gtsubl">{tiet(trows)} tiết</small></span><span className="gtcnt">{trows.length}</span></button></div>
     {tree.map(n => tnode(n, 0))}</nav>
-  const addTrack = (t: StemTrack) => { setSel(null); if (t.use_modules === false) setFlatPick(t); else { setCode(t.code); setGrade(null); setEdit(true) } }
+  const addTrack = (t: StemTrack) => { setSel(null); onEdit(t.code) }
   async function copyFrom() {
     if (!copySrc || !confirm('Chép toàn bộ học phần, chủ đề của gói đã chọn vào gói này?')) return
     const { data: src, error } = await supabase.from('program_package_items').select('track_code, grade, slot, module_id, note').eq('package_id', copySrc)
@@ -266,8 +266,7 @@ function PackageDetail({ pkg, others, tracks, admin, items, modules, topics, msg
               {admin && <button type="button" onClick={() => addTrack(t)}>+ Thêm vào gói</button>}</div>]
           return [
           <div key={t.code} className={'lb grp' + band} style={{ boxShadow: `inset 4px 0 0 ${c}`, gridRow: `span ${slots.length || 1}` }}>
-            {chip(t.code)}<b>{t.name}</b>
-            {admin && <button type="button" className="linkbtn" style={{ fontSize: 12, marginTop: 4, alignSelf: 'flex-start' }} onClick={() => addTrack(t)}>✎ {t.use_modules === false ? 'Chọn khối' : 'Sửa học phần'}</button>}</div>,
+            {chip(t.code)}<b>{t.name}</b></div>,
           ...slots.flatMap(sl => [<div key={t.code + sl + '-hp'} className={'hpl' + band + (sl === slots[0] ? ' grp' : '')}>{sl === 0 ? 'Chủ đề' : 'HP' + sl}</div>, ...allGrades.map(g => {
             const list = mine.filter(i => i.track_code === t.code && i.grade === g && (sl === 0 || i.slot === sl))
             const on = sel?.t === t.code && sel.g === g && sel.sl === sl
@@ -528,44 +527,113 @@ function CompareView({ tracks, packages: allPkgs, items, modName, grades, name, 
   </>
 }
 
-function PackageForm({ p, onCancel, onSaved }: { p: ProgramPackage & { copyFrom?: string }; onCancel: () => void; onSaved: (id?: string) => void }) {
+type Draft = Record<string, string>   // `${track}|${khối}|${HP}` → học phần ('' = khối đã tick, chưa chọn học phần)
+const dk = (t: string, g: number, sl: number) => `${t}|${g}|${sl}`
+function PackageForm({ p, tracks, items, modules, topics, onCancel, onSaved }: {
+  p: ProgramPackage & { copyFrom?: string; tab?: string }; tracks: StemTrack[]; items: PackageItem[]; modules: ProgramModule[]; topics: ProgramTopic[]
+  onCancel: () => void; onSaved: (id?: string) => void
+}) {
   const [f, setF] = useState(p)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
+  // Nội dung gói: lấy từ gói đang sửa, hoặc gói gốc khi sao chép
+  const srcId = p.id || p.copyFrom || ''
+  const start = (): Draft => Object.fromEntries(items.filter(i => i.package_id === srcId).map(i => [dk(i.track_code, i.grade, i.slot), i.module_id]))
+  const [draft, setDraft] = useState<Draft>(start)
+  const [tab, setTab] = useState(p.tab && tracks.some(t => t.code === p.tab) ? p.tab : tracks[0]?.code ?? '')
+  const tr = tracks.find(t => t.code === tab)
+  const flat = (t?: StemTrack) => t?.use_modules === false
+  const modsOf = (t: StemTrack) => modules.filter(m => m.track_code === t.code && m.active !== false).sort((a, b) => a.sort - b.sort)
+  const flatMod = (t: StemTrack) => modules.filter(m => m.track_code === t.code).sort((a, b) => a.sort - b.sort)[0]
+  const keysOf = (t: string, g?: number) => Object.keys(draft).filter(k => k.startsWith(t + '|') && (g == null || k.split('|')[1] === String(g)))
+  const gradesOf = (t: string) => [...new Set(keysOf(t).map(k => Number(k.split('|')[1])))].sort((a, b) => a - b)
+  const fake = (t: string, g: number, sl: number): PackageItem => ({ package_id: '_', track_code: t, grade: g, slot: sl, module_id: draft[dk(t, g, sl)], note: null } as unknown as PackageItem)
+  const fakeAll = Object.keys(draft).filter(k => draft[k]).map(k => { const [t, g, sl] = k.split('|'); return fake(t, Number(g), Number(sl)) })
+  const tps = (t: string, g: number, sl: number) => draft[dk(t, g, sl)] ? slotTopics(topics, fakeAll, fake(t, g, sl)) : []
+  const flatTopics = (t: StemTrack, g: number) => topics.filter(x => x.module_id === flatMod(t)?.id && x.grade === g && x.active !== false)
+  function flipGrade(t: StemTrack, g: number) {
+    const d = { ...draft }
+    if (keysOf(t.code, g).length) keysOf(t.code, g).forEach(k => delete d[k])
+    else d[dk(t.code, g, 1)] = flat(t) ? flatMod(t)?.id ?? '' : ''
+    setDraft(d)
+  }
+  const setMod = (t: string, g: number, sl: number, id: string) => {
+    const d = { ...draft }
+    if (id || sl === 1) d[dk(t, g, sl)] = id; else delete d[dk(t, g, sl)]
+    setDraft(d)
+  }
   async function save() {
     if (!f.name.trim()) return setErr('Nhập tên gói.')
     if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,19}$/.test(f.code.trim())) return setErr('Mã gói gồm chữ, số, "-" hoặc "_" (tối đa 20 ký tự), VD: 5T.')
+    const missT = tracks.filter(t => gradesOf(t.code).some(g => !keysOf(t.code, g).some(k => draft[k])))
+    if (missT.length) {
+      setTab(missT[0].code)
+      return setErr(`Chưa chọn học phần: ${missT.flatMap(t => gradesOf(t.code).filter(g => !keysOf(t.code, g).some(k => draft[k])).map(g => `${trackLabel(t.code)} ${gradeName(g)}`)).join(', ')}. Chọn học phần hoặc bỏ tick khối.`)
+    }
     setBusy(true); setErr('')
     const row = { code: f.code.trim(), name: f.name, description: f.description, sort: Number(f.sort) || 0, active: f.active }
     const { data, error } = f.id ? await supabase.from('program_packages').update(row).eq('id', f.id).select('id')
       : await supabase.from('program_packages').insert(row).select('id')
     if (error || !data?.length) { setBusy(false); return setErr(frameErr(error ? error.message + ' ' + (error.code ?? '') : 'row-level')) }
-    if (f.copyFrom) {
-      const { data: src } = await supabase.from('program_package_items').select('track_code, grade, slot, module_id, note').eq('package_id', f.copyFrom)
-      if (src?.length) {
-        const { error: e2 } = await supabase.from('program_package_items').insert(src.map(x => ({ ...x, package_id: data[0].id })))
-        if (e2) { setBusy(false); return setErr(frameErr(e2.message + ' ' + (e2.code ?? ''))) }
-      }
+    const id = data[0].id as string
+    // Lưu nội dung: xoá ô bỏ đi, thêm / đổi ô còn lại
+    const old = new Map(items.filter(i => i.package_id === f.id && f.id).map(i => [dk(i.track_code, i.grade, i.slot), i.module_id]))
+    const want = Object.entries(draft).filter(([, m]) => m)
+    for (const k of old.keys()) if (!draft[k]) {
+      const [t, g, sl] = k.split('|')
+      const r = await supabase.from('program_package_items').delete().match({ package_id: id, track_code: t, grade: Number(g), slot: Number(sl) })
+      if (r.error) { setBusy(false); return setErr(frameErr(r.error.message + ' ' + (r.error.code ?? ''))) }
+    }
+    const up = want.filter(([k, m]) => old.get(k) !== m).map(([k, m]) => { const [t, g, sl] = k.split('|'); return { package_id: id, track_code: t, grade: Number(g), slot: Number(sl), module_id: m } })
+    if (up.length) {
+      const r = await supabase.from('program_package_items').upsert(up)
+      if (r.error) { setBusy(false); return setErr(frameErr(r.error.message + ' ' + (r.error.code ?? ''))) }
     }
     setBusy(false)
-    onSaved(data[0].id)
+    onSaved(id)
   }
-  return <section className="panel">
-    <div className="formgrid">
-      <label className="field"><span>Mã gói *</span><input value={f.code} maxLength={20} placeholder="VD: 5T" onChange={e => setF({ ...f, code: e.target.value })} /></label>
-      <label className="field"><span>Tên gói *</span><input value={f.name} maxLength={120} onChange={e => setF({ ...f, name: e.target.value })} /></label>
-      <label className="field"><span>Thứ tự</span><input type="number" min={0} value={f.sort} onChange={e => setF({ ...f, sort: Number(e.target.value) })} /></label>
-      <label className="field"><span>Trạng thái</span><select value={f.active ? 'on' : 'off'} onChange={e => setF({ ...f, active: e.target.value === 'on' })}>
-        <option value="on">Đang dùng</option><option value="off">Ngừng dùng</option></select></label>
-      <label className="field wide"><span>Mô tả (gói khác các gói khác ở đâu)</span><textarea rows={3} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>
-    </div>
-    {f.copyFrom && <p className="sub">Gói mới sẽ có sẵn toàn bộ học phần của gói gốc; sửa lại chỗ khác nhau sau khi lưu.</p>}
+  const nSl = (t: StemTrack) => Math.max(2, ...keysOf(t.code).map(k => Number(k.split('|')[2])))
+  return <>
+    <section className="panel">
+      <h4 style={{ margin: '0 0 10px' }}>Thông tin gói</h4>
+      <div className="formgrid">
+        <label className="field"><span>Mã gói *</span><input value={f.code} maxLength={20} placeholder="VD: 5T" onChange={e => setF({ ...f, code: e.target.value })} /></label>
+        <label className="field"><span>Tên gói *</span><input value={f.name} maxLength={120} onChange={e => setF({ ...f, name: e.target.value })} /></label>
+        <label className="field"><span>Thứ tự</span><input type="number" min={0} value={f.sort} onChange={e => setF({ ...f, sort: Number(e.target.value) })} /></label>
+        <label className="field"><span>Trạng thái</span><select value={f.active ? 'on' : 'off'} onChange={e => setF({ ...f, active: e.target.value === 'on' })}>
+          <option value="on">Đang dùng</option><option value="off">Ngừng dùng</option></select></label>
+        <label className="field wide"><span>Mô tả (gói khác các gói khác ở đâu)</span><textarea rows={2} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>
+      </div>
+    </section>
+    <section className="panel" style={{ marginTop: 14 }}>
+      <h4 style={{ margin: 0 }}>Nội dung gói <small className="sub" style={{ fontWeight: 400 }}>· chủ đề, học phần soạn ở tab Khung chương trình{f.copyFrom ? ' · đã lấy sẵn từ gói gốc' : ''}</small></h4>
+      <div className="distfilter" role="tablist" style={{ margin: '12px 0' }}>{tracks.map(t => <button key={t.code} type="button" role="tab" aria-selected={tab === t.code}
+        className={'distfchip' + (tab === t.code ? ' on' : '')} onClick={() => setTab(t.code)}>{trackLabel(t.code)} · {gradesOf(t.code).length} khối</button>)}</div>
+      {tr && <div className="pkfsec">
+        <div className="pkfhead">{chip(tr.code)} <b>{tr.name}</b><span className="sub" style={{ marginLeft: 'auto' }}>{flat(tr) ? 'Tick khối đưa vào gói · chủ đề lấy theo Khung chương trình' : 'Tick khối, rồi chọn học phần HP1, HP2 cho từng khối'}</span></div>
+        <div className="pkfgrades"><span className="sub">Khối áp dụng:</span>{GRADES.map(g => { const on = keysOf(tr.code, g).length > 0
+          const none = flat(tr) && !flatTopics(tr, g).length
+          return <label key={g} className={'pkfchk' + (on ? ' on' : '') + (none && !on ? ' off' : '')} title={none ? 'Khung chương trình chưa có chủ đề của khối này' : undefined}>
+            <input type="checkbox" checked={on} disabled={none && !on} onChange={() => flipGrade(tr, g)} /> K{g}{flat(tr) && !none ? <small className="sub"> · {flatTopics(tr, g).length}</small> : null}</label> })}</div>
+        {flat(tr)
+          ? <p className="sub" style={{ margin: '8px 12px' }}>{gradesOf(tr.code).length ? `${gradesOf(tr.code).map(g => 'K' + g).join(', ')} · ${gradesOf(tr.code).reduce((x, g) => x + flatTopics(tr, g).length, 0)} chủ đề · ${gradesOf(tr.code).reduce((x, g) => x + flatTopics(tr, g).reduce((y, t) => y + (t.periods || 0), 0), 0)} tiết` : 'Chưa tick khối nào.'}</p>
+          : gradesOf(tr.code).length === 0 ? <p className="sub" style={{ margin: '8px 12px' }}>Chưa tick khối nào.</p>
+          : <table className="table slt ttdense" style={{ width: '100%' }}>
+            <thead><tr><th style={{ width: 80 }}>Khối</th>{Array.from({ length: nSl(tr) }, (_, i) => <th key={i}>Học phần {i + 1}</th>)}<th style={{ width: 90 }}>Số chủ đề</th><th style={{ width: 90 }}>Tiết / năm</th><th style={{ width: 90 }} /></tr></thead>
+            <tbody>{gradesOf(tr.code).map(g => { const all = Array.from({ length: nSl(tr) }, (_, i) => tps(tr.code, g, i + 1)).flat()
+              return <tr key={g}><td>{gradeName(g)}</td>
+                {Array.from({ length: nSl(tr) }, (_, i) => <td key={i}><select value={draft[dk(tr.code, g, i + 1)] ?? ''} onChange={e => setMod(tr.code, g, i + 1, e.target.value)} aria-label={`${gradeName(g)} · học phần ${i + 1}`}>
+                  <option value="">{i === 0 ? 'Chọn học phần' : '—'}</option>{modsOf(tr).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></td>)}
+                <td>{all.length || <span className="sub">—</span>}</td><td>{all.reduce((x, t) => x + (t.periods || 0), 0) || <span className="sub">—</span>}</td>
+                <td><button type="button" className="linkbtn" onClick={() => flipGrade(tr, g)}>✕ bỏ khối</button></td></tr> })}</tbody></table>}
+      </div>}
+    </section>
     {err && <p className="warnline">{err}</p>}
     <div className="actions" style={{ marginTop: 12 }}>
       <button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
       <button onClick={onCancel} disabled={busy}>Huỷ</button>
     </div>
-  </section>
+  </>
 }
 
 /** Nội dung một chủ đề (xem nhanh trong khung bên phải) */

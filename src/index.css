@@ -3868,3 +3868,11 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .pkgguide{margin:4px 0 12px;padding:14px;border:1px dashed #93c5fd;border-radius:10px;background:color-mix(in srgb,#2563eb 4%,var(--surface,#fff))}
 .main .pkgguide ol{margin:8px 0 12px;padding-left:20px}
 .main .pkgguidecards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+/* Form Sửa gói: nội dung theo loại CT */
+.main .pkfsec{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.main .pkfhead{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.main .pkfgrades{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:10px 12px;border-bottom:1px solid var(--line)}
+.main .pkfchk{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:8px;padding:4px 10px;cursor:pointer;background:var(--surface);margin:0}
+.main .pkfchk.on{border-color:var(--primary,#2563eb);background:color-mix(in srgb,var(--primary,#2563eb) 8%,var(--surface,#fff))}
+.main .pkfchk.off{opacity:.45;cursor:not-allowed}
+.main .pkfchk input{margin:0}

@@ -4,6 +4,7 @@ import { FILE_BUCKET, MAX_FILE_MB, fileUrl, openFile, uploadLearningFile } from 
 import { readKitFile, type KitDraft, type KitStep } from '../lib/kitImport'
 import type { MaterialGroup, ProgramTopic } from '../lib/programFrame'
 import { embedUrl } from './elearning/common'
+import { RowMenu } from '../components/ProTools'
 
 // 6 nội dung của chủ đề (164, 165): mỗi tab là danh sách mục. Bấm vào mục để xem ngay trên trang (Word, PowerPoint, PDF, ảnh,
 // link Google Drive / Docs / YouTube). Kế hoạch giảng dạy, bài giảng tách tự động từ file Word / PowerPoint (lấy luôn vật tư,
@@ -154,12 +155,14 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
   </div>
 
   return <div style={{ marginTop: 16 }}>
-    <div className="tabsrow" style={{ alignItems: 'center' }}>
-      {TOPIC_KINDS.map(k => {
+    <div className="tctabs">
+      <div className="tctablist" role="tablist">{TOPIC_KINDS.map(k => {
         const n = items.filter(i => i.kind === k.key).length
-        return <button key={k.key} className={'roomtab' + (kind === k.key ? ' on' : '')} onClick={() => { setKind(k.key); setEdit(null) }}>{k.label}{n ? ` (${n})` : ''}</button>
-      })}
-      {admin && <><span style={{ flex: 1 }} /><button className="primary" onClick={() => { setEdit(null); setImporting(true) }}>Tách từ giáo án Word / PowerPoint</button></>}
+        return <button key={k.key} type="button" role="tab" aria-selected={kind === k.key} className={kind === k.key ? 'on' : ''} onClick={() => { setKind(k.key); setEdit(null) }}>{k.label}{n ? <i>{n}</i> : null}</button>
+      })}</div>
+      {admin && <div className="tctabact">
+        <button type="button" onClick={() => { setEdit(null); setImporting(true) }}>⇪ Tách từ Word / PowerPoint</button>
+        <button type="button" className="primary" onClick={() => setEdit(blank())}>+ Thêm</button></div>}
     </div>
     {msg && <p className="msg">{msg}</p>}
     {edit ? <ItemForm d={edit} groups={groups} topic={topic} onCancel={() => setEdit(null)} onSaved={() => { setEdit(null); reload() }} />
@@ -171,33 +174,34 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
             <td>{gName(i.material_group_id)}</td>
             <td>{i.qty != null ? `${Number(i.qty)} ${i.unit ?? ''}` : ''}</td>
             <td>{i.per ? PER[i.per] : ''}</td>
-            {admin && <td style={{ whiteSpace: 'nowrap' }}><button onClick={() => setEdit(i)}>Sửa</button> <button className="danger" onClick={() => del(i)}>Xoá</button></td>}
+            {admin && <td className="c-menu"><RowMenu label={i.title} items={[{ label: 'Sửa', onClick: () => setEdit(i) }, { label: 'Xoá', danger: true, onClick: () => del(i) }]} /></td>}
           </tr>)}</tbody>
         </table>
           : kind !== 'material' && list.map(i => {
             const on = openId === i.id
-            return <div key={i.id} className="panel" style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: 200, cursor: 'pointer' }} onClick={() => setOpenId(on ? null : i.id)}>
-                  <b>{on ? '▾' : '▸'} {i.title}</b>
-                  <div className="sub">{[i.exam_id ? 'Đề có sẵn' : '', i.file_name, !i.file_name && i.url ? i.url : '', i.content?.steps?.length ? `${i.content.steps.length} hoạt động` : '', i.content?.slides?.length ? `${i.content.slides.length} slide` : ''].filter(Boolean).join(' · ')}</div>
-                  {i.detail && <p style={{ margin: '6px 0 0', whiteSpace: 'pre-wrap' }}>{i.detail}</p>}
-                </div>
-                {(i.file_path || i.url) && <button onClick={() => open(i)}>{i.file_path ? 'Tải về' : 'Mở link'}</button>}
-                {admin && <><button onClick={() => setEdit(i)}>Sửa</button><button className="danger" onClick={() => del(i)}>Xoá</button></>}
+            const icon = i.exam_id ? '📝' : i.file_path ? ({ docx: '📄', doc: '📄', pptx: '📊', ppt: '📊', pdf: '📕' } as Record<string, string>)[ext(i.file_name)] ?? '📎' : i.url ? '🔗' : '📋'
+            const meta = [i.exam_id ? 'Đề có sẵn' : '', i.file_name, !i.file_name && i.url ? i.url : '', i.content?.steps?.length ? `${i.content.steps.length} hoạt động` : '', i.content?.slides?.length ? `${i.content.slides.length} slide` : ''].filter(Boolean).join(' · ')
+            return <div key={i.id} className="tcitem">
+              <div className="tcrow">
+                <span className="tcic" aria-hidden>{icon}</span>
+                <button type="button" className="tcmain" aria-expanded={on} onClick={() => setOpenId(on ? null : i.id)}>
+                  <b>{i.title}</b>{meta && <small className="sub">{meta}</small>}</button>
+                <button type="button" className="linkbtn" onClick={() => setOpenId(on ? null : i.id)}>{on ? 'Thu gọn ▴' : 'Xem ›'}</button>
+                {(i.file_path || i.url) && <button type="button" onClick={() => open(i)}>{i.file_path ? 'Tải về' : 'Mở link'}</button>}
+                {admin && <RowMenu label={i.title} items={[{ label: 'Sửa', onClick: () => setEdit(i) }, { label: 'Xoá', danger: true, onClick: () => del(i) }]} />}
               </div>
-              {on && <>
+              {i.detail && <p className="sub tcdetail">{i.detail}</p>}
+              {on && <div className="tcbody">
                 {i.exam_id && <ExamView id={i.exam_id} />}
                 {!!i.content?.steps?.length && <Steps steps={i.content.steps} />}
                 {(i.file_path || i.url) && <Viewer item={i} />}
                 {!!i.content?.slides?.length && !i.file_path && <ol className="sub" style={{ paddingLeft: 20 }}>{i.content.slides.map((s, k) => <li key={k}>{s}</li>)}</ol>}
-              </>}
+              </div>}
             </div>
           })}
         {!list.length && <p className="sub">Chưa có {kindLabel(kind).toLowerCase()}.</p>}
-        {admin && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="primary" onClick={() => setEdit(blank())}>+ Thêm {kindLabel(kind).toLowerCase()}</button>
-          {kind === 'material' && (planFile
+        {admin && kind === 'material' && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {(planFile
             ? <button disabled={busy} onClick={refetchMaterials}>{busy ? 'Đang đọc giáo án…' : 'Lấy lại vật tư từ kế hoạch'}</button>
             : <span className="sub" style={{ alignSelf: 'center' }}>Tải giáo án Word ở tab Kế hoạch giảng dạy để lấy vật tư tự động.</span>)}
         </div>}

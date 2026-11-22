@@ -3829,6 +3829,21 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main[data-ph="1"] .ttable:not(.ttfit) .tdc *{white-space:nowrap}
 .main[data-ph="1"] .ttable:not(.ttfit) .tdc :is(div,p){display:inline}
 .main[data-ph="1"] .ttable:not(.ttfit)>tbody>tr>td{height:42px;padding-top:8px;padding-bottom:8px}
+/* Chi tiết chủ đề: 6 nội dung dạng tab gạch chân, mỗi mục 1 dòng gọn */
+.tctabs{display:flex;align-items:flex-end;gap:12px;border-bottom:1px solid var(--line,#e2e8f0);margin-bottom:10px;flex-wrap:wrap}
+.tctablist{display:flex;gap:20px;flex:1;min-width:0;overflow-x:auto}
+.tctablist>button{background:none;border:0;border-bottom:2.5px solid transparent;border-radius:0;padding:10px 0;color:var(--muted,#475569);font-weight:500;white-space:nowrap;cursor:pointer}
+.tctablist>button.on{color:var(--primary,#1d4ed8);border-bottom-color:var(--primary,#1d4ed8);font-weight:600}
+.tctablist>button i{font-style:normal;font-size:11px;background:#eef2f7;color:#475569;border-radius:9px;padding:0 6px;margin-left:6px}
+.tctablist>button.on i{background:#dbeafe;color:var(--primary,#1d4ed8)}
+.tctabact{display:flex;gap:8px;padding-bottom:6px}
+.tcitem{border:1px solid var(--line,#e2e8f0);border-radius:10px;background:var(--card,#fff);padding:8px 12px;margin-bottom:8px}
+.tcrow{display:flex;align-items:center;gap:10px}
+.tcic{width:34px;height:34px;border-radius:8px;background:#eff6ff;display:grid;place-items:center;font-size:17px;flex:none}
+.tcmain{flex:1;min-width:0;background:none;border:0;padding:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;color:inherit}
+.tcmain>*{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tcdetail{margin:6px 0 0 44px;white-space:pre-wrap}
+.tcbody{margin-top:8px}
 /* Phân hệ 1: bảng thường (không pro) cũng 1 dòng mỗi hàng */
 .main[data-ph="1"] .ttable:not(.ttfit)>tbody>tr>td:not(:has(input,select,textarea,details,.tdc)){white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:360px}
 .main[data-ph="1"] .ttable:not(.ttfit)>tbody>tr>td:not(:has(.tdc)) br{display:none}

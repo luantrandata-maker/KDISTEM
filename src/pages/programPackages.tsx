@@ -58,7 +58,8 @@ export function ProgramPackages() {
   const cell = (pkg: string, t: string, g: number, s: number) => items.find(i => i.package_id === pkg && i.track_code === t && i.grade === g && i.slot === s)
   // Vị trí (cột) có giá trị ở loại chương trình t, trong các gói đang xét
   const slotsOf = (t: string, pkgs: string[]) => {
-    const n = Math.max(0, ...items.filter(i => i.track_code === t && pkgs.includes(i.package_id)).map(i => i.slot))
+    // Loại chia học phần luôn để sẵn 2 cột học phần (HP1, HP2)
+    const n = Math.max(active.find(x => x.code === t)?.use_modules === false ? 0 : 2, ...items.filter(i => i.track_code === t && pkgs.includes(i.package_id)).map(i => i.slot))
     return Array.from({ length: n }, (_, i) => i + 1)
   }
   // Ô nào khác nhau giữa các gói đang dùng
@@ -223,7 +224,8 @@ function PackageDetail({ pkg, others, tracks, admin, items, modules, topics, msg
               {admin && <button type="button" onClick={() => addTrack(t)}>+ Thêm vào gói</button>}</div>]
           return [
           <div key={t.code} className={'lb grp' + band} style={{ boxShadow: `inset 4px 0 0 ${c}`, gridRow: `span ${slots.length || 1}` }}>
-            {chip(t.code)}<b>{t.name}</b></div>,
+            {chip(t.code)}<b>{t.name}</b>
+            {admin && <button type="button" className="linkbtn" style={{ fontSize: 12, marginTop: 4, alignSelf: 'flex-start' }} onClick={() => addTrack(t)}>✎ {t.use_modules === false ? 'Chọn khối' : 'Sửa học phần'}</button>}</div>,
           ...slots.flatMap(sl => [<div key={t.code + sl + '-hp'} className={'hpl' + band + (sl === slots[0] ? ' grp' : '')}>{sl === 0 ? 'Chủ đề' : 'HP' + sl}</div>, ...allGrades.map(g => {
             const list = mine.filter(i => i.track_code === t.code && i.grade === g && (sl === 0 || i.slot === sl))
             const on = sel?.t === t.code && sel.g === g && sel.sl === sl
@@ -257,12 +259,12 @@ function PackageDetail({ pkg, others, tracks, admin, items, modules, topics, msg
       <button type="button" className={'distfchip' + (!track ? ' on' : '')} aria-pressed={!track} onClick={() => { setCode(''); setEdit(false) }}>Tổng quan</button>
       {tracks.map(t => <button key={t.code} type="button" className={'distfchip' + (t.code === track?.code ? ' on' : '')}
         aria-pressed={t.code === track?.code} onClick={() => { setCode(t.code); setGrade(null) }}>{trackLabel(t.code)} · {t.name}</button>)}
-      {admin && track && track.use_modules !== false && <button type="button" className={'distfchip' + (edit ? ' on' : '')} aria-pressed={edit} onClick={() => setEdit(!edit)}>{edit ? 'Xong sửa' : 'Sửa học phần'}</button>}
-      {admin && track && track.use_modules === false && <button type="button" className="distfchip" onClick={() => setFlatPick(track)}>Chọn khối</button>}
+      {admin && track && track.use_modules !== false && !edit && <button type="button" className="distfchip" onClick={() => setEdit(true)}>✎ Sửa học phần</button>}
+      {admin && track && track.use_modules === false && <button type="button" className="distfchip" onClick={() => setFlatPick(track)}>✎ Chọn khối</button>}
     </div>
     {!track ? <Overview /> : (edit
       ? <TrackGrid pkg={pkg} track={track} admin={admin} items={items} modules={modules.filter(m => m.track_code === track.code)} topics={topics}
-        slots={slotsOf(track.code, [pkg.id])} diffKeys={new Set<string>()} onChanged={onChanged} onErr={setMsg} startEdit />
+        slots={slotsOf(track.code, [pkg.id])} diffKeys={new Set<string>()} onChanged={onChanged} onErr={setMsg} startEdit onDone={() => setEdit(false)} />
       : <>
         {!grades.length ? <p className="sub">Gói chưa có {trackLabel(track.code)}.{admin ? (track.use_modules === false ? ' Bấm "Chọn khối".' : ' Bấm "Sửa học phần".') : ''}</p>
           : <DataTable id={'pkg-grades-' + (track.use_modules === false ? 'flat' : 'mods')} className={grade === null ? 'slt ttdense' : 'slt'} simple noTools rows={grades.filter(g => grade === null || g === grade)} rowKey={g => String(g)} noun="khối" onRow={g => { setOpenTopic(null); setSel({ t: track.code, g, sl: 0 }) }}
@@ -342,9 +344,9 @@ function FlatGrades({ pkg, track, items, modules, topics, onChanged, onErr }: {
   </>
 }
 
-function TrackGrid({ pkg, track, admin, items, modules, topics, slots, diffKeys, onChanged, onErr, startEdit }: {
+function TrackGrid({ pkg, track, admin, items, modules, topics, slots, diffKeys, onChanged, onErr, startEdit, onDone }: {
   pkg: ProgramPackage; track: StemTrack; admin: boolean; items: PackageItem[]; modules: ProgramModule[]; topics: ProgramTopic[]; slots: number[]
-  diffKeys: Set<string>; onChanged: () => void; onErr: (m: string) => void; startEdit?: boolean
+  diffKeys: Set<string>; onChanged: () => void; onErr: (m: string) => void; startEdit?: boolean; onDone?: () => void
 }) {
   const [edit, setEdit] = useState(!!startEdit)
   const [extra, setExtra] = useState(0)
@@ -375,7 +377,7 @@ function TrackGrid({ pkg, track, admin, items, modules, topics, slots, diffKeys,
     <div className="bar"><h4 style={{ margin: 0 }}>{chip(track.code)} {track.name} <small className="sub">· {new Set(mine.map(i => i.module_id)).size} học phần · {nTopics} chủ đề</small></h4>
       {admin && <div className="tools">
         {edit && <button type="button" onClick={() => setExtra(extra + 1)}>+ Cột học phần</button>}
-        <button type="button" className={edit ? 'primary' : ''} onClick={() => { setEdit(!edit); setExtra(0) }}>{edit ? 'Xong' : 'Sửa học phần'}</button></div>}</div>
+        <button type="button" className={edit ? 'primary' : ''} onClick={() => { if (edit && onDone) return onDone(); setEdit(!edit); setExtra(0) }}>{edit ? 'Xong' : 'Sửa học phần'}</button></div>}</div>
     {!rows.length ? <small className="sub">Gói chưa có học phần của loại này.{admin ? ' Bấm "Sửa học phần".' : ''}</small>
       : <table className="table">
         <thead><tr><th>Khối</th>{cols.map(s => <th key={s}>Học phần {s} <small className="sub">(chủ đề)</small></th>)}<th>Tiết / năm</th></tr></thead>

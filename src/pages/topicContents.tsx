@@ -23,7 +23,8 @@ const kindLabel = (k: Kind) => TOPIC_KINDS.find(x => x.key === k)!.label
 const PER: Record<string, string> = { product: '1 sản phẩm', student: 'Học sinh', group: 'Nhóm', class: 'Lớp' }
 const ACCEPT: Partial<Record<Kind, string>> = { plan: '.docx,.doc,.pdf', lecture: '.pptx,.ppt,.pdf' }
 
-type Content = { steps?: KitStep[]; sections?: Record<string, string>; slides?: string[]; reusable?: boolean } | null
+type TextPart = { title: string; body: string }
+type Content = { steps?: KitStep[]; sections?: Record<string, string>; slides?: string[]; parts?: TextPart[]; reusable?: boolean } | null
 export type TopicItem = {
   id: string; topic_id: string; kind: Kind; seq: number; title: string; detail: string; url: string | null
   file_path: string | null; file_name: string | null; material_group_id: string | null; qty: number | null; unit: string | null; per: string | null
@@ -185,10 +186,10 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
         </table>
           : kind !== 'material' && list.map(i => {
             const on = openId === i.id   // đang mở tệp / link
-            const info = !!i.exam_id || !!i.content?.steps?.length || (!!i.content?.slides?.length && !i.file_path)
+            const info = !!i.exam_id || !!i.content?.steps?.length || !!i.content?.parts?.length || (!!i.content?.slides?.length && !i.file_path)
             const file = !!(i.file_path || i.url)
             const icon = i.exam_id ? '📝' : i.file_path ? ({ docx: '📄', doc: '📄', pptx: '📊', ppt: '📊', pdf: '📕' } as Record<string, string>)[ext(i.file_name)] ?? '📎' : i.url ? '🔗' : '📋'
-            const meta = [i.exam_id ? 'Đề có sẵn' : '', i.file_name, !i.file_name && i.url ? i.url : '', i.content?.steps?.length ? `${i.content.steps.length} hoạt động` : '', i.content?.slides?.length ? `${i.content.slides.length} slide` : ''].filter(Boolean).join(' · ')
+            const meta = [i.exam_id ? 'Đề có sẵn' : '', i.file_name, !i.file_name && i.url ? i.url : '', i.content?.steps?.length ? `${i.content.steps.length} hoạt động` : '', i.content?.slides?.length ? `${i.content.slides.length} slide` : '', i.content?.parts?.length ? `${i.content.parts.length} phần` : ''].filter(Boolean).join(' · ')
             return <div key={i.id} className="tcitem">
               <div className="tcrow">
                 <span className="tcic" aria-hidden>{icon}</span>
@@ -202,6 +203,8 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
               {(info || on) && <div className="tcbody">
                 {i.exam_id && <ExamView id={i.exam_id} />}
                 {!!i.content?.steps?.length && <Steps steps={i.content.steps} />}
+                {!!i.content?.parts?.length && <div style={{ display: 'grid', gap: 10, marginTop: 6 }}>{i.content.parts.map((x, k) => <section key={k}>
+                  {x.title && <h4 style={{ margin: '0 0 4px' }}>{x.title}</h4>}<p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{x.body}</p></section>)}</div>}
                 {!!i.content?.slides?.length && !i.file_path && <ol className="sub" style={{ paddingLeft: 20 }}>{i.content.slides.map((s, k) => <li key={k}>{s}</li>)}</ol>}
                 {on && file && <Viewer item={i} />}
               </div>}
@@ -218,10 +221,14 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
 }
 
 // ----- Thêm / sửa một mục -----
-type Mode = 'file' | 'link' | 'exam'
+type Mode = 'file' | 'link' | 'exam' | 'manual'
+// Nhập trực tiếp: kế hoạch giảng dạy điền bảng hoạt động (cùng kiểu với giáo án tách từ Word); bài giảng, phiếu học tập điền các phần văn bản
+const MANUAL: Kind[] = ['plan', 'lecture', 'worksheet']
 function ItemForm({ d, groups, topic, onCancel, onSaved }: { d: Draft; groups: MaterialGroup[]; topic: ProgramTopic; onCancel: () => void; onSaved: () => void }) {
   const [f, setF] = useState<Draft>(d)
-  const [mode, setMode] = useState<Mode>(d.exam_id ? 'exam' : d.url && !d.file_path ? 'link' : 'file')
+  const [mode, setMode] = useState<Mode>(d.exam_id ? 'exam' : d.url && !d.file_path ? 'link' : !d.file_path && MANUAL.includes(d.kind) && (d.id ? true : false) ? 'manual' : 'file')
+  const [steps, setSteps] = useState<KitStep[]>(() => d.content?.steps?.length ? d.content.steps : [{ phase: '', title: '', goal: '' }])
+  const [parts, setParts] = useState<TextPart[]>(() => d.content?.parts?.length ? d.content.parts : [{ title: '', body: '' }])
   const [exams, setExams] = useState<Exam[]>([])
   const [q, setQ] = useState('')
   const [busy, setBusy] = useState(false)
@@ -242,7 +249,12 @@ function ItemForm({ d, groups, topic, onCancel, onSaved }: { d: Draft; groups: M
   }
   async function save() {
     if (!f.title.trim()) return setMsg('Nhập tên.')
-    const row = { ...f, url: mode === 'link' ? f.url : null, file_path: mode === 'file' ? f.file_path : null, file_name: mode === 'file' ? f.file_name : null, exam_id: mode === 'exam' ? f.exam_id : null }
+    const manual = mode === 'manual'
+    const st = steps.map(x => ({ ...x, title: x.title.trim(), phase: x.phase?.trim() || undefined, goal: x.goal?.trim() || undefined })).filter(x => x.title)
+    const pt = parts.map(x => ({ title: x.title.trim(), body: x.body.trim() })).filter(x => x.title || x.body)
+    if (manual && (f.kind === 'plan' ? !st.length : !pt.length)) return setMsg(f.kind === 'plan' ? 'Nhập ít nhất một hoạt động.' : 'Nhập ít nhất một phần nội dung.')
+    const content = !manual ? f.content : f.kind === 'plan' ? { ...(f.content ?? {}), steps: st } : { ...(f.content ?? {}), parts: pt }
+    const row = { ...f, content, url: mode === 'link' ? f.url : null, file_path: mode === 'file' ? f.file_path : null, file_name: mode === 'file' ? f.file_name : null, exam_id: mode === 'exam' ? f.exam_id : null }
     if (!mat && mode === 'exam' && !row.exam_id) return setMsg('Chọn một đề.')
     if (!mat && mode === 'link' && row.url && !/^https?:\/\//i.test(row.url.trim())) return setMsg('Link phải bắt đầu bằng http:// hoặc https://')
     setBusy(true)
@@ -258,7 +270,7 @@ function ItemForm({ d, groups, topic, onCancel, onSaved }: { d: Draft; groups: M
   return <div className="panel">
     <div className="formgrid">
       {!mat && <div className="field" style={{ gridColumn: '1 / -1' }}><span>Cách thêm</span>
-        <div className="seg">{([['file', 'Tải file lên'], ['link', 'Dán link'], ...(test ? [['exam', 'Chọn từ đề có sẵn']] : [])] as [Mode, string][]).map(([k, l]) =>
+        <div className="seg">{([['file', 'Tải file lên'], ['link', 'Dán link'], ...(test ? [['exam', 'Chọn từ đề có sẵn']] : []), ...(MANUAL.includes(f.kind) ? [['manual', 'Nhập trực tiếp']] : [])] as [Mode, string][]).map(([k, l]) =>
           <button key={k} type="button" className={mode === k ? 'on' : ''} onClick={() => setMode(k)}>{l}</button>)}</div></div>}
       {!mat && mode === 'exam' && <div className="field" style={{ gridColumn: '1 / -1' }}><span>Tìm đề (E-learning & luyện thi → Đề luyện)</span>
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="Tên đề, môn, khối…" />
@@ -282,7 +294,9 @@ function ItemForm({ d, groups, topic, onCancel, onSaved }: { d: Draft; groups: M
         : mode === 'file' ? <label className="field" style={{ gridColumn: '1 / -1' }}><span>Tệp{f.file_name ? ' · ' + f.file_name : ''} (tối đa {MAX_FILE_MB} MB)</span>
           <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}><input type="file" accept={ACCEPT[f.kind]} disabled={busy} onChange={e => upload(e.target.files?.[0])} />
             {busy && <span className="sub">Đang tải lên…</span>}
-            {f.file_name && <button type="button" onClick={() => set({ file_path: null, file_name: null })}>Bỏ tệp</button>}</span></label> : null}
+            {f.file_name && <button type="button" onClick={() => set({ file_path: null, file_name: null })}>Bỏ tệp</button>}</span></label>
+        : mode === 'manual' && f.kind === 'plan' ? <StepsEditor steps={steps} onChange={setSteps} />
+        : mode === 'manual' ? <PartsEditor parts={parts} onChange={setParts} /> : null}
       <label className="field" style={{ gridColumn: '1 / -1' }}><span>{mat ? 'Ghi chú' : 'Mô tả'}</span><textarea rows={mat ? 2 : 4} value={f.detail} maxLength={4000} onChange={e => set({ detail: e.target.value })} /></label>
     </div>
     {msg && <p className="msg">{msg}</p>}
@@ -392,5 +406,35 @@ function TopicImport({ topic, items, onClose, onDone }: { topic: ProgramTopic; i
       <button disabled={busy} onClick={() => { setDraft(null); setErr('') }}>Chọn file khác</button>
       <button disabled={busy} onClick={onClose}>Huỷ</button>
     </div>
+  </div>
+}
+
+// ----- Nhập trực tiếp -----
+function StepsEditor({ steps, onChange }: { steps: KitStep[]; onChange: (v: KitStep[]) => void }) {
+  const up = (k: number, p: Partial<KitStep>) => onChange(steps.map((x, i) => i === k ? { ...x, ...p } : x))
+  const total = steps.reduce((a, x) => a + (Number(x.minutes) || 0), 0)
+  return <div className="field" style={{ gridColumn: '1 / -1' }}><span>Các hoạt động</span>
+    <div className="wrap"><table className="slt ttdense mfedit" style={{ width: '100%' }}>
+      <thead><tr><th style={{ width: 36 }}>#</th><th style={{ width: '18%' }}>Giai đoạn</th><th>Hoạt động *</th><th style={{ width: '28%' }}>Mục tiêu</th><th style={{ width: 80 }}>Phút</th><th style={{ width: 36 }} /></tr></thead>
+      <tbody>{steps.map((x, k) => <tr key={k}><td className="sub">{k + 1}</td>
+        <td><input value={x.phase ?? ''} maxLength={80} onChange={e => up(k, { phase: e.target.value })} placeholder="Khởi động…" /></td>
+        <td><input value={x.title} maxLength={300} onChange={e => up(k, { title: e.target.value })} placeholder="Học sinh làm gì" /></td>
+        <td><input value={x.goal ?? ''} maxLength={300} onChange={e => up(k, { goal: e.target.value })} /></td>
+        <td><input type="number" min={0} value={x.minutes ?? ''} onChange={e => up(k, { minutes: e.target.value === '' ? undefined : Number(e.target.value) })} /></td>
+        <td><button type="button" className="linkbtn" aria-label="Xoá hoạt động" onClick={() => onChange(steps.filter((_, i) => i !== k))}>×</button></td></tr>)}</tbody>
+    </table></div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <button type="button" className="linkbtn" onClick={() => onChange([...steps, { phase: '', title: '', goal: '' }])}>+ Thêm hoạt động</button>
+      {total > 0 && <small className="sub">Tổng {total} phút</small>}</div>
+  </div>
+}
+function PartsEditor({ parts, onChange }: { parts: TextPart[]; onChange: (v: TextPart[]) => void }) {
+  const up = (k: number, p: Partial<TextPart>) => onChange(parts.map((x, i) => i === k ? { ...x, ...p } : x))
+  return <div className="field" style={{ gridColumn: '1 / -1' }}><span>Nội dung (từng phần có tiêu đề)</span>
+    <div style={{ display: 'grid', gap: 10 }}>{parts.map((x, k) => <div key={k} style={{ border: '1px solid var(--line)', borderRadius: 8, padding: 10, display: 'grid', gap: 6 }}>
+      <div style={{ display: 'flex', gap: 8 }}><input style={{ flex: 1 }} value={x.title} maxLength={200} onChange={e => up(k, { title: e.target.value })} placeholder={`Phần ${k + 1}: tiêu đề`} />
+        <button type="button" className="linkbtn" aria-label="Xoá phần" onClick={() => onChange(parts.filter((_, i) => i !== k))}>×</button></div>
+      <textarea rows={4} value={x.body} maxLength={8000} onChange={e => up(k, { body: e.target.value })} placeholder="Nội dung" /></div>)}</div>
+    <div><button type="button" className="linkbtn" onClick={() => onChange([...parts, { title: '', body: '' }])}>+ Thêm phần</button></div>
   </div>
 }

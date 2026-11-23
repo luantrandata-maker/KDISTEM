@@ -285,8 +285,6 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpen, actions, 
       side = <Drawer onClose={() => setCell(null)} title={<>{tr && chip(tr.code)} {m ? m.name : tr?.name} · {gradeName(g)}</>}
         actions={<span className="frside-acts">
           {onAdd && <button type="button" className="primary" onClick={onAdd}>+ Thêm chủ đề vào {gradeName(g)}</button>}
-          {m && onEditMod && <button type="button" onClick={onEditMod}>✎ Sửa học phần</button>}
-          <button type="button" className="linkbtn" onClick={() => { setCell(null); setOpen(o => ({ ...o, [tc]: true, ...(m ? { [`${tc}/${m.id}`]: true } : {}) })); setMode('list') }}>Xem ở Danh sách ›</button>
         </span>}>
         <p className="sub" style={{ marginTop: 0 }}>{m && tr ? tr.name + ' · ' : ''}{list.length} chủ đề · {tiet(list)} tiết{hp[0] + hp[1] ? ` · HP1 ${hp[0]} chủ đề, HP2 ${hp[1]} chủ đề` : ''}</p>
         <DataTable id="frame-cell" noTools noFoot rows={list} rowKey={r => r.t.id} cols={ccols} noun="chủ đề" onRow={r => onOpen(r.t)} className="slt"

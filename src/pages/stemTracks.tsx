@@ -119,7 +119,7 @@ export function StemTracksCatalog() {
   }
   const cols: Col<StemTrack>[] = [
     { key: 'code', label: 'Mã', fixed: true, thClass: 'c-no c-code', text: t => trackLabel(t.code), cell: t => <span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{trackLabel(t.code)}</span> },
-    { key: 'title', label: 'Loại chương trình', fixed: true, thClass: 'c-ttl', text: t => t.title + ' ' + t.name, cell: t => <><b>{t.title}</b><div className="sub">{t.name}</div></> },
+    { key: 'title', label: 'Loại chương trình', fixed: true, thClass: 'c-ttl', text: t => t.title + ' ' + t.name, cell: t => <><b>{t.title}</b>{t.name && t.name.trim() !== t.title.trim() && <span className="sub"> · {t.name}</span>}</> },
     { key: 'desc', label: 'Mô tả', off: true, text: t => t.description ?? '', cell: t => t.description || <small className="sub">—</small> },
     { key: 'subj', label: 'Môn học', text: t => t.subjects.join(', '), values: t => t.subjects, cell: t => t.subjects.length ? t.subjects.join(', ') : <small className="sub">Chưa có</small> },
     { key: 'lv', label: 'Cấp học', text: t => t.levels.map(l => STEM_LEVEL_NAME[l]).join(', '), values: t => t.levels.map(l => STEM_LEVEL_NAME[l]),

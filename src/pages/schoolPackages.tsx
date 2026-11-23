@@ -16,7 +16,7 @@ const OFF = { textDecoration: 'line-through', color: 'var(--muted)' }
 const trackHead = (t: StemTrack) => `${trackLabel(t.code)} · ${t.name}`
 // Tiêu đề cột loại CT: chip màu + tên; GAP: khe dọc tách các loại CT trong bảng gói của trường
 const trackTh = (t: StemTrack) => <><span className="progchip" style={{ background: TRACK_COLOR[t.code], color: '#fff', marginRight: 8 }}>{trackLabel(t.code)}</span>{t.name}</>
-const GAP = { borderLeft: '5px solid #e9eef5' }
+const GAP = { borderLeft: '3px solid #e9eef5' }
 const keyM = (t: string, g: number, s: number) => `m|${t}|${g}|${s}`
 const keyT = (topic: string) => `t|${topic}`
 
@@ -234,7 +234,7 @@ export function SchoolPackages() {
 
   return <>
     {msg && <p className="msg" role="status">{msg}</p>}
-    <DataTable id="school-packages" className="spfit" aside={provTree} rows={shown} rowKey={r => r.org_id} noun="trường" onRow={r => { setOpenOrg(r.org_id); setEdit(null) }}
+    <DataTable id="school-packages-v2" className="spfit" aside={provTree} rows={shown} rowKey={r => r.org_id} noun="trường" onRow={r => { setOpenOrg(r.org_id); setEdit(null) }}
       empty={loaded ? (used.length ? 'Không có trường nào khớp bộ lọc.' : `Chưa có trường nào được gán gói trong năm học ${yearLabel(year)}.`) : 'Đang tải…'}
       left={<>{yearSel}
         <select aria-label="Gói" value={fPkg} onChange={e => setFPkg(e.target.value)}><option value="">Tất cả gói</option>

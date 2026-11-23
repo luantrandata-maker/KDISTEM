@@ -3864,6 +3864,13 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .frcell{min-width:58px;border:1px solid color-mix(in srgb,var(--k) 30%,transparent);background:color-mix(in srgb,var(--k) 12%,var(--surface,#fff));color:inherit;border-radius:6px;padding:2px 6px;line-height:1.15;cursor:pointer;display:inline-flex;flex-direction:column;align-items:center}
 .main .frcell small{font-size:10px;opacity:.75}
 .main .frcell:hover{outline:2px solid var(--k)}
+.main .frcell.on{outline:2px solid var(--primary,#1d4ed8);outline-offset:1px}
+@media (min-width:900px){.main .frgrid .fitscreen>.frgridwrap{max-height:none;height:100%}}
+.main .frgridtbl tr.frgrp,.main .frgridtbl td.frmod{cursor:pointer}
+.main .frgridtbl tr.frgrp.on>td,.main .frgridtbl tr.on>td.frmod{box-shadow:inset 3px 0 0 var(--primary,#1d4ed8)}
+.main .frgridtbl td.frmod:hover{color:var(--primary,#1d4ed8)}
+.frside-acts{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+.frside-acts .linkbtn{font-size:13px;margin-left:4px}
 /* Gói STEM mới: hướng dẫn thêm nội dung */
 .main .pkgguide{margin:4px 0 12px;padding:14px;border:1px dashed #93c5fd;border-radius:10px;background:color-mix(in srgb,#2563eb 4%,var(--surface,#fff))}
 .main .pkgguide ol{margin:8px 0 12px;padding-left:20px}

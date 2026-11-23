@@ -3935,3 +3935,6 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 /* Cùng chiều cao với Bộ lọc, Lưu bộ lọc, nút chuyển kiểu xem (36px) */
 .main .fwacts>button{box-sizing:border-box;height:36px!important;min-height:0!important;padding:0 12px!important;line-height:1!important;font-size:inherit;border-radius:8px;white-space:nowrap;font-weight:500;display:inline-flex;align-items:center;margin:0}
 
+
+/* Trường áp dụng: bảng vừa khung (đủ tới KDI cuối, không kéo ngang) */
+@media (min-width:900px){.main .ttable.spfit{width:100%;table-layout:fixed}.main .ttable.spfit>thead>tr>th{min-width:0!important}.main .ttable.spfit>thead>tr>th:first-child{width:26%}.main .ttable.spfit :is(th,td){white-space:normal;overflow-wrap:anywhere}}

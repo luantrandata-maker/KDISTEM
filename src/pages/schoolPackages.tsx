@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { fetchAll, supabase } from '../lib/supabase'
+import { TreeHead } from '../components/TreeHead'
 import { useStemTracks, type StemTrack, trackLabel, TRACK_COLOR } from '../lib/stemTracks'
 import { gradeName } from '../lib/eduLevels'
 import { loadFrame, loadPackages, slotTopics, type PackageItem, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
@@ -222,19 +223,27 @@ export function SchoolPackages() {
     </ElView>
   }
 
+  // Cây Tỉnh / Thành phố (một lớp) bên trái bảng: bấm để lọc theo tỉnh, số = số trường
+  const nProv = (p: string) => used.filter(r => (r.province_name ?? 'Chưa rõ tỉnh') === p).length
+  const provItem = (k: string, label: string, c: number) => <button type="button" key={k || 'all'} className={'gtitem' + (prov === k ? ' on' : '')} aria-pressed={prov === k}
+    onClick={() => setProv(k)}><span className="gtlbl">{label}</span><span className="gtcnt">{c}</span></button>
+  const provTree = <nav className="gtree" aria-label="Lọc theo tỉnh / thành phố">
+    <TreeHead title="Tỉnh / Thành phố">Số = số trường đang áp dụng gói.<br />Bấm tên tỉnh để lọc bảng.</TreeHead>
+    {provItem('', 'Tất cả', used.length)}
+    {provs.map(p => provItem(p, p, nProv(p)))}
+  </nav>
+
   return <>
     {msg && <p className="msg" role="status">{msg}</p>}
-    <DataTable id="school-packages" rows={shown} rowKey={r => r.org_id} noun="trường" onRow={r => { setOpenOrg(r.org_id); setEdit(null) }}
+    <DataTable id="school-packages" className="spfit" aside={provTree} rows={shown} rowKey={r => r.org_id} noun="trường" onRow={r => { setOpenOrg(r.org_id); setEdit(null) }}
       empty={loaded ? (used.length ? 'Không có trường nào khớp bộ lọc.' : `Chưa có trường nào được gán gói trong năm học ${yearLabel(year)}.`) : 'Đang tải…'}
       left={<>{yearSel}
-        <select aria-label="Tỉnh" value={prov} onChange={e => setProv(e.target.value)}><option value="">Tất cả tỉnh ({used.length})</option>
-          {provs.map(p => <option key={p} value={p}>{p} ({used.filter(r => (r.province_name ?? 'Chưa rõ tỉnh') === p).length})</option>)}</select>
         <select aria-label="Gói" value={fPkg} onChange={e => setFPkg(e.target.value)}><option value="">Tất cả gói</option>
           {packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></>}
       right={admin && <button type="button" className="primary" onClick={() => setAssign(true)}>+ Gán gói cho trường</button>}
       cols={[
         { key: 'name', label: 'Trường', fixed: true, text: r => r.name, cell: r => <button type="button" className="namelink" style={{ fontWeight: 600 }}>{r.name}</button> },
-        { key: 'prov', label: 'Tỉnh', text: r => r.province_name ?? '', cell: r => r.province_name ?? <span className="sub">—</span> },
+        { key: 'prov', label: 'Tỉnh / Thành phố', off: true, text: r => r.province_name ?? '', cell: r => r.province_name ?? <span className="sub">—</span> },
         { key: 'grades', label: 'Khối', text: r => kRange(liveOf(r).flatMap(x => x.grades ?? [])), cell: r => kRange(liveOf(r).flatMap(x => x.grades ?? [])) },
         { key: 'pkg', label: 'Gói', text: r => liveOf(r).map(x => pkgName(x.package_id)).join(', '), cell: r => { const live = liveOf(r)
           return <div style={{ display: 'flex', flexWrap: 'wrap', columnGap: 14, rowGap: 2 }}>

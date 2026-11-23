@@ -636,7 +636,7 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
     <section className="panel" style={{ marginTop: 14 }}>
       <h4 style={{ margin: 0 }}>Nội dung gói <small className="sub" style={{ fontWeight: 400 }}>· chủ đề, học phần soạn ở tab Khung chương trình{f.copyFrom ? ' · đã lấy sẵn từ gói gốc' : ''}</small></h4>
       <div className="distfilter" role="tablist" style={{ margin: '12px 0' }}>{tracks.map(t => <button key={t.code} type="button" role="tab" aria-selected={tab === t.code}
-        className={'distfchip' + (tab === t.code ? ' on' : '')} onClick={() => setTab(t.code)}>{trackLabel(t.code)} · {gradesOf(t.code).length} khối</button>)}</div>
+        className={'distfchip' + (tab === t.code ? ' on' : '')} onClick={() => setTab(t.code)} title={`${trackLabel(t.code)} · ${t.name}`}>{t.name} <small style={{ opacity: .75 }}>· {gradesOf(t.code).length} khối</small></button>)}</div>
       {tr && <div className="pkfsec">
         <div className="pkfhead">{chip(tr.code)} <b>{tr.name}</b><span className="sub" style={{ marginLeft: 'auto' }}>{flat(tr) ? 'Tick khối đưa vào gói · chủ đề lấy theo Khung chương trình' : 'Tick khối, rồi chọn học phần HP1, HP2 cho từng khối'}</span></div>
         <div className="pkfgrades"><span className="sub">Khối áp dụng:</span>{GRADES.map(g => { const on = keysOf(tr.code, g).length > 0

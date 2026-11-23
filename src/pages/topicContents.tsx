@@ -121,7 +121,8 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
   // Bấm "+ Thêm" khi tab đã có nội dung (kế hoạch, bài giảng, phiếu): hỏi sửa bản đang có hay thêm bản mới
   const [ask, setAsk] = useState(false)
   const [editMode, setEditMode] = useState<Mode | undefined>()
-  const editItem = (i: TopicItem, m?: Mode) => { setAsk(false); setEditMode(m); setEdit(i) }
+  // Sửa một bản đã có hoạt động / các phần (vd. giáo án tách từ Word): mở thẳng bảng Nhập trực tiếp để sửa nội dung
+  const editItem = (i: TopicItem, m?: Mode) => { setAsk(false); setEditMode(m ?? (MANUAL.includes(i.kind) && (i.content?.steps?.length || i.content?.parts?.length) ? 'manual' : undefined)); setEdit(i) }
   const [openId, setOpenId] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
   const [msg, setMsg] = useState('')

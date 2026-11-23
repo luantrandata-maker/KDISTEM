@@ -204,7 +204,7 @@ export function CurriculumBooks({ orgId, mode = 'school', year, years, lead }: {
     const r = data as { books: number; lessons: number; skipped: number; standard?: number; year: string }
     setMsg([r.books ? `Đã tạo ${r.books} PPCT nháp (${r.lessons} tiết) theo Gói STEM năm học ${r.year}${r.books > (r.standard ?? 0) ? ` — ${r.standard ? `${r.standard} PPCT theo PPCT chuẩn của KDI, ${r.books - r.standard} PPCT ` : ''}chưa có PPCT chuẩn nên tự chia đều 35 tuần` : ' theo PPCT chuẩn của KDI'}${r.skipped ? `; ${r.skipped} PPCT đã có từ trước nên giữ nguyên` : ''}. Bấm vào từng PPCT để chỉnh tuần rồi gửi duyệt.`
       : r.skipped ? `Các PPCT theo Gói STEM năm học ${r.year} đã có (${r.skipped} PPCT), không tạo thêm.`
-      : `Trường chưa có Gói STEM đang dùng trong năm học ${r.year}, hoặc gói chưa có chủ đề. KDI gán gói ở Chương trình giáo dục › Trường dùng gói.`, !r.books && !r.skipped])
+      : `Trường chưa có Gói STEM đang dùng trong năm học ${r.year}, hoặc gói chưa có chủ đề. KDI gán gói ở Chương trình giáo dục › Trường áp dụng.`, !r.books && !r.skipped])
     load()
   }
   function exportList() {

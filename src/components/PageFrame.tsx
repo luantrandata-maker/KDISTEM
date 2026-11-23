@@ -34,12 +34,12 @@ export function PageFrame({ title, tabs, value, onTab, actions, children }: {
   </>
 }
 
-/** Các mục con của trang dưới dạng tab trong khung (thay TabbedPages). */
-export function FramedTabs({ tabs, actions, ...props }: { tabs: [string, ComponentType<any>][]; actions?: ReactNode } & Record<string, any>) {
+/** Các mục con của trang dưới dạng tab trong khung (thay TabbedPages). actionsOn: chỉ hiện nút thao tác ở các tab này. */
+export function FramedTabs({ tabs, actions, actionsOn, ...props }: { tabs: [string, ComponentType<any>][]; actions?: ReactNode; actionsOn?: string[] } & Record<string, any>) {
   const [i, setI] = useState(0)
   const Page = tabs[i]?.[1]
   const goTab = (label: string) => { const k = tabs.findIndex(t => t[0] === label); if (k >= 0) setI(k) }
-  return <PageFrame tabs={tabs.map(t => t[0])} value={i} onTab={setI} actions={actions}>
+  return <PageFrame tabs={tabs.map(t => t[0])} value={i} onTab={setI} actions={!actionsOn || actionsOn.includes(tabs[i]?.[0]) ? actions : undefined}>
     {Page && <Page key={i} {...props} name={tabs[i][0]} goTab={goTab} />}
   </PageFrame>
 }

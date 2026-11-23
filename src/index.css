@@ -3858,16 +3858,18 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .frgridbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
 .main .frgridwrap{overflow:auto;max-height:calc(100vh - 260px)}
 .main .frgridtbl{width:100%;border-collapse:collapse}
-.main .frgridtbl th{position:sticky;top:0;background:var(--soft,#f8fafc);z-index:1;white-space:nowrap}
+.main .frgridtbl th{position:sticky;top:0;background:#e2e8f0;color:#1e293b;font-weight:700;z-index:3;white-space:nowrap;box-shadow:inset 0 -2px 0 #cbd5e1}
 .main .frgridtbl td,.main .frgridtbl th{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
-.main .frgridtbl tr.frgrp>td{background:var(--soft,#f1f5f9)}
+.main .frgridtbl tr.frgrp>td{background:color-mix(in srgb,var(--k,#64748b) 7%,var(--surface,#fff));box-shadow:inset 4px 0 0 var(--k,#64748b);padding-top:7px;padding-bottom:7px}
 .main .frcell{min-width:58px;border:1px solid color-mix(in srgb,var(--k) 30%,transparent);background:color-mix(in srgb,var(--k) 12%,var(--surface,#fff));color:inherit;border-radius:6px;padding:2px 6px;line-height:1.15;cursor:pointer;display:inline-flex;flex-direction:column;align-items:center}
 .main .frcell small{font-size:10px;opacity:.75}
 .main .frcell:hover{outline:2px solid var(--k)}
 .main .frcell.on{outline:2px solid var(--primary,#1d4ed8);outline-offset:1px}
-@media (min-width:900px){.main .frgrid .fitscreen>.frgridwrap{max-height:none;height:100%}}
+/* Cuộn ở khung FitScreen (không cuộn ở frgridwrap) để tiêu đề cột đứng yên */
+@media (min-width:900px){.main .frgrid .fitscreen>.frgridwrap{max-height:none;overflow:visible}}
 .main .frgridtbl tr.frgrp,.main .frgridtbl td.frmod{cursor:pointer}
-.main .frgridtbl tr.frgrp.on>td,.main .frgridtbl tr.on>td.frmod{box-shadow:inset 3px 0 0 var(--primary,#1d4ed8)}
+.main .frgridtbl tr.frgrp.on>td,.main .frgridtbl tr.on>td{background:color-mix(in srgb,var(--primary,#1d4ed8) 11%,var(--surface,#fff))}
+.main .frgridtbl tr.frgrp.on>td:first-child,.main .frgridtbl tr.on>td:first-child{box-shadow:inset 4px 0 0 var(--primary,#1d4ed8);color:var(--primary,#1d4ed8);font-weight:600}
 .main .frgridtbl td.frmod:hover{color:var(--primary,#1d4ed8)}
 .frside-acts{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
 .frside-acts .linkbtn{font-size:13px;margin-left:4px}
@@ -3916,10 +3918,12 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .fwtree .ttprotools .tsrch{flex:0 1 auto;min-width:0}
 .fwtree .ttprotools .tsin{min-width:120px}
 .fwtree .ttleft{flex:1 1 auto;flex-wrap:nowrap;min-width:0;overflow:hidden}
-.fwtree .ttprotools .tspacer{flex:0 0 0}
+.fwtree .ttprotools .tspacer{flex:1 1 0}
 .fwtree .ttprotools .frmode,.fwtree .ttprotools .ticons,.fwtree .ttprotools>button{flex:none}
 .fwtree .frmode button{white-space:nowrap}
 }
 /* Khung chương trình: nút Thêm chủ đề / Thêm học phần / Sửa học phần trên thanh công cụ */
 .fwacts{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}
-.main .fwacts>button{height:36px;padding:0 12px;border-radius:8px;white-space:nowrap;font-weight:500}
+/* Cùng chiều cao với Bộ lọc, Lưu bộ lọc, nút chuyển kiểu xem (36px) */
+.main .fwacts>button{box-sizing:border-box;height:36px!important;min-height:0!important;padding:0 12px!important;line-height:1!important;font-size:inherit;border-radius:8px;white-space:nowrap;font-weight:500;display:inline-flex;align-items:center;margin:0}
+.main .frmode>button{box-sizing:border-box}

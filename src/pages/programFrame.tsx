@@ -173,7 +173,7 @@ export function ProgramFrame() {
   const acts = admin && track ? <>
     <button type="button" className="primary" onClick={addTopic}>+ Thêm chủ đề</button>
     {!flat && <button type="button" onClick={() => { setMsg(''); newMod() }}>+ Thêm học phần</button>}
-    {!flat && <button type="button" disabled={!selMod} title={selMod ? `Sửa học phần ${selMod.name}` : 'Chọn một học phần trước'} onClick={() => { if (selMod) { setMsg(''); setEditMod(selMod) } }}>✎ Sửa học phần</button>}
+    {!flat && selMod && <button type="button" title={`Sửa học phần ${selMod.name}`} onClick={() => { setMsg(''); setEditMod(selMod) }}>✎ Sửa học phần</button>}
   </> : undefined
   return <>
     {msg && <p className="msg" role="status">{msg}</p>}
@@ -285,8 +285,6 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpen, actions, 
       side = <Drawer onClose={() => setCell(null)} title={<>{tr && chip(tr.code)} {m ? m.name : tr?.name} · {gradeName(g)}</>}
         actions={<span className="frside-acts">
           {onAdd && <button type="button" className="primary" onClick={onAdd}>+ Thêm chủ đề vào {gradeName(g)}</button>}
-          {m && onEditMod && <button type="button" onClick={onEditMod}>✎ Sửa học phần</button>}
-          <button type="button" className="linkbtn" onClick={() => { setCell(null); setOpen(o => ({ ...o, [tc]: true, ...(m ? { [`${tc}/${m.id}`]: true } : {}) })); setMode('list') }}>Xem ở Danh sách ›</button>
         </span>}>
         <p className="sub" style={{ marginTop: 0 }}>{m && tr ? tr.name + ' · ' : ''}{list.length} chủ đề · {tiet(list)} tiết{hp[0] + hp[1] ? ` · HP1 ${hp[0]} chủ đề, HP2 ${hp[1]} chủ đề` : ''}</p>
         <DataTable id="frame-cell" noTools noFoot rows={list} rowKey={r => r.t.id} cols={ccols} noun="chủ đề" onRow={r => onOpen(r.t)} className="slt"
@@ -300,11 +298,11 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpen, actions, 
         <tbody>{tracks.map(tr => { const l = ts.filter(r => r.m.track_code === tr.code); const c = PROGRAM_COLOR[tr.code] ?? '#64748b'
           const mods = modules.filter(m => m.track_code === tr.code && m.active !== false).sort((a, b) => a.sort - b.sort)
           return <Fragment key={tr.code}>
-            <tr className={'frgrp' + (sel === tr.code ? ' on' : '')} onClick={() => onSel(tr.code)} title="Chọn loại CT này"><td colSpan={gs.length + 2}>{chip(tr.code)} <b>{tr.name}</b> <small className="sub">· {tr.use_modules === false ? 'chỉ có chủ đề' : `${mods.length} học phần`} · {tiet(l)} tiết</small></td></tr>
+            <tr className={'frgrp' + (sel === tr.code ? ' on' : '')} style={{ '--k': c } as React.CSSProperties} onClick={() => onSel(tr.code)} title="Chọn loại CT này"><td colSpan={gs.length + 2}>{chip(tr.code)} <b>{tr.name}</b> <small className="sub">· {tr.use_modules === false ? 'chỉ có chủ đề' : `${mods.length} học phần`} · {tiet(l)} tiết</small></td></tr>
             {tr.use_modules === false
-              ? <tr><td>Chủ đề theo khối</td>{cellOf(l, g => `${tr.code}/${g}`, c)}<td style={{ textAlign: 'center' }}><b>{l.length}</b></td></tr>
+              ? <tr className={sel.startsWith(tr.code + '/') ? 'on' : ''}><td>Chủ đề theo khối</td>{cellOf(l, g => `${tr.code}/${g}`, c)}<td style={{ textAlign: 'center' }}><b>{l.length}</b></td></tr>
               : mods.map(m => { const x = l.filter(r => r.m.id === m.id), mk = `${tr.code}/${m.id}`
-                return <tr key={m.id} className={sel === mk ? 'on' : ''}><td className="frmod" onClick={() => onSel(mk)} title="Chọn học phần này">{x.length ? <b>{m.name}</b> : m.name}</td>{x.length ? cellOf(x, g => `${mk}/${g}`, c)
+                return <tr key={m.id} className={under(sel, mk) ? 'on' : ''}><td className="frmod" onClick={() => onSel(mk)} title="Chọn học phần này">{x.length ? <b>{m.name}</b> : m.name}</td>{x.length ? cellOf(x, g => `${mk}/${g}`, c)
                   : <td colSpan={gs.length} className="sub" style={{ textAlign: 'center' }}>chưa có chủ đề</td>}<td style={{ textAlign: 'center' }}><b>{x.length}</b></td></tr> })}
           </Fragment> })}</tbody></table></div></FitScreen>
       {side}

@@ -17,7 +17,7 @@ import { OneLine } from '../components/LongCell'
 import { FitScreen } from '../components/FitScreen'
 import { Drawer } from '../components/Drawer'
 import { TopicContents } from './topicContents'
-import type { RowAction } from '../components/ProTools'
+import { Pop, type RowAction } from '../components/ProTools'
 
 // Khung chương trình (147): KDI chọn loại chương trình → danh sách học phần → chủ đề theo từng khối.
 // Học phần dùng chung giữa các gói và các khối (CT1, CT4 có một học phần "CHUNG"); mỗi chủ đề thuộc một khối, có thứ tự cố định
@@ -202,6 +202,8 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpen, actions, 
   const [mode, setModeS] = useState<'list' | 'grid'>(() => { try { return localStorage.getItem('frame-mode') === 'list' ? 'list' : 'grid' } catch { return 'grid' } })
   const setMode = (m: 'list' | 'grid') => { setModeS(m); try { localStorage.setItem('frame-mode', m) } catch { /* bỏ qua */ } }
   const [cell, setCell] = useState<string | null>(null)
+  // Ô tìm của bảng Tổng hợp: ô chỉ đếm các chủ đề khớp
+  const [q, setQ] = useState(''), [by, setBy] = useState(''), [byEl, setByEl] = useState<HTMLElement | null>(null)
   const modeSw = <div className="seg frmode" role="group" aria-label="Kiểu xem">
     <button type="button" className={mode === 'grid' ? 'on' : ''} aria-pressed={mode === 'grid'} onClick={() => setMode('grid')}>▦ Tổng hợp</button>
     <button type="button" className={mode === 'list' ? 'on' : ''} aria-pressed={mode === 'list'} onClick={() => { setCell(null); setMode('list') }}>☰ Danh sách</button></div>
@@ -261,15 +263,20 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpen, actions, 
     { key: 'prod', label: 'Sản phẩm', off: true, text: r => r.t.product ?? '', cell: r => <OneLine text={r.t.product ?? ''} /> },
     { key: 'track', label: 'Loại CT', off: true, text: r => `${trackLabel(r.m.track_code)} · ${trOf(r.m.track_code)?.name ?? ''}`, cell: r => chip(r.m.track_code) },
   ]
+  const BY: [string, string, (r: R) => string][] = [['title', 'Chủ đề', r => r.t.title], ['mod', 'Học phần', r => isFlat(r.m.track_code) ? '' : r.m.name],
+    ['subj', 'Môn học', r => [r.t.main_subject ?? '', ...r.t.subjects].join(' ')], ['obj', 'Yêu cầu cần đạt', r => r.t.objectives], ['prod', 'Sản phẩm', r => r.t.product ?? '']]
+  const fq = foldVi(q.trim()), fs = BY.filter(b => !by || b[0] === by)
+  const allTs = ts, gridTs = fq ? ts.filter(r => fs.some(b => foldVi(b[2](r)).includes(fq))) : ts
   if (mode === 'grid') {
     // Tổng hợp theo khối: mỗi cột một khối, mỗi hàng một học phần (loại chỉ có chủ đề: một hàng); ô = số chủ đề · số tiết, bấm để xem danh sách
-    const gs = [...new Set(ts.map(r => r.t.grade))].sort((a, b) => a - b)
+    const gs = [...new Set(allTs.map(r => r.t.grade))].sort((a, b) => a - b)
+    const all0 = allTs, ts = gridTs
     // Bấm ô: chọn mục đó (để nút thêm / sửa điền sẵn) và mở ngăn bên phải với danh sách chủ đề, không chuyển sang Danh sách
     const pick = (k: string) => { onSel(k); setCell(k) }
     const cellOf = (l: typeof ts, k: (g: number) => string, c: string) => gs.map(g => { const x = l.filter(r => r.t.grade === g), key = k(g)
       return <td key={g} style={{ textAlign: 'center' }}>{x.length ? <button type="button" className={'frcell' + (cell === key || sel === key ? ' on' : '')} style={{ '--k': c } as React.CSSProperties}
         title={`Xem ${x.length} chủ đề`} aria-pressed={cell === key} onClick={() => pick(key)}>
-        <b>{x.length}</b><small>{tiet(x)} tiết</small></button> : null}</td> })
+        <span><b>{x.length}</b> <small className="frcd">CĐ</small></span><small>{tiet(x)} tiết</small></button> : null}</td> })
     // Ngăn chủ đề của ô đang bấm
     let side: React.ReactNode = null
     if (cell && !busy) {
@@ -292,19 +299,33 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpen, actions, 
       </Drawer>
     }
     return <div className="frgrid">
-      <div className="frgridbar"><span style={MUTED}>Bấm một ô để xem chủ đề ở ngăn bên phải</span><span style={{ flex: 1 }} />{rightTools}</div>
+      <div className="frgridbar">
+        <div className="tsrch">
+          <label className="tsin"><svg className="ticon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M11 4a7 7 0 100 14 7 7 0 000-14zM20 20l-3.5-3.5" /></svg>
+            <input type="search" placeholder="Tìm trong bảng" aria-label="Tìm trong bảng" value={q} onChange={e => setQ(e.target.value)} /></label>
+          <button type="button" className="tdd tby" aria-expanded={!!byEl} onClick={e => setByEl(byEl ? null : e.currentTarget)}>Tìm theo: <b>{BY.find(b => b[0] === by)?.[1] ?? 'Tất cả'}</b><span className="tcar" aria-hidden="true" /></button>
+        </div>
+        <span className="frlegend">CĐ = chủ đề</span>
+        {fq && <small className="sub" style={{ margin: 0 }}>{ts.length}/{all0.length} chủ đề khớp</small>}
+        <span style={{ flex: 1 }} />{rightTools}</div>
+      {byEl && <Pop anchor={byEl} onClose={() => setByEl(null)} className="tmenu tradio">
+        {[['', 'Tất cả'], ...BY].map(([k, l]) => <label key={k as string}><input type="radio" name="frgrid-by" checked={by === k} onChange={() => { setBy(k as string); setByEl(null) }} />{l as string}</label>)}
+      </Pop>}
       <FitScreen><div className="frgridwrap"><table className="slt frgridtbl">
         <thead><tr><th>Học phần</th>{gs.map(g => <th key={g} style={{ textAlign: 'center' }}>K{g}</th>)}<th style={{ textAlign: 'center' }}>Tổng</th></tr></thead>
         <tbody>{tracks.map(tr => { const l = ts.filter(r => r.m.track_code === tr.code); const c = PROGRAM_COLOR[tr.code] ?? '#64748b'
-          const mods = modules.filter(m => m.track_code === tr.code && m.active !== false).sort((a, b) => a.sort - b.sort)
+          // Đang tìm: chỉ giữ học phần / loại CT có chủ đề khớp
+          const mods = modules.filter(m => m.track_code === tr.code && m.active !== false && (!fq || l.some(r => r.m.id === m.id))).sort((a, b) => a.sort - b.sort)
+          if (fq && !l.length) return null
           return <Fragment key={tr.code}>
             <tr className={'frgrp' + (sel === tr.code ? ' on' : '')} style={{ '--k': c } as React.CSSProperties} onClick={() => onSel(tr.code)} title="Chọn loại CT này"><td colSpan={gs.length + 2}>{chip(tr.code)} <b>{tr.name}</b> <small className="sub">· {tr.use_modules === false ? 'chỉ có chủ đề' : `${mods.length} học phần`} · {tiet(l)} tiết</small></td></tr>
             {tr.use_modules === false
-              ? <tr className={sel.startsWith(tr.code + '/') ? 'on' : ''}><td>Chủ đề theo khối</td>{cellOf(l, g => `${tr.code}/${g}`, c)}<td style={{ textAlign: 'center' }}><b>{l.length}</b></td></tr>
+              ? <tr className={sel.startsWith(tr.code + '/') ? 'on' : ''}><td>Chủ đề theo khối</td>{cellOf(l, g => `${tr.code}/${g}`, c)}<td className="frtot"><b>{l.length}</b> <small className="frcd">CĐ</small><small>{tiet(l)} tiết</small></td></tr>
               : mods.map(m => { const x = l.filter(r => r.m.id === m.id), mk = `${tr.code}/${m.id}`
                 return <tr key={m.id} className={under(sel, mk) ? 'on' : ''}><td className="frmod" onClick={() => onSel(mk)} title="Chọn học phần này">{x.length ? <b>{m.name}</b> : m.name}</td>{x.length ? cellOf(x, g => `${mk}/${g}`, c)
-                  : <td colSpan={gs.length} className="sub" style={{ textAlign: 'center' }}>chưa có chủ đề</td>}<td style={{ textAlign: 'center' }}><b>{x.length}</b></td></tr> })}
-          </Fragment> })}</tbody></table></div></FitScreen>
+                  : <td colSpan={gs.length} className="sub" style={{ textAlign: 'center' }}>chưa có chủ đề</td>}<td className="frtot"><b>{x.length}</b> <small className="frcd">CĐ</small><small>{tiet(x)} tiết</small></td></tr> })}
+          </Fragment> })}
+          {fq && !ts.length && <tr><td colSpan={gs.length + 2} className="sub" style={{ textAlign: 'center', padding: 24 }}>Không có chủ đề nào khớp “{q.trim()}”.</td></tr>}</tbody></table></div></FitScreen>
       {side}
     </div>
   }
@@ -378,6 +399,7 @@ function useRowDrag(onMove: (from: string, to: string) => void) {
 
 // Màu phần HP1 / HP2 của chủ đề trong học phần
 const PART_C = ['#2563eb', '#0d9488']
+const foldVi = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
 const MUTED = { color: 'var(--muted)', fontWeight: 400 }
 
 function TopicTable({ list, track, admin, showGrade, weeks, hidePart, onOpen, onMove }: { list: ProgramTopic[]; track?: StemTrack; admin: boolean; showGrade?: boolean; weeks?: boolean; hidePart?: boolean; onOpen: (t: ProgramTopic) => void; onMove?: (from: string, to: string) => void }) {

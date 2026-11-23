@@ -3867,7 +3867,8 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .frcell.on{outline:2px solid var(--primary,#1d4ed8);outline-offset:1px}
 @media (min-width:900px){.main .frgrid .fitscreen>.frgridwrap{max-height:none;height:100%}}
 .main .frgridtbl tr.frgrp,.main .frgridtbl td.frmod{cursor:pointer}
-.main .frgridtbl tr.frgrp.on>td,.main .frgridtbl tr.on>td.frmod{box-shadow:inset 3px 0 0 var(--primary,#1d4ed8)}
+.main .frgridtbl tr.frgrp.on>td,.main .frgridtbl tr.on>td{background:color-mix(in srgb,var(--primary,#1d4ed8) 11%,var(--surface,#fff))}
+.main .frgridtbl tr.frgrp.on>td:first-child,.main .frgridtbl tr.on>td:first-child{box-shadow:inset 4px 0 0 var(--primary,#1d4ed8);color:var(--primary,#1d4ed8);font-weight:600}
 .main .frgridtbl td.frmod:hover{color:var(--primary,#1d4ed8)}
 .frside-acts{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
 .frside-acts .linkbtn{font-size:13px;margin-left:4px}
@@ -3916,7 +3917,7 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .fwtree .ttprotools .tsrch{flex:0 1 auto;min-width:0}
 .fwtree .ttprotools .tsin{min-width:120px}
 .fwtree .ttleft{flex:1 1 auto;flex-wrap:nowrap;min-width:0;overflow:hidden}
-.fwtree .ttprotools .tspacer{flex:0 0 0}
+.fwtree .ttprotools .tspacer{flex:1 1 0}
 .fwtree .ttprotools .frmode,.fwtree .ttprotools .ticons,.fwtree .ttprotools>button{flex:none}
 .fwtree .frmode button{white-space:nowrap}
 }

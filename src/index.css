@@ -3736,7 +3736,7 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .pkgover .pkghead,.main .pkgover .pkgstick{position:sticky;top:0;z-index:3}
 /* Khung bảng kéo kín tới lề dưới màn hình dù ít dòng (giống bảng Chương trình) */
 .main .fitscreen.fsbox{border:1px solid var(--line);border-radius:8px;background:var(--surface)}
-.main .fitscreen.fsbox>table{border:0;border-radius:0;margin:0}
+.main .fitscreen.fsbox>table{border:0;border-radius:0;margin:0;overflow:visible}
 .main .fitscreen>.pkgover{min-height:100%}
 /* Hàng lọc cấp / khối (Gói STEM, So sánh): nhóm nút liền nhau, nhãn thẳng hàng */
 .main .lvfilter{display:flex;align-items:center;gap:20px;flex-wrap:wrap;margin:0 0 10px;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}

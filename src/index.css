@@ -3867,6 +3867,10 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .frcell small{font-size:10px;opacity:.75}
 .main .frcell:hover{outline:2px solid var(--k)}
 .main .frcell.on{outline:2px solid var(--primary,#1d4ed8);outline-offset:1px}
+.main .frcell .frcd,.main .frtot .frcd{font-size:11px;opacity:.7}
+.main .frgridtbl td.frtot{text-align:center;line-height:1.15}.main .frtot>small:last-child{display:block;font-size:10px;color:var(--muted)}
+.frlegend{font-size:12px;color:var(--muted);background:var(--soft,#f1f5f9);border-radius:6px;padding:3px 8px;white-space:nowrap}
+.frgridbar .tsrch{flex:0 1 420px;min-width:220px}
 /* Cuộn ở khung FitScreen (không cuộn ở frgridwrap) để tiêu đề cột đứng yên */
 @media (min-width:900px){.main .frgrid .fitscreen>.frgridwrap{max-height:none;overflow:visible}}
 .main .frgridtbl tr.frgrp,.main .frgridtbl td.frmod{cursor:pointer}

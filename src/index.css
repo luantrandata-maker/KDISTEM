@@ -3962,3 +3962,34 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 /* Bảng bài của phân phối: tiêu đề cột đứng yên khi cuộn trang (dưới thanh trên cùng 64px) */
 .main table.distppct{overflow:visible}
 .main .distppct>thead>tr>th{position:sticky;top:64px;z-index:3;background:var(--surface);box-shadow:inset 0 -1px 0 var(--line)}
+/* Nội dung chủ đề một trang cuộn: mục lục trái đứng yên, Tổng quan + 6 mục nằm liền */
+.tconewrap{container-type:inline-size;margin-top:4px}
+.tcone{display:grid;grid-template-columns:190px minmax(0,1fr);gap:22px;align-items:start}
+.tctoc{position:sticky;top:0;align-self:start}
+.tctocin{background:var(--surface-2,#f8fafc);border:1px solid var(--line);border-radius:10px;padding:8px}
+.tctoch{font-size:calc(11.5px * var(--fz,1));color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:4px 8px 6px}
+.main .tctoc button,.drawer .tctoc button{display:flex;align-items:center;gap:8px;width:100%;border:0;background:none;text-align:left;padding:7px 8px;border-radius:7px;color:#334155;font-size:calc(13.5px * var(--fz,1));cursor:pointer;margin:0}
+.tctoc button:hover{background:#eef2f7}.tctoc button.on{background:#dbeafe;color:var(--primary);font-weight:600}
+.tctoc button i{font-style:normal;margin-left:auto;color:var(--muted);font-size:12px}
+.tcst{width:16px;height:16px;border-radius:50%;font-size:10px;display:grid;place-items:center;flex:none}.tcst.y{background:#dcfce7;color:#15803d}.tcst.n{background:#fef3c7;color:#b45309}.tcst.ov{background:#e2e8f0;color:#475569}
+.tctoc button.tctocimp{margin-top:8px;border:1px solid var(--line);background:var(--surface);justify-content:center;font-size:12.5px}
+.tcsecs{min-width:0}
+.tcsec{padding:16px 0;border-top:1px solid var(--line);scroll-margin-top:6px}.tcsec:first-child{border-top:0;padding-top:0}
+.tcsech{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}.tcsech h3{margin:0;font-size:calc(16px * var(--fz,1))}
+.tcsech small{font-size:calc(12.5px * var(--fz,1));line-height:1.2}
+.tcno{width:24px;height:24px;border-radius:7px;background:var(--primary);color:#fff;display:grid;place-items:center;font-size:12px;font-weight:700;flex:none}
+.tcnone{color:#b45309}.tcov .tcnone,.tccards .tcnone{color:var(--muted);font-weight:400}
+.tcempty{border:1.5px dashed var(--line);border-radius:10px;padding:14px;color:var(--muted);margin:0;text-align:center}
+.tcprog{display:flex;align-items:center;gap:12px;margin-top:12px}.tcbar{flex:1;height:8px;background:#e2e8f0;border-radius:4px;overflow:hidden}.tcbar i{display:block;height:100%;background:#22c55e;border-radius:4px}
+.tcprog b.ok{color:#15803d}
+.tctags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}.tctags span{background:var(--surface-2,#f1f5f9);border-radius:20px;padding:3px 10px;font-size:calc(12.5px * var(--fz,1));color:#334155}.tctags b{font-weight:600}
+.tccards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.tccards>div{border:1px solid var(--line);border-radius:10px;padding:9px 12px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.tccards small,.tcreq small{font-size:calc(11.5px * var(--fz,1));color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.tcpill{display:inline-block;font-style:normal;background:#eef2ff;color:#3730a3;border-radius:20px;padding:2px 9px;font-size:12.5px;margin:0 4px 4px 0}
+.tcreq{margin-top:12px}.tcreq p{margin:4px 0 0;line-height:1.5;color:#334155}.tcreq ul{margin:6px 0 0;padding-left:20px;line-height:1.55;color:#334155}
+.main .linkbtn.tcmore,.drawer .linkbtn.tcmore{border:0;background:none;padding:4px 0;color:var(--primary);font-size:13px;cursor:pointer}
+.tcsteps tr.tcphase td{background:var(--surface-2,#f8fafc);font-weight:600}.tcsteps tr.tcphase span{font-weight:400;color:var(--muted)}
+.tcper{display:inline-block;background:var(--surface-2,#f1f5f9);border-radius:20px;padding:1px 8px;font-size:12px}
+.tcexstat{display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:13px;color:#475569}
+.tcdim{opacity:.5}
+@container (max-width:760px){.tcone{grid-template-columns:1fr}.tctoc{display:none}.tccards{grid-template-columns:1fr}}

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { FILE_BUCKET, MAX_FILE_MB, fileUrl, openFile, uploadLearningFile } from '../lib/files'
 import { readKitFile, type KitDraft, type KitStep } from '../lib/kitImport'
@@ -21,6 +21,11 @@ export const TOPIC_KINDS = [
 type Kind = typeof TOPIC_KINDS[number]['key']
 const kindLabel = (k: Kind) => TOPIC_KINDS.find(x => x.key === k)!.label
 const PER: Record<string, string> = { product: '1 sản phẩm', student: 'Học sinh', group: 'Nhóm', class: 'Lớp' }
+// Cột "Cả lớp" ở Vật tư: tạm tính lớp 35 học sinh, nhóm 5 em (1 sản phẩm = 1 nhóm)
+const CLASS_N = 35, GROUP_N = 5, MAT_SHOW = 6, STEP_SHOW = 10
+const fmtN = (n: number) => Number.isInteger(n) ? String(n) : n.toFixed(1).replace('.', ',')
+const classQty = (i: { qty: number | null; per: string | null }) => i.qty == null || !i.per ? null
+  : Number(i.qty) * (i.per === 'student' ? CLASS_N : i.per === 'class' ? 1 : Math.ceil(CLASS_N / GROUP_N))
 const ACCEPT: Partial<Record<Kind, string>> = { plan: '.docx,.doc,.pdf', lecture: '.pptx,.ppt,.pdf' }
 
 type TextPart = { title: string; body: string }
@@ -81,11 +86,21 @@ export function Viewer({ item }: { item: TopicItem }) {
   </div>
 }
 
+/** Bảng hoạt động: nhóm theo Buổi (có tổng phút), dài quá thì thu gọn */
 export function Steps({ steps }: { steps: KitStep[] }) {
-  return <div className="wrap" style={{ marginTop: 8 }}><table className="slt ttdense" style={{ width: '100%' }}>
-    <thead><tr><th>#</th><th>Buổi</th><th>Hoạt động</th><th>Phút</th></tr></thead>
-    <tbody>{steps.map((s, k) => <tr key={k}><td>{k + 1}</td><td>{s.phase ?? ''}</td><td>{s.title}{s.goal && <div className="sub">Mục tiêu: {s.goal}</div>}</td><td>{s.minutes ?? ''}</td></tr>)}</tbody>
-  </table></div>
+  const [all, setAll] = useState(steps.length <= STEP_SHOW)
+  const shown = all ? steps : steps.slice(0, STEP_SHOW - 2)
+  const sum = (p?: string) => steps.filter(x => (x.phase ?? '') === (p ?? '')).reduce((a, b) => a + (Number(b.minutes) || 0), 0)
+  let last: string | undefined = '\u0000'
+  return <div className="wrap" style={{ marginTop: 8 }}><table className="slt ttdense tcsteps" style={{ width: '100%' }}>
+    <thead><tr><th style={{ width: 44 }}>#</th><th>Hoạt động</th><th style={{ width: 70, textAlign: 'right' }}>Phút</th></tr></thead>
+    <tbody>{shown.map((s, k) => { const p = s.phase ?? '', head = p !== last ? (last = p, p) : null
+      return <React.Fragment key={k}>
+        {head !== null && head && <tr className="tcphase"><td colSpan={3}>{head}{sum(head) ? <span> · {sum(head)} phút</span> : null}</td></tr>}
+        <tr><td>{k + 1}</td><td>{s.title}{s.goal && <div className="sub">Mục tiêu: {s.goal}</div>}</td><td style={{ textAlign: 'right' }}>{s.minutes ?? ''}</td></tr>
+      </React.Fragment> })}</tbody>
+  </table>
+  {steps.length > STEP_SHOW && <button type="button" className="linkbtn tcmore" onClick={() => setAll(!all)}>{all ? 'Thu gọn ▴' : `Xem thêm ${steps.length - shown.length} hoạt động ▾`}</button>}</div>
 }
 
 const Q_KIND: Record<string, string> = { single: 'Một đáp án', multi: 'Nhiều đáp án', truefalse: 'Đúng / Sai' }
@@ -105,6 +120,8 @@ export function ExamView({ id }: { id: string }) {
   if (!e) return <p className="sub">Không mở được đề (đề đã xoá hoặc chưa được chia sẻ cho đơn vị của anh/chị).</p>
   return <div style={{ marginTop: 8 }}>
     <p className="sub" style={{ margin: 0 }}>{[e.subject, e.grade ? 'Khối ' + e.grade : '', examMeta(e), e.mode === 'random' ? 'Rút ngẫu nhiên từ Ngân hàng câu hỏi' : ''].filter(Boolean).join(' · ')}</p>
+    {qs && qs.length > 0 && <div className="tcexstat">{Object.entries(Q_LEVEL).map(([k, l]) => { const n = qs.filter(q => q.level === k).length
+      return n ? <span key={k}><b>{n}</b> {l.toLowerCase()}</span> : null })}</div>}
     {qs && <div className="wrap" style={{ marginTop: 8 }}><table className="slt ttdense" style={{ width: '100%' }}>
       <thead><tr><th style={{ width: 44 }}>#</th><th>Câu hỏi</th><th style={{ width: 120 }}>Loại</th><th style={{ width: 120 }}>Mức độ</th></tr></thead>
       <tbody>{qs.map((q, k) => <tr key={q.id + k}><td>{k + 1}</td><td style={{ whiteSpace: 'normal' }}>{q.stem}</td><td>{Q_KIND[q.kind] ?? q.kind}</td><td>{Q_LEVEL[q.level] ?? q.level}</td></tr>)}</tbody>
@@ -112,7 +129,9 @@ export function ExamView({ id }: { id: string }) {
   </div>
 }
 
-export function TopicContents({ topic, admin, onTopicChanged }: { topic: ProgramTopic; admin: boolean; onTopicChanged?: () => void }) {
+export function TopicContents({ topic, admin, onTopicChanged, overview }: { topic: ProgramTopic; admin: boolean; onTopicChanged?: () => void
+  /** Phần đầu mục Tổng quan (thông tin chủ đề), do trang gọi truyền vào */
+  overview?: React.ReactNode }) {
   const topicId = topic.id
   const [items, setItems] = useState<TopicItem[]>([])
   const [groups, setGroups] = useState<MaterialGroup[]>([])
@@ -125,6 +144,26 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
   const editItem = (i: TopicItem, m?: Mode) => { setAsk(false); setEditMode(m ?? (MANUAL.includes(i.kind) && (i.content?.steps?.length || i.content?.parts?.length) ? 'manual' : undefined)); setEdit(i) }
   const [openId, setOpenId] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
+  const [more, setMore] = useState<Record<string, boolean>>({})
+  const [cur, setCur] = useState('ov')
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const secRefs = useRef<Record<string, HTMLElement | null>>({})
+  const lock = useRef(0)   // vừa bấm mục lục: giữ mục được bấm, không để cuộn mượt đổi màu giữa chừng
+  // Mục lục tô mục đang xem: mục cuối cùng có đầu đã cuộn qua mép trên khung cuộn (ngăn bên phải hoặc cả trang)
+  useEffect(() => {
+    const root = wrapRef.current?.closest('.drawerbody') as HTMLElement | null
+    const target: HTMLElement | Window = root ?? window
+    const on = () => {
+      if (Date.now() < lock.current) return
+      const top = (root?.getBoundingClientRect().top ?? 0) + 90
+      let c = 'ov'
+      for (const [k, el] of Object.entries(secRefs.current)) if (el && el.getBoundingClientRect().top <= top) c = k
+      const end = root ? root.scrollTop + root.clientHeight >= root.scrollHeight - 4 : window.innerHeight + window.scrollY >= document.body.scrollHeight - 4
+      setCur(end ? 'resource' : c)
+    }
+    target.addEventListener('scroll', on, { passive: true }); on()
+    return () => target.removeEventListener('scroll', on)
+  }, [importing])
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
   const reload = () => supabase.from('program_topic_items').select('*').eq('topic_id', topicId).order('seq')
@@ -132,10 +171,9 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
   useEffect(() => { setEdit(null); setAsk(false); setImporting(false); setOpenId(null); reload() }, [topicId])
   useEffect(() => { supabase.from('material_groups').select('*').eq('active', true).order('sort').then(({ data }) => setGroups((data ?? []) as MaterialGroup[])) }, [])
 
-  const list = items.filter(i => i.kind === kind)
   const gName = (id: string | null) => groups.find(g => g.id === id)?.name ?? ''
   const nextSeq = (k: Kind) => items.filter(i => i.kind === k).reduce((s, i) => Math.max(s, i.seq), 0) + 1
-  const blank = (): Draft => ({ topic_id: topicId, kind, seq: nextSeq(kind), title: '', detail: '', url: null, file_path: null, file_name: null,
+  const blank = (kind: Kind): Draft => ({ topic_id: topicId, kind, seq: nextSeq(kind), title: '', detail: '', url: null, file_path: null, file_name: null,
     material_group_id: null, qty: null, unit: null, per: kind === 'material' ? 'product' : null, exam_id: null, content: null })
   const planFile = items.find(i => i.kind === 'plan' && i.file_path && /^docx$/.test(ext(i.file_name)))
 
@@ -166,72 +204,103 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
     <TopicImport topic={topic} items={items} onClose={() => setImporting(false)} onDone={k => { setImporting(false); setKind(k); reload(); onTopicChanged?.() }} />
   </div>
 
-  return <div style={{ marginTop: 16 }}>
-    <div className="tctabs">
-      <div className="tctablist" role="tablist">{TOPIC_KINDS.map(k => {
-        const n = items.filter(i => i.kind === k.key).length
-        return <button key={k.key} type="button" role="tab" aria-selected={kind === k.key} className={kind === k.key ? 'on' : ''} onClick={() => { setKind(k.key); setEdit(null); setAsk(false) }}>{k.label}{n ? <i>{n}</i> : null}</button>
-      })}</div>
-      {admin && <div className="tctabact">
-        <button type="button" onClick={() => { setEdit(null); setAsk(false); setImporting(true) }}>⇪ Tách từ Word / PowerPoint</button>
-        <button type="button" className="primary" onClick={() => { setEditMode(undefined); if (MANUAL.includes(kind) && list.length) { setEdit(null); setAsk(true) } else setEdit(blank()) }}>+ Thêm</button></div>}
-    </div>
-    {msg && <p className="msg">{msg}</p>}
-    {ask && !edit && <div className="tcask" role="alertdialog" aria-label="Đã có nội dung">
-      <p>ⓘ Chủ đề này đã có <b>{list.length} {kindLabel(kind).toLowerCase()}</b>{list.length === 1 ? <>: <b>{list[0].title}</b>{list[0].content?.steps?.length ? ` (${list[0].content.steps.length} hoạt động)` : ''}</> : ''}.<br />
-        Sửa {list.length === 1 ? 'bản đó' : 'một bản đang có'} hay thêm một bản khác?</p>
-      <div className="tcaskbtns">
-        {list.length === 1 && <button type="button" className="primary" onClick={() => editItem(list[0], 'manual')}>✎ Sửa bản đang có</button>}
-        <button type="button" onClick={() => { setAsk(false); setEdit(blank()) }}>+ Vẫn thêm bản mới</button>
-        <button type="button" className="ghost" onClick={() => setAsk(false)}>Huỷ</button>
+  // Một trang cuộn (v59): Tổng quan ở đầu, 6 mục nằm liền bên dưới; cột trái là mục lục đứng yên, bấm để nhảy tới mục,
+  // cuộn tới đâu mục lục tô xanh tới đó. Màn hình hẹp thì ẩn mục lục.
+  const ofKind = (k: Kind) => items.filter(i => i.kind === k)
+  const done = TOPIC_KINDS.filter(k => ofKind(k.key).length).length
+  const goto = (id: string) => { lock.current = Date.now() + 900; setCur(id); secRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'start' }) }
+  const addTo = (k: Kind) => { setKind(k); setEditMode(undefined); setOpenId(null); if (MANUAL.includes(k) && ofKind(k).length) { setEdit(null); setAsk(true) } else { setAsk(false); setEdit(blank(k)) } }
+  const summary = (k: Kind): string => {
+    const l = ofKind(k)
+    if (!l.length) return 'Chưa có'
+    if (k === 'material') return `${l.length} loại · cả lớp tính theo lớp ${CLASS_N} học sinh, nhóm ${GROUP_N} em`
+    if (k === 'plan' && l.length === 1) { const st = l[0].content?.steps ?? []; const m = st.reduce((x, y) => x + (Number(y.minutes) || 0), 0)
+      return [l[0].title, st.length ? `${st.length} hoạt động` : '', m ? `${m} phút` : ''].filter(Boolean).join(' · ') }
+    if (l.length === 1) return l[0].title
+    return `${l.length} bản`
+  }
+  const itemCard = (i: TopicItem) => {
+    const on = openId === i.id   // đang mở tệp / link
+    const info = !!i.exam_id || !!i.content?.steps?.length || !!i.content?.parts?.length || (!!i.content?.slides?.length && !i.file_path)
+    const file = !!(i.file_path || i.url)
+    const icon = i.exam_id ? '📝' : i.file_path ? ({ docx: '📄', doc: '📄', pptx: '📊', ppt: '📊', pdf: '📕' } as Record<string, string>)[ext(i.file_name)] ?? '📎' : i.url ? '🔗' : '📋'
+    const meta = [i.exam_id ? 'Đề có sẵn' : '', i.file_name, !i.file_name && i.url ? i.url : '', i.content?.steps?.length ? `${i.content.steps.length} hoạt động` : '', i.content?.slides?.length ? `${i.content.slides.length} slide` : '', i.content?.parts?.length ? `${i.content.parts.length} phần` : ''].filter(Boolean).join(' · ')
+    return <div key={i.id} className="tcitem">
+      <div className="tcrow">
+        <span className="tcic" aria-hidden>{icon}</span>
+        <button type="button" className="tcmain" aria-expanded={file ? on : undefined} onClick={() => file && setOpenId(on ? null : i.id)}>
+          <b>{i.title}</b>{meta && <small className="sub">{meta}</small>}</button>
+        {file && <button type="button" className={on ? 'linkbtn on' : 'linkbtn'} onClick={() => setOpenId(on ? null : i.id)}>{on ? 'Ẩn file ▴' : 'Xem file ›'}</button>}
+        {(i.file_path || i.url) && <button type="button" onClick={() => open(i)}>{i.file_path ? 'Tải về' : 'Mở link'}</button>}
+        {admin && <RowMenu label={i.title} items={[{ label: 'Sửa', onClick: () => { setKind(i.kind); editItem(i) } }, { label: 'Xoá', danger: true, onClick: () => del(i) }]} />}
       </div>
-      {list.length > 1 && <div className="tcaskpick">{list.map(i => <button key={i.id} type="button" onClick={() => editItem(i, 'manual')}>✎ Sửa “{i.title}”</button>)}</div>}
-    </div>}
-    {edit ? <ItemForm d={edit} startMode={editMode} groups={groups} topic={topic} onCancel={() => setEdit(null)} onSaved={() => { setEdit(null); reload() }} />
-      : <>
-        {kind === 'material' && list.length > 0 ? <table className="slt ttdense" style={{ width: '100%', marginBottom: 10 }}>
-          <thead><tr><th>Vật tư</th><th>Nhóm vật tư</th><th>Số lượng</th><th>Tính theo</th>{admin && <th />}</tr></thead>
-          <tbody>{list.map(i => <tr key={i.id}>
-            <td><b>{i.title}</b>{i.content?.reusable && <span className="sub"> · dùng lại</span>}{i.detail && <div className="sub">{i.detail}</div>}</td>
-            <td>{gName(i.material_group_id)}</td>
-            <td>{i.qty != null ? `${Number(i.qty)} ${i.unit ?? ''}` : ''}</td>
-            <td>{i.per ? PER[i.per] : ''}</td>
-            {admin && <td className="c-menu"><RowMenu label={i.title} items={[{ label: 'Sửa', onClick: () => editItem(i) }, { label: 'Xoá', danger: true, onClick: () => del(i) }]} /></td>}
-          </tr>)}</tbody>
-        </table>
-          : kind !== 'material' && list.map(i => {
-            const on = openId === i.id   // đang mở tệp / link
-            const info = !!i.exam_id || !!i.content?.steps?.length || !!i.content?.parts?.length || (!!i.content?.slides?.length && !i.file_path)
-            const file = !!(i.file_path || i.url)
-            const icon = i.exam_id ? '📝' : i.file_path ? ({ docx: '📄', doc: '📄', pptx: '📊', ppt: '📊', pdf: '📕' } as Record<string, string>)[ext(i.file_name)] ?? '📎' : i.url ? '🔗' : '📋'
-            const meta = [i.exam_id ? 'Đề có sẵn' : '', i.file_name, !i.file_name && i.url ? i.url : '', i.content?.steps?.length ? `${i.content.steps.length} hoạt động` : '', i.content?.slides?.length ? `${i.content.slides.length} slide` : '', i.content?.parts?.length ? `${i.content.parts.length} phần` : ''].filter(Boolean).join(' · ')
-            return <div key={i.id} className="tcitem">
-              <div className="tcrow">
-                <span className="tcic" aria-hidden>{icon}</span>
-                <button type="button" className="tcmain" aria-expanded={file ? on : undefined} onClick={() => file && setOpenId(on ? null : i.id)}>
-                  <b>{i.title}</b>{meta && <small className="sub">{meta}</small>}</button>
-                {file && <button type="button" className={on ? 'linkbtn on' : 'linkbtn'} onClick={() => setOpenId(on ? null : i.id)}>{on ? 'Ẩn file ▴' : 'Xem file ›'}</button>}
-                {(i.file_path || i.url) && <button type="button" onClick={() => open(i)}>{i.file_path ? 'Tải về' : 'Mở link'}</button>}
-                {admin && <RowMenu label={i.title} items={[{ label: 'Sửa', onClick: () => editItem(i) }, { label: 'Xoá', danger: true, onClick: () => del(i) }]} />}
+      {i.detail && <p className="sub tcdetail">{i.detail}</p>}
+      {(info || on) && <div className="tcbody">
+        {i.exam_id && <ExamView id={i.exam_id} />}
+        {!!i.content?.steps?.length && <Steps steps={i.content.steps} />}
+        {!!i.content?.parts?.length && <div style={{ display: 'grid', gap: 10, marginTop: 6 }}>{i.content.parts.map((x, k) => <section key={k}>
+          {x.title && <h4 style={{ margin: '0 0 4px' }}>{x.title}</h4>}<p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{x.body}</p></section>)}</div>}
+        {!!i.content?.slides?.length && !i.file_path && <ol className="sub" style={{ paddingLeft: 20 }}>{i.content.slides.map((s, k) => <li key={k}>{s}</li>)}</ol>}
+        {on && file && <Viewer item={i} />}
+      </div>}
+    </div>
+  }
+  const materialTable = (l: TopicItem[]) => {
+    const all = !!more.material || l.length <= MAT_SHOW, shown = all ? l : l.slice(0, MAT_SHOW)
+    return <>
+      <div className="wrap"><table className="slt ttdense" style={{ width: '100%' }}>
+        <thead><tr><th>Vật tư</th><th>Nhóm vật tư</th><th>Định mức</th><th>Tính theo</th><th style={{ textAlign: 'right' }} title={`Lớp ${CLASS_N} học sinh, nhóm ${GROUP_N} em`}>Cả lớp</th>{admin && <th />}</tr></thead>
+        <tbody>{shown.map(i => { const c = classQty(i); return <tr key={i.id}>
+          <td><b>{i.title}</b>{i.content?.reusable && <span className="sub"> · dùng lại</span>}{i.detail && <div className="sub">{i.detail}</div>}</td>
+          <td>{gName(i.material_group_id)}</td>
+          <td>{i.qty != null ? `${Number(i.qty)} ${i.unit ?? ''}` : ''}</td>
+          <td>{i.per ? <span className="tcper">{PER[i.per]}</span> : ''}</td>
+          <td style={{ textAlign: 'right' }}>{c != null ? <b>{fmtN(c)} {i.unit ?? ''}</b> : <span className="sub">—</span>}</td>
+          {admin && <td className="c-menu"><RowMenu label={i.title} items={[{ label: 'Sửa', onClick: () => { setKind('material'); editItem(i) } }, { label: 'Xoá', danger: true, onClick: () => del(i) }]} /></td>}
+        </tr> })}</tbody>
+      </table></div>
+      {l.length > MAT_SHOW && <button type="button" className="linkbtn tcmore" onClick={() => setMore(m => ({ ...m, material: !all }))}>{all ? 'Thu gọn ▴' : `Xem thêm ${l.length - MAT_SHOW} loại ▾`}</button>}
+    </>
+  }
+
+  return <div className="tconewrap" ref={wrapRef}>
+    <div className="tcone">
+      <nav className="tctoc" aria-label="Mục lục chủ đề"><div className="tctocin">
+        <p className="tctoch">Mục lục</p>
+        <button type="button" className={cur === 'ov' ? 'on' : ''} onClick={() => goto('ov')}><span className="tcst ov" aria-hidden>⌂</span>Tổng quan</button>
+        {TOPIC_KINDS.map(k => { const n = ofKind(k.key).length
+          return <button key={k.key} type="button" className={cur === k.key ? 'on' : ''} onClick={() => goto(k.key)}>
+            <span className={'tcst ' + (n ? 'y' : 'n')} aria-hidden>{n ? '✓' : '!'}</span>{k.label}<i>{n || '–'}</i></button> })}
+      </div></nav>
+      <div className="tcsecs">
+        <section className="tcsec" data-sec="ov" ref={el => { secRefs.current.ov = el }}>
+          {overview}
+          <div className="tcprog"><b>Mức độ đầy đủ</b><span className="tcbar"><i style={{ width: `${done / TOPIC_KINDS.length * 100}%` }} /></span><b className={done === TOPIC_KINDS.length ? 'ok' : ''}>{done}/{TOPIC_KINDS.length} mục</b>
+            {admin && <button type="button" onClick={() => { setEdit(null); setAsk(false); setImporting(true) }}>⇪ Tách từ Word / PowerPoint</button>}</div>
+          {msg && <p className="msg">{msg}</p>}
+        </section>
+        {TOPIC_KINDS.map((k, n) => { const l = ofKind(k.key), here = kind === k.key
+          return <section key={k.key} className="tcsec" data-sec={k.key} ref={el => { secRefs.current[k.key] = el }}>
+            <div className="tcsech"><span className="tcno">{n + 1}</span><h3>{k.label}</h3><small className={l.length ? 'sub' : 'tcnone'}>{summary(k.key)}</small><span style={{ flex: 1 }} />
+              {admin && k.key === 'material' && planFile && <button type="button" disabled={busy} onClick={refetchMaterials}>{busy ? 'Đang đọc giáo án…' : 'Lấy lại từ kế hoạch'}</button>}
+              {admin && <button type="button" className="primary" onClick={() => addTo(k.key)}>+ Thêm</button>}</div>
+            {here && ask && !edit && <div className="tcask" role="alertdialog" aria-label="Đã có nội dung">
+              <p>ⓘ Chủ đề này đã có <b>{l.length} {k.label.toLowerCase()}</b>{l.length === 1 ? <>: <b>{l[0].title}</b>{l[0].content?.steps?.length ? ` (${l[0].content.steps.length} hoạt động)` : ''}</> : ''}.<br />
+                Sửa {l.length === 1 ? 'bản đó' : 'một bản đang có'} hay thêm một bản khác?</p>
+              <div className="tcaskbtns">
+                {l.length === 1 && <button type="button" className="primary" onClick={() => editItem(l[0], 'manual')}>✎ Sửa bản đang có</button>}
+                <button type="button" onClick={() => { setAsk(false); setEdit(blank(k.key)) }}>+ Vẫn thêm bản mới</button>
+                <button type="button" className="ghost" onClick={() => setAsk(false)}>Huỷ</button>
               </div>
-              {i.detail && <p className="sub tcdetail">{i.detail}</p>}
-              {(info || on) && <div className="tcbody">
-                {i.exam_id && <ExamView id={i.exam_id} />}
-                {!!i.content?.steps?.length && <Steps steps={i.content.steps} />}
-                {!!i.content?.parts?.length && <div style={{ display: 'grid', gap: 10, marginTop: 6 }}>{i.content.parts.map((x, k) => <section key={k}>
-                  {x.title && <h4 style={{ margin: '0 0 4px' }}>{x.title}</h4>}<p style={{ margin: 0, whiteSpace: 'pre-wrap' }}>{x.body}</p></section>)}</div>}
-                {!!i.content?.slides?.length && !i.file_path && <ol className="sub" style={{ paddingLeft: 20 }}>{i.content.slides.map((s, k) => <li key={k}>{s}</li>)}</ol>}
-                {on && file && <Viewer item={i} />}
-              </div>}
-            </div>
-          })}
-        {!list.length && <p className="sub">Chưa có {kindLabel(kind).toLowerCase()}.</p>}
-        {admin && kind === 'material' && <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {(planFile
-            ? <button disabled={busy} onClick={refetchMaterials}>{busy ? 'Đang đọc giáo án…' : 'Lấy lại vật tư từ kế hoạch'}</button>
-            : <span className="sub" style={{ alignSelf: 'center' }}>Tải giáo án Word ở tab Kế hoạch giảng dạy để lấy vật tư tự động.</span>)}
-        </div>}
-      </>}
+              {l.length > 1 && <div className="tcaskpick">{l.map(i => <button key={i.id} type="button" onClick={() => editItem(i, 'manual')}>✎ Sửa “{i.title}”</button>)}</div>}
+            </div>}
+            {here && edit ? <ItemForm d={edit} startMode={editMode} groups={groups} topic={topic} onCancel={() => setEdit(null)} onSaved={() => { setEdit(null); reload() }} />
+              : !l.length ? <p className="tcempty">Chưa có {k.label.toLowerCase()}.{admin ? ' Bấm “+ Thêm” để thêm.' : ''}{k.key === 'material' && admin && !planFile ? ' Hoặc tải giáo án Word ở mục Kế hoạch giảng dạy để lấy vật tư tự động.' : ''}</p>
+              : k.key === 'material' ? materialTable(l)
+              : <div className={ask && here ? 'tcdim' : undefined}>{l.map(itemCard)}</div>}
+          </section> })}
+      </div>
+    </div>
   </div>
 }
 

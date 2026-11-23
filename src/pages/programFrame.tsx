@@ -95,7 +95,6 @@ export function ProgramFrame() {
   // ----- Sửa học phần / chủ đề -----
   // ----- Chi tiết chủ đề, form sửa: mở bên phải cạnh bảng (split view), không chiếm cả trang -----
   const vt = viewId ? topics.find(t => t.id === viewId) : undefined
-  const v = (x: string | null | undefined) => x ? <span style={{ whiteSpace: 'pre-line' }}>{x}</span> : <span className="sub">—</span>
   let drawer: React.ReactNode = null
   if (editMod) {
     drawer = <Drawer closeOnOutside={false} onClose={() => setEditMod(null)}
@@ -120,16 +119,8 @@ export function ProgramFrame() {
     ] : []
     drawer = <Drawer onClose={() => setViewId(null)} title={<>{m && chip(m.track_code)} {vt.title} {pill(vt.active)}</>}
       actions={acts.length ? <ActionBar items={acts} /> : undefined}>
-      <p className="sub" style={{ marginTop: 0 }}>{m && tr?.use_modules !== false ? m.name + ' · ' : ''}{gradeName(vt.grade)} · {vt.periods} tiết</p>
-      <dl className="kv">
-        <dt>Mã chủ đề</dt><dd>{v(vt.code)}</dd>
-        <dt>Môn chủ trì</dt><dd>{v(vt.main_subject)}</dd>
-        <dt>Môn phối hợp</dt><dd>{v(vt.subjects.join(', '))}</dd>
-        <dt>Yêu cầu cần đạt</dt><dd>{v(vt.objectives)}</dd>
-        <dt>Sản phẩm</dt><dd>{v(vt.product)}</dd>
-        {tr?.schedule_mode === 'subject' && <><dt>Bài SGK liên quan</dt><dd>{v(vt.textbook_ref)}</dd></>}
-      </dl>
-      <TopicContents topic={vt} admin={admin} onTopicChanged={reload} />
+      <TopicContents topic={vt} admin={admin} onTopicChanged={reload}
+        overview={<TopicOverview t={vt} module={m && tr?.use_modules !== false ? m.name : undefined} textbook={tr?.schedule_mode === 'subject'} />} />
     </Drawer>
   }
 
@@ -400,6 +391,28 @@ function useRowDrag(onMove: (from: string, to: string) => void) {
 // Màu phần HP1 / HP2 của chủ đề trong học phần
 const PART_C = ['#2563eb', '#0d9488']
 const foldVi = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase()
+/** Tổng quan chủ đề (đầu trang cuộn): nhãn khối / thứ tự / tiết / học phần, 3 thẻ môn và sản phẩm, yêu cầu cần đạt rút gọn */
+export function TopicOverview({ t, module, textbook }: { t: ProgramTopic; module?: string; textbook?: boolean }) {
+  const [all, setAll] = useState(false)
+  const req = (t.objectives ?? '').split(/\n+/).map(x => x.replace(/^\s*[-–•*+]\s*/, '').trim()).filter(Boolean)
+  const none = <span className="tcnone">Chưa nhập</span>
+  return <div className="tcov">
+    <div className="tctags">
+      {t.code && <span>Mã <b>{t.code}</b></span>}<span>{gradeName(t.grade)}</span><span>Thứ tự <b>{t.seq}</b></span><span><b>{t.periods}</b> tiết</span>
+      {module && <span>Học phần <b>{module}</b>{t.part ? ` · HP${t.part}` : ''}</span>}</div>
+    <div className="tccards">
+      <div><small>Môn chủ trì</small><b>{t.main_subject || none}</b></div>
+      <div><small>Môn phối hợp</small>{t.subjects.length ? <span>{t.subjects.map(x => <i key={x} className="tcpill">{x}</i>)}</span> : none}</div>
+      <div><small>Sản phẩm</small>{t.product ? <b style={{ whiteSpace: 'pre-line' }}>{t.product}</b> : none}</div>
+    </div>
+    <div className="tcreq"><small>Yêu cầu cần đạt{req.length ? ` (${req.length})` : ''}</small>
+      {!req.length ? none : all || req.length <= 2 ? <ul>{req.map((x, k) => <li key={k}>{x}</li>)}</ul>
+        : <p>{req.slice(0, 2).join(' ')} …</p>}
+      {req.length > 2 && <button type="button" className="linkbtn tcmore" onClick={() => setAll(!all)}>{all ? 'Thu gọn ▴' : `Xem đủ ${req.length} ý ▾`}</button>}</div>
+    {textbook && t.textbook_ref && <div className="tcreq"><small>Bài SGK liên quan</small><p style={{ whiteSpace: 'pre-line' }}>{t.textbook_ref}</p></div>}
+  </div>
+}
+
 const MUTED = { color: 'var(--muted)', fontWeight: 400 }
 
 function TopicTable({ list, track, admin, showGrade, weeks, hidePart, onOpen, onMove }: { list: ProgramTopic[]; track?: StemTrack; admin: boolean; showGrade?: boolean; weeks?: boolean; hidePart?: boolean; onOpen: (t: ProgramTopic) => void; onMove?: (from: string, to: string) => void }) {

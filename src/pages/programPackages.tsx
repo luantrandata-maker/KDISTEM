@@ -88,7 +88,7 @@ export function ProgramPackages() {
   if (compare) return <>
     <DetailHead back="Gói STEM" onBack={() => setCompare(false)} title="So sánh các gói STEM" />
     {msg && <p className="msg" role="status">{msg}</p>}
-    <CompareView tracks={active} packages={live} items={items} topics={topics} modName={modName} grades={selGrades} levels={fGrade ? [] : sel} name={fName} filter={filterBar} />
+    <CompareView tracks={active} packages={live} items={items} topics={topics} skips={skips} modName={modName} grades={selGrades} levels={fGrade ? [] : sel} name={fName} filter={filterBar} />
   </>
 
   const cur = openId ? packages.find(p => p.id === openId) : undefined
@@ -458,8 +458,8 @@ function LevelFilter({ lvs, grade, onLevels, onGrade, extra }: { lvs: string[]; 
   </div>
 }
 
-function CompareView({ tracks, packages: allPkgs, items, modName, grades, name, filter }: {
-  tracks: StemTrack[]; packages: ProgramPackage[]; items: PackageItem[]; topics: ProgramTopic[]; modName: (id: string) => string
+function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName, grades, name, filter }: {
+  tracks: StemTrack[]; packages: ProgramPackage[]; items: PackageItem[]; topics: ProgramTopic[]; skips: PackageSkip[]; modName: (id: string) => string
   grades: number[]; levels: (typeof LEVELS)[number][]; name: string; filter: React.ReactNode
 }) {
   // Chọn gói để so sánh: không chọn gói nào = so sánh tất cả. Màu mỗi gói giữ nguyên theo thứ tự gốc.
@@ -482,11 +482,19 @@ function CompareView({ tracks, packages: allPkgs, items, modName, grades, name, 
   }).filter(x => x.rows.length)
   // Theo khối: mỗi khối một dòng, ô ghi học phần của gói ở khối đó; học phần không phải gói nào cũng có thì tô xanh
   const modsAt = (p: string, t: string, g: number) => its.filter(i => i.package_id === p && i.track_code === t && i.grade === g).sort((a, b) => a.slot - b.slot).map(i => i.module_id)
-  const gsections = tracks.filter(t => t.use_modules !== false).map(t => {
+  // Loại không chia học phần (chỉ có chủ đề theo khối): mỗi khối một dòng, ô ghi số chủ đề gói có ở khối đó
+  const nTopics = (p: string, t: string, g: number) => { const ms = new Set(modsAt(p, t, g)); if (!ms.size) return 0
+    return topics.filter(x => ms.has(x.module_id) && x.grade === g && x.active !== false && !skips.some(s => s.package_id === p && s.topic_id === x.id)).length }
+  const gsections = tracks.map(t => {
+    if (t.use_modules === false) {
+      const rows = grades.map(g => { const cnt = packages.map(p => modsAt(p.id, t.code, g).length ? nTopics(p.id, t.code, g) : -1)
+        return { g, per: [] as string[][], cnt, common: new Set<string>(), d: cnt.some(c => c !== cnt[0]) } }).filter(r => r.cnt.some(c => c >= 0))
+      return { t, rows: only ? rows.filter(r => r.d) : rows }
+    }
     const rows = grades.map(g => {
       const per = packages.map(p => modsAt(p.id, t.code, g))
       const common = new Set(per[0].filter(m => per.every(x => x.includes(m))))
-      return { g, per, common, d: per.some(x => x.length !== common.size) }
+      return { g, per, cnt: null as number[] | null, common, d: per.some(x => x.length !== common.size) }
     }).filter(r => r.per.some(x => x.length))
     return { t, rows: only ? rows.filter(r => r.d) : rows }
   }).filter(x => x.rows.length)
@@ -520,14 +528,16 @@ function CompareView({ tracks, packages: allPkgs, items, modName, grades, name, 
         <thead><tr><th>Khối</th><th>Học phần</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(ck(k))}>{p.name}</th>)}</tr></thead>
         {gsections.map(({ t, rows }) => <tbody key={t.code}>
           <tr className="cmpgrp"><td colSpan={packages.length + 2}>{chip(t.code)} {t.name}</td></tr>
-          {rows.flatMap(({ g, per }) => { const n = Math.max(1, ...per.map(x => x.length))
+          {rows.flatMap(({ g, per, cnt }) => { if (cnt) return [<tr key={g} className="cmpfirst"><td className="cmpg">{gradeName(g)}</td><td className="cmphp">Chủ đề</td>
+              {cnt.map((c, k) => <td key={k} style={pkgTd(ck(k))}>{c >= 0 ? `${c} chủ đề` : <span className="sub">—</span>}</td>)}</tr>]
+            const n = Math.max(1, ...per.map(x => x.length))
             return Array.from({ length: n }, (_, j) => <tr key={g + '-' + j} className={j ? 'cmpsub' : 'cmpfirst'}>
               {j === 0 && <td rowSpan={n} className="cmpg">{gradeName(g)}</td>}<td className="cmphp">HP{j + 1}</td>
               {per.map((ms, k) => <td key={k} style={pkgTd(ck(k))}>{ms[j] ? modName(ms[j]) : <span className="sub">—</span>}</td>)}</tr>) })}
         </tbody>)}
       </table>}
     </FitScreen>
-    {by === 'grade' && <p className="sub framefoot">Mỗi khối chia theo học phần HP1, HP2; đọc theo hàng ngang để thấy cùng một học phần ở mỗi gói là gì.</p>}
+    {by === 'grade' && <p className="sub framefoot">Mỗi khối chia theo học phần HP1, HP2 (loại không chia học phần ghi số chủ đề); đọc theo hàng ngang để thấy cùng một học phần ở mỗi gói là gì.</p>}
     </div>
   </>
 }

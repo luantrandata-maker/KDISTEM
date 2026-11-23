@@ -277,17 +277,17 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpen, actions, 
       const list = ts.filter(r => r.key === cell).sort((x, y) => (x.t.part || 3) - (y.t.part || 3) || x.t.seq - y.t.seq)
       const hp = [1, 2].map(p => list.filter(r => r.t.part === p).length)
       const ccols: Col<R>[] = [
-        { key: 'seq', label: '#', text: r => String(r.t.seq), cell: r => <span className="sub">{r.t.seq}</span> },
+        { key: 'seq', label: '#', thClass: 'fc-no', text: r => String(r.t.seq), cell: r => <span className="sub">{r.t.seq}</span> },
         { key: 'title', label: 'Chủ đề', fixed: true, text: r => r.t.title, cell: r => <b>{r.t.title}</b> },
-        { key: 'periods', label: 'Số tiết', text: r => String(r.t.periods), cell: r => r.t.periods },
-        ...(split.has(cell) ? [{ key: 'part', label: 'Phần', text: partName, cell: (r: R) => partName(r) || dash }] : []),
+        { key: 'periods', label: 'Số tiết', thClass: 'fc-per', text: r => String(r.t.periods), cell: r => r.t.periods },
+        ...(split.has(cell) ? [{ key: 'part', label: 'Phần', thClass: 'fc-part', text: partName, cell: (r: R) => partName(r) || dash }] : []),
       ]
       side = <Drawer onClose={() => setCell(null)} title={<>{tr && chip(tr.code)} {m ? m.name : tr?.name} · {gradeName(g)}</>}
         actions={<span className="frside-acts">
           {onAdd && <button type="button" className="primary" onClick={onAdd}>+ Thêm chủ đề vào {gradeName(g)}</button>}
         </span>}>
         <p className="sub" style={{ marginTop: 0 }}>{m && tr ? tr.name + ' · ' : ''}{list.length} chủ đề · {tiet(list)} tiết{hp[0] + hp[1] ? ` · HP1 ${hp[0]} chủ đề, HP2 ${hp[1]} chủ đề` : ''}</p>
-        <DataTable id="frame-cell" noTools noFoot rows={list} rowKey={r => r.t.id} cols={ccols} noun="chủ đề" onRow={r => onOpen(r.t)} className="slt"
+        <DataTable id="frame-cell-v2" noTools noFoot rows={list} rowKey={r => r.t.id} cols={ccols} noun="chủ đề" onRow={r => onOpen(r.t)} className="slt frcelltbl"
           rowMenu={rowMenu ? r => rowMenu(r.t) : undefined} empty={<span className="sub">Chưa có chủ đề.</span>} />
       </Drawer>
     }

@@ -17,6 +17,7 @@ import { OneLine } from '../components/LongCell'
 import { FitScreen } from '../components/FitScreen'
 import { Drawer } from '../components/Drawer'
 import { TopicContents } from './topicContents'
+import type { RowAction } from '../components/ProTools'
 
 // Khung chương trình (147): KDI chọn loại chương trình → danh sách học phần → chủ đề theo từng khối.
 // Học phần dùng chung giữa các gói và các khối (CT1, CT4 có một học phần "CHUNG"); mỗi chủ đề thuộc một khối, có thứ tự cố định
@@ -83,6 +84,7 @@ export function ProgramFrame() {
     if (error || !data?.length) { setMsg(frameErr(error ? error.message + ' ' + (error.code ?? '') : 'row-level')); return null }
     reload(); return data[0].id
   }
+  const nextSeqOf = (mod: string, g: number) => topics.filter(t => t.module_id === mod && t.grade === g).reduce((x, t) => Math.max(x, t.seq), 0) + 1
   async function addFlatTopic(g: number) {
     const id = await hiddenModule(); if (!id) return
     const inG = trackTopics.filter(t => t.grade === g)
@@ -98,13 +100,16 @@ export function ProgramFrame() {
   if (editMod) {
     drawer = <Drawer closeOnOutside={false} onClose={() => setEditMod(null)}
       title={<>{chip(editMod.track_code)} {editMod.id ? 'Sửa học phần' : 'Thêm học phần'}</>}>
-      <ModuleForm m={editMod} onCancel={() => setEditMod(null)} onSaved={() => { setEditMod(null); reload() }} />
+      <ModuleForm m={editMod} onCancel={() => setEditMod(null)} onSaved={() => { setEditMod(null); reload() }}
+        onDelete={editMod.id ? () => { const m = editMod; setEditMod(null); delModule(m) } : undefined} />
     </Drawer>
   } else if (editTopic) {
     const m = modules.find(x => x.id === editTopic.module_id)
     drawer = <Drawer closeOnOutside={false} onClose={() => setEditTopic(null)} onBack={editTopic.id && viewId ? () => setEditTopic(null) : undefined}
       title={<>{m && chip(m.track_code)} {editTopic.id ? 'Sửa chủ đề' : 'Thêm chủ đề'}</>}>
-      <TopicForm t={editTopic} track={track} onCancel={() => setEditTopic(null)} onSaved={() => { setEditTopic(null); reload() }} />
+      <TopicForm key={editTopic.id ?? 'new'} t={editTopic} track={tracks.find(x => x.code === m?.track_code) ?? track} nextSeq={nextSeqOf}
+        modules={!editTopic.id && m && tracks.find(x => x.code === m.track_code)?.use_modules !== false ? modules.filter(x => x.track_code === m.track_code && x.active !== false).sort((a, b) => a.sort - b.sort) : undefined}
+        onCancel={() => setEditTopic(null)} onSaved={next => { if (!next) setEditTopic(null); reload() }} />
     </Drawer>
   } else if (vt) {
     const m = modules.find(x => x.id === vt.module_id)
@@ -156,15 +161,25 @@ export function ProgramFrame() {
   const all = true
   const sel = allSel
   const setSel = (k: string) => setTreeSel({ ...treeSel, '*': k })
-  const selGrade = (() => { const m = /\/(\d+)$/.exec(sel); return flat && m ? Number(m[1]) : null })()
+  const selGrade = (() => { const m = /\/(\d+)$/.exec(sel); return m ? Number(m[1]) : null })()
+  const selMod = mods.find(m => m.id === sel.split('/')[1])
+  const newMod = () => setEditMod({ id: '', track_code: track!.code, name: '', description: '', periods: null, sort: mods.reduce((x, m) => Math.max(x, m.sort), 0) + 1, active: true })
+  // Thêm chủ đề: điền sẵn học phần, khối theo mục đang chọn trên cây (chưa chọn học phần thì lấy học phần đầu)
+  const addTopic = () => { setMsg(''); if (flat) return addFlatTopic(selGrade ?? 1)
+    const m = selMod ?? mods.filter(x => x.active !== false).sort((a, b) => a.sort - b.sort)[0]
+    if (!m) return newMod()
+    const ts = topicsOf(m.id), g = selGrade ?? ts[ts.length - 1]?.grade ?? 1
+    setEditTopic({ module_id: m.id, grade: g, seq: nextSeqOf(m.id, g), code: '', title: '', periods: 1, objectives: '', product: '', main_subject: null, subjects: [], textbook_ref: '', active: true, part: null }) }
+  const acts = admin && track ? <>
+    <button type="button" className="primary" onClick={addTopic}>+ Thêm chủ đề</button>
+    {!flat && <button type="button" onClick={() => { setMsg(''); newMod() }}>+ Thêm học phần</button>}
+    {!flat && selMod && <button type="button" onClick={() => { setMsg(''); setEditMod(selMod) }}>✎ Sửa học phần</button>}
+  </> : undefined
   return <>
-    {admin && track && <HeadAction>{flat
-      ? <button type="button" className="primary ttadd" onClick={() => addFlatTopic(selGrade ?? 1)}>+ Thêm chủ đề{selGrade ? ' ' + gradeName(selGrade) : ''}</button>
-      : <button type="button" className="primary ttadd"
-        onClick={() => setEditMod({ id: '', track_code: track.code, name: '', description: '', periods: null, sort: mods.reduce((x, m) => Math.max(x, m.sort), 0) + 1, active: true })}>+ Thêm học phần</button>}</HeadAction>}
     {msg && <p className="msg" role="status">{msg}</p>}
-    <FrameTree tracks={active} all={all} modules={modules} topics={topics} sel={sel} onSel={setSel}
-      onOpenModule={id => { setMsg(''); setOpenId(id) }} onOpen={t => { setMsg(''); setViewId(t.id) }} />
+    <FrameTree tracks={active} all={all} modules={modules} topics={topics} sel={sel} onSel={setSel} actions={acts}
+      rowMenu={admin ? t => [{ label: 'Sửa', onClick: () => { setMsg(''); setEditTopic(t) } }, { label: 'Xoá', danger: true, onClick: () => delTopic(t) }] : undefined}
+      onOpen={t => { setMsg(''); setViewId(t.id) }} />
     {drawer}
   </>
 }
@@ -175,9 +190,9 @@ const under = (k: string, sel: string) => k === sel || k.startsWith(sel + '/')
 
 /** Khung chương trình dạng cây: trái là cây (đếm số chủ đề, dòng nhỏ là số tiết), phải là bảng chủ đề của mục đang chọn.
  *  Cả khung vừa một màn hình; cây và bảng cuộn riêng bên trong. */
-function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onOpen }: {
+function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpen, actions, rowMenu }: {
   tracks: StemTrack[]; all: boolean; modules: ProgramModule[]; topics: ProgramTopic[]; sel: string; onSel: (k: string) => void
-  onOpenModule: (id: string) => void; onOpen: (t: ProgramTopic) => void
+  onOpen: (t: ProgramTopic) => void; actions?: React.ReactNode; rowMenu?: (t: ProgramTopic) => RowAction[]
 }) {
   const [open, setOpen] = useState<Record<string, boolean>>({})
   const [mode, setModeS] = useState<'list' | 'grid'>(() => { try { return localStorage.getItem('frame-mode') === 'grid' ? 'grid' : 'list' } catch { return 'list' } })
@@ -239,13 +254,6 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onO
     { key: 'prod', label: 'Sản phẩm', off: true, text: r => r.t.product ?? '', cell: r => <OneLine text={r.t.product ?? ''} /> },
     { key: 'track', label: 'Loại CT', off: true, text: r => `${trackLabel(r.m.track_code)} · ${trOf(r.m.track_code)?.name ?? ''}`, cell: r => chip(r.m.track_code) },
   ]
-  const selMod = /^[^/]+\/([0-9a-f-]{36})$/.exec(sel)?.[1]
-  const crumb = (() => { const p = sel.split('/'); const out: string[] = []
-    if (p[0]) out.push(all ? `${trackLabel(p[0])} · ${trOf(p[0])?.name ?? ''}` : 'Tất cả')
-    if (p.length === 2 && !isFlat(p[0])) out.push(modOf.get(p[1])?.name ?? '')
-    if (p.length === 3) out.push(modOf.get(p[1])?.name ?? '', gradeName(Number(p[2])))
-    if (p.length === 2 && isFlat(p[0])) out.push(gradeName(Number(p[1])))
-    return (all ? out : out.slice(p.length > 1 ? 1 : 0)).join(' › ') })()
   if (mode === 'grid') {
     // Tổng hợp theo khối: mỗi cột một khối, mỗi hàng một học phần (loại chỉ có chủ đề: một hàng); ô = số chủ đề · số tiết, bấm để xem danh sách
     const gs = [...new Set(ts.map(r => r.t.grade))].sort((a, b) => a - b)
@@ -269,11 +277,9 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onO
           </Fragment> })}</tbody></table></div>
     </div>
   }
-  return <div className="fwtree"><DataTable id="frame-topics-v5" right={modeSw} pro rows={rows} rowKey={r => r.t.id} cols={cols} noun="chủ đề" onRow={r => onOpen(r.t)}
-    className="slt"
-    left={<span className="fwcap"><b>{crumb}</b> <span style={MUTED}>· {tiet(rows)} tiết</span>
-      {selMod && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={() => onOpenModule(selMod)}>Mở học phần ›</button>}</span>}
-    empty={<span className="sub">Chưa có chủ đề.{selMod ? ' Bấm "Mở học phần" để thêm chủ đề.' : ''}</span>}
+  return <div className="fwtree"><DataTable id="frame-topics-v5" right={modeSw} pro noFoot rows={rows} rowKey={r => r.t.id} cols={cols} noun="chủ đề" onRow={r => onOpen(r.t)}
+    className="slt" left={actions ? <span className="fwacts">{actions}</span> : undefined} rowMenu={rowMenu ? r => rowMenu(r.t) : undefined}
+    empty={<span className="sub">Chưa có chủ đề.{actions ? ' Bấm "+ Thêm chủ đề".' : ''}</span>}
     aside={<nav className="gtree" aria-label={all ? 'Loại CT › Học phần › Khối' : flatTitle(tracks[0])}>
       <TreeHead title={all ? 'Loại CT › Học phần › Khối' : flatTitle(tracks[0])}>Số = số chủ đề, dòng nhỏ = tổng số tiết.<br />Bấm tên: lọc bảng và mở.<br />Bấm ▸: chỉ mở / đóng.</TreeHead>
       <div className="gtcolhead">Số chủ đề</div>
@@ -371,7 +377,7 @@ function TopicTable({ list, track, admin, showGrade, weeks, hidePart, onOpen, on
     onRow={onOpen} empty="Chưa có chủ đề." />
 }
 
-function ModuleForm({ m, onCancel, onSaved }: { m: ProgramModule; onCancel: () => void; onSaved: () => void }) {
+function ModuleForm({ m, onCancel, onSaved, onDelete }: { m: ProgramModule; onCancel: () => void; onSaved: () => void; onDelete?: () => void }) {
   const [f, setF] = useState(m)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -401,17 +407,24 @@ function ModuleForm({ m, onCancel, onSaved }: { m: ProgramModule; onCancel: () =
     <div className="actions" style={{ marginTop: 12 }}>
       <button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
       <button onClick={onCancel} disabled={busy}>Huỷ</button>
+      {onDelete && <button className="danger" style={{ marginLeft: 'auto' }} onClick={onDelete} disabled={busy}>Xoá học phần</button>}
     </div>
   </section>
 }
 
-function TopicForm({ t, track, onCancel, onSaved }: { t: TopicDraft; track?: StemTrack; onCancel: () => void; onSaved: () => void }) {
-  const [f, setF] = useState<TopicDraft>({ ...t, subjects: [...t.subjects] })
+function TopicForm({ t, track, modules, nextSeq, onCancel, onSaved }: {
+  t: TopicDraft; track?: StemTrack; modules?: ProgramModule[]; nextSeq?: (mod: string, g: number) => number; onCancel: () => void; onSaved: (next?: boolean) => void
+}) {
+  const [f, setFS] = useState<TopicDraft>({ ...t, subjects: [...t.subjects] })
+  const [seqTouched, setSeqTouched] = useState(false)
+  const [added, setAdded] = useState(0)   // số chủ đề đã lưu khi bấm "Lưu và thêm tiếp"
+  // Thêm mới: đổi học phần / khối thì thứ tự bài tự lấy bài tiếp theo (trừ khi đã gõ tay)
+  const setF = (x: TopicDraft) => setFS(!f.id && nextSeq && !seqTouched && (x.module_id !== f.module_id || x.grade !== f.grade) ? { ...x, seq: nextSeq(x.module_id, x.grade) } : x)
   const { grades } = useEduLevels()
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const gradeList = useMemo(() => [...new Set([...grades, f.grade])].sort((a, b) => a - b), [grades, f.grade])
-  async function save() {
+  async function save(next?: boolean) {
     if (!f.title.trim()) return setErr('Nhập tên chủ đề.')
     setBusy(true); setErr('')
     const row = { module_id: f.module_id, grade: f.grade, seq: Number(f.seq) || 1, code: f.code, title: f.title, periods: Number(f.periods) || 0,
@@ -421,13 +434,17 @@ function TopicForm({ t, track, onCancel, onSaved }: { t: TopicDraft; track?: Ste
     setBusy(false)
     if (error) return setErr(frameErr(error.message + ' ' + (error.code ?? '')))
     if (!data?.length) return setErr(frameErr('row-level'))
-    onSaved()
+    if (next) { setAdded(added + 1); setSeqTouched(false); setFS({ ...f, title: '', code: '', objectives: '', product: '', seq: (Number(f.seq) || 0) + 1 }) }
+    onSaved(next)
   }
   return <section className="panel">
+    {added > 0 && <p className="msg" role="status" style={{ marginTop: 0 }}>Đã thêm {added} chủ đề. Nhập chủ đề tiếp theo.</p>}
     <div className="formgrid">
+      {modules && <label className="field wide"><span>Học phần *</span><select value={f.module_id} onChange={e => setF({ ...f, module_id: e.target.value })}>
+        {modules.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>}
       <label className="field"><span>Khối *</span><select value={f.grade} onChange={e => setF({ ...f, grade: Number(e.target.value) })}>
         {gradeList.map(g => <option key={g} value={g}>{gradeName(g)}</option>)}</select></label>
-      <label className="field"><span>Thứ tự bài</span><input type="number" min={1} max={999} value={f.seq} onChange={e => setF({ ...f, seq: Number(e.target.value) })} /></label>
+      <label className="field"><span>Thứ tự bài</span><input type="number" min={1} max={999} value={f.seq} onChange={e => { setSeqTouched(true); setF({ ...f, seq: Number(e.target.value) }) }} /></label>
       <label className="field"><span>Mã chủ đề</span><input value={f.code ?? ''} maxLength={40} placeholder="VD: G1-01" onChange={e => setF({ ...f, code: e.target.value })} /></label>
       <label className="field"><span>Số tiết</span><input type="number" min={0} max={200} value={f.periods} onChange={e => setF({ ...f, periods: Number(e.target.value) })} /></label>
       <label className="field wide"><span>Tên chủ đề *</span><input value={f.title} maxLength={200} onChange={e => setF({ ...f, title: e.target.value })} /></label>
@@ -445,8 +462,9 @@ function TopicForm({ t, track, onCancel, onSaved }: { t: TopicDraft; track?: Ste
     </div>
     {err && <p className="warnline">{err}</p>}
     <div className="actions" style={{ marginTop: 12 }}>
-      <button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
-      <button onClick={onCancel} disabled={busy}>Huỷ</button>
+      <button className="primary" onClick={() => save()} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
+      {!f.id && <button onClick={() => save(true)} disabled={busy}>Lưu và thêm tiếp</button>}
+      <button onClick={onCancel} disabled={busy}>{added ? 'Đóng' : 'Huỷ'}</button>
     </div>
   </section>
 }

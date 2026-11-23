@@ -18,6 +18,11 @@ import {
   type Item, type Mode, type Plan, type Prog, type Row, type Status, type Subj, type SubjMode, type U,
 } from './sched'
 
+/** Tên chương trình dạng "KDI2 Trải nghiệm STEM cơ bản · Gói 1T · Khối 7": tách loại KDI (chip), tên chính, phần còn lại */
+const progTitle = (p?: { title: string }) => {
+  const segs = (p?.title ?? '').split(' · ').map(x => x.trim()).filter(Boolean), m = /^(KDI\s?\d+)\s+(.+)$/i.exec(segs[0] ?? '')
+  return { kdi: m ? m[1].toUpperCase().replace(/\s/g, '') : '', name: m ? m[2] : segs[0] ?? '', rest: segs.slice(1) }
+}
 const PSEL = 'id, code, title, version_no, status, ct_code, level, grade_from, grade_to, grades, main_subject, periods_per_week, deploy_term, package_id'
 const USEL = 'id, program_id, parent_id, unit_type, seq, title, periods, grade, grades, subject'
 export const STATUS: Record<Status, [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], superseded: ['Đã thay thế', 'off'], archived: ['Ngừng dùng', 'off'] }
@@ -441,10 +446,12 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
           <Chip tone={STATUS[plan.status][1]}>{STATUS[plan.status][0]}</Chip>
           {editable && validity}
         </div>
-        <small className="sub">{plan.code} · Phiên bản {plan.version_no ?? 1} · {editable
+        <div className="distmeta">{plan.code && <span className="disttag">Mã <b>{plan.code}</b></span>}<span className="disttag">Phiên bản <b>{plan.version_no ?? 1}</b></span>
+          <small className="sub">{editable
           ? <span className={dirty ? 'distunsaved' : undefined}>{savedText}</span>
           : plan.status === 'draft' ? <>{roNote}, bấm biểu tượng bút để sửa</>
-          : <>{roNote}, muốn đổi thì {own ? 'tạo phiên bản mới' : 'nhân bản để sửa'}</>}</small>
+          : plan.status === 'published' ? <>🔒 Đã phát hành nên không sửa trực tiếp. Muốn đổi thì bấm “{own ? 'Tạo phiên bản mới' : 'Nhân bản để sửa'}”.</>
+          : <>{roNote}, muốn đổi thì {own ? 'tạo phiên bản mới' : 'nhân bản để sửa'}</>}</small></div>
         {!editable && plan.note && <small className="sub distnote">{plan.note}</small>}
       </div>
       <span className="distheadright">
@@ -468,14 +475,15 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   )
 
   /** Dành cho: phân loại và các chương trình trong bản */
-  const forStrip = <div className="distfor">
-    <div className="distforrow"><span className="distforlab">Dành cho</span>
-      <span className="distforpath">{crumbParts(plan).map((x, k) => <Fragment key={k}>{k > 0 && <span className="sep">›</span>}<b>{x}</b></Fragment>)}</span></div>
-    {!editable && <div className="distforrow"><span className="distforlab">Chương trình ({ordered.length})</span>
+  // Hai ô lớn: Dành cho (cấp · khối) và Chương trình (chip loại KDI + tên đậm, phần còn lại chữ nhỏ)
+  const forStrip = <div className={'distfor2' + (editable ? ' one' : '')}>
+    <div className="distforcell"><span className="distforlab">Dành cho</span>
+      <span className="distforval">{crumbParts(plan).join(' · ')}</span></div>
+    {!editable && <div className="distforcell"><span className="distforlab">Chương trình ({ordered.length})</span>
       <span className="distforprogs">{ordered.length ? ordered.map((it, k) => {
-        const p = progs.get(it.program_id); const subs = subjectsOf(it).filter(x => x.on).map(x => x.name)
-        return <span key={it.program_id} className="distforprog"><i style={{ background: colorOf(k) }} /><b>{progCode(p)}</b><span>{p?.title}</span>
-          {subs.length > 0 && <small>{subs.join(', ')}</small>}</span>
+        const p = progs.get(it.program_id), t = progTitle(p), subs = subjectsOf(it).filter(x => x.on).map(x => x.name).filter(x => x !== t.name)
+        return <span key={it.program_id} className="distforval">{t.kdi && <span className="distkdi" style={{ background: colorOf(k) }}>{t.kdi}</span>}{t.name}
+          <small>{[...t.rest, ...subs, 'mã ' + progCode(p)].map(x => ' · ' + x).join('')}</small></span>
       }) : <span className="sub">Chưa chọn chương trình</span>}</span></div>}
   </div>
 
@@ -498,12 +506,12 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   if (!editable) return (
     <div className="panel distpanel">
       {head}
-      {plan.status !== 'draft' && <div className="segmented pdtabs">
-        <button type="button" className={ptab === 'plan' ? 'on' : ''} onClick={() => setPtab('plan')}>Phân phối</button>
-        <button type="button" className={ptab === 'apply' ? 'on' : ''} onClick={() => setPtab('apply')}>Gán & áp dụng</button>
+      {forStrip}
+      {plan.status !== 'draft' && <div className="distutabs" role="tablist">
+        <button type="button" role="tab" aria-selected={ptab === 'plan'} className={ptab === 'plan' ? 'on' : ''} onClick={() => setPtab('plan')}>Phân phối</button>
+        <button type="button" role="tab" aria-selected={ptab === 'apply'} className={ptab === 'apply' ? 'on' : ''} onClick={() => setPtab('apply')}>Gán & áp dụng</button>
       </div>}
       {ptab === 'apply' && plan.status !== 'draft' ? <PlanApplied plan={plan} /> : <>
-        {forStrip}
         <div className="distsumline">{summary(false)}<ViewSwitch view={view} setView={setView} /></div>
         {view === 'cal' ? Calendar() : Table()}
         <PlanVersions plan={plan} />
@@ -673,9 +681,9 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
     const qq = q.trim().toLowerCase()
     const shown = qq ? inSel.filter(x => (title.get(x.r.unit_id) ?? '').toLowerCase().includes(qq)) : inSel
     const keepN = (xs: FR[]) => xs.filter(x => !x.r.skipped).length
-    const nav = (key: string, label: ReactNode, xs: FR[], meta: string) => <div key={key || '*'} className={'slnavrow' + (sel === key ? ' on' : '')}>
+    const nav = (key: string, label: ReactNode, xs: FR[], meta: string, pre?: string) => <div key={key || '*'} className={'slnavrow' + (sel === key ? ' on' : '')}>
       <button type="button" className={'slnavi' + (sel === key ? ' on' : '')} onClick={() => setSel(key)}>
-        <span className="slnm">{label}</span><span className="slcnt">{keepN(xs)}{keepN(xs) !== xs.length ? `/${xs.length}` : ''} bài · {meta}</span></button></div>
+        <span className="slnm">{label}</span><span className="slcnt">{pre ? pre + ' · ' : ''}{keepN(xs)}{keepN(xs) !== xs.length ? `/${xs.length}` : ''} bài · {meta}</span></button></div>
     /** Dạng phân phối chương trình in: Tuần (gộp ô) · Tiết · Tên bài · Môn · Số tiết. Bài kéo dài nhiều tuần tách theo tuần ("tiếp"). */
     /** Môn đang chọn ở cột trái (để mở khung đổi thứ tự bài) */
     const selSubj = (() => {
@@ -787,9 +795,12 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
           const gs = groups.filter(g => g.pid === it.program_id), code = progCode(progs.get(it.program_id))
           const sp = spanOf(s.rows.filter(r => r.program_id === it.program_id))
           const mine = flat.filter(x => x.pid === it.program_id)
+          // Hai dòng: chip loại KDI + tên (dòng trên), mã · số bài · tuần (dòng dưới)
+          const pt = progTitle(progs.get(it.program_id))
+          const kdi = pt.kdi ? <span className="distkdi" style={{ background: colorOf(k) }}>{pt.kdi}</span> : <i className="distdot" style={{ background: colorOf(k) }} />
           const head = gs.length === 1
-            ? nav(keyOf(gs[0]), <><i className="distdot" style={{ background: colorOf(k) }} />{code} · {gs[0].subj}</>, mine, sp ? `Tuần ${sp.from}–${sp.to}` : 'chưa xếp')
-            : nav(it.program_id + '|*', <><i className="distdot" style={{ background: colorOf(k) }} /><span><b>{code}</b>{gs.length ? ` · ${gs.length} môn` : ''}</span></>, mine, sp ? `Tuần ${sp.from}–${sp.to}` : 'chưa có bài')
+            ? nav(keyOf(gs[0]), <>{kdi}<b>{gs[0].subj}</b></>, mine, sp ? `Tuần ${sp.from}–${sp.to}` : 'chưa xếp', code)
+            : nav(it.program_id + '|*', <>{kdi}<b>{pt.name || code}</b>{gs.length ? <small className="sub"> · {gs.length} môn</small> : null}</>, mine, sp ? `Tuần ${sp.from}–${sp.to}` : 'chưa có bài', code)
           const pd = pdrag !== null
           return <div key={it.program_id} className={'distnavprog' + (pdrag === k ? ' drag' : '') + (pd && pover === k && pdrag !== k ? ' over' : '')}
             onDragOver={pd ? e => { e.preventDefault(); setPover(k) } : undefined}

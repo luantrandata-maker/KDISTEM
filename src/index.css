@@ -3850,17 +3850,18 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 /* Phân hệ 1 luôn gọn nhưng vẫn giữ chữ nhỏ (mã, dấu —, học phần) trong ô */
 .main[data-ph="1"] .ttdense td :is(.sub,small){display:inline!important}
 /* Khung chương trình: kiểu xem Tổng hợp theo khối */
-.main .frmode{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-left:6px}
-.main .frmode>button{border:0;border-radius:0;height:34px;padding:0 12px;background:var(--surface);color:var(--text);font-weight:500;white-space:nowrap;margin:0}
-.main .frmode>button+button{border-left:1px solid var(--line)}
-.main .frmode>button.on{background:var(--primary,#1d4ed8);color:#fff}
+.main .frmode{display:inline-flex;border:0;border-radius:8px;overflow:visible;margin-left:6px}
+.main .frmode>button{box-sizing:border-box;border:1px solid var(--line);border-radius:0;height:36px!important;min-height:0!important;line-height:1;padding:0 12px;background:var(--surface);color:var(--text);font-weight:500;white-space:nowrap;margin:0}
+.main .frmode>button:first-child{border-radius:8px 0 0 8px}.main .frmode>button:last-child{border-radius:0 8px 8px 0}
+.main .frmode>button+button{border-left:0}
+.main .frmode>button.on{background:var(--primary,#1d4ed8);border-color:var(--primary,#1d4ed8);color:#fff}
 .main .frgrid{border:1px solid var(--line);border-radius:10px;background:var(--surface)}
 .main .frgridbar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line)}
 .main .frgridwrap{overflow:auto;max-height:calc(100vh - 260px)}
-.main .frgridtbl{width:100%;border-collapse:collapse}
-.main .frgridtbl th{position:sticky;top:0;background:#e2e8f0;color:#1e293b;font-weight:700;z-index:3;white-space:nowrap;box-shadow:inset 0 -2px 0 #cbd5e1}
+.main .frgridtbl{width:100%;border-collapse:separate;border-spacing:0;overflow:visible;border:0;border-radius:0}
+.main .frgridtbl th{position:sticky;top:0;background:#e2e8f0;color:#1e293b;font-weight:700;z-index:3;white-space:nowrap;box-shadow:inset 0 -2px 0 #cbd5e1;height:44px;padding-top:0!important;padding-bottom:0!important}
 .main .frgridtbl td,.main .frgridtbl th{padding:5px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
-.main .frgridtbl tr.frgrp>td{background:color-mix(in srgb,var(--k,#64748b) 7%,var(--surface,#fff));box-shadow:inset 4px 0 0 var(--k,#64748b);padding-top:7px;padding-bottom:7px}
+.main .frgridtbl tr.frgrp>td{background:color-mix(in srgb,var(--k,#64748b) 7%,var(--surface,#fff));padding-top:7px;padding-bottom:7px}
 .main .frcell{min-width:58px;border:1px solid color-mix(in srgb,var(--k) 30%,transparent);background:color-mix(in srgb,var(--k) 12%,var(--surface,#fff));color:inherit;border-radius:6px;padding:2px 6px;line-height:1.15;cursor:pointer;display:inline-flex;flex-direction:column;align-items:center}
 .main .frcell small{font-size:10px;opacity:.75}
 .main .frcell:hover{outline:2px solid var(--k)}
@@ -3869,9 +3870,11 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 @media (min-width:900px){.main .frgrid .fitscreen>.frgridwrap{max-height:none;overflow:visible}}
 .main .frgridtbl tr.frgrp,.main .frgridtbl td.frmod{cursor:pointer}
 .main .frgridtbl tr.frgrp.on>td,.main .frgridtbl tr.on>td{background:color-mix(in srgb,var(--primary,#1d4ed8) 11%,var(--surface,#fff))}
-.main .frgridtbl tr.frgrp.on>td:first-child,.main .frgridtbl tr.on>td:first-child{box-shadow:inset 4px 0 0 var(--primary,#1d4ed8);color:var(--primary,#1d4ed8);font-weight:600}
+.main .frgridtbl tr.frgrp.on>td:first-child,.main .frgridtbl tr.on>td:first-child{color:var(--primary,#1d4ed8);font-weight:600}
 .main .frgridtbl td.frmod:hover{color:var(--primary,#1d4ed8)}
 .frside-acts{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
+/* Nút thêm trong ngăn cao bằng nút × (36px) */
+.draweractions .frside-acts>button{box-sizing:border-box;height:36px!important;min-height:0!important;line-height:1;padding:0 12px}
 .frside-acts .linkbtn{font-size:13px;margin-left:4px}
 /* Gói STEM mới: hướng dẫn thêm nội dung */
 .main .pkgguide{margin:4px 0 12px;padding:14px;border:1px dashed #93c5fd;border-radius:10px;background:color-mix(in srgb,#2563eb 4%,var(--surface,#fff))}
@@ -3926,4 +3929,4 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .fwacts{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}
 /* Cùng chiều cao với Bộ lọc, Lưu bộ lọc, nút chuyển kiểu xem (36px) */
 .main .fwacts>button{box-sizing:border-box;height:36px!important;min-height:0!important;padding:0 12px!important;line-height:1!important;font-size:inherit;border-radius:8px;white-space:nowrap;font-weight:500;display:inline-flex;align-items:center;margin:0}
-.main .frmode>button{box-sizing:border-box}
+

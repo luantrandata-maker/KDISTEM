@@ -87,21 +87,27 @@ export function Steps({ steps }: { steps: KitStep[] }) {
   </table></div>
 }
 
+const Q_KIND: Record<string, string> = { single: 'Một đáp án', multi: 'Nhiều đáp án', truefalse: 'Đúng / Sai' }
+const Q_LEVEL: Record<string, string> = { nhan_biet: 'Nhận biết', thong_hieu: 'Thông hiểu', van_dung: 'Vận dụng', van_dung_cao: 'Vận dụng cao' }
 export function ExamView({ id }: { id: string }) {
-  const [qs, setQs] = useState<{ id: string; stem: string }[] | null>(null)
+  type Q = { id: string; stem: string; kind: string; level: string }
+  const [qs, setQs] = useState<Q[] | null>(null)
   const [e, setE] = useState<Exam | null | undefined>(undefined)
   useEffect(() => {
     supabase.from('practice_exams').select('id,title,subject,grade,mode,question_ids,criteria,duration_min,status').eq('id', id).maybeSingle().then(({ data }) => {
       const x = data as Exam | null; setE(x)
-      if (x?.mode === 'fixed' && x.question_ids.length) supabase.from('question_bank').select('id,stem').in('id', x.question_ids).then(({ data: q }) =>
-        setQs(x.question_ids.map(i => (q ?? []).find((r: { id: string }) => r.id === i)).filter(Boolean) as { id: string; stem: string }[]))
+      if (x?.mode === 'fixed' && x.question_ids.length) supabase.from('question_bank').select('id,stem,kind,level').in('id', x.question_ids).then(({ data: q }) =>
+        setQs(x.question_ids.map(i => (q ?? []).find((r: { id: string }) => r.id === i)).filter(Boolean) as Q[]))
     })
   }, [id])
   if (e === undefined) return <p className="sub">Đang mở đề…</p>
   if (!e) return <p className="sub">Không mở được đề (đề đã xoá hoặc chưa được chia sẻ cho đơn vị của anh/chị).</p>
   return <div style={{ marginTop: 8 }}>
     <p className="sub" style={{ margin: 0 }}>{[e.subject, e.grade ? 'Khối ' + e.grade : '', examMeta(e), e.mode === 'random' ? 'Rút ngẫu nhiên từ Ngân hàng câu hỏi' : ''].filter(Boolean).join(' · ')}</p>
-    {qs && <ol style={{ margin: '8px 0 0', paddingLeft: 20 }}>{qs.map(q => <li key={q.id}>{q.stem}</li>)}</ol>}
+    {qs && <div className="wrap" style={{ marginTop: 8 }}><table className="slt ttdense" style={{ width: '100%' }}>
+      <thead><tr><th style={{ width: 44 }}>#</th><th>Câu hỏi</th><th style={{ width: 120 }}>Loại</th><th style={{ width: 120 }}>Mức độ</th></tr></thead>
+      <tbody>{qs.map((q, k) => <tr key={q.id + k}><td>{k + 1}</td><td style={{ whiteSpace: 'normal' }}>{q.stem}</td><td>{Q_KIND[q.kind] ?? q.kind}</td><td>{Q_LEVEL[q.level] ?? q.level}</td></tr>)}</tbody>
+    </table></div>}
   </div>
 }
 
@@ -178,24 +184,26 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
           </tr>)}</tbody>
         </table>
           : kind !== 'material' && list.map(i => {
-            const on = openId === i.id
+            const on = openId === i.id   // đang mở tệp / link
+            const info = !!i.exam_id || !!i.content?.steps?.length || (!!i.content?.slides?.length && !i.file_path)
+            const file = !!(i.file_path || i.url)
             const icon = i.exam_id ? '📝' : i.file_path ? ({ docx: '📄', doc: '📄', pptx: '📊', ppt: '📊', pdf: '📕' } as Record<string, string>)[ext(i.file_name)] ?? '📎' : i.url ? '🔗' : '📋'
             const meta = [i.exam_id ? 'Đề có sẵn' : '', i.file_name, !i.file_name && i.url ? i.url : '', i.content?.steps?.length ? `${i.content.steps.length} hoạt động` : '', i.content?.slides?.length ? `${i.content.slides.length} slide` : ''].filter(Boolean).join(' · ')
             return <div key={i.id} className="tcitem">
               <div className="tcrow">
                 <span className="tcic" aria-hidden>{icon}</span>
-                <button type="button" className="tcmain" aria-expanded={on} onClick={() => setOpenId(on ? null : i.id)}>
+                <button type="button" className="tcmain" aria-expanded={file ? on : undefined} onClick={() => file && setOpenId(on ? null : i.id)}>
                   <b>{i.title}</b>{meta && <small className="sub">{meta}</small>}</button>
-                <button type="button" className="linkbtn" onClick={() => setOpenId(on ? null : i.id)}>{on ? 'Thu gọn ▴' : 'Xem ›'}</button>
+                {file && <button type="button" className={on ? 'linkbtn on' : 'linkbtn'} onClick={() => setOpenId(on ? null : i.id)}>{on ? 'Ẩn file ▴' : 'Xem file ›'}</button>}
                 {(i.file_path || i.url) && <button type="button" onClick={() => open(i)}>{i.file_path ? 'Tải về' : 'Mở link'}</button>}
                 {admin && <RowMenu label={i.title} items={[{ label: 'Sửa', onClick: () => setEdit(i) }, { label: 'Xoá', danger: true, onClick: () => del(i) }]} />}
               </div>
               {i.detail && <p className="sub tcdetail">{i.detail}</p>}
-              {on && <div className="tcbody">
+              {(info || on) && <div className="tcbody">
                 {i.exam_id && <ExamView id={i.exam_id} />}
                 {!!i.content?.steps?.length && <Steps steps={i.content.steps} />}
-                {(i.file_path || i.url) && <Viewer item={i} />}
                 {!!i.content?.slides?.length && !i.file_path && <ol className="sub" style={{ paddingLeft: 20 }}>{i.content.slides.map((s, k) => <li key={k}>{s}</li>)}</ol>}
+                {on && file && <Viewer item={i} />}
               </div>}
             </div>
           })}

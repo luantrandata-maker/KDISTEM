@@ -3902,3 +3902,17 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .pkgpb .pbcell { cursor: pointer; }
 .pkgpb .pbcell:hover { background: color-mix(in srgb, var(--k, #2563eb) 10%, transparent); }
 .pkgpb .pbcell.on { background: color-mix(in srgb, var(--k, #2563eb) 18%, transparent); box-shadow: inset 0 0 0 2px var(--k, #2563eb); }
+
+/* Khung chương trình: thanh công cụ một dòng, tên mục dài thì rút gọn bằng "…" (màn hình hẹp vẫn xuống dòng) */
+@media (min-width:641px){
+.fwtree .ttprotools{flex-wrap:nowrap}
+.fwtree .ttprotools .tsrch{flex:0 1 auto;min-width:0}
+.fwtree .ttprotools .tsin{min-width:120px}
+.fwtree .ttleft{flex:1 1 auto;flex-wrap:nowrap;min-width:0;overflow:hidden}
+.fwtree .ttleft .fwcap{display:flex;align-items:center;gap:6px;min-width:0;overflow:hidden}
+.fwtree .ttleft .fwcap>b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.fwtree .ttleft .fwcap>span,.fwtree .ttleft .fwcap>button{flex:none;white-space:nowrap}
+.fwtree .ttprotools .tspacer{flex:0 0 0}
+.fwtree .ttprotools .frmode,.fwtree .ttprotools .ticons,.fwtree .ttprotools>button{flex:none}
+.fwtree .frmode button{white-space:nowrap}
+}

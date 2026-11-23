@@ -233,8 +233,8 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onO
     { key: 'periods', label: 'Số tiết', text: r => String(r.t.periods), cell: r => r.t.periods },
     { key: 'part', label: 'Phần', text: partName, cell: r => partName(r) || dash },
     { key: 'mod', label: 'Học phần', text: r => isFlat(r.m.track_code) ? '' : r.m.name, cell: r => isFlat(r.m.track_code) ? dash : r.m.name },
-    { key: 'main', label: 'Môn chủ trì', text: r => r.t.main_subject ?? '', cell: r => r.t.main_subject || dash },
-    { key: 'subs', label: 'Môn phối hợp', text: r => r.t.subjects.join(', '), values: r => r.t.subjects, cell: r => r.t.subjects.join(', ') || dash },
+    { key: 'main', label: 'Môn chủ trì', off: true, text: r => r.t.main_subject ?? '', cell: r => r.t.main_subject || dash },
+    { key: 'subs', label: 'Môn phối hợp', off: true, text: r => r.t.subjects.join(', '), values: r => r.t.subjects, cell: r => r.t.subjects.join(', ') || dash },
     { key: 'obj', label: 'Yêu cầu cần đạt', off: true, text: r => r.t.objectives, cell: r => <OneLine text={r.t.objectives} /> },
     { key: 'prod', label: 'Sản phẩm', off: true, text: r => r.t.product ?? '', cell: r => <OneLine text={r.t.product ?? ''} /> },
     { key: 'track', label: 'Loại CT', off: true, text: r => `${trackLabel(r.m.track_code)} · ${trOf(r.m.track_code)?.name ?? ''}`, cell: r => chip(r.m.track_code) },
@@ -269,7 +269,7 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpenModule, onO
           </Fragment> })}</tbody></table></div>
     </div>
   }
-  return <div className="fwtree"><DataTable id="frame-topics-v4" right={modeSw} pro rows={rows} rowKey={r => r.t.id} cols={cols} noun="chủ đề" onRow={r => onOpen(r.t)}
+  return <div className="fwtree"><DataTable id="frame-topics-v5" right={modeSw} pro rows={rows} rowKey={r => r.t.id} cols={cols} noun="chủ đề" onRow={r => onOpen(r.t)}
     className="slt"
     left={<span className="fwcap"><b>{crumb}</b> <span style={MUTED}>· {tiet(rows)} tiết</span>
       {selMod && <button type="button" className="linkbtn" style={{ marginLeft: 10 }} onClick={() => onOpenModule(selMod)}>Mở học phần ›</button>}</span>}

@@ -3182,6 +3182,7 @@ table.ttsel:has(>tbody .tselbox input:checked) .tselbox input,table.ttsel:not(.t
   main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pframe>.pfbody{padding:0}
   main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pframe>.pfbody .ttpro{border:0;border-radius:0}
   main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pframe>.pfbody .ttprotools{padding:12px 18px}
+  main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pframe>.pfbody>.distpills{margin:14px 18px 0!important}
   main:has(>.pframe>.pfbody>.ttpro):not(:has(.pdclose))>.pframe>.pfbody .ttfoot{padding-left:18px}
 }
 

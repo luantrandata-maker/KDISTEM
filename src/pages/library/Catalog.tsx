@@ -83,7 +83,7 @@ export function LibraryCatalog({ orgId }: { orgId: string | null }) {
   return <>
     <div className="distpills" role="tablist" style={{ marginBottom: 10 }}>
       {TOPIC_KINDS.map(k => <button key={k.key} type="button" role="tab" aria-selected={kind === k.key} className={kind === k.key ? 'on' : ''} onClick={() => { setKind(k.key); setMat(null) }}>
-        {k.label} <small className="sub">{mine.filter(i => i.kind === k.key).length}</small></button>)}
+        {k.label} <small className="sub">{k.key === 'material' ? new Set(mine.filter(i => i.kind === 'material').map(i => [i.title.trim().toLowerCase(), i.unit ?? '', i.per ?? ''].join('|'))).size : mine.filter(i => i.kind === k.key).length}</small></button>)}
     </div>
     {msg && <p className="msg">{msg}</p>}
     {kind === 'material'

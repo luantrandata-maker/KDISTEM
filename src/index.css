@@ -3839,6 +3839,9 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .tctablist>button.on i{background:#dbeafe;color:var(--primary,#1d4ed8)}
 .tctabact{display:flex;gap:8px;padding-bottom:6px}
 .tcitem{border:1px solid var(--line,#e2e8f0);border-radius:10px;background:var(--card,#fff);padding:8px 12px;margin-bottom:8px}
+.tcask{border:1px solid #bfdbfe;background:#eff6ff;border-radius:10px;padding:12px 14px;margin:0 0 12px}.tcask p{margin:0;line-height:1.55}
+.tcaskbtns,.tcaskpick{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.main .tcask button.ghost{border-color:transparent;background:transparent;color:var(--muted)}
+.tcask~.tcitem{opacity:.5}
 .tcrow{display:flex;align-items:center;gap:10px}
 .tcic{width:34px;height:34px;border-radius:8px;background:#eff6ff;display:grid;place-items:center;font-size:17px;flex:none}
 .tcmain{flex:1;min-width:0;background:none;border:0;padding:0;text-align:left;cursor:pointer;display:flex;flex-direction:column;color:inherit}

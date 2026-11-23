@@ -118,13 +118,17 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
   const [groups, setGroups] = useState<MaterialGroup[]>([])
   const [kind, setKind] = useState<Kind>('plan')
   const [edit, setEdit] = useState<Draft | null>(null)
+  // Bấm "+ Thêm" khi tab đã có nội dung (kế hoạch, bài giảng, phiếu): hỏi sửa bản đang có hay thêm bản mới
+  const [ask, setAsk] = useState(false)
+  const [editMode, setEditMode] = useState<Mode | undefined>()
+  const editItem = (i: TopicItem, m?: Mode) => { setAsk(false); setEditMode(m); setEdit(i) }
   const [openId, setOpenId] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
   const [msg, setMsg] = useState('')
   const [busy, setBusy] = useState(false)
   const reload = () => supabase.from('program_topic_items').select('*').eq('topic_id', topicId).order('seq')
     .then(({ data, error }) => { setItems((data ?? []) as TopicItem[]); setMsg(error ? errText(error.message) : '') })
-  useEffect(() => { setEdit(null); setImporting(false); setOpenId(null); reload() }, [topicId])
+  useEffect(() => { setEdit(null); setAsk(false); setImporting(false); setOpenId(null); reload() }, [topicId])
   useEffect(() => { supabase.from('material_groups').select('*').eq('active', true).order('sort').then(({ data }) => setGroups((data ?? []) as MaterialGroup[])) }, [])
 
   const list = items.filter(i => i.kind === kind)
@@ -165,14 +169,24 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
     <div className="tctabs">
       <div className="tctablist" role="tablist">{TOPIC_KINDS.map(k => {
         const n = items.filter(i => i.kind === k.key).length
-        return <button key={k.key} type="button" role="tab" aria-selected={kind === k.key} className={kind === k.key ? 'on' : ''} onClick={() => { setKind(k.key); setEdit(null) }}>{k.label}{n ? <i>{n}</i> : null}</button>
+        return <button key={k.key} type="button" role="tab" aria-selected={kind === k.key} className={kind === k.key ? 'on' : ''} onClick={() => { setKind(k.key); setEdit(null); setAsk(false) }}>{k.label}{n ? <i>{n}</i> : null}</button>
       })}</div>
       {admin && <div className="tctabact">
-        <button type="button" onClick={() => { setEdit(null); setImporting(true) }}>⇪ Tách từ Word / PowerPoint</button>
-        <button type="button" className="primary" onClick={() => setEdit(blank())}>+ Thêm</button></div>}
+        <button type="button" onClick={() => { setEdit(null); setAsk(false); setImporting(true) }}>⇪ Tách từ Word / PowerPoint</button>
+        <button type="button" className="primary" onClick={() => { setEditMode(undefined); if (MANUAL.includes(kind) && list.length) { setEdit(null); setAsk(true) } else setEdit(blank()) }}>+ Thêm</button></div>}
     </div>
     {msg && <p className="msg">{msg}</p>}
-    {edit ? <ItemForm d={edit} groups={groups} topic={topic} onCancel={() => setEdit(null)} onSaved={() => { setEdit(null); reload() }} />
+    {ask && !edit && <div className="tcask" role="alertdialog" aria-label="Đã có nội dung">
+      <p>ⓘ Chủ đề này đã có <b>{list.length} {kindLabel(kind).toLowerCase()}</b>{list.length === 1 ? <>: <b>{list[0].title}</b>{list[0].content?.steps?.length ? ` (${list[0].content.steps.length} hoạt động)` : ''}</> : ''}.<br />
+        Sửa {list.length === 1 ? 'bản đó' : 'một bản đang có'} hay thêm một bản khác?</p>
+      <div className="tcaskbtns">
+        {list.length === 1 && <button type="button" className="primary" onClick={() => editItem(list[0], 'manual')}>✎ Sửa bản đang có</button>}
+        <button type="button" onClick={() => { setAsk(false); setEdit(blank()) }}>+ Vẫn thêm bản mới</button>
+        <button type="button" className="ghost" onClick={() => setAsk(false)}>Huỷ</button>
+      </div>
+      {list.length > 1 && <div className="tcaskpick">{list.map(i => <button key={i.id} type="button" onClick={() => editItem(i, 'manual')}>✎ Sửa “{i.title}”</button>)}</div>}
+    </div>}
+    {edit ? <ItemForm d={edit} startMode={editMode} groups={groups} topic={topic} onCancel={() => setEdit(null)} onSaved={() => { setEdit(null); reload() }} />
       : <>
         {kind === 'material' && list.length > 0 ? <table className="slt ttdense" style={{ width: '100%', marginBottom: 10 }}>
           <thead><tr><th>Vật tư</th><th>Nhóm vật tư</th><th>Số lượng</th><th>Tính theo</th>{admin && <th />}</tr></thead>
@@ -181,7 +195,7 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
             <td>{gName(i.material_group_id)}</td>
             <td>{i.qty != null ? `${Number(i.qty)} ${i.unit ?? ''}` : ''}</td>
             <td>{i.per ? PER[i.per] : ''}</td>
-            {admin && <td className="c-menu"><RowMenu label={i.title} items={[{ label: 'Sửa', onClick: () => setEdit(i) }, { label: 'Xoá', danger: true, onClick: () => del(i) }]} /></td>}
+            {admin && <td className="c-menu"><RowMenu label={i.title} items={[{ label: 'Sửa', onClick: () => editItem(i) }, { label: 'Xoá', danger: true, onClick: () => del(i) }]} /></td>}
           </tr>)}</tbody>
         </table>
           : kind !== 'material' && list.map(i => {
@@ -197,7 +211,7 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
                   <b>{i.title}</b>{meta && <small className="sub">{meta}</small>}</button>
                 {file && <button type="button" className={on ? 'linkbtn on' : 'linkbtn'} onClick={() => setOpenId(on ? null : i.id)}>{on ? 'Ẩn file ▴' : 'Xem file ›'}</button>}
                 {(i.file_path || i.url) && <button type="button" onClick={() => open(i)}>{i.file_path ? 'Tải về' : 'Mở link'}</button>}
-                {admin && <RowMenu label={i.title} items={[{ label: 'Sửa', onClick: () => setEdit(i) }, { label: 'Xoá', danger: true, onClick: () => del(i) }]} />}
+                {admin && <RowMenu label={i.title} items={[{ label: 'Sửa', onClick: () => editItem(i) }, { label: 'Xoá', danger: true, onClick: () => del(i) }]} />}
               </div>
               {i.detail && <p className="sub tcdetail">{i.detail}</p>}
               {(info || on) && <div className="tcbody">
@@ -224,9 +238,9 @@ export function TopicContents({ topic, admin, onTopicChanged }: { topic: Program
 type Mode = 'file' | 'link' | 'exam' | 'manual'
 // Nhập trực tiếp: kế hoạch giảng dạy điền bảng hoạt động (cùng kiểu với giáo án tách từ Word); bài giảng, phiếu học tập điền các phần văn bản
 const MANUAL: Kind[] = ['plan', 'lecture', 'worksheet']
-function ItemForm({ d, groups, topic, onCancel, onSaved }: { d: Draft; groups: MaterialGroup[]; topic: ProgramTopic; onCancel: () => void; onSaved: () => void }) {
+function ItemForm({ d, startMode, groups, topic, onCancel, onSaved }: { d: Draft; startMode?: Mode; groups: MaterialGroup[]; topic: ProgramTopic; onCancel: () => void; onSaved: () => void }) {
   const [f, setF] = useState<Draft>(d)
-  const [mode, setMode] = useState<Mode>(d.exam_id ? 'exam' : d.url && !d.file_path ? 'link' : !d.file_path && MANUAL.includes(d.kind) && (d.id ? true : false) ? 'manual' : 'file')
+  const [mode, setMode] = useState<Mode>(startMode ?? (d.exam_id ? 'exam' : d.url && !d.file_path ? 'link' : !d.file_path && MANUAL.includes(d.kind) && (d.id ? true : false) ? 'manual' : 'file'))
   const [steps, setSteps] = useState<KitStep[]>(() => d.content?.steps?.length ? d.content.steps : [{ phase: '', title: '', goal: '' }])
   const [parts, setParts] = useState<TextPart[]>(() => d.content?.parts?.length ? d.content.parts : [{ title: '', body: '' }])
   const [exams, setExams] = useState<Exam[]>([])
@@ -254,7 +268,7 @@ function ItemForm({ d, groups, topic, onCancel, onSaved }: { d: Draft; groups: M
     const pt = parts.map(x => ({ title: x.title.trim(), body: x.body.trim() })).filter(x => x.title || x.body)
     if (manual && (f.kind === 'plan' ? !st.length : !pt.length)) return setMsg(f.kind === 'plan' ? 'Nhập ít nhất một hoạt động.' : 'Nhập ít nhất một phần nội dung.')
     const content = !manual ? f.content : f.kind === 'plan' ? { ...(f.content ?? {}), steps: st } : { ...(f.content ?? {}), parts: pt }
-    const row = { ...f, content, url: mode === 'link' ? f.url : null, file_path: mode === 'file' ? f.file_path : null, file_name: mode === 'file' ? f.file_name : null, exam_id: mode === 'exam' ? f.exam_id : null }
+    const row = { ...f, content, url: mode === 'link' ? f.url : null, file_path: mode === 'file' || manual ? f.file_path : null, file_name: mode === 'file' || manual ? f.file_name : null, exam_id: mode === 'exam' ? f.exam_id : null }
     if (!mat && mode === 'exam' && !row.exam_id) return setMsg('Chọn một đề.')
     if (!mat && mode === 'link' && row.url && !/^https?:\/\//i.test(row.url.trim())) return setMsg('Link phải bắt đầu bằng http:// hoặc https://')
     setBusy(true)

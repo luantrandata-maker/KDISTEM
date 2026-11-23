@@ -3953,7 +3953,7 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .distforcell{padding:12px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}.distforcell+.distforcell{border-left:1px solid var(--line)}
 .distfor2 .distforlab{width:auto;font-size:calc(12px * var(--fz,1));color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
 .distforval{font-size:calc(16px * var(--fz,1));font-weight:600;line-height:1.4}.distforval small{font-weight:400;color:var(--muted);font-size:calc(13px * var(--fz,1))}
-.distkdi{display:inline-block;color:#fff;font-size:11px;font-weight:700;border-radius:4px;padding:1px 6px;margin-right:6px;vertical-align:2px;line-height:1.4}
+.distkdi{display:inline-block;white-space:nowrap;flex:none;color:#fff;font-size:11px;font-weight:700;border-radius:4px;padding:1px 6px;margin-right:6px;vertical-align:2px;line-height:1.4}
 .distutabs{display:flex;gap:22px;border-bottom:1px solid var(--line);margin:12px 0}
 .main .distutabs button{border:0;background:none;border-radius:0;padding:9px 2px;color:var(--muted);font-size:calc(15px * var(--fz,1));border-bottom:2px solid transparent;margin-bottom:-1px}
 .main .distutabs button.on{color:var(--primary);font-weight:600;border-bottom-color:var(--primary)}

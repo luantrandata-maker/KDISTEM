@@ -199,8 +199,10 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   const [units, setUnits] = useState<U[]>([])
   const [loaded, setLoaded] = useState(false)
   /** Bản nháp mở thẳng chế độ soạn (như kế hoạch đào tạo); bấm "Xong" để chỉ xem, "Chỉnh sửa" để soạn lại */
-  const [editing, setEditing] = useState(p0.status === 'draft')
-  useEffect(() => { if (plan.status === 'draft') setEditing(true) }, [plan.status])
+  // Mở bản nháp ở chế độ xem; bấm "Chỉnh sửa" mới sửa được. Chỉ tự vào chế độ sửa khi bản vừa chuyển sang nháp (vd. Dùng lại)
+  const [editing, setEditing] = useState(false)
+  const st0 = useRef(p0.status)
+  useEffect(() => { if (plan.status === 'draft' && st0.current !== 'draft') setEditing(true); st0.current = plan.status }, [plan.status])
   const editable = plan.status === 'draft' && editing
   /** Bản của đơn vị mình: tạo được phiên bản mới; bản của đơn vị khác chỉ nhân bản. */
   const own = !!orgId && plan.org_id === orgId
@@ -458,7 +460,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
         <ActionBar menuExtra={editable && <label className="distnotebox"><b>Ghi chú</b>
             <textarea rows={3} value={plan.note ?? ''} maxLength={2000} placeholder="Mục tiêu, đối tượng áp dụng…" onChange={e => { setPlan({ ...plan, note: e.target.value }); touch() }} /></label>}
           items={[
-            plan.status === 'draft' && !editing && { key: 'edit', label: 'Chỉnh sửa', icon: 'pencil', onClick: () => setEditing(true) },
+            plan.status === 'draft' && !editing && { key: 'edit', label: 'Chỉnh sửa', icon: 'pencil', kind: 'primary', rank: 1, onClick: () => setEditing(true) },
             editable && { key: 'done', label: dirty ? 'Hủy thay đổi' : 'Xong', rank: 1, disabled: busy, onClick: () => { if (dirty) { if (confirm('Bỏ các thay đổi chưa lưu?')) onChanged(plan.id) } else setEditing(false) } },
             editable && { key: 'save', label: busy ? 'Đang lưu…' : 'Lưu nháp', kind: dirty ? 'primary' : undefined, rank: 1, disabled: !dirty || busy, onClick: save },
             plan.status === 'draft' && { key: 'pub', label: 'Phát hành', kind: editing ? 'primary' : undefined, rank: 1, disabled: busy, title: errors.length ? 'Còn lỗi chặn phát hành' : undefined, onClick: publish },

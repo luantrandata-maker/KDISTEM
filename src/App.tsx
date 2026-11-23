@@ -253,8 +253,8 @@ function PlatformEduProgramsPage(p: any) {
   return track
     // Nút quay lại nằm ở góc hàng tab (như nút Theo dõi thực hiện), không chiếm một hàng riêng
     ? <FramedTabs {...p} tabs={TRACK_TABS} actions={back} />
-    : <FramedTabs {...p} tabs={[['Gói STEM', ProgramPackages], ['Khung chương trình', ProgramFrame], ['Trường dùng gói', SchoolPackages], ['Danh mục', ProgramCatalogs]]}
-      actions={<button type="button" onClick={() => setTrack(true)}>Theo dõi thực hiện</button>} />
+    : <FramedTabs {...p} tabs={[['Gói STEM', ProgramPackages], ['Trường áp dụng', SchoolPackages], ['Khung chương trình', ProgramFrame], ['Danh mục', ProgramCatalogs]]}
+      actionsOn={['Trường áp dụng']} actions={<button type="button" onClick={() => setTrack(true)}>Theo dõi thực hiện</button>} />
 }
 const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [
   // Bài giảng KDI soạn và bài giảng giáo viên các trường soạn chung một danh sách, như Kho hoạt động (lọc Sở / tỉnh, đơn vị)

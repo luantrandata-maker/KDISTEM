@@ -300,7 +300,7 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpen, actions, 
         <tbody>{tracks.map(tr => { const l = ts.filter(r => r.m.track_code === tr.code); const c = PROGRAM_COLOR[tr.code] ?? '#64748b'
           const mods = modules.filter(m => m.track_code === tr.code && m.active !== false).sort((a, b) => a.sort - b.sort)
           return <Fragment key={tr.code}>
-            <tr className={'frgrp' + (sel === tr.code ? ' on' : '')} onClick={() => onSel(tr.code)} title="Chọn loại CT này"><td colSpan={gs.length + 2}>{chip(tr.code)} <b>{tr.name}</b> <small className="sub">· {tr.use_modules === false ? 'chỉ có chủ đề' : `${mods.length} học phần`} · {tiet(l)} tiết</small></td></tr>
+            <tr className={'frgrp' + (sel === tr.code ? ' on' : '')} style={{ '--k': c } as React.CSSProperties} onClick={() => onSel(tr.code)} title="Chọn loại CT này"><td colSpan={gs.length + 2}>{chip(tr.code)} <b>{tr.name}</b> <small className="sub">· {tr.use_modules === false ? 'chỉ có chủ đề' : `${mods.length} học phần`} · {tiet(l)} tiết</small></td></tr>
             {tr.use_modules === false
               ? <tr className={sel.startsWith(tr.code + '/') ? 'on' : ''}><td>Chủ đề theo khối</td>{cellOf(l, g => `${tr.code}/${g}`, c)}<td style={{ textAlign: 'center' }}><b>{l.length}</b></td></tr>
               : mods.map(m => { const x = l.filter(r => r.m.id === m.id), mk = `${tr.code}/${m.id}`

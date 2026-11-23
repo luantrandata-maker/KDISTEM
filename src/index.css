@@ -3874,6 +3874,10 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .frgridtbl td.frmod:hover{color:var(--primary,#1d4ed8)}
 .frside-acts{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap}
 /* Nút thêm trong ngăn cao bằng nút × (36px) */
+/* Bảng chủ đề trong ngăn của ô: vừa khung, không kéo ngang; cột số hẹp, cột chủ đề chiếm phần còn lại */
+.ttable.frcelltbl{table-layout:fixed;width:100%!important;min-width:0!important}
+.ttable.frcelltbl th.fc-no{width:56px}.ttable.frcelltbl th.fc-per{width:84px}.ttable.frcelltbl th.fc-part{width:84px}
+.ttable.frcelltbl td{white-space:normal;overflow-wrap:anywhere}
 .draweractions .frside-acts>button{box-sizing:border-box;height:36px!important;min-height:0!important;line-height:1;padding:0 12px}
 .frside-acts .linkbtn{font-size:13px;margin-left:4px}
 /* Gói STEM mới: hướng dẫn thêm nội dung */

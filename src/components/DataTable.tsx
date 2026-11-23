@@ -76,7 +76,7 @@ export function ColFilter({ label, options, value, onChange, pin }: { label: str
   </>
 }
 
-export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow, simple, noTools, rowProps, aside, pro: proProp, noun = 'dòng', bulk, rowMenu, fit, groupRows }: {
+export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, foot, left, right, onRow, simple, noTools, rowProps, aside, pro: proProp, noun = 'dòng', bulk, rowMenu, fit, groupRows, noFoot }: {
   id: string; rows: T[]; cols: Col<T>[]; rowKey: (r: T) => string; empty?: ReactNode; className?: string
   /** Thuộc tính thêm cho từng dòng (vd: kéo thả) */
   rowProps?: (r: T) => HTMLAttributes<HTMLTableRowElement>
@@ -107,6 +107,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   bulk?: (rows: T[], clear: () => void) => ReactNode
   /** Nút ⋮ cuối dòng */
   rowMenu?: (r: T) => RowAction[]
+  noFoot?: boolean   // ẩn dòng đếm cuối bảng (vẫn hiện khi đang lọc)
   /** Dòng tiêu đề nhóm chèn trước một dòng (vd. Học phần › Khối), nhận dòng trước đó, số cột và các dòng đang hiện.
    *  Chỉ dùng khi bảng đang ở thứ tự mặc định (người dùng chưa chọn sắp xếp). */
   groupRows?: (r: T, prev: T | undefined, span: number, shown: T[]) => ReactNode
@@ -347,7 +348,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
       <div ref={fill.ref} className="ttfill" style={fill.h ? { height: fill.h } : undefined}>
         {aside ? <SideSplit aside={aside}>{tbl}</SideSplit> : tbl}
       </div>
-      <div className="ttfoot">{shown.length !== rows.length ? `${shown.length} / ${rows.length} ${noun}` : `${rows.length} ${noun}`}</div>
+      {!(noFoot && shown.length === rows.length) && <div className="ttfoot">{shown.length !== rows.length ? `${shown.length} / ${rows.length} ${noun}` : `${rows.length} ${noun}`}</div>}
     </div>
   }
 

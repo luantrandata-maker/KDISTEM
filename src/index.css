@@ -3902,3 +3902,17 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .pkgpb .pbcell { cursor: pointer; }
 .pkgpb .pbcell:hover { background: color-mix(in srgb, var(--k, #2563eb) 10%, transparent); }
 .pkgpb .pbcell.on { background: color-mix(in srgb, var(--k, #2563eb) 18%, transparent); box-shadow: inset 0 0 0 2px var(--k, #2563eb); }
+
+/* Khung chương trình: thanh công cụ một dòng, tên mục dài thì rút gọn bằng "…" (màn hình hẹp vẫn xuống dòng) */
+@media (min-width:641px){
+.fwtree .ttprotools{flex-wrap:nowrap}
+.fwtree .ttprotools .tsrch{flex:0 1 auto;min-width:0}
+.fwtree .ttprotools .tsin{min-width:120px}
+.fwtree .ttleft{flex:1 1 auto;flex-wrap:nowrap;min-width:0;overflow:hidden}
+.fwtree .ttprotools .tspacer{flex:0 0 0}
+.fwtree .ttprotools .frmode,.fwtree .ttprotools .ticons,.fwtree .ttprotools>button{flex:none}
+.fwtree .frmode button{white-space:nowrap}
+}
+/* Khung chương trình: nút Thêm chủ đề / Thêm học phần / Sửa học phần trên thanh công cụ */
+.fwacts{display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap}
+.main .fwacts>button{height:36px;padding:0 12px;border-radius:8px;white-space:nowrap;font-weight:500}

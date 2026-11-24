@@ -273,7 +273,7 @@ const DIFF = { background: '#fffbeb' }
 const CHK = { color: '#16a34a' }
 
 const COLS_KEY = 'schoolCmpCols'
-const COL_DEFAULT = ['track', 'grade', 'part', 'pkg', 's0', 's1', 's2']
+const COL_DEFAULT = ['track', 'grade', 'pkg', 's0', 's1', 's2']
 type ColCfg = { order: string[]; hidden: string[] }
 const loadColCfg = (): ColCfg => { try { const v = JSON.parse(localStorage.getItem(COLS_KEY) ?? ''); if (Array.isArray(v?.order) && Array.isArray(v?.hidden)) return v } catch { /* mặc định */ } return { order: [], hidden: [] } }
 
@@ -380,8 +380,8 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   const present = (k: string) => k === 'pkg' ? !!pkg : k.startsWith('s') && k !== 'slot' && /^s\d$/.test(k) ? Number(k.slice(1)) < sel.length : true
   const order = [...colCfg.order.filter(k => COL_DEFAULT.includes(k)), ...COL_DEFAULT.filter(k => !colCfg.order.includes(k))].filter(present)
   const vis = order.filter(k => !colCfg.hidden.includes(k))
-  const colLabel = (k: string) => k === 'track' ? 'Loại CT' : k === 'grade' ? 'Khối' : k === 'part' ? 'Phần' : k === 'pkg' ? `${pkgName(pkg)} có` : sel[Number(k.slice(1))]?.name ?? k
-  const isKey = (k: string) => k === 'track' || k === 'grade' || k === 'part'
+  const colLabel = (k: string) => k === 'track' ? 'Loại CT' : k === 'grade' ? 'Khối · Phần' : k === 'pkg' ? `${pkgName(pkg)} có` : sel[Number(k.slice(1))]?.name ?? k
+  const isKey = (k: string) => k === 'track' || k === 'grade'
   // Nhóm dòng theo cột Loại CT hoặc Khối, cột nào đứng trước
   const gk = vis.find(k => k === 'track' || k === 'grade') ?? 'grade'
   const tIdx = (t: StemTrack) => tracks.findIndex(x => x.code === t.code)
@@ -417,14 +417,15 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
       {k === 'track' ? <span style={{ fontWeight: 600 }}>{chipOf(r.t)}{r.t.name}</span> : <b>{gradeName(r.g)}</b>}</td>
     if (ln.kind === 'main') {
       const isOpen = topical(r) && open[r.key] !== undefined
+      // Phần (học phần / chủ đề) ghép vào ô Khối, hoặc ô Loại CT khi cột Khối đang gộp nhóm hay bị ẩn
+      const part = <>{topical(r) && <button type="button" className="cellbtn" style={{ display: 'inline' }} aria-expanded={isOpen}
+          onClick={() => setOpen(o => { const n = { ...o }; if (isOpen) delete n[r.key]; else n[r.key] = false; return n })}>
+          <b style={{ color: isOpen ? 'var(--navy, #2563eb)' : '#94a3b8', marginRight: 3 }}>{isOpen ? '▾' : '▸'}</b></button>}
+        {r.t.use_modules === false ? 'Chủ đề' : `Học phần ${r.slot}`}</>
       for (const k of cols) {
         if (k === spanCol) cells.push(spanCell(k))
-        else if (k === 'track') cells.push(<td key={k}>{chipOf(r.t)}{r.t.name}</td>)
-        else if (k === 'grade') cells.push(<td key={k}><b>{gradeName(r.g)}</b></td>)
-        else if (k === 'part') cells.push(<td key={k}>{topical(r) ? <button type="button" className="cellbtn" style={{ display: 'inline' }} aria-expanded={isOpen}
-            onClick={() => setOpen(o => { const n = { ...o }; if (isOpen) delete n[r.key]; else n[r.key] = false; return n })}>
-            <b style={{ color: isOpen ? 'var(--navy, #2563eb)' : '#94a3b8', marginRight: 4 }}>{isOpen ? '▾' : '▸'}</b></button> : <span style={{ display: 'inline-block', width: 14 }} />}
-          {!vis.includes('track') && chipOf(r.t)}{r.t.use_modules === false ? (vis.includes('track') ? 'Số chủ đề' : r.t.name) : `Học phần ${r.slot}`}</td>)
+        else if (k === 'track') cells.push(<td key={k}>{chipOf(r.t)}{r.t.name}{spanCol === 'grade' || !vis.includes('grade') ? <> · {part}</> : null}</td>)
+        else if (k === 'grade') cells.push(<td key={k}><b>{gradeName(r.g)}</b> · {part}{!vis.includes('track') && <> · {chipOf(r.t)}</>}</td>)
         else if (k === 'pkg') cells.push(<td key={k}>{txt(r.p, r.pSc, r.t)}</td>)
         else { const i = Number(k.slice(1)); const v = r.ss[i]; const d = diffAt(r, i)
           cells.push(<td key={k} style={d ? DIFF : undefined}>{!d && pkg && v ? <span className="sub">giống gói</span> : txt(v, r.sSc[i], r.t)}</td>) }
@@ -460,10 +461,10 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   return <>
     <div className="lvfilter">
       <span className="lvlab">Gói</span>
-      <div style={{ flex: '0 0 260px', width: 260 }}><MultiSelect compact single value={pkg ? [pkg] : []} onChange={v => setPkg(v[0] ?? '')}
+      <div style={{ flex: '0 0 170px', width: 170 }}><MultiSelect compact single value={pkg ? [pkg] : []} onChange={v => setPkg(v[0] ?? '')}
         options={packages.map(p => [p.id, p.name] as [string, string])} placeholder="Không chọn gói" ariaLabel="Gói để so sánh" /></div>
-      <span className="lvlab">So với trường</span>
-      <div style={{ flex: '0 1 420px', minWidth: 260 }}><MultiSelect value={orgs} onChange={pickOrgs} options={schools.map(s => [s.org_id, `${s.name} · ${usingOf(s)}`] as [string, string])}
+      <span className="lvlab">Trường</span>
+      <div style={{ flex: '0 1 320px', minWidth: 220 }}><MultiSelect compact value={orgs} onChange={pickOrgs} options={schools.map(s => [s.org_id, `${s.name} · ${usingOf(s)}`] as [string, string])}
         placeholder="Chọn 1–3 trường" ariaLabel="Trường để so sánh" /></div>
       <div className="lvextra">
         <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện điểm khác nhau</label>
@@ -475,23 +476,15 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
     </div>
     {!sel.length ? <p className="sub">Chọn trường để so sánh{pkg ? ` với ${pkgName(pkg)}` : ''}.</p> : <div className="cmpprint">
       <h3 className="printonly">So sánh trường với gói · {pkg ? pkgName(pkg) : 'không chọn gói'} · Năm học {yearLabel(year)}</h3>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${pkg ? sel.length : 1}, minmax(0, 1fr))`, gap: 10, marginBottom: 12 }}>
-        {pkg ? sel.map((s, i) => { const { n, d } = stat(i); const p = pct(n, d); const live = liveOf(s)
-          return <section key={s.org_id} className="panel" style={{ margin: 0, padding: '10px 14px' }}>
-            <b>{s.name}</b><small className="sub" style={{ display: 'block' }}>{s.province_name ?? 'Chưa rõ tỉnh'} · {kRange(live.flatMap(x => x.grades ?? []))} · đang dùng {usingOf(s)}</small>
-            <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4 }}>{p}% <small className="sub" style={{ fontSize: 13 }}>giống {pkgName(pkg)} · {d} điểm khác</small></div>
-            <div style={{ height: 5, borderRadius: 3, background: '#e2e8f0', marginTop: 6, overflow: 'hidden' }}><div style={{ width: p + '%', height: 5, background: '#94a3b8' }} /></div></section> })
-          : sel.length > 1 ? <section className="panel" style={{ margin: 0, padding: '10px 14px' }}><b>{sel.map(s => s.name).join(' và ')}</b>
-            <small className="sub" style={{ display: 'block' }}>{sel.map(s => `${s.name}: ${usingOf(s)}`).join(' · ')}</small>
-            <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4 }}>{pct(both.length, bothD)}% <small className="sub" style={{ fontSize: 13 }}>giống nhau · {bothD} điểm khác</small></div>
-            <div style={{ height: 5, borderRadius: 3, background: '#e2e8f0', marginTop: 6, overflow: 'hidden' }}><div style={{ width: pct(both.length, bothD) + '%', height: 5, background: '#94a3b8' }} /></div></section>
-          : <p className="sub" style={{ margin: 0 }}>Chọn gói hoặc thêm trường để so sánh.</p>}
-      </div>
+      {!pkg && sel.length > 1 && <p className="sub" style={{ margin: '0 0 8px' }}>Các trường giống nhau <b style={{ color: 'var(--text, #0f172a)' }}>{pct(both.length, bothD)}%</b> · {bothD} điểm khác</p>}
+      {!pkg && sel.length === 1 && <p className="sub" style={{ margin: '0 0 8px' }}>Chọn gói hoặc thêm trường để so sánh.</p>}
       <FitScreen className="fsbox"><table className="table cmptbl cmplined sctbl">
         <thead><tr>{vis.map(k => k === 'pkg'
           ? <th key={k}><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: pkgColor(pkg), marginRight: 6 }} />{pkgName(pkg)} có</th>
-          : /^s\d$/.test(k) ? <th key={k}>{colLabel(k)}<small style={{ display: 'block', fontWeight: 400 }}>Đang dùng {usingOf(sel[Number(k.slice(1))])}</small></th>
-          : <th key={k} style={{ width: k === 'grade' ? 90 : k === 'track' ? 230 : 200 }}>{colLabel(k)}</th>)}</tr></thead>
+          : /^s\d$/.test(k) ? <th key={k}>{colLabel(k)}<small style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400, flexWrap: 'wrap' }}>Đang dùng {usingOf(sel[Number(k.slice(1))])}
+            {pkg && (() => { const { n, d } = stat(Number(k.slice(1))); const p = pct(n, d)
+              return <><span>·</span><b title={`${d} điểm khác`}>{p}% giống gói</b><span style={{ width: 56, height: 5, borderRadius: 3, background: '#e2e8f0', overflow: 'hidden', display: 'inline-block' }}><span style={{ display: 'block', width: p + '%', height: 5, background: '#94a3b8' }} /></span></> })()}</small></th>
+          : <th key={k} style={{ width: k === 'grade' ? 170 : 230 }}>{colLabel(k)}</th>)}</tr></thead>
         <tbody>{!lines.length ? <tr><td colSpan={vis.length || 1} className="sub">{only ? (pkg ? 'Các trường giống gói ở mọi khối.' : 'Các trường giống nhau ở mọi khối.') : 'Không có dữ liệu.'}</td></tr>
           : lines.map(renderLine)}</tbody>
       </table></FitScreen>

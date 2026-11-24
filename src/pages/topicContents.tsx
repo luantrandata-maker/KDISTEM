@@ -1,4 +1,5 @@
 import React, { Fragment, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
 import { FILE_BUCKET, MAX_FILE_MB, fileUrl, openFile, uploadLearningFile } from '../lib/files'
 import { readKitFile, type KitDraft, type KitStep } from '../lib/kitImport'
@@ -178,9 +179,14 @@ export function TopicContents({ topic, admin, onTopicChanged, module }: { topic:
   }, [module, topic.module_id])
   const { byCode } = useStemTracks()
   const track = mod ? byCode[mod.track_code] : undefined
+  // Chế độ xem / chỉnh sửa (v72): mặc định chỉ xem; KDI bấm "Chỉnh sửa" trên đầu ngăn thì Thông tin chung thành form và 6 mục hiện ＋ ⋮.
+  // Lưu / Huỷ trên đầu ngăn dùng cho Thông tin chung; thêm, sửa, xoá trong 6 mục lưu ngay từng lần.
   const [infoEdit, setInfoEdit] = useState(false)
+  const saveRef = useRef<(() => void) | null>(null)
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  useEffect(() => { setSlot(wrapRef.current?.closest('.drawer')?.querySelector<HTMLElement>('.drawerslot') ?? null) }, [])
   const infoSaved = () => {
-    setInfoEdit(false); onTopicChanged?.()
+    setInfoEdit(false); setEdit(null); setAsk(false); onTopicChanged?.()
     supabase.from('program_topics').select('*').eq('id', topicId).maybeSingle().then(({ data }) => { if (data) setT(data as ProgramTopic) })
   }
   const [items, setItems] = useState<TopicItem[]>([])
@@ -281,8 +287,8 @@ export function TopicContents({ topic, admin, onTopicChanged, module }: { topic:
     const icon = i.exam_id ? '📝' : i.file_path ? ({ docx: '📄', doc: '📄', pptx: '📊', ppt: '📊', pdf: '📕' } as Record<string, string>)[ext(i.file_name)] ?? '📎' : i.url ? '🔗' : '📋'
     const tag = i.file_path ? FTAG[ext(i.file_name ?? i.file_path)] ?? ext(i.file_name ?? i.file_path).toUpperCase() : i.url ? 'LINK' : ''
     const meta = [i.exam_id ? 'Đề có sẵn' : '', i.file_name, !i.file_name && i.url ? i.url.replace(/^https?:\/\//, '') : '', i.content?.slides?.length ? `${i.content.slides.length} slide` : '', i.content?.parts?.length ? `${i.content.parts.length} phần` : ''].filter(Boolean).join(' · ')
-    const menu = [...(i.file_path ? [{ label: 'Tải về', onClick: () => openFile(i.file_path!) }] : []),
-      ...(admin ? [{ label: 'Sửa', onClick: () => { setKind(i.kind); editItem(i) } }, { label: 'Xoá', danger: true, onClick: () => del(i) }] : [])]
+    const menu = !ed ? [] : [...(i.file_path ? [{ label: 'Tải về', onClick: () => openFile(i.file_path!) }] : []),
+      ...(ed ? [{ label: 'Sửa', onClick: () => { setKind(i.kind); editItem(i) } }, { label: 'Xoá', danger: true, onClick: () => del(i) }] : [])]
     const plan = i.kind === 'plan' && !!i.content?.steps?.length
     const card = <div className={'tccard' + (file ? ' go' : '')} role={file ? 'link' : undefined} tabIndex={file ? 0 : undefined}
       title={file ? (i.url && !i.file_path ? 'Mở link ở tab mới' : 'Mở tệp ở tab mới') : undefined}
@@ -306,21 +312,29 @@ export function TopicContents({ topic, admin, onTopicChanged, module }: { topic:
     const all = !!more.material || l.length <= MAT_SHOW, shown = all ? l : l.slice(0, MAT_SHOW)
     return <>
       <div className="wrap"><table className="slt ttdense" style={{ width: '100%' }}>
-        <thead><tr><th>Vật tư</th><th>Nhóm vật tư</th><th>Định mức</th><th>Tính theo</th><th style={{ textAlign: 'right' }} title={`Lớp ${CLASS_N} học sinh, nhóm ${GROUP_N} em`}>Cả lớp</th>{admin && <th />}</tr></thead>
+        <thead><tr><th>Vật tư</th><th>Nhóm vật tư</th><th>Định mức</th><th>Tính theo</th><th style={{ textAlign: 'right' }} title={`Lớp ${CLASS_N} học sinh, nhóm ${GROUP_N} em`}>Cả lớp</th>{ed && <th />}</tr></thead>
         <tbody>{shown.map(i => { const c = classQty(i); return <tr key={i.id}>
           <td><b>{i.title}</b>{i.content?.reusable && <span className="sub"> · dùng lại</span>}{i.detail && <div className="sub">{i.detail}</div>}</td>
           <td>{gName(i.material_group_id)}</td>
           <td>{i.qty != null ? `${Number(i.qty)} ${i.unit ?? ''}` : ''}</td>
           <td>{i.per ? <span className="tcper">{PER[i.per]}</span> : ''}</td>
           <td style={{ textAlign: 'right' }}>{c != null ? <b>{fmtN(c)} {i.unit ?? ''}</b> : <span className="sub">—</span>}</td>
-          {admin && <td className="c-menu"><RowMenu label={i.title} items={[{ label: 'Sửa', onClick: () => { setKind('material'); editItem(i) } }, { label: 'Xoá', danger: true, onClick: () => del(i) }]} /></td>}
+          {ed && <td className="c-menu"><RowMenu label={i.title} items={[{ label: 'Sửa', onClick: () => { setKind('material'); editItem(i) } }, { label: 'Xoá', danger: true, onClick: () => del(i) }]} /></td>}
         </tr> })}</tbody>
       </table></div>
       {l.length > MAT_SHOW && <button type="button" className="linkbtn tcmore" onClick={() => setMore(m => ({ ...m, material: !all }))}>{all ? 'Thu gọn ▴' : `Xem thêm ${l.length - MAT_SHOW} loại ▾`}</button>}
     </>
   }
 
+  const ed = admin && infoEdit
+  const stopEdit = () => { setInfoEdit(false); setEdit(null); setAsk(false) }
+  const bar = admin ? <span className="tcbar2">{ed ? <>
+      <button type="button" className="primary" onClick={() => saveRef.current?.()}>Lưu</button>
+      <button type="button" onClick={stopEdit}>Huỷ</button></>
+    : <button type="button" className="primary" onClick={() => setInfoEdit(true)}>✎ Chỉnh sửa</button>}</span> : null
+
   return <div className="tconewrap" ref={wrapRef}>
+    {bar && (slot ? createPortal(bar, slot) : <div className="tcbarin">{bar}</div>)}
     <div className="tcone">
       <nav className="tctoc" aria-label="Mục lục chủ đề"><div className="tctocin">
         <p className="tctoch">Mục lục</p>
@@ -332,8 +346,8 @@ export function TopicContents({ topic, admin, onTopicChanged, module }: { topic:
       <div className="tcsecs">
         <section className="tcsec tcbox" data-sec="ov" ref={el => { secRefs.current.ov = el }}>
           <div className="tcsech"><span className="tcno ov">i</span><h3>Thông tin chung</h3><span style={{ flex: 1 }} />
-            {admin && !infoEdit && <button type="button" className="tcib" title="Chỉnh sửa thông tin chung" aria-label="Chỉnh sửa thông tin chung" onClick={() => setInfoEdit(true)}>✎</button>}</div>
-          {infoEdit ? <TopicForm t={t} track={track} onCancel={() => setInfoEdit(false)} onSaved={infoSaved} />
+            {ed && <small className="tcediting">Đang chỉnh sửa</small>}</div>
+          {ed ? <TopicForm key={t.id} t={t} track={track} bare saveRef={saveRef} onCancel={() => setInfoEdit(false)} onSaved={infoSaved} />
             : <TopicOverview t={t} module={mod && track?.use_modules !== false ? mod.name : undefined} textbook={track?.schedule_mode === 'subject'} />}
           {msg && <p className="msg">{msg}</p>}
         </section>
@@ -342,8 +356,8 @@ export function TopicContents({ topic, admin, onTopicChanged, module }: { topic:
           {TOPIC_KINDS.map((k, n) => { const l = ofKind(k.key), here = kind === k.key, x = extra(k.key)
             return <section key={k.key} className="tcsec" data-sec={k.key} ref={el => { secRefs.current[k.key] = el }}>
               <div className="tcsech"><span className="tcno">{n + 1}</span><h3>{k.label}</h3><small className={l.length ? 'sub' : 'tcnone'} title={summary(k.key)}>{summary(k.key)}</small>
-                {admin && <button type="button" className="tcib pl" title={'Thêm ' + k.label.toLowerCase()} aria-label={'Thêm ' + k.label.toLowerCase()} onClick={() => addTo(k.key)}>＋</button>}
-                {admin && x.length > 0 && <span className="tcsm"><RowMenu label={k.label} items={x} /></span>}</div>
+                {ed && <button type="button" className="tcib pl" title={'Thêm ' + k.label.toLowerCase()} aria-label={'Thêm ' + k.label.toLowerCase()} onClick={() => addTo(k.key)}>＋</button>}
+                {ed && x.length > 0 && <span className="tcsm"><RowMenu label={k.label} items={x} /></span>}</div>
               {here && ask && !edit && <div className="tcask" role="alertdialog" aria-label="Đã có nội dung">
                 <p>ⓘ Chủ đề này đã có <b>{l.length} {k.label.toLowerCase()}</b>{l.length === 1 ? <>: <b>{l[0].title}</b>{l[0].content?.steps?.length ? ` (${l[0].content.steps.length} hoạt động)` : ''}</> : ''}.<br />
                   Sửa {l.length === 1 ? 'bản đó' : 'một bản đang có'} hay thêm một bản khác?</p>
@@ -355,7 +369,7 @@ export function TopicContents({ topic, admin, onTopicChanged, module }: { topic:
                 {l.length > 1 && <div className="tcaskpick">{l.map(i => <button key={i.id} type="button" onClick={() => editItem(i, 'manual')}>✎ Sửa “{i.title}”</button>)}</div>}
               </div>}
               {here && edit ? <ItemForm d={edit} startMode={editMode} groups={groups} topic={t} onCancel={() => setEdit(null)} onSaved={() => { setEdit(null); reload() }} />
-                : !l.length ? <p className="tcempty">Chưa có {k.label.toLowerCase()}.{admin ? ' Bấm ＋ để thêm.' : ''}{k.key === 'plan' && admin ? ' Có sẵn giáo án Word thì bấm ⋮ → Tách từ giáo án Word để tự lấy hoạt động, vật tư, link học liệu.' : ''}{k.key === 'material' && admin && !planFile ? ' Hoặc tách giáo án Word ở mục Kế hoạch giảng dạy để lấy vật tư tự động.' : ''}</p>
+                : !l.length ? <p className="tcempty">Chưa có {k.label.toLowerCase()}.{ed ? ' Bấm ＋ để thêm.' : ''}{k.key === 'plan' && ed ? ' Có sẵn giáo án Word thì bấm ⋮ → Tách từ giáo án Word để tự lấy hoạt động, vật tư, link học liệu.' : ''}{k.key === 'material' && ed && !planFile ? ' Hoặc tách giáo án Word ở mục Kế hoạch giảng dạy để lấy vật tư tự động.' : ''}</p>
                 : k.key === 'material' ? materialTable(l)
                 : <div className={ask && here ? 'tcdim' : undefined}>{l.map(itemCard)}</div>}
             </section> })}

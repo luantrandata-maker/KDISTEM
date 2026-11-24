@@ -4036,3 +4036,9 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .tcexq thead th{position:sticky;top:0;z-index:1;background:var(--surface-2,#f8fafc)}
 .tcexqn{margin:6px 0 0;font-size:12.5px}
 .main .tcexq table.slt,.drawer .tcexq table.slt,.tcexq table.slt{overflow:visible}
+/* Trang chủ đề v72: nút Chỉnh sửa / Lưu / Huỷ trên đầu ngăn (hoặc đầu trang nếu không ở trong ngăn) */
+.drawerslot{display:flex;align-items:center;gap:8px;flex:none}.drawerslot:empty{display:none}
+.tcbar2{display:inline-flex;gap:8px;align-items:center}.tcbar2 button{white-space:nowrap}
+.tcbarin{display:flex;justify-content:flex-end;margin-bottom:10px}
+.tcediting{color:var(--primary);font-weight:600}
+.drawerslot button{padding:6px 12px;font-size:calc(13px * var(--fz,1))}

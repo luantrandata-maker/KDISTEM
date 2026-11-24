@@ -124,10 +124,12 @@ export function ExamView({ id }: { id: string }) {
     <p className="sub" style={{ margin: 0 }}>{[e.subject, e.grade ? 'Khối ' + e.grade : '', examMeta(e), e.mode === 'random' ? 'Rút ngẫu nhiên từ Ngân hàng câu hỏi' : ''].filter(Boolean).join(' · ')}</p>
     {qs && qs.length > 0 && <div className="tcexstat">{Object.entries(Q_LEVEL).map(([k, l]) => { const n = qs.filter(q => q.level === k).length
       return n ? <span key={k}><b>{n}</b> {l.toLowerCase()}</span> : null })}</div>}
-    {qs && <div className="wrap" style={{ marginTop: 8 }}><table className="slt ttdense" style={{ width: '100%' }}>
+    {/* Bảng câu hỏi gọn: hiện khoảng 10 câu, còn lại cuộn trong khung (tiêu đề cột đứng yên) */}
+    {qs && <div className="wrap tcexq" style={{ marginTop: 8 }}><table className="slt ttdense" style={{ width: '100%' }}>
       <thead><tr><th style={{ width: 44 }}>#</th><th>Câu hỏi</th><th style={{ width: 120 }}>Loại</th><th style={{ width: 120 }}>Mức độ</th></tr></thead>
       <tbody>{qs.map((q, k) => <tr key={q.id + k}><td>{k + 1}</td><td style={{ whiteSpace: 'normal' }}>{q.stem}</td><td>{Q_KIND[q.kind] ?? q.kind}</td><td>{Q_LEVEL[q.level] ?? q.level}</td></tr>)}</tbody>
     </table></div>}
+    {qs && qs.length > 10 && <p className="sub tcexqn">{qs.length} câu · cuộn trong bảng để xem hết</p>}
   </div>
 }
 

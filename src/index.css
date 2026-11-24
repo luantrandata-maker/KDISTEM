@@ -4030,3 +4030,9 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .tcsix .tcsech{flex-wrap:nowrap}.tcsix .tcsech h3{white-space:nowrap}
 .tcsix .tcsech>small{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tcsech h3{line-height:1.25}
+/* Bảng câu hỏi của bài kiểm tra: chữ nhỏ, cao khoảng 10 câu, cuộn trong khung, tiêu đề cột đứng yên */
+.wrap.tcexq{max-height:440px;overflow:auto;border:1px solid var(--line);border-radius:10px}
+.tcexq table{font-size:calc(13px * var(--fz,1))}.tcexq td,.tcexq th{padding-top:6px;padding-bottom:6px}
+.tcexq thead th{position:sticky;top:0;z-index:1;background:var(--surface-2,#f8fafc)}
+.tcexqn{margin:6px 0 0;font-size:12.5px}
+.main .tcexq table.slt,.drawer .tcexq table.slt,.tcexq table.slt{overflow:visible}

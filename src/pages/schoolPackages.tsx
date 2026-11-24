@@ -283,6 +283,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   const tl = (t: StemTrack) => `${trackLabel(t.code)} · ${t.name}`
   const [open, setOpen] = useState<Record<string, boolean>>({})   // dòng loại tính theo chủ đề đang mở → true = chỉ chủ đề khác nhau
   const sel = orgs.map(o => schools.find(s => s.org_id === o)).filter(Boolean) as School[]
+  const usingOf = (s: School) => { const live = liveOf(s); return live.map(x => pkgName(x.package_id) + (live.length > 1 ? ` (${kRange(x.grades ?? [])})` : '')).join(', ') || 'chưa có gói' }
   const pickOrgs = (v: string[]) => { const n = v.slice(0, 3); if (!orgs.length && !pkg) setPkg(firstPkg(n)); setOrgs(n) }
   // Loại tính theo chủ đề lên trước (giống trang So sánh gói)
   const tracks = [...ctx.tracks].sort((a, b) => Number(a.use_modules !== false) - Number(b.use_modules !== false))
@@ -357,7 +358,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
       <div style={{ flex: '0 0 260px', width: 260 }}><MultiSelect compact single value={pkg ? [pkg] : []} onChange={v => setPkg(v[0] ?? '')}
         options={packages.map(p => [p.id, p.name] as [string, string])} placeholder="Không chọn gói" ariaLabel="Gói để so sánh" /></div>
       <span className="lvlab">So với trường</span>
-      <div style={{ flex: '0 1 420px', minWidth: 260 }}><MultiSelect value={orgs} onChange={pickOrgs} options={schools.map(s => [s.org_id, s.name] as [string, string])}
+      <div style={{ flex: '0 1 420px', minWidth: 260 }}><MultiSelect value={orgs} onChange={pickOrgs} options={schools.map(s => [s.org_id, `${s.name} · ${usingOf(s)}`] as [string, string])}
         placeholder="Chọn 1–3 trường" ariaLabel="Trường để so sánh" /></div>
       <div className="lvextra">
         <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện điểm khác nhau</label>
@@ -371,10 +372,11 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(${pkg ? sel.length : 1}, minmax(0, 1fr))`, gap: 10, marginBottom: 12 }}>
         {pkg ? sel.map((s, i) => { const { n, d } = stat(i); const p = pct(n, d); const live = liveOf(s)
           return <section key={s.org_id} className="panel" style={{ margin: 0, padding: '10px 14px' }}>
-            <b>{s.name}</b><small className="sub" style={{ display: 'block' }}>{s.province_name ?? 'Chưa rõ tỉnh'} · {kRange(live.flatMap(x => x.grades ?? []))} · đang dùng {live.map(x => pkgName(x.package_id) + (live.length > 1 ? ` (${kRange(x.grades ?? [])})` : '')).join(', ')}</small>
+            <b>{s.name}</b><small className="sub" style={{ display: 'block' }}>{s.province_name ?? 'Chưa rõ tỉnh'} · {kRange(live.flatMap(x => x.grades ?? []))} · đang dùng {usingOf(s)}</small>
             <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4 }}>{p}% <small className="sub" style={{ fontSize: 13 }}>giống {pkgName(pkg)} · {d} điểm khác</small></div>
             <div style={{ height: 5, borderRadius: 3, background: '#e2e8f0', marginTop: 6, overflow: 'hidden' }}><div style={{ width: p + '%', height: 5, background: '#94a3b8' }} /></div></section> })
           : sel.length > 1 ? <section className="panel" style={{ margin: 0, padding: '10px 14px' }}><b>{sel.map(s => s.name).join(' và ')}</b>
+            <small className="sub" style={{ display: 'block' }}>{sel.map(s => `${s.name}: ${usingOf(s)}`).join(' · ')}</small>
             <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4 }}>{pct(both.length, bothD)}% <small className="sub" style={{ fontSize: 13 }}>giống nhau · {bothD} điểm khác</small></div>
             <div style={{ height: 5, borderRadius: 3, background: '#e2e8f0', marginTop: 6, overflow: 'hidden' }}><div style={{ width: pct(both.length, bothD) + '%', height: 5, background: '#94a3b8' }} /></div></section>
           : <p className="sub" style={{ margin: 0 }}>Chọn gói hoặc thêm trường để so sánh.</p>}
@@ -382,7 +384,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
       <div className="tablewrap"><table className="table cmplined">
         <thead><tr><th style={{ width: 90 }}>Khối</th><th style={{ width: 240 }}>Phần</th>
           {pkg && <th><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: pkgColor(pkg), marginRight: 6 }} />{pkgName(pkg)} có</th>}
-          {sel.map(s => <th key={s.org_id}>{s.name}</th>)}</tr></thead>
+          {sel.map(s => <th key={s.org_id}>{s.name}<small style={{ display: 'block', fontWeight: 400 }}>Đang dùng {usingOf(s)}</small></th>)}</tr></thead>
         <tbody>{!shown.length ? <tr><td colSpan={nCol} className="sub">{only ? (pkg ? 'Các trường giống gói ở mọi khối.' : 'Các trường giống nhau ở mọi khối.') : 'Không có dữ liệu.'}</td></tr>
           : [...byG].flatMap(([g, rs]) => rs.flatMap((r, k) => {
             const topical = r.t.use_modules === false && !!(r.pSc?.topics.length || r.sSc.some(x => x?.topics.length))

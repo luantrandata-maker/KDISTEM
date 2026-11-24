@@ -359,11 +359,11 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
       <span className="lvlab">So với trường</span>
       <div style={{ flex: '0 1 420px', minWidth: 260 }}><MultiSelect value={orgs} onChange={pickOrgs} options={schools.map(s => [s.org_id, s.name] as [string, string])}
         placeholder="Chọn 1–3 trường" ariaLabel="Trường để so sánh" /></div>
+      <div className="lvextra">
+        <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện điểm khác nhau</label>
       <span className="lvgrp"><span className="lvlab">Loại CT</span><ColFilter pin label={tf.length ? tf.map(trackLabel).join(', ') : 'Tất cả'} value={tracks.filter(t => tf.includes(t.code)).map(tl)}
         options={tracks.map(t => [tl(t), base.filter(r => r.t.code === t.code).length] as [string, number])}
         onChange={v => setTf(tracks.filter(t => v.includes(tl(t))).map(t => t.code))} /></span>
-      <div className="lvextra">
-        <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện điểm khác nhau</label>
         <button type="button" onClick={printCmp}>In / Xuất PDF</button></div>
     </div>
     {!sel.length ? <p className="sub">Chọn trường để so sánh{pkg ? ` với ${pkgName(pkg)}` : ''}.</p> : <div className="cmpprint">

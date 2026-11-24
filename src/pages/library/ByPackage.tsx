@@ -130,8 +130,7 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
       </nav>} /></div>
     {open && (() => { const m = modOf.get(open.module_id)
       return <Drawer onClose={() => { setOpen(null); loadCounts() }} title={<>{m && chip(m.track_code)} {open.title}</>}>
-        <p className="sub" style={{ marginTop: 0 }}>{m ? m.name + ' · ' : ''}{gradeName(open.grade)} · {open.periods} tiết</p>
-        <TopicContents topic={open} admin={admin} />
+        <TopicContents topic={open} admin={admin} module={m} />
       </Drawer> })()}
   </>
 }

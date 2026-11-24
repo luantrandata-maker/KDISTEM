@@ -259,8 +259,9 @@ export function TopicContents({ topic, admin, onTopicChanged, module }: { topic:
   const addTo = (k: Kind) => { setKind(k); setEditMode(undefined); setOpenId(null); if (MANUAL.includes(k) && ofKind(k).length) { setEdit(null); setAsk(true) } else { setAsk(false); setEdit(blank(k)) } }
   const startImport = () => { setEdit(null); setAsk(false); setImporting(true) }
   const extra = (k: Kind) => [
-    ...(k === 'plan' ? [{ label: 'Tách từ giáo án Word', onClick: startImport }] : []),
-    ...(k === 'lecture' ? [{ label: 'Tách từ bài giảng PowerPoint', onClick: startImport }] : []),
+    // Tách từ file chỉ dùng lần đầu: mục đã có nội dung thì ẩn (sửa tiếp bằng ⋮ Sửa trên thẻ)
+    ...(k === 'plan' && !ofKind('plan').length ? [{ label: 'Tách từ giáo án Word', onClick: startImport }] : []),
+    ...(k === 'lecture' && !ofKind('lecture').length ? [{ label: 'Tách từ bài giảng PowerPoint', onClick: startImport }] : []),
     ...(k === 'material' && planFile ? [{ label: 'Lấy lại vật tư từ giáo án', onClick: refetchMaterials }] : []),
   ]
   const summary = (k: Kind): string => {

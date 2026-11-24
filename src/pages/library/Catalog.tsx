@@ -78,8 +78,7 @@ export function LibraryCatalog({ orgId }: { orgId: string | null }) {
       {view.exam_id ? <ExamView id={view.exam_id} /> : (view.file_path || view.url) ? <Viewer item={view} /> : null}
     </Drawer>}
     {topic && <Drawer onClose={() => { setTopic(null); setRk(k => k + 1) }} title={<>{modOf.get(topic.module_id) && chip(modOf.get(topic.module_id)!.track_code)} {topic.title}</>}>
-      <p className="sub" style={{ marginTop: 0 }}>{modOf.get(topic.module_id)?.name} · {gradeName(topic.grade)} · {topic.periods} tiết</p>
-      <TopicContents topic={topic} admin={admin} />
+      <TopicContents topic={topic} admin={admin} module={modOf.get(topic.module_id)} />
     </Drawer>}
   </>
 }

@@ -3993,3 +3993,40 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .tcexstat{display:flex;gap:14px;flex-wrap:wrap;margin-top:6px;font-size:13px;color:#475569}
 .tcdim{opacity:.5}
 @container (max-width:760px){.tcone{grid-template-columns:1fr}.tctoc{display:none}.tccards{grid-template-columns:1fr}}
+/* Trang chủ đề v71: nền xám nhạt, 2 khung trắng (Thông tin chung · Nội dung dạy học), thẻ tệp bấm là mở tab mới, nút ＋ và ⋮ */
+.tconewrap{background:var(--surface-2,#f4f6fb);border-radius:12px;padding:12px}
+.tctocin{background:transparent;border:0;padding:4px 0}
+.tctoc button.on{background:var(--card,#fff);box-shadow:0 1px 4px rgba(15,23,42,.08)}
+.tcst.ov{background:#e0f2fe;color:#0369a1;font-weight:700}
+.tcbox{background:var(--card,#fff);border-radius:14px;box-shadow:0 1px 3px rgba(15,23,42,.06),0 6px 20px rgba(15,23,42,.04);padding:18px 20px;margin-bottom:14px}
+.tcsec.tcbox,.tcsec.tcbox:first-child{padding:18px 20px;border-top:0}
+.tcsixh{margin:0 0 4px;padding-bottom:10px;border-bottom:1px solid var(--line);font-size:calc(12px * var(--fz,1));font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.tcsix .tcsec{padding:18px 0;border-top:1px solid var(--line)}.tcsix .tcsixh+.tcsec{border-top:0}
+.tcno{width:30px;height:30px;border-radius:9px;font-size:14px}.tcno.ov{background:#0ea5e9}
+.tcsech h3{font-size:calc(17px * var(--fz,1))}
+.main .tcib,.drawer .tcib{width:32px;height:32px;padding:0;border-radius:9px;display:inline-grid;place-items:center;font-size:16px;line-height:1}
+.main .tcib.pl,.drawer .tcib.pl{background:var(--primary);border-color:var(--primary);color:#fff}
+.tcsm .trowmenu{width:32px;height:32px;border:1px solid var(--line);border-radius:9px;background:var(--card,#fff)}
+.tccards>div{border:0;background:var(--surface-2,#f8fafc);border-radius:12px;padding:10px 14px}
+.tctags span{background:#eef2ff;color:#3730a3}
+.tcitem{border:0;background:none;padding:0;margin-bottom:8px}
+.tccard{display:flex;align-items:center;gap:12px;background:var(--surface-2,#f8fafc);border-radius:12px;padding:10px 12px;margin-top:8px}
+.tccard.go{cursor:pointer}.tccard.go:hover,.tccard.go:focus-visible{background:#eff6ff;outline:none;box-shadow:inset 0 0 0 1.5px #bfdbfe}
+.tccard .tcic{background:var(--card,#fff);box-shadow:0 1px 3px rgba(15,23,42,.08)}
+.tccard .tcmain{cursor:inherit}
+.tcft{font-style:normal;font-size:10.5px;font-weight:700;letter-spacing:.03em;background:#dbeafe;color:#1e40af;border-radius:4px;padding:1px 6px;margin-left:8px;vertical-align:1px}
+.tcgo{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;color:var(--primary);background:var(--card,#fff);box-shadow:0 1px 3px rgba(15,23,42,.1);flex:none;font-size:13px}
+.tccm{opacity:.55;flex:none}.tccard:hover .tccm,.tccm:focus-within{opacity:1}
+.tcitem>.tcdetail{margin:0 0 10px;color:var(--muted);line-height:1.5}
+.tcsl{background:var(--surface-2,#f8fafc);border-radius:12px;padding:4px 8px 8px}
+.tcslph{font-size:calc(11.5px * var(--fz,1));font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--primary);padding:10px 6px 6px}
+.tcslr{display:flex;align-items:flex-start;gap:10px;background:var(--card,#fff);border-radius:9px;padding:8px 12px;margin-top:4px}
+.tcslno{width:22px;height:22px;border-radius:50%;background:#eef2ff;color:#3730a3;font-size:11.5px;font-weight:700;display:grid;place-items:center;flex:none}
+.tcslt{flex:1;min-width:0}.tcslt small{display:block;color:var(--muted);font-size:12px}
+.tcslm{color:var(--muted);white-space:nowrap;font-size:13px}
+.tcsltot{display:flex;justify-content:space-between}
+.tcsl .tcmore{margin:8px 6px 0}
+@container (max-width:760px){.tconewrap{padding:6px}.tcbox{padding:14px}}
+.tcsix .tcsech{flex-wrap:nowrap}.tcsix .tcsech h3{white-space:nowrap}
+.tcsix .tcsech>small{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tcsech h3{line-height:1.25}

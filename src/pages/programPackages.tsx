@@ -692,19 +692,7 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
   </>
 }
 
-/** Nội dung một chủ đề (xem nhanh trong khung bên phải) */
-function TopicView({ t, mod, sgk, admin }: { t: ProgramTopic; mod?: string; sgk?: boolean; admin: boolean }) {
-  const v = (x: string | null | undefined) => x ? <span style={{ whiteSpace: 'pre-line' }}>{x}</span> : <span className="sub">—</span>
-  return <>
-    <p className="sub" style={{ marginTop: 0 }}>{gradeName(t.grade)} · Thứ tự {t.seq} · {t.periods} tiết{mod ? ' · Học phần ' + mod : ''}{t.part ? ` · HP${t.part}` : ''}</p>
-    <dl className="kv">
-      <dt>Mã chủ đề</dt><dd>{v(t.code)}</dd>
-      <dt>Môn chủ trì</dt><dd>{v(t.main_subject)}</dd>
-      <dt>Môn phối hợp</dt><dd>{v(t.subjects.join(', '))}</dd>
-      <dt>Yêu cầu cần đạt</dt><dd>{v(t.objectives)}</dd>
-      <dt>Sản phẩm</dt><dd>{v(t.product)}</dd>
-      {sgk && <><dt>Bài SGK liên quan</dt><dd>{v(t.textbook_ref)}</dd></>}
-    </dl>
-    <TopicContents topic={t} admin={admin} />
-  </>
+/** Nội dung một chủ đề (xem nhanh trong khung bên phải): Thông tin chung và 6 mục nằm trong TopicContents */
+function TopicView({ t, admin }: { t: ProgramTopic; mod?: string; sgk?: boolean; admin: boolean }) {
+  return <TopicContents topic={t} admin={admin} />
 }

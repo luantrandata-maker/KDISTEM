@@ -532,7 +532,6 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
         </table></div></>
       )}
       {matTopic && <Drawer onClose={() => setMatTopic(null)} title={<>Học liệu · {matTopic.title}</>}>
-        <p className="sub" style={{ marginTop: 0 }}>{gradeName(matTopic.grade)} · {matTopic.periods} tiết</p>
         <TopicContents topic={matTopic} admin={false} />
       </Drawer>}
     </>

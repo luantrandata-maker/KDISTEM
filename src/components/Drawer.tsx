@@ -55,6 +55,8 @@ export function Drawer({ title, onClose, onBack, children, closeOnOutside = true
         <header className="drawerhead">
           {onBack && <button type="button" className="drawerbtn" onClick={onBack} aria-label="Quay lại" title="Quay lại">←</button>}
           <div className="drawertitle">{title}</div>
+          {/* Chỗ để nội dung bên trong gắn nút lên đầu ngăn (vd. trang chủ đề: Chỉnh sửa / Lưu / Huỷ) */}
+          <div className="drawerslot" />
           {actions && <div className="draweractions">{actions}</div>}
           <button type="button" className="drawerbtn" onClick={onClose} aria-label="Đóng" title="Đóng (Esc)">×</button>
         </header>

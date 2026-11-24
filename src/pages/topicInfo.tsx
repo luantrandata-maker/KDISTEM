@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import type { StemTrack } from '../lib/stemTracks'
 import { gradeName, useEduLevels } from '../lib/eduLevels'
@@ -29,8 +29,10 @@ export function TopicOverview({ t, module, textbook }: { t: ProgramTopic; module
   </div>
 }
 
-export function TopicForm({ t, track, modules, nextSeq, onCancel, onSaved }: {
+export function TopicForm({ t, track, modules, nextSeq, onCancel, onSaved, saveRef, bare }: {
   t: TopicDraft; track?: StemTrack; modules?: ProgramModule[]; nextSeq?: (mod: string, g: number) => number; onCancel: () => void; onSaved: (next?: boolean) => void
+  /** Trang chủ đề: nút Lưu nằm trên đầu ngăn, gọi lưu qua ref này; bare = không vẽ hàng nút Lưu / Huỷ trong form */
+  saveRef?: React.MutableRefObject<(() => void) | null>; bare?: boolean
 }) {
   const [f, setFS] = useState<TopicDraft>({ ...t, subjects: [...t.subjects] })
   const [seqTouched, setSeqTouched] = useState(false)
@@ -54,6 +56,7 @@ export function TopicForm({ t, track, modules, nextSeq, onCancel, onSaved }: {
     if (next) { setAdded(added + 1); setSeqTouched(false); setFS({ ...f, title: '', code: '', objectives: '', product: '', seq: (Number(f.seq) || 0) + 1 }) }
     onSaved(next)
   }
+  if (saveRef) saveRef.current = () => { if (!busy) save() }
   return <section className="panel">
     {added > 0 && <p className="msg" role="status" style={{ marginTop: 0 }}>Đã thêm {added} chủ đề. Nhập chủ đề tiếp theo.</p>}
     <div className="formgrid">
@@ -78,10 +81,10 @@ export function TopicForm({ t, track, modules, nextSeq, onCancel, onSaved }: {
       <label className="field wide"><span>Sản phẩm</span><input value={f.product ?? ''} maxLength={300} placeholder="VD: Mô hình ngôi nhà mơ ước bằng bìa giấy" onChange={e => setF({ ...f, product: e.target.value })} /></label>
     </div>
     {err && <p className="warnline">{err}</p>}
-    <div className="actions" style={{ marginTop: 12 }}>
+    {!bare && <div className="actions" style={{ marginTop: 12 }}>
       <button className="primary" onClick={() => save()} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
       {!f.id && <button onClick={() => save(true)} disabled={busy}>Lưu và thêm tiếp</button>}
       <button onClick={onCancel} disabled={busy}>{added ? 'Đóng' : 'Huỷ'}</button>
-    </div>
+    </div>}
   </section>
 }

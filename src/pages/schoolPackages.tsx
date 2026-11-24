@@ -7,6 +7,7 @@ import { loadFrame, loadPackages, slotTopics, type PackageItem, type ProgramModu
 import { ALL_GRADES, currentYear, fmtDay, gradesOfLevel, kRange, loadSchoolPkgs, shiftYear, spErr, spState, todayIso, yearLabel, type PkgSkip, type SchoolPkgRow } from '../lib/schoolPackages'
 import { ColFilter, DataTable } from '../components/DataTable'
 import { ElView } from '../components/ElView'
+import { DetailHead } from '../components/DetailHead'
 import { Drawer } from '../components/Drawer'
 import { MultiSelect } from '../components/MultiSelect'
 import { FitScreen } from '../components/FitScreen'
@@ -129,9 +130,10 @@ export function SchoolPackages() {
       onCancel={() => setAssign(false)} onSaved={org => { setAssign(false); reloadSchools().then(() => { setOpenOrg(org); setEdit(null) }) }} />
   </Drawer>
 
-  if (cmp) return <ElView back={cur ? cur.name : 'Danh sách trường'} onBack={() => setCmp(null)} title="So sánh trường với gói" sub={<>Năm học {yearLabel(year)}</>}>
+  if (cmp) return <>
+    <DetailHead back={cur ? cur.name : 'Danh sách trường'} onBack={() => setCmp(null)} title="So sánh trường với gói" sub={<>Năm học {yearLabel(year)}</>} />
     <SchoolCompare ctx={ctx} schools={used} skips={skips} packages={packages} preset={cmp} year={year} modName={modName} pkgName={pkgName} pkgColor={pkgColor} liveOf={liveOf} />
-  </ElView>
+  </>
 
   if (cur) {
     const live = liveOf(cur), next = nextOf(cur)

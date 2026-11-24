@@ -12,12 +12,12 @@ const fold = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/
  * Ô chọn nhiều gọn: các mục đã chọn hiện thành thẻ trong ô; bấm vào ô mở danh sách có ô tick, gõ để tìm.
  * Thứ tự tick là thứ tự lưu; `primary` gắn nhãn cho mục đầu tiên (giá trị chính).
  * `allowCustom` cho thêm giá trị ngoài danh sách (gõ rồi Enter).
- * `compact`: ô lọc gọn một dòng (thanh công cụ): chỉ hiện mục đầu và "+N".
+ * `compact`: ô lọc gọn một dòng (thanh công cụ): chỉ hiện `show` mục đầu (mặc định 1) và "+N".
  * `single`: chỉ chọn một mục (bấm mục khác thì thay, chọn xong đóng danh sách).
  */
-export function MultiSelect({ value, onChange, options, disabled, placeholder = 'Chọn…', ariaLabel, primary, allowCustom, customLabel = 'Thêm', empty = 'Không có lựa chọn', style, compact, single }: {
+export function MultiSelect({ value, onChange, options, disabled, placeholder = 'Chọn…', ariaLabel, primary, allowCustom, customLabel = 'Thêm', empty = 'Không có lựa chọn', style, compact, single, show = 1 }: {
   value: string[]; onChange: (v: string[]) => void; options: MsOption[]; disabled?: boolean; placeholder?: string; ariaLabel?: string
-  primary?: string; allowCustom?: boolean; customLabel?: string; empty?: string; style?: React.CSSProperties; compact?: boolean; single?: boolean
+  primary?: string; allowCustom?: boolean; customLabel?: string; empty?: string; style?: React.CSSProperties; compact?: boolean; single?: boolean; show?: number
 }) {
   const [open, setOpen] = useState(false)
   const [q, setQ] = useState('')
@@ -82,15 +82,15 @@ export function MultiSelect({ value, onChange, options, disabled, placeholder = 
   const fold3 = !compact && !open && value.length > FOLD + 1
   let lastGroup: string | undefined
   return (
-    <div ref={box} className={'msel' + (compact ? ' sm' : '') + (open ? ' open' : '') + (value.length ? ' has' : '') + (disabled ? ' dis' : '')} style={style} title={compact && value.length > 1 ? value.map(labelOf).join(', ') : undefined}
+    <div ref={box} className={'msel' + (compact ? ' sm' : '') + (open ? ' open' : '') + (value.length ? ' has' : '') + (disabled ? ' dis' : '')} style={style} title={compact && value.length > show ? value.map(labelOf).join(', ') : undefined}
       onMouseDown={e => { if (disabled || (e.target as HTMLElement).closest('button')) return; if (e.target !== inp.current) e.preventDefault(); setOpen(true); inp.current?.focus() }}>
       <div className="mselchips">
-        {(compact ? value.slice(0, 1) : fold3 ? value.slice(0, FOLD) : value).map((v, i) => (
+        {(compact ? value.slice(0, show) : fold3 ? value.slice(0, FOLD) : value).map((v, i) => (
           <span key={v} className="mselchip" title={labelOf(v)}>
             <span>{labelOf(v)}</span>{primary && i === 0 && value.length > 1 && <small className="checkmain">{primary}</small>}
             {!disabled && <button type="button" className="mselx" aria-label={`Bỏ ${labelOf(v)}`} onClick={() => onChange(value.filter(x => x !== v))}>×</button>}
           </span>))}
-        {compact && value.length > 1 && <span className="mselmore">+{value.length - 1}</span>}
+        {compact && value.length > show && <span className="mselmore">+{value.length - show}</span>}
         {fold3 && <span className="mselmore" title={value.slice(FOLD).map(labelOf).join(', ')}>+{value.length - FOLD}</span>}
         {!disabled && <input ref={inp} className="mselq" value={q} onChange={e => { setQ(e.target.value); setOpen(true) }} onKeyDown={key} onFocus={() => setOpen(true)}
           placeholder={value.length ? (compact || !open ? '' : 'Tìm…') : placeholder} aria-label={ariaLabel ? `${ariaLabel}: tìm và chọn` : 'Tìm và chọn'} aria-expanded={open} role="combobox" />}

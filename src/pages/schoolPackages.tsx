@@ -464,7 +464,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
       <div style={{ flex: '0 0 170px', width: 170 }}><MultiSelect compact single value={pkg ? [pkg] : []} onChange={v => setPkg(v[0] ?? '')}
         options={packages.map(p => [p.id, p.name] as [string, string])} placeholder="Không chọn gói" ariaLabel="Gói để so sánh" /></div>
       <span className="lvlab">Trường</span>
-      <div style={{ flex: '0 1 320px', minWidth: 220 }}><MultiSelect compact value={orgs} onChange={pickOrgs} options={schools.map(s => [s.org_id, `${s.name} · ${usingOf(s)}`] as [string, string])}
+      <div className="cmporgs" style={{ flex: '1 1 480px', minWidth: 340 }}><MultiSelect compact show={3} value={orgs} onChange={pickOrgs} options={schools.map(s => [s.org_id, `${s.name} · ${usingOf(s)}`] as [string, string])}
         placeholder="Chọn 1–3 trường" ariaLabel="Trường để so sánh" /></div>
       <div className="lvextra">
         <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện điểm khác nhau</label>

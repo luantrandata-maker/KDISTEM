@@ -4042,3 +4042,23 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .tcbarin{display:flex;justify-content:flex-end;margin-bottom:10px}
 .tcediting{color:var(--primary);font-weight:600}
 .drawerslot button{padding:6px 12px;font-size:calc(13px * var(--fz,1))}
+/* So sánh gói theo khối (v86): nhóm "Chung cả N gói" + mỗi gói một màu, tiêu đề 3 hàng gói / loại CT / học phần */
+.main .cmpk{table-layout:auto;border-collapse:separate;border-spacing:0}
+.main .fitscreen .cmpk>thead{position:sticky;top:0;z-index:2}
+.main .fitscreen .cmpk>thead>tr>th{position:static;background:var(--surface)}
+.main .cmpk th,.main .cmpk td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:center;vertical-align:middle}
+.main .cmpk th.cmpkg,.main .cmpk td.cmpkg{text-align:left;font-weight:700;white-space:nowrap;min-width:72px;border-right:1px solid var(--line)}
+.main .fitscreen .cmpk>thead>tr>th.pkgth{color:#fff;font-weight:700;font-size:13.5px}
+.main .cmpk th.pkgth small{display:block;font-weight:400;font-size:11.5px;color:rgba(255,255,255,.92)}
+.main .cmpk th.cmpkt{font-size:12px;font-weight:600;line-height:1.3}
+.main .cmpk th.cmpkt .progchip{margin-right:4px}
+.main .cmpk th.cmpkt[rowspan] .progchip{display:block;width:max-content;margin:0 auto 3px}
+.main .cmpk th.cmphp3{font-size:12px;font-weight:500;color:var(--muted)}
+.main .cmpk .cmpcom{background:var(--soft)}
+.main .fitscreen .cmpk>thead>tr>th.cmpcom{background:var(--soft);font-weight:700}
+.main .cmpk th.cmpend,.main .cmpk td.cmpstart{border-left:2px solid var(--surface)}
+.main .cmpk td.cmpname{font-size:12.5px;line-height:1.3;min-width:96px;max-width:170px;white-space:normal;overflow:visible;text-overflow:clip}
+.main .cmpk tr.cmplv td{background:var(--soft);text-align:left;font-size:12px;font-weight:700;color:var(--muted);padding:4px 10px;letter-spacing:.02em;text-transform:uppercase}
+.main .cmplegend{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center}
+.main .cmplegend .cmpnote{flex-basis:100%}
+.main .fitscreen .cmpk>thead{background:var(--surface)}

@@ -4070,3 +4070,4 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 
 /* So sánh trường với gói: tiêu đề cố định (cmptbl) nhưng chữ canh trái */
 .main .fitscreen .cmptbl.sctbl td,.main .fitscreen .cmptbl.sctbl th{text-align:left}
+.cmporgs .msel.sm .mselchip>span{max-width:260px}

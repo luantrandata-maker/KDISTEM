@@ -9,6 +9,7 @@ import { ColFilter, DataTable } from '../components/DataTable'
 import { ElView } from '../components/ElView'
 import { Drawer } from '../components/Drawer'
 import { MultiSelect } from '../components/MultiSelect'
+import { FitScreen } from '../components/FitScreen'
 
 // Trường dùng gói (156, 158): danh sách trường (lọc tỉnh, gói) → chi tiết trường theo khối × loại chương trình → sửa phạm vi áp dụng
 // (đủ gói hoặc bỏ tick phần trường không áp dụng). Trường dùng được nhiều gói, mỗi khối một gói; nâng cấp gói từ một ngày, lưu lịch sử. Chỉ KDI gán / sửa; Sở, Phòng, trường xem được trường thuộc mình.
@@ -486,14 +487,14 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
             <div style={{ height: 5, borderRadius: 3, background: '#e2e8f0', marginTop: 6, overflow: 'hidden' }}><div style={{ width: pct(both.length, bothD) + '%', height: 5, background: '#94a3b8' }} /></div></section>
           : <p className="sub" style={{ margin: 0 }}>Chọn gói hoặc thêm trường để so sánh.</p>}
       </div>
-      <div className="tablewrap"><table className="table cmplined">
+      <FitScreen className="fsbox"><table className="table cmptbl cmplined sctbl">
         <thead><tr>{vis.map(k => k === 'pkg'
           ? <th key={k}><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: pkgColor(pkg), marginRight: 6 }} />{pkgName(pkg)} có</th>
           : /^s\d$/.test(k) ? <th key={k}>{colLabel(k)}<small style={{ display: 'block', fontWeight: 400 }}>Đang dùng {usingOf(sel[Number(k.slice(1))])}</small></th>
           : <th key={k} style={{ width: k === 'grade' ? 90 : k === 'track' ? 230 : 200 }}>{colLabel(k)}</th>)}</tr></thead>
         <tbody>{!lines.length ? <tr><td colSpan={vis.length || 1} className="sub">{only ? (pkg ? 'Các trường giống gói ở mọi khối.' : 'Các trường giống nhau ở mọi khối.') : 'Không có dữ liệu.'}</td></tr>
           : lines.map(renderLine)}</tbody>
-      </table></div>
+      </table></FitScreen>
       <p className="sub framefoot">{pkg ? `Cột ${pkgName(pkg)} làm chuẩn; ô vàng = trường khác gói.` : 'Ô vàng = các trường khác nhau.'} Chữ gạch đỏ = trường không áp dụng. Loại tính theo chủ đề bấm ▸ để xem đủ chủ đề.</p>
     </div>}
   </>

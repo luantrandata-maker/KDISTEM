@@ -5,9 +5,10 @@ import { useStemTracks, type StemTrack, trackLabel, TRACK_COLOR } from '../lib/s
 import { gradeName } from '../lib/eduLevels'
 import { loadFrame, loadPackages, slotTopics, type PackageItem, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
 import { ALL_GRADES, currentYear, fmtDay, gradesOfLevel, kRange, loadSchoolPkgs, shiftYear, spErr, spState, todayIso, yearLabel, type PkgSkip, type SchoolPkgRow } from '../lib/schoolPackages'
-import { DataTable } from '../components/DataTable'
+import { ColFilter, DataTable } from '../components/DataTable'
 import { ElView } from '../components/ElView'
 import { Drawer } from '../components/Drawer'
+import { MultiSelect } from '../components/MultiSelect'
 
 // Trường dùng gói (156, 158): danh sách trường (lọc tỉnh, gói) → chi tiết trường theo khối × loại chương trình → sửa phạm vi áp dụng
 // (đủ gói hoặc bỏ tick phần trường không áp dụng). Trường dùng được nhiều gói, mỗi khối một gói; nâng cấp gói từ một ngày, lưu lịch sử. Chỉ KDI gán / sửa; Sở, Phòng, trường xem được trường thuộc mình.
@@ -78,6 +79,7 @@ export function SchoolPackages() {
   const [assign, setAssign] = useState<string | boolean>(false) // true = gán mới; org_id = thêm gói cho khối khác của trường đó
   const [upgrade, setUpgrade] = useState<string | null>(null)  // bản gán đang nâng cấp
   const [view, setView] = useState<{ t: string; g: number } | null>(null)
+  const [cmp, setCmp] = useState<string[] | null>(null)       // so sánh trường với gói: trường chọn sẵn
 
   const reloadSchools = (y = year) => loadSchoolPkgs(y).then(r => { setRows(r.rows); setSkips(r.skips); setMsg(r.error); setLoaded(true) })
   useEffect(() => {
@@ -126,6 +128,10 @@ export function SchoolPackages() {
       onCancel={() => setAssign(false)} onSaved={org => { setAssign(false); reloadSchools().then(() => { setOpenOrg(org); setEdit(null) }) }} />
   </Drawer>
 
+  if (cmp) return <ElView back={cur ? cur.name : 'Danh sách trường'} onBack={() => setCmp(null)} title="So sánh trường với gói" sub={<>Năm học {yearLabel(year)}</>}>
+    <SchoolCompare ctx={ctx} schools={used} skips={skips} packages={packages} preset={cmp} year={year} modName={modName} pkgName={pkgName} pkgColor={pkgColor} liveOf={liveOf} />
+  </ElView>
+
   if (cur) {
     const live = liveOf(cur), next = nextOf(cur)
     const active = [...live, ...next]
@@ -150,7 +156,8 @@ export function SchoolPackages() {
     const upSp = upgrade ? byId.get(upgrade) : undefined
     const hist = cur.sps.length > live.length
     return <ElView back="Danh sách trường" onBack={() => { setOpenOrg(null); setView(null) }} title={cur.name} sub={sub}
-      actions={admin && <button type="button" className="primary" onClick={() => setAssign(cur.org_id)}>+ Thêm gói cho khối khác</button>}>
+      actions={<><button type="button" onClick={() => setCmp([cur.org_id])}>⇄ So sánh với gói</button>
+        {admin && <button type="button" className="primary" onClick={() => setAssign(cur.org_id)}>+ Thêm gói cho khối khác</button>}</>}>
       {msg && <p className="msg" role="status">{msg}</p>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12, marginBottom: 14 }}>
         {active.map(r => { const from = upgradedFrom(r); const st = spState(r)
@@ -239,7 +246,8 @@ export function SchoolPackages() {
       left={<>{yearSel}
         <select aria-label="Gói" value={fPkg} onChange={e => setFPkg(e.target.value)}><option value="">Tất cả gói</option>
           {packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></>}
-      right={admin && <button type="button" className="primary" onClick={() => setAssign(true)}>+ Gán gói cho trường</button>}
+      right={<><button type="button" onClick={() => setCmp([])}>⇄ So sánh trường với gói</button>
+        {admin && <button type="button" className="primary" onClick={() => setAssign(true)}>+ Gán gói cho trường</button>}</>}
       cols={[
         { key: 'name', label: 'Trường', fixed: true, text: r => r.name, cell: r => <button type="button" className="namelink" style={{ fontWeight: 600 }}>{r.name}</button> },
         { key: 'prov', label: 'Tỉnh / Thành phố', off: true, text: r => r.province_name ?? '', cell: r => r.province_name ?? <span className="sub">—</span> },
@@ -253,6 +261,148 @@ export function SchoolPackages() {
         ...tracks.map(t => ({ key: 't' + t.code, label: trackLabel(t.code), cell: (r: School) => <Count {...summary(liveOf(r), t)} /> })),
       ]} />
     {assignDrawer}
+  </>
+}
+
+// So sánh trường với gói (v104): chọn gói (không bắt buộc) và 1–3 trường. Có gói: cột gói làm chuẩn, ô trường khác gói tô vàng.
+// Không chọn gói: so thẳng các trường với nhau. Loại tính theo chủ đề (VD KDI1) bấm ▸ mở danh sách chủ đề; loại có học phần chỉ so tên học phần.
+type CmpVal = { kind: 'none' } | { kind: 'mod'; module_id: string; on: boolean } | { kind: 'topics'; on: string[]; all: string[]; slot: boolean; slotOn: boolean }
+const sigOf = (v: CmpVal) => v.kind === 'none' ? '' : v.kind === 'mod' ? `${v.module_id}|${v.on}` : v.all.length ? v.on.join(',') : `${v.slot}|${v.slotOn}`
+const DIFF = { background: '#fffbeb' }
+const CHK = { color: '#16a34a' }
+
+function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName, pkgColor, liveOf, year }: {
+  ctx: Ctx; schools: School[]; skips: PkgSkip[]; packages: ProgramPackage[]; preset: string[]; year: string
+  modName: (id: string) => string; pkgName: (id: string | null) => string; pkgColor: (id: string | null) => string; liveOf: (s: School) => SchoolPkgRow[]
+}) {
+  const firstPkg = (orgs: string[]) => { const s = schools.find(x => x.org_id === orgs[0]); return s ? liveOf(s)[0]?.package_id ?? '' : '' }
+  const [orgs, setOrgs] = useState<string[]>(preset.slice(0, 3))
+  const [pkg, setPkg] = useState(() => firstPkg(preset))
+  const [only, setOnly] = useState(true)
+  const [tf, setTf] = useState<string[]>([])   // lọc loại CT (rỗng = tất cả)
+  const tl = (t: StemTrack) => `${trackLabel(t.code)} · ${t.name}`
+  const [open, setOpen] = useState<Record<string, boolean>>({})   // dòng loại tính theo chủ đề đang mở → true = chỉ chủ đề khác nhau
+  const sel = orgs.map(o => schools.find(s => s.org_id === o)).filter(Boolean) as School[]
+  const pickOrgs = (v: string[]) => { const n = v.slice(0, 3); if (!orgs.length && !pkg) setPkg(firstPkg(n)); setOrgs(n) }
+  // Loại tính theo chủ đề lên trước (giống trang So sánh gói)
+  const tracks = [...ctx.tracks].sort((a, b) => Number(a.use_modules !== false) - Number(b.use_modules !== false))
+  const spAt = (s: School, g: number) => liveOf(s).find(x => (x.grades ?? []).includes(g))
+  const valOf = (sc: ReturnType<typeof scopeAt> | null, t: StemTrack, slot: number): CmpVal => {
+    if (!sc || !sc.slots.length) return { kind: 'none' }
+    if (t.use_modules === false) return { kind: 'topics', on: sc.topics.filter(x => x.on).map(x => x.topic.id), all: sc.topics.map(x => x.topic.id), slot: true, slotOn: sc.slots.some(x => x.on) }
+    const x = sc.slots.find(y => y.slot === slot)
+    return x ? { kind: 'mod', module_id: x.module_id, on: x.on } : { kind: 'none' }
+  }
+  const grades = [...new Set(sel.flatMap(s => liveOf(s).flatMap(x => x.grades ?? [])))].sort((a, b) => a - b)
+  type Row = { key: string; g: number; t: StemTrack; slot: number; p: CmpVal | null; ss: (CmpVal | null)[]; pSc: ReturnType<typeof scopeAt> | null; sSc: (ReturnType<typeof scopeAt> | null)[] }
+  const rows: Row[] = []
+  for (const g of grades) for (const t of tracks) {
+    const pSc = pkg ? scopeAt(ctx, pkg, t, g, new Set()) : null
+    const sSc = sel.map(s => { const r = spAt(s, g); return r ? scopeAt(ctx, r.package_id!, t, g, skipSetOf(r, skips)) : null })
+    const all = [pSc, ...sSc]
+    const slots = t.use_modules === false ? [0] : [...new Set(all.flatMap(x => x?.slots.map(y => y.slot) ?? []))].sort((a, b) => a - b)
+    for (const slot of slots) {
+      const p = pkg ? valOf(pSc, t, slot) : null
+      const ss = sSc.map((x, i) => spAt(sel[i], g) ? valOf(x, t, slot) : null)
+      if (p?.kind === 'none' && ss.every(x => !x || x.kind === 'none')) continue
+      if (!pkg && ss.every(x => !x || x.kind === 'none')) continue
+      rows.push({ key: `${g}|${t.code}|${slot}`, g, t, slot, p, ss, pSc, sSc })
+    }
+  }
+  // Ô trường khác: có gói thì so với gói, không có gói thì so với các trường còn lại
+  const diffAt = (r: Row, i: number) => { const v = r.ss[i]; if (!v) return false
+    if (r.p) return sigOf(v) !== sigOf(r.p)
+    return r.ss.some((w, j) => j !== i && w && sigOf(w) !== sigOf(v)) }
+  const rowDiff = (r: Row) => r.ss.some((_, i) => diffAt(r, i))
+  const base = only ? rows.filter(rowDiff) : rows
+  const shown = tf.length ? base.filter(r => tf.includes(r.t.code)) : base
+  const stat = (i: number) => { const rs = rows.filter(r => r.ss[i]); const d = rs.filter(r => diffAt(r, i)).length; return { n: rs.length, d } }
+  const both = rows.filter(r => r.ss.filter(Boolean).length > 1)
+  const bothD = both.filter(rowDiff).length
+  const pct = (n: number, d: number) => n ? Math.round((n - d) / n * 100) : 100
+
+  const txt = (v: CmpVal | null, sc: ReturnType<typeof scopeAt> | null, t: StemTrack) => {
+    if (!v) return <span className="sub">Khối không dùng gói</span>
+    if (v.kind === 'none') return <span className="sub">—</span>
+    if (v.kind === 'mod') return v.on ? modName(v.module_id) : <><span style={{ textDecoration: 'line-through', color: '#b42318' }}>{modName(v.module_id)}</span> không áp dụng</>
+    if (!v.all.length) return v.slotOn ? 'Có' : <span style={{ color: '#b42318' }}>Không áp dụng</span>
+    return v.on.length === v.all.length ? `${v.all.length} chủ đề` : `${v.on.length}/${v.all.length} chủ đề`
+  }
+  const nCol = 2 + (pkg ? 1 : 0) + sel.length
+  const topicRows = (r: Row) => {
+    const scs = [...(pkg ? [r.pSc] : []), ...r.sSc]
+    const ids: ProgramTopic[] = []; const seen = new Set<string>()
+    for (const sc of scs) for (const x of sc?.topics ?? []) if (!seen.has(x.topic.id)) { seen.add(x.topic.id); ids.push(x.topic) }
+    const st = (sc: ReturnType<typeof scopeAt> | null, id: string) => { const x = sc?.topics.find(y => y.topic.id === id); return !x ? 0 : x.on ? 1 : 2 }
+    const list = ids.map(tp => { const p = pkg ? st(r.pSc, tp.id) : null; const ss = r.sSc.map((sc, i) => r.ss[i] ? st(sc, tp.id) : null)
+      const d = ss.map((v, i) => v !== null && (p !== null ? v !== p : ss.some((w, j) => j !== i && w !== null && w !== v)))
+      return { tp, p, ss, d } })
+    const onlyT = open[r.key]
+    const mark = (v: number | null) => v === null ? <span className="sub">—</span> : v === 1 ? <span style={CHK}>✓</span> : v === 2 ? <span style={{ color: '#b42318' }}>✕ không áp dụng</span> : <span className="sub">—</span>
+    return [<tr key={r.key + 'h'}><td colSpan={nCol - 1} style={{ background: '#fbfcfe', padding: '6px 12px' }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><small className="sub">{ids.length} chủ đề {trackLabel(r.t.code)} · {gradeName(r.g)}</small>
+        <span className="seg" style={{ marginLeft: 'auto' }}>
+          <button type="button" className={onlyT ? 'on' : ''} onClick={() => setOpen(o => ({ ...o, [r.key]: true }))}>Chỉ chủ đề khác nhau</button>
+          <button type="button" className={onlyT ? '' : 'on'} onClick={() => setOpen(o => ({ ...o, [r.key]: false }))}>Tất cả {ids.length}</button></span></span></td></tr>,
+      ...list.filter(x => !onlyT || x.d.some(Boolean)).map((x, k) => { const bg = { ...(x.d.some(Boolean) ? DIFF : { background: '#fbfcfe' }), padding: '4px 12px', height: 'auto', fontSize: 13.5 }
+        return <tr key={r.key + x.tp.id}><td style={bg}><span className="sub" style={{ display: 'inline-block', width: 26 }}>{k + 1}</span>{x.tp.title}</td>
+          {pkg && <td style={bg}>{mark(x.p)}</td>}{x.ss.map((v, i) => <td key={i} style={bg}>{mark(v)}</td>)}</tr> })]
+  }
+  const printCmp = () => { document.body.classList.add('cmpprinting'); window.print(); setTimeout(() => document.body.classList.remove('cmpprinting'), 500) }
+  const byG = new Map<number, Row[]>(); for (const r of shown) byG.set(r.g, [...(byG.get(r.g) ?? []), r])
+  const spanOf = (rs: Row[]) => rs.reduce((n, r) => n + 1 + (open[r.key] !== undefined && r.t.use_modules === false && (r.pSc?.topics.length || r.sSc.some(x => x?.topics.length)) ? 1 + topicRows(r).length - 1 : 0), 0)
+  return <>
+    <div className="lvfilter">
+      <span className="lvlab">Gói</span>
+      <div style={{ flex: '0 0 260px', width: 260 }}><MultiSelect compact single value={pkg ? [pkg] : []} onChange={v => setPkg(v[0] ?? '')}
+        options={packages.map(p => [p.id, p.name] as [string, string])} placeholder="Không chọn gói" ariaLabel="Gói để so sánh" /></div>
+      <span className="lvlab">So với trường</span>
+      <div style={{ flex: '0 1 420px', minWidth: 260 }}><MultiSelect value={orgs} onChange={pickOrgs} options={schools.map(s => [s.org_id, s.name] as [string, string])}
+        placeholder="Chọn 1–3 trường" ariaLabel="Trường để so sánh" /></div>
+      <span className="lvgrp"><span className="lvlab">Loại CT</span><ColFilter pin label={tf.length ? tf.map(trackLabel).join(', ') : 'Tất cả'} value={tracks.filter(t => tf.includes(t.code)).map(tl)}
+        options={tracks.map(t => [tl(t), base.filter(r => r.t.code === t.code).length] as [string, number])}
+        onChange={v => setTf(tracks.filter(t => v.includes(tl(t))).map(t => t.code))} /></span>
+      <div className="lvextra">
+        <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện điểm khác nhau</label>
+        <button type="button" onClick={printCmp}>In / Xuất PDF</button></div>
+    </div>
+    {!sel.length ? <p className="sub">Chọn trường để so sánh{pkg ? ` với ${pkgName(pkg)}` : ''}.</p> : <div className="cmpprint">
+      <h3 className="printonly">So sánh trường với gói · {pkg ? pkgName(pkg) : 'không chọn gói'} · Năm học {yearLabel(year)}</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${pkg ? sel.length : 1}, minmax(0, 1fr))`, gap: 10, marginBottom: 12 }}>
+        {pkg ? sel.map((s, i) => { const { n, d } = stat(i); const p = pct(n, d); const live = liveOf(s)
+          return <section key={s.org_id} className="panel" style={{ margin: 0, padding: '10px 14px' }}>
+            <b>{s.name}</b><small className="sub" style={{ display: 'block' }}>{s.province_name ?? 'Chưa rõ tỉnh'} · {kRange(live.flatMap(x => x.grades ?? []))} · đang dùng {live.map(x => pkgName(x.package_id) + (live.length > 1 ? ` (${kRange(x.grades ?? [])})` : '')).join(', ')}</small>
+            <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4 }}>{p}% <small className="sub" style={{ fontSize: 13 }}>giống {pkgName(pkg)} · {d} điểm khác</small></div>
+            <div style={{ height: 5, borderRadius: 3, background: '#e2e8f0', marginTop: 6, overflow: 'hidden' }}><div style={{ width: p + '%', height: 5, background: '#94a3b8' }} /></div></section> })
+          : sel.length > 1 ? <section className="panel" style={{ margin: 0, padding: '10px 14px' }}><b>{sel.map(s => s.name).join(' và ')}</b>
+            <div style={{ fontSize: 22, fontWeight: 600, marginTop: 4 }}>{pct(both.length, bothD)}% <small className="sub" style={{ fontSize: 13 }}>giống nhau · {bothD} điểm khác</small></div>
+            <div style={{ height: 5, borderRadius: 3, background: '#e2e8f0', marginTop: 6, overflow: 'hidden' }}><div style={{ width: pct(both.length, bothD) + '%', height: 5, background: '#94a3b8' }} /></div></section>
+          : <p className="sub" style={{ margin: 0 }}>Chọn gói hoặc thêm trường để so sánh.</p>}
+      </div>
+      <div className="tablewrap"><table className="table cmplined">
+        <thead><tr><th style={{ width: 90 }}>Khối</th><th style={{ width: 240 }}>Phần</th>
+          {pkg && <th><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: pkgColor(pkg), marginRight: 6 }} />{pkgName(pkg)} có</th>}
+          {sel.map(s => <th key={s.org_id}>{s.name}</th>)}</tr></thead>
+        <tbody>{!shown.length ? <tr><td colSpan={nCol} className="sub">{only ? (pkg ? 'Các trường giống gói ở mọi khối.' : 'Các trường giống nhau ở mọi khối.') : 'Không có dữ liệu.'}</td></tr>
+          : [...byG].flatMap(([g, rs]) => rs.flatMap((r, k) => {
+            const topical = r.t.use_modules === false && !!(r.pSc?.topics.length || r.sSc.some(x => x?.topics.length))
+            const isOpen = topical && open[r.key] !== undefined
+            const main = <tr key={r.key}>
+              {k === 0 && <td rowSpan={spanOf(rs)}><b>{gradeName(g)}</b></td>}
+              <td>{topical ? <button type="button" className="cellbtn" style={{ display: 'inline' }} aria-expanded={isOpen}
+                onClick={() => setOpen(o => { const n = { ...o }; if (isOpen) delete n[r.key]; else n[r.key] = false; return n })}>
+                <b style={{ color: isOpen ? 'var(--navy, #2563eb)' : '#94a3b8', marginRight: 4 }}>{isOpen ? '▾' : '▸'}</b></button> : <span style={{ display: 'inline-block', width: 14 }} />}
+                <span className="progchip" style={{ background: TRACK_COLOR[r.t.code], color: '#fff', marginRight: 6 }}>{trackLabel(r.t.code)}</span>
+                {r.t.use_modules === false ? r.t.name : `Học phần ${r.slot}`}</td>
+              {pkg && <td>{txt(r.p, r.pSc, r.t)}</td>}
+              {r.ss.map((v, i) => { const d = diffAt(r, i)
+                return <td key={i} style={d ? DIFF : undefined}>{!d && pkg && v ? <span className="sub">giống gói</span> : txt(v, r.sSc[i], r.t)}</td> })}
+            </tr>
+            return isOpen ? [main, ...topicRows(r)] : [main]
+          }))}</tbody>
+      </table></div>
+      <p className="sub framefoot">{pkg ? `Cột ${pkgName(pkg)} làm chuẩn; ô vàng = trường khác gói.` : 'Ô vàng = các trường khác nhau.'} Chữ gạch đỏ = trường không áp dụng. Loại tính theo chủ đề bấm ▸ để xem đủ chủ đề.</p>
+    </div>}
   </>
 }
 

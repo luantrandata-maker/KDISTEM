@@ -495,6 +495,8 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
     const diffAt = (g: number) => slots.some(s => packages.some(p => val(p.id, g, s) !== val(packages[0].id, g, s)))
     return { t, slots, val, diffAt, used: mine.length > 0, common: packages.length > 1 && !grades.some(diffAt) }
   }).filter(c => c.used)
+    // Loại chỉ có chủ đề (cột số, như KDI1, KDI4) đứng trước, rồi tới loại chia học phần
+    .sort((a, b) => Number(a.t.use_modules !== false) - Number(b.t.use_modules !== false))
   const common = cols.filter(c => c.common && !only)
   const diff = cols.filter(c => !c.common)
   const rowGrades = grades.filter(g => cols.some(c => c.slots.some(s => packages.some(p => c.val(p.id, g, s) !== '' && c.val(p.id, g, s) !== '-1'))))
@@ -559,7 +561,7 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
         })}</tbody>
       </table>}
     </FitScreen>
-    {by === 'grade' && rowGrades.length > 0 && <p className="sub framefoot cmplegend"><b>Loại chương trình:</b> {cols.filter(c => c.common ? !only : true).map(c => <span key={c.t.code}>{chip(c.t.code)} {c.t.name}</span>)}
+    {by === 'grade' && rowGrades.length > 0 && <p className="sub framefoot cmplegend"><b>Loại chương trình:</b> {[...common, ...diff].map(c => <span key={c.t.code}>{chip(c.t.code)} {c.t.name}</span>)}
       <span className="cmpnote">{common.length ? `"Chung cả ${packages.length} gói" là loại chương trình giống nhau ở mọi gói. ` : ''}Loại chia học phần ghi tên học phần, loại chỉ có chủ đề ghi số chủ đề.</span></p>}
     </div>
   </>

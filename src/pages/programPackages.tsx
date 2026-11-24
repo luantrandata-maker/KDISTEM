@@ -90,8 +90,8 @@ export function ProgramPackages() {
     <DetailHead back="Gói STEM" onBack={() => setCompare(false)} title="So sánh các gói STEM" />
     {msg && <p className="msg" role="status">{msg}</p>}
     <CompareView tracks={active} packages={live} items={items} topics={topics} skips={skips} modName={modName} grades={selGrades} levels={fGrade ? [] : sel} name={fName} by={by}
-      filter={<LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade}
-        extra={<Seg label="Xem theo" items={[['grade', 'Khối'], ['mod', 'Học phần']] as ['grade' | 'mod', string][]} on={v => v === by} onPick={setBy} />} />} />
+      filter={extra => <LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false}
+        extra={<>{extra}<Seg label="" items={[['grade', 'Khối'], ['mod', 'Học phần']] as ['grade' | 'mod', string][]} on={v => v === by} onPick={setBy} /></>} />} />
   </>
 
   const cur = openId ? packages.find(p => p.id === openId) : undefined
@@ -446,24 +446,24 @@ function TrackGrid({ pkg, track, admin, items, modules, topics, slots, diffKeys,
 // So sánh các gói (tư vấn cho từng trường): lọc theo cấp / khối, xem theo học phần hoặc theo khối.
 const LEVELS = [{ k: 'th', name: 'Tiểu học', grades: [1, 2, 3, 4, 5] }, { k: 'thcs', name: 'THCS', grades: [6, 7, 8, 9] }, { k: 'thpt', name: 'THPT', grades: [10, 11, 12] }] as const
 function Seg<T extends string | number | null>({ label, items, on, onPick }: { label: string; items: [T, string][]; on: (v: T) => boolean; onPick: (v: T) => void }) {
-  return <div className="lvgrp"><span className="lvlab">{label}</span>
+  return <div className="lvgrp">{label && <span className="lvlab">{label}</span>}
     <div className="seg" role="group" aria-label={label}>{items.map(([v, t]) =>
       <button key={String(v)} type="button" className={on(v) ? 'on' : ''} aria-pressed={on(v)} onClick={() => onPick(v)}>{t}</button>)}</div></div>
 }
-function LevelFilter({ lvs, grade, onLevels, onGrade, extra }: { lvs: string[]; grade: number | null; onLevels: (v: string[]) => void; onGrade: (g: number | null) => void; extra?: React.ReactNode }) {
+function LevelFilter({ lvs, grade, onLevels, onGrade, extra, hint = true }: { lvs: string[]; grade: number | null; onLevels: (v: string[]) => void; onGrade: (g: number | null) => void; extra?: React.ReactNode; hint?: boolean }) {
   const sel = LEVELS.filter(l => lvs.includes(l.k))
   const toggle = (k: string) => onLevels(lvs.includes(k) ? lvs.filter(x => x !== k) : LEVELS.filter(l => [...lvs, k].includes(l.k)).map(l => l.k))
   return <div className="lvfilter">
     <Seg label="Cấp học" items={[['', 'Tất cả'], ...LEVELS.map(l => [l.k, l.name] as [string, string])]} on={v => v ? lvs.includes(v) : !lvs.length} onPick={v => v ? toggle(v) : onLevels([])} />
     {sel.length > 0 && <Seg label="Khối" items={[[null, 'Tất cả'], ...sel.flatMap(l => [...l.grades]).map(g => [g, String(g)] as [number, string])]} on={v => v === grade} onPick={onGrade} />}
-    <small className="sub">{lvs.length ? `Đang xem ${grade ? 'khối ' + grade : sel.map(l => l.name).join(' + ')}` : 'Trường liên cấp: chọn nhiều cấp'}</small>
-    {extra && <div style={{ marginLeft: 'auto' }}>{extra}</div>}
+    {hint && <small className="sub">{lvs.length ? `Đang xem ${grade ? 'khối ' + grade : sel.map(l => l.name).join(' + ')}` : 'Trường liên cấp: chọn nhiều cấp'}</small>}
+    {extra && <div className="lvextra">{extra}</div>}
   </div>
 }
 
 function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName, grades, name, filter, by }: {
   tracks: StemTrack[]; packages: ProgramPackage[]; items: PackageItem[]; topics: ProgramTopic[]; skips: PackageSkip[]; modName: (id: string) => string
-  grades: number[]; levels: (typeof LEVELS)[number][]; name: string; filter: React.ReactNode; by: 'grade' | 'mod'
+  grades: number[]; levels: (typeof LEVELS)[number][]; name: string; filter: (extra: React.ReactNode) => React.ReactNode; by: 'grade' | 'mod'
 }) {
   // Chọn gói để so sánh: không chọn gói nào = so sánh tất cả. Màu mỗi gói giữ nguyên theo thứ tự gốc.
   const [pick, setPick] = useState<string[]>([])
@@ -514,18 +514,14 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
   const levelOf = (g: number) => LEVELS.find(l => (l.grades as readonly number[]).includes(g))
   // In: chỉ in bảng so sánh (trang có quy tắc in riêng cho giấy chứng nhận ẩn mọi thứ khác)
   const printCmp = () => { document.body.classList.add('cmpprinting'); window.print(); setTimeout(() => document.body.classList.remove('cmpprinting'), 500) }
-  const same = by === 'mod' ? tracks.filter(t => !sections.some(x => x.t.code === t.code)).map(t => trackLabel(t.code)) : cols.filter(c => c.common).map(c => trackLabel(c.t.code))
   return <>
-    {filter}
-    <div className="bar cmpbar">
-      <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện chỗ các gói khác nhau</label>
-      {only && same.length > 0 && <small className="sub">{same.join(', ')} giống nhau ở mọi gói.</small>}
-      <span style={{ flex: 1 }} />
+    {filter(<>
+      <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện điểm khác nhau</label>
       <span className="lvlab">Gói</span>
       <div style={{ flex: '0 0 220px', width: 220 }}><MultiSelect compact value={pick} onChange={setPick} options={allPkgs.map(p => [p.id, p.name] as [string, string])}
         placeholder="Tất cả gói" ariaLabel="Chọn gói để so sánh" /></div>
       <button type="button" onClick={printCmp}>In / Xuất PDF</button>
-    </div>
+    </>)}
     <div className="cmpprint">
     <h3 className="printonly">So sánh các gói STEM · {name} · theo {by === 'mod' ? 'học phần' : 'khối'}</h3>
     <FitScreen className="fsbox">

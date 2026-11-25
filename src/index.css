@@ -4110,3 +4110,21 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .pkgsec>button{padding:5px 12px;font-size:calc(13px * var(--fz,1))}
 .pkgtracks tr.trkoff td{color:var(--muted)}
 .main .pkgdesc,.pkgdesc{align-self:center;margin:0 0 0 4px;font-size:calc(13px * var(--fz,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+/* So sánh gói, xem theo khối: nhóm theo loại CT → khối → phần, mỗi gói một cột */
+.cmpk2{width:100%}
+.cmpk2 th{white-space:nowrap}
+.cmpk2 td{vertical-align:middle}
+.cmpk2 tbody>tr:first-child>td{border-top:2px solid #cbd5e1}
+.cmpk2 tr.k2g>td{border-top:1px solid #cbd5e1}
+.cmpk2 td.k2t{vertical-align:top;min-width:200px;border-right:1px solid var(--line)}
+.cmpk2 td.k2t b{display:block;margin-top:4px}
+.cmpk2 td.k2k{font-weight:600;white-space:nowrap;border-right:1px solid var(--line)}
+.main .cmpk2 td.k2p,.cmpk2 td.k2p{padding:8px 12px;color:var(--muted);white-space:nowrap;font-size:calc(12.5px * var(--fz,1))}
+.cmpk2 td.k2v{text-align:center}
+.cmpk2 tr.same td.k2v{color:var(--muted)}
+.cmpk2 td.k2d{background:#fffbea;font-weight:600}
+.k2sw{display:inline-block;width:12px;height:12px;border-radius:3px;background:#fffbea;border:1px solid var(--line);vertical-align:-1px}
+.cmpk2{table-layout:fixed}
+.cmpk2 thead th:nth-child(1){width:230px}.cmpk2 thead th:nth-child(2){width:100px}.cmpk2 thead th:nth-child(3){width:80px}
+.main .cmptbl.cmpk2 thead th:nth-child(-n+3){text-align:left}
+.main .cmpk2 td.k2k,.main .cmpk2 td.k2p,.main .cmpk2 td.k2t{text-align:left}

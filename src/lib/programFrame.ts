@@ -29,7 +29,11 @@ export async function loadFrame() {
 }
 
 // Gói STEM theo khung chương trình (148): gói × loại chương trình × khối × vị trí học phần
-export type ProgramPackage = { id: string; code: string; name: string; description: string; sort: number; active: boolean; updated_at?: string }
+export type ProgramPackage = {
+  id: string; code: string; name: string; description: string; sort: number; active: boolean; updated_at?: string
+  /** 169: thẻ giới thiệu KDI tự soạn; chưa chạy migration thì các trường này không có */
+  color?: string | null; card_tagline?: string; card_highlights?: string[]; card_footer?: string
+}
 export type PackageItem = { package_id: string; track_code: string; grade: number; slot: number; module_id: string; note: string }
 
 export type PackageSkip = { package_id: string; topic_id: string }

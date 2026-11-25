@@ -398,8 +398,9 @@ function PackageDetail({ pkg, color, onEdit, others, tracks, admin, items, modul
   return <>
     <section className="pkgdet" style={{ '--c': color } as React.CSSProperties} aria-label={'Chi tiết ' + pkg.name}>
     <div className="pkgdet-h">
-      <h3>{pkg.name}</h3><span style={{ flex: 1 }} />
+      <h3>{pkg.name}</h3>
       {!edit && <span className="pkgdet-lv">{levelFilter}</span>}
+      <span style={{ flex: 1 }} />
       {!edit && !empty && <span className="pkgdet-tools">
         <span className="lvgrp"><span className="lvlab">Loại CT</span><ColFilter pin label={tf.length ? tf.map(trackLabel).join(', ') : 'Tất cả'} value={tracks.filter(t => tf.includes(t.code)).map(tl)}
           options={tracks.map(t => [tl(t), nTopics(mine.filter(i => i.track_code === t.code))] as [string, number])}

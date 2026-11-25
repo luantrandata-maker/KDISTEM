@@ -4149,7 +4149,7 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .pkgc-foot{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-top:auto;padding-top:7px;border-top:1px dashed var(--line);font-size:calc(12.5px * var(--fz,1))}
 .pkgc-more{color:var(--primary);font-weight:600;white-space:nowrap;margin-left:auto}
 .pkgdet{margin-top:12px;background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--c);border-radius:11px;padding:10px 14px 8px}
-.pkgdet-h{display:flex;align-items:center;gap:10px;margin-bottom:8px;min-width:0}
+.pkgdet-h{display:flex;align-items:center;gap:14px;margin-bottom:8px;min-width:0}
 .pkgdet-h h3{margin:0;font-size:calc(17px * var(--fz,1));white-space:nowrap}
 .pkgdet-h .pkgdesc{flex:1}
 .pkgdet-tools{display:inline-flex;gap:14px;align-items:center;flex:none}

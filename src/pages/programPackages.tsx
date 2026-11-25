@@ -42,7 +42,7 @@ function PkgCard({ p, color, auto, selected, onOpen, menu }: {
   const card = hasCard(p)
   return <div className={'pkgc' + (selected ? ' on' : '') + (onOpen ? '' : ' still')} style={{ '--c': color } as React.CSSProperties}
     role={onOpen ? 'button' : undefined} tabIndex={onOpen ? 0 : undefined} aria-pressed={onOpen ? !!selected : undefined}
-    title={onOpen ? (selected ? 'Bấm để ẩn chi tiết gói' : 'Bấm để xem chi tiết gói ở bên dưới') : undefined}
+    title={onOpen ? (selected ? 'Đang xem chi tiết gói này ở bên dưới' : 'Bấm để xem chi tiết gói ở bên dưới') : undefined}
     onClick={onOpen} onKeyDown={e => { if (onOpen && e.key === 'Enter' && e.target === e.currentTarget) onOpen() }}>
     <div className="pkgc-head" style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${color} 82%, #000), ${color})` }}>
       <div className="bar" style={{ margin: 0, gap: 6 }}><b className="pkgc-name">{p.name || 'Gói mới'}</b>
@@ -113,7 +113,7 @@ export function ProgramPackages() {
     setOpenId(null); setMsg(''); reload()
   }
 
-  // Gói đang xem chi tiết ở dưới thẻ: mặc định gói đầu tiên; bấm lại thẻ đang xem để ẩn ('' = không xem gói nào)
+  // Gói đang xem chi tiết ở dưới thẻ: mặc định gói đầu tiên; luôn có một gói đang xem để phần dưới không trống
   const curId = openId === null ? (live[0] ?? packages[0])?.id : openId
   const cur = curId ? packages.find(p => p.id === curId) : undefined
   const topicsOfItem = (i: PackageItem) => slotTopics(topics, items, i)
@@ -139,7 +139,7 @@ export function ProgramPackages() {
   }
   const perGrade = (list: ProgramTopic[]) => { const g = new Set(list.map(t => t.grade)); return g.size ? Math.round(list.length / g.size) : 0 }
   const ctick = (bg: string, fg: string) => <span className="pkgtick" style={{ background: bg, color: fg }} aria-hidden="true">✓</span>
-  const openPkg = (id: string) => { setMsg(''); setOpenId(curId === id ? '' : id) }
+  const openPkg = (id: string) => { setMsg(''); setOpenId(id) }
   // Thẻ gói chưa được KDI soạn: hiện nội dung tự động như trước (phần chung, điểm riêng của gói)
   const autoBody = (p: ProgramPackage, c: string) => {
     const diff = diffTracks(p.id)

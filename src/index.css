@@ -4084,3 +4084,4 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .seg.cmpseg{display:flex;width:max-content;margin-top:8px}
 .main .seg.cmpseg>button{padding:5px 12px;font-weight:600;font-size:calc(13px * var(--fz,1))}
 .main .seg.cmpseg>button small{font-weight:500;color:inherit;opacity:.85}
+.main .lvfilter.cmpfilter{margin-bottom:6px}

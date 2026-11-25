@@ -133,7 +133,7 @@ export function SchoolPackages() {
       onCancel={() => setAssign(false)} onSaved={org => { setAssign(false); reloadSchools().then(() => { setOpenOrg(org); setEdit(null) }) }} />
   </Drawer>
 
-  if (cmp) return <ElView back={cur ? cur.name : 'Danh sách trường'} onBack={() => setCmp(null)} title="So sánh trường với gói" sub={<>Năm học {yearLabel(year)}</>}>
+  if (cmp) return <ElView back={cur ? cur.name : 'Danh sách trường'} onBack={() => setCmp(null)} title={<>So sánh trường với gói <small className="sub" style={{ fontWeight: 400, fontSize: '0.6em', marginLeft: 6 }}>Năm học {yearLabel(year)}</small></>}>
     <SchoolCompare ctx={ctx} schools={used} skips={skips} packages={packages} preset={cmp} year={year} modName={modName} pkgName={pkgName} pkgColor={pkgColor} liveOf={liveOf} />
   </ElView>
 
@@ -471,7 +471,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   }
   const printCmp = () => { document.body.classList.add('cmpprinting'); window.print(); setTimeout(() => document.body.classList.remove('cmpprinting'), 500) }
   return <>
-    <div className="lvfilter">
+    <div className="lvfilter cmpfilter">
       <span className="lvlab">Gói</span>
       <div style={{ flex: '0 0 170px', width: 170 }}><MultiSelect compact single value={pkg ? [pkg] : []} onChange={v => setPkg(v[0] ?? '')}
         options={packages.map(p => [p.id, p.name] as [string, string])} placeholder="Không chọn gói" ariaLabel="Gói để so sánh" /></div>
@@ -500,7 +500,6 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
         <tbody>{!lines.length ? <tr><td colSpan={vis.length || 1} className="sub">{only ? (pkg ? 'Các trường giống gói ở mọi khối.' : 'Các trường giống nhau ở mọi khối.') : 'Không có dữ liệu.'}</td></tr>
           : lines.map(renderLine)}</tbody>
       </table></FitScreen>
-      <p className="sub framefoot">{pkg ? `Cột ${pkgName(pkg)} làm chuẩn; ô vàng = trường khác gói.` : 'Ô vàng = các trường khác nhau.'} Chữ gạch đỏ = trường không áp dụng. Loại tính theo chủ đề bấm ▸ để xem đủ chủ đề.</p>
     </div>}
   </>
 }

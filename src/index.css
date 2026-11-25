@@ -4187,3 +4187,8 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .pkgdet-lv .lvfilter{border:0;padding:0;margin:0;background:none;box-shadow:none;min-height:0}
 .pkggrid .lb.lbclick{cursor:pointer}.pkggrid .lb.lbclick:hover b,.pkggrid .lb.lbclick:focus-visible b{color:var(--primary);text-decoration:underline}
 .pkggrid .lb.lbclick b::after{content:" ⓘ";font-weight:400;color:var(--muted);font-size:.9em}
+
+/* Nút mở / thu gọn bảng so sánh nhanh dưới thẻ gói */
+.pkgcmpbtn{display:flex;justify-content:center;margin:18px 0 4px}
+.pkgcmpbtn button{background:color-mix(in srgb,var(--primary) 12%,var(--surface));color:var(--primary);border:0;border-radius:9px;padding:11px 26px;font-weight:700;font-size:calc(17px * var(--fz,1));display:inline-flex;align-items:center;gap:8px}
+.pkgcmpbtn button:hover{background:color-mix(in srgb,var(--primary) 18%,var(--surface))}

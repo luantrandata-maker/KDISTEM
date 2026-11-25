@@ -14,14 +14,14 @@ import { EDU_ACTIVITIES, EDU_ACTIVITY_NAME, SCHEDULE_MODES, SCHEDULE_MODE_NAME, 
 // Danh mục loại chương trình (migration 062, 064, 147): CT1–CT4; KDI thêm loại mới, sửa tên, mô tả, môn học,
 // cấp học áp dụng, ngừng dùng hoặc xoá loại chưa được dùng; đơn vị khác xem. Kèm các chương trình giáo dục đang ban hành của từng loại.
 type Prog = { id: string; code: string | null; title: string; ct_code: string; level: string; version_no: number }
-const errText = (m: string) => (/stem_tracks_label_uq|duplicate key.*label/i.test(m) ? 'Mã hiển thị này đã có loại chương trình khác dùng.'
+export const trackErr = (m: string) => (/stem_tracks_label_uq|duplicate key.*label/i.test(m) ? 'Mã hiển thị này đã có loại chương trình khác dùng.'
   : /stem_tracks_label_check/i.test(m) ? 'Mã hiển thị tối đa 12 ký tự.'
   : /schema cache|does not exist|column .*(sort|active|form|schedule_mode|school_|label)/i.test(m) ? 'Hãy chạy migration 147–155 trên Supabase.'
   : /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI sửa được danh mục này.'
   : /23503|foreign key/i.test(m) ? 'Loại này đang được chương trình, bài giảng, học liệu hoặc lớp dùng — hãy chuyển sang "Ngừng dùng".'
   : /23505|duplicate/i.test(m) ? 'Mã loại đã có.'
   : /stem_tracks_code_check/i.test(m) ? 'Mã gồm 2–12 ký tự: chữ in hoa, số, "-" hoặc "_", bắt đầu bằng chữ (vd. CT5).' : m)
-const BLANK: StemTrack = { code: '', name: '', title: '', description: '', subjects: [], levels: [], sort: 0, active: true,
+export const BLANK_TRACK: StemTrack = { code: '', name: '', title: '', description: '', subjects: [], levels: [], sort: 0, active: true,
   form: '', edu_activity: '', teachers: '', audience: '', duration: '', notes: '', school_pick_topics: false, school_arrange_ppct: true, schedule_mode: 'timetable', use_modules: true }
 const yesNo = (v: boolean | undefined) => v ? 'Được' : 'Không'
 /** Thiết lập KDI cấu hình cho trường (147) — dùng chung ở chi tiết và danh sách */
@@ -43,8 +43,8 @@ export function StemTracksCatalog() {
   async function remove(t: StemTrack) {
     if (!confirm(`Xoá loại chương trình ${t.code} · ${t.name}? Chỉ xoá được khi chưa có chương trình, bài giảng, học liệu hay lớp nào dùng.`)) return
     const { data, error } = await supabase.from('stem_tracks').delete().eq('code', t.code).select('code')
-    if (error) return setMsg(errText(error.message + ' ' + (error.code ?? '')))
-    if (!data?.length) return setMsg(errText('row-level'))
+    if (error) return setMsg(trackErr(error.message + ' ' + (error.code ?? '')))
+    if (!data?.length) return setMsg(trackErr('row-level'))
     setMsg(''); setOpen(null); reload()
   }
   useEffect(() => {
@@ -58,7 +58,7 @@ export function StemTracksCatalog() {
     return <ElView back={open ? 'Chi tiết loại chương trình' : 'Loại chương trình'} onBack={() => setEdit(null)}
       title={t ? <><span className="progchip" style={{ background: PROGRAM_COLOR[t.code], color: '#fff' }}>{trackLabel(t.code)}</span> Sửa loại chương trình</> : 'Thêm loại chương trình'}>
       {t ? <TrackForm key={t.code} t={t} onCancel={() => setEdit(null)} onSaved={done} />
-        : <TrackForm t={{ ...BLANK, sort: tracks.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1 }} isNew onCancel={() => setEdit(null)} onSaved={done} />}
+        : <TrackForm t={{ ...BLANK_TRACK, sort: tracks.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1 }} isNew onCancel={() => setEdit(null)} onSaved={done} />}
     </ElView>
   }
   const cur = open ? tracks.find(x => x.code === open) : undefined
@@ -153,7 +153,7 @@ export function TrackForm({ t, isNew = false, onCancel, onSaved }: { t: StemTrac
   async function save() {
     if (!f.name.trim() || !f.title.trim()) return setErr('Nhập tên và tên đầy đủ.')
     const code = f.code.trim().toUpperCase()
-    if (isNew && !/^[A-Z][A-Z0-9_-]{1,11}$/.test(code)) return setErr(errText('stem_tracks_code_check'))
+    if (isNew && !/^[A-Z][A-Z0-9_-]{1,11}$/.test(code)) return setErr(trackErr('stem_tracks_code_check'))
     setBusy(true); setErr('')
     const row = { label: (f.label ?? '').trim(), name: f.name, title: f.title, description: f.description, subjects: f.subjects, levels: f.levels, sort: Number(f.sort) || 0, active: f.active !== false,
       form: f.form ?? '', edu_activity: f.edu_activity ?? '', teachers: f.teachers ?? '', audience: f.audience ?? '', duration: f.duration ?? '', notes: f.notes ?? '',
@@ -162,8 +162,8 @@ export function TrackForm({ t, isNew = false, onCancel, onSaved }: { t: StemTrac
       ? await supabase.from('stem_tracks').insert({ ...row, code }).select('code')
       : await supabase.from('stem_tracks').update(row).eq('code', t.code).select('code')
     setBusy(false)
-    if (error) return setErr(errText(error.message + ' ' + (error.code ?? '')))
-    if (!data?.length) return setErr(errText('row-level'))
+    if (error) return setErr(trackErr(error.message + ' ' + (error.code ?? '')))
+    if (!data?.length) return setErr(trackErr('row-level'))
     onSaved()
   }
   return (

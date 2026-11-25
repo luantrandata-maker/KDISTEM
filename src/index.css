@@ -4105,3 +4105,8 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .pkgtracks td{padding:10px;border-top:1px solid var(--line);vertical-align:top}
 .pkgtracks tbody tr{cursor:pointer}.pkgtracks tbody tr:hover{background:var(--soft)}
 .pkgtracks td.clamp{max-width:320px;color:#475569}.pkgtracks td.clamp>span{display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+/* Trang Gói STEM: tiêu đề mục sát nội dung; loại chương trình ngừng dùng hiện mờ */
+.pkgsec{align-items:center;margin:8px 0 6px}
+.pkgsec>button{padding:5px 12px;font-size:calc(13px * var(--fz,1))}
+.pkgtracks tr.trkoff td{color:var(--muted)}
+.main .pkgdesc,.pkgdesc{align-self:center;margin:0 0 0 4px;font-size:calc(13px * var(--fz,1));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}

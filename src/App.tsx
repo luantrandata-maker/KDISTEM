@@ -198,7 +198,6 @@ const eduProgramTabs = (mode: 'school' | 'authority') => {
 }
 // Danh mục loại chương trình (CT1–CT4 và loại thêm sau): tên, mô tả, môn học, cấp học, thiết lập cho trường (062, 064, 147)
 const EduLevelsCatalog = lazy(() => import('./pages/eduLevels').then(m => ({ default: m.EduLevelsCatalog })))
-const StemTracksCatalog = lazy(() => import('./pages/stemTracks').then(m => ({ default: m.StemTracksCatalog })))
 // Khung chương trình mới: loại → học phần → chủ đề theo khối; danh mục nhóm vật tư (147)
 const ProgramFrame = lazy(() => import('./pages/programFrame').then(m => ({ default: m.ProgramFrame })))
 const MaterialGroupsCatalog = lazy(() => import('./pages/programFrame').then(m => ({ default: m.MaterialGroupsCatalog })))
@@ -209,7 +208,7 @@ const SchoolPackages = lazy(() => import('./pages/schoolPackages').then(m => ({ 
 // const PpctStandard = lazy(() => import('./pages/ppctStandard').then(m => ({ default: m.PpctStandard })))
 // Môn học (danh sách chung các đơn vị) nằm trong Danh mục; PH2_TABS khai báo bên dưới, chỉ đọc khi hiển thị
 const SubjectsAllOrgs = (q: any) => { const S = PH2_TABS.subjects; return <S {...q} /> }
-const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Loại chương trình', StemTracksCatalog], ['Môn học', SubjectsAllOrgs], ['Nhóm vật tư', MaterialGroupsCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog], ['Khung năng lực', StudentFramework]]} />
+const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Môn học', SubjectsAllOrgs], ['Nhóm vật tư', MaterialGroupsCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog], ['Khung năng lực', StudentFramework]]} />
 const ProgressPlatform = (q: any) => <CurriculumProgress {...q} mode="platform" />
 // Định mức vật tư theo bài / chủ đề, danh mục vật tư, dự trù, đề xuất điều chỉnh (059)
 const MaterialNorms = lazy(() => import('./pages/materialNorms').then(m => ({ default: m.MaterialNorms })))

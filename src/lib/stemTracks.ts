@@ -3,7 +3,7 @@ import { supabase } from './supabase'
 
 // Danh mục loại chương trình (migration 062, 064, 147): 4 loại CT1–CT4 (Bài học STEM, Trải nghiệm STEM cơ bản / nâng cao,
 // Nghiên cứu khoa học kĩ thuật) và các loại KDI thêm sau — tên, mô tả, môn học, cấp học, hình thức, đối tượng, thời lượng
-// và các thiết lập KDI cấu hình cho trường. KDI sửa ở "Chương trình giáo dục → Danh mục → Loại chương trình".
+// và các thiết lập KDI cấu hình cho trường. KDI sửa ở "Chương trình giáo dục → Gói STEM → Các loại chương trình".
 export type StemLevel = 'mamnon' | 'tieuhoc' | 'thcs' | 'thpt' | 'thpt_nghe'
 export type EduActivity = '' | 'chinh_khoa' | 'tang_cuong' | 'theo_nhu_cau'
 export type ScheduleMode = 'subject' | 'timetable' | 'register'
@@ -68,7 +68,7 @@ export function trackColor(code: string): string {
 /** Bảng màu tra theo mã, có màu cho cả mã chưa biết: PROGRAM_COLOR[code] */
 export const TRACK_COLOR: Record<string, string> = new Proxy(BASE_COLOR, { get: (_t, k) => (typeof k === 'string' ? trackColor(k) : undefined) })
 
-/** Mã hiển thị của loại chương trình: KDI đặt ở Danh mục → Loại chương trình; chưa đặt thì dùng mã gốc. */
+/** Mã hiển thị của loại chương trình: KDI đặt ở Gói STEM → Các loại chương trình; chưa đặt thì dùng mã gốc. */
 export function trackLabel(code: string | null | undefined): string {
   if (!code) return ''
   return (cache ?? DEFAULT_TRACKS).find(t => t.code === code)?.label?.trim() || code

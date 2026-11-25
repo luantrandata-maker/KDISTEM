@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { FitScreen } from '../components/FitScreen'
 import { supabase } from '../lib/supabase'
 import { EDU_ACTIVITY_NAME, useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
-import { TrackForm } from './stemTracks'
+import { BLANK_TRACK, TrackForm, trackErr } from './stemTracks'
 import { fmtGrades, gradeName } from '../lib/eduLevels'
 import { frameErr, loadFrame, loadPackages, slotTopics, type PackageItem, type PackageSkip, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
 import { PROGRAM_COLOR } from './teacher/common'
@@ -130,7 +130,7 @@ export function ProgramPackages() {
     {msg && <p className="msg" role="status">{msg}</p>}
     {filterBar}
     {!n ? <p className="sub">Chưa có gói STEM.</p> : <>
-      <div className="pkgsec"><b>Các gói</b><small className="sub">Bấm vào thẻ để xem chi tiết gói{admin ? ' · sửa, sao chép, xoá ở nút ⋮' : ''}</small></div>
+      <div className="pkgsec"><b>Các gói</b></div>
       <div className="pkgcards">
         {packages.map((p, k) => {
           const c = PKG_C[k % PKG_C.length]
@@ -167,7 +167,7 @@ export function ProgramPackages() {
           </div>
         })}
       </div>
-      <TrackTable tracks={active} packages={live} has={(pkg, t) => items.some(i => i.package_id === pkg && i.track_code === t)}
+      <TrackTable tracks={[...active, ...tracks.filter(t => t.active === false)]} packages={live} has={(pkg, t) => items.some(i => i.package_id === pkg && i.track_code === t)}
         differs={t => [...diffKeys].some(k => k.startsWith(t + '|'))} summary={t => {
           const its = items.filter(i => i.track_code === t.code && live.some(p => p.id === i.package_id))
           const gs = [...new Set(its.map(i => i.grade))].sort((a, b) => a - b)
@@ -179,7 +179,7 @@ export function ProgramPackages() {
   </>
 }
 
-// Bảng các loại chương trình dưới thẻ gói: thông tin chung lấy từ Danh mục → Loại chương trình và gói nào có loại đó.
+// Bảng các loại chương trình dưới thẻ gói: thông tin chung của loại và gói nào có loại đó; KDI thêm, sửa, ngừng dùng, xoá loại ngay tại đây.
 // Bấm một dòng để xem đủ thông tin; nút ⋮ cuối dòng để sửa (chỉ KDI).
 function TrackTable({ tracks, packages, has, differs, summary, admin }: {
   tracks: StemTrack[]; packages: ProgramPackage[]; has: (pkg: string, t: string) => boolean; differs: (t: string) => boolean
@@ -187,7 +187,21 @@ function TrackTable({ tracks, packages, has, differs, summary, admin }: {
 }) {
   const { reload } = useStemTracks()
   const [view, setView] = useState<string | null>(null)
-  const [edit, setEdit] = useState<string | null>(null)
+  const [edit, setEdit] = useState<string | null>(null)   // '' = thêm loại mới
+  const [err, setErr] = useState('')
+  // Ngừng dùng / dùng lại; xoá chỉ được khi loại chưa được chương trình, bài giảng, học liệu hay lớp nào dùng
+  async function setActive(t: StemTrack, on: boolean) {
+    const { error } = await supabase.from('stem_tracks').update({ active: on }).eq('code', t.code)
+    if (error) return setErr(trackErr(error.message + ' ' + (error.code ?? '')))
+    setErr(''); reload()
+  }
+  async function remove(t: StemTrack) {
+    if (!confirm(`Xoá loại chương trình ${trackLabel(t.code)} · ${t.name}?\n\nChỉ xoá được khi chưa có chương trình, bài giảng, học liệu hay lớp nào dùng. Đã dùng thì chọn "Ngừng dùng".`)) return
+    const { data, error } = await supabase.from('stem_tracks').delete().eq('code', t.code).select('code')
+    if (error) return setErr(trackErr(error.message + ' ' + (error.code ?? '')))
+    if (!data?.length) return setErr(trackErr('row-level'))
+    setErr(''); setView(null); reload()
+  }
   const inPkgs = (t: StemTrack) => {
     const ps = packages.filter(p => has(p.id, t.code))
     if (!ps.length) return <small className="sub">Chưa có gói nào</small>
@@ -195,26 +209,33 @@ function TrackTable({ tracks, packages, has, differs, summary, admin }: {
     return differs(t.code) ? <><span>{base}</span>, <b style={{ color: 'var(--primary)' }}>mỗi gói học phần khác nhau</b></> : base
   }
   const et = edit ? tracks.find(t => t.code === edit) : undefined
+  if (edit === '') return <ElView back="Gói STEM" onBack={() => setEdit(null)} title="Thêm loại chương trình">
+    <TrackForm t={{ ...BLANK_TRACK, sort: tracks.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1 }} isNew onCancel={() => setEdit(null)} onSaved={() => { setEdit(null); reload() }} />
+  </ElView>
   if (et) return <ElView back="Gói STEM" onBack={() => setEdit(null)}
     title={<><span className="progchip" style={{ background: PROGRAM_COLOR[et.code], color: '#fff' }}>{trackLabel(et.code)}</span> Sửa loại chương trình</>}>
     <TrackForm key={et.code} t={et} onCancel={() => setEdit(null)} onSaved={() => { setEdit(null); reload() }} />
   </ElView>
   const vt = view ? tracks.find(t => t.code === view) : undefined
   return <>
-    <div className="pkgsec" style={{ marginTop: 24 }}><b>Các loại chương trình</b><small className="sub">Lấy từ Danh mục → Loại chương trình</small></div>
+    <div className="pkgsec" style={{ marginTop: 20 }}><b>Các loại chương trình</b>
+      {admin && <button type="button" onClick={() => { setErr(''); setEdit('') }}>+ Thêm loại chương trình</button>}</div>
+    {err && <p className="msg" role="status">{err}</p>}
     <div className="panel" style={{ padding: 0, overflowX: 'auto' }}>
       <table className="pkgtracks">
         <thead><tr><th>Mã</th><th>Tên chương trình</th><th>Mô tả</th><th>Hoạt động</th><th>Đối tượng</th><th>Thời lượng</th><th>Nội dung</th><th>Trong gói</th>{admin && <th aria-label="Thao tác" />}</tr></thead>
-        <tbody>{tracks.map(t => <tr key={t.code} tabIndex={0} title="Bấm để xem chi tiết" onClick={() => setView(t.code)} onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) setView(t.code) }}>
-          <td><span className="pkgc-code">{trackLabel(t.code)}</span></td>
-          <td><b>{t.name}</b></td>
+        <tbody>{tracks.map(t => <tr key={t.code} className={t.active === false ? 'trkoff' : undefined} tabIndex={0} title="Bấm để xem chi tiết" onClick={() => setView(t.code)} onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) setView(t.code) }}>
+          <td>{PROGRAM_COLOR[t.code] ? chip(t.code) : <span className="pkgc-code">{trackLabel(t.code)}</span>}</td>
+          <td><b>{t.name}</b>{t.active === false && <> <span className="pill inactive">Ngừng dùng</span></>}</td>
           <td className="clamp"><span title={t.description}>{t.description || '—'}</span></td>
           <td>{t.edu_activity ? EDU_ACTIVITY_NAME[t.edu_activity] : '—'}</td>
           <td className="clamp"><span title={t.audience}>{t.audience || '—'}</span></td>
           <td className="clamp"><span title={t.duration}>{t.duration || '—'}</span></td>
           <td>{summary(t) || '—'}</td>
           <td>{inPkgs(t)}</td>
-          {admin && <td onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}><RowMenu items={[{ label: 'Xem chi tiết', onClick: () => setView(t.code) }, { label: 'Sửa', onClick: () => setEdit(t.code) }]} label={t.name} /></td>}
+          {admin && <td onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}><RowMenu items={[{ label: 'Xem chi tiết', onClick: () => setView(t.code) }, { label: 'Sửa', onClick: () => { setErr(''); setEdit(t.code) } },
+            t.active === false ? { label: 'Dùng lại', onClick: () => setActive(t, true) } : { label: 'Ngừng dùng', onClick: () => setActive(t, false) },
+            { label: 'Xoá', danger: true, onClick: () => remove(t) }]} label={t.name} /></td>}
         </tr>)}</tbody>
       </table>
     </div>
@@ -322,7 +343,7 @@ function PackageDetail({ pkg, onEdit, others, tracks, admin, items, modules, top
       </div>
     </div>
   </>
-  // Dạng bảng: phân bổ chương trình như sheet PhanBoCT, gộp một bảng (hàng = khối theo cấp, nhóm cột = loại CT)
+  // Xem theo khối: phân bổ chương trình như sheet PhanBoCT, gộp một bảng (hàng = khối theo cấp, nhóm cột = loại CT)
   const PhanBo = () => { const ts = tracks.filter(t => !tf.length || tf.includes(t.code))
     const cols = ts.map(t => ({ t, slots: t.use_modules === false ? [0] : slotsOf(t.code, [pkg.id]), has: mine.some(i => i.track_code === t.code) }))
     const lvls = LEVELS.map(l => ({ ...l, gs: allGrades.filter(g => (l.grades as readonly number[]).includes(g)) })).filter(l => l.gs.length)
@@ -349,24 +370,17 @@ function PackageDetail({ pkg, onEdit, others, tracks, admin, items, modules, top
   }
   return <>
     <DetailHead back="Gói STEM" onBack={onBack} title={pkg.name}
-      extra={<Chip tone={pkg.active ? 'good' : ''}>{pkg.active ? 'Đang dùng' : 'Ngừng dùng'}</Chip>} />
-    <div className="bar"><small className="sub">{pkg.description || 'Chưa có mô tả.'}</small>
-      {acts.length > 0 && <div className="tools"><ActionBar items={acts} /></div>}</div>
+      extra={<><Chip tone={pkg.active ? 'good' : ''}>{pkg.active ? 'Đang dùng' : 'Ngừng dùng'}</Chip>
+        <small className="sub pkgdesc">{pkg.description || 'Chưa có mô tả.'}</small></>}
+      actions={acts.length > 0 && <div className="tools"><ActionBar items={acts} /></div>} />
     {msg && <p className="msg" role="status">{msg}</p>}
-    <div className="pkgkpi">
-      {tracks.map(t => { const x = mine.filter(i => i.track_code === t.code); const on = tf.length === 1 && tf[0] === t.code
-        return <div key={t.code} role="button" tabIndex={0} className={'kpibtn' + (on ? ' on' : '')} title="Bấm để chỉ xem loại này"
-          onClick={() => { setSel(null); setEdit(false); setCode(''); setTf(on ? [] : [t.code]) }} style={{ '--k': PROGRAM_COLOR[t.code] ?? 'var(--line)', borderTop: `3px solid ${PROGRAM_COLOR[t.code] ?? 'var(--line)'}` } as React.CSSProperties}>
-          <span className="ic" style={{ fontSize: 12, fontWeight: 700 }}>{trackLabel(t.code)}</span>
-          <div><span>{t.name}</span><small>{t.use_modules === false ? '' : new Set(x.map(i => i.module_id)).size + ' học phần · '}{nTopics(x)} chủ đề</small></div></div> })}
-    </div>
     {!edit && React.isValidElement(filter) ? React.cloneElement(filter as React.ReactElement<{ extra?: React.ReactNode }>, { extra: <span style={{ display: 'inline-flex', gap: 14, alignItems: 'center' }}>
       <span className="lvgrp"><span className="lvlab">Loại CT</span><ColFilter pin label={tf.length ? tf.map(trackLabel).join(', ') : 'Tất cả'} value={tracks.filter(t => tf.includes(t.code)).map(tl)}
         options={tracks.map(t => [tl(t), nTopics(mine.filter(i => i.track_code === t.code))] as [string, number])}
         onChange={v => { setSel(null); setTf(tracks.filter(t => v.includes(tl(t))).map(t => t.code)) }} /></span>
       <div className="seg frmode" role="group" aria-label="Kiểu xem">
         <button type="button" className={pv === 'grid' ? 'on' : ''} aria-pressed={pv === 'grid'} onClick={() => setPv('grid')}>▦ Tổng quan</button>
-        <button type="button" className={pv === 'table' ? 'on' : ''} aria-pressed={pv === 'table'} onClick={() => setPv('table')}>☰ Dạng bảng</button></div>
+        <button type="button" className={pv === 'table' ? 'on' : ''} aria-pressed={pv === 'table'} onClick={() => setPv('table')}>☰ Xem theo khối</button></div>
       </span> }) : filter}
     {track && edit
       ? <TrackGrid pkg={pkg} track={track} admin={admin} items={items} modules={modules.filter(m => m.track_code === track.code)} topics={topics}
@@ -528,7 +542,7 @@ function LevelFilter({ lvs, grade, onLevels, onGrade, extra, hint = true }: { lv
   return <div className="lvfilter">
     <Seg label="Cấp học" items={[['', 'Tất cả'], ...LEVELS.map(l => [l.k, l.name] as [string, string])]} on={v => v ? lvs.includes(v) : !lvs.length} onPick={v => v ? toggle(v) : onLevels([])} />
     {sel.length > 0 && <Seg label="Khối" items={[[null, 'Tất cả'], ...sel.flatMap(l => [...l.grades]).map(g => [g, String(g)] as [number, string])]} on={v => v === grade} onPick={onGrade} />}
-    {hint && <small className="sub">{lvs.length ? `Đang xem ${grade ? 'khối ' + grade : sel.map(l => l.name).join(' + ')}` : 'Trường liên cấp: chọn nhiều cấp'}</small>}
+    {hint && lvs.length > 0 && <small className="sub">{lvs.length ? `Đang xem ${grade ? 'khối ' + grade : sel.map(l => l.name).join(' + ')}` : ''}</small>}
     {extra && <div className="lvextra">{extra}</div>}
   </div>
 }

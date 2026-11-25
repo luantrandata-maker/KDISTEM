@@ -194,7 +194,7 @@ export function ProgramPackages() {
       </div>
       {cur && <PackageDetail key={cur.id} pkg={cur} color={pkgColor(cur, curK)} others={packages.filter(p => p.id !== cur.id)} tracks={active} admin={admin} items={items} modules={modules} topics={topics} msg={msg} setMsg={setMsg}
         slotsOf={slotsOf} topicsOfItem={topicsOfItem} menu={admin ? pkgMenu(cur) : []}
-        onChanged={reload} onLevel={k => { setLvs([k]); setFGrade(null) }} inGrades={selGrades} levelFilter={<LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false} />} onEdit={tab => setEditPkg({ ...cur, tab })} />}
+        onChanged={reload} onLevel={k => { setLvs([k]); setFGrade(null) }} inGrades={selGrades} levelFilter={<LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false} bare />} onEdit={tab => setEditPkg({ ...cur, tab })} />}
     </>}
     {trackOpen && <TrackTable onClose={() => setTrackOpen(false)} tracks={[...active, ...tracks.filter(t => t.active === false)]} packages={live} has={(pkg, t) => items.some(i => i.package_id === pkg && i.track_code === t)}
       differs={t => [...diffKeys].some(k => k.startsWith(t + '|'))} summary={t => {
@@ -398,8 +398,7 @@ function PackageDetail({ pkg, color, onEdit, others, tracks, admin, items, modul
   return <>
     <section className="pkgdet" style={{ '--c': color } as React.CSSProperties} aria-label={'Chi tiết ' + pkg.name}>
     <div className="pkgdet-h">
-      <h3>{pkg.name}</h3><Chip tone={pkg.active ? 'good' : ''}>{pkg.active ? 'Đang dùng' : 'Ngừng dùng'}</Chip>
-      <small className="sub pkgdesc" title={[pkg.description, pkg.card_tagline].filter(x => x?.trim()).join(" · ")}>{[pkg.description, pkg.card_tagline].filter(x => x?.trim()).join(' · ') || 'Chưa có mô tả.'}</small>
+      <h3>{pkg.name}</h3><span style={{ flex: 1 }} />
       {!edit && <span className="pkgdet-lv">{levelFilter}</span>}
       {!edit && !empty && <span className="pkgdet-tools">
         <span className="lvgrp"><span className="lvlab">Loại CT</span><ColFilter pin label={tf.length ? tf.map(trackLabel).join(', ') : 'Tất cả'} value={tracks.filter(t => tf.includes(t.code)).map(tl)}
@@ -566,11 +565,11 @@ function Seg<T extends string | number | null>({ label, items, on, onPick }: { l
     <div className="seg" role="group" aria-label={label}>{items.map(([v, t]) =>
       <button key={String(v)} type="button" className={on(v) ? 'on' : ''} aria-pressed={on(v)} onClick={() => onPick(v)}>{t}</button>)}</div></div>
 }
-function LevelFilter({ lvs, grade, onLevels, onGrade, extra, hint = true }: { lvs: string[]; grade: number | null; onLevels: (v: string[]) => void; onGrade: (g: number | null) => void; extra?: React.ReactNode; hint?: boolean }) {
+function LevelFilter({ lvs, grade, onLevels, onGrade, extra, hint = true, bare = false }: { lvs: string[]; grade: number | null; onLevels: (v: string[]) => void; onGrade: (g: number | null) => void; extra?: React.ReactNode; hint?: boolean; bare?: boolean }) {
   const sel = LEVELS.filter(l => lvs.includes(l.k))
   const toggle = (k: string) => onLevels(lvs.includes(k) ? lvs.filter(x => x !== k) : LEVELS.filter(l => [...lvs, k].includes(l.k)).map(l => l.k))
   return <div className="lvfilter">
-    <Seg label="Cấp học" items={[['', 'Tất cả'], ...LEVELS.map(l => [l.k, l.name] as [string, string])]} on={v => v ? lvs.includes(v) : !lvs.length} onPick={v => v ? toggle(v) : onLevels([])} />
+    <Seg label={bare ? '' : 'Cấp học'} items={[['', 'Tất cả'], ...LEVELS.map(l => [l.k, l.name] as [string, string])]} on={v => v ? lvs.includes(v) : !lvs.length} onPick={v => v ? toggle(v) : onLevels([])} />
     {sel.length > 0 && <Seg label="Khối" items={[[null, 'Tất cả'], ...sel.flatMap(l => [...l.grades]).map(g => [g, String(g)] as [number, string])]} on={v => v === grade} onPick={onGrade} />}
     {hint && lvs.length > 0 && <small className="sub">{lvs.length ? `Đang xem ${grade ? 'khối ' + grade : sel.map(l => l.name).join(' + ')}` : ''}</small>}
     {extra && <div className="lvextra">{extra}</div>}

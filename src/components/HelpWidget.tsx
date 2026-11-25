@@ -19,6 +19,9 @@ type Brand = { name?: string | null; support?: string | null }
 const withBrand = (f: Faq, b?: Brand): Faq => (f.id === 'contact' && b?.support ? { ...f, a: f.a + '\n\n**Thông tin hỗ trợ của đơn vị:** ' + b.support } : f)
 export default function HelpWidget({ role, page, menu, go, brand }: { role: RoleKey; page: string; menu: string[]; go?: (p: string) => void; brand?: Brand }) {
   const [open, setOpen] = useState(false)
+  // Ẩn nút Trợ giúp khi nó che nội dung: thu thành thẻ nhỏ sát mép phải, nhớ trên máy
+  const [mini, setMini] = useState(() => { try { return localStorage.getItem('help.mini') === '1' } catch { return false } })
+  const setMiniSave = (v: boolean) => { setMini(v); try { localStorage.setItem('help.mini', v ? '1' : '0') } catch { /* bỏ qua */ } }
   const [tab, setTab] = useState<Tab>('chat')
   const [draft, setDraft] = useState<{ subject: string; description: string } | null>(null)
   const [focus, setFocus] = useState<string | null>(null)
@@ -69,12 +72,16 @@ export default function HelpWidget({ role, page, menu, go, brand }: { role: Role
             : <Tickets role={role} page={page} draft={draft} clearDraft={() => setDraft(null)} go={go} focus={focus} unread={unread} markRead={markRead} />}
         </div>
       </div>}
+      {mini && !open ? <button type="button" className="helptab" onClick={() => setMiniSave(false)} title="Hiện nút Trợ giúp" aria-label="Hiện nút Trợ giúp">
+        {unreadCount > 0 && <span className="fabcount" aria-hidden="true">{unreadCount > 9 ? '9+' : unreadCount}</span>}?</button> : <>
       <button className={'helpfab' + (open ? ' on' : '')} onClick={() => { if (!open && unreadCount) setTab('ticket'); setOpen(!open) }} aria-expanded={open}
         aria-label={open ? 'Đóng trợ giúp' : unreadCount ? `Mở trợ giúp — ${unreadCount} phản hồi mới từ KDI` : 'Mở trợ giúp'}>
         {!open && unreadCount > 0 && <span className="fabcount" aria-hidden="true">{unreadCount > 9 ? '9+' : unreadCount}</span>}
         {open ? <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg>
           : <><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" /><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.2M12 16.5h.01" /></svg><span>Trợ giúp</span></>}
       </button>
+      {!open && <button type="button" className="helphide" onClick={() => setMiniSave(true)} title="Ẩn nút Trợ giúp" aria-label="Ẩn nút Trợ giúp">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14" /></svg></button>}</>}
     </>
   )
 }

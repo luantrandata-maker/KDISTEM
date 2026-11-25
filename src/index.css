@@ -4128,3 +4128,14 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .cmpk2 thead th:nth-child(1){width:230px}.cmpk2 thead th:nth-child(2){width:100px}.cmpk2 thead th:nth-child(3){width:80px}
 .main .cmptbl.cmpk2 thead th:nth-child(-n+3){text-align:left}
 .main .cmpk2 td.k2k,.main .cmpk2 td.k2p,.main .cmpk2 td.k2t{text-align:left}
+.pkfacts{display:inline-flex;gap:8px}
+/* Ẩn / hiện nút Trợ giúp: nút "–" nhỏ trên góc nút; khi ẩn còn thẻ "?" sát mép phải */
+.helphide{position:fixed;right:16px;bottom:62px;z-index:61;width:22px;height:22px;padding:0;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--muted);display:grid;place-items:center;cursor:pointer;opacity:0;transition:opacity .15s;box-shadow:0 2px 6px rgba(15,23,42,.18)}
+.helpfab:hover~.helphide,.helphide:hover,.helphide:focus-visible,.helpfab:focus-visible~.helphide{opacity:1}
+.helphide:hover{color:var(--ink,#0f172a)}
+.helptab{position:fixed;right:0;bottom:90px;z-index:60;width:28px;height:40px;padding:0;border:0;border-radius:10px 0 0 10px;background:var(--navy);color:#fff;font:inherit;font-weight:700;font-size:16px;cursor:pointer;opacity:.75;box-shadow:0 4px 12px rgba(21,46,93,.3)}
+.helptab:hover,.helptab:focus-visible{opacity:1;width:34px}
+.helptab .fabcount{position:absolute;top:-6px;left:-6px}
+.content:has(.offlinebar) .helphide{bottom:104px}
+@media print{.helphide,.helptab{display:none}}
+@media (hover:none){.helphide{opacity:1}}

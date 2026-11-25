@@ -82,7 +82,6 @@ export function ProgramPackages() {
   const sel = lvs.length ? LEVELS.filter(l => lvs.includes(l.k)) : [...LEVELS]
   const selGrades: number[] = fGrade ? [fGrade] : sel.flatMap(l => [...l.grades])
   const fName = fGrade ? gradeName(fGrade) : lvs.length ? sel.map(l => l.name).join(' + ') : 'Cả 12 khối'
-  const filterBar = <LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} />
   const [editPkg, setEditPkg] = useState<(ProgramPackage & { copyFrom?: string; tab?: string }) | null>(null)
   const reload = () => Promise.all([loadPackages(), loadFrame()]).then(([p, f]) => {
     setPackages(p.packages); setItems(p.items); setSkips(p.skips); setModules(f.modules); setTopics(f.topics); setMsg(p.error || f.error)
@@ -184,7 +183,7 @@ export function ProgramPackages() {
       {admin && <button type="button" className="primary ttadd" onClick={() => setEditPkg({ id: '', code: '', name: '', description: '', sort: packages.reduce((x, p) => Math.max(x, p.sort), 0) + 1, active: true })}>+ Thêm gói</button>}
     </HeadAction>
     {msg && !cur && <p className="msg" role="status">{msg}</p>}
-    {!cur && filterBar}
+    {/* Lọc cấp học / khối chỉ nằm trong khung chi tiết gói */}
     {!n ? <p className="sub">Chưa có gói STEM.</p> : <>
       <div className="pkgcards">
         {packages.map((p, k) => { const c = pkgColor(p, k)

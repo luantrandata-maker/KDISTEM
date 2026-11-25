@@ -41,7 +41,7 @@ export function ProgramPackages() {
   const [msg, setMsg] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   const [compare, setCompare] = useState(false)
-  const [by, setBy] = useState<'grade' | 'mod'>('grade')   // So sánh: xem theo khối (mặc định) hoặc theo học phần
+  const [by, setBy] = useState<'grade' | 'mod'>('mod')   // So sánh: xem theo học phần (mặc định) hoặc theo khối
   // Lọc theo cấp / khối, dùng chung cho Tổng quan gói và So sánh (tư vấn cho từng trường, trường liên cấp chọn nhiều cấp)
   const [lvs, setLvs] = useState<string[]>([])
   const [fGrade, setFGrade] = useState<number | null>(null)
@@ -568,36 +568,24 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
     const rows = mods.map(m => ({ m, d: !packages.every(p => has(p.id, m) === has(packages[0].id, m)) }))
     return { t, rows: only ? rows.filter(r => r.d) : rows }
   }).filter(x => x.rows.length)
-  // Theo khối: mỗi khối một dòng. Loại CT giống nhau ở mọi gói gom vào nhóm cột "Chung cả N gói";
-  // loại khác nhau nằm trong từng gói. Loại chia học phần có cột Học phần 1, 2…; loại chỉ có chủ đề ghi số chủ đề.
+  // Theo khối (giống So sánh trường): nhóm theo loại CT, trong mỗi loại là các khối, mỗi phần (chủ đề / HP1, HP2…) một hàng; mỗi gói một cột.
+  // Hàng cả các gói giống nhau: chữ xám; ô khác gói đầu: tô vàng.
   const modAt = (p: string, t: string, g: number, s: number) => its.find(i => i.package_id === p && i.track_code === t && i.grade === g && i.slot === s)?.module_id ?? ''
   const nTopics = (p: string, t: string, g: number) => { const ms = new Set(its.filter(i => i.package_id === p && i.track_code === t && i.grade === g).map(i => i.module_id))
     if (!ms.size) return -1
     return topics.filter(x => ms.has(x.module_id) && x.grade === g && x.active !== false && !skips.some(s => s.package_id === p && s.topic_id === x.id)).length }
-  const cols = tracks.map(t => {
+  const groups = tracks.map(t => {
     const mine = its.filter(i => i.track_code === t.code)
-    const slots = t.use_modules === false ? [0] : Array.from({ length: Math.max(2, ...mine.map(i => i.slot)) }, (_, j) => j + 1)
     const val = (p: string, g: number, s: number) => s ? modAt(p, t.code, g, s) : String(nTopics(p, t.code, g))
-    const diffAt = (g: number) => slots.some(s => packages.some(p => val(p.id, g, s) !== val(packages[0].id, g, s)))
-    return { t, slots, val, diffAt, used: mine.length > 0, common: packages.length > 1 && !grades.some(diffAt) }
-  }).filter(c => c.used)
-    // Loại chỉ có chủ đề (cột số, như KDI1, KDI4) đứng trước, rồi tới loại chia học phần
-    .sort((a, b) => Number(a.t.use_modules !== false) - Number(b.t.use_modules !== false))
-  const common = cols.filter(c => c.common && !only)
-  const diff = cols.filter(c => !c.common)
-  const rowGrades = grades.filter(g => cols.some(c => c.slots.some(s => packages.some(p => c.val(p.id, g, s) !== '' && c.val(p.id, g, s) !== '-1'))))
-    .filter(g => !only || diff.some(c => c.diffAt(g)))
-  const width = (cs: typeof cols) => cs.reduce((x, c) => x + c.slots.length, 0)
-  const nCols = 1 + width(common) + width(diff) * packages.length
-  const cellTxt = (c: (typeof cols)[number], p: string, g: number, s: number) => {
-    const v = c.val(p, g, s)
-    return s ? (v ? modName(v) : <span className="sub">—</span>) : v === '-1' ? <span className="sub">—</span> : v
-  }
-  const head2 = (c: (typeof cols)[number], key: string, style?: React.CSSProperties) => c.slots[0] === 0
-    ? <th key={key} rowSpan={2} className="cmpkt cmpnum" style={style}>{chip(c.t.code)}<span>{c.t.name}</span></th>
-    : <th key={key} colSpan={c.slots.length} className="cmpkt" style={style}>{chip(c.t.code)} <span>{c.t.name}</span></th>
-  const head3 = (c: (typeof cols)[number], key: string, style?: React.CSSProperties) => c.slots[0] === 0 ? [] : c.slots.map(s => <th key={key + s} className="cmphp3" style={style}>Học phần {s}</th>)
-  const levelOf = (g: number) => LEVELS.find(l => (l.grades as readonly number[]).includes(g))
+    const gs = grades.filter(g => mine.some(i => i.grade === g)).map(g => {
+      const slots = t.use_modules === false ? [0] : [...new Set(mine.filter(i => i.grade === g).map(i => i.slot))].sort((x, y) => x - y)
+      const rows = slots.map(s => { const vs = packages.map(p => val(p.id, g, s)); return { s, vs, same: vs.every(v => v === vs[0]) } })
+        .filter(r => !only || !r.same)
+      return { g, rows }
+    }).filter(x => x.rows.length)
+    return { t, gs, n: gs.reduce((x, y) => x + y.rows.length, 0) }
+  }).filter(x => x.n)
+  const cellTxt = (v: string, s: number) => s ? (v ? modName(v) : <span className="sub">—</span>) : v === '-1' ? <span className="sub">—</span> : `${v} chủ đề`
   // In: chỉ in bảng so sánh (trang có quy tắc in riêng cho giấy chứng nhận ẩn mọi thứ khác)
   const printCmp = () => { document.body.classList.add('cmpprinting'); window.print(); setTimeout(() => document.body.classList.remove('cmpprinting'), 500) }
   return <>
@@ -619,32 +607,18 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
             {packages.map((p, k) => <td key={p.id} style={pkgTd(ck(k))}>{has(p.id, m) ? 'Có' : <span className="sub">—</span>}</td>)}</tr>)}
         </tbody>)}
       </table>
-      : !rowGrades.length ? <p className="sub">{only ? 'Các gói đang chọn giống nhau ở các khối này.' : 'Chưa có học phần nào ở các khối này.'}</p>
-      : <table className="table cmptbl cmpk">
-        <thead>
-          <tr><th rowSpan={3} className="cmpkg">Khối</th>
-            {common.length > 0 && <th colSpan={width(common)} className="cmpcom cmpend">Chung cả {packages.length} gói</th>}
-            {diff.map(c => <th key={c.t.code} colSpan={c.slots.length * packages.length} className="cmpkt cmptop cmpend">{chip(c.t.code)} <span>{c.t.name}</span>
-              <small>khác nhau giữa các gói</small></th>)}</tr>
-          <tr>{common.map(c => head2(c, 'c' + c.t.code))}
-            {diff.flatMap(c => packages.map((p, k) => <th key={c.t.code + p.id} colSpan={c.slots.length} rowSpan={c.slots[0] === 0 ? 2 : 1}
-              className={'pkgth cmpend' + (c.slots[0] === 0 ? ' cmpnum' : '')} style={pkgTh(ck(k))} title={p.description || undefined}>{p.name}</th>))}</tr>
-          <tr>{common.flatMap(c => head3(c, 'c' + c.t.code))}
-            {diff.flatMap(c => packages.flatMap((p, k) => head3(c, c.t.code + p.id, pkgTd(ck(k)))))}</tr>
-        </thead>
-        <tbody>{rowGrades.flatMap((g, i) => {
-          const lv = levelOf(g), first = !i || levelOf(rowGrades[i - 1]) !== lv
-          return [first && lv ? <tr key={'lv' + g} className="cmplv"><td colSpan={nCols}>{lv.name}</td></tr> : null,
-            <tr key={g}><td className="cmpkg">{gradeName(g)}</td>
-              {common.flatMap(c => c.slots.map(s => <td key={c.t.code + s} className={'cmpcom' + (s ? ' cmpname' : ' cmpnum')}>{cellTxt(c, packages[0].id, g, s)}</td>))}
-              {diff.flatMap(c => packages.flatMap((p, k) => c.slots.map((s, si) => <td key={c.t.code + p.id + s} style={pkgTd(ck(k))}
-                className={(s ? 'cmpname' : 'cmpnum') + (si === 0 ? ' cmpstart' : '')}>{cellTxt(c, p.id, g, s)}</td>)))}
-            </tr>]
-        })}</tbody>
+      : !groups.length ? <p className="sub">{only ? 'Các gói đang chọn giống nhau ở các khối này.' : 'Chưa có học phần nào ở các khối này.'}</p>
+      : <table className="table cmptbl cmpk2">
+        <thead><tr><th>Loại CT</th><th>Khối</th><th>Phần</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(ck(k))} title={p.description || undefined}>{p.name}</th>)}</tr></thead>
+        {groups.map(({ t, gs, n }) => <tbody key={t.code}>{gs.flatMap(({ g, rows }, gi) => rows.map((r, ri) => <tr key={g + '-' + r.s} className={(r.same ? 'same' : '') + (ri === 0 && gi > 0 ? ' k2g' : '')}>
+          {gi === 0 && ri === 0 && <td rowSpan={n} className="k2t">{chip(t.code)}<b>{t.name}</b></td>}
+          {ri === 0 && <td rowSpan={rows.length} className="k2k">{gradeName(g)}</td>}
+          <td className="k2p">{r.s ? 'HP' + r.s : 'Chủ đề'}</td>
+          {r.vs.map((v, k) => <td key={k} className={'k2v' + (!r.same && v !== r.vs[0] ? ' k2d' : '')}>{cellTxt(v, r.s)}</td>)}
+        </tr>))}</tbody>)}
       </table>}
     </FitScreen>
-    {by === 'grade' && rowGrades.length > 0 && <p className="sub framefoot cmplegend"><b>Loại chương trình:</b> {[...common, ...diff].map(c => <span key={c.t.code}>{chip(c.t.code)} {c.t.name}</span>)}
-      <span className="cmpnote">{common.length ? `"Chung cả ${packages.length} gói" là loại chương trình giống nhau ở mọi gói. ` : ''}Loại chia học phần ghi tên học phần, loại chỉ có chủ đề ghi số chủ đề.</span></p>}
+    {by === 'grade' && groups.length > 0 && <p className="sub framefoot cmplegend"><span className="cmpnote"><span className="k2sw" /> Khác {packages[0]?.name}. Chữ xám: các gói giống nhau.</span></p>}
     </div>
   </>
 }

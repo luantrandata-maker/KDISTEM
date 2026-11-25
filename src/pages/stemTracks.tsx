@@ -145,7 +145,7 @@ export function StemTracksCatalog() {
   )
 }
 
-function TrackForm({ t, isNew = false, onCancel, onSaved }: { t: StemTrack; isNew?: boolean; onCancel: () => void; onSaved: () => void }) {
+export function TrackForm({ t, isNew = false, onCancel, onSaved }: { t: StemTrack; isNew?: boolean; onCancel: () => void; onSaved: () => void }) {
   const [f, setF] = useState<StemTrack>({ ...t, subjects: [...t.subjects], levels: [...t.levels] })
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')

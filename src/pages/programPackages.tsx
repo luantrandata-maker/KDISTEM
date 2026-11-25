@@ -179,7 +179,6 @@ export function ProgramPackages() {
   return <>
     <HeadAction>
       <button type="button" onClick={() => setTrackOpen(true)}>☰ Các loại chương trình</button>
-      <button type="button" onClick={() => setCompare(true)} disabled={live.length < 2}>So sánh các gói</button>
       {admin && <button type="button" className="primary ttadd" onClick={() => setEditPkg({ id: '', code: '', name: '', description: '', sort: packages.reduce((x, p) => Math.max(x, p.sort), 0) + 1, active: true })}>+ Thêm gói</button>}
     </HeadAction>
     {msg && !cur && <p className="msg" role="status">{msg}</p>}
@@ -196,7 +195,7 @@ export function ProgramPackages() {
         onChanged={reload} onLevel={k => { setLvs([k]); setFGrade(null) }} inGrades={selGrades} levelFilter={<LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false} bare />} onEdit={tab => setEditPkg({ ...cur, tab })} />}
       {/* Chưa chọn gói: hiện sẵn bảng so sánh các gói cho phần dưới không trống */}
       {!cur && live.length > 1 && <section className="pkgdet" style={{ '--c': 'var(--primary)' } as React.CSSProperties} aria-label="So sánh nhanh các gói">
-        <div className="pkgdet-h"><h3>So sánh nhanh các gói</h3><small className="sub">Bấm vào một gói ở trên để xem chi tiết gói đó</small></div>
+        <div className="pkgdet-h"><h3>So sánh các gói</h3><small className="sub">Bấm vào một gói ở trên để xem chi tiết gói đó</small><span style={{ flex: 1 }} /><button type="button" onClick={() => setCompare(true)}>⤢ Xem toàn trang</button></div>
         <CompareView tracks={active} packages={live} items={items} topics={topics} skips={skips} modName={modName} grades={selGrades} levels={fGrade ? [] : sel} name={fName} by={by}
           filter={extra => <LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false}
             extra={<>{extra}<Seg label="" items={[['grade', 'Khối'], ['mod', 'Học phần']] as ['grade' | 'mod', string][]} on={v => v === by} onPick={setBy} /></>} />} />

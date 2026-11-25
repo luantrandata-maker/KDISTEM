@@ -42,7 +42,7 @@ function PkgCard({ p, color, auto, selected, onOpen, menu }: {
   const card = hasCard(p)
   return <div className={'pkgc' + (selected ? ' on' : '') + (onOpen ? '' : ' still')} style={{ '--c': color } as React.CSSProperties}
     role={onOpen ? 'button' : undefined} tabIndex={onOpen ? 0 : undefined} aria-pressed={onOpen ? !!selected : undefined}
-    title={onOpen ? (selected ? 'Bấm để ẩn chi tiết gói' : 'Bấm để xem chi tiết gói ở bên dưới') : undefined}
+    title={onOpen ? (selected ? 'Đang xem chi tiết gói này ở bên dưới' : 'Bấm để xem chi tiết gói ở bên dưới') : undefined}
     onClick={onOpen} onKeyDown={e => { if (onOpen && e.key === 'Enter' && e.target === e.currentTarget) onOpen() }}>
     <div className="pkgc-head" style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${color} 82%, #000), ${color})` }}>
       <div className="bar" style={{ margin: 0, gap: 6 }}><b className="pkgc-name">{p.name || 'Gói mới'}</b>
@@ -113,7 +113,7 @@ export function ProgramPackages() {
     setOpenId(null); setMsg(''); reload()
   }
 
-  // Gói đang xem chi tiết ở dưới thẻ: mặc định gói đầu tiên; bấm lại thẻ đang xem để ẩn ('' = không xem gói nào)
+  // Gói đang xem chi tiết ở dưới thẻ: mặc định gói đầu tiên; luôn có một gói đang xem để phần dưới không trống
   const curId = openId === null ? (live[0] ?? packages[0])?.id : openId
   const cur = curId ? packages.find(p => p.id === curId) : undefined
   const topicsOfItem = (i: PackageItem) => slotTopics(topics, items, i)
@@ -139,7 +139,7 @@ export function ProgramPackages() {
   }
   const perGrade = (list: ProgramTopic[]) => { const g = new Set(list.map(t => t.grade)); return g.size ? Math.round(list.length / g.size) : 0 }
   const ctick = (bg: string, fg: string) => <span className="pkgtick" style={{ background: bg, color: fg }} aria-hidden="true">✓</span>
-  const openPkg = (id: string) => { setMsg(''); setOpenId(curId === id ? '' : id) }
+  const openPkg = (id: string) => { setMsg(''); setOpenId(id) }
   // Thẻ gói chưa được KDI soạn: hiện nội dung tự động như trước (phần chung, điểm riêng của gói)
   const autoBody = (p: ProgramPackage, c: string) => {
     const diff = diffTracks(p.id)
@@ -298,6 +298,7 @@ function PackageDetail({ pkg, color, onEdit, others, tracks, admin, items, modul
   const [flatPick, setFlatPick] = useState<StemTrack | null>(null)   // chọn khối cho loại chỉ có chủ đề (KDI1, KDI4)
   const [copySrc, setCopySrc] = useState('')
   const [tf, setTf] = useState<string[]>([])   // lọc loại CT ở Tổng quan (rỗng = tất cả)
+  const [infoT, setInfoT] = useState<StemTrack | null>(null)   // bấm tên loại CT: xem thông tin loại và nội dung loại đó trong gói
   const tl = (t: StemTrack) => `${trackLabel(t.code)} · ${t.name}`
   const [pv, setPvS] = useState<'grid' | 'table'>(() => { try { return localStorage.getItem('pkg-view') === 'table' ? 'table' : 'grid' } catch { return 'grid' } })
   const setPv = (v: 'grid' | 'table') => { setSel(null); setGsel(null); setPvS(v); try { localStorage.setItem('pkg-view', v) } catch { /* bỏ qua */ } }
@@ -349,12 +350,12 @@ function PackageDetail({ pkg, color, onEdit, others, tracks, admin, items, modul
           const slots = t.use_modules === false ? [0] : slotsOf(t.code, [pkg.id])
           // Loại CT chưa có trong gói: một ô trải hết các khối, có nút thêm ngay tại đây
           if (!mine.some(i => i.track_code === t.code)) return [
-            <div key={t.code} className={'lb grp' + band} style={{ boxShadow: `inset 4px 0 0 ${c}` }}>{chip(t.code)}<b>{t.name}</b></div>,
+            <div key={t.code} className={'lb grp lbclick' + band} role="button" tabIndex={0} title={`Xem chi tiết ${trackLabel(t.code)}`} onClick={() => { setSel(null); setInfoT(t) }} onKeyDown={e => { if (e.key === 'Enter') setInfoT(t) }} style={{ boxShadow: `inset 4px 0 0 ${c}` }}>{chip(t.code)}<b>{t.name}</b></div>,
             <div key={t.code + '-none'} className={'hpl grp' + band} style={{ gridColumn: `span ${allGrades.length + 1}`, display: 'flex', alignItems: 'center', gap: 10 }}>
               <span className="sub">Chưa có trong gói{inGrades.length < 12 ? ' (ở khối đang lọc)' : ''}</span>
               {admin && <button type="button" onClick={() => addTrack(t)}>+ Thêm vào gói</button>}</div>]
           return [
-          <div key={t.code} className={'lb grp' + band} style={{ boxShadow: `inset 4px 0 0 ${c}`, gridRow: `span ${slots.length || 1}` }}>
+          <div key={t.code} className={'lb grp lbclick' + band} role="button" tabIndex={0} title={`Xem chi tiết ${trackLabel(t.code)}`} onClick={() => { setSel(null); setInfoT(t) }} onKeyDown={e => { if (e.key === 'Enter') setInfoT(t) }} style={{ boxShadow: `inset 4px 0 0 ${c}`, gridRow: `span ${slots.length || 1}` }}>
             {chip(t.code)}<b>{t.name}</b></div>,
           ...slots.flatMap(sl => [<div key={t.code + sl + '-hp'} className={'hpl' + band + (sl === slots[0] ? ' grp' : '')}>{sl === 0 ? 'Chủ đề' : 'HP' + sl}</div>, ...allGrades.map(g => {
             const list = mine.filter(i => i.track_code === t.code && i.grade === g && (sl === 0 || i.slot === sl))
@@ -440,6 +441,26 @@ function PackageDetail({ pkg, color, onEdit, others, tracks, admin, items, modul
                 {list.length ? <table className="table slt ttdense"><thead><tr><th className="c-no">TT</th><th>Chủ đề</th><th style={{ width: 70 }}>Số tiết</th></tr></thead>
                   <tbody>{list.map((x, k) => <tr key={x.id} className="clickrow" onClick={() => setOpenTopic(x)}><td>{k + 1}</td><td><b>{x.title}</b></td><td>{x.periods}</td></tr>)}</tbody></table>
                   : <p className="sub">Chưa có chủ đề.</p>}</div> })}</div>)}</>}
+      </Drawer> })()}
+    {infoT && (() => { const ti = mine.filter(i => i.track_code === infoT.code); const gs = [...new Set(ti.map(i => i.grade))].sort((a, b) => a - b)
+      const flatT = infoT.use_modules === false
+      return <Drawer closeOnOutside onClose={() => setInfoT(null)} title={<>{chip(infoT.code)} {infoT.title || infoT.name}</>}>
+        <p style={{ marginTop: 0 }}>{infoT.description || 'Chưa có mô tả.'}</p>
+        <dl className="kv">
+          <dt>Hình thức</dt><dd>{infoT.form || '—'}</dd>
+          <dt>Hoạt động giáo dục</dt><dd>{infoT.edu_activity ? EDU_ACTIVITY_NAME[infoT.edu_activity] : '—'}</dd>
+          <dt>Giáo viên dạy</dt><dd>{infoT.teachers || '—'}</dd>
+          <dt>Đối tượng học sinh</dt><dd>{infoT.audience || '—'}</dd>
+          <dt>Thời lượng</dt><dd>{infoT.duration || '—'}</dd>
+        </dl>
+        <h4 className="pnhead" style={{ margin: '16px 0 6px' }}>Trong {pkg.name} <small className="sub" style={{ fontWeight: 400 }}>· {gs.length ? fmtGrades(gs) : 'chưa có khối nào'} · bấm một khối để xem chủ đề</small></h4>
+        {gs.length > 0 && <table className="table slt ttdense" style={{ width: '100%' }}><thead><tr><th style={{ width: 90, whiteSpace: 'nowrap' }}>Khối</th>
+          {flatT ? <th>Số chủ đề</th> : <><th>Học phần 1</th><th>Học phần 2</th></>}<th style={{ width: 80 }}>Số tiết</th></tr></thead>
+          <tbody>{gs.map(g => { const its = ti.filter(i => i.grade === g).sort((a, b) => a.slot - b.slot); const tl = its.flatMap(i => topicsOfItem(i))
+            return <tr key={g} className="clickrow" onClick={() => { setInfoT(null); setSel({ t: infoT.code, g, sl: 0 }) }}><td style={{ whiteSpace: 'nowrap' }}><b>{gradeName(g)}</b></td>
+              {flatT ? <td>{tl.length} chủ đề</td> : [1, 2].map(sl => <td key={sl}>{mod(its.find(i => i.slot === sl)?.module_id ?? '')?.name ?? <span className="sub">—</span>}</td>)}
+              <td>{tl.reduce((x, t) => x + (t.periods || 0), 0) || '—'}</td></tr> })}</tbody></table>}
+        {infoT.notes && <><h5 style={{ margin: '14px 0 4px' }}>Ghi chú, căn cứ</h5><p style={{ margin: 0, whiteSpace: 'pre-line' }}>{infoT.notes}</p></>}
       </Drawer> })()}
     {flatPick && <Drawer onClose={() => setFlatPick(null)} title={<>{chip(flatPick.code)} {flatPick.name} · chọn khối</>}>
       <FlatGrades pkg={pkg} track={flatPick} items={items} modules={modules} topics={topics} onChanged={onChanged} onErr={setMsg} />

@@ -7,6 +7,7 @@ import { loadFrame, loadPackages, slotTopics, type PackageItem, type ProgramModu
 import { ALL_GRADES, currentYear, fmtDay, gradesOfLevel, kRange, loadSchoolPkgs, shiftYear, spErr, spState, todayIso, yearLabel, type PkgSkip, type SchoolPkgRow } from '../lib/schoolPackages'
 import { ColFilter, DataTable } from '../components/DataTable'
 import { ElView } from '../components/ElView'
+import { HeadAction } from '../components/PageFrame'
 import { Drawer } from '../components/Drawer'
 import { MultiSelect } from '../components/MultiSelect'
 import { FitScreen } from '../components/FitScreen'
@@ -128,7 +129,7 @@ export function SchoolPackages() {
   const yearSel = <select aria-label="Năm học" value={year} onChange={e => { setYear(e.target.value); setOpenOrg(null); setEdit(null) }}>
     {[-1, 0, 1].map(n => shiftYear(currentYear(), n)).map(y => <option key={y} value={y}>Năm học {yearLabel(y)}</option>)}</select>
 
-  const assignDrawer = assign !== false && <Drawer title={typeof assign === 'string' ? 'Thêm gói cho khối khác' : 'Gán gói cho trường'} closeOnOutside={false} onClose={() => setAssign(false)}>
+  const assignDrawer = assign !== false && <Drawer title={typeof assign === 'string' ? 'Thêm gói' : 'Gán gói cho trường'} closeOnOutside={false} onClose={() => setAssign(false)}>
     <AssignForm year={year} schools={schools} preset={typeof assign === 'string' ? assign : ''} packages={packages.filter(p => p.active)} pkgColor={pkgColor} pkgName={pkgName}
       onCancel={() => setAssign(false)} onSaved={org => { setAssign(false); reloadSchools().then(() => { setOpenOrg(org); setEdit(null) }) }} />
   </Drawer>
@@ -162,7 +163,7 @@ export function SchoolPackages() {
     const hist = cur.sps.length > live.length
     return <ElView back="Danh sách trường" onBack={() => { setOpenOrg(null); setView(null) }} title={cur.name} sub={sub}
       actions={<><button type="button" onClick={() => setCmp([cur.org_id])}>⇄ So sánh với gói</button>
-        {admin && <button type="button" className="primary" onClick={() => setAssign(cur.org_id)}>+ Thêm gói cho khối khác</button>}</>}>
+        {admin && <button type="button" className="primary" onClick={() => setAssign(cur.org_id)}>+ Thêm gói</button>}</>}>
       {msg && <p className="msg" role="status">{msg}</p>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12, marginBottom: 14 }}>
         {active.map(r => { const from = upgradedFrom(r); const st = spState(r)
@@ -252,7 +253,7 @@ export function SchoolPackages() {
       left={<>{yearSel}
         <select aria-label="Gói" value={fPkg} onChange={e => setFPkg(e.target.value)}><option value="">Tất cả gói</option>
           {packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></>}
-      right={<><button type="button" onClick={() => setCmp([])}>⇄ So sánh trường với gói</button>
+      right={<><HeadAction><button type="button" onClick={() => setCmp([])}>⇄ So sánh trường với gói</button></HeadAction>
         {admin && <button type="button" className="primary" onClick={() => setAssign(true)}>+ Gán gói cho trường</button>}</>}
       cols={[
         { key: 'name', label: 'Trường', fixed: true, text: r => r.name, cell: r => <button type="button" className="namelink" style={{ fontWeight: 600 }}>{r.name}</button> },

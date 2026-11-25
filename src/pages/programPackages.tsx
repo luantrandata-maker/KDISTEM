@@ -82,7 +82,6 @@ export function ProgramPackages() {
   const sel = lvs.length ? LEVELS.filter(l => lvs.includes(l.k)) : [...LEVELS]
   const selGrades: number[] = fGrade ? [fGrade] : sel.flatMap(l => [...l.grades])
   const fName = fGrade ? gradeName(fGrade) : lvs.length ? sel.map(l => l.name).join(' + ') : 'Cả 12 khối'
-  const filterBar = <LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} />
   const [editPkg, setEditPkg] = useState<(ProgramPackage & { copyFrom?: string; tab?: string }) | null>(null)
   const reload = () => Promise.all([loadPackages(), loadFrame()]).then(([p, f]) => {
     setPackages(p.packages); setItems(p.items); setSkips(p.skips); setModules(f.modules); setTopics(f.topics); setMsg(p.error || f.error)
@@ -184,7 +183,7 @@ export function ProgramPackages() {
       {admin && <button type="button" className="primary ttadd" onClick={() => setEditPkg({ id: '', code: '', name: '', description: '', sort: packages.reduce((x, p) => Math.max(x, p.sort), 0) + 1, active: true })}>+ Thêm gói</button>}
     </HeadAction>
     {msg && !cur && <p className="msg" role="status">{msg}</p>}
-    {!cur && filterBar}
+    {/* Lọc cấp học / khối chỉ nằm trong khung chi tiết gói */}
     {!n ? <p className="sub">Chưa có gói STEM.</p> : <>
       <div className="pkgcards">
         {packages.map((p, k) => { const c = pkgColor(p, k)
@@ -398,8 +397,9 @@ function PackageDetail({ pkg, color, onEdit, others, tracks, admin, items, modul
   return <>
     <section className="pkgdet" style={{ '--c': color } as React.CSSProperties} aria-label={'Chi tiết ' + pkg.name}>
     <div className="pkgdet-h">
-      <h3>{pkg.name}</h3><span style={{ flex: 1 }} />
+      <h3>{pkg.name}</h3>
       {!edit && <span className="pkgdet-lv">{levelFilter}</span>}
+      <span style={{ flex: 1 }} />
       {!edit && !empty && <span className="pkgdet-tools">
         <span className="lvgrp"><span className="lvlab">Loại CT</span><ColFilter pin label={tf.length ? tf.map(trackLabel).join(', ') : 'Tất cả'} value={tracks.filter(t => tf.includes(t.code)).map(tl)}
           options={tracks.map(t => [tl(t), nTopics(mine.filter(i => i.track_code === t.code))] as [string, number])}
@@ -660,8 +660,8 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
 }) {
   const [f, setF] = useState({ ...p, card_tagline: p.card_tagline ?? '', card_highlights: p.card_highlights?.length ? [...p.card_highlights] : [], card_footer: p.card_footer ?? '' })
   const [busy, setBusy] = useState(false)
-  const [drag, setDrag] = useState<number | null>(null)
-  const [sugOpen, setSugOpen] = useState(false)   // danh sách gợi ý dòng nổi bật   // dòng nổi bật đang kéo để đổi thứ tự
+  const [drag, setDrag] = useState<number | null>(null)   // dòng nổi bật đang kéo để đổi thứ tự
+  const [showTg, setShowTg] = useState(!!p.card_tagline?.trim())   // ô câu giới thiệu: hiện khi đã có hoặc bấm + Thêm nội dung
   const color = f.color || defColor
   const hl = f.card_highlights
   const setHl = (v: string[]) => setF({ ...f, card_highlights: v })
@@ -748,14 +748,6 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
     onSaved(id)
   }
   const nSl = (t: StemTrack) => Math.max(2, ...keysOf(t.code).map(k => Number(k.split('|')[2])))
-  // Gợi ý dòng nổi bật từ nội dung gói đang sửa: loại chỉ có chủ đề thì tên loại + khối; loại chia học phần thì từng học phần + khối
-  const sugg = tracks.flatMap(t => {
-    const gs = gradesOf(t.code)
-    if (!gs.length) return []
-    if (flat(t)) return [`${t.name} ${fmtGrades(gs, 'khối ')}`]
-    const ids = [...new Set(keysOf(t.code).map(k => draft[k]).filter(Boolean))]
-    return ids.map(id => `${modules.find(m => m.id === id)?.name ?? '?'} ${fmtGrades([...new Set(keysOf(t.code).filter(k => draft[k] === id).map(k => Number(k.split('|')[1])))].sort((a, b) => a - b), 'khối ')}`)
-  }).filter(x => !hl.includes(x))
   const moveHl = (from: number, to: number) => { if (from === to) return; const v = [...hl]; const [x] = v.splice(from, 1); v.splice(to, 0, x); setHl(v) }
   return <>
     {err && <p className="warnline" role="alert">{err}</p>}
@@ -773,9 +765,12 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
       </div>
     </div>
     <div className="pkfsep">
-      <h4 style={{ margin: '0 0 8px' }}>Thẻ giới thiệu <small className="sub" style={{ fontWeight: 400 }}>· hiện trên trang Gói STEM; KDI tự viết, để trống cả ba mục thì thẻ hiện nội dung tự động</small></h4>
+      <h4 style={{ margin: '0 0 8px' }}>Thẻ giới thiệu</h4>
       <div className="pkfcard">
-          <label className="field"><span>Câu giới thiệu ngắn</span><input value={f.card_tagline} maxLength={300} placeholder="VD: Đa dạng học phần trải nghiệm" onChange={e => setF({ ...f, card_tagline: e.target.value })} /></label>
+          {showTg ? <div className="field"><span>Câu giới thiệu ngắn</span><div className="pkfhl"><input value={f.card_tagline} maxLength={300} placeholder="VD: Đa dạng học phần trải nghiệm" autoFocus={!p.card_tagline}
+            onChange={e => setF({ ...f, card_tagline: e.target.value })} />
+            <button type="button" className="linkbtn" aria-label="Xoá câu giới thiệu" onClick={() => { setF({ ...f, card_tagline: '' }); setShowTg(false) }}>×</button></div></div>
+          : <button type="button" className="linkbtn" style={{ alignSelf: 'flex-start' }} onClick={() => setShowTg(true)}>+ Thêm nội dung</button>}
           <div className="field" style={{ marginTop: 10 }}><span>Các dòng nổi bật <small className="sub" style={{ fontWeight: 400 }}>(mỗi dòng một ý, kéo ⠿ để đổi thứ tự, tối đa 8 dòng)</small></span>
             {hl.map((h, k) => <div key={k} className={'pkfhl' + (drag === k ? ' drag' : '')} onDragOver={e => { if (drag !== null) { e.preventDefault(); if (drag !== k) { moveHl(drag, k); setDrag(k) } } }}>
               <span className="pkfgrip" draggable onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setDrag(k) }} onDragEnd={() => setDrag(null)} title="Kéo để đổi thứ tự" aria-hidden="true">⠿</span>
@@ -783,10 +778,6 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
               <button type="button" className="linkbtn" aria-label={`Xoá dòng ${k + 1}`} onClick={() => setHl(hl.filter((_, i) => i !== k))}>×</button></div>)}
             {hl.length < 8 && <div className="pkfadd">
               <button type="button" className="linkbtn" onClick={() => setHl([...hl, ''])}>+ Thêm dòng</button>
-              {sugg.length > 0 && <span className="pkfsugg" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSugOpen(false) }}>
-                <button type="button" className="linkbtn" aria-expanded={sugOpen} onClick={() => setSugOpen(!sugOpen)}>+ Chọn từ nội dung gói ▾</button>
-                {sugOpen && <span className="pkfsugl" role="listbox">{sugg.map(x => <button key={x} type="button" role="option" aria-selected={false}
-                  onClick={() => { setHl([...hl, x]); setSugOpen(false) }}>{x}</button>)}</span>}</span>}
             </div>}
           </div>
           <label className="field" style={{ marginTop: 10 }}><span>Dòng cuối thẻ <small className="sub" style={{ fontWeight: 400 }}>(giá, ghi chú…; để trống thì ẩn)</small></span>

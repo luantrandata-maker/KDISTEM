@@ -4183,3 +4183,5 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .pkfpvl{font-size:calc(11px * var(--fz,1));font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .pkgtracks td.trkw{min-width:140px}
 .elview .pkfpanel{margin:0}
+.pkgdet-lv{flex:none}
+.main .pkgdet-lv .lvfilter{border:0;padding:0;margin:0;background:none;box-shadow:none;min-height:0}

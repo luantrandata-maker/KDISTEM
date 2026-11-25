@@ -184,7 +184,7 @@ export function ProgramPackages() {
       {admin && <button type="button" className="primary ttadd" onClick={() => setEditPkg({ id: '', code: '', name: '', description: '', sort: packages.reduce((x, p) => Math.max(x, p.sort), 0) + 1, active: true })}>+ Thêm gói</button>}
     </HeadAction>
     {msg && !cur && <p className="msg" role="status">{msg}</p>}
-    {filterBar}
+    {!cur && filterBar}
     {!n ? <p className="sub">Chưa có gói STEM.</p> : <>
       <div className="pkgcards">
         {packages.map((p, k) => { const c = pkgColor(p, k)
@@ -194,7 +194,7 @@ export function ProgramPackages() {
       </div>
       {cur && <PackageDetail key={cur.id} pkg={cur} color={pkgColor(cur, curK)} others={packages.filter(p => p.id !== cur.id)} tracks={active} admin={admin} items={items} modules={modules} topics={topics} msg={msg} setMsg={setMsg}
         slotsOf={slotsOf} topicsOfItem={topicsOfItem} menu={admin ? pkgMenu(cur) : []}
-        onChanged={reload} onLevel={k => { setLvs([k]); setFGrade(null) }} inGrades={selGrades} onEdit={tab => setEditPkg({ ...cur, tab })} />}
+        onChanged={reload} onLevel={k => { setLvs([k]); setFGrade(null) }} inGrades={selGrades} levelFilter={<LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false} />} onEdit={tab => setEditPkg({ ...cur, tab })} />}
     </>}
     {trackOpen && <TrackTable onClose={() => setTrackOpen(false)} tracks={[...active, ...tracks.filter(t => t.active === false)]} packages={live} has={(pkg, t) => items.some(i => i.package_id === pkg && i.track_code === t)}
       differs={t => [...diffKeys].some(k => k.startsWith(t + '|'))} summary={t => {
@@ -283,11 +283,11 @@ function TrackTable({ tracks, packages, has, differs, summary, admin, onClose }:
 
 /** Chi tiết gói hiện ngay dưới thẻ gói: vừa một màn hình, bảng cuộn bên trong khung. Lọc cấp / khối dùng thanh lọc trên trang;
  *  ở đây chỉ lọc loại CT và đổi kiểu xem. Thao tác gói nằm trong nút ⋮. */
-function PackageDetail({ pkg, color, onEdit, others, tracks, admin, items, modules, topics, msg, setMsg, slotsOf, topicsOfItem, menu, onChanged, onLevel, inGrades }: {
+function PackageDetail({ pkg, color, onEdit, others, tracks, admin, items, modules, topics, msg, setMsg, slotsOf, topicsOfItem, menu, onChanged, onLevel, inGrades, levelFilter }: {
   pkg: ProgramPackage; color: string; onEdit: (tab?: string) => void; others: ProgramPackage[]; tracks: StemTrack[]; admin: boolean; items: PackageItem[]; modules: ProgramModule[]; topics: ProgramTopic[]
   msg: string; setMsg: (m: string) => void; slotsOf: (t: string, pkgs: string[]) => number[]
   topicsOfItem: (i: PackageItem) => ProgramTopic[]; menu: { label: string; onClick: () => void; danger?: boolean }[]; onChanged: () => void
-  onLevel: (k: string) => void; inGrades: number[]
+  onLevel: (k: string) => void; inGrades: number[]; levelFilter: React.ReactNode   // lọc cấp / khối nằm trên hàng tiêu đề khung chi tiết
 }) {
   const mine = items.filter(i => i.package_id === pkg.id && inGrades.includes(i.grade))
   const [code, setCode] = useState('')   // '' = xem tổng quan mọi loại chương trình
@@ -399,7 +399,8 @@ function PackageDetail({ pkg, color, onEdit, others, tracks, admin, items, modul
     <section className="pkgdet" style={{ '--c': color } as React.CSSProperties} aria-label={'Chi tiết ' + pkg.name}>
     <div className="pkgdet-h">
       <h3>{pkg.name}</h3><Chip tone={pkg.active ? 'good' : ''}>{pkg.active ? 'Đang dùng' : 'Ngừng dùng'}</Chip>
-      <small className="sub pkgdesc">{[pkg.description, pkg.card_tagline].filter(x => x?.trim()).join(' · ') || 'Chưa có mô tả.'}</small>
+      <small className="sub pkgdesc" title={[pkg.description, pkg.card_tagline].filter(x => x?.trim()).join(" · ")}>{[pkg.description, pkg.card_tagline].filter(x => x?.trim()).join(' · ') || 'Chưa có mô tả.'}</small>
+      {!edit && <span className="pkgdet-lv">{levelFilter}</span>}
       {!edit && !empty && <span className="pkgdet-tools">
         <span className="lvgrp"><span className="lvlab">Loại CT</span><ColFilter pin label={tf.length ? tf.map(trackLabel).join(', ') : 'Tất cả'} value={tracks.filter(t => tf.includes(t.code)).map(tl)}
           options={tracks.map(t => [tl(t), nTopics(mine.filter(i => i.track_code === t.code))] as [string, number])}

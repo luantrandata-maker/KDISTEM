@@ -506,9 +506,9 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
 
 /** Chủ đề trường áp dụng ở một loại CT × khối (hoặc một học phần): cùng kiểu bảng như khi xem từ gói, thêm cột Áp dụng */
 function ScopeView({ s, sl, track, modName, onTopic }: { s: ReturnType<typeof scopeAt>; sl?: number; track: string; modName: (id: string) => string; onTopic: (t: ProgramTopic) => void }) {
-  const tag = (on: boolean) => on ? <span style={{ color: 'var(--ok, #15803d)', fontWeight: 600 }}>✓ Áp dụng</span> : <span style={{ color: 'var(--danger, #b42318)', fontWeight: 600 }}>✕ Không áp dụng</span>
+  const tag = (on: boolean) => on ? <span style={{ color: 'var(--ok, #15803d)', fontWeight: 600, whiteSpace: 'nowrap' }}>✓ Áp dụng</span> : <span style={{ color: 'var(--danger, #b42318)', fontWeight: 600, whiteSpace: 'nowrap' }}>✕ Không áp dụng</span>
   const tbl = (list: TopicState[]) => list.length
-    ? <table className="table slt ttdense"><thead><tr><th className="c-no">TT</th><th>Chủ đề</th><th style={{ width: 70 }}>Số tiết</th><th>Môn chủ trì</th><th style={{ width: 130 }}>Áp dụng</th></tr></thead>
+    ? <table className="table slt ttdense"><thead><tr><th className="c-no">TT</th><th>Chủ đề</th><th style={{ width: 70 }}>Số tiết</th><th>Môn chủ trì</th><th style={{ width: 150 }}>Áp dụng</th></tr></thead>
       <tbody>{list.map(({ topic, on }, k) => <tr key={topic.id} className="clickrow" onClick={() => onTopic(topic)} style={on ? undefined : { background: 'var(--soft, #f8fafc)' }}>
         <td style={on ? undefined : { color: 'var(--muted)' }}>{k + 1}</td>
         <td>{on ? <b>{topic.title}</b> : <span style={{ ...OFF, textDecorationColor: 'var(--danger, #b42318)' }}>{topic.title}</span>}</td>

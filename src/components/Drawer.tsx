@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 // Độ rộng bảng chi tiết: tỉ lệ màn hình, mặc định một nửa; người dùng kéo mép trái để đổi, nhớ cho lần mở sau.
 const KEY = 'drawer.width'
@@ -7,6 +7,11 @@ function savedRatio() {
   try { const v = Number(localStorage.getItem(KEY)); if (v >= 0.2 && v <= 1) return v } catch { /* bỏ qua */ }
   return 0.5
 }
+// Phân hệ 1: nút phóng to toàn màn hình, nhớ lựa chọn cho lần mở sau
+const FULL_KEY = 'drawer.full'
+function savedFull() { try { return localStorage.getItem(FULL_KEY) === '1' } catch { return false } }
+const Ico = ({ full }: { full: boolean }) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+  <path d={full ? 'M20 4l-6 6M14 4v6h6M4 20l6-6M10 20v-6H4' : 'M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7'} /></svg>
 
 // Bảng chi tiết trượt ra bên phải. Đóng bằng nút ×, phím Esc hoặc bấm ra ngoài (trừ khi đang sửa: closeOnOutside=false).
 export function Drawer({ title, onClose, onBack, children, closeOnOutside = true, head, actions }: {
@@ -15,6 +20,12 @@ export function Drawer({ title, onClose, onBack, children, closeOnOutside = true
 }) {
   const [ratio, setRatio] = useState(savedRatio)
   const drag = useRef(false)
+  const wrap = useRef<HTMLDivElement>(null)
+  const [canFull, setCanFull] = useState(false)
+  const [full, setFull] = useState(savedFull)
+  useLayoutEffect(() => { setCanFull(!!wrap.current?.closest('.main[data-ph="1"]')) }, [])
+  const isFull = canFull && full
+  const toggleFull = () => setFull(v => { try { localStorage.setItem(FULL_KEY, v ? '0' : '1') } catch { /* bỏ qua */ } return !v })
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && closeOnOutside) onClose() }
     window.addEventListener('keydown', k)
@@ -47,17 +58,19 @@ export function Drawer({ title, onClose, onBack, children, closeOnOutside = true
   }
 
   return (
-    <div className="drawerwrap" onMouseDown={e => { if (closeOnOutside && e.target === e.currentTarget) onClose() }}>
-      <aside className="drawer" role="dialog" aria-modal="true" style={{ width: `${(ratio * 100).toFixed(2)}vw` }}>
-        <div className="drawerresize" role="separator" aria-orientation="vertical" aria-label="Kéo để đổi độ rộng" title="Kéo để đổi độ rộng"
+    <div ref={wrap} className="drawerwrap" onMouseDown={e => { if (closeOnOutside && e.target === e.currentTarget) onClose() }}>
+      <aside className="drawer" role="dialog" aria-modal="true" style={{ width: isFull ? '100vw' : `${(ratio * 100).toFixed(2)}vw` }}>
+        {!isFull && <div className="drawerresize" role="separator" aria-orientation="vertical" aria-label="Kéo để đổi độ rộng" title="Kéo để đổi độ rộng"
           tabIndex={0} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onKeyDown={key}
-          onDoubleClick={() => { setRatio(0.5); try { localStorage.setItem(KEY, '0.5') } catch { /* bỏ qua */ } }} />
+          onDoubleClick={() => { setRatio(0.5); try { localStorage.setItem(KEY, '0.5') } catch { /* bỏ qua */ } }} />}
         <header className="drawerhead">
           {onBack && <button type="button" className="drawerbtn" onClick={onBack} aria-label="Quay lại" title="Quay lại">←</button>}
           <div className="drawertitle">{title}</div>
           {/* Chỗ để nội dung bên trong gắn nút lên đầu ngăn (vd. trang chủ đề: Chỉnh sửa / Lưu / Huỷ) */}
           <div className="drawerslot" />
           {actions && <div className="draweractions">{actions}</div>}
+          {canFull && <button type="button" className="drawerbtn" onClick={toggleFull} aria-pressed={isFull}
+            aria-label={isFull ? 'Thu nhỏ' : 'Mở toàn màn hình'} title={isFull ? 'Thu nhỏ' : 'Mở toàn màn hình'}><Ico full={isFull} /></button>}
           <button type="button" className="drawerbtn" onClick={onClose} aria-label="Đóng" title="Đóng (Esc)">×</button>
         </header>
         {head}

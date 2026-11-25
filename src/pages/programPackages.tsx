@@ -197,7 +197,7 @@ export function ProgramPackages() {
       {/* Chưa chọn gói: hiện sẵn bảng so sánh các gói cho phần dưới không trống */}
       {!cur && live.length > 1 && <div className="pkgcmpbtn"><button type="button" aria-expanded={cmpShow} onClick={() => setCmpShow(v => !v)}>So sánh các gói <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" style={{ transform: cmpShow ? 'none' : 'rotate(180deg)' }}><path d="M3 9l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></button></div>}
       {!cur && cmpShow && live.length > 1 && <section className="pkgdet" style={{ '--c': 'var(--primary)' } as React.CSSProperties} aria-label="So sánh nhanh các gói">
-        <div className="pkgdet-h"><small className="sub">Bấm vào một gói ở trên để xem chi tiết gói đó</small><span style={{ flex: 1 }} /><button type="button" onClick={() => setCompare(true)}>⤢ Xem toàn trang</button></div>
+        <div className="pkgdet-h"><small className="sub">Bấm vào một gói ở trên để xem chi tiết gói đó</small></div>
         <CompareView tracks={active} packages={live} items={items} topics={topics} skips={skips} modName={modName} grades={selGrades} levels={fGrade ? [] : sel} name={fName} by={by}
           filter={extra => <LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false}
             extra={<>{extra}<Seg label="" items={[['grade', 'Khối'], ['mod', 'Học phần']] as ['grade' | 'mod', string][]} on={v => v === by} onPick={setBy} /></>} />} />

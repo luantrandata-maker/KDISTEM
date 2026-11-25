@@ -42,7 +42,7 @@ function PkgCard({ p, color, auto, selected, onOpen, menu }: {
   const card = hasCard(p)
   return <div className={'pkgc' + (selected ? ' on' : '') + (onOpen ? '' : ' still')} style={{ '--c': color } as React.CSSProperties}
     role={onOpen ? 'button' : undefined} tabIndex={onOpen ? 0 : undefined} aria-pressed={onOpen ? !!selected : undefined}
-    title={onOpen ? (selected ? 'Đang xem chi tiết gói này ở bên dưới' : 'Bấm để xem chi tiết gói ở bên dưới') : undefined}
+    title={onOpen ? (selected ? 'Bấm để ẩn chi tiết gói' : 'Bấm để xem chi tiết gói ở bên dưới') : undefined}
     onClick={onOpen} onKeyDown={e => { if (onOpen && e.key === 'Enter' && e.target === e.currentTarget) onOpen() }}>
     <div className="pkgc-head" style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${color} 82%, #000), ${color})` }}>
       <div className="bar" style={{ margin: 0, gap: 6 }}><b className="pkgc-name">{p.name || 'Gói mới'}</b>
@@ -113,8 +113,8 @@ export function ProgramPackages() {
     setOpenId(null); setMsg(''); reload()
   }
 
-  // Gói đang xem chi tiết ở dưới thẻ: mặc định gói đầu tiên; luôn có một gói đang xem để phần dưới không trống
-  const curId = openId === null ? (live[0] ?? packages[0])?.id : openId
+  // Gói đang xem chi tiết ở dưới thẻ: mặc định chưa chọn gói nào (hiện bảng so sánh nhanh); bấm lại thẻ đang xem để ẩn
+  const curId = openId || undefined
   const cur = curId ? packages.find(p => p.id === curId) : undefined
   const topicsOfItem = (i: PackageItem) => slotTopics(topics, items, i)
   const statOf = (pkg: string, t?: string) => {
@@ -139,7 +139,7 @@ export function ProgramPackages() {
   }
   const perGrade = (list: ProgramTopic[]) => { const g = new Set(list.map(t => t.grade)); return g.size ? Math.round(list.length / g.size) : 0 }
   const ctick = (bg: string, fg: string) => <span className="pkgtick" style={{ background: bg, color: fg }} aria-hidden="true">✓</span>
-  const openPkg = (id: string) => { setMsg(''); setOpenId(id) }
+  const openPkg = (id: string) => { setMsg(''); setOpenId(curId === id ? null : id) }
   // Thẻ gói chưa được KDI soạn: hiện nội dung tự động như trước (phần chung, điểm riêng của gói)
   const autoBody = (p: ProgramPackage, c: string) => {
     const diff = diffTracks(p.id)
@@ -194,6 +194,13 @@ export function ProgramPackages() {
       {cur && <PackageDetail key={cur.id} pkg={cur} color={pkgColor(cur, curK)} others={packages.filter(p => p.id !== cur.id)} tracks={active} admin={admin} items={items} modules={modules} topics={topics} msg={msg} setMsg={setMsg}
         slotsOf={slotsOf} topicsOfItem={topicsOfItem} menu={admin ? pkgMenu(cur) : []}
         onChanged={reload} onLevel={k => { setLvs([k]); setFGrade(null) }} inGrades={selGrades} levelFilter={<LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false} bare />} onEdit={tab => setEditPkg({ ...cur, tab })} />}
+      {/* Chưa chọn gói: hiện sẵn bảng so sánh các gói cho phần dưới không trống */}
+      {!cur && live.length > 1 && <section className="pkgdet" style={{ '--c': 'var(--primary)' } as React.CSSProperties} aria-label="So sánh nhanh các gói">
+        <div className="pkgdet-h"><h3>So sánh nhanh các gói</h3><small className="sub">Bấm vào một gói ở trên để xem chi tiết gói đó</small></div>
+        <CompareView tracks={active} packages={live} items={items} topics={topics} skips={skips} modName={modName} grades={selGrades} levels={fGrade ? [] : sel} name={fName} by={by}
+          filter={extra => <LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false}
+            extra={<>{extra}<Seg label="" items={[['grade', 'Khối'], ['mod', 'Học phần']] as ['grade' | 'mod', string][]} on={v => v === by} onPick={setBy} /></>} />} />
+      </section>}
     </>}
     {trackOpen && <TrackTable onClose={() => setTrackOpen(false)} tracks={[...active, ...tracks.filter(t => t.active === false)]} packages={live} has={(pkg, t) => items.some(i => i.package_id === pkg && i.track_code === t)}
       differs={t => [...diffKeys].some(k => k.startsWith(t + '|'))} summary={t => {

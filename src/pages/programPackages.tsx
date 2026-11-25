@@ -414,7 +414,7 @@ function PackageDetail({ pkg, color, onEdit, others, tracks, admin, items, modul
     {track && edit
       ? <TrackGrid pkg={pkg} track={track} admin={admin} items={items} modules={modules.filter(m => m.track_code === track.code)} topics={topics}
         slots={slotsOf(track.code, [pkg.id])} diffKeys={new Set<string>()} onChanged={onChanged} onErr={setMsg} startEdit onDone={() => { setEdit(false); setCode('') }} />
-      : <FitScreen className="pkgfit">{pv === 'grid' || empty ? <Overview /> : <PhanBo />}</FitScreen>}
+      : <div className="pkgfit">{pv === 'grid' || empty ? <Overview /> : <PhanBo />}</div>}
     {sel && selTrack && <Drawer closeOnOutside onClose={() => { setSel(null); setOpenTopic(null) }} onBack={openTopic ? () => setOpenTopic(null) : undefined}
       title={openTopic ? <>{chip(selTrack.code)} {openTopic.title}</> : <>{chip(selTrack.code)} {selTrack.name} · {gradeName(sel.g)}{sel.sl > 0 && selIts[0] ? ` · HP${sel.sl}` : ''}</>}>
       {openTopic ? <TopicView t={openTopic} admin={admin} mod={selTrack.use_modules === false ? undefined : mod(openTopic.module_id)?.name} sgk={selTrack.schedule_mode === 'subject'} />
@@ -759,6 +759,8 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
   const moveHl = (from: number, to: number) => { if (from === to) return; const v = [...hl]; const [x] = v.splice(from, 1); v.splice(to, 0, x); setHl(v) }
   return <>
     {err && <p className="warnline" role="alert">{err}</p>}
+    {/* Thông tin gói và Thẻ giới thiệu bên trái; màu hiển thị và xem trước thẻ ở cột phải, ngang cả hai khung */}
+    <div className="pkftop"><div className="pkfleft">
     <section className="panel pkfpanel">
       <h4 style={{ margin: '0 0 10px' }}>Thông tin gói</h4>
       <div className="formgrid">
@@ -773,7 +775,6 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
     <section className="panel pkfpanel">
       <h4 style={{ margin: '0 0 8px' }}>Thẻ giới thiệu <small className="sub" style={{ fontWeight: 400 }}>· hiện trên trang Gói STEM; KDI tự viết, để trống cả ba mục thì thẻ hiện nội dung tự động</small></h4>
       <div className="pkfcard">
-        <div>
           <label className="field"><span>Câu giới thiệu ngắn</span><input value={f.card_tagline} maxLength={300} placeholder="VD: Đa dạng học phần trải nghiệm" onChange={e => setF({ ...f, card_tagline: e.target.value })} /></label>
           <div className="field" style={{ marginTop: 10 }}><span>Các dòng nổi bật <small className="sub" style={{ fontWeight: 400 }}>(mỗi dòng một ý, kéo ⠿ để đổi thứ tự, tối đa 8 dòng)</small></span>
             {hl.map((h, k) => <div key={k} className={'pkfhl' + (drag === k ? ' drag' : '')} onDragOver={e => { if (drag !== null) { e.preventDefault(); if (drag !== k) { moveHl(drag, k); setDrag(k) } } }}>
@@ -790,9 +791,10 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
           </div>
           <label className="field" style={{ marginTop: 10 }}><span>Dòng cuối thẻ <small className="sub" style={{ fontWeight: 400 }}>(giá, ghi chú…; để trống thì ẩn)</small></span>
             <input value={f.card_footer} maxLength={200} placeholder="VD: Từ 180.000đ/HS/năm" onChange={e => setF({ ...f, card_footer: e.target.value })} /></label>
-        </div>
-        <div>
-          <div className="pkfpvl">Màu hiển thị</div>
+      </div>
+    </section>
+    </div>
+    <aside className="panel pkfpanel pkfaside">          <div className="pkfpvl">Màu hiển thị</div>
           <div className="pkfsws" role="radiogroup" aria-label="Màu hiển thị" title="Màu đầu thẻ, cột gói khi so sánh, viền chi tiết">
             {SWATCH.map(c => <button key={c} type="button" role="radio" aria-checked={color === c} aria-label={c} className={'pkfsw' + (color === c ? ' on' : '')} style={{ background: c }} onClick={() => setF({ ...f, color: c })} />)}
             <label className={'pkfswc' + (!SWATCH.includes(color) ? ' on' : '')}>{!SWATCH.includes(color) && <i style={{ background: color }} />}Màu khác…
@@ -800,9 +802,9 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
             {f.color && <button type="button" className="linkbtn" onClick={() => setF({ ...f, color: null })}>Màu mặc định</button>}
           </div>
           <div className="pkfpvl" style={{ marginTop: 12 }}>Xem trước thẻ</div>
-          <PkgCard p={f} color={color} auto={auto(f, color)} /></div>
-      </div>
-    </section>
+          <PkgCard p={f} color={color} auto={auto(f, color)} />
+    </aside>
+    </div>
     <section className="panel pkfpanel">
       <h4 style={{ margin: 0 }}>Nội dung gói <small className="sub" style={{ fontWeight: 400 }}>· chủ đề, học phần soạn ở tab Khung chương trình{f.copyFrom ? ' · đã lấy sẵn từ gói gốc' : ''}</small></h4>
       <div className="distfilter" role="tablist" style={{ margin: '12px 0' }}>{tracks.map(t => <button key={t.code} type="button" role="tab" aria-selected={tab === t.code}

@@ -4155,11 +4155,8 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .pkgdet-tools{display:inline-flex;gap:14px;align-items:center;flex:none}
 .pkgdet-menu .trowmenu{border:1px solid var(--line);border-radius:7px;width:30px;height:28px}
 .pkgdet-foot{margin:6px 0 0;font-size:calc(12px * var(--fz,1))}
-.main .pkgdet .fitscreen.pkgfit{border:1px solid var(--line);border-radius:9px}
-.main .pkgdet .fitscreen.pkgfit>.panel{margin:0;border:0;border-radius:0;overflow:visible!important;box-shadow:none}
-.main .pkgdet .fitscreen .pkggrid .hd{position:sticky;top:0;z-index:2}
-.main .pkgdet .fitscreen .pkgpb thead{position:sticky;top:0;z-index:2}
-.main .pkgdet .fitscreen>.pkgguide{padding:12px}
+.main .pkgdet .pkgfit>.panel{margin:0}
+.main .pkgdet .pkgfit>.pkgguide{padding:12px}
 /* Sửa gói: chọn màu, soạn thẻ giới thiệu */
 .pkfsws{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .main .pkfsw{width:28px;height:28px;min-height:0;border-radius:50%;padding:0;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);cursor:pointer}
@@ -4168,8 +4165,10 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .pkfswc.on{border-style:solid;border-color:#0f172a}
 .pkfswc i{width:14px;height:14px;border-radius:50%;display:inline-block}
 .pkfswc input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;padding:0;border:0}
-.pkfcard{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start}
-@media (max-width:900px){.pkfcard{grid-template-columns:1fr}}
+.pkftop{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:12px;align-items:start}
+.pkfleft{display:grid;gap:12px;min-width:0}
+.pkfaside{position:sticky;top:12px}
+@media (max-width:900px){.pkftop{grid-template-columns:1fr}.pkfaside{position:static}}
 .pkfcard .field{display:flex;flex-direction:column;gap:4px}
 .pkfcard .pkfsws{gap:6px}.main .pkfcard .pkfsw{width:24px;height:24px}
 .pkfhl{display:flex;align-items:center;gap:6px}.pkfhl.drag{opacity:.55}
@@ -4182,4 +4181,4 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .main .pkfsugl button:hover,.main .pkfsugl button:focus-visible{background:var(--soft)}
 .pkfpvl{font-size:calc(11px * var(--fz,1));font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
 .pkgtracks td.trkw{min-width:140px}
-.elview>.pkfpanel{margin:0}
+.elview .pkfpanel{margin:0}

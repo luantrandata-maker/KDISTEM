@@ -148,9 +148,8 @@ export function ProgramPackages() {
             </div>
             <div className="pkgc-body">
               {common.length > 0 && <>
-                <div className="pkgc-cap">{live.length > 1 ? `Phần chung cả ${live.length} gói:` : 'Gồm:'}</div>
                 {common.map(r => <div key={r.t.code} className="pkgc-row">{tick('#cfe3fb', '#2f6fd6')}
-                  <div><span className="pkgc-code">{trackLabel(r.t.code)}</span> {r.t.name}<small>{r.text}</small></div></div>)}
+                  <div><span className="pkgc-code">{trackLabel(r.t.code)}</span> {r.t.name}<small>{r.t.use_modules === false ? fmtGrades(r.gs) : r.text}</small></div></div>)}
               </>}
               {own.length > 0 && <>
                 <div className="pkgc-sep"><span>Điểm riêng của gói</span></div>

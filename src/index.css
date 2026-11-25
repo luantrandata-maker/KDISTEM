@@ -4071,3 +4071,16 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 /* So sánh trường với gói: tiêu đề cố định (cmptbl) nhưng chữ canh trái */
 .main .fitscreen .cmptbl.sctbl td,.main .fitscreen .cmptbl.sctbl th{text-align:left}
 .cmporgs .msel.sm .mselchip>span{max-width:260px}
+/* Sửa phạm vi trường: khoá khi áp dụng đủ gói, nút số chủ đề mở danh sách tick tại chỗ */
+.scopelock{background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;border-radius:8px;padding:8px 12px;font-size:calc(13px * var(--fz,1));margin:0 0 10px}
+.main button.scopecnt{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--primary);color:var(--primary);background:#eff6ff;border-radius:999px;padding:1px 9px;font-size:calc(12px * var(--fz,1));font-weight:600;line-height:1.5;margin-top:1px;white-space:nowrap}
+.main button.scopecnt.on{background:var(--primary);color:#fff}
+.scopepop{margin:4px 0 8px 18px;border:1px solid #bfdbfe;border-radius:10px;padding:8px 10px;background:#f8fbff;display:grid;gap:2px}
+.scopepoph{display:flex;justify-content:space-between;align-items:center;font-size:calc(12px * var(--fz,1));color:var(--muted);margin-bottom:2px}
+/* So sánh trường: nút xem chủ đề rõ ràng, nút lọc Khác nhau / Tất cả nằm ngay dưới */
+.main button.cmpxbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--primary);background:#eff6ff;color:var(--primary);border-radius:8px;padding:3px 10px 3px 4px;font-weight:600;font-size:calc(13px * var(--fz,1));white-space:nowrap;vertical-align:middle}
+.main button.cmpxbtn .ar{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:var(--primary);color:#fff;font-size:calc(10px * var(--fz,1))}
+.main button.cmpxbtn.on{background:#dbeafe}
+.main .seg.cmpseg{display:flex;width:max-content;margin-top:8px}
+.main .seg.cmpseg>button{padding:5px 12px;font-weight:600;font-size:calc(13px * var(--fz,1))}
+.main .seg.cmpseg>button small{font-weight:500;color:inherit;opacity:.85}

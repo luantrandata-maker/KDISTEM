@@ -41,7 +41,7 @@ export function ProgramPackages() {
   const [msg, setMsg] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   const [compare, setCompare] = useState(false)
-  const [by, setBy] = useState<'grade' | 'mod'>('grade')   // So sánh: xem theo khối (mặc định) hoặc theo học phần
+  const [by, setBy] = useState<'grade' | 'mod'>('mod')   // So sánh: xem theo học phần (mặc định) hoặc theo khối
   // Lọc theo cấp / khối, dùng chung cho Tổng quan gói và So sánh (tư vấn cho từng trường, trường liên cấp chọn nhiều cấp)
   const [lvs, setLvs] = useState<string[]>([])
   const [fGrade, setFGrade] = useState<number | null>(null)

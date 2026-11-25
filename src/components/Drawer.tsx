@@ -25,6 +25,10 @@ export function Drawer({ title, onClose, onBack, children, closeOnOutside = true
   const [full, setFull] = useState(savedFull)
   useLayoutEffect(() => { setCanFull(!!wrap.current?.closest('.main[data-ph="1"]')) }, [])
   const isFull = canFull && full
+  // Không phủ lên thanh menu bên trái: độ rộng tối đa (kéo hay phóng to) = màn hình trừ phần menu
+  const sideW = () => { const r = document.querySelector('.app > .side')?.getBoundingClientRect(); return r && r.right < window.innerWidth / 2 ? Math.max(0, r.right) : 0 }
+  const [side, setSide] = useState(0)
+  useLayoutEffect(() => { const f = () => setSide(sideW()); f(); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f) }, [])
   const toggleFull = () => setFull(v => { try { localStorage.setItem(FULL_KEY, v ? '0' : '1') } catch { /* bỏ qua */ } return !v })
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && closeOnOutside) onClose() }
@@ -33,7 +37,7 @@ export function Drawer({ title, onClose, onBack, children, closeOnOutside = true
     return () => { window.removeEventListener('keydown', k); document.body.classList.remove('drawer-open') }
   }, [onClose, closeOnOutside])
 
-  const clamp = (px: number) => Math.min(window.innerWidth, Math.max(Math.min(MIN_PX, window.innerWidth), px)) / window.innerWidth
+  const clamp = (px: number) => Math.min(window.innerWidth - sideW(), Math.max(Math.min(MIN_PX, window.innerWidth), px)) / window.innerWidth
   function start(e: React.PointerEvent<HTMLDivElement>) {
     e.preventDefault(); drag.current = true
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -59,7 +63,7 @@ export function Drawer({ title, onClose, onBack, children, closeOnOutside = true
 
   return (
     <div ref={wrap} className="drawerwrap" onMouseDown={e => { if (closeOnOutside && e.target === e.currentTarget) onClose() }}>
-      <aside className="drawer" role="dialog" aria-modal="true" style={{ width: isFull ? '100vw' : `${(ratio * 100).toFixed(2)}vw` }}>
+      <aside className="drawer" role="dialog" aria-modal="true" style={{ width: isFull ? `calc(100vw - ${side}px)` : `min(${(ratio * 100).toFixed(2)}vw, calc(100vw - ${side}px))` }}>
         {!isFull && <div className="drawerresize" role="separator" aria-orientation="vertical" aria-label="Kéo để đổi độ rộng" title="Kéo để đổi độ rộng"
           tabIndex={0} onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onKeyDown={key}
           onDoubleClick={() => { setRatio(0.5); try { localStorage.setItem(KEY, '0.5') } catch { /* bỏ qua */ } }} />}

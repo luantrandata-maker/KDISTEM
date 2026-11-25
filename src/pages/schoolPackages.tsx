@@ -7,6 +7,7 @@ import { loadFrame, loadPackages, slotTopics, type PackageItem, type ProgramModu
 import { ALL_GRADES, currentYear, fmtDay, gradesOfLevel, kRange, loadSchoolPkgs, shiftYear, spErr, spState, todayIso, yearLabel, type PkgSkip, type SchoolPkgRow } from '../lib/schoolPackages'
 import { ColFilter, DataTable } from '../components/DataTable'
 import { ElView } from '../components/ElView'
+import { HeadAction } from '../components/PageFrame'
 import { Drawer } from '../components/Drawer'
 import { MultiSelect } from '../components/MultiSelect'
 import { FitScreen } from '../components/FitScreen'
@@ -252,7 +253,7 @@ export function SchoolPackages() {
       left={<>{yearSel}
         <select aria-label="Gói" value={fPkg} onChange={e => setFPkg(e.target.value)}><option value="">Tất cả gói</option>
           {packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></>}
-      right={<><button type="button" onClick={() => setCmp([])}>⇄ So sánh trường với gói</button>
+      right={<><HeadAction><button type="button" onClick={() => setCmp([])}>⇄ So sánh trường với gói</button></HeadAction>
         {admin && <button type="button" className="primary" onClick={() => setAssign(true)}>+ Gán gói cho trường</button>}</>}
       cols={[
         { key: 'name', label: 'Trường', fixed: true, text: r => r.name, cell: r => <button type="button" className="namelink" style={{ fontWeight: 600 }}>{r.name}</button> },

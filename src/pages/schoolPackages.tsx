@@ -128,7 +128,7 @@ export function SchoolPackages() {
   const yearSel = <select aria-label="Năm học" value={year} onChange={e => { setYear(e.target.value); setOpenOrg(null); setEdit(null) }}>
     {[-1, 0, 1].map(n => shiftYear(currentYear(), n)).map(y => <option key={y} value={y}>Năm học {yearLabel(y)}</option>)}</select>
 
-  const assignDrawer = assign !== false && <Drawer title={typeof assign === 'string' ? 'Thêm gói cho khối khác' : 'Gán gói cho trường'} closeOnOutside={false} onClose={() => setAssign(false)}>
+  const assignDrawer = assign !== false && <Drawer title={typeof assign === 'string' ? 'Thêm gói' : 'Gán gói cho trường'} closeOnOutside={false} onClose={() => setAssign(false)}>
     <AssignForm year={year} schools={schools} preset={typeof assign === 'string' ? assign : ''} packages={packages.filter(p => p.active)} pkgColor={pkgColor} pkgName={pkgName}
       onCancel={() => setAssign(false)} onSaved={org => { setAssign(false); reloadSchools().then(() => { setOpenOrg(org); setEdit(null) }) }} />
   </Drawer>
@@ -162,7 +162,7 @@ export function SchoolPackages() {
     const hist = cur.sps.length > live.length
     return <ElView back="Danh sách trường" onBack={() => { setOpenOrg(null); setView(null) }} title={cur.name} sub={sub}
       actions={<><button type="button" onClick={() => setCmp([cur.org_id])}>⇄ So sánh với gói</button>
-        {admin && <button type="button" className="primary" onClick={() => setAssign(cur.org_id)}>+ Thêm gói cho khối khác</button>}</>}>
+        {admin && <button type="button" className="primary" onClick={() => setAssign(cur.org_id)}>+ Thêm gói</button>}</>}>
       {msg && <p className="msg" role="status">{msg}</p>}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 12, marginBottom: 14 }}>
         {active.map(r => { const from = upgradedFrom(r); const st = spState(r)

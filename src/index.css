@@ -4185,3 +4185,5 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .elview .pkfpanel{margin:0}
 .pkgdet-lv{flex:none}
 .main .pkgdet-lv .lvfilter{border:0;padding:0;margin:0;background:none;box-shadow:none;min-height:0}
+.pkggrid .lb.lbclick{cursor:pointer}.pkggrid .lb.lbclick:hover b,.pkggrid .lb.lbclick:focus-visible b{color:var(--primary);text-decoration:underline}
+.pkggrid .lb.lbclick b::after{content:" ⓘ";font-weight:400;color:var(--muted);font-size:.9em}

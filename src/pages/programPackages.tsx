@@ -660,7 +660,8 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
 }) {
   const [f, setF] = useState({ ...p, card_tagline: p.card_tagline ?? '', card_highlights: p.card_highlights?.length ? [...p.card_highlights] : [], card_footer: p.card_footer ?? '' })
   const [busy, setBusy] = useState(false)
-  const [drag, setDrag] = useState<number | null>(null)   // dòng nổi bật đang kéo để đổi thứ tự
+  const [drag, setDrag] = useState<number | null>(null)
+  const [sugOpen, setSugOpen] = useState(false)   // danh sách gợi ý dòng nổi bật   // dòng nổi bật đang kéo để đổi thứ tự
   const color = f.color || defColor
   const hl = f.card_highlights
   const setHl = (v: string[]) => setF({ ...f, card_highlights: v })
@@ -754,11 +755,11 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
     if (flat(t)) return [`${t.name} ${fmtGrades(gs, 'khối ')}`]
     const ids = [...new Set(keysOf(t.code).map(k => draft[k]).filter(Boolean))]
     return ids.map(id => `${modules.find(m => m.id === id)?.name ?? '?'} ${fmtGrades([...new Set(keysOf(t.code).filter(k => draft[k] === id).map(k => Number(k.split('|')[1])))].sort((a, b) => a - b), 'khối ')}`)
-  }).filter(x => !hl.includes(x)).slice(0, 10)
+  }).filter(x => !hl.includes(x))
   const moveHl = (from: number, to: number) => { if (from === to) return; const v = [...hl]; const [x] = v.splice(from, 1); v.splice(to, 0, x); setHl(v) }
   return <>
     {err && <p className="warnline" role="alert">{err}</p>}
-    <section className="panel">
+    <section className="panel pkfpanel">
       <h4 style={{ margin: '0 0 10px' }}>Thông tin gói</h4>
       <div className="formgrid">
         <label className="field"><span>Mã gói *</span><input value={f.code} maxLength={20} placeholder="VD: 5T" onChange={e => setF({ ...f, code: e.target.value })} /></label>
@@ -768,16 +769,9 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
           <option value="on">Đang dùng</option><option value="off">Ngừng dùng</option></select></label>
         <label className="field wide"><span>Mô tả (gói khác các gói khác ở đâu)</span><textarea rows={2} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>
       </div>
-      <div className="field wide" style={{ marginTop: 10 }}><span>Màu hiển thị <small className="sub" style={{ fontWeight: 400 }}>(đầu thẻ, cột gói khi so sánh, viền chi tiết)</small></span>
-        <div className="pkfsws" role="radiogroup" aria-label="Màu hiển thị">
-          {SWATCH.map(c => <button key={c} type="button" role="radio" aria-checked={color === c} aria-label={c} className={'pkfsw' + (color === c ? ' on' : '')} style={{ background: c }} onClick={() => setF({ ...f, color: c })} />)}
-          <label className={'pkfswc' + (!SWATCH.includes(color) ? ' on' : '')}>{!SWATCH.includes(color) && <i style={{ background: color }} />}Màu khác…
-            <input type="color" value={color} onChange={e => setF({ ...f, color: e.target.value })} /></label>
-          {f.color && <button type="button" className="linkbtn" onClick={() => setF({ ...f, color: null })}>Dùng màu mặc định</button>}
-        </div></div>
     </section>
-    <section className="panel" style={{ marginTop: 14 }}>
-      <h4 style={{ margin: '0 0 10px' }}>Thẻ giới thiệu <small className="sub" style={{ fontWeight: 400 }}>· hiện trên trang Gói STEM; KDI tự viết, để trống cả ba mục thì thẻ hiện nội dung tự động</small></h4>
+    <section className="panel pkfpanel">
+      <h4 style={{ margin: '0 0 8px' }}>Thẻ giới thiệu <small className="sub" style={{ fontWeight: 400 }}>· hiện trên trang Gói STEM; KDI tự viết, để trống cả ba mục thì thẻ hiện nội dung tự động</small></h4>
       <div className="pkfcard">
         <div>
           <label className="field"><span>Câu giới thiệu ngắn</span><input value={f.card_tagline} maxLength={300} placeholder="VD: Đa dạng học phần trải nghiệm" onChange={e => setF({ ...f, card_tagline: e.target.value })} /></label>
@@ -786,18 +780,30 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
               <span className="pkfgrip" draggable onDragStart={e => { e.dataTransfer.effectAllowed = 'move'; setDrag(k) }} onDragEnd={() => setDrag(null)} title="Kéo để đổi thứ tự" aria-hidden="true">⠿</span>
               <input value={h} maxLength={160} aria-label={`Dòng nổi bật ${k + 1}`} onChange={e => setHl(hl.map((x, i) => i === k ? e.target.value : x))} />
               <button type="button" className="linkbtn" aria-label={`Xoá dòng ${k + 1}`} onClick={() => setHl(hl.filter((_, i) => i !== k))}>×</button></div>)}
-            {hl.length < 8 && <button type="button" className="linkbtn" style={{ alignSelf: 'flex-start' }} onClick={() => setHl([...hl, ''])}>+ Thêm dòng</button>}
-            {sugg.length > 0 && hl.length < 8 && <div className="pkfsugg"><span className="sub">Gợi ý từ nội dung gói (bấm để thêm):</span>
-              {sugg.map(x => <button key={x} type="button" onClick={() => setHl([...hl, x])}>+ {x}</button>)}</div>}
+            {hl.length < 8 && <div className="pkfadd">
+              <button type="button" className="linkbtn" onClick={() => setHl([...hl, ''])}>+ Thêm dòng</button>
+              {sugg.length > 0 && <span className="pkfsugg" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setSugOpen(false) }}>
+                <button type="button" className="linkbtn" aria-expanded={sugOpen} onClick={() => setSugOpen(!sugOpen)}>+ Chọn từ nội dung gói ▾</button>
+                {sugOpen && <span className="pkfsugl" role="listbox">{sugg.map(x => <button key={x} type="button" role="option" aria-selected={false}
+                  onClick={() => { setHl([...hl, x]); setSugOpen(false) }}>{x}</button>)}</span>}</span>}
+            </div>}
           </div>
           <label className="field" style={{ marginTop: 10 }}><span>Dòng cuối thẻ <small className="sub" style={{ fontWeight: 400 }}>(giá, ghi chú…; để trống thì ẩn)</small></span>
             <input value={f.card_footer} maxLength={200} placeholder="VD: Từ 180.000đ/HS/năm" onChange={e => setF({ ...f, card_footer: e.target.value })} /></label>
         </div>
-        <div><div className="pkfpvl">Xem trước thẻ</div>
+        <div>
+          <div className="pkfpvl">Màu hiển thị</div>
+          <div className="pkfsws" role="radiogroup" aria-label="Màu hiển thị" title="Màu đầu thẻ, cột gói khi so sánh, viền chi tiết">
+            {SWATCH.map(c => <button key={c} type="button" role="radio" aria-checked={color === c} aria-label={c} className={'pkfsw' + (color === c ? ' on' : '')} style={{ background: c }} onClick={() => setF({ ...f, color: c })} />)}
+            <label className={'pkfswc' + (!SWATCH.includes(color) ? ' on' : '')}>{!SWATCH.includes(color) && <i style={{ background: color }} />}Màu khác…
+              <input type="color" value={color} onChange={e => setF({ ...f, color: e.target.value })} /></label>
+            {f.color && <button type="button" className="linkbtn" onClick={() => setF({ ...f, color: null })}>Màu mặc định</button>}
+          </div>
+          <div className="pkfpvl" style={{ marginTop: 12 }}>Xem trước thẻ</div>
           <PkgCard p={f} color={color} auto={auto(f, color)} /></div>
       </div>
     </section>
-    <section className="panel" style={{ marginTop: 14 }}>
+    <section className="panel pkfpanel">
       <h4 style={{ margin: 0 }}>Nội dung gói <small className="sub" style={{ fontWeight: 400 }}>· chủ đề, học phần soạn ở tab Khung chương trình{f.copyFrom ? ' · đã lấy sẵn từ gói gốc' : ''}</small></h4>
       <div className="distfilter" role="tablist" style={{ margin: '12px 0' }}>{tracks.map(t => <button key={t.code} type="button" role="tab" aria-selected={tab === t.code}
         className={'distfchip' + (tab === t.code ? ' on' : '')} onClick={() => setTab(t.code)} title={`${trackLabel(t.code)} · ${t.name}`}>{t.name} <small style={{ opacity: .75 }}>· {gradesOf(t.code).length} khối</small></button>)}</div>

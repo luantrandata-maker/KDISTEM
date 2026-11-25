@@ -10,11 +10,13 @@ import { ElView } from '../components/ElView'
 import { Drawer } from '../components/Drawer'
 import { MultiSelect } from '../components/MultiSelect'
 import { FitScreen } from '../components/FitScreen'
+import { TopicContents } from './topicContents'
 
 // Trường dùng gói (156, 158): danh sách trường (lọc tỉnh, gói) → chi tiết trường theo khối × loại chương trình → sửa phạm vi áp dụng
 // (đủ gói hoặc bỏ tick phần trường không áp dụng). Trường dùng được nhiều gói, mỗi khối một gói; nâng cấp gói từ một ngày, lưu lịch sử. Chỉ KDI gán / sửa; Sở, Phòng, trường xem được trường thuộc mình.
 
 const OFF = { textDecoration: 'line-through', color: 'var(--muted)' }
+const tchip = (code: string) => <span className="progchip" style={{ background: TRACK_COLOR[code], color: '#fff' }}>{trackLabel(code)}</span>
 const trackHead = (t: StemTrack) => `${trackLabel(t.code)} · ${t.name}`
 // Tiêu đề cột loại CT: chip màu + tên; GAP: khe dọc tách các loại CT trong bảng gói của trường
 const trackTh = (t: StemTrack) => <><span className="progchip" style={{ background: TRACK_COLOR[t.code], color: '#fff', marginRight: 8 }}>{trackLabel(t.code)}</span>{t.name}</>
@@ -34,6 +36,7 @@ function scopeAt(c: Ctx, pkg: string, t: StemTrack, g: number, skip: Set<string>
     .map(x => ({ topic: x, on: !skip.has(keyM(t.code, g, i.slot)) && !skip.has(keyT(x.id)) })))
   return { slots: ss, topics: ts, mods: t.use_modules !== false }
 }
+const NO_SKIP = new Set<string>()
 const skipSetOf = (row: SchoolPkgRow, skips: PkgSkip[]) => new Set(row.full_package ? [] : skips.filter(s => s.school_package_id === row.sp_id)
   .map(s => s.topic_id ? keyT(s.topic_id) : keyM(s.track_code, s.grade, s.slot ?? 0)))
 
@@ -79,7 +82,8 @@ export function SchoolPackages() {
   const [edit, setEdit] = useState<string | null>(null)        // bản gán đang sửa phạm vi
   const [assign, setAssign] = useState<string | boolean>(false) // true = gán mới; org_id = thêm gói cho khối khác của trường đó
   const [upgrade, setUpgrade] = useState<string | null>(null)  // bản gán đang nâng cấp
-  const [view, setView] = useState<{ t: string; g: number } | null>(null)
+  const [view, setView] = useState<{ t: string; g: number; sl?: number } | null>(null)
+  const [openTopic, setOpenTopic] = useState<ProgramTopic | null>(null)
   const [cmp, setCmp] = useState<string[] | null>(null)       // so sánh trường với gói: trường chọn sẵn
 
   const reloadSchools = (y = year) => loadSchoolPkgs(y).then(r => { setRows(r.rows); setSkips(r.skips); setMsg(r.error); setLoaded(true) })
@@ -129,7 +133,7 @@ export function SchoolPackages() {
       onCancel={() => setAssign(false)} onSaved={org => { setAssign(false); reloadSchools().then(() => { setOpenOrg(org); setEdit(null) }) }} />
   </Drawer>
 
-  if (cmp) return <ElView back={cur ? cur.name : 'Danh sách trường'} onBack={() => setCmp(null)} title="So sánh trường với gói" sub={<>Năm học {yearLabel(year)}</>}>
+  if (cmp) return <ElView back={cur ? cur.name : 'Danh sách trường'} onBack={() => setCmp(null)} title={<>So sánh trường với gói <small className="sub" style={{ fontWeight: 400, fontSize: '0.6em', marginLeft: 6 }}>Năm học {yearLabel(year)}</small></>}>
     <SchoolCompare ctx={ctx} schools={used} skips={skips} packages={packages} preset={cmp} year={year} modName={modName} pkgName={pkgName} pkgColor={pkgColor} liveOf={liveOf} />
   </ElView>
 
@@ -203,7 +207,7 @@ export function SchoolPackages() {
                   : on === s.topics.length ? <>Đủ {on} chủ đề</> : <><b>{on}</b>/{s.topics.length} chủ đề</>}</button></td>]
             }
             return Array.from({ length: nSl(t) }, (_, i) => { const x = s.slots.find(y => y.slot === i + 1)
-              return <td key={t.code + i} style={i ? undefined : GAP}>{x ? <button type="button" className="cellbtn" style={x.on ? undefined : OFF} onClick={open} title="Xem học phần và chủ đề">{modName(x.module_id)}</button> : <span className="sub">—</span>}</td> })
+              return <td key={t.code + i} style={i ? undefined : GAP}>{x ? <button type="button" className="cellbtn" style={x.on ? undefined : OFF} onClick={() => setView({ t: t.code, g, sl: x.slot })} title="Xem học phần và chủ đề">{modName(x.module_id)}</button> : <span className="sub">—</span>}</td> })
           })}</tr> })}</tbody>
         </table>
       </div> })()}
@@ -219,8 +223,9 @@ export function SchoolPackages() {
               <td>{st === 'next' ? `Từ ${fmtDay(r.starts_on)}` : <>{r.starts_on ? fmtDay(r.starts_on) : 'Đầu năm học'} – {r.ends_on ? fmtDay(r.ends_on) : 'nay'}</>}</td>
               <td><small>{[from ? `Nâng cấp từ ${pkgName(from.package_id)}` : '', r.note ?? ''].filter(Boolean).join(' · ')}</small></td></tr> })}</tbody>
         </table></div></>}
-      {vt && vs && view && <Drawer title={<>{trackHead(vt)} · {gradeName(view.g)}</>} onClose={() => setView(null)}>
-        <ScopeView s={vs} modName={modName} />
+      {vt && vs && view && <Drawer closeOnOutside onClose={() => { setView(null); setOpenTopic(null) }} onBack={openTopic ? () => setOpenTopic(null) : undefined}
+        title={openTopic ? <>{tchip(vt.code)} {openTopic.title}</> : <>{tchip(vt.code)} {view.sl ? <>{modName(vs.slots.find(x => x.slot === view.sl)?.module_id ?? '')} · {gradeName(view.g)} · Học phần {view.sl}</> : <>{vt.name} · {gradeName(view.g)}</>}</>}>
+        {openTopic ? <TopicContents topic={openTopic} admin={false} /> : <ScopeView s={vs} sl={view.sl} track={vt.name} modName={modName} onTopic={setOpenTopic} />}
       </Drawer>}
       {upSp && <Drawer title={<>Nâng cấp gói · {cur.name}</>} closeOnOutside={false} onClose={() => setUpgrade(null)}>
         <UpgradeForm row={upSp} ctx={ctx} packages={packages.filter(p => p.active && p.id !== upSp.package_id)} pkgName={pkgName} modName={modName}
@@ -380,7 +385,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   const present = (k: string) => k === 'pkg' ? !!pkg : k.startsWith('s') && k !== 'slot' && /^s\d$/.test(k) ? Number(k.slice(1)) < sel.length : true
   const order = [...colCfg.order.filter(k => COL_DEFAULT.includes(k)), ...COL_DEFAULT.filter(k => !colCfg.order.includes(k))].filter(present)
   const vis = order.filter(k => !colCfg.hidden.includes(k))
-  const colLabel = (k: string) => k === 'track' ? 'Loại CT' : k === 'grade' ? 'Khối · Phần' : k === 'pkg' ? `${pkgName(pkg)} có` : sel[Number(k.slice(1))]?.name ?? k
+  const colLabel = (k: string) => k === 'track' ? 'Loại CT' : k === 'grade' ? 'Khối - Phần' : k === 'pkg' ? `${pkgName(pkg)} có` : sel[Number(k.slice(1))]?.name ?? k
   const isKey = (k: string) => k === 'track' || k === 'grade'
   // Nhóm dòng theo cột Loại CT hoặc Khối, cột nào đứng trước
   const gk = vis.find(k => k === 'track' || k === 'grade') ?? 'grade'
@@ -397,12 +402,13 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
     const list = ids.map(tp => { const p = pkg ? st(r.pSc, tp.id) : null; const ss = r.sSc.map((sc, i) => r.ss[i] ? st(sc, tp.id) : null)
       const d = ss.map((v, i) => v !== null && (p !== null ? v !== p : ss.some((w, j) => j !== i && w !== null && w !== v)))
       return { tp, p, ss, d } })
-    return { n: ids.length, list: open[r.key] ? list.filter(x => x.d.some(Boolean)) : list }
+    const dl = list.filter(x => x.d.some(Boolean))
+    return { n: ids.length, nd: dl.length, list: open[r.key] ? dl : list }
   }
   type Line = { r: Row; kind: 'main' } | { r: Row; kind: 'head'; n: number } | { r: Row; kind: 'topic'; x: ReturnType<typeof topicData>['list'][number]; k: number }
   const lines: Line[] = sorted.flatMap(r => {
     const out: Line[] = [{ r, kind: 'main' }]
-    if (topical(r) && open[r.key] !== undefined) { const d = topicData(r); out.push({ r, kind: 'head', n: d.n }, ...d.list.map((x, k) => ({ r, kind: 'topic' as const, x, k }))) }
+    if (topical(r) && open[r.key] !== undefined) { const d = topicData(r); out.push(...d.list.map((x, k) => ({ r, kind: 'topic' as const, x, k }))) }
     return out
   })
   const mark = (v: number | null) => v === null ? <span className="sub">—</span> : v === 1 ? <span style={CHK}>✓</span> : v === 2 ? <span style={{ color: '#b42318' }}>✕ không áp dụng</span> : <span className="sub">—</span>
@@ -413,22 +419,28 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
     const span = first ? lines.slice(li).findIndex(x => gOf(x.r) !== gOf(r)) : 0
     const cols = vis.filter(k => k !== spanCol || first)
     const cells: React.ReactNode[] = []
-    const spanCell = (k: string) => <td key={k} rowSpan={span < 0 ? lines.length - li : span} style={{ verticalAlign: 'top' }}>
+    const tint = { borderLeft: `4px solid ${TRACK_COLOR[r.t.code]}`, background: TRACK_COLOR[r.t.code] + '14' }
+    const spanCell = (k: string) => <td key={k} rowSpan={span < 0 ? lines.length - li : span} style={{ verticalAlign: 'top', ...(k === 'track' ? tint : {}) }}>
       {k === 'track' ? <span style={{ fontWeight: 600 }}>{chipOf(r.t)}{r.t.name}</span> : <b>{gradeName(r.g)}</b>}</td>
     if (ln.kind === 'main') {
       const isOpen = topical(r) && open[r.key] !== undefined
       // Phần (học phần / chủ đề) ghép vào ô Khối, hoặc ô Loại CT khi cột Khối đang gộp nhóm hay bị ẩn
-      const part = <>{topical(r) && <button type="button" className="cellbtn" style={{ display: 'inline' }} aria-expanded={isOpen}
+      // Loại tính theo chủ đề: nút "Xem N chủ đề" rõ ràng; khi mở thì nút lọc Khác nhau / Tất cả nằm ngay dưới
+      const td = topical(r) ? topicData(r) : null; const nT = td?.n ?? 0
+      const part = topical(r) ? <><button type="button" className={'cmpxbtn' + (isOpen ? ' on' : '')} aria-expanded={isOpen}
           onClick={() => setOpen(o => { const n = { ...o }; if (isOpen) delete n[r.key]; else n[r.key] = false; return n })}>
-          <b style={{ color: isOpen ? 'var(--navy, #2563eb)' : '#94a3b8', marginRight: 3 }}>{isOpen ? '▾' : '▸'}</b></button>}
-        {r.t.use_modules === false ? 'Chủ đề' : `Học phần ${r.slot}`}</>
+          <span className="ar">{isOpen ? '▾' : '▸'}</span>{isOpen ? 'Đóng' : 'Xem'} {nT} chủ đề</button>
+        {isOpen && <span className="seg cmpseg" role="group" aria-label="Lọc chủ đề">
+          <button type="button" className={open[r.key] ? 'on' : ''} aria-pressed={!!open[r.key]} onClick={() => setOpen(o => ({ ...o, [r.key]: true }))}>Khác nhau <small>({td?.nd})</small></button>
+          <button type="button" className={open[r.key] ? '' : 'on'} aria-pressed={!open[r.key]} onClick={() => setOpen(o => ({ ...o, [r.key]: false }))}>Tất cả <small>({nT})</small></button></span>}</>
+        : <>{r.t.use_modules === false ? 'Chủ đề' : `Học phần ${r.slot}`}</>
       for (const k of cols) {
         if (k === spanCol) cells.push(spanCell(k))
-        else if (k === 'track') cells.push(<td key={k}>{chipOf(r.t)}{r.t.name}{spanCol === 'grade' || !vis.includes('grade') ? <> · {part}</> : null}</td>)
-        else if (k === 'grade') cells.push(<td key={k}><b>{gradeName(r.g)}</b> · {part}{!vis.includes('track') && <> · {chipOf(r.t)}</>}</td>)
+        else if (k === 'track') cells.push(<td key={k} style={tint}>{chipOf(r.t)}{r.t.name}{spanCol === 'grade' || !vis.includes('grade') ? <> - {part}</> : null}</td>)
+        else if (k === 'grade') cells.push(<td key={k} style={topical(r) ? { whiteSpace: 'nowrap' } : undefined}><b>{gradeName(r.g)}</b> - {part}{!vis.includes('track') && <> · {chipOf(r.t)}</>}</td>)
         else if (k === 'pkg') cells.push(<td key={k}>{txt(r.p, r.pSc, r.t)}</td>)
         else { const i = Number(k.slice(1)); const v = r.ss[i]; const d = diffAt(r, i)
-          cells.push(<td key={k} style={d ? DIFF : undefined}>{!d && pkg && v ? <span className="sub">giống gói</span> : txt(v, r.sSc[i], r.t)}</td>) }
+          cells.push(<td key={k} style={d ? DIFF : undefined}>{/* Giống gói: tên chữ xám; khác gói: chữ đậm trên nền vàng */}<span style={d ? { fontWeight: 600 } : pkg && v ? { color: '#94a3b8' } : undefined}>{txt(v, r.sSc[i], r.t)}</span></td>) }
       }
       return <tr key={r.key}>{cells}</tr>
     }
@@ -459,7 +471,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   }
   const printCmp = () => { document.body.classList.add('cmpprinting'); window.print(); setTimeout(() => document.body.classList.remove('cmpprinting'), 500) }
   return <>
-    <div className="lvfilter">
+    <div className="lvfilter cmpfilter">
       <span className="lvlab">Gói</span>
       <div style={{ flex: '0 0 170px', width: 170 }}><MultiSelect compact single value={pkg ? [pkg] : []} onChange={v => setPkg(v[0] ?? '')}
         options={packages.map(p => [p.id, p.name] as [string, string])} placeholder="Không chọn gói" ariaLabel="Gói để so sánh" /></div>
@@ -488,25 +500,35 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
         <tbody>{!lines.length ? <tr><td colSpan={vis.length || 1} className="sub">{only ? (pkg ? 'Các trường giống gói ở mọi khối.' : 'Các trường giống nhau ở mọi khối.') : 'Không có dữ liệu.'}</td></tr>
           : lines.map(renderLine)}</tbody>
       </table></FitScreen>
-      <p className="sub framefoot">{pkg ? `Cột ${pkgName(pkg)} làm chuẩn; ô vàng = trường khác gói.` : 'Ô vàng = các trường khác nhau.'} Chữ gạch đỏ = trường không áp dụng. Loại tính theo chủ đề bấm ▸ để xem đủ chủ đề.</p>
     </div>}
   </>
 }
 
-function ScopeView({ s, modName }: { s: ReturnType<typeof scopeAt>; modName: (id: string) => string }) {
-  const tag = (on: boolean) => on ? <small className="sub">Áp dụng</small> : <small style={{ color: 'var(--danger, #b42318)' }}>Không áp dụng</small>
+/** Chủ đề trường áp dụng ở một loại CT × khối (hoặc một học phần): cùng kiểu bảng như khi xem từ gói, thêm cột Áp dụng */
+function ScopeView({ s, sl, track, modName, onTopic }: { s: ReturnType<typeof scopeAt>; sl?: number; track: string; modName: (id: string) => string; onTopic: (t: ProgramTopic) => void }) {
+  const tag = (on: boolean) => on ? <span style={{ color: 'var(--ok, #15803d)', fontWeight: 600 }}>✓ Áp dụng</span> : <span style={{ color: 'var(--danger, #b42318)', fontWeight: 600 }}>✕ Không áp dụng</span>
+  const tbl = (list: TopicState[]) => list.length
+    ? <table className="table slt ttdense"><thead><tr><th className="c-no">TT</th><th>Chủ đề</th><th style={{ width: 70 }}>Số tiết</th><th>Môn chủ trì</th><th style={{ width: 130 }}>Áp dụng</th></tr></thead>
+      <tbody>{list.map(({ topic, on }, k) => <tr key={topic.id} className="clickrow" onClick={() => onTopic(topic)} style={on ? undefined : { background: 'var(--soft, #f8fafc)' }}>
+        <td style={on ? undefined : { color: 'var(--muted)' }}>{k + 1}</td>
+        <td>{on ? <b>{topic.title}</b> : <span style={{ ...OFF, textDecorationColor: 'var(--danger, #b42318)' }}>{topic.title}</span>}</td>
+        <td style={on ? undefined : { color: 'var(--muted)' }}>{topic.periods}</td><td style={on ? undefined : { color: 'var(--muted)' }}>{topic.main_subject || <small className="sub">—</small>}</td><td>{tag(on)}</td></tr>)}</tbody></table>
+    : null
+  const sum = (list: TopicState[]) => { const on = list.filter(x => x.on).length
+    return <>{list.length} chủ đề · {list.reduce((x, y) => x + (y.topic.periods || 0), 0)} tiết{list.length ? <> · <b>trường áp dụng {on === list.length ? 'đủ' : `${on}/${list.length}`}</b></> : ''}</> }
   if (!s.mods) return s.topics.length
-    ? <ol style={{ margin: 0, paddingLeft: 20, display: 'grid', gap: 6 }}>{s.topics.map(({ topic, on }) => <li key={topic.id}>
-      <span style={on ? undefined : OFF}>{topic.title}</span> <small className="sub">· {topic.periods} tiết</small> · {tag(on)}</li>)}</ol>
+    ? <><p className="sub" style={{ marginTop: 0 }}>{sum(s.topics)} · bấm vào chủ đề để xem nội dung</p>{tbl(s.topics)}</>
     : <p className="sub">Có trong gói, khung chương trình chưa có chủ đề ở khối này.</p>
-  return <div style={{ display: 'grid', gap: 14 }}>{s.slots.map(x => {
-    const ts = s.topics.filter(y => y.topic.module_id === x.module_id)
-    return <section key={x.slot}>
-      <h4 style={{ margin: '0 0 6px' }}><span style={x.on ? undefined : OFF}>HP{x.slot} · {modName(x.module_id)}</span> · {tag(x.on)}</h4>
-      {ts.length ? <ol style={{ margin: 0, paddingLeft: 20 }}>{ts.map(({ topic }) => <li key={topic.id}>{topic.title} <small className="sub">· {topic.periods} tiết</small></li>)}</ol>
-        : <p className="sub" style={{ margin: 0 }}>Học phần chưa có chủ đề ở khối này.</p>}
-    </section>
-  })}</div>
+  const slots = s.slots.filter(x => !sl || x.slot === sl)
+  const n1 = sl && slots[0] ? s.topics.filter(y => y.topic.module_id === slots[0].module_id) : []
+  return <>{sl && slots[0] && <p className="sub" style={{ marginTop: 0 }}>{track}{n1.length ? <> · {sum(n1)}</> : null} ·{' '}
+    {slots[0].on ? <b style={{ color: 'var(--ok, #15803d)' }}>trường áp dụng học phần này</b> : <b style={{ color: 'var(--danger, #b42318)' }}>trường không áp dụng học phần này</b>}</p>}
+    {!sl && <p className="sub" style={{ marginTop: 0 }}>{sum(s.topics)} · bấm vào chủ đề để xem nội dung</p>}
+    {slots.map(x => { const ts = s.topics.filter(y => y.topic.module_id === x.module_id)
+      return <div key={x.slot} style={{ marginBottom: 14 }}>
+        {!sl && <h4 className="pnhead" style={{ margin: '4px 0 6px' }}><span style={x.on ? undefined : OFF}>Học phần {x.slot}: {modName(x.module_id)}</span> · {tag(x.on)}</h4>}
+        {tbl(ts) ?? <p className="sub" style={{ margin: 0 }}>Học phần chưa có chủ đề ở khối này.</p>}
+      </div> })}</>
 }
 
 function GradePick({ value, onChange, allowed = ALL_GRADES }: { value: number[]; onChange: (v: number[]) => void; allowed?: number[] }) {
@@ -677,13 +699,15 @@ function ScopeEdit({ ctx, row, skips, packages, modName, allowed, onCancel, onSa
   const [full, setFull] = useState(!!row.full_package)
   const [skip, setSkip] = useState<Set<string>>(() => skipSetOf({ ...row, full_package: false }, skips))
   const [g, setG] = useState(0)   // 0 = tất cả khối
+  const [exp, setExp] = useState<Set<string>>(new Set())   // khối đang mở danh sách chủ đề: `${loại}|${khối}`
+  const eff = full ? NO_SKIP : skip   // Áp dụng đủ gói: hiện như tick hết
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const flip = (keys: string[], on: boolean) => setSkip(s => { const n = new Set(s); for (const k of keys) { if (on) n.delete(k); else n.add(k) } return n })
   // Khoá của mọi mục (học phần / chủ đề) ở loại t, khối gg — dùng cho ô "chọn cả khối"
   const keysAt = (t: StemTrack, gg: number) => { const s = scopeAt(ctx, pkg, t, gg, skip); return s.mods ? s.slots.map(x => keyM(t.code, gg, x.slot)) : [...s.slots.map(x => keyM(t.code, gg, x.slot)), ...s.topics.map(x => keyT(x.topic.id))] }
   // Chưa có chủ đề (VD CT4): tick theo cả khối (vị trí học phần)
-  const onAt = (t: StemTrack, gg: number) => { const s = scopeAt(ctx, pkg, t, gg, skip); return s.mods || !s.topics.length ? [s.slots.filter(x => x.on).length, s.slots.length] : [s.topics.filter(x => x.on).length, s.topics.length] }
+  const onAt = (t: StemTrack, gg: number) => { const s = scopeAt(ctx, pkg, t, gg, eff); return s.mods || !s.topics.length ? [s.slots.filter(x => x.on).length, s.slots.length] : [s.topics.filter(x => x.on).length, s.topics.length] }
   const gs = g ? [g] : grades
   // Bật một chủ đề khi cả khối đang bị bỏ (bỏ theo vị trí): chuyển sang bỏ từng chủ đề, chỉ bật chủ đề này
   const topicOn = (t: StemTrack, gg: number, id: string, v: boolean) => setSkip(cur => {
@@ -734,7 +758,8 @@ function ScopeEdit({ ctx, row, skips, packages, modName, allowed, onCancel, onSa
       <label className="field inline"><input type="radio" checked={full} onChange={() => setFull(true)} /> Áp dụng đủ gói</label>
       <label className="field inline"><input type="radio" checked={!full} onChange={() => setFull(false)} /> Chọn một phần (bỏ tick phần trường không áp dụng)</label>
     </div>
-    {!full && <>
+    {full && <p className="scopelock">🔒 Đang áp dụng đủ gói nên tất cả được chọn sẵn. Bấm số chủ đề để xem; muốn bỏ bớt, chọn "Chọn một phần".</p>}
+    <>
       <div className="distfilter scopegrades" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
         <span className="lvlab">Xem khối</span>
         <button type="button" className={'distfchip' + (g === 0 ? ' on' : '')} aria-pressed={g === 0} onClick={() => setG(0)}>Tất cả khối</button>
@@ -746,28 +771,37 @@ function ScopeEdit({ ctx, row, skips, packages, modName, allowed, onCancel, onSa
           const allKeys = gs.flatMap(gg => keysAt(t, gg))
           const unit = t.use_modules !== false ? 'Học phần' : gs.some(gg => scopeAt(ctx, pkg, t, gg, skip).topics.length) ? 'Chủ đề' : 'Khối'
           return <fieldset key={t.code} className="panel" style={{ margin: 0, padding: 10, minWidth: 0 }}>
-            <legend>{trackHead(t)}</legend>
-            {box(!!tot[1] && tot[0] === tot[1], v => flip(allKeys, v), <>{g ? unit : 'Chọn tất cả khối'} ({tot[0]}/{tot[1]})</>, true, 0, !tot[1])}
+            <legend>{tchip(t.code)} {t.name}</legend>
+            {box(!!tot[1] && tot[0] === tot[1], v => flip(allKeys, v), <>{g ? unit : 'Chọn tất cả khối'} ({tot[0]}/{tot[1]})</>, true, 0, full || !tot[1])}
             {gs.map(gg => {
-              const s = scopeAt(ctx, pkg, t, gg, skip)
+              const s = scopeAt(ctx, pkg, t, gg, eff)
               const [o, n] = onAt(t, gg)
-              const head = !g && box(!!n && o === n, v => flip(keysAt(t, gg), v), <><b>K{gg}</b> <small className="sub">
-                {!s.slots.length ? 'không có trong gói' : s.mods ? '' : !s.topics.length ? 'chưa có chủ đề, tick theo cả khối' : `${o}/${n} chủ đề`}</small></>, false, 18, !n)
+              const ek = `${t.code}|${gg}`, isOpen = exp.has(ek)
+              const tog = () => setExp(cur => { const x = new Set(cur); if (x.has(ek)) x.delete(ek); else x.add(ek); return x })
+              const cnt = !s.mods && s.topics.length > 0
+              const head = !g && <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                {box(!!n && o === n, v => flip(keysAt(t, gg), v), <><b>K{gg}</b>{(!s.slots.length || (!s.mods && !s.topics.length)) && <> <small className="sub">
+                  {!s.slots.length ? 'không có trong gói' : 'chưa có chủ đề, tick theo cả khối'}</small></>}</>, false, 18, full || !n)}
+                {cnt && <button type="button" className={'scopecnt' + (isOpen ? ' on' : '')} aria-expanded={isOpen} onClick={tog}
+                  title={isOpen ? 'Đóng danh sách chủ đề' : full ? 'Xem chủ đề' : 'Chọn từng chủ đề'}>{o}/{n} chủ đề {isOpen ? '▴' : '▾'}</button>}</div>
               const ind = g ? 18 : 40
+              const tlist = s.topics.map(x => <div key={x.topic.id}>{box(x.on, v => topicOn(t, gg, x.topic.id, v),
+                <>{x.topic.seq}. {x.topic.title}</>, false, g ? ind : 0, full)}</div>)
               const list = s.mods
-                ? s.slots.map(x => <div key={x.slot}>{box(x.on, v => flip([keyM(t.code, gg, x.slot)], v), <>HP{x.slot} {modName(x.module_id)}</>, false, ind)}</div>)
-                : g ? s.topics.map(x => <div key={x.topic.id}>{box(x.on, v => topicOn(t, gg, x.topic.id, v),
-                  <>{x.topic.seq}. {x.topic.title}</>, false, ind)}</div>) : null
+                ? s.slots.map(x => <div key={x.slot}>{box(x.on, v => flip([keyM(t.code, gg, x.slot)], v), <>HP{x.slot} {modName(x.module_id)}</>, false, ind, full)}</div>)
+                : g ? tlist
+                : isOpen && cnt ? <div className="scopepop"><div className="scopepoph"><span>Chủ đề K{gg} · {full ? 'chỉ xem' : 'tick là áp dụng'}</span>
+                  {!full && <button type="button" className="linkbtn" onClick={() => flip(keysAt(t, gg), o !== n)}>{o === n ? 'Bỏ hết' : 'Chọn hết'}</button>}</div>{tlist}</div> : null
               return <div key={gg}>{head}{list}
                 {g > 0 && !s.mods && !s.topics.length && (s.slots.length
-                  ? box(o === n, v => flip(keysAt(t, gg), v), <>Cả khối <small className="sub">chưa có chủ đề trong khung</small></>, false, 18)
+                  ? box(o === n, v => flip(keysAt(t, gg), v), <>Cả khối <small className="sub">chưa có chủ đề trong khung</small></>, false, 18, full)
                   : <p className="sub" style={{ margin: '4px 0 0 18px' }}>Gói không có ở khối này</p>)}</div>
             })}
           </fieldset>
         })}
       </div>
-      <small className="sub" style={{ display: 'block', marginTop: 8 }}>Bấm K1, K2… để bỏ tick từng chủ đề của Bài học STEM.</small>
-    </>}
+      {!full && <small className="sub" style={{ display: 'block', marginTop: 8 }}>Bấm vào số chủ đề (VD "8/16 chủ đề") để tick từng chủ đề.</small>}
+    </>
     {err && <p className="warnline">{err}</p>}
     <div className="actions" style={{ marginTop: 12 }}>
       <button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>

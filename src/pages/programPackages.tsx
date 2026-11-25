@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { FitScreen } from '../components/FitScreen'
 import { supabase } from '../lib/supabase'
 import { EDU_ACTIVITY_NAME, useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
@@ -41,6 +42,7 @@ export function ProgramPackages() {
   const [msg, setMsg] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
   const [compare, setCompare] = useState(false)
+  const [formSlot, setFormSlot] = useState<HTMLElement | null>(null)   // chỗ đặt nút Lưu / Huỷ trên hàng tiêu đề khi sửa gói
   const [by, setBy] = useState<'grade' | 'mod'>('mod')   // So sánh: xem theo học phần (mặc định) hoặc theo khối
   // Lọc theo cấp / khối, dùng chung cho Tổng quan gói và So sánh (tư vấn cho từng trường, trường liên cấp chọn nhiều cấp)
   const [lvs, setLvs] = useState<string[]>([])
@@ -81,8 +83,9 @@ export function ProgramPackages() {
   }
 
   if (editPkg) return <ElView back={openId ? 'Gói STEM' : 'Danh sách gói'} onBack={() => setEditPkg(null)}
-    title={editPkg.id ? `Sửa gói · ${editPkg.name}` : editPkg.copyFrom ? 'Sao chép gói STEM' : 'Thêm gói STEM'}>
-    <PackageForm p={editPkg} tracks={active} items={items} skips={skips} modules={modules} topics={topics} onCancel={() => setEditPkg(null)} onSaved={id => { setEditPkg(null); if (id) setOpenId(id); reload() }} />
+    title={editPkg.id ? `Sửa gói · ${editPkg.name}` : editPkg.copyFrom ? 'Sao chép gói STEM' : 'Thêm gói STEM'}
+    actions={<span ref={setFormSlot} className="pkfacts" />}>
+    <PackageForm slot={formSlot} p={editPkg} tracks={active} items={items} skips={skips} modules={modules} topics={topics} onCancel={() => setEditPkg(null)} onSaved={id => { setEditPkg(null); if (id) setOpenId(id); reload() }} />
   </ElView>
 
   if (compare) return <>
@@ -148,9 +151,8 @@ export function ProgramPackages() {
             </div>
             <div className="pkgc-body">
               {common.length > 0 && <>
-                <div className="pkgc-cap">{live.length > 1 ? `Phần chung cả ${live.length} gói:` : 'Gồm:'}</div>
                 {common.map(r => <div key={r.t.code} className="pkgc-row">{tick('#cfe3fb', '#2f6fd6')}
-                  <div><span className="pkgc-code">{trackLabel(r.t.code)}</span> {r.t.name}<small>{r.text}</small></div></div>)}
+                  <div><span className="pkgc-code">{trackLabel(r.t.code)}</span> {r.t.name}<small>{r.t.use_modules === false ? fmtGrades(r.gs) : r.text}</small></div></div>)}
               </>}
               {own.length > 0 && <>
                 <div className="pkgc-sep"><span>Điểm riêng của gói</span></div>
@@ -625,8 +627,8 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
 
 type Draft = Record<string, string>   // `${track}|${khối}|${HP}` → học phần ('' = khối đã tick, chưa chọn học phần)
 const dk = (t: string, g: number, sl: number) => `${t}|${g}|${sl}`
-function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSaved }: {
-  p: ProgramPackage & { copyFrom?: string; tab?: string }; tracks: StemTrack[]; items: PackageItem[]; skips: PackageSkip[]; modules: ProgramModule[]; topics: ProgramTopic[]
+function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSaved, slot }: {
+  slot?: HTMLElement | null; p: ProgramPackage & { copyFrom?: string; tab?: string }; tracks: StemTrack[]; items: PackageItem[]; skips: PackageSkip[]; modules: ProgramModule[]; topics: ProgramTopic[]
   onCancel: () => void; onSaved: (id?: string) => void
 }) {
   const [f, setF] = useState(p)
@@ -713,6 +715,7 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
   }
   const nSl = (t: StemTrack) => Math.max(2, ...keysOf(t.code).map(k => Number(k.split('|')[2])))
   return <>
+    {err && <p className="warnline" role="alert">{err}</p>}
     <section className="panel">
       <h4 style={{ margin: '0 0 10px' }}>Thông tin gói</h4>
       <div className="formgrid">
@@ -765,11 +768,10 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
           <input type="checkbox" checked={!skip.has(x.id)} onChange={() => flipTopic(x.id)} /><span className="sub pkfseq">{x.seq}</span><span className="pkfname">{x.title}</span><span className="sub">{x.periods} tiết</span></label>)}</div>
         <p className="sub">Chủ đề bỏ tick sẽ không có trong gói. Bấm Lưu ở form để lưu.</p>
       </Drawer> })()}
-    {err && <p className="warnline">{err}</p>}
-    <div className="actions" style={{ marginTop: 12 }}>
-      <button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
-      <button onClick={onCancel} disabled={busy}>Huỷ</button>
-    </div>
+    {(() => { const btns = <>
+      <button type="button" className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
+      <button type="button" onClick={onCancel} disabled={busy}>Huỷ</button></>
+      return slot ? createPortal(btns, slot) : <div className="actions" style={{ marginTop: 12 }}>{btns}</div> })()}
   </>
 }
 

@@ -760,8 +760,8 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
   return <>
     {err && <p className="warnline" role="alert">{err}</p>}
     {/* Thông tin gói và Thẻ giới thiệu bên trái; màu hiển thị và xem trước thẻ ở cột phải, ngang cả hai khung */}
-    <div className="pkftop"><div className="pkfleft">
-    <section className="panel pkfpanel">
+    <section className="panel pkfpanel pkftop"><div className="pkfleft">
+    <div>
       <h4 style={{ margin: '0 0 10px' }}>Thông tin gói</h4>
       <div className="formgrid">
         <label className="field"><span>Mã gói *</span><input value={f.code} maxLength={20} placeholder="VD: 5T" onChange={e => setF({ ...f, code: e.target.value })} /></label>
@@ -771,8 +771,8 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
           <option value="on">Đang dùng</option><option value="off">Ngừng dùng</option></select></label>
         <label className="field wide"><span>Mô tả (gói khác các gói khác ở đâu)</span><textarea rows={2} value={f.description} onChange={e => setF({ ...f, description: e.target.value })} /></label>
       </div>
-    </section>
-    <section className="panel pkfpanel">
+    </div>
+    <div className="pkfsep">
       <h4 style={{ margin: '0 0 8px' }}>Thẻ giới thiệu <small className="sub" style={{ fontWeight: 400 }}>· hiện trên trang Gói STEM; KDI tự viết, để trống cả ba mục thì thẻ hiện nội dung tự động</small></h4>
       <div className="pkfcard">
           <label className="field"><span>Câu giới thiệu ngắn</span><input value={f.card_tagline} maxLength={300} placeholder="VD: Đa dạng học phần trải nghiệm" onChange={e => setF({ ...f, card_tagline: e.target.value })} /></label>
@@ -792,9 +792,10 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
           <label className="field" style={{ marginTop: 10 }}><span>Dòng cuối thẻ <small className="sub" style={{ fontWeight: 400 }}>(giá, ghi chú…; để trống thì ẩn)</small></span>
             <input value={f.card_footer} maxLength={200} placeholder="VD: Từ 180.000đ/HS/năm" onChange={e => setF({ ...f, card_footer: e.target.value })} /></label>
       </div>
-    </section>
     </div>
-    <aside className="panel pkfpanel pkfaside">          <div className="pkfpvl">Màu hiển thị</div>
+    </div>
+    <aside className="pkfaside">
+          <div className="pkfpvl">Màu hiển thị</div>
           <div className="pkfsws" role="radiogroup" aria-label="Màu hiển thị" title="Màu đầu thẻ, cột gói khi so sánh, viền chi tiết">
             {SWATCH.map(c => <button key={c} type="button" role="radio" aria-checked={color === c} aria-label={c} className={'pkfsw' + (color === c ? ' on' : '')} style={{ background: c }} onClick={() => setF({ ...f, color: c })} />)}
             <label className={'pkfswc' + (!SWATCH.includes(color) ? ' on' : '')}>{!SWATCH.includes(color) && <i style={{ background: color }} />}Màu khác…
@@ -804,7 +805,7 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
           <div className="pkfpvl" style={{ marginTop: 12 }}>Xem trước thẻ</div>
           <PkgCard p={f} color={color} auto={auto(f, color)} />
     </aside>
-    </div>
+    </section>
     <section className="panel pkfpanel">
       <h4 style={{ margin: 0 }}>Nội dung gói <small className="sub" style={{ fontWeight: 400 }}>· chủ đề, học phần soạn ở tab Khung chương trình{f.copyFrom ? ' · đã lấy sẵn từ gói gốc' : ''}</small></h4>
       <div className="distfilter" role="tablist" style={{ margin: '12px 0' }}>{tracks.map(t => <button key={t.code} type="button" role="tab" aria-selected={tab === t.code}

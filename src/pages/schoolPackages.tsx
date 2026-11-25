@@ -440,7 +440,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
         else if (k === 'grade') cells.push(<td key={k} style={topical(r) ? { whiteSpace: 'nowrap' } : undefined}><b>{gradeName(r.g)}</b> - {part}{!vis.includes('track') && <> · {chipOf(r.t)}</>}</td>)
         else if (k === 'pkg') cells.push(<td key={k}>{txt(r.p, r.pSc, r.t)}</td>)
         else { const i = Number(k.slice(1)); const v = r.ss[i]; const d = diffAt(r, i)
-          cells.push(<td key={k} style={d ? DIFF : undefined}>{!d && pkg && v ? <span className="sub">giống gói</span> : txt(v, r.sSc[i], r.t)}</td>) }
+          cells.push(<td key={k} style={d ? DIFF : undefined}>{/* Giống gói: tên chữ xám; khác gói: chữ đậm trên nền vàng */}<span style={d ? { fontWeight: 600 } : pkg && v ? { color: '#94a3b8' } : undefined}>{txt(v, r.sSc[i], r.t)}</span></td>) }
       }
       return <tr key={r.key}>{cells}</tr>
     }

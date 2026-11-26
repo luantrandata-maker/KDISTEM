@@ -10,6 +10,7 @@ import { ElView } from '../components/ElView'
 import { HeadAction } from '../components/PageFrame'
 import { ApplyTag } from '../components/ApplyTag'
 import { useColResize } from '../components/ColResize'
+import { LevelTicks } from '../components/LevelTicks'
 import { Drawer, FormActions } from '../components/Drawer'
 import { MultiSelect } from '../components/MultiSelect'
 import { FitScreen } from '../components/FitScreen'
@@ -334,6 +335,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   const [pkg, setPkg] = useState(() => firstPkg(preset))
   const [only, setOnly] = useState(false)   // mặc định hiện tất cả, tick để chỉ xem điểm khác nhau
   const [tf, setTf] = useState<string[]>([])   // lọc loại CT (rỗng = tất cả)
+  const [gf, setGf] = useState<number[]>([])   // lọc Cấp › Khối (rỗng = tất cả)
   const tl = (t: StemTrack) => `${trackLabel(t.code)} · ${t.name}`
   const [colCfg, setColCfg] = useState<ColCfg>(loadColCfg)
   useEffect(() => { try { localStorage.setItem(COLS_KEY, JSON.stringify(colCfg)) } catch { /* bỏ qua */ } }, [colCfg])
@@ -373,7 +375,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
     return r.ss.some((w, j) => j !== i && w && sigOf(w) !== sigOf(v)) }
   const rowDiff = (r: Row) => r.ss.some((_, i) => diffAt(r, i))
   const base = only ? rows.filter(rowDiff) : rows
-  const shown = tf.length ? base.filter(r => tf.includes(r.t.code)) : base
+  const shown = base.filter(r => (!tf.length || tf.includes(r.t.code)) && (!gf.length || gf.includes(r.g)))
   const stat = (i: number) => { const rs = rows.filter(r => r.ss[i]); const d = rs.filter(r => diffAt(r, i)).length; return { n: rs.length, d } }
   const both = rows.filter(r => r.ss.filter(Boolean).length > 1)
   const bothD = both.filter(rowDiff).length
@@ -489,6 +491,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   return <div className="cmpcard">
     <div className="lvfilter cmpfilter">
       <div className="lvextra">
+        {grades.length > 1 && <LevelTicks value={gf} onChange={setGf} grades={grades} count={g => base.filter(r => r.g === g).length} />}
         <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện điểm khác nhau</label>
       <span className="lvgrp"><span className="lvlab">Loại CT</span><ColFilter pin label={tf.length ? tf.map(trackLabel).join(', ') : 'Tất cả'} value={tracks.filter(t => tf.includes(t.code)).map(tl)}
         options={tracks.map(t => [tl(t), base.filter(r => r.t.code === t.code).length] as [string, number])}

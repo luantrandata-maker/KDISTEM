@@ -463,13 +463,15 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
       flush('b')
       return <tr key={r.key + 'h'}>{cells}</tr>
     }
-    const x = ln.x; const bg = { ...(x.d.some(Boolean) ? DIFF : { background: '#fbfcfe' }), ...bgBase }
+    // Chỉ tô vàng ô trường khác gói; tên chủ đề và cột gói giữ nền thường
+    const x = ln.x; const bg = { background: '#fbfcfe', ...bgBase }
     let lab = 0; let titled = false
     const flushLab = (key: string) => { if (!lab) return; cells.push(<td key={key} colSpan={lab} style={bg}>{!titled && <><span className="sub" style={{ display: 'inline-block', width: 26 }}>{ln.k + 1}</span>{x.tp.title}</>}</td>); titled = true; lab = 0 }
     for (const k of cols) {
       if (k === spanCol) { flushLab('l' + k); cells.push(spanCell(k)) }
       else if (isKey(k)) lab++
-      else { flushLab('l' + k); cells.push(<td key={k} style={bg}>{k === 'pkg' ? (pkg ? mark(x.p) : <span className="sub">—</span>) : mark(x.ss[Number(k.slice(1))])}</td>) }
+      else { flushLab('l' + k); const i = k === 'pkg' ? -1 : Number(k.slice(1))
+        cells.push(<td key={k} style={i >= 0 && x.d[i] ? { ...bg, ...DIFF } : bg}>{i < 0 ? (pkg ? mark(x.p) : <span className="sub">—</span>) : mark(x.ss[i])}</td>) }
     }
     flushLab('lend')
     return <tr key={r.key + x.tp.id}>{cells}</tr>

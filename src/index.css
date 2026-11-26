@@ -4303,3 +4303,7 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .side>*{flex:none}
 .side>.sidefoot{margin-top:auto}
 .side>.navgroup{margin-top:0}.side>.navgroup>button.grouphead{margin-top:0}
+/* Nút Lưu / Huỷ của form trong khung chi tiết: luôn ở đáy khung, dính lại khi cuộn (form dài vẫn thấy nút), Lưu trước Huỷ, canh trái */
+.drawerbody :is(.actions,.formactions):has(> button.primary):last-child{position:sticky;bottom:-24px;z-index:5;margin:12px -16px -24px!important;padding:10px 16px 12px;background:var(--surface,#fff);border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-start;align-self:stretch}
+/* Trường áp dụng: tiêu đề cột loại chương trình hiện đủ tên, xuống dòng khi hẹp */
+.main .ttable.spfit>thead>tr:first-child>th{white-space:normal!important;line-height:1.25;vertical-align:bottom}

@@ -4289,3 +4289,4 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .main[data-ph="1"] .ttcompact .ttable:not(.ttfit)>thead>tr:first-child>th.c-fit:not(.c-sel):not(.c-no){width:1%;min-width:0;white-space:nowrap}
 .ttcompact .nw{white-space:nowrap}
 .ttcompact .progdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
+.ttcompact .cnum{display:inline-block;width:100%;text-align:center}.ttcompact .cnone{color:var(--muted,#98a2b3)}

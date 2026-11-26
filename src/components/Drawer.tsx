@@ -7,9 +7,7 @@ function savedRatio() {
   try { const v = Number(localStorage.getItem(KEY)); if (v >= 0.2 && v <= 1) return v } catch { /* bỏ qua */ }
   return 0.5
 }
-// Phân hệ 1: nút phóng to toàn màn hình, nhớ lựa chọn cho lần mở sau
-const FULL_KEY = 'drawer.full'
-function savedFull() { try { return localStorage.getItem(FULL_KEY) === '1' } catch { return false } }
+// Phân hệ 1: nút phóng to toàn màn hình; mỗi lần mở luôn bắt đầu ở cỡ thu gọn, không nhớ lần phóng to trước
 const Ico = ({ full }: { full: boolean }) => <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
   <path d={full ? 'M20 4l-6 6M14 4v6h6M4 20l6-6M10 20v-6H4' : 'M14 4h6v6M20 4l-7 7M10 20H4v-6M4 20l7-7'} /></svg>
 
@@ -22,14 +20,14 @@ export function Drawer({ title, onClose, onBack, children, closeOnOutside = true
   const drag = useRef(false)
   const wrap = useRef<HTMLDivElement>(null)
   const [canFull, setCanFull] = useState(false)
-  const [full, setFull] = useState(savedFull)
+  const [full, setFull] = useState(false)
   useLayoutEffect(() => { setCanFull(!!wrap.current?.closest('.main[data-ph="1"]')) }, [])
   const isFull = canFull && full
   // Không phủ lên thanh menu bên trái: độ rộng tối đa (kéo hay phóng to) = màn hình trừ phần menu
   const sideW = () => { const r = document.querySelector('.app > .side')?.getBoundingClientRect(); return r && r.right < window.innerWidth / 2 ? Math.max(0, r.right) : 0 }
   const [side, setSide] = useState(0)
   useLayoutEffect(() => { const f = () => setSide(sideW()); f(); window.addEventListener('resize', f); return () => window.removeEventListener('resize', f) }, [])
-  const toggleFull = () => setFull(v => { try { localStorage.setItem(FULL_KEY, v ? '0' : '1') } catch { /* bỏ qua */ } return !v })
+  const toggleFull = () => setFull(v => !v)
   useEffect(() => {
     const k = (e: KeyboardEvent) => { if (e.key === 'Escape' && closeOnOutside) onClose() }
     window.addEventListener('keydown', k)

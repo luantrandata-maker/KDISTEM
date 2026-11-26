@@ -4198,5 +4198,6 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .cmptbl th select.cmphsel:hover,.cmptbl th select.cmphsel:focus{border-color:var(--line);background:var(--surface)}
 .cmptbl th button.cmphx{min-height:0;height:auto;box-shadow:none;border:0;background:transparent;color:#94a3b8;font-size:16px;line-height:1;padding:2px 4px;cursor:pointer}
 .cmptbl th button.cmphx:hover{color:#b42318}
-.cmptbl th select.cmphadd{height:auto;box-shadow:none;width:auto;flex:none;max-width:160px;margin-left:auto;font:inherit;font-size:13px;font-weight:600;color:var(--primary);border:1px dashed color-mix(in srgb,var(--primary) 45%,transparent);background:transparent;border-radius:7px;padding:3px 8px;cursor:pointer}
-@media print{.cmphx,.cmphadd{display:none}.cmphsel{appearance:none;padding:0;border:0}}
+.cmphadds{margin-left:auto;display:flex;gap:6px;flex:none}
+.cmptbl th select.cmphadd{height:auto;box-shadow:none;width:auto;flex:none;max-width:160px;font:inherit;font-size:13px;font-weight:600;color:var(--primary);border:1px dashed color-mix(in srgb,var(--primary) 45%,transparent);background:transparent;border-radius:7px;padding:3px 8px;cursor:pointer}
+@media print{.cmphx,.cmphadds{display:none}.cmphsel{appearance:none;padding:0;border:0}}

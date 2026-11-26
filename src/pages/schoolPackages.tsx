@@ -383,7 +383,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
     return v.on.length === v.all.length ? `${v.all.length} chủ đề` : `${v.on.length}/${v.all.length} chủ đề`
   }
   // Cột của bảng: thứ tự và ẩn / hiện chỉnh trong menu "Cột", nhớ trên máy. Trường đánh số theo vị trí chọn (s0, s1, s2)
-  const present = (k: string) => k === 'pkg' ? true : k.startsWith('s') && k !== 'slot' && /^s\d$/.test(k) ? Number(k.slice(1)) < sel.length : true
+  const present = (k: string) => k === 'pkg' ? !!pkg : k.startsWith('s') && k !== 'slot' && /^s\d$/.test(k) ? Number(k.slice(1)) < sel.length : true
   const order = [...colCfg.order.filter(k => COL_DEFAULT.includes(k)), ...COL_DEFAULT.filter(k => !colCfg.order.includes(k))].filter(present)
   const vis = order.filter(k => !colCfg.hidden.includes(k))
   const colLabel = (k: string) => k === 'track' ? 'Loại CT' : k === 'grade' ? 'Khối - Phần' : k === 'pkg' ? `${pkgName(pkg)} có` : sel[Number(k.slice(1))]?.name ?? k
@@ -475,6 +475,9 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
     {schoolOpts(orgs[i]).map(x => <option key={x.org_id} value={x.org_id}>{x.name}</option>)}</select>
   const addSchool = orgs.length < 3 && schoolOpts().length > 0 ? <select className="cmphadd" aria-label="Thêm trường để so sánh" value="" onChange={e => e.target.value && pickOrgs([...orgs, e.target.value])}>
     <option value="">+ Thêm trường</option>{schoolOpts().map(x => <option key={x.org_id} value={x.org_id}>{x.name} · {usingOf(x)}</option>)}</select> : null
+  const addPkg = !pkg ? <select className="cmphadd" aria-label="Chọn gói để so sánh" value="" onChange={e => setPkg(e.target.value)}>
+    <option value="">+ Chọn gói</option>{packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select> : null
+  const adds = <span className="cmphadds">{addPkg}{addSchool}</span>
   const printCmp = () => { document.body.classList.add('cmpprinting'); window.print(); setTimeout(() => document.body.classList.remove('cmpprinting'), 500) }
   return <>
     <div className="lvfilter cmpfilter">
@@ -493,15 +496,16 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
       <FitScreen className="fsbox"><table className="table cmptbl cmplined sctbl">
         <thead><tr>{vis.map(k => k === 'pkg'
           ? <th key={k}><span className="cmphead">{pkg && <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: pkgColor(pkg), flex: 'none' }} />}
-              <select className="cmphsel" aria-label="Gói để so sánh" value={pkg} onChange={e => setPkg(e.target.value)}><option value="">Không chọn gói</option>
-                {packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select>{pkg && <span>có</span>}</span></th>
+              <select className="cmphsel" aria-label="Gói để so sánh" value={pkg} onChange={e => setPkg(e.target.value)}>
+                {packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select><span>có</span>
+              <button type="button" className="cmphx" title="Bỏ gói, so các trường với nhau" aria-label="Bỏ gói" onClick={() => setPkg('')}>×</button></span></th>
           : /^s\d$/.test(k) ? <th key={k}><span className="cmphead">{schoolSel(Number(k.slice(1)))}
               <button type="button" className="cmphx" title="Bỏ trường này" aria-label="Bỏ trường này" onClick={() => setOrgs(orgs.filter((_, j) => j !== Number(k.slice(1))))}>×</button>
-              {Number(k.slice(1)) === sel.length - 1 && addSchool}</span><small style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400, flexWrap: 'wrap' }}>Đang dùng {usingOf(sel[Number(k.slice(1))])}
+              {Number(k.slice(1)) === sel.length - 1 && adds}</span><small style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400, flexWrap: 'wrap' }}>Đang dùng {usingOf(sel[Number(k.slice(1))])}
             {pkg && (() => { const { n, d } = stat(Number(k.slice(1))); const p = pct(n, d)
               return <><span>·</span><b title={`${d} điểm khác`}>{p}% giống gói</b><span style={{ width: 56, height: 5, borderRadius: 3, background: '#e2e8f0', overflow: 'hidden', display: 'inline-block' }}><span style={{ display: 'block', width: p + '%', height: 5, background: '#94a3b8' }} /></span></> })()}</small></th>
-          : <th key={k} style={{ width: k === 'grade' ? 170 : 230 }}>{colLabel(k)}</th>)}{!sel.length && <th>{addSchool}</th>}</tr></thead>
-        <tbody>{!sel.length ? <tr><td colSpan={vis.length + 1} className="sub">Chọn trường ngay trên tiêu đề bảng để so sánh{pkg ? ` với ${pkgName(pkg)}` : ''}.</td></tr> : !lines.length ? <tr><td colSpan={vis.length || 1} className="sub">{only ? (pkg ? 'Các trường giống gói ở mọi khối.' : 'Các trường giống nhau ở mọi khối.') : 'Không có dữ liệu.'}</td></tr>
+          : <th key={k} style={{ width: k === 'grade' ? 170 : 230 }}>{colLabel(k)}</th>)}{!sel.length && <th><span className="cmphead">{adds}</span></th>}</tr></thead>
+        <tbody>{!sel.length ? <tr><td colSpan={vis.length + 1} className="sub">Chọn trường ngay trên tiêu đề bảng để so sánh{pkg ? ` với ${pkgName(pkg)}` : ''}.</td></tr> : !lines.length ? <tr><td colSpan={vis.length || 1} className="sub">{!pkg && sel.length === 1 ? 'Bấm “+ Chọn gói” hoặc “+ Thêm trường” ở tiêu đề bảng để so sánh.' : only ? (pkg ? 'Các trường giống gói ở mọi khối.' : 'Các trường giống nhau ở mọi khối.') : 'Không có dữ liệu.'}</td></tr>
           : lines.map(renderLine)}</tbody>
       </table></FitScreen>
     </div>}

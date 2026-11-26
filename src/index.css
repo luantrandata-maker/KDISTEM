@@ -368,7 +368,7 @@ td button{white-space:nowrap}
 @media (max-width:760px){.orgpick span{display:none}.orgpick select{max-width:150px}}
 /* ===== Cổng Quản trị nền tảng (021) ===== */
 .split{display:grid;grid-template-columns:minmax(320px,440px) minmax(0,1fr);gap:14px;align-items:start}
-.split .tree{position:sticky;top:78px;max-height:calc(100vh - 100px);overflow:auto;padding:12px}
+.split .tree{position:sticky;top:60px;max-height:calc(100vh - 100px);overflow:auto;padding:12px}
 .split .tree .search{width:100%;margin:0}
 .bar.small{justify-content:flex-start;gap:14px;margin:8px 0}
 .orgtree,.orgtree ul{list-style:none;margin:0;padding:0}
@@ -1159,7 +1159,7 @@ a.btnlink.primary{background:var(--primary);color:#fff}
 .btag{display:inline-flex;gap:4px;align-items:center;font-size:calc(11px * var(--fz,1));font-weight:700;color:var(--primary);background:#e6f1fd;padding:2px 8px;border-radius:4px;white-space:nowrap}
 /* trình soạn */
 .lessoned{display:grid;grid-template-columns:220px minmax(0,1fr) 230px;gap:12px;align-items:start}
-.lphases,.loutline{position:sticky;top:76px;display:grid;gap:6px;max-height:calc(100vh - 96px);overflow:auto}
+.lphases,.loutline{position:sticky;top:58px;display:grid;gap:6px;max-height:calc(100vh - 96px);overflow:auto}
 .main button.lphase{display:grid;grid-template-columns:26px 1fr auto;gap:8px;align-items:center;text-align:left;padding:8px;border-radius:6px}
 .main button.lphase.on{border-color:var(--primary);background:#e6f1fd}
 .lphase small{display:block;color:var(--muted);font-size:calc(11px * var(--fz,1))}.lphase em{font-style:normal;font-size:calc(12px * var(--fz,1));color:var(--muted)}
@@ -1924,7 +1924,7 @@ tr.uedit>td small{display:inline-block;margin-bottom:4px}
 .libtargets.wide{display:block;max-height:none;overflow:visible}.libtargets.wide>.formgrid{margin-top:4px}
 /* Bảng nháp cấu trúc chương trình (StructureDraft): sửa thoải mái, lưu một lần */
 .sdraft{display:grid;gap:8px}
-.sdbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:8px 12px;position:sticky;top:64px;z-index:3}
+.sdbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--soft);border:1px solid var(--line);border-radius:6px;padding:8px 12px;position:sticky;top:46px;z-index:3}
 .sdbar.bottom{position:static}
 .sdtable tr.uedit>td{background:var(--surface);border-bottom:1px solid var(--line)}
 .sdtable tr.sdbad>td{background:color-mix(in srgb,var(--bad) 8%,var(--surface))}
@@ -3961,7 +3961,7 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 @media (max-width:640px){.distfor2{grid-template-columns:1fr}.distforcell+.distforcell{border-left:0;border-top:1px solid var(--line)}}
 /* Bảng bài của phân phối: tiêu đề cột đứng yên khi cuộn trang (dưới thanh trên cùng 64px) */
 .main table.distppct{overflow:visible}
-.main .distppct>thead>tr>th{position:sticky;top:64px;z-index:3;background:var(--surface);box-shadow:inset 0 -1px 0 var(--line)}
+.main .distppct>thead>tr>th{position:sticky;top:46px;z-index:3;background:var(--surface);box-shadow:inset 0 -1px 0 var(--line)}
 /* Nội dung chủ đề một trang cuộn: mục lục trái đứng yên, Tổng quan + 6 mục nằm liền */
 .tconewrap{container-type:inline-size;margin-top:4px}
 .tcone{display:grid;grid-template-columns:190px minmax(0,1fr);gap:22px;align-items:start}
@@ -4235,3 +4235,25 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 
 /* Thanh lọc của bảng so sánh dưới thẻ gói đứng yên ngay dưới hàng tab khi cuộn */
 .main .lvfilter.pkgcmpfilt{position:sticky;z-index:5;background:var(--surface);box-shadow:0 -10px 0 var(--surface)}
+
+/* Đầu trang gọn: thấp 46px, nút nhỏ, tên và vai trò tài khoản trên một dòng */
+.top{height:46px;gap:10px;padding:0 16px}
+.top .crumb{font-size:calc(13px * var(--fz,1));gap:6px}
+.top .crumb b{font-size:calc(15px * var(--fz,1))}
+.top .crumbhome{padding:4px}
+.top .user{gap:6px}
+.top .user .bellbtn{width:30px;height:30px}
+.top .user .bellbtn svg{width:16px;height:16px}
+.top .user .fzbtn{font-size:12px}
+.top .user .bellcount{top:-5px;right:-6px;min-width:16px;height:16px;font-size:10px}
+/* Tài khoản: chỉ vòng chữ cái đầu; rê chuột hiện tên, vai trò, email */
+.top .user button.userbtn{padding:0;border:0;background:none;border-radius:50%}
+.top .user button.userbtn:hover .avatar,.top .user button.userbtn[aria-expanded="true"] .avatar{box-shadow:0 0 0 4px color-mix(in srgb,var(--primary) 18%,transparent)}
+.top .userbtn .avatar{width:30px;height:30px;font-size:calc(13px * var(--fz,1))}
+.top .userbtn .who{display:none}
+.usertip{position:absolute;right:0;top:calc(100% + 8px);z-index:40;display:none;gap:1px;padding:7px 10px;border-radius:6px;background:#3c4043;color:#fff;font-size:calc(12px * var(--fz,1));line-height:1.35;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.usertip b{font-weight:600}
+.usermenu:has(.userbtn:hover) .usertip,.usermenu:has(.userbtn:focus-visible) .usertip{display:grid}
+.top .bellpanel{top:38px}
+/* Khi mở chú thích / menu ở đầu trang, đưa đầu trang lên trên hàng tab dính */
+.top:has(.usermenu:hover),.top:has(.userbtn:focus-visible),.top:has([aria-expanded="true"]){z-index:30}

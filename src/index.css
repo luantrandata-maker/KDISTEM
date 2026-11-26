@@ -4295,3 +4295,6 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 /* Ô có khung chữ (.tdc) không co về 0 khi cột "vừa nội dung": rộng đúng nội dung, tối đa 360px rồi cắt "…" */
 .main[data-ph="1"] .ttable:not(.ttfit):not(.ttfixed):not(.spfit):not(.frcelltbl):not(.colfixed):not(.colfit) .tdc:not(:has(input,select,textarea,[aria-expanded],details,.slact,.slopen)){width:max-content;max-width:360px}
 .main[data-ph="1"] .ttable .tdc:has(.cnum){width:auto!important}
+/* Phân hệ 1, cột đã kéo tay (bố cục cố định): chữ dài ra theo độ rộng đã kéo, chỉ cắt "…" khi vẫn không đủ chỗ */
+.main[data-ph="1"] .ttable.ttfixed>tbody>tr>td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:none}
+.main[data-ph="1"] .ttable.ttfixed .tdc:not(:has(input,select,textarea,[aria-expanded],details,.slact,.slopen)){display:block;max-width:none!important;width:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

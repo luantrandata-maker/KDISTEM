@@ -179,7 +179,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
     const ths = all.filter(x => !x.matches('.c-sel, .c-menu'))
     const extra = (all.some(x => x.matches('.c-sel')) ? 36 : 0) + (rowMenu ? 48 : 0)
     const snap: Record<string, number> = {}
-    shownCols.forEach((c, i) => { if (ths[i]) snap[c.key] = Math.round(ths[i].getBoundingClientRect().width) })
+    shownCols.forEach((c, i) => { if (ths[i]) snap[c.key] = Math.ceil(ths[i].getBoundingClientRect().width) + 1 })   // làm tròn lên: chốt xong ô không bị cắt "…" vì hụt vài phần pixel
     const W = (th.closest('.wrap') as HTMLElement | null)?.clientWidth ?? 0
     const others = shownCols.map(c => c.key).filter(x => x !== k && snap[x])
     const restSum = others.reduce((a, x) => a + snap[x], 0)
@@ -188,7 +188,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
       const w = Math.max(48, Math.round(w0 + ev.clientX - x0)), widths = { ...snap, [k]: w }
       const room = W - extra - w
       if (restSum > 0 && room > restSum) others.forEach(x => { widths[x] = Math.round(snap[x] * room / restSum) })
-      setViewS(v => ({ ...v, widths }))
+      setViewS(v => ({ ...v, widths, fit: false }))   // kéo tay thì bỏ chế độ Thu gọn cột: độ rộng theo đúng chỗ đã kéo
     }
     const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); setView(v => v) }
     document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up)

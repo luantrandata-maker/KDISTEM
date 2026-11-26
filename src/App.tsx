@@ -611,13 +611,9 @@ function Shell({ session }: { session: Session }) {
   const flyT = useRef(0)
   const flyOpen = (key: string, el: HTMLElement) => { clearTimeout(flyT.current); setFly({ key, top: el.getBoundingClientRect().top }) }
   const flyClose = (ms = 180) => { clearTimeout(flyT.current); flyT.current = window.setTimeout(() => setFly(null), ms) }
-  // Nhóm menu đang thu gọn (nhớ theo trình duyệt)
-  const [closed, setClosed] = useState<Set<string>>(() => { try { return new Set(JSON.parse(localStorage.getItem('menu.closed') ?? '[]')) } catch { return new Set() } })
-  const toggleGroup = (key: string) => setClosed(prev => {
-    const next = new Set(prev); next.has(key) ? next.delete(key) : next.add(key)
-    try { localStorage.setItem('menu.closed', JSON.stringify([...next])) } catch { /* bỏ qua */ }
-    return next
-  })
+  // Menu mở từng mục (accordion): mặc định chỉ mở phân hệ / nhóm chứa trang đang xem, các mục khác thu gọn;
+  // bấm một mục thì mục đó mở và các mục cùng cấp đóng lại. Không nhớ qua lần tải trang; chuyển trang thì về mặc định theo trang mới.
+  const [acc, setAcc] = useState<{ page: string; top: string | null; sub: string | null } | null>(null)
   const [teachers, setTeachers] = useState<{ id: string; full_name: string; profile_id: string | null }[]>([])
   const [actingTeacher, setActingTeacher] = useState<string | null>(null)
   const [students, setStudents] = useState<{ id: string; full_name: string; profile_id: string | null; classes: { name: string } | null }[]>([])
@@ -739,6 +735,12 @@ function Shell({ session }: { session: Session }) {
     if (g.section && last?.section === g.section) last.groups.push(g)
     else blocks.push({ section: g.section, groups: [g] })
   })
+  const blockKey = (b: typeof blocks[number]) => b.section ? role + '§' + b.section : role + ':' + b.groups[0].title
+  const homeB = blocks.find(b => b.groups.some(g => g.items.includes(page)))
+  const homeG = homeB?.section ? homeB.groups.find(g => g.items.includes(page)) : undefined
+  const cur = acc && acc.page === page ? acc : { page, top: homeB ? blockKey(homeB) : null, sub: homeG ? role + ':' + homeG.title : null }
+  const isShut = (key: string, sub: boolean) => (sub ? cur.sub : cur.top) !== key
+  const toggleGroup = (key: string, sub: boolean) => setAcc({ ...cur, ...(sub ? { sub: isShut(key, true) ? key : null } : { top: isShut(key, false) ? key : null }) })
   const Page: ComponentType<any> | undefined = PAGES[role]?.[page] ?? (role === 'platform' ? PlannedPage : undefined)
   const goPage = (p: string) => show(role, role === 'platform' ? PLATFORM_ALIAS[p] ?? p : p)
   // Tài khoản mã: hiện tên đăng nhập thay cho email nội bộ
@@ -772,10 +774,10 @@ function Shell({ session }: { session: Session }) {
         {blocks.map(b => {
           // Một nhóm thường, hoặc một phân hệ (cấp 1) chứa các nhóm con (cấp 2)
           const head = (key: string, title: string, items: string[], sub = false, label = title) => {
-            const shut = closed.has(key)
+            const shut = isShut(key, sub)
             return (
               <button className={'grouphead' + (sub ? ' subhead' : '') + (shut ? ' shut' : '') + (!sub && fly?.key === key ? ' flyon' : '')} aria-expanded={!shut}
-                onClick={e => { if (collapsed && !sub) { fly?.key === key ? setFly(null) : flyOpen(key, e.currentTarget) } else toggleGroup(key) }}
+                onClick={e => { if (collapsed && !sub) { fly?.key === key ? setFly(null) : flyOpen(key, e.currentTarget) } else toggleGroup(key, sub) }}
                 onMouseEnter={e => { if (collapsed && !sub) flyOpen(key, e.currentTarget) }} onMouseLeave={() => { if (collapsed && !sub) flyClose() }}
                 onFocus={e => { if (collapsed && !sub && e.currentTarget.matches(':focus-visible')) flyOpen(key, e.currentTarget) }}
                 aria-controls={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')}>
@@ -786,8 +788,8 @@ function Shell({ session }: { session: Session }) {
               </button>
             )
           }
-          const list = (key: string, items: string[]) => (
-            <div id={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')} hidden={closed.has(key)}>
+          const list = (key: string, items: string[], sub = false) => (
+            <div id={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')} hidden={isShut(key, sub)}>
               {items.map(i => <button key={i} className={(i === page ? 'on' : '') + (locked.has(i) ? ' locked' : '')} onClick={() => show(role, i)}
                 title={locked.has(i) ? 'Chưa có trong gói dịch vụ của đơn vị' : undefined}>
                 {lab(i)}{role === 'platform' && !PLATFORM_LIVE.has(i) && i !== 'Sơ đồ hệ thống' && <small className="navtag">Khung</small>}
@@ -804,10 +806,10 @@ function Shell({ session }: { session: Session }) {
           return (
             <div key={key} className="navgroup">
               {head(key, b.section, all)}
-              <div id={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')} hidden={closed.has(key)} className="navsub">
+              <div id={'grp-' + key.replace(/[^\p{L}\p{N}]+/gu, '-')} hidden={isShut(key, false)} className="navsub">
                 {b.groups.map(g => {
                   const k = role + ':' + g.title
-                  return <div key={k}>{head(k, g.title, g.items, true, g.label)}{list(k, g.items)}</div>
+                  return <div key={k}>{head(k, g.title, g.items, true, g.label)}{list(k, g.items, true)}</div>
                 })}
               </div>
             </div>

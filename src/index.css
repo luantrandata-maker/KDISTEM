@@ -4293,3 +4293,8 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .ttcompact .cyes{color:var(--good,#1c7a43);font-weight:700}
 /* Thanh kéo độ rộng cây nằm trên khung bảng (ngoài vùng cuộn của cây) */
 .ttbody{position:relative}
+/* Nút Thu gọn / Mở rộng menu luôn nằm sát đáy thanh menu, kể cả khi menu ngắn (các mục đang thu gọn) */
+.side{display:flex;flex-direction:column}
+.side>*{flex:none}
+.side>.sidefoot{margin-top:auto}
+.side>.navgroup{margin-top:0}.side>.navgroup>button.grouphead{margin-top:0}

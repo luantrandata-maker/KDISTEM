@@ -111,7 +111,7 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
 
   return <>
     {msg && <p className="msg">{msg}</p>}
-    <div className="fwtree"><DataTable id="lib-topics" pro rows={shown} rowKey={t => t.id} cols={cols} noun="chủ đề" onRow={setOpen} className="slt"
+    <div className="fwtree ttcompact"><DataTable id="lib-topics" pro rows={shown} rowKey={t => t.id} cols={cols} noun="chủ đề" onRow={setOpen} className="slt"
       left={<span className="fwcap"><b>{crumb}</b>{allowed ? <span className="sub"> · theo gói trường đang dùng</span> : null}</span>}
       empty={<span className="sub">{!loaded ? 'Đang tải…' : allowed && !allowed.size ? 'Trường chưa được gán Gói STEM cho năm học hiện tại.' : 'Không có chủ đề phù hợp.'}</span>}
       aside={<nav className="gtree" aria-label="Loại CT › Học phần › Khối">

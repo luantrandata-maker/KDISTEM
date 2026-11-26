@@ -4275,3 +4275,13 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .user .usersec .schoolpicklist .spick button.spgo{flex:0 0 auto;width:auto;margin-right:6px;padding:4px 12px;background:var(--primary);color:#fff;font-weight:600;border-radius:5px}
 .usersec.userfoot{display:flex;gap:4px;padding:6px 4px}
 .user .usersec.userfoot button{flex:1;justify-content:center;font-size:calc(13px * var(--fz,1))}
+
+/* Bảng gọn (thử ở Học liệu, .ttcompact): chữ 13px, dòng 30px co theo cỡ chữ Aa; "Thu gọn cột" = vừa chiều ngang, chữ dài cắt "…" trên một dòng thay vì xuống dòng */
+.main[data-ph="1"] .ttcompact .ttable>thead>tr:first-child>th{font-size:calc(13px * var(--fz,1));padding-top:calc(7px * var(--fz,1));padding-bottom:calc(7px * var(--fz,1))}
+.main[data-ph="1"] .ttcompact .ttable>tbody>tr>td{font-size:calc(13px * var(--fz,1));height:calc(30px * var(--fz,1));padding-top:3px!important;padding-bottom:3px!important}
+.main[data-ph="1"] .ttcompact .ttable .tdc,.main[data-ph="1"] .ttcompact .ttable .tdc :is(small,.sub,b,span,button,a){line-height:calc(18px * var(--fz,1))}
+.main[data-ph="1"] .ttcompact .ttable.ttfit th,.main[data-ph="1"] .ttcompact .ttable.ttfit td,.main[data-ph="1"] .ttcompact .ttable.ttfit :is(th,td) *{white-space:nowrap!important;overflow-wrap:normal}
+.main[data-ph="1"] .ttcompact .ttable.ttfit th,.main[data-ph="1"] .ttcompact .ttable.ttfit>tbody>tr>td{overflow:hidden;text-overflow:ellipsis}
+.main[data-ph="1"] .ttcompact .ttable.ttfit .tdc:not(:has(input,select,textarea,[aria-expanded],details,.slact,.slopen)){display:block;-webkit-line-clamp:unset;line-clamp:unset;overflow:hidden;text-overflow:ellipsis;max-height:none}
+.main[data-ph="1"] .ttcompact .ttable.ttfit .tdc :is(div,p){display:inline}
+.main[data-ph="1"] .ttcompact .ttable.ttfit>thead>tr:first-child>th.c-lead{width:24%}

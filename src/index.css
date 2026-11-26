@@ -4213,3 +4213,13 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .colfitbtn{display:inline-flex;align-items:center;justify-content:center;padding-left:10px;padding-right:10px}
 .colfitbtn.on{background:color-mix(in srgb,var(--primary) 12%,var(--surface));color:var(--primary);border-color:color-mix(in srgb,var(--primary) 35%,transparent)}
 @media print{.colfitbtn{display:none}}
+
+/* Nhãn áp dụng dùng chung (ApplyTag) */
+.applytag{font-weight:600;white-space:nowrap}
+.applytag.on{color:var(--ok,#15803d)}
+.applytag.off{color:var(--danger,#b42318)}
+/* So sánh trường với gói: thanh lọc và bảng chung một khung như các bảng khác */
+.main .cmpcard{border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden}
+.main .cmpcard>.lvfilter.cmpfilter{border:0;border-bottom:1px solid var(--line);border-radius:0;margin:0;box-shadow:none}
+.main .cmpcard .fitscreen.fsbox{border:0;border-radius:0}
+.main .cmpcard .cmpprint>p.sub{padding:8px 14px 0}

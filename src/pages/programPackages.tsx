@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { FitScreen } from '../components/FitScreen'
 import { useColResize } from '../components/ColResize'
+import { ApplyTag } from '../components/ApplyTag'
 import { supabase } from '../lib/supabase'
 import { EDU_ACTIVITY_NAME, useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
 import { BLANK_TRACK, TrackForm, trackErr } from './stemTracks'
@@ -664,7 +665,7 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
         {sections.map(({ t, rows }) => <tbody key={t.code}>
           <tr className="cmpgrp"><td colSpan={packages.length + 1}>{chip(t.code)} {t.name}</td></tr>
           {rows.map(({ m }) => <tr key={m}><td>{t.use_modules === false ? 'Chủ đề theo khối' : modName(m)}</td>
-            {packages.map((p, k) => <td key={p.id} style={pkgTd(pkgColor(p, ck(k)))}>{has(p.id, m) ? 'Có' : <span className="sub">—</span>}</td>)}</tr>)}
+            {packages.map((p, k) => <td key={p.id} style={pkgTd(pkgColor(p, ck(k)))}>{has(p.id, m) ? <ApplyTag on label="Có" /> : <span className="sub">—</span>}</td>)}</tr>)}
         </tbody>)}
       </table>
       : !groups.length ? <p className="sub">{only ? 'Các gói đang chọn giống nhau ở các khối này.' : 'Chưa có học phần nào ở các khối này.'}</p>

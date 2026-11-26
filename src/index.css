@@ -4329,3 +4329,5 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .main .sctbl .sctrack>b{display:block;font-weight:600}
 /* Ô tìm trường đã chọn: viền xanh, chữ đậm */
 .field input.pickedin{border-color:#16a34a;box-shadow:0 0 0 2px #16a34a22;font-weight:600}
+/* Tab con (vd. Danh mục › Môn học) ngay trên bảng: thanh công cụ sát lên, khoảng cách như các view khác */
+.main .pfbody .segmented[role=tablist]:has(+ .tt){margin-bottom:4px}

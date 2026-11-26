@@ -133,7 +133,7 @@ export function SchoolPackages() {
   const yearSel = <select aria-label="Năm học" value={year} onChange={e => { setYear(e.target.value); setOpenOrg(null); setEdit(null) }}>
     {[-1, 0, 1].map(n => shiftYear(currentYear(), n)).map(y => <option key={y} value={y}>Năm học {yearLabel(y)}</option>)}</select>
 
-  const assignDrawer = assign !== false && <Drawer title={typeof assign === 'string' ? 'Thêm gói' : 'Gán gói cho trường'} closeOnOutside={false} onClose={() => setAssign(false)}>
+  const assignDrawer = assign !== false && <Drawer title={typeof assign === 'string' ? 'Thêm gói' : 'Thêm gói cho trường'} closeOnOutside={false} onClose={() => setAssign(false)}>
     <AssignForm ctx={ctx} modName={modName} year={year} schools={schools} preset={typeof assign === 'string' ? assign : ''} packages={packages.filter(p => p.active)} pkgColor={pkgColor} pkgName={pkgName}
       onCancel={() => setAssign(false)} onSaved={org => { setAssign(false); reloadSchools().then(() => { setOpenOrg(org); setEdit(null) }) }} />
   </Drawer>
@@ -259,8 +259,8 @@ export function SchoolPackages() {
       left={<>{yearSel}
         <select aria-label="Gói" value={fPkg} onChange={e => setFPkg(e.target.value)}><option value="">Tất cả gói</option>
           {packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></>}
-      right={<><HeadAction><button type="button" style={{ order: -1 }} onClick={() => setCmp([])}>⇄ So sánh trường với gói</button></HeadAction>
-        {admin && <button type="button" className="primary" onClick={() => setAssign(true)}>+ Gán gói cho trường</button>}</>}
+      right={<HeadAction><button type="button" style={{ order: -1 }} onClick={() => setCmp([])}>⇄ So sánh gói trường</button>
+        {admin && <button type="button" className="primary" onClick={() => setAssign(true)}>+ Thêm gói cho trường</button>}</HeadAction>}
       cols={[
         { key: 'name', label: 'Trường', fixed: true, text: r => r.name, cell: r => <button type="button" className="namelink" style={{ fontWeight: 600 }}>{r.name}</button> },
         { key: 'prov', label: 'Tỉnh / Thành phố', off: true, text: r => r.province_name ?? '', cell: r => r.province_name ?? <span className="sub">—</span> },

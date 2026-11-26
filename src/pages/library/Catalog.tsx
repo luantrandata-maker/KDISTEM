@@ -13,14 +13,45 @@ import { DataTable, type Col } from '../../components/DataTable'
 // Danh mục học liệu theo 6 nội dung của chủ đề: mỗi tab gom mục cùng loại của mọi chủ đề (trường: chủ đề thuộc gói đang dùng).
 // Bấm "Xem ›" mở tệp / link / đề ngay trên trang; bấm tên chủ đề mở 6 nội dung. Tab Vật tư: mỗi dòng một vật tư của một chủ đề, cột Định mức; lọc theo chủ đề để xem định mức của chủ đề.
 
-type Kind = typeof TOPIC_KINDS[number]['key']
-type Row = TopicItem & { updated_at: string | null }
+export type Kind = typeof TOPIC_KINDS[number]['key']
+export type Row = TopicItem & { updated_at: string | null }
 const PER: Record<string, string> = { product: 'sản phẩm', student: 'học sinh', group: 'nhóm', class: 'lớp' }
 const chip = (code: string) => <span className="progchip" style={{ background: PROGRAM_COLOR[code], color: '#fff' }}>{trackLabel(code)}</span>
 const ext = (n: string | null) => (n ?? '').split('.').pop()!.toLowerCase()
 const form = (i: Row) => i.exam_id ? '📝 Đề' : i.file_path ? ({ docx: '📄 Word', doc: '📄 Word', pptx: '📊 PowerPoint', ppt: '📊 PowerPoint', pdf: '📕 PDF' } as Record<string, string>)[ext(i.file_name)] ?? '📎 Tệp'
   : i.url ? '🔗 Link' : i.content?.steps?.length ? '📋 Các hoạt động' : '—'
 const fmtDate = (s: string | null) => s ? new Date(s).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' }) : ''
+
+/** Cột bảng học liệu (dùng chung cho Danh mục và màn Học liệu gộp): Vật tư có cột Định mức thay cho Dạng / Xem */
+export function itemCols(kind: Kind, tp: (i: Row) => ProgramTopic, modOf: Map<string, { track_code: string; name: string }>, flat: (t: ProgramTopic) => boolean, topicLink: (t: ProgramTopic) => React.ReactNode): Col<Row>[] {
+  const trOf = (t: ProgramTopic) => modOf.get(t.module_id)!.track_code
+  const cols: Col<Row>[] = [
+    { key: 'title', label: kind === 'material' ? 'Vật tư' : 'Tên', fixed: true, text: i => i.title, cell: i => <b>{i.title}</b> },
+    { key: 'topic', label: 'Chủ đề', text: i => tp(i).title, cell: i => topicLink(tp(i)) },
+    { key: 'track', label: 'Loại CT', text: i => trackLabel(trOf(tp(i))), cell: i => chip(trOf(tp(i))) },
+    { key: 'mod', label: 'Học phần', text: i => flat(tp(i)) ? '' : modOf.get(tp(i).module_id)!.name, cell: i => flat(tp(i)) ? <span className="sub">—</span> : <small>{modOf.get(tp(i).module_id)!.name}</small> },
+    { key: 'grade', label: 'Khối', text: i => gradeName(tp(i).grade), cell: i => gradeName(tp(i).grade) },
+  ]
+  const norm = (i: Row) => `${i.qty ?? ''} ${i.unit ?? ''}`.trim() + (i.per ? ` / ${PER[i.per] ?? i.per}` : '')
+  if (kind === 'material') cols.push({ key: 'qty', label: 'Định mức', text: norm, cell: i => norm(i) || <span className="sub">—</span> })
+  else cols.push({ key: 'form', label: 'Dạng', text: i => form(i), cell: i => form(i) })
+  cols.push({ key: 'upd', label: 'Cập nhật', text: i => fmtDate(i.updated_at), cell: i => fmtDate(i.updated_at) })
+  if (kind !== 'material') cols.push({ key: 'view', label: 'Xem', fixed: true, cell: () => <span className="linkbtn">Xem ›</span> })
+  return cols
+}
+
+/** Xem một mục học liệu: tệp / link / đề / các hoạt động */
+export function ItemDrawer({ item, topicTitle, onClose }: { item: Row; topicTitle?: string; onClose: () => void }) {
+  return <Drawer onClose={onClose} title={item.title}>
+    <p className="sub" style={{ marginTop: 0 }}>{topicTitle} · {TOPIC_KINDS.find(k => k.key === item.kind)?.label}</p>
+    {item.detail && <p style={{ whiteSpace: 'pre-wrap' }}>{item.detail}</p>}
+    {(item.file_path || item.url) && <p style={{ margin: '6px 0' }}>
+      {item.file_path && <button type="button" onClick={() => openFile(item.file_path!)}>Tải về</button>}
+      {item.url && <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ marginLeft: 8 }}>Mở link ↗</a>}</p>}
+    {item.content?.steps?.length ? <Steps steps={item.content.steps} /> : null}
+    {item.exam_id ? <ExamView id={item.exam_id} /> : (item.file_path || item.url) ? <Viewer item={item} /> : null}
+  </Drawer>
+}
 
 export function LibraryCatalog({ orgId }: { orgId: string | null }) {
   const { tracks } = useStemTracks()

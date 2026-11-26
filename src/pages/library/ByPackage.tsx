@@ -5,7 +5,8 @@ import { useStemTracks, trackLabel } from '../../lib/stemTracks'
 import { gradeName } from '../../lib/eduLevels'
 import { PROGRAM_COLOR } from '../teacher/common'
 import { Drawer } from '../../components/Drawer'
-import { TopicContents } from '../topicContents'
+import { TopicContents, TOPIC_KINDS } from '../topicContents'
+import { itemCols, ItemDrawer, type Kind, type Row as Item } from './Catalog'
 import { DataTable, type Col } from '../../components/DataTable'
 
 // Học liệu theo chương trình (khung mới, thay tab cũ theo Chương trình giáo dục): Loại CT › Khối › Học phần → chủ đề,
@@ -71,10 +72,15 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
     return m
   }, [usable, pkgs])
 
-  const loadCounts = () => supabase.from('program_topic_items').select('topic_id, kind').then(({ data }) => {
+  // Gộp Danh mục học liệu: tải luôn các mục (đếm ✓ theo chủ đề và liệt kê khi chọn một loại học liệu)
+  const [items, setItems] = useState<Item[]>([])
+  const [mode, setMode] = useState<'topic' | Kind>('topic')
+  const [view, setView] = useState<Item | null>(null)
+  const loadCounts = () => supabase.from('program_topic_items').select('*').order('seq').then(({ data }) => {
+    const rows = (data ?? []) as Item[]
     const m = new Map<string, Count>()
-    for (const r of (data ?? []) as { topic_id: string; kind: keyof Count }[]) { const c = m.get(r.topic_id) ?? { ...ZERO }; c[r.kind]++; m.set(r.topic_id, c) }
-    setCounts(m)
+    for (const r of rows) { const c = m.get(r.topic_id) ?? { ...ZERO }; c[r.kind as keyof Count]++; m.set(r.topic_id, c) }
+    setCounts(m); setItems(rows)
   })
   useEffect(() => { loadCounts() }, [])
 
@@ -138,9 +144,26 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
   const crumb = !sel ? 'Tất cả' : [`${trackLabel(selTr!)} · ${tracks.find(x => x.code === selTr)?.name ?? ''}`,
     selGrade != null && gradeName(selGrade), selMod && modOf.get(selMod)?.name].filter(Boolean).join(' › ')
 
+  // Chọn một loại học liệu: bảng liệt kê từng mục của các chủ đề đang lọc (thay tab Danh mục học liệu cũ)
+  const topicOf = new Map(shown.map(t => [t.id, t]))
+  const kindRows = mode === 'topic' ? [] : items.filter(i => i.kind === mode && topicOf.has(i.topic_id))
+  const flat = (t: ProgramTopic) => tracks.find(x => x.code === modOf.get(t.module_id)?.track_code)?.use_modules === false
+  const topicLink = (t: ProgramTopic) => <button type="button" className="linkbtn" onClick={e => { e.stopPropagation(); setOpen(t) }}>{t.title}</button>
+  const kcols = mode === 'topic' ? [] : itemCols(mode, i => topicOf.get(i.topic_id)!, modOf, flat, topicLink)
+  const nOf = (k: Kind) => items.filter(i => i.kind === k && topicOf.has(i.topic_id)).length
+  const pills = <div className="distpills libmode" role="tablist" aria-label="Xem theo">
+    <button type="button" role="tab" aria-selected={mode === 'topic'} className={mode === 'topic' ? 'on' : ''} onClick={() => setMode('topic')}>Theo chủ đề <small className="sub">{shown.length}</small></button>
+    <span className="libmodesep" aria-hidden />
+    {TOPIC_KINDS.map(k => <button key={k.key} type="button" role="tab" aria-selected={mode === k.key} className={mode === k.key ? 'on' : ''} onClick={() => setMode(k.key)}>
+      {k.label} <small className="sub">{nOf(k.key)}</small></button>)}
+  </div>
+
   return <>
     {msg && <p className="msg">{msg}</p>}
-    <div className="fwtree ttcompact"><DataTable id="lib-topics" pro rows={shown} rowKey={t => t.id} cols={cols} noun="chủ đề" onRow={setOpen} className="slt"
+    {pills}
+    <div className="fwtree ttcompact"><DataTable key={mode} id={mode === 'topic' ? 'lib-topics' : 'lib-items-' + mode} pro rows={(mode === 'topic' ? shown : kindRows) as never[]} rowKey={(r: { id: string }) => r.id}
+      cols={(mode === 'topic' ? cols : kcols) as never[]} noun={mode === 'topic' ? 'chủ đề' : 'mục'}
+      onRow={((r: ProgramTopic & Item) => mode === 'topic' ? setOpen(r) : mode === 'material' ? setOpen(topicOf.get(r.topic_id)!) : setView(r)) as never} className="slt"
       left={<span className="fwcap"><b>{crumb}</b>{allowed ? <span className="sub"> · theo gói trường đang dùng</span> : null}</span>}
       empty={<span className="sub">{!loaded ? 'Đang tải…' : allowed && !allowed.size ? 'Trường chưa được gán Gói STEM cho năm học hiện tại.' : 'Không có chủ đề phù hợp.'}</span>}
       aside={<nav className="gtree" aria-label="Loại CT › Khối › Học phần">
@@ -161,5 +184,6 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
       return <Drawer onClose={() => { setOpen(null); loadCounts() }} title={<>{m && chip(m.track_code)} {open.title}</>}>
         <TopicContents topic={open} admin={admin} module={m} />
       </Drawer> })()}
+    {view && <ItemDrawer item={view} topicTitle={topicOf.get(view.topic_id)?.title} onClose={() => setView(null)} />}
   </>
 }

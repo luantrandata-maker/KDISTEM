@@ -1,3 +1,4 @@
+import { LevelTicks, GRADE_LEVELS, gradesLabel } from '../components/LevelTicks'
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { FitScreen } from '../components/FitScreen'
@@ -80,11 +81,11 @@ export function ProgramPackages() {
   const [formSlot, setFormSlot] = useState<HTMLElement | null>(null)   // chỗ đặt nút Lưu / Huỷ trên hàng tiêu đề khi sửa gói
   const [by, setBy] = useState<'grade' | 'mod'>('mod')   // So sánh: xem theo học phần (mặc định) hoặc theo khối
   // Lọc theo cấp / khối, dùng chung cho Tổng quan gói và So sánh (tư vấn cho từng trường, trường liên cấp chọn nhiều cấp)
-  const [lvs, setLvs] = useState<string[]>([])
-  const [fGrade, setFGrade] = useState<number | null>(null)
-  const sel = lvs.length ? LEVELS.filter(l => lvs.includes(l.k)) : [...LEVELS]
-  const selGrades: number[] = fGrade ? [fGrade] : sel.flatMap(l => [...l.grades])
-  const fName = fGrade ? gradeName(fGrade) : lvs.length ? sel.map(l => l.name).join(' + ') : 'Cả 12 khối'
+  const [fGs, setFGs] = useState<number[]>([])   // khối đang lọc, rỗng = cả 12 khối
+  const selGrades: number[] = fGs.length ? fGs : LEVELS.flatMap(l => [...l.grades])
+  const sel = LEVELS.filter(l => l.grades.every(g => selGrades.includes(g)))
+  const fName = fGs.length ? gradesLabel(fGs) : 'Cả 12 khối'
+  const gtree = <LevelTicks value={fGs} onChange={setFGs} />
   const [editPkg, setEditPkg] = useState<(ProgramPackage & { copyFrom?: string; tab?: string }) | null>(null)
   const reload = () => Promise.all([loadPackages(), loadFrame()]).then(([p, f]) => {
     setPackages(p.packages); setItems(p.items); setSkips(p.skips); setModules(f.modules); setTopics(f.topics); setMsg(p.error || f.error)
@@ -174,8 +175,8 @@ export function ProgramPackages() {
   if (compare) return <>
     <DetailHead back="Gói STEM" onBack={() => setCompare(false)} title="So sánh các gói STEM" />
     {msg && <p className="msg" role="status">{msg}</p>}
-    <CompareView tracks={active} packages={live} items={items} topics={topics} skips={skips} modName={modName} grades={selGrades} levels={fGrade ? [] : sel} name={fName} by={by}
-      filter={extra => <LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false}
+    <CompareView tracks={active} packages={live} items={items} topics={topics} skips={skips} modName={modName} grades={selGrades} levels={sel} name={fName} by={by}
+      filter={extra => <LevelFilter tree={gtree}
         extra={<>{extra}<Seg label="" items={[['grade', 'Khối'], ['mod', 'Học phần']] as ['grade' | 'mod', string][]} on={v => v === by} onPick={setBy} /></>} />} />
   </>
 
@@ -196,11 +197,11 @@ export function ProgramPackages() {
       </div>
       {cur && <PackageDetail key={cur.id} pkg={cur} color={pkgColor(cur, curK)} others={packages.filter(p => p.id !== cur.id)} tracks={active} admin={admin} items={items} modules={modules} topics={topics} msg={msg} setMsg={setMsg}
         slotsOf={slotsOf} topicsOfItem={topicsOfItem} menu={admin ? pkgMenu(cur) : []}
-        onChanged={reload} onLevel={k => { setLvs([k]); setFGrade(null) }} inGrades={selGrades} levelFilter={<LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false} bare />} onEdit={tab => setEditPkg({ ...cur, tab })} />}
+        onChanged={reload} onLevel={k => setFGs([...(LEVELS.find(l => l.k === k)?.grades ?? [])])} inGrades={selGrades} levelFilter={gtree} onEdit={tab => setEditPkg({ ...cur, tab })} />}
       {/* Chưa chọn gói: hiện sẵn bảng so sánh các gói cho phần dưới không trống */}
       {!cur && cmpShow && live.length > 1 && <section className="pkgdet" style={{ '--c': 'var(--primary)' } as React.CSSProperties} aria-label="So sánh nhanh các gói">
-        <CompareView tracks={active} packages={live} items={items} topics={topics} skips={skips} modName={modName} grades={selGrades} levels={fGrade ? [] : sel} name={fName} by={by} inline
-          filter={extra => <LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false}
+        <CompareView tracks={active} packages={live} items={items} topics={topics} skips={skips} modName={modName} grades={selGrades} levels={sel} name={fName} by={by} inline
+          filter={extra => <LevelFilter tree={gtree}
             extra={<>{extra}<Seg label="" items={[['grade', 'Khối'], ['mod', 'Học phần']] as ['grade' | 'mod', string][]} on={v => v === by} onPick={setBy} /></>} />} />
       </section>}
     </>}
@@ -408,8 +409,8 @@ function PackageDetail({ pkg, color, onEdit, others, tracks, admin, items, modul
     <section className="pkgdet" style={{ '--c': color } as React.CSSProperties} aria-label={'Chi tiết ' + pkg.name}>
     <div className="pkgdet-h">
       <h3>{pkg.name}</h3>
-      {!edit && <span className="pkgdet-lv">{levelFilter}</span>}
       <span style={{ flex: 1 }} />
+      {!edit && <span className="pkgdet-lv">{levelFilter}</span>}
       {!edit && !empty && <span className="pkgdet-tools">
         <span className="lvgrp"><span className="lvlab">Loại CT</span><ColFilter pin label={tf.length ? tf.map(trackLabel).join(', ') : 'Tất cả'} value={tracks.filter(t => tf.includes(t.code)).map(tl)}
           options={tracks.map(t => [tl(t), nTopics(mine.filter(i => i.track_code === t.code))] as [string, number])}
@@ -589,21 +590,15 @@ function TrackGrid({ pkg, track, admin, items, modules, topics, slots, diffKeys,
 }
 
 // So sánh các gói (tư vấn cho từng trường): lọc theo cấp / khối, xem theo học phần hoặc theo khối.
-const LEVELS = [{ k: 'th', name: 'Tiểu học', grades: [1, 2, 3, 4, 5] }, { k: 'thcs', name: 'THCS', grades: [6, 7, 8, 9] }, { k: 'thpt', name: 'THPT', grades: [10, 11, 12] }] as const
+const LEVELS = GRADE_LEVELS
 function Seg<T extends string | number | null>({ label, items, on, onPick }: { label: string; items: [T, string][]; on: (v: T) => boolean; onPick: (v: T) => void }) {
   return <div className="lvgrp">{label && <span className="lvlab">{label}</span>}
     <div className="seg" role="group" aria-label={label}>{items.map(([v, t]) =>
       <button key={String(v)} type="button" className={on(v) ? 'on' : ''} aria-pressed={on(v)} onClick={() => onPick(v)}>{t}</button>)}</div></div>
 }
-function LevelFilter({ lvs, grade, onLevels, onGrade, extra, hint = true, bare = false }: { lvs: string[]; grade: number | null; onLevels: (v: string[]) => void; onGrade: (g: number | null) => void; extra?: React.ReactNode; hint?: boolean; bare?: boolean }) {
-  const sel = LEVELS.filter(l => lvs.includes(l.k))
-  const toggle = (k: string) => onLevels(lvs.includes(k) ? lvs.filter(x => x !== k) : LEVELS.filter(l => [...lvs, k].includes(l.k)).map(l => l.k))
-  return <div className="lvfilter">
-    <Seg label={bare ? '' : 'Cấp học'} items={[['', 'Tất cả'], ...LEVELS.map(l => [l.k, l.name] as [string, string])]} on={v => v ? lvs.includes(v) : !lvs.length} onPick={v => v ? toggle(v) : onLevels([])} />
-    {sel.length > 0 && <Seg label="Khối" items={[[null, 'Tất cả'], ...sel.flatMap(l => [...l.grades]).map(g => [g, String(g)] as [number, string])]} on={v => v === grade} onPick={onGrade} />}
-    {hint && lvs.length > 0 && <small className="sub">{lvs.length ? `Đang xem ${grade ? 'khối ' + grade : sel.map(l => l.name).join(' + ')}` : ''}</small>}
-    {extra && <div className="lvextra">{extra}</div>}
-  </div>
+function LevelFilter({ tree, extra }: { tree: React.ReactNode; extra?: React.ReactNode }) {
+  // Cả thanh lọc nằm bên phải: Cấp › Khối đứng đầu nhóm
+  return <div className="lvfilter"><div className="lvextra">{tree}{extra}</div></div>
 }
 
 // So sánh dưới thẻ gói: cả khung vừa một màn hình dưới hàng tab và đứng yên; chỉ bảng cuộn bên trong (tiêu đề cột đứng yên), cuộn bảng không kéo trang

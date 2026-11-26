@@ -4303,3 +4303,11 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .side>*{flex:none}
 .side>.sidefoot{margin-top:auto}
 .side>.navgroup{margin-top:0}.side>.navgroup>button.grouphead{margin-top:0}
+/* Lọc Cấp › Khối dạng tick hai tầng */
+.ttfpop.gtpop{width:240px;max-height:380px}
+.ttfpop.gtpop .gtlv>label{font-weight:600}
+.ttfpop.gtpop .gtlv>ul{padding-left:22px;overflow:visible}
+.main .lvgrp .tdd .gtlab{max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.ttfpop.gtpop li label{align-items:center;padding:3px 4px;line-height:1.3}
+.ttfpop.gtpop li input{margin-top:0}
+.ttfpop.gtpop li label>small{margin-left:auto;display:inline}

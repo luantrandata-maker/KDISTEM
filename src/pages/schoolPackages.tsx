@@ -608,7 +608,7 @@ function AssignForm({ ctx, modName, year, schools, preset, packages, pkgColor, p
   const nq = q.trim().toLowerCase()
   const shown = useMemo(() => (list ?? []).filter(r => !nq || (r.name + ' ' + (r.code ?? '')).toLowerCase().includes(nq)), [list, nq])
   const has = (pre?.sps ?? []).filter(x => spState(x) !== 'ended').sort(byGrade)
-  const pickOrg = (id: string) => { setOrg(id); setLines([{ pkg: packages[0]?.id ?? '', grades: suggest(list?.find(x => x.org_id === id)), full: true, skip: new Set() }]) }
+  const pickOrg = (id: string) => { setOrg(id); setQ(list?.find(x => x.org_id === id)?.name ?? ''); setLines([{ pkg: packages[0]?.id ?? '', grades: suggest(list?.find(x => x.org_id === id)), full: true, skip: new Set() }]) }
   const hint = !picked ? '' : picked.level === 'mamnon' ? ' · trường mầm non, gói chưa có khối mầm non' : picked.level ? ' · đã chọn sẵn theo cấp học của trường' : ' · trường chưa ghi cấp học, hãy chọn khối'
   const setLine = (i: number, v: Partial<Line>) => setLines(ls => ls.map((l, k) => k === i ? { ...l, ...v } : l))
   // Khối chọn được ở một dòng: chưa có gói, chưa chọn ở dòng khác
@@ -641,8 +641,10 @@ function AssignForm({ ctx, modName, year, schools, preset, packages, pkgColor, p
         {(provs ?? []).map(p => <option key={p.province_id ?? NOPROV} value={p.province_id ?? NOPROV}>{p.province_name ?? 'Chưa thuộc tỉnh nào'} ({p.schools.toLocaleString('vi-VN')} trường)</option>)}</select></label>}
     {preset ? <div className="field"><span>Trường</span><b>{pre?.name}</b></div>
       : prov && <label className="field"><span>Trường</span>
-      <input placeholder="Tìm theo tên trường…" value={q} onChange={e => setQ(e.target.value)} />
-      {!list ? <small className="sub">Đang tải danh sách trường…</small> : <>
+      {/* Chọn xong: ô tìm hiện tên trường đã chọn, danh sách thu lại; gõ lại để đổi trường */}
+      <input placeholder="Tìm theo tên trường…" className={picked ? 'pickedin' : undefined} value={q} onChange={e => { setQ(e.target.value); if (org) setOrg('') }} />
+      {picked && <small className="sub">✓ Đã chọn trường. Gõ vào ô trên để đổi trường khác.</small>}
+      {!list ? <small className="sub">Đang tải danh sách trường…</small> : !picked && <>
       <select size={8} value={org} onChange={e => pickOrg(e.target.value)} aria-label="Chọn trường">
         {shown.slice(0, 300).map(r => <option key={r.org_id} value={r.org_id}>{r.name}{r.taken.length ? ` · đã có gói ${kRange(r.taken)}` : ''}</option>)}</select>
       {shown.length > 300 && <small className="sub">Đang hiện 300 / {shown.length.toLocaleString('vi-VN')} trường, gõ tên để tìm.</small>}</>}</label>}

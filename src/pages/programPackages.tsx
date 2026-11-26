@@ -182,8 +182,8 @@ export function ProgramPackages() {
 
   return <>
     <HeadAction>
-      {live.length > 1 && <button type="button" className={'pkgcmpbtn' + (cmpShow && !cur ? ' on' : '')} aria-expanded={cmpShow && !cur} onClick={() => { if (cur) { setOpenId(null); setCmpShow(true) } else setCmpShow(v => !v) }}>So sánh các gói <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" style={{ transform: cmpShow && !cur ? 'none' : 'rotate(180deg)' }}><path d="M3 9l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></button>}
-      <button type="button" onClick={() => setTrackOpen(true)}>☰ Các loại chương trình</button>
+      {live.length > 1 && <button type="button" className={'pkgcmpbtn' + (cmpShow && !cur ? ' on' : '')} aria-expanded={cmpShow && !cur} onClick={() => { if (cur) { setOpenId(null); setCmpShow(true) } else setCmpShow(v => !v) }}>So sánh gói <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" style={{ transform: cmpShow && !cur ? 'none' : 'rotate(180deg)' }}><path d="M3 9l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></button>}
+      <button type="button" onClick={() => setTrackOpen(true)}>☰ Loại chương trình</button>
       {admin && <button type="button" className="primary ttadd" onClick={() => setEditPkg({ id: '', code: '', name: '', description: '', sort: packages.reduce((x, p) => Math.max(x, p.sort), 0) + 1, active: true })}>+ Thêm gói</button>}
     </HeadAction>
     {msg && !cur && <p className="msg" role="status">{msg}</p>}

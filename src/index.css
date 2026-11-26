@@ -3810,7 +3810,7 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .fwfit .gtree{max-height:none;position:static;overflow:visible}
 .fwmain{display:flex;flex-direction:column;min-width:0;min-height:0}
 .fwscroll{flex:1;min-height:0;overflow:auto}
-.fwfit>.ttbody:not(.sideoff){grid-template-columns:290px minmax(0,1fr)!important}
+.fwfit>.ttbody:not(.sideoff):not(.sideset){grid-template-columns:290px minmax(0,1fr)!important}
 .fwcap{flex:none;background:var(--surface);padding:9px 14px;border-bottom:1px solid var(--line);font-size:calc(13px * var(--fz,1))}
 .fwtable{border:0;border-radius:0;margin:0}
 .fwtable>thead>tr>th{position:sticky;top:0;z-index:2}
@@ -3818,7 +3818,7 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .gtcolhead{text-align:right;font-size:calc(11px * var(--fz,1));font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;padding:0 6px 4px;border-bottom:1px solid var(--line);margin-bottom:4px}
 .main .gtree .gtrow>span.gtcaret{display:inline-block}
 .fwtable .fwgrp>td{padding-top:9px;padding-bottom:9px;color:var(--text)}
-.fwtree .ttbody:not(.sideoff){grid-template-columns:290px minmax(0,1fr)!important}
+.fwtree .ttbody:not(.sideoff):not(.sideset){grid-template-columns:290px minmax(0,1fr)!important}
 .fwtree .ttaside{overflow-y:auto;overflow-x:hidden}
 .fwtree .gtree{max-height:none;position:static;overflow:visible}
 .fwtree .fwcap{border:0;padding:0 4px;background:none;white-space:nowrap}
@@ -4291,3 +4291,5 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .ttcompact .progdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
 .ttcompact .cnum{display:inline-block;width:100%;text-align:center}.ttcompact .cnone{color:var(--muted,#98a2b3)}
 .ttcompact .cyes{color:var(--good,#1c7a43);font-weight:700}
+/* Thanh kéo độ rộng cây nằm trên khung bảng (ngoài vùng cuộn của cây) */
+.ttbody{position:relative}

@@ -8,6 +8,7 @@ import { ALL_GRADES, currentYear, fmtDay, gradesOfLevel, kRange, loadSchoolPkgs,
 import { ColFilter, DataTable } from '../components/DataTable'
 import { ElView } from '../components/ElView'
 import { HeadAction } from '../components/PageFrame'
+import { useColResize } from '../components/ColResize'
 import { Drawer } from '../components/Drawer'
 import { MultiSelect } from '../components/MultiSelect'
 import { FitScreen } from '../components/FitScreen'
@@ -326,6 +327,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   ctx: Ctx; schools: School[]; skips: PkgSkip[]; packages: ProgramPackage[]; preset: string[]; year: string
   modName: (id: string) => string; pkgName: (id: string | null) => string; pkgColor: (id: string | null) => string; liveOf: (s: School) => SchoolPkgRow[]
 }) {
+  const rs = useColResize('schoolcmp')   // kéo mép tiêu đề đổi độ rộng cột, nút Thu gọn
   const firstPkg = (orgs: string[]) => { const s = schools.find(x => x.org_id === orgs[0]); return s ? liveOf(s)[0]?.package_id ?? '' : '' }
   const [orgs, setOrgs] = useState<string[]>(preset.slice(0, 3))
   const [pkg, setPkg] = useState(() => firstPkg(preset))
@@ -487,13 +489,14 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
         options={tracks.map(t => [tl(t), base.filter(r => r.t.code === t.code).length] as [string, number])}
         onChange={v => setTf(tracks.filter(t => v.includes(tl(t))).map(t => t.code))} /></span>
         <ColMenu order={order} hidden={colCfg.hidden} label={colLabel} onChange={setColCfg} />
+        {rs.fitBtn}
         <button type="button" onClick={printCmp}>In / Xuất PDF</button></div>
     </div>
     {<div className="cmpprint">
       <h3 className="printonly">So sánh trường với gói · {pkg ? pkgName(pkg) : 'không chọn gói'} · Năm học {yearLabel(year)}</h3>
       {!pkg && sel.length > 1 && <p className="sub" style={{ margin: '0 0 8px' }}>Các trường giống nhau <b style={{ color: 'var(--text, #0f172a)' }}>{pct(both.length, bothD)}%</b> · {bothD} điểm khác</p>}
       {!pkg && sel.length === 1 && <p className="sub" style={{ margin: '0 0 8px' }}>Chọn gói hoặc thêm trường để so sánh.</p>}
-      <FitScreen className="fsbox"><table className="table cmptbl cmplined sctbl">
+      <FitScreen className="fsbox"><table className="table cmptbl cmplined sctbl" {...rs.tableProps}>
         <thead><tr>{vis.map(k => k === 'pkg'
           ? <th key={k}><span className="cmphead">{pkg && <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: pkgColor(pkg), flex: 'none' }} />}
               <select className="cmphsel" aria-label="Gói để so sánh" value={pkg} onChange={e => setPkg(e.target.value)}>

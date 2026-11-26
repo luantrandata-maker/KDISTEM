@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { FitScreen } from '../components/FitScreen'
+import { useColResize } from '../components/ColResize'
 import { supabase } from '../lib/supabase'
 import { EDU_ACTIVITY_NAME, useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
 import { BLANK_TRACK, TrackForm, trackErr } from './stemTracks'
@@ -608,6 +609,7 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
   tracks: StemTrack[]; packages: ProgramPackage[]; items: PackageItem[]; topics: ProgramTopic[]; skips: PackageSkip[]; modName: (id: string) => string
   grades: number[]; levels: (typeof LEVELS)[number][]; name: string; filter: (extra: React.ReactNode) => React.ReactNode; by: 'grade' | 'mod'
 }) {
+  const rsMod = useColResize('pkgcmp-mod'), rsK2 = useColResize('pkgcmp-grade')   // kéo mép tiêu đề đổi độ rộng cột
   // Chọn gói để so sánh: không chọn gói nào = so sánh tất cả. Màu mỗi gói giữ nguyên theo thứ tự gốc.
   const [pick, setPick] = useState<string[]>([])
   const packages = pick.length ? allPkgs.filter(p => pick.includes(p.id)) : allPkgs
@@ -651,12 +653,13 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
       <span className="lvlab">Gói</span>
       <div style={{ flex: '0 0 220px', width: 220 }}><MultiSelect compact value={pick} onChange={setPick} options={allPkgs.map(p => [p.id, p.name] as [string, string])}
         placeholder="Tất cả gói" ariaLabel="Chọn gói để so sánh" /></div>
+      {(by === 'mod' ? rsMod : rsK2).fitBtn}
       <button type="button" onClick={printCmp}>In / Xuất PDF</button>
     </>)}
     <div className="cmpprint">
     <h3 className="printonly">So sánh các gói STEM · {name} · theo {by === 'mod' ? 'học phần' : 'khối'}</h3>
     <FitScreen className="fsbox">
-      {by === 'mod' ? <table className="table cmptbl cmplined cmpmodt">
+      {by === 'mod' ? <table className="table cmptbl cmplined cmpmodt" {...rsMod.tableProps}>
         <thead><tr><th>Học phần · {name}</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(pkgColor(p, ck(k)))}>{p.name}</th>)}</tr></thead>
         {sections.map(({ t, rows }) => <tbody key={t.code}>
           <tr className="cmpgrp"><td colSpan={packages.length + 1}>{chip(t.code)} {t.name}</td></tr>
@@ -665,7 +668,7 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
         </tbody>)}
       </table>
       : !groups.length ? <p className="sub">{only ? 'Các gói đang chọn giống nhau ở các khối này.' : 'Chưa có học phần nào ở các khối này.'}</p>
-      : <table className="table cmptbl cmpk2">
+      : <table className="table cmptbl cmpk2" {...rsK2.tableProps}>
         <thead><tr><th>Loại CT</th><th>Khối</th><th>Phần</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(pkgColor(p, ck(k)))} title={p.description || undefined}>{p.name}</th>)}</tr></thead>
         {groups.map(({ t, gs, n }) => <tbody key={t.code}>{gs.flatMap(({ g, rows }, gi) => rows.map((r, ri) => <tr key={g + '-' + r.s} className={(r.same ? 'same' : '') + (ri === 0 && gi > 0 ? ' k2g' : '')}>
           {gi === 0 && ri === 0 && <td rowSpan={n} className="k2t">{chip(t.code)}<b>{t.name}</b></td>}

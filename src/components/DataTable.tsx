@@ -236,9 +236,9 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
 
   const lead = shownCols.find(c => !/c-no|c-sel/.test(c.thClass ?? '') && c.key !== 'no')
   // Đã kéo độ rộng mọi cột đang hiện: dùng bố cục cố định theo đúng độ rộng đã kéo
-  // Phân hệ 1: bảng luôn gọn (dòng thấp, 1 dòng), bỏ 2 nút thu gọn cột / dòng
+  // Phân hệ 1: bảng luôn gọn (dòng thấp, 1 dòng), bỏ nút thu gọn dòng; vẫn có nút thu gọn cột cho vừa màn hình
   const ph1 = typeof document !== 'undefined' && document.querySelector('main.main')?.getAttribute('data-ph') === '1'
-  const vfit = view.fit && !ph1, vdense = !!view.dense || ph1
+  const vfit = view.fit, vdense = !!view.dense || ph1
   const fixedW = !vfit && shownCols.length > 0 && shownCols.every(c => view.widths[c.key])
     ? shownCols.reduce((a, c) => a + view.widths[c.key], 0) + (head && !(pro && !bulk && lead) ? 36 : 0) + (rowMenu ? 48 : 0) : 0
   // Cột đầu (tên) đứng yên khi cuộn ngang
@@ -307,7 +307,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
         {saved.length > 0 && <button type="button" className="tdd" aria-expanded={pop?.k === 'saved'} onClick={e => setPop(pop?.k === 'saved' ? null : { k: 'saved', el: e.currentTarget })}>Bộ lọc đã lưu <span className="ttbadge">{saved.length}</span><span className="tcar" aria-hidden="true" /></button>}
         <div className="ticons" role="group" aria-label="Tuỳ chỉnh bảng">
           <button type="button" className={'tsq' + (view.sort ? ' on' : '')} title="Sắp xếp" aria-label="Sắp xếp" aria-expanded={pop?.k === 'sort'} onClick={e => setPop(pop?.k === 'sort' ? null : { k: 'sort', el: e.currentTarget })}>{ico(IC.sort)}</button>
-          {!ph1 && <button type="button" className={'tsq' + (view.fit ? ' on' : '')} aria-pressed={view.fit} title={view.fit ? 'Bỏ thu gọn cột' : 'Thu gọn cột cho vừa màn hình'} aria-label="Thu gọn cột" onClick={() => setView(v => ({ ...v, fit: !v.fit }))}>{ico(IC.fitc)}</button>}
+          {<button type="button" className={'tsq' + (view.fit ? ' on' : '')} aria-pressed={view.fit} title={view.fit ? 'Bỏ thu gọn cột' : 'Thu gọn cột cho vừa màn hình'} aria-label="Thu gọn cột" onClick={() => setView(v => ({ ...v, fit: !v.fit }))}>{ico(IC.fitc)}</button>}
           {!ph1 && <button type="button" className={'tsq' + (view.dense ? ' on' : '')} aria-pressed={!!view.dense} title={view.dense ? 'Mở rộng dòng' : 'Thu gọn dòng'} aria-label="Thu gọn dòng" onClick={() => setView(v => ({ ...v, dense: !v.dense }))}>{ico(IC.dense)}</button>}
           {colsMenu(true)}
         </div>
@@ -361,7 +361,7 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
       {!simple && <button type="button" className={filterOn ? 'on' : ''} aria-pressed={filterOn} onClick={() => { setFilterOn(!filterOn); if (filterOn) setFlt({}) }}
         title={filterOn ? 'Ẩn ô lọc dưới tiêu đề cột' : 'Hiện ô lọc dưới tiêu đề từng cột'}><TIcon d={IC.filter} />Lọc{active.length > 0 && <span className="ttbadge">{active.length}</span>}</button>}
       {colsMenu(false)}
-      {!simple && !ph1 && <button type="button" className={view.fit ? 'on' : ''} aria-pressed={view.fit} onClick={() => setView(v => ({ ...v, fit: !v.fit }))}
+      {!simple && <button type="button" className={view.fit ? 'on' : ''} aria-pressed={view.fit} onClick={() => setView(v => ({ ...v, fit: !v.fit }))}
         title="Thu bảng vừa chiều ngang màn hình, chữ dài tự xuống dòng"><TIcon d={IC.fit} />Thu gọn</button>}
       </div>
       {right}

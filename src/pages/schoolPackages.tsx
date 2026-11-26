@@ -195,8 +195,10 @@ export function SchoolPackages() {
           <thead><tr><th rowSpan={rs} style={{ width: 70 }}>Khối</th>{live.length > 1 && <th rowSpan={rs} style={{ width: 110 }}>Gói</th>}
             {shownT.map(t => nSl(t) > 0
               ? <th key={t.code} colSpan={nSl(t)} style={{ ...GAP, borderTop: `3px solid ${TRACK_COLOR[t.code]}` }}>{trackTh(t)}</th>
-              : <th key={t.code} rowSpan={rs} style={{ ...GAP, borderTop: `3px solid ${TRACK_COLOR[t.code]}` }}>{trackTh(t)}</th>)}</tr>
-            {two && <tr>{shownT.flatMap(t => Array.from({ length: nSl(t) }, (_, i) => <th key={t.code + i} style={i ? undefined : GAP}>HP{i + 1}</th>))}</tr>}</thead>
+              : <th key={t.code} style={{ ...GAP, borderTop: `3px solid ${TRACK_COLOR[t.code]}` }}>{trackTh(t)}</th>)}</tr>
+            {/* Tên 4 loại chương trình cùng một hàng; loại không chia học phần ghi "Chủ đề" ở hàng dưới */}
+            {two && <tr>{shownT.flatMap(t => nSl(t) > 0 ? Array.from({ length: nSl(t) }, (_, i) => <th key={t.code + i} style={i ? undefined : GAP}>HP{i + 1}</th>)
+              : [<th key={t.code} style={GAP}>Chủ đề</th>])}</tr>}</thead>
           <tbody>{grades.map(g => { const r = spAt(g)!
             return <tr key={g} style={live.length > 1 ? { boxShadow: `inset 3px 0 0 ${pkgColor(r.package_id)}` } : undefined}><td><b>K{g}</b></td>
             {live.length > 1 && <td><Pk id={r.package_id} /></td>}
@@ -429,7 +431,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
     const cells: React.ReactNode[] = []
     const tint = { borderLeft: `4px solid ${TRACK_COLOR[r.t.code]}`, background: TRACK_COLOR[r.t.code] + '14' }
     const spanCell = (k: string) => <td key={k} rowSpan={span < 0 ? lines.length - li : span} style={{ verticalAlign: 'top', ...(k === 'track' ? tint : {}) }}>
-      {k === 'track' ? <span style={{ fontWeight: 600 }}>{chipOf(r.t)}{r.t.name}</span> : <b>{gradeName(r.g)}</b>}</td>
+      {k === 'track' ? <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{chipOf(r.t)}{r.t.name}</span> : <b>{gradeName(r.g)}</b>}</td>
     if (ln.kind === 'main') {
       const isOpen = topical(r) && open[r.key] !== undefined
       // Phần (học phần / chủ đề) ghép vào ô Khối, hoặc ô Loại CT khi cột Khối đang gộp nhóm hay bị ẩn

@@ -247,11 +247,50 @@ export function DataTable<T>({ id, rows, cols, rowKey, empty, className, head, f
   const inSel = !!(pro && head && !bulk && lead)
   const sideHead = head && !inSel
   const selOn = bulk || inSel
-  const tbl0 = <div className="wrap"><table className={`libtable ttable${vfit && !simple ? ' ttfit' : ''}${pro && vdense ? ' ttdense' : ''}${selOn ? ' ttsel' + (selRows.length ? ' ttselon' : '') : ''}${fixedW ? ' ttfixed' : ''}${className ? ' ' + className : ''}`} style={fixedW ? { width: fixedW } : undefined}>
-      <colgroup>{sideHead && <col style={{ width: 36 }} />}{shownCols.map(c => <col key={c.key} style={view.widths[c.key] ? { width: view.widths[c.key] } : undefined} />)}{rowMenu && <col style={{ width: 48 }} />}</colgroup>
+  // Thu gọn cột: đo độ rộng tự nhiên của từng cột (như khi chưa thu gọn), rồi co vừa khung theo kiểu "rót nước":
+  // cột ngắn giữ nguyên độ rộng vừa nội dung, chỉ các cột dài bị co bằng nhau và cắt "…"; dư chỗ thì dồn cho cột đầu.
+  const fitTbl = useRef<HTMLTableElement>(null)
+  const [fitW, setFitW] = useState<number[] | null>(null)
+  const fitOn = vfit && !simple
+  const fitSig = fitOn ? shownCols.map(c => c.key).join('|') + '#' + shown.length : ''
+  useLayoutEffect(() => {
+    const t = fitTbl.current
+    if (!fitOn || !t) { setFitW(null); return }
+    const wrap = t.parentElement as HTMLElement
+    const measure = () => {
+      const cols = Array.from(t.querySelectorAll<HTMLElement>(':scope > colgroup > col'))
+      const keep = cols.map(c => c.style.width)
+      t.classList.remove('ttfit'); cols.forEach(c => { c.style.width = '' })
+      const ths = Array.from(t.querySelectorAll<HTMLElement>(':scope > thead > tr:first-child > th'))
+      const nat = ths.map(th => Math.ceil(th.getBoundingClientRect().width))
+      t.classList.add('ttfit'); cols.forEach((c, i) => { c.style.width = keep[i] })
+      const fixedIdx = ths.map(th => th.classList.contains('c-sel') || th.classList.contains('c-menu'))
+      const avail = wrap.clientWidth - nat.reduce((a, w, i) => a + (fixedIdx[i] ? w : 0), 0)
+      const idx = nat.map((_, i) => i).filter(i => !fixedIdx[i])
+      const total = idx.reduce((a, i) => a + nat[i], 0)
+      const out = [...nat]
+      if (total <= avail) {
+        const li = ths.findIndex(th => th.classList.contains('c-lead')); out[li >= 0 ? li : idx[0]] += avail - total
+      } else {
+        const MIN = 56, ws = idx.map(i => nat[i]).sort((a, b) => a - b)
+        let cap = MIN, used = 0
+        for (let k = 0; k < ws.length; k++) { const c = (avail - used) / (ws.length - k); if (ws[k] >= c) { cap = Math.max(MIN, Math.floor(c)); break } used += ws[k]; cap = ws[k] }
+        idx.forEach(i => { out[i] = Math.min(nat[i], cap) })
+      }
+      setFitW(w => (w && w.length === out.length && w.every((x, i) => Math.abs(x - out[i]) < 2) ? w : out))
+    }
+    measure()
+    if (typeof ResizeObserver === 'undefined') return
+    let last = wrap.clientWidth
+    const ro = new ResizeObserver(() => { if (Math.abs(wrap.clientWidth - last) > 4) { last = wrap.clientWidth; measure() } })
+    ro.observe(wrap); return () => ro.disconnect()
+  }, [fitOn, fitSig])  // eslint-disable-line react-hooks/exhaustive-deps
+  const colW = (i: number, k?: string) => fitW && fitW[i] != null ? { width: fitW[i] } : k && view.widths[k] ? { width: view.widths[k] } : undefined
+  const tbl0 = <div className="wrap"><table ref={fitTbl} className={`libtable ttable${vfit && !simple ? ' ttfit' : ''}${pro && vdense ? ' ttdense' : ''}${selOn ? ' ttsel' + (selRows.length ? ' ttselon' : '') : ''}${fixedW ? ' ttfixed' : ''}${className ? ' ' + className : ''}`} style={fixedW ? { width: fixedW } : undefined}>
+      <colgroup>{sideHead && <col style={{ width: 36 }} />}{shownCols.map((c, i) => <col key={c.key} style={colW(i + (sideHead ? 1 : 0), c.key)} />)}{rowMenu && <col style={{ width: 48 }} />}</colgroup>
       <thead>
         <tr>{sideHead && <th className="c-sel">{head.th}</th>}{shownCols.map(c => <th key={c.key} className={[c.thClass, c === lead ? 'c-lead' : '', stick(c) ? 'c-stick' : ''].filter(Boolean).join(' ') || undefined}
-          style={view.widths[c.key] ? { width: view.widths[c.key], minWidth: fixedW ? undefined : view.widths[c.key] } : undefined}>{bulk && c === lead && <span className="tselbox"><input type="checkbox" aria-label="Chọn tất cả" checked={shown.length > 0 && selRows.length === shown.length}
+          style={!fitW && view.widths[c.key] ? { width: view.widths[c.key], minWidth: fixedW ? undefined : view.widths[c.key] } : undefined}>{bulk && c === lead && <span className="tselbox"><input type="checkbox" aria-label="Chọn tất cả" checked={shown.length > 0 && selRows.length === shown.length}
           onChange={e => setPicked(e.target.checked ? new Set(shown.map(rowKey)) : new Set())} onClick={e => e.stopPropagation()} /></span>}{inSel && c === lead && <span className="tselbox" onClick={e => e.stopPropagation()}>{head!.th}</span>}{c.label}
           <span className="ttresize" role="separator" aria-label={`Đổi độ rộng cột ${c.label}`} onMouseDown={e => resize(c.key, e)} onClick={e => e.stopPropagation()}
             onDoubleClick={e => { e.stopPropagation(); setView(v => { const w = { ...v.widths }; delete w[c.key]; return { ...v, widths: w } }) }} /></th>)}{rowMenu && <th className="c-menu"><span className="sronly">Thao tác</span></th>}</tr>

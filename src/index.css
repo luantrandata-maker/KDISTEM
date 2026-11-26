@@ -4213,3 +4213,20 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .colfitbtn{display:inline-flex;align-items:center;justify-content:center;padding-left:10px;padding-right:10px}
 .colfitbtn.on{background:color-mix(in srgb,var(--primary) 12%,var(--surface));color:var(--primary);border-color:color-mix(in srgb,var(--primary) 35%,transparent)}
 @media print{.colfitbtn{display:none}}
+
+/* Nhãn áp dụng dùng chung (ApplyTag) */
+.applytag{font-weight:600;white-space:nowrap}
+.applytag.on{color:var(--ok,#15803d)}
+.applytag.off{color:var(--danger,#b42318)}
+/* So sánh trường với gói: thanh lọc và bảng chung một khung như các bảng khác */
+.main .cmpcard{border:1px solid var(--line);border-radius:10px;background:var(--surface);overflow:hidden}
+.main .cmpcard>.lvfilter.cmpfilter{border:0;border-bottom:1px solid var(--line);border-radius:0;margin:0;box-shadow:none}
+.main .cmpcard .fitscreen.fsbox{border:0;border-radius:0}
+.main .cmpcard .cmpprint>p.sub{padding:8px 14px 0}
+
+/* So sánh nhanh dưới thẻ gói: cao theo nội dung, tối đa một màn hình; tiêu đề cột đứng yên. Hàng tab đứng yên khi cuộn trang */
+.main .pkgcmpbox{max-height:calc(100vh - 140px);overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.main .pkgcmpbox>table{border:0;border-radius:0;margin:0;overflow:visible}
+.main .pkgcmpbox .cmptbl>thead>tr>th{position:sticky;top:0;z-index:2}
+.main>.pframe:has(.pkgcards)>.pfhead{position:sticky;top:0;z-index:6;background:var(--surface);border-radius:8px 8px 0 0}
+.applytag.only{font-size:17px;line-height:1}

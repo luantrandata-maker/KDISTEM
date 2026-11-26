@@ -8,6 +8,7 @@ import { ALL_GRADES, currentYear, fmtDay, gradesOfLevel, kRange, loadSchoolPkgs,
 import { ColFilter, DataTable } from '../components/DataTable'
 import { ElView } from '../components/ElView'
 import { HeadAction } from '../components/PageFrame'
+import { ApplyTag } from '../components/ApplyTag'
 import { useColResize } from '../components/ColResize'
 import { Drawer } from '../components/Drawer'
 import { MultiSelect } from '../components/MultiSelect'
@@ -277,7 +278,6 @@ export function SchoolPackages() {
 type CmpVal = { kind: 'none' } | { kind: 'mod'; module_id: string; on: boolean } | { kind: 'topics'; on: string[]; all: string[]; slot: boolean; slotOn: boolean }
 const sigOf = (v: CmpVal) => v.kind === 'none' ? '' : v.kind === 'mod' ? `${v.module_id}|${v.on}` : v.all.length ? v.on.join(',') : `${v.slot}|${v.slotOn}`
 const DIFF = { background: '#fffbeb' }
-const CHK = { color: '#16a34a' }
 
 const COLS_KEY = 'schoolCmpCols'
 const COL_DEFAULT = ['track', 'grade', 'pkg', 's0', 's1', 's2']
@@ -331,7 +331,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   const firstPkg = (orgs: string[]) => { const s = schools.find(x => x.org_id === orgs[0]); return s ? liveOf(s)[0]?.package_id ?? '' : '' }
   const [orgs, setOrgs] = useState<string[]>(preset.slice(0, 3))
   const [pkg, setPkg] = useState(() => firstPkg(preset))
-  const [only, setOnly] = useState(true)
+  const [only, setOnly] = useState(false)   // mặc định hiện tất cả, tick để chỉ xem điểm khác nhau
   const [tf, setTf] = useState<string[]>([])   // lọc loại CT (rỗng = tất cả)
   const tl = (t: StemTrack) => `${trackLabel(t.code)} · ${t.name}`
   const [colCfg, setColCfg] = useState<ColCfg>(loadColCfg)
@@ -380,8 +380,8 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   const txt = (v: CmpVal | null, sc: ReturnType<typeof scopeAt> | null, t: StemTrack) => {
     if (!v) return <span className="sub">Khối không dùng gói</span>
     if (v.kind === 'none') return <span className="sub">—</span>
-    if (v.kind === 'mod') return v.on ? modName(v.module_id) : <><span style={{ textDecoration: 'line-through', color: '#b42318' }}>{modName(v.module_id)}</span> không áp dụng</>
-    if (!v.all.length) return v.slotOn ? 'Có' : <span style={{ color: '#b42318' }}>Không áp dụng</span>
+    if (v.kind === 'mod') return v.on ? modName(v.module_id) : <span className="sub" title={`${modName(v.module_id)}: trường không áp dụng`}>—</span>
+    if (!v.all.length) return v.slotOn ? <ApplyTag on label="" /> : <span className="sub" title="Trường không áp dụng">—</span>
     return v.on.length === v.all.length ? `${v.all.length} chủ đề` : `${v.on.length}/${v.all.length} chủ đề`
   }
   // Cột của bảng: thứ tự và ẩn / hiện chỉnh trong menu "Cột", nhớ trên máy. Trường đánh số theo vị trí chọn (s0, s1, s2)
@@ -414,7 +414,8 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
     if (topical(r) && open[r.key] !== undefined) { const d = topicData(r); out.push(...d.list.map((x, k) => ({ r, kind: 'topic' as const, x, k }))) }
     return out
   })
-  const mark = (v: number | null) => v === null ? <span className="sub">—</span> : v === 1 ? <span style={CHK}>✓</span> : v === 2 ? <span style={{ color: '#b42318' }}>✕ không áp dụng</span> : <span className="sub">—</span>
+  // So sánh: có là ✓, không có (kể cả trường không áp dụng) là —; ô khác gói vẫn tô vàng
+  const mark = (v: number | null) => v === 1 ? <ApplyTag on label="" /> : <span className="sub" title={v === 2 ? 'Trường không áp dụng' : undefined}>—</span>
   const chipOf = (t: StemTrack) => <span className="progchip" style={{ background: TRACK_COLOR[t.code], color: '#fff', marginRight: 6 }}>{trackLabel(t.code)}</span>
   const renderLine = (ln: Line, li: number) => {
     const r = ln.r
@@ -481,7 +482,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
     <option value="">+ Chọn gói</option>{packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select> : null
   const adds = <span className="cmphadds">{addPkg}{addSchool}</span>
   const printCmp = () => { document.body.classList.add('cmpprinting'); window.print(); setTimeout(() => document.body.classList.remove('cmpprinting'), 500) }
-  return <>
+  return <div className="cmpcard">
     <div className="lvfilter cmpfilter">
       <div className="lvextra">
         <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện điểm khác nhau</label>
@@ -512,12 +513,12 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
           : lines.map(renderLine)}</tbody>
       </table></FitScreen>
     </div>}
-  </>
+  </div>
 }
 
 /** Chủ đề trường áp dụng ở một loại CT × khối (hoặc một học phần): cùng kiểu bảng như khi xem từ gói, thêm cột Áp dụng */
 function ScopeView({ s, sl, track, modName, onTopic }: { s: ReturnType<typeof scopeAt>; sl?: number; track: string; modName: (id: string) => string; onTopic: (t: ProgramTopic) => void }) {
-  const tag = (on: boolean) => on ? <span style={{ color: 'var(--ok, #15803d)', fontWeight: 600, whiteSpace: 'nowrap' }}>✓ Áp dụng</span> : <span style={{ color: 'var(--danger, #b42318)', fontWeight: 600, whiteSpace: 'nowrap' }}>✕ Không áp dụng</span>
+  const tag = (on: boolean) => <ApplyTag on={on} />
   const tbl = (list: TopicState[]) => list.length
     ? <table className="table slt ttdense"><thead><tr><th className="c-no">TT</th><th>Chủ đề</th><th style={{ width: 70 }}>Số tiết</th><th>Môn chủ trì</th><th style={{ width: 150 }}>Áp dụng</th></tr></thead>
       <tbody>{list.map(({ topic, on }, k) => <tr key={topic.id} className="clickrow" onClick={() => onTopic(topic)} style={on ? undefined : { background: 'var(--soft, #f8fafc)' }}>

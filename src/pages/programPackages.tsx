@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { FitScreen } from '../components/FitScreen'
+import { useColResize } from '../components/ColResize'
 import { supabase } from '../lib/supabase'
 import { EDU_ACTIVITY_NAME, useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
 import { BLANK_TRACK, TrackForm, trackErr } from './stemTracks'
@@ -179,6 +180,7 @@ export function ProgramPackages() {
 
   return <>
     <HeadAction>
+      {live.length > 1 && <button type="button" className={'pkgcmpbtn' + (cmpShow && !cur ? ' on' : '')} aria-expanded={cmpShow && !cur} onClick={() => { if (cur) { setOpenId(null); setCmpShow(true) } else setCmpShow(v => !v) }}>So sánh các gói <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" style={{ transform: cmpShow && !cur ? 'none' : 'rotate(180deg)' }}><path d="M3 9l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></button>}
       <button type="button" onClick={() => setTrackOpen(true)}>☰ Các loại chương trình</button>
       {admin && <button type="button" className="primary ttadd" onClick={() => setEditPkg({ id: '', code: '', name: '', description: '', sort: packages.reduce((x, p) => Math.max(x, p.sort), 0) + 1, active: true })}>+ Thêm gói</button>}
     </HeadAction>
@@ -195,9 +197,7 @@ export function ProgramPackages() {
         slotsOf={slotsOf} topicsOfItem={topicsOfItem} menu={admin ? pkgMenu(cur) : []}
         onChanged={reload} onLevel={k => { setLvs([k]); setFGrade(null) }} inGrades={selGrades} levelFilter={<LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false} bare />} onEdit={tab => setEditPkg({ ...cur, tab })} />}
       {/* Chưa chọn gói: hiện sẵn bảng so sánh các gói cho phần dưới không trống */}
-      {!cur && live.length > 1 && <div className="pkgcmpbtn"><button type="button" aria-expanded={cmpShow} onClick={() => setCmpShow(v => !v)}>So sánh các gói <svg aria-hidden width="14" height="14" viewBox="0 0 14 14" style={{ transform: cmpShow ? 'none' : 'rotate(180deg)' }}><path d="M3 9l4-4 4 4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></button></div>}
       {!cur && cmpShow && live.length > 1 && <section className="pkgdet" style={{ '--c': 'var(--primary)' } as React.CSSProperties} aria-label="So sánh nhanh các gói">
-        <div className="pkgdet-h"><small className="sub">Bấm vào một gói ở trên để xem chi tiết gói đó</small></div>
         <CompareView tracks={active} packages={live} items={items} topics={topics} skips={skips} modName={modName} grades={selGrades} levels={fGrade ? [] : sel} name={fName} by={by}
           filter={extra => <LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false}
             extra={<>{extra}<Seg label="" items={[['grade', 'Khối'], ['mod', 'Học phần']] as ['grade' | 'mod', string][]} on={v => v === by} onPick={setBy} /></>} />} />
@@ -609,6 +609,7 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
   tracks: StemTrack[]; packages: ProgramPackage[]; items: PackageItem[]; topics: ProgramTopic[]; skips: PackageSkip[]; modName: (id: string) => string
   grades: number[]; levels: (typeof LEVELS)[number][]; name: string; filter: (extra: React.ReactNode) => React.ReactNode; by: 'grade' | 'mod'
 }) {
+  const rsMod = useColResize('pkgcmp-mod'), rsK2 = useColResize('pkgcmp-grade')   // kéo mép tiêu đề đổi độ rộng cột
   // Chọn gói để so sánh: không chọn gói nào = so sánh tất cả. Màu mỗi gói giữ nguyên theo thứ tự gốc.
   const [pick, setPick] = useState<string[]>([])
   const packages = pick.length ? allPkgs.filter(p => pick.includes(p.id)) : allPkgs
@@ -652,12 +653,13 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
       <span className="lvlab">Gói</span>
       <div style={{ flex: '0 0 220px', width: 220 }}><MultiSelect compact value={pick} onChange={setPick} options={allPkgs.map(p => [p.id, p.name] as [string, string])}
         placeholder="Tất cả gói" ariaLabel="Chọn gói để so sánh" /></div>
+      {(by === 'mod' ? rsMod : rsK2).fitBtn}
       <button type="button" onClick={printCmp}>In / Xuất PDF</button>
     </>)}
     <div className="cmpprint">
     <h3 className="printonly">So sánh các gói STEM · {name} · theo {by === 'mod' ? 'học phần' : 'khối'}</h3>
     <FitScreen className="fsbox">
-      {by === 'mod' ? <table className="table cmptbl cmplined cmpmodt">
+      {by === 'mod' ? <table className="table cmptbl cmplined cmpmodt" {...rsMod.tableProps}>
         <thead><tr><th>Học phần · {name}</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(pkgColor(p, ck(k)))}>{p.name}</th>)}</tr></thead>
         {sections.map(({ t, rows }) => <tbody key={t.code}>
           <tr className="cmpgrp"><td colSpan={packages.length + 1}>{chip(t.code)} {t.name}</td></tr>
@@ -666,7 +668,7 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
         </tbody>)}
       </table>
       : !groups.length ? <p className="sub">{only ? 'Các gói đang chọn giống nhau ở các khối này.' : 'Chưa có học phần nào ở các khối này.'}</p>
-      : <table className="table cmptbl cmpk2">
+      : <table className="table cmptbl cmpk2" {...rsK2.tableProps}>
         <thead><tr><th>Loại CT</th><th>Khối</th><th>Phần</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(pkgColor(p, ck(k)))} title={p.description || undefined}>{p.name}</th>)}</tr></thead>
         {groups.map(({ t, gs, n }) => <tbody key={t.code}>{gs.flatMap(({ g, rows }, gi) => rows.map((r, ri) => <tr key={g + '-' + r.s} className={(r.same ? 'same' : '') + (ri === 0 && gi > 0 ? ' k2g' : '')}>
           {gi === 0 && ri === 0 && <td rowSpan={n} className="k2t">{chip(t.code)}<b>{t.name}</b></td>}

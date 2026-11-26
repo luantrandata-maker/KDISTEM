@@ -8,6 +8,7 @@ import { ALL_GRADES, currentYear, fmtDay, gradesOfLevel, kRange, loadSchoolPkgs,
 import { ColFilter, DataTable } from '../components/DataTable'
 import { ElView } from '../components/ElView'
 import { HeadAction } from '../components/PageFrame'
+import { useColResize } from '../components/ColResize'
 import { Drawer } from '../components/Drawer'
 import { MultiSelect } from '../components/MultiSelect'
 import { FitScreen } from '../components/FitScreen'
@@ -253,7 +254,7 @@ export function SchoolPackages() {
       left={<>{yearSel}
         <select aria-label="Gói" value={fPkg} onChange={e => setFPkg(e.target.value)}><option value="">Tất cả gói</option>
           {packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></>}
-      right={<><HeadAction><button type="button" onClick={() => setCmp([])}>⇄ So sánh trường với gói</button></HeadAction>
+      right={<><HeadAction><button type="button" style={{ order: -1 }} onClick={() => setCmp([])}>⇄ So sánh trường với gói</button></HeadAction>
         {admin && <button type="button" className="primary" onClick={() => setAssign(true)}>+ Gán gói cho trường</button>}</>}
       cols={[
         { key: 'name', label: 'Trường', fixed: true, text: r => r.name, cell: r => <button type="button" className="namelink" style={{ fontWeight: 600 }}>{r.name}</button> },
@@ -326,6 +327,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   ctx: Ctx; schools: School[]; skips: PkgSkip[]; packages: ProgramPackage[]; preset: string[]; year: string
   modName: (id: string) => string; pkgName: (id: string | null) => string; pkgColor: (id: string | null) => string; liveOf: (s: School) => SchoolPkgRow[]
 }) {
+  const rs = useColResize('schoolcmp')   // kéo mép tiêu đề đổi độ rộng cột, nút Thu gọn
   const firstPkg = (orgs: string[]) => { const s = schools.find(x => x.org_id === orgs[0]); return s ? liveOf(s)[0]?.package_id ?? '' : '' }
   const [orgs, setOrgs] = useState<string[]>(preset.slice(0, 3))
   const [pkg, setPkg] = useState(() => firstPkg(preset))
@@ -439,7 +441,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
         if (k === spanCol) cells.push(spanCell(k))
         else if (k === 'track') cells.push(<td key={k} style={tint}>{chipOf(r.t)}{r.t.name}{spanCol === 'grade' || !vis.includes('grade') ? <> - {part}</> : null}</td>)
         else if (k === 'grade') cells.push(<td key={k} style={topical(r) ? { whiteSpace: 'nowrap' } : undefined}><b>{gradeName(r.g)}</b> - {part}{!vis.includes('track') && <> · {chipOf(r.t)}</>}</td>)
-        else if (k === 'pkg') cells.push(<td key={k}>{txt(r.p, r.pSc, r.t)}</td>)
+        else if (k === 'pkg') cells.push(<td key={k}>{pkg ? txt(r.p, r.pSc, r.t) : <span className="sub">—</span>}</td>)
         else { const i = Number(k.slice(1)); const v = r.ss[i]; const d = diffAt(r, i)
           cells.push(<td key={k} style={d ? DIFF : undefined}>{/* Giống gói: tên chữ xám; khác gói: chữ đậm trên nền vàng */}<span style={d ? { fontWeight: 600 } : pkg && v ? { color: '#94a3b8' } : undefined}>{txt(v, r.sSc[i], r.t)}</span></td>) }
       }
@@ -465,40 +467,48 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
     for (const k of cols) {
       if (k === spanCol) { flushLab('l' + k); cells.push(spanCell(k)) }
       else if (isKey(k)) lab++
-      else { flushLab('l' + k); cells.push(<td key={k} style={bg}>{k === 'pkg' ? mark(x.p) : mark(x.ss[Number(k.slice(1))])}</td>) }
+      else { flushLab('l' + k); cells.push(<td key={k} style={bg}>{k === 'pkg' ? (pkg ? mark(x.p) : <span className="sub">—</span>) : mark(x.ss[Number(k.slice(1))])}</td>) }
     }
     flushLab('lend')
     return <tr key={r.key + x.tp.id}>{cells}</tr>
   }
+  const schoolOpts = (keep?: string) => schools.filter(x => x.org_id === keep || !orgs.includes(x.org_id))
+  const schoolSel = (i: number) => <select className="cmphsel" aria-label={`Trường ${i + 1}`} value={orgs[i]} onChange={e => setOrgs(orgs.map((o, j) => j === i ? e.target.value : o))}>
+    {schoolOpts(orgs[i]).map(x => <option key={x.org_id} value={x.org_id}>{x.name}</option>)}</select>
+  const addSchool = orgs.length < 3 && schoolOpts().length > 0 ? <select className="cmphadd" aria-label="Thêm trường để so sánh" value="" onChange={e => e.target.value && pickOrgs([...orgs, e.target.value])}>
+    <option value="">+ Thêm trường</option>{schoolOpts().map(x => <option key={x.org_id} value={x.org_id}>{x.name} · {usingOf(x)}</option>)}</select> : null
+  const addPkg = !pkg ? <select className="cmphadd" aria-label="Chọn gói để so sánh" value="" onChange={e => setPkg(e.target.value)}>
+    <option value="">+ Chọn gói</option>{packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select> : null
+  const adds = <span className="cmphadds">{addPkg}{addSchool}</span>
   const printCmp = () => { document.body.classList.add('cmpprinting'); window.print(); setTimeout(() => document.body.classList.remove('cmpprinting'), 500) }
   return <>
     <div className="lvfilter cmpfilter">
-      <span className="lvlab">Gói</span>
-      <div style={{ flex: '0 0 170px', width: 170 }}><MultiSelect compact single value={pkg ? [pkg] : []} onChange={v => setPkg(v[0] ?? '')}
-        options={packages.map(p => [p.id, p.name] as [string, string])} placeholder="Không chọn gói" ariaLabel="Gói để so sánh" /></div>
-      <span className="lvlab">Trường</span>
-      <div className="cmporgs" style={{ flex: '1 1 480px', minWidth: 340 }}><MultiSelect compact show={3} value={orgs} onChange={pickOrgs} options={schools.map(s => [s.org_id, `${s.name} · ${usingOf(s)}`] as [string, string])}
-        placeholder="Chọn 1–3 trường" ariaLabel="Trường để so sánh" /></div>
       <div className="lvextra">
         <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện điểm khác nhau</label>
       <span className="lvgrp"><span className="lvlab">Loại CT</span><ColFilter pin label={tf.length ? tf.map(trackLabel).join(', ') : 'Tất cả'} value={tracks.filter(t => tf.includes(t.code)).map(tl)}
         options={tracks.map(t => [tl(t), base.filter(r => r.t.code === t.code).length] as [string, number])}
         onChange={v => setTf(tracks.filter(t => v.includes(tl(t))).map(t => t.code))} /></span>
+        {rs.fitBtn}
         <ColMenu order={order} hidden={colCfg.hidden} label={colLabel} onChange={setColCfg} />
         <button type="button" onClick={printCmp}>In / Xuất PDF</button></div>
     </div>
-    {!sel.length ? <p className="sub">Chọn trường để so sánh{pkg ? ` với ${pkgName(pkg)}` : ''}.</p> : <div className="cmpprint">
+    {<div className="cmpprint">
       <h3 className="printonly">So sánh trường với gói · {pkg ? pkgName(pkg) : 'không chọn gói'} · Năm học {yearLabel(year)}</h3>
       {!pkg && sel.length > 1 && <p className="sub" style={{ margin: '0 0 8px' }}>Các trường giống nhau <b style={{ color: 'var(--text, #0f172a)' }}>{pct(both.length, bothD)}%</b> · {bothD} điểm khác</p>}
       {!pkg && sel.length === 1 && <p className="sub" style={{ margin: '0 0 8px' }}>Chọn gói hoặc thêm trường để so sánh.</p>}
-      <FitScreen className="fsbox"><table className="table cmptbl cmplined sctbl">
+      <FitScreen className="fsbox"><table className="table cmptbl cmplined sctbl" {...rs.tableProps}>
         <thead><tr>{vis.map(k => k === 'pkg'
-          ? <th key={k}><span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: pkgColor(pkg), marginRight: 6 }} />{pkgName(pkg)} có</th>
-          : /^s\d$/.test(k) ? <th key={k}>{colLabel(k)}<small style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400, flexWrap: 'wrap' }}>Đang dùng {usingOf(sel[Number(k.slice(1))])}
+          ? <th key={k}><span className="cmphead">{pkg && <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: pkgColor(pkg), flex: 'none' }} />}
+              <select className="cmphsel" aria-label="Gói để so sánh" value={pkg} onChange={e => setPkg(e.target.value)}>
+                {packages.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select><span>có</span>
+              <button type="button" className="cmphx" title="Bỏ gói, so các trường với nhau" aria-label="Bỏ gói" onClick={() => setPkg('')}>×</button></span></th>
+          : /^s\d$/.test(k) ? <th key={k}><span className="cmphead">{schoolSel(Number(k.slice(1)))}
+              <button type="button" className="cmphx" title="Bỏ trường này" aria-label="Bỏ trường này" onClick={() => setOrgs(orgs.filter((_, j) => j !== Number(k.slice(1))))}>×</button>
+              {Number(k.slice(1)) === sel.length - 1 && adds}</span><small style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400, flexWrap: 'wrap' }}>Đang dùng {usingOf(sel[Number(k.slice(1))])}
             {pkg && (() => { const { n, d } = stat(Number(k.slice(1))); const p = pct(n, d)
               return <><span>·</span><b title={`${d} điểm khác`}>{p}% giống gói</b><span style={{ width: 56, height: 5, borderRadius: 3, background: '#e2e8f0', overflow: 'hidden', display: 'inline-block' }}><span style={{ display: 'block', width: p + '%', height: 5, background: '#94a3b8' }} /></span></> })()}</small></th>
-          : <th key={k} style={{ width: k === 'grade' ? 170 : 230 }}>{colLabel(k)}</th>)}</tr></thead>
-        <tbody>{!lines.length ? <tr><td colSpan={vis.length || 1} className="sub">{only ? (pkg ? 'Các trường giống gói ở mọi khối.' : 'Các trường giống nhau ở mọi khối.') : 'Không có dữ liệu.'}</td></tr>
+          : <th key={k} style={{ width: k === 'grade' ? 170 : 230 }}>{colLabel(k)}</th>)}{!sel.length && <th><span className="cmphead">{adds}</span></th>}</tr></thead>
+        <tbody>{!sel.length ? <tr><td colSpan={vis.length + 1} className="sub">Chọn trường ngay trên tiêu đề bảng để so sánh{pkg ? ` với ${pkgName(pkg)}` : ''}.</td></tr> : !lines.length ? <tr><td colSpan={vis.length || 1} className="sub">{!pkg && sel.length === 1 ? 'Bấm “+ Chọn gói” hoặc “+ Thêm trường” ở tiêu đề bảng để so sánh.' : only ? (pkg ? 'Các trường giống gói ở mọi khối.' : 'Các trường giống nhau ở mọi khối.') : 'Không có dữ liệu.'}</td></tr>
           : lines.map(renderLine)}</tbody>
       </table></FitScreen>
     </div>}

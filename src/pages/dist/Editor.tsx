@@ -4,6 +4,7 @@
 //     ngay trên bảng bài (tick bài dạy); "Sắp thứ tự bài" mở khung kéo thả. Hoặc xem dạng Lịch.
 //  (cũ) 3. Bản phối — dải tóm tắt / kiểm tra, Bảng (cột trái lọc chương trình · môn, tick giữ / bỏ bài) hoặc Lịch.
 // Bản đã phát hành / ngừng dùng chỉ xem; muốn đổi thì "Tạo bản mới từ bản này".
+import { useColResize } from '../../components/ColResize'
 import { Fragment, useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { DetailHead } from '../../components/DetailHead'
 import { supabase } from '../../lib/supabase'
@@ -226,6 +227,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
   const saveColOrd = (n: string[]) => { setColOrd0(n); try { localStorage.setItem('dist-col-order', JSON.stringify(n)) } catch { /* bỏ qua */ } }
   const moveCol = (from: string, to: string) => { const n = colOrd.filter(k => k !== from); n.splice(n.indexOf(to) + (colOrd.indexOf(from) < colOrd.indexOf(to) ? 1 : 0), 0, from); saveColOrd(n) }
   const [colMenu, setColMenu] = useState(false), [colDrag, setColDrag] = useState<string | null>(null)
+  const rs = useColResize('dist-ppct')   // kéo mép tiêu đề đổi độ rộng cột, nút thu gọn cột
   const colMenuRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     if (!colMenu) return
@@ -721,7 +723,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       const live = es.filter(e => !e.skip), total = live.reduce((t, e) => t + e.n, 0)
       const tools = <div className="distpptools"><input placeholder="Tìm bài…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm bài" />
         <span className="sub">{new Set(live.map(e => e.x)).size} bài · {total} tiết{es.length > live.length && ` · ${es.length - live.length} bài không dạy`}</span>
-        <span className="sp" /><div className="ttmenu distcols" ref={colMenuRef}>
+        <span className="sp" />{rs.fitBtn}<div className="ttmenu distcols" ref={colMenuRef}>
           <button type="button" className={colMenu ? 'on' : ''} aria-expanded={colMenu} onClick={() => setColMenu(!colMenu)} title="Ẩn/hiện cột, kéo để đổi thứ tự">⚙ Cột</button>
           {colMenu && <div className="ttpop" role="dialog" aria-label="Hiển thị cột">
             <div className="ttpophead"><b>Hiển thị cột</b>
@@ -751,7 +753,7 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       let band0 = -9
       return <div className="distppwrap">
         {tools}
-        <table className={'distppct flat' + (edit ? ' editing' : '')}>
+        <table className={'distppct flat' + (edit ? ' editing' : '')} {...rs.tableProps}>
           <thead><tr>{on && <th className="c-on" title="Bỏ tick: không đưa bài này vào phân phối">Dạy</th>}{vis.map(k => <Fragment key={k}>{({ w: <th className="c-w">Tuần</th>, prog: <th className="c-p">Chương trình</th>, subj: <th className="c-s">Môn</th>, t: <th>Tên bài học</th>,
             n: <th className="c-n" title={edit ? 'Tổng số tiết của bài' : 'Số tiết dạy bài này trong tuần đó'}>Thời lượng (tiết)</th>, note: <th className="c-note">Ghi chú</th> } as Record<string, ReactNode>)[k]}</Fragment>)}</tr></thead>
           <tbody>{es.map((e, i) => {

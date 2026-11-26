@@ -4290,3 +4290,4 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .ttcompact .nw{white-space:nowrap}
 .ttcompact .progdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}
 .ttcompact .cnum{display:inline-block;width:100%;text-align:center}.ttcompact .cnone{color:var(--muted,#98a2b3)}
+.ttcompact .cyes{color:var(--good,#1c7a43);font-weight:700}

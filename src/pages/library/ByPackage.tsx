@@ -91,8 +91,8 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
     const ta = tracks.findIndex(x => x.code === ma.track_code), tb = tracks.findIndex(x => x.code === mb.track_code)
     return ta - tb || a.grade - b.grade || ma.sort - mb.sort || ma.name.localeCompare(mb.name) || a.seq - b.seq
   })
-  // 6 cột nội dung cùng một kiểu: có thì hiện số lượng, chưa có thì "—" xám, canh giữa
-  const n = (v: number) => <span className={'cnum' + (v ? '' : ' cnone')}>{v || '—'}</span>
+  // 6 cột nội dung cùng một kiểu: có thì ✓ xanh (rê chuột xem số lượng), chưa có thì "—" xám, canh giữa
+  const n = (v: number) => v ? <span className="cnum cyes" title={`${v} mục`}>✓</span> : <span className="cnum cnone" title="Chưa có">—</span>
 
   // Cây: Loại CT › Khối › Học phần (chỉ những nhánh có chủ đề; loại CT không dùng học phần thì dừng ở Khối)
   const tracksSorted = [...tracks].sort((a, b) => a.code.localeCompare(b.code, 'vi', { numeric: true }))
@@ -120,7 +120,7 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
   const selGrade = sk === 'k' || sk === 'g' ? Number(sb) : null
 
   const has = (v: number) => (v ? 'Đã có' : 'Chưa có')
-  const num = (k: keyof Count, label: string): Col<ProgramTopic> => ({ key: k, label, thClass: 'c-fit', text: t => (cnt(t)[k] ? 'Có' : 'Không có'), cell: t => n(cnt(t)[k]) })
+  const num = (k: keyof Count, label: string): Col<ProgramTopic> => ({ key: k, label, thClass: 'c-fit', text: t => has(cnt(t)[k]), cell: t => n(cnt(t)[k]) })
   const cols: Col<ProgramTopic>[] = [
     { key: 'title', label: 'Chủ đề', fixed: true, text: t => `${t.title} ${t.code ?? ''}`, cell: t => <><b>{t.title}</b>{t.code && <small className="sub"> · {t.code}</small>}</> },
     { key: 'grade', thClass: 'c-fit', label: 'Khối', text: t => gradeName(t.grade), cell: t => gradeName(t.grade) },

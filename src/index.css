@@ -4298,3 +4298,8 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 /* Phân hệ 1, cột đã kéo tay (bố cục cố định): chữ dài ra theo độ rộng đã kéo, chỉ cắt "…" khi vẫn không đủ chỗ */
 .main[data-ph="1"] .ttable.ttfixed>tbody>tr>td{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:none}
 .main[data-ph="1"] .ttable.ttfixed .tdc:not(:has(input,select,textarea,[aria-expanded],details,.slact,.slopen)){display:block;max-width:none!important;width:auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* Nút Thu gọn / Mở rộng menu luôn nằm sát đáy thanh menu, kể cả khi menu ngắn (các mục đang thu gọn) */
+.side{display:flex;flex-direction:column}
+.side>*{flex:none}
+.side>.sidefoot{margin-top:auto}
+.side>.navgroup{margin-top:0}.side>.navgroup>button.grouphead{margin-top:0}

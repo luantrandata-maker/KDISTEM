@@ -112,11 +112,12 @@ export function UserMenu({ name, email, roleLabel, orgs, views, view, onView, ac
 
   return (
     <div className="usermenu" ref={box}>
-      <button type="button" className="userbtn" onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu">
+      <button type="button" className="userbtn" aria-label={`Tài khoản: ${name || email}`} onClick={() => setOpen(!open)} aria-expanded={open} aria-haspopup="menu">
         <span className="avatar">{initial}</span>
         <span className="who"><b>{name || email}</b><small>{roleLabel}</small></span>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
       </button>
+      {/* Gọn như tài khoản Google: chỉ vòng chữ cái đầu, rê chuột mới hiện tên, vai trò, email */}
+      {!open && <span className="usertip" role="tooltip"><b>{name || email}</b><span>{roleLabel}</span>{email && email !== name && <span>{email}</span>}</span>}
       {open && (
         <div className="toppanel userpanel" role="menu">
           <div className="userhead">

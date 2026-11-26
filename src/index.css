@@ -4246,9 +4246,14 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .top .user .bellbtn svg{width:16px;height:16px}
 .top .user .fzbtn{font-size:12px}
 .top .user .bellcount{top:-5px;right:-6px;min-width:16px;height:16px;font-size:10px}
-.top .user button.userbtn{gap:6px;padding:2px 8px 2px 2px}
-.top .userbtn .avatar{width:26px;height:26px;font-size:calc(12px * var(--fz,1))}
-.top .userbtn .who{display:flex;align-items:baseline;gap:6px;max-width:320px}
-.top .userbtn .who b{font-size:calc(13px * var(--fz,1))}
-.top .userbtn .who small::before{content:'·';margin-right:6px}
+/* Tài khoản: chỉ vòng chữ cái đầu; rê chuột hiện tên, vai trò, email */
+.top .user button.userbtn{padding:0;border:0;background:none;border-radius:50%}
+.top .user button.userbtn:hover .avatar,.top .user button.userbtn[aria-expanded="true"] .avatar{box-shadow:0 0 0 4px color-mix(in srgb,var(--primary) 18%,transparent)}
+.top .userbtn .avatar{width:30px;height:30px;font-size:calc(13px * var(--fz,1))}
+.top .userbtn .who{display:none}
+.usertip{position:absolute;right:0;top:calc(100% + 8px);z-index:40;display:none;gap:1px;padding:7px 10px;border-radius:6px;background:#3c4043;color:#fff;font-size:calc(12px * var(--fz,1));line-height:1.35;white-space:nowrap;pointer-events:none;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.usertip b{font-weight:600}
+.usermenu:has(.userbtn:hover) .usertip,.usermenu:has(.userbtn:focus-visible) .usertip{display:grid}
 .top .bellpanel{top:38px}
+/* Khi mở chú thích / menu ở đầu trang, đưa đầu trang lên trên hàng tab dính */
+.top:has(.usermenu:hover),.top:has(.userbtn:focus-visible),.top:has([aria-expanded="true"]){z-index:30}

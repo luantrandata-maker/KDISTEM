@@ -386,10 +386,11 @@ function TIcon({ d }: { d: string }) {
 /** Khung bên trái (cây Cấp → Khối) cạnh bảng / thẻ: kéo mép phải để đổi độ rộng, nút « » để thu gọn / mở lại.
  *  Độ rộng và trạng thái thu gọn nhớ chung cho mọi bảng trên trình duyệt này. */
 const SIDE_KEY = 'tt:side'
-const loadSide = (): { w: number; off: boolean } => { try { return { w: 170, off: false, ...JSON.parse(localStorage.getItem(SIDE_KEY) ?? '{}') } } catch { return { w: 170, off: false } } }
+type Side = { w: number; off: boolean; set?: boolean }   // set: người dùng đã kéo, độ rộng mặc định riêng của khung (vd. .fwtree) nhường cho độ rộng đã kéo
+const loadSide = (): Side => { try { return { w: 170, off: false, ...JSON.parse(localStorage.getItem(SIDE_KEY) ?? '{}') } } catch { return { w: 170, off: false } } }
 export function SideSplit({ aside, children }: { aside: ReactNode; children: ReactNode }) {
   const [side0, setSideS] = useState(loadSide)
-  const setSide = (v: { w: number; off: boolean }) => { setSideS(v); try { localStorage.setItem(SIDE_KEY, JSON.stringify(v)) } catch { /* chỉ trong phiên */ } }
+  const setSide = (v: Side) => { setSideS(v); try { localStorage.setItem(SIDE_KEY, JSON.stringify(v)) } catch { /* chỉ trong phiên */ } }
   // Khung hẹp (laptop nhỏ, phóng to trình duyệt): tự thu cây để bảng đủ chỗ; bấm » vẫn mở được
   const box = useRef<HTMLDivElement>(null)
   const [narrow, setNarrow] = useState(false)
@@ -400,26 +401,35 @@ export function SideSplit({ aside, children }: { aside: ReactNode; children: Rea
     ro.observe(el); return () => ro.disconnect()
   }, [])
   const side = { ...side0, off: side0.off || (narrow && !openNarrow) }
+  // Thanh kéo nằm ngoài khung cây (khung cây có thanh cuộn riêng sẽ che mất thanh kéo), đặt theo độ rộng đang thấy của khung cây
+  const asideRef = useRef<HTMLDivElement>(null)
+  const [gripX, setGripX] = useState(0)
+  useEffect(() => {
+    const el = asideRef.current; if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => setGripX(el.offsetWidth))
+    ro.observe(el); return () => ro.disconnect()
+  }, [side.off])
   const show = () => { setOpenNarrow(true); setSide({ ...side0, off: false }) }
   const hide = () => { setOpenNarrow(false); setSide({ ...side0, off: true }) }
   const drag = (e: React.MouseEvent) => {
     e.preventDefault()
-    const x0 = e.clientX, w0 = side.w
+    // Bắt đầu từ độ rộng đang thấy (CSS của khung có thể đặt mặc định khác side.w)
+    const x0 = e.clientX, w0 = asideRef.current?.offsetWidth ?? side.w
     let w = w0
-    const mv = (ev: MouseEvent) => { w = Math.max(140, Math.min(420, w0 + ev.clientX - x0)); setSideS(v => ({ ...v, w })) }
-    const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); document.body.classList.remove('ttdragging'); setSide({ w, off: false }) }
+    const mv = (ev: MouseEvent) => { w = Math.max(140, Math.min(520, w0 + ev.clientX - x0)); setSideS(v => ({ ...v, w, set: true })) }
+    const up = () => { document.removeEventListener('mousemove', mv); document.removeEventListener('mouseup', up); document.body.classList.remove('ttdragging'); setSide({ w, off: false, set: true }) }
     document.body.classList.add('ttdragging')
     document.addEventListener('mousemove', mv); document.addEventListener('mouseup', up)
   }
-  return <div ref={box} className={'ttbody' + (side.off ? ' sideoff' : '')} style={{ gridTemplateColumns: side.off ? '34px minmax(0,1fr)' : `${side.w}px minmax(0,1fr)` }}>
+  return <div ref={box} className={'ttbody' + (side.off ? ' sideoff' : '') + (side.set ? ' sideset' : '')} style={{ gridTemplateColumns: side.off ? '34px minmax(0,1fr)' : `${side.w}px minmax(0,1fr)` }}>
     {side.off
       ? <div className="ttaside ttaside-off"><button type="button" className="ttsidebtn" onClick={show} title="Hiện cây nhóm theo khối" aria-label="Hiện cây nhóm theo khối">»</button></div>
-      : <div className="ttaside">
+      : <div ref={asideRef} className="ttaside">
         <button type="button" className="ttsidebtn ttsidehide" onClick={hide} title="Ẩn cây nhóm theo khối" aria-label="Ẩn cây nhóm theo khối">«</button>
         <TreeHide.Provider value={hide}>{aside}</TreeHide.Provider>
-        <span className="ttsidegrip" role="separator" aria-orientation="vertical" aria-label="Kéo để đổi độ rộng" title="Kéo để đổi độ rộng · bấm đúp để về mặc định"
-          onMouseDown={drag} onDoubleClick={() => setSide({ w: 170, off: false })} />
       </div>}
+    {!side.off && gripX > 0 && <span className="ttsidegrip" role="separator" aria-orientation="vertical" aria-label="Kéo để đổi độ rộng" title="Kéo để đổi độ rộng · bấm đúp để về mặc định"
+      style={{ left: gripX - 4, right: 'auto' }} onMouseDown={drag} onDoubleClick={() => setSide({ w: 170, off: false })} />}
     {children}
   </div>
 }

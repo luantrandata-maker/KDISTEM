@@ -91,8 +91,8 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
     const ta = tracks.findIndex(x => x.code === ma.track_code), tb = tracks.findIndex(x => x.code === mb.track_code)
     return ta - tb || a.grade - b.grade || ma.sort - mb.sort || ma.name.localeCompare(mb.name) || a.seq - b.seq
   })
-  const n = (v: number) => (v ? v : <span className="sub">—</span>)
-  const yes = (v: number) => (v ? <span style={{ color: 'var(--good, #1c7a43)', fontWeight: 600 }}>✓{v > 1 ? ' ' + v : ''}</span> : <span style={{ color: 'var(--bad, #c0392b)' }}>Chưa có</span>)
+  // 6 cột nội dung cùng một kiểu: có thì ✓ xanh (rê chuột xem số lượng), chưa có thì "—" xám, canh giữa
+  const n = (v: number) => v ? <span className="cnum cyes" title={`${v} mục`}>✓</span> : <span className="cnum cnone" title="Chưa có">—</span>
 
   // Cây: Loại CT › Khối › Học phần (chỉ những nhánh có chủ đề; loại CT không dùng học phần thì dừng ở Khối)
   const tracksSorted = [...tracks].sort((a, b) => a.code.localeCompare(b.code, 'vi', { numeric: true }))
@@ -120,14 +120,14 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
   const selGrade = sk === 'k' || sk === 'g' ? Number(sb) : null
 
   const has = (v: number) => (v ? 'Đã có' : 'Chưa có')
-  const num = (k: keyof Count, label: string): Col<ProgramTopic> => ({ key: k, label, thClass: 'c-fit', text: t => (cnt(t)[k] ? 'Có' : 'Không có'), cell: t => n(cnt(t)[k]) })
+  const num = (k: keyof Count, label: string): Col<ProgramTopic> => ({ key: k, label, thClass: 'c-fit', text: t => has(cnt(t)[k]), cell: t => n(cnt(t)[k]) })
   const cols: Col<ProgramTopic>[] = [
     { key: 'title', label: 'Chủ đề', fixed: true, text: t => `${t.title} ${t.code ?? ''}`, cell: t => <><b>{t.title}</b>{t.code && <small className="sub"> · {t.code}</small>}</> },
     { key: 'grade', thClass: 'c-fit', label: 'Khối', text: t => gradeName(t.grade), cell: t => gradeName(t.grade) },
     { key: 'mod', thClass: 'c-fit', label: 'Học phần', text: t => modOf.get(t.module_id)!.name, cell: t => <span className="nw">{modOf.get(t.module_id)!.name}</span> },
-    { key: 'periods', thClass: 'c-fit', label: 'Tiết', text: t => String(t.periods), cell: t => t.periods },
-    { key: 'plan', thClass: 'c-fit', label: 'Kế hoạch GD', text: t => has(cnt(t).plan), cell: t => yes(cnt(t).plan) },
-    { key: 'lecture', thClass: 'c-fit', label: 'Bài giảng', text: t => has(cnt(t).lecture), cell: t => yes(cnt(t).lecture) },
+    { key: 'periods', thClass: 'c-fit', label: 'Tiết', text: t => String(t.periods), cell: t => <span className="cnum">{t.periods}</span> },
+    { key: 'plan', thClass: 'c-fit', label: 'Kế hoạch GD', text: t => has(cnt(t).plan), cell: t => n(cnt(t).plan) },
+    { key: 'lecture', thClass: 'c-fit', label: 'Bài giảng', text: t => has(cnt(t).lecture), cell: t => n(cnt(t).lecture) },
     num('worksheet', 'Phiếu học tập'), num('test', 'Kiểm tra'), num('material', 'Vật tư'), num('resource', 'Kho HL'),
     { key: 'state', thClass: 'c-fit', label: 'Tình trạng', off: true, text: t => { const c = cnt(t); return isEmpty(c) ? 'Chưa có nội dung' : c.plan && c.lecture ? 'Đủ kế hoạch và bài giảng' : 'Còn thiếu' }, cell: t => { const c = cnt(t); return isEmpty(c) ? 'Chưa có nội dung' : c.plan && c.lecture ? 'Đủ' : 'Còn thiếu' } },
     { key: 'track', label: 'Loại CT', thClass: 'c-fit', text: t => tracks.find(x => x.code === modOf.get(t.module_id)!.track_code)?.name ?? trackLabel(modOf.get(t.module_id)!.track_code),

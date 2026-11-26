@@ -120,19 +120,20 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
   const selGrade = sk === 'k' || sk === 'g' ? Number(sb) : null
 
   const has = (v: number) => (v ? 'Đã có' : 'Chưa có')
-  const num = (k: keyof Count, label: string): Col<ProgramTopic> => ({ key: k, label, text: t => (cnt(t)[k] ? 'Có' : 'Không có'), cell: t => n(cnt(t)[k]) })
+  const num = (k: keyof Count, label: string): Col<ProgramTopic> => ({ key: k, label, thClass: 'c-fit', text: t => (cnt(t)[k] ? 'Có' : 'Không có'), cell: t => n(cnt(t)[k]) })
   const cols: Col<ProgramTopic>[] = [
     { key: 'title', label: 'Chủ đề', fixed: true, text: t => `${t.title} ${t.code ?? ''}`, cell: t => <><b>{t.title}</b>{t.code && <small className="sub"> · {t.code}</small>}</> },
-    { key: 'track', label: 'Loại CT', text: t => trackLabel(modOf.get(t.module_id)!.track_code), cell: t => chip(modOf.get(t.module_id)!.track_code) },
-    { key: 'grade', label: 'Khối', text: t => gradeName(t.grade), cell: t => gradeName(t.grade) },
-    { key: 'mod', label: 'Học phần', text: t => modOf.get(t.module_id)!.name, cell: t => <small>{modOf.get(t.module_id)!.name}</small> },
-    { key: 'pkg', label: 'Gói', text: t => (pkgOf.get(t.id) ?? []).map(p => p.code).join(', '),
-      cell: t => { const ps = pkgOf.get(t.id) ?? []; return ps.length ? <small title={ps.map(p => p.name).join(', ')}>{ps.map(p => p.code).join(', ')}</small> : <span className="sub">—</span> } },
-    { key: 'periods', label: 'Tiết', text: t => String(t.periods), cell: t => t.periods },
-    { key: 'plan', label: 'Kế hoạch GD', text: t => has(cnt(t).plan), cell: t => yes(cnt(t).plan) },
-    { key: 'lecture', label: 'Bài giảng', text: t => has(cnt(t).lecture), cell: t => yes(cnt(t).lecture) },
+    { key: 'grade', thClass: 'c-fit', label: 'Khối', text: t => gradeName(t.grade), cell: t => gradeName(t.grade) },
+    { key: 'mod', thClass: 'c-fit', label: 'Học phần', text: t => modOf.get(t.module_id)!.name, cell: t => <span className="nw">{modOf.get(t.module_id)!.name}</span> },
+    { key: 'periods', thClass: 'c-fit', label: 'Tiết', text: t => String(t.periods), cell: t => t.periods },
+    { key: 'plan', thClass: 'c-fit', label: 'Kế hoạch GD', text: t => has(cnt(t).plan), cell: t => yes(cnt(t).plan) },
+    { key: 'lecture', thClass: 'c-fit', label: 'Bài giảng', text: t => has(cnt(t).lecture), cell: t => yes(cnt(t).lecture) },
     num('worksheet', 'Phiếu học tập'), num('test', 'Kiểm tra'), num('material', 'Vật tư'), num('resource', 'Kho HL'),
-    { key: 'state', label: 'Tình trạng', off: true, text: t => { const c = cnt(t); return isEmpty(c) ? 'Chưa có nội dung' : c.plan && c.lecture ? 'Đủ kế hoạch và bài giảng' : 'Còn thiếu' }, cell: t => { const c = cnt(t); return isEmpty(c) ? 'Chưa có nội dung' : c.plan && c.lecture ? 'Đủ' : 'Còn thiếu' } },
+    { key: 'state', thClass: 'c-fit', label: 'Tình trạng', off: true, text: t => { const c = cnt(t); return isEmpty(c) ? 'Chưa có nội dung' : c.plan && c.lecture ? 'Đủ kế hoạch và bài giảng' : 'Còn thiếu' }, cell: t => { const c = cnt(t); return isEmpty(c) ? 'Chưa có nội dung' : c.plan && c.lecture ? 'Đủ' : 'Còn thiếu' } },
+    { key: 'track', label: 'Loại CT', thClass: 'c-fit', text: t => tracks.find(x => x.code === modOf.get(t.module_id)!.track_code)?.name ?? trackLabel(modOf.get(t.module_id)!.track_code),
+      cell: t => { const c = modOf.get(t.module_id)!.track_code; return <span className="nw"><span className="progdot" style={{ background: PROGRAM_COLOR[c] }} />{tracks.find(x => x.code === c)?.name ?? trackLabel(c)}</span> } },
+    { key: 'pkg', label: 'Gói', thClass: 'c-fit', text: t => (pkgOf.get(t.id) ?? []).map(p => p.name).join(', '),
+      cell: t => { const ps = pkgOf.get(t.id) ?? []; return ps.length ? <span className="nw">{ps.map(p => p.name).join(', ')}</span> : <span className="sub">—</span> } },
   ]
   const crumb = !sel ? 'Tất cả' : [`${trackLabel(selTr!)} · ${tracks.find(x => x.code === selTr)?.name ?? ''}`,
     selGrade != null && gradeName(selGrade), selMod && modOf.get(selMod)?.name].filter(Boolean).join(' › ')

@@ -4285,3 +4285,7 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .main[data-ph="1"] .ttcompact .ttable.ttfit .tdc:not(:has(input,select,textarea,[aria-expanded],details,.slact,.slopen)){display:block;-webkit-line-clamp:unset;line-clamp:unset;overflow:hidden;text-overflow:ellipsis;max-height:none}
 .main[data-ph="1"] .ttcompact .ttable.ttfit .tdc :is(div,p){display:inline}
 .main[data-ph="1"] .ttcompact .ttable.ttfit>thead>tr:first-child>th.c-lead{width:24%}
+/* Học liệu theo chương trình: cột ngắn co vừa nội dung, phần dư dồn cho cột Chủ đề */
+.main[data-ph="1"] .ttcompact .ttable:not(.ttfit)>thead>tr:first-child>th.c-fit:not(.c-sel):not(.c-no){width:1%;min-width:0;white-space:nowrap}
+.ttcompact .nw{white-space:nowrap}
+.ttcompact .progdot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px}

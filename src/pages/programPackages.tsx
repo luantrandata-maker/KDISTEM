@@ -620,7 +620,7 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
   const [pick, setPick] = useState<string[]>([])
   const packages = pick.length ? allPkgs.filter(p => pick.includes(p.id)) : allPkgs
   const ck = (k: number) => allPkgs.indexOf(packages[k])
-  const [only, setOnly] = useState(true)
+  const [only, setOnly] = useState(false)   // mặc định hiện tất cả, tick để chỉ xem điểm khác nhau
   const its = items.filter(i => grades.includes(i.grade) && packages.some(p => p.id === i.package_id))
   const has = (p: string, m: string) => its.some(i => i.package_id === p && i.module_id === m)
   // Theo học phần: gói nào có học phần (trong các khối đang lọc) ghi "Có"

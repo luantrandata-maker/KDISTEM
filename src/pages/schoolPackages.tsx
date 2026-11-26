@@ -331,7 +331,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   const firstPkg = (orgs: string[]) => { const s = schools.find(x => x.org_id === orgs[0]); return s ? liveOf(s)[0]?.package_id ?? '' : '' }
   const [orgs, setOrgs] = useState<string[]>(preset.slice(0, 3))
   const [pkg, setPkg] = useState(() => firstPkg(preset))
-  const [only, setOnly] = useState(true)
+  const [only, setOnly] = useState(false)   // mặc định hiện tất cả, tick để chỉ xem điểm khác nhau
   const [tf, setTf] = useState<string[]>([])   // lọc loại CT (rỗng = tất cả)
   const tl = (t: StemTrack) => `${trackLabel(t.code)} · ${t.name}`
   const [colCfg, setColCfg] = useState<ColCfg>(loadColCfg)
@@ -380,8 +380,8 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   const txt = (v: CmpVal | null, sc: ReturnType<typeof scopeAt> | null, t: StemTrack) => {
     if (!v) return <span className="sub">Khối không dùng gói</span>
     if (v.kind === 'none') return <span className="sub">—</span>
-    if (v.kind === 'mod') return v.on ? modName(v.module_id) : <><span style={{ textDecoration: 'line-through', color: '#94a3b8' }}>{modName(v.module_id)}</span> <ApplyTag on={false} /></>
-    if (!v.all.length) return v.slotOn ? <ApplyTag on label="" /> : <ApplyTag on={false} />
+    if (v.kind === 'mod') return v.on ? modName(v.module_id) : <span className="sub" title={`${modName(v.module_id)}: trường không áp dụng`}>—</span>
+    if (!v.all.length) return v.slotOn ? <ApplyTag on label="" /> : <span className="sub" title="Trường không áp dụng">—</span>
     return v.on.length === v.all.length ? `${v.all.length} chủ đề` : `${v.on.length}/${v.all.length} chủ đề`
   }
   // Cột của bảng: thứ tự và ẩn / hiện chỉnh trong menu "Cột", nhớ trên máy. Trường đánh số theo vị trí chọn (s0, s1, s2)
@@ -414,7 +414,8 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
     if (topical(r) && open[r.key] !== undefined) { const d = topicData(r); out.push(...d.list.map((x, k) => ({ r, kind: 'topic' as const, x, k }))) }
     return out
   })
-  const mark = (v: number | null) => v === 1 ? <ApplyTag on label="" /> : v === 2 ? <ApplyTag on={false} /> : <span className="sub">—</span>
+  // So sánh: có là ✓, không có (kể cả trường không áp dụng) là —; ô khác gói vẫn tô vàng
+  const mark = (v: number | null) => v === 1 ? <ApplyTag on label="" /> : <span className="sub" title={v === 2 ? 'Trường không áp dụng' : undefined}>—</span>
   const chipOf = (t: StemTrack) => <span className="progchip" style={{ background: TRACK_COLOR[t.code], color: '#fff', marginRight: 6 }}>{trackLabel(t.code)}</span>
   const renderLine = (ln: Line, li: number) => {
     const r = ln.r

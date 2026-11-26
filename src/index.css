@@ -4214,6 +4214,8 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .colfitbtn.on{background:color-mix(in srgb,var(--primary) 12%,var(--surface));color:var(--primary);border-color:color-mix(in srgb,var(--primary) 35%,transparent)}
 @media print{.colfitbtn{display:none}}
 
+/* E-learning · Câu hỏi khó / Nội dung cần ôn: ô chọn tải dữ liệu gọn để thanh công cụ nằm một dòng */
+.tttools select.elsel{width:auto;min-width:0;max-width:170px}
 /* Nhãn áp dụng dùng chung (ApplyTag) */
 .applytag{font-weight:600;white-space:nowrap}
 .applytag.on{color:var(--ok,#15803d)}

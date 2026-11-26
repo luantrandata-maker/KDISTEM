@@ -431,7 +431,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
     const cells: React.ReactNode[] = []
     const tint = { borderLeft: `4px solid ${TRACK_COLOR[r.t.code]}`, background: TRACK_COLOR[r.t.code] + '14' }
     const spanCell = (k: string) => <td key={k} rowSpan={span < 0 ? lines.length - li : span} style={{ verticalAlign: 'top', ...(k === 'track' ? tint : {}) }}>
-      {k === 'track' ? <span style={{ fontWeight: 600, whiteSpace: 'nowrap' }}>{chipOf(r.t)}{r.t.name}</span> : <b>{gradeName(r.g)}</b>}</td>
+      {k === 'track' ? <span className="sctrack">{chipOf(r.t)}<b>{r.t.name}</b></span> : <b>{gradeName(r.g)}</b>}</td>
     if (ln.kind === 'main') {
       const isOpen = topical(r) && open[r.key] !== undefined
       // Phần (học phần / chủ đề) ghép vào ô Khối, hoặc ô Loại CT khi cột Khối đang gộp nhóm hay bị ẩn
@@ -517,7 +517,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
               {Number(k.slice(1)) === sel.length - 1 && adds}</span><small style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 400, flexWrap: 'wrap' }}>Đang dùng {usingOf(sel[Number(k.slice(1))])}
             {pkg && (() => { const { n, d } = stat(Number(k.slice(1))); const p = pct(n, d)
               return <><span>·</span><b title={`${d} điểm khác`}>{p}% giống gói</b><span style={{ width: 56, height: 5, borderRadius: 3, background: '#e2e8f0', overflow: 'hidden', display: 'inline-block' }}><span style={{ display: 'block', width: p + '%', height: 5, background: '#94a3b8' }} /></span></> })()}</small></th>
-          : <th key={k} style={{ width: k === 'grade' ? 170 : 230 }}>{colLabel(k)}</th>)}{!sel.length && <th><span className="cmphead">{adds}</span></th>}</tr></thead>
+          : <th key={k} style={{ width: k === 'grade' ? 170 : 130 }}>{colLabel(k)}</th>)}{!sel.length && <th><span className="cmphead">{adds}</span></th>}</tr></thead>
         <tbody>{!sel.length ? <tr><td colSpan={vis.length + 1} className="sub">Chọn trường ngay trên tiêu đề bảng để so sánh{pkg ? ` với ${pkgName(pkg)}` : ''}.</td></tr> : !lines.length ? <tr><td colSpan={vis.length || 1} className="sub">{!pkg && sel.length === 1 ? 'Bấm “+ Chọn gói” hoặc “+ Thêm trường” ở tiêu đề bảng để so sánh.' : only ? (pkg ? 'Các trường giống gói ở mọi khối.' : 'Các trường giống nhau ở mọi khối.') : 'Không có dữ liệu.'}</td></tr>
           : lines.map(renderLine)}</tbody>
       </table></FitScreen>

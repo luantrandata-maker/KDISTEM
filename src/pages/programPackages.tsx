@@ -199,7 +199,7 @@ export function ProgramPackages() {
         onChanged={reload} onLevel={k => { setLvs([k]); setFGrade(null) }} inGrades={selGrades} levelFilter={<LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false} bare />} onEdit={tab => setEditPkg({ ...cur, tab })} />}
       {/* Chưa chọn gói: hiện sẵn bảng so sánh các gói cho phần dưới không trống */}
       {!cur && cmpShow && live.length > 1 && <section className="pkgdet" style={{ '--c': 'var(--primary)' } as React.CSSProperties} aria-label="So sánh nhanh các gói">
-        <CompareView tracks={active} packages={live} items={items} topics={topics} skips={skips} modName={modName} grades={selGrades} levels={fGrade ? [] : sel} name={fName} by={by}
+        <CompareView tracks={active} packages={live} items={items} topics={topics} skips={skips} modName={modName} grades={selGrades} levels={fGrade ? [] : sel} name={fName} by={by} inline
           filter={extra => <LevelFilter lvs={lvs} grade={fGrade} onLevels={v => { setLvs(v); setFGrade(null) }} onGrade={setFGrade} hint={false}
             extra={<>{extra}<Seg label="" items={[['grade', 'Khối'], ['mod', 'Học phần']] as ['grade' | 'mod', string][]} on={v => v === by} onPick={setBy} /></>} />} />
       </section>}
@@ -606,10 +606,15 @@ function LevelFilter({ lvs, grade, onLevels, onGrade, extra, hint = true, bare =
   </div>
 }
 
-function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName, grades, name, filter, by }: {
+function PkgCmpBox({ className, children }: { className?: string; children: React.ReactNode }) { return <div className={'pkgcmpbox ' + (className ?? '')}>{children}</div> }
+
+function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName, grades, name, filter, by, inline }: {
   tracks: StemTrack[]; packages: ProgramPackage[]; items: PackageItem[]; topics: ProgramTopic[]; skips: PackageSkip[]; modName: (id: string) => string
   grades: number[]; levels: (typeof LEVELS)[number][]; name: string; filter: (extra: React.ReactNode) => React.ReactNode; by: 'grade' | 'mod'
+  /** Nằm dưới các thẻ gói: bảng cao theo nội dung, tối đa một màn hình (tiêu đề cột đứng yên), thay cho khung vừa màn hình */
+  inline?: boolean
 }) {
+  const Box = inline ? PkgCmpBox : FitScreen
   const rsMod = useColResize('pkgcmp-mod'), rsK2 = useColResize('pkgcmp-grade')   // kéo mép tiêu đề đổi độ rộng cột
   // Chọn gói để so sánh: không chọn gói nào = so sánh tất cả. Màu mỗi gói giữ nguyên theo thứ tự gốc.
   const [pick, setPick] = useState<string[]>([])
@@ -659,13 +664,13 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
     </>)}
     <div className="cmpprint">
     <h3 className="printonly">So sánh các gói STEM · {name} · theo {by === 'mod' ? 'học phần' : 'khối'}</h3>
-    <FitScreen className="fsbox">
+    <Box className="fsbox">
       {by === 'mod' ? <table className="table cmptbl cmplined cmpmodt" {...rsMod.tableProps}>
         <thead><tr><th>Học phần · {name}</th>{packages.map((p, k) => <th key={p.id} className="pkgth" style={pkgTh(pkgColor(p, ck(k)))}>{p.name}</th>)}</tr></thead>
         {sections.map(({ t, rows }) => <tbody key={t.code}>
           <tr className="cmpgrp"><td colSpan={packages.length + 1}>{chip(t.code)} {t.name}</td></tr>
           {rows.map(({ m }) => <tr key={m}><td>{t.use_modules === false ? 'Chủ đề theo khối' : modName(m)}</td>
-            {packages.map((p, k) => <td key={p.id} style={pkgTd(pkgColor(p, ck(k)))}>{has(p.id, m) ? <ApplyTag on label="Có" /> : <span className="sub">—</span>}</td>)}</tr>)}
+            {packages.map((p, k) => <td key={p.id} style={pkgTd(pkgColor(p, ck(k)))}>{has(p.id, m) ? <ApplyTag on label="" /> : <span className="sub">—</span>}</td>)}</tr>)}
         </tbody>)}
       </table>
       : !groups.length ? <p className="sub">{only ? 'Các gói đang chọn giống nhau ở các khối này.' : 'Chưa có học phần nào ở các khối này.'}</p>
@@ -678,7 +683,7 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
           {r.vs.map((v, k) => <td key={k} className={'k2v' + (!r.same && v !== r.vs[0] ? ' k2d' : '')}>{cellTxt(v, r.s)}</td>)}
         </tr>))}</tbody>)}
       </table>}
-    </FitScreen>
+    </Box>
     {by === 'grade' && groups.length > 0 && <p className="sub framefoot cmplegend"><span className="cmpnote"><span className="k2sw" /> Khác {packages[0]?.name}. Chữ xám: các gói giống nhau.</span></p>}
     </div>
   </>

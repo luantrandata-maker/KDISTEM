@@ -341,7 +341,8 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   const usingOf = (s: School) => { const live = liveOf(s); return live.map(x => pkgName(x.package_id) + (live.length > 1 ? ` (${kRange(x.grades ?? [])})` : '')).join(', ') || 'chưa có gói' }
   const pickOrgs = (v: string[]) => { const n = v.slice(0, 3); if (!orgs.length && !pkg) setPkg(firstPkg(n)); setOrgs(n) }
   // Loại tính theo chủ đề lên trước (giống trang So sánh gói)
-  const tracks = [...ctx.tracks].sort((a, b) => Number(a.use_modules !== false) - Number(b.use_modules !== false))
+  // Loại CT theo đúng thứ tự mã: KDI1, KDI2, KDI3, KDI4
+  const tracks = [...ctx.tracks].sort((a, b) => a.code.localeCompare(b.code, 'vi', { numeric: true }))
   const spAt = (s: School, g: number) => liveOf(s).find(x => (x.grades ?? []).includes(g))
   const valOf = (sc: ReturnType<typeof scopeAt> | null, t: StemTrack, slot: number): CmpVal => {
     if (!sc || !sc.slots.length) return { kind: 'none' }
@@ -381,7 +382,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
     if (!v) return <span className="sub">Khối không dùng gói</span>
     if (v.kind === 'none') return <span className="sub">—</span>
     if (v.kind === 'mod') return v.on ? modName(v.module_id) : <span className="sub" title={`${modName(v.module_id)}: trường không áp dụng`}>—</span>
-    if (!v.all.length) return v.slotOn ? <ApplyTag on label="" /> : <span className="sub" title="Trường không áp dụng">—</span>
+    if (!v.all.length) return v.slotOn ? <span className="sub" title="Khối này chưa có chủ đề trong chương trình">0 chủ đề</span> : <span className="sub" title="Trường không áp dụng">—</span>
     return v.on.length === v.all.length ? `${v.all.length} chủ đề` : `${v.on.length}/${v.all.length} chủ đề`
   }
   // Cột của bảng: thứ tự và ẩn / hiện chỉnh trong menu "Cột", nhớ trên máy. Trường đánh số theo vị trí chọn (s0, s1, s2)

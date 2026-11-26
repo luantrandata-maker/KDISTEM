@@ -145,7 +145,7 @@ function ProgPicker({ opts, picked, onAdd, hint }: { opts: PickOpt[]; picked: Se
   </div>
 }
 
-type PkgOpt = { package_id: string; package_code: string; package_name: string; track_code: string; track_name: string; topics: number; periods: number; program_id: string | null }
+export type PkgOpt = { package_id: string; package_code: string; package_name: string; track_code: string; track_name: string; topics: number; periods: number; program_id: string | null }
 /** 166: Nút "+ Thêm từ Gói STEM": chọn gói × loại chương trình có chủ đề ở khối của bản; chủ đề lấy đúng theo gói, kèm số tiết. */
 function PkgPicker({ grade, picked, onPick }: { grade: number; picked: Set<string>; onPick: (o: PkgOpt) => Promise<void> }) {
   const [open, setOpen] = useState(false)
@@ -177,6 +177,26 @@ function PkgPicker({ grade, picked, onPick }: { grade: number; picked: Set<strin
         </Fragment>)}</ul>
     </div>}
   </div>
+}
+
+/** Tạo bản: thêm sẵn các chương trình theo gói đã tick (chương trình theo gói tạo / cập nhật như nút "+ Thêm từ Gói STEM"). */
+export async function addPkgItems(planId: string, grade: number, picks: PkgOpt[]) {
+  const rows: (Item & { plan_id: string })[] = []
+  for (const [k, o] of picks.entries()) {
+    const { data: id, error } = await supabase.rpc('dist_pkg_program', { p_package: o.package_id, p_track: o.track_code, p_grade: grade })
+    if (error || !id) throw new Error(errText(error?.message ?? 'Không tạo được chương trình theo gói'))
+    const [{ data: pr }, { data: us }] = await Promise.all([
+      supabase.from('edu_programs').select(PSEL).eq('id', id as string).single(),
+      supabase.from('edu_program_units').select(USEL).eq('program_id', id as string),
+    ])
+    if (!pr) throw new Error('Không đọc được chương trình theo gói')
+    const p = pr as Prog, ppw = Number(p.periods_per_week) || 1
+    if (rows.some(r => r.program_id === p.id)) continue
+    rows.push({ plan_id: planId, program_id: p.id, seq: k + 1, start_mode: p.deploy_term === 'hk2' ? 'hk2' : 'hk1', start_week: null, after_program: null, ppw, split: false,
+      subjects: subjectsIn(lessonsOf((us as U[]) ?? [], p, grade)).map(x => ({ name: x.name, on: true, mode: 'after' as SubjMode, week: null, ppw })) })
+  }
+  if (rows.length) { const { error } = await supabase.from('dist_plan_items').insert(rows.map((r, k) => ({ ...r, seq: k + 1 }))); if (error) throw new Error(errText(error.message)) }
+  return rows.length
 }
 
 type Toast = { text: string; bad?: boolean } | null
@@ -258,6 +278,8 @@ export function PlanBody({ plan: p0, orgId, back, backLabel, onChanged, onAssign
       setItems(its); setPool(ps); setUnits(us)
       setProgs(new Map([...ps, ...extra].map(p => [p.id, p])))
       setPrev(new Map(((rw.data as Row[]) ?? []).map(r => [r.unit_id, r])))
+      // Bản vừa tạo kèm chương trình: lịch chưa lưu, đánh dấu cần lưu để phát hành lưu luôn lịch
+      if (its.length && !(rw.data ?? []).length) setDirty(true)
       setLoaded(true)
     })()
   }, [p0.id])

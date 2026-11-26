@@ -16,13 +16,14 @@ import { DataTable, type Col as DCol } from '../../components/DataTable'
 import type { ClsNode } from './cls'
 import { ClsTree } from './ClsTree'
 import { Drawer } from '../../components/Drawer'
-import { PlanBody, Chip, STATUS, errText, useBreadcrumb } from './Editor'
+import { PlanBody, Chip, STATUS, errText, useBreadcrumb, addPkgItems, type PkgOpt } from './Editor'
 import type { Plan, Status } from './sched'
 import { useGradeTree } from '../../components/GradeTree'
 import { StatCards } from '../../components/StatCards'
 import { useCls } from './cls'
 import { DistHistory } from './History'
 import { gradeName } from '../../lib/eduLevels'
+import { trackLabel } from '../../lib/stemTracks'
 import { AllOrgs } from '../../components/OrgScope'
 import { CurriculumBooks } from '../curriculum'
 
@@ -118,7 +119,7 @@ export function DistPage({ orgId, units }: { orgId: string | null; units?: boole
               onChanged={changed('list')} onAssign={assign} />
           : <DistList plans={plans} meta={meta} f={lf} setF={setLf} lead={srcSel} canCreate={!!orgId} onCreate={() => { setMsg(null); setTab('create') }} onOpen={p => { setMsg(null); setOpenList(p.id) }} onAssign={assign} onConfig={() => { setMsg(null); setTab('tree') }} />)}
         {tab === 'create' && orgId && <CreatePlan orgId={orgId} onCancel={() => setTab('list')}
-          onCreated={id => { reload(); setOpenList(id); setTab('list'); setMsg('Đã tạo bản phân phối nháp. Tiếp tục chọn chương trình và xếp lịch.') }} />}
+          onCreated={(id, n) => { reload(); setOpenList(id); setTab('list'); setMsg(n ? `Đã tạo bản phân phối nháp với ${n} chương trình. Xếp lịch rồi lưu / phát hành.` : 'Đã tạo bản phân phối nháp. Thêm chương trình và xếp lịch.') }} />}
         {(tab === 'history' || tab === 'assign') && <><DistHistory plans={plans} rk={rk} />
           <HeadAction><button type="button" className="primary ttadd" onClick={() => assign('')}>+ Gán cho trường</button></HeadAction></>}
         {assignOpen && <Drawer title="Gán bản phân phối cho trường" onClose={() => setAssignOpen(false)} closeOnOutside={false}>
@@ -335,8 +336,8 @@ function DistAssign({ orgId, plans, initial, onDone }: { orgId: string | null; p
   )
 }
 
-// ===== Tạo bản phân phối: đặt tên, chọn phân loại (mục cấp cuối), ghi chú =====
-function CreatePlan({ orgId, onCancel, onCreated }: { orgId: string; onCancel: () => void; onCreated: (id: string) => void }) {
+// ===== Tạo bản phân phối trên một màn: tên, phân loại, ghi chú và tick chương trình theo Gói STEM, tạo một lần =====
+function CreatePlan({ orgId, onCancel, onCreated }: { orgId: string; onCancel: () => void; onCreated: (id: string, n: number) => void }) {
   const { active, nodes, path, ready } = useCls('dist')
   const last = active[active.length - 1]
   const finals = useMemo(() => nodes.filter(n => n.cls_level_id === last?.id)
@@ -346,19 +347,44 @@ function CreatePlan({ orgId, onCancel, onCreated }: { orgId: string; onCancel: (
   const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
-  async function submit(e: React.FormEvent) {
-    e.preventDefault()
+  // Khối lấy theo phân loại; chương trình chọn từ các gói có chủ đề ở khối đó
+  const [grade, setGrade] = useState<number | null>(null)
+  const [opts, setOpts] = useState<PkgOpt[] | null>(null)
+  const [picks, setPicks] = useState<string[]>([])
+  const keyOf = (o: PkgOpt) => o.package_id + '|' + o.track_code
+  useEffect(() => {
+    setGrade(null); setOpts(null); setPicks([]); if (!node) return
+    let off = false
+    supabase.rpc('dist_node_attrs', { p_node: node }).then(async ({ data }) => {
+      const a = (Array.isArray(data) ? data[0] : data) as { grade: number | null } | null
+      if (off || !a?.grade) return
+      setGrade(a.grade)
+      const { data: os, error } = await supabase.rpc('dist_pkg_options', { p_grade: a.grade })
+      if (off) return
+      setOpts((os as PkgOpt[]) ?? []); if (error) setErr(errText(error.message))
+    })
+    return () => { off = true }
+  }, [node])
+  const groups = [...new Map((opts ?? []).map(o => [o.package_id, o])).values()]
+  async function submit(e?: React.FormEvent) {
+    e?.preventDefault()
     if (!title.trim()) return setErr('Nhập tên bản phân phối.')
     if (!node) return setErr('Chọn phân loại cho bản.')
     setBusy(true); setErr('')
     const { data, error } = await supabase.from('dist_plans').insert({ org_id: orgId, title: title.trim(), node_id: node, note: note.trim() || null }).select('id').single()
+    if (error) { setBusy(false); return setErr(errText(error.message)) }
+    const id = (data as { id: string }).id
+    let n = 0
+    try { if (grade) n = await addPkgItems(id, grade, (opts ?? []).filter(o => picks.includes(keyOf(o)))) }
+    catch (x) { setBusy(false); setErr('Đã tạo bản nhưng chưa thêm được chương trình: ' + (x as Error).message); return onCreated(id, 0) }
     setBusy(false)
-    if (error) return setErr(errText(error.message))
-    onCreated((data as { id: string }).id)
+    onCreated(id, n)
   }
   return <form className="panel distpanel" onSubmit={submit}>
-    <DetailHead back="Danh sách bản phân phối" onBack={onCancel} title="Tạo bản phân phối" />
-    <p className="sub">Đặt tên và chọn phân loại. Bước sau: chọn chương trình, xếp lịch và phát hành.</p>
+    <DetailHead back="Danh sách bản phân phối" onBack={onCancel} title="Tạo bản phân phối"
+      actions={<><button type="submit" className="primary" disabled={busy}>{busy ? 'Đang tạo…' : 'Tạo bản phân phối'}</button>
+        <button type="button" onClick={onCancel} disabled={busy}>Huỷ</button></>} />
+    {err && <p className="msg">{err}</p>}
     <div className="distnamegrid">
       <label className="field"><span>Tên bản phân phối *</span>
         <input value={title} onChange={e => setTitle(e.target.value)} maxLength={200} autoFocus placeholder="VD: Phân phối STEM Tiểu học khối 1 — cơ bản" /></label>
@@ -369,8 +395,21 @@ function CreatePlan({ orgId, onCancel, onCreated }: { orgId: string; onCancel: (
         <input value={note} onChange={e => setNote(e.target.value)} maxLength={2000} placeholder="Mục tiêu, đối tượng áp dụng…" /></label>
     </div>
     {ready && finals.length === 0 && <p className="sub">Khung phân loại chưa có mục {last?.name.toLowerCase() ?? ''} nào. Thêm mục ở nút “⚙ Cấu hình” trên danh sách bản phân phối.</p>}
-    {err && <p className="msg">{err}</p>}
-    <div className="formactions"><button type="submit" className="primary" disabled={busy}>{busy ? 'Đang tạo…' : 'Tạo và soạn tiếp'}</button>
-      <button type="button" onClick={onCancel}>Huỷ</button></div>
+    <fieldset className="distpkgpick">
+      <legend>Chương trình từ Gói STEM{grade ? ` · Khối ${grade}` : ''} <small className="sub">{picks.length ? `đã chọn ${picks.length}` : 'tick để đưa vào bản'}</small></legend>
+      {!node ? <p className="sub">Chọn phân loại để hiện các chương trình theo gói của khối đó.</p>
+        : opts === null ? <p className="sub">Đang tải…</p>
+        : !opts.length ? <p className="sub">Chưa có gói nào có chủ đề ở khối {grade}. Tạo bản rồi thêm chương trình sau.</p>
+        : <div className="distpkggrid">{groups.map(g => { const os = opts.filter(o => o.package_id === g.package_id), n = os.filter(o => picks.includes(keyOf(o))).length
+          return <div key={g.package_id} className="distpkgcol">
+            <label className="distpkghead"><input type="checkbox" checked={n === os.length} ref={el => { if (el) el.indeterminate = n > 0 && n < os.length }}
+              onChange={() => setPicks(ps => n === os.length ? ps.filter(k => !os.some(o => keyOf(o) === k)) : [...new Set([...ps, ...os.map(keyOf)])])} />
+              <b>Gói {g.package_code}</b> <span>{g.package_name}</span></label>
+            {os.map(o => <label key={keyOf(o)} className="distpkgrow"><input type="checkbox" checked={picks.includes(keyOf(o))}
+              onChange={e => setPicks(ps => e.target.checked ? [...ps, keyOf(o)] : ps.filter(k => k !== keyOf(o)))} />
+              <span><b>{trackLabel(o.track_code)}</b> {o.track_name}<small className="sub">{o.topics} chủ đề · {o.periods} tiết</small></span></label>)}
+          </div> })}</div>}
+      <small className="sub">Sau khi tạo, bản mở ra để xếp lịch (tuần bắt đầu, nhịp tiết) rồi phát hành.</small>
+    </fieldset>
   </form>
 }

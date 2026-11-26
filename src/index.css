@@ -4188,7 +4188,15 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 .pkggrid .lb.lbclick{cursor:pointer}.pkggrid .lb.lbclick:hover b,.pkggrid .lb.lbclick:focus-visible b{color:var(--primary);text-decoration:underline}
 .pkggrid .lb.lbclick b::after{content:" ⓘ";font-weight:400;color:var(--muted);font-size:.9em}
 
-/* Nút mở / thu gọn bảng so sánh nhanh dưới thẻ gói */
-.pkgcmpbtn{display:flex;justify-content:center;margin:18px 0 4px}
-.pkgcmpbtn button{background:color-mix(in srgb,var(--primary) 12%,var(--surface));color:var(--primary);border:0;border-radius:9px;padding:11px 26px;font-weight:700;font-size:calc(17px * var(--fz,1));display:inline-flex;align-items:center;gap:8px}
-.pkgcmpbtn button:hover{background:color-mix(in srgb,var(--primary) 18%,var(--surface))}
+/* Nút mở / thu gọn bảng so sánh các gói (hàng tab) */
+.pkgcmpbtn{display:inline-flex;align-items:center;gap:6px;background:color-mix(in srgb,var(--primary) 10%,var(--surface));color:var(--primary);border-color:color-mix(in srgb,var(--primary) 30%,transparent);font-weight:600}
+.pkgcmpbtn.on{background:color-mix(in srgb,var(--primary) 18%,var(--surface))}
+
+/* So sánh trường với gói: chọn gói / trường ngay trên tiêu đề cột */
+.cmphead{display:flex;align-items:center;gap:6px;min-width:0}
+.cmptbl th select.cmphsel{height:auto;box-shadow:none;font:inherit;font-weight:600;color:inherit;border:1px solid transparent;background:transparent;border-radius:6px;padding:3px 22px 3px 6px;margin-left:-6px;min-width:0;max-width:100%;text-overflow:ellipsis;cursor:pointer}
+.cmptbl th select.cmphsel:hover,.cmptbl th select.cmphsel:focus{border-color:var(--line);background:var(--surface)}
+.cmptbl th button.cmphx{min-height:0;height:auto;box-shadow:none;border:0;background:transparent;color:#94a3b8;font-size:16px;line-height:1;padding:2px 4px;cursor:pointer}
+.cmptbl th button.cmphx:hover{color:#b42318}
+.cmptbl th select.cmphadd{height:auto;box-shadow:none;width:auto;flex:none;max-width:160px;margin-left:auto;font:inherit;font-size:13px;font-weight:600;color:var(--primary);border:1px dashed color-mix(in srgb,var(--primary) 45%,transparent);background:transparent;border-radius:7px;padding:3px 8px;cursor:pointer}
+@media print{.cmphx,.cmphadd{display:none}.cmphsel{appearance:none;padding:0;border:0}}

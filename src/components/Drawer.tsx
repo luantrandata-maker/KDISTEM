@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 // Độ rộng bảng chi tiết: tỉ lệ màn hình, mặc định một nửa; người dùng kéo mép trái để đổi, nhớ cho lần mở sau.
 const KEY = 'drawer.width'
@@ -80,4 +81,12 @@ export function Drawer({ title, onClose, onBack, children, closeOnOutside = true
       </aside>
     </div>
   )
+}
+
+/** Nút Lưu / Huỷ của form: nằm trên đầu ngăn chi tiết (cạnh nút đóng), luôn thấy khi cuộn. Ngoài ngăn chi tiết thì nằm tại chỗ. */
+export function FormActions({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [slot, setSlot] = useState<HTMLElement | null>(null)
+  useLayoutEffect(() => { setSlot(ref.current?.closest('.drawer')?.querySelector<HTMLElement>(':scope > .drawerhead > .drawerslot') ?? null) }, [])
+  return slot ? createPortal(children, slot) : <div ref={ref} className="actions">{children}</div>
 }

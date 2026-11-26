@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { FitScreen } from '../components/FitScreen'
 import { useColResize } from '../components/ColResize'
@@ -606,7 +606,26 @@ function LevelFilter({ lvs, grade, onLevels, onGrade, extra, hint = true, bare =
   </div>
 }
 
-function PkgCmpBox({ className, children }: { className?: string; children: React.ReactNode }) { return <div className={'pkgcmpbox ' + (className ?? '')}>{children}</div> }
+// So sánh dưới thẻ gói: khi cuộn trang, hàng tab và thanh lọc đứng yên; bảng cao vừa phần màn hình còn lại (tiêu đề cột đứng yên trong bảng)
+function PkgCmpBox({ className, children }: { className?: string; children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const fit = () => {
+      const box = ref.current; if (!box) return
+      const head = box.closest('main')?.querySelector(':scope > .pframe > .pfhead') as HTMLElement | null
+      const filt = box.closest('.pkgdet')?.querySelector('.lvfilter') as HTMLElement | null
+      const top = head ? head.getBoundingClientRect().height : 0
+      if (filt) { filt.classList.add('pkgcmpfilt'); filt.style.top = top + 'px' }
+      const fh = filt ? filt.getBoundingClientRect().height + 8 : 0
+      // Chừa phần nằm dưới bảng (lề khung, lề trang) để khi cuộn hết trang, đầu bảng nằm ngay dưới thanh lọc
+      const below = Math.max(0, document.documentElement.scrollHeight - (box.getBoundingClientRect().bottom + window.scrollY))
+      box.style.maxHeight = Math.max(240, window.innerHeight - top - fh - below) + 'px'
+    }
+    fit(); window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  })
+  return <div ref={ref} className={'pkgcmpbox ' + (className ?? '')}>{children}</div>
+}
 
 function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName, grades, name, filter, by, inline }: {
   tracks: StemTrack[]; packages: ProgramPackage[]; items: PackageItem[]; topics: ProgramTopic[]; skips: PackageSkip[]; modName: (id: string) => string

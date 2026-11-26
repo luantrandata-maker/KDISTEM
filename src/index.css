@@ -4227,8 +4227,11 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .main .cmpcard .cmpprint>p.sub{padding:8px 14px 0}
 
 /* So sánh nhanh dưới thẻ gói: cao theo nội dung, tối đa một màn hình; tiêu đề cột đứng yên. Hàng tab đứng yên khi cuộn trang */
-.main .pkgcmpbox{max-height:calc(100vh - 140px);overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.main .pkgcmpbox{max-height:calc(100vh - 160px);overflow:auto;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
 .main .pkgcmpbox>table{border:0;border-radius:0;margin:0;overflow:visible}
 .main .pkgcmpbox .cmptbl>thead>tr>th{position:sticky;top:0;z-index:2}
 .main>.pframe:has(.pkgcards)>.pfhead{position:sticky;top:0;z-index:6;background:var(--surface);border-radius:8px 8px 0 0}
 .applytag.only{font-size:17px;line-height:1}
+
+/* Thanh lọc của bảng so sánh dưới thẻ gói đứng yên ngay dưới hàng tab khi cuộn */
+.main .lvfilter.pkgcmpfilt{position:sticky;z-index:5;background:var(--surface);box-shadow:0 -10px 0 var(--surface)}

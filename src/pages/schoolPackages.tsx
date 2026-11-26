@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { fetchAll, supabase } from '../lib/supabase'
 import { TreeHead } from '../components/TreeHead'
 import { useStemTracks, type StemTrack, trackLabel, TRACK_COLOR } from '../lib/stemTracks'
@@ -10,7 +10,8 @@ import { ElView } from '../components/ElView'
 import { HeadAction } from '../components/PageFrame'
 import { ApplyTag } from '../components/ApplyTag'
 import { useColResize } from '../components/ColResize'
-import { Drawer } from '../components/Drawer'
+import { LevelTicks } from '../components/LevelTicks'
+import { Drawer, FormActions } from '../components/Drawer'
 import { MultiSelect } from '../components/MultiSelect'
 import { FitScreen } from '../components/FitScreen'
 import { TopicContents } from './topicContents'
@@ -133,7 +134,7 @@ export function SchoolPackages() {
     {[-1, 0, 1].map(n => shiftYear(currentYear(), n)).map(y => <option key={y} value={y}>Năm học {yearLabel(y)}</option>)}</select>
 
   const assignDrawer = assign !== false && <Drawer title={typeof assign === 'string' ? 'Thêm gói' : 'Gán gói cho trường'} closeOnOutside={false} onClose={() => setAssign(false)}>
-    <AssignForm year={year} schools={schools} preset={typeof assign === 'string' ? assign : ''} packages={packages.filter(p => p.active)} pkgColor={pkgColor} pkgName={pkgName}
+    <AssignForm ctx={ctx} modName={modName} year={year} schools={schools} preset={typeof assign === 'string' ? assign : ''} packages={packages.filter(p => p.active)} pkgColor={pkgColor} pkgName={pkgName}
       onCancel={() => setAssign(false)} onSaved={org => { setAssign(false); reloadSchools().then(() => { setOpenOrg(org); setEdit(null) }) }} />
   </Drawer>
 
@@ -268,7 +269,7 @@ export function SchoolPackages() {
               {from && <small className="sub"> · nâng cấp từ {pkgName(from.package_id)}{x.starts_on ? ` · ${fmtDay(x.starts_on)}` : ''}</small>}</span> })}
             {nextOf(r).map(x => <small key={x.sp_id} className="sub" style={{ flexBasis: '100%' }}>→ {pkgName(x.package_id)} cho {kRange(x.grades ?? [])} từ {fmtDay(x.starts_on)}</small>)}</div> } },
         { key: 'scope', label: 'Phạm vi', text: r => liveOf(r).every(x => x.full_package) ? 'Đủ gói' : 'Một phần', cell: r => liveOf(r).every(x => x.full_package) ? 'Đủ gói' : 'Một phần' },
-        ...tracks.map(t => ({ key: 't' + t.code, label: trackLabel(t.code), cell: (r: School) => <Count {...summary(liveOf(r), t)} /> })),
+        ...tracks.map(t => ({ key: 't' + t.code, label: t.name || trackLabel(t.code), cell: (r: School) => <Count {...summary(liveOf(r), t)} /> })),
       ]} />
     {assignDrawer}
   </>
@@ -334,6 +335,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   const [pkg, setPkg] = useState(() => firstPkg(preset))
   const [only, setOnly] = useState(false)   // mặc định hiện tất cả, tick để chỉ xem điểm khác nhau
   const [tf, setTf] = useState<string[]>([])   // lọc loại CT (rỗng = tất cả)
+  const [gf, setGf] = useState<number[]>([])   // lọc Cấp › Khối (rỗng = tất cả)
   const tl = (t: StemTrack) => `${trackLabel(t.code)} · ${t.name}`
   const [colCfg, setColCfg] = useState<ColCfg>(loadColCfg)
   useEffect(() => { try { localStorage.setItem(COLS_KEY, JSON.stringify(colCfg)) } catch { /* bỏ qua */ } }, [colCfg])
@@ -373,7 +375,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
     return r.ss.some((w, j) => j !== i && w && sigOf(w) !== sigOf(v)) }
   const rowDiff = (r: Row) => r.ss.some((_, i) => diffAt(r, i))
   const base = only ? rows.filter(rowDiff) : rows
-  const shown = tf.length ? base.filter(r => tf.includes(r.t.code)) : base
+  const shown = base.filter(r => (!tf.length || tf.includes(r.t.code)) && (!gf.length || gf.includes(r.g)))
   const stat = (i: number) => { const rs = rows.filter(r => r.ss[i]); const d = rs.filter(r => diffAt(r, i)).length; return { n: rs.length, d } }
   const both = rows.filter(r => r.ss.filter(Boolean).length > 1)
   const bothD = both.filter(rowDiff).length
@@ -489,6 +491,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   return <div className="cmpcard">
     <div className="lvfilter cmpfilter">
       <div className="lvextra">
+        {grades.length > 1 && <LevelTicks value={gf} onChange={setGf} grades={grades} count={g => base.filter(r => r.g === g).length} />}
         <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện điểm khác nhau</label>
       <span className="lvgrp"><span className="lvlab">Loại CT</span><ColFilter pin label={tf.length ? tf.map(trackLabel).join(', ') : 'Tất cả'} value={tracks.filter(t => tf.includes(t.code)).map(tl)}
         options={tracks.map(t => [tl(t), base.filter(r => r.t.code === t.code).length] as [string, number])}
@@ -556,12 +559,13 @@ function GradePick({ value, onChange, allowed = ALL_GRADES }: { value: number[];
   </div>
 }
 
-type Line = { pkg: string; grades: number[] }
+type Line = { pkg: string; grades: number[]; full: boolean; skip: Set<string> }
 
 type Pick = { org_id: string; name: string; code: string | null; level: string | null; taken: number[] }
 type Prov = { province_id: string | null; province_name: string | null; schools: number }
 
-function AssignForm({ year, schools, preset, packages, pkgColor, pkgName, onCancel, onSaved }: {
+function AssignForm({ ctx, modName, year, schools, preset, packages, pkgColor, pkgName, onCancel, onSaved }: {
+  ctx: Ctx; modName: (id: string) => string
   year: string; schools: School[]; preset: string; packages: ProgramPackage[]; pkgColor: (id: string | null) => string; pkgName: (id: string | null) => string
   onCancel: () => void; onSaved: (org: string) => void
 }) {
@@ -598,11 +602,11 @@ function AssignForm({ year, schools, preset, packages, pkgColor, pkgName, onCanc
   const free = (s: Pick | undefined) => ALL_GRADES.filter(g => !(s?.taken ?? []).includes(g))
   // Gợi ý khối theo cấp học của trường, bỏ khối đã có gói (vẫn chọn thêm / bỏ bớt được)
   const suggest = (s: Pick | undefined) => s?.level ? gradesOfLevel(s.level).filter(g => free(s).includes(g)) : []
-  const [lines, setLines] = useState<Line[]>(() => [{ pkg: packages[0]?.id ?? '', grades: suggest(preSchool) }])
+  const [lines, setLines] = useState<Line[]>(() => [{ pkg: packages[0]?.id ?? '', grades: suggest(preSchool), full: true, skip: new Set() }])
   const nq = q.trim().toLowerCase()
   const shown = useMemo(() => (list ?? []).filter(r => !nq || (r.name + ' ' + (r.code ?? '')).toLowerCase().includes(nq)), [list, nq])
   const has = (pre?.sps ?? []).filter(x => spState(x) !== 'ended').sort(byGrade)
-  const pickOrg = (id: string) => { setOrg(id); setLines([{ pkg: packages[0]?.id ?? '', grades: suggest(list?.find(x => x.org_id === id)) }]) }
+  const pickOrg = (id: string) => { setOrg(id); setLines([{ pkg: packages[0]?.id ?? '', grades: suggest(list?.find(x => x.org_id === id)), full: true, skip: new Set() }]) }
   const hint = !picked ? '' : picked.level === 'mamnon' ? ' · trường mầm non, gói chưa có khối mầm non' : picked.level ? ' · đã chọn sẵn theo cấp học của trường' : ' · trường chưa ghi cấp học, hãy chọn khối'
   const setLine = (i: number, v: Partial<Line>) => setLines(ls => ls.map((l, k) => k === i ? { ...l, ...v } : l))
   // Khối chọn được ở một dòng: chưa có gói, chưa chọn ở dòng khác
@@ -615,14 +619,22 @@ function AssignForm({ year, schools, preset, packages, pkgColor, pkgName, onCanc
     if (!ls.length) return setErr('Chọn ít nhất một khối.')
     if (ls.some(l => !l.pkg)) return setErr('Chọn gói.')
     setBusy(true); setErr('')
-    const { error } = await supabase.from('school_packages').insert(ls.map(l => ({ org_id: org, package_id: l.pkg, school_year: year, grades: l.grades, full_package: true })))
+    // Gán gói và phạm vi trong một lần lưu: thêm từng dòng gói, rồi ghi phần không áp dụng (nếu chọn một phần)
+    for (const l of ls) {
+      const { data, error } = await supabase.from('school_packages').insert({ org_id: org, package_id: l.pkg, school_year: year, grades: l.grades, full_package: l.full }).select('id').single()
+      if (error) { setBusy(false); return setErr(spErr(error.message + ' ' + (error.code ?? ''))) }
+      const out = skipRowsOf(ctx, l.pkg, l.grades, l.full, l.skip, (data as { id: string }).id)
+      if (out.length) {
+        const i = await supabase.from('school_package_skips').insert(out)
+        if (i.error) { setBusy(false); return setErr(spErr(i.error.message + ' ' + (i.error.code ?? ''))) }
+      }
+    }
     setBusy(false)
-    if (error) return setErr(spErr(error.message + ' ' + (error.code ?? '')))
     onSaved(org)
   }
   return <div style={{ display: 'grid', gap: 12 }}>
     {!preset && <label className="field"><span>Tỉnh / thành {provs ? `(${total.toLocaleString('vi-VN')} trường còn khối chưa có gói năm học ${yearLabel(year)})` : ''}</span>
-      <select value={prov} disabled={!provs} onChange={e => { setProv(e.target.value); setOrg(''); setQ(''); setLines([{ pkg: packages[0]?.id ?? '', grades: [] }]) }} aria-label="Chọn tỉnh / thành">
+      <select value={prov} disabled={!provs} onChange={e => { setProv(e.target.value); setOrg(''); setQ(''); setLines([{ pkg: packages[0]?.id ?? '', grades: [], full: true, skip: new Set() }]) }} aria-label="Chọn tỉnh / thành">
         <option value="">{provs ? '— Chọn tỉnh / thành —' : 'Đang tải…'}</option>
         {(provs ?? []).map(p => <option key={p.province_id ?? NOPROV} value={p.province_id ?? NOPROV}>{p.province_name ?? 'Chưa thuộc tỉnh nào'} ({p.schools.toLocaleString('vi-VN')} trường)</option>)}</select></label>}
     {preset ? <div className="field"><span>Trường</span><b>{pre?.name}</b></div>
@@ -642,13 +654,15 @@ function AssignForm({ year, schools, preset, packages, pkgColor, pkgName, onCanc
           {i === 0 && <small className="sub">Khối áp dụng{hint}</small>}
           {lines.length > 1 && <button type="button" className="x" style={{ marginLeft: 'auto' }} title="Bỏ dòng này" onClick={() => setLines(ls => ls.filter((_, k) => k !== i))}>✕</button>}</div>
         {allowedAt(i).length ? <GradePick value={l.grades} onChange={v => setLine(i, { grades: v })} allowed={allowedAt(i)} /> : <small className="sub">Các khối đều đã có gói.</small>}
+        {l.pkg && l.grades.length > 0 && <ScopePicker ctx={ctx} pkg={l.pkg} grades={l.grades} full={l.full} setFull={v => setLine(i, { full: v })} modName={modName}
+          skip={l.skip} setSkip={u => setLines(ls => ls.map((x, k) => k === i ? { ...x, skip: typeof u === 'function' ? u(x.skip) : u } : x))} />}
       </section>)}
       {left.length > 0 && lines.every(l => l.grades.length) && <button type="button" style={{ justifySelf: 'start' }}
-        onClick={() => setLines(ls => [...ls, { pkg: packages.find(p => !ls.some(l => l.pkg === p.id))?.id ?? packages[0]?.id ?? '', grades: [] }])}>+ Thêm gói cho khối khác</button>}
+        onClick={() => setLines(ls => [...ls, { pkg: packages.find(p => !ls.some(l => l.pkg === p.id))?.id ?? packages[0]?.id ?? '', grades: [], full: true, skip: new Set<string>() }])}>+ Thêm gói cho khối khác</button>}
     </>}
-    <small className="sub">Mỗi khối dùng một gói. Gán xong là áp dụng đủ gói. Trường áp dụng một phần thì mở trường, bấm "Sửa phạm vi" để bỏ tick phần không áp dụng.</small>
+    <small className="sub">Mỗi khối dùng một gói. Chọn "Áp dụng đủ gói" hoặc "Chọn một phần" rồi bỏ tick phần trường không áp dụng, tất cả lưu một lần.</small>
     {err && <p className="warnline">{err}</p>}
-    <div className="actions"><button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button><button onClick={onCancel} disabled={busy}>Huỷ</button></div>
+    <FormActions><button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button><button onClick={onCancel} disabled={busy}>Huỷ</button></FormActions>
   </div>
 }
 
@@ -703,8 +717,20 @@ function UpgradeForm({ row, ctx, packages, pkgName, modName, onCancel, onSaved }
       </ul></section>
     <label className="field"><span>Ghi chú</span><input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="VD: theo phụ lục hợp đồng số…" /></label>
     {err && <p className="warnline">{err}</p>}
-    <div className="actions"><button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Nâng cấp'}</button><button onClick={onCancel} disabled={busy}>Huỷ</button></div>
+    <FormActions><button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Nâng cấp'}</button><button onClick={onCancel} disabled={busy}>Huỷ</button></FormActions>
   </div>
+}
+
+/** Dòng "phần không áp dụng" cần lưu cho một gói ở các khối đã chọn (đủ gói thì không có dòng nào) */
+function skipRowsOf(ctx: Ctx, pkg: string, grades: number[], full: boolean, skip: Set<string>, spId: string): PkgSkip[] {
+  const rowsOut: PkgSkip[] = []
+  if (!full) for (const t of ctx.tracks) for (const gg of grades) {
+    const s = scopeAt(ctx, pkg, t, gg, skip)
+    for (const x of s.slots) if (!x.on) rowsOut.push({ school_package_id: spId, track_code: t.code, grade: gg, slot: x.slot, topic_id: null })
+    if (!s.mods) for (const x of s.topics) if (skip.has(keyT(x.topic.id)) && s.slots.find(y => y.module_id === x.topic.module_id)?.on)
+      rowsOut.push({ school_package_id: spId, track_code: t.code, grade: gg, slot: null, topic_id: x.topic.id })
+  }
+  return rowsOut
 }
 
 function ScopeEdit({ ctx, row, skips, packages, modName, allowed, onCancel, onSaved }: {
@@ -714,11 +740,50 @@ function ScopeEdit({ ctx, row, skips, packages, modName, allowed, onCancel, onSa
   const [grades, setGrades] = useState<number[]>(row.grades ?? [])
   const [full, setFull] = useState(!!row.full_package)
   const [skip, setSkip] = useState<Set<string>>(() => skipSetOf({ ...row, full_package: false }, skips))
-  const [g, setG] = useState(0)   // 0 = tất cả khối
-  const [exp, setExp] = useState<Set<string>>(new Set())   // khối đang mở danh sách chủ đề: `${loại}|${khối}`
-  const eff = full ? NO_SKIP : skip   // Áp dụng đủ gói: hiện như tick hết
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
+
+  async function save() {
+    if (!grades.length) return setErr('Chọn ít nhất một khối.')
+    setBusy(true); setErr('')
+    const { error } = await supabase.from('school_packages').update({ package_id: pkg, grades, full_package: full }).eq('id', row.sp_id!)
+    if (error) { setBusy(false); return setErr(spErr(error.message + ' ' + (error.code ?? ''))) }
+    // Lưu lại danh sách phần không áp dụng: chỉ giữ khoá còn đúng với gói, khối đang chọn
+    const rowsOut = skipRowsOf(ctx, pkg, grades, full, skip, row.sp_id!)
+    const d = await supabase.from('school_package_skips').delete().eq('school_package_id', row.sp_id!)
+    if (d.error) { setBusy(false); return setErr(spErr(d.error.message + ' ' + (d.error.code ?? ''))) }
+    if (rowsOut.length) {
+      const i = await supabase.from('school_package_skips').insert(rowsOut)
+      if (i.error) { setBusy(false); return setErr(spErr(i.error.message + ' ' + (i.error.code ?? ''))) }
+    }
+    setBusy(false); onSaved()
+  }
+
+  return <section className="panel" style={{ padding: 14 }}>
+    <div className="formgrid" style={{ gridTemplateColumns: 'minmax(0,220px) minmax(0,1fr)' }}>
+      <label className="field"><span>Gói</span><select value={pkg} onChange={e => setPkg(e.target.value)}>
+        {packages.filter(p => p.active || p.id === row.package_id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+      <div className="field"><span>Khối áp dụng</span><GradePick value={grades} allowed={allowed} onChange={setGrades} /></div>
+    </div>
+    <ScopePicker ctx={ctx} pkg={pkg} grades={grades} full={full} setFull={setFull} skip={skip} setSkip={setSkip} modName={modName} />
+    {err && <p className="warnline">{err}</p>}
+    <FormActions>
+      <button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
+      <button onClick={onCancel} disabled={busy}>Huỷ</button>
+    </FormActions>
+  </section>
+}
+
+/** Phạm vi áp dụng của một gói ở các khối đã chọn: đủ gói, hoặc bỏ tick học phần / chủ đề trường không áp dụng.
+ *  Dùng chung cho form Gán gói (chọn ngay khi gán) và Sửa phạm vi. */
+function ScopePicker({ ctx, pkg, grades, full, setFull, skip, setSkip, modName }: {
+  ctx: Ctx; pkg: string; grades: number[]; full: boolean; setFull: (v: boolean) => void
+  skip: Set<string>; setSkip: React.Dispatch<React.SetStateAction<Set<string>>>; modName: (id: string) => string
+}) {
+  const [g0, setG] = useState(0)   // 0 = tất cả khối
+  const g = grades.includes(g0) ? g0 : 0
+  const [exp, setExp] = useState<Set<string>>(new Set())   // khối đang mở danh sách chủ đề: `${loại}|${khối}`
+  const eff = full ? NO_SKIP : skip   // Áp dụng đủ gói: hiện như tick hết
   const flip = (keys: string[], on: boolean) => setSkip(s => { const n = new Set(s); for (const k of keys) { if (on) n.delete(k); else n.add(k) } return n })
   // Khoá của mọi mục (học phần / chủ đề) ở loại t, khối gg — dùng cho ô "chọn cả khối"
   const keysAt = (t: StemTrack, gg: number) => { const s = scopeAt(ctx, pkg, t, gg, skip); return s.mods ? s.slots.map(x => keyM(t.code, gg, x.slot)) : [...s.slots.map(x => keyM(t.code, gg, x.slot)), ...s.topics.map(x => keyT(x.topic.id))] }
@@ -736,52 +801,24 @@ function ScopeEdit({ ctx, row, skips, packages, modName, allowed, onCancel, onSa
     }
     n.delete(keyT(id)); return n
   })
-
-  async function save() {
-    if (!grades.length) return setErr('Chọn ít nhất một khối.')
-    setBusy(true); setErr('')
-    const { error } = await supabase.from('school_packages').update({ package_id: pkg, grades, full_package: full }).eq('id', row.sp_id!)
-    if (error) { setBusy(false); return setErr(spErr(error.message + ' ' + (error.code ?? ''))) }
-    // Lưu lại danh sách phần không áp dụng: chỉ giữ khoá còn đúng với gói, khối đang chọn
-    const rowsOut: PkgSkip[] = []
-    if (!full) for (const t of ctx.tracks) for (const gg of grades) {
-      const s = scopeAt(ctx, pkg, t, gg, skip)
-      for (const x of s.slots) if (!x.on) rowsOut.push({ school_package_id: row.sp_id!, track_code: t.code, grade: gg, slot: x.slot, topic_id: null })
-      if (!s.mods) for (const x of s.topics) if (skip.has(keyT(x.topic.id)) && s.slots.find(y => y.module_id === x.topic.module_id)?.on)
-        rowsOut.push({ school_package_id: row.sp_id!, track_code: t.code, grade: gg, slot: null, topic_id: x.topic.id })
-    }
-    const d = await supabase.from('school_package_skips').delete().eq('school_package_id', row.sp_id!)
-    if (d.error) { setBusy(false); return setErr(spErr(d.error.message + ' ' + (d.error.code ?? ''))) }
-    if (rowsOut.length) {
-      const i = await supabase.from('school_package_skips').insert(rowsOut)
-      if (i.error) { setBusy(false); return setErr(spErr(i.error.message + ' ' + (i.error.code ?? ''))) }
-    }
-    setBusy(false); onSaved()
-  }
-
   const box = (checked: boolean, onChange: (v: boolean) => void, label: React.ReactNode, bold = false, indent = 0, disabled = false) =>
     <label className="field inline" style={{ marginLeft: indent, fontWeight: bold ? 600 : undefined, alignItems: 'flex-start' }}>
       <input type="checkbox" style={{ flexShrink: 0 }} checked={checked} disabled={disabled} onChange={e => onChange(e.target.checked)} /> <span>{label}</span></label>
+  const name = useId()
 
-  return <section className="panel" style={{ padding: 14 }}>
-    <div className="formgrid" style={{ gridTemplateColumns: 'minmax(0,220px) minmax(0,1fr)' }}>
-      <label className="field"><span>Gói</span><select value={pkg} onChange={e => setPkg(e.target.value)}>
-        {packages.filter(p => p.active || p.id === row.package_id).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-      <div className="field"><span>Khối áp dụng</span><GradePick value={grades} allowed={allowed}
-        onChange={v => { setGrades(v); if (g && !v.includes(g)) setG(0) }} /></div>
-    </div>
+  return <>
     <div style={{ display: 'flex', gap: 18, margin: '12px 0' }}>
-      <label className="field inline"><input type="radio" checked={full} onChange={() => setFull(true)} /> Áp dụng đủ gói</label>
-      <label className="field inline"><input type="radio" checked={!full} onChange={() => setFull(false)} /> Chọn một phần (bỏ tick phần trường không áp dụng)</label>
+      <label className="field inline"><input type="radio" name={name} checked={full} onChange={() => setFull(true)} /> Áp dụng đủ gói</label>
+      <label className="field inline"><input type="radio" name={name} checked={!full} onChange={() => setFull(false)} /> Chọn một phần (bỏ tick phần trường không áp dụng)</label>
     </div>
-    {full && <p className="scopelock">🔒 Đang áp dụng đủ gói nên tất cả được chọn sẵn. Bấm số chủ đề để xem; muốn bỏ bớt, chọn "Chọn một phần".</p>}
+    {full && grades.length > 0 && <p className="scopelock">🔒 Đang áp dụng đủ gói nên tất cả được chọn sẵn. Bấm số chủ đề để xem; muốn bỏ bớt, chọn "Chọn một phần".</p>}
     <>
       <div className="distfilter scopegrades" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
         <span className="lvlab">Xem khối</span>
         <button type="button" className={'distfchip' + (g === 0 ? ' on' : '')} aria-pressed={g === 0} onClick={() => setG(0)}>Tất cả khối</button>
         {grades.map(x => <button key={x} type="button" className={'distfchip' + (x === g ? ' on' : '')} aria-pressed={x === g} onClick={() => setG(x)}>K{x}</button>)}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${Math.max(1, ctx.tracks.length)}, minmax(0,1fr))`, gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12 }}>
         {ctx.tracks.map(t => {
           const tot = gs.reduce((a, gg) => { const [o, n] = onAt(t, gg); return [a[0] + o, a[1] + n] }, [0, 0])
           const allKeys = gs.flatMap(gg => keysAt(t, gg))
@@ -818,10 +855,5 @@ function ScopeEdit({ ctx, row, skips, packages, modName, allowed, onCancel, onSa
       </div>
       {!full && <small className="sub" style={{ display: 'block', marginTop: 8 }}>Bấm vào số chủ đề (VD "8/16 chủ đề") để tick từng chủ đề.</small>}
     </>
-    {err && <p className="warnline">{err}</p>}
-    <div className="actions" style={{ marginTop: 12 }}>
-      <button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
-      <button onClick={onCancel} disabled={busy}>Huỷ</button>
-    </div>
-  </section>
+  </>
 }

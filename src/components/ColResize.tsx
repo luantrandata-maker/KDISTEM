@@ -41,8 +41,8 @@ export function useColResize(id: string) {
     const th = (e.target as HTMLElement).closest('th') as HTMLElement | null
     if (th && e.clientX >= th.getBoundingClientRect().right - 8) save({ n: 0, w: [], fit: s.fit })
   }
-  const fitBtn = <button type="button" className={'colfitbtn' + (s.fit ? ' on' : '')} aria-pressed={s.fit} onClick={() => save({ n: 0, w: [], fit: !s.fit })}
-    title={s.fit ? 'Bỏ thu gọn cột' : 'Thu bảng vừa chiều ngang màn hình, chữ dài tự xuống dòng'}>
-    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 5v14M21 5v14M7 12h10M10 9l-3 3 3 3M14 9l3 3-3 3" /></svg>Thu gọn</button>
+  const fitBtn = <button type="button" className={'colfitbtn' + (s.fit ? ' on' : '')} aria-pressed={s.fit} aria-label="Thu gọn cột" onClick={() => save({ n: 0, w: [], fit: !s.fit })}
+    title={s.fit ? 'Bỏ thu gọn cột' : 'Thu gọn cột cho vừa màn hình'}>
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 5v14M21 5v14M7 12h10M10 9l-3 3 3 3M14 9l3 3-3 3" /></svg></button>
   return { tableProps: { ref, onMouseDown, onDoubleClick }, fitBtn, fit: s.fit }
 }

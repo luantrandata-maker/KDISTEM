@@ -488,8 +488,8 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
       <span className="lvgrp"><span className="lvlab">Loại CT</span><ColFilter pin label={tf.length ? tf.map(trackLabel).join(', ') : 'Tất cả'} value={tracks.filter(t => tf.includes(t.code)).map(tl)}
         options={tracks.map(t => [tl(t), base.filter(r => r.t.code === t.code).length] as [string, number])}
         onChange={v => setTf(tracks.filter(t => v.includes(tl(t))).map(t => t.code))} /></span>
-        <ColMenu order={order} hidden={colCfg.hidden} label={colLabel} onChange={setColCfg} />
         {rs.fitBtn}
+        <ColMenu order={order} hidden={colCfg.hidden} label={colLabel} onChange={setColCfg} />
         <button type="button" onClick={printCmp}>In / Xuất PDF</button></div>
     </div>
     {<div className="cmpprint">

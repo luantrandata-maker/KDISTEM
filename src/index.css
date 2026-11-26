@@ -4203,14 +4203,13 @@ span.lsdact{padding:2px 8px;border-radius:999px;border:1px solid #ddd6fe;white-s
 @media print{.cmphx,.cmphadds{display:none}.cmphsel{appearance:none;padding:0;border:0}}
 
 /* Bảng so sánh: kéo mép tiêu đề đổi độ rộng cột (ColResize), Thu gọn cho vừa màn hình */
-.colrs>thead>tr>th{position:relative}
+:where(.colrs)>thead>tr>th{position:relative}
 .colrs>thead>tr>th::after{content:'';position:absolute;top:0;right:-3px;width:7px;height:100%;cursor:col-resize;z-index:3}
 .colrs>thead>tr>th:hover::after{background:linear-gradient(var(--primary),var(--primary)) center/2px 100% no-repeat;opacity:.45}
-.main .fitscreen .colrs>thead>tr>th{position:sticky}
 table.colfixed{table-layout:fixed}
 table.colfixed :is(th,td){overflow-wrap:anywhere}
 table.colfit{width:100%!important;table-layout:fixed}
 table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;overflow-wrap:anywhere}
-.colfitbtn{display:inline-flex;align-items:center;gap:6px}
+.colfitbtn{display:inline-flex;align-items:center;justify-content:center;padding-left:10px;padding-right:10px}
 .colfitbtn.on{background:color-mix(in srgb,var(--primary) 12%,var(--surface));color:var(--primary);border-color:color-mix(in srgb,var(--primary) 35%,transparent)}
 @media print{.colfitbtn{display:none}}

@@ -92,6 +92,8 @@ export function UserMenu({ name, email, roleLabel, orgs, views, view, onView, ac
   const [sq, setSq] = useState('')
   const [chosen, setChosen] = useState('')
   const [going, setGoing] = useState(false)
+  const [picking, setPicking] = useState(false)   // ô chọn trường thu gọn, bấm "Đổi" mới mở
+  useEffect(() => { if (!open) { setPicking(false); setSq(''); setChosen('') } }, [open])
   const roleAt = useMemo(() => new Map(schools.map(o => [o.org_id, o.roles.join(', ')])), [schools])
   const list: School[] = all.length ? all : schools.map(o => ({ org_id: o.org_id, name: o.name, parent_name: null, k: norm(o.name) }))
   const hits = useMemo(() => {
@@ -127,20 +129,26 @@ export function UserMenu({ name, email, roleLabel, orgs, views, view, onView, ac
           </div>
           {views.length > 1 && <div className="usersec">
             <small className="ushead">Chế độ xem</small>
-            {views.map(v => (
-              <button type="button" role="menuitemradio" aria-checked={v.key === view} key={v.key} className={v.key === view ? 'on' : ''}
-                onClick={() => { onView(v.key); setOpen(false) }}><Icon d={USER} />{v.label}</button>
-            ))}
+            {/* Gọn: các chế độ xem nằm trên một hàng */}
+            <div className="userviews" role="radiogroup" aria-label="Chế độ xem">
+              {views.map(v => (
+                <button type="button" role="menuitemradio" aria-checked={v.key === view} key={v.key} className={v.key === view ? 'on' : ''}
+                  onClick={() => { onView(v.key); setOpen(false) }}>{v.label}</button>
+              ))}
+            </div>
           </div>}
           {(orgs.length > 1 || total > 0) && <div className="usersec">
             <small className="ushead">Đang làm việc tại</small>
-            {others.map(o => (
+            {/* Gọn: chỉ hiện nơi đang làm việc; bấm "Đổi" mới mở danh sách đơn vị và ô tìm trường */}
+            <div className="usercur"><Icon d={ORG} /><span><b>{active?.name ?? '—'}</b><br /><small>{active?.roles.join(', ')}</small></span>
+              <button type="button" className={'userswap' + (picking ? ' on' : '')} aria-expanded={picking} onClick={() => setPicking(!picking)}>{picking ? 'Đóng' : 'Đổi'}</button></div>
+            {picking && others.filter(o => !o.active).map(o => (
               <button type="button" role="menuitemradio" aria-checked={o.active} key={o.org_id} className={o.active ? 'on' : ''}
                 onClick={() => pick(o)}>
                 <Icon d={ORG} /><span>{o.name}<br /><small>{o.roles.join(', ')}</small></span></button>
             ))}
             {/* Ô chọn trường giống ô chọn trong form: gõ để tìm, bấm chọn một trường, Xác nhận để vào */}
-            {(schools.length > 0 || total > 0) && <>
+            {picking && (schools.length > 0 || total > 0) && <>
               {others.length > 0 && <small className="ushead">Trường{total ? ` (${total.toLocaleString('vi-VN')})` : ''}</small>}
               <div className="schoolpick">
                 {list.length > 8 && <input type="search" placeholder="Gõ tên trường hoặc Sở…" aria-label="Tìm trường" value={sq} autoFocus
@@ -151,16 +159,17 @@ export function UserMenu({ name, email, roleLabel, orgs, views, view, onView, ac
                     : !hits.length ? <small className="sub">Không có trường nào khớp “{sq}”.</small>
                     : hits.slice(0, SHOWN).map(o => {
                       const cur = o.org_id === active?.org_id, on = o.org_id === chosen
-                      return <button type="button" role="option" aria-selected={on} key={o.org_id} className={(on ? 'on' : '') + (cur ? ' cur' : '')}
-                        onClick={() => setChosen(o.org_id)} onDoubleClick={() => pickSchool(o.org_id)}>
-                        <span>{o.name}{cur && <em> · đang ở đây</em>}<br /><small>{[o.parent_name, roleAt.get(o.org_id)].filter(Boolean).join(' · ')}</small></span></button>
+                      // Bấm chọn một trường: nút "Vào" hiện ngay trên dòng đó (thay nút Xác nhận to ở cuối)
+                      return <div key={o.org_id} className={'spick' + (on ? ' on' : '') + (cur ? ' cur' : '')}>
+                        <button type="button" role="option" aria-selected={on} onClick={() => setChosen(o.org_id)} onDoubleClick={() => pickSchool(o.org_id)}>
+                          <span>{o.name}{cur && <em> · đang ở đây</em>}<br /><small>{[o.parent_name, roleAt.get(o.org_id)].filter(Boolean).join(' · ')}</small></span></button>
+                        {on && !cur && <button type="button" className="primary spgo" disabled={going} onClick={() => pickSchool(o.org_id)}
+                          title={roleAt.has(o.org_id) ? undefined : 'Trường chưa có vai trò: hệ thống gán Hiệu trưởng cho tài khoản này và ghi nhật ký'}>{going ? '…' : 'Vào'}</button>}
+                      </div>
                     })}
                   {hits.length > SHOWN && <small className="sub">Còn {hits.length - SHOWN} trường, gõ thêm để thu hẹp.</small>}
                 </div>
-                <button type="button" className="primary" disabled={!chosen || going || chosen === active?.org_id} onClick={() => pickSchool(chosen)}>
-                  {going ? 'Đang vào trường…' : 'Xác nhận vào trường'}</button>
               </div>
-              {total > 0 && <small className="sub" style={{ padding: '0 10px' }}>Vào trường chưa có vai trò: hệ thống gán Hiệu trưởng cho tài khoản này và ghi nhật ký.</small>}
             </>}
             {err && <p className="msg" style={{ padding: '0 10px' }}>{err}</p>}
           </div>}
@@ -170,7 +179,7 @@ export function UserMenu({ name, email, roleLabel, orgs, views, view, onView, ac
               {acting.options.map(o => <option key={o.id} value={o.id}>{o.label}</option>)}
             </select>
           </div>}
-          <div className="usersec">
+          <div className="usersec userfoot">
             <button type="button" role="menuitem" onClick={() => { setOpen(false); onPassword() }}><Icon d="M5 11h14v10H5zM8 11V7a4 4 0 0 1 8 0v4" />Đổi mật khẩu</button>
             <button type="button" role="menuitem" onClick={onSignOut}><Icon d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4M10 17l5-5-5-5M15 12H3" />Đăng xuất</button>
           </div>

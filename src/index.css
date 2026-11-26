@@ -4257,3 +4257,21 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .top .bellpanel{top:38px}
 /* Khi mở chú thích / menu ở đầu trang, đưa đầu trang lên trên hàng tab dính */
 .top:has(.usermenu:hover),.top:has(.userbtn:focus-visible),.top:has([aria-expanded="true"]){z-index:30}
+/* Menu tài khoản gọn: chế độ xem một hàng, nơi làm việc + nút Đổi, danh sách trường chỉ mở khi cần, chân menu một hàng */
+.userpanel{max-height:calc(100vh - 60px);overflow:auto;width:min(340px,92vw)}
+.userhead{padding:6px 10px 8px}
+.userhead b{font-size:calc(15px * var(--fz,1))}
+.userviews{display:flex;gap:4px;padding:0 10px 2px}
+.user .usersec .userviews button{flex:1;justify-content:center;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:calc(13px * var(--fz,1));font-weight:500}
+.user .usersec .userviews button.on{background:color-mix(in srgb,var(--primary) 12%,transparent);border-color:var(--primary);color:var(--primary);font-weight:600}
+.usercur{display:flex;align-items:center;gap:10px;padding:4px 10px;font-size:calc(14px * var(--fz,1))}
+.usercur>span{flex:1;min-width:0;line-height:1.3}.usercur small{color:var(--muted)}
+.user .usersec .usercur button.userswap{width:auto;flex:0 0 auto;padding:4px 12px;border:1px solid var(--line);border-radius:6px;font-size:calc(13px * var(--fz,1));font-weight:600;color:var(--primary)}
+.user .usersec .usercur button.userswap.on{background:var(--soft)}
+.schoolpicklist{max-height:220px}
+.schoolpicklist .spick{display:flex;align-items:center;gap:6px;border-radius:5px}
+.schoolpicklist .spick>button[role=option]{flex:1;min-width:0}
+.schoolpicklist .spick.on{background:color-mix(in srgb,var(--primary) 14%,transparent)}
+.user .usersec .schoolpicklist .spick button.spgo{flex:0 0 auto;width:auto;margin-right:6px;padding:4px 12px;background:var(--primary);color:#fff;font-weight:600;border-radius:5px}
+.usersec.userfoot{display:flex;gap:4px;padding:6px 4px}
+.user .usersec.userfoot button{flex:1;justify-content:center;font-size:calc(13px * var(--fz,1))}

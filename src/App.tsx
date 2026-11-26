@@ -248,12 +248,14 @@ const PlatformLibraryPage = framed(LibraryPage)
 const PlatformElearningPage = framed(PH2_TABS.elearning)
 function PlatformEduProgramsPage(p: any) {
   const [track, setTrack] = useState(false)
+  void setTrack
   const back = <button type="button" onClick={() => setTrack(false)}>← Chương trình giáo dục</button>
   return track
     // Nút quay lại nằm ở góc hàng tab (như nút Theo dõi thực hiện), không chiếm một hàng riêng
     ? <FramedTabs {...p} tabs={TRACK_TABS} actions={back} />
     : <FramedTabs {...p} tabs={[['Gói STEM', ProgramPackages], ['Trường áp dụng', SchoolPackages], ['Khung chương trình', ProgramFrame], ['Danh mục', ProgramCatalogs]]}
-      actionsOn={['Trường áp dụng']} actions={<button type="button" onClick={() => setTrack(true)}>Theo dõi thực hiện</button>} />
+      // Nút "Theo dõi thực hiện" tạm ẩn (màn theo dõi vẫn giữ, bật lại bằng actions khi cần)
+      />
 }
 const PLATFORM_LESSON_TABS: [string, ComponentType<any>][] = [
   // Bài giảng KDI soạn và bài giảng giáo viên các trường soạn chung một danh sách, như Kho hoạt động (lọc Sở / tỉnh, đơn vị)

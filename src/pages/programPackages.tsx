@@ -606,7 +606,7 @@ function LevelFilter({ lvs, grade, onLevels, onGrade, extra, hint = true, bare =
   </div>
 }
 
-// So sánh dưới thẻ gói: khi cuộn trang, hàng tab và thanh lọc đứng yên; bảng cao vừa phần màn hình còn lại (tiêu đề cột đứng yên trong bảng)
+// So sánh dưới thẻ gói: cả khung vừa một màn hình dưới hàng tab và đứng yên; chỉ bảng cuộn bên trong (tiêu đề cột đứng yên), cuộn bảng không kéo trang
 function PkgCmpBox({ className, children }: { className?: string; children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
@@ -616,14 +616,23 @@ function PkgCmpBox({ className, children }: { className?: string; children: Reac
       const filt = box.closest('.pkgdet')?.querySelector('.lvfilter') as HTMLElement | null
       const top = head ? head.getBoundingClientRect().height : 0
       if (filt) { filt.classList.add('pkgcmpfilt'); filt.style.top = top + 'px' }
-      const fh = filt ? filt.getBoundingClientRect().height + 8 : 0
-      // Chừa phần nằm dưới bảng (lề khung, lề trang) để khi cuộn hết trang, đầu bảng nằm ngay dưới thanh lọc
+      // Cả khung (viền, thanh lọc, bảng) vừa đúng phần màn hình dưới hàng tab: cuộn hết trang là khung nằm trọn, không bị che
+      const sec = box.closest('.pkgdet') as HTMLElement | null
+      const above = sec ? box.getBoundingClientRect().top - sec.getBoundingClientRect().top : (filt ? filt.getBoundingClientRect().height + 8 : 0)
+      // Chừa phần nằm dưới bảng (lề khung, lề trang)
       const below = Math.max(0, document.documentElement.scrollHeight - (box.getBoundingClientRect().bottom + window.scrollY))
-      box.style.maxHeight = Math.max(240, window.innerHeight - top - fh - below) + 'px'
+      box.style.maxHeight = Math.max(240, window.innerHeight - top - above - below) + 'px'
     }
     fit(); window.addEventListener('resize', fit)
     return () => window.removeEventListener('resize', fit)
   })
+  // Mở so sánh: cuộn trang để cả khung nằm ngay dưới hàng tab
+  useEffect(() => {
+    const box = ref.current; const sec = box?.closest('.pkgdet') as HTMLElement | null; if (!box || !sec) return
+    const head = box.closest('main')?.querySelector(':scope > .pframe > .pfhead') as HTMLElement | null
+    const top = head ? head.getBoundingClientRect().height : 0
+    window.scrollTo({ top: sec.getBoundingClientRect().top + window.scrollY - top - 8, behavior: 'smooth' })
+  }, [])
   return <div ref={ref} className={'pkgcmpbox ' + (className ?? '')}>{children}</div>
 }
 

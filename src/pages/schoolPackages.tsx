@@ -10,7 +10,7 @@ import { ElView } from '../components/ElView'
 import { HeadAction } from '../components/PageFrame'
 import { ApplyTag } from '../components/ApplyTag'
 import { useColResize } from '../components/ColResize'
-import { Drawer } from '../components/Drawer'
+import { Drawer, FormActions } from '../components/Drawer'
 import { MultiSelect } from '../components/MultiSelect'
 import { FitScreen } from '../components/FitScreen'
 import { TopicContents } from './topicContents'
@@ -659,7 +659,7 @@ function AssignForm({ ctx, modName, year, schools, preset, packages, pkgColor, p
     </>}
     <small className="sub">Mỗi khối dùng một gói. Chọn "Áp dụng đủ gói" hoặc "Chọn một phần" rồi bỏ tick phần trường không áp dụng, tất cả lưu một lần.</small>
     {err && <p className="warnline">{err}</p>}
-    <div className="actions"><button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button><button onClick={onCancel} disabled={busy}>Huỷ</button></div>
+    <FormActions><button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button><button onClick={onCancel} disabled={busy}>Huỷ</button></FormActions>
   </div>
 }
 
@@ -714,7 +714,7 @@ function UpgradeForm({ row, ctx, packages, pkgName, modName, onCancel, onSaved }
       </ul></section>
     <label className="field"><span>Ghi chú</span><input type="text" value={note} onChange={e => setNote(e.target.value)} placeholder="VD: theo phụ lục hợp đồng số…" /></label>
     {err && <p className="warnline">{err}</p>}
-    <div className="actions"><button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Nâng cấp'}</button><button onClick={onCancel} disabled={busy}>Huỷ</button></div>
+    <FormActions><button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Nâng cấp'}</button><button onClick={onCancel} disabled={busy}>Huỷ</button></FormActions>
   </div>
 }
 
@@ -764,10 +764,10 @@ function ScopeEdit({ ctx, row, skips, packages, modName, allowed, onCancel, onSa
     </div>
     <ScopePicker ctx={ctx} pkg={pkg} grades={grades} full={full} setFull={setFull} skip={skip} setSkip={setSkip} modName={modName} />
     {err && <p className="warnline">{err}</p>}
-    <div className="actions" style={{ marginTop: 12 }}>
+    <FormActions>
       <button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
       <button onClick={onCancel} disabled={busy}>Huỷ</button>
-    </div>
+    </FormActions>
   </section>
 }
 

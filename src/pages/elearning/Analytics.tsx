@@ -19,14 +19,12 @@ export default function Analytics({ orgId, kind }: { orgId: string | null; kind:
   const [f, setF] = useState<F>({ exam: '', cls: '', subject: '', grade: '', days: '180', min: '3' })
   const [exams, setExams] = useState<{ id: string; title: string }[]>([])
   const [classes, setClasses] = useState<{ id: string; name: string }[]>([])
-  const [subjects, setSubjects] = useState<string[]>([])
   const [hard, setHard] = useState<Hard[] | null>(null)
   const [topics, setTopics] = useState<Topic[] | null>(null)
   const [err, setErr] = useState('')
   useEffect(() => {
     supabase.from('practice_exams').select('id, title').neq('status', 'draft').order('created_at', { ascending: false }).then(({ data }) => setExams((data as any[]) ?? []))
     if (orgId) supabase.from('classes').select('id, name').eq('org_id', orgId).order('grade').order('name').then(({ data }) => setClasses((data as any[]) ?? []))
-    supabase.from('question_bank').select('subject').limit(5000).then(({ data }) => setSubjects([...new Set(((data as any[]) ?? []).map(x => x.subject as string))].sort((a, b) => a.localeCompare(b, 'vi'))))
   }, [orgId])
   useEffect(() => {
     const p = { p_exam: f.exam || null, p_class: f.cls || null, p_subject: f.subject || null, p_grade: f.grade ? Number(f.grade) : null, p_days: f.days ? Number(f.days) : null }
@@ -47,13 +45,14 @@ export default function Analytics({ orgId, kind }: { orgId: string | null; kind:
   const gHard = useGradeTree('el-hard', hard ?? [], h => h.grade ? [h.grade] : [], 'câu hỏi')
   const gTopic = useGradeTree('el-review', topics ?? [], t => t.grade ? [t.grade] : [], 'chủ đề')
   const left = <>
-    <select value={f.exam} onChange={e => setF({ ...f, exam: e.target.value })} aria-label="Đề luyện"><option value="">Tất cả đề luyện</option>{exams.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}</select>
-    {classes.length > 0 && <select value={f.cls} onChange={e => setF({ ...f, cls: e.target.value })} aria-label="Lớp"><option value="">Tất cả lớp</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
-    <select value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
-    <select value={f.days} onChange={e => setF({ ...f, days: e.target.value })} aria-label="Thời gian">{DAYS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
-    {kind === 'hard' && <select value={f.min} onChange={e => setF({ ...f, min: e.target.value })} aria-label="Số lượt tối thiểu">{['1', '3', '5', '10', '20'].map(v => <option key={v} value={v}>Từ {v} lượt trả lời</option>)}</select>}
+    <select className="elsel" value={f.exam} onChange={e => setF({ ...f, exam: e.target.value })} aria-label="Đề luyện"><option value="">Tất cả đề</option>{exams.map(x => <option key={x.id} value={x.id}>{x.title}</option>)}</select>
+    {classes.length > 0 && <select className="elsel" value={f.cls} onChange={e => setF({ ...f, cls: e.target.value })} aria-label="Lớp"><option value="">Tất cả lớp</option>{classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>}
+    <select className="elsel" value={f.days} onChange={e => setF({ ...f, days: e.target.value })} aria-label="Thời gian">{DAYS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+    {kind === 'hard' && <select className="elsel" title="Chỉ tính câu có từ số lượt trả lời này" value={f.min} onChange={e => setF({ ...f, min: e.target.value })} aria-label="Số lượt tối thiểu">{['1', '3', '5', '10', '20'].map(v => <option key={v} value={v}>≥ {v} lượt</option>)}</select>}
   </>
-  const right = <button type="button" onClick={exportXlsx} disabled={!rows?.length}>Xuất Excel</button>
+  // Môn lọc bằng Bộ lọc của bảng (cột Môn), không cần ô chọn riêng; Xuất Excel chỉ còn biểu tượng cho thanh công cụ gọn một dòng
+  const right = <button type="button" className="tsq elxls" onClick={exportXlsx} disabled={!rows?.length} title="Xuất Excel" aria-label="Xuất Excel">
+    <svg className="ticon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg></button>
   return (
     <>
       {/* Bộ lọc tải dữ liệu nằm trên thanh công cụ của bảng như các bảng khác */}

@@ -122,7 +122,7 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
   const has = (v: number) => (v ? 'Đã có' : 'Chưa có')
   const num = (k: keyof Count, label: string): Col<ProgramTopic> => ({ key: k, label, thClass: 'c-fit', text: t => has(cnt(t)[k]), cell: t => n(cnt(t)[k]) })
   const cols: Col<ProgramTopic>[] = [
-    { key: 'title', label: 'Chủ đề', fixed: true, text: t => `${t.title} ${t.code ?? ''}`, cell: t => <><b>{t.title}</b>{t.code && <small className="sub"> · {t.code}</small>}</> },
+    { key: 'title', label: 'Chủ đề', fixed: true, text: t => `${t.title} ${t.code ?? ''}`, cell: t => <b title={t.code ?? undefined}>{t.title}</b> },
     { key: 'grade', thClass: 'c-fit', label: 'Khối', text: t => gradeName(t.grade), cell: t => gradeName(t.grade) },
     { key: 'mod', thClass: 'c-fit', label: 'Học phần', text: t => modOf.get(t.module_id)!.name, cell: t => <span className="nw">{modOf.get(t.module_id)!.name}</span> },
     { key: 'periods', thClass: 'c-fit', label: 'Tiết', text: t => String(t.periods), cell: t => <span className="cnum">{t.periods}</span> },

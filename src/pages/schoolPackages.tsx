@@ -99,7 +99,8 @@ export function SchoolPackages() {
   const ctx: Ctx = { tracks, items, modules, topics }
   const modName = (id: string) => modules.find(m => m.id === id)?.name ?? '?'
   const pkgName = (id: string | null) => packages.find(p => p.id === id)?.name ?? '—'
-  const pkgColor = (id: string | null) => PKG_C[Math.max(0, packages.findIndex(p => p.id === id)) % PKG_C.length]
+  // Màu gói: màu KDI đã chọn cho gói (trang Gói STEM); chưa chọn thì màu tự động theo thứ tự gói, giống trang Gói STEM
+  const pkgColor = (id: string | null) => { const k = Math.max(0, packages.findIndex(p => p.id === id)); return packages[k]?.color || PKG_C[k % PKG_C.length] }
   const Pk = ({ id, k }: { id: string | null; k?: string }) => <span style={{ display: 'inline-flex', gap: 6, alignItems: 'center', whiteSpace: 'nowrap' }}>
     <span style={{ width: 10, height: 10, borderRadius: 3, flex: 'none', background: pkgColor(id) }} /><b>{pkgName(id)}</b>{k && <span style={{ fontWeight: 400, color: 'var(--muted)' }}>{k}</span>}</span>
   const schools = useMemo(() => groupSchools(rows), [rows])

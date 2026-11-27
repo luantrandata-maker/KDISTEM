@@ -212,7 +212,7 @@ export function SchoolPackages() {
               const allOff = s.slots.every(x => !x.on)
               return [<td key={t.code} style={GAP}><button type="button" className="cellbtn" onClick={open} title="Xem chủ đề">
                 {allOff ? <span style={OFF}>Không áp dụng</span> : !s.topics.length ? <span className="sub">Chưa nhập chủ đề</span>
-                  : on === s.topics.length ? <>Đủ {on} chủ đề</> : <><b>{on}</b>/{s.topics.length} chủ đề</>}</button></td>]
+                  : on === s.topics.length ? <>{on}/{s.topics.length} chủ đề</> : <><b>{on}</b>/{s.topics.length} chủ đề</>}</button></td>]
             }
             return Array.from({ length: nSl(t) }, (_, i) => { const x = s.slots.find(y => y.slot === i + 1)
               return <td key={t.code + i} style={i ? undefined : GAP}>{x ? <button type="button" className="cellbtn" style={x.on ? undefined : OFF} onClick={() => setView({ t: t.code, g, sl: x.slot })} title="Xem học phần và chủ đề">{modName(x.module_id)}</button> : <span className="sub">—</span>}</td> })

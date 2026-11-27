@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase'
 import { useEduLevels, type EduLevel, gradeName, fmtGrades, gradeRange } from '../lib/eduLevels'
 import { ElView } from '../components/ElView'
 import { NumMultiSelect } from '../components/MultiSelect'
+import { Icon } from '../components/Icon'
 
 // Danh mục cấp học & khối (migration 065): KDI thêm / sửa cấp học và khoảng khối áp dụng; chương trình giáo dục,
 // môn học và các ô chọn khối ở tất cả màn dùng danh mục này. Đơn vị khác chỉ xem.
@@ -75,7 +76,7 @@ export function EduLevelsCatalog() {
           <label className="field"><span>Thứ tự</span><input type="number" min={0} value={form.sort ?? 0} onChange={e => setForm({ ...form, sort: Number(e.target.value) })} /></label>
           <div className="formactions tools"><button className="primary" type="submit">{form.isNew ? 'Thêm' : 'Lưu'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button>
             {!form.isNew && <><button type="button" onClick={() => setActive(form, form.active === false)}>{form.active === false ? 'Dùng lại' : 'Ngừng dùng'}</button>
-              <button type="button" className="danger" onClick={() => remove(form)}>Xoá</button></>}</div>
+              <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => remove(form)}><Icon n="trash" size={17} /></button></>}</div>
         </form>
     </ElView>
   )

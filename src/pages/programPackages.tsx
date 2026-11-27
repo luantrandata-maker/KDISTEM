@@ -19,6 +19,7 @@ import { Chip } from './dist/Editor'
 import { MultiSelect } from '../components/MultiSelect'
 import { Drawer } from '../components/Drawer'
 import { TopicContents } from './topicContents'
+import { Icon } from '../components/Icon'
 
 // Gói STEM theo khung chương trình (148): mỗi gói gồm các loại chương trình; mỗi loại, mỗi khối chọn học phần ở từng vị trí
 // (Học phần 1, Học phần 2…). Xem một gói, so sánh các gói (tô màu chỗ khác nhau). Chỉ KDI sửa.
@@ -252,7 +253,7 @@ function TrackTable({ tracks, packages, has, differs, summary, admin, onClose }:
     : et ? <>{chip(et.code)} Sửa loại chương trình</>
     : vt ? <>{chip(vt.code)} {vt.title || vt.name}</> : 'Các loại chương trình'
   return <Drawer title={title} onClose={onClose} onBack={edit !== null || vt ? back : undefined} closeOnOutside={edit === null}
-    actions={edit !== null ? undefined : vt ? (admin ? <button type="button" onClick={() => { setErr(''); setEdit(vt.code) }}>Sửa</button> : undefined)
+    actions={edit !== null ? undefined : vt ? (admin ? <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" type="button" onClick={() => { setErr(''); setEdit(vt.code) }}><Icon n="pencil" size={17} /></button> : undefined)
       : admin ? <button type="button" className="primary" onClick={() => { setErr(''); setEdit('') }}>+ Thêm loại chương trình</button> : undefined}>
     {err && <p className="msg" role="status">{err}</p>}
     {edit === '' ? <TrackForm t={{ ...BLANK_TRACK, sort: tracks.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1 }} isNew onCancel={() => setEdit(null)} onSaved={() => { setEdit(null); reload() }} />

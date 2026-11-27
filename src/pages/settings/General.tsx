@@ -10,6 +10,7 @@ import { Tabs } from '../teacher/common'
 import Periods from '../Periods'
 import { ButtonsTab, CatalogTab, ConfigTools, FieldsTab, MenuTab } from './Custom'
 import { WEEKDAY, addD, dayOf, offIn, vnd, vnShort } from '../dist/calendar'
+import { Icon } from '../../components/Icon'
 
 type Props = { orgId: string | null; platform?: boolean }
 type Sub = 'rules' | 'cal' | 'hol'
@@ -170,7 +171,7 @@ function RulesTab({ orgId, platform, std }: { orgId: string; platform: boolean; 
         <div className="formactions" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
           <button type="button" onClick={() => { const last = slots[slots.length - 1]; const st = last ? addMin(last.ends_at, 5) : '07:00'
             setSlots(xs => [...xs, { name: `Tiết ${xs.length + 1}`, starts_at: st, ends_at: addMin(st, 45) }]) }}>+ Thêm tiết</button>
-          <button type="button" className="danger" disabled={!ticked.size} onClick={() => { setSlots(xs => xs.filter((_, j) => !ticked.has(j))); setTicked(new Set()) }}>Xóa {ticked.size || ''}</button>
+          <button type="button" className="danger" disabled={!ticked.size} onClick={() => { setSlots(xs => xs.filter((_, j) => !ticked.has(j))); setTicked(new Set()) }}>Xoá {ticked.size || ''}</button>
           <button type="button" className="primary" onClick={saveSlots}>Lưu khung giờ</button>
         </div>
       </> : <>
@@ -311,10 +312,10 @@ function HolTab({ orgId, platform, scope, year }: { orgId: string; platform: boo
   }
   async function removeTicked() {
     const ids = [...ticked].filter(id => list.some(h => h.id === id && editableH(h)))
-    if (!ids.length || !confirm(`Xóa ${ids.length} ngày nghỉ?`)) return
+    if (!ids.length || !confirm(`Xoá ${ids.length} ngày nghỉ?`)) return
     const { error } = await supabase.from('school_holidays').delete().in('id', ids)
     if (error) return setErr(errText(error.message))
-    setTicked(new Set()); done(`Đã xóa ${ids.length} ngày nghỉ.`)
+    setTicked(new Set()); done(`Đã xoá ${ids.length} ngày nghỉ.`)
   }
   async function toggleSkip(h: Hol) {
     const { error } = h.skipped ? await supabase.from('holiday_skips').delete().eq('org_id', orgId).eq('holiday_id', h.id)
@@ -342,8 +343,8 @@ function HolTab({ orgId, platform, scope, year }: { orgId: string; platform: boo
         {platform ? '. Trường có thể bỏ ngày chuẩn chung hoặc thêm ngày riêng.' : ''}</p>
       <span className="tools" style={{ display: 'flex', gap: 8 }}>
         {ticked.size > 0 && <>
-          {ticked.size === 1 && <button type="button" onClick={() => { const h = list.find(x => x.id === [...ticked][0])!; setF({ id: h.id, name: h.name, starts_on: h.starts_on, ends_on: h.ends_on, note: h.note ?? '', kind: h.kind, status: h.status, source: h.source ?? '' }) }}>Sửa</button>}
-          <button type="button" className="danger" onClick={removeTicked}>Xóa {ticked.size}</button></>}
+          {ticked.size === 1 && <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" type="button" onClick={() => { const h = list.find(x => x.id === [...ticked][0])!; setF({ id: h.id, name: h.name, starts_on: h.starts_on, ends_on: h.ends_on, note: h.note ?? '', kind: h.kind, status: h.status, source: h.source ?? '' }) }}><Icon n="pencil" size={17} /></button>}
+          <button type="button" className="danger" onClick={removeTicked}>Xoá {ticked.size}</button></>}
         <button type="button" onClick={presets}>+ Ngày lễ cố định</button>
         <button type="button" className="primary" onClick={() => setF({ name: '', starts_on: '', ends_on: '', note: '', kind: platform ? 'state' : 'school', status: 'official', source: '' })}>+ Thêm ngày nghỉ</button>
       </span>
@@ -356,7 +357,7 @@ function HolTab({ orgId, platform, scope, year }: { orgId: string; platform: boo
       <label className="field"><span>Trạng thái</span><select value={f.status} onChange={e => setF({ ...f, status: e.target.value })}><option value="official">Chính thức</option><option value="expected">Dự kiến</option></select></label>
       <label className="field"><span>Nguồn</span><input maxLength={300} value={f.source} placeholder="vd Công văn của Bộ" onChange={e => setF({ ...f, source: e.target.value })} /></label>
       <label className="field" style={{ gridColumn: '1 / -1' }}><span>Ghi chú</span><input maxLength={500} value={f.note} onChange={e => setF({ ...f, note: e.target.value })} /></label>
-      <div className="formactions"><button type="button" onClick={() => setF(null)}>Hủy</button> <button className="primary">Lưu</button></div>
+      <div className="formactions"><button type="button" onClick={() => setF(null)}>Huỷ</button> <button className="primary">Lưu</button></div>
     </form>}
     <div className="wrap"><table className="libtable">
       <thead><tr><th style={{ width: 36 }} /><th>Ngày nghỉ</th><th>Thời gian</th><th>Thuộc tuần</th><th>Loại</th><th>Trạng thái</th><th>Nguồn</th>{!platform && <th>Áp dụng</th>}</tr></thead>

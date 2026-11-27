@@ -147,7 +147,7 @@ export function SupplyRequestsPage({ orgId }: { orgId: string | null }) {
               <td><b>{r.title}</b>{r.needed_by && <><br /><small>Cần trước {day(r.needed_by)}</small></>}</td>
               <td>{r.supply_request_lines.length}</td><td>{total(r.supply_request_lines) ? money(total(r.supply_request_lines)) : '—'}</td><td>{day(r.created_at)}</td><td><Pill s={r.status} /></td>
               <td className="nowrap"><button onClick={() => setOpen(open === r.id ? null : r.id)}>{open === r.id ? 'Đóng' : 'Xem'}</button>
-                {mine(r) && ['draft', 'rejected'].includes(r.status) && <> <button onClick={() => setForm({ id: r.id, title: r.title, reason: r.reason ?? '', needed_by: r.needed_by ?? '', lines: r.supply_request_lines.map(l => ({ ...l })) })}>Sửa</button> <button onClick={() => remove(r)}>Xoá</button></>}
+                {mine(r) && ['draft', 'rejected'].includes(r.status) && <> <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setForm({ id: r.id, title: r.title, reason: r.reason ?? '', needed_by: r.needed_by ?? '', lines: r.supply_request_lines.map(l => ({ ...l })) })}><Icon n="pencil" size={17} /></button> <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => remove(r)}><Icon n="trash" size={17} /></button></>}
                 {mine(r) && r.status === 'pending' && <> <button className="primary" onClick={() => decide(r, 'approve')}>Duyệt</button> <button onClick={() => decide(r, 'reject')}>Từ chối</button></>}
                 {mine(r) && r.status === 'approved' && <> <button className="primary" onClick={() => setRecv({ rq: r, qty: Object.fromEntries(r.supply_request_lines.map(l => [l.id!, String(l.qty)])) })}>Nhận hàng</button></>}</td></tr>,
             open === r.id && <tr key={r.id + 'd'}><td colSpan={multi ? 7 : 6}>
@@ -308,7 +308,7 @@ export function TransfersPage({ orgId }: { orgId: string | null }) {
           return [
             <tr key={t.id}><td><b>{t.title}</b></td><td>{t.from?.name} → {t.to?.name}</td><td>{t.stock_transfer_items.length}</td><td>{day(t.created_at)}</td><td><Pill s={t.status} /></td>
               <td className="nowrap"><button onClick={() => setOpen(open === t.id ? null : t.id)}>{open === t.id ? 'Đóng' : 'Xem'}</button>
-                {sender && ['draft', 'rejected'].includes(t.status) && <> <button onClick={() => setForm({ id: t.id, to_org: t.to_org, title: t.title, note: t.note ?? '', items: t.stock_transfer_items.map(i => ({ ...i })) })}>Sửa</button></>}
+                {sender && ['draft', 'rejected'].includes(t.status) && <> <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setForm({ id: t.id, to_org: t.to_org, title: t.title, note: t.note ?? '', items: t.stock_transfer_items.map(i => ({ ...i })) })}><Icon n="pencil" size={17} /></button></>}
                 {sender && t.status === 'pending' && <> <button className="primary" onClick={() => decide(t, 'approve')}>Duyệt</button> <button onClick={() => decide(t, 'reject')}>Từ chối</button></>}
                 {sender && t.status === 'approved' && <> <button className="primary" onClick={() => ship(t)}>Xuất hàng</button></>}
                 {sender && ['draft', 'rejected', 'approved'].includes(t.status) && <> <button onClick={() => cancel(t)}>Huỷ</button></>}

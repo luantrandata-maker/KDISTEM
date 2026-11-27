@@ -11,6 +11,7 @@ import ImportExcel from '../../components/ImportExcel'
 import AssistantQuiz from './AiQuiz'
 import { LEVEL, QKIND, letter, errText, gradesText, qGrades, type Level, type QKind, type Question } from './common'
 import { GradeMulti, SubjectPicker, gradeList } from '../../components/Pickers'
+import { Icon } from '../../components/Icon'
 
 // Ngân hàng câu hỏi: soạn tay, nhập Excel, tạo bằng Trợ lý AI; duyệt (Nháp → Sẵn sàng), dùng chung cho đơn vị trực thuộc.
 export const COLS: Column[] = [
@@ -133,10 +134,10 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
     <ElView back="Ngân hàng câu hỏi" onBack={() => setOpen(null)} title="Chi tiết câu hỏi"
       sub={<>{cur.subject}{qGrades(cur).length ? ` · ${gradesText(qGrades(cur))}` : ''}{cur.topic ? ` · ${cur.topic}` : ''} · {LEVEL[cur.level]} · {QKIND[cur.kind]} · <span className={'pill ' + (cur.status === 'ready' ? 'active' : cur.status === 'draft' ? 'maintenance' : 'inactive')}>{cur.status === 'ready' ? 'Sẵn sàng' : cur.status === 'draft' ? 'Nháp' : 'Ngừng dùng'}</span></>}
       actions={mine(cur) && <>
-        <button className="primary" onClick={() => setForm(toForm(cur))}>Sửa</button>
+        <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setForm(toForm(cur))}><Icon n="pencil" size={17} /></button>
         {cur.status !== 'ready' && <button onClick={() => setStatus([cur.id], 'ready')}>Duyệt — Sẵn sàng</button>}
         {cur.status !== 'retired' && <button onClick={() => setStatus([cur.id], 'retired')}>Ngừng dùng</button>}
-        {cur.created_by === me && <button className="danger" onClick={async () => { if (await remove(cur)) setOpen(null) }}>Xoá</button>}
+        {cur.created_by === me && <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={async () => { if (await remove(cur)) setOpen(null) }}><Icon n="trash" size={17} /></button>}
       </>}>
       {note}
       <section className="panel">

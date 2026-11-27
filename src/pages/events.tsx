@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { downloadXlsx } from '../lib/sheet'
 import { Tabs } from './teacher/common'
+import { Icon } from '../components/Icon'
 
 // Sự kiện STEM (migration 050): đơn vị tổ chức (trường / Sở / KDI) tạo – công bố – nhận đăng ký – điểm danh;
 // học sinh, giáo viên, phụ huynh xem và đăng ký.
@@ -109,7 +110,7 @@ export function EventManager({ orgId }: { orgId: string | null }) {
             <td>{e.registration ? `${counts[e.id] ?? 0}${e.capacity ? '/' + e.capacity : ''}` : <small className="sub">không cần</small>}</td>
             <td><span className={'plbadge ' + ST[e.status][1]}>{ST[e.status][0]}</span></td>
             <td className="nowrap">{e.registration && <button onClick={() => setOpen(open === e.id ? null : e.id)}>{open === e.id ? 'Đóng' : 'Đăng ký'}</button>}
-              {mine(e) && e.status !== 'cancelled' && <> <button onClick={() => setForm(e)}>Sửa</button></>}
+              {mine(e) && e.status !== 'cancelled' && <> <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setForm(e)}><Icon n="pencil" size={17} /></button></>}
               {mine(e) && e.status === 'draft' && <> <button className="primary" onClick={() => setStatus(e, 'published')}>Công bố</button></>}
               {mine(e) && e.status !== 'cancelled' && <> <button onClick={() => setStatus(e, 'cancelled')}>Huỷ</button></>}</td></tr>,
           open === e.id && <tr key={e.id + 'r'}><td colSpan={6}>

@@ -19,6 +19,7 @@ import { gradeName } from '../lib/eduLevels'
 import { Drawer } from '../components/Drawer'
 import { TopicContents } from './topicContents'
 import type { ProgramTopic } from '../lib/programFrame'
+import { Icon } from '../components/Icon'
 
 // Phân phối chương trình theo từng tiết + tiến độ dạy (migration 057; 058: học kỳ, liên kết chương trình chuẩn,
 // gán lớp, gửi duyệt / công bố, nhật ký điều chỉnh, nội dung chưa hoàn thành, yêu cầu cần đạt, minh chứng).
@@ -524,7 +525,7 @@ export function LessonEditor({ book, canEdit, mode, actions, onClose, onChanged 
                   {l.week != null && weekStart.size > 0 && !weekStart.has(l.week) && <span style={{ color: "#a8650c" }} title="Tuần này ngoài lịch tuần học của năm học" aria-label="Ngoài lịch tuần học"> ⚠</span>}</td><td>{l.title}</td>
                 {hasUnits && <td><small>{unitLabel(l.unit_id)}</small></td>}
                 <td>{l.kind !== 'lesson' ? <span className={'gpill ' + KIND_PILL[l.kind]}>{KIND[l.kind]}</span> : <small>{KIND.lesson}</small>}</td>
-                <td><small>{lessonTopic(l)}</small>{l.program_topic_id && ptopics.has(l.program_topic_id) && <> <button type="button" className="linkbtn" onClick={() => setMatTopic(ptopics.get(l.program_topic_id!)!)}>Học liệu ›</button></>}</td><td><small>{l.note}</small></td>{canEdit && <td className="tools" style={{ whiteSpace: 'nowrap' }}><button type="button" data-rowopen onClick={() => setEdit(l)}>Sửa</button><button type="button" className="danger" onClick={() => del(l)}>Xoá</button></td>}
+                <td><small>{lessonTopic(l)}</small>{l.program_topic_id && ptopics.has(l.program_topic_id) && <> <button type="button" className="linkbtn" onClick={() => setMatTopic(ptopics.get(l.program_topic_id!)!)}>Học liệu ›</button></>}</td><td><small>{l.note}</small></td>{canEdit && <td className="tools" style={{ whiteSpace: 'nowrap' }}><button aria-label="Sửa" title="Sửa" className="abtn iconbtn" type="button" data-rowopen onClick={() => setEdit(l)}><Icon n="pencil" size={17} /></button><button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => del(l)}><Icon n="trash" size={17} /></button></td>}
               </tr>
             ))}
             {edit && !edit.id && formRow}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { StepTrail, StatusPill, useLatestRequests, fmt, approvalError } from './common'
+import { Icon } from '../../components/Icon'
 
 type Order = { id: string; name: string; tier: string; programs: string | null; grades: string | null; quantity: number; budget: number | null; note: string | null; status: string; created_at: string
   catalog_package_id?: string | null; fulfillment?: string | null; kdi_note?: string | null; quoted_value?: number | null; delivered_at?: string | null }
@@ -98,7 +99,7 @@ export function PackageOrders({ orgId }: { orgId: string | null }) {
               )}
               <div className="actions">
                 {(o.status === 'draft' || o.status === 'rejected') && <button className="primary" onClick={() => submit(o)}>{o.status === 'rejected' ? 'Gửi duyệt lại' : 'Gửi duyệt'}</button>}
-                {(o.status === 'draft' || o.status === 'rejected') && <button onClick={() => remove(o)}>Xoá</button>}
+                {(o.status === 'draft' || o.status === 'rejected') && <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => remove(o)}><Icon n="trash" size={17} /></button>}
               </div>
             </article>
           )

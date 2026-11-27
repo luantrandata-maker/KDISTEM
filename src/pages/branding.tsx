@@ -155,7 +155,7 @@ export function BrandingPage({ orgId, platform = false }: { orgId: string | null
           <td><span style={{ display: 'inline-flex', gap: 3 }}>{[r.primary_color, r.sidebar_color, r.accent_color].map((c, i) => <i key={i} title={c ?? 'mặc định'} style={{ width: 16, height: 16, borderRadius: 4, background: c ?? '#e0e5eb', display: 'inline-block', border: '1px solid #0001' }} />)}</span></td>
           <td><small>{r.domains.join(', ') || '—'}</small></td>
           <td><small>{r.applies_to_children ? 'Gồm đơn vị trực thuộc' : 'Chỉ đơn vị này'}{r.self_edit ? ' · tự sửa' : ''}</small></td>
-          <td className="nowrap"><button onClick={() => setSel(r)}>Sửa</button> <button onClick={() => remove(r)}>Xoá</button></td></tr>)}
+          <td className="nowrap"><button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setSel(r)}><Icon n="pencil" size={17} /></button> <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => remove(r)}><Icon n="trash" size={17} /></button></td></tr>)}
           {!rows.length && <tr><td colSpan={7}>Chưa có khách hàng nào dùng giao diện riêng.</td></tr>}</tbody>
       </table></div>
     </>

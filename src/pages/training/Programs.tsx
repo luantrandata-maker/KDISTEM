@@ -316,7 +316,7 @@ function TForm({ f, set, x, setX, isNew, edit, scopeEdit, family, owner, busy, n
         <div className="pfsidebtn">
           {canSave && <button className="primary" type="submit" disabled={busy || !f.title.trim() || !!bad}>{busy ? 'Đang lưu…' : isNew ? 'Tạo bản nháp' : 'Lưu thay đổi'}</button>}
           <button type="button" onClick={onCancel}>Huỷ</button>
-          {onDelete && <button type="button" className="danger" onClick={onDelete} title="Xoá bản nháp">Xoá</button>}
+          {onDelete && <button aria-label="Xoá" type="button" className="abtn abdanger iconbtn" onClick={onDelete} title="Xoá bản nháp"><Icon n="trash" size={17} /></button>}
         </div>
       </div>
     </aside>

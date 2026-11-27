@@ -1,7 +1,7 @@
 import { RowMenu } from '../../components/ProTools'
 // Học liệu theo chương trình đào tạo: giống Học liệu theo chương trình giáo dục.
 // Chương trình đào tạo → các môn (thu gọn được) với nội dung và bài giảng (training_lessons, bộ 5 thẻ) ngay bên dưới;
-// mỗi dòng có + Thêm nội dung / Sửa nội dung / Xóa.
+// mỗi dòng có + Thêm nội dung / Sửa nội dung / Xoá.
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { DetailHead } from '../../components/DetailHead'
 import { supabase, fetchAll } from '../../lib/supabase'
@@ -76,13 +76,13 @@ export function TrainingByProgram({ orgId, tools }: { orgId: string; tools?: Rea
   const unitOf = (p: string, label: string) => subjectsOfP(p).flatMap(s => contentsOf(s.id)).find(c => labelOf(c) === label)?.id ?? null
   const refs: ProgRef[] = (progs ?? []).map(p => ({ id: p.id, code: p.code, title: p.title, ct_code: p.ct_code }))
 
-  // Xóa bài giảng (không xóa nội dung trong chương trình); quyền do CSDL kiểm tra
+  // Xoá bài giảng (không xoá nội dung trong chương trình); quyền do CSDL kiểm tra
   async function removeLesson(l: TLesson) {
-    if (!confirm(`Xóa bài giảng “${l.title}”? Nội dung trong chương trình đào tạo vẫn giữ nguyên.`)) return
+    if (!confirm(`Xoá bài giảng “${l.title}”? Nội dung trong chương trình đào tạo vẫn giữ nguyên.`)) return
     const { data, error } = await supabase.from('training_lessons').delete().eq('id', l.id).select('id')
     if (error) setMsg(errMsg(error.message))
-    else if (!data?.length) setMsg('Bạn không có quyền xóa bài giảng này.')
-    else { setMsg(`Đã xóa “${l.title}”.`); reload() }
+    else if (!data?.length) setMsg('Bạn không có quyền xoá bài giảng này.')
+    else { setMsg(`Đã xoá “${l.title}”.`); reload() }
   }
 
   if (!progs) return <p className="sub">Đang tải…</p>
@@ -136,7 +136,7 @@ export function TrainingByProgram({ orgId, tools }: { orgId: string; tools?: Rea
               <td>{r.l ? <span className={'distchip2 ' + (LST[r.l.status]?.[1] ?? '')}>{LST[r.l.status]?.[0] ?? r.l.status}</span>
                 : <button type="button" className="linkbtn" onClick={() => { setMsg(''); setCreate({ unit: r.unit }) }}>+ Thêm nội dung</button>}</td>
               <td className="c-menu">{r.l && <RowMenu label={r.l.title} items={[{ label: 'Sửa nội dung', onClick: () => { setMsg(''); setOpen({ id: r.l!.id, edit: true }) } },
-                { label: 'Xóa', danger: true, onClick: () => removeLesson(r.l!) }]} />}</td>
+                { label: 'Xoá', danger: true, onClick: () => removeLesson(r.l!) }]} />}</td>
             </tr>
           })}</tbody></table></div>)}
       </div>

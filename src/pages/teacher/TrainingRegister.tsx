@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
 import { NoTeacher, type TProps } from './common'
+import { Icon } from '../../components/Icon'
 
 type Row = { plan_id: string; plan_code: string | null; name: string; org_name: string | null; year_name: string | null; starts_on: string | null; ends_on: string | null
   mode: string; provider: string | null; register_until: string | null; programs: string | null; hours: number | null; quota: number | null; taken: number
@@ -88,7 +89,7 @@ export function TeacherTrainingRegister({ teacherId }: TProps) {
           <td><Chip tone={tone}>{st}</Chip>{!r.enrolled && !r.reg_status && r.register_approval === false && <><br /><small className="sub">Không cần duyệt</small></>}{r.reg_status === 'rejected' && r.reg_reason && !r.enrolled && <><br /><small className="sub">Lý do: {r.reg_reason}</small></>}</td>
           <td style={{ whiteSpace: 'nowrap' }}>
             {can && !waiting(r) && <button type="button" className="primary" onClick={() => { setOk(''); setOpen(r.plan_id) }}>{r.reg_status ? 'Đăng ký lại' : 'Đăng ký'}</button>}
-            {can && waiting(r) && <><button type="button" onClick={() => { setOk(''); setOpen(r.plan_id) }}>Sửa</button> <button type="button" onClick={() => cancel(r)}>Huỷ</button></>}
+            {can && waiting(r) && <><button aria-label="Sửa" title="Sửa" className="abtn iconbtn" type="button" onClick={() => { setOk(''); setOpen(r.plan_id) }}><Icon n="pencil" size={17} /></button> <button type="button" onClick={() => cancel(r)}>Huỷ</button></>}
             {!can && !r.enrolled && <small className="sub">{r.list_status === 'submitted' || r.list_status === 'approved' ? 'Trường đã gửi danh sách' : 'Hết hạn đăng ký'}</small>}
           </td>
         </tr> })}

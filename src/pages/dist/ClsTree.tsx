@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabase'
 import { useHiddenBtn } from '../../components/PageButtons'
 import { Drawer } from '../../components/Drawer'
 import { useCls, type ClsLevel, type ClsNode, type ClsScope } from './cls'
+import { Icon } from '../../components/Icon'
 
 const errText = (m: string) => (/schema cache|does not exist/i.test(m) ? 'Hãy chạy migration mới nhất trên Supabase.' : m)
 const clsErr = (m: string, mig: string) => /row-level|42501|permission/i.test(m) ? 'Chỉ quản trị nền tảng KDI sửa được khung phân loại.'
@@ -62,8 +63,8 @@ export function ClsConfig({ cls, used, onMsg }: { cls: Cls; used: (levelId: stri
           <button type="button" aria-label="Chuyển xuống" disabled={i === lv.length - 1 || has} title={has ? 'Cấp đã có mục trong cây' : undefined} onClick={() => move(i, 1)}>↓</button>
           <button type="button" disabled={locked(l)} title={locked(l) ? need : undefined}
             onClick={() => run(supabase.from(T).update({ active: !l.active }).eq('id', l.id))}>{l.active ? 'Tắt cấp' : 'Bật cấp'}</button>
-          <button type="button" disabled={locked(l) || has} title={locked(l) ? need : has ? 'Cấp đã có mục trong cây' : undefined}
-            onClick={() => confirm(`Xoá cấp “${l.name}”?`) && run(supabase.from(T).delete().eq('id', l.id), `Đã xoá cấp “${l.name}”.`)}>Xóa</button>
+          <button aria-label="Xoá" className="abtn abdanger iconbtn" type="button" disabled={locked(l) || has} title={locked(l) ? need : has ? 'Cấp đã có mục trong cây' : undefined}
+            onClick={() => confirm(`Xoá cấp “${l.name}”?`) && run(supabase.from(T).delete().eq('id', l.id), `Đã xoá cấp “${l.name}”.`)}><Icon n="trash" size={17} /></button>
         </li>
       })}</ol>
       <div className="distclsadd">
@@ -72,7 +73,7 @@ export function ClsConfig({ cls, used, onMsg }: { cls: Cls; used: (levelId: stri
           {lv.slice(0, -1).map(l => <option key={l.id} value={l.id}>Sau {l.name}</option>)}</select>
         {!hid('tier') && <button type="button" className="primary" disabled={!name.trim()} onClick={add}>+ Thêm cấp</button>}
       </div>
-      <p className="sub" style={{ margin: 0 }}>Tên cấp và việc tắt/bật đổi được bất cứ lúc nào. Đổi thứ tự hoặc xóa cấp chỉ làm được khi cấp đó chưa có mục trong cây. {NOUN[cls.scope]} chỉ gắn vào mục ở cấp cuối đang bật.</p>
+      <p className="sub" style={{ margin: 0 }}>Tên cấp và việc tắt/bật đổi được bất cứ lúc nào. Đổi thứ tự hoặc xoá cấp chỉ làm được khi cấp đó chưa có mục trong cây. {NOUN[cls.scope]} chỉ gắn vào mục ở cấp cuối đang bật.</p>
     </>}
   </div>
 }
@@ -201,7 +202,7 @@ export function ClsTree<T extends { id: string; node_id: string | null }>({ scop
             <span className="tools">
               {nx && <button type="button" onClick={() => setForm({ mode: 'add', level: nx, parent: sel, name: '' })}>+ Thêm {nx.name.toLowerCase()}</button>}
               <button type="button" onClick={() => setForm({ mode: 'rename', node: sel, level: lvOf(sel), name: sel.name })}>Đổi tên</button>
-              <button type="button" onClick={() => remove(sel)}>Xóa</button></span></div>}
+              <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" type="button" onClick={() => remove(sel)}><Icon n="trash" size={17} /></button></span></div>}
         </nav>
         <div className="panel">
           <div className="bar">

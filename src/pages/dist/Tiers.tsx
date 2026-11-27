@@ -4,6 +4,7 @@ import { DataTable, type Col } from '../../components/DataTable'
 import { supabase } from '../../lib/supabase'
 import { NameLink } from '../../components/TableSel'
 import { ElView } from '../../components/ElView'
+import { Icon } from '../../components/Icon'
 
 // Danh mục mức độ của bản phân phối (078): Cơ bản, Tiêu chuẩn, Nâng cao… KDI thêm / đổi tên / ngừng dùng; đơn vị khác chỉ xem.
 export type Tier = { code: string; name: string; sort: number; active: boolean }
@@ -72,7 +73,7 @@ export function DistTiersCatalog() {
           <label className="field"><span>Thứ tự</span><input type="number" min={0} value={form.sort} onChange={e => setForm({ ...form, sort: Number(e.target.value) })} /></label>
           <div className="formactions tools"><button className="primary" type="submit">{form.isNew ? 'Thêm' : 'Lưu'}</button> <button type="button" onClick={() => setForm(null)}>Huỷ</button>
             {!form.isNew && <><button type="button" onClick={() => setActive(form, !form.active)}>{form.active ? 'Ngừng dùng' : 'Dùng lại'}</button>
-              <button type="button" className="danger" onClick={() => remove(form)}>Xoá</button></>}</div>
+              <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => remove(form)}><Icon n="trash" size={17} /></button></>}</div>
         </form>
     </ElView>
   )

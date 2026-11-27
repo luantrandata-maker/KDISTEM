@@ -7,7 +7,7 @@ import { supabase } from '../../lib/supabase'
 import { asLesson, lessonStats, BlockView, LessonShow, type ILesson } from '../../lib/lessonBlocks'
 import { useMyClasses, PROGRAM_COLOR } from '../teacher/common'
 import { isStem } from '../../lib/rooms'
-import { fmtGrades, progGrades, unitGradesOf } from '../../lib/eduLevels'
+import { activeGrades, fmtGrades, gradeName, progGrades, unitGradesOf } from '../../lib/eduLevels'
 
 type Props = { orgId: string | null; teacherId?: string | null; go?: (p: string) => void }
 type Prog = { id: string; code: string | null; title: string; ct_code: string | null; level: string; grade_from: number; grade_to: number; grades?: number[]; main_subject: string; integrated_subjects: string[]; objectives: string | null }
@@ -102,7 +102,7 @@ export function LibraryPrograms({ teacherId, go }: Props) {
       <div className="bar" style={{ margin: '0 0 12px' }}>
         <input className="search" style={{ margin: 0, flex: 1 }} placeholder="Tìm chương trình theo tên, khối, môn…" value={q} onChange={e => setQ(e.target.value)} aria-label="Tìm chương trình" />
         <div className="tools">
-          <select value={g} onChange={e => setG(e.target.value)} aria-label="Khối"><option value="">Tất cả khối</option>{Array.from({ length: 12 }, (_, i) => i + 1).map(x => <option key={x} value={x}>Khối {x}</option>)}</select>
+          <select value={g} onChange={e => setG(e.target.value)} aria-label="Khối"><option value="">Tất cả khối</option>{activeGrades().map(x => <option key={x} value={x}>{gradeName(x)}</option>)}</select>
           <select value={subj} onChange={e => setSubj(e.target.value)} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
         </div>
       </div>

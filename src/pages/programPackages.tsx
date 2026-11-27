@@ -386,7 +386,8 @@ function PackageDetail({ pkg, color, onEdit, others, tracks, admin, items, modul
     const cols = ts.map(t => ({ t, slots: t.use_modules === false ? [0] : slotsOf(t.code, [pkg.id]), has: mine.some(i => i.track_code === t.code) }))
     const lvls = LEVELS.map(l => ({ ...l, gs: allGrades.filter(g => (l.grades as readonly number[]).includes(g)) })).filter(l => l.gs.length)
     if (!allGrades.length) return <p className="sub">Gói chưa có học phần ở khối đang lọc.</p>
-    return <div className="panel pkgpb" style={{ padding: 0, overflowX: 'auto' }}><table>
+    // Như So sánh: hàng tiêu đề gói + bộ lọc đứng yên, bảng vừa màn hình và cuộn bên trong, tiêu đề cột đứng yên
+    return <PkgCmpBox className="pkgpb" scroll={false}><table>
       <thead><tr><th rowSpan={2}>Cấp</th><th rowSpan={2}>Khối / lớp</th>
         {cols.map(c => <th key={c.t.code} colSpan={c.slots.length} style={{ borderTop: `3px solid ${PROGRAM_COLOR[c.t.code] ?? 'var(--line)'}` }}>{chip(c.t.code)} {c.t.name}</th>)}</tr>
         <tr>{cols.flatMap(c => c.slots.map(sl => <th key={c.t.code + sl}>{sl === 0 ? 'Số chủ đề' : 'Học phần ' + sl}</th>))}</tr></thead>
@@ -404,7 +405,7 @@ function PackageDetail({ pkg, color, onEdit, others, tracks, admin, items, modul
             onClick={() => { setGsel(null); setOpenTopic(null); setSel(on ? null : { t: c.t.code, g, sl }) }}
             onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenTopic(null); setSel(on ? null : { t: c.t.code, g, sl }) } }}>
             {sl === 0 ? <><b>{nTopics(list)}</b> <small className="sub">chủ đề</small></> : mod(list[0].module_id)?.name ?? '?'}</td>
-        }))}</tr>))}</tbody></table></div>
+        }))}</tr>))}</tbody></table></PkgCmpBox>
   }
   return <>
     <section className="pkgdet" style={{ '--c': color } as React.CSSProperties} aria-label={'Chi tiết ' + pkg.name}>
@@ -603,13 +604,14 @@ function LevelFilter({ tree, extra }: { tree: React.ReactNode; extra?: React.Rea
 }
 
 // So sánh dưới thẻ gói: cả khung vừa một màn hình dưới hàng tab và đứng yên; chỉ bảng cuộn bên trong (tiêu đề cột đứng yên), cuộn bảng không kéo trang
-function PkgCmpBox({ className, children }: { className?: string; children: React.ReactNode }) {
+function PkgCmpBox({ className, children, scroll = true }: { className?: string; children: React.ReactNode; scroll?: boolean }) {
   const ref = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
     const fit = () => {
       const box = ref.current; if (!box) return
       const head = box.closest('main')?.querySelector(':scope > .pframe > .pfhead') as HTMLElement | null
-      const filt = box.closest('.pkgdet')?.querySelector('.lvfilter') as HTMLElement | null
+      // Thanh lọc đứng yên khi cuộn: thanh lọc của So sánh, hoặc hàng tiêu đề + bộ lọc của chi tiết gói
+      const filt = box.closest('.pkgdet')?.querySelector('.lvfilter, .pkgdet-h') as HTMLElement | null
       const top = head ? head.getBoundingClientRect().height : 0
       if (filt) { filt.classList.add('pkgcmpfilt'); filt.style.top = top + 'px' }
       // Cả khung (viền, thanh lọc, bảng) vừa đúng phần màn hình dưới hàng tab: cuộn hết trang là khung nằm trọn, không bị che
@@ -624,6 +626,7 @@ function PkgCmpBox({ className, children }: { className?: string; children: Reac
   })
   // Mở so sánh: cuộn trang để cả khung nằm ngay dưới hàng tab
   useEffect(() => {
+    if (!scroll) return
     const box = ref.current; const sec = box?.closest('.pkgdet') as HTMLElement | null; if (!box || !sec) return
     const head = box.closest('main')?.querySelector(':scope > .pframe > .pfhead') as HTMLElement | null
     const top = head ? head.getBoundingClientRect().height : 0
@@ -679,10 +682,12 @@ function CompareView({ tracks, packages: allPkgs, items, topics, skips, modName,
   const printCmp = () => { document.body.classList.add('cmpprinting'); window.print(); setTimeout(() => document.body.classList.remove('cmpprinting'), 500) }
   return <>
     {filter(<>
-      <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện điểm khác nhau</label>
-      <span className="lvlab">Gói</span>
-      <div style={{ flex: '0 0 220px', width: 220 }}><MultiSelect compact value={pick} onChange={setPick} options={allPkgs.map(p => [p.id, p.name] as [string, string])}
-        placeholder="Tất cả gói" ariaLabel="Chọn gói để so sánh" /></div>
+      {/* Ô tick đứng đầu thanh lọc; ô chọn Gói gọn như Cấp / Khối, đứng ngay sau */}
+      <label className="field inline" style={{ order: -1 }}><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện điểm khác nhau</label>
+      <span className="lvgrp"><span className="lvlab">Gói</span><ColFilter pin label={pick.length ? packages.map(p => p.name).join(', ') : 'Tất cả'}
+        value={allPkgs.filter(p => pick.includes(p.id)).map(p => p.name)}
+        options={allPkgs.map(p => [p.name, new Set(items.filter(i => i.package_id === p.id).map(i => i.grade)).size] as [string, number])}
+        onChange={v => setPick(allPkgs.filter(p => v.includes(p.name)).map(p => p.id))} /></span>
       {(by === 'mod' ? rsMod : rsK2).fitBtn}
       <button type="button" onClick={printCmp}>In / Xuất PDF</button>
     </>)}

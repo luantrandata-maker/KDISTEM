@@ -4348,9 +4348,12 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .main .pfbody .subtabsrow>.segmented[role=tablist]{width:auto;flex:1;min-width:0;border-bottom:0;margin:0}
 .subtabsrow>.subact{display:flex;align-items:center;gap:6px;margin-left:auto}
 .subtabsrow>.subact:empty{display:none}
-.main .pfbody .subtabsrow:has(+ .tt){margin-bottom:4px}
+.main .pfbody .subtabsrow:is(:has(+ .tt),:has(+ [hidden] + .tt)){margin-bottom:4px}
 .pfbody:has(.pdsub) .subtabsrow{display:none}
 .main .subact button.primary.ttadd{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:600;padding:5px 12px}
+/* Nút "+ Thêm …" ở hàng tab con của Danh mục: cùng cỡ với nút "+ Thêm gói" ở hàng tab trên */
+.main .subact button{height:34px;min-height:0;padding:0 12px;font-size:calc(13.5px * var(--fz,1));border-radius:8px;display:inline-flex;align-items:center;justify-content:center;gap:6px;line-height:1;box-sizing:border-box}
+.main .subact button.primary.ttadd{padding:0 12px}
 /* Thanh công cụ có ô lọc Tỉnh / trường và nút Thẻ | Danh sách: ô tìm hẹp lại để cả thanh nằm trên một dòng */
 .main .ttprotools:has(>.ttleft):has(>.viewtoggle)>.tsrch{flex:0 1 300px;min-width:200px}
 /* Bảng trong khung vừa màn hình (FitScreen): chỉ khung cuộn, bảng bên trong không cuộn riêng (tránh hai thanh kéo, VD Danh mục › Môn học) */

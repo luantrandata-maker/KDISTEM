@@ -8,6 +8,7 @@ import { Drawer } from '../../components/Drawer'
 import { TopicContents, TOPIC_KINDS } from '../topicContents'
 import { itemCols, ItemDrawer, type Kind, type Row as Item } from './Catalog'
 import { DataTable, type Col } from '../../components/DataTable'
+import { TreeHead } from '../../components/TreeHead'
 
 // Học liệu theo chương trình (khung mới, thay tab cũ theo Chương trình giáo dục): Loại CT › Khối › Học phần → chủ đề,
 // mỗi chủ đề có 6 nội dung (164–165). Cột cho biết chủ đề đã có kế hoạch giảng dạy, bài giảng chưa và số phiếu, bài kiểm tra, vật tư, học liệu.
@@ -100,6 +101,7 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
   // 6 cột nội dung cùng một kiểu: có thì ✓ xanh (rê chuột xem số lượng), chưa có thì "—" xám, canh giữa
   const n = (v: number) => v ? <span className="cnum cyes" title={`${v} mục`}>✓</span> : <span className="cnum cnone" title="Chưa có">—</span>
 
+  const tiet = (l: ProgramTopic[]) => l.reduce((x, t) => x + (t.periods || 0), 0)
   // Cây: Loại CT › Khối › Học phần (chỉ những nhánh có chủ đề; loại CT không dùng học phần thì dừng ở Khối)
   const tracksSorted = [...tracks].sort((a, b) => a.code.localeCompare(b.code, 'vi', { numeric: true }))
   const tree = tracksSorted.filter(tr => usable.some(t => modOf.get(t.module_id)?.track_code === tr.code)).map(tr => {
@@ -107,19 +109,21 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
     const gs = [...new Set(inTr.map(t => t.grade))].sort((a, b) => a - b)
     return { tr, n: inTr.length, gs: gs.map(g => {
       const inG = inTr.filter(t => t.grade === g)
-      return { g, n: inG.length, mods: modules.filter(m => inG.some(t => t.module_id === m.id)).map(m => ({ m, n: inG.filter(t => t.module_id === m.id).length })) }
-    }) }
+      const mods = modules.filter(m => inG.some(t => t.module_id === m.id)).map(m => { const x = inG.filter(t => t.module_id === m.id); return { m, n: x.length, ti: tiet(x) } })
+      return { g, n: inG.length, ti: tiet(inG), mods }
+    }), ti: tiet(inTr), nMod: new Set(inTr.map(t => t.module_id)).size }
   })
   // Nhánh mở khi bấm ▸ hoặc khi đang chọn mục bên trong
   const isOpen = (key: string, inside: boolean) => fold[key] ?? inside
-  const node = (key: string, label: ReactNode, count: number, caret: 'none' | 'open' | 'shut' | 'leaf') =>
+  const node = (key: string, label: ReactNode, count: number, caret: 'none' | 'open' | 'shut' | 'leaf', sub?: string) =>
     <div key={key} className="gtrow">
       {caret === 'none' ? null : caret === 'leaf' ? <span className="gtcaret" aria-hidden /> :
         <button type="button" className="gtcaret" aria-expanded={caret === 'open'} aria-label={caret === 'open' ? 'Thu gọn' : 'Mở'}
           onClick={() => setFold({ ...fold, [key]: caret !== 'open' })}>{caret === 'open' ? '▾' : '▸'}</button>}
       <button type="button" className={'gtitem' + (sel === key ? ' on' : '')} aria-pressed={sel === key}
-        onClick={() => { setSel(key); if (caret === 'shut') setFold({ ...fold, [key]: true }) }}>
-        <span className="gtlbl">{label}</span><span className="gtcnt">{count}</span></button></div>
+        title={sel === key ? 'Bấm lần nữa để bỏ chọn (xem tất cả)' : `${count} chủ đề`}
+        onClick={() => { setSel(sel === key ? '' : key); if (caret === 'shut') setFold({ ...fold, [key]: true }) }}>
+        <span className="gtlbl">{label}{sub && <small className="gtsubl">{sub}</small>}</span><span className="gtcnt">{count}</span></button></div>
   const [sk, sa, sb] = sel.split(':')
   const selMod = sk === 'g' ? sa : ''
   const selTr = sk === 't' || sk === 'k' ? sa : selMod ? modOf.get(selMod)?.track_code : ''
@@ -167,16 +171,17 @@ export function LibraryByPackage({ orgId }: { orgId: string | null }) {
       left={<span className="fwcap"><b>{crumb}</b>{allowed ? <span className="sub"> · theo gói trường đang dùng</span> : null}</span>}
       empty={<span className="sub">{!loaded ? 'Đang tải…' : allowed && !allowed.size ? 'Trường chưa được gán Gói STEM cho năm học hiện tại.' : 'Không có chủ đề phù hợp.'}</span>}
       aside={<nav className="gtree" aria-label="Loại CT › Khối › Học phần">
-        {node('', 'Tất cả', usable.length, 'none')}
-        {tree.map(({ tr, n: tn, gs }) => { const tk = 't:' + tr.code, to = isOpen(tk, selTr === tr.code && sel !== tk), withMod = tr.use_modules !== false
+        <TreeHead title="Loại CT › Khối › Học phần">Số = số chủ đề, dòng nhỏ = tổng số tiết.<br />Bấm tên: lọc bảng và mở; bấm lần nữa: bỏ chọn.<br />Bấm ▸: chỉ mở / đóng.</TreeHead>
+        <div className="gtcolhead">Số chủ đề</div>
+        {tree.map(({ tr, n: tn, gs, ti, nMod }) => { const tk = 't:' + tr.code, to = isOpen(tk, selTr === tr.code && sel !== tk), withMod = tr.use_modules !== false
           return <div key={tr.code} className="gtlv">
-            {node(tk, <>{chip(tr.code)} {tr.name}</>, tn, to ? 'open' : 'shut')}
-            {to && <div className="gtsub">{gs.map(({ g, n: gn, mods }) => {
+            {node(tk, <>{chip(tr.code)} {tr.name}</>, tn, to ? 'open' : 'shut', withMod ? `${nMod} học phần · ${ti} tiết` : `chỉ có chủ đề · ${ti} tiết`)}
+            {to && <div className="gtsub">{gs.map(({ g, n: gn, mods, ti: gt }) => {
               const gk = `k:${tr.code}:${g}`
-              if (!withMod) return node(gk, gradeName(g), gn, 'leaf')
+              if (!withMod) return node(gk, gradeName(g), gn, 'leaf', `${gt} tiết`)
               const go = isOpen(gk, selTr === tr.code && selGrade === g && sel !== gk)
-              return <div key={gk} className="gtlv">{node(gk, gradeName(g), gn, go ? 'open' : 'shut')}
-                {go && <div className="gtsub">{mods.map(({ m, n: mn }) => node(`g:${m.id}:${g}`, m.name, mn, 'leaf'))}</div>}</div>
+              return <div key={gk} className="gtlv">{node(gk, gradeName(g), gn, go ? 'open' : 'shut', `${mods.length} học phần · ${gt} tiết`)}
+                {go && <div className="gtsub">{mods.map(({ m, n: mn, ti: mt }) => node(`g:${m.id}:${g}`, m.name, mn, 'leaf', `${mt} tiết`))}</div>}</div>
             })}</div>}
           </div> })}
       </nav>} /></div>

@@ -4334,3 +4334,13 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 /* Học liệu gộp: hàng nút Theo chủ đề | các loại học liệu */
 .main .distpills.libmode{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 12px}
 .main .libmodesep{width:1px;height:22px;background:var(--line);margin:0 4px}
+/* Hàng tab con có nút "+ Thêm …" ở cuối dòng (Danh mục của Chương trình giáo dục) */
+.subtabsrow{display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--line);margin:0 0 14px}
+.main .pfbody .subtabsrow>.segmented[role=tablist]{width:auto;flex:1;min-width:0;border-bottom:0;margin:0}
+.subtabsrow>.subact{display:flex;align-items:center;gap:6px;margin-left:auto}
+.subtabsrow>.subact:empty{display:none}
+.main .pfbody .subtabsrow:has(+ .tt){margin-bottom:4px}
+.pfbody:has(.pdsub) .subtabsrow{display:none}
+.main .subact button.primary.ttadd{background:var(--primary);border-color:var(--primary);color:#fff;font-weight:600;padding:5px 12px}
+/* Thanh công cụ có ô lọc Tỉnh / trường và nút Thẻ | Danh sách: ô tìm hẹp lại để cả thanh nằm trên một dòng */
+.main .ttprotools:has(>.ttleft):has(>.viewtoggle)>.tsrch{flex:0 1 300px;min-width:200px}

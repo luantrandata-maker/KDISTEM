@@ -1,3 +1,4 @@
+import { HeadAction } from '../components/PageFrame'
 import { NameLink } from '../components/TableSel'
 import { DataTable, type Col } from '../components/DataTable'
 import { useEffect, useState } from 'react'
@@ -89,7 +90,7 @@ export function EduLevelsCatalog() {
       ] as Col<(typeof all)[number]>[]}
         empty={<small className="sub">Chưa có cấp học nào.</small>}
         left={<span className="infotip" tabIndex={0} title={`Ô "Cấp học" và "Khối" khi soạn chương trình, môn học, học liệu lấy từ danh mục này.${admin ? ' Thu hẹp khoảng khối chỉ được khi không có chương trình nào nằm ngoài khoảng mới.' : ' Chỉ quản trị nền tảng KDI sửa được.'}`} aria-label="Giải thích">ⓘ Giải thích</span>}
-        right={admin && <button type="button" className="primary" onClick={() => { setMsg(null); setForm({ code: '', name: '', grade_from: 1, grade_to: 5, sort: all.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1, active: true, isNew: true }) }}>+ Thêm cấp học</button>} />
+        right={admin && <HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ code: '', name: '', grade_from: 1, grade_to: 5, sort: all.reduce((m, x) => Math.max(m, x.sort ?? 0), 0) + 1, active: true, isNew: true }) }}>+ Thêm cấp học</button></HeadAction>} />
     </>
   )
 }

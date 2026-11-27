@@ -1,3 +1,4 @@
+import { HeadAction } from '../../components/PageFrame'
 import { useEffect, useState } from 'react'
 import { DataTable, type Col } from '../../components/DataTable'
 import { supabase } from '../../lib/supabase'
@@ -86,7 +87,7 @@ export function DistTiersCatalog() {
       ] as Col<(typeof all)[number]>[]}
         empty={<small className="sub">Chưa có mức độ nào.</small>}
         left={<span className="infotip" tabIndex={0} title={`Mức độ là tầng cuối của khung phân loại bản phân phối (Cấp học › Khối › Mức độ).${admin ? '' : ' Chỉ quản trị nền tảng KDI sửa được.'}`} aria-label="Giải thích">ⓘ Giải thích</span>}
-        right={admin && <button type="button" className="primary" onClick={() => { setMsg(null); setForm({ code: '', name: '', sort: all.reduce((m, x) => Math.max(m, x.sort), 0) + 1, active: true, isNew: true }) }}>+ Thêm mức độ</button>} />
+        right={admin && <HeadAction><button type="button" className="primary ttadd" onClick={() => { setMsg(null); setForm({ code: '', name: '', sort: all.reduce((m, x) => Math.max(m, x.sort), 0) + 1, active: true, isNew: true }) }}>+ Thêm mức độ</button></HeadAction>} />
     </>
   )
 }

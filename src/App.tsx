@@ -208,7 +208,7 @@ const SchoolPackages = lazy(() => import('./pages/schoolPackages').then(m => ({ 
 // const PpctStandard = lazy(() => import('./pages/ppctStandard').then(m => ({ default: m.PpctStandard })))
 // Môn học (danh sách chung các đơn vị) nằm trong Danh mục; PH2_TABS khai báo bên dưới, chỉ đọc khi hiển thị
 const SubjectsAllOrgs = (q: any) => { const S = PH2_TABS.subjects; return <S {...q} /> }
-const ProgramCatalogs = (p: any) => <TabbedPages {...p} tabs={[['Môn học', SubjectsAllOrgs], ['Nhóm vật tư', MaterialGroupsCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog], ['Khung năng lực', StudentFramework]]} />
+const ProgramCatalogs = (p: any) => <TabbedPages {...p} actsInRow tabs={[['Môn học', SubjectsAllOrgs], ['Nhóm vật tư', MaterialGroupsCatalog], ['Cấp học & khối', EduLevelsCatalog], ['Mức độ phân phối', DistTiersCatalog], ['Khung năng lực', StudentFramework]]} />
 const ProgressPlatform = (q: any) => <CurriculumProgress {...q} mode="platform" />
 // Định mức vật tư theo bài / chủ đề, danh mục vật tư, dự trù, đề xuất điều chỉnh (059)
 const MaterialNorms = lazy(() => import('./pages/materialNorms').then(m => ({ default: m.MaterialNorms })))

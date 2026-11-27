@@ -494,8 +494,9 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
   return <div className="cmpcard">
     <div className="lvfilter cmpfilter">
       <div className="lvextra">
-        {grades.length > 1 && <LevelTicks value={gf} onChange={setGf} grades={grades} count={g => base.filter(r => r.g === g).length} />}
+        {/* Ô tick đứng đầu, ngay trước Cấp / Khối */}
         <label className="field inline"><input type="checkbox" checked={only} onChange={e => setOnly(e.target.checked)} /> Chỉ hiện điểm khác nhau</label>
+        {grades.length > 1 && <LevelTicks value={gf} onChange={setGf} grades={grades} count={g => base.filter(r => r.g === g).length} />}
       <span className="lvgrp"><span className="lvlab">Loại CT</span><ColFilter pin label={tf.length ? tf.map(trackLabel).join(', ') : 'Tất cả'} value={tracks.filter(t => tf.includes(t.code)).map(tl)}
         options={tracks.map(t => [tl(t), base.filter(r => r.t.code === t.code).length] as [string, number])}
         onChange={v => setTf(tracks.filter(t => v.includes(tl(t))).map(t => t.code))} /></span>

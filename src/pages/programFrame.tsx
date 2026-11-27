@@ -144,11 +144,11 @@ export function ProgramFrame() {
     </>
   }
 
-  // ----- Danh sách: cây bên trái (Khối · Học phần › Khối · Loại CT › Học phần › Khối), bảng chủ đề bên phải, vừa một màn hình -----
+  // ----- Danh sách: cây bên trái (Khối · Học phần › Khối · Loại CT › Khối › Học phần), bảng chủ đề bên phải, vừa một màn hình -----
   const all = true
   const sel = allSel
   const setSel = (k: string) => setTreeSel({ ...treeSel, '*': k })
-  const selGrade = (() => { const m = /\/(\d+)$/.exec(sel); return m ? Number(m[1]) : null })()
+  const selGrade = (() => { const m = /\/g?(\d+)$/.exec(sel); return m ? Number(m[1]) : null })()
   const selMod = mods.find(m => m.id === sel.split('/')[1])
   const newMod = () => setEditMod({ id: '', track_code: track!.code, name: '', description: '', periods: null, sort: mods.reduce((x, m) => Math.max(x, m.sort), 0) + 1, active: true })
   // Thêm chủ đề: điền sẵn học phần, khối theo mục đang chọn trên cây (chưa chọn học phần thì lấy học phần đầu)
@@ -175,6 +175,11 @@ export function ProgramFrame() {
 type FNode = { key: string; label: React.ReactNode; sub?: string; count: number; dim?: boolean; kids?: FNode[] }
 const keyOfTopic = (t: ProgramTopic, m: ProgramModule | undefined, flat: boolean) => flat ? `${m?.track_code}/${t.grade}` : `${m?.track_code}/${t.module_id}/${t.grade}`
 const under = (k: string, sel: string) => k === sel || k.startsWith(sel + '/')
+/** Chủ đề (khoá k, khối g) có thuộc mục đang chọn không; mục khối của cây Tất cả có dạng `${loại}/g${khối}` */
+const inSel = (k: string, g: number, sel: string) => { const m = /^(.+)\/g(\d+)$/.exec(sel)
+  return m ? k.startsWith(m[1] + '/') && g === Number(m[2]) : under(k, sel) }
+/** Nút cây có chứa mục đang chọn không (để tự mở nhánh) */
+const has = (n: FNode, sel: string): boolean => sel.startsWith(n.key + '/') || !!n.kids?.some(k => k.key === sel || has(k, sel))
 
 /** Khung chương trình dạng cây: trái là cây (đếm số chủ đề, dòng nhỏ là số tiết), phải là bảng chủ đề của mục đang chọn.
  *  Cả khung vừa một màn hình; cây và bảng cuộn riêng bên trong. */
@@ -206,9 +211,17 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpen, actions, 
   const tiet = (l: { t: ProgramTopic }[]) => l.reduce((x, r) => x + (r.t.periods || 0), 0)
   const gradeNodes = (pre: string, l: typeof ts): FNode[] => [...new Set(l.map(r => r.t.grade))].sort((a, b) => a - b).map(g => {
     const x = l.filter(r => r.t.grade === g); return { key: `${pre}/${g}`, label: gradeName(g), sub: `${tiet(x)} tiết`, count: x.length } })
+  // Chế độ Tất cả: Loại CT › Khối › Học phần (giống cây Học liệu); nút khối có khoá `${loại}/g${khối}`, nút học phần trùng khoá chủ đề
+  const gradeModNodes = (tr: StemTrack, l: typeof ts): FNode[] => [...new Set(l.map(r => r.t.grade))].sort((a, b) => a - b).map(g => {
+    const x = l.filter(r => r.t.grade === g)
+    const ms = modules.filter(m => m.track_code === tr.code && x.some(r => r.m.id === m.id)).sort((a, b) => a.sort - b.sort)
+    return { key: `${tr.code}/g${g}`, label: gradeName(g), sub: `${ms.length} học phần · ${tiet(x)} tiết`, count: x.length,
+      kids: ms.map(m => { const y = x.filter(r => r.m.id === m.id); return { key: `${tr.code}/${m.id}/${g}`, label: m.name, sub: `${tiet(y)} tiết`, count: y.length } }) }
+  })
   const trackKids = (tr: StemTrack): FNode[] => {
     const l = ts.filter(r => r.m.track_code === tr.code)
     if (tr.use_modules === false) return gradeNodes(tr.code, l)
+    if (all) return gradeModNodes(tr, l)
     return modules.filter(m => m.track_code === tr.code && m.active !== false).sort((a, b) => a.sort - b.sort).map(m => {
       const x = l.filter(r => r.m.id === m.id), gs = [...new Set(x.map(r => r.t.grade))].sort((a, b) => a - b)
       return { key: `${tr.code}/${m.id}`, label: m.name, sub: x.length ? `${fmtGrades(gs)} · ${tiet(x)} tiết` : 'chưa có chủ đề', count: x.length, dim: !x.length, kids: gradeNodes(`${tr.code}/${m.id}`, x) }
@@ -219,7 +232,7 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpen, actions, 
         return { key: tr.code, label: <>{chip(tr.code)} {tr.name}</>, sub: tr.use_modules === false ? `chỉ có chủ đề · ${tiet(l)} tiết` : `${nm} học phần · ${tiet(l)} tiết`, count: l.length, kids: trackKids(tr) } })
     : tracks[0] ? [{ key: tracks[0].code, label: 'Tất cả', sub: `${tiet(ts)} tiết`, count: ts.length }, ...trackKids(tracks[0])] : []
   const item = (n: FNode, depth: number): React.ReactNode => {
-    const inside = sel !== n.key && sel.startsWith(n.key + '/'), isOpen = open[n.key] ?? inside
+    const inside = sel !== n.key && has(n, sel), isOpen = open[n.key] ?? inside
     const btn = <button type="button" className={'gtitem' + (sel === n.key ? ' on' : '') + (n.dim ? ' gtnone' : '')} aria-pressed={sel === n.key}
       title={`${n.count} chủ đề`} onClick={() => { onSel(n.key); if (n.kids?.length) setOpen({ ...open, [n.key]: true }) }}>
       <span className="gtlbl">{n.label}{n.sub && <small className="gtsubl">{n.sub}</small>}</span><span className="gtcnt" title={`${n.count} chủ đề`}>{n.count}</span></button>
@@ -230,9 +243,9 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpen, actions, 
       {isOpen && <div className="gtsub">{n.kids.map(k => item(k, depth + 1))}</div>}
     </div>
   }
-  // Bảng: chủ đề thuộc mục đang chọn, nhóm theo các cấp nằm dưới mục chọn (Loại CT › Học phần › Khối › HP1/HP2)
-  const order = (r: typeof ts[number]) => [tracks.findIndex(t => t.code === r.m.track_code), r.m.sort, r.t.grade, r.t.part || 3, r.t.seq]
-  const rows = ts.filter(r => under(r.key, sel)).sort((a, b) => { const x = order(a), y = order(b); for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0 })
+  // Bảng: chủ đề thuộc mục đang chọn, nhóm theo các cấp nằm dưới mục chọn (Loại CT › Khối › Học phần › HP1/HP2)
+  const order = (r: typeof ts[number]) => [tracks.findIndex(t => t.code === r.m.track_code), r.t.grade, r.m.sort, r.t.part || 3, r.t.seq]
+  const rows = ts.filter(r => inSel(r.key, r.t.grade, sel)).sort((a, b) => { const x = order(a), y = order(b); for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0 })
   const split = new Set(ts.filter(r => r.t.part).map(r => r.key))
   type R = typeof ts[number]
   const dash = <small className="sub">—</small>
@@ -319,8 +332,8 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpen, actions, 
   return <div className="fwtree"><DataTable id="frame-topics-v5" right={rightTools} pro noFoot rows={rows} rowKey={r => r.t.id} cols={cols} noun="chủ đề" onRow={r => onOpen(r.t)}
     className="slt" rowMenu={rowMenu ? r => rowMenu(r.t) : undefined}
     empty={<span className="sub">Chưa có chủ đề.{actions ? ' Bấm "+ Thêm chủ đề".' : ''}</span>}
-    aside={<nav className="gtree" aria-label={all ? 'Loại CT › Học phần › Khối' : flatTitle(tracks[0])}>
-      <TreeHead title={all ? 'Loại CT › Học phần › Khối' : flatTitle(tracks[0])}>Số = số chủ đề, dòng nhỏ = tổng số tiết.<br />Bấm tên: lọc bảng và mở.<br />Bấm ▸: chỉ mở / đóng.</TreeHead>
+    aside={<nav className="gtree" aria-label={all ? 'Loại CT › Khối › Học phần' : flatTitle(tracks[0])}>
+      <TreeHead title={all ? 'Loại CT › Khối › Học phần' : flatTitle(tracks[0])}>Số = số chủ đề, dòng nhỏ = tổng số tiết.<br />Bấm tên: lọc bảng và mở.<br />Bấm ▸: chỉ mở / đóng.</TreeHead>
       <div className="gtcolhead">Số chủ đề</div>
       {roots.map(n => item(n, 0))}
     </nav>} /></div>

@@ -103,7 +103,7 @@ export default function Packages({ orgId }: { orgId: string }) {
                 <div className="pkgstats"><div><b>{p.topics}</b><small>Chủ đề</small></div><div><b>{devSum[p.id] ?? p.devices}</b><small>Thiết bị</small></div><div><b>{p.sessions}</b><small>Buổi học</small></div></div>
                 <small>{p.order_no ?? p.contract_no ?? '—'}</small><small>{p.starts_on ? fmtDate(p.starts_on) : '…'} → {p.ends_on ? fmtDate(p.ends_on) : '…'}</small>
                 <div className="actions" style={{ flexWrap: 'wrap' }}><button className="primary" onClick={() => setDetail(p.id)}>Chi tiết ›</button><button onClick={() => setAssign(p)}>Gán khối</button>
-                  <button onClick={() => setForm(p)}>Sửa</button><button onClick={() => remove(p)}>Xoá</button></div>
+                  <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setForm(p)}><Icon n="pencil" size={17} /></button><button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => remove(p)}><Icon n="trash" size={17} /></button></div>
               </div>
             </div>)
         })}
@@ -283,7 +283,7 @@ function PackageDetail({ pkg, state, onBack }: { pkg: Pkg; state: string; onBack
                   <td style={{ maxWidth: 220 }}>{d.serials.length ? d.serials.map(s => <span key={s} className="serial">{s}</span>) : '—'}</td>
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>{money(Number(d.unit_price))}</td>
                   <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}><b>{money(d.qty * Number(d.unit_price))}</b></td>
-                  <td style={{ whiteSpace: 'nowrap' }}><button type="button" onClick={() => setDform({ id: d.id, supplier: d.supplier ?? '', name: d.name, spec: d.spec ?? '', unit: d.unit, qty: String(d.qty), unit_price: String(d.unit_price), serials: d.serials.join(', '), image_url: d.image_url ?? '' })}>Sửa</button>
+                  <td style={{ whiteSpace: 'nowrap' }}><button aria-label="Sửa" title="Sửa" className="abtn iconbtn" type="button" onClick={() => setDform({ id: d.id, supplier: d.supplier ?? '', name: d.name, spec: d.spec ?? '', unit: d.unit, qty: String(d.qty), unit_price: String(d.unit_price), serials: d.serials.join(', '), image_url: d.image_url ?? '' })}><Icon n="pencil" size={17} /></button>
                     <button type="button" className="x" onClick={() => delDev(d)} aria-label={`Xoá ${d.name}`}>×</button></td>
                 </tr>)),
             ])}

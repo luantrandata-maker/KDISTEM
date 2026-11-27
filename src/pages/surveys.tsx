@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { downloadXlsx } from '../lib/sheet'
+import { Icon } from '../components/Icon'
 
 // Khảo sát (migration 043). Sở/Phòng, trường, KDI tạo khảo sát; GV/HS/cán bộ trả lời; đơn vị tạo xem kết quả tổng hợp.
 type QType = 'single' | 'multi' | 'scale' | 'text'
@@ -215,7 +216,7 @@ export function SurveyManager() {
             <td>{AUD[s.audience]}</td><td><small>{day(s.opens_at ?? s.created_at)} → {day(s.closes_at)}</small></td>
             <td><span className={'plbadge ' + (s.status === 'open' ? 'ok' : 'mute')}>{STATUS[s.status]}</span></td>
             <td className="nowrap"><button onClick={() => setView(view === s.id ? null : s.id)}>Kết quả</button>{mine(s) && <>
-              {' '}<button onClick={() => { setView(null); setForm(s) }}>Sửa</button>
+              {' '}<button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => { setView(null); setForm(s) }}><Icon n="pencil" size={17} /></button>
               {' '}{s.status === 'open' ? <button onClick={() => setStatus(s, 'closed')}>Đóng</button> : <button onClick={() => setStatus(s, 'open')}>{s.status === 'draft' ? 'Mở' : 'Mở lại'}</button>}
               {' '}<button className="x" onClick={() => remove(s)} aria-label={`Xoá ${s.title}`}>×</button></>}</td></tr>))}
           {!list.length && <tr><td colSpan={5}>Chưa có khảo sát. Bấm "Tạo khảo sát".</td></tr>}</tbody>

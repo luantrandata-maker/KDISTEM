@@ -14,6 +14,7 @@ import { ElView } from '../components/ElView'
 import { DetailHead } from '../components/DetailHead'
 import { ActionBar, type Act } from '../components/ActionBar'
 import { gradeName } from '../lib/eduLevels'
+import { Icon } from '../components/Icon'
 
 // Định mức vật tư (migration 059): danh mục vật tư / công cụ / thiết bị, định mức theo sản phẩm / nhóm / học sinh gắn bài,
 // phiên bản & ban hành, sao chép về trường, dự trù cho lớp so với tồn kho, đề xuất điều chỉnh.
@@ -361,7 +362,7 @@ function NormDetail({ id, orgId, rights, onOpen, onClose, onChanged }: { id: str
           {mine && rights.canWrite && n.status === 'published' && <button onClick={() => act(supabase.rpc('material_norm_new_version', { p_norm: n.id }) as any, 'Đã tạo phiên bản mới (bản nháp).', d => onOpen(d as string))}>Tạo phiên bản mới</button>}
           {mine && rights.canWrite && (n.status === 'published' || n.status === 'superseded') && <button onClick={() => confirm('Lưu trữ định mức này?') && setStatus('archived', 'Đã lưu trữ.')}>Lưu trữ</button>}
           {mine && rights.canWrite && n.status === 'archived' && <button onClick={() => setStatus('draft', 'Đã mở lại thành bản nháp.')}>Mở lại</button>}
-          {editable && <button className="danger" onClick={remove}>Xoá</button>}
+          {editable && <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={remove}><Icon n="trash" size={17} /></button>}
           {!mine && n.status === 'published' && rights.canWrite && <button onClick={() => act(supabase.rpc('material_norm_copy', { p_norm: n.id, p_org: orgId }) as any, 'Đã sao chép về đơn vị.', d => onOpen(d as string))}>Sao chép về đơn vị</button>}
           {!mine && n.status === 'published' && <button onClick={() => setPropose(!propose)}>Đề xuất điều chỉnh</button>}
         </>}>
@@ -420,7 +421,7 @@ function NormDetail({ id, orgId, rights, onOpen, onClose, onChanged }: { id: str
           <tr key={i.id}><td><b>{i.name}</b>{i.reusable && <small className="sub"> · dùng lại</small>}</td><td>{MKIND[i.kind]}</td>
             <td>{editable ? <input key={`${i.id}-${i.qty}`} defaultValue={String(i.qty)} style={{ width: 80 }} aria-label={`Số lượng ${i.name}`} onBlur={e => updQty(i, e.target.value)} /> : num(i.qty)}</td>
             <td>{i.unit}</td><td><small>{i.note}</small></td>
-            {editable && <td><button className="danger" onClick={() => delRow(i)}>Xoá</button></td>}</tr>
+            {editable && <td><button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => delRow(i)}><Icon n="trash" size={17} /></button></td>}</tr>
         ))}
         {items.length === 0 && <tr><td colSpan={6}><small className="sub">Chưa có vật tư nào.</small></td></tr>}</tbody>
       </table></div>

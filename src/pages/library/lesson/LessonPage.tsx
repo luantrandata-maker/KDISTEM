@@ -15,6 +15,7 @@ import { chotCard, errMsg, fileDoc, fullContent, kitSel, kitTable, loadActivitie
 import { Modal, type ProgRef } from './Create'
 import { MultiSelect } from '../../../components/MultiSelect'
 import { GradeChecks, SubjectPicker, gradeList } from '../../../components/Pickers'
+import { Icon } from '../../../components/Icon'
 
 type Fields = { title: string; subject: string; grades: string; periods: string; program_id: string; prog_subject: string }
 const STATUS: Record<KitRow['status'], [string, string]> = { draft: ['Nháp', 'warn'], published: ['Đã phát hành', 'good'], archived: ['Đã thu hồi', 'off'], inactive: ['Ngừng dùng', 'off'] }
@@ -451,13 +452,13 @@ function SessionsEdit({ ss, set }: { ss: KSession[]; set: (s: KSession[]) => voi
           <div className="lactrow">
             <input aria-label="Tên hoạt động" placeholder="Tên hoạt động, ví dụ: Hoạt động 1: Xác định vấn đề" value={a.title} onChange={e => setA({ ...a, title: e.target.value })} />
             <input aria-label="Phút" type="number" min={0} placeholder="Phút" value={a.minutes ?? ''} onChange={e => setA({ ...a, minutes: e.target.value === '' ? null : Number(e.target.value) })} />
-            <button type="button" className="linkbtn danger" onClick={() => at(si, { ...s, acts: s.acts.filter((_, i) => i !== ai) })}>Xoá</button>
+            <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => at(si, { ...s, acts: s.acts.filter((_, i) => i !== ai) })}><Icon n="trash" size={17} /></button>
           </div>
           <Area label="Nội dung chung" rows={2} value={a.general} set={general => setA({ ...a, general })} />
           {a.steps.map((st, ti) => <div key={ti} className="lstep edit">
             <div className="lactrow"><input aria-label="Tên bước" placeholder="Tên bước, ví dụ: Khởi động" value={st.title}
               onChange={e => setA({ ...a, steps: a.steps.map((x, i) => (i === ti ? { ...x, title: e.target.value } : x)) })} />
-              <button type="button" className="linkbtn danger" onClick={() => setA({ ...a, steps: a.steps.filter((_, i) => i !== ti) })}>Xoá</button></div>
+              <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => setA({ ...a, steps: a.steps.filter((_, i) => i !== ti) })}><Icon n="trash" size={17} /></button></div>
             <StepLines lines={st.lines} set={lines => setA({ ...a, steps: a.steps.map((x, i) => (i === ti ? { ...x, lines } : x)) })} />
           </div>)}
           <button type="button" className="linkbtn" onClick={() => setA({ ...a, steps: [...a.steps, { title: '', lines: [] }] })}>+ Thêm bước</button>
@@ -519,7 +520,7 @@ function DocsEdit({ docs, set, orgId }: { docs: KDoc[]; set: (d: KDoc[]) => void
         : <span className="lurl"><input aria-label="Đường dẫn" placeholder="https://…" value={d.url} onChange={e => at(i, { ...d, url: e.target.value })} />
           <label className="linkbtn">{up ? 'Đang tải…' : 'Tải tệp'}<input type="file" hidden disabled={!!up} onChange={e => { const f = e.target.files?.[0]; if (f) attach(i, f); e.target.value = '' }} /></label></span>}
       {T.catalogDocs ? <small className="sub">{d.item_id ? 'Đã có trong danh mục' : 'Tự tạo khi chốt'}</small> : <span />}
-      <button type="button" className="linkbtn danger" onClick={() => set(docs.filter((_, j) => j !== i))}>Xoá</button>
+      <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => set(docs.filter((_, j) => j !== i))}><Icon n="trash" size={17} /></button>
     </div>)}
     <button type="button" onClick={() => set([...docs, { key: key(), title: '', type: 'worksheet', url: '', file: null, item_id: null }])}>+ Thêm dòng</button>
   </div>
@@ -555,7 +556,7 @@ function MatRows({ title, rows, set, cat, kind }: { title: string; rows: KMat[];
         <input aria-label="Đơn vị" list="mat-units" placeholder="– Đơn vị –" value={m.unit} onChange={e => at(i, { ...m, unit: e.target.value })} />
         <input aria-label="Số lượng" inputMode="decimal" placeholder="0" value={m.qty} onChange={e => at(i, { ...m, qty: e.target.value })} />
         <small className="sub">{catOf(m, cat) ? 'Đã có trong danh mục' : 'Tự tạo khi chốt'}</small>
-        <button type="button" className="linkbtn danger" onClick={() => set(rows.filter((_, j) => j !== i))}>Xoá</button>
+        <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => set(rows.filter((_, j) => j !== i))}><Icon n="trash" size={17} /></button>
       </div>)}
       <button type="button" onClick={() => set([...rows, { key: key(), catalog_id: null, name: '', unit: '', qty: '', kind, reusable: kind !== 'supply' }])}>+ Thêm dòng</button>
     </div></div>
@@ -594,7 +595,7 @@ function BankEdit({ bank, set, acts, places, onSuggest }: { bank: KBank[]; set: 
       <input aria-label="Dùng ở hoạt động" list="bank-places" placeholder="Dùng ở hoạt động…" value={b.act} onChange={e => at(i, { ...b, act: e.target.value })} />
       <input aria-label="Ghi chú" placeholder="Ghi chú" value={b.note} onChange={e => at(i, { ...b, note: e.target.value })} />
       <small className="sub">{a ? 'Đã có trong kho' : 'Tự tạo khi chốt'}</small>
-      <button type="button" className="linkbtn danger" onClick={() => set(bank.filter((_, j) => j !== i))}>Xoá</button>
+      <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => set(bank.filter((_, j) => j !== i))}><Icon n="trash" size={17} /></button>
     </div> })}
     <div className="tools">
       <button type="button" onClick={() => set([...bank, { key: key(), activity_id: null, title: '', kind: 'quiz', act: '', note: '' }])}>+ Thêm dòng</button>

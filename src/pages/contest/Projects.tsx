@@ -129,7 +129,7 @@ export function ProjectsPage({ orgId, teacherId, studentId, readOnly = false }: 
             <td><span className={'plbadge ' + ST[p.status][1]}>{ST[p.status][0]}</span></td>
             <td><small>{p.competition_entries.map((e, i) => <span key={i} style={{ display: 'block' }}>{e.award ? <b className="good"><Icon n="trophy" /> {e.award}</b> : e.status === 'eliminated' ? 'Dừng' : 'Dự thi'} · {e.competitions?.title}</span>)}</small></td>
             <td className="nowrap"><button onClick={() => setOpen(open === p.id ? null : p.id)}>{open === p.id ? 'Đóng' : 'Xem'}</button>
-              {mine(p) && p.status !== 'completed' && <> <button onClick={() => setForm({ ...p, members: p.project_members.map(m => m.student_id) })}>Sửa</button></>}
+              {mine(p) && p.status !== 'completed' && <> <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setForm({ ...p, members: p.project_members.map(m => m.student_id) })}><Icon n="pencil" size={17} /></button></>}
               {admin && p.status === 'pending' && p.org_id === orgId && <> <button className="primary" onClick={() => decide(p, 'approve')}>Duyệt</button> <button onClick={() => decide(p, 'reject')}>Từ chối</button></>}
               {mine(p) && p.status === 'approved' && (admin || p.mentor_teacher_id === teacherId) && <> <button onClick={() => setStatus(p, 'completed')}>Hoàn thành</button></>}</td></tr>,
           open === p.id && <tr key={p.id + 'd'}><td colSpan={6}>

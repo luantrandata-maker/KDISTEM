@@ -9,6 +9,7 @@ import { ElView } from '../../components/ElView'
 import { Chip } from '../dist/Editor'
 import { CERT_ST } from './Results'
 import { DataTable, MoreFilters, type Col } from '../../components/DataTable'
+import { Icon } from '../../components/Icon'
 
 type Cert = { id: string; code: string | null; status: 'pending' | 'issued' | 'revoked'; issued_on: string | null; expires_on: string | null; revoked_reason: string | null
   verify_token: string; plan_id: string; plan_code: string | null; plan_name: string | null; teacher_id: string; teacher_name: string; org_name: string | null
@@ -195,7 +196,7 @@ function TplForm({ t, progs, onBack, onDone }: { t: Tpl | Omit<Tpl, 'id'>; progs
   }
   const set = (k: string, v: unknown) => setF({ ...f, [k]: v })
   return <ElView back="Mẫu chứng chỉ" onBack={onBack} title={id ? f.name || 'Mẫu chứng chỉ' : 'Thêm mẫu chứng chỉ'}
-    actions={<>{id && !t.is_default && <button type="button" className="danger" onClick={del}>Xoá</button>}<button type="button" className="primary" disabled={busy} onClick={save}>Lưu</button></>}>
+    actions={<>{id && !t.is_default && <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={del}><Icon n="trash" size={17} /></button>}<button type="button" className="primary" disabled={busy} onClick={save}>Lưu</button></>}>
     {err && <p className="msg" role="alert">{err}</p>}
     <div className="tsgrid" style={{ gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)' }}>
       <section className="panel formgrid">

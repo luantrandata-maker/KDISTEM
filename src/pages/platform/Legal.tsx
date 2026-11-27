@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { Tiles } from '../department/charts'
 import { fmtTime } from './data'
+import { Icon } from '../../components/Icon'
 
 // Điều khoản & dữ liệu cá nhân (migration 039): soạn/công bố Điều khoản sử dụng và Chính sách quyền riêng tư theo phiên bản,
 // bắt buộc đồng ý của cha mẹ trước khi tạo tài khoản học sinh, tổng hợp đồng ý theo trường.
@@ -136,7 +137,7 @@ export function PlatformLegal() {
                 <td>{d.published_at ? <span className="plbadge ok">Công bố {fmtTime(d.published_at)}</span> : <span className="plbadge mute">Bản nháp</span>}</td>
                 <td>{d.published_at ? acc[d.id] ?? 0 : '—'}</td>
                 <td className="nowrap">{d.published_at ? <button onClick={() => setEdit({ ...d, id: undefined, version: (docs.find(x => x.kind === k)?.version ?? d.version) + 1, published_at: null })}>Sao thành bản mới</button>
-                  : <><button onClick={() => setEdit(d)}>Sửa</button> <button onClick={() => remove(d)}>Xoá</button></>}</td></tr>))}
+                  : <><button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setEdit(d)}><Icon n="pencil" size={17} /></button> <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => remove(d)}><Icon n="trash" size={17} /></button></>}</td></tr>))}
               {!docs.some(d => d.kind === k) && <tr><td colSpan={5}>Chưa có. Bấm “Phiên bản mới” — nội dung khởi đầu là bản nháp mẫu, cần luật sư rà soát.</td></tr>}</tbody>
           </table></div>
         </div>

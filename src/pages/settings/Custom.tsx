@@ -8,6 +8,7 @@ import { layers, reloadSettings, slug, useSettings, orderItems, type CatalogsCfg
 import { BUILTIN, ACTIONS } from '../../components/PageButtons'
 import { MAT_TYPE } from '../library/common'
 import { DEFAULT_TITLE, PLATFORM_TITLE } from '../../lib/branding'
+import { Icon } from '../../components/Icon'
 
 const BrandingPage = lazy(() => import('../branding').then(m => ({ default: m.BrandingPage })))
 const errText = (m: string) => /schema cache|does not exist|check constraint|org_settings_key/i.test(m) ? 'Hãy chạy migration 096 trên Supabase.'
@@ -123,7 +124,7 @@ export function FieldsTab({ scope, platform }: { scope: string | null; platform:
         <td><input type="checkbox" aria-label="Bắt buộc" checked={!!f.required} onChange={e => upd(k, { required: e.target.checked })} /></td>
         <td><input type="checkbox" aria-label="Hiện thành cột" checked={!!f.column} onChange={e => upd(k, { column: e.target.checked })} /></td>
         <td><input type="checkbox" aria-label="Ở chi tiết" checked={f.detail !== false} onChange={e => upd(k, { detail: e.target.checked })} /></td>
-        <td><button type="button" className="danger" onClick={() => put(list.filter((_, j) => j !== k))}>Xoá</button></td></tr>)}
+        <td><button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => put(list.filter((_, j) => j !== k))}><Icon n="trash" size={17} /></button></td></tr>)}
         {!list.length && <tr><td colSpan={8} className="sub">Chưa có trường nào.</td></tr>}</tbody></table></div>
     <div className="formactions setsave"><button type="button" onClick={add}>+ Thêm trường</button>
       <button type="button" className="primary" disabled={!own.dirty} onClick={save}>Lưu</button></div>
@@ -160,7 +161,7 @@ export function CatalogTab({ scope, platform }: { scope: string | null; platform
       const put = (xs: string[]) => own.set({ ...own.v, [c.key]: { items: xs } })
       return <div key={c.key} className="setcat"><b>{c.name}</b> <small className="sub">{c.note}</small>
         <ul>{items.map((x, j) => <li key={x + j}><Arrows k={j} n={items.length} move={(a, b) => put(moved(items, a, b))} />
-          <span className="v">{x}</span><button type="button" className="linkbtn" onClick={() => put(items.filter((_, i) => i !== j))}>Xoá</button></li>)}</ul>
+          <span className="v">{x}</span><button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => put(items.filter((_, i) => i !== j))}><Icon n="trash" size={17} /></button></li>)}</ul>
         <form className="addrow" onSubmit={e => { e.preventDefault(); const v = (add[c.key] ?? '').trim(); if (!v || items.includes(v)) return; put([...items, v]); setAdd({ ...add, [c.key]: '' }) }}>
           <input value={add[c.key] ?? ''} maxLength={60} placeholder="Thêm giá trị mới" aria-label={'Thêm ' + c.name} onChange={e => setAdd({ ...add, [c.key]: e.target.value })} />
           <button>Thêm</button></form></div>
@@ -223,7 +224,7 @@ export function ButtonsTab({ scope, platform }: { scope: string | null; platform
           : b.action === 'page' ? <select value={b.target ?? ''} aria-label="Trang" onChange={e => upd(k, { target: e.target.value })}><option value="">— chọn trang —</option>{pages.sort().map(p => <option key={p} value={p}>{p}</option>)}</select>
           : <input value={b.target ?? ''} maxLength={500} aria-label="Nội dung" placeholder={b.action === 'link' ? 'https://…' : 'Nội dung thông báo'} onChange={e => upd(k, { target: e.target.value })} />}</td>
         <td><input type="checkbox" aria-label="Nút chính" checked={!!b.primary} onChange={e => upd(k, { primary: e.target.checked })} /></td>
-        <td><button type="button" className="danger" onClick={() => put({ extra: extra.filter((_, j) => j !== k) })}>Xoá</button></td></tr>)}
+        <td><button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => put({ extra: extra.filter((_, j) => j !== k) })}><Icon n="trash" size={17} /></button></td></tr>)}
         {!extra.length && <tr><td colSpan={5} className="sub">Chưa có nút thêm mới.</td></tr>}</tbody></table></div>
     <div className="formactions setsave">
       <button type="button" disabled={extra.length >= 6} onClick={() => put({ extra: [...extra, { id: 'b' + Date.now().toString(36), label: 'Nút mới', action: 'link', target: '' }] })}>+ Thêm nút</button>

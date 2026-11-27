@@ -780,8 +780,8 @@ table.permtable{table-layout:fixed}table.permtable th:first-child{width:34%}tabl
 .legaldoc h2{font-size:calc(15px * var(--fz,1));margin:10px 0 6px}
 .legalbody{white-space:pre-wrap;max-height:42vh;overflow:auto;border:1px solid var(--line);border-radius:6px;padding:12px 14px;background:var(--soft);font-size:calc(13.5px * var(--fz,1));line-height:1.55;text-align:left}
 .privacy h4{margin:12px 0 6px;font-size:calc(14px * var(--fz,1))}
-/* Nút Xoá / nút nguy hiểm: một kiểu duy nhất trên toàn hệ thống — viền đỏ nhẹ, chữ đỏ, không tô nền */
-button.danger{background:var(--surface);color:#c0392b;border:1px solid #e3b3ad}
+/* Nút Xoá / nút nguy hiểm: một kiểu trên toàn hệ thống, giống nút thùng rác ở thanh đầu trang — viền xám, chữ đỏ, không tô nền */
+button.danger{background:var(--surface);color:#c0392b;border:1px solid var(--line)}
 button.danger:hover:not(:disabled){background:#fdf1ef}
 button.danger:disabled{opacity:.6}
 /* Chấm theo tiêu chí (041) */
@@ -2839,10 +2839,13 @@ td button.iconbtn{width:30px;height:30px;min-width:30px;vertical-align:middle}
 .main button.pdsidetg.incard{margin-left:auto;padding:3px 10px;font-size:calc(12.5px * var(--fz,1));font-weight:500;border-radius:5px}
 
 /* Thanh nút thao tác (ActionBar): cùng nền trắng, phân biệt bằng màu chữ (xanh: chính, đỏ: cần cẩn thận) */
+/* Nút Sửa / Xoá dạng biểu tượng dùng chung (cả trong hộp thoại ngoài .main) */
+button.abtn{background:var(--surface);color:var(--text);border:1px solid var(--line);font-weight:500;cursor:pointer;border-radius:8px}
+button.abtn.abdanger{color:#c0392b}
 .main button.abtn{background:var(--surface);color:var(--text);border:1px solid var(--line);font-weight:500}
 .main button.abtn:hover:not(:disabled){background:var(--soft)}
 .main button.abtn.abprimary{color:var(--primary);font-weight:600}
-.main button.abtn.abdanger{color:#c0392b;border-color:#e3b3ad}
+.main button.abtn.abdanger{color:#c0392b}
 .main button.abtn.abdanger:hover:not(:disabled){background:#fdf1ef}
 /* Tiêu đề trang nằm ở dòng đường dẫn, trên khung */
 .pfcrumb{align-items:baseline;gap:8px;margin:0 0 12px}

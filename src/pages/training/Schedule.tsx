@@ -19,6 +19,7 @@ import { detailCount, type Detail } from './Content'
 import { SessionExams } from './ExamOpen'
 import { StatCards } from '../../components/StatCards'
 import { useFillRest, useFitMonth, weeksOf } from '../../lib/fitCal'
+import { Icon } from '../../components/Icon'
 const LessonPage = lazy(() => import('../library/lesson/LessonPage').then(m => ({ default: m.LessonPage })))
 const ContentDetail = lazy(() => import('./Content').then(m => ({ default: m.ContentDetail })))
 
@@ -606,7 +607,7 @@ export function SessionDetail({ id, plan, can, onBack, onMsg }: { id: string; pl
       </section>}
       {show && code && <CheckinShow id={id} title={s.title} when={`${dd(s.starts_at)} ${hm(s.starts_at)}–${hm(s.ends_at)}`} code={code} qr={qr} onClose={() => { setShow(false); load() }} />}
       <section className="panel" style={{ display: 'grid', gap: 12 }}>
-        <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Thông tin buổi</h3>{can && !edit && <button type="button" onClick={() => setEdit(true)}>Sửa</button>}</div>
+        <div className="bar" style={{ margin: 0 }}><h3 style={{ margin: 0 }}>Thông tin buổi</h3>{can && !edit && <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" type="button" onClick={() => setEdit(true)}><Icon n="pencil" size={17} /></button>}</div>
         {edit ? <>
           <InfoFields f={f} set={setF} plans={plans} lockPlan />
           <div className="formactions"><button type="button" className="primary" onClick={saveInfo}>Lưu</button> <button type="button" onClick={() => { setF(fromSess(s)); setEdit(false) }}>Huỷ</button></div>

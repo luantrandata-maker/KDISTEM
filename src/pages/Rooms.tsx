@@ -11,6 +11,7 @@ import { loadRoomContents, moveUnitTo, roomError, sortRooms, ROOM_KIND, ROOM_KIN
 import ImportExcel from '../components/ImportExcel'
 import { downloadXlsx, importSummary, norm, type Column } from '../lib/sheet'
 import { useStemTracks } from '../lib/stemTracks'
+import { Icon } from '../components/Icon'
 
 type Room = { id: string; name: string; code: string | null; capacity: number | null; status: string; area_m2: number | null; tier: string; programs: string | null; floors: { name: string; buildings: { name: string } | null } | null }
 type Unit = RoomUnit
@@ -436,7 +437,7 @@ export default function Rooms({ orgId }: { orgId: string }) {
                   <td><span className={'pill ' + r.status}>{ROOM_STATUS[r.status]}</span></td>
                   <td className="rowactions" onClick={e => e.stopPropagation()}>
                     {r.room_kind === 'stem' && <button onClick={() => setHub(r.id)} title="Lịch phòng, mượn – trả, hỏng – bảo trì">Lịch & mượn trả</button>}
-                    <button onClick={() => edit(r)}>Sửa</button> <button onClick={() => remove(r)}>Xoá</button></td>
+                    <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => edit(r)}><Icon n="pencil" size={17} /></button> <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => remove(r)}><Icon n="trash" size={17} /></button></td>
                 </tr>
                 {open[r.id] && <tr className="roomtable-exp"><td colSpan={8}><RoomContents units={usOf(r.id)} stocks={ssOf(r.id)} rooms={lite} onMoveUnit={moveUnit} /></td></tr>}
               </Fragment>))}

@@ -4,6 +4,7 @@ import { useDeptStats, pct, avg, sum, nf, LEVEL, type SchoolStat } from './data'
 import { Tiles } from './charts'
 import { downloadXlsx } from '../../lib/sheet'
 import { InfoTip } from '../../components/InfoTip'
+import { Icon } from '../../components/Icon'
 
 // Điều hành của Sở (migration 040): giao chỉ tiêu theo năm học, cảnh báo trường cần chú ý.
 
@@ -230,7 +231,7 @@ export function DeptTargets() {
                   <small>{cur == null ? 'chưa có số liệu' : cur >= t.target ? 'Đã đạt' : `còn thiếu ${Math.round(t.target - cur)} điểm %`}</small></td>
                 <td>{below.length ? <button className="linkbtn" onClick={() => setOpen(open === t.id ? null : t.id)}>{below.length} trường</button> : '—'}</td>
                 <td>{t.due_on ? day(t.due_on) : '—'}</td>
-                <td className="nowrap">{mine(t) ? <><button onClick={() => setForm(t)}>Sửa</button> <button onClick={() => remove(t)}>Xoá</button></> : <small className="sub">cấp trên giao</small>}</td>
+                <td className="nowrap">{mine(t) ? <><button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setForm(t)}><Icon n="pencil" size={17} /></button> <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => remove(t)}><Icon n="trash" size={17} /></button></> : <small className="sub">cấp trên giao</small>}</td>
               </tr>
               {open === t.id && <tr><td colSpan={8}>
                 <small>Trường chưa đạt: {below.sort((a, b) => (METRICS[t.metric].one(a) ?? 0) - (METRICS[t.metric].one(b) ?? 0))

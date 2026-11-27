@@ -4,6 +4,7 @@ import { myOrgId } from '../lib/org'
 import { k12Sync } from '../lib/k12'
 import ImportExcel from '../components/ImportExcel'
 import { importSummary, downloadXlsx, type Column } from '../lib/sheet'
+import { Icon } from '../components/Icon'
 
 const COLS: Column[] = [
   { key: 'name', label: 'Họ tên', aliases: ['Họ và tên', 'Tên giáo viên'], required: true, width: 28 },
@@ -96,8 +97,8 @@ export default function Teachers() {
               <td>{t.grade ? `Khối ${t.grade}` : '—'}</td>
               <td>{t.status === 'active' ? 'Hoạt động' : 'Ngừng'}</td>
               <td>
-                <button onClick={() => setForm({ id: t.id, full_name: t.full_name, email: t.email ?? '', subject: t.subject ?? '', grade: t.grade ? String(t.grade) : '' })}>Sửa</button>{' '}
-                <button onClick={() => remove(t)}>Xoá</button>
+                <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setForm({ id: t.id, full_name: t.full_name, email: t.email ?? '', subject: t.subject ?? '', grade: t.grade ? String(t.grade) : '' })}><Icon n="pencil" size={17} /></button>{' '}
+                <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => remove(t)}><Icon n="trash" size={17} /></button>
               </td>
             </tr>
           ))}

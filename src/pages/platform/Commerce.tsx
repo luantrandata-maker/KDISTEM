@@ -5,6 +5,7 @@ import { Tabs } from '../teacher/common'
 import { Tiles } from '../department/charts'
 import { usePlatform, pathOf, ORG_TYPE, type Org } from './data'
 import { InfoTip } from '../../components/InfoTip'
+import { Icon } from '../../components/Icon'
 
 // Khách hàng, gói dịch vụ, hợp đồng (migration 024)
 
@@ -156,7 +157,7 @@ export function PlatformCustomers() {
                   <td>{c?.customer_status ? <span className={'plbadge ' + CS_TONE[c.customer_status]}>{CUSTOMER_STATUS[c.customer_status]}</span> : <small>—</small>}</td>
                   <td>{c?.contact_name ?? <small>—</small>}{(c?.contact_phone || c?.contact_email) && <><br /><small>{[c?.contact_phone, c?.contact_email].filter(Boolean).join(' · ')}</small></>}</td>
                   <td><EntBadge e={ent(o)} byId={d.byId} self={o.id} /></td>
-                  <td><button type="button" onClick={() => setEdit(o.id)}>Sửa</button></td>
+                  <td><button aria-label="Sửa" title="Sửa" className="abtn iconbtn" type="button" onClick={() => setEdit(o.id)}><Icon n="pencil" size={17} /></button></td>
                 </tr>
               )
             })}
@@ -265,7 +266,7 @@ export function PlatformContracts() {
                     <td>{day(c.starts_on)} – {c.ends_on ? day(c.ends_on) : 'không thời hạn'}{liveState(c) === 'active' && l !== null && l <= 60 && <><br /><small className="late">Còn {l} ngày</small></>}</td>
                     <td>{money(c.value)}</td>
                     <td><span className={'plbadge ' + st[1]}>{st[0]}</span></td>
-                    <td><button type="button" onClick={() => setEditC(c)}>Sửa</button></td>
+                    <td><button aria-label="Sửa" title="Sửa" className="abtn iconbtn" type="button" onClick={() => setEditC(c)}><Icon n="pencil" size={17} /></button></td>
                   </tr>
                 )
               })}

@@ -275,7 +275,7 @@ export function CompetitionsPage({ orgId, teacherId, platform = false }: { orgId
           <td><small>{c.organizations?.name}<br />{ORG_LEVEL[c.organizations?.type ?? ''] ?? ''}</small></td><td className="nowrap">{day(c.submit_until)}</td><td>{counts[c.id] ?? 0}</td>
           <td><span className={'plbadge ' + ST[c.status][1]}>{ST[c.status][0]}</span>{c.status === 'judging' && <><br /><small>{c.rounds[c.current_round - 1]}</small></>}</td>
           <td className="nowrap"><button onClick={() => setOpen(open === c.id ? null : c.id)}>{open === c.id ? 'Đóng' : manageable(c) ? 'Quản lý' : 'Xem / nộp bài'}</button>
-            {manageable(c) && ['draft', 'open'].includes(c.status) && <> <button onClick={() => { setOpen(null); setForm(c) }}>Sửa</button></>}</td></tr>)}
+            {manageable(c) && ['draft', 'open'].includes(c.status) && <> <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => { setOpen(null); setForm(c) }}><Icon n="pencil" size={17} /></button></>}</td></tr>)}
           {!shown.length && <tr><td colSpan={6}>Chưa có cuộc thi.</td></tr>}</tbody>
       </table></div>
       {cur && <>

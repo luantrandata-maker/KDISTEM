@@ -7,6 +7,7 @@ import { openFile } from '../../lib/files'
 import { Drawer } from '../../components/Drawer'
 import { STATUS } from './Programs'
 import { LISTS, type Detail } from './Content'
+import { Icon } from '../../components/Icon'
 
 type Kind = 'docs' | 'mats' | 'acts'
 const MKIND: Record<string, string> = { supply: 'Vật tư tiêu hao', tool: 'Dụng cụ', equipment: 'Thiết bị' }
@@ -120,8 +121,8 @@ export function MaterialItem({ it, admin, draftId, autoEdit, onClose, onDone, on
       <button type="button" className="primary" disabled={busy} onClick={save}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
       <button type="button" disabled={busy} onClick={() => { setEdit(false); setMsg('') }}>Huỷ</button></>
     : <>
-      {canEdit && <button type="button" className="primary" disabled={busy} onClick={startEdit}>Sửa</button>}
-      {canEdit && <button type="button" className="danger" disabled={busy} onClick={del}>Xoá</button>}
+      {canEdit && <button aria-label="Sửa" title="Sửa" type="button" className="abtn iconbtn" disabled={busy} onClick={startEdit}><Icon n="pencil" size={17} /></button>}
+      {canEdit && <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" disabled={busy} onClick={del}><Icon n="trash" size={17} /></button>}
       {canVersion && (draftId
         ? <button type="button" className="primary" onClick={() => onDone('Đang sửa trong phiên bản nháp của chương trình.', draftId)}>Mở bản nháp để sửa</button>
         : <button type="button" className="primary" disabled={busy} onClick={newVersion}>{busy ? 'Đang tạo…' : 'Tạo phiên bản mới để sửa'}</button>)}

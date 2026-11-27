@@ -11,6 +11,7 @@ import { Tiles } from '../department/charts'
 import { LEVEL, PROGRAMS, type SchoolStat } from '../department/data'
 import { CUSTOMER_STATUS } from './Commerce'
 import { STEPS, autoDone } from './Rollout'
+import { Icon } from '../../components/Icon'
 
 type Health = 'good' | 'watch' | 'risk' | 'na'
 type Stage = 'prospect' | 'setup' | 'rollout' | 'operating' | 'paused' | 'ended'
@@ -320,7 +321,7 @@ function Profile({ r, staff, onBack, onSaved, go }: { r: Reg; staff: Staff[]; on
             { label: 'Phiếu hỗ trợ mở', value: r.open_tickets, sub: r.urgent_tickets ? `${r.urgent_tickets} khẩn` : '', tone: r.urgent_tickets ? 'bad' : '' },
           ]} />
           <div className="panel">
-            <div className="bar"><h3>Thông tin quản lý</h3>{!edit && <button onClick={() => setEdit(true)}>Sửa</button>}</div>
+            <div className="bar"><h3>Thông tin quản lý</h3>{!edit && <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setEdit(true)}><Icon n="pencil" size={17} /></button>}</div>
             {edit ? (
               <div className="formgrid">
                 <label className="field"><span>Người phụ trách KDI</span>

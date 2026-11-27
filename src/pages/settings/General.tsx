@@ -10,6 +10,7 @@ import { Tabs } from '../teacher/common'
 import Periods from '../Periods'
 import { ButtonsTab, CatalogTab, ConfigTools, FieldsTab, MenuTab } from './Custom'
 import { WEEKDAY, addD, dayOf, offIn, vnd, vnShort } from '../dist/calendar'
+import { Icon } from '../../components/Icon'
 
 type Props = { orgId: string | null; platform?: boolean }
 type Sub = 'rules' | 'cal' | 'hol'
@@ -342,7 +343,7 @@ function HolTab({ orgId, platform, scope, year }: { orgId: string; platform: boo
         {platform ? '. Trường có thể bỏ ngày chuẩn chung hoặc thêm ngày riêng.' : ''}</p>
       <span className="tools" style={{ display: 'flex', gap: 8 }}>
         {ticked.size > 0 && <>
-          {ticked.size === 1 && <button type="button" onClick={() => { const h = list.find(x => x.id === [...ticked][0])!; setF({ id: h.id, name: h.name, starts_on: h.starts_on, ends_on: h.ends_on, note: h.note ?? '', kind: h.kind, status: h.status, source: h.source ?? '' }) }}>Sửa</button>}
+          {ticked.size === 1 && <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" type="button" onClick={() => { const h = list.find(x => x.id === [...ticked][0])!; setF({ id: h.id, name: h.name, starts_on: h.starts_on, ends_on: h.ends_on, note: h.note ?? '', kind: h.kind, status: h.status, source: h.source ?? '' }) }}><Icon n="pencil" size={17} /></button>}
           <button type="button" className="danger" onClick={removeTicked}>Xoá {ticked.size}</button></>}
         <button type="button" onClick={presets}>+ Ngày lễ cố định</button>
         <button type="button" className="primary" onClick={() => setF({ name: '', starts_on: '', ends_on: '', note: '', kind: platform ? 'state' : 'school', status: 'official', source: '' })}>+ Thêm ngày nghỉ</button>

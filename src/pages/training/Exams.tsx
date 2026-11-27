@@ -19,6 +19,7 @@ import { StatCards } from '../../components/StatCards'
 import { ProgramDetail, STATUS, type Status } from './Programs'
 import type { FinalExam } from './ExamFrame'
 import { DataTable, type Col } from '../../components/DataTable'
+import { Icon } from '../../components/Icon'
 
 type Prog = { id: string; org_id: string; code: string; title: string; status: Status; version_no: number; family_id: string; pass_score: number | null; final_exam: FinalExam | null }
 type TUnit = { id: string; program_id: string; parent_id: string | null; title: string; seq: number; hours?: number | null; mode?: string | null
@@ -402,7 +403,7 @@ export function TrainingPracticeExams() {
         <button type="button" className="primary" disabled={busy} onClick={() => save(form.status === 'published' ? undefined : 'published')}>{form.status === 'published' ? 'Lưu' : 'Lưu & mở cho GV'}</button>
         {form.status !== 'published' && <button type="button" disabled={busy} onClick={() => save()}>{form.id ? 'Lưu' : 'Lưu nháp'}</button>}
         {form.status === 'published' && <button type="button" disabled={busy} onClick={() => save('closed')}>Đóng đề</button>}
-        {form.id && <button type="button" className="danger" disabled={busy} onClick={del}>Xoá</button>}</> : undefined}>
+        {form.id && <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" disabled={busy} onClick={del}><Icon n="trash" size={17} /></button>}</> : undefined}>
       <div className="panel libform">
         {msg && msg[1] && <p className="msg">{msg[0]}</p>}
         <div className="formgrid libgrid4">

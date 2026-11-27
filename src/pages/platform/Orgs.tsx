@@ -210,7 +210,7 @@ export function PlatformOrgs() {
                     {org.status === 'suspended' && <b className="bad"> · Đang tạm dừng</b>}</p>
                 </div>
                 <div className="actions">
-                  <button type="button" onClick={() => setForm({ mode: 'edit', name: org.name, code: org.code ?? '', level: org.level ?? '', ward: org.ward ?? '', address: org.address ?? '' })}>Sửa</button>
+                  <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" type="button" onClick={() => setForm({ mode: 'edit', name: org.name, code: org.code ?? '', level: org.level ?? '', ward: org.ward ?? '', address: org.address ?? '' })}><Icon n="pencil" size={17} /></button>
                   {NEW_CHILD_TYPES[org.type].length > 0 && <button type="button" onClick={() => setForm({ mode: 'child', type: NEW_CHILD_TYPES[org.type][0], name: '', code: '', level: '', ward: '', parent: org.id })}>+ Đơn vị trực thuộc</button>}
                   {CHILD_TYPES[org.type].includes('school') && <ImportExcel label="Nhập trường từ Excel" columns={TREE_IMPORT_COLS} template="Mau-nhap-truong"
                     sample={[['', 'Trường THCS ABC', 'THCS', org.code ?? '', 'Phường Sài Gòn', '12 Lê Lợi', 'Nguyễn Văn A', '0912345678', 'a@truong.edu.vn', '', '', '10.7769, 106.7009']]}
@@ -222,7 +222,7 @@ export function PlatformOrgs() {
                   {!org.is_platform && (parentOptions.length > 0 || canRoot) && <button type="button" onClick={() => setForm({ mode: 'move', parent: org.parent_id ?? '' })}>Chuyển</button>}
                   {org.type === 'school' && <button type="button" onClick={() => setActive(org, !org.activated_at)}>{org.activated_at ? 'Bỏ kích hoạt' : 'Kích hoạt'}</button>}
                   {!org.is_platform && <button type="button" onClick={() => setStatus(org, org.status === 'active' ? 'suspended' : 'active')}>{org.status === 'active' ? 'Tạm dừng' : 'Mở lại'}</button>}
-                  {!org.is_platform && !(kids.get(org.id) ?? []).length && members.length === 0 && <button type="button" className="danger" onClick={() => remove(org)}>Xoá</button>}
+                  {!org.is_platform && !(kids.get(org.id) ?? []).length && members.length === 0 && <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => remove(org)}><Icon n="trash" size={17} /></button>}
                 </div>
               </div>
 

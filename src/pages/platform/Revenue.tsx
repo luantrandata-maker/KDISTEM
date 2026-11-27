@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { downloadWorkbook } from '../../lib/sheet'
 import { Tiles } from '../department/charts'
+import { Icon } from '../../components/Icon'
 
 // Nghiệm thu & doanh thu (migration 046): đợt nghiệm thu / thanh toán theo hợp đồng, tổng hợp doanh thu theo năm.
 type Row = { contract_id: string; code: string; org_id: string; org_name: string; plan_name: string; status: string; starts_on: string; ends_on: string | null
@@ -178,7 +179,7 @@ export function PlatformRevenue() {
                   <tr key={m.id}><td><b>{m.name}</b>{m.note && <><br /><small>{m.note}</small></>}</td><td className={late ? 'due bad' : ''}>{day(m.due_on)}{late ? ' · quá hạn' : ''}</td><td className="nowrap">{money(m.amount)}</td>
                     <td><span className={'plbadge ' + MS[m.status][1]}>{MS[m.status][0]}</span></td><td>{day(m.accepted_on)}{m.acceptance_note && <><br /><small>{m.acceptance_note}</small></>}</td>
                     <td>{m.invoice_no ?? '—'}{m.invoiced_on && <><br /><small>{day(m.invoiced_on)}</small></>}</td><td className="nowrap">{m.status === 'paid' ? <>{money(m.paid_amount)}<br /><small>{day(m.paid_on)}</small></> : '—'}</td>
-                    <td className="nowrap">{NEXT[m.status] && <button className="primary" onClick={() => setStatus(m, NEXT[m.status][0])}>{NEXT[m.status][1]}</button>} <button onClick={() => setEdit(m)}>Sửa</button> <button onClick={() => remove(m)}>Xoá</button></td></tr>) })}
+                    <td className="nowrap">{NEXT[m.status] && <button className="primary" onClick={() => setStatus(m, NEXT[m.status][0])}>{NEXT[m.status][1]}</button>} <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setEdit(m)}><Icon n="pencil" size={17} /></button> <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => remove(m)}><Icon n="trash" size={17} /></button></td></tr>) })}
                   {!list.length && <tr><td colSpan={8}>Chưa có đợt nghiệm thu / thanh toán.</td></tr>}</tbody></table>
             </td></tr>,
           ]

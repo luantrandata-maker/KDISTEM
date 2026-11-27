@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { Icon } from '../components/Icon'
 
 type Portal = 'school_admin' | 'teacher'
 type Role = { id: string; key: string; name: string; is_system: boolean; org_id: string | null; portal: string | null; description: string | null }
@@ -139,8 +140,8 @@ export default function Roles({ orgId }: { orgId?: string | null }) {
                 <b>{role.name}</b>{role.portal && ` · ${PORTAL_LABEL[role.portal] ?? ''}`}{role.description && ` · ${role.description}`}
               </p>
               {custom && <span>
-                <button onClick={() => setForm({ id: role.id, name: role.name, description: role.description ?? '', portal: (role.portal as Portal) ?? 'school_admin', copyFrom: '' })}>Sửa</button>{' '}
-                <button onClick={() => removeRole(role)}>Xoá</button>
+                <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setForm({ id: role.id, name: role.name, description: role.description ?? '', portal: (role.portal as Portal) ?? 'school_admin', copyFrom: '' })}><Icon n="pencil" size={17} /></button>{' '}
+                <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => removeRole(role)}><Icon n="trash" size={17} /></button>
               </span>}
             </div>
           )}

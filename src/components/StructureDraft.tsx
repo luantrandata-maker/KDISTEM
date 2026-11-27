@@ -2,6 +2,7 @@
 // thêm / sửa / xoá / đổi thứ tự thoải mái, chỉ ghi vào CSDL khi bấm "Lưu tất cả".
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
+import { Icon } from './Icon'
 
 export type DOut = { key: string; id?: string; code: string; content: string; comp: string | null }
 export type DRow<F> = { key: string; id?: string; parent: string | null; type: string; title: string; goal: string; f: F; outs: DOut[] }
@@ -132,7 +133,7 @@ export function StructureDraft<F>({ levels, root, initial, cols, newFields, titl
                 <td><span className="tools sdtools">
                   {lv?.child && <button type="button" onClick={() => add(r)}>+ {levels[lv.child].label}</button>}
                   <button type="button" onClick={() => addOut(r)}>+ YCCĐ</button>
-                  <button type="button" className="danger" onClick={() => remove(r)}>Xoá</button>
+                  <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => remove(r)}><Icon n="trash" size={17} /></button>
                 </span></td>
               </tr>
             </Fragment>

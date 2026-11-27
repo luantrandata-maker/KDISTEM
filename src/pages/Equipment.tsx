@@ -5,6 +5,7 @@ import { useBackClose } from '../lib/history'
 import { printUnitLabels } from './inventory'
 import { RoomContentsList } from '../components/RoomContents'
 import { loadRooms, loadRoomContents, moveUnitTo, roomLabel, unitStatusAt, type RoomLite, type RoomStock } from '../lib/rooms'
+import { Icon } from '../components/Icon'
 
 type Unit = { id: string; type_id: string; serial: string | null; status: string; room_id: string | null; source: string; warranty_until: string | null; equipment_types: { name: string; brand: string | null; sku: string | null } | null; stem_rooms: { name: string } | null }
 type Type = { id: string; sku: string | null; name: string; brand: string | null }
@@ -95,7 +96,7 @@ export default function Equipment({ orgId }: { orgId: string }) {
             <td><select value={u.room_id ?? ''} onChange={e => moveUnit(u, e.target.value)} aria-label="Chuyển phòng"><option value="">Chưa xếp phòng</option>{rooms.map(r => <option key={r.id} value={r.id}>{roomLabel(r)}</option>)}</select></td>
             <td><select value={u.status} onChange={e => setUnitStatus(u, e.target.value)}>{Object.entries(UNIT_STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></td>
             <td>{u.warranty_until ? new Date(u.warranty_until).toLocaleDateString('vi-VN') : '—'}</td>
-            <td><button onClick={() => { const n = open === u.id ? null : u.id; setOpen(n); if (n) loadEvents(n) }}>Lịch sử</button> <button onClick={() => report(u)}>Báo hỏng</button> <button onClick={() => removeUnit(u)}>Xoá</button></td></tr>
+            <td><button onClick={() => { const n = open === u.id ? null : u.id; setOpen(n); if (n) loadEvents(n) }}>Lịch sử</button> <button onClick={() => report(u)}>Báo hỏng</button> <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => removeUnit(u)}><Icon n="trash" size={17} /></button></td></tr>
           {open === u.id && <tr key={u.id + 'h'}><td colSpan={5}><b>Lịch sử thiết bị — {u.serial}</b>
             <div className="timeline" style={{ marginTop: 10 }}>{(events[u.id] ?? []).map(e => <div key={e.id}><b>{e.title}</b> <small>{new Date(e.created_at).toLocaleString('vi-VN')}</small><br /><small>{e.note}</small></div>)}
               {(events[u.id] ?? []).length === 0 && <small>Chưa có lịch sử.</small>}</div></td></tr>}

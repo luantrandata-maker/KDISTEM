@@ -4,6 +4,7 @@ import { Tabs } from '../teacher/common'
 import { Tiles } from '../department/charts'
 import { useDeptStats } from '../department/data'
 import { fmtTime } from './data'
+import { Icon } from '../../components/Icon'
 
 // Tích hợp & dữ liệu (migration 025): trạng thái các kết nối + độ đầy đủ dữ liệu của từng trường
 
@@ -80,7 +81,7 @@ export function PlatformIntegrations() {
                 <td><span className={'plbadge ' + STATUS[r.status][1]}>{STATUS[r.status][0]}</span>{r.last_error && <><br /><small className="late">{r.last_error}</small></>}</td>
                 <td>{r.last_sync_at ? fmtTime(r.last_sync_at) : '—'}{r.records != null && <><br /><small>{r.records.toLocaleString('vi-VN')} bản ghi</small></>}</td>
                 <td><small>{r.note ?? '—'}</small></td>
-                <td><button type="button" onClick={() => setEdit(r.key)}>Sửa</button></td>
+                <td><button aria-label="Sửa" title="Sửa" className="abtn iconbtn" type="button" onClick={() => setEdit(r.key)}><Icon n="pencil" size={17} /></button></td>
               </tr>
             ))}
           </tbody>

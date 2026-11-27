@@ -260,7 +260,7 @@ function Exams({ orgId, subject, ofl: shared }: { orgId: string | null; subject?
     sub={<>{[courseSubjects(cur).join(', '), gradesText(courseGrades(cur)), howText(cur), cur.duration_min ? `${cur.duration_min} phút` : null,
       `${dt(cur.opens_at)}${cur.closes_at ? ' → ' + dt(cur.closes_at) : ''}`].filter(Boolean).join(' · ')} <span className={'pill ' + ESTATUS[cur.status][1]}>{ESTATUS[cur.status][0]}</span></>}
     actions={<><TryButton orgId={cur.org_id} spec={examSpec(cur)} title={cur.title} minutes={cur.duration_min} />{editable(cur) && <>{statusBtns(cur)}{cur.status === 'draft'
-      ? <button onClick={() => editForm(cur)}>Sửa</button>
+      ? <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => editForm(cur)}><Icon n="pencil" size={17} /></button>
       : <button onClick={() => newVersion(cur)} title="Đề đã công bố không sửa trực tiếp: tạo bản nháp mới để sửa, công bố bản mới thì bản cũ tự đóng">{draftOf(cur) ? 'Mở bản nháp mới' : 'Phát hành bản mới'}</button>}</>}</>}>
     {note}{cur.replaces_id && cur.status === 'draft' && <p className="sub">Bản nháp mới thay cho đề <b>{rows.find(r => r.id === cur.replaces_id)?.title ?? 'cũ'}</b>. Công bố bản này thì đề cũ tự đóng.</p>}<ExamResults exam={cur} roster={schoolOf(cur.org_id) && editable(cur)} />
     <ExamQuestionsPanel org={cur.org_id} qids={cur.question_ids ?? []} matrix={cur.criteria.matrix ?? []} subjects={courseSubjects(cur)} grades={courseGrades(cur)}

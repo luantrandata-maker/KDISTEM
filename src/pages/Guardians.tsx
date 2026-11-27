@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { downloadXlsx, norm, type Column } from '../lib/sheet'
 import ImportExcel from '../components/ImportExcel'
+import { Icon } from '../components/Icon'
 
 // Phụ huynh của học sinh (migration 048): danh sách theo lớp, thêm / nhập Excel, xuất Excel.
 // Tài khoản phụ huynh: Tài khoản → Tài khoản mã → Phụ huynh (tên đăng nhập <mã trường>.ph<SĐT>).
@@ -113,7 +114,7 @@ export default function Guardians({ orgId, go }: { orgId: string | null; go?: (p
                 <button onClick={() => setForm({ student_id: s.id, relation: list.some(x => x.relation === 'mother') ? 'father' : 'mother', receive_alerts: true })}>+ Phụ huynh</button></td></>}
               {g ? <><td>{g.full_name} <small className="sub">· {REL[g.relation]}</small>{!g.receive_alerts && <><br /><small className="sub">tắt thông báo vắng</small></>}</td><td>{g.phone ?? <small className="due bad">thiếu</small>}</td>
                 <td>{g.profile_id ? <span className="plbadge ok">Đã có</span> : <span className="plbadge mute">Chưa</span>}</td>
-                <td className="nowrap"><button onClick={() => setForm(g)}>Sửa</button> <button onClick={() => remove(g)}>Xoá</button></td></>
+                <td className="nowrap"><button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setForm(g)}><Icon n="pencil" size={17} /></button> <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => remove(g)}><Icon n="trash" size={17} /></button></td></>
                 : <td colSpan={4}><small className="sub">Chưa có thông tin phụ huynh</small></td>}
             </tr>))
         })}

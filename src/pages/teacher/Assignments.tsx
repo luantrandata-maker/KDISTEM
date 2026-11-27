@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
 import { TProps, NoTeacher, KIND_LABEL, useMyClasses, dueLabel, fmtDateTime, handoff, Tabs } from './common'
 import { type Rubric, RubricField, RubricGrader, RubricSummary, rubricProblem } from './rubric'
+import { Icon } from '../../components/Icon'
 
 type Overview = {
   id: string; class_id: string; class_name: string; topic_id: string | null; title: string; kind: string; subject: string | null
@@ -209,7 +210,7 @@ export function TeacherAssignments({ teacherId, orgId, go }: TProps) {
                       <button className={waiting ? 'primary' : ''} onClick={() => { handoff.set('grading.assignment', r.id); go?.('Chấm bài') }}>
                         {waiting ? `Chấm bài (${waiting})` : 'Xem kết quả'}</button>
                     )}
-                    <button onClick={() => openForm(r)}>Sửa</button>
+                    <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => openForm(r)}><Icon n="pencil" size={17} /></button>
                     {r.status === 'open' ? <button onClick={() => setStatus(r, 'closed')}>Đóng</button>
                       : <button onClick={() => setStatus(r, 'open')}>{r.status === 'draft' ? 'Giao' : 'Mở lại'}</button>}
                     <button className="x" onClick={() => remove(r)} aria-label={`Xoá ${r.title}`}>×</button>

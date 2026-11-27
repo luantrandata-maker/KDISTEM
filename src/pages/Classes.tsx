@@ -8,6 +8,7 @@ import ImportExcel from '../components/ImportExcel'
 import { norm, importSummary, downloadXlsx, type Column } from '../lib/sheet'
 import { loadRooms, type RoomLite } from '../lib/rooms'
 import { InfoTip } from '../components/InfoTip'
+import { Icon } from '../components/Icon'
 
 const COLS: Column[] = [
   { key: 'name', label: 'Tên lớp', required: true, aliases: ['Lớp', 'Ten lop'] },
@@ -145,7 +146,7 @@ export default function Classes({ orgId, year, years = [] }: { orgId: string; ye
           {shown.map(c => (
             <tr key={c.id}><td><b>{c.name}</b><br /><small>{c.academic_years?.name}</small></td><td>{c.grade}</td><td>{counts[c.id] ?? 0} HS</td><td>{roomOf(c) || <small>—</small>}</td>
               <td>{c.teachers?.full_name ?? '—'}</td><td>{(stemT[c.id] ?? []).join(', ') || '—'}</td><td><ProgChips programs={(progs[c.id] ?? []).join(',')} /></td>
-              <td><button onClick={() => setForm(c)}>Sửa</button> <button onClick={() => remove(c)}>Xoá</button></td></tr>
+              <td><button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setForm(c)}><Icon n="pencil" size={17} /></button> <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => remove(c)}><Icon n="trash" size={17} /></button></td></tr>
           ))}
           {shown.length === 0 && <tr><td colSpan={8}>Chưa có lớp nào.</td></tr>}
         </tbody>

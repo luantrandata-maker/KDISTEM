@@ -222,6 +222,8 @@ const PlatformLessonTemplates = lazy(() => import('./pages/lessons/Admin').then(
 // Phân phối chương trình theo tiết + tiến độ (057): cùng một màn cho trường / GV, Sở (soạn mẫu ban hành), KDI (mẫu dùng chung)
 const ppctTabs = (mode: 'school' | 'authority' | 'platform', extra: [string, ComponentType<any>][] = []) => {
   const tabs: [string, ComponentType<any>][] = [
+    // Trường tự tạo bản phân phối (hoặc nhân bản bản KDI), song song với bản KDI gán
+    ...(mode === 'school' ? [['Bản phân phối', (q: any) => <DistPage {...q} school />] as [string, ComponentType<any>]] : []),
     [mode === 'school' ? 'Kế hoạch năm' : 'Tổng quan theo khối', (q: any) => <YearPlan {...q} mode={mode} />],
     [mode === 'platform' ? 'Mẫu PPCT của KDI' : mode === 'authority' ? 'PPCT & mẫu ban hành' : 'Phân phối chương trình', (q: any) => <CurriculumBooks {...q} mode={mode} />],
     ['Phân bổ tiết', (q: any) => <Allocation {...q} mode={mode} />],

@@ -1,5 +1,5 @@
 // Phân phối chương trình — theo video demo được duyệt (23/10). Một trang gồm:
-//  hướng dẫn 3 bước · 3 thẻ số liệu · các tab: Danh sách bản phân phối (mặc định: lọc, sắp xếp, "+ Tạo bản phân phối"
+//  sơ đồ 8 bước (Flow.tsx) · 3 thẻ số liệu · các tab: Danh sách bản phân phối (mặc định: lọc, sắp xếp, "+ Tạo bản phân phối"
 //  mở trang tạo bản: đặt tên, chọn phân loại), Theo khung phân loại, Gán theo trường (tạo PPCT theo trường),
 //  Lịch sử áp dụng (125: các lần gán theo năm học, phiên bản).
 // Theo dõi thực hiện nằm ở menu riêng "Theo dõi Chương trình/Môn học".
@@ -16,6 +16,7 @@ import { DataTable, type Col as DCol } from '../../components/DataTable'
 import type { ClsNode } from './cls'
 import { ClsTree } from './ClsTree'
 import { Drawer } from '../../components/Drawer'
+import { DistFlow } from './Flow'
 import { PlanBody, Chip, STATUS, errText, useBreadcrumb, addPkgItems, type PkgOpt } from './Editor'
 import type { Plan, Status } from './sched'
 import { useGradeTree } from '../../components/GradeTree'
@@ -63,7 +64,7 @@ function useDistData(rk: number) {
 }
 
 /** units: thêm lọc Nguồn (Bản phân phối / PPCT các đơn vị) ở danh sách, thay tab "PPCT các đơn vị" (cổng KDI) */
-export function DistPage({ orgId, units }: { orgId: string | null; units?: boolean }) {
+export function DistPage({ orgId, units, school }: { orgId: string | null; units?: boolean; school?: boolean }) {
   const [tab, setTab] = useState<Tab>('list')
   const [src, setSrc] = useState<'own' | 'units'>('own')
   const srcSel = units && <select value={src} onChange={e => setSrc(e.target.value as 'own' | 'units')} aria-label="Nguồn">
@@ -94,15 +95,22 @@ export function DistPage({ orgId, units }: { orgId: string | null; units?: boole
   const cardBooks = books.filter(b => baseIds.has(b.dist_plan_id))
   const pub = cardBase.filter(p => p.status === 'published').length
   const drafts = cardBase.filter(p => p.status === 'draft').length
+  // Bước đang làm trên sơ đồ: tạo bản → 2–3; mở bản nháp → 3–4; mở bản đã phát hành → 5; Gán & áp dụng → 6; danh sách → chưa tô
+  const openP = plans?.find(p => p.id === (tab === 'tree' ? openTree : openList))
+  const cur = tab === 'create' ? [2, 3] : tab === 'history' || tab === 'assign' ? [6] : openP ? (openP.status === 'published' ? [5] : [3, 4]) : []
+  const flowGo = (n: number) => n === 2 && orgId ? () => { setMsg(null); setTab('create') }
+    : n === 6 ? () => { setMsg(null); setTab('history') }
+    : n === 5 && openP && openP.status === 'published' ? () => assign(openP.id) : undefined
   return (
     <>
+      <DistFlow cur={cur} go={flowGo} school={school} />
       <StatCards active={lf.card} onPick={k => { setLf({ ...lf, card: k, fs: '' }); setTab('list'); setSrc('own'); setOpenList(null); setMsg(null) }} items={[
         { icon: 'layers', value: plans ? cardBase.length : '…', label: 'Bản phân phối', sub: `${pub} đã phát hành · ${drafts} nháp` },
         { k: 'published', icon: 'checkCircle', tone: 'good', value: plans ? pub : '…', label: 'Bản có thể gán' },
         { k: 'books', icon: 'grid', tone: 'good', value: cardBooks.length, label: 'PPCT theo trường', sub: `${cardBooks.filter(b => b.status === 'published').length} đã ban hành` },
       ]} />
       <HeadTabs><div className="distpills" role="tablist">
-        {([['list', 'Danh sách bản phân phối'], ['history', 'Gán & áp dụng']] as [Tab, string][]).map(([t, l]) => {
+        {([['list', 'Danh sách bản phân phối'], ['history', school ? 'Áp dụng cho lớp' : 'Gán & áp dụng']] as [Tab, string][]).map(([t, l]) => {
           const on = tab === t || (t === 'list' && (tab === 'create' || tab === 'tree'))
           return <button key={t} type="button" role="tab" aria-selected={on} className={on ? 'on' : ''} onClick={() => { setTab(t); setMsg(null); if (t === 'list') setOpenList(null) }}>{l}</button>
         })}
@@ -121,7 +129,7 @@ export function DistPage({ orgId, units }: { orgId: string | null; units?: boole
         {tab === 'create' && orgId && <CreatePlan orgId={orgId} onCancel={() => setTab('list')}
           onCreated={(id, n) => { reload(); setOpenList(id); setTab('list'); setMsg(n ? `Đã tạo bản phân phối nháp với ${n} chương trình. Xếp lịch rồi lưu / phát hành.` : 'Đã tạo bản phân phối nháp. Thêm chương trình và xếp lịch.') }} />}
         {(tab === 'history' || tab === 'assign') && <><DistHistory plans={plans} rk={rk} />
-          <HeadAction><button type="button" className="primary ttadd" onClick={() => assign('')}>+ Gán cho trường</button></HeadAction></>}
+          <HeadAction><button type="button" className="primary ttadd" onClick={() => assign('')}>{school ? '+ Áp dụng cho lớp' : '+ Gán cho trường'}</button></HeadAction></>}
         {assignOpen && <Drawer title="Gán bản phân phối cho trường" onClose={() => setAssignOpen(false)} closeOnOutside={false}>
           <DistAssign orgId={orgId} plans={plans} initial={assignId} onDone={() => { reload(); setTab('history') }} />
         </Drawer>}

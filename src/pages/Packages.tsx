@@ -161,7 +161,7 @@ function AssignModal({ pkg, topics: given, onClose, onSaved }: { pkg: Pkg; topic
           {err && <p className="warnline">{err}</p>}
         </div>
         <div className="modalfoot"><small style={{ marginRight: 'auto' }} className="sub">{chosen ? `Đã chọn ${chosen}/${list.length} chủ đề` : 'Chưa chọn khối nào'}</small>
-          <button type="button" onClick={onClose} disabled={busy}>Hủy</button>
+          <button type="button" onClick={onClose} disabled={busy}>Huỷ</button>
           <button type="button" className="primary" onClick={save} disabled={busy || !list.length}>{busy ? 'Đang lưu…' : 'Lưu tất cả'}</button></div>
       </div>
     </div>

@@ -248,7 +248,7 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
           title="Chốt một lần tất cả thẻ chưa chốt. Chỉ dùng khi đã xem lại nội dung các thẻ.">✓ Chốt tất cả thẻ còn lại</button>}</div>
       <div className="ltabs" role="tablist">
         {CARDS.map(c => <button key={c.k} type="button" role="tab" aria-selected={tab === c.k} className={(tab === c.k ? 'on' : '') + (checked.includes(c.k) ? ' done' : '')}
-          onClick={() => { if (edit && edit !== c.k) return setMsg('Lưu hoặc hủy thẻ đang sửa trước.'); setTab(c.k) }}>
+          onClick={() => { if (edit && edit !== c.k) return setMsg('Lưu hoặc huỷ thẻ đang sửa trước.'); setTab(c.k) }}>
           <small>{c.no}</small> {c.title}{store === 'training' && c.k === 'bank' && <small> (tuỳ chọn)</small>}{checked.includes(c.k) && <i aria-label="Đã chốt">✓</i>}</button>)}
       </div>
       {kit.issues.length > 0 && <div className="lwarn"><b>Hệ thống ghi nhận {kit.issues.length} điểm cần kiểm tra khi tách giáo án</b>
@@ -264,7 +264,7 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
           <div className="lcardacts">
             <Chip tone={on ? 'good' : 'warn'}>{on ? 'Đã chốt' : 'Cần kiểm tra'}</Chip>
             {edit === tab
-            ? <><button type="button" onClick={cancel} disabled={!!busy}>Hủy</button><button type="button" onClick={save} disabled={!!busy}>Lưu nháp</button>
+            ? <><button type="button" onClick={cancel} disabled={!!busy}>Huỷ</button><button type="button" onClick={save} disabled={!!busy}>Lưu nháp</button>
               <button type="button" className="primary" onClick={saveChot} disabled={!!busy} title="Lưu, chốt thẻ này rồi mở thẻ tiếp theo chưa chốt">Lưu & chốt ›</button></>
             : <><button type="button" onClick={() => begin(tab)} disabled={!!busy || !!edit}>✎ Cập nhật</button>
               {on ? <button type="button" onClick={() => unchot(tab)} disabled={!!busy || !!edit}>Bỏ chốt</button>
@@ -302,7 +302,7 @@ export function LessonPage({ orgId, id, programs, subjectsOf, code, onBack, onCh
           ['content', `Thẻ 02 · Nội dung ${T.noun}`, `${c.sessions} buổi · ${c.acts} hoạt động · ${c.steps} bước`], ['links', 'Thẻ 03 · Link tài liệu', `${c.docs} tài liệu`],
           ['norms', 'Thẻ 04 · Định mức vật tư', `${c.supplies} nguyên vật liệu · ${c.tools} công cụ, thiết bị`], ['bank', 'Thẻ 05 · Kho hoạt động', `${c.bank} hoạt động`]]
         return <Modal title="Kiểm tra file" sub={check.name} onClose={() => setCheck(null)}
-          foot={<><button type="button" onClick={() => setCheck(null)}>Hủy</button>
+          foot={<><button type="button" onClick={() => setCheck(null)}>Huỷ</button>
             <button type="button" className="primary" disabled={!check.cards.length || !!busy} onClick={async () => { if (await apply(check.res, check.cards)) setCheck(null) }}>Điền {check.cards.length} thẻ</button></>}>
           <div className="lcheck">{rows.map(([ck, l, n]) => <label key={ck}><span><input type="checkbox" disabled={!check.res.touched.includes(ck)} checked={check.cards.includes(ck)}
             onChange={e => setCheck({ ...check, cards: e.target.checked ? [...check.cards, ck] : check.cards.filter(x => x !== ck) })} /> <b>{l}</b></span><span className="distchip2 good">{n}</span></label>)}</div>
@@ -443,7 +443,7 @@ function SessionsEdit({ ss, set }: { ss: KSession[]; set: (s: KSession[]) => voi
   const at = (si: number, s: KSession) => set(ss.map((x, i) => (i === si ? s : x)))
   return <div className="lsess">
     {ss.map((s, si) => <div key={si} className="lses edit">
-      <div className="lacthead"><b>Buổi {si + 1}</b><button type="button" className="linkbtn danger" onClick={() => set(ss.filter((_, i) => i !== si))}>Xóa buổi</button></div>
+      <div className="lacthead"><b>Buổi {si + 1}</b><button type="button" className="linkbtn danger" onClick={() => set(ss.filter((_, i) => i !== si))}>Xoá buổi</button></div>
       <Area label="Ghi chú của buổi" rows={2} value={s.note} set={note => at(si, { ...s, note })} />
       {s.acts.map((a, ai) => {
         const setA = (na: typeof a) => at(si, { ...s, acts: s.acts.map((x, i) => (i === ai ? na : x)) })
@@ -451,13 +451,13 @@ function SessionsEdit({ ss, set }: { ss: KSession[]; set: (s: KSession[]) => voi
           <div className="lactrow">
             <input aria-label="Tên hoạt động" placeholder="Tên hoạt động, ví dụ: Hoạt động 1: Xác định vấn đề" value={a.title} onChange={e => setA({ ...a, title: e.target.value })} />
             <input aria-label="Phút" type="number" min={0} placeholder="Phút" value={a.minutes ?? ''} onChange={e => setA({ ...a, minutes: e.target.value === '' ? null : Number(e.target.value) })} />
-            <button type="button" className="linkbtn danger" onClick={() => at(si, { ...s, acts: s.acts.filter((_, i) => i !== ai) })}>Xóa</button>
+            <button type="button" className="linkbtn danger" onClick={() => at(si, { ...s, acts: s.acts.filter((_, i) => i !== ai) })}>Xoá</button>
           </div>
           <Area label="Nội dung chung" rows={2} value={a.general} set={general => setA({ ...a, general })} />
           {a.steps.map((st, ti) => <div key={ti} className="lstep edit">
             <div className="lactrow"><input aria-label="Tên bước" placeholder="Tên bước, ví dụ: Khởi động" value={st.title}
               onChange={e => setA({ ...a, steps: a.steps.map((x, i) => (i === ti ? { ...x, title: e.target.value } : x)) })} />
-              <button type="button" className="linkbtn danger" onClick={() => setA({ ...a, steps: a.steps.filter((_, i) => i !== ti) })}>Xóa</button></div>
+              <button type="button" className="linkbtn danger" onClick={() => setA({ ...a, steps: a.steps.filter((_, i) => i !== ti) })}>Xoá</button></div>
             <StepLines lines={st.lines} set={lines => setA({ ...a, steps: a.steps.map((x, i) => (i === ti ? { ...x, lines } : x)) })} />
           </div>)}
           <button type="button" className="linkbtn" onClick={() => setA({ ...a, steps: [...a.steps, { title: '', lines: [] }] })}>+ Thêm bước</button>
@@ -519,7 +519,7 @@ function DocsEdit({ docs, set, orgId }: { docs: KDoc[]; set: (d: KDoc[]) => void
         : <span className="lurl"><input aria-label="Đường dẫn" placeholder="https://…" value={d.url} onChange={e => at(i, { ...d, url: e.target.value })} />
           <label className="linkbtn">{up ? 'Đang tải…' : 'Tải tệp'}<input type="file" hidden disabled={!!up} onChange={e => { const f = e.target.files?.[0]; if (f) attach(i, f); e.target.value = '' }} /></label></span>}
       {T.catalogDocs ? <small className="sub">{d.item_id ? 'Đã có trong danh mục' : 'Tự tạo khi chốt'}</small> : <span />}
-      <button type="button" className="linkbtn danger" onClick={() => set(docs.filter((_, j) => j !== i))}>Xóa</button>
+      <button type="button" className="linkbtn danger" onClick={() => set(docs.filter((_, j) => j !== i))}>Xoá</button>
     </div>)}
     <button type="button" onClick={() => set([...docs, { key: key(), title: '', type: 'worksheet', url: '', file: null, item_id: null }])}>+ Thêm dòng</button>
   </div>
@@ -555,7 +555,7 @@ function MatRows({ title, rows, set, cat, kind }: { title: string; rows: KMat[];
         <input aria-label="Đơn vị" list="mat-units" placeholder="– Đơn vị –" value={m.unit} onChange={e => at(i, { ...m, unit: e.target.value })} />
         <input aria-label="Số lượng" inputMode="decimal" placeholder="0" value={m.qty} onChange={e => at(i, { ...m, qty: e.target.value })} />
         <small className="sub">{catOf(m, cat) ? 'Đã có trong danh mục' : 'Tự tạo khi chốt'}</small>
-        <button type="button" className="linkbtn danger" onClick={() => set(rows.filter((_, j) => j !== i))}>Xóa</button>
+        <button type="button" className="linkbtn danger" onClick={() => set(rows.filter((_, j) => j !== i))}>Xoá</button>
       </div>)}
       <button type="button" onClick={() => set([...rows, { key: key(), catalog_id: null, name: '', unit: '', qty: '', kind, reusable: kind !== 'supply' }])}>+ Thêm dòng</button>
     </div></div>
@@ -594,7 +594,7 @@ function BankEdit({ bank, set, acts, places, onSuggest }: { bank: KBank[]; set: 
       <input aria-label="Dùng ở hoạt động" list="bank-places" placeholder="Dùng ở hoạt động…" value={b.act} onChange={e => at(i, { ...b, act: e.target.value })} />
       <input aria-label="Ghi chú" placeholder="Ghi chú" value={b.note} onChange={e => at(i, { ...b, note: e.target.value })} />
       <small className="sub">{a ? 'Đã có trong kho' : 'Tự tạo khi chốt'}</small>
-      <button type="button" className="linkbtn danger" onClick={() => set(bank.filter((_, j) => j !== i))}>Xóa</button>
+      <button type="button" className="linkbtn danger" onClick={() => set(bank.filter((_, j) => j !== i))}>Xoá</button>
     </div> })}
     <div className="tools">
       <button type="button" onClick={() => set([...bank, { key: key(), activity_id: null, title: '', kind: 'quiz', act: '', note: '' }])}>+ Thêm dòng</button>

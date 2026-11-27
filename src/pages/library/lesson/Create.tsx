@@ -115,7 +115,7 @@ export function CreateLesson({ orgId, programs, subjectsOf, program, subject, pr
   const status = <>{busy && <p className="sub" role="status">{busy}</p>}{err && <p className="msg">{err}</p>}</>
 
   if (step === 'menu') return (
-    <Modal title={head} sub={pickPlace ? (tr ? 'Chọn chương trình đào tạo, nội dung rồi chọn cách nhập. Bài giảng mới là bản nháp, chưa phát hành.' : 'Chọn chương trình, môn rồi chọn cách nhập. Bài học mới là bản nháp, chưa phát hành.') : crumb} onClose={onClose} foot={<button type="button" onClick={onClose}>Hủy</button>}>
+    <Modal title={head} sub={pickPlace ? (tr ? 'Chọn chương trình đào tạo, nội dung rồi chọn cách nhập. Bài giảng mới là bản nháp, chưa phát hành.' : 'Chọn chương trình, môn rồi chọn cách nhập. Bài học mới là bản nháp, chưa phát hành.') : crumb} onClose={onClose} foot={<button type="button" onClick={onClose}>Huỷ</button>}>
       {pickPlace && place}
       <div className="lways">
         {([['upload', 'Tải giáo án từ nguồn', 'Tệp Word (.docx), bài giảng PowerPoint. Hệ thống tách thành bộ học liệu 5 thẻ.'],

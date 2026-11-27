@@ -461,7 +461,7 @@ export function PlanDetail({ id, can, onBack, onMsg }: { id: string; can: boolea
       <ActionBar items={[
         !editing && editSched && { key: 'edit', label: 'Chỉnh sửa', icon: 'pencil', onClick: () => setEditing(true) },
         editing && { key: 'done', label: 'Xong', rank: 1, disabled: busy, onClick: doneEdit },
-        editing && editSched && sched.dirty && { key: 'undo', label: 'Hủy thay đổi', rank: 1, disabled: busy, onClick: sched.reset },
+        editing && editSched && sched.dirty && { key: 'undo', label: 'Huỷ thay đổi', rank: 1, disabled: busy, onClick: sched.reset },
         editing && editSched && { key: 'save', label: busy ? 'Đang lưu…' : 'Lưu lịch', kind: sched.dirty ? 'primary' : undefined, rank: 1, disabled: !sched.dirty || busy, onClick: saveSched },
         can && p.pub_status === 'draft' && { key: 'pub', label: 'Phát hành', kind: 'primary', rank: 1, disabled: warn.length > 0 || scErr.length > 0 || busy,
           title: warn.length ? 'Chưa phát hành được: ' + warn.join('; ') : scErr.length ? 'Lịch còn lỗi' : undefined, onClick: () => setStatus('published', `Đã phát hành ${p.plan_code}.`) },

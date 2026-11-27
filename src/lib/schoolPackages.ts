@@ -1,4 +1,5 @@
 import { fetchAll, supabase } from './supabase'
+import { activeGrades, gradeRange, gradeShort, levelsNow } from './eduLevels'
 
 // Trường dùng gói STEM nào (156, 158): trường dùng một hoặc nhiều gói trong năm học, mỗi khối một gói. Trường có thể chỉ áp dụng
 // một phần của gói: các phần không áp dụng ghi ở school_package_skips (cả học phần ở một vị trí, hoặc một chủ đề).
@@ -39,19 +40,25 @@ export const shiftYear = (y: string, n: number) => { const a = Number(y.slice(0,
 export const LEVEL_GRADES: Record<string, number[]> = {
   tieuhoc: [1, 2, 3, 4, 5], thcs: [6, 7, 8, 9], thpt: [10, 11, 12],
 }
-export const ALL_GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
-export const gradesOfLevel = (level: string | null | undefined) => level ? LEVEL_GRADES[level] ?? [] : ALL_GRADES
+/** Khối của các cấp đang dùng (theo Danh mục › Cấp học & khối): 1–12, có Mầm, Chồi, Lá khi bật cấp Mầm non */
+export const allGrades = () => activeGrades()
+export const gradesOfLevel = (level: string | null | undefined) => {
+  if (!level) return allGrades()
+  const l = levelsNow().find(x => x.code === level)
+  return l ? gradeRange(l.grade_from, l.grade_to) : LEVEL_GRADES[level] ?? []
+}
 
-/** K1–K5, K6, K8 */
+/** K1–K5, K6, K8; mầm non: "Mầm, Chồi, Lá" (ghép: "Lá · K1–K2") */
 export function kRange(gs: number[]) {
+  const pre = [...gs].filter(g => g < 0).sort((a, b) => a - b).map(gradeShort).join(', ')
   const xs = [...gs].filter(g => g > 0).sort((a, b) => a - b)
-  if (!xs.length) return '—'
+  if (!xs.length) return pre || '—'
   const parts: string[] = []; let a = xs[0], b = xs[0]
   for (const g of [...xs.slice(1), NaN]) {
     if (g === b + 1) { b = g; continue }
     parts.push(a === b ? `K${a}` : b === a + 1 ? `K${a}, K${b}` : `K${a}–K${b}`); a = b = g
   }
-  return parts.join(', ')
+  return (pre ? pre + ' · ' : '') + parts.join(', ')
 }
 
 export async function loadSchoolPkgs(year: string) {

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useStemTracks, trackLabel } from '../lib/stemTracks'
-import { gradeName } from '../lib/eduLevels'
+import { gradeName, gradeShort } from '../lib/eduLevels'
 import { loadPackages, type PackageItem, type ProgramPackage } from '../lib/programFrame'
 import { PROGRAM_COLOR } from './teacher/common'
 import { Icon } from '../components/Icon'
@@ -136,7 +136,7 @@ export function PpctStandard() {
         {trackList.map(t => <button key={t.code} type="button" className={track === t.code ? 'on' : ''} onClick={() => setTrack(t.code)}>{trackLabel(t.code)}</button>)}</div>
       <div className="seg" role="group" aria-label="Khối">
         {gradeList.map(g => <button key={g} type="button" className={grade === g ? 'on' : ''} onClick={() => setGrade(g)} title={isDone(g) ? 'Đã có PPCT chuẩn' : 'Chưa có PPCT chuẩn'}>
-          K{g}{isDone(g) ? ' ✓' : ''}</button>)}</div>
+          {gradeShort(g)}{isDone(g) ? ' ✓' : ''}</button>)}</div>
     </div>
     <div className="bar" style={{ flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
       <b>{trackLabel(track)} · {grade ? gradeName(grade) : ''}</b>

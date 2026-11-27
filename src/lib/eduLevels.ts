@@ -35,6 +35,13 @@ export const gradeRange = (from: number, to: number) => Array.from({ length: Mat
 export const PRESCHOOL: Record<number, [string, string]> = { [-4]: ['Nhà trẻ', 'Nhà trẻ'], [-3]: ['Mầm', 'Mầm (3–4 tuổi)'], [-2]: ['Chồi', 'Chồi (4–5 tuổi)'], [-1]: ['Lá', 'Lá (5–6 tuổi)'] }
 /** Tên một khối: "Khối 6", "Chồi (4–5 tuổi)" */
 export const gradeName = (g: number) => PRESCHOOL[g]?.[1] ?? `Khối ${g}`
+/** Tên khối ngắn: "K6"; mầm non: "Mầm", "Chồi", "Lá" */
+export const gradeShort = (g: number) => PRESCHOOL[g]?.[0] ?? `K${g}`
+
+/** Các cấp đang dùng theo danh mục đã tải (chưa tải xong: 3 cấp mặc định) — dùng ngoài component */
+export const levelsNow = () => (cache ?? DEFAULT_LEVELS).filter(l => l.active !== false)
+/** Khối của các cấp đang dùng: bình thường 1–12; bật cấp Mầm non trong Danh mục thì có thêm Mầm, Chồi, Lá */
+export const activeGrades = () => [...new Set(levelsNow().flatMap(l => gradeRange(l.grade_from, l.grade_to)))].sort((a, b) => a - b)
 
 /** Danh mục cấp học dùng chung trong phiên; `reload()` sau khi sửa để tất cả màn cập nhật.
  *  `levels`: cấp đang dùng (để chọn khi soạn mới); `all`: gồm cả cấp đã ngừng dùng (để hiện dữ liệu cũ). */

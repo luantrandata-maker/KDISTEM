@@ -6,8 +6,11 @@ import './index.css'
 import { installRowClick } from './lib/rowClick'
 import { installTableSort } from './lib/tableSort'
 import { installFontSize } from './components/FontSize'
+import { installChunkReload } from './lib/chunkReload'
+import { AppErrorBoundary } from './components/AppErrorBoundary'
+installChunkReload()
 installRowClick()
 installTableSort()
 installFontSize()
-createRoot(document.getElementById('root')!).render(<React.StrictMode><App /></React.StrictMode>)
+createRoot(document.getElementById('root')!).render(<React.StrictMode><AppErrorBoundary><App /></AppErrorBoundary></React.StrictMode>)
 

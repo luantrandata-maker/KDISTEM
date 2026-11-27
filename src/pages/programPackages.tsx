@@ -76,7 +76,6 @@ export function ProgramPackages() {
   const [topics, setTopics] = useState<ProgramTopic[]>([])
   const [msg, setMsg] = useState('')
   const [openId, setOpenId] = useState<string | null>(null)
-  const [compare, setCompare] = useState(false)
   const [cmpShow, setCmpShow] = useState(false)   // bảng so sánh nhanh dưới thẻ khi chưa chọn gói: bấm nút để mở / thu gọn
   const [trackOpen, setTrackOpen] = useState(false)   // ngăn bên phải: các loại chương trình
   const [formSlot, setFormSlot] = useState<HTMLElement | null>(null)   // chỗ đặt nút Lưu / Huỷ trên hàng tiêu đề khi sửa gói
@@ -130,7 +129,6 @@ export function ProgramPackages() {
   const pkgMenu = (p: ProgramPackage) => [
     { label: 'Sửa gói', onClick: () => setEditPkg(p) },
     { label: 'Sao chép thành gói mới', onClick: () => setEditPkg({ ...p, id: '', code: '', name: p.name + ' (bản sao)', sort: p.sort + 1, copyFrom: p.id }) },
-    ...(live.length > 1 ? [{ label: 'So sánh với gói khác', onClick: () => setCompare(true) }] : []),
     { label: 'Xoá', danger: true, onClick: () => delPkg(p) }]
 
   const n = packages.length
@@ -173,13 +171,6 @@ export function ProgramPackages() {
     <PackageForm slot={formSlot} p={editPkg} defColor={pkgColor(undefined, editPkg.id ? Math.max(0, packages.findIndex(x => x.id === editPkg.id)) : packages.length)} auto={(p, c) => p.id ? autoBody(p, c) : <small className="sub">Chưa soạn thẻ: trang hiện nội dung tự động của gói.</small>} tracks={active} items={items} skips={skips} modules={modules} topics={topics} onCancel={() => setEditPkg(null)} onSaved={id => { setEditPkg(null); if (id) setOpenId(id); reload() }} />
   </ElView>
 
-  if (compare) return <>
-    <DetailHead back="Gói STEM" onBack={() => setCompare(false)} title="So sánh các gói STEM" />
-    {msg && <p className="msg" role="status">{msg}</p>}
-    <CompareView tracks={active} packages={live} items={items} topics={topics} skips={skips} modName={modName} grades={selGrades} levels={sel} name={fName} by={by}
-      filter={extra => <LevelFilter tree={gtree}
-        extra={<>{extra}<Seg label="" items={[['grade', 'Khối'], ['mod', 'Học phần']] as ['grade' | 'mod', string][]} on={v => v === by} onPick={setBy} /></>} />} />
-  </>
 
   return <>
     <HeadAction>
@@ -197,7 +188,7 @@ export function ProgramPackages() {
         })}
       </div>
       {cur && <PackageDetail key={cur.id} pkg={cur} color={pkgColor(cur, curK)} others={packages.filter(p => p.id !== cur.id)} tracks={active} admin={admin} items={items} modules={modules} topics={topics} msg={msg} setMsg={setMsg}
-        slotsOf={slotsOf} topicsOfItem={topicsOfItem} menu={admin ? pkgMenu(cur) : []}
+        slotsOf={slotsOf} topicsOfItem={topicsOfItem} menu={[]}
         onChanged={reload} onLevel={k => setFGs([...(LEVELS.find(l => l.k === k)?.grades ?? [])])} inGrades={selGrades} levelFilter={gtree} onEdit={tab => setEditPkg({ ...cur, tab })} />}
       {/* Chưa chọn gói: hiện sẵn bảng so sánh các gói cho phần dưới không trống */}
       {!cur && cmpShow && live.length > 1 && <section className="pkgdet" style={{ '--c': 'var(--primary)' } as React.CSSProperties} aria-label="So sánh nhanh các gói">

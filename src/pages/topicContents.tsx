@@ -1,3 +1,4 @@
+import { Icon } from '../components/Icon'
 import React, { Fragment, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabase'
@@ -331,7 +332,7 @@ export function TopicContents({ topic, admin, onTopicChanged, module }: { topic:
   const bar = admin ? <span className="tcbar2">{ed ? <>
       <button type="button" className="primary" onClick={() => saveRef.current?.()}>Lưu</button>
       <button type="button" onClick={stopEdit}>Huỷ</button></>
-    : <button type="button" className="primary" onClick={() => setInfoEdit(true)}>✎ Chỉnh sửa</button>}</span> : null
+    : <button type="button" aria-label="Chỉnh sửa" title="Chỉnh sửa" className="abtn iconbtn" onClick={() => setInfoEdit(true)}><Icon n="pencil" size={17} /></button>}</span> : null
 
   return <div className="tconewrap" ref={wrapRef}>
     {bar && (slot ? createPortal(bar, slot) : <div className="tcbarin">{bar}</div>)}

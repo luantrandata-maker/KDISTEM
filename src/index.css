@@ -4363,3 +4363,7 @@ table.colfit :is(th,td),table.colfit :is(th,td) *{white-space:normal!important;o
 .main[data-ph] :is(.cmptbl,.cmpk,.cmpk2)>thead>tr>th,.main[data-ph] .pkgpb>table>thead>tr>th{font-size:calc(13px * var(--fz,1));padding-top:6px;padding-bottom:6px}
 /* Bảng Các loại chương trình: cột Mô tả đủ rộng để đọc */
 .pkgtracks td.trkdesc{min-width:220px}
+/* So sánh trường với gói: các bộ lọc và nút bên phải sát nhau hơn */
+.main .cmpcard>.cmpfilter>.lvextra{gap:6px}
+.main .cmpcard>.cmpfilter>.lvextra>.lvgrp{margin-right:4px}
+.main .cmpcard>.cmpfilter>.lvextra>.field.inline{margin-right:10px}

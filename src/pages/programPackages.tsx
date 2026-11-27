@@ -7,7 +7,7 @@ import { ApplyTag } from '../components/ApplyTag'
 import { supabase } from '../lib/supabase'
 import { EDU_ACTIVITY_NAME, useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
 import { BLANK_TRACK, TrackForm, trackErr } from './stemTracks'
-import { fmtGrades, gradeName } from '../lib/eduLevels'
+import { activeGrades, fmtGrades, gradeName, gradeShort, useEduLevels } from '../lib/eduLevels'
 import { frameErr, loadFrame, loadPackages, slotTopics, type PackageItem, type PackageSkip, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
 import { PROGRAM_COLOR } from './teacher/common'
 import { HeadAction } from '../components/PageFrame'
@@ -24,7 +24,6 @@ import { Icon } from '../components/Icon'
 // Gói STEM theo khung chương trình (148): mỗi gói gồm các loại chương trình; mỗi loại, mỗi khối chọn học phần ở từng vị trí
 // (Học phần 1, Học phần 2…). Xem một gói, so sánh các gói (tô màu chỗ khác nhau). Chỉ KDI sửa.
 
-const GRADES = Array.from({ length: 12 }, (_, i) => i + 1)
 const chip = (code: string) => <span className="progchip" style={{ background: PROGRAM_COLOR[code], color: '#fff' }}>{trackLabel(code)}</span>
 const DIFF = { background: '#dbeafe' }
 // Màu từng gói, giống thẻ gói ở trang Gói STEM (xanh dương, tím, cam, đỏ)
@@ -67,6 +66,7 @@ const keyOf = (t: string, g: number, s: number) => `${t}|${g}|${s}`
 
 export function ProgramPackages() {
   const { tracks } = useStemTracks()
+  useEduLevels() // vẽ lại khi danh mục cấp học tải xong (khối Mầm, Chồi, Lá khi bật cấp Mầm non)
   const active = tracks.filter(t => t.active !== false)
   const [admin, setAdmin] = useState(false)
   const [packages, setPackages] = useState<ProgramPackage[]>([])
@@ -104,11 +104,11 @@ export function ProgramPackages() {
   // Ô nào khác nhau giữa các gói đang dùng
   const live = packages.filter(p => p.active)
   const diffKeys = new Set<string>()
-  for (const t of active) for (const g of GRADES) for (const s of slotsOf(t.code, live.map(p => p.id))) {
+  for (const t of active) for (const g of activeGrades()) for (const s of slotsOf(t.code, live.map(p => p.id))) {
     const v = new Set(live.map(p => cell(p.id, t.code, g, s)?.module_id ?? ''))
     if (v.size > 1) diffKeys.add(keyOf(t.code, g, s))
   }
-  const diffTracks = (pkg: string) => active.filter(t => GRADES.some(g => slotsOf(t.code, [pkg]).some(s => diffKeys.has(keyOf(t.code, g, s))))).map(t => t.code)
+  const diffTracks = (pkg: string) => active.filter(t => activeGrades().some(g => slotsOf(t.code, [pkg]).some(s => diffKeys.has(keyOf(t.code, g, s))))).map(t => t.code)
 
   async function delPkg(p: ProgramPackage) {
     if (!confirm(`Xoá ${p.name}? Học phần của gói cũng bị xoá theo.`)) return
@@ -540,7 +540,7 @@ function TrackGrid({ pkg, track, admin, items, modules, topics, slots, diffKeys,
   const mine = items.filter(i => i.package_id === pkg.id && i.track_code === track.code)
   const get = (g: number, s: number) => mine.find(i => i.grade === g && i.slot === s)
   const name = (id?: string) => modules.find(m => m.id === id)
-  const rows = edit ? GRADES : GRADES.filter(g => mine.some(i => i.grade === g))
+  const rows = edit ? activeGrades() : activeGrades().filter(g => mine.some(i => i.grade === g))
   async function set(g: number, s: number, moduleId: string) {
     const q = moduleId
       ? supabase.from('program_package_items').upsert({ package_id: pkg.id, track_code: track.code, grade: g, slot: s, module_id: moduleId }).select('grade')
@@ -864,10 +864,10 @@ function PackageForm({ p, tracks, items, skips, modules, topics, onCancel, onSav
         className={'distfchip' + (tab === t.code ? ' on' : '')} onClick={() => setTab(t.code)} title={`${trackLabel(t.code)} · ${t.name}`}>{t.name} <small style={{ opacity: .75 }}>· {gradesOf(t.code).length} khối</small></button>)}</div>
       {tr && <div className="pkfsec">
         <div className="pkfhead">{chip(tr.code)} <b>{tr.name}</b><span className="sub" style={{ marginLeft: 'auto' }}>{flat(tr) ? 'Tick khối đưa vào gói · chủ đề lấy theo Khung chương trình' : 'Tick khối, rồi chọn học phần HP1, HP2 cho từng khối'}</span></div>
-        <div className="pkfgrades"><span className="sub">Khối áp dụng:</span>{GRADES.map(g => { const on = keysOf(tr.code, g).length > 0
+        <div className="pkfgrades"><span className="sub">Khối áp dụng:</span>{activeGrades().map(g => { const on = keysOf(tr.code, g).length > 0
           const none = flat(tr) && !flatTopics(tr, g).length
           return <label key={g} className={'pkfchk' + (on ? ' on' : '') + (none && !on ? ' off' : '')} title={none ? 'Khung chương trình chưa có chủ đề của khối này' : undefined}>
-            <input type="checkbox" checked={on} disabled={none && !on} onChange={() => flipGrade(tr, g)} /> K{g}{flat(tr) && !none ? <small className="sub"> · {flatTopics(tr, g).length}</small> : null}</label> })}</div>
+            <input type="checkbox" checked={on} disabled={none && !on} onChange={() => flipGrade(tr, g)} /> {gradeShort(g)}{flat(tr) && !none ? <small className="sub"> · {flatTopics(tr, g).length}</small> : null}</label> })}</div>
         {flat(tr)
           ? gradesOf(tr.code).length === 0 ? <p className="sub" style={{ margin: '8px 12px' }}>Chưa tick khối nào.</p>
           : <table className="table slt ttdense" style={{ width: '100%' }}>

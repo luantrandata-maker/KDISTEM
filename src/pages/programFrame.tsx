@@ -1,7 +1,7 @@
 import React, { Fragment, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useStemTracks, type StemTrack, trackLabel } from '../lib/stemTracks'
-import { fmtGrades, gradeName } from '../lib/eduLevels'
+import { fmtGrades, gradeName, gradeShort } from '../lib/eduLevels'
 import { frameErr, loadFrame, type MaterialGroup, type ProgramModule, type ProgramTopic } from '../lib/programFrame'
 import { PROGRAM_COLOR } from './teacher/common'
 import { DataTable, SideSplit, type Col } from '../components/DataTable'
@@ -313,7 +313,7 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpen, actions, 
         {[['', 'Tất cả'], ...BY].map(([k, l]) => <label key={k as string}><input type="radio" name="frgrid-by" checked={by === k} onChange={() => { setBy(k as string); setByEl(null) }} />{l as string}</label>)}
       </Pop>}
       <FitScreen><div className="frgridwrap"><table className="slt frgridtbl">
-        <thead><tr><th>Học phần</th>{gs.map(g => <th key={g} style={{ textAlign: 'center' }}>K{g}</th>)}<th style={{ textAlign: 'center' }}>Tổng</th></tr></thead>
+        <thead><tr><th>Học phần</th>{gs.map(g => <th key={g} style={{ textAlign: 'center' }}>{gradeShort(g)}</th>)}<th style={{ textAlign: 'center' }}>Tổng</th></tr></thead>
         <tbody>{tracks.map(tr => { const l = ts.filter(r => r.m.track_code === tr.code); const c = PROGRAM_COLOR[tr.code] ?? '#64748b'
           // Đang tìm: chỉ giữ học phần / loại CT có chủ đề khớp
           const mods = modules.filter(m => m.track_code === tr.code && m.active !== false && (!fq || l.some(r => r.m.id === m.id))).sort((a, b) => a.sort - b.sort)

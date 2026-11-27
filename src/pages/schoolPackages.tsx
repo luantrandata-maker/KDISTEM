@@ -2,9 +2,9 @@ import React, { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { fetchAll, supabase } from '../lib/supabase'
 import { TreeHead } from '../components/TreeHead'
 import { useStemTracks, type StemTrack, trackLabel, TRACK_COLOR } from '../lib/stemTracks'
-import { gradeName } from '../lib/eduLevels'
+import { gradeName, gradeShort, useEduLevels } from '../lib/eduLevels'
 import { loadFrame, loadPackages, slotTopics, type PackageItem, type ProgramModule, type ProgramPackage, type ProgramTopic } from '../lib/programFrame'
-import { ALL_GRADES, currentYear, fmtDay, gradesOfLevel, kRange, loadSchoolPkgs, shiftYear, spErr, spState, todayIso, yearLabel, type PkgSkip, type SchoolPkgRow } from '../lib/schoolPackages'
+import { allGrades, currentYear, fmtDay, gradesOfLevel, kRange, loadSchoolPkgs, shiftYear, spErr, spState, todayIso, yearLabel, type PkgSkip, type SchoolPkgRow } from '../lib/schoolPackages'
 import { ColFilter, DataTable } from '../components/DataTable'
 import { ElView } from '../components/ElView'
 import { HeadAction } from '../components/PageFrame'
@@ -69,6 +69,7 @@ const takenGrades = (s: School | undefined, except?: string) => (s?.sps ?? []).f
 
 export function SchoolPackages() {
   const { tracks: allTracks } = useStemTracks()
+  useEduLevels() // vẽ lại khi danh mục cấp học tải xong (khối Mầm, Chồi, Lá khi bật cấp Mầm non)
   const tracks = allTracks.filter(t => t.active !== false && t.code !== 'DX' && t.code !== 'KDI-SC')
   const [year, setYear] = useState(currentYear)
   const [rows, setRows] = useState<SchoolPkgRow[]>([])
@@ -150,7 +151,7 @@ export function SchoolPackages() {
     const sub = <>{cur.province_name ?? 'Chưa rõ tỉnh'} · Năm học {yearLabel(year)} · {kRange(grades)} · {live.length > 1 ? `${live.length} gói` : live.length ? (live[0].full_package ? 'Áp dụng đủ gói' : 'Áp dụng một phần') : 'Chưa có gói đang dùng'}</>
     const ed = edit ? byId.get(edit) : undefined
     if (ed) return <ElView back={cur.name} onBack={() => setEdit(null)} title={<>Phạm vi áp dụng · {cur.name} · {pkgName(ed.package_id)}</>} sub={sub}>
-      <ScopeEdit ctx={ctx} row={ed} skips={skips} packages={packages} modName={modName} allowed={ALL_GRADES.filter(g => !takenGrades(cur, ed.sp_id!).includes(g))}
+      <ScopeEdit ctx={ctx} row={ed} skips={skips} packages={packages} modName={modName} allowed={allGrades().filter(g => !takenGrades(cur, ed.sp_id!).includes(g))}
         onCancel={() => setEdit(null)} onSaved={() => { setEdit(null); reloadSchools() }} />
     </ElView>
     const vt = view && tracks.find(t => t.code === view.t)
@@ -200,7 +201,7 @@ export function SchoolPackages() {
             {two && <tr>{shownT.flatMap(t => nSl(t) > 0 ? Array.from({ length: nSl(t) }, (_, i) => <th key={t.code + i} style={i ? undefined : GAP}>HP{i + 1}</th>)
               : [<th key={t.code} style={GAP}>Chủ đề</th>])}</tr>}</thead>
           <tbody>{grades.map(g => { const r = spAt(g)!
-            return <tr key={g} style={live.length > 1 ? { boxShadow: `inset 3px 0 0 ${pkgColor(r.package_id)}` } : undefined}><td><b>K{g}</b></td>
+            return <tr key={g} style={live.length > 1 ? { boxShadow: `inset 3px 0 0 ${pkgColor(r.package_id)}` } : undefined}><td><b>{gradeShort(g)}</b></td>
             {live.length > 1 && <td><Pk id={r.package_id} /></td>}
             {shownT.flatMap(t => {
             const s = sc(t, g)
@@ -552,12 +553,12 @@ function ScopeView({ s, sl, track, modName, onTopic }: { s: ReturnType<typeof sc
       </div> })}</>
 }
 
-function GradePick({ value, onChange, allowed = ALL_GRADES }: { value: number[]; onChange: (v: number[]) => void; allowed?: number[] }) {
+function GradePick({ value, onChange, allowed = allGrades() }: { value: number[]; onChange: (v: number[]) => void; allowed?: number[] }) {
   return <div className="distfilter" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
     {allowed.length > 1 && <button type="button" className={'distfchip' + (allowed.every(g => value.includes(g)) ? ' on' : '')}
       onClick={() => onChange(allowed.every(g => value.includes(g)) ? [] : [...allowed])}>Tất cả</button>}
     {allowed.map(g => <button key={g} type="button" className={'distfchip' + (value.includes(g) ? ' on' : '')} aria-pressed={value.includes(g)}
-      onClick={() => onChange(value.includes(g) ? value.filter(x => x !== g) : [...value, g].sort((a, b) => a - b))}>K{g}</button>)}
+      onClick={() => onChange(value.includes(g) ? value.filter(x => x !== g) : [...value, g].sort((a, b) => a - b))}>{gradeShort(g)}</button>)}
   </div>
 }
 
@@ -601,7 +602,7 @@ function AssignForm({ ctx, modName, year, schools, preset, packages, pkgColor, p
     return () => { live = false }
   }, [prov, year])
   const picked = preSchool ?? list?.find(x => x.org_id === org)
-  const free = (s: Pick | undefined) => ALL_GRADES.filter(g => !(s?.taken ?? []).includes(g))
+  const free = (s: Pick | undefined) => allGrades().filter(g => !(s?.taken ?? []).includes(g))
   // Gợi ý khối theo cấp học của trường, bỏ khối đã có gói (vẫn chọn thêm / bỏ bớt được)
   const suggest = (s: Pick | undefined) => s?.level ? gradesOfLevel(s.level).filter(g => free(s).includes(g)) : []
   const [lines, setLines] = useState<Line[]>(() => [{ pkg: packages[0]?.id ?? '', grades: suggest(preSchool), full: true, skip: new Set() }])
@@ -820,7 +821,7 @@ function ScopePicker({ ctx, pkg, grades, full, setFull, skip, setSkip, modName }
       <div className="distfilter scopegrades" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
         <span className="lvlab">Xem khối</span>
         <button type="button" className={'distfchip' + (g === 0 ? ' on' : '')} aria-pressed={g === 0} onClick={() => setG(0)}>Tất cả khối</button>
-        {grades.map(x => <button key={x} type="button" className={'distfchip' + (x === g ? ' on' : '')} aria-pressed={x === g} onClick={() => setG(x)}>K{x}</button>)}
+        {grades.map(x => <button key={x} type="button" className={'distfchip' + (x === g ? ' on' : '')} aria-pressed={x === g} onClick={() => setG(x)}>{gradeShort(x)}</button>)}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12 }}>
         {ctx.tracks.map(t => {
@@ -837,7 +838,7 @@ function ScopePicker({ ctx, pkg, grades, full, setFull, skip, setSkip, modName }
               const tog = () => setExp(cur => { const x = new Set(cur); if (x.has(ek)) x.delete(ek); else x.add(ek); return x })
               const cnt = !s.mods && s.topics.length > 0
               const head = !g && <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-                {box(!!n && o === n, v => flip(keysAt(t, gg), v), <><b>K{gg}</b>{(!s.slots.length || (!s.mods && !s.topics.length)) && <> <small className="sub">
+                {box(!!n && o === n, v => flip(keysAt(t, gg), v), <><b>{gradeShort(gg)}</b>{(!s.slots.length || (!s.mods && !s.topics.length)) && <> <small className="sub">
                   {!s.slots.length ? 'không có trong gói' : 'chưa có chủ đề, tick theo cả khối'}</small></>}</>, false, 18, full || !n)}
                 {cnt && <button type="button" className={'scopecnt' + (isOpen ? ' on' : '')} aria-expanded={isOpen} onClick={tog}
                   title={isOpen ? 'Đóng danh sách chủ đề' : full ? 'Xem chủ đề' : 'Chọn từng chủ đề'}>{o}/{n} chủ đề {isOpen ? '▴' : '▾'}</button>}</div>
@@ -847,7 +848,7 @@ function ScopePicker({ ctx, pkg, grades, full, setFull, skip, setSkip, modName }
               const list = s.mods
                 ? s.slots.map(x => <div key={x.slot}>{box(x.on, v => flip([keyM(t.code, gg, x.slot)], v), <>HP{x.slot} {modName(x.module_id)}</>, false, ind, full)}</div>)
                 : g ? tlist
-                : isOpen && cnt ? <div className="scopepop"><div className="scopepoph"><span>Chủ đề K{gg} · {full ? 'chỉ xem' : 'tick là áp dụng'}</span>
+                : isOpen && cnt ? <div className="scopepop"><div className="scopepoph"><span>Chủ đề {gradeShort(gg)} · {full ? 'chỉ xem' : 'tick là áp dụng'}</span>
                   {!full && <button type="button" className="linkbtn" onClick={() => flip(keysAt(t, gg), o !== n)}>{o === n ? 'Bỏ hết' : 'Chọn hết'}</button>}</div>{tlist}</div> : null
               return <div key={gg}>{head}{list}
                 {g > 0 && !s.mods && !s.topics.length && (s.slots.length

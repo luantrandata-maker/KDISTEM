@@ -273,10 +273,11 @@ function TrackTable({ tracks, packages, has, differs, summary, admin, onClose }:
     </>
     : <div className="panel" style={{ padding: 0, overflowX: 'auto', margin: 0 }}>
       <table className="pkgtracks">
-        <thead><tr><th>Mã</th><th>Tên chương trình</th><th>Hoạt động</th><th>Đối tượng</th><th>Thời lượng</th><th>Nội dung</th><th>Trong gói</th>{admin && <th aria-label="Thao tác" />}</tr></thead>
+        <thead><tr><th>Mã</th><th>Tên chương trình</th><th>Mô tả</th><th>Hoạt động</th><th>Đối tượng</th><th>Thời lượng</th><th>Nội dung</th><th>Trong gói</th>{admin && <th aria-label="Thao tác" />}</tr></thead>
         <tbody>{tracks.map(t => <tr key={t.code} className={t.active === false ? 'trkoff' : undefined} tabIndex={0} title="Bấm để xem chi tiết" onClick={() => setView(t.code)} onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) setView(t.code) }}>
           <td>{PROGRAM_COLOR[t.code] ? chip(t.code) : <span className="pkgc-code">{trackLabel(t.code)}</span>}</td>
           <td><b>{t.name}</b>{t.active === false && <> <span className="pill inactive">Ngừng dùng</span></>}</td>
+          <td className="clamp trkdesc"><span title={t.description}>{t.description || '—'}</span></td>
           <td>{t.edu_activity ? EDU_ACTIVITY_NAME[t.edu_activity] : '—'}</td>
           <td className="clamp"><span title={t.audience}>{t.audience || '—'}</span></td>
           <td className="clamp"><span title={t.duration}>{t.duration || '—'}</span></td>

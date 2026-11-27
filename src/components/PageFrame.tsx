@@ -1,7 +1,7 @@
 // Đầu trang dạng "một khung" (phương án L): đường dẫn nhỏ phía trên; một khung trắng chứa
 // tiêu đề, tab mục con, nút thao tác ở hàng đầu và nội dung (thanh công cụ, bảng) bên dưới.
 // Khi mở chi tiết (nút ✕ .pdclose ở tiêu đề trang) khung tự trở về dạng thường (xem index.css).
-import { useLayoutEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
+import { createContext, useContext, useLayoutEffect, useRef, useState, type ComponentType, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Tabs } from '../pages/teacher/common'
 
@@ -51,11 +51,16 @@ export function actionSlot(main: Element | null | undefined): Element | null {
   return main.querySelector(tabbed ? ':scope > .pframe > .pfhead > .pfact' : ':scope > .pfcrumb > .pfact')
 }
 
-/** Nút thao tác chính của màn con (vd "+ Thêm …"): đưa lên đầu trang trong khung; không có khung thì hiện tại chỗ. */
+/** Chỗ đặt nút thao tác ở cuối hàng tab con (TabbedPages có actsInRow); undefined = không có hàng tab con. */
+export const SubActSlot = createContext<Element | null | undefined>(undefined)
+
+/** Nút thao tác chính của màn con (vd "+ Thêm …"): đưa lên hàng tab con nếu có, không thì đầu trang trong khung; không có khung thì hiện tại chỗ. */
 export function HeadAction({ children }: { children: ReactNode }) {
+  const sub = useContext(SubActSlot)
   const anchor = useRef<HTMLSpanElement>(null)
   const [box, setBox] = useState<Element | null>(null)
-  useLayoutEffect(() => { setBox(actionSlot(anchor.current?.closest('main'))) }, [])
+  useLayoutEffect(() => { if (sub === undefined) setBox(actionSlot(anchor.current?.closest('main'))) }, [sub])
+  if (sub !== undefined) return sub ? createPortal(children, sub) : null
   return <><span ref={anchor} hidden />{box ? createPortal(children, box) : children}</>
 }
 

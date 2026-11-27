@@ -195,7 +195,7 @@ function FrameTree({ tracks, all, modules, topics, sel, onSel, onOpen, actions, 
     <button type="button" className={mode === 'grid' ? 'on' : ''} aria-pressed={mode === 'grid'} onClick={() => setMode('grid')}>▦ Tổng hợp</button>
     <button type="button" className={mode === 'list' ? 'on' : ''} aria-pressed={mode === 'list'} onClick={() => { setCell(null); setMode('list') }}>☰ Danh sách</button></div>
   // Nút thêm / sửa đứng cùng một chỗ ở cả hai kiểu xem: góc phải, ngay trước nút chuyển kiểu xem
-  const rightTools = <>{actions && <span className="fwacts">{actions}</span>}{modeSw}</>
+  const rightTools = <>{actions && <HeadAction>{actions}</HeadAction>}{modeSw}</>
   const modOf = useMemo(() => new Map(modules.map(m => [m.id, m])), [modules])
   const trOf = (code?: string) => tracks.find(t => t.code === code)
   const isFlat = (code?: string) => trOf(code)?.use_modules === false

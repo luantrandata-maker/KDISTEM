@@ -12,6 +12,7 @@ import AssistantQuiz from './AiQuiz'
 import { LEVEL, QKIND, letter, errText, gradesText, qGrades, type Level, type QKind, type Question } from './common'
 import { GradeMulti, SubjectPicker, gradeList } from '../../components/Pickers'
 import { Icon } from '../../components/Icon'
+import { activeGrades, gradeName } from '../../lib/eduLevels'
 
 // Ngân hàng câu hỏi: soạn tay, nhập Excel, tạo bằng Trợ lý AI; duyệt (Nháp → Sẵn sàng), dùng chung cho đơn vị trực thuộc.
 export const COLS: Column[] = [
@@ -180,7 +181,7 @@ export default function QuestionBank({ orgId }: { orgId: string | null }) {
           left={<>
           <input type="search" placeholder="Tìm câu hỏi, chủ đề…" value={f.q} onChange={e => setF({ ...f, q: e.target.value })} aria-label="Tìm câu hỏi" />
           <select value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} aria-label="Môn"><option value="">Tất cả môn</option>{subjects.map(s => <option key={s}>{s}</option>)}</select>
-          <select value={f.grade} onChange={e => setF({ ...f, grade: e.target.value })} aria-label="Khối"><option value="">Tất cả khối</option>{Array.from({ length: 12 }, (_, i) => <option key={i} value={i + 1}>Khối {i + 1}</option>)}</select>
+          <select value={f.grade} onChange={e => setF({ ...f, grade: e.target.value })} aria-label="Khối"><option value="">Tất cả khối</option>{activeGrades().map(g => <option key={g} value={g}>{gradeName(g)}</option>)}</select>
           <select value={f.level} onChange={e => setF({ ...f, level: e.target.value })} aria-label="Mức độ"><option value="">Tất cả mức độ</option>{Object.entries(LEVEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
           <select value={f.status} onChange={e => setF({ ...f, status: e.target.value })} aria-label="Trạng thái"><option value="">Tất cả trạng thái</option><option value="ready">Sẵn sàng</option><option value="draft">Nháp</option><option value="retired">Ngừng dùng</option></select>
         </>}

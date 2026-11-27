@@ -455,7 +455,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
       }
       return <tr key={r.key}>{cells}</tr>
     }
-    const bgBase = { padding: '4px 12px', height: 'auto', fontSize: 13.5 }
+    const bgBase = { padding: '4px 12px' }
     if (ln.kind === 'head') {
       // Một ô trải các cột còn lại (tách đôi nếu cột nhóm nằm giữa)
       let run: string[] = []; let firstRun = true
@@ -472,7 +472,7 @@ function SchoolCompare({ ctx, schools, skips, packages, preset, modName, pkgName
     // Chỉ tô vàng ô trường khác gói; tên chủ đề và cột gói giữ nền thường
     const x = ln.x; const bg = { background: '#fbfcfe', ...bgBase }
     let lab = 0; let titled = false
-    const flushLab = (key: string) => { if (!lab) return; cells.push(<td key={key} colSpan={lab} style={bg}>{!titled && <><span className="sub" style={{ display: 'inline-block', width: 26 }}>{ln.k + 1}</span>{x.tp.title}</>}</td>); titled = true; lab = 0 }
+    const flushLab = (key: string) => { if (!lab) return; cells.push(<td key={key} colSpan={lab} style={bg}>{!titled && <><span className="sub" style={{ display: 'inline-block', width: 26, margin: 0 }}>{ln.k + 1}</span>{x.tp.title}</>}</td>); titled = true; lab = 0 }
     for (const k of cols) {
       if (k === spanCol) { flushLab('l' + k); cells.push(spanCell(k)) }
       else if (isKey(k)) lab++

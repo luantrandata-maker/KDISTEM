@@ -5,6 +5,7 @@ import { Tiles } from '../department/charts'
 import { fmtTime } from './data'
 import { useStemTracks } from '../../lib/stemTracks'
 import { InfoTip } from '../../components/InfoTip'
+import { Icon } from '../../components/Icon'
 
 // Danh mục gói STEM của KDI + xử lý đơn đặt gói (migration 025)
 // Gói danh mục = stem_packages thuộc đơn vị chủ nền tảng. "Đã giao" sao chép gói (chủ đề, buổi học) vào trường.
@@ -113,7 +114,7 @@ export function PlatformCatalog() {
                 <td>{money(p.list_price)}</td>
                 <td>{used.get(p.id) ?? 0} trường</td>
                 <td><span className={'plbadge ' + (p.catalog_active ? 'ok' : 'mute')}>{p.catalog_active ? 'Đang bán' : 'Ngừng bán'}</span></td>
-                <td className="nowrap"><button type="button" onClick={() => setOpen(open === p.id ? null : p.id)}>{open === p.id ? 'Đóng' : 'Chủ đề'}</button> <button type="button" onClick={() => setEdit(p)}>Sửa</button></td>
+                <td className="nowrap"><button type="button" onClick={() => setOpen(open === p.id ? null : p.id)}>{open === p.id ? 'Đóng' : 'Chủ đề'}</button> <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" type="button" onClick={() => setEdit(p)}><Icon n="pencil" size={17} /></button></td>
               </tr>
               {open === p.id && <tr><td colSpan={7}><TopicEditor pkg={p} onChange={load} /></td></tr>}
             </Fragment>)}

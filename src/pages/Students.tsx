@@ -5,6 +5,7 @@ import ImportExcel from '../components/ImportExcel'
 import { type Year, sameSchoolYear } from '../lib/year'
 import StudentPrivacy, { type Consent, ConsentBadge, loadConsents, CONSENT_COLS, importConsents, printConsentForms } from './StudentPrivacy'
 import { norm, importSummary, downloadXlsx, type Column } from '../lib/sheet'
+import { Icon } from '../components/Icon'
 
 const COLS: Column[] = [
   { key: 'code', label: 'Mã học sinh', aliases: ['Mã HS', 'Ma hoc sinh', 'MSHS'] },
@@ -146,7 +147,7 @@ export default function Students({ year, years = [] }: { year?: Year | null; yea
               <td>{s.status === ERASED ? <small>Đã xoá dữ liệu</small>
                 : <select value={s.status} onChange={e => setStatus(s, e.target.value)}>{Object.entries(STATUS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>}</td>
               <td>{s.status !== ERASED && <ConsentBadge c={consents[s.id]} />}</td>
-              <td className="nowrap">{s.status !== ERASED && <button onClick={() => setSel(s.id)}>Đồng ý & dữ liệu</button>} <button onClick={() => remove(s)}>Xoá</button></td></tr>
+              <td className="nowrap">{s.status !== ERASED && <button onClick={() => setSel(s.id)}>Đồng ý & dữ liệu</button>} <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => remove(s)}><Icon n="trash" size={17} /></button></td></tr>
           ))}
           {shown.length === 0 && <tr><td colSpan={6}>Không có học sinh phù hợp.</td></tr>}
         </tbody>

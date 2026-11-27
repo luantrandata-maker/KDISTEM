@@ -787,7 +787,7 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
               )}
               <ChipPicker label="Định mức vật tư" hint="nhập vật tư mới cho bài hoặc chọn định mức có sẵn" options={normPool.filter(o => o.id !== norm.id)} value={form.norm_ids} onChange={v => setForm({ ...form, norm_ids: v })} missing="định mức không còn"
                 lead={!normOpen && norm.rows.length > 0 && <span className="chip">Vật tư của bài: {norm.rows.length} vật tư{norm.status === 'published' ? '' : ' (nháp)'}
-                  <button type="button" className="linkbtn" onClick={() => setNormOpen(true)}>Sửa</button>
+                  <button aria-label="Sửa" title="Sửa" type="button" className="abtn iconbtn" onClick={() => setNormOpen(true)}><Icon n="pencil" size={17} /></button>
                   <button type="button" className="x" aria-label="Bỏ vật tư của bài" onClick={() => setNorm({ ...norm, rows: [], dirty: true })}>×</button></span>}
                 extra={!normOpen && <button type="button" className="libpartnew" onClick={() => setNormOpen(true)}>{norm.rows.length ? 'Sửa vật tư của bài' : '+ Nhập vật tư mới'}</button>} />
               {normOpen && (
@@ -896,10 +896,10 @@ export function LibraryManage({ orgId, only, start, onDone, onChanged, sources, 
       )}
       {open && !form && !start && <ItemDrawer root={{ type: 'item', id: open }} all={visible} onClose={() => setOpen(null)} canRestore onRestored={load}
         actions={i => !mineOf(i.owner_org_id) ? <small className="sub">Mục của {i.owner_name ?? 'đơn vị khác'}: chỉ xem.</small> : <>
-          <button type="button" className="primary" onClick={() => edit(i)}>Sửa</button>
+          <button aria-label="Sửa" title="Sửa" type="button" className="abtn iconbtn" onClick={() => edit(i)}><Icon n="pencil" size={17} /></button>
           <button type="button" onClick={() => publish(i)}>{i.status === 'published' ? 'Phát hành bản cập nhật' : 'Phát hành'}</button>
           {i.status === 'published' && <button type="button" onClick={() => unpublish(i)}>Thu hồi</button>}
-          {i.status !== 'published' && !stats.get(i.id) && <button type="button" className="danger" onClick={() => { remove(i); setOpen(null) }}>Xoá</button>}
+          {i.status !== 'published' && !stats.get(i.id) && <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => { remove(i); setOpen(null) }}><Icon n="trash" size={17} /></button>}
         </>} />}
 
       {start ? null : view === 'cards' ? <><div className="tttools"><div className="ttleft">{libLeft}</div>{libRight}</div>{shown.length === 0 ? <p className="sub">{libEmpty}</p> : (

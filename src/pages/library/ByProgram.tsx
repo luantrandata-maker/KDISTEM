@@ -137,13 +137,13 @@ export function LibraryByProgram({ orgId, onChanged, tools }: { orgId: string | 
   const found = progs.filter(p => !q || progName(p).toLowerCase().includes(q.toLowerCase()))
   const gt = useGradeTree('hoc-lieu-ct', found, progGrades, 'chương trình')
 
-  // Xóa bộ học liệu của một bài (không xóa bài trong chương trình); quyền do CSDL kiểm tra
+  // Xoá bộ học liệu của một bài (không xoá bài trong chương trình); quyền do CSDL kiểm tra
   async function removeKit(k: KitRow) {
-    if (!confirm(`Xóa bộ học liệu “${k.title}”? Giáo án, bài giảng, học liệu đã tạo trong danh mục vẫn giữ nguyên.`)) return
+    if (!confirm(`Xoá bộ học liệu “${k.title}”? Giáo án, bài giảng, học liệu đã tạo trong danh mục vẫn giữ nguyên.`)) return
     const { data, error } = await supabase.from('library_items').delete().eq('id', k.id).select('id')
     if (error) setMsg(errMsg(error.message))
-    else if (!data?.length) setMsg('Bạn không có quyền xóa bộ học liệu này.')
-    else { setMsg(`Đã xóa “${k.title}”.`); reload() }
+    else if (!data?.length) setMsg('Bạn không có quyền xoá bộ học liệu này.')
+    else { setMsg(`Đã xoá “${k.title}”.`); reload() }
   }
   if (!orgId) return <p className="sub">Đang tải…</p>
   const prog = progs.find(p => p.id === pid)
@@ -197,7 +197,7 @@ export function LibraryByProgram({ orgId, onChanged, tools }: { orgId: string | 
                 <td>{r.kit ? <span className={'distchip2 ' + KSTATUS[r.kit.status][1]}>{KSTATUS[r.kit.status][0]}</span>
                   : <button type="button" className="linkbtn" onClick={() => go(r)}>+ Thêm nội dung</button>}</td>
                 <td className="c-menu">{r.kit && <RowMenu label={r.title} items={[{ label: 'Sửa nội dung', onClick: () => go(r, true) },
-                  { label: 'Xóa', danger: true, onClick: () => removeKit(r.kit!) }]} />}</td>
+                  { label: 'Xoá', danger: true, onClick: () => removeKit(r.kit!) }]} />}</td>
               </tr>
             })}</tbody></table></div>)}
         </div>

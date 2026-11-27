@@ -4,6 +4,7 @@ import FormPanel from '../components/FormPanel'
 import ImportExcel from '../components/ImportExcel'
 import { norm, importSummary, type Column } from '../lib/sheet'
 import { StatusPill, StepTrail, useLatestRequests, approvalError } from './approvals/common'
+import { Icon } from '../components/Icon'
 
 const COLS: Column[] = [
   { key: 'teacher', label: 'Giáo viên', aliases: ['Họ tên', 'Họ tên giáo viên'], required: true, width: 26 },
@@ -90,7 +91,7 @@ export default function EduPlan({ orgId }: { orgId: string }) {
           {shown.map(p => (<Fragment key={p.id}>
             <tr key={p.id}><td><b>{p.teachers?.full_name}</b></td><td>{p.subject} · Khối {p.grade}</td><td style={{ color: p.stem_periods ? 'var(--ok)' : undefined }}>{p.stem_periods}</td><td><StatusPill status={p.status} />{p.status === 'pending' && reqs.get(p.id) && <small className="sub"> bước {reqs.get(p.id)!.current_step}/{reqs.get(p.id)!.steps.length}</small>}</td>
               <td style={{ color: pend(p).length ? 'var(--orange)' : undefined }}>{pend(p).length}</td>
-              <td>{(p.status === 'draft' || p.status === 'rejected') && <><button className="primary" onClick={() => submit([p])}>{p.status === 'rejected' ? 'Gửi lại' : 'Gửi duyệt'}</button> </>}<button onClick={() => setOpen(open === p.id ? null : p.id)}>Xem</button> <button onClick={() => setForm(p)}>Sửa</button> <button onClick={() => remove(p)}>Xoá</button></td></tr>
+              <td>{(p.status === 'draft' || p.status === 'rejected') && <><button className="primary" onClick={() => submit([p])}>{p.status === 'rejected' ? 'Gửi lại' : 'Gửi duyệt'}</button> </>}<button onClick={() => setOpen(open === p.id ? null : p.id)}>Xem</button> <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setForm(p)}><Icon n="pencil" size={17} /></button> <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => remove(p)}><Icon n="trash" size={17} /></button></td></tr>
             {open === p.id && <tr key={p.id + 'o'}><td colSpan={6}>{reqs.get(p.id) && <StepTrail req={reqs.get(p.id)!} />}{pend(p).length ? pend(p).map((r, i) => <div key={i}>• {r.topic} · {new Date(r.on_date).toLocaleDateString('vi-VN')}</div>) : <small>Không có đăng ký chờ duyệt cho khối này.</small>}</td></tr>}
           </Fragment>))}
           {shown.length === 0 && <tr><td colSpan={6}>Chưa có kế hoạch nào.</td></tr>}

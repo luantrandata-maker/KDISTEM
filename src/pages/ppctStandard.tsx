@@ -4,6 +4,7 @@ import { useStemTracks, trackLabel } from '../lib/stemTracks'
 import { gradeName } from '../lib/eduLevels'
 import { loadPackages, type PackageItem, type ProgramPackage } from '../lib/programFrame'
 import { PROGRAM_COLOR } from './teacher/common'
+import { Icon } from '../components/Icon'
 
 // PPCT chuẩn của KDI (162): với mỗi gói × loại chương trình × khối, KDI đặt số tuần dạy và xếp từng chủ đề vào
 // "tuần dạy thứ n". Tuần dạy chưa gắn ngày tháng: khi trường tạo PPCT từ gói, tuần dạy thứ n là tuần học thứ n trong lịch
@@ -144,7 +145,7 @@ export function PpctStandard() {
         <label>Số tuần dạy <input type="number" min={1} max={52} value={wInput} onChange={e => setWInput(Number(e.target.value))} style={{ width: 64 }} /></label>
         <button type="button" onClick={fill} disabled={busy}>{weeks == null ? 'Tự chia, tạo PPCT chuẩn' : 'Chia lại'}</button>
         {weeks != null && <button type="button" className="primary" onClick={save} disabled={busy || !dirty}>Lưu</button>}
-        {weeks != null && <button type="button" className="danger" onClick={remove} disabled={busy}>Xoá</button>}
+        {weeks != null && <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={remove} disabled={busy}><Icon n="trash" size={17} /></button>}
       </span>}
     </div>
     {msg && <p className={msg[1] ? 'warnline' : 'msg'} role="status">{msg[0]}</p>}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { myOrgId } from '../lib/org'
+import { Icon } from '../components/Icon'
 
 type P = { id: string; name: string; starts_at: string; ends_at: string; session: string }
 const hm = (t: string) => t.slice(0, 5)
@@ -59,8 +60,8 @@ export default function Periods() {
               <td><b>{p.name}</b></td><td>{hm(p.starts_at)}</td><td>{hm(p.ends_at)}</td>
               <td>{minutes(p.starts_at, p.ends_at)} phút</td><td>{SESSION[p.session]}</td>
               <td>
-                <button onClick={() => setForm({ id: p.id, name: p.name, starts_at: hm(p.starts_at), ends_at: hm(p.ends_at), session: p.session })}>Sửa</button>{' '}
-                <button onClick={() => remove(p)}>Xoá</button>
+                <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setForm({ id: p.id, name: p.name, starts_at: hm(p.starts_at), ends_at: hm(p.ends_at), session: p.session })}><Icon n="pencil" size={17} /></button>{' '}
+                <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={() => remove(p)}><Icon n="trash" size={17} /></button>
                 {i > 0 && rows[i - 1].session !== p.session && <div><small>Nghỉ buổi: {minutes(rows[i - 1].ends_at, p.starts_at)} phút</small></div>}
               </td>
             </tr>

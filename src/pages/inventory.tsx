@@ -192,7 +192,7 @@ export function SuppliesPage({ orgId, initialTab = 'stock' }: { orgId: string | 
               <td><b>{num(r.qty)}</b> {r.unit} {Number(r.qty) <= Number(r.min_qty) && <span className="plbadge bad">Sắp hết</span>}</td>
               {hasLoc && <td>{locs(r.id).map(x => <span key={x.room_id ?? 'none'} className="chip">{roomName(x.room_id)} · {num(x.qty)}</span>)}{!locs(r.id).length && <small>—</small>}</td>}<td>{num(r.min_qty)}</td>
               <td className="nowrap">{(!orgId || r.org_id === orgId) && orgId && <><button onClick={() => open('in', r)}>Nhập</button> <button className="primary" onClick={() => open('out', r)} disabled={Number(r.qty) <= 0}>Cấp phát</button>
-                {' '}{hasLoc && rooms.length > 0 && <><button onClick={() => open('move', r)} disabled={Number(r.qty) <= 0}>Chuyển vị trí</button>{' '}</>}<button onClick={() => open('adjust', r)}>Điều chỉnh</button> <button onClick={() => setForm(r)}>Sửa</button></>}</td></tr>))}
+                {' '}{hasLoc && rooms.length > 0 && <><button onClick={() => open('move', r)} disabled={Number(r.qty) <= 0}>Chuyển vị trí</button>{' '}</>}<button onClick={() => open('adjust', r)}>Điều chỉnh</button> <button aria-label="Sửa" title="Sửa" className="abtn iconbtn" onClick={() => setForm(r)}><Icon n="pencil" size={17} /></button></>}</td></tr>))}
             {!shown.length && <tr><td colSpan={7}>Chưa có vật tư. Bấm "+ Vật tư" hoặc nhập Excel.</td></tr>}</tbody>
         </table></div>
       ) : (

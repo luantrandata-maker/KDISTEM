@@ -8,6 +8,7 @@ import { norm } from '../lib/sheet'
 import { useStemTracks, TRACK_COLOR, trackLabel } from '../lib/stemTracks'
 import { useEduLevels } from '../lib/eduLevels'
 import { ElView } from '../components/ElView'
+import { Icon } from '../components/Icon'
 // Đề kiểm tra của môn (109): dùng màn đề luyện E-learning, lọc theo môn
 const SubjectExams = lazy(() => import('./elearning/Manage').then(m => ({ default: m.SubjectExams })))
 
@@ -144,7 +145,7 @@ export function SubjectsCatalog({ orgId, mode = 'school' }: { orgId: string | nu
       </dl>{canEdit && (every || view.org_id === orgId) && <div className="formactions tools">
         <button type="button" onClick={() => { setMsg(null); setForm(view) }}>Sửa môn học</button>
         <button type="button" onClick={() => setActive(view, !view.active)}>{view.active ? 'Ngừng dùng' : 'Dùng lại'}</button>
-        <button type="button" className="danger" onClick={() => remove(view)}>Xoá</button></div>}</section>
+        <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => remove(view)}><Icon n="trash" size={17} /></button></div>}</section>
       : <Suspense fallback={<p className="sub">Đang tải…</p>}>
         <p className="sub">Đề kiểm tra của môn {view.name}: rút câu từ Ngân hàng câu hỏi theo ma trận chủ đề × mức độ, đặt số câu, thời gian, số lượt, trộn câu. Đề hiện cùng ở mục E-learning & luyện thi.</p>
         <SubjectExams orgId={orgId} subject={view.name} /></Suspense>}

@@ -18,6 +18,7 @@ import { Drawer } from '../components/Drawer'
 import { TopicContents } from './topicContents'
 import { TopicForm, type TopicDraft } from './topicInfo'
 import { Pop, type RowAction } from '../components/ProTools'
+import { Icon } from '../components/Icon'
 
 // Khung chương trình (147): KDI chọn loại chương trình → danh sách học phần → chủ đề theo từng khối.
 // Học phần dùng chung giữa các gói và các khối (CT1, CT4 có một học phần "CHUNG"); mỗi chủ đề thuộc một khối, có thứ tự cố định
@@ -529,7 +530,7 @@ function GroupForm({ g, onCancel, onSaved, onDelete }: { g: MaterialGroup; onCan
     <div className="actions" style={{ marginTop: 12 }}>
       <button className="primary" onClick={save} disabled={busy}>{busy ? 'Đang lưu…' : 'Lưu'}</button>
       <button onClick={onCancel} disabled={busy}>Huỷ</button>
-      {onDelete && <button className="danger" onClick={onDelete} disabled={busy}>Xoá</button>}
+      {onDelete && <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" onClick={onDelete} disabled={busy}><Icon n="trash" size={17} /></button>}
     </div>
   </section>
 }

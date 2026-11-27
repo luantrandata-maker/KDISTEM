@@ -598,7 +598,7 @@ function StepsTab({ p, upd, ro, tpl, att, teacherId, go }: TabP & { tpl?: Templa
                 <span className="tools" style={{ alignSelf: 'end' }}>
                   <button type="button" onClick={() => move(s.id, -1)} aria-label="Đưa bước lên">↑</button>
                   <button type="button" onClick={() => move(s.id, 1)} aria-label="Đưa bước xuống">↓</button>
-                  <button type="button" className="danger" onClick={() => upd({ steps: p.steps.filter(x => x.id !== s.id) })}>Xoá</button></span>
+                  <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => upd({ steps: p.steps.filter(x => x.id !== s.id) })}><Icon n="trash" size={17} /></button></span>
                 <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mục tiêu</span><input value={s.goal ?? ''} onChange={e => setStep(s.id, { goal: e.target.value })} /></label>
                 <label className="field" style={{ gridColumn: 'span 2' }}><span>Hoạt động của giáo viên</span><textarea rows={3} value={s.teacher ?? ''} onChange={e => setStep(s.id, { teacher: e.target.value })} /></label>
                 <label className="field" style={{ gridColumn: 'span 2' }}><span>Hoạt động của học sinh</span><textarea rows={3} value={s.student ?? ''} onChange={e => setStep(s.id, { student: e.target.value })} /></label>
@@ -809,7 +809,7 @@ function VerTab({ p, versions, reviews, classes, reviewRequired, busy, onRestore
       </form>
       {reviews.length > 0 && (<>
         <SelBar picked={rsel.cur ? fmtD(rsel.cur.taught_on ?? rsel.cur.created_at) : null}>
-          <button className="danger" disabled={!rsel.cur} onClick={() => { if (rsel.cur) { delReview(rsel.cur); rsel.clear() } }}>Xoá</button></SelBar>
+          <button aria-label="Xoá" title="Xoá" className="abtn abdanger iconbtn" disabled={!rsel.cur} onClick={() => { if (rsel.cur) { delReview(rsel.cur); rsel.clear() } }}><Icon n="trash" size={17} /></button></SelBar>
         <div className="wrap"><table>
           <thead><tr><SelTh /><th>Ngày</th><th>Loại</th><th>Lớp</th><th>Đánh giá</th><th>Nhận xét</th><th>Người ghi</th></tr></thead>
           <tbody>{reviews.map(r => (

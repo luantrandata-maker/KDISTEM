@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useTemplates, phasesOf, totalMinutes, uid, type Step, type Template } from '../lessons/common'
+import { Icon } from '../../components/Icon'
 
 // Giáo án soạn trong kho học liệu (066): như giáo án ở "Soạn bài giảng" — chọn mẫu giáo án, soạn các mục (mục tiêu,
 // chuẩn bị…) và tiến trình dạy học theo bước. Lưu trong library_items.content của học liệu loại 'lesson_plan'.
@@ -79,7 +80,7 @@ export function PlanEditor({ value, onChange }: { value: PlanContent; onChange: 
                 <span className="tools" style={{ alignSelf: 'end' }}>
                   <button type="button" onClick={() => move(s.id, -1)} aria-label="Đưa bước lên">↑</button>
                   <button type="button" onClick={() => move(s.id, 1)} aria-label="Đưa bước xuống">↓</button>
-                  <button type="button" className="danger" onClick={() => set({ steps: value.steps.filter(x => x.id !== s.id) })}>Xoá</button></span>
+                  <button aria-label="Xoá" title="Xoá" type="button" className="abtn abdanger iconbtn" onClick={() => set({ steps: value.steps.filter(x => x.id !== s.id) })}><Icon n="trash" size={17} /></button></span>
                 <label className="field" style={{ gridColumn: '1 / -1' }}><span>Mục tiêu</span><input value={s.goal ?? ''} onChange={e => setStep(s.id, { goal: e.target.value })} /></label>
                 <label className="field" style={{ gridColumn: 'span 2' }}><span>Hoạt động của giáo viên</span><textarea rows={3} value={s.teacher ?? ''} onChange={e => setStep(s.id, { teacher: e.target.value })} /></label>
                 <label className="field" style={{ gridColumn: 'span 2' }}><span>Hoạt động của học sinh</span><textarea rows={3} value={s.student ?? ''} onChange={e => setStep(s.id, { student: e.target.value })} /></label>

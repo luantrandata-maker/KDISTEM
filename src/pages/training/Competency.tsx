@@ -17,6 +17,7 @@ import { LevelNames } from '../settings/Custom'
 import { StatCards } from '../../components/StatCards'
 import { DataTable, type Col } from '../../components/DataTable'
 import { GroupTree, groupNodes, inGroup, useGroupSel } from '../../components/GroupTree'
+import { Icon } from '../../components/Icon'
 
 const m133 = (m: string) => /schema cache|does not exist|Could not find/i.test(m) ? 'Hãy chạy migration 133 trên Supabase.' : errText(m)
 const errText = (m: string) => /schema cache|does not exist/i.test(m) ? 'Hãy chạy migration 088 trên Supabase.' : /row-level|42501/i.test(m) ? 'Bạn không có quyền với mục này.' : m
@@ -419,8 +420,8 @@ export function CompetencyFramework({ audience, compact }: { audience: 'teacher'
   if (view) {
     const used = (usage ?? []).length > 0
     return <ElView back={A.title} onBack={() => { setView(null); setMsg(null) }} title={view.name} sub={<>{view.key} · {view.grp}</>}
-      actions={<><button type="button" onClick={() => openEdit(view)}>Sửa</button>
-        <button type="button" className="danger" disabled={usage === null || used} title={used ? 'Năng lực đang được dùng nên không xoá được' : undefined} onClick={del}>Xoá</button></>}>
+      actions={<><button aria-label="Sửa" title="Sửa" className="abtn iconbtn" type="button" onClick={() => openEdit(view)}><Icon n="pencil" size={17} /></button>
+        <button aria-label="Xoá" type="button" className="abtn abdanger iconbtn" disabled={usage === null || used} title={used ? 'Năng lực đang được dùng nên không xoá được' : undefined} onClick={del}><Icon n="trash" size={17} /></button></>}>
       {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       <section className="panel" style={{ display: 'grid', gap: 12 }}>
         {view.description && <p style={{ margin: 0 }}>{view.description}</p>}

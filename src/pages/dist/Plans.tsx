@@ -130,8 +130,8 @@ export function DistPage({ orgId, units, school }: { orgId: string | null; units
           onCreated={(id, n) => { reload(); setOpenList(id); setTab('list'); setMsg(n ? `Đã tạo bản phân phối nháp với ${n} chương trình. Xếp lịch rồi lưu / phát hành.` : 'Đã tạo bản phân phối nháp. Thêm chương trình và xếp lịch.') }} />}
         {(tab === 'history' || tab === 'assign') && <><DistHistory plans={plans} rk={rk} />
           <HeadAction><button type="button" className="primary ttadd" onClick={() => assign('')}>{school ? '+ Áp dụng cho lớp' : '+ Gán cho trường'}</button></HeadAction></>}
-        {assignOpen && <Drawer title="Gán bản phân phối cho trường" onClose={() => setAssignOpen(false)} closeOnOutside={false}>
-          <DistAssign orgId={orgId} plans={plans} initial={assignId} onDone={() => { reload(); setTab('history') }} />
+        {assignOpen && <Drawer title={school ? 'Áp dụng bản phân phối cho lớp' : 'Gán bản phân phối cho trường'} onClose={() => setAssignOpen(false)} closeOnOutside={false}>
+          <DistAssign orgId={orgId} plans={plans} initial={assignId} school={school} onDone={() => { reload(); setTab('history') }} />
         </Drawer>}
       </>}
     </>
@@ -266,11 +266,11 @@ type Org = { id: string; name: string; type: string; parent_id: string | null; l
 type Cls = { id: string; name: string; grade: number; org_id: string }
 const LEVEL_RE: Record<string, RegExp> = { mamnon: /mầm non|mẫu giáo|nhà trẻ/i, tieuhoc: /tiểu học|\bTH\b/, thcs: /THCS|trung học cơ sở/i, thpt: /THPT|trung học phổ thông/i }
 
-function DistAssign({ orgId, plans, initial, onDone }: { orgId: string | null; plans: Plan[]; initial: string; onDone: () => void }) {
+function DistAssign({ orgId, plans, initial, onDone, school }: { orgId: string | null; plans: Plan[]; initial: string; onDone: () => void; school?: boolean }) {
   const crumb = useBreadcrumb()
   const [pid, setPid] = useState(initial)
   const [orgs, setOrgs] = useState<Org[]>([])
-  const [picked, setPicked] = useState<string[]>([])
+  const [picked, setPicked] = useState<string[]>(school && orgId ? [orgId] : [])
   const [year, setYear] = useState('')
   const [classes, setClasses] = useState<Cls[]>([])
   const [cls, setCls] = useState<string[]>([])
@@ -293,7 +293,7 @@ function DistAssign({ orgId, plans, initial, onDone }: { orgId: string | null; p
   const fitsLevel = (o: Org) => !plan?.level || !o.level || o.level === plan.level || LEVEL_RE[plan.level]?.test(o.name)
   const schools = orgs.filter(o => o.type === 'school' && fitsLevel(o))
   // Đổi bản khác cấp: bỏ các trường đã chọn không còn hợp
-  useEffect(() => { setPicked(p => p.filter(id => schools.some(o => o.id === id))) }, [plan?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (!school) setPicked(p => p.filter(id => schools.some(o => o.id === id))) }, [plan?.id]) // eslint-disable-line react-hooks/exhaustive-deps
   // Trường tự gán vẫn gửi duyệt PPCT như thường lệ; cấp trên / quản trị nền tảng mới áp dụng thẳng (DB cũng chặn, migration 134)
   const canApply = !orgId || orgs.find(o => o.id === orgId)?.type !== 'school'
 
@@ -309,7 +309,7 @@ function DistAssign({ orgId, plans, initial, onDone }: { orgId: string | null; p
     setMsg([publish
       ? `Đã áp dụng ${r.published ?? 0} PPCT cho ${picked.length} trường (tạo mới ${r.books}${r.skipped ? `, ${r.skipped} đã có từ trước` : ''}). PPCT đang dùng, lớp theo dõi tiến độ được ngay.`
       : `Đã tạo ${r.books} PPCT nháp cho ${picked.length} trường${r.skipped ? `; ${r.skipped} PPCT đã có từ trước nên bỏ qua` : ''}. Trường kiểm tra rồi ban hành PPCT như thường lệ.`, false])
-    setPicked([]); setRk(k => k + 1); onDone()
+    if (!school) setPicked([]); setRk(k => k + 1); onDone()
   }
 
   return (
@@ -330,13 +330,13 @@ function DistAssign({ orgId, plans, initial, onDone }: { orgId: string | null; p
           </table></div>
         </>}
         {plan && <>
-          <div className="field" style={{ marginBottom: 10 }}><span>Tỉnh / Sở và trường ({picked.length} đã chọn)</span>
-            <SchoolPicker value={picked} onChange={setPicked} options={schools} empty="Không có trường nào đúng cấp học trong phạm vi." /></div>
+          {!school && <div className="field" style={{ marginBottom: 10 }}><span>Tỉnh / Sở và trường ({picked.length} đã chọn)</span>
+            <SchoolPicker value={picked} onChange={setPicked} options={schools} empty="Không có trường nào đúng cấp học trong phạm vi." /></div>}
           {picked.length === 1 && <fieldset className="libtargets wide"><legend>Lớp khối {plan.grade} (không chọn = áp dụng cả khối)</legend>
             <MultiSelect value={cls} onChange={setCls} options={classes.map(c => [c.id, c.name])} placeholder="Cả khối" ariaLabel="Lớp" empty={`Trường chưa có lớp khối ${plan.grade}.`} /></fieldset>}
-          <div className="formactions"><button type="button" className="primary" disabled={busy || !picked.length} onClick={() => assign()}>Gán và tạo PPCT</button>
+          <div className="formactions"><button type="button" className="primary" disabled={busy || !picked.length} onClick={() => assign()}>{school ? 'Áp dụng và tạo PPCT' : 'Gán và tạo PPCT'}</button>
             {canApply && <button type="button" disabled={busy || !picked.length} onClick={() => assign(true)}>Gán và áp dụng ngay</button>}
-            <small className="sub"> Gán và tạo PPCT: mỗi chương trình trong bản thành một PPCT nháp, trường kiểm tra rồi ban hành.{canApply && ' Gán và áp dụng ngay: PPCT ban hành luôn, lớp dùng được ngay.'} Tiết xếp đúng tuần của bản; gán lại không tạo trùng.</small></div>
+            <small className="sub">{school ? ' Mỗi chương trình trong bản thành một PPCT nháp của trường; gửi duyệt rồi ban hành như PPCT thường.' : <> Gán và tạo PPCT: mỗi chương trình trong bản thành một PPCT nháp, trường kiểm tra rồi ban hành.{canApply && ' Gán và áp dụng ngay: PPCT ban hành luôn, lớp dùng được ngay.'} Tiết xếp đúng tuần của bản; gán lại không tạo trùng.</>}</small></div>
         </>}
         {msg && <p className={msg[1] ? 'msg' : 'sub'} role="status"><b>{msg[0]}</b></p>}
       </div>
